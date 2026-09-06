@@ -2,7 +2,7 @@
 title: "Strømming av Copilot agent-sesjoner i public preview"
 date: 2026-07-02
 category: copilot
-excerpt: "Enterprise-bred tilgang til agent-sesjonsdata — prompter, svar og verktøykall — fra cloud-agenter, CLI, VS Code, Visual Studio og partner-IDE-er, via strømming eller REST API."
+excerpt: "Enterprise-bred tilgang til agent-sesjonsdata som prompter, svar og verktøykall fra cloud-agenter, CLI, VS Code, Visual Studio og partner-IDE-er, via strømming eller REST API."
 url: "https://github.blog/changelog/2026-07-02-copilot-agent-session-streaming-is-now-in-public-preview/"
 tags:
   - enterprise-controls
@@ -11,7 +11,7 @@ tags:
   - api
 ---
 
-Strømming av Copilot agent-sesjoner er nå i offentlig forhåndsvisning (public preview). GitHub Enterprise Cloud-kunder med enterprise managed users får enterprise-bred innsyn i AI-bruk på tvers av Copilot-flatene — inkludert prompter, svar og verktøykall (tool calls).
+Strømming av Copilot agent-sesjoner er nå i offentlig forhåndsvisning (public preview). GitHub Enterprise Cloud-kunder med enterprise managed users får enterprise-bred innsyn i AI-bruk på tvers av Copilot-flatene, inkludert prompter, svar og verktøykall (tool calls).
 
 ## Hvilke flater dekkes
 

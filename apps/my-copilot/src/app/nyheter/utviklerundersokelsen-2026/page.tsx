@@ -44,8 +44,8 @@ export default function SurveyArticlePage() {
             <article className="prose max-w-none">
               <BodyLong spacing>
                 I mars 2026 gjennomførte vi en spørreundersøkelse blant utviklere i Nav om erfaringer med
-                AI-kodeverktøy. 163 personer svarte over 21 dager. Hovedbildet: stor entusiasme for produktivitetsverdi
-                — men også en uro for hva vi mister på veien.
+                AI-kodeverktøy. 163 personer svarte over 21 dager. Hovedbildet: stor entusiasme for produktivitetsverdi,
+                men også en uro for hva vi mister på veien.
               </BodyLong>
 
               <Heading size="medium" level="2" spacing>
@@ -61,7 +61,7 @@ export default function SurveyArticlePage() {
               </Heading>
               <BodyLong spacing>
                 Bare 12 av 163 respondenter (7 %) oppgir at de ikke bruker AI-kodeverktøy. De som bruker verktøyene,
-                bruker i snitt 2,6 stykker — 74 % bruker to eller flere.
+                bruker i snitt 2,6 stykker, og 74 % bruker to eller flere.
               </BodyLong>
 
               <SurveyCharts section="tools" />
@@ -102,7 +102,7 @@ export default function SurveyArticlePage() {
               </blockquote>
 
               <Heading size="medium" level="2" spacing>
-                73 % er fornøyde — men med nyanser
+                73 % er fornøyde, men med nyanser
               </Heading>
               <BodyLong spacing>
                 Undersøkelsen stilte syv påstander på en skala fra «helt uenig» til «helt enig». Grønt viser enighet,
@@ -127,7 +127,7 @@ export default function SurveyArticlePage() {
 
               <BodyLong spacing>
                 <strong>Kodekvalitet er et åpent spørsmål.</strong> Bare 34 % mener AI-generert kode holder god nok
-                kvalitet til at den ikke skaper ekstra arbeid i code review — den største enkeltgruppen (43 %) er
+                kvalitet til at den ikke skaper ekstra arbeid i code review. Den største enkeltgruppen (43 %) er
                 nøytral.
               </BodyLong>
 
@@ -143,7 +143,7 @@ export default function SurveyArticlePage() {
               <BodyLong spacing>
                 <strong>Bekymringen for kompetansetap er reell.</strong> 59 % er bekymret for at AI kan svekke den dype
                 forståelsen av kode og teknologi. Faktisk er 41 % <em>både</em> fornøyde med verktøyene <em>og</em>{" "}
-                bekymret for kompetanseeffektene — det er ikke et enten/eller.
+                bekymret for kompetanseeffektene. Det er ikke et enten/eller.
               </BodyLong>
 
               <blockquote>
@@ -161,7 +161,7 @@ export default function SurveyArticlePage() {
               </Heading>
               <BodyLong spacing>
                 Halvparten (50 %) er <em>uenige</em> i at personvern eller sikkerhet hindrer dem i å bruke AI-verktøy
-                fullt ut. Kun 25 % opplever dette som en barriere — et tegn på at sikkerhetsarbeidet i Nav har hatt
+                fullt ut. Kun 25 % opplever dette som en barriere, et tegn på at sikkerhetsarbeidet i Nav har hatt
                 effekt.
               </BodyLong>
 
@@ -174,7 +174,7 @@ export default function SurveyArticlePage() {
 
               <BodyLong spacing>
                 <strong>Opplæring er det klart viktigste.</strong> Nesten en tredjedel ønsker bedre veiledning i
-                effektiv bruk. Nr. 2 — at AI-verktøyene forstår kodebasen og interne rammeverk bedre — handler om det
+                effektiv bruk. Nr. 2, at AI-verktøyene forstår kodebasen og interne rammeverk bedre, handler om det
                 samme: å gjøre verktøyene mer nyttige i praksis.
               </BodyLong>
 
@@ -184,7 +184,7 @@ export default function SurveyArticlePage() {
               <BodyLong spacing>
                 12 respondenter (7 %) oppgir at de ikke bruker AI-kodeverktøy. Halvparten foretrekker å kode uten AI. De
                 har i snitt lavere tilfredshet (3,2 vs. 4,0 av 5), og flere uttrykker bekymring for kompetanseeffekter.
-                Denne gruppen bør ikke avfeies — de stiller viktige spørsmål om langsiktig kompetanseutvikling og
+                Denne gruppen bør ikke avfeies. De stiller viktige spørsmål om langsiktig kompetanseutvikling og
                 teknologimodenhet.
               </BodyLong>
 
@@ -201,8 +201,8 @@ export default function SurveyArticlePage() {
 
               <BodyLong spacing>
                 Holdningene i de 53 svarene fordeler seg jevnt: 26 % er overveiende positive, 25 % overveiende negative,
-                13 % tydelig blandet, og 36 % nøytralt beskrivende. Det er altså ingen overvekt av entusiasme —
-                bekymringer og frustrasjoner er like godt representert.
+                13 % tydelig blandet, og 36 % nøytralt beskrivende. Det er altså ingen overvekt av entusiasme.
+                Bekymringer og frustrasjoner er like godt representert.
               </BodyLong>
 
               <blockquote>
@@ -239,7 +239,7 @@ export default function SurveyArticlePage() {
                 Tre ting å ta med videre
               </Heading>
               <BodyLong spacing>
-                AI-kodeverktøy er bredt tatt i bruk i Nav og verdsatt for produktiviteten de gir — men bekymringer om
+                AI-kodeverktøy er bredt tatt i bruk i Nav og verdsatt for produktiviteten de gir, men bekymringer om
                 kodekvalitet, kompetansetap og eierskap til koden følger med.
               </BodyLong>
               <ol>
@@ -258,7 +258,7 @@ export default function SurveyArticlePage() {
                 <li>
                   <BodyLong spacing>
                     <strong>Ta bekymringene på alvor.</strong> 59 % bekymrer seg for kompetansetap. Det er ikke
-                    irrasjonelt — det er et signal om at vi trenger bevisste strategier for å sikre at utviklere
+                    irrasjonelt. Det er et signal om at vi trenger bevisste strategier for å sikre at utviklere
                     fortsetter å bygge dyp forståelse.
                   </BodyLong>
                 </li>
@@ -284,7 +284,7 @@ export default function SurveyArticlePage() {
                 å svare.
               </BodyLong>
               <BodyLong spacing>
-                163 av over 500 Copilot-brukere svarte — en svarprosent på ca. 32 %. Det er en god respons for en
+                163 av over 500 Copilot-brukere svarte, en svarprosent på ca. 32 %. Det er en god respons for en
                 frivillig undersøkelse, men to tredjedeler svarte altså ikke. Vi distribuerte via Slack og allmøte, noe
                 som kan gi skjevhet mot utviklere som er mest aktive i disse kanalene.
               </BodyLong>
@@ -295,7 +295,7 @@ export default function SurveyArticlePage() {
               </BodyLong>
               <BodyLong spacing>
                 Som med alle undersøkelser basert på selvseleksjon, bør vi lese resultatene som et nyttig bilde av
-                holdningene blant engasjerte utviklere — ikke nødvendigvis representative for alle 500+ brukere.
+                holdningene blant engasjerte utviklere, ikke nødvendigvis representative for alle 500+ brukere.
               </BodyLong>
               <BodyLong spacing>
                 <strong>Om bruk av AI i denne artikkelen.</strong> Tekst og visualiseringer ble utarbeidet med hjelp av

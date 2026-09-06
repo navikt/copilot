@@ -13,7 +13,7 @@ tags:
 
 Agentisk autofix for code scanning-varsler er nå i offentlig forhåndsvisning (public preview). Funksjonen retter automatisk varsler fra CodeQL og tredjepartsverktøy: agenten utforsker relevante filer, genererer et forslag til rettelse, validerer at rettelsen fungerer ved å kjøre CodeQL på nytt, itererer om nødvendig, og åpner en utkast-PR til gjennomgang. Generering av en rettelse tar typisk 2–4 minutter.
 
-Der `/security-review` og de AI-drevne sikkerhetsdeteksjonene finner og rapporterer sårbarheter, tar dette steget for seg *remediering* — altså selve rettingen av varslene som allerede er funnet.
+Der `/security-review` og de AI-drevne sikkerhetsdeteksjonene finner og rapporterer sårbarheter, tar dette steget for seg *remediering*, altså selve rettingen av varslene som allerede er funnet.
 
 ## Slik utløses den
 

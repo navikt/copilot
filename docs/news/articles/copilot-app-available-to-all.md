@@ -2,7 +2,7 @@
 title: "GitHub Copilot-appen er nå tilgjengelig for alle"
 date: 2026-07-07
 category: copilot
-excerpt: "Desktop-appen er nå tilgjengelig på alle planer, inkludert Free og GitHub Education — og kan brukes med egne modellnøkler helt uten abonnement."
+excerpt: "Desktop-appen er nå tilgjengelig på alle planer, inkludert Free og GitHub Education, og kan brukes med egne modellnøkler helt uten abonnement."
 url: "https://github.blog/changelog/2026-07-07-github-copilot-app-available-to-all/"
 tags:
   - copilot-app

@@ -42,7 +42,7 @@ export default function RetningslinjerPage() {
               <VStack gap="space-8">
                 <BodyLong>
                   GitHub Copilot Business er tilgjengelig for alle ansatte i Utvikling og Data, så lenge vi har lisenser
-                  tilgjengelig. Konsulenter kan også få tilgang — se egen seksjon under.
+                  tilgjengelig. Konsulenter kan også få tilgang. Se egen seksjon under.
                 </BodyLong>
                 <BodyLong>
                   Du kan sjekke din tilgang på{" "}
@@ -68,8 +68,8 @@ export default function RetningslinjerPage() {
               <VStack gap="space-12">
                 <HGrid columns={{ xs: 1, md: 2 }} gap="space-12">
                   <AllowedItem title="GitHub Copilot Business">
-                    Kodeforslag, Chat, Agent mode og Copilot Workspace — alt som er tilgjengelig gjennom GitHub Copilot
-                    i editoren din.
+                    Kodeforslag, Chat, Agent mode og Copilot Workspace, altså alt som er tilgjengelig gjennom GitHub
+                    Copilot i editoren din.
                   </AllowedItem>
                   <AllowedItem title="Alle modeller i Copilot">
                     Du kan bruke alle modeller som er tilgjengelige gjennom GitHub Copilot, inkludert de fra Anthropic,
@@ -77,7 +77,7 @@ export default function RetningslinjerPage() {
                   </AllowedItem>
                   <AllowedItem title="Agent mode i editoren">
                     Du kan bruke Agent mode til autonome redigeringer lokalt. Du godkjenner terminalkommandoer og
-                    vurderer endringene før commit — samme ansvar som for all annen kode.
+                    vurderer endringene før commit, med samme ansvar som for all annen kode.
                   </AllowedItem>
                   <AllowedItem title="Nav-godkjente MCP-servere">
                     MCP-servere fra{" "}
@@ -119,7 +119,7 @@ export default function RetningslinjerPage() {
                   </ForbiddenItem>
                   <ForbiddenItem title="Agenter uten isolasjon">
                     Å kjøre AI-agenter med ubegrenset tilgang til Nav-utstyr er ikke tillatt. Bruk cplt eller
-                    tilsvarende isolasjon — også for personlig agentarbeid på utstyret.
+                    tilsvarende isolasjon, også for personlig agentarbeid på utstyret.
                   </ForbiddenItem>
                 </HGrid>
               </VStack>
@@ -130,14 +130,14 @@ export default function RetningslinjerPage() {
               <VStack gap="space-8">
                 <BodyLong>
                   Når du bruker en AI-agent på Nav-utstyr, skal agenten kjøre i en sandbox eller tilsvarende isolasjon.
-                  Kravet gjelder all agentbruk på utstyret — både Nav-relatert arbeid og personlig agentarbeid.
+                  Kravet gjelder all agentbruk på utstyret, både Nav-relatert arbeid og personlig agentarbeid.
                 </BodyLong>
                 <BodyLong>
                   Bruk{" "}
                   <NextLink href="/cplt" className="text-blue-600 hover:underline">
                     cplt
-                  </NextLink>{" "}
-                  — Navs egen sandbox for AI-agenter. Velger du en annen løsning, må du selv sette deg inn i og aktivere
+                  </NextLink>
+                  , Navs egen sandbox for AI-agenter. Velger du en annen løsning, må du selv sette deg inn i og aktivere
                   isolasjonen agentklienten tilbyr, eller bruke en annen mekanisme (for eksempel VM eller container).
                   Ikke kjør agenter med ubegrenset tilgang til maskinen.
                 </BodyLong>
@@ -157,7 +157,7 @@ export default function RetningslinjerPage() {
             <Section icon={<ShieldLockIcon aria-hidden />} title="Personvern og datainnsamling">
               <VStack gap="space-8">
                 <BodyLong>
-                  GitHub Copilot Business samler bruksdata — for eksempel om du godtar eller avviser forslag, hvor lenge
+                  GitHub Copilot Business samler bruksdata, for eksempel om du godtar eller avviser forslag, hvor lenge
                   du venter, og hvilke funksjoner du bruker. Dataene kan knyttes til pseudonyme IDer.
                 </BodyLong>
                 <BodyLong>
@@ -182,7 +182,7 @@ export default function RetningslinjerPage() {
             <Section icon={<PersonGroupIcon aria-hidden />} title="Ditt ansvar som utvikler">
               <VStack gap="space-8">
                 <BodyLong>
-                  Copilot er et verktøy — du er ansvarlig for koden som går i produksjon. De samme kravene gjelder
+                  Copilot er et verktøy. Du er ansvarlig for koden som går i produksjon. De samme kravene gjelder
                   uansett om koden er skrevet av deg, generert av AI, eller hentet fra andre kilder:
                 </BodyLong>
                 <ol className="list-decimal list-inside space-y-2">
@@ -193,7 +193,7 @@ export default function RetningslinjerPage() {
                     <BodyShort as="span">Skriv tester for å verifisere at koden fungerer som forventet</BodyShort>
                   </li>
                   <li>
-                    <BodyShort as="span">Bruk code review — Copilot erstatter ikke en annen utviklers blikk</BodyShort>
+                    <BodyShort as="span">Bruk code review. Copilot erstatter ikke en annen utviklers blikk</BodyShort>
                   </li>
                   <li>
                     <BodyShort as="span">
@@ -221,7 +221,7 @@ export default function RetningslinjerPage() {
                 </BodyLong>
                 <BodyLong>
                   Vær spesielt bevisst i &laquo;rød sone&raquo;: debugging, nye konsepter, kjernelogikk og
-                  sikkerhetskritisk kode. Her bør du prøve selv først og bruke AI som støtte — ikke omvendt.
+                  sikkerhetskritisk kode. Her bør du prøve selv først og bruke AI som støtte, ikke omvendt.
                 </BodyLong>
               </VStack>
             </Section>

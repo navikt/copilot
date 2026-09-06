@@ -141,7 +141,7 @@ const DailyCreditsChart: React.FC<DailyCreditsChartProps> = ({ data }) => {
       </div>
       {!hasCredits && (
         <BodyShort size="small" className="text-gray-500" style={{ marginTop: "var(--a-spacing-4)" }}>
-          Kredittellingen startet 19. juni 2026 — data vil vokse over tid.
+          Kredittellingen startet 19. juni 2026, så data vil vokse over tid.
         </BodyShort>
       )}
     </div>

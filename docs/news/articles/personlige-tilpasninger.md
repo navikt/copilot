@@ -56,7 +56,7 @@ VS Code leser også fra `~/.claude/skills/` og `~/.agents/skills/`. Du kan legge
 
 Agenter i `~/.copilot/agents/` er tilgjengelige i alle repoer. I VS Code oppretter du dem via **Configure Custom Agents > Create new custom agent > User profile**. I CLI bruker du `/agent` > **Create new agent** > **User (~/.copilot/agents/)**, eller lager fila direkte.
 
-Ved navnekonflikt vinner personnivået — en agent i `~/.copilot/agents/` overstyrer en med samme navn i `.github/agents/`.
+Ved navnekonflikt vinner personnivået. En agent i `~/.copilot/agents/` overstyrer en med samme navn i `.github/agents/`.
 
 VS Code-agenter støtter handoffs: styrte overganger der du hopper fra en agent til en annen med kontekst og forhåndsutfylt prompt. En personlig planleggingsagent kan sende videre til en implementeringsagent i repoet.
 
@@ -73,7 +73,7 @@ Copilot CLI leser instruksjoner fra `~/.copilot/copilot-instructions.md`. Disse 
 
 Med miljøvariabelen `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` kan du peke CLI til flere mapper. Den leter etter `AGENTS.md` og `*.instructions.md`-filer i hver av dem.
 
-VS Code og kodingsagenten på GitHub.com har foreløpig ikke personnivå for instruksjoner — der er de fortsatt repo-spesifikke.
+VS Code og kodingsagenten på GitHub.com har foreløpig ikke personnivå for instruksjoner. Der er de fortsatt repo-spesifikke.
 
 **Kilde:** [Adding custom instructions for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli/copilot-cli-custom-instructions) (GitHub Docs)
 
@@ -81,7 +81,7 @@ VS Code og kodingsagenten på GitHub.com har foreløpig ikke personnivå for ins
 
 ## Hva med prompts?
 
-Prompt-filer (`.prompt.md`) støttes foreløpig bare på reponivå. Det finnes ingen `~/.copilot/prompts/`-ekvivalent. Trenger du gjenbrukbare arbeidsflyter på tvers av repoer, er skills et bedre valg — de er portable og følger den åpne standarden fra [agentskills.io](https://agentskills.io/).
+Prompt-filer (`.prompt.md`) støttes foreløpig bare på reponivå. Det finnes ingen `~/.copilot/prompts/`-ekvivalent. Trenger du gjenbrukbare arbeidsflyter på tvers av repoer, er skills et bedre valg. De er portable og følger den åpne standarden fra [agentskills.io](https://agentskills.io/).
 
 ---
 

@@ -10,7 +10,7 @@ tags:
   - coding-agents
 ---
 
-OpenAIs GPT-5.6-familie ruller nå ut i GitHub Copilot i tre varianter — Sol, Terra og Luna — slik at du kan matche modell mot oppgave.
+OpenAIs GPT-5.6-familie ruller nå ut i GitHub Copilot i de tre variantene Sol, Terra og Luna, slik at du kan matche modell mot oppgave.
 
 ## De tre variantene
 
@@ -37,4 +37,4 @@ Copilot Business- og Enterprise-administratorer må aktivere policyen for GPT-5.
 
 Tilgjengelig i: VS Code, Visual Studio, Copilot CLI, GitHub Copilot cloud agent, GitHub.com, GitHub Mobile, JetBrains, Xcode, Eclipse.
 
-Utrullingen er gradvis — hvis du ikke ser modellene ennå, sjekk igjen om litt.
+Utrullingen er gradvis. Hvis du ikke ser modellene ennå, sjekk igjen om litt.

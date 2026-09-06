@@ -3,7 +3,7 @@ title: "Copilot går over til bruksbasert fakturering 1. juni"
 date: 2026-04-27
 author: starefossen
 category: copilot
-excerpt: "Premium requests erstattes av GitHub AI Credits basert på tokenforbruk — planpriser forblir uendret."
+excerpt: "Premium requests erstattes av GitHub AI Credits basert på tokenforbruk. Planprisene forblir uendret."
 url: "https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/"
 tags:
   - billing
@@ -11,7 +11,7 @@ tags:
   - breaking-change
 ---
 
-Fra 1. juni 2026 erstattes premium request-enheter (PRU) med **GitHub AI Credits**. Forbruket beregnes per token — input, output og cached input — etter publiserte API-rater for hver modell. 1 AI Credit = $0.01.
+Fra 1. juni 2026 erstattes premium request-enheter (PRU) med **GitHub AI Credits**. Forbruket beregnes per token, både input, output og cached input, etter publiserte API-rater for hver modell. 1 AI Credit = $0.01.
 
 ## Hva endrer seg
 
@@ -22,15 +22,15 @@ Fra 1. juni 2026 erstattes premium request-enheter (PRU) med **GitHub AI Credits
 | Overskudd | Fallback til billig modell | Blokkeres eller koster tillegg |
 | Pooling | Per bruker | Per organisasjon |
 
-Planprisene er uendret — Business koster $19/bruker/mnd, Enterprise $39/bruker/mnd. Code completions og Next Edit er fortsatt gratis.
+Planprisene er uendret. Business koster $19/bruker/mnd og Enterprise $39/bruker/mnd. Code completions og Next Edit er fortsatt gratis.
 
 ## Tre token-typer
 
 Hver interaksjon består av:
 
-1. **Input tokens** — det du sender (prompt, kontekst, filer)
-2. **Output tokens** — det modellen genererer
-3. **Cached input tokens** — kontekst som modellen gjenbruker fra sesjonen
+1. **Input tokens** er det du sender (prompt, kontekst, filer)
+2. **Output tokens** er det modellen genererer
+3. **Cached input tokens** er kontekst som modellen gjenbruker fra sesjonen
 
 Cached input koster **90 % mindre** enn vanlig input. Eksempel:
 
@@ -44,12 +44,12 @@ Anthropic-modeller har i tillegg en **cache write**-kostnad (25 % over vanlig in
 
 Tabellen over er et utsnitt fra april 2026. [Modellpriser](/priser) har hele tabellen og synkroniseres mot GitHub-dokumentasjonen.
 
-## Token cache — hva vi vet
+## Hva vi vet om token-cachen
 
-- Cachen gjelder **innenfor sesjonen** — lukker du sesjonen, betaler du full pris igjen
+- Cachen gjelder **innenfor sesjonen**. Lukker du sesjonen, betaler du full pris igjen
 - Auto model selection velger modell langs «naturlige cache-grenser» for å unngå ekstra cachekostnader
 - Modellbytte midt i sesjonen invaliderer cachen
-- GitHub dokumenterer **ingen cache-TTL** — i praksis varer cachen så lenge sesjonen er aktiv
+- GitHub dokumenterer **ingen cache-TTL**, men i praksis varer cachen så lenge sesjonen er aktiv
 - Ut fra provider-atferd (Anthropic: 5 min default TTL, OpenAI: varierer) kan cachen falle bort i inaktive sesjoner
 
 ## Promokreditter juni–august

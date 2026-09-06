@@ -16,7 +16,7 @@ const FILE_TREE: FileEntry[] = [
   {
     name: "agents/nav-pilot.agent.md",
     type: "agent",
-    description: "Hovedagenten — én inngangsport til alt",
+    description: "Hovedagenten, én inngangsport til alt",
     detail:
       "Definerer @nav-pilot sin persona, hvilke skills den bruker, og hvordan den delegerer til andre agenter. Copilot leser denne filen når du skriver @nav-pilot i chatten.",
     when: "Når du skriver @nav-pilot i Copilot Chat",
@@ -50,7 +50,7 @@ const FILE_TREE: FileEntry[] = [
     type: "instruction",
     description: "Kodestandarder for Kotlin/Ktor",
     detail:
-      "Alltid aktiv i Kotlin-filer. Forteller Copilot om sealed classes, Kotliquery-mønstre, ApplicationBuilder og feilhåndtering — uten at du trenger å spørre.",
+      "Alltid aktiv i Kotlin-filer. Forteller Copilot om sealed classes, Kotliquery-mønstre, ApplicationBuilder og feilhåndtering, uten at du trenger å spørre.",
     when: "Automatisk i alle .kt-filer (applyTo-mønster)",
   },
   {

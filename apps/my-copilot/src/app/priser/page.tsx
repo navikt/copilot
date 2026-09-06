@@ -202,10 +202,10 @@ export default function PriserPage() {
                 </Heading>
                 <ul className="space-y-2" style={{ color: "#475569", fontSize: "0.875rem", paddingLeft: "1.25rem" }}>
                   <li>
-                    <strong>Nav Business-kvote:</strong> 1 900 credits/bruker/mnd ($19) — poolet på org-nivå
+                    <strong>Nav Business-kvote:</strong> 1 900 credits/bruker/mnd ($19), poolet på org-nivå
                   </li>
                   <li>
-                    <strong>Cached tokens koster 90 % mindre</strong> — fokuserte sesjoner utnytter caching bedre
+                    <strong>Cached tokens koster 90 % mindre</strong>, så fokuserte sesjoner utnytter caching bedre
                   </li>
                   <li>
                     <strong>Auto-modus</strong> velger modell etter oppgave og gir innebygd rabatt
@@ -223,7 +223,7 @@ export default function PriserPage() {
                     kampanjen 50 % av standardpris, så fra 4. september 2026 blir prisen etter alt å dømme $4.00 input
                     og $20.00 output.
                   </li>
-                  <li>Opus er 67 % dyrere enn Sonnet — bruk Opus kun for komplekse arkitekturbeslutninger</li>
+                  <li>Opus er 67 % dyrere enn Sonnet. Bruk Opus kun for komplekse arkitekturbeslutninger</li>
                 </ul>
               </VStack>
             </Box>

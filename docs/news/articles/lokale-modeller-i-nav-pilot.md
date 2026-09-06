@@ -79,9 +79,9 @@ nav-pilot alpha local init
 ```
 
 Det vi selv lærte av dette er verdt mer enn modellvalget: **én kjøring er ikke en måling.** Alle
-konklusjonene som snudde, snudde fordi det fantes en kjøring til — ikke fordi vi tenkte oss om en
+konklusjonene som snudde, snudde fordi det fantes en kjøring til, ikke fordi vi tenkte oss om en
 gang til. Tabellen over var bygget på enkeltkjøringer. Denne konklusjonen snudde tre ganger: fra
-«3.8 går i loop», til «3.8 er uforutsigbar», til «3.8 løser mer enn standarden» — og så tilbake
+«3.8 går i loop», til «3.8 er uforutsigbar», til «3.8 løser mer enn standarden», og så tilbake
 til «ingen målbar forskjell». Den siste snuen var den viktigste: vi oppdaget at sandkassen aldri
 hadde gitt modellene tilgang til byggverktøyene, så ingen av dem kunne kompilere eller kjøre
 tester. Da det ble rettet, forsvant forspranget. Vi hadde altså ikke målt modellene, vi hadde

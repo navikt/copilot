@@ -1,5 +1,5 @@
 ---
-title: "VS Code april-releaser — /chronicle, BYOK i editoren og nettleser-deling"
+title: "VS Code april-releaser med /chronicle, BYOK i editoren og nettleser-deling"
 date: 2026-05-06
 author: starefossen
 category: copilot

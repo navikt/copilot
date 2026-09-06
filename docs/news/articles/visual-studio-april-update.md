@@ -1,5 +1,5 @@
 ---
-title: "Visual Studio april-oppdatering — cloud agent og debugger-agent"
+title: "Visual Studio april-oppdatering med cloud agent og debugger-agent"
 date: 2026-04-30
 author: starefossen
 category: copilot

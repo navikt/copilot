@@ -36,18 +36,18 @@ import {
 export const metadata: Metadata = {
   title: "nav-pilot — Copilot i Nav",
   description:
-    "nav-pilot gir GitHub Copilot Navs institusjonelle kunnskap — fra Nais-manifester til TokenX, rett i editoren din.",
+    "nav-pilot gir GitHub Copilot Navs institusjonelle kunnskap, fra Nais-manifester til TokenX, rett i editoren din.",
   openGraph: {
     title: "nav-pilot — Copilot i Nav",
     description:
-      "GitHub Copilot med Navs institusjonelle kunnskap — Nais, TokenX, Aksel, Kotlin/Ktor og mer, rett i editoren.",
+      "GitHub Copilot med Navs institusjonelle kunnskap om Nais, TokenX, Aksel, Kotlin/Ktor og mer, rett i editoren.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "nav-pilot — Copilot i Nav",
     description:
-      "GitHub Copilot med Navs institusjonelle kunnskap — Nais, TokenX, Aksel, Kotlin/Ktor og mer, rett i editoren.",
+      "GitHub Copilot med Navs institusjonelle kunnskap om Nais, TokenX, Aksel, Kotlin/Ktor og mer, rett i editoren.",
   },
 };
 
@@ -108,7 +108,7 @@ const COLLECTIONS = [
   {
     id: "fullstack",
     title: "Fullstack",
-    description: "Backend + frontend — komplett for din tjeneste",
+    description: "Backend + frontend, komplett for din tjeneste",
     agents: 7,
     skills: 27,
     highlights: ["Komplett pakke", "BFF-mønster", "Migrering"],
@@ -172,14 +172,14 @@ const PIPELINE_STEPS = [
   {
     title: "Intervju",
     subtitle: "Smart intervju",
-    description: "Små oppgaver: bare gjør det. Medium/store: sjekker blindsoner — personvern, auth og avhengigheter.",
+    description: "Små oppgaver: bare gjør det. Medium/store: sjekker blindsoner som personvern, auth og avhengigheter.",
     Icon: MagnifyingGlassIcon,
     color: "#a78bfa",
   },
   {
     title: "Plan",
     subtitle: "Beslutningstrær",
-    description: "Velger arkitektur, teststrategi og leveransedokumenter — nybygg, refaktorering eller migrering.",
+    description: "Velger arkitektur, teststrategi og leveransedokumenter for nybygg, refaktorering eller migrering.",
     Icon: TasklistIcon,
     color: "#60a5fa",
   },
@@ -278,7 +278,7 @@ function HeroSection({ stars }: { stars: number | null }) {
               className="max-w-2xl mx-auto hero-animate-d1"
               style={{ color: "#94a3b8", fontSize: "1.125rem", lineHeight: 1.7, marginBlock: 0, textAlign: "center" }}
             >
-              Navs institusjonelle kunnskap — arkitektur, modernisering og beste praksis — i terminalen og editoren.
+              Navs institusjonelle kunnskap om arkitektur, modernisering og beste praksis, i terminalen og editoren.
             </p>
             {/* GitHub badge */}
             <div className="flex justify-center hero-animate-d1">
@@ -426,7 +426,7 @@ const USE_CASES = [
     Icon: ArrowsCirclepathIcon,
     color: "#a78bfa",
     title: "Moderniser",
-    description: "Strangler fig, feature toggles, tre-fase-datamigrering — nav-pilot kjenner mønstrene.",
+    description: "Strangler fig, feature toggles, tre-fase-datamigrering. nav-pilot kjenner mønstrene.",
   },
   {
     Icon: WrenchIcon,
@@ -450,7 +450,7 @@ const USE_CASES = [
     Icon: FileTextIcon,
     color: "#f472b6",
     title: "Dokumenter",
-    description: "Endringsdokument, utrullingsplan, runbook og post-deploy-verifisering — alt i ett.",
+    description: "Endringsdokument, utrullingsplan, runbook og post-deploy-verifisering, alt i ett.",
   },
   {
     Icon: ShieldLockIcon,
@@ -474,7 +474,7 @@ function UseCasesSection() {
               Ikke bare for nye prosjekter
             </Heading>
             <p className="max-w-2xl mx-auto" style={{ color: "#94a3b8", marginBlock: 0, textAlign: "center" }}>
-              De fleste utviklere bygger ikke fra bunnen av — de vedlikeholder, moderniserer og forbedrer. nav-pilot
+              De fleste utviklere bygger ikke fra bunnen av. De vedlikeholder, moderniserer og forbedrer. nav-pilot
               hjelper med hele spekteret.
             </p>
           </div>
@@ -531,7 +531,7 @@ function CollectionsSection() {
         <VStack gap={{ xs: "space-16", md: "space-24" }}>
           <div className="text-center">
             <Heading size="medium" level="2" className="mb-3" style={{ color: "white" }}>
-              Én agentpakke — innhold for hele stacken
+              Én agentpakke med innhold for hele stacken
             </Heading>
             <p className="max-w-2xl mx-auto" style={{ color: "#94a3b8", marginBlock: 0, textAlign: "center" }}>
               Alt installeres med én kommando; instruksjoner og skills aktiveres av stacken din. Her er et utvalg per
@@ -723,10 +723,10 @@ function PipelineSection() {
         <VStack gap={{ xs: "space-16", md: "space-24" }}>
           <div className="text-center">
             <Heading size="medium" level="2" className="mb-3">
-              Fra idé til produksjon — eller fra teknisk gjeld til moderne løsning
+              Fra idé til produksjon, eller fra teknisk gjeld til moderne løsning
             </Heading>
             <p className="max-w-2xl mx-auto" style={{ color: "#64748b", marginBlock: 0, textAlign: "center" }}>
-              nav-pilot guider deg gjennom fire faser — enten du bygger nytt eller forbedrer eksisterende kode.
+              nav-pilot guider deg gjennom fire faser, enten du bygger nytt eller forbedrer eksisterende kode.
             </p>
           </div>
 

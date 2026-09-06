@@ -12,13 +12,13 @@ tags:
   - cost-optimization
 ---
 
-Nav har nå over 600 Copilot Business-brukere. Bruken øker måned for måned — flere agenter, lengre sesjoner, mer kontekst. Fra 1. juni endrer GitHub faktureringsmodellen: premium requests erstattes av AI Credits ut fra faktisk token-forbruk. Det betyr at modellvalg blir en direkte kostnadsfaktor.
+Nav har nå over 600 Copilot Business-brukere. Bruken øker måned for måned, med flere agenter, lengre sesjoner og mer kontekst. Fra 1. juni endrer GitHub faktureringsmodellen: premium requests erstattes av AI Credits ut fra faktisk token-forbruk. Det betyr at modellvalg blir en direkte kostnadsfaktor.
 
 ## Hva endrer seg 1. juni
 
-Hver Business-bruker får 1 900 AI Credits per måned ($19). Credits pooler på organisasjonsnivå — Nav får ca. 950 000 credits i måneden. Én credit = $0.01.
+Hver Business-bruker får 1 900 AI Credits per måned ($19). Credits pooler på organisasjonsnivå, så Nav får ca. 950 000 credits i måneden. Én credit = $0.01.
 
-«Auto»-modus har innebygd rabatt og velger en passende modell for oppgaven. Problemet er at mange brukere velger Claude Opus manuelt for alt — også oppgaver der Sonnet gir like godt resultat.
+«Auto»-modus har innebygd rabatt og velger en passende modell for oppgaven. Problemet er at mange brukere velger Claude Opus manuelt for alt, også oppgaver der Sonnet gir like godt resultat.
 
 | | Claude Opus 4.6 | Claude Sonnet 4.6 | Forskjell |
 | --- | --- | --- | --- |
@@ -30,9 +30,9 @@ Hver Business-bruker får 1 900 AI Credits per måned ($19). Credits pooler på 
 | 50 kall per dag | $7.00 | $4.20 | $2.80 spart per dag |
 | Per bruker per måned (50 kall/dag) | ~$140 | ~$84 | ~$56 spart |
 
-Med 600 brukere og et snitt på 10 kall per dag: Opus koster ca. $28/bruker/mnd — det er mer enn hele Business-kvoten på $19.
+Med 600 brukere og et snitt på 10 kall per dag: Opus koster ca. $28/bruker/mnd. Det er mer enn hele Business-kvoten på $19.
 
-> 📊 Se [fullstendig pristabell for alle modeller](/priser) — oppdateres automatisk fra GitHub docs.
+> 📊 Se [fullstendig pristabell for alle modeller](/priser). Den oppdateres automatisk fra GitHub docs.
 
 Med model-pinning styrer vi hvilken modell hver agent og prompt bruker, ut fra hva oppgaven krever. For de fleste oppgaver er Sonnet eller billigere modeller mer enn godt nok.
 
@@ -54,7 +54,7 @@ Den enkleste besparelsen: bruk Auto i stedet for å velge Opus manuelt.
 
 | Scenario | Kostnad per interaksjon | Spart vs. Opus |
 | --- | --- | --- |
-| Opus for alt (brukervalg) | $0.14 | — |
+| Opus for alt (brukervalg) | $0.14 | utgangspunkt |
 | Auto-modus (med rabatt) | ~$0.06–$0.08 | ~40–55 % |
 | Med pinning (riktig modell per oppgave) | $0.03–$0.08 | ~40–80 % |
 
@@ -64,22 +64,22 @@ Promokreditter juni–august gir 3 000 credits per bruker i stedet for 1 900. De
 
 ## Slik holder du forbruket nede
 
-### 1. Bruk Auto — ikke Opus for alt
+### 1. Bruk Auto, ikke Opus for alt
 
 Auto-modus har innebygd rabatt og velger riktig modell for oppgaven. Trenger du Opus, bruk agenter som `@nav-pilot-opus` eller `@security-champion` for dyp analyse. `@nav-pilot` kjører Sonnet som standard for lavere kostnad på rutineoppgaver.
 
-### 2. Bruk caching — hold sesjonen åpen
+### 2. Bruk caching og hold sesjonen åpen
 
-Copilot skiller mellom tre token-typer: **input**, **output** og **cached input**. Cached input koster **90 % mindre** enn vanlig input — kontekst fra tidligere i sesjonen gjenbrukes automatisk.
+Copilot skiller mellom tre token-typer: **input**, **output** og **cached input**. Cached input koster **90 % mindre** enn vanlig input. Kontekst fra tidligere i sesjonen gjenbrukes automatisk.
 
 **Cached input-priser (per 1M tokens):**
 
 | Modell | Input | Cached input | Cache write (kun Anthropic) |
 | --- | --- | --- | --- |
-| GPT-5.3-Codex | $1.75 | $0.175 | — |
+| GPT-5.3-Codex | $1.75 | $0.175 | ingen |
 | Claude Sonnet 4.6 | $3.00 | $0.30 | $3.75 |
 | Claude Opus 4.6 | $5.00 | $0.50 | $6.25 |
-| GPT-5 mini | $0.25 | $0.025 | — |
+| GPT-5 mini | $0.25 | $0.025 | ingen |
 
 Anthropic-modeller har en ekstra **cache write**-kostnad (25 % over vanlig input) første gang konteksten skrives til cache, men 90 % billigere ved påfølgende lesinger.
 
@@ -91,12 +91,12 @@ Anthropic-modeller har en ekstra **cache write**-kostnad (25 % over vanlig input
 
 **Cache-adferd:**
 
-- Cachen gjelder innenfor sesjonen — lukker du sesjonen, betaler du full pris igjen
+- Cachen gjelder innenfor sesjonen. Lukker du sesjonen, betaler du full pris igjen
 - Auto model selection velger modell langs «naturlige cache-grenser» for å unngå ekstra cachekostnader ([kilde](https://docs.github.com/en/copilot/concepts/auto-model-selection))
-- Modellbytte midt i sesjonen invaliderer cachen — unngå dette
+- Modellbytte midt i sesjonen invaliderer cachen, så unngå det
 - GitHub dokumenterer ingen cache-TTL, men sesjonsbasert caching betyr i praksis at cachen varer så lenge sesjonen er aktiv
 
-**Best practice:** Hold sesjoner åpne når du jobber med relaterte oppgaver. Bruk Auto eller en agent med pinnet modell — begge unngår modellbytte som bryter cache.
+**Best practice:** Hold sesjoner åpne når du jobber med relaterte oppgaver. Bruk Auto eller en agent med pinnet modell. Begge unngår modellbytte som bryter cache.
 
 ### 3. Kodekomplettering er gratis
 
@@ -104,7 +104,7 @@ Ghost text, tab-completions og next edit suggestions bruker **ikke** AI Credits.
 
 ### 4. Context engineering i CLI
 
-Copilot CLI og OpenCode laster inn AGENTS.md, instruksjonsfiler og åpne filer som kontekst — alt teller som input-tokens. Slik holder du konteksten kompakt:
+Copilot CLI og OpenCode laster inn AGENTS.md, instruksjonsfiler og åpne filer som kontekst, og alt teller som input-tokens. Slik holder du konteksten kompakt:
 
 **Copilot CLI:**
 
@@ -114,14 +114,14 @@ Copilot CLI og OpenCode laster inn AGENTS.md, instruksjonsfiler og åpne filer s
 
 **OpenCode:**
 
-- `AGENTS.md` i prosjektroten lastes som kontekst. Kjør `/init` for å generere en tilpasset versjon — den skanner prosjektet og lager et kompakt sammendrag.
-- Personlige regler i `~/.config/opencode/AGENTS.md` lastes alltid — hold den minimal.
+- `AGENTS.md` i prosjektroten lastes som kontekst. Kjør `/init` for å generere en tilpasset versjon. Den skanner prosjektet og lager et kompakt sammendrag.
+- Personlige regler i `~/.config/opencode/AGENTS.md` lastes alltid, så hold den minimal.
 - `/compact` komprimerer samtalehistorikken manuelt hvis sesjonen blir lang.
 
 **Felles prinsipper:**
 
 - Skriv instruksjoner som stikkord og lister, ikke lange avsnitt. LLM-er forstår konsise regler like godt.
-- Fjern utdaterte eller overlappende instruksjoner — de bruker tokens uten å gi verdi.
+- Fjern utdaterte eller overlappende instruksjoner. De bruker tokens uten å gi verdi.
 - Bruk `applyTo:` (Copilot) eller separate agent-filer (OpenCode) for å avgrense kontekst til relevante filer.
 - Husk: 2 000 tegn ≈ 350 tokens. En AGENTS.md på 10 000 tegn koster ca. $0,006 i input per kall med Sonnet.
 
@@ -156,11 +156,11 @@ Model-pinning er første steg. Framover ser vi på:
 - **Forbruksoversikt:** Dashbord på min-copilot.ansatt.nav.no som viser hvem som bruker mest. Ikke for å henge ut noen, men for å lære av hverandre.
 - **Erfaringsdeling fra storforbrukere:** De som bruker mest AI Credits, blir invitert til å dele hva de jobber med og hvordan de bruker agenter. Målet er å spre gode arbeidsmønstre.
 
-Vi tror de mest aktive brukerne har verdifull innsikt i hva som fungerer — og hva som ikke gjør det. Den innsikten vil vi dele bredt.
+Vi tror de mest aktive brukerne har verdifull innsikt i hva som fungerer, og hva som ikke gjør det. Den innsikten vil vi dele bredt.
 
 ## Hva du merker
 
-Ingenting — `model:` setter default, men du kan fortsatt velge modell manuelt i model picker. I juni oppgraderer vi til Opus 4.7 — da koster alle Opus-modeller det samme per token.
+Ingenting. `model:` setter default, men du kan fortsatt velge modell manuelt i model picker. I juni oppgraderer vi til Opus 4.7, og da koster alle Opus-modeller det samme per token.
 
 **Bruk [`@nav-pilot`](/nav-pilot) som standard, og `@nav-pilot-opus` for tunge vurderinger.** Nav-pilot bruker Sonnet som default for kostnadseffektiv planlegging. Når du trenger dyp tradeoff-analyse og kritisk review, bruk nav-pilot-opus (Opus) eksplisitt.
 
@@ -168,6 +168,6 @@ Ingenting — `model:` setter default, men du kan fortsatt velge modell manuelt 
 
 **Kilder:**
 
-- [Copilot model pinning — issue #216](https://github.com/navikt/copilot/issues/216) (navikt/copilot, mai 2026)
+- [Copilot model pinning, issue #216](https://github.com/navikt/copilot/issues/216) (navikt/copilot, mai 2026)
 - [Models and pricing for GitHub Copilot](https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing) (GitHub Docs)
 - [GitHub Copilot is moving to usage-based billing](https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/) (GitHub Blog, april 2026)

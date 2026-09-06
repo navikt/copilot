@@ -22,8 +22,8 @@ Repo-administratorer kan nå slå av memory per repo under **Settings → Copilo
 
 Copilot CLI har fått nye kommandoer:
 
-- `/memory show` — vis lagrede fakta for gjeldende kontekst
-- `/memory off` — slå av memory for resten av sesjonen
+- `/memory show` viser lagrede fakta for gjeldende kontekst
+- `/memory off` slår av memory for resten av sesjonen
 
 ### Tydeligere scope ved sletting
 

@@ -19,7 +19,7 @@ async function BillingOverview() {
   if (!token) {
     return (
       <Box background="danger-soft" padding="space-16" borderRadius="8">
-        <BodyShort className="text-red-600">Ikke autentisert — kan ikke hente faktureringsdata</BodyShort>
+        <BodyShort className="text-red-600">Kan ikke hente faktureringsdata fordi du ikke er autentisert</BodyShort>
       </Box>
     );
   }

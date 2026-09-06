@@ -3,7 +3,7 @@ title: "MCP-servere nå tilgjengelig fra verktøysiden"
 date: 2026-03-10
 author: starefossen
 category: nav
-excerpt: "Verktøysiden viser nå MCP-servere fra Navs MCP-register — med installasjonsinstruksjoner, verktøyliste og direkte CLI-kommandoer for VS Code."
+excerpt: "Verktøysiden viser nå MCP-servere fra Navs MCP-register, med installasjonsinstruksjoner, verktøyliste og direkte CLI-kommandoer for VS Code."
 tags:
   - mcp
   - mcp-registry
@@ -26,7 +26,7 @@ Verktøysiden på my-copilot har fått en ny seksjon: **MCP-servere**. Serverne 
 
 ## Installasjon rett fra verktøysiden
 
-Klikk på en MCP-server for å se detaljer — inkludert verktøy, tags og installasjonsinstruksjoner. For servere med npm-pakker får du en ferdig `code --add-mcp`-kommando du kan kopiere rett inn i terminalen. HTTP-baserte servere viser også `gh copilot mcp add`-kommandoen.
+Klikk på en MCP-server for å se detaljer, inkludert verktøy, tags og installasjonsinstruksjoner. For servere med npm-pakker får du en ferdig `code --add-mcp`-kommando du kan kopiere rett inn i terminalen. HTTP-baserte servere viser også `gh copilot mcp add`-kommandoen.
 
 Playwright MCP er forhåndskonfigurert med Nav-spesifikke sikkerhetsregler: isolert browser, blokkerte Nav-domener og trace-logging.
 

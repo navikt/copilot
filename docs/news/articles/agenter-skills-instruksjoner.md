@@ -3,7 +3,7 @@ title: "Agenter, skills eller instruksjoner? Slik velger du riktig"
 date: 2026-05-22
 author: starefossen
 category: praksis
-excerpt: "Copilot har flere typer tilpasninger. Her er når du bruker hva — med beslutningstre og eksempler fra navikt."
+excerpt: "Copilot har flere typer tilpasninger. Her er når du bruker hva, med beslutningstre og eksempler fra navikt."
 tags:
   - agents
   - skills
@@ -12,7 +12,7 @@ tags:
   - best-practices
 ---
 
-GitHub Copilot i VS Code har flere tilpasningstyper. De ser like ut — markdown-filer i `.github/` — men løser forskjellige problemer. Her er hvordan du velger riktig type.
+GitHub Copilot i VS Code har flere tilpasningstyper. De er alle markdown-filer i `.github/` og ser like ut, men løser forskjellige problemer. Her er hvordan du velger riktig type.
 
 ## Tilpasningstyper
 
@@ -25,11 +25,11 @@ GitHub Copilot i VS Code har flere tilpasningstyper. De ser like ut — markdown
 | **MCP-servere** | `mcp.json` / VS Code settings | Alltid tilgjengelig | Koble til API-er og databaser |
 | **Hooks** | `.github/hooks/` | Automatisk (livssyklus) | Skript ved filendring eller commit |
 
-Vi dekker de tre første — instruksjoner, skills og agenter — som er mest relevante å lage selv.
+Vi dekker de tre første, siden instruksjoner, skills og agenter er mest relevante å lage selv.
 
 ---
 
-## Instruksjoner — regler som alltid gjelder
+## Instruksjoner er regler som alltid gjelder
 
 Instruksjoner er den enkleste tilpasningen. Du skriver regler i en markdown-fil, angir et glob-mønster, og reglene gjelder automatisk for matchende filer. Du trenger ikke aktivere noe manuelt.
 
@@ -48,17 +48,17 @@ applyTo: "**/*.{kt,go}"
 Bruk parameteriserte spørringer. Logg aldri PII...
 ```
 
-Instruksjoner er passive — de påvirker AI-ens svar uten at du trenger å tenke på dem. [VS Code-dokumentasjonen](https://code.visualstudio.com/docs/copilot/customization/custom-instructions) anbefaler å starte her: «Start with a single `.github/copilot-instructions.md` file for project-wide coding standards. Add `.instructions.md` files when you need different rules for different file types.»
+Instruksjoner er passive. De påvirker AI-ens svar uten at du trenger å tenke på dem. [VS Code-dokumentasjonen](https://code.visualstudio.com/docs/copilot/customization/custom-instructions) anbefaler å starte her: «Start with a single `.github/copilot-instructions.md` file for project-wide coding standards. Add `.instructions.md` files when you need different rules for different file types.»
 
-**Viktig:** Instruksjoner gjelder *ikke* for inline-forslag mens du skriver — kun for chat, agenter og code review.
+**Viktig:** Instruksjoner gjelder *ikke* for inline-forslag mens du skriver, kun for chat, agenter og code review.
 
 ---
 
-## Skills — kunnskap og workflows on-demand
+## Skills gir kunnskap og workflows on-demand
 
-Skills er mapper med en `SKILL.md`-fil som inneholder instruksjoner, og valgfritt skript, maler og referansemateriale. De lastes bare når oppgaven matcher — så de bruker ikke opp kontekstvinduet.
+Skills er mapper med en `SKILL.md`-fil som inneholder instruksjoner, og valgfritt skript, maler og referansemateriale. De lastes bare når oppgaven matcher, så de bruker ikke opp kontekstvinduet.
 
-Skills er en [åpen standard](https://agentskills.io) som fungerer i VS Code, Copilot CLI og kodingsagenten — så en skill du lager i repoet virker uansett hvor du jobber.
+Skills er en [åpen standard](https://agentskills.io) som fungerer i VS Code, Copilot CLI og kodingsagenten, så en skill du lager i repoet virker uansett hvor du jobber.
 
 Bruk skills for:
 
@@ -81,21 +81,21 @@ my-skill/
 
 - **Skriv det agenten ikke vet.** Fokuser på prosjektspesifikke konvensjoner, API-detaljer og kjente fallgruver. Du trenger ikke forklare hva en database er.
 - **Hold det under 500 linjer.** Flytt detaljert referansemateriale til `references/`-mappen og fortell agenten *når* den skal laste det.
-- **Inkluder en gotchas-seksjon.** Feil agenten gjør uten å bli fortalt — dette er ofte det mest verdifulle innholdet.
+- **Inkluder en gotchas-seksjon.** Feil agenten gjør uten å bli fortalt er ofte det mest verdifulle innholdet.
 - **Test med ekte oppgaver.** Kjør skillen mot reelle oppgaver, les agenttracene, og oppdater basert på hva som fungerer.
 
 ---
 
-## Agenter — spesialister med egne verktøy
+## Agenter er spesialister med egne verktøy
 
 Agenter er den mest avanserte tilpasningen. De definerer en persona med egne verktøy, modellvalg og handoffs til andre agenter. [VS Code-dokumentasjonen](https://code.visualstudio.com/docs/copilot/customization/custom-agents) beskriver dem slik: «Custom agents give the AI a specific persona and constrained set of tools for a particular role.»
 
 Bruk agenter når du trenger:
 
-- **Verktøybegrensning** — en planleggingsagent som kun kan lese, ikke redigere
-- **Modellvalg** — Opus for arkitektur, Codex for implementering
-- **MCP-verktøy** — tilgang til Figma, GitHub API eller databaser
-- **Handoffs** — sekvensielle workflows (Plan → Implementer → Review)
+- **Verktøybegrensning**, for eksempel en planleggingsagent som kun kan lese, ikke redigere
+- **Modellvalg**, som Opus for arkitektur og Codex for implementering
+- **MCP-verktøy** for tilgang til Figma, GitHub API eller databaser
+- **Handoffs** for sekvensielle workflows (Plan → Implementer → Review)
 
 ```yaml
 ---
@@ -135,18 +135,18 @@ Er det en enkel engangsoppgave med forhåndsdefinert kontekst?
 
 | Feil | Problem | Bedre løsning |
 |------|---------|---------------|
-| Agent uten verktøyrestriksjon | Gir bare kunnskap, ingen faktisk begrensning | Skill — mer portabel, lastes on-demand |
-| Skill for noe som alltid skal gjelde | Utviklere glemmer å aktivere den | Instruksjon — trenger ikke aktiveres |
-| Instruksjon med 500 linjer workflow | For mye kontekst i hvert svar | Skill — lastes kun ved behov |
+| Agent uten verktøyrestriksjon | Gir bare kunnskap, ingen faktisk begrensning | Skill, som er mer portabel og lastes on-demand |
+| Skill for noe som alltid skal gjelde | Utviklere glemmer å aktivere den | Instruksjon, som ikke trenger å aktiveres |
+| Instruksjon med 500 linjer workflow | For mye kontekst i hvert svar | Skill, som lastes kun ved behov |
 | Samme innhold i agent og skill | Dobbeltvedlikehold, drift | Velg én. Agenten kan referere til `/skill-name` |
 
 ---
 
 ## Hva vi har gjort i navikt
 
-- **Lagt til `code-review.instructions.md`** — review-regler for sikkerhet, NAIS-konfig, GitHub Actions og testdekning. Gjelder automatisk.
-- **Identifisert duplikater** — flere agenter og skills har overlappende innhold. Se [issue #252](https://github.com/navikt/copilot/issues/252) for oppryddingsplan.
-- **Beholdt agenter med reell verktøykontroll** — `@aksel-agent` (Figma MCP), `@nav-pilot` (Opus + orkestrator), `@security-champion` (Opus + rådgiver).
+- **Lagt til `code-review.instructions.md`** med review-regler for sikkerhet, NAIS-konfig, GitHub Actions og testdekning. Gjelder automatisk.
+- **Identifisert duplikater.** Flere agenter og skills har overlappende innhold. Se [issue #252](https://github.com/navikt/copilot/issues/252) for oppryddingsplan.
+- **Beholdt agenter med reell verktøykontroll.** `@aksel-agent` (Figma MCP), `@nav-pilot` (Opus + orkestrator), `@security-champion` (Opus + rådgiver).
 
 ---
 
@@ -154,10 +154,10 @@ Er det en enkel engangsoppgave med forhåndsdefinert kontekst?
 
 VS Code har innebygde kommandoer for å generere tilpasninger:
 
-- `/create-instruction` — lag en instruksjon for kodestandarder
-- `/create-skill` — lag en skill for workflows
-- `/create-agent` — lag en agent med verktøykontroll
-- `/create-prompt` — lag en prompt for enkeltoppgaver
+- `/create-instruction` lager en instruksjon for kodestandarder
+- `/create-skill` lager en skill for workflows
+- `/create-agent` lager en agent med verktøykontroll
+- `/create-prompt` lager en prompt for enkeltoppgaver
 
 Start med instruksjoner. Legg til skills for workflows teamet gjentar. Bruk agenter bare når du trenger verktøykontroll eller modellvalg.
 
@@ -165,10 +165,10 @@ Start med instruksjoner. Legg til skills for workflows teamet gjentar. Bruk agen
 
 ## Kilder
 
-- [VS Code: Customization concepts](https://code.visualstudio.com/docs/copilot/concepts/customization) — offisiell oversikt over alle tilpasningstyper
-- [VS Code: Custom instructions](https://code.visualstudio.com/docs/copilot/customization/custom-instructions) — instruksjoner og glob-mønstre
-- [VS Code: Agent skills](https://code.visualstudio.com/docs/copilot/customization/agent-skills) — skills-format og bruk
-- [VS Code: Custom agents](https://code.visualstudio.com/docs/copilot/customization/custom-agents) — agenter, verktøy og handoffs
-- [Agent Skills specification](https://agentskills.io) — åpen standard for skills (Anthropic)
-- [Best practices for skill creators](https://agentskills.io/skill-creation/best-practices) — hvordan skrive gode skills
-- [GitHub Blog: How to write a great agents.md](https://github.blog/ai-and-ml/github-copilot/how-to-write-a-great-agents-md-lessons-from-over-2500-repositories/) — analyse av 2 500+ repoer
+- [VS Code: Customization concepts](https://code.visualstudio.com/docs/copilot/concepts/customization), offisiell oversikt over alle tilpasningstyper
+- [VS Code: Custom instructions](https://code.visualstudio.com/docs/copilot/customization/custom-instructions), instruksjoner og glob-mønstre
+- [VS Code: Agent skills](https://code.visualstudio.com/docs/copilot/customization/agent-skills), skills-format og bruk
+- [VS Code: Custom agents](https://code.visualstudio.com/docs/copilot/customization/custom-agents), agenter, verktøy og handoffs
+- [Agent Skills specification](https://agentskills.io), åpen standard for skills (Anthropic)
+- [Best practices for skill creators](https://agentskills.io/skill-creation/best-practices), hvordan skrive gode skills
+- [GitHub Blog: How to write a great agents.md](https://github.blog/ai-and-ml/github-copilot/how-to-write-a-great-agents-md-lessons-from-over-2500-repositories/), analyse av 2 500+ repoer

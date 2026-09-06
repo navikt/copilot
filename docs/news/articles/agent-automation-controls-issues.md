@@ -1,5 +1,5 @@
 ---
-title: "Agentstyring i GitHub Issues — godkjenninger, konfidens og begrunnelser"
+title: "Agentstyring i GitHub Issues med godkjenninger, konfidens og begrunnelser"
 date: 2026-07-23
 category: copilot
 excerpt: "Issues viser nå hvorfor agenten gjør endringer og lar deg godkjenne dem før de trer i kraft. Tre nye funksjoner: godkjenninger, konfidensnivåer og begrunnelser."
@@ -23,7 +23,7 @@ Agenten klassifiserer hver handling som høy, middels eller lav konfidens. Høy-
 
 ## Begrunnelser (Rationale)
 
-Alle handlinger — automatiske eller ventende — loggføres med begrunnelse. Du får et revisjonsspor over hva som ble endret og hvorfor, og kan se resonnementet bak hvert forslag før du tar en beslutning.
+Alle handlinger, både automatiske og ventende, loggføres med begrunnelse. Du får et revisjonsspor over hva som ble endret og hvorfor, og kan se resonnementet bak hvert forslag før du tar en beslutning.
 
 Bruk `has:suggestions` i issue-søk for å finne issues med ventende forslag. Repository-admins kan konfigurere terskelverdier for konfidens per repository.
 

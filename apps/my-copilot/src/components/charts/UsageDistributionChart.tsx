@@ -103,7 +103,7 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
           label: (ctx: TooltipItem<"bar">) => {
             const value = ctx.parsed.y as number;
             const pct = ((value / totalUsers) * 100).toFixed(0);
-            const you = ctx.dataIndex === currentUserBucketIndex ? " — inkluderer deg" : "";
+            const you = ctx.dataIndex === currentUserBucketIndex ? ", deg inkludert" : "";
             return ` ${formatNumber(value)} brukere (${pct} %)${you}`;
           },
         },
