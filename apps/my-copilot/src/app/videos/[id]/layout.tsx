@@ -1,9 +1,22 @@
-import type { ReactNode } from "react";
+import { notFound } from "next/navigation";
+import { fetchVideoById } from "@/lib/public-videos";
 
 type Props = {
-  children: ReactNode;
+  params: Promise<{ id: string }>;
+  children: React.ReactNode;
 };
 
-export default function VideoDetailLayout({ children }: Props) {
-  return <div className="flex min-h-full flex-col bg-black">{children}</div>;
+// The existence check lives here rather than in page.tsx because loading.tsx
+// wraps the page in a Suspense boundary. Anything thrown inside that boundary
+// arrives after the shell has streamed with status 200, so notFound() rendered
+// the right page under the wrong status and told search engines it exists.
+// A layout renders outside the boundary, and the fetch is memoised per request,
+// so the page's own fetchVideoById call costs nothing extra.
+export default async function VideoLayout({ params, children }: Props) {
+  const { id } = await params;
+  const video = await fetchVideoById(id);
+
+  if (!video) notFound();
+
+  return children;
 }
