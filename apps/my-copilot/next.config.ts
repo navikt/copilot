@@ -48,6 +48,7 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      { source: "/en", destination: "/en/news", permanent: false },
       { source: "/best-practices", destination: "/praksis", permanent: true },
       { source: "/practice", destination: "/praksis", permanent: true },
       { source: "/customizations", destination: "/verktoy", permanent: true },
@@ -71,6 +72,10 @@ const nextConfig: NextConfig = {
     root: isProduction ? path.resolve(".") : path.resolve("../.."),
   },
   experimental: {
+    // A global not-found needs this flag in 16.x. Without it Next wraps the
+    // page in a builtin layout that already renders html/body, and this file
+    // renders its own, so an unmatched URL served nested documents.
+    globalNotFound: true,
     optimizePackageImports: ["@navikt/ds-react", "@navikt/aksel-icons"],
     // IMPORTANT (dev only): Without staleTimes, Turbopack HMR events during cold
     // BigQuery cache warmup trigger client-side refetches that produce different

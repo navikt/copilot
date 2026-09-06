@@ -10,7 +10,9 @@ export const metadata: Metadata = {
 };
 
 export default function EnglishNewsIndex() {
-  const items = getNewsItems({ lang: "en" });
+  // Link items point at someone else's page and have no body of their own,
+  // so /en/news/<slug> would 404 for them.
+  const items = getNewsItems({ lang: "en" }).filter((item) => item.type === "article");
 
   return (
     <main>
