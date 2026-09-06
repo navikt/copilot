@@ -88,6 +88,13 @@ project. A rule that says *the agent in this repository never sees
 reviewed in a pull request like any other change, and follow the code to
 whoever clones it.
 
+We are not alone in thinking so. fence looks for `fence.jsonc` in the working
+directory before falling back to the home directory, and agentcontainers puts
+agent policy beside `devcontainer.json`. What we have not seen elsewhere is
+reading that file from `HEAD` rather than from disk. A policy file on disk is
+one the agent can edit before the next run. A policy file from the last commit,
+in a sandbox where writing it is denied, is one the agent has no way to reach.
+
 The guards themselves are the exception. A repository can ask for them to be
 turned on, but how they behave, warn or block, is a setting on the developer's
 machine, not in the repo. We are not sure that is the right split yet.
