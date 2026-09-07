@@ -9,7 +9,6 @@ tools:
   - search
   - web
   - todo
-  - runSubagent
   - ms-vscode.vscode-websearchforcopilot/websearch
   - com.figma/figma-mcp/get_design_context
   - com.figma/figma-mcp/get_screenshot

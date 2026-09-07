@@ -16,7 +16,7 @@
         "ui"
       ],
       "filePath": "agents/accessibility.agent.md",
-      "contentHash": "67b453f152c4f663e721bceee58924d383cbc08a08e53f8bfcb3b41a39f1d865",
+      "contentHash": "fa2f415a551dcdc45c3f3eb8079f83e9131ff9222c4b412dd8ad26884195f766",
       "useCases": [
         "Converting Tailwind to Aksel tokens",
         "Responsive layouts"
@@ -75,7 +75,7 @@
       "displayName": "@forfatter",
       "description": "Norsk teknisk redaktør, tekstforfatter eller innholdsdesigner: klarspråk, AI-markører, anglisismer, fagtermer, mikrotekst.",
       "filePath": "agents/forfatter.agent.md",
-      "contentHash": "2529faa6918e3520c0baf475e96c1e5d5d032cb3b5a199080ae98ef797270341",
+      "contentHash": "64b2deb8108f8964b636ee4ba82e43183bb2fd7045d24a7ab1052585e1ddaa36",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
