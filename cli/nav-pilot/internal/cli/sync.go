@@ -178,7 +178,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	// placed later is a scan the two "nothing to do" paths jump over: sync
 	// printed "All N files up to date" over three orphans and --apply removed
 	// none of them. That is the state the machine which found #716 was in.
-	retired := findRetiredOrphans(scope, src.Dir)
+	retired := findRetiredOrphans(scope, src.Dir, src.Pakke)
 
 	// What the committed pin would become. Computed before the file diff
 	// because it is a change in its own right: a revision the repo tracks can

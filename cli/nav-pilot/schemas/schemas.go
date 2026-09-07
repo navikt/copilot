@@ -10,14 +10,16 @@ package schemas
 import _ "embed"
 
 // AgentpakkeV1 is the agentpakke manifest schema, contract version 1.
-// Its $id is https://github.com/navikt/copilot/cli/nav-pilot/schemas/agentpakke-v1.json.
+// Its $id is
+// https://raw.githubusercontent.com/navikt/copilot/main/cli/nav-pilot/schemas/agentpakke-v1.json,
+// which is a URL that resolves: an agentpakke repo is told to lint against it.
 //
 //go:embed agentpakke-v1.json
 var AgentpakkeV1 []byte
 
 // AgentpakkePayloadV1 is the payload manifest schema, contract version 1. Its
 // $id is
-// https://github.com/navikt/copilot/cli/nav-pilot/schemas/agentpakke-payload-v1.json.
+// https://raw.githubusercontent.com/navikt/copilot/main/cli/nav-pilot/schemas/agentpakke-payload-v1.json.
 //
 // The payload manifest is the other half of the trust boundary: the top-level
 // manifest says which trees exist, this one says exactly what each tree holds.

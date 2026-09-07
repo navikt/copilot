@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/navikt/copilot/cli/nav-pilot/schemas/agentpakke-v1.json",
+  "$id": "https://raw.githubusercontent.com/navikt/copilot/main/cli/nav-pilot/schemas/agentpakke-v1.json",
   "title": "nav-pilot agentpakke manifest (v1)",
   "description": "Contract between an agentpakke repo and the nav-pilot binary. Lives at .nav-pilot/agentpakke.json in the agentpakke repo. Unknown client keys, context keys, and additional fields are ignored by consumers (A3/A4), so growth of the ecosystem never invalidates an existing manifest on an older binary. Parenthesised ids such as (A1) and (G3) are decision ids defined in the PRD at https://github.com/navikt/copilot/issues/435.",
   "type": "object",
