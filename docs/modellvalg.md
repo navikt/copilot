@@ -6,6 +6,8 @@ Levende referansedokument for hvilke modeller vi bruker, hvorfor, og hvordan vi 
 
 De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter. `nav-pilot` har det ikke: orkestratoren kjører på klientens egen standardmodell. Valget følger oppgavetype, kostnad og ytelse, ikke leverandørpreferanse. Priser og kategori står i modelltabellen under.
 
+**Pinnene under gjelder når agenten startes direkte.** Blir den startet som subagent av `@nav-pilot`, arver den modellen forelderen kjører på. Se [Pinner og delegering](#pinner-og-delegering).
+
 ### Agenter
 
 | Agent | Modell | Begrunnelse |
@@ -15,7 +17,7 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | `@security-champion` | GPT-5.6 Sol | Sikkerhetskritiske vurderinger. Agenten er ikke målt mot Opus 4.6 eller mot noen annen modell. Byttet hviler på pris |
 | `@code-review` | GPT-5.3-Codex | Sterkest på kodeforståelse og terminal-oppgaver |
 | `@kafka` | GPT-5.3-Codex | Teknisk presis på hendelsesdrevne mønstre |
-| `@research` | GPT-5.6 Luna | Leser og søker uten å skrive kode, og Luna koster omtrent en tiendedel av Codex |
+| `@research` | GPT-5.6 Luna | Leser og søker uten å skrive kode. Luna er omtrent en tiendedel av Codex i listepris. Gjelder bare når agenten startes direkte, ikke når `@nav-pilot` delegerer til den |
 | `@rust` | GPT-5.3-Codex | Terminal-Bench-leder for kompilert kode |
 | `@aksel` | Claude Sonnet 4.6 | Sterk på komponentstruktur og designsystem-konvensjoner |
 | `@accessibility` | Claude Sonnet 4.6 | God på WCAG-tolkning og semantisk HTML |
@@ -32,6 +34,82 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | `nextjs-api-route` | GPT-5.6 Luna | Enkel strukturert mal |
 | `spring-boot-endpoint` | GPT-5.6 Luna | Enkel strukturert mal |
 | `golang-service` | GPT-5.6 Luna | Enkel strukturert mal |
+
+## Pinner og delegering
+
+Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
+
+### Pinnen gjelder bare på toppnivå
+
+`model:`-feltet i en agents frontmatter blir brukt når agenten startes direkte:
+
+```
+copilot --agent research      # kjører på gpt-5.6-luna, som pinnen sier
+```
+
+Blir den samme agenten startet som subagent, arver den forelderens modell, og pinnen leses ikke:
+
+```
+copilot --agent nav-pilot --model gpt-5.6-terra -p "start subagenten research"
+  -> ● Research (model: gpt-5.6-terra)
+
+copilot --agent nav-pilot --model gpt-5.6-sol -p "start subagenten research"
+  -> ● Research (model: gpt-5.6-sol)
+```
+
+Det betyr at `@nav-pilot` sin modell i praksis er modellen for hele delegeringstreet. Modellporten i `agents/nav-pilot.agent.md` bytter persona ved eskalering til `@nav-pilot-opus`, ikke modell, med mindre noen sier noe annet eksplisitt.
+
+Verktøyet tar imot en modell hvis den som kaller ber om det. Da gjelder den:
+
+```
+copilot --agent nav-pilot --model gpt-5.6-sol \
+  -p "start subagenten research, be eksplisitt om gpt-5.6-luna"
+  -> ● Research (model: gpt-5.6-luna)
+```
+
+Det hviler på at modellen velger å oppgi den. En instruks i personaen om å gjøre det er samme slag som soft-sjekk 2b i golden-harnessen, som aldri er innfridd over tre persona-revisjoner og fire modeller. Regn ikke med den.
+
+### Den deterministiske overstyringen
+
+Klientens egen konfigurasjon setter modell per subagent, uavhengig av hva modellen finner på. `~/.copilot/settings.json`:
+
+```json
+{
+  "subagents": {
+    "agents": {
+      "research": { "model": "gpt-5.6-luna" }
+    }
+  }
+}
+```
+
+`copilot help config` dokumenterer `subagents.agents.<agent-name>` med `model`, `effortLevel` og `contextTier`, der hvert felt også tar `"inherit"`. `/subagents` setter det interaktivt.
+
+**Nøkkelen er filnavnet, ikke `name:` i frontmatteren.** Målt med kontroll:
+
+| Nøkkel | Modell subagenten kjørte på |
+|--------|-----------------------------|
+| `research` (filnavnet, `research.agent.md`) | gpt-5.6-luna |
+| `research-agent` (frontmatterens `name:`) | gpt-5.6-sol |
+| `tullball` (kontroll) | gpt-5.6-sol |
+
+Seks av agentene våre har et `name:` som ikke er filnavnet: `accessibility`, `aksel`, `kafka`, `research`, `rust` og `security-champion` heter alle `<navn>-agent` i frontmatteren. Den som setter opp dette fra agentens eget navn får ingen feilmelding, bare ingen effekt.
+
+Nav-pilot skriver ikke klientkonfigurasjon i dag ([beslutning 4.8](nav-pilot-benchmark-og-beslutninger-2026-08.md#48---model-driver-klientmodellen-ikke-skriving-i-klientens-config)). Om den skal gjøre det, er spørsmålet i [#500](https://github.com/navikt/copilot/issues/500).
+
+### AI-kreditter skiller ikke modeller
+
+Samme agent, samme oppgave, 10,0k input-tokens:
+
+| Modell | AI Credits |
+|--------|-----------|
+| GPT-5.6 Luna | 0,26 |
+| GPT-5.6 Sol | 0,26 |
+| Claude Opus 5 | 0,26 |
+
+Kredittene følger tokenforbruk, ikke modellklasse: en nav-pilot-tur på 52k tokens kostet omtrent 18. Tallet CLI-en viser kan altså ikke brukes til å vise gevinsten av et modellbytte.
+
+Pristabellen lenger nede er GitHubs listepriser. Vi har ikke koblet dem mot det Nav faktisk faktureres, og vet ikke hvilken enhet den faktureringen er i. Kostnadsargumentene i dette dokumentet er derfor listepris ganget med et anslått forhold mellom input og output, ikke målt forbruk. Det står også i [Grunnlaget for Luna-byttene](#grunnlaget-for-luna-byttene-august-2026), og gjelder like fullt her.
 
 ## Grunnlaget for Luna-byttene (august 2026)
 

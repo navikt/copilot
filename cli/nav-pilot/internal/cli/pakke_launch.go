@@ -323,14 +323,20 @@ func autoPin(src *Source) (*Source, error) {
 	// rebuild — a local source is rebuilt in place on every launch, and its
 	// payload directory is a live session's OPENCODE_CONFIG_DIR — which is why
 	// [materializeRevision] renames the old tree aside instead of removing it.
-	// The prune below removes the SHA directories this launch left behind, not
-	// the tree a session already has open.
+	//
+	// That covers a rebuild of the same SHA. It does not cover a moved one, and
+	// a local source resolves to the working tree's HEAD, so an author who
+	// commits between two launches gets a second SHA and a prune that used to
+	// keep only the new one (#703). The previous revision is kept too, which is
+	// the rule pinned sources already have: a session survives one update, and
+	// only a second one pulls the tree out from under a very old session.
 	if !pinnable(src.Repo) {
+		previous := previousRevision(src.Repo, src.SHA)
 		revDir, err := materializeRevision(src)
 		if err != nil {
 			return nil, err
 		}
-		prunePakkeRevisions(src.Repo, src.SHA)
+		prunePakkeRevisions(src.Repo, src.SHA, previous)
 		return &Source{Dir: revDir, SHA: src.SHA, Repo: src.Repo, Pakke: src.Pakke}, nil
 	}
 

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -1214,4 +1215,97 @@ func TestAdd_PlainAddIntoForeignScopeIsStamped(t *testing.T) {
 	if state.SourceSHA != "team-sha" {
 		t.Errorf("SourceSHA = %q, want the scope's own %q", state.SourceSHA, "team-sha")
 	}
+}
+
+// TestRefuseSourceSwitch covers #691: sync moves the pin within one source, and
+// changing source is an install. Without the guard, sync wrote the new source's
+// SHA into a state still naming the old source, and the next plain sync read
+// the old source and offered to roll every file back.
+func TestRefuseSourceSwitch(t *testing.T) {
+	newScope := func(t *testing.T, recorded string) *InstallScope {
+		t.Helper()
+		scope := ScopeRepo(t.TempDir())
+		if recorded == "" {
+			return scope
+		}
+		state := &StateFile{
+			Collection: "pakke",
+			Scope:      scope.Name,
+			SourceRepo: recorded,
+			SourceSHA:  "abc1234",
+		}
+		if err := writeScopedState(scope, state); err != nil {
+			t.Fatal(err)
+		}
+		return scope
+	}
+
+	t.Run("a different source is refused and names install", func(t *testing.T) {
+		err := refuseSourceSwitch(newScope(t, "navikt/copilot"), "navikt/grillmester")
+		if err == nil {
+			t.Fatal("refuseSourceSwitch = nil for a different source, want a refusal")
+		}
+		for _, want := range []string{"navikt/copilot", "navikt/grillmester", "install"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("refusal %q does not mention %q", err, want)
+			}
+		}
+	})
+
+	t.Run("the recorded source is allowed", func(t *testing.T) {
+		if err := refuseSourceSwitch(newScope(t, "navikt/copilot"), "navikt/copilot"); err != nil {
+			t.Errorf("refuseSourceSwitch over the recorded source = %v, want nil", err)
+		}
+	})
+
+	t.Run("case does not make it a different source", func(t *testing.T) {
+		if err := refuseSourceSwitch(newScope(t, "navikt/copilot"), "Navikt/Copilot"); err != nil {
+			t.Errorf("refuseSourceSwitch = %v for the same source in another case, want nil", err)
+		}
+	})
+
+	t.Run("no --source is allowed", func(t *testing.T) {
+		if err := refuseSourceSwitch(newScope(t, "navikt/copilot"), ""); err != nil {
+			t.Errorf("refuseSourceSwitch with no --source = %v, want nil", err)
+		}
+	})
+
+	// The adoption path (B3): a scope with no recorded source has nothing to
+	// switch away from, and refusing there would break the sync that teaches
+	// the scope which source it belongs to.
+	t.Run("a scope with no recorded source adopts", func(t *testing.T) {
+		if err := refuseSourceSwitch(newScope(t, ""), "navikt/grillmester"); err != nil {
+			t.Errorf("refuseSourceSwitch on an unsourced scope = %v, want nil", err)
+		}
+	})
+
+	// The guard has to be wired in, not merely written. Removing the call from
+	// syncScope leaves every subtest above green, because they call the guard
+	// directly — so this one goes through cmdSync, which is the door a user
+	// comes in by. It must refuse before resolving anything: a source switch
+	// that clones first has already paid for the answer it is about to refuse.
+	t.Run("cmdSync refuses before it resolves", func(t *testing.T) {
+		scope := newScope(t, "navikt/copilot")
+		// resolveSourceForSync, not resolveSource: sync goes through the
+		// former, and hooking the wrong seam makes this test pass with the
+		// guard removed, which is exactly the vacuum it exists to avoid.
+		orig := resolveSourceForSync
+		t.Cleanup(func() { resolveSourceForSync = orig })
+		resolved := false
+		resolveSourceForSync = func(string, string) (*source.Source, error) {
+			resolved = true
+			return nil, fmt.Errorf("resolved-anyway")
+		}
+
+		err := cmdSync(scope, "", "navikt/grillmester", false, false)
+		if err == nil {
+			t.Fatal("cmdSync = nil for a source switch, want a refusal")
+		}
+		if !strings.Contains(err.Error(), "install") {
+			t.Errorf("refusal %q does not name install as the way to switch", err)
+		}
+		if resolved {
+			t.Error("the refusal came after resolving, which is the clone this guard exists to skip")
+		}
+	})
 }

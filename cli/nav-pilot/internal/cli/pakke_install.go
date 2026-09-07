@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 )
@@ -267,6 +268,50 @@ func stageRevision(src *Source, dest string) error {
 		}
 	}
 	return nil
+}
+
+// previousRevision names the most recently published revision of a source other
+// than current, or "" when there is none.
+//
+// The pinned path knows what it replaced: it reads the outgoing pin out of
+// state and hands both SHAs to [prunePakkeRevisions]. A local source is never
+// pinned and writes no state, so the only record of what came before is the
+// directory itself, and mtime is the only ordering it carries.
+//
+// That mtime comes from staging, not from publishing: [os.Rename] moves a
+// directory without touching its own mtime (it updates the parent's). Staging
+// writes the tree and the rename follows immediately, so the two orders agree
+// for every sequence this cares about — a launch, later another launch. They
+// would disagree only if a tree were staged long before it was published, which
+// nothing here does.
+//
+// Without this the local path kept exactly one revision, and every launch after
+// a commit removed the tree the previous launch is still reading (#703). The
+// two-revision rule is not a nicety there; it is the whole of what lets a
+// running opencode session survive its author committing.
+//
+// Ties do not matter: two revisions published in the same mtime tick are both
+// old enough that either is a defensible thing to keep.
+func previousRevision(repo, current string) string {
+	entries, err := os.ReadDir(pakkeSourceDir(repo))
+	if err != nil {
+		return ""
+	}
+	var newest string
+	var newestAt time.Time
+	for _, e := range entries {
+		if !e.IsDir() || e.Name() == current || strings.HasPrefix(e.Name(), revisionTmpPrefix) {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		if newest == "" || info.ModTime().After(newestAt) {
+			newest, newestAt = e.Name(), info.ModTime()
+		}
+	}
+	return newest
 }
 
 // prunePakkeRevisions removes every revision of a source except the named ones,

@@ -39,6 +39,49 @@ func TestCmdAdd_InvalidType(t *testing.T) {
 	}
 }
 
+// TestCmdAdd_AcceptsEveryDeclaredKind walks source.AllKinds rather than naming
+// the kinds, because a hardcoded list here would repeat the defect it tests
+// for: `hook` became a kind in #569, every bulk path learned it, and cmdAdd's
+// own switch did not. A kind added later is covered without editing this test.
+func TestCmdAdd_AcceptsEveryDeclaredKind(t *testing.T) {
+	for _, kind := range AllKinds {
+		t.Run(kind.Name, func(t *testing.T) {
+			scope := ScopeRepo(t.TempDir())
+			if !scope.SupportsType(kind.Name) {
+				t.Skipf("repo scope does not take %q", kind.Name)
+			}
+			// A dry run stops before any source resolution, so this reaches the
+			// type gate and nothing that needs a checkout.
+			err := cmdAdd(kind.Name, "finnes-ikke", scope, "", "", true, false, false)
+			if err != nil && strings.Contains(err.Error(), "unknown type") {
+				t.Errorf("cmdAdd rejected the declared kind %q: %v", kind.Name, err)
+			}
+		})
+	}
+}
+
+// The user scope takes a narrower set than the repo scope, and the refusal has
+// to name what that scope actually supports rather than a list written by hand.
+func TestCmdAdd_UnsupportedKindNamesTheScopesOwnSet(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	scope, err := ScopeUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if scope.SupportsType("prompt") {
+		t.Skip("user scope now takes prompts; this test has nothing to say")
+	}
+	err = cmdAdd("prompt", "noe", scope, "", "", true, false, false)
+	if err == nil {
+		t.Fatal("cmdAdd took a prompt in user scope, want a refusal")
+	}
+	for _, want := range scope.SupportedTypes {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal %q does not name the supported kind %q", err, want)
+		}
+	}
+}
+
 func TestCmdAdd_InvalidName(t *testing.T) {
 	err := cmdAdd("agent", "../etc/passwd", ScopeRepo(t.TempDir()), "", "", true, false, false)
 	if err == nil {
