@@ -168,26 +168,33 @@ func frontmatterModel(data []byte) string {
 	return strings.Trim(strings.TrimSpace(m[1]), `"'`)
 }
 
-// unavailablePins returns the pins the client cannot launch, given the
-// catalogue it reported. A label that resolves to no known id is included too:
-// the client is asked for the label verbatim in that case, and a name the
-// catalogue does not carry fails the same way.
-func unavailablePins(pins []pinnedModel, catalogue []string) []pinnedModel {
+// classifyPins splits pins into the ones the client cannot launch and the ones
+// this check cannot speak for.
+//
+// The catalogue is a list of ids. A pin whose label resolves to a known id can
+// be compared against it and answered. A label that resolves to nothing cannot:
+// comparing the display label against an id list would report "not available to
+// this account" for every label the picker has not learned yet, which includes
+// every model GitHub adds before the next `mise run models:sync`. That is a
+// different claim, and a wrong one.
+//
+// So an unresolvable label is reported as unverified rather than as broken. It
+// is still worth printing: the client resolves the label itself, so a typo
+// there fails at launch, and nothing else in doctor would mention it.
+func classifyPins(pins []pinnedModel, catalogue []string) (unavailable, unverified []pinnedModel) {
 	have := make(map[string]bool, len(catalogue))
 	for _, id := range catalogue {
 		have[strings.ToLower(id)] = true
 	}
-	var bad []pinnedModel
 	for _, p := range pins {
-		want := p.ID
-		if want == "" {
-			want = p.Label
-		}
-		if !have[strings.ToLower(want)] {
-			bad = append(bad, p)
+		switch {
+		case p.ID == "":
+			unverified = append(unverified, p)
+		case !have[strings.ToLower(p.ID)]:
+			unavailable = append(unavailable, p)
 		}
 	}
-	return bad
+	return unavailable, unverified
 }
 
 // reportModelPins prints the model-pin section of doctor.
@@ -224,17 +231,30 @@ func reportModelPins() {
 		return
 	}
 
-	bad := unavailablePins(pins, catalogue)
-	if len(bad) == 0 {
+	unavailable, unverified := classifyPins(pins, catalogue)
+	if len(unavailable) == 0 && len(unverified) == 0 {
 		fmt.Printf("    %s All %d pinned model(s) are available to this account\n", green("✓"), len(pins))
 		return
 	}
-	fmt.Printf("    %s %d of %d pinned model(s) are not available to this account\n",
-		yellow("⚠"), len(bad), len(pins))
-	for _, p := range bad {
-		fmt.Printf("      %s %s pins %q\n", yellow("⚠"), p.Agent, p.Label)
+	if len(unavailable) > 0 {
+		fmt.Printf("    %s %d of %d pinned model(s) are not available to this account\n",
+			yellow("⚠"), len(unavailable), len(pins))
+		for _, p := range unavailable {
+			fmt.Printf("      %s %s pins %q\n", yellow("⚠"), p.Agent, p.Label)
+		}
+		fmt.Printf("      %s The client launches these agents with a model it will reject. Repin them, or\n",
+			yellow("Solution:"))
+		fmt.Printf("          run %s to take the current pins from the source.\n", bold("nav-pilot sync --apply"))
 	}
-	fmt.Printf("      %s The client launches these agents with a model it will reject. Repin them, or\n",
-		yellow("Solution:"))
-	fmt.Printf("          run %s to take the current pins from the source.\n", bold("nav-pilot sync --apply"))
+	if len(unverified) > 0 {
+		// Not a warning. The label may name a model this binary's picker has not
+		// learned yet, which is the ordinary state of affairs between catalogue
+		// syncs, and calling that "unavailable" would cry wolf on every new model.
+		fmt.Printf("    %s %d pinned model(s) could not be checked: the label is not one nav-pilot knows,\n",
+			dim("-"), len(unverified))
+		fmt.Printf("        so the client resolves it alone\n")
+		for _, p := range unverified {
+			fmt.Printf("      %s %s pins %q\n", dim("-"), p.Agent, p.Label)
+		}
+	}
 }

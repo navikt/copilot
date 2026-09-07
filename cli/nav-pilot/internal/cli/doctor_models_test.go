@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
 func TestFrontmatterModel(t *testing.T) {
@@ -32,24 +34,32 @@ func TestFrontmatterModel(t *testing.T) {
 	}
 }
 
-func TestUnavailablePins(t *testing.T) {
+func TestClassifyPins(t *testing.T) {
 	catalogue := []string{"claude-sonnet-5", "gpt-5.6-sol"}
 	pins := []pinnedModel{
 		{Agent: "ok-label", Label: "Claude Sonnet 5", ID: "claude-sonnet-5"},
 		{Agent: "dead", Label: "Claude Sonnet 4.6", ID: "claude-sonnet-4.6"},
-		// A label the picker does not know resolves to no id, so the client is
-		// asked for the label verbatim and fails the same way. Reported, not
-		// skipped: skipping would hide exactly the pin most likely to be wrong.
+		// A label the picker has not learned resolves to no id. The catalogue is
+		// a list of ids, so there is nothing to compare it against: reporting it
+		// as unavailable would cry wolf on every model GitHub adds before the
+		// next models:sync. Unverified is a different claim, and the true one.
 		{Agent: "unknown-label", Label: "Fantasimodell 9", ID: ""},
 		{Agent: "case", Label: "GPT-5.6 Sol", ID: "GPT-5.6-SOL"},
 	}
-	got := unavailablePins(pins, catalogue)
-	var names []string
-	for _, p := range got {
-		names = append(names, p.Agent)
+	unavailable, unverified := classifyPins(pins, catalogue)
+
+	names := func(ps []pinnedModel) []string {
+		var out []string
+		for _, p := range ps {
+			out = append(out, p.Agent)
+		}
+		return out
 	}
-	if want := []string{"dead", "unknown-label"}; !reflect.DeepEqual(names, want) {
-		t.Errorf("unavailablePins = %v, want %v", names, want)
+	if want := []string{"dead"}; !reflect.DeepEqual(names(unavailable), want) {
+		t.Errorf("unavailable = %v, want %v", names(unavailable), want)
+	}
+	if want := []string{"unknown-label"}; !reflect.DeepEqual(names(unverified), want) {
+		t.Errorf("unverified = %v, want %v", names(unverified), want)
 	}
 }
 
@@ -59,7 +69,7 @@ func TestInstalledModelPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := scope.DstPath("agents")
+	dir := scope.DstPath(source.KindAgent.Dir)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
