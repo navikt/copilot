@@ -49,6 +49,9 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/en", destination: "/en/news", permanent: false },
+      // /nyheter has no index page; the news list is the front page. It used to
+      // answer 200 with the not-found body, so old links to it exist.
+      { source: "/nyheter", destination: "/", permanent: false },
       { source: "/best-practices", destination: "/praksis", permanent: true },
       { source: "/practice", destination: "/praksis", permanent: true },
       { source: "/customizations", destination: "/verktoy", permanent: true },
