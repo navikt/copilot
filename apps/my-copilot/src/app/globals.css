@@ -528,3 +528,82 @@ pre.text-sm {
     display: grid !important;
   }
 }
+
+/* cplt page: one dark ground and one green accent, defined once and reused by
+   the page, its loading skeleton and the security table. */
+:root {
+  --cplt-ground: #0f1825;
+  --cplt-accent: #10b981;
+  /* The same accent darkened so it clears 4.5:1 as text on a light background. */
+  --cplt-accent-ink: #047857;
+}
+
+/* Security boundary table: a real table that stacks into cards below sm.
+   The roles in the markup keep table semantics where display:block drops them. */
+.cplt-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.cplt-table th,
+.cplt-table td {
+  padding: var(--ax-space-12) var(--ax-space-16);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border-top: 1px solid var(--ax-border-neutral-subtle);
+  vertical-align: middle;
+}
+
+.cplt-table thead th {
+  background: var(--cplt-ground);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-top: 0;
+}
+
+.cplt-table tbody th {
+  font-weight: 400;
+  color: var(--ax-text-neutral);
+}
+
+.cplt-table abbr {
+  text-decoration: none;
+  cursor: help;
+}
+
+@media (max-width: 639px) {
+  .cplt-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .cplt-table tr {
+    display: block;
+    border-top: 1px solid var(--ax-border-neutral-subtle);
+  }
+
+  .cplt-table th,
+  .cplt-table td {
+    display: block;
+    border-top: 0;
+  }
+
+  .cplt-table tbody th {
+    font-weight: 600;
+    padding-bottom: var(--ax-space-4);
+  }
+
+  .cplt-table td::before {
+    content: attr(data-label) ": ";
+    font-weight: 400;
+    color: var(--ax-text-neutral-subtle);
+  }
+}
