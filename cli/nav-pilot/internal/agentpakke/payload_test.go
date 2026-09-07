@@ -44,15 +44,40 @@ func TestParsePayloadManifest(t *testing.T) {
 func TestParsePayloadManifestIgnoresUnknownFields(t *testing.T) {
 	// The reference generator emits generator/counts/agents/skills alongside
 	// files; they are descriptive and must not make the manifest unreadable.
+	//
+	// Top level only. The ignore-unknown rule is about the document growing new
+	// descriptive keys, not about the records that bind the bytes: see
+	// TestParsePayloadManifestRejectsUnknownRecordFields.
 	doc := payloadManifestDoc(refPayloadFiles)
 	doc["generator"] = map[string]any{"path": "scripts/generate_copilot_manifest.py", "version": 1}
 	doc["counts"] = map[string]any{"agents": 1, "skills": 0}
 	doc["agents"] = []any{"barista"}
 	doc["futureField"] = true
-	doc["files"].(map[string]any)["LICENSE"].(map[string]any)["size"] = 4
 
 	if _, err := ParsePayloadManifest(payloadManifestBytes(t, doc)); err != nil {
 		t.Fatalf("ParsePayloadManifest = %v, want nil (unknown fields must be ignored, not rejected)", err)
+	}
+}
+
+// TestParsePayloadManifestRejectsUnknownRecordFields pins the half of the
+// ignore-unknown rule that #704 narrowed. A file record binds a path to bytes
+// and a mode; a key that is not one of those cannot mean anything, and the
+// likeliest reason for one is a typo that leaves the real field absent.
+// "sha256sum" instead of "sha256" would otherwise decode to an empty digest.
+//
+// This reverses an assertion that used to live in the test above, where a
+// record carrying an extra "size" was required to parse. That was the contract
+// rule applied one level too deep.
+func TestParsePayloadManifestRejectsUnknownRecordFields(t *testing.T) {
+	doc := payloadManifestDoc(refPayloadFiles)
+	doc["files"].(map[string]any)["LICENSE"].(map[string]any)["size"] = 4
+
+	_, err := ParsePayloadManifest(payloadManifestBytes(t, doc))
+	if err == nil {
+		t.Fatal("ParsePayloadManifest = nil for a record with an unknown key, want a refusal")
+	}
+	if !strings.Contains(err.Error(), "LICENSE") {
+		t.Errorf("error %q does not name the record it refused", err)
 	}
 }
 
@@ -66,17 +91,19 @@ func TestParsePayloadManifestFailsClosed(t *testing.T) {
 		{
 			name:     "not JSON",
 			raw:      `not json at all`,
-			wantErrs: []string{"payload manifest is not a JSON object"},
+			wantErrs: []string{"payload manifest", "not valid JSON"},
 		},
 		{
+			// The schema names the offending key and its type now, where the Go
+			// decoder could only say the document was not the shape it wanted.
 			name:     "files is not an object",
 			raw:      `{"schemaVersion": 1, "files": "everything"}`,
-			wantErrs: []string{"payload manifest is not a JSON object"},
+			wantErrs: []string{"files", "want object"},
 		},
 		{
 			name:     "no files map",
 			raw:      `{"schemaVersion": 1, "target": "copilot-full-v1"}`,
-			wantErrs: []string{"no \"files\" map", "exact contents"},
+			wantErrs: []string{"files", "exact contents"},
 		},
 		{
 			name:     "unsupported schemaVersion",
@@ -86,21 +113,21 @@ func TestParsePayloadManifestFailsClosed(t *testing.T) {
 		{
 			name:     "missing schemaVersion",
 			raw:      `{"files": {}}`,
-			wantErrs: []string{"schemaVersion 0"},
+			wantErrs: []string{"missing property", "schemaVersion"},
 		},
 		{
 			name: "record is not an object",
 			patch: func(doc map[string]any) {
 				doc["files"].(map[string]any)["LICENSE"] = 7
 			},
-			wantErrs: []string{`record for "LICENSE" is malformed`},
+			wantErrs: []string{"files.LICENSE", "want object"},
 		},
 		{
 			name: "sha256 is not a digest",
 			patch: func(doc map[string]any) {
 				doc["files"].(map[string]any)["LICENSE"].(map[string]any)["sha256"] = "deadbeef"
 			},
-			wantErrs: []string{`record for "LICENSE"`, "64 lowercase hex"},
+			wantErrs: []string{"LICENSE", "64 lowercase hex"},
 		},
 		{
 			name: "sha256 in uppercase",
@@ -115,42 +142,42 @@ func TestParsePayloadManifestFailsClosed(t *testing.T) {
 			patch: func(doc map[string]any) {
 				doc["files"].(map[string]any)["scripts/hook.sh"].(map[string]any)["mode"] = "0777"
 			},
-			wantErrs: []string{`record for "scripts/hook.sh"`, `mode "0777"`},
+			wantErrs: []string{"scripts/hook.sh", "0644", "0755"},
 		},
 		{
 			name: "key escapes the payload",
 			patch: func(doc map[string]any) {
 				doc["files"].(map[string]any)["../../etc/passwd"] = fileRecordFor("x")
 			},
-			wantErrs: []string{`"../../etc/passwd"`, "escapes"},
+			wantErrs: []string{"../../etc/passwd", "not a payload-relative path"},
 		},
 		{
 			name: "absolute key",
 			patch: func(doc map[string]any) {
 				doc["files"].(map[string]any)["/etc/passwd"] = fileRecordFor("x")
 			},
-			wantErrs: []string{`"/etc/passwd"`, "absolute"},
+			wantErrs: []string{"/etc/passwd", "leading slash"},
 		},
 		{
 			name: "key with a backslash separator",
 			patch: func(doc map[string]any) {
 				doc["files"].(map[string]any)[`agents\barista.agent.md`] = fileRecordFor("x")
 			},
-			wantErrs: []string{"forward slashes"},
+			wantErrs: []string{"backslashes"},
 		},
 		{
 			name: "non-normalized key that stays inside",
 			patch: func(doc map[string]any) {
 				doc["files"].(map[string]any)["agents/../LICENSE.txt"] = fileRecordFor("x")
 			},
-			wantErrs: []string{"not a normalized payload-relative path"},
+			wantErrs: []string{"not a payload-relative path"},
 		},
 		{
 			name: "empty key",
 			patch: func(doc map[string]any) {
 				doc["files"].(map[string]any)[""] = fileRecordFor("x")
 			},
-			wantErrs: []string{"must not be empty"},
+			wantErrs: []string{"not a payload-relative path"},
 		},
 	}
 	for _, tt := range tests {
@@ -302,14 +329,14 @@ func TestVerifyPayload(t *testing.T) {
 			mutate: func(_ *testing.T, _ string, doc map[string]any) {
 				doc["files"].(map[string]any)["LICENSE"] = "adc37366"
 			},
-			wantErrs: []string{`record for "LICENSE" is malformed`},
+			wantErrs: []string{"files.LICENSE", "want object"},
 		},
 		{
 			name: "manifest lists a path outside the payload",
 			mutate: func(_ *testing.T, _ string, doc map[string]any) {
 				doc["files"].(map[string]any)["../secrets.env"] = fileRecordFor("x")
 			},
-			wantErrs: []string{`"../secrets.env"`, "escapes"},
+			wantErrs: []string{"../secrets.env", "not a payload-relative path"},
 		},
 		{
 			name: "manifest lists itself",
@@ -751,5 +778,30 @@ func assertErrMentions(t *testing.T, err error, want []string) {
 		if !strings.Contains(err.Error(), w) {
 			t.Errorf("error %q does not mention %q", err, w)
 		}
+	}
+}
+
+// TestParseFileRecordRejectsUnknownKeys tests the Go decoder directly, because
+// going through ParsePayloadManifest cannot: the schema refuses an unknown
+// record key first, so removing DisallowUnknownFields leaves every test through
+// that door green. Two layers enforce this rule and the claim is that they
+// agree, so each needs its own control.
+func TestParseFileRecordRejectsUnknownKeys(t *testing.T) {
+	good := `{"sha256":"` + strings.Repeat("a", 64) + `","mode":"0644"}`
+	if _, err := parseFileRecord("LICENSE", []byte(good)); err != nil {
+		t.Fatalf("parseFileRecord on a well-formed record = %v, want nil", err)
+	}
+
+	// An extra key on an otherwise valid record. "sha256sum" instead of
+	// "sha256" would be caught anyway, by the empty-digest check, so it cannot
+	// tell this rule from that one: the first version of this test used it and
+	// stayed green with DisallowUnknownFields removed.
+	extra := `{"sha256":"` + strings.Repeat("a", 64) + `","mode":"0644","size":4}`
+	_, err := parseFileRecord("LICENSE", []byte(extra))
+	if err == nil {
+		t.Fatal("parseFileRecord accepted an unknown key, want a refusal")
+	}
+	if !strings.Contains(err.Error(), "LICENSE") {
+		t.Errorf("error %q does not name the record", err)
 	}
 }

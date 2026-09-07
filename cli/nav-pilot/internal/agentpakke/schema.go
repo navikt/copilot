@@ -98,10 +98,37 @@ func schemaError(verr *jsonschema.ValidationError) error {
 		lines = append(lines, line)
 	}
 	sort.Strings(lines)
+	return schemaErrorFor(ManifestPath, SchemaID, lines)
+}
+
+// schemaErrorFor renders the violation list for one document. Both manifests go
+// through here so a reader gets the same shape, and neither can name the other
+// one's file by accident: the payload manifest used to inherit the top-level
+// manifest's wording and told the author to fix .nav-pilot/agentpakke.json for a
+// fault in a payload tree.
+func schemaErrorFor(docPath, schemaID string, lines []string) error {
 	return fmt.Errorf(
 		"%s does not conform to the agentpakke contract (schema %s):\n%s\n"+
 			"fix the manifest, or lint it against the published schema in your own CI before pushing",
-		ManifestPath, SchemaID, strings.Join(lines, "\n"))
+		docPath, schemaID, strings.Join(lines, "\n"))
+}
+
+// schemaViolations is schemaError's list half, for a caller that renders its
+// own heading.
+func schemaViolations(verr *jsonschema.ValidationError) []string {
+	causes := leafCauses(verr, nil)
+	lines := make([]string, 0, len(causes))
+	seen := make(map[string]bool, len(causes))
+	for _, c := range causes {
+		line := "  - " + describeCause(c)
+		if seen[line] {
+			continue
+		}
+		seen[line] = true
+		lines = append(lines, line)
+	}
+	sort.Strings(lines)
+	return lines
 }
 
 // leafCauses flattens a ValidationError tree to its most specific failures;
@@ -120,6 +147,32 @@ func leafCauses(verr *jsonschema.ValidationError, acc []*jsonschema.ValidationEr
 func describeCause(c *jsonschema.ValidationError) string {
 	loc := instanceLocation(c.InstanceLocation)
 	msg := strings.TrimSpace(c.ErrorKind.LocalizedString(errPrinter))
+	// A pattern failure renders the whole regex, which for the payload path
+	// grammar is forty characters of escaped RE2 and tells an author nothing
+	// they can act on. The rule it encodes is one sentence, so say the sentence.
+	// Without this, "../secrets.env" reported a regex dump where it used to say
+	// the path escapes the payload (#704).
+	// A pattern failure renders the whole regex. For the payload path grammar
+	// that is forty characters of escaped RE2 and tells an author nothing they
+	// can act on, so those two patterns get the sentence they encode instead.
+	//
+	// Keyed on the schema definition that failed, not on the message or the
+	// field name. Two earlier versions were keyed more loosely and both
+	// misfired: the first rewrote every pattern failure, so an invalid sha256
+	// said a digest "is not a payload-relative path"; the second still caught
+	// the top-level manifest's `name`, which has its own pattern and its own
+	// hint (#704).
+	if i := strings.Index(msg, "does not match pattern"); i >= 0 {
+		value := strings.TrimSpace(msg[:i])
+		switch {
+		case strings.HasSuffix(c.SchemaURL, "/$defs/payloadRelativePath"):
+			return fmt.Sprintf("%s: %s is not a payload-relative path: write it without a leading slash, "+
+				"\"~\", \".\" or \"..\" segments, backslashes, or duplicate or trailing slashes",
+				loc, value)
+		case strings.HasSuffix(c.SchemaURL, "/sha256"):
+			return fmt.Sprintf("%s: %s is not a content digest: write 64 lowercase hex characters", loc, value)
+		}
+	}
 	if hint := hintFor(c.InstanceLocation, msg); hint != "" {
 		return fmt.Sprintf("%s: %s (%s)", loc, msg, hint)
 	}
@@ -143,6 +196,11 @@ func hintFor(loc []string, msg string) string {
 			return "supported contract versions: " + strings.Join(SupportedContractMajors, ", ")
 		case strings.Contains(msg, "clients"):
 			return `declare at least one client, e.g. "clients": {"opencode": {"primaryAgents": ["nav-pilot"]}}`
+		case strings.Contains(msg, "'files'"):
+			// The payload manifest's own required key. The schema can only say
+			// which key is missing; the reason it is required is the whole point
+			// of the document, so it is worth saying (#704).
+			return "a payload manifest declares the exact contents of its tree; nav-pilot refuses to verify a payload that does not"
 		}
 		return ""
 	}
