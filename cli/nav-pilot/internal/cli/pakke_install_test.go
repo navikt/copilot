@@ -9,11 +9,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
@@ -1310,7 +1312,7 @@ func TestLocalSourceIsNeverPinned(t *testing.T) {
 		}
 	})
 
-	t.Run("a new commit does not leave the old revision behind", func(t *testing.T) {
+	t.Run("a new commit keeps the previous revision and no more", func(t *testing.T) {
 		pinEnv(t)
 		tree := tier2PinSourceTree(t)
 
@@ -1336,9 +1338,26 @@ func TestLocalSourceIsNeverPinned(t *testing.T) {
 		sha = "commit-two"
 		launch()
 
+		// Two, not one (#703). A local source's payload directory is a live
+		// session's OPENCODE_CONFIG_DIR, so removing the revision the previous
+		// launch handed over pulls the tree out from under a session that is
+		// still reading it. This is the rule pinned sources already have
+		// (prunePakkeRevisions keeps the pin and the one it replaced): a
+		// session survives one update.
 		names := revisionNames(t, tree)
-		if len(names) != 1 || names[0] != "commit-two" {
-			t.Errorf("revisions after launching two commits = %v, want only [commit-two]: nothing else ever removes a local source's revisions", names)
+		if want := []string{"commit-one", "commit-two"}; !reflect.DeepEqual(names, want) {
+			t.Errorf("revisions after launching two commits = %v, want %v", names, want)
+		}
+
+		// The bound is what the single-revision rule was really protecting: a
+		// local source writes no state, so uninstall can never reach these and
+		// only the launch itself prunes. A third commit must therefore drop the
+		// oldest rather than accumulate.
+		sha = "commit-three"
+		launch()
+		names = revisionNames(t, tree)
+		if want := []string{"commit-three", "commit-two"}; !reflect.DeepEqual(names, want) {
+			t.Errorf("revisions after a third commit = %v, want %v: the set must stay bounded at two", names, want)
 		}
 	})
 
@@ -1525,5 +1544,68 @@ func TestFailedStateWriteLosesNothing(t *testing.T) {
 	}
 	if len(after.Files) != len(before.Files) {
 		t.Errorf("state tracks %d files after the failed install, want the outgoing install's %d intact", len(after.Files), len(before.Files))
+	}
+}
+
+// TestLocalLaunchKeepsThePreviousRevision covers #703: a local source resolves
+// to the working tree's HEAD, so an author who commits between two launches
+// produces a second revision. The prune used to keep only the new one, which
+// removed the tree the first session still has open as its
+// OPENCODE_CONFIG_DIR.
+//
+// The rename-aside in materializeRevision does not cover this: it protects a
+// rebuild of the SAME sha, and here the sha moved.
+func TestLocalLaunchKeepsThePreviousRevision(t *testing.T) {
+	isolatedConfig(t)
+	repo := t.TempDir() // an absolute path is never pinnable, which is the case under test
+
+	dir := pakkeSourceDir(repo)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	// Three revisions, oldest first, with distinct mtimes so "previous" is not
+	// decided by directory order.
+	for i, sha := range []string{"eldst", "forrige", "naa"} {
+		p := filepath.Join(dir, sha)
+		if err := os.MkdirAll(p, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		when := time.Now().Add(time.Duration(i-3) * time.Minute)
+		if err := os.Chtimes(p, when, when); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if got := previousRevision(repo, "naa"); got != "forrige" {
+		t.Fatalf("previousRevision = %q, want %q", got, "forrige")
+	}
+
+	prunePakkeRevisions(repo, "naa", previousRevision(repo, "naa"))
+
+	got := revisionNames(t, repo)
+	want := []string{"forrige", "naa"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("revisions after prune = %v, want %v", got, want)
+	}
+}
+
+// The other half: with nothing to keep, the prune must not be confused by the
+// empty string previousRevision returns on a first launch.
+func TestLocalLaunchFirstRevisionSurvives(t *testing.T) {
+	isolatedConfig(t)
+	repo := t.TempDir()
+
+	dir := pakkeSourceDir(repo)
+	if err := os.MkdirAll(filepath.Join(dir, "forste"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := previousRevision(repo, "forste"); got != "" {
+		t.Errorf("previousRevision with only the current revision = %q, want empty", got)
+	}
+	prunePakkeRevisions(repo, "forste", previousRevision(repo, "forste"))
+
+	if got, want := revisionNames(t, repo), []string{"forste"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("revisions = %v, want %v", got, want)
 	}
 }
