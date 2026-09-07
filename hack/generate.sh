@@ -13,6 +13,14 @@ for app in $APPS_WITH_GENERATE; do
   fi
 done
 
+echo "🗑  retired:"
+if mise run retired:generate; then
+  echo ""
+else
+  failed+=("retired")
+  echo ""
+fi
+
 echo "📄 docs:"
 if mise run docs:generate; then
   echo ""

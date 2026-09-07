@@ -403,6 +403,24 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		fmt.Println()
 	}
 
+	// Artifacts the source has retired. Separate from deletedPaths, which covers
+	// files the state file tracks: these are untracked leftovers the ordinary
+	// delete path cannot see, and the only reason they can be removed at all is
+	// that their bytes match a revision the source published (#716).
+	retired := findRetiredOrphans(scope, src.Dir)
+	if len(retired) > 0 {
+		fmt.Printf("%s %d artifact(s) retired in the source are still installed\n\n",
+			yellow("⚠"), len(retired))
+		for _, o := range retired {
+			fmt.Printf("  %s %s\n", dim("⊘"), o.Path)
+		}
+		fmt.Println()
+		if !apply {
+			fmt.Printf("%s removes them. Each one's content matches a revision nav-pilot published,\n", bold("nav-pilot sync --apply"))
+			fmt.Printf("so nothing you wrote yourself is touched.\n\n")
+		}
+	}
+
 	// Report deletions
 	if len(deletedPaths) > 0 {
 		fmt.Printf("%s %d file(s) deleted in source and will be removed (source: %s)\n\n",
@@ -501,6 +519,10 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	// successfully. The declaration is bumped outside the state block: a repo
 	// can carry a committed pin without a state file, and that pin is exactly
 	// the one --apply exists to move.
+	if len(retired) > 0 {
+		fmt.Printf("%s Removing %d retired artifact(s)\n", dim("→"), len(retired))
+		removeRetiredOrphans(retired, jsonOutput)
+	}
 	if applyErrors == 0 {
 		bumpDeclarationSHA(scope, src)
 	}
