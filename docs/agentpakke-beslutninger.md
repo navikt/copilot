@@ -4,6 +4,8 @@ Dette dokumentet forklarer **hvorfor nav-pilot oppfører seg som den gjør** run
 
 Selve kontrakten står i [README.agentpakke.md](README.agentpakke.md) og i [`cli/nav-pilot/schemas/agentpakke-v1.json`](../cli/nav-pilot/schemas/agentpakke-v1.json), altså hva en agentpakke *er* og hva nav-pilot krever av den. Her gjentas den ikke. Her står begrunnelsene bak den.
 
+**Beslutnings-id-ene** (`A1`, `D1`, `G3`, `M4` og resten) er definert i [PRD-en, #435](https://github.com/navikt/copilot/issues/435), og delvis gjentatt i [#437](https://github.com/navikt/copilot/issues/437). De siteres 42 ganger i Go-koden, 15 ganger i det publiserte skjemaets egne feltbeskrivelser og seks ganger i `cli/nav-pilot/DESIGN.md`, uten at noen fil i repoet sa hvor de kom fra. De 15 i skjemaet er de som betyr mest: skjemaet er publisert, så en ekstern pakkeforfatter leser «(A1)» uten noen måte å slå det opp på.
+
 **Regel for dette dokumentet:** hver påstand skal kunne sjekkes mot kode eller en sitert kilde. Der en plan eller et issue sier noe annet enn koden, er koden fasit, og avviket noteres ([§8](#8-der-kildene-er-uenige)). En begrunnelse som ikke fantes i noen kilde, er merket som skrevet ned her og nå ([§7](#7-begrunnelser-som-ikke-sto-skrevet-noe-sted-før-dette-dokumentet)) framfor å bli framstilt som en eldre beslutning.
 
 ## Status (28.08.2026)
