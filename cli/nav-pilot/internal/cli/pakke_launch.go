@@ -279,10 +279,26 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 	if err := mixedPakkeRefusal(src.Pakke, resolved.Client); err != nil {
 		return nil, true, err
 	}
+	if tier == agentpakke.TierLayout {
+		// Tier 1 takes the legacy materialization path, but it must take it as
+		// *this* pakke (#728). Before, the manifest was validated, the install
+		// succeeded, and then launch ran the built-in default anyway: a team's
+		// own primaryAgents were never selectable, and `export opencode`
+		// demoted them to subagents. docs/README.agentpakke.md promises the
+		// opposite, and the promise is the whole point of declaring a roster.
+		//
+		// The invariant SetActivePakke carries is that the manifest declares
+		// this client, which Tier() establishing TierLayout already means: it
+		// is derived from the client's own entry.
+		providerpkg.SetActivePakke(src.Pakke)
+		// Still the same answer about --payload-context as before: a Tier 1
+		// pakke has no pre-built payloads, and asking for one is an error
+		// whether or not its persona is now in use.
+		return nil, false, payloadContextUnsupported(resolved, resolved.Source)
+	}
 	if tier != agentpakke.TierPayload {
-		// Manifest-less, Tier 1, or Tier 2 for a client this pakke does not
-		// declare: exactly today's path, built-in default agentpakke still
-		// active.
+		// Manifest-less, or Tier 2 for a client this pakke does not declare:
+		// exactly today's path, built-in default agentpakke still active.
 		return nil, false, payloadContextUnsupported(resolved, resolved.Source)
 	}
 

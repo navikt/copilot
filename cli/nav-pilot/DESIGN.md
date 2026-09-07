@@ -468,13 +468,18 @@ Konsekvenser:
   derfor synker de nøyaktig som før. En fremmed fil oppdateres ved å legges til på
   nytt fra sin egen kilde; sync trenger aldri å nå den, så offline sletter ingenting.
 
-- **Tier 2 ennå ikke støttet:** en agentpakke uten `layout`, med klienter som har
-  `payloads`, avvises med sin egen begrunnelse i stedet for en misvisende
-  «mangler agenter»-feil.
-- **Sømmen stopper her:** persona, modell og launch (`internal/provider`,
-  `internal/source/frontmatter.go`) leser fortsatt Nav-defaults. De flyttes til
-  manifestet i M2. `export` leser fortsatt de kanoniske katalogene og nekter
-  derfor kilder med et manifest som legger innholdet et annet sted.
+- **Tier 2 installeres som en pinne, ikke som filer:** en agentpakke uten
+  `layout`, med klienter som har `payloads`, går til `installPakkePin`
+  (`install.go:488`, `:902`) og materialiserer en revisjon under
+  `~/.nav-pilot/pakker` framfor å skrive noe i scopet. Punktet sto tidligere som
+  «Tier 2 ennå ikke støttet», med en egen avvisning; det stemte til pinnen kom.
+- **Sømmen for Tier 1 er koblet (#728):** en Tier 1-pakke som erklærer klienten
+  blir aktiv pakke ved launch, så `primaryAgents` fra manifestet er personaen.
+  Før dette ble manifestet validert, installasjonen gikk gjennom, og launchen
+  kjørte Nav-defaulten likevel. `export` leser fortsatt de kanoniske katalogene
+  og nekter derfor kilder med et manifest som legger innholdet et annet sted;
+  modellplumbingen for generiske pakker står også igjen, og begge hører til M3
+  ([#572](https://github.com/navikt/copilot/issues/572)).
 
 `nav-pilot validate [--source <repo>|<sti>] [--ref <ref>]` kjører hele
 konformanssjekken og avslutter med kode 1 ved brudd — ment for agentpakke-repoets

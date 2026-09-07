@@ -46,6 +46,11 @@ func failingResolveSource(t *testing.T) {
 
 // assertDefaultPakkeActive pins that a launch left the built-in agentpakke in
 // place, so personas and model defaults are exactly today's.
+//
+// Since #728 this asserts something narrower than it reads: it belongs on rows
+// where the user did NOT choose a pakke that declares their client. A Tier 1
+// manifest that does declare it now supplies the persona, which is the whole
+// point of the roster. Putting this helper on such a row asserts the bug.
 func assertDefaultPakkeActive(t *testing.T) {
 	t.Helper()
 	if got := providerpkg.PrimaryAgent("copilot"); got != "nav-pilot" {
@@ -54,8 +59,20 @@ func assertDefaultPakkeActive(t *testing.T) {
 }
 
 // TestTryPakkeLaunchNoRegression is the no-regression table: every population
-// that exists today must take the legacy path, with nothing resolved, nothing
-// staged, and the built-in agentpakke still active.
+// that exists today must take the legacy path, with nothing resolved and
+// nothing staged.
+//
+// "And the built-in agentpakke still active" held for every row until #728.
+// Tier 1 is now the exception, and deliberately so: a user who points --source
+// at a pakke whose manifest declares their client as Tier 1 gets that pakke's
+// persona, which is what declaring primaryAgents is for and what
+// docs/README.agentpakke.md has always promised. Before, the manifest was
+// validated, the install succeeded, and launch ran the Nav default anyway.
+//
+// The guarantee that remains, and that the rows below still pin: a user with no
+// source, or with a manifest-less source, or with a Tier 2 pakke that does not
+// declare their client, is unaffected. Nothing changes for anyone who did not
+// deliberately choose a pakke.
 func TestTryPakkeLaunchNoRegression(t *testing.T) {
 	t.Run("no source at all", func(t *testing.T) {
 		isolatedConfig(t)
@@ -85,16 +102,27 @@ func TestTryPakkeLaunchNoRegression(t *testing.T) {
 		assertDefaultPakkeActive(t)
 	})
 
-	t.Run("custom source, Tier 1 manifest", func(t *testing.T) {
+	// The row that changed in #728. Still the legacy path, still nothing
+	// staged, but as this pakke rather than as Nav's default.
+	t.Run("custom source, Tier 1 manifest, becomes the active pakke", func(t *testing.T) {
 		isolatedConfig(t)
 		t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
-		stubResolveSource(t, pakkeSource(t, "navikt/grillmester"))
+		src := pakkeSource(t, "navikt/grillmester")
+		stubResolveSource(t, src)
 
 		handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
 		if handled || err != nil {
-			t.Errorf("tryPakkeLaunch(Tier 1 source) = (%v, %v), want (false, nil)", handled, err)
+			t.Errorf("tryPakkeLaunch(Tier 1 source) = (%v, %v), want (false, nil): Tier 1 still takes the legacy path", handled, err)
 		}
-		assertDefaultPakkeActive(t)
+		// Read through the same accessor the launch uses, so this cannot pass
+		// against a pakke the launch would not actually consult.
+		want := src.Pakke.PrimaryAgents("copilot")
+		if len(want) == 0 {
+			t.Fatal("fixture does not declare primaryAgents for copilot; the assertion below would prove nothing")
+		}
+		if got := providerpkg.PrimaryAgent("copilot"); got != want[0] {
+			t.Errorf("PrimaryAgent(copilot) = %q, want %q: a Tier 1 manifest that declares this client supplies the persona", got, want[0])
+		}
 	})
 
 	t.Run("Tier 2 for another client stays on the legacy path", func(t *testing.T) {
@@ -142,6 +170,11 @@ func TestPayloadContextOnLegacyPath(t *testing.T) {
 
 	t.Run("Tier 1 source", func(t *testing.T) {
 		isolatedConfig(t)
+		// Since #728 a Tier 1 launch sets the active pakke, so this row now
+		// mutates package state and has to put it back. Without the cleanup it
+		// leaked grillmester into TestPayloadContextUnknown, which passed alone
+		// and failed in the suite.
+		t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
 		stubResolveSource(t, pakkeSource(t, "navikt/grillmester"))
 
 		_, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester", PayloadContext: "focused"})
@@ -254,7 +287,11 @@ func TestUnresolvableSourceFallsBackToLegacy(t *testing.T) {
 	if !strings.Contains(stderr.String(), "no route to host") {
 		t.Errorf("warning should name the reason, got: %q", stderr.String())
 	}
-	assertDefaultPakkeActive(t)
+	// A Tier 1 pakke that declares this client supplies the persona since
+	// #728. What this row still pins is that nothing was staged.
+	if got := providerpkg.PrimaryAgent("copilot"); got == "" {
+		t.Error("no primary agent at all; the pakke should have supplied one")
+	}
 }
 
 // TestUnresolvableSourceRefusesWhenPayloadIsRemembered is the third case beside
@@ -415,7 +452,11 @@ func TestTierCacheSkipsSecondResolve(t *testing.T) {
 	if *calls != 1 {
 		t.Errorf("resolveSource called %d times, want 1 — the second launch must reuse the remembered tier", *calls)
 	}
-	assertDefaultPakkeActive(t)
+	// The fixture is Tier 1, so it supplies the persona since #728. What this
+	// test is about is the resolve count, not the persona.
+	if got := providerpkg.PrimaryAgent("copilot"); got == "" {
+		t.Error("no primary agent after a Tier 1 launch; the pakke should have supplied one")
+	}
 }
 
 // TestTierCacheExpires: a pakke that changes tier has to be picked up without
@@ -650,7 +691,12 @@ func TestMixedPakkeRefusesItsPayloadClient(t *testing.T) {
 		if handled || err != nil {
 			t.Errorf("tryPakkeLaunch(mixed pakke, Tier 1 client) = (%v, %v), want (false, nil)", handled, err)
 		}
-		assertDefaultPakkeActive(t)
+		// The legacy path, as before, but as this pakke: the manifest declares
+		// opencode as Tier 1, so its roster is what a persona should come from
+		// (#728). The refusal being tested is the one for the *payload* client.
+		if got := providerpkg.PrimaryAgent("opencode"); got == "" {
+			t.Error("the Tier 1 client got no primary agent from a manifest that declares it")
+		}
 	})
 }
 
