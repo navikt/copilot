@@ -30,7 +30,8 @@ function AuthorAvatar({ author }: { author: string }) {
 export function NewsCard({ item, span = 1 }: { item: NewsItem; span?: number }) {
   const categoryConfig = CATEGORY_CONFIG[item.category] ?? DEFAULT_CATEGORY_CONFIG;
   const isLink = item.type === "link";
-  const href = isLink ? safeHref(item.url!) : `/nyheter/${item.slug}`;
+  const isEnglish = item.lang === "en";
+  const href = isLink ? safeHref(item.url!) : isEnglish ? `/en/news/${item.slug}` : `/nyheter/${item.slug}`;
   const isExternal = isLink && !href.startsWith("/");
   const linkProps = isExternal ? { target: "_blank" as const, rel: "noopener noreferrer" } : {};
   const isWide = span >= 2;
@@ -51,14 +52,21 @@ export function NewsCard({ item, span = 1 }: { item: NewsItem; span?: number }) 
         href={href}
         {...linkProps}
         className={`no-underline hover:shadow-md transition-shadow news-card news-card-${item.category}`}
+        hrefLang={isEnglish ? "en" : undefined}
+        lang={isEnglish ? "en" : undefined}
       >
         <div className="flex flex-col gap-3 h-full">
           <HStack gap="space-4" align="center" wrap>
             <Tag size="xsmall" data-color={categoryConfig.variant} variant="moderate">
-              {categoryConfig.label}
+              <span lang="nb">{categoryConfig.label}</span>
             </Tag>
+            {isEnglish && (
+              <Tag size="xsmall" data-color="neutral" variant="moderate">
+                English
+              </Tag>
+            )}
             <BodyShort size="small" className="text-text-subtle">
-              {formatDate(item.date)}
+              {formatDate(item.date, isEnglish ? "en-GB" : "nb-NO")}
             </BodyShort>
             {item.author && <AuthorAvatar author={item.author} />}
           </HStack>
@@ -80,7 +88,8 @@ export function NewsCard({ item, span = 1 }: { item: NewsItem; span?: number }) 
 export function FeaturedNewsCard({ item }: { item: NewsItem }) {
   const categoryConfig = CATEGORY_CONFIG[item.category] ?? DEFAULT_CATEGORY_CONFIG;
   const isLink = item.type === "link";
-  const href = isLink ? safeHref(item.url!) : `/nyheter/${item.slug}`;
+  const isEnglish = item.lang === "en";
+  const href = isLink ? safeHref(item.url!) : isEnglish ? `/en/news/${item.slug}` : `/nyheter/${item.slug}`;
   const isExternal = isLink && !href.startsWith("/");
   const linkProps = isExternal ? { target: "_blank" as const, rel: "noopener noreferrer" } : {};
 
@@ -90,14 +99,21 @@ export function FeaturedNewsCard({ item }: { item: NewsItem }) {
         href={href}
         {...linkProps}
         className="no-underline hover:shadow-lg transition-shadow featured-card news-card"
+        hrefLang={isEnglish ? "en" : undefined}
+        lang={isEnglish ? "en" : undefined}
       >
         <div className="flex flex-col gap-5">
           <HStack gap="space-4" align="center" wrap>
             <Tag size="xsmall" data-color={categoryConfig.variant} variant="moderate">
-              {categoryConfig.label}
+              <span lang="nb">{categoryConfig.label}</span>
             </Tag>
+            {isEnglish && (
+              <Tag size="xsmall" data-color="neutral" variant="moderate">
+                English
+              </Tag>
+            )}
             <BodyShort size="small" className="text-text-subtle">
-              {formatDate(item.date)}
+              {formatDate(item.date, isEnglish ? "en-GB" : "nb-NO")}
             </BodyShort>
             {item.author && <AuthorAvatar author={item.author} />}
           </HStack>

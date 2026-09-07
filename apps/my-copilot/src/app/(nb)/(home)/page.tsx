@@ -14,10 +14,13 @@ import { NavPill } from "@/components/navigation/nav-pill";
 
 export default async function Home() {
   const [user, videos] = await Promise.all([getUser(false), getPublicVideoFeed(5)]);
-  const news = getNewsItems({ frontPage: true });
-  // Count what /en/news actually lists: that page shows articles only, so a
-  // link item would make the count promise more than the page delivers.
-  const englishNews = getNewsItems({ lang: "en" }).filter((item) => item.type === "article");
+  // English articles sit in the same feed as the Norwegian ones, sorted by date
+  // like everything else. A separate link beside the category chips read as a
+  // filter that did nothing, and the piece most worth reading was the one the
+  // front page did not show.
+  const news = [...getNewsItems({ frontPage: true }), ...getNewsItems({ lang: "en", frontPage: true })].sort(
+    (a, b) => Number(b.featured ?? false) - Number(a.featured ?? false) || b.date.localeCompare(a.date)
+  );
 
   return (
     <main>
@@ -68,7 +71,6 @@ export default async function Home() {
                 <div className="flex-1 min-w-0">
                   <NewsFeed
                     items={news}
-                    englishCount={englishNews.length}
                     compact
                     afterFeatured={
                       videos.length > 0 ? (
