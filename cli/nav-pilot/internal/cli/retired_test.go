@@ -416,3 +416,46 @@ func TestSameRevision(t *testing.T) {
 		})
 	}
 }
+
+// TestRetiredRecordIsValidatedAgainstTheSchema covers the contract half of
+// #729. The record drives deletion, and any agentpakke may now publish one, so
+// a malformed record must not reach the code that removes files.
+//
+// A record that does not conform is treated as absent rather than as a sync
+// failure: a third party's broken file must not block an update that has
+// nothing to do with it.
+func TestRetiredRecordIsValidatedAgainstTheSchema(t *testing.T) {
+	published := []byte("---\nname: gammel\n---\n")
+	good := blobHash(published)
+
+	tests := []struct {
+		name   string
+		record string
+		want   int
+	}{
+		{"conforming record", `{"paths":{"agents/gammel.agent.md":["` + good + `"]}}`, 1},
+		// A hash that is not a blob id could never match a real file, but it
+		// says the producer is not emitting what the contract asks for.
+		{"hash is not a blob id", `{"paths":{"agents/gammel.agent.md":["deadbeef"]}}`, 0},
+		// The path rules matter most: this is the field that decides which file
+		// gets removed.
+		{"path escapes the repo", `{"paths":{"../../etc/passwd":["` + good + `"]}}`, 0},
+		{"absolute path", `{"paths":{"/etc/passwd":["` + good + `"]}}`, 0},
+		{"paths is missing", `{"_comment":"nothing here"}`, 0},
+		{"empty hash list", `{"paths":{"agents/gammel.agent.md":[]}}`, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scope, agentDir := userScopeWithAgents(t)
+			if err := os.WriteFile(filepath.Join(agentDir, "gammel.agent.md"), published, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			sourceDir := t.TempDir()
+			writeRetired(t, sourceDir, tt.record)
+
+			if got := len(findRetiredOrphans(scope, sourceDir, nil)); got != tt.want {
+				t.Errorf("findRetiredOrphans found %d orphan(s), want %d", got, tt.want)
+			}
+		})
+	}
+}

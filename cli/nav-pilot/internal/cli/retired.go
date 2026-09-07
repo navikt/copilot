@@ -38,6 +38,15 @@ func loadRetired(sourceDir string) *retiredManifest {
 	if err != nil {
 		return nil
 	}
+	// Validated against the published schema, like both manifests, because this
+	// file now belongs to the contract: any agentpakke may publish one, and a
+	// malformed record must not lead to a deletion (#729). A record that does
+	// not conform is treated as absent, which removes nothing. Failing the sync
+	// instead would let a third party's broken file block an update that has
+	// nothing to do with it.
+	if err := agentpakke.ValidateRetired(data); err != nil {
+		return nil
+	}
 	var m retiredManifest
 	if err := json.Unmarshal(data, &m); err != nil {
 		return nil
