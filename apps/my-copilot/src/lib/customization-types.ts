@@ -15,7 +15,18 @@ interface BaseCustomization {
   description: string;
   type: CustomizationType;
   domain: Domain;
+  /**
+   * Where the artifact lands when installed into a target repo, e.g.
+   * ".github/agents/nav-pilot.agent.md".
+   */
   filePath: string;
+  /**
+   * Where the artifact lives in this repository, e.g.
+   * "agents/nav-pilot.agent.md". Anything that matches against git output must
+   * use this: filePath is the install path and matched nothing for agents,
+   * instructions and prompts (#718).
+   */
+  repoPath: string;
   rawGitHubUrl: string;
   installUrl: string | null;
   insidersInstallUrl: string | null;

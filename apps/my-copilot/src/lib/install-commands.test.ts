@@ -19,6 +19,7 @@ const base = {
   description: "desc",
   domain: "platform" as const,
   filePath: ".github/agents/nais.agent.md",
+  repoPath: "agents/nais.agent.md",
   rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/nais.agent.md",
   installUrl: null,
   insidersInstallUrl: null,
@@ -39,6 +40,7 @@ const authAgent: Agent = {
   name: "auth-agent",
   id: "auth-agent",
   filePath: ".github/agents/auth-agent.agent.md",
+  repoPath: "agents/auth-agent.agent.md",
   rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/auth.agent.md",
   tools: [],
 };
@@ -57,6 +59,7 @@ const instruction: Instruction = {
   id: "nextjs-aksel",
   name: "Next.js/Aksel Development",
   filePath: ".github/instructions/nextjs-aksel.instructions.md",
+  repoPath: "instructions/nextjs-aksel.instructions.md",
   rawGitHubUrl:
     "https://raw.githubusercontent.com/navikt/copilot/main/.github/instructions/nextjs-aksel.instructions.md",
   applyTo: "src/**/*.tsx",
@@ -65,6 +68,7 @@ const prompt: Prompt = {
   ...base,
   type: "prompt",
   filePath: ".github/prompts/code-review.prompt.md",
+  repoPath: "prompts/code-review.prompt.md",
   rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/.github/prompts/code-review.prompt.md",
   name: "code-review.prompt.md",
   invocation: "/code-review",
@@ -364,6 +368,7 @@ describe("getNavPilotAddCommand", () => {
       id: "security-champion-agent",
       name: "security-champion-agent",
       filePath: ".github/agents/security-champion.agent.md",
+      repoPath: "agents/security-champion.agent.md",
       rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/security-champion.agent.md",
       tools: [],
     };
@@ -407,6 +412,7 @@ describe("getNavPilotAddCommand", () => {
       id: "kafka-agent",
       name: "kafka-agent",
       filePath: ".github/agents/kafka.agent.md",
+      repoPath: "agents/kafka.agent.md",
       rawGitHubUrl: "https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/kafka.agent.md",
       tools: [],
     };

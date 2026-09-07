@@ -93,7 +93,18 @@ interface ManifestItem {
   description: string;
   type: "agent" | "instruction" | "prompt" | "skill";
   domain: Domain;
+  /**
+   * Where the artifact lands when installed into a target repo, e.g.
+   * ".github/agents/nav-pilot.agent.md". Not where it lives in THIS repo: use
+   * repoPath for anything that looks the file up here (#718).
+   */
   filePath: string;
+  /**
+   * Where the artifact lives in this repository, e.g.
+   * "agents/nav-pilot.agent.md". This is what git names in a diff, so it is
+   * what path matching must use.
+   */
+  repoPath: string;
   rawGitHubUrl: string;
   contentHash: string;
   installUrl: string | null;
@@ -169,6 +180,7 @@ function getAgents(): ManifestItem[] {
       type: "agent" as const,
       domain: meta.domain || "general",
       filePath: `.github/agents/${file}`,
+      repoPath: `agents/${file}`,
       rawGitHubUrl: rawUrl,
       contentHash: contentHash(filePath),
       installUrl: buildInstallUrl("agent", rawUrl),
@@ -207,6 +219,7 @@ function getInstructions(): ManifestItem[] {
         type: "instruction" as const,
         domain: meta.domain || "general",
         filePath: `.github/instructions/${file}`,
+        repoPath: `instructions/${file}`,
         rawGitHubUrl: rawUrl,
         contentHash: contentHash(path.join(dir, file)),
         installUrl: buildInstallUrl("instructions", rawUrl),
@@ -246,6 +259,7 @@ function getPrompts(): ManifestItem[] {
         type: "prompt" as const,
         domain: meta.domain || "general",
         filePath: `.github/prompts/${file}`,
+        repoPath: `prompts/${file}`,
         rawGitHubUrl: rawUrl,
         contentHash: contentHash(path.join(dir, file)),
         installUrl: buildInstallUrl("prompt", rawUrl),
@@ -289,6 +303,7 @@ function getSkills(): ManifestItem[] {
         type: "skill" as const,
         domain: meta.domain || "general",
         filePath: `skills/${folder}/SKILL.md`,
+        repoPath: `skills/${folder}/SKILL.md`,
         rawGitHubUrl: `${RAW_BASE}/skills/${folder}/SKILL.md`,
         contentHash: contentHash(path.join(dir, folder, "SKILL.md")),
         installUrl: null,

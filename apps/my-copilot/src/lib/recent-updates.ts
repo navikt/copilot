@@ -28,7 +28,13 @@ export function getRecentlyUpdatedCustomizations(limit = 5): RecentUpdate[] {
   let logOutput: string;
   try {
     logOutput = execSync(
-      `git --no-pager log --format="%H|%s|%ai|%aN" -50 -- 'skills/' '.github/agents/' '.github/instructions/' '.github/prompts/'`,
+      // Repo paths here too, not only in the diff-tree below (#718). The
+      // .github/ trees are where these artifacts lived before #330 moved them
+      // to the root in June, so this pathspec matched 80 commits where the
+      // current one matches 37: the difference is pre-move history that can
+      // never match an item's repoPath, filling the 50-commit window with
+      // commits that yield nothing and crowding out the ones that do.
+      `git --no-pager log --format="%H|%s|%ai|%aN" -50 -- 'skills/' 'agents/' 'instructions/' 'prompts/'`,
       { cwd: repoRoot, encoding: "utf-8", timeout: 5000 }
     );
   } catch {
@@ -48,7 +54,12 @@ export function getRecentlyUpdatedCustomizations(limit = 5): RecentUpdate[] {
     let changedFiles: string[];
     try {
       changedFiles = execSync(
-        `git diff-tree --no-commit-id --name-only -r ${hash} -- 'skills/' '.github/agents/' '.github/instructions/' '.github/prompts/'`,
+        // Repo paths, not install paths. These trees moved to the root in #330
+        // and the pathspec kept the .github/ prefix, so this matched nothing
+        // for agents, instructions and prompts: an agent change has never
+        // appeared in recent updates (#718). Skills worked only because their
+        // path had no prefix to be wrong about.
+        `git diff-tree --no-commit-id --name-only -r ${hash} -- 'skills/' 'agents/' 'instructions/' 'prompts/'`,
         {
           cwd: repoRoot,
           encoding: "utf-8",
@@ -64,8 +75,9 @@ export function getRecentlyUpdatedCustomizations(limit = 5): RecentUpdate[] {
 
     for (const file of changedFiles) {
       const matched = allItems.find((item) => {
-        if (file === item.filePath) return true;
-        if (item.type === "skill" && file.startsWith(path.dirname(item.filePath) + "/")) return true;
+        if (!item.repoPath) return false;
+        if (file === item.repoPath) return true;
+        if (item.type === "skill" && file.startsWith(path.dirname(item.repoPath) + "/")) return true;
         return false;
       });
 
