@@ -15,7 +15,9 @@ import { NavPill } from "@/components/navigation/nav-pill";
 export default async function Home() {
   const [user, videos] = await Promise.all([getUser(false), getPublicVideoFeed(5)]);
   const news = getNewsItems({ frontPage: true });
-  const englishNews = getNewsItems({ lang: "en" });
+  // Count what /en/news actually lists: that page shows articles only, so a
+  // link item would make the count promise more than the page delivers.
+  const englishNews = getNewsItems({ lang: "en" }).filter((item) => item.type === "article");
 
   return (
     <main>
