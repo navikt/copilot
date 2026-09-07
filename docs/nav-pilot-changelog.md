@@ -4,6 +4,14 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-07
 
+### Subagenter arver modellen, og pinnen leses ikke
+
+- **`model:` i frontmatteren gjelder bare når agenten startes direkte**: Startet som subagent arver den forelderens modell. Målt begge veier med samme agent: `--model gpt-5.6-terra` ga `● Research (model: gpt-5.6-terra)`, `--model gpt-5.6-sol` ga `● Research (model: gpt-5.6-sol)`. Pinnen sier `gpt-5.6-luna`. Konsekvensen er at modellen `@nav-pilot` kjører på i praksis er modellen for hele delegeringstreet, og at modellporten bytter persona ved eskalering, ikke modell (#688).
+- **Den deterministiske overstyringen er klientkonfigurasjon, ikke agentfila**: `subagents.agents.<navn>.model` i `~/.copilot/settings.json` setter modellen per subagent uansett hva modellen finner på. Nøkkelen er filnavnet og ikke `name:` i frontmatteren, verifisert med kontroll: `research` ga Luna, `research-agent` ga Sol, og en oppdiktet nøkkel ga Sol. Seks av agentene våre har et `name:` som ikke er filnavnet, så den som setter dette opp fra agentens eget navn får ingen effekt og ingen feilmelding.
+- **AI-kreditter skiller ikke modeller**: Samme agent og oppgave på 10,0k input-tokens kostet 0,26 på både Luna, Sol og Opus 5. Kredittene følger tokenforbruk, ikke modellklasse. Tallet CLI-en viser kan derfor ikke brukes til å vise gevinsten av et modellbytte, og kostnadsargumentene i modellvalg.md er listepris ganget med et anslag, ikke målt forbruk.
+- **Ingen pinner er endret.** `@nav-pilot` står fortsatt upinnet: benchmarken fra august skiller ingen modeller på noen påstand uten gjennom artefakter, så det finnes ikke grunnlag for en pinne, og under arv er orkestratorens modell brukerens valg for hele treet.
+
+
 ### Orkestratoren manglet verktøyet den orkestrerer med
 
 - **`agent` lagt til i verktøylista til `nav-pilot`**: Personaen ber modellen delegere fire steder: modellporten mot `@nav-pilot-opus`, leaf-only-regelen for spesialister, språkvasken til `@forfatter` og delegasjonstabellen. Frontmatteren ga den likevel aldri et subagent-verktøy. Copilot CLI begrenser en agent til sin egen liste, så delegeringen var umulig i praksis: `Error: Task tool is not available.` Standardagenten delegerte fint på samme modell (`gpt-5.6-sol`), så feilsøkingen pekte lenge på modellen framfor på verktøylista. Navnet er `agent` og ikke `task`. Begge virker i CLI-en, men VS Code kjenner bare `agent` og ignorerer ukjente verktøy uten å si fra, og `installUrl` i manifestet peker på VS Code (#688).
