@@ -38,6 +38,15 @@ function parseCategory(value: unknown, slug: string): NewsCategory {
 
 // Articles default to Norwegian: the site was Norwegian long before the first
 // English one, and none of the existing files carry a lang field.
+// A slug becomes a URL path segment, so it may only hold what a filename is
+// allowed to contribute. Anything else is a file that could not be routed to
+// anyway, and leaving it unchecked lets file content reach an href.
+const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
+
+export function isValidSlug(slug: string): boolean {
+  return SLUG_RE.test(slug);
+}
+
 function parseLang(value: unknown): NewsLang {
   return value === "en" ? "en" : "nb";
 }
@@ -139,7 +148,10 @@ function parseNewsFile(fileName: string): NewsItem {
 export function getNewsItems(options: GetNewsItemsOptions = {}): NewsItem[] {
   if (!fs.existsSync(articlesDir)) return [];
 
-  const files = fs.readdirSync(articlesDir).filter((f) => f.endsWith(".md"));
+  const files = fs
+    .readdirSync(articlesDir)
+    .filter((f) => f.endsWith(".md"))
+    .filter((f) => isValidSlug(f.replace(/\.md$/, "")));
   return selectNewsItems(
     files.map(parseNewsFile).filter((item) => !item.draft),
     options
@@ -150,6 +162,8 @@ export function getNewsItems(options: GetNewsItemsOptions = {}): NewsItem[] {
 // forgets the check would serve an article under the wrong lang attribute, and
 // a draft would be reachable by guessing its URL.
 export function getArticle(slug: string, lang: NewsLang = "nb"): (NewsItem & { content: string }) | null {
+  if (!isValidSlug(slug)) return null;
+
   const filePath = path.join(articlesDir, `${slug}.md`);
   if (!fs.existsSync(filePath)) return null;
 

@@ -49,7 +49,7 @@ export default function EnglishNewsIndex() {
                         </BodyShort>
                       </HStack>
                       <Heading size="small" level="2">
-                        <NextLink href={`/en/news/${item.slug}`} className="text-text-action">
+                        <NextLink href={`/en/news/${encodeURIComponent(item.slug)}`} className="text-text-action">
                           {item.title}
                         </NextLink>
                       </Heading>
