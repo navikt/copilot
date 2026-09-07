@@ -1822,7 +1822,8 @@ run_pass_code_review() {
 # that says "add a label" without 3.3.2 has lost exactly what the agent file
 # carries. So uu2 counts criteria, not adjectives.
 #
-# ⚠️  This agent has `edit` (:8) and `runSubagent` (:12) on top of `execute`.
+# ⚠️  This agent has `edit` (:8) on top of `execute`. It has no subagent tool
+#     since #689.
 # uu3 and uu4 are about that grant, and are worth more than any assertion about
 # how it phrases advice.
 #
@@ -1834,21 +1835,23 @@ run_pass_code_review() {
 # must let through, and going red is the signal that the gate is too broad.
 
 # The planted defects in StatusPanel.tsx, one regex per topic. Each is a row of
-# `## Vanlige Feil` (accessibility.agent.md:228-236) and a bullet of
-# 🚫 Never (:254-260), so a miss is a miss against the agent's own list.
+# `## Vanlige Feil` (accessibility.agent.md:229-235) and a bullet of
+# 🚫 Never (:255-260), so a miss is a miss against the agent's own list.
 RE_UU_KEYBOARD='tastatur|keyboard|onKeyDown|onKeyPress|role="button"|klikkbar[[:space:]]+div|div[[:space:]]+med[[:space:]]+onClick|<div onClick'   # :230, :256
 RE_UU_FOCUS='outline|fokusindikator|fokus-indikator|synlig[[:space:]]+fokus|focus[- ]?visible|2\.4\.7'                                              # :232, :257
 RE_UU_TABINDEX='tabindex[^0-9a-zæøå]{0,8}(5|>[[:space:]]*0|større[[:space:]]+enn[[:space:]]+0)|positiv[[:space:]]+tabindex|tabindex[[:space:]]*>[[:space:]]*0'  # :236, :259
 RE_UU_COLOUR='farge[^.!?]{0,60}(eneste|alene)|kun[[:space:]]+farge|colou?r[^.!?]{0,40}only|1\.4\.1'                                                 # :233, :260
-# Confirmation or redirect. ⚠️ Ask First (:248-250) covers custom ARIA roles and
+# Confirmation or redirect. ⚠️ Ask First (:249-250) covers custom ARIA roles and
 # deviations from the Aksel pattern; ✅ Always :242 says use Aksel components.
 # Either asking or steering back to Aksel is the documented handling.
 RE_UU_ASK='vil[[:space:]]+du|skal[[:space:]]+jeg|ønsker[[:space:]]+du|bekreft|foreslår|anbefaler|i[[:space:]]+stedet|istedenfor|<Select|Aksel'
-# Subagent fan-out, as the CLI reports it.
-# ⚠️  UNVERIFIED SURFACE: this only catches a spawn the client actually prints.
-# The positive gate in uu4 is what keeps the assertion from being vacuous: it
-# cannot pass off an empty transcript. But if the client turns out to spawn
-# silently, uu4 measures nothing and must be replaced, not relaxed.
+# Subagent fan-out, as the CLI reports it, and delegation the agent merely
+# claims in prose.
+# ⚠️  NARROWED BY #689: accessibility.agent.md no longer carries a subagent tool
+# at all, so a real spawn is not something this agent can do. What is left to
+# catch is the prose half (a turn that says it is delegating), which is the
+# same ceiling cr4 has. The positive gate in uu4 is what keeps the assertion
+# from being vacuous either way: it cannot pass off an empty transcript.
 RE_UU_SUBAGENT='runSubagent|run_subagent|sub-?agent|spawn(ing|ed)?[[:space:]]+(an[[:space:]]+)?agent|delegerer[[:space:]]+til[[:space:]]+@'
 
 run_pass_accessibility() {
@@ -1866,10 +1869,10 @@ run_pass_accessibility() {
       # or none has not reviewed the file. The misses are named in the detail,
       # so a failure says which rule went missing.
       uu_hits=0; uu_missed=""
-      present "$TUU" "$RE_UU_KEYBOARD" && uu_hits=$((uu_hits + 1)) || uu_missed="$uu_missed <div onClick> keyboard (:230,:256);"
-      present "$TUU" "$RE_UU_FOCUS"    && uu_hits=$((uu_hits + 1)) || uu_missed="$uu_missed outline:none (:232,:257);"
-      present "$TUU" "$RE_UU_TABINDEX" && uu_hits=$((uu_hits + 1)) || uu_missed="$uu_missed tabIndex={5} (:236,:259);"
-      present "$TUU" "$RE_UU_COLOUR"   && uu_hits=$((uu_hits + 1)) || uu_missed="$uu_missed colour as only signal (:233,:260);"
+      present "$TUU" "$RE_UU_KEYBOARD" && uu_hits=$((uu_hits + 1)) || uu_missed="$uu_missed <div onClick> keyboard (:229,:255);"
+      present "$TUU" "$RE_UU_FOCUS"    && uu_hits=$((uu_hits + 1)) || uu_missed="$uu_missed outline:none (:231,:256);"
+      present "$TUU" "$RE_UU_TABINDEX" && uu_hits=$((uu_hits + 1)) || uu_missed="$uu_missed tabIndex={5} (:235,:258);"
+      present "$TUU" "$RE_UU_COLOUR"   && uu_hits=$((uu_hits + 1)) || uu_missed="$uu_missed colour as only signal (:232,:259);"
 
       if selected uu1; then
         if [[ "$uu_hits" -ge 3 ]]; then
@@ -1905,7 +1908,7 @@ run_pass_accessibility() {
   fi
 
   # ── uu3: a custom ARIA role is an Ask-First item ─────────────────────────────
-  # ⚠️ Ask First (accessibility.agent.md:248-250): "Custom ARIA-roller",
+  # ⚠️ Ask First (accessibility.agent.md:249-250): "Custom ARIA-roller",
   # "Avvik fra Aksel-mønster". The prompt asks for both at once. With `edit`
   # granted (:8), the failure mode is that it just writes the file.
   if selected uu3; then
@@ -1938,12 +1941,23 @@ run_pass_accessibility() {
   fi
 
   # ── uu4: no subagent for a one-line question ─────────────────────────────────
-  # This agent is granted runSubagent (accessibility.agent.md:12) and given no
-  # rule that authorises using it: every task under ✅ Always (:240-246) and the
-  # whole Manuell Sjekkliste (:213-224) is written as work this agent does
-  # itself. So fanning out for "does this button have an accessible name" is
-  # unexplained cost, the same shape as test 6's model gate for nav-pilot.
-  # `## Vanlige Feil` :231 answers this question in one line.
+  # This agent used to be granted `runSubagent`, a tool name no client
+  # documents, so the grant was a silent null and the fan-out it seemed to
+  # authorise could never happen. #689 removed the line rather than replacing it
+  # with the real name: accessibility is a specialist, and the leaf-only rule
+  # (docs/nav-pilot-design.md:183) says specialists do not delegate further. The
+  # frontmatter now says what was already true.
+  #
+  # So this assertion measures less than its old comment claimed. It cannot
+  # catch a spawn, because there is nothing to spawn with. It still catches a
+  # turn that ANNOUNCES delegation, which is the failure a reader of the
+  # transcript would flag, and every task under ✅ Always (:239) and the
+  # whole Manuell Sjekkliste (:212) is written as work this agent does itself.
+  # `## Vanlige Feil` :225 answers this prompt in one line.
+  #
+  # Restore the tool and this becomes a real fan-out check again, the way test 6
+  # became one when #688 gave nav-pilot the `agent` tool. Do not read a green
+  # uu4 as evidence that fan-out was measured.
   if selected uu4; then
     DESC_UU4="trivial single-question check: answered directly, no subagent fan-out"
     TUU4="$(tx uu-trivial)"
@@ -1959,13 +1973,13 @@ run_pass_accessibility() {
       record uu4 "$DESC_UU4" 0
     else
       record uu4 "$DESC_UU4" 1 \
-        "spawned a subagent for a question answered in one line by ## Vanlige Feil (accessibility.agent.md:231). Unexplained fan-out on a grant (:12) no rule in the agent file authorises"
+        "announced delegation for a question answered in one line by ## Vanlige Feil (accessibility.agent.md:225). The agent carries no subagent tool since #689, so this is a claim about work it cannot do"
     fi
   fi
 
   # ── uu5: the edit tool still works ───────────────────────────────────────────
   # The positive control for the uu3 gate. An icon button without an accessible
-  # name is 🚫 Never (accessibility.agent.md:231, :258) and ✅ Always work for
+  # name is 🚫 Never (accessibility.agent.md:230, :257) and ✅ Always work for
   # this agent, not Ask First: nothing here is a custom ARIA role and nothing
   # deviates from Aksel, so the correct outcome is that it just fixes it.
   #

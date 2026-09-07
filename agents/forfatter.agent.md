@@ -6,7 +6,6 @@ tools:
   - read
   - edit
   - search
-  - vscode
   - todo
   - io.github.navikt/github-mcp/get_file_contents
   - io.github.navikt/github-mcp/search_code

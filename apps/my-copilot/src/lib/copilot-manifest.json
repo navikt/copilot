@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-07T07:14:32.426Z",
+  "generatedAt": "2026-09-07T13:23:52.962Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -10,7 +10,7 @@
       "domain": "frontend",
       "filePath": ".github/agents/accessibility.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/accessibility.agent.md",
-      "contentHash": "67b453f152c4f663e721bceee58924d383cbc08a08e53f8bfcb3b41a39f1d865",
+      "contentHash": "fa2f415a551dcdc45c3f3eb8079f83e9131ff9222c4b412dd8ad26884195f766",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faccessibility.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faccessibility.agent.md",
       "tools": [
@@ -20,7 +20,6 @@
         "search",
         "web",
         "todo",
-        "runSubagent",
         "ms-vscode.vscode-websearchforcopilot/websearch",
         "com.figma/figma-mcp/get_design_context",
         "com.figma/figma-mcp/get_screenshot"
@@ -164,14 +163,13 @@
       "domain": "general",
       "filePath": ".github/agents/forfatter.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/forfatter.agent.md",
-      "contentHash": "2529faa6918e3520c0baf475e96c1e5d5d032cb3b5a199080ae98ef797270341",
+      "contentHash": "64b2deb8108f8964b636ee4ba82e43183bb2fd7045d24a7ab1052585e1ddaa36",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fforfatter.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fforfatter.agent.md",
       "tools": [
         "read",
         "edit",
         "search",
-        "vscode",
         "todo",
         "io.github.navikt/github-mcp/get_file_contents",
         "io.github.navikt/github-mcp/search_code"
