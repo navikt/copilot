@@ -86,6 +86,7 @@ run = """
 set -e
 python3 hooks/ask-first-aria.py --selftest
 python3 hooks/klarsprak-gate.py --selftest
+python3 hooks/gh-poll-gate.py --selftest
 # hooks/ er kilden nav-pilot installerer fra; .github/hooks/ er dette repoets
 # egen installasjon av den, som Copilot CLI faktisk leser. To kopier råtner hvis
 # ingen sjekker dem, og en port som har drevet fra kilden er ingen port.
