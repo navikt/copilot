@@ -4,6 +4,12 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-07
 
+### Claude Sonnet 4.6 finnes ikke lenger
+
+- **`@aksel`, `@accessibility` og `@forfatter` er repinnet til Claude Sonnet 5**: Copilot CLI avviser den gamle id-en, med "Model 'Claude Sonnet 4.6' is not available" og en liste over hva som finnes. Agentene feilet altså ved oppstart, ikke ved bruk. Sonnet 5 er etterfølgeren og koster $2.00 / $10.00 mot 4.6-ens $3.00 / $15.00 i listepris, så begrunnelsene i modellvalg.md står uendret.
+- **Modellvelgeren tilbyr fortsatt modeller klienten avviser**: Katalogen genereres fra models.dev, som er global, mens tilgjengeligheten er knyttet til konto og plan. På maskinen dette ble målt på mangler 14 av oppføringene i den levende katalogen. `PINNED` i generatoren dekker det motsatte tilfellet, en modell som er tatt av prislista men fortsatt starter. Ingen oppføringer er fjernet på grunnlag av én konto; avviket er beskrevet i eget issue.
+
+
 ### Subagenter arver modellen, og pinnen leses ikke
 
 - **`model:` i frontmatteren gjelder bare når agenten startes direkte**: Startet som subagent arver den forelderens modell. Målt begge veier med samme agent: `--model gpt-5.6-terra` ga `● Research (model: gpt-5.6-terra)`, `--model gpt-5.6-sol` ga `● Research (model: gpt-5.6-sol)`. Pinnen sier `gpt-5.6-luna`. Konsekvensen er at modellen `@nav-pilot` kjører på i praksis er modellen for hele delegeringstreet, og at modellporten bytter persona ved eskalering, ikke modell (#688).

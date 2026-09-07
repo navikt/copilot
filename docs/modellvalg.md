@@ -19,9 +19,9 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | `@kafka` | GPT-5.3-Codex | Teknisk presis på hendelsesdrevne mønstre |
 | `@research` | GPT-5.6 Luna | Leser og søker uten å skrive kode. Luna er omtrent en tiendedel av Codex i listepris. Gjelder bare når agenten startes direkte, ikke når `@nav-pilot` delegerer til den |
 | `@rust` | GPT-5.3-Codex | Terminal-Bench-leder for kompilert kode |
-| `@aksel` | Claude Sonnet 4.6 | Sterk på komponentstruktur og designsystem-konvensjoner |
-| `@accessibility` | Claude Sonnet 4.6 | God på WCAG-tolkning og semantisk HTML |
-| `@forfatter` | Claude Sonnet 4.6 | Anthropic-modellene er best på norsk klarspråk |
+| `@aksel` | Claude Sonnet 5 | Sterk på komponentstruktur og designsystem-konvensjoner |
+| `@accessibility` | Claude Sonnet 5 | God på WCAG-tolkning og semantisk HTML |
+| `@forfatter` | Claude Sonnet 5 | Anthropic-modellene er best på norsk klarspråk |
 
 ### Prompts
 
