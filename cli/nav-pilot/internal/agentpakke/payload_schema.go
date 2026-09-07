@@ -11,7 +11,7 @@ import (
 )
 
 // PayloadSchemaID is the $id of the published payload manifest schema.
-const PayloadSchemaID = "https://github.com/navikt/copilot/cli/nav-pilot/schemas/agentpakke-payload-v1.json"
+const PayloadSchemaID = "https://raw.githubusercontent.com/navikt/copilot/main/cli/nav-pilot/schemas/agentpakke-payload-v1.json"
 
 // PayloadSchemaJSON returns the published payload schema bytes, for a caller
 // that wants to vendor or serve it. A copy, so a caller cannot mutate the

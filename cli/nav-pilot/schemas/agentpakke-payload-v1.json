@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/navikt/copilot/cli/nav-pilot/schemas/agentpakke-payload-v1.json",
+  "$id": "https://raw.githubusercontent.com/navikt/copilot/main/cli/nav-pilot/schemas/agentpakke-payload-v1.json",
   "title": "nav-pilot agentpakke payload manifest (v1)",
   "description": "Contract for the payload manifest of a Tier 2 agentpakke payload. Lives at <payload>/manifest.json, or wherever the client entry's `manifest` field points. Describes the payload tree exactly: nav-pilot refuses a tree that holds a file the manifest does not list, or lacks one it does. Parenthesised ids such as (A7) are decision ids defined in the PRD at https://github.com/navikt/copilot/issues/435. Unknown top-level fields are ignored, so a generator may add descriptive keys without invalidating the manifest on an older binary.",
   "type": "object",

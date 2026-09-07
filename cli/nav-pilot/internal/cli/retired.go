@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -74,15 +75,18 @@ type retiredOrphan struct {
 // a published revision is proof nav-pilot wrote the file and that the user has
 // not since changed it, which is the same standard the ordinary delete path
 // uses (#716).
-func findRetiredOrphans(scope *InstallScope, sourceDir string) []retiredOrphan {
+func findRetiredOrphans(scope *InstallScope, sourceDir string, pakke *agentpakke.Manifest) []retiredOrphan {
 	m := loadRetired(sourceDir)
 	if m == nil {
 		return nil
 	}
+	var layout *agentpakke.Layout
+	if pakke != nil {
+		layout = pakke.Layout
+	}
 	var found []retiredOrphan
 	for srcPath, blobs := range m.Paths {
-		dir, file := path2DirFile(srcPath)
-		kind := kindForDir(dir)
+		kind, file := kindForPath(srcPath, layout)
 		if kind == nil {
 			continue
 		}
@@ -103,13 +107,51 @@ func findRetiredOrphans(scope *InstallScope, sourceDir string) []retiredOrphan {
 	return found
 }
 
-// path2DirFile splits "agents/auth.agent.md" into its directory and file name.
-func path2DirFile(p string) (string, string) {
-	i := strings.IndexByte(p, '/')
-	if i < 0 {
-		return "", p
+// kindForPath maps a retired source path to its artifact kind and the file
+// under it, or nil when the path belongs to no kind this scope knows.
+//
+// Matching is by directory prefix rather than by splitting on the first slash.
+// A declared layout may nest, so "content/agents/gammel.agent.md" has to resolve
+// to the agent kind with "gammel.agent.md" under it; splitting on the first
+// slash gave "content" and matched nothing (#728).
+//
+// The kinds come from AllKinds rather than a written-out list, the lesson of
+// #649, #650 and #708: three hardcoded kind lists have gone stale in this CLI
+// already. The directory names come from the manifest when it declares a
+// layout, and from the canonical names otherwise, because a Tier 1 agentpakke
+// may put its content anywhere. Matching only the canonical names made the
+// retired-artifact record usable by this repo alone.
+func kindForPath(srcPath string, layout *agentpakke.Layout) (*source.ArtifactKind, string) {
+	type candidate struct {
+		dir  string
+		kind *source.ArtifactKind
 	}
-	return p[:i], p[i+1:]
+	var candidates []candidate
+	if layout != nil {
+		for _, m := range []candidate{
+			{layout.Agents, source.KindAgent},
+			{layout.Skills, source.KindSkill},
+			{layout.Instructions, source.KindInstruction},
+			{layout.Prompts, source.KindPrompt},
+			{layout.Hooks, source.KindHook},
+		} {
+			if m.dir != "" {
+				candidates = append(candidates, candidate{strings.Trim(m.dir, "/"), m.kind})
+			}
+		}
+	}
+	for _, k := range AllKinds {
+		candidates = append(candidates, candidate{k.Dir, k})
+	}
+	// Longest first, so a layout that nests one kind inside another cannot be
+	// shadowed by the shorter prefix.
+	sort.Slice(candidates, func(i, j int) bool { return len(candidates[i].dir) > len(candidates[j].dir) })
+	for _, c := range candidates {
+		if rest, ok := strings.CutPrefix(srcPath, c.dir+"/"); ok && rest != "" {
+			return c.kind, rest
+		}
+	}
+	return nil, ""
 }
 
 // removeRetiredOrphans deletes the given files, returning how many went away.
@@ -130,18 +172,6 @@ func removeRetiredOrphans(orphans []retiredOrphan, quiet bool) int {
 		removed++
 	}
 	return removed
-}
-
-// kindForDir maps a source directory to its artifact kind. Derived from
-// AllKinds rather than written out, the lesson of #649, #650 and #708: three
-// separate hardcoded kind lists have gone stale in this CLI already.
-func kindForDir(dir string) *source.ArtifactKind {
-	for _, k := range AllKinds {
-		if k.Dir == dir {
-			return k
-		}
-	}
-	return nil
 }
 
 // retiredPaths is the orphan list as source paths, for the JSON document.

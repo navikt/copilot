@@ -65,7 +65,7 @@ func TestFindRetiredOrphans(t *testing.T) {
 		"agents/nevermind.agent.md":["`+blobHash(published)+`"]
 	}}`)
 
-	got := findRetiredOrphans(scope, sourceDir)
+	got := findRetiredOrphans(scope, sourceDir, nil)
 	if len(got) != 1 || got[0].Path != "agents/auth.agent.md" {
 		t.Fatalf("findRetiredOrphans = %+v, want exactly agents/auth.agent.md: "+
 			"mine.agent.md is retired upstream but holds different bytes, and nevermind is not installed", got)
@@ -85,7 +85,7 @@ func TestFindRetiredOrphansSparesEditedFiles(t *testing.T) {
 	sourceDir := t.TempDir()
 	writeRetired(t, sourceDir, `{"paths":{"agents/auth.agent.md":["`+blobHash(published)+`"]}}`)
 
-	if got := findRetiredOrphans(scope, sourceDir); len(got) != 0 {
+	if got := findRetiredOrphans(scope, sourceDir, nil); len(got) != 0 {
 		t.Errorf("findRetiredOrphans = %+v, want none: an edited file is the user's", got)
 	}
 }
@@ -94,7 +94,7 @@ func TestFindRetiredOrphansSparesEditedFiles(t *testing.T) {
 // not this repo, and for older revisions of this one. Silent, not an error.
 func TestFindRetiredOrphansWithoutManifest(t *testing.T) {
 	scope, _ := userScopeWithAgents(t)
-	if got := findRetiredOrphans(scope, t.TempDir()); got != nil {
+	if got := findRetiredOrphans(scope, t.TempDir(), nil); got != nil {
 		t.Errorf("findRetiredOrphans without a record = %+v, want nil", got)
 	}
 }
@@ -305,5 +305,34 @@ func TestFoldInSparesInstalledArtifacts(t *testing.T) {
 	}
 	if len(ignored) == 0 {
 		t.Error("the fold-in marked nothing as ignored; the genuinely absent agent should be")
+	}
+}
+
+// TestRetiredHonoursDeclaredLayout covers the half of #722 that only worked for
+// this repo (#728): a Tier 1 agentpakke may declare where its content lives, so
+// a retired path can read "content/agents/gammel.agent.md". Matching the
+// canonical name alone meant such a pakke could never retire anything.
+func TestRetiredHonoursDeclaredLayout(t *testing.T) {
+	scope, agentDir := userScopeWithAgents(t)
+	published := []byte("---\nname: gammel\n---\n\nretired\n")
+	if err := os.WriteFile(filepath.Join(agentDir, "gammel.agent.md"), published, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sourceDir := t.TempDir()
+	writeRetired(t, sourceDir, `{"paths":{"content/agents/gammel.agent.md":["`+blobHash(published)+`"]}}`)
+
+	// Without the manifest the directory is unknown, so nothing is found: the
+	// control that keeps the layout lookup from being a no-op.
+	if got := findRetiredOrphans(scope, sourceDir, nil); len(got) != 0 {
+		t.Fatalf("findRetiredOrphans without a layout = %+v, want none", got)
+	}
+
+	pakke := &agentpakke.Manifest{
+		Name:   "annet-team",
+		Layout: &agentpakke.Layout{Agents: "content/agents", Skills: "content/skills"},
+	}
+	got := findRetiredOrphans(scope, sourceDir, pakke)
+	if len(got) != 1 || got[0].Path != "content/agents/gammel.agent.md" {
+		t.Errorf("findRetiredOrphans with a declared layout = %+v, want the one orphan", got)
 	}
 }

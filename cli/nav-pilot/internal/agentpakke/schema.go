@@ -14,9 +14,13 @@ import (
 	"golang.org/x/text/message"
 )
 
-// SchemaID is the published identity of the agentpakke manifest schema — the
-// $id an agentpakke repo references when linting its manifest in CI.
-const SchemaID = "https://github.com/navikt/copilot/cli/nav-pilot/schemas/agentpakke-v1.json"
+// SchemaID is the published identity of the agentpakke manifest schema: the $id
+// an agentpakke repo references when linting its manifest in CI.
+//
+// It is a raw URL because the error messages tell an author to fetch it, and
+// github.com/<owner>/<repo>/<path> is not a raw path: it answered 404 until
+// #728.
+const SchemaID = "https://raw.githubusercontent.com/navikt/copilot/main/cli/nav-pilot/schemas/agentpakke-v1.json"
 
 // SchemaJSON returns the published JSON Schema bytes. They come from the file
 // that ships in the repo (cli/nav-pilot/schemas/agentpakke-v1.json), so the
