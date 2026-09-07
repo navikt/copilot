@@ -19,9 +19,9 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | `@kafka` | GPT-5.3-Codex | Teknisk presis på hendelsesdrevne mønstre |
 | `@research` | GPT-5.6 Luna | Leser og søker uten å skrive kode. Luna er omtrent en tiendedel av Codex i listepris. Gjelder bare når agenten startes direkte, ikke når `@nav-pilot` delegerer til den |
 | `@rust` | GPT-5.3-Codex | Terminal-Bench-leder for kompilert kode |
-| `@aksel` | Claude Sonnet 4.6 | Sterk på komponentstruktur og designsystem-konvensjoner |
-| `@accessibility` | Claude Sonnet 4.6 | God på WCAG-tolkning og semantisk HTML |
-| `@forfatter` | Claude Sonnet 4.6 | Anthropic-modellene er best på norsk klarspråk |
+| `@aksel` | Claude Sonnet 5 | Sterk på komponentstruktur og designsystem-konvensjoner |
+| `@accessibility` | Claude Sonnet 5 | God på WCAG-tolkning og semantisk HTML |
+| `@forfatter` | Claude Sonnet 5 | Anthropic-modellene er best på norsk klarspråk |
 
 ### Prompts
 
@@ -146,15 +146,22 @@ anslag, ikke noe vi har målt**, og forholdet varierer med oppgaven.
 ### Hva som ikke flyttes hit
 
 - `@code-review` og `@accessibility` står igjen på henholdsvis GPT-5.3-Codex og
-  Claude Sonnet 4.6. De ble opprinnelig foreslått til Luna som lesende
+  Anthropic-modellen sin. De ble opprinnelig foreslått til Luna som lesende
   mønsteranvendere, men det stemmer ikke: `@code-review` har `execute`, og
-  `@accessibility` har `execute`, `edit` og `runSubagent`. De kjører altså
-  kommandoer, skriver filer og starter underagenter. GitHub plasserer Luna i
-  Lightweight-klassen, og målingen dekket bare nav-pilot-personaen, aldri en
-  verktøytung agent. Byttet er derfor ubelagt og måles separat.
-- `@forfatter` beholder Claude Sonnet 4.6. Jobben er å skille bokmål fra
+  `@accessibility` har `execute` og `edit`. De kjører altså kommandoer og
+  skriver filer. GitHub plasserer Luna i Lightweight-klassen, og målingen dekket
+  bare nav-pilot-personaen, aldri en verktøytung agent. Byttet er derfor ubelagt
+  og måles separat.
+- `@forfatter` beholder Anthropic-modellen sin. Jobben er å skille bokmål fra
   nynorsk og luke ut norske AI-markører. Målingen sier ingenting om det, og
   gevinsten er nær null mot en kjent nedside.
+
+> To rettelser i ettertid, som ikke endrer beslutningen over. Modellen disse tre
+> sto på het Claude Sonnet 4.6; den er trukket tilbake av GitHub og pinnene er
+> flyttet til Claude Sonnet 5 (#715). Og `@accessibility` hadde aldri
+> `runSubagent`: navnet er ikke et verktøy noen klient kjenner, så grantet var en
+> stille null og er fjernet (#689). Argumentet står likevel, siden `execute` og
+> `edit` alene gjør agenten verktøytung.
 - Resten av GPT-5.3-Codex-pinningene står urørt. Å flytte dem er en egen
   beslutning som denne målingen ikke gir grunnlag for.
 

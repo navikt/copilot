@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-07T13:23:52.962Z",
+  "generatedAt": "2026-09-07T14:07:05.440Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -10,7 +10,7 @@
       "domain": "frontend",
       "filePath": ".github/agents/accessibility.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/accessibility.agent.md",
-      "contentHash": "fa2f415a551dcdc45c3f3eb8079f83e9131ff9222c4b412dd8ad26884195f766",
+      "contentHash": "db12f2f3d0734ca4244b5f9aea6ef1a73edb94cc77c2cd0ba85d897c768a631a",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faccessibility.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faccessibility.agent.md",
       "tools": [
@@ -24,7 +24,7 @@
         "com.figma/figma-mcp/get_design_context",
         "com.figma/figma-mcp/get_screenshot"
       ],
-      "model": ["Claude Sonnet 4.6"],
+      "model": ["Claude Sonnet 5"],
       "tags": ["wcag", "a11y", "universell-utforming", "aksel", "aria"],
       "examples": [
         "Sjekk denne komponenten for tilgjengelighetsfeil",
@@ -42,7 +42,7 @@
       "domain": "frontend",
       "filePath": ".github/agents/aksel.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/aksel.agent.md",
-      "contentHash": "a85a02b7740368a92ca293e01b8dfaab97203609008deec2c31a8f29bdf759b1",
+      "contentHash": "6b14f77aa95b4b834f6dcc39a950e7876e962b13a8484ccae85a642aee29d45c",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faksel.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faksel.agent.md",
       "tools": [
@@ -73,7 +73,7 @@
         "io.github.navikt/github-mcp/get_latest_release",
         "io.github.navikt/github-mcp/list_releases"
       ],
-      "model": ["Claude Sonnet 4.6"],
+      "model": ["Claude Sonnet 5"],
       "tags": [
         "aksel",
         "design-system",
@@ -163,7 +163,7 @@
       "domain": "general",
       "filePath": ".github/agents/forfatter.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/forfatter.agent.md",
-      "contentHash": "64b2deb8108f8964b636ee4ba82e43183bb2fd7045d24a7ab1052585e1ddaa36",
+      "contentHash": "48c56daf3992a30e3e4ba180869f8af3a7e449c9d248883bab3600944f7731f0",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fforfatter.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fforfatter.agent.md",
       "tools": [
@@ -174,7 +174,7 @@
         "io.github.navikt/github-mcp/get_file_contents",
         "io.github.navikt/github-mcp/search_code"
       ],
-      "model": ["Claude Sonnet 4.6"],
+      "model": ["Claude Sonnet 5"],
       "tags": ["norsk", "teknisk-skriving", "redigering", "språk", "klarspråk", "ai-markører"],
       "examples": [
         {

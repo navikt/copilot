@@ -1,7 +1,7 @@
 ---
 name: forfatter
 description: "Norsk teknisk redaktør, tekstforfatter eller innholdsdesigner: klarspråk, AI-markører, anglisismer, fagtermer, mikrotekst."
-model: Claude Sonnet 4.6
+model: Claude Sonnet 5
 tools:
   - read
   - edit
