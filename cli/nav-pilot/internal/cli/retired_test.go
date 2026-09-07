@@ -4,8 +4,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -212,5 +214,96 @@ func TestSyncWithTrackedFilesIsNotUpToDateWithOrphans(t *testing.T) {
 	}
 	if _, statErr := os.Stat(filepath.Join(agentDir, "kept.agent.md")); statErr != nil {
 		t.Errorf("sync removed a file the source still ships: %v", statErr)
+	}
+}
+
+// TestIgnoredButInstalled covers #724: an artifact the state marks ignored
+// while the file is on disk. Sync skips it by design, so it never updates, and
+// nothing said so until doctor's model check tripped over one that had been
+// pinned to a withdrawn model for weeks.
+func TestIgnoredButInstalled(t *testing.T) {
+	scope, agentDir := userScopeWithAgents(t)
+	if err := os.WriteFile(filepath.Join(agentDir, "opus.agent.md"), []byte("---\nname: opus\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeScopedState(scope, &StateFile{
+		Collection: "pakke",
+		Scope:      scope.Name,
+		SourceRepo: "navikt/copilot",
+		SourceSHA:  "abc1234",
+		Files: []InstalledFile{
+			// On disk and ignored: the combination nobody chooses.
+			{Path: "agents/opus.agent.md", Status: fileStatusIgnored},
+			// Ignored and genuinely absent, which is the ordinary case and must
+			// not be reported: nothing has stopped being maintained.
+			{Path: "agents/finnes-ikke.agent.md", Status: fileStatusIgnored},
+			// On disk and tracked, which sync updates normally.
+			{Path: "agents/kept.agent.md", Hash: "abc"},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	got := ignoredButInstalled(scope)
+	if len(got) != 1 || got[0] != "agents/opus.agent.md" {
+		t.Errorf("ignoredButInstalled = %v, want exactly agents/opus.agent.md", got)
+	}
+}
+
+// TestFoldInSparesInstalledArtifacts covers the cause behind #724. The
+// collection fold-in marked every artifact missing from the state file as
+// ignored, on the assumption that missing from state means not installed. It
+// does not: an artifact written by an older nav-pilot, or by a collection
+// install that recorded less, is on disk and in use.
+//
+// Marking such a file ignored told sync to skip it forever. One then sat on a
+// model GitHub had withdrawn until doctor's catalogue check found it.
+func TestFoldInSparesInstalledArtifacts(t *testing.T) {
+	scope, agentDir := userScopeWithAgents(t)
+
+	// The source ships two agents. One is on disk but untracked, the other is
+	// genuinely absent.
+	sourceDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"onDisk", "absent"} {
+		body := "---\nname: " + name + "\n---\n"
+		if err := os.WriteFile(filepath.Join(sourceDir, "agents", name+".agent.md"), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(agentDir, "onDisk.agent.md"), []byte("installed by an older nav-pilot\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	state := &StateFile{
+		Collection: "fullstack",
+		Scope:      scope.Name,
+		SourceRepo: "navikt/copilot",
+		SourceSHA:  "abc1234",
+	}
+	src := &Source{
+		Dir:   sourceDir,
+		SHA:   "abc1234",
+		Repo:  "navikt/copilot",
+		Pakke: &agentpakke.Manifest{Name: "nav-pilot"},
+	}
+
+	adoptPakkeIdentity(scope, src, state, NewSourceResolver(sourceDir), true)
+
+	var ignored []string
+	for _, f := range state.Files {
+		if f.Status == fileStatusIgnored {
+			ignored = append(ignored, f.Path)
+		}
+	}
+	for _, p := range ignored {
+		if strings.Contains(p, "onDisk") {
+			t.Errorf("the fold-in marked an installed artifact as ignored: %v", ignored)
+		}
+	}
+	if len(ignored) == 0 {
+		t.Error("the fold-in marked nothing as ignored; the genuinely absent agent should be")
 	}
 }

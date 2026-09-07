@@ -169,3 +169,45 @@ func reportRetired(orphans []retiredOrphan, apply bool) {
 		fmt.Printf("so nothing you wrote yourself is touched.\n\n")
 	}
 }
+
+// ignoredButInstalled lists artifacts the state marks as ignored while the file
+// sits in the scope.
+//
+// That combination is one nobody chooses (#724). `nav-pilot ignore` marks
+// something the user does not want, and it is normally not on disk; the
+// collection fold-in in #468 marked every artifact missing from state, which
+// included files an older nav-pilot had installed without recording. Sync then
+// skips them by design, so they never update: one carried a model GitHub had
+// withdrawn for weeks, and only doctor's catalogue check found it.
+//
+// Reported, never removed. The file may be exactly what someone wants; what is
+// wrong is that nothing says it has stopped being maintained.
+func ignoredButInstalled(scope *InstallScope) []string {
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		return nil
+	}
+	var found []string
+	for _, f := range state.Files {
+		if f.Status != fileStatusIgnored {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(scope.RootDir, f.Path)); err == nil {
+			found = append(found, f.Path)
+		}
+	}
+	sort.Strings(found)
+	return found
+}
+
+// reportIgnoredButInstalled prints the section for those artifacts.
+func reportIgnoredButInstalled(paths []string) {
+	fmt.Printf("%s %d installed artifact(s) are marked ignored, so sync leaves them as they are\n\n",
+		yellow("⚠"), len(paths))
+	for _, p := range paths {
+		fmt.Printf("  %s %s\n", dim("⊘"), p)
+	}
+	fmt.Printf("\n  They keep whatever version they were installed with, including a model pin\n")
+	fmt.Printf("  that may no longer exist. %s takes the source's version and\n", bold("nav-pilot add <type> <name> --force"))
+	fmt.Printf("  starts tracking it again.\n\n")
+}
