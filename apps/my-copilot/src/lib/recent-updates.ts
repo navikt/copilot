@@ -28,7 +28,13 @@ export function getRecentlyUpdatedCustomizations(limit = 5): RecentUpdate[] {
   let logOutput: string;
   try {
     logOutput = execSync(
-      `git --no-pager log --format="%H|%s|%ai|%aN" -50 -- 'skills/' '.github/agents/' '.github/instructions/' '.github/prompts/'`,
+      // Repo paths here too, not only in the diff-tree below (#718). The
+      // .github/ trees are where these artifacts lived before #330 moved them
+      // to the root in June, so this pathspec matched 80 commits where the
+      // current one matches 37: the difference is pre-move history that can
+      // never match an item's repoPath, filling the 50-commit window with
+      // commits that yield nothing and crowding out the ones that do.
+      `git --no-pager log --format="%H|%s|%ai|%aN" -50 -- 'skills/' 'agents/' 'instructions/' 'prompts/'`,
       { cwd: repoRoot, encoding: "utf-8", timeout: 5000 }
     );
   } catch {
