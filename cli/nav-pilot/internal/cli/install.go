@@ -575,7 +575,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		SourceRepo:  src.Repo,
 		SourceSHA:   src.SHA,
 		InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
-		Files:       result.Files,
+		Files:       stampRevision(result.Files, src.SHA),
 	}
 	// A re-install over a checked-in state file must not throw away the keys a
 	// newer nav-pilot put there; the fresh struct has none of them (#588). Nor
@@ -973,7 +973,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		SourceRepo:  src.Repo,
 		SourceSHA:   src.SHA,
 		InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
-		Files:       result.Files,
+		Files:       stampRevision(result.Files, src.SHA),
 	}
 
 	// Append items the user explicitly deselected in the picker as ignored.
@@ -1342,4 +1342,22 @@ func removeOrphans(scope *InstallScope, prior *StateFile, installed []InstalledF
 		fmt.Printf("  %s %s %s\n", red("×"), f.Path, dim("(no longer in the collection)"))
 	}
 	return kept
+}
+
+// stampRevision records which source revision wrote each file this install
+// produced (#729).
+//
+// Only files with content: an ignored entry has no bytes and therefore no
+// provenance, and stamping one would claim a revision put something on disk
+// that it never did.
+func stampRevision(files []InstalledFile, revision string) []InstalledFile {
+	if revision == "" {
+		return files
+	}
+	for i := range files {
+		if files[i].Hash != "" {
+			files[i].Revision = revision
+		}
+	}
+	return files
 }

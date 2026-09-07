@@ -475,8 +475,18 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		// or older than what is on disk.
 		fmt.Printf("%s %d file(s) differ from what nav-pilot installed and are left alone by a plain sync (source: %s)\n\n",
 			yellow("⚠"), len(conflictPaths), shortSHA(src.SHA))
+		// Per-file provenance turns a bare path into a fact the reader can act
+		// on (#729): a file installed from an older revision than the one the
+		// scope is on is behind, not edited, and those are different problems
+		// with the same hash symptom. A file with no recorded revision predates
+		// provenance and says nothing extra rather than guessing.
+		revisions := installedRevisions(scope)
 		for _, p := range conflictPaths {
-			fmt.Printf("  %s %s\n", dim("⊘"), p)
+			line := fmt.Sprintf("  %s %s", dim("⊘"), p)
+			if rev := revisions[p]; rev != "" && !sameRevision(rev, src.SHA) {
+				line += dim(fmt.Sprintf("  (installed from %s)", shortSHA(rev)))
+			}
+			fmt.Println(line)
 		}
 		fmt.Printf("%s to take the source's version of these too.\n\n", bold("nav-pilot sync --apply"))
 	}
@@ -530,7 +540,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	}
 
 	// Update state with new hashes
-	if err := updateScopedStateHashes(scope, appliedUpdates); err != nil {
+	if err := updateScopedStateHashes(scope, appliedUpdates, src.SHA); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not update state file: %v\n", yellow("⚠"), err)
 	}
 
@@ -1020,7 +1030,7 @@ func applySyncUpdate(scope *InstallScope, sourceDir string, u syncUpdate) error 
 }
 
 // updateScopedStateHashes updates the state file with new hashes after applying updates.
-func updateScopedStateHashes(scope *InstallScope, updates []syncUpdate) error {
+func updateScopedStateHashes(scope *InstallScope, updates []syncUpdate, revision string) error {
 	state, err := readScopedState(scope)
 	if err != nil || state == nil {
 		return nil // no state file, nothing to update
@@ -1042,6 +1052,9 @@ func updateScopedStateHashes(scope *InstallScope, updates []syncUpdate) error {
 		}
 		state.Files[i].Hash = hash
 		state.Files[i].Status = ""
+		// The revision this content came from, which is what a later sync needs
+		// to tell an edit from an older install (#729).
+		state.Files[i].Revision = revision
 	}
 
 	return writeScopedState(scope, state)
@@ -1098,8 +1111,8 @@ func clearResolvedConflicts(scope *InstallScope, resolver *SourceResolver, confl
 }
 
 // updateStateHashes is a backward-compatible wrapper for repo scope.
-func updateStateHashes(targetDir string, updates []syncUpdate) error {
-	return updateScopedStateHashes(ScopeRepo(targetDir), updates)
+func updateStateHashes(targetDir string, updates []syncUpdate, revision string) error {
+	return updateScopedStateHashes(ScopeRepo(targetDir), updates, revision)
 }
 
 // markFilesIgnored updates the state file to mark the given paths as "ignored".

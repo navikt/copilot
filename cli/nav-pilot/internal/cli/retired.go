@@ -241,3 +241,53 @@ func reportIgnoredButInstalled(paths []string) {
 	fmt.Printf("  that may no longer exist. %s takes the source's version and\n", bold("nav-pilot add <type> <name> --force"))
 	fmt.Printf("  starts tracking it again.\n\n")
 }
+
+// installedRevisions maps each tracked path to the source revision it was
+// written from, for the entries that carry one (#729).
+//
+// A path with no recorded revision is absent from the map rather than present
+// with an empty value: the caller must be able to tell "installed from an older
+// revision" from "we do not know", and those lead to different sentences.
+func installedRevisions(scope *InstallScope) map[string]string {
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		return nil
+	}
+	out := make(map[string]string, len(state.Files))
+	for _, f := range state.Files {
+		if f.Revision != "" {
+			out[f.Path] = f.Revision
+		}
+	}
+	return out
+}
+
+// sameRevision reports whether two revision strings name the same commit.
+//
+// Prefix comparison, the way git resolves an abbreviated object id, because the
+// two sides come from different places: a state file may carry a short sha
+// written by an older nav-pilot or by hand, while the source resolves to the
+// full 40 characters. Comparing them for equality reported every such file as
+// "installed from <rev>" even when it came from exactly the revision the scope
+// is on, which is the false positive this suffix exists to avoid.
+//
+// An empty string matches nothing: absence is not agreement. So is a prefix
+// shorter than git's own minimum, since four hex characters agree by accident
+// often enough to be worthless as evidence.
+func sameRevision(a, b string) bool {
+	const minAbbrev = 7
+	if a == "" || b == "" {
+		return false
+	}
+	if strings.EqualFold(a, b) {
+		return true
+	}
+	short, long := a, b
+	if len(short) > len(long) {
+		short, long = long, short
+	}
+	if len(short) < minAbbrev {
+		return false
+	}
+	return strings.EqualFold(short, long[:len(short)])
+}
