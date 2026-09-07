@@ -8,7 +8,7 @@ Selve kontrakten står i [README.agentpakke.md](README.agentpakke.md) og i [`cli
 
 **Regel for dette dokumentet:** hver påstand skal kunne sjekkes mot kode eller en sitert kilde. Der en plan eller et issue sier noe annet enn koden, er koden fasit, og avviket noteres ([§8](#8-der-kildene-er-uenige)). En begrunnelse som ikke fantes i noen kilde, er merket som skrevet ned her og nå ([§7](#7-begrunnelser-som-ikke-sto-skrevet-noe-sted-før-dette-dokumentet)) framfor å bli framstilt som en eldre beslutning.
 
-## Status (28.08.2026)
+## Status (08.09.2026)
 
 | Arbeidspakke | Krav i [#437](https://github.com/navikt/copilot/issues/437) | PR | Status |
 | --- | --- | --- | --- |
@@ -17,11 +17,15 @@ Selve kontrakten står i [README.agentpakke.md](README.agentpakke.md) og i [`cli
 | WP2: datadrevne personaer | C1, C2, C3 | [#455](https://github.com/navikt/copilot/pull/455) | i main |
 | WP3a: staging | G2 (staging-halvdelen) | [#456](https://github.com/navikt/copilot/pull/456) | i main |
 | WP3b: staged launch | G2 (launch), G3, C4, deler av F1 | [#458](https://github.com/navikt/copilot/pull/458) | i main |
-| WP4′: løfte install-sperren for Tier 2, pinne revisjonen, fjerne per-launch-staging | «not installable yet»-stoppen, revisjonspinnen ([#437](https://github.com/navikt/copilot/issues/437#issuecomment-5437575432)), tier-cachen ([#469](https://github.com/navikt/copilot/issues/469)) | ingen | under arbeid |
+| WP4′: løfte install-sperren for Tier 2, pinne revisjonen, fjerne per-launch-staging | «not installable yet»-stoppen, revisjonspinnen ([#437](https://github.com/navikt/copilot/issues/437#issuecomment-5437575432)), tier-cachen ([#469](https://github.com/navikt/copilot/issues/469)) | ingen | i main |
 | WP7: kontraktskorreksjon, roster per payload | G4 (P1, focused-persona) | [#461](https://github.com/navikt/copilot/pull/461) | i main |
 | WP5 / WP6: `model`-frontmatter, differensialtest | F1-resten, G4 | ingen | ikke startet |
+| Tier 1 tas faktisk i bruk: persona ved launch, export leser erklært layout | ingen | [#730](https://github.com/navikt/copilot/pull/730), [#733](https://github.com/navikt/copilot/pull/733) | i main |
+| Kontraktshygiene: manifestlesning, payload-skjema, per-fil-opphav, pensjonerte artefakter | ingen | [#705](https://github.com/navikt/copilot/pull/705), [#720](https://github.com/navikt/copilot/pull/720), [#732](https://github.com/navikt/copilot/pull/732), [#722](https://github.com/navikt/copilot/pull/722) | i main |
 
-**Rekkefølgen er bindende. Revisjonspinnen ligger *inne i* WP4′, ikke etter den.** Først runtime-gatene ([#462](https://github.com/navikt/copilot/issues/462)) og roster-rettelsen ([#461](https://github.com/navikt/copilot/issues/461)), så løftes install-sperren i samme arbeidspakke som pinnen. Så lenge pinnen mangler, kloner hver Tier 2-launch den bevegelige standardbranchen, og da kan en pakkeforfatter endre hva som kjører ved brukerens neste launch uten noe samtykkepunkt ved install. Å løfte sperren først ville gjort det tilgjengelig for alle som installerer, framfor bare for dem som bevisst konfigurerer en kilde. Ikke stokk om på dette for å få noe merget raskere.
+**Historikk, ikke gjeldende plan.** Avsnittet under beskriver rekkefølgen mens WP4′ pågikk. Pinnen er i main, og avsnittet er beholdt fordi begrunnelsen for rekkefølgen fortsatt forklarer hvorfor install-sperren ikke ble løftet først.
+
+**Rekkefølgen var bindende. Revisjonspinnen lå *inne i* WP4′, ikke etter den.** Først runtime-gatene ([#462](https://github.com/navikt/copilot/issues/462)) og roster-rettelsen ([#461](https://github.com/navikt/copilot/issues/461)), så løftes install-sperren i samme arbeidspakke som pinnen. Så lenge pinnen mangler, kloner hver Tier 2-launch den bevegelige standardbranchen, og da kan en pakkeforfatter endre hva som kjører ved brukerens neste launch uten noe samtykkepunkt ved install. Å løfte sperren først ville gjort det tilgjengelig for alle som installerer, framfor bare for dem som bevisst konfigurerer en kilde. Ikke stokk om på dette for å få noe merget raskere.
 
 [#458](https://github.com/navikt/copilot/pull/458) erstatter [#457](https://github.com/navikt/copilot/pull/457), som lå stablet på #456 og ikke kunne retargetes etter at den ble merget. Samme arbeid, pluss rettelsene fra gjennomgangen. Der #457-teksten og koden er uenige, er det #458 som gjelder ([§8](#8-der-kildene-er-uenige)).
 

@@ -611,17 +611,29 @@ result := reassemble(fm, body)                   // sett sammen igjen
 
 ## Tilstand (state)
 
-`StateFile` (JSON) sporer hva som er installert:
+`StateFile` (JSON) sporer hva som er installert. Eksempelet under viser feltene
+som faktisk skrives i dag, ikke bare `path` og `hash`: `source` navngir
+agentpakken en fil kom fra når det ikke er scopets egen kilde (#571),
+`revision` hvilken revisjon som skrev den (#729), og `status` skiller en
+ignorert oppføring fra en aktiv. Ukjente nøkler bevares uendret ved skriving
+(#588), så en kollega på en eldre nav-pilot ikke fjerner et felt binæren deres
+ikke kjenner.
 
 ```json
 {
-  "collection": "fullstack",
-  "version": "2026.04.14-202800-a25f6c3",
+  "collection": "nav-pilot",
+  "version": "2026.09.08-000000-a25f6c3",
   "scope": "repo",
+  "source_repo": "navikt/copilot",
   "source_sha": "a25f6c3",
-  "installed_at": "2026-04-14T20:28:00Z",
+  "installed_at": "2026-09-08T00:00:00Z",
   "files": [
-    {"path": ".github/agents/nav-pilot.agent.md", "hash": "abc123..."}
+    {
+      "path": ".github/agents/nav-pilot.agent.md",
+      "hash": "abc123...",
+      "revision": "a25f6c3d9e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b"
+    },
+    {"path": ".github/agents/gammel.agent.md", "status": "ignored"}
   ]
 }
 ```
