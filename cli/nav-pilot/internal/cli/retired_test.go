@@ -383,3 +383,36 @@ func TestRevisionIsRecordedAndSurfaced(t *testing.T) {
 		}
 	})
 }
+
+// TestSameRevision covers the false positive review found in #732: a state file
+// may carry a short sha while the source resolves to the full 40 characters, so
+// comparing them for equality labelled a file "installed from <rev>" even when
+// it came from exactly the revision the scope is on.
+func TestSameRevision(t *testing.T) {
+	full := "def5678901234567890123456789012345678901"
+	tests := []struct {
+		name string
+		a, b string
+		want bool
+	}{
+		{"identical", full, full, true},
+		{"abbreviated state, full source", "def5678", full, true},
+		{"full state, abbreviated source", full, "def5678", true},
+		{"case differs", "DEF5678", full, true},
+		{"different commits", "abc1234", full, false},
+		// Absence is not agreement: a file with no recorded revision must not
+		// read as "same as the source".
+		{"empty either side", "", full, false},
+		{"empty both sides", "", "", false},
+		// Four hex characters agree by accident often enough to be worthless,
+		// which is why git has a minimum too.
+		{"prefix shorter than git's minimum", "def5", full, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := sameRevision(tt.a, tt.b); got != tt.want {
+				t.Errorf("sameRevision(%q, %q) = %v, want %v", tt.a, tt.b, got, tt.want)
+			}
+		})
+	}
+}

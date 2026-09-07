@@ -483,7 +483,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		revisions := installedRevisions(scope)
 		for _, p := range conflictPaths {
 			line := fmt.Sprintf("  %s %s", dim("⊘"), p)
-			if rev := revisions[p]; rev != "" && !strings.EqualFold(rev, src.SHA) {
+			if rev := revisions[p]; rev != "" && !sameRevision(rev, src.SHA) {
 				line += dim(fmt.Sprintf("  (installed from %s)", shortSHA(rev)))
 			}
 			fmt.Println(line)
