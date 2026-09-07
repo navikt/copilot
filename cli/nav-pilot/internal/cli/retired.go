@@ -143,3 +143,29 @@ func kindForDir(dir string) *source.ArtifactKind {
 	}
 	return nil
 }
+
+// retiredPaths is the orphan list as source paths, for the JSON document.
+func retiredPaths(orphans []retiredOrphan) []string {
+	if len(orphans) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(orphans))
+	for _, o := range orphans {
+		out = append(out, o.Path)
+	}
+	return out
+}
+
+// reportRetired prints the retired-artifact section.
+func reportRetired(orphans []retiredOrphan, apply bool) {
+	fmt.Printf("%s %d artifact(s) retired in the source are still installed\n\n",
+		yellow("⚠"), len(orphans))
+	for _, o := range orphans {
+		fmt.Printf("  %s %s\n", dim("⊘"), o.Path)
+	}
+	fmt.Println()
+	if !apply {
+		fmt.Printf("%s removes them. Each one's content matches a revision nav-pilot published,\n", bold("nav-pilot sync --apply"))
+		fmt.Printf("so nothing you wrote yourself is touched.\n\n")
+	}
+}

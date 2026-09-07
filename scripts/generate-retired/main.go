@@ -25,6 +25,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -179,10 +180,18 @@ func blobsFor(path string) ([]string, error) {
 	return blobs, nil
 }
 
+// git runs one git command and keeps stderr on failure. cmd.Output() discards
+// it, which turns "not a git repository" and "bad revision" alike into a bare
+// "exit status 128" and leaves nothing to act on, locally or in CI.
 func git(args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return "", fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, msg)
+		}
 		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
 	}
 	return string(out), nil
