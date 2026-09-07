@@ -32,8 +32,8 @@ Et enkelt statusoppslag. `gh run list` én gang er hvordan man finner ID-en å
 watche, og å nekte den ville gjort porten til et hinder framfor en rettelse.
 Porten krever gjentakelse: løkke, eller sleep rett foran.
 
-Å vente på noe `gh` ikke kan watche — en deploy-URL som svarer, en kø hos en
-tredjepart — er legitimt. `POLL_OK=1` foran kommandoen slipper gjennom.
+Å vente på noe `gh` ikke kan watche (en deploy-URL som svarer, en kø hos en
+tredjepart) er legitimt. `POLL_OK=1` foran kommandoen slipper gjennom.
 Prefikset er ankret til kommandostart, som i `slop-gate.py`, så det ikke kan
 gjemmes inne i en lengre kjede.
 
@@ -57,10 +57,13 @@ import re
 import sys
 
 # Et kall som spør om tilstand og returnerer med en gang.
+# `pr checks` er spørrende bare uten --watch. Med --watch blokkerer den, og en
+# løkke over flere PR-er som watcher hver av dem er riktig bruk, ikke polling.
 ASKS = re.compile(
     r"\bgh\s+(?:"
     r"run\s+(?:list|view)|"
-    r"pr\s+(?:view|status|checks)|"
+    r"pr\s+(?:view|status)|"
+    r"pr\s+checks(?![^\n;&|]*--watch)|"
     r"api\b[^\n|;&]*\bactions/runs|"
     r"workflow\s+view"
     r")\b"
@@ -89,8 +92,8 @@ REASON = (
     "Begge returnerer først når svaret finnes, og exitkoden bærer resultatet, så "
     "utdata kan kastes. Trenger du run-id-en: `gh run list --commit $(git rev-parse HEAD) "
     "--json databaseId,name,status`, én gang.\n\n"
-    "Venter du på noe `gh` ikke kan watche — en deploy som svarer, en kø hos en "
-    "tredjepart — er polling riktig. Sett `POLL_OK=1` foran kommandoen."
+    "Venter du på noe `gh` ikke kan watche (en deploy som svarer, en kø hos en "
+    "tredjepart), er polling riktig. Sett `POLL_OK=1` foran kommandoen."
 )
 
 
@@ -120,7 +123,7 @@ def decide(payload):
         if not ASKS.search(command):
             continue
         # En blokkerende form er allerede svaret, med mindre den står sammen med
-        # en spørrende løkke — da er watch-en pynt og løkka gjør jobben.
+        # en spørrende løkke. Da er watch-en pynt, og løkka gjør jobben.
         looped = bool(LOOP.search(command) and SLEEP.search(command))
         handrolled = bool(SLEEP_THEN_ASK.search(command))
         if not (looped or handrolled):
@@ -196,6 +199,15 @@ SELFTEST = [
      _sh('gh pr checks 688 --watch --fail-fast'), False),
     ("pr checks --watch med tail",
      _sh('gh pr checks 688 --watch --required 2>&1 | tail -10'), False),
+    # En løkke over flere PR-er som watcher hver av dem blokkerer per runde og
+    # er riktig bruk. `pr checks` teller derfor som spørrende bare uten --watch.
+    ("løkke som watcher flere PR-er",
+     _sh('for n in 705 706; do gh pr checks $n --watch --fail-fast; sleep 5; done'), False),
+    ("løkke som watcher flere kjør",
+     _sh('for id in 1 2; do gh run watch $id --exit-status; sleep 2; done'), False),
+    # Kontrollen for den forrige: uten --watch er den samme løkka polling.
+    ("løkke over pr checks uten --watch er fortsatt polling",
+     _sh('for n in 705 706; do gh pr checks $n; sleep 5; done'), True),
 
     # ── slipper gjennom: ett oppslag er ikke polling ────────────────────────
     ("ett run list for å finne id-en",
