@@ -64,6 +64,14 @@ run = "bash hack/generate.sh"
 
 # ─── Docs ────────────────────────────────────────────────────────────────────
 
+[tasks."retired:generate"]
+description = "Record which artifacts the source has retired, from git history"
+run = "(cd scripts/generate-retired && go run .)"
+
+[tasks."retired:check"]
+description = "Verify the retired-artifact record matches git history"
+run = "(cd scripts/generate-retired && go run . --check)"
+
 [tasks."docs:generate"]
 description = "Generate docs from customization files"
 run = "(cd scripts/generate-docs && go run .)"

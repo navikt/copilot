@@ -21,6 +21,9 @@ type syncResult struct {
 	Ignored   []string     `json:"ignored,omitempty"`
 	Foreign   []string     `json:"foreign,omitempty"`
 	Conflicts []string     `json:"conflicts,omitempty"`
+	// Retired names artifacts the source has withdrawn that are still
+	// installed, and whose bytes nav-pilot published (#716).
+	Retired []string `json:"retired,omitempty"`
 	PinBump   *syncPinBump `json:"pin_bump,omitempty"`
 }
 
@@ -169,6 +172,14 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		noteDeclarationDisagreement(scope, src)
 	}
 
+	// Scanned here, before any of the early returns below, and consulted by all
+	// of them. A scope whose only problem is a retired leftover has nothing in
+	// updates or deletions and may have no tracked files at all, so a scan
+	// placed later is a scan the two "nothing to do" paths jump over: sync
+	// printed "All N files up to date" over three orphans and --apply removed
+	// none of them. That is the state the machine which found #716 was in.
+	retired := findRetiredOrphans(scope, src.Dir)
+
 	// What the committed pin would become. Computed before the file diff
 	// because it is a change in its own right: a revision the repo tracks can
 	// move without any installed file changing (#606).
@@ -227,6 +238,23 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 			}
 			fmt.Println()
 			fmt.Printf("Run %s to apply updates.\n", bold("nav-pilot sync --apply"))
+			return errUpdatesAvailable
+		}
+		if len(retired) > 0 {
+			if jsonOutput {
+				if err := outputJSON(syncResult{Source: src.SHA, Retired: retiredPaths(retired)}); err != nil {
+					return err
+				}
+				if !apply {
+					return errUpdatesAvailable
+				}
+			} else {
+				reportRetired(retired, apply)
+			}
+			if apply {
+				removeRetiredOrphans(retired, jsonOutput)
+				return nil
+			}
 			return errUpdatesAvailable
 		}
 		if jsonOutput {
@@ -336,7 +364,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	checked := len(files) - len(foreignPaths)
 
 	result := syncResult{
-		UpToDate:  len(updates) == 0 && len(deletedPaths) == 0 && len(syncErrors) == 0 && pinBump == nil && (apply || len(conflictPaths) == 0),
+		UpToDate:  len(updates) == 0 && len(deletedPaths) == 0 && len(syncErrors) == 0 && pinBump == nil && len(retired) == 0 && (apply || len(conflictPaths) == 0),
 		Source:    src.SHA,
 		Updates:   updates,
 		Deletions: deletedPaths,
@@ -346,6 +374,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		Foreign:   foreignPaths,
 		Conflicts: conflictPaths,
 		PinBump:   pinBump,
+		Retired:   retiredPaths(retired),
 	}
 	tMode := telemetryMode()
 	if !apply {
@@ -401,6 +430,14 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 			fmt.Printf("  %s %s\n", yellow("~"), u.Path)
 		}
 		fmt.Println()
+	}
+
+	// Artifacts the source has retired. Separate from deletedPaths, which covers
+	// files the state file tracks: these are untracked leftovers the ordinary
+	// delete path cannot see, and the only reason they can be removed at all is
+	// that their bytes match a revision the source published (#716).
+	if len(retired) > 0 {
+		reportRetired(retired, apply)
 	}
 
 	// Report deletions
@@ -501,6 +538,10 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	// successfully. The declaration is bumped outside the state block: a repo
 	// can carry a committed pin without a state file, and that pin is exactly
 	// the one --apply exists to move.
+	if len(retired) > 0 {
+		fmt.Printf("%s Removing %d retired artifact(s)\n", dim("→"), len(retired))
+		removeRetiredOrphans(retired, jsonOutput)
+	}
 	if applyErrors == 0 {
 		bumpDeclarationSHA(scope, src)
 	}

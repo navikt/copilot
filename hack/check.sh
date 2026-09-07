@@ -13,6 +13,14 @@ for app in $APPS; do
   fi
 done
 
+echo "🗑  retired:"
+if mise run retired:check; then
+  echo ""
+else
+  failed+=("retired")
+  echo ""
+fi
+
 echo "📄 docs:"
 if mise run docs:check; then
   echo ""
