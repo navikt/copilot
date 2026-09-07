@@ -170,6 +170,36 @@ describe("CATEGORY_CONFIG", () => {
       const result = selectNewsItems(items, { frontPage: true, now });
       expect(result.map((item) => item.slug)).toEqual(["fresh-link", "old-article"]);
     });
+
+    describe("language", () => {
+      const base: NewsItem = {
+        lang: "nb",
+        slug: "",
+        title: "",
+        date: "2026-06-01",
+        draft: false,
+        category: "nav-pilot",
+        excerpt: "",
+        tags: [],
+        type: "article",
+      };
+      const norsk = { ...base, slug: "norsk" };
+      const english = { ...base, lang: "en" as const, slug: "english" };
+
+      it("returns Norwegian items when no language is asked for", () => {
+        expect(selectNewsItems([norsk, english]).map((i) => i.slug)).toEqual(["norsk"]);
+      });
+
+      it("returns only the requested language from mixed input", () => {
+        expect(selectNewsItems([norsk, english], { lang: "en" }).map((i) => i.slug)).toEqual(["english"]);
+      });
+
+      // The default is a filter and not a fallback: a Norwegian page with only
+      // English items shows nothing rather than leaking the other language in.
+      it("returns nothing when no item is in the requested language", () => {
+        expect(selectNewsItems([english], { lang: "nb" })).toEqual([]);
+      });
+    });
   });
 
   it("should return undefined for unknown categories", () => {

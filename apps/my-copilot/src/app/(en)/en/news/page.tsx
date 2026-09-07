@@ -39,7 +39,7 @@ export default function EnglishNewsIndex() {
             {items.length === 0 ? (
               <BodyShort>Nothing here yet.</BodyShort>
             ) : (
-              <VStack gap="space-16" as="ul" className="list-none p-0">
+              <VStack gap="space-16" as="ul" className="list-none" style={{ padding: 0 }}>
                 {items.map((item) => (
                   <li key={item.slug}>
                     <VStack gap="space-4">
