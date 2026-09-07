@@ -603,14 +603,19 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	fmt.Printf("%s Installed %d items from %q (v%s, %s).\n",
 		green("✓"), result.Installed, collection, stateVersion, shortSHA(src.SHA))
 	fmt.Println()
+	// The pakke's own persona, not ours. A team that installs their agentpakke
+	// and is then told to use @nav-pilot has been handed the wrong name for
+	// what they just installed, which is the same mistake the launch path made
+	// before #728.
+	agent := installedPrimaryAgent(src)
 	if scope.IsUser() {
 		fmt.Println(dim("Agents and skills are now available across all your repos."))
-		fmt.Println(dim("Use @nav-pilot in Copilot Chat or copilot --agent nav-pilot"))
+		fmt.Println(dim(fmt.Sprintf("Use @%s in Copilot Chat or copilot --agent %s", agent, agent)))
 	} else {
 		fmt.Println(dim("Next steps:"))
 		fmt.Println(dim("  1. Review the installed files in .github/"))
 		fmt.Println(dim("  2. Commit and push to enable Copilot customization"))
-		fmt.Println(dim("  3. Use @nav-pilot in Copilot to start planning"))
+		fmt.Println(dim(fmt.Sprintf("  3. Use @%s in Copilot to start planning", agent)))
 	}
 
 	return nil
@@ -1002,7 +1007,8 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		green("✓"), result.Installed, scope.Label(), stateVersion, shortSHA(src.SHA))
 	fmt.Println()
 	fmt.Println(dim("Agents and skills are now available across all your repos."))
-	fmt.Println(dim("Use @nav-pilot in Copilot Chat or copilot --agent nav-pilot"))
+	agent := installedPrimaryAgent(src)
+	fmt.Println(dim(fmt.Sprintf("Use @%s in Copilot Chat or copilot --agent %s", agent, agent)))
 
 	if len(manifest.Instructions) > 0 && scope.IsUser() {
 		fmt.Println()
@@ -1360,4 +1366,22 @@ func stampRevision(files []InstalledFile, revision string) []InstalledFile {
 		}
 	}
 	return files
+}
+
+// installedPrimaryAgent names the persona a user should reach for after an
+// install: the first primaryAgents entry the source's manifest declares for
+// Copilot, or nav-pilot when the source declares none.
+//
+// A manifest-less source, and Nav's own agentpakke, both answer nav-pilot, so
+// the ordinary message is unchanged.
+func installedPrimaryAgent(src *Source) string {
+	const fallback = "nav-pilot"
+	if src == nil || src.Pakke == nil {
+		return fallback
+	}
+	agents := src.Pakke.PrimaryAgents("copilot")
+	if len(agents) == 0 {
+		return fallback
+	}
+	return agents[0]
 }
