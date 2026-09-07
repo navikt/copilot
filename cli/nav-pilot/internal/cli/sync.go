@@ -434,7 +434,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		for _, p := range conflictPaths {
 			fmt.Printf("  %s %s\n", dim("⊘"), p)
 		}
-		fmt.Printf("%s to take the upstream version of these too.\n\n", bold("nav-pilot sync --apply"))
+		fmt.Printf("%s to take the source's version of these too.\n\n", bold("nav-pilot sync --apply"))
 	}
 
 	if !apply {

@@ -256,10 +256,14 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 
 // printConflictHint says what a conflict is and how it ends. "Skipped" on its
 // own reads as permanent, and --force reads as "throw my edits away": neither
-// says that a sync --apply takes the upstream version of exactly these files.
+// says that a sync --apply takes the source's version of exactly these files.
+//
+// It says "kept" and not "kept as you edited them" (#692): a file installed
+// from an older revision of the source differs without anyone having touched
+// it, and the hash comparison behind this cannot tell the two apart.
 func printConflictHint(n int) {
-	fmt.Printf("%s %d file(s) kept as you edited them.\n", yellow("⚠"), n)
-	fmt.Printf("  %s to take the upstream version, or %s to overwrite on the next install.\n",
+	fmt.Printf("%s %d file(s) kept, differing from what nav-pilot installed.\n", yellow("⚠"), n)
+	fmt.Printf("  %s to take the source's version, or %s to overwrite on the next install.\n",
 		bold("nav-pilot sync --apply"), bold("--force"))
 }
 
