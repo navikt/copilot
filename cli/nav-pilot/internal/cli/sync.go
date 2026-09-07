@@ -82,8 +82,54 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	return nil
 }
 
+// refuseSourceSwitch stops a sync that names a different source than the one
+// the scope is recorded against (#691).
+//
+// sync moves the pin within one source; changing source is an install. That is
+// what [syncPakkePin] already says for a pakke scope, and this is the same rule
+// for a content scope, which never reached that guard: it lives past the
+// installsContent gate.
+//
+// Two things went wrong without it, and the second is the damaging one:
+//
+//  1. Only SourceSHA and Version are written back (see the state block at the
+//     end of this file). SourceRepo is written by install alone. So
+//     `sync --source X --apply` left the scope recorded against the old source
+//     with the new source's revision, and the next plain sync read the old
+//     source again and offered to roll every file back.
+//  2. The file diff is computed against the new source, but it is not an
+//     install: a file the new source does not ship is reported as "deleted in
+//     source" and --apply removes it, while a file only the new source ships is
+//     never added. The result is neither source, which is worse than either.
+//
+// An empty recorded source is the adoption path (B3) and passes: that scope has
+// no source to switch away from.
+func refuseSourceSwitch(scope *InstallScope, sourceRepo string) error {
+	if sourceRepo == "" {
+		return nil
+	}
+	state, err := readScopedState(scope)
+	if err != nil || state == nil || state.SourceRepo == "" {
+		return nil
+	}
+	if sameSourceRepo(state.SourceRepo, sourceRepo) {
+		return nil
+	}
+	return fmt.Errorf(
+		"the %s scope is installed from %s, and %s names %s.\n"+
+			"sync updates the source a scope already has; switching sources is an install.\n\n"+
+			"  Sync the recorded source:  %s\n"+
+			"  Switch this scope over:    %s",
+		scope.Name, bold(state.SourceRepo), bold("--source"), bold(sourceRepo),
+		bold("nav-pilot sync"),
+		bold("nav-pilot install --"+scope.Name+" --source "+sourceRepo))
+}
+
 // syncScope is the sync itself, once the source question is settled.
 func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool) error {
+	if err := refuseSourceSwitch(scope, sourceRepo); err != nil {
+		return err
+	}
 	// The source a scope was installed from wins over the persisted default:
 	// selection is per scope (B4), so syncing one scope never drags another
 	// scope's agentpakke into it.
@@ -377,12 +423,18 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	}
 
 	if len(conflictPaths) > 0 && !apply {
-		fmt.Printf("%s %d file(s) hold your own edits and are left alone by a plain sync (source: %s)\n\n",
+		// "differs from what nav-pilot installed" and not "your own edits"
+		// (#692). The status says content changed since the recorded hash; it
+		// says nothing about who changed it. A reader who knows they edited
+		// nothing rightly rejects the sentence, and the only remedy offered is
+		// --apply, which then takes the source's version whether that is newer
+		// or older than what is on disk.
+		fmt.Printf("%s %d file(s) differ from what nav-pilot installed and are left alone by a plain sync (source: %s)\n\n",
 			yellow("⚠"), len(conflictPaths), shortSHA(src.SHA))
 		for _, p := range conflictPaths {
 			fmt.Printf("  %s %s\n", dim("⊘"), p)
 		}
-		fmt.Printf("%s to take the upstream version of these too.\n\n", bold("nav-pilot sync --apply"))
+		fmt.Printf("%s to take the source's version of these too.\n\n", bold("nav-pilot sync --apply"))
 	}
 
 	if !apply {

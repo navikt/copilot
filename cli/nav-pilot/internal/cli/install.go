@@ -190,9 +190,16 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 	}
 
 	if conflicted && !force {
-		// The file exists and the user changed it — skip the overwrite but
-		// track as conflict so it's not lost from state or reported as "new".
-		fmt.Printf("  %s %s (locally modified — kept; %s takes the upstream version)\n",
+		// The file exists and its content differs from the hash nav-pilot
+		// recorded. Skip the overwrite but track as conflict so it is not lost
+		// from state or reported as "new".
+		//
+		// "differs from what nav-pilot installed" and not "locally modified"
+		// (#692): the hash comparison cannot tell an edit from a file that was
+		// installed by an older revision of the source, and saying "you changed
+		// this" to someone who did not is how a reader learns to ignore the
+		// warning.
+		fmt.Printf("  %s %s (differs from what nav-pilot installed, kept; %s takes the source's version)\n",
 			yellow("⚠"), name, bold("nav-pilot sync --apply"))
 		existingHash, hashErr := rawArtifactHash(dst, art.IsDir)
 		if hashErr == nil {
@@ -249,10 +256,14 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 
 // printConflictHint says what a conflict is and how it ends. "Skipped" on its
 // own reads as permanent, and --force reads as "throw my edits away": neither
-// says that a sync --apply takes the upstream version of exactly these files.
+// says that a sync --apply takes the source's version of exactly these files.
+//
+// It says "kept" and not "kept as you edited them" (#692): a file installed
+// from an older revision of the source differs without anyone having touched
+// it, and the hash comparison behind this cannot tell the two apart.
 func printConflictHint(n int) {
-	fmt.Printf("%s %d file(s) kept as you edited them.\n", yellow("⚠"), n)
-	fmt.Printf("  %s to take the upstream version, or %s to overwrite on the next install.\n",
+	fmt.Printf("%s %d file(s) kept, differing from what nav-pilot installed.\n", yellow("⚠"), n)
+	fmt.Printf("  %s to take the source's version, or %s to overwrite on the next install.\n",
 		bold("nav-pilot sync --apply"), bold("--force"))
 }
 
