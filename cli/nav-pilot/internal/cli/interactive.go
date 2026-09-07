@@ -73,7 +73,12 @@ func modelPickerOptions(p Provider) []huh.Option[string] {
 	}
 	opts := []huh.Option[string]{huh.NewOption(defLabel, "")}
 	for _, m := range p.KnownModels() {
-		opts = append(opts, huh.NewOption(m.Label+"  "+dim(m.ID), m.ID))
+		// Marked, not hidden (#717). The list is generated from a global
+		// catalogue while availability follows the account and plan, so an entry
+		// missing here may work for a colleague. Hiding it would take that away;
+		// saying so tells the truth for the reader without claiming anything
+		// about anyone else. Availability unknown means no annotation at all.
+		opts = append(opts, huh.NewOption(m.Label+"  "+dim(m.ID)+dim(unavailableSuffix(m.ID)), m.ID))
 	}
 	return append(opts, huh.NewOption("Custom (type manually)…", customModelSentinel))
 }
