@@ -164,6 +164,12 @@ func describeCause(c *jsonschema.ValidationError) string {
 	if i := strings.Index(msg, "does not match pattern"); i >= 0 {
 		value := strings.TrimSpace(msg[:i])
 		switch {
+		case strings.HasSuffix(c.SchemaURL, "/$defs/repoRelativePath"):
+			return fmt.Sprintf("%s: %s is not a repo-relative path: write it without a leading slash, "+
+				"\"~\", \".\" or \"..\" segments, backslashes, or duplicate or trailing slashes",
+				loc, value)
+		case strings.HasSuffix(c.SchemaURL, "/$defs/blobHash"):
+			return fmt.Sprintf("%s: %s is not a git blob id: write 40 lowercase hex characters", loc, value)
 		case strings.HasSuffix(c.SchemaURL, "/$defs/payloadRelativePath"):
 			return fmt.Sprintf("%s: %s is not a payload-relative path: write it without a leading slash, "+
 				"\"~\", \".\" or \"..\" segments, backslashes, or duplicate or trailing slashes",

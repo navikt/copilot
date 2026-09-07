@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/navikt/copilot/main/cli/nav-pilot/schemas/agentpakke-retired-v1.json",
+  "title": "nav-pilot agentpakke retired-artifact record (v1)",
+  "description": "Optional record of artifacts an agentpakke has published and since deleted, at .nav-pilot/retired-artifacts.json. nav-pilot removes such an artifact from an installed scope only when the file's content matches one of the listed hashes, which is proof the pakke published those exact bytes: a file the user wrote never matches. Without this record a retired artifact stays installed forever, because sync removes only what its state file tracks and an older install may have recorded nothing. Generate it from the repo's own history rather than maintaining it by hand; see scripts/generate-retired in navikt/copilot.",
+  "type": "object",
+  "required": ["paths"],
+  "properties": {
+    "_comment": {
+      "description": "Free text, ignored. Generators use it to say how the file is produced.",
+      "type": "string"
+    },
+    "paths": {
+      "description": "Repo-relative path of each retired artifact, mapped to every content hash that path ever held. Paths are as the agentpakke names them, so a declared layout applies: an agentpakke with layout.agents \"content/agents\" lists \"content/agents/old.agent.md\". An empty object is legal and says nothing has been retired.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/repoRelativePath" },
+      "additionalProperties": {
+        "description": "Every content hash this path has held, as git blob ids: sha1 over the header \"blob <length>\\u0000\" and then the bytes. Git blob ids rather than plain sha256 because a repo's history already holds them, which is what makes the record generatable instead of maintained.",
+        "type": "array",
+        "minItems": 1,
+        "items": { "$ref": "#/$defs/blobHash" }
+      }
+    }
+  },
+  "$defs": {
+    "repoRelativePath": {
+      "description": "A normalized, contained, repo-relative path. Forward slashes only, no backslashes; not absolute; no \"~\" prefix; no \".\" or \"..\" segments; no duplicate or trailing slashes.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?:\\.*[^./\\\\~][^/\\\\]*|\\.{3,})(?:/(?:\\.*[^./\\\\][^/\\\\]*|\\.{3,}))*$"
+    },
+    "blobHash": {
+      "description": "A git blob id: 40 lowercase hex characters.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    }
+  }
+}

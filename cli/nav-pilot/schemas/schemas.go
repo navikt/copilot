@@ -28,3 +28,16 @@ var AgentpakkeV1 []byte
 //
 //go:embed agentpakke-payload-v1.json
 var AgentpakkePayloadV1 []byte
+
+// AgentpakkeRetiredV1 is the retired-artifact record schema, contract version 1.
+// Its $id is
+// https://raw.githubusercontent.com/navikt/copilot/main/cli/nav-pilot/schemas/agentpakke-retired-v1.json
+//
+// The record itself is optional: an agentpakke that has never deleted an
+// artifact needs none. It exists because sync removes only what its state file
+// tracks, so an artifact retired upstream stays installed forever on a machine
+// whose state predates it (#716). Publishing the hashes the pakke once shipped
+// is what lets nav-pilot tell its own bytes from a file the user wrote (#729).
+//
+//go:embed agentpakke-retired-v1.json
+var AgentpakkeRetiredV1 []byte

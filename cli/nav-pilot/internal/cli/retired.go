@@ -16,7 +16,11 @@ import (
 
 // retiredManifestPath is where the source publishes the record of what it has
 // retired, relative to the source checkout.
-const retiredManifestPath = ".nav-pilot/retired-artifacts.json"
+//
+// Aliased from the contract rather than restated: the constant the validator
+// uses and the constant the reader uses must be the same one, or nav-pilot can
+// end up validating a file it does not read.
+const retiredManifestPath = agentpakke.RetiredRecordPath
 
 // retiredManifest is the generated record: artifact path to every content hash
 // that path ever held before it was deleted.
@@ -36,6 +40,15 @@ type retiredManifest struct {
 func loadRetired(sourceDir string) *retiredManifest {
 	data, err := os.ReadFile(filepath.Join(sourceDir, retiredManifestPath))
 	if err != nil {
+		return nil
+	}
+	// Validated against the published schema, like both manifests, because this
+	// file now belongs to the contract: any agentpakke may publish one, and a
+	// malformed record must not lead to a deletion (#729). A record that does
+	// not conform is treated as absent, which removes nothing. Failing the sync
+	// instead would let a third party's broken file block an update that has
+	// nothing to do with it.
+	if err := agentpakke.ValidateRetired(data); err != nil {
 		return nil
 	}
 	var m retiredManifest

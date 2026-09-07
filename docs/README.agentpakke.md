@@ -86,6 +86,38 @@ Regelen har to halvdeler, og de gjelder samtidig:
 
 Et repo helt uten `.nav-pilot/agentpakke.json` er ikke en feil. Det behandles som en legacy-samlingskilde (`collections/<navn>/manifest.json`) akkurat som før. Merk at navikt/copilot selv ikke lenger er en slik kilde: siden [#468](https://github.com/navikt/copilot/issues/468) skipper repoet sitt eget manifest, og de fem samlingene er kollapset til den ene pakka `nav-pilot`.
 
+## Pensjonerte artefakter
+
+Valgfritt. En agentpakke som aldri har slettet en artefakt trenger ingen slik fil.
+
+`nav-pilot sync` fjerner bare det tilstandsfila i scopet sporer. En artefakt som ble installert av en eldre nav-pilot, eller av en installasjon som noterte mindre, står derfor igjen for alltid etter at pakken har sluttet å publisere den. Tre agenter pensjonert i august lå fortsatt installert i september, én av dem pinnet til en modell som var trukket tilbake ([#716](https://github.com/navikt/copilot/issues/716)).
+
+En pakke kan publisere `.nav-pilot/retired-artifacts.json` og la nav-pilot rydde:
+
+```json
+{
+  "paths": {
+    "content/agents/gammel.agent.md": [
+      "811b4abbecd5127391a18402837429c7fcb4f1dc",
+      "9629bdfd8f667ad380469689a6119ecd772c734e"
+    ]
+  }
+}
+```
+
+| Felt | Type | Påkrevd | Betydning |
+| --- | --- | --- | --- |
+| `paths` | objekt | ja | Repo-relativ sti til hver pensjonerte artefakt, med hver innholdshash stien har hatt. Tomt objekt er lovlig og sier at ingenting er pensjonert |
+| `_comment` | string | nei | Fritekst, ignoreres. Generatorer bruker den til å si hvordan fila lages |
+
+Stiene navngis slik pakken selv navngir dem, så en erklært `layout` gjelder: en pakke med `layout.agents` lik `content/agents` lister `content/agents/gammel.agent.md`.
+
+Hashene er git blob-id-er, altså sha1 over `blob <lengde>\0` og deretter bytene. Det er ikke tilfeldig: en pakkes egen historikk inneholder dem allerede, så fila kan **genereres** framfor å vedlikeholdes for hånd. Ingen skal måtte huske å føre opp et navn i det øyeblikket de sletter det. `scripts/generate-retired` i navikt/copilot leser dem ut av git-loggen og er omtrent hundre linjer.
+
+**nav-pilot sletter bare når innholdet stemmer.** «Kilden har ikke lenger en artefakt med dette navnet» er ikke tillatelse til å fjerne noe: noen kan ha skrevet sin egen fil på den stien, og den er deres. Et treff mot en hash pakken faktisk har publisert er derimot bevis på at nav-pilot skrev fila og at den er uendret siden.
+
+Fila valideres mot [det publiserte skjemaet](../cli/nav-pilot/schemas/agentpakke-retired-v1.json). En fil som ikke er gyldig behandles som fraværende, altså fjernes ingenting: en ødelagt fil i én pakke skal ikke blokkere en sync som ikke har noe med den å gjøre.
+
 ## Stiregler
 
 Alle repo-relative stier i manifestet (`layout.*`, `policies.*`, `profiles.dir`, `payloads.*.path`, `payloads.*.manifest`) valideres etter samme regler:
