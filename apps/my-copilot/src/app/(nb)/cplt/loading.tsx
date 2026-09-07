@@ -4,11 +4,7 @@ export default function Loading() {
   return (
     <main>
       {/* Hero skeleton */}
-      <section
-        style={{
-          background: "linear-gradient(165deg, #0a0f0c 0%, #0d2118 35%, #143d2b 65%, #0a1f14 100%)",
-        }}
-      >
+      <section style={{ background: "var(--cplt-ground)" }}>
         <Box
           paddingBlock={{ xs: "space-24", md: "space-40" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
@@ -30,7 +26,7 @@ export default function Loading() {
       </section>
 
       {/* Security table skeleton */}
-      <section style={{ background: "#f8fafc" }}>
+      <section style={{ background: "var(--ax-bg-neutral-soft)" }}>
         <Box
           paddingBlock={{ xs: "space-24", md: "space-40" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}

@@ -6,9 +6,6 @@ import type { CpltConfigKey } from "@/lib/cplt-config";
 
 type ConfigItem = CpltConfigKey & { example: string };
 
-// Sections are no longer used in the flat nav-pilot config
-type Section = "general";
-
 const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
   bool: { bg: "#dbeafe", text: "#1e40af" },
   string: { bg: "#fef3c7", text: "#92400e" },
@@ -16,6 +13,8 @@ const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
   "integer[]": { bg: "#fce7f3", text: "#9d174d" },
   integer: { bg: "#fce7f3", text: "#9d174d" },
 };
+
+const CODE_SIZE = "0.75rem";
 
 function makeExample(item: CpltConfigKey): string {
   switch (item.type) {
@@ -36,20 +35,14 @@ function makeExample(item: CpltConfigKey): string {
 
 export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[] }) {
   const [search, setSearch] = useState("");
-  const [activeSection, setActiveSection] = useState<Section | "all" | null>(null);
 
   const items: ConfigItem[] = useMemo(() => configKeys.map((k) => ({ ...k, example: makeExample(k) })), [configKeys]);
 
-  const hasActiveFilter = search.length > 0 || activeSection !== null;
-
   const filtered = useMemo(() => {
-    if (!hasActiveFilter) return [];
-    const q = search.toLowerCase();
-    return items.filter((item) => {
-      if (!q) return true;
-      return item.key.toLowerCase().includes(q) || item.description.toLowerCase().includes(q);
-    });
-  }, [search, hasActiveFilter, items]);
+    const q = search.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((item) => item.key.toLowerCase().includes(q) || item.description.toLowerCase().includes(q));
+  }, [search, items]);
 
   return (
     <div>
@@ -64,46 +57,27 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
           className="rounded-lg font-mono flex-1"
           style={{
             padding: "0.625rem 1rem",
-            border: "1px solid #e2e8f0",
+            border: "1px solid var(--ax-border-neutral-subtle)",
             fontSize: "0.875rem",
-            background: "white",
+            background: "var(--ax-bg-default)",
             outline: "none",
           }}
         />
-        <div className="flex gap-1.5 flex-wrap">
-          <button
-            onClick={() => setActiveSection(activeSection === "all" ? null : "all")}
-            className="rounded-full font-medium cursor-pointer"
-            style={{
-              padding: "0.375rem 0.875rem",
-              fontSize: "0.75rem",
-              border: "1px solid",
-              borderColor: activeSection === "all" ? "#10b981" : "#e2e8f0",
-              background: activeSection === "all" ? "#ecfdf5" : "white",
-              color: activeSection === "all" ? "#065f46" : "#64748b",
-              transition: "all 150ms",
-            }}
-          >
-            Show All
-          </button>
-        </div>
       </div>
 
       {/* Results count */}
-      {hasActiveFilter && (
-        <p style={{ color: "#94a3b8", fontSize: "0.75rem", margin: "0 0 0.75rem" }}>
-          {filtered.length} {filtered.length === 1 ? "option" : "options"}
-        </p>
-      )}
+      <p style={{ color: "var(--ax-text-neutral-subtle)", fontSize: CODE_SIZE, margin: "0 0 0.75rem" }}>
+        {filtered.length} {filtered.length === 1 ? "option" : "options"}
+      </p>
 
-      {/* Config list */}
-      <div className="flex flex-col gap-3">
-        {!hasActiveFilter && (
-          <p className="text-center py-8" style={{ color: "#94a3b8", fontSize: "0.875rem" }}>
-            Type to search or select a section to browse {items.length} config options.
-          </p>
-        )}
-
+      {/* Config list. Capped so the reference does not swallow the landing page. */}
+      <div
+        className="flex flex-col gap-3"
+        role="region"
+        aria-label="Configuration options"
+        tabIndex={0}
+        style={{ maxHeight: "32rem", overflowY: "auto", paddingRight: "0.5rem" }}
+      >
         {filtered.map((item) => {
           const typeColor = TYPE_COLORS[item.type] || { bg: "#f1f5f9", text: "#475569" };
           return (
@@ -111,21 +85,21 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
               key={item.key}
               className="rounded-lg"
               style={{
-                background: "white",
-                border: "1px solid #e2e8f0",
+                background: "var(--ax-bg-default)",
+                border: "1px solid var(--ax-border-neutral-subtle)",
                 padding: "1rem 1.25rem",
               }}
             >
               {/* Header row */}
               <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                <code className="font-mono font-bold" style={{ color: "#059669", fontSize: "0.875rem" }}>
+                <code className="font-mono font-bold" style={{ color: "var(--cplt-accent-ink)", fontSize: "0.875rem" }}>
                   {item.key}
                 </code>
                 <span
                   className="rounded-full font-medium"
                   style={{
                     padding: "0.125rem 0.5rem",
-                    fontSize: "0.625rem",
+                    fontSize: CODE_SIZE,
                     background: typeColor.bg,
                     color: typeColor.text,
                   }}
@@ -137,21 +111,31 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
                     className="rounded-full font-medium"
                     style={{
                       padding: "0.125rem 0.5rem",
-                      fontSize: "0.625rem",
+                      fontSize: CODE_SIZE,
                       background: "#fef2f2",
-                      color: "#dc2626",
+                      color: "#b91c1c",
                     }}
                   >
                     ⚠ dangerous
                   </span>
                 )}
-                <span className="font-mono" style={{ color: "#94a3b8", fontSize: "0.75rem", marginLeft: "auto" }}>
+                <span
+                  className="font-mono"
+                  style={{ color: "var(--ax-text-neutral-subtle)", fontSize: CODE_SIZE, marginLeft: "auto" }}
+                >
                   default: {item.default || '""'}
                 </span>
               </div>
 
               {/* Description */}
-              <p style={{ color: "#475569", fontSize: "0.8125rem", margin: "0 0 0.75rem", lineHeight: 1.5 }}>
+              <p
+                style={{
+                  color: "var(--ax-text-neutral-subtle)",
+                  fontSize: "0.875rem",
+                  margin: "0 0 0.75rem",
+                  lineHeight: 1.5,
+                }}
+              >
                 {item.description}
               </p>
 
@@ -162,18 +146,18 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
               >
                 <code
                   className="font-mono whitespace-nowrap overflow-x-auto flex-1"
-                  style={{ fontSize: "0.7rem", color: "#d4d4d4" }}
+                  style={{ fontSize: CODE_SIZE, color: "#d4d4d4" }}
                 >
                   {item.example}
                 </code>
-                <CopyButton copyText={item.example} size="xsmall" style={{ color: "white" }} />
+                <CopyButton copyText={item.example} size="small" style={{ color: "white" }} />
               </div>
             </div>
           );
         })}
 
-        {hasActiveFilter && filtered.length === 0 && (
-          <p className="text-center py-8" style={{ color: "#94a3b8", fontSize: "0.875rem" }}>
+        {filtered.length === 0 && (
+          <p className="text-center py-8" style={{ color: "var(--ax-text-neutral-subtle)", fontSize: "0.875rem" }}>
             No config options match your search.
           </p>
         )}
