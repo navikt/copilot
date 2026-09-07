@@ -4,21 +4,29 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-// cmdAdd installs a single agent, skill, instruction, or prompt from the source repo.
+// cmdAdd installs a single artifact of any declared kind from the source repo.
 // It appends to the existing state file if one exists.
+//
+// The kind list is derived from [source.KindByName] rather than written out
+// here. A hardcoded copy is the defect that #649 and #650 were both about, and
+// this was the third one: `hook` became a kind in #569, every bulk path learned
+// it, and this switch did not — so `nav-pilot install --user --type hook` and
+// `nav-pilot add hook <navn>` refused a kind the scope itself supports, which
+// is the command `sync` prints when it finds an uninstalled hook.
 func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
-	// Validate type
-	switch itemType {
-	case "agent", "skill", "instruction", "prompt":
-		// ok
-	default:
-		return fmt.Errorf("unknown type %q. Valid types: agent, skill, instruction, prompt", itemType)
+	if _, ok := kindByName[itemType]; !ok {
+		return fmt.Errorf("unknown type %q. Valid types: %s", itemType, strings.Join(kindNames(), ", "))
 	}
 
+	// What a scope supports is the scope's own answer, and the two scopes
+	// differ: repo takes prompts, user does not. Naming the supported kinds
+	// beats naming three of them and going stale again.
 	if !scope.SupportsType(itemType) {
-		return fmt.Errorf("type %q is not supported in user scope. Only agents, skills, and instructions can be installed to ~/.copilot", itemType)
+		return fmt.Errorf("type %q is not supported in %s scope. Supported here: %s",
+			itemType, scope.Name, strings.Join(scope.SupportedTypes, ", "))
 	}
 
 	if err := validateName(name); err != nil {
@@ -190,4 +198,14 @@ func noteForeignSource(scope *InstallScope, foreign, updateCmd string) {
 	state, _ := readScopedState(scope)
 	fmt.Printf("\n%s It comes from %s, not this scope's %s. `nav-pilot sync` leaves it alone —\n  re-run %s to update it.\n",
 		dim("ℹ"), bold(foreign), bold(scopeSourceRepo(state)), bold(updateCmd))
+}
+
+// kindNames lists every declared artifact kind in the order AllKinds declares
+// them, for error messages that cannot drift from the kinds themselves.
+func kindNames() []string {
+	names := make([]string, 0, len(AllKinds))
+	for _, k := range AllKinds {
+		names = append(names, k.Name)
+	}
+	return names
 }
