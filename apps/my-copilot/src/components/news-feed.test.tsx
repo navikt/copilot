@@ -17,22 +17,24 @@ function makeItem(over: Partial<NewsItem> = {}): NewsItem {
   };
 }
 
-describe("NewsFeed English link", () => {
-  it("links to the English articles when there are some", () => {
-    render(<NewsFeed items={[makeItem()]} englishCount={2} />);
+describe("NewsFeed with English articles", () => {
+  it("shows an English article in the feed, linking to the English route", () => {
+    render(<NewsFeed items={[makeItem({ slug: "in-english", lang: "en", title: "In English" })]} />);
     const link = screen.getByRole("link", { name: /In English/ });
-    expect(link).toHaveAttribute("href", "/en/news");
-    expect(link).toHaveTextContent("In English (2)");
+    expect(link).toHaveAttribute("href", "/en/news/in-english");
+    expect(link).toHaveAttribute("lang", "en");
+    expect(link).toHaveAttribute("hreflang", "en");
   });
 
-  it("says nothing when there are none", () => {
-    render(<NewsFeed items={[makeItem()]} englishCount={0} />);
-    expect(screen.queryByRole("link", { name: /In English/ })).toBeNull();
+  it("marks it so a Norwegian reader knows before clicking", () => {
+    render(<NewsFeed items={[makeItem({ slug: "in-english", lang: "en", title: "In English" })]} />);
+    expect(screen.getByText("English")).toBeInTheDocument();
   });
 
-  it("says nothing when the count is not given", () => {
-    render(<NewsFeed items={[makeItem()]} />);
-    expect(screen.queryByRole("link", { name: /In English/ })).toBeNull();
+  it("leaves Norwegian items on the Norwegian route and unmarked", () => {
+    render(<NewsFeed items={[makeItem({ slug: "en-sak", title: "En sak" })]} />);
+    expect(screen.getByRole("link", { name: /En sak/ })).toHaveAttribute("href", "/nyheter/en-sak");
+    expect(screen.queryByText("English")).toBeNull();
   });
 });
 
