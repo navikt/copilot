@@ -276,8 +276,14 @@ func stageRevision(src *Source, dest string) error {
 // The pinned path knows what it replaced: it reads the outgoing pin out of
 // state and hands both SHAs to [prunePakkeRevisions]. A local source is never
 // pinned and writes no state, so the only record of what came before is the
-// directory itself, and mtime is what publishing leaves behind: [os.Rename]
-// onto the revision path sets it.
+// directory itself, and mtime is the only ordering it carries.
+//
+// That mtime comes from staging, not from publishing: [os.Rename] moves a
+// directory without touching its own mtime (it updates the parent's). Staging
+// writes the tree and the rename follows immediately, so the two orders agree
+// for every sequence this cares about — a launch, later another launch. They
+// would disagree only if a tree were staged long before it was published, which
+// nothing here does.
 //
 // Without this the local path kept exactly one revision, and every launch after
 // a commit removed the tree the previous launch is still reading (#703). The
