@@ -1,5 +1,11 @@
 import { Heading, Skeleton } from "@navikt/ds-react";
 
+// This skeleton is the front page's own, so it lives in the (home) group and
+// its Suspense boundary covers only the front page. At the app root it wrapped
+// every route, and a boundary above a page means the shell streams with status
+// 200 before notFound() can throw: an unknown URL answered 200 with the
+// not-found page drawn client side.
+
 export default function Loading() {
   return (
     <main className="p-4 mx-4">
