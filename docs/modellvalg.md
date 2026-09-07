@@ -95,7 +95,7 @@ Klientens egen konfigurasjon setter modell per subagent, uavhengig av hva modell
 
 Seks av agentene våre har et `name:` som ikke er filnavnet: `accessibility`, `aksel`, `kafka`, `research`, `rust` og `security-champion` heter alle `<navn>-agent` i frontmatteren. Den som setter opp dette fra agentens eget navn får ingen feilmelding, bare ingen effekt.
 
-Nav-pilot skriver ikke klientkonfigurasjon i dag ([beslutning 4.8](nav-pilot-design.md)). Om den skal gjøre det, er spørsmålet i [#500](https://github.com/navikt/copilot/issues/500).
+Nav-pilot skriver ikke klientkonfigurasjon i dag ([beslutning 4.8](nav-pilot-benchmark-og-beslutninger-2026-08.md#48---model-driver-klientmodellen-ikke-skriving-i-klientens-config)). Om den skal gjøre det, er spørsmålet i [#500](https://github.com/navikt/copilot/issues/500).
 
 ### AI-kreditter skiller ikke modeller
 
