@@ -1570,10 +1570,23 @@ run_pass_nav_pilot() {
     # was not an action the agent could take — only a sentence it could write.
     # `nav-pilot-opus` appears in 0 of the 28 kept t6 transcripts across eight
     # kept run directories, and every one of those was recorded under that
-    # frontmatter. #688 added `agent` to the tool list, so the clause is now live:
-    # a run that escalates spawns a real Opus subagent and this assertion is the
-    # thing that catches it. The 28 are therefore a baseline for the model gate's
-    # wording, not for its cost. Re-measure before reading them as either.
+    # frontmatter. #688 added `agent` to the tool list, so escalation is now an
+    # action and not only a sentence.
+    #
+    # What the assertion sees did NOT change with it. `absent "$T6" "$RE_OPUS"`
+    # greps the transcript for the handle, so it fails on a run that NAMES
+    # `nav-pilot-opus`, whether or not a subagent was spawned. A spawn that never
+    # writes the handle to the transcript is not caught, and a mention with no
+    # spawn still fails. That is the same ceiling cr4 has, and it is acceptable
+    # for the same reason: the model gate is about whether the agent reaches for
+    # Opus at all, and reaching for it without naming it is not a failure mode
+    # any kept transcript shows.
+    #
+    # The consequence of #688 is for the 28, not for the regex: they are a
+    # baseline for the model gate's wording, recorded when escalation cost
+    # nothing because it could not happen. Re-measure before reading them as a
+    # cost baseline. Catching a spawn as a spawn needs a different instrument
+    # than a grep over stdout.
     #
     # cr4 is soft because naming a handle is the whole of what it can measure.
     # Test 6 has somewhere better to go: the routine refactor still has to
