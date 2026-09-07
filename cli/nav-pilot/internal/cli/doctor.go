@@ -233,6 +233,16 @@ func cmdDoctor() error {
 	}
 	fmt.Println()
 
+	// 3b. Model pins
+	//
+	// Asks the client which models this account can launch, rather than
+	// trusting the generated picker: availability is per account and per plan,
+	// and the picker is generated from a global catalogue (#717). Warn-only,
+	// and an unanswerable question says so.
+	fmt.Printf("[i] Model pins\n")
+	reportModelPins()
+	fmt.Println()
+
 	// 4. Project Security
 	fmt.Printf("[i] Project Security (.cplt.toml)\n")
 	if cpltPath != "" {
