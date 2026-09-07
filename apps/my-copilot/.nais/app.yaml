@@ -43,6 +43,10 @@ spec:
       - /
       - /nyheter
       - /nyheter/**
+      # English articles. The list enumerates every public route, so a new one
+      # is invisible to anonymous readers until it is added here.
+      - /en
+      - /en/**
       - /praksis
       - /praksis/**
       - /verktoy
