@@ -110,6 +110,10 @@ export async function getMcpServers(): Promise<McpServerCustomization[]> {
           type: "mcp" as const,
           domain: deriveDomain(tags),
           filePath: "",
+          // An MCP server has no file in this repo: it is declared in the
+          // registry, not published as an artifact. Empty, and the consumers
+          // that match git paths skip empty (#718).
+          repoPath: "",
           rawGitHubUrl: "",
           installUrl: buildMcpInstallUrl(s.server.name, "vscode"),
           insidersInstallUrl: buildMcpInstallUrl(s.server.name, "vscode-insiders"),

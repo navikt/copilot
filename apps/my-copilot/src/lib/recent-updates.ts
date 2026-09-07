@@ -48,7 +48,12 @@ export function getRecentlyUpdatedCustomizations(limit = 5): RecentUpdate[] {
     let changedFiles: string[];
     try {
       changedFiles = execSync(
-        `git diff-tree --no-commit-id --name-only -r ${hash} -- 'skills/' '.github/agents/' '.github/instructions/' '.github/prompts/'`,
+        // Repo paths, not install paths. These trees moved to the root in #330
+        // and the pathspec kept the .github/ prefix, so this matched nothing
+        // for agents, instructions and prompts: an agent change has never
+        // appeared in recent updates (#718). Skills worked only because their
+        // path had no prefix to be wrong about.
+        `git diff-tree --no-commit-id --name-only -r ${hash} -- 'skills/' 'agents/' 'instructions/' 'prompts/'`,
         {
           cwd: repoRoot,
           encoding: "utf-8",
@@ -64,8 +69,9 @@ export function getRecentlyUpdatedCustomizations(limit = 5): RecentUpdate[] {
 
     for (const file of changedFiles) {
       const matched = allItems.find((item) => {
-        if (file === item.filePath) return true;
-        if (item.type === "skill" && file.startsWith(path.dirname(item.filePath) + "/")) return true;
+        if (!item.repoPath) return false;
+        if (file === item.repoPath) return true;
+        if (item.type === "skill" && file.startsWith(path.dirname(item.repoPath) + "/")) return true;
         return false;
       });
 

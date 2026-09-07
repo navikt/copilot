@@ -8,6 +8,7 @@ function makeItem(overrides: Partial<AnyCustomization> & { type: "agent"; name: 
     description: "desc",
     domain: "general",
     filePath: overrides.filePath ?? `.github/agents/${overrides.name}.agent.md`,
+    repoPath: overrides.repoPath ?? `agents/${overrides.name}.agent.md`,
     rawGitHubUrl: "",
     installUrl: "",
     insidersInstallUrl: null,

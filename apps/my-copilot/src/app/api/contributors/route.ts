@@ -16,7 +16,9 @@ function resolveFilePaths(itemId: string): string[] | null {
   const item = items.find((i) => i.id === itemId);
   if (!item) return null;
 
-  const paths = [item.filePath];
+  // repoPath, not filePath: git knows where the file lives here, not where it
+  // lands when installed (#718).
+  const paths = [item.repoPath];
 
   if (item.type === "skill") {
     const skill = item as Skill;

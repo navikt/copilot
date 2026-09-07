@@ -14,6 +14,7 @@ describe("McpDetails", () => {
       serverId: "com.microsoft/playwright-mcp",
       domain: "testing",
       filePath: "",
+      repoPath: "",
       rawGitHubUrl: "",
       installUrl: null,
       insidersInstallUrl: null,
