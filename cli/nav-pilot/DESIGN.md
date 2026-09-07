@@ -616,8 +616,9 @@ som faktisk skrives i dag, ikke bare `path` og `hash`: `source` navngir
 agentpakken en fil kom fra når det ikke er scopets egen kilde (#571),
 `revision` hvilken revisjon som skrev den (#729), og `status` skiller en
 ignorert oppføring fra en aktiv. Ukjente nøkler bevares uendret ved skriving
-(#588), så en kollega på en eldre nav-pilot ikke fjerner et felt binæren deres
-ikke kjenner.
+(#588), altså av enhver binær som selv har den bevaringslogikken: en kollega på
+en nav-pilot fra etter #588 fjerner ikke et felt binæren deres ikke kjenner. En
+binær fra før den rettelsen dropper dem fortsatt, som er nettopp det #588 fant.
 
 ```json
 {
