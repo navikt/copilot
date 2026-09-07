@@ -17,7 +17,8 @@
     "knip": "NODE_OPTIONS='--experimental-require-module' knip",
     "generate": "node --experimental-strip-types scripts/generate-manifest.ts",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "prestart": "node scripts/prepare-standalone.mjs"
   },
   "dependencies": {
     "@grafana/faro-web-sdk": "^2.7.1",
