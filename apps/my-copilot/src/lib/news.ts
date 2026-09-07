@@ -197,8 +197,18 @@ export function getArticle(slug: string, lang: NewsLang = "nb"): (NewsItem & { c
 export function getLinkTarget(slug: string, lang: NewsLang = "nb"): string | null {
   if (!isValidSlug(slug)) return null;
 
-  const item = getNewsItems({ lang }).find((candidate) => candidate.slug === slug);
-  return item?.type === "link" && item.url ? item.url : null;
+  // Read the one file rather than the whole directory: this runs on every miss,
+  // including slugs that do not exist, so parsing 150 files per request would
+  // make a 404 the most expensive response the site serves.
+  const filePath = path.join(articlesDir, `${slug}.md`);
+  if (!fs.existsSync(filePath)) return null;
+
+  const { data, content } = matter(fs.readFileSync(filePath, "utf-8"));
+  if (data.draft === true) return null;
+  if (parseLang(data.lang) !== lang) return null;
+  if (content.trim().length > 0) return null;
+
+  return typeof data.url === "string" && data.url ? data.url : null;
 }
 
 export function getArticleSlugs(lang: NewsLang = "nb"): string[] {
