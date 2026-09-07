@@ -440,6 +440,13 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		reportRetired(retired, apply)
 	}
 
+	// Reported, not acted on: an ignored artifact is one nav-pilot was told to
+	// leave alone, and sync must keep leaving it alone. Saying so is the whole
+	// fix (#724) — silence is what let one sit on a withdrawn model.
+	if stale := ignoredButInstalled(scope); len(stale) > 0 {
+		reportIgnoredButInstalled(stale)
+	}
+
 	// Report deletions
 	if len(deletedPaths) > 0 {
 		fmt.Printf("%s %d file(s) deleted in source and will be removed (source: %s)\n\n",

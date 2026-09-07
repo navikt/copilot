@@ -448,9 +448,18 @@ func adoptPakkeIdentity(scope *InstallScope, src *Source, state *StateFile, reso
 			}
 			for _, art := range resolver.List(kind) {
 				relPath := kind.RelPathForName(scope, art.Name)
-				if !installed[relPath] {
-					ignored = append(ignored, relPath)
+				if installed[relPath] {
+					continue
 				}
+				// Not in state is not the same as not installed (#724). An
+				// artifact put there by an older nav-pilot, or by a collection
+				// install that recorded less, is on disk and in use. Marking it
+				// ignored told sync to skip it forever, and one such file sat on
+				// a model GitHub had withdrawn until doctor noticed.
+				if _, err := os.Stat(filepath.Join(scope.RootDir, relPath)); err == nil {
+					continue
+				}
+				ignored = append(ignored, relPath)
 			}
 		}
 	}

@@ -239,8 +239,21 @@ func reportModelPins() {
 	if len(unavailable) > 0 {
 		fmt.Printf("    %s %d of %d pinned model(s) are not available to this account\n",
 			yellow("⚠"), len(unavailable), len(pins))
+		// Naming the reason where there is one (#724). doctor found the symptom
+		// on a file whose pin had been dead for weeks, and said nothing about
+		// why it was never updated: it was marked ignored, so sync had been
+		// skipping it by design. Without that line the obvious next step,
+		// running sync, does nothing and looks broken.
+		ignored := map[string]bool{}
+		for _, rel := range ignoredButInstalled(scope) {
+			ignored[rel] = true
+		}
 		for _, p := range unavailable {
-			fmt.Printf("      %s %s pins %q\n", yellow("⚠"), p.Agent, p.Label)
+			line := fmt.Sprintf("      %s %s pins %q", yellow("⚠"), p.Agent, p.Label)
+			if ignored[relPathForAgent(scope, p.Agent)] {
+				line += dim("  (marked ignored, so sync skips it)")
+			}
+			fmt.Println(line)
 		}
 		fmt.Printf("      %s The client launches these agents with a model it will reject. Repin them, or\n",
 			yellow("Solution:"))
@@ -257,4 +270,10 @@ func reportModelPins() {
 			fmt.Printf("      %s %s pins %q\n", dim("-"), p.Agent, p.Label)
 		}
 	}
+}
+
+// relPathForAgent is the scope-relative path of an installed agent, for
+// matching against the state file's own path form.
+func relPathForAgent(scope *InstallScope, name string) string {
+	return scope.RelPath(source.KindAgent.Dir, name+source.KindAgent.Suffix)
 }
