@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -29,14 +28,24 @@ func CmdExport(format string, scope *domain.InstallScope, ref, sourceRepo, cliVe
 // refuseNonCanonicalPakke stops an export that would otherwise produce wrong or
 // empty output.
 //
-// export reads a source's canonical agents//skills/instructions/prompts
-// directories directly; it does not go through the agentpakke layout resolver
-// that install and sync use. A source whose manifest puts its content anywhere
-// else would therefore export whatever happens to sit at the canonical paths —
-// in practice nothing at all, silently. Until export is migrated onto the
-// manifest (M2), that is a hard error. A manifest declaring the canonical
-// layout, and a manifest-less source, export exactly as before.
-func refuseNonCanonicalPakke(src *source.Source) error {
+// exportLayout returns the content layout export should read, or nil for the
+// canonical directories.
+func exportLayout(src *source.Source) *agentpakke.Layout {
+	m, err := agentpakke.Load(src.Dir)
+	if err != nil {
+		return nil //nolint:nilerr // no manifest is the legacy case: canonical names
+	}
+	return m.Layout
+}
+
+// refuseUnreadablePakke stops an export that would silently write nothing.
+//
+// Export now reads a declared layout (#728), so a pakke that puts its content
+// somewhere else exports correctly. What remains unreadable is a manifest with
+// no layout at all: that is a Tier 2-only pakke, whose content is pre-built
+// payloads rather than files at paths, and exporting it would produce an empty
+// tree without saying so.
+func refuseUnreadablePakke(src *source.Source) error {
 	m, err := agentpakke.Load(src.Dir)
 	if err != nil {
 		// No manifest is the legacy case. A manifest that fails to load is
@@ -44,7 +53,7 @@ func refuseNonCanonicalPakke(src *source.Source) error {
 		// commands use; export does not second-guess it here.
 		return nil //nolint:nilerr // deliberate: only a usable manifest changes export's behaviour
 	}
-	if isCanonicalLayout(m.Layout) {
+	if m.Layout != nil {
 		return nil
 	}
 	label := src.Repo
@@ -61,27 +70,6 @@ func refuseNonCanonicalPakke(src *source.Source) error {
 		domain.Bold("nav-pilot export opencode --source "+source.DefaultRepo))
 }
 
-// isCanonicalLayout reports whether a manifest's layout is the one export
-// already reads: the canonical directory names. A Tier 2-only manifest declares
-// no layout at all, which is equally not something export can read.
-func isCanonicalLayout(l *agentpakke.Layout) bool {
-	if l == nil {
-		return false
-	}
-	for _, d := range []struct{ declared, canonical string }{
-		{l.Agents, "agents"},
-		{l.Skills, "skills"},
-		{l.Instructions, "instructions"},
-		{l.Prompts, "prompts"},
-	} {
-		declared := strings.TrimSpace(d.declared)
-		if declared != "" && path.Clean(declared) != d.canonical {
-			return false
-		}
-	}
-	return true
-}
-
 // ExportOpenCode transforms Nav's .github/ artifacts into OpenCode-compatible .opencode/ format.
 func ExportOpenCode(scope *domain.InstallScope, ref, sourceRepo, cliVersion string, dryRun, force, jsonOutput bool) error {
 	src, err := source.ResolveSource(ref, sourceRepo, cliVersion)
@@ -90,7 +78,7 @@ func ExportOpenCode(scope *domain.InstallScope, ref, sourceRepo, cliVersion stri
 	}
 	defer src.Cleanup()
 
-	if err := refuseNonCanonicalPakke(src); err != nil {
+	if err := refuseUnreadablePakke(src); err != nil {
 		return err
 	}
 
@@ -113,6 +101,15 @@ func ExportOpenCode(scope *domain.InstallScope, ref, sourceRepo, cliVersion stri
 	}
 
 	sourceDir := src.Dir
+	// Export reads where the manifest says its content lives, not only the
+	// canonical directories (#728). A pakke with `layout.agents: content/agents`
+	// used to be refused outright, which meant a third party could install a
+	// Tier 1 pakke and then not export it.
+	//
+	// A manifest-less source, and a manifest that declares the canonical names,
+	// resolve exactly as before: NewSourceResolverForLayout falls back to the
+	// canonical names for every field the layout leaves empty.
+	layout := exportLayout(src)
 	// A repo-scope export writes <repo>/.opencode/, which only that repo reads,
 	// so what the team added by hand under .github/ belongs in it — instructions
 	// included, unlike the global materialization in [SyncOpenCodeArtifacts].
@@ -123,25 +120,25 @@ func ExportOpenCode(scope *domain.InstallScope, ref, sourceRepo, cliVersion stri
 	}
 	var totalSkills, totalCommands, totalAgents, totalInstructions int
 
-	n, err := exportSkills(sourceDir, scopeDir, outputDir, dryRun)
+	n, err := exportSkills(sourceDir, scopeDir, outputDir, layout, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting skills: %w", err)
 	}
 	totalSkills = n
 
-	n, err = exportPrompts(sourceDir, scopeDir, outputDir, dryRun)
+	n, err = exportPrompts(sourceDir, scopeDir, outputDir, layout, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting prompts: %w", err)
 	}
 	totalCommands = n
 
-	n, err = exportAgents(sourceDir, scopeDir, outputDir, dryRun)
+	n, err = exportAgents(sourceDir, scopeDir, outputDir, layout, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting agents: %w", err)
 	}
 	totalAgents = n
 
-	n, err = exportInstructions(sourceDir, scopeDir, outputDir, dryRun)
+	n, err = exportInstructions(sourceDir, scopeDir, outputDir, layout, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting instructions: %w", err)
 	}
@@ -208,8 +205,8 @@ func ExportSummary(skills, commands, agents, instructions int) string {
 	return strings.Join(parts, ", ")
 }
 
-func exportSkills(sourceDir, scopeDir, outputDir string, dryRun bool) (int, error) {
-	skills := withScopeExtras(source.NewSourceResolver(sourceDir).List(source.KindSkill), scopeDir, source.KindSkill)
+func exportSkills(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layout, dryRun bool) (int, error) {
+	skills := withScopeExtras(source.NewSourceResolverForLayout(sourceDir, layout).List(source.KindSkill), scopeDir, source.KindSkill)
 	if len(skills) == 0 {
 		return 0, nil
 	}
@@ -240,8 +237,8 @@ func exportSkills(sourceDir, scopeDir, outputDir string, dryRun bool) (int, erro
 	return count, nil
 }
 
-func exportPrompts(sourceDir, scopeDir, outputDir string, dryRun bool) (int, error) {
-	entries := withScopeExtras(source.NewSourceResolver(sourceDir).List(source.KindPrompt), scopeDir, source.KindPrompt)
+func exportPrompts(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layout, dryRun bool) (int, error) {
+	entries := withScopeExtras(source.NewSourceResolverForLayout(sourceDir, layout).List(source.KindPrompt), scopeDir, source.KindPrompt)
 	if len(entries) == 0 {
 		return 0, nil
 	}
@@ -298,16 +295,16 @@ func transformPrompt(data []byte) []byte {
 // in one of them is a gate in neither. Turning local off takes an already
 // materialized copy back out: the sync deletes what its state file names and
 // the new listing does not.
-func agentEntries(sourceDir string) []source.Resolved {
-	entries := source.NewSourceResolver(sourceDir).List(source.KindAgent)
+func agentEntries(sourceDir string, layout *agentpakke.Layout) []source.Resolved {
+	entries := source.NewSourceResolverForLayout(sourceDir, layout).List(source.KindAgent)
 	if local.Enabled() {
 		return entries
 	}
 	return slices.DeleteFunc(entries, func(e source.Resolved) bool { return e.Name == local.WorkerAgent })
 }
 
-func exportAgents(sourceDir, scopeDir, outputDir string, dryRun bool) (int, error) {
-	agents := withScopeExtras(agentEntries(sourceDir), scopeDir, source.KindAgent)
+func exportAgents(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layout, dryRun bool) (int, error) {
+	agents := withScopeExtras(agentEntries(sourceDir, layout), scopeDir, source.KindAgent)
 	if len(agents) == 0 {
 		return 0, nil
 	}
@@ -456,7 +453,7 @@ func collectInstructionData(dirs ...string) ([]InstructionSection, []Instruction
 	return globalSections, scopedRefs, nil
 }
 
-func exportInstructions(sourceDir, scopeDir, outputDir string, dryRun bool) (int, error) {
+func exportInstructions(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layout, dryRun bool) (int, error) {
 	globalSections, scopedRefs, err := collectInstructionData(sourceDir, scopeDir)
 	if err != nil {
 		return 0, err

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
@@ -122,7 +123,7 @@ func TestExportSkills(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	n, err := exportSkills(sourceDir, "", outputDir, false)
+	n, err := exportSkills(sourceDir, "", outputDir, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +150,7 @@ func TestExportPrompts(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	n, err := exportPrompts(sourceDir, "", outputDir, false)
+	n, err := exportPrompts(sourceDir, "", outputDir, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +180,7 @@ func TestExportAgents(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	n, err := exportAgents(sourceDir, "", outputDir, false)
+	n, err := exportAgents(sourceDir, "", outputDir, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +213,7 @@ func TestExportInstructions(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	n, err := exportInstructions(sourceDir, "", outputDir, false)
+	n, err := exportInstructions(sourceDir, "", outputDir, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,7 +285,7 @@ These apply everywhere.
 `)
 
 	outputDir := t.TempDir()
-	n, err := exportInstructions(dir, "", outputDir, false)
+	n, err := exportInstructions(dir, "", outputDir, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -305,10 +306,10 @@ func TestExportDryRun(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	for _, fn := range []func(string, string, string, bool) (int, error){
+	for _, fn := range []func(string, string, string, *agentpakke.Layout, bool) (int, error){
 		exportSkills, exportPrompts, exportAgents, exportInstructions,
 	} {
-		if _, err := fn(sourceDir, "", outputDir, true); err != nil {
+		if _, err := fn(sourceDir, "", outputDir, nil, true); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -325,14 +326,14 @@ func TestExportEmptySource(t *testing.T) {
 
 	for _, fn := range []struct {
 		name string
-		fn   func(string, string, string, bool) (int, error)
+		fn   func(string, string, string, *agentpakke.Layout, bool) (int, error)
 	}{
 		{"skills", exportSkills},
 		{"prompts", exportPrompts},
 		{"agents", exportAgents},
 		{"instructions", exportInstructions},
 	} {
-		n, err := fn.fn(sourceDir, "", outputDir, false)
+		n, err := fn.fn(sourceDir, "", outputDir, nil, false)
 		if err != nil {
 			t.Errorf("%s: unexpected error: %v", fn.name, err)
 		}
@@ -547,7 +548,7 @@ func TestExportSkills_RootLevel(t *testing.T) {
 	mustWrite(t, filepath.Join(skillDir, "SKILL.md"), "# My Skill\n")
 	mustWrite(t, filepath.Join(skillDir, "reference.md"), "## Reference\n")
 
-	n, err := exportSkills(sourceDir, "", outputDir, false)
+	n, err := exportSkills(sourceDir, "", outputDir, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -663,7 +664,10 @@ func TestMaterializeOpenCodeEmpty(t *testing.T) {
 // TestExportRefusesNonCanonicalAgentpakke covers the seam export has not
 // crossed yet: it reads canonical directories, so a source that puts its
 // content elsewhere must be refused loudly instead of exporting nothing.
-func TestExportRefusesNonCanonicalAgentpakke(t *testing.T) {
+// TestExportReadsADeclaredLayout: export used to refuse any manifest whose
+// content was not at the canonical paths (#728). It reads the declared layout
+// now, which is what makes a Tier 1 pakke from another team usable end to end.
+func TestExportReadsADeclaredLayout(t *testing.T) {
 	srcDir := t.TempDir()
 	mustWrite(t, filepath.Join(srcDir, ".nav-pilot", "agentpakke.json"), `{
 	  "contractVersion": "1",
@@ -679,9 +683,42 @@ func TestExportRefusesNonCanonicalAgentpakke(t *testing.T) {
 	outputDir := t.TempDir()
 	scope := domain.ScopeRepo(outputDir)
 
+	if err := ExportOpenCode(scope, "", srcDir, "dev", false, false, false); err != nil {
+		t.Fatalf("export from an agentpakke with a declared layout = %v, want nil", err)
+	}
+
+	// The content is read from where the manifest says it lives, not from the
+	// canonical names. Before #728 this was a hard refusal, which meant a third
+	// party could install a Tier 1 pakke and then not export it.
+	for _, want := range []string{
+		filepath.Join(outputDir, ".opencode", "agents", "grillmester.md"),
+		filepath.Join(outputDir, ".opencode", "skills", "grilling", "SKILL.md"),
+	} {
+		if _, err := os.Stat(want); err != nil {
+			t.Errorf("export did not write %s: %v", want, err)
+		}
+	}
+}
+
+// TestExportRefusesPayloadOnlyAgentpakke keeps a refusal where one is still
+// right: a manifest with no layout at all is Tier 2 only. Its content is
+// pre-built payloads rather than files at paths, so an export would write an
+// empty tree, and doing that silently is the failure the refusal exists for.
+func TestExportRefusesPayloadOnlyAgentpakke(t *testing.T) {
+	srcDir := t.TempDir()
+	mustWrite(t, filepath.Join(srcDir, ".nav-pilot", "agentpakke.json"), `{
+	  "contractVersion": "1",
+	  "name": "grillmester",
+	  "description": "Grillmester agentpakke",
+	  "clients": {"copilot": {"payloads": {"full": {"path": "dist/copilot/full", "primaryAgents": ["grillmester"]}}}}
+	}`)
+
+	outputDir := t.TempDir()
+	scope := domain.ScopeRepo(outputDir)
+
 	err := ExportOpenCode(scope, "", srcDir, "dev", false, false, false)
 	if err == nil {
-		t.Fatal("export from a non-canonical agentpakke succeeded, want a refusal")
+		t.Fatal("export from a payload-only agentpakke succeeded, want a refusal")
 	}
 	if !strings.Contains(err.Error(), "export does not support agentpakke sources yet") {
 		t.Errorf("error %q is not the documented refusal", err)
@@ -733,7 +770,7 @@ func TestWorkerAgentIsOnlyMaterializedForTheOptedIn(t *testing.T) {
 
 	names := func() []string {
 		var got []string
-		for _, e := range agentEntries(sourceDir) {
+		for _, e := range agentEntries(sourceDir, nil) {
 			got = append(got, e.Name)
 		}
 		return got
@@ -758,16 +795,16 @@ func TestExportScopeExtras(t *testing.T) {
 	mustWrite(t, filepath.Join(scopeDir, "copilot-instructions.md"), "Team rules for this repo.\n")
 	outputDir := t.TempDir()
 
-	if _, err := exportSkills(sourceDir, scopeDir, outputDir, false); err != nil {
+	if _, err := exportSkills(sourceDir, scopeDir, outputDir, nil, false); err != nil {
 		t.Fatalf("exportSkills: %v", err)
 	}
-	if _, err := exportPrompts(sourceDir, scopeDir, outputDir, false); err != nil {
+	if _, err := exportPrompts(sourceDir, scopeDir, outputDir, nil, false); err != nil {
 		t.Fatalf("exportPrompts: %v", err)
 	}
-	if _, err := exportAgents(sourceDir, scopeDir, outputDir, false); err != nil {
+	if _, err := exportAgents(sourceDir, scopeDir, outputDir, nil, false); err != nil {
 		t.Fatalf("exportAgents: %v", err)
 	}
-	if _, err := exportInstructions(sourceDir, scopeDir, outputDir, false); err != nil {
+	if _, err := exportInstructions(sourceDir, scopeDir, outputDir, nil, false); err != nil {
 		t.Fatalf("exportInstructions: %v", err)
 	}
 

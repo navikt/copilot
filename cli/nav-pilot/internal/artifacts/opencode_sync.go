@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
@@ -238,7 +239,9 @@ func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, source
 		commands++
 	}
 
-	for _, entry := range withScopeExtras(agentEntries(sourceDir), scopeDir, source.KindAgent) {
+	// The same layout the export path reads (#728): a pakke that declares where
+	// its agents live is mirrored from there, not from the canonical names.
+	for _, entry := range withScopeExtras(agentEntries(sourceDir, syncLayout(sourceDir)), scopeDir, source.KindAgent) {
 		relPath := "agents/" + entry.Name + ".md"
 		dstPath := filepath.Join(outputDir, "agents", entry.Name+".md")
 		if isConflict(relPath, dstPath, false) {
@@ -424,4 +427,15 @@ func countFileIntegrity(rootDir string, state *domain.StateFile) (ok, modified, 
 		}
 	}
 	return
+}
+
+// syncLayout reads the content layout of the source being mirrored, or nil when
+// it declares none. A manifest that fails to load is not this function's error
+// to report: install and sync fail closed on it in their own words.
+func syncLayout(sourceDir string) *agentpakke.Layout {
+	m, err := agentpakke.Load(sourceDir)
+	if err != nil {
+		return nil //nolint:nilerr // no manifest is the legacy case: canonical names
+	}
+	return m.Layout
 }
