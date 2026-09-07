@@ -1565,11 +1565,15 @@ run_pass_nav_pilot() {
     elif ! absent "$T6" "$RE_OPUS"; then
       record 6 "$DESC6" 1 \
         "escalated to Opus for a small refactor — the model gate regressed"
-    # ⚠️  THE ESCALATION CLAUSE ALONE CANNOT FAIL (#583), AND THIS IS WHY.
-    # `nav-pilot.agent.md` gives the agent no `runSubagent`, so escalating is
-    # not an action it can take — only a sentence it can write. `nav-pilot-opus`
-    # appears in 0 of the 28 kept t6 transcripts across eight kept run directories. Same defect
-    # as cr4, which is soft for the same reason.
+    # ⚠️  THE ESCALATION CLAUSE MEASURED NOTHING UNTIL #688, AND THIS IS WHY.
+    # Until then `nav-pilot.agent.md` carried no subagent tool, so escalating was
+    # not an action the agent could take — only a sentence it could write.
+    # `nav-pilot-opus` appears in 0 of the 28 kept t6 transcripts across eight
+    # kept run directories, and every one of those was recorded under that
+    # frontmatter. #688 added `agent` to the tool list, so the clause is now live:
+    # a run that escalates spawns a real Opus subagent and this assertion is the
+    # thing that catches it. The 28 are therefore a baseline for the model gate's
+    # wording, not for its cost. Re-measure before reading them as either.
     #
     # cr4 is soft because naming a handle is the whole of what it can measure.
     # Test 6 has somewhere better to go: the routine refactor still has to

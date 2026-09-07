@@ -2,6 +2,14 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-09-07
+
+### Orkestratoren manglet verktøyet den orkestrerer med
+
+- **`agent` lagt til i `nav-pilot`s verktøyliste**: Personaen ber modellen delegere fire steder — til `@nav-pilot-opus` (linje 99), til spesialister som leaf-noder (linje 147), til `@forfatter` for språkvask (linje 269) og gjennom delegasjonstabellen (linje 277) — men frontmatteren ga den aldri et subagent-verktøy. Copilot CLI begrenser en agent til sin egen liste, så delegeringen var umulig i praksis: `Error: Task tool is not available.` Standardagenten delegerte fint på samme modell (`gpt-5.6-sol`), så feilsøkingen pekte lenge på modellen framfor på verktøylista. Navnet er `agent` og ikke `task`: begge virker i CLI-en, men VS Code kjenner bare `agent` og ignorerer ukjente verktøy uten å si fra, og `installUrl` i manifestet peker på VS Code (#688).
+- **Leaf-only-regelen står urørt**: `docs/nav-pilot-design.md:183` gjelder spesialistene, og de ti andre agentene får fortsatt ikke verktøyet. `@nav-pilot-opus` er leaf og er ikke rørt. Bare orkestratoren endres.
+- **Test 6 i golden-harnessen måler nå noe**: Kommentaren over assertionen sa at eskaleringsklausulen ikke kunne feile, fordi agenten ikke hadde noe subagent-verktøy og eskalering derfor bare var en setning den kunne skrive. Det holdt til og med #688. De 28 lagrede t6-transkriptene er tatt opp under den gamle frontmatteren, så de er en baseline for modellportens ordlyd, ikke for kostnaden ved å bryte den (#688).
+
 ## 2026-09-05
 
 ### cplt-logging: hva som er verdt å anbefale, og hva som ikke er det
