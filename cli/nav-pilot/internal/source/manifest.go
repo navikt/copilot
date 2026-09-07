@@ -18,6 +18,32 @@ type Manifest struct {
 	Instructions []string `json:"instructions"`
 	Prompts      []string `json:"prompts"`
 	Hooks        []string `json:"hooks,omitempty"`
+	Extensions   []string `json:"extensions,omitempty"`
+}
+
+// NamesByKind returns the manifest's entries for one kind, and whether the kind
+// is one this manifest carries at all.
+//
+// One place maps a kind to its list. Before this, the mapping was written out
+// in ValidateManifest, in the builder below and again in install's group table,
+// which is how `hook` came to be missing from three separate places after it
+// was added (#649, #650, #708).
+func (m *Manifest) NamesByKind(kind *ArtifactKind) ([]string, bool) {
+	switch kind {
+	case KindAgent:
+		return m.Agents, true
+	case KindSkill:
+		return m.Skills, true
+	case KindInstruction:
+		return m.Instructions, true
+	case KindPrompt:
+		return m.Prompts, true
+	case KindHook:
+		return m.Hooks, true
+	case KindExtension:
+		return m.Extensions, true
+	}
+	return nil, false
 }
 
 // CollectionAll is the collection name used in state files for "install everything".
@@ -29,16 +55,15 @@ func ValidateManifest(m *Manifest) error {
 		return fmt.Errorf("manifest has empty name")
 	}
 	seen := make(map[string]bool)
-	for _, list := range []struct {
-		kind  string
-		names []string
-	}{
-		{"agent", m.Agents},
-		{"skill", m.Skills},
-		{"instruction", m.Instructions},
-		{"prompt", m.Prompts},
-		{"hook", m.Hooks},
-	} {
+	for _, kind := range AllKinds {
+		names, ok := m.NamesByKind(kind)
+		if !ok {
+			continue
+		}
+		list := struct {
+			kind  string
+			names []string
+		}{kind.Name, names}
 		for _, name := range list.names {
 			if err := ValidateName(name); err != nil {
 				return fmt.Errorf("invalid %s in manifest: %w", list.kind, err)
@@ -113,11 +138,15 @@ func CollectAllItemsWith(resolver *SourceResolver) (*Manifest, error) {
 	for _, i := range resolver.List(KindInstruction) {
 		m.Instructions = append(m.Instructions, i.Name)
 	}
-	// Hooks come along with "install everything" for the same reason the other
-	// kinds do: an enforcement gate that only ships to people who name it
-	// explicitly is the gap #569 was filed for.
+	// Hooks and extensions come along with "install everything" for the same
+	// reason the other kinds do: an enforcement gate that only ships to people
+	// who name it explicitly is the gap #569 was filed for, and an extension a
+	// team cannot distribute is the gap in #572.
 	for _, h := range resolver.List(KindHook) {
 		m.Hooks = append(m.Hooks, h.Name)
+	}
+	for _, e := range resolver.List(KindExtension) {
+		m.Extensions = append(m.Extensions, e.Name)
 	}
 	return m, nil
 }

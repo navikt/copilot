@@ -14,8 +14,8 @@ import (
 
 // ArtifactKind describes the filesystem shape of one artifact type.
 type ArtifactKind struct {
-	Name     string // singular: "agent", "skill", "instruction", "prompt", "hook"
-	Dir      string // plural directory: "agents", "skills", "instructions", "prompts", "hooks"
+	Name     string // singular: "agent", "skill", "instruction", "prompt", "hook", "extension"
+	Dir      string // plural directory: "agents", "skills", "instructions", "prompts", "hooks", "extensions"
 	Suffix   string // file extension: ".agent.md", ".instructions.md", ".prompt.md"
 	IsDir    bool   // always a directory (skills)
 	CanBeDir bool   // may be file or directory (prompts)
@@ -36,17 +36,34 @@ var (
 	// hook merge, and hooks/<name>.hook.json carries its matcher.
 	KindHook = &ArtifactKind{Name: "hook", Dir: "hooks", Suffix: ".py"}
 
+	// KindExtension is the second kind that is executable code: a directory
+	// holding extension.mjs, which the client loads and runs. Same trust
+	// decision as a hook, and the same reason it needs a type at all: a team
+	// that has written one today cannot distribute it, because nav-pilot does
+	// not know the shape exists (#572).
+	//
+	// A directory rather than a file, because an extension is rarely one module:
+	// watson-developer's auto-format ships helpers beside its entry point. The
+	// marker is what makes a directory an extension rather than a stray folder,
+	// exactly as SKILL.md does for a skill.
+	KindExtension = &ArtifactKind{Name: "extension", Dir: "extensions", IsDir: true, Marker: "extension.mjs"}
+
 	// AllKinds lists all artifact kinds for iteration.
-	AllKinds = []*ArtifactKind{KindAgent, KindSkill, KindInstruction, KindPrompt, KindHook}
+	AllKinds = []*ArtifactKind{KindAgent, KindSkill, KindInstruction, KindPrompt, KindHook, KindExtension}
 
 	// KindByName maps singular names to their ArtifactKind.
-	KindByName = map[string]*ArtifactKind{
-		"agent":       KindAgent,
-		"skill":       KindSkill,
-		"instruction": KindInstruction,
-		"prompt":      KindPrompt,
-		"hook":        KindHook,
-	}
+	// KindByName maps a singular kind name to its kind, derived from AllKinds
+	// rather than written out beside it. A second hand-maintained list is how
+	// `hook` ended up missing from three separate places after it was added
+	// (#649, #650, #708); adding a kind should mean editing AllKinds and
+	// nothing else.
+	KindByName = func() map[string]*ArtifactKind {
+		m := make(map[string]*ArtifactKind, len(AllKinds))
+		for _, k := range AllKinds {
+			m[k.Name] = k
+		}
+		return m
+	}()
 )
 
 // Resolved represents a found artifact in the source repo.
@@ -113,6 +130,7 @@ func NewSourceResolverForLayout(sourceDir string, layout *agentpakke.Layout) *So
 		KindInstruction.Dir: layout.Instructions,
 		KindPrompt.Dir:      layout.Prompts,
 		KindHook.Dir:        layout.Hooks,
+		KindExtension.Dir:   layout.Extensions,
 	}
 	for canonical, dir := range declared {
 		dir = strings.TrimSpace(dir)

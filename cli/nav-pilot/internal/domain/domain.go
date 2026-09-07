@@ -214,7 +214,7 @@ func ScopeRepo(targetDir string) *InstallScope {
 		RootDir:        targetDir,
 		StateFile:      ".github/.nav-pilot-state.json",
 		PathPrefix:     ".github/",
-		SupportedTypes: []string{"agent", "skill", "instruction", "prompt", "hook"},
+		SupportedTypes: []string{"agent", "skill", "instruction", "prompt", "hook", "extension"},
 	}
 }
 
@@ -230,7 +230,7 @@ func ScopeUser() (*InstallScope, error) {
 		RootDir:        rootDir,
 		StateFile:      ".nav-pilot-state.json",
 		PathPrefix:     "",
-		SupportedTypes: []string{"agent", "skill", "instruction", "hook"},
+		SupportedTypes: []string{"agent", "skill", "instruction", "hook", "extension"},
 	}, nil
 }
 

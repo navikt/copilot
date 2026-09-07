@@ -102,7 +102,8 @@
         "skills": { "$ref": "#/$defs/relativePath" },
         "instructions": { "$ref": "#/$defs/relativePath" },
         "prompts": { "$ref": "#/$defs/relativePath" },
-        "hooks": { "$ref": "#/$defs/relativePath" }
+        "hooks": { "$ref": "#/$defs/relativePath" },
+        "extensions": { "$ref": "#/$defs/relativePath" }
       }
     },
     "provenance": {
