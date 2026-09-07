@@ -1849,7 +1849,7 @@ RE_UU_ASK='vil[[:space:]]+du|skal[[:space:]]+jeg|ønsker[[:space:]]+du|bekreft|f
 # claims in prose.
 # ⚠️  NARROWED BY #689: accessibility.agent.md no longer carries a subagent tool
 # at all, so a real spawn is not something this agent can do. What is left to
-# catch is the prose half — a turn that says it is delegating — which is the
+# catch is the prose half (a turn that says it is delegating), which is the
 # same ceiling cr4 has. The positive gate in uu4 is what keeps the assertion
 # from being vacuous either way: it cannot pass off an empty transcript.
 RE_UU_SUBAGENT='runSubagent|run_subagent|sub-?agent|spawn(ing|ed)?[[:space:]]+(an[[:space:]]+)?agent|delegerer[[:space:]]+til[[:space:]]+@'
