@@ -459,3 +459,13 @@ func TestRetiredRecordIsValidatedAgainstTheSchema(t *testing.T) {
 		})
 	}
 }
+
+// TestRetiredPathMatchesTheContract pins what review caught in #734: the path
+// the validator names and the path the reader opens were two separate
+// constants, so they could drift and nav-pilot would validate a file it never
+// reads.
+func TestRetiredPathMatchesTheContract(t *testing.T) {
+	if retiredManifestPath != agentpakke.RetiredRecordPath {
+		t.Errorf("the reader opens %q while the contract publishes %q", retiredManifestPath, agentpakke.RetiredRecordPath)
+	}
+}

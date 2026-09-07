@@ -16,7 +16,11 @@ import (
 
 // retiredManifestPath is where the source publishes the record of what it has
 // retired, relative to the source checkout.
-const retiredManifestPath = ".nav-pilot/retired-artifacts.json"
+//
+// Aliased from the contract rather than restated: the constant the validator
+// uses and the constant the reader uses must be the same one, or nav-pilot can
+// end up validating a file it does not read.
+const retiredManifestPath = agentpakke.RetiredRecordPath
 
 // retiredManifest is the generated record: artifact path to every content hash
 // that path ever held before it was deleted.
