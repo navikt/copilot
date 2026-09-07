@@ -287,11 +287,11 @@ func TestUnresolvableSourceFallsBackToLegacy(t *testing.T) {
 	if !strings.Contains(stderr.String(), "no route to host") {
 		t.Errorf("warning should name the reason, got: %q", stderr.String())
 	}
-	// A Tier 1 pakke that declares this client supplies the persona since
-	// #728. What this row still pins is that nothing was staged.
-	if got := providerpkg.PrimaryAgent("copilot"); got == "" {
-		t.Error("no primary agent at all; the pakke should have supplied one")
-	}
+	// Still the built-in default, and #728 does not change that: the resolve
+	// failed, so no manifest was read and there is no roster to take a persona
+	// from. An assertion that merely checked for a non-empty agent would pass
+	// on "nav-pilot" too and prove nothing here.
+	assertDefaultPakkeActive(t)
 }
 
 // TestUnresolvableSourceRefusesWhenPayloadIsRemembered is the third case beside
@@ -442,21 +442,47 @@ func tier1Launch(t *testing.T, source string) {
 // Once a launch has learned that a source is not Tier 2, the next launch must
 // take the legacy path without cloning again to re-learn it.
 func TestTierCacheSkipsSecondResolve(t *testing.T) {
-	isolatedConfig(t)
-	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
-	calls := countingResolveSource(t, pakkeSource(t, "navikt/grillmester"))
+	t.Run("a manifest-less source is remembered and not resolved again", func(t *testing.T) {
+		isolatedConfig(t)
+		t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+		src := &Source{Dir: legacySourceTree(t), SHA: "abc1234", Version: "dev", Repo: "navikt/other"}
+		if err := attachPakke(src); err != nil {
+			t.Fatalf("attachPakke: %v", err)
+		}
+		calls := countingResolveSource(t, src)
 
-	tier1Launch(t, "navikt/grillmester")
-	tier1Launch(t, "navikt/grillmester")
+		tier1Launch(t, "navikt/other")
+		tier1Launch(t, "navikt/other")
 
-	if *calls != 1 {
-		t.Errorf("resolveSource called %d times, want 1 — the second launch must reuse the remembered tier", *calls)
-	}
-	// The fixture is Tier 1, so it supplies the persona since #728. What this
-	// test is about is the resolve count, not the persona.
-	if got := providerpkg.PrimaryAgent("copilot"); got == "" {
-		t.Error("no primary agent after a Tier 1 launch; the pakke should have supplied one")
-	}
+		if *calls != 1 {
+			t.Errorf("resolveSource called %d times, want 1: a manifest-less source has nothing to say, so the memory is the whole answer", *calls)
+		}
+		assertDefaultPakkeActive(t)
+	})
+
+	// Tier 1 no longer skips (#728). The cache remembers a tier, and a tier was
+	// the whole answer while every non-payload launch ran Nav's default. Now the
+	// answer is the pakke's roster, which lives in the manifest: skipping the
+	// resolve left the first launch using the pakke and every later one falling
+	// back to nav-pilot.
+	t.Run("a Tier 1 source resolves every launch, and keeps its persona", func(t *testing.T) {
+		isolatedConfig(t)
+		t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+		src := pakkeSource(t, "navikt/grillmester")
+		calls := countingResolveSource(t, src)
+
+		tier1Launch(t, "navikt/grillmester")
+		providerpkg.SetActivePakke(nil) // as a fresh process would start
+		tier1Launch(t, "navikt/grillmester")
+
+		if *calls != 2 {
+			t.Errorf("resolveSource called %d times, want 2: the persona is in the manifest, so it has to be read", *calls)
+		}
+		want := src.Pakke.PrimaryAgents("copilot")
+		if got := providerpkg.PrimaryAgent("copilot"); got != want[0] {
+			t.Errorf("PrimaryAgent after the second launch = %q, want %q", got, want[0])
+		}
+	})
 }
 
 // TestTierCacheExpires: a pakke that changes tier has to be picked up without
