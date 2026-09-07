@@ -1,0 +1,18 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# date:         2026-09-07
+# revision:     abf05f34
+# model:        gpt-5.6-sol
+# instructions: 17 installed, 3 always-on
+# repeat:       1
+# fixture:      4263008951
+# prompts:      all
+#
+# id|run|status|assertion|detail
+1|1|pass|trivial tier: no phase checkpoint emitted|
+2|1|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|1|soft-fail|full tier: Fase 1 checkpoint block emitted, with the blind-spot count|no checkpoint header (want: Fase[[:space:]]+[0-9]+[[:space:]]+ferdig); no confirmation line (want: Bekreft for å fortsette); no blind-spot audit count (want: Blindsoner[^.]{0,40}[0-9]+[[:space:]]*/[[:space:]]*11)
+3|1|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|
+4|1|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|1|pass|user context → TokenX, not Azure client_credentials  (canary)|
+6|1|pass|routine rename: no escalation to @nav-pilot-opus|

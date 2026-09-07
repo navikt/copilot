@@ -2,6 +2,7 @@
 name: nav-pilot
 description: Planlegg, arkitekturer og bygg Nav-applikasjoner med innebygd kjennskap til Nais, auth, Kafka, sikkerhet og Nav-mønstre
 tools:
+  - agent
   - execute
   - read
   - edit
