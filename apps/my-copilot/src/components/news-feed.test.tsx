@@ -1,4 +1,40 @@
-import { computeGridSpans } from "./news-feed";
+import { render, screen } from "@testing-library/react";
+import { computeGridSpans, NewsFeed } from "./news-feed";
+import type { NewsItem } from "@/lib/news";
+
+function makeItem(over: Partial<NewsItem> = {}): NewsItem {
+  return {
+    slug: "en-sak",
+    lang: "nb",
+    title: "En sak",
+    date: "2026-09-01",
+    draft: false,
+    category: "copilot",
+    excerpt: "",
+    tags: [],
+    type: "article",
+    ...over,
+  };
+}
+
+describe("NewsFeed English link", () => {
+  it("links to the English articles when there are some", () => {
+    render(<NewsFeed items={[makeItem()]} englishCount={2} />);
+    const link = screen.getByRole("link", { name: /In English/ });
+    expect(link).toHaveAttribute("href", "/en/news");
+    expect(link).toHaveTextContent("In English (2)");
+  });
+
+  it("says nothing when there are none", () => {
+    render(<NewsFeed items={[makeItem()]} englishCount={0} />);
+    expect(screen.queryByRole("link", { name: /In English/ })).toBeNull();
+  });
+
+  it("says nothing when the count is not given", () => {
+    render(<NewsFeed items={[makeItem()]} />);
+    expect(screen.queryByRole("link", { name: /In English/ })).toBeNull();
+  });
+});
 
 describe("computeGridSpans (bento layout)", () => {
   it("packs each 3-col row to full width without gaps", () => {

@@ -4,12 +4,16 @@ import { useState, useMemo, type ReactNode } from "react";
 import { Chips, HStack, VStack, BodyShort, Heading } from "@navikt/ds-react";
 import type { NewsItem, NewsCategory } from "@/lib/news-types";
 import { CATEGORY_CONFIG } from "@/lib/news-types";
+import NextLink from "next/link";
 import { NewsCard, FeaturedNewsCard } from "./news-card";
 
 interface NewsFeedProps {
   items: NewsItem[];
   compact?: boolean;
   afterFeatured?: ReactNode;
+  // Articles published in English. They are not in `items`, which is Norwegian
+  // only, so without this link nothing on the site leads to /en/news.
+  englishCount?: number;
 }
 
 const COLS = 3;
@@ -70,7 +74,7 @@ export function computeGridSpans(count: number, cols: number = COLS): number[] {
   return spans;
 }
 
-export function NewsFeed({ items, compact = false, afterFeatured }: NewsFeedProps) {
+export function NewsFeed({ items, compact = false, afterFeatured, englishCount = 0 }: NewsFeedProps) {
   const [selected, setSelected] = useState<NewsCategory | null>(null);
 
   const availableCategories = useMemo(() => {
@@ -106,6 +110,11 @@ export function NewsFeed({ items, compact = false, afterFeatured }: NewsFeedProp
             </Chips.Toggle>
           ))}
         </Chips>
+        {englishCount > 0 && (
+          <NextLink href="/en/news" hrefLang="en" lang="en" className="text-sm text-text-action">
+            In English ({englishCount})
+          </NextLink>
+        )}
       </HStack>
 
       {filtered.length === 0 && <BodyShort className="text-text-subtle">Ingen nyheter i denne kategorien.</BodyShort>}
