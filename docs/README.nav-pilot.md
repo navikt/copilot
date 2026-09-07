@@ -28,6 +28,10 @@ nav-pilot
 nav-pilot install nav-pilot
 ```
 
+`install` spør hvor den skal installere. Svaret er ikke gitt: repoet deler oppsettet med
+teamet, `--user` følger deg over alle repoer uten å sjekke inn noe. Se
+[Hvor skal artefaktene installeres?](#hvor-skal-artefaktene-installeres) før du velger.
+
 ## Hvor skal artefaktene installeres?
 
 Tre former er i bruk i Nav, og de løser ulike problemer. `install` spør hvor den skal
@@ -42,6 +46,19 @@ med `--repo`, `--user` eller `--target <mappe>` for å hoppe over spørsmålet.
 
 De utelukker ikke hverandre. `nav-pilot sync` uten scope-flagg synker alle scope som har en
 tilstandsfil, og de spores hver for seg.
+
+### Hvilken form bør du velge?
+
+| Situasjonen din | Anbefalt | Hvorfor |
+|---|---|---|
+| Teamet skal ha samme oppsett, og dere vil ha det på github.com også | Repo | Copilot på github.com leser bare `.github/` i repoet. Ingen annen form gir deg den |
+| Du jobber i mange repoer, eller i repoer du ikke kan endre `.github/` i | `--user` | Én installasjon å holde fersk, i stedet for én per repo |
+| Du vil ikke sjekke inn generert innhold | `--user` | Ingenting havner i differ eller kodegjennomgang |
+| Teamet har egne skills å vedlikeholde ved siden av Nav-artefaktene | Hub-repo | Ett sted som eier både det felles og deres eget |
+| Du bruker opencode | Repo, eller hub-repo | opencode materialiserer fra kilden pluss `.github/` i repoet du står i, ikke fra `~/.copilot/` |
+
+Er du i tvil, og bare deg det gjelder: ta `--user`. Den er reversibel uten at noen andre
+merker det, og du kan legge til repo-installasjon senere uten å fjerne den.
 
 ### Repo-installasjon
 
