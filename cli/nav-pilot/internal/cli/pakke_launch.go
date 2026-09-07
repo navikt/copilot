@@ -189,16 +189,27 @@ func pinnedRevision(sourceRepo string) (*Source, error) {
 // (with or without an error of its own), true means the Tier 2 path took it and
 // failed closed.
 func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
-	// Resolving a repo-shaped source clones it. A Tier 1 or manifest-less
-	// source has nothing to pin, so that launch never touched the source at
-	// all before Tier 2 existed; without a memory it would now clone on every
-	// launch to re-learn an answer it already had. A remembered non-payload
-	// tier skips the clone and takes exactly the legacy path.
+	// Resolving a repo-shaped source clones it. A manifest-less source has
+	// nothing to pin and nothing to say, so that launch never touched the
+	// source at all before Tier 2 existed; without a memory it would clone on
+	// every launch to re-learn an answer it already had.
+	// Only a remembered *manifest-less* source skips the resolve. The cache was
+	// written when a non-payload tier meant "take the legacy path as Nav's
+	// default", so remembering the tier was the whole answer. Since #728 a Tier
+	// 1 pakke supplies the persona, and the persona lives in the manifest: a
+	// cached TierLayout that skipped the resolve left SetActivePakke uncalled,
+	// so the first launch used the pakke and every later one silently fell back
+	// to nav-pilot.
+	//
+	// The cost is a resolve per launch for a source whose manifest declares this
+	// client as Tier 1. That is the population that deliberately chose a pakke,
+	// and getting their own persona is what they chose it for. A manifest-less
+	// source, which is everyone else with a custom source, still skips.
 	//
 	// --payload-context is exempt on purpose: it asks about payloads the
 	// manifest declares, which only the manifest can answer.
 	if resolved.PayloadContext == "" {
-		if tier, ok := cachedTier(resolved.Source, resolved.Client); ok && tier != agentpakke.TierPayload {
+		if tier, ok := cachedTier(resolved.Source, resolved.Client); ok && tier == agentpakke.TierUnknown {
 			return nil, false, nil
 		}
 	}
@@ -279,10 +290,26 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 	if err := mixedPakkeRefusal(src.Pakke, resolved.Client); err != nil {
 		return nil, true, err
 	}
+	if tier == agentpakke.TierLayout {
+		// Tier 1 takes the legacy materialization path, but it must take it as
+		// *this* pakke (#728). Before, the manifest was validated, the install
+		// succeeded, and then launch ran the built-in default anyway: a team's
+		// own primaryAgents were never selectable, and `export opencode`
+		// demoted them to subagents. docs/README.agentpakke.md promises the
+		// opposite, and the promise is the whole point of declaring a roster.
+		//
+		// The invariant SetActivePakke carries is that the manifest declares
+		// this client, which Tier() establishing TierLayout already means: it
+		// is derived from the client's own entry.
+		providerpkg.SetActivePakke(src.Pakke)
+		// Still the same answer about --payload-context as before: a Tier 1
+		// pakke has no pre-built payloads, and asking for one is an error
+		// whether or not its persona is now in use.
+		return nil, false, payloadContextUnsupported(resolved, resolved.Source)
+	}
 	if tier != agentpakke.TierPayload {
-		// Manifest-less, Tier 1, or Tier 2 for a client this pakke does not
-		// declare: exactly today's path, built-in default agentpakke still
-		// active.
+		// Manifest-less, or Tier 2 for a client this pakke does not declare:
+		// exactly today's path, built-in default agentpakke still active.
 		return nil, false, payloadContextUnsupported(resolved, resolved.Source)
 	}
 
