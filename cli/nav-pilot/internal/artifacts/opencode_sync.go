@@ -161,17 +161,30 @@ func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, source
 	var files []domain.InstalledFile
 	resolver := source.NewSourceResolver(sourceDir)
 
-	// OpenCode has no tool-deny mechanism, so a preToolUse gate has nothing to
-	// attach to there. Said out loud rather than skipped in silence: a user who
-	// installed an enforcement hook and then exported to opencode would
-	// otherwise believe the gate came along. ValidateOpenCodeStatePath keeps
-	// refusing hooks/ regardless, so nothing can slip in through state either.
+	// Hooks are not exported, and the message says why without claiming more
+	// than we know.
+	//
+	// It used to say OpenCode has no tool-deny mechanism. That is false, and was
+	// measured false (#709): a plugin's `tool.execute.before` hook aborts the
+	// call when it throws, the message reaches the model, and a probe ran the
+	// unmodified Python gate through it. `~/.config/opencode/plugins/rtk.ts`
+	// already uses that same hook to rewrite commands, so the shape was in front
+	// of us the whole time.
+	//
+	// What is missing is the plumbing, not the capability: a plugin has to be
+	// registered under `plugin` in the user's own opencode.json, and whether
+	// nav-pilot writes client configuration is #500's open question.
+	//
+	// Said out loud rather than skipped in silence: a user who installed an
+	// enforcement gate and then exported to opencode would otherwise believe it
+	// came along. ValidateOpenCodeStatePath keeps refusing hooks/ regardless, so
+	// nothing can slip in through state either.
 	if skipped := resolver.List(source.KindHook); len(skipped) > 0 {
 		names := make([]string, len(skipped))
 		for i, h := range skipped {
 			names[i] = h.Name
 		}
-		fmt.Printf("  %s %d hook(s) not exported: %s. OpenCode has no tool-deny mechanism, so the gate cannot run there.\n",
+		fmt.Printf("  %s %d hook(s) not exported: %s. nav-pilot does not yet install them for OpenCode; see navikt/copilot#709.\n",
 			domain.Yellow("⚠"), len(names), strings.Join(names, ", "))
 	}
 

@@ -210,8 +210,14 @@ func contains(list []string, s string) bool {
 	return false
 }
 
-// OpenCode has no tool-deny mechanism, so a hook cannot run there. It must stay
-// out of the exported scope, and the state path validator is the backstop.
+// Hooks stay out of the exported opencode scope, and the state path validator
+// is the backstop.
+//
+// The reason is plumbing, not capability. OpenCode can deny a tool call: a
+// plugin's `tool.execute.before` throws and the call is aborted, measured in
+// #709 by running the unmodified Python gate through one. What nav-pilot does
+// not do is register a plugin in the user's opencode.json, which is #500's open
+// question. This test pins the current behaviour, not a limitation of OpenCode.
 func TestOpenCodeRefusesHooks(t *testing.T) {
 	if err := artifacts.ValidateOpenCodeStatePath("hooks/klarsprak-gate.py"); err == nil {
 		t.Error("opencode state accepted a hook path")
