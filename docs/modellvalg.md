@@ -183,7 +183,7 @@ tallene her har et tidsstempel og ikke evig gyldighet.
 | GPT-5.3-Codex | Powerful | $1.75 | $14.00 | Kodeforståelse, terminal, infrastruktur |
 | GPT-5.6 Luna | Lightweight | $0.20 | $1.20 | Raske rutineoppgaver, enkel autofullfør. OpenAI plasserer den i nano-sjiktet fra tidligere GPT-5-familier, men med høy reasoning-rating og justerbar effort |
 | GPT-5.6 Terra | Versatile | $2.00 | $12.00 | Allround daglig koding i GPT-familien |
-| GPT-5.6 Sol | Powerful | $4.00 | $20.00 | Tung reasoning over store kodebaser (krever Pro+). Listepris; kampanjen gikk ut 3. sep 2026. Lang kontekst over 272K: $8.00 / $30.00 |
+| GPT-5.6 Sol | Powerful | $4.00 | $20.00 | Tung reasoning over store kodebaser. Listepris; kampanjen gikk ut 3. sep 2026. Lang kontekst over 272K: $8.00 / $30.00 |
 | Gemini 2.5 Pro | Powerful | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026. Gemini 3.1 Pro, som overtok rollen, falt ut av prislista 5. sep 2026. Google har ingen Powerful-modell igjen hos GitHub. Bruk GPT-5.3-Codex eller Kimi K3 til research over lang kontekst |
 | Gemini 3.5 Flash | Lightweight | $1.50 | $9.00 | Rask og billig for enkle oppgaver |
 | Gemini 3.6 Flash | Versatile | $0.75 | $3.75 | Agentiske workflows med parallell verktøybruk. Kampanjepris t.o.m. 31. des 2026 |
@@ -292,7 +292,7 @@ resonnerer bedre enn GPT-5.3-Codex eller Kimi K3 på oppgavene disse to agentene
 gjør, og ingen som viser at den holder Opus-nivået. Argumentet er ubelagt, og
 skal leses som det.
 
-Merk at Sol krever Copilot Pro+ eller høyere plan.
+Sol er tilgjengelig på Copilot Business. Målt 7. september 2026: `gpt-5.6-sol` står i modellkatalogen klienten henter for en konto med `copilot_plan: business`. Dokumentet sa tidligere at Sol krever Pro+, og motsa seg selv i notatet under, som lister Business blant planene GA-utrullingen dekket.
 
 ## Kriterier for å bytte modell
 
