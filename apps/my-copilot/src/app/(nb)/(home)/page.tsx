@@ -15,6 +15,7 @@ import { NavPill } from "@/components/navigation/nav-pill";
 export default async function Home() {
   const [user, videos] = await Promise.all([getUser(false), getPublicVideoFeed(5)]);
   const news = getNewsItems({ frontPage: true });
+  const englishNews = getNewsItems({ lang: "en" });
 
   return (
     <main>
@@ -65,6 +66,7 @@ export default async function Home() {
                 <div className="flex-1 min-w-0">
                   <NewsFeed
                     items={news}
+                    englishCount={englishNews.length}
                     compact
                     afterFeatured={
                       videos.length > 0 ? (
