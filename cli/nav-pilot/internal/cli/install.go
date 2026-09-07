@@ -84,7 +84,7 @@ func pakkeContents(resolver *SourceResolver, src *Source) (*Manifest, error) {
 	// carries the name and description `nav-pilot list` prints. Only a manifest
 	// that declares a layout and then ships nothing at it is an error, and the
 	// message says exactly that.
-	total := len(manifest.Agents) + len(manifest.Skills) + len(manifest.Instructions) + len(manifest.Prompts) + len(manifest.Hooks)
+	total := manifestItemCount(manifest)
 	if total == 0 && pakke.Layout != nil {
 		return nil, fmt.Errorf("agentpakke %q declares a layout but ships no agents, skills, instructions, or prompts.\n"+
 			"Check the layout paths in %s", pakke.Name, agentpakke.ManifestPath)
@@ -718,7 +718,7 @@ func cmdList(scope *InstallScope, ref, sourceRepo string, showItems bool, jsonOu
 		collections = append(collections, collectionInfo{
 			Name:        m.Name,
 			Description: m.Description,
-			Items:       len(m.Agents) + len(m.Skills) + len(m.Instructions) + len(m.Prompts) + len(m.Hooks),
+			Items:       manifestItemCount(m),
 			agents:      m.Agents,
 		})
 	}
@@ -1395,4 +1395,22 @@ func kindLabel(kind *ArtifactKind) string {
 		return kind.Name
 	}
 	return strings.ToUpper(kind.Dir[:1]) + kind.Dir[1:]
+}
+
+// manifestItemCount totals every kind the manifest carries.
+//
+// Derived rather than summed by hand. Two hardcoded sums here kept counting
+// five kinds after extensions became the sixth, so an install that wrote three
+// artifacts announced two (#572). Same defect as the group table above, one
+// line further down.
+func manifestItemCount(m *Manifest) int {
+	total := 0
+	for _, kind := range AllKinds {
+		names, ok := m.NamesByKind(kind)
+		if !ok {
+			continue
+		}
+		total += len(names)
+	}
+	return total
 }

@@ -50,3 +50,27 @@ func TestInstalledPrimaryAgent(t *testing.T) {
 		})
 	}
 }
+
+// TestManifestItemCount pins what review caught in #739: two hardcoded sums
+// kept counting five kinds after extensions became the sixth, so an install
+// that wrote three artifacts announced two.
+func TestManifestItemCount(t *testing.T) {
+	m := &Manifest{
+		Agents:       []string{"a1", "a2"},
+		Skills:       []string{"s1"},
+		Instructions: []string{"i1"},
+		Prompts:      []string{"p1"},
+		Hooks:        []string{"h1"},
+		Extensions:   []string{"e1"},
+	}
+	if got, want := manifestItemCount(m), 7; got != want {
+		t.Errorf("manifestItemCount = %d, want %d: every kind in AllKinds counts", got, want)
+	}
+
+	// The case that regressed: a manifest carrying only the newest kind must
+	// not total zero.
+	only := &Manifest{Extensions: []string{"e1"}}
+	if got := manifestItemCount(only); got != 1 {
+		t.Errorf("manifestItemCount with only extensions = %d, want 1", got)
+	}
+}

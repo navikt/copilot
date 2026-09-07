@@ -24,7 +24,7 @@ Katalognavnene er ikke låst. `layout` peker på hvor innholdet faktisk ligger, 
 
 ## Kjørbare artefakter: hooks og extensions
 
-Fire av artefekttypene er tekst modellen leser. To er kode som kjører på maskinen til den som installerer:
+Fire av artefakttypene er tekst modellen leser. To er kode som kjører på maskinen til den som installerer:
 
 | Type | Form | Hva som kjører |
 | --- | --- | --- |
@@ -36,7 +36,9 @@ Det er en annen tillitsbeslutning enn de fire andre. Å installere en agentpakke
 To ting følger av det:
 
 - **De kommer med i «installer alt».** En port som bare når dem som navngir den eksplisitt, er ingen port. Det var begrunnelsen for at hooks ble en type ([#569](https://github.com/navikt/copilot/issues/569)), og den gjelder likt for extensions.
-- **cplt nekter skriving til begge katalogene.** Kjører du `nav-pilot install` fra en agentsesjon inne i sandboxen, stopper installasjonen med en feil som sier hvorfor. En prosess i sandboxen skal ikke kunne legge igjen kode som kjører utenfor den senere. Se [README.nav-pilot.md](README.nav-pilot.md#hooks-kan-ikke-installeres-inne-i-cplt).
+- **cplt nekter skriving til hooks-katalogene.** Kjører du `nav-pilot install` fra en agentsesjon inne i sandboxen, stopper hook-installasjonen med en feil som sier hvorfor: en prosess i sandboxen skal ikke kunne legge igjen kode som kjører utenfor den senere. Se [README.nav-pilot.md](README.nav-pilot.md#hooks-kan-ikke-installeres-inne-i-cplt).
+
+  **Extensions har ikke det vernet.** `~/.copilot/hooks`, `~/.copilot/settings.json` og `.github/hooks` står i cplts lister (`src/agent.rs`, `src/sandbox_policy.rs`); extensions-katalogene gjør ikke det. Asymmetrien er verdt en beslutning framfor en antakelse, og er notert i [#740](https://github.com/navikt/copilot/issues/740).
 
 Extensions fikk en type fordi et team som hadde skrevet en, ikke kunne distribuere den: nav-pilot kjente ikke formen, så den ble hverken installert, synket eller eksportert ([#572](https://github.com/navikt/copilot/issues/572)).
 
@@ -53,7 +55,7 @@ Generert fra `cli/nav-pilot/schemas/agentpakke-v1.json`. Ukjente felt på alle n
 | `description` | string | ja | Én linje, vises i `nav-pilot list`. |
 | `clients` | objekt, minst én nøkkel | ja | Én oppføring per klient. Se under. |
 | `owner` | objekt: `repo` (`^[^/]+/[^/]+$`), `team` | nei | Kun attribusjon. Kilden til en installasjon er der manifestet ble klonet fra, ikke `owner.repo`. |
-| `layout` | objekt: `agents`\*, `skills`\*, `instructions`, `prompts` | ja for Tier 1 | Repo-relative stier til innholdskatalogene. `agents` og `skills` er påkrevd når `layout` først er til stede. |
+| `layout` | objekt: `agents`\*, `skills`\*, `instructions`, `prompts`, `hooks`, `extensions` | ja for Tier 1 | Repo-relative stier til innholdskatalogene. `agents` og `skills` er påkrevd når `layout` først er til stede; resten faller tilbake til de kanoniske navnene. |
 | `policies` | objekt: `opencodePermissions` | nei | Peker på policy-artefakter. Sti-sjekkes i dag, materialiseres ikke ennå. |
 | `profiles` | objekt: `dir`, `default` | nei | Katalog med launch-profiler og navnet på standardprofilen (`<dir>/<default>.json`). Sti-sjekkes i dag, brukes ikke ennå. |
 | `provenance` | objekt: `base` (`repo`\*, `digest`\*), `overlays[]` (`component`\*, `version`\*) | nei | Opphav for komponert innhold. Ren metadata, nav-pilot verifiserer ikke digest. |
