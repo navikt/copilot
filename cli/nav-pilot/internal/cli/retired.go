@@ -241,3 +241,23 @@ func reportIgnoredButInstalled(paths []string) {
 	fmt.Printf("  that may no longer exist. %s takes the source's version and\n", bold("nav-pilot add <type> <name> --force"))
 	fmt.Printf("  starts tracking it again.\n\n")
 }
+
+// installedRevisions maps each tracked path to the source revision it was
+// written from, for the entries that carry one (#729).
+//
+// A path with no recorded revision is absent from the map rather than present
+// with an empty value: the caller must be able to tell "installed from an older
+// revision" from "we do not know", and those lead to different sentences.
+func installedRevisions(scope *InstallScope) map[string]string {
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		return nil
+	}
+	out := make(map[string]string, len(state.Files))
+	for _, f := range state.Files {
+		if f.Revision != "" {
+			out[f.Path] = f.Revision
+		}
+	}
+	return out
+}

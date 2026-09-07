@@ -431,6 +431,18 @@ type InstalledFile struct {
 	// every state file written before per-file origins says about all of its
 	// files — so they keep syncing exactly as they did.
 	Source string `json:"source,omitempty"`
+	// Revision is the source revision this file was written from, when it is
+	// known. Empty means a state file older than per-file provenance, or a file
+	// nav-pilot did not write.
+	//
+	// The state file's own SourceSHA says which revision the scope last synced
+	// to, which is not the same question: a file that has not changed upstream
+	// in months still carries the revision that last rewrote it. Without this,
+	// "the content differs from the hash we recorded" is all the model can say,
+	// and it cannot tell an edit from a file installed by an older revision
+	// (#729). Both look identical to a hash comparison, and telling a user they
+	// changed a file they never touched is how a warning stops being read.
+	Revision string `json:"revision,omitempty"`
 	// Unknown carries every key of this entry that the running binary does not
 	// understand, and writes it back out unchanged.
 	//

@@ -1379,7 +1379,7 @@ func TestUpdateStateHashes_OnlyUpdatesApplied(t *testing.T) {
 		{Path: relA, CurrentHash: "oldhash-a", SourceHash: hashA},
 	}
 
-	if err := updateStateHashes(dir, appliedUpdates); err != nil {
+	if err := updateStateHashes(dir, appliedUpdates, "rev1234"); err != nil {
 		t.Fatal(err)
 	}
 

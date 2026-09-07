@@ -336,3 +336,50 @@ func TestRetiredHonoursDeclaredLayout(t *testing.T) {
 		t.Errorf("findRetiredOrphans with a declared layout = %+v, want the one orphan", got)
 	}
 }
+
+// TestRevisionIsRecordedAndSurfaced covers #729: the state file recorded a hash
+// and nothing about where the bytes came from, so "differs from what nav-pilot
+// installed" could not tell an edit from a file installed by an older revision.
+// Both look identical to a hash comparison.
+func TestRevisionIsRecordedAndSurfaced(t *testing.T) {
+	t.Run("an install stamps the revision on every file it wrote", func(t *testing.T) {
+		files := []InstalledFile{
+			{Path: "agents/a.agent.md", Hash: "abc"},
+			// Ignored entries have no bytes, so they have no provenance either.
+			// Stamping one would claim a revision put something on disk.
+			{Path: "agents/b.agent.md", Status: fileStatusIgnored},
+		}
+		got := stampRevision(files, "def5678")
+		if got[0].Revision != "def5678" {
+			t.Errorf("written file revision = %q, want def5678", got[0].Revision)
+		}
+		if got[1].Revision != "" {
+			t.Errorf("ignored entry got revision %q, want none", got[1].Revision)
+		}
+	})
+
+	t.Run("an unknown revision is absent, not empty", func(t *testing.T) {
+		scope, _ := userScopeWithAgents(t)
+		if err := writeScopedState(scope, &StateFile{
+			Collection: "pakke",
+			Scope:      scope.Name,
+			SourceRepo: "navikt/copilot",
+			SourceSHA:  "def5678",
+			Files: []InstalledFile{
+				{Path: "agents/ny.agent.md", Hash: "h1", Revision: "abc1234"},
+				{Path: "agents/gammel.agent.md", Hash: "h2"},
+			},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		got := installedRevisions(scope)
+		if got["agents/ny.agent.md"] != "abc1234" {
+			t.Errorf("revision = %q, want abc1234", got["agents/ny.agent.md"])
+		}
+		// The distinction that matters: a state file written before provenance
+		// must not be reported as "installed from ''".
+		if _, present := got["agents/gammel.agent.md"]; present {
+			t.Error("a file with no recorded revision is present in the map; the caller cannot then tell it from a known one")
+		}
+	})
+}

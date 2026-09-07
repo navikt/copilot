@@ -242,7 +242,7 @@ func TestUpdateStateHashes(t *testing.T) {
 	newHash, _ := fileHash(filepath.Join(dir, rel))
 	updates := []syncUpdate{{Path: rel, CurrentHash: "oldhash", SourceHash: newHash}}
 
-	if err := updateStateHashes(dir, updates); err != nil {
+	if err := updateStateHashes(dir, updates, "rev1234"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -271,7 +271,7 @@ func TestUpdateStateHashes_ClearsConflictStatus(t *testing.T) {
 	newHash, _ := fileHash(filepath.Join(dir, rel))
 	updates := []syncUpdate{{Path: rel, CurrentHash: "oldhash", SourceHash: newHash}}
 
-	if err := updateStateHashes(dir, updates); err != nil {
+	if err := updateStateHashes(dir, updates, "rev1234"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -284,7 +284,7 @@ func TestUpdateStateHashes_ClearsConflictStatus(t *testing.T) {
 func TestUpdateStateHashes_NoState(t *testing.T) {
 	dir := t.TempDir()
 	// Should not error when no state file exists
-	err := updateStateHashes(dir, []syncUpdate{{Path: "x", CurrentHash: "a", SourceHash: "b"}})
+	err := updateStateHashes(dir, []syncUpdate{{Path: "x", CurrentHash: "a", SourceHash: "b"}}, "rev1234")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -386,7 +386,7 @@ func TestUpdateScopedStateHashes(t *testing.T) {
 	newHash, _ := fileHash(filepath.Join(dir, rel))
 	updates := []syncUpdate{{Path: rel, CurrentHash: "oldhash", SourceHash: newHash}}
 
-	if err := updateScopedStateHashes(scope, updates); err != nil {
+	if err := updateScopedStateHashes(scope, updates, "rev1234"); err != nil {
 		t.Fatal(err)
 	}
 
