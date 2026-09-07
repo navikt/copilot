@@ -189,6 +189,32 @@ func TestParseRejectsMalformedKnownConstructs(t *testing.T) {
 			wantErrs: []string{"contractVersion", "supported", "Upgrade nav-pilot", "nav-pilot update"},
 		},
 		{
+			// The launch resolves the default context and looks the payload
+			// up; validation has to reach the same verdict, or the author
+			// ships a manifest that passes CI and dies on every launch
+			// (#704 T2).
+			name: "defaultContext names a payload that is not declared",
+			patch: func(doc map[string]any) {
+				clients := doc["clients"].(map[string]any)
+				copilot := clients["copilot"].(map[string]any)
+				copilot["defaultContext"] = "fokusert"
+			},
+			wantErrs: []string{"clients.copilot", "fokusert", "focused, full"},
+		},
+		{
+			// The implicit half of the same rule: no defaultContext falls back
+			// to "full", so a client declaring payloads without one is just as
+			// dead as a typo.
+			name: "no defaultContext and no full payload",
+			patch: func(doc map[string]any) {
+				clients := doc["clients"].(map[string]any)
+				opencode := clients["opencode"].(map[string]any)
+				payloads := opencode["payloads"].(map[string]any)
+				delete(payloads, "full")
+			},
+			wantErrs: []string{"clients.opencode", "full", "focused"},
+		},
+		{
 			name: "contractVersion of the wrong type",
 			patch: func(doc map[string]any) {
 				doc["contractVersion"] = 1
@@ -711,5 +737,103 @@ func TestParseRejectsInvalidCompatibilityRange(t *testing.T) {
 	_, err := parse(data, devVersion)
 	if err == nil || !strings.Contains(err.Error(), "clients.futurecli.compatibility") {
 		t.Errorf("parse should reject the unknown client's invalid compatibility by name, got: %v", err)
+	}
+}
+
+// TestLoadGuardsTheManifestFile covers the top-level manifest getting the same
+// distrust as the payload manifest it points at (#704 T1). Both cases are
+// silent failures without the guard: a symlink is followed, and an oversized
+// file is read into memory whole.
+func TestLoadGuardsTheManifestFile(t *testing.T) {
+	t.Run("symlinked manifest is refused", func(t *testing.T) {
+		root := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(root, ManifestDir), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		real := filepath.Join(root, "elsewhere.json")
+		if err := os.WriteFile(real, []byte(grillmesterManifest), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(real, filepath.Join(root, ManifestDir, ManifestFile)); err != nil {
+			t.Skipf("symlinks unavailable: %v", err)
+		}
+
+		_, err := Load(root)
+		if err == nil {
+			t.Fatal("Load = nil for a symlinked manifest, want a refusal")
+		}
+		if !strings.Contains(err.Error(), "symlink") {
+			t.Errorf("error %q does not say the manifest must not be a symlink", err)
+		}
+		// A symlinked manifest is not a missing one: mapping it to
+		// ErrNoManifest would send the caller down the no-manifest fallback
+		// instead of failing closed.
+		if errors.Is(err, ErrNoManifest) {
+			t.Error("a symlinked manifest matched ErrNoManifest, want a refusal that fails closed")
+		}
+	})
+
+	t.Run("oversized manifest is refused", func(t *testing.T) {
+		root := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(root, ManifestDir), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		big := make([]byte, maxPayloadManifestBytes+1)
+		if err := os.WriteFile(filepath.Join(root, ManifestDir, ManifestFile), big, 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		_, err := Load(root)
+		if err == nil {
+			t.Fatal("Load = nil for an oversized manifest, want a refusal")
+		}
+		if !strings.Contains(err.Error(), "limit") {
+			t.Errorf("error %q does not name the size limit", err)
+		}
+	})
+
+	// The mapping the guard must not break: a genuinely absent manifest is
+	// still ErrNoManifest, which is what every no-manifest fallback keys on.
+	t.Run("a missing manifest still matches ErrNoManifest", func(t *testing.T) {
+		if _, err := Load(t.TempDir()); !errors.Is(err, ErrNoManifest) {
+			t.Errorf("Load of an empty root = %v, want ErrNoManifest", err)
+		}
+	})
+}
+
+// TestRequireSeparatesUnreadableFromAbsent covers #704 T3: a permission error
+// reported as "does not exist" sends the author looking for a path that is
+// right there.
+func TestRequireSeparatesUnreadableFromAbsent(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads through any mode")
+	}
+	root := t.TempDir()
+	locked := filepath.Join(root, "locked")
+	if err := os.MkdirAll(filepath.Join(locked, "inner"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(locked, "inner", "file.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(locked, 0o000); err != nil {
+		t.Skipf("cannot drop permissions: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o700) })
+
+	dirErr := requireDir(root, "layout.agents", "locked/inner")
+	if dirErr == nil {
+		t.Fatal("requireDir = nil for an unreadable directory, want an error")
+	}
+	if strings.Contains(dirErr.Error(), "does not exist") {
+		t.Errorf("requireDir reported a permission failure as absence: %v", dirErr)
+	}
+
+	fileErr := requireFile(root, "layout.instructions", "locked/inner/file.md")
+	if fileErr == nil {
+		t.Fatal("requireFile = nil for an unreadable file, want an error")
+	}
+	if strings.Contains(fileErr.Error(), "does not exist") {
+		t.Errorf("requireFile reported a permission failure as absence: %v", fileErr)
 	}
 }

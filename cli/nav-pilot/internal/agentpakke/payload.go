@@ -235,19 +235,32 @@ func verifyPayload(payloadDir, manifestPath string, exact bool) error {
 // distrust as the tree it describes: a symlinked or non-regular manifest could
 // point anywhere, and an oversized one is not a payload manifest.
 func readPayloadManifestFile(manifestPath string) ([]byte, error) {
+	return readGuardedManifest(manifestPath, "payload manifest")
+}
+
+// readGuardedManifest reads a manifest under the distrust both halves of the
+// trust boundary need: a symlinked or non-regular file could point anywhere,
+// and an oversized one is not a manifest. The top-level manifest is read
+// through here too (#704 T1) — it decides what gets staged and launched, so
+// reading it with fewer guards than the payload manifest it points at had the
+// asymmetry backwards.
+//
+// Errors wrap rather than flatten, so a caller can still tell os.ErrNotExist
+// from a permission failure. [Load] maps exactly that to ErrNoManifest.
+func readGuardedManifest(manifestPath, label string) ([]byte, error) {
 	info, err := os.Lstat(manifestPath)
 	if err != nil {
-		return nil, fmt.Errorf("payload manifest %s is unavailable: %v", manifestPath, err)
+		return nil, fmt.Errorf("%s %s is unavailable: %w", label, manifestPath, err)
 	}
 	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("payload manifest %s must be a real, regular file, not a symlink or a directory", manifestPath)
+		return nil, fmt.Errorf("%s %s must be a real, regular file, not a symlink or a directory", label, manifestPath)
 	}
 	if info.Size() > maxPayloadManifestBytes {
-		return nil, fmt.Errorf("payload manifest %s is %d bytes, past the %d-byte limit", manifestPath, info.Size(), maxPayloadManifestBytes)
+		return nil, fmt.Errorf("%s %s is %d bytes, past the %d-byte limit", label, manifestPath, info.Size(), maxPayloadManifestBytes)
 	}
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
-		return nil, fmt.Errorf("reading payload manifest %s: %v", manifestPath, err)
+		return nil, fmt.Errorf("reading %s %s: %w", label, manifestPath, err)
 	}
 	return data, nil
 }
