@@ -49,7 +49,7 @@ export function generateSetupScript(os: OS, workflow: Workflow) {
   if (isWindows) {
     blocks.push({
       title:
-        "# Nav-pilot (agent og context) fungerer best i WSL (Linux).\n# Åpne WSL2-terminalen din og kjør følgende.\n# Alt skal installeres inne i Linux — verktøy du har på Windows installerer og kjører på Windows-siden.",
+        "# Nav-pilot (agent og context) fungerer best i WSL (Linux).\n# Åpne WSL2-terminalen din og kjør følgende.\n# Alt skal installeres inne i Linux. Verktøy du har på Windows installerer og kjører på Windows-siden.",
       commands: [],
     });
   }

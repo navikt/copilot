@@ -1,5 +1,5 @@
 ---
-title: "Copilot i Visual Studio — Mars-oppdatering"
+title: "Mars-oppdatering for Copilot i Visual Studio"
 date: 2026-04-02
 author: starefossen
 category: copilot

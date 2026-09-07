@@ -1,5 +1,5 @@
 ---
-title: "GitHub Copilot i VS Code v1.110 — februarrelease"
+title: "Februarrelease av GitHub Copilot i VS Code v1.110"
 date: 2026-03-06
 author: starefossen
 category: copilot

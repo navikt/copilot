@@ -11,11 +11,11 @@ tags:
   - cplt
 ---
 
-cplt kan nå blokkere destruktive GitHub- og git-operasjoner når AI-agenter kjører i sandbox. Én kommando skrur det på — ingen manuell config-redigering.
+cplt kan nå blokkere destruktive GitHub- og git-operasjoner når AI-agenter kjører i sandbox. Én kommando skrur det på, uten manuell config-redigering.
 
 ## Problemet
 
-Agenter er svært ivrige på å pushe koden de har skrevet — gjerne rett til main — uten review. En annen agent som fikk i oppgave å rydde opp i gamle branches, kjørte `gh pr merge` som del av en «cleanup-rutine» ingen hadde bedt om. Brukere kjører med fulle tilganger i `gh` og `git` på alle lokale terminaler, og det er ingen innebygde mekanismer for å begrense hva en agent kan gjøre når den først har tilgang til å kjøre kommandoer.
+Agenter er svært ivrige på å pushe koden de har skrevet, gjerne rett til main og uten review. En annen agent som fikk i oppgave å rydde opp i gamle branches, kjørte `gh pr merge` som del av en «cleanup-rutine» ingen hadde bedt om. Brukere kjører med fulle tilganger i `gh` og `git` på alle lokale terminaler, og det er ingen innebygde mekanismer for å begrense hva en agent kan gjøre når den først har tilgang til å kjøre kommandoer.
 
 ## Kom i gang
 
@@ -52,7 +52,7 @@ cplt --gh-guard --git-guard
 
 ## Hva blokkeres?
 
-### gh guard — trelagsmodell
+### Tre lag i gh guard
 
 gh guard er en default-deny policy engine som klassifiserer over 150 `gh`-kommandoer i tre nivåer:
 
@@ -64,9 +64,9 @@ gh guard er en default-deny policy engine som klassifiserer over 150 `gh`-komman
 
 `gh api`-kall begrenses til `/repos/{current-repo}/...`. Org-level og cross-repo API-tilgang blokkeres.
 
-### git guard — push-beskyttelse
+### Push-beskyttelse med git guard
 
-git guard blokkerer `git push`, `git request-pull` og `git send-pack`. Alt annet — commit, branch, rebase, stash — fungerer som normalt.
+git guard blokkerer `git push`, `git request-pull` og `git send-pack`. Alt annet fungerer som normalt, inkludert commit, branch, rebase og stash.
 
 Trenger agenten å pushe til en feature branch?
 
@@ -91,12 +91,12 @@ This command is classified as destructive and blocked by gh guard.
 Please make a note of this for the human operator and continue with your remaining work.
 ```
 
-Agenten får beskjed om å rapportere tilbake til deg — ingen retry-loops.
+Agenten får beskjed om å rapportere tilbake til deg i stedet for å gå i retry-loop.
 
 ## Slik fungerer det
 
 - **Token-isolasjon**: Tokenet slettes fra filsystemet etter første lesing. Subprosesser kan ikke nå det.
-- **API-scoping**: Samme repo-avgrensing som over — subprosesser arver ikke bredere tilgang.
+- **API-scoping**: Samme repo-avgrensing som over, så subprosesser arver ikke bredere tilgang.
 - **Sikkerhetsmodell**: Policy bakes inn i wrapper-scriptet ved sandbox-oppstart. Agenten kan ikke endre reglene innenfra.
 
 ## Anbefalt oppsett

@@ -15,9 +15,9 @@ VS Code v1.123 til v1.127, utgitt gjennom juni og tidlig juli 2026, bringer fler
 
 ## Nettleserverktøy er generelt tilgjengelig
 
-Agenter kan nå kjøre en fullverdig nettleser direkte i VS Code — navigere, klikke, skrive, ta skjermbilder og lese konsollfeil. Nettleserverktøyene er på som standard med GA-statusen. DevTools er tilgjengelig i nettleserverktøylinjen for inspeksjon.
+Agenter kan nå kjøre en fullverdig nettleser direkte i VS Code, der de kan navigere, klikke, skrive, ta skjermbilder og lese konsollfeil. Nettleserverktøyene er på som standard med GA-statusen. DevTools er tilgjengelig i nettleserverktøylinjen for inspeksjon.
 
-Agenten kan bruke dette til å validere frontend-endringer visuelt, sjekke konsollfeil, og verifisere at appen fungerer — uten at du trenger å bytte vindu.
+Agenten kan bruke dette til å validere frontend-endringer visuelt, sjekke konsollfeil og verifisere at appen fungerer, uten at du trenger å bytte vindu.
 
 ## Parallelle sesjoner og chatter
 

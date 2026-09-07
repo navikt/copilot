@@ -29,7 +29,7 @@ import NextLink from "next/link";
 
 export const metadata: Metadata = {
   title: "nav-pilot dokumentasjon",
-  description: "Dokumentasjon for nav-pilot — Navs AI-utviklerverktøy for GitHub Copilot.",
+  description: "Dokumentasjon for nav-pilot, Navs AI-utviklerverktøy for GitHub Copilot.",
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -167,7 +167,7 @@ const RECOMMENDED_SELECTIONS = [
   {
     team: "Fullstack",
     keep: "backend- og frontend-settene samlet",
-    drop: "lite — dette var allerede unionen",
+    drop: "lite, siden dette allerede var unionen",
   },
   {
     team: "Plattform / DevOps",
@@ -229,7 +229,7 @@ const CLI_COMMANDS = [
   { command: "nav-pilot --client opencode", description: "Start OpenCode-sesjonen med Nav-kontekst levert automatisk" },
   {
     command: "nav-pilot install nav-pilot",
-    description: "Installer agentpakka — spør om repoet (.github/) eller hjemmekatalogen (~/.copilot/)",
+    description: "Installer agentpakka. Spør om repoet (.github/) eller hjemmekatalogen (~/.copilot/)",
   },
   {
     command: "nav-pilot install --user",
@@ -259,7 +259,7 @@ const CLI_COMMANDS = [
   },
   { command: "nav-pilot env", description: "Skriv shell-eksport for Copilot CLI-integrasjon" },
   { command: "nav-pilot upgrade", description: "Oppdater nav-pilot CLI til nyeste versjon" },
-  { command: "nav-pilot feedback", description: "Rapporter feil — åpner GitHub issue med diagnostikk" },
+  { command: "nav-pilot feedback", description: "Rapporter feil. Åpner GitHub issue med diagnostikk" },
   { command: "nav-pilot feedback --feature", description: "Foreslå ny funksjon" },
   { command: "nav-pilot export opencode", description: "Eksporter til .opencode/-format (OpenCode / oh-my-openagent)" },
   { command: "nav-pilot export opencode --user", description: "Eksporter til ~/.config/opencode/ (globalt)" },
@@ -355,14 +355,14 @@ function IntroductionSection() {
           </BodyLong>
           <BodyLong style={{ color: "#475569" }}>
             nav-pilot inneholder <strong>én planleggingsagent, fire planning skills og én agentpakke</strong> med alle
-            Navs agenter, skills, instruksjoner og prompts. CLI-et installerer markdown-filer — selve
-            AI-funksjonaliteten kjøres av GitHub Copilot.
+            Navs agenter, skills, instruksjoner og prompts. CLI-et installerer markdown-filer. Selve AI-funksjonaliteten
+            kjøres av GitHub Copilot.
           </BodyLong>
 
           {/* Component overview cards */}
           <div className="mt-6 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
             {[
-              { name: "@nav-pilot", desc: "Planleggingsagent — din inngangsport", color: "#3b82f6", Icon: CompassIcon },
+              { name: "@nav-pilot", desc: "Planleggingsagent, din inngangsport", color: "#3b82f6", Icon: CompassIcon },
               {
                 name: "$nav-deep-interview",
                 desc: "Avdekker blindsoner (personvern, auth, avhengigheter)",
@@ -455,8 +455,8 @@ function IntroductionSection() {
                 Bruk{" "}
                 <NextLink href="/cplt" className="text-blue-600 hover:underline">
                   cplt
-                </NextLink>{" "}
-                — det er den anbefalte og enkleste løsningen. Hvis du velger en annen løsning, må du selv sette deg inn
+                </NextLink>
+                . Det er den anbefalte og enkleste løsningen. Hvis du velger en annen løsning, må du selv sette deg inn
                 i hvordan agentklienten isolerer agenten, og aktivere denne funksjonen. Hvis klienten ikke gir
                 tilstrekkelig beskyttelse, må du sørge for tilsvarende isolasjon, for eksempel med en VM eller
                 container. Ikke kjør agenter med ubegrenset tilgang til Nav-utstyret.
@@ -477,9 +477,9 @@ function IntroductionSection() {
             Hvorfor nav-pilot?
           </LinkableHeading>
           <BodyLong className="mt-3" style={{ color: "#475569" }}>
-            oh-my-openagent og lignende verktøy bygger bedre <em>orkestrering</em> — multi-agent-delegering,
+            oh-my-openagent og lignende verktøy bygger bedre <em>orkestrering</em>, som multi-agent-delegering,
             parallellkjøring og selvkorrigering. nav-pilot bygger bedre <em>kunnskap</em>. Orkestrering blir
-            standardvare — institusjonell kunnskap er vanskelig å kopiere.
+            standardvare, mens institusjonell kunnskap er vanskelig å kopiere.
           </BodyLong>
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 mt-4">
             <table className="w-full min-w-max text-sm" style={{ borderCollapse: "collapse" }}>
@@ -544,9 +544,9 @@ function IntroductionSection() {
                 At du trenger <code className="font-mono text-xs">accessPolicy.inbound</code> i Nais-manifestet, ellers
                 kan ingen kalle tjenesten din
               </>,
-              "At HikariCP default pool (10) er for stor for containere — start med 3",
+              "At HikariCP default pool (10) er for stor for containere, så start med 3",
               "At du aldri skal sette CPU-limits i Nais (bare requests)",
-              "At PII aldri skal logges — logg sakId, ikke fnr",
+              "At PII aldri skal logges, så du logger sakId, ikke fnr",
               "At Chainguard-images er standard i Nav, ikke distroless",
               <>
                 At Rapids &amp; Rivers-meldinger trenger <code className="font-mono text-xs">@event_name</code> og{" "}
@@ -652,7 +652,7 @@ nav-pilot`}
               </Label>
             </div>
             <BodyLong className="mt-1 mb-3" size="small" style={{ color: "#64748b" }}>
-              Du kan bruke nav-pilot på tre måter — velg den som passer deg best:
+              Du kan bruke nav-pilot på tre måter. Velg den som passer deg best:
             </BodyLong>
             <div className="space-y-4">
               <div>
@@ -683,7 +683,7 @@ nav-pilot`}
                   <CodeBlock compact>{`nav-pilot`}</CodeBlock>
                 </div>
                 <BodyLong className="mt-1" size="small" style={{ color: "#94a3b8" }}>
-                  Starter interaktiv modus — sjekker oppdateringer og starter Copilot med valgt agent.
+                  Starter interaktiv modus, som sjekker oppdateringer og starter Copilot med valgt agent.
                 </BodyLong>
               </div>
             </div>
@@ -736,8 +736,8 @@ nav-pilot`}
           <BodyLong className="mt-3" size="small" style={{ color: "#64748b" }}>
             Filene installeres til <code className="font-mono text-xs">~/.copilot/</code>. Agenter og skills plukkes opp
             automatisk av GitHub Copilot. Instruksjoner krever{" "}
-            <code className="font-mono text-xs">COPILOT_CUSTOM_INSTRUCTIONS_DIRS</code> og fungerer kun med Copilot CLI
-            — nav-pilot setter denne automatisk i interaktiv modus. OpenCode mottar Nav-kontekst på en annen måte — se{" "}
+            <code className="font-mono text-xs">COPILOT_CUSTOM_INSTRUCTIONS_DIRS</code> og fungerer kun med Copilot CLI.
+            nav-pilot setter denne automatisk i interaktiv modus. OpenCode mottar Nav-kontekst på en annen måte, se{" "}
             <a href="#opencode" className="text-blue-600 hover:underline">
               OpenCode
             </a>
@@ -774,7 +774,7 @@ nav-pilot`}
             Vanlige oppgaver
           </LinkableHeading>
           <BodyLong className="mt-2 mb-4" style={{ color: "#475569" }}>
-            Du trenger ikke huske skill-navn. Bare beskriv oppgaven — nav-pilot bruker riktig kunnskap automatisk. Her
+            Du trenger ikke huske skill-navn. Bare beskriv oppgaven, så bruker nav-pilot riktig kunnskap automatisk. Her
             er eksempler:
           </BodyLong>
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
@@ -836,7 +836,7 @@ function CollectionsSection() {
             <code className="font-mono text-xs">nav-pilot install nav-pilot</code> gir deg alle agenter, skills,
             instruksjoner, prompts og hooks. Det er bevisst alt: instruksjoner er glob-scopet og aktiveres bare mot
             matchende filer, skills lastes ved behov, og bare nav-pilot-personaene er primæragenter. Vil du ha mindre,
-            velger du bort i den interaktive velgeren — fravalgene huskes og overlever sync.
+            velger du bort i den interaktive velgeren. Fravalgene huskes og overlever sync.
           </BodyLong>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
             De fem tidligere collections (frontend, nextjs-frontend, kotlin-backend, fullstack, platform) er kollapset
@@ -851,7 +851,7 @@ function CollectionsSection() {
             <code className="font-mono text-xs">.github/hooks/</code> (repo) eller{" "}
             <code className="font-mono text-xs">~/.copilot/hooks/</code> (bruker), og{" "}
             <code className="font-mono text-xs">nav-pilot uninstall</code> fjerner bare oppføringene nav-pilot selv har
-            skrevet — dine egne hooks blir stående.
+            skrevet. Dine egne hooks blir stående.
           </BodyLong>
         </div>
 
@@ -861,7 +861,7 @@ function CollectionsSection() {
             Anbefalte utvalg
           </LinkableHeading>
           <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
-            Veiledning, ikke mekanikk — start med alt og velg bort det stacken din aldri rører. Felleskjernen
+            Veiledning, ikke mekanikk. Start med alt og velg bort det stacken din aldri rører. Felleskjernen
             (code-review, deliberate-ai-use, planning skills, security-owasp, conventional-commit, klarsprak,
             terse-mode) hører hjemme i alle utvalg.
           </BodyShort>
@@ -953,7 +953,7 @@ function PipelineSection() {
             Planleggingspipelinen
           </LinkableHeading>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            nav-pilot jobber i fire faser med eksplisitte stopp mellom hver. Du bestemmer når du går videre — nav-pilot
+            nav-pilot jobber i fire faser med eksplisitte stopp mellom hver. Du bestemmer når du går videre. nav-pilot
             foreslår, du godkjenner.
           </BodyLong>
         </div>
@@ -1051,7 +1051,7 @@ function CompetenceSection() {
           </BodyLong>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
             Samtidig viser MIT/Microsoft-studien (2025, ~5000 utviklere) at AI-assistanse gir størst
-            produktivitetsgevinst på repetitive oppgaver. Gevinsten forsvinner — og kan bli negativ — på oppgaver som
+            produktivitetsgevinst på repetitive oppgaver. Gevinsten forsvinner, og kan bli negativ, på oppgaver som
             krever dyp forståelse av domenet.
           </BodyLong>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
@@ -1071,7 +1071,7 @@ function CompetenceSection() {
               <div className="flex items-center gap-2 mb-2">
                 <span style={{ fontSize: "1.25rem" }}>🟢</span>
                 <Label size="small" style={{ color: "#166534" }}>
-                  Grønn sone — AI genererer full kode
+                  Grønn sone, der AI genererer full kode
                 </Label>
               </div>
               <ul className="text-sm space-y-1" style={{ color: "#15803d" }}>
@@ -1087,7 +1087,7 @@ function CompetenceSection() {
               <div className="flex items-center gap-2 mb-2">
                 <span style={{ fontSize: "1.25rem" }}>🔴</span>
                 <Label size="small" style={{ color: "#991b1b" }}>
-                  Rød sone — du koder, AI leverer stubs
+                  Rød sone, der du koder og AI leverer stubs
                 </Label>
               </div>
               <ul className="text-sm space-y-1" style={{ color: "#dc2626" }}>
@@ -1102,8 +1102,8 @@ function CompetenceSection() {
 
           <BodyShort size="small" className="mt-4" style={{ color: "#64748b" }}>
             Når nav-pilot identifiserer rød-sone-logikk i Fase 2 (Plan), leverer Fase 4 bare testskjeletter og
-            kode-stubs med <code>TODO</code>-kommentarer — ikke full implementasjon. Du skriver kjernelogikken selv for
-            å bygge dyp forståelse.
+            kode-stubs med <code>TODO</code>-kommentarer, ikke full implementasjon. Du skriver kjernelogikken selv for å
+            bygge dyp forståelse.
           </BodyShort>
         </div>
 
@@ -1189,7 +1189,7 @@ function SyncSection() {
               </Heading>
             </div>
             <BodyShort size="small" className="mb-4" style={{ color: "#475569" }}>
-              GitHub Actions-workflow som åpner PR-er automatisk — som Dependabot, men for Copilot-tilpasninger. PR-en
+              GitHub Actions-workflow som åpner PR-er automatisk, som Dependabot, men for Copilot-tilpasninger. PR-en
               viser hvilke filer som er oppdaterte, med lenker til kilderepoet.
             </BodyShort>
             <Label size="small" className="mb-1" style={{ color: "#64748b" }}>
@@ -1268,7 +1268,8 @@ jobs:
             </li>
           </ul>
           <BodyShort size="small" className="mt-3" style={{ color: "#94a3b8", fontStyle: "italic" }}>
-            AGENTS.md og .github/copilot-instructions.md oppdateres aldri automatisk — de er alltid repo-spesifikke.
+            AGENTS.md og .github/copilot-instructions.md oppdateres aldri automatisk, siden de alltid er
+            repo-spesifikke.
           </BodyShort>
         </div>
 
@@ -1294,7 +1295,7 @@ jobs:
 }`}
           </CodeBlock>
           <BodyShort size="small" className="mt-3" style={{ color: "#475569" }}>
-            Filer i <code className="font-mono text-xs">overrides</code> hoppes helt over under sync — ingen
+            Filer i <code className="font-mono text-xs">overrides</code> hoppes helt over under sync. Ingen
             hash-sammenligning, ingen PR-diff. Du kan trygt slette filene etterpå, og de blir ikke lagt til igjen.
             Alternativt kan du velge bort Next.js-filene i den interaktive velgeren ved installasjon.
           </BodyShort>
@@ -1330,7 +1331,7 @@ jobs:
               },
               {
                 q: "Hvordan er dette forskjellig fra Dependabot?",
-                a: "Samme konsept — automatiske oppdaterings-PR-er — men for Copilot-tilpasningsfiler. Sammenligner SHA-256-hasher i stedet for semantisk versjonering.",
+                a: "Samme konsept med automatiske oppdaterings-PR-er, men for Copilot-tilpasningsfiler. Sammenligner SHA-256-hasher i stedet for semantisk versjonering.",
               },
               {
                 q: "Hva om jeg sletter en fil manuelt?",
@@ -1518,7 +1519,7 @@ const CONFIG_KEYS = [
     key: "context_tier",
     flag: "--context",
     values: "default · long_context",
-    desc: "Kontekstnivå. Kun Copilot — nav-pilot advarer om feltet er satt for opencode.",
+    desc: "Kontekstnivå. Kun Copilot, og nav-pilot advarer om feltet er satt for opencode.",
   },
   {
     key: "allow_all_tools",
@@ -1530,7 +1531,7 @@ const CONFIG_KEYS = [
     key: "ask_user",
     flag: "--ask-user / --no-ask-user",
     values: "bool",
-    desc: "Be om bekreftelse på beslutninger. Kun Copilot — nav-pilot advarer om feltet er satt for opencode.",
+    desc: "Be om bekreftelse på beslutninger. Kun Copilot, og nav-pilot advarer om feltet er satt for opencode.",
   },
   {
     key: "log_level",
@@ -1611,7 +1612,7 @@ function KlienterOgKonfigurasjonSection() {
                 badge: "Reservert",
                 badgeColor: "#94a3b8",
                 badgeBg: "#f1f5f9",
-                desc: "Ikke støttet ennå — nav-pilot returnerer feilmelding om du velger denne.",
+                desc: "Ikke støttet ennå, så nav-pilot returnerer feilmelding om du velger denne.",
                 color: "#94a3b8",
               },
             ].map((c) => (
@@ -1702,7 +1703,7 @@ function KlienterOgKonfigurasjonSection() {
                 desc: (
                   <>
                     Nav-kontekst materialiseres til <code className="font-mono text-xs">~/.config/opencode/</code> og
-                    holdes fersk med konfliktsdeteksjon — dine egne redigeringer overskrives ikke.
+                    holdes fersk med konfliktsdeteksjon, så dine egne redigeringer overskrives ikke.
                   </>
                 ),
                 color: "#059669",
@@ -1721,7 +1722,7 @@ function KlienterOgKonfigurasjonSection() {
               },
               {
                 title: "OTel-telemetri",
-                desc: "OpenTelemetry-konfigurasjon settes opp automatisk — ingen manuell konfigurasjon nødvendig.",
+                desc: "OpenTelemetry-konfigurasjon settes opp automatisk. Ingen manuell konfigurasjon er nødvendig.",
                 color: "#7c3aed",
                 bg: "#f5f3ff",
               },
@@ -1755,7 +1756,7 @@ function KlienterOgKonfigurasjonSection() {
           <Box background="neutral-soft" padding="space-12" borderRadius="8" className="mt-4">
             <BodyShort size="small" style={{ color: "#475569" }}>
               <code className="font-mono text-xs">nav-pilot export opencode</code> finnes fortsatt for manuell
-              engangseksport, men trengs <strong>ikke</strong> i den normale flyten — nav-pilot håndterer dette
+              engangseksport, men trengs <strong>ikke</strong> i den normale flyten, siden nav-pilot håndterer dette
               automatisk når du bruker <code className="font-mono text-xs">--client opencode</code>.
             </BodyShort>
           </Box>
@@ -1799,7 +1800,7 @@ function KlienterOgKonfigurasjonSection() {
             </div>
             <div>
               <Label size="small" style={{ color: "#64748b" }}>
-                Interaktiv veiviser — velg klient, modell og modus
+                Interaktiv veiviser der du velger klient, modell og modus
               </Label>
               <div className="mt-1">
                 <CodeBlock compact>{`nav-pilot config setup`}</CodeBlock>
@@ -1826,7 +1827,7 @@ client = "opencode"
 # Modell (format avhenger av klient)
 model = "github-copilot/auto"
 
-# Modus (default | plan | autopilot) — kun Copilot
+# Modus (default | plan | autopilot), kun Copilot
 # mode = "default"
 
 # Resonneringsinnsats (none|low|medium|high|xhigh|max)
@@ -1979,9 +1980,9 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                     <TableDataCell>3–4 av 8</TableDataCell>
                     <TableDataCell>
                       Løser omtrent like mye som standard og bruker sju ganger så lang tid. Fire kjøringer ga 4, 4, 3 og
-                      4 av 8 mot standardens 3, 2, 4 og 4 — spennene overlapper, forskjellen er ikke målbar (p = 0,71).
-                      Median 58–104 sekunder, og ti treff på sju-minutterstaket mot standardens ett. Vi skrev tidligere
-                      at den løste mer; det var målt før vi oppdaget at ingen av modellene kunne kompilere.
+                      4 av 8 mot standardens 3, 2, 4 og 4. Spennene overlapper, og forskjellen er ikke målbar (p =
+                      0,71). Median 58–104 sekunder, og ti treff på sju-minutterstaket mot standardens ett. Vi skrev
+                      tidligere at den løste mer; det var målt før vi oppdaget at ingen av modellene kunne kompilere.
                     </TableDataCell>
                   </TableRow>
                   <TableRow>
@@ -1999,7 +2000,7 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
               </Table>
             </div>
             <BodyShort size="small" textColor="subtle">
-              Én kjøring er ikke en måling — derfor står alle kjøringene der, ikke bare et snitt. De ligger i{" "}
+              Én kjøring er ikke en måling. Derfor står alle kjøringene der, ikke bare et snitt. De ligger i{" "}
               <a
                 href="https://github.com/navikt/mlx-workspace/blob/main/MODELS.md"
                 style={{ textDecoration: "underline" }}
@@ -2019,7 +2020,7 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
             <code className="font-mono text-xs">local_model</code> velger hvilken av dem serveren laster;{" "}
             <code className="font-mono text-xs">model</code> er modellen økten selv kjører på, og de settes hver for
             seg. Listen oppdateres når du kjører <code className="font-mono text-xs">init</code> eller{" "}
-            <code className="font-mono text-xs">start</code>, ikke ved hver kommando — et nettverkskall der ville lagt
+            <code className="font-mono text-xs">start</code>, ikke ved hver kommando. Et nettverkskall der ville lagt
             seg foran alt annet nav-pilot gjør.
           </BodyLong>
           <CodeBlock compact>
@@ -2030,7 +2031,7 @@ nav-pilot alpha local start`}
           </CodeBlock>
           <BodyLong size="small" textColor="subtle">
             Qwen 3.6 er standard fordi den er rask og forutsigbar, ikke fordi den løser mest. Tallene står i tabellen
-            over. Bytter du, må vektene lastes ned én gang til — 16 GB for 3.8 4-bit, 30 GB for 8-bit.
+            over. Bytter du, må vektene lastes ned én gang til, 16 GB for 3.8 4-bit og 30 GB for 8-bit.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
             Vil du slippe å starte serveren selv, kan en vanlig <code className="font-mono text-xs">nav-pilot</code>{" "}
@@ -2278,7 +2279,7 @@ function CliReferenceSection() {
             </table>
           </div>
           <BodyLong size="small" className="mt-3" style={{ color: "#475569" }}>
-            <code className="font-mono text-xs">install</code> spør hvor den skal installere — i repoet (
+            <code className="font-mono text-xs">install</code> spør hvor den skal installere, enten i repoet (
             <code className="font-mono text-xs">.github/</code>) eller i hjemmekatalogen (
             <code className="font-mono text-xs">~/.copilot/</code>). Bruk{" "}
             <code className="font-mono text-xs">--repo</code> eller <code className="font-mono text-xs">--user</code>{" "}
@@ -2445,21 +2446,21 @@ function ResourcesSection() {
             {[
               {
                 label: "Instruksjoner",
-                desc: "Alltid aktive — Nav-mønstre, kodestandarder, anti-patterns. Hver Copilot-sesjon er Nav-bevisst automatisk.",
+                desc: "Alltid aktive, med Nav-mønstre, kodestandarder og anti-patterns. Hver Copilot-sesjon er Nav-bevisst automatisk.",
                 Icon: DocPencilIcon,
                 bg: "#eff6ff",
                 accent: "#3b82f6",
               },
               {
                 label: "@nav-pilot agent",
-                desc: "Én inngangsport — ruter til riktig fase og skill. Delegerer til @kafka, @security-champion og laster $nav-auth, $nais.",
+                desc: "Én inngangsport som ruter til riktig fase og skill. Delegerer til @kafka, @security-champion og laster $nav-auth, $nais.",
                 Icon: PersonGroupIcon,
                 bg: "#f5f3ff",
                 accent: "#7c3aed",
               },
               {
                 label: "Skills",
-                desc: "Byggeklosser — intervju, plan, review, feilsøking. Brukes via @nav-pilot eller alene.",
+                desc: "Byggeklosser for intervju, plan, review og feilsøking. Brukes via @nav-pilot eller alene.",
                 Icon: WrenchIcon,
                 bg: "#ecfdf5",
                 accent: "#059669",
@@ -2507,7 +2508,7 @@ function ResourcesSection() {
             {[
               {
                 title: "Kunnskap, ikke orkestrering",
-                desc: "Institusjonell kunnskap er varig — orkestrering blir standardvare.",
+                desc: "Institusjonell kunnskap er varig, mens orkestrering blir standardvare.",
                 Icon: LightBulbIcon,
               },
               {

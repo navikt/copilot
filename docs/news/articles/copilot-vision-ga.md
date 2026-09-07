@@ -2,7 +2,7 @@
 title: "Copilot vision er nå generelt tilgjengelig"
 date: 2026-07-01
 category: copilot
-excerpt: "Legg ved bilder og PDF-er i chat-prompter i VS Code, på github.com og i Copilot CLI — aktivert som standard for alle planer, uten policy."
+excerpt: "Legg ved bilder og PDF-er i chat-prompter i VS Code, på github.com og i Copilot CLI. Funksjonen er aktivert som standard for alle planer, uten policy."
 url: "https://github.blog/changelog/2026-07-01-copilot-vision-is-generally-available/"
 tags:
   - copilot-chat

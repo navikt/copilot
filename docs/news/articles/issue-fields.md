@@ -1,5 +1,5 @@
 ---
-title: "Issue fields — strukturert metadata i GitHub Issues"
+title: "Issue fields gir strukturert metadata i GitHub Issues"
 date: 2026-03-12
 author: starefossen
 category: copilot

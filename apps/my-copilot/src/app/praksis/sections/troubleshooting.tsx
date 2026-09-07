@@ -39,7 +39,7 @@ export default function Troubleshooting() {
                       </a>
                       .
                     </li>
-                    <li>Nettverket du sitter på — gjestenett og enkelte hjemmerutere blokkerer utgående trafikk.</li>
+                    <li>Nettverket du sitter på. Gjestenett og enkelte hjemmerutere blokkerer utgående trafikk.</li>
                     <li>
                       Proxy-innstillinger du selv har satt i editoren tidligere. Står det noe under <em>http.proxy</em>{" "}
                       i VS Code, er det som regel en rest fra et gammelt oppsett.
@@ -49,7 +49,7 @@ export default function Troubleshooting() {
                 <BodyShort className="text-sm text-gray-600">
                   Endpoint-sikkerhet (CrowdStrike Falcon) kan i prinsippet påvirke nettverkstrafikk, men er per i dag
                   ingen kjent kilde til Copilot-feil. Mistenker du likevel det, si fra i{" "}
-                  <strong>#github-copilot</strong> — da får vi kartlagt det.
+                  <strong>#github-copilot</strong>, så får vi kartlagt det.
                 </BodyShort>
               </VStack>
             </Accordion.Content>

@@ -1,9 +1,9 @@
 ---
-title: "Claude vannmerker teksten sin — men den sporer ikke deg"
+title: "Claude vannmerker teksten sin, men den sporer ikke deg"
 date: 2026-08-24
 author: starefossen
 category: praksis
-excerpt: "Anthropic merker Claude-generert tekst med et statistisk vannmerke. Det legger ingenting til i teksten, påvirker kode nesten ikke, og inneholder ingen bruker-ID. Her er mekanismen, de uavhengige kildene — og hva vi faktisk ikke kan verifisere."
+excerpt: "Anthropic merker Claude-generert tekst med et statistisk vannmerke. Det legger ingenting til i teksten, påvirker kode nesten ikke, og inneholder ingen bruker-ID. Her er mekanismen, de uavhengige kildene og hva vi faktisk ikke kan verifisere."
 tags:
   - claude
   - privacy
@@ -26,7 +26,7 @@ Anthropic beskriver løsningen som «a version of the SynthID-Text approach». D
 
 ## Gjelder det oss i Copilot?
 
-Anthropic sier merkingen skjer «at the model level» og dekker Claude Platform (API), Claude, Claude Code, Claude Cowork og Claude Tag — og i tillegg «when supported Claude models are accessed through AWS, Google Cloud, or Microsoft Foundry».
+Anthropic sier merkingen skjer «at the model level» og dekker Claude Platform (API), Claude, Claude Code, Claude Cowork og Claude Tag, og i tillegg «when supported Claude models are accessed through AWS, Google Cloud, or Microsoft Foundry».
 
 GitHub oppgir på sin side at Copilots modeller «are hosted by Amazon Web Services, Anthropic PBC, and Google Cloud Platform» ([GitHub Docs](https://docs.github.com/en/copilot/reference/ai-models/model-hosting)). Det er nøyaktig de kanalene Anthropic lister opp.
 
@@ -40,7 +40,7 @@ Lite skjer. Vannmerket krever at det finnes flere likeverdige valg å vri mellom
 
 Der det får noe utslag, er i prosa: kommentarer, docstrings, README-er, ADR-er, commit-meldinger og PR-beskrivelser. Kompilert kode, tester og API-er er upåvirket.
 
-## «Sporer det meg?» — mekanismen og de uavhengige kildene
+## Sporer det meg? Mekanismen og de uavhengige kildene
 
 Dette er spørsmålet artikkelen finnes for.
 
@@ -60,15 +60,15 @@ Referanseimplementasjonen er åpen kildekode ([google-deepmind/synthid-text](htt
 
 Her skal vi ikke overselge. Det er fullt mulig å lage vannmerker som bærer informasjon om hvem som genererte teksten, og det er aktiv forskning på det:
 
-- Yoo m.fl., NAACL 2024: [«Advancing Beyond Identification: Multi-bit Watermark for Large Language Models»](https://arxiv.org/abs/2308.00221) — meldinger på 32 bit og oppover.
-- Qu m.fl., USENIX Security '25: [«Provably Robust Multi-bit Watermarking for AI-generated Text»](https://arxiv.org/abs/2401.16820) — beskriver eksplisitt «embedding the user ID … we can trace generated texts to the user», med 20 bit i 200 tokens og 97,6 % treffrate.
-- Jiang m.fl., ICML 2025: [«StealthInk: A Multi-bit and Stealthy Watermark for Large Language Models»](https://arxiv.org/abs/2506.05502) — koder blant annet «userID, TimeStamp, and modelID».
+- Yoo m.fl., NAACL 2024: [«Advancing Beyond Identification: Multi-bit Watermark for Large Language Models»](https://arxiv.org/abs/2308.00221), med meldinger på 32 bit og oppover.
+- Qu m.fl., USENIX Security '25: [«Provably Robust Multi-bit Watermarking for AI-generated Text»](https://arxiv.org/abs/2401.16820), som beskriver eksplisitt «embedding the user ID … we can trace generated texts to the user», med 20 bit i 200 tokens og 97,6 % treffrate.
+- Jiang m.fl., ICML 2025: [«StealthInk: A Multi-bit and Stealthy Watermark for Large Language Models»](https://arxiv.org/abs/2506.05502), som koder blant annet «userID, TimeStamp, and modelID».
 
 Så påstanden «denne teknologiklassen kan aldri identifisere noen» er feil, og vi skal ikke fremme den.
 
-Den riktige påstanden er snevrere og sterkere: dette er **multi-bit**-vannmerking, en strukturelt annen konstruksjon enn den SynthID-Text bruker. SynthID-Text er **zero-bit** — den koder ingen melding, bare tilstedeværelse. Å gjøre om et zero-bit-vannmerke til et sporende multi-bit-vannmerke er ikke en konfigurasjonsendring, men en annen algoritme.
+Den riktige påstanden er snevrere og sterkere: dette er **multi-bit**-vannmerking, en strukturelt annen konstruksjon enn den SynthID-Text bruker. SynthID-Text er **zero-bit** og koder ingen melding, bare tilstedeværelse. Å gjøre om et zero-bit-vannmerke til et sporende multi-bit-vannmerke er ikke en konfigurasjonsendring, men en annen algoritme.
 
-Og det koster: de multi-bit-artiklene vi har gjennomgått, rapporterer at deteksjonspåliteligheten går ned når vannmerket i tillegg skal bære en melding. [Three Bricks](https://arxiv.org/abs/2308.00113) sier det rett ut: «by giving the possibility to encode several messages, we trade some accuracy of detection against the ability to identify users». Zero-bit-linja er godt etablert i litteraturen — se [Kirchenbauer m.fl., ICML 2023](https://arxiv.org/abs/2301.10226), [Kuditipudi m.fl.](https://arxiv.org/abs/2307.15593) og [Christ, Gunn og Zamir](https://arxiv.org/abs/2306.09194).
+Og det koster: de multi-bit-artiklene vi har gjennomgått, rapporterer at deteksjonspåliteligheten går ned når vannmerket i tillegg skal bære en melding. [Three Bricks](https://arxiv.org/abs/2308.00113) sier det rett ut: «by giving the possibility to encode several messages, we trade some accuracy of detection against the ability to identify users». Zero-bit-linja er godt etablert i litteraturen. Se [Kirchenbauer m.fl., ICML 2023](https://arxiv.org/abs/2301.10226), [Kuditipudi m.fl.](https://arxiv.org/abs/2307.15593) og [Christ, Gunn og Zamir](https://arxiv.org/abs/2306.09194).
 
 ### Hva kritikken faktisk handler om
 
@@ -96,8 +96,8 @@ Det er grensene for hva som kan etterprøves.
 Det er det egentlige spørsmålet, og det fortjener et ordentlig svar. Tre ting står i veien:
 
 1. **Det er en annen algoritme, ikke en innstilling.** Å gå fra zero-bit til multi-bit betyr å bygge om konstruksjonen: du må ha en melding å kode, kanalkoding som tåler redigering, og en dekoder i deteksjonen. Ingen av delene finnes i SynthID-Text. Det er ikke et flagg noen skrur på.
-2. **Det koster deteksjonskvalitet.** Se sitatet fra Three Bricks over — kapasiteten til å identifisere betales med presisjon i deteksjonen. Anthropics uttalte formål er å kjenne igjen Claude-tekst. Et sporende vannmerke ville gjort produktet dårligere til nettopp det de bygde det for.
-3. **Det ville stått i direkte motstrid til publiserte påstander.** «Carries no identifying information» er en konkret påstand fra et selskap som selv varsler et deteksjons-API — altså en påstand andre etter hvert får anledning til å teste.
+2. **Det koster deteksjonskvalitet.** Se sitatet fra Three Bricks over. Kapasiteten til å identifisere betales med presisjon i deteksjonen. Anthropics uttalte formål er å kjenne igjen Claude-tekst. Et sporende vannmerke ville gjort produktet dårligere til nettopp det de bygde det for.
+3. **Det ville stått i direkte motstrid til publiserte påstander.** «Carries no identifying information» er en konkret påstand fra et selskap som selv varsler et deteksjons-API, altså en påstand andre etter hvert får anledning til å teste.
 
 Sannsynligheten er derfor lav. Men nøkkelen er fortsatt hemmelig, og «lav» er ikke «utelukket». Det skal ikke fremstilles som noe annet.
 
@@ -119,13 +119,13 @@ Vannmerket overlever kopiering og liming. Anthropic skriver at «light editing p
 
 ## Jussen, kort og adskilt
 
-Dette avsnittet er juridisk kontekst, ikke teknisk vurdering — hold delene fra hverandre.
+Dette avsnittet er juridisk kontekst, ikke teknisk vurdering. Hold delene fra hverandre.
 
-**Nav er deployer, ikke provider.** EU AI Act artikkel 50(2), som pålegger maskinlesbar merking av AI-generert innhold, retter seg mot *tilbyderne* — Anthropic og GitHub. Navs plikt som deployer etter artikkel 50(4) er snever: den gjelder deepfakes og AI-generert tekst som «publiseres med formål å informere allmennheten om saker av allmenn interesse», og den slår ikke inn når et menneske har gått gjennom innholdet og noen har redaksjonelt ansvar ([artikkel 50](https://artificialintelligenceact.eu/article/50/)). Kode og intern dokumentasjon faller utenfor.
+**Nav er deployer, ikke provider.** EU AI Act artikkel 50(2), som pålegger maskinlesbar merking av AI-generert innhold, retter seg mot *tilbyderne*, altså Anthropic og GitHub. Navs plikt som deployer etter artikkel 50(4) er snever: den gjelder deepfakes og AI-generert tekst som «publiseres med formål å informere allmennheten om saker av allmenn interesse», og den slår ikke inn når et menneske har gått gjennom innholdet og noen har redaksjonelt ansvar ([artikkel 50](https://artificialintelligenceact.eu/article/50/)). Kode og intern dokumentasjon faller utenfor.
 
-**I Norge gjelder ikke artikkel 50 ennå.** AI Act er verken innlemmet i EØS-avtalen eller gjennomført i norsk rett, og artikkel 50 «gjelder derfor foreløpig ikke generelt i Norge» ([Nkom](https://nkom.no/ki/regulering/nye-krav-til-ki-merking-i-eu--hva-betyr-dette-for-norge)). Ett unntak: norske virksomheter kan likevel bli omfattet «dersom de tilbyr KI-systemer i EU, eller dersom resultatet fra et KI-system brukes i EU» — det treffer ikke intern utvikling. Regjeringen tar sikte på å fremme en norsk KI-lov for Stortinget våren 2027. GDPR gjelder uansett.
+**I Norge gjelder ikke artikkel 50 ennå.** AI Act er verken innlemmet i EØS-avtalen eller gjennomført i norsk rett, og artikkel 50 «gjelder derfor foreløpig ikke generelt i Norge» ([Nkom](https://nkom.no/ki/regulering/nye-krav-til-ki-merking-i-eu--hva-betyr-dette-for-norge)). Ett unntak: norske virksomheter kan likevel bli omfattet «dersom de tilbyr KI-systemer i EU, eller dersom resultatet fra et KI-system brukes i EU», og det treffer ikke intern utvikling. Regjeringen tar sikte på å fremme en norsk KI-lov for Stortinget våren 2027. GDPR gjelder uansett.
 
-**GDPR:** et zero-bit-vannmerke koder en egenskap ved modellen, ikke ved en person. Det er ikke en identifikator, og dermed ikke personopplysninger. Et multi-bit-vannmerke per bruker *ville* vært pseudonyme personopplysninger — nok en grunn til at skillet betyr noe. Det britiske ICO behandler spørsmålet betinget i Tech Horizons Report 2025: personopplysninger oppstår hvis identiteten til den som skapte innholdet registreres, eller hvis lokasjonsdata registreres. Ingen EU/EØS-tilsynsmyndighet har publisert veiledning spesifikt om tekstvannmerking.
+**GDPR:** et zero-bit-vannmerke koder en egenskap ved modellen, ikke ved en person. Det er ikke en identifikator, og dermed ikke personopplysninger. Et multi-bit-vannmerke per bruker *ville* vært pseudonyme personopplysninger, nok en grunn til at skillet betyr noe. Det britiske ICO behandler spørsmålet betinget i Tech Horizons Report 2025: personopplysninger oppstår hvis identiteten til den som skapte innholdet registreres, eller hvis lokasjonsdata registreres. Ingen EU/EØS-tilsynsmyndighet har publisert veiledning spesifikt om tekstvannmerking.
 
 **Kommisjonens egen retning peker samme vei.** Europakommisjonens retningslinjer til artikkel 50 (C(2026) 5054, 20. juli 2026, punkt 94) sier at plikten «focuses on how the content has been created and its artificial origin, not on who created the content», og at det ved merking og deteksjon «should not be processed» informasjon om den som skapte innholdet. Innholdet er godkjent; formell vedtakelse avventer oversettelser.
 
@@ -135,15 +135,15 @@ Dette avsnittet er juridisk kontekst, ikke teknisk vurdering — hold delene fra
 
 To ting bør du likevel kjenne til:
 
-**1. Et deteksjons-API er personvernspørsmålet — ikke vannmerket.** Fordi deteksjon krever leverandørens nøkkel, betyr det å sjekke et dokument i praksis at dokumentet **sendes til leverandøren**. EFF har pekt på dette som den reelle svakheten ved vannmerkeordninger ([EFF](https://www.eff.org/deeplinks/2024/01/ai-watermarking-wont-curb-disinformation)). Skulle Nav noen gang ta i bruk en slik tjeneste på interne eller innbyggerrettede dokumenter, hører det hjemme i en DPIA. Dette er stikk motsatt av frykten folk har: risikoen ligger i å *bruke* detektoren, ikke i å bli merket.
+**1. Et deteksjons-API er personvernspørsmålet, ikke vannmerket.** Fordi deteksjon krever leverandørens nøkkel, betyr det å sjekke et dokument i praksis at dokumentet **sendes til leverandøren**. EFF har pekt på dette som den reelle svakheten ved vannmerkeordninger ([EFF](https://www.eff.org/deeplinks/2024/01/ai-watermarking-wont-curb-disinformation)). Skulle Nav noen gang ta i bruk en slik tjeneste på interne eller innbyggerrettede dokumenter, hører det hjemme i en DPIA. Dette er stikk motsatt av frykten folk har: risikoen ligger i å *bruke* detektoren, ikke i å bli merket.
 
-**2. Et deteksjonstreff er ikke bevis på forfatterskap.** Et positivt utslag sier «denne teksten er sannsynligvis generert av en Claude-modell» — ikke hvem som ba om den, ikke hvor mye et menneske har bearbeidet den, og ikke om noe kritikkverdig har skjedd. Det må aldri brukes som bevis i personalsaker eller i saksbehandling.
+**2. Et deteksjonstreff er ikke bevis på forfatterskap.** Et positivt utslag sier «denne teksten er sannsynligvis generert av en Claude-modell». Det sier ikke hvem som ba om den, ikke hvor mye et menneske har bearbeidet den, og ikke om noe kritikkverdig har skjedd. Det må aldri brukes som bevis i personalsaker eller i saksbehandling.
 
-**En helt annen sak, som er større:** GitHubs avtaler om null datalagring dekker Claude-modellene i Copilot — med unntak av Claude Fable 5, der Anthropic beholder prompts og output for å kjøre sikkerhetsklassifikatorer. Det er et vesentlig større styringsspørsmål enn vannmerket, og et annet tema. Sjekk Navs [retningslinjer](/retningslinjer) for hvilke Copilot-modeller som er godkjent.
+**En helt annen sak, som er større:** GitHubs avtaler om null datalagring dekker Claude-modellene i Copilot, med unntak av Claude Fable 5, der Anthropic beholder prompts og output for å kjøre sikkerhetsklassifikatorer. Det er et vesentlig større styringsspørsmål enn vannmerket, og et annet tema. Sjekk Navs [retningslinjer](/retningslinjer) for hvilke Copilot-modeller som er godkjent.
 
 ## Kortversjonen
 
-**Vannmerket inneholder ingen bruker-ID. Seed-funksjonen tar bare de foregående tokenene og en fast nøkkel — det står i den fagfellevurderte artikkelen, ikke bare i leverandørens markedsføring. Det er zero-bit: det kan svare «merket» eller «ikke merket», ingenting mer. Sporende multi-bit-vannmerker finnes i forskningen, men det er en annen algoritme. Nøkkelen er hemmelig, så Anthropics konkrete oppsett kan ikke revideres utenfra — det er grensen for hva vi kan verifisere. Kode påvirkes nesten ikke. Du trenger ikke gjøre noe.**
+**Vannmerket inneholder ingen bruker-ID. Seed-funksjonen tar bare de foregående tokenene og en fast nøkkel. Det står i den fagfellevurderte artikkelen, ikke bare i leverandørens markedsføring. Det er zero-bit: det kan svare «merket» eller «ikke merket», ingenting mer. Sporende multi-bit-vannmerker finnes i forskningen, men det er en annen algoritme. Nøkkelen er hemmelig, så Anthropics konkrete oppsett kan ikke revideres utenfra. Det er grensen for hva vi kan verifisere. Kode påvirkes nesten ikke. Du trenger ikke gjøre noe.**
 
 **Kilder:**
 

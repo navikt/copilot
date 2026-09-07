@@ -18,7 +18,7 @@ Custom instructions leses nå fra *head branch* i stedet for base branch. Det in
 
 ## Utvidet filstøtte
 
-Code review leser nå også `REVIEW.md`, `GEMINI.md` og `CLAUDE.md` fra repositoriet — slik at tilpasningene fungerer uavhengig av hvilken instruksjonsfil-konvensjon teamet bruker.
+Code review leser nå også `REVIEW.md`, `GEMINI.md` og `CLAUDE.md` fra repositoriet, slik at tilpasningene fungerer uavhengig av hvilken instruksjonsfil-konvensjon teamet bruker.
 
 ## Brannmur
 

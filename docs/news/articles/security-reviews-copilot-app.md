@@ -2,7 +2,7 @@
 title: "Sikkerhetsgjennomgang i Copilot-appen"
 date: 2026-07-14
 category: copilot
-excerpt: "/security-review-kommandoen er nå tilgjengelig i Copilot-appen — AI-drevet sårbarhetsskanning av kodeendringer uten å forlate arbeidsflyten."
+excerpt: "/security-review-kommandoen er nå tilgjengelig i Copilot-appen. Den gir AI-drevet sårbarhetsskanning av kodeendringer uten å forlate arbeidsflyten."
 url: "https://github.blog/changelog/2026-07-14-security-reviews-now-available-in-the-github-copilot-app"
 tags:
   - security

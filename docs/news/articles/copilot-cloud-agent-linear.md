@@ -2,7 +2,7 @@
 title: "Copilot cloud-agent for Linear er nå generelt tilgjengelig"
 date: 2026-07-23
 category: copilot
-excerpt: "Den autonome bakgrunnsagenten analyserer et Linear-issue og åpner en utkast-PR med strømmet fremdrift — nå generelt tilgjengelig (GA) med modellvalg, egendefinerte agenter og styring via kommentarer."
+excerpt: "Den autonome bakgrunnsagenten analyserer et Linear-issue og åpner en utkast-PR med strømmet fremdrift. Nå generelt tilgjengelig (GA) med modellvalg, egendefinerte agenter og styring via kommentarer."
 url: "https://github.blog/changelog/2026-07-23-copilot-cloud-agent-for-linear-is-now-generally-available/"
 tags:
   - agentic
@@ -24,6 +24,6 @@ Du kan nå styre agenten per issue eller for hele arbeidsområdet:
 
 ## Oppsett og tilgjengelighet
 
-Funksjonen er tilgjengelig for Copilot Pro, Pro+, Business og Enterprise. Installasjon skjer ved å hente appen «GitHub Copilot for Linear» fra GitHub Marketplace — dette krever organisasjonseier-rettigheter i GitHub og admin-rettigheter i Linear-arbeidsområdet.
+Funksjonen er tilgjengelig for Copilot Pro, Pro+, Business og Enterprise. Installasjon skjer ved å hente appen «GitHub Copilot for Linear» fra GitHub Marketplace. Dette krever organisasjonseier-rettigheter i GitHub og admin-rettigheter i Linear-arbeidsområdet.
 
 **Kilde:** [Copilot cloud agent for Linear is now generally available](https://github.blog/changelog/2026-07-23-copilot-cloud-agent-for-linear-is-now-generally-available/) (GitHub Changelog, 23. juli 2026)

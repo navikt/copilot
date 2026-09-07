@@ -1,5 +1,5 @@
 ---
-title: "Grok Code Fast 1 — xAI inn i Copilot"
+title: "Grok Code Fast 1 tar xAI inn i Copilot"
 date: 2026-03-04
 author: starefossen
 category: copilot

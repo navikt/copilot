@@ -1,5 +1,5 @@
 ---
-title: "cplt — sandbox for Copilot CLI"
+title: "cplt er en sandbox for Copilot CLI"
 date: 2026-04-10
 author: starefossen
 category: praksis
@@ -19,10 +19,10 @@ Copilot CLI kjører vilkårlige kommandoer på maskina di. En ondsinnet `postins
 
 Supply chain-angrep det siste året viser at dette skjer i praksis:
 
-- **Shai-Hulud** — npm-orm som spredde seg til 700+ pakker via stjålne tokens
-- **axios-trojaneren** — kapra npm-pakke som installerte en RAT når en AI-agent kjørte `npm install`
-- **CamoLeak** — prompt injection i PR-kommentarer fikk Copilot til å eksfiltrere kode (CVSS 9.6)
-- **MCP Poisoning** — skjulte instruksjoner i npm-metadata lurte agenter til å hente ut SSH-nøkler
+- **Shai-Hulud** var en npm-orm som spredde seg til 700+ pakker via stjålne tokens
+- **axios-trojaneren** var en kapra npm-pakke som installerte en RAT når en AI-agent kjørte `npm install`
+- **CamoLeak** var prompt injection i PR-kommentarer som fikk Copilot til å eksfiltrere kode (CVSS 9.6)
+- **MCP Poisoning** brukte skjulte instruksjoner i npm-metadata til å lure agenter til å hente ut SSH-nøkler
 
 ## Slik stopper cplt angrepskjeden
 

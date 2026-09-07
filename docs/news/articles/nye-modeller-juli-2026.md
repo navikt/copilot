@@ -1,9 +1,9 @@
 ---
-title: "Fem nye modeller i Copilot — slik tester du dem uten å sprenge kvoten"
+title: "Slik tester du de fem nye Copilot-modellene uten å sprenge kvoten"
 date: 2026-07-24
 author: starefossen
 category: nav
-excerpt: "GPT-5.6 Luna, Sol og Terra, Kimi K2.7 Code og Gemini 3.6 Flash er nå tilgjengelig — og 24. juli kom Claude Opus 5 i tillegg. Her er en rask oversikt over hva hver modell er god for, hva de koster — og hvordan du prøver dem ansvarlig."
+excerpt: "GPT-5.6 Luna, Sol og Terra, Kimi K2.7 Code og Gemini 3.6 Flash er nå tilgjengelig, og 24. juli kom Claude Opus 5 i tillegg. Her er en rask oversikt over hva hver modell er god for, hva de koster og hvordan du prøver dem ansvarlig."
 url: "https://github.com/navikt/copilot/discussions"
 tags:
   - models
@@ -11,7 +11,7 @@ tags:
   - guide
 ---
 
-Fem nye modeller er slått på i Copilot for Nav. Her er en ærlig oversikt over hva de koster og når du faktisk bør bruke dem — uten salgsprat fra leverandørene. Som en sen tilføyelse kom også Anthropics nye toppmodell **Claude Opus 5** 24. juli — den er i en helt annen (og dyrere) klasse, og har fått et eget avsnitt lenger ned.
+Fem nye modeller er slått på i Copilot for Nav. Her er en ærlig oversikt over hva de koster og når du faktisk bør bruke dem, uten salgsprat fra leverandørene. Som en sen tilføyelse kom også Anthropics nye toppmodell **Claude Opus 5** 24. juli. Den er i en helt annen (og dyrere) klasse og har fått et eget avsnitt lenger ned.
 
 ---
 
@@ -28,7 +28,7 @@ Fem nye modeller er slått på i Copilot for Nav. Her er en ærlig oversikt over
 
 *Priser per 1M tokens i USD. Sammenlign med Claude Sonnet 4.6: $3.00 inn / $15.00 ut.*
 
-> **Tips:** GPT-5.6 Sol og Claude Opus 5 er bare tilgjengelig for **Pro+, Max, Business og Enterprise** — ikke Pro.
+> **Tips:** GPT-5.6 Sol og Claude Opus 5 er bare tilgjengelig for **Pro+, Max, Business og Enterprise**, ikke Pro.
 
 ---
 
@@ -62,11 +62,11 @@ Google fokuserer på effektivitet med Gemini 3.6 Flash. Dette er modellen du vil
 
 ## Claude Opus 5: Toppmodellen med justerbar innsats
 
-Dette er ikke en «test uten å sprenge kvoten»-modell — den er tvert imot Anthropics dyreste og sterkeste, og kom som en sen tilføyelse 24. juli. Men den er verdt å kjenne til, fordi den løser et velkjent problem med Opus-klassen: at du betaler toppris uansett hvor lett oppgaven er.
+Dette er ikke en «test uten å sprenge kvoten»-modell. Den er tvert imot Anthropics dyreste og sterkeste, og kom som en sen tilføyelse 24. juli. Men den er verdt å kjenne til, fordi den løser et velkjent problem med Opus-klassen: at du betaler toppris uansett hvor lett oppgaven er.
 
-*   **Det som fungerer:** Opus 5 er «near-frontier» — den ligger helt i toppsjiktet på resonnering og nyanserte vurderinger, til samme pris per token som Opus 4.8 ($5 inn / $25 ut). Det nye er **justerbar innsats (effort)**: du kan skru innsatsen opp til nivåer som `xhigh` og `max` når oppgaven virkelig krever det, og ned igjen for enklere arbeid. Dermed betaler du for tung resonnering bare når du faktisk trenger den.
-*   **Når bruke den:** Dyp risikovurdering og sikkerhetskritisk kode — der vi tidligere pekte på Claude Opus 4.6/4.8. Opus 5 er det nye førstevalget for slikt arbeid; 4.6/4.8 er fortsatt tilgjengelig.
-*   **Haken:** Den er kun tilgjengelig for **Pro+, Max, Business og Enterprise** (ikke Pro), utrullingen er gradvis, og innebygde sikkerhetstiltak mot høyrisiko cyber-innhold kan i noen tilfeller blokkere sikkerhetsrelaterte forespørsler. Bruk den bevisst — til rutinekoding er den kraftig overpriset.
+*   **Det som fungerer:** Opus 5 er «near-frontier» og ligger helt i toppsjiktet på resonnering og nyanserte vurderinger, til samme pris per token som Opus 4.8 ($5 inn / $25 ut). Det nye er **justerbar innsats (effort)**: du kan skru innsatsen opp til nivåer som `xhigh` og `max` når oppgaven virkelig krever det, og ned igjen for enklere arbeid. Dermed betaler du for tung resonnering bare når du faktisk trenger den.
+*   **Når bruke den:** Dyp risikovurdering og sikkerhetskritisk kode, der vi tidligere pekte på Claude Opus 4.6/4.8. Opus 5 er det nye førstevalget for slikt arbeid; 4.6/4.8 er fortsatt tilgjengelig.
+*   **Haken:** Den er kun tilgjengelig for **Pro+, Max, Business og Enterprise** (ikke Pro), utrullingen er gradvis, og innebygde sikkerhetstiltak mot høyrisiko cyber-innhold kan i noen tilfeller blokkere sikkerhetsrelaterte forespørsler. Bruk den bevisst. Til rutinekoding er den kraftig overpriset.
 
 ---
 
@@ -88,7 +88,7 @@ Ikke sikker på hvilken modell du skal velge?
 *   **Vanlig feature-utvikling?** Terra. (Eller Auto).
 *   **Agent som skal rydde opp med mange verktøy?** Gemini 3.6 Flash (den roter minst).
 *   **Kompleks arkitektur og vriene bugs i store repoer?** Sol. (Men bare da).
-*   **Dyp risikovurdering eller sikkerhetskritisk kode?** Claude Opus 5 — skru opp effort når det trengs. (Kun Pro+/Max/Business/Enterprise).
+*   **Dyp risikovurdering eller sikkerhetskritisk kode?** Claude Opus 5, og skru opp effort når det trengs. (Kun Pro+/Max/Business/Enterprise).
 
 Og husk: **Auto-modus** velger en passende modell for deg med innebygd kostnadsrabatt. Men med disse retningslinjene vet du i alle fall *hvorfor* du eventuelt overstyrer den.
 
@@ -96,7 +96,7 @@ Og husk: **Auto-modus** velger en passende modell for deg med innebygd kostnadsr
 
 ## Kontekst: Hvordan passer de inn i resten?
 
-Disse fem modellene er tillegg til det vi allerede har — ikke erstatninger. Det er fortsatt mange gode grunner til å bruke Anthropic- og Google-modellene du kjenner fra før.
+Disse fem modellene er tillegg til det vi allerede har, ikke erstatninger. Det er fortsatt mange gode grunner til å bruke Anthropic- og Google-modellene du kjenner fra før.
 
 | Bruksmønster | Gode valg | Hvorfor |
 | --- | --- | --- |
@@ -108,6 +108,6 @@ Disse fem modellene er tillegg til det vi allerede har — ikke erstatninger. De
 | Agentiske workflows med mange verktøykall | Gemini 3.6 Flash, Sol | Flash for parallelle verktøy, Sol for tung kontekst |
 | Kostnadseffektiv agent-looping | Kimi K2.7 Code | Rimeligste alternativ i Versatile-kategorien |
 
-De nye GPT-5.6-modellene er et godt supplement — særlig for utviklere som allerede er vant til GPT-familien eller vil ha et OpenAI-alternativ til Sonnet-klassen. Men Claude Sonnet 5 til $2/$10 (kampanjepris til 31. august) er fortsatt et svært konkurransedyktig valg i den samme klassen. Merk at Gemini 2.5 Pro utfases 31. juli — Gemini 3.1 Pro overtar rollen for research og lange kontekstvinduer.
+De nye GPT-5.6-modellene er et godt supplement, særlig for utviklere som allerede er vant til GPT-familien eller vil ha et OpenAI-alternativ til Sonnet-klassen. Men Claude Sonnet 5 til $2/$10 (kampanjepris til 31. august) er fortsatt et svært konkurransedyktig valg i den samme klassen. Merk at Gemini 2.5 Pro utfases 31. juli. Gemini 3.1 Pro overtar rollen for research og lange kontekstvinduer.
 
 Se [prissiden](/priser) for fullstendig sammenligning av alle modeller og priser.

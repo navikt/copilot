@@ -13,7 +13,7 @@ tags:
 
 ## AI-drevne sikkerhetsfunn på pull requests
 
-GitHub code scanning viser nå AI-drevne sikkerhetsfunn direkte på pull requests. Funksjonaliteten utvider sårbarhetsdekninger til språk og rammeverk som ikke dekkes av CodeQLs innebygde analyse — slik at blinde flekker i kodebasen reduseres.
+GitHub code scanning viser nå AI-drevne sikkerhetsfunn direkte på pull requests. Funksjonaliteten utvider sårbarhetsdekninger til språk og rammeverk som ikke dekkes av CodeQLs innebygde analyse, slik at blinde flekker i kodebasen reduseres.
 
 Funn vises i PR-visningen som vanlige code scanning-varsler, merket med «AI» slik at du enkelt kan skille dem fra CodeQL-resultater. Funksjonen må aktiveres på enterprise-nivå først, deretter på organisasjon eller repository.
 
@@ -21,9 +21,9 @@ Funn vises i PR-visningen som vanlige code scanning-varsler, merket med «AI» s
 
 CodeQL 2.26.0 bringer tre viktige oppdateringer:
 
-- **Kotlin 2.4.0-støtte** — CodeQL analyserer nå Kotlin-kode opp til versjon 2.4.0.
-- **Prompt-injeksjon for JavaScript/TypeScript** — ny query som oppdager system prompt injection-sårbarheter, svært relevant ettersom flere team bygger AI-integrasjoner.
-- **Go `log/slog`-modeller** — `go/log-injection` og `go/clear-text-logging` kan nå oppdage problemer i kode som bruker slog-pakken.
+- **Kotlin 2.4.0-støtte.** CodeQL analyserer nå Kotlin-kode opp til versjon 2.4.0.
+- **Prompt-injeksjon for JavaScript/TypeScript.** Ny query som oppdager system prompt injection-sårbarheter, svært relevant ettersom flere team bygger AI-integrasjoner.
+- **Go `log/slog`-modeller.** `go/log-injection` og `go/clear-text-logging` kan nå oppdage problemer i kode som bruker slog-pakken.
 
 **Kilder:**
 

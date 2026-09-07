@@ -1,5 +1,5 @@
 ---
-title: "Anthropic lanserer Project Glasswing — AI-drevet cybersikkerhet med Claude Mythos Preview"
+title: "Anthropic lanserer Project Glasswing for AI-drevet cybersikkerhet med Claude Mythos Preview"
 date: 2026-04-07
 author: starefossen
 category: praksis

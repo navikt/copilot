@@ -1,5 +1,5 @@
 ---
-title: "cplt oppdatering — proxy som standard, Linux-sandbox og credential-beskyttelse"
+title: "cplt oppdatering med proxy som standard, Linux-sandbox og credential-beskyttelse"
 date: 2026-05-06
 author: starefossen
 category: praksis
@@ -13,15 +13,15 @@ tags:
 
 ## Hva er cplt?
 
-[cplt](https://github.com/navikt/cplt) sandboxer AI-kodingsagenter med OS-primitiver — macOS Seatbelt og Linux Landlock + seccomp-BPF. All tilgang til filer, nettverk og prosesser styres av kjernen, ikke av agenten selv.
+[cplt](https://github.com/navikt/cplt) sandboxer AI-kodingsagenter med OS-primitiver, nærmere bestemt macOS Seatbelt og Linux Landlock + seccomp-BPF. All tilgang til filer, nettverk og prosesser styres av kjernen, ikke av agenten selv.
 
 Nøkkelfunksjoner:
 
-- **Filsystem-sandbox** — agenten ser bare prosjektmappa og eksplisitt tillatte stier
-- **Nettverksproxy** — all utgående trafikk filtreres, telemetri og analytics blokkeres
-- **Credential-beskyttelse** — SSH-nøkler, `.env`-filer og registry-tokens er utilgjengelige
-- **Multi-agent** — støtter Copilot CLI, OpenCode og generiske shell-agenter
-- **Konfigurerbar** — én TOML-fil per prosjekt, alt kan overstyres per kjøring
+- **Filsystem-sandbox** gjør at agenten bare ser prosjektmappa og eksplisitt tillatte stier
+- **Nettverksproxy** filtrerer all utgående trafikk og blokkerer telemetri og analytics
+- **Credential-beskyttelse** gjør SSH-nøkler, `.env`-filer og registry-tokens utilgjengelige
+- **Multi-agent** med støtte for Copilot CLI, OpenCode og generiske shell-agenter
+- **Konfigurerbar** med én TOML-fil per prosjekt, der alt kan overstyres per kjøring
 
 ```bash
 brew install navikt/tap/cplt
@@ -63,7 +63,7 @@ cplt config set proxy.port 8888
 
 ## Proxy log-nivå erstatter global quiet-flag
 
-Proxy-logging til stderr er nå styrt av et eget `log_level`-felt, uavhengig av `sandbox.quiet`. Standard er `none` — ingen proxy-output til terminalen.
+Proxy-logging til stderr er nå styrt av et eget `log_level`-felt, uavhengig av `sandbox.quiet`. Standard er `none`, altså ingen proxy-output til terminalen.
 
 Tilgjengelige nivåer:
 
@@ -91,10 +91,10 @@ cplt har fått et felles sandbox-API som abstraherer bort plattformforskjeller. 
 
 Nye public API-funksjoner:
 
-- `SandboxConfig` — deklarativ policy uavhengig av OS
-- `prepare()` → `PreparedSandbox` — genererer plattformspesifikk policy
-- `exec_sandboxed()` — kjører kommando med kernel-enforced sandbox
-- `preflight()` — sjekker om OS-primitiver er tilgjengelige
+- `SandboxConfig` er en deklarativ policy uavhengig av OS
+- `prepare()` → `PreparedSandbox` genererer plattformspesifikk policy
+- `exec_sandboxed()` kjører kommando med kernel-enforced sandbox
+- `preflight()` sjekker om OS-primitiver er tilgjengelige
 
 Linux-enforcement krever kernel 5.13+ (Landlock v1). GitHub Actions Ubuntu runners støtter dette. Seccomp-BPF legger til syscall-filtrering som ekstra lag.
 

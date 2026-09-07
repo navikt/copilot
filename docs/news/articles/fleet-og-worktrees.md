@@ -3,7 +3,7 @@ title: "Parallell utvikling med /fleet og Git worktrees"
 date: 2026-04-21
 author: starefossen
 category: praksis
-excerpt: "Slik bruker du Copilot CLI sin /fleet-kommando og Git worktrees til å kjøre flere AI-agenter samtidig — uten filkonflikter og med full isolasjon."
+excerpt: "Slik bruker du Copilot CLI sin /fleet-kommando og Git worktrees til å kjøre flere AI-agenter samtidig, uten filkonflikter og med full isolasjon."
 tags:
   - copilot-cli
   - fleet
@@ -11,14 +11,14 @@ tags:
   - parallell-utvikling
 ---
 
-Copilot CLI kan kjøre flere agenter samtidig. `/fleet` bryter ned oppgaver i parallelle deloppgaver innenfor én sesjon. Git worktrees gir fullstendig isolasjon mellom separate sesjoner — hvert arbeidsområde har sin egen branch og sine egne filer. Sammen gir de to teknikkene rask utvikling uten venting.
+Copilot CLI kan kjøre flere agenter samtidig. `/fleet` bryter ned oppgaver i parallelle deloppgaver innenfor én sesjon. Git worktrees gir fullstendig isolasjon mellom separate sesjoner, der hvert arbeidsområde har sin egen branch og sine egne filer. Sammen gir de to teknikkene rask utvikling uten venting.
 
-## /fleet — parallelle agenter i terminalen
+## Parallelle agenter i terminalen med /fleet
 
 `/fleet` er en innebygd kommando i Copilot CLI som fungerer som en prosjektleder for AI-agenter. I stedet for å jobbe sekvensielt, gjør den følgende:
 
 1. **Deler opp** oppgaven din i uavhengige deloppgaver
-2. **Analyserer avhengigheter** — hva kan kjøres samtidig, hva må vente
+2. **Analyserer avhengigheter** for å finne hva som kan kjøres samtidig og hva som må vente
 3. **Starter sub-agenter** i parallell, hver med eget kontekstvindu
 4. **Samler resultatene** når alle agentene er ferdige
 
@@ -38,7 +38,7 @@ Copilot CLI kan kjøre flere agenter samtidig. `/fleet` bryter ned oppgaver i pa
                    Orkestrator setter sammen
 ```
 
-Konkrete deloppgaver gir best resultat. Vage instruksjoner som «fiks koden» paralleliseres dårlig — spesifikke filer og mål gir reell samtidighet.
+Konkrete deloppgaver gir best resultat. Vage instruksjoner som «fiks koden» paralleliseres dårlig, mens spesifikke filer og mål gir reell samtidighet.
 
 ### Når /fleet er nyttig
 
@@ -48,11 +48,11 @@ Konkrete deloppgaver gir best resultat. Vage instruksjoner som «fiks koden» pa
 | Refaktorering + tester | `/fleet Flytt utils til egen pakke og oppdater tester` |
 | Flere uavhengige bugfikser | `/fleet Fiks feil #42 i auth og #43 i API-ruten` |
 
-## Git worktrees — fullstendig isolasjon
+## Fullstendig isolasjon med Git worktrees
 
-`/fleet` deler kontekst men jobber i samme filsystem. For full isolasjon — der to agenter kan bygge, teste og endre uavhengig — trenger du Git worktrees.
+`/fleet` deler kontekst men jobber i samme filsystem. For full isolasjon, der to agenter kan bygge, teste og endre uavhengig av hverandre, trenger du Git worktrees.
 
-En worktree er en ekstra arbeidskopi av repoet ditt, koblet til en annen branch, men med delt Git-objektdatabase. Ingen ekstra full kloning — historikk og referanser deles, men arbeidskopifilene finnes i hver worktree.
+En worktree er en ekstra arbeidskopi av repoet ditt, koblet til en annen branch, men med delt Git-objektdatabase. Ingen ekstra full kloning er nødvendig, siden historikk og referanser deles, mens arbeidskopifilene finnes i hver worktree.
 
 ### Oppsett
 
@@ -84,10 +84,10 @@ git worktree remove ../mitt-repo-api
 
 Worktrees og AI-agenter sammen gir merkbart bedre flyt:
 
-- **Du venter aldri på agenten** — start en ny oppgave i en ny worktree mens den forrige kjører. Utviklere som bruker dette mønsteret rapporterer [merkbart høyere gjennomstrømming](https://easyappdev.com/blog/git-worktrees-ai-coding) (anekdotisk).
-- **Ingen konteksttap** — branch-bytte kan gjøre agentens kontekst inkonsistent. Separate worktrees bevarer tilstanden for hver sesjon.
-- **Trygt å eksperimentere** — en agent som gjør feil i sin worktree påvirker ikke de andre. Kast worktreen og start på nytt.
-- **Naturlig code review-flyt** — hver worktree produserer sin egen branch som blir en egen PR. Lettere å gjennomgå og merge enn én gigantisk endring.
+- **Du venter aldri på agenten.** Start en ny oppgave i en ny worktree mens den forrige kjører. Utviklere som bruker dette mønsteret rapporterer [merkbart høyere gjennomstrømming](https://easyappdev.com/blog/git-worktrees-ai-coding) (anekdotisk).
+- **Ingen konteksttap.** Branch-bytte kan gjøre agentens kontekst inkonsistent. Separate worktrees bevarer tilstanden for hver sesjon.
+- **Trygt å eksperimentere.** En agent som gjør feil i sin worktree påvirker ikke de andre. Kast worktreen og start på nytt.
+- **Naturlig code review-flyt.** Hver worktree produserer sin egen branch som blir en egen PR. Lettere å gjennomgå og merge enn én gigantisk endring.
 
 ## Anbefalt arbeidsflyt for Nav-utviklere
 
@@ -134,13 +134,13 @@ cd ../oppgave-b && cplt -- -p "fiks API-validering"
 
 ### Offisiell dokumentasjon
 
-- [Running tasks in parallel with /fleet — GitHub Docs](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/fleet)
-- [Copilot CLI in VS Code — Visual Studio Code Docs](https://code.visualstudio.com/docs/copilot/agents/copilot-cli)
-- [git-worktree — Git Reference](https://git-scm.com/docs/git-worktree)
-- [Run Multiple Agents at Once with Fleet — GitHub Blog](https://github.blog/ai-and-ml/github-copilot/run-multiple-agents-at-once-with-fleet-in-copilot-cli/)
+- [Running tasks in parallel with /fleet](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/fleet) (GitHub Docs)
+- [Copilot CLI in VS Code](https://code.visualstudio.com/docs/copilot/agents/copilot-cli) (Visual Studio Code Docs)
+- [git-worktree](https://git-scm.com/docs/git-worktree) (Git Reference)
+- [Run Multiple Agents at Once with Fleet](https://github.blog/ai-and-ml/github-copilot/run-multiple-agents-at-once-with-fleet-in-copilot-cli/) (GitHub Blog)
 
 ### Artikler og erfaringer
 
-- [Workspace vs Worktree Isolation in Copilot CLI — Ken Muse](https://www.kenmuse.com/blog/workspace-vs-worktree-isolation-in-copilot-cli/)
-- [Git Worktree: The Infrastructure That Unlocks Agentic Development — htek.dev](https://htek.dev/articles/git-worktree-unlocks-agentic-development/)
-- [Git Worktrees for AI Coding: Run Multiple Agents in Parallel — EasyAppDev](https://easyappdev.com/blog/git-worktrees-ai-coding)
+- [Workspace vs Worktree Isolation in Copilot CLI](https://www.kenmuse.com/blog/workspace-vs-worktree-isolation-in-copilot-cli/) (Ken Muse)
+- [Git Worktree: The Infrastructure That Unlocks Agentic Development](https://htek.dev/articles/git-worktree-unlocks-agentic-development/) (htek.dev)
+- [Git Worktrees for AI Coding: Run Multiple Agents in Parallel](https://easyappdev.com/blog/git-worktrees-ai-coding) (EasyAppDev)

@@ -17,7 +17,7 @@ const TIPS: Tip[] = [
     label: "WRAP-metoden",
   },
   {
-    text: "Vær spesifikk i prompts. «Fix the auth bug» gir dårlige resultater — beskriv heller symptom, fil og forventet oppførsel.",
+    text: "Vær spesifikk i prompts. «Fix the auth bug» gir dårlige resultater. Beskriv heller symptom, fil og forventet oppførsel.",
     href: "/praksis/guide/skrive-presise-prompts",
     label: "Prompt engineering",
   },
@@ -32,12 +32,12 @@ const TIPS: Tip[] = [
     label: "Code review",
   },
   {
-    text: "Copilot er best på repetitivt arbeid i stor skala — refaktorering, fjerne feature flags, fikse skrivefeil på tvers av mange filer.",
+    text: "Copilot er best på repetitivt arbeid i stor skala, som refaktorering, fjerne feature flags, fikse skrivefeil på tvers av mange filer.",
     href: "/praksis/guide/styrker-og-farer",
     label: "Styrker og begrensninger",
   },
   {
-    text: "Du eier arkitekturen, Copilot implementerer. Ikke la agenten ta designbeslutninger — gi den klare rammer i AGENTS.md.",
+    text: "Du eier arkitekturen, Copilot implementerer. Ikke la agenten ta designbeslutninger. Gi den klare rammer i AGENTS.md.",
     href: "/praksis/guide/orkestrere-agenter",
     label: "Agent-mønstre",
   },
@@ -47,7 +47,7 @@ const TIPS: Tip[] = [
     label: "Eksempler i prompts",
   },
   {
-    text: "PR-er fra Copilot coding agent utløser ikke CI automatisk. Du må starte workflows manuelt — dette er en sikkerhetsfunksjon.",
+    text: "PR-er fra Copilot coding agent utløser ikke CI automatisk. Du må starte workflows manuelt. Dette er en sikkerhetsfunksjon.",
     href: "/praksis/guide/gjennomfore-code-review",
     label: "CI og sikkerhet",
   },
@@ -77,7 +77,7 @@ const TIPS: Tip[] = [
     label: "Boundaries-mønsteret",
   },
   {
-    text: "Lange chat-sesjoner fører til konteksttap. Start ny samtale når du bytter oppgave — da husker Copilot bedre.",
+    text: "Lange chat-sesjoner fører til konteksttap. Start ny samtale når du bytter oppgave, så husker Copilot bedre.",
     href: "/praksis/guide/styrker-og-farer",
     label: "Konteksthåndtering",
   },

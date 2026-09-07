@@ -27,7 +27,7 @@ export const terms: Term[] = [
   {
     term: "Agency",
     definition:
-      "Hvor stor handlefrihet agenten har — hvilke verktøy den får bruke og hvilke beslutninger den tar selv. Vi beholder som regel termen på engelsk i fagkontekst.",
+      "Hvor stor handlefrihet agenten har, altså hvilke verktøy den får bruke og hvilke beslutninger den tar selv. Vi beholder som regel termen på engelsk i fagkontekst.",
   },
   {
     term: "Agent mode",

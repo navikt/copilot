@@ -1,9 +1,9 @@
 ---
-title: "Agentbasert observability — når Copilot feilsøker produksjon for deg"
+title: "Agentbasert observability lar Copilot feilsøke produksjon for deg"
 date: 2026-05-20
 author: starefossen
 category: nav-pilot
-excerpt: "Hvordan vi ga Copilot-agenter direkte tilgang til Mimir, Loki og Tempo — slik at de kan feilsøke problemer i produksjon uten at du forlater editoren."
+excerpt: "Hvordan vi ga Copilot-agenter direkte tilgang til Mimir, Loki og Tempo, slik at de kan feilsøke problemer i produksjon uten at du forlater editoren."
 tags:
   - observability
   - skills
@@ -18,9 +18,9 @@ For å feilsøke produksjonshendelser hopper du gjerne mellom Grafana, terminale
 
 ## Fra logger til strukturert observability
 
-Nav har systematisk jobbet med å fjerne persondata fra logger og URLer. Det var nødvendig, men kan i noen tilfeller gjøre loggene vanskeligere å bruke til feilsøking — uten fødselsnummer eller navn i logglinjene er det ikke alltid opplagt å spore en feil gjennom systemet.
+Nav har systematisk jobbet med å fjerne persondata fra logger og URLer. Det var nødvendig, men kan i noen tilfeller gjøre loggene vanskeligere å bruke til feilsøking. Uten fødselsnummer eller navn i logglinjene er det ikke alltid opplagt å spore en feil gjennom systemet.
 
-Som et kompenserende tiltak har vi tatt et større løft på å ta i bruk metrikker (Prometheus/Mimir) og distribuerte traces (Tempo) med auto-instrumentering for applikasjoner i Nais. Du kan se *hvor* i kallkjeden en feil oppstår, *hvilke* endepunkter som er trege, og *hvordan* systemet oppfører seg over tid — uten å eksponere persondata.
+Som et kompenserende tiltak har vi tatt et større løft på å ta i bruk metrikker (Prometheus/Mimir) og distribuerte traces (Tempo) med auto-instrumentering for applikasjoner i Nais. Du kan se *hvor* i kallkjeden en feil oppstår, *hvilke* endepunkter som er trege, og *hvordan* systemet oppfører seg over tid, uten å eksponere persondata.
 
 Utfordringen er å klare å bruke dette aktivt. PromQL har bratt læringskurve. Tempo-traces krever at du vet hvilke spørringer du skal stille. Grafana-dashboards tar tid å lage og blir fort utdaterte. Resultatet er at mange fortsatt søker gjennom mengder med logg for å finne nåla i høystakken.
 
@@ -34,11 +34,11 @@ Navs observability-stack bygger på:
 | Logger | Loki | *Hvorfor* skjer det? (feilmeldinger, kontekst) |
 | Traces | Tempo | *Hvor* i kallkjeden? (latens, avhengigheter) |
 
-Alle tre eksponerer HTTP-APIer. Det betyr at en agent med `curl` og `jq` kan gjøre det samme som deg — bare raskere.
+Alle tre eksponerer HTTP-APIer. Det betyr at en agent med `curl` og `jq` kan gjøre det samme som deg, bare raskere.
 
 `observability-debugging`-skillen gir agenten strukturerte debugging-workflows, ferdige API-kall med riktige headere, og korrelasjonsmønstre som følger en tråd fra metrikk til logg til trace.
 
-## Eksempel — feilsøk en pod som krasjer
+## Eksempel på feilsøking av en pod som krasjer
 
 Du spør: «min-app i prod restarter hele tiden»
 
@@ -73,11 +73,11 @@ Dashboards viser data. Agenten *tolker* data og kobler dem til kildekoden din.
 - **Dashboard**: Du ser en graf med økende latens og finner selv ut hvilken komponent som forårsaker det.
 - **Agent**: Ser latens-økningen, finner tracet, identifiserer at database-spørringen i `VedtakRepository.kt:47` tar 3.8s, og foreslår en indeks.
 
-Agenten har kontekst — den kjenner koden din, vet hvilke tjenester du kaller, og korrelerer på tvers av alle tre pilarene i ett steg. Du trenger ikke kunne PromQL for å dra nytte av metrikkene teamet ditt allerede eksponerer.
+Agenten har kontekst. Den kjenner koden din, vet hvilke tjenester du kaller, og korrelerer på tvers av alle tre pilarene i ett steg. Du trenger ikke kunne PromQL for å dra nytte av metrikkene teamet ditt allerede eksponerer.
 
 ## Tilgangsstyring med cplt
 
-Agenten bruker `kubectl` og `curl` mot interne APIer. Det betyr at den trenger tilganger — men ikke fritt spillerom.
+Agenten bruker `kubectl` og `curl` mot interne APIer. Det betyr at den trenger tilganger, men ikke fritt spillerom.
 
 `cplt` kjører agenten i en sandbox. Tilgangene styres av `.cplt.toml` i repoet ditt:
 
@@ -97,7 +97,7 @@ All nettverkstrafikk fra agenten går gjennom en filtrerende CONNECT-proxy. Bare
 nav-pilot install observability-debugging
 ```
 
-Deretter: «Feilsøk høy latens på /api/vedtak i prod» — og se agenten jobbe.
+Deretter: «Feilsøk høy latens på /api/vedtak i prod», og se agenten jobbe.
 
 **Forutsetninger:**
 - Appen deployet på Nais

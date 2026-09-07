@@ -2,7 +2,7 @@
 title: "GitHub MCP Server støtter neste MCP-spesifikasjon"
 date: 2026-07-23
 category: copilot
-excerpt: "GitHub MCP Server blir stateless 28. juli 2026 — raskere handshakes uten sesjoner, verdier leses fra HTTP-headere, og oppgradert elicitation fungerer for både gamle og nye klienter."
+excerpt: "GitHub MCP Server blir stateless 28. juli 2026. Det gir raskere handshakes uten sesjoner, verdier leses fra HTTP-headere, og oppgradert elicitation fungerer for både gamle og nye klienter."
 url: "https://github.blog/changelog/2026-07-23-github-mcp-server-supports-the-next-mcp-specification/"
 tags:
   - mcp

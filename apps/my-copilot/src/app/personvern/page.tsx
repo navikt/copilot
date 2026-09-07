@@ -48,7 +48,7 @@ export default function PersonvernPage() {
             <ul className="list-disc list-inside">
               <li>
                 <BodyLong as="span">
-                  <strong>Sesjonskapsel</strong> — holder deg innlogget hvis du har logget inn med Nav-konto
+                  <strong>Sesjonskapsel</strong> holder deg innlogget hvis du har logget inn med Nav-konto
                 </BodyLong>
               </li>
             </ul>

@@ -1,5 +1,5 @@
 ---
-title: "VS Code mars-releaser — Autopilot, sub-agenter og tenke-innsats"
+title: "VS Code mars-releaser med Autopilot, sub-agenter og tenke-innsats"
 date: 2026-04-08
 author: starefossen
 category: copilot

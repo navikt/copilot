@@ -11,7 +11,7 @@ tags:
   - workflow
 ---
 
-Vi har over 35 tilpasningsfiler i [navikt/copilot](https://github.com/navikt/copilot) — agents, instructions, prompts og skills. Mange team har kopiert deler av disse inn i sine egne repoer. Problemet er at filene oppdateres jevnlig, og da blir kopiene utdaterte.
+Vi har over 35 tilpasningsfiler i [navikt/copilot](https://github.com/navikt/copilot), fordelt på agents, instructions, prompts og skills. Mange team har kopiert deler av disse inn i sine egne repoer. Problemet er at filene oppdateres jevnlig, og da blir kopiene utdaterte.
 
 Nå finnes det en sync-workflow som fikser dette. Den fungerer som Dependabot, men for Copilot-filer i stedet for pakker.
 
@@ -73,9 +73,9 @@ Uten denne fila sjekkes alt som finnes i repoet.
 
 ## Hva om jeg har gjort lokale endringer?
 
-PR-en viser diffen. Du kan merge selektivt, redigere PR-en, eller lukke den. Workflowen tvinger ingenting — den åpner bare PR-er.
+PR-en viser diffen. Du kan merge selektivt, redigere PR-en, eller lukke den. Workflowen tvinger ingenting. Den åpner bare PR-er.
 
-Hvis teamet ditt bevisst vedlikeholder egne versjoner av bestemte filer, kan du markere dem som *overrides*. Da hopper sync over dem helt — ingen hashsjekk, ingen PR-diff:
+Hvis teamet ditt bevisst vedlikeholder egne versjoner av bestemte filer, kan du markere dem som *overrides*. Da hopper sync over dem helt, uten hashsjekk og uten PR-diff:
 
 ```json
 {

@@ -1,5 +1,5 @@
 ---
-title: "gh skill — administrer agent skills fra terminalen"
+title: "Administrer agent skills fra terminalen med gh skill"
 date: 2026-04-16
 author: starefossen
 category: copilot

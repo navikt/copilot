@@ -1,5 +1,5 @@
 ---
-title: "VS Code 1.118 — Agents-app, semantisk søk for alle og token-effektivitet"
+title: "VS Code 1.118 med Agents-app, semantisk søk for alle og token-effektivitet"
 date: 2026-04-29
 author: starefossen
 category: copilot

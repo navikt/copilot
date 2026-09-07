@@ -160,7 +160,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
       }
     } catch (error) {
       console.error("Error:", error);
-      setMutationError("Nettverksfeil — prøv igjen");
+      setMutationError("Nettverksfeil. Prøv igjen.");
     } finally {
       await fetchSubscription();
       setMutating(false);
@@ -459,8 +459,8 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                   )}
                   {!budget.isOverride && (
                     <BodyShort size="small">
-                      Standardgrense for alle Nav-utviklere. Bruk Copilot normalt — Nav betaler bare for faktisk
-                      forbruk, ikke for ubrukt kapasitet.
+                      Standardgrense for alle Nav-utviklere. Bruk Copilot normalt. Nav betaler bare for faktisk forbruk,
+                      ikke for ubrukt kapasitet.
                     </BodyShort>
                   )}
                 </>
@@ -482,7 +482,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                     Kodeforslag (30 dager)
                   </Heading>
                   <Detail className="text-gray-600">
-                    Inline kodeforslag i IDE — Copilot foreslår kode mens du skriver
+                    Inline kodeforslag i IDE, der Copilot foreslår kode mens du skriver
                   </Detail>
                 </VStack>
                 {loading ? (
@@ -544,7 +544,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                     Copilot CLI (30 dager)
                   </Heading>
                   <Detail className="text-gray-600">
-                    GitHub Copilot i terminal — chat, agenter og verktøykall via nav-pilot eller gh copilot
+                    GitHub Copilot i terminal, med chat, agenter og verktøykall via nav-pilot eller gh copilot
                   </Detail>
                 </VStack>
                 {loading ? (

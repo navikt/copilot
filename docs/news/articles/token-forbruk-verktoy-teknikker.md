@@ -3,7 +3,7 @@ title: "Slik holder du token-forbruket nede"
 date: 2026-05-28
 author: starefossen
 category: praksis
-excerpt: "Praktiske tips for å få raskere og billigere Copilot-svar — fra innebygd $terse-mode til smarte vaner som sparer tokens."
+excerpt: "Praktiske tips for å få raskere og billigere Copilot-svar, fra innebygd $terse-mode til smarte vaner som sparer tokens."
 tags:
   - token-optimization
   - cost-optimization
@@ -44,7 +44,7 @@ I VS Code Chat kan du skrive `@nav-pilot` for å få det samme.
 
 ## Vil du ha enda kortere svar? Bruk `terse-mode`
 
-Skills er tilleggskunnskap nav-pilot kan bruke. Du aktiverer dem ved å skrive navnet i meldingen — enten med `$`-prefiks (`$terse-mode`) eller uten (`bruk terse-mode`). `$` er vår visuelle konvensjon, ikke påkrevd syntax. Les mer om [skills i VS Code-dokumentasjonen](https://code.visualstudio.com/docs/copilot/customization/agent-skills).
+Skills er tilleggskunnskap nav-pilot kan bruke. Du aktiverer dem ved å skrive navnet i meldingen, enten med `$`-prefiks (`$terse-mode`) eller uten (`bruk terse-mode`). `$` er vår visuelle konvensjon, ikke påkrevd syntax. Les mer om [skills i VS Code-dokumentasjonen](https://code.visualstudio.com/docs/copilot/customization/agent-skills).
 
 Skriv `terse-mode` for å skru på ekstra kompakt stil. Tre nivåer:
 
@@ -62,7 +62,7 @@ terse-mode ultra          ← for raske iterasjoner
 Stopp terse               ← tilbake til vanlig stil
 ```
 
-Stilen vedvarer hele sesjonen. Ved sikkerhetsvarsler eller destruktive handlinger bytter den automatisk tilbake til full prosa — du mister aldri viktig informasjon.
+Stilen vedvarer hele sesjonen. Ved sikkerhetsvarsler eller destruktive handlinger bytter den automatisk tilbake til full prosa, så du mister aldri viktig informasjon.
 
 ## Fem vaner som kutter kostnader
 
@@ -80,7 +80,7 @@ Jo mer kontekst du gir i første melding, jo færre runder bruker du.
 
 ### 2. For store oppgaver: la intervjuet gjøre jobben
 
-For små oppgaver gjør nav-pilot jobben direkte — ingen spørsmål. For medium/store oppgaver går den gjennom en kort intervjufase der den sjekker blindsoner som personvern, auth og avhengigheter.
+For små oppgaver gjør nav-pilot jobben direkte, uten spørsmål. For medium/store oppgaver går den gjennom en kort intervjufase der den sjekker blindsoner som personvern, auth og avhengigheter.
 
 Hvis du vil ha et enda grundigere intervju, be om det med `nav-deep-interview`. Den kjører en strukturert gjennomgang med impactanalyse.
 
@@ -88,11 +88,11 @@ Fem minutter med avklaring slår en bortkastet sesjon.
 
 ### 3. Hold sesjoner fokuserte
 
-Copilot bruker [prompt caching](/nyheter/model-pinning-kostnadsoptimalisering) — kontekst fra tidligere i sesjonen koster opptil 90 % mindre enn ny kontekst. Det betyr at du *ikke* trenger å starte ny sesjon bare for å spare penger. Men en fokusert sesjon gir bedre svar fordi modellen slipper å filtrere bort irrelevant historikk.
+Copilot bruker [prompt caching](/nyheter/model-pinning-kostnadsoptimalisering), så kontekst fra tidligere i sesjonen koster opptil 90 % mindre enn ny kontekst. Det betyr at du *ikke* trenger å starte ny sesjon bare for å spare penger. Men en fokusert sesjon gir bedre svar fordi modellen slipper å filtrere bort irrelevant historikk.
 
 - Én oppgave per sesjon gir mer presise svar
 - Unngå «kan du også...» som tar sesjonen i helt ny retning
-- Lang, ufokusert historikk forvirrer — ikke bare koster
+- Lang, ufokusert historikk forvirrer modellen, i tillegg til å koste
 
 ### 4. La nav-pilot finne verktøyene
 
@@ -106,7 +106,7 @@ Du kan be om en spesifikk skill med navn (f.eks. `bruk terse-mode`), men for de 
 
 ### 5. Hjelp agenten med å lese mindre
 
-I terminalen er den største token-lekkasjen ofte verktøyoutput — testlogger, stacktraces, store diffs. Noen vaner som hjelper:
+I terminalen er den største token-lekkasjen ofte verktøyoutput som testlogger, stacktraces og store diffs. Noen vaner som hjelper:
 
 - La agenten lese filer selv i stedet for å lime inn hele filer
 - Ved testfeil: gi den relevante feilmeldingen, ikke hele build-loggen
@@ -138,8 +138,8 @@ offentlige API. Bruk sealed class for feilhåndtering.
 | ---- | -------- | ----------- |
 | Start via `nav-pilot` | Alle | `nav-pilot --sync` synkroniserer og starter Copilot med riktig oppsett |
 | Vær presis | Alle | Nevn språk, rammeverk og integrasjoner i første melding |
-| Fokuserte sesjoner | Alle | Én oppgave per sesjon — start ny når du bytter problem |
-| La agenten lese | Alle i terminalen | Ikke lim inn store filer/logger — la agenten lese selv |
+| Fokuserte sesjoner | Alle | Én oppgave per sesjon. Start ny når du bytter problem |
+| La agenten lese | Alle i terminalen | Ikke lim inn store filer/logger. La agenten lese selv |
 | `terse-mode` | Deg som vil ha kortere svar | Skriv `terse-mode` i starten av sesjonen |
 | `nav-deep-interview` | Nye tjenester, stor refaktor | Skriv `nav-deep-interview` for grundigere avklaring |
 
@@ -159,7 +159,7 @@ De to største besparelsene:
 
 ### Hva vi gjorde i dette repoet
 
-Vi hadde en OWASP-sikkerhetsinstruks på 21 KB som ble lastet ved *hver eneste* Go- og Kotlin-redigering — også når oppgaven ikke handlet om sikkerhet. Vi flyttet innholdet til en on-demand skill og beholdt bare en kort stub (1 KB) med de mest kritiske reglene.
+Vi hadde en OWASP-sikkerhetsinstruks på 21 KB som ble lastet ved *hver eneste* Go- og Kotlin-redigering, også når oppgaven ikke handlet om sikkerhet. Vi flyttet innholdet til en on-demand skill og beholdt bare en kort stub (1 KB) med de mest kritiske reglene.
 
 | Måling | Før | Etter |
 | ------ | --- | ----- |
@@ -167,7 +167,7 @@ Vi hadde en OWASP-sikkerhetsinstruks på 21 KB som ble lastet ved *hver eneste* 
 | Go-kontekst totalt | 42 KB | 22 KB |
 | Kotlin-kontekst totalt | 54 KB | 34 KB |
 
-**Tommelfingerregel:** Hvis en instruks bare er relevant for 10 % av oppgavene, hører den hjemme i en skill — ikke i en alltid-aktiv fil.
+**Tommelfingerregel:** Hvis en instruks bare er relevant for 10 % av oppgavene, hører den hjemme i en skill, ikke i en alltid-aktiv fil.
 
 ### Instruksjonsarkitektur
 
@@ -178,11 +178,11 @@ Det viktigste feltet i en Copilot-instruksjon er `applyTo`-globen:
 - `applyTo: "**/db/migration/**/*.sql"` → lastes bare ved databasemigrering
 
 Andre tips for vedlikeholdere:
-- Komprimer innhold — instruksjoner leses av modellen, ikke mennesker
-- Hold filer stabile — prompt caching fungerer best når innholdet sjelden endres
+- Komprimer innhold. Instruksjoner leses av modellen, ikke mennesker
+- Hold filer stabile, fordi prompt caching fungerer best når innholdet sjelden endres
 - Bruk konkrete dropp-lister («dropp artikler og høflighetsfraser») fremfor vagt «vær kort»
 
-### RTK — komprimerer terminaloutput
+### RTK komprimerer terminaloutput
 
 > **Oppdatert 2026-08-24:** Denne seksjonen påsto opprinnelig at «RTK rapporterer 60–90 % reduksjon på verktøydata». Det tallet er verktøyets egen selvrapportering, og ingen kontrollert måling bekrefter det. Vi har rettet avsnittet, og nav-pilot anbefaler ikke lenger RTK aktivt.
 
@@ -197,15 +197,15 @@ rtk init -g --copilot
 
 - Den regner hele den rå kommando-outputen som «spart», selv om agenten uansett kutter store verktøyresultater.
 - Den priser fjernede tokens til full input-pris, selv om det meste av sesjonsinput er cachede gjenlesninger til rundt en tidel av prisen.
-- Bare en del av verktøyresultatene går gjennom hooken i det hele tatt — innebygde lese- og søkeverktøy går utenom.
+- Bare en del av verktøyresultatene går gjennom hooken i det hele tatt. Innebygde lese- og søkeverktøy går utenom.
 
-Den eneste store offentlige kontrollerte studien — [JetBrains, 425 kjøringer over 86 oppgaver](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/) med forhåndsregistrerte endepunkter — fant ingen besparelse: 7,6 % *høyere* kostnad per oppgave ved lavt resonneringsnivå (p = 0,004) og ingen målbar forskjell ved høyt nivå (+0,1 %, p = 0,99), uten kvalitetsforskjell.
+Den eneste store offentlige kontrollerte studien, [JetBrains, 425 kjøringer over 86 oppgaver](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/) med forhåndsregistrerte endepunkter, fant ingen besparelse: 7,6 % *høyere* kostnad per oppgave ved lavt resonneringsnivå (p = 0,004) og ingen målbar forskjell ved høyt nivå (+0,1 %, p = 0,99), uten kvalitetsforskjell.
 
-Merk omfanget: studien målte RTK i Claude Code, og hook-dekningen over er et arkitekturtrekk ved den agenten. Tilsvarende kontrollert måling finnes ikke for Copilot CLI eller OpenCode — der er effekten ikke målt. Andre har rapportert liknende for andre komprimerende verktøy: [0,6 % av en faktisk regning på 755 dollar](https://jayn.app/caveman), og en prompt-komprimerende proxy som [kuttet tokens 39 % men brøt prompt-cachen 123 ganger](https://brandonbarker.me/writing/headroom-fewer-tokens-bigger-bill) og dermed flyttet millioner av tokens til full pris.
+Merk omfanget: studien målte RTK i Claude Code, og hook-dekningen over er et arkitekturtrekk ved den agenten. Tilsvarende kontrollert måling finnes ikke for Copilot CLI eller OpenCode, så der er effekten ikke målt. Andre har rapportert liknende for andre komprimerende verktøy: [0,6 % av en faktisk regning på 755 dollar](https://jayn.app/caveman), og en prompt-komprimerende proxy som [kuttet tokens 39 % men brøt prompt-cachen 123 ganger](https://brandonbarker.me/writing/headroom-fewer-tokens-bigger-bill) og dermed flyttet millioner av tokens til full pris.
 
 Grunnen er strukturell: output-tokens utgjør en liten andel av totalen i en agent-sesjon, og cache-treffraten er høy. Da er det lite å hente på å komprimere tekst.
 
-**Praktisk konklusjon:** RTK gjør terminaloutput lettere å lese, og det kan være verdt noe i seg selv. Men ikke regn med lavere regning, og ikke bruk verktøyets eget sparetall som bevis — mål heller fakturert kostnad per fullført oppgave. Grepene som faktisk har dokumentert effekt, er modellvalg, resonneringsnivå, å holde prompt-cachen intakt og å gjøre mindre arbeid.
+**Praktisk konklusjon:** RTK gjør terminaloutput lettere å lese, og det kan være verdt noe i seg selv. Men ikke regn med lavere regning, og ikke bruk verktøyets eget sparetall som bevis. Mål heller fakturert kostnad per fullført oppgave. Grepene som faktisk har dokumentert effekt, er modellvalg, resonneringsnivå, å holde prompt-cachen intakt og å gjøre mindre arbeid.
 
 **Merk:** RTK prosesserer terminaloutput lokalt. Sjekk at verktøyet er godkjent for ditt team før du bruker det med output som kan inneholde sensitive data.
 
@@ -214,11 +214,11 @@ Grunnen er strukturell: output-tokens utgjør en liten andel av totalen i en age
 To teknikker for deg som bygger MCP-servere:
 
 - [TOON](https://toonformat.dev/) koder strukturert data med 30–60 % færre tokens. Relevant når serveren returnerer store JSON-objekter.
-- **Dynamiske verktøysett** — ikke last alle verktøyskjemaer på forhånd. Bruk et søk → beskriv → utfør-mønster. [Speakeasy rapporterer 100x reduksjon](https://www.speakeasy.com/blog/how-we-reduced-token-usage-by-100x-dynamic-toolsets-v2) med denne tilnærmingen.
+- **Dynamiske verktøysett** betyr at du ikke laster alle verktøyskjemaer på forhånd. Bruk et søk → beskriv → utfør-mønster. [Speakeasy rapporterer 100x reduksjon](https://www.speakeasy.com/blog/how-we-reduced-token-usage-by-100x-dynamic-toolsets-v2) med denne tilnærmingen.
 
 ## Videre lesing
 
 - [GitHub: Improving Token Efficiency in Agentic Workflows](https://github.blog/ai-and-ml/github-copilot/improving-token-efficiency-in-github-agentic-workflows/)
-- [arXiv: Brief is better?](https://arxiv.org/abs/2604.00025) — korte svar kan gi bedre nøyaktighet
-- [Matt Pocock: skills](https://github.com/mattpocock/skills) — grill-mønster og andre agent-skills
-- [Vantage: Hidden Cost Driver in Agentic Coding](https://www.vantage.sh/blog/agentic-coding-costs) — kostnadsanalyse av agentiske arbeidsflyter
+- [arXiv: Brief is better?](https://arxiv.org/abs/2604.00025) finner at korte svar kan gi bedre nøyaktighet
+- [Matt Pocock: skills](https://github.com/mattpocock/skills) med grill-mønster og andre agent-skills
+- [Vantage: Hidden Cost Driver in Agentic Coding](https://www.vantage.sh/blog/agentic-coding-costs) med kostnadsanalyse av agentiske arbeidsflyter

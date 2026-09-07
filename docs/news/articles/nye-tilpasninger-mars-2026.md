@@ -18,7 +18,7 @@ tags:
   - docker
 ---
 
-Vi har analysert [github/awesome-copilot](https://github.com/github/awesome-copilot) opp mot hva Nav-utviklere faktisk bruker — Java, Kotlin, Spring Boot, Ktor, Next.js, React, Aksel, PostgreSQL — og laget tilpasninger som dekker hullene. Resultatet er 17 nye filer og fem utvidelser av eksisterende.
+Vi har analysert [github/awesome-copilot](https://github.com/github/awesome-copilot) opp mot hva Nav-utviklere faktisk bruker, og laget tilpasninger som dekker hullene. Utgangspunktet var Java, Kotlin, Spring Boot, Ktor, Next.js, React, Aksel og PostgreSQL. Resultatet er 17 nye filer og fem utvidelser av eksisterende.
 
 ## Tre nye instruksjoner
 
@@ -32,7 +32,7 @@ Instruksjoner aktiveres automatisk når du redigerer filer som matcher mønstere
 
 ## Fem nye skills
 
-Skills lastes på forespørsel — agenten henter SKILL.md når oppgaven matcher.
+Skills lastes på forespørsel. Agenten henter SKILL.md når oppgaven matcher.
 
 | Ferdighet                                                      | Hva den gjør                                                                        |
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -46,13 +46,13 @@ Skills lastes på forespørsel — agenten henter SKILL.md når oppgaven matcher
 
 ### [`@code-review-agent`](/verktoy?item=code-review-agent)
 
-Gjennomgår kode på tvers av Navs stack — Kotlin/Spring, Kotlin/Ktor, TypeScript/Next.js, Go, Dockerfile og GitHub Actions. Agenten:
+Gjennomgår kode på tvers av Navs stack, fra Kotlin/Spring, Kotlin/Ktor og TypeScript/Next.js til Go, Dockerfile og GitHub Actions. Agenten:
 
 - Prioriterer funn med 🔴 Blocker, 🟡 Forslag og 💭 Småplukk
 - Kjører `mise check` for lint og typesjekk
 - Sjekker sikkerhet, feilhåndtering, testing og Nais-krav
 - Delegerer til spesialistagenter (`@security-champion-agent`, `@accessibility-agent`, `@aksel-agent`)
-- Rapporterer funn i en tabell — fikser ikke kode selv
+- Rapporterer funn i en tabell, men fikser ikke kode selv
 
 Bruk: `@code-review-agent Gå gjennom endringene mine før jeg lager PR`
 
@@ -78,12 +78,12 @@ Bruk: `@accessibility-agent Sjekk skjemaet i denne filen for UU-feil`
 
 Seks filer har fått nytt innhold:
 
-- [**kotlin-spring**](/verktoy?item=kotlin-spring) — ProblemDetail-feilhåndtering, `@ConfigurationProperties`, test slices (`@WebMvcTest`, `@DataJpaTest`)
-- [**testing**](/verktoy?item=testing) — Teststrategi-tabell, Playwright E2E-seksjon, axe-core for a11y-testing
-- [**nextjs-aksel**](/verktoy?item=nextjs-aksel) — `loading.tsx`, `error.tsx`, Suspense med streaming, Server Actions med `useActionState`
-- [**database**](/verktoy?item=database) — PostgreSQL: EXPLAIN ANALYZE, JSONB med GIN-indeks, window functions, store migrasjoner
-- [**security-review**](/verktoy?item=security-review) — OWASP Top 10 med kodeeksempler, filopplasting, avhengighetsskanning
-- [**docker**](/verktoy?item=docker) — Byttet fra Google distroless til [Chainguard base images](https://sikkerhet.nav.no/docs/verktoy/chainguard-dockerimages) fra Navs private registry. Nye eksempler for JVM, Node.js, Python, Go og nginx. CI-seksjon med `nais/docker-build-push` for autentisering mot registeret
+- [**kotlin-spring**](/verktoy?item=kotlin-spring) har fått ProblemDetail-feilhåndtering, `@ConfigurationProperties`, test slices (`@WebMvcTest`, `@DataJpaTest`)
+- [**testing**](/verktoy?item=testing) har fått teststrategi-tabell, Playwright E2E-seksjon, axe-core for a11y-testing
+- [**nextjs-aksel**](/verktoy?item=nextjs-aksel) dekker nå `loading.tsx`, `error.tsx`, Suspense med streaming, Server Actions med `useActionState`
+- [**database**](/verktoy?item=database) har fått PostgreSQL-stoff om EXPLAIN ANALYZE, JSONB med GIN-indeks, window functions og store migrasjoner
+- [**security-review**](/verktoy?item=security-review) har fått OWASP Top 10 med kodeeksempler, filopplasting og avhengighetsskanning
+- [**docker**](/verktoy?item=docker) har byttet fra Google distroless til [Chainguard base images](https://sikkerhet.nav.no/docs/verktoy/chainguard-dockerimages) fra Navs private registry. Nye eksempler for JVM, Node.js, Python, Go og nginx. CI-seksjon med `nais/docker-build-push` for autentisering mot registeret
 
 ## Installer
 

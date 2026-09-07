@@ -2,7 +2,7 @@
 title: "Kimi K2.7 Code er generelt tilgjengelig i GitHub Copilot"
 date: 2026-07-01
 category: copilot
-excerpt: "Moonshot AIs Kimi K2.7 Code er den første open-weight-modellen i Copilots modellvelger — et rimeligere alternativ for kodingsoppgaver."
+excerpt: "Moonshot AIs Kimi K2.7 Code er den første open-weight-modellen i Copilots modellvelger, og et rimeligere alternativ for kodingsoppgaver."
 url: "https://github.blog/changelog/2026-07-01-kimi-k2-7-is-now-available-in-github-copilot"
 tags:
   - models
@@ -10,7 +10,7 @@ tags:
   - open-weight
 ---
 
-Kimi K2.7 Code fra Moonshot AI er nå generelt tilgjengelig i GitHub Copilot. Det er den første open-weight-modellen som kan velges direkte i modellvelgeren — det gir flere valgmuligheter og et rimeligere alternativ for kodingsarbeidsflyter.
+Kimi K2.7 Code fra Moonshot AI er nå generelt tilgjengelig i GitHub Copilot. Det er den første open-weight-modellen som kan velges direkte i modellvelgeren, noe som gir flere valgmuligheter og et rimeligere alternativ for kodingsarbeidsflyter.
 
 Modellen er hostet av GitHub på Microsoft Azure og faktureres til provider list pricing under bruksbasert fakturering.
 
@@ -24,7 +24,7 @@ Modellen er hostet av GitHub på Microsoft Azure og faktureres til provider list
 | **Cached input** | $0.19 per 1M tokens |
 | **Output-pris** | $4.00 per 1M tokens |
 | **Modelltype** | Open-weight |
-| **Standard for Business/Enterprise** | Av — må aktiveres av administrator |
+| **Standard for Business/Enterprise** | Av. Må aktiveres av administrator |
 
 ## Aktivering for Business og Enterprise
 
@@ -36,4 +36,4 @@ Kimi K2.7 Code er av som standard for Copilot Business og Enterprise. Planadmini
 
 Tilgjengelig i: VS Code (≥ 1.127.0), Visual Studio (≥ 17.14.6), Copilot CLI, GitHub Copilot cloud agent, GitHub.com, GitHub Mobile (iOS og Android), JetBrains (≥ 1.9.1-251), Xcode, Eclipse.
 
-Utrullingen startet med Pro, Pro+ og Max — Business og Enterprise følger.
+Utrullingen startet med Pro, Pro+ og Max. Business og Enterprise følger.

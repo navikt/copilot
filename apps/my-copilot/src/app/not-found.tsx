@@ -19,7 +19,7 @@ export default function NotFound() {
           <Link href="/">Gå til forsiden</Link>
           <BodyShort size="small">
             <span lang="en">
-              Page not found — <Link href="/">Go to front page</Link>
+              Page not found. <Link href="/">Go to front page</Link>
             </span>
           </BodyShort>
         </VStack>

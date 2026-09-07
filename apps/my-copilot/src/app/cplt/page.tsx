@@ -22,14 +22,14 @@ export const metadata: Metadata = {
   openGraph: {
     title: "cplt — Sandbox for AI coding agents",
     description:
-      "Kernel-level isolation for AI coding agents. Your secrets stay secret — enforced by the OS, not by trust.",
+      "Kernel-level isolation for AI coding agents. Your secrets stay secret. Enforced by the OS, not by trust.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "cplt — Sandbox for AI coding agents",
     description:
-      "Kernel-level isolation for AI coding agents. Your secrets stay secret — enforced by the OS, not by trust.",
+      "Kernel-level isolation for AI coding agents. Your secrets stay secret. Enforced by the OS, not by trust.",
   },
 };
 
@@ -65,7 +65,7 @@ const PROTECTIONS = [
     color: "#6ee7b7",
     title: "Multi-platform Enforcement",
     description:
-      "Same policy on macOS (Seatbelt) and Linux (Landlock + seccomp-BPF). Kernel-enforced — no userspace bypass.",
+      "Same policy on macOS (Seatbelt) and Linux (Landlock + seccomp-BPF). Kernel-enforced, with no userspace bypass.",
   },
 ];
 
@@ -161,13 +161,13 @@ function HeroSection({ stars }: { stars: number | null }) {
           {/* Headline */}
           <VStack gap="space-12" className="text-center">
             <Heading size="xlarge" level="1">
-              <code style={{ fontFamily: "monospace", fontWeight: 800 }}>cplt</code> — Your AI agent is sandboxed.
+              <code style={{ fontFamily: "monospace", fontWeight: 800 }}>cplt</code> keeps your AI agent sandboxed.
             </Heading>
             <p
               className="max-w-2xl mx-auto"
               style={{ color: "#94a3b8", fontSize: "1.125rem", lineHeight: 1.7, marginBlock: 0, textAlign: "center" }}
             >
-              Kernel-level isolation for AI coding agents. Your secrets stay secret — enforced by the OS, not by trust.
+              Kernel-level isolation for AI coding agents. Your secrets stay secret. Enforced by the OS, not by trust.
             </p>
             <Box
               padding="space-16"
@@ -313,7 +313,7 @@ function SecurityTableSection() {
               Security boundary
             </Heading>
             <p className="max-w-2xl mx-auto" style={{ color: "#64748b", marginBlock: 0, textAlign: "center" }}>
-              What your agent can and cannot access — enforced at the kernel level.
+              What your agent can and cannot access, enforced at the kernel level.
             </p>
           </div>
 
@@ -450,7 +450,7 @@ function SecurityTableSection() {
           </div>
 
           <p className="text-center" style={{ color: "#64748b", fontSize: "0.8125rem", margin: 0 }}>
-            *Routed through CONNECT proxy — telemetry and non-allowlisted domains are blocked.
+            *Routed through CONNECT proxy. Telemetry and non-allowlisted domains are blocked.
             <br />
             All blocks are enforced by the operating system kernel. No userspace bypass is possible.
           </p>
@@ -476,7 +476,7 @@ function ProtectionsSection() {
               Your agent sees the code, not your secrets.
             </Heading>
             <p className="max-w-2xl mx-auto" style={{ color: "#94a3b8", marginBlock: 0, textAlign: "center" }}>
-              Four layers of kernel-enforced protection — no userspace bypass possible.
+              Four layers of kernel-enforced protection, with no userspace bypass possible.
             </p>
           </div>
 
@@ -589,7 +589,7 @@ function ProxySection() {
               Network proxy
             </Heading>
             <p className="max-w-2xl mx-auto" style={{ color: "#64748b", marginBlock: 0, textAlign: "center" }}>
-              All outbound traffic routes through a local CONNECT proxy. Block, allow, or audit — your choice.
+              All outbound traffic routes through a local CONNECT proxy. Block, allow, or audit. Your choice.
             </p>
           </div>
 
@@ -744,17 +744,17 @@ function ProxySection() {
             >
               <div className="px-5 py-4 flex-1" style={{ borderBottom: "1px solid #e2e8f0" }}>
                 <Heading size="xsmall" level="3">
-                  Proxy-forced mode — opt-in
+                  Opt-in proxy-forced mode
                 </Heading>
                 <p style={{ color: "#64748b", fontSize: "0.8125rem", lineHeight: 1.6, margin: "0.25rem 0 0" }}>
                   By default the kernel still allows direct outbound <code style={{ fontSize: "0.75rem" }}>:443</code>,
                   so a raw socket or an unset <code style={{ fontSize: "0.75rem" }}>HTTPS_PROXY</code> can skip the
                   proxy. <code style={{ fontSize: "0.75rem" }}>proxy.forced</code> closes that bypass: the proxy becomes
-                  mandatory and kernel-level egress is restricted to the proxy port only. Fails closed — if the proxy
+                  mandatory and kernel-level egress is restricted to the proxy port only. Fails closed. If the proxy
                   cannot start, the agent does not launch. macOS pins fully to{" "}
                   <code style={{ fontSize: "0.75rem" }}>localhost:&lt;proxy_port&gt;</code>; Linux drops the direct{" "}
                   <code style={{ fontSize: "0.75rem" }}>:443</code> allow, but Landlock filtering is port-based, so a
-                  narrow port-based residual remains — a deliberate limitation, tracked upstream.
+                  narrow port-based residual remains. That is a deliberate limitation, tracked upstream.
                 </p>
               </div>
               <div className="px-5 py-3 flex items-center gap-3" style={{ background: "#f8fafc" }}>
@@ -776,8 +776,8 @@ function ProxySection() {
                 <p style={{ color: "#64748b", fontSize: "0.8125rem", lineHeight: 1.6, margin: "0.25rem 0 0" }}>
                   Behind a corporate proxy? <code style={{ fontSize: "0.75rem" }}>proxy.upstream</code> forwards CONNECT
                   tunnels through it instead of forcing you to disable the cplt proxy. cplt applies its own domain
-                  filtering, logging, and port checks <em>before</em> forwarding the tunnel upstream — a blocked target
-                  never reaches the corporate proxy. Optional basic-auth userinfo is supported; http scheme only.
+                  filtering, logging, and port checks <em>before</em> forwarding the tunnel upstream, so a blocked
+                  target never reaches the corporate proxy. Optional basic-auth userinfo is supported; http scheme only.
                 </p>
               </div>
               <div className="px-5 py-3 flex items-center gap-3" style={{ background: "#f8fafc" }}>
@@ -816,7 +816,7 @@ function GuardsSection() {
               gh guard &amp; git guard
             </Heading>
             <p className="max-w-2xl mx-auto" style={{ color: "#64748b", marginBlock: 0, textAlign: "center" }}>
-              Block destructive GitHub and git operations. The agent can commit and branch — but not push to main or
+              Block destructive GitHub and git operations. The agent can commit and branch, but not push to main or
               merge PRs.
             </p>
           </div>
@@ -829,7 +829,7 @@ function GuardsSection() {
             >
               <div className="px-5 py-4" style={{ borderBottom: "1px solid #e2e8f0" }}>
                 <Heading size="xsmall" level="3">
-                  gh guard — three-tier policy
+                  gh guard with a three-tier policy
                 </Heading>
                 <p style={{ color: "#64748b", fontSize: "0.8125rem", margin: "0.25rem 0 0" }}>
                   Default-deny engine classifying 150+ <code style={{ fontSize: "0.75rem" }}>gh</code> commands.
@@ -877,12 +877,12 @@ function GuardsSection() {
               >
                 <div className="px-5 py-4" style={{ borderBottom: "1px solid #e2e8f0" }}>
                   <Heading size="xsmall" level="3">
-                    git guard — push protection
+                    git guard for push protection
                   </Heading>
                   <p style={{ color: "#64748b", fontSize: "0.8125rem", margin: "0.25rem 0 0" }}>
                     Blocks <code style={{ fontSize: "0.75rem" }}>push</code>,{" "}
                     <code style={{ fontSize: "0.75rem" }}>request-pull</code>, and{" "}
-                    <code style={{ fontSize: "0.75rem" }}>send-pack</code>. Commit, branch, rebase — all fine.
+                    <code style={{ fontSize: "0.75rem" }}>send-pack</code>. Commit, branch, rebase. All fine.
                   </p>
                 </div>
                 <div className="px-5 py-3" style={{ background: "#f8fafc" }}>
@@ -1132,10 +1132,10 @@ function TeamConfigSection() {
                 </div>
                 <div>
                   <p className="font-semibold" style={{ color: "#0f172a", fontSize: "0.875rem", margin: 0 }}>
-                    [deny] — auto-applied
+                    [deny] is applied automatically
                   </p>
                   <p style={{ color: "#64748b", fontSize: "0.8125rem", lineHeight: 1.6, margin: "0.25rem 0 0" }}>
-                    Can only tighten the sandbox. Block env vars, deny file paths — no approval needed.
+                    Can only tighten the sandbox. Block env vars and deny file paths. No approval needed.
                   </p>
                 </div>
               </div>
@@ -1154,11 +1154,11 @@ function TeamConfigSection() {
                 </div>
                 <div>
                   <p className="font-semibold" style={{ color: "#0f172a", fontSize: "0.875rem", margin: 0 }}>
-                    [propose] — requires approval
+                    [propose] requires approval
                   </p>
                   <p style={{ color: "#64748b", fontSize: "0.8125rem", lineHeight: 1.6, margin: "0.25rem 0 0" }}>
                     Request additional permissions. Each developer approves with{" "}
-                    <code style={{ fontSize: "0.75rem" }}>cplt trust accept --all</code>. Content-pinned — any change
+                    <code style={{ fontSize: "0.75rem" }}>cplt trust accept --all</code>. Content-pinned, so any change
                     invalidates the approval.
                   </p>
                 </div>
@@ -1223,7 +1223,7 @@ function InitSection() {
             </Heading>
             <p className="max-w-2xl mx-auto" style={{ color: "#94a3b8", marginBlock: 0, textAlign: "center" }}>
               <code style={{ color: "#4ade80", fontSize: "0.875rem" }}>cplt init</code> scans your project for build
-              files, frameworks, and patterns — then generates the right{" "}
+              files, frameworks, and patterns, then generates the right{" "}
               <code style={{ color: "#4ade80", fontSize: "0.875rem" }}>.cplt.toml</code> automatically.
             </p>
           </div>
@@ -1398,7 +1398,7 @@ function HowItWorksSection() {
     {
       title: "Run Your Agent",
       command: 'cplt -- -p "fix the tests"',
-      description: "Your agent works normally — but secrets are invisible.",
+      description: "Your agent works normally, but secrets are invisible.",
       Icon: ShieldLockIcon,
       color: "#4ade80",
     },
