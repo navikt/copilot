@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/navikt/copilot/cli/nav-pilot/schemas/agentpakke-payload-v1.json",
+  "title": "nav-pilot agentpakke payload manifest (v1)",
+  "description": "Contract for the payload manifest of a Tier 2 agentpakke payload. Lives at <payload>/manifest.json, or wherever the client entry's `manifest` field points. Describes the payload tree exactly: nav-pilot refuses a tree that holds a file the manifest does not list, or lacks one it does. Parenthesised ids such as (A7) are decision ids defined in the PRD at https://github.com/navikt/copilot/issues/435. Unknown top-level fields are ignored, so a generator may add descriptive keys without invalidating the manifest on an older binary.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "files"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "description": "Payload-manifest contract version. nav-pilot verifies version 1 and refuses anything else, naming `nav-pilot update` as the remedy rather than telling the author to change the manifest.",
+      "type": "integer",
+      "const": 1
+    },
+    "target": {
+      "description": "The payload's own build-target name, e.g. \"copilot-full-v1\". Parsed and exposed but never asserted against: an agentpakke names its payloads by client and context, not by build target, so the digest chain is what binds the tree and this is a label. Optional.",
+      "type": "string",
+      "minLength": 1
+    },
+    "files": {
+      "description": "Every file in the payload tree, keyed by payload-relative path. Exhaustive in both directions: the tree must contain all of these and nothing else, save the payload manifest itself. An empty map is legal and describes an empty payload.",
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/payloadRelativePath"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/fileRecord"
+      }
+    }
+  },
+  "$defs": {
+    "payloadRelativePath": {
+      "description": "A normalized, contained, payload-relative path. Forward slashes only, no backslashes; not absolute; no \"~\" prefix; no \".\" or \"..\" segments; no duplicate or trailing slashes. Three or more dots is an ordinary file name and is allowed. JSON Schema patterns compile under Go's RE2, which has no lookahead, so one rule the Go validator applies is not expressible here and stays in nav-pilot alone: a path may not be padded with leading or trailing whitespace. A manifest that passes this schema can still be refused for that reason.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?:\\.*[^./\\\\~][^/\\\\]*|\\.{3,})(?:/(?:\\.*[^./\\\\][^/\\\\]*|\\.{3,}))*$"
+    },
+    "fileRecord": {
+      "description": "What one file must hash to, and which mode it must carry.",
+      "type": "object",
+      "required": [
+        "sha256",
+        "mode"
+      ],
+      "properties": {
+        "sha256": {
+          "description": "The file's content digest, 64 lowercase hex characters.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "mode": {
+          "description": "The file's permission bits as an octal string. Only these two are allowed: a payload may ship a regular file or an executable, and nothing else (A7).",
+          "type": "string",
+          "enum": [
+            "0644",
+            "0755"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

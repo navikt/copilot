@@ -186,11 +186,28 @@ func TestStagePayloadFailsClosed(t *testing.T) {
 			wantErrs: []string{`"LICENSE"`, "0666"},
 		},
 		{
+			// A key the record contract does not carry is refused, by the schema
+			// and by the Go decoder alike (#704). "sha256sum" instead of
+			// "sha256" is a typo that would otherwise leave the digest field
+			// absent and the entry silently unbound.
+			name: "unknown key in a file record",
+			mutate: func(_ *testing.T, _ string, doc map[string]any) {
+				rec := doc["files"].(map[string]any)["LICENSE"].(map[string]any)
+				rec["sha256sum"] = rec["sha256"]
+			},
+			wantErrs: []string{"LICENSE"},
+		},
+		{
+			// The wording moved to the schema in #704: the published schema now
+			// decides conformance, so this reports "files.LICENSE: got number,
+			// want object" rather than the hand-written record error. The
+			// assertion is on what the message must still do, name the entry
+			// and the shape, not on which layer produced it.
 			name: "malformed manifest record",
 			mutate: func(_ *testing.T, _ string, doc map[string]any) {
 				doc["files"].(map[string]any)["LICENSE"] = 7
 			},
-			wantErrs: []string{`record for "LICENSE" is malformed`},
+			wantErrs: []string{"files.LICENSE", "want object"},
 		},
 		{
 			name: "unsupported payload schemaVersion",

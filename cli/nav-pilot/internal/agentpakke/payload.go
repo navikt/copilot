@@ -1,6 +1,7 @@
 package agentpakke
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -98,6 +99,29 @@ func (r FileRecord) perm() (fs.FileMode, error) {
 // manifest. Every record is checked here, before a single file is hashed, so a
 // malformed manifest is reported as such rather than as a digest mismatch.
 func ParsePayloadManifest(data []byte) (*PayloadManifest, error) {
+	// The version gate runs before the schema, for the reason #504 U1 gave for
+	// the top-level manifest: the schema pins schemaVersion to 1, so a payload
+	// on a future version would surface as "value must be 1" and tell the author
+	// to fix a manifest that is not wrong. The party who has to act is the user,
+	// by upgrading nav-pilot.
+	var gate struct {
+		SchemaVersion *int `json:"schemaVersion"`
+	}
+	if err := json.Unmarshal(data, &gate); err == nil && gate.SchemaVersion != nil && *gate.SchemaVersion != PayloadSchemaVersion {
+		return nil, fmt.Errorf(
+			"payload manifest declares schemaVersion %d; this nav-pilot verifies payload schemaVersion %d. "+
+				"Upgrade nav-pilot (nav-pilot update) or ask the agentpakke to publish a payload manifest on a supported version",
+			*gate.SchemaVersion, PayloadSchemaVersion)
+	}
+
+	// Then the published schema, then the hand-written checks. The schema is the
+	// shape an agentpakke author lints against in their own CI, so it decides
+	// conformance; the checks below still run, because they name the offending
+	// path and the remedy in a way a schema error cannot (#704 T4).
+	if err := validatePayloadSchema(data); err != nil {
+		return nil, err
+	}
+
 	// Files is decoded per record below so a malformed record can name the path
 	// it belongs to; encoding/json's own error for a map value does not.
 	var doc struct {
@@ -155,10 +179,18 @@ func parseFileRecord(rel string, raw json.RawMessage) (FileRecord, error) {
 			"payload manifest lists %q, which is not a normalized payload-relative path; write it without \".\", \"..\", duplicate or trailing slashes",
 			rel)
 	}
+	// DisallowUnknownFields, so the Go side refuses exactly what the schema's
+	// additionalProperties:false refuses (#704). A stray key in a digest entry
+	// ("sha256sum", "Mode", "perm") is far likelier a typo that silently does
+	// nothing than a deliberate extension, and this is the trust boundary. The
+	// contract's ignore-unknown rule is about the manifest's own top level, not
+	// about the records that bind the bytes.
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
 	var rec FileRecord
-	if err := json.Unmarshal(raw, &rec); err != nil {
+	if err := dec.Decode(&rec); err != nil {
 		return FileRecord{}, fmt.Errorf(
-			"payload manifest record for %q is malformed; expected {\"sha256\": …, \"mode\": …}: %w", rel, err)
+			"payload manifest record for %q is malformed; expected exactly {\"sha256\": …, \"mode\": …}: %w", rel, err)
 	}
 	if !isSHA256Hex(rec.SHA256) {
 		return FileRecord{}, fmt.Errorf(
