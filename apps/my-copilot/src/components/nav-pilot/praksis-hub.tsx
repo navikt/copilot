@@ -39,7 +39,7 @@ const iconMap: Record<string, React.ElementType> = {
   PlayIcon,
   GlassesIcon,
 };
-import { Category, Guide } from "@/app/praksis/data";
+import { Category, Guide } from "@/app/(nb)/praksis/data";
 
 type ClientGuide = Omit<Guide, "components">;
 type ClientCategory = Omit<Category, "guides"> & { guides: ClientGuide[] };

@@ -1,3 +1,4 @@
+import NextLink from "next/link";
 import { Heading, BodyShort, Box, HGrid, HelpText, VStack, Label } from "@navikt/ds-react";
 import { Carousel } from "@/components/carousel";
 import { CodeBlock } from "@/components/code-block";
@@ -71,9 +72,12 @@ export default function PrepareForSuccess() {
         </HGrid>
         <BodyShort className="text-gray-600 text-xs mt-3">
           Bruk{" "}
-          <a href="/verktoy?item=mcp-io.github.navikt%2Fmcp-onboarding" className="text-blue-600 hover:underline">
+          <NextLink
+            href="/verktoy?item=mcp-io.github.navikt%2Fmcp-onboarding"
+            className="text-blue-600 hover:underline"
+          >
             MCP onboarding-serveren
-          </a>{" "}
+          </NextLink>{" "}
           for å sjekke repoets agent-beredskap og generere begge filene automatisk.
         </BodyShort>
       </Box>
@@ -94,9 +98,9 @@ export default function PrepareForSuccess() {
         <HGrid columns={{ xs: 1, md: 2, lg: 4 }} gap="space-20">
           <VStack gap="space-8">
             <Label size="small" className="text-blue-700">
-              <a href="/verktoy?type=prompt" className="hover:underline">
+              <NextLink href="/verktoy?type=prompt" className="hover:underline">
                 Prompts
-              </a>
+              </NextLink>
             </Label>
             <VStack gap="space-4">
               <BodyShort size="small" className="text-gray-600">
@@ -136,9 +140,9 @@ export default function PrepareForSuccess() {
           </VStack>
           <VStack gap="space-8">
             <Label size="small" className="text-orange-700">
-              <a href="/verktoy?type=agent" className="hover:underline">
+              <NextLink href="/verktoy?type=agent" className="hover:underline">
                 Agents
-              </a>
+              </NextLink>
             </Label>
             <VStack gap="space-4">
               <BodyShort size="small" className="text-gray-600">
@@ -158,9 +162,9 @@ export default function PrepareForSuccess() {
           </VStack>
           <VStack gap="space-8">
             <Label size="small" className="text-purple-700">
-              <a href="/verktoy?type=skill" className="hover:underline">
+              <NextLink href="/verktoy?type=skill" className="hover:underline">
                 Skills
-              </a>
+              </NextLink>
             </Label>
             <VStack gap="space-4">
               <BodyShort size="small" className="text-gray-600">

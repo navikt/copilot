@@ -4,6 +4,7 @@ import type { NewsItem, NewsCategory } from "@/lib/news";
 
 function makeItem(overrides: Partial<NewsItem> = {}): NewsItem {
   return {
+    lang: "nb",
     slug: "test-article",
     title: "Test Title",
     date: "2025-06-01",

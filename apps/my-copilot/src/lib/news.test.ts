@@ -18,6 +18,7 @@ describe("CATEGORY_CONFIG", () => {
 
     function createItem(overrides: Partial<NewsItem>): NewsItem {
       return {
+        lang: "nb",
         slug: "test-item",
         title: "Test item",
         date: "2026-06-12",
@@ -69,6 +70,7 @@ describe("CATEGORY_CONFIG", () => {
 
     const items: NewsItem[] = [
       {
+        lang: "nb",
         slug: "old-link",
         title: "Old external",
         date: "2026-05-01",
@@ -80,6 +82,7 @@ describe("CATEGORY_CONFIG", () => {
         url: "https://example.com/old",
       },
       {
+        lang: "nb",
         slug: "old-article",
         title: "Old article",
         date: "2026-01-01",
@@ -90,6 +93,7 @@ describe("CATEGORY_CONFIG", () => {
         type: "article",
       },
       {
+        lang: "nb",
         slug: "fresh-link",
         title: "Fresh external",
         date: "2026-06-11",
@@ -104,6 +108,7 @@ describe("CATEGORY_CONFIG", () => {
 
     it("puts a festet sak above newer items", () => {
       const featured: NewsItem = {
+        lang: "nb",
         slug: "festet",
         title: "Festet",
         date: "2026-05-01",
@@ -121,6 +126,7 @@ describe("CATEGORY_CONFIG", () => {
 
     it("orders festede saker among themselves by date", () => {
       const base: NewsItem = {
+        lang: "nb",
         slug: "",
         title: "",
         date: "",
@@ -139,6 +145,7 @@ describe("CATEGORY_CONFIG", () => {
 
     it("leaves date order alone when nothing is festet", () => {
       const base: NewsItem = {
+        lang: "nb",
         slug: "",
         title: "",
         date: "",
@@ -162,6 +169,36 @@ describe("CATEGORY_CONFIG", () => {
     it("filters old external excerpts on front page while keeping authored articles", () => {
       const result = selectNewsItems(items, { frontPage: true, now });
       expect(result.map((item) => item.slug)).toEqual(["fresh-link", "old-article"]);
+    });
+
+    describe("language", () => {
+      const base: NewsItem = {
+        lang: "nb",
+        slug: "",
+        title: "",
+        date: "2026-06-01",
+        draft: false,
+        category: "nav-pilot",
+        excerpt: "",
+        tags: [],
+        type: "article",
+      };
+      const norsk = { ...base, slug: "norsk" };
+      const english = { ...base, lang: "en" as const, slug: "english" };
+
+      it("returns Norwegian items when no language is asked for", () => {
+        expect(selectNewsItems([norsk, english]).map((i) => i.slug)).toEqual(["norsk"]);
+      });
+
+      it("returns only the requested language from mixed input", () => {
+        expect(selectNewsItems([norsk, english], { lang: "en" }).map((i) => i.slug)).toEqual(["english"]);
+      });
+
+      // The default is a filter and not a fallback: a Norwegian page with only
+      // English items shows nothing rather than leaking the other language in.
+      it("returns nothing when no item is in the requested language", () => {
+        expect(selectNewsItems([english], { lang: "nb" })).toEqual([]);
+      });
     });
   });
 

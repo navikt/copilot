@@ -26,5 +26,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
-  return [...staticPages, ...newsPages];
+  const englishNews = getNewsItems({ lang: "en" }).filter((item) => item.type === "article");
+  const englishPages: MetadataRoute.Sitemap = englishNews.map((item) => ({
+    url: `${BASE_URL}/en/news/${item.slug}`,
+    changeFrequency: "monthly" as const,
+    priority: 0.6,
+  }));
+
+  return [...staticPages, ...newsPages, ...englishPages];
 }

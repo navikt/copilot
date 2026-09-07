@@ -1,13 +1,8 @@
 import { ImageResponse } from "next/og";
-import { getArticle, CATEGORY_CONFIG } from "@/lib/news";
+import { getArticle, CATEGORY_CONFIG, type NewsLang } from "@/lib/news";
 import { formatDate } from "@/lib/format";
 
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
-
-interface Props {
-  params: Promise<{ slug: string }>;
-}
+const size = { width: 1200, height: 630 };
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
   copilot: "linear-gradient(165deg, #0a1a2e 0%, #162447 35%, #1f4068 65%, #1b3045 100%)",
@@ -25,9 +20,8 @@ const CATEGORY_COLORS: Record<string, string> = {
   oppsummering: "#94a3b8",
 };
 
-export default async function Image({ params }: Props) {
-  const { slug } = await params;
-  const article = getArticle(slug);
+export async function articleImage(slug: string, lang: NewsLang) {
+  const article = getArticle(slug, lang);
 
   if (!article) {
     return new ImageResponse(
@@ -41,7 +35,9 @@ export default async function Image({ params }: Props) {
           justifyContent: "center",
         }}
       >
-        <div style={{ fontSize: "48px", color: "white" }}>Artikkel ikke funnet</div>
+        <div style={{ fontSize: "48px", color: "white" }}>
+          {lang === "en" ? "Article not found" : "Artikkel ikke funnet"}
+        </div>
       </div>,
       { ...size }
     );
@@ -91,7 +87,7 @@ export default async function Image({ params }: Props) {
             color: "#94a3b8",
           }}
         >
-          {formatDate(article.date)}
+          {formatDate(article.date, lang === "en" ? "en-GB" : "nb-NO")}
         </div>
       </div>
 

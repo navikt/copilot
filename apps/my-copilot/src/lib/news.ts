@@ -2,10 +2,10 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 
-export type { NewsCategory, NewsItem } from "./news-types";
+export type { NewsCategory, NewsItem, NewsLang } from "./news-types";
 export { CATEGORY_CONFIG } from "./news-types";
 
-import type { NewsCategory, NewsItem } from "./news-types";
+import type { NewsCategory, NewsItem, NewsLang } from "./news-types";
 
 const VALID_CATEGORIES: Set<string> = new Set<string>(["copilot", "nav", "nav-pilot", "praksis", "oppsummering"]);
 const OSLO_TIME_ZONE = "Europe/Oslo";
@@ -21,6 +21,7 @@ const osloDateFormatter = new Intl.DateTimeFormat("en-CA", {
 export interface GetNewsItemsOptions {
   frontPage?: boolean;
   now?: Date;
+  lang?: NewsLang;
 }
 
 function isValidCategory(value: unknown): value is NewsCategory {
@@ -33,6 +34,21 @@ function parseCategory(value: unknown, slug: string): NewsCategory {
     console.warn(`Unknown news category "${value}" in ${slug}.md, falling back to "copilot"`);
   }
   return "copilot";
+}
+
+// Articles default to Norwegian: the site was Norwegian long before the first
+// English one, and none of the existing files carry a lang field.
+// A slug becomes a URL path segment, so it may only hold what a filename is
+// allowed to contribute. Anything else is a file that could not be routed to
+// anyway, and leaving it unchecked lets file content reach an href.
+const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
+
+export function isValidSlug(slug: string): boolean {
+  return SLUG_RE.test(slug);
+}
+
+function parseLang(value: unknown): NewsLang {
+  return value === "en" ? "en" : "nb";
 }
 
 function toDateOnly(value: unknown): string {
@@ -86,7 +102,8 @@ export function isExternalExcerptFresh(item: NewsItem, now: Date = new Date()): 
 }
 
 export function selectNewsItems(items: NewsItem[], options: GetNewsItemsOptions = {}): NewsItem[] {
-  const visibleItems = options.frontPage ? items.filter((item) => isExternalExcerptFresh(item, options.now)) : items;
+  const inLang = items.filter((item) => item.lang === (options.lang ?? "nb"));
+  const visibleItems = options.frontPage ? inLang.filter((item) => isExternalExcerptFresh(item, options.now)) : inLang;
   // A festet sak outranks the date so an item can be lifted back to the top
   // without back-dating it. Only the flag is consulted; among festede saker,
   // and among the rest, the ordinary date order still applies.
@@ -114,6 +131,7 @@ function parseNewsFile(fileName: string): NewsItem {
 
   return {
     slug,
+    lang: parseLang(data.lang),
     title: data.title,
     date: toDateOnly(data.date),
     draft: data.draft === true,
@@ -130,14 +148,22 @@ function parseNewsFile(fileName: string): NewsItem {
 export function getNewsItems(options: GetNewsItemsOptions = {}): NewsItem[] {
   if (!fs.existsSync(articlesDir)) return [];
 
-  const files = fs.readdirSync(articlesDir).filter((f) => f.endsWith(".md"));
+  const files = fs
+    .readdirSync(articlesDir)
+    .filter((f) => f.endsWith(".md"))
+    .filter((f) => isValidSlug(f.replace(/\.md$/, "")));
   return selectNewsItems(
     files.map(parseNewsFile).filter((item) => !item.draft),
     options
   );
 }
 
-export function getArticle(slug: string): (NewsItem & { content: string }) | null {
+// The language is checked here rather than at each call site: a route that
+// forgets the check would serve an article under the wrong lang attribute, and
+// a draft would be reachable by guessing its URL.
+export function getArticle(slug: string, lang: NewsLang = "nb"): (NewsItem & { content: string }) | null {
+  if (!isValidSlug(slug)) return null;
+
   const filePath = path.join(articlesDir, `${slug}.md`);
   if (!fs.existsSync(filePath)) return null;
 
@@ -145,9 +171,12 @@ export function getArticle(slug: string): (NewsItem & { content: string }) | nul
   const { data, content } = matter(raw);
 
   if (content.trim().length === 0) return null;
+  if (data.draft === true) return null;
+  if (parseLang(data.lang) !== lang) return null;
 
   return {
     slug,
+    lang: parseLang(data.lang),
     title: data.title,
     date: toDateOnly(data.date),
     draft: data.draft === true,
@@ -162,18 +191,8 @@ export function getArticle(slug: string): (NewsItem & { content: string }) | nul
   };
 }
 
-export function getArticleSlugs(): string[] {
-  if (!fs.existsSync(articlesDir)) return [];
-
-  const files = fs.readdirSync(articlesDir).filter((f) => f.endsWith(".md"));
-  return files
-    .map((f) => {
-      const slug = f.replace(/\.md$/, "");
-      const filePath = path.join(articlesDir, f);
-      const raw = fs.readFileSync(filePath, "utf-8");
-      const { data, content } = matter(raw);
-      if (data.draft === true) return null;
-      return content.trim().length > 0 ? slug : null;
-    })
-    .filter((s): s is string => s !== null);
+export function getArticleSlugs(lang: NewsLang = "nb"): string[] {
+  return getNewsItems({ lang })
+    .filter((item) => item.type === "article")
+    .map((item) => item.slug);
 }

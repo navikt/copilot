@@ -1,3 +1,4 @@
+import NextLink from "next/link";
 import { Heading, BodyShort, Box, HGrid, Label, VStack } from "@navikt/ds-react";
 import {
   CheckmarkCircleIcon,
@@ -318,9 +319,9 @@ export default function EffectiveCustomizations() {
         <HGrid columns={{ xs: 1, md: 3 }} gap="space-16">
           <Box background="default" padding="space-12" borderRadius="4">
             <Label size="small" className="text-green-700">
-              <a href="/verktoy?type=instruction" className="hover:underline">
+              <NextLink href="/verktoy?type=instruction" className="hover:underline">
                 Instructions
-              </a>
+              </NextLink>
             </Label>
             <BodyShort className="text-gray-600 text-xs mt-1">
               Kodestil, navnekonvensjoner, sikkerhetsregler. Start med én copilot-instructions.md, utvid med
@@ -329,9 +330,9 @@ export default function EffectiveCustomizations() {
           </Box>
           <Box background="default" padding="space-12" borderRadius="4">
             <Label size="small" className="text-blue-700">
-              <a href="/verktoy?type=agent" className="hover:underline">
+              <NextLink href="/verktoy?type=agent" className="hover:underline">
                 Agents
-              </a>
+              </NextLink>
             </Label>
             <BodyShort className="text-gray-600 text-xs mt-1">
               Spesialiserte roller som @test-agent, @docs-agent. Når du trenger eget verktøysett og persona. Støtter
@@ -340,9 +341,9 @@ export default function EffectiveCustomizations() {
           </Box>
           <Box background="default" padding="space-12" borderRadius="4">
             <Label size="small" className="text-purple-700">
-              <a href="/verktoy?type=skill" className="hover:underline">
+              <NextLink href="/verktoy?type=skill" className="hover:underline">
                 Skills
-              </a>
+              </NextLink>
             </Label>
             <BodyShort className="text-gray-600 text-xs mt-1">
               Gjenbrukbare kapabiliteter med skript. Når du trenger portabilitet på tvers av VS Code, CLI og Coding

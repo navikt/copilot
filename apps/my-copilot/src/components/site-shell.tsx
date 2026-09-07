@@ -4,39 +4,41 @@ import { HashAnchorScroll } from "@/components/hash-anchor-scroll";
 import NavBudgetBar from "@/components/nav-budget-bar";
 import { getUser } from "@/lib/auth";
 import { BodyShort, Box, HStack, Link, Theme } from "@navikt/ds-react";
-import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import NextLink from "next/link";
 import { Suspense } from "react";
-import "./globals.css";
+
+export interface ShellLabels {
+  subscription: string;
+  subscriptionHref: string;
+  signIn: string;
+  privacy: string;
+  privacyHref: string;
+  // Set when the target page is in another language than the shell, so the
+  // link carries hreflang and WCAG 3.1.2 is satisfied for the text inside it.
+  privacyHrefLang?: string;
+  accessibility: string;
+  accessibilityHref: string;
+  accessibilityHrefLang?: string;
+  // The footer message is Norwegian whatever the shell language is.
+  footerLang?: string;
+}
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata: Metadata = {
-  title: {
-    template: "%s — Oh-My-Nav",
-    default: "Oh-My-Nav",
-  },
-  description: "Nyheter, beste praksis og verktøy for AI-drevet utvikling i Nav.",
-  metadataBase: new URL("https://ki-utvikling.nav.no"),
-  openGraph: {
-    type: "website",
-    locale: "nb_NO",
-    siteName: "Oh-My-Nav",
-    title: "Oh-My-Nav",
-    description: "Nyheter, beste praksis og verktøy for AI-drevet utvikling i Nav.",
-  },
-};
-
-export default async function RootLayout({
+export async function SiteShell({
+  lang,
+  labels,
   children,
 }: Readonly<{
+  lang: "nb" | "en";
+  labels: ShellLabels;
   children: React.ReactNode;
 }>) {
   const user = await getUser(false);
 
   return (
-    <html lang="nb">
+    <html lang={lang}>
       <body className={`${inter.className} bg-gray-800 min-h-dvh flex flex-col`}>
         <Suspense fallback={null}>
           <HashAnchorScroll />
@@ -58,10 +60,10 @@ export default async function RootLayout({
                 {user ? (
                   <HStack gap="space-16" align="center">
                     <NextLink
-                      href="/abonnement"
+                      href={labels.subscriptionHref}
                       className="text-white/70 text-sm no-underline hover:text-white transition-colors"
                     >
-                      Abonnement
+                      {labels.subscription}
                     </NextLink>
                     <NavBudgetBar />
                     <BodyShort size="small" style={{ color: "rgba(255, 255, 255, 0.7)" }}>
@@ -70,7 +72,7 @@ export default async function RootLayout({
                   </HStack>
                 ) : (
                   <Link href="/oauth2/login" data-color="neutral" className="text-sm" underline={false}>
-                    Logg inn
+                    {labels.signIn}
                   </Link>
                 )}
               </HStack>
@@ -90,14 +92,20 @@ export default async function RootLayout({
             className="max-w-7xl mx-auto"
           >
             <footer>
-              <FooterMessage />
+              {labels.footerLang ? (
+                <span lang={labels.footerLang}>
+                  <FooterMessage />
+                </span>
+              ) : (
+                <FooterMessage />
+              )}
               <HStack gap="space-16" asChild>
                 <BodyShort size="small" as="div">
-                  <Link href="/personvern" data-color="neutral">
-                    Personvern
+                  <Link href={labels.privacyHref} hrefLang={labels.privacyHrefLang} data-color="neutral">
+                    {labels.privacy}
                   </Link>
-                  <Link href="/tilgjengelighet" data-color="neutral">
-                    Tilgjengelighet
+                  <Link href={labels.accessibilityHref} hrefLang={labels.accessibilityHrefLang} data-color="neutral">
+                    {labels.accessibility}
                   </Link>
                   <Link href="https://github.com/navikt/copilot" data-color="neutral">
                     GitHub

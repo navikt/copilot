@@ -1,7 +1,5 @@
-import type { Metadata } from "next";
 import { Box, VStack, Heading, BodyShort, BodyLong, Tag, HStack } from "@navikt/ds-react";
-import { notFound } from "next/navigation";
-import { getArticle, getArticleSlugs, CATEGORY_CONFIG } from "@/lib/news";
+import { CATEGORY_CONFIG, type NewsItem, type NewsLang } from "@/lib/news";
 import NextLink from "next/link";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -40,49 +38,23 @@ const markdownComponents: Components = {
   },
 };
 
-interface Props {
-  params: Promise<{ slug: string }>;
+export interface ArticleLabels {
+  backToIndex: string;
+  backToIndexHref: string;
+  backToAll: string;
+  backToAllHref: string;
+  backToAllLang?: string;
 }
 
-export function generateStaticParams() {
-  return getArticleSlugs().map((slug) => ({ slug }));
-}
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
-  const article = getArticle(slug);
-
-  if (!article) {
-    return {
-      title: "Artikkel ikke funnet",
-    };
-  }
-
-  return {
-    title: article.title,
-    description: article.excerpt,
-    openGraph: {
-      title: article.title,
-      description: article.excerpt,
-      type: "article",
-      publishedTime: article.date,
-      authors: article.author ? [article.author] : undefined,
-      tags: article.tags,
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: article.title,
-      description: article.excerpt,
-    },
-  };
-}
-
-export default async function ArticlePage({ params }: Props) {
-  const { slug } = await params;
-  const article = getArticle(slug);
-
-  if (!article) notFound();
-
+export function ArticleView({
+  article,
+  lang,
+  labels,
+}: {
+  article: NewsItem & { content: string };
+  lang: NewsLang;
+  labels: ArticleLabels;
+}) {
   const categoryConfig = CATEGORY_CONFIG[article.category] ?? { label: article.category, variant: "info" as const };
 
   return (
@@ -94,20 +66,20 @@ export default async function ArticlePage({ params }: Props) {
         >
           <VStack gap="space-16">
             <NextLink
-              href="/"
+              href={labels.backToIndexHref}
               className="inline-flex items-center gap-1.5 text-sm text-text-subtle no-underline hover:underline"
             >
               <ArrowLeftIcon aria-hidden fontSize="1rem" />
-              Nyheter
+              {labels.backToIndex}
             </NextLink>
 
             <VStack gap="space-8">
               <HStack gap="space-4" align="center">
                 <Tag size="small" variant={categoryConfig.variant}>
-                  {categoryConfig.label}
+                  <span lang="nb">{categoryConfig.label}</span>
                 </Tag>
                 <BodyShort size="small" className="text-text-subtle">
-                  {formatDate(article.date)}
+                  {formatDate(article.date, lang === "en" ? "en-GB" : "nb-NO")}
                 </BodyShort>
               </HStack>
               <Heading size="xlarge" level="1">
@@ -121,9 +93,13 @@ export default async function ArticlePage({ params }: Props) {
               </Markdown>
             </article>
 
-            <NextLink href="/" className="inline-flex items-center gap-1.5 text-sm no-underline hover:underline py-2">
+            <NextLink
+              href={labels.backToAllHref}
+              hrefLang={labels.backToAllLang}
+              className="inline-flex items-center gap-1.5 text-sm no-underline hover:underline py-2"
+            >
               <ArrowLeftIcon aria-hidden fontSize="1rem" />
-              Alle nyheter
+              {labels.backToAll}
             </NextLink>
           </VStack>
         </Box>
