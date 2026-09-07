@@ -191,6 +191,16 @@ export function getArticle(slug: string, lang: NewsLang = "nb"): (NewsItem & { c
   };
 }
 
+// A news item that is only a link has no page of its own. The URL still gets
+// shared, so the route sends the reader to the source rather than answering
+// 404 for a slug we can resolve.
+export function getLinkTarget(slug: string, lang: NewsLang = "nb"): string | null {
+  if (!isValidSlug(slug)) return null;
+
+  const item = getNewsItems({ lang }).find((candidate) => candidate.slug === slug);
+  return item?.type === "link" && item.url ? item.url : null;
+}
+
 export function getArticleSlugs(lang: NewsLang = "nb"): string[] {
   return getNewsItems({ lang })
     .filter((item) => item.type === "article")
