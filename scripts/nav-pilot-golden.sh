@@ -1566,8 +1566,8 @@ run_pass_nav_pilot() {
       record 6 "$DESC6" 1 \
         "escalated to Opus for a small refactor — the model gate regressed"
     # ⚠️  THE ESCALATION CLAUSE MEASURED NOTHING UNTIL #688, AND THIS IS WHY.
-    # Until then `nav-pilot.agent.md` carried no subagent tool, so escalating was
-    # not an action the agent could take — only a sentence it could write.
+    # Until then `agents/nav-pilot.agent.md` carried no subagent tool, so escalating
+    # was not an action the agent could take — only a sentence it could write.
     # `nav-pilot-opus` appears in 0 of the 28 kept t6 transcripts across eight
     # kept run directories, and every one of those was recorded under that
     # frontmatter. #688 added `agent` to the tool list, so the clause is now live:
