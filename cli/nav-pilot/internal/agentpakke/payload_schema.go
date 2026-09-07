@@ -53,6 +53,13 @@ func payloadSchema() (*jsonschema.Schema, error) {
 // validatePayloadSchema checks raw payload-manifest bytes against the published
 // schema.
 //
+// It names no file. [ParsePayloadManifest] takes bytes and does not know where
+// they came from: the payload manifest is at <payload>/manifest.json by
+// convention, but a client entry's `manifest` field can point anywhere, so a
+// hardcoded "manifest.json" here would be wrong exactly for the packages that
+// moved it. Every caller that has the real path already wraps the error with
+// it.
+//
 // It runs before the hand-written checks in [ParsePayloadManifest], not instead
 // of them. The schema is the published shape, so it is what an agentpakke
 // author lints against and what must decide whether a manifest conforms; the Go
@@ -60,21 +67,21 @@ func payloadSchema() (*jsonschema.Schema, error) {
 // schema error cannot do as well. The two must therefore agree, and the tests
 // pin the places where agreement is easy to lose: unknown keys in a file
 // record, and the path grammar.
-func validatePayloadSchema(data []byte, manifestPath string) error {
+func validatePayloadSchema(data []byte) error {
 	sch, err := payloadSchema()
 	if err != nil {
 		return err
 	}
 	inst, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
 	if err != nil {
-		return fmt.Errorf("payload manifest %s is not valid JSON: %w", manifestPath, err)
+		return fmt.Errorf("payload manifest is not valid JSON: %w", err)
 	}
 	if err := sch.Validate(inst); err != nil {
 		var verr *jsonschema.ValidationError
 		if !errors.As(err, &verr) {
-			return fmt.Errorf("payload manifest %s failed schema validation: %w", manifestPath, err)
+			return fmt.Errorf("payload manifest failed schema validation: %w", err)
 		}
-		return schemaErrorFor(manifestPath, PayloadSchemaID, schemaViolations(verr))
+		return schemaErrorFor("payload manifest", PayloadSchemaID, schemaViolations(verr))
 	}
 	return nil
 }

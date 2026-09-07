@@ -147,11 +147,6 @@ func leafCauses(verr *jsonschema.ValidationError, acc []*jsonschema.ValidationEr
 func describeCause(c *jsonschema.ValidationError) string {
 	loc := instanceLocation(c.InstanceLocation)
 	msg := strings.TrimSpace(c.ErrorKind.LocalizedString(errPrinter))
-	// A pattern failure renders the whole regex, which for the payload path
-	// grammar is forty characters of escaped RE2 and tells an author nothing
-	// they can act on. The rule it encodes is one sentence, so say the sentence.
-	// Without this, "../secrets.env" reported a regex dump where it used to say
-	// the path escapes the payload (#704).
 	// A pattern failure renders the whole regex. For the payload path grammar
 	// that is forty characters of escaped RE2 and tells an author nothing they
 	// can act on, so those two patterns get the sentence they encode instead.

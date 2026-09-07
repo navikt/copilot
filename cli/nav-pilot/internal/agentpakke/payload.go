@@ -118,7 +118,7 @@ func ParsePayloadManifest(data []byte) (*PayloadManifest, error) {
 	// shape an agentpakke author lints against in their own CI, so it decides
 	// conformance; the checks below still run, because they name the offending
 	// path and the remedy in a way a schema error cannot (#704 T4).
-	if err := validatePayloadSchema(data, PayloadManifestFile); err != nil {
+	if err := validatePayloadSchema(data); err != nil {
 		return nil, err
 	}
 
@@ -181,7 +181,7 @@ func parseFileRecord(rel string, raw json.RawMessage) (FileRecord, error) {
 	}
 	// DisallowUnknownFields, so the Go side refuses exactly what the schema's
 	// additionalProperties:false refuses (#704). A stray key in a digest entry
-	// — "sha256sum", "Mode", "perm" — is far likelier a typo that silently does
+	// ("sha256sum", "Mode", "perm") is far likelier a typo that silently does
 	// nothing than a deliberate extension, and this is the trust boundary. The
 	// contract's ignore-unknown rule is about the manifest's own top level, not
 	// about the records that bind the bytes.
