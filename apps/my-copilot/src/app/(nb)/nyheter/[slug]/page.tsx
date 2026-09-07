@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { getArticle, getArticleSlugs } from "@/lib/news";
+import { notFound, redirect } from "next/navigation";
+import { getArticle, getArticleSlugs, getLinkTarget } from "@/lib/news";
 import { ArticleView } from "@/components/article-view";
 
 interface Props {
@@ -44,7 +44,11 @@ export default async function ArticlePage({ params }: Props) {
   const { slug } = await params;
   const article = getArticle(slug);
 
-  if (!article) notFound();
+  if (!article) {
+    const linkTarget = getLinkTarget(slug);
+    if (linkTarget) redirect(linkTarget);
+    notFound();
+  }
 
   return (
     <ArticleView
