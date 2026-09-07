@@ -1007,7 +1007,8 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		green("✓"), result.Installed, scope.Label(), stateVersion, shortSHA(src.SHA))
 	fmt.Println()
 	fmt.Println(dim("Agents and skills are now available across all your repos."))
-	fmt.Println(dim("Use @nav-pilot in Copilot Chat or copilot --agent nav-pilot"))
+	agent := installedPrimaryAgent(src)
+	fmt.Println(dim(fmt.Sprintf("Use @%s in Copilot Chat or copilot --agent %s", agent, agent)))
 
 	if len(manifest.Instructions) > 0 && scope.IsUser() {
 		fmt.Println()
