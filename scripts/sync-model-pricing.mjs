@@ -24,7 +24,9 @@ const DOC_FILE = new URL("../docs/modellvalg.md", import.meta.url);
 
 // The one sentence in docs/modellvalg.md that timestamps the price table.
 // Anchored on its wording so the editorial dates elsewhere in the file stay put.
-const DOC_DATE_RE = /(GitHubs listepriser slik de sto \*\*)([^*]+)(\*\*)/;
+// The sentence wraps, so the gap before the date can be a newline. Matching
+// a literal space made the guard throw the moment prettier reflowed it.
+const DOC_DATE_RE = /(GitHubs listepriser slik de sto\s+\*\*)([^*]+)(\*\*)/;
 
 const NB_MONTHS = [
   "januar", "februar", "mars", "april", "mai", "juni",

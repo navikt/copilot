@@ -146,6 +146,21 @@ test("the doc's pricing date is rewritten, and the editorial dates are not", () 
   assert.equal(out.split("\n").slice(1).join("\n"), doc.split("\n").slice(1).join("\n"));
 });
 
+test("the pricing date is found when the sentence wraps before the date", () => {
+  // How docs/modellvalg.md actually reads: prettier put a newline between
+  // "sto" and the bolded date, and matching a literal space made the guard
+  // throw "the pricing-date sentence is gone" on a sentence that was there.
+  const doc = [
+    "GitHub priser. Prisene under er GitHubs listepriser slik de sto",
+    "**30. august 2026**, hentet fra `apps/my-copilot/src/lib/model-pricing.ts`.",
+  ].join("\n");
+
+  const out = setDocPricingDate(doc, "2026-09-03");
+
+  assert.match(out, /\*\*3\. september 2026\*\*/);
+  assert.equal(out.split("\n")[0], doc.split("\n")[0]);
+});
+
 test("a doc without the sentence is an error, not a silent no-op", () => {
   assert.throws(() => setDocPricingDate("ingen priser her", "2026-09-03"));
 });
