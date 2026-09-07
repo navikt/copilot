@@ -20,10 +20,7 @@ import (
 // person reading it and no lies about anyone else.
 
 var (
-	// A pointer so a test can install a fresh one. sync.Once cannot be reset,
-	// and a test that seeds the cache would otherwise leak into whatever runs
-	// after it in this package.
-	availabilityOnce = &sync.Once{}
+	availabilityOnce sync.Once
 	availableIDs     map[string]bool
 )
 

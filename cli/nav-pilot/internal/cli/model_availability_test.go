@@ -2,23 +2,8 @@ package cli
 
 import (
 	"strings"
-	"sync"
 	"testing"
 )
-
-// seedAvailability installs a known catalogue and restores whatever was there,
-// so seeding it here cannot change what another test in this package sees.
-// availabilityOnce is a pointer for this reason: sync.Once has no reset, and a
-// test that burned the real one would leave the probe permanently skipped.
-func seedAvailability(t *testing.T, ids map[string]bool) {
-	t.Helper()
-	prevOnce, prevIDs := availabilityOnce, availableIDs
-	t.Cleanup(func() { availabilityOnce, availableIDs = prevOnce, prevIDs })
-
-	availabilityOnce = &sync.Once{}
-	availabilityOnce.Do(func() {}) // burn it, so the real probe never runs
-	availableIDs = ids
-}
 
 func TestUnavailableSuffix(t *testing.T) {
 	t.Run("unknown availability annotates nothing", func(t *testing.T) {
