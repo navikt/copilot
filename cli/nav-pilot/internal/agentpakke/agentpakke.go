@@ -207,6 +207,7 @@ type Layout struct {
 	Instructions string `json:"instructions,omitempty"`
 	Prompts      string `json:"prompts,omitempty"`
 	Hooks        string `json:"hooks,omitempty"`
+	Extensions   string `json:"extensions,omitempty"`
 }
 
 // Provenance records the base and overlays a composed agentpakke was built from.

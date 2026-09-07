@@ -15,10 +15,30 @@ Dette dokumentet er for team som lager en agentpakke. Interndesignet, altså hvo
 ├── agents/                  # layout.agents:        <navn>.agent.md
 ├── skills/                  # layout.skills:        <navn>/SKILL.md
 ├── instructions/            # layout.instructions:  <navn>.instructions.md
-└── prompts/                 # layout.prompts:       <navn>.prompt.md eller <navn>/
+├── prompts/                 # layout.prompts:       <navn>.prompt.md eller <navn>/
+├── hooks/                   # layout.hooks:         <navn>.py + <navn>.hook.json
+└── extensions/              # layout.extensions:    <navn>/extension.mjs
 ```
 
 Katalognavnene er ikke låst. `layout` peker på hvor innholdet faktisk ligger, og nav-pilot leser kun der. Filnavnkonvensjonene inne i katalogene er derimot låst, fordi det er dem nav-pilot bruker til å finne og navngi artefaktene. Agentfiler må åpne med en `---`-avgrenset YAML-frontmatter som minst deklarerer `name` og `description`.
+
+## Kjørbare artefakter: hooks og extensions
+
+Fire av artefekttypene er tekst modellen leser. To er kode som kjører på maskinen til den som installerer:
+
+| Type | Form | Hva som kjører |
+| --- | --- | --- |
+| `hook` | `<navn>.py` med `<navn>.hook.json` ved siden | Et preToolUse-skript klienten kjører på hvert kall som matcher |
+| `extension` | `<navn>/extension.mjs` | En modul klienten laster |
+
+Det er en annen tillitsbeslutning enn de fire andre. Å installere en agentpakke som sender med en av disse er å si ja til at et annet team kjører kode hos deg, og det er verdt å vite før man gjør det, ikke etterpå.
+
+To ting følger av det:
+
+- **De kommer med i «installer alt».** En port som bare når dem som navngir den eksplisitt, er ingen port. Det var begrunnelsen for at hooks ble en type ([#569](https://github.com/navikt/copilot/issues/569)), og den gjelder likt for extensions.
+- **cplt nekter skriving til begge katalogene.** Kjører du `nav-pilot install` fra en agentsesjon inne i sandboxen, stopper installasjonen med en feil som sier hvorfor. En prosess i sandboxen skal ikke kunne legge igjen kode som kjører utenfor den senere. Se [README.nav-pilot.md](README.nav-pilot.md#hooks-kan-ikke-installeres-inne-i-cplt).
+
+Extensions fikk en type fordi et team som hadde skrevet en, ikke kunne distribuere den: nav-pilot kjente ikke formen, så den ble hverken installert, synket eller eksportert ([#572](https://github.com/navikt/copilot/issues/572)).
 
 ## Feltreferanse
 

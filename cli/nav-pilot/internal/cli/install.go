@@ -28,17 +28,19 @@ func installItems(resolver *SourceResolver, scope *InstallScope, manifest *Manif
 	result := &installResult{}
 	stateHashes := scopeStateHashes(scope)
 
-	for _, group := range []struct {
-		label string
-		names []string
-		kind  *ArtifactKind
-	}{
-		{"Agents", manifest.Agents, KindAgent},
-		{"Skills", manifest.Skills, KindSkill},
-		{"Instructions", manifest.Instructions, KindInstruction},
-		{"Prompts", manifest.Prompts, KindPrompt},
-		{"Hooks", manifest.Hooks, KindHook},
-	} {
+	// Derived from AllKinds rather than listed here, the lesson of #649, #650
+	// and #708: a kind added to the resolver and forgotten in a table like this
+	// installs nothing, silently.
+	for _, kind := range AllKinds {
+		names, ok := manifest.NamesByKind(kind)
+		if !ok {
+			continue
+		}
+		group := struct {
+			label string
+			names []string
+			kind  *ArtifactKind
+		}{kindLabel(kind), names, kind}
 		if len(group.names) == 0 {
 			continue
 		}
@@ -1384,4 +1386,13 @@ func installedPrimaryAgent(src *Source) string {
 		return fallback
 	}
 	return agents[0]
+}
+
+// kindLabel is the plural heading an install prints for a kind: "Agents",
+// "Skills", "Extensions".
+func kindLabel(kind *ArtifactKind) string {
+	if kind.Dir == "" {
+		return kind.Name
+	}
+	return strings.ToUpper(kind.Dir[:1]) + kind.Dir[1:]
 }
