@@ -128,7 +128,7 @@ func TestModelPickerOptions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("providerFor: %v", err)
 	}
-	opts := modelPickerOptions(p)
+	opts := modelPickerOptions(p, nil)
 
 	if len(opts) != len(p.KnownModels())+2 {
 		t.Fatalf("got %d options, want %d known models + unset + custom", len(opts), len(p.KnownModels()))

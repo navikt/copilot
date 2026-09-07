@@ -20,7 +20,10 @@ import (
 // person reading it and no lies about anyone else.
 
 var (
-	availabilityOnce sync.Once
+	// A pointer so a test can install a fresh one. sync.Once cannot be reset,
+	// and a test that seeds the cache would otherwise leak into whatever runs
+	// after it in this package.
+	availabilityOnce = &sync.Once{}
 	availableIDs     map[string]bool
 )
 
@@ -54,9 +57,13 @@ func availableModelIDs() map[string]bool {
 
 // unavailableSuffix is what the picker appends to a model the account cannot
 // launch, or "" when it can, or when availability is unknown.
-func unavailableSuffix(modelID string) string {
-	have := availableModelIDs()
-	if len(have) == 0 {
+//
+// have is the answer from [availableModelIDs]: nil for "not known", which is
+// the only value that means unknown. An empty non-nil map is a catalogue that
+// was read and holds nothing, and every model is then genuinely unavailable;
+// conflating the two would hide a real answer behind the offline case.
+func unavailableSuffix(have map[string]bool, modelID string) string {
+	if have == nil {
 		return ""
 	}
 	id := strings.ToLower(strings.TrimPrefix(modelID, domain.OpenCodeProviderPrefix))

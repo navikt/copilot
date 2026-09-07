@@ -66,7 +66,7 @@ const (
 
 // modelPickerOptions builds the curated model picker for a provider: unset
 // first, then the known models, then a custom entry for anything else.
-func modelPickerOptions(p Provider) []huh.Option[string] {
+func modelPickerOptions(p Provider, available map[string]bool) []huh.Option[string] {
 	defLabel := "Unset (agent default)"
 	if def := p.DefaultModel(); def != "" {
 		defLabel = "Unset (Nav default: " + def + ")"
@@ -74,11 +74,19 @@ func modelPickerOptions(p Provider) []huh.Option[string] {
 	opts := []huh.Option[string]{huh.NewOption(defLabel, "")}
 	for _, m := range p.KnownModels() {
 		// Marked, not hidden (#717). The list is generated from a global
-		// catalogue while availability follows the account and plan, so an entry
-		// missing here may work for a colleague. Hiding it would take that away;
-		// saying so tells the truth for the reader without claiming anything
-		// about anyone else. Availability unknown means no annotation at all.
-		opts = append(opts, huh.NewOption(m.Label+"  "+dim(m.ID)+dim(unavailableSuffix(m.ID)), m.ID))
+		// catalogue while availability follows the account, so an entry missing
+		// here may work for a colleague. Hiding it would take that away; saying
+		// so tells the truth for the reader without claiming anything about
+		// anyone else. Unknown availability annotates nothing.
+		//
+		// The suffix is dimmed only when there is one: dim("") is not the empty
+		// string, it is an empty pair of escape codes, and appending it
+		// unconditionally put stray \033[2m\033[0m on every label.
+		label := m.Label + "  " + dim(m.ID)
+		if suffix := unavailableSuffix(available, m.ID); suffix != "" {
+			label += dim(suffix)
+		}
+		opts = append(opts, huh.NewOption(label, m.ID))
 	}
 	return append(opts, huh.NewOption("Custom (type manually)…", customModelSentinel))
 }
@@ -102,7 +110,7 @@ func promptModel(p Provider, title, description, current string) (string, error)
 		return strings.TrimSpace(value), err
 	}
 
-	opts := modelPickerOptions(p)
+	opts := modelPickerOptions(p, availableModelIDs())
 	choice := current
 	if current != "" {
 		known := false
