@@ -28,7 +28,7 @@ var ErrNoManifest = errors.New("no agentpakke manifest")
 // does not conform, so nothing should be installed, synced, or launched from it.
 func Load(sourceRoot string) (*Manifest, error) {
 	file := filepath.Join(sourceRoot, ManifestDir, ManifestFile)
-	data, err := os.ReadFile(file)
+	data, err := readGuardedManifest(file, "agentpakke manifest")
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("%s: %w", file, ErrNoManifest)
@@ -107,7 +107,48 @@ func (m *Manifest) checkSemantics(runningVersion string) error {
 	if err := m.checkCompatibility(); err != nil {
 		return err
 	}
+	if err := m.checkDefaultContext(); err != nil {
+		return err
+	}
 	return m.checkPaths()
+}
+
+// checkDefaultContext requires that every payload-bearing client's default
+// context names a payload the manifest actually declares (#704 T2). Without it
+// the schema asks only for an identifier, `nav-pilot validate` passes, and the
+// launch dies at [Manifest.DefaultContext]'s lookup instead — the same "green
+// validate, dead launch" shape #504 U2 had.
+//
+// The lookup is the launch's own, [Manifest.Payload] over
+// [Manifest.DefaultContext], so validation and launch cannot disagree. That
+// also covers the implicit case: a client that declares payloads but no
+// defaultContext falls back to "full", and a manifest that never declares a
+// "full" payload is just as dead as one pointing at a typo.
+//
+// Every declared client, not just AvailableClients: a manifest is wrong for a
+// client this binary cannot launch too, and the contract belongs to the
+// contract version rather than to the client id — the same reasoning
+// checkCompatibility is built on.
+func (m *Manifest) checkDefaultContext() error {
+	for _, client := range m.ClientIDs() {
+		entry, ok := m.Client(client)
+		if !ok || len(entry.Payloads) == 0 {
+			continue
+		}
+		context := m.DefaultContext(client)
+		if _, found := m.Payload(client, context); !found {
+			declared := make([]string, 0, len(entry.Payloads))
+			for name := range entry.Payloads {
+				declared = append(declared, name)
+			}
+			sort.Strings(declared)
+			return fmt.Errorf(
+				"clients.%s resolves its default context to %q, which is not among the payloads it declares (%s). "+
+					"Set clients.%s.defaultContext to one of those, or declare a %q payload",
+				client, context, strings.Join(declared, ", "), client, context)
+		}
+	}
+	return nil
 }
 
 // checkCompatibility parses every declared clients.<id>.compatibility with the
@@ -408,6 +449,12 @@ func requireDir(sourceRoot, field, rel string) error {
 	}
 	info, err := os.Stat(abs)
 	if err != nil {
+		// Anything but ErrNotExist is reported as itself. A permission error
+		// told as "does not exist" sends the author looking for a path that is
+		// right there, which is the one wrong turn this message can cause.
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("%s references %q, which cannot be read in the agentpakke repo: %w", field, rel, err)
+		}
 		return fmt.Errorf("%s references %q, which does not exist in the agentpakke repo", field, rel)
 	}
 	if !info.IsDir() {
@@ -425,6 +472,9 @@ func requireFile(sourceRoot, field, rel string) error {
 	}
 	info, err := os.Stat(abs)
 	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("%s expects the file %q, which cannot be read in the agentpakke repo: %w", field, rel, err)
+		}
 		return fmt.Errorf("%s expects the file %q, which does not exist in the agentpakke repo", field, rel)
 	}
 	if info.IsDir() {
