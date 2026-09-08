@@ -36,6 +36,11 @@ func CacheFilePath() string {
 	if CacheHome != "" {
 		return filepath.Join(CacheHome, "cache.json")
 	}
+	// Same rule as the device id and the tier cache: the config file's
+	// directory is nav-pilot's own state directory when one is named.
+	if p := os.Getenv("NAV_PILOT_CONFIG"); p != "" {
+		return filepath.Join(filepath.Dir(p), "cache.json")
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""
