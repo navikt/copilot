@@ -66,9 +66,10 @@ cplt config set sandbox.allow_gpg_signing true --force
 
 ## Repoet må be om én ting om gangen
 
-Grensen mellom repo og local er ikke bare en konvensjon. Noen nøkler nekter `.cplt.toml` å ta imot, og sier hvorfor. Prøver du å sette `sandbox.preset` med `--repo`, får du:
+Grensen mellom repo og local er ikke bare en konvensjon. Noen nøkler nekter `.cplt.toml` å ta imot, og sier hvorfor:
 
 ```
+$ cplt config set --repo sandbox.preset permissive
 [cplt] sandbox.preset is not valid in repo config.
   Reason: composes multiple dangerous permissions (docker, tmp exec, ...). A repo must request individual keys so each can be reviewed and trusted.
 ```
@@ -181,10 +182,10 @@ Repoet må ligge inni prosjektkatalogen. Ligger `sykepenger-model` som `~/src/sy
   sibling repositories are not yet supported; use `--allow-write` for edit-only.
 ```
 
-For sibling-repoer er svaret i dag `--allow-write`. Agenten får redigere filene, men ikke gh-identitet mot repoet:
+For sibling-repoer er svaret i dag `allow.write`. Agenten får redigere filene, men ikke gh-identitet mot repoet:
 
 ```sh
-cplt --allow-write ~/src/sykepenger-model
+cplt config set --local allow.write ~/src/sykepenger-model
 ```
 
 Å starte fra `~/src` med `--project-dir` hjelper ikke; `--repo-dir` krever at du starter fra toppen av et git-repo. Ordentlig sibling-støtte er [navikt/cplt#344](https://github.com/navikt/cplt/issues/344). Repoet du startet i, kan du heller ikke navngi. Det er alltid i scope.
