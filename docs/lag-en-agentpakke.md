@@ -49,18 +49,23 @@ bare kan kalles av andre.
 ## 3. Valider før du pusher
 
 ```bash
-nav-pilot validate --source .
+nav-pilot validate --source "$PWD"
 ```
 
 ```
-Validating: ditt-team@c3f7ca3
+Validating: /Users/deg/ditt-repo@c3f7ca3
 
   ℹ manifest: .nav-pilot/agentpakke.json
   ℹ agentpakke: ditt-team (contract version 1)
   ℹ clients: copilot (tier 1)
 
-✓ . conforms to the agentpakke contract.
+✓ /Users/deg/ditt-repo conforms to the agentpakke contract.
 ```
+
+Kilden må være en absolutt sti. `--source .` blir forsøkt klonet som et GitHub-repo og
+feiler med `could not clone .`, så bruk `"$PWD"`, eller `"$GITHUB_WORKSPACE"` i CI.
+
+Etiketten i utdataene er kilden du oppga, ikke navnet i manifestet.
 
 Kjør den i CI også. Skjemaet er publisert, så du kan linte mot det uten nav-pilot:
 `cli/nav-pilot/schemas/agentpakke-v1.json`.
