@@ -174,7 +174,7 @@ med andre som trenger den.
 
 ### Sikkerhetsnivå, strict og logging
 
-Står på https://ki-utvikling.nav.no/nav-pilot/docs: hva `sandbox.preset = strict` låser, hvorfor
+Står på [ki-utvikling.nav.no/nav-pilot/docs](https://ki-utvikling.nav.no/nav-pilot/docs): hva `sandbox.preset = strict` låser, hvorfor
 presetet skal settes via `nav-pilot config` og ikke for hånd, når strict ikke anbefales på Linux,
 og hva `proxy.log_level` faktisk logger.
 
@@ -397,7 +397,7 @@ Et team kan distribuere sitt eget innhold som en **agentpakke**, et repo med man
 `.nav-pilot/agentpakke.json`. Installer det med `--source`. Kilden huskes per scope til du
 tømmer den.
 
-Skal du lage en selv, står oppskrifta på https://ki-utvikling.nav.no/nav-pilot/agentpakker.
+Skal du lage en selv, står oppskrifta på [ki-utvikling.nav.no/nav-pilot/agentpakker](https://ki-utvikling.nav.no/nav-pilot/agentpakker).
 
 ```bash
 nav-pilot install --source navikt/<repo> <pakkenavn>

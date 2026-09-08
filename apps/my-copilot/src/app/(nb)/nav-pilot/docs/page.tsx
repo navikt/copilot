@@ -483,10 +483,10 @@ function IntroductionSection() {
             <code className="font-mono text-xs">sandbox.preset = strict</code>. Det presetet er en nettverkslås.{" "}
             <code className="font-mono text-xs">gh_guard</code> og <code className="font-mono text-xs">git_guard</code>{" "}
             er allerede på i <code className="font-mono text-xs">standard</code>, så det strict legger til er
-            nettverket: tvungen proxy, git_guard som blokkerer i stedet for å advare, og{" "}
-            <code className="font-mono text-xs">proxy.default_allowlist</code>. Den siste er den viktige. Bare cplt sin
-            innebygde vertsliste, pluss det <code className="font-mono text-xs">proxy.allowed_domains</code> peker på,
-            er nåbart. Alt annet blokkeres.
+            nettverket: tvungen proxy, <code className="font-mono text-xs">git_guard</code> som blokkerer i stedet for å
+            advare, og <code className="font-mono text-xs">proxy.default_allowlist</code>. Den siste er den viktige.
+            Bare cplt sin innebygde vertsliste, pluss det{" "}
+            <code className="font-mono text-xs">proxy.allowed_domains</code> peker på, er nåbart. Alt annet blokkeres.
           </BodyLong>
           <Box background="warning-soft" borderRadius="8" padding="space-16">
             <BodyLong style={{ color: "#475569" }}>
