@@ -107,7 +107,28 @@ type SourceResolver struct {
 	// ship content at the canonical paths — which is what the legacy adapter
 	// synthesizes, so manifest-less sources resolve byte-for-byte as before.
 	layout map[string]string
+
+	// base is the agentpakke this one reuses, resolved at its pinned revision,
+	// or nil for the overwhelming majority that reuse nothing. It is consulted
+	// only after this source misses, which is the whole of the collision rule:
+	// a pakke that ships its own agent named "grillmester" shadows the reused
+	// one without saying anything, the same way `overrides` in
+	// .github/copilot-sync.json lets a repo keep its own copy of a synced file.
+	base *SourceResolver
 }
+
+// WithBase returns a resolver that falls back to base for artifacts this source
+// does not ship itself. Chaining is one level deep by construction — a base's
+// own base is resolved when that base is built — so a cycle in declarations
+// cannot loop here.
+func (r *SourceResolver) WithBase(base *SourceResolver) *SourceResolver {
+	chained := *r
+	chained.base = base
+	return &chained
+}
+
+// Base returns the reused resolver, or nil.
+func (r *SourceResolver) Base() *SourceResolver { return r.base }
 
 // NewSourceResolver creates a resolver for the given source directory, reading
 // content from the canonical directories (agents/, skills/, …).
@@ -165,6 +186,18 @@ func (r *SourceResolver) dirFor(canonical string) string {
 
 // Get finds a single named artifact. Checks root first, then .github/.
 func (r *SourceResolver) Get(kind *ArtifactKind, name string) (Resolved, bool) {
+	if res, ok := r.get(kind, name); ok {
+		return res, true
+	}
+	// Only now the reused pakke: this source's own content wins every
+	// collision, and it wins by being asked first.
+	if r.base != nil {
+		return r.base.Get(kind, name)
+	}
+	return Resolved{}, false
+}
+
+func (r *SourceResolver) get(kind *ArtifactKind, name string) (Resolved, bool) {
 	if kind.IsDir {
 		return r.getDir(kind, name)
 	}
@@ -266,6 +299,22 @@ func (r *SourceResolver) GetFile(typeDir, fileName string) (absPath, relPath str
 // machines that never opted in.
 func (r *SourceResolver) List(kind *ArtifactKind) []Resolved {
 	names := r.discoverNames(kind)
+	// A reused pakke's artifacts are listed too, minus the ones this source
+	// shadows. Get resolves each name, so a shadowed one still comes from
+	// here — the union decides what exists, Get decides where it comes from.
+	if r.base != nil {
+		seen := make(map[string]bool, len(names))
+		for _, name := range names {
+			seen[name] = true
+		}
+		for _, inherited := range r.base.List(kind) {
+			if !seen[inherited.Name] {
+				seen[inherited.Name] = true
+				names = append(names, inherited.Name)
+			}
+		}
+		sort.Strings(names)
+	}
 	var results []Resolved
 	for _, name := range names {
 		if kind == KindAgent && name == local.WorkerAgent && !local.Enabled() {

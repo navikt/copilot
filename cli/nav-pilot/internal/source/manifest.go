@@ -46,6 +46,30 @@ func (m *Manifest) NamesByKind(kind *ArtifactKind) ([]string, bool) {
 	return nil, false
 }
 
+// SetNamesByKind replaces the manifest's entries for one kind, reporting
+// whether the kind is one this manifest carries. It is the write half of
+// [Manifest.NamesByKind], so narrowing a manifest to a declared selection can
+// iterate [AllKinds] instead of naming each list again.
+func (m *Manifest) SetNamesByKind(kind *ArtifactKind, names []string) bool {
+	switch kind {
+	case KindAgent:
+		m.Agents = names
+	case KindSkill:
+		m.Skills = names
+	case KindInstruction:
+		m.Instructions = names
+	case KindPrompt:
+		m.Prompts = names
+	case KindHook:
+		m.Hooks = names
+	case KindExtension:
+		m.Extensions = names
+	default:
+		return false
+	}
+	return true
+}
+
 // CollectionAll is the collection name used in state files for "install everything".
 const CollectionAll = "(all)"
 
