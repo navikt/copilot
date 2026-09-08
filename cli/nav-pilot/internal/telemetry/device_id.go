@@ -123,12 +123,21 @@ func getMACAddress() (string, error) {
 // GetConfigDir returns the nav-pilot config directory, creating it if needed.
 // Uses: ~/.nav-pilot/
 func GetConfigDir() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get home directory: %w", err)
+	// NAV_PILOT_CONFIG names the config file, so its directory is where the
+	// rest of nav-pilot's own state belongs too. The CLI's tierCachePath
+	// already derives from it that way; this one read $HOME directly, so a
+	// run with an isolated config still wrote device-id into the developer's
+	// real home (#627). Three conventions for one directory is one too many.
+	configDir := ""
+	if p := os.Getenv("NAV_PILOT_CONFIG"); p != "" {
+		configDir = filepath.Dir(p)
+	} else {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get home directory: %w", err)
+		}
+		configDir = filepath.Join(home, ".nav-pilot")
 	}
-
-	configDir := filepath.Join(home, ".nav-pilot")
 
 	// Create if doesn't exist
 	if err := os.MkdirAll(configDir, 0o700); err != nil {
