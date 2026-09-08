@@ -140,17 +140,21 @@ func kindForPath(srcPath string, layout *agentpakke.Layout) (*source.ArtifactKin
 		kind *source.ArtifactKind
 	}
 	var candidates []candidate
+	// Derived from the layout's own field list, not written out again: this
+	// was the list that did not get extensions (#739), so a retired extension
+	// under a declared layout was never found. Layout.Dirs names each field
+	// as "layout.<dir>", which is the kind's canonical directory.
 	if layout != nil {
-		for _, m := range []candidate{
-			{layout.Agents, source.KindAgent},
-			{layout.Skills, source.KindSkill},
-			{layout.Instructions, source.KindInstruction},
-			{layout.Prompts, source.KindPrompt},
-			{layout.Hooks, source.KindHook},
-		} {
-			if m.dir != "" {
-				candidates = append(candidates, candidate{strings.Trim(m.dir, "/"), m.kind})
+		byDir := make(map[string]*source.ArtifactKind, len(AllKinds))
+		for _, k := range AllKinds {
+			byDir[k.Dir] = k
+		}
+		for _, d := range layout.Dirs() {
+			kind, ok := byDir[strings.TrimPrefix(d.Field, "layout.")]
+			if !ok || d.Value == "" {
+				continue
 			}
+			candidates = append(candidates, candidate{strings.Trim(d.Value, "/"), kind})
 		}
 	}
 	for _, k := range AllKinds {
@@ -170,7 +174,7 @@ func kindForPath(srcPath string, layout *agentpakke.Layout) (*source.ArtifactKin
 // removeRetiredOrphans deletes the given files, returning how many went away.
 // Best effort per file: one unremovable leftover must not fail a sync that has
 // already done its real work.
-func removeRetiredOrphans(orphans []retiredOrphan, quiet bool) int {
+func removeRetiredOrphans(scope *InstallScope, orphans []retiredOrphan, quiet bool) int {
 	removed := 0
 	for _, o := range orphans {
 		if err := os.Remove(o.Local); err != nil && !os.IsNotExist(err) {
@@ -179,6 +183,7 @@ func removeRetiredOrphans(orphans []retiredOrphan, quiet bool) int {
 			}
 			continue
 		}
+		afterArtifactRemoved(scope, o.Local)
 		if !quiet {
 			fmt.Printf("  %s %s\n", red("×"), o.Path)
 		}

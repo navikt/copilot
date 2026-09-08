@@ -273,11 +273,23 @@ func MergeRepoHooks(hooksDir string, entries []HookEntry) error {
 	return f.write(path)
 }
 
-// RemoveRepoHooks drops every entry nav-pilot marked as its own from the shared
+// RemoveRepoHooks drops entries nav-pilot marked as its own from the shared
 // repo config, and removes the file only once nothing at all is left in it.
 // Entries the user wrote are never touched, and a config that still holds one
 // stays a valid config.
-func RemoveRepoHooks(hooksDir string) (removed int, err error) {
+//
+// With no names it drops all of nav-pilot's, which is what uninstall wants.
+// With names it drops exactly those, which is what sync wants when one hook's
+// script goes away upstream: deleting the script while leaving the entry made
+// the CLI run a file that is no longer there on every matching tool call.
+func RemoveRepoHooks(hooksDir string, only ...string) (removed int, err error) {
+	var wanted map[string]bool
+	if len(only) > 0 {
+		wanted = make(map[string]bool, len(only))
+		for _, n := range only {
+			wanted[n] = true
+		}
+	}
 	path := filepath.Join(hooksDir, RepoHooksConfig)
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return 0, nil
@@ -289,7 +301,7 @@ func RemoveRepoHooks(hooksDir string) (removed int, err error) {
 	for event, list := range f.Hooks {
 		kept := list[:0]
 		for _, raw := range list {
-			if markerOf(raw) != "" {
+			if marker := markerOf(raw); marker != "" && (wanted == nil || wanted[marker]) {
 				removed++
 				continue
 			}
