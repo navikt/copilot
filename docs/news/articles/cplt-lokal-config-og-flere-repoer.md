@@ -11,7 +11,13 @@ tags:
   - nav-pilot
 ---
 
-Kortversjonen: **Det prosjektet trenger (porter, docker, hemmeligheter som skal holdes ute), setter du med `cplt config set --repo …`. Det havner i `.cplt.toml`, som du committer. Det som bare er sant på din maskin (stier i hjemmekatalogen, et nested repo), setter du med `--local`. Global skal være liten. Start med `cplt init --write` i repoet, og sjekk resultatet med `cplt config show`.**
+Kortversjonen: **Det prosjektet trenger (porter, docker, hemmeligheter som skal holdes ute), setter du med `cplt config set --repo …`. Det havner i `.cplt.toml`, som du committer. Det som bare er sant på din maskin, setter du med `--local` — stier i hjemmekatalogen, og repoer du har sjekket ut inni prosjektet:**
+
+```sh
+cplt config set --local sandbox.repo_dirs ~/src/spleis/libs/sykepenger-model
+```
+
+**Global skal være liten. Start med `cplt init --write` i repoet, og sjekk resultatet med `cplt config show`.**
 
 Du starter agenten med [nav-pilot](/nav-pilot), og nav-pilot kjører den trygt i en sandbox. Første gang du merker [cplt](/cplt), er som regel når noe blir stoppet: Gradle får ikke lese `~/.gradle/gradle.properties`, Testcontainers finner ikke docker, `npm install` nekter å kjøre postinstall. Da må du justere sandboxen, og spørsmålet blir: skal innstillingen settes globalt, lokalt eller i repoet?
 
