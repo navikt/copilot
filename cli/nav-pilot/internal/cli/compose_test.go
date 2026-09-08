@@ -188,3 +188,46 @@ func TestLegacySourceDoesNotCompose(t *testing.T) {
 		t.Errorf("en manifestløs kilde komponerte %s", reused.Dir)
 	}
 }
+
+// Selvreferansen og syklusvakta sammenlikner kilder med sameSourceRepo, ikke
+// med ren likhet. "Navikt/A" og "navikt/a" er ett repo, og to skrivemåter av
+// samme sti er én katalog. Med ren likhet kunne en pakke navngi seg selv i en
+// annen bokstavstørrelse og bli kjedet til seg selv.
+func TestSelfReferenceIsCaseInsensitive(t *testing.T) {
+	dir := t.TempDir()
+	writePakke(t, dir, "egen", "eget")
+	// Erklæringa navngir repoet med annen bokstavstørrelse enn kildelabelen.
+	body := `{"contractVersion":"1","source":"NAVIKT/Grillmester","sha":"` + strings.Repeat("a", 40) + `"}`
+	if err := os.WriteFile(filepath.Join(dir, ".nav-pilot", "agentpakke.lock.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	src := loadSource(t, dir)
+	src.Repo = "navikt/grillmester"
+
+	_, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	if err != nil {
+		t.Fatalf("komposisjonen feilet: %v", err)
+	}
+	if reused != nil {
+		t.Errorf("pakka ble kjedet til seg selv via %q", reused.Repo)
+	}
+}
+
+// En sti skrevet med etterslept skråstrek er den samme katalogen.
+func TestSelfReferenceResolvesPathSpelling(t *testing.T) {
+	dir := t.TempDir()
+	writePakke(t, dir, "egen", "eget")
+	body := `{"contractVersion":"1","source":"` + dir + `/"}`
+	if err := os.WriteFile(filepath.Join(dir, ".nav-pilot", "agentpakke.lock.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	src := loadSource(t, dir)
+
+	_, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	if err != nil {
+		t.Fatalf("komposisjonen feilet: %v", err)
+	}
+	if reused != nil {
+		t.Errorf("pakka ble kjedet til seg selv via %q", reused.Dir)
+	}
+}

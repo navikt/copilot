@@ -177,3 +177,29 @@ func TestNothingIsWrittenOutsideTheSandbox(t *testing.T) {
 		t.Error("kilden ble ikke lagret i sandkassens config, da skriver den kanskje et annet sted")
 	}
 }
+
+// Sync skal lese kilden erklæringa navngir, ikke den som står i config.
+// Testen som fantes dekket adoptSyncSource, ikke syncScope, så kilden sync
+// faktisk ba om var usett.
+func TestSyncReadsTheDeclaredSource(t *testing.T) {
+	e := newEnv(t)
+	declared := e.pakke("erklaert", "grillmester")
+	other := e.pakke("annen", "noeannet")
+	cons := e.consumer("forbruker")
+
+	if out, code := e.run(cons, "install", "erklaert", "--source", declared, "--repo"); code != 0 {
+		t.Fatalf("install feilet: %d\n%s", code, out)
+	}
+	// Config peker et annet sted enn erklæringa.
+	if out, code := e.run(cons, "config", "set", "source", other); code != 0 {
+		t.Fatalf("config set feilet: %d\n%s", code, out)
+	}
+
+	out, _ := e.run(cons, "sync", "--repo")
+	if strings.Contains(out, "noeannet") {
+		t.Errorf("sync leste kilden fra config framfor fra erklæringa:\n%s", out)
+	}
+	if strings.Contains(out, "deleted in source") {
+		t.Errorf("sync mente filene var slettet, altså leste den feil kilde:\n%s", out)
+	}
+}

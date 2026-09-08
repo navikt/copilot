@@ -469,3 +469,44 @@ func TestRetiredPathMatchesTheContract(t *testing.T) {
 		t.Errorf("the reader opens %q while the contract publishes %q", retiredManifestPath, agentpakke.RetiredRecordPath)
 	}
 }
+
+// #724-rapporten må komme ut av sync, ikke bare ut av hjelperen.
+//
+// TestIgnoredButInstalled kaller ignoredButInstalled direkte, så den passerer
+// også når sync ikke kaller den: hele rapporten kunne fjernes fra sync.go uten
+// at noen test merket det. Denne kjører kommandoen.
+func TestSyncItselfReportsIgnoredButInstalled(t *testing.T) {
+	isolatedConfig(t)
+	repo, first, _ := gitAgentpakke(t)
+	localAgentpakkeRemote(t, repo)
+
+	scope := ScopeRepo(repoTarget(t))
+	writeDeclaration(t, scope,
+		`{"contractVersion":"1","source":"navikt/grillmester","sha":"`+first+`"}`)
+	captureStdoutFor(t, func() {
+		if err := cmdInstallAuto("grillmester", "", scope, "", "", false, false, false); err != nil {
+			t.Fatalf("install: %v", err)
+		}
+	})
+
+	// Merk en installert fil som ignorert uten å fjerne den fra disk.
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		t.Fatalf("leste ikke staten: %v", err)
+	}
+	if len(state.Files) == 0 {
+		t.Fatal("installasjonen sporet ingen filer, da tester dette ingenting")
+	}
+	state.Files[0].Status = fileStatusIgnored
+	if err := writeScopedState(scope, state); err != nil {
+		t.Fatal(err)
+	}
+	marked := state.Files[0].Path
+
+	out := captureStdoutFor(t, func() {
+		_ = cmdSync(scope, "", "", false, false)
+	})
+	if !strings.Contains(out, marked) {
+		t.Errorf("sync nevnte ikke %q, som er både ignorert og installert:\n%s", marked, out)
+	}
+}

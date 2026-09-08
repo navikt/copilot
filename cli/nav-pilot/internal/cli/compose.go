@@ -42,14 +42,19 @@ func composeResolver(resolver *SourceResolver, src *Source) (*SourceResolver, *S
 	if src.Pakke == nil {
 		return resolver, nil, nil
 	}
-	return composeResolverSeen(resolver, src, map[string]bool{sourceLabelFor(src): true})
+	return composeResolverSeen(resolver, src, []string{sourceLabelFor(src)})
 }
 
 // composeResolverSeen carries the labels already on the chain. A pakke that
 // reuses one that reuses it back would otherwise fetch the two forever; the
 // cycle is reported rather than silently cut, because either half of it is a
 // mistake someone has to fix in a committed file.
-func composeResolverSeen(resolver *SourceResolver, src *Source, seen map[string]bool) (*SourceResolver, *Source, error) {
+//
+// Membership is sameSourceRepo, not string equality: "Navikt/A" and "navikt/a"
+// are one repo, and two spellings of the same path are one directory. With
+// plain equality a pakke could name itself in a different case and be chained
+// to itself, and a cycle went one fetch further before it was noticed.
+func composeResolverSeen(resolver *SourceResolver, src *Source, seen []string) (*SourceResolver, *Source, error) {
 	decl, err := agentpakke.LoadDeclaration(src.Dir)
 	if err != nil {
 		if errors.Is(err, agentpakke.ErrNoDeclaration) {
@@ -64,15 +69,17 @@ func composeResolverSeen(resolver *SourceResolver, src *Source, seen map[string]
 	// ship a manifest, not a composition. Chaining it to itself would resolve
 	// every artifact twice and, at a different revision, shadow the checkout
 	// being installed with an older copy of itself.
-	if decl.Source == sourceLabelFor(src) {
+	if sameSourceRepo(decl.Source, sourceLabelFor(src)) {
 		return resolver, nil, nil
 	}
 
-	if seen[decl.Source] {
-		return nil, nil, fmt.Errorf("agentpakke %s reuses %q, which already reuses it back.\nA reuse cycle has no order to resolve in, so nothing was installed.\nBreak the cycle in %s in one of the two repos",
-			sourceLabelFor(src), decl.Source, agentpakke.DeclarationPath)
+	for _, s := range seen {
+		if sameSourceRepo(s, decl.Source) {
+			return nil, nil, fmt.Errorf("agentpakke %s reuses %q, which already reuses it back.\nA reuse cycle has no order to resolve in, so nothing was installed.\nBreak the cycle in %s in one of the two repos",
+				sourceLabelFor(src), decl.Source, agentpakke.DeclarationPath)
+		}
 	}
-	seen[decl.Source] = true
+	seen = append(seen, decl.Source)
 
 	// A repo-shaped reuse without a pin would clone whatever main happens to
 	// hold, so two installs a week apart would compose different content while
