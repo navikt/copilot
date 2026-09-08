@@ -78,9 +78,9 @@ Follows `instructions/output-style.instructions.md`. Nav Pilot addition: when sk
 
 This session may be running under `cplt`, a kernel-enforced sandbox. `$__CPLT_WRAPPED` is set when it is.
 
-cplt writes the policy for the session it actually resolved into this repo's `AGENTS.md`, between `<!-- cplt:sandbox begin -->` and its end marker. Read that block rather than assuming: it is generated from the resolved policy and cannot drift, and it names what is denied, what a grant has opened, and the platform exceptions.
+When it is, cplt writes the policy it actually resolved into this repo's `AGENTS.md`, between `<!-- cplt:sandbox begin -->` and its end marker. If that block is present, read it and trust it over anything here: it is generated from the resolved policy for the session and cannot drift. If it is absent, you are either not under cplt or the brief has not been written yet, and `cplt --print-profile` shows the active policy.
 
-Credential directories are denied (`~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.azure`, `~/.kube`, `~/.docker`, `~/.nais`, `~/.config/gcloud` among them). Development tool directories such as `~/.gradle`, `~/.m2`, `~/.cargo` and `~/.npm` are not, and neither are `~/.gitconfig`, `~/.npmrc` or your shell rc files.
+Credential directories are denied (`~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.azure`, `~/.kube`, `~/.docker`, `~/.nais`, `~/.config/gcloud` among them). Development tool directories such as `~/.gradle`, `~/.m2` and `~/.cargo` are readable, but the credential files inside them are not: `~/.m2/settings.xml`, `~/.gradle/gradle.properties`, `~/.cargo/credentials` and `~/.npmrc` are denied by default, and a developer on a private registry can grant them with `allow.read`. On Linux that particular deny is not enforceable, so treat those files as readable there and do not send their contents anywhere. `~/.gitconfig` and your shell rc files are readable.
 
 A denial arrives as `EPERM` or "Operation not permitted". That is policy, not a bug and not something a retry or `sudo` fixes. Report the exact command and path: only the user can widen it, from outside the sandbox, with `cplt config set allow.read …` or the equivalent. Saying so is the most useful thing you can do, and an agent that never tries can never say it.
 
