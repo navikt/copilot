@@ -51,11 +51,11 @@ tilstandsfil, og de spores hver for seg.
 
 | Situasjonen din | Anbefalt | Hvorfor |
 |---|---|---|
-| Teamet skal ha samme oppsett, og dere vil ha det på github.com også | Repo | Copilot på github.com leser bare `.github/` i repoet. Ingen annen form gir deg den |
+| Teamet skal ha samme oppsett, og dere vil ha det på github.com også | Repo | Copilot på github.com leser bare `.github/` i repoet. Ingen annen form gir deg den synligheten |
 | Du jobber i mange repoer, eller i repoer du ikke kan endre `.github/` i | `--user` | Én installasjon å holde fersk, i stedet for én per repo |
 | Du vil ikke sjekke inn generert innhold | `--user` | Ingenting havner i differ eller kodegjennomgang |
 | Teamet har egne skills å vedlikeholde ved siden av Nav-artefaktene | Hub-repo | Ett sted som eier både det felles og deres eget |
-| Du bruker opencode | Repo, eller hub-repo | opencode materialiserer fra kilden pluss `.github/` i repoet du står i, ikke fra `~/.copilot/` |
+| Du bruker opencode | Repo, eller Hub-repo | opencode materialiserer fra kilden pluss `.github/` i repoet du står i, ikke fra `~/.copilot/` |
 
 Er du i tvil, og bare deg det gjelder: ta `--user`. Den er reversibel uten at noen andre
 merker det, og du kan legge til repo-installasjon senere uten å fjerne den.
