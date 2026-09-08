@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
@@ -73,6 +74,16 @@ func frozenPrecheck(scope *InstallScope) error {
 	}
 	sha := strings.TrimSpace(d.SHA)
 	if sha == "" {
+		// A path source can never satisfy this, so it must not be told to try.
+		// install deliberately writes no pin for a working tree, and since #612
+		// neither does sync: there is no revision to fetch back. Sending the
+		// reader to `install` there is advice that cannot be followed, which is
+		// worse than the refusal it explains (#614).
+		if filepath.IsAbs(d.Source) {
+			return frozenf("%s names the local checkout %s, which has no revision to pin, so --frozen has nothing to hold the install to.\n"+
+				"Point %s at an %s source and commit the pin, or drop --frozen for installs from a working tree",
+				agentpakke.DeclarationPath, bold(d.Source), bold("source"), bold("owner/repo"))
+		}
 		return frozenf("%s names %s but pins no revision, so a frozen install would take whatever the default branch is today.\n"+
 			"Run %s and commit the pin it writes",
 			agentpakke.DeclarationPath, bold(d.Source), bold("nav-pilot install <name>"))
