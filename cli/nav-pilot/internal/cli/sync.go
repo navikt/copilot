@@ -322,14 +322,17 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 			continue
 		}
 
-		// Check if it exists in the source
-		sourceFull := filepath.Join(src.Dir, sf.sourcePath)
-		if _, statErr := os.Stat(sourceFull); os.IsNotExist(statErr) {
+		// Check if it exists in the source, or in a pakke this one reuses. A
+		// file inherited from a reused pakke is not under src.Dir, and reading
+		// that absence as "deleted upstream" deleted everything the base
+		// supplied on the first sync after install.
+		sourceRoot, found := resolver.SourceRootFor(sf.sourcePath)
+		if !found {
 			deletedPaths = append(deletedPaths, sf.localPath)
 			continue
 		}
 
-		u, err := checkSyncFile(scope.RootDir, src.Dir, sf)
+		u, err := checkSyncFile(scope.RootDir, sourceRoot, sf)
 		if err != nil {
 			if !jsonOutput {
 				fmt.Fprintf(os.Stderr, "%s %s: %v\n", yellow("⚠"), sf.localPath, err)
