@@ -437,32 +437,52 @@ modell-id på den ene linja endrer altså standarden for standardklienten uten a
 noe hentes over nett. Kommentaren over erklæringen skyver valget til den som
 eier rutingsbeslutningen, og den beslutningen er ikke tatt.
 
-### 4.8 `--model` driver klientmodellen, ikke skriving i klientens config
+### 4.8 nav-pilot skriver nøkler den selv eier, og tar dem tilbake
 
-nav-pilot setter modellen klienten starter med ved å sende `--model` ved
-oppstart. Den skriver ikke inn i klientens egen konfigurasjonsfil.
+**Omgjort 8. september 2026.** Beslutningen var at nav-pilot ikke skriver i
+klientens egen konfigurasjon, og at `--model` ved oppstart uttrykker
+rangeringen uten å strekke seg inn i filer utvikleren eier. Den står ikke
+lenger.
 
-**Begrunnelsen:** nav-pilot rangerer over det brukeren har valgt inne i klienten
-sin, og oppstartsflagget uttrykker akkurat den rangeringen uten at nav-pilot
-strekker seg inn i filer utvikleren eier.
+Det som omgjorde den er det [#500](https://github.com/navikt/copilot/issues/500)
+selv pekte på som avgjørende: et behov som ikke kan uttrykkes som et
+oppstartsflagg. Modell per subagent er målt til å ligge i
+`subagents.agents.<filnavn>.model` i `~/.copilot/settings.json`, nøkkelen er
+filnavnet og ikke `name:` i frontmatteren, og en nøkkel med et navn som ikke
+finnes gir ingen effekt. Det er ikke noe flagg som når dit. Prisen for å la
+være er to funksjoner: OpenCode-porten
+([#709](https://github.com/navikt/copilot/issues/709)) og per-subagent modell
+([#717](https://github.com/navikt/copilot/issues/717)).
 
-Alternativet ble bygget og forkastet: Nav-standarden skrevet inn i
-`~/.config/opencode/opencode.json` som toppnivå-`model`, med fletting slik at
-utviklerens øvrige nøkler overlever
-([#498](https://github.com/navikt/copilot/pull/498), grenen
-`feat/align-model-semantics`). Den ble gjennomgått og ikke merget; `main` har
-aldri båret den. Grunnen er rekkevidden: å skrive i klientens egen konfigurasjon
-endrer standarden for *alle* opencode-økter på maskinen, også de nav-pilot aldri
-startet. Det er en større påstand enn «nav-pilot bestemmer hva nav-pilot starter
-med», og den rekker utenfor nav-pilots eget område.
+**Beslutningen:** nav-pilot skriver i klientens konfigurasjon, men bare nøkler
+den selv eier, og den tar dem tilbake. `unbindLocalWorker` er presedensen: det
+nav-pilot skrev, rydder nav-pilot.
 
-Hva som ville endret beslutningen står i
-[#500](https://github.com/navikt/copilot/issues/500): et behov for noe som ikke
-kan uttrykkes som et oppstartsflagg, der modeller per agent via
-`agent.<navn>.model` er det nærmeste eksempelet, eller et ønske om at
-Nav-standarden skal gjelde utenfor nav-pilot-startede økter. Issuet lister også
-det som må avklares før noen bygger det: eierskap av nøkler, reversering,
-formatering av utviklerens fil, og synlighet i brukerdokumentasjonen.
+Innvendingen som forkastet dette i [#498](https://github.com/navikt/copilot/pull/498)
+består og er ikke bortforklart: å skrive i klientens konfigurasjon endrer
+standarden for økter nav-pilot aldri startet. Forskjellen er at eierskapet nå er
+avgrenset til navngitte nøkler framfor et toppnivå-`model` som gjelder alt.
+
+**Fire spørsmål er ubesvarte, og ingen kode skal skrives før de har svar.** De
+er de samme fire #500 listet opp fra begynnelsen:
+
+- **Eierskap.** Hvilke nøkler eier nav-pilot, og hva skjer med en verdi
+  utvikleren har satt selv? #498 valgte å overskrive, som er én mulig regel,
+  ikke den eneste.
+- **Reversering.** Hvem rydder ved avinstallering eller kildebytte, og gjelder
+  det alle nøklene som skrives.
+- **Formatering.** En skriving reserialiserer fila og normaliserer utviklerens
+  formatering og nøkkelrekkefølge. En JSONC-fil med kommentarer feiler parsing,
+  og skal degradere til en advarsel framfor et tap.
+- **Synlighet.** Skriver nav-pilot i en fil utvikleren eier, skal det stå i
+  brukerdokumentasjonen, ikke bare i en kodekommentar.
+
+Et tredje alternativ finnes for opencode og bør vurderes før noen skriver i
+`opencode.json`: å peke klienten på en konfigurasjon nav-pilot eier, slik den
+staged oppstarten alt gjør med `OPENCODE_CONFIG_DIR`
+(`internal/provider/pakke.go:121`). Da faller eierskap, reversering og
+formatering bort. Det løser ikke Copilot-siden: ingen tilsvarende omdirigering
+er funnet der, og `~/.copilot/settings.json` ser ut til å være eneste sted.
 
 ## 5. Feller i koden, notert for den som utvider
 
