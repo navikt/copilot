@@ -161,6 +161,9 @@ jobs:
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # ratchet:peter-evans/create-pull-request@v7
         with:
           token: ${{ github.token }}
+          # Signed as github-actions[bot] via the API, so a reviewer can tell a
+          # sync commit from one that merely claims to be (#278).
+          sign-commits: true
           commit-message: "chore: sync Copilot customizations from ${{ inputs.source_repo }}"
           title: "chore: sync ${{ steps.check.outputs.update_count }} Copilot customization(s)"
           body: |
