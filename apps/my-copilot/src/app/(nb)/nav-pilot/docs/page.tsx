@@ -834,9 +834,9 @@ function CollectionsSection() {
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
             Alt Nav-innhold installeres som én agentpakke: <code className="font-mono text-xs">nav-pilot</code>.{" "}
             <code className="font-mono text-xs">nav-pilot install nav-pilot</code> gir deg alle agenter, skills,
-            instruksjoner, prompts og hooks. Det er bevisst alt: instruksjoner er glob-scopet og aktiveres bare mot
-            matchende filer, skills lastes ved behov, og bare nav-pilot-personaene er primæragenter. Vil du ha mindre,
-            velger du bort i den interaktive velgeren. Fravalgene huskes og overlever sync.
+            instruksjoner, prompts, hooks og extensions. Det er bevisst alt: instruksjoner er glob-scopet og aktiveres
+            bare mot matchende filer, skills lastes ved behov, og bare nav-pilot-personaene er primæragenter. Vil du ha
+            mindre, velger du bort i den interaktive velgeren. Fravalgene huskes og overlever sync.
           </BodyLong>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
             De fem tidligere collections (frontend, nextjs-frontend, kotlin-backend, fullstack, platform) er kollapset
@@ -852,6 +852,13 @@ function CollectionsSection() {
             <code className="font-mono text-xs">~/.copilot/hooks/</code> (bruker), og{" "}
             <code className="font-mono text-xs">nav-pilot uninstall</code> fjerner bare oppføringene nav-pilot selv har
             skrevet. Dine egne hooks blir stående.
+          </BodyLong>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            Teamet ditt kan distribuere sitt eget oppsett på samme form.{" "}
+            <NextLink href="/nav-pilot/agentpakker" className="underline">
+              Lag en agentpakke
+            </NextLink>{" "}
+            er oppskrifta, fra manifest til at et annet team installerer den.
           </BodyLong>
         </div>
 
