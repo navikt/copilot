@@ -243,13 +243,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 				}
 				return errUpdatesAvailable
 			}
-			fmt.Printf("%s %d file(s) are in conflict state and were skipped (source: %s)\n\n",
-				yellow("⚠"), len(conflictPaths), shortSHA(src.SHA))
-			for _, p := range conflictPaths {
-				fmt.Printf("  %s %s\n", dim("⊘"), p)
-			}
-			fmt.Println()
-			fmt.Printf("Run %s to apply updates.\n", bold("nav-pilot sync --apply"))
+			printConflictSummary(scope, conflictPaths, src.SHA)
 			return errUpdatesAvailable
 		}
 		if len(retired) > 0 {
@@ -479,28 +473,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	}
 
 	if len(conflictPaths) > 0 && !apply {
-		// "differs from what nav-pilot installed" and not "your own edits"
-		// (#692). The status says content changed since the recorded hash; it
-		// says nothing about who changed it. A reader who knows they edited
-		// nothing rightly rejects the sentence, and the only remedy offered is
-		// --apply, which then takes the source's version whether that is newer
-		// or older than what is on disk.
-		fmt.Printf("%s %d file(s) differ from what nav-pilot installed and are left alone by a plain sync (source: %s)\n\n",
-			yellow("⚠"), len(conflictPaths), shortSHA(src.SHA))
-		// Per-file provenance turns a bare path into a fact the reader can act
-		// on (#729): a file installed from an older revision than the one the
-		// scope is on is behind, not edited, and those are different problems
-		// with the same hash symptom. A file with no recorded revision predates
-		// provenance and says nothing extra rather than guessing.
-		revisions := installedRevisions(scope)
-		for _, p := range conflictPaths {
-			line := fmt.Sprintf("  %s %s", dim("⊘"), p)
-			if rev := revisions[p]; rev != "" && !sameRevision(rev, src.SHA) {
-				line += dim(fmt.Sprintf("  (installed from %s)", shortSHA(rev)))
-			}
-			fmt.Println(line)
-		}
-		fmt.Printf("%s to take the source's version of these too.\n\n", bold("nav-pilot sync --apply"))
+		printConflictSummary(scope, conflictPaths, src.SHA)
 	}
 
 	if !apply {
@@ -896,6 +869,38 @@ func resolveSyncFiles(scope *InstallScope, resolver *SourceResolver, includeConf
 
 	// Auto-detect: scan for customization files that also exist in source
 	return autoDetectSyncFiles(scope.RootDir, resolver)
+}
+
+// printConflictSummary reports the files a plain sync leaves alone.
+//
+// One function for both branches, because there were two and they drifted: the
+// path where there is nothing else to sync kept the wording #623 objected to
+// ("in conflict state and were skipped", then "Run sync --apply to apply
+// updates") long after the main path was rewritten (#651). A message written
+// twice is a message that will say two things.
+//
+// "differs from what nav-pilot installed" and not "your own edits" (#692). The
+// status says content changed since the recorded hash; it says nothing about
+// who changed it. A reader who knows they edited nothing rightly rejects the
+// sentence, and the only remedy offered is --apply, which then takes the
+// source's version whether that is newer or older than what is on disk.
+func printConflictSummary(scope *InstallScope, conflictPaths []string, srcSHA string) {
+	fmt.Printf("%s %d file(s) differ from what nav-pilot installed and are left alone by a plain sync (source: %s)\n\n",
+		yellow("⚠"), len(conflictPaths), shortSHA(srcSHA))
+	// Per-file provenance turns a bare path into a fact the reader can act on
+	// (#729): a file installed from an older revision than the one the scope is
+	// on is behind, not edited, and those are different problems with the same
+	// hash symptom. A file with no recorded revision predates provenance and
+	// says nothing extra rather than guessing.
+	revisions := installedRevisions(scope)
+	for _, p := range conflictPaths {
+		line := fmt.Sprintf("  %s %s", dim("⊘"), p)
+		if rev := revisions[p]; rev != "" && !sameRevision(rev, srcSHA) {
+			line += dim(fmt.Sprintf("  (installed from %s)", shortSHA(rev)))
+		}
+		fmt.Println(line)
+	}
+	fmt.Printf("%s to take the source's version of these too.\n\n", bold("nav-pilot sync --apply"))
 }
 
 func conflictStatePaths(scope *InstallScope) []string {

@@ -11,6 +11,26 @@ import (
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
+// reportScopeConflicts names the files a plain sync leaves alone.
+//
+// doctor had no mention of conflicts at all (#651), so the one command whose
+// job is to say what is wrong stayed silent about the state that makes sync
+// skip files. It does not set hasErrors: a file that differs from what
+// nav-pilot installed is often the team's own deliberate edit, and doctor
+// exiting non-zero for that would make a normal, chosen state look broken.
+func reportScopeConflicts(scope *InstallScope) {
+	conflicts := conflictStatePaths(scope)
+	if len(conflicts) == 0 {
+		return
+	}
+	fmt.Printf("      %s %d file(s) differ from what nav-pilot installed and are left alone by a plain sync\n",
+		yellow("⚠"), len(conflicts))
+	for _, p := range conflicts {
+		fmt.Printf("          %s %s\n", dim("⊘"), p)
+	}
+	fmt.Printf("          %s %s takes the source's version of these too.\n", yellow("Solution:"), bold("nav-pilot sync --apply"))
+}
+
 // cmdDoctor runs system health checks and outputs actionable diagnostics.
 func cmdDoctor() error {
 	fmt.Printf("%s\n\n", bold("nav-pilot doctor"))
@@ -60,6 +80,7 @@ func cmdDoctor() error {
 				fmt.Printf("    • User scope (~/.copilot): %q collection\n", userState.Collection)
 				fmt.Printf("      %s %d files OK\n", green("✓"), ok)
 			}
+			reportScopeConflicts(userScope)
 		} else {
 			fmt.Printf("    • User scope (~/.copilot): Not installed\n")
 		}
@@ -84,6 +105,7 @@ func cmdDoctor() error {
 				fmt.Printf("    • Repo scope (.github): %q collection\n", repoState.Collection)
 				fmt.Printf("      %s %d files OK\n", green("✓"), ok)
 			}
+			reportScopeConflicts(repoScope)
 		} else {
 			fmt.Printf("    • Repo scope (.github): Not installed\n")
 		}
