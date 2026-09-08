@@ -19,10 +19,10 @@ func TestGetFileFindsInheritedArtifact(t *testing.T) {
 	if !ok {
 		t.Fatal("GetFile fant ikke det arvede artefaktet")
 	}
-	if rel != filepath.Join("agents", "felles.agent.md") {
-		t.Errorf("rel = %q, ventet agents/felles.agent.md", rel)
+	if rel != filepath.Join(KindAgent.Dir, "felles.agent.md") {
+		t.Errorf("rel = %q, ventet <agents>/felles.agent.md", rel)
 	}
-	if want := filepath.Join(baseDir, "agents", "felles.agent.md"); abs != want {
+	if want := filepath.Join(baseDir, KindAgent.Dir, "felles.agent.md"); abs != want {
 		t.Errorf("abs = %q, ventet %q", abs, want)
 	}
 }

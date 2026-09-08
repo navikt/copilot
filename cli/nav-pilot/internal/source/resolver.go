@@ -136,11 +136,12 @@ func (r *SourceResolver) WithBase(base *SourceResolver) *SourceResolver {
 // upstream" deletes what install just wrote. The same reason `add --source`
 // files are left alone (#571), one level up.
 func (r *SourceResolver) SourceRootFor(rel string) (string, bool) {
+	// checkSafePath already Lstats the path, so its success is both "inside
+	// this checkout" and "exists". A second Stat would only add a window for
+	// the file to change between the two calls.
 	abs := filepath.Join(r.sourceDir, rel)
 	if _, err := r.checkSafePath(abs); err == nil {
-		if _, err := os.Stat(abs); err == nil {
-			return r.sourceDir, true
-		}
+		return r.sourceDir, true
 	}
 	if r.base != nil {
 		return r.base.SourceRootFor(rel)

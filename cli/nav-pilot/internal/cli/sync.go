@@ -42,6 +42,7 @@ type syncPinBump struct {
 type syncUpdate struct {
 	Path        string `json:"path"`
 	SourcePath  string `json:"-"` // resolved source path, not serialized
+	SourceRoot  string `json:"-"` // the checkout SourcePath is relative to
 	CurrentHash string `json:"current_hash"`
 	SourceHash  string `json:"source_hash"`
 }
@@ -489,7 +490,14 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	var appliedUpdates []syncUpdate
 	var applyErrors int
 	for _, u := range updates {
-		if err := applySyncUpdate(scope, src.Dir, u); err != nil {
+		// The root the comparison used, not the top source: an inherited file
+		// lives in the reused pakke, and copying it from src.Dir would read a
+		// path that is not there.
+		root := u.SourceRoot
+		if root == "" {
+			root = src.Dir
+		}
+		if err := applySyncUpdate(scope, root, u); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not update %s: %v\n", yellow("⚠"), u.Path, err)
 			applyErrors++
 			continue
@@ -1039,7 +1047,7 @@ func checkSyncFile(targetDir, sourceDir string, sf syncFile) (*syncUpdate, error
 	if localHash == sourceHash {
 		return nil, nil
 	}
-	return &syncUpdate{Path: sf.localPath, SourcePath: sf.sourcePath, CurrentHash: localHash, SourceHash: sourceHash}, nil
+	return &syncUpdate{Path: sf.localPath, SourcePath: sf.sourcePath, SourceRoot: sourceDir, CurrentHash: localHash, SourceHash: sourceHash}, nil
 }
 
 // applySyncUpdate copies a single file/dir from source to target.
