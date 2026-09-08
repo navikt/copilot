@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-08T17:39:57.009Z",
+  "generatedAt": "2026-09-08T17:49:50.837Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -818,7 +818,7 @@
       "filePath": ".github/prompts/golang-service.prompt.md",
       "repoPath": "prompts/golang-service.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/golang-service.prompt.md",
-      "contentHash": "6b0b8487f8cc481e1632f2888e331e2cda331a0bbd0c6a3c3f2682967741aab7",
+      "contentHash": "dc21d1c2ee4c168502d3aef869e7e7908e6b96eefab0512f0f1f0e0243d0966d",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fgolang-service.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fgolang-service.prompt.md",
       "invocation": "#golang-service",
@@ -865,7 +865,7 @@
       "filePath": ".github/prompts/nais-manifest.prompt.md",
       "repoPath": "prompts/nais-manifest.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/nais-manifest.prompt.md",
-      "contentHash": "8576571223ffef8a3a02b2e6ae8b5ac3ca1c2f2c2aa09740222fc7fbcac0f0e0",
+      "contentHash": "f90a562ca7f8233c7ee7a32a26cc5c9140097379266cfe66b58fe9461e2972ed",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fnais-manifest.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fnais-manifest.prompt.md",
       "invocation": "#nais-manifest",

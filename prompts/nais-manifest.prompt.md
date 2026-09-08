@@ -4,7 +4,12 @@ description: Generer et produksjonsklart Nais-applikasjonsmanifest for Kubernete
 model: GPT-5.3-Codex
 ---
 
-You are creating a Nais application manifest in `.nais/app.yaml` for deploying to Nav's Kubernetes platform.
+You are creating a Nais application manifest for deploying to Nav's Kubernetes platform.
+
+The default path is `.nais/app.yaml`. If that file already exists and declares a different
+application, do not edit it: it belongs to another deployment, and overwriting it takes that
+team's manifest with it. Write `.nais/<app-name>.yaml` instead, and say which path you chose
+and why.
 
 ## Required Configuration
 
