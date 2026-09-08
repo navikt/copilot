@@ -11,9 +11,9 @@ tags:
 ---
 
 Nav is Norway's labour and welfare administration. We pay out roughly a third
-of the national budget, and a few hundred developers keep that running. In
-March we asked them how they work with AI coding tools. 163 answered. Twelve
-said they use none. Three quarters use two or more.
+of the national budget, and around 700 developers with GitHub Copilot licences
+keep that running. In March we asked them how they work with AI coding tools.
+163 answered. Twelve said they use none. Three quarters use two or more.
 
 That is the context for what follows. The agents are here, they run on
 developer laptops with real credentials, and the question is no longer whether
@@ -65,12 +65,15 @@ What the agent sees when it tries:
 ⚠️ BLOCKED by sandbox: 'git push' is not allowed in this environment.
 Push prevention is enabled — commit your changes locally.
 This operation is restricted by the cplt sandbox to prevent unintended pushes.
+'main' is the protected branch here. Only the default branch is protected
+(protect_default_branch_only), so pushing a feature branch works as it is:
+`git push origin <branch>` with any other name.
 Please make a note of this for the human operator and continue with your remaining work.
 ```
 
-The last line is deliberate. An agent that hits a wall with no explanation
+The middle lines are deliberate. An agent that hits a wall with no explanation
 tends to try the wall again, or route around it. Telling it what happened, and
-what to do instead, ends the loop.
+which door is open, ends the loop.
 
 We should be precise about what the guard is. It is a shim on the PATH. The
 real `/usr/bin/git` is untouched, and an agent that calls it by absolute path,
@@ -153,6 +156,13 @@ repository. The reasoning is duller: the tools hold credentials that can do
 irreversible things, the cost of preventing that is a wrapper and a config
 file, and we would rather write the rule down than trust that the next model
 release stays polite.
+
+None of it depends on a developer choosing to run it, either. cplt is a
+standalone binary and anyone can install it, but that is not how it reaches
+most of Nav. It is bundled into the agent harness we ship internally, so the
+sandbox is the way an agent starts by default rather than something a developer
+remembers to install. That distribution fact does more work than any rule in
+the config.
 
 Until recently the two guards had opposite defaults. The `gh` guard blocked
 and the `git` guard warned, so the weaker default sat on the operation with
