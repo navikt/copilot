@@ -231,3 +231,33 @@ func TestSelfReferenceResolvesPathSpelling(t *testing.T) {
 		t.Errorf("pakka ble kjedet til seg selv via %q", reused.Dir)
 	}
 }
+
+// En payload-pakke har ingen filer å arve fra: leveringsenheten er en
+// digest-bundet revisjon, ikke filer på stier. Å komponere den meldte
+// «Reuses:» og bidro så med ingenting, altså en påstand install ikke kunne
+// innfri.
+func TestPayloadOnlyBaseIsRefused(t *testing.T) {
+	baseDir, ownDir := t.TempDir(), t.TempDir()
+	if err := os.MkdirAll(filepath.Join(baseDir, ".nav-pilot"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(baseDir, "plugin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payloadManifest := `{"contractVersion":"1","name":"t2base","description":"payload",` +
+		`"clients":{"copilot":{"payloads":{"full":{"path":"plugin","primaryAgents":["x"]}}}}}`
+	if err := os.WriteFile(filepath.Join(baseDir, ".nav-pilot", "agentpakke.json"), []byte(payloadManifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writePakke(t, ownDir, "egenpakke", "eget")
+	declareReuse(t, ownDir, baseDir)
+
+	src := loadSource(t, ownDir)
+	_, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	if err == nil {
+		t.Fatalf("en payload-pakke ble godtatt som base, gjenbrukt = %v", reused)
+	}
+	if !strings.Contains(err.Error(), "Tier 2") {
+		t.Errorf("feilmeldinga sier ikke hvorfor: %v", err)
+	}
+}

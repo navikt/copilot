@@ -349,7 +349,7 @@ func TestRevisionIsRecordedAndSurfaced(t *testing.T) {
 			// Stamping one would claim a revision put something on disk.
 			{Path: "agents/b.agent.md", Status: fileStatusIgnored},
 		}
-		got := stampRevision(files, "def5678")
+		got := stampRevision(files, "def5678", nil)
 		if got[0].Revision != "def5678" {
 			t.Errorf("written file revision = %q, want def5678", got[0].Revision)
 		}

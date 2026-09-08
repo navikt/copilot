@@ -215,3 +215,48 @@ func homeSnapshot(t *testing.T) string {
 	}
 	return b.String()
 }
+
+// Et arvet artefakt kom ikke fra toppkildens revisjon, så det skal ikke
+// stemples med den. Sync sin «installed from <sha>»-hint ville ellers navngi
+// en revisjon fila aldri var i.
+func TestInheritedFilesAreNotStampedWithTheTopRevision(t *testing.T) {
+	e := newEnv(t)
+	base := e.pakke("basepakke", "felles")
+	own := e.pakke("egenpakke", "eget")
+	e.declareReuse(own, base)
+	cons := e.consumer("forbruker")
+
+	if out, code := e.run(cons, "install", "egenpakke", "--source", own, "--repo"); code != 0 {
+		t.Fatalf("install feilet: %d\n%s", code, out)
+	}
+	body, err := os.ReadFile(filepath.Join(cons, ".github", ".nav-pilot-state.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var state struct {
+		Files []struct {
+			Path     string `json:"path"`
+			Revision string `json:"revision"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal(body, &state); err != nil {
+		t.Fatal(err)
+	}
+	var sawOwn bool
+	for _, f := range state.Files {
+		switch {
+		case strings.Contains(f.Path, "felles"):
+			if f.Revision != "" {
+				t.Errorf("det arvede artefaktet ble stemplet med %q", f.Revision)
+			}
+		case strings.Contains(f.Path, "eget"):
+			sawOwn = true
+			if f.Revision == "" {
+				t.Error("pakkens eget artefakt mistet revisjonsstempelet sitt")
+			}
+		}
+	}
+	if !sawOwn {
+		t.Fatal("fant ikke pakkens eget artefakt i staten, da tester dette ingenting")
+	}
+}

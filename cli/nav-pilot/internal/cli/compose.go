@@ -98,6 +98,18 @@ func composeResolverSeen(resolver *SourceResolver, src *Source, seen []string) (
 	if err := attachPakke(baseSrc); err != nil {
 		return nil, nil, err
 	}
+	// A payload-only base has nothing to inherit from. Its unit of delivery is
+	// a digest-bound revision, not files at paths, so composing it announced
+	// "Reuses:" and then contributed nothing. Refused rather than ignored, for
+	// the same reason guardDeclaredItems refuses `items` against a Tier 2
+	// pakke: a declaration that cannot do what it says should say so.
+	if payloadOnly(baseSrc) {
+		return nil, nil, fmt.Errorf(
+			"agentpakke %s reuses %q, which ships pre-built payloads (Tier 2).\n"+
+				"A payload tree is staged and digest-verified as a whole, so there are no files to inherit from it.\n\n"+
+				"Nothing was installed. Remove the reuse from %s, or ask %s for a layout-shaped pakke",
+			sourceLabelFor(src), decl.Source, agentpakke.DeclarationPath, decl.Source)
+	}
 	// A reused pakke may itself reuse one. The chain is built depth-first, so
 	// by the time this source's resolver is wrapped, everything behind it is
 	// already in place.
