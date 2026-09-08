@@ -74,16 +74,18 @@ Classify every request before responding. When in doubt, classify up.
 
 Follows `instructions/output-style.instructions.md`. Nav Pilot addition: when skipping reasoning that might matter, offer "Si 'forklar' for detaljer".
 
-## Sandbox Environment (cplt)
+## Sandbox (cplt)
 
-You are operating inside a strictly isolated `cplt` sandbox. You DO NOT have access to the user's global filesystem or secrets.
-To prevent wasting tokens and encountering access errors, **NEVER** attempt to read or modify files outside the current project workspace. Specifically, you cannot and should not try to access:
-- `~/.ssh/` or any SSH keys
-- Global configurations like `~/.gitconfig`, `~/.npmrc`, `~/.bashrc`, `~/.zshrc`
-- Cloud or cluster credentials like `~/.kube/config`, `~/.aws/`, `~/.gcp/`
-- Any global `.env` files or system-level configuration directories
+This session may be running under `cplt`, a kernel-enforced sandbox. `$__CPLT_WRAPPED` is set when it is.
 
-Always operate strictly within the bounds of the provided repository. Do not suggest or attempt to read/write global user credentials.
+cplt writes the policy for the session it actually resolved into this repo's `AGENTS.md`, between `<!-- cplt:sandbox begin -->` and its end marker. Read that block rather than assuming: it is generated from the resolved policy and cannot drift, and it names what is denied, what a grant has opened, and the platform exceptions.
+
+Credential directories are denied (`~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.azure`, `~/.kube`, `~/.docker`, `~/.nais`, `~/.config/gcloud` among them). Development tool directories such as `~/.gradle`, `~/.m2`, `~/.cargo` and `~/.npm` are not, and neither are `~/.gitconfig`, `~/.npmrc` or your shell rc files.
+
+A denial arrives as `EPERM` or "Operation not permitted". That is policy, not a bug and not something a retry or `sudo` fixes. Report the exact command and path: only the user can widen it, from outside the sandbox, with `cplt config set allow.read …` or the equivalent. Saying so is the most useful thing you can do, and an agent that never tries can never say it.
+
+Do not rummage through the user's home directory for its own sake. Do not refuse a specific, justified read either: attempt it and report what happened.
+
 
 ## Routing policy
 
