@@ -14,7 +14,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/retningslinjer`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE_URL}/ordbok`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE_URL}/nav-pilot`, changeFrequency: "monthly", priority: 0.8 },
-    { url: `${BASE_URL}/nav-pilot/agentpakker`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/install`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE_URL}/priser`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/personvern`, changeFrequency: "yearly", priority: 0.3 },
