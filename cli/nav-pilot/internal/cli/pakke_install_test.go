@@ -1609,3 +1609,52 @@ func TestLocalLaunchFirstRevisionSurvives(t *testing.T) {
 		t.Errorf("revisions = %v, want %v", got, want)
 	}
 }
+
+// Samme sak gjennom autoPin, ikke bare gjennom hjelperne.
+//
+// TestLocalLaunchKeepsThePreviousRevision kaller prunePakkeRevisions selv, med
+// previousRevision som argument, altså gjentar den kallstedet. Den passerer
+// derfor også når autoPin slutter å sende previous videre, som er nøyaktig
+// regresjonen #703 beskriver. Denne kjører autoPin.
+func TestAutoPinKeepsThePreviousRevisionThroughTheLaunchPath(t *testing.T) {
+	isolatedConfig(t)
+	work := t.TempDir() // absolutt sti: aldri pinnbar, som er tilfellet under test
+
+	// En tidligere revisjon som en levende økt kan lese fra.
+	dir := pakkeSourceDir(work)
+	old := filepath.Join(dir, "forrige")
+	if err := os.MkdirAll(old, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	when := time.Now().Add(-time.Minute)
+	if err := os.Chtimes(old, when, when); err != nil {
+		t.Fatal(err)
+	}
+
+	// autoPin materialiserer revisjonen, så kilden må være en ekte pakke.
+	manifest := `{"contractVersion":"1","name":"lokalpakke","description":"l",` +
+		`"layout":{"agents":"agents","skills":"skills"},` +
+		`"clients":{"copilot":{"primaryAgents":["en"]}}}`
+	mustWrite(t, filepath.Join(work, ".nav-pilot", "agentpakke.json"), manifest)
+	mustWrite(t, filepath.Join(work, "agents", "en.agent.md"), "---\nname: en\ndescription: x\n---\nx\n")
+	mustWrite(t, filepath.Join(work, "skills", ".keep"), "")
+
+	src := &Source{Dir: work, Repo: work, SHA: "naa"}
+	if err := attachPakke(src); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := autoPin(src); err != nil {
+		t.Fatalf("autoPin: %v", err)
+	}
+
+	names := revisionNames(t, work)
+	var sawPrevious bool
+	for _, n := range names {
+		if n == "forrige" {
+			sawPrevious = true
+		}
+	}
+	if !sawPrevious {
+		t.Errorf("autoPin fjernet forrige revisjon, som en levende økt leser fra: %v", names)
+	}
+}
