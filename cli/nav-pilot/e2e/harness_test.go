@@ -26,6 +26,7 @@ import (
 var (
 	buildOnce sync.Once
 	binPath   string
+	buildOut  string
 	buildErr  error
 )
 
@@ -43,11 +44,11 @@ func binary(t *testing.T) string {
 		cmd.Dir = ".."
 		if out, err := cmd.CombinedOutput(); err != nil {
 			buildErr = err
-			binPath = string(out)
+			buildOut = string(out)
 		}
 	})
 	if buildErr != nil {
-		t.Fatalf("building nav-pilot: %v\n%s", buildErr, binPath)
+		t.Fatalf("building nav-pilot: %v\n%s", buildErr, buildOut)
 	}
 	return binPath
 }
@@ -75,8 +76,13 @@ func (e *env) run(dir string, args ...string) (string, int) {
 	e.t.Helper()
 	cmd := exec.Command(binary(e.t), args...)
 	cmd.Dir = dir
+	// XDG_CONFIG_HOME too: opencode honours it (openCodeConfigDir), so a
+	// developer or CI runner that has it set would otherwise send writes
+	// outside the sandbox even though HOME points inside it.
 	cmd.Env = append(os.Environ(),
 		"HOME="+e.home,
+		"XDG_CONFIG_HOME="+filepath.Join(e.home, ".config"),
+		"XDG_DATA_HOME="+filepath.Join(e.home, ".local", "share"),
 		"NAV_PILOT_CONFIG="+filepath.Join(e.home, "config.toml"),
 		"NO_COLOR=1",
 		"NAV_PILOT_TELEMETRY=off",

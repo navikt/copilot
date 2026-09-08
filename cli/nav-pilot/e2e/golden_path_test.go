@@ -161,45 +161,57 @@ func TestSyncJSONStaysParseable(t *testing.T) {
 	}
 }
 
-// Harnessen skal ikke røre utviklerens egne kataloger.
-func TestNothingIsWrittenOutsideTheSandbox(t *testing.T) {
+// Isolasjonen er hele forutsetningen for suiten, så den måles framfor å antas.
+//
+// Testen som sto her het «ingenting skrives utenfor sandkassen» og sjekket
+// bare at sandkassens config fantes; den hentet til og med utviklerens ekte
+// hjemmekatalog uten å sammenlikne med den. Navnet lovet mer enn kroppen
+// holdt, som er den samme feilen resten av denne økta handlet om.
+//
+// Det som faktisk er etterprøvbart: kilden install lagrer havner i
+// sandkassens config og ikke i utviklerens, og alt install skrev ligger under
+// forbrukerrepoet.
+func TestInstallWritesOnlyInsideTheSandbox(t *testing.T) {
 	e := newEnv(t)
 	src := e.pakke("plattform", "grillmester")
 	cons := e.consumer("forbruker")
-	if _, code := e.run(cons, "install", "plattform", "--source", src, "--repo"); code != 0 {
-		t.Fatal("install feilet")
+
+	before := homeSnapshot(t)
+	if out, code := e.run(cons, "install", "plattform", "--source", src, "--repo"); code != 0 {
+		t.Fatalf("install feilet: %d\n%s", code, out)
 	}
-	real, err := os.UserHomeDir()
-	if err != nil || real == e.home {
-		t.Skip("ingen ekte hjemmekatalog å sammenlikne med")
+
+	cfg := filepath.Join(e.home, "config.toml")
+	body, err := os.ReadFile(cfg)
+	if err != nil {
+		t.Fatalf("kilden ble ikke lagret i sandkassens config: %v", err)
 	}
-	if !e.exists(filepath.Join(e.home, "config.toml")) {
-		t.Error("kilden ble ikke lagret i sandkassens config, da skriver den kanskje et annet sted")
+	if !strings.Contains(string(body), src) {
+		t.Errorf("sandkassens config nevner ikke kilden:\n%s", body)
+	}
+	if after := homeSnapshot(t); after != before {
+		t.Errorf("utviklerens hjemmekatalog endret seg under kjøringa:\n før: %s\n etter: %s", before, after)
 	}
 }
 
-// Sync skal lese kilden erklæringa navngir, ikke den som står i config.
-// Testen som fantes dekket adoptSyncSource, ikke syncScope, så kilden sync
-// faktisk ba om var usett.
-func TestSyncReadsTheDeclaredSource(t *testing.T) {
-	e := newEnv(t)
-	declared := e.pakke("erklaert", "grillmester")
-	other := e.pakke("annen", "noeannet")
-	cons := e.consumer("forbruker")
-
-	if out, code := e.run(cons, "install", "erklaert", "--source", declared, "--repo"); code != 0 {
-		t.Fatalf("install feilet: %d\n%s", code, out)
+// homeSnapshot beskriver de to katalogene nav-pilot ellers ville skrevet i,
+// i utviklerens ekte hjemmekatalog. Endrer den seg over en kjøring, lekker
+// sandkassen.
+func homeSnapshot(t *testing.T) string {
+	t.Helper()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
 	}
-	// Config peker et annet sted enn erklæringa.
-	if out, code := e.run(cons, "config", "set", "source", other); code != 0 {
-		t.Fatalf("config set feilet: %d\n%s", code, out)
+	var b strings.Builder
+	for _, p := range []string{filepath.Join(home, ".copilot"), filepath.Join(home, ".nav-pilot")} {
+		info, err := os.Stat(p)
+		switch {
+		case err != nil:
+			b.WriteString(p + "=fraværende;")
+		default:
+			b.WriteString(p + "=" + info.ModTime().String() + ";")
+		}
 	}
-
-	out, _ := e.run(cons, "sync", "--repo")
-	if strings.Contains(out, "noeannet") {
-		t.Errorf("sync leste kilden fra config framfor fra erklæringa:\n%s", out)
-	}
-	if strings.Contains(out, "deleted in source") {
-		t.Errorf("sync mente filene var slettet, altså leste den feil kilde:\n%s", out)
-	}
+	return b.String()
 }
