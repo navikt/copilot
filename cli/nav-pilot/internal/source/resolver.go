@@ -127,6 +127,28 @@ func (r *SourceResolver) WithBase(base *SourceResolver) *SourceResolver {
 	return &chained
 }
 
+// SourceRootFor returns the source directory that actually holds a
+// source-relative path, looking through the reuse chain, and whether any of
+// them does.
+//
+// Sync needs this because a tracked file may have come from a reused pakke: it
+// is not under this source's directory, and reading that absence as "deleted
+// upstream" deletes what install just wrote. The same reason `add --source`
+// files are left alone (#571), one level up.
+func (r *SourceResolver) SourceRootFor(rel string) (string, bool) {
+	// checkSafePath already Lstats the path, so its success is both "inside
+	// this checkout" and "exists". A second Stat would only add a window for
+	// the file to change between the two calls.
+	abs := filepath.Join(r.sourceDir, rel)
+	if _, err := r.checkSafePath(abs); err == nil {
+		return r.sourceDir, true
+	}
+	if r.base != nil {
+		return r.base.SourceRootFor(rel)
+	}
+	return "", false
+}
+
 // Base returns the reused resolver, or nil.
 func (r *SourceResolver) Base() *SourceResolver { return r.base }
 
@@ -281,6 +303,13 @@ func (r *SourceResolver) GetFile(typeDir, fileName string) (absPath, relPath str
 	abs := filepath.Join(r.sourceDir, rel)
 	if _, err := r.checkSafePath(abs); err == nil {
 		return abs, rel, true
+	}
+	// Then the reused pakke, for the same reason Get consults it. Without
+	// this, MapLocalPath could not name an inherited file's source path and
+	// fell back to the local path, which sync then looked for in the wrong
+	// repo and reported as deleted upstream.
+	if r.base != nil {
+		return r.base.GetFile(typeDir, fileName)
 	}
 	return "", "", false
 }
