@@ -71,6 +71,18 @@ func newEnv(t *testing.T) *env {
 	return &env{t: t, home: home, root: root}
 }
 
+// commandEnv is the sandbox half of the environment every run gets, as a map,
+// so a test can assert that the redirection is actually in place rather than
+// trusting that it is.
+func (e *env) commandEnv() map[string]string {
+	return map[string]string{
+		"HOME":             e.home,
+		"XDG_CONFIG_HOME":  filepath.Join(e.home, ".config"),
+		"XDG_DATA_HOME":    filepath.Join(e.home, ".local", "share"),
+		"NAV_PILOT_CONFIG": filepath.Join(e.home, "config.toml"),
+	}
+}
+
 // run executes nav-pilot in dir and returns combined output plus exit code.
 func (e *env) run(dir string, args ...string) (string, int) {
 	e.t.Helper()
@@ -79,14 +91,10 @@ func (e *env) run(dir string, args ...string) (string, int) {
 	// XDG_CONFIG_HOME too: opencode honours it (openCodeConfigDir), so a
 	// developer or CI runner that has it set would otherwise send writes
 	// outside the sandbox even though HOME points inside it.
-	cmd.Env = append(os.Environ(),
-		"HOME="+e.home,
-		"XDG_CONFIG_HOME="+filepath.Join(e.home, ".config"),
-		"XDG_DATA_HOME="+filepath.Join(e.home, ".local", "share"),
-		"NAV_PILOT_CONFIG="+filepath.Join(e.home, "config.toml"),
-		"NO_COLOR=1",
-		"NAV_PILOT_TELEMETRY=off",
-	)
+	cmd.Env = append(os.Environ(), "NO_COLOR=1", "NAV_PILOT_TELEMETRY=off")
+	for k, v := range e.commandEnv() {
+		cmd.Env = append(cmd.Env, k+"="+v)
+	}
 	out, err := cmd.CombinedOutput()
 	code := 0
 	if ee, ok := err.(*exec.ExitError); ok {

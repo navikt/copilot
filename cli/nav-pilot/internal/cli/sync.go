@@ -270,11 +270,16 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		// with exit 0 let it rot in exactly the repos a scheduled workflow was
 		// supposed to keep fresh, because that workflow reads the exit code.
 		if pinBump != nil {
+			// The write comes first, so the document can report what actually
+			// happened rather than what was about to.
+			if apply {
+				bumpDeclarationSHA(scope, src, jsonOutput)
+			}
 			if jsonOutput {
-				if err := outputJSON(syncResult{Source: src.SHA, PinBump: pinBump}); err != nil {
+				if err := outputJSON(syncResult{UpToDate: apply, Source: src.SHA, PinBump: pinBump}); err != nil {
 					return err
 				}
-			} else {
+			} else if !apply {
 				fmt.Printf("%s %s pins %s and the source is at %s (source: %s)\n\n",
 					yellow("⚠"), bold(agentpakke.DeclarationPath),
 					shortSHA(pinBump.From), shortSHA(pinBump.To), shortSHA(src.SHA))
@@ -282,7 +287,6 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 			if !apply {
 				return errUpdatesAvailable
 			}
-			bumpDeclarationSHA(scope, src)
 			return nil
 		}
 		if jsonOutput {
@@ -435,7 +439,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		// said so — but a declaration that names a source and pins nothing still
 		// gets its pin filled in, and only --apply may write it.
 		if apply {
-			bumpDeclarationSHA(scope, src)
+			bumpDeclarationSHA(scope, src, jsonOutput)
 		}
 		// Bump state version so staleness check won't re-trigger for this release
 		if src.Version != "" {
@@ -578,7 +582,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		removeRetiredOrphans(scope, retired, jsonOutput)
 	}
 	if applyErrors == 0 {
-		bumpDeclarationSHA(scope, src)
+		bumpDeclarationSHA(scope, src, jsonOutput)
 	}
 	if state, err := readScopedState(scope); err == nil && state != nil {
 		if applyErrors == 0 {

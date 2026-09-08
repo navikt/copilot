@@ -506,7 +506,7 @@ func TestSyncSaysSoWhenTheDeclarationCannotBeRead(t *testing.T) {
 
 	src := &Source{Dir: t.TempDir(), SHA: strings.Repeat("a", 40), Repo: defaultSourceRepo}
 
-	err := captureStderrFor(t, func() { bumpDeclarationSHA(scope, src) })
+	err := captureStderrFor(t, func() { bumpDeclarationSHA(scope, src, false) })
 	if !strings.Contains(err, agentpakke.DeclarationPath) {
 		t.Errorf("bumpDeclarationSHA skipped an unreadable declaration without a word:\n%s", err)
 	}
