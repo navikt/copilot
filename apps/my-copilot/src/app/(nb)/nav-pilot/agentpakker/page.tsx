@@ -128,9 +128,9 @@ export default function Agentpakker() {
 
             <div className="min-w-0 flex-1">
               <VStack gap={{ xs: "space-32", md: "space-40" }}>
-                <section id="hva-det-er">
+                <section>
                   <VStack gap="space-16">
-                    <LinkableHeading size="medium" level="2">
+                    <LinkableHeading id="hva-det-er" size="medium" level="2">
                       Hva det er
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
@@ -147,13 +147,13 @@ export default function Agentpakker() {
                   </VStack>
                 </section>
 
-                <section id="lag-pakka">
+                <section>
                   <VStack gap="space-16">
-                    <LinkableHeading size="medium" level="2">
+                    <LinkableHeading id="lag-pakka" size="medium" level="2">
                       Lag pakka
                     </LinkableHeading>
 
-                    <LinkableHeading size="small" level="3">
+                    <LinkableHeading id="struktur" size="small" level="3">
                       Struktur
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
@@ -165,7 +165,7 @@ export default function Agentpakker() {
                     </BodyLong>
                     <CodeBlock>{STRUKTUR}</CodeBlock>
 
-                    <LinkableHeading size="small" level="3">
+                    <LinkableHeading id="artefakttyper" size="small" level="3">
                       Artefakttyper
                     </LinkableHeading>
                     <Table size="small">
@@ -191,8 +191,8 @@ export default function Agentpakker() {
                       </TableBody>
                     </Table>
 
-                    <div id="kjorbar-kode">
-                      <LinkableHeading size="small" level="3">
+                    <div>
+                      <LinkableHeading id="kjorbar-kode" size="small" level="3">
                         Kjørbar kode
                       </LinkableHeading>
                       <BodyLong className="mt-2" textColor="subtle">
@@ -202,7 +202,7 @@ export default function Agentpakker() {
                       </BodyLong>
                     </div>
 
-                    <LinkableHeading size="small" level="3">
+                    <LinkableHeading id="manifestet" size="small" level="3">
                       Manifestet
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
@@ -214,7 +214,7 @@ export default function Agentpakker() {
                     </BodyLong>
                     <CodeBlock filename=".nav-pilot/agentpakke.json">{MANIFEST}</CodeBlock>
 
-                    <LinkableHeading size="small" level="3">
+                    <LinkableHeading id="valider" size="small" level="3">
                       Valider
                     </LinkableHeading>
                     <CodeBlock>{VALIDER_CMD}</CodeBlock>
@@ -229,7 +229,7 @@ export default function Agentpakker() {
                       linte manifestet mot det uten nav-pilot.
                     </BodyLong>
 
-                    <LinkableHeading size="small" level="3">
+                    <LinkableHeading id="distribuer" size="small" level="3">
                       Distribuer
                     </LinkableHeading>
                     <CodeBlock>{INSTALL_CMD}</CodeBlock>
@@ -241,9 +241,9 @@ export default function Agentpakker() {
                   </VStack>
                 </section>
 
-                <section id="gjenbruk">
+                <section>
                   <VStack gap="space-16">
-                    <LinkableHeading size="medium" level="2">
+                    <LinkableHeading id="gjenbruk" size="medium" level="2">
                       Gjenbruk
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
@@ -262,8 +262,8 @@ export default function Agentpakker() {
                     </BodyLong>
                     <CodeBlock>{KOMPONERT_UT}</CodeBlock>
 
-                    <div id="kollisjoner">
-                      <LinkableHeading size="small" level="3">
+                    <div>
+                      <LinkableHeading id="kollisjoner" size="small" level="3">
                         Kollisjoner
                       </LinkableHeading>
                       <BodyLong className="mt-2" textColor="subtle">
@@ -277,14 +277,14 @@ export default function Agentpakker() {
                   </VStack>
                 </section>
 
-                <section id="vedlikehold">
+                <section>
                   <VStack gap="space-16">
-                    <LinkableHeading size="medium" level="2">
+                    <LinkableHeading id="vedlikehold" size="medium" level="2">
                       Vedlikehold
                     </LinkableHeading>
 
-                    <div id="nar-endringen-nar-fram">
-                      <LinkableHeading size="small" level="3">
+                    <div>
+                      <LinkableHeading id="nar-endringen-nar-fram" size="small" level="3">
                         Når endringen når fram
                       </LinkableHeading>
                       <BodyLong className="mt-2" textColor="subtle">
@@ -296,8 +296,8 @@ export default function Agentpakker() {
                       </BodyLong>
                     </div>
 
-                    <div id="pensjonering">
-                      <LinkableHeading size="small" level="3">
+                    <div>
+                      <LinkableHeading id="pensjonering" size="small" level="3">
                         Pensjonering
                       </LinkableHeading>
                       <BodyLong className="mt-2" textColor="subtle">
@@ -314,9 +314,9 @@ export default function Agentpakker() {
                   </VStack>
                 </section>
 
-                <section id="ressurser">
+                <section>
                   <VStack gap="space-16">
-                    <LinkableHeading size="medium" level="2">
+                    <LinkableHeading id="ressurser" size="medium" level="2">
                       Ressurser
                     </LinkableHeading>
                     <HGrid gap="space-16" columns={{ xs: 1, md: 2 }}>
