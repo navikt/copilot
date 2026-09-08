@@ -495,7 +495,7 @@
         "infrastructure"
       ],
       "filePath": "prompts/golang-service.prompt.md",
-      "contentHash": "6b0b8487f8cc481e1632f2888e331e2cda331a0bbd0c6a3c3f2682967741aab7",
+      "contentHash": "dc21d1c2ee4c168502d3aef869e7e7908e6b96eefab0512f0f1f0e0243d0966d",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/prompts/golang-service.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/golang-service.prompt.md"
     },
@@ -537,7 +537,7 @@
         "infrastructure"
       ],
       "filePath": "prompts/nais-manifest.prompt.md",
-      "contentHash": "8576571223ffef8a3a02b2e6ae8b5ac3ca1c2f2c2aa09740222fc7fbcac0f0e0",
+      "contentHash": "f90a562ca7f8233c7ee7a32a26cc5c9140097379266cfe66b58fe9461e2972ed",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/prompts/nais-manifest.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/nais-manifest.prompt.md"
     },
