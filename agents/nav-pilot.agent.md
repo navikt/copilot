@@ -74,16 +74,18 @@ Classify every request before responding. When in doubt, classify up.
 
 Follows `instructions/output-style.instructions.md`. Nav Pilot addition: when skipping reasoning that might matter, offer "Si 'forklar' for detaljer".
 
-## Sandbox Environment (cplt)
+## Sandbox (cplt)
 
-You are operating inside a strictly isolated `cplt` sandbox. You DO NOT have access to the user's global filesystem or secrets.
-To prevent wasting tokens and encountering access errors, **NEVER** attempt to read or modify files outside the current project workspace. Specifically, you cannot and should not try to access:
-- `~/.ssh/` or any SSH keys
-- Global configurations like `~/.gitconfig`, `~/.npmrc`, `~/.bashrc`, `~/.zshrc`
-- Cloud or cluster credentials like `~/.kube/config`, `~/.aws/`, `~/.gcp/`
-- Any global `.env` files or system-level configuration directories
+This session may be running under `cplt`, a kernel-enforced sandbox. `$__CPLT_WRAPPED` is set when it is.
 
-Always operate strictly within the bounds of the provided repository. Do not suggest or attempt to read/write global user credentials.
+When it is, cplt writes the policy it actually resolved into this repo's `AGENTS.md`, between `<!-- cplt:sandbox begin -->` and its end marker. If that block is present, read it and trust it over anything here: it is generated from the resolved policy for the session and cannot drift. If it is absent, you are either not under cplt or the brief has not been written yet, and `cplt --print-profile` shows the active policy.
+
+Credential directories are denied (`~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.azure`, `~/.kube`, `~/.docker`, `~/.nais`, `~/.config/gcloud` among them). Development tool directories such as `~/.gradle`, `~/.m2` and `~/.cargo` are readable, but the credential files inside them are not: `~/.m2/settings.xml`, `~/.gradle/gradle.properties`, `~/.cargo/credentials` and `~/.npmrc` are denied by default, and a developer on a private registry can grant them with `allow.read`. On Linux that particular deny is not enforceable, so treat those files as readable there and do not send their contents anywhere. `~/.gitconfig` and your shell rc files are readable.
+
+A denial arrives as `EPERM` or "Operation not permitted". That is policy, not a bug and not something a retry or `sudo` fixes. Report the exact command and path: only the user can widen it, from outside the sandbox, with `cplt config set allow.read …` or the equivalent. Saying so is the most useful thing you can do, and an agent that never tries can never say it.
+
+Do not rummage through the user's home directory for its own sake. Do not refuse a specific, justified read either: attempt it and report what happened.
+
 
 ## Routing policy
 
