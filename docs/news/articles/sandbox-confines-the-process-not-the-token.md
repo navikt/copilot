@@ -12,8 +12,9 @@ tags:
 
 Nav is Norway's labour and welfare administration. We pay out roughly a third
 of the national budget, and around 700 developers with GitHub Copilot licences
-keep that running. In March we asked them how they work with AI coding tools.
-163 answered. Twelve said they use none. Three quarters use two or more.
+keep that running. In March 2026 we asked about 500 of them how they work with
+AI coding tools. 163 answered. Twelve said they use none. Three quarters use
+two or more.
 
 That is the context for what follows. The agents are here, they run on
 developer laptops with real credentials, and the question is no longer whether
