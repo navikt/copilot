@@ -2,6 +2,7 @@ import { getNewsItems } from "@/lib/news";
 import { Box, VStack, Heading, HGrid, BodyShort } from "@navikt/ds-react";
 import { ExternalLinkIcon, PlayIcon, BookIcon } from "@navikt/aksel-icons";
 import { NewsFeed } from "@/components/news-feed";
+import { HomeSearch } from "@/components/home-search";
 import { HighlightCards } from "@/components/pulse-strip";
 import { HomeShortsFeed } from "@/components/video/home-shorts-feed";
 import { Sidebar, SidebarCompact } from "@/components/sidebar";
@@ -40,6 +41,7 @@ export default async function Home() {
                 Nyheter, beste praksis og verktøy for AI-drevet utvikling i Nav.
               </BodyShort>
             </VStack>
+            <HomeSearch />
             <div className="flex flex-wrap gap-2 hero-animate-d2">
               {NAV_ITEMS.map(({ href, icon: Icon, label, requiresAuth }) => (
                 <NavPill
