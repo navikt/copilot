@@ -261,3 +261,31 @@ func TestPayloadOnlyBaseIsRefused(t *testing.T) {
 		t.Errorf("feilmeldinga sier ikke hvorfor: %v", err)
 	}
 }
+
+// En base med et manifest nav-pilot ikke kan bruke skal nekte, ikke bli
+// komponert som om den var manifestløs. Svelges feilen, får basen nil Pakke,
+// og resolveren leser da de kanoniske katalogene i stedet for layouten basen
+// faktisk erklærer: innholdet blir stille feil eller borte.
+func TestBaseWithUnusableManifestIsRefused(t *testing.T) {
+	baseDir, ownDir := t.TempDir(), t.TempDir()
+	if err := os.MkdirAll(filepath.Join(baseDir, ".nav-pilot"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Gyldig JSON, men bryter kontrakten: layout uten skills, og ingen
+	// primaryAgents for klienten.
+	broken := `{"contractVersion":"1","name":"base","description":"b","layout":{"agents":"agents"},"clients":{"copilot":{}}}`
+	if err := os.WriteFile(filepath.Join(baseDir, ".nav-pilot", "agentpakke.json"), []byte(broken), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writePakke(t, ownDir, "egenpakke", "eget")
+	declareReuse(t, ownDir, baseDir)
+
+	src := loadSource(t, ownDir)
+	_, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	if err == nil {
+		t.Fatalf("en base med ubrukelig manifest ble godtatt, gjenbrukt = %v", reused)
+	}
+	if !strings.Contains(err.Error(), "agentpakke") {
+		t.Errorf("feilmeldinga peker ikke på manifestet: %v", err)
+	}
+}

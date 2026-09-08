@@ -446,3 +446,64 @@ func TestListHidesTheLocalWorkerWhileLocalIsOff(t *testing.T) {
 		t.Errorf("List() = %v, want only the agent unrelated to local inference", names)
 	}
 }
+
+// Et enkeltartefakt som er en symlink skal avvises, ikke bare en symlinket
+// innholdskatalog. Katalogtilfellet var dekket; fila var det ikke, og uten
+// sjekken ville en agentpakke kunne sende agents/x.agent.md som en lenke til
+// en fil utenfor repoet og få innholdet kopiert inn i brukerens scope.
+func TestResolverRefusesSymlinkedArtifactFile(t *testing.T) {
+	tmp := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "hemmelig.txt")
+	if err := os.WriteFile(outside, []byte("innhold utenfor repoet\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, "agents"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(tmp, "agents", "lenket.agent.md")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("kan ikke lage symlink her: %v", err)
+	}
+	// Kontroll: lenka virker, så en avvisning skyldes sjekken og ikke at fila
+	// ikke er lesbar.
+	if _, err := os.ReadFile(link); err != nil {
+		t.Fatalf("symlinken er ikke lesbar, da tester dette noe annet: %v", err)
+	}
+
+	r := NewSourceResolver(tmp)
+	if res, ok := r.Get(KindAgent, "lenket"); ok {
+		t.Errorf("et symlinket artefakt ble godtatt: %s", res.AbsPath)
+	}
+	if got := len(r.List(KindAgent)); got != 0 {
+		t.Errorf("List ga %d artefakter, ventet 0", got)
+	}
+}
+
+// En symlink som peker inne i selve utsjekken avvises også. Det er tilfellet
+// bare symlink-sjekken fanger: containment-sjekken er fornøyd, siden målet
+// ligger inni. Uten den ville en pakke kunnet levere det samme artefaktet
+// under to navn, der bare det ene spores.
+func TestResolverRefusesASymlinkPointingInsideTheCheckout(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmp, "agents"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	real := filepath.Join(tmp, "agents", "ekte.agent.md")
+	if err := os.WriteFile(real, []byte("---\nname: ekte\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(tmp, "agents", "lenket.agent.md")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("kan ikke lage symlink her: %v", err)
+	}
+
+	r := NewSourceResolver(tmp)
+	if res, ok := r.Get(KindAgent, "lenket"); ok {
+		t.Errorf("en symlink inne i utsjekken ble godtatt: %s", res.AbsPath)
+	}
+	// Kontroll: den ekte fila ved siden av skal fortsatt løses, ellers måler
+	// testen bare at ingenting virker.
+	if _, ok := r.Get(KindAgent, "ekte"); !ok {
+		t.Error("den ekte fila ble ikke funnet")
+	}
+}
