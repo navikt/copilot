@@ -11,9 +11,11 @@ tags:
   - nav-pilot
 ---
 
-Du starter agenter gjennom nav-pilot, og nav-pilot kjører dem i [cplt](/cplt). Første gang du merker cplt er som regel når noe blir stoppet: Gradle får ikke lese `~/.gradle/gradle.properties`, Testcontainers finner ikke docker, `npm install` nekter å kjøre postinstall. Da må du justere sandboxen, og da dukker spørsmålet opp: skal innstillingen settes globalt, lokalt eller i repoet?
+Du starter agenter gjennom [nav-pilot](/nav-pilot), og nav-pilot kjører dem i [cplt](/cplt). Første gang du merker cplt er som regel når noe blir stoppet: Gradle får ikke lese `~/.gradle/gradle.properties`, Testcontainers finner ikke docker, `npm install` nekter å kjøre postinstall. Da må du justere sandboxen, og da dukker spørsmålet opp: skal innstillingen settes globalt, lokalt eller i repoet?
 
 Dette innlegget svarer på det, og viser hvordan du lar agenten jobbe mot to repoer i samme sesjon. Alt gjøres med `cplt config`. Du trenger ikke åpne en fil.
+
+Én ting er verdt å ta med seg med én gang: nav-pilot starter cplt for deg, så du har ingen kommandolinje å henge flagg på. Derfor er det lagret config som gjelder. Setter du det med `cplt config set --local`, plukker nav-pilot det opp neste gang du starter en agent, uten at du gjør noe mer.
 
 ---
 
@@ -49,7 +51,11 @@ Nesten alt du trenger å justere havner i **local**.
 
 Det fristende er å sette alt globalt, så slipper du å gjøre det igjen. Ikke gjør det. En grant i global følger deg inn i hver eneste sesjon, også i repoer der stien betyr noe helt annet. Gir du `~/.gradle/gradle.properties` globalt, kan en agent i et Node-prosjekt lese GitHub Packages-tokenet ditt, uten å ha noen grunn til det. Setter du det lokalt, gjelder det bare den Kotlin-tjenesten som faktisk bygger med Gradle.
 
-Global skal være liten: ting som er sanne for maskinen din uansett prosjekt. `~/.gitconfig`, GPG-signering, hvilken agent du foretrekker.
+Global skal være liten: ting som er sanne for maskinen din uansett prosjekt. Signerer du commits med GPG, er det et godt eksempel — det følger deg, ikke prosjektet:
+
+```sh
+cplt config set sandbox.allow_gpg_signing true --force
+```
 
 Det leder til et rimelig spørsmål: hvorfor får local lov til å utvide sandboxen i det hele tatt, når repo-config må be om godkjenning for det samme? Fordi local-fila ligger utenfor repoet, i `~/.config/cplt/`, og sandboxen nekter skriving dit. Agenten kan ikke skrive sine egne grants. En fil i working tree kunne ikke lovet det, og derfor må alt som utvider i `.cplt.toml` gjennom `cplt trust`.
 
@@ -77,7 +83,15 @@ cplt config set --local sandbox.allow_docker true --force
 cplt config set --local allow.localhost 3000
 ```
 
-Trenger hele teamet det, hører det hjemme i `.cplt.toml`. `cplt init` skanner prosjektet og skriver den for deg, så la den gjøre jobben i stedet for å skrive fila selv:
+Trenger hele teamet det, hører det hjemme i `.cplt.toml`. Den skriver du også med en kommando:
+
+```sh
+cplt config set --repo allow.localhost 3000
+```
+
+Verdien havner under `[propose]`, og cplt minner deg på begge stegene som gjenstår: `cplt trust accept --all` for å godkjenne på din egen maskin, og en commit av `.cplt.toml` så resten av teamet får den.
+
+Skal du sette opp et repo fra bunnen, skanner `cplt init` prosjektet og skriver fila for deg:
 
 ```sh
 cplt init            # se hva som detekteres
@@ -140,11 +154,13 @@ Stien må være absolutt eller starte med `~/`. Ved neste oppstart viser cplt be
 
 Nå kan agenten opprette PR-er mot `navikt/sykepenger-model`. Merk hva som *ikke* skjedde: det ble ikke gitt noen ny filtilgang. Å navngi et repo handler om identitet, ikke om tilgang.
 
-Vil du prøve én gang uten å lagre, bruker du flagget. Det legger til i settet som er lagret, det erstatter det ikke:
+Kjører du cplt direkte og bare vil prøve, finnes flagget. Det gjelder for den ene kjøringen og skriver ingenting til fila, og det kommer i tillegg til det som allerede er lagret, ikke i stedet for:
 
 ```sh
-cplt --repo-dir ~/src/spleis/libs/sykepenger-model
+cplt --repo-dir ~/src/spleis/libs/sykepenger-model exec -- ./gradlew build
 ```
+
+Går du via nav-pilot, er `--local` den eneste veien; det er ingen kommandolinje å sette flagget på.
 
 ### Bare nested, ikke sibling
 
@@ -213,7 +229,8 @@ cplt config set --local sandbox.allow_docker true --force
 cplt config set --local sandbox.repo_dirs ~/src/spleis/libs/sykepenger-model
 
 # Det teamet trenger, committet
-cplt init --write
+cplt config set --repo allow.localhost 8080
+cplt trust accept --all
 
 # Sjekk resultatet
 cplt config show
