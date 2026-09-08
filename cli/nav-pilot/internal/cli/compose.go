@@ -34,6 +34,14 @@ import (
 // A source that reuses nothing, which is nearly all of them, gets its own
 // resolver back unchanged and a nil base.
 func composeResolver(resolver *SourceResolver, src *Source) (*SourceResolver, *Source, error) {
+	// Only a manifest-bearing source composes. A collection-era source has no
+	// agentpakke identity to reuse from, and one that happens to carry a
+	// declaration is a consumer repo that also serves content: composing it
+	// would fetch a second repo mid-install for a source that never asked for
+	// it.
+	if src.Pakke == nil {
+		return resolver, nil, nil
+	}
 	return composeResolverSeen(resolver, src, map[string]bool{sourceLabelFor(src): true})
 }
 

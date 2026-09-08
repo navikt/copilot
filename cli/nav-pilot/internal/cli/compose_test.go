@@ -154,3 +154,54 @@ func TestUnpinnedLocalPathReuseIsAllowed(t *testing.T) {
 		t.Fatal("den lokale basen ble ikke gjenbrukt")
 	}
 }
+
+// Sync må løse den samme gjenbruken install løste. Uten det slutter hvert
+// arvede artefakt å resolve så snart installasjonen er over, og sync ser en
+// sporet fil kilden ikke lenger sender, altså formen på et pensjonert
+// artefakt.
+func TestSyncResolverComposesToo(t *testing.T) {
+	baseDir, ownDir := t.TempDir(), t.TempDir()
+	writePakke(t, baseDir, "basepakke", "felles")
+	writePakke(t, ownDir, "egenpakke", "eget")
+	declareReuse(t, ownDir, baseDir)
+
+	src := loadSource(t, ownDir)
+	state := &StateFile{Collection: "egenpakke"}
+	resolver, reused, err := composeResolver(resolverForState(src, state), src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reused == nil {
+		t.Fatal("sync-resolveren gjenbrukte ingenting")
+	}
+	if _, ok := resolver.Get(KindAgent, "felles"); !ok {
+		t.Error("det arvede artefaktet resolver ikke under sync, og ville blitt lest som pensjonert")
+	}
+}
+
+// En kilde uten manifest komponerer ikke, selv om den skulle ha en erklæring
+// liggende. Ellers ville en collection-kilde hentet et fremmed repo midt i en
+// installasjon som aldri ba om det.
+func TestLegacySourceDoesNotCompose(t *testing.T) {
+	baseDir, ownDir := t.TempDir(), t.TempDir()
+	writePakke(t, baseDir, "basepakke", "felles")
+	if err := os.MkdirAll(filepath.Join(ownDir, ".nav-pilot"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	declareReuse(t, ownDir, baseDir)
+
+	src := &Source{Dir: ownDir, Repo: ownDir}
+	if err := attachPakke(src); err != nil {
+		t.Fatal(err)
+	}
+	if src.Pakke != nil {
+		t.Fatal("kilden fikk et manifest, da tester dette noe annet enn det står")
+	}
+	_, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reused != nil {
+		t.Errorf("en manifestløs kilde komponerte %s", reused.Dir)
+	}
+}

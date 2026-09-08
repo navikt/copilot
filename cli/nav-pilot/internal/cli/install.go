@@ -102,7 +102,7 @@ func pakkeContents(resolver *SourceResolver, src *Source) (*Manifest, error) {
 	// message says exactly that.
 	total := manifestItemCount(manifest)
 	if total == 0 && pakke.Layout != nil {
-		return nil, fmt.Errorf("agentpakke %q declares a layout but ships no agents, skills, instructions, or prompts.\n"+
+		return nil, fmt.Errorf("agentpakke %q declares a layout but ships nothing at it.\n"+
 			"Check the layout paths in %s", pakke.Name, agentpakke.ManifestPath)
 	}
 	return manifest, nil

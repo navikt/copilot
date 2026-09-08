@@ -459,14 +459,14 @@ Reuses: navikt/copilot@4946a27
 `grillmester`, er det den gjenbrukende pakkas egen som installeres. Den vinner ved å bli
 spurt først, og det er samme regel som `overrides` i `.github/copilot-sync.json` ett nivå
 opp: det teamet eier selv, eier de. Å skygge et artefakt er den normale måten å endre én
-ting fra en pakke du ellers tar rått — det er ikke en feil, og varsles ikke.
+ting fra en pakke du ellers tar rått. Det er ikke en feil, og varsles ikke.
 
 **En gjenbrukssyklus nektes.** Gjenbruker to pakker hverandre, finnes det ingen rekkefølge å
 løse dem i, og feilen ber om at syklusen brytes i én av dem.
 
 **Bindingstidspunktet følger formen på manifestet**, ikke en egen mekanisme. En layout-pakke
 løser erklæringa si ved hver `install` og `sync`. En payload-pakke løste den ved byggetid, og
-payloaden bærer resultatet — `provenance.base` og `provenance.overlays` er feltene som sier
+payloaden bærer resultatet. `provenance.base` og `provenance.overlays` er feltene som sier
 hvem den kom fra. Det er den samme erklæringa i begge tilfeller, med to bindingstidspunkter.
 
 ## Slik starter brukerne klienten fra en Tier 2-pakke

@@ -197,6 +197,18 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 
 	resolver := resolverForState(src, syncState)
 
+	// The same reuse install resolved. Without it, every artifact inherited
+	// from a reused pakke stops resolving the moment the install is over: sync
+	// sees a tracked file its source no longer ships, which is the shape of a
+	// retired artifact, and offers to delete what install just put there.
+	resolver, reusedInSync, err := composeResolver(resolver, src)
+	if err != nil {
+		return err
+	}
+	if reusedInSync != nil && !jsonOutput {
+		fmt.Printf("%s %s\n", dim("Reuses:"), dim(fmt.Sprintf("%s@%s", sourceLabelFor(reusedInSync), shortSHA(reusedInSync.SHA))))
+	}
+
 	// A collection-era scope meets its source's manifest here first: rewrite
 	// it onto the pakke identity before the diff, so this sync already runs —
 	// and reports new items — as the pakke install it now is.
