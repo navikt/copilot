@@ -210,6 +210,32 @@ type Layout struct {
 	Extensions   string `json:"extensions,omitempty"`
 }
 
+// Dirs returns every declared content directory with the manifest field that
+// named it, in a fixed order.
+//
+// One list, because there were two written out by hand and neither of them
+// grew an entry when layout.extensions was added (#739). The path rules and
+// the on-disk content check both walked their own copy, so an extensions path
+// escaping the repo root validated green while the identical path under
+// layout.agents was refused. A field added to [Layout] now reaches both checks
+// by being added here.
+func (l *Layout) Dirs() []struct {
+	Field string
+	Value string
+} {
+	return []struct {
+		Field string
+		Value string
+	}{
+		{"layout.agents", l.Agents},
+		{"layout.skills", l.Skills},
+		{"layout.instructions", l.Instructions},
+		{"layout.prompts", l.Prompts},
+		{"layout.hooks", l.Hooks},
+		{"layout.extensions", l.Extensions},
+	}
+}
+
 // Provenance records the base and overlays a composed agentpakke was built from.
 type Provenance struct {
 	Base     *ProvenanceBase     `json:"base,omitempty"`

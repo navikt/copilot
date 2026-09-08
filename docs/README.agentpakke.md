@@ -20,11 +20,11 @@ Dette dokumentet er referansen. Skal du lage din første pakke, følg oppskrifta
 └── extensions/              # layout.extensions:    <navn>/extension.mjs
 ```
 
-Katalognavnene er ikke låst. `layout` peker på hvor innholdet faktisk ligger, og nav-pilot leser kun der. Filnavnkonvensjonene inne i katalogene er derimot låst, fordi det er dem nav-pilot bruker til å finne og navngi artefaktene. Agentfiler må åpne med en `---`-avgrenset YAML-frontmatter som minst deklarerer `name` og `description`.
+Katalognavnene er ikke låst. `layout` peker på hvor innholdet faktisk ligger, og nav-pilot leser kun der. Filnavnkonvensjonene inne i katalogene er derimot låst, fordi det er dem nav-pilot bruker til å finne og navngi artefaktene. Agentfiler må åpne med en `---`-avgrenset YAML-frontmatter. Konvensjonen er at den deklarerer minst `name` og `description`; `nav-pilot validate` sjekker i dag bare at blokka finnes, ikke hvilke nøkler den har.
 
 ## Kjørbare artefakter: hooks og extensions
 
-Fire av artefekttypene er tekst modellen leser. To er kode som kjører på maskinen til den som installerer:
+Fire av artefakttypene er tekst modellen leser. To er kode som kjører på maskinen til den som installerer:
 
 | Type | Form | Hva som kjører |
 | --- | --- | --- |
@@ -53,7 +53,7 @@ Generert fra `cli/nav-pilot/schemas/agentpakke-v1.json`. Ukjente felt på alle n
 | `description` | string | ja | Én linje, vises i `nav-pilot list`. |
 | `clients` | objekt, minst én nøkkel | ja | Én oppføring per klient. Se under. |
 | `owner` | objekt: `repo` (`^[^/]+/[^/]+$`), `team` | nei | Kun attribusjon. Kilden til en installasjon er der manifestet ble klonet fra, ikke `owner.repo`. |
-| `layout` | objekt: `agents`\*, `skills`\*, `instructions`, `prompts` | ja for Tier 1 | Repo-relative stier til innholdskatalogene. `agents` og `skills` er påkrevd når `layout` først er til stede. |
+| `layout` | objekt: `agents`\*, `skills`\*, `instructions`, `prompts`, `hooks`, `extensions` | ja for Tier 1 | Repo-relative stier til innholdskatalogene. `agents` og `skills` er påkrevd når `layout` først er til stede. |
 | `policies` | objekt: `opencodePermissions` | nei | Peker på policy-artefakter. Sti-sjekkes i dag, materialiseres ikke ennå. |
 | `profiles` | objekt: `dir`, `default` | nei | Katalog med launch-profiler og navnet på standardprofilen (`<dir>/<default>.json`). Sti-sjekkes i dag, brukes ikke ennå. |
 | `provenance` | objekt: `base` (`repo`\*, `digest`\*), `overlays[]` (`component`\*, `version`\*) | nei | Opphav for komponert innhold. Ren metadata, nav-pilot verifiserer ikke digest. |
@@ -68,7 +68,7 @@ Nøkkelen er en identifikator (`^[a-z][a-z0-9-]*$`). Klientene denne binæren ka
 | `primaryAgents` | array av string, minst ett element | påkrevd for Tier 1 | Agentene som er valgbare som primære personaer i klienten. Alt annet i `agents/` materialiseres som subagent. Har oppføringen `payloads`, ligger rosteret i stedet på hver payload ([`payloads.<kontekst>.primaryAgents`](#clientsklientpayloadskontekst)), og feltet her **leses ikke**. Blir det stående, valideres det fortsatt som et velformet ikke-tomt array, men fjern det heller, se [korreksjonen](#én-korreksjon-før-første-konsument-august-2026). |
 | `compatibility` | string | nei | Støttet klientversjon som **range** (f.eks. `">=1.18.20,<2"`), ikke en eksakt pin. |
 | `defaultModel` | string | nei | Modell-id, eller literalen `"inherit"` (ikke pin noe, arv provider- eller sesjonsvalget). |
-| `defaultContext` | identifikator | nei | Hvilken payload-kontekst som startes som standard. Uten verdi: `"full"`. |
+| `defaultContext` | identifikator | nei | Hvilken payload-kontekst som startes som standard. Uten verdi: `"full"`. Verdien må navngi en payload klienten faktisk deklarerer, også når den er implisitt, så en payload-bærende klient uten `full` må sette feltet. |
 | `payloads` | objekt, minst én nøkkel | nei | Tier 2: én oppføring per kontekst (i dag `full`, `focused`). At dette feltet er til stede, er det som gjør oppføringen til Tier 2. |
 
 ### `clients.<klient>.payloads.<kontekst>`
@@ -132,7 +132,7 @@ En pakke kan publisere `.nav-pilot/retired-artifacts.json` og la nav-pilot rydde
 
 Stiene navngis slik pakken selv navngir dem, så en erklært `layout` gjelder: en pakke med `layout.agents` lik `content/agents` lister `content/agents/gammel.agent.md`.
 
-Hashene er git blob-id-er, altså sha1 over `blob <lengde>\0` og deretter bytene. Det er ikke tilfeldig: en pakkes egen historikk inneholder dem allerede, så fila kan **genereres** framfor å vedlikeholdes for hånd. Ingen skal måtte huske å føre opp et navn i det øyeblikket de sletter det. `scripts/generate-retired` i navikt/copilot leser dem ut av git-loggen og er omtrent hundre linjer.
+Hashene er git blob-id-er, altså sha1 over `blob <lengde>\0` og deretter bytene. Det er ikke tilfeldig: en pakkes egen historikk inneholder dem allerede, så fila kan **genereres** framfor å vedlikeholdes for hånd. Ingen skal måtte huske å føre opp et navn i det øyeblikket de sletter det. `scripts/generate-retired` i navikt/copilot leser dem ut av git-loggen og er rundt to hundre linjer.
 
 **nav-pilot sletter bare når innholdet stemmer.** «Kilden har ikke lenger en artefakt med dette navnet» er ikke tillatelse til å fjerne noe: noen kan ha skrevet sin egen fil på den stien, og den er deres. Et treff mot en hash pakken faktisk har publisert er derimot bevis på at nav-pilot skrev fila og at den er uendret siden.
 
@@ -193,7 +193,7 @@ Kontrakten er bygget for at en agentpakke skal kunne vokse uten å knekke bruker
 
 **Krever varsomhet, men ikke bump:**
 
-- Å flytte innhold ved å endre `layout`-stier. Eksisterende brukere får det nye innholdet ved neste sync, men repoet må fortsatt validere. `nav-pilot export opencode` støtter foreløpig bare kanoniske stier (se [Begrensninger](#begrensninger-i-dag)).
+- Å flytte innhold ved å endre `layout`-stier. Eksisterende brukere får det nye innholdet ved neste sync, men repoet må fortsatt validere.
 - Å endre `name`. Eksisterende installasjoner er registrert under det gamle navnet i state, så nav-pilot kjenner dem ikke igjen som samme pakke. `nav-pilot install <nytt-navn>` blir en ny installasjon i samme scope.
 - Å heve `minNavPilotVersion`. Eldre binærer blokkeres bevisst, med en melding som sier hva de skal gjøre.
 
@@ -227,7 +227,7 @@ Endringen *er* pull requesten som endrer [`agentpakke-v1.json`](../cli/nav-pilot
 
 ### Når en pakke slutter å validere
 
-nav-pilot feiler lukket, og gjør ikke noe utover det. Et manifest som ikke lenger laster, stopper enhver kommando som resolver kilden (`install`, `add`, `sync`) før første filoperasjon ([Ignorer-ukjent](#ignorer-ukjent-og-hva-som-feiler-lukket)). `nav-pilot validate` er unntaket: den resolver bevisst uten å feste manifestet, slik at et ugyldig manifest rapporteres som funn framfor som en resolve-feil. Innhold som allerede er installert står urørt og virker videre.
+nav-pilot feiler lukket, og gjør ikke noe utover det. Et manifest som ikke lenger laster, stopper enhver kommando som fester manifestet (`install`, `add`, `list`, `sync`) før første filoperasjon ([Ignorer-ukjent](#ignorer-ukjent-og-hva-som-feiler-lukket)). `nav-pilot validate` er unntaket: den resolver bevisst uten å feste manifestet, slik at et ugyldig manifest rapporteres som funn framfor som en resolve-feil. `export` er et annet unntak, av motsatt grunn: den leser manifestet bare for å finne layouten, og lar install og sync melde lastefeilen i sine egne ord. Innhold som allerede er installert står urørt og virker videre.
 
 nav-pilot varsler ingen om det, deaktiverer ingenting automatisk, og har ingen forestilling om en forlatt pakke. Å oppdage det i tide er pakkerepoets egen CI-jobb ([Validering i CI](#validering-i-ci)).
 
@@ -276,7 +276,7 @@ Ved funn skriver kommandoen problemene og avslutter med `Error: agentpakke valid
 | --- | --- | --- |
 | `command` | string | Alltid `"validate"`. |
 | `source` | string | Kildeetiketten (`owner/repo`, stien, eller `navikt/copilot`). |
-| `sha` | string | Commit-sha for checkouten som ble validert. |
+| `sha` | string | Full commit-sha (førti tegn) for checkouten som ble validert. Den menneskelige utskriften forkorter den; JSON-en gjør det ikke. |
 | `kind` | string | `"agentpakke"` hvis manifestet finnes, `"legacy"` hvis kilden ikke har noe manifest. |
 | `valid` | bool | `true` når `problems` er tom. |
 | `notes` | array av string | Informasjon, ikke funn: manifeststi, pakkenavn og kontraktversjon, klientliste med tier (og hvilke klientnøkler denne binæren ignorerer), `minNavPilotVersion`. |
@@ -295,7 +295,7 @@ Ved funn skriver kommandoen problemene og avslutter med `Error: agentpakke valid
   "problems": [
     "clients.copilot.payloads.full.path references \"plugin\", which does not exist in the agentpakke repo"
   ],
-  "sha": "a1b2c3d",
+  "sha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
   "source": "navikt/grillmester",
   "valid": false
 }
@@ -325,7 +325,7 @@ Presedensen er `--source` > [erklæringen i repoet](#erklæringen-i-konsumentrep
 **Kryss-kilde-vakt.** nav-pilot blander ikke innhold fra to agentpakker i én installasjon. Er scopet installert fra én kilde mens config peker på en annen, stopper install med valgene skrevet ut:
 
 ```
-the repo scope was installed from navikt/grillmester, but your configured source is navikt/copilot.
+the repo scope was installed from navikt/grillmester, but your configured source navikt/copilot.
 nav-pilot will not silently mix content from two agentpakker into one install.
 
   Keep this scope on its current source:  nav-pilot install --source navikt/grillmester <name>
@@ -364,7 +364,7 @@ Manifestet sier hva en agentpakke *er*. Erklæringen sier hva et repo *bruker*. 
 | --- | --- | --- |
 | `contractVersion` | ja | Samme kontraktversjon som manifestet. En major nav-pilot ikke kjenner avvises. |
 | `source` | ja | Agentpakka repoet bruker: `<eier>/<navn>` eller en absolutt sti. Samme verdirom som `--source`. |
-| `sha` | nei | Revisjonen som er pinnet, som full commit-SHA på førti tegn. Skrives av `install`, flyttes av `sync --apply`. En stiformet kilde kan ikke pinnes. |
+| `sha` | nei for en konsument, ja for en pakke som gjenbruker en annen på repoform | Revisjonen som er pinnet, som full commit-SHA på førti tegn. Skrives av `install`, flyttes av `sync --apply`. En stiformet kilde kan ikke pinnes. |
 | `minNavPilotVersion` | nei | Kopiert fra pakkas manifest på den pinnede revisjonen. Opplysende her; det er manifestet som håndhever. |
 | `items` | nei | Navn → artefakttype. Uten feltet installeres alt pakka har. |
 
@@ -395,14 +395,14 @@ Erklæringen ligger over config-nøkkelen fordi den er repoets gjennomgåtte val
 **Livsløpet.**
 
 - **Leses** av `install` — med et navn, uten argumenter, gjennom den interaktive TUI-en, og med `--type` for én enkelt artefakt — og av `add`, `export` og `list` på samme trinn. Merk at `install <navn> --type <type>` altså *leser* pinnen, men ikke *skriver* erklæringa; se begrensningene under. Scopet avgjøres derfor før kilden slås opp: gjorde nav-pilot det motsatt, ville den installert det config-nøkkelen tilfeldigvis pekte på og deretter skrevet *det* inn i erklæringa. At `export` og `list` leser den samme, er like nødvendig: en export ellers skriver standardpakkas innhold inn i et repo som er pinnet et annet sted, og en `list` ellers viser en annen pakkes elementer enn den nekting av et ukjent `items`-navn ber deg lete i.
-- **Skrives** av en samlings-install i repo-scope, med kilden og SHA-en installasjonen faktisk brukte. Et håndskrevet `items` beholdes uendret. En tørrkjøring skriver ingenting, og bruker-scope får aldri en erklæring.
+- **Skrives** av en samlings-install i repo-scope, med kilden og SHA-en installasjonen faktisk brukte. Et håndskrevet `items` beholdes uendret. En tørrkjøring skriver ingenting, `--json` skriver verken state-fila eller erklæringa, og bruker-scope får aldri en erklæring.
 - `nav-pilot sync --apply` flytter `sha`. Da kommer oppdateringa som én linje diff i en pull request framfor som usynlig lokal state. En sync uten `--apply` skriver aldri: den skal ikke skitne til en fil noen må committe. Sync bumper en revisjon, men peker aldri repoet på en annen agentpakke — det er en `install`.
 - **En pinne som er blitt liggende etter, er i seg selv en oppdatering.** Agentpakka kan flytte seg framover uten at innholdet i noen installert fil endrer seg: en endring i en fil repoet ikke har installert, en dokumentasjonsendring, en ny artefakt scopet ikke bruker. `nav-pilot sync` teller det som noe å gjøre — exit `1`, og `pin_bump` i `--json` — nettopp fordi sync-workflowen bare kjører `--apply` når sjekken fant noe ([#606](https://github.com/navikt/copilot/issues/606)). En erklæring som navngir en kilde *uten* å pinne noe, teller ikke: `--apply` fyller inn pinnen når den likevel kjører, men et repo som har valgt å ikke pinne skal ikke få en pull request av det alene.
 - `nav-pilot sync` sier fra når kilden scopet er registrert mot, er en annen enn den repoet erklærer. Scopet vinner (valget er per scope), og pinnen står urørt — men da ville de to ellers drevet fra hverandre i stillhet, så det skrives én linje om det, med begge veiene ut.
 
 **`--frozen` er CI-varianten.** `nav-pilot install <navn> --frozen` installerer nøyaktig det repoet erklærer, eller lar være. Den spør aldri om noe, og den flytter aldri pinnen — ikke engang for å skrive den tilbake som den verdien den allerede har, for en CI-jobb skal ikke lage diff i en fil den bare var ment å adlyde.
 
-Den nekter, alltid før noe skrives, og for de fire første punktene også før noe hentes. Tier-sjekkene krever manifestet, som ligger i kilden, så de kommer nødvendigvis etter at kilden er resolvet — men fortsatt før første filoperasjon i scopet:
+Den nekter før pinnen skrives, og for de tre første punktene også før noe hentes. Revisjonssammenligningen krever den resolvede kilden, og tier-sjekkene krever manifestet som ligger i den, så begge kommer nødvendigvis etter at kilden er hentet, men fortsatt før første filoperasjon i scopet. Bare det femte punktet, den delvise installen, avgjøres etter at filene er kopiert: da er det state-fila og pinnen som holdes tilbake.
 
 - **Ingen erklæring i repoet.** Da er det ingenting å fryse mot. Meldinga ber deg kjøre `nav-pilot install <navn>` én gang, se over fila og committe den.
 - **En erklæring uten `sha`.** En upinnet installasjon henter det default-grenen tilfeldigvis var den morgenen, og to CI-kjøringer et døgn fra hverandre installerer da ulikt innhold. Det er nettopp forskjellen pinnen finnes for.
@@ -410,7 +410,7 @@ Den nekter, alltid før noe skrives, og for de fire første punktene også før 
 - **En annen revisjon enn den erklærte.** Alle veier dit er allerede stengt av flaggsjekkene under, men sammenligningen står der som den ene setningen som holder det slik.
 - **En delvis install.** Tre ting gjør en installasjon ufullstendig, og alle tre er en advarsel til en utvikler og en løgn til CI: filer som ble hoppet over på grunn av konflikt, elementer målscopet ikke kan holde, og navn manifestet fører opp som kilden ikke har (`⚠ Agent not found: ghost` — resten av installasjonen går videre forbi det). Uten `--frozen` skrives pinnen etterpå som om alt gikk inn. Dette er den ene kjente begrensninga under som `--frozen` lukker framfor å arve. `--force` er veien gjennom konflikt-halvdelen, og de to flaggene er derfor med vilje forenlige: `--force` beveger ikke pinnen, den gjør bare arbeidstreet likt den. Det siste tilfellet har ingen vei gjennom med vilje: manifestet i den pinnede revisjonen er blitt utdatert, og det må rettes der — eller repoet pinnes til en revisjon der navnene finnes. `--json` teller det med som `skipped`, ved siden av `installed` og `conflicts`.
 - **Én enkelt artefakt.** `nav-pilot install <agentnavn> --frozen` — et navn som ikke er en samling, men én agent eller ferdighet — nektes. En a-la-carte-install skriver ingen erklæring og installerer det ene navnet uansett hva `items` sier, så det finnes ikke noe der å holde den til. `--type` er den samme installasjonen bedt om eksplisitt, og avvises som bruksfeil (exit `1`) både på flaggnivå og i sjekken under — for at flaggsjekken skal være en beleilighet framfor det eneste som står mellom `--frozen` og en helt usjekket installasjon. Begge dørene svarer `1`, av samme grunn som `--user` gjør det.
-- **En payload-bærende agentpakke**, enten den er ren Tier 2 eller blander layout og payloads. `--frozen` dekker dem ikke, og sier det. Et payload-tre pinnes per *bruker*, ikke per repo, så det finnes ingen repo-scopet install for erklæringa å holde det til (`guardPakkeScope` nekter alle andre scope enn brukerens). Meldinga ber deg installere den én gang *uten* `--frozen`, framfor å be om `--user` — et flagg `--frozen` selv avviser.
+- **En payload-bærende agentpakke**, enten den er ren Tier 2 eller blander layout og payloads. `--frozen` dekker dem ikke, og sier det. Et payload-tre pinnes per *bruker*, ikke per repo, så det finnes ingen repo-scopet install for erklæringa å holde det til (`guardPakkeScope` nekter alle andre scope enn brukerens). Meldinga ber deg installere den én gang *uten* `--frozen`, og siden et payload-tre bare kan pinnes i bruker-scope, er kommandoen den foreslår `nav-pilot install --user <navn>`.
 
   Blandede pakker nektes av samme grunn, og det er verdt å si hvorfor: de tar Tier 1-veien, fordi `payloadOnly` krever at `layout` mangler. Sto sjekken på payload-grenen, ville en blandet pakke installert layout-halvdelen, staget ingen payload, og rapportert grønt — en fjerde måte en install lander halvveis på, i flagget som finnes for å nekte akkurat det. Oppstarten dør senere i `mixedPakkeRefusal`, lenge etter at CI har blitt grønn.
 
@@ -464,6 +464,12 @@ ting fra en pakke du ellers tar rått. Det er ikke en feil, og varsles ikke.
 **En gjenbrukssyklus nektes.** Gjenbruker to pakker hverandre, finnes det ingen rekkefølge å
 løse dem i, og feilen ber om at syklusen brytes i én av dem.
 
+**En gjenbruk på repoform må pinnes.** Erklæringas `sha` er valgfri for en konsument, men ikke
+for en pakke som gjenbruker en annen: en upinnet base ville komponert det den andre pakkas
+standardgren tilfeldigvis holdt, og to installasjoner en uke fra hverandre ville fått ulikt
+innhold. Install og sync nekter, og ber om at revisjonen føres opp. En stiformet kilde har
+ingen revisjon å pinne og er unntatt.
+
 **Bindingstidspunktet følger formen på manifestet**, ikke en egen mekanisme. En layout-pakke
 løser erklæringa si ved hver `install` og `sync`. En payload-pakke løste den ved byggetid, og
 payloaden bærer resultatet. `provenance.base` og `provenance.overlays` er feltene som sier
@@ -482,12 +488,12 @@ nav-pilot --client copilot --payload-context focused      # en annen deklarert k
 - **`--payload-context` er ikke `--context`.** Sistnevnte er Copilots long-context-nivå og er uendret. De to er ortogonale og kan stå på samme kommandolinje.
 - **Revisjonen ligger på maskinen, er immutabel og valgt av et install-steg.** `nav-pilot install --user <navn>` verifiserer pakka, materialiserer hver deklarerte kontekst under `~/.nav-pilot/pakker/<eier>-<repo>/<sha>/` (repo-id-en småskrevet, slik nav-pilot ellers sammenligner den) og pinner SHA-en. Senere launcher leser den katalogen og kloner ingenting. Startes en payload-only kilde som ikke er installert, pinner første launch den på samme måte og sier fra med én linje.
 - **Verifisering før hver launch.** Det pinnede treet re-verifiseres eksakt mot payload-manifestet (digest og modus) før klienten startes. En fil som er endret, fjernet eller lagt til etter at revisjonen ble materialisert, stopper launchen. Feiler noe av dette, starter ingenting, og en Tier 2-launch faller aldri tilbake på Tier 1-veien.
-- **Er revisjonen borte og kilden ikke tilgjengelig, nekter launchen — per klient.** Pin-staten noterer ved install hvilke klienter revisjonen materialiserte payloads for (`pinned_clients`). Kan kilden ikke resolves og katalogen er borte, stopper launchen for en klient som står der, med `nav-pilot sync --apply` og `nav-pilot config set source ""` som veiene ut; en klient pinnen aldri staget noe for, tar legacy-stien som før. En Tier 2-launch nedgraderes aldri stille til legacy. En pin skrevet av en eldre nav-pilot mangler lista, nekter offline framfor å gjette, og oppgraderes på plass ved første launch eller sync som får lest det pinnede manifestet.
+- **Er revisjonen borte og kilden ikke tilgjengelig, nekter launchen — per klient.** Pin-staten noterer ved install hvilke klienter revisjonen materialiserte payloads for (`pinned_clients`). Kan kilden ikke resolves og katalogen er borte, stopper launchen for en klient som står der, med `nav-pilot sync --apply` og `nav-pilot config set source ""` som veiene ut; en klient pinnen aldri staget noe for, tar legacy-stien som før. En Tier 2-launch nedgraderes aldri stille til legacy. En pin skrevet av en eldre nav-pilot mangler lista, nekter offline framfor å gjette, og oppgraderes på plass ved første launch som får lest det pinnede manifestet, eller ved en `sync --apply` som faktisk flytter eller gjenoppbygger pinnen. En sync som melder «up to date», rører ikke staten.
 - **Pinnen flyttes av `nav-pilot sync`, ikke av å starte klienten på nytt.** Uten `--apply` rapporterer sync hvilken revisjon som er tilgjengelig. Med `--apply` verifiseres og materialiseres den nye revisjonen, og pinnen bytter. De to siste revisjonene beholdes, eldre fjernes. Er den pinnede revisjonen fjernet fra disk, sier sync det framfor å melde «up to date», og `--apply` bygger den opp igjen (`Restored …`). Sync oppdaterer den kilden scopet er pinnet til: peker du den mot et annet repo, nekter den og ber deg gjøre byttet med `install`.
 - **Revisjonene fjernes av `nav-pilot uninstall`, som navngir hver katalog den sletter, også i tørrkjøring.** De frigjøres også, uten utskrift, av en vanlig Tier 1-install som skriver over pinnen i samme scope, siden pin-staten da er borte og ingenting senere ville funnet trærne igjen.
 - **Utvikler du pakka lokalt, pinnes den ikke.** Er `source` en absolutt sti (`nav-pilot config set source /sti/til/pakke`), materialiseres og verifiseres payloadene på nytt ved hver launch, så en endring i arbeidstreet er med på neste start, og bare den revisjonen launchen bruker beholdes. `nav-pilot install` av en lokal Tier 2-kilde nektes: det finnes ingen immutabel revisjon å pinne, og meldingen navngir install fra repoet i stedet. Dette er flyten for å utvikle en pakke.
-- **opencode** startes med `OPENCODE_CONFIG_DIR` mot den pinnede revisjonen. Den delte `~/.config/opencode/opencode.json` verken leses eller skrives på denne veien. OTel går fortsatt som miljøvariabler.
-- **copilot** startes med `--plugin-dir <revisjon>` og personaen kvalifisert med pakkenavnet: `--agent <pakke>:<agent>`.
+- **opencode** startes med `OPENCODE_CONFIG_DIR` mot payload-katalogen til konteksten som startes (`<revisjon>/opencode/<kontekst>`). Den delte `~/.config/opencode/opencode.json` verken leses eller skrives på denne veien. OTel går fortsatt som miljøvariabler.
+- **copilot** startes med `--plugin-dir <revisjon>/copilot/<kontekst>` og personaen kvalifisert med pakkenavnet: `--agent <pakke>:<agent>`.
 - **cplt er påkrevd, og må være minst den gjennomgåtte baselinen.** En staged launch gir klienten et verifisert tre inne i sandkassen. Uten cplt starter ingenting (`brew install navikt/tap/cplt`). En eldre cplt enn `2026.08.17-062831`, eller en cplt nav-pilot ikke får lest versjonen av, avvises også, med `brew upgrade cplt` i feilen.
 - **`compatibility` håndheves før launch.** Deklarerer klientoppføringa et versjonsområde, prober nav-pilot klienten og avviser en versjon utenfor området. Både en mislykket probe og uleselig versjonsutdata er fatalt: et område som ikke kan håndheves, er ikke håndhevet.
 - **Modell.** `defaultModel: "inherit"` sender ingen `--model` i det hele tatt. En konkret verdi sendes med. En modell brukeren har pinnet selv vinner over begge.
@@ -502,7 +508,7 @@ Dette er statusen i milepæl 1. Alt under er kjent og planlagt, ikke feil:
 - **En kilde som er en absolutt sti pinnes ikke, og kan ikke installeres.** En pinnet installasjon krever et repo med en immutabel revisjon.
 - **`policies`, `profiles` og `provenance` er deklarasjoner uten virkning ennå.** Stiene sti-sjekkes, men nav-pilot skriver hverken opencode-permissions eller launch-profiler ut fra manifestet (M3), og sjekker ikke `provenance`-digesten mot innholdet.
 - **`compatibility` håndheves bare på den stagede stien.** Legacy-stien, altså Tier 1-innhold materialisert inn i brukerens egen klient, leser ikke feltet.
-- **`nav-pilot export opencode` støtter bare kanoniske stier.** Export leser `agents/`, `skills/`, `instructions/` og `prompts/` direkte. En agentpakke som legger innholdet et annet sted avvises av export med en forklaring, framfor å skrive et tomt `.opencode/`-tre.
+- **`nav-pilot export opencode` avviser en payload-only pakke.** Export leser en deklarert `layout` (#728), så en pakke som legger innholdet et annet sted eksporteres riktig. En pakke uten `layout` i det hele tatt har ingen filer på stier å lese, og export stopper med en forklaring framfor å skrive et tomt `.opencode/`-tre.
 - **Erklæringa har ingen egen JSON Schema-fil, og `nav-pilot validate` sjekker den ikke.** Den valideres i binæren, på samme kontraktversjonsgate som manifestet. Validate ser i dag på pakkerepoet, ikke på konsumentrepoet.
 - **`install <navn> --type <type>` skriver ingen erklæring.** En à-la-carte-install fører verken elementet inn i `items` eller kilden inn i fila; lista er håndskrevet, og det er samlings-installen som skriver erklæringa. `items` styrer den heller ikke: `install <navn>` installerer det navnet, uansett hva erklæringa lister. Skal enkeltelement-installen holde den oppdatert, er det en egen endring.
 - **`install --json` skriver ingen erklæring.** Den maskinlesbare stien svarer så snart innholdet er på disk, før state-fila skrives — og dermed før erklæringa. En CI-jobb som installerer med `--json` får altså innholdet, men ingen pinne. Kjør uten `--json` når det er pinnen du er ute etter. `--frozen` skriver uansett ingen erklæring, så kombinasjonen gjør det ikke verre — nektingene der skjer før JSON-dokumentet.

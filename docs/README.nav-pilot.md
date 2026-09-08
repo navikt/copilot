@@ -67,7 +67,7 @@ tilstandsfila `.github/.nav-pilot-state.json`.
 
 Dette får du bare her:
 
-- **Prompts.** Brukerscopet støtter `agent`, `skill`, `instruction` og `hook`, ikke `prompt`
+- **Prompts.** Brukerscopet støtter `agent`, `skill`, `instruction`, `hook` og `extension`, ikke `prompt`
   (`ScopeUser()` i `cli/nav-pilot/internal/domain/domain.go`). Installerer du pakka med
   `--user`, hoppes promptene over og rapporteres som ikke støttet. Ber du om én enkelt prompt
   med `--type prompt --user`, er det en feilmelding.

@@ -297,13 +297,9 @@ func (m *Manifest) checkPaths() error {
 		}
 	}
 	if m.Layout != nil {
-		refs = append(refs,
-			ref{"layout.agents", m.Layout.Agents},
-			ref{"layout.skills", m.Layout.Skills},
-			ref{"layout.instructions", m.Layout.Instructions},
-			ref{"layout.prompts", m.Layout.Prompts},
-			ref{"layout.hooks", m.Layout.Hooks},
-		)
+		for _, d := range m.Layout.Dirs() {
+			refs = append(refs, ref{d.Field, d.Value})
+		}
 	}
 	if m.Policies != nil {
 		refs = append(refs, ref{"policies.opencodePermissions", m.Policies.OpenCodePermissions})
@@ -367,22 +363,16 @@ func (m *Manifest) validateContent(sourceRoot string) []error {
 	var errs []error
 
 	if m.Layout != nil && m.HasTier(TierLayout) {
-		for _, d := range []struct{ field, value string }{
-			{"layout.agents", m.Layout.Agents},
-			{"layout.skills", m.Layout.Skills},
-			{"layout.instructions", m.Layout.Instructions},
-			{"layout.prompts", m.Layout.Prompts},
-			{"layout.hooks", m.Layout.Hooks},
-		} {
-			if d.value == "" {
+		for _, d := range m.Layout.Dirs() {
+			if d.Value == "" {
 				continue
 			}
-			if err := requireDir(sourceRoot, d.field, d.value); err != nil {
+			if err := requireDir(sourceRoot, d.Field, d.Value); err != nil {
 				errs = append(errs, err)
 				continue
 			}
-			if d.field == "layout.agents" {
-				errs = append(errs, checkAgentFiles(filepath.Join(sourceRoot, filepath.FromSlash(d.value)), d.field)...)
+			if d.Field == "layout.agents" {
+				errs = append(errs, checkAgentFiles(filepath.Join(sourceRoot, filepath.FromSlash(d.Value)), d.Field)...)
 			}
 		}
 	}
