@@ -104,6 +104,15 @@ func findRetiredOrphans(scope *InstallScope, sourceDir string, pakke *agentpakke
 			continue
 		}
 		local := scope.DstPath(kind.Dir, file)
+		// The schema forbids a path that leaves the repo, and this refuses one
+		// again. A record is a third party's file and this loop ends in a
+		// delete, so the containment check belongs next to the removal and not
+		// only in the validator: with validation alone, a record naming
+		// "agents/../../x" resolved to a real file outside the scope and was
+		// reported as an orphan to remove.
+		if !withinScope(scope, local) {
+			continue
+		}
 		data, err := os.ReadFile(local)
 		if err != nil {
 			continue
@@ -315,4 +324,25 @@ func sameRevision(a, b string) bool {
 		return false
 	}
 	return strings.EqualFold(short, long[:len(short)])
+}
+
+// withinScope reports whether a path stays inside the scope's root once
+// symlinks and "." / ".." are resolved.
+func withinScope(scope *InstallScope, path string) bool {
+	root, err := filepath.EvalSymlinks(scope.RootDir)
+	if err != nil {
+		root = filepath.Clean(scope.RootDir)
+	}
+	// The file itself may not exist yet, so resolve the deepest parent that
+	// does and re-attach the rest.
+	cleaned := filepath.Clean(path)
+	resolved := cleaned
+	if p, err := filepath.EvalSymlinks(filepath.Dir(cleaned)); err == nil {
+		resolved = filepath.Join(p, filepath.Base(cleaned))
+	}
+	rel, err := filepath.Rel(root, resolved)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }

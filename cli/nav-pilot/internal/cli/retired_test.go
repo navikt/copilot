@@ -510,3 +510,60 @@ func TestSyncItselfReportsIgnoredButInstalled(t *testing.T) {
 		t.Errorf("sync nevnte ikke %q, som er både ignorert og installert:\n%s", marked, out)
 	}
 }
+
+// En record kan ikke nå en fil utenfor scopet.
+//
+// De seks tilfellene i TestRetiredRecordIsValidatedAgainstTheSchema gir 0
+// orphans også uten validering, fordi kindForPath og blob-sammenlikninga
+// avviser dem uansett, så hele valideringa kunne fjernes uten at noe merket
+// det. Denne bruker en sti som treffer en ekte fil utenfor scopet: med
+// skjemaet slått av ga den før 1 orphan som pekte dit, og løkka ender i en
+// sletting.
+//
+// Nå står to vakter der, skjemaet og withinScope, og hver av dem holder alene.
+// Det er med vilje: en record er en tredjeparts fil, og en slettesti skal ikke
+// hvile på ett lag. Testen måler egenskapen, ikke hvilken av dem som fanget
+// den.
+func TestRetiredRecordCannotReachOutsideTheScope(t *testing.T) {
+	scope, _ := userScopeWithAgents(t)
+
+	// En fil utenfor scopet, med innhold vi kjenner hashen til.
+	outside := filepath.Join(t.TempDir(), "utenfor.md")
+	body := []byte("dette ligger utenfor scopet\n")
+	if err := os.WriteFile(outside, body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rel, err := filepath.Rel(scope.DstPath(KindAgent.Dir), outside)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(rel, "..") {
+		t.Fatalf("stien %q peker ikke ut av scopet, da tester dette noe annet", rel)
+	}
+	// Satt sammen som streng, ikke med filepath.Join: Join rydder bort
+	// "agents/" foran "../..", og da avviser kindForPath stien før skjemaet
+	// rekker å bety noe. Denne formen beholder prefikset, så oppslaget lykkes
+	// og bare skjemaet står mellom recorden og en sletting utenfor scopet.
+	srcPath := KindAgent.Dir + "/" + filepath.ToSlash(rel)
+	if kind, file := kindForPath(srcPath, nil); kind == nil {
+		t.Fatalf("kindForPath avviste %q selv, da måler ikke testen skjemaet", srcPath)
+	} else if !strings.Contains(scope.DstPath(kind.Dir, file), filepath.Base(outside)) {
+		t.Fatalf("stien løser ikke til fila utenfor scopet, da måler ikke testen skjemaet")
+	}
+
+	sourceDir := t.TempDir()
+	record := `{"paths":{"` + srcPath + `":["` + blobHash(body) + `"]}}`
+	if err := os.MkdirAll(filepath.Join(sourceDir, ".nav-pilot"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceDir, ".nav-pilot", "retired-artifacts.json"), []byte(record), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if orphans := findRetiredOrphans(scope, sourceDir, nil); len(orphans) != 0 {
+		t.Errorf("en record med sti ut av scopet ga %d orphans, ventet 0: %+v", len(orphans), orphans)
+	}
+	if _, err := os.Stat(outside); err != nil {
+		t.Errorf("fila utenfor scopet ble rørt: %v", err)
+	}
+}
