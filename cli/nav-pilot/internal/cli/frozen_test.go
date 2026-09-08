@@ -535,3 +535,46 @@ func TestFrozenRefusesMixedPakke(t *testing.T) {
 		t.Errorf("the refusal does not say the pakke is mixed:\n%v", err)
 	}
 }
+
+// --frozen mot en sti-kilde uten pinne skal ikke be om noe som ikke lar seg
+// gjøre. install skriver bevisst ingen pinne for en arbeidskopi, og etter #612
+// gjør ikke sync det heller, så «kjør install og commit pinnen» er et råd
+// leseren aldri kan følge (#614).
+func TestFrozenDoesNotTellAPathSourceToPinItself(t *testing.T) {
+	isolatedConfig(t)
+	installFrozen = true
+	t.Cleanup(func() { installFrozen = false })
+	scope := ScopeRepo(repoTarget(t))
+	local := t.TempDir()
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"`+local+`"}`)
+
+	err := frozenPrecheck(scope)
+	if err == nil {
+		t.Fatal("--frozen godtok en sti-kilde uten pinne")
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "commit the pin it writes") {
+		t.Errorf("meldinga ber om en pinne install aldri skriver:\n%s", msg)
+	}
+	if !strings.Contains(msg, "no revision to pin") {
+		t.Errorf("meldinga sier ikke hvorfor sti-kilden ikke kan fryses:\n%s", msg)
+	}
+}
+
+// Kontroll: en repoform uten pinne skal fortsatt få det rådet, som der er
+// mulig å følge.
+func TestFrozenStillAsksARepoSourceToPin(t *testing.T) {
+	isolatedConfig(t)
+	installFrozen = true
+	t.Cleanup(func() { installFrozen = false })
+	scope := ScopeRepo(repoTarget(t))
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester"}`)
+
+	err := frozenPrecheck(scope)
+	if err == nil {
+		t.Fatal("--frozen godtok en repo-kilde uten pinne")
+	}
+	if !strings.Contains(err.Error(), "commit the pin it writes") {
+		t.Errorf("repoformen mistet rådet sitt:\n%s", err)
+	}
+}
