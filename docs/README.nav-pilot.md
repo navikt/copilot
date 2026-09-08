@@ -172,91 +172,11 @@ tilgang til Nav-utstyret.
 Del [kortversjonen av kravet](https://ki-utvikling.nav.no/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr)
 med andre som trenger den.
 
-### Sikkerhetsnivå og versjon i cplt
+### Sikkerhetsnivå, strict og logging
 
-`nav-pilot doctor` sjekker sikkerhetsnivået til cplt og anbefaler `sandbox.preset = strict`.
-
-Det presetet er en nettverkslås. `gh_guard` og `git_guard` er allerede på i `standard`
-(cplt#335), så det strict legger til er nettverket: tvungen proxy, `git_guard` som blokkerer
-i stedet for å advare, og `proxy.default_allowlist`. Den siste er den viktige: den gjør at
-bare cplt sin innebygde vertsliste pluss det `proxy.allowed_domains` peker på er nåbart.
-Alt annet blokkeres.
-
-cplt sin innebygde liste dekker GitHub Copilot og de offentlige pakkeregistrene. Den dekker
-ingenting av Navs. Setter du presetet uten å gjøre noe mer, slutter nav-pilot sin telemetri å
-komme fram, og skills som `aksel-builder`, `observability-debugging` og `nav-auth` mister
-vertene de er bygget rundt, uten at noe på skjermen forteller deg hvorfor.
-
-Derfor skal du sette presetet via nav-pilot, ikke for hånd:
-
-```bash
-nav-pilot config     # velg raden «cplt security posture»
-```
-
-Den skriver vertslista til `~/.nav-pilot/cplt-allowed-domains.txt`, peker
-`proxy.allowed_domains` dit, og setter så presetet, i den rekkefølgen, slik at låsen aldri
-rekker å tre i kraft uten vertene. Har du allerede en egen `proxy.allowed_domains`, lar
-nav-pilot den være i fred og sier fra at du må ta med vertene selv. cplt-config er personlig,
-så nav-pilot setter den aldri stilltiende, og nøkler du har satt selv gjelder fortsatt foran
-presetet.
-
-### Når strict ikke anbefales
-
-På Linux krever `proxy.forced` at kjernen kan håndheve nettverksrestriksjon i Landlock: ABI
-v4, altså kjerne 6.7 eller nyere med Landlock påslått. Under det degraderer ikke cplt, den
-nekter å starte i det hele tatt. En anbefaling som stopper hver eneste økt på maskinen er
-verre enn problemet den løser, så `nav-pilot doctor` og innstillingssiden anbefaler ikke
-strict der, og sier hvorfor i stedet.
-
-nav-pilot spør kjernen direkte, med samme systemkall som cplt bruker, i stedet for å lese
-`uname`. En kjerneversjon er bare en indikasjon: Landlock kan være kompilert bort eller slått
-av ved oppstart, og da ville en versjonssjekk sagt «går fint» rett før cplt nekter å starte.
-
-macOS har ingen slik grense. Der håndheves det samme med Seatbelt.
-
-### Logging av blokkeringer
-
-`proxy.log_level` styrer hva cplt sin proxy skriver til stderr. Standardverdien er `none`,
-men cplt hever den selv til `blocked` så snart en vertsliste er aktiv, enten fordi
-`proxy.default_allowlist` er på eller fordi `proxy.allowed_domains` er satt
-(`proxy_log_level` i cplt-repoet, `src/main.rs`). Sikkerhetsnivået nav-pilot anbefaler skriver alltid
-vertslistefila `proxy.allowed_domains` peker på, så på `strict` er `blocked` allerede i kraft
-uten at du setter noe. Alle agentene har en innebygd liste: `pi`, `goose` og `shell` mangler
-egne infrastrukturverter, men får pakkeregister-basen som alle andre.
-Nav-pilot anbefaler derfor ikke nøkkelen: den er allerede dekket der den betyr noe.
-
-Kjører du `standard` uten egen `proxy.allowed_domains`, er det ingen vertsliste å heve for,
-og proxyen tier da om alle andre blokkeringer og feil også: treff i cplt sin egen
-blokkliste, stengte porter, verter som slår opp til private eller link-local IP-er
-(DNS-rebinding- og metadatavernet), og oppslag som feiler. Vil du se dem, setter du nivået
-selv:
-
-```bash
-cplt config set proxy.log_level blocked
-```
-
-`audit.enabled` ser ut som svaret på det samme, men er det ikke i dagens cplt.
-`[audit]`-seksjonen leses og vises av `cplt config show`, men ingenting bruker den. cplt
-sier det selv i registeret sitt (cplt-repoet, `src/config/registry.rs`, `BOOL_KEYS_EXEMPT`: «the `[audit]` section
-is parsed and displayed but has no consumer yet»). Å slå den på gir ingen logg. Vil du ha
-en fil å lese etterpå, er det `proxy.log_file` som faktisk skriver en. Den dekker
-proxy-verdiktene, ikke avgjørelsene til gh- og git-vakta.
-
-Ikke forveksle den med `sandbox.audit`, som er noe annet og allerede på: den viser
-rapporten over filendringer på skjermen (stderr) etter at agenten har avsluttet.
-
-### Lokal modell og strict
-
-`nav-pilot local` sender prompten via en loop-guard på `127.0.0.1`. cplt blokkerer localhost
-som standard, så nav-pilot sender porten med som `--allow-localhost <port>` ved hver lokale
-oppstart. Det er én navngitt port, ikke `allow_localhost_any`. Den maskinvide bryteren er
-den `proxy.forced` overstyrer, så hadde vi brukt den, ville strict og lokal modell utelukket
-hverandre. Én port overlever tvungen proxy på både macOS og Linux.
-
-Fila er en fullstendig liste, ikke bare Nav-vertene. `proxy.allowed_domains` blokkerer alt
-utenfor seg selv uansett hva `proxy.default_allowlist` står på, og cplt sin innebygde liste
-er per agent. Bare copilot-lista har GitHub og Copilot i seg; opencode har `opencode.ai` og
-`models.dev`. Derfor står de innebygde vertene i fila også, slik at den er riktig alene.
+Står på https://ki-utvikling.nav.no/nav-pilot/docs: hva `sandbox.preset = strict` låser, hvorfor
+presetet skal settes via `nav-pilot config` og ikke for hånd, når strict ikke anbefales på Linux,
+og hva `proxy.log_level` faktisk logger.
 
 `nav-pilot doctor` sier også fra når cplt selv er utdatert, og foreslår
 `brew upgrade navikt/tap/cplt`. nav-pilot laster aldri ned eller oppgraderer cplt for deg.

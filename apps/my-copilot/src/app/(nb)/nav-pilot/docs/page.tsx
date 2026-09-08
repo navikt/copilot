@@ -43,6 +43,9 @@ const DOC_SECTIONS: TocItem[] = [
     children: [
       { id: "hva-er-nav-pilot", label: "Hva er nav-pilot?" },
       { id: "isolasjon-er-pakrevd", label: "Isolasjon er påkrevd" },
+      { id: "cplt-sikkerhetsniva", label: "Sikkerhetsnivå i cplt" },
+      { id: "nar-strict-ikke-anbefales", label: "Når strict ikke anbefales" },
+      { id: "logging-av-blokkeringer", label: "Logging av blokkeringer" },
       { id: "hvorfor-nav-pilot", label: "Hvorfor nav-pilot?" },
       { id: "hva-nav-pilot-vet", label: "Hva nav-pilot vet" },
     ],
@@ -469,6 +472,108 @@ function IntroductionSection() {
               </BodyLong>
             </VStack>
           </Box>
+        </VStack>
+
+        <VStack id="cplt-sikkerhetsniva" gap="space-12">
+          <LinkableHeading size="small" level="3">
+            Sikkerhetsnivå i cplt
+          </LinkableHeading>
+          <BodyLong style={{ color: "#475569" }}>
+            <code className="font-mono text-xs">nav-pilot doctor</code> sjekker sikkerhetsnivået til cplt og anbefaler{" "}
+            <code className="font-mono text-xs">sandbox.preset = strict</code>. Det presetet er en nettverkslås.{" "}
+            <code className="font-mono text-xs">gh_guard</code> og <code className="font-mono text-xs">git_guard</code>{" "}
+            er allerede på i <code className="font-mono text-xs">standard</code>, så det strict legger til er
+            nettverket: tvungen proxy, git_guard som blokkerer i stedet for å advare, og{" "}
+            <code className="font-mono text-xs">proxy.default_allowlist</code>. Den siste er den viktige. Bare cplt sin
+            innebygde vertsliste, pluss det <code className="font-mono text-xs">proxy.allowed_domains</code> peker på,
+            er nåbart. Alt annet blokkeres.
+          </BodyLong>
+          <Box background="warning-soft" borderRadius="8" padding="space-16">
+            <BodyLong style={{ color: "#475569" }}>
+              cplt sin innebygde liste dekker GitHub Copilot og de offentlige pakkeregistrene. Den dekker ingenting av
+              Navs. Setter du presetet for hånd, slutter nav-pilot sin telemetri å komme fram, og skills som{" "}
+              <code className="font-mono text-xs">aksel-builder</code>,{" "}
+              <code className="font-mono text-xs">observability-debugging</code> og{" "}
+              <code className="font-mono text-xs">nav-auth</code> mister vertene de er bygget rundt, uten at noe på
+              skjermen forteller deg hvorfor.
+            </BodyLong>
+          </Box>
+          <BodyLong style={{ color: "#475569" }}>Sett det derfor via nav-pilot:</BodyLong>
+          <CodeBlock>{"nav-pilot config     # velg raden «cplt security posture»"}</CodeBlock>
+          <BodyLong style={{ color: "#475569" }}>
+            Den skriver vertslista til <code className="font-mono text-xs">~/.nav-pilot/cplt-allowed-domains.txt</code>,
+            peker <code className="font-mono text-xs">proxy.allowed_domains</code> dit, og setter så presetet, i den
+            rekkefølgen, slik at låsen aldri rekker å tre i kraft uten vertene. Har du allerede en egen{" "}
+            <code className="font-mono text-xs">proxy.allowed_domains</code>, lar nav-pilot den være i fred og sier fra
+            at du må ta med vertene selv. cplt-config er personlig, så nav-pilot setter den aldri stilltiende, og nøkler
+            du har satt selv gjelder fortsatt foran presetet.
+          </BodyLong>
+          <BodyLong style={{ color: "#475569" }}>
+            Fila er en fullstendig liste, ikke bare Nav-vertene, fordi{" "}
+            <code className="font-mono text-xs">proxy.allowed_domains</code> blokkerer alt utenfor seg selv uansett hva{" "}
+            <code className="font-mono text-xs">proxy.default_allowlist</code> står på, og cplt sin innebygde liste er
+            per agent: bare copilot-lista har GitHub og Copilot i seg, mens opencode har{" "}
+            <code className="font-mono text-xs">opencode.ai</code> og{" "}
+            <code className="font-mono text-xs">models.dev</code>.
+          </BodyLong>
+          <BodyLong style={{ color: "#475569" }}>
+            <code className="font-mono text-xs">nav-pilot local</code> sender prompten via en loop-guard på{" "}
+            <code className="font-mono text-xs">127.0.0.1</code>. cplt blokkerer localhost som standard, så nav-pilot
+            sender porten med som <code className="font-mono text-xs">--allow-localhost &lt;port&gt;</code> ved hver
+            lokale oppstart. Det er én navngitt port, ikke den maskinvide bryteren, som{" "}
+            <code className="font-mono text-xs">proxy.forced</code> overstyrer. Én port overlever tvungen proxy på både
+            macOS og Linux, så strict og lokal modell utelukker ikke hverandre.
+          </BodyLong>
+        </VStack>
+
+        <VStack id="nar-strict-ikke-anbefales" gap="space-12">
+          <LinkableHeading size="small" level="3">
+            Når strict ikke anbefales
+          </LinkableHeading>
+          <BodyLong style={{ color: "#475569" }}>
+            På Linux krever <code className="font-mono text-xs">proxy.forced</code> at kjernen kan håndheve
+            nettverksrestriksjon i Landlock: ABI v4, altså kjerne 6.7 eller nyere med Landlock påslått. Under det
+            degraderer ikke cplt, den nekter å starte i det hele tatt. En anbefaling som stopper hver eneste økt på
+            maskinen er verre enn problemet den løser, så <code className="font-mono text-xs">nav-pilot doctor</code> og
+            innstillingssiden anbefaler ikke strict der, og sier hvorfor i stedet.
+          </BodyLong>
+          <BodyLong style={{ color: "#475569" }}>
+            nav-pilot spør kjernen direkte, med samme systemkall som cplt bruker, i stedet for å lese{" "}
+            <code className="font-mono text-xs">uname</code>. En kjerneversjon er bare en indikasjon: Landlock kan være
+            kompilert bort eller slått av ved oppstart, og da ville en versjonssjekk sagt «går fint» rett før cplt
+            nekter å starte. macOS har ingen slik grense; der håndheves det samme med Seatbelt.
+          </BodyLong>
+        </VStack>
+
+        <VStack id="logging-av-blokkeringer" gap="space-12">
+          <LinkableHeading size="small" level="3">
+            Logging av blokkeringer
+          </LinkableHeading>
+          <BodyLong style={{ color: "#475569" }}>
+            <code className="font-mono text-xs">proxy.log_level</code> styrer hva cplt sin proxy skriver til stderr.
+            Standardverdien er <code className="font-mono text-xs">none</code>, men cplt hever den selv til{" "}
+            <code className="font-mono text-xs">blocked</code> så snart en vertsliste er aktiv. Sikkerhetsnivået
+            nav-pilot anbefaler skriver alltid vertslistefila, så på strict er{" "}
+            <code className="font-mono text-xs">blocked</code> allerede i kraft uten at du setter noe.
+          </BodyLong>
+          <BodyLong style={{ color: "#475569" }}>
+            Kjører du <code className="font-mono text-xs">standard</code> uten egen{" "}
+            <code className="font-mono text-xs">proxy.allowed_domains</code>, er det ingen vertsliste å heve for, og
+            proxyen tier da om alle andre blokkeringer og feil også: treff i cplt sin egen blokkliste, stengte porter,
+            verter som slår opp til private eller link-local IP-er, og oppslag som feiler. Vil du se dem, setter du
+            nivået selv:
+          </BodyLong>
+          <CodeBlock>{"cplt config set proxy.log_level blocked"}</CodeBlock>
+          <BodyLong style={{ color: "#475569" }}>
+            <code className="font-mono text-xs">audit.enabled</code> ser ut som svaret på det samme, men er det ikke i
+            dagens cplt. <code className="font-mono text-xs">[audit]</code>-seksjonen leses og vises av{" "}
+            <code className="font-mono text-xs">cplt config show</code>, men ingenting bruker den. Å slå den på gir
+            ingen logg. Vil du ha en fil å lese etterpå, er det{" "}
+            <code className="font-mono text-xs">proxy.log_file</code> som faktisk skriver en, og den dekker
+            proxy-verdiktene, ikke avgjørelsene til gh- og git-vakta. Ikke forveksle den med{" "}
+            <code className="font-mono text-xs">sandbox.audit</code>, som er noe annet og allerede på: den viser
+            rapporten over filendringer på skjermen etter at agenten har avsluttet.
+          </BodyLong>
         </VStack>
 
         {/* Why nav-pilot */}

@@ -317,7 +317,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		// installed (#571). Such a file is updated by adding it again from its
 		// own source, which never has to be reachable from this run — being
 		// offline must not delete anything.
-		if false {
+		if sf.source != "" && !sameSourceRepo(sf.source, sourceLabelFor(src)) {
 			foreignPaths = append(foreignPaths, sf.localPath)
 			continue
 		}
