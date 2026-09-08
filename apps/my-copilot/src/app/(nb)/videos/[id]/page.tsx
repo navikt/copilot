@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Box } from "@navikt/ds-react";
@@ -11,6 +12,41 @@ import { RelatedVideos } from "@/components/video/related-videos";
 type Props = {
   params: Promise<{ id: string }>;
 };
+
+/**
+ * Per-video metadata, so a shared link previews as the video it points at.
+ *
+ * Without this the route inherited the site-wide title and description, and a
+ * link pasted into Slack or Teams said "Copilot i Nav" whatever it led to
+ * (#287). The poster is the video's own frame, which is the part that makes a
+ * preview worth pasting.
+ */
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const video = await fetchVideoById(id);
+
+  if (!video) {
+    return { title: "Videoen finnes ikke" };
+  }
+
+  return {
+    title: video.title,
+    description: video.description,
+    openGraph: {
+      title: video.title,
+      description: video.description,
+      type: "video.other",
+      locale: video.language === "en" ? "en_GB" : "nb_NO",
+      images: video.posterUrl ? [{ url: video.posterUrl }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: video.title,
+      description: video.description,
+      images: video.posterUrl ? [video.posterUrl] : undefined,
+    },
+  };
+}
 
 export default async function VideoPage({ params }: Props) {
   const { id } = await params;
