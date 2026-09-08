@@ -105,6 +105,8 @@ Begge havner under `[propose]`. Den som reviewer PR-en ser at prosjektet ber om 
 cplt config set --repo sandbox.allow_lifecycle_scripts true --force
 ```
 
+Merk at `cplt init` aldri foreslår denne selv, nettopp fordi den åpner for vilkårlig kodekjøring. Står den i `.cplt.toml`, er det fordi et menneske har satt den inn, og da er det verdt et spørsmål i reviewen: trenger `npm install` den virkelig, eller holder det å kjøre installasjonen med `--ignore-scripts`?
+
 **Hemmeligheter som aldri skal inn i en agent-sesjon.** `[deny]` er den billige halvdelen av repo-config. Den krever ingen godkjenning og gjelder for alle som sjekker ut repoet, i det øyeblikket fila er committet:
 
 ```sh
