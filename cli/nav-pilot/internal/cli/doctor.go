@@ -11,7 +11,6 @@ import (
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
-// cmdDoctor runs system health checks and outputs actionable diagnostics.
 // reportScopeConflicts names the files a plain sync leaves alone.
 //
 // doctor had no mention of conflicts at all (#651), so the one command whose
@@ -32,6 +31,7 @@ func reportScopeConflicts(scope *InstallScope) {
 	fmt.Printf("          %s %s takes the source's version of these too.\n", yellow("Solution:"), bold("nav-pilot sync --apply"))
 }
 
+// cmdDoctor runs system health checks and outputs actionable diagnostics.
 func cmdDoctor() error {
 	fmt.Printf("%s\n\n", bold("nav-pilot doctor"))
 	hasErrors := false
