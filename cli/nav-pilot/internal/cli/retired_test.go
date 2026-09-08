@@ -349,7 +349,7 @@ func TestRevisionIsRecordedAndSurfaced(t *testing.T) {
 			// Stamping one would claim a revision put something on disk.
 			{Path: "agents/b.agent.md", Status: fileStatusIgnored},
 		}
-		got := stampRevision(files, "def5678")
+		got := stampRevision(files, "def5678", nil)
 		if got[0].Revision != "def5678" {
 			t.Errorf("written file revision = %q, want def5678", got[0].Revision)
 		}
@@ -467,5 +467,103 @@ func TestRetiredRecordIsValidatedAgainstTheSchema(t *testing.T) {
 func TestRetiredPathMatchesTheContract(t *testing.T) {
 	if retiredManifestPath != agentpakke.RetiredRecordPath {
 		t.Errorf("the reader opens %q while the contract publishes %q", retiredManifestPath, agentpakke.RetiredRecordPath)
+	}
+}
+
+// #724-rapporten må komme ut av sync, ikke bare ut av hjelperen.
+//
+// TestIgnoredButInstalled kaller ignoredButInstalled direkte, så den passerer
+// også når sync ikke kaller den: hele rapporten kunne fjernes fra sync.go uten
+// at noen test merket det. Denne kjører kommandoen.
+func TestSyncItselfReportsIgnoredButInstalled(t *testing.T) {
+	isolatedConfig(t)
+	repo, first, _ := gitAgentpakke(t)
+	localAgentpakkeRemote(t, repo)
+
+	scope := ScopeRepo(repoTarget(t))
+	writeDeclaration(t, scope,
+		`{"contractVersion":"1","source":"navikt/grillmester","sha":"`+first+`"}`)
+	captureStdoutFor(t, func() {
+		if err := cmdInstallAuto("grillmester", "", scope, "", "", false, false, false); err != nil {
+			t.Fatalf("install: %v", err)
+		}
+	})
+
+	// Merk en installert fil som ignorert uten å fjerne den fra disk.
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		t.Fatalf("leste ikke staten: %v", err)
+	}
+	if len(state.Files) == 0 {
+		t.Fatal("installasjonen sporet ingen filer, da tester dette ingenting")
+	}
+	state.Files[0].Status = fileStatusIgnored
+	if err := writeScopedState(scope, state); err != nil {
+		t.Fatal(err)
+	}
+	marked := state.Files[0].Path
+
+	out := captureStdoutFor(t, func() {
+		_ = cmdSync(scope, "", "", false, false)
+	})
+	if !strings.Contains(out, marked) {
+		t.Errorf("sync nevnte ikke %q, som er både ignorert og installert:\n%s", marked, out)
+	}
+}
+
+// En record kan ikke nå en fil utenfor scopet.
+//
+// De seks tilfellene i TestRetiredRecordIsValidatedAgainstTheSchema gir 0
+// orphans også uten validering, fordi kindForPath og blob-sammenlikninga
+// avviser dem uansett, så hele valideringa kunne fjernes uten at noe merket
+// det. Denne bruker en sti som treffer en ekte fil utenfor scopet: med
+// skjemaet slått av ga den før 1 orphan som pekte dit, og løkka ender i en
+// sletting.
+//
+// Nå står to vakter der, skjemaet og withinScope, og hver av dem holder alene.
+// Det er med vilje: en record er en tredjeparts fil, og en slettesti skal ikke
+// hvile på ett lag. Testen måler egenskapen, ikke hvilken av dem som fanget
+// den.
+func TestRetiredRecordCannotReachOutsideTheScope(t *testing.T) {
+	scope, _ := userScopeWithAgents(t)
+
+	// En fil utenfor scopet, med innhold vi kjenner hashen til.
+	outside := filepath.Join(t.TempDir(), "utenfor.md")
+	body := []byte("dette ligger utenfor scopet\n")
+	if err := os.WriteFile(outside, body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rel, err := filepath.Rel(scope.DstPath(KindAgent.Dir), outside)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(rel, "..") {
+		t.Fatalf("stien %q peker ikke ut av scopet, da tester dette noe annet", rel)
+	}
+	// Satt sammen som streng, ikke med filepath.Join: Join rydder bort
+	// "agents/" foran "../..", og da avviser kindForPath stien før skjemaet
+	// rekker å bety noe. Denne formen beholder prefikset, så oppslaget lykkes
+	// og bare skjemaet står mellom recorden og en sletting utenfor scopet.
+	srcPath := KindAgent.Dir + "/" + filepath.ToSlash(rel)
+	if kind, file := kindForPath(srcPath, nil); kind == nil {
+		t.Fatalf("kindForPath avviste %q selv, da måler ikke testen skjemaet", srcPath)
+	} else if !strings.Contains(scope.DstPath(kind.Dir, file), filepath.Base(outside)) {
+		t.Fatalf("stien løser ikke til fila utenfor scopet, da måler ikke testen skjemaet")
+	}
+
+	sourceDir := t.TempDir()
+	record := `{"paths":{"` + srcPath + `":["` + blobHash(body) + `"]}}`
+	if err := os.MkdirAll(filepath.Join(sourceDir, ".nav-pilot"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceDir, ".nav-pilot", "retired-artifacts.json"), []byte(record), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if orphans := findRetiredOrphans(scope, sourceDir, nil); len(orphans) != 0 {
+		t.Errorf("en record med sti ut av scopet ga %d orphans, ventet 0: %+v", len(orphans), orphans)
+	}
+	if _, err := os.Stat(outside); err != nil {
+		t.Errorf("fila utenfor scopet ble rørt: %v", err)
 	}
 }

@@ -104,7 +104,11 @@ func TestPathSourceMayNotBePinned(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(DeclarationFilePath(root),
-		[]byte(`{"contractVersion":"1","source":"/srv/grillmester","sha":"deadbeef"}`), 0o644); err != nil {
+		// A full forty-character sha, deliberately: with an abbreviated one the
+		// short-sha check fires first, and an assertion on "sha" is satisfied
+		// by the wrong error. The path-pin refusal could then be removed
+		// entirely and this test would still pass.
+		[]byte(`{"contractVersion":"1","source":"/srv/grillmester","sha":"`+strings.Repeat("a", 40)+`"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	_, err := LoadDeclaration(root)
@@ -113,6 +117,10 @@ func TestPathSourceMayNotBePinned(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "sha") {
 		t.Errorf("error %q does not point at the offending field", err)
+	}
+	// Naming the path is what separates this refusal from the short-sha one.
+	if !strings.Contains(err.Error(), "path source") {
+		t.Errorf("error %q is not the path-pin refusal", err)
 	}
 
 	// The same path source without a pin is fine — that is how a developer

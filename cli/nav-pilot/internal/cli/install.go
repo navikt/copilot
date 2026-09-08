@@ -604,7 +604,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		SourceRepo:  src.Repo,
 		SourceSHA:   src.SHA,
 		InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
-		Files:       stampRevision(result.Files, src.SHA),
+		Files:       stampRevision(result.Files, src.SHA, inheritedPaths(resolver, scope, reused)),
 	}
 	// A re-install over a checked-in state file must not throw away the keys a
 	// newer nav-pilot put there; the fresh struct has none of them (#588). Nor
@@ -1007,7 +1007,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		SourceRepo:  src.Repo,
 		SourceSHA:   src.SHA,
 		InstalledAt: timeNow().UTC().Format("2006-01-02T15:04:05Z07:00"),
-		Files:       stampRevision(result.Files, src.SHA),
+		Files:       stampRevision(result.Files, src.SHA, nil),
 	}
 
 	// Append items the user explicitly deselected in the picker as ignored.
@@ -1385,16 +1385,38 @@ func removeOrphans(scope *InstallScope, prior *StateFile, installed []InstalledF
 // Only files with content: an ignored entry has no bytes and therefore no
 // provenance, and stamping one would claim a revision put something on disk
 // that it never did.
-func stampRevision(files []InstalledFile, revision string) []InstalledFile {
+func stampRevision(files []InstalledFile, revision string, inherited func(string) bool) []InstalledFile {
 	if revision == "" {
 		return files
 	}
 	for i := range files {
-		if files[i].Hash != "" {
-			files[i].Revision = revision
+		if files[i].Hash == "" {
+			continue
 		}
+		// A file that came from a reused pakke did not come from this
+		// revision, and stamping it anyway made sync's "installed from <sha>"
+		// hint name a revision the file was never in. Leaving it empty says
+		// nothing extra, which is what the field is documented to do when it
+		// does not know (#729).
+		if inherited != nil && inherited(files[i].Path) {
+			continue
+		}
+		files[i].Revision = revision
 	}
 	return files
+}
+
+// inheritedPaths reports which installed paths came from a reused pakke rather
+// than from this source. Nil when nothing is reused, which is nearly always.
+func inheritedPaths(resolver *SourceResolver, scope *InstallScope, reused *Source) func(string) bool {
+	if reused == nil || resolver == nil {
+		return nil
+	}
+	return func(localPath string) bool {
+		rel := resolver.MapLocalPath(localPath, scope.IsUser())
+		root, ok := resolver.SourceRootFor(rel)
+		return ok && root != resolver.SourceDir()
+	}
 }
 
 // installedPrimaryAgent names the persona a user should reach for after an

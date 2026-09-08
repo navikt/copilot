@@ -237,7 +237,7 @@ func recordDeclaration(scope *InstallScope, src *Source) {
 // Sync does not create the file (that is install's job, which is where the
 // source is actually chosen) and does not repoint one at a different
 // agentpakke, which is an install too.
-func bumpDeclarationSHA(scope *InstallScope, src *Source) {
+func bumpDeclarationSHA(scope *InstallScope, src *Source, quiet bool) {
 	d, err := scopeDeclaration(scope)
 	if err != nil {
 		// Say so. A declaration nav-pilot cannot read is one it stops
@@ -268,6 +268,11 @@ func bumpDeclarationSHA(scope *InstallScope, src *Source) {
 	if err := agentpakke.WriteDeclaration(scope.RootDir, d); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not bump the pinned revision in %s: %v\n",
 			yellow("⚠"), agentpakke.DeclarationPath, err)
+		return
+	}
+	if quiet {
+		// --json encodes the document to this same stdout, so a success line
+		// here would sit after it and make the output unparseable.
 		return
 	}
 	fmt.Printf("%s Bumped %s: %s → %s. Commit it to share the update.\n",

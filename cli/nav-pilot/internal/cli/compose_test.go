@@ -155,29 +155,12 @@ func TestUnpinnedLocalPathReuseIsAllowed(t *testing.T) {
 	}
 }
 
-// Sync må løse den samme gjenbruken install løste. Uten det slutter hvert
-// arvede artefakt å resolve så snart installasjonen er over, og sync ser en
-// sporet fil kilden ikke lenger sender, altså formen på et pensjonert
-// artefakt.
-func TestSyncResolverComposesToo(t *testing.T) {
-	baseDir, ownDir := t.TempDir(), t.TempDir()
-	writePakke(t, baseDir, "basepakke", "felles")
-	writePakke(t, ownDir, "egenpakke", "eget")
-	declareReuse(t, ownDir, baseDir)
-
-	src := loadSource(t, ownDir)
-	state := &StateFile{Collection: "egenpakke"}
-	resolver, reused, err := composeResolver(resolverForState(src, state), src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if reused == nil {
-		t.Fatal("sync-resolveren gjenbrukte ingenting")
-	}
-	if _, ok := resolver.Get(KindAgent, "felles"); !ok {
-		t.Error("det arvede artefaktet resolver ikke under sync, og ville blitt lest som pensjonert")
-	}
-}
+// Sync-komposisjonen er dekket i e2e/golden_path_test.go, ikke her.
+//
+// Testen som sto på dette stedet kalte composeResolver selv i stedet for å
+// kjøre sync, altså gjentok den det sync gjør. Den passerte med kallet fjernet
+// fra sync.go, som er nøyaktig defekten den ble skrevet for å fange. En test
+// som ikke kan feile er verre enn ingen, fordi den ser ut som dekning.
 
 // En kilde uten manifest komponerer ikke, selv om den skulle ha en erklæring
 // liggende. Ellers ville en collection-kilde hentet et fremmed repo midt i en
@@ -203,5 +186,78 @@ func TestLegacySourceDoesNotCompose(t *testing.T) {
 	}
 	if reused != nil {
 		t.Errorf("en manifestløs kilde komponerte %s", reused.Dir)
+	}
+}
+
+// Selvreferansen og syklusvakta sammenlikner kilder med sameSourceRepo, ikke
+// med ren likhet. "Navikt/A" og "navikt/a" er ett repo, og to skrivemåter av
+// samme sti er én katalog. Med ren likhet kunne en pakke navngi seg selv i en
+// annen bokstavstørrelse og bli kjedet til seg selv.
+func TestSelfReferenceIsCaseInsensitive(t *testing.T) {
+	dir := t.TempDir()
+	writePakke(t, dir, "egen", "eget")
+	// Erklæringa navngir repoet med annen bokstavstørrelse enn kildelabelen.
+	body := `{"contractVersion":"1","source":"NAVIKT/Grillmester","sha":"` + strings.Repeat("a", 40) + `"}`
+	if err := os.WriteFile(filepath.Join(dir, ".nav-pilot", "agentpakke.lock.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	src := loadSource(t, dir)
+	src.Repo = "navikt/grillmester"
+
+	_, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	if err != nil {
+		t.Fatalf("komposisjonen feilet: %v", err)
+	}
+	if reused != nil {
+		t.Errorf("pakka ble kjedet til seg selv via %q", reused.Repo)
+	}
+}
+
+// En sti skrevet med etterslept skråstrek er den samme katalogen.
+func TestSelfReferenceResolvesPathSpelling(t *testing.T) {
+	dir := t.TempDir()
+	writePakke(t, dir, "egen", "eget")
+	body := `{"contractVersion":"1","source":"` + dir + `/"}`
+	if err := os.WriteFile(filepath.Join(dir, ".nav-pilot", "agentpakke.lock.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	src := loadSource(t, dir)
+
+	_, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	if err != nil {
+		t.Fatalf("komposisjonen feilet: %v", err)
+	}
+	if reused != nil {
+		t.Errorf("pakka ble kjedet til seg selv via %q", reused.Dir)
+	}
+}
+
+// En payload-pakke har ingen filer å arve fra: leveringsenheten er en
+// digest-bundet revisjon, ikke filer på stier. Å komponere den meldte
+// «Reuses:» og bidro så med ingenting, altså en påstand install ikke kunne
+// innfri.
+func TestPayloadOnlyBaseIsRefused(t *testing.T) {
+	baseDir, ownDir := t.TempDir(), t.TempDir()
+	if err := os.MkdirAll(filepath.Join(baseDir, ".nav-pilot"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(baseDir, "plugin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payloadManifest := `{"contractVersion":"1","name":"t2base","description":"payload",` +
+		`"clients":{"copilot":{"payloads":{"full":{"path":"plugin","primaryAgents":["x"]}}}}}`
+	if err := os.WriteFile(filepath.Join(baseDir, ".nav-pilot", "agentpakke.json"), []byte(payloadManifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writePakke(t, ownDir, "egenpakke", "eget")
+	declareReuse(t, ownDir, baseDir)
+
+	src := loadSource(t, ownDir)
+	_, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	if err == nil {
+		t.Fatalf("en payload-pakke ble godtatt som base, gjenbrukt = %v", reused)
+	}
+	if !strings.Contains(err.Error(), "Tier 2") {
+		t.Errorf("feilmeldinga sier ikke hvorfor: %v", err)
 	}
 }

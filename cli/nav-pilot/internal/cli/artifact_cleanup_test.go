@@ -111,3 +111,26 @@ func TestRemovingAnAgentLeavesItsDirectory(t *testing.T) {
 		t.Errorf("naboartefaktet forsvant: %v", err)
 	}
 }
+
+// Et artefakt som både er sporet og pensjonert ble talt to ganger: sletteløkka
+// tok fila, og pensjoneringssveipet talte den som fjernet igjen fordi
+// IsNotExist ikke var en grunn til å la være.
+func TestRetiredSweepDoesNotCountAlreadyDeletedFiles(t *testing.T) {
+	root := t.TempDir()
+	scope := ScopeRepo(root)
+	agentsDir := scope.DstPath(KindAgent.Dir)
+	if err := os.MkdirAll(agentsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	finnes := filepath.Join(agentsDir, "finnes.agent.md")
+	if err := os.WriteFile(finnes, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	orphans := []retiredOrphan{
+		{Path: "agents/finnes.agent.md", Local: finnes},
+		{Path: "agents/alt-slettet.agent.md", Local: filepath.Join(agentsDir, "alt-slettet.agent.md")},
+	}
+	if got := removeRetiredOrphans(scope, orphans, true); got != 1 {
+		t.Errorf("telte %d fjernede, ventet 1: den andre var borte fra før", got)
+	}
+}
