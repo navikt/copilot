@@ -264,6 +264,27 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 			}
 			return errUpdatesAvailable
 		}
+		// A scope can declare a pin without having any files to sync: it may
+		// have ignored everything, or committed the declaration before the
+		// first install. The pin still moves, and reporting "nothing to do"
+		// with exit 0 let it rot in exactly the repos a scheduled workflow was
+		// supposed to keep fresh, because that workflow reads the exit code.
+		if pinBump != nil {
+			if jsonOutput {
+				if err := outputJSON(syncResult{Source: src.SHA, PinBump: pinBump}); err != nil {
+					return err
+				}
+			} else {
+				fmt.Printf("%s %s pins %s and the source is at %s (source: %s)\n\n",
+					yellow("⚠"), bold(agentpakke.DeclarationPath),
+					shortSHA(pinBump.From), shortSHA(pinBump.To), shortSHA(src.SHA))
+			}
+			if !apply {
+				return errUpdatesAvailable
+			}
+			bumpDeclarationSHA(scope, src)
+			return nil
+		}
 		if jsonOutput {
 			return outputJSON(syncResult{UpToDate: true, Source: src.SHA})
 		}

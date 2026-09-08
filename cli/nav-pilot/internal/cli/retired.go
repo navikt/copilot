@@ -177,10 +177,17 @@ func kindForPath(srcPath string, layout *agentpakke.Layout) (*source.ArtifactKin
 func removeRetiredOrphans(scope *InstallScope, orphans []retiredOrphan, quiet bool) int {
 	removed := 0
 	for _, o := range orphans {
-		if err := os.Remove(o.Local); err != nil && !os.IsNotExist(err) {
+		err := os.Remove(o.Local)
+		if err != nil && !os.IsNotExist(err) {
 			if !quiet {
 				fmt.Printf("  %s %s could not be removed: %v\n", yellow("⚠"), o.Path, err)
 			}
+			continue
+		}
+		// A file the deletion pass already took is not one this pass removed.
+		// Counting it here reported the same artifact twice: once as deleted
+		// upstream and again as retired.
+		if os.IsNotExist(err) {
 			continue
 		}
 		afterArtifactRemoved(scope, o.Local, quiet)
