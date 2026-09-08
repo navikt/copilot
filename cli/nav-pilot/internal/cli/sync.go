@@ -523,7 +523,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 			applyErrors++
 			continue
 		}
-		afterArtifactRemoved(scope, localFull)
+		afterArtifactRemoved(scope, localFull, jsonOutput)
 		fmt.Printf("  %s %s (deleted)\n", red("×"), p)
 		deleted++
 		deletedSuccessPaths = append(deletedSuccessPaths, p)

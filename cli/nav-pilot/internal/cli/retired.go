@@ -183,7 +183,7 @@ func removeRetiredOrphans(scope *InstallScope, orphans []retiredOrphan, quiet bo
 			}
 			continue
 		}
-		afterArtifactRemoved(scope, o.Local)
+		afterArtifactRemoved(scope, o.Local, quiet)
 		if !quiet {
 			fmt.Printf("  %s %s\n", red("×"), o.Path)
 		}

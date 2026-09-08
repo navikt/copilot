@@ -30,7 +30,7 @@ func TestRemovingAHookScriptAlsoDeactivatesIt(t *testing.T) {
 	}
 
 	os.Remove(script)
-	afterArtifactRemoved(scope, script)
+	afterArtifactRemoved(scope, script, false)
 
 	names := source.HookNamesIn(filepath.Join(hooksDir, source.RepoHooksConfig))
 	if len(names) != 1 || names[0] != "annen" {
@@ -44,13 +44,17 @@ func TestRemovingOneHookLeavesTheOthers(t *testing.T) {
 	root := t.TempDir()
 	scope := ScopeRepo(root)
 	hooksDir := scope.DstPath(KindHook.Dir)
-	os.MkdirAll(hooksDir, 0o755)
-	source.MergeRepoHooks(hooksDir, []source.HookEntry{
+	if err := os.MkdirAll(hooksDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := source.MergeRepoHooks(hooksDir, []source.HookEntry{
 		{Name: "en", Matcher: "Bash", Command: "x"},
 		{Name: "to", Matcher: "Bash", Command: "x"},
 		{Name: "tre", Matcher: "Bash", Command: "x"},
-	})
-	afterArtifactRemoved(scope, filepath.Join(hooksDir, "to"+KindHook.Suffix))
+	}); err != nil {
+		t.Fatal(err)
+	}
+	afterArtifactRemoved(scope, filepath.Join(hooksDir, "to"+KindHook.Suffix), false)
 
 	names := source.HookNamesIn(filepath.Join(hooksDir, source.RepoHooksConfig))
 	if strings.Join(names, ",") != "en,tre" {
@@ -68,11 +72,15 @@ func TestRemovingASkillMarkerTakesTheDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	marker := filepath.Join(skillDir, KindSkill.Marker)
-	os.WriteFile(marker, []byte("# skill"), 0o644)
-	os.WriteFile(filepath.Join(skillDir, "helper.md"), []byte("x"), 0o644)
+	if err := os.WriteFile(marker, []byte("# skill"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "helper.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	os.Remove(marker)
-	afterArtifactRemoved(scope, marker)
+	afterArtifactRemoved(scope, marker, false)
 
 	if _, err := os.Stat(skillDir); !os.IsNotExist(err) {
 		rest, _ := os.ReadDir(skillDir)
@@ -89,11 +97,15 @@ func TestRemovingAnAgentLeavesItsDirectory(t *testing.T) {
 	root := t.TempDir()
 	scope := ScopeRepo(root)
 	agentsDir := scope.DstPath(KindAgent.Dir)
-	os.MkdirAll(agentsDir, 0o755)
+	if err := os.MkdirAll(agentsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	other := filepath.Join(agentsDir, "annen.agent.md")
-	os.WriteFile(other, []byte("x"), 0o644)
+	if err := os.WriteFile(other, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
-	afterArtifactRemoved(scope, filepath.Join(agentsDir, "borte.agent.md"))
+	afterArtifactRemoved(scope, filepath.Join(agentsDir, "borte.agent.md"), false)
 
 	if _, err := os.Stat(other); err != nil {
 		t.Errorf("naboartefaktet forsvant: %v", err)

@@ -19,8 +19,10 @@ import (
 // that is no longer a skill and that nothing will ever clean up.
 //
 // Called from both removal paths, because there are two and they had drifted:
-// sync's deletion branch and the retired-artifact sweep.
-func afterArtifactRemoved(scope *InstallScope, absLocal string) {
+// sync's deletion branch and the retired-artifact sweep. It prints nothing when
+// quiet, because --json encodes to the same stdout and a stray status line
+// would corrupt the document.
+func afterArtifactRemoved(scope *InstallScope, absLocal string, quiet bool) {
 	if scope == nil {
 		return
 	}
@@ -39,7 +41,7 @@ func afterArtifactRemoved(scope *InstallScope, absLocal string) {
 			fmt.Fprintf(os.Stderr, "%s Could not update %s: %v\n", yellow("⚠"), source.RepoHooksConfig, err)
 			return
 		}
-		if removed > 0 {
+		if removed > 0 && !quiet {
 			fmt.Printf("  %s %s (hook entry in %s)\n", red("×"), name, source.RepoHooksConfig)
 		}
 		return
