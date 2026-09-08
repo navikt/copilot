@@ -195,6 +195,14 @@ func recordDeclaration(scope *InstallScope, src *Source) {
 	if existing != nil {
 		d = existing
 	}
+	// Installing a pakke into its own repo is dogfooding, not consuming. The
+	// declaration there says what *this pakke* reuses, and overwriting its
+	// source with this repo's own path points the pakke at itself: every
+	// consumer then silently loses the base, because composeResolver reads a
+	// self-reference and composes nothing (#572).
+	if selfInstall(scope, src) {
+		return
+	}
 	d.Source = sourceLabelFor(src)
 	// A path source is a working tree, not a revision: it has nothing
 	// fetchable to pin, and the "unknown" that used to be written here is a
@@ -346,4 +354,22 @@ func resolveDeclaredSource(scope *InstallScope, ref, sourceRepo string) (*Source
 		sourceRepo = declRepo
 	}
 	return resolveSource(ref, sourceRepo)
+}
+
+// selfInstall reports whether the scope being written to is the source repo
+// itself, compared by resolved path so a symlinked or relative route to the
+// same directory is still recognised.
+func selfInstall(scope *InstallScope, src *Source) bool {
+	if scope == nil || src == nil || src.Dir == "" {
+		return false
+	}
+	a, err := filepath.EvalSymlinks(scope.RootDir)
+	if err != nil {
+		a = scope.RootDir
+	}
+	b, err := filepath.EvalSymlinks(src.Dir)
+	if err != nil {
+		b = src.Dir
+	}
+	return filepath.Clean(a) == filepath.Clean(b)
 }

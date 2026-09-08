@@ -333,7 +333,7 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 				bold("--frozen"), agentpakke.DeclarationPath, bold("--type "+itemType))
 		}
 		if _, ok := kindByName[itemType]; !ok {
-			return fmt.Errorf("unknown type %q. Valid types: agent, skill, instruction, prompt, hook", itemType)
+			return fmt.Errorf("unknown type %q. Valid types: %s", itemType, strings.Join(kindNames(), ", "))
 		}
 		return cmdAdd(itemType, name, scope, ref, sourceRepo, dryRun, force, jsonOutput)
 	}
@@ -654,7 +654,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 // It preserves the à-la-carte state semantics from cmdAdd.
 func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, explicitSource string, dryRun, force bool, jsonOutput bool) error {
 	if !scope.SupportsType(itemType) {
-		return fmt.Errorf("type %q is not supported in user scope. Only agents, skills, and instructions can be installed to ~/.copilot", itemType)
+		return fmt.Errorf("type %q is not supported in user scope. Only %s can be installed to ~/.copilot", itemType, strings.Join(scope.SupportedTypes, ", "))
 	}
 
 	sourceLabel := sourceLabelFor(src)

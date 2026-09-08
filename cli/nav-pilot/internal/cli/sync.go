@@ -23,8 +23,8 @@ type syncResult struct {
 	Conflicts []string     `json:"conflicts,omitempty"`
 	// Retired names artifacts the source has withdrawn that are still
 	// installed, and whose bytes nav-pilot published (#716).
-	Retired []string `json:"retired,omitempty"`
-	PinBump   *syncPinBump `json:"pin_bump,omitempty"`
+	Retired []string     `json:"retired,omitempty"`
+	PinBump *syncPinBump `json:"pin_bump,omitempty"`
 }
 
 // syncPinBump is the committed pin moving, reported as its own unit of work.
@@ -259,7 +259,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 				reportRetired(retired, apply)
 			}
 			if apply {
-				removeRetiredOrphans(retired, jsonOutput)
+				removeRetiredOrphans(scope, retired, jsonOutput)
 				return nil
 			}
 			return errUpdatesAvailable
@@ -523,6 +523,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 			applyErrors++
 			continue
 		}
+		afterArtifactRemoved(scope, localFull, jsonOutput)
 		fmt.Printf("  %s %s (deleted)\n", red("×"), p)
 		deleted++
 		deletedSuccessPaths = append(deletedSuccessPaths, p)
@@ -553,7 +554,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	// the one --apply exists to move.
 	if len(retired) > 0 {
 		fmt.Printf("%s Removing %d retired artifact(s)\n", dim("→"), len(retired))
-		removeRetiredOrphans(retired, jsonOutput)
+		removeRetiredOrphans(scope, retired, jsonOutput)
 	}
 	if applyErrors == 0 {
 		bumpDeclarationSHA(scope, src)
@@ -943,10 +944,13 @@ func detectNewItems(scope *InstallScope, resolver *SourceResolver, src *Source) 
 	}
 
 	var newItems []string
-	// KindHook is in this list and KindPrompt is not: a hook that shipped after
-	// the last install is enforcement the user has not got yet, which is the
-	// thing #569 exists to surface.
-	for _, kind := range []*ArtifactKind{KindAgent, KindSkill, KindInstruction, KindHook} {
+	// Every kind except prompts. A hook or an extension that shipped after the
+	// last install is executable code the user has not got yet, which is the
+	// thing #569 exists to surface; a prompt is offered, never enforced.
+	for _, kind := range AllKinds {
+		if kind == KindPrompt {
+			continue
+		}
 		for _, art := range resolver.List(kind) {
 			relPath := kind.RelPathForName(scope, art.Name)
 			if !installed[relPath] {

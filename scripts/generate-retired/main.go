@@ -38,7 +38,7 @@ import (
 
 // artifactDirs are the trees whose deletions matter. A file outside them is not
 // something nav-pilot installs.
-var artifactDirs = []string{"agents", "skills", "instructions", "prompts", "hooks"}
+var artifactDirs = []string{"agents", "skills", "instructions", "prompts", "hooks", "extensions"}
 
 const outputPath = ".nav-pilot/retired-artifacts.json"
 
