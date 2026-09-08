@@ -489,3 +489,53 @@ func TestSyncOpenCodeArtifacts_KeepsEditedFileOnScopeSwitch(t *testing.T) {
 		t.Errorf("conflicts = %v, want the edited skill reported", conflicts)
 	}
 }
+
+// En konflikt står til brukeren rydder opp (#580).
+//
+// Konfliktoppføringer ble utelatt fra stateHashes, så neste synk fant ingen
+// lagret hash, isConflict returnerte false, og skrivingen gikk gjennom. Første
+// synk etter en endring rapporterte konflikten og lot fila stå; den andre
+// overskrev den i stillhet. Sekvensen fra saken er nøyaktig den under.
+func TestSyncOpenCodeArtifacts_ConflictSurvivesASecondSync(t *testing.T) {
+	sourceDir := setupTestSource(t)
+	outputDir := t.TempDir()
+
+	// Synk 1: alt skrives, ingen konflikt.
+	if _, _, _, _, conflicts, err := SyncOpenCodeArtifacts(sourceDir, "", outputDir, "v1", "sha1", ""); err != nil {
+		t.Fatalf("første synk: %v", err)
+	} else if len(conflicts) != 0 {
+		t.Fatalf("konflikter på første synk: %v", conflicts)
+	}
+
+	// Brukeren endrer en fil nav-pilot skrev.
+	agents := filepath.Join(outputDir, "AGENTS.md")
+	mine := "# min egen versjon\n"
+	if err := os.WriteFile(agents, []byte(mine), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Synk 2: konflikt rapporteres, fila står.
+	_, _, _, _, conflicts, err := SyncOpenCodeArtifacts(sourceDir, "", outputDir, "v1", "sha1", "")
+	if err != nil {
+		t.Fatalf("andre synk: %v", err)
+	}
+	if len(conflicts) == 0 {
+		t.Fatal("andre synk meldte ingen konflikt")
+	}
+	if body, _ := os.ReadFile(agents); string(body) != mine {
+		t.Fatalf("andre synk overskrev brukerens fil:\n%s", body)
+	}
+
+	// Synk 3: den som pleide å overskrive i stillhet.
+	_, _, _, _, conflicts, err = SyncOpenCodeArtifacts(sourceDir, "", outputDir, "v1", "sha1", "")
+	if err != nil {
+		t.Fatalf("tredje synk: %v", err)
+	}
+	body, _ := os.ReadFile(agents)
+	if string(body) != mine {
+		t.Errorf("tredje synk overskrev brukerens fil:\n%s", body)
+	}
+	if len(conflicts) == 0 {
+		t.Error("tredje synk meldte ingen konflikt, så brukeren får ingen beskjed om at fila fortsatt avviker")
+	}
+}

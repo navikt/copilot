@@ -136,15 +136,33 @@ func withScopeExtras(entries []source.Resolved, scopeDir string, kind *source.Ar
 func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, sourceSHA, sourceRepo string) (skills, commands, agents, instructions int, conflicts []string, err error) {
 	existingState, _ := ReadOpenCodeState(outputDir)
 	stateHashes := map[string]string{}
+	stillConflicted := map[string]bool{}
 	if existingState != nil {
+		conflicted := map[string]bool{}
 		for _, f := range existingState.Files {
-			if f.Status != domain.FileStatusConflict {
-				stateHashes[f.Path] = f.Hash
+			stateHashes[f.Path] = f.Hash
+			if f.Status == domain.FileStatusConflict {
+				// A conflict stands until the user resolves it (#580).
+				//
+				// Dropping the entry here meant the next sync found no stored
+				// hash, isConflict returned false, and the write went through:
+				// the first sync after an edit reported the conflict and left
+				// the file alone, the second overwrote it in silence. That made
+				// a conflicted file safer if its author left the repo than if
+				// they stayed in it, and it disagreed with navPilotOwns, which
+				// has treated a conflict entry as the user's for good since
+				// #579.
+				conflicted[f.Path] = true
 			}
 		}
+		stillConflicted = conflicted
 	}
 
 	isConflict := func(relPath, dstPath string, isDir bool) bool {
+		// Already conflicted and not yet resolved: still the user's.
+		if stillConflicted[relPath] {
+			return true
+		}
 		storedHash, inState := stateHashes[relPath]
 		if !inState {
 			return false
