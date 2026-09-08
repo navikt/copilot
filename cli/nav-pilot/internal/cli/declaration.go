@@ -121,12 +121,16 @@ func applyDeclaredItems(manifest *Manifest, items map[string]string) (*Manifest,
 	if len(items) == 0 {
 		return manifest, nil
 	}
-	available := map[string]map[string]bool{
-		KindAgent.Name:       nameSet(manifest.Agents),
-		KindSkill.Name:       nameSet(manifest.Skills),
-		KindInstruction.Name: nameSet(manifest.Instructions),
-		KindPrompt.Name:      nameSet(manifest.Prompts),
-		KindHook.Name:        nameSet(manifest.Hooks),
+	// Derived from AllKinds, not written out again: this map was the fourth
+	// place a kind list lived, and #739 added extension to the other three
+	// without it, so declaring an extension failed as "not shipped" (#742).
+	available := map[string]map[string]bool{}
+	for _, kind := range AllKinds {
+		names, ok := manifest.NamesByKind(kind)
+		if !ok {
+			continue
+		}
+		available[kind.Name] = nameSet(names)
 	}
 
 	var unknown []string
@@ -146,11 +150,9 @@ func applyDeclaredItems(manifest *Manifest, items map[string]string) (*Manifest,
 	}
 
 	narrowed := *manifest
-	narrowed.Agents = selected[KindAgent.Name]
-	narrowed.Skills = selected[KindSkill.Name]
-	narrowed.Instructions = selected[KindInstruction.Name]
-	narrowed.Prompts = selected[KindPrompt.Name]
-	narrowed.Hooks = selected[KindHook.Name]
+	for _, kind := range AllKinds {
+		narrowed.SetNamesByKind(kind, selected[kind.Name])
+	}
 	return &narrowed, nil
 }
 

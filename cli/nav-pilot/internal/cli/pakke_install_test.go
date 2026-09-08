@@ -935,7 +935,7 @@ func TestEmptyTier1LayoutStillErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("pakkeContents = nil for a layout that ships nothing, want an error")
 	}
-	if !strings.Contains(err.Error(), "declares a layout but ships no agents") {
+	if !strings.Contains(err.Error(), "declares a layout but ships nothing at it") {
 		t.Errorf("error %q is not the empty-layout message", err)
 	}
 }
