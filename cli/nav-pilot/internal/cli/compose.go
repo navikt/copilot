@@ -11,7 +11,7 @@ import (
 // Composition: an agentpakke that reuses another one.
 //
 // There is no `extends` field. A pakke that reuses another is a repo that ships
-// a manifest *and* commits the same declaration a consumer repo commits — the
+// a manifest *and* commits the same declaration a consumer repo commits. That
 // declaration already says which pakke, at which revision, and optionally which
 // items. [agentpakke.Declaration]'s own doc says a repo can hold both, and this
 // is the case it was talking about.
@@ -19,7 +19,7 @@ import (
 // The collision rule is that the nearest wins, and it wins by being asked
 // first: composeResolver hangs the reused pakke *behind* this source, so a
 // pakke that ships its own agent named "grillmester" shadows the reused one.
-// That mirrors `overrides` in .github/copilot-sync.json one level up — what a
+// That mirrors `overrides` in .github/copilot-sync.json one level up: what a
 // team keeps for itself, they keep.
 //
 // Binding time follows the manifest's shape, not a separate mechanism: a layout
@@ -31,7 +31,7 @@ import (
 // reuses another agentpakke, the returned resolver falls back to it, and the
 // second return value is the reused source so callers can report it.
 //
-// A source that reuses nothing — which is nearly all of them — gets its own
+// A source that reuses nothing, which is nearly all of them, gets its own
 // resolver back unchanged and a nil base.
 func composeResolver(resolver *SourceResolver, src *Source) (*SourceResolver, *Source, error) {
 	return composeResolverSeen(resolver, src, map[string]bool{sourceLabelFor(src): true})
@@ -65,6 +65,15 @@ func composeResolverSeen(resolver *SourceResolver, src *Source, seen map[string]
 			sourceLabelFor(src), decl.Source, agentpakke.DeclarationPath)
 	}
 	seen[decl.Source] = true
+
+	// A repo-shaped reuse without a pin would clone whatever main happens to
+	// hold, so two installs a week apart would compose different content while
+	// both reported the same declaration. A local path has no revision to pin
+	// and is a working tree by definition, so only the repo form is refused.
+	if pinnable(decl.Source) && decl.SHA == "" {
+		return nil, nil, fmt.Errorf("agentpakke %s reuses %q without a revision.\nReuse resolves at install and sync, so an unpinned base would compose whatever that repo's main branch holds at the time.\nNothing was installed. Add the 40-character sha of the revision to reuse to %s and commit it",
+			sourceLabelFor(src), decl.Source, agentpakke.DeclarationPath)
+	}
 
 	baseSrc, err := source.ResolveSource(decl.SHA, decl.Source, "")
 	if err != nil {

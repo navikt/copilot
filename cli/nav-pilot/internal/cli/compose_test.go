@@ -118,3 +118,39 @@ func TestPakkeWithoutDeclarationIsUnchanged(t *testing.T) {
 		t.Error("testpakka har en erklæring, da tester dette noe annet enn det står")
 	}
 }
+
+// En gjenbruk av et repo uten sha ville klonet det main tilfeldigvis holder,
+// så to installasjoner en uke fra hverandre komponerte ulikt innhold mens
+// begge rapporterte samme erklæring.
+func TestUnpinnedRepoReuseIsRefused(t *testing.T) {
+	dir := t.TempDir()
+	writePakke(t, dir, "egen", "eget")
+	declareReuse(t, dir, "navikt/basepakke")
+
+	src := loadSource(t, dir)
+	_, _, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	if err == nil {
+		t.Fatal("en gjenbruk uten revisjon ble godtatt")
+	}
+	if !strings.Contains(err.Error(), "without a revision") {
+		t.Errorf("feilmeldinga sier ikke hva som mangler: %v", err)
+	}
+}
+
+// Kontroll: en lokal sti har ingen revisjon å pinne, og skal fortsatt virke.
+// Uten denne ville testen over passert selv om vakta nektet alt.
+func TestUnpinnedLocalPathReuseIsAllowed(t *testing.T) {
+	baseDir, ownDir := t.TempDir(), t.TempDir()
+	writePakke(t, baseDir, "basepakke", "felles")
+	writePakke(t, ownDir, "egenpakke", "eget")
+	declareReuse(t, ownDir, baseDir)
+
+	src := loadSource(t, ownDir)
+	_, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	if err != nil {
+		t.Fatalf("en lokal sti uten sha ble nektet: %v", err)
+	}
+	if reused == nil {
+		t.Fatal("den lokale basen ble ikke gjenbrukt")
+	}
+}

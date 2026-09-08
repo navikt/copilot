@@ -301,7 +301,7 @@ func (r *SourceResolver) List(kind *ArtifactKind) []Resolved {
 	names := r.discoverNames(kind)
 	// A reused pakke's artifacts are listed too, minus the ones this source
 	// shadows. Get resolves each name, so a shadowed one still comes from
-	// here — the union decides what exists, Get decides where it comes from.
+	// here. The union decides what exists, Get decides where it comes from.
 	if r.base != nil {
 		seen := make(map[string]bool, len(names))
 		for _, name := range names {
