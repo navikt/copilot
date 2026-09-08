@@ -70,3 +70,16 @@ func codeWithoutComments(src string) string {
 	}
 	return strings.Join(kept, "\n")
 }
+
+// #724-tilstanden skal også nevnes av doctor, ikke bare av sync. Det var
+// doctor som fanget symptomet i saken, en persona pinnet til en modell GitHub
+// hadde trukket, uten å si hvorfor fila aldri ble oppdatert.
+func TestDoctorReportsIgnoredButInstalled(t *testing.T) {
+	src := readSourceFile(t, "doctor.go")
+	if !strings.Contains(src, "reportScopeIgnoredButInstalled") {
+		t.Fatal("doctor.go nevner ikke installert-og-ignorert")
+	}
+	if got := strings.Count(src, "reportScopeIgnoredButInstalled("); got != 3 {
+		t.Errorf("nevnt %d ganger (definisjon pluss to scope), ventet 3", got)
+	}
+}

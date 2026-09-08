@@ -31,6 +31,31 @@ func reportScopeConflicts(scope *InstallScope) {
 	fmt.Printf("          %s %s takes the source's version of these too.\n", yellow("Solution:"), bold("nav-pilot sync --apply"))
 }
 
+// reportScopeIgnoredButInstalled names files marked ignored in state that are
+// nonetheless on disk (#724).
+//
+// doctor is where this belongs: it was doctor that noticed the symptom in the
+// first place, a persona pinned to a model GitHub had withdrawn, and said
+// nothing about why sync kept skipping the file. Sync reports it too, but a
+// user chasing a stale artifact reaches for doctor.
+//
+// Like the conflict report it does not set hasErrors. The combination is
+// usually an older install's residue rather than something broken now, and the
+// file may be exactly what someone wants; what is wrong is that nothing said it
+// had stopped being maintained.
+func reportScopeIgnoredButInstalled(scope *InstallScope) {
+	stale := ignoredButInstalled(scope)
+	if len(stale) == 0 {
+		return
+	}
+	fmt.Printf("      %s %d file(s) are recorded as ignored but are installed, so sync skips them\n",
+		yellow("⚠"), len(stale))
+	for _, p := range stale {
+		fmt.Printf("          %s %s\n", dim("⊘"), p)
+	}
+	fmt.Printf("          %s %s brings one back under sync.\n", yellow("Solution:"), bold("nav-pilot add <type> <name> --force"))
+}
+
 // cmdDoctor runs system health checks and outputs actionable diagnostics.
 func cmdDoctor() error {
 	fmt.Printf("%s\n\n", bold("nav-pilot doctor"))
@@ -81,6 +106,7 @@ func cmdDoctor() error {
 				fmt.Printf("      %s %d files OK\n", green("✓"), ok)
 			}
 			reportScopeConflicts(userScope)
+			reportScopeIgnoredButInstalled(userScope)
 		} else {
 			fmt.Printf("    • User scope (~/.copilot): Not installed\n")
 		}
@@ -106,6 +132,7 @@ func cmdDoctor() error {
 				fmt.Printf("      %s %d files OK\n", green("✓"), ok)
 			}
 			reportScopeConflicts(repoScope)
+			reportScopeIgnoredButInstalled(repoScope)
 		} else {
 			fmt.Printf("    • Repo scope (.github): Not installed\n")
 		}
