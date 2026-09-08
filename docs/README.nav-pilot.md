@@ -477,6 +477,8 @@ Et team kan distribuere sitt eget innhold som en **agentpakke**, et repo med man
 `.nav-pilot/agentpakke.json`. Installer det med `--source`. Kilden huskes per scope til du
 tømmer den.
 
+Skal du lage en selv, står oppskrifta i [lag-en-agentpakke.md](lag-en-agentpakke.md).
+
 ```bash
 nav-pilot install --source navikt/<repo> <pakkenavn>
 nav-pilot config set source ""     # tilbake til navikt/copilot

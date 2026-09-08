@@ -4,7 +4,7 @@ En **agentpakke** er et innholdsrepo som beskriver seg selv for nav-pilot: agent
 
 Manifestet ligger på `.nav-pilot/agentpakke.json` i agentpakke-repoet og er hele kontrakten mellom repoet og binæren. Den er publisert som JSON Schema i [`cli/nav-pilot/schemas/agentpakke-v1.json`](../cli/nav-pilot/schemas/agentpakke-v1.json), og nøyaktig samme fil er kompilert inn i nav-pilot-binæren, så repoets egen CI-lint og nav-pilot validerer mot identiske bytes.
 
-Dette dokumentet er for team som lager en agentpakke. Interndesignet, altså hvordan manifestet trådes gjennom install og sync, står i [cli/nav-pilot/DESIGN.md](../cli/nav-pilot/DESIGN.md).
+Dette dokumentet er referansen. Skal du lage din første pakke, følg oppskrifta i [lag-en-agentpakke.md](lag-en-agentpakke.md) og slå opp her underveis. Interndesignet, altså hvordan manifestet trådes gjennom install og sync, står i [cli/nav-pilot/DESIGN.md](../cli/nav-pilot/DESIGN.md).
 
 ## Repoform
 
