@@ -567,3 +567,35 @@ func TestRetiredRecordCannotReachOutsideTheScope(t *testing.T) {
 		t.Errorf("fila utenfor scopet ble rørt: %v", err)
 	}
 }
+
+// Kandidatene sorteres lengste katalog først, så en layout som nøster én type
+// inne i en annen ikke blir skygget av det korteste prefikset. Uten
+// sorteringa matcher "innhold/skills/gammel/SKILL.md" mot agent-katalogen
+// "innhold", og recorden peker da på feil type og feil lokal sti: enten
+// slettes ingenting, eller feil fil slettes.
+func TestKindForPathPrefersTheLongestLayoutDir(t *testing.T) {
+	layout := &agentpakke.Layout{
+		Agents: "innhold",
+		Skills: "innhold/skills",
+	}
+	kind, file := kindForPath("innhold/skills/gammel/SKILL.md", layout)
+	if kind == nil {
+		t.Fatal("stien traff ingen artefakttype")
+	}
+	if kind != KindSkill {
+		t.Errorf("stien ble lest som %q, ventet skill", kind.Name)
+	}
+	if file != "gammel/SKILL.md" {
+		t.Errorf("fildelen ble %q, ventet gammel/SKILL.md", file)
+	}
+
+	// Kontroll: en sti som bare ligger under den ytre katalogen er fortsatt en
+	// agent, ellers ville testen passert på at alt leses som skill.
+	kind, file = kindForPath("innhold/gammel.agent.md", layout)
+	if kind != KindAgent {
+		t.Errorf("agent-stien ble lest som %v, ventet agent", kind)
+	}
+	if file != "gammel.agent.md" {
+		t.Errorf("fildelen ble %q, ventet gammel.agent.md", file)
+	}
+}
