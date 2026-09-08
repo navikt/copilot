@@ -3,7 +3,7 @@ title: "cplt: global, local eller repo, og flere repoer i samme sesjon"
 date: 2026-09-08
 author: starefossen
 category: praksis
-excerpt: "Fire config-lag i cplt, én regel for å velge riktig. Pluss sandbox.repo_dirs, som lar agenten jobbe mot et nested repo i samme sesjon."
+excerpt: "Én regel for å velge mellom repo, local og global i cplt, og hvorfor det meste hører hjemme i .cplt.toml. Pluss sandbox.repo_dirs, som lar agenten jobbe mot et nested repo i samme sesjon."
 tags:
   - cplt
   - config
@@ -15,11 +15,11 @@ Du starter agenten med [nav-pilot](/nav-pilot), og nav-pilot kjører den trygt i
 
 Dette innlegget svarer på det, og viser hvordan du lar agenten jobbe mot to repoer i samme sesjon. Alt gjøres med `cplt config` uten at du trenger å redigere config-filer for hånd.
 
-Setter du noe med `cplt config set --local`, plukker nav-pilot det opp neste gang du starter en agent.
+Det du setter med `cplt config`, plukker nav-pilot opp neste gang du starter en agent.
 
 ---
 
-## Fire lag
+## Fire lag, og repoet
 
 cplt slår opp en innstilling i denne rekkefølgen. Første treff vinner for enkeltverdier. Lister (`allow.read`, `allow.write`, `allow.ports`, `allow.localhost`, `deny.paths`) slås sammen på tvers av lagene.
 
@@ -30,24 +30,24 @@ cplt slår opp en innstilling i denne rekkefølgen. Første treff vinner for enk
 | **Global** | hele maskinen din | `cplt config set …` | `~/.config/cplt/config.toml` |
 | Defaults | alle | preset `standard` | innebygd |
 
-`.cplt.toml` i repoet er et femte sted, men det står utenfor rekkefølgen over og har sin egen tillitsmodell. Det er teamets innstillinger for den aktuelle applikasjonen:
+`.cplt.toml` i repoet er et femte sted, og det er stedet du bør begynne. Fila står utenfor rekkefølgen over og har sin egen tillitsmodell, fordi den er prosjektets innstillinger og ikke dine: den er sporet i git, går gjennom review i en PR, og en ny på teamet får riktig sandbox ved å klone.
 
 - `[deny]` gjelder med en gang. Repoet kan alltid stramme inn.
-- `[propose]` er forslag om å utvide, og hver utvikler må godkjenne dem med `cplt trust`. Godkjenningen er bundet til innholdet i fila. Endres fila, må du godkjenne på nytt.
+- `[propose]` er forslag om å utvide, og hver utvikler må godkjenne dem på sin maskin med `cplt trust`. Godkjenningen er bundet til innholdet i fila. Endres fila, må du godkjenne på nytt.
 - cplt leser fila fra git HEAD, ikke fra working tree. Agenten kan altså ikke redigere sin egen sandbox-config og få det til å gjelde.
 
 Regelen for å velge lag er ett spørsmål: **hvem gjelder dette for?**
 
-- Hele teamet, i dette repoet → repo-config (`.cplt.toml`)
-- Meg, i denne checkouten → local
+- Prosjektet, altså alle som sjekker det ut → repo-config (`.cplt.toml`)
+- Meg, i denne checkouten, og ikke nødvendigvis resten av teamet → local
 - Meg, uansett hvilket repo jeg står i → global
 - Ingen spesielle → la default stå
 
-Nesten alt du trenger å justere, havner i **local**.
+Det meste prosjektet trenger, hører hjemme i repoet. Det gjelder også om du er alene på prosjektet: behovet er fortsatt prosjektets, og det følger med til neste maskin du kloner på. Local er for det som er annerledes på *din* maskin: en sti som bare finnes hos deg, et verktøy ikke alle på teamet bruker.
 
 ---
 
-## Hvorfor local, og ikke global
+## Hvorfor ikke bare global
 
 Det er fristende å sette alt globalt, så slipper du å gjøre det igjen. Ikke gjør det. En grant i global følger deg inn i hver eneste sesjon, også i repoer der stien betyr noe helt annet. Gir du `~/.gradle/gradle.properties` globalt, kan en agent i et Node-prosjekt lese GitHub Packages-tokenet ditt uten å ha noen grunn til det. Setter du det lokalt, gjelder det bare den Kotlin-tjenesten som faktisk bygger med Gradle.
 
@@ -61,35 +61,57 @@ Da kan du lure på hvorfor local får utvide sandboxen i det hele tatt, når rep
 
 ---
 
+## Skillet er håndhevet
+
+Grensen mellom repo og local er ikke en konvensjon du må huske. `.cplt.toml` nekter nøkler som handler om maskinen din, og sier hvorfor:
+
+```
+$ cplt config set --repo sandbox.pass_env FOO
+[cplt] sandbox.pass_env is not valid in repo config.
+  Reason: environment variables are machine-specific, not project policy.
+  Use: cplt config set sandbox.pass_env FOO
+```
+
+`sandbox.use_bubblewrap` får samme svar («depends on bwrap being installed locally, not project policy»), og det samme gjør `sandbox.repo_dirs`, som vi kommer til. Mønsteret er at repo-config tar imot det som er sant for prosjektet, og avviser det som er sant for en maskin. Er du i tvil om hvor noe hører hjemme, prøv `--repo` og les svaret.
+
+---
+
 ## Hvor hører dette hjemme?
 
-**Gradle trenger GitHub Packages-credentials** fra `~/.gradle/gradle.properties`. Det er ett prosjekt som trenger det, altså local:
+**Appen lytter på en localhost-port.** Localhost er blokkert som standard. Lytter appen på 8080, gjør den det for alle på teamet, så porten hører hjemme i repoet:
 
 ```sh
-cplt config set --local allow.read ~/.gradle/gradle.properties
+cplt config set --repo allow.localhost 8080
 ```
 
-Finnes ikke fila ennå, får du en advarsel, men verdien lagres likevel.
-
-**Testcontainers trenger docker.** Docker-tilgang svekker sandboxen, så cplt nekter uten `--force` og forteller deg nøyaktig hvilken kommando du trenger:
-
-```sh
-cplt config set --local sandbox.allow_docker true --force
-```
-
-**Node-appen kjører på en localhost-port.** Localhost er blokkert som standard. Er det bare du som trenger porten, er det local:
+Verdien havner under `[propose]`, og cplt minner deg på de to stegene som gjenstår: `cplt trust accept --all` for å godkjenne på din egen maskin, og en commit av `.cplt.toml` så resten av teamet får den. Kjører du noe på en port bare du bruker, er det local:
 
 ```sh
 cplt config set --local allow.localhost 3000
 ```
 
-Trenger hele teamet den, hører den hjemme i `.cplt.toml`. Den setter du også med en kommando:
+**Testcontainers trenger docker.** Testene er prosjektets, og da er docker-tilgangen det også. Docker svekker sandboxen, så cplt nekter uten `--force` og forteller deg nøyaktig hvilken kommando du trenger. Bruker testene Postgres på 5432, er den porten prosjektets på samme måte:
 
 ```sh
-cplt config set --repo allow.localhost 3000
+cplt config set --repo sandbox.allow_docker true --force
+cplt config set --repo allow.ports 5432
 ```
 
-Verdien havner under `[propose]`, og cplt minner deg på de to stegene som gjenstår: `cplt trust accept --all` for å godkjenne på din egen maskin, og en commit av `.cplt.toml` så resten av teamet får den.
+Begge havner under `[propose]`. Den som reviewer PR-en ser at prosjektet ber om docker, og hver utvikler godkjenner på sin maskin. Det er poenget med å legge det i repoet, ikke en omvei.
+
+**npm lifecycle scripts** (`postinstall` og venner) er blokkert som standard, fordi de er vilkårlig kodekjøring. Feiler `npm install` uten dem, feiler det for alle, så også dette er prosjektets. Det er samtidig det tyngste du kan be teamet godkjenne, og nettopp derfor hører det hjemme i en PR og ikke i hver utviklers local-fil:
+
+```sh
+cplt config set --repo sandbox.allow_lifecycle_scripts true --force
+```
+
+**Hemmeligheter som aldri skal inn i en agent-sesjon.** `[deny]` er den billige halvdelen av repo-config. Den krever ingen godkjenning og gjelder for alle som sjekker ut repoet, i det øyeblikket fila er committet:
+
+```sh
+cplt config set --repo deny.env VAULT_TOKEN
+```
+
+Ingen `cplt trust`, ingenting å vente på. Det er den ene linja i dette innlegget som ikke koster noen noe.
 
 Skal du sette opp et repo fra bunnen, skanner `cplt init` prosjektet og skriver fila for deg:
 
@@ -98,11 +120,13 @@ cplt init            # se hva som detekteres
 cplt init --write    # skriv .cplt.toml, commit den
 ```
 
-**npm lifecycle scripts** (`postinstall` og venner) er blokkert som standard, fordi de er vilkårlig kodekjøring. Trenger prosjektet det, er det local, med `--force`, og ikke noe du committer for teamet:
+**Gradle trenger GitHub Packages-credentials** fra `~/.gradle/gradle.properties`. Prosjektet trenger tokenet, men fila ligger i hjemmekatalogen din, og det er din maskin som avgjør hvor credentials bor. Det er en sti som finnes hos deg, altså local:
 
 ```sh
-cplt config set --local sandbox.allow_lifecycle_scripts true --force
+cplt config set --local allow.read ~/.gradle/gradle.properties
 ```
+
+Finnes ikke fila ennå, får du en advarsel, men verdien lagres likevel.
 
 **Agenten skal pushe en feature branch.** Ingenting å gjøre. Preset `standard` har git guard på i block-modus og beskytter bare default branch. Push til feature branch går, push til main stoppes.
 
@@ -189,7 +213,7 @@ Du får heller ikke navngi repoet du startet i. Det er alltid i scope.
 - Global: en repo-liste i global config ville hengt seg på hver eneste sesjon. Dette er per prosjekt, ikke per maskin.
 - Repo-config: å løfte andre trær til prosjektnivå er en path grant, og repo-config kan ikke gi stier. Det er en per-checkout brukerinnstilling.
 
-Det passer regelen fra toppen: dette gjelder deg, i denne checkouten.
+Det er det samme skillet som over. Hvor du har sjekket ut hva, er sant for din maskin, ikke for prosjektet.
 
 ### Sjekkes på nytt hver gang
 
@@ -223,14 +247,16 @@ Kotlin-tjeneste med nested bibliotek, Gradle mot GitHub Packages og Testcontaine
 ```sh
 cd ~/src/spleis
 
+# Det prosjektet trenger, i .cplt.toml
+cplt config set --repo allow.localhost 8080
+cplt config set --repo sandbox.allow_docker true --force
+cplt config set --repo deny.env VAULT_TOKEN
+cplt trust accept --all
+# commit .cplt.toml og åpne en PR
+
 # Det som er ditt, i denne checkouten
 cplt config set --local allow.read ~/.gradle/gradle.properties
-cplt config set --local sandbox.allow_docker true --force
 cplt config set --local sandbox.repo_dirs ~/src/spleis/libs/sykepenger-model
-
-# Det teamet trenger, committet
-cplt config set --repo allow.localhost 8080
-cplt trust accept --all
 
 # Sjekk resultatet
 cplt config show
