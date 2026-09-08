@@ -15,6 +15,9 @@
 package e2e
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -213,5 +216,29 @@ func TestHarnessRunsTheRealBinary(t *testing.T) {
 	}
 	if e.exists(filepath.Join(e.home, ".copilot")) {
 		t.Error("~/.copilot fantes før noe var installert")
+	}
+}
+
+// gitBlobHash is the id git would give this content: sha1 over the blob
+// header and the bytes. The retired record is keyed by it.
+func gitBlobHash(data []byte) string {
+	h := sha1.New()
+	fmt.Fprintf(h, "blob %d\x00", len(data))
+	h.Write(data)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// commit records whatever is in dir right now.
+func (e *env) commit(dir, msg string) {
+	e.t.Helper()
+	for _, args := range [][]string{
+		{"add", "-A"},
+		{"-c", "user.email=e2e@example.test", "-c", "user.name=e2e", "commit", "-qm", msg},
+	} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			e.t.Fatalf("git %v i %s: %v\n%s", args, dir, err, out)
+		}
 	}
 }

@@ -283,3 +283,81 @@ func TestSyncReadsTheDeclaredSource(t *testing.T) {
 		t.Errorf("sync mente filene var slettet, altså leste den feil kilde:\n%s", out)
 	}
 }
+
+// En gjenbrukt pakke pensjonerer artefakter den også, og recorden er dens egen
+// fil. Leste sync bare toppkildens, ble et artefakt basen trakk tilbake
+// liggende for alltid hos hver konsument av en pakke som gjenbruker den.
+func TestRetirementsInTheBaseReachTheConsumer(t *testing.T) {
+	e := newEnv(t)
+	base := e.pakke("basepakke", "felles", "utgaar")
+	own := e.pakke("egenpakke", "eget")
+	e.declareReuse(own, base)
+	cons := e.consumer("forbruker")
+
+	if out, code := e.run(cons, "install", "egenpakke", "--source", own, "--repo"); code != 0 {
+		t.Fatalf("install feilet: %d\n%s", code, out)
+	}
+	installed := filepath.Join(cons, ".github", "agents", "utgaar.agent.md")
+	if !e.exists(installed) {
+		t.Fatal("artefaktet fra basen ble ikke installert")
+	}
+
+	// Fjern artefaktet fra staten, men la fila ligge. Det er tilstanden
+	// recorden finnes for: en fil nav-pilot skrev, som ingen state sporer, og
+	// som den ordinære slettestien derfor aldri ser. Uten dette ville testen
+	// målt slettestien i stedet, og passert også uten fiksen.
+	untrackFromState(t, cons, "agents/utgaar.agent.md")
+
+	// Basen trekker artefaktet tilbake og fører det opp i recorden sin.
+	body, err := os.ReadFile(filepath.Join(base, "agents", "utgaar.agent.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(base, "agents", "utgaar.agent.md")); err != nil {
+		t.Fatal(err)
+	}
+	e.write(filepath.Join(base, ".nav-pilot", "retired-artifacts.json"),
+		`{"paths":{"agents/utgaar.agent.md":["`+gitBlobHash(body)+`"]}}`)
+	e.commit(base, "pensjonert")
+
+	out, _ := e.run(cons, "sync", "--repo", "--apply", "--source", own)
+	if e.exists(installed) {
+		t.Errorf("artefaktet basen pensjonerte ble liggende:\n%s", out)
+	}
+}
+
+// untrackFromState fjerner én sti fra scopets tilstandsfil og lar fila ligge.
+func untrackFromState(t *testing.T, repo, suffix string) {
+	t.Helper()
+	path := filepath.Join(repo, ".github", ".nav-pilot-state.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	files, _ := doc["files"].([]any)
+	kept := make([]any, 0, len(files))
+	dropped := false
+	for _, f := range files {
+		m, _ := f.(map[string]any)
+		if p, _ := m["path"].(string); strings.HasSuffix(p, suffix) {
+			dropped = true
+			continue
+		}
+		kept = append(kept, f)
+	}
+	if !dropped {
+		t.Fatalf("fant ikke %s i staten, da tester dette noe annet", suffix)
+	}
+	doc["files"] = kept
+	out, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, out, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}

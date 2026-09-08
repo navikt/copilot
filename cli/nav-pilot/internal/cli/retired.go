@@ -346,3 +346,27 @@ func withinScope(scope *InstallScope, path string) bool {
 	}
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
+
+// mergeRetired joins two orphan lists, keeping one entry per local path.
+//
+// A pakke and the pakke it reuses may both retire the same path, and the sweep
+// ends in a delete: listing it twice reported one removal as two and tried the
+// same unlink again.
+func mergeRetired(a, b []retiredOrphan) []retiredOrphan {
+	if len(b) == 0 {
+		return a
+	}
+	seen := make(map[string]bool, len(a))
+	for _, o := range a {
+		seen[o.Local] = true
+	}
+	for _, o := range b {
+		if seen[o.Local] {
+			continue
+		}
+		seen[o.Local] = true
+		a = append(a, o)
+	}
+	sort.Slice(a, func(i, j int) bool { return a[i].Path < a[j].Path })
+	return a
+}

@@ -206,6 +206,13 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	if err != nil {
 		return err
 	}
+	// A reused pakke retires artifacts too, and its record is its own file.
+	// Reading only the top source's meant an artifact the base withdrew stayed
+	// installed forever in every consumer of a pakke that reuses it, which is
+	// the whole thing the retired record exists to prevent (#716).
+	if reusedInSync != nil {
+		retired = mergeRetired(retired, findRetiredOrphans(scope, reusedInSync.Dir, reusedInSync.Pakke))
+	}
 	if reusedInSync != nil && !jsonOutput {
 		fmt.Printf("%s %s\n", dim("Reuses:"), dim(fmt.Sprintf("%s@%s", sourceLabelFor(reusedInSync), shortSHA(reusedInSync.SHA))))
 	}
