@@ -155,29 +155,12 @@ func TestUnpinnedLocalPathReuseIsAllowed(t *testing.T) {
 	}
 }
 
-// Sync må løse den samme gjenbruken install løste. Uten det slutter hvert
-// arvede artefakt å resolve så snart installasjonen er over, og sync ser en
-// sporet fil kilden ikke lenger sender, altså formen på et pensjonert
-// artefakt.
-func TestSyncResolverComposesToo(t *testing.T) {
-	baseDir, ownDir := t.TempDir(), t.TempDir()
-	writePakke(t, baseDir, "basepakke", "felles")
-	writePakke(t, ownDir, "egenpakke", "eget")
-	declareReuse(t, ownDir, baseDir)
-
-	src := loadSource(t, ownDir)
-	state := &StateFile{Collection: "egenpakke"}
-	resolver, reused, err := composeResolver(resolverForState(src, state), src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if reused == nil {
-		t.Fatal("sync-resolveren gjenbrukte ingenting")
-	}
-	if _, ok := resolver.Get(KindAgent, "felles"); !ok {
-		t.Error("det arvede artefaktet resolver ikke under sync, og ville blitt lest som pensjonert")
-	}
-}
+// Sync-komposisjonen er dekket i e2e/golden_path_test.go, ikke her.
+//
+// Testen som sto på dette stedet kalte composeResolver selv i stedet for å
+// kjøre sync, altså gjentok den det sync gjør. Den passerte med kallet fjernet
+// fra sync.go, som er nøyaktig defekten den ble skrevet for å fange. En test
+// som ikke kan feile er verre enn ingen, fordi den ser ut som dekning.
 
 // En kilde uten manifest komponerer ikke, selv om den skulle ha en erklæring
 // liggende. Ellers ville en collection-kilde hentet et fremmed repo midt i en
