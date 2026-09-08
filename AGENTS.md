@@ -41,6 +41,11 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
   trace back to exactly that. Verify with the PR's `closingIssuesReferences`
   when it matters.
 
+- Artifact language: body text in instructions and skills is English; metadata
+  in the YAML frontmatter stays Norwegian (#179). The rule governs every
+  artifact in this repo and was only recorded in a changelog entry, which is not
+  where an author looks before editing a skill (#679).
+
 - Start with the smallest safe change and keep diffs task-focused.
 - Reuse existing patterns before adding new abstractions.
 - In `my-copilot`, use Aksel spacing tokens, not Tailwind `p-*/m-*` utilities.
