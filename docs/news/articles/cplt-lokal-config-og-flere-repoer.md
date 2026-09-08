@@ -178,23 +178,40 @@ Nøkkelen kan bare settes med `--local`. Global nekter, fordi en repo-liste der 
 
 Kjører du cplt direkte, gjør flagget `--repo-dir <sti>` det samme for én kjøring, i tillegg til det som er lagret. Går du via nav-pilot, er `--local` den eneste veien.
 
-### Bare nested, ikke sibling
+### Repoet må ligge inni prosjektkatalogen
 
-Repoet må ligge inni prosjektkatalogen. Ligger `sykepenger-model` som `~/src/sykepenger-model`, ved siden av `spleis`, får du nei:
+Dette er begrensningen som svir, og vi skal være ærlige om den: et repo du vil navngi må være sjekket ut *inni* katalogen du starter fra. Ligger `sykepenger-model` på `~/src/sykepenger-model`, ved siden av `spleis`, får du nei.
 
-```
-[cplt] --repo-dir /path/to/sibling is outside the project directory
-  /path/to/launch-repo
-  sibling repositories are not yet supported; use `--allow-write` for edit-only.
-```
+De fleste av oss har repoene liggende side om side. Det betyr at funksjonen slik den står i dag treffer færre enn den burde.
 
-For sibling-repoer er svaret i dag `allow.write`. Agenten får redigere filene, men ikke gh-identitet mot repoet:
+Du kan få tilgang til filene, men ikke gh-identitet mot repoet:
 
 ```sh
 cplt config set --local allow.write ~/src/sykepenger-model
 ```
 
-Å starte fra `~/src` med `--project-dir` hjelper ikke; `--repo-dir` krever at du starter fra toppen av et git-repo. Ordentlig sibling-støtte er [navikt/cplt#344](https://github.com/navikt/cplt/issues/344). Repoet du startet i, kan du heller ikke navngi. Det er alltid i scope.
+Agenten kan da bygge og redigere der, men ikke opprette PR-er mot repoet.
+
+**Det som faktisk virker i dag** er å legge repoene inni et felles repo og starte derfra. Lag en katalog, `git init` i den, og sjekk ut repoene du jobber med under den:
+
+```sh
+mkdir ~/src/min-arbeidsflate && cd ~/src/min-arbeidsflate
+git init
+git clone git@github.com:navikt/spleis.git
+git clone git@github.com:navikt/sykepenger-model.git
+cplt config set --local sandbox.repo_dirs ~/src/min-arbeidsflate/spleis
+cplt config set --local sandbox.repo_dirs ~/src/min-arbeidsflate/sykepenger-model
+```
+
+Da får begge repoene identitet, og agenten kan opprette PR-er mot begge. Én ting må være på plass: den ytre katalogen må selv ha en GitHub-remote. Uten den klarer ikke cplt å fastslå hvilket repo sesjonen starter i, og da blokkeres alle gh-kommandoer som sjekkes mot scope — også mot de navngitte repoene.
+
+Det er en omvei, ikke en løsning. Den krever at du legger om hvordan du har sjekket ut kode, og det er ikke noe vi mener du bør måtte gjøre.
+
+**Vi er ikke i mål her.** Å la et repo utenfor prosjektkatalogen bli førsteklasses er ikke vanskelig i seg selv — sandkassa håndterer allerede den slags tilgang, og cplt kan allerede lese identiteten til en hvilken som helst katalog. Det som tar tid, er å få grensesnittet og sikkerhetsmodellen riktig samtidig: hvem som får peke ut hvilke repoer, hva som skjer når en katalog byttes ut under føttene på deg, og hvordan du ser hva agenten faktisk har lov til før du starter den. Vi har brukt uka på å tette hull der nettopp den slags var uklart, så vi tar den tiden.
+
+Målet er en ordentlig workspace-modell, der repoer som ligger side om side kan kobles sammen uten omveier. Følg [navikt/cplt#344](https://github.com/navikt/cplt/issues/344).
+
+Repoet du startet i, kan du forresten ikke navngi. Det er alltid i scope.
 
 ### Sjekkes på nytt hver gang
 
