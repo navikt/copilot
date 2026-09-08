@@ -191,16 +191,16 @@ export default function Agentpakker() {
                       </TableBody>
                     </Table>
 
-                    <div>
+                    <VStack gap="space-8">
                       <LinkableHeading id="kjorbar-kode" size="small" level="3">
                         Kjørbar kode
                       </LinkableHeading>
-                      <BodyLong className="mt-2" textColor="subtle">
+                      <BodyLong textColor="subtle">
                         Hooks og extensions er ikke tekst en modell leser. En hook kjører ved verktøykall, en extension
                         lastes av klienten. Den som installerer pakka di kjører koden din på maskinen sin, så si i
                         pakkas <code className="font-mono text-xs">description</code> hva den gjør.
                       </BodyLong>
-                    </div>
+                    </VStack>
 
                     <LinkableHeading id="manifestet" size="small" level="3">
                       Manifestet
@@ -262,18 +262,18 @@ export default function Agentpakker() {
                     </BodyLong>
                     <CodeBlock>{KOMPONERT_UT}</CodeBlock>
 
-                    <div>
+                    <VStack gap="space-8">
                       <LinkableHeading id="kollisjoner" size="small" level="3">
                         Kollisjoner
                       </LinkableHeading>
-                      <BodyLong className="mt-2" textColor="subtle">
+                      <BodyLong textColor="subtle">
                         Sender begge pakkene en agent med samme navn, installeres din. Det er samme regel som{" "}
                         <code className="font-mono text-xs">overrides</code> i{" "}
                         <code className="font-mono text-xs">.github/copilot-sync.json</code>: det teamet eier selv, eier
                         de. Å skygge et artefakt er den normale måten å endre én ting fra en pakke du ellers tar rått.
                         Det er ikke en feil, og varsles ikke.
                       </BodyLong>
-                    </div>
+                    </VStack>
                   </VStack>
                 </section>
 
@@ -283,24 +283,24 @@ export default function Agentpakker() {
                       Vedlikehold
                     </LinkableHeading>
 
-                    <div>
+                    <VStack gap="space-8">
                       <LinkableHeading id="nar-endringen-nar-fram" size="small" level="3">
                         Når endringen når fram
                       </LinkableHeading>
-                      <BodyLong className="mt-2" textColor="subtle">
+                      <BodyLong textColor="subtle">
                         Konsumentene er pinnet til revisjonen de installerte. En endring du pusher, når dem først når{" "}
                         <code className="font-mono text-xs">nav-pilot sync --apply</code> flytter pinnen hos dem, som én
                         linje diff i en pull request de leser og godkjenner. En rettelse er derfor ikke ute samme dag. Å
                         endre <code className="font-mono text-xs">name</code> i manifestet gjør eksisterende
                         installasjoner til en annen pakke, så det er ikke en omdøping du gjør i forbifarten.
                       </BodyLong>
-                    </div>
+                    </VStack>
 
-                    <div>
+                    <VStack gap="space-8">
                       <LinkableHeading id="pensjonering" size="small" level="3">
                         Pensjonering
                       </LinkableHeading>
-                      <BodyLong className="mt-2" textColor="subtle">
+                      <BodyLong textColor="subtle">
                         Slett aldri et artefakt uten å føre det opp i{" "}
                         <code className="font-mono text-xs">.nav-pilot/retired-artifacts.json</code>. En kilde hentes
                         med <code className="font-mono text-xs">--depth 1</code>, så brukeren har ingen historikk å slå
@@ -310,7 +310,7 @@ export default function Agentpakker() {
                         <code className="font-mono text-xs">mise run retired:check</code> verifiserer i CI at lista
                         stemmer. Skriptet er rundt hundre linjer og kan kopieres.
                       </BodyLong>
-                    </div>
+                    </VStack>
                   </VStack>
                 </section>
 
@@ -321,30 +321,34 @@ export default function Agentpakker() {
                     </LinkableHeading>
                     <HGrid gap="space-16" columns={{ xs: 1, md: 2 }}>
                       <Box background="neutral-soft" padding="space-16" borderRadius="8">
-                        <BodyShort weight="semibold">
-                          <a
-                            href="https://github.com/navikt/copilot/blob/main/docs/README.agentpakke.md"
-                            className={linkClass}
-                          >
-                            Feltreferansen
-                          </a>
-                        </BodyShort>
-                        <BodyLong size="small" className="mt-1" textColor="subtle">
-                          Beskriver hvert felt i manifestet og erklæringa, tier, stiregler og kompatibilitet.
-                        </BodyLong>
+                        <VStack gap="space-4">
+                          <BodyShort weight="semibold">
+                            <a
+                              href="https://github.com/navikt/copilot/blob/main/docs/README.agentpakke.md"
+                              className={linkClass}
+                            >
+                              Feltreferansen
+                            </a>
+                          </BodyShort>
+                          <BodyLong size="small" textColor="subtle">
+                            Beskriver hvert felt i manifestet og erklæringa, tier, stiregler og kompatibilitet.
+                          </BodyLong>
+                        </VStack>
                       </Box>
                       <Box background="neutral-soft" padding="space-16" borderRadius="8">
-                        <BodyShort weight="semibold">
-                          <a
-                            href="https://github.com/navikt/copilot/blob/main/cli/nav-pilot/schemas/agentpakke-v1.json"
-                            className={linkClass}
-                          >
-                            Skjemaet
-                          </a>
-                        </BodyShort>
-                        <BodyLong size="small" className="mt-1" textColor="subtle">
-                          Kontrakten binæren validerer mot, og den CI kan linte mot.
-                        </BodyLong>
+                        <VStack gap="space-4">
+                          <BodyShort weight="semibold">
+                            <a
+                              href="https://github.com/navikt/copilot/blob/main/cli/nav-pilot/schemas/agentpakke-v1.json"
+                              className={linkClass}
+                            >
+                              Skjemaet
+                            </a>
+                          </BodyShort>
+                          <BodyLong size="small" textColor="subtle">
+                            Kontrakten binæren validerer mot, og den CI kan linte mot.
+                          </BodyLong>
+                        </VStack>
                       </Box>
                     </HGrid>
                   </VStack>
