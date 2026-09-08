@@ -118,9 +118,9 @@ type SourceResolver struct {
 }
 
 // WithBase returns a resolver that falls back to base for artifacts this source
-// does not ship itself. Chaining is one level deep by construction — a base's
-// own base is resolved when that base is built — so a cycle in declarations
-// cannot loop here.
+// does not ship itself. A base may carry its own base; the chain is built
+// depth-first by the caller, which refuses a declaration cycle before it
+// recurses.
 func (r *SourceResolver) WithBase(base *SourceResolver) *SourceResolver {
 	chained := *r
 	chained.base = base

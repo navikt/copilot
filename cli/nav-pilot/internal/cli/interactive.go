@@ -712,7 +712,7 @@ func interactiveRepoInstall(src *Source, scope *InstallScope, flagSource string)
 		if err != nil {
 			continue
 		}
-		total := len(m.Agents) + len(m.Skills) + len(m.Instructions) + len(m.Prompts) + len(m.Hooks)
+		total := manifestItemCount(m)
 		label := fmt.Sprintf("%-20s %s (%d items)", name, m.Description, total)
 		options = append(options, huh.NewOption(label, name))
 	}

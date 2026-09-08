@@ -64,6 +64,22 @@ func installItems(resolver *SourceResolver, scope *InstallScope, manifest *Manif
 // manifest the installer already knows how to walk. It is the manifest-bearing
 // counterpart to loadManifest: the agentpakke manifest supersedes
 // collections/<name>/manifest.json rather than declaring entries in it.
+// manifestItemCount is how many artifacts a manifest names, derived from
+// AllKinds rather than summed by hand. The hand-written sums it replaces each
+// missed extensions after #739, so a pakke shipping only extensions counted as
+// shipping nothing.
+func manifestItemCount(m *Manifest) int {
+	total := 0
+	for _, kind := range AllKinds {
+		names, ok := m.NamesByKind(kind)
+		if !ok {
+			continue
+		}
+		total += len(names)
+	}
+	return total
+}
+
 func pakkeContents(resolver *SourceResolver, src *Source) (*Manifest, error) {
 	pakke := src.Pakke
 	manifest, err := collectAllItemsWith(resolver)
@@ -84,7 +100,7 @@ func pakkeContents(resolver *SourceResolver, src *Source) (*Manifest, error) {
 	// carries the name and description `nav-pilot list` prints. Only a manifest
 	// that declares a layout and then ships nothing at it is an error, and the
 	// message says exactly that.
-	total := len(manifest.Agents) + len(manifest.Skills) + len(manifest.Instructions) + len(manifest.Prompts) + len(manifest.Hooks)
+	total := manifestItemCount(manifest)
 	if total == 0 && pakke.Layout != nil {
 		return nil, fmt.Errorf("agentpakke %q declares a layout but ships no agents, skills, instructions, or prompts.\n"+
 			"Check the layout paths in %s", pakke.Name, agentpakke.ManifestPath)
@@ -496,6 +512,14 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		return err
 	}
 
+	// A pakke that reuses another resolves it here, before its contents are
+	// collected: pakkeContents lists through the resolver, so the reused
+	// artifacts are part of the manifest without a second merge step.
+	resolver, reused, err := composeResolver(resolver, src)
+	if err != nil {
+		return err
+	}
+
 	var manifest *Manifest
 	if src.Pakke != nil {
 		manifest, err = pakkeContents(resolver, src)
@@ -519,6 +543,9 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 			fmt.Println(bold(fmt.Sprintf("Installing: %s", collection)))
 		}
 		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, shortSHA(src.SHA))))
+		if reused != nil {
+			fmt.Printf("%s %s\n", dim("Reuses:"), dim(fmt.Sprintf("%s@%s", sourceLabelFor(reused), shortSHA(reused.SHA))))
+		}
 		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
 		printManifestContents(manifest)
 		fmt.Println()
@@ -718,7 +745,7 @@ func cmdList(scope *InstallScope, ref, sourceRepo string, showItems bool, jsonOu
 		collections = append(collections, collectionInfo{
 			Name:        m.Name,
 			Description: m.Description,
-			Items:       len(m.Agents) + len(m.Skills) + len(m.Instructions) + len(m.Prompts) + len(m.Hooks),
+			Items:       manifestItemCount(m),
 			agents:      m.Agents,
 		})
 	}

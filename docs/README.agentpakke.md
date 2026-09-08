@@ -430,6 +430,45 @@ Flagg som strekker seg forbi erklæringa, motsier `--frozen` og avvises som bruk
 
 Utvelgelse er et Tier 1-begrep. Tier 1 er en layout av filer som kan adresseres hver for seg, og det er det som gjør «disse fire» uttrykkbart. En Tier 2-pakke leverer digest-bundne payload-trær der installasjonsenheten er revisjonen, ikke fila: agentene i en payload stages sammen og verifiseres mot digesten som én ting. Derfor **nektes** `items` mot en Tier 2-pakke framfor å bli ignorert — meldingen ber om at blokka fjernes, eller at pakka publiserer en payload-kontekst som bærer akkurat det teamet trenger.
 
+## En pakke som gjenbruker en annen
+
+Et team som vil distribuere sitt eget oppsett, men ikke vil vedlikeholde en kopi av
+plattformpakka, gjenbruker den i stedet.
+
+Det er ikke et eget felt. En pakke som gjenbruker en annen er et repo som *både* sender et
+manifest og committer den samme erklæringa en konsument committer:
+
+```
+navikt/eget-team/
+├── .nav-pilot/
+│   ├── agentpakke.json        ← hva dette repoet sender
+│   └── agentpakke.lock.json   ← hva det gjenbruker, og fra hvilken revisjon
+└── agents/
+    └── grillmester.agent.md
+```
+
+Den som installerer `navikt/eget-team` får begge pakkenes innhold. `install` skriver hvilken
+pakke som ble gjenbrukt, ved siden av kilden:
+
+```
+Source: navikt/eget-team@c3f7ca3
+Reuses: navikt/copilot@4946a27
+```
+
+**Kollisjonsregelen er at nærmeste vinner.** Sender begge pakkene en agent som heter
+`grillmester`, er det den gjenbrukende pakkas egen som installeres. Den vinner ved å bli
+spurt først, og det er samme regel som `overrides` i `.github/copilot-sync.json` ett nivå
+opp: det teamet eier selv, eier de. Å skygge et artefakt er den normale måten å endre én
+ting fra en pakke du ellers tar rått — det er ikke en feil, og varsles ikke.
+
+**En gjenbrukssyklus nektes.** Gjenbruker to pakker hverandre, finnes det ingen rekkefølge å
+løse dem i, og feilen ber om at syklusen brytes i én av dem.
+
+**Bindingstidspunktet følger formen på manifestet**, ikke en egen mekanisme. En layout-pakke
+løser erklæringa si ved hver `install` og `sync`. En payload-pakke løste den ved byggetid, og
+payloaden bærer resultatet — `provenance.base` og `provenance.overlays` er feltene som sier
+hvem den kom fra. Det er den samme erklæringa i begge tilfeller, med to bindingstidspunkter.
+
 ## Slik starter brukerne klienten fra en Tier 2-pakke
 
 Peker kilden på en agentpakke som deklarerer `payloads` for klienten, kjører nav-pilot klienten fra en verifisert revisjon av pakka som ligger på maskinen:

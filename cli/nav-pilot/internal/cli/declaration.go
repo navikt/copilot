@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
-	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
 // This file wires the committed declaration ([agentpakke.Declaration]) into the
@@ -126,7 +125,7 @@ func applyDeclaredItems(manifest *Manifest, items map[string]string) (*Manifest,
 	// place a kind list lived, and #739 added extension to the other three
 	// without it, so declaring an extension failed as "not shipped" (#742).
 	available := map[string]map[string]bool{}
-	for _, kind := range source.AllKinds {
+	for _, kind := range AllKinds {
 		names, ok := manifest.NamesByKind(kind)
 		if !ok {
 			continue
@@ -151,7 +150,7 @@ func applyDeclaredItems(manifest *Manifest, items map[string]string) (*Manifest,
 	}
 
 	narrowed := *manifest
-	for _, kind := range source.AllKinds {
+	for _, kind := range AllKinds {
 		narrowed.SetNamesByKind(kind, selected[kind.Name])
 	}
 	return &narrowed, nil
