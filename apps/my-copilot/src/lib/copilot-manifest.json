@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-09T10:56:37.534Z",
+  "generatedAt": "2026-09-09T12:11:40.203Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -44,7 +44,7 @@
       "filePath": ".github/agents/aksel.agent.md",
       "repoPath": "agents/aksel.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/aksel.agent.md",
-      "contentHash": "1b29aada2721e5e3079cfa3b3e27c549e8e5662dcc516a8a5be47bcf2a2f317d",
+      "contentHash": "0740ec796a3f327322bde87935eef014a8ae7898c4a567932e8dbf91085835eb",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faksel.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faksel.agent.md",
       "tools": [
