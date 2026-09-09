@@ -7,21 +7,21 @@ tools:
   - search
   - web
   - ms-vscode.vscode-websearchforcopilot/websearch
-  - io.github.navikt/github-mcp/get_file_contents
-  - io.github.navikt/github-mcp/search_code
-  - io.github.navikt/github-mcp/search_repositories
-  - io.github.navikt/github-mcp/list_commits
-  - io.github.navikt/github-mcp/get_commit
-  - io.github.navikt/github-mcp/issue_read
-  - io.github.navikt/github-mcp/list_issues
-  - io.github.navikt/github-mcp/search_issues
-  - io.github.navikt/github-mcp/pull_request_read
-  - io.github.navikt/github-mcp/list_pull_requests
-  - io.github.navikt/github-mcp/search_pull_requests
-  - io.github.navikt/github-mcp/get_latest_release
-  - io.github.navikt/github-mcp/list_releases
-  - io.github.navikt/github-mcp/list_tags
-  - io.github.navikt/github-mcp/list_branches
+  - github/get_file_contents
+  - github/search_code
+  - github/search_repositories
+  - github/list_commits
+  - github/get_commit
+  - github/issue_read
+  - github/list_issues
+  - github/search_issues
+  - github/pull_request_read
+  - github/list_pull_requests
+  - github/search_pull_requests
+  - github/get_latest_release
+  - github/list_releases
+  - github/list_tags
+  - github/list_branches
 ---
 
 # Research Agent

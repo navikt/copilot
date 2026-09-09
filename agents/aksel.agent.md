@@ -18,17 +18,17 @@ tools:
   - com.figma/figma-mcp/get_design_context
   - com.figma/figma-mcp/get_metadata
   - com.figma/figma-mcp/get_variable_defs
-  - io.github.navikt/github-mcp/get_file_contents
-  - io.github.navikt/github-mcp/search_code
-  - io.github.navikt/github-mcp/search_repositories
-  - io.github.navikt/github-mcp/list_commits
-  - io.github.navikt/github-mcp/issue_read
-  - io.github.navikt/github-mcp/list_issues
-  - io.github.navikt/github-mcp/search_issues
-  - io.github.navikt/github-mcp/pull_request_read
-  - io.github.navikt/github-mcp/search_pull_requests
-  - io.github.navikt/github-mcp/get_latest_release
-  - io.github.navikt/github-mcp/list_releases
+  - github/get_file_contents
+  - github/search_code
+  - github/search_repositories
+  - github/list_commits
+  - github/issue_read
+  - github/list_issues
+  - github/search_issues
+  - github/pull_request_read
+  - github/search_pull_requests
+  - github/get_latest_release
+  - github/list_releases
 ---
 
 # Aksel Design System Agent (v8+)

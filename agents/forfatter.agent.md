@@ -7,8 +7,8 @@ tools:
   - edit
   - search
   - todo
-  - io.github.navikt/github-mcp/get_file_contents
-  - io.github.navikt/github-mcp/search_code
+  - github/get_file_contents
+  - github/search_code
 ---
 
 # Tekstredaktør
