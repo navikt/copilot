@@ -3,7 +3,7 @@ title: "cplt: global, local eller repo, og flere repoer i samme sesjon"
 date: 2026-09-08
 author: starefossen
 category: praksis
-excerpt: "Det prosjektet trenger, hører hjemme i .cplt.toml. Det som bare gjelder din maskin, settes med --local. Global skal være liten. Pluss sandbox.repo_dirs, som lar agenten jobbe mot et nested repo i samme sesjon."
+excerpt: "Det prosjektet trenger, hører hjemme i .cplt.toml. Det som bare gjelder din maskin, settes med --local. Global skal være liten. Pluss sandbox.repo_dirs, som lar agenten jobbe mot flere repoer i samme sesjon, også de som ligger side om side."
 tags:
   - cplt
   - config
@@ -11,10 +11,18 @@ tags:
   - nav-pilot
 ---
 
-Kortversjonen: **Det prosjektet trenger (porter, docker, hemmeligheter som skal holdes ute), setter du med `cplt config set --repo …`. Det havner i `.cplt.toml`, som du committer. Det som bare er sant på din maskin, setter du med `--local` — stier i hjemmekatalogen, og repoer du har sjekket ut inni prosjektet:**
+> **Oppdatert 9. september.** Da denne artikkelen ble publisert, måtte et repo
+> du ville navngi ligge *inni* katalogen du startet fra, og vi anbefalte en
+> omvei: samle repoene under et felles ytre repo. **Den begrensningen er borte,
+> og den omveien skal du ikke bruke lenger.** Repoer som ligger side om side kan
+> navngis direkte fra og med `2026.09.09-070024`. `brew update && brew upgrade
+> cplt` henter versjonen. Har du allerede lagt om checkoutene dine på grunn av
+> det gamle rådet, se «Omveien du ikke trenger lenger».
+
+Kortversjonen: **Det prosjektet trenger (porter, docker, hemmeligheter som skal holdes ute), setter du med `cplt config set --repo …`. Det havner i `.cplt.toml`, som du committer. Det som bare er sant på din maskin, setter du med `--local`: stier i hjemmekatalogen, og de andre repoene du jobber i.**
 
 ```sh
-cplt config set --local sandbox.repo_dirs ~/src/spleis/libs/sykepenger-model
+cplt config set --local sandbox.repo_dirs ~/src/sykepenger-model
 ```
 
 **Global skal være liten. Start med `cplt init --write` i repoet, og sjekk resultatet med `cplt config show`.**
@@ -150,13 +158,13 @@ cplt config path --local            # hvor local-fila for denne checkouten ligge
 cplt config local list              # alle prosjekter du har local-config for
 ```
 
-Listeverdier vises sammenslått uten lag-merking. En `allow.read` du satte lokalt, får derfor ikke `(local)` etter seg i `config show`. Ved oppstart viser cplt en `Local:`-rad med fila som er i bruk, når en slik fil faktisk gjelder.
+Listeverdier som finnes i flere lag, vises sammenslått uten lag-merking: en `allow.read` du satte lokalt, får derfor ikke `(local)` etter seg i `config show`. `sandbox.repo_dirs` får det, siden local er det eneste laget som kan sette den. Ved oppstart viser cplt en `Local:`-rad med fila som er i bruk, når en slik fil faktisk gjelder.
 
 ---
 
 ## Flere repoer i samme sesjon
 
-Et typisk oppsett: `navikt/spleis` har `navikt/sykepenger-model` sjekket ut under `libs/` i samme tre. Agenten kan allerede lese og skrive filene i `libs/sykepenger-model`, fordi prosjektkatalogen er gitt som ett subtre. Det den ikke kan, er å behandle det nested repoet som *et repo*. gh guard slipper bare gjennom skriveoperasjoner mot repoet du startet i, så `gh pr create -R navikt/sykepenger-model` stoppes.
+Ta det enkle tilfellet først: `navikt/spleis` har `navikt/sykepenger-model` sjekket ut under `libs/` i samme tre. Agenten kan allerede lese og skrive filene i `libs/sykepenger-model`, fordi prosjektkatalogen er gitt som ett subtre. Det den ikke kan, er å behandle det indre repoet som *et repo*. gh guard slipper bare gjennom skriveoperasjoner mot repoet du startet i, så `gh pr create -R navikt/sykepenger-model` stoppes.
 
 `sandbox.repo_dirs` fikser det. Du navngir repoet, og det får identitet i sesjonen:
 
@@ -169,53 +177,58 @@ Stien må være absolutt eller starte med `~/`. Ved neste oppstart viser cplt be
 ```
  Repositories:
    navikt/spleis            ~/src/spleis                        launch repository
-   navikt/sykepenger-model  ~/src/spleis/libs/sykepenger-model   local config
+   navikt/sykepenger-model  ~/src/spleis/libs/sykepenger-model   local config   inside the project directory, no new file access
 ```
 
-Nå kan agenten opprette PR-er mot `navikt/sykepenger-model`. Legg merke til at agenten ikke fikk noen ny filtilgang. Å navngi et repo gir identitet, ikke tilgang.
+Nå kan agenten opprette PR-er mot `navikt/sykepenger-model`. For et repo som ligger *inni* prosjektet gir navngivningen ingen ny filtilgang. De filene kunne agenten lese og skrive fra før, fordi prosjektkatalogen er gitt som ett subtre. Det navngivningen legger til, er identitet: gh-scope, egne linjer i rapporten etter sesjonen, og at `git push` dømmes mot repoets egen standardgren.
 
 Nøkkelen kan bare settes med `--local`. Global nekter, fordi en repo-liste der ville hengt seg på hver eneste sesjon. Repo-config nekter, fordi «naming other trees as project-grade roots is a path grant, and repo config cannot grant paths». Hvor du har sjekket ut hva, er sant for din maskin, ikke for prosjektet.
 
 Kjører du cplt direkte, gjør flagget `--repo-dir <sti>` det samme for én kjøring, i tillegg til det som er lagret. Går du via nav-pilot, er `--local` den eneste veien.
 
-### Repoet må ligge inni prosjektkatalogen
+### Repoer som ligger side om side
 
-Dette er begrensningen som svir, og vi skal være ærlige om den: et repo du vil navngi må være sjekket ut *inni* katalogen du starter fra. Ligger `sykepenger-model` på `~/src/sykepenger-model`, ved siden av `spleis`, får du nei.
-
-De fleste av oss har repoene liggende side om side. Det betyr at funksjonen slik den står i dag treffer færre enn den burde.
-
-Du kan få tilgang til filene, men ikke gh-identitet mot repoet:
+De fleste av oss har repoene liggende ved siden av hverandre, ikke inni hverandre. Det virker nå:
 
 ```sh
+cd ~/src/spleis
+cplt config set --local sandbox.repo_dirs ~/src/sykepenger-model
+```
+
+Oppstartsoppsummeringen skiller de to tilfellene, fordi de ikke er det samme å si ja til:
+
+```
+ Repositories:
+   navikt/spleis            ~/src/spleis             launch repository
+   navikt/sykepenger-model  ~/src/sykepenger-model   local config   new read/write/exec tree
+```
+
+**For et repo utenfor prosjektkatalogen gir navngivningen tilgang, ikke bare identitet.** Agenten kan lese, skrive *og kjøre* der, akkurat som i prosjektkatalogen. Det er verdt å lese en gang til: du sier ja til et tre til der agenten kan legge fra seg en binærfil og kjøre den.
+
+Kjøretilgangen er grunnen til at dette måtte bli en egen funksjon og ikke bare et avsnitt om `allow.write`. En skrivetillatelse er med vilje ikke kjørbar, så et bygg i repoet ved siden av kunne aldri kjøres:
+
+```sh
+# Bare redigering: filer ja, bygg nei, gh-identitet nei
 cplt config set --local allow.write ~/src/sykepenger-model
 ```
 
-Agenten kan da bygge og redigere der, men ikke opprette PR-er mot repoet.
+Bruk `allow.write` når repoet bare skal redigeres, og `sandbox.repo_dirs` når bygget, testene eller PR-ene der skal virke. Samtidig gjelder de samme beskyttelsene som i prosjektkatalogen: `.git/hooks`, `.git/config` og `.cplt.toml` er skrivebeskyttet også der, så ingen hook kan plantes for å kjøre utenfor sandboxen senere. Repoets eget `[deny]` gjelder i dets eget tre, med ett unntak: `deny.env` gjelder hele sesjonen. Endringene i repoet rapporteres for seg etter sesjonen.
 
-**Det som faktisk virker i dag** er å legge repoene inni et felles repo og starte derfra. Lag en katalog, `git init` i den, og sjekk ut repoene du jobber med under den:
+Har repoet ingen GitHub-origin, får det filer, `[deny]` og rapport, men ikke gh-scope. cplt sier fra om det ved oppstart.
 
-```sh
-mkdir ~/src/min-arbeidsflate && cd ~/src/min-arbeidsflate
-git init
-git clone git@github.com:navikt/spleis.git
-git clone git@github.com:navikt/sykepenger-model.git
-cplt config set --local sandbox.repo_dirs ~/src/min-arbeidsflate/spleis
-cplt config set --local sandbox.repo_dirs ~/src/min-arbeidsflate/sykepenger-model
-```
+Repoet du startet i, kan du ikke navngi. Det er alltid i scope. Et repo som *inneholder* det du startet i, blir også avvist: start fra det, og navngi det indre.
 
-Da får begge repoene identitet, og agenten kan opprette PR-er mot begge. Én ting må være på plass: den ytre katalogen må selv ha en GitHub-remote. Uten den klarer ikke cplt å fastslå hvilket repo sesjonen starter i, og da blokkeres alle gh-kommandoer som sjekkes mot scope — også mot de navngitte repoene.
+### Omveien du ikke trenger lenger
 
-Det er en omvei, ikke en løsning. Den krever at du legger om hvordan du har sjekket ut kode, og det er ikke noe vi mener du bør måtte gjøre.
+Da denne artikkelen ble publisert, anbefalte vi å samle repoene under et felles ytre repo med sin egen GitHub-remote, og starte derfra. **Det skal du ikke gjøre nå.** Har du allerede lagt om checkoutene dine på grunn av det avsnittet, kan du flytte dem tilbake og navngi repoene direkte.
 
-**Vi er ikke i mål her.** Å la et repo utenfor prosjektkatalogen bli førsteklasses er ikke vanskelig i seg selv — sandkassa håndterer allerede den slags tilgang, og cplt kan allerede lese identiteten til en hvilken som helst katalog. Det som tar tid, er å få grensesnittet og sikkerhetsmodellen riktig samtidig: hvem som får peke ut hvilke repoer, hva som skjer når en katalog byttes ut under føttene på deg, og hvordan du ser hva agenten faktisk har lov til før du starter den. Vi har brukt uka på å tette hull der nettopp den slags var uklart, så vi tar den tiden.
+Vi skrev også at vi ikke var i mål, og at det som tok tid, var å få grensesnittet og sikkerhetsmodellen riktig samtidig: hvem som får peke ut hvilke repoer, hva som skjer når en katalog byttes ut under føttene på deg, og hvordan du ser hva agenten har lov til før du starter den. Det er de tre tingene som er levert. Bare `--local` kan navngi et repo. Hver oppstart sjekker at treet fortsatt er det du navnga. Og oppsummeringen sier hvilket repo som er et nytt kjørbart tre.
 
-Målet er en ordentlig workspace-modell, der repoer som ligger side om side kan kobles sammen uten omveier. Følg [navikt/cplt#344](https://github.com/navikt/cplt/issues/344).
-
-Repoet du startet i, kan du forresten ikke navngi. Det er alltid i scope.
+Selve workspace-modellen følger du fortsatt i [navikt/cplt#344](https://github.com/navikt/cplt/issues/344). Vi har fjernet det opprinnelige avsnittet heller enn å la det stå og villede, og noterer her at det sto der.
 
 ### Sjekkes på nytt hver gang
 
-Local-fila kan være uker gammel, og treet den peker på kan agenten skrive til. Derfor sjekker cplt hver lagrede oppføring ved *hver* oppstart, og stopper hvis den ikke lenger er toppen av et git-repo inni prosjektkatalogen. Feilmeldingen sier hvilken fil oppføringen kom fra, så du vet hva du skal rydde. Du fjerner med `config set … --unset`:
+Local-fila kan være uker gammel, og treet den peker på kan agenten skrive til. Derfor sjekker cplt hver lagrede oppføring ved *hver* oppstart. Den stopper oppstarten, den dropper ikke oppføringen stille, hvis stien ikke lenger er toppen av et git-repo, har fått en symlink som siste ledd, inneholder repoet du starter fra, eller peker på en for vid rot som hjemmekatalogen. Feilmeldingen sier hvilken fil oppføringen kom fra, så du vet hva du skal rydde. Du fjerner med `config set … --unset`:
 
 ```sh
 cplt config set --local sandbox.repo_dirs ~/src/spleis/libs/sykepenger-model --unset   # fjern ett element
@@ -232,7 +245,7 @@ Local-fila husker hvilken `origin` den ble skrevet for. Står det et annet repo 
 
 ## Kom i gang
 
-Kotlin-tjeneste med nested bibliotek, Gradle mot GitHub Packages og Testcontainers:
+Kotlin-tjeneste med et bibliotek ved siden av, Gradle mot GitHub Packages og Testcontainers:
 
 ```sh
 cd ~/src/spleis
@@ -246,13 +259,13 @@ cplt trust accept --all
 
 # Det som er ditt, i denne checkouten
 cplt config set --local allow.read ~/.gradle/gradle.properties
-cplt config set --local sandbox.repo_dirs ~/src/spleis/libs/sykepenger-model
+cplt config set --local sandbox.repo_dirs ~/src/sykepenger-model
 
 # Sjekk resultatet
 cplt config show
 cplt config get sandbox.repo_dirs
 ```
 
-Start så agenten gjennom nav-pilot som før. Oppstartssammendraget viser `Local:`-raden og begge repoene.
+Start så agenten gjennom nav-pilot som før. Oppstartsoppsummeringen viser `Local:`-raden og begge repoene.
 
 Full referanse i [docs/configuration.md](https://github.com/navikt/cplt/blob/main/docs/configuration.md).
