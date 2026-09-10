@@ -41,3 +41,13 @@ var AgentpakkePayloadV1 []byte
 //
 //go:embed agentpakke-retired-v1.json
 var AgentpakkeRetiredV1 []byte
+
+// AgentpakkeReleaseV1 is the release metadata schema, schemaVersion 1. Its $id
+// is
+// https://raw.githubusercontent.com/navikt/copilot/main/cli/nav-pilot/schemas/agentpakke-release-v1.json
+//
+// A package owner publishes the metadata as a release asset, and nav-pilot
+// follows stable releases by it (#779).
+//
+//go:embed agentpakke-release-v1.json
+var AgentpakkeReleaseV1 []byte

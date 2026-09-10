@@ -130,7 +130,7 @@ func TestDiscoverPakkeRelease(t *testing.T) {
 		{
 			name:    "unknown field",
 			gh:      fakeGitHub{releases: []fakeRelease{{tag: "v1.0.0", asset: `{"schemaVersion":1,"name":"grillmester","version":"1.0.0","sourceSha":"` + shaA + `","url":"https://evil"}`}}},
-			wantErr: "unknown field",
+			wantErr: "additional properties 'url' not allowed",
 		},
 		{
 			name:    "trailing data",
@@ -142,12 +142,12 @@ func TestDiscoverPakkeRelease(t *testing.T) {
 			gh:      fakeGitHub{releases: []fakeRelease{{tag: "v1.0.0", asset: meta("grillmester", "1.0.0", shaA) + strings.Repeat(" ", pakkeReleaseAssetMax)}}},
 			wantErr: "larger than",
 		},
-		{name: "prerelease version", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0-rc.1", "1.0.0-rc.1", shaA)}}, wantErr: "not MAJOR.MINOR.PATCH"},
-		{name: "v in version", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "v1.0.0", shaA)}}, wantErr: "not MAJOR.MINOR.PATCH"},
-		{name: "leading zero", gh: fakeGitHub{releases: []fakeRelease{good("v01.0.0", "01.0.0", shaA)}}, wantErr: "not MAJOR.MINOR.PATCH"},
+		{name: "prerelease version", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0-rc.1", "1.0.0-rc.1", shaA)}}, wantErr: "- version: "},
+		{name: "v in version", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "v1.0.0", shaA)}}, wantErr: "- version: "},
+		{name: "leading zero", gh: fakeGitHub{releases: []fakeRelease{good("v01.0.0", "01.0.0", shaA)}}, wantErr: "- version: "},
 		{name: "tag does not bind", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.1", "1.0.0", shaA)}}, wantErr: "tag does not bind"},
-		{name: "short sha", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", "abc1234")}}, wantErr: "not a full lowercase commit SHA"},
-		{name: "uppercase sha", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", strings.Repeat("A", 40))}}, wantErr: "not a full lowercase commit SHA"},
+		{name: "short sha", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", "abc1234")}}, wantErr: "- sourceSha: "},
+		{name: "uppercase sha", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", strings.Repeat("A", 40))}}, wantErr: "- sourceSha: "},
 		{
 			name: "a broken newer release does not block a valid older one",
 			gh:   fakeGitHub{releases: []fakeRelease{good("v2.0.0", "2.0.0", "nope"), good("v1.0.0", "1.0.0", shaA)}},

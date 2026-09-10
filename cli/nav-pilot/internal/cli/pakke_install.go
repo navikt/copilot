@@ -464,7 +464,12 @@ func removeStateFiles(scope *InstallScope, state *StateFile, dryRun, quiet bool)
 // It prints one thing of its own — the files an outgoing install leaves behind
 // — and takes jsonOutput for it, because two of its three callers can be asked
 // for a JSON document on stdout.
-func pinRevision(scope *InstallScope, src *Source, jsonOutput bool) (string, error) {
+//
+// release is the stable release src was resolved from, or nil for a pin that
+// does not follow releases (#779). A nil release over the same revision keeps
+// what the state already said about it: re-materializing a pinned SHA does not
+// change which release it is.
+func pinRevision(scope *InstallScope, src *Source, release *pakkeRelease, jsonOutput bool) (string, error) {
 	if err := checkPakkeInstallable(scope, src); err != nil {
 		return "", err
 	}
@@ -524,6 +529,28 @@ func pinRevision(scope *InstallScope, src *Source, jsonOutput bool) (string, err
 	if existing != nil && sameSourceRepo(existing.SourceRepo, src.Repo) {
 		state.PreserveUnknownFrom(existing)
 	}
+	if release != nil {
+		state.PakkeVersion = release.Version
+		state.FollowsReleases = true
+	} else if existing != nil && sameSourceRepo(existing.SourceRepo, src.Repo) && sameSHA(existing.SourceSHA, src.SHA) {
+		state.PakkeVersion = existing.PakkeVersion
+		state.FollowsReleases = existing.FollowsReleases
+	}
+
+	// Lost update (#779). Materializing takes long enough for another install,
+	// sync or launch to move this scope's pin, and writing now would put an
+	// older revision back over it. No lock: read again, and refuse if it moved.
+	if pinWriteHook != nil {
+		pinWriteHook()
+	}
+	current, err := readScopedState(scope)
+	if err != nil {
+		return "", fmt.Errorf("reading state: %w", err)
+	}
+	if pinMoved(existing, current) {
+		return "", fmt.Errorf("the %s scope's pin changed to %s while %s was being prepared; nothing was recorded. Run the command again",
+			scope.Name, pinLabel(current), shortSHA(src.SHA))
+	}
 	if err := writeScopedState(scope, state); err != nil {
 		return "", fmt.Errorf("writing state: %w", err)
 	}
@@ -554,6 +581,26 @@ func pinRevision(scope *InstallScope, src *Source, jsonOutput bool) (string, err
 
 	prunePakkeRevisions(src.Repo, src.SHA, previousPin)
 	return revDir, nil
+}
+
+// pinWriteHook is a test seam: when non-nil it runs in [pinRevision] between
+// materializing and re-reading the state, the window a concurrent pin lands in.
+var pinWriteHook func()
+
+// pinMoved reports whether the pin a state records differs between two reads.
+func pinMoved(before, after *StateFile) bool {
+	if before == nil || after == nil {
+		return (before == nil) != (after == nil)
+	}
+	return before.SourceRepo != after.SourceRepo || before.SourceSHA != after.SourceSHA ||
+		before.FollowsReleases != after.FollowsReleases || before.PakkeVersion != after.PakkeVersion
+}
+
+func pinLabel(state *StateFile) string {
+	if state == nil {
+		return "nothing (the state was removed)"
+	}
+	return sourceLabelForRepo(state.SourceRepo) + "@" + shortSHA(state.SourceSHA)
 }
 
 // payloadClients lists the clients a manifest declares pre-built payloads for,
@@ -617,7 +664,7 @@ func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) 
 		return nil
 	}
 
-	if _, err := pinRevision(scope, src, jsonOutput); err != nil {
+	if _, err := pinRevision(scope, src, nil, jsonOutput); err != nil {
 		return err
 	}
 

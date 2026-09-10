@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -24,7 +23,7 @@ import (
 
 const (
 	// pakkeReleaseAsset is the release asset a package owner publishes.
-	pakkeReleaseAsset = "agentpakke-release.json"
+	pakkeReleaseAsset = agentpakke.ReleaseAssetName
 	// pakkeReleaseAssetMax caps the asset download. Four short fields fit in
 	// well under a kilobyte; anything near this is not the contract.
 	pakkeReleaseAssetMax = 64 << 10
@@ -60,6 +59,23 @@ type pakkeRelease struct {
 	Tag     string
 }
 
+// version is the release version, or "" for no release.
+func (r *pakkeRelease) version() string {
+	if r == nil {
+		return ""
+	}
+	return r.Version
+}
+
+// label names a revision for output: "0.4.1 (abc1234)", or just the short SHA
+// when it is not a release.
+func (r *pakkeRelease) label(sha string) string {
+	if r == nil {
+		return shortSHA(sha)
+	}
+	return r.Version + " (" + shortSHA(sha) + ")"
+}
+
 // discoverPakkeRelease is the lookup sync uses. A var so sync tests can stub it
 // without a network call.
 var discoverPakkeRelease = discoverPakkeReleaseHTTP
@@ -83,10 +99,9 @@ type pakkeReleaseMetadata struct {
 	SourceSHA     string `json:"sourceSha"`
 }
 
-var (
-	strictSemver = regexp.MustCompile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$`)
-	fullSHA      = regexp.MustCompile(`^[0-9a-f]{40}$`)
-)
+// strictSemver orders release tags before any asset is downloaded. The asset's
+// own version is held to the same shape by the published schema.
+var strictSemver = regexp.MustCompile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$`)
 
 // parseStrictSemver accepts MAJOR.MINOR.PATCH and nothing else: no "v", no
 // prerelease, no build metadata.
@@ -186,18 +201,11 @@ func discoverPakkeReleaseHTTP(ctx context.Context, repo, name, installedSHA stri
 		if meta.Name != name {
 			continue // another package published from the same repo
 		}
-		v, ok := parseStrictSemver(meta.Version)
-		switch {
-		case !ok:
-			invalid = append(invalid, fmt.Sprintf("%s: version %q is not MAJOR.MINOR.PATCH", c.tag, meta.Version))
-			continue
-		case tagVersion(c.tag) != meta.Version:
+		if tagVersion(c.tag) != meta.Version {
 			invalid = append(invalid, fmt.Sprintf("%s: tag does not bind to version %s", c.tag, meta.Version))
 			continue
-		case !fullSHA.MatchString(meta.SourceSHA):
-			invalid = append(invalid, fmt.Sprintf("%s: sourceSha %q is not a full lowercase commit SHA", c.tag, meta.SourceSHA))
-			continue
 		}
+		v, _ := parseStrictSemver(meta.Version) // the schema held it to MAJOR.MINOR.PATCH
 		if chosen != nil {
 			if meta.SourceSHA != chosen.SHA {
 				return 0, pakkeRelease{}, fmt.Errorf("%s version %s is published twice with different source SHAs (%s in %s, %s in %s)",
@@ -285,13 +293,12 @@ func readPakkeReleaseMetadata(ctx context.Context, assetURL string) (pakkeReleas
 	if probe.SchemaVersion != 1 {
 		return meta, fmt.Errorf("unsupported schemaVersion %d (this nav-pilot reads 1)", probe.SchemaVersion)
 	}
-	// The probe's Unmarshal already refused trailing data.
-	dec := json.NewDecoder(bytes.NewReader(body))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&meta); err != nil {
+	// The published schema, not a second copy of its rules here: the binary and
+	// the file a package owner lints with cannot disagree.
+	if err := agentpakke.ValidateRelease(body); err != nil {
 		return meta, err
 	}
-	return meta, nil
+	return meta, json.Unmarshal(body, &meta)
 }
 
 // compareStatus is GitHub's compare status of head relative to base: ahead,

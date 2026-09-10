@@ -498,6 +498,57 @@ nav-pilot --client copilot --payload-context focused      # en annen deklarert k
 - **`compatibility` håndheves før launch.** Deklarerer klientoppføringa et versjonsområde, prober nav-pilot klienten og avviser en versjon utenfor området. Både en mislykket probe og uleselig versjonsutdata er fatalt: et område som ikke kan håndheves, er ikke håndhevet.
 - **Modell.** `defaultModel: "inherit"` sender ingen `--model` i det hele tatt. En konkret verdi sendes med. En modell brukeren har pinnet selv vinner over begge.
 
+## Stabile releases
+
+En payload-only pakke kan publisere stabile versjoner som GitHub Releases i sitt eget repo. `nav-pilot sync` flytter da en pinnet installasjon i brukerscope til nyeste stabile release, ikke til standardgrenen. Begrunnelsen for formen står i [beslutningsdokumentet, §10](agentpakke-beslutninger.md#10-stabile-releases-som-oppdateringskilde-779).
+
+### Metadata-assetet
+
+En release som skal tilbys, har et asset som heter nøyaktig `agentpakke-release.json`:
+
+```json
+{
+  "schemaVersion": 1,
+  "name": "grillmester",
+  "version": "0.4.1",
+  "sourceSha": "<full commit-SHA på 40 tegn>"
+}
+```
+
+| Felt | Krav |
+| --- | --- |
+| `schemaVersion` | `1`. En annen verdi leses som et format denne nav-pilot ikke støtter. |
+| `name` | Manifestets `name`. En release med et annet navn gjelder en annen pakke i samme repo, og hoppes over. |
+| `version` | Streng SemVer `MAJOR.MINOR.PATCH`, uten `v`, prerelease eller build-metadata. |
+| `sourceSha` | Full commit-SHA, 40 små heksadesimale tegn, for revisjonen payloadene er bygget fra. Commiten må ligge på repoets standardgren. |
+
+Andre felt er ikke tillatt, og fila kan være høyst 64 KiB. Lint assetet mot [`cli/nav-pilot/schemas/agentpakke-release-v1.json`](../cli/nav-pilot/schemas/agentpakke-release-v1.json), som er den samme fila binæren validerer med. Repoet kommer fra installasjonen og aldri fra fila, så metadata kan verken bytte kilde-repo eller angi nedlastingsadresser.
+
+### Når en release kvalifiserer
+
+- Releasen er publisert, ikke draft, ikke prerelease, og `immutable: true`. Repoet må altså ha immutable releases slått på.
+- Taggen binder versjonen: fjern et valgfritt `<prefiks>/` og en valgfri `v`, og resten skal være lik `version`. `v0.4.1`, `0.4.1` og `grillmester/v0.4.1` binder alle til `0.4.1`.
+- `sourceSha` ligger på standardgrenen: GitHubs compare fra `sourceSha` til standardgrenen gir `ahead` eller `identical`.
+- Samme versjon publisert med to ulike `sourceSha` er en feil, ikke et valg mellom dem.
+
+Blant kvalifiserte releases velges høyeste versjon, ikke den sist publiserte. En release med ugyldig metadata hoppes over, slik at én feil i en immutable release ikke stenger for senere releases. Har repoet bare ugyldig metadata, feiler oppslaget. Oppslaget leser de 100 nyeste releasene.
+
+### Pakkeeierens ansvar
+
+Publiser releasen som stabil først når alle kontroller som godkjenner distribusjonen er grønne, for eksempel ved å publisere den som prerelease og forfremme den etter at testene har passert. nav-pilot leser ingen workflow-status: en publisert stabil release er klar til bruk. Gjenbruk aldri en versjon med en annen `sourceSha`.
+
+### Hva sync gjør
+
+- Uten `--ref` slår sync opp releasene før noe annet. Finnes en nyere stabil release, pinnes nøyaktig dens `sourceSha` gjennom samme verifisering som `install`, og staten registrerer pakkeversjonen og at pinnen følger releases. `--json` tar med `version`.
+- Er installert revisjon den samme som releasen, er pakka oppdatert. Er installert revisjon nyere enn eller divergert fra releasen, tilbys releasen ikke. Sync nedgraderer ikke.
+- Et repo uten metadata synkes fra standardgrenen som før, så lenge pinnen ikke følger releases.
+- En pinne som følger releases, faller aldri tilbake til standardgrenen. Manglende metadata, nettverksfeil, timeout (10 sekunder for hele oppslaget), rate limit og ugyldig metadata gir en feil, og pinnen står.
+- Feiler oppslaget for en pinne som ikke følger releases, feiler sync også. nav-pilot kan da ikke vite om repoet er release-basert, og et ukjent svar betyr ikke «bruk standardgrenen».
+- `--ref` er et eksplisitt pinningvalg og vinner som før. Pinnen det skriver, følger ikke releases.
+- Flytter en annen prosess pinnen mens revisjonen materialiseres, registreres ingenting, og kommandoen ber deg kjøre den på nytt.
+
+`nav-pilot --sync` går gjennom den samme stien. Varsling ved oppstart, automatisk oppdatering, status og valg ved install er ikke med ennå ([#779](https://github.com/navikt/copilot/issues/779)).
+
 ## Begrensninger i dag
 
 Dette er statusen i milepæl 1. Alt under er kjent og planlagt, ikke feil:

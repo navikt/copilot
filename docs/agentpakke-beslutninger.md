@@ -314,6 +314,33 @@ Hva som *ikke* skjedde her, med vilje:
 - **Eldre binærer får spike-ens §2-oppførsel mot ny main:** `install frontend` blir «not found» med forslag, og en samlings-scope fryser som delmengde til brukeren oppgraderer. Filsync fortsetter å virke (filene finnes fortsatt i poolene). Akseptert: kilden hentes fra HEAD ved kjøring, så det finnes ingen sekvensering som skåner en binær brukeren ikke oppgraderer.
 - **Velger-forhåndsutvalg** (TUI-komfort for «anbefalte utvalg per teamtype», nå dokumentert i [README.collections.md](README.collections.md)) er fortsatt ugjort og ustilt.
 
+## 10. Stabile releases som oppdateringskilde (#779)
+
+Kontrakten står i [README.agentpakke.md, «Stabile releases»](README.agentpakke.md#stabile-releases), og skjemaet i [`agentpakke-release-v1.json`](../cli/nav-pilot/schemas/agentpakke-release-v1.json). Her står hvorfor den ser slik ut. Første leveranse gjelder publiseringskontrakten, oppslaget og `sync`. Oppstart, cache, status og valg ved install kommer senere.
+
+**GitHub Releases med et eget metadata-asset, ikke en tag, en branch eller en katalog.** Hos den første pakka som publiserer releases, er taggen og kilderevisjonen ikke samme commit. Grillmesters tag `v0.4.0` peker på `fe686e2`, en commit som bare endrer `.github/plugin/marketplace.json`. GitHub svarer «No common ancestor between 20d634f and fe686e2» på en compare mellom den og kildecommiten `20d634f` (kontrollert mot GitHub-API-et 10.09.2026). Å pinne taggens commit ville altså pinne en katalogcommit uten payloads. De andre alternativene faller av samme grunn eller av sin egen:
+
+- En tag alene sier ikke hvilken commit payloadene er bygget fra, gir ingen pakkeversjon uten at nav-pilot tolker tagnavnet, og et repo kan tagge flere produkter.
+- En egen metadata-branch er et ekstra publiseringssted som må holdes i takt med releasen.
+- Å følge standardgrenen har ingen stabilitetsgrense.
+- Å lese Copilot-katalogen (`marketplace.json`) knytter agentpakkestøtten til én klients distribusjonsformat.
+
+Assetet binder pakkenavn, versjon og kilde-SHA i selve releasen, og en immutable release kan ikke endres etter publisering.
+
+**`sourceSha` må ligge på standardgrenen.** `git fetch origin <sha>` (`fetchRevision`, `internal/source/source.go`) henter enhver commit GitHub serverer gjennom repoet, også en som bare finnes i en fork. Uten sjekken kunne metadata peke på innhold som aldri har vært på repoets egen gren. Sjekken er GitHubs compare `<sha>...<standardgren>`, som må gi `ahead` eller `identical`. En commit uten felles historikk gir 404, og det er også en feil.
+
+**Ugyldig metadata hoppes over i stedet for å stoppe alt.** Releasene er immutable. En feil i ett asset kan ikke rettes, bare etterfølges av en ny release, og et oppslag som feilet på den gamle ville stengt for alle senere. Har repoet bare ugyldig metadata, er det en feil og ikke «ingen metadata», fordi ingenting her skal ende i standardgrenen.
+
+**Skjemaet er publisert og er det binæren validerer med**, samme mønster som de andre filene i `cli/nav-pilot/schemas/`. Formsjekkene (felt, versjonsform, SHA-form) står bare i skjemaet. Go-koden sjekker det skjemaet ikke kan se: navnet mot pakka, taggen mot versjonen, og samme versjon med to SHA-er.
+
+**En pinne som følger releases, faller aldri tilbake.** Et abonnement på stabile versjoner som stille henter standardgrenen ved en nettverksfeil, er ikke et abonnement på stabile versjoner. Feilen lar pinnen stå, og launch leser fortsatt den verifiserte revisjonen.
+
+**Et mislykket oppslag stopper også en pinne som ikke følger releases.** Et release-basert repo som ble synket fra standardgrenen under en rate limit, ville fått en pinne foran nyeste release. Nedgraderingsvernet tilbyr ikke en release bak installert revisjon, så installasjonen ville blitt stående på utviklingsinnhold uten at noen valgte det. Prisen er at sync av en ikke-release-basert pinne nå også krever at GitHub-API-et svarer (ett kall når repoet ikke har metadata).
+
+**Nedgraderingsvern med GitHubs compare, ikke versjonssammenligning.** Eldre state har ingen pakkeversjon (`Version` er nav-pilots versjon for eksterne kilder), så installert revisjon kan bare sammenlignes som commit. `ahead` tilbys, `identical` er oppdatert, `behind` og `diverged` tilbys ikke.
+
+**Samtidighet uten lås.** `pinRevision` leser staten på nytt rett før den skriver, og avbryter hvis pinnen er flyttet siden den leste den første gang. Første lesing skjer i `pinRevision`, etter oppslaget og kloningen. En pinne som flyttes mens sync slår opp eller kloner, fanges derfor ikke, bare en som flyttes under materialiseringen. Vinduet mellom ny lesing og skriving er igjen, men det er kort mot materialiseringen.
+
 ## Se også
 
 - [Agentpakke-kontrakten](README.agentpakke.md), hva en agentpakke er og hva nav-pilot krever av den
