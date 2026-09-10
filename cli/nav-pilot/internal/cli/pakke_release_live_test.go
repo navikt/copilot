@@ -29,4 +29,19 @@ func TestDiscoverPakkeReleaseLive(t *testing.T) {
 			t.Errorf("%s: %v", c.repo, err)
 		}
 	}
+
+	// The reachability check against real commits: Grillmester's source commit
+	// is on main, and the v0.4.0 catalog commit shares no history with it.
+	ctx := context.Background()
+	src := "20d634fe960eb6ac981a4d7b88bd1fb078e48f4b"
+	status, err := compareStatus(ctx, "navikt/grillmester", src, "main")
+	t.Logf("compare %s...main: status=%q err=%v", src[:7], status, err)
+	if err != nil || (status != "ahead" && status != "identical") {
+		t.Errorf("the source commit is not reported on main")
+	}
+	status, err = compareStatus(ctx, "navikt/grillmester", src, "fe686e203b38250f4242cd95a9d228f424e3ff35")
+	t.Logf("compare %s...fe686e2: status=%q err=%v", src[:7], status, err)
+	if err == nil {
+		t.Errorf("unrelated histories compared without error")
+	}
 }
