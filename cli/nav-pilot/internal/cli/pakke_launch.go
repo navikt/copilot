@@ -419,7 +419,7 @@ func autoPin(src *Source, client string) (*Source, error) {
 	// The first pin starts on the newest stable release, like install (#779).
 	var release *pakkeRelease
 	if firstPin {
-		relSrc, rel, err := releaseStart(src)
+		relSrc, rel, err := releaseStart(src, false) // a first pin replaces no pin
 		if err != nil {
 			return nil, err
 		}

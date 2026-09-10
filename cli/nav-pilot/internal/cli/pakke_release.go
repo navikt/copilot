@@ -338,9 +338,19 @@ func fetchPakkeRelease(repo, name string, rel pakkeRelease) (*Source, error) {
 // installed from its default branch before releases existed, and still does,
 // with a warning on stderr (stdout may be an install's JSON document). The
 // caller cleans up a returned source that is not src.
-func releaseStart(src *Source) (*Source, *pakkeRelease, error) {
+//
+// follows says the pin being replaced follows this source's releases. Then the
+// 404 falls back to nothing: a re-install would otherwise leave releases
+// without a word, where sync fails closed. --ref is the explicit way out.
+func releaseStart(src *Source, follows bool) (*Source, *pakkeRelease, error) {
 	name := src.Pakke.Name
 	outcome, rel, err := discoverPakkeRelease(context.Background(), src.Repo, name, "")
+	if errors.Is(err, errReleasesNotFound) && follows {
+		return nil, nil, fmt.Errorf("%s follows stable releases, and %s.\n"+
+			"Nothing was pinned; the pin is unchanged.\n\n"+
+			"  Leave stable releases deliberately:  %s",
+			bold(name), releasesNotVisible(src.Repo), bold("nav-pilot install --user --ref <branch|sha> "+name))
+	}
 	if errors.Is(err, errReleasesNotFound) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), releasesNotVisible(src.Repo))
 		return src, nil, nil

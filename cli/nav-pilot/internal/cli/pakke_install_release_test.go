@@ -420,3 +420,21 @@ func TestFirstLaunchRefusesAReleaseWithoutThisClientsPayload(t *testing.T) {
 	assertNoPin(t, scope)
 	assertNotMaterialized(t, shaA)
 }
+
+// TestReinstallOverAFollowingPinRefusesA404: a re-install whose releases list
+// answers 404 does not move a following pin to the default branch; sync fails
+// closed in the same situation.
+func TestReinstallOverAFollowingPinRefusesA404(t *testing.T) {
+	scope, _ := followingPin(t)
+	stubRelease(t, 0, pakkeRelease{}, errReleasesNotFound)
+
+	var err error
+	captureStderrFor(t, func() {
+		captureStdoutFor(t, func() { err = installPakkePin(scope, tier2PinSource(t, shaB), false, false) })
+	})
+	if err == nil || !strings.Contains(err.Error(), "GITHUB_TOKEN") || !strings.Contains(err.Error(), "--ref") {
+		t.Fatalf("re-install over a following pin with a 404 = %v, want a refusal naming GITHUB_TOKEN and --ref", err)
+	}
+	assertPin(t, scope, shaA, "0.4.1", true)
+	assertNotMaterialized(t, shaB)
+}

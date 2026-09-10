@@ -654,7 +654,9 @@ var installRef string
 func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) error {
 	var release *pakkeRelease
 	if installRef == "" && !installFrozen && scope.IsUser() && pinnable(src.Repo) {
-		relSrc, rel, err := releaseStart(src)
+		existing, _ := readScopedState(scope) // an unreadable state is pinRevision's error to report
+		_, follows := releaseClaim(existing)
+		relSrc, rel, err := releaseStart(src, follows && sameSourceRepo(existing.SourceRepo, src.Repo))
 		if err != nil {
 			return err
 		}
