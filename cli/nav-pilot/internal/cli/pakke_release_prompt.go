@@ -164,14 +164,24 @@ func offerPakkeRelease(resolved ResolvedConfig, rev *Source) *Source {
 	updated, err := activatePakkeRelease(resolved, scope, state, name, *rel)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not update %s: %v\nLaunching the pinned revision %s.\n", yellow("⚠"), name, err, shortSHA(rev.SHA))
-		// The cached answer may be what was wrong: look again next launch.
-		entry.CheckedAt = time.Time{}
+		if errors.Is(err, errReleaseUnusable) {
+			// Asking again would fail again on every launch.
+			entry.Dismissed = rel.Version
+			fmt.Fprintf(os.Stderr, "%s %s will not be offered again.\n", name, rel.Version)
+		} else {
+			// The cached answer may be what was wrong: look again next launch.
+			entry.CheckedAt = time.Time{}
+		}
 		cache[key] = entry
 		writePakkeReleaseCache(cache)
 		return rev
 	}
 	return updated
 }
+
+// errReleaseUnusable marks a refusal about the release itself, which no retry
+// changes. Its text keeps the messages as they were.
+var errReleaseUnusable = errors.New("the pin is unchanged")
 
 // activatePakkeRelease moves the pin to exactly rel the way sync --apply does:
 // the release's own SHA, never a re-resolved branch, through pinRevision's
@@ -195,14 +205,14 @@ func activatePakkeRelease(resolved ResolvedConfig, scope *InstallScope, state *S
 	}
 	defer relSrc.Cleanup()
 	if !payloadOnly(relSrc) {
-		return nil, fmt.Errorf("%s %s does not ship pre-built payloads only; the pin is unchanged", name, rel.Version)
+		return nil, fmt.Errorf("%s %s does not ship pre-built payloads only; %w", name, rel.Version, errReleaseUnusable)
 	}
 	payloadCtx := resolved.PayloadContext
 	if payloadCtx == "" {
 		payloadCtx = relSrc.Pakke.DefaultContext(resolved.Client)
 	}
 	if _, ok := relSrc.Pakke.Payload(resolved.Client, payloadCtx); !ok {
-		return nil, fmt.Errorf("%s %s declares no %q payload for %s; the pin is unchanged", name, rel.Version, payloadCtx, resolved.Client)
+		return nil, fmt.Errorf("%s %s declares no %q payload for %s; %w", name, rel.Version, payloadCtx, resolved.Client, errReleaseUnusable)
 	}
 	// The prompt waited on a person, far longer than pinRevision's own window.
 	latest, err := readScopedState(scope)

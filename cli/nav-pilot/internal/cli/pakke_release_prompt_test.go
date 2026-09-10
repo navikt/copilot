@@ -250,6 +250,12 @@ func TestReleasePromptFailedUpdateLaunchesThePin(t *testing.T) {
 	}
 	assertPin(t, e.scope, shaC, "", false)
 	e.assertLaunchedFrom(t, shaC)
+
+	// A failure that may pass is not a No: the next launch asks again.
+	e.launch(t)
+	if len(e.asked) != 2 {
+		t.Errorf("a transient failure dismissed the release: asked %q", e.asked)
+	}
 }
 
 // TestDeletingTheReleaseCacheKeepsThePin: the cache holds lookups and answers,
@@ -426,6 +432,20 @@ func TestReleasePromptReleaseWithoutThisClient(t *testing.T) {
 	}
 	assertPin(t, e.scope, shaC, "", false)
 	e.assertLaunchedFrom(t, shaC)
+
+	// Asking again would fail again: that version is not offered again, a newer one is.
+	e.launch(t)
+	ageReleaseCache(t, 25*time.Hour)
+	e.launch(t)
+	if len(e.asked) != 1 {
+		t.Errorf("asked again about a release that cannot launch this client: %q", e.asked)
+	}
+	stubRelease(t, releaseCandidate, release042, nil)
+	ageReleaseCache(t, 25*time.Hour)
+	e.launch(t)
+	if len(e.asked) != 2 || !strings.Contains(e.asked[1], "0.4.2") {
+		t.Errorf("a newer version was not offered: %q", e.asked)
+	}
 }
 
 // TestReleasePromptCorruptCache: a cache that does not parse is no cache.
