@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -115,6 +116,18 @@ func (f *fakeGitHub) serve(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "test-token")
 }
 
+// TestReleasesList404IsDistinct: sync reads a 404 on the releases list as "no
+// metadata" for a pin that does not follow releases, so discovery must say
+// which request it was.
+func TestReleasesList404IsDistinct(t *testing.T) {
+	gh := fakeGitHub{status: http.StatusNotFound}
+	gh.serve(t)
+	_, _, err := discoverPakkeReleaseHTTP(context.Background(), "navikt/grillmester", "grillmester", "")
+	if !errors.Is(err, errReleasesNotFound) {
+		t.Fatalf("err = %v, want errReleasesNotFound", err)
+	}
+}
+
 func meta(name, version, sha string) string {
 	return fmt.Sprintf(`{"schemaVersion":1,"name":%q,"version":%q,"sourceSha":%q}`, name, version, sha)
 }
@@ -153,7 +166,7 @@ func TestDiscoverPakkeRelease(t *testing.T) {
 		{
 			name:    "unsupported schemaVersion",
 			gh:      fakeGitHub{releases: []fakeRelease{{tag: "v1.0.0", asset: `{"schemaVersion":2,"name":"grillmester"}`}}},
-			wantErr: "unsupported schemaVersion 2",
+			wantErr: "- schemaVersion: ",
 		},
 		{
 			name:    "unknown field",
@@ -170,9 +183,11 @@ func TestDiscoverPakkeRelease(t *testing.T) {
 			gh:      fakeGitHub{releases: []fakeRelease{{tag: "v1.0.0", asset: meta("grillmester", "1.0.0", shaA) + strings.Repeat(" ", pakkeReleaseAssetMax)}}},
 			wantErr: "larger than",
 		},
-		{name: "prerelease version", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0-rc.1", "1.0.0-rc.1", shaA)}}, wantErr: "- version: "},
+		{name: "prerelease version", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0-rc.1", shaA)}}, wantErr: "- version: "},
+		{name: "tag is not a version", gh: fakeGitHub{releases: []fakeRelease{good("latest", "1.0.0", shaA)}}, want: releaseNoMetadata},
+		{name: "releases list 404", gh: fakeGitHub{status: http.StatusNotFound}, wantErr: "GITHUB_TOKEN"},
 		{name: "v in version", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "v1.0.0", shaA)}}, wantErr: "- version: "},
-		{name: "leading zero", gh: fakeGitHub{releases: []fakeRelease{good("v01.0.0", "01.0.0", shaA)}}, wantErr: "- version: "},
+		{name: "leading zero", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "01.0.0", shaA)}}, wantErr: "- version: "},
 		{name: "tag does not bind", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.1", "1.0.0", shaA)}}, wantErr: "tag does not bind"},
 		{name: "short sha", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", "abc1234")}}, wantErr: "- sourceSha: "},
 		{name: "uppercase sha", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", strings.Repeat("A", 40))}}, wantErr: "- sourceSha: "},

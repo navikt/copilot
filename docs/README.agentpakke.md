@@ -527,7 +527,7 @@ Andre felt er ikke tillatt, og fila kan være høyst 64 KiB. Lint assetet mot [`
 ### Når en release kvalifiserer
 
 - Releasen er publisert, ikke draft, ikke prerelease, og `immutable: true`. Repoet må altså ha immutable releases slått på.
-- Taggen binder versjonen: fjern et valgfritt `<prefiks>/` og en valgfri `v`, og resten skal være lik `version`. Et prefiks må være pakkenavnet. For grillmester binder `v0.4.1`, `0.4.1` og `grillmester/v0.4.1` alle til `0.4.1`, mens en release tagget `annen/v0.4.1` hoppes over uten at assetet lastes ned.
+- Taggen binder versjonen: fjern et valgfritt `<prefiks>/` og en valgfri `v`, og resten skal være lik `version`. Et prefiks må være pakkenavnet. For grillmester binder `v0.4.1`, `0.4.1` og `grillmester/v0.4.1` alle til `0.4.1`, mens `annen/v0.4.1` og en tag som ikke er en versjon (for eksempel `latest`) hoppes over uten at assetet lastes ned.
 - Nedlastingsadressen GitHub lister for assetet, er repoets eget asset-endepunkt i API-et (`https://api.github.com/repos/<eier>/<repo>/releases/assets/…`). Tokenet sendes med nedlastingen, så en annen adresse avvises.
 - `sourceSha` ligger på standardgrenen: GitHubs compare fra `sourceSha` til standardgrenen gir `ahead` eller `identical`.
 - Samme versjon publisert med to ulike `sourceSha` er en feil, ikke et valg mellom dem.
@@ -544,7 +544,10 @@ Publiser releasen som stabil først når alle kontroller som godkjenner distribu
 - Er installert revisjon den samme som releasen, er pakka oppdatert. Er installert revisjon nyere enn eller divergert fra releasen, tilbys releasen ikke. Sync nedgraderer ikke.
 - Et repo uten metadata synkes fra standardgrenen som før, så lenge pinnen ikke følger releases.
 - En pinne som følger releases, faller aldri tilbake til standardgrenen. Manglende metadata, nettverksfeil, timeout (10 sekunder for hele oppslaget), rate limit og ugyldig metadata gir en feil, og pinnen står.
-- Feiler oppslaget for en pinne som ikke følger releases, hopper sync over oppdateringen med en advarsel (`warning` i `--json`) og avslutter som når ingenting er endret. Pinnen står. nav-pilot vet da ikke om repoet er release-basert, og pinner hverken en release eller standardgrenen på en gjetning.
+- Feiler oppslaget for en pinne som ikke følger releases, hopper sync over oppdateringen med en advarsel (`warning` og `skipped: true` i `--json`) og avslutter som når ingenting er endret. Pinnen står. nav-pilot vet da ikke om repoet er release-basert, og pinner hverken en release eller standardgrenen på en gjetning.
+- Oppslaget bruker `GITHUB_TOKEN`, ikke git-legitimasjonen kloningen bruker. Et privat repo krever derfor `GITHUB_TOKEN` for at releasene skal bli funnet. Uten token svarer GitHub 404 på releaselista. Da synkes en pinne som ikke følger releases fra standardgrenen som før, mens en pinne som følger releases feiler.
+- Mangler den pinnede revisjonen på disk og oppslaget ikke gir noe å flytte til, gjenoppretter `--apply` den på den pinnede SHA-en.
+- En eksplisitt `nav-pilot install` over en pinne som følger releases, pinner det kilden resolver til, og pinnen følger ikke releases lenger. Unntaket er når install lander på den samme revisjonen.
 - Kjenner GitHub ikke installert revisjon, feiler oppslaget med `--ref` som veien videre.
 - Pakkeversjonen og abonnementet registreres sammen med SHA-en de gjelder (`pakke_version_sha`). Flytter en eldre nav-pilot pinnen, gjelder de ikke lenger.
 - En launch bytter aldri ut en pinne som følger releases med standardgrenen. Mangler revisjonen på disk, nekter launchen og viser til `nav-pilot sync --user --apply`.

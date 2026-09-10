@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,6 +31,8 @@ type syncResult struct {
 	Version string `json:"version,omitempty"`
 	// Warning is a problem sync stepped around without changing anything.
 	Warning string `json:"warning,omitempty"`
+	// Skipped says sync did not check for an update at all; Warning says why.
+	Skipped bool `json:"skipped,omitempty"`
 }
 
 // syncPinBump is the committed pin moving, reported as its own unit of work.
@@ -715,6 +718,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 	}
 
 	var release *pakkeRelease
+	var warning string // a lookup problem this sync stepped around
 	if ref == "" {
 		name := state.Collection
 		if src.Pakke != nil {
@@ -722,6 +726,18 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 		}
 		version, follows := releaseClaim(state)
 		outcome, rel, err := discoverPakkeRelease(context.Background(), src.Repo, name, state.SourceSHA)
+		if errors.Is(err, errReleasesNotFound) && !follows {
+			// A private repo without GITHUB_TOKEN answers 404 here, while git
+			// clones it with the user's own credentials. That is how such a pin
+			// synced before releases existed, so it still does. A following pin
+			// fails closed below.
+			outcome, err = releaseNoMetadata, nil
+		}
+		// A pin whose revision directory is gone is restored at its own SHA
+		// when the lookup gives nothing to move to. "Up to date" or "not
+		// offered" over a missing revision is the frozen success the
+		// wiped-revision branch below exists to close.
+		restore := false
 		switch {
 		case err != nil && follows:
 			return fmt.Errorf("looking up stable releases of %s: %w\n\nThe pin is unchanged at %s", src.Repo, err, shortSHA(state.SourceSHA))
@@ -731,13 +747,19 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 			// guess: no release is confirmed, and the default branch would land
 			// ahead of every release, where the downgrade guard keeps it. It
 			// exits the way a sync with nothing to change does.
-			warning := fmt.Sprintf("could not look up stable releases of %s, so nothing was updated; the pin is unchanged at %s: %v",
+			warning = fmt.Sprintf("could not look up stable releases of %s, so no update was checked; the pin stays at %s: %v",
 				src.Repo, shortSHA(state.SourceSHA), err)
-			if jsonOutput {
-				return outputJSON(syncResult{UpToDate: true, Source: state.SourceSHA, Version: version, Warning: warning})
+			if pinnedRevisionOnDisk(state) {
+				if jsonOutput {
+					return outputJSON(syncResult{UpToDate: true, Skipped: true, Source: state.SourceSHA, Version: version, Warning: warning})
+				}
+				fmt.Printf("%s %s\n", yellow("⚠"), warning)
+				return nil
 			}
-			fmt.Printf("%s %s\n", yellow("⚠"), warning)
-			return nil
+			if !jsonOutput {
+				fmt.Printf("%s %s\n", yellow("⚠"), warning)
+			}
+			restore = true
 		case outcome == releaseNoMetadata && follows:
 			return fmt.Errorf(
 				"%s follows stable releases, and %s has no stable release with %s for it.\n"+
@@ -747,6 +769,8 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 				bold("nav-pilot sync --user --apply --ref <branch|sha>"))
 		case outcome == releaseNoMetadata:
 			// Not release-backed: the default branch, as before.
+		case outcome == releaseNotOffered && !pinnedRevisionOnDisk(state):
+			restore = true
 		case outcome == releaseNotOffered:
 			if jsonOutput {
 				return outputJSON(syncResult{UpToDate: true, Source: state.SourceSHA, Version: version})
@@ -771,6 +795,17 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 					rel.Tag, name, rel.SHA, relSrc.SHA, pakkeInstallTarget(relSrc))
 			}
 			src, release = relSrc, &rel
+		}
+		if restore {
+			pinned, err := resolveSourceForSync(state.SourceSHA, src.Repo)
+			if err != nil {
+				return fmt.Errorf("fetching the pinned revision %s: %w", shortSHA(state.SourceSHA), err)
+			}
+			defer pinned.Cleanup()
+			if !sameSHA(pinned.SHA, state.SourceSHA) {
+				return fmt.Errorf("the pinned revision %s resolved to %s; the pin is unchanged", state.SourceSHA, pinned.SHA)
+			}
+			src = pinned
 		}
 	}
 
@@ -797,7 +832,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 	if !pinnedRevisionOnDisk(state) {
 		if !apply {
 			if jsonOutput {
-				if err := outputJSON(syncResult{UpToDate: false, Source: src.SHA, Version: release.version()}); err != nil {
+				if err := outputJSON(syncResult{UpToDate: false, Source: src.SHA, Version: release.version(), Warning: warning}); err != nil {
 					return err
 				}
 				return errUpdatesAvailable
@@ -812,7 +847,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 			return err
 		}
 		if jsonOutput {
-			return outputJSON(syncResult{UpToDate: true, Source: src.SHA, Version: release.version()})
+			return outputJSON(syncResult{UpToDate: true, Source: src.SHA, Version: release.version(), Warning: warning})
 		}
 		fmt.Printf("%s Restored %s at revision %s.\n", green("✓"), bold(src.Pakke.Name), shortSHA(src.SHA))
 		return nil
@@ -827,7 +862,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 	// it short is harmless, and the next real update writes it out in full.
 	if sameSHA(src.SHA, state.SourceSHA) {
 		if jsonOutput {
-			return outputJSON(syncResult{UpToDate: true, Source: src.SHA, Version: release.version()})
+			return outputJSON(syncResult{UpToDate: true, Source: src.SHA, Version: release.version(), Warning: warning})
 		}
 		fmt.Printf("%s %s is up to date (pinned at %s).\n", green("✓"), bold(src.Pakke.Name), shortSHA(src.SHA))
 		return nil
@@ -835,7 +870,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 
 	if !apply {
 		if jsonOutput {
-			if err := outputJSON(syncResult{UpToDate: false, Source: src.SHA, Version: release.version()}); err != nil {
+			if err := outputJSON(syncResult{UpToDate: false, Source: src.SHA, Version: release.version(), Warning: warning}); err != nil {
 				return err
 			}
 			return errUpdatesAvailable
@@ -850,7 +885,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 		return err
 	}
 	if jsonOutput {
-		return outputJSON(syncResult{UpToDate: true, Source: src.SHA, Version: release.version()})
+		return outputJSON(syncResult{UpToDate: true, Source: src.SHA, Version: release.version(), Warning: warning})
 	}
 	fmt.Printf("%s Updated %s to revision %s.\n", green("✓"), bold(src.Pakke.Name), release.label(src.SHA))
 	return nil

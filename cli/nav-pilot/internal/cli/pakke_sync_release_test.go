@@ -133,6 +133,7 @@ func TestFollowedPinNeverFallsBackToTheDefaultBranch(t *testing.T) {
 	}{
 		"no metadata any more": {releaseNoMetadata, nil},
 		"lookup fails":         {0, errors.New("GitHub API returned 403")},
+		"releases list 404":    {0, errReleasesNotFound},
 	} {
 		t.Run(name, func(t *testing.T) {
 			scope, _ := followingPin(t)
@@ -193,8 +194,59 @@ func TestUnfollowedPinSkipsOnAFailedLookup(t *testing.T) {
 	if err != nil || json.Unmarshal([]byte(out), &res) != nil {
 		t.Fatalf("sync --apply --json = %v. Output:\n%s", err, out)
 	}
-	if res.Warning == "" || res.Source != shaC {
-		t.Errorf("JSON = %+v, want a warning and the pin at %s", res, shaC)
+	if res.Warning == "" || !res.Skipped || res.Source != shaC {
+		t.Errorf("JSON = %+v, want skipped, a warning and the pin at %s", res, shaC)
+	}
+}
+
+// TestUnfollowedPrivateRepoSyncsAsBefore: a private repo without GITHUB_TOKEN
+// answers 404 for its releases while git still clones it. A pin that does not
+// follow releases syncs from the default branch, as it did before releases.
+func TestUnfollowedPrivateRepoSyncsAsBefore(t *testing.T) {
+	scope := pinEnv(t)
+	installPin(t, scope, tier2PinSource(t, shaC))
+	releaseSyncSource(t, shaB)
+	stubRelease(t, 0, pakkeRelease{}, errReleasesNotFound)
+
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	if err != nil {
+		t.Fatalf("sync --apply = %v. Output:\n%s", err, out)
+	}
+	assertPin(t, scope, shaB, "", false)
+}
+
+// TestMissingRevisionIsRestoredAtThePin: with nothing to move to, a pin whose
+// revision directory is gone is restored at its own SHA by --apply, not
+// reported up to date over an empty directory.
+func TestMissingRevisionIsRestoredAtThePin(t *testing.T) {
+	for name, stub := range map[string]struct {
+		outcome releaseOutcome
+		err     error
+	}{
+		"not offered":  {releaseNotOffered, nil},
+		"lookup fails": {0, errors.New("GitHub API returned 403")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			scope := pinEnv(t)
+			installPin(t, scope, tier2PinSource(t, shaC))
+			if err := os.RemoveAll(pakkerRoot()); err != nil {
+				t.Fatal(err)
+			}
+			releaseSyncSource(t, shaB)
+			stubRelease(t, stub.outcome, release041, stub.err)
+
+			var err error
+			out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+			if err != nil {
+				t.Fatalf("sync --apply = %v. Output:\n%s", err, out)
+			}
+			assertRevisionVerifies(t, pakkeRevisionDir("navikt/grillmester", shaC))
+			assertPin(t, scope, shaC, "", false)
+			if _, statErr := os.Stat(pakkeRevisionDir("navikt/grillmester", shaB)); !os.IsNotExist(statErr) {
+				t.Errorf("the default branch revision was materialized (stat err %v)", statErr)
+			}
+		})
 	}
 }
 
@@ -339,6 +391,10 @@ func TestStaleReleaseClaimIsIgnored(t *testing.T) {
 		Collection: "grillmester", Scope: scope.Name, SourceRepo: "navikt/grillmester", SourceSHA: shaB,
 		PakkeVersion: "0.4.1", FollowsReleases: true, PakkeVersionSHA: shaA,
 	}); err != nil {
+		t.Fatal(err)
+	}
+	// The revision is on disk, so neither step below is about restoring it.
+	if err := os.MkdirAll(pakkeRevisionDir("navikt/grillmester", shaB), 0o755); err != nil {
 		t.Fatal(err)
 	}
 

@@ -90,6 +90,10 @@ func releaseClaim(state *StateFile) (version string, follows bool) {
 // errGitHubNotFound marks a 404 from the GitHub API.
 var errGitHubNotFound = errors.New("not found")
 
+// errReleasesNotFound marks a 404 for the releases list itself: a repo that is
+// gone, or a private one that GITHUB_TOKEN does not reach.
+var errReleasesNotFound = errors.New("GitHub answered 404 for the releases list (a private repo needs GITHUB_TOKEN)")
+
 // discoverPakkeRelease is the lookup sync uses. A var so sync tests can stub it
 // without a network call.
 var discoverPakkeRelease = discoverPakkeReleaseHTTP
@@ -105,12 +109,12 @@ type ghPakkeRelease struct {
 	} `json:"assets"`
 }
 
-// pakkeReleaseMetadata is schemaVersion 1 of agentpakke-release.json.
+// pakkeReleaseMetadata is agentpakke-release.json once the published schema,
+// schemaVersion included, has accepted it.
 type pakkeReleaseMetadata struct {
-	SchemaVersion int    `json:"schemaVersion"`
-	Name          string `json:"name"`
-	Version       string `json:"version"`
-	SourceSHA     string `json:"sourceSha"`
+	Name      string `json:"name"`
+	Version   string `json:"version"`
+	SourceSHA string `json:"sourceSha"`
 }
 
 // strictSemver orders release tags before any asset is downloaded. The asset's
@@ -165,6 +169,9 @@ func discoverPakkeReleaseHTTP(ctx context.Context, repo, name, installedSHA stri
 	// stable release is older than that is reported as not release-backed;
 	// follow the Link header if a repo ever gets there.
 	if err := githubJSON(ctx, fmt.Sprintf("%s/repos/%s/releases?per_page=100", githubAPIBase, repo), &releases); err != nil {
+		if errors.Is(err, errGitHubNotFound) {
+			err = errReleasesNotFound
+		}
 		return 0, pakkeRelease{}, fmt.Errorf("listing releases of %s: %w", repo, err)
 	}
 
@@ -172,7 +179,6 @@ func discoverPakkeReleaseHTTP(ctx context.Context, repo, name, installedSHA stri
 		tag      string
 		assetURL string
 		version  agentpakke.Semver3
-		ok       bool // the tag parses as a version at all
 	}
 	// The token goes with the asset download, so the URL must be this repo's
 	// own asset endpoint on the API, whatever the listing says.
@@ -189,6 +195,10 @@ func discoverPakkeReleaseHTTP(ctx context.Context, repo, name, installedSHA stri
 		if i := strings.LastIndex(r.TagName, "/"); i >= 0 && r.TagName[:i] != name {
 			continue
 		}
+		v, ok := parseStrictSemver(tagVersion(r.TagName))
+		if !ok {
+			continue // a tag that is not a version cannot bind one
+		}
 		for _, a := range r.Assets {
 			if a.Name != pakkeReleaseAsset {
 				continue
@@ -197,25 +207,16 @@ func discoverPakkeReleaseHTTP(ctx context.Context, repo, name, installedSHA stri
 				invalid = append(invalid, fmt.Sprintf("%s: asset URL %q is not an asset of %s", r.TagName, a.URL, repo))
 				continue
 			}
-			v, ok := parseStrictSemver(tagVersion(r.TagName))
-			cands = append(cands, candidate{tag: r.TagName, assetURL: a.URL, version: v, ok: ok})
+			cands = append(cands, candidate{tag: r.TagName, assetURL: a.URL, version: v})
 		}
 	}
-	// Newest tag first, so the lookup downloads only until it has a winner.
-	// A tag that is not a version cannot bind, but is still downloaded when
-	// nothing else is valid: it may be another package's release, and only its
-	// name says so.
-	sort.SliceStable(cands, func(i, j int) bool {
-		if cands[i].ok != cands[j].ok {
-			return cands[i].ok
-		}
-		return cands[i].version.Compare(cands[j].version) > 0
-	})
+	// Newest version first, so the lookup downloads only until it has a winner.
+	sort.SliceStable(cands, func(i, j int) bool { return cands[i].version.Compare(cands[j].version) > 0 })
 
 	var chosen *pakkeRelease
 	var chosenVersion agentpakke.Semver3
 	for _, c := range cands {
-		if chosen != nil && (!c.ok || c.version.Compare(chosenVersion) < 0) {
+		if chosen != nil && c.version.Compare(chosenVersion) < 0 {
 			break
 		}
 		meta, err := readPakkeReleaseMetadata(ctx, c.assetURL)
@@ -316,17 +317,6 @@ func readPakkeReleaseMetadata(ctx context.Context, assetURL string) (pakkeReleas
 		return meta, fmt.Errorf("larger than %d bytes", pakkeReleaseAssetMax)
 	}
 
-	// schemaVersion first, so a newer format reads as unsupported rather than
-	// as a pile of unknown fields.
-	var probe struct {
-		SchemaVersion int `json:"schemaVersion"`
-	}
-	if err := json.Unmarshal(body, &probe); err != nil {
-		return meta, fmt.Errorf("not valid JSON: %w", err)
-	}
-	if probe.SchemaVersion != 1 {
-		return meta, fmt.Errorf("unsupported schemaVersion %d (this nav-pilot reads 1)", probe.SchemaVersion)
-	}
 	// The published schema, not a second copy of its rules here: the binary and
 	// the file a package owner lints with cannot disagree.
 	if err := agentpakke.ValidateRelease(body); err != nil {
