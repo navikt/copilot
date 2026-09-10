@@ -55,6 +55,11 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 			// path, and reached without resolving anything.
 			return false, payloadContextUnsupported(resolved, resolved.Source)
 		}
+		// A newer stable release is offered in a terminal only (#779). CI and
+		// scripted launches read the pin and nothing else.
+		if isInteractive() {
+			rev = offerPakkeRelease(resolved, rev)
+		}
 	} else {
 		var handled bool
 		rev, handled, err = resolveAndPin(resolved)
