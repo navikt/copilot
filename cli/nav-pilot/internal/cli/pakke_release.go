@@ -54,9 +54,9 @@ const (
 
 // pakkeRelease is one checked stable release of a package.
 type pakkeRelease struct {
-	Version string
-	SHA     string
-	Tag     string
+	Version string `json:"version"`
+	SHA     string `json:"sha"`
+	Tag     string `json:"tag"`
 }
 
 // version is the release version, or "" for no release.
@@ -301,6 +301,87 @@ func discoverPakkeReleaseHTTP(ctx context.Context, repo, name, installedSHA stri
 	default: // behind, diverged
 		return releaseNotOffered, *chosen, nil
 	}
+}
+
+// fetchPakkeRelease resolves exactly rel's source SHA in repo, and refuses a
+// revision that is not the package the release names. The caller cleans up the
+// source.
+func fetchPakkeRelease(repo, name string, rel pakkeRelease) (*Source, error) {
+	relSrc, err := resolveSourceForSync(rel.SHA, repo)
+	if err != nil {
+		return nil, fmt.Errorf("fetching %s %s (%s): %w", name, rel.Version, shortSHA(rel.SHA), err)
+	}
+	if !sameSHA(relSrc.SHA, rel.SHA) || relSrc.Pakke == nil || relSrc.Pakke.Name != name {
+		relSrc.Cleanup()
+		return nil, fmt.Errorf("%s names %s at %s, but that revision resolved to %s shipping %q; the pin is unchanged",
+			rel.Tag, name, rel.SHA, relSrc.SHA, pakkeInstallTarget(relSrc))
+	}
+	return relSrc, nil
+}
+
+// releaseStart is where a new pin of the payload-only source src starts (#779):
+// the newest stable release when the source publishes one, src itself when it
+// publishes no metadata. Default-branch HEAD is usually ahead of the newest
+// release, and a pin that starts there is never offered a release afterwards.
+//
+// A failed lookup is an error. There is no pin to keep, and pinning HEAD on a
+// guess strands the install ahead of every release. The caller cleans up a
+// returned source that is not src.
+func releaseStart(src *Source) (*Source, *pakkeRelease, error) {
+	name := src.Pakke.Name
+	outcome, rel, err := discoverPakkeRelease(context.Background(), src.Repo, name, "")
+	if err != nil {
+		return nil, nil, fmt.Errorf("looking up stable releases of %s: %w\n\n"+
+			"Nothing was pinned; nav-pilot does not start %s on the default branch when it cannot tell whether a stable release exists.\n\n"+
+			"  Pin a revision deliberately:  %s",
+			src.Repo, err, name, bold("nav-pilot install --user --ref <branch|sha> "+name))
+	}
+	if outcome != releaseCandidate { // no metadata: the only other outcome with nothing installed
+		return src, nil, nil
+	}
+	relSrc, err := fetchPakkeRelease(src.Repo, name, rel)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !payloadOnly(relSrc) {
+		relSrc.Cleanup()
+		return nil, nil, fmt.Errorf("%s %s (%s) does not ship pre-built payloads only, so this nav-pilot cannot pin it; nothing was pinned",
+			name, rel.Version, rel.Tag)
+	}
+	return relSrc, &rel, nil
+}
+
+// pakkeReleaseStatus is what status reports about a pinned agentpakke (#779).
+type pakkeReleaseStatus struct {
+	// Version is empty unless the state recorded it for the pinned SHA.
+	Version         string `json:"version,omitempty"`
+	PinnedSHA       string `json:"pinned_sha"`
+	FollowsReleases bool   `json:"follows_releases"`
+	// PendingRelease is a newer stable release sync would move the pin to.
+	PendingRelease    *pakkeRelease `json:"pending_release,omitempty"`
+	ReleaseCheckError string        `json:"release_check_error,omitempty"`
+}
+
+// pakkeStatus reports a user-scope pin, looking the releases up live. It is nil
+// for anything that is not a pin of a repo. A failed lookup is reported in the
+// result and never fails the caller.
+//
+// ponytail: live lookup per status call, bounded by pakkeReleaseTimeout; the
+// startup prompt slice adds the cache.
+func pakkeStatus(scope *InstallScope, state *StateFile) *pakkeReleaseStatus {
+	if scope == nil || !scope.IsUser() || !pinnedState(state) || !pinnable(state.SourceRepo) {
+		return nil
+	}
+	version, follows := releaseClaim(state)
+	st := &pakkeReleaseStatus{Version: version, PinnedSHA: state.SourceSHA, FollowsReleases: follows}
+	outcome, rel, err := discoverPakkeRelease(context.Background(), state.SourceRepo, state.Collection, state.SourceSHA)
+	switch {
+	case err != nil:
+		st.ReleaseCheckError = err.Error()
+	case outcome == releaseCandidate:
+		st.PendingRelease = &rel
+	}
+	return st
 }
 
 // readPakkeReleaseMetadata downloads and strictly decodes one metadata asset.

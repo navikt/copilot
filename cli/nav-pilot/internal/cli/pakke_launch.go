@@ -367,7 +367,11 @@ func autoPin(src *Source) (*Source, error) {
 		return &Source{Dir: revDir, SHA: src.SHA, Repo: src.Repo, Pakke: src.Pakke}, nil
 	}
 
+	// First launch: nothing is pinned in user scope yet. A pin that exists with
+	// its revision gone is not a first launch, and keeps today's handling below.
+	firstPin := true
 	if state, err := readScopedState(scope); err == nil && state != nil {
+		firstPin = state.SourceSHA == ""
 		// Files would be orphaned by the zero-item pin that replaces them, and
 		// a recorded pin on another source has whole materialized revision
 		// trees behind it that pinRevision removes. Either way a launch would
@@ -408,13 +412,30 @@ func autoPin(src *Source) (*Source, error) {
 		}
 	}
 
+	// The first pin starts on the newest stable release, like install (#779).
+	var release *pakkeRelease
+	if firstPin {
+		relSrc, rel, err := releaseStart(src)
+		if err != nil {
+			return nil, err
+		}
+		if relSrc != src {
+			defer relSrc.Cleanup()
+		}
+		src, release = relSrc, rel
+	}
+
 	// A launch has no JSON mode: everything it prints is for a person.
-	revDir, err := pinRevision(scope, src, nil, false, false)
+	revDir, err := pinRevision(scope, src, release, false, false)
 	if err != nil {
 		return nil, err
 	}
+	pinned := src.SHA
+	if release != nil {
+		pinned = release.label(src.SHA)
+	}
 	fmt.Printf("%s Pinned %s at %s — future launches use the local copy; %s updates it.\n",
-		green("✓"), bold(src.Pakke.Name), src.SHA, bold("nav-pilot sync"))
+		green("✓"), bold(src.Pakke.Name), pinned, bold("nav-pilot sync"))
 	return &Source{Dir: revDir, SHA: src.SHA, Repo: src.Repo, Pakke: src.Pakke}, nil
 }
 

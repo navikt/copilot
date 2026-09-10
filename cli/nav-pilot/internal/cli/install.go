@@ -1099,12 +1099,16 @@ func cmdListInstalledAuto(repoDir string, jsonOutput bool) error {
 		}
 		if userState != nil {
 			ok, modified, missing, ignored, _ := countFileIntegrity(userScope.RootDir, userState)
-			scopes = append(scopes, map[string]interface{}{
+			doc := map[string]interface{}{
 				"scope": "user", "collection": userState.Collection,
 				"version": userState.Version, "source_sha": userState.SourceSHA,
 				"installed_at": userState.InstalledAt, "files": len(userState.Files),
 				"ok": ok, "modified": modified, "missing": missing, "ignored": ignored,
-			})
+			}
+			if st := pakkeStatus(userScope, userState); st != nil {
+				doc["pakke"] = st
+			}
+			scopes = append(scopes, doc)
 		}
 		for _, p := range allProviders() {
 			cs := p.ContextStatus()
@@ -1166,7 +1170,7 @@ func cmdListInstalledScoped(scope *InstallScope, _ bool, jsonOutput bool) error 
 
 	if jsonOutput {
 		ok, modified, missing, ignored, _ := countFileIntegrity(scope.RootDir, state)
-		return outputJSON(map[string]interface{}{
+		doc := map[string]interface{}{
 			"installed":    true,
 			"collection":   state.Collection,
 			"version":      state.Version,
@@ -1178,7 +1182,11 @@ func cmdListInstalledScoped(scope *InstallScope, _ bool, jsonOutput bool) error 
 			"modified":     modified,
 			"missing":      missing,
 			"ignored":      ignored,
-		})
+		}
+		if st := pakkeStatus(scope, state); st != nil {
+			doc["pakke"] = st
+		}
+		return outputJSON(doc)
 	}
 
 	printStatusBlock(scope, state)
@@ -1205,6 +1213,27 @@ func foreignFileCounts(state *StateFile) ([]string, map[string]int) {
 	return sources, counts
 }
 
+// printPakkeStatus prints the release lines of a pinned agentpakke (#779).
+func printPakkeStatus(st *pakkeReleaseStatus) {
+	version := st.Version
+	if version == "" {
+		version = dim("unknown")
+	}
+	follows := "no"
+	if st.FollowsReleases {
+		follows = "yes"
+	}
+	fmt.Printf("  Package:     %s (pinned at %s)\n", version, shortSHA(st.PinnedSHA))
+	fmt.Printf("  Releases:    follows stable releases: %s\n", follows)
+	switch {
+	case st.ReleaseCheckError != "":
+		fmt.Printf("  %s release check failed: %s\n", yellow("⚠"), st.ReleaseCheckError)
+	case st.PendingRelease != nil:
+		fmt.Printf("  %s Release %s is available. Run %s to update.\n",
+			yellow("⚠"), st.PendingRelease.label(st.PendingRelease.SHA), bold("nav-pilot sync --user --apply"))
+	}
+}
+
 func printStatusBlock(scope *InstallScope, state *StateFile) {
 	ok, modified, missing, ignored, modifiedPaths := countFileIntegrity(scope.RootDir, state)
 
@@ -1223,6 +1252,9 @@ func printStatusBlock(scope *InstallScope, state *StateFile) {
 	fmt.Printf("  Version:     %s\n", state.Version)
 	fmt.Printf("  Scope:       %s\n", scope.Name)
 	fmt.Printf("  Source:      %s\n", shortSHA(state.SourceSHA))
+	if st := pakkeStatus(scope, state); st != nil {
+		printPakkeStatus(st)
+	}
 	fmt.Printf("  Installed:   %s\n", state.InstalledAt)
 	fmt.Printf("  Files:       %d\n", len(state.Files))
 	fmt.Println()

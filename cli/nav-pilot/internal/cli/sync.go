@@ -802,15 +802,11 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 			// is not a choice to follow the release it happens to be.
 			restore = true
 		default: // a candidate, or a following pin up to date with its revision gone
-			relSrc, err := resolveSourceForSync(rel.SHA, src.Repo)
+			relSrc, err := fetchPakkeRelease(src.Repo, name, rel)
 			if err != nil {
-				return fmt.Errorf("fetching %s %s (%s): %w", name, rel.Version, shortSHA(rel.SHA), err)
+				return err
 			}
 			defer relSrc.Cleanup()
-			if !sameSHA(relSrc.SHA, rel.SHA) || relSrc.Pakke == nil || relSrc.Pakke.Name != name {
-				return fmt.Errorf("%s names %s at %s, but that revision resolved to %s shipping %q; the pin is unchanged",
-					rel.Tag, name, rel.SHA, relSrc.SHA, pakkeInstallTarget(relSrc))
-			}
 			src, release = relSrc, &rel
 		}
 		if restore {

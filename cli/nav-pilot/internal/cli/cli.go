@@ -591,8 +591,8 @@ func run(args []string) error {
 
 	switch command {
 	case "install":
-		installFrozen = frozen
-		defer func() { installFrozen = false }()
+		installFrozen, installRef = frozen, ref
+		defer func() { installFrozen, installRef = false, "" }()
 		return runWithCommandTelemetry("install", telemetryMode(), scope.Name, func() error {
 			install := func(err error) error {
 				return finishInstall(err, sourceRepo, dryRun, installType == "")
