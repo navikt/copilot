@@ -565,6 +565,9 @@ Publiser releasen som stabil først når alle kontroller som godkjenner distribu
 - Feiler oppslaget, pinnes ingenting, og kommandoen feiler med årsaken. Det finnes ingen pinne å beholde, og en pinne på standardgrenen ville ligget foran nyeste release, der nedgraderingsvernet holder den fast.
 - Er revisjonen i releasen ikke lenger payload-only, pinnes ingenting.
 - `--ref` pinner den revisjonen som før, og pinnen følger ikke releases. `--frozen` slår ikke opp releaser.
+- Svarer GitHub 404 på releaselista, som et privat repo gjør uten `GITHUB_TOKEN`, pinnes standardgrenen som før, med advarselen `releases for <repo> are not visible (GitHub answered 404); set GITHUB_TOKEN if the repo is private` på stderr.
+- Kjøres `install` på nytt over en pinne som allerede finnes, flyttes pinnen til nyeste release uten nedgraderingsvern. Install er brukerens eget valg, slik `--ref` er det.
+- Deklarerer releasen ikke payload for klienten som startes, pinner første launch ingenting og stopper med en forklaring.
 - En launch over en pinne som allerede er registrert, med revisjonen borte fra disk, slår ikke opp releaser.
 
 ### Status

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -93,6 +94,12 @@ var errGitHubNotFound = errors.New("not found")
 // errReleasesNotFound marks a 404 for the releases list itself: a repo that is
 // gone, or a private one that GITHUB_TOKEN does not reach.
 var errReleasesNotFound = errors.New("GitHub answered 404 for the releases list (a private repo needs GITHUB_TOKEN)")
+
+// releasesNotVisible is the warning for a source whose releases list is a 404,
+// shared by sync and a new pin.
+func releasesNotVisible(repo string) string {
+	return fmt.Sprintf("releases for %s are not visible (GitHub answered 404); set GITHUB_TOKEN if the repo is private", repo)
+}
 
 // discoverPakkeRelease is the lookup sync uses. A var so sync tests can stub it
 // without a network call.
@@ -325,11 +332,19 @@ func fetchPakkeRelease(repo, name string, rel pakkeRelease) (*Source, error) {
 // release, and a pin that starts there is never offered a release afterwards.
 //
 // A failed lookup is an error. There is no pin to keep, and pinning HEAD on a
-// guess strands the install ahead of every release. The caller cleans up a
-// returned source that is not src.
+// guess strands the install ahead of every release. The one exception is a 404
+// for the releases list, which is what a private repo without GITHUB_TOKEN
+// answers while git clones it with the user's own credentials: that source
+// installed from its default branch before releases existed, and still does,
+// with a warning on stderr (stdout may be an install's JSON document). The
+// caller cleans up a returned source that is not src.
 func releaseStart(src *Source) (*Source, *pakkeRelease, error) {
 	name := src.Pakke.Name
 	outcome, rel, err := discoverPakkeRelease(context.Background(), src.Repo, name, "")
+	if errors.Is(err, errReleasesNotFound) {
+		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), releasesNotVisible(src.Repo))
+		return src, nil, nil
+	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("looking up stable releases of %s: %w\n\n"+
 			"Nothing was pinned; nav-pilot does not start %s on the default branch when it cannot tell whether a stable release exists.\n\n"+
@@ -366,8 +381,10 @@ type pakkeReleaseStatus struct {
 // for anything that is not a pin of a repo. A failed lookup is reported in the
 // result and never fails the caller.
 //
-// ponytail: live lookup per status call, bounded by pakkeReleaseTimeout; the
-// startup prompt slice adds the cache.
+// ponytail: no cache, a live lookup per status call bounded by
+// pakkeReleaseTimeout. A lookup is up to four API requests, so anonymous use
+// (60 requests/hour) tops out around 15 runs an hour before status reports a
+// rate limit; the startup prompt slice adds the cache.
 func pakkeStatus(scope *InstallScope, state *StateFile) *pakkeReleaseStatus {
 	if scope == nil || !scope.IsUser() || !pinnedState(state) || !pinnable(state.SourceRepo) {
 		return nil

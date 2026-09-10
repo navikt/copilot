@@ -180,7 +180,7 @@ func TestFirstLaunchStartsOnTheRelease(t *testing.T) {
 
 	var rev *Source
 	var err error
-	out := captureStdoutFor(t, func() { rev, err = autoPin(tier2PinSource(t, shaB)) })
+	out := captureStdoutFor(t, func() { rev, err = autoPin(tier2PinSource(t, shaB), "copilot") })
 	if err != nil {
 		t.Fatalf("autoPin = %v. Output:\n%s", err, out)
 	}
@@ -201,7 +201,7 @@ func TestFirstLaunchRefusesOnAFailedLookup(t *testing.T) {
 	stubRelease(t, 0, pakkeRelease{}, errors.New("context deadline exceeded"))
 
 	var err error
-	captureStdoutFor(t, func() { _, err = autoPin(tier2PinSource(t, shaB)) })
+	captureStdoutFor(t, func() { _, err = autoPin(tier2PinSource(t, shaB), "copilot") })
 	if err == nil || !strings.Contains(err.Error(), "context deadline exceeded") {
 		t.Fatalf("autoPin over a failed lookup = %v, want a refusal", err)
 	}
@@ -221,7 +221,7 @@ func TestLaunchOfAnExistingPinDoesNotLookUp(t *testing.T) {
 	calls := stubRelease(t, releaseCandidate, release041, nil)
 
 	var err error
-	out := captureStdoutFor(t, func() { _, err = autoPin(tier2PinSource(t, shaB)) })
+	out := captureStdoutFor(t, func() { _, err = autoPin(tier2PinSource(t, shaB), "copilot") })
 	if err != nil {
 		t.Fatalf("autoPin = %v. Output:\n%s", err, out)
 	}
@@ -377,4 +377,46 @@ func TestStatusDoesNotLookUpForAFileInstall(t *testing.T) {
 	if *calls != 0 || strings.Contains(out, "Package:") || strings.Contains(jsonOut, `"pakke"`) {
 		t.Errorf("a file install got release status (%d lookups). Output:\n%s\n%s", *calls, out, jsonOut)
 	}
+}
+
+// TestInstallFallsBackWhenReleasesAreNotVisible: a private repo without
+// GITHUB_TOKEN answers 404 for its releases, and still installs from its
+// default branch as it did before releases existed, with a warning.
+func TestInstallFallsBackWhenReleasesAreNotVisible(t *testing.T) {
+	scope := pinEnv(t)
+	refs := releaseSyncSource(t, shaA)
+	stubRelease(t, 0, pakkeRelease{}, errReleasesNotFound)
+
+	var err error
+	stderr := captureStderrFor(t, func() {
+		captureStdoutFor(t, func() { err = installPakkePin(scope, tier2PinSource(t, shaB), false, false) })
+	})
+	if err != nil {
+		t.Fatalf("install over a 404 for releases = %v, want the default branch", err)
+	}
+	if !strings.Contains(stderr, "set GITHUB_TOKEN") {
+		t.Errorf("no warning on stderr: %q", stderr)
+	}
+	assertPin(t, scope, shaB, "", false)
+	if len(*refs) != 0 {
+		t.Errorf("fetched %v for a repo whose releases are not visible", *refs)
+	}
+}
+
+// TestFirstLaunchRefusesAReleaseWithoutThisClientsPayload: the tier gate ran on
+// the resolved revision. A release that ships no payload for the launched client
+// is not pinned, rather than pinned and then refused by the launch.
+func TestFirstLaunchRefusesAReleaseWithoutThisClientsPayload(t *testing.T) {
+	scope := pinEnv(t)
+	releaseSyncSource(t, shaB)
+	stubRelease(t, releaseCandidate, release041, nil)
+
+	var err error
+	// The fixture declares copilot, opencode and pi.
+	captureStdoutFor(t, func() { _, err = autoPin(tier2PinSource(t, shaB), "claude") })
+	if err == nil || !strings.Contains(err.Error(), "no pre-built payload for claude") {
+		t.Fatalf("autoPin of a release without the client's payload = %v, want a refusal", err)
+	}
+	assertNoPin(t, scope)
+	assertNotMaterialized(t, shaA)
 }

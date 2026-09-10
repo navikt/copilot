@@ -315,7 +315,7 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 
 	// Past the tier gate the launch is Tier 2 and fails closed: it never
 	// degrades to the legacy path with the user's own ~/.copilot injected.
-	rev, err := autoPin(src)
+	rev, err := autoPin(src, resolved.Client)
 	return rev, true, err
 }
 
@@ -329,7 +329,11 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 // and the revisions it left. An explicit install is the consent for that; a
 // launch has no consent gesture at all, so it stops and names the command that
 // does.
-func autoPin(src *Source) (*Source, error) {
+//
+// client is the client being launched. The tier gate in [resolveAndPin] ran on
+// the resolved revision; a first pin can start on a release instead, which is
+// held to the same gate before it is pinned.
+func autoPin(src *Source, client string) (*Source, error) {
 	scope, err := ScopeUser()
 	if err != nil {
 		return nil, fmt.Errorf("locating your user scope to pin agentpakke %q: %w", src.Pakke.Name, err)
@@ -423,6 +427,13 @@ func autoPin(src *Source) (*Source, error) {
 			defer relSrc.Cleanup()
 		}
 		src, release = relSrc, rel
+		if release != nil && src.Pakke.Tier(client) != agentpakke.TierPayload {
+			return nil, fmt.Errorf(
+				"%s %s (%s) ships no pre-built payload for %s, which this launch needs; nothing was pinned.\n\n"+
+					"  Pin a revision deliberately:  %s",
+				src.Pakke.Name, release.Version, release.Tag, client,
+				bold("nav-pilot install --user --ref <branch|sha> "+src.Pakke.Name))
+		}
 	}
 
 	// A launch has no JSON mode: everything it prints is for a person.

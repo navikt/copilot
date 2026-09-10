@@ -741,7 +741,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 			// ahead of its releases, where the downgrade guard keeps it once a
 			// token is set.
 			outcome, err = releaseNoMetadata, nil
-			warning = fmt.Sprintf("releases for %s are not visible (GitHub answered 404); set GITHUB_TOKEN if the repo is private", src.Repo)
+			warning = releasesNotVisible(src.Repo)
 			if !jsonOutput {
 				fmt.Printf("%s %s\n", yellow("⚠"), warning)
 			}
