@@ -214,6 +214,19 @@ func TestUnfollowedPrivateRepoSyncsAsBefore(t *testing.T) {
 		t.Fatalf("sync --apply = %v. Output:\n%s", err, out)
 	}
 	assertPin(t, scope, shaB, "", false)
+	// A private repo that does publish releases must hear why they were not used.
+	if !strings.Contains(out, "GITHUB_TOKEN") {
+		t.Errorf("sync gave no hint that releases were not visible. Output:\n%s", out)
+	}
+
+	out = captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, true) })
+	var res syncResult
+	if err != nil || json.Unmarshal([]byte(out), &res) != nil {
+		t.Fatalf("sync --apply --json = %v. Output:\n%s", err, out)
+	}
+	if !strings.Contains(res.Warning, "GITHUB_TOKEN") || res.Skipped {
+		t.Errorf("JSON = %+v, want a GITHUB_TOKEN warning and not skipped: the sync ran", res)
+	}
 }
 
 // TestMissingRevisionIsRestoredAtThePin: with nothing to move to, a pin whose

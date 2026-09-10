@@ -731,7 +731,16 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 			// clones it with the user's own credentials. That is how such a pin
 			// synced before releases existed, so it still does. A following pin
 			// fails closed below.
+			//
+			// It says so. A private repo that does publish releases would
+			// otherwise sync to its default branch without a hint, and land
+			// ahead of its releases, where the downgrade guard keeps it once a
+			// token is set.
 			outcome, err = releaseNoMetadata, nil
+			warning = fmt.Sprintf("releases for %s are not visible (GitHub answered 404); set GITHUB_TOKEN if the repo is private", src.Repo)
+			if !jsonOutput {
+				fmt.Printf("%s %s\n", yellow("⚠"), warning)
+			}
 		}
 		// A pin whose revision directory is gone is restored at its own SHA
 		// when the lookup gives nothing to move to. "Up to date" or "not
