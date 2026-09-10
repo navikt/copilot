@@ -96,9 +96,9 @@ var confirmPakkeRelease = func(title string) (bool, error) {
 	return update, err
 }
 
-// lookUpPakkeRelease runs #780's discovery with the launch's timeout.
-func lookUpPakkeRelease(repo, name, pinnedSHA string) (releaseOutcome, pakkeRelease, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), pakkeLaunchLookupTimeout)
+// lookUpPakkeRelease runs #780's discovery within timeout.
+func lookUpPakkeRelease(repo, name, pinnedSHA string, timeout time.Duration) (releaseOutcome, pakkeRelease, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	return discoverPakkeRelease(ctx, repo, name, pinnedSHA)
 }
@@ -124,7 +124,7 @@ func offerPakkeRelease(resolved ResolvedConfig, rev *Source) *Source {
 	cache := readPakkeReleaseCache()
 	entry := cache[key]
 	if !entry.fresh(state.SourceSHA, time.Now()) {
-		outcome, rel, err := lookUpPakkeRelease(rev.Repo, name, state.SourceSHA)
+		outcome, rel, err := lookUpPakkeRelease(rev.Repo, name, state.SourceSHA, pakkeLaunchLookupTimeout)
 		entry = pakkeReleaseCacheEntry{CheckedAt: time.Now(), PinnedSHA: state.SourceSHA, Dismissed: entry.Dismissed}
 		_, follows := releaseClaim(state)
 		switch {
@@ -178,14 +178,16 @@ func offerPakkeRelease(resolved ResolvedConfig, rev *Source) *Source {
 // verification and lost-update guard.
 func activatePakkeRelease(resolved ResolvedConfig, scope *InstallScope, state *StateFile, name string, rel pakkeRelease) (*Source, error) {
 	// The offer can be a day old. A release deleted, demoted or superseded
-	// since then is not pinned as one.
-	outcome, current, err := lookUpPakkeRelease(state.SourceRepo, name, state.SourceSHA)
+	// since then is not pinned as one. The person already said yes, so this
+	// lookup gets the full timeout, not the launch's.
+	outcome, current, err := lookUpPakkeRelease(state.SourceRepo, name, state.SourceSHA, pakkeReleaseTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("checking %s %s again: %w", name, rel.Version, err)
 	}
 	if outcome != releaseCandidate || !sameSHA(current.SHA, rel.SHA) {
 		return nil, fmt.Errorf("%s %s is no longer the stable release on offer; the pin is unchanged", name, rel.Version)
 	}
+	rel = current // same SHA; version and tag as the release says now
 
 	relSrc, err := fetchPakkeRelease(state.SourceRepo, name, rel)
 	if err != nil {

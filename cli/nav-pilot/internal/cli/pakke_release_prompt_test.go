@@ -314,6 +314,21 @@ func TestReleasePromptRechecksBeforePinning(t *testing.T) {
 	}
 }
 
+// TestReleasePromptPinsTheRecheckedRelease: the pin records what the recheck
+// found, not the day-old offer, when both name the same SHA.
+func TestReleasePromptPinsTheRecheckedRelease(t *testing.T) {
+	e := newPromptEnv(t)
+	stubRelease(t, releaseCandidate, release041, nil)
+	e.answer = true
+	e.onAsk = func() {
+		stubRelease(t, releaseCandidate, pakkeRelease{Version: "0.4.9", SHA: shaA, Tag: "v0.4.9"}, nil)
+	}
+
+	e.launch(t)
+	assertPin(t, e.scope, shaA, "0.4.9", true)
+	e.assertLaunchedFrom(t, shaA)
+}
+
 // TestReleasePrompt404: a releases list GitHub answers 404 for (a private repo
 // without GITHUB_TOKEN) is no metadata for a pin that does not follow
 // releases, silently and for a day, as sync and install read it. A following
