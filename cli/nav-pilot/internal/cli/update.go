@@ -161,22 +161,9 @@ func fetchLatestVersion(ctx context.Context) (ver string, tag string, err error)
 // tag carries prefix (empty prefix = the newest release, for repos that do not
 // prefix their tags). Returns the version (tag minus prefix) and the full tag.
 func fetchLatestRelease(ctx context.Context, api, prefix string) (ver string, tag string, err error) {
-	token := os.Getenv("GITHUB_TOKEN")
-	resp, err := releasesRequest(ctx, api, token)
+	resp, err := githubGet(ctx, api+"?per_page=20", "")
 	if err != nil {
 		return "", "", err
-	}
-
-	// A GITHUB_TOKEN scoped for packages (but not for api.github.com) answers
-	// 401/403 here and would kill release checks for good. The releases API is
-	// public, so retry once anonymously. The authenticated attempt stays first
-	// for its higher rate limit.
-	if token != "" && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
-		resp.Body.Close()
-		resp, err = releasesRequest(ctx, api, "")
-		if err != nil {
-			return "", "", err
-		}
 	}
 	defer resp.Body.Close()
 
@@ -200,12 +187,35 @@ func fetchLatestRelease(ctx context.Context, api, prefix string) (ver string, ta
 	return "", "", fmt.Errorf("no release found with tag prefix %q", prefix)
 }
 
-// releasesRequest issues one GET against a GitHub releases API, authenticated
-// when token is non-empty.
-func releasesRequest(ctx context.Context, api, token string) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", api+"?per_page=20", nil)
+// githubGet issues a GET against the GitHub API, authenticated with
+// GITHUB_TOKEN when it is set. accept overrides the Accept header when
+// non-empty (a release asset needs application/octet-stream).
+//
+// A GITHUB_TOKEN scoped for packages (but not for api.github.com) answers
+// 401/403 and would kill release checks for good. The endpoints read here are
+// public, so it retries once anonymously. The authenticated attempt stays first
+// for its higher rate limit.
+func githubGet(ctx context.Context, url, accept string) (*http.Response, error) {
+	token := os.Getenv("GITHUB_TOKEN")
+	resp, err := githubRequest(ctx, url, accept, token)
 	if err != nil {
 		return nil, err
+	}
+	if token != "" && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
+		resp.Body.Close()
+		return githubRequest(ctx, url, accept, "")
+	}
+	return resp, nil
+}
+
+// githubRequest issues one GET, authenticated when token is non-empty.
+func githubRequest(ctx context.Context, url, accept, token string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if accept != "" {
+		req.Header.Set("Accept", accept)
 	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
