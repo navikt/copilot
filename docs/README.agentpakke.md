@@ -486,7 +486,7 @@ nav-pilot --client copilot --payload-context focused      # en annen deklarert k
 
 - **`--payload-context <id>`** velger kontekst. Uten flagget brukes `defaultContext` fra klientoppføringa (`full` når feltet mangler). En kontekst pakka ikke deklarerer gir en feil som lister opp de som finnes. Det er ingen config-nøkkel for dette: den varige standarden er manifestets eget felt.
 - **`--payload-context` er ikke `--context`.** Sistnevnte er Copilots long-context-nivå og er uendret. De to er ortogonale og kan stå på samme kommandolinje.
-- **Revisjonen ligger på maskinen, er immutabel og valgt av et install-steg.** `nav-pilot install --user <navn>` verifiserer pakka, materialiserer hver deklarerte kontekst under `~/.nav-pilot/pakker/<eier>-<repo>/<sha>/` (repo-id-en småskrevet, slik nav-pilot ellers sammenligner den) og pinner SHA-en. Senere launcher leser den katalogen og kloner ingenting. Startes en payload-only kilde som ikke er installert, pinner første launch den på samme måte og sier fra med én linje.
+- **Revisjonen ligger på maskinen, er immutabel og valgt av et install-steg.** `nav-pilot install --user <navn>` verifiserer pakka, materialiserer hver deklarerte kontekst under `~/.nav-pilot/pakker/<eier>-<repo>/<sha>/` (repo-id-en småskrevet, slik nav-pilot ellers sammenligner den) og pinner SHA-en. Senere launcher leser den katalogen og kloner ingenting. Startes en payload-only kilde som ikke er installert, pinner første launch den på samme måte og sier fra med én linje. Publiserer repoet stabile releases, starter både install og første launch på nyeste release, ikke på standardgrenen ([Stabile releases](#hva-install-og-første-launch-gjør)).
 - **Verifisering før hver launch.** Det pinnede treet re-verifiseres eksakt mot payload-manifestet (digest og modus) før klienten startes. En fil som er endret, fjernet eller lagt til etter at revisjonen ble materialisert, stopper launchen. Feiler noe av dette, starter ingenting, og en Tier 2-launch faller aldri tilbake på Tier 1-veien.
 - **Er revisjonen borte og kilden ikke tilgjengelig, nekter launchen, per klient.** Pin-staten noterer ved install hvilke klienter revisjonen materialiserte payloads for (`pinned_clients`). Kan kilden ikke resolves og katalogen er borte, stopper launchen for en klient som står der, med `nav-pilot sync --apply` og `nav-pilot config set source ""` som veiene ut; en klient pinnen aldri staget noe for, tar legacy-stien som før. En Tier 2-launch nedgraderes aldri stille til legacy. En pin skrevet av en eldre nav-pilot mangler lista, nekter offline framfor å gjette, og oppgraderes på plass ved første launch som får lest det pinnede manifestet, eller ved en `sync --apply` som faktisk flytter eller gjenoppbygger pinnen. En sync som melder «up to date», rører ikke staten.
 - **Pinnen flyttes av `nav-pilot sync`, ikke av å starte klienten på nytt.** Uten `--apply` rapporterer sync hvilken revisjon som er tilgjengelig. Med `--apply` verifiseres og materialiseres den nye revisjonen, og pinnen bytter. De to siste revisjonene beholdes, eldre fjernes. Er den pinnede revisjonen fjernet fra disk, sier sync det framfor å melde «up to date», og `--apply` bygger den opp igjen (`Restored …`). Sync oppdaterer den kilden scopet er pinnet til: peker du den mot et annet repo, nekter den og ber deg gjøre byttet med `install`.
@@ -554,7 +554,35 @@ Publiser releasen som stabil først når alle kontroller som godkjenner distribu
 - `--ref` er et eksplisitt pinningvalg og vinner som før. Pinnen det skriver, følger ikke releases, også når ref-en er den revisjonen som allerede er pinnet.
 - Flytter en annen prosess pinnen mens revisjonen materialiseres, registreres ingenting, og kommandoen ber deg kjøre den på nytt.
 
-`nav-pilot --sync` går gjennom den samme stien. Varsling ved oppstart, automatisk oppdatering, status og valg ved install er ikke med ennå ([#779](https://github.com/navikt/copilot/issues/779)).
+`nav-pilot --sync` går gjennom den samme stien.
+
+### Hva install og første launch gjør
+
+`nav-pilot install --user <navn>` og launchen som pinner en payload-only kilde som ikke er installert, slår opp releasene før de pinner, med samme oppslag og samme kandidatvalg som sync.
+
+- Finnes en stabil release, pinnes nøyaktig dens `sourceSha`, og pinnen følger releases. Standardgrenen materialiseres ikke. `install --json` tar med `pakke_version` og `follows_releases`, og `--dry-run` navngir releasen.
+- Et repo uten metadata pinnes fra standardgrenen som før.
+- Feiler oppslaget, pinnes ingenting, og kommandoen feiler med årsaken. Det finnes ingen pinne å beholde, og en pinne på standardgrenen ville ligget foran nyeste release, der nedgraderingsvernet holder den fast.
+- Er revisjonen i releasen ikke lenger payload-only, pinnes ingenting.
+- `--ref` pinner den revisjonen som før, og pinnen følger ikke releases. `--frozen` slår ikke opp releaser.
+- En launch over en pinne som allerede er registrert, med revisjonen borte fra disk, slår ikke opp releaser.
+
+### Status
+
+`nav-pilot list --installed` viser for en pinnet pakke i brukerscope:
+
+```
+  Package:     0.4.1 (pinned at 20d634f)
+  Releases:    follows stable releases: yes
+  ⚠ Release 0.4.2 (9f1c2ab) is available. Run nav-pilot sync --user --apply to update.
+```
+
+- Versjonen vises bare når `pakke_version_sha` er lik den pinnede SHA-en, ellers `unknown`.
+- En ventende release er en nyere stabil release sync ville flyttet pinnen til. Oppslaget gjøres hver gang, uten cache, med samme tidsgrense som sync.
+- Feiler oppslaget, skrives `⚠ release check failed: <årsak>`, og kommandoen avslutter som vanlig.
+- `--json` har feltene under `pakke`: `version`, `pinned_sha`, `follows_releases`, `pending_release` (`version`, `sha`, `tag`) og `release_check_error`.
+
+Varsling ved oppstart, automatisk oppdatering og valg ved install er ikke med ennå ([#779](https://github.com/navikt/copilot/issues/779)).
 
 ## Begrensninger i dag
 

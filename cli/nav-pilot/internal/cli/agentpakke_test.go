@@ -76,6 +76,10 @@ func isolatedConfig(t *testing.T) string {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	path := filepath.Join(t.TempDir(), "config.toml")
 	t.Setenv("NAV_PILOT_CONFIG", path)
+	// Install, the first launch and status look stable releases up on GitHub
+	// (#779). An isolated test does not reach it: sources are not release-backed
+	// unless the test says otherwise with stubRelease.
+	stubRelease(t, releaseNoMetadata, pakkeRelease{}, nil)
 	return path
 }
 
