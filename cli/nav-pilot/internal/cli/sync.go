@@ -28,6 +28,8 @@ type syncResult struct {
 	PinBump *syncPinBump `json:"pin_bump,omitempty"`
 	// Version is a pinned agentpakke's release version, when it is known (#779).
 	Version string `json:"version,omitempty"`
+	// Warning is a problem sync stepped around without changing anything.
+	Warning string `json:"warning,omitempty"`
 }
 
 // syncPinBump is the committed pin moving, reported as its own unit of work.
@@ -718,11 +720,25 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 		if src.Pakke != nil {
 			name = src.Pakke.Name
 		}
+		version, follows := releaseClaim(state)
 		outcome, rel, err := discoverPakkeRelease(context.Background(), src.Repo, name, state.SourceSHA)
 		switch {
-		case err != nil:
+		case err != nil && follows:
 			return fmt.Errorf("looking up stable releases of %s: %w\n\nThe pin is unchanged at %s", src.Repo, err, shortSHA(state.SourceSHA))
-		case outcome == releaseNoMetadata && state.FollowsReleases:
+		case err != nil:
+			// Not following, so whether this source is release-backed is the
+			// very thing the lookup could not answer. Nothing is pinned on a
+			// guess: no release is confirmed, and the default branch would land
+			// ahead of every release, where the downgrade guard keeps it. It
+			// exits the way a sync with nothing to change does.
+			warning := fmt.Sprintf("could not look up stable releases of %s, so nothing was updated; the pin is unchanged at %s: %v",
+				src.Repo, shortSHA(state.SourceSHA), err)
+			if jsonOutput {
+				return outputJSON(syncResult{UpToDate: true, Source: state.SourceSHA, Version: version, Warning: warning})
+			}
+			fmt.Printf("%s %s\n", yellow("⚠"), warning)
+			return nil
+		case outcome == releaseNoMetadata && follows:
 			return fmt.Errorf(
 				"%s follows stable releases, and %s has no stable release with %s for it.\n"+
 					"The pin is unchanged at %s; nav-pilot does not fall back to the default branch.\n\n"+
@@ -733,7 +749,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 			// Not release-backed: the default branch, as before.
 		case outcome == releaseNotOffered:
 			if jsonOutput {
-				return outputJSON(syncResult{UpToDate: true, Source: state.SourceSHA, Version: state.PakkeVersion})
+				return outputJSON(syncResult{UpToDate: true, Source: state.SourceSHA, Version: version})
 			}
 			fmt.Printf("%s %s is pinned at %s, which is newer than or diverged from the latest stable release %s (%s). It is not offered.\n",
 				green("✓"), bold(state.Collection), shortSHA(state.SourceSHA), rel.Version, shortSHA(rel.SHA))

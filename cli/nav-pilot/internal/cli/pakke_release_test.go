@@ -22,6 +22,7 @@ type fakeRelease struct {
 	tag                      string
 	draft, prerelease, mutab bool
 	asset                    string // metadata body; empty = no metadata asset
+	assetURL                 string // overrides the listed asset URL
 }
 
 // fakeGitHub serves the four endpoints discovery reads. compare maps
@@ -47,9 +48,14 @@ func (f *fakeGitHub) serve(t *testing.T) {
 		}
 		list := []map[string]any{}
 		for i, rel := range f.releases {
-			assets := []map[string]string{{"name": "grillmester.tar.gz", "url": "http://" + r.Host + "/assets/none"}}
+			base := "http://" + r.Host + repo + "/releases/assets/"
+			assets := []map[string]string{{"name": "grillmester.tar.gz", "url": base + "none"}}
 			if rel.asset != "" {
-				assets = append(assets, map[string]string{"name": pakkeReleaseAsset, "url": fmt.Sprintf("http://%s/assets/%d", r.Host, i)})
+				url := fmt.Sprintf("%s%d", base, i)
+				if rel.assetURL != "" {
+					url = rel.assetURL
+				}
+				assets = append(assets, map[string]string{"name": pakkeReleaseAsset, "url": url})
 			}
 			list = append(list, map[string]any{
 				"tag_name": rel.tag, "draft": rel.draft, "prerelease": rel.prerelease,
@@ -58,17 +64,33 @@ func (f *fakeGitHub) serve(t *testing.T) {
 		}
 		_ = json.NewEncoder(w).Encode(list)
 	})
-	mux.HandleFunc("/assets/", func(w http.ResponseWriter, r *http.Request) {
+	// Like GitHub: the API's asset endpoint answers 302 to another host, which
+	// serves the bytes. The token belongs to the API and must not follow.
+	download := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if auth := r.Header.Get("Authorization"); auth != "" {
+			t.Errorf("the redirect host received Authorization %q", auth)
+		}
+		i, _ := strconv.Atoi(strings.TrimPrefix(r.URL.Path, "/dl/"))
+		_, _ = io.WriteString(w, f.releases[i].asset)
+	}))
+	t.Cleanup(download.Close)
+	// Another hostname, as objects.githubusercontent.com is: Go keeps headers
+	// on a redirect to the same hostname, whatever the port.
+	downloadURL := strings.Replace(download.URL, "127.0.0.1", "localhost", 1)
+	mux.HandleFunc(repo+"/releases/assets/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Accept") != "application/octet-stream" {
 			t.Errorf("asset requested with Accept %q", r.Header.Get("Accept"))
 		}
-		i, err := strconv.Atoi(strings.TrimPrefix(r.URL.Path, "/assets/"))
-		if err != nil {
+		if auth := r.Header.Get("Authorization"); auth != "Bearer test-token" {
+			t.Errorf("the API asset endpoint received Authorization %q, want the token", auth)
+		}
+		id := strings.TrimPrefix(r.URL.Path, repo+"/releases/assets/")
+		if _, err := strconv.Atoi(id); err != nil {
 			t.Errorf("discovery downloaded an asset that is not the metadata: %s", r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		_, _ = io.WriteString(w, f.releases[i].asset)
+		http.Redirect(w, r, downloadURL+"/dl/"+id, http.StatusFound)
 	})
 	mux.HandleFunc(repo, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"default_branch":"main"}`)
@@ -90,7 +112,7 @@ func (f *fakeGitHub) serve(t *testing.T) {
 	orig := githubAPIBase
 	githubAPIBase = srv.URL
 	t.Cleanup(func() { githubAPIBase = orig })
-	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("GITHUB_TOKEN", "test-token")
 }
 
 func meta(name, version, sha string) string {
@@ -115,6 +137,12 @@ func TestDiscoverPakkeRelease(t *testing.T) {
 		{name: "prerelease ignored", gh: fakeGitHub{releases: []fakeRelease{{tag: "v1.0.0", prerelease: true, asset: meta("grillmester", "1.0.0", shaA)}}}, want: releaseNoMetadata},
 		{name: "mutable release ignored", gh: fakeGitHub{releases: []fakeRelease{{tag: "v1.0.0", mutab: true, asset: meta("grillmester", "1.0.0", shaA)}}}, want: releaseNoMetadata},
 		{name: "another package in the same repo", gh: fakeGitHub{releases: []fakeRelease{{tag: "other/v1.0.0", asset: meta("other", "1.0.0", shaA)}}}, want: releaseNoMetadata},
+		{name: "tag prefix names another package", gh: fakeGitHub{releases: []fakeRelease{{tag: "other/v1.0.0", asset: meta("grillmester", "1.0.0", shaA)}}}, want: releaseNoMetadata},
+		{
+			name:    "asset URL outside the repo's API",
+			gh:      fakeGitHub{releases: []fakeRelease{{tag: "v1.0.0", asset: meta("grillmester", "1.0.0", shaA), assetURL: "http://127.0.0.1:1/repos/navikt/grillmester/releases/assets/0"}}},
+			wantErr: "is not an asset of navikt/grillmester",
+		},
 		{
 			name: "highest version wins, not newest release",
 			gh: fakeGitHub{releases: []fakeRelease{
@@ -190,7 +218,7 @@ func TestDiscoverPakkeRelease(t *testing.T) {
 		{
 			name: "installed unknown to the repo", installed: shaC,
 			gh:      fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", shaA)}},
-			wantErr: "comparing installed",
+			wantErr: "--ref " + shaA,
 		},
 	}
 	for _, tc := range cases {

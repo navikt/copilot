@@ -422,6 +422,10 @@ type StateFile struct {
 	// FollowsReleases marks a pin that sync moves only between stable releases.
 	// A state written before it existed reads false: not following.
 	FollowsReleases bool `json:"follows_releases,omitempty"`
+	// PakkeVersionSHA is the SourceSHA that PakkeVersion and FollowsReleases
+	// were recorded for. An older nav-pilot that re-pins carries both over as
+	// unknown keys while moving SourceSHA, so a mismatch means they are stale.
+	PakkeVersionSHA string `json:"pakke_version_sha,omitempty"`
 	// Unknown carries every top-level key this binary does not understand, so a
 	// read-modify-write does not silently drop what a newer nav-pilot wrote.
 	// See [InstalledFile.Unknown].

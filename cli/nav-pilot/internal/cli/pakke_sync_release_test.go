@@ -166,20 +166,36 @@ func TestUnfollowedPinWithoutReleasesKeepsTodaysBehavior(t *testing.T) {
 	assertPin(t, scope, shaB, "", false)
 }
 
-// TestUnfollowedPinRefusesOnAFailedLookup: a failed lookup cannot say whether
-// the source is release-backed, so it is not read as "no metadata".
-func TestUnfollowedPinRefusesOnAFailedLookup(t *testing.T) {
+// TestUnfollowedPinSkipsOnAFailedLookup: a failed lookup cannot say whether the
+// source is release-backed. Sync warns and changes nothing: no release, and
+// never the default branch on a guess.
+func TestUnfollowedPinSkipsOnAFailedLookup(t *testing.T) {
 	scope := pinEnv(t)
 	installPin(t, scope, tier2PinSource(t, shaC))
 	releaseSyncSource(t, shaB)
 	stubRelease(t, 0, pakkeRelease{}, errors.New("context deadline exceeded"))
 
 	var err error
-	captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
-	if err == nil || !strings.Contains(err.Error(), "pin is unchanged") {
-		t.Fatalf("sync --apply = %v, want a refusal that leaves the pin", err)
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	if err != nil {
+		t.Fatalf("sync --apply = %v, want the update skipped with a warning. Output:\n%s", err, out)
+	}
+	if !strings.Contains(out, "context deadline exceeded") {
+		t.Errorf("sync did not warn. Output:\n%s", out)
 	}
 	assertPin(t, scope, shaC, "", false)
+	if _, statErr := os.Stat(pakkeRevisionDir("navikt/grillmester", shaB)); !os.IsNotExist(statErr) {
+		t.Errorf("the default branch revision was materialized (stat err %v)", statErr)
+	}
+
+	out = captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, true) })
+	var res syncResult
+	if err != nil || json.Unmarshal([]byte(out), &res) != nil {
+		t.Fatalf("sync --apply --json = %v. Output:\n%s", err, out)
+	}
+	if res.Warning == "" || res.Source != shaC {
+		t.Errorf("JSON = %+v, want a warning and the pin at %s", res, shaC)
+	}
 }
 
 // TestReleaseSyncDoesNotOfferAnOlderRelease: a pin ahead of or diverged from
@@ -310,4 +326,54 @@ func TestOldStateDoesNotFollowReleases(t *testing.T) {
 	if strings.Contains(string(out), "follows_releases") || strings.Contains(string(out), "pakke_version") {
 		t.Errorf("a pin that does not follow wrote the new keys: %s", out)
 	}
+}
+
+// TestStaleReleaseClaimIsIgnored: an older nav-pilot that re-pins keeps
+// pakke_version and follows_releases as unknown keys while moving the pin. A
+// claim recorded for another SHA says nothing about this one.
+func TestStaleReleaseClaimIsIgnored(t *testing.T) {
+	scope := pinEnv(t)
+	releaseSyncSource(t, shaB)
+	// What an older binary leaves after `sync --apply` to HEAD over a pin at 0.4.1.
+	if err := writeScopedState(scope, &StateFile{
+		Collection: "grillmester", Scope: scope.Name, SourceRepo: "navikt/grillmester", SourceSHA: shaB,
+		PakkeVersion: "0.4.1", FollowsReleases: true, PakkeVersionSHA: shaA,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	stubRelease(t, releaseNotOffered, release041, nil)
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", false, true) })
+	var res syncResult
+	if err != nil || json.Unmarshal([]byte(out), &res) != nil {
+		t.Fatalf("sync --json = %v. Output:\n%s", err, out)
+	}
+	if res.Version != "" {
+		t.Errorf("JSON version = %q for a pin at %s, but 0.4.1 was recorded for %s", res.Version, shaB, shaA)
+	}
+
+	stubRelease(t, releaseNoMetadata, pakkeRelease{}, nil)
+	out = captureStdoutFor(t, func() { err = cmdSync(scope, "", "", false, false) })
+	if err != nil && err != errUpdatesAvailable {
+		t.Errorf("sync over a stale claim = %v; it treated a HEAD pin as following releases. Output:\n%s", err, out)
+	}
+}
+
+// TestLaunchDoesNotUnsubscribeAFollowingPin: a launch resolves the default
+// branch. Re-pinning a following pin there, its revision gone, replaced the
+// release with HEAD and dropped the subscription without a word.
+func TestLaunchDoesNotUnsubscribeAFollowingPin(t *testing.T) {
+	scope, _ := followingPin(t)
+	if err := os.RemoveAll(pakkerRoot()); err != nil {
+		t.Fatal(err)
+	}
+	head := tier2PinSource(t, shaB)
+
+	var err error
+	out := captureStdoutFor(t, func() { _, err = autoPin(head) })
+	if err == nil || !strings.Contains(err.Error(), "sync --user --apply") {
+		t.Fatalf("autoPin over a following pin = %v, want a refusal naming sync --apply. Output:\n%s", err, out)
+	}
+	assertPin(t, scope, shaA, "0.4.1", true)
 }

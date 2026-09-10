@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/navikt/copilot/main/cli/nav-pilot/schemas/agentpakke-release-v1.json",
   "title": "nav-pilot agentpakke release metadata (v1)",
-  "description": "The agentpakke-release.json asset on a GitHub release of an agentpakke. nav-pilot moves a pin that follows releases only to the source revision a stable release names here. The repo is the one the pakke was installed from, never a value in this file. The release must be published, not a draft, not a prerelease, and immutable; its tag, with an optional \"<prefix>/\" and an optional \"v\" removed, must equal version. See docs/README.agentpakke.md in navikt/copilot.",
+  "description": "The agentpakke-release.json asset on a GitHub release of an agentpakke. nav-pilot moves a pin that follows releases only to the source revision a stable release names here. The repo is the one the pakke was installed from, never a value in this file. The release must be published, not a draft, not a prerelease, and immutable; its tag, with an optional \"<prefix>/\" (which must equal name) and an optional \"v\" removed, must equal version. See docs/README.agentpakke.md in navikt/copilot.",
   "type": "object",
   "required": ["schemaVersion", "name", "version", "sourceSha"],
   "additionalProperties": false,

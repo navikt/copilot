@@ -530,11 +530,9 @@ func pinRevision(scope *InstallScope, src *Source, release *pakkeRelease, jsonOu
 		state.PreserveUnknownFrom(existing)
 	}
 	if release != nil {
-		state.PakkeVersion = release.Version
-		state.FollowsReleases = true
+		state.PakkeVersion, state.FollowsReleases, state.PakkeVersionSHA = release.Version, true, release.SHA
 	} else if existing != nil && sameSourceRepo(existing.SourceRepo, src.Repo) && sameSHA(existing.SourceSHA, src.SHA) {
-		state.PakkeVersion = existing.PakkeVersion
-		state.FollowsReleases = existing.FollowsReleases
+		state.PakkeVersion, state.FollowsReleases, state.PakkeVersionSHA = existing.PakkeVersion, existing.FollowsReleases, existing.PakkeVersionSHA
 	}
 
 	// Lost update (#779). Materializing takes long enough for another install,

@@ -335,7 +335,13 @@ Assetet binder pakkenavn, versjon og kilde-SHA i selve releasen, og en immutable
 
 **En pinne som følger releases, faller aldri tilbake.** Et abonnement på stabile versjoner som stille henter standardgrenen ved en nettverksfeil, er ikke et abonnement på stabile versjoner. Feilen lar pinnen stå, og launch leser fortsatt den verifiserte revisjonen.
 
-**Et mislykket oppslag stopper også en pinne som ikke følger releases.** Et release-basert repo som ble synket fra standardgrenen under en rate limit, ville fått en pinne foran nyeste release. Nedgraderingsvernet tilbyr ikke en release bak installert revisjon, så installasjonen ville blitt stående på utviklingsinnhold uten at noen valgte det. Prisen er at sync av en ikke-release-basert pinne nå også krever at GitHub-API-et svarer (ett kall når repoet ikke har metadata).
+**Et mislykket oppslag for en pinne som ikke følger releases, hopper over oppdateringen med en advarsel.** Første versjon feilet sync her. Det ble omgjort i gjennomgangen av [#780](https://github.com/navikt/copilot/pull/780): da ville GitHub-API-et blitt en forutsetning for all Tier 2-sync, også for repoer som aldri publiserer releases. Grensen som betyr noe, består: sync pinner ikke standardgrenen når oppslaget feilet. Et release-basert repo som ble synket fra standardgrenen under en rate limit, ville fått en pinne foran nyeste release. Nedgraderingsvernet tilbyr ikke en release bak installert revisjon, så installasjonen ville blitt stående på utviklingsinnhold uten at noen valgte det.
+
+**Påstander om releases gjelder bare SHA-en de ble registrert for.** Staten bevarer ukjente nøkler (#588). En eldre nav-pilot som pinner standardgrenen, tar derfor med seg `pakke_version` og `follows_releases` til en revisjon de ikke beskriver. `pakke_version_sha` sier hvilken revisjon de gjelder, og ved avvik leses staten som en pinne som ikke følger releases og har ukjent versjon.
+
+**En launch nekter å pinne om en pinne som følger releases.** Launchen resolver standardgrenen. Mangler revisjonen på disk, ville `autoPin` pinnet HEAD og dermed avsluttet abonnementet uten å si fra. Den nekter og viser til `sync --apply`, som gjenoppretter releasen.
+
+**Assetets URL må være repoets eget asset-endepunkt i API-et**, fordi tokenet sendes med nedlastingen. GitHub-klienten i Go fjerner `Authorization` ved redirect til et annet vertsnavn, og det er denne egenskapen som holder tokenet unna nedlastingsverten. Testen redirecter til et annet vertsnavn og kontrollerer det.
 
 **Nedgraderingsvern med GitHubs compare, ikke versjonssammenligning.** Eldre state har ingen pakkeversjon (`Version` er nav-pilots versjon for eksterne kilder), så installert revisjon kan bare sammenlignes som commit. `ahead` tilbys, `identical` er oppdatert, `behind` og `diverged` tilbys ikke.
 

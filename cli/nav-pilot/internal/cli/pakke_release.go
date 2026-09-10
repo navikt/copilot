@@ -76,6 +76,20 @@ func (r *pakkeRelease) label(sha string) string {
 	return r.Version + " (" + shortSHA(sha) + ")"
 }
 
+// releaseClaim is what a state says about releases, trusted only for the SHA it
+// was recorded for. An older nav-pilot that re-pins keeps the keys as unknown
+// ones while moving the pin, and a claim about another revision is no claim
+// about this one.
+func releaseClaim(state *StateFile) (version string, follows bool) {
+	if state == nil || state.PakkeVersionSHA == "" || !sameSHA(state.PakkeVersionSHA, state.SourceSHA) {
+		return "", false
+	}
+	return state.PakkeVersion, state.FollowsReleases
+}
+
+// errGitHubNotFound marks a 404 from the GitHub API.
+var errGitHubNotFound = errors.New("not found")
+
 // discoverPakkeRelease is the lookup sync uses. A var so sync tests can stub it
 // without a network call.
 var discoverPakkeRelease = discoverPakkeReleaseHTTP
@@ -160,16 +174,31 @@ func discoverPakkeReleaseHTTP(ctx context.Context, repo, name, installedSHA stri
 		version  agentpakke.Semver3
 		ok       bool // the tag parses as a version at all
 	}
+	// The token goes with the asset download, so the URL must be this repo's
+	// own asset endpoint on the API, whatever the listing says.
+	assetPrefix := githubAPIBase + "/repos/" + repo + "/releases/assets/"
 	var cands []candidate
+	var invalid []string
 	for _, r := range releases {
 		if r.Draft || r.Prerelease || !r.Immutable {
 			continue
 		}
+		// A "<prefix>/" tag belongs to the package it names. Downloading every
+		// other package's metadata in a multi-package repo only spends the
+		// timeout.
+		if i := strings.LastIndex(r.TagName, "/"); i >= 0 && r.TagName[:i] != name {
+			continue
+		}
 		for _, a := range r.Assets {
-			if a.Name == pakkeReleaseAsset {
-				v, ok := parseStrictSemver(tagVersion(r.TagName))
-				cands = append(cands, candidate{tag: r.TagName, assetURL: a.URL, version: v, ok: ok})
+			if a.Name != pakkeReleaseAsset {
+				continue
 			}
+			if len(a.URL) < len(assetPrefix) || !strings.EqualFold(a.URL[:len(assetPrefix)], assetPrefix) {
+				invalid = append(invalid, fmt.Sprintf("%s: asset URL %q is not an asset of %s", r.TagName, a.URL, repo))
+				continue
+			}
+			v, ok := parseStrictSemver(tagVersion(r.TagName))
+			cands = append(cands, candidate{tag: r.TagName, assetURL: a.URL, version: v, ok: ok})
 		}
 	}
 	// Newest tag first, so the lookup downloads only until it has a winner.
@@ -185,7 +214,6 @@ func discoverPakkeReleaseHTTP(ctx context.Context, repo, name, installedSHA stri
 
 	var chosen *pakkeRelease
 	var chosenVersion agentpakke.Semver3
-	var invalid []string
 	for _, c := range cands {
 		if chosen != nil && (!c.ok || c.version.Compare(chosenVersion) < 0) {
 			break
@@ -250,6 +278,12 @@ func discoverPakkeReleaseHTTP(ctx context.Context, repo, name, installedSHA stri
 		return releaseUpToDate, *chosen, nil
 	}
 	moved, err := compareStatus(ctx, repo, installedSHA, chosen.SHA)
+	if errors.Is(err, errGitHubNotFound) {
+		return 0, *chosen, fmt.Errorf(
+			"GitHub does not know the installed revision %s in %s, so nav-pilot cannot tell whether %s %s is newer.\n\n"+
+				"  Move the pin deliberately:  nav-pilot sync --user --apply --ref %s",
+			shortSHA(installedSHA), repo, name, chosen.Version, chosen.SHA)
+	}
 	if err != nil {
 		return 0, *chosen, fmt.Errorf("comparing installed %s with %s: %w", shortSHA(installedSHA), chosen.Tag, err)
 	}
@@ -323,6 +357,9 @@ func githubJSON(ctx context.Context, url string, v any) error {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("GitHub API returned 404: %w", errGitHubNotFound)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("GitHub API returned %d", resp.StatusCode)
 	}
