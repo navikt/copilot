@@ -2,12 +2,16 @@ package cli
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/charmbracelet/huh"
 
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
@@ -27,6 +31,10 @@ type promptEnv struct {
 	asked    []string
 	answer   bool
 	refs     *[]string
+	// confirmErr is what the prompt returns with the answer (Ctrl-C).
+	confirmErr error
+	// onAsk runs while the question is open.
+	onAsk func()
 }
 
 func newPromptEnv(t *testing.T) *promptEnv {
@@ -45,7 +53,10 @@ func newPromptEnv(t *testing.T) *promptEnv {
 	t.Cleanup(func() { confirmPakkeRelease = origConfirm })
 	confirmPakkeRelease = func(title string) (bool, error) {
 		e.asked = append(e.asked, title)
-		return e.answer, nil
+		if e.onAsk != nil {
+			e.onAsk()
+		}
+		return e.answer, e.confirmErr
 	}
 	return e
 }
@@ -267,4 +278,180 @@ func TestDeletingTheReleaseCacheKeepsThePin(t *testing.T) {
 		t.Errorf("asked %d time(s), want the forgotten answer asked again", len(e.asked))
 	}
 	e.assertLaunchedFrom(t, shaC)
+}
+
+// TestReleasePromptRechecksBeforePinning: the offer can be a day old. A release
+// gone by the time of "Yes" is not pinned, and the next launch looks again.
+func TestReleasePromptRechecksBeforePinning(t *testing.T) {
+	for name, now := range map[string]struct {
+		outcome releaseOutcome
+		rel     pakkeRelease
+	}{
+		"deleted":    {releaseNoMetadata, pakkeRelease{}},
+		"superseded": {releaseCandidate, release042},
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := newPromptEnv(t)
+			stubRelease(t, releaseCandidate, release041, nil)
+			e.answer = true
+			var calls *int
+			e.onAsk = func() { calls = stubRelease(t, now.outcome, now.rel, nil) }
+
+			stderr := e.launch(t)
+			if !strings.Contains(stderr, "no longer the stable release on offer") {
+				t.Errorf("the changed release was not reported. Stderr:\n%s", stderr)
+			}
+			assertPin(t, e.scope, shaC, "", false)
+			e.assertLaunchedFrom(t, shaC)
+			if len(*e.refs) != 0 {
+				t.Errorf("fetched %q for a release no longer on offer", *e.refs)
+			}
+			e.onAsk, e.answer = nil, false // an offer now is answered No, so only lookups count
+			if e.launch(t); *calls != 2 {
+				t.Errorf("the next launch trusted the cached offer (%d lookups, want the recheck and one more)", *calls)
+			}
+		})
+	}
+}
+
+// TestReleasePrompt404: a releases list GitHub answers 404 for (a private repo
+// without GITHUB_TOKEN) is no metadata for a pin that does not follow
+// releases, silently and for a day, as sync and install read it. A following
+// pin still gets the line. Through the real discovery, not the stub.
+func TestReleasePrompt404(t *testing.T) {
+	e := newPromptEnv(t)
+	t.Setenv("GITHUB_TOKEN", "")
+	hits := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	origBase, origDiscover := githubAPIBase, discoverPakkeRelease
+	t.Cleanup(func() { githubAPIBase, discoverPakkeRelease = origBase, origDiscover })
+	githubAPIBase, discoverPakkeRelease = srv.URL, discoverPakkeReleaseHTTP
+
+	if stderr := e.launch(t); stderr != "" || hits != 1 {
+		t.Errorf("an unfollowed pin's 404 printed %q after %d request(s), want silence after 1", stderr, hits)
+	}
+	ageReleaseCache(t, 2*time.Hour)
+	if e.launch(t); hits != 1 {
+		t.Errorf("a 2-hour-old 404 was retried like a failure (%d requests)", hits)
+	}
+	e.assertLaunchedFrom(t, shaC)
+
+	state, _ := readScopedState(e.scope)
+	state.PakkeVersion, state.FollowsReleases, state.PakkeVersionSHA = "0.4.1", true, state.SourceSHA
+	if err := writeScopedState(e.scope, state); err != nil {
+		t.Fatal(err)
+	}
+	ageReleaseCache(t, 25*time.Hour)
+	if stderr := e.launch(t); !strings.Contains(stderr, "release check for grillmester failed") {
+		t.Errorf("a following pin's 404 was silent. Stderr:\n%s", stderr)
+	}
+}
+
+// TestReleasePromptCtrlCIsNotNo: an aborted question launches the pin and
+// comes back next launch.
+func TestReleasePromptCtrlCIsNotNo(t *testing.T) {
+	e := newPromptEnv(t)
+	stubRelease(t, releaseCandidate, release041, nil)
+	e.answer, e.confirmErr = true, huh.ErrUserAborted
+
+	e.launch(t)
+	assertPin(t, e.scope, shaC, "", false)
+	e.assertLaunchedFrom(t, shaC)
+	e.launch(t)
+	if len(e.asked) != 2 {
+		t.Errorf("asked %d time(s), want Ctrl-C not to count as No", len(e.asked))
+	}
+}
+
+// TestReleasePromptPinChangedWhileAsked: a pin moved while the question was
+// open is not overwritten by the answer.
+func TestReleasePromptPinChangedWhileAsked(t *testing.T) {
+	e := newPromptEnv(t)
+	stubRelease(t, releaseCandidate, release041, nil)
+	e.answer = true
+	e.onAsk = func() {
+		state, _ := readScopedState(e.scope)
+		state.SourceSHA = shaB
+		if err := writeScopedState(e.scope, state); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	stderr := e.launch(t)
+	if !strings.Contains(stderr, "the pin changed to") {
+		t.Errorf("the moved pin was not reported. Stderr:\n%s", stderr)
+	}
+	assertPin(t, e.scope, shaB, "", false)
+	e.assertLaunchedFrom(t, shaC)
+}
+
+// TestReleasePromptReleaseWithoutThisClient: a release that no longer ships a
+// payload for the client being launched is not pinned.
+func TestReleasePromptReleaseWithoutThisClient(t *testing.T) {
+	e := newPromptEnv(t)
+	stubRelease(t, releaseCandidate, release041, nil)
+	e.answer = true
+	orig := resolveSourceForSync
+	t.Cleanup(func() { resolveSourceForSync = orig })
+	resolveSourceForSync = func(ref, repo string) (*Source, error) {
+		src, err := orig(ref, repo)
+		if err == nil {
+			delete(src.Pakke.Clients, "copilot")
+		}
+		return src, err
+	}
+
+	stderr := e.launch(t)
+	if !strings.Contains(stderr, `declares no "full" payload for copilot`) {
+		t.Errorf("the missing payload was not reported. Stderr:\n%s", stderr)
+	}
+	assertPin(t, e.scope, shaC, "", false)
+	e.assertLaunchedFrom(t, shaC)
+}
+
+// TestReleasePromptCorruptCache: a cache that does not parse is no cache.
+func TestReleasePromptCorruptCache(t *testing.T) {
+	e := newPromptEnv(t)
+	calls := stubRelease(t, releaseCandidate, release041, nil)
+	mustWrite(t, pakkeReleaseCachePath(), "{not json")
+
+	e.launch(t)
+	if *calls != 1 || len(e.asked) != 1 {
+		t.Errorf("over a corrupt cache: %d lookup(s), asked %q; want one of each", *calls, e.asked)
+	}
+	if len(readPakkeReleaseCache()) != 1 {
+		t.Error("the corrupt cache was not replaced")
+	}
+}
+
+// TestReleaseCacheWriteReplacesTheFile: the cache is written to a temporary
+// file and renamed over the old one, so a reader never sees half a file.
+func TestReleaseCacheWriteReplacesTheFile(t *testing.T) {
+	isolatedConfig(t)
+	writePakkeReleaseCache(map[string]pakkeReleaseCacheEntry{"a": {PinnedSHA: shaA}})
+	before, err := os.Stat(pakkeReleaseCachePath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	writePakkeReleaseCache(map[string]pakkeReleaseCacheEntry{"b": {PinnedSHA: shaB}})
+	after, err := os.Stat(pakkeReleaseCachePath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if os.SameFile(before, after) {
+		t.Error("the cache was rewritten in place, not replaced")
+	}
+	entries, _ := os.ReadDir(filepath.Dir(pakkeReleaseCachePath()))
+	for _, de := range entries {
+		if strings.HasPrefix(de.Name(), ".pakke-releases-") {
+			t.Errorf("temporary file %s left behind", de.Name())
+		}
+	}
+	if c := readPakkeReleaseCache(); len(c) != 1 || c["b"].PinnedSHA != shaB {
+		t.Errorf("cache = %+v, want the second write", c)
+	}
 }

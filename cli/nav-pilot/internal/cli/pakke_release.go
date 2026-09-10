@@ -398,7 +398,8 @@ type pakkeReleaseStatus struct {
 // list, one metadata asset, the repo, a compare) and five when a release is
 // offered, plus one per further asset it has to try, so anonymous use (60
 // requests/hour) tops out at about 12 runs an hour, fewer when newer assets are
-// invalid; the startup prompt slice adds the cache.
+// invalid. The startup prompt's cache (pakke-releases.json) is not read here;
+// read it if status ever runs into the limit.
 func pakkeStatus(scope *InstallScope, state *StateFile) *pakkeReleaseStatus {
 	if scope == nil || !scope.IsUser() || !pinnedState(state) || !pinnable(state.SourceRepo) {
 		return nil
