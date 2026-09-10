@@ -9,11 +9,11 @@ tools:
   - web
   - todo
   - ms-vscode.vscode-websearchforcopilot/websearch
-  - io.github.navikt/github-mcp/get_file_contents
-  - io.github.navikt/github-mcp/search_code
-  - io.github.navikt/github-mcp/pull_request_read
-  - io.github.navikt/github-mcp/list_pull_requests
-  - io.github.navikt/github-mcp/search_pull_requests
+  - github/get_file_contents
+  - github/search_code
+  - github/pull_request_read
+  - github/list_pull_requests
+  - github/search_pull_requests
 ---
 
 # Code Review Agent
