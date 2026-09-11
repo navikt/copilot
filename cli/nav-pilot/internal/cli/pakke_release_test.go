@@ -1,0 +1,258 @@
+package cli
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
+	"testing"
+)
+
+var (
+	shaA = strings.Repeat("a", 40)
+	shaB = strings.Repeat("b", 40)
+	shaC = strings.Repeat("c", 40)
+)
+
+type fakeRelease struct {
+	tag                      string
+	draft, prerelease, mutab bool
+	asset                    string // metadata body; empty = no metadata asset
+	assetURL                 string // overrides the listed asset URL
+}
+
+// fakeGitHub serves the four endpoints discovery reads. compare maps
+// "base...head" to a status; a missing key is "ahead" when head is the default
+// branch (the SHA is on main) and 404 otherwise.
+type fakeGitHub struct {
+	releases []fakeRelease
+	compare  map[string]string
+	status   int // non-zero: the releases list answers with this
+}
+
+func (f *fakeGitHub) serve(t *testing.T) {
+	t.Helper()
+	const repo = "/repos/navikt/grillmester"
+	mux := http.NewServeMux()
+	mux.HandleFunc(repo+"/releases", func(w http.ResponseWriter, r *http.Request) {
+		if f.status != 0 {
+			w.WriteHeader(f.status)
+			return
+		}
+		if r.URL.Query().Get("per_page") != "100" {
+			t.Errorf("releases requested with per_page=%q, want 100", r.URL.Query().Get("per_page"))
+		}
+		list := []map[string]any{}
+		for i, rel := range f.releases {
+			base := "http://" + r.Host + repo + "/releases/assets/"
+			assets := []map[string]string{{"name": "grillmester.tar.gz", "url": base + "none"}}
+			if rel.asset != "" {
+				url := fmt.Sprintf("%s%d", base, i)
+				if rel.assetURL != "" {
+					url = rel.assetURL
+				}
+				assets = append(assets, map[string]string{"name": pakkeReleaseAsset, "url": url})
+			}
+			list = append(list, map[string]any{
+				"tag_name": rel.tag, "draft": rel.draft, "prerelease": rel.prerelease,
+				"immutable": !rel.mutab, "assets": assets,
+			})
+		}
+		_ = json.NewEncoder(w).Encode(list)
+	})
+	// Like GitHub: the API's asset endpoint answers 302 to another host, which
+	// serves the bytes. The token belongs to the API and must not follow.
+	download := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if auth := r.Header.Get("Authorization"); auth != "" {
+			t.Errorf("the redirect host received Authorization %q", auth)
+		}
+		i, _ := strconv.Atoi(strings.TrimPrefix(r.URL.Path, "/dl/"))
+		_, _ = io.WriteString(w, f.releases[i].asset)
+	}))
+	t.Cleanup(download.Close)
+	// Another hostname, as objects.githubusercontent.com is: Go keeps headers
+	// on a redirect to the same hostname, whatever the port.
+	downloadURL := strings.Replace(download.URL, "127.0.0.1", "localhost", 1)
+	mux.HandleFunc(repo+"/releases/assets/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Accept") != "application/octet-stream" {
+			t.Errorf("asset requested with Accept %q", r.Header.Get("Accept"))
+		}
+		if auth := r.Header.Get("Authorization"); auth != "Bearer test-token" {
+			t.Errorf("the API asset endpoint received Authorization %q, want the token", auth)
+		}
+		id := strings.TrimPrefix(r.URL.Path, repo+"/releases/assets/")
+		if _, err := strconv.Atoi(id); err != nil {
+			t.Errorf("discovery downloaded an asset that is not the metadata: %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		http.Redirect(w, r, downloadURL+"/dl/"+id, http.StatusFound)
+	})
+	mux.HandleFunc(repo, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `{"default_branch":"main"}`)
+	})
+	mux.HandleFunc(repo+"/compare/", func(w http.ResponseWriter, r *http.Request) {
+		key := strings.TrimPrefix(r.URL.Path, repo+"/compare/")
+		st, ok := f.compare[key]
+		if !ok && strings.HasSuffix(key, "...main") {
+			st, ok = "ahead", true
+		}
+		if !ok || st == "404" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		_, _ = fmt.Fprintf(w, `{"status":%q}`, st)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	orig := githubAPIBase
+	githubAPIBase = srv.URL
+	t.Cleanup(func() { githubAPIBase = orig })
+	t.Setenv("GITHUB_TOKEN", "test-token")
+}
+
+// TestReleasesList404IsDistinct: sync reads a 404 on the releases list as "no
+// metadata" for a pin that does not follow releases, so discovery must say
+// which request it was.
+func TestReleasesList404IsDistinct(t *testing.T) {
+	gh := fakeGitHub{status: http.StatusNotFound}
+	gh.serve(t)
+	_, _, err := discoverPakkeReleaseHTTP(context.Background(), "navikt/grillmester", "grillmester", "")
+	if !errors.Is(err, errReleasesNotFound) {
+		t.Fatalf("err = %v, want errReleasesNotFound", err)
+	}
+}
+
+func meta(name, version, sha string) string {
+	return fmt.Sprintf(`{"schemaVersion":1,"name":%q,"version":%q,"sourceSha":%q}`, name, version, sha)
+}
+
+func TestDiscoverPakkeRelease(t *testing.T) {
+	good := func(tag, version, sha string) fakeRelease {
+		return fakeRelease{tag: tag, asset: meta("grillmester", version, sha)}
+	}
+	cases := []struct {
+		name      string
+		gh        fakeGitHub
+		installed string
+		want      releaseOutcome
+		wantRel   pakkeRelease
+		wantErr   string
+	}{
+		{name: "no releases", want: releaseNoMetadata},
+		{name: "releases without metadata", gh: fakeGitHub{releases: []fakeRelease{{tag: "v0.4.0"}}}, want: releaseNoMetadata},
+		{name: "draft ignored", gh: fakeGitHub{releases: []fakeRelease{{tag: "v1.0.0", draft: true, asset: meta("grillmester", "1.0.0", shaA)}}}, want: releaseNoMetadata},
+		{name: "prerelease ignored", gh: fakeGitHub{releases: []fakeRelease{{tag: "v1.0.0", prerelease: true, asset: meta("grillmester", "1.0.0", shaA)}}}, want: releaseNoMetadata},
+		{name: "mutable release ignored", gh: fakeGitHub{releases: []fakeRelease{{tag: "v1.0.0", mutab: true, asset: meta("grillmester", "1.0.0", shaA)}}}, want: releaseNoMetadata},
+		{name: "another package in the same repo", gh: fakeGitHub{releases: []fakeRelease{{tag: "other/v1.0.0", asset: meta("other", "1.0.0", shaA)}}}, want: releaseNoMetadata},
+		{name: "tag prefix names another package", gh: fakeGitHub{releases: []fakeRelease{{tag: "other/v1.0.0", asset: meta("grillmester", "1.0.0", shaA)}}}, want: releaseNoMetadata},
+		{
+			name:    "asset URL outside the repo's API",
+			gh:      fakeGitHub{releases: []fakeRelease{{tag: "v1.0.0", asset: meta("grillmester", "1.0.0", shaA), assetURL: "http://127.0.0.1:1/repos/navikt/grillmester/releases/assets/0"}}},
+			wantErr: "is not an asset of navikt/grillmester",
+		},
+		{
+			name: "highest version wins, not newest release",
+			gh: fakeGitHub{releases: []fakeRelease{
+				good("v0.9.0", "0.9.0", shaA), good("grillmester/v0.10.0", "0.10.0", shaB), good("v0.4.0", "0.4.0", shaC),
+			}},
+			want: releaseCandidate, wantRel: pakkeRelease{Version: "0.10.0", SHA: shaB, Tag: "grillmester/v0.10.0"},
+		},
+		{
+			name:    "unsupported schemaVersion",
+			gh:      fakeGitHub{releases: []fakeRelease{{tag: "v1.0.0", asset: `{"schemaVersion":2,"name":"grillmester"}`}}},
+			wantErr: "- schemaVersion: ",
+		},
+		{
+			name:    "unknown field",
+			gh:      fakeGitHub{releases: []fakeRelease{{tag: "v1.0.0", asset: `{"schemaVersion":1,"name":"grillmester","version":"1.0.0","sourceSha":"` + shaA + `","url":"https://evil"}`}}},
+			wantErr: "additional properties 'url' not allowed",
+		},
+		{
+			name:    "trailing data",
+			gh:      fakeGitHub{releases: []fakeRelease{{tag: "v1.0.0", asset: meta("grillmester", "1.0.0", shaA) + `{}`}}},
+			wantErr: "not valid JSON",
+		},
+		{
+			name:    "oversized asset",
+			gh:      fakeGitHub{releases: []fakeRelease{{tag: "v1.0.0", asset: meta("grillmester", "1.0.0", shaA) + strings.Repeat(" ", pakkeReleaseAssetMax)}}},
+			wantErr: "larger than",
+		},
+		{name: "prerelease version", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0-rc.1", shaA)}}, wantErr: "- version: "},
+		{name: "tag is not a version", gh: fakeGitHub{releases: []fakeRelease{good("latest", "1.0.0", shaA)}}, want: releaseNoMetadata},
+		{name: "releases list 404", gh: fakeGitHub{status: http.StatusNotFound}, wantErr: "GITHUB_TOKEN"},
+		{name: "v in version", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "v1.0.0", shaA)}}, wantErr: "- version: "},
+		{name: "leading zero", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "01.0.0", shaA)}}, wantErr: "- version: "},
+		{name: "tag does not bind", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.1", "1.0.0", shaA)}}, wantErr: "tag does not bind"},
+		{name: "short sha", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", "abc1234")}}, wantErr: "- sourceSha: "},
+		{name: "uppercase sha", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", strings.Repeat("A", 40))}}, wantErr: "- sourceSha: "},
+		{
+			name: "a broken newer release does not block a valid older one",
+			gh:   fakeGitHub{releases: []fakeRelease{good("v2.0.0", "2.0.0", "nope"), good("v1.0.0", "1.0.0", shaA)}},
+			want: releaseCandidate, wantRel: pakkeRelease{Version: "1.0.0", SHA: shaA, Tag: "v1.0.0"},
+		},
+		{
+			name:    "same version, different sha",
+			gh:      fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", shaA), good("grillmester/1.0.0", "1.0.0", shaB)}},
+			wantErr: "published twice",
+		},
+		{
+			name:    "sha not on the default branch",
+			gh:      fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", shaA)}, compare: map[string]string{shaA + "...main": "diverged"}},
+			wantErr: "not on navikt/grillmester's default branch",
+		},
+		{
+			name:    "sha unknown to the repo (fork-only commit, or no common history)",
+			gh:      fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", shaA)}, compare: map[string]string{shaA + "...main": "404"}},
+			wantErr: "checking that",
+		},
+		{
+			name:    "sha ahead of the default branch",
+			gh:      fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", shaA)}, compare: map[string]string{shaA + "...main": "behind"}},
+			wantErr: "not on navikt/grillmester's default branch",
+		},
+		{name: "releases list fails", gh: fakeGitHub{status: http.StatusForbidden}, wantErr: "returned 403"},
+		{name: "installed is the release", gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", shaA)}}, installed: shaA, want: releaseUpToDate, wantRel: pakkeRelease{Version: "1.0.0", SHA: shaA, Tag: "v1.0.0"}},
+		{
+			name: "installed is older", installed: shaC, want: releaseCandidate, wantRel: pakkeRelease{Version: "1.0.0", SHA: shaA, Tag: "v1.0.0"},
+			gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", shaA)}, compare: map[string]string{shaC + "..." + shaA: "ahead"}},
+		},
+		{
+			name: "installed is newer", installed: shaC, want: releaseNotOffered, wantRel: pakkeRelease{Version: "1.0.0", SHA: shaA, Tag: "v1.0.0"},
+			gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", shaA)}, compare: map[string]string{shaC + "..." + shaA: "behind"}},
+		},
+		{
+			name: "installed diverged", installed: shaC, want: releaseNotOffered, wantRel: pakkeRelease{Version: "1.0.0", SHA: shaA, Tag: "v1.0.0"},
+			gh: fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", shaA)}, compare: map[string]string{shaC + "..." + shaA: "diverged"}},
+		},
+		{
+			name: "installed unknown to the repo", installed: shaC,
+			gh:      fakeGitHub{releases: []fakeRelease{good("v1.0.0", "1.0.0", shaA)}},
+			wantErr: "--ref " + shaA,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gh := tc.gh
+			gh.serve(t)
+			got, rel, err := discoverPakkeReleaseHTTP(context.Background(), "navikt/grillmester", "grillmester", tc.installed)
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("err = %v, want one containing %q (outcome %d, %+v)", err, tc.wantErr, got, rel)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("err = %v", err)
+			}
+			if got != tc.want || rel != tc.wantRel {
+				t.Errorf("= (%d, %+v), want (%d, %+v)", got, rel, tc.want, tc.wantRel)
+			}
+		})
+	}
+}

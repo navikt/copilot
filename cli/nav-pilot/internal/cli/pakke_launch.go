@@ -393,10 +393,23 @@ func autoPin(src *Source) (*Source, error) {
 				src.Pakke.Name, bold(state.Collection), bold(sourceLabelForRepo(state.SourceRepo)),
 				bold("nav-pilot install --user "+src.Pakke.Name))
 		}
+
+		// A pin that follows stable releases moves only to a release (#779). A
+		// launch resolves the default branch, so re-pinning here — the
+		// revision directory gone, say — swapped the release for HEAD and
+		// dropped the subscription without a word. sync restores the release.
+		if _, follows := releaseClaim(state); follows && !foreign && !sameSHA(state.SourceSHA, src.SHA) {
+			return nil, fmt.Errorf(
+				"%s follows stable releases and is pinned at %s, but this launch resolved the default branch at %s.\n"+
+					"nav-pilot will not replace a release pin with the default branch as a side effect of a launch.\n\n"+
+					"  Restore the pinned release:  %s",
+				bold(state.Collection), shortSHA(state.SourceSHA), shortSHA(src.SHA),
+				bold("nav-pilot sync --user --apply"))
+		}
 	}
 
 	// A launch has no JSON mode: everything it prints is for a person.
-	revDir, err := pinRevision(scope, src, false)
+	revDir, err := pinRevision(scope, src, nil, false, false)
 	if err != nil {
 		return nil, err
 	}

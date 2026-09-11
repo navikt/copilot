@@ -415,6 +415,17 @@ type StateFile struct {
 	// a pin is only ever made of a manifest with at least one payload client —
 	// so nil means "predates this field", not "no payload clients".
 	PinnedClients []string `json:"pinned_clients,omitempty"`
+	// PakkeVersion is the agentpakke's own release version for a Tier 2 pin
+	// taken from a stable release (#779). Version above is nav-pilot's version
+	// for external sources, so it cannot carry this. Empty when unknown.
+	PakkeVersion string `json:"pakke_version,omitempty"`
+	// FollowsReleases marks a pin that sync moves only between stable releases.
+	// A state written before it existed reads false: not following.
+	FollowsReleases bool `json:"follows_releases,omitempty"`
+	// PakkeVersionSHA is the SourceSHA that PakkeVersion and FollowsReleases
+	// were recorded for. An older nav-pilot that re-pins carries both over as
+	// unknown keys while moving SourceSHA, so a mismatch means they are stale.
+	PakkeVersionSHA string `json:"pakke_version_sha,omitempty"`
 	// Unknown carries every top-level key this binary does not understand, so a
 	// read-modify-write does not silently drop what a newer nav-pilot wrote.
 	// See [InstalledFile.Unknown].

@@ -112,7 +112,7 @@ func TestPinRevisionKeepsUnknownKeys(t *testing.T) {
 	if err := attachPakke(src); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pinRevision(scope, src, true); err != nil {
+	if _, err := pinRevision(scope, src, nil, false, true); err != nil {
 		t.Fatalf("pinRevision: %v", err)
 	}
 	assertStateKeeps(t, scope, `"schema_version": 2`)
@@ -140,7 +140,7 @@ func TestPinRevisionDropsUnknownKeysOnSourceSwitch(t *testing.T) {
 	if err := attachPakke(src); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pinRevision(scope, src, true); err != nil {
+	if _, err := pinRevision(scope, src, nil, false, true); err != nil {
 		t.Fatalf("pinRevision: %v", err)
 	}
 

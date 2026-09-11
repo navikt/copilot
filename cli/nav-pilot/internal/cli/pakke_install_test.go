@@ -128,6 +128,9 @@ func pinEnv(t *testing.T) *InstallScope {
 	t.Helper()
 	isolatedConfig(t)
 	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	// No pin test reaches GitHub: sources are not release-backed unless a test
+	// says otherwise (stubRelease).
+	stubRelease(t, releaseNoMetadata, pakkeRelease{}, nil)
 	scope, err := ScopeUser()
 	if err != nil {
 		t.Fatal(err)
