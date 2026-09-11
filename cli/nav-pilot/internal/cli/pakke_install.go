@@ -694,7 +694,7 @@ func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) 
 		return nil
 	}
 
-	if _, err := pinRevision(scope, src, release, false, jsonOutput); err != nil {
+	if _, err := pinRevision(scope, src, release, installRef != "", jsonOutput); err != nil {
 		return err
 	}
 

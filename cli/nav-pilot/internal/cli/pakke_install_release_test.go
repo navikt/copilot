@@ -421,6 +421,27 @@ func TestFirstLaunchRefusesAReleaseWithoutThisClientsPayload(t *testing.T) {
 	assertNotMaterialized(t, shaA)
 }
 
+// TestInstallRefToTheFollowedRevisionStopsFollowing: install --ref at the SHA
+// a following pin is already at is a pinning choice, as sync --ref is. It kept
+// the subscription, because a nil release over the same revision keeps the
+// claim.
+func TestInstallRefToTheFollowedRevisionStopsFollowing(t *testing.T) {
+	scope, _ := followingPin(t)
+	calls := stubRelease(t, releaseCandidate, release041, nil)
+	installRef = shaA
+	t.Cleanup(func() { installRef = "" })
+
+	var err error
+	out := captureStdoutFor(t, func() { err = installPakkePin(scope, tier2PinSource(t, shaA), false, false) })
+	if err != nil {
+		t.Fatalf("install --ref <pinned sha> = %v. Output:\n%s", err, out)
+	}
+	if *calls != 0 {
+		t.Errorf("an explicit --ref looked up releases (%d calls)", *calls)
+	}
+	assertPin(t, scope, shaA, "", false)
+}
+
 // TestReinstallOverAFollowingPinRefusesA404: a re-install whose releases list
 // answers 404 does not move a following pin to the default branch; sync fails
 // closed in the same situation.
