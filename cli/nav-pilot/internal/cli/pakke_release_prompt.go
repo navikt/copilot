@@ -222,7 +222,7 @@ func activatePakkeRelease(resolved ResolvedConfig, scope *InstallScope, state *S
 	if pinMoved(state, latest) {
 		return nil, fmt.Errorf("the pin changed to %s while you were asked; the pin is unchanged", pinLabel(latest))
 	}
-	revDir, err := pinRevision(scope, relSrc, &rel, false)
+	revDir, err := pinRevision(scope, relSrc, &rel, false, false)
 	if err != nil {
 		return nil, err
 	}
