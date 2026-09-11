@@ -448,6 +448,54 @@ func TestReleasePromptReleaseWithoutThisClient(t *testing.T) {
 	}
 }
 
+// TestReleasePromptReleaseOfAnotherPackage: a release whose SHA ships another
+// package is immutable, so Yes to it is not asked again. A clone that fails is
+// not about the release, and is.
+func TestReleasePromptReleaseOfAnotherPackage(t *testing.T) {
+	for name, tc := range map[string]struct {
+		fetchErr  error // nil: the fetch resolves, but to another package
+		wantAsked int
+		dismissed string
+	}{
+		"another package": {wantAsked: 1, dismissed: "0.4.2"},
+		"clone fails":     {fetchErr: errors.New("git fetch failed"), wantAsked: 3},
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := newPromptEnv(t)
+			e.answer = true
+			stubRelease(t, releaseCandidate, release042, nil)
+			orig := resolveSourceForSync
+			t.Cleanup(func() { resolveSourceForSync = orig })
+			resolveSourceForSync = func(ref, repo string) (*Source, error) {
+				if ref != release042.SHA {
+					return orig(ref, repo)
+				}
+				if tc.fetchErr != nil {
+					return nil, tc.fetchErr
+				}
+				src, err := orig(ref, repo)
+				if err == nil {
+					src.Pakke.Name = "annen-pakke"
+				}
+				return src, err
+			}
+
+			for range 3 {
+				e.launch(t)
+				e.assertLaunchedFrom(t, shaC)
+			}
+			assertPin(t, e.scope, shaC, "", false)
+			if len(e.asked) != tc.wantAsked {
+				t.Errorf("asked %d time(s) over three launches, want %d: %q", len(e.asked), tc.wantAsked, e.asked)
+			}
+			entry := readPakkeReleaseCache()[pakkeReleaseCacheKey("navikt/grillmester", "grillmester")]
+			if entry.Dismissed != tc.dismissed {
+				t.Errorf("dismissed = %q, want %q", entry.Dismissed, tc.dismissed)
+			}
+		})
+	}
+}
+
 // TestReleasePromptCorruptCache: a cache that does not parse is no cache.
 func TestReleasePromptCorruptCache(t *testing.T) {
 	e := newPromptEnv(t)

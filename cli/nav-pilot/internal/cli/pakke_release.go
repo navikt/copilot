@@ -320,11 +320,17 @@ func fetchPakkeRelease(repo, name string, rel pakkeRelease) (*Source, error) {
 	}
 	if !sameSHA(relSrc.SHA, rel.SHA) || relSrc.Pakke == nil || relSrc.Pakke.Name != name {
 		relSrc.Cleanup()
-		return nil, fmt.Errorf("%s names %s at %s, but that revision resolved to %s shipping %q; nothing was pinned from it",
-			rel.Tag, name, rel.SHA, relSrc.SHA, pakkeInstallTarget(relSrc))
+		return nil, fmt.Errorf("%s names %s at %s, but that revision resolved to %s shipping %q; %w",
+			rel.Tag, name, rel.SHA, relSrc.SHA, pakkeInstallTarget(relSrc), errReleaseNotThisPackage)
 	}
 	return relSrc, nil
 }
+
+// errReleaseNotThisPackage marks a release whose source SHA is not the package
+// it names. The release is immutable, so no retry changes it; the startup
+// prompt stops offering it, and sync and install report it as they report any
+// other refusal.
+var errReleaseNotThisPackage = errors.New("nothing was pinned from it")
 
 // releaseStart is where a new pin of the payload-only source src starts (#779):
 // the newest stable release when the source publishes one, src itself when it

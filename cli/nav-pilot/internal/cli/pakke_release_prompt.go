@@ -71,6 +71,11 @@ func readPakkeReleaseCache() map[string]pakkeReleaseCacheEntry {
 // writePakkeReleaseCache is best effort: a cache that cannot be written costs
 // a lookup next launch. It replaces the file by rename, so two launches
 // writing at once leave one whole file, never a torn one.
+//
+// ponytail: read-modify-write without a lock, so the last writer wins. Two
+// launches at once, for different packages, can drop the other's entry: that
+// costs one extra lookup, or asks once more about a version answered "No".
+// Merge under a file lock if that ever matters.
 func writePakkeReleaseCache(cache map[string]pakkeReleaseCacheEntry) {
 	path := pakkeReleaseCachePath()
 	data, err := json.MarshalIndent(cache, "", "  ")
@@ -200,8 +205,11 @@ func activatePakkeRelease(resolved ResolvedConfig, scope *InstallScope, state *S
 	rel = current // same SHA; version and tag as the release says now
 
 	relSrc, err := fetchPakkeRelease(state.SourceRepo, name, rel)
+	if errors.Is(err, errReleaseNotThisPackage) {
+		return nil, fmt.Errorf("%w; %w", err, errReleaseUnusable)
+	}
 	if err != nil {
-		return nil, err
+		return nil, err // a clone or network failure: worth asking again
 	}
 	defer relSrc.Cleanup()
 	if !payloadOnly(relSrc) {
