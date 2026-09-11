@@ -337,8 +337,19 @@ func TestExplicitRefToThePinnedRevisionStopsFollowing(t *testing.T) {
 			}
 			calls := stubRelease(t, releaseCandidate, release041, nil)
 
+			// A plain sync names the command that applies it, --ref included,
+			// and says the pin stops following.
 			var err error
-			out := captureStdoutFor(t, func() { err = cmdSync(scope, shaA, "", true, false) })
+			out := captureStdoutFor(t, func() { err = cmdSync(scope, shaA, "", false, false) })
+			if err != errUpdatesAvailable {
+				t.Fatalf("sync --ref <pinned sha> = %v, want errUpdatesAvailable. Output:\n%s", err, out)
+			}
+			if !strings.Contains(out, "nav-pilot sync --apply --ref "+shaA) || !strings.Contains(out, "stops following") {
+				t.Errorf("sync --ref did not advise --apply --ref and say the pin stops following. Output:\n%s", out)
+			}
+			assertPin(t, scope, shaA, "0.4.1", true)
+
+			out = captureStdoutFor(t, func() { err = cmdSync(scope, shaA, "", true, false) })
 			if err != nil {
 				t.Fatalf("sync --apply --ref <pinned sha> = %v. Output:\n%s", err, out)
 			}

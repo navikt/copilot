@@ -49,6 +49,10 @@ func TestValidateRelease(t *testing.T) {
 			if !strings.Contains(err.Error(), tt.wantErr) {
 				t.Errorf("error %q does not mention %q", err, tt.wantErr)
 			}
+			// A release is immutable: the remedy is a new one, not "fix the manifest".
+			if tt.name != "not JSON" && !strings.Contains(err.Error(), "publish a new release") {
+				t.Errorf("error %q does not say to publish a new release", err)
+			}
 		})
 	}
 }

@@ -846,6 +846,11 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 	// as up to date, and the SHA comparison below would do exactly that
 	// whenever the source has not moved. --apply rebuilds it; a plain sync says
 	// what is wrong, which is the half the user needs.
+	// The command that applies what a plain sync reports, --ref included.
+	next := "nav-pilot sync --apply"
+	if ref != "" {
+		next += " --ref " + ref
+	}
 	if !pinnedRevisionOnDisk(state) {
 		if !apply {
 			if jsonOutput {
@@ -856,8 +861,11 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 			}
 			fmt.Printf("%s %s is pinned at %s, but that revision is no longer under %s.\n\n",
 				yellow("⚠"), bold(state.Collection), shortSHA(state.SourceSHA), bold(pakkerRoot()))
+			if ref != "" && follows {
+				fmt.Printf("It follows stable releases. With --apply, this --ref pins %s and stops following.\n\n", shortSHA(src.SHA))
+			}
 			fmt.Printf("Run %s to materialize it again (from %s, what the source resolves to now).\n",
-				bold("nav-pilot sync --apply"), shortSHA(src.SHA))
+				bold(next), shortSHA(src.SHA))
 			return errUpdatesAvailable
 		}
 		if _, err := pinRevision(scope, src, release, ref != "", jsonOutput); err != nil {
@@ -902,7 +910,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 			fmt.Printf("%s A newer revision of %s is available (pinned %s, source %s).\n\n",
 				yellow("⚠"), bold(src.Pakke.Name), shortSHA(state.SourceSHA), release.label(src.SHA))
 		}
-		fmt.Printf("Run %s to update.\n", bold("nav-pilot sync --apply"))
+		fmt.Printf("Run %s to update.\n", bold(next))
 		return errUpdatesAvailable
 	}
 
