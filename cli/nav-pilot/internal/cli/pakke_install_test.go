@@ -1646,7 +1646,7 @@ func TestAutoPinKeepsThePreviousRevisionThroughTheLaunchPath(t *testing.T) {
 	if err := attachPakke(src); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := autoPin(src); err != nil {
+	if _, err := autoPin(src, "copilot"); err != nil {
 		t.Fatalf("autoPin: %v", err)
 	}
 

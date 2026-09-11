@@ -486,7 +486,7 @@ nav-pilot --client copilot --payload-context focused      # en annen deklarert k
 
 - **`--payload-context <id>`** velger kontekst. Uten flagget brukes `defaultContext` fra klientoppføringa (`full` når feltet mangler). En kontekst pakka ikke deklarerer gir en feil som lister opp de som finnes. Det er ingen config-nøkkel for dette: den varige standarden er manifestets eget felt.
 - **`--payload-context` er ikke `--context`.** Sistnevnte er Copilots long-context-nivå og er uendret. De to er ortogonale og kan stå på samme kommandolinje.
-- **Revisjonen ligger på maskinen, er immutabel og valgt av et install-steg.** `nav-pilot install --user <navn>` verifiserer pakka, materialiserer hver deklarerte kontekst under `~/.nav-pilot/pakker/<eier>-<repo>/<sha>/` (repo-id-en småskrevet, slik nav-pilot ellers sammenligner den) og pinner SHA-en. Senere launcher leser den katalogen og kloner ingenting. Startes en payload-only kilde som ikke er installert, pinner første launch den på samme måte og sier fra med én linje.
+- **Revisjonen ligger på maskinen, er immutabel og valgt av et install-steg.** `nav-pilot install --user <navn>` verifiserer pakka, materialiserer hver deklarerte kontekst under `~/.nav-pilot/pakker/<eier>-<repo>/<sha>/` (repo-id-en småskrevet, slik nav-pilot ellers sammenligner den) og pinner SHA-en. Senere launcher leser den katalogen og kloner ingenting. Startes en payload-only kilde som ikke er installert, pinner første launch den på samme måte og sier fra med én linje. Publiserer repoet stabile releases, starter både install og første launch på nyeste release, ikke på standardgrenen ([Stabile releases](#hva-install-og-første-launch-gjør)).
 - **Verifisering før hver launch.** Det pinnede treet re-verifiseres eksakt mot payload-manifestet (digest og modus) før klienten startes. En fil som er endret, fjernet eller lagt til etter at revisjonen ble materialisert, stopper launchen. Feiler noe av dette, starter ingenting, og en Tier 2-launch faller aldri tilbake på Tier 1-veien.
 - **Er revisjonen borte og kilden ikke tilgjengelig, nekter launchen, per klient.** Pin-staten noterer ved install hvilke klienter revisjonen materialiserte payloads for (`pinned_clients`). Kan kilden ikke resolves og katalogen er borte, stopper launchen for en klient som står der, med `nav-pilot sync --apply` og `nav-pilot config set source ""` som veiene ut; en klient pinnen aldri staget noe for, tar legacy-stien som før. En Tier 2-launch nedgraderes aldri stille til legacy. En pin skrevet av en eldre nav-pilot mangler lista, nekter offline framfor å gjette, og oppgraderes på plass ved første launch som får lest det pinnede manifestet, eller ved en `sync --apply` som faktisk flytter eller gjenoppbygger pinnen. En sync som melder «up to date», rører ikke staten.
 - **Pinnen flyttes av `nav-pilot sync`, ikke av å starte klienten på nytt.** Uten `--apply` rapporterer sync hvilken revisjon som er tilgjengelig. Med `--apply` verifiseres og materialiseres den nye revisjonen, og pinnen bytter. De to siste revisjonene beholdes, eldre fjernes. Er den pinnede revisjonen fjernet fra disk, sier sync det framfor å melde «up to date», og `--apply` bygger den opp igjen (`Restored …`). Sync oppdaterer den kilden scopet er pinnet til: peker du den mot et annet repo, nekter den og ber deg gjøre byttet med `install`.
@@ -547,14 +547,45 @@ Publiser releasen som stabil først når alle kontroller som godkjenner distribu
 - Feiler oppslaget for en pinne som ikke følger releases, hopper sync over oppdateringen med en advarsel (`warning` og `skipped: true` i `--json`) og avslutter som når ingenting er endret. Pinnen står. nav-pilot vet da ikke om repoet er release-basert, og pinner hverken en release eller standardgrenen på en gjetning.
 - Oppslaget bruker `GITHUB_TOKEN`, ikke git-legitimasjonen kloningen bruker. Et privat repo krever derfor `GITHUB_TOKEN` for at releasene skal bli funnet. Uten token svarer GitHub 404 på releaselista. Da synkes en pinne som ikke følger releases fra standardgrenen som før, med en advarsel om å sette `GITHUB_TOKEN` (`warning` i `--json`, uten `skipped`), mens en pinne som følger releases feiler.
 - Mangler den pinnede revisjonen på disk, gjenoppretter `--apply` den på den pinnede SHA-en når releasen ikke tilbys, når oppslaget feiler for en pinne som ikke følger releases, og når pinnen er på nyeste release uten å følge releases. Det siste starter ikke et abonnement. Et repo uten metadata materialiseres fra standardgrenen som før.
-- En eksplisitt `nav-pilot install` over en pinne som følger releases, pinner det kilden resolver til, og pinnen følger ikke releases lenger. Unntaket er når install lander på den samme revisjonen.
+- En eksplisitt `nav-pilot install` over en pinne som følger releases, pinner det kilden resolver til, og pinnen følger ikke releases lenger. Unntaket er når install uten `--ref` lander på den samme revisjonen. `install --ref` til revisjonen pinnen allerede står på, avslutter abonnementet, som `sync --ref`.
 - Kjenner GitHub ikke installert revisjon, feiler oppslaget med `--ref` som veien videre.
 - Pakkeversjonen og abonnementet registreres sammen med SHA-en de gjelder (`pakke_version_sha`). Flytter en eldre nav-pilot pinnen, gjelder de ikke lenger.
 - En launch bytter aldri ut en pinne som følger releases med standardgrenen. Mangler revisjonen på disk, nekter launchen og viser til `nav-pilot sync --user --apply`.
 - `--ref` er et eksplisitt pinningvalg og vinner som før. Pinnen det skriver, følger ikke releases, også når ref-en er den revisjonen som allerede er pinnet.
 - Flytter en annen prosess pinnen mens revisjonen materialiseres, registreres ingenting, og kommandoen ber deg kjøre den på nytt.
 
-`nav-pilot --sync` går gjennom den samme stien. Varsling ved oppstart, automatisk oppdatering, status og valg ved install er ikke med ennå ([#779](https://github.com/navikt/copilot/issues/779)).
+`nav-pilot --sync` går gjennom den samme stien.
+
+### Hva install og første launch gjør
+
+`nav-pilot install --user <navn>` og launchen som pinner en payload-only kilde som ikke er installert, slår opp releasene før de pinner, med samme oppslag og samme kandidatvalg som sync.
+
+- Finnes en stabil release, pinnes nøyaktig dens `sourceSha`, og pinnen følger releases. Standardgrenen materialiseres ikke. `install --json` tar med `pakke_version` og `follows_releases`, og `--dry-run` navngir releasen.
+- Et repo uten metadata pinnes fra standardgrenen som før.
+- Feiler oppslaget, pinnes ingenting, og kommandoen feiler med årsaken. Det finnes ingen pinne å beholde, og en pinne på standardgrenen ville ligget foran nyeste release, der nedgraderingsvernet holder den fast.
+- Er revisjonen i releasen ikke lenger payload-only, pinnes ingenting.
+- `--ref` pinner den revisjonen som før, og pinnen følger ikke releases. `--frozen` slår ikke opp releaser.
+- Svarer GitHub 404 på releaselista, som et privat repo gjør uten `GITHUB_TOKEN`, pinnes standardgrenen som før, med advarselen `releases for <repo> are not visible (GitHub answered 404); set GITHUB_TOKEN if the repo is private` på stderr. Følger en eksisterende pinne fra samme repo releases, nekter `install` i stedet, slik sync gjør, og pinnen står. Feilen viser til `GITHUB_TOKEN` og til `--ref` som den bevisste veien bort fra releases.
+- Kjøres `install` på nytt over en pinne som allerede finnes, flyttes pinnen til nyeste release uten nedgraderingsvern. Install er brukerens eget valg, slik `--ref` er det.
+- Deklarerer releasen ikke payload for klienten som startes, pinner første launch ingenting og stopper med en forklaring.
+- En launch over en pinne som allerede er registrert, med revisjonen borte fra disk, slår ikke opp releaser.
+
+### Status
+
+`nav-pilot list --installed` viser for en pinnet pakke i brukerscope:
+
+```
+  Package:     0.4.1 (pinned at 20d634f)
+  Releases:    follows stable releases: yes
+  ⚠ Release 0.4.2 (9f1c2ab) is available. Run nav-pilot sync --user --apply to update; sync checks the revision before it pins it.
+```
+
+- Versjonen vises bare når `pakke_version_sha` er lik den pinnede SHA-en, ellers `unknown`.
+- En ventende release er en nyere stabil release oppslaget tilbyr. Status henter ikke revisjonen: sync kontrollerer fortsatt at den er samme pakke og payload-only før den pinnes, og nekter ellers. Oppslaget gjøres hver gang, uten cache, med samme tidsgrense som sync.
+- Feiler oppslaget, skrives `⚠ release check failed: <årsak>`, og kommandoen avslutter som vanlig.
+- `--json` har feltene under `pakke`: `version`, `pinned_sha`, `follows_releases`, `pending_release` (`version`, `sha`, `tag`) og `release_check_error`.
+
+Varsling ved oppstart, automatisk oppdatering og valg ved install er ikke med ennå ([#779](https://github.com/navikt/copilot/issues/779)).
 
 ## Begrensninger i dag
 

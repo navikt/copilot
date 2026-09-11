@@ -524,7 +524,7 @@ func TestLaunchDoesNotUnsubscribeAFollowingPin(t *testing.T) {
 	head := tier2PinSource(t, shaB)
 
 	var err error
-	out := captureStdoutFor(t, func() { _, err = autoPin(head) })
+	out := captureStdoutFor(t, func() { _, err = autoPin(head, "copilot") })
 	if err == nil || !strings.Contains(err.Error(), "sync --user --apply") {
 		t.Fatalf("autoPin over a following pin = %v, want a refusal naming sync --apply. Output:\n%s", err, out)
 	}

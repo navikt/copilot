@@ -639,46 +639,69 @@ func checkPakkeInstallable(scope *InstallScope, src *Source) error {
 	return validatePakkeSource(src)
 }
 
+// installRef carries install's explicit --ref for one invocation, the way
+// installFrozen carries --frozen: every install entry point reaches
+// installPakkePin, and only some of them take the ref.
+var installRef string
+
 // installPakkePin installs a payload-only agentpakke: it pins a revision, and
 // says so. It is what every install entry point routes a Tier 2 source to.
+//
+// Without an explicit --ref, a user-scope install of a repo starts on the
+// newest stable release when the source publishes one (#779). --frozen, path
+// sources and repo scope keep today's behaviour; the last two are refused by
+// checkPakkeInstallable before anything is pinned.
 func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) error {
-	pakke := src.Pakke
-
-	if dryRun {
-		if err := checkPakkeInstallable(scope, src); err != nil {
+	var release *pakkeRelease
+	if installRef == "" && !installFrozen && scope.IsUser() && pinnable(src.Repo) {
+		existing, _ := readScopedState(scope) // an unreadable state is pinRevision's error to report
+		_, follows := releaseClaim(existing)
+		relSrc, rel, err := releaseStart(src, follows && sameSourceRepo(existing.SourceRepo, src.Repo))
+		if err != nil {
 			return err
 		}
-		if jsonOutput {
-			return outputJSON(map[string]interface{}{
-				"command":    "install",
-				"collection": pakke.Name,
-				"scope":      scope.Name,
-				"source_sha": src.SHA,
-				"version":    src.Version,
-				"installed":  0,
-				"dry_run":    true,
-			})
+		if relSrc != src {
+			defer relSrc.Cleanup()
 		}
-		fmt.Printf("%s Would install %s, pinned at %s.\n", dim("→"), bold(pakke.Name), shortSHA(src.SHA))
-		return nil
+		src, release = relSrc, rel
 	}
+	pakke := src.Pakke
 
-	if _, err := pinRevision(scope, src, nil, false, jsonOutput); err != nil {
-		return err
-	}
-
-	if jsonOutput {
-		return outputJSON(map[string]interface{}{
+	result := func() error {
+		doc := map[string]interface{}{
 			"command":    "install",
 			"collection": pakke.Name,
 			"scope":      scope.Name,
 			"source_sha": src.SHA,
 			"version":    src.Version,
 			"installed":  0,
-			"dry_run":    false,
-		})
+			"dry_run":    dryRun,
+		}
+		if release != nil {
+			doc["pakke_version"], doc["follows_releases"] = release.Version, true
+		}
+		return outputJSON(doc)
 	}
-	fmt.Printf("%s Installed %s, pinned at %s.\n", green("✓"), bold(pakke.Name), shortSHA(src.SHA))
+
+	if dryRun {
+		if err := checkPakkeInstallable(scope, src); err != nil {
+			return err
+		}
+		if jsonOutput {
+			return result()
+		}
+		fmt.Printf("%s Would install %s, pinned at %s.\n", dim("→"), bold(pakke.Name), release.label(src.SHA))
+		return nil
+	}
+
+	if _, err := pinRevision(scope, src, release, installRef != "", jsonOutput); err != nil {
+		return err
+	}
+
+	if jsonOutput {
+		return result()
+	}
+	fmt.Printf("%s Installed %s, pinned at %s.\n", green("✓"), bold(pakke.Name), release.label(src.SHA))
 	fmt.Println()
 	fmt.Println(dim("It ships pre-built payloads rather than files, so nothing was written to ~/.copilot."))
 	fmt.Printf("%s %s %s\n", dim("Launches read the pinned revision;"), bold("nav-pilot sync"), dim("updates it."))

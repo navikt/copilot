@@ -315,7 +315,7 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 
 	// Past the tier gate the launch is Tier 2 and fails closed: it never
 	// degrades to the legacy path with the user's own ~/.copilot injected.
-	rev, err := autoPin(src)
+	rev, err := autoPin(src, resolved.Client)
 	return rev, true, err
 }
 
@@ -329,7 +329,11 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 // and the revisions it left. An explicit install is the consent for that; a
 // launch has no consent gesture at all, so it stops and names the command that
 // does.
-func autoPin(src *Source) (*Source, error) {
+//
+// client is the client being launched. The tier gate in [resolveAndPin] ran on
+// the resolved revision; a first pin can start on a release instead, which is
+// held to the same gate before it is pinned.
+func autoPin(src *Source, client string) (*Source, error) {
 	scope, err := ScopeUser()
 	if err != nil {
 		return nil, fmt.Errorf("locating your user scope to pin agentpakke %q: %w", src.Pakke.Name, err)
@@ -367,7 +371,11 @@ func autoPin(src *Source) (*Source, error) {
 		return &Source{Dir: revDir, SHA: src.SHA, Repo: src.Repo, Pakke: src.Pakke}, nil
 	}
 
+	// First launch: nothing is pinned in user scope yet. A pin that exists with
+	// its revision gone is not a first launch, and keeps today's handling below.
+	firstPin := true
 	if state, err := readScopedState(scope); err == nil && state != nil {
+		firstPin = state.SourceSHA == ""
 		// Files would be orphaned by the zero-item pin that replaces them, and
 		// a recorded pin on another source has whole materialized revision
 		// trees behind it that pinRevision removes. Either way a launch would
@@ -408,13 +416,37 @@ func autoPin(src *Source) (*Source, error) {
 		}
 	}
 
+	// The first pin starts on the newest stable release, like install (#779).
+	var release *pakkeRelease
+	if firstPin {
+		relSrc, rel, err := releaseStart(src, false) // a first pin replaces no pin
+		if err != nil {
+			return nil, err
+		}
+		if relSrc != src {
+			defer relSrc.Cleanup()
+		}
+		src, release = relSrc, rel
+		if release != nil && src.Pakke.Tier(client) != agentpakke.TierPayload {
+			return nil, fmt.Errorf(
+				"%s %s (%s) ships no pre-built payload for %s, which this launch needs; nothing was pinned.\n\n"+
+					"  Pin a revision deliberately:  %s",
+				src.Pakke.Name, release.Version, release.Tag, client,
+				bold("nav-pilot install --user --ref <branch|sha> "+src.Pakke.Name))
+		}
+	}
+
 	// A launch has no JSON mode: everything it prints is for a person.
-	revDir, err := pinRevision(scope, src, nil, false, false)
+	revDir, err := pinRevision(scope, src, release, false, false)
 	if err != nil {
 		return nil, err
 	}
+	pinned := src.SHA
+	if release != nil {
+		pinned = release.label(src.SHA)
+	}
 	fmt.Printf("%s Pinned %s at %s — future launches use the local copy; %s updates it.\n",
-		green("✓"), bold(src.Pakke.Name), src.SHA, bold("nav-pilot sync"))
+		green("✓"), bold(src.Pakke.Name), pinned, bold("nav-pilot sync"))
 	return &Source{Dir: revDir, SHA: src.SHA, Repo: src.Repo, Pakke: src.Pakke}, nil
 }
 
