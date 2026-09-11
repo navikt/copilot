@@ -320,11 +320,17 @@ func fetchPakkeRelease(repo, name string, rel pakkeRelease) (*Source, error) {
 	}
 	if !sameSHA(relSrc.SHA, rel.SHA) || relSrc.Pakke == nil || relSrc.Pakke.Name != name {
 		relSrc.Cleanup()
-		return nil, fmt.Errorf("%s names %s at %s, but that revision resolved to %s shipping %q; nothing was pinned from it",
-			rel.Tag, name, rel.SHA, relSrc.SHA, pakkeInstallTarget(relSrc))
+		return nil, fmt.Errorf("%s names %s at %s, but that revision resolved to %s shipping %q; %w",
+			rel.Tag, name, rel.SHA, relSrc.SHA, pakkeInstallTarget(relSrc), errReleaseNotThisPackage)
 	}
 	return relSrc, nil
 }
+
+// errReleaseNotThisPackage marks a release whose source SHA is not the package
+// it names. The release is immutable, so no retry changes it; the startup
+// prompt stops offering it, and sync and install report it as they report any
+// other refusal.
+var errReleaseNotThisPackage = errors.New("nothing was pinned from it")
 
 // releaseStart is where a new pin of the payload-only source src starts (#779):
 // the newest stable release when the source publishes one, src itself when it
@@ -398,7 +404,8 @@ type pakkeReleaseStatus struct {
 // list, one metadata asset, the repo, a compare) and five when a release is
 // offered, plus one per further asset it has to try, so anonymous use (60
 // requests/hour) tops out at about 12 runs an hour, fewer when newer assets are
-// invalid; the startup prompt slice adds the cache.
+// invalid. The startup prompt's cache (pakke-releases.json) is not read here;
+// read it if status ever runs into the limit.
 func pakkeStatus(scope *InstallScope, state *StateFile) *pakkeReleaseStatus {
 	if scope == nil || !scope.IsUser() || !pinnedState(state) || !pinnable(state.SourceRepo) {
 		return nil

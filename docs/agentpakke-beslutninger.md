@@ -349,6 +349,10 @@ Assetet binder pakkenavn, versjon og kilde-SHA i selve releasen, og en immutable
 
 **Samtidighet uten lås.** `pinRevision` leser staten på nytt rett før den skriver, og avbryter hvis pinnen er flyttet siden den leste den første gang. Første lesing skjer i `pinRevision`, etter oppslaget og kloningen. En pinne som flyttes mens sync slår opp eller kloner, fanges derfor ikke, bare en som flyttes under materialiseringen. Vinduet mellom ny lesing og skriving er igjen, men det er kort mot materialiseringen.
 
+**Oppstartsspørsmålet cacher per pinne, ikke bare per tid.** Nedgraderingsvernet svarer bare for pinnen oppslaget sammenlignet med. En kandidat funnet over én pinne kan være en nedgradering over en annen, for eksempel etter `sync --ref` til en revisjon foran releasen. Cachen lagrer derfor pinnen hvert oppslag gjaldt, og et oppslag gjort for en annen pinne regnes som utgått og gjøres på nytt. Da avgjøres det som tilbys fortsatt av regelen fra sync, og cachen trenger ingen egen versjonssammenligning. «Nei» lagres i den samme fila, per repo og pakke, ikke i staten. En slettet cache kan dermed ikke endre pinnen.
+
+**Ja ved oppstart flytter pinnen slik sync gjør.** Nøyaktig release-SHA-en hentes, og `pinRevision` får releasen. Spørsmålet kan stå åpent lenge, så staten leses på nytt før pinnen flyttes, i tillegg til kontrollen `pinRevision` gjør selv. Feiler oppdateringen, starter den gamle pinnen etter vanlig verifisering, aldri standardgrenen.
+
 ## Se også
 
 - [Agentpakke-kontrakten](README.agentpakke.md), hva en agentpakke er og hva nav-pilot krever av den

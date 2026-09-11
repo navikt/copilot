@@ -29,8 +29,9 @@ import (
 // `nav-pilot install`, or by the first launch of an un-installed payload-only
 // source — is verified where it lies and handed to the client. Nothing is
 // cloned, copied or staged per launch, and no launch ever reads a moving
-// default branch: a new revision arrives through `nav-pilot sync`, never
-// through launching again.
+// default branch: a new revision arrives through `nav-pilot sync`, or through
+// a "Yes" to the release prompt in a terminal (#779), never through launching
+// again.
 func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 	if resolved.Source == "" {
 		return false, payloadContextUnsupported(resolved, defaultSourceRepo)
@@ -54,6 +55,11 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 			// there is nothing pinned to launch from: exactly today's legacy
 			// path, and reached without resolving anything.
 			return false, payloadContextUnsupported(resolved, resolved.Source)
+		}
+		// A newer stable release is offered in a terminal only (#779). CI and
+		// scripted launches read the pin and nothing else.
+		if isInteractive() {
+			rev = offerPakkeRelease(resolved, rev)
 		}
 	} else {
 		var handled bool
