@@ -320,7 +320,7 @@ func fetchPakkeRelease(repo, name string, rel pakkeRelease) (*Source, error) {
 	}
 	if !sameSHA(relSrc.SHA, rel.SHA) || relSrc.Pakke == nil || relSrc.Pakke.Name != name {
 		relSrc.Cleanup()
-		return nil, fmt.Errorf("%s names %s at %s, but that revision resolved to %s shipping %q; the pin is unchanged",
+		return nil, fmt.Errorf("%s names %s at %s, but that revision resolved to %s shipping %q; nothing was pinned from it",
 			rel.Tag, name, rel.SHA, relSrc.SHA, pakkeInstallTarget(relSrc))
 	}
 	return relSrc, nil
@@ -382,7 +382,9 @@ type pakkeReleaseStatus struct {
 	Version         string `json:"version,omitempty"`
 	PinnedSHA       string `json:"pinned_sha"`
 	FollowsReleases bool   `json:"follows_releases"`
-	// PendingRelease is a newer stable release sync would move the pin to.
+	// PendingRelease is a newer stable release the lookup offers. Status does
+	// not fetch it: sync still checks that the revision is this package and
+	// payload-only before it pins, and refuses otherwise.
 	PendingRelease    *pakkeRelease `json:"pending_release,omitempty"`
 	ReleaseCheckError string        `json:"release_check_error,omitempty"`
 }
@@ -392,9 +394,11 @@ type pakkeReleaseStatus struct {
 // result and never fails the caller.
 //
 // ponytail: no cache, a live lookup per status call bounded by
-// pakkeReleaseTimeout. A lookup is up to four API requests, so anonymous use
-// (60 requests/hour) tops out around 15 runs an hour before status reports a
-// rate limit; the startup prompt slice adds the cache.
+// pakkeReleaseTimeout. A lookup is at least four API requests (the releases
+// list, one metadata asset, the repo, a compare) and five when a release is
+// offered, plus one per further asset it has to try, so anonymous use (60
+// requests/hour) tops out at about 12 runs an hour, fewer when newer assets are
+// invalid; the startup prompt slice adds the cache.
 func pakkeStatus(scope *InstallScope, state *StateFile) *pakkeReleaseStatus {
 	if scope == nil || !scope.IsUser() || !pinnedState(state) || !pinnable(state.SourceRepo) {
 		return nil

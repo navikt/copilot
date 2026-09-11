@@ -422,9 +422,9 @@ func TestFirstLaunchRefusesAReleaseWithoutThisClientsPayload(t *testing.T) {
 }
 
 // TestInstallRefToTheFollowedRevisionStopsFollowing: install --ref at the SHA
-// a following pin is already at is a pinning choice, as sync --ref is. It kept
-// the subscription, because a nil release over the same revision keeps the
-// claim.
+// a following pin is already at is a pinning choice, as sync --ref is, and the
+// pin stops following. Without explicit, pinRevision kept the claim, since a nil
+// release over the same revision is otherwise a re-materialization.
 func TestInstallRefToTheFollowedRevisionStopsFollowing(t *testing.T) {
 	scope, _ := followingPin(t)
 	calls := stubRelease(t, releaseCandidate, release041, nil)

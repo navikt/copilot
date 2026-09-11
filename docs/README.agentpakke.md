@@ -577,11 +577,11 @@ Publiser releasen som stabil først når alle kontroller som godkjenner distribu
 ```
   Package:     0.4.1 (pinned at 20d634f)
   Releases:    follows stable releases: yes
-  ⚠ Release 0.4.2 (9f1c2ab) is available. Run nav-pilot sync --user --apply to update.
+  ⚠ Release 0.4.2 (9f1c2ab) is available. Run nav-pilot sync --user --apply to update; sync checks the revision before it pins it.
 ```
 
 - Versjonen vises bare når `pakke_version_sha` er lik den pinnede SHA-en, ellers `unknown`.
-- En ventende release er en nyere stabil release sync ville flyttet pinnen til. Oppslaget gjøres hver gang, uten cache, med samme tidsgrense som sync.
+- En ventende release er en nyere stabil release oppslaget tilbyr. Status henter ikke revisjonen: sync kontrollerer fortsatt at den er samme pakke og payload-only før den pinnes, og nekter ellers. Oppslaget gjøres hver gang, uten cache, med samme tidsgrense som sync.
 - Feiler oppslaget, skrives `⚠ release check failed: <årsak>`, og kommandoen avslutter som vanlig.
 - `--json` har feltene under `pakke`: `version`, `pinned_sha`, `follows_releases`, `pending_release` (`version`, `sha`, `tag`) og `release_check_error`.
 

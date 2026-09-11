@@ -1229,7 +1229,7 @@ func printPakkeStatus(st *pakkeReleaseStatus) {
 	case st.ReleaseCheckError != "":
 		fmt.Printf("  %s release check failed: %s\n", yellow("⚠"), st.ReleaseCheckError)
 	case st.PendingRelease != nil:
-		fmt.Printf("  %s Release %s is available. Run %s to update.\n",
+		fmt.Printf("  %s Release %s is available. Run %s to update; sync checks the revision before it pins it.\n",
 			yellow("⚠"), st.PendingRelease.label(st.PendingRelease.SHA), bold("nav-pilot sync --user --apply"))
 	}
 }
