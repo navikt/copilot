@@ -123,6 +123,11 @@ var strictSemver = regexp.MustCompile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)
 
 // parseStrictSemver accepts MAJOR.MINOR.PATCH and nothing else: no "v", no
 // prerelease, no build metadata.
+//
+// ponytail: components are Go ints (64-bit on every release target), so a tag
+// with a component above 9223372036854775807 is skipped as not a version. That
+// fails safe: a skipped tag is never pinned, and the downgrade guard compares
+// commits, not numbers. Parse with math/big if a package ever needs one.
 func parseStrictSemver(s string) (agentpakke.Semver3, bool) {
 	m := strictSemver.FindStringSubmatch(s)
 	if m == nil {

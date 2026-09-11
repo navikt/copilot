@@ -409,7 +409,7 @@ func autoPin(src *Source) (*Source, error) {
 	}
 
 	// A launch has no JSON mode: everything it prints is for a person.
-	revDir, err := pinRevision(scope, src, nil, false)
+	revDir, err := pinRevision(scope, src, nil, false, false)
 	if err != nil {
 		return nil, err
 	}

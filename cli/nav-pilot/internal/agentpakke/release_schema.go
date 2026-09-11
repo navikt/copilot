@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/navikt/copilot/cli/nav-pilot/schemas"
@@ -59,7 +60,11 @@ func ValidateRelease(data []byte) error {
 		if !errors.As(err, &verr) {
 			return fmt.Errorf("%s failed schema validation: %w", ReleaseAssetName, err)
 		}
-		return schemaErrorFor(ReleaseAssetName, ReleaseSchemaID, schemaViolations(verr))
+		// Not schemaErrorFor: its remedy is "fix the manifest", and a release is
+		// immutable, so the only fix is a new release.
+		return fmt.Errorf("%s does not conform to the release metadata contract (schema %s):\n%s\n"+
+			"publish a new release with a conforming asset, and lint it against the published schema before publishing",
+			ReleaseAssetName, ReleaseSchemaID, strings.Join(schemaViolations(verr), "\n"))
 	}
 	return nil
 }

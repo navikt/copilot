@@ -540,18 +540,18 @@ Publiser releasen som stabil først når alle kontroller som godkjenner distribu
 
 ### Hva sync gjør
 
-- Uten `--ref` slår sync opp releasene før noe annet. Finnes en nyere stabil release, pinnes nøyaktig dens `sourceSha` gjennom samme verifisering som `install`, og staten registrerer pakkeversjonen og at pinnen følger releases. `--json` tar med `version`.
+- Uten `--ref` resolver sync standardgrenen først, som før, og leser pakkenavnet fra manifestet der. Feiler det, stopper sync før oppslaget, og pinnen står. Deretter slås releasene opp, før noe pinnes. Finnes en nyere stabil release, pinnes nøyaktig dens `sourceSha` gjennom samme verifisering som `install`, og staten registrerer pakkeversjonen og at pinnen følger releases. `--json` tar med `version`.
 - Er installert revisjon den samme som releasen, er pakka oppdatert. Er installert revisjon nyere enn eller divergert fra releasen, tilbys releasen ikke. Sync nedgraderer ikke.
 - Et repo uten metadata synkes fra standardgrenen som før, så lenge pinnen ikke følger releases.
 - En pinne som følger releases, faller aldri tilbake til standardgrenen. Manglende metadata, nettverksfeil, timeout (10 sekunder for hele oppslaget), rate limit og ugyldig metadata gir en feil, og pinnen står.
 - Feiler oppslaget for en pinne som ikke følger releases, hopper sync over oppdateringen med en advarsel (`warning` og `skipped: true` i `--json`) og avslutter som når ingenting er endret. Pinnen står. nav-pilot vet da ikke om repoet er release-basert, og pinner hverken en release eller standardgrenen på en gjetning.
 - Oppslaget bruker `GITHUB_TOKEN`, ikke git-legitimasjonen kloningen bruker. Et privat repo krever derfor `GITHUB_TOKEN` for at releasene skal bli funnet. Uten token svarer GitHub 404 på releaselista. Da synkes en pinne som ikke følger releases fra standardgrenen som før, med en advarsel om å sette `GITHUB_TOKEN` (`warning` i `--json`, uten `skipped`), mens en pinne som følger releases feiler.
-- Mangler den pinnede revisjonen på disk og oppslaget ikke gir noe å flytte til, gjenoppretter `--apply` den på den pinnede SHA-en.
+- Mangler den pinnede revisjonen på disk, gjenoppretter `--apply` den på den pinnede SHA-en når releasen ikke tilbys, når oppslaget feiler for en pinne som ikke følger releases, og når pinnen er på nyeste release uten å følge releases. Det siste starter ikke et abonnement. Et repo uten metadata materialiseres fra standardgrenen som før.
 - En eksplisitt `nav-pilot install` over en pinne som følger releases, pinner det kilden resolver til, og pinnen følger ikke releases lenger. Unntaket er når install lander på den samme revisjonen.
 - Kjenner GitHub ikke installert revisjon, feiler oppslaget med `--ref` som veien videre.
 - Pakkeversjonen og abonnementet registreres sammen med SHA-en de gjelder (`pakke_version_sha`). Flytter en eldre nav-pilot pinnen, gjelder de ikke lenger.
 - En launch bytter aldri ut en pinne som følger releases med standardgrenen. Mangler revisjonen på disk, nekter launchen og viser til `nav-pilot sync --user --apply`.
-- `--ref` er et eksplisitt pinningvalg og vinner som før. Pinnen det skriver, følger ikke releases.
+- `--ref` er et eksplisitt pinningvalg og vinner som før. Pinnen det skriver, følger ikke releases, også når ref-en er den revisjonen som allerede er pinnet.
 - Flytter en annen prosess pinnen mens revisjonen materialiseres, registreres ingenting, og kommandoen ber deg kjøre den på nytt.
 
 `nav-pilot --sync` går gjennom den samme stien. Varsling ved oppstart, automatisk oppdatering, status og valg ved install er ikke med ennå ([#779](https://github.com/navikt/copilot/issues/779)).

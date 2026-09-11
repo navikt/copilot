@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -719,12 +720,15 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 
 	var release *pakkeRelease
 	var warning string // a lookup problem this sync stepped around
+	version, follows := releaseClaim(state)
+	if ref != "" {
+		version = "" // an explicit --ref makes no release claim
+	}
 	if ref == "" {
 		name := state.Collection
 		if src.Pakke != nil {
 			name = src.Pakke.Name
 		}
-		version, follows := releaseClaim(state)
 		outcome, rel, err := discoverPakkeRelease(context.Background(), src.Repo, name, state.SourceSHA)
 		if errors.Is(err, errReleasesNotFound) && !follows {
 			// A private repo without GITHUB_TOKEN answers 404 here, while git
@@ -793,7 +797,11 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 			}
 			fmt.Printf("%s %s is up to date (%s, pinned at %s).\n", green("✓"), bold(state.Collection), rel.Version, shortSHA(state.SourceSHA))
 			return nil
-		default: // a candidate, or up to date with its revision gone
+		case outcome == releaseUpToDate && !follows:
+			// Its revision is gone (on disk returned above). Restoring the pin
+			// is not a choice to follow the release it happens to be.
+			restore = true
+		default: // a candidate, or a following pin up to date with its revision gone
 			relSrc, err := resolveSourceForSync(rel.SHA, src.Repo)
 			if err != nil {
 				return fmt.Errorf("fetching %s %s (%s): %w", name, rel.Version, shortSHA(rel.SHA), err)
@@ -841,7 +849,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 	if !pinnedRevisionOnDisk(state) {
 		if !apply {
 			if jsonOutput {
-				if err := outputJSON(syncResult{UpToDate: false, Source: src.SHA, Version: release.version(), Warning: warning}); err != nil {
+				if err := outputJSON(syncResult{UpToDate: false, Source: src.SHA, Version: cmp.Or(release.version(), version), Warning: warning}); err != nil {
 					return err
 				}
 				return errUpdatesAvailable
@@ -852,11 +860,11 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 				bold("nav-pilot sync --apply"), shortSHA(src.SHA))
 			return errUpdatesAvailable
 		}
-		if _, err := pinRevision(scope, src, release, jsonOutput); err != nil {
+		if _, err := pinRevision(scope, src, release, ref != "", jsonOutput); err != nil {
 			return err
 		}
 		if jsonOutput {
-			return outputJSON(syncResult{UpToDate: true, Source: src.SHA, Version: release.version(), Warning: warning})
+			return outputJSON(syncResult{UpToDate: true, Source: src.SHA, Version: cmp.Or(release.version(), version), Warning: warning})
 		}
 		fmt.Printf("%s Restored %s at revision %s.\n", green("✓"), bold(src.Pakke.Name), shortSHA(src.SHA))
 		return nil
@@ -869,7 +877,10 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 	// the revision already pinned into a second directory (#605). The recorded
 	// SHA is only ever a directory name here — nothing fetches it — so leaving
 	// it short is harmless, and the next real update writes it out in full.
-	if sameSHA(src.SHA, state.SourceSHA) {
+	//
+	// An explicit --ref to the revision a following pin is already at still has
+	// something to write: the pin stops following.
+	if sameSHA(src.SHA, state.SourceSHA) && (ref == "" || !follows) {
 		if jsonOutput {
 			return outputJSON(syncResult{UpToDate: true, Source: src.SHA, Version: release.version(), Warning: warning})
 		}
@@ -884,13 +895,18 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 			}
 			return errUpdatesAvailable
 		}
-		fmt.Printf("%s A newer revision of %s is available (pinned %s, source %s).\n\n",
-			yellow("⚠"), bold(src.Pakke.Name), shortSHA(state.SourceSHA), release.label(src.SHA))
+		if sameSHA(src.SHA, state.SourceSHA) {
+			fmt.Printf("%s %s is pinned at %s and follows stable releases. With --apply, this --ref keeps the revision and stops following.\n\n",
+				yellow("⚠"), bold(src.Pakke.Name), shortSHA(src.SHA))
+		} else {
+			fmt.Printf("%s A newer revision of %s is available (pinned %s, source %s).\n\n",
+				yellow("⚠"), bold(src.Pakke.Name), shortSHA(state.SourceSHA), release.label(src.SHA))
+		}
 		fmt.Printf("Run %s to update.\n", bold("nav-pilot sync --apply"))
 		return errUpdatesAvailable
 	}
 
-	if _, err := pinRevision(scope, src, release, jsonOutput); err != nil {
+	if _, err := pinRevision(scope, src, release, ref != "", jsonOutput); err != nil {
 		return err
 	}
 	if jsonOutput {

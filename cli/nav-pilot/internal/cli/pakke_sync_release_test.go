@@ -322,6 +322,79 @@ func TestExplicitRefWinsOverReleases(t *testing.T) {
 	assertPin(t, scope, shaB, "", false)
 }
 
+// TestExplicitRefToThePinnedRevisionStopsFollowing: `sync --apply --ref` at
+// the SHA a following pin is already at is still a pinning choice. It kept the
+// subscription, both where it returned "up to date" and where it restored a
+// missing revision.
+func TestExplicitRefToThePinnedRevisionStopsFollowing(t *testing.T) {
+	for name, wipe := range map[string]bool{"revision on disk": false, "revision missing": true} {
+		t.Run(name, func(t *testing.T) {
+			scope, _ := followingPin(t)
+			if wipe {
+				if err := os.RemoveAll(pakkerRoot()); err != nil {
+					t.Fatal(err)
+				}
+			}
+			calls := stubRelease(t, releaseCandidate, release041, nil)
+
+			var err error
+			out := captureStdoutFor(t, func() { err = cmdSync(scope, shaA, "", true, false) })
+			if err != nil {
+				t.Fatalf("sync --apply --ref <pinned sha> = %v. Output:\n%s", err, out)
+			}
+			if *calls != 0 {
+				t.Errorf("an explicit --ref looked up releases (%d calls)", *calls)
+			}
+			assertPin(t, scope, shaA, "", false)
+			assertRevisionVerifies(t, pakkeRevisionDir("navikt/grillmester", shaA))
+		})
+	}
+}
+
+// TestUpToDateRestoreDoesNotStartFollowing: a pin that does not follow, at the
+// newest release's SHA with its revision gone, is restored as it was. It used
+// to adopt the release and start following.
+func TestUpToDateRestoreDoesNotStartFollowing(t *testing.T) {
+	scope := pinEnv(t)
+	installPin(t, scope, tier2PinSource(t, shaC))
+	if err := os.RemoveAll(pakkerRoot()); err != nil {
+		t.Fatal(err)
+	}
+	releaseSyncSource(t, shaB)
+	stubRelease(t, releaseUpToDate, pakkeRelease{Version: "0.4.1", SHA: shaC, Tag: "v0.4.1"}, nil)
+
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	if err != nil {
+		t.Fatalf("sync --apply = %v. Output:\n%s", err, out)
+	}
+	assertPin(t, scope, shaC, "", false)
+	assertRevisionVerifies(t, pakkeRevisionDir("navikt/grillmester", shaC))
+}
+
+// TestRestoreJSONCarriesTheClaimedVersion: restoring a following pin's missing
+// revision knows its version from the state, and --json says it.
+func TestRestoreJSONCarriesTheClaimedVersion(t *testing.T) {
+	scope, _ := followingPin(t)
+	if err := os.RemoveAll(pakkerRoot()); err != nil {
+		t.Fatal(err)
+	}
+	stubRelease(t, releaseNotOffered, pakkeRelease{Version: "0.4.0", SHA: shaC, Tag: "v0.4.0"}, nil)
+
+	for _, apply := range []bool{false, true} {
+		var err error
+		out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", apply, true) })
+		var res syncResult
+		if jerr := json.Unmarshal([]byte(out), &res); jerr != nil {
+			t.Fatalf("apply=%v: output is not one JSON document (err %v): %v\n%s", apply, err, jerr, out)
+		}
+		if res.Version != "0.4.1" || res.Source != shaA {
+			t.Errorf("apply=%v: JSON = %+v, want source %s version 0.4.1", apply, res, shaA)
+		}
+	}
+	assertPin(t, scope, shaA, "0.4.1", true)
+}
+
 // TestReleaseSyncRefusesARevisionThatIsNotTheRelease: what the fetch resolved
 // must be the release's SHA.
 func TestReleaseSyncRefusesARevisionThatIsNotTheRelease(t *testing.T) {
@@ -367,7 +440,7 @@ func TestPinRevisionRefusesALostUpdate(t *testing.T) {
 	}
 	t.Cleanup(func() { pinWriteHook = nil })
 
-	_, err := pinRevision(scope, tier2PinSource(t, shaA), &release041, true)
+	_, err := pinRevision(scope, tier2PinSource(t, shaA), &release041, false, true)
 	if err == nil || !strings.Contains(err.Error(), "pin changed") {
 		t.Fatalf("pinRevision over a moved pin = %v, want a refusal", err)
 	}

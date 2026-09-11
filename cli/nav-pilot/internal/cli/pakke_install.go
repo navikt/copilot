@@ -468,8 +468,9 @@ func removeStateFiles(scope *InstallScope, state *StateFile, dryRun, quiet bool)
 // release is the stable release src was resolved from, or nil for a pin that
 // does not follow releases (#779). A nil release over the same revision keeps
 // what the state already said about it: re-materializing a pinned SHA does not
-// change which release it is.
-func pinRevision(scope *InstallScope, src *Source, release *pakkeRelease, jsonOutput bool) (string, error) {
+// change which release it is. explicit is an explicit `sync --ref`, a pinning
+// choice that clears the claim even over the same revision.
+func pinRevision(scope *InstallScope, src *Source, release *pakkeRelease, explicit, jsonOutput bool) (string, error) {
 	if err := checkPakkeInstallable(scope, src); err != nil {
 		return "", err
 	}
@@ -531,7 +532,7 @@ func pinRevision(scope *InstallScope, src *Source, release *pakkeRelease, jsonOu
 	}
 	if release != nil {
 		state.PakkeVersion, state.FollowsReleases, state.PakkeVersionSHA = release.Version, true, release.SHA
-	} else if existing != nil && sameSourceRepo(existing.SourceRepo, src.Repo) && sameSHA(existing.SourceSHA, src.SHA) {
+	} else if !explicit && existing != nil && sameSourceRepo(existing.SourceRepo, src.Repo) && sameSHA(existing.SourceSHA, src.SHA) {
 		state.PakkeVersion, state.FollowsReleases, state.PakkeVersionSHA = existing.PakkeVersion, existing.FollowsReleases, existing.PakkeVersionSHA
 	}
 
@@ -662,7 +663,7 @@ func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) 
 		return nil
 	}
 
-	if _, err := pinRevision(scope, src, nil, jsonOutput); err != nil {
+	if _, err := pinRevision(scope, src, nil, false, jsonOutput); err != nil {
 		return err
 	}
 
