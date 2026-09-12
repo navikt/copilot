@@ -524,7 +524,13 @@ func checkAgentFiles(agentsDir, field string, declared map[string][]string, comp
 			continue
 		}
 		found++
-		present[strings.TrimSuffix(e.Name(), agentFileSuffix)] = true
+		// Same two rules source.ValidateName applies, inlined because importing
+		// internal/source here would cycle. Without them a stem install would
+		// never materialize counts as present, and the typo it hides surfaces
+		// at launch instead.
+		if stem := strings.TrimSuffix(e.Name(), agentFileSuffix); !strings.Contains(stem, "..") && !strings.ContainsAny(stem, `/\`) {
+			present[stem] = true
+		}
 		// A symlinked agent file reads whatever it points at — including files
 		// outside the checkout — so it is refused rather than parsed.
 		if e.Type()&os.ModeSymlink != 0 {
