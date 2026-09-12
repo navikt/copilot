@@ -316,6 +316,16 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 		tier = src.Pakke.Tier(resolved.Client)
 	}
 	rememberTier(resolved.Source, resolved.Client, tier)
+	// --persona is only meaningful for a Tier 1 launch, where the client entry
+	// carries the roster. Tier 2 takes its persona from the payload manifest,
+	// and a manifest-less source has no roster at all. Both used to ignore the
+	// flag silently, which is the failure mode this flag exists to remove: the
+	// user asks for one agent and gets another without being told.
+	if resolved.Persona != "" && tier != agentpakke.TierLayout {
+		return nil, true, fmt.Errorf(
+			"--persona %q: %s is not a Tier 1 agentpakke for %s, so it declares no agents to choose between",
+			resolved.Persona, resolved.Source, resolved.Client)
+	}
 	if err := mixedPakkeRefusal(src.Pakke, resolved.Client); err != nil {
 		return nil, true, err
 	}

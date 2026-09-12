@@ -947,6 +947,78 @@ func TestPinnedLaunchBackfillsPerClientState(t *testing.T) {
 	}
 }
 
+// --persona is resolved against the pakke being launched, not the built-in
+// default. The guard has to run after SetActivePakke: placed before it, a name
+// the pakke declares is measured against Nav's roster and refused. A unit test
+// that sets the active pakke itself cannot see that, so this one drives
+// tryPakkeLaunch and lets the launch path do the activating (#798).
+func TestPersonaResolvedAgainstTheLaunchedPakke(t *testing.T) {
+	t.Run("declared persona is accepted", func(t *testing.T) {
+		isolatedConfig(t)
+		t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+		stubResolveSource(t, pakkeSource(t, "navikt/grillmester"))
+
+		_, err := tryPakkeLaunch(ResolvedConfig{
+			Client: "copilot", Source: "navikt/grillmester", Persona: "grillmester",
+		})
+		if err != nil {
+			t.Fatalf("a persona the pakke declares must be accepted, got %v", err)
+		}
+	})
+
+	t.Run("undeclared persona is refused naming the roster", func(t *testing.T) {
+		isolatedConfig(t)
+		t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+		stubResolveSource(t, pakkeSource(t, "navikt/grillmester"))
+
+		// launchClientConfirming, not tryPakkeLaunch: the check lives at the
+		// common boundary so the legacy paths are covered too, and by then
+		// tryPakkeLaunch has set the active pakke.
+		err := launchClientConfirming(ResolvedConfig{
+			Client: "copilot", Source: "navikt/grillmester", Persona: "nope",
+		}, false)
+		if err == nil {
+			t.Fatal("an undeclared persona must be refused")
+		}
+		if !strings.Contains(err.Error(), "grillmester") {
+			t.Errorf("the refusal must name what the pakke offers, got %v", err)
+		}
+	})
+}
+
+// --persona on a source that is not Tier 1 for this client used to be ignored
+// in silence: the user asked for one agent and got another with no word said.
+func TestPersonaRefusedOnNonTier1Source(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	stubResolveSource(t, &Source{Dir: legacySourceTree(t), Repo: "navikt/legacy", SHA: "deadbeef"})
+
+	_, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/legacy", Persona: "whoever"})
+	if err == nil {
+		t.Fatal("--persona against a source with no Tier 1 roster must be refused")
+	}
+	if !strings.Contains(err.Error(), "--persona") {
+		t.Errorf("the refusal must name the flag, got: %v", err)
+	}
+}
+
+// A legacy launch — no source configured — must refuse an undeclared --persona
+// too. The guard used to sit inside the Tier 1 branch, so these paths passed
+// the flag straight to the client (#798).
+func TestPersonaRefusedOnLegacyLaunch(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	failingResolveSource(t)
+
+	err := launchClientConfirming(ResolvedConfig{Client: "copilot", Persona: "nobody"}, false)
+	if err == nil {
+		t.Fatal("an undeclared --persona must be refused on the legacy path too")
+	}
+	if !strings.Contains(err.Error(), "--persona") {
+		t.Errorf("the refusal must name the flag, got: %v", err)
+	}
+}
+
 // A Tier 1 source this client has resolved before must not silently degrade to
 // the built-in agent when it cannot be reached. #779 rules the substitution out
 // ("Ingen stille bytte av kilde eller Tier 1-fallback") and #795 is where it

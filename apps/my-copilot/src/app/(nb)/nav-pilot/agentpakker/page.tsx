@@ -210,7 +210,11 @@ export default function Agentpakker() {
                       <code className="font-mono text-xs">skills</code> må stå i{" "}
                       <code className="font-mono text-xs">layout</code>, også når den ene er tom.{" "}
                       <code className="font-mono text-xs">primaryAgents</code> er de agentene brukeren kan starte
-                      klienten som; resten er underagenter andre kaller.
+                      klienten som; resten er underagenter andre kaller. Første navn startes som standard, og{" "}
+                      <code className="font-mono text-xs">nav-pilot --persona &lt;navn&gt;</code> velger et annet av
+                      dem. Hvert navn må ha en agentfil i <code className="font-mono text-xs">layout.agents</code>,
+                      ellers avvises manifestet av <code className="font-mono text-xs">validate</code> og{" "}
+                      <code className="font-mono text-xs">install</code>.
                     </BodyLong>
                     <CodeBlock filename=".nav-pilot/agentpakke.json">{MANIFEST}</CodeBlock>
 

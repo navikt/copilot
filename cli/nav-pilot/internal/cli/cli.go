@@ -240,8 +240,14 @@ func run(args []string) error {
 				}
 				i++
 				cliOverrides.Client = args[i]
+			case "--persona":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--persona requires a value")
+				}
+				i++
+				cliOverrides.Persona = args[i]
 			case "--agent":
-				return fmt.Errorf("--agent is no longer a nav-pilot flag; use --client to choose the coding-agent CLI (copilot, opencode, pi) — the downstream copilot --agent persona is unaffected")
+				return fmt.Errorf("--agent is no longer a nav-pilot flag; use --client to choose the coding-agent CLI (copilot, opencode, pi), or --persona to pick which of the agentpakke's agents to launch")
 			case "--model":
 				if i+1 >= len(args) {
 					return fmt.Errorf("--model requires a value")
