@@ -837,3 +837,45 @@ func TestRequireSeparatesUnreadableFromAbsent(t *testing.T) {
 		t.Errorf("requireFile reported a permission failure as absence: %v", fileErr)
 	}
 }
+
+// A primaryAgents entry that names no agent file is the one manifest typo that
+// validate used to pass: the name reaches the client as --agent, so every
+// consumer hits it at launch and nobody hits it before (#796).
+func TestValidateSourceRejectsPrimaryAgentWithoutFile(t *testing.T) {
+	dir := t.TempDir()
+	writeManifest := func(primary string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(dir, ".nav-pilot"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		m := `{"contractVersion":"1","name":"p","description":"d",` +
+			`"clients":{"copilot":{"primaryAgents":["` + primary + `"]}},` +
+			`"layout":{"agents":"agents","skills":"skills"}}`
+		if err := os.WriteFile(filepath.Join(dir, ".nav-pilot", "agentpakke.json"), []byte(m), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, d := range []string{"agents", "skills"} {
+		if err := os.MkdirAll(filepath.Join(dir, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	agent := filepath.Join(dir, "agents", "real.agent.md")
+	if err := os.WriteFile(agent, []byte("---\nname: real\ndescription: d\n---\nbody\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	writeManifest("real")
+	if errs := ValidateSource(dir); len(errs) != 0 {
+		t.Fatalf("a primaryAgent with a file must validate, got %v", errs)
+	}
+
+	writeManifest("typo")
+	errs := ValidateSource(dir)
+	if len(errs) == 0 {
+		t.Fatal("a primaryAgent naming no agent file must be refused")
+	}
+	if !strings.Contains(errs[0].Error(), "agents/typo.agent.md") {
+		t.Fatalf("the finding must name the missing file, got %q", errs[0])
+	}
+}

@@ -377,6 +377,8 @@ func (m *Manifest) validateContent(sourceRoot string) []error {
 		}
 	}
 
+	errs = append(errs, m.checkPrimaryAgents(sourceRoot)...)
+
 	for _, client := range m.ClientIDs() {
 		entry := m.Clients[client]
 		contexts := make([]string, 0, len(entry.Payloads))
@@ -562,4 +564,38 @@ func hasFrontmatter(data []byte) bool {
 		}
 	}
 	return false
+}
+
+// checkPrimaryAgents refuses a Tier 1 client whose primaryAgents names an agent
+// that does not exist. The name reaches the client verbatim as --agent, so a
+// typo is caught nowhere: validate passes, install writes the files, and the
+// failure surfaces at launch on every consumer's machine. That is why it
+// belongs in the pakke author's own CI (#796).
+//
+// Tier 2 is excluded on purpose: its roster lives in the payload manifest, not
+// in the client entry.
+func (m *Manifest) checkPrimaryAgents(sourceRoot string) []error {
+	if m.Layout == nil || m.Layout.Agents == "" {
+		return nil
+	}
+	agentsDir := filepath.Join(sourceRoot, filepath.FromSlash(m.Layout.Agents))
+	var errs []error
+	for _, client := range m.ClientIDs() {
+		if m.Tier(client) != TierLayout {
+			continue
+		}
+		for _, name := range m.Clients[client].PrimaryAgents {
+			if name == "" {
+				continue
+			}
+			file := name + agentFileSuffix
+			if _, err := os.Stat(filepath.Join(agentsDir, file)); err != nil {
+				errs = append(errs, fmt.Errorf(
+					"clients.%s.primaryAgents: %q names no agent — %s is absent. "+
+						"The launcher passes this name to the client verbatim, so the pakke installs and then fails at launch for every consumer",
+					client, name, filepath.ToSlash(filepath.Join(m.Layout.Agents, file))))
+			}
+		}
+	}
+	return errs
 }
