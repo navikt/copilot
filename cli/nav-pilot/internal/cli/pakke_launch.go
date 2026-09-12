@@ -295,7 +295,13 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 		// is the one that source ships. Refusing it would take away a launch
 		// that works, which is the opposite of what #795 asks for.
 		if !sameSourceRepo(resolved.Source, defaultSourceRepo) {
-			if tier, ok := cachedTier(resolved.Source, resolved.Client); ok && tier == agentpakke.TierLayout {
+			tier, cached := cachedTier(resolved.Source, resolved.Client)
+			// The tier cache expires after a few hours and a repo-scope install
+			// never writes it, so it cannot carry this alone. The installed
+			// state is durable evidence of the same fact: a scope whose
+			// recorded source is this one, holding materialized content rather
+			// than a pin, was a Tier 1 install of it.
+			if (cached && tier == agentpakke.TierLayout) || installedLayoutSource(resolved.Source) {
 				return nil, true, unresolvableLayoutRefusal(resolved, err)
 			}
 		}
@@ -768,4 +774,32 @@ func printModelNotice(resolved ResolvedConfig) {
 	if notice := providerpkg.ResolvedModelNotice(resolved.Client, resolved); notice != "" {
 		fmt.Fprintln(os.Stderr, dim(notice))
 	}
+}
+
+// installedLayoutSource reports whether some installed scope records this source
+// as a Tier 1 install — content materialized into the scope rather than a
+// payload pin. It is the durable half of the offline check: the tier cache
+// expires and a repo-scope install never populates it, so a refusal keyed on
+// the cache alone reverts to substituting the built-in agent (#795).
+func installedLayoutSource(sourceRepo string) bool {
+	if sourceRepo == "" {
+		return false
+	}
+	var scopes []*InstallScope
+	if s, err := ScopeUser(); err == nil {
+		scopes = append(scopes, s)
+	}
+	if wd, err := os.Getwd(); err == nil {
+		scopes = append(scopes, ScopeRepo(wd))
+	}
+	for _, scope := range scopes {
+		state, err := readScopedState(scope)
+		if err != nil || state == nil {
+			continue
+		}
+		if sameSourceRepo(state.SourceRepo, sourceRepo) && !pinnedState(state) {
+			return true
+		}
+	}
+	return false
 }
