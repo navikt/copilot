@@ -565,7 +565,12 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		return err
 	}
 
-	if jsonOutput {
+	// Deferred until after the state file and the declaration are written.
+	// Emitting here would have returned before both, so `install --json`
+	// reported a success that left no state and no lock — a CI job could not
+	// tell an install apart from a no-op, and the next sync had nothing to
+	// reconcile against (#797).
+	emitJSON := func() error {
 		return outputJSON(map[string]interface{}{
 			"command":     "install",
 			"collection":  stateCollection(src, collection),
@@ -580,16 +585,21 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		})
 	}
 
-	if result.Conflicts > 0 {
-		printConflictHint(result.Conflicts)
-	}
+	if !jsonOutput {
+		if result.Conflicts > 0 {
+			printConflictHint(result.Conflicts)
+		}
 
-	if len(result.Unsupported) > 0 {
-		fmt.Printf("%s Skipped (not supported in %s scope): %s\n",
-			yellow("⚠"), scope.Name, strings.Join(result.Unsupported, ", "))
+		if len(result.Unsupported) > 0 {
+			fmt.Printf("%s Skipped (not supported in %s scope): %s\n",
+				yellow("⚠"), scope.Name, strings.Join(result.Unsupported, ", "))
+		}
 	}
 
 	if dryRun {
+		if jsonOutput {
+			return emitJSON()
+		}
 		fmt.Printf("%s Would install %d items from %q.\n",
 			dim("→"), result.Installed, collection)
 		return nil
@@ -626,7 +636,11 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	// already holds: a CI job must not produce a diff in a file it was only
 	// meant to obey.
 	if !installFrozen {
-		recordDeclaration(scope, src)
+		recordDeclaration(scope, src, jsonOutput)
+	}
+
+	if jsonOutput {
+		return emitJSON()
 	}
 
 	fmt.Printf("%s Installed %d items from %q (v%s, %s).\n",
@@ -980,7 +994,10 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		printConflictHint(result.Conflicts)
 	}
 
-	if jsonOutput {
+	// Deferred past the state write, same reason as cmdInstallFromSource: this
+	// returned before writeScopedState, so `install --all --json` reported a
+	// success that left no state behind (#797).
+	emitJSON := func() error {
 		return outputJSON(map[string]interface{}{
 			"command":    "install",
 			"collection": stateCollection(src, CollectionAll),
@@ -994,6 +1011,9 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	}
 
 	if dryRun {
+		if jsonOutput {
+			return emitJSON()
+		}
 		fmt.Printf("%s Would install %d items.\n", dim("→"), result.Installed)
 		return nil
 	}
@@ -1030,6 +1050,10 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 
 	if err := writeScopedState(scope, state); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
+	}
+
+	if jsonOutput {
+		return emitJSON()
 	}
 
 	fmt.Printf("%s Installed %d items to %s (v%s, %s).\n",
@@ -1346,6 +1370,7 @@ func cmdUninstall(scope *InstallScope, dryRun bool) error {
 
 	if !dryRun {
 		os.Remove(scope.StatePath())
+		removeDeclarationFor(scope, state)
 		scope.CleanupDirs()
 	}
 

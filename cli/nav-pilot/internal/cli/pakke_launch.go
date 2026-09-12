@@ -282,6 +282,29 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 			// recent still knows legacy would be a downgrade.
 			return nil, true, unresolvablePayloadRefusal(resolved, err)
 		}
+		// A *foreign* Tier 1 source this client has resolved before. Falling
+		// through would launch Nav's own persona under a configuration that
+		// asked for someone else's, which #779 rules out: "Ingen stille bytte
+		// av kilde eller Tier 1-fallback." The user configured a pakke, and a
+		// different pakke is not a degraded version of it (#795).
+		//
+		// The built-in source is excluded on purpose. navikt/copilot declares
+		// copilot and opencode as Tier 1, so keying on the tier alone would
+		// refuse the default configuration whenever the network is down — and
+		// there the fallback is not a substitution: the persona legacy launches
+		// is the one that source ships. Refusing it would take away a launch
+		// that works, which is the opposite of what #795 asks for.
+		if !sameSourceRepo(resolved.Source, defaultSourceRepo) {
+			tier, cached := cachedTier(resolved.Source, resolved.Client)
+			// The tier cache expires after a few hours and a repo-scope install
+			// never writes it, so it cannot carry this alone. The installed
+			// state is durable evidence of the same fact: a scope whose
+			// recorded source is this one, holding materialized content rather
+			// than a pin, was a Tier 1 install of it.
+			if (cached && tier == agentpakke.TierLayout) || installedLayoutSource(resolved.Source) {
+				return nil, true, unresolvableLayoutRefusal(resolved, err)
+			}
+		}
 		fmt.Fprintf(os.Stderr, "%s Could not resolve source %s: %v — launching without agentpakke context.\n",
 			yellow("⚠"), resolved.Source, err)
 		return nil, false, payloadContextUnsupported(resolved, resolved.Source)
@@ -479,6 +502,22 @@ func autoPin(src *Source, client string) (*Source, error) {
 // condition at all: it empties resolved.Source, which tryPakkeLaunch
 // short-circuits on before resolving anything, so the next launch takes the
 // built-in default immediately, offline or not.
+// unresolvableLayoutRefusal is the Tier 1 half of the same rule the payload
+// refusal enforces: what cannot be resolved is not silently replaced. The
+// remedies differ because a Tier 1 scope has already materialized its files —
+// the agents are on disk, only the manifest that names the persona is out of
+// reach — so retrying and dropping the source are both real answers, while
+// rebuilding a revision is not.
+func unresolvableLayoutRefusal(resolved ResolvedConfig, cause error) error {
+	return fmt.Errorf(
+		"source %s is an agentpakke for %s, and nav-pilot could not resolve it: %w.\n"+
+			"Nothing was launched — running it as before would start the built-in agent under a configuration that asked for this one.\n\n"+
+			"  Retry once the source resolves, or if you are offline, reconnect.\n"+
+			"  Or go back to the built-in agentpakke:  %s",
+		bold(resolved.Source), resolved.Client, cause,
+		bold(`nav-pilot config set source ""`))
+}
+
 func unresolvablePayloadRefusal(resolved ResolvedConfig, cause error) error {
 	return fmt.Errorf(
 		"source %s declares pre-built payloads for %s, and nav-pilot could not resolve it: %w.\n"+
@@ -735,4 +774,32 @@ func printModelNotice(resolved ResolvedConfig) {
 	if notice := providerpkg.ResolvedModelNotice(resolved.Client, resolved); notice != "" {
 		fmt.Fprintln(os.Stderr, dim(notice))
 	}
+}
+
+// installedLayoutSource reports whether some installed scope records this source
+// as a Tier 1 install — content materialized into the scope rather than a
+// payload pin. It is the durable half of the offline check: the tier cache
+// expires and a repo-scope install never populates it, so a refusal keyed on
+// the cache alone reverts to substituting the built-in agent (#795).
+func installedLayoutSource(sourceRepo string) bool {
+	if sourceRepo == "" {
+		return false
+	}
+	var scopes []*InstallScope
+	if s, err := ScopeUser(); err == nil {
+		scopes = append(scopes, s)
+	}
+	if wd, err := os.Getwd(); err == nil {
+		scopes = append(scopes, ScopeRepo(wd))
+	}
+	for _, scope := range scopes {
+		state, err := readScopedState(scope)
+		if err != nil || state == nil {
+			continue
+		}
+		if sameSourceRepo(state.SourceRepo, sourceRepo) && !pinnedState(state) {
+			return true
+		}
+	}
+	return false
 }
