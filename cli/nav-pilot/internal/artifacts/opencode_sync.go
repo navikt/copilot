@@ -288,7 +288,7 @@ func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, source
 		agents++
 	}
 
-	globalSections, scopedRefs, collErr := collectInstructionData(sourceDir)
+	globalSections, scopedRefs, collErr := collectInstructionData(syncLayout(sourceDir), sourceDir)
 	if collErr != nil {
 		return skills, commands, agents, instructions, conflicts, collErr
 	}

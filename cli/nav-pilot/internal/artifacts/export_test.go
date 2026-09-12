@@ -847,8 +847,11 @@ func TestExportUsesTheExportedPakkesRoster(t *testing.T) {
 	}
 	mustWrite(t, filepath.Join(src, "skills", "s", "SKILL.md"), "# s\n")
 
+	// exportAgents is the function this change touches on the export path;
+	// MaterializeOpenCode alone would not prove anything about export, since it
+	// has no non-test caller. Both are covered: export here, materialize below.
 	out := t.TempDir()
-	if _, _, _, _, err := MaterializeOpenCode(src, out); err != nil {
+	if _, err := exportAgents(src, "", out, syncLayout(src), false); err != nil {
 		t.Fatal(err)
 	}
 	read := func(n string) string {
@@ -863,5 +866,18 @@ func TestExportUsesTheExportedPakkesRoster(t *testing.T) {
 	}
 	if !strings.Contains(read("helper"), "mode: subagent") {
 		t.Errorf("an agent the pakke does not declare must stay a subagent, got:\n%s", read("helper"))
+	}
+
+	// The materialize path reads the same roster.
+	out2 := t.TempDir()
+	if _, _, _, _, err := MaterializeOpenCode(src, out2); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(out2, "agents", "boss.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "mode: primary") {
+		t.Errorf("materialize must use the same roster, got:\n%s", b)
 	}
 }

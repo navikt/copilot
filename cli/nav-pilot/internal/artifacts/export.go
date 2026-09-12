@@ -400,14 +400,23 @@ type InstructionRef struct {
 // belong in the same file — the installed scope, for an export that writes
 // project-local files. An empty entry is skipped, and a name the source already
 // has is not read twice, so passing only the source is what it always was.
-func collectInstructionData(dirs ...string) ([]InstructionSection, []InstructionRef, error) {
+// The layout applies to dirs[0], the agentpakke source. Later dirs are installed
+// scopes, whose own layout is always canonical, so they keep the canonical
+// resolver. Without this a pakke declaring layout.instructions exported its
+// agents and skills from the declared paths and its instructions from nowhere
+// (#790).
+func collectInstructionData(layout *agentpakke.Layout, dirs ...string) ([]InstructionSection, []InstructionRef, error) {
 	var instrEntries []source.Resolved
 	var globalSections []InstructionSection
 	for i, dir := range dirs {
 		if dir == "" {
 			continue
 		}
-		instrEntries = withScopeExtras(instrEntries, dir, source.KindInstruction)
+		if i == 0 {
+			instrEntries = source.NewSourceResolverForLayout(dir, layout).List(source.KindInstruction)
+		} else {
+			instrEntries = withScopeExtras(instrEntries, dir, source.KindInstruction)
+		}
 		data, err := os.ReadFile(filepath.Join(dir, "copilot-instructions.md"))
 		if err != nil {
 			continue
@@ -459,7 +468,7 @@ func collectInstructionData(dirs ...string) ([]InstructionSection, []Instruction
 }
 
 func exportInstructions(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layout, dryRun bool) (int, error) {
-	globalSections, scopedRefs, err := collectInstructionData(sourceDir, scopeDir)
+	globalSections, scopedRefs, err := collectInstructionData(layout, sourceDir, scopeDir)
 	if err != nil {
 		return 0, err
 	}
@@ -593,7 +602,7 @@ func MaterializeOpenCode(sourceDir, outputDir string) (skills, commands, agents,
 		agents++
 	}
 
-	globalSections, scopedRefs, collErr := collectInstructionData(sourceDir)
+	globalSections, scopedRefs, collErr := collectInstructionData(syncLayout(sourceDir), sourceDir)
 	if collErr != nil {
 		return skills, commands, agents, instructions, collErr
 	}
@@ -673,9 +682,9 @@ func outputJSON(v interface{}) error {
 }
 
 // openCodePrimaries reads the opencode roster from the manifest of the source
-// being written out. It returns nil when the source ships no manifest, which is
-// the legacy case and keeps today's answer: every agent a subagent unless the
-// built-in rules say otherwise.
+// being written out. A source with no manifest falls back to the built-in
+// roster, which is the answer the active-pakke global used to give — returning
+// nil there would demote every Nav agent to a subagent.
 func openCodePrimaries(sourceDir string) []string {
 	m, err := agentpakke.Load(sourceDir)
 	if err != nil {
