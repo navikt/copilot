@@ -946,3 +946,39 @@ func TestPinnedLaunchBackfillsPerClientState(t *testing.T) {
 		t.Errorf("state.PinnedClients after a pinned launch = %v, want %v", state.PinnedClients, want)
 	}
 }
+
+// --persona is resolved against the pakke being launched, not the built-in
+// default. The guard has to run after SetActivePakke: placed before it, a name
+// the pakke declares is measured against Nav's roster and refused. A unit test
+// that sets the active pakke itself cannot see that, so this one drives
+// tryPakkeLaunch and lets the launch path do the activating (#798).
+func TestPersonaResolvedAgainstTheLaunchedPakke(t *testing.T) {
+	t.Run("declared persona is accepted", func(t *testing.T) {
+		isolatedConfig(t)
+		t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+		stubResolveSource(t, pakkeSource(t, "navikt/grillmester"))
+
+		_, err := tryPakkeLaunch(ResolvedConfig{
+			Client: "copilot", Source: "navikt/grillmester", Persona: "grillmester",
+		})
+		if err != nil {
+			t.Fatalf("a persona the pakke declares must be accepted, got %v", err)
+		}
+	})
+
+	t.Run("undeclared persona is refused naming the roster", func(t *testing.T) {
+		isolatedConfig(t)
+		t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+		stubResolveSource(t, pakkeSource(t, "navikt/grillmester"))
+
+		_, err := tryPakkeLaunch(ResolvedConfig{
+			Client: "copilot", Source: "navikt/grillmester", Persona: "nope",
+		})
+		if err == nil {
+			t.Fatal("an undeclared persona must be refused")
+		}
+		if !strings.Contains(err.Error(), "grillmester") {
+			t.Errorf("the refusal must name what the pakke offers, got %v", err)
+		}
+	})
+}

@@ -11,7 +11,6 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
-	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 // errInstallCancelled reports that an interactive install ended because the
@@ -882,12 +881,6 @@ func launchClient(resolved ResolvedConfig) error {
 // answering "no" here; they get it by installing cplt, which the warning names.
 // auto_launch = false is the setting for never launching at all.
 func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error {
-	// Refuse an unknown --persona here rather than passing it to the client.
-	// The name reaches the client verbatim, so an unchecked typo fails inside
-	// the client with a message that does not mention nav-pilot (#798).
-	if _, err := providerpkg.ResolvePersona(resolved.Client, resolved.Persona); err != nil {
-		return err
-	}
 	handled, err := tryPakkeLaunch(resolved)
 	if err != nil {
 		return err
