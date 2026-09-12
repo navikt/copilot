@@ -355,7 +355,7 @@ tools:
 
 You are nav-pilot, an expert on Nav's platform.
 `
-	got := transformAgent([]byte(input), "nav-pilot")
+	got := transformAgent([]byte(input), "nav-pilot", []string{"nav-pilot"})
 	content := string(got)
 
 	if !strings.Contains(content, "description: Plan and build Nav applications") {
@@ -440,7 +440,7 @@ func TestExportSummary(t *testing.T) {
 
 func TestTransformAgentNoFrontmatter(t *testing.T) {
 	input := "You are an agent without frontmatter.\n"
-	got := transformAgent([]byte(input), "auth")
+	got := transformAgent([]byte(input), "auth", nil)
 	if string(got) != input {
 		t.Errorf("transformAgent with no frontmatter should return input unchanged\ngot:  %q\nwant: %q", string(got), input)
 	}
@@ -448,7 +448,7 @@ func TestTransformAgentNoFrontmatter(t *testing.T) {
 
 func TestTransformAgentNoDescription(t *testing.T) {
 	input := "---\nname: bare-agent\ntools:\n  - read\n---\n\nAgent body.\n"
-	got := string(transformAgent([]byte(input), "auth"))
+	got := string(transformAgent([]byte(input), "auth", nil))
 	if !strings.Contains(got, "description: Nav agent") {
 		t.Error("expected fallback description 'Nav agent'")
 	}
@@ -828,5 +828,56 @@ func TestExportScopeExtras(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "## Global Instructions") {
 		t.Error("the source's global instructions were dropped")
+	}
+}
+
+// A foreign pakke's roster decides which of its agents are primaries. Export
+// runs without a launch, so the active-pakke global still holds the built-in
+// default and every foreign persona was demoted to a subagent (#793).
+func TestExportUsesTheExportedPakkesRoster(t *testing.T) {
+	src := t.TempDir()
+	mustWrite(t, filepath.Join(src, ".nav-pilot", "agentpakke.json"), `{
+  "contractVersion": "1", "name": "foreign", "description": "d",
+  "clients": {"opencode": {"primaryAgents": ["boss"]}},
+  "layout": {"agents": "agents", "skills": "skills"}
+}`)
+	for _, n := range []string{"boss", "helper"} {
+		mustWrite(t, filepath.Join(src, "agents", n+".agent.md"),
+			"---\nname: "+n+"\ndescription: d\n---\nbody\n")
+	}
+	mustWrite(t, filepath.Join(src, "skills", "s", "SKILL.md"), "# s\n")
+
+	// exportAgents is the function this change touches on the export path;
+	// MaterializeOpenCode alone would not prove anything about export, since it
+	// has no non-test caller. Both are covered: export here, materialize below.
+	out := t.TempDir()
+	if _, err := exportAgents(src, "", out, syncLayout(src), false); err != nil {
+		t.Fatal(err)
+	}
+	read := func(n string) string {
+		b, err := os.ReadFile(filepath.Join(out, "agents", n+".md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	if !strings.Contains(read("boss"), "mode: primary") {
+		t.Errorf("an agent the pakke declares primary must be primary, got:\n%s", read("boss"))
+	}
+	if !strings.Contains(read("helper"), "mode: subagent") {
+		t.Errorf("an agent the pakke does not declare must stay a subagent, got:\n%s", read("helper"))
+	}
+
+	// The materialize path reads the same roster.
+	out2 := t.TempDir()
+	if _, _, _, _, err := MaterializeOpenCode(src, out2); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(out2, "agents", "boss.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "mode: primary") {
+		t.Errorf("materialize must use the same roster, got:\n%s", b)
 	}
 }
