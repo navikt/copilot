@@ -1018,3 +1018,88 @@ func TestPersonaRefusedOnLegacyLaunch(t *testing.T) {
 		t.Errorf("the refusal must name the flag, got: %v", err)
 	}
 }
+
+// A Tier 1 source this client has resolved before must not silently degrade to
+// the built-in agent when it cannot be reached. #779 rules the substitution out
+// ("Ingen stille bytte av kilde eller Tier 1-fallback") and #795 is where it
+// still happened: the user configured a pakke, and a different pakke is not a
+// degraded version of it.
+func TestUnresolvableTier1SourceRefuses(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+
+	// One successful launch teaches the tier cache what this source is.
+	stubResolveSource(t, pakkeSource(t, "navikt/grillmester"))
+	if _, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"}); err != nil {
+		t.Fatalf("priming launch: %v", err)
+	}
+
+	orig := resolveSource
+	t.Cleanup(func() { resolveSource = orig })
+	resolveSource = func(string, string) (*Source, error) {
+		return nil, errors.New("dial tcp: no route to host")
+	}
+
+	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
+	if !handled {
+		t.Fatal("an unreachable Tier 1 source must be handled, not fall through to the legacy launch")
+	}
+	if err == nil {
+		t.Fatal("an unreachable Tier 1 source must refuse rather than substitute the built-in agent")
+	}
+	if !strings.Contains(err.Error(), "navikt/grillmester") {
+		t.Errorf("the refusal must name the source, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "Nothing was launched") {
+		t.Errorf("the refusal must say nothing started, got: %v", err)
+	}
+}
+
+// The built-in source declares Tier 1 for copilot, so a refusal keyed on the
+// tier alone would refuse the DEFAULT configuration whenever the network is
+// down. There the legacy launch is not a substitution — the persona it starts
+// is the one navikt/copilot ships — so refusing would take away a launch that
+// works (#795).
+func TestUnresolvableDefaultSourceStillFallsBack(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	rememberTier(defaultSourceRepo, "copilot", agentpakke.TierLayout)
+
+	orig := resolveSource
+	t.Cleanup(func() { resolveSource = orig })
+	resolveSource = func(string, string) (*Source, error) {
+		return nil, errors.New("dial tcp: no route to host")
+	}
+
+	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: defaultSourceRepo})
+	if handled || err != nil {
+		t.Fatalf("the built-in source must still fall back offline, got handled=%v err=%v", handled, err)
+	}
+}
+
+// The tier cache expires and a repo-scope install never writes it, so a refusal
+// keyed on the cache alone reverts to substituting the built-in agent once the
+// entry ages out. The installed state is the durable evidence (#795).
+func TestUnresolvableTier1RefusesFromInstalledStateAlone(t *testing.T) {
+	scope := pinEnv(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	if err := writeScopedState(scope, &StateFile{
+		Collection: "grillmester", Scope: "user", SourceRepo: "navikt/grillmester",
+		Files: []InstalledFile{{Path: "agents/grillmester.agent.md", Hash: "abc"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	orig := resolveSource
+	t.Cleanup(func() { resolveSource = orig })
+	resolveSource = func(string, string) (*Source, error) {
+		return nil, errors.New("dial tcp: no route to host")
+	}
+
+	// No rememberTier call: the cache is cold, exactly as after a fresh install
+	// or six hours later.
+	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
+	if !handled || err == nil {
+		t.Fatalf("an installed Tier 1 source must refuse offline without the tier cache, got handled=%v err=%v", handled, err)
+	}
+}

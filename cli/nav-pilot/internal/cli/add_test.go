@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"os"
 	"path/filepath"
 	"strings"
@@ -717,5 +718,44 @@ func TestCmdAdd_ClearsIgnoredStatus(t *testing.T) {
 	}
 	if !found {
 		t.Error("re-added file should appear in sync file list")
+	}
+}
+
+// uninstall used to leave agentpakke.lock.json behind, and the next install read
+// it as a pin: a repo claiming to reuse a pakke whose artifacts were gone.
+// A declaration naming a different source must survive, because that shape is a
+// base the repo composes rather than the thing being uninstalled (#803).
+func TestUninstallRemovesOwnDeclarationOnly(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		declSource string
+		wantGone   bool
+	}{
+		{"same source is removed", "navikt/copilot", true},
+		{"foreign base survives", "navikt/grillmester", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := repoTarget(t)
+			scope := ScopeRepo(dir)
+			mustWrite(t, filepath.Join(dir, agentpakke.DeclarationPath),
+				`{"contractVersion":"1","source":"`+tc.declSource+`","sha":"`+strings.Repeat("b", 40)+`"}`)
+			mustWrite(t, filepath.Join(scope.RootDir, ".github", "agents", "x.agent.md"), "---\nname: x\n---\nb\n")
+			if err := writeScopedState(scope, &StateFile{
+				Collection: "nav-pilot", SourceRepo: "navikt/copilot",
+				Files: []InstalledFile{{Path: ".github/agents/x.agent.md"}},
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := cmdUninstall(scope, false); err != nil {
+				t.Fatal(err)
+			}
+
+			_, err := os.Stat(filepath.Join(dir, agentpakke.DeclarationPath))
+			gone := os.IsNotExist(err)
+			if gone != tc.wantGone {
+				t.Fatalf("declaration gone=%v, want %v", gone, tc.wantGone)
+			}
+		})
 	}
 }
