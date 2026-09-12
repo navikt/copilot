@@ -636,7 +636,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	// already holds: a CI job must not produce a diff in a file it was only
 	// meant to obey.
 	if !installFrozen {
-		recordDeclaration(scope, src)
+		recordDeclarationQuiet(scope, src, jsonOutput)
 	}
 
 	if jsonOutput {

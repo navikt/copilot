@@ -182,7 +182,12 @@ func guardDeclaredItems(src *Source, items map[string]string) error {
 //
 // It never fails the install — the content is already on disk, correct — and it
 // never touches user scope, which has no repository to commit to.
-func recordDeclaration(scope *InstallScope, src *Source) {
+// quiet suppresses the human lines when the caller is emitting JSON: moving the
+// JSON emit after the declaration write (#797) put these Printf calls in front
+// of it, so `install --json` produced prose followed by a JSON document.
+func recordDeclaration(scope *InstallScope, src *Source) { recordDeclarationQuiet(scope, src, false) }
+
+func recordDeclarationQuiet(scope *InstallScope, src *Source, quiet bool) {
 	if scope == nil || scope.IsUser() {
 		return
 	}
@@ -217,6 +222,9 @@ func recordDeclaration(scope *InstallScope, src *Source) {
 	}
 	if err := agentpakke.WriteDeclaration(scope.RootDir, d); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write %s: %v\n", yellow("⚠"), agentpakke.DeclarationPath, err)
+		return
+	}
+	if quiet {
 		return
 	}
 	if d.SHA == "" {
