@@ -982,3 +982,25 @@ func TestUnresolvableTier1SourceRefuses(t *testing.T) {
 		t.Errorf("the refusal must say nothing started, got: %v", err)
 	}
 }
+
+// The built-in source declares Tier 1 for copilot, so a refusal keyed on the
+// tier alone would refuse the DEFAULT configuration whenever the network is
+// down. There the legacy launch is not a substitution — the persona it starts
+// is the one navikt/copilot ships — so refusing would take away a launch that
+// works (#795).
+func TestUnresolvableDefaultSourceStillFallsBack(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	rememberTier(defaultSourceRepo, "copilot", agentpakke.TierLayout)
+
+	orig := resolveSource
+	t.Cleanup(func() { resolveSource = orig })
+	resolveSource = func(string, string) (*Source, error) {
+		return nil, errors.New("dial tcp: no route to host")
+	}
+
+	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: defaultSourceRepo})
+	if handled || err != nil {
+		t.Fatalf("the built-in source must still fall back offline, got handled=%v err=%v", handled, err)
+	}
+}

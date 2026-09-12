@@ -282,13 +282,22 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 			// recent still knows legacy would be a downgrade.
 			return nil, true, unresolvablePayloadRefusal(resolved, err)
 		}
-		if tier, ok := cachedTier(resolved.Source, resolved.Client); ok && tier == agentpakke.TierLayout {
-			// A Tier 1 source this client has resolved before. Falling through
-			// would launch Nav's own persona under a configuration that asked
-			// for someone else's, which #779 already rules out: "Ingen stille
-			// bytte av kilde eller Tier 1-fallback." The user configured a
-			// pakke; a different pakke is not a degraded version of it (#795).
-			return nil, true, unresolvableLayoutRefusal(resolved, err)
+		// A *foreign* Tier 1 source this client has resolved before. Falling
+		// through would launch Nav's own persona under a configuration that
+		// asked for someone else's, which #779 rules out: "Ingen stille bytte
+		// av kilde eller Tier 1-fallback." The user configured a pakke, and a
+		// different pakke is not a degraded version of it (#795).
+		//
+		// The built-in source is excluded on purpose. navikt/copilot declares
+		// copilot and opencode as Tier 1, so keying on the tier alone would
+		// refuse the default configuration whenever the network is down — and
+		// there the fallback is not a substitution: the persona legacy launches
+		// is the one that source ships. Refusing it would take away a launch
+		// that works, which is the opposite of what #795 asks for.
+		if !sameSourceRepo(resolved.Source, defaultSourceRepo) {
+			if tier, ok := cachedTier(resolved.Source, resolved.Client); ok && tier == agentpakke.TierLayout {
+				return nil, true, unresolvableLayoutRefusal(resolved, err)
+			}
 		}
 		fmt.Fprintf(os.Stderr, "%s Could not resolve source %s: %v — launching without agentpakke context.\n",
 			yellow("⚠"), resolved.Source, err)
