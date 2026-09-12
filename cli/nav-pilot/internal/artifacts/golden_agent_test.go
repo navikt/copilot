@@ -2,6 +2,8 @@ package artifacts
 
 import (
 	"bytes"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"io"
 	"os"
 	"strings"
@@ -74,7 +76,7 @@ You are aksel-ekspert.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			src := []byte(strings.ReplaceAll(input, "%NAME%", tt.agent))
-			got := string(transformAgent(src, tt.agent))
+			got := string(transformAgent(src, tt.agent, goldenPrimaries))
 			if got != tt.want {
 				t.Errorf("transformAgent(%q)\n got: %q\nwant: %q", tt.agent, got, tt.want)
 			}
@@ -171,7 +173,7 @@ You are aksel.
 			src = strings.ReplaceAll(src, "%MODEL%", tt.model)
 			var got string
 			stderr := captureStderr(t, func() {
-				got = string(transformAgent([]byte(src), tt.agent))
+				got = string(transformAgent([]byte(src), tt.agent, goldenPrimaries))
 			})
 			if got != tt.want {
 				t.Errorf("transformAgent(%q, %q)\n got: %q\nwant: %q", tt.agent, tt.model, got, tt.want)
@@ -208,3 +210,7 @@ func captureStderr(t *testing.T, fn func()) string {
 	}
 	return buf.String()
 }
+
+// goldenPrimaries is the opencode roster these golden cases were written
+// against: the built-in default, which is what the global used to supply.
+var goldenPrimaries = agentpakke.Default().PrimaryAgents("opencode")
