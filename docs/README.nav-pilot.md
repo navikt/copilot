@@ -461,6 +461,10 @@ med globale flagg som `--client`, `--model`, `--mode`, `--effort`, `--context`,
 flagget startes den første. Et navn som ikke er deklarert for klienten avvises med
 en liste over dem som finnes, i stedet for å sendes videre til klienten.
 
+Flagget gjelder Tier 1. En Tier 2-payload henter personaen fra sitt eget manifest,
+og en kilde uten manifest har ingen liste å velge fra; begge avviser flagget i
+stedet for å overse det.
+
 `--payload-context <id>` gjelder bare kilder som er en agentpakke med ferdigbygde payloads,
 og velger hvilken kontekst som stages ved launch. Den har ingen config-nøkkel, standarden er
 `defaultContext` i pakkas manifest. Den er ikke det samme som `--context`, som fortsatt er
