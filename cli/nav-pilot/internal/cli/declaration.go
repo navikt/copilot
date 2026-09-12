@@ -185,9 +185,7 @@ func guardDeclaredItems(src *Source, items map[string]string) error {
 // quiet suppresses the human lines when the caller is emitting JSON: moving the
 // JSON emit after the declaration write (#797) put these Printf calls in front
 // of it, so `install --json` produced prose followed by a JSON document.
-func recordDeclaration(scope *InstallScope, src *Source) { recordDeclarationQuiet(scope, src, false) }
-
-func recordDeclarationQuiet(scope *InstallScope, src *Source, quiet bool) {
+func recordDeclaration(scope *InstallScope, src *Source, quiet bool) {
 	if scope == nil || scope.IsUser() {
 		return
 	}
