@@ -305,6 +305,11 @@ func agentEntries(sourceDir string, layout *agentpakke.Layout) []source.Resolved
 
 func exportAgents(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layout, dryRun bool) (int, error) {
 	agents := withScopeExtras(agentEntries(sourceDir, layout), scopeDir, source.KindAgent)
+	// The roster comes from the manifest being exported, not from the active
+	// pakke: export runs without a launch, so the global still holds the
+	// built-in default and every foreign persona was demoted to a subagent
+	// (#793). The manifest is the only thing that knows this pakke's primaries.
+	primaries := openCodePrimaries(sourceDir)
 	if len(agents) == 0 {
 		return 0, nil
 	}
@@ -318,7 +323,7 @@ func exportAgents(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layo
 			return count, fmt.Errorf("reading agent %s: %w", entry.Name, err)
 		}
 
-		transformed := transformAgent(data, entry.Name)
+		transformed := transformAgent(data, entry.Name, primaries)
 
 		if dryRun {
 			fmt.Printf("  %s %s.agent.md → agents/%s.md\n", domain.Dim("→"), entry.Name, entry.Name)
@@ -333,7 +338,7 @@ func exportAgents(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layo
 	return count, nil
 }
 
-func transformAgent(data []byte, name string) []byte {
+func transformAgent(data []byte, name string, primaries []string) []byte {
 	fm, body, hasFM := source.SplitFrontmatter(data)
 	if !hasFM {
 		return data
@@ -344,7 +349,7 @@ func transformAgent(data []byte, name string) []byte {
 		description = "Nav agent"
 	}
 
-	mode := source.OpenCodeAgentMode(name, source.ActivePakke().PrimaryAgents("opencode"))
+	mode := source.OpenCodeAgentMode(name, primaries)
 	newFM := source.BuildAgentFrontmatter(description, mode, openCodeAgentModel(fm, name))
 	return source.Reassemble(newFM, body)
 }
@@ -395,14 +400,23 @@ type InstructionRef struct {
 // belong in the same file — the installed scope, for an export that writes
 // project-local files. An empty entry is skipped, and a name the source already
 // has is not read twice, so passing only the source is what it always was.
-func collectInstructionData(dirs ...string) ([]InstructionSection, []InstructionRef, error) {
+// The layout applies to dirs[0], the agentpakke source. Later dirs are installed
+// scopes, whose own layout is always canonical, so they keep the canonical
+// resolver. Without this a pakke declaring layout.instructions exported its
+// agents and skills from the declared paths and its instructions from nowhere
+// (#790).
+func collectInstructionData(layout *agentpakke.Layout, dirs ...string) ([]InstructionSection, []InstructionRef, error) {
 	var instrEntries []source.Resolved
 	var globalSections []InstructionSection
 	for i, dir := range dirs {
 		if dir == "" {
 			continue
 		}
-		instrEntries = withScopeExtras(instrEntries, dir, source.KindInstruction)
+		if i == 0 {
+			instrEntries = source.NewSourceResolverForLayout(dir, layout).List(source.KindInstruction)
+		} else {
+			instrEntries = withScopeExtras(instrEntries, dir, source.KindInstruction)
+		}
 		data, err := os.ReadFile(filepath.Join(dir, "copilot-instructions.md"))
 		if err != nil {
 			continue
@@ -454,7 +468,7 @@ func collectInstructionData(dirs ...string) ([]InstructionSection, []Instruction
 }
 
 func exportInstructions(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layout, dryRun bool) (int, error) {
-	globalSections, scopedRefs, err := collectInstructionData(sourceDir, scopeDir)
+	globalSections, scopedRefs, err := collectInstructionData(layout, sourceDir, scopeDir)
 	if err != nil {
 		return 0, err
 	}
@@ -536,7 +550,10 @@ func buildLeanAGENTSmd(globalSections []InstructionSection, refs []InstructionRe
 // files with the same content on repeated calls, so running on every launch is safe.
 // Returns the count of each artifact type written.
 func MaterializeOpenCode(sourceDir, outputDir string) (skills, commands, agents, instructions int, err error) {
-	resolver := source.NewSourceResolver(sourceDir)
+	// Same layout the export path reads (#790): a pakke that declares where its
+	// content lives is materialized from there, not from the canonical names.
+	resolver := source.NewSourceResolverForLayout(sourceDir, syncLayout(sourceDir))
+	primaries := openCodePrimaries(sourceDir)
 
 	for _, skill := range resolver.List(source.KindSkill) {
 		dstDir := filepath.Join(outputDir, "skills", skill.Name)
@@ -579,13 +596,13 @@ func MaterializeOpenCode(sourceDir, outputDir string) (skills, commands, agents,
 		if err := source.CheckSymlink(dstPath, outputDir); err != nil {
 			return skills, commands, agents, instructions, fmt.Errorf("agent %s: %w", entry.Name, err)
 		}
-		if wErr := writeFile(dstPath, transformAgent(data, entry.Name)); wErr != nil {
+		if wErr := writeFile(dstPath, transformAgent(data, entry.Name, primaries)); wErr != nil {
 			return skills, commands, agents, instructions, fmt.Errorf("agent %s: %w", entry.Name, wErr)
 		}
 		agents++
 	}
 
-	globalSections, scopedRefs, collErr := collectInstructionData(sourceDir)
+	globalSections, scopedRefs, collErr := collectInstructionData(syncLayout(sourceDir), sourceDir)
 	if collErr != nil {
 		return skills, commands, agents, instructions, collErr
 	}
@@ -662,4 +679,19 @@ func outputJSON(v interface{}) error {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	return enc.Encode(v)
+}
+
+// openCodePrimaries reads the opencode roster from the manifest of the source
+// being written out. A source with no manifest falls back to the built-in
+// roster, which is the answer the active-pakke global used to give — returning
+// nil there would demote every Nav agent to a subagent.
+func openCodePrimaries(sourceDir string) []string {
+	m, err := agentpakke.Load(sourceDir)
+	if err != nil {
+		// No manifest is the legacy case, and it must keep the answer it had:
+		// the built-in roster, which is what the global supplied before.
+		// Returning nil here would demote every Nav agent to a subagent.
+		return agentpakke.Default().PrimaryAgents("opencode") //nolint:nilerr // legacy case
+	}
+	return m.PrimaryAgents("opencode")
 }

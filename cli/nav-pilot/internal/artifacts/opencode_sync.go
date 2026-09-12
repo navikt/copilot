@@ -178,7 +178,12 @@ func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, source
 	}
 
 	var files []domain.InstalledFile
-	resolver := source.NewSourceResolver(sourceDir)
+	// The layout the pakke declares, not the canonical names (#790). Export
+	// already honoured it; sync did not, so a pakke with non-canonical
+	// layout.skills or layout.prompts exported correctly and then silently
+	// mirrored nothing into ~/.config/opencode at launch.
+	resolver := source.NewSourceResolverForLayout(sourceDir, syncLayout(sourceDir))
+	primaries := openCodePrimaries(sourceDir)
 
 	// Hooks are not exported, and the message says why without claiming more
 	// than we know.
@@ -275,7 +280,7 @@ func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, source
 		if err := source.CheckSymlink(dstPath, outputDir); err != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("agent %s: %w", entry.Name, err)
 		}
-		if wErr := writeFile(dstPath, transformAgent(data, entry.Name)); wErr != nil {
+		if wErr := writeFile(dstPath, transformAgent(data, entry.Name, primaries)); wErr != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("agent %s: %w", entry.Name, wErr)
 		}
 		h, _ := source.RawArtifactHash(dstPath, false)
@@ -283,7 +288,7 @@ func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, source
 		agents++
 	}
 
-	globalSections, scopedRefs, collErr := collectInstructionData(sourceDir)
+	globalSections, scopedRefs, collErr := collectInstructionData(syncLayout(sourceDir), sourceDir)
 	if collErr != nil {
 		return skills, commands, agents, instructions, conflicts, collErr
 	}

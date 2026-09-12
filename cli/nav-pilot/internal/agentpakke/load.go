@@ -372,7 +372,9 @@ func (m *Manifest) validateContent(sourceRoot string) []error {
 				continue
 			}
 			if d.Field == "layout.agents" {
-				errs = append(errs, checkAgentFiles(filepath.Join(sourceRoot, filepath.FromSlash(d.Value)), d.Field)...)
+				errs = append(errs, checkAgentFiles(
+					filepath.Join(sourceRoot, filepath.FromSlash(d.Value)),
+					d.Field, m.tier1PrimaryAgents(), reusesAnotherPakke(sourceRoot))...)
 			}
 		}
 	}
@@ -503,18 +505,32 @@ func requireContained(sourceRoot, field, rel string) error {
 // Tier 1 layout resolver — importing it here would close that cycle. Deep
 // frontmatter conformance therefore belongs in the sync layer, where the parser
 // already runs.
-func checkAgentFiles(agentsDir, field string) []error {
+// checkAgentFiles validates the agent files on disk and cross-checks the
+// primaryAgents each Tier 1 client declares against them. The cross-check lives
+// here because this function already reads the directory: a separate os.Stat
+// would accept names ReadDir does not — "../x", "sub/x", and a wrong-case name
+// on a case-insensitive filesystem — while install materializes only the flat,
+// ValidateName-clean entries this loop sees (#796).
+func checkAgentFiles(agentsDir, field string, declared map[string][]string, composed bool) []error {
 	entries, err := os.ReadDir(agentsDir)
 	if err != nil {
 		return []error{fmt.Errorf("%s: reading %q: %v", field, agentsDir, err)}
 	}
 	var errs []error
 	var found int
+	present := make(map[string]bool, len(entries))
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), agentFileSuffix) {
 			continue
 		}
 		found++
+		// Same two rules source.ValidateName applies, inlined because importing
+		// internal/source here would cycle. Without them a stem install would
+		// never materialize counts as present, and the typo it hides surfaces
+		// at launch instead.
+		if stem := strings.TrimSuffix(e.Name(), agentFileSuffix); !strings.Contains(stem, "..") && !strings.ContainsAny(stem, `/\`) {
+			present[stem] = true
+		}
 		// A symlinked agent file reads whatever it points at — including files
 		// outside the checkout — so it is refused rather than parsed.
 		if e.Type()&os.ModeSymlink != 0 {
@@ -535,6 +551,43 @@ func checkAgentFiles(agentsDir, field string) []error {
 	}
 	if found == 0 {
 		errs = append(errs, fmt.Errorf("%s: %q contains no *%s files", field, agentsDir, agentFileSuffix))
+	}
+	errs = append(errs, checkPrimaryAgentsPresent(present, declared, composed)...)
+	return errs
+}
+
+// checkPrimaryAgentsPresent refuses a declared primary agent that no file
+// provides. The name reaches the client verbatim as --agent, so an unchecked
+// typo is caught nowhere: validate passed, install wrote the files, and the
+// failure landed at launch on every consumer's machine.
+//
+// A composed pakke is exempt. It may legitimately name an agent inherited from
+// the pakke it reuses, and neither validate nor the pre-install check composes,
+// so enforcing here would refuse a documented, working shape.
+func checkPrimaryAgentsPresent(present map[string]bool, declared map[string][]string, composed bool) []error {
+	if composed {
+		return nil
+	}
+	have := make([]string, 0, len(present))
+	for name := range present {
+		have = append(have, name)
+	}
+	sort.Strings(have)
+	clients := make([]string, 0, len(declared))
+	for c := range declared {
+		clients = append(clients, c)
+	}
+	sort.Strings(clients)
+	var errs []error
+	for _, client := range clients {
+		for _, name := range declared[client] {
+			if name == "" || present[name] {
+				continue
+			}
+			errs = append(errs, fmt.Errorf(
+				"clients.%s.primaryAgents: %q has no agent file; this directory provides: %s",
+				client, name, strings.Join(have, ", ")))
+		}
 	}
 	return errs
 }
@@ -562,4 +615,25 @@ func hasFrontmatter(data []byte) bool {
 		}
 	}
 	return false
+}
+
+// tier1PrimaryAgents is the per-client roster the layout must provide. Tier 2 is
+// excluded: its roster lives in the payload manifest, and a stale client-level
+// list is documented as tolerated there.
+func (m *Manifest) tier1PrimaryAgents() map[string][]string {
+	out := map[string][]string{}
+	for _, client := range m.ClientIDs() {
+		if m.Tier(client) == TierLayout {
+			out[client] = m.Clients[client].PrimaryAgents
+		}
+	}
+	return out
+}
+
+// reusesAnotherPakke reports whether this checkout composes a base pakke, in
+// which case agents it names may come from that base rather than from its own
+// layout.
+func reusesAnotherPakke(sourceRoot string) bool {
+	d, err := LoadDeclaration(sourceRoot)
+	return err == nil && d != nil && d.Source != ""
 }
