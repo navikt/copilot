@@ -9,57 +9,6 @@ import (
 	"time"
 )
 
-// verifyUsernameOwnership resolves the authenticated caller's GitHub username
-// via SAML and compares it to the requested username. Returns true if ownership
-// is verified (or if no githubClient is configured — graceful degradation).
-// On failure it writes an appropriate error response and returns false.
-//
-// SECURITY: This check is required on ALL per-user read endpoints. Without it,
-// any employee can read any colleague's personal Copilot activity (daily credits,
-// acceptance counts, lines of code) by simply passing a different ?username= param.
-// The frontend supplies the username from the user's own SAML-resolved identity,
-// but the backend must not trust that — verify server-side via SAML lookup.
-func (h *BigQueryHandlers) verifyUsernameOwnership(w http.ResponseWriter, r *http.Request, requestedUsername string) bool {
-	if h.githubClient == nil {
-		// SECURITY: Fail closed in production. If the GitHub client failed to
-		// initialize (bad key, transient error), deny access rather than serving
-		// anyone's data to any authenticated caller. Only allow through in local
-		// dev where SAML infrastructure is unavailable.
-		if h.environment != "local" {
-			slog.Error("Ownership check unavailable: githubClient is nil in non-local environment")
-			respondError(w, "service_unavailable", "Ownership verification temporarily unavailable", http.StatusServiceUnavailable)
-			return false
-		}
-		return true
-	}
-
-	user, ok := getUserFromContext(r.Context())
-	if !ok || user == nil {
-		respondError(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
-		return false
-	}
-
-	resolvedUsername, err := h.githubClient.getUsernameBySamlIdentity(r.Context(), user.Email)
-	if err != nil {
-		slog.Error("Failed to verify caller identity via SAML", "error", err)
-		respondError(w, "identity_check_failed", "Failed to verify user identity", http.StatusInternalServerError)
-		return false
-	}
-	if resolvedUsername == "" {
-		respondError(w, "no_github_account", "No GitHub account linked to your identity", http.StatusForbidden)
-		return false
-	}
-	if !strings.EqualFold(resolvedUsername, requestedUsername) {
-		slog.Warn("Per-user read denied: username mismatch",
-			"requested_username", requestedUsername,
-			"actor_navident", user.NAVident,
-		)
-		respondError(w, "forbidden", "You can only view your own usage data", http.StatusForbidden)
-		return false
-	}
-	return true
-}
-
 func optionalIntParam(r *http.Request, name string, defaultValue, minValue, maxValue int) (int, bool) {
 	value := r.URL.Query().Get(name)
 	if value == "" {
@@ -112,7 +61,7 @@ func (h *BigQueryHandlers) handleUserMetrics(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if !h.verifyUsernameOwnership(w, r, username) {
+	if !requireOwnership(w, r, username) {
 		return
 	}
 
@@ -237,7 +186,7 @@ func (h *BigQueryHandlers) handleUserWeeklyTrends(w http.ResponseWriter, r *http
 		return
 	}
 
-	if !h.verifyUsernameOwnership(w, r, username) {
+	if !requireOwnership(w, r, username) {
 		return
 	}
 
@@ -265,7 +214,7 @@ func (h *BigQueryHandlers) handleUserDailyCredits(w http.ResponseWriter, r *http
 		return
 	}
 
-	if !h.verifyUsernameOwnership(w, r, username) {
+	if !requireOwnership(w, r, username) {
 		return
 	}
 
