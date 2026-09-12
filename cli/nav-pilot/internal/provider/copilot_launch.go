@@ -195,7 +195,14 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		args = withCpltAllowLocalhost(args, guard.Port())
 	}
 	displayName := CLIDisplayName(cliName)
-	fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(PrimaryAgent("copilot")))
+	// The agent actually launched, not the pakke's first primary: with
+	// --persona the two differ, and a banner naming the wrong one is worse
+	// than none.
+	banner := resolved.Persona
+	if banner == "" {
+		banner = PrimaryAgent("copilot")
+	}
+	fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(banner))
 
 	// cplt resolves the Copilot token itself; copilot_auth_mode only constrains
 	// which source it may use, and can refuse the launch outright.

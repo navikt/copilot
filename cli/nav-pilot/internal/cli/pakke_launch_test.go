@@ -982,3 +982,19 @@ func TestPersonaResolvedAgainstTheLaunchedPakke(t *testing.T) {
 		}
 	})
 }
+
+// --persona on a source that is not Tier 1 for this client used to be ignored
+// in silence: the user asked for one agent and got another with no word said.
+func TestPersonaRefusedOnNonTier1Source(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	stubResolveSource(t, &Source{Dir: legacySourceTree(t), Repo: "navikt/legacy", SHA: "deadbeef"})
+
+	_, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/legacy", Persona: "whoever"})
+	if err == nil {
+		t.Fatal("--persona against a source with no Tier 1 roster must be refused")
+	}
+	if !strings.Contains(err.Error(), "--persona") {
+		t.Errorf("the refusal must name the flag, got: %v", err)
+	}
+}

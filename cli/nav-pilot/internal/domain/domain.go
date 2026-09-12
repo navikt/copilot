@@ -67,7 +67,7 @@ type ResolvedConfig struct {
 	// launch stages ("full", "focused", …). Empty means the context the
 	// manifest declares as default. Unrelated to ContextTier, which is
 	// Copilot's own long-context setting; the two coexist on one command line.
-	PayloadContext    string
+	PayloadContext string
 	// Persona is the agent a Tier 1 launch starts, when the user selects one
 	// other than the agentpakke's first declared primary (--persona).
 	Persona           string
@@ -100,7 +100,7 @@ type CLIOverrides struct {
 	// PayloadContext is the --payload-context flag value (Tier 2 payload
 	// context id). It has no config-file key: the persistent default is the
 	// agentpakke manifest's defaultContext.
-	PayloadContext  string
+	PayloadContext string
 	// Persona is the --persona flag value: which of the active agentpakke's
 	// primaryAgents to launch. Empty means the first one.
 	Persona         string
