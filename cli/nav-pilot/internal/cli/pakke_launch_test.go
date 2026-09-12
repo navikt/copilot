@@ -998,3 +998,20 @@ func TestPersonaRefusedOnNonTier1Source(t *testing.T) {
 		t.Errorf("the refusal must name the flag, got: %v", err)
 	}
 }
+
+// A legacy launch — no source configured — must refuse an undeclared --persona
+// too. The guard used to sit inside the Tier 1 branch, so these paths passed
+// the flag straight to the client (#798).
+func TestPersonaRefusedOnLegacyLaunch(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	failingResolveSource(t)
+
+	err := launchClientConfirming(ResolvedConfig{Client: "copilot", Persona: "nobody"}, false)
+	if err == nil {
+		t.Fatal("an undeclared --persona must be refused on the legacy path too")
+	}
+	if !strings.Contains(err.Error(), "--persona") {
+		t.Errorf("the refusal must name the flag, got: %v", err)
+	}
+}

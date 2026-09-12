@@ -318,12 +318,6 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 		// this client, which Tier() establishing TierLayout already means: it
 		// is derived from the client's own entry.
 		providerpkg.SetActivePakke(src.Pakke)
-		// --persona is checked here and not earlier: before SetActivePakke the
-		// active manifest is still the built-in default, so a name this pakke
-		// declares would be measured against Nav's roster and refused (#798).
-		if _, err := providerpkg.ResolvePersona(resolved.Client, resolved.Persona); err != nil {
-			return nil, true, err
-		}
 		// Still the same answer about --payload-context as before: a Tier 1
 		// pakke has no pre-built payloads, and asking for one is an error
 		// whether or not its persona is now in use.

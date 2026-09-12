@@ -11,6 +11,7 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 // errInstallCancelled reports that an interactive install ended because the
@@ -887,6 +888,14 @@ func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error
 	}
 	if handled {
 		return nil
+	}
+	// One boundary for every launch that reaches a client: tryPakkeLaunch has
+	// either handled the launch itself or set the active pakke, so the roster
+	// is whatever this launch will really use. Checking inside a single branch
+	// left the legacy paths — no source configured, a manifest-less source —
+	// passing an undeclared --persona straight to the client (#798).
+	if _, err := providerpkg.ResolvePersona(resolved.Client, resolved.Persona); err != nil {
+		return err
 	}
 	if warnUnsandboxed {
 		warnUnsandboxedLaunch(resolved.Client)
