@@ -282,6 +282,14 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 			// recent still knows legacy would be a downgrade.
 			return nil, true, unresolvablePayloadRefusal(resolved, err)
 		}
+		if tier, ok := cachedTier(resolved.Source, resolved.Client); ok && tier == agentpakke.TierLayout {
+			// A Tier 1 source this client has resolved before. Falling through
+			// would launch Nav's own persona under a configuration that asked
+			// for someone else's, which #779 already rules out: "Ingen stille
+			// bytte av kilde eller Tier 1-fallback." The user configured a
+			// pakke; a different pakke is not a degraded version of it (#795).
+			return nil, true, unresolvableLayoutRefusal(resolved, err)
+		}
 		fmt.Fprintf(os.Stderr, "%s Could not resolve source %s: %v — launching without agentpakke context.\n",
 			yellow("⚠"), resolved.Source, err)
 		return nil, false, payloadContextUnsupported(resolved, resolved.Source)
@@ -479,6 +487,22 @@ func autoPin(src *Source, client string) (*Source, error) {
 // condition at all: it empties resolved.Source, which tryPakkeLaunch
 // short-circuits on before resolving anything, so the next launch takes the
 // built-in default immediately, offline or not.
+// unresolvableLayoutRefusal is the Tier 1 half of the same rule the payload
+// refusal enforces: what cannot be resolved is not silently replaced. The
+// remedies differ because a Tier 1 scope has already materialized its files —
+// the agents are on disk, only the manifest that names the persona is out of
+// reach — so retrying and dropping the source are both real answers, while
+// rebuilding a revision is not.
+func unresolvableLayoutRefusal(resolved ResolvedConfig, cause error) error {
+	return fmt.Errorf(
+		"source %s is an agentpakke for %s, and nav-pilot could not resolve it: %w.\n"+
+			"Nothing was launched — running it as before would start the built-in agent under a configuration that asked for this one.\n\n"+
+			"  Retry once the source resolves, or if you are offline, reconnect.\n"+
+			"  Or go back to the built-in agentpakke:  %s",
+		bold(resolved.Source), resolved.Client, cause,
+		bold(`nav-pilot config set source ""`))
+}
+
 func unresolvablePayloadRefusal(resolved ResolvedConfig, cause error) error {
 	return fmt.Errorf(
 		"source %s declares pre-built payloads for %s, and nav-pilot could not resolve it: %w.\n"+

@@ -378,3 +378,28 @@ func selfInstall(scope *InstallScope, src *Source) bool {
 	}
 	return filepath.Clean(a) == filepath.Clean(b)
 }
+
+// removeDeclarationFor deletes the reuse declaration an uninstall leaves
+// behind, when it names the source being uninstalled.
+//
+// Without this the lock file outlived the files it described, and the next
+// install read it as a pin: the repo claimed to reuse a pakke whose artifacts
+// were gone (#803). It is removed only when the source matches, because a
+// declaration can also describe a base this repo composes, which an uninstall
+// of something else must not touch.
+func removeDeclarationFor(scope *InstallScope, state *StateFile) {
+	if scope == nil || scope.IsUser() || state == nil || state.SourceRepo == "" {
+		return
+	}
+	d, err := scopeDeclaration(scope)
+	if err != nil || d == nil || d.Source == "" {
+		return
+	}
+	if !sameSourceRepo(d.Source, state.SourceRepo) {
+		return
+	}
+	path := filepath.Join(scope.RootDir, agentpakke.DeclarationPath)
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "%s Could not remove %s: %v\n", yellow("⚠"), agentpakke.DeclarationPath, err)
+	}
+}

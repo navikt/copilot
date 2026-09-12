@@ -946,3 +946,39 @@ func TestPinnedLaunchBackfillsPerClientState(t *testing.T) {
 		t.Errorf("state.PinnedClients after a pinned launch = %v, want %v", state.PinnedClients, want)
 	}
 }
+
+// A Tier 1 source this client has resolved before must not silently degrade to
+// the built-in agent when it cannot be reached. #779 rules the substitution out
+// ("Ingen stille bytte av kilde eller Tier 1-fallback") and #795 is where it
+// still happened: the user configured a pakke, and a different pakke is not a
+// degraded version of it.
+func TestUnresolvableTier1SourceRefuses(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+
+	// One successful launch teaches the tier cache what this source is.
+	stubResolveSource(t, pakkeSource(t, "navikt/grillmester"))
+	if _, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"}); err != nil {
+		t.Fatalf("priming launch: %v", err)
+	}
+
+	orig := resolveSource
+	t.Cleanup(func() { resolveSource = orig })
+	resolveSource = func(string, string) (*Source, error) {
+		return nil, errors.New("dial tcp: no route to host")
+	}
+
+	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
+	if !handled {
+		t.Fatal("an unreachable Tier 1 source must be handled, not fall through to the legacy launch")
+	}
+	if err == nil {
+		t.Fatal("an unreachable Tier 1 source must refuse rather than substitute the built-in agent")
+	}
+	if !strings.Contains(err.Error(), "navikt/grillmester") {
+		t.Errorf("the refusal must name the source, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "Nothing was launched") {
+		t.Errorf("the refusal must say nothing started, got: %v", err)
+	}
+}
