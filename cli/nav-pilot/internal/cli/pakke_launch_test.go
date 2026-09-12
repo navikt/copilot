@@ -1004,3 +1004,30 @@ func TestUnresolvableDefaultSourceStillFallsBack(t *testing.T) {
 		t.Fatalf("the built-in source must still fall back offline, got handled=%v err=%v", handled, err)
 	}
 }
+
+// The tier cache expires and a repo-scope install never writes it, so a refusal
+// keyed on the cache alone reverts to substituting the built-in agent once the
+// entry ages out. The installed state is the durable evidence (#795).
+func TestUnresolvableTier1RefusesFromInstalledStateAlone(t *testing.T) {
+	scope := pinEnv(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	if err := writeScopedState(scope, &StateFile{
+		Collection: "grillmester", Scope: "user", SourceRepo: "navikt/grillmester",
+		Files: []InstalledFile{{Path: "agents/grillmester.agent.md", Hash: "abc"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	orig := resolveSource
+	t.Cleanup(func() { resolveSource = orig })
+	resolveSource = func(string, string) (*Source, error) {
+		return nil, errors.New("dial tcp: no route to host")
+	}
+
+	// No rememberTier call: the cache is cold, exactly as after a fresh install
+	// or six hours later.
+	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
+	if !handled || err == nil {
+		t.Fatalf("an installed Tier 1 source must refuse offline without the tier cache, got handled=%v err=%v", handled, err)
+	}
+}
