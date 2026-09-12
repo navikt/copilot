@@ -971,9 +971,12 @@ func TestPersonaResolvedAgainstTheLaunchedPakke(t *testing.T) {
 		t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
 		stubResolveSource(t, pakkeSource(t, "navikt/grillmester"))
 
-		_, err := tryPakkeLaunch(ResolvedConfig{
+		// launchClientConfirming, not tryPakkeLaunch: the check lives at the
+		// common boundary so the legacy paths are covered too, and by then
+		// tryPakkeLaunch has set the active pakke.
+		err := launchClientConfirming(ResolvedConfig{
 			Client: "copilot", Source: "navikt/grillmester", Persona: "nope",
-		})
+		}, false)
 		if err == nil {
 			t.Fatal("an undeclared persona must be refused")
 		}
