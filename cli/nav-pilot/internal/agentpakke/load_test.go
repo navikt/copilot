@@ -875,7 +875,18 @@ func TestValidateSourceRejectsPrimaryAgentWithoutFile(t *testing.T) {
 	if len(errs) == 0 {
 		t.Fatal("a primaryAgent naming no agent file must be refused")
 	}
-	if !strings.Contains(errs[0].Error(), "agents/typo.agent.md") {
-		t.Fatalf("the finding must name the missing file, got %q", errs[0])
+	if !strings.Contains(errs[0].Error(), "this directory provides: real") {
+		t.Fatalf("the finding must name what does exist, got %q", errs[0])
+	}
+
+	// A composed pakke may name an agent its base ships, and neither validate
+	// nor the pre-install check composes — so enforcing here would refuse a
+	// documented, working shape.
+	lock := `{"contractVersion":"1","source":"navikt/copilot","sha":"` + strings.Repeat("a", 40) + `"}`
+	if err := os.WriteFile(filepath.Join(dir, ".nav-pilot", "agentpakke.lock.json"), []byte(lock), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if errs := ValidateSource(dir); len(errs) != 0 {
+		t.Fatalf("a composed pakke may inherit its persona, got %v", errs)
 	}
 }
