@@ -6,6 +6,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"strings"
 )
 
 func TestSetActivePakke(t *testing.T) {
@@ -268,5 +269,34 @@ func TestInheritPakkeNoticeMatchesTheStagedLaunch(t *testing.T) {
 	}
 	if got := ResolvedModelNotice("opencode", domain.ResolvedConfig{Client: "opencode"}); got != "" {
 		t.Errorf("ResolvedModelNotice = %q, want \"\" when the launch passes no --model", got)
+	}
+}
+
+// --persona must accept any primary the pakke declares and refuse anything
+// else, naming what is on offer. The name is passed to the client verbatim, so
+// an unchecked value fails inside the client instead of here (#798).
+func TestResolvePersona(t *testing.T) {
+	SetActivePakke(&agentpakke.Manifest{
+		Name: "p",
+		Clients: map[string]agentpakke.ClientEntry{
+			"copilot": {PrimaryAgents: []string{"implementer", "reviewer"}},
+		},
+	})
+	t.Cleanup(func() { SetActivePakke(nil) })
+
+	got, err := ResolvePersona("copilot", "")
+	if err != nil || got != "implementer" {
+		t.Fatalf("empty override must give the first primary, got %q %v", got, err)
+	}
+	got, err = ResolvePersona("copilot", "reviewer")
+	if err != nil || got != "reviewer" {
+		t.Fatalf("a declared primary must be accepted, got %q %v", got, err)
+	}
+	_, err = ResolvePersona("copilot", "nope")
+	if err == nil {
+		t.Fatal("an undeclared persona must be refused")
+	}
+	if !strings.Contains(err.Error(), "implementer, reviewer") {
+		t.Fatalf("the refusal must name what is on offer, got %q", err)
 	}
 }

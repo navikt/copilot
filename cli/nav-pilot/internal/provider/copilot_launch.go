@@ -79,7 +79,10 @@ func copilotAgentArgs(agent string) []string {
 // persona; resolved.Client selects the launcher and is consumed by
 // launchClient before reaching here.
 func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
-	persona := PrimaryAgent("copilot")
+	persona := resolved.Persona
+	if persona == "" {
+		persona = PrimaryAgent("copilot")
+	}
 	var args []string
 	args = append(args, "--agent", persona)
 	args = append(args, copilotAgentArgs(persona)...)

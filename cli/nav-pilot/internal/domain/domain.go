@@ -68,6 +68,9 @@ type ResolvedConfig struct {
 	// manifest declares as default. Unrelated to ContextTier, which is
 	// Copilot's own long-context setting; the two coexist on one command line.
 	PayloadContext    string
+	// Persona is the agent a Tier 1 launch starts, when the user selects one
+	// other than the agentpakke's first declared primary (--persona).
+	Persona           string
 	Model             string // empty = use agent default
 	Mode              string
 	ReasoningEffort   string // empty = unset
@@ -98,6 +101,9 @@ type CLIOverrides struct {
 	// context id). It has no config-file key: the persistent default is the
 	// agentpakke manifest's defaultContext.
 	PayloadContext  string
+	// Persona is the --persona flag value: which of the active agentpakke's
+	// primaryAgents to launch. Empty means the first one.
+	Persona         string
 	Model           string
 	Mode            string
 	ReasoningEffort string

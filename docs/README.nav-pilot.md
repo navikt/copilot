@@ -457,6 +457,10 @@ Støttede felt er `client`, `model`, `mode`, `reasoning_effort`, `context_tier`,
 med globale flagg som `--client`, `--model`, `--mode`, `--effort`, `--context`,
 `--allow-all-tools`, `--no-ask-user`, `--auto-launch`/`--no-auto-launch` og `--log-level`.
 
+`--persona <navn>` velger hvilken av agentpakkens `primaryAgents` som startes. Uten
+flagget startes den første. Et navn som ikke er deklarert for klienten avvises med
+en liste over dem som finnes, i stedet for å sendes videre til klienten.
+
 `--payload-context <id>` gjelder bare kilder som er en agentpakke med ferdigbygde payloads,
 og velger hvilken kontekst som stages ved launch. Den har ingen config-nøkkel, standarden er
 `defaultContext` i pakkas manifest. Den er ikke det samme som `--context`, som fortsatt er

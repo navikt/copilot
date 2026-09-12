@@ -2,6 +2,7 @@ package provider
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
@@ -138,4 +139,27 @@ func resolvedModelOrigin(client string, r domain.ResolvedConfig) (model, origin 
 		return declared, source.ActivePakke().Name + " default"
 	}
 	return "", ""
+}
+
+// ResolvePersona returns the agent a Tier 1 launch of client should start.
+//
+// Empty override means the pakke's first declared primary, which is what every
+// launch did before --persona existed. A non-empty override must name one of
+// the primaries the active agentpakke declares for that client: the name is
+// passed to the client verbatim, so accepting an unknown one would fail inside
+// the client with a name nav-pilot could have rejected here (#798).
+func ResolvePersona(client, override string) (string, error) {
+	if override == "" {
+		return PrimaryAgent(client), nil
+	}
+	m := source.ActivePakke()
+	if m.IsPrimaryAgent(client, override) {
+		return override, nil
+	}
+	declared := m.PrimaryAgents(client)
+	if len(declared) == 0 {
+		return "", fmt.Errorf("--persona %q: the active agentpakke declares no agents for %s", override, client)
+	}
+	return "", fmt.Errorf("--persona %q is not declared for %s; this agentpakke offers: %s",
+		override, client, strings.Join(declared, ", "))
 }
