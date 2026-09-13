@@ -15,6 +15,7 @@ func TestDiscoverPakkeReleaseLive(t *testing.T) {
 	if os.Getenv("NAV_PILOT_LIVE_GITHUB") == "" {
 		t.Skip("set NAV_PILOT_LIVE_GITHUB=1 to query api.github.com")
 	}
+	medNett(t) // the one test in this package that is allowed past nettvakt
 	names := map[releaseOutcome]string{
 		releaseNoMetadata: "no metadata", releaseUpToDate: "up to date",
 		releaseCandidate: "candidate", releaseNotOffered: "not offered",

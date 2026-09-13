@@ -30,6 +30,13 @@ func localTestHome(t *testing.T) string {
 	t.Setenv("HOME", home)
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(home, ".nav-pilot", "config.toml"))
 	t.Cleanup(func() { local.SetEnabled(false) })
+	// #830: init and start resolve the manifest, and that resolution fetches
+	// it from raw.githubusercontent.com. local.Cached is the same resolution
+	// without the fetch — cache first, embedded copy otherwise — so these
+	// tests read a real manifest and still stay off the network.
+	orig := resolveLocalManifest
+	t.Cleanup(func() { resolveLocalManifest = orig })
+	resolveLocalManifest = local.Cached
 	return home
 }
 

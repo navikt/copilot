@@ -130,9 +130,12 @@ func TestRun_AliasSync(t *testing.T) {
 }
 
 func TestRun_AliasUpgrade(t *testing.T) {
-	// "up" should behave identically to "upgrade" — non-nil error is acceptable
-	// (upgrade fetches from the network), but must not be "unknown command"
+	// "up" should behave identically to "upgrade" — any error is acceptable,
+	// but it must not be "unknown command".
 	isolatedRun(t)
+	// The upgrade path really does look up a release, and until #830 that was a
+	// live call to api.github.com on every run of this test.
+	localReleaseAPI(t)
 	err := run([]string{"up"})
 	if err != nil && strings.Contains(err.Error(), "unknown command") {
 		t.Errorf("alias 'up' was not resolved: %v", err)

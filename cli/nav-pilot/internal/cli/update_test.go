@@ -125,12 +125,31 @@ func TestFetchLatestVersion_SkipsNonNavPilot(t *testing.T) {
 	}
 }
 
+// localReleaseAPI points every release lookup at a local server that answers
+// with the running version, which is the "already up to date" answer. #830: the
+// command tests below ran the real update path against api.github.com, and the
+// only thing standing between a test run and a downloaded binary written over
+// the test binary was a version string that happened not to parse.
+func localReleaseAPI(t *testing.T) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s"}]`, Version)
+	}))
+	t.Cleanup(srv.Close)
+	origReleases, origCplt, origDownload := releasesAPI, cpltReleasesAPI, downloadURL
+	t.Cleanup(func() {
+		releasesAPI, cpltReleasesAPI, downloadURL = origReleases, origCplt, origDownload
+	})
+	releasesAPI, cpltReleasesAPI, downloadURL = srv.URL, srv.URL, srv.URL
+}
+
 func TestRun_UpdateCommand(t *testing.T) {
 	// Set version to a known value to trigger "up to date" path
 	// (avoids actually downloading a binary in tests)
 	origVersion := Version
 	Version = "test-version-that-wont-match"
 	defer func() { Version = origVersion }()
+	localReleaseAPI(t)
 
 	err := run([]string{"update"})
 	// Should not be "unknown command" — verifies wiring

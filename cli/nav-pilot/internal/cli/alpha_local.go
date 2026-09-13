@@ -110,6 +110,11 @@ func cmdAlpha(args []string) error {
 	}
 }
 
+// resolveLocalManifest is the manifest lookup, a var so tests get the manifest
+// without a fetch from raw.githubusercontent.com — [local.Cached] is the same
+// resolution minus the network. #830.
+var resolveLocalManifest = local.Resolve
+
 // activeManifest resolves the served manifest and installs it as the one the
 // predicates answer from. Only init and start call it: they act on the
 // manifest, so they should have the freshest one. status and off answer
@@ -119,7 +124,7 @@ func cmdAlpha(args []string) error {
 // manifest is the only fatal case, and it means the copy built into this binary
 // is broken.
 func activeManifest() (*local.Manifest, error) {
-	m, src, err := local.Resolve()
+	m, src, err := resolveLocalManifest()
 	if m == nil {
 		return nil, err
 	}
