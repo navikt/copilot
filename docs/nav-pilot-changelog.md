@@ -2,6 +2,14 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-09-13
+
+### G4-røyktesten beviste at en binærfil finnes
+
+- **`--version`-proben er ikke en readiness-test, og heter ikke det lenger**: `nav-pilot --client opencode --payload-context full -- --version` svarer før OpenCode laster config. En launch som dør under config-lasting under sandboxen gir derfor exit 0 og et versjonsnummer, som er nøyaktig hvordan [#565](https://github.com/navikt/copilot/issues/565) kunne shippe med hver TUI-launch død på ferske maskiner. En automatisk readiness-probe krever cplt, klienten, en PTY og en autentisert konto; CI-runnerne er `ubuntu-latest` og har ingen av dem. Porten er derfor navngitt som tilstedeværelses- og versjonssjekk, og den manuelle G4-prosedyren står med eksakt kommando og forventet markør (`Ask anything`, modellfritt) i [agentpakke-beslutninger.md §6.1](agentpakke-beslutninger.md#61-g4-røyktesten-beviser-tilstedeværelse-ikke-at-klienten-kan-starte) (#662).
+- **Pre-seedingen godtok stier OpenCode regner som fraværende**: Sjekken var `Lstat`, så en hengende symlink eller en katalog på `~/.config/opencode/.gitignore` returnerte suksess. OpenCode resolver stien, finner ingenting, gjør write-if-absent mot den read-only monterte config-katalogen og dør med «Unexpected server error» — #565 på nytt, med pre-seedingen som meldte grønt. Den krever nå en regulær fil som lar seg resolve, og nekter launchen med stien navngitt. Dette er den ene delen av feilklassen som *er* sjekkbar offline, deterministisk og uten binærfiler, så den kjører i CI.
+- **En probe som feiler sier nå hvilken av to ting som gikk galt**: «ikke installert» og «installert, men startet ikke» kom begge tilbake som `exit status 1` bak «could not read the version». Klientens egen stderr ble samlet opp av `exec.Cmd.Output` og aldri lest, selv om #565s OpenCode skrev feilen sin nettopp der. `probeFailure` skiller tilfellene og tar med første stderr-linje.
+
 ## 2026-09-07
 
 ### Claude Sonnet 4.6 finnes ikke lenger

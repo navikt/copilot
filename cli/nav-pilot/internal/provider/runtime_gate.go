@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"regexp"
@@ -91,14 +92,28 @@ var probeCpltVersion = func() (string, error) {
 // launch is about to start.
 //
 // What it proves, and what it does not: a `--version` answer proves the binary
-// exists and executes. It does not prove a session can start, because opencode
-// answers `--version` before it loads config, so a launch that dies during
-// config load under the sandbox still probes green. #565 shipped exactly that
-// way: both payloads passed this probe while every TUI launch on a fresh
-// machine died. A real readiness smoke (a session under cplt to a stable
-// ready marker) needs a machine with cplt and the client installed, which CI
-// does not have; the gap is #662. Until then, read this gate as a presence
-// and version-range check, nothing more.
+// exists, executes, and reports a version inside the declared range. It does
+// not prove a session can start, because opencode answers `--version` before it
+// loads config, so a launch that dies during config load under the sandbox
+// still probes green. #565 shipped exactly that way: both payloads passed this
+// probe while every TUI launch on a fresh machine died.
+//
+// #662 asked for a readiness probe instead, and the answer is that one cannot
+// be had here. A session to a stable ready marker needs cplt, the client, a
+// PTY and — for anything past config load — an authenticated account. The CI
+// runners are ubuntu-latest with none of the four, and a probe that starts a
+// real session on every launch would put a multi-second, credential-dependent
+// step in front of the thing the developer asked for. So this stays a presence
+// and version-range check, named as one, and the startup failure class #565
+// belongs to is caught where it is actually checkable: the sandbox
+// precondition, fail-closed, in ensureOpenCodeRuntimeGitignore
+// (opencode_launch.go). What is left over — the TUI rendering, the model being
+// reachable — is a manual G4 step with an exact command and an expected marker,
+// written down in docs/agentpakke-beslutninger.md §6.1.
+//
+// probeFailure below carries the other half: when this probe does fail, the
+// message says whether the client is missing or present-and-unable-to-start,
+// rather than calling both an unreadable version.
 //
 // opencode is probed directly: LaunchOpenCodeStaged already requires the binary
 // on PATH. copilot is not (only cplt is), so it is probed sandboxed, the way
@@ -211,6 +226,9 @@ var runStagedProbe = func(timeout time.Duration, name string, args ...string) (s
 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
 	cmd.WaitDelay = stagedProbeWaitDelay
 	out, err := cmd.Output()
+	if err != nil && ctx.Err() == nil {
+		err = probeFailure(name, err)
+	}
 	if ctx.Err() != nil {
 		// This gate is fatal, so the message has to carry both halves: what
 		// happened, and that retrying is the right move. cplt unpacks the client
@@ -221,6 +239,50 @@ var runStagedProbe = func(timeout time.Duration, name string, args ...string) (s
 			name, timeout, domain.Bold("cplt doctor"))
 	}
 	return string(out), err
+}
+
+// probeFailure says which of the two things a failed probe means: the client is
+// not installed, or it is installed and did not start.
+//
+// Both used to arrive as a bare "exit status 1" behind "could not read the
+// version", which is the reporting half of #662 — a client that was present and
+// dying on every launch was worded exactly like one whose version string could
+// not be parsed, and neither wording says "this will not start". exec.Cmd.Output
+// already collects the client's stderr into ExitError.Stderr and nothing ever
+// read it, so the only diagnosis that existed was captured and thrown away:
+// #565's OpenCode printed "Error: Unexpected server error" there.
+//
+// This is deliberately a report, not a readiness proof. A probe that exits 0
+// still says only that the binary ran; see probeClientVersion.
+func probeFailure(name string, err error) error {
+	if errors.Is(err, exec.ErrNotFound) || errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("%s not found: %w", name, err)
+	}
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		if msg := firstStderrLine(exit.Stderr); msg != "" {
+			return fmt.Errorf("%s is installed but did not start (exit %d): %s", name, exit.ExitCode(), msg)
+		}
+		return fmt.Errorf("%s is installed but did not start (exit %d), and said nothing about why", name, exit.ExitCode())
+	}
+	return err
+}
+
+// firstStderrLine is the one line of a failed probe's stderr worth putting in an
+// error: the first non-empty one, capped so a client that dumps a stack trace
+// cannot take the terminal with it.
+func firstStderrLine(b []byte) string {
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if r := []rune(line); len(r) > 200 {
+			return string(r[:200]) + "…"
+		}
+		return line
+	}
+	return ""
 }
 
 // checkStagedRuntime is the runtime gate a staged launch passes before it
@@ -336,7 +398,11 @@ func checkClientCompatibility(client, compatibility string, probe func(string) (
 	}
 	out, err := probe(client)
 	if err != nil {
-		return fmt.Errorf("could not read the %s version, which agentpakke %q requires to be %s: %w", client, pakke, compatibility, err)
+		// Not "could not read the version". The probe is what failed, and
+		// probeFailure has already worked out whether that means absent or
+		// present-and-broken; flattening both into a parse complaint is what
+		// #662 is about.
+		return fmt.Errorf("cannot establish that %s is %s, the range agentpakke %q declares it supports: %w", client, compatibility, pakke, err)
 	}
 	found, err := parseClientVersion(client, out)
 	if err != nil {

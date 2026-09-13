@@ -99,7 +99,7 @@ Beslutningen om `--no-audit` er altså endret, og den er Team eSyfos ([§5.2](#5
 ### 2.6 Annet vi ikke speiler
 
 - **Referansens cloud-launcher stager ikke i det hele tatt.** Den peker klienten på payloaden der den ligger, inne i en immutabel Homebrew-bundle. Verify, kopier, re-verify er hentet fra samme prosjekts *lokale* modus (`scripts/grillmester_local.py`, `_materialize_opencode_config`). nav-pilot må stage fordi kilden kan være en midlertidig klone med umask-modes framfor manifestets. Ikke let etter staging i `build_launch_command`.
-- **`ensure_opencode_runtime_support`s pre-seeding av `.gitignore` i OpenCodes config-katalog** (som standard `~/.config/opencode`, `XDG_CONFIG_HOME` respekteres) er tatt med likevel; beslutningen om å hoppe over den er reversert. Vi leste den som launcher-policy, men den er bærende: OpenCode gjør en write-if-absent av filen under config-lastingen, før TUI-en er oppe, og cplt monterer config-katalogen read-only med bare `auth.json` skrivbar. OpenCodes egen toleranse for en nektet skriving hjelper ikke: sandboxens EPERM tagges `Unknown` i Effect-laget, går forbi `catchIf(PermissionDenied)` og inn i `orDie`. På en maskin der filen ikke finnes ennå, dør derfor hver eneste launch med «Unexpected server error» ([#565](https://github.com/navikt/copilot/issues/565)). `ensureOpenCodeRuntimeGitignore` (`internal/provider/opencode_launch.go`) seeder derfor filen idempotent på begge OpenCode-launchstiene: eksisterende fil røres aldri, manglende katalog opprettes, innholdet er de eksakte bytene OpenCode 1.18.20 selv ville skrevet.
+- **`ensure_opencode_runtime_support`s pre-seeding av `.gitignore` i OpenCodes config-katalog** (som standard `~/.config/opencode`, `XDG_CONFIG_HOME` respekteres) er tatt med likevel; beslutningen om å hoppe over den er reversert. Vi leste den som launcher-policy, men den er bærende: OpenCode gjør en write-if-absent av filen under config-lastingen, før TUI-en er oppe, og cplt monterer config-katalogen read-only med bare `auth.json` skrivbar. OpenCodes egen toleranse for en nektet skriving hjelper ikke: sandboxens EPERM tagges `Unknown` i Effect-laget, går forbi `catchIf(PermissionDenied)` og inn i `orDie`. På en maskin der filen ikke finnes ennå, dør derfor hver eneste launch med «Unexpected server error» ([#565](https://github.com/navikt/copilot/issues/565)). `ensureOpenCodeRuntimeGitignore` (`internal/provider/opencode_launch.go`) seeder derfor filen idempotent på begge OpenCode-launchstiene: eksisterende fil røres aldri, manglende katalog opprettes, innholdet er de eksakte bytene OpenCode 1.18.20 selv ville skrevet. «Eksisterende» er definert slik OpenCode definerer det, altså gjennom symlinker og med krav om en regulær fil. En hengende symlink og en katalog på stien finnes for `Lstat`, men er *fraværende* for OpenCodes egen eksistenssjekk. Begge ble tidligere godtatt, launchen gikk videre, write-if-absent traff den read-only monteringen, og økten døde med «Unexpected server error» — nøyaktig #565, med pre-seedingen som meldte suksess. Nå nekter pre-seedingen og navngir stien ([#662](https://github.com/navikt/copilot/issues/662)).
 
 ## 3. Materialiseringsmodellen og tillitsgrensen
 
@@ -269,6 +269,34 @@ Ikke «fiks» disse ved et uhell. De er valgt, og de har begrunnelser.
 - **To `Unreachable:`-grener** rundt `rec.perm()` i `payload.go` og `stage.go` er beholdt som defensiv feilretur, fordi `ParsePayloadManifest` allerede har avvist alle andre modes.
 - **Kosmetisk rest i `openCodeDefaultModel`:** kjøres `config setup` med en `inherit`-pakke aktiv, merkes den innebygde modell-id-en «Nav default». Ingen M2-flyt setter en pakke før setup, så ingenting når dit i dag (`internal/provider/pakke.go`).
 - **Tier-cachens 6-timers TTL er fortsatt et avgrensningstall.** Ingenting er målt. Cachen ble innsnevret framfor slettet med revisjonspinnen, og bærer nå bare ikke-payload-svaret. Verdien, den ene gjenværende stien og slettetriggeren står i [§4](#4-launch-beslutningene).
+
+### 6.1 G4-røyktesten beviser tilstedeværelse, ikke at klienten kan starte
+
+`nav-pilot --client opencode --payload-context full -- --version` er ikke en readiness-test, og skal ikke leses som en. `--version` svarer før OpenCode laster config, så en launch som dør under config-lasting under sandboxen svarer likevel `1.18.20` med exit 0. Det er slik [#565](https://github.com/navikt/copilot/issues/565) kunne shippe: begge payloadene passerte proben mens hver eneste TUI-launch på en fersk maskin døde.
+
+**En automatisk readiness-probe finnes ikke, og grunnen er ikke at ingen har skrevet den.** En økt til en stabil ready-markør krever cplt, klienten, en PTY, og — for alt forbi config-lasting — en autentisert konto. `nav-pilot-ci.yaml` kjører på `ubuntu-latest` og har ingen av de fire. Å legge en ekte sesjonsstart inn i launch-porten i stedet ville satt et flersekunders, kontoavhengig steg foran det utvikleren faktisk ba om, og gjort en offline maskin til en fatal launch-feil. Begge er verre enn den svake sjekken de erstatter.
+
+Det som *er* sjekkbart, er sjekket:
+
+- **Sandbox-forutsetningen feiler lukket.** Feilklassen i #565 er write-if-absent mot en read-only montert config-katalog. `ensureOpenCodeRuntimeGitignore` krever nå en regulær fil som lar seg resolve, og nekter launchen med stien navngitt når den ikke finnes ([§2.6](#26-annet-vi-ikke-speiler)). Sjekken er offline, deterministisk og krever ingen binærfiler, så den kjører også i CI.
+- **En probe som feiler sier hvilken av to ting som gikk galt.** «Ikke installert» og «installert, men startet ikke» kom begge tilbake som `exit status 1` bak «could not read the version». Klientens egen stderr ble samlet opp av `exec.Cmd.Output` og aldri lest — #565s OpenCode skrev «Error: Unexpected server error» nettopp der. `probeFailure` (`internal/provider/runtime_gate.go`) skiller dem og tar med første stderr-linje.
+
+**Resten er en manuell G4-verifisering.** Den må kjøres på macOS med cplt og OpenCode installert og en autentisert konto, og den er ikke automatiserbar før det finnes en macOS-runner:
+
+```bash
+test ! -e ~/.config/opencode/.gitignore   # fersk maskin; hopp over hvis fila finnes
+nav-pilot --client opencode --payload-context full
+```
+
+Forventet markør: TUI-en tegner opp, viser `grillmester` som valgt agent, og når prompten `Ask anything` **uten et modellkall**. Det er markøren #565-kontrollen brukte, og den nås modellfritt.
+
+Feiler den, gir denne den faktiske årsaken framfor «Unexpected server error»:
+
+```bash
+nav-pilot --client opencode --payload-context full -- --print-logs --log-level DEBUG
+```
+
+Gjenta med `--payload-context focused`. Begge kontekstene må nå markøren; #565 viste at en kontekst kan passere `--version` og likevel være død.
 
 ## 7. Begrunnelser som ikke sto skrevet noe sted før dette dokumentet
 

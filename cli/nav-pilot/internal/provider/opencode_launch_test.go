@@ -816,3 +816,75 @@ func TestEnsureOpenCodeRuntimeGitignoreStopsOnStatError(t *testing.T) {
 		t.Fatal("expected an error when the config dir cannot be inspected")
 	}
 }
+
+// A dangling symlink at the .gitignore path is "there" to Lstat and absent to
+// everything that resolves it, which is what OpenCode does. The pre-seed used
+// to accept it and return nil, so the launch went ahead, OpenCode's
+// write-if-absent fired against a read-only mount, and the session died with
+// "Unexpected server error" — the #565 failure with the pre-seed reporting
+// success. A client that cannot start must be reported as such (#662).
+func TestEnsureOpenCodeRuntimeGitignoreRejectsDanglingSymlink(t *testing.T) {
+	xdg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+
+	dir := filepath.Join(xdg, "opencode")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, ".gitignore")
+	if err := os.Symlink(filepath.Join(dir, "gone"), path); err != nil {
+		t.Fatal(err)
+	}
+
+	err := ensureOpenCodeRuntimeGitignore()
+	if err == nil {
+		t.Fatal("a dangling .gitignore symlink was accepted; OpenCode resolves the link, finds nothing, and dies writing it under cplt")
+	}
+	if !strings.Contains(err.Error(), path) {
+		t.Errorf("error does not name the offending path: %v", err)
+	}
+}
+
+// Same class, other shape: a directory at the path. OpenCode's existence check
+// does not count it either, and the write it then attempts cannot succeed.
+func TestEnsureOpenCodeRuntimeGitignoreRejectsDirectory(t *testing.T) {
+	xdg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+
+	path := filepath.Join(xdg, "opencode", ".gitignore")
+	if err := os.MkdirAll(path, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ensureOpenCodeRuntimeGitignore(); err == nil {
+		t.Fatal("a directory at the .gitignore path was accepted as a pre-seeded file")
+	}
+}
+
+// A symlink that resolves to a regular file is fine: OpenCode follows it, sees
+// the file, and writes nothing. The pre-seed must not "repair" it.
+func TestEnsureOpenCodeRuntimeGitignoreAcceptsResolvableSymlink(t *testing.T) {
+	xdg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+
+	dir := filepath.Join(xdg, "opencode")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(dir, "real")
+	if err := os.WriteFile(target, []byte("mine\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, ".gitignore")
+	if err := os.Symlink(target, path); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ensureOpenCodeRuntimeGitignore(); err != nil {
+		t.Fatalf("a resolvable .gitignore symlink was rejected: %v", err)
+	}
+	got, err := os.ReadFile(target)
+	if err != nil || string(got) != "mine\n" {
+		t.Errorf("symlink target = %q, %v; want it untouched", got, err)
+	}
+}

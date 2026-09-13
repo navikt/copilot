@@ -98,12 +98,25 @@ const openCodeRuntimeGitignore = "node_modules\npackage.json\npackage-lock.json\
 // Idempotent: an existing file is never touched (whatever its content), and a
 // missing config directory is created. O_EXCL so a race can only lose to
 // another creator, never truncate one.
+//
+// "Existing" means what OpenCode means by it, which is why this stats through
+// symlinks and insists on a regular file rather than asking Lstat whether
+// something is at the path. OpenCode resolves the path; a dangling symlink and
+// a directory are both *absent* to its existence check, and both used to make
+// this function return nil. The launch then went ahead, the write-if-absent
+// fired against the read-only mount, and the session died with "Unexpected
+// server error" — the #565 failure, with the pre-seed reporting success. Saying
+// so is the point: a client that cannot start must be reported as unable to
+// start, not passed through as ready (#662).
 func ensureOpenCodeRuntimeGitignore() error {
 	dir := openCodeConfigDir()
 	path := filepath.Join(dir, ".gitignore")
-	if _, err := os.Lstat(path); err == nil {
+	switch info, err := os.Stat(path); {
+	case err == nil && info.Mode().IsRegular():
 		return nil
-	} else if !errors.Is(err, fs.ErrNotExist) {
+	case err == nil:
+		return fmt.Errorf("%s is a %s, not a file — OpenCode does not count it as present and cannot create it under the sandbox; move it aside", path, fileKind(info.Mode()))
+	case !errors.Is(err, fs.ErrNotExist):
 		// Any other stat failure means the directory cannot be inspected
 		// reliably, and creating into it anyway could mask the real problem.
 		return fmt.Errorf("inspecting %s: %w", path, err)
@@ -114,7 +127,14 @@ func ensureOpenCodeRuntimeGitignore() error {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		if errors.Is(err, fs.ErrExist) {
-			return nil
+			// Either another creator won a race — fine, the file is there — or
+			// the path is a symlink O_EXCL refuses to follow while Stat above
+			// already found nothing at the far end. The re-stat tells them
+			// apart, and only the first is a success.
+			if info, serr := os.Stat(path); serr == nil && info.Mode().IsRegular() {
+				return nil
+			}
+			return fmt.Errorf("%s exists but resolves to nothing — OpenCode does not count it as present and cannot create it under the sandbox; move it aside", path)
 		}
 		return fmt.Errorf("creating %s: %w", path, err)
 	}
@@ -129,6 +149,16 @@ func ensureOpenCodeRuntimeGitignore() error {
 		return fmt.Errorf("writing %s: %w", path, errors.Join(err, os.Remove(path)))
 	}
 	return nil
+}
+
+// fileKind names what is at a path, for an error that has to tell a user what to
+// move aside. The mode comes from a symlink-following Stat, so a link shows up
+// as whatever it points at.
+func fileKind(m fs.FileMode) string {
+	if m.IsDir() {
+		return "directory"
+	}
+	return "special file"
 }
 
 // repoScopeDir returns the installed repo scope of the working directory
