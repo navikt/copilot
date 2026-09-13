@@ -118,12 +118,18 @@ func (m *Manifest) checkSemantics(runningVersion string) error {
 // catalog in domain/known_models_gen.go is generated from models.dev and ages
 // between syncs, so refusing an id it has not caught up with would reject a
 // manifest that launches fine. A typo, which is what the author wants to hear
-// about, reads the same way — hence saying it out loud but exiting 0 (#796).
+// about, reads the same way, hence saying it out loud but exiting 0 (#796).
 //
-// [InheritModel] pins nothing and never warns. opencode and pi declare
-// provider-qualified ids (see provider.ToOpenCodeModel), so only the
-// github-copilot half is checked; any other provider's catalog is not ours to
-// know, and guessing at it would warn about working manifests.
+// Each client is checked the way its own launcher treats the value.
+// copilot forwards it verbatim as --model (BuildCopilotArgs), so the whole
+// value has to be a catalog id and a provider-qualified one is a value copilot
+// itself rejects. opencode and pi route it through provider.ToOpenCodeModel,
+// which qualifies a bare id under github-copilot/ and passes any other
+// provider's id through untouched, so there only the github-copilot half is
+// ours to recognize. A client this binary cannot launch is skipped: nothing
+// here knows what it would do with the value (A3/A4).
+//
+// [InheritModel] pins nothing and never warns.
 func (m *Manifest) ModelWarnings() []string {
 	var warnings []string
 	for _, client := range m.ClientIDs() {
@@ -132,11 +138,18 @@ func (m *Manifest) ModelWarnings() []string {
 			continue
 		}
 		id := declared
-		if provider, model, qualified := strings.Cut(declared, "/"); qualified {
-			if provider+"/" != domain.OpenCodeProviderPrefix {
-				continue
+		switch client {
+		case "copilot":
+			// The declared value is the --model value, qualifier and all.
+		case "opencode", "pi":
+			if provider, model, qualified := strings.Cut(declared, "/"); qualified {
+				if provider+"/" != domain.OpenCodeProviderPrefix {
+					continue
+				}
+				id = model
 			}
-			id = model
+		default:
+			continue
 		}
 		if domain.IsKnownCopilotModel(id) {
 			continue
@@ -144,7 +157,7 @@ func (m *Manifest) ModelWarnings() []string {
 		warnings = append(warnings, fmt.Sprintf(
 			"clients.%s.defaultModel %q is not in this nav-pilot's Copilot model catalog. "+
 				"That is a warning, not a violation: the catalog is synced from models.dev and may lag a new model. "+
-				"If it is a typo, the client will reject it at launch — check the id against `nav-pilot models`",
+				"If it is a typo, the client will reject it at launch, so check the id against `nav-pilot models`",
 			client, declared))
 	}
 	return warnings

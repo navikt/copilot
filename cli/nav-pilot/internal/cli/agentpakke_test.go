@@ -1569,7 +1569,7 @@ func TestInstallJSONIsParseableOnEveryDispatch(t *testing.T) {
 }
 
 // An unknown defaultModel is a warning, not a violation: the catalog it is
-// checked against ages between syncs, so validate still exits 0 — but it says
+// checked against ages between syncs, so validate still exits 0. It does say
 // so, in both the human output and --json (#796).
 func TestCmdValidateWarnsOnUnknownDefaultModel(t *testing.T) {
 	isolatedConfig(t)
@@ -1616,5 +1616,20 @@ func TestCmdValidateWarnsOnUnknownDefaultModel(t *testing.T) {
 	}
 	if len(doc.Warnings) != 1 || !strings.Contains(doc.Warnings[0], "gpt-99-does-not-exist") {
 		t.Errorf("--json warnings = %v, want the unknown model named", doc.Warnings)
+	}
+
+	// And with nothing to warn about the field is an empty array, not null:
+	// the documented contract types it as an array in every run.
+	mustWrite(t, filepath.Join(dir, agentpakke.ManifestDir, agentpakke.ManifestFile),
+		`{"contractVersion":"1","name":"x","description":"d",`+
+			`"clients":{"copilot":{"primaryAgents":["a"],"defaultModel":"auto"}},`+
+			`"layout":{"agents":"agents","skills":"skills"}}`)
+	out = captureStdoutFor(t, func() {
+		if err := cmdValidate("", "", true); err != nil {
+			t.Errorf("cmdValidate --json = %v, want nil", err)
+		}
+	})
+	if !strings.Contains(out, `"warnings": []`) {
+		t.Errorf("--json warnings must be an empty array when nothing warns:\n%s", out)
 	}
 }

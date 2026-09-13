@@ -33,6 +33,12 @@ func cmdValidate(ref, sourceRepo string, jsonOutput bool) error {
 	kind, notes, warnings, findings := validateSourceTree(src)
 
 	if jsonOutput {
+		// Both lists are always arrays in the JSON, never null: the documented
+		// --json contract types them as arrays, and a consumer should not need
+		// a null case for the ordinary "nothing to report" run.
+		if warnings == nil {
+			warnings = []string{}
+		}
 		problems := make([]string, 0, len(findings))
 		for _, f := range findings {
 			problems = append(problems, f.Error())
