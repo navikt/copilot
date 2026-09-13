@@ -22,6 +22,15 @@ func stubProbes(t *testing.T, cplt string, cpltErr error, client string, clientE
 	t.Cleanup(func() { probeCpltVersion, probeClientVersion = origCplt, origClient })
 }
 
+// stubLaunchProbe replaces the Tier 1 launch probe, so a range check is what
+// the assertion measures rather than a machine that happens to lack a client.
+func stubLaunchProbe(t *testing.T, out string, err error) {
+	t.Helper()
+	orig := probeLaunchClientVersion
+	probeLaunchClientVersion = func(string) (string, error) { return out, err }
+	t.Cleanup(func() { probeLaunchClientVersion = orig })
+}
+
 // okCplt is a cplt release comfortably past minStagedCpltStamp.
 const okCplt = "cplt 2026.08.24-153138-0d1d66d\n"
 
@@ -483,7 +492,10 @@ func TestOutOfRangeClientVersionNamesACommand(t *testing.T) {
 func TestCheckPakkeClientCompatibility(t *testing.T) {
 	t.Cleanup(func() { SetActivePakke(nil) })
 
-	t.Run("no range declared passes", func(t *testing.T) {
+	t.Run("no range declared passes without probing", func(t *testing.T) {
+		// The probe fails if it runs at all: nothing to enforce means nothing
+		// to spawn.
+		stubLaunchProbe(t, "", errors.New("the probe must not run"))
 		SetActivePakke(&agentpakke.Manifest{
 			Name:    "p",
 			Clients: map[string]agentpakke.ClientEntry{"copilot": {PrimaryAgents: []string{"a"}}},
@@ -493,7 +505,11 @@ func TestCheckPakkeClientCompatibility(t *testing.T) {
 		}
 	})
 
-	t.Run("an unreachable range is refused", func(t *testing.T) {
+	t.Run("a version below the range is refused", func(t *testing.T) {
+		// An in-range-shaped version the range still excludes, so the refusal
+		// can only come from the range check. Without this stub the test passed
+		// on any machine with no cplt because the probe failed (#815 review).
+		stubLaunchProbe(t, "GitHub Copilot CLI 1.0.81-14.\n", nil)
 		SetActivePakke(&agentpakke.Manifest{
 			Name:    "p",
 			Clients: map[string]agentpakke.ClientEntry{"copilot": {PrimaryAgents: []string{"a"}, Compatibility: ">=99999.0.0"}},
@@ -502,12 +518,26 @@ func TestCheckPakkeClientCompatibility(t *testing.T) {
 		if err == nil {
 			t.Fatal("a client outside the declared range must be refused")
 		}
-		if !strings.Contains(err.Error(), "99999.0.0") {
-			t.Errorf("the refusal must name the range, got: %v", err)
+		for _, want := range []string{"1.0.81", "99999.0.0"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("the refusal must name %q, got: %v", want, err)
+			}
+		}
+	})
+
+	t.Run("a version inside the range passes", func(t *testing.T) {
+		stubLaunchProbe(t, "GitHub Copilot CLI 1.0.81-14.\n", nil)
+		SetActivePakke(&agentpakke.Manifest{
+			Name:    "p",
+			Clients: map[string]agentpakke.ClientEntry{"copilot": {PrimaryAgents: []string{"a"}, Compatibility: ">=1.0.79,<2"}},
+		})
+		if err := CheckPakkeClientCompatibility("copilot"); err != nil {
+			t.Errorf("CheckPakkeClientCompatibility() = %v, want nil", err)
 		}
 	})
 
 	t.Run("a client the pakke does not declare passes", func(t *testing.T) {
+		stubLaunchProbe(t, "", errors.New("the probe must not run"))
 		SetActivePakke(&agentpakke.Manifest{
 			Name:    "p",
 			Clients: map[string]agentpakke.ClientEntry{"copilot": {PrimaryAgents: []string{"a"}, Compatibility: ">=99999.0.0"}},
@@ -516,4 +546,81 @@ func TestCheckPakkeClientCompatibility(t *testing.T) {
 			t.Errorf("CheckPakkeClientCompatibility(opencode) = %v, want nil", err)
 		}
 	})
+}
+
+// The Tier 1 probe has to run the binary the launch runs. Probing through cplt
+// regardless refused a valid Tier 1 launch — plain `copilot` on PATH, no cplt
+// anywhere — with "cplt not found in PATH" (#815 review).
+func TestLaunchProbeFollowsTheSelectedBinary(t *testing.T) {
+	capture := func(t *testing.T) (*string, *[]string) {
+		t.Helper()
+		var name string
+		var args []string
+		orig := runStagedProbe
+		runStagedProbe = func(_ time.Duration, n string, a ...string) (string, error) {
+			name, args = n, a
+			return "", nil
+		}
+		t.Cleanup(func() { runStagedProbe = orig })
+		return &name, &args
+	}
+
+	t.Run("plain copilot is probed directly", func(t *testing.T) {
+		fakeCopilotOnPath(t)
+		name, args := capture(t)
+		if _, err := probeLaunchClientVersion("copilot"); err != nil {
+			t.Fatalf("probeLaunchClientVersion: %v", err)
+		}
+		if filepath.Base(*name) != "copilot" {
+			t.Errorf("probe ran %q, want the plain copilot binary", *name)
+		}
+		if !slices.Equal(*args, []string{"--version"}) {
+			t.Errorf("probe args = %v, want just --version", *args)
+		}
+	})
+
+	t.Run("cplt is probed sandboxed", func(t *testing.T) {
+		fakeCpltOnPath(t)
+		name, args := capture(t)
+		if _, err := probeLaunchClientVersion("copilot"); err != nil {
+			t.Fatalf("probeLaunchClientVersion: %v", err)
+		}
+		if filepath.Base(*name) != "cplt" {
+			t.Errorf("probe ran %q, want cplt", *name)
+		}
+		if !slices.Contains(*args, "--yes") || !slices.Contains(*args, "--project-dir") {
+			t.Errorf("probe args = %v, want the sandboxed vector", *args)
+		}
+	})
+
+	t.Run("opencode is probed under its own name", func(t *testing.T) {
+		name, _ := capture(t)
+		if _, err := probeLaunchClientVersion("opencode"); err != nil {
+			t.Fatalf("probeLaunchClientVersion: %v", err)
+		}
+		if *name != "opencode" {
+			t.Errorf("probe ran %q, want opencode", *name)
+		}
+	})
+
+	t.Run("no client binary at all is an error", func(t *testing.T) {
+		t.Setenv("PATH", t.TempDir())
+		capture(t)
+		if _, err := probeLaunchClientVersion("copilot"); err == nil {
+			t.Error("probeLaunchClientVersion with no copilot on PATH must fail")
+		}
+	})
+}
+
+// fakeCopilotOnPath puts a plain, non-cplt `copilot` on an otherwise empty PATH:
+// the Tier 1 install the review is about. FindCopilotCLI runs it to tell the two
+// apart, so the version output must not look like cplt's.
+func fakeCopilotOnPath(t *testing.T) {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "copilot"),
+		[]byte("#!/bin/sh\necho 'GitHub Copilot CLI 1.0.81-14.'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
 }
