@@ -25,6 +25,7 @@ const DOC_SECTIONS: TocItem[] = [
       { id: "kjorbar-kode", label: "Kjørbar kode" },
       { id: "manifestet", label: "Manifestet" },
       { id: "uten-agent", label: "Pakke uten agent" },
+      { id: "mcp-servere", label: "MCP-servere" },
       { id: "valider", label: "Valider" },
       { id: "distribuer", label: "Distribuer" },
     ],
@@ -90,6 +91,10 @@ const MANIFEST_UTEN_AGENT = `{
   "clients": {
     "copilot": {}
   }
+}`;
+
+const MCP = `{
+  "mcpServers": ["io.github.navikt/github-mcp", "io.github.navikt/aksel-mcp"]
 }`;
 
 const VALIDER_CMD = `nav-pilot validate --source "$PWD"`;
@@ -243,6 +248,25 @@ export default function Agentpakker() {
                       med en som deklarerer en agent.
                     </BodyLong>
                     <CodeBlock filename=".nav-pilot/agentpakke.json">{MANIFEST_UTEN_AGENT}</CodeBlock>
+
+                    <LinkableHeading id="mcp-servere" size="small" level="3">
+                      MCP-servere
+                    </LinkableHeading>
+                    <BodyLong textColor="subtle">
+                      Valgfritt. MCP-servere styres sentralt i{" "}
+                      <a href="https://mcp-registry.nav.no" className={linkClass}>
+                        Navs MCP-register
+                      </a>
+                      . Du kan ikke definere din egen, men du kan si hvilke av registerets servere agentene og
+                      ferdighetene dine forventer. Et navn som ikke står i registeret, validerer ikke.
+                    </BodyLong>
+                    <CodeBlock filename=".nav-pilot/agentpakke.json">{MCP}</CodeBlock>
+                    <BodyLong textColor="subtle">
+                      <code className="font-mono text-xs">install</code> navngir serverne pakka trenger og peker på
+                      registeret. Det er alt: nav-pilot skriver ingen MCP-konfigurasjon, og å slå på en server er
+                      brukerens handling i klienten. Feltet ligger på pakkenivå, siden det er klientens eget oppsett som
+                      avgjør om en server er tilgjengelig.
+                    </BodyLong>
 
                     <LinkableHeading id="valider" size="small" level="3">
                       Valider

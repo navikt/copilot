@@ -663,6 +663,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		fmt.Println(dim("  2. Commit and push to enable Copilot customization"))
 		fmt.Println(dim(fmt.Sprintf("  3. Use @%s in Copilot to start planning", agent)))
 	}
+	printMCPServerNotice(src)
 
 	return nil
 }
@@ -1087,6 +1088,8 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		fmt.Println(dim("For direct cplt usage, add to your shell profile:"))
 		fmt.Printf("  %s\n", dim("eval \"$(nav-pilot env)\""))
 	}
+
+	printMCPServerNotice(src)
 
 	// Hint about repo-local config if cwd is a git repo missing files
 	if scope.IsUser() {
@@ -1548,6 +1551,37 @@ func installedPrimaryAgent(src *Source) string {
 		return fallback
 	}
 	return agents[0]
+}
+
+// mcpServerNotice is what an install says about the MCP servers a pakke
+// declares: which ones its content expects, and where to enable them.
+//
+// nav-pilot writes no MCP configuration for any client, so this is the honest
+// whole of what it can do — the pakke names governed servers, and turning one
+// on stays the user's action in their own client config. A pakke that declares
+// none gets no lines, so nothing new appears for the installs that exist today.
+func mcpServerNotice(src *Source) []string {
+	if src == nil || src.Pakke == nil || len(src.Pakke.MCPServers) == 0 {
+		return nil
+	}
+	lines := []string{"This agentpakke expects these MCP servers:"}
+	for _, name := range src.Pakke.MCPServers {
+		lines = append(lines, "  "+name)
+	}
+	return append(lines,
+		"nav-pilot does not configure MCP. Enable them in your client: "+agentpakke.MCPRegistryURL)
+}
+
+// printMCPServerNotice prints [mcpServerNotice] after an install, or nothing.
+func printMCPServerNotice(src *Source) {
+	lines := mcpServerNotice(src)
+	if len(lines) == 0 {
+		return
+	}
+	fmt.Println()
+	for _, line := range lines {
+		fmt.Println(dim(line))
+	}
 }
 
 // kindLabel is the plural heading an install prints for a kind: "Agents",

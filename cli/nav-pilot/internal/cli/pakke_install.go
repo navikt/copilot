@@ -723,5 +723,6 @@ func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) 
 	fmt.Println()
 	fmt.Println(dim("It ships pre-built payloads rather than files, so nothing was written to ~/.copilot."))
 	fmt.Printf("%s %s %s\n", dim("Launches read the pinned revision;"), bold("nav-pilot sync"), dim("updates it."))
+	printMCPServerNotice(src)
 	return nil
 }

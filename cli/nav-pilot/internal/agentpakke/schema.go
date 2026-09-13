@@ -10,6 +10,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/schemas"
 	"github.com/santhosh-tekuri/jsonschema/v6"
+	"github.com/santhosh-tekuri/jsonschema/v6/kind"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )
@@ -151,6 +152,15 @@ func leafCauses(verr *jsonschema.ValidationError, acc []*jsonschema.ValidationEr
 func describeCause(c *jsonschema.ValidationError) string {
 	loc := instanceLocation(c.InstanceLocation)
 	msg := strings.TrimSpace(c.ErrorKind.LocalizedString(errPrinter))
+	// An enum failure renders the whole allowlist and never the value that
+	// failed, so an author who declares several MCP servers is told one of them
+	// is wrong without being told which. The registry is where the answer is,
+	// so the rewrite points there rather than reprinting nine names.
+	if enum, ok := c.ErrorKind.(*kind.Enum); ok && strings.HasSuffix(c.SchemaURL, "/$defs/mcpServerName") {
+		return fmt.Sprintf("%s: %q is not a server in Nav's MCP registry: name one the registry publishes, "+
+			"or have the server added there first (%s)", loc, enum.Got, MCPRegistryURL)
+	}
+
 	// A pattern failure renders the whole regex. For the payload path grammar
 	// that is forty characters of escaped RE2 and tells an author nothing they
 	// can act on, so those two patterns get the sentence they encode instead.

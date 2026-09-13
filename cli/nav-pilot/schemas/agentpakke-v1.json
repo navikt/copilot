@@ -11,6 +11,21 @@
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*$"
     },
+    "mcpServerName": {
+      "description": "Canonical name of a server in Nav's MCP registry (https://mcp-registry.nav.no). The enum is the registry's allowlist: a server is defined there and nowhere else, so a manifest can only reference one that already exists. nav-pilot carries these names with the schema rather than calling the registry, so validation cannot fail for a reason unrelated to the manifest.",
+      "type": "string",
+      "enum": [
+        "io.github.navikt/github-mcp",
+        "io.github.navikt/mcp-onboarding",
+        "io.github.navikt/aksel-mcp",
+        "com.figma/figma-mcp",
+        "com.vercel/next-devtools-mcp",
+        "dev.svelte/svelte-mcp",
+        "com.microsoft/playwright-mcp",
+        "com.jetbrains/intellij",
+        "no.nav.aksel/aksel-arcade"
+      ]
+    },
     "relativePath": {
       "description": "Repo-relative path. Absolute paths and parent traversal are rejected by nav-pilot's semantic validation.",
       "type": "string",
@@ -155,6 +170,12 @@
         "dir": { "$ref": "#/$defs/relativePath" },
         "default": { "type": "string" }
       }
+    },
+    "mcpServers": {
+      "description": "MCP servers this agentpakke's agents and skills expect, named as they are in Nav's MCP registry. Declaring one does not configure it: nav-pilot writes no MCP configuration for any client, and enabling a server stays the user's action. install names what the pakke needs and points at the registry.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/mcpServerName" }
     },
     "minNavPilotVersion": {
       "description": "Minimum nav-pilot version required, in the release format YYYY.MM.DD-HHMMSS-sha7 (the build sha is optional). A value outside this format is rejected rather than ignored: nav-pilot cannot compare it, so accepting it would silently disable the gate the manifest asked for.",
