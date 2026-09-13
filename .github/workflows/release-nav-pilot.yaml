@@ -105,6 +105,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
+      attestations: write
     timeout-minutes: 10
     strategy:
       matrix:
@@ -153,6 +155,13 @@ jobs:
           dpkg-deb --root-owner-group --build "$root" "nav-pilot_${VERSION}_${ARCH}.deb"
           dpkg-deb --info "nav-pilot_${VERSION}_${ARCH}.deb"
           dpkg-deb --contents "nav-pilot_${VERSION}_${ARCH}.deb"
+
+      # The binary inside is attested by the build job, but the package is a
+      # separate artifact: someone installing the .deb verifies the .deb.
+      - name: Attest the package
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-path: nav-pilot_${{ needs.prepare.outputs.version }}_${{ matrix.arch }}.deb
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
