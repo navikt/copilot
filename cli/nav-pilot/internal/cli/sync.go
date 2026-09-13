@@ -3,7 +3,6 @@ package cli
 import (
 	"cmp"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -1361,12 +1360,6 @@ func removeFilesFromState(scope *InstallScope, paths []string) error {
 	}
 
 	return writeScopedState(scope, state)
-}
-
-func outputJSON(v interface{}) error {
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(v)
 }
 
 // scopeTracksEverything reports whether a scope's install is meant to hold all

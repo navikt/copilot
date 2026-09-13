@@ -1518,3 +1518,26 @@ func TestFinishInstall_SingleArtifactDoesNotPersistSource(t *testing.T) {
 		t.Errorf("scope-defining install persisted %q, want %q", got, "navikt/grillmester")
 	}
 }
+
+// install --json interleaved human progress with the document, so it did not
+// parse. The flag exists so a script can read the result; it could not (#808).
+func TestInstallJSONIsParseable(t *testing.T) {
+	isolatedConfig(t)
+	target := repoTarget(t)
+	scope := ScopeRepo(target)
+	src := pakkeSource(t, "navikt/grillmester")
+
+	out := captureStdoutFor(t, func() {
+		if err := cmdInstallFromSource("grillmester", src, scope, false, true, true); err != nil {
+			t.Fatalf("install: %v", err)
+		}
+	})
+
+	var doc map[string]interface{}
+	if err := json.Unmarshal([]byte(out), &doc); err != nil {
+		t.Fatalf("install --json did not produce parseable JSON: %v\noutput:\n%s", err, out)
+	}
+	if doc["command"] != "install" {
+		t.Errorf(`doc["command"] = %v, want "install"`, doc["command"])
+	}
+}

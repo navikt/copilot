@@ -475,6 +475,7 @@ func articleFor(kind string) string {
 // installs everything its layout declares, while a manifest-less source keeps
 // reading the collection manifest exactly as before.
 func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, dryRun, force bool, jsonOutput bool) error {
+	defer suppressHumanOutput(jsonOutput)()
 	pakke := pakkeFor(src, collection)
 	resolver := resolverFor(src.Dir, pakke)
 
@@ -943,6 +944,7 @@ func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bo
 // extraStateFiles are appended to the state file after install (e.g. ignored items from picker).
 // Extracted so both cmdInstallAll and the interactive flow can share this.
 func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, dryRun, force bool, jsonOutput bool, extraStateFiles ...InstalledFile) error {
+	defer suppressHumanOutput(jsonOutput)()
 	pakke := pakkeFor(src, CollectionAll)
 	resolver := resolverFor(src.Dir, pakke)
 
