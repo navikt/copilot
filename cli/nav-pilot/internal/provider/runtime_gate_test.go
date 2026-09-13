@@ -624,3 +624,64 @@ func fakeCopilotOnPath(t *testing.T) {
 	}
 	t.Setenv("PATH", dir)
 }
+
+// brokenClient writes a script that behaves the way a client that is installed
+// but cannot start behaves: it says something on stderr and exits non-zero.
+// #565's OpenCode said exactly this line.
+func brokenClient(t *testing.T, name string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), name)
+	script := "#!/bin/sh\necho 'Error: Unexpected server error. Check server logs for details.' >&2\nexit 1\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// A probe that fails must say which of the two things happened: the client is
+// not installed, or it is installed and did not start. Before this, both came
+// back as a bare "exit status 1" wrapped in "could not read the version", so a
+// client that was present and dying on every launch read as an unreadable
+// version string — the reporting half of #662. exec.Cmd.Output already captures
+// the client's own stderr; nothing ever showed it.
+func TestRunStagedProbeReportsAClientThatCannotStart(t *testing.T) {
+	_, err := runStagedProbe(10*time.Second, brokenClient(t, "opencode"))
+	if err == nil {
+		t.Fatal("a client exiting 1 probed clean")
+	}
+	if !strings.Contains(err.Error(), "did not start") {
+		t.Errorf("error does not report a start failure: %v", err)
+	}
+	if !strings.Contains(err.Error(), "Unexpected server error") {
+		t.Errorf("error drops the client's own stderr, which is the only diagnosis there is: %v", err)
+	}
+}
+
+// The other half: a client that is not there must not be described as installed.
+func TestRunStagedProbeKeepsNotInstalledDistinct(t *testing.T) {
+	_, err := runStagedProbe(10*time.Second, filepath.Join(t.TempDir(), "not-a-client"))
+	if err == nil {
+		t.Fatal("a missing binary probed clean")
+	}
+	if strings.Contains(err.Error(), "is installed") {
+		t.Errorf("a missing binary was reported as installed: %v", err)
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error does not say the binary is absent: %v", err)
+	}
+}
+
+// The gate's user-facing message, end to end: a present client that cannot
+// start is refused as such, not as a version nav-pilot could not read.
+func TestCompatibilityGateNamesAStartFailure(t *testing.T) {
+	path := brokenClient(t, "opencode")
+	probe := func(string) (string, error) { return runStagedProbe(10*time.Second, path) }
+
+	err := checkClientCompatibility("opencode", ">=1.0.0,<2", probe)
+	if err == nil {
+		t.Fatal("a client that cannot start passed the compatibility gate")
+	}
+	if !strings.Contains(err.Error(), "did not start") {
+		t.Errorf("gate reports an unreadable version, not a client that cannot start: %v", err)
+	}
+}
