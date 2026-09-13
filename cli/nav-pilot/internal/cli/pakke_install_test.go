@@ -62,15 +62,48 @@ var tier2PinPayloads = []struct{ client, context string }{
 	{"pi", "full"},
 }
 
-// unlaunchableClient is declared payload-bearing by the fixture but has no
-// staged launcher in this binary, so a launch for it runs the whole pinned path
-// — pin lookup, verification, SetActivePakke — and then stops at the handover
-// instead of executing a client. That is what lets a test tell "refused" from
-// "handed over" without a cplt on the machine.
+// unlaunchableClient is declared payload-bearing by the fixture. Every known
+// client has a staged launcher now, so the launch runs the whole pinned path —
+// pin lookup, verification, SetActivePakke — reaches the real launcher, and stops
+// there because no cplt is on the machine. That is what lets a test tell
+// "refused" from "handed over" without installing cplt.
+//
+// It used to stop one step earlier, on "cannot launch staged payloads for that
+// client", because pi had no launcher at all. That refusal was the subject of
+// #792 and is gone.
 const unlaunchableClient = "pi"
 
-// handoverErr is the error a launch that reached the handover returns.
-const handoverErr = "cannot launch staged payloads for that client"
+// reachedLauncher reports whether a launch got past the tier gate and into the
+// real launcher.
+//
+// Which error it stops on depends on what is missing from the machine: the
+// launcher looks for its client binary first, then checks the cplt floor. A
+// developer with pi installed sees the cplt message; CI, with neither, sees the
+// client one. Matching a single string made the test pass here and fail there.
+//
+// It used to stop one step earlier, on "cannot launch staged payloads for that
+// client", because pi had no launcher at all. That refusal was #792 and is gone.
+// namesACommand reports whether a refusal hands the reader something to run.
+// Which command depends on what the machine is missing, so any of the three
+// remediations the launcher can offer counts.
+func namesACommand(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "npm i -g") ||
+		strings.Contains(msg, "cplt") ||
+		strings.Contains(msg, "nav-pilot config set")
+}
+
+func reachedLauncher(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "a staged agentpakke launch requires") ||
+		strings.Contains(msg, "not found in PATH")
+}
 
 // tier2PinSourceTree writes a conforming payload-only agentpakke: a real file
 // per payload, at a real digest and a declared mode, so the verification the
@@ -656,8 +689,8 @@ func launchPinned(t *testing.T, context string) error {
 // assertHandedOver fails unless the launch got all the way to the handover.
 func assertHandedOver(t *testing.T, err error) {
 	t.Helper()
-	if err == nil || !strings.Contains(err.Error(), handoverErr) {
-		t.Fatalf("launch = %v, want it to reach the handover for %s", err, unlaunchableClient)
+	if !reachedLauncher(err) {
+		t.Fatalf("launch = %v, want it to reach the launcher for %s", err, unlaunchableClient)
 	}
 	// The pinned manifest is what SetActivePakke installed, so the payload
 	// roster it declares is the one the launch would have handed over.
@@ -676,8 +709,8 @@ func assertRefusedBeforeHandover(t *testing.T, err error, want string) {
 	if !strings.Contains(err.Error(), want) {
 		t.Fatalf("launch error %q does not name %q", err, want)
 	}
-	if strings.Contains(err.Error(), handoverErr) {
-		t.Fatal("the launch reached the handover; it must refuse before that")
+	if reachedLauncher(err) {
+		t.Fatal("the launch reached the launcher; it must refuse before that")
 	}
 	assertDefaultPakkeActive(t)
 }
@@ -1503,11 +1536,20 @@ func TestUnlaunchableClientRefusalNamesUpdate(t *testing.T) {
 	installPin(t, scope, tier2PinSource(t, "sha-one"))
 
 	err := launchPinned(t, "")
-	if err == nil || !strings.Contains(err.Error(), handoverErr) {
+	if !reachedLauncher(err) {
 		t.Fatalf("launch = %v, want the handover refusal", err)
 	}
-	if !strings.Contains(err.Error(), "nav-pilot update") {
+	// It used to say "nav-pilot update", which could not help: no version of
+	// nav-pilot launched a staged payload for pi, so the remediation named a
+	// command that changed nothing (#792). Now pi has a launcher and whichever
+	// refusal remains is a missing binary, whose remediation is a real command.
+	// Which one it is depends on the machine, so accept either: a machine with
+	// pi stops on the cplt floor, one without stops on pi itself.
+	if !namesACommand(err) {
 		t.Errorf("handover refusal %q names no command to run", err)
+	}
+	if strings.Contains(err.Error(), "nav-pilot update") {
+		t.Errorf("refusal still offers an upgrade that cannot help: %q", err)
 	}
 }
 

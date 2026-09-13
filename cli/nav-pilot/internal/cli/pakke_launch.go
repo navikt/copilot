@@ -126,6 +126,7 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 var stagedLaunchers = map[string]func(ResolvedConfig, providerpkg.StagedLaunch) error{
 	"copilot":  providerpkg.LaunchCopilotStaged,
 	"opencode": providerpkg.LaunchOpenCodeStaged,
+	"pi":       providerpkg.LaunchPiStaged,
 }
 
 // pinnedRevision returns the revision this user has pinned for a source, or nil

@@ -459,8 +459,10 @@ func TestPiUnsupportedConfigWarnings(t *testing.T) {
 		// (config.go's default), so it is the baseline "nothing set" case.
 		{name: "nothing set", cfg: domain.ResolvedConfig{AskUser: true}, wantLen: 0},
 		{name: "default mode and tier only", cfg: domain.ResolvedConfig{AskUser: true, Mode: "default", ContextTier: "default"}, wantLen: 0},
-		{name: "model set", cfg: domain.ResolvedConfig{AskUser: true, Model: "claude-sonnet-4.6"}, wantLen: 1, wantSub: []string{"claude-sonnet-4.6", "not forwarded to pi"}},
-		{name: "model and mode", cfg: domain.ResolvedConfig{AskUser: true, Model: "x", Mode: "plan"}, wantLen: 2, wantSub: []string{"model", "mode", "pi"}},
+		// The model is forwarded now (pi takes --model), so it is no longer a
+		// dropped setting and must not be warned about.
+		{name: "model set is forwarded, not warned", cfg: domain.ResolvedConfig{AskUser: true, Model: "claude-sonnet-4.6"}, wantLen: 0},
+		{name: "model forwarded, mode still dropped", cfg: domain.ResolvedConfig{AskUser: true, Model: "x", Mode: "plan"}, wantLen: 1, wantSub: []string{"mode", "pi"}},
 		{name: "reasoning effort", cfg: domain.ResolvedConfig{AskUser: true, ReasoningEffort: "high"}, wantLen: 1, wantSub: []string{"reasoning_effort", "high"}},
 		{name: "context tier", cfg: domain.ResolvedConfig{AskUser: true, ContextTier: "long_context"}, wantLen: 1, wantSub: []string{"context_tier", "long_context"}},
 		{name: "allow all tools", cfg: domain.ResolvedConfig{AskUser: true, AllowAllTools: true}, wantLen: 1, wantSub: []string{"allow_all_tools"}},
@@ -477,8 +479,8 @@ func TestPiUnsupportedConfigWarnings(t *testing.T) {
 				AskUser:         false,
 				LogLevel:        "debug",
 			},
-			wantLen: 7,
-			wantSub: []string{"model", "mode", "reasoning_effort", "context_tier", "allow_all_tools", "ask_user", "log_level"},
+			wantLen: 6,
+			wantSub: []string{"mode", "reasoning_effort", "context_tier", "allow_all_tools", "ask_user", "log_level"},
 		},
 	}
 	for _, tc := range cases {
@@ -518,6 +520,11 @@ func TestLaunchPi_RoutesThroughCplt(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir)
+	// An empty context dir: no artifacts materialized, so no --skill or
+	// --append-system-prompt. Without the override this reads the developer's
+	// real ~/.nav-pilot/pi and the vector depends on their machine.
+	PiNavContextDirOverride = t.TempDir()
+	t.Cleanup(func() { PiNavContextDirOverride = "" })
 	if err := LaunchPi(domain.ResolvedConfig{Client: "pi", Model: "claude-sonnet-4.6"}); err != nil {
 		t.Fatalf("LaunchPi error: %v", err)
 	}
@@ -525,7 +532,15 @@ func TestLaunchPi_RoutesThroughCplt(t *testing.T) {
 	// non-interactive path and is the one end-to-end proof that --yes actually
 	// reaches cplt. The interactive vector — without --yes — is pinned by the
 	// pure tests in golden_launch_test.go.
-	want := "cplt --yes --agent pi --"
+	// The launch materializes the pakke first, so the vector carries the
+	// artifacts it wrote: skills by path, the persona as a system-prompt file,
+	// then the model. pi has no --agent, which is why the persona is a file.
+	d := PiNavContextDirOverride
+	want := "cplt --yes --agent pi --allow-read " + d + " --" +
+		" --skill " + d + "/skills" +
+		" --append-system-prompt " + d + "/agents/nav-pilot.md" +
+		" --append-system-prompt " + d + "/AGENTS.md" +
+		" --model github-copilot/claude-sonnet-4.6"
 	got, _ := os.ReadFile(out)
 	if string(got) != want {
 		t.Errorf("cplt argv = %q, want %q", string(got), want)
@@ -545,6 +560,8 @@ func TestLaunchPi_ForwardsExtraArgs(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir)
+	PiNavContextDirOverride = t.TempDir()
+	t.Cleanup(func() { PiNavContextDirOverride = "" })
 	if err := LaunchPi(domain.ResolvedConfig{Client: "pi", ExtraArgs: []string{"run", "fix the flaky test"}}); err != nil {
 		t.Fatalf("LaunchPi error: %v", err)
 	}
@@ -554,7 +571,12 @@ func TestLaunchPi_ForwardsExtraArgs(t *testing.T) {
 	// a launch nobody is watching. TestLaunchPi_RoutesThroughCplt above expects
 	// the same prefix; this test was written on a branch where that behaviour
 	// did not exist yet.
-	want := "cplt --yes --agent pi -- run fix the flaky test"
+	d := PiNavContextDirOverride
+	want := "cplt --yes --agent pi --allow-read " + d + " --" +
+		" --skill " + d + "/skills" +
+		" --append-system-prompt " + d + "/agents/nav-pilot.md" +
+		" --append-system-prompt " + d + "/AGENTS.md" +
+		" run fix the flaky test"
 	if string(got) != want {
 		t.Errorf("cplt argv = %q, want %q", string(got), want)
 	}
@@ -613,11 +635,14 @@ func TestUserModelReachesEveryClient(t *testing.T) {
 	if got := OpenCodeArgs(pinned); !slices.Contains(got, "github-copilot/claude-opus-5") {
 		t.Errorf("opencode: %q does not carry the pinned model", got)
 	}
-	// The warning is pi's whole contract: if it ever stops naming the model, a
-	// pi user has no way to learn their pin was dropped.
+	// pi takes --model, so the pin reaches it on the flag like the others, and
+	// the warning list must not claim it was dropped.
+	if got := piModelArg(pinned.Model); !slices.Contains(got, "github-copilot/claude-opus-5") {
+		t.Errorf("pi: %q does not carry the pinned model", got)
+	}
 	warnings := strings.Join(PiUnsupportedConfigWarnings(pinned), "\n")
-	if !strings.Contains(warnings, `model "claude-opus-5"`) {
-		t.Errorf("pi: warnings do not name the dropped model: %q", warnings)
+	if strings.Contains(warnings, "model") {
+		t.Errorf("pi: warns about a model it forwards: %q", warnings)
 	}
 
 	// With nothing pinned, opencode still gets the Nav default on the flag

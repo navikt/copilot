@@ -189,26 +189,19 @@ func TestResolvedModelNotice(t *testing.T) {
 			want:   "",
 		},
 		{
-			name:   "pi names no model",
-			pakke:  navPakke,
-			client: "pi",
-			want:   "",
-		},
-		{
-			// pi is launched with no nav-pilot config on the command line, so
-			// naming the user's model would contradict the warning the launch
-			// prints one line later.
-			name:   "pi names no model even when the user set one",
+			// pi takes --model and LaunchPi forwards it, so the notice names the
+			// model the session will actually run on, as it does for the others.
+			name:   "pi names the model the user set",
 			pakke:  navPakke,
 			client: "pi",
 			model:  "claude-opus-5",
-			want:   "",
+			want:   "Session model: claude-opus-5 (your setting)",
 		},
 		{
-			name:   "pi names no model even when the pakke declares one",
+			name:   "pi names the model the pakke declares",
 			pakke:  pinningPakke,
 			client: "pi",
-			want:   "",
+			want:   "Session model: claude-opus-5 (grillmester default)",
 		},
 	}
 
@@ -224,18 +217,21 @@ func TestResolvedModelNotice(t *testing.T) {
 	}
 }
 
-// TestPiNoticeDoesNotContradictItsWarning pins the pair that made the notice
-// wrong: pi's launch forwards no model and says so, so the notice must not name
-// one. Both lines print on the same launch, one after the other.
-func TestPiNoticeDoesNotContradictItsWarning(t *testing.T) {
+// TestPiNoticeNamesTheForwardedModel is the inverse of what this test pinned
+// before. pi takes --model, LaunchPi forwards it, so the notice naming the model
+// is accurate and the warning list must not claim it was dropped. The two lines
+// print on the same launch and used to contradict each other.
+func TestPiNoticeNamesTheForwardedModel(t *testing.T) {
 	t.Cleanup(func() { SetActivePakke(nil) })
 
 	r := domain.ResolvedConfig{Client: "pi", Model: "claude-opus-5", AskUser: true}
-	if w := PiUnsupportedConfigWarnings(r); len(w) == 0 {
-		t.Fatal("pi should warn that the model is dropped")
+	for _, w := range PiUnsupportedConfigWarnings(r) {
+		if strings.Contains(w, "model") {
+			t.Errorf("pi must not warn about a model it forwards, got %q", w)
+		}
 	}
-	if got := ResolvedModelNotice("pi", r); got != "" {
-		t.Errorf("ResolvedModelNotice(pi) = %q, want \"\" while the launch warns that model is dropped", got)
+	if got := ResolvedModelNotice("pi", r); got == "" {
+		t.Error("ResolvedModelNotice(pi) = \"\", want the model the launch forwards")
 	}
 }
 

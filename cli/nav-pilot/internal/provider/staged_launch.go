@@ -244,6 +244,62 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 	}, nil
 }
 
+// buildStagedPiSpec builds the cplt invocation for a staged pi launch.
+//
+// pi has no --agent, so the payload's primary reaches it as its system prompt:
+// --append-system-prompt takes a file, and the roster only decides which file.
+// Skills are passed by path rather than discovered, because pi's own auto-load
+// paths are project-local and a staged payload is not in the project.
+func buildStagedPiSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch, error) {
+	if local.IsLocal(r.Model) {
+		return cpltLaunch{}, fmt.Errorf(
+			"%s is a local model, and agentpakke %q launches from a digest-verified payload that nav-pilot does not point at a server on this machine.\n\n  Launch the pakke on its declared model, or run a local session without it: %s",
+			r.Model, s.PakkeName, domain.Bold("nav-pilot --client pi"))
+	}
+	if err := rejectReservedClientArgs("pi", s.PakkeName, r.ExtraArgs); err != nil {
+		return cpltLaunch{}, err
+	}
+	primary, err := stagedPrimaryAgent("pi", s.Context, s.PakkeName)
+	if err != nil {
+		return cpltLaunch{}, err
+	}
+
+	agentArgs := piSkillArgs(s.Dir, primary)
+	if r.Model != "" {
+		agentArgs = append(agentArgs, "--model", ToOpenCodeModel(r.Model))
+	} else if model := pakkeDeclaredModel("pi"); model != "" {
+		agentArgs = append(agentArgs, "--model", model)
+	}
+	agentArgs = append(agentArgs, r.ExtraArgs...)
+
+	return cpltLaunch{
+		agent:         "pi",
+		noAudit:       true,
+		cpltArgs:      []string{"--allow-read", s.Dir},
+		agentArgs:     agentArgs,
+		displayName:   "pi",
+		messageSuffix: s.suffix(),
+	}, nil
+}
+
+// LaunchPiStaged launches pi from a verified Tier 2 payload.
+func LaunchPiStaged(r domain.ResolvedConfig, s StagedLaunch) error {
+	if _, err := exec.LookPath("pi"); err != nil {
+		return fmt.Errorf("pi not found in PATH — install it first, or set a different client with: nav-pilot config set client copilot")
+	}
+	if err := checkStagedRuntime("pi", pakkeCompatibility("pi")); err != nil {
+		return err
+	}
+	spec, err := buildStagedPiSpec(r, s)
+	if err != nil {
+		return err
+	}
+	for _, msg := range PiUnsupportedConfigWarnings(r) {
+		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), msg)
+	}
+	return launchViaCplt(spec)
+}
+
 // buildStagedCopilotSpec builds the cplt invocation for a staged copilot
 // launch. Reference: grillmester.py line 663 and lines 668-669 and 679-685 —
 // --no-audit and --allow-read <plugin> on the cplt side, and
