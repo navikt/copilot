@@ -386,25 +386,3 @@ func ResidentMemoryMB(ctx context.Context, pid int) int {
 	}
 	return kb / 1024
 }
-
-// ProcessStart is [processStart] for callers outside this package: the kernel's
-// start time for a pid, "" when it cannot be read. Record it beside a pid and a
-// later reader can tell that pid from a recycled one.
-func ProcessStart(pid int) string {
-	return processStart(pid)
-}
-
-// PIDHolds reports whether pid is still the live process that recorded lstart.
-//
-// [isRecorded] answers the same question one notch stricter — an empty lstart
-// is a mismatch there — because it gates signalling a process, where "cannot
-// tell" must not become "go ahead". This one gates *not* deleting something,
-// and the two failure directions are not symmetric: an empty start time means
-// the recording machine had no usable `ps`, and disbelieving every record on
-// such a machine turns the guard off entirely. Liveness alone is what is left
-// there. A recycled pid then holds on to one extra tree until it too exits,
-// which is bounded; the other direction pulls a tree out from under a process
-// that is still reading it.
-func PIDHolds(pid int, lstart string) bool {
-	return alive(pid) && (lstart == "" || processStart(pid) == lstart)
-}

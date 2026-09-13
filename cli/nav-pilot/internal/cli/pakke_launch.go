@@ -45,6 +45,10 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 	if err != nil {
 		return true, err
 	}
+	// The claim is dropped when the session ends, whichever revision it ended
+	// up on. [pinnedRevision] and [autoPin] each take it the moment they name
+	// one, and the release offer below replaces it if it moves the pin.
+	defer releaseRevision()
 
 	if rev != nil {
 		if err := mixedPakkeRefusal(rev.Pakke, resolved.Client); err != nil {
@@ -59,7 +63,10 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 		// A newer stable release is offered in a terminal only (#779). CI and
 		// scripted launches read the pin and nothing else.
 		if isInteractive() {
+			// This asks a person and can move the pin, so the revision that
+			// comes back may not be the one held above.
 			rev = offerPakkeRelease(resolved, rev)
+			holdRevision(rev.Repo, filepath.Base(rev.Dir))
 		}
 	} else {
 		var handled bool
@@ -109,11 +116,6 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 	// After the handover gate: the notice announces a session that is about to
 	// start, and this is the last point that can still refuse to start one.
 	printModelNotice(resolved)
-	// The client reads this tree for the whole session, and every launcher
-	// below runs it as a child and waits. So the marker is written here, where
-	// the revision is chosen, and released when that wait returns: another
-	// nav-pilot pruning in the meantime sees a live process holding it (#784).
-	defer holdRevision(rev.Repo, rev.SHA)()
 	return true, launch(resolved, providerpkg.StagedLaunch{Dir: dir, PakkeName: pakke.Name, Context: context})
 }
 
@@ -173,6 +175,11 @@ func pinnedRevision(sourceRepo string) (*Source, error) {
 	}
 
 	src := &Source{Dir: dir, SHA: state.SourceSHA, Repo: state.SourceRepo}
+	// Claimed here rather than by the caller: everything between naming a
+	// revision and starting the client — loading the manifest, the release
+	// offer, the exact hash walk — is time another process can prune in, and
+	// the claim costs nothing to a caller that goes on to refuse.
+	holdRevision(src.Repo, filepath.Base(dir))
 	if err := attachPakke(src); err != nil {
 		return nil, err
 	}
@@ -412,7 +419,10 @@ func autoPin(src *Source, client string) (*Source, error) {
 		if err != nil {
 			return nil, err
 		}
-		prunePakkeRevisions(src.Repo, src.SHA, previous)
+		// Before the prune, not after: this one names the new revision itself,
+		// but a prune in another process running in the same moment does not.
+		holdRevision(src.Repo, filepath.Base(revDir))
+		prunePakkeRevisions(src.Repo, filepath.Base(revDir), previous)
 		return &Source{Dir: revDir, SHA: src.SHA, Repo: src.Repo, Pakke: src.Pakke}, nil
 	}
 
@@ -486,6 +496,10 @@ func autoPin(src *Source, client string) (*Source, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Claimed the moment the pin names a directory, for the same reason the
+	// local branch above claims before pruning: everything after this point is
+	// time another process can prune in.
+	holdRevision(src.Repo, filepath.Base(revDir))
 	pinned := src.SHA
 	if release != nil {
 		pinned = release.label(src.SHA)

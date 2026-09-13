@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -192,6 +191,40 @@ func assertRevisionVerifies(t *testing.T, revDir string) {
 }
 
 // revisionNames lists what a source's revision directory holds.
+// newestRevisionDir names the revision a source most recently published. A
+// local source publishes every materialization under its own name, so the SHA
+// no longer addresses one.
+func newestRevisionDir(t *testing.T, repo string) string {
+	t.Helper()
+	name := ""
+	var at time.Time
+	for _, n := range revisionNames(t, repo) {
+		info, err := os.Stat(filepath.Join(pakkeSourceDir(repo), n))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if name == "" || info.ModTime().After(at) {
+			name, at = n, info.ModTime()
+		}
+	}
+	if name == "" {
+		t.Fatalf("%s holds no revisions", pakkeSourceDir(repo))
+	}
+	return filepath.Join(pakkeSourceDir(repo), name)
+}
+
+// revisionSHAs strips the per-materialization suffix a local revision carries,
+// so a test can talk about the commits a set of revisions came from.
+func revisionSHAs(t *testing.T, repo string) []string {
+	t.Helper()
+	var shas []string
+	for _, n := range revisionNames(t, repo) {
+		shas = append(shas, n[:strings.LastIndex(n, "-")])
+	}
+	sort.Strings(shas)
+	return shas
+}
+
 func revisionNames(t *testing.T, repo string) []string {
 	t.Helper()
 	entries, err := os.ReadDir(pakkeSourceDir(repo))
@@ -431,138 +464,92 @@ func TestConcurrentMaterializeShareOneRevision(t *testing.T) {
 	}
 }
 
-// TestLocalRematerializeNeverPublishesAHalfDeletedRevision: a local source is
-// rebuilt in place on every launch, and the revision directory it rebuilds is
-// what a running session was handed — provider/staged_launch.go passes the
-// payload directory as OPENCODE_CONFIG_DIR and to cplt as --allow-read. The old
-// tree was removed before the new one was renamed in, so a session started in
-// another window walked the first one's config directory file by file while it
-// was being emptied: the directory still there, its files going one by one
-// (#504, U9).
+// TestLocalRematerializeNeverTouchesAPublishedRevision: a local source is
+// re-staged on every launch, and the directory it publishes is what a running
+// session was handed — provider/staged_launch.go passes the payload directory
+// as OPENCODE_CONFIG_DIR and to cplt as --allow-read. The old tree was first
+// removed before the new one was renamed in, so a session started in another
+// window walked the first one's config directory while it was being emptied
+// (#504, U9); moving it aside instead fixed that for descriptors already open,
+// but the aside was still removed at once, so a file the session opened later
+// was gone (#703, and the review of #834).
 //
-// Moving the outgoing tree aside instead makes every state the path is ever
-// observed in a complete one — the old revision, then the new one. It is not
-// gone at once: there is still one rename's worth of "not there yet" between
-// the two, since exchanging two directories atomically is not portable. That is
-// a moment, not the duration of a recursive delete, and "absent" is a state a
-// reader can retry, while "there but half empty" is one it cannot tell from a
-// broken pakke.
+// A published tree is now never rewritten at all. Each materialization of a
+// local source lands under its own name, because the same commit re-staged is a
+// different tree and its SHA cannot tell the two apart; what retires an old
+// tree is the prune, which keeps the ones a live session claims. So the
+// invariant is checkable without racing anything: twenty rebuilds, and the
+// first tree is whole, unchanged and still verifying at the end.
 //
-// The assertion is one-sided on purpose. The fixed code cannot publish a
-// partial tree — the only thing that ever appears at the path is a completed
-// rename — so the test cannot flake; the removal it replaced is many unlinks
-// long, so the watcher below sees it.
-func TestLocalRematerializeNeverPublishesAHalfDeletedRevision(t *testing.T) {
+// The in-place replace this used to exercise still exists for a pinned
+// revision that fails verification — TestInstallRebuildsABrokenRevision covers
+// that path — and is unreachable for a local source.
+func TestLocalRematerializeNeverTouchesAPublishedRevision(t *testing.T) {
 	pinEnv(t)
 	tree := tier2PinSourceTree(t)
 	src := localPinSource(t, tree)
 
-	revDir, err := materializeRevision(src)
+	first, err := materializeRevision(src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	agentFile := filepath.Join(revDir, unlaunchableClient, "full", "agents", "grillmester.agent.md")
-
-	// What a completed revision holds at its root: one directory per client,
-	// plus the pinned manifest's.
-	entries, err := os.ReadDir(revDir)
+	agentFile := filepath.Join(first, unlaunchableClient, "full", "agents", "grillmester.agent.md")
+	entries, err := os.ReadDir(first)
 	if err != nil {
 		t.Fatal(err)
 	}
 	wantEntries := len(entries)
 
-	// The descriptor a live session holds on its config directory. It reads on
-	// through the republish, because the tree it was opened on is moved rather
-	// than deleted under it.
+	// The descriptor a live session holds on its config directory.
 	live, err := os.Open(agentFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer live.Close()
 
-	// Each round is the author editing the working tree and starting a second
+	// Each round is the author editing the working tree and starting another
 	// window while the first session is still running.
+	published := map[string]bool{first: true}
+	newest := first
 	for i := range 20 {
 		writeTier2Payload(t, filepath.Join(tree, "dist", unlaunchableClient, "full"), fmt.Sprintf("edit-%d", i))
+		next, err := materializeRevision(src)
+		if err != nil {
+			t.Fatalf("re-materializing a local source: %v", err)
+		}
+		if published[next] {
+			t.Fatalf("round %d republished %s; a session reading it as OPENCODE_CONFIG_DIR sees its own config change under it", i, next)
+		}
+		published[next], newest = true, next
 
-		var partial atomic.Bool
-		done := make(chan error, 1)
-		go func() {
-			_, err := materializeRevision(src)
-			done <- err
-		}()
-		for {
-			// One os.Open resolves the path once, so the listing that follows
-			// describes whatever directory was at revDir at that instant, even
-			// if it is renamed a moment later. Two stats would race the rename
-			// and report a partial tree that was never published.
-			//
-			// Resolving once is necessary but not sufficient, and that gap is
-			// what flaked this test on macOS (#668). The open can land on the
-			// outgoing tree microseconds before the republish renames it to
-			// aside; os.RemoveAll(aside) then empties it under this descriptor,
-			// and on APFS readdir reports the shrinking directory rather than
-			// the tree as it stood when it was opened. (Measured: a dirfd held
-			// across a concurrent RemoveAll returns a partial listing in
-			// roughly one run in two hundred on APFS. An open *file* descriptor
-			// is unaffected, which is why the live handle below reads through
-			// cleanly on both platforms.)
-			//
-			// That short listing is the retired revision going away on
-			// schedule, not a half-deleted one being published, and the two are
-			// told apart by identity rather than by timing: revDir is only ever
-			// created by renaming a fully staged tree onto it and only ever
-			// leaves by being renamed aside, so a listing counts against the
-			// invariant only when the directory it was taken on is still the
-			// one at revDir. Under the removal this fix replaced the old tree
-			// was emptied in place, at the path, so the descriptor and the path
-			// stayed the same directory and the check below still catches it.
-			if d, err := os.Open(revDir); err == nil {
-				names, readErr := d.Readdirnames(-1)
-				opened, openedErr := d.Stat()
-				d.Close()
-				current, currentErr := os.Stat(revDir)
-				stillPublished := openedErr == nil && currentErr == nil && os.SameFile(opened, current)
-				// A readdir error on the tree that is still at revDir counts as
-				// a partial listing rather than as no observation. Some
-				// platforms return a short listing together with a non-nil
-				// error under a concurrent rename or remove, and swallowing
-				// that would let the test miss exactly what it is looking for.
-				if stillPublished && (readErr != nil || len(names) != wantEntries) {
-					partial.Store(true)
-				}
-			}
-			select {
-			case err := <-done:
-				if err != nil {
-					t.Fatalf("re-materializing a local source: %v", err)
-				}
-				if partial.Load() {
-					t.Fatalf("round %d: %s was published half deleted; a session reading it as OPENCODE_CONFIG_DIR sees its own config files disappear one by one", i, revDir)
-				}
-			default:
-				continue
-			}
-			break
+		got, err := os.ReadDir(first)
+		if err != nil || len(got) != wantEntries {
+			t.Fatalf("round %d left the first session's tree holding %d entries (err %v), want %d", i, len(got), err, wantEntries)
 		}
 	}
 
+	assertRevisionVerifies(t, first)
 	body, err := io.ReadAll(live)
 	if err != nil {
-		t.Errorf("the live session's descriptor stopped reading after the republish: %v", err)
+		t.Errorf("the live session's descriptor stopped reading after twenty rebuilds: %v", err)
 	}
 	if !strings.Contains(string(body), unlaunchableClient+"-full") {
 		t.Errorf("the live descriptor read %q, want the revision it was opened on", body)
 	}
-	fresh, err := os.ReadFile(agentFile)
+	fresh, err := os.ReadFile(filepath.Join(newest, unlaunchableClient, "full", "agents", "grillmester.agent.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(fresh), "edit-19") {
-		t.Errorf("the published revision is %q, want the last edit", fresh)
+		t.Errorf("the newest revision is %q, want the last edit", fresh)
 	}
-	if names := revisionNames(t, src.Repo); len(names) != 1 || names[0] != src.SHA {
-		t.Errorf("the revision root holds %v, want exactly [%s]: no staging or set-aside tree may be left behind", names, src.SHA)
+
+	// Nothing prunes inside materializeRevision, which is what bounds this: the
+	// launch path prunes right after, and with no session claiming anything the
+	// set collapses to what it is told to keep.
+	prunePakkeRevisions(src.Repo, filepath.Base(newest))
+	if got, want := revisionNames(t, src.Repo), []string{filepath.Base(newest)}; !reflect.DeepEqual(got, want) {
+		t.Errorf("revisions after the prune = %v, want %v", got, want)
 	}
 }
 
@@ -1341,7 +1328,7 @@ func TestLocalSourceIsNeverPinned(t *testing.T) {
 		if *calls != 2 {
 			t.Errorf("resolveSource called %d times over two launches, want 2: a local source is re-read every launch", *calls)
 		}
-		body, err := os.ReadFile(filepath.Join(pakkeRevisionDir(tree, "unknown"),
+		body, err := os.ReadFile(filepath.Join(newestRevisionDir(t, tree),
 			unlaunchableClient, "full", "agents", "grillmester.agent.md"))
 		if err != nil {
 			t.Fatal(err)
@@ -1383,9 +1370,14 @@ func TestLocalSourceIsNeverPinned(t *testing.T) {
 		// still reading it. This is the rule pinned sources already have
 		// (prunePakkeRevisions keeps the pin and the one it replaced): a
 		// session survives one update.
-		names := revisionNames(t, tree)
-		if want := []string{"commit-one", "commit-two"}; !reflect.DeepEqual(names, want) {
-			t.Errorf("revisions after launching two commits = %v, want %v", names, want)
+		//
+		// The commits are what the assertion is about: a local revision
+		// directory carries a per-materialization suffix, because the same
+		// commit relaunched is a new tree and a session reading the old one
+		// must keep it (review of #834).
+		shas := revisionSHAs(t, tree)
+		if want := []string{"commit-one", "commit-two"}; !reflect.DeepEqual(shas, want) {
+			t.Errorf("revisions after launching two commits = %v, want %v", shas, want)
 		}
 
 		// The bound is what the single-revision rule was really protecting: a
@@ -1394,9 +1386,9 @@ func TestLocalSourceIsNeverPinned(t *testing.T) {
 		// oldest rather than accumulate.
 		sha = "commit-three"
 		launch()
-		names = revisionNames(t, tree)
-		if want := []string{"commit-three", "commit-two"}; !reflect.DeepEqual(names, want) {
-			t.Errorf("revisions after a third commit = %v, want %v: the set must stay bounded at two", names, want)
+		shas = revisionSHAs(t, tree)
+		if want := []string{"commit-three", "commit-two"}; !reflect.DeepEqual(shas, want) {
+			t.Errorf("revisions after a third commit = %v, want %v: the set must stay bounded at two", shas, want)
 		}
 	})
 
