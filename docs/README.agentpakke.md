@@ -284,7 +284,7 @@ Kunngjøringen står der kontrakten står. Den deprekerte konstruksjonen merkes 
 
 ### Å endre kontrakten
 
-Endringen *er* pull requesten som endrer [`agentpakke-v1.json`](../cli/nav-pilot/schemas/agentpakke-v1.json) og dette dokumentet sammen. Schemaet er kompilert inn i binæren, så de to kan ikke drifte fra hverandre. [CODEOWNERS](../CODEOWNERS) avgjør hvem som må godkjenne. Det finnes ingen forslagsmal og intet eget vedtakssteg.
+Endringen *er* pull requesten som endrer [`agentpakke-v1.json`](../cli/nav-pilot/schemas/agentpakke-v1.json) og dette dokumentet sammen. Schemaet er kompilert inn i binæren, så de to kan ikke drifte fra hverandre. [CODEOWNERS](../CODEOWNERS) avgjør hvem som må godkjenne. Det finnes ingen forslagsmal og intet eget vedtakssteg. Pull requesten sveipes mot de publiserte agentpakkene ([Økosystemsveipet](#eierskap-og-vedlikehold)).
 
 ### Når en pakke slutter å validere
 
@@ -304,6 +304,10 @@ nav-pilot varsler ingen om det, deaktiverer ingenting automatisk, og har ingen f
 **Referansepinning.** Der nav-pilot pinner en referanseimplementasjon for differensialtesting, står SHA-en i kildekommentarene i `cli/nav-pilot/internal/agentpakke`. Å flytte pinnen er en bevisst og reviewbar endring avtalt med eierne av pakka det måles mot, ikke stille drift.
 
 **Kompromittert innhold.** Et payload-tre er digest-bundet mot payload-manifestet sitt og verifiseres i sin helhet av `nav-pilot validate` og av install ([Innholdssjekker på disk](#innholdssjekker-på-disk)); en byttet eller endret fil verifiserer ikke, og stopper der. Tier 1-innhold er ikke digest-bundet, og der er git-historikken i pakkerepoet hele sporbarheten. Det finnes **ingen tilbakekalling**: nav-pilot har ingen liste over trukne pakker eller digester, og når ikke en installasjon som allerede står på en maskin. Meld fra i pakkerepoets eget issue-spor, og til `@navikt/copilot` for kontrakten eller nav-pilot selv. [SECURITY.md](../SECURITY.md) i rota beskriver sikkerhetsarkitekturen for copilot-tjenestene og har ingen varslingskanal for agentpakker.
+
+**Økosystemsveipet.** [`agentpakke-sweep.yaml`](../.github/workflows/agentpakke-sweep.yaml) er sikkerhetsnettet under en kontraktsendring. Den kjører på hver pull request som rører schemaet, `internal/agentpakke` eller `validate`, bygger nav-pilot fra branchen, finner publiserte agentpakker med kodesøk og kjører `nav-pilot validate` mot hver av dem. En pakke som slutter å validere, navngis med funnene sine og feiler jobben. Slik måles en kontraktsendring mot ekte pakker, ikke bare mot fixtures.
+
+Oppdagelsen feiler lukket: en kodesøkfeil eller et tomt svar feiler jobben, fordi «ingenting å validere» og «fikk ikke sett etter» ellers ser like ut. En pakke som ikke lar seg klone meldes som advarsel og blokkerer ingen merge — en utilgjengelig pakke sier ingenting om kontrakten. Sveipet har et tak på 25 pakker og navngir det som faller utenfor. Det erstatter ikke pakkerepoets egen CI: sveipet fanger at kontrakten brøt en pakke, mens pakkerepoets egen jobb under fanger at pakka har driftet fra kontrakten.
 
 ## Validering i CI
 
