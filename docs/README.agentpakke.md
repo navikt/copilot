@@ -53,7 +53,7 @@ Generert fra `cli/nav-pilot/schemas/agentpakke-v1.json`. Ukjente felt på alle n
 | `description` | string | ja | Én linje, vises i `nav-pilot list`. |
 | `clients` | objekt, minst én nøkkel | ja | Én oppføring per klient. Se under. |
 | `owner` | objekt: `repo` (`^[^/]+/[^/]+$`), `team` | nei | Kun attribusjon. Kilden til en installasjon er der manifestet ble klonet fra, ikke `owner.repo`. |
-| `layout` | objekt: `agents`, `skills`, `instructions`, `prompts`, `hooks`, `extensions` | ja for Tier 1 | Repo-relative stier til innholdskatalogene. Deklarer dem pakka faktisk har, og minst én. Deklarerer du `primaryAgents`, må `agents` være med. |
+| `layout` | objekt: `agents`, `skills`, `instructions`, `prompts`, `hooks`, `extensions` | ja for Tier 1 | Repo-relative stier til innholdskatalogene. Deklarer dem pakka faktisk har, og minst én av de kjente: ukjente nøkler er tillatt, men ingenting leser dem. Deklarerer du `primaryAgents`, må `agents` være med. |
 | `policies` | objekt: `opencodePermissions` | nei | Peker på policy-artefakter. Sti-sjekkes i dag, materialiseres ikke ennå. |
 | `profiles` | objekt: `dir`, `default` | nei | Katalog med launch-profiler og navnet på standardprofilen (`<dir>/<default>.json`). Sti-sjekkes i dag, brukes ikke ennå. |
 | `provenance` | objekt: `base` (`repo`\*, `digest`\*), `overlays[]` (`component`\*, `version`\*) | nei | Opphav for komponert innhold. Ren metadata, nav-pilot verifiserer ikke digest. |

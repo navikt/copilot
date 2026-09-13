@@ -1008,3 +1008,30 @@ func TestPrimaryAgentsWithoutAgentsDirRefused(t *testing.T) {
 		}
 	}
 }
+
+// layout must name a directory nav-pilot will actually read. minProperties
+// alone did not say that: the object keeps additionalProperties, so a typo was
+// a layout — schema-valid, zero content, no error anywhere (#823 review).
+// Unknown keys stay valid alongside a known one, per A3/A4.
+func TestLayoutMustNameAKnownDirectory(t *testing.T) {
+	manifest := func(layout string) []byte {
+		return []byte(`{"contractVersion":"1","name":"p","description":"d",` +
+			`"clients":{"copilot":{}},"layout":` + layout + `}`)
+	}
+
+	err := func() error { _, err := parse(manifest(`{"skilsl": "skills"}`), devVersion); return err }()
+	if err == nil {
+		t.Fatal("a layout whose only key is unknown must be refused: it names no directory nav-pilot reads")
+	}
+	// One line, not one per known directory: the anyOf fails six times for the
+	// same fault, and six "missing property" lines read as "add all six".
+	if n := strings.Count(err.Error(), "layout:"); n != 1 {
+		t.Errorf("the refusal renders %d layout lines for one fault: %v", n, err)
+	}
+	if !strings.Contains(err.Error(), "at least one of agents, skills") {
+		t.Errorf("the refusal must name the directories that count, got: %v", err)
+	}
+	if _, err := parse(manifest(`{"skills": "skills", "skilsl": "skills"}`), devVersion); err != nil {
+		t.Errorf("an unknown key alongside a known one must stay valid (A3/A4), got %v", err)
+	}
+}

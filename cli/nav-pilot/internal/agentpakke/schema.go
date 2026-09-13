@@ -161,6 +161,14 @@ func describeCause(c *jsonschema.ValidationError) string {
 	// said a digest "is not a payload-relative path"; the second still caught
 	// the top-level manifest's `name`, which has its own pattern and its own
 	// hint (#704).
+	// layout's anyOf fails once per known directory, so the library reports six
+	// "missing property" leaves for one fault and reads as "add all six". They
+	// collapse into the one thing that is actually wrong; schemaError's dedup
+	// does the collapsing, since every branch renders the same line.
+	if strings.Contains(c.SchemaURL, "/properties/layout/anyOf/") {
+		return fmt.Sprintf("layout: names no content directory nav-pilot reads: declare at least one of %s "+
+			"(unknown keys are allowed, but nothing reads them)", strings.Join(layoutFields(), ", "))
+	}
 	if i := strings.Index(msg, "does not match pattern"); i >= 0 {
 		value := strings.TrimSpace(msg[:i])
 		switch {
@@ -182,6 +190,18 @@ func describeCause(c *jsonschema.ValidationError) string {
 		return fmt.Sprintf("%s: %s (%s)", loc, msg, hint)
 	}
 	return fmt.Sprintf("%s: %s", loc, msg)
+}
+
+// layoutFields lists the layout directory keys the contract knows, read out of
+// [Layout.Dirs] rather than written up again: a repeated list is how
+// layout.extensions went missing from two checks at once (#739).
+func layoutFields() []string {
+	dirs := (&Layout{}).Dirs()
+	names := make([]string, 0, len(dirs))
+	for _, d := range dirs {
+		names = append(names, strings.TrimPrefix(d.Field, "layout."))
+	}
+	return names
 }
 
 // instanceLocation renders a JSON pointer path as a readable field reference.

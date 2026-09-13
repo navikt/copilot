@@ -91,9 +91,16 @@
       }
     },
     "layout": {
-      "description": "Tier 1 clients only: repo-relative paths to content directories (D1). Declare the directories the pakke actually ships and no others: a skills-only or instructions-only pakke omits `agents`, and a pakke declaring primaryAgents must declare `agents`.",
+      "description": "Tier 1 clients only: repo-relative paths to content directories (D1). Declare the directories the pakke actually ships and no others: a skills-only or instructions-only pakke omits `agents`, and a pakke declaring primaryAgents must declare `agents`. At least one of the known directories must be named — unknown keys stay valid (A3/A4) but nav-pilot reads none of them, so a layout made only of those would materialize nothing.",
       "type": "object",
-      "minProperties": 1,
+      "anyOf": [
+        { "required": ["agents"] },
+        { "required": ["skills"] },
+        { "required": ["instructions"] },
+        { "required": ["prompts"] },
+        { "required": ["hooks"] },
+        { "required": ["extensions"] }
+      ],
       "additionalProperties": true,
       "properties": {
         "agents": { "$ref": "#/$defs/relativePath" },
