@@ -568,7 +568,7 @@ nav-pilot --client copilot --payload-context focused      # en annen deklarert k
 
 ## Stabile releases
 
-En payload-only pakke kan publisere stabile versjoner som GitHub Releases i sitt eget repo. `nav-pilot sync` flytter da en pinnet installasjon i brukerscope til nyeste stabile release, ikke til standardgrenen. Begrunnelsen for formen står i [beslutningsdokumentet, §10](agentpakke-beslutninger.md#10-stabile-releases-som-oppdateringskilde-779).
+En pakke kan publisere stabile versjoner som GitHub Releases i sitt eget repo, uansett tier. `nav-pilot install` og `nav-pilot sync` leser da nyeste stabile release framfor standardgrenen: en payload-only pakke pinner release-revisjonen, en Tier 1-pakke installerer filene sine fra den ([Hva en Tier 1-pakke gjør](#hva-en-tier-1-pakke-gjør)). Begrunnelsen for formen står i [beslutningsdokumentet, §10](agentpakke-beslutninger.md#10-stabile-releases-som-oppdateringskilde-779).
 
 ### Metadata-assetet
 
@@ -629,7 +629,7 @@ Publiser releasen som stabil først når alle kontroller som godkjenner distribu
 `nav-pilot install --user <navn>` og launchen som pinner en payload-only kilde som ikke er installert, slår opp releasene før de pinner, med samme oppslag og samme kandidatvalg som sync.
 
 - Finnes en stabil release, pinnes nøyaktig dens `sourceSha`, og pinnen følger releases. Standardgrenen materialiseres ikke. `install --json` tar med `pakke_version` og `follows_releases`, og `--dry-run` navngir releasen.
-- Et repo uten metadata pinnes fra standardgrenen som før.
+- Et repo uten metadata pinnes fra standardgrenen som før. Følger pinnen allerede releases, nekter install i stedet, slik sync gjør: et repo som slutter å publisere metadata — slettede releases, et trukket asset, en omdøping som gjør at hver release navngir en annen pakke — svarer med «ingen metadata» og ikke med en feil, og ingenting faller tilbake til standardgrenen på det.
 - Feiler oppslaget, pinnes ingenting, og kommandoen feiler med årsaken. Det finnes ingen pinne å beholde, og en pinne på standardgrenen ville ligget foran nyeste release, der nedgraderingsvernet holder den fast.
 - Er revisjonen i releasen ikke lenger payload-only, pinnes ingenting.
 - `--ref` pinner den revisjonen som før, og pinnen følger ikke releases. `--frozen` slår ikke opp releaser.
@@ -637,6 +637,19 @@ Publiser releasen som stabil først når alle kontroller som godkjenner distribu
 - Kjøres `install` på nytt over en pinne som allerede finnes, flyttes pinnen til nyeste release uten nedgraderingsvern. Install er brukerens eget valg, slik `--ref` er det.
 - Deklarerer releasen ikke payload for klienten som startes, pinner første launch ingenting og stopper med en forklaring.
 - En launch over en pinne som allerede er registrert, med revisjonen borte fra disk, slår ikke opp releaser.
+
+### Hva en Tier 1-pakke gjør
+
+En Tier 1-pakke pinner ingen revisjon, den installerer filer. Abonnementet er derfor det samme oppslaget, brukt på ett annet spørsmål: hvilken revisjon filene leses fra ([#794](https://github.com/navikt/copilot/issues/794)).
+
+- `install` og `sync` uten `--ref` slår opp releasene og leser nyeste stabile release i stedet for standardgrenen. Staten registrerer revisjonen (`source_sha`), pakkeversjonen og at installasjonen følger releases, og `install --json` tar med `pakke_version` og `follows_releases`. Dette gjelder både bruker- og repo-scope, og `sync --apply` flytter også `sha` i erklæringa til release-SHA-en. Det er den som havner i en planlagt sync-PR.
+- Det finnes ikke noe nedgraderingsvern her: hver install og hver sync slår opp nyeste stabile release på nytt, uten å sammenligne med det som ligger på disk. En installasjon som står foran releasen, flyttes tilbake til den ved neste `sync --apply`. Diffen vises før `--apply`, som for enhver annen fil.
+- Et repo uten stabile releases leses fra standardgrenen som før. Det samme gjelder et repo der ingen release bærer `agentpakke-release.json` for pakka, for eksempel fordi alle releasene er eldre enn manifestet. Ingenting registreres, og ingenting sier fra. Følger installasjonen allerede releases, nekter kommandoen i stedet, og standardgrenen leses ikke.
+- Feiler oppslaget, eller navngir nyeste release en revisjon som ikke er denne pakka, leses standardgrenen med en advarsel på stderr. Det er der pakka ble lest fra før releases fantes, og neste kommando slår opp på nytt. Følger installasjonen allerede releases, feiler kommandoen i stedet, slik en pinne gjør.
+- Er nyeste release payload-only mens standardgrenen ikke er det, er det et tier-bytte og ikke en oppdatering. Ingenting endres, og feilen viser til `--ref`.
+- `--ref`, `--frozen` og en `sha` i erklæringa som `install` allerede resolver til, er valg som er tatt, og slår ikke opp releaser. `sync` leser bevisst ikke `sha`-en i erklæringa: jobben er å finne ut hva som har flyttet seg.
+- `nav-pilot list --installed` viser `Package: <versjon> (follows stable releases)` fra staten, uten oppslag. `Version:` er fortsatt nav-pilots egen versjon.
+- `nav-pilot add` følger ikke releases ennå, og plukkeren i den interaktive installen lister elementene fra standardgrenen.
 
 ### Status
 

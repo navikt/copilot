@@ -478,6 +478,20 @@ func articleFor(kind string) string {
 // reading the collection manifest exactly as before.
 func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, dryRun, force bool, jsonOutput bool) error {
 	defer suppressHumanOutput(jsonOutput)()
+
+	// A Tier 1 agentpakke that publishes stable releases installs the newest
+	// release, not the default branch this source resolved (#794). Before
+	// anything reads src: the manifest, the resolver and the item list all
+	// belong to the revision being installed.
+	relSrc, release, err := tier1Release(scope, src, installRef != "" || pinnedByDeclaration(scope, src))
+	if err != nil {
+		return err
+	}
+	if relSrc != src {
+		defer relSrc.Cleanup()
+		src = relSrc
+	}
+
 	pakke := pakkeFor(src, collection)
 	resolver := resolverFor(src.Dir, pakke)
 
@@ -574,7 +588,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	// tell an install apart from a no-op, and the next sync had nothing to
 	// reconcile against (#797).
 	emitJSON := func() error {
-		return outputJSON(map[string]interface{}{
+		doc := map[string]interface{}{
 			"command":     "install",
 			"collection":  stateCollection(src, collection),
 			"scope":       scope.Name,
@@ -585,7 +599,13 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 			"conflicts":   result.Conflicts,
 			"unsupported": result.Unsupported,
 			"dry_run":     dryRun,
-		})
+		}
+		// The same two keys a Tier 2 pin reports (#794): version above is
+		// nav-pilot's own, and cannot carry the agentpakke's.
+		if release != nil {
+			doc["pakke_version"], doc["follows_releases"] = release.Version, true
+		}
+		return outputJSON(doc)
 	}
 
 	if !jsonOutput {
@@ -628,10 +648,12 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	// this install did not write and nav-pilot still owns; merging every prior
 	// entry back would then commit a state that lists a file the tool has just
 	// deleted. So only what removeOrphans kept is merged.
-	if prior, err := readScopedState(scope); err == nil && prior != nil {
+	prior, _ := readScopedState(scope)
+	if prior != nil {
 		state.PreserveUnknownFrom(prior)
 		state.Files = mergeStateFiles(removeOrphans(scope, prior, result.Files), state.Files)
 	}
+	recordRelease(state, prior, src, release, installRef != "")
 	if err := writeScopedState(scope, state); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
 	}
@@ -970,6 +992,23 @@ func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bo
 // Extracted so both cmdInstallAll and the interactive flow can share this.
 func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, dryRun, force bool, jsonOutput bool, extraStateFiles ...InstalledFile) error {
 	defer suppressHumanOutput(jsonOutput)()
+
+	// The newest stable release, not the default branch, for a Tier 1
+	// agentpakke that publishes one (#794). See [cmdInstallFromSource].
+	//
+	// ponytail: the interactive picker builds its manifest from the default
+	// branch and hands it in here, so an item the release does not ship is
+	// reported as missing rather than never offered. Move the swap into
+	// interactiveUserInstallFromSource if that is ever more than theoretical.
+	relSrc, release, err := tier1Release(scope, src, installRef != "" || pinnedByDeclaration(scope, src))
+	if err != nil {
+		return err
+	}
+	if relSrc != src {
+		defer relSrc.Cleanup()
+		src = relSrc
+	}
+
 	pakke := pakkeFor(src, CollectionAll)
 	resolver := resolverFor(src.Dir, pakke)
 
@@ -1025,7 +1064,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	// returned before writeScopedState, so `install --all --json` reported a
 	// success that left no state behind (#797).
 	emitJSON := func() error {
-		return outputJSON(map[string]interface{}{
+		doc := map[string]interface{}{
 			"command":    "install",
 			"collection": stateCollection(src, CollectionAll),
 			"scope":      scope.Name,
@@ -1034,7 +1073,11 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 			"installed":  result.Installed,
 			"conflicts":  result.Conflicts,
 			"dry_run":    dryRun,
-		})
+		}
+		if release != nil {
+			doc["pakke_version"], doc["follows_releases"] = release.Version, true
+		}
+		return outputJSON(doc)
 	}
 
 	if dryRun {
@@ -1066,7 +1109,8 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	// keys this binary does not understand (#588), retires the artifacts the
 	// source has stopped shipping (#615), and keeps the state of the paths this
 	// install did not name. The two install paths must agree about all three.
-	if prior, err := readScopedState(scope); err == nil && prior != nil {
+	prior, _ := readScopedState(scope)
+	if prior != nil {
 		state.PreserveUnknownFrom(prior)
 		// state.Files, not result.Files: the picker's deselected items were
 		// appended above, and they are still on disk on purpose. Passing the
@@ -1074,6 +1118,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		// the source stopped shipping, and delete a file the user chose to keep.
 		state.Files = mergeStateFiles(removeOrphans(scope, prior, state.Files), state.Files)
 	}
+	recordRelease(state, prior, src, release, installRef != "")
 
 	if err := writeScopedState(scope, state); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write state file: %v\n", yellow("⚠"), err)
@@ -1311,6 +1356,14 @@ func printStatusBlock(scope *InstallScope, state *StateFile) {
 	fmt.Printf("  Source:      %s\n", shortSHA(state.SourceSHA))
 	if st := pakkeStatus(scope, state); st != nil {
 		printPakkeStatus(st)
+	} else if version, follows := releaseClaim(state); version != "" && follows {
+		// A Tier 1 install that follows stable releases (#794). Version above
+		// is nav-pilot's own, which is why it reads "dev" for a custom source.
+		//
+		// ponytail: from the state, with no lookup. pakkeStatus is a live call
+		// per status run, and a pending-release line here would put one on
+		// every `list --installed`. Add it if someone asks for it.
+		fmt.Printf("  Package:     %s (follows stable releases)\n", version)
 	}
 	fmt.Printf("  Installed:   %s\n", state.InstalledAt)
 	fmt.Printf("  Files:       %d\n", len(state.Files))

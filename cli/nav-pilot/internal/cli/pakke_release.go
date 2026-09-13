@@ -330,56 +330,151 @@ func fetchPakkeRelease(repo, name string, rel pakkeRelease) (*Source, error) {
 // it names. The release is immutable, so no retry changes it; the startup
 // prompt stops offering it, and sync and install report it as they report any
 // other refusal.
-var errReleaseNotThisPackage = errors.New("nothing was pinned from it")
+var errReleaseNotThisPackage = errors.New("nothing was taken from it")
 
-// releaseStart is where a new pin of the payload-only source src starts (#779):
-// the newest stable release when the source publishes one, src itself when it
-// publishes no metadata. Default-branch HEAD is usually ahead of the newest
-// release, and a pin that starts there is never offered a release afterwards.
+// releaseStart is where a new pin of the payload-only source src starts (#779),
+// and where a Tier 1 install or sync of src starts too (#794): the newest
+// stable release when the source publishes one, src itself when it publishes no
+// metadata. Default-branch HEAD is usually ahead of the newest release, and a
+// pin that starts there is never offered a release afterwards.
 //
-// A failed lookup is an error. There is no pin to keep, and pinning HEAD on a
-// guess strands the install ahead of every release. The one exception is a 404
-// for the releases list, which is what a private repo without GITHUB_TOKEN
-// answers while git clones it with the user's own credentials: that source
-// installed from its default branch before releases existed, and still does,
-// with a warning on stderr (stdout may be an install's JSON document). The
-// caller cleans up a returned source that is not src.
+// A failed lookup is an error for a pin. There is no pin to keep, and pinning
+// HEAD on a guess strands the install ahead of every release. The one exception
+// is a 404 for the releases list, which is what a private repo without
+// GITHUB_TOKEN answers while git clones it with the user's own credentials:
+// that source installed from its default branch before releases existed, and
+// still does, with a warning on stderr (stdout may be an install's JSON
+// document). The caller cleans up a returned source that is not src.
 //
-// follows says the pin being replaced follows this source's releases. Then the
-// 404 falls back to nothing: a re-install would otherwise leave releases
-// without a word, where sync fails closed. --ref is the explicit way out.
+// A Tier 1 source is not stranded the same way — every install and sync
+// resolves the newest release again, with no downgrade guard between it and
+// what is on disk — so a lookup this run could not finish costs nothing but
+// this run: it reads the default branch, exactly as it did before releases.
+// See [headFallback].
+//
+// follows says the install being replaced follows this source's releases. Then
+// nothing falls back — not a failed lookup, and not a repo that has stopped
+// publishing metadata, which is a nil error and answers the question rather
+// than failing to. Either would otherwise leave releases without a word, where
+// sync fails closed. --ref is the explicit way out.
 func releaseStart(src *Source, follows bool) (*Source, *pakkeRelease, error) {
 	name := src.Pakke.Name
+	// A Tier 2 pin never falls back to the default branch; a Tier 1 install
+	// that does not yet follow releases is where it read from until now.
+	fallback := !follows && !payloadOnly(src)
 	outcome, rel, err := discoverPakkeRelease(context.Background(), src.Repo, name, "")
-	if errors.Is(err, errReleasesNotFound) && follows {
+	switch {
+	case errors.Is(err, errReleasesNotFound) && follows:
 		return nil, nil, fmt.Errorf("%s follows stable releases, and %s.\n"+
 			"Nothing was pinned; the pin is unchanged.\n\n"+
 			"  Leave stable releases deliberately:  %s",
 			bold(name), releasesNotVisible(src.Repo), bold("nav-pilot install --user --ref <branch|sha> "+name))
-	}
-	if errors.Is(err, errReleasesNotFound) {
+	case errors.Is(err, errReleasesNotFound):
 		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), releasesNotVisible(src.Repo))
 		return src, nil, nil
-	}
-	if err != nil {
+	case err != nil && fallback:
+		return headFallback(src, name, err)
+	case err != nil:
 		return nil, nil, fmt.Errorf("looking up stable releases of %s: %w\n\n"+
 			"Nothing was pinned; nav-pilot does not start %s on the default branch when it cannot tell whether a stable release exists.\n\n"+
 			"  Pin a revision deliberately:  %s",
 			src.Repo, err, name, bold("nav-pilot install --user --ref <branch|sha> "+name))
+	}
+	// The repo stopped publishing metadata for this package: releases deleted,
+	// the asset withdrawn, or a rename upstream that makes every release name
+	// another package. An install or sync that follows releases does not walk
+	// back onto the default branch over that — [syncPakkePin] refuses it for a
+	// pin, and a nil error is not a reason to answer differently here. Without
+	// this, `sync --apply` rewrote every file from the default branch and
+	// dropped the subscription without a word.
+	if outcome == releaseNoMetadata && follows {
+		return nil, nil, fmt.Errorf(
+			"%s follows stable releases, and %s has no stable release with %s for it.\n"+
+				"Nothing was changed; nav-pilot does not fall back to the default branch.\n\n"+
+				"  Leave stable releases deliberately:  %s",
+			bold(name), bold(src.Repo), pakkeReleaseAsset,
+			bold("nav-pilot install --ref <branch|sha> "+name))
 	}
 	if outcome != releaseCandidate { // no metadata: the only other outcome with nothing installed
 		return src, nil, nil
 	}
 	relSrc, err := fetchPakkeRelease(src.Repo, name, rel)
 	if err != nil {
+		// The newest release names a revision that is not this agentpakke —
+		// most plainly a release cut before the manifest existed. For a Tier 1
+		// source that is the default branch's case, not a failure.
+		if fallback {
+			return headFallback(src, name, err)
+		}
 		return nil, nil, err
 	}
-	if !payloadOnly(relSrc) {
+	// The release must ship what the caller is about to read. A payload-only
+	// pin cannot be taken from a revision that grew a layout, and a Tier 1
+	// install cannot materialize files from a revision that dropped one. Either
+	// way the agentpakke changed tier, which is a reinstall, not an update.
+	switch {
+	case payloadOnly(src) && !payloadOnly(relSrc):
 		relSrc.Cleanup()
 		return nil, nil, fmt.Errorf("%s %s (%s) does not ship pre-built payloads only, so this nav-pilot cannot pin it; nothing was pinned",
 			name, rel.Version, rel.Tag)
+	case !payloadOnly(src) && payloadOnly(relSrc):
+		relSrc.Cleanup()
+		return nil, nil, fmt.Errorf("%s %s (%s) ships pre-built payloads only and %s does not, so nav-pilot cannot install it as files; nothing was changed.\n\n"+
+			"  Read the default branch deliberately:  %s",
+			name, rel.Version, rel.Tag, bold(src.Repo), bold("nav-pilot install --ref <branch|sha> "+name))
 	}
 	return relSrc, &rel, nil
+}
+
+// headFallback is what a Tier 1 source does with a release lookup it could not
+// finish: it reads the default branch, which is where it read from before
+// releases existed, and says so on stderr (stdout may be a JSON document).
+//
+// Nothing is stranded by it. Unlike a pin, a Tier 1 install resolves the newest
+// release again on the next install or sync, and no downgrade guard stands
+// between the two — so the fallback lasts exactly as long as the outage.
+func headFallback(src *Source, name string, err error) (*Source, *pakkeRelease, error) {
+	fmt.Fprintf(os.Stderr, "%s could not resolve a stable release of %s: %v\n"+
+		"  %s is read from %s's default branch instead.\n",
+		yellow("⚠"), bold(name), err, name, src.Repo)
+	return src, nil, nil
+}
+
+// tier1Release swaps a Tier 1 source for the newest stable release's revision,
+// so an install or a sync reads the release rather than default-branch HEAD
+// (#794). It returns src unchanged, and a nil release, whenever this source
+// does not follow releases; the caller cleans up a source that is not src.
+//
+// pinned says the revision was already chosen — an explicit --ref, or the SHA
+// a repo's committed declaration pins — and a choice already made is not
+// overridden here.
+//
+// Tier 2 is not this path's business: [installPakkePin] resolves the release
+// for a pin, and [syncPakkePin] moves one. Nor is a scope with a materialized
+// revision on disk, which is a pin whatever its source ships today.
+func tier1Release(scope *InstallScope, src *Source, pinned bool) (*Source, *pakkeRelease, error) {
+	if pinned || installFrozen || src == nil || src.Pakke == nil || payloadOnly(src) || !pinnable(src.Repo) {
+		return src, nil, nil
+	}
+	existing, _ := readScopedState(scope)
+	if pinnedRevisionOnDisk(existing) {
+		return src, nil, nil
+	}
+	_, follows := releaseClaim(existing)
+	return releaseStart(src, follows && existing != nil && sameSourceRepo(existing.SourceRepo, src.Repo))
+}
+
+// pinnedByDeclaration reports whether src is the exact revision this scope's
+// committed declaration pins. Then the repo has already chosen the revision,
+// and following releases would override a choice that was reviewed and merged.
+//
+// Only install asks. sync deliberately resolves the default branch rather than
+// the declared SHA — finding out what moved is its job — and bumps the
+// declaration to what it found, which is how a release reaches a repo at all.
+func pinnedByDeclaration(scope *InstallScope, src *Source) bool {
+	d, err := scopeDeclaration(scope)
+	return err == nil && d != nil && d.SHA != "" && src != nil &&
+		sameSHA(d.SHA, src.SHA) && sameSourceRepo(d.Source, src.Repo)
 }
 
 // pakkeReleaseStatus is what status reports about a pinned agentpakke (#779).

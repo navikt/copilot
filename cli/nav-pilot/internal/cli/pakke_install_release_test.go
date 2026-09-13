@@ -459,3 +459,20 @@ func TestReinstallOverAFollowingPinRefusesA404(t *testing.T) {
 	assertPin(t, scope, shaA, "0.4.1", true)
 	assertNotMaterialized(t, shaB)
 }
+
+// TestInstallOverAFollowingPinWithoutMetadata: the Tier 2 side of the same
+// refusal. A repo that stops publishing metadata answers with a nil error, so
+// nothing in the failed-lookup branches sees it, and the install re-pinned the
+// default branch over a pin that followed releases.
+func TestInstallOverAFollowingPinWithoutMetadata(t *testing.T) {
+	scope, _ := followingPin(t)
+	stubRelease(t, releaseNoMetadata, pakkeRelease{}, nil)
+
+	var err error
+	out := captureStdoutFor(t, func() { err = installPakkePin(scope, tier2PinSource(t, shaB), false, false) })
+	if err == nil || !strings.Contains(err.Error(), "does not fall back to the default branch") {
+		t.Fatalf("install over a following pin = %v, want a refusal. Output:\n%s", err, out)
+	}
+	assertPin(t, scope, shaA, "0.4.1", true)
+	assertNotMaterialized(t, shaB)
+}

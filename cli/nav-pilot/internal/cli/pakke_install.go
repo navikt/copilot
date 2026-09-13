@@ -548,11 +548,7 @@ func pinRevision(scope *InstallScope, src *Source, release *pakkeRelease, explic
 	if existing != nil && sameSourceRepo(existing.SourceRepo, src.Repo) {
 		state.PreserveUnknownFrom(existing)
 	}
-	if release != nil {
-		state.PakkeVersion, state.FollowsReleases, state.PakkeVersionSHA = release.Version, true, release.SHA
-	} else if !explicit && existing != nil && sameSourceRepo(existing.SourceRepo, src.Repo) && sameSHA(existing.SourceSHA, src.SHA) {
-		state.PakkeVersion, state.FollowsReleases, state.PakkeVersionSHA = existing.PakkeVersion, existing.FollowsReleases, existing.PakkeVersionSHA
-	}
+	recordRelease(state, existing, src, release, explicit)
 
 	// Lost update (#779). Materializing takes long enough for another install,
 	// sync or launch to move this scope's pin, and writing now would put an
@@ -598,6 +594,29 @@ func pinRevision(scope *InstallScope, src *Source, release *pakkeRelease, explic
 
 	prunePakkeRevisions(src.Repo, src.SHA, previousPin)
 	return revDir, nil
+}
+
+// recordRelease writes what a state says about stable releases: the release
+// this revision was resolved from, or — when this run resolved none over the
+// revision already recorded — what the state said before (#779, #794).
+//
+// It clears all three fields otherwise, which is what makes it safe over a
+// state being updated in place rather than replaced: a claim is about one
+// revision, and the revision it was recorded for is about to be another.
+// explicit is an explicit --ref, a pinning choice that stops following even
+// over the same revision.
+//
+// Call it before the caller updates SourceSHA: the middle case asks whether
+// this run landed on the revision the state already records.
+func recordRelease(state, existing *StateFile, src *Source, release *pakkeRelease, explicit bool) {
+	switch {
+	case release != nil:
+		state.PakkeVersion, state.FollowsReleases, state.PakkeVersionSHA = release.Version, true, release.SHA
+	case !explicit && existing != nil && sameSourceRepo(existing.SourceRepo, src.Repo) && sameSHA(existing.SourceSHA, src.SHA):
+		state.PakkeVersion, state.FollowsReleases, state.PakkeVersionSHA = existing.PakkeVersion, existing.FollowsReleases, existing.PakkeVersionSHA
+	default:
+		state.PakkeVersion, state.FollowsReleases, state.PakkeVersionSHA = "", false, ""
+	}
 }
 
 // pinWriteHook is a test seam: when non-nil it runs in [pinRevision] between
