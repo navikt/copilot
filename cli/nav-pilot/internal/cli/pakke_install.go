@@ -76,6 +76,11 @@ func pakkeRevisionDir(repo, sha string) string {
 // anything wearing it alone.
 const revisionTmpPrefix = ".tmp-"
 
+// hasRevisionTmpPrefix reports whether a name wears that prefix.
+func hasRevisionTmpPrefix(name string) bool {
+	return strings.HasPrefix(name, revisionTmpPrefix)
+}
+
 // pinnable reports whether a source can be pinned at all. Only repo-shaped
 // sources can.
 //
@@ -300,7 +305,7 @@ func previousRevision(repo, current string) string {
 	var newest string
 	var newestAt time.Time
 	for _, e := range entries {
-		if !e.IsDir() || e.Name() == current || strings.HasPrefix(e.Name(), revisionTmpPrefix) {
+		if !e.IsDir() || e.Name() == current || !isRevisionName(e.Name()) {
 			continue
 		}
 		info, err := e.Info()
@@ -314,11 +319,18 @@ func previousRevision(repo, current string) string {
 	return newest
 }
 
-// prunePakkeRevisions removes every revision of a source except the named ones,
-// which is how at most two survive: the current pin and the one it replaced. A
-// session running the old revision therefore survives one update; a second
-// update pulls the tree out from under a very old session, which is accepted
-// and documented rather than defended with liveness tracking.
+// prunePakkeRevisions removes every revision of a source except the named ones
+// and the ones a live session is reading, which is how two survive by default:
+// the current pin and the one it replaced.
+//
+// The named two are a retention rule and stay at two, because no number fixes
+// the problem a number caused: a session lives for hours and both tools release
+// several times a day, so any count is one update short of the session that
+// outlasts it (#784). What keeps a third revision is evidence instead —
+// [heldRevisions] names the ones a nav-pilot process is still holding open for
+// a client, and nothing else. Disk is therefore bounded by two revisions per
+// source plus one per distinct revision a session is actually reading, and a
+// session that dies without releasing stops counting at the next prune.
 //
 // It never touches a .tmp-* directory. Those are the staging trees of
 // materializations happening right now — a launch racing `sync --apply`, or two
@@ -338,8 +350,9 @@ func prunePakkeRevisions(repo string, keep ...string) {
 	if err != nil {
 		return
 	}
+	keep = append(keep, heldRevisions(repo)...)
 	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), revisionTmpPrefix) || slices.Contains(keep, e.Name()) {
+		if !isRevisionName(e.Name()) || slices.Contains(keep, e.Name()) {
 			continue
 		}
 		_ = os.RemoveAll(filepath.Join(dir, e.Name()))

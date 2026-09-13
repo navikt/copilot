@@ -109,6 +109,11 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 	// After the handover gate: the notice announces a session that is about to
 	// start, and this is the last point that can still refuse to start one.
 	printModelNotice(resolved)
+	// The client reads this tree for the whole session, and every launcher
+	// below runs it as a child and waits. So the marker is written here, where
+	// the revision is chosen, and released when that wait returns: another
+	// nav-pilot pruning in the meantime sees a live process holding it (#784).
+	defer holdRevision(rev.Repo, rev.SHA)()
 	return true, launch(resolved, providerpkg.StagedLaunch{Dir: dir, PakkeName: pakke.Name, Context: context})
 }
 

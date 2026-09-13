@@ -200,6 +200,9 @@ func revisionNames(t *testing.T, repo string) []string {
 	}
 	var names []string
 	for _, e := range entries {
+		if !isRevisionName(e.Name()) {
+			continue // nav-pilot's own bookkeeping beside the revisions
+		}
 		names = append(names, e.Name())
 	}
 	sort.Strings(names)
