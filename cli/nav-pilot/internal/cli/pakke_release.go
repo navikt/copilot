@@ -490,7 +490,12 @@ type pakkeReleaseStatus struct {
 	// RolledBackFrom is the revision a local rollback left (#783). It is not
 	// offered as a pending release, so status says why rather than leaving the
 	// line out.
-	RolledBackFrom    string `json:"rolled_back_from,omitempty"`
+	RolledBackFrom string `json:"rolled_back_from,omitempty"`
+	// UpdateChoice is the scope's durable update choice (#781): "auto", "ask" or
+	// "keep". A "keep" scope still gets its pending release reported here —
+	// status is a question the user asked, not a question nav-pilot asks them,
+	// and a release held back is exactly what they came to find out.
+	UpdateChoice      string `json:"update_choice"`
 	ReleaseCheckError string `json:"release_check_error,omitempty"`
 }
 
@@ -510,12 +515,13 @@ func pakkeStatus(scope *InstallScope, state *StateFile) *pakkeReleaseStatus {
 		return nil
 	}
 	version, follows := releaseClaim(state)
-	st := &pakkeReleaseStatus{Version: version, PinnedSHA: state.SourceSHA, FollowsReleases: follows, RolledBackFrom: state.RolledBackFrom}
+	st := &pakkeReleaseStatus{Version: version, PinnedSHA: state.SourceSHA, FollowsReleases: follows,
+		RolledBackFrom: state.RolledBackFrom, UpdateChoice: string(pakkeUpdateChoice(state))}
 	outcome, rel, err := discoverPakkeRelease(context.Background(), state.SourceRepo, state.Collection, state.SourceSHA)
 	switch {
 	case err != nil:
 		st.ReleaseCheckError = err.Error()
-	case outcome == releaseCandidate && sameSHA(rel.SHA, state.RolledBackFrom):
+	case outcome == releaseCandidate && pakkeUpdateHold(state, rel.SHA) == holdRolledBack:
 		// The rollback rejected this exact revision and sync will not offer it
 		// (#783), so reporting it as an available update would nag about an
 		// update nothing is going to perform.

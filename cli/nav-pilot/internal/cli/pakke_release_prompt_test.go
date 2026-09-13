@@ -31,6 +31,11 @@ type promptEnv struct {
 	asked    []string
 	answer   bool
 	refs     *[]string
+	// pick overrides answer with one of the four answers the question offers
+	// (#781), for the tests that are about the durable choice itself.
+	pick *pakkeAnswer
+	// affirms records the label the first answer was offered under.
+	affirms []string
 	// confirmErr is what the prompt returns with the answer (Ctrl-C).
 	confirmErr error
 	// onAsk runs while the question is open.
@@ -49,14 +54,21 @@ func newPromptEnv(t *testing.T) *promptEnv {
 	stagedLaunchers = map[string]func(ResolvedConfig, providerpkg.StagedLaunch) error{
 		"copilot": func(_ ResolvedConfig, l providerpkg.StagedLaunch) error { e.launched = l.Dir; return nil },
 	}
-	origConfirm := confirmPakkeRelease
-	t.Cleanup(func() { confirmPakkeRelease = origConfirm })
-	confirmPakkeRelease = func(title string) (bool, error) {
+	origAsk := askPakkeRelease
+	t.Cleanup(func() { askPakkeRelease = origAsk })
+	askPakkeRelease = func(title, affirm string) (pakkeAnswer, error) {
 		e.asked = append(e.asked, title)
+		e.affirms = append(e.affirms, affirm)
 		if e.onAsk != nil {
 			e.onAsk()
 		}
-		return e.answer, e.confirmErr
+		switch {
+		case e.pick != nil:
+			return *e.pick, e.confirmErr
+		case e.answer:
+			return answerNow, e.confirmErr
+		}
+		return answerLater, e.confirmErr
 	}
 	return e
 }

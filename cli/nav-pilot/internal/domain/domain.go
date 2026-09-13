@@ -460,6 +460,17 @@ type StateFile struct {
 	// forward by an older nav-pilot suppresses a single SHA the pin has already
 	// moved past, and a revision behind the pin is never offered anyway.
 	RolledBackFrom string `json:"rolled_back_from,omitempty"`
+	// UpdateChoice is the durable per-package answer to "what happens when a
+	// newer stable release ships": "auto", "ask" or "keep" (#781). Empty, and
+	// anything this binary does not recognise, reads as "ask" — which is what
+	// every state written before the field says.
+	//
+	// Unlike the release claim it has no anchor SHA: it is a choice about the
+	// package, not about the revision that happened to be pinned when it was
+	// made, so every pin this scope writes carries it forward. A pin onto a
+	// different source does not: that is another package, and nobody has chosen
+	// anything about it.
+	UpdateChoice string `json:"update_choice,omitempty"`
 	// Unknown carries every top-level key this binary does not understand, so a
 	// read-modify-write does not silently drop what a newer nav-pilot wrote.
 	// See [InstalledFile.Unknown].

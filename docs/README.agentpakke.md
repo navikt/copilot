@@ -617,6 +617,7 @@ Publiser releasen som stabil først når alle kontroller som godkjenner distribu
 - Feiler oppslaget for en pinne som ikke følger releases, hopper sync over oppdateringen med en advarsel (`warning` og `skipped: true` i `--json`) og avslutter som når ingenting er endret. Pinnen står. nav-pilot vet da ikke om repoet er release-basert, og pinner hverken en release eller standardgrenen på en gjetning.
 - Oppslaget bruker `GITHUB_TOKEN`, ikke git-legitimasjonen kloningen bruker. Et privat repo krever derfor `GITHUB_TOKEN` for at releasene skal bli funnet. Uten token svarer GitHub 404 på releaselista. Da synkes en pinne som ikke følger releases fra standardgrenen som før, med en advarsel om å sette `GITHUB_TOKEN` (`warning` i `--json`, uten `skipped`), mens en pinne som følger releases feiler.
 - Mangler den pinnede revisjonen på disk, gjenoppretter `--apply` den på den pinnede SHA-en når releasen ikke tilbys, når oppslaget feiler for en pinne som ikke følger releases, og når pinnen er på nyeste release uten å følge releases. Det siste starter ikke et abonnement. Et repo uten metadata materialiseres fra standardgrenen som før.
+- Er det varige oppdateringsvalget `keep`, flytter sync ikke pinnen, heller ikke med `--apply`. Den navngir releasen som holdes tilbake og veien til den, og avslutter som når ingenting er endret ([Varig oppdateringsvalg](#varig-oppdateringsvalg)).
 - En eksplisitt `nav-pilot install` over en pinne som følger releases, pinner det kilden resolver til, og pinnen følger ikke releases lenger. Unntaket er når install uten `--ref` lander på den samme revisjonen. `install --ref` til revisjonen pinnen allerede står på, avslutter abonnementet, som `sync --ref`.
 - Kjenner GitHub ikke installert revisjon, feiler oppslaget med `--ref` som veien videre.
 - Pakkeversjonen og abonnementet registreres sammen med SHA-en de gjelder (`pakke_version_sha`). Flytter en eldre nav-pilot pinnen, gjelder de ikke lenger.
@@ -660,13 +661,15 @@ En Tier 1-pakke pinner ingen revisjon, den installerer filer. Abonnementet er de
 ```
   Package:     0.4.1 (pinned at 20d634f)
   Releases:    follows stable releases: yes
+  Updates:     ask first
   ⚠ Release 0.4.2 (9f1c2ab) is available. Run nav-pilot sync --user --apply to update; sync checks the revision before it pins it.
 ```
 
 - Versjonen vises bare når `pakke_version_sha` er lik den pinnede SHA-en, ellers `unknown`.
+- `Updates:` er det varige oppdateringsvalget ([Varig oppdateringsvalg](#varig-oppdateringsvalg)).
 - En ventende release er en nyere stabil release oppslaget tilbyr. Status henter ikke revisjonen: sync kontrollerer fortsatt at den er samme pakke og payload-only før den pinnes, og nekter ellers. Oppslaget gjøres hver gang, uten cache, med samme tidsgrense som sync.
 - Feiler oppslaget, skrives `⚠ release check failed: <årsak>`, og kommandoen avslutter som vanlig.
-- `--json` har feltene under `pakke`: `version`, `pinned_sha`, `follows_releases`, `pending_release` (`version`, `sha`, `tag`) og `release_check_error`.
+- `--json` har feltene under `pakke`: `version`, `pinned_sha`, `follows_releases`, `update_choice`, `pending_release` (`version`, `sha`, `tag`) og `release_check_error`.
 
 ### Ved oppstart
 
@@ -674,23 +677,46 @@ Starter du klienten i en terminal fra en pinnet pakke i brukerscope, og det finn
 
 ```
 ? grillmester 0.4.2 is available (you have 0.4.1). Update now?
+
+  > Update now
+    Always, without asking from now on
+    Later
+    Keep this revision and stop asking
 ```
 
 - Kandidaten er den samme sync ville valgt, med samme nedgraderingsvern. Er pakkeversjonen ukjent, viser spørsmålet den korte SHA-en.
 - Svaret fra oppslaget lagres i `~/.nav-pilot/pakke-releases.json` per repo og pakke, og brukes i 24 timer, eller i én time etter et mislykket oppslag. Flyttes pinnen, slås det opp på nytt. Ved oppstart har oppslaget en tidsgrense på 3 sekunder. Feiler det, skrives én linje, og klienten starter som før. Svarer GitHub 404 på releaselista (et privat repo uten `GITHUB_TOKEN`) for en pinne som ikke følger releases, leses det som ingen metadata, uten melding ved oppstart. Sync og install synker og installerer fra standardgrenen i samme situasjon, men skriver en advarsel.
-- **Ja** slår releasen opp på nytt først. Er den ikke lenger tilbudt med samme SHA, pinnes ingenting, og neste oppstart slår opp på nytt. Ellers pinnes nøyaktig den release-SHA-en spørsmålet gjaldt, med samme verifisering som `sync --apply`, og klienten starter fra den nye revisjonen. Pinnen følger releases. Standardgrenen resolves ikke. Feiler oppdateringen, skrives feilen, og klienten starter fra den pinnede revisjonen etter vanlig verifisering. Er det releasen selv som ikke kan brukes, fordi den ikke er payload-only eller mangler payload for klienten og konteksten, huskes versjonen som et nei, og en nyere versjon spørres om igjen.
-- **Nei** huskes for den versjonen. Kommer en nyere versjon, spør nav-pilot igjen. Avbryter du spørsmålet (Ctrl-C), starter klienten fra den pinnede revisjonen, og du blir spurt igjen neste gang.
+- **Update now** slår releasen opp på nytt først. Er den ikke lenger tilbudt med samme SHA, pinnes ingenting, og neste oppstart slår opp på nytt. Ellers pinnes nøyaktig den release-SHA-en spørsmålet gjaldt, med samme verifisering som `sync --apply`, og klienten starter fra den nye revisjonen. Pinnen følger releases. Standardgrenen resolves ikke. Feiler oppdateringen, skrives feilen, og klienten starter fra den pinnede revisjonen etter vanlig verifisering. Er det releasen selv som ikke kan brukes, fordi den ikke er payload-only eller mangler payload for klienten og konteksten, huskes versjonen som avvist, og en nyere versjon spørres om igjen.
+- **Later** huskes for den versjonen. Kommer en nyere versjon, spør nav-pilot igjen. Avbryter du spørsmålet (Ctrl-C), starter klienten fra den pinnede revisjonen, og du blir spurt igjen neste gang.
+- **Always** og **Keep this revision** er det varige valget: de svarer på denne releasen og på alle etterpå i ett svar ([Varig oppdateringsvalg](#varig-oppdateringsvalg)).
 - Ligger pinnen foran nyeste stabile release, og følger den ikke releases fra før, spør nav-pilot om overgangen i stedet:
 
   ```
   ? grillmester is pinned at 20d634f, which is not a stable release. The newest is 0.4.0 (fe686e2), which may be older than what you have. Pin it and follow stable releases?
   ```
 
-  Det gjelder en pakke som ble installert fra standardgrenen før den begynte å publisere releases. Nedgraderingsvernet tilbyr aldri releasen til en slik pinne, så uten dette spørsmålet begynner den aldri å følge releases. Spørsmålet navngir den installerte revisjonen (og versjonen hvis den er kjent) mot versjonen og SHA-en som tilbys, og sier fra at kandidaten kan være eldre enn det du har. **Ja** pinner release-SHA-en og starter abonnementet i samme skriving, så nyere releases kommer etterpå som vanlige oppdateringer. **Nei** huskes for den versjonen. En pinne som allerede følger releases, får aldri dette spørsmålet: for den står nedgraderingsvernet. Staten skiller ikke en `--ref`-pinne fra en pinne på standardgrenen, så en `--ref`-pinne foran nyeste release får det samme spørsmålet én gang; ingenting flyttes uten et ja.
+  Første svar heter da **Pin it and follow stable releases**. Det gjelder en pakke som ble installert fra standardgrenen før den begynte å publisere releases. Nedgraderingsvernet tilbyr aldri releasen til en slik pinne, så uten dette spørsmålet begynner den aldri å følge releases. Spørsmålet navngir den installerte revisjonen (og versjonen hvis den er kjent) mot versjonen og SHA-en som tilbys, og sier fra at kandidaten kan være eldre enn det du har. Det første svaret pinner release-SHA-en og starter abonnementet i samme skriving, så nyere releases kommer etterpå som vanlige oppdateringer. **Later** huskes for den versjonen. Overgangen tas aldri automatisk, heller ikke under valget `auto`: den ene kandidaten som kan være både en nedgradering og et nytt abonnement, avgjør et menneske. En pinne som allerede følger releases, får aldri dette spørsmålet: for den står nedgraderingsvernet. Staten skiller ikke en `--ref`-pinne fra en pinne på standardgrenen, så en `--ref`-pinne foran nyeste release får det samme spørsmålet én gang; ingenting flyttes uten et ja.
 - Uten terminal, og alltid med `CI` eller `GITHUB_ACTIONS` satt, slås ingenting opp, spørres ingenting og endres ingenting. Overgangen skjer aldri av seg selv.
-- Oppstart endrer ingen repo-lockfiler. Sletter du cache-fila, glemmer nav-pilot oppslagene og nei-svarene, men pinnen er uendret.
+- Oppstart endrer ingen repo-lockfiler. Sletter du cache-fila, glemmer nav-pilot oppslagene og «Later»-svarene, men hverken pinnen eller det varige valget.
 
-Automatisk oppdatering og et varig valg per pakke er ikke med ennå ([#779](https://github.com/navikt/copilot/issues/779)).
+### Varig oppdateringsvalg
+
+Du velger én gang hva som skjer når pakka publiserer en ny stabil release. Valget står i staten for den installerte pakka i brukerscope (`update_choice`), gjelder pakka og ikke revisjonen valget ble tatt på, og følger med hver pinne scopet skriver senere — også en `--ref`-pinne og en rollback. Det er ikke en utvidelse av `auto_update`, som gjelder nav-pilot-binæren og hele maskinen.
+
+```bash
+nav-pilot sync --user --updates auto   # ta nye stabile releases ved oppstart
+nav-pilot sync --user --updates ask    # spør først (standard)
+nav-pilot sync --user --updates keep   # behold revisjonen, slutt å spørre
+```
+
+- **auto** oppdaterer ved oppstart i en terminal, uten spørsmål, med nøyaktig samme kontroll og verifisering som et **Update now** gir. Et «Later» på en eldre versjon stopper det ikke: «Later» er et svar i spør først-modus, og en automatikk som hoppet over en release på grunn av det, ville ikke vært automatisk. Overgangsspørsmålet tas fortsatt ikke automatisk.
+- **ask** er standard, og det enhver stat skrevet før valget fantes leses som. Et valg denne nav-pilot-versjonen ikke kjenner igjen, leses også som dette: det er svaret som hverken flytter en pinne eller skjuler en oppdatering.
+- **keep** stopper både oppslaget og spørsmålet ved oppstart — en launch under valget rører ikke nettet — og `sync` flytter ikke pinnen, heller ikke med `--apply`. Beskjeden stoppes ikke: `sync` og `nav-pilot list --installed` navngir fortsatt releasen som holdes tilbake, og hva som skal til for å ta den. Det gjelder også en sikkerhetsrettelse: den kommer når du sier fra, som er hele meningen med valget.
+- `--updates` skrives før synken som følger, så `sync --user --apply --updates auto` er én setning: ta nye releases fra nå av, denne inkludert. Et ukjent modusnavn avvises, og staten står. Uten pinne i brukerscope sier kommandoen det.
+- Veien forbi et **keep** er `nav-pilot sync --user --apply --ref <sha>`, som pinner nøyaktig den revisjonen uten å endre valget. Et eksplisitt pinningvalg vinner, slik det gjør over en rollback, og `install` og `rollback` er også brukeren som handler nå.
+- «Behold revisjonen» og markeringa etter en rollback er én regel, ikke to: rollbacken sier «ikke denne revisjonen» ([Rollback uten nett](#rollback-uten-nett)), valget sier «ingen nyere revisjon», og sync, status og oppstartsspørsmålet stiller begge spørsmålene ett sted. Et scope som bærer begge, får derfor ett svar, med den begrunnelsen som gjelder kandidaten.
+- Uten terminal spørres ingenting og flyttes ingenting, uansett valg. Et planlagt `sync` kan ikke svare på et spørsmål, så **ask** rapporterer som før — exit `1`, og oppdateringen i `--json` — og **auto** flytter ingen pinne: oppstartsspørsmålet, og dermed automatikken, kjører bare i en terminal. `sync --apply` er fortsatt det eksplisitte svaret, og virker i et skript.
+- `--json`: `update_choice` står under `pakke` i `list --installed`, og i sync-dokumentet når valget er det som avgjorde utfallet. Releasen som ble holdt tilbake, står da i `warning`.
 
 ### Rollback uten nett
 
@@ -704,7 +730,7 @@ nav-pilot rollback --json   # command, collection, scope, source_sha, rolled_bac
 - **Når den er mulig, og når den ikke er det.** Oppbevaringsregelen er to revisjoner ([Slik starter brukerne klienten fra en Tier 2-pakke](#slik-starter-brukerne-klienten-fra-en-tier-2-pakke)), så rollback rekker ett steg bakover. Er pinnen flyttet to ganger siden revisjonen du vil tilbake til, er den borte, og rollback nekter med `no older revision`. Det samme gjelder en pinne som aldri har flyttet seg, og en rollback nummer to på rad: den nyeste andre revisjonen er da den første rollback forlot, og å gå «tilbake» til den ville vært å gå fram igjen. En pakke uten pinne i brukerscope nektes også. Veien videre i alle tilfellene er `nav-pilot sync --user --apply --ref <branch|sha>`, som krever nett.
 - **«Verifisert» betyr verifisert nå.** Treet har ligget på disk siden det ble stagd, så rollbacken kjører den samme eksakte hash-gjennomgangen som launchen og en adopterende install, mot payload-manifestet i hver deklarerte kontekst. Et tre som ikke holder, pinnes ikke, og feilen sier `does not verify`. Ingenting lastes ned for å reparere det: reparasjon krever kilden, og poenget er at kilden kan være utilgjengelig.
 - **Pinnen flyttes, abonnementet står.** Fulgte pinnen stabile releases, gjør den det fortsatt, så rettelsen kommer som en vanlig oppdatering når den publiseres. Pakkeversjonen for revisjonen du går tilbake til, blir derimot `unknown`: revisjonskatalogen bærer agentpakke-manifestet, aldri release-metadataet, så versjonen er ikke kjent uten nett og gjettes ikke.
-- **Rollbacken står seg.** Revisjonen du forlot, noteres i staten (`rolled_back_from`), og hverken `sync` eller spørsmålet ved oppstart tilbyr den igjen. Markeringa gjelder én revisjon, ikke kilden, så en nyere release tilbys som før. `nav-pilot sync` sier fra om at scopet står der (`rolled back from …`) framfor å melde en oppdatering den ikke ville utført. Enhver pinne som skrives etterpå fjerner markeringa, siden pinnen da har svart på spørsmålet.
+- **Rollbacken står seg.** Revisjonen du forlot, noteres i staten (`rolled_back_from`), og hverken `sync` eller spørsmålet ved oppstart tilbyr den igjen. Det er den samme regelen som avgjør et `keep`-valg, så et scope som bærer begge, får ett svar ([Varig oppdateringsvalg](#varig-oppdateringsvalg)). Markeringa gjelder én revisjon, ikke kilden, så en nyere release tilbys som før. `nav-pilot sync` sier fra om at scopet står der (`rolled back from …`) framfor å melde en oppdatering den ikke ville utført. Enhver pinne som skrives etterpå fjerner markeringa, siden pinnen da har svart på spørsmålet.
 - **Veien tilbake er `--ref`.** `nav-pilot sync --user --apply --ref <sha>` pinner revisjonen du forlot igjen, som ethvert annet eksplisitt pinningvalg. En `install` gjør det samme.
 - **Ingenting slettes.** Revisjonen rollbacken forlater, blir liggende: den er det `--ref` går tilbake til, og den kan være treet en levende økt leser fra. Den fjernes av den vanlige oppbevaringsregelen, ved neste pinne som erstatter den. Rollbacken tar selv en markør på revisjonen den går til, så en pruning i en annen prosess ikke kan ta den underveis.
 

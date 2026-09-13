@@ -115,6 +115,7 @@ Flags:
   --all                   Install everything to --user or --repo without prompting
   --frozen                Install only what .nav-pilot/agentpakke.lock.json declares: never prompts, never moves the pin (install only)
   --apply                 Apply available updates (sync only)
+  --updates <mode>        How a pinned agentpakke handles new stable releases: auto, ask or keep (sync only)
   --sync                  Sync all scopes and launch Copilot (non-interactive)
   --json                  Output results as JSON
   -F, --feature           Submit a feature request (feedback only)
@@ -409,7 +410,7 @@ func run(args []string) error {
 	}
 
 	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled, frozen bool
-	var targetDir, ref, sourceRepo, installType string
+	var targetDir, ref, sourceRepo, installType, updates string
 	var positional []string
 
 	targetDir = "."
@@ -476,6 +477,12 @@ func run(args []string) error {
 			}
 			i++
 			installType = rest[i]
+		case "--updates":
+			if i+1 >= len(rest) {
+				return fmt.Errorf("--updates requires a value (auto, ask or keep)")
+			}
+			i++
+			updates = rest[i]
 		case "-h", "--help":
 			usage()
 			return nil
@@ -706,6 +713,18 @@ func run(args []string) error {
 		syncScope := "auto"
 		if scopeProvided {
 			syncScope = scope.Name
+		}
+		// The durable update choice is recorded before the sync it precedes, so
+		// `sync --apply --updates auto` reads as one sentence: take new stable
+		// releases from now on, this one included (#781). It is user scope only,
+		// which is where every Tier 2 pin lives.
+		if updates != "" {
+			if repoScope {
+				return fmt.Errorf("--repo is not supported with --updates: a Tier 2 revision is only ever pinned in user scope")
+			}
+			if err := cmdUpdateChoice(updates, jsonOutput); err != nil {
+				return err
+			}
 		}
 		return runWithCommandTelemetry("sync", telemetryMode(), syncScope, func() error {
 			if scopeProvided {

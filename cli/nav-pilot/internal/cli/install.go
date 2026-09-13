@@ -1327,12 +1327,20 @@ func printPakkeStatus(st *pakkeReleaseStatus) {
 	}
 	fmt.Printf("  Package:     %s (pinned at %s)\n", version, shortSHA(st.PinnedSHA))
 	fmt.Printf("  Releases:    follows stable releases: %s\n", follows)
+	choice := updateChoice(st.UpdateChoice)
+	fmt.Printf("  Updates:     %s\n", choice.label())
 	if st.RolledBackFrom != "" {
 		fmt.Printf("  Rolled back: from %s, which is not offered again\n", shortSHA(st.RolledBackFrom))
 	}
 	switch {
 	case st.ReleaseCheckError != "":
 		fmt.Printf("  %s release check failed: %s\n", yellow("⚠"), st.ReleaseCheckError)
+	case st.PendingRelease != nil && choice == updateKeep:
+		// Held back, not hidden: the user chose to sit still, and is still told
+		// what they are sitting on and what it would take to move (#781).
+		fmt.Printf("  %s Release %s is available, and this scope keeps the revision. Take this one with %s.\n",
+			yellow("⚠"), st.PendingRelease.label(st.PendingRelease.SHA),
+			bold("nav-pilot sync --user --apply --ref "+st.PendingRelease.SHA))
 	case st.PendingRelease != nil:
 		fmt.Printf("  %s Release %s is available. Run %s to update; sync checks the revision before it pins it.\n",
 			yellow("⚠"), st.PendingRelease.label(st.PendingRelease.SHA), bold("nav-pilot sync --user --apply"))

@@ -120,6 +120,10 @@ func cmdRollback(jsonOutput bool) error {
 		// on disk. The subscription is, and it is what brings the fix.
 		FollowsReleases: follows,
 		RolledBackFrom:  state.SourceSHA,
+		// The durable update choice is about the package and survives the
+		// rollback: going back a revision is not an answer to what should
+		// happen when the next release ships (#781).
+		UpdateChoice: state.UpdateChoice,
 	}
 	if follows {
 		rolled.PakkeVersionSHA = previous
