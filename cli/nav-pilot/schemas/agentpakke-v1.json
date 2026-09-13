@@ -12,19 +12,9 @@
       "pattern": "^[a-z][a-z0-9-]*$"
     },
     "mcpServerName": {
-      "description": "Canonical name of a server in Nav's MCP registry (https://mcp-registry.nav.no). The enum is the registry's allowlist: a server is defined there and nowhere else, so a manifest can only reference one that already exists. nav-pilot carries these names with the schema rather than calling the registry, so validation cannot fail for a reason unrelated to the manifest.",
+      "description": "Name of a server in Nav's MCP registry (https://mcp-registry.nav.no), in the registry's own reverse-DNS form: <namespace>/<name>, as in io.github.navikt/github-mcp. The pattern is the registry's own name format and constrains the shape only. Membership is checked against the live registry when nav-pilot validates or installs, because the registry moves independently of nav-pilot releases: a list frozen into the schema would reject a server added after this version shipped.",
       "type": "string",
-      "enum": [
-        "io.github.navikt/github-mcp",
-        "io.github.navikt/mcp-onboarding",
-        "io.github.navikt/aksel-mcp",
-        "com.figma/figma-mcp",
-        "com.vercel/next-devtools-mcp",
-        "dev.svelte/svelte-mcp",
-        "com.microsoft/playwright-mcp",
-        "com.jetbrains/intellij",
-        "no.nav.aksel/aksel-arcade"
-      ]
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9.-]*/[a-zA-Z0-9][a-zA-Z0-9._-]*$"
     },
     "relativePath": {
       "description": "Repo-relative path. Absolute paths and parent traversal are rejected by nav-pilot's semantic validation.",
@@ -172,7 +162,7 @@
       }
     },
     "mcpServers": {
-      "description": "MCP servers this agentpakke's agents and skills expect, named as they are in Nav's MCP registry. Declaring one does not configure it: nav-pilot writes no MCP configuration for any client, and enabling a server stays the user's action. install names what the pakke needs and points at the registry.",
+      "description": "MCP servers this agentpakke's agents and skills expect, named as they are in Nav's MCP registry. Every name must be one the registry publishes; nav-pilot asks the registry at validate and install time, and a name it does not publish is a violation. Declaring one does not configure it: nav-pilot writes no MCP configuration for any client, and enabling a server stays the user's action. install names what the pakke needs and points at the registry.",
       "type": "array",
       "uniqueItems": true,
       "items": { "$ref": "#/$defs/mcpServerName" }

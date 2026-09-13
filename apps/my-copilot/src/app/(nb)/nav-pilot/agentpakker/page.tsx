@@ -258,7 +258,9 @@ export default function Agentpakker() {
                         Navs MCP-register
                       </a>
                       . Du kan ikke definere din egen, men du kan si hvilke av registerets servere agentene og
-                      ferdighetene dine forventer. Et navn som ikke står i registeret, validerer ikke.
+                      ferdighetene dine forventer. nav-pilot spør registeret når den validerer og installerer: et navn
+                      det ikke publiserer, er et funn. Svarer ikke registeret, blir det en advarsel i stedet, så en
+                      CI-jobb uten nett ikke feiler på noe den ikke kan sjekke.
                     </BodyLong>
                     <CodeBlock filename=".nav-pilot/agentpakke.json">{MCP}</CodeBlock>
                     <BodyLong textColor="subtle">

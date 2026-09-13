@@ -57,7 +57,7 @@ Generert fra `cli/nav-pilot/schemas/agentpakke-v1.json`. Ukjente felt på alle n
 | `policies` | objekt: `opencodePermissions` | nei | Peker på policy-artefakter. Sti-sjekkes i dag, materialiseres ikke ennå. |
 | `profiles` | objekt: `dir`, `default` | nei | Katalog med launch-profiler og navnet på standardprofilen (`<dir>/<default>.json`). Sti-sjekkes i dag, brukes ikke ennå. |
 | `provenance` | objekt: `base` (`repo`\*, `digest`\*), `overlays[]` (`component`\*, `version`\*) | nei | Opphav for komponert innhold. Ren metadata, nav-pilot verifiserer ikke digest. |
-| `mcpServers` | array av string, unike verdier | nei | MCP-serverne innholdet i pakka forventer, navngitt slik de heter i [Navs MCP-register](https://mcp-registry.nav.no). Hvert navn må finnes i registerets allowlist; et navn utenfor avvises av `validate` og `install`. Å deklarere en server konfigurerer ingenting. Se [MCP-servere](#mcp-servere). |
+| `mcpServers` | array av string, unike verdier | nei | MCP-serverne innholdet i pakka forventer, navngitt slik de heter i [Navs MCP-register](https://mcp-registry.nav.no). Skjemaet sjekker formen; medlemskapet sjekkes mot registeret som kjører, i `validate` og `install`. Et navn registeret ikke publiserer er et funn; et registeret ikke svarer på er en advarsel. Å deklarere en server konfigurerer ingenting. Se [MCP-servere](#mcp-servere). |
 | `minNavPilotVersion` | string, `YYYY.MM.DD-HHMMSS[-sha]` | nei | Minste nav-pilot-versjon. Se [Versjonsgate](#versjonsgate). |
 
 ### `clients.<klient>`
@@ -137,15 +137,23 @@ MCP-servere styres sentralt i [Navs MCP-register](https://mcp-registry.nav.no). 
 }
 ```
 
-Navnene må stå i registerets allowlist. Et navn utenfor validerer ikke:
+Navnene må være servere registeret publiserer. Et navn det ikke publiserer, er et funn i både `validate` og `install`:
 
 ```
-  - mcpServers.1: "no.nav/hjemmesnekret" is not a server in Nav's MCP registry: name one the registry publishes, or have the server added there first (https://mcp-registry.nav.no)
+  - mcpServers: "no.nav/hjemmesnekret" is not a server Nav's MCP registry publishes. A server is defined in the registry and nowhere else, so name one it lists, or have the server added there first (https://mcp-registry.nav.no)
 ```
 
 Dermed er registeret fortsatt det eneste stedet en server kan defineres. Manifestet beskriver ingen server: ingen endepunkt, ingen transport, ingen auth, ingen klientspesifikk config. Det navngir bare noe som allerede finnes.
 
-Validering spør ikke registeret over nettet. Navnene ligger i skjemaet binæren er bygget med, så en CI-gate ikke kan feile av grunner som ikke handler om manifestet. Prisen er at en helt fersk server først kjennes igjen av en nav-pilot bygget etter at den ble lagt inn i registeret. Linter CI-en din mot det publiserte skjemaet i stedet, er den fersk med én gang.
+**Medlemskapet sjekkes mot registeret som kjører, ikke mot en liste i binæren.** Registeret får nye servere og pensjonerer gamle uten en nav-pilot-release, så en innbakt liste ville avvist en fersk server med en påstand om at registeret ikke har den — som er usant, og usant i den retningen som stopper arbeid. Skjemaet sier derfor bare hvordan et navn skal se ut (`<navnerom>/<navn>`, samme format som registeret selv krever), og `nav-pilot` spør `https://mcp-registry.nav.no/v0.1/servers` når den validerer og installerer.
+
+**Får ikke nav-pilot svar, er det en advarsel, ikke et funn.** Ingen nettverk i CI, en sandkasse eller et avbrudd sier ingenting om hvorvidt navnet er riktig, og en gate som feiler på et avbrudd den ikke har noe med, er en gate folk lærer seg å hoppe over. Da står det at medlemskapet ikke ble sjekket, og kommandoen fortsetter:
+
+```
+  ⚠ could not reach Nav's MCP registry (https://mcp-registry.nav.no/v0.1/servers), so the 1 server(s) in mcpServers were not checked against it. That is a warning, not a violation: being offline is not evidence that a name is wrong
+```
+
+Bare et svar registeret faktisk gir, feller en dom. En pakke som ikke deklarerer noen server, spør aldri om noe.
 
 `install` navngir serverne pakka trenger, og peker på registeret:
 

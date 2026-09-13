@@ -129,7 +129,17 @@ func validateSourceTree(src *Source) (kind string, notes []string, warnings []st
 		notes = append(notes, "minNavPilotVersion: "+m.MinNavPilotVersion)
 	}
 
-	return "agentpakke", notes, m.ModelWarnings(), agentpakke.ValidateSource(src.Dir)
+	warnings = m.ModelWarnings()
+	findings = agentpakke.ValidateSource(src.Dir)
+	// Membership in the MCP registry is a live question, so it is asked here
+	// rather than in the schema: the registry gains and retires servers without
+	// a nav-pilot release. It fails open — see [agentpakke.Manifest.MCPServerFindings].
+	mcpFindings, mcpWarning := m.MCPServerFindings()
+	findings = append(findings, mcpFindings...)
+	if mcpWarning != "" {
+		warnings = append(warnings, mcpWarning)
+	}
+	return "agentpakke", notes, warnings, findings
 }
 
 // validateLegacySource checks a source that ships no manifest. It must still be
