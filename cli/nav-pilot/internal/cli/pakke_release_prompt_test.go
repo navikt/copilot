@@ -642,3 +642,42 @@ func TestReleaseMigrationNotOfferedWithoutAnyRelease(t *testing.T) {
 	assertPin(t, e.scope, shaC, "", false)
 	e.assertLaunchedFrom(t, shaC)
 }
+
+// TestReleaseMigrationDropsACachedOfferForAFollowingPin: the cache is evidence
+// about a lookup, never about the state now. A release published at exactly the
+// pinned SHA turns that same pin into a following one without moving it, so the
+// entry stays fresh — and a following pin keeps the downgrade guard.
+func TestReleaseMigrationDropsACachedOfferForAFollowingPin(t *testing.T) {
+	e := newPromptEnv(t)
+	stubRelease(t, releaseNotOffered, release041, nil)
+	e.answer = false
+	e.launch(t) // caches 0.4.1 as a migration over shaC
+	cache := readPakkeReleaseCache()
+	for k, entry := range cache {
+		entry.Dismissed = "" // only the release claim may stop the question now
+		cache[k] = entry
+	}
+	writePakkeReleaseCache(cache)
+
+	// The package cuts 0.5.0 from the very revision this pin is on. install
+	// pins it as a release, so the pin follows without its SHA moving.
+	stubRelease(t, releaseCandidate, pakkeRelease{Version: "0.5.0", SHA: shaC, Tag: "v0.5.0"}, nil)
+	var err error
+	out := captureStdoutFor(t, func() { err = installPakkePin(e.scope, tier2PinSource(t, shaB), false, false) })
+	if err != nil {
+		t.Fatalf("install onto a release at the pinned SHA = %v. Output:\n%s", err, out)
+	}
+	assertPin(t, e.scope, shaC, "0.5.0", true)
+
+	calls := stubRelease(t, releaseNotOffered, release041, nil)
+	e.asked = nil
+	e.launch(t)
+	if *calls != 0 {
+		t.Errorf("the cached entry was not fresh (%d lookups); the test proves nothing", *calls)
+	}
+	if len(e.asked) != 0 {
+		t.Errorf("a following pin was offered a cached downgrade: %q", e.asked)
+	}
+	assertPin(t, e.scope, shaC, "0.5.0", true)
+	e.assertLaunchedFrom(t, shaC)
+}

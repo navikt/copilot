@@ -162,8 +162,15 @@ func offerPakkeRelease(resolved ResolvedConfig, rev *Source) *Source {
 	}
 
 	rel := entry.Candidate
-	version, _ := releaseClaim(state)
-	if rel == nil || rel.Version == entry.Dismissed {
+	version, follows := releaseClaim(state)
+	// A cache entry is evidence about the lookup it recorded, never about the
+	// state now, and the migration was decided for a pin that did not follow
+	// releases. The pin can start following without moving — a release cut from
+	// the very revision it sits on does exactly that — and the entry stays
+	// fresh, because freshness is keyed on the SHA. So the claim is read again
+	// here: a following pin keeps the downgrade guard, which is its whole
+	// protection (#782).
+	if rel == nil || rel.Version == entry.Dismissed || (entry.Migration && follows) {
 		return rev
 	}
 	installed := shortSHA(state.SourceSHA)
