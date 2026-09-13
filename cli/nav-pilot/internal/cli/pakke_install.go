@@ -115,13 +115,17 @@ func pinnable(sourceRepo string) bool {
 // place and adopts it. Both then verify it independently before use.
 func materializeRevision(src *Source) (string, error) {
 	revDir := pakkeRevisionDir(src.Repo, src.SHA)
-	_, statErr := os.Stat(revDir)
-	// A local source is never pinned, so an existing revision under its
-	// placeholder SHA says nothing about the working tree that produced it and
-	// is always replaced. A repo-shaped one is kept only if it still verifies.
-	replace := statErr == nil && (!pinnable(src.Repo) || verifyRevision(src, revDir) != nil)
-	if statErr == nil && !replace {
-		return revDir, nil
+	// A pinned revision is adopted if it still verifies. A local source is
+	// never pinned and never adopted: its SHA says nothing about the working
+	// tree that produced the directory sitting there.
+	replace := false
+	if pinnable(src.Repo) {
+		if _, err := os.Stat(revDir); err == nil {
+			if verifyRevision(src, revDir) == nil {
+				return revDir, nil
+			}
+			replace = true
+		}
 	}
 
 	sourceDir := pakkeSourceDir(src.Repo)
@@ -132,25 +136,43 @@ func materializeRevision(src *Source) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("creating a staging directory under %s: %v", sourceDir, err)
 	}
+	if !pinnable(src.Repo) {
+		// A local source's SHA is not a tree identity. The working tree is
+		// re-staged on every launch, so two launches at the same HEAD — and
+		// every launch at all of a non-git directory, whose "SHA" is the
+		// literal "unknown" — produce two different trees that used to be
+		// published at one path, the second replacing the first. A session
+		// reading the first was then holding a directory whose name belonged
+		// to somebody else's tree, which is a claim no marker can make good
+		// (review of #834).
+		//
+		// So each materialization is published under its own name, and the
+		// directory name becomes the identity: what a session claims, and what
+		// the prune deletes by, are then the same thing. The staging tree's
+		// own suffix is the unique part, already proven unused by MkdirTemp.
+		// Nothing looks a local revision up by SHA — only [pinnedRevision]
+		// does that, and it refuses a local source outright.
+		revDir = filepath.Join(sourceDir, src.SHA+"-"+strings.TrimPrefix(filepath.Base(tmp), revisionTmpPrefix))
+	}
 
 	if err := stageRevision(src, tmp); err != nil {
 		os.RemoveAll(tmp)
 		return "", err
 	}
-	// The outgoing revision is moved aside rather than removed, and only
-	// dropped once the new one is published. A local source is rebuilt in place
-	// on every launch, and its payload directory is what a running session was
-	// handed as OPENCODE_CONFIG_DIR and as cplt's --allow-read
-	// (provider/staged_launch.go), so a second window rebuilding it used to
-	// empty that directory file by file under the first. Every state the path
-	// is observed in is now a complete tree: the old revision, then the new
-	// one. It is not gone at once — one rename separates them, since exchanging
-	// two directories atomically is not portable — but "absent" is a state a
-	// reader can retry, and "there but half empty" is one it cannot tell from a
-	// broken pakke. Descriptors the session already holds read on either way,
-	// on the tree that was moved aside. os.Rename onto a non-empty directory
+	// Replacing only ever happens now to a pinned revision that failed
+	// verification, and the outgoing tree is moved aside rather than removed so
+	// that every state the path is observed in is a complete tree: the old
+	// revision, then the new one. It is not gone at once — one rename separates
+	// them, since exchanging two directories atomically is not portable — but
+	// "absent" is a state a reader can retry, and "there but half empty" is one
+	// it cannot tell from a broken pakke. os.Rename onto a non-empty directory
 	// fails, which is why the old tree has to go somewhere rather than be
 	// renamed over.
+	//
+	// A local source no longer reaches this at all: it publishes each tree
+	// under its own name above, so there is nothing at the target to replace.
+	// That is what retired the case this aside was first written for (#703),
+	// where a second window rebuilt the directory the first was reading.
 	//
 	// The aside name wears revisionTmpPrefix, so the prune leaves it alone and
 	// a hard kill between the two renames leaks it exactly the way a staging
@@ -329,8 +351,12 @@ func previousRevision(repo, current string) string {
 // outlasts it (#784). What keeps a third revision is evidence instead —
 // [heldRevisions] names the ones a nav-pilot process is still holding open for
 // a client, and nothing else. Disk is therefore bounded by two revisions per
-// source plus one per distinct revision a session is actually reading, and a
-// session that dies without releasing stops counting at the next prune.
+// source plus one per live session, and a session that dies without releasing
+// stops counting at the next prune.
+//
+// Nothing is deleted unless the hold set is both known and stable: the lock is
+// held across the scan and the removals, and an unreadable hold directory
+// stops the prune rather than reading as "nothing is running".
 //
 // It never touches a .tmp-* directory. Those are the staging trees of
 // materializations happening right now — a launch racing `sync --apply`, or two
@@ -346,11 +372,29 @@ func previousRevision(repo, current string) string {
 // must not fail an install that has already succeeded.
 func prunePakkeRevisions(repo string, keep ...string) {
 	dir := pakkeSourceDir(repo)
+	// Held across the scan and the removals. Without it the set of markers is
+	// sampled and then acted on, and a launch that publishes its marker in
+	// between loses the tree it just chose anyway. A prune that cannot take
+	// the lock deletes nothing: reclaiming disk is what is being given up, and
+	// the alternative is deleting on evidence that may already be stale.
+	unlock, locked := lockSource(repo)
+	if !locked {
+		return
+	}
+	defer unlock()
+
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return
 	}
-	keep = append(keep, heldRevisions(repo)...)
+	held, known := heldRevisions(repo)
+	if !known {
+		return
+	}
+	keep = append(keep, held...)
+	if pruneScannedHook != nil {
+		pruneScannedHook()
+	}
 	for _, e := range entries {
 		if !isRevisionName(e.Name()) || slices.Contains(keep, e.Name()) {
 			continue
@@ -358,6 +402,11 @@ func prunePakkeRevisions(repo string, keep ...string) {
 		_ = os.RemoveAll(filepath.Join(dir, e.Name()))
 	}
 }
+
+// pruneScannedHook runs between the scan and the removals, inside the lock. It
+// is a test seam, nil in production, and it exists because the window it sits
+// in is the one that has to be proven closed.
+var pruneScannedHook func()
 
 // releasePin removes the revisions behind a scope's pin at the one moment they
 // stop being reachable: a state that is a pin is about to be replaced by one
