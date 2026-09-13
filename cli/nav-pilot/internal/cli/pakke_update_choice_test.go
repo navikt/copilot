@@ -28,6 +28,15 @@ func settValg(t *testing.T, scope *InstallScope, c updateChoice) {
 	}
 }
 
+// flyttPinnen er en annen prosess som flytter pinnen: en eksplisitt pinning av
+// sha, uten release-oppslag.
+func flyttPinnen(t *testing.T, scope *InstallScope, sha string) {
+	t.Helper()
+	if _, err := pinRevision(scope, tier2PinSource(t, sha), nil, true, true); err != nil {
+		t.Fatalf("pinRevision(%s) = %v", shortSHA(sha), err)
+	}
+}
+
 func lesValg(t *testing.T, scope *InstallScope) updateChoice {
 	t.Helper()
 	state, _ := readScopedState(scope)
@@ -341,5 +350,163 @@ func TestUpdatesUtenPinneSierDet(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "pins none") {
 		t.Errorf("feilen sier ikke at scopet ikke pinner noe: %v", err)
+	}
+}
+
+// TestValgetSkriverIkkeTilbakeEnPinneSomFlyttetSeg: valget skrives på staten som
+// ligger der nå, ikke på det kommandoen leste før den skrev. Flytter en annen
+// prosess pinnen i vinduet mellom de to, ville en skriving av det gamle
+// øyeblikksbildet satt den forrige revisjonen tilbake i staten — og med den
+// filoppføringene som hørte til.
+func TestValgetSkriverIkkeTilbakeEnPinneSomFlyttetSeg(t *testing.T) {
+	scope := pinEnv(t)
+	installPin(t, scope, tier2PinSource(t, shaC))
+
+	// Rekkefølgen drives eksplisitt: kroken kjører inni vinduet, én gang.
+	orig := stateWriteHook
+	t.Cleanup(func() { stateWriteHook = orig })
+	stateWriteHook = func() {
+		stateWriteHook = nil
+		flyttPinnen(t, scope, shaA)
+	}
+
+	out := captureStdoutFor(t, func() {
+		if err := cmdUpdateChoice("keep", false); err != nil {
+			t.Fatalf("--updates keep = %v", err)
+		}
+	})
+	state, _ := readScopedState(scope)
+	if state == nil || !sameSHA(state.SourceSHA, shaA) {
+		t.Fatalf("valget skrev tilbake pinnen som ble flyttet: %+v", state)
+	}
+	if pakkeUpdateChoice(state) != updateKeep {
+		t.Errorf("valget = %q, vil ha %q", state.UpdateChoice, updateKeep)
+	}
+	if !strings.Contains(out, shortSHA(shaA)) {
+		t.Errorf("bekreftelsen navnga en annen revisjon enn den som er pinnet. Utskrift:\n%s", out)
+	}
+}
+
+// TestSvaretVedOppstartSkriverIkkeTilbakeEnPinneSomFlyttetSeg: svaret ved
+// oppstart går gjennom den samme skrivingen, og vinduet er det bredeste av dem —
+// et menneske ser på spørsmålet så lenge det vil.
+func TestSvaretVedOppstartSkriverIkkeTilbakeEnPinneSomFlyttetSeg(t *testing.T) {
+	e := newPromptEnv(t)
+	keep := answerKeep
+	e.pick = &keep
+	stubRelease(t, releaseCandidate, release041, nil)
+
+	orig := stateWriteHook
+	t.Cleanup(func() { stateWriteHook = orig })
+	stateWriteHook = func() {
+		stateWriteHook = nil
+		flyttPinnen(t, e.scope, shaB)
+	}
+
+	e.launch(t)
+	state, _ := readScopedState(e.scope)
+	if state == nil || !sameSHA(state.SourceSHA, shaB) {
+		t.Fatalf("oppstartssvaret skrev tilbake pinnen som ble flyttet: %+v", state)
+	}
+	if pakkeUpdateChoice(state) != updateKeep {
+		t.Errorf("valget = %q, vil ha %q", state.UpdateChoice, updateKeep)
+	}
+}
+
+// TestPinnenBeholderEtValgTattMensRevisjonenBleMaterialisert er den andre
+// retningen av det samme kappløpet: pinnen leser staten, bruker lang tid på å
+// materialisere en revisjon, og skriver til slutt. Tas valget i mellomtiden, må
+// pinnen bære det videre — `pinMoved` sammenligner det ikke, så et valg lest før
+// materialiseringen ville blitt skrevet tilbake til det det var.
+func TestPinnenBeholderEtValgTattMensRevisjonenBleMaterialisert(t *testing.T) {
+	scope := pinEnv(t)
+	installPin(t, scope, tier2PinSource(t, shaC))
+
+	orig := pinWriteHook
+	t.Cleanup(func() { pinWriteHook = orig })
+	pinWriteHook = func() {
+		pinWriteHook = nil
+		if err := setUpdateChoice(scope, updateKeep); err != nil {
+			t.Errorf("setUpdateChoice i vinduet = %v", err)
+		}
+	}
+
+	releaseSyncSource(t, shaB)
+	stubRelease(t, releaseCandidate, release041, nil)
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	if err != nil {
+		t.Fatalf("sync --apply = %v. Utskrift:\n%s", err, out)
+	}
+	state, _ := readScopedState(scope)
+	if state == nil || !sameSHA(state.SourceSHA, shaA) {
+		t.Fatalf("pinnen flyttet seg ikke: %+v", state)
+	}
+	if pakkeUpdateChoice(state) != updateKeep {
+		t.Errorf("pinnen skrev over valget som ble tatt underveis: %q", state.UpdateChoice)
+	}
+}
+
+// TestUpdatesNekterEtAnnetScope: `cmdUpdateChoice` skriver alltid brukerscopet,
+// så enhver annen måte å navngi et scope på er en forespørsel den ikke kan
+// oppfylle. `--target` er den som ikke ble fanget av en sjekk på `--repo` alene:
+// den byttet brukerens valg og synket deretter et annet sted.
+func TestUpdatesNekterEtAnnetScope(t *testing.T) {
+	scope := pinEnv(t)
+	installPin(t, scope, tier2PinSource(t, shaC))
+	settValg(t, scope, updateAsk)
+
+	for _, args := range [][]string{
+		{"sync", "--updates", "keep", "--target", t.TempDir()},
+		{"sync", "--updates", "keep", "--repo"},
+	} {
+		err := run(args)
+		if err == nil {
+			t.Fatalf("%v lyktes", args)
+		}
+		if !strings.Contains(err.Error(), "user scope") {
+			t.Errorf("%v ga feilen %v, som ikke navngir brukerscopet", args, err)
+		}
+		if got := lesValg(t, scope); got != updateAsk {
+			t.Fatalf("%v endret valget til %q", args, got)
+		}
+	}
+}
+
+// TestBeholdRevisjonenHolderOgsåEnKildeUtenReleases: `releaseNoMetadata` kommer
+// med en nil-feil og lar `release` være nil mens kilden er standardgrenen. En
+// pinne som ikke følger releases synker nettopp derfra, så et «behold» lander
+// her også — og linja skal navngi en revisjon, ikke kalle en grencommit en
+// release.
+func TestBeholdRevisjonenHolderOgsåEnKildeUtenReleases(t *testing.T) {
+	scope := pinEnv(t)
+	installPin(t, scope, tier2PinSource(t, shaC))
+	settValg(t, scope, updateKeep)
+	releaseSyncSource(t, shaB) // standardgrenen har flyttet seg til shaB
+	stubRelease(t, releaseNoMetadata, pakkeRelease{}, nil)
+
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	if err != nil {
+		t.Fatalf("sync --apply = %v. Utskrift:\n%s", err, out)
+	}
+	assertPin(t, scope, shaC, "", false)
+	if !strings.Contains(out, "newest revision is "+shortSHA(shaB)) {
+		t.Errorf("sync navnga ikke revisjonen som holdes tilbake. Utskrift:\n%s", out)
+	}
+	if strings.Contains(out, "release") {
+		t.Errorf("sync kalte en grencommit en release. Utskrift:\n%s", out)
+	}
+
+	out = captureStdoutFor(t, func() { err = cmdSync(scope, "", "", false, true) })
+	if err != nil {
+		t.Fatalf("sync --json = %v. Utskrift:\n%s", err, out)
+	}
+	var doc syncResult
+	if jerr := json.Unmarshal([]byte(out), &doc); jerr != nil {
+		t.Fatalf("utskriften er ikke ett JSON-dokument: %v\n%s", jerr, out)
+	}
+	if doc.UpdateChoice != string(updateKeep) || !strings.Contains(doc.Warning, shortSHA(shaB)) {
+		t.Errorf("dokumentet = %+v", doc)
 	}
 }

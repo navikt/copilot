@@ -131,13 +131,13 @@ var askPakkeRelease = func(title, affirm string) (pakkeAnswer, error) {
 // Best effort, and deliberately so: it runs between a person answering and the
 // client starting, and a state that cannot be written is not a reason to refuse
 // the launch. The cost of losing it is the same question next time.
+// The write goes through [setUpdateChoice], which reads the state again first.
+// The window here is the widest of the three — a person was looking at a
+// question, for as long as they liked — so writing back the snapshot this launch
+// read before it asked would be the likeliest way to restore a pin a sync in
+// another window had moved in the meantime.
 func recordUpdateChoice(scope *InstallScope, choice updateChoice) {
-	state, err := readScopedState(scope)
-	if err != nil || state == nil {
-		return
-	}
-	state.UpdateChoice = string(choice)
-	_ = writeScopedState(scope, state)
+	_ = setUpdateChoice(scope, choice)
 }
 
 // lookUpPakkeRelease runs #780's discovery within timeout.
