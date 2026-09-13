@@ -1410,7 +1410,16 @@ func removePinnedRevisions(repo string, dryRun bool) int {
 	if dryRun {
 		mark = dim("×")
 	}
+	// The whole directory goes either way, but only revisions are listed and
+	// counted: nav-pilot's own bookkeeping beside them is not something a user
+	// asked to have removed, and reporting it as a revision would make the
+	// count disagree with the list above it.
+	var revisions int
 	for _, e := range entries {
+		if !isRevisionName(e.Name()) {
+			continue
+		}
+		revisions++
 		fmt.Printf("  %s %s\n", mark, filepath.Join(dir, e.Name()))
 	}
 	if !dryRun {
@@ -1418,7 +1427,7 @@ func removePinnedRevisions(repo string, dryRun bool) int {
 			fmt.Printf("  %s Could not remove %s: %v\n", yellow("⚠"), dir, err)
 		}
 	}
-	return len(entries)
+	return revisions
 }
 
 // cmdUninstall removes an installed collection. force removes files that differ
