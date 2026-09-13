@@ -73,9 +73,24 @@ var tier2PinPayloads = []struct{ client, context string }{
 // #792 and is gone.
 const unlaunchableClient = "pi"
 
-// handoverErr is the error a launch that reached the real launcher returns: the
-// staged runtime check, which runs after the tier gate and needs cplt.
-const handoverErr = "a staged agentpakke launch requires"
+// reachedLauncher reports whether a launch got past the tier gate and into the
+// real launcher.
+//
+// Which error it stops on depends on what is missing from the machine: the
+// launcher looks for its client binary first, then checks the cplt floor. A
+// developer with pi installed sees the cplt message; CI, with neither, sees the
+// client one. Matching a single string made the test pass here and fail there.
+//
+// It used to stop one step earlier, on "cannot launch staged payloads for that
+// client", because pi had no launcher at all. That refusal was #792 and is gone.
+func reachedLauncher(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "a staged agentpakke launch requires") ||
+		strings.Contains(msg, "not found in PATH")
+}
 
 // tier2PinSourceTree writes a conforming payload-only agentpakke: a real file
 // per payload, at a real digest and a declared mode, so the verification the
@@ -661,8 +676,8 @@ func launchPinned(t *testing.T, context string) error {
 // assertHandedOver fails unless the launch got all the way to the handover.
 func assertHandedOver(t *testing.T, err error) {
 	t.Helper()
-	if err == nil || !strings.Contains(err.Error(), handoverErr) {
-		t.Fatalf("launch = %v, want it to reach the handover for %s", err, unlaunchableClient)
+	if !reachedLauncher(err) {
+		t.Fatalf("launch = %v, want it to reach the launcher for %s", err, unlaunchableClient)
 	}
 	// The pinned manifest is what SetActivePakke installed, so the payload
 	// roster it declares is the one the launch would have handed over.
@@ -681,8 +696,8 @@ func assertRefusedBeforeHandover(t *testing.T, err error, want string) {
 	if !strings.Contains(err.Error(), want) {
 		t.Fatalf("launch error %q does not name %q", err, want)
 	}
-	if strings.Contains(err.Error(), handoverErr) {
-		t.Fatal("the launch reached the handover; it must refuse before that")
+	if reachedLauncher(err) {
+		t.Fatal("the launch reached the launcher; it must refuse before that")
 	}
 	assertDefaultPakkeActive(t)
 }
@@ -1508,7 +1523,7 @@ func TestUnlaunchableClientRefusalNamesUpdate(t *testing.T) {
 	installPin(t, scope, tier2PinSource(t, "sha-one"))
 
 	err := launchPinned(t, "")
-	if err == nil || !strings.Contains(err.Error(), handoverErr) {
+	if !reachedLauncher(err) {
 		t.Fatalf("launch = %v, want the handover refusal", err)
 	}
 	// It used to say "nav-pilot update", which could not help: no version of

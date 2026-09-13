@@ -52,6 +52,15 @@ jobs:
       - name: Build
         run: cd cli/nav-pilot && go build -o nav-pilot .
 
+      # pi is the one client nav-pilot hands artifacts to by flag rather than by
+      # config file, so a flag rename upstream would break a user's session with
+      # nothing here to catch it. TestPiAcceptsTheFlagsWeSend runs the real
+      # binary and skips when it is absent; installing it makes that check real.
+      # It does not enable a launch: that needs cplt and a credential.
+      - name: Install pi (for flag verification)
+        continue-on-error: true
+        run: npm i -g @earendil-works/pi-coding-agent && pi --version || true
+
       - name: Test and Coverage
         run: |
           cd cli/nav-pilot && go test -race -v -coverpkg=./... -coverprofile=cover.out ./...
