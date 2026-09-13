@@ -447,6 +447,25 @@ func interactiveUserInstall(src *Source, resolved ResolvedConfig) error {
 	return nil
 }
 
+// pickerDeclined reports whether the install picker's outcome is a user who
+// said no: the explicit Cancel option, or Ctrl-C, which huh reports as
+// huh.ErrUserAborted. Every other error is a picker that could not run, which
+// is a failure rather than a cancellation (#802).
+func pickerDeclined(choice string, err error) bool {
+	return choice == "cancel" || errors.Is(err, huh.ErrUserAborted)
+}
+
+// hasManagedFiles reports whether a scope's state records files nav-pilot
+// installed, which is what makes an install a re-install: the installer then
+// force-updates its own files instead of treating them as conflicts.
+func hasManagedFiles(state *StateFile) bool {
+	return state != nil && len(state.Files) > 0
+}
+
+// interactiveUserInstallFn is the user-scope install picker, overridable in
+// tests so a path that must not prompt can prove it never reaches one.
+var interactiveUserInstallFn = interactiveUserInstallFromSource
+
 // interactiveUserInstallFromSource is the shared implementation for user-scope interactive install.
 // Used by both the root `nav-pilot` command and `nav-pilot install --user`.
 //
@@ -492,9 +511,17 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 			Value(&installChoice).
 			WithTheme(navTheme()).
 			Run()
-		if err != nil || installChoice == "cancel" {
+		if pickerDeclined(installChoice, err) {
 			fmt.Println(dim("Cancelled."))
 			return errInstallCancelled
+		}
+		// A picker that could not run is not a user who declined. Reporting it
+		// as "Cancelled." installed nothing and exited zero, so a CI job or a
+		// backgrounded shell where isInteractive() is true but nothing can
+		// answer looked like a successful no-op (#802).
+		if err != nil {
+			return fmt.Errorf("could not show the install picker: %w\n\n  Install without it:  %s",
+				err, bold("nav-pilot install <name> --user"))
 		}
 
 		if installChoice == "custom" {
@@ -512,7 +539,7 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 	}
 
 	// If re-installing (existing state), force-update managed files
-	forceUpdate := existingState != nil && len(existingState.Files) > 0
+	forceUpdate := hasManagedFiles(existingState)
 
 	fmt.Println()
 	return installAllFromSource(scope, src, manifest, false, forceUpdate, false, skippedItems...)
@@ -525,7 +552,7 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 func buildPickerDefaults(full *Manifest, existingState *StateFile, scope *InstallScope) map[string][]string {
 	defaults := make(map[string][]string)
 
-	hasExisting := existingState != nil && len(existingState.Files) > 0
+	hasExisting := hasManagedFiles(existingState)
 	if !hasExisting {
 		// Fresh install: all selected
 		defaults["agents"] = append([]string{}, full.Agents...)

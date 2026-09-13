@@ -3,6 +3,7 @@ package source
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -79,5 +80,53 @@ func TestResolveSourceForSync_SkipsLocalRepoAutoDetection(t *testing.T) {
 	}
 	if src.Dir != "/tmp/remote" {
 		t.Fatalf("resolveSourceForSync dir = %q, want %q", src.Dir, "/tmp/remote")
+	}
+}
+
+// A URL and an SSH form are what people try first, and both used to reach git,
+// which failed with its own words about a repository name nobody typed (#801).
+func TestValidateSourceValueSuggestsTheShorthand(t *testing.T) {
+	for _, tc := range []struct{ in, wantSub string }{
+		{"https://github.com/nais/pilot", `"nais/pilot"`},
+		{"https://github.com/nais/pilot.git", `"nais/pilot"`},
+		{"git@github.com:nais/pilot.git", `"nais/pilot"`},
+		{"not-a-source", "owner/name"},
+		{"too/many/slashes", "owner/name"},
+	} {
+		err := ValidateSourceValue(tc.in)
+		if err == nil {
+			t.Errorf("ValidateSourceValue(%q) = nil, want an error", tc.in)
+			continue
+		}
+		if !strings.Contains(err.Error(), tc.wantSub) {
+			t.Errorf("ValidateSourceValue(%q) = %q, want it to contain %q", tc.in, err, tc.wantSub)
+		}
+	}
+	for _, ok := range []string{"nais/pilot", "/abs/path"} {
+		if err := ValidateSourceValue(ok); err != nil {
+			t.Errorf("ValidateSourceValue(%q) = %v, want nil", ok, err)
+		}
+	}
+}
+
+// A browse URL is not a clone URL. Suggesting owner/name from its last two
+// path segments pointed people at a repo that does not exist, and a query
+// string ended up inside the suggested name.
+func TestShorthandForOnlyAcceptsARepoRoot(t *testing.T) {
+	for in, want := range map[string]string{
+		"https://github.com/nais/pilot":                  "nais/pilot",
+		"https://github.com/nais/pilot.git":              "nais/pilot",
+		"https://github.com/nais/pilot/":                 "nais/pilot",
+		"https://github.com/nais/pilot?tab=readme":       "nais/pilot",
+		"https://github.com/nais/pilot#readme":           "nais/pilot",
+		"git@github.com:nais/pilot.git":                  "nais/pilot",
+		"https://github.com/nais/pilot/tree/main":        "",
+		"https://github.com/nais/pilot/blob/main/go.mod": "",
+		"https://github.com/nais":                        "",
+		"https://github.com/":                            "",
+	} {
+		if got := shorthandFor(in); got != want {
+			t.Errorf("shorthandFor(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

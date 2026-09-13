@@ -582,3 +582,99 @@ func TestSyncPromptOutcome(t *testing.T) {
 		})
 	}
 }
+
+// A picker that cannot run is not a user who declined. Reporting it as
+// "Cancelled." installed nothing and exited zero, so a job where
+// isInteractive() is true but nothing can answer looked like a clean no-op
+// (#802). The refusal must be an error, and must name the way to install
+// without the picker.
+func TestPickerFailureIsNotSilentCancellation(t *testing.T) {
+	isolatedConfig(t)
+	forceInteractive(t)
+	scope, err := ScopeUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := &Source{Dir: legacySourceTree(t), Repo: "navikt/copilot", SHA: "deadbeef"}
+
+	err = interactiveUserInstallFromSource(scope, src, "")
+	if err == nil {
+		t.Fatal("a picker that cannot run must return an error, not install nothing and succeed")
+	}
+	if errors.Is(err, errInstallCancelled) {
+		t.Error("a picker failure must not be reported as a user cancellation")
+	}
+	if !strings.Contains(err.Error(), "nav-pilot install") {
+		t.Errorf("the refusal must name how to install without the picker, got: %v", err)
+	}
+}
+
+// Ctrl-C on the install picker is a cancellation, not a picker that could not
+// run: huh reports it as ErrUserAborted, and treating that as a failure would
+// make an ordinary abort exit non-zero.
+func TestPickerDeclined(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		choice string
+		err    error
+		want   bool
+	}{
+		{"cancel option", "cancel", nil, true},
+		{"ctrl-c", "", huh.ErrUserAborted, true},
+		{"ctrl-c after a choice", "all", huh.ErrUserAborted, true},
+		{"picker could not run", "", errors.New("no tty"), false},
+		{"install everything", "all", nil, false},
+		{"customize", "custom", nil, false},
+	} {
+		if got := pickerDeclined(tc.choice, tc.err); got != tc.want {
+			t.Errorf("%s: pickerDeclined(%q, %v) = %v, want %v", tc.name, tc.choice, tc.err, got, tc.want)
+		}
+	}
+}
+
+// An explicit `install --user --all` has already said what it wants, so it must
+// not open the picker: it used to, and where nothing could answer the prompt the
+// advertised --all path installed nothing (#802 review). The re-install half
+// covers the trap in the bypass: the picker's flow force-updates managed files,
+// so skipping the picker must not stop --all from refreshing them.
+func TestExplicitInstallAllSkipsThePicker(t *testing.T) {
+	isolatedConfig(t)
+	forceInteractive(t)
+	stubResolveSource(t, &Source{Dir: legacySourceTree(t), Repo: defaultSourceRepo, SHA: "deadbeef"})
+
+	orig := interactiveUserInstallFn
+	t.Cleanup(func() { interactiveUserInstallFn = orig })
+	interactiveUserInstallFn = func(*InstallScope, *Source, string) error {
+		t.Error("install --user --all reached the install picker; an explicit --all must not prompt")
+		return nil
+	}
+
+	scope, err := ScopeUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cmdInstallAll(scope, "", "", false, false, false, true); err != nil {
+		t.Fatalf("install --user --all: %v", err)
+	}
+
+	agent := scope.DstPath("agents", "test-a.agent.md")
+	if _, err := os.Stat(agent); err != nil {
+		t.Fatalf("install --user --all installed nothing: %v", err)
+	}
+
+	// Re-install over a managed file that no longer matches what nav-pilot
+	// recorded. The picker's flow overwrites it; so must this one.
+	if err := os.WriteFile(agent, []byte("stale\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmdInstallAll(scope, "", "", false, false, false, true); err != nil {
+		t.Fatalf("re-install --user --all: %v", err)
+	}
+	got, err := os.ReadFile(agent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(got), "stale") {
+		t.Errorf("re-install left the managed file unrefreshed: %q", got)
+	}
+}

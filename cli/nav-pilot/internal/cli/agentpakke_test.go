@@ -1140,7 +1140,7 @@ func TestInteractiveInstallGuardsCrossSource(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				return cmdInstallAll(scope, "", "", false, false, false)
+				return cmdInstallAll(scope, "", "", false, false, false, false)
 			},
 		},
 	}

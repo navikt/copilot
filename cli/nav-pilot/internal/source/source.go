@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -78,11 +79,42 @@ func ValidateSourceValue(v string) error {
 	if strings.HasPrefix(v, "~") || strings.HasPrefix(v, ".") {
 		return fmt.Errorf("source %q must be a GitHub repo (owner/name) or an absolute path", v)
 	}
+	// A URL or an SSH form is what people try first, and both used to reach git,
+	// which failed with its own words about a repository name nobody typed
+	// (#801). Name the shorthand instead of restating the rule.
+	if strings.Contains(v, "://") || strings.HasPrefix(v, "git@") {
+		if short := shorthandFor(v); short != "" {
+			return fmt.Errorf("source %q is a URL. nav-pilot takes owner/name, try %q", v, short)
+		}
+	}
 	owner, name, ok := strings.Cut(v, "/")
 	if !ok || owner == "" || name == "" || strings.Contains(name, "/") {
 		return fmt.Errorf("source %q must be a GitHub repo (owner/name) or an absolute path", v)
 	}
 	return nil
+}
+
+// shorthandFor extracts owner/name from a clone URL, or "" when it cannot.
+// Only a repository root maps to a shorthand: a browse URL like
+// .../tree/main carries a path that is not owner/name, and guessing from its
+// last two segments would send people to a repo that does not exist.
+func shorthandFor(v string) string {
+	path := v
+	if strings.HasPrefix(v, "git@") {
+		_, after, ok := strings.Cut(v, ":")
+		if !ok {
+			return ""
+		}
+		path = after
+	} else if u, err := url.Parse(v); err == nil {
+		// Path drops any ?query and #fragment on its own.
+		path = u.Path
+	}
+	parts := strings.Split(strings.Trim(strings.TrimSuffix(path, ".git"), "/"), "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return ""
+	}
+	return parts[0] + "/" + parts[1]
 }
 
 // CloneRemoteFn is overridable in tests.
