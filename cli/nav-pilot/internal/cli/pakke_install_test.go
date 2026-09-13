@@ -62,15 +62,20 @@ var tier2PinPayloads = []struct{ client, context string }{
 	{"pi", "full"},
 }
 
-// unlaunchableClient is declared payload-bearing by the fixture but has no
-// staged launcher in this binary, so a launch for it runs the whole pinned path
-// — pin lookup, verification, SetActivePakke — and then stops at the handover
-// instead of executing a client. That is what lets a test tell "refused" from
-// "handed over" without a cplt on the machine.
+// unlaunchableClient is declared payload-bearing by the fixture. Every known
+// client has a staged launcher now, so the launch runs the whole pinned path —
+// pin lookup, verification, SetActivePakke — reaches the real launcher, and stops
+// there because no cplt is on the machine. That is what lets a test tell
+// "refused" from "handed over" without installing cplt.
+//
+// It used to stop one step earlier, on "cannot launch staged payloads for that
+// client", because pi had no launcher at all. That refusal was the subject of
+// #792 and is gone.
 const unlaunchableClient = "pi"
 
-// handoverErr is the error a launch that reached the handover returns.
-const handoverErr = "cannot launch staged payloads for that client"
+// handoverErr is the error a launch that reached the real launcher returns: the
+// staged runtime check, which runs after the tier gate and needs cplt.
+const handoverErr = "a staged agentpakke launch requires"
 
 // tier2PinSourceTree writes a conforming payload-only agentpakke: a real file
 // per payload, at a real digest and a declared mode, so the verification the
@@ -1506,8 +1511,15 @@ func TestUnlaunchableClientRefusalNamesUpdate(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), handoverErr) {
 		t.Fatalf("launch = %v, want the handover refusal", err)
 	}
-	if !strings.Contains(err.Error(), "nav-pilot update") {
+	// It used to say "nav-pilot update", which could not help: no version of
+	// nav-pilot launched a staged payload for pi, so the remediation named a
+	// command that changed nothing (#792). Now pi has a launcher and the refusal
+	// that remains is the runtime check, whose remediation is real.
+	if !strings.Contains(err.Error(), "cplt") {
 		t.Errorf("handover refusal %q names no command to run", err)
+	}
+	if strings.Contains(err.Error(), "nav-pilot update") {
+		t.Errorf("refusal still offers an upgrade that cannot help: %q", err)
 	}
 }
 

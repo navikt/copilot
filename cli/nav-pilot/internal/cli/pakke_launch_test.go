@@ -757,8 +757,11 @@ func TestRefusedHandoverPrintsNoModelNotice(t *testing.T) {
 	var stderr strings.Builder
 	io.Copy(&stderr, r)
 
-	if err == nil || !strings.Contains(err.Error(), handoverErr) {
-		t.Fatalf("launch = %v, want the handover refusal", err)
+	// This test empties stagedLaunchers itself, so it induces the no-launcher
+	// refusal deliberately and cannot use the shared handoverErr, which now
+	// points at the runtime check every real client reaches.
+	if err == nil || !strings.Contains(err.Error(), "cannot launch staged payloads for that client") {
+		t.Fatalf("launch = %v, want the no-launcher refusal", err)
 	}
 	if strings.Contains(stderr.String(), "Model:") {
 		t.Errorf("a refused launch announced a model: %q", stderr.String())

@@ -377,11 +377,47 @@ func (piProvider) ModelAdvisory(_ string) string        { return "" }
 func (piProvider) UnsupportedConfigWarnings(r domain.ResolvedConfig) []string {
 	return PiUnsupportedConfigWarnings(r)
 }
-func (piProvider) Bootstrap() (string, error)                            { return "", nil }
-func (piProvider) SyncContext(_, _ string, _, _ bool) ProviderSyncResult { return ProviderSyncResult{} }
-func (piProvider) ContextStatus() *ProviderContextStatus                 { return nil }
-func (piProvider) PrintContextStatus()                                   {}
-func (piProvider) PrintSystemDiagnostics()                               {}
+
+// Bootstrap materializes the active agentpakke for pi. Nothing is written when
+// the pakke does not declare pi as a Tier 1 client: pi's own directories are not
+// ours to fill, and a pakke that says nothing about pi gets nothing.
+func (piProvider) Bootstrap() (string, error) {
+	if !piDeclaresTier1() {
+		return "", nil
+	}
+	return EnsurePiNavContext("", "")
+}
+
+func (piProvider) SyncContext(ref, sourceRepo string, jsonOutput, hasPrevOutput bool) ProviderSyncResult {
+	if !piDeclaresTier1() {
+		return ProviderSyncResult{}
+	}
+	if _, err := EnsurePiNavContext(ref, sourceRepo); err != nil {
+		return ProviderSyncResult{Managed: true, Err: err}
+	}
+	return ProviderSyncResult{Managed: true}
+}
+
+// ContextStatus reports pi's materialized context. Nil when nothing has been
+// written, which callers rely on: they dereference State, so a status without one
+// is worse than no status.
+func (piProvider) ContextStatus() *ProviderContextStatus {
+	dir := piNavContextDir()
+	state, _ := artifacts.ReadOpenCodeState(dir)
+	if state == nil {
+		return nil
+	}
+	return &ProviderContextStatus{State: state, OutputDir: dir, ScopeName: "pi"}
+}
+
+func (piProvider) PrintContextStatus() {
+	st := piProvider{}.ContextStatus()
+	if st == nil {
+		return
+	}
+	fmt.Printf("  %s pi context: %s\n", domain.Dim("ℹ"), st.OutputDir)
+}
+func (piProvider) PrintSystemDiagnostics() {}
 
 func (piProvider) Available() bool {
 	_, err := exec.LookPath("pi")

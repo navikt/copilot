@@ -973,30 +973,6 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 	return guard, nil
 }
 
-// LaunchPi launches pi inside the cplt sandbox. pi must also be installed on
-// PATH (cplt sandboxes the pi binary). Nav-pilot config is not forwarded: pi
-// uses its own defaults, and PiUnsupportedConfigWarnings says which settings
-// were dropped. Nav context is still available via AGENTS.md in the project
-// root. Pass-through arguments after "--" are forwarded, as they are for every
-// other client: without them `nav-pilot --client pi -- run "..."` started pi
-// with no request at all. cplt is required; if it is absent, launchViaCplt
-// fails with guidance.
-func LaunchPi(resolved domain.ResolvedConfig) error {
-	if _, err := exec.LookPath("pi"); err != nil {
-		return fmt.Errorf("pi not found in PATH — install it first, or set a different client with: nav-pilot config set client copilot")
-	}
-
-	for _, msg := range PiUnsupportedConfigWarnings(resolved) {
-		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), msg)
-	}
-
-	return launchViaCplt(cpltLaunch{
-		agent:       "pi",
-		displayName: "pi",
-		agentArgs:   resolved.ExtraArgs,
-	})
-}
-
 // clientForwardsModel reports whether launching a client puts the resolved
 // model on its command line. Only pi does not: [LaunchPi] passes no nav-pilot
 // config at all, so a launch notice naming a model for pi would contradict the
@@ -1005,41 +981,8 @@ func LaunchPi(resolved domain.ResolvedConfig) error {
 //
 // One place, next to the launch that does the dropping, so the predicate cannot
 // drift from it.
-func clientForwardsModel(client string) bool { return client != "pi" }
-
-// PiUnsupportedConfigWarnings reports nav-pilot config that a pi launch drops,
-// so users understand pi will use its own defaults instead.
-//
-// The list mirrors the settings LaunchPi does not put on the command line: the
-// full launch-relevant half of domain.ResolvedConfig, not just model and mode.
-// The silent ones were the dangerous ones: allow_all_tools and ask_user read
-// as permission settings, and a user who turned them off had no way to see that
-// pi never received them.
-func PiUnsupportedConfigWarnings(resolved domain.ResolvedConfig) []string {
-	var warnings []string
-	add := func(setting, value string) {
-		warnings = append(warnings, fmt.Sprintf("%s %s is not forwarded to pi yet — pi will use its own default", setting, value))
-	}
-	if resolved.Model != "" {
-		add("model", fmt.Sprintf("%q", resolved.Model))
-	}
-	if resolved.Mode != "" && resolved.Mode != "default" {
-		add("mode", fmt.Sprintf("%q", resolved.Mode))
-	}
-	if resolved.ReasoningEffort != "" {
-		add("reasoning_effort", fmt.Sprintf("%q", resolved.ReasoningEffort))
-	}
-	if resolved.ContextTier != "" && resolved.ContextTier != "default" {
-		add("context_tier", fmt.Sprintf("%q", resolved.ContextTier))
-	}
-	if resolved.AllowAllTools {
-		add("allow_all_tools", "true")
-	}
-	if !resolved.AskUser {
-		add("ask_user", "false")
-	}
-	if resolved.LogLevel != "" {
-		add("log_level", fmt.Sprintf("%q", resolved.LogLevel))
-	}
-	return warnings
-}
+// clientForwardsModel reports whether launching a client puts the resolved model
+// on its command line. Every client does now: pi takes --model, and since
+// LaunchPi forwards it a notice naming the model is accurate rather than
+// contradicting the warning list.
+func clientForwardsModel(string) bool { return true }

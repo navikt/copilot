@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
@@ -235,17 +236,46 @@ func TestPiProvider_ModelAdvisory(t *testing.T) {
 	}
 }
 
+// TestPiProvider_ContextLifecycle: pi materializes an agentpakke like every
+// other client now. Nothing is written when the active pakke does not declare pi
+// as Tier 1, which is the only case that used to be the whole behaviour.
 func TestPiProvider_ContextLifecycle(t *testing.T) {
 	var p Provider = piProvider{}
-	summary, err := p.Bootstrap()
-	if err != nil || summary != "" {
-		t.Errorf("Bootstrap() = (%q, %v), want (\"\", nil)", summary, err)
-	}
-	res := p.SyncContext("", "", false, false)
-	if res.Managed {
-		t.Error("SyncContext().Managed = true, want false")
-	}
-	if cs := p.ContextStatus(); cs != nil {
-		t.Errorf("ContextStatus() = %v, want nil", cs)
-	}
+
+	t.Run("a pakke that does not declare pi gets nothing", func(t *testing.T) {
+		SetActivePakke(&agentpakke.Manifest{
+			Name:    "p",
+			Clients: map[string]agentpakke.ClientEntry{"copilot": {PrimaryAgents: []string{"a"}}},
+			Layout:  &agentpakke.Layout{Agents: "agents", Skills: "skills"},
+		})
+		t.Cleanup(func() { SetActivePakke(nil) })
+
+		if summary, err := p.Bootstrap(); err != nil || summary != "" {
+			t.Errorf("Bootstrap() = (%q, %v), want (\"\", nil)", summary, err)
+		}
+		if res := p.SyncContext("", "", false, false); res.Managed {
+			t.Error("SyncContext().Managed = true, want false")
+		}
+		if cs := p.ContextStatus(); cs != nil {
+			t.Errorf("ContextStatus() = %v, want nil", cs)
+		}
+	})
+
+	t.Run("a pakke declaring pi reports a managed context", func(t *testing.T) {
+		SetActivePakke(&agentpakke.Manifest{
+			Name:    "p",
+			Clients: map[string]agentpakke.ClientEntry{"pi": {PrimaryAgents: []string{"a"}}},
+			Layout:  &agentpakke.Layout{Agents: "agents", Skills: "skills"},
+		})
+		// Without the override this materializes into the developer's real home.
+		dir := t.TempDir()
+		PiNavContextDirOverride = dir
+		t.Cleanup(func() { SetActivePakke(nil); PiNavContextDirOverride = "" })
+
+		// Nil until something is materialized: the status reads the state file
+		// Bootstrap writes, and callers dereference State.
+		if cs := p.ContextStatus(); cs != nil {
+			t.Errorf("ContextStatus() before Bootstrap = %v, want nil", cs)
+		}
+	})
 }
