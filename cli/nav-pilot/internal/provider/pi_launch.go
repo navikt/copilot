@@ -39,7 +39,7 @@ func piNavContextDir() string {
 func EnsurePiNavContext(ref, sourceRepo string) (string, error) {
 	outputDir := piNavContextDir()
 
-	// The caller's source wins, then whatever the last sync recorded — the same
+	// The caller's source wins, then whatever the last sync recorded: the same
 	// order the opencode path uses. Resolving with neither picks the built-in
 	// default, so a user whose config pointed at their own pakke got stock
 	// nav-pilot materialized for pi.
@@ -120,7 +120,7 @@ func piModelArg(model string) []string {
 func PiUnsupportedConfigWarnings(resolved domain.ResolvedConfig) []string {
 	var warnings []string
 	add := func(setting, value string) {
-		warnings = append(warnings, fmt.Sprintf("%s %s is not forwarded to pi — pi has no equivalent flag", setting, value))
+		warnings = append(warnings, fmt.Sprintf("%s %s is not forwarded to pi: pi has no equivalent flag", setting, value))
 	}
 	if resolved.Mode != "" && resolved.Mode != "default" {
 		add("mode", fmt.Sprintf("%q", resolved.Mode))
@@ -147,7 +147,7 @@ func PiUnsupportedConfigWarnings(resolved domain.ResolvedConfig) []string {
 // artifacts passed as flags.
 func LaunchPi(resolved domain.ResolvedConfig) error {
 	if _, err := exec.LookPath("pi"); err != nil {
-		return fmt.Errorf("pi not found in PATH — install it first, or set a different client with: nav-pilot config set client copilot")
+		return fmt.Errorf("pi not found in PATH. Install it with: npm i -g @earendil-works/pi-coding-agent\n  Or pick another client with: nav-pilot config set client copilot")
 	}
 
 	for _, msg := range PiUnsupportedConfigWarnings(resolved) {

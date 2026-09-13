@@ -83,6 +83,19 @@ const unlaunchableClient = "pi"
 //
 // It used to stop one step earlier, on "cannot launch staged payloads for that
 // client", because pi had no launcher at all. That refusal was #792 and is gone.
+// namesACommand reports whether a refusal hands the reader something to run.
+// Which command depends on what the machine is missing, so any of the three
+// remediations the launcher can offer counts.
+func namesACommand(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "npm i -g") ||
+		strings.Contains(msg, "cplt") ||
+		strings.Contains(msg, "nav-pilot config set")
+}
+
 func reachedLauncher(err error) bool {
 	if err == nil {
 		return false
@@ -1528,9 +1541,11 @@ func TestUnlaunchableClientRefusalNamesUpdate(t *testing.T) {
 	}
 	// It used to say "nav-pilot update", which could not help: no version of
 	// nav-pilot launched a staged payload for pi, so the remediation named a
-	// command that changed nothing (#792). Now pi has a launcher and the refusal
-	// that remains is the runtime check, whose remediation is real.
-	if !strings.Contains(err.Error(), "cplt") {
+	// command that changed nothing (#792). Now pi has a launcher and whichever
+	// refusal remains is a missing binary, whose remediation is a real command.
+	// Which one it is depends on the machine, so accept either: a machine with
+	// pi stops on the cplt floor, one without stops on pi itself.
+	if !namesACommand(err) {
 		t.Errorf("handover refusal %q names no command to run", err)
 	}
 	if strings.Contains(err.Error(), "nav-pilot update") {
