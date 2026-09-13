@@ -1103,3 +1103,64 @@ func TestUnresolvableTier1RefusesFromInstalledStateAlone(t *testing.T) {
 		t.Fatalf("an installed Tier 1 source must refuse offline without the tier cache, got handled=%v err=%v", handled, err)
 	}
 }
+
+// tier1CompatManifestJSON declares a compatibility range no real copilot can
+// satisfy, so the only way past the gate is not running it.
+const tier1CompatManifestJSON = `{
+  "contractVersion": "1",
+  "name": "grillmester",
+  "description": "Grillmester agentpakke",
+  "clients": {"copilot": {"primaryAgents": ["grillmester"], "compatibility": ">=99999.0.0"}},
+  "layout": {"agents": "plugin/agents", "skills": "plugin/skills"}
+}`
+
+// A Tier 1 pakke's compatibility range is enforced at the launch boundary, over
+// the binary that launch would really run — a plain `copilot`, no cplt in sight,
+// which the gate's first shape refused with "cplt not found in PATH" (#800,
+// #815 review).
+//
+// This drives launchClientConfirming rather than the gate directly: a unit test
+// on the gate stays green if the call is deleted from the launch path, which is
+// what the review found. The fake client records every non-probe invocation, so
+// the assertion is both halves — refused, and refused before the client starts.
+func TestTier1CompatibilityRefusedAtTheLaunchBoundary(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	launched := fakeCopilotOnlyOnPath(t)
+	src := &Source{Dir: pakkeSourceTree(t, tier1CompatManifestJSON), SHA: "def5678", Version: "dev", Repo: "navikt/grillmester"}
+	if err := attachPakke(src); err != nil {
+		t.Fatalf("attachPakke: %v", err)
+	}
+	stubResolveSource(t, src)
+
+	err := launchClientConfirming(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"}, false)
+	if err == nil {
+		t.Fatal("a Tier 1 client outside the declared compatibility range must be refused")
+	}
+	// The probed version, not just the range: a probe that failed instead of
+	// running would satisfy a range-only assertion.
+	for _, want := range []string{"1.0.81", "99999.0.0"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal must name %q, got: %v", want, err)
+		}
+	}
+	if _, err := os.Stat(launched); err == nil {
+		t.Error("the client was launched even though the compatibility gate refused")
+	}
+}
+
+// fakeCopilotOnlyOnPath puts a plain, non-cplt `copilot` on an otherwise empty
+// PATH and returns the marker file it writes if it is ever run as anything but
+// a version probe. PATH is replaced, not prepended: a cplt on the developer's
+// machine would otherwise be selected, and this is the no-cplt Tier 1 case.
+func fakeCopilotOnlyOnPath(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "launched")
+	script := "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'GitHub Copilot CLI 1.0.81-14.'; exit 0; fi\necho \"$@\" > " + marker + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "copilot"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	return marker
+}

@@ -18,15 +18,22 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
-// Runtime gates on the staged (Tier 2) launch path.
+// Runtime gates on the launch paths.
 //
-// Two checks run before a staged launch builds its cplt invocation: the cplt
-// binary must be at or past a reviewed baseline, and — when the agentpakke
-// declares one — the client must fall inside its `compatibility` range. Both
-// are fatal. Team eSyfo made runtime enforcement a condition for G4 sign-off
-// (#437, comment 5437575432): "Runtime client compatibility ranges and a
-// reviewed cplt minimum should be enforced, not only validated as manifest
-// syntax." The legacy path is untouched.
+// Two checks run before a staged (Tier 2) launch builds its cplt invocation:
+// the cplt binary must be at or past a reviewed baseline, and — when the
+// agentpakke declares one — the client must fall inside its `compatibility`
+// range. Both are fatal. Team eSyfo made runtime enforcement a condition for
+// G4 sign-off (#437, comment 5437575432): "Runtime client compatibility ranges
+// and a reviewed cplt minimum should be enforced, not only validated as
+// manifest syntax."
+//
+// The compatibility range is enforced on the Tier 1 / legacy path too, through
+// [CheckPakkeClientCompatibility] at the common launch boundary: a range on a
+// Tier 1 client entry used to validate, install and then do nothing (#800).
+// The cplt floor stays a Tier 2 requirement — a Tier 1 launch stages no
+// payload — and the Tier 1 probe runs the binary that launch will really run,
+// not cplt (see probeLaunchClientVersion).
 //
 // Everything uncertain is fatal here, not a warning. This is past the tier
 // gate, where fail-closed is the rule (agentpakke-beslutninger.md §4), and a
@@ -137,6 +144,30 @@ var probeClientVersion = func(client string) (string, error) {
 		"--project-dir", dir, "--", "--version")
 }
 
+// probeLaunchClientVersion probes the binary a non-staged launch is about to
+// run. Which binary that is differs from the staged path, and probing through
+// cplt regardless refused a perfectly valid Tier 1 launch with "cplt not found
+// in PATH" (#815 review): FindCopilotCLI selects the plain `copilot` binary
+// when cplt is absent, and LaunchCopilotResolved then runs it directly.
+//
+// So: copilot is probed through whichever binary FindCopilotCLI selects —
+// sandboxed via probeClientVersion when that is cplt, because the launch is
+// sandboxed too, and directly when it is the plain CLI. Every other client is
+// launched under its own name and probed the same way.
+var probeLaunchClientVersion = func(client string) (string, error) {
+	if client != "copilot" {
+		return runStagedProbe(clientProbeTimeout, client, "--version")
+	}
+	path, name := FindCopilotCLI()
+	if path == "" {
+		return "", errors.New("neither cplt nor copilot found in PATH")
+	}
+	if name == "cplt" {
+		return probeClientVersion(client)
+	}
+	return runStagedProbe(clientProbeTimeout, path, "--version")
+}
+
 func stagedCpltPath() (string, error) {
 	path, name := FindCopilotCLI()
 	if path == "" || name != "cplt" {
@@ -203,7 +234,7 @@ func checkStagedRuntime(client, compatibility string) error {
 	if compatibility == "" {
 		return nil
 	}
-	return checkClientCompatibility(client, compatibility)
+	return checkClientCompatibility(client, compatibility, probeClientVersion)
 }
 
 // pakkeCompatibility returns the client version range the active agentpakke
@@ -291,16 +322,19 @@ func ParseCpltVersion(out string) string {
 	return m[1]
 }
 
-// checkClientCompatibility refuses a staged launch whose client falls outside
-// the range the agentpakke declares — and equally one whose version cannot be
+// checkClientCompatibility refuses a launch whose client falls outside the
+// range the agentpakke declares — and equally one whose version cannot be
 // established, since an unenforceable declaration is not an enforced one.
-func checkClientCompatibility(client, compatibility string) error {
+//
+// The probe is a parameter because the two launch paths run different binaries:
+// staged probes cplt, Tier 1 probes what it is about to launch.
+func checkClientCompatibility(client, compatibility string, probe func(string) (string, error)) error {
 	pakke := source.ActivePakke().Name
 	rng, err := agentpakke.ParseVersionRange(compatibility)
 	if err != nil {
 		return fmt.Errorf("agentpakke %q declares an unusable compatibility range %q for %s: %w", pakke, compatibility, client, err)
 	}
-	out, err := probeClientVersion(client)
+	out, err := probe(client)
 	if err != nil {
 		return fmt.Errorf("could not read the %s version, which agentpakke %q requires to be %s: %w", client, pakke, compatibility, err)
 	}
@@ -389,4 +423,21 @@ func parseClientVersion(client, out string) (semver3, error) {
 		v[i] = n
 	}
 	return v, nil
+}
+
+// CheckPakkeClientCompatibility enforces the client version range the active
+// agentpakke declares, for a launch that is not a staged Tier 2 one.
+//
+// Tier 2 already gates this inside checkStagedRuntime. Tier 1 did not, so a
+// compatibility range on a Tier 1 client entry validated, installed, and then
+// did nothing — the schema promised a gate that only half the tiers had (#800).
+// The cplt floor is deliberately not checked here: that is a Tier 2 requirement,
+// and a Tier 1 launch does not stage a payload. The probe is the launch-path one
+// for the same reason: this path runs the client cplt may not be in front of.
+func CheckPakkeClientCompatibility(client string) error {
+	compatibility := pakkeCompatibility(client)
+	if compatibility == "" {
+		return nil
+	}
+	return checkClientCompatibility(client, compatibility, probeLaunchClientVersion)
 }
