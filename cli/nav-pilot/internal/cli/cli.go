@@ -240,6 +240,20 @@ func run(args []string) error {
 				}
 				i++
 				cliOverrides.Client = args[i]
+			case "-s", "--source":
+				// The pre-scan is the only place a launch-path --source is
+				// parsed: the subcommand loop below never sees these args.
+				// Without this case the flag was dropped on the floor, so a
+				// first run with a custom pakke seeded and launched the
+				// built-in default (#813).
+				if i+1 >= len(args) {
+					return fmt.Errorf("--source requires a value")
+				}
+				i++
+				cliOverrides.Source = args[i]
+				if err := validateSourceValue(cliOverrides.Source); err != nil {
+					return err
+				}
 			case "--persona":
 				if i+1 >= len(args) {
 					return fmt.Errorf("--persona requires a value")
@@ -363,12 +377,12 @@ func run(args []string) error {
 	// Handle --sync flag: non-interactive sync-all + launch
 	if args[0] == "--sync" {
 		if isInteractive() {
-			if err := maybeRunFirstRunSetup(); err != nil {
+			if err := maybeRunFirstRunSetup(cliOverrides.Source); err != nil {
 				fmt.Fprintf(os.Stderr, "%s Config setup failed: %v\n", yellow("⚠"), err)
 			}
 		}
 		if err := runWithCommandTelemetry("auto_sync", "non_interactive", "auto", func() error {
-			return cmdSyncAuto(".", "", "", true, false)
+			return cmdSyncAuto(".", "", cliOverrides.Source, true, false)
 		}); err != nil && err != errUpdatesAvailable {
 			fmt.Fprintf(os.Stderr, "%s Sync failed: %v\n", yellow("⚠"), err)
 		}

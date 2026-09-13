@@ -189,7 +189,7 @@ func isGitRepo(dir string) bool {
 // The run() entry point also gates cmdInteractive behind isInteractive().
 func cmdInteractive(overrides CLIOverrides) error {
 	// On first interactive run without a config, offer the setup wizard.
-	if err := maybeRunFirstRunSetup(); err != nil {
+	if err := maybeRunFirstRunSetup(overrides.Source); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Config setup failed: %v\n", yellow("⚠"), err)
 	}
 
