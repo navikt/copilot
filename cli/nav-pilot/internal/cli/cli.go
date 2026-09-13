@@ -111,7 +111,7 @@ Flags:
   -u, --user              Install to ~/.copilot — works across all repos (agents, skills & instructions only)
   --repo                  Install to this repository's .github/ (opposite of --user; skips the scope question)
   --type <type>           Artifact type for install (agent, skill, instruction, prompt)
-  --all                   Install everything (use with --user)
+  --all                   Install everything to --user or --repo without prompting
   --frozen                Install only what .nav-pilot/agentpakke.lock.json declares: never prompts, never moves the pin (install only)
   --apply                 Apply available updates (sync only)
   --sync                  Sync all scopes and launch Copilot (non-interactive)
@@ -606,8 +606,15 @@ func run(args []string) error {
 			install := func(err error) error {
 				return finishInstall(err, sourceRepo, dryRun, installType == "")
 			}
-			if userScope && (len(positional) == 0 || installAll) {
-				return install(cmdInstallAll(scope, ref, sourceRepo, dryRun, force, jsonOutput))
+			// An explicit scope flag plus --all leaves nothing to pick: the
+			// flag named the target and --all named the selection, so install
+			// everything without a prompt. Without a scope flag the no-flag
+			// interactive flow is unchanged, picker and all.
+			if installAll && scopeProvided {
+				return install(cmdInstallAll(scope, ref, sourceRepo, dryRun, force, jsonOutput, true))
+			}
+			if userScope && len(positional) == 0 {
+				return install(cmdInstallAll(scope, ref, sourceRepo, dryRun, force, jsonOutput, false))
 			}
 			if len(positional) == 0 && frozen {
 				// The declaration names a source, not a collection; the name

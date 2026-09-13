@@ -914,10 +914,14 @@ func cmdInstallInteractive(targetDir, ref, sourceRepo string) error {
 	return interactiveRepoInstall(src, scope, sourceRepo)
 }
 
-// cmdInstallAll installs all agents and skills to user scope by scanning the source.
-// Used when `nav-pilot install --user` is run without a collection name.
-// When interactive, offers the same picker as the root `nav-pilot` command.
-func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error {
+// cmdInstallAll installs all agents and skills to a scope by scanning the source.
+// Used when `nav-pilot install --user` is run without a collection name, and
+// when --all is passed with an explicit scope.
+//
+// explicitAll is true when the command line said --all. Then there is nothing
+// left to ask: the scope flag named the target and --all named the selection,
+// so the picker is skipped.
+func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool, explicitAll bool) error {
 	if err := guardScopeSource(scope, sourceRepo); err != nil {
 		return err
 	}
@@ -930,9 +934,19 @@ func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bo
 	}
 	defer src.Cleanup()
 
-	// Interactive mode: offer the picker (same UX as `nav-pilot` root command)
+	// Interactive mode: offer the picker (same UX as `nav-pilot` root command),
+	// but only when the command line left the question open. An explicit --all
+	// has answered it, and asking anyway is how `install --user --all` failed
+	// wherever nothing could answer the prompt (#802 review).
 	if isInteractive() && !dryRun && !jsonOutput {
-		return interactiveUserInstallFromSource(scope, src, sourceRepo)
+		if !explicitAll {
+			return interactiveUserInstallFn(scope, src, sourceRepo)
+		}
+		// The picker's flow force-updates managed files on a re-install, and
+		// that is what someone re-running `install --user --all` is asking for.
+		// Taking only the --force flag here would quietly stop refreshing them.
+		state, _ := readScopedState(scope)
+		force = force || hasManagedFiles(state)
 	}
 
 	return installAllFromSource(scope, src, nil, dryRun, force, jsonOutput)

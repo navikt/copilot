@@ -631,3 +631,50 @@ func TestPickerDeclined(t *testing.T) {
 		}
 	}
 }
+
+// An explicit `install --user --all` has already said what it wants, so it must
+// not open the picker: it used to, and where nothing could answer the prompt the
+// advertised --all path installed nothing (#802 review). The re-install half
+// covers the trap in the bypass: the picker's flow force-updates managed files,
+// so skipping the picker must not stop --all from refreshing them.
+func TestExplicitInstallAllSkipsThePicker(t *testing.T) {
+	isolatedConfig(t)
+	forceInteractive(t)
+	stubResolveSource(t, &Source{Dir: legacySourceTree(t), Repo: defaultSourceRepo, SHA: "deadbeef"})
+
+	orig := interactiveUserInstallFn
+	t.Cleanup(func() { interactiveUserInstallFn = orig })
+	interactiveUserInstallFn = func(*InstallScope, *Source, string) error {
+		t.Error("install --user --all reached the install picker; an explicit --all must not prompt")
+		return nil
+	}
+
+	scope, err := ScopeUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cmdInstallAll(scope, "", "", false, false, false, true); err != nil {
+		t.Fatalf("install --user --all: %v", err)
+	}
+
+	agent := scope.DstPath("agents", "test-a.agent.md")
+	if _, err := os.Stat(agent); err != nil {
+		t.Fatalf("install --user --all installed nothing: %v", err)
+	}
+
+	// Re-install over a managed file that no longer matches what nav-pilot
+	// recorded. The picker's flow overwrites it; so must this one.
+	if err := os.WriteFile(agent, []byte("stale\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmdInstallAll(scope, "", "", false, false, false, true); err != nil {
+		t.Fatalf("re-install --user --all: %v", err)
+	}
+	got, err := os.ReadFile(agent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(got), "stale") {
+		t.Errorf("re-install left the managed file unrefreshed: %q", got)
+	}
+}
