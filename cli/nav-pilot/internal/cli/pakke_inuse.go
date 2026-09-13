@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -55,6 +56,28 @@ const (
 	holdSuffix = ".hold"
 )
 
+// warnHoldClose reports a marker file that would not close.
+//
+// Same rule as #816's: a close that fails is said out loud rather than
+// dropped, and does not fail the command around it. The marker files are
+// bookkeeping — nothing a session needs lives in one — and every site that
+// closes one has already reached its verdict by then: the flock said whether a
+// session is alive, or the write said whether the claim could be made. A close
+// failing afterwards degrades nothing that verdict rests on, and failing a
+// launch or an install over it would be worse than the fault.
+//
+// Nothing is synced. A marker is read by another process through the page
+// cache, so a successful write is visible immediately; the only thing a sync
+// would buy is surviving a machine crash, and a machine crash ends every
+// session a marker could have protected.
+//
+// The directory handle [lockSource] opens is not closed through here: it is
+// read-only, and the lock it carries is released by closing it whatever the
+// close reports.
+func warnHoldClose(path string, err error) {
+	fmt.Fprintf(os.Stderr, "%s could not close the agentpakke hold marker %s: %v\n", yellow("⚠"), path, err)
+}
+
 // currentHold is this process's claim, if it has one. A process launches one
 // client from one revision, so there is exactly one — and a launch that
 // re-reads the pin after an update replaces it rather than adding to it, so a
@@ -83,12 +106,14 @@ func lockSource(repo string) (unlock func(), ok bool) {
 		return func() {}, false
 	}
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
-		f.Close()
+		_ = f.Close()
 		return func() {}, false
 	}
 	return func() {
 		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
-		f.Close()
+		// Read-only, and closing is what releases the lock whatever it
+		// reports, so there is nothing here a caller could act on.
+		_ = f.Close()
 	}, true
 }
 
@@ -139,12 +164,19 @@ func holdRevision(repo, revision string) {
 		// Something else holds this exact path, which can only be another
 		// live process with this pid — impossible — or a lock this process
 		// already holds on a second descriptor. Either way, do not claim it.
-		f.Close()
+		if err := f.Close(); err != nil {
+			warnHoldClose(path, err)
+		}
 		return
 	}
 	if _, err := f.WriteString(revision); err != nil {
-		f.Close()
-		os.Remove(path)
+		// No claim is made either way: the marker is closed and taken away
+		// again, so what the close reports changes nothing but is still worth
+		// saying.
+		if cerr := f.Close(); cerr != nil {
+			warnHoldClose(path, cerr)
+		}
+		_ = os.Remove(path)
 		return
 	}
 	currentHold.file, currentHold.path = f, path
@@ -164,8 +196,14 @@ func releaseHeld() {
 	if currentHold.file == nil {
 		return
 	}
-	os.Remove(currentHold.path)
-	currentHold.file.Close() // releases the flock
+	// The file is unlinked first, so a close that fails leaves the lock on an
+	// inode no other process can reach — the claim is gone from the directory
+	// either way, and there is nothing to retry: a second Close on a Go file
+	// reports only that it was already closed.
+	_ = os.Remove(currentHold.path)
+	if err := currentHold.file.Close(); err != nil { // closing releases the flock
+		warnHoldClose(currentHold.path, err)
+	}
 	currentHold.file, currentHold.path = nil, ""
 }
 
@@ -203,14 +241,20 @@ func heldRevisions(repo string) ([]string, bool) {
 			// Nothing holds it, so no session does: the kernel would not have
 			// let go otherwise.
 			_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
-			f.Close()
-			os.Remove(path)
+			if err := f.Close(); err != nil {
+				warnHoldClose(path, err)
+			}
+			// The verdict came from the flock, which already succeeded, so a
+			// close that fails does not make this marker live again.
+			_ = os.Remove(path)
 			continue
 		}
-		data, err := io.ReadAll(f)
-		f.Close()
+		data, readErr := io.ReadAll(f)
+		if err := f.Close(); err != nil {
+			warnHoldClose(path, err)
+		}
 		name := strings.TrimSpace(string(data))
-		if err != nil || name == "" {
+		if readErr != nil || name == "" {
 			// Held by a live session naming a revision this cannot read. The
 			// tree it is reading is unknown, so nothing may be deleted.
 			return nil, false
