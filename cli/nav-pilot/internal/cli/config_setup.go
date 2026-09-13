@@ -95,10 +95,20 @@ func writeSetupConfig(answers setupAnswers) error {
 	return os.Chmod(path, 0o600)
 }
 
+// runConfigSetupFn is overridable in tests, the way cmdSyncFn is: the wizard
+// itself needs a terminal, so the only way to assert what reaches it is to
+// stand in for it.
+var runConfigSetupFn = runConfigSetup
+
 // runConfigSetup runs the interactive first-run wizard.
 // Returns nil on user cancel (so callers never block).
 // Each huh prompt: on cancel/error, print a soft notice and return nil.
-func runConfigSetup() error {
+//
+// flagSource is the --source the command line carried, or "" when it carried
+// none. It is the flag half of the source precedence, and the wizard needs it
+// because first-run setup happens before the config file exists: a first run
+// with a custom source has nowhere else to learn it from (#813).
+func runConfigSetup(flagSource string) error {
 	fmt.Println()
 	fmt.Printf("%s  First-run setup\n", bold("🧭 nav-pilot"))
 	fmt.Println(dim("  Set your preferences — change anytime with 'nav-pilot config set'."))
@@ -194,8 +204,18 @@ func runConfigSetup() error {
 
 	// Bootstrap the selected provider on first run (e.g. opencode: write OTel config
 	// and seed Nav context so the user is immediately ready without a separate step).
+	//
+	// The --source this run carried, else the file the wizard just wrote
+	// (writeSetupConfig preserves a persisted source), so a user with their own
+	// pakke gets that pakke seeded rather than the built-in default (#813) —
+	// the same precedence every other source lookup uses. A bad value is not
+	// worth aborting setup over: the seeding is the optional part.
 	if p != nil {
-		if summary, ctxErr := p.Bootstrap(); ctxErr != nil {
+		seedSource, srcErr := sourceRepoFor(flagSource)
+		if srcErr != nil {
+			fmt.Fprintf(os.Stderr, "%s Could not read the configured source: %v\n", yellow("⚠"), srcErr)
+		}
+		if summary, ctxErr := p.Bootstrap(ResolvedConfig{Client: answers.Client, Source: seedSource}); ctxErr != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not seed Nav context for %s: %v\n", yellow("⚠"), p.DisplayName(), ctxErr)
 		} else if summary != "" {
 			fmt.Printf("  %s Nav context seeded: %s\n", green("✓"), summary)
@@ -218,7 +238,7 @@ func runConfigSetup() error {
 // It is a no-op when any of the following are true:
 //   - the terminal is not interactive (isInteractive() == false)
 //   - the config file already exists
-func maybeRunFirstRunSetup() error {
+func maybeRunFirstRunSetup(flagSource string) error {
 	if !isInteractive() {
 		return nil
 	}
@@ -226,7 +246,7 @@ func maybeRunFirstRunSetup() error {
 		// File exists (err == nil) or some other stat error — skip setup.
 		return nil
 	}
-	return runConfigSetup()
+	return runConfigSetupFn(flagSource)
 }
 
 // cmdConfigSetup implements the 'nav-pilot config setup' subcommand.
@@ -248,7 +268,9 @@ func cmdConfigSetup(force bool) error {
 	if !isInteractive() {
 		return fmt.Errorf("config setup requires an interactive terminal.\n\nUse 'nav-pilot config init' to create a template, then edit it directly")
 	}
-	if err := runConfigSetup(); err != nil {
+	// No flag source: `config setup` does not persist one, so seeding from a
+	// --source would materialize a pakke the config it just wrote never names.
+	if err := runConfigSetupFn(""); err != nil {
 		return err
 	}
 

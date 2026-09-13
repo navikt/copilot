@@ -137,7 +137,7 @@ func TestCopilotProvider_UnsupportedConfigWarnings(t *testing.T) {
 
 func TestCopilotProvider_ContextLifecycle(t *testing.T) {
 	var p Provider = copilotProvider{}
-	summary, err := p.Bootstrap()
+	summary, err := p.Bootstrap(domain.ResolvedConfig{})
 	if err != nil || summary != "" {
 		t.Errorf("Bootstrap() = (%q, %v), want (\"\", nil)", summary, err)
 	}
@@ -253,7 +253,7 @@ func TestPiProvider_ContextLifecycle(t *testing.T) {
 		})
 		t.Cleanup(func() { SetActivePakke(nil) })
 
-		if summary, err := p.Bootstrap(); err != nil || summary != "" {
+		if summary, err := p.Bootstrap(domain.ResolvedConfig{}); err != nil || summary != "" {
 			t.Errorf("Bootstrap() = (%q, %v), want (\"\", nil)", summary, err)
 		}
 		if res := p.SyncContext("", "", false, false); res.Managed {
@@ -288,8 +288,8 @@ func TestPiProvider_ContextLifecycle(t *testing.T) {
 		}
 
 		// An isolated source, so the lifecycle neither hits the network nor
-		// depends on the checkout it runs in: Bootstrap gets no source (that is
-		// #813), so ResolveSource would otherwise auto-detect the navikt/copilot
+		// depends on the checkout it runs in: this Bootstrap is handed an empty
+		// config, so ResolveSource would otherwise auto-detect the navikt/copilot
 		// working copy the tests run inside. Away from it the clone hook answers.
 		t.Chdir(t.TempDir())
 		origClone := source.CloneRemoteFn
@@ -303,7 +303,7 @@ func TestPiProvider_ContextLifecycle(t *testing.T) {
 			return &source.Source{Dir: sourceDir, SHA: "test"}, nil
 		}
 
-		summary, err := p.Bootstrap()
+		summary, err := p.Bootstrap(domain.ResolvedConfig{})
 		if err != nil {
 			t.Fatalf("Bootstrap() error: %v", err)
 		}

@@ -210,7 +210,7 @@ func TestMaybeRunFirstRunSetup_NonInteractive(t *testing.T) {
 	forceNonInteractive = true
 	defer func() { forceNonInteractive = false }()
 
-	if err := maybeRunFirstRunSetup(); err != nil {
+	if err := maybeRunFirstRunSetup(""); err != nil {
 		t.Fatalf("expected nil error (non-interactive), got: %v", err)
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
@@ -227,7 +227,7 @@ func TestMaybeRunFirstRunSetup_FileExists(t *testing.T) {
 	// Even in interactive mode, must not overwrite.
 	// (isInteractive() is false in test, but we test the stat guard here.)
 
-	if err := maybeRunFirstRunSetup(); err != nil {
+	if err := maybeRunFirstRunSetup(""); err != nil {
 		t.Fatalf("expected nil error when file exists, got: %v", err)
 	}
 
@@ -245,7 +245,7 @@ func TestMaybeRunFirstRunSetup_NonInteractiveNoFile(t *testing.T) {
 	defer func() { forceNonInteractive = false }()
 
 	// Must not attempt the wizard; returns nil immediately.
-	if err := maybeRunFirstRunSetup(); err != nil {
+	if err := maybeRunFirstRunSetup(""); err != nil {
 		t.Errorf("expected nil, got: %v", err)
 	}
 	if _, err := os.Stat(configPath()); !os.IsNotExist(err) {
@@ -292,7 +292,7 @@ func TestWriteSetupConfig_OpenCode_BootstrapsOTelAndContext(t *testing.T) {
 	if err := providerpkg.EnsureOpenCodeOTelConfig(); err != nil {
 		t.Fatalf("ensureOpenCodeOTelConfig: %v", err)
 	}
-	summary, err := providerpkg.EnsureOpenCodeNavContext()
+	summary, err := providerpkg.EnsureOpenCodeNavContext("", "")
 	if err != nil {
 		t.Fatalf("ensureOpenCodeNavContext: %v", err)
 	}
@@ -315,7 +315,7 @@ func TestWriteSetupConfig_OpenCode_BootstrapsOTelAndContext(t *testing.T) {
 
 	// Second run must be idempotent — no error, same AGENTS.md content.
 	first, _ := os.ReadFile(agentsPath)
-	summary2, err2 := providerpkg.EnsureOpenCodeNavContext()
+	summary2, err2 := providerpkg.EnsureOpenCodeNavContext("", "")
 	if err2 != nil {
 		t.Fatalf("second ensureOpenCodeNavContext: %v", err2)
 	}

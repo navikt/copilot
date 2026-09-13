@@ -148,16 +148,22 @@ func repoScopeDir() string {
 // Returns a short summary string (e.g. "AGENTS.md + 3 skill(s)") suitable for
 // the launch message, or an empty string if nothing was produced.
 // Non-fatal: callers should warn and continue on error.
-func EnsureOpenCodeNavContext() (string, error) {
+//
+// sourceRepo is the caller's effective source, and it wins; only then does
+// whatever the last sync recorded apply. Resolving with neither picks the
+// built-in default, which is how a user whose config named their own pakke got
+// stock nav-pilot materialized on a machine with no opencode state (#813).
+// Same order as [EnsurePiNavContext].
+func EnsureOpenCodeNavContext(ref, sourceRepo string) (string, error) {
 	outputDir := openCodeNavContextDir()
 	prevState, _ := artifacts.ReadOpenCodeState(outputDir)
 
-	sRepo := ""
-	if prevState != nil && prevState.SourceRepo != "" {
+	sRepo := sourceRepo
+	if sRepo == "" && prevState != nil && prevState.SourceRepo != "" {
 		sRepo = prevState.SourceRepo
 	}
 
-	src, err := source.ResolveSource("", sRepo, cliVersion)
+	src, err := source.ResolveSource(ref, sRepo, cliVersion)
 	if err != nil {
 		return "", fmt.Errorf("resolving source: %w", err)
 	}
@@ -718,7 +724,9 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		}
 	}
 
-	navSummary, ctxErr := EnsureOpenCodeNavContext()
+	// Materialize from the source this launch resolved, not from whatever the
+	// last sync happened to record (#813).
+	navSummary, ctxErr := EnsureOpenCodeNavContext("", resolved.Source)
 	if ctxErr != nil {
 		fmt.Fprintf(os.Stderr, "%s Warning: could not materialize Nav context for opencode: %v\n", domain.Yellow("⚠"), ctxErr)
 	}

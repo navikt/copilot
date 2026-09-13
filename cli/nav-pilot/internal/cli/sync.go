@@ -988,9 +988,19 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 
 	// Sync provider-specific context artifacts (e.g. opencode Nav context).
 	// Each provider checks its own state and skips silently if not managed.
+	//
+	// The effective source, not the bare --source flag: the flag is empty unless
+	// someone typed it, so a provider was left recovering the source from its own
+	// state file and, failing that, from the built-in default (#813). The scoped
+	// syncs above keep the flag, because refuseSourceSwitch reads it as "the user
+	// asked to switch" and a configured source is no such request.
+	providerSource, srcErr := sourceRepoFor(sourceRepo)
+	if srcErr != nil && !jsonOutput {
+		fmt.Fprintf(os.Stderr, "%s Could not read the configured source: %v\n", yellow("⚠"), srcErr)
+	}
 	hasPrevOutput := repoState != nil || userState != nil
 	for _, p := range allProviders() {
-		res := p.SyncContext(ref, sourceRepo, jsonOutput, hasPrevOutput)
+		res := p.SyncContext(ref, providerSource, jsonOutput, hasPrevOutput)
 		if res.Managed {
 			hasPrevOutput = true
 		}
