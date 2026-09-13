@@ -974,15 +974,11 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 }
 
 // clientForwardsModel reports whether launching a client puts the resolved
-// model on its command line. Only pi does not: [LaunchPi] passes no nav-pilot
-// config at all, so a launch notice naming a model for pi would contradict the
-// warning [PiUnsupportedConfigWarnings] prints one line later, and would name a
-// model the session does not run on.
+// model on its command line. Every client does: copilot and opencode always
+// have, and pi takes --model, which [LaunchPi] now forwards. So a launch notice
+// naming the session model is accurate for all of them.
 //
-// One place, next to the launch that does the dropping, so the predicate cannot
-// drift from it.
-// clientForwardsModel reports whether launching a client puts the resolved model
-// on its command line. Every client does now: pi takes --model, and since
-// LaunchPi forwards it a notice naming the model is accurate rather than
-// contradicting the warning list.
+// Kept as a predicate rather than inlined: it is what [ResolvedModelNotice]
+// asks before naming a model, and the next client added answers it here, next
+// to the launches, rather than by editing the notice.
 func clientForwardsModel(string) bool { return true }

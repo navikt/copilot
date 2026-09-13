@@ -208,7 +208,10 @@ func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, source
 		for i, h := range skipped {
 			names[i] = h.Name
 		}
-		fmt.Printf("  %s %d hook(s) not exported: %s. nav-pilot does not yet install them for OpenCode; see navikt/copilot#709.\n",
+		// stderr, not stdout: this function also runs under `nav-pilot sync
+		// --json` (through every provider's SyncContext), and a source with
+		// hooks prepended this line to the JSON document.
+		fmt.Fprintf(os.Stderr, "  %s %d hook(s) not exported: %s. nav-pilot does not yet install them for OpenCode; see navikt/copilot#709.\n",
 			domain.Yellow("⚠"), len(names), strings.Join(names, ", "))
 	}
 

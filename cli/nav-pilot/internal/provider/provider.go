@@ -388,12 +388,35 @@ func (piProvider) Bootstrap() (string, error) {
 	return EnsurePiNavContext("", "")
 }
 
+// SyncContext refreshes pi's materialized context, and only that: the sync
+// loop's contract is that a provider with no managed state skips silently
+// (internal/cli/sync.go), so a pakke merely declaring pi must not make an
+// ordinary `nav-pilot sync` create ~/.nav-pilot/pi. The state file is what
+// Bootstrap or a launch writes, so its absence means pi was never launched.
 func (piProvider) SyncContext(ref, sourceRepo string, jsonOutput, hasPrevOutput bool) ProviderSyncResult {
 	if !piDeclaresTier1() {
 		return ProviderSyncResult{}
 	}
+	if state, _ := artifacts.ReadOpenCodeState(piNavContextDir()); state == nil {
+		return ProviderSyncResult{}
+	}
+	// jsonOutput is honoured the way the opencode provider honours it: nothing
+	// this path prints may land on stdout while a JSON document is being
+	// written there.
+	if !jsonOutput {
+		if hasPrevOutput {
+			fmt.Println()
+		}
+		fmt.Printf("%s Syncing %s scope...\n", domain.Dim("→"), domain.Bold("pi"))
+	}
 	if _, err := EnsurePiNavContext(ref, sourceRepo); err != nil {
+		if !jsonOutput {
+			fmt.Printf("%s Pi scope sync failed.\n", domain.Yellow("⚠"))
+		}
 		return ProviderSyncResult{Managed: true, Err: err}
+	}
+	if !jsonOutput {
+		fmt.Printf("%s Pi scope synced.\n", domain.Green("✓"))
 	}
 	return ProviderSyncResult{Managed: true}
 }

@@ -82,8 +82,16 @@ func piSkillArgs(contextDir, persona string) []string {
 		args = append(args, "--skill", d)
 	}
 	if persona != "" {
-		if f := filepath.Join(contextDir, "agents", persona+".md"); fileExists(f) {
-			args = append(args, "--append-system-prompt", f)
+		// Two spellings reach this one lookup. Tier 1 materialization renames
+		// agents to <name>.md (see artifacts.SyncOpenCodeArtifacts), while a
+		// staged Tier 2 payload keeps the canonical <name>.agent.md. Accepting
+		// only the first meant a staged pi launch found no persona file and
+		// started without the persona its payload declares.
+		for _, name := range []string{persona + ".agent.md", persona + ".md"} {
+			if f := filepath.Join(contextDir, "agents", name); fileExists(f) {
+				args = append(args, "--append-system-prompt", f)
+				break
+			}
 		}
 	}
 	if f := filepath.Join(contextDir, "AGENTS.md"); fileExists(f) {
@@ -169,16 +177,27 @@ func LaunchPi(resolved domain.ResolvedConfig) error {
 	}
 	contextDir := piNavContextDir()
 
-	args := piSkillArgs(contextDir, persona)
-	args = append(args, piModelArg(resolved.Model)...)
-	args = append(args, resolved.ExtraArgs...)
-
 	return launchViaCplt(cpltLaunch{
 		agent:       "pi",
 		displayName: "pi",
 		cpltArgs:    []string{"--allow-read", contextDir},
-		agentArgs:   args,
+		agentArgs:   piLaunchArgs(contextDir, persona, resolved),
 	})
+}
+
+// piLaunchArgs is the Tier 1 pi argument vector: the materialized artifacts,
+// then the resolved model, then whatever the user passed after --.
+func piLaunchArgs(contextDir, persona string, resolved domain.ResolvedConfig) []string {
+	model := resolved.Model
+	if model == "" {
+		// The fallback the staged path already had. Without it a Tier 1 launch
+		// dropped the pakke's defaultModel while ResolvedModelNotice announced
+		// it, so the notice named a model pi never received.
+		model = pakkeDeclaredModel("pi")
+	}
+	args := piSkillArgs(contextDir, persona)
+	args = append(args, piModelArg(model)...)
+	return append(args, resolved.ExtraArgs...)
 }
 
 // piDeclaresTier1 reports whether the active agentpakke declares pi as a Tier 1

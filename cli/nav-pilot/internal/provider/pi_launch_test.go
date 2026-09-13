@@ -4,8 +4,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // TestPiAcceptsTheFlagsWeSend runs the real pi binary and checks it accepts the
@@ -46,5 +50,65 @@ func TestPiAcceptsTheFlagsWeSend(t *testing.T) {
 		if strings.Contains(strings.ToLower(string(out)), strings.ToLower(bad)) {
 			t.Fatalf("pi rejected a flag nav-pilot sends (%v): %s\nargs: %v", err, out, args)
 		}
+	}
+}
+
+// TestPiLaunchArgsModel pins the Tier 1 model resolution: a user pin wins, and
+// an unpinned launch falls back to the active agentpakke's defaultModel — the
+// model ResolvedModelNotice has always announced, and which the launch used to
+// drop, leaving pi on its own default.
+func TestPiLaunchArgsModel(t *testing.T) {
+	SetActivePakke(&agentpakke.Manifest{
+		Name:    "p",
+		Clients: map[string]agentpakke.ClientEntry{"pi": {PrimaryAgents: []string{"a"}, DefaultModel: "claude-opus-5"}},
+	})
+	t.Cleanup(func() { SetActivePakke(nil) })
+
+	// An empty context dir: no skills, no persona file, no AGENTS.md, so the
+	// vector is the model and nothing else.
+	dir := t.TempDir()
+
+	t.Run("the pakke default is applied and matches the notice", func(t *testing.T) {
+		r := domain.ResolvedConfig{}
+		want := []string{"--model", ToOpenCodeModel("claude-opus-5")}
+		if got := piLaunchArgs(dir, "a", r); !slices.Equal(got, want) {
+			t.Errorf("piLaunchArgs\n got: %q\nwant: %q", got, want)
+		}
+		if notice := ResolvedModelNotice("pi", r); !strings.Contains(notice, "claude-opus-5") {
+			t.Errorf("notice %q should name the model the launch passes", notice)
+		}
+	})
+
+	t.Run("a user pin wins", func(t *testing.T) {
+		want := []string{"--model", ToOpenCodeModel("claude-sonnet-4.6")}
+		if got := piLaunchArgs(dir, "a", domain.ResolvedConfig{Model: "claude-sonnet-4.6"}); !slices.Equal(got, want) {
+			t.Errorf("piLaunchArgs\n got: %q\nwant: %q", got, want)
+		}
+	})
+
+	t.Run("extra args come last", func(t *testing.T) {
+		want := []string{"--model", ToOpenCodeModel("claude-opus-5"), "--print", "hi"}
+		got := piLaunchArgs(dir, "a", domain.ResolvedConfig{ExtraArgs: []string{"--print", "hi"}})
+		if !slices.Equal(got, want) {
+			t.Errorf("piLaunchArgs\n got: %q\nwant: %q", got, want)
+		}
+	})
+}
+
+// TestPiSkillArgsPersonaFilenames: both spellings of an agent file reach
+// piSkillArgs — Tier 1 materialization renames agents to <name>.md, a staged
+// payload keeps the canonical <name>.agent.md.
+func TestPiSkillArgsPersonaFilenames(t *testing.T) {
+	for _, name := range []string{"a.agent.md", "a.md"} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			persona := filepath.Join(dir, "agents", name)
+			mustWrite(t, persona, "be terse\n")
+
+			want := []string{"--append-system-prompt", persona}
+			if got := piSkillArgs(dir, "a"); !slices.Equal(got, want) {
+				t.Errorf("piSkillArgs\n got: %q\nwant: %q", got, want)
+			}
+		})
 	}
 }

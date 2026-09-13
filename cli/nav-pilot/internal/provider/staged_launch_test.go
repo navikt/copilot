@@ -49,6 +49,7 @@ func stagedFixturePakke() *agentpakke.Manifest {
 		Clients: map[string]agentpakke.ClientEntry{
 			"copilot":  entry(),
 			"opencode": entry(),
+			"pi":       entry(),
 		},
 	}
 }
@@ -59,9 +60,12 @@ func buildStagedSpec(t *testing.T, client string, r domain.ResolvedConfig, s Sta
 		spec cpltLaunch
 		err  error
 	)
-	if client == "opencode" {
+	switch client {
+	case "opencode":
 		spec, err = buildStagedOpenCodeSpec(r, s)
-	} else {
+	case "pi":
+		spec, err = buildStagedPiSpec(r, s)
+	default:
 		spec, err = buildStagedCopilotSpec(r, s)
 	}
 	if err != nil {
@@ -663,5 +667,69 @@ func TestOpenCodeAcceptsPluginDir(t *testing.T) {
 	}
 	if !slices.Contains(spec.agentArgs, "--plugin-dir") {
 		t.Errorf("forwarded argument dropped: %v", spec.agentArgs)
+	}
+}
+
+// TestStagedPiSpec is the staged pi invocation vector, which the two-client
+// table above cannot express: pi has no --agent, so its persona is a file the
+// payload ships and the whole vector depends on what is on disk.
+//
+// The payload keeps the canonical agents/<name>.agent.md — a Tier 1
+// materialization is what renames agents to <name>.md — and the lookup used to
+// accept only the latter, so a staged launch silently lost its persona.
+func TestStagedPiSpec(t *testing.T) {
+	SetActivePakke(stagedFixturePakke())
+	t.Cleanup(func() { SetActivePakke(nil) })
+
+	dir := filepath.Join(t.TempDir(), "grillmester-pi-full-abc123")
+	persona := filepath.Join(dir, "agents", "grillmester.agent.md")
+	mustWrite(t, persona, "---\nname: grillmester\n---\n\nGrill.\n")
+	mustWrite(t, filepath.Join(dir, "skills", "grilling", "SKILL.md"), "# grilling\n")
+	agentsMD := filepath.Join(dir, "AGENTS.md")
+	mustWrite(t, agentsMD, "Instructions.\n")
+
+	staged := StagedLaunch{Dir: dir, PakkeName: "grillmester", Context: "full"}
+	// Artifacts first, then the model, then the user's own arguments.
+	base := []string{
+		"--skill", filepath.Join(dir, "skills"),
+		"--append-system-prompt", persona,
+		"--append-system-prompt", agentsMD,
+	}
+	with := func(extra ...string) []string { return append(slices.Clone(base), extra...) }
+
+	tests := []struct {
+		name string
+		r    domain.ResolvedConfig
+		want []string
+	}{
+		// The fixture declares "inherit", which forwards no --model at all.
+		{"inherit forwards no model", domain.ResolvedConfig{}, base},
+		{"a user pin is mapped and forwarded", domain.ResolvedConfig{Model: "claude-sonnet-4.6"},
+			with("--model", ToOpenCodeModel("claude-sonnet-4.6"))},
+		{"forwarded arguments come last", domain.ResolvedConfig{ExtraArgs: []string{"--print", "hi"}},
+			with("--print", "hi")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.r.Client = "pi"
+			spec := buildStagedSpec(t, "pi", tt.r, staged)
+
+			if spec.agent != "pi" {
+				t.Errorf("cplt --agent = %q, want pi", spec.agent)
+			}
+			if want := []string{"--allow-read", dir}; !slices.Equal(spec.cpltArgs, want) {
+				t.Errorf("cpltArgs\n got: %q\nwant: %q", spec.cpltArgs, want)
+			}
+			if argv := cpltArgv(spec); len(argv) == 0 || argv[0] != "--no-audit" {
+				t.Errorf("cplt vector must lead with --no-audit\n got: %q", argv)
+			}
+			if !slices.Equal(spec.agentArgs, tt.want) {
+				t.Errorf("agentArgs\n got: %q\nwant: %q", spec.agentArgs, tt.want)
+			}
+			if !strings.Contains(spec.messageSuffix, staged.Context) {
+				t.Errorf("message suffix %q should name the payload context", spec.messageSuffix)
+			}
+		})
 	}
 }
