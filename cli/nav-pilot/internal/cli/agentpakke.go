@@ -149,6 +149,15 @@ func validatePakkeSource(src *Source) error {
 		return nil
 	}
 	errs := agentpakke.ValidateSource(src.Dir)
+	// The registry is asked here too, not only by `validate`: an install is the
+	// moment the pakke's content lands on a machine, and a name the registry
+	// does not publish is as wrong then as in CI. Unreachable is a warning, so
+	// an offline install is never blocked by a question nobody could answer.
+	mcpFindings, mcpWarning := src.Pakke.MCPServerFindings()
+	errs = append(errs, mcpFindings...)
+	if mcpWarning != "" {
+		fmt.Fprintf(os.Stderr, "  %s %s\n", yellow("⚠"), mcpWarning)
+	}
 	if len(errs) == 0 {
 		return nil
 	}

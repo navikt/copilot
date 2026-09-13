@@ -176,6 +176,9 @@ func describeCause(c *jsonschema.ValidationError) string {
 			return fmt.Sprintf("%s: %s is not a repo-relative path: write it without a leading slash, "+
 				"\"~\", \".\" or \"..\" segments, backslashes, or duplicate or trailing slashes",
 				loc, value)
+		case strings.HasSuffix(c.SchemaURL, "/$defs/mcpServerName"):
+			return fmt.Sprintf("%s: %s is not a well-formed MCP server name: write it the way the registry does, "+
+				"<namespace>/<name>, as in io.github.navikt/github-mcp (%s)", loc, value, MCPRegistryURL)
 		case strings.HasSuffix(c.SchemaURL, "/$defs/blobHash"):
 			return fmt.Sprintf("%s: %s is not a git blob id: write 40 lowercase hex characters", loc, value)
 		case strings.HasSuffix(c.SchemaURL, "/$defs/payloadRelativePath"):

@@ -57,6 +57,7 @@ Generert fra `cli/nav-pilot/schemas/agentpakke-v1.json`. Ukjente felt på alle n
 | `policies` | objekt: `opencodePermissions` | nei | Peker på policy-artefakter. Sti-sjekkes i dag, materialiseres ikke ennå. |
 | `profiles` | objekt: `dir`, `default` | nei | Katalog med launch-profiler og navnet på standardprofilen (`<dir>/<default>.json`). Sti-sjekkes i dag, brukes ikke ennå. |
 | `provenance` | objekt: `base` (`repo`\*, `digest`\*), `overlays[]` (`component`\*, `version`\*) | nei | Opphav for komponert innhold. Ren metadata, nav-pilot verifiserer ikke digest. |
+| `mcpServers` | array av string, unike verdier | nei | MCP-serverne innholdet i pakka forventer, navngitt slik de heter i [Navs MCP-register](https://mcp-registry.nav.no). Skjemaet sjekker formen; medlemskapet sjekkes mot registeret som kjører, i `validate` og `install`. Et navn registeret ikke publiserer er et funn; et registeret ikke svarer på er en advarsel. Å deklarere en server konfigurerer ingenting. Se [MCP-servere](#mcp-servere). |
 | `minNavPilotVersion` | string, `YYYY.MM.DD-HHMMSS[-sha]` | nei | Minste nav-pilot-versjon. Se [Versjonsgate](#versjonsgate). |
 
 ### `clients.<klient>`
@@ -123,6 +124,48 @@ Regelen har to halvdeler, og de gjelder samtidig:
 - **Feilformede *kjente* konstruksjoner feiler lukket.** En `primaryAgents` som er tom, som mangler på en Tier 2-payload, eller som er deklarert uten `layout.agents`, en `layout` som mangler for en Tier 1-klient, en `contractVersion` med en major nav-pilot ikke implementerer, en `minNavPilotVersion` nav-pilot ikke kan sammenligne, en `compatibility` som ikke er et gyldig versjonsområde: alt stopper. Et repo som *har* et manifest må ha et gyldig et. Install avbrytes før første filoperasjon, og ingenting skrives delvis.
 
 Et repo helt uten `.nav-pilot/agentpakke.json` er ikke en feil. Det behandles som en legacy-samlingskilde (`collections/<navn>/manifest.json`) akkurat som før. Merk at navikt/copilot selv ikke lenger er en slik kilde: siden [#468](https://github.com/navikt/copilot/issues/468) skipper repoet sitt eget manifest, og de fem samlingene er kollapset til den ene pakka `nav-pilot`.
+
+## MCP-servere
+
+Valgfritt. En pakke som ikke bruker MCP utelater feltet, og install sier da ingenting nytt.
+
+MCP-servere styres sentralt i [Navs MCP-register](https://mcp-registry.nav.no). Et team kan ikke opprette sin egen server, men velger hvilke av registerets servere agentene og ferdighetene deres bruker. `mcpServers` er det valget:
+
+```json
+{
+  "mcpServers": ["io.github.navikt/github-mcp", "io.github.navikt/aksel-mcp"]
+}
+```
+
+Navnene må være servere registeret publiserer. Et navn det ikke publiserer, er et funn i både `validate` og `install`:
+
+```
+  - mcpServers: "no.nav/hjemmesnekret" is not a server Nav's MCP registry publishes. A server is defined in the registry and nowhere else, so name one it lists, or have the server added there first (https://mcp-registry.nav.no)
+```
+
+Dermed er registeret fortsatt det eneste stedet en server kan defineres. Manifestet beskriver ingen server: ingen endepunkt, ingen transport, ingen auth, ingen klientspesifikk config. Det navngir bare noe som allerede finnes.
+
+**Medlemskapet sjekkes mot registeret som kjører, ikke mot en liste i binæren.** Registeret får nye servere og pensjonerer gamle uten en nav-pilot-release, så en innbakt liste ville avvist en fersk server med en påstand om at registeret ikke har den — som er usant, og usant i den retningen som stopper arbeid. Skjemaet sier derfor bare hvordan et navn skal se ut (`<navnerom>/<navn>`, samme format som registeret selv krever), og `nav-pilot` spør `https://mcp-registry.nav.no/v0.1/servers` når den validerer og installerer.
+
+**Får ikke nav-pilot svar, er det en advarsel, ikke et funn.** Ingen nettverk i CI, en sandkasse eller et avbrudd sier ingenting om hvorvidt navnet er riktig, og en gate som feiler på et avbrudd den ikke har noe med, er en gate folk lærer seg å hoppe over. Da står det at medlemskapet ikke ble sjekket, og kommandoen fortsetter:
+
+```
+  ⚠ could not reach Nav's MCP registry (https://mcp-registry.nav.no/v0.1/servers), so the 1 server(s) in mcpServers were not checked against it. That is a warning, not a violation: being offline is not evidence that a name is wrong
+```
+
+Bare et svar registeret faktisk gir, feller en dom. En pakke som ikke deklarerer noen server, spør aldri om noe.
+
+`install` navngir serverne pakka trenger, og peker på registeret:
+
+```
+This agentpakke expects these MCP servers:
+  io.github.navikt/github-mcp
+nav-pilot does not configure MCP. Enable them in your client: https://mcp-registry.nav.no
+```
+
+Mer gjør ikke install. nav-pilot skriver ingen MCP-konfigurasjon for noen klient, og å slå på en server er brukerens handling i klientens egen config.
+
+Feltet ligger på pakkenivå, ikke per klient. Om en MCP-server er tilgjengelig, er en egenskap ved klientens eget oppsett, ikke ved pakka.
 
 ## Pensjonerte artefakter
 
@@ -635,6 +678,7 @@ Dette er statusen i milepæl 1. Alt under er kjent og planlagt, ikke feil:
 - **En blandet pakke starter ikke Tier 2-klienten sin.** Har manifestet både `layout` og `payloads`, pinnes pakka ikke i denne releasen, og en launch av en klient som deklarerer `payloads` stopper med en feil som sier nettopp det. Alternativet ville vært å starte den fra `layout`-innholdet, altså stille gi brukeren noe annet enn payloaden manifestet deklarerer. Tier 1-klientene i samme pakke installeres og startes som før. Skal Tier 2-klienten kunne startes nå, må pakka være payload-only. Får en pakke som allerede er pinnet hos brukere en `layout` oppstrøms, nekter `sync` å oppdatere pinnen over den endringen og ber om en ny `install`, mens launcher fortsetter å lese den pinnede revisjonen.
 - **Alle deklarerte kontekster materialiseres**, også de brukeren aldri starter, og kontekster som deler innhold lagrer det én gang hver.
 - **En kilde som er en absolutt sti pinnes ikke, og kan ikke installeres.** En pinnet installasjon krever et repo med en immutabel revisjon.
+- **nav-pilot skriver ingen MCP-konfigurasjon.** `mcpServers` er en referanse til [registeret](#mcp-servere), ikke en installasjon. Å slå på en server i klienten er brukerens handling, og å gjøre det for dem er en egen beslutning med sin egen sprengradius.
 - **`policies`, `profiles` og `provenance` er deklarasjoner uten virkning ennå.** Stiene sti-sjekkes, men nav-pilot skriver hverken opencode-permissions eller launch-profiler ut fra manifestet (M3), og sjekker ikke `provenance`-digesten mot innholdet.
 - **`nav-pilot export opencode` avviser en payload-only pakke.** Export leser en deklarert `layout` (#728), så en pakke som legger innholdet et annet sted eksporteres riktig. En pakke uten `layout` i det hele tatt har ingen filer på stier å lese, og export stopper med en forklaring framfor å skrive et tomt `.opencode/`-tre.
 - **Erklæringa har ingen egen JSON Schema-fil, og `nav-pilot validate` sjekker den ikke.** Den valideres i binæren, på samme kontraktversjonsgate som manifestet. Validate ser i dag på pakkerepoet, ikke på konsumentrepoet.

@@ -11,6 +11,11 @@
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*$"
     },
+    "mcpServerName": {
+      "description": "Name of a server in Nav's MCP registry (https://mcp-registry.nav.no), in the registry's own reverse-DNS form: <namespace>/<name>, as in io.github.navikt/github-mcp. The pattern is the registry's own name format and constrains the shape only. Membership is checked against the live registry when nav-pilot validates or installs, because the registry moves independently of nav-pilot releases: a list frozen into the schema would reject a server added after this version shipped.",
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9.-]*/[a-zA-Z0-9][a-zA-Z0-9._-]*$"
+    },
     "relativePath": {
       "description": "Repo-relative path. Absolute paths and parent traversal are rejected by nav-pilot's semantic validation.",
       "type": "string",
@@ -155,6 +160,12 @@
         "dir": { "$ref": "#/$defs/relativePath" },
         "default": { "type": "string" }
       }
+    },
+    "mcpServers": {
+      "description": "MCP servers this agentpakke's agents and skills expect, named as they are in Nav's MCP registry. Every name must be one the registry publishes; nav-pilot asks the registry at validate and install time, and a name it does not publish is a violation. Declaring one does not configure it: nav-pilot writes no MCP configuration for any client, and enabling a server stays the user's action. install names what the pakke needs and points at the registry.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/mcpServerName" }
     },
     "minNavPilotVersion": {
       "description": "Minimum nav-pilot version required, in the release format YYYY.MM.DD-HHMMSS-sha7 (the build sha is optional). A value outside this format is rejected rather than ignored: nav-pilot cannot compare it, so accepting it would silently disable the gate the manifest asked for.",

@@ -83,6 +83,11 @@ const (
 	// InheritModel is the literal defaultModel value meaning "do not pin a
 	// model; inherit the provider's or session's choice" (F3).
 	InheritModel = "inherit"
+
+	// MCPRegistryURL is Nav's MCP registry: the one place an MCP server is
+	// defined, and where a user enables the servers a pakke declares in
+	// [Manifest.MCPServers].
+	MCPRegistryURL = "https://mcp-registry.nav.no"
 )
 
 // SupportedContractMajors lists the manifest contract major versions this
@@ -143,6 +148,20 @@ type Manifest struct {
 
 	// Profiles points at optional launch profiles (E2).
 	Profiles *Profiles `json:"profiles,omitempty"`
+
+	// MCPServers names the MCP servers this pakke's agents and skills expect,
+	// as they are named in Nav's MCP registry at [MCPRegistryURL].
+	//
+	// It is a reference, not a definition: a server is defined in the registry
+	// and nowhere else, so the schema pins this to the registry's allowlist and
+	// a name outside it fails validation. Declaring one configures nothing.
+	// nav-pilot writes no MCP config for any client; install names what the
+	// pakke needs and points at the registry, and enabling a server stays the
+	// user's action.
+	//
+	// Pakke-level, not per-client: whether an MCP server is available is a
+	// property of the client's own configuration, not of the pakke.
+	MCPServers []string `json:"mcpServers,omitempty"`
 
 	// MinNavPilotVersion is the minimum running nav-pilot version, in the
 	// YYYY.MM.DD-HHMMSS-sha7 release format.
