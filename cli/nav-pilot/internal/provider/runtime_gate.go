@@ -390,3 +390,19 @@ func parseClientVersion(client, out string) (semver3, error) {
 	}
 	return v, nil
 }
+
+// CheckPakkeClientCompatibility enforces the client version range the active
+// agentpakke declares, for a launch that is not a staged Tier 2 one.
+//
+// Tier 2 already gates this inside checkStagedRuntime. Tier 1 did not, so a
+// compatibility range on a Tier 1 client entry validated, installed, and then
+// did nothing — the schema promised a gate that only half the tiers had (#800).
+// The cplt floor is deliberately not checked here: that is a Tier 2 requirement,
+// and a Tier 1 launch does not stage a payload.
+func CheckPakkeClientCompatibility(client string) error {
+	compatibility := pakkeCompatibility(client)
+	if compatibility == "" {
+		return nil
+	}
+	return checkClientCompatibility(client, compatibility)
+}

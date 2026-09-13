@@ -897,6 +897,12 @@ func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error
 	if _, err := providerpkg.ResolvePersona(resolved.Client, resolved.Persona); err != nil {
 		return err
 	}
+	// Same boundary, same reason: a Tier 1 pakke declaring a client version range
+	// had it validated and then ignored, because only the staged Tier 2 path
+	// enforced it (#800).
+	if err := providerpkg.CheckPakkeClientCompatibility(resolved.Client); err != nil {
+		return err
+	}
 	if warnUnsandboxed {
 		warnUnsandboxedLaunch(resolved.Client)
 	}

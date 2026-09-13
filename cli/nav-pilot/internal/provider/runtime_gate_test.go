@@ -476,3 +476,44 @@ func TestOutOfRangeClientVersionNamesACommand(t *testing.T) {
 		t.Errorf("out-of-range refusal %q names no command to run", err)
 	}
 }
+
+// A Tier 1 client entry declaring a compatibility range had it validated and
+// then ignored: only the staged Tier 2 path enforced it, so the schema promised
+// a gate half the tiers did not have (#800).
+func TestCheckPakkeClientCompatibility(t *testing.T) {
+	t.Cleanup(func() { SetActivePakke(nil) })
+
+	t.Run("no range declared passes", func(t *testing.T) {
+		SetActivePakke(&agentpakke.Manifest{
+			Name:    "p",
+			Clients: map[string]agentpakke.ClientEntry{"copilot": {PrimaryAgents: []string{"a"}}},
+		})
+		if err := CheckPakkeClientCompatibility("copilot"); err != nil {
+			t.Errorf("CheckPakkeClientCompatibility() = %v, want nil", err)
+		}
+	})
+
+	t.Run("an unreachable range is refused", func(t *testing.T) {
+		SetActivePakke(&agentpakke.Manifest{
+			Name:    "p",
+			Clients: map[string]agentpakke.ClientEntry{"copilot": {PrimaryAgents: []string{"a"}, Compatibility: ">=99999.0.0"}},
+		})
+		err := CheckPakkeClientCompatibility("copilot")
+		if err == nil {
+			t.Fatal("a client outside the declared range must be refused")
+		}
+		if !strings.Contains(err.Error(), "99999.0.0") {
+			t.Errorf("the refusal must name the range, got: %v", err)
+		}
+	})
+
+	t.Run("a client the pakke does not declare passes", func(t *testing.T) {
+		SetActivePakke(&agentpakke.Manifest{
+			Name:    "p",
+			Clients: map[string]agentpakke.ClientEntry{"copilot": {PrimaryAgents: []string{"a"}, Compatibility: ">=99999.0.0"}},
+		})
+		if err := CheckPakkeClientCompatibility("opencode"); err != nil {
+			t.Errorf("CheckPakkeClientCompatibility(opencode) = %v, want nil", err)
+		}
+	})
+}
