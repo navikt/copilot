@@ -46,6 +46,13 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
   artifact in this repo and was only recorded in a changelog entry, which is not
   where an author looks before editing a skill (#679).
 
+- Text a human reads gets a språkvask and unslop pass before it ships: docs,
+  READMEs, issue and PR bodies, user-facing CLI strings and error messages,
+  Norwegian and English alike. Cut filler and AI tells, keep every command,
+  flag and value verbatim. Recorded after the 2026-09-13 pass over navikt/apt
+  and nais/pilot#3, where a denial message an engineer meets mid-task had to
+  be cut down to what is wrong and what to run.
+
 - Start with the smallest safe change and keep diffs task-focused.
 - Reuse existing patterns before adding new abstractions.
 - In `my-copilot`, use Aksel spacing tokens, not Tailwind `p-*/m-*` utilities.
