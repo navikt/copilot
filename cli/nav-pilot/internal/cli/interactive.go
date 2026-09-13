@@ -447,6 +447,14 @@ func interactiveUserInstall(src *Source, resolved ResolvedConfig) error {
 	return nil
 }
 
+// pickerDeclined reports whether the install picker's outcome is a user who
+// said no: the explicit Cancel option, or Ctrl-C, which huh reports as
+// huh.ErrUserAborted. Every other error is a picker that could not run, which
+// is a failure rather than a cancellation (#802).
+func pickerDeclined(choice string, err error) bool {
+	return choice == "cancel" || errors.Is(err, huh.ErrUserAborted)
+}
+
 // interactiveUserInstallFromSource is the shared implementation for user-scope interactive install.
 // Used by both the root `nav-pilot` command and `nav-pilot install --user`.
 //
@@ -492,7 +500,7 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 			Value(&installChoice).
 			WithTheme(navTheme()).
 			Run()
-		if installChoice == "cancel" {
+		if pickerDeclined(installChoice, err) {
 			fmt.Println(dim("Cancelled."))
 			return errInstallCancelled
 		}

@@ -608,3 +608,26 @@ func TestPickerFailureIsNotSilentCancellation(t *testing.T) {
 		t.Errorf("the refusal must name how to install without the picker, got: %v", err)
 	}
 }
+
+// Ctrl-C on the install picker is a cancellation, not a picker that could not
+// run: huh reports it as ErrUserAborted, and treating that as a failure would
+// make an ordinary abort exit non-zero.
+func TestPickerDeclined(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		choice string
+		err    error
+		want   bool
+	}{
+		{"cancel option", "cancel", nil, true},
+		{"ctrl-c", "", huh.ErrUserAborted, true},
+		{"ctrl-c after a choice", "all", huh.ErrUserAborted, true},
+		{"picker could not run", "", errors.New("no tty"), false},
+		{"install everything", "all", nil, false},
+		{"customize", "custom", nil, false},
+	} {
+		if got := pickerDeclined(tc.choice, tc.err); got != tc.want {
+			t.Errorf("%s: pickerDeclined(%q, %v) = %v, want %v", tc.name, tc.choice, tc.err, got, tc.want)
+		}
+	}
+}

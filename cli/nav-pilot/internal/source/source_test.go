@@ -108,3 +108,25 @@ func TestValidateSourceValueSuggestsTheShorthand(t *testing.T) {
 		}
 	}
 }
+
+// A browse URL is not a clone URL. Suggesting owner/name from its last two
+// path segments pointed people at a repo that does not exist, and a query
+// string ended up inside the suggested name.
+func TestShorthandForOnlyAcceptsARepoRoot(t *testing.T) {
+	for in, want := range map[string]string{
+		"https://github.com/nais/pilot":                  "nais/pilot",
+		"https://github.com/nais/pilot.git":              "nais/pilot",
+		"https://github.com/nais/pilot/":                 "nais/pilot",
+		"https://github.com/nais/pilot?tab=readme":       "nais/pilot",
+		"https://github.com/nais/pilot#readme":           "nais/pilot",
+		"git@github.com:nais/pilot.git":                  "nais/pilot",
+		"https://github.com/nais/pilot/tree/main":        "",
+		"https://github.com/nais/pilot/blob/main/go.mod": "",
+		"https://github.com/nais":                        "",
+		"https://github.com/":                            "",
+	} {
+		if got := shorthandFor(in); got != want {
+			t.Errorf("shorthandFor(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
