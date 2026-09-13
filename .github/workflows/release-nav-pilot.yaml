@@ -110,15 +110,18 @@ jobs:
       matrix:
         arch: [amd64, arm64]
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ needs.prepare.outputs.commit_sha }}
-          sparse-checkout: LICENSE
-          sparse-checkout-cone-mode: false
-
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: nav-pilot-linux-${{ matrix.arch }}
+
+      # The licence is fetched as data rather than checked out. This job needs
+      # one text file, and checking out the released ref to get it is the
+      # pattern CodeQL flags as an unsafe checkout in a non-privileged job.
+      - name: Fetch the licence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.prepare.outputs.commit_sha }}
+        run: gh api "repos/${{ github.repository }}/contents/LICENSE?ref=${SHA}" --jq .content | base64 -d > LICENSE
 
       # dpkg-deb is on the runner, so a one-binary package needs no packaging
       # tool. The version carries a hyphen, which dpkg reads as the upstream /
@@ -209,7 +212,7 @@ jobs:
               "" \
               '```bash' \
               "mise use -g 'github:navikt/copilot[exe=nav-pilot,version_prefix=nav-pilot/]@${{ needs.prepare.outputs.version }}'" \
-              "sudo apt install ./nav-pilot_${{ needs.prepare.outputs.version }}_amd64.deb" \
+              "sudo apt install ./nav-pilot_${{ needs.prepare.outputs.version }}_"'$(dpkg --print-architecture)'".deb" \
               '```' \
               "" \
               "Or on Linux / CI:" \

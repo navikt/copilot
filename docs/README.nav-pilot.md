@@ -16,7 +16,7 @@ mise use -g 'github:navikt/cplt'
 mise use -g 'github:navikt/copilot[exe=nav-pilot,version_prefix=nav-pilot/]@2026.09.12-225921-bb3fbb6'
 
 # Debian/Ubuntu: .deb fra releasen
-sudo apt install ./nav-pilot_2026.09.12-225921-bb3fbb6_amd64.deb
+sudo apt install ./nav-pilot_2026.09.12-225921-bb3fbb6_$(dpkg --print-architecture).deb
 
 # Linux / CI: last ned og inspiser skriptet manuelt
 curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh -o install.sh
