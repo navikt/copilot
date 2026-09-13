@@ -599,6 +599,10 @@ func run(args []string) error {
 	case "install":
 		installFrozen, installRef = frozen, ref
 		defer func() { installFrozen, installRef = false, "" }()
+		// One suppressor for the whole command, finalization included: every
+		// dispatch below reaches installArtifact, and finishInstall prints
+		// after the document is written.
+		defer suppressHumanOutput(jsonOutput)()
 		return runWithCommandTelemetry("install", telemetryMode(), scope.Name, func() error {
 			install := func(err error) error {
 				return finishInstall(err, sourceRepo, dryRun, installType == "")
@@ -654,6 +658,7 @@ func run(args []string) error {
 		if len(positional) < 2 {
 			return fmt.Errorf("add requires a type and name.\n\nUsage: nav-pilot add <type> <name>\n\nTypes: agent, skill, instruction, prompt\n\nExamples:\n  nav-pilot add agent security-champion\n  nav-pilot add skill postgresql-review")
 		}
+		defer suppressHumanOutput(jsonOutput)()
 		return runWithCommandTelemetry("add", telemetryMode(), scope.Name, func() error {
 			return cmdAdd(positional[0], positional[1], scope, ref, sourceRepo, dryRun, force, jsonOutput)
 		})

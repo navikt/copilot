@@ -1541,3 +1541,29 @@ func TestInstallJSONIsParseable(t *testing.T) {
 		t.Errorf(`doc["command"] = %v, want "install"`, doc["command"])
 	}
 }
+
+// The single-artifact and --source dispatches print too: installArtifact's
+// progress on one, persistInstalledSource's "Saved ..." after the document on
+// the other. Both have to stay off stdout, or `--json | jq` still fails (#808).
+func TestInstallJSONIsParseableOnEveryDispatch(t *testing.T) {
+	for _, args := range [][]string{
+		{"install", "grillmester", "--json", "--source", "navikt/grillmester"},
+		{"install", "grillmester", "--type", "agent", "--json", "--source", "navikt/grillmester"},
+	} {
+		t.Run(strings.Join(args[1:], " "), func(t *testing.T) {
+			isolatedConfig(t)
+			stubResolveSource(t, pakkeSource(t, "navikt/grillmester"))
+			t.Chdir(repoTarget(t))
+
+			var err error
+			out := captureStdoutFor(t, func() { err = run(args) })
+			if err != nil {
+				t.Fatalf("install: %v", err)
+			}
+			var doc map[string]interface{}
+			if jsonErr := json.Unmarshal([]byte(out), &doc); jsonErr != nil {
+				t.Fatalf("install --json did not produce parseable JSON: %v\noutput:\n%s", jsonErr, out)
+			}
+		})
+	}
+}

@@ -178,7 +178,9 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 
 	art, found := resolver.Get(kind, name)
 	if !found {
-		fmt.Printf("  %s %s not found: %s\n", yellow("⚠"), titleCase(kind.Name), name)
+		// Warnings go to stderr: a caller reading stdout as a JSON document
+		// still needs to be told what was not installed.
+		fmt.Fprintf(os.Stderr, "  %s %s not found: %s\n", yellow("⚠"), titleCase(kind.Name), name)
 		result.Missing = append(result.Missing, name)
 		return nil
 	}
@@ -217,7 +219,7 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 		// installed by an older revision of the source, and saying "you changed
 		// this" to someone who did not is how a reader learns to ignore the
 		// warning.
-		fmt.Printf("  %s %s (differs from what nav-pilot installed, kept; %s takes the source's version)\n",
+		fmt.Fprintf(os.Stderr, "  %s %s (differs from what nav-pilot installed, kept; %s takes the source's version)\n",
 			yellow("⚠"), name, bold("nav-pilot sync --apply"))
 		existingHash, hashErr := rawArtifactHash(dst, art.IsDir)
 		if hashErr == nil {

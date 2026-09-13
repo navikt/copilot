@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 )
 
@@ -22,7 +23,10 @@ var jsonStdout *os.File
 // Only stdout is redirected. Warnings go to stderr and stay visible: a caller
 // parsing stdout still wants to know what went wrong.
 func suppressHumanOutput(jsonOutput bool) func() {
-	if !jsonOutput {
+	// Nesting is how the whole install dispatch stays covered: the command
+	// wraps its dispatch once and the installers still wrap themselves, so an
+	// inner call must not save /dev/null as the stdout the document goes to.
+	if !jsonOutput || jsonStdout != nil {
 		return func() {}
 	}
 	devnull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
@@ -37,7 +41,11 @@ func suppressHumanOutput(jsonOutput bool) func() {
 	return func() {
 		os.Stdout = prev
 		jsonStdout = nil
-		devnull.Close()
+		if err := devnull.Close(); err != nil {
+			// Nothing was written to /dev/null worth losing, so this is worth
+			// saying and not worth failing a finished command over.
+			fmt.Fprintf(os.Stderr, "%s could not close %s: %v\n", yellow("⚠"), os.DevNull, err)
+		}
 	}
 }
 
