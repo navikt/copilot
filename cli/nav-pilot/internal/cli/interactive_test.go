@@ -591,13 +591,12 @@ func TestSyncPromptOutcome(t *testing.T) {
 func TestPickerFailureIsNotSilentCancellation(t *testing.T) {
 	isolatedConfig(t)
 	forceInteractive(t)
-	scope, err0 := ScopeUser()
-	if err0 != nil {
-		t.Fatal(err0)
+	scope, err := ScopeUser()
+	if err != nil {
+		t.Fatal(err)
 	}
 	src := &Source{Dir: legacySourceTree(t), Repo: "navikt/copilot", SHA: "deadbeef"}
 
-	var err error
 	err = interactiveUserInstallFromSource(scope, src, "")
 	if err == nil {
 		t.Fatal("a picker that cannot run must return an error, not install nothing and succeed")
