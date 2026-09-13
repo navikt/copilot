@@ -170,7 +170,11 @@ func offerPakkeRelease(resolved ResolvedConfig, rev *Source) *Source {
 	// fresh, because freshness is keyed on the SHA. So the claim is read again
 	// here: a following pin keeps the downgrade guard, which is its whole
 	// protection (#782).
-	if rel == nil || rel.Version == entry.Dismissed || (entry.Migration && follows) {
+	// A revision this scope was rolled back off is not offered again (#783), and
+	// not as a question either: a "yes" would pin the very revision the user
+	// rejected. Any other candidate is offered as usual, so the fix arrives the
+	// ordinary way.
+	if rel == nil || rel.Version == entry.Dismissed || (entry.Migration && follows) || sameSHA(rel.SHA, state.RolledBackFrom) {
 		return rev
 	}
 	installed := shortSHA(state.SourceSHA)

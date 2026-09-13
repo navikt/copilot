@@ -1327,6 +1327,9 @@ func printPakkeStatus(st *pakkeReleaseStatus) {
 	}
 	fmt.Printf("  Package:     %s (pinned at %s)\n", version, shortSHA(st.PinnedSHA))
 	fmt.Printf("  Releases:    follows stable releases: %s\n", follows)
+	if st.RolledBackFrom != "" {
+		fmt.Printf("  Rolled back: from %s, which is not offered again\n", shortSHA(st.RolledBackFrom))
+	}
 	switch {
 	case st.ReleaseCheckError != "":
 		fmt.Printf("  %s release check failed: %s\n", yellow("⚠"), st.ReleaseCheckError)

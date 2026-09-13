@@ -380,6 +380,13 @@ export default function Agentpakker() {
                         et ja.
                       </BodyLong>
                       <BodyLong textColor="subtle">
+                        Går en release i stykker hos en konsument, kan de kjøre{" "}
+                        <code className="font-mono text-xs">nav-pilot rollback</code> og gå tilbake til revisjonen de
+                        hadde før, uten nett og uten å vente på deg. Den revisjonen blir ikke tilbudt dem igjen, men
+                        neste release blir det. Lever derfor rettelsen som en ny versjon; en revert av taggen når dem
+                        ikke.
+                      </BodyLong>
+                      <BodyLong textColor="subtle">
                         Et repo uten slike releases fungerer nøyaktig som før, fra standardgrenen. Feltene og hele
                         kontrakten står i{" "}
                         <NextLink
