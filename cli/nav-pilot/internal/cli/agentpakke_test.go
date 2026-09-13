@@ -286,6 +286,13 @@ func TestValidatePakkeSourceLeavesNothingInstalled(t *testing.T) {
 		t.Fatalf("attachPakke: %v", err)
 	}
 	scope := ScopeRepo(target)
+
+	// #830: the install routes through tier1Release on its way to the
+	// conformance check, and navikt/broken is a repo GitHub answers 404 for.
+	// Unstubbed, that was a live releases call on every `go test ./internal/cli`.
+	// "No stable release" is what the lookup concluded then and concludes now,
+	// so the install reaches the same conformance failure by the same path.
+	stubRelease(t, releaseNoMetadata, pakkeRelease{}, nil)
 	err := cmdInstallFromSource("broken", src, scope, false, false, false)
 	if err == nil {
 		t.Fatal("install from a non-conforming agentpakke succeeded, want fail-closed")

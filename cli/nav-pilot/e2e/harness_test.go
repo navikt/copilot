@@ -94,7 +94,14 @@ func (e *env) run(dir string, args ...string) (string, int) {
 	// XDG_CONFIG_HOME too: opencode honours it (openCodeConfigDir), so a
 	// developer or CI runner that has it set would otherwise send writes
 	// outside the sandbox even though HOME points inside it.
-	cmd.Env = append(os.Environ(), "NO_COLOR=1", "NAV_PILOT_TELEMETRY=off")
+	// NAV_PILOT_TELEMETRY_ENABLED is the variable the binary reads;
+	// NAV_PILOT_TELEMETRY stood here and is a name nothing looks up, so every
+	// e2e run shipped metrics to NAV's production collector from whatever
+	// laptop or CI runner it ran on — and made the suite reach the network
+	// (#830). DO_NOT_TRACK covers the same ground if the other were ever
+	// dropped again.
+	cmd.Env = append(os.Environ(), "NO_COLOR=1",
+		"NAV_PILOT_TELEMETRY_ENABLED=false", "DO_NOT_TRACK=1")
 	for k, v := range e.commandEnv() {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
