@@ -1,0 +1,153 @@
+# Ecosystem conformance sweep.
+#
+# `nav-pilot validate` is documented for an agentpakke repo's own CI, which
+# catches a package that drifts away from the contract. Nothing caught the
+# opposite direction: a contract change here that quietly invalidates packages
+# already published in the wild. Fixtures and a manual check were the whole net.
+#
+# This job builds nav-pilot from the pull request, discovers the published
+# packages by code search, and runs the PR's validate against each. A package
+# that stops conforming fails the job by name.
+name: Agentpakke conformance sweep
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cli/nav-pilot/schemas/**'
+      - 'cli/nav-pilot/internal/agentpakke/**'
+      - 'cli/nav-pilot/internal/cli/validate.go'
+      - '.github/workflows/agentpakke-sweep.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    name: Validate published agentpakker
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # ratchet:actions/setup-go@v7.0.0
+        with:
+          go-version-file: cli/nav-pilot/go.mod
+          cache: true
+
+      - name: Build nav-pilot from this pull request
+        run: cd cli/nav-pilot && go build -o "$RUNNER_TEMP/nav-pilot" .
+
+      # navikt/copilot publishes an agentpakke too, and it is swept rather than
+      # skipped as "covered elsewhere": the Go suite only holds the committed
+      # manifest equal to the legacy adapter, which is manifest parity and not
+      # the conformance check. It is validated from the workspace instead of
+      # cloned, so a pull request that changes the contract and this repo's own
+      # package is checked as the pair it is. Cloning would measure main's
+      # package against the branch's contract, and pay for the largest clone in
+      # the set to get the worse answer.
+      - name: Validate this repo's own package
+        run: '"$RUNNER_TEMP/nav-pilot" validate --source "$GITHUB_WORKSPACE"'
+
+      # The measured query from navikt/copilot#819. It returns every repo
+      # carrying .nav-pilot/agentpakke.json that the token can see.
+      - name: Discover published agentpakker
+        id: discover
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # Code search needs auth, is rate limited, and can answer with a
+          # partial page. All three look exactly like a healthy empty result,
+          # so a failed or empty discovery fails the job rather than passing
+          # with nothing checked: "could not look" must not read as "nothing
+          # to validate".
+          if ! found=$(gh api -X GET search/code \
+              -f q='path:.nav-pilot filename:agentpakke.json' \
+              --jq '.items[].repository.full_name'); then
+            echo "::error::Code search failed. A failed lookup is indistinguishable from an empty ecosystem, so the sweep fails rather than validating nothing."
+            exit 1
+          fi
+
+          discovered=$(printf '%s\n' "$found" | sed '/^$/d' | sort -u)
+          if [ -z "$discovered" ]; then
+            echo "::error::Code search returned no agentpakker. navikt/copilot publishes one, so an empty answer is a broken query or a throttled token, not an empty ecosystem."
+            exit 1
+          fi
+          echo "Discovered:"
+          printf '%s\n' "$discovered" | sed 's/^/  /'
+
+          # Packages known to publish. They are swept whether or not the search
+          # names them, so a partial page degrades to a warning instead of to a
+          # green run over a shrunken set. A package that retires for real is an
+          # edit to this list, the same deliberate move as a version pin.
+          known=$(printf '%s\n' navikt/copilot navikt/grillmester nais/pilot)
+          printf '%s\n' "$known" | while IFS= read -r repo; do
+            if ! printf '%s\n' "$discovered" | grep -qxF "$repo"; then
+              echo "::warning::Code search did not return $repo, which is known to publish an agentpakke. The results were partial; sweeping it anyway."
+            fi
+          done
+
+          # navikt/copilot was validated from the workspace above.
+          targets=$(printf '%s\n%s\n' "$discovered" "$known" |
+            sort -u | grep -vxF navikt/copilot || true)
+
+          # Every target costs a shallow clone, so the sweep is capped instead
+          # of growing with the ecosystem. What falls outside the cap is named,
+          # never dropped quietly — the day this warns is the day the sweep
+          # needs sharding rather than a larger number.
+          max=25
+          count=$(printf '%s\n' "$targets" | sed '/^$/d' | wc -l | tr -d ' ')
+          if [ "$count" -gt "$max" ]; then
+            printf '%s\n' "$targets" | tail -n "+$((max + 1))" | while IFS= read -r repo; do
+              echo "::warning::$repo was not swept: the cap is $max packages and $count were discovered."
+            done
+            targets=$(printf '%s\n' "$targets" | head -n "$max")
+          fi
+
+          {
+            echo 'targets<<SWEEP_EOF'
+            printf '%s\n' "$targets"
+            echo SWEEP_EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Sweep
+        env:
+          TARGETS: ${{ steps.discover.outputs.targets }}
+        run: |
+          set -euo pipefail
+          fatal=0
+          while IFS= read -r repo; do
+            [ -n "$repo" ] || continue
+            echo "::group::$repo"
+            # A package that no longer conforms and a package that could not be
+            # cloned both exit 1. Stdout tells them apart: validate writes its
+            # JSON report before exiting, and a source that never resolved has
+            # no report to write.
+            if report=$("$RUNNER_TEMP/nav-pilot" validate --source "$repo" --json \
+                2>"$RUNNER_TEMP/err" </dev/null); then
+              echo "$repo conforms."
+            elif jq -e . >/dev/null 2>&1 <<<"$report"; then
+              # What this job exists to catch. Fatal, and named with its findings.
+              echo "::error::$repo no longer conforms to the agentpakke contract."
+              jq -r '.problems[]' <<<"$report" | sed 's/^/    /'
+              fatal=1
+            else
+              # Private, moved, deleted, or a flaky network. Reported, not
+              # fatal: an unreachable repo says nothing about the contract, and
+              # failing on one would hand anybody outside this org a veto over
+              # merges here.
+              echo "::warning::$repo could not be swept — unreachable (private, moved or deleted?)."
+              sed 's/^/    /' "$RUNNER_TEMP/err"
+            fi
+            echo '::endgroup::'
+          done <<SWEEP_TARGETS
+          $TARGETS
+          SWEEP_TARGETS
+          exit "$fatal"
