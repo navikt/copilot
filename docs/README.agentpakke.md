@@ -586,7 +586,7 @@ Publiser releasen som stabil først når alle kontroller som godkjenner distribu
 `nav-pilot install --user <navn>` og launchen som pinner en payload-only kilde som ikke er installert, slår opp releasene før de pinner, med samme oppslag og samme kandidatvalg som sync.
 
 - Finnes en stabil release, pinnes nøyaktig dens `sourceSha`, og pinnen følger releases. Standardgrenen materialiseres ikke. `install --json` tar med `pakke_version` og `follows_releases`, og `--dry-run` navngir releasen.
-- Et repo uten metadata pinnes fra standardgrenen som før.
+- Et repo uten metadata pinnes fra standardgrenen som før. Følger pinnen allerede releases, nekter install i stedet, slik sync gjør: et repo som slutter å publisere metadata — slettede releases, et trukket asset, en omdøping som gjør at hver release navngir en annen pakke — svarer med «ingen metadata» og ikke med en feil, og ingenting faller tilbake til standardgrenen på det.
 - Feiler oppslaget, pinnes ingenting, og kommandoen feiler med årsaken. Det finnes ingen pinne å beholde, og en pinne på standardgrenen ville ligget foran nyeste release, der nedgraderingsvernet holder den fast.
 - Er revisjonen i releasen ikke lenger payload-only, pinnes ingenting.
 - `--ref` pinner den revisjonen som før, og pinnen følger ikke releases. `--frozen` slår ikke opp releaser.
@@ -601,7 +601,7 @@ En Tier 1-pakke pinner ingen revisjon, den installerer filer. Abonnementet er de
 
 - `install` og `sync` uten `--ref` slår opp releasene og leser nyeste stabile release i stedet for standardgrenen. Staten registrerer revisjonen (`source_sha`), pakkeversjonen og at installasjonen følger releases, og `install --json` tar med `pakke_version` og `follows_releases`. Dette gjelder både bruker- og repo-scope, og `sync --apply` flytter også `sha` i erklæringa til release-SHA-en. Det er den som havner i en planlagt sync-PR.
 - Det finnes ikke noe nedgraderingsvern her: hver install og hver sync slår opp nyeste stabile release på nytt, uten å sammenligne med det som ligger på disk. En installasjon som står foran releasen, flyttes tilbake til den ved neste `sync --apply`. Diffen vises før `--apply`, som for enhver annen fil.
-- Et repo uten stabile releases leses fra standardgrenen som før. Det samme gjelder et repo der ingen release bærer `agentpakke-release.json` for pakka, for eksempel fordi alle releasene er eldre enn manifestet. Ingenting registreres, og ingenting sier fra.
+- Et repo uten stabile releases leses fra standardgrenen som før. Det samme gjelder et repo der ingen release bærer `agentpakke-release.json` for pakka, for eksempel fordi alle releasene er eldre enn manifestet. Ingenting registreres, og ingenting sier fra. Følger installasjonen allerede releases, nekter kommandoen i stedet, og standardgrenen leses ikke.
 - Feiler oppslaget, eller navngir nyeste release en revisjon som ikke er denne pakka, leses standardgrenen med en advarsel på stderr. Det er der pakka ble lest fra før releases fantes, og neste kommando slår opp på nytt. Følger installasjonen allerede releases, feiler kommandoen i stedet, slik en pinne gjør.
 - Er nyeste release payload-only mens standardgrenen ikke er det, er det et tier-bytte og ikke en oppdatering. Ingenting endres, og feilen viser til `--ref`.
 - `--ref`, `--frozen` og en `sha` i erklæringa som `install` allerede resolver til, er valg som er tatt, og slår ikke opp releaser. `sync` leser bevisst ikke `sha`-en i erklæringa: jobben er å finne ut hva som har flyttet seg.

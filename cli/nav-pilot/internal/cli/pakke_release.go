@@ -353,8 +353,10 @@ var errReleaseNotThisPackage = errors.New("nothing was taken from it")
 // See [headFallback].
 //
 // follows says the install being replaced follows this source's releases. Then
-// nothing falls back: a re-install would otherwise leave releases without a
-// word, where sync fails closed. --ref is the explicit way out.
+// nothing falls back — not a failed lookup, and not a repo that has stopped
+// publishing metadata, which is a nil error and answers the question rather
+// than failing to. Either would otherwise leave releases without a word, where
+// sync fails closed. --ref is the explicit way out.
 func releaseStart(src *Source, follows bool) (*Source, *pakkeRelease, error) {
 	name := src.Pakke.Name
 	// A Tier 2 pin never falls back to the default branch; a Tier 1 install
@@ -377,6 +379,21 @@ func releaseStart(src *Source, follows bool) (*Source, *pakkeRelease, error) {
 			"Nothing was pinned; nav-pilot does not start %s on the default branch when it cannot tell whether a stable release exists.\n\n"+
 			"  Pin a revision deliberately:  %s",
 			src.Repo, err, name, bold("nav-pilot install --user --ref <branch|sha> "+name))
+	}
+	// The repo stopped publishing metadata for this package: releases deleted,
+	// the asset withdrawn, or a rename upstream that makes every release name
+	// another package. An install or sync that follows releases does not walk
+	// back onto the default branch over that — [syncPakkePin] refuses it for a
+	// pin, and a nil error is not a reason to answer differently here. Without
+	// this, `sync --apply` rewrote every file from the default branch and
+	// dropped the subscription without a word.
+	if outcome == releaseNoMetadata && follows {
+		return nil, nil, fmt.Errorf(
+			"%s follows stable releases, and %s has no stable release with %s for it.\n"+
+				"Nothing was changed; nav-pilot does not fall back to the default branch.\n\n"+
+				"  Leave stable releases deliberately:  %s",
+			bold(name), bold(src.Repo), pakkeReleaseAsset,
+			bold("nav-pilot install --ref <branch|sha> "+name))
 	}
 	if outcome != releaseCandidate { // no metadata: the only other outcome with nothing installed
 		return src, nil, nil

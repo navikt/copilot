@@ -223,3 +223,38 @@ func TestTier1InstallKeepsADeclaredPin(t *testing.T) {
 		t.Errorf("install over a declared pin fetched %v", *refs)
 	}
 }
+
+// TestTier1FollowingNeverFallsBackToTheDefaultBranch: once an install follows
+// stable releases, a repo that stops publishing metadata for the package —
+// releases deleted, the asset withdrawn, a rename upstream that makes every
+// release name another package — must not walk it back onto the default
+// branch. That outcome carries a nil error, so it is not caught by the
+// failed-lookup branch, and `sync --apply` rewrote every file from the default
+// branch and dropped the subscription without a word.
+func TestTier1FollowingNeverFallsBackToTheDefaultBranch(t *testing.T) {
+	scope := pinEnv(t)
+	tier1ReleaseSource(t, shaB)
+	stubRelease(t, releaseCandidate, release041, nil)
+	tier1Install(t, scope, shaB)
+	assertTier1Release(t, scope, shaA, "0.4.1", true)
+
+	stubRelease(t, releaseNoMetadata, pakkeRelease{}, nil) // the metadata is gone
+
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	if err == nil || err == errUpdatesAvailable {
+		t.Fatalf("sync --apply with the metadata gone = %v, want a refusal. Output:\n%s", err, out)
+	}
+	if !strings.Contains(err.Error(), "does not fall back to the default branch") {
+		t.Errorf("sync refusal = %v, want it to name the default branch", err)
+	}
+	assertTier1Release(t, scope, shaA, "0.4.1", true)
+
+	out = captureStdoutFor(t, func() {
+		err = cmdInstallFromSource("grillmester", tier1HeadSource(t, shaB), scope, false, false, false)
+	})
+	if err == nil {
+		t.Fatalf("install with the metadata gone = nil, want a refusal. Output:\n%s", out)
+	}
+	assertTier1Release(t, scope, shaA, "0.4.1", true)
+}
