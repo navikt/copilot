@@ -227,7 +227,9 @@ var runStagedProbe = func(timeout time.Duration, name string, args ...string) (s
 	cmd.WaitDelay = stagedProbeWaitDelay
 	out, err := cmd.Output()
 	if err != nil && ctx.Err() == nil {
-		err = probeFailure(name, err)
+		// cmd.Path, not name: it is the path exec actually tried, and the only
+		// thing that can tell an absent client from a broken one.
+		err = probeFailure(name, cmd.Path, err)
 	}
 	if ctx.Err() != nil {
 		// This gate is fatal, so the message has to carry both halves: what
@@ -254,33 +256,60 @@ var runStagedProbe = func(timeout time.Duration, name string, args ...string) (s
 //
 // Everything Output can hand back is accounted for, because the first cut of
 // this function keyed on *exec.ExitError alone and let the rest fall through to
-// the raw OS message — the same mistake, one layer down (#831 review):
+// the raw OS message — the same mistake, one layer down (#831 review). path is
+// cmd.Path, the file exec actually tried:
 //
-//   - *exec.Error from LookPath, and *fs.PathError with ENOENT from an absolute
-//     path: nothing to run. "Not found".
+//   - *exec.Error from LookPath: PATH was searched and nothing matched, so
+//     there is no file to ask about. "Not found".
+//   - exec.ErrWaitDelay: the child started, exited *successfully*, and
+//     something it spawned is still holding the inherited output pipe past
+//     WaitDelay. Nothing about that is a start failure, and the earlier version
+//     called it one (#832 review). The probe ran; its answer did not arrive.
 //   - *exec.ExitError: the process ran and exited non-zero. There is an exit
 //     code and there is stderr, so both go in the message.
-//   - anything else — *fs.PathError with EACCES, ENOEXEC, EISDIR, ETXTBSY, and
-//     exec.ErrWaitDelay: the file is there and could not be turned into a
-//     process, or its output was cut short. No exit code and no stderr, so the
-//     OS reason is all there is; the state is still "present and did not start",
-//     which is the one thing this function exists to say.
+//   - ENOENT: ambiguous, and not by a little. execve answers it both for a file
+//     that is not there and for one that is — a script whose shebang
+//     interpreter is missing, an ELF whose dynamic loader is — and the two are
+//     byte-identical: *fs.PathError, "fork/exec <path>: no such file or
+//     directory", errors.Is fs.ErrNotExist either way. Only the file itself
+//     separates them, so stat it. Telling a developer their installed client is
+//     "not found" sends them to install what they already have (#832 review).
+//   - anything else — EACCES, ENOEXEC, EISDIR, ETXTBSY: the file is there and
+//     could not be turned into a process. No exit code and no stderr, so the OS
+//     reason is all there is.
 //
 // Context deadlines never reach here: runStagedProbe checks ctx.Err() itself and
 // has its own message for a probe it stopped.
 //
 // This is deliberately a report, not a readiness proof. A probe that exits 0
 // still says only that the binary ran; see probeClientVersion.
-func probeFailure(name string, err error) error {
+func probeFailure(name, path string, err error) error {
+	// Only consulted for the ENOENT cases below. A stat that fails for any
+	// other reason counts as present: the client may be behind a directory this
+	// process cannot search, and "not found" is the one answer that would be a
+	// lie.
+	_, statErr := os.Stat(path)
+	absent := errors.Is(statErr, fs.ErrNotExist)
+
 	var exit *exec.ExitError
 	switch {
-	case errors.Is(err, exec.ErrNotFound), errors.Is(err, fs.ErrNotExist):
+	case errors.Is(err, exec.ErrNotFound):
 		return fmt.Errorf("%s not found: %w", name, err)
+	case errors.Is(err, exec.ErrWaitDelay):
+		return fmt.Errorf(
+			"the %s probe started and exited, but its output never arrived: something it spawned is still holding the output pipe %s after it. Run the same command again",
+			name, stagedProbeWaitDelay)
 	case errors.As(err, &exit):
 		if msg := firstStderrLine(exit.Stderr); msg != "" {
 			return fmt.Errorf("%s is installed but did not start (exit %d): %s", name, exit.ExitCode(), msg)
 		}
 		return fmt.Errorf("%s is installed but did not start (exit %d), and said nothing about why", name, exit.ExitCode())
+	case errors.Is(err, fs.ErrNotExist) && absent:
+		return fmt.Errorf("%s not found: %w", name, err)
+	case errors.Is(err, fs.ErrNotExist):
+		return fmt.Errorf(
+			"%s is installed but did not start: %s is there, so what is missing is something it needs — its script interpreter, or its dynamic loader (%w)",
+			name, path, err)
 	default:
 		return fmt.Errorf("%s is installed but did not start: %w", name, err)
 	}

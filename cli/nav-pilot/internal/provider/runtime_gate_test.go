@@ -721,3 +721,55 @@ func TestRunStagedProbeReportsAFileThatCannotBecomeAProcess(t *testing.T) {
 		})
 	}
 }
+
+// ENOENT does not mean the client is absent. execve answers it for a script
+// whose shebang interpreter is missing, and for a binary whose dynamic loader
+// is, and the error is byte-identical to the one a missing file produces:
+// *fs.PathError, "fork/exec <path>: no such file or directory", errors.Is
+// fs.ErrNotExist either way. Reporting that as "not found" sends a developer to
+// install something already installed (#832 review). The file itself is the
+// only thing that tells the two apart.
+func TestRunStagedProbeSeparatesAMissingInterpreterFromAMissingClient(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "opencode")
+	if err := os.WriteFile(path, []byte("#!"+filepath.Join(dir, "no-such-interpreter")+"\necho 1.18.20\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := runStagedProbe(10*time.Second, path)
+	if err == nil {
+		t.Fatal("a script with a missing interpreter probed clean")
+	}
+	if strings.Contains(err.Error(), "not found") {
+		t.Errorf("an installed client was reported as absent: %v", err)
+	}
+	if !strings.Contains(err.Error(), "did not start") {
+		t.Errorf("error does not report a start failure: %v", err)
+	}
+}
+
+// exec.ErrWaitDelay is not a start failure. Wait returns it after the child has
+// started and exited successfully, when something it spawned still holds the
+// inherited output pipe — the grandchild case runStagedProbe's WaitDelay exists
+// for. Calling that "did not start" describes the opposite of what happened
+// (#832 review).
+func TestRunStagedProbeReportsAnUncollectedProbeAsSuch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "opencode")
+	// Exits 0 immediately; the backgrounded grandchild keeps stdout open well
+	// past stagedProbeWaitDelay.
+	script := "#!/bin/sh\n( sleep 30 ) &\nexit 0\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := runStagedProbe(30*time.Second, path)
+	if err == nil {
+		t.Fatal("a probe whose output never arrived was reported as clean")
+	}
+	if strings.Contains(err.Error(), "did not start") {
+		t.Errorf("a probe that ran and exited was reported as never starting: %v", err)
+	}
+	if strings.Contains(err.Error(), "not found") {
+		t.Errorf("a probe that ran was reported as absent: %v", err)
+	}
+}
