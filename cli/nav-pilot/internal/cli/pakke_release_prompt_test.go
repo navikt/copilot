@@ -295,6 +295,10 @@ func TestReleasePromptRechecksBeforePinning(t *testing.T) {
 	}{
 		"deleted":    {releaseNoMetadata, pakkeRelease{}},
 		"superseded": {releaseCandidate, release042},
+		// The same SHA, no longer offered: history rewritten under the pin, so
+		// the downgrade guard now refuses what it offered. An outcome with a
+		// nil error answers the question; it is not a licence to pin (#782).
+		"downgraded": {releaseNotOffered, release041},
 	} {
 		t.Run(name, func(t *testing.T) {
 			e := newPromptEnv(t)
@@ -537,4 +541,104 @@ func TestReleaseCacheWriteReplacesTheFile(t *testing.T) {
 	if c := readPakkeReleaseCache(); len(c) != 1 || c["b"].PinnedSHA != shaB {
 		t.Errorf("cache = %+v, want the second write", c)
 	}
+}
+
+// The migration onto stable releases (#782): a pin ahead of or beside the
+// newest release is never offered it as an update, so the launch offers it as a
+// deliberate switch instead.
+
+// TestReleaseMigrationOffersAPinAheadOfTheRelease: the release the downgrade
+// guard refused is offered as a switch, names both revisions, and on "Yes"
+// pins it with the subscription.
+func TestReleaseMigrationOffersAPinAheadOfTheRelease(t *testing.T) {
+	e := newPromptEnv(t)
+	stubRelease(t, releaseNotOffered, release041, nil)
+	e.answer = true
+
+	e.launch(t)
+	if len(e.asked) != 1 {
+		t.Fatalf("asked %q, want one question", e.asked)
+	}
+	for _, want := range []string{shortSHA(shaC), "0.4.1 (" + shortSHA(shaA) + ")", "may be older", "follow stable releases"} {
+		if !strings.Contains(e.asked[0], want) {
+			t.Errorf("the question %q does not name %q", e.asked[0], want)
+		}
+	}
+	assertPin(t, e.scope, shaA, "0.4.1", true)
+	assertRevisionVerifies(t, pakkeRevisionDir("navikt/grillmester", shaA))
+	e.assertLaunchedFrom(t, shaA)
+	if !slices.Equal(*e.refs, []string{shaA}) {
+		t.Errorf("resolved refs %q, want only the release SHA", *e.refs)
+	}
+	assertNotMaterialized(t, shaB)
+}
+
+// TestReleaseMigrationIsNotOfferedToAFollowingPin: a pin that already follows
+// releases keeps the downgrade guard. Nothing walks it back to an older one.
+func TestReleaseMigrationIsNotOfferedToAFollowingPin(t *testing.T) {
+	e := newPromptEnv(t)
+	stubRelease(t, releaseCandidate, release041, nil)
+	e.answer = true
+	e.launch(t)
+	assertPin(t, e.scope, shaA, "0.4.1", true)
+
+	e.asked = nil
+	stubRelease(t, releaseNotOffered, release042, nil)
+	e.launch(t)
+	if len(e.asked) != 0 {
+		t.Errorf("a following pin was offered a downgrade: %q", e.asked)
+	}
+	assertPin(t, e.scope, shaA, "0.4.1", true)
+	e.assertLaunchedFrom(t, shaA)
+}
+
+// TestReleaseMigrationRemembersNo: "No" is an answer about that version, kept
+// across lookups, and the pin is untouched.
+func TestReleaseMigrationRemembersNo(t *testing.T) {
+	e := newPromptEnv(t)
+	stubRelease(t, releaseNotOffered, release041, nil)
+	e.answer = false
+
+	e.launch(t)
+	ageReleaseCache(t, 25*time.Hour)
+	e.launch(t)
+	if len(e.asked) != 1 {
+		t.Errorf("asked %d time(s) about a dismissed migration: %q", len(e.asked), e.asked)
+	}
+	assertPin(t, e.scope, shaC, "", false)
+	e.assertLaunchedFrom(t, shaC)
+}
+
+// TestReleaseMigrationRechecksBeforePinning: the recheck before pinning takes
+// releaseNoMetadata for what it is — a nil error that answers the question —
+// and pins nothing. A source that stopped publishing is not a fallback.
+func TestReleaseMigrationRechecksBeforePinning(t *testing.T) {
+	e := newPromptEnv(t)
+	stubRelease(t, releaseNotOffered, release041, nil)
+	e.answer = true
+	e.onAsk = func() { stubRelease(t, releaseNoMetadata, pakkeRelease{}, nil) }
+
+	stderr := e.launch(t)
+	if !strings.Contains(stderr, "no longer the stable release on offer") {
+		t.Errorf("the withdrawn release was not reported. Stderr:\n%s", stderr)
+	}
+	assertPin(t, e.scope, shaC, "", false)
+	e.assertLaunchedFrom(t, shaC)
+	if len(*e.refs) != 0 {
+		t.Errorf("fetched %q for a release that is no longer published", *e.refs)
+	}
+}
+
+// TestReleaseMigrationNotOfferedWithoutAnyRelease: a source that publishes no
+// release metadata is asked about nothing, exactly as before.
+func TestReleaseMigrationNotOfferedWithoutAnyRelease(t *testing.T) {
+	e := newPromptEnv(t)
+	stubRelease(t, releaseNoMetadata, pakkeRelease{}, nil)
+
+	e.launch(t)
+	if len(e.asked) != 0 {
+		t.Errorf("a source without releases asked %q", e.asked)
+	}
+	assertPin(t, e.scope, shaC, "", false)
+	e.assertLaunchedFrom(t, shaC)
 }
