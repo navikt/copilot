@@ -41,7 +41,10 @@ type pakkeReleaseCacheEntry struct {
 	// answer is about that pin only, so a moved pin makes the entry stale.
 	PinnedSHA string        `json:"pinned_sha"`
 	Candidate *pakkeRelease `json:"candidate,omitempty"`
-	Failed    bool          `json:"failed,omitempty"`
+	// Migration marks a candidate the downgrade guard did not offer, held out
+	// as the move onto stable releases rather than as an update (#782).
+	Migration bool `json:"migration,omitempty"`
+	Failed    bool `json:"failed,omitempty"`
 	// Dismissed is the version the user answered "No" to. Survives lookups.
 	Dismissed string `json:"dismissed,omitempty"`
 }
@@ -112,9 +115,10 @@ func lookUpPakkeRelease(repo, name, pinnedSHA string, timeout time.Duration) (re
 // It returns the revision to launch: rev, or the release the user chose to
 // update to. The caller only calls it in a terminal.
 //
-// Which release is offered is #780's rule, discoverPakkeRelease's candidate,
-// and nothing else. A failed lookup, a failed or aborted prompt and a failed
-// update all launch rev, which tryPakkeLaunch then verifies as always.
+// Which release is offered is #780's rule: its candidate, and — for a pin that
+// does not follow releases yet — the release it refused to offer as a downgrade
+// (#782). A failed lookup, a failed or aborted prompt and a failed update all
+// launch rev, which tryPakkeLaunch then verifies as always.
 func offerPakkeRelease(resolved ResolvedConfig, rev *Source) *Source {
 	scope, err := ScopeUser()
 	if err != nil {
@@ -143,20 +147,48 @@ func offerPakkeRelease(resolved ResolvedConfig, rev *Source) *Source {
 			fmt.Fprintf(os.Stderr, "%s release check for %s failed: %s\n", yellow("⚠"), name, msg)
 		case outcome == releaseCandidate:
 			entry.Candidate = &rel
+		case outcome == releaseNotOffered && !follows:
+			// The pin is ahead of or diverged from the newest stable release,
+			// so the downgrade guard never offers it and the pin never starts
+			// following on its own (#782). A pin installed from the default
+			// branch before the package published releases sits here for good,
+			// on development content nobody chose. Only a person can weigh a
+			// possible downgrade against a subscription, so it is offered as
+			// that question, once per version, and never taken automatically.
+			entry.Candidate, entry.Migration = &rel, true
 		}
 		cache[key] = entry
 		writePakkeReleaseCache(cache)
 	}
 
 	rel := entry.Candidate
-	if rel == nil || rel.Version == entry.Dismissed {
+	version, follows := releaseClaim(state)
+	// A cache entry is evidence about the lookup it recorded, never about the
+	// state now, and the migration was decided for a pin that did not follow
+	// releases. The pin can start following without moving — a release cut from
+	// the very revision it sits on does exactly that — and the entry stays
+	// fresh, because freshness is keyed on the SHA. So the claim is read again
+	// here: a following pin keeps the downgrade guard, which is its whole
+	// protection (#782).
+	if rel == nil || rel.Version == entry.Dismissed || (entry.Migration && follows) {
 		return rev
 	}
 	installed := shortSHA(state.SourceSHA)
-	if version, _ := releaseClaim(state); version != "" {
+	if version != "" {
 		installed = version
 	}
-	update, err := confirmPakkeRelease(fmt.Sprintf("%s %s is available (you have %s). Update now?", name, rel.Version, installed))
+	title := fmt.Sprintf("%s %s is available (you have %s). Update now?", name, rel.Version, installed)
+	if entry.Migration {
+		// The candidate can be older than the pin — that is why it was not
+		// offered as an update — and a yes also subscribes. Both revisions and
+		// both consequences belong in the question.
+		if version != "" {
+			installed = version + " (" + shortSHA(state.SourceSHA) + ")"
+		}
+		title = fmt.Sprintf("%s is pinned at %s, which is not a stable release. The newest is %s, which may be older than what you have. Pin it and follow stable releases?",
+			name, installed, rel.label(rel.SHA))
+	}
+	update, err := confirmPakkeRelease(title)
 	if err != nil {
 		return rev // Ctrl-C is not "No": the question comes back next launch
 	}
@@ -166,7 +198,7 @@ func offerPakkeRelease(resolved ResolvedConfig, rev *Source) *Source {
 		writePakkeReleaseCache(cache)
 		return rev
 	}
-	updated, err := activatePakkeRelease(resolved, scope, state, name, *rel)
+	updated, err := activatePakkeRelease(resolved, scope, state, name, *rel, entry.Migration)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not update %s: %v\nLaunching the pinned revision %s.\n", yellow("⚠"), name, err, shortSHA(rev.SHA))
 		if errors.Is(err, errReleaseUnusable) {
@@ -191,7 +223,7 @@ var errReleaseUnusable = errors.New("the pin is unchanged")
 // activatePakkeRelease moves the pin to exactly rel the way sync --apply does:
 // the release's own SHA, never a re-resolved branch, through pinRevision's
 // verification and lost-update guard.
-func activatePakkeRelease(resolved ResolvedConfig, scope *InstallScope, state *StateFile, name string, rel pakkeRelease) (*Source, error) {
+func activatePakkeRelease(resolved ResolvedConfig, scope *InstallScope, state *StateFile, name string, rel pakkeRelease, migration bool) (*Source, error) {
 	// The offer can be a day old. A release deleted, demoted or superseded
 	// since then is not pinned as one. The person already said yes, so this
 	// lookup gets the full timeout, not the launch's.
@@ -199,7 +231,12 @@ func activatePakkeRelease(resolved ResolvedConfig, scope *InstallScope, state *S
 	if err != nil {
 		return nil, fmt.Errorf("checking %s %s again: %w", name, rel.Version, err)
 	}
-	if outcome != releaseCandidate || !sameSHA(current.SHA, rel.SHA) {
+	// A migration was offered over the downgrade guard's refusal (#782), so
+	// that refusal is what the recheck is expected to answer again. Anything
+	// else means there is no release to pin — releaseNoMetadata included,
+	// which arrives with a nil error and is an answer, not a success.
+	offered := outcome == releaseCandidate || (migration && outcome == releaseNotOffered)
+	if !offered || !sameSHA(current.SHA, rel.SHA) {
 		return nil, fmt.Errorf("%s %s is no longer the stable release on offer; the pin is unchanged", name, rel.Version)
 	}
 	rel = current // same SHA; version and tag as the release says now

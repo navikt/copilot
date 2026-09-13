@@ -373,6 +373,13 @@ export default function Agentpakker() {
                         versjonen.
                       </BodyLong>
                       <BodyLong textColor="subtle">
+                        Konsumenter som alt står på standardgrenen, ligger som regel foran din første release.
+                        Nedgraderingsvernet tilbyr den ikke til dem, så nav-pilot spør dem én gang ved oppstart om å
+                        pinne releasen og følge releases videre. Spørsmålet navngir begge revisjonene og sier at din
+                        release kan være eldre enn det de har. Svarer de nei, blir de stående, og ingenting flyttes uten
+                        et ja.
+                      </BodyLong>
+                      <BodyLong textColor="subtle">
                         Et repo uten slike releases fungerer nøyaktig som før, fra standardgrenen. Feltene og hele
                         kontrakten står i{" "}
                         <NextLink

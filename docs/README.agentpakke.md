@@ -674,14 +674,21 @@ Starter du klienten i en terminal fra en pinnet pakke i brukerscope, og det finn
 ? grillmester 0.4.2 is available (you have 0.4.1). Update now?
 ```
 
-- Kandidaten er den samme sync ville valgt, med samme nedgraderingsvern. En pinne fra `--ref` som ligger foran nyeste release, får ikke spørsmålet. Er pakkeversjonen ukjent, viser spørsmålet den korte SHA-en.
+- Kandidaten er den samme sync ville valgt, med samme nedgraderingsvern. Er pakkeversjonen ukjent, viser spørsmålet den korte SHA-en.
 - Svaret fra oppslaget lagres i `~/.nav-pilot/pakke-releases.json` per repo og pakke, og brukes i 24 timer, eller i én time etter et mislykket oppslag. Flyttes pinnen, slås det opp på nytt. Ved oppstart har oppslaget en tidsgrense på 3 sekunder. Feiler det, skrives én linje, og klienten starter som før. Svarer GitHub 404 på releaselista (et privat repo uten `GITHUB_TOKEN`) for en pinne som ikke følger releases, leses det som ingen metadata, uten melding ved oppstart. Sync og install synker og installerer fra standardgrenen i samme situasjon, men skriver en advarsel.
 - **Ja** slår releasen opp på nytt først. Er den ikke lenger tilbudt med samme SHA, pinnes ingenting, og neste oppstart slår opp på nytt. Ellers pinnes nøyaktig den release-SHA-en spørsmålet gjaldt, med samme verifisering som `sync --apply`, og klienten starter fra den nye revisjonen. Pinnen følger releases. Standardgrenen resolves ikke. Feiler oppdateringen, skrives feilen, og klienten starter fra den pinnede revisjonen etter vanlig verifisering. Er det releasen selv som ikke kan brukes, fordi den ikke er payload-only eller mangler payload for klienten og konteksten, huskes versjonen som et nei, og en nyere versjon spørres om igjen.
 - **Nei** huskes for den versjonen. Kommer en nyere versjon, spør nav-pilot igjen. Avbryter du spørsmålet (Ctrl-C), starter klienten fra den pinnede revisjonen, og du blir spurt igjen neste gang.
-- Uten terminal, og alltid med `CI` eller `GITHUB_ACTIONS` satt, slås ingenting opp, spørres ingenting og endres ingenting.
+- Ligger pinnen foran nyeste stabile release, og følger den ikke releases fra før, spør nav-pilot om overgangen i stedet:
+
+  ```
+  ? grillmester is pinned at 20d634f, which is not a stable release. The newest is 0.4.0 (fe686e2), which may be older than what you have. Pin it and follow stable releases?
+  ```
+
+  Det gjelder en pakke som ble installert fra standardgrenen før den begynte å publisere releases. Nedgraderingsvernet tilbyr aldri releasen til en slik pinne, så uten dette spørsmålet begynner den aldri å følge releases. Spørsmålet navngir den installerte revisjonen (og versjonen hvis den er kjent) mot versjonen og SHA-en som tilbys, og sier fra at kandidaten kan være eldre enn det du har. **Ja** pinner release-SHA-en og starter abonnementet i samme skriving, så nyere releases kommer etterpå som vanlige oppdateringer. **Nei** huskes for den versjonen. En pinne som allerede følger releases, får aldri dette spørsmålet: for den står nedgraderingsvernet. Staten skiller ikke en `--ref`-pinne fra en pinne på standardgrenen, så en `--ref`-pinne foran nyeste release får det samme spørsmålet én gang; ingenting flyttes uten et ja.
+- Uten terminal, og alltid med `CI` eller `GITHUB_ACTIONS` satt, slås ingenting opp, spørres ingenting og endres ingenting. Overgangen skjer aldri av seg selv.
 - Oppstart endrer ingen repo-lockfiler. Sletter du cache-fila, glemmer nav-pilot oppslagene og nei-svarene, men pinnen er uendret.
 
-Automatisk oppdatering, et varig valg per pakke, migrering av eksisterende pinner på standardgrenen og rollback er ikke med ennå ([#779](https://github.com/navikt/copilot/issues/779)).
+Automatisk oppdatering, et varig valg per pakke og rollback er ikke med ennå ([#779](https://github.com/navikt/copilot/issues/779)).
 
 ## Begrensninger i dag
 
