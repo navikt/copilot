@@ -1,0 +1,61 @@
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: copilot-cli
+  namespace: {{namespace}}
+  labels:
+    team: {{team}}
+spec:
+  image: {{image}}
+  port: 8080
+  replicas:
+    min: {{replicas_min}}
+    max: {{replicas_max}}
+  resources:
+    limits:
+      memory: {{memory_limit}}
+    requests:
+      cpu: {{cpu_request}}
+      memory: {{memory_request}}
+  liveness:
+    path: /health
+    initialDelay: 5
+    timeout: 1
+    periodSeconds: 10
+    failureThreshold: 3
+  readiness:
+    path: /ready
+    initialDelay: 5
+    timeout: 1
+    periodSeconds: 10
+    failureThreshold: 3
+  prometheus:
+    enabled: true
+    path: /metrics
+  # naisdevice-only ingress — no app-to-app inbound traffic is accepted,
+  # this service is only reachable from developer laptops via .intern.
+  ingresses:
+    {{#each ingresses}}
+    - {{this}}
+    {{/each}}
+  azure:
+    application:
+      enabled: true
+      tenant: {{azure_tenant}}
+  env:
+    - name: GITHUB_ORG
+      value: "{{github_org}}"
+    - name: COPILOT_API_URL
+      value: "{{copilot_api_url}}"
+    - name: LOG_LEVEL
+      value: "{{log_level}}"
+  accessPolicy:
+    inbound:
+      rules: []
+    outbound:
+      rules:
+        - application: copilot-api
+          namespace: {{namespace}}
+      external:
+        - host: api.github.com
+        - host: github.com

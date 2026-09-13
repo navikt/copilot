@@ -6,3 +6,8 @@ video_feed_cache_seconds: "60"
 # NOTE: AZURE_APP_PRE_AUTHORIZED_APPS must be set via NAIS secret with my-copilot's client ID
 # Format: [{"clientId": "my-copilot-client-id"}]
 # This allows my-copilot to call this API with delegated user credentials
+
+# NOTE: copilot-cli's X-On-Behalf-Of trust needs no manual config. Once
+# copilot-cli is granted inbound access via accessPolicy.inbound.rules, NAIS
+# injects its client ID into AZURE_APP_PRE_AUTHORIZED_APPS and copilot-api
+# derives the trusted azp from there automatically (see trustedClientIDForApp).

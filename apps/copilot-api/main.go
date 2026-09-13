@@ -73,7 +73,6 @@ func main() {
 			cacheTTL := time.Duration(config.CacheTTLHours) * time.Hour
 			cachedBQClient = newCachedBigQueryClient(bqClient, cacheTTL)
 			bqHandlers = newBigQueryHandlers(cachedBQClient)
-			bqHandlers.environment = config.Environment
 			slog.Info("BigQuery client initialized successfully", "cache_ttl", cacheTTL)
 		}
 	} else {
@@ -81,12 +80,6 @@ func main() {
 	}
 	if cachedBQClient != nil {
 		defer cachedBQClient.Close()
-	}
-
-	// Wire GitHub client into BigQuery handlers for per-user ownership checks.
-	// This is independent of the budget client — ownership verification only needs SAML.
-	if bqHandlers != nil && githubClient != nil {
-		bqHandlers.setGitHubClient(githubClient)
 	}
 
 	// Initialize budget client (optional - requires GITHUB_BILLING_TOKEN classic PAT)
@@ -98,12 +91,51 @@ func main() {
 		slog.Warn("GitHub client unavailable - budget endpoint will be unavailable (see GitHub client initialization error above)")
 	default:
 		budgetClient := newBudgetClient(config.GitHubBillingToken, config.GitHubEnterprise)
-		budgetHandlers = newBudgetHandlers(budgetClient, githubClient)
+		budgetHandlers = newBudgetHandlers(budgetClient)
 		if bqHandlers != nil {
 			bqHandlers.setBudgetClient(budgetClient)
 		}
 		slog.Info("Budget client initialized successfully")
 	}
+
+	// Build the IdentityResolver chain (see identity.go) that determines "who
+	// is this caller, as a GitHub username?" independent of which mechanism
+	// (SAML or copilot-cli's trusted X-On-Behalf-Of header) authenticated the
+	// request. Per-user handlers (handleUserMetrics, handleGetBudget, ...)
+	// call requireOwnership/GetResolvedIdentity and have no knowledge of how
+	// the identity was resolved.
+	//
+	// Order matters: OnBehalfOfIdentityResolver must be registered before
+	// SAMLIdentityResolver since a trusted M2M token typically has no email
+	// claim for SAML to resolve.
+	//
+	// The copilot-cli client ID is derived from AZURE_APP_PRE_AUTHORIZED_APPS
+	// (NAIS auto-populates it from accessPolicy.inbound.rules) rather than a
+	// separate manual secret — the same data that already gates M2M auth in
+	// newTokenValidator. If copilot-cli isn't a pre-authorized inbound app the
+	// trust path stays disabled (fails closed).
+	var identityResolvers []IdentityResolver
+	copilotCLIClientID, err := trustedClientIDForApp(config.PreAuthorizedApps, "copilot-cli")
+	if err != nil {
+		slog.Warn("Could not parse AZURE_APP_PRE_AUTHORIZED_APPS — X-On-Behalf-Of trust disabled", "error", err)
+	}
+	if copilotCLIClientID != "" {
+		identityResolvers = append(identityResolvers, NewOnBehalfOfIdentityResolver(map[string]bool{
+			copilotCLIClientID: true,
+		}))
+		slog.Info("copilot-cli trusted for X-On-Behalf-Of on read-only per-user endpoints", "client_id", copilotCLIClientID)
+	} else {
+		slog.Debug("copilot-cli not found in pre-authorized apps — X-On-Behalf-Of trust disabled")
+	}
+	if githubClient != nil {
+		identityResolvers = append(identityResolvers, NewSAMLIdentityResolver(githubClient))
+	}
+	identityChain := NewIdentityResolverChain(identityResolvers...)
+	// required=false: identity resolution failures only matter to the
+	// specific per-user handlers that call requireOwnership/GetResolvedIdentity
+	// (which return their own 401/403). Team/org-level aggregate endpoints
+	// must keep working even for callers with no resolvable GitHub identity.
+	identityMiddleware := IdentityMiddleware(identityChain, false)
 
 	// Middleware
 	authMiddleware := makeAuthMiddleware(config)
@@ -128,7 +160,7 @@ func main() {
 
 	// Protected API endpoints — wrapped with OTel tracing
 	mux.Handle("/api/v1/", otelhttp.NewHandler(
-		loggingMiddleware(config, authMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers))),
+		loggingMiddleware(config, authMiddleware(identityMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers, identityChain)))),
 		"api",
 		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 			return r.Method + " " + r.URL.Path

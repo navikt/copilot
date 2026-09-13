@@ -1,0 +1,93 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+issues:
+  exclude-files:
+    - '^.+_test\.go$'
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - revive
+    - bodyclose
+    - errname
+    - gocritic
+    - gosec
+    - nilerr
+    - unconvert
+  settings:
+    errcheck:
+      check-blank: false
+      check-type-assertions: false
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+        - io.ReadAll
+        - (net/http.ResponseWriter).Write
+        - (*encoding/json.Encoder).Encode
+        - fmt.Fprintf
+        - json.Marshal
+
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+
+    staticcheck:
+      checks: ["all"]
+
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: if-return
+        - name: increment-decrement
+        - name: var-naming
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
+
+    gosec:
+      excludes:
+        - G104
+        - G117
+        - G704
+        - G705
+        - G706
+
+  exclude-rules:
+    - path: _test\.go
+      text: "Error return value of `os\\.(Setenv|Unsetenv)` is not checked"
+      linters:
+        - errcheck
+
+    - path: _test\.go
+      text: "Error return value of.*Body\\.Close"
+      linters:
+        - errcheck
+
+    - path: _test\.go
+      linters:
+        - gosec

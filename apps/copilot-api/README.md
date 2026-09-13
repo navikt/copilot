@@ -4,8 +4,11 @@ Internal backend API for Nav's GitHub Copilot ecosystem. This service provides a
 
 ## Architecture
 
+For a detailed description of the identity resolution pattern (Strategy + Chain + Middleware), see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+
 ```
 Browser → Wonderwall → my-copilot (BFF) → Texas (OBO) → copilot-api → GitHub/BigQuery
+nav-pilot → copilot-cli → Texas (M2M) → copilot-api → GitHub/BigQuery
 ```
 
 **Key principles:**
@@ -68,7 +71,10 @@ Browser → Wonderwall → my-copilot (BFF) → Texas (OBO) → copilot-api → 
 
 ## Authentication
 
-API uses **Azure AD On-Behalf-Of (OBO)** tokens obtained via Texas sidecar. The BFF (`my-copilot`) exchanges user tokens for OBO tokens targeting this API.
+API supports multiple authentication mechanisms via the **Identity Resolver** architecture (see [ARCHITECTURE.md](ARCHITECTURE.md)):
+
+1. **Azure AD OBO tokens** (from `my-copilot` BFF) — resolved to GitHub username via SAML/SCIM lookup
+2. **Azure AD M2M tokens** (from `copilot-cli`) — GitHub username provided via `X-On-Behalf-Of` header (format-validated)
 
 **Token validation:**
 
@@ -97,6 +103,7 @@ API uses **Azure AD On-Behalf-Of (OBO)** tokens obtained via Texas sidecar. The 
 | `AZURE_OPENID_CONFIG_ISSUER` | Expected issuer | (injected by NAIS) |
 | `AZURE_OPENID_CONFIG_JWKS_URI` | JWKS endpoint | (injected by NAIS) |
 | `AZURE_APP_PRE_AUTHORIZED_APPS` | Allowed client IDs (JSON) | (injected by NAIS) |
+| `COPILOT_CLI_CLIENT_ID` | Trusted copilot-cli Azure AD client ID (enables X-On-Behalf-Of) | (empty = disabled) |
 | `GITHUB_ORG` | GitHub organization | `navikt` |
 | `GITHUB_APP_ID` | GitHub App ID | (secret) |
 | `GITHUB_APP_PRIVATE_KEY` | GitHub App private key | (secret) |
