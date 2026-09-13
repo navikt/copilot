@@ -910,21 +910,32 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 				bold(state.Collection), shortSHA(state.SourceSHA), bold(pakkerRoot()), bold(src.Repo), shortSHA(src.SHA), hold.why(state),
 				bold("nav-pilot sync --user --apply --ref <branch|sha>"))
 		}
+		// What is being held back is not always a release. releaseNoMetadata
+		// arrives with a nil error and leaves release nil while src is the
+		// resolved default branch, which is exactly the source a non-following
+		// pin syncs from — so a "keep" on such a pin lands here too, holding a
+		// branch revision. [pakkeRelease.label] is nil-safe and prints the short
+		// SHA for that case, and the line says "revision" rather than calling a
+		// branch commit a release.
+		held, heldKind := release.label(src.SHA), "revision"
+		if release != nil {
+			heldKind = "release"
+		}
 		if hold == holdKeep {
 			// The choice stops the move, not the news: a release nobody hears
 			// about is how a security fix sits unshipped on a machine whose
 			// owner would have taken it. `warning` is a lookup problem sync
 			// stepped around, and that is the more urgent of the two.
-			warning = cmp.Or(warning, fmt.Sprintf("%s %s is available; this scope's update choice keeps revision %s",
-				state.Collection, release.label(src.SHA), shortSHA(state.SourceSHA)))
+			warning = cmp.Or(warning, fmt.Sprintf("%s %s %s is available; this scope's update choice keeps revision %s",
+				state.Collection, heldKind, held, shortSHA(state.SourceSHA)))
 		}
 		if jsonOutput {
 			return outputJSON(syncResult{UpToDate: true, Source: state.SourceSHA, Version: version,
 				UpdateChoice: string(pakkeUpdateChoice(state)), Warning: warning})
 		}
 		if hold == holdKeep {
-			fmt.Printf("%s %s is pinned at %s. %s is available, and this scope keeps the revision.\n",
-				green("✓"), bold(state.Collection), shortSHA(state.SourceSHA), release.label(src.SHA))
+			fmt.Printf("%s %s is pinned at %s. The newest %s is %s, and this scope keeps the revision.\n",
+				green("✓"), bold(state.Collection), shortSHA(state.SourceSHA), heldKind, held)
 			fmt.Printf("%s %s\n", dim("Take this one:"), bold("nav-pilot sync --user --apply --ref "+src.SHA))
 			fmt.Printf("%s %s\n", dim("Be asked again:"), bold("nav-pilot sync --user --updates ask"))
 			return nil

@@ -719,8 +719,18 @@ func run(args []string) error {
 		// releases from now on, this one included (#781). It is user scope only,
 		// which is where every Tier 2 pin lives.
 		if updates != "" {
-			if repoScope {
-				return fmt.Errorf("--repo is not supported with --updates: a Tier 2 revision is only ever pinned in user scope")
+			// cmdUpdateChoice always writes the user scope, so every other way of
+			// naming a scope here is a request it cannot honour: --repo, --target,
+			// and whatever names a scope next. Refusing on the resolved scope
+			// covers them all, where refusing --repo alone let `--target /repo`
+			// change the user's pinned package and then sync somewhere else.
+			// Without a scope flag there is nothing to contradict — a bare sync
+			// covers the user scope too — so that form acts on the pin.
+			if scopeProvided && !scope.IsUser() {
+				return fmt.Errorf(
+					"--updates sets what happens to the agentpakke pinned in your user scope, and this names %s.\n\n"+
+						"  Set it:  %s",
+					bold(scope.Label()), bold("nav-pilot sync --user --updates "+updates))
 			}
 			if err := cmdUpdateChoice(updates, jsonOutput); err != nil {
 				return err

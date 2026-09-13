@@ -609,11 +609,6 @@ func pinRevision(scope *InstallScope, src *Source, release *pakkeRelease, explic
 	// trust a claim nobody made about B.
 	if existing != nil && sameSourceRepo(existing.SourceRepo, src.Repo) {
 		state.PreserveUnknownFrom(existing)
-		// The durable update choice is about the package, not the revision it
-		// was made on, so it outlives every pin this scope writes for that
-		// package — an explicit --ref included, which is one revision and not a
-		// change of mind about the next release (#781).
-		state.UpdateChoice = existing.UpdateChoice
 	}
 	recordRelease(state, existing, src, release, explicit)
 
@@ -630,6 +625,16 @@ func pinRevision(scope *InstallScope, src *Source, release *pakkeRelease, explic
 	if pinMoved(existing, current) {
 		return "", fmt.Errorf("the %s scope's pin changed to %s while %s was being prepared; nothing was recorded. Run the command again",
 			scope.Name, pinLabel(current), shortSHA(src.SHA))
+	}
+	// The durable update choice is about the package, not the revision it was
+	// made on, so it outlives every pin this scope writes for that package — an
+	// explicit --ref included, which is one revision and not a change of mind
+	// about the next release (#781). It is taken from this re-read and not from
+	// `existing`: [pinMoved] does not compare it, so a choice made while the
+	// revision was being materialized would otherwise be written back to what it
+	// was when the command started.
+	if current != nil && sameSourceRepo(current.SourceRepo, src.Repo) {
+		state.UpdateChoice = current.UpdateChoice
 	}
 	if err := writeScopedState(scope, state); err != nil {
 		return "", fmt.Errorf("writing state: %w", err)

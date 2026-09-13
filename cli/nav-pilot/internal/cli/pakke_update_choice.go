@@ -125,14 +125,47 @@ func (h updateHold) why(state *StateFile) string {
 	return "newer than " + shortSHA(state.SourceSHA) + ", which this scope's update choice keeps"
 }
 
+// stateWriteHook is a test seam: when non-nil it runs in [setUpdateChoice] just
+// before the read the write is built on, which is the window a concurrent pin
+// lands in.
+var stateWriteHook func()
+
+// setUpdateChoice writes choice into this scope's state.
+//
+// It re-reads immediately before writing and sets the field on what it finds,
+// rather than on the state its caller read a moment ago. That is the lost-update
+// guard [pinRevision] has, applied to a write that has nothing to refuse: a pin
+// that moved while the choice was being made is the pin now, and the choice is
+// one independent field, so merging onto the newer state is the whole answer
+// where pinRevision has to refuse. Writing the caller's snapshot instead would
+// restore the SourceSHA a concurrent launch, sync or rollback had just moved,
+// along with every file record written with it.
+//
+// ponytail: the window is narrowed to the read and the write, not closed — there
+// is no lock over the state file, and every other writer here has the same
+// window. Add one for all of them, not for this caller alone, if it ever bites.
+func setUpdateChoice(scope *InstallScope, choice updateChoice) error {
+	if stateWriteHook != nil {
+		stateWriteHook()
+	}
+	state, err := readScopedState(scope)
+	if err != nil {
+		return fmt.Errorf("reading state: %w", err)
+	}
+	if state == nil {
+		return fmt.Errorf("the %s scope's installation was removed while the choice was being made; nothing was recorded", scope.Name)
+	}
+	state.UpdateChoice = string(choice)
+	if err := writeScopedState(scope, state); err != nil {
+		return fmt.Errorf("writing state: %w", err)
+	}
+	return nil
+}
+
 // cmdUpdateChoice records the choice for the user scope's pinned agentpakke.
 // `sync --updates <mode>` runs it before the sync itself, so setting the choice
 // and acting on it is one command: `sync --apply --updates auto` says "take new
 // releases from now on, this one included".
-//
-// ponytail: read, set, write, with no lost-update guard. Every other writer here
-// holds the state for as long as a clone and a hash walk take, which is why they
-// re-read; this one writes one field with nothing in between.
 func cmdUpdateChoice(value string, jsonOutput bool) error {
 	choice, ok := parseUpdateChoice(value)
 	if !ok {
@@ -161,9 +194,13 @@ func cmdUpdateChoice(value string, jsonOutput bool) error {
 				"  Pin one:  %s",
 			bold("nav-pilot install --user <name>"))
 	}
-	state.UpdateChoice = string(choice)
-	if err := writeScopedState(scope, state); err != nil {
-		return fmt.Errorf("writing state: %w", err)
+	if err := setUpdateChoice(scope, choice); err != nil {
+		return err
+	}
+	// Read back rather than reporting the snapshot above: the pin named here is
+	// the one the choice was written onto, which a concurrent pin may have moved.
+	if written, err := readScopedState(scope); err == nil && written != nil {
+		state = written
 	}
 	if jsonOutput {
 		return nil // the sync's own document follows on stdout
