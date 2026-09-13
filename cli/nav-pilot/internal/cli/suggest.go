@@ -70,6 +70,7 @@ var knownFlags = []string{
 	"-n", "--dry-run",
 	"-f", "--force",
 	"--apply",
+	"--updates",
 	"--json",
 	"--items",
 	"-F", "--feature",

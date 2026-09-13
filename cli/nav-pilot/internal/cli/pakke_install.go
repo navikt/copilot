@@ -609,6 +609,11 @@ func pinRevision(scope *InstallScope, src *Source, release *pakkeRelease, explic
 	// trust a claim nobody made about B.
 	if existing != nil && sameSourceRepo(existing.SourceRepo, src.Repo) {
 		state.PreserveUnknownFrom(existing)
+		// The durable update choice is about the package, not the revision it
+		// was made on, so it outlives every pin this scope writes for that
+		// package — an explicit --ref included, which is one revision and not a
+		// change of mind about the next release (#781).
+		state.UpdateChoice = existing.UpdateChoice
 	}
 	recordRelease(state, existing, src, release, explicit)
 

@@ -387,6 +387,12 @@ export default function Agentpakker() {
                         ikke.
                       </BodyLong>
                       <BodyLong textColor="subtle">
+                        Konsumenten velger selv én gang hva som skal skje med nye releases: ta dem automatisk, bli spurt
+                        først, eller beholde revisjonen. Et team som har valgt det siste, blir stående til de selv tar
+                        releasen, og får den navngitt av <code className="font-mono text-xs">sync</code> så lenge de
+                        står der. Regn derfor ikke med at alle er på nyeste versjon dagen etter.
+                      </BodyLong>
+                      <BodyLong textColor="subtle">
                         Et repo uten slike releases fungerer nøyaktig som før, fra standardgrenen. Feltene og hele
                         kontrakten står i{" "}
                         <NextLink

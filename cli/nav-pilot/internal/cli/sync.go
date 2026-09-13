@@ -33,6 +33,10 @@ type syncResult struct {
 	PinBump *syncPinBump `json:"pin_bump,omitempty"`
 	// Version is a pinned agentpakke's release version, when it is known (#779).
 	Version string `json:"version,omitempty"`
+	// UpdateChoice is the scope's durable update choice, written where it is
+	// what decided the outcome (#781): a sync that held a release back says so
+	// rather than leaving a caller to read "up to date" and wonder.
+	UpdateChoice string `json:"update_choice,omitempty"`
 	// Warning is a problem sync stepped around without changing anything.
 	Warning string `json:"warning,omitempty"`
 	// Skipped says sync did not check for an update at all; Warning says why.
@@ -880,31 +884,50 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 		}
 	}
 
-	// This scope was rolled back off exactly this revision (#783), so sync
-	// neither offers it nor applies it. The marker names one revision and not
-	// the source, so the next release is offered as usual — which is what makes
-	// keeping the subscription through a rollback worth anything. An explicit
-	// --ref is the way back onto it, and the pin it writes clears the marker.
+	// Whether this scope's pin may move onto this revision on nav-pilot's own
+	// initiative is one question, and [pakkeUpdateHold] is its one answer: the
+	// revision a rollback rejected (#783), and every revision newer than the pin
+	// when the durable update choice is "keep" (#781). Two records, one
+	// predicate, so a scope carrying both cannot be told two different things by
+	// two checks. Neither names the source, so `sync` goes on reporting what is
+	// out there; an explicit --ref is the way onto it, and moves the pin without
+	// changing what the scope chose about the next release.
 	//
-	// ponytail: checked after the release has been resolved, so a rolled-back
-	// scope still pays one fetch per sync until a newer release ships. One check
-	// site instead of two in the switch above; move it up if that cost shows up.
-	if ref == "" && sameSHA(src.SHA, state.RolledBackFrom) {
+	// ponytail: checked after the release has been resolved, so a held scope
+	// still pays one fetch per sync. One check site instead of two in the switch
+	// above; move it up if that cost shows up.
+	if hold := pakkeUpdateHold(state, src.SHA); ref == "" && hold != holdNone {
 		// The pin's own revision is gone, and the only revision the source
-		// offers is the one this scope rejected. Reporting "up to date" here
+		// offers is one this scope will not take. Reporting "up to date" here
 		// would be the frozen success the wiped-revision branch below exists to
-		// close, reached through the rollback marker instead of a missing
-		// release. There is nothing sync can rebuild without being told what.
+		// close, reached through a hold instead of a missing release. There is
+		// nothing sync can rebuild without being told what.
 		if !pinnedRevisionOnDisk(state) {
 			return fmt.Errorf(
-				"%s is pinned at %s, that revision is no longer under %s, and the only revision %s offers is %s — the one this scope was rolled back from.\n"+
+				"%s is pinned at %s, that revision is no longer under %s, and the only revision %s offers is %s — %s.\n"+
 					"Nothing was changed.\n\n"+
 					"  Rebuild a revision deliberately:  %s",
-				bold(state.Collection), shortSHA(state.SourceSHA), bold(pakkerRoot()), bold(src.Repo), shortSHA(src.SHA),
+				bold(state.Collection), shortSHA(state.SourceSHA), bold(pakkerRoot()), bold(src.Repo), shortSHA(src.SHA), hold.why(state),
 				bold("nav-pilot sync --user --apply --ref <branch|sha>"))
 		}
+		if hold == holdKeep {
+			// The choice stops the move, not the news: a release nobody hears
+			// about is how a security fix sits unshipped on a machine whose
+			// owner would have taken it. `warning` is a lookup problem sync
+			// stepped around, and that is the more urgent of the two.
+			warning = cmp.Or(warning, fmt.Sprintf("%s %s is available; this scope's update choice keeps revision %s",
+				state.Collection, release.label(src.SHA), shortSHA(state.SourceSHA)))
+		}
 		if jsonOutput {
-			return outputJSON(syncResult{UpToDate: true, Source: state.SourceSHA, Version: version, Warning: warning})
+			return outputJSON(syncResult{UpToDate: true, Source: state.SourceSHA, Version: version,
+				UpdateChoice: string(pakkeUpdateChoice(state)), Warning: warning})
+		}
+		if hold == holdKeep {
+			fmt.Printf("%s %s is pinned at %s. %s is available, and this scope keeps the revision.\n",
+				green("✓"), bold(state.Collection), shortSHA(state.SourceSHA), release.label(src.SHA))
+			fmt.Printf("%s %s\n", dim("Take this one:"), bold("nav-pilot sync --user --apply --ref "+src.SHA))
+			fmt.Printf("%s %s\n", dim("Be asked again:"), bold("nav-pilot sync --user --updates ask"))
+			return nil
 		}
 		fmt.Printf("%s %s is pinned at %s, rolled back from %s, which is not offered again.\n",
 			green("✓"), bold(state.Collection), shortSHA(state.SourceSHA), shortSHA(src.SHA))

@@ -97,11 +97,47 @@ func writePakkeReleaseCache(cache map[string]pakkeReleaseCacheEntry) {
 	_ = os.Rename(tmp.Name(), path)
 }
 
-// confirmPakkeRelease asks the question. A var so tests answer it.
-var confirmPakkeRelease = func(title string) (bool, error) {
-	var update bool
-	err := huh.NewConfirm().Title(title).Value(&update).WithTheme(navTheme()).Run()
-	return update, err
+// pakkeAnswer is what the person answered at startup. The zero value is the
+// answer that moves nothing, so a prompt that fails moves nothing.
+type pakkeAnswer int
+
+const (
+	answerLater pakkeAnswer = iota
+	answerNow
+	answerAuto
+	answerKeep
+)
+
+// askPakkeRelease asks the question. A var so tests answer it. affirm labels the
+// first answer: the migration question (#782) can offer a revision older than
+// the pin, where "Update now" would not be true.
+//
+// The four answers carry two decisions in one list, which is what #781 asks for:
+// what to do about this release, and what to do about every release after it. A
+// follow-up question would arrive at the least welcome moment — right after
+// someone answered the first one.
+var askPakkeRelease = func(title, affirm string) (pakkeAnswer, error) {
+	answer := answerLater
+	err := huh.NewSelect[pakkeAnswer]().Title(title).Options(
+		huh.NewOption(affirm, answerNow),
+		huh.NewOption("Always, without asking from now on", answerAuto),
+		huh.NewOption("Later", answerLater),
+		huh.NewOption("Keep this revision and stop asking", answerKeep),
+	).Value(&answer).WithTheme(navTheme()).Run()
+	return answer, err
+}
+
+// recordUpdateChoice writes the durable choice a startup answer made (#781).
+// Best effort, and deliberately so: it runs between a person answering and the
+// client starting, and a state that cannot be written is not a reason to refuse
+// the launch. The cost of losing it is the same question next time.
+func recordUpdateChoice(scope *InstallScope, choice updateChoice) {
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		return
+	}
+	state.UpdateChoice = string(choice)
+	_ = writeScopedState(scope, state)
 }
 
 // lookUpPakkeRelease runs #780's discovery within timeout.
@@ -117,8 +153,10 @@ func lookUpPakkeRelease(repo, name, pinnedSHA string, timeout time.Duration) (re
 //
 // Which release is offered is #780's rule: its candidate, and — for a pin that
 // does not follow releases yet — the release it refused to offer as a downgrade
-// (#782). A failed lookup, a failed or aborted prompt and a failed update all
-// launch rev, which tryPakkeLaunch then verifies as always.
+// (#782). Whether it is offered at all, asked about or taken outright is the
+// scope's durable update choice (#781). A failed lookup, a failed or aborted
+// prompt and a failed update all launch rev, which tryPakkeLaunch then verifies
+// as always.
 func offerPakkeRelease(resolved ResolvedConfig, rev *Source) *Source {
 	scope, err := ScopeUser()
 	if err != nil {
@@ -126,6 +164,16 @@ func offerPakkeRelease(resolved ResolvedConfig, rev *Source) *Source {
 	}
 	state, err := readScopedState(scope)
 	if err != nil || state == nil {
+		return rev
+	}
+	// "Keep the revision" (#781) is answered here and not further down: it is an
+	// answer about every future release, so there is nothing to look up, nothing
+	// to cache and nothing to ask. A launch under it costs no network at all.
+	// The news is not suppressed with the question — `nav-pilot sync` and
+	// `status` still name a newer release and the command that takes it — but a
+	// launch is not where someone who said "stop asking" is told again.
+	choice := pakkeUpdateChoice(state)
+	if choice == updateKeep {
 		return rev
 	}
 	name := rev.Pakke.Name
@@ -173,8 +221,15 @@ func offerPakkeRelease(resolved ResolvedConfig, rev *Source) *Source {
 	// A revision this scope was rolled back off is not offered again (#783), and
 	// not as a question either: a "yes" would pin the very revision the user
 	// rejected. Any other candidate is offered as usual, so the fix arrives the
-	// ordinary way.
-	if rel == nil || rel.Version == entry.Dismissed || (entry.Migration && follows) || sameSHA(rel.SHA, state.RolledBackFrom) {
+	// ordinary way. That refusal and "keep the revision" are one predicate
+	// ([pakkeUpdateHold]), so a scope carrying both cannot get two answers.
+	//
+	// A dismissed version is a "Later", which is an answer about this version in
+	// ask mode only: under "auto" nobody is asking, and skipping a release
+	// because of a question answered before the mode was chosen would be the
+	// automatic mode quietly not being automatic.
+	dismissed := rel != nil && rel.Version == entry.Dismissed && choice != updateAuto
+	if rel == nil || dismissed || (entry.Migration && follows) || pakkeUpdateHold(state, rel.SHA) != holdNone {
 		return rev
 	}
 	installed := shortSHA(state.SourceSHA)
@@ -182,6 +237,7 @@ func offerPakkeRelease(resolved ResolvedConfig, rev *Source) *Source {
 		installed = version
 	}
 	title := fmt.Sprintf("%s %s is available (you have %s). Update now?", name, rel.Version, installed)
+	affirm := "Update now"
 	if entry.Migration {
 		// The candidate can be older than the pin — that is why it was not
 		// offered as an update — and a yes also subscribes. Both revisions and
@@ -191,16 +247,41 @@ func offerPakkeRelease(resolved ResolvedConfig, rev *Source) *Source {
 		}
 		title = fmt.Sprintf("%s is pinned at %s, which is not a stable release. The newest is %s, which may be older than what you have. Pin it and follow stable releases?",
 			name, installed, rel.label(rel.SHA))
+		affirm = "Pin it and follow stable releases"
 	}
-	update, err := confirmPakkeRelease(title)
-	if err != nil {
-		return rev // Ctrl-C is not "No": the question comes back next launch
-	}
-	if !update {
-		entry.Dismissed = rel.Version
-		cache[key] = entry
-		writePakkeReleaseCache(cache)
-		return rev
+
+	// "auto" takes the release without asking — but never the migration, which
+	// is the one candidate that can be a downgrade and a new subscription at
+	// once. #782 leaves that to a person, and a mode that means "keep me on the
+	// newest release" is not consent to go backwards.
+	if choice == updateAuto && !entry.Migration {
+		fmt.Printf("%s %s %s is available, and this scope takes new releases automatically.\n%s %s\n",
+			dim("ℹ"), bold(name), rel.Version,
+			dim("Be asked first:"), bold("nav-pilot sync --user --updates ask"))
+	} else {
+		answer, err := askPakkeRelease(title, affirm)
+		if err != nil {
+			return rev // Ctrl-C is not an answer: the question comes back next launch
+		}
+		switch answer {
+		case answerLater:
+			entry.Dismissed = rel.Version
+			cache[key] = entry
+			writePakkeReleaseCache(cache)
+			return rev
+		case answerKeep:
+			// The pin stays where it is, and nothing is dismissed: the choice
+			// covers this version and every later one, and a version-sized
+			// memory of it would only be a second record saying less.
+			recordUpdateChoice(scope, updateKeep)
+			fmt.Printf("%s %s keeps revision %s. Change it with %s.\n",
+				green("✓"), bold(name), shortSHA(state.SourceSHA), bold("nav-pilot sync --user --updates ask"))
+			return rev
+		case answerAuto:
+			// Recorded before the update, not after: the update can fail, and
+			// the answer to "what about the next release" was still given.
+			recordUpdateChoice(scope, updateAuto)
+		}
 	}
 	updated, err := activatePakkeRelease(resolved, scope, state, name, *rel, entry.Migration)
 	if err != nil {
