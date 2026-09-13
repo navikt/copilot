@@ -921,6 +921,13 @@ func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error
 	// is whatever this launch will really use. Checking inside a single branch
 	// left the legacy paths — no source configured, a manifest-less source —
 	// passing an undeclared --persona straight to the client (#798).
+	// Same boundary, and first of the three: an agentpakke that declares no
+	// agent for this client has no persona to resolve, and saying that in its
+	// own words beats ResolvePersona's answer about a --persona the user may
+	// never have passed (#799).
+	if err := providerpkg.CheckPakkeAgentless(resolved.Client); err != nil {
+		return err
+	}
 	if _, err := providerpkg.ResolvePersona(resolved.Client, resolved.Persona); err != nil {
 		return err
 	}

@@ -104,6 +104,9 @@ func (m *Manifest) checkSemantics(runningVersion string) error {
 	if err := m.checkTiers(); err != nil {
 		return err
 	}
+	if err := m.checkAgentsDeclared(); err != nil {
+		return err
+	}
 	if err := m.checkCompatibility(); err != nil {
 		return err
 	}
@@ -318,8 +321,37 @@ func (m *Manifest) checkTiers() error {
 	}
 	return fmt.Errorf(
 		"client(s) %s declare no payloads, which makes them Tier 1, but the manifest has no \"layout\". "+
-			"Add a layout with agents and skills paths, or declare payloads to make them Tier 2",
+			"Add a layout naming the content directories this agentpakke ships, or declare payloads to make them Tier 2",
 		strings.Join(tier1, ", "))
+}
+
+// checkAgentsDeclared requires a layout.agents directory from any Tier 1 client
+// that declares primaryAgents.
+//
+// The schema stopped requiring either of them, so that a pakke shipping no
+// agent can be represented at all (#799). Declaring one without the other is
+// not that pakke: primaryAgents names agent files, and the cross-check that
+// holds each name to a file (#796) reads layout.agents — so omitting only the
+// directory would skip the check entirely and let a typo reach the client as
+// --agent, which is the defect that check exists to remove. Caught here rather
+// than on disk because it is answerable from the manifest alone.
+func (m *Manifest) checkAgentsDeclared() error {
+	if m.Layout != nil && strings.TrimSpace(m.Layout.Agents) != "" {
+		return nil
+	}
+	// AvailableClients, like checkTiers: a roster for a client key this binary
+	// does not recognize is ignored rather than rejected (A3/A4).
+	for _, client := range m.AvailableClients() {
+		entry := m.Clients[client]
+		if m.Tier(client) != TierLayout || len(entry.PrimaryAgents) == 0 {
+			continue
+		}
+		return fmt.Errorf(
+			"clients.%s.primaryAgents names %q, but the manifest declares no layout.agents directory to hold its agent file. "+
+				"Add layout.agents, or drop primaryAgents if this agentpakke ships no agent",
+			client, entry.PrimaryAgents[0])
+	}
+	return nil
 }
 
 // checkPaths rejects any repo-relative path that is absolute or escapes the

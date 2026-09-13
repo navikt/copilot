@@ -19,10 +19,14 @@ import (
 // launch branch in internal/cli) satisfies it by construction — it sets the
 // pakke only after Tier(client) == TierPayload, which requires a declared
 // entry, and schemas/agentpakke-v1.json requires a "minItems": 1 primaryAgents
-// on every payload of a Tier 2 entry (and on every Tier 1 entry itself),
-// checked by agentpakke.Load before a manifest is ever attached to a source.
-// That is what lets [PrimaryAgent] and [PrimaryAgentFor] be pure manifest reads
-// with no fallback.
+// on every payload of a Tier 2 entry, checked by agentpakke.Load before a
+// manifest is ever attached to a source. That is what lets [PrimaryAgent] and
+// [PrimaryAgentFor] be pure manifest reads with no fallback.
+//
+// A Tier 1 entry may legitimately declare no agents at all (#799). Such a pakke
+// installs and syncs, but there is no persona to launch it as, so the launch
+// boundary refuses it in [CheckPakkeAgentless] rather than letting the empty
+// string reach a client as --agent.
 //
 // The staged path additionally launches a context, so its invariant is that the
 // manifest declares the client *and* the launched context's roster — again by
@@ -40,7 +44,9 @@ func SetActivePakke(m *agentpakke.Manifest) { source.SetActivePakke(m) }
 // client — there is no fallback to the built-in default's persona, which would
 // inject Nav's nav-pilot persona into a foreign agentpakke's launch while
 // materialization (artifacts/export.go:317) correctly demoted it to a
-// subagent. Launch paths never observe the empty string: the built-in default
+// subagent. The one launch that could observe the empty string — a Tier 1 pakke
+// that declares no agents (#799) — is refused at the launch boundary by
+// [CheckPakkeAgentless] before it gets here; otherwise the built-in default
 // declares every known client, and the staged path only sets a pakke that
 // declares the client it is launching (see [SetActivePakke]).
 func PrimaryAgent(client string) string {
@@ -139,6 +145,31 @@ func resolvedModelOrigin(client string, r domain.ResolvedConfig) (model, origin 
 		return declared, source.ActivePakke().Name + " default"
 	}
 	return "", ""
+}
+
+// CheckPakkeAgentless refuses a launch of an agentpakke that ships no agent for
+// this client.
+//
+// The contract allows such a pakke (#799): a team can publish skills or
+// instructions without inventing a persona. Its content installs and syncs like
+// any other, but a launch has nothing to hand the client as --agent, so it stops
+// here and says so — naming the pakke, and in words that cannot be read as a
+// manifest that failed to load, because this manifest is fine.
+//
+// A Tier 2 entry is exempt by construction: its roster lives on each payload,
+// the staged path reads it from there, and no staged launch reaches this
+// boundary at all.
+func CheckPakkeAgentless(client string) error {
+	m := source.ActivePakke()
+	entry, ok := m.Client(client)
+	if !ok || len(entry.Payloads) > 0 || len(entry.PrimaryAgents) > 0 {
+		return nil
+	}
+	return fmt.Errorf(
+		"agentpakke %q ships no agent for %s, so there is nothing to launch it as. "+
+			"Its skills and instructions still install and sync; start %s yourself, "+
+			"or point nav-pilot at an agentpakke that declares an agent (nav-pilot config set source <repo>)",
+		m.Name, client, client)
 }
 
 // ResolvePersona returns the agent a Tier 1 launch of client should start.

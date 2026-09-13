@@ -271,9 +271,8 @@ func TestBaseWithUnusableManifestIsRefused(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(baseDir, ".nav-pilot"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// Gyldig JSON, men bryter kontrakten: layout uten skills, og ingen
-	// primaryAgents for klienten.
-	broken := `{"contractVersion":"1","name":"base","description":"b","layout":{"agents":"agents"},"clients":{"copilot":{}}}`
+	// Gyldig JSON, men bryter kontrakten: layout.agents peker ut av repoet.
+	broken := `{"contractVersion":"1","name":"base","description":"b","layout":{"agents":"../utenfor"},"clients":{"copilot":{"primaryAgents":["base"]}}}`
 	if err := os.WriteFile(filepath.Join(baseDir, ".nav-pilot", "agentpakke.json"), []byte(broken), 0o644); err != nil {
 		t.Fatal(err)
 	}
