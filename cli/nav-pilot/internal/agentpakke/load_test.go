@@ -224,16 +224,9 @@ func TestParseRejectsMalformedKnownConstructs(t *testing.T) {
 			wantErrs: []string{"contractVersion"},
 		},
 		{
-			// A Tier 1 entry (no payloads) is the unit that carries the
-			// agents, so its own roster is required.
-			name: "tier 1 entry without primaryAgents",
-			patch: func(doc map[string]any) {
-				doc["clients"].(map[string]any)["opencode"] = map[string]any{}
-				doc["layout"] = map[string]any{"agents": "agents", "skills": "skills"}
-			},
-			wantErrs: []string{"clients.opencode", "primaryAgents", "Tier 1"},
-		},
-		{
+			// Omitting the roster is allowed — that is a pakke shipping no
+			// agent (#799) — but declaring an empty one is a malformed
+			// declaration of a known construct.
 			name: "empty primaryAgents",
 			patch: func(doc map[string]any) {
 				doc["clients"].(map[string]any)["opencode"] = map[string]any{"primaryAgents": []any{}}
@@ -326,11 +319,14 @@ func TestParseRejectsMalformedKnownConstructs(t *testing.T) {
 			wantErrs: []string{"copilot", "Tier 1", "layout"},
 		},
 		{
-			name: "layout without skills",
+			// A layout naming no directory at all promises content that is
+			// nowhere; which directories it names is the pakke's own business
+			// since #799.
+			name: "empty layout",
 			patch: func(doc map[string]any) {
-				doc["layout"] = map[string]any{"agents": "plugin/agents"}
+				doc["layout"] = map[string]any{}
 			},
-			wantErrs: []string{"layout", "skills"},
+			wantErrs: []string{"layout"},
 		},
 		{
 			name: "absolute layout path",
@@ -961,5 +957,54 @@ func TestModelWarnings(t *testing.T) {
 	// A client this binary cannot launch is not ours to second-guess.
 	if w := manifest(t, "zed", "whatever-zed-calls-it").ModelWarnings(); len(w) != 0 {
 		t.Errorf("an unknown client must stay silent, got %v", w)
+	}
+}
+
+// skillsOnlyManifest is a Tier 1 pakke that ships no agent: no primaryAgents on
+// the client entry, no layout.agents. The contract used to make this shape
+// unrepresentable, so a team publishing a skills pack had to invent a persona
+// to hold it (#799).
+const skillsOnlyManifest = `{
+  "contractVersion": "1",
+  "name": "ferdigheter",
+  "description": "Bare ferdigheter",
+  "clients": { "copilot": {} },
+  "layout": { "skills": "skills" }
+}`
+
+func TestSkillsOnlyPakkeValidates(t *testing.T) {
+	if _, err := parse([]byte(skillsOnlyManifest), devVersion); err != nil {
+		t.Fatalf("a pakke that ships no agent must validate, got %v", err)
+	}
+
+	root := t.TempDir()
+	writeManifest(t, root, skillsOnlyManifest)
+	mkdirAll(t, filepath.Join(root, "skills", "grilling"))
+	writeFile(t, filepath.Join(root, "skills", "grilling", "SKILL.md"), "# Grilling\n")
+
+	if errs := ValidateSource(root); len(errs) != 0 {
+		t.Fatalf("ValidateSource on a skills-only pakke = %v, want no violations", errs)
+	}
+}
+
+// The relaxation must not open a hole in #796/#804: declaring primaryAgents is
+// a promise of agent files, and the cross-check that keeps the promise reads
+// layout.agents. Omitting only the directory would skip it entirely.
+func TestPrimaryAgentsWithoutAgentsDirRefused(t *testing.T) {
+	m := `{
+  "contractVersion": "1",
+  "name": "halv",
+  "description": "d",
+  "clients": { "copilot": { "primaryAgents": ["grillmester"] } },
+  "layout": { "skills": "skills" }
+}`
+	_, err := parse([]byte(m), devVersion)
+	if err == nil {
+		t.Fatal("primaryAgents without a layout.agents directory must be refused")
+	}
+	for _, want := range []string{"clients.copilot.primaryAgents", "layout.agents"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal must name %q, got: %v", want, err)
+		}
 	}
 }

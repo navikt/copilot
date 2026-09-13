@@ -53,7 +53,7 @@ Generert fra `cli/nav-pilot/schemas/agentpakke-v1.json`. Ukjente felt på alle n
 | `description` | string | ja | Én linje, vises i `nav-pilot list`. |
 | `clients` | objekt, minst én nøkkel | ja | Én oppføring per klient. Se under. |
 | `owner` | objekt: `repo` (`^[^/]+/[^/]+$`), `team` | nei | Kun attribusjon. Kilden til en installasjon er der manifestet ble klonet fra, ikke `owner.repo`. |
-| `layout` | objekt: `agents`\*, `skills`\*, `instructions`, `prompts`, `hooks`, `extensions` | ja for Tier 1 | Repo-relative stier til innholdskatalogene. `agents` og `skills` er påkrevd når `layout` først er til stede. |
+| `layout` | objekt: `agents`, `skills`, `instructions`, `prompts`, `hooks`, `extensions` | ja for Tier 1 | Repo-relative stier til innholdskatalogene. Deklarer dem pakka faktisk har, og minst én. Deklarerer du `primaryAgents`, må `agents` være med. |
 | `policies` | objekt: `opencodePermissions` | nei | Peker på policy-artefakter. Sti-sjekkes i dag, materialiseres ikke ennå. |
 | `profiles` | objekt: `dir`, `default` | nei | Katalog med launch-profiler og navnet på standardprofilen (`<dir>/<default>.json`). Sti-sjekkes i dag, brukes ikke ennå. |
 | `provenance` | objekt: `base` (`repo`\*, `digest`\*), `overlays[]` (`component`\*, `version`\*) | nei | Opphav for komponert innhold. Ren metadata, nav-pilot verifiserer ikke digest. |
@@ -65,7 +65,7 @@ Nøkkelen er en identifikator (`^[a-z][a-z0-9-]*$`). Klientene denne binæren ka
 
 | Felt | Type | Påkrevd | Betydning |
 | --- | --- | --- | --- |
-| `primaryAgents` | array av string, minst ett element | påkrevd for Tier 1 | Agentene som er valgbare som primære personaer i klienten. Første element startes som standard; `nav-pilot --persona <navn>` velger en annen, og navnet må stå i denne lista. Hvert navn må ha en agentfil i `layout.agents`, ellers avvises manifestet av `validate` og `install`. Alt annet i `agents/` materialiseres som subagent. Har oppføringen `payloads`, ligger rosteret i stedet på hver payload ([`payloads.<kontekst>.primaryAgents`](#clientsklientpayloadskontekst)), og feltet her **leses ikke**. Blir det stående, valideres det fortsatt som et velformet ikke-tomt array, men fjern det heller, se [korreksjonen](#én-korreksjon-før-første-konsument-august-2026). |
+| `primaryAgents` | array av string, minst ett element | nei | Agentene som er valgbare som primære personaer i klienten. Første element startes som standard; `nav-pilot --persona <navn>` velger en annen, og navnet må stå i denne lista. Hvert navn må ha en agentfil i `layout.agents`, ellers avvises manifestet av `validate` og `install`. Alt annet i `agents/` materialiseres som subagent. Feltet kan utelates: da har pakka ingen persona, og launch avviser klienten (se [Pakker uten agent](#pakker-uten-agent)). Står det der, må `layout.agents` også stå der. Har oppføringen `payloads`, ligger rosteret i stedet på hver payload ([`payloads.<kontekst>.primaryAgents`](#clientsklientpayloadskontekst)), og feltet her **leses ikke**. Blir det stående, valideres det fortsatt som et velformet ikke-tomt array, men fjern det heller, se [korreksjonen](#én-korreksjon-før-første-konsument-august-2026). |
 | `compatibility` | string | nei | Støttet klientversjon som **range** (f.eks. `">=1.18.20,<2"`), ikke en eksakt pin. Håndheves før hver launch, i begge tiere: nav-pilot prober klienten launchen skal starte, og avviser en versjon utenfor området. En mislykket probe eller uleselig versjonsutdata er like fatalt. |
 | `defaultModel` | string | nei | Modell-id, eller literalen `"inherit"` (ikke pin noe, arv provider- eller sesjonsvalget). Er id-en ukjent for modellkatalogen i denne binæren, gir `validate` en **advarsel**, ikke et funn: katalogen synkes fra models.dev og henger etter en fersk modell, så et avvist manifest ville vært feil oftere enn en advarsel er. Hver klient sjekkes slik launcheren dens faktisk bruker verdien: `copilot` får den uendret som `--model`, så hele verdien må være en katalog-id. `opencode` og `pi` deklarerer `<provider>/<modell>`, så der sjekkes bare modelldelen av `github-copilot/…`; andre providere kjenner nav-pilot ikke katalogen til og sier ingenting om. En klient denne binæren ikke kan starte, sjekkes ikke. |
 | `defaultContext` | identifikator | nei | Hvilken payload-kontekst som startes som standard. Uten verdi: `"full"`. Verdien må navngi en payload klienten faktisk deklarerer, også når den er implisitt, så en payload-bærende klient uten `full` må sette feltet. |
@@ -94,15 +94,33 @@ Mangler `layout` mens en *kjent* klient er Tier 1, avvises manifestet:
 
 ```
 client(s) opencode declare no payloads, which makes them Tier 1, but the manifest has no "layout".
-Add a layout with agents and skills paths, or declare payloads to make them Tier 2
+Add a layout naming the content directories this agentpakke ships, or declare payloads to make them Tier 2
 ```
+
+## Pakker uten agent
+
+En agentpakke trenger ikke levere en agent. Et team som vil publisere en ferdighetspakke eller et sett instruksjoner, utelater `primaryAgents` på klientoppføringen og `agents` i `layout`, og slipper å finne på en persona for å holde innholdet ([#799](https://github.com/navikt/copilot/issues/799)).
+
+```json
+{
+  "contractVersion": "1",
+  "name": "ferdigheter",
+  "description": "Ferdighetene teamet vårt deler",
+  "clients": { "copilot": {} },
+  "layout": { "skills": "skills" }
+}
+```
+
+Pakka validerer, installeres og synkes som enhver annen Tier 1-pakke. Det den ikke kan, er å starte klienten: det finnes ingen persona å gi den, så launch stopper og sier det, med pakkas navn i meldinga. Innholdet er installert og virker; du starter klienten selv, eller peker nav-pilot på en pakke som deklarerer en agent.
+
+Enten-eller gjelder: deklarerer du `primaryAgents`, må `layout.agents` også være der, og hvert navn må ha en agentfil. Ellers ville navnet gått uprøvd videre til klienten som `--agent`.
 
 ## Ignorer-ukjent, og hva som feiler lukket
 
 Regelen har to halvdeler, og de gjelder samtidig:
 
 - **Ukjente konstruksjoner ignoreres.** Ukjente klientnøkler, ukjente kontekstnøkler i `payloads`, og ekstra felt på ethvert nivå gjør ikke manifestet ugyldig. En eldre binær tilbyr bare ikke det den ikke kjenner navnet på. Dermed kan økosystemet vokse uten å ugyldiggjøre manifester som allerede er ute.
-- **Feilformede *kjente* konstruksjoner feiler lukket.** En `primaryAgents` som er tom eller mangler der den kreves (Tier 1-oppføring eller Tier 2-payload), en `layout` som mangler for en Tier 1-klient, en `contractVersion` med en major nav-pilot ikke implementerer, en `minNavPilotVersion` nav-pilot ikke kan sammenligne, en `compatibility` som ikke er et gyldig versjonsområde: alt stopper. Et repo som *har* et manifest må ha et gyldig et. Install avbrytes før første filoperasjon, og ingenting skrives delvis.
+- **Feilformede *kjente* konstruksjoner feiler lukket.** En `primaryAgents` som er tom, som mangler på en Tier 2-payload, eller som er deklarert uten `layout.agents`, en `layout` som mangler for en Tier 1-klient, en `contractVersion` med en major nav-pilot ikke implementerer, en `minNavPilotVersion` nav-pilot ikke kan sammenligne, en `compatibility` som ikke er et gyldig versjonsområde: alt stopper. Et repo som *har* et manifest må ha et gyldig et. Install avbrytes før første filoperasjon, og ingenting skrives delvis.
 
 Et repo helt uten `.nav-pilot/agentpakke.json` er ikke en feil. Det behandles som en legacy-samlingskilde (`collections/<navn>/manifest.json`) akkurat som før. Merk at navikt/copilot selv ikke lenger er en slik kilde: siden [#468](https://github.com/navikt/copilot/issues/468) skipper repoet sitt eget manifest, og de fem samlingene er kollapset til den ene pakka `nav-pilot`.
 
@@ -155,7 +173,7 @@ Regel 1 til 4 er tekstlige og kjøres når manifestet parses. Regel 5 krever che
 Utover manifestets form sjekker `nav-pilot validate` (og install) innholdet:
 
 - Hver `layout`-katalog som er deklarert, finnes og er en katalog.
-- `layout.agents` inneholder minst én `*.agent.md`, og hver av dem åpner med YAML-frontmatter.
+- `layout.agents` inneholder minst én `*.agent.md`, og hver av dem åpner med YAML-frontmatter. Gjelder bare hvis katalogen er deklarert.
 - Hver Tier 2 `payloads.<kontekst>.path` finnes som katalog.
 - Hver Tier 2-payload har et payload-manifest, enten `<path>/manifest.json` eller filen `manifest` peker på. nav-pilot nekter å stage en payload uten manifest.
 - Hvert payload-tre stemmer eksakt med payload-manifestet sitt: `schemaVersion` er 1, hver oppføring i `files` har en gyldig sha256 (64 tegn, små bokstaver) og modus `0644` eller `0755`, hver deklarert fil finnes med riktig innhold, og treet inneholder ingen fil manifestet ikke lister. Symlinker og andre ikke-vanlige filer avvises. Modus sjekkes som kjørbit på kilden, slik at en streng `umask` i checkouten ikke gir falske avvik. Eksakt modus settes og verifiseres når payloaden stages.

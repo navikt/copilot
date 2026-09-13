@@ -24,6 +24,7 @@ const DOC_SECTIONS: TocItem[] = [
       { id: "artefakttyper", label: "Artefakttyper" },
       { id: "kjorbar-kode", label: "Kjørbar kode" },
       { id: "manifestet", label: "Manifestet" },
+      { id: "uten-agent", label: "Pakke uten agent" },
       { id: "valider", label: "Valider" },
       { id: "distribuer", label: "Distribuer" },
     ],
@@ -76,6 +77,18 @@ const MANIFEST = `{
     "copilot": {
       "primaryAgents": ["grillmester"]
     }
+  }
+}`;
+
+const MANIFEST_UTEN_AGENT = `{
+  "contractVersion": "1",
+  "name": "ditt-team",
+  "description": "Ferdighetene vi deler",
+  "layout": {
+    "skills": "skills"
+  },
+  "clients": {
+    "copilot": {}
   }
 }`;
 
@@ -206,17 +219,30 @@ export default function Agentpakker() {
                       Manifestet
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
-                      Minste form som validerer. Både <code className="font-mono text-xs">agents</code> og{" "}
-                      <code className="font-mono text-xs">skills</code> må stå i{" "}
-                      <code className="font-mono text-xs">layout</code>, også når den ene er tom.{" "}
-                      <code className="font-mono text-xs">primaryAgents</code> er de agentene brukeren kan starte
-                      klienten som; resten er underagenter andre kaller. Første navn startes som standard, og{" "}
+                      Minste form som validerer. <code className="font-mono text-xs">layout</code> navngir katalogene
+                      pakka faktisk har, minst én av dem. <code className="font-mono text-xs">primaryAgents</code> er de
+                      agentene brukeren kan starte klienten som; resten er underagenter andre kaller. Første navn
+                      startes som standard, og{" "}
                       <code className="font-mono text-xs">nav-pilot --persona &lt;navn&gt;</code> velger et annet av
                       dem. Hvert navn må ha en agentfil i <code className="font-mono text-xs">layout.agents</code>,
                       ellers avvises manifestet av <code className="font-mono text-xs">validate</code> og{" "}
                       <code className="font-mono text-xs">install</code>.
                     </BodyLong>
                     <CodeBlock filename=".nav-pilot/agentpakke.json">{MANIFEST}</CodeBlock>
+
+                    <LinkableHeading id="uten-agent" size="small" level="3">
+                      Pakke uten agent
+                    </LinkableHeading>
+                    <BodyLong textColor="subtle">
+                      Deler dere bare ferdigheter eller instruksjoner, utelater dere{" "}
+                      <code className="font-mono text-xs">primaryAgents</code> og{" "}
+                      <code className="font-mono text-xs">agents</code> i{" "}
+                      <code className="font-mono text-xs">layout</code>. Ingen persona å finne på. Pakka validerer,
+                      installeres og synkes som vanlig, men den kan ikke starte klienten: da finnes det ingen agent å gi
+                      den, og launch stopper med pakkas navn i meldinga. Start klienten selv, eller bruk pakka sammen
+                      med en som deklarerer en agent.
+                    </BodyLong>
+                    <CodeBlock filename=".nav-pilot/agentpakke.json">{MANIFEST_UTEN_AGENT}</CodeBlock>
 
                     <LinkableHeading id="valider" size="small" level="3">
                       Valider

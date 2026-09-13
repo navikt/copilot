@@ -47,11 +47,9 @@
       "additionalProperties": {
         "type": "object",
         "additionalProperties": true,
-        "if": { "not": { "required": ["payloads"] } },
-        "then": { "required": ["primaryAgents"] },
         "properties": {
           "primaryAgents": {
-            "description": "Agent names treated as primary personas for this client (C1-C2). Every other agent materializes as a subagent. Required for a Tier 1 entry (no `payloads`), which is the unit carrying the agents there. Ignored for a Tier 2 entry, where the roster belongs to each payload tree: see clients.<client>.payloads.<context>.primaryAgents.",
+            "description": "Agent names treated as primary personas for this client (C1-C2). Every other agent materializes as a subagent. Optional: a Tier 1 entry that ships no agent omits it, and nav-pilot then refuses to launch that client because there is no persona to hand it, while install and sync carry the pakke's other content as usual. Declaring it commits the pakke to a layout.agents directory holding a file per name. Ignored for a Tier 2 entry, where the roster belongs to each payload tree: see clients.<client>.payloads.<context>.primaryAgents.",
             "type": "array",
             "items": { "type": "string", "minLength": 1 },
             "minItems": 1
@@ -93,9 +91,9 @@
       }
     },
     "layout": {
-      "description": "Tier 1 clients only: repo-relative paths to content directories (D1).",
+      "description": "Tier 1 clients only: repo-relative paths to content directories (D1). Declare the directories the pakke actually ships and no others: a skills-only or instructions-only pakke omits `agents`, and a pakke declaring primaryAgents must declare `agents`.",
       "type": "object",
-      "required": ["agents", "skills"],
+      "minProperties": 1,
       "additionalProperties": true,
       "properties": {
         "agents": { "$ref": "#/$defs/relativePath" },

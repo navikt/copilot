@@ -219,7 +219,7 @@ func hintFor(loc []string, msg string) string {
 		case len(loc) == 1:
 			return "declare at least one client entry"
 		case len(loc) == 2:
-			return `a Tier 1 client entry needs primaryAgents; a Tier 2 entry declares payloads instead, and each payload carries its own primaryAgents`
+			return `a client entry is an object; a Tier 1 entry may declare primaryAgents, a Tier 2 entry declares payloads instead, and each payload carries its own primaryAgents`
 		case loc[2] == "primaryAgents":
 			return "list at least one agent name selectable in this client"
 		case loc[2] == "payloads":
@@ -231,7 +231,7 @@ func hintFor(loc []string, msg string) string {
 			return `each context maps to {"path": "<dir>", "primaryAgents": ["<agent>"]}; the first primaryAgent is that context's default persona, and the payload manifest resolves to <path>/manifest.json`
 		}
 	case "layout":
-		return "layout requires agents and skills as repo-relative paths"
+		return "declare each content directory the pakke ships as a repo-relative path, e.g. {\"skills\": \"skills\"}"
 	case "minNavPilotVersion":
 		return "expected a nav-pilot release version, e.g. 2026.09.01-120000-a1b2c3d"
 	}
