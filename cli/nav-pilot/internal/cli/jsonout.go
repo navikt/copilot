@@ -5,9 +5,11 @@ import (
 	"os"
 )
 
-// jsonStdout is where outputJSON writes. It is captured before any suppression
-// so the document still reaches the real stdout while progress is silenced.
-var jsonStdout *os.File = os.Stdout
+// jsonStdout is the real stdout saved while progress is suppressed, and nil
+// otherwise. It must not be initialised from os.Stdout at package load: tests
+// swap os.Stdout to capture output, and a value cached at init would send the
+// document to a pipe nobody is reading.
+var jsonStdout *os.File
 
 // suppressHumanOutput sends stdout to /dev/null for the duration of a
 // JSON-producing command and returns a function that restores it.
@@ -34,13 +36,18 @@ func suppressHumanOutput(jsonOutput bool) func() {
 	os.Stdout = devnull
 	return func() {
 		os.Stdout = prev
+		jsonStdout = nil
 		devnull.Close()
 	}
 }
 
 // outputJSON writes v to the real stdout, whether or not progress is suppressed.
 func outputJSON(v interface{}) error {
-	enc := json.NewEncoder(jsonStdout)
+	w := jsonStdout
+	if w == nil {
+		w = os.Stdout
+	}
+	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(v)
 }
