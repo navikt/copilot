@@ -39,6 +39,7 @@ const DOC_SECTIONS: TocItem[] = [
     label: "Vedlikehold",
     children: [
       { id: "nar-endringen-nar-fram", label: "Når endringen når fram" },
+      { id: "stabile-releases", label: "Stabile releases" },
       { id: "pensjonering", label: "Pensjonering" },
     ],
   },
@@ -329,6 +330,32 @@ export default function Agentpakker() {
                         linje diff i en pull request de leser og godkjenner. En rettelse er derfor ikke ute samme dag. Å
                         endre <code className="font-mono text-xs">name</code> i manifestet gjør eksisterende
                         installasjoner til en annen pakke, så det er ikke en omdøping du gjør i forbifarten.
+                      </BodyLong>
+                    </VStack>
+
+                    <VStack gap="space-8">
+                      <LinkableHeading id="stabile-releases" size="small" level="3">
+                        Stabile releases
+                      </LinkableHeading>
+                      <BodyLong textColor="subtle">
+                        Uten releases henter <code className="font-mono text-xs">sync</code> det standardgrenen holder,
+                        så alt du pusher går rett ut til konsumentene. Publiserer du i stedet en GitHub Release med
+                        assetet <code className="font-mono text-xs">agentpakke-release.json</code>, leser{" "}
+                        <code className="font-mono text-xs">install</code> og{" "}
+                        <code className="font-mono text-xs">sync</code> nyeste stabile release, og du kan jobbe videre
+                        på main. Releasen må være publisert, ikke prerelease, og immutable, og taggen må binde
+                        versjonen.
+                      </BodyLong>
+                      <BodyLong textColor="subtle">
+                        Et repo uten slike releases fungerer nøyaktig som før, fra standardgrenen. Feltene og hele
+                        kontrakten står i{" "}
+                        <NextLink
+                          href="https://github.com/navikt/copilot/blob/main/docs/README.agentpakke.md#stabile-releases"
+                          className={linkClass}
+                        >
+                          README.agentpakke.md
+                        </NextLink>
+                        .
                       </BodyLong>
                     </VStack>
 

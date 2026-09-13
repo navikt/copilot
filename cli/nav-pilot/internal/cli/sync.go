@@ -181,6 +181,24 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		return err
 	}
 	defer src.Cleanup()
+
+	// A Tier 1 agentpakke that publishes stable releases syncs from the newest
+	// release, not from the default branch this resolved (#794). Everything
+	// below — the retired scan, the pin bump, the file diff — is about one
+	// revision, so the swap happens before any of them reads src.
+	//
+	// The declaration's own SHA is deliberately not consulted here: sync exists
+	// to find out what moved, and bumping the declaration onto the release is
+	// how a release reaches a repo at all.
+	relSrc, release, err := tier1Release(scope, src, ref != "")
+	if err != nil {
+		return err
+	}
+	if relSrc != src {
+		defer relSrc.Cleanup()
+		src = relSrc
+	}
+
 	if !jsonOutput {
 		noteDeclarationDisagreement(scope, src)
 	}
@@ -487,15 +505,22 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		if apply {
 			bumpDeclarationSHA(scope, src, jsonOutput)
 		}
-		// Bump state version so staleness check won't re-trigger for this release
-		if src.Version != "" {
-			if state, err := readScopedState(scope); err == nil && state != nil {
-				if state.Version != src.Version || state.SourceSHA != src.SHA {
-					state.Version = src.Version
-					state.SourceSHA = src.SHA
-					if err := writeScopedState(scope, state); err != nil {
-						fmt.Fprintf(os.Stderr, "%s Could not update state: %v\n", yellow("⚠"), err)
-					}
+		// Bump state version so staleness check won't re-trigger for this
+		// release, and record the stable release this sync read (#794): a new
+		// release whose content this scope already holds changes no file, and
+		// without this the claim would go stale the moment the SHA moved.
+		if state, err := readScopedState(scope); err == nil && state != nil {
+			before := *state
+			recordRelease(state, &before, src, release, ref != "")
+			changed := state.PakkeVersion != before.PakkeVersion ||
+				state.FollowsReleases != before.FollowsReleases ||
+				state.PakkeVersionSHA != before.PakkeVersionSHA
+			if src.Version != "" && (state.Version != src.Version || state.SourceSHA != src.SHA) {
+				state.Version, state.SourceSHA, changed = src.Version, src.SHA, true
+			}
+			if changed {
+				if err := writeScopedState(scope, state); err != nil {
+					fmt.Fprintf(os.Stderr, "%s Could not update state: %v\n", yellow("⚠"), err)
 				}
 			}
 		}
@@ -632,6 +657,9 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	}
 	if state, err := readScopedState(scope); err == nil && state != nil {
 		if applyErrors == 0 {
+			// Before SourceSHA moves: the claim being carried forward is a
+			// claim about the revision the state still records (#794).
+			recordRelease(state, state, src, release, ref != "")
 			state.SourceSHA = src.SHA
 			// Use the binary's release version directly.
 			// "dev" means local/unreleased build — checkStaleness() skips it.
