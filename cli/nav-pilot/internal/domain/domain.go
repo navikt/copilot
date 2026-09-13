@@ -162,6 +162,21 @@ func OpenCodeModelForLabel(name string) string {
 	return ""
 }
 
+// IsKnownCopilotModel reports whether id is in [KnownCopilotModels]. The match
+// is case-insensitive, the way every other lookup over this table is.
+//
+// A negative answer means "not in this binary's generated catalog", not "wrong":
+// the table is synced from models.dev and ages between syncs, so callers warn
+// rather than refuse.
+func IsKnownCopilotModel(id string) bool {
+	for _, m := range KnownCopilotModels {
+		if strings.EqualFold(m.ID, id) {
+			return true
+		}
+	}
+	return false
+}
+
 // ModelValuePattern restricts model identifiers to a sane character set that
 // covers Copilot ids (e.g. "claude-opus-4.8", "gpt-5.5") and opencode
 // provider/model ids (e.g. "anthropic/claude-3-5-sonnet").

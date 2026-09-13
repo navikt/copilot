@@ -30,9 +30,15 @@ func cmdValidate(ref, sourceRepo string, jsonOutput bool) error {
 	defer src.Cleanup()
 
 	label := sourceLabelFor(src)
-	kind, notes, findings := validateSourceTree(src)
+	kind, notes, warnings, findings := validateSourceTree(src)
 
 	if jsonOutput {
+		// Both lists are always arrays in the JSON, never null: the documented
+		// --json contract types them as arrays, and a consumer should not need
+		// a null case for the ordinary "nothing to report" run.
+		if warnings == nil {
+			warnings = []string{}
+		}
 		problems := make([]string, 0, len(findings))
 		for _, f := range findings {
 			problems = append(problems, f.Error())
@@ -44,6 +50,7 @@ func cmdValidate(ref, sourceRepo string, jsonOutput bool) error {
 			"kind":     kind,
 			"valid":    len(findings) == 0,
 			"notes":    notes,
+			"warnings": warnings,
 			"problems": problems,
 		}); err != nil {
 			return err
@@ -59,6 +66,12 @@ func cmdValidate(ref, sourceRepo string, jsonOutput bool) error {
 	fmt.Println()
 	for _, n := range notes {
 		fmt.Printf("  %s %s\n", dim("ℹ"), n)
+	}
+	// Warnings get their own channel rather than riding along as notes: notes
+	// are neutral facts about the manifest, and something the author may want
+	// to fix must not read like one. They never fail the command.
+	for _, w := range warnings {
+		fmt.Printf("  %s %s\n", yellow("⚠"), strings.ReplaceAll(w, "\n", "\n    "))
 	}
 	if len(findings) == 0 {
 		if kind == "legacy" {
@@ -80,19 +93,19 @@ func cmdValidate(ref, sourceRepo string, jsonOutput bool) error {
 }
 
 // validateSourceTree runs the conformance checks for a resolved checkout and
-// returns the source kind ("agentpakke" or "legacy"), informational notes, and
-// every violation found.
-func validateSourceTree(src *Source) (kind string, notes []string, findings []error) {
+// returns the source kind ("agentpakke" or "legacy"), informational notes,
+// warnings that do not fail the command, and every violation found.
+func validateSourceTree(src *Source) (kind string, notes []string, warnings []string, findings []error) {
 	m, err := agentpakke.Load(src.Dir)
 	if err != nil {
 		if !errors.Is(err, agentpakke.ErrNoManifest) {
 			return "agentpakke", []string{
 				fmt.Sprintf("manifest: %s", agentpakke.ManifestPath),
-			}, []error{err}
+			}, nil, []error{err}
 		}
 		return "legacy", []string{
 			fmt.Sprintf("no manifest (legacy collection source) — %s is absent", agentpakke.ManifestPath),
-		}, validateLegacySource(src)
+		}, nil, validateLegacySource(src)
 	}
 
 	notes = append(notes,
@@ -116,7 +129,7 @@ func validateSourceTree(src *Source) (kind string, notes []string, findings []er
 		notes = append(notes, "minNavPilotVersion: "+m.MinNavPilotVersion)
 	}
 
-	return "agentpakke", notes, agentpakke.ValidateSource(src.Dir)
+	return "agentpakke", notes, m.ModelWarnings(), agentpakke.ValidateSource(src.Dir)
 }
 
 // validateLegacySource checks a source that ships no manifest. It must still be

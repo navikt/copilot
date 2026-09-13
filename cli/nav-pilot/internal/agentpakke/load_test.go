@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // grillmesterManifest is the reference agentpakke manifest from the PRD's
@@ -888,5 +890,76 @@ func TestValidateSourceRejectsPrimaryAgentWithoutFile(t *testing.T) {
 	}
 	if errs := ValidateSource(dir); len(errs) != 0 {
 		t.Fatalf("a composed pakke may inherit its persona, got %v", errs)
+	}
+}
+
+// A defaultModel the generated catalog does not know is a warning, not a
+// finding: known_models_gen.go is synced from models.dev and ages between
+// syncs, so failing here would reject a manifest that launches fine (#796).
+func TestModelWarnings(t *testing.T) {
+	manifest := func(t *testing.T, client, model string) *Manifest {
+		t.Helper()
+		m, err := Parse([]byte(`{"contractVersion":"1","name":"p","description":"d",` +
+			`"clients":{"` + client + `":{"primaryAgents":["a"],"defaultModel":"` + model + `"}},` +
+			`"layout":{"agents":"agents","skills":"skills"}}`))
+		if err != nil {
+			t.Fatalf("Parse(%q, %q): %v", client, model, err)
+		}
+		return m
+	}
+
+	warnings := manifest(t, "copilot", "gpt-99-does-not-exist").ModelWarnings()
+	if len(warnings) != 1 {
+		t.Fatalf("ModelWarnings for an unknown model = %v, want one warning", warnings)
+	}
+	if !strings.Contains(warnings[0], "clients.copilot.defaultModel") ||
+		!strings.Contains(warnings[0], "gpt-99-does-not-exist") {
+		t.Errorf("the warning must name the field and the value, got %q", warnings[0])
+	}
+
+	for _, client := range KnownClients {
+		// "inherit" pins nothing, so there is no model to recognize.
+		if w := manifest(t, client, InheritModel).ModelWarnings(); len(w) != 0 {
+			t.Errorf("%s: %q must not warn, got %v", client, InheritModel, w)
+		}
+		// Every bare id in the catalog. copilot gets it verbatim, opencode and
+		// pi get it qualified under github-copilot by ToOpenCodeModel.
+		for _, known := range domain.KnownCopilotModels {
+			if w := manifest(t, client, known.ID).ModelWarnings(); len(w) != 0 {
+				t.Errorf("%s: known model %q warned: %v", client, known.ID, w)
+			}
+		}
+	}
+
+	// opencode and pi declare provider-qualified ids, so the github-copilot
+	// half is checked and another provider's catalog is left alone.
+	for _, client := range []string{"opencode", "pi"} {
+		for _, known := range domain.KnownCopilotModels {
+			if w := manifest(t, client, domain.OpenCodeProviderPrefix+known.ID).ModelWarnings(); len(w) != 0 {
+				t.Errorf("%s: known model %q under its provider warned: %v", client, known.ID, w)
+			}
+		}
+		if w := manifest(t, client, "anthropic/claude-does-not-matter").ModelWarnings(); len(w) != 0 {
+			t.Errorf("%s: a non-github-copilot provider must stay silent, got %v", client, w)
+		}
+		if w := manifest(t, client, domain.OpenCodeProviderPrefix+"gpt-99").ModelWarnings(); len(w) != 1 {
+			t.Errorf("%s: an unknown model under github-copilot must warn, got %v", client, w)
+		}
+	}
+
+	// copilot forwards the value verbatim as --model, so a qualified id is one
+	// copilot itself rejects, catalog or no catalog.
+	for _, model := range []string{
+		domain.OpenCodeProviderPrefix + domain.KnownCopilotModels[0].ID,
+		"anthropic/claude-does-not-matter",
+	} {
+		if w := manifest(t, "copilot", model).ModelWarnings(); len(w) != 1 {
+			t.Errorf("copilot defaultModel %q must warn: it is not a bare catalog id, got %v", model, w)
+		}
+	}
+
+	// A client this binary cannot launch is not ours to second-guess.
+	if w := manifest(t, "zed", "whatever-zed-calls-it").ModelWarnings(); len(w) != 0 {
+		t.Errorf("an unknown client must stay silent, got %v", w)
 	}
 }
