@@ -11,11 +11,22 @@ nav-pilot er et CLI-verktøy og en AI-agent for Nav-utvikling med GitHub Copilot
 # Anbefalt: Homebrew (macOS), nav-pilot og påkrevd isolasjon
 brew install navikt/tap/nav-pilot navikt/tap/cplt
 
+# mise: samme binærer fra GitHub-releasen, med attestering verifisert
+mise use -g 'github:navikt/cplt'
+mise use -g 'github:navikt/copilot[exe=nav-pilot,version_prefix=nav-pilot/]@2026.09.12-225921-bb3fbb6'
+
+# Debian/Ubuntu: .deb fra releasen
+sudo apt install ./nav-pilot_2026.09.12-225921-bb3fbb6_amd64.deb
+
 # Linux / CI: last ned og inspiser skriptet manuelt
 curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh -o install.sh
 cat install.sh   # Se gjennom skriptet før kjøring
 bash install.sh
 ```
+
+> ⚠ **Pin versjonen med mise.** Versjonsstrengene våre er ikke gyldig semver, så
+> `mise latest` plukker en eldre release enn den nyeste. Oppgi versjonen selv,
+> eller bruk Homebrew.
 
 > ⚠ **Sikkerhetsmerk:** `curl ... | bash` kjører installasjonsskriptet uten forhåndsverifikasjon.
 > Binæren verifiseres med SHA256-checksum og SLSA provenance (krever `gh` CLI), men skriptet
