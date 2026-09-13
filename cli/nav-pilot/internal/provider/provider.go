@@ -114,12 +114,7 @@ func ToOpenCodeModel(model string) string {
 }
 
 func isKnownCopilotModel(id string) bool {
-	for _, m := range knownCopilotModels {
-		if strings.EqualFold(m.ID, id) {
-			return true
-		}
-	}
-	return false
+	return domain.IsKnownCopilotModel(id)
 }
 
 func knownCopilotModelIDs() string {

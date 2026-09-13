@@ -224,6 +224,12 @@ export default function Agentpakker() {
                     <CodeBlock>{VALIDER_CMD}</CodeBlock>
                     <CodeBlock>{VALIDER_UT}</CodeBlock>
                     <BodyLong textColor="subtle">
+                      Advarsler (<code className="font-mono text-xs">⚠</code>) feiler ikke kommandoen. En{" "}
+                      <code className="font-mono text-xs">defaultModel</code> nav-pilot ikke kjenner igjen er en av dem:
+                      modellkatalogen synkes fra models.dev og henger etter en fersk modell, så et avvist manifest ville
+                      tatt oftere feil enn advarselen gjør.
+                    </BodyLong>
+                    <BodyLong textColor="subtle">
                       Kilden må være en absolutt sti. <code className="font-mono text-xs">--source .</code> blir forsøkt
                       klonet som et GitHub-repo og feiler, så bruk{" "}
                       <code className="font-mono text-xs">&quot;$PWD&quot;</code>, eller{" "}

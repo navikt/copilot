@@ -113,6 +113,43 @@ func (m *Manifest) checkSemantics(runningVersion string) error {
 	return m.checkPaths()
 }
 
+// ModelWarnings reports declared defaultModel ids this binary's Copilot catalog
+// does not know. They are warnings, not findings from [checkSemantics]: the
+// catalog in domain/known_models_gen.go is generated from models.dev and ages
+// between syncs, so refusing an id it has not caught up with would reject a
+// manifest that launches fine. A typo, which is what the author wants to hear
+// about, reads the same way — hence saying it out loud but exiting 0 (#796).
+//
+// [InheritModel] pins nothing and never warns. opencode and pi declare
+// provider-qualified ids (see provider.ToOpenCodeModel), so only the
+// github-copilot half is checked; any other provider's catalog is not ours to
+// know, and guessing at it would warn about working manifests.
+func (m *Manifest) ModelWarnings() []string {
+	var warnings []string
+	for _, client := range m.ClientIDs() {
+		declared := m.Clients[client].DefaultModel
+		if declared == "" || declared == InheritModel {
+			continue
+		}
+		id := declared
+		if provider, model, qualified := strings.Cut(declared, "/"); qualified {
+			if provider+"/" != domain.OpenCodeProviderPrefix {
+				continue
+			}
+			id = model
+		}
+		if domain.IsKnownCopilotModel(id) {
+			continue
+		}
+		warnings = append(warnings, fmt.Sprintf(
+			"clients.%s.defaultModel %q is not in this nav-pilot's Copilot model catalog. "+
+				"That is a warning, not a violation: the catalog is synced from models.dev and may lag a new model. "+
+				"If it is a typo, the client will reject it at launch — check the id against `nav-pilot models`",
+			client, declared))
+	}
+	return warnings
+}
+
 // checkDefaultContext requires that every payload-bearing client's default
 // context names a payload the manifest actually declares (#704 T2). Without it
 // the schema asks only for an identifier, `nav-pilot validate` passes, and the

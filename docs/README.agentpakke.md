@@ -67,7 +67,7 @@ Nøkkelen er en identifikator (`^[a-z][a-z0-9-]*$`). Klientene denne binæren ka
 | --- | --- | --- | --- |
 | `primaryAgents` | array av string, minst ett element | påkrevd for Tier 1 | Agentene som er valgbare som primære personaer i klienten. Første element startes som standard; `nav-pilot --persona <navn>` velger en annen, og navnet må stå i denne lista. Hvert navn må ha en agentfil i `layout.agents`, ellers avvises manifestet av `validate` og `install`. Alt annet i `agents/` materialiseres som subagent. Har oppføringen `payloads`, ligger rosteret i stedet på hver payload ([`payloads.<kontekst>.primaryAgents`](#clientsklientpayloadskontekst)), og feltet her **leses ikke**. Blir det stående, valideres det fortsatt som et velformet ikke-tomt array, men fjern det heller, se [korreksjonen](#én-korreksjon-før-første-konsument-august-2026). |
 | `compatibility` | string | nei | Støttet klientversjon som **range** (f.eks. `">=1.18.20,<2"`), ikke en eksakt pin. Håndheves før hver launch, i begge tiere: nav-pilot prober klienten launchen skal starte, og avviser en versjon utenfor området. En mislykket probe eller uleselig versjonsutdata er like fatalt. |
-| `defaultModel` | string | nei | Modell-id, eller literalen `"inherit"` (ikke pin noe, arv provider- eller sesjonsvalget). |
+| `defaultModel` | string | nei | Modell-id, eller literalen `"inherit"` (ikke pin noe, arv provider- eller sesjonsvalget). Er id-en ukjent for modellkatalogen i denne binæren, gir `validate` en **advarsel**, ikke et funn: katalogen synkes fra models.dev og henger etter en fersk modell, så et avvist manifest ville vært feil oftere enn en advarsel er. For `opencode` og `pi`, som deklarerer `<provider>/<modell>`, sjekkes bare modelldelen av `github-copilot/…`; andre providere kjenner nav-pilot ikke katalogen til og sier ingenting om. |
 | `defaultContext` | identifikator | nei | Hvilken payload-kontekst som startes som standard. Uten verdi: `"full"`. Verdien må navngi en payload klienten faktisk deklarerer, også når den er implisitt, så en payload-bærende klient uten `full` må sette feltet. |
 | `payloads` | objekt, minst én nøkkel | nei | Tier 2: én oppføring per kontekst (i dag `full`, `focused`). At dette feltet er til stede, er det som gjør oppføringen til Tier 2. |
 
@@ -270,6 +270,8 @@ Kommandoen kjører hele konformanssjekken mot en kilde: manifestet mot schemaet,
 
 Ved funn skriver kommandoen problemene og avslutter med `Error: agentpakke validation failed` på stderr. Det gjelder også med `--json`: JSON-en skrives til stdout først, exit-koden er fortsatt `1`.
 
+Advarsler er en egen kanal og påvirker ikke exit-koden. I dag er det én: en `defaultModel` som ikke står i modellkatalogen. Den skrives med `⚠` i den menneskelige utskriften og som `warnings` i JSON-en.
+
 ### `--json`
 
 | Felt | Type | Innhold |
@@ -280,6 +282,7 @@ Ved funn skriver kommandoen problemene og avslutter med `Error: agentpakke valid
 | `kind` | string | `"agentpakke"` hvis manifestet finnes, `"legacy"` hvis kilden ikke har noe manifest. |
 | `valid` | bool | `true` når `problems` er tom. |
 | `notes` | array av string | Informasjon, ikke funn: manifeststi, pakkenavn og kontraktversjon, klientliste med tier (og hvilke klientnøkler denne binæren ignorerer), `minNavPilotVersion`. |
+| `warnings` | array av string | Ting forfatteren bør se på, men som ikke gjør kilden ikke-konform, og som ikke endrer exit-koden. |
 | `problems` | array av string | Ett element per funn, samme tekst som i den menneskelige utskriften. |
 
 ```json
@@ -297,7 +300,10 @@ Ved funn skriver kommandoen problemene og avslutter med `Error: agentpakke valid
   ],
   "sha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
   "source": "navikt/grillmester",
-  "valid": false
+  "valid": false,
+  "warnings": [
+    "clients.copilot.defaultModel \"gpt-99\" is not in this nav-pilot's Copilot model catalog. …"
+  ]
 }
 ```
 

@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // grillmesterManifest is the reference agentpakke manifest from the PRD's
@@ -888,5 +890,49 @@ func TestValidateSourceRejectsPrimaryAgentWithoutFile(t *testing.T) {
 	}
 	if errs := ValidateSource(dir); len(errs) != 0 {
 		t.Fatalf("a composed pakke may inherit its persona, got %v", errs)
+	}
+}
+
+// A defaultModel the generated catalog does not know is a warning, not a
+// finding: known_models_gen.go is synced from models.dev and ages between
+// syncs, so failing here would reject a manifest that launches fine (#796).
+func TestModelWarnings(t *testing.T) {
+	manifest := func(t *testing.T, model string) *Manifest {
+		t.Helper()
+		m, err := Parse([]byte(`{"contractVersion":"1","name":"p","description":"d",` +
+			`"clients":{"copilot":{"primaryAgents":["a"],"defaultModel":"` + model + `"}},` +
+			`"layout":{"agents":"agents","skills":"skills"}}`))
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", model, err)
+		}
+		return m
+	}
+
+	warnings := manifest(t, "gpt-99-does-not-exist").ModelWarnings()
+	if len(warnings) != 1 {
+		t.Fatalf("ModelWarnings for an unknown model = %v, want one warning", warnings)
+	}
+	if !strings.Contains(warnings[0], "clients.copilot.defaultModel") ||
+		!strings.Contains(warnings[0], "gpt-99-does-not-exist") {
+		t.Errorf("the warning must name the field and the value, got %q", warnings[0])
+	}
+
+	// "inherit" pins nothing, so there is no model to recognize.
+	if w := manifest(t, InheritModel).ModelWarnings(); len(w) != 0 {
+		t.Errorf("%q must not warn, got %v", InheritModel, w)
+	}
+	// Every id in the catalog, bare and provider-qualified the way opencode and
+	// pi declare them.
+	for _, known := range domain.KnownCopilotModels {
+		if w := manifest(t, known.ID).ModelWarnings(); len(w) != 0 {
+			t.Errorf("known model %q warned: %v", known.ID, w)
+		}
+		if w := manifest(t, domain.OpenCodeProviderPrefix+known.ID).ModelWarnings(); len(w) != 0 {
+			t.Errorf("known model %q under its provider warned: %v", known.ID, w)
+		}
+	}
+	// Another provider's catalog is not ours to know.
+	if w := manifest(t, "anthropic/claude-does-not-matter").ModelWarnings(); len(w) != 0 {
+		t.Errorf("a non-github-copilot provider must stay silent, got %v", w)
 	}
 }

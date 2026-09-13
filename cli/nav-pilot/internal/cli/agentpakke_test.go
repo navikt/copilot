@@ -779,7 +779,7 @@ func TestSymlinkedLayoutDirIsRefused(t *testing.T) {
 	}
 
 	// validate reports it...
-	_, _, findings := validateSourceTree(src)
+	_, _, _, findings := validateSourceTree(src)
 	if len(findings) == 0 {
 		t.Error("validate accepted a layout directory symlinked outside the repo")
 	}
@@ -1371,7 +1371,7 @@ func TestValidateSourceTree(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			src := &Source{Dir: tt.tree(t), SHA: "abc", Repo: "navikt/test"}
-			kind, notes, findings := validateSourceTree(src)
+			kind, notes, _, findings := validateSourceTree(src)
 			if kind != tt.wantKind {
 				t.Errorf("kind = %q, want %q", kind, tt.wantKind)
 			}
@@ -1565,5 +1565,56 @@ func TestInstallJSONIsParseableOnEveryDispatch(t *testing.T) {
 				t.Fatalf("install --json did not produce parseable JSON: %v\noutput:\n%s", jsonErr, out)
 			}
 		})
+	}
+}
+
+// An unknown defaultModel is a warning, not a violation: the catalog it is
+// checked against ages between syncs, so validate still exits 0 — but it says
+// so, in both the human output and --json (#796).
+func TestCmdValidateWarnsOnUnknownDefaultModel(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, agentpakke.ManifestDir, agentpakke.ManifestFile),
+		`{"contractVersion":"1","name":"x","description":"d",`+
+			`"clients":{"copilot":{"primaryAgents":["a"],"defaultModel":"gpt-99-does-not-exist"}},`+
+			`"layout":{"agents":"agents","skills":"skills"}}`)
+	mustWrite(t, filepath.Join(dir, "agents", "a.agent.md"), "---\nname: a\ndescription: d\n---\nbody\n")
+	mustWrite(t, filepath.Join(dir, "skills", "s", "SKILL.md"), "# S\n")
+
+	orig := resolveSourceRaw
+	t.Cleanup(func() { resolveSourceRaw = orig })
+	resolveSourceRaw = func(ref, sourceRepo string) (*Source, error) {
+		return &Source{Dir: dir, SHA: "abc", Repo: "navikt/x"}, nil
+	}
+
+	out := captureStdoutFor(t, func() {
+		if err := cmdValidate("", "", false); err != nil {
+			t.Errorf("cmdValidate = %v, want nil: an unknown model must not fail validation", err)
+		}
+	})
+	if !strings.Contains(out, "gpt-99-does-not-exist") {
+		t.Errorf("validate output does not warn about the unknown model:\n%s", out)
+	}
+	if !strings.Contains(out, "conforms to the agentpakke contract") {
+		t.Errorf("validate output does not still pass:\n%s", out)
+	}
+
+	out = captureStdoutFor(t, func() {
+		if err := cmdValidate("", "", true); err != nil {
+			t.Errorf("cmdValidate --json = %v, want nil", err)
+		}
+	})
+	var doc struct {
+		Valid    bool     `json:"valid"`
+		Warnings []string `json:"warnings"`
+	}
+	if err := json.Unmarshal([]byte(out), &doc); err != nil {
+		t.Fatalf("--json output is not JSON: %v\n%s", err, out)
+	}
+	if !doc.Valid {
+		t.Error("--json reports valid=false for an unknown model; it must stay valid")
+	}
+	if len(doc.Warnings) != 1 || !strings.Contains(doc.Warnings[0], "gpt-99-does-not-exist") {
+		t.Errorf("--json warnings = %v, want the unknown model named", doc.Warnings)
 	}
 }
