@@ -252,20 +252,38 @@ var runStagedProbe = func(timeout time.Duration, name string, args ...string) (s
 // read it, so the only diagnosis that existed was captured and thrown away:
 // #565's OpenCode printed "Error: Unexpected server error" there.
 //
+// Everything Output can hand back is accounted for, because the first cut of
+// this function keyed on *exec.ExitError alone and let the rest fall through to
+// the raw OS message — the same mistake, one layer down (#831 review):
+//
+//   - *exec.Error from LookPath, and *fs.PathError with ENOENT from an absolute
+//     path: nothing to run. "Not found".
+//   - *exec.ExitError: the process ran and exited non-zero. There is an exit
+//     code and there is stderr, so both go in the message.
+//   - anything else — *fs.PathError with EACCES, ENOEXEC, EISDIR, ETXTBSY, and
+//     exec.ErrWaitDelay: the file is there and could not be turned into a
+//     process, or its output was cut short. No exit code and no stderr, so the
+//     OS reason is all there is; the state is still "present and did not start",
+//     which is the one thing this function exists to say.
+//
+// Context deadlines never reach here: runStagedProbe checks ctx.Err() itself and
+// has its own message for a probe it stopped.
+//
 // This is deliberately a report, not a readiness proof. A probe that exits 0
 // still says only that the binary ran; see probeClientVersion.
 func probeFailure(name string, err error) error {
-	if errors.Is(err, exec.ErrNotFound) || errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("%s not found: %w", name, err)
-	}
 	var exit *exec.ExitError
-	if errors.As(err, &exit) {
+	switch {
+	case errors.Is(err, exec.ErrNotFound), errors.Is(err, fs.ErrNotExist):
+		return fmt.Errorf("%s not found: %w", name, err)
+	case errors.As(err, &exit):
 		if msg := firstStderrLine(exit.Stderr); msg != "" {
 			return fmt.Errorf("%s is installed but did not start (exit %d): %s", name, exit.ExitCode(), msg)
 		}
 		return fmt.Errorf("%s is installed but did not start (exit %d), and said nothing about why", name, exit.ExitCode())
+	default:
+		return fmt.Errorf("%s is installed but did not start: %w", name, err)
 	}
-	return err
 }
 
 // firstStderrLine is the one line of a failed probe's stderr worth putting in an
