@@ -880,6 +880,38 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 		}
 	}
 
+	// This scope was rolled back off exactly this revision (#783), so sync
+	// neither offers it nor applies it. The marker names one revision and not
+	// the source, so the next release is offered as usual — which is what makes
+	// keeping the subscription through a rollback worth anything. An explicit
+	// --ref is the way back onto it, and the pin it writes clears the marker.
+	//
+	// ponytail: checked after the release has been resolved, so a rolled-back
+	// scope still pays one fetch per sync until a newer release ships. One check
+	// site instead of two in the switch above; move it up if that cost shows up.
+	if ref == "" && sameSHA(src.SHA, state.RolledBackFrom) {
+		// The pin's own revision is gone, and the only revision the source
+		// offers is the one this scope rejected. Reporting "up to date" here
+		// would be the frozen success the wiped-revision branch below exists to
+		// close, reached through the rollback marker instead of a missing
+		// release. There is nothing sync can rebuild without being told what.
+		if !pinnedRevisionOnDisk(state) {
+			return fmt.Errorf(
+				"%s is pinned at %s, that revision is no longer under %s, and the only revision %s offers is %s — the one this scope was rolled back from.\n"+
+					"Nothing was changed.\n\n"+
+					"  Rebuild a revision deliberately:  %s",
+				bold(state.Collection), shortSHA(state.SourceSHA), bold(pakkerRoot()), bold(src.Repo), shortSHA(src.SHA),
+				bold("nav-pilot sync --user --apply --ref <branch|sha>"))
+		}
+		if jsonOutput {
+			return outputJSON(syncResult{UpToDate: true, Source: state.SourceSHA, Version: version, Warning: warning})
+		}
+		fmt.Printf("%s %s is pinned at %s, rolled back from %s, which is not offered again.\n",
+			green("✓"), bold(state.Collection), shortSHA(state.SourceSHA), shortSHA(src.SHA))
+		fmt.Printf("%s %s\n", dim("Go back to it deliberately:"), bold("nav-pilot sync --user --apply --ref "+state.RolledBackFrom))
+		return nil
+	}
+
 	// The pinned source stopped shipping payloads only. There is no revision
 	// bump to make: this release pins neither mixed pakker nor Tier 1 content,
 	// so --apply has nothing valid to materialize, and every launch would go on

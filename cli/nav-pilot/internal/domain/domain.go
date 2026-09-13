@@ -447,6 +447,19 @@ type StateFile struct {
 	// were recorded for. An older nav-pilot that re-pins carries both over as
 	// unknown keys while moving SourceSHA, so a mismatch means they are stale.
 	PakkeVersionSHA string `json:"pakke_version_sha,omitempty"`
+	// RolledBackFrom is the revision a local rollback left (#783). sync and the
+	// startup prompt do not offer that exact revision again, which is what makes
+	// a rollback stick: without it the next sync moves the pin straight back onto
+	// the revision the user just rejected.
+	//
+	// It names one revision, never the source, so a newer release is offered as
+	// usual. Every pin write clears it: the state a pin writes is a fresh one,
+	// and a pin that has moved has answered the question this field asks.
+	//
+	// No anchor of its own, unlike PakkeVersionSHA. A stale marker carried
+	// forward by an older nav-pilot suppresses a single SHA the pin has already
+	// moved past, and a revision behind the pin is never offered anyway.
+	RolledBackFrom string `json:"rolled_back_from,omitempty"`
 	// Unknown carries every top-level key this binary does not understand, so a
 	// read-modify-write does not silently drop what a newer nav-pilot wrote.
 	// See [InstalledFile.Unknown].

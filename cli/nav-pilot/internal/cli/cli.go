@@ -64,7 +64,7 @@ func isKnownCommand(arg string) bool {
 		return true
 	}
 	switch arg {
-	case "install", "init", "export", "add", "ignore", "sync", "list", "doctor",
+	case "install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor",
 		"uninstall", "upgrade", "update", "config", "validate", "env", "feedback",
 		"models", "alpha", "version", "--version", "-v", "-h", "--help", "help":
 		return true
@@ -88,6 +88,7 @@ Commands:
   install --user --all    Install all agents, skills & instructions to ~/.copilot (user-wide)
   init                    Scaffold repo-local Copilot config files (AGENTS.md, instructions)
   sync (s)                Check for updates and optionally apply them
+  rollback                Move a pinned agentpakke back to the previous revision on this machine (no network)
   list (ls)               List the agentpakke and its items
   list --installed        Show what's currently installed
   doctor                  Run system health checks and diagnostics
@@ -600,7 +601,7 @@ func run(args []string) error {
 			flag = "--repo"
 		}
 		switch command {
-		case "install", "add", "ignore", "sync", "doctor", "uninstall", "export", "list":
+		case "install", "add", "ignore", "sync", "rollback", "doctor", "uninstall", "export", "list":
 			// These commands support --user and --repo
 		default:
 			return fmt.Errorf("%s is not supported for %q", flag, command)
@@ -712,6 +713,18 @@ func run(args []string) error {
 			}
 			return cmdSyncAuto(targetDir, ref, sourceRepo, apply, jsonOutput)
 		})
+	case "rollback":
+		// User scope only, which is where every Tier 2 pin is recorded, so there
+		// is no scope to pick and --repo has nothing to act on.
+		if repoScope {
+			return fmt.Errorf("--repo is not supported for %q: a Tier 2 revision is only ever pinned in user scope", command)
+		}
+		if len(positional) > 0 {
+			return fmt.Errorf("rollback takes no arguments.\n\nUsage: nav-pilot rollback [--json]")
+		}
+		return runWithCommandTelemetry("rollback", telemetryMode(), "user", func() error {
+			return cmdRollback(jsonOutput)
+		})
 	case "list":
 		listScope := "none"
 		if scopeProvided {
@@ -777,7 +790,7 @@ func run(args []string) error {
 		usage()
 		return nil
 	default:
-		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "models", "alpha", "version", "help"}
+		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "models", "alpha", "version", "help"}
 		if hint := suggest(command, knownCmds); hint != "" {
 			return fmt.Errorf("unknown command: %s. Did you mean %s?\nRun with --help for usage", command, hint)
 		}

@@ -607,7 +607,7 @@ func normalizeTelemetryDimension(v, fallback string) string {
 	// the escape hatch below, so all three reported as command="unknown" and
 	// were indistinguishable from each other on every panel. Alpha adoption was
 	// invisible while we were running an alpha.
-	case "install", "sync", "upgrade", "list", "startup", "launch", "doctor",
+	case "install", "sync", "rollback", "upgrade", "list", "startup", "launch", "doctor",
 		"alpha", "update", "auto_sync",
 		"init", "export", "uninstall", "config", "validate", "env", "feedback", "models", "ignore", "add",
 		// A dry-run sync builds mode as "<mode>_dry_run"; unlisted, both spellings

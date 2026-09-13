@@ -486,8 +486,12 @@ type pakkeReleaseStatus struct {
 	// PendingRelease is a newer stable release the lookup offers. Status does
 	// not fetch it: sync still checks that the revision is this package and
 	// payload-only before it pins, and refuses otherwise.
-	PendingRelease    *pakkeRelease `json:"pending_release,omitempty"`
-	ReleaseCheckError string        `json:"release_check_error,omitempty"`
+	PendingRelease *pakkeRelease `json:"pending_release,omitempty"`
+	// RolledBackFrom is the revision a local rollback left (#783). It is not
+	// offered as a pending release, so status says why rather than leaving the
+	// line out.
+	RolledBackFrom    string `json:"rolled_back_from,omitempty"`
+	ReleaseCheckError string `json:"release_check_error,omitempty"`
 }
 
 // pakkeStatus reports a user-scope pin, looking the releases up live. It is nil
@@ -506,11 +510,15 @@ func pakkeStatus(scope *InstallScope, state *StateFile) *pakkeReleaseStatus {
 		return nil
 	}
 	version, follows := releaseClaim(state)
-	st := &pakkeReleaseStatus{Version: version, PinnedSHA: state.SourceSHA, FollowsReleases: follows}
+	st := &pakkeReleaseStatus{Version: version, PinnedSHA: state.SourceSHA, FollowsReleases: follows, RolledBackFrom: state.RolledBackFrom}
 	outcome, rel, err := discoverPakkeRelease(context.Background(), state.SourceRepo, state.Collection, state.SourceSHA)
 	switch {
 	case err != nil:
 		st.ReleaseCheckError = err.Error()
+	case outcome == releaseCandidate && sameSHA(rel.SHA, state.RolledBackFrom):
+		// The rollback rejected this exact revision and sync will not offer it
+		// (#783), so reporting it as an available update would nag about an
+		// update nothing is going to perform.
 	case outcome == releaseCandidate:
 		st.PendingRelease = &rel
 	}
