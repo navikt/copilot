@@ -78,11 +78,36 @@ func ValidateSourceValue(v string) error {
 	if strings.HasPrefix(v, "~") || strings.HasPrefix(v, ".") {
 		return fmt.Errorf("source %q must be a GitHub repo (owner/name) or an absolute path", v)
 	}
+	// A URL or an SSH form is what people try first, and both used to reach git,
+	// which failed with its own words about a repository name nobody typed
+	// (#801). Name the shorthand instead of restating the rule.
+	if strings.Contains(v, "://") || strings.HasPrefix(v, "git@") {
+		if short := shorthandFor(v); short != "" {
+			return fmt.Errorf("source %q is a URL; nav-pilot takes owner/name — try %q", v, short)
+		}
+	}
 	owner, name, ok := strings.Cut(v, "/")
 	if !ok || owner == "" || name == "" || strings.Contains(name, "/") {
 		return fmt.Errorf("source %q must be a GitHub repo (owner/name) or an absolute path", v)
 	}
 	return nil
+}
+
+// shorthandFor extracts owner/name from a clone URL, or "" when it cannot.
+func shorthandFor(v string) string {
+	trimmed := strings.TrimSuffix(v, ".git")
+	if i := strings.LastIndex(trimmed, ":"); strings.HasPrefix(trimmed, "git@") && i >= 0 {
+		trimmed = trimmed[i+1:]
+	}
+	parts := strings.Split(strings.Trim(trimmed, "/"), "/")
+	if len(parts) < 2 {
+		return ""
+	}
+	owner, name := parts[len(parts)-2], parts[len(parts)-1]
+	if owner == "" || name == "" || strings.Contains(owner, ":") {
+		return ""
+	}
+	return owner + "/" + name
 }
 
 // CloneRemoteFn is overridable in tests.

@@ -3,6 +3,7 @@ package source
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -79,5 +80,31 @@ func TestResolveSourceForSync_SkipsLocalRepoAutoDetection(t *testing.T) {
 	}
 	if src.Dir != "/tmp/remote" {
 		t.Fatalf("resolveSourceForSync dir = %q, want %q", src.Dir, "/tmp/remote")
+	}
+}
+
+// A URL and an SSH form are what people try first, and both used to reach git,
+// which failed with its own words about a repository name nobody typed (#801).
+func TestValidateSourceValueSuggestsTheShorthand(t *testing.T) {
+	for _, tc := range []struct{ in, wantSub string }{
+		{"https://github.com/nais/pilot", `"nais/pilot"`},
+		{"https://github.com/nais/pilot.git", `"nais/pilot"`},
+		{"git@github.com:nais/pilot.git", `"nais/pilot"`},
+		{"not-a-source", "owner/name"},
+		{"too/many/slashes", "owner/name"},
+	} {
+		err := ValidateSourceValue(tc.in)
+		if err == nil {
+			t.Errorf("ValidateSourceValue(%q) = nil, want an error", tc.in)
+			continue
+		}
+		if !strings.Contains(err.Error(), tc.wantSub) {
+			t.Errorf("ValidateSourceValue(%q) = %q, want it to contain %q", tc.in, err, tc.wantSub)
+		}
+	}
+	for _, ok := range []string{"nais/pilot", "/abs/path"} {
+		if err := ValidateSourceValue(ok); err != nil {
+			t.Errorf("ValidateSourceValue(%q) = %v, want nil", ok, err)
+		}
 	}
 }

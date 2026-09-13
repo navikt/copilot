@@ -452,6 +452,9 @@ func run(args []string) error {
 			}
 			i++
 			sourceRepo = rest[i]
+			if err := validateSourceValue(sourceRepo); err != nil {
+				return err
+			}
 		case "--type":
 			if i+1 >= len(rest) {
 				return fmt.Errorf("--type requires a value")

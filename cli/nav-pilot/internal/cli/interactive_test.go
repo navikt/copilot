@@ -582,3 +582,30 @@ func TestSyncPromptOutcome(t *testing.T) {
 		})
 	}
 }
+
+// A picker that cannot run is not a user who declined. Reporting it as
+// "Cancelled." installed nothing and exited zero, so a job where
+// isInteractive() is true but nothing can answer looked like a clean no-op
+// (#802). The refusal must be an error, and must name the way to install
+// without the picker.
+func TestPickerFailureIsNotSilentCancellation(t *testing.T) {
+	isolatedConfig(t)
+	forceInteractive(t)
+	scope, err0 := ScopeUser()
+	if err0 != nil {
+		t.Fatal(err0)
+	}
+	src := &Source{Dir: legacySourceTree(t), Repo: "navikt/copilot", SHA: "deadbeef"}
+
+	var err error
+	err = interactiveUserInstallFromSource(scope, src, "")
+	if err == nil {
+		t.Fatal("a picker that cannot run must return an error, not install nothing and succeed")
+	}
+	if errors.Is(err, errInstallCancelled) {
+		t.Error("a picker failure must not be reported as a user cancellation")
+	}
+	if !strings.Contains(err.Error(), "nav-pilot install") {
+		t.Errorf("the refusal must name how to install without the picker, got: %v", err)
+	}
+}

@@ -492,9 +492,17 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 			Value(&installChoice).
 			WithTheme(navTheme()).
 			Run()
-		if err != nil || installChoice == "cancel" {
+		if installChoice == "cancel" {
 			fmt.Println(dim("Cancelled."))
 			return errInstallCancelled
+		}
+		// A picker that could not run is not a user who declined. Reporting it
+		// as "Cancelled." installed nothing and exited zero, so a CI job or a
+		// backgrounded shell where isInteractive() is true but nothing can
+		// answer looked like a successful no-op (#802).
+		if err != nil {
+			return fmt.Errorf("could not show the install picker: %w\n\n  Install without it:  %s",
+				err, bold("nav-pilot install <name> --user"))
 		}
 
 		if installChoice == "custom" {
