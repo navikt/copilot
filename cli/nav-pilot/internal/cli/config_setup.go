@@ -194,8 +194,17 @@ func runConfigSetup() error {
 
 	// Bootstrap the selected provider on first run (e.g. opencode: write OTel config
 	// and seed Nav context so the user is immediately ready without a separate step).
+	//
+	// The source comes off the file the wizard just wrote (writeSetupConfig
+	// preserves a persisted one), so a user with their own pakke gets that
+	// pakke seeded rather than the built-in default (#813). A bad value there
+	// is not worth aborting setup over: the seeding is the optional part.
 	if p != nil {
-		if summary, ctxErr := p.Bootstrap(); ctxErr != nil {
+		seedSource, srcErr := sourceRepoFor("")
+		if srcErr != nil {
+			fmt.Fprintf(os.Stderr, "%s Could not read the configured source: %v\n", yellow("⚠"), srcErr)
+		}
+		if summary, ctxErr := p.Bootstrap(ResolvedConfig{Client: answers.Client, Source: seedSource}); ctxErr != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not seed Nav context for %s: %v\n", yellow("⚠"), p.DisplayName(), ctxErr)
 		} else if summary != "" {
 			fmt.Printf("  %s Nav context seeded: %s\n", green("✓"), summary)

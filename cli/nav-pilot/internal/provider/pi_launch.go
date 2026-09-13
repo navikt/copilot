@@ -162,9 +162,9 @@ func LaunchPi(resolved domain.ResolvedConfig) error {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), msg)
 	}
 
-	// Materialize from the source this launch resolved. Bootstrap cannot: the
-	// Provider interface hands it no config, so it falls back to whatever the
-	// last sync recorded and, on a first run, to the built-in default.
+	// Materialize from the source this launch resolved. Bootstrap takes the
+	// resolved config too (#813), but it only runs from `config setup`, and a
+	// launch must not depend on having been through the wizard.
 	if piDeclaresTier1() {
 		if _, err := EnsurePiNavContext("", resolved.Source); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not materialize the agentpakke for pi: %v\n", domain.Yellow("⚠"), err)

@@ -47,7 +47,13 @@ type Provider interface {
 	ValidateModel(model string) error
 	ModelAdvisory(model string) string
 	UnsupportedConfigWarnings(resolved domain.ResolvedConfig) []string
-	Bootstrap() (string, error)
+	// Bootstrap materializes the provider's context for a config that has not
+	// launched yet. It takes the resolved config rather than a bare source
+	// string because ResolvedConfig.Source is the *effective* source — flag over
+	// config file over built-in default — and a provider that is handed the raw
+	// --source flag resolves the built-in default whenever nobody typed one
+	// (#813).
+	Bootstrap(resolved domain.ResolvedConfig) (string, error)
 	SyncContext(ref, sourceRepo string, jsonOutput, hasPrevOutput bool) ProviderSyncResult
 	ContextStatus() *ProviderContextStatus
 	PrintContextStatus()
@@ -197,7 +203,7 @@ func (copilotProvider) ModelAdvisory(model string) string {
 }
 
 func (copilotProvider) UnsupportedConfigWarnings(_ domain.ResolvedConfig) []string { return nil }
-func (copilotProvider) Bootstrap() (string, error)                                 { return "", nil }
+func (copilotProvider) Bootstrap(_ domain.ResolvedConfig) (string, error)          { return "", nil }
 func (copilotProvider) SyncContext(_, _ string, _, _ bool) ProviderSyncResult {
 	return ProviderSyncResult{}
 }
@@ -278,11 +284,11 @@ func (openCodeProvider) UnsupportedConfigWarnings(r domain.ResolvedConfig) []str
 	return OpenCodeUnsupportedConfigWarnings(r)
 }
 
-func (openCodeProvider) Bootstrap() (string, error) {
+func (openCodeProvider) Bootstrap(r domain.ResolvedConfig) (string, error) {
 	if err := EnsureOpenCodeOTelConfig(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not configure opencode OTel: %v\n", domain.Yellow("⚠"), err)
 	}
-	summary, err := EnsureOpenCodeNavContext()
+	summary, err := EnsureOpenCodeNavContext("", r.Source)
 	if err != nil {
 		return "", err
 	}
@@ -381,11 +387,11 @@ func (piProvider) UnsupportedConfigWarnings(r domain.ResolvedConfig) []string {
 // Bootstrap materializes the active agentpakke for pi. Nothing is written when
 // the pakke does not declare pi as a Tier 1 client: pi's own directories are not
 // ours to fill, and a pakke that says nothing about pi gets nothing.
-func (piProvider) Bootstrap() (string, error) {
+func (piProvider) Bootstrap(r domain.ResolvedConfig) (string, error) {
 	if !piDeclaresTier1() {
 		return "", nil
 	}
-	return EnsurePiNavContext("", "")
+	return EnsurePiNavContext("", r.Source)
 }
 
 // SyncContext refreshes pi's materialized context, and only that: the sync

@@ -292,7 +292,7 @@ func TestWriteSetupConfig_OpenCode_BootstrapsOTelAndContext(t *testing.T) {
 	if err := providerpkg.EnsureOpenCodeOTelConfig(); err != nil {
 		t.Fatalf("ensureOpenCodeOTelConfig: %v", err)
 	}
-	summary, err := providerpkg.EnsureOpenCodeNavContext()
+	summary, err := providerpkg.EnsureOpenCodeNavContext("", "")
 	if err != nil {
 		t.Fatalf("ensureOpenCodeNavContext: %v", err)
 	}
@@ -315,7 +315,7 @@ func TestWriteSetupConfig_OpenCode_BootstrapsOTelAndContext(t *testing.T) {
 
 	// Second run must be idempotent — no error, same AGENTS.md content.
 	first, _ := os.ReadFile(agentsPath)
-	summary2, err2 := providerpkg.EnsureOpenCodeNavContext()
+	summary2, err2 := providerpkg.EnsureOpenCodeNavContext("", "")
 	if err2 != nil {
 		t.Fatalf("second ensureOpenCodeNavContext: %v", err2)
 	}

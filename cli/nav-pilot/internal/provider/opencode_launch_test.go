@@ -399,7 +399,7 @@ func TestEnsureOpenCodeNavContext(t *testing.T) {
 		return &source.Source{Dir: sourceDir, SHA: "test"}, nil
 	}
 
-	summary, err := EnsureOpenCodeNavContext()
+	summary, err := EnsureOpenCodeNavContext("", "")
 	if err != nil {
 		t.Fatalf("EnsureOpenCodeNavContext() error: %v", err)
 	}
@@ -428,13 +428,13 @@ func TestEnsureOpenCodeNavContextIdempotent(t *testing.T) {
 		return &source.Source{Dir: sourceDir, SHA: "test"}, nil
 	}
 
-	s1, err := EnsureOpenCodeNavContext()
+	s1, err := EnsureOpenCodeNavContext("", "")
 	if err != nil {
 		t.Fatalf("first call error: %v", err)
 	}
 	first, _ := os.ReadFile(filepath.Join(outputDir, "AGENTS.md"))
 
-	s2, err := EnsureOpenCodeNavContext()
+	s2, err := EnsureOpenCodeNavContext("", "")
 	if err != nil {
 		t.Fatalf("second call error: %v", err)
 	}
