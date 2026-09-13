@@ -685,3 +685,39 @@ func TestCompatibilityGateNamesAStartFailure(t *testing.T) {
 		t.Errorf("gate reports an unreadable version, not a client that cannot start: %v", err)
 	}
 }
+
+// Not every failed start is an *exec.ExitError. A file that exists and cannot
+// be turned into a process — not a binary this kernel can run, or not
+// executable — fails in Start, so there is no exit code and no stderr, and the
+// error keyed on ExitError fell through to the raw OS message. That is the same
+// mistake this change is about: the state is "present and did not start", and
+// the message has to say so (#831 review).
+func TestRunStagedProbeReportsAFileThatCannotBecomeAProcess(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		mode os.FileMode
+	}{
+		{name: "not a binary", mode: 0o755},
+		{name: "not executable", mode: 0o644},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.mode == 0o644 && os.Getuid() == 0 {
+				t.Skip("permission bits do not stop root")
+			}
+			path := filepath.Join(t.TempDir(), "opencode")
+			if err := os.WriteFile(path, []byte{0x00, 0x01, 0x02, 0x03}, tc.mode); err != nil {
+				t.Fatal(err)
+			}
+			_, err := runStagedProbe(10*time.Second, path)
+			if err == nil {
+				t.Fatal("a file that cannot be executed probed clean")
+			}
+			if !strings.Contains(err.Error(), "did not start") {
+				t.Errorf("error does not report a start failure: %v", err)
+			}
+			if strings.Contains(err.Error(), "not found") {
+				t.Errorf("a file that is present was reported as absent: %v", err)
+			}
+		})
+	}
+}

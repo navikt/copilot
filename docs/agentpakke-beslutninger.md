@@ -279,14 +279,21 @@ Ikke «fiks» disse ved et uhell. De er valgt, og de har begrunnelser.
 Det som *er* sjekkbart, er sjekket:
 
 - **Sandbox-forutsetningen feiler lukket.** Feilklassen i #565 er write-if-absent mot en read-only montert config-katalog. `ensureOpenCodeRuntimeGitignore` krever nå en regulær fil som lar seg resolve, og nekter launchen med stien navngitt når den ikke finnes ([§2.6](#26-annet-vi-ikke-speiler)). Sjekken er offline, deterministisk og krever ingen binærfiler, så den kjører også i CI.
-- **En probe som feiler sier hvilken av to ting som gikk galt.** «Ikke installert» og «installert, men startet ikke» kom begge tilbake som `exit status 1` bak «could not read the version». Klientens egen stderr ble samlet opp av `exec.Cmd.Output` og aldri lest — #565s OpenCode skrev «Error: Unexpected server error» nettopp der. `probeFailure` (`internal/provider/runtime_gate.go`) skiller dem og tar med første stderr-linje.
+- **En probe som feiler sier hvilken av to ting som gikk galt.** «Ikke installert» og «installert, men startet ikke» kom begge tilbake som `exit status 1` bak «could not read the version». Klientens egen stderr ble samlet opp av `exec.Cmd.Output` og aldri lest — #565s OpenCode skrev «Error: Unexpected server error» nettopp der. `probeFailure` (`internal/provider/runtime_gate.go`) dekker alt `exec.Cmd.Output` kan gi: ingenting å kjøre, en prosess som eksiterte ikke-null (med exit-kode og første stderr-linje), og en fil som ikke lot seg gjøre om til en prosess i det hele tatt — EACCES, ENOEXEC, EISDIR. Den siste gruppa har verken exit-kode eller stderr, men er fortsatt «finnes, startet ikke», og sa før bare den rå OS-feilen.
 
 **Resten er en manuell G4-verifisering.** Den må kjøres på macOS med cplt og OpenCode installert og en autentisert konto, og den er ikke automatiserbar før det finnes en macOS-runner:
 
 ```bash
-test ! -e ~/.config/opencode/.gitignore   # fersk maskin; hopp over hvis fila finnes
+# Samme oppslag som openCodeConfigDir: en absolutt XDG_CONFIG_HOME vinner,
+# ellers $HOME/.config. En relativ verdi ignoreres av nav-pilot, så det
+# tilfellet faller også hit.
+case "$XDG_CONFIG_HOME" in /*) oc="$XDG_CONFIG_HOME/opencode" ;; *) oc="$HOME/.config/opencode" ;; esac
+
+test ! -e "$oc/.gitignore"   # fersk maskin; hopp over hvis fila finnes
 nav-pilot --client opencode --payload-context full
 ```
+
+Ikke hardkod `~/.config/opencode` her. Setter maskinen `XDG_CONFIG_HOME`, verifiserer den kommandoen en sti klienten aldri leser, mens nav-pilot pre-seeder en annen — og G4-steget dekker da ikke stien som faktisk startes.
 
 Forventet markør: TUI-en tegner opp, viser `grillmester` som valgt agent, og når prompten `Ask anything` **uten et modellkall**. Det er markøren #565-kontrollen brukte, og den nås modellfritt.
 
