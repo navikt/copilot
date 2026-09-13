@@ -92,7 +92,7 @@ Commands:
   list --installed        Show what's currently installed
   doctor                  Run system health checks and diagnostics
   upgrade (up)            Update nav-pilot CLI to the latest version
-  uninstall (rm)          Remove installed files
+  uninstall (rm)          Remove installed files nav-pilot still owns (--force: all of them)
   export <format>         Export Nav customizations to another tool's format
   config [subcommand]     Manage user-specific nav-pilot configuration; no subcommand opens the interactive settings page
   validate                Check that a source repo conforms to the agentpakke contract
@@ -104,7 +104,7 @@ Commands:
 
 Flags:
   -n, --dry-run           Show what would happen without making changes
-  -f, --force             Overwrite files that differ from source
+  -f, --force             Overwrite files that differ from source (uninstall: remove them too)
   -t, --target <dir>      Target repository (default: current directory)
   -r, --ref <ref>         Git branch or tag to install from
   -s, --source <repo>     Source repository or absolute path (repo scope default: .nav-pilot/agentpakke.lock.json in this repo, else the config's source key, else navikt/copilot; --user never reads a declaration)
@@ -710,7 +710,7 @@ func run(args []string) error {
 		})
 	case "uninstall":
 		return runWithCommandTelemetry("uninstall", telemetryMode(), scope.Name, func() error {
-			return cmdUninstall(scope, dryRun)
+			return cmdUninstall(scope, dryRun, force)
 		})
 	case "upgrade":
 		return runWithCommandTelemetry("upgrade", telemetryMode(), "none", cmdUpdate)

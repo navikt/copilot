@@ -393,19 +393,29 @@ func installsContent(state *StateFile) bool {
 	return false
 }
 
-// removeStateFiles removes every file a scope's state records, printing one
-// line each, and returns how many it removed (or would remove, on a dry run).
+// removeStateFiles removes the files a scope's state records, printing one
+// line each, and returns how many it removed (or would remove, on a dry run)
+// and how many it left behind.
+//
+// It removes only what nav-pilot still owns. A file whose bytes have changed
+// since nav-pilot wrote them is the user's, and taking it with the collection
+// it no longer resembles is a silent data loss they never asked for — the same
+// rule [removeOrphans] has applied since #615, applied here after the review of
+// #729 found this loop removing everything the state named. force is the way
+// past it, the flag that already means "overwrite files that differ from
+// source".
 //
 // This is cmdUninstall's removal loop, extracted so the Tier 1 → Tier 2 source
 // switch can remove the outgoing install's orphaned files through exactly the
-// path uninstall uses.
+// path uninstall uses. That switch passes force=false: it is a consequence of
+// an install, not a removal the user asked for, so a file it cannot claim stays
+// on disk as a leftover rather than being lost.
 //
 // quiet is for a caller writing a JSON document to stdout: the per-file lines
 // are suppressed, and a removal that failed goes to stderr rather than being
 // lost — it is the one thing here the user cannot afford to miss, and stderr is
 // not the stream being parsed.
-func removeStateFiles(scope *InstallScope, state *StateFile, dryRun, quiet bool) int {
-	removed := 0
+func removeStateFiles(scope *InstallScope, state *StateFile, dryRun, quiet, force bool) (removed, kept int) {
 	warn := func(path string, err error) {
 		out := os.Stdout
 		if quiet {
@@ -415,6 +425,14 @@ func removeStateFiles(scope *InstallScope, state *StateFile, dryRun, quiet bool)
 	}
 	for _, f := range state.Files {
 		path := filepath.Join(scope.RootDir, f.Path)
+
+		if !force && !safeToRemove(scope.RootDir, f) {
+			kept++
+			if !quiet {
+				fmt.Printf("  %s %s (differs from what nav-pilot installed, kept)\n", dim("⊘"), f.Path)
+			}
+			continue
+		}
 
 		if dryRun {
 			if !quiet {
@@ -440,7 +458,7 @@ func removeStateFiles(scope *InstallScope, state *StateFile, dryRun, quiet bool)
 		}
 		removed++
 	}
-	return removed
+	return removed, kept
 }
 
 // pinRevision is the whole of a Tier 2 install, without any of its output: it
@@ -569,7 +587,7 @@ func pinRevision(scope *InstallScope, src *Source, release *pakkeRelease, explic
 		if !jsonOutput {
 			fmt.Printf("\n%s Removing the files installed from %s:\n", dim("ℹ"), bold(sourceLabelForRepo(existing.SourceRepo)))
 		}
-		removeStateFiles(scope, existing, false, jsonOutput)
+		removeStateFiles(scope, existing, false, jsonOutput, false)
 		if !jsonOutput {
 			fmt.Println()
 		}

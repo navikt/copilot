@@ -872,6 +872,15 @@ func TestCmdSyncAuto_BothScopes_PrintsScopeFeedback(t *testing.T) {
 	}
 }
 
+// TestSync_RemoteDeletions: a file the source dropped, which nav-pilot wrote
+// and nobody has touched since, is removed by sync --apply.
+//
+// The recorded hashes used to be the placeholders "nais-hash" and
+// "deprecated-hash", and the test passed while sync deleted a file whose bytes
+// matched nothing nav-pilot had ever recorded. That was the proof the delete
+// path consulted no ownership predicate at all (#729). They are the files' own
+// hashes now, so the deletion this asserts is one nav-pilot is entitled to
+// make; TestSyncKeepsALocallyEditedFileDeletedUpstream covers the other half.
 func TestSync_RemoteDeletions(t *testing.T) {
 	dir := t.TempDir()
 	sourceDir := t.TempDir()
@@ -879,16 +888,27 @@ func TestSync_RemoteDeletions(t *testing.T) {
 	// 1. Setup target directory (with files installed and tracked in state)
 	targetScope := ScopeRepo(dir)
 	os.MkdirAll(filepath.Join(dir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(dir, ".github", "agents", "nais.agent.md"), []byte("# Nais"), 0o644)
-	os.WriteFile(filepath.Join(dir, ".github", "agents", "deprecated.agent.md"), []byte("# Deprecated"), 0o644)
+	naisPath := filepath.Join(dir, ".github", "agents", "nais.agent.md")
+	deprecatedPath := filepath.Join(dir, ".github", "agents", "deprecated.agent.md")
+	os.WriteFile(naisPath, []byte("# Nais"), 0o644)
+	os.WriteFile(deprecatedPath, []byte("# Deprecated"), 0o644)
+
+	naisHash, err := rawArtifactHash(naisPath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deprecatedHash, err := rawArtifactHash(deprecatedPath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	state := &StateFile{
 		Collection: "kotlin-backend",
 		Version:    "2026.06",
 		SourceRepo: "my-custom/repo",
 		Files: []InstalledFile{
-			{Path: ".github/agents/nais.agent.md", Hash: "nais-hash"},
-			{Path: ".github/agents/deprecated.agent.md", Hash: "deprecated-hash"},
+			{Path: ".github/agents/nais.agent.md", Hash: naisHash},
+			{Path: ".github/agents/deprecated.agent.md", Hash: deprecatedHash},
 		},
 	}
 	writeState(dir, state)
@@ -908,7 +928,7 @@ func TestSync_RemoteDeletions(t *testing.T) {
 	}
 
 	// 3. Sync check (dry run): should report deletion and return errUpdatesAvailable
-	err := cmdSync(targetScope, "", "", false, false)
+	err = cmdSync(targetScope, "", "", false, false)
 	if err != errUpdatesAvailable {
 		t.Fatalf("expected errUpdatesAvailable, got %v", err)
 	}

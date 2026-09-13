@@ -1353,7 +1353,10 @@ func removePinnedRevisions(repo string, dryRun bool) int {
 	return len(entries)
 }
 
-func cmdUninstall(scope *InstallScope, dryRun bool) error {
+// cmdUninstall removes an installed collection. force removes files that differ
+// from what nav-pilot installed too; without it those are left in place and
+// named, because uninstall must not be how a developer loses an edit (#729).
+func cmdUninstall(scope *InstallScope, dryRun, force bool) error {
 	state, err := readScopedState(scope)
 	if err != nil {
 		return fmt.Errorf("reading state: %w", err)
@@ -1370,7 +1373,7 @@ func cmdUninstall(scope *InstallScope, dryRun bool) error {
 	}
 	fmt.Println()
 
-	removed := removeStateFiles(scope, state, dryRun, false)
+	removed, kept := removeStateFiles(scope, state, dryRun, false, force)
 	removed += deactivateRepoHooks(scope, dryRun)
 
 	// A pinned Tier 2 install keeps everything it materialized outside the
@@ -1398,7 +1401,42 @@ func cmdUninstall(scope *InstallScope, dryRun bool) error {
 	} else {
 		fmt.Printf("%s Removed %d items.\n", green("✓"), removed)
 	}
+	if kept > 0 {
+		verb := "were left in place"
+		if dryRun {
+			verb = "would be left in place"
+		}
+		fmt.Printf("%s %d file(s) differ from what nav-pilot installed and %s. %s removes them too.\n",
+			yellow("⚠"), kept, verb, bold("nav-pilot uninstall --force"))
+	}
 	return nil
+}
+
+// safeToRemove is the one predicate every deletion path asks before removing a
+// tracked file: nav-pilot may take back what it wrote, and nothing else.
+//
+// It wraps [navPilotOwns] with the case that predicate has no answer for. An
+// entry with no recorded hash predates hashing, so there is nothing to compare
+// and the state's word that nav-pilot installed the file is all the evidence
+// there is or ever will be. Refusing those would make uninstall a no-op in
+// every repo that has not reinstalled since, which is a worse failure than the
+// one the guard exists to prevent: the user asked for the removal, and no edit
+// is being claimed. A recorded conflict is different. That status is positive
+// evidence the file is the user's, so it is honoured whether or not a hash came
+// with it.
+//
+// Until the review of #729 this predicate guarded [removeOrphans] alone. Sync's
+// delete path and [removeStateFiles] removed whatever the state named, edited
+// or not.
+//
+// [removeOrphans] stays on the stricter [navPilotOwns]: it runs inside an
+// install, which is not a removal anyone asked for, so a hashless entry there
+// keeps the benefit of the doubt it has always had.
+func safeToRemove(rootDir string, f InstalledFile) bool {
+	if f.Hash == "" && f.Status != fileStatusConflict {
+		return true
+	}
+	return navPilotOwns(rootDir, f)
 }
 
 // removeOrphans deletes files the previous install put on disk that this one
