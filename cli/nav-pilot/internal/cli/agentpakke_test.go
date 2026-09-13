@@ -1518,3 +1518,52 @@ func TestFinishInstall_SingleArtifactDoesNotPersistSource(t *testing.T) {
 		t.Errorf("scope-defining install persisted %q, want %q", got, "navikt/grillmester")
 	}
 }
+
+// install --json interleaved human progress with the document, so it did not
+// parse. The flag exists so a script can read the result; it could not (#808).
+func TestInstallJSONIsParseable(t *testing.T) {
+	isolatedConfig(t)
+	target := repoTarget(t)
+	scope := ScopeRepo(target)
+	src := pakkeSource(t, "navikt/grillmester")
+
+	out := captureStdoutFor(t, func() {
+		if err := cmdInstallFromSource("grillmester", src, scope, false, true, true); err != nil {
+			t.Fatalf("install: %v", err)
+		}
+	})
+
+	var doc map[string]interface{}
+	if err := json.Unmarshal([]byte(out), &doc); err != nil {
+		t.Fatalf("install --json did not produce parseable JSON: %v\noutput:\n%s", err, out)
+	}
+	if doc["command"] != "install" {
+		t.Errorf(`doc["command"] = %v, want "install"`, doc["command"])
+	}
+}
+
+// The single-artifact and --source dispatches print too: installArtifact's
+// progress on one, persistInstalledSource's "Saved ..." after the document on
+// the other. Both have to stay off stdout, or `--json | jq` still fails (#808).
+func TestInstallJSONIsParseableOnEveryDispatch(t *testing.T) {
+	for _, args := range [][]string{
+		{"install", "grillmester", "--json", "--source", "navikt/grillmester"},
+		{"install", "grillmester", "--type", "agent", "--json", "--source", "navikt/grillmester"},
+	} {
+		t.Run(strings.Join(args[1:], " "), func(t *testing.T) {
+			isolatedConfig(t)
+			stubResolveSource(t, pakkeSource(t, "navikt/grillmester"))
+			t.Chdir(repoTarget(t))
+
+			var err error
+			out := captureStdoutFor(t, func() { err = run(args) })
+			if err != nil {
+				t.Fatalf("install: %v", err)
+			}
+			var doc map[string]interface{}
+			if jsonErr := json.Unmarshal([]byte(out), &doc); jsonErr != nil {
+				t.Fatalf("install --json did not produce parseable JSON: %v\noutput:\n%s", jsonErr, out)
+			}
+		})
+	}
+}
