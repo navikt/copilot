@@ -678,3 +678,111 @@ func TestExplicitInstallAllSkipsThePicker(t *testing.T) {
 		t.Errorf("re-install left the managed file unrefreshed: %q", got)
 	}
 }
+
+// An explicit scope flag answers the repo-vs-user question, so `install --repo`
+// and `install --target X` must not open the scope picker --repo's own help
+// says it skips (#820). Driven through run() rather than cmdInstallInteractive:
+// the bug was never in that function, it was in which function the dispatch in
+// cli.go chose, so a test that calls it directly cannot see the regression.
+//
+// The re-install half covers the same trap #814 hit on the --all bypass: the
+// user-scope flow force-updates managed files, the repo flow took only --force,
+// so a re-install quietly stopped refreshing them.
+func TestRunExplicitScopeSkipsTheScopePicker(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		args func(target string) []string
+	}{
+		{"--repo", func(string) []string { return []string{"install", "--repo"} }},
+		{"--target", func(target string) []string { return []string{"install", "--target", target} }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			isolatedConfig(t)
+			forceInteractive(t)
+			target := repoTarget(t)
+			t.Chdir(target)
+			stubResolveSource(t, pakkeSource(t, defaultSourceRepo))
+
+			// The stub answers "user home", so a dispatch that asks anyway
+			// installs to the scope the command line ruled out — the failure
+			// #820 actually produced, not just an extra prompt.
+			userScope, err := ScopeUser()
+			if err != nil {
+				t.Fatal(err)
+			}
+			asked := stubScopePrompt(t, userScope)
+
+			// Asserted before the error: a dispatch that asks anyway fails
+			// later on the user-scope picker's TTY, and that error would hide
+			// the reason it got there.
+			runErr := run(tc.args(target))
+			if *asked {
+				t.Fatalf("install %s reached the scope picker; an explicit scope must not be asked for", tc.name)
+			}
+			if runErr != nil {
+				t.Fatalf("install %s: %v", tc.name, runErr)
+			}
+
+			agent := ScopeRepo(target).DstPath("agents", "grillmester.agent.md")
+			if _, err := os.Stat(agent); err != nil {
+				t.Fatalf("install %s installed nothing at repo scope: %v", tc.name, err)
+			}
+
+			// Re-install over a managed file that no longer matches what
+			// nav-pilot recorded. The user-scope flow overwrites it; so must
+			// this one.
+			if err := os.WriteFile(agent, []byte("stale\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := run(tc.args(target)); err != nil {
+				t.Fatalf("re-install %s: %v", tc.name, err)
+			}
+			got, err := os.ReadFile(agent)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(got), "stale") {
+				t.Errorf("re-install %s left the managed file unrefreshed: %q", tc.name, got)
+			}
+		})
+	}
+}
+
+// installAllFromSource is reached at both scopes, so its closing line cannot
+// claim the repo's .github/ reaches every repository (#820).
+func TestInstallAllSuccessMessageNamesTheScope(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		scopeFor  func(t *testing.T, target string) *InstallScope
+		want, not string
+	}{
+		{"repo", func(t *testing.T, target string) *InstallScope { return ScopeRepo(target) },
+			"in this repository", "across all your repos"},
+		{"user", func(t *testing.T, target string) *InstallScope {
+			scope, err := ScopeUser()
+			if err != nil {
+				t.Fatal(err)
+			}
+			return scope
+		}, "across all your repos", "in this repository"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			isolatedConfig(t)
+			target := repoTarget(t)
+			src := pakkeSource(t, defaultSourceRepo)
+			scope := tc.scopeFor(t, target)
+
+			out := captureStdout(func() {
+				if err := installAllFromSource(scope, src, nil, false, false, false); err != nil {
+					t.Errorf("install --all: %v", err)
+				}
+			})
+			if !strings.Contains(out, tc.want) {
+				t.Errorf("%s-scope success message must say %q, got:\n%s", tc.name, tc.want, out)
+			}
+			if strings.Contains(out, tc.not) {
+				t.Errorf("%s-scope success message must not say %q, got:\n%s", tc.name, tc.not, out)
+			}
+		})
+	}
+}

@@ -880,25 +880,33 @@ func collectAvailableItems(resolver *SourceResolver) map[string][]string {
 
 // cmdInstallInteractive handles `nav-pilot install` with no arguments in an interactive terminal.
 // Reuses the same scope picker and collection/item pickers as the root `nav-pilot` command.
-func cmdInstallInteractive(targetDir, ref, sourceRepo string) error {
+//
+// scope is non-nil when the command line already named one (--user, --repo,
+// --target). Then the scope question is settled, and asking it anyway is how
+// `install --repo` opened the picker its own help says it skips (#820). It is
+// nil only for bare `nav-pilot install`, which still gets the picker.
+func cmdInstallInteractive(scope *InstallScope, targetDir, ref, sourceRepo string, force bool) error {
 	// The scope is settled before the source is resolved, because the repo's
 	// committed declaration is *part of* how the source is chosen: resolving
 	// first would install whatever the config key happened to name and then
 	// overwrite the declaration with it — for the one command, `nav-pilot
 	// install` with no arguments, the declaration exists to serve.
-	scope, err := ScopeUser()
-	if err != nil {
-		return err
-	}
-	if targetDir != "" {
-		// In a git repo: ask where to install
-		scope, err = promptInstallScopeFn(targetDir)
+	if scope == nil {
+		var err error
+		scope, err = ScopeUser()
 		if err != nil {
 			return err
 		}
-		if scope == nil {
-			fmt.Println(dim("Cancelled."))
-			return errInstallCancelled
+		if targetDir != "" {
+			// In a git repo: ask where to install
+			scope, err = promptInstallScopeFn(targetDir)
+			if err != nil {
+				return err
+			}
+			if scope == nil {
+				fmt.Println(dim("Cancelled."))
+				return errInstallCancelled
+			}
 		}
 	}
 
@@ -914,7 +922,7 @@ func cmdInstallInteractive(targetDir, ref, sourceRepo string) error {
 	}
 
 	// Repo scope: pick a collection
-	return interactiveRepoInstall(src, scope, sourceRepo)
+	return interactiveRepoInstall(src, scope, sourceRepo, force)
 }
 
 // cmdInstallAll installs all agents and skills to a scope by scanning the source.
@@ -1077,7 +1085,11 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	fmt.Printf("%s Installed %d items to %s (v%s, %s).\n",
 		green("✓"), result.Installed, scope.Label(), stateVersion, shortSHA(src.SHA))
 	fmt.Println()
-	fmt.Println(dim("Agents and skills are now available across all your repos."))
+	reach := "in this repository"
+	if scope.IsUser() {
+		reach = "across all your repos"
+	}
+	fmt.Println(dim(fmt.Sprintf("Agents and skills are now available %s.", reach)))
 	agent := installedPrimaryAgent(src)
 	fmt.Println(dim(fmt.Sprintf("Use @%s in Copilot Chat or copilot --agent %s", agent, agent)))
 
