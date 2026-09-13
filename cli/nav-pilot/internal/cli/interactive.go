@@ -398,7 +398,7 @@ func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
 	}
 
 	// Repo scope: pick a collection
-	if err := interactiveRepoInstall(src, scope, ""); err != nil {
+	if err := interactiveRepoInstall(src, scope, "", false); err != nil {
 		if errors.Is(err, errInstallCancelled) {
 			return nil
 		}
@@ -714,15 +714,22 @@ func computeSkippedItems(full, selected *Manifest, scope *InstallScope) []Instal
 //
 // flagSource is the raw --source value, or "" for the root TUI, which has none
 // (see interactiveUserInstallFromSource).
-func interactiveRepoInstall(src *Source, scope *InstallScope, flagSource string) error {
+func interactiveRepoInstall(src *Source, scope *InstallScope, flagSource string, force bool) error {
 	if err := guardScopeSource(scope, flagSource); err != nil {
 		return err
 	}
 
+	// The same rule interactiveUserInstallFromSource applies, and the same trap
+	// #814 hit on the --all bypass: a re-install refreshes the files nav-pilot
+	// already manages. Taking only --force here would let `install --repo`
+	// quietly stop updating them once it stopped asking for a scope (#820).
+	state, _ := readScopedState(scope)
+	force = force || hasManagedFiles(state)
+
 	// A manifest-bearing source supersedes collections: there is exactly one
 	// thing to install, so there is nothing to pick.
 	if name := pakkeInstallName(src); name != "" {
-		return cmdInstallFromSource(name, src, scope, false, false, false)
+		return cmdInstallFromSource(name, src, scope, false, force, false)
 	}
 
 	names, err := listCollectionDirs(src.Dir)
@@ -789,7 +796,7 @@ func interactiveRepoInstall(src *Source, scope *InstallScope, flagSource string)
 
 	// Install using the already-resolved source (avoid redundant git clone)
 	fmt.Println()
-	return cmdInstallFromSource(selected, src, scope, false, false, false)
+	return cmdInstallFromSource(selected, src, scope, false, force, false)
 }
 
 // promptInstallScopeFn is the scope prompt, overridable in tests so a cancelled

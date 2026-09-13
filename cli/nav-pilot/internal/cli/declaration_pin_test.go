@@ -156,7 +156,7 @@ func TestBareInstallHonoursDeclaration(t *testing.T) {
 	promptInstallScopeFn = func(dir string) (*InstallScope, error) { return ScopeRepo(dir), nil }
 
 	captureStdoutFor(t, func() {
-		if err := cmdInstallInteractive(target, "", ""); err != nil {
+		if err := cmdInstallInteractive(nil, target, "", "", false); err != nil {
 			t.Fatalf("bare install: %v", err)
 		}
 	})

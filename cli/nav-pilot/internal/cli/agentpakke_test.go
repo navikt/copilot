@@ -1105,7 +1105,7 @@ func TestInteractiveInstallGuardsCrossSource(t *testing.T) {
 		{
 			name: "repo collection picker",
 			run: func(t *testing.T, src *Source, home, target string) error {
-				return interactiveRepoInstall(src, ScopeRepo(target), "")
+				return interactiveRepoInstall(src, ScopeRepo(target), "", false)
 			},
 		},
 		{
@@ -1122,14 +1122,14 @@ func TestInteractiveInstallGuardsCrossSource(t *testing.T) {
 			name: "bare install in a repo",
 			run: func(t *testing.T, src *Source, home, target string) error {
 				stubResolveSource(t, src)
-				return cmdInstallInteractive(target, "", "")
+				return cmdInstallInteractive(nil, target, "", "", false)
 			},
 		},
 		{
 			name: "bare install outside a repo",
 			run: func(t *testing.T, src *Source, home, target string) error {
 				stubResolveSource(t, src)
-				return cmdInstallInteractive("", "", "")
+				return cmdInstallInteractive(nil, "", "", "", false)
 			},
 		},
 		{
@@ -1190,7 +1190,7 @@ func TestInteractiveInstallAllowsExplicitSource(t *testing.T) {
 	writeGuardState(t, scope, defaultSourceRepo)
 
 	src := pakkeSource(t, "navikt/grillmester")
-	if err := interactiveRepoInstall(src, scope, "navikt/grillmester"); err != nil {
+	if err := interactiveRepoInstall(src, scope, "navikt/grillmester", false); err != nil {
 		t.Fatalf("interactiveRepoInstall with an explicit --source: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(target, ".github", "agents", "grillmester.agent.md")); err != nil {
@@ -1220,7 +1220,7 @@ func TestCancelledInteractiveInstallDoesNotPersistSource(t *testing.T) {
 	t.Cleanup(func() { promptInstallScopeFn = origPrompt })
 	promptInstallScopeFn = func(string) (*InstallScope, error) { return nil, nil }
 
-	err := cmdInstallInteractive(target, "", "navikt/grillmester")
+	err := cmdInstallInteractive(nil, target, "", "navikt/grillmester", false)
 	if !errors.Is(err, errInstallCancelled) {
 		t.Fatalf("cancelled install returned %v, want errInstallCancelled", err)
 	}

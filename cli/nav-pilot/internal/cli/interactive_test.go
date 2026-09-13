@@ -678,3 +678,87 @@ func TestExplicitInstallAllSkipsThePicker(t *testing.T) {
 		t.Errorf("re-install left the managed file unrefreshed: %q", got)
 	}
 }
+
+// An explicit scope flag answers the repo-vs-user question, so `install --repo`
+// (and `--target X`) must not open the scope picker its own help says it skips
+// (#820). The re-install half covers the same trap #814 hit on the --all
+// bypass: the user-scope flow force-updates managed files, and the repo flow
+// took only --force, so a re-install quietly stopped refreshing them.
+func TestExplicitRepoScopeSkipsTheScopePicker(t *testing.T) {
+	isolatedConfig(t)
+	forceInteractive(t)
+	target := repoTarget(t)
+	stubResolveSource(t, pakkeSource(t, defaultSourceRepo))
+
+	orig := promptInstallScopeFn
+	t.Cleanup(func() { promptInstallScopeFn = orig })
+	promptInstallScopeFn = func(string) (*InstallScope, error) {
+		t.Error("install --repo reached the scope picker; an explicit scope must not be asked for")
+		return nil, nil
+	}
+
+	scope := ScopeRepo(target)
+	if err := cmdInstallInteractive(scope, target, "", "", false); err != nil {
+		t.Fatalf("install --repo: %v", err)
+	}
+
+	agent := scope.DstPath("agents", "grillmester.agent.md")
+	if _, err := os.Stat(agent); err != nil {
+		t.Fatalf("install --repo installed nothing: %v", err)
+	}
+
+	// Re-install over a managed file that no longer matches what nav-pilot
+	// recorded. The user-scope flow overwrites it; so must this one.
+	if err := os.WriteFile(agent, []byte("stale\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmdInstallInteractive(scope, target, "", "", false); err != nil {
+		t.Fatalf("re-install --repo: %v", err)
+	}
+	got, err := os.ReadFile(agent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(got), "stale") {
+		t.Errorf("re-install left the managed file unrefreshed: %q", got)
+	}
+}
+
+// installAllFromSource is reached at both scopes, so its closing line cannot
+// claim the repo's .github/ reaches every repository (#820).
+func TestInstallAllSuccessMessageNamesTheScope(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		scopeFor  func(t *testing.T, target string) *InstallScope
+		want, not string
+	}{
+		{"repo", func(t *testing.T, target string) *InstallScope { return ScopeRepo(target) },
+			"in this repository", "across all your repos"},
+		{"user", func(t *testing.T, target string) *InstallScope {
+			scope, err := ScopeUser()
+			if err != nil {
+				t.Fatal(err)
+			}
+			return scope
+		}, "across all your repos", "in this repository"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			isolatedConfig(t)
+			target := repoTarget(t)
+			src := pakkeSource(t, defaultSourceRepo)
+			scope := tc.scopeFor(t, target)
+
+			out := captureStdout(func() {
+				if err := installAllFromSource(scope, src, nil, false, false, false); err != nil {
+					t.Errorf("install --all: %v", err)
+				}
+			})
+			if !strings.Contains(out, tc.want) {
+				t.Errorf("%s-scope success message must say %q, got:\n%s", tc.name, tc.want, out)
+			}
+			if strings.Contains(out, tc.not) {
+				t.Errorf("%s-scope success message must not say %q, got:\n%s", tc.name, tc.not, out)
+			}
+		})
+	}
+}

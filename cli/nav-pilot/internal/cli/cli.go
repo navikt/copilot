@@ -643,7 +643,15 @@ func run(args []string) error {
 			if len(positional) == 0 {
 				// No args: launch interactive flow if in a terminal
 				if isInteractive() && !jsonOutput {
-					return install(cmdInstallInteractive(targetDir, ref, sourceRepo))
+					// An explicit scope flag has already answered the
+					// repo-vs-user question — that is what --repo's help
+					// promises — so only an invocation that left it open
+					// gets the scope picker (#820).
+					var chosen *InstallScope
+					if scopeProvided {
+						chosen = scope
+					}
+					return install(cmdInstallInteractive(chosen, targetDir, ref, sourceRepo, force))
 				}
 				return fmt.Errorf("install requires a name. Run 'nav-pilot list' to see what is available")
 			}
