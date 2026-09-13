@@ -120,7 +120,7 @@ func TestUninstallHookLeavesForeignEntries(t *testing.T) {
 		t.Fatalf("writeScopedState: %v", err)
 	}
 
-	if err := cmdUninstall(scope, false); err != nil {
+	if err := cmdUninstall(scope, false, false); err != nil {
 		t.Fatalf("cmdUninstall: %v", err)
 	}
 
@@ -151,7 +151,7 @@ func TestUninstallHookRemovesEmptiedConfig(t *testing.T) {
 	if err := writeScopedState(scope, &StateFile{Collection: "test", Files: result.Files}); err != nil {
 		t.Fatal(err)
 	}
-	if err := cmdUninstall(scope, false); err != nil {
+	if err := cmdUninstall(scope, false, false); err != nil {
 		t.Fatalf("cmdUninstall: %v", err)
 	}
 	path := filepath.Join(target, ".github", "hooks", source.RepoHooksConfig)

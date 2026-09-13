@@ -23,6 +23,10 @@ type syncResult struct {
 	Ignored   []string     `json:"ignored,omitempty"`
 	Foreign   []string     `json:"foreign,omitempty"`
 	Conflicts []string     `json:"conflicts,omitempty"`
+	// Kept names files the source deleted that sync left on disk because they
+	// differ from what nav-pilot installed (#729). They are not deletions: a
+	// workflow reading this document must not report them as removed.
+	Kept []string `json:"kept,omitempty"`
 	// Retired names artifacts the source has withdrawn that are still
 	// installed, and whose bytes nav-pilot published (#716).
 	Retired []string     `json:"retired,omitempty"`
@@ -341,6 +345,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	// deleted — they get marked "ignored" in the state file so future syncs skip them.
 	var updates []syncUpdate
 	var deletedPaths []string
+	var keptPaths []string
 	var syncErrors []string
 	var ignoredPaths []string
 	var foreignPaths []string
@@ -369,6 +374,15 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		// supplied on the first sync after install.
 		sourceRoot, found := resolver.SourceRootFor(sf.sourcePath)
 		if !found {
+			// Deleted upstream — but only nav-pilot's own untouched copy is
+			// nav-pilot's to remove. A file whose bytes have changed since it
+			// was installed is the user's work, and a silent delete is the one
+			// outcome it can never be recovered from. Same predicate
+			// removeOrphans has always used (#729); it guarded that path alone.
+			if sf.tracked != nil && !safeToRemove(scope.RootDir, *sf.tracked) {
+				keptPaths = append(keptPaths, sf.localPath)
+				continue
+			}
 			deletedPaths = append(deletedPaths, sf.localPath)
 			continue
 		}
@@ -423,6 +437,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		Ignored:   ignoredPaths,
 		Foreign:   foreignPaths,
 		Conflicts: conflictPaths,
+		Kept:      keptPaths,
 		PinBump:   pinBump,
 		Retired:   retiredPaths(retired),
 	}
@@ -445,6 +460,22 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 			return errUpdatesAvailable
 		}
 		return nil
+	}
+
+	// Files the source deleted that sync will not. Printed ahead of the
+	// up-to-date branch, and not counted as work: there is nothing for --apply
+	// to do about a kept file, so making it a reason to return
+	// errUpdatesAvailable would have the scheduled workflow open an empty PR
+	// every week for as long as the file exists. The user still has to be told,
+	// every run, because nothing about it changes until they act.
+	if len(keptPaths) > 0 {
+		fmt.Printf("%s %d file(s) deleted in source "+conflictWording+" and were kept (source: %s)\n\n",
+			yellow("⚠"), len(keptPaths), shortSHA(src.SHA))
+		for _, p := range keptPaths {
+			fmt.Printf("  %s %s\n", dim("⊘"), p)
+		}
+		fmt.Printf("Delete them yourself if you no longer want them, or list them under %s in %s to stop sync mentioning them.\n\n",
+			bold("overrides"), bold(syncConfigPath))
 	}
 
 	if result.UpToDate {
@@ -1018,6 +1049,10 @@ type syncFile struct {
 	sourcePath string // relative path in source repo (same unless remapped)
 	isDir      bool
 	source     string // agentpakke this file came from; empty means the scope's own
+	// tracked is the state entry this file came from, or nil when the scope has
+	// no state and the file was auto-detected. The delete path needs the
+	// recorded hash to tell nav-pilot's own copy from one the user has edited.
+	tracked *InstalledFile
 }
 
 // resolveSyncFiles determines which files to sync.
@@ -1040,11 +1075,13 @@ func resolveSyncFiles(scope *InstallScope, resolver *SourceResolver, includeConf
 				continue
 			}
 			sp := resolver.MapLocalPath(f.Path, scope.IsUser())
+			entry := f
 			files = append(files, syncFile{
 				localPath:  f.Path,
 				sourcePath: sp,
 				isDir:      strings.HasSuffix(f.Path, "/"),
 				source:     f.Source,
+				tracked:    &entry,
 			})
 		}
 		return files, state.Collection, nil
@@ -1073,7 +1110,7 @@ func resolveSyncFiles(scope *InstallScope, resolver *SourceResolver, includeConf
 // sentence, and the only remedy offered is --apply, which then takes the
 // source's version whether that is newer or older than what is on disk.
 func printConflictSummary(scope *InstallScope, conflictPaths []string, srcSHA string) {
-	fmt.Printf("%s %d file(s) differ from what nav-pilot installed and are left alone by a plain sync (source: %s)\n\n",
+	fmt.Printf("%s %d file(s) "+conflictWording+" and are left alone by a plain sync (source: %s)\n\n",
 		yellow("⚠"), len(conflictPaths), shortSHA(srcSHA))
 	// Per-file provenance turns a bare path into a fact the reader can act on
 	// (#729): a file installed from an older revision than the one the scope is
@@ -1090,6 +1127,13 @@ func printConflictSummary(scope *InstallScope, conflictPaths []string, srcSHA st
 	}
 	fmt.Printf("%s to take the source's version of these too.\n\n", bold("nav-pilot sync --apply"))
 }
+
+// conflictWording is the one phrase nav-pilot has for "the bytes on disk are
+// not the bytes nav-pilot wrote". Written once because it is written in two
+// reports — the conflict summary and the files sync declines to delete — and
+// two copies of a sentence are two sentences waiting to drift (#651). #692
+// settled what it may claim: content differs, and nothing about who changed it.
+const conflictWording = "differ from what nav-pilot installed"
 
 func conflictStatePaths(scope *InstallScope) []string {
 	state, err := readScopedState(scope)

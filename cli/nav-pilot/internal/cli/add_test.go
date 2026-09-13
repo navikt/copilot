@@ -590,7 +590,7 @@ func TestCmdUninstall_RemovesFiles(t *testing.T) {
 	writeState(target, state)
 
 	// Uninstall
-	err := cmdUninstall(ScopeRepo(target), false)
+	err := cmdUninstall(ScopeRepo(target), false, false)
 	if err != nil {
 		t.Fatalf("cmdUninstall: %v", err)
 	}
@@ -747,7 +747,7 @@ func TestUninstallRemovesOwnDeclarationOnly(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if err := cmdUninstall(scope, false); err != nil {
+			if err := cmdUninstall(scope, false, false); err != nil {
 				t.Fatal(err)
 			}
 

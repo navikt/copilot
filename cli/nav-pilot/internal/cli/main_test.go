@@ -751,19 +751,26 @@ func TestInstallPrompt_NotFound(t *testing.T) {
 func TestCmdUninstall(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, ".github", "agents"), 0o755)
-	os.WriteFile(filepath.Join(dir, ".github", "agents", "test.agent.md"), []byte("# Agent"), 0o644)
+	agent := filepath.Join(dir, ".github", "agents", "test.agent.md")
+	os.WriteFile(agent, []byte("# Agent"), 0o644)
 
+	// The recorded hash has to be the file's own: uninstall removes what
+	// nav-pilot still owns, and a placeholder would now make this test assert
+	// the guard rather than the removal (#729).
+	hash, err := rawArtifactHash(agent, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	state := &StateFile{
 		Collection: "test",
 		Version:    "1.0",
 		Files: []InstalledFile{
-			{Path: ".github/agents/test.agent.md", Hash: "abc123"},
+			{Path: ".github/agents/test.agent.md", Hash: hash},
 		},
 	}
 	writeState(dir, state)
 
-	err := cmdUninstall(ScopeRepo(dir), false)
-	if err != nil {
+	if err := cmdUninstall(ScopeRepo(dir), false, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -780,7 +787,7 @@ func TestCmdUninstall(t *testing.T) {
 
 func TestCmdUninstall_NoState(t *testing.T) {
 	dir := t.TempDir()
-	err := cmdUninstall(ScopeRepo(dir), false)
+	err := cmdUninstall(ScopeRepo(dir), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -801,7 +808,7 @@ func TestCmdUninstall_DryRun(t *testing.T) {
 	}
 	writeState(dir, state)
 
-	err := cmdUninstall(ScopeRepo(dir), true)
+	err := cmdUninstall(ScopeRepo(dir), true, false)
 	if err != nil {
 		t.Fatal(err)
 	}

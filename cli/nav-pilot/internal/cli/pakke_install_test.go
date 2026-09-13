@@ -1059,7 +1059,7 @@ func TestUninstallRemovesRevisions(t *testing.T) {
 	}
 
 	captureStdoutFor(t, func() {
-		if err := cmdUninstall(scope, true); err != nil {
+		if err := cmdUninstall(scope, true, false); err != nil {
 			t.Fatalf("dry-run uninstall: %v", err)
 		}
 	})
@@ -1068,7 +1068,7 @@ func TestUninstallRemovesRevisions(t *testing.T) {
 	}
 
 	captureStdoutFor(t, func() {
-		if err := cmdUninstall(scope, false); err != nil {
+		if err := cmdUninstall(scope, false, false); err != nil {
 			t.Fatalf("uninstall: %v", err)
 		}
 	})

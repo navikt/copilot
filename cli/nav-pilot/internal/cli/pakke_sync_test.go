@@ -120,7 +120,7 @@ func TestUninstallLeavesAnotherScopesRevisions(t *testing.T) {
 	}
 
 	captureStdoutFor(t, func() {
-		if err := cmdUninstall(repo, false); err != nil {
+		if err := cmdUninstall(repo, false, false); err != nil {
 			t.Fatalf("repo-scope uninstall: %v", err)
 		}
 	})
@@ -143,7 +143,7 @@ func TestUninstallDryRunNamesTheRevisions(t *testing.T) {
 
 	revDir := pakkeRevisionDir(src.Repo, src.SHA)
 	out := captureStdoutFor(t, func() {
-		if err := cmdUninstall(scope, true); err != nil {
+		if err := cmdUninstall(scope, true, false); err != nil {
 			t.Fatalf("dry-run uninstall: %v", err)
 		}
 	})
@@ -404,7 +404,7 @@ func TestIgnoreOverAPinKeepsItsRevisions(t *testing.T) {
 		scope, src := ignoredPin(t)
 
 		captureStdoutFor(t, func() {
-			if err := cmdUninstall(scope, false); err != nil {
+			if err := cmdUninstall(scope, false, false); err != nil {
 				t.Fatalf("uninstall after an ignore: %v", err)
 			}
 		})

@@ -65,6 +65,21 @@ It needs `contents: write` and `pull-requests: write` and nothing else, no token
 
 > `AGENTS.md` and `.github/copilot-instructions.md` are never synced. They are always repo-specific.
 
+## What sync will not delete
+
+When the source stops shipping a file, `nav-pilot sync --apply` removes your copy of it — but only when that copy is byte-for-byte what nav-pilot installed. A file whose content has changed since then is left on disk and named in the output:
+
+```
+⚠ 1 file(s) deleted in source differ from what nav-pilot installed and were kept (source: a1b2c3d)
+
+  ⊘ .github/agents/nais.agent.md
+Delete them yourself if you no longer want them, or list them under overrides in .github/copilot-sync.json to stop sync mentioning them.
+```
+
+There is no flag that makes sync delete it. A file that differs may be your team's own work, and an overwrite can be taken again from the source while a delete cannot. `--json` reports these under `kept`, separately from `deletions`, and a kept file is not counted as an available update, so the scheduled workflow does not open a PR for it.
+
+The same rule governs `nav-pilot uninstall`: it removes the files nav-pilot installed and still owns, leaves the ones that differ, and says how many. `nav-pilot uninstall --force` removes those too.
+
 ## Overrides
 
 A team that deliberately maintains its own version of a file can mark it as an override. Overridden files are skipped during sync, with no hash comparison and no PR diff, and you can safely delete them from your repo without them being re-added. This works for both state-based and auto-detected repos.
