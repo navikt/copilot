@@ -2322,12 +2322,16 @@ function CliReferenceSection() {
             Oppgrader CLI
           </LinkableHeading>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            nav-pilot sjekker automatisk om det finnes en nyere versjon ved oppstart. Du kan oppgradere på to måter:
+            nav-pilot sjekker automatisk om det finnes en nyere versjon ved oppstart. Du kan oppgradere på tre måter:
           </BodyLong>
           <div className="mt-4 space-y-3">
             {[
               { label: "Selvoppdatering", cmd: "nav-pilot upgrade" },
-              { label: "Via Homebrew", cmd: "brew update && brew upgrade nav-pilot" },
+              { label: "Via Homebrew (macOS)", cmd: "brew update && brew upgrade nav-pilot" },
+              {
+                label: "Via apt (Debian, Ubuntu)",
+                cmd: "sudo apt update && sudo apt install --only-upgrade nav-pilot",
+              },
             ].map((item) => (
               <div key={item.cmd}>
                 <BodyShort size="small" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>

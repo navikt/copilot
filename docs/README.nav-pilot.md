@@ -11,11 +11,18 @@ nav-pilot er et CLI-verktøy og en AI-agent for Nav-utvikling med GitHub Copilot
 # Anbefalt: Homebrew (macOS), nav-pilot og påkrevd isolasjon
 brew install navikt/tap/nav-pilot navikt/tap/cplt
 
+# Anbefalt på Linux (Debian, Ubuntu): apt-arkivet
+curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \
+  | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/navikt.list
+sudo apt update && sudo apt install nav-pilot cplt
+
 # mise: samme binærer fra GitHub-releasen, med attestering verifisert
 mise use -g 'github:navikt/cplt'
 mise use -g 'github:navikt/copilot[exe=nav-pilot,version_prefix=nav-pilot/]@2026.09.12-225921-bb3fbb6'
 
-# Debian/Ubuntu: .deb fra releasen
+# Uten arkivet: .deb-en er også et releaseartefakt
 sudo apt install ./nav-pilot_2026.09.12-225921-bb3fbb6_$(dpkg --print-architecture).deb
 
 # Linux / CI: last ned og inspiser skriptet manuelt
@@ -24,14 +31,19 @@ cat install.sh   # Se gjennom skriptet før kjøring
 bash install.sh
 ```
 
+> **Arkivet ligger inntil en time bak.** Publiseringsjobben kjører hver time og
+> henter den nyeste `.deb`-en fra hver release, så en release du nettopp kuttet
+> er ikke installerbar med `apt` med det samme. Det er et vanlig apt-arkiv som
+> speiler releasene våre, ikke en distropakke med egen vedlikeholder.
+
 > ⚠ **Pin versjonen med mise.** Versjonsstrengene våre er ikke gyldig semver, så
 > `mise latest` plukker en eldre release enn den nyeste. Oppgi versjonen selv,
 > eller bruk Homebrew.
 
 > ⚠ **Sikkerhetsmerk:** `curl ... | bash` kjører installasjonsskriptet uten forhåndsverifikasjon.
 > Binæren verifiseres med SHA256-checksum og SLSA provenance (krever `gh` CLI), men skriptet
-> som laster den ned er ikke signert. Derfor Homebrew på macOS, og manuell nedlasting og
-> gjennomlesing på Linux/CI.
+> som laster den ned er ikke signert. Derfor Homebrew på macOS, apt-arkivet på Debian og
+> Ubuntu, og manuell nedlasting og gjennomlesing ellers på Linux og i CI.
 
 ```bash
 # I et repo
