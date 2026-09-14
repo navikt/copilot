@@ -34,7 +34,10 @@ bash install.sh
 > **Arkivet ligger inntil en time bak.** Publiseringsjobben kjører hver time og
 > henter den nyeste `.deb`-en fra hver release, så en release du nettopp kuttet
 > er ikke installerbar med `apt` med det samme. Det er et vanlig apt-arkiv som
-> speiler releasene våre, ikke en distropakke med egen vedlikeholder.
+> speiler releasene våre, ikke en distropakke med egen vedlikeholder. Oppgrader
+> med `sudo apt upgrade`, ikke med `nav-pilot upgrade`: selvoppdateringen kjenner
+> igjen en Homebrew-installasjon, men ikke en dpkg-installasjon, og ville byttet
+> ut binæren uten at dpkg vet om det.
 
 > ⚠ **Pin versjonen med mise.** Versjonsstrengene våre er ikke gyldig semver, så
 > `mise latest` plukker en eldre release enn den nyeste. Oppgi versjonen selv,

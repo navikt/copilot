@@ -2341,6 +2341,12 @@ function CliReferenceSection() {
               </div>
             ))}
           </div>
+          <BodyLong size="small" className="mt-3" style={{ color: "#64748b" }}>
+            Har du installert med apt, bruk <code className="font-mono text-xs">apt</code> og ikke{" "}
+            <code className="font-mono text-xs">nav-pilot upgrade</code>. Selvoppdateringen kjenner igjen en
+            Homebrew-installasjon og lar den være, men ikke en dpkg-installasjon, så den ville byttet ut binæren uten at
+            dpkg vet om det.
+          </BodyLong>
           <Box background="neutral-soft" padding="space-16" borderRadius="8" className="mt-4">
             <Heading size="xsmall" level="4" style={{ color: "#334155" }}>
               Feilsøking: «already installed»
