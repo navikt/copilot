@@ -614,10 +614,8 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	var switchedFrom string
 
 	emitJSON := func() error {
-		doc := map[string]interface{}{
+		doc := withPakkeName(map[string]interface{}{
 			"command":     "install",
-			"collection":  stateCollection(src, collection),
-			"agentpakke":  stateCollection(src, collection),
 			"scope":       scope.Name,
 			"source_sha":  src.SHA,
 			"version":     src.Version,
@@ -626,7 +624,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 			"conflicts":   result.Conflicts,
 			"unsupported": result.Unsupported,
 			"dry_run":     dryRun,
-		}
+		}, stateCollection(src, collection))
 		if len(removedOrphans) > 0 {
 			doc["removed"] = removedOrphans
 		}
@@ -1212,17 +1210,15 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	var switchedFrom string
 
 	emitJSON := func() error {
-		doc := map[string]interface{}{
+		doc := withPakkeName(map[string]interface{}{
 			"command":    "install",
-			"collection": stateCollection(src, CollectionAll),
-			"agentpakke": stateCollection(src, CollectionAll),
 			"scope":      scope.Name,
 			"source_sha": src.SHA,
 			"version":    src.Version,
 			"installed":  result.Installed,
 			"conflicts":  result.Conflicts,
 			"dry_run":    dryRun,
-		}
+		}, stateCollection(src, CollectionAll))
 		if len(removedOrphans) > 0 {
 			doc["removed"] = removedOrphans
 		}
@@ -1350,21 +1346,19 @@ func cmdListInstalledAuto(repoDir string, jsonOutput bool) error {
 		scopes := []map[string]interface{}{}
 		if repoState != nil {
 			ok, modified, missing, ignored, _ := countFileIntegrity(repoScope.RootDir, repoState)
-			scopes = append(scopes, map[string]interface{}{
-				"scope": "repo", "collection": repoState.Collection, "agentpakke": repoState.Collection,
-				"version": repoState.Version, "source_sha": repoState.SourceSHA,
+			scopes = append(scopes, withPakkeName(map[string]interface{}{
+				"scope": "repo", "version": repoState.Version, "source_sha": repoState.SourceSHA,
 				"installed_at": repoState.InstalledAt, "files": len(repoState.Files),
 				"ok": ok, "modified": modified, "missing": missing, "ignored": ignored,
-			})
+			}, repoState.Collection))
 		}
 		if userState != nil {
 			ok, modified, missing, ignored, _ := countFileIntegrity(userScope.RootDir, userState)
-			doc := map[string]interface{}{
-				"scope": "user", "collection": userState.Collection, "agentpakke": userState.Collection,
-				"version": userState.Version, "source_sha": userState.SourceSHA,
+			doc := withPakkeName(map[string]interface{}{
+				"scope": "user", "version": userState.Version, "source_sha": userState.SourceSHA,
 				"installed_at": userState.InstalledAt, "files": len(userState.Files),
 				"ok": ok, "modified": modified, "missing": missing, "ignored": ignored,
-			}
+			}, userState.Collection)
 			if st := pakkeStatus(userScope, userState); st != nil {
 				doc["pakke"] = st
 			}
@@ -1376,12 +1370,11 @@ func cmdListInstalledAuto(repoDir string, jsonOutput bool) error {
 				continue
 			}
 			ok, modified, missing, ignored, _ := countFileIntegrity(cs.OutputDir, cs.State)
-			scopes = append(scopes, map[string]interface{}{
-				"scope": cs.ScopeName, "collection": cs.State.Collection, "agentpakke": cs.State.Collection,
-				"version": cs.State.Version, "source_sha": cs.State.SourceSHA,
+			scopes = append(scopes, withPakkeName(map[string]interface{}{
+				"scope": cs.ScopeName, "version": cs.State.Version, "source_sha": cs.State.SourceSHA,
 				"installed_at": cs.State.InstalledAt, "files": len(cs.State.Files),
 				"ok": ok, "modified": modified, "missing": missing, "ignored": ignored,
-			})
+			}, cs.State.Collection))
 		}
 		return outputJSON(map[string]interface{}{"installed": true, "scopes": scopes})
 	}
@@ -1430,10 +1423,8 @@ func cmdListInstalledScoped(scope *InstallScope, _ bool, jsonOutput bool) error 
 
 	if jsonOutput {
 		ok, modified, missing, ignored, _ := countFileIntegrity(scope.RootDir, state)
-		doc := map[string]interface{}{
+		doc := withPakkeName(map[string]interface{}{
 			"installed":    true,
-			"collection":   state.Collection,
-			"agentpakke":   state.Collection,
 			"version":      state.Version,
 			"scope":        scope.Name,
 			"source_sha":   state.SourceSHA,
@@ -1443,7 +1434,7 @@ func cmdListInstalledScoped(scope *InstallScope, _ bool, jsonOutput bool) error 
 			"modified":     modified,
 			"missing":      missing,
 			"ignored":      ignored,
-		}
+		}, state.Collection)
 		if st := pakkeStatus(scope, state); st != nil {
 			doc["pakke"] = st
 		}

@@ -785,16 +785,14 @@ func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) 
 	pakke := src.Pakke
 
 	result := func() error {
-		doc := map[string]interface{}{
+		doc := withPakkeName(map[string]interface{}{
 			"command":    "install",
-			"collection": pakke.Name,
-			"agentpakke": pakke.Name,
 			"scope":      scope.Name,
 			"source_sha": src.SHA,
 			"version":    src.Version,
 			"installed":  0,
 			"dry_run":    dryRun,
-		}
+		}, pakke.Name)
 		if release != nil {
 			doc["pakke_version"], doc["follows_releases"] = release.Version, true
 		}
