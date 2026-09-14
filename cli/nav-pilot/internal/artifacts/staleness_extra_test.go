@@ -45,6 +45,11 @@ func TestParseVersionTimestamp(t *testing.T) {
 		{"2026.04.13-240000", false, time.Time{}},
 		{"2026.04.13-176038", false, time.Time{}},
 		{"2026.04.13-170160", false, time.Time{}},
+		// time.Parse takes a fractional second the layout never asked for,
+		// in both the dot and the comma form. Neither is one of our stamps.
+		{"2026.04.13-170138.5", false, time.Time{}},
+		{"2026.04.13-170138,5", false, time.Time{}},
+		{"2026.04.13-170138.123456789", false, time.Time{}},
 	}
 	for _, tt := range tests {
 		got, ok := ParseVersionTimestamp(tt.ts)
@@ -235,6 +240,10 @@ func TestReleaseIsFresh(t *testing.T) {
 		{"impossible calendar fields", "9999.99.99-000000-cfeafb1", false},
 		{"month 13", "2026.13.01-000000-cfeafb1", false},
 		{"hour 24", "2026.09.14-240000-cfeafb1", false},
+		// A fractional tail time.Parse would swallow: recent enough to look
+		// fresh, not a version string we ship.
+		{"fractional second", time.Now().UTC().Format("2006.01.02-150405") + ".5-cfeafb1", false},
+		{"fractional second, comma form", time.Now().UTC().Format("2006.01.02-150405") + ",5-cfeafb1", false},
 		{"empty", "", false},
 		{"dev build", "dev", false},
 	}

@@ -226,6 +226,13 @@ const versionTimestampLayout = "2006.01.02-150405"
 // date, and a release stamped in the future reads as fresh — which would let a
 // nonsense tag silence the update nudge for good.
 func ParseVersionTimestamp(ts string) (time.Time, bool) {
+	// time.Parse accepts a fractional second straight after the seconds field
+	// even though the layout does not ask for one — "...-170138.5" and the
+	// comma form "...-170138,5" both parse. Our stamps are fixed width, so the
+	// length check refuses the tail before time.Parse can be generous with it.
+	if len(ts) != len(versionTimestampLayout) {
+		return time.Time{}, false
+	}
 	t, err := time.Parse(versionTimestampLayout, ts)
 	if err != nil {
 		return time.Time{}, false
