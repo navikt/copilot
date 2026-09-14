@@ -761,9 +761,17 @@ var installRef string
 // sources and repo scope keep today's behaviour; the last two are refused by
 // checkPakkeInstallable before anything is pinned.
 func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) error {
+	// The same gate the Tier 1 paths run, here because not every caller comes
+	// through them: the user-scope picker routes a payload-only pakke straight
+	// here, and [pinRevision] removes the outgoing install's files.
+	if !confirmSourceSwitch(scope, src, dryRun, jsonOutput) {
+		return errInstallCancelled
+	}
+	existing, _ := readScopedState(scope) // an unreadable state is pinRevision's error to report
+	switchedFrom := sourceSwitch(existing, src.Repo)
+
 	var release *pakkeRelease
 	if installRef == "" && !installFrozen && scope.IsUser() && pinnable(src.Repo) {
-		existing, _ := readScopedState(scope) // an unreadable state is pinRevision's error to report
 		_, follows := releaseClaim(existing)
 		relSrc, rel, err := releaseStart(src, follows && sameSourceRepo(existing.SourceRepo, src.Repo))
 		if err != nil {
@@ -789,6 +797,9 @@ func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) 
 		if release != nil {
 			doc["pakke_version"], doc["follows_releases"] = release.Version, true
 		}
+		if switchedFrom != "" {
+			doc["switched_from"] = switchedFrom
+		}
 		return outputJSON(doc)
 	}
 
@@ -811,6 +822,9 @@ func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) 
 		return result()
 	}
 	fmt.Printf("%s Installed %s, pinned at %s.\n", green("✓"), bold(pakke.Name), release.label(src.SHA))
+	if switchedFrom != "" {
+		fmt.Printf("  %s Put %s back with: %s\n", dim("→"), switchedFrom, bold(reinstallCommand(scope, existing)))
+	}
 	fmt.Println()
 	fmt.Println(dim("It ships pre-built payloads rather than files, so nothing was written to ~/.copilot."))
 	fmt.Printf("%s %s %s\n", dim("Launches read the pinned revision;"), bold("nav-pilot sync"), dim("updates it."))

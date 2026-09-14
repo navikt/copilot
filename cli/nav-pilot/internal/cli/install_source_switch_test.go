@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/huh"
 )
 
 // A user with Nav's agentpakke installed user-wide ran
@@ -77,7 +79,7 @@ func TestInstallFromAnotherSourceReportsTheSwitchNotARetirement(t *testing.T) {
 	if strings.Contains(out, "no longer in the collection") {
 		t.Errorf("a switch was reported as an upstream retirement:\n%s", out)
 	}
-	for _, want := range []string{"navikt/copilot", "nais/pilot", "Removed 1 file(s) that came from"} {
+	for _, want := range []string{"navikt/copilot", "nais/pilot", "Removed 1 file(s) from"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the switch output never says %q:\n%s", want, out)
 		}
@@ -125,7 +127,7 @@ func TestRetirementWithinOneSourceKeepsItsWording(t *testing.T) {
 	if !strings.Contains(out, "no longer in the collection") {
 		t.Errorf("a genuine retirement lost its wording:\n%s", out)
 	}
-	if strings.Contains(out, "now installs from") {
+	if strings.Contains(out, "Put navikt/copilot back") {
 		t.Errorf("a retirement was reported as a source switch:\n%s", out)
 	}
 	if installed(t, scope, "gammel") {
@@ -175,6 +177,127 @@ func TestDecliningTheSwitchInstallsNothing(t *testing.T) {
 	}
 	if !installed(t, scope, "klarsprak") || installed(t, scope, "nais-platform") {
 		t.Error("a declined switch changed the scope anyway")
+	}
+	if state, _ := readScopedState(scope); state == nil || state.SourceRepo != "navikt/copilot" {
+		t.Errorf("a declined switch rewrote the state: %+v", state)
+	}
+}
+
+// Ctrl-C at the question is a no, not a yes: nobody agreed to lose files.
+func TestAbortingTheSwitchPromptCancels(t *testing.T) {
+	isolatedConfig(t)
+	forceInteractive(t)
+	orig := askSwitch
+	t.Cleanup(func() { askSwitch = orig })
+	askSwitch = func(string, *bool) error { return huh.ErrUserAborted }
+
+	scope := ScopeRepo(repoTarget(t))
+	installPakke(t, switchSource(t, "navpakke", "navikt/copilot", "klarsprak"), scope)
+
+	nais := switchSource(t, "naispakke", "nais/pilot", "nais-platform")
+	if err := cmdInstallFromSource(pakkeInstallName(nais), nais, scope, false, false, false); err != errInstallCancelled {
+		t.Fatalf("aborting returned %v, want errInstallCancelled", err)
+	}
+	if !installed(t, scope, "klarsprak") || installed(t, scope, "nais-platform") {
+		t.Error("an aborted switch changed the scope anyway")
+	}
+}
+
+// The user-scope picker sends a payload-only pakke straight to the pin path,
+// which removes the outgoing install's files. That door asks too.
+func TestPickerPinPathAsksBeforeSwitching(t *testing.T) {
+	scope := pinEnv(t)
+	forceInteractive(t)
+	asked, _, _ := stubAskSwitch(t, false)
+
+	legacy := &Source{Dir: legacySourceTree(t), SHA: "abc1234", Version: "dev", Repo: "navikt/other"}
+	if err := attachPakke(legacy); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmdInstallFromSource("fullstack", legacy, scope, false, false, false); err != nil {
+		t.Fatalf("Tier 1 install: %v", err)
+	}
+	kept := filepath.Join(scope.RootDir, "agents", "test-a.agent.md")
+
+	if err := interactiveUserInstallFromSource(scope, tier2PinSource(t, "sha-one"), ""); err != errInstallCancelled {
+		t.Fatalf("declining returned %v, want errInstallCancelled", err)
+	}
+	if *asked != 1 {
+		t.Errorf("the pin path asked %d times, want 1", *asked)
+	}
+	if _, err := os.Stat(kept); err != nil {
+		t.Errorf("a declined switch removed %s: %v", kept, err)
+	}
+	if state, _ := readScopedState(scope); state == nil || state.SourceRepo != "navikt/other" {
+		t.Errorf("a declined switch rewrote the state: %+v", state)
+	}
+}
+
+// The picker and `install --all` force-refresh managed files on every
+// re-install, which is exactly when a scope has another pakke to lose. That
+// internal force must not pass for the user's --force and skip the question.
+func TestRefreshForceDoesNotSkipTheSwitchPrompt(t *testing.T) {
+	isolatedConfig(t)
+	forceInteractive(t)
+	asked, _, _ := stubAskSwitch(t, true)
+
+	scope := ScopeRepo(repoTarget(t))
+	installPakke(t, switchSource(t, "navpakke", "navikt/copilot", "klarsprak"), scope)
+
+	nais := switchSource(t, "naispakke", "nais/pilot", "nais-platform")
+	if err := installAllFromSource(scope, nais, nil, false, true, false); err != nil {
+		t.Fatalf("install --all: %v", err)
+	}
+	if *asked != 1 {
+		t.Errorf("the switch prompt ran %d times under the picker's force, want 1", *asked)
+	}
+}
+
+// --force on the command line is the one thing that skips the question.
+func TestForceFlagSkipsTheSwitchPrompt(t *testing.T) {
+	isolatedConfig(t)
+	forceInteractive(t)
+	asked, _, _ := stubAskSwitch(t, false)
+	installForce = true
+	t.Cleanup(func() { installForce = false })
+
+	scope := ScopeRepo(repoTarget(t))
+	installPakke(t, switchSource(t, "navpakke", "navikt/copilot", "klarsprak"), scope)
+	installPakke(t, switchSource(t, "naispakke", "nais/pilot", "nais-platform"), scope)
+
+	if *asked != 0 {
+		t.Errorf("--force still asked %d time(s)", *asked)
+	}
+	if installed(t, scope, "klarsprak") || !installed(t, scope, "nais-platform") {
+		t.Error("--force did not carry out the switch")
+	}
+}
+
+// A state entry with nothing behind it on disk (a picker-ignored item) is not
+// a file about to be removed, and must not pad either number.
+func TestSwitchCountsOnlyFilesOnDisk(t *testing.T) {
+	isolatedConfig(t)
+	forceNonInteractive = true
+	t.Cleanup(func() { forceNonInteractive = false })
+
+	scope := ScopeRepo(repoTarget(t))
+	installPakke(t, switchSource(t, "navpakke", "navikt/copilot", "klarsprak"), scope)
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		t.Fatalf("state after install: %v", err)
+	}
+	state.Files = append(state.Files, InstalledFile{Path: ".github/agents/ghost.agent.md", Status: fileStatusIgnored})
+	if err := writeScopedState(scope, state); err != nil {
+		t.Fatal(err)
+	}
+
+	out := captureStdoutFor(t, func() {
+		installPakke(t, switchSource(t, "naispakke", "nais/pilot", "nais-platform"), scope)
+	})
+	for _, want := range []string{"Up to 1 file(s)", "Removed 1 file(s)"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("%q missing; an ignored entry was counted as a file:\n%s", want, out)
+		}
 	}
 }
 

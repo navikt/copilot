@@ -485,13 +485,6 @@ func articleFor(kind string) string {
 func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, dryRun, force bool, jsonOutput bool) error {
 	defer suppressHumanOutput(jsonOutput)()
 
-	// Before a byte is written: a scope that changes agentpakke loses the
-	// previous one's content, and that is the last moment the user can say no
-	// without ending up holding both.
-	if !confirmSourceSwitch(scope, src, dryRun, force, jsonOutput) {
-		return errInstallCancelled
-	}
-
 	// A Tier 1 agentpakke that publishes stable releases installs the newest
 	// release, not the default branch this source resolved (#794). Before
 	// anything reads src: the manifest, the resolver and the item list all
@@ -534,6 +527,15 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	// scope; installing it means pinning a revision of its payloads.
 	if payloadOnly(src) {
 		return installPakkePin(scope, src, dryRun, jsonOutput)
+	}
+
+	// Before a byte is written: a scope that changes agentpakke loses the
+	// previous one's content, and that is the last moment the user can say no
+	// without ending up holding both. After the Tier 2 return, which gates
+	// itself: every pin entry point reaches [installPakkePin], not all of
+	// them come through here.
+	if !confirmSourceSwitch(scope, src, dryRun, jsonOutput) {
+		return errInstallCancelled
 	}
 
 	// Fail closed before touching the filesystem (A3): a non-conforming
@@ -1097,12 +1099,6 @@ func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bo
 func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, dryRun, force bool, jsonOutput bool, extraStateFiles ...InstalledFile) error {
 	defer suppressHumanOutput(jsonOutput)()
 
-	// Same gate as cmdInstallFromSource, for the same reason: both paths end in
-	// removeOrphans, and both can take another agentpakke's content with them.
-	if !confirmSourceSwitch(scope, src, dryRun, force, jsonOutput) {
-		return errInstallCancelled
-	}
-
 	// The newest stable release, not the default branch, for a Tier 1
 	// agentpakke that publishes one (#794). See [cmdInstallFromSource].
 	//
@@ -1124,6 +1120,12 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 
 	if payloadOnly(src) {
 		return installPakkePin(scope, src, dryRun, jsonOutput)
+	}
+
+	// Same gate as cmdInstallFromSource, for the same reason: both paths end in
+	// removeOrphans, and both can take another agentpakke's content with them.
+	if !confirmSourceSwitch(scope, src, dryRun, jsonOutput) {
+		return errInstallCancelled
 	}
 
 	// Fail closed before touching the filesystem (A3).
@@ -1668,10 +1670,16 @@ func sourceSwitch(prior *StateFile, newRepo string) string {
 // reinstallCommand is the command that puts a scope's previous agentpakke back,
 // with the source filled in. Printed after a switch, because the user has just
 // been told their content was removed and the way back is not obvious.
+//
+// An à-la-carte state records no installable name, only a label, so it gets
+// the placeholder the other refusals print rather than a command that fails.
 func reinstallCommand(scope *InstallScope, prior *StateFile) string {
 	target := prior.Collection
-	if target == "" || target == CollectionAll {
+	switch {
+	case target == "" || target == CollectionAll:
 		target = "--all"
+	case !agentpakke.IsIdentifier(target):
+		target = "<name>"
 	}
 	flag := "--repo"
 	if scope.IsUser() {
@@ -1693,6 +1701,14 @@ var askSwitch = func(title string, proceed *bool) error {
 		Run()
 }
 
+// installForce carries install's --force for one invocation, the way
+// installFrozen and installRef do. The `force` the install functions take is
+// not the flag: every picker path and `install --all` set it themselves on a
+// re-install so managed files get refreshed (#814, #820), which is exactly
+// when a scope has something to lose. Only the flag the user typed may skip
+// the switch prompt.
+var installForce bool
+
 // confirmSourceSwitch says what an install from a different agentpakke is about
 // to remove, and asks first when there is a terminal to ask. It reports whether
 // the install should go ahead.
@@ -1703,8 +1719,8 @@ var askSwitch = func(title string, proceed *bool) error {
 //
 // Without a terminal it announces and proceeds. Scripts, CI and our own
 // harnesses install this way, and a refusal path there would break them; what
-// they get instead is a line on stdout saying the scope changed source.
-func confirmSourceSwitch(scope *InstallScope, src *Source, dryRun, force, jsonOutput bool) bool {
+// they get instead is the announcement on stdout.
+func confirmSourceSwitch(scope *InstallScope, src *Source, dryRun, jsonOutput bool) bool {
 	if dryRun || jsonOutput || src == nil {
 		return true
 	}
@@ -1713,35 +1729,43 @@ func confirmSourceSwitch(scope *InstallScope, src *Source, dryRun, force, jsonOu
 	if from == "" {
 		return true
 	}
-	// What removeOrphans would consider: a file nav-pilot no longer owns stays
-	// whatever happens. "Up to", because a path the new agentpakke also ships
-	// is overwritten rather than removed, and the summary after the install
-	// prints the number that actually went.
+	// What removeOrphans would remove: a file nav-pilot no longer owns stays
+	// whatever happens, and an entry with nothing on disk (an ignored item, a
+	// file already gone) is not a removal. "Up to", because a path the new
+	// agentpakke also ships is overwritten rather than removed; the summary
+	// after the install prints the number that actually went.
 	owned := 0
 	for _, f := range prior.Files {
-		if navPilotOwns(scope.RootDir, f) {
+		if onDisk(scope, f) && navPilotOwns(scope.RootDir, f) {
 			owned++
 		}
 	}
 	fmt.Printf("%s The %s scope is installed from %s. This install switches it to %s.\n",
 		yellow("⚠"), scope.Name, bold(from), bold(src.Repo))
-	fmt.Printf("  Up to %d file(s) from %s will be removed.\n", owned, from)
-	if force || !isInteractive() {
-		fmt.Println(dim("  Switching."))
+	if owned > 0 {
+		fmt.Printf("  Up to %d file(s) from %s will be removed.\n", owned, from)
+	}
+	if installForce || !isInteractive() {
 		return true
 	}
 	proceed := true
-	if err := askSwitch(fmt.Sprintf("Switch the %s scope to %s?", scope.Name, src.Repo), &proceed); err != nil {
-		// Nothing could answer. That is the non-interactive case arriving late,
-		// and it takes the non-interactive answer.
-		fmt.Println(dim("  Switching."))
+	err := askSwitch(fmt.Sprintf("Switch the %s scope to %s?", scope.Name, src.Repo), &proceed)
+	if err == nil && proceed {
 		return true
 	}
-	if !proceed {
-		fmt.Println(dim("Cancelled."))
-		return false
+	// Ctrl-C, or a terminal that could not show the question. Either way no
+	// one said yes to losing files, so nothing is lost.
+	if err != nil && !errors.Is(err, huh.ErrUserAborted) {
+		fmt.Printf("%s Could not ask: %v. Pass %s to switch without asking.\n", yellow("⚠"), err, bold("--force"))
 	}
-	return true
+	fmt.Println(dim("Cancelled."))
+	return false
+}
+
+// onDisk reports whether a state entry has anything behind it to remove.
+func onDisk(scope *InstallScope, f InstalledFile) bool {
+	_, err := os.Stat(filepath.Join(scope.RootDir, f.Path))
+	return err == nil
 }
 
 // removeOrphans deletes files the previous install put on disk that this one
@@ -1788,7 +1812,12 @@ func removeOrphans(scope *InstallScope, prior *StateFile, installed []InstalledF
 		} else {
 			err = os.Remove(full)
 		}
-		if err != nil && !os.IsNotExist(err) {
+		if os.IsNotExist(err) {
+			// An ignored item, or a file already gone: nothing was removed,
+			// and an entry for it belongs to the install being replaced.
+			continue
+		}
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not remove %s, which is no longer part of the collection: %v\n",
 				yellow("⚠"), f.Path, err)
 			kept = append(kept, f)
@@ -1802,8 +1831,7 @@ func removeOrphans(scope *InstallScope, prior *StateFile, installed []InstalledF
 	// One line for a switch, not one per file: sixty-three of them said the
 	// same wrong thing sixty-three times. The full list is in --json.
 	if switched != "" && len(removed) > 0 {
-		fmt.Printf("  %s Removed %d file(s) that came from %s. This scope now installs from %s.\n",
-			red("×"), len(removed), bold(switched), bold(newRepo))
+		fmt.Printf("  %s Removed %d file(s) from %s.\n", red("×"), len(removed), bold(switched))
 		fmt.Printf("  %s Put %s back with: %s\n", dim("→"), switched, bold(reinstallCommand(scope, prior)))
 	}
 	return kept, removed
