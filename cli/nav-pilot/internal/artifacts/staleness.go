@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -217,41 +215,27 @@ func VersionSkewDays(latestVersion, installedVersion string) (int64, bool) {
 	return int64(diff.Hours() / 24), true
 }
 
+// versionTimestampLayout is the version stamp's date-time prefix:
+// "2026.04.13-170138". Fixed width and zero-padded, which is what makes the
+// lexical comparison in VersionNewer work.
+const versionTimestampLayout = "2006.01.02-150405"
+
+// ParseVersionTimestamp reads the date-time prefix of a version string. It
+// rejects a field that is numeric but not a real calendar value (month 99, day
+// 32, hour 24): time.Date would roll those forward into a plausible future
+// date, and a release stamped in the future reads as fresh — which would let a
+// nonsense tag silence the update nudge for good.
 func ParseVersionTimestamp(ts string) (time.Time, bool) {
-	parts := strings.SplitN(ts, "-", 2)
-	if len(parts) != 2 {
+	// time.Parse accepts a fractional second straight after the seconds field
+	// even though the layout does not ask for one — "...-170138.5" and the
+	// comma form "...-170138,5" both parse. Our stamps are fixed width, so the
+	// length check refuses the tail before time.Parse can be generous with it.
+	if len(ts) != len(versionTimestampLayout) {
 		return time.Time{}, false
 	}
-	datePart := strings.Split(parts[0], ".")
-	if len(datePart) != 3 {
-		return time.Time{}, false
-	}
-	if len(parts[1]) != 6 {
-		return time.Time{}, false
-	}
-	year, err := strconv.Atoi(datePart[0])
+	t, err := time.Parse(versionTimestampLayout, ts)
 	if err != nil {
 		return time.Time{}, false
 	}
-	month, err := strconv.Atoi(datePart[1])
-	if err != nil {
-		return time.Time{}, false
-	}
-	day, err := strconv.Atoi(datePart[2])
-	if err != nil {
-		return time.Time{}, false
-	}
-	hour, err := strconv.Atoi(parts[1][0:2])
-	if err != nil {
-		return time.Time{}, false
-	}
-	minute, err := strconv.Atoi(parts[1][2:4])
-	if err != nil {
-		return time.Time{}, false
-	}
-	second, err := strconv.Atoi(parts[1][4:6])
-	if err != nil {
-		return time.Time{}, false
-	}
-	return time.Date(year, time.Month(month), day, hour, minute, second, 0, time.UTC), true
+	return t, true
 }

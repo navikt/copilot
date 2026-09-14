@@ -163,3 +163,33 @@ func TestWrapWords(t *testing.T) {
 		})
 	}
 }
+
+// TestPrintPakkeListingWrapsPayloadContexts: context ids come from the
+// manifest and are not length-bounded, so the list has to wrap at 80 columns —
+// while the "cannot launch <client>" annotation stays on one line.
+func TestPrintPakkeListingWrapsPayloadContexts(t *testing.T) {
+	plainOutput(t)
+
+	payloads := []payloadLine{
+		{contexts: "cursor payloads: full, minimal, review-only, kotlin-backend, nextjs-frontend, platform-operations, incident-response"},
+		{
+			contexts: "pi payloads: full, minimal, review-only, kotlin-backend, nextjs-frontend, platform-operations, incident-response",
+			note:     "(materialized on install; this nav-pilot cannot launch pi)",
+		},
+	}
+	var buf bytes.Buffer
+	printPakkeListing(&buf, "nais/pilot", collectionInfo{Name: "nais-platform"}, payloads, true, 80)
+	out := buf.String()
+
+	if n, worst := longestLine(out); n > 80 {
+		t.Errorf("a payload line is %d columns wide, want at most 80:\n%q", n, worst)
+	}
+	if !strings.Contains(out, "(materialized on install; this nav-pilot cannot launch pi)\n") {
+		t.Errorf("the launchability annotation was broken across lines:\n%s", out)
+	}
+	for _, ctx := range []string{"platform-operations", "incident-response"} {
+		if !strings.Contains(out, ctx) {
+			t.Errorf("the listing dropped the context %q:\n%s", ctx, out)
+		}
+	}
+}

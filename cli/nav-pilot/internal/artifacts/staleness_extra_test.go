@@ -36,6 +36,20 @@ func TestParseVersionTimestamp(t *testing.T) {
 		{"2026.04.13-17MM38", false, time.Time{}},
 		// invalid: non-numeric second
 		{"2026.04.13-1701SS", false, time.Time{}},
+		// Numeric but not a date. time.Date would normalise these into a
+		// plausible far-future day; the nudge reads a future stamp as fresh,
+		// so a normalised nonsense tag would silence it for good.
+		{"9999.99.99-000000", false, time.Time{}},
+		{"2026.13.01-000000", false, time.Time{}},
+		{"2026.02.30-000000", false, time.Time{}},
+		{"2026.04.13-240000", false, time.Time{}},
+		{"2026.04.13-176038", false, time.Time{}},
+		{"2026.04.13-170160", false, time.Time{}},
+		// time.Parse takes a fractional second the layout never asked for,
+		// in both the dot and the comma form. Neither is one of our stamps.
+		{"2026.04.13-170138.5", false, time.Time{}},
+		{"2026.04.13-170138,5", false, time.Time{}},
+		{"2026.04.13-170138.123456789", false, time.Time{}},
 	}
 	for _, tt := range tests {
 		got, ok := ParseVersionTimestamp(tt.ts)
@@ -67,6 +81,10 @@ func TestVersionSkewDays(t *testing.T) {
 		{"notaversion", "2026.04.13-170138", 0, false},
 		// invalid installed
 		{"2026.04.13-170138", "notaversion", 0, false},
+		// The same strict parse: an impossible date is "cannot tell", not a
+		// skew of three million days.
+		{"9999.99.99-000000", "2026.04.13-170138", 0, false},
+		{"2026.04.13-170138", "9999.99.99-000000", 0, false},
 	}
 	for _, tt := range tests {
 		days, ok := VersionSkewDays(tt.latest, tt.installed)
@@ -216,6 +234,16 @@ func TestReleaseIsFresh(t *testing.T) {
 		{"no timestamp", "v1.2.3", false},
 		{"truncated timestamp", "2026.09.14-0806-cfeafb1", false},
 		{"non-numeric timestamp", "yyyy.mm.dd-hhmmss-cfeafb1", false},
+		// Numeric, impossible, and newer than anything by the lexical
+		// comparison: it must still be announced, not treated as a release
+		// from the year 10007.
+		{"impossible calendar fields", "9999.99.99-000000-cfeafb1", false},
+		{"month 13", "2026.13.01-000000-cfeafb1", false},
+		{"hour 24", "2026.09.14-240000-cfeafb1", false},
+		// A fractional tail time.Parse would swallow: recent enough to look
+		// fresh, not a version string we ship.
+		{"fractional second", time.Now().UTC().Format("2006.01.02-150405") + ".5-cfeafb1", false},
+		{"fractional second, comma form", time.Now().UTC().Format("2006.01.02-150405") + ",5-cfeafb1", false},
 		{"empty", "", false},
 		{"dev build", "dev", false},
 	}
