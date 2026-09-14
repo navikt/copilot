@@ -100,7 +100,7 @@ Create `.github/copilot-sync.json` in your repo:
 
 Overrides are also how you opt out of framework-specific files. Teams on Astro, Remix, or anything else that isn't Next.js can override the Next.js files the agentpakke installs, such as `.github/instructions/nextjs-aksel.instructions.md`, `.github/instructions/performance.instructions.md` and `.github/prompts/nextjs-api-route.prompt.md`.
 
-> **Tip:** If you need no Next.js files at all, deselect them in the interactive picker instead — see [recommended selections](README.collections.md).
+> **Tip:** If you need no Next.js files at all, deselect them in the interactive picker instead — see [installing less](README.nav-pilot.md#collections).
 
 ## Suppressing new-item reminders (user scope)
 

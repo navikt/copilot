@@ -27,7 +27,7 @@ body:
       label: Steps to reproduce
       description: How can we reproduce this? List the steps.
       placeholder: |
-        1. Run `nav-pilot install kotlin-backend`
+        1. Run `nav-pilot install nav-pilot --repo`
         2. Edit a file
         3. Run `nav-pilot sync --apply`
     validations:

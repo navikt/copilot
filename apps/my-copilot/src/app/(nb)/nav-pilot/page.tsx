@@ -4,10 +4,7 @@ import { Box, VStack, HGrid, Heading, CopyButton } from "@navikt/ds-react";
 import NextLink from "next/link";
 import { InteractiveSetupWizard } from "@/components/nav-pilot/interactive-setup-wizard";
 import {
-  TerminalIcon,
-  PaletteIcon,
   BranchingIcon,
-  CloudIcon,
   CheckmarkCircleIcon,
   XMarkOctagonIcon,
   MagnifyingGlassIcon,
@@ -62,118 +59,49 @@ const QUICKSTART_APT = [
   "sudo apt update && sudo apt install nav-pilot cplt",
 ].join("\n");
 
-const COLLECTIONS = [
-  {
-    id: "kotlin-backend",
-    title: "Kotlin-backend",
-    description: "Kotlin/Ktor, Spring Boot, Kafka og Flyway",
-    agents: 4,
-    skills: 24,
-    highlights: ["Kafka & TokenX", "Flyway", "Modernisering"],
-    Icon: TerminalIcon,
-    logos: [KotlinLogo, KafkaLogo, PostgreSQLLogo],
-    codePreview: `River(rapidsConnection).apply {
-  validate { it.demandValue(
-    "@event_name", "vedtak"
-  )}
-}`,
-    contents: {
-      agents: ["code-review", "research", "security-champion", "nav-pilot"],
-      skills: [
-        "api-design",
-        "kafka",
-        "ktor-scaffold",
-        "spring-boot-scaffold",
-        "flyway-migration",
-        "java-to-kotlin",
-        "nav-auth",
-        "tokenx-auth",
-        "nais",
-        "postgresql-review",
-        "observability-setup",
-        "observability-debugging",
-      ],
-    },
+const PAKKE = {
+  title: "nav-pilot",
+  description:
+    "Nav-innholdet for Kotlin og Spring, Next.js og Aksel, Nais, Kafka og sikkerhet, i én pakke. Velg bort det du ikke trenger i velgeren.",
+  counts: [
+    { label: "agenter", value: 11, color: "#60a5fa" },
+    { label: "skills", value: 33, color: "#a78bfa" },
+    { label: "instruksjoner", value: 17, color: "#34d399" },
+    { label: "prompts", value: 7, color: "#fbbf24" },
+  ],
+  highlights: ["Kotlin og Spring", "Next.js og Aksel", "Nais og sikkerhet"],
+  Icon: BranchingIcon,
+  logos: [KotlinLogo, NextjsLogo, ReactLogo, TypeScriptLogo, PostgreSQLLogo, KafkaLogo, KubernetesLogo, GoLogo],
+  contents: {
+    agents: [
+      "accessibility",
+      "aksel",
+      "code-review",
+      "forfatter",
+      "kafka",
+      "local-worker",
+      "nav-pilot",
+      "nav-pilot-opus",
+      "research",
+      "rust",
+      "security-champion",
+    ],
+    skills: [
+      "aksel-builder",
+      "api-design",
+      "flyway-migration",
+      "kafka",
+      "ktor-scaffold",
+      "nais",
+      "nav-auth",
+      "nav-plan",
+      "observability-setup",
+      "playwright-testing",
+      "security-owasp",
+      "spring-boot-scaffold",
+    ],
   },
-  {
-    id: "nextjs-frontend",
-    title: "Next.js-frontend",
-    description: "Next.js, React, Aksel og Playwright",
-    agents: 5,
-    skills: 11,
-    highlights: ["Aksel spacing", "Playwright", "Refaktorering"],
-    Icon: PaletteIcon,
-    logos: [NextjsLogo, ReactLogo, TypeScriptLogo],
-    codePreview: `<Box padding="space-24">
-  <HGrid columns={{ xs: 1, md: 2 }}>
-    <Heading level="1" size="large">`,
-    contents: {
-      agents: ["accessibility", "aksel", "code-review", "forfatter", "nav-pilot"],
-      skills: ["aksel-builder", "playwright-testing", "web-design-reviewer", "conventional-commit", "readme-review"],
-    },
-  },
-  {
-    id: "fullstack",
-    title: "Fullstack",
-    description: "Backend + frontend, komplett for din tjeneste",
-    agents: 7,
-    skills: 27,
-    highlights: ["Komplett pakke", "BFF-mønster", "Migrering"],
-    Icon: BranchingIcon,
-    logos: [KotlinLogo, ReactLogo, TypeScriptLogo, PostgreSQLLogo],
-    codePreview: `accessPolicy:
-  inbound:
-    rules:
-      - application: frontend`,
-    contents: {
-      agents: ["accessibility", "aksel", "code-review", "forfatter", "research", "security-champion", "nav-pilot"],
-      skills: [
-        "aksel-builder",
-        "api-design",
-        "kafka",
-        "ktor-scaffold",
-        "spring-boot-scaffold",
-        "flyway-migration",
-        "java-to-kotlin",
-        "nav-auth",
-        "tokenx-auth",
-        "nais",
-        "playwright-testing",
-        "postgresql-review",
-        "observability-setup",
-        "web-design-reviewer",
-      ],
-    },
-  },
-  {
-    id: "platform",
-    title: "Plattform",
-    description: "Plattform, observerbarhet, DevOps og sikkerhet",
-    agents: 4,
-    skills: 15,
-    highlights: ["Observerbarhet", "Sikkerhet", "Infrastruktur"],
-    Icon: CloudIcon,
-    logos: [KubernetesLogo, GoLogo],
-    codePreview: `observability:
-  autoInstrumentation:
-    enabled: true
-    runtime: java`,
-    contents: {
-      agents: ["code-review", "research", "security-champion", "nav-pilot"],
-      skills: [
-        "nais",
-        "observability-setup",
-        "observability-debugging",
-        "rust-development",
-        "security-review",
-        "threat-model",
-        "workstation-security",
-        "conventional-commit",
-        "readme-review",
-      ],
-    },
-  },
-];
+};
 
 const PIPELINE_STEPS = [
   {
@@ -240,7 +168,7 @@ export default async function NavPilotPage() {
     <main>
       <HeroSection stars={stars} />
       <UseCasesSection />
-      <CollectionsSection />
+      <PakkeSection />
       <PipelineSection />
       <ComparisonSection />
       <TestimonialsSection />
@@ -554,9 +482,9 @@ function UseCasesSection() {
   );
 }
 
-/* ---------- Collections ---------- */
+/* ---------- Agentpakke ---------- */
 
-function CollectionsSection() {
+function PakkeSection() {
   return (
     <section className="dark-section" style={{ background: "#0f172a", color: "white" }}>
       <Box
@@ -570,16 +498,14 @@ function CollectionsSection() {
               Én agentpakke med innhold for hele stacken
             </Heading>
             <p className="max-w-2xl mx-auto" style={{ color: "#94a3b8", marginBlock: 0, textAlign: "center" }}>
-              Alt installeres med én kommando; instruksjoner og skills aktiveres av stacken din. Her er et utvalg per
-              arketype.
+              Alt installeres med én kommando. Skills lastes når de trengs, de fleste instruksjonene er scopet til
+              filmønstre og slår aldri til i et repo som ikke har dem, og noen få gjelder alltid.
             </p>
           </div>
 
-          <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
-            {COLLECTIONS.map((c) => (
-              <CollectionCard key={c.id} {...c} />
-            ))}
-          </HGrid>
+          <div className="max-w-3xl mx-auto w-full">
+            <PakkeCard {...PAKKE} />
+          </div>
 
           <div className="text-center">
             <NextLink
@@ -617,17 +543,7 @@ function CollectionsSection() {
   );
 }
 
-function CollectionCard({
-  title,
-  description,
-  agents,
-  skills,
-  highlights,
-  Icon,
-  logos,
-  codePreview,
-  contents,
-}: (typeof COLLECTIONS)[number]) {
+function PakkeCard({ title, description, counts, highlights, Icon, logos, contents }: typeof PAKKE) {
   return (
     <div
       className="rounded-xl overflow-hidden h-full flex flex-col transition-all"
@@ -657,16 +573,18 @@ function CollectionCard({
             {description}
           </p>
 
-          <div className="flex gap-4 mt-3 mb-3">
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#60a5fa" }} />
-              <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>{agents} agenter</span>
+          <Box paddingBlock="space-12 space-12">
+            <div className="flex flex-wrap gap-4">
+              {counts.map((c) => (
+                <div key={c.label} className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ background: c.color }} />
+                  <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
+                    {c.value} {c.label}
+                  </span>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#a78bfa" }} />
-              <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>{skills} skills</span>
-            </div>
-          </div>
+          </Box>
 
           <div className="flex flex-wrap gap-1.5">
             {highlights.map((h) => (
@@ -721,25 +639,6 @@ function CollectionCard({
               </code>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* Code preview */}
-      <div
-        className="px-4 py-3 flex flex-col"
-        style={{
-          flex: "1 1 0%",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
-          background: "rgba(0,0,0,0.3)",
-        }}
-      >
-        <div className="flex-1">
-          <pre
-            className="font-mono leading-relaxed overflow-hidden"
-            style={{ margin: 0, fontSize: "0.7rem", color: "#93c5fd" }}
-          >
-            {codePreview}
-          </pre>
         </div>
       </div>
     </div>

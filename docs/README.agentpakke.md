@@ -939,6 +939,5 @@ Legg merke til at rosterne skiller seg per kontekst. `full` starter `grillmester
 - [JSON Schema: `cli/nav-pilot/schemas/agentpakke-v1.json`](../cli/nav-pilot/schemas/agentpakke-v1.json), kontrakten selv
 - [Beslutninger](agentpakke-beslutninger.md), hvorfor nav-pilot oppfører seg som den gjør: bevisste avvik, åpne spørsmål og aksepterte begrensninger
 - [nav-pilot](README.nav-pilot.md), CLI-et som konsumerer agentpakker
-- [Anbefalte utvalg](README.collections.md), hva ulike teamtyper bør beholde av standardpakka
 - [Sync](README.sync.md), hvordan installert innhold holdes oppdatert
 - [cli/nav-pilot/DESIGN.md](../cli/nav-pilot/DESIGN.md), internt design, sømmer og migrasjonsplan

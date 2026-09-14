@@ -58,6 +58,14 @@ nav-pilot install nav-pilot
 teamet, `--user` følger deg over alle repoer uten å sjekke inn noe. Se
 [Hvor skal artefaktene installeres?](#hvor-skal-artefaktene-installeres) før du velger.
 
+### Installere mindre <a id="collections"></a>
+
+Vil du ha mindre enn hele pakka, velger du bort i den interaktive velgeren
+(`nav-pilot install`, eller installer på nytt senere). I brukerscope kan du i tillegg
+fjerne enkeltartefakter etterpå, for eksempel med
+`nav-pilot ignore instruction nextjs-aksel --user`. Fravalgene ligger i tilstandsfila til
+scopet og overlever både sync og ny installasjon.
+
 ## Hvor skal artefaktene installeres?
 
 Tre former er i bruk i Nav, og de løser ulike problemer. `install` spør hvor den skal

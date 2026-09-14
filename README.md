@@ -60,7 +60,7 @@ sudo apt update && sudo apt install nav-pilot cplt
 
 Arkivet oppdateres hver time fra den nyeste releasen, så en release du nettopp kuttet kan bruke opptil en time på å bli installerbar. Er du ikke på et Debian-derivat, eller står du i CI, bruk [installasjonsskriptet](docs/README.nav-pilot.md#kom-i-gang).
 
-**[Les mer →](docs/README.nav-pilot.md)** · **[Anbefalte utvalg →](docs/README.collections.md)**
+**[Les mer →](docs/README.nav-pilot.md)**
 
 ## Kom i gang
 
@@ -78,7 +78,6 @@ Vil du lese deg opp først, har hver type sin egen doc i tabellen under.
 | 🎯 **Skills**        | Produksjonsmønstre med innebygde maler og referanser. VS Code, Copilot CLI og GitHub.com, JetBrains i preview. `security-owasp` dekker OWASP Top 10:2025 for Kotlin, Go, Java og Node.js | **[Skills →](docs/README.skills.md)**              |
 | 🔌 **MCP-servere**   | Nav-godkjente servere fra [MCP-registeret](https://mcp-registry.nav.no). VS Code, JetBrains, Visual Studio, GitHub.com og Copilot CLI | **[MCP-servere →](docs/README.mcp.md)**            |
 | 🔄 **Sync**          | Hold tilpasninger oppdatert automatisk, som Dependabot                                                                      | **[Sync →](docs/README.sync.md)**                  |
-| 📦 **Anbefalte utvalg** | Alt installeres som én agentpakke (`nav-pilot install nav-pilot`); her er hva ulike team bør beholde                     | **[Anbefalte utvalg →](docs/README.collections.md)** |
 | 🧳 **Agentpakke**    | Teamets eget innholdsrepo med manifest, installeres med `nav-pilot install --source`                                        | **[Agentpakke →](docs/README.agentpakke.md)**      |
 | 🧭 **nav-pilot**     | CLI-verktøy og AI-agent som installerer og bruker Nav-tilpasninger i Copilot Chat                                           | **[nav-pilot →](docs/README.nav-pilot.md)**        |
 | 🧪 **Testing**       | Strukturelle og E2E-tester for nav-pilot                                                                                    | **[Testing →](docs/README.testing.md)**            |
@@ -219,8 +218,7 @@ Tilpasningene dekker Navs kjernestack:
 │   ├── README.mcp.md
 │   ├── README.prompts.md
 │   ├── README.skills.md
-│   ├── README.testing.md
-│   └── README.collections.md
+│   └── README.testing.md
 ├── apps/                 # Nav applications
 │   ├── copilot-adoption/ # Naisjob that scans navikt repos for customization files
 │   ├── copilot-api/      # Go backend API (BigQuery, GitHub API, seat management)

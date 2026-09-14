@@ -80,7 +80,7 @@ const ARTIFACT_TYPES = [
   { type: "extensions", form: "<navn>/extension.mjs", what: "Kode klienten laster inn" },
 ];
 
-const PAKKER = [
+const PAKKER: { repo: string; pakke: string; tier: string; what: string; install?: string }[] = [
   {
     repo: "navikt/copilot",
     pakke: "nav-pilot",
@@ -93,14 +93,12 @@ const PAKKER = [
     pakke: "grillmester",
     tier: "Tier 2",
     what: "Team eSyfo sitt agentlag for kodeendringer som skal avklares og avgrenses før de skrives, og gjennomgås uavhengig etterpå. Agentene heter grillmester, barista, designer og doctor-who. En fokusert kontekst gir bare barista og grill-inspektor. For copilot og opencode. Tier 2 vil si at repoet bygger ferdige payload-trær selv, og at nav-pilot verifiserer dem mot en digest og pinner dem per bruker som én revisjon, ikke som filer i repoet ditt.",
-    install: "nav-pilot install grillmester --source navikt/grillmester --user",
   },
   {
     repo: "nais/pilot",
     pakke: "nais-platform",
     tier: "Tier 1",
     what: "For dem som bygger Nais-plattformen: Nais API, tenants og miljøclustere, Fasit, Terraform og Loki/Mimir/Tempo. Agentene nais-platform og nais-review, skills og instruksjoner for alle tre klientene, og en preToolUse-hook som nekter en cluster- eller LGTM-kommando maskinen ikke kan betjene.",
-    install: "nav-pilot install nais-platform --source nais/pilot --repo",
   },
 ];
 
@@ -277,6 +275,20 @@ export default function Agentpakker() {
                     <LinkableHeading id="pakkene-som-finnes" size="small" level="3">
                       Pakkene som finnes
                     </LinkableHeading>
+                    <BodyLong textColor="subtle">
+                      De tre under er pakkene CI-en i navikt/copilot validerer ved hver kontraktsendring (
+                      <a href="https://github.com/navikt/copilot/issues/842" className={linkClass}>
+                        #842
+                      </a>
+                      ): en pull request som rører schemaet,{" "}
+                      <code className="font-mono text-xs">internal/agentpakke</code> eller{" "}
+                      <code className="font-mono text-xs">validate</code>, bygger nav-pilot fra branchen og kjører{" "}
+                      <code className="font-mono text-xs">validate</code> mot hver av dem. Slutter en pakke å følge
+                      kontrakten, feiler bygget vårt. Derfor står det ikke flere her: hver pakke på lista koster noe å
+                      holde. Lista er en referanse for deg som skriver en pakke, ikke en anbefaling om hva du bør
+                      installere. Vil du ta i bruk en annen pakke enn{" "}
+                      <code className="font-mono text-xs">nav-pilot</code>, spør du teamet som eier den først.
+                    </BodyLong>
                     <VStack gap="space-16">
                       {PAKKER.map((p) => (
                         <Box key={p.repo} background="neutral-soft" padding="space-16" borderRadius="8">
@@ -292,24 +304,11 @@ export default function Agentpakker() {
                             <BodyLong size="small" textColor="subtle">
                               {p.what}
                             </BodyLong>
-                            <CodeBlock compact>{p.install}</CodeBlock>
+                            {p.install && <CodeBlock compact>{p.install}</CodeBlock>}
                           </VStack>
                         </Box>
                       ))}
                     </VStack>
-                    <BodyLong textColor="subtle">
-                      De tre er de pakkene CI-en i navikt/copilot validerer ved hver kontraktsendring (
-                      <a href="https://github.com/navikt/copilot/issues/842" className={linkClass}>
-                        #842
-                      </a>
-                      ): en pull request som rører schemaet,{" "}
-                      <code className="font-mono text-xs">internal/agentpakke</code> eller{" "}
-                      <code className="font-mono text-xs">validate</code>, bygger nav-pilot fra branchen og kjører{" "}
-                      <code className="font-mono text-xs">validate</code> mot hver av dem. Slutter en pakke å følge
-                      kontrakten, feiler bygget vårt. Derfor står det ikke flere her: hver pakke på lista koster noe å
-                      holde.
-                    </BodyLong>
-
                     <LinkableHeading id="las-installasjonen" size="small" level="3">
                       Lås installasjonen
                     </LinkableHeading>

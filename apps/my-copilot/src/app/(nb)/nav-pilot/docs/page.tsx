@@ -72,10 +72,7 @@ const DOC_SECTIONS: TocItem[] = [
   {
     id: "collections",
     label: "Agentpakke",
-    children: [
-      { id: "anbefalte-utvalg", label: "Anbefalte utvalg" },
-      { id: "planning-skills", label: "Planning skills" },
-    ],
+    children: [{ id: "planning-skills", label: "Planning skills" }],
   },
   {
     id: "planleggingspipelinen",
@@ -150,34 +147,6 @@ const DOC_SECTIONS: TocItem[] = [
 /* ═══════════════════════════════════════════════════════════════
    Data
    ═══════════════════════════════════════════════════════════════ */
-
-const RECOMMENDED_SELECTIONS = [
-  {
-    team: "Kotlin-backend",
-    keep: "kotlin-*, spring-boot-*, ktor-*, flyway-migration, kafka, postgresql-review, tokenx-auth",
-    drop: "nextjs-aksel, aksel-*, performance, testing-typescript og frontend-prompts",
-  },
-  {
-    team: "Frontend (ikke Next.js)",
-    keep: "aksel-*, accessibility, playwright-testing, nav-dekoratoren, testing-typescript, norwegian-text",
-    drop: "nextjs-aksel, nextjs-api-route og alt kotlin-/ktor-/spring-innhold",
-  },
-  {
-    team: "Next.js-frontend",
-    keep: "frontend-settet pluss nextjs-aksel, performance og nextjs-api-route",
-    drop: "alt kotlin-/ktor-/spring-innhold, kafka, flyway-migration",
-  },
-  {
-    team: "Fullstack",
-    keep: "backend- og frontend-settene samlet",
-    drop: "lite, siden dette allerede var unionen",
-  },
-  {
-    team: "Plattform / DevOps",
-    keep: "nais, observability-*, security-*, golang, rust-development, threat-model, workstation-security",
-    drop: "rammeverksspesifikt frontend- og Kotlin-innhold",
-  },
-];
 
 const PLANNING_SKILLS = [
   {
@@ -312,7 +281,7 @@ export default function NavPilotDocs() {
                 <IntroductionSection />
                 <QuickStartSection />
                 <KlienterOgKonfigurasjonSection />
-                <CollectionsSection />
+                <PakkeSection />
                 <PipelineSection />
                 <CompetenceSection />
                 <SyncSection />
@@ -411,37 +380,6 @@ function IntroductionSection() {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* At a Glance — recommended-selection links */}
-        <div>
-          <Heading size="small" level="3" className="mb-4" style={{ color: "#334155" }}>
-            Tilpass for din stack
-          </Heading>
-          <HGrid columns={{ xs: 1, sm: 2, md: 5 }} gap="space-4">
-            {RECOMMENDED_SELECTIONS.map((c, i) => {
-              const colors = ["#6366f1", "#06b6d4", "#8b5cf6", "#10b981", "#f59e0b"];
-              const color = colors[i % colors.length];
-              return (
-                <a
-                  key={c.team}
-                  href="#anbefalte-utvalg"
-                  className="no-underline block rounded-lg border overflow-hidden transition-all hover:shadow-md"
-                  style={{ borderColor: "#e2e8f0" }}
-                >
-                  <div style={{ height: "3px", background: color }} />
-                  <div style={{ padding: "1rem" }}>
-                    <Label size="small" style={{ color }}>
-                      {c.team}
-                    </Label>
-                    <BodyShort size="small" className="mt-1" style={{ color: "#64748b" }}>
-                      Anbefalt utvalg →
-                    </BodyShort>
-                  </div>
-                </a>
-              );
-            })}
-          </HGrid>
         </div>
 
         <VStack id="isolasjon-er-pakrevd" gap="space-12">
@@ -925,10 +863,10 @@ nav-pilot`}
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Section 3: Collections
+   Section 3: Agentpakke
    ═══════════════════════════════════════════════════════════════ */
 
-function CollectionsSection() {
+function PakkeSection() {
   return (
     <section id="collections">
       <VStack gap="space-16">
@@ -939,15 +877,10 @@ function CollectionsSection() {
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
             Alt Nav-innhold installeres som én agentpakke: <code className="font-mono text-xs">nav-pilot</code>.{" "}
             <code className="font-mono text-xs">nav-pilot install nav-pilot</code> gir deg alle agenter, skills,
-            instruksjoner, prompts, hooks og extensions. Det er bevisst alt: instruksjoner er glob-scopet og aktiveres
-            bare mot matchende filer, skills lastes ved behov, og bare nav-pilot-personaene er primæragenter. Vil du ha
-            mindre, velger du bort i den interaktive velgeren. Fravalgene huskes og overlever sync.
-          </BodyLong>
-          <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            De fem tidligere collections (frontend, nextjs-frontend, kotlin-backend, fullstack, platform) er kollapset
-            inn i denne ene pakka. Eksisterende installasjoner migreres automatisk ved neste{" "}
-            <code className="font-mono text-xs">nav-pilot sync</code>: filene dine beholdes uendret, og resten av
-            innholdet markeres som ignorert.
+            instruksjoner, prompts, hooks og extensions. Det er bevisst alt: skills lastes når de trengs, de fleste
+            instruksjonene er scopet til filmønstre og slår aldri til i et repo som ikke har dem, noen få gjelder hver
+            tur, og bare nav-pilot-personaene er primæragenter. Vil du ha mindre, velger du bort i den interaktive
+            velgeren. Fravalgene huskes og overlever sync.
           </BodyLong>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
             Merk at hooks er kjørbar kode: et Python-skript Copilot CLI kjører ved hvert verktøykall som treffer
@@ -966,46 +899,6 @@ function CollectionsSection() {
             tar det i fire steg: bruk en pakke som finnes, ta delene du trenger, bygg videre på en, og lag din egen
             først når ingenting av det holder.
           </BodyLong>
-        </div>
-
-        {/* Recommended selections table */}
-        <div id="anbefalte-utvalg">
-          <LinkableHeading size="small" level="3">
-            Anbefalte utvalg
-          </LinkableHeading>
-          <BodyShort size="small" className="mt-2 mb-4" style={{ color: "#475569" }}>
-            Veiledning, ikke mekanikk. Start med alt og velg bort det stacken din aldri rører. Felleskjernen
-            (code-review, deliberate-ai-use, planning skills, security-owasp, conventional-commit, klarsprak,
-            terse-mode) hører hjemme i alle utvalg.
-          </BodyShort>
-          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 mt-4">
-            <table className="w-full min-w-max text-sm" style={{ borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
-                  {["Teamtype", "Verdt å beholde", "Trygt å velge bort"].map((h) => (
-                    <th key={h} className="text-left py-2 pr-4 font-semibold" style={{ color: "#334155" }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {RECOMMENDED_SELECTIONS.map((c) => (
-                  <tr key={c.team} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                    <td className="py-3 pr-4 font-semibold" style={{ color: "#334155" }}>
-                      {c.team}
-                    </td>
-                    <td className="py-3 pr-4" style={{ color: "#475569" }}>
-                      {c.keep}
-                    </td>
-                    <td className="py-3" style={{ color: "#475569" }}>
-                      {c.drop}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </div>
 
         {/* Planning skills table */}
