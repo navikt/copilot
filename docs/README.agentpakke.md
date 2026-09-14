@@ -50,7 +50,7 @@ Derfor navngir nav-pilot katalogen ved launch i stedet. Hver launch-sti eksporte
 bash "$NAV_PILOT_SKILLS_DIR/nais-observability/mimir-query.sh" <tenant> <promql>
 ```
 
-Materialiserte nav-pilot ingen skills for klienten — pakka deklarerer den ikke, eller den sender ingen skills — er variabelen **usatt**, ikke satt til en katalog som ikke finnes. En usatt variabel kan en skill teste på og si fra om; en sti til ingenting ser ut som en fungerende installasjon helt til skriptet ikke lar seg åpne. Skriv derfor skills som sjekker at variabelen finnes før de bruker den. Skills som bare er tekst modellen leser, trenger ingenting av dette.
+Materialiserte nav-pilot ingen skills for klienten — pakka deklarerer den ikke, eller den sender ingen skills — er variabelen **usatt**, ikke satt til en katalog som ikke finnes. Usatt vil si aktivt fjernet: har du eksportert `NAV_PILOT_SKILLS_DIR` i skallet selv, tar nav-pilot den ut av miljøet klienten får, framfor å sende en sti som peker inn i en annen klients tre. En usatt variabel kan en skill teste på og si fra om; en sti til ingenting ser ut som en fungerende installasjon helt til skriptet ikke lar seg åpne. Skriv derfor skills som sjekker at variabelen finnes før de bruker den. Skills som bare er tekst modellen leser, trenger ingenting av dette.
 
 ## Feltreferanse
 

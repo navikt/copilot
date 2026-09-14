@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
@@ -61,22 +62,52 @@ func copilotSkillsRoot() string {
 	return filepath.Join(home, ".copilot")
 }
 
-// withSkillsDirEnv exports the skills root on a launch environment. An empty
-// dir leaves the environment alone, so nothing is exported where nothing was
-// materialized.
+// withSkillsDirEnv decides what the client sees in NAV_PILOT_SKILLS_DIR: the
+// materialized root, or nothing at all.
+//
+// The empty case removes an inherited entry rather than leaving it alone. The
+// contract is that the variable is *unset* where nav-pilot materialized
+// nothing, and a skill can branch on that — which only holds if unset means
+// actively removed. A developer who exported it in their shell, or an
+// environment carried over from a launch for another client, would otherwise
+// hand the session a path into some other client's tree or a directory that has
+// since been deleted, and the skill would read the wrong file or none at all.
+// Passing something through is not the same as not setting it.
+//
+// The cplt side of the same decision is in [cpltArgv] and
+// [copilotLaunchArgs]: with no root there is no --pass-env either, so nothing
+// is named to the sandbox that should not exist. Both layers, because either
+// one alone leaves the stale value reachable.
 //
 // A nil env means "inherit the parent's", which has to be materialized before
-// a value can be added to it — otherwise setting the variable would silently
-// drop every other variable the session needs.
+// it can be added to or filtered — otherwise the launch would inherit exactly
+// the entry this is removing.
 func withSkillsDirEnv(env []string, dir string) []string {
-	if dir == "" {
-		return env
-	}
 	if env == nil {
 		env = os.Environ()
 	}
+	if dir == "" {
+		return slices.DeleteFunc(env, isSkillsDirEntry)
+	}
 	env, _ = telemetry.SetEnvValue(env, SkillsDirEnv, dir)
 	return env
+}
+
+// isSkillsDirEntry reports whether an "NAME=value" entry names
+// NAV_PILOT_SKILLS_DIR. Same shape as [isGHTokenEntry], and it honours
+// [envNamesCaseInsensitive] for the same reason: on Windows a lower-case
+// nav_pilot_skills_dir is the same variable to the OS, and a strip that missed
+// it would leave the stale value reachable on exactly the platform where the
+// OS says it is still set.
+func isSkillsDirEntry(entry string) bool {
+	name, _, found := strings.Cut(entry, "=")
+	if !found {
+		return false
+	}
+	if envNamesCaseInsensitive {
+		return strings.EqualFold(name, SkillsDirEnv)
+	}
+	return name == SkillsDirEnv
 }
 
 // insertCpltPassEnv splices --pass-env into a cplt vector whose "--" separator

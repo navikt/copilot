@@ -183,11 +183,28 @@ func TestCopilotLaunchArgsSkillsDir(t *testing.T) {
 	}
 }
 
-// TestWithSkillsDirEnv pins that an empty dir exports nothing and a nil
-// environment is materialized rather than replaced by a single variable.
+// TestWithSkillsDirEnv pins that an empty dir strips the variable rather than
+// passing an inherited one through, and that a nil environment is materialized
+// rather than replaced by a single variable.
+//
+// The strip is the half that is easy to get wrong. Returning the environment
+// unchanged reads as "we did not set it", but the client sees whatever the
+// developer's shell exported or a previous launch left behind — a path into
+// another client's tree, or one that has since been deleted. The documented
+// contract is that a skill can test the variable for unset, and that only
+// holds if unset means removed.
 func TestWithSkillsDirEnv(t *testing.T) {
-	if got := withSkillsDirEnv(nil, ""); got != nil {
-		t.Errorf("an empty dir must leave a nil environment nil, got %q", got)
+	stripped := withSkillsDirEnv([]string{"FOO=bar", SkillsDirEnv + "=/stale/skills"}, "")
+	if got := telemetry.LookupEnvValue(stripped, SkillsDirEnv); got != "" {
+		t.Errorf("an inherited %s must be stripped when nothing was materialized, got %q", SkillsDirEnv, got)
+	}
+	if !slices.Contains(stripped, "FOO=bar") {
+		t.Errorf("the rest of the environment must survive the strip, got %q", stripped)
+	}
+
+	t.Setenv(SkillsDirEnv, "/stale/skills")
+	if got := telemetry.LookupEnvValue(withSkillsDirEnv(nil, ""), SkillsDirEnv); got != "" {
+		t.Errorf("an inherited %s must be stripped from a materialized parent environment too, got %q", SkillsDirEnv, got)
 	}
 
 	env := withSkillsDirEnv([]string{"FOO=bar"}, "/x/skills")
@@ -201,5 +218,75 @@ func TestWithSkillsDirEnv(t *testing.T) {
 	inherited := withSkillsDirEnv(nil, "/x/skills")
 	if len(inherited) <= 1 {
 		t.Errorf("a nil environment must be materialized from the parent's, got %q", inherited)
+	}
+}
+
+// fakeCplt puts a cplt on PATH that records what NAV_PILOT_SKILLS_DIR was in
+// its own environment, and returns the file it records to. The shell's
+// ${VAR-UNSET} tells apart "not set" from "set to empty", which is exactly the
+// distinction under test.
+func fakeCplt(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	out := filepath.Join(dir, "skillsdir.txt")
+	script := "#!/bin/sh\nprintf '%s' \"${" + SkillsDirEnv + "-UNSET}\" > " + out + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	return out
+}
+
+// isolateHome points every path nav-pilot resolves through the home directory
+// at a temp tree, so a launch in a test cannot read — or write — the
+// developer's real ~/.copilot, ~/.nav-pilot or ~/.config/opencode.
+func isolateHome(t *testing.T) string {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(home, "config.toml"))
+	return home
+}
+
+// TestLaunchViaCpltDropsInheritedSkillsDir covers the shared seam — the five
+// launch paths that build a cpltLaunch — end to end: an exported
+// NAV_PILOT_SKILLS_DIR must not reach the sandbox when this launch
+// materialized nothing.
+func TestLaunchViaCpltDropsInheritedSkillsDir(t *testing.T) {
+	isolateHome(t)
+	out := fakeCplt(t)
+	t.Setenv(SkillsDirEnv, "/stale/skills")
+
+	if err := launchViaCplt(cpltLaunch{agent: "opencode", displayName: "opencode"}); err != nil {
+		t.Fatalf("launchViaCplt: %v", err)
+	}
+	got, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("the fake cplt recorded nothing: %v", err)
+	}
+	if string(got) != "UNSET" {
+		t.Errorf("cplt saw %s=%q, want it unset", SkillsDirEnv, got)
+	}
+}
+
+// TestLaunchCopilotResolvedDropsInheritedSkillsDir covers the other seam, the
+// one that builds its own argument vector and runs its own exec.Command. HOME
+// is a temp tree, so there is no ~/.copilot/skills and nothing was
+// materialized.
+func TestLaunchCopilotResolvedDropsInheritedSkillsDir(t *testing.T) {
+	isolateHome(t)
+	out := fakeCplt(t)
+	t.Setenv(SkillsDirEnv, "/stale/skills")
+
+	if err := LaunchCopilotResolved(domain.ResolvedConfig{Client: "copilot", AskUser: true}); err != nil {
+		t.Fatalf("LaunchCopilotResolved: %v", err)
+	}
+	got, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("the fake cplt recorded nothing: %v", err)
+	}
+	if string(got) != "UNSET" {
+		t.Errorf("cplt saw %s=%q, want it unset", SkillsDirEnv, got)
 	}
 }
