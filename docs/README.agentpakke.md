@@ -100,13 +100,13 @@ Add a layout naming the content directories this agentpakke ships, or declare pa
 
 ## Pakker uten agent
 
-En agentpakke trenger ikke levere en agent. Et team som vil publisere en ferdighetspakke eller et sett instruksjoner, utelater `primaryAgents` på klientoppføringen og `agents` i `layout`, og slipper å finne på en persona for å holde innholdet ([#799](https://github.com/navikt/copilot/issues/799)).
+En agentpakke trenger ikke levere en agent. Et team som vil publisere en pakke med skills eller et sett instruksjoner, utelater `primaryAgents` på klientoppføringen og `agents` i `layout`, og slipper å finne på en persona for å holde innholdet ([#799](https://github.com/navikt/copilot/issues/799)).
 
 ```json
 {
   "contractVersion": "1",
-  "name": "ferdigheter",
-  "description": "Ferdighetene teamet vårt deler",
+  "name": "skills",
+  "description": "Skillene teamet vårt deler",
   "clients": { "copilot": {} },
   "layout": { "skills": "skills" }
 }
@@ -129,7 +129,7 @@ Et repo helt uten `.nav-pilot/agentpakke.json` er ikke en feil. Det behandles so
 
 Valgfritt. En pakke som ikke bruker MCP utelater feltet, og install sier da ingenting nytt.
 
-MCP-servere styres sentralt i [Navs MCP-register](https://mcp-registry.nav.no). Et team kan ikke opprette sin egen server, men velger hvilke av registerets servere agentene og ferdighetene deres bruker. `mcpServers` er det valget:
+MCP-servere styres sentralt i [Navs MCP-register](https://mcp-registry.nav.no). Et team kan ikke opprette sin egen server, men velger hvilke av registerets servere agentene og skillene deres bruker. `mcpServers` er det valget:
 
 ```json
 {
@@ -480,7 +480,7 @@ Den nekter før pinnen skrives, og for de tre første punktene også før noe he
 - **En `sha` som ikke er førti tegn.** git nekter en forkortet objekt-id i en fetch, så en avkortet pinne kan ikke installeres tilbake. Den avvises nå der fila leses, altså av enhver kommando som resolver kilden, ikke bare av `--frozen`: før [#607](https://github.com/navikt/copilot/issues/607) kom den som `could not clone navikt/x@9f1c0a7 — check that the ref exists and you have network access`, en riktig nekting med feil forklaring — refen finnes, den er bare for kort til å hentes. nav-pilot skriver den heller ikke ut i full lengde for deg: en pinne noen har skrevet for kort er sju tegn noen mente noe med, og å bytte den mot det kilden løser til i dag ville flyttet pinnen til en revisjon ingen har valgt.
 - **En annen revisjon enn den erklærte.** Alle veier dit er allerede stengt av flaggsjekkene under, men sammenligningen står der som den ene setningen som holder det slik.
 - **En delvis install.** Tre ting gjør en installasjon ufullstendig, og alle tre er en advarsel til en utvikler og en løgn til CI: filer som ble hoppet over på grunn av konflikt, elementer målscopet ikke kan holde, og navn manifestet fører opp som kilden ikke har (`⚠ Agent not found: ghost` — resten av installasjonen går videre forbi det). Uten `--frozen` skrives pinnen etterpå som om alt gikk inn. Dette er den ene kjente begrensninga under som `--frozen` lukker framfor å arve. `--force` er veien gjennom konflikt-halvdelen, og de to flaggene er derfor med vilje forenlige: `--force` beveger ikke pinnen, den gjør bare arbeidstreet likt den. Det siste tilfellet har ingen vei gjennom med vilje: manifestet i den pinnede revisjonen er blitt utdatert, og det må rettes der — eller repoet pinnes til en revisjon der navnene finnes. `--json` teller det med som `skipped`, ved siden av `installed` og `conflicts`.
-- **Én enkelt artefakt.** `nav-pilot install <agentnavn> --frozen` — et navn som ikke er en samling, men én agent eller ferdighet — nektes. En a-la-carte-install skriver ingen erklæring og installerer det ene navnet uansett hva `items` sier, så det finnes ikke noe der å holde den til. `--type` er den samme installasjonen bedt om eksplisitt, og avvises som bruksfeil (exit `1`) både på flaggnivå og i sjekken under — for at flaggsjekken skal være en beleilighet framfor det eneste som står mellom `--frozen` og en helt usjekket installasjon. Begge dørene svarer `1`, av samme grunn som `--user` gjør det.
+- **Én enkelt artefakt.** `nav-pilot install <agentnavn> --frozen` — et navn som ikke er en samling, men én agent eller skill — nektes. En a-la-carte-install skriver ingen erklæring og installerer det ene navnet uansett hva `items` sier, så det finnes ikke noe der å holde den til. `--type` er den samme installasjonen bedt om eksplisitt, og avvises som bruksfeil (exit `1`) både på flaggnivå og i sjekken under — for at flaggsjekken skal være en beleilighet framfor det eneste som står mellom `--frozen` og en helt usjekket installasjon. Begge dørene svarer `1`, av samme grunn som `--user` gjør det.
 - **En payload-bærende agentpakke**, enten den er ren Tier 2 eller blander layout og payloads. `--frozen` dekker dem ikke, og sier det. Et payload-tre pinnes per *bruker*, ikke per repo, så det finnes ingen repo-scopet install for erklæringa å holde det til (`guardPakkeScope` nekter alle andre scope enn brukerens). Meldinga ber deg installere den én gang *uten* `--frozen`, og siden et payload-tre bare kan pinnes i bruker-scope, er kommandoen den foreslår `nav-pilot install --user <navn>`.
 
   Blandede pakker nektes av samme grunn, og det er verdt å si hvorfor: de tar Tier 1-veien, fordi `payloadOnly` krever at `layout` mangler. Sto sjekken på payload-grenen, ville en blandet pakke installert layout-halvdelen, staget ingen payload, og rapportert grønt — en fjerde måte en install lander halvveis på, i flagget som finnes for å nekte akkurat det. Oppstarten dør senere i `mixedPakkeRefusal`, lenge etter at CI har blitt grønn.

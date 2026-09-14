@@ -83,7 +83,7 @@ const PAKKER = [
     repo: "navikt/copilot",
     pakke: "nav-pilot",
     tier: "Tier 1",
-    what: "Nav-innholdet: agentene, ferdighetene, instruksjonene, promptene, hooks og extensions, for copilot, opencode og pi. Tier 1 vil si at nav-pilot legger filene i repoet ditt, så du ser dem i diffen.",
+    what: "Nav-innholdet: agentene, skillene, instruksjonene, promptene, hooks og extensions, for copilot, opencode og pi. Tier 1 vil si at nav-pilot legger filene i repoet ditt, så du ser dem i diffen.",
     install: "nav-pilot install nav-pilot --source navikt/copilot --repo",
   },
   {
@@ -97,7 +97,7 @@ const PAKKER = [
     repo: "nais/pilot",
     pakke: "nais-platform",
     tier: "Tier 1",
-    what: "For dem som bygger Nais-plattformen: Nais API, tenants og miljøclustere, Fasit, Terraform og Loki/Mimir/Tempo. Agentene nais-platform og nais-review, ferdigheter og instruksjoner for alle tre klientene, og en preToolUse-hook som nekter en cluster- eller LGTM-kommando maskinen ikke kan betjene.",
+    what: "For dem som bygger Nais-plattformen: Nais API, tenants og miljøclustere, Fasit, Terraform og Loki/Mimir/Tempo. Agentene nais-platform og nais-review, skills og instruksjoner for alle tre klientene, og en preToolUse-hook som nekter en cluster- eller LGTM-kommando maskinen ikke kan betjene.",
     install: "nav-pilot install nais-platform --source nais/pilot --repo",
   },
 ];
@@ -158,7 +158,7 @@ const KLIENTER = `{
 const MANIFEST_UTEN_AGENT = `{
   "contractVersion": "1",
   "name": "ditt-team",
-  "description": "Ferdighetene vi deler",
+  "description": "Skillene vi deler",
   "layout": {
     "skills": "skills"
   },
@@ -568,7 +568,7 @@ export default function Agentpakker() {
                       Pakke uten agent
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
-                      Deler dere bare ferdigheter eller instruksjoner, utelater dere{" "}
+                      Deler dere bare skills eller instruksjoner, utelater dere{" "}
                       <code className="font-mono text-xs">primaryAgents</code> og{" "}
                       <code className="font-mono text-xs">agents</code> i{" "}
                       <code className="font-mono text-xs">layout</code>. Dere trenger ikke finne på en persona. Pakka
@@ -588,10 +588,10 @@ export default function Agentpakker() {
                       <a href="https://mcp-registry.nav.no" className={linkClass}>
                         Navs MCP-register
                       </a>
-                      . Du kan ikke definere din egen, men du kan si hvilke av registerets servere agentene og
-                      ferdighetene dine forventer. nav-pilot spør registeret når den validerer og installerer: et navn
-                      det ikke publiserer, er et funn. Svarer ikke registeret, blir det en advarsel i stedet, så en
-                      CI-jobb uten nett ikke feiler på noe den ikke kan sjekke.
+                      . Du kan ikke definere din egen, men du kan si hvilke av registerets servere agentene og skillene
+                      dine forventer. nav-pilot spør registeret når den validerer og installerer: et navn det ikke
+                      publiserer, er et funn. Svarer ikke registeret, blir det en advarsel i stedet, så en CI-jobb uten
+                      nett ikke feiler på noe den ikke kan sjekke.
                     </BodyLong>
                     <CodeBlock filename=".nav-pilot/agentpakke.json">{MCP}</CodeBlock>
                     <BodyLong textColor="subtle">

@@ -966,8 +966,8 @@ func TestModelWarnings(t *testing.T) {
 // to hold it (#799).
 const skillsOnlyManifest = `{
   "contractVersion": "1",
-  "name": "ferdigheter",
-  "description": "Bare ferdigheter",
+  "name": "grillpakka",
+  "description": "Bare skills",
   "clients": { "copilot": {} },
   "layout": { "skills": "skills" }
 }`
