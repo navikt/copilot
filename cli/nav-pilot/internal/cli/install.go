@@ -867,30 +867,39 @@ type collectionInfo struct {
 // itself dispatches on. It is not the same set as agentpakke.IsKnownClient,
 // which is every client id nav-pilot knows — a known client with no staged
 // launcher is exactly the case this annotation is for.
-func payloadLines(src *Source) []string {
+func payloadLines(src *Source) []payloadLine {
 	if !payloadOnly(src) {
 		return nil
 	}
-	var lines []string
+	var lines []payloadLine
 	for _, client := range src.Pakke.ClientIDs() {
 		ctxs := declaredContexts(src.Pakke, client)
 		if len(ctxs) == 0 {
 			continue
 		}
-		line := client + " payloads: " + strings.Join(ctxs, ", ")
+		line := payloadLine{contexts: client + " payloads: " + strings.Join(ctxs, ", ")}
 		if _, ok := stagedLaunchers[client]; !ok {
-			line += " (materialized on install; this nav-pilot cannot launch " + client + ")"
+			line.note = "(materialized on install; this nav-pilot cannot launch " + client + ")"
 		}
 		lines = append(lines, line)
 	}
 	return lines
 }
 
+// payloadLine is one client's payload contexts and, when this binary cannot
+// launch that client, the annotation saying so. They are kept apart because the
+// context ids come from the manifest and are not length-bounded — the list has
+// to wrap — while the annotation has to stay on one line to be greppable.
+type payloadLine struct {
+	contexts string
+	note     string
+}
+
 // printPakkeListing renders the one-agentpakke listing. The collections table
 // it replaces pads every line to a 20-column gutter and prints the description
 // unwrapped, which for a single pakke is a 22-space gap and a sentence running
 // off the right edge of the terminal.
-func printPakkeListing(out io.Writer, source string, c collectionInfo, payloads []string, showItems bool, width int) {
+func printPakkeListing(out io.Writer, source string, c collectionInfo, payloads []payloadLine, showItems bool, width int) {
 	body := width - 2 // the two-space indent
 	fmt.Fprintln(out, bold(fmt.Sprintf("Agentpakke in %s:", source)))
 	fmt.Fprintln(out)
@@ -898,10 +907,11 @@ func printPakkeListing(out io.Writer, source string, c collectionInfo, payloads 
 	if len(c.agents) > 0 {
 		printWrapped(out, dim, "agents: "+strings.Join(c.agents, ", "), body)
 	}
-	for _, line := range payloads {
-		// Not wrapped: the "cannot launch <client>" annotation at the end has
-		// to stay on one line to be greppable.
-		fmt.Fprintf(out, "  %s\n", dim(line))
+	for _, p := range payloads {
+		printWrapped(out, dim, p.contexts, body)
+		if p.note != "" {
+			fmt.Fprintf(out, "  %s\n", dim(p.note))
+		}
 	}
 	if c.Description != "" {
 		fmt.Fprintln(out)
