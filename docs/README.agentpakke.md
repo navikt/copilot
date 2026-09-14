@@ -228,13 +228,13 @@ Ingen steder i cplts konfigurasjon. Et godkjent forslag blir `--allow-private-do
 
 Oppføringene skrives ut ved launch, slik at det som faktisk gjelder for økta står på skjermen.
 
-### Én ting gjenstår
+### Kravet til cplt
 
-Samtykkeposten ligger under `~/.nav-pilot/`, og cplt navngir ingen sti der ennå. Den er ikke skrivbar i en *standard* økt — macOS kjører `(deny default)` og Linux kjører grant-only Landlock, så en sti ingen har navngitt er allerede utenfor rekkevidde — men brukerens egen `allow.write = ["~"]` åpner den igjen, uten at noe sier fra.
+Samtykkeposten ligger under `~/.nav-pilot/`. Den er ikke skrivbar i en *standard* økt — macOS kjører `(deny default)` og Linux kjører grant-only Landlock, så en sti ingen har navngitt er allerede utenfor rekkevidde — men brukerens egen `allow.write = ["~"]` åpnet den igjen, uten at noe sa fra. En post kunne da vært skrevet av agenten som har nytte av den.
 
-[navikt/cplt#508](https://github.com/navikt/cplt/pull/508) lukker det ved å føre `~/.nav-pilot/` opp i `DENIED_DOTFILES`, samme liste som holder `.config/cplt`: nektet lesing og skriving, etter enhver `allow` brukeren har satt. Grants *inne i* katalogen virker fortsatt, med vilje — en staget Tier 2-launch sender `~/.nav-pilot/pakker/<eier>-<repo>/<sha>/<klient>/<kontekst>` som `--allow-read` — det er bare en grant på selve katalogen som avvises.
+[navikt/cplt#508](https://github.com/navikt/cplt/pull/508) lukket det ved å føre `~/.nav-pilot/` opp i `DENIED_DOTFILES`, samme liste som holder `.config/cplt`: nektet lesing og skriving, etter enhver `allow` brukeren har satt. Grants *inne i* katalogen virker fortsatt, med vilje — en staget Tier 2-launch sender `~/.nav-pilot/pakker/<eier>-<repo>/<sha>/<klient>/<kontekst>` som `--allow-read` — det er bare en grant på selve katalogen som avvises. Endringen kom i cplt `2026.09.14-105131-446dfbb`.
 
-nav-pilot løser ikke dette selv; en sjekk inne i det som skal beskyttes er ingen sjekk. Den nekter i stedet å bruke posten: under cplt-releasen som navngir `~/.nav-pilot/`, anvendes ingen waiver, og launchen sier hvorfor på én linje.
+nav-pilot løser ikke dette selv; en sjekk inne i det som skal beskyttes er ingen sjekk. Den nekter i stedet å bruke posten på en eldre cplt: under den releasen anvendes ingen waiver, og launchen sier hvorfor på én linje. En versjon som ikke kan leses teller som «for gammel».
 
 ## Pensjonerte artefakter
 
@@ -817,7 +817,7 @@ Dette er statusen i milepæl 1. Alt under er kjent og planlagt, ikke feil:
 - **Alle deklarerte kontekster materialiseres**, også de brukeren aldri starter, og kontekster som deler innhold lagrer det én gang hver.
 - **En kilde som er en absolutt sti pinnes ikke, og kan ikke installeres.** En pinnet installasjon krever et repo med en immutabel revisjon.
 - **nav-pilot skriver ingen MCP-konfigurasjon.** `mcpServers` er en referanse til [registeret](#mcp-servere), ikke en installasjon. Å slå på en server i klienten er brukerens handling, og å gjøre det for dem er en egen beslutning med sin egen sprengradius.
-- **`policies.opencodePermissions`, `profiles` og `provenance` er deklarasjoner uten virkning ennå.** Stiene sti-sjekkes, men nav-pilot skriver hverken opencode-permissions eller launch-profiler ut fra manifestet (M3), og sjekker ikke `provenance`-digesten mot innholdet. `policies.propose` virker, men ingen waiver anvendes før cplt verner `~/.nav-pilot/` — se [Én ting gjenstår](#én-ting-gjenstår).
+- **`policies.opencodePermissions`, `profiles` og `provenance` er deklarasjoner uten virkning ennå.** Stiene sti-sjekkes, men nav-pilot skriver hverken opencode-permissions eller launch-profiler ut fra manifestet (M3), og sjekker ikke `provenance`-digesten mot innholdet. `policies.propose` virker, men krever cplt `2026.09.14-105131` eller nyere for å anvende en godkjent waiver — se [Kravet til cplt](#kravet-til-cplt).
 - **`nav-pilot export opencode` avviser en payload-only pakke.** Export leser en deklarert `layout` (#728), så en pakke som legger innholdet et annet sted eksporteres riktig. En pakke uten `layout` i det hele tatt har ingen filer på stier å lese, og export stopper med en forklaring framfor å skrive et tomt `.opencode/`-tre.
 - **Erklæringa har ingen egen JSON Schema-fil, og `nav-pilot validate` sjekker den ikke.** Den valideres i binæren, på samme kontraktversjonsgate som manifestet. Validate ser i dag på pakkerepoet, ikke på konsumentrepoet.
 - **`install <navn> --type <type>` skriver ingen erklæring.** En à-la-carte-install fører verken elementet inn i `items` eller kilden inn i fila; lista er håndskrevet, og det er samlings-installen som skriver erklæringa. `items` styrer den heller ikke: `install <navn>` installerer det navnet, uansett hva erklæringa lister. Skal enkeltelement-installen holde den oppdatert, er det en egen endring.

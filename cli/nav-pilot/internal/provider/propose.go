@@ -44,13 +44,12 @@ import (
 // --allow-read — and only a grant on the directory itself is refused.
 //
 // So the gate refuses rather than trusts: below this stamp no waiver is
-// applied, whatever the record says. The placeholder is a stamp no release can
-// meet, which is the fail-closed direction and means the mechanism applies
-// nothing at all until that cplt release exists.
+// applied, whatever the record says.
 //
-// TODO(#858): replace with the real cplt release stamp once navikt/cplt#508 has
-// shipped, and drop this paragraph.
-const minCpltStampProtectingNavPilotState = "9999.12.31-235959"
+// The stamp is cplt 2026.09.14-105131-446dfbb, the release cut from 446dfbb —
+// the commit that added the entry. Only the date-time part is comparable across
+// builds, which is what cpltStamp returns.
+const minCpltStampProtectingNavPilotState = "2026.09.14-105131"
 
 // cpltProposalFlags returns the cplt flags this launch carries for the active
 // agentpakke's approved proposal. A package-level var so a test can pin a

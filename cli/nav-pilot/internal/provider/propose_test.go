@@ -74,15 +74,29 @@ func approve(t *testing.T, scope *domain.InstallScope, hash string, hosts ...str
 	}
 }
 
-// protectingCplt stubs the version probe with a cplt at the release that
-// write-protects nav-pilot's state directory, which is the precondition for
-// applying anything at all.
+// Real cplt releases, either side of the one that named ~/.nav-pilot/ in
+// DENIED_DOTFILES (navikt/cplt#508, commit 446dfbb). Literals rather than the
+// constant plus or minus something: a stub derived from the constant passes
+// whatever the constant says, including a placeholder nothing could exceed, so
+// it would pin the comparison and not the version.
+const (
+	cpltWithStateDeny   = "cplt 2026.09.14-105131-446dfbb\n"
+	cpltBeforeStateDeny = "cplt 2026.09.13-135112-daf7f1f\n"
+	cpltAfterStateDeny  = "cplt 2026.10.01-090000-0000000\n"
+	cpltLongBeforeDeny  = "cplt 2026.08.17-062831-1008a92\n"
+)
+
+// protectingCplt stubs the version probe with the cplt release that denies
+// ~/.nav-pilot/, which is the precondition for applying anything at all.
 func protectingCplt(t *testing.T) {
 	t.Helper()
+	stubCpltVersion(t, func() (string, error) { return cpltWithStateDeny, nil })
+}
+
+func stubCpltVersion(t *testing.T, probe func() (string, error)) {
+	t.Helper()
 	previous := probeCpltVersion
-	probeCpltVersion = func() (string, error) {
-		return "cplt " + minCpltStampProtectingNavPilotState + "-abcdef0\n", nil
-	}
+	probeCpltVersion = probe
 	t.Cleanup(func() { probeCpltVersion = previous })
 }
 
@@ -162,22 +176,44 @@ func TestI2ChangedBlockVoidsTheApprovalAtLaunch(t *testing.T) {
 // at all until the cplt in front of it names ~/.nav-pilot/ and so cannot have
 // it reopened by a user's own allow.write. A version it cannot read counts as
 // "does not name it".
-func TestI3NoWaiverAppliedBelowStateProtectingCplt(t *testing.T) {
+//
+// Both sides, over real release stamps: a gate that only ever refuses is not a
+// gate, and neither is one whose "passing" case is derived from the constant it
+// is meant to check.
+func TestI3WaiverNeedsACpltThatDeniesNavPilotState(t *testing.T) {
 	scope := proposeEnv(t)
 	proposal := activeProposal(t)
 	approve(t, scope, proposal.Hash(), "cloud.nais.io")
 
-	for name, probe := range map[string]func() (string, error){
-		"an older cplt":   func() (string, error) { return "cplt 2026.08.17-062831-1008a92\n", nil },
-		"no cplt at all":  func() (string, error) { return "", os.ErrNotExist },
-		"an unreadable v": func() (string, error) { return "cplt dev\n", nil },
-	} {
+	refuses := map[string]func() (string, error){
+		// The release immediately before #508 landed. If the stamp is ever
+		// moved down to something this release meets, this is what says so.
+		"the release before the deny landed": func() (string, error) { return cpltBeforeStateDeny, nil },
+		"a much older cplt":                  func() (string, error) { return cpltLongBeforeDeny, nil },
+		"no cplt at all":                     func() (string, error) { return "", os.ErrNotExist },
+		"a version that cannot be read":      func() (string, error) { return "cplt dev\n", nil },
+	}
+	for name, probe := range refuses {
 		t.Run(name, func(t *testing.T) {
-			previous := probeCpltVersion
-			probeCpltVersion = probe
-			defer func() { probeCpltVersion = previous }()
+			stubCpltVersion(t, probe)
 			if got := cpltProposalFlags(); len(got) != 0 {
-				t.Errorf("applied a waiver on a cplt that does not protect nav-pilot's state: %q", got)
+				t.Errorf("applied a waiver on a cplt that does not deny ~/.nav-pilot/: %q", got)
+			}
+		})
+	}
+
+	// And the other side, or the gate above proves only that nothing ever
+	// applies: the release that landed the deny, and one after it, both do.
+	applies := map[string]func() (string, error){
+		"the release that landed the deny": func() (string, error) { return cpltWithStateDeny, nil },
+		"a release after it":               func() (string, error) { return cpltAfterStateDeny, nil },
+	}
+	for name, probe := range applies {
+		t.Run(name, func(t *testing.T) {
+			stubCpltVersion(t, probe)
+			want := []string{"--allow-private-domain", "cloud.nais.io"}
+			if got := cpltProposalFlags(); !slices.Equal(got, want) {
+				t.Errorf("flags = %q, want %q", got, want)
 			}
 		})
 	}
@@ -188,12 +224,10 @@ func TestI3NoWaiverAppliedBelowStateProtectingCplt(t *testing.T) {
 // it did before any of this existed.
 func TestProposalFreeLaunchProbesNothing(t *testing.T) {
 	proposeEnv(t)
-	previous := probeCpltVersion
-	probeCpltVersion = func() (string, error) {
+	stubCpltVersion(t, func() (string, error) {
 		t.Error("a launch with no proposal probed the cplt version")
 		return "", nil
-	}
-	defer func() { probeCpltVersion = previous }()
+	})
 
 	if got := cpltProposalFlags(); len(got) != 0 {
 		t.Errorf("the default agentpakke produced flags: %q", got)
