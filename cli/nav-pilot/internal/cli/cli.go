@@ -651,8 +651,8 @@ func run(args []string) error {
 
 	switch command {
 	case "install":
-		installFrozen, installRef = frozen, ref
-		defer func() { installFrozen, installRef = false, "" }()
+		installFrozen, installRef, installForce = frozen, ref, force
+		defer func() { installFrozen, installRef, installForce = false, "", false }()
 		// One suppressor for the whole command, finalization included: every
 		// dispatch below reaches installArtifact, and finishInstall prints
 		// after the document is written.

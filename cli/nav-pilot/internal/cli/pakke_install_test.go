@@ -627,6 +627,9 @@ func TestOldRevisionSurvivesOneUpdate(t *testing.T) {
 // consent gesture for that.
 func TestSourceSwitchRemovesOrphanedTier1Files(t *testing.T) {
 	scope := pinEnv(t)
+	// A switch now asks first where it can; this is the scripted path.
+	forceNonInteractive = true
+	t.Cleanup(func() { forceNonInteractive = false })
 
 	legacy := &Source{Dir: legacySourceTree(t), SHA: "abc1234", Version: "dev", Repo: "navikt/other"}
 	if err := attachPakke(legacy); err != nil {
@@ -1077,6 +1080,9 @@ func TestUninstallRemovesRevisions(t *testing.T) {
 // — so the switch removes them.
 func TestSourceSwitchRemovesOldRevisions(t *testing.T) {
 	scope := pinEnv(t)
+	// A switch now asks first where it can; this is the scripted path.
+	forceNonInteractive = true
+	t.Cleanup(func() { forceNonInteractive = false })
 
 	outgoing := tier2PinSource(t, "sha-a")
 	installPin(t, scope, outgoing)
@@ -1260,6 +1266,8 @@ func TestAutoPinRefusesToClobberAnotherSourcesPin(t *testing.T) {
 // directory that does not exist, after printing "Installed".
 func TestFlattenCollisionKeepsTheIncomingRevision(t *testing.T) {
 	scope := pinEnv(t)
+	forceNonInteractive = true
+	t.Cleanup(func() { forceNonInteractive = false })
 
 	outgoing := &Source{Dir: tier2PinSourceTree(t), SHA: "sha-a", Version: "dev", Repo: "navikt/a-b"}
 	incoming := &Source{Dir: tier2PinSourceTree(t), SHA: "sha-b", Version: "dev", Repo: "navikt-a/b"}
