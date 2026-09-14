@@ -63,36 +63,110 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Code search needs auth, is rate limited, and can answer with a
-          # partial page. All three look exactly like a healthy empty result,
-          # so a failed or empty discovery fails the job rather than passing
-          # with nothing checked: "could not look" must not read as "nothing
-          # to validate".
-          if ! found=$(gh api -X GET search/code \
-              -f q='path:.nav-pilot filename:agentpakke.json' \
-              --jq '.items[].repository.full_name'); then
-            echo "::error::Code search failed. A failed lookup is indistinguishable from an empty ecosystem, so the sweep fails rather than validating nothing."
-            exit 1
-          fi
-
-          discovered=$(printf '%s\n' "$found" | sed '/^$/d' | sort -u)
-          if [ -z "$discovered" ]; then
-            echo "::error::Code search returned no agentpakker. navikt/copilot publishes one, so an empty answer is a broken query or a throttled token, not an empty ecosystem."
-            exit 1
-          fi
-          echo "Discovered:"
-          printf '%s\n' "$discovered" | sed 's/^/  /'
-
           # Packages known to publish. They are swept whether or not the search
           # names them, so a partial page degrades to a warning instead of to a
           # green run over a shrunken set. A package that retires for real is an
           # edit to this list, the same deliberate move as a version pin.
           known=$(printf '%s\n' navikt/copilot navikt/grillmester nais/pilot)
-          printf '%s\n' "$known" | while IFS= read -r repo; do
-            if ! printf '%s\n' "$discovered" | grep -qxF "$repo"; then
-              echo "::warning::Code search did not return $repo, which is known to publish an agentpakke. The results were partial; sweeping it anyway."
+
+          # Code search needs auth, is rate limited, and can answer with a
+          # partial page. All three look exactly like a healthy empty result,
+          # so discovery must never let "could not look" read as "nothing to
+          # validate".
+          #
+          # Throttling is the one failure that says nothing at all about the
+          # change under review: the limit is per token and the org's CI shares
+          # one, so a busy afternoon turns this guard red for someone else's
+          # reasons. Retry it, waiting as long as the API asks rather than a
+          # number picked here. gh puts the Retry-After hint straight into its
+          # message ("try again in 42s (HTTP 429)"), and /rate_limit reports
+          # x-ratelimit-reset without itself counting against any limit, so
+          # both are readable without spending a request. Exponential backoff
+          # is only the fallback when neither answers.
+          budget=300 # seconds of waiting, summed over every attempt
+          waited=0
+          attempt=0
+          throttled=
+          err=
+          until found=$(gh api -X GET search/code \
+              -f q='path:.nav-pilot filename:agentpakke.json' \
+              --jq '.items[].repository.full_name' 2>"$RUNNER_TEMP/discover-err"); do
+            attempt=$((attempt + 1))
+            err=$(cat "$RUNNER_TEMP/discover-err")
+
+            # Anything that is not throttling fails closed on the spot. Retry
+            # buys nothing against a bad query, a missing scope or a 404, and
+            # waiting five minutes to say so wastes the reviewer's time.
+            case $err in
+              *429*|*'rate limit'*|*'Retry-After'*|*'try again in'*) ;;
+              *)
+                echo "::error::Code search failed, and not from throttling. A failed lookup is indistinguishable from an empty ecosystem, so the sweep fails rather than validating nothing."
+                printf '%s\n' "$err" | sed 's/^/    /'
+                exit 1
+                ;;
+            esac
+
+            wait_s=$(printf '%s' "$err" | sed -n 's/.*try again in \([0-9][0-9]*\).*/\1/p' | head -n1)
+            if [ -z "$wait_s" ]; then
+              reset=$(gh api rate_limit --jq '.resources.code_search.reset' 2>/dev/null || true)
+              case $reset in
+                [0-9]*) wait_s=$((reset - $(date +%s) + 1)) ;;
+              esac
             fi
+            case $wait_s in
+              '' | *[!0-9]*) wait_s=$((1 << attempt)) ;; # 2, 4, 8, 16 ...
+            esac
+            [ "$wait_s" -gt 0 ] || wait_s=1
+
+            # The cap is on total waiting, not on attempt count, so a long
+            # Retry-After cannot park the job for the whole run budget. A wait
+            # that would overrun what is left ends the retries instead of being
+            # clipped: retrying before the API says it is ready only earns
+            # another 429.
+            remaining=$((budget - waited))
+            if [ "$wait_s" -gt "$remaining" ]; then
+              throttled=1
+              break
+            fi
+            echo "::notice::Code search throttled (attempt $attempt). Waiting ${wait_s}s; ${remaining}s left of the ${budget}s retry budget."
+            sleep "$wait_s"
+            waited=$((waited + wait_s))
           done
+
+          if [ -n "$throttled" ]; then
+            # Degraded, not blind. Every package this repo knows about is still
+            # swept below, so the pull request's contract is still measured
+            # against the whole known ecosystem; what was lost is the lookup for
+            # packages nobody here has heard of yet. That is worth a warning and
+            # not a red build, because a guard that fails for someone else's
+            # token usage gets ignored, and this one guards the contract.
+            #
+            # The known set stops being best-effort to earn that: the sweep step
+            # below treats an unreachable known package as fatal when discovery
+            # never completed, so "throttled" can only stay green on a run that
+            # actually validated all of them.
+            echo "::warning::Code search stayed throttled (attempts: $attempt, waited: ${waited}s, budget: ${budget}s). Sweeping the known packages only. The contract is still checked against every package this workflow knows about; an agentpakke published since that list was last edited is not covered by this run."
+            printf '%s\n' "$err" | sed 's/^/    /'
+            discovered=$known
+          else
+            discovered=$(printf '%s\n' "$found" | sed '/^$/d' | sort -u)
+            if [ -z "$discovered" ]; then
+              # Distinct from the warning above on purpose: the query ran and
+              # answered. navikt/copilot publishes an agentpakke, so zero is a
+              # broken query or a token that cannot see the results, and both
+              # are this pull request's problem to fix.
+              echo "::error::Code search completed and returned no agentpakker. This is not throttling — the query ran. navikt/copilot publishes one, so an empty answer is a broken query or a token that cannot see the results."
+              exit 1
+            fi
+            echo "Discovered:"
+            printf '%s\n' "$discovered" | sed 's/^/  /'
+
+            printf '%s\n' "$known" | while IFS= read -r repo; do
+              if ! printf '%s\n' "$discovered" | grep -qxF "$repo"; then
+                echo "::warning::Code search did not return $repo, which is known to publish an agentpakke. The results were partial; sweeping it anyway."
+              fi
+            done
+          fi
 
           # navikt/copilot was validated from the workspace above.
           targets=$(printf '%s\n%s\n' "$discovered" "$known" |
@@ -111,15 +185,24 @@ jobs:
             targets=$(printf '%s\n' "$targets" | head -n "$max")
           fi
 
+          # Non-empty only on a throttled run: the packages whose validation is
+          # the entire reason that run is allowed to stay green.
+          required=
+          [ -z "$throttled" ] || required=$(printf '%s\n' "$known" | grep -vxF navikt/copilot || true)
+
           {
             echo 'targets<<SWEEP_EOF'
             printf '%s\n' "$targets"
+            echo SWEEP_EOF
+            echo 'required<<SWEEP_EOF'
+            printf '%s\n' "$required"
             echo SWEEP_EOF
           } >> "$GITHUB_OUTPUT"
 
       - name: Sweep
         env:
           TARGETS: ${{ steps.discover.outputs.targets }}
+          REQUIRED: ${{ steps.discover.outputs.required }}
         run: |
           set -euo pipefail
           fatal=0
@@ -137,6 +220,14 @@ jobs:
               # What this job exists to catch. Fatal, and named with its findings.
               echo "::error::$repo no longer conforms to the agentpakke contract."
               jq -r '.problems[]' <<<"$report" | sed 's/^/    /'
+              fatal=1
+            elif printf '%s\n' "$REQUIRED" | grep -qxF "$repo"; then
+              # Only reachable on a throttled run, where the known set is all
+              # the coverage there is. A known package that never validated
+              # means the contract went unchecked against part of it, and
+              # warning twice does not add up to having looked.
+              echo "::error::$repo could not be swept, and code search was throttled, so there is no wider discovered set to fall back on. The contract was not checked against the known packages."
+              sed 's/^/    /' "$RUNNER_TEMP/err"
               fatal=1
             else
               # Private, moved, deleted, or a flaky network. Reported, not
