@@ -74,11 +74,14 @@ func approve(t *testing.T, scope *domain.InstallScope, hash string, hosts ...str
 	}
 }
 
-// Real cplt releases, either side of the one that named ~/.nav-pilot/ in
-// DENIED_DOTFILES (navikt/cplt#508, commit 446dfbb). Literals rather than the
-// constant plus or minus something: a stub derived from the constant passes
-// whatever the constant says, including a placeholder nothing could exceed, so
-// it would pin the comparison and not the version.
+// cplt version lines either side of the release that named ~/.nav-pilot/ in
+// DENIED_DOTFILES (navikt/cplt#508, commit 446dfbb). The first three are real
+// releases; the last is a stamp later than any of them, standing in for a
+// future release.
+//
+// Literals rather than the constant plus or minus something: a stub derived
+// from the constant passes whatever the constant says — a year-9999 placeholder
+// included — so it would pin the comparison and not the version.
 const (
 	cpltWithStateDeny   = "cplt 2026.09.14-105131-446dfbb\n"
 	cpltBeforeStateDeny = "cplt 2026.09.13-135112-daf7f1f\n"

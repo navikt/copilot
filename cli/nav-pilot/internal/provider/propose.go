@@ -31,13 +31,13 @@ import (
 //
 // Invariant 3 says the consent record must not be writable from a cplt session,
 // or an agent approves its own waiver for the next launch. The precise claim
-// matters here, because the weaker one is the true one: ~/.nav-pilot/ is not
-// writable in a *default* session today — macOS runs (deny default) and Linux
-// runs grant-only Landlock, so an unnamed path is already out of reach. What is
-// missing is that a user's own allow.write = ["~"] reopens it, and nothing
-// tells them it did.
+// matters here, because the weaker one is the true one: ~/.nav-pilot/ was never
+// writable in a *default* session — macOS runs (deny default) and Linux runs
+// grant-only Landlock, so an unnamed path is already out of reach. What was
+// missing is that a user's own allow.write = ["~"] reopened it, and nothing
+// told them it had.
 //
-// navikt/cplt#508 closes that by naming ~/.nav-pilot/ in DENIED_DOTFILES, the
+// navikt/cplt#508 closed that by naming ~/.nav-pilot/ in DENIED_DOTFILES, the
 // same list that holds .config/cplt: denied read and write, after every user
 // allow. Grants *inside* it keep working on purpose — a staged Tier 2 launch
 // passes ~/.nav-pilot/pakker/<owner>-<repo>/<sha>/<client>/<context> as
