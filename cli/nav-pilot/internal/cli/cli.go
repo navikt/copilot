@@ -167,66 +167,95 @@ func userScopeAccepts(itemType string) bool {
 	return u.SupportsType(itemType)
 }
 
-func run(args []string) error {
+// startupUpdateCheck warns about (or installs) a newer nav-pilot before the
+// command runs. stop is true when the caller should return without running the
+// command, which happens only when an update landed but the re-exec failed.
+//
+// An explicit `nav-pilot update` does not come through here: it calls doUpdate
+// directly, so neither the quiet period nor the brew branch below applies to a
+// user who asked for the update.
+func startupUpdateCheck() (stop bool, err error) {
 	// Self-check: warn if nav-pilot binary is outdated (fast, cached)
 	assessment := assessStaleness(Version)
 	recordFreshness("cli", "none", assessment)
-	if Version != "dev" && assessment.LatestVersion != "" && versionNewer(assessment.LatestVersion, Version) {
-		fileCfg, _ := readConfig()
-		autoUpdate := fileCfg != nil && fileCfg.AutoUpdate != nil && *fileCfg.AutoUpdate
+	if Version == "dev" || assessment.LatestVersion == "" || !versionNewer(assessment.LatestVersion, Version) {
+		return false, nil
+	}
+	// Say nothing about a release that is still inside the quiet period: it is
+	// minutes old, and for a Homebrew install the formula does not even carry
+	// it yet. See artifacts.ReleaseQuietPeriod.
+	if releaseIsFresh(assessment.LatestVersion, time.Now()) {
+		return false, nil
+	}
 
-		// Guard against re-exec loops: if we already re-exec'd once after an
-		// auto-update in this process chain, don't attempt another update
-		// even if the (possibly stale) cache still reports a newer version.
-		alreadyReexeced := os.Getenv(reexecGuardEnv) == "1"
+	fileCfg, _ := readConfig()
+	autoUpdate := fileCfg != nil && fileCfg.AutoUpdate != nil && *fileCfg.AutoUpdate
 
-		if autoUpdate && !alreadyReexeced {
-			fmt.Fprintf(os.Stderr, "%s Auto-updating nav-pilot %s → %s...\n", yellow("ℹ"), Version, assessment.LatestVersion)
+	// Guard against re-exec loops: if we already re-exec'd once after an
+	// auto-update in this process chain, don't attempt another update
+	// even if the (possibly stale) cache still reports a newer version.
+	alreadyReexeced := os.Getenv(reexecGuardEnv) == "1"
+
+	if isBrewManaged() {
+		// nav-pilot cannot replace a binary Homebrew owns: doUpdate declines,
+		// and every offer above it — the auto-update line, the upgrade prompt,
+		// the "run nav-pilot upgrade" nudge — announced something that was
+		// never going to happen. Say what will work instead, in one line.
+		fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s\n",
+			yellow("⚠"), assessment.LatestVersion, Version, bold("brew upgrade navikt/tap/nav-pilot"))
+	} else if autoUpdate && !alreadyReexeced {
+		fmt.Fprintf(os.Stderr, "%s Auto-updating nav-pilot %s → %s...\n", yellow("ℹ"), Version, assessment.LatestVersion)
+		updated, err := doUpdate()
+		if err != nil {
+			return false, fmt.Errorf("auto-update failed: %w", err)
+		}
+		if updated {
+			if err := reexecSelf(); err != nil {
+				fmt.Fprintf(os.Stderr, "%s Updated, but failed to re-execute automatically: %v\n", yellow("⚠"), err)
+				fmt.Fprintln(os.Stderr, "Please re-run your command manually.")
+				return true, nil
+			}
+		}
+		// If updated == false, the binary was already up to date (e.g. the
+		// cache was stale); fall through and run the command normally
+		// instead of re-executing and looping.
+	} else if !autoUpdate && isInteractive() && assessment.SkewDays > 7 {
+		var upgradeChoice bool
+		err := huh.NewConfirm().
+			Title(fmt.Sprintf("nav-pilot %s is available (you are %d days behind). Upgrade now?", assessment.LatestVersion, assessment.SkewDays)).
+			Value(&upgradeChoice).
+			WithTheme(navTheme()).
+			Run()
+
+		if err == nil && upgradeChoice {
 			updated, err := doUpdate()
 			if err != nil {
-				return fmt.Errorf("auto-update failed: %w", err)
+				return false, fmt.Errorf("interactive upgrade failed: %w", err)
 			}
 			if updated {
 				if err := reexecSelf(); err != nil {
 					fmt.Fprintf(os.Stderr, "%s Updated, but failed to re-execute automatically: %v\n", yellow("⚠"), err)
 					fmt.Fprintln(os.Stderr, "Please re-run your command manually.")
-					return nil
+					return true, nil
 				}
 			}
-			// If updated == false, the binary was already up to date (e.g. the
-			// cache was stale); fall through and run the command normally
-			// instead of re-executing and looping.
-		} else if !autoUpdate && isInteractive() && assessment.SkewDays > 7 {
-			var upgradeChoice bool
-			err := huh.NewConfirm().
-				Title(fmt.Sprintf("nav-pilot %s is available (you are %d days behind). Upgrade now?", assessment.LatestVersion, assessment.SkewDays)).
-				Value(&upgradeChoice).
-				WithTheme(navTheme()).
-				Run()
-
-			if err == nil && upgradeChoice {
-				updated, err := doUpdate()
-				if err != nil {
-					return fmt.Errorf("interactive upgrade failed: %w", err)
-				}
-				if updated {
-					if err := reexecSelf(); err != nil {
-						fmt.Fprintf(os.Stderr, "%s Updated, but failed to re-execute automatically: %v\n", yellow("⚠"), err)
-						fmt.Fprintln(os.Stderr, "Please re-run your command manually.")
-						return nil
-					}
-				}
-			}
-		} else if !autoUpdate {
-			fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s to upgrade\n",
-				yellow("⚠"), assessment.LatestVersion, Version, bold("nav-pilot upgrade"))
-		} else {
-			// autoUpdate is true but alreadyReexeced is true: we already tried
-			// updating once in this process chain and it didn't stick (e.g.
-			// stale cache). Warn instead of looping.
-			fmt.Fprintf(os.Stderr, "%s nav-pilot %s still reported after a recent update attempt (current: %s) — run %s to retry\n",
-				yellow("⚠"), assessment.LatestVersion, Version, bold("nav-pilot upgrade"))
 		}
+	} else if !autoUpdate {
+		fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s to upgrade\n",
+			yellow("⚠"), assessment.LatestVersion, Version, bold("nav-pilot upgrade"))
+	} else {
+		// autoUpdate is true but alreadyReexeced is true: we already tried
+		// updating once in this process chain and it didn't stick (e.g.
+		// stale cache). Warn instead of looping.
+		fmt.Fprintf(os.Stderr, "%s nav-pilot %s still reported after a recent update attempt (current: %s) — run %s to retry\n",
+			yellow("⚠"), assessment.LatestVersion, Version, bold("nav-pilot upgrade"))
+	}
+	return false, nil
+}
+
+func run(args []string) error {
+	if stop, err := startupUpdateCheck(); stop || err != nil {
+		return err
 	}
 
 	// Pre-scan: extract launch-override flags before command dispatch.

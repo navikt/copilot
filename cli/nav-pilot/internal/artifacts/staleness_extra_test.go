@@ -196,3 +196,34 @@ func TestOutputJSON_Artifacts(t *testing.T) {
 		t.Errorf("outputJSON output = %q, want to contain 'value'", buf[:n])
 	}
 }
+
+// TestReleaseIsFresh covers the quiet period: this repo releases several times
+// a day, so a nudge is held back until the release is a day old — but a version
+// string that cannot be parsed must not silence it.
+func TestReleaseIsFresh(t *testing.T) {
+	now := time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name    string
+		version string
+		want    bool
+	}{
+		{"minutes old", "2026.09.14-080624-cfeafb1", true},
+		{"one minute inside the window", "2026.09.13-120100-abc1234", true},
+		{"exactly the window", "2026.09.13-120000-abc1234", false},
+		{"a day and a half old", "2026.09.13-000000-abc1234", false},
+		{"weeks old", "2026.08.14-080624-cfeafb1", false},
+		{"stamped in the future", "2026.09.14-235959-cfeafb1", true},
+		{"no timestamp", "v1.2.3", false},
+		{"truncated timestamp", "2026.09.14-0806-cfeafb1", false},
+		{"non-numeric timestamp", "yyyy.mm.dd-hhmmss-cfeafb1", false},
+		{"empty", "", false},
+		{"dev build", "dev", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ReleaseIsFresh(tt.version, now); got != tt.want {
+				t.Errorf("ReleaseIsFresh(%q) = %v, want %v", tt.version, got, tt.want)
+			}
+		})
+	}
+}

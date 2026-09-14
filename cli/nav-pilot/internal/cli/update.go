@@ -136,8 +136,10 @@ func doUpdate() (updated bool, err error) {
 	return true, nil
 }
 
-// isBrewManaged returns true if the running binary lives inside a Homebrew prefix.
-func isBrewManaged() bool {
+// isBrewManaged returns true if the running binary lives inside a Homebrew
+// prefix. It is a variable so a test can assert what a Homebrew install is
+// told without being installed by Homebrew.
+var isBrewManaged = func() bool {
 	self, err := os.Executable()
 	if err != nil {
 		return false

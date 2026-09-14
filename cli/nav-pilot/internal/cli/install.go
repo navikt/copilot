@@ -3,10 +3,14 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode/utf8"
+
+	"github.com/charmbracelet/x/term"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 )
@@ -771,15 +775,6 @@ func cmdList(scope *InstallScope, ref, sourceRepo string, showItems bool, jsonOu
 
 	resolver := resolverFor(src.Dir, pakkeFor(src, ""))
 
-	// A source that ships an agentpakke manifest offers exactly one installable
-	// name — the agentpakke itself — because the manifest supersedes the
-	// collections/<name> model.
-	type collectionInfo struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Items       int    `json:"items"`
-		agents      []string
-	}
 	var collections []collectionInfo
 	add := func(m *Manifest) {
 		collections = append(collections, collectionInfo{
@@ -820,58 +815,143 @@ func cmdList(scope *InstallScope, ref, sourceRepo string, showItems bool, jsonOu
 	}
 
 	fmt.Println()
-	if src.Pakke != nil {
-		fmt.Println(bold(fmt.Sprintf("Agentpakke in %s:", sourceLabelFor(src))))
+	if src.Pakke != nil && len(collections) == 1 {
+		printPakkeListing(os.Stdout, sourceLabelFor(src), collections[0], payloadLines(src), showItems, termWidth())
 	} else {
 		fmt.Println(bold("Available collections:"))
-	}
-	fmt.Println()
-	for _, c := range collections {
-		fmt.Printf("  %-20s %s %s\n", bold(c.Name), c.Description, dim(fmt.Sprintf("(%d items)", c.Items)))
-		if len(c.agents) > 0 {
-			fmt.Printf("  %-20s %s\n", "", dim("agents: "+strings.Join(c.agents, ", ")))
-		}
-		// A Tier 2 agentpakke lists 0 items because it materializes no
-		// user-visible files; what it ships is payload contexts.
-		//
-		// Every payload-bearing client is listed, launchable by this binary or
-		// not, because an install materializes every one of them (a filter
-		// would be a second client list to keep in step with the launch
-		// switch). A listing that hid the ones this binary cannot launch would
-		// hide content that is on disk; saying so is the useful half.
-		//
-		// What "launchable" means comes from [stagedLaunchers], the map the
-		// launch itself dispatches on. It is not the same set as
-		// agentpakke.IsKnownClient, which is every client id nav-pilot knows —
-		// a known client with no staged launcher is exactly the case this
-		// annotation is for.
-		if payloadOnly(src) {
-			for _, client := range src.Pakke.ClientIDs() {
-				ctxs := declaredContexts(src.Pakke, client)
-				if len(ctxs) == 0 {
-					continue
-				}
-				line := client + " payloads: " + strings.Join(ctxs, ", ")
-				if _, ok := stagedLaunchers[client]; !ok {
-					line += " (materialized on install; this nav-pilot cannot launch " + client + ")"
-				}
-				fmt.Printf("  %-20s %s\n", "", dim(line))
+		fmt.Println()
+		for _, c := range collections {
+			fmt.Printf("  %-20s %s %s\n", bold(c.Name), c.Description, dim(fmt.Sprintf("(%d items)", c.Items)))
+			if len(c.agents) > 0 {
+				fmt.Printf("  %-20s %s\n", "", dim("agents: "+strings.Join(c.agents, ", ")))
 			}
 		}
+		fmt.Println()
+		fmt.Printf("Install with: %s\n", bold("nav-pilot install <name>"))
+		fmt.Printf("Install everything to user home: %s\n", bold("nav-pilot install --user --all"))
+		if !showItems {
+			fmt.Printf("Show individual items: %s\n", bold("nav-pilot list --items"))
+		}
 	}
-	fmt.Println()
-	fmt.Printf("Install with: %s\n", bold("nav-pilot install <name>"))
-	fmt.Printf("Install everything to user home: %s\n", bold("nav-pilot install --user --all"))
 
 	if showItems {
 		fmt.Println()
 		if err := listAvailableItems(resolver); err != nil {
 			return err
 		}
-	} else {
-		fmt.Printf("Show individual items: %s\n", bold("nav-pilot list --items"))
 	}
 	return nil
+}
+
+// collectionInfo is one listable name. A source that ships an agentpakke
+// manifest offers exactly one — the agentpakke itself — because the manifest
+// supersedes the collections/<name> model. The json tags are the --json
+// contract.
+type collectionInfo struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Items       int    `json:"items"`
+	agents      []string
+}
+
+// payloadLines describes the payload contexts of a Tier 2 agentpakke, which
+// lists 0 items because it materializes no user-visible files.
+//
+// Every payload-bearing client is listed, launchable by this binary or not,
+// because an install materializes every one of them (a filter would be a second
+// client list to keep in step with the launch switch). A listing that hid the
+// ones this binary cannot launch would hide content that is on disk; saying so
+// is the useful half.
+//
+// What "launchable" means comes from [stagedLaunchers], the map the launch
+// itself dispatches on. It is not the same set as agentpakke.IsKnownClient,
+// which is every client id nav-pilot knows — a known client with no staged
+// launcher is exactly the case this annotation is for.
+func payloadLines(src *Source) []string {
+	if !payloadOnly(src) {
+		return nil
+	}
+	var lines []string
+	for _, client := range src.Pakke.ClientIDs() {
+		ctxs := declaredContexts(src.Pakke, client)
+		if len(ctxs) == 0 {
+			continue
+		}
+		line := client + " payloads: " + strings.Join(ctxs, ", ")
+		if _, ok := stagedLaunchers[client]; !ok {
+			line += " (materialized on install; this nav-pilot cannot launch " + client + ")"
+		}
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+// printPakkeListing renders the one-agentpakke listing. The collections table
+// it replaces pads every line to a 20-column gutter and prints the description
+// unwrapped, which for a single pakke is a 22-space gap and a sentence running
+// off the right edge of the terminal.
+func printPakkeListing(out io.Writer, source string, c collectionInfo, payloads []string, showItems bool, width int) {
+	body := width - 2 // the two-space indent
+	fmt.Fprintln(out, bold(fmt.Sprintf("Agentpakke in %s:", source)))
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "  %s %s\n", bold(c.Name), dim(fmt.Sprintf("(%d items)", c.Items)))
+	if len(c.agents) > 0 {
+		printWrapped(out, dim, "agents: "+strings.Join(c.agents, ", "), body)
+	}
+	for _, line := range payloads {
+		// Not wrapped: the "cannot launch <client>" annotation at the end has
+		// to stay on one line to be greppable.
+		fmt.Fprintf(out, "  %s\n", dim(line))
+	}
+	if c.Description != "" {
+		fmt.Fprintln(out)
+		printWrapped(out, func(s string) string { return s }, c.Description, body)
+	}
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "Install: %s\n", bold("nav-pilot install "+c.Name))
+	if !showItems {
+		fmt.Fprintf(out, "Items:   %s\n", bold("nav-pilot list --items"))
+	}
+}
+
+// printWrapped writes text at a two-space indent, wrapped to width and coloured
+// line by line so the escape codes never land inside a wrap point.
+func printWrapped(out io.Writer, color func(string) string, text string, width int) {
+	for _, line := range wrapWords(text, width) {
+		fmt.Fprintf(out, "  %s\n", color(line))
+	}
+}
+
+// wrapWords breaks text into lines of at most width columns on space
+// boundaries. A word longer than width gets a line of its own rather than
+// being cut.
+func wrapWords(text string, width int) []string {
+	var lines []string
+	line := ""
+	for _, word := range strings.Fields(text) {
+		switch {
+		case line == "":
+			line = word
+		case utf8.RuneCountInString(line)+1+utf8.RuneCountInString(word) <= width:
+			line += " " + word
+		default:
+			lines = append(lines, line)
+			line = word
+		}
+	}
+	if line != "" {
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+// termWidth is the column budget for human output: the terminal's width, or 80
+// when stdout is not a terminal (piped, redirected, CI).
+func termWidth() int {
+	if w, _, err := term.GetSize(os.Stdout.Fd()); err == nil && w > 20 {
+		return w
+	}
+	return 80
 }
 
 // listAvailableItems prints all agents, skills, instructions, and prompts in the source.
