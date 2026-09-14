@@ -11,7 +11,7 @@ import (
 
 // A user with Nav's agentpakke installed user-wide ran
 // `nav-pilot install nais-platform --source nais/pilot --user`, and watched 63
-// lines say each of Nav's artifacts was "no longer in the collection". None of
+// lines say each of Nav's artifacts was no longer part of the install. None of
 // them was: the scope had changed agentpakke, and nothing said so, what it
 // cost, or how to undo it.
 //
@@ -76,7 +76,7 @@ func TestInstallFromAnotherSourceReportsTheSwitchNotARetirement(t *testing.T) {
 	nais := switchSource(t, "naispakke", "nais/pilot", "nais-platform")
 	out := captureStdoutFor(t, func() { installPakke(t, nais, scope) })
 
-	if strings.Contains(out, "no longer in the collection") {
+	if strings.Contains(out, "no longer part of the install") {
 		t.Errorf("a switch was reported as an upstream retirement:\n%s", out)
 	}
 	for _, want := range []string{"navikt/copilot", "nais/pilot", "Removed 1 file(s) from"} {
@@ -112,7 +112,7 @@ func TestSwitchNamesTheCommandThatPutsThePreviousPakkeBack(t *testing.T) {
 }
 
 // An artifact the same agentpakke stopped shipping keeps the wording it has
-// always had: that one really is gone from the collection.
+// always had: that one really is gone from the install.
 func TestRetirementWithinOneSourceKeepsItsWording(t *testing.T) {
 	isolatedConfig(t)
 	forceNonInteractive = true
@@ -124,7 +124,7 @@ func TestRetirementWithinOneSourceKeepsItsWording(t *testing.T) {
 	trimmed := switchSource(t, "navpakke", "navikt/copilot", "klarsprak")
 	out := captureStdoutFor(t, func() { installPakke(t, trimmed, scope) })
 
-	if !strings.Contains(out, "no longer in the collection") {
+	if !strings.Contains(out, "no longer part of the install") {
 		t.Errorf("a genuine retirement lost its wording:\n%s", out)
 	}
 	if strings.Contains(out, "Put navikt/copilot back") {

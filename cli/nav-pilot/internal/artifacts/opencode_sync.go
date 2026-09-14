@@ -404,7 +404,7 @@ func PrintOpenCodeStatusBlock(outputDir string, state *domain.StateFile) {
 
 	fmt.Println(domain.Bold("nav-pilot opencode context status"))
 	fmt.Println()
-	fmt.Printf("  Collection:  %s\n", domain.Bold(state.Collection))
+	fmt.Printf("  Name:        %s\n", domain.Bold(state.Collection))
 	fmt.Printf("  Version:     %s\n", state.Version)
 	fmt.Printf("  Scope:       %s\n", state.Scope)
 	fmt.Printf("  Source:      %s\n", domain.ShortSHA(state.SourceSHA))

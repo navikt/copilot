@@ -818,8 +818,8 @@ func TestCmdSyncAuto_NoInstall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(string(out), "No nav-pilot collection installed") {
-		t.Errorf("expected 'no collection' message, got: %s", out)
+	if !strings.Contains(string(out), "nav-pilot is not installed") {
+		t.Errorf("expected the not-installed message, got: %s", out)
 	}
 }
 

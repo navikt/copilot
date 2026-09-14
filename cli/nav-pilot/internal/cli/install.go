@@ -450,8 +450,8 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 	// The five retired collections get the fold, not a "not found": the name
 	// still lives in docs, muscle memory, and committed state files (#468).
 	if pakkeName == agentpakke.DefaultName && agentpakke.IsLegacyCollection(name) {
-		return fmt.Errorf("the %q collection was folded into the agentpakke %q (navikt/copilot#468).\n"+
-			"It installs everything the old collections curated; deselect in the interactive picker if you want less.\n\n"+
+		return fmt.Errorf("%q is retired, and %q replaces it (navikt/copilot#468).\n"+
+			"It installs everything those names covered; deselect in the interactive picker if you want less.\n\n"+
 			"  Install it:  %s",
 			name, pakkeName, bold("nav-pilot install "+pakkeName))
 	}
@@ -617,6 +617,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		doc := map[string]interface{}{
 			"command":     "install",
 			"collection":  stateCollection(src, collection),
+			"agentpakke":  stateCollection(src, collection),
 			"scope":       scope.Name,
 			"source_sha":  src.SHA,
 			"version":     src.Version,
@@ -1214,6 +1215,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		doc := map[string]interface{}{
 			"command":    "install",
 			"collection": stateCollection(src, CollectionAll),
+			"agentpakke": stateCollection(src, CollectionAll),
 			"scope":      scope.Name,
 			"source_sha": src.SHA,
 			"version":    src.Version,
@@ -1338,7 +1340,7 @@ func cmdListInstalledAuto(repoDir string, jsonOutput bool) error {
 		if jsonOutput {
 			return outputJSON(map[string]interface{}{"installed": false})
 		}
-		fmt.Printf("No nav-pilot collection installed (repo or user scope).\n")
+		fmt.Printf("nav-pilot is not installed (repo or user scope).\n")
 		fmt.Printf("Install with: %s\n", bold(installCommandFor(nil, nil)))
 
 		return nil
@@ -1349,7 +1351,7 @@ func cmdListInstalledAuto(repoDir string, jsonOutput bool) error {
 		if repoState != nil {
 			ok, modified, missing, ignored, _ := countFileIntegrity(repoScope.RootDir, repoState)
 			scopes = append(scopes, map[string]interface{}{
-				"scope": "repo", "collection": repoState.Collection,
+				"scope": "repo", "collection": repoState.Collection, "agentpakke": repoState.Collection,
 				"version": repoState.Version, "source_sha": repoState.SourceSHA,
 				"installed_at": repoState.InstalledAt, "files": len(repoState.Files),
 				"ok": ok, "modified": modified, "missing": missing, "ignored": ignored,
@@ -1358,7 +1360,7 @@ func cmdListInstalledAuto(repoDir string, jsonOutput bool) error {
 		if userState != nil {
 			ok, modified, missing, ignored, _ := countFileIntegrity(userScope.RootDir, userState)
 			doc := map[string]interface{}{
-				"scope": "user", "collection": userState.Collection,
+				"scope": "user", "collection": userState.Collection, "agentpakke": userState.Collection,
 				"version": userState.Version, "source_sha": userState.SourceSHA,
 				"installed_at": userState.InstalledAt, "files": len(userState.Files),
 				"ok": ok, "modified": modified, "missing": missing, "ignored": ignored,
@@ -1375,7 +1377,7 @@ func cmdListInstalledAuto(repoDir string, jsonOutput bool) error {
 			}
 			ok, modified, missing, ignored, _ := countFileIntegrity(cs.OutputDir, cs.State)
 			scopes = append(scopes, map[string]interface{}{
-				"scope": cs.ScopeName, "collection": cs.State.Collection,
+				"scope": cs.ScopeName, "collection": cs.State.Collection, "agentpakke": cs.State.Collection,
 				"version": cs.State.Version, "source_sha": cs.State.SourceSHA,
 				"installed_at": cs.State.InstalledAt, "files": len(cs.State.Files),
 				"ok": ok, "modified": modified, "missing": missing, "ignored": ignored,
@@ -1418,9 +1420,9 @@ func cmdListInstalledScoped(scope *InstallScope, _ bool, jsonOutput bool) error 
 			return outputJSON(map[string]interface{}{"installed": false})
 		}
 		if scope.IsUser() {
-			fmt.Println("No nav-pilot collection installed in user home (~/.copilot).")
+			fmt.Println("nav-pilot is not installed in user home (~/.copilot).")
 		} else {
-			fmt.Println("No nav-pilot collection installed.")
+			fmt.Println("nav-pilot is not installed.")
 		}
 		fmt.Printf("Install with: %s\n", bold(installCommandFor(nil, nil)))
 		return nil
@@ -1431,6 +1433,7 @@ func cmdListInstalledScoped(scope *InstallScope, _ bool, jsonOutput bool) error 
 		doc := map[string]interface{}{
 			"installed":    true,
 			"collection":   state.Collection,
+			"agentpakke":   state.Collection,
 			"version":      state.Version,
 			"scope":        scope.Name,
 			"source_sha":   state.SourceSHA,
@@ -1517,7 +1520,7 @@ func printStatusBlock(scope *InstallScope, state *StateFile) {
 
 	fmt.Println(bold(fmt.Sprintf("nav-pilot install status (%s)", scope.Name)))
 	fmt.Println()
-	fmt.Printf("  Collection:  %s\n", bold(state.Collection))
+	fmt.Printf("  Name:        %s\n", bold(state.Collection))
 	fmt.Printf("  Version:     %s\n", state.Version)
 	fmt.Printf("  Scope:       %s\n", scope.Name)
 	fmt.Printf("  Source:      %s\n", shortSHA(state.SourceSHA))
@@ -1631,7 +1634,7 @@ func cmdUninstall(scope *InstallScope, dryRun, force bool) error {
 	}
 
 	if state == nil {
-		fmt.Println("No nav-pilot collection installed. Nothing else to uninstall.")
+		fmt.Println("nav-pilot is not installed. Nothing else to uninstall.")
 		return nil
 	}
 
@@ -1875,14 +1878,14 @@ func removeOrphans(scope *InstallScope, prior *StateFile, installed []InstalledF
 			continue
 		}
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s Could not remove %s, which is no longer part of the collection: %v\n",
+			fmt.Fprintf(os.Stderr, "%s Could not remove %s, which is no longer part of the install: %v\n",
 				yellow("⚠"), f.Path, err)
 			kept = append(kept, f)
 			continue
 		}
 		removed = append(removed, f.Path)
 		if switched == "" {
-			fmt.Printf("  %s %s %s\n", red("×"), f.Path, dim("(no longer in the collection)"))
+			fmt.Printf("  %s %s %s\n", red("×"), f.Path, dim("(no longer part of the install)"))
 		}
 	}
 	// One line for a switch, not one per file: sixty-three of them said the

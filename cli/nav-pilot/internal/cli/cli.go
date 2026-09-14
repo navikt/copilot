@@ -137,7 +137,7 @@ Get started:
   nav-pilot export opencode              # Export for OpenCode/oh-my-openagent
   nav-pilot install --source navikt/x    # Install another team's agentpakke (and remember it)
   nav-pilot validate --source navikt/x   # Check an agentpakke repo against the contract
-  nav-pilot install grillmester --frozen --force  # CI: install exactly the pinned revision, or fail
+  nav-pilot install nav-pilot --frozen --force    # CI: install exactly the pinned revision, or fail
 
 After installing, use @nav-pilot in GitHub Copilot Chat.
 `)

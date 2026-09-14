@@ -1337,10 +1337,10 @@ func TestValidateSourceTree(t *testing.T) {
 		wantNote     string
 	}{
 		{
-			name:     "legacy collection source validates as legacy",
+			name:     "source without a manifest validates as legacy",
 			tree:     legacySourceTree,
 			wantKind: "legacy",
-			wantNote: "no manifest (legacy collection source)",
+			wantNote: "no manifest — ",
 		},
 		{
 			name: "empty source has nothing to install",
@@ -1348,7 +1348,7 @@ func TestValidateSourceTree(t *testing.T) {
 
 			wantKind:     "legacy",
 			wantFindings: true,
-			wantNote:     "no manifest (legacy collection source)",
+			wantNote:     "no manifest — ",
 		},
 		{
 			name:     "conforming agentpakke",
@@ -1429,7 +1429,7 @@ func TestCmdValidateLegacySourcePasses(t *testing.T) {
 			t.Errorf("cmdValidate on a legacy source = %v, want nil", err)
 		}
 	})
-	if !strings.Contains(out, "legacy collection source") {
+	if !strings.Contains(out, "is a valid source without a manifest") {
 		t.Errorf("validate output does not report the legacy case:\n%s", out)
 	}
 }

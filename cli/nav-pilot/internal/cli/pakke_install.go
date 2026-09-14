@@ -788,6 +788,7 @@ func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) 
 		doc := map[string]interface{}{
 			"command":    "install",
 			"collection": pakke.Name,
+			"agentpakke": pakke.Name,
 			"scope":      scope.Name,
 			"source_sha": src.SHA,
 			"version":    src.Version,

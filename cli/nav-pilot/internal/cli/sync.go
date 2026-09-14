@@ -1123,7 +1123,7 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 		if jsonOutput {
 			return outputJSON(map[string]interface{}{"installed": false})
 		}
-		fmt.Println("No nav-pilot collection installed (repo or user scope).")
+		fmt.Println("nav-pilot is not installed (repo or user scope).")
 		fmt.Printf("Install with: %s\n", bold(installCommandFor(nil, nil)))
 		return nil
 	}

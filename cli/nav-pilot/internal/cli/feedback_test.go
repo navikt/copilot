@@ -20,8 +20,8 @@ func TestCollectDiagnostics_NoState(t *testing.T) {
 	if !strings.Contains(diag, runtime.GOOS+"/"+runtime.GOARCH) {
 		t.Errorf("diagnostics should contain OS/arch, got:\n%s", diag)
 	}
-	if !strings.Contains(diag, "(none installed)") {
-		t.Error("diagnostics should say '(none installed)' when no collection")
+	if !strings.Contains(diag, "Installed  (none)") {
+		t.Errorf("diagnostics should say 'Installed  (none)' with nothing installed, got:\n%s", diag)
 	}
 }
 
