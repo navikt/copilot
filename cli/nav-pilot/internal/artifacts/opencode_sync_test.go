@@ -1,6 +1,7 @@
 package artifacts
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -268,7 +269,10 @@ Updated content.
 	}
 }
 
-func TestPrintOpenCodeStatusBlock_NoError(t *testing.T) {
+// The status block names the install without calling it a collection
+// (navikt/copilot#878). This package is outside internal/cli, so the vocabulary
+// scan there does not cover this line and an assertion has to.
+func TestPrintOpenCodeStatusBlockNamesTheInstall(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
@@ -280,7 +284,37 @@ func TestPrintOpenCodeStatusBlock_NoError(t *testing.T) {
 	if state == nil {
 		t.Fatal("no state to print")
 	}
-	PrintOpenCodeStatusBlock(outputDir, state)
+
+	out := captureStdout(t, func() { PrintOpenCodeStatusBlock(outputDir, state) })
+
+	if strings.Contains(strings.ToLower(out), "collection") {
+		t.Errorf("the status block still says \"collection\":\n%s", out)
+	}
+	if !strings.Contains(out, "Name:") {
+		t.Errorf("the status block never names the install:\n%s", out)
+	}
+}
+
+// captureStdout runs fn with stdout redirected to a pipe and returns what it
+// printed.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	orig := os.Stdout
+	os.Stdout = w
+	done := make(chan string, 1)
+	go func() {
+		var b strings.Builder
+		io.Copy(&b, r)
+		done <- b.String()
+	}()
+	fn()
+	w.Close()
+	os.Stdout = orig
+	return <-done
 }
 
 func TestSyncOpenCodeArtifacts_RejectsSymlink(t *testing.T) {

@@ -59,3 +59,17 @@ func outputJSON(v interface{}) error {
 	enc.SetIndent("", "  ")
 	return enc.Encode(v)
 }
+
+// withPakkeName writes the installed agentpakke's name into doc under both
+// keys it is published as, and returns doc so it can wrap a map literal.
+//
+// "collection" is what the state file has always been keyed on and what every
+// existing consumer reads, so it never disappears; "agentpakke" is the same
+// value under the name the rest of the binary uses (navikt/copilot#878).
+// Every command that names the pakke in --json goes through here, so the two
+// keys cannot drift apart one emit site at a time.
+func withPakkeName(doc map[string]interface{}, name string) map[string]interface{} {
+	doc["collection"] = name
+	doc["agentpakke"] = name
+	return doc
+}

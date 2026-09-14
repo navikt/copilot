@@ -810,7 +810,7 @@ Går en ny revisjon i stykker, flytter `nav-pilot rollback` pinnen tilbake til f
 
 ```bash
 nav-pilot rollback          # forrige revisjon på denne maskinen
-nav-pilot rollback --json   # command, agentpakke, scope, source_sha, rolled_back_from, follows_releases
+nav-pilot rollback --json   # command, agentpakke (og aliaset collection), scope, source_sha, rolled_back_from, follows_releases
 ```
 
 - **Når den er mulig, og når den ikke er det.** Oppbevaringsregelen er to revisjoner ([Slik starter brukerne klienten fra en Tier 2-pakke](#slik-starter-brukerne-klienten-fra-en-tier-2-pakke)), så rollback rekker ett steg bakover. Er pinnen flyttet to ganger siden revisjonen du vil tilbake til, er den borte, og rollback nekter med `no older revision`. Det samme gjelder en pinne som aldri har flyttet seg, og en rollback nummer to på rad: den nyeste andre revisjonen er da den første rollback forlot, og å gå «tilbake» til den ville vært å gå fram igjen. En pakke uten pinne i brukerscope nektes også. Veien videre i alle tilfellene er `nav-pilot sync --user --apply --ref <branch|sha>`, som krever nett.

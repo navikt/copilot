@@ -134,15 +134,13 @@ func cmdRollback(jsonOutput bool) error {
 	}
 
 	if jsonOutput {
-		return outputJSON(map[string]interface{}{
+		return outputJSON(withPakkeName(map[string]interface{}{
 			"command":          "rollback",
-			"collection":       rolled.Collection,
-			"agentpakke":       rolled.Collection,
 			"scope":            scope.Name,
 			"source_sha":       previous,
 			"rolled_back_from": state.SourceSHA,
 			"follows_releases": follows,
-		})
+		}, rolled.Collection))
 	}
 	fmt.Printf("%s Rolled %s back to revision %s.\n", green("✓"), bold(rolled.Collection), shortSHA(previous))
 	fmt.Println()
