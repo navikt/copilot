@@ -14,15 +14,19 @@ import (
 
 // syncResult holds the outcome of a sync check for machine-readable output.
 type syncResult struct {
-	UpToDate  bool         `json:"up_to_date"`
-	Source    string       `json:"source"`
-	Updates   []syncUpdate `json:"updates,omitempty"`
-	Deletions []string     `json:"deletions,omitempty"`
-	Errors    []string     `json:"errors,omitempty"`
-	Overrides []string     `json:"overrides,omitempty"`
-	Ignored   []string     `json:"ignored,omitempty"`
-	Foreign   []string     `json:"foreign,omitempty"`
-	Conflicts []string     `json:"conflicts,omitempty"`
+	UpToDate bool         `json:"up_to_date"`
+	Source   string       `json:"source"`
+	Updates  []syncUpdate `json:"updates,omitempty"`
+	// Added names artifacts the source ships that this scope does not have
+	// yet, which `--apply` installs for a scope that tracks the whole pakke
+	// (#878). Paths, like every other list here.
+	Added     []string `json:"added,omitempty"`
+	Deletions []string `json:"deletions,omitempty"`
+	Errors    []string `json:"errors,omitempty"`
+	Overrides []string `json:"overrides,omitempty"`
+	Ignored   []string `json:"ignored,omitempty"`
+	Foreign   []string `json:"foreign,omitempty"`
+	Conflicts []string `json:"conflicts,omitempty"`
 	// Kept names files the source deleted that sync left on disk because they
 	// differ from what nav-pilot installed (#729). They are not deletions: a
 	// workflow reading this document must not report them as removed.
@@ -274,7 +278,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	// A collection-era scope meets its source's manifest here first: rewrite
 	// it onto the pakke identity before the diff, so this sync already runs —
 	// and reports new items — as the pakke install it now is.
-	if err := adoptPakkeIdentity(scope, src, syncState, resolver, adopted, jsonOutput); err != nil {
+	if err := adoptPakkeIdentity(scope, src, syncState, resolver, adopted, apply, jsonOutput); err != nil {
 		return err
 	}
 
@@ -466,15 +470,27 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		fmt.Println()
 	}
 
+	// Artifacts the source ships that this scope has not got. A scope that
+	// tracks the whole pakke is meant to hold them, so they are pending work
+	// like any update rather than a note pointing at another command (#878).
+	// syncState is the state the adoption just rewrote in memory; on a run
+	// without --apply that rewrite is not on disk yet.
+	added := detectNewItems(scope, syncState, resolver, src)
+	var addedPaths []string
+	for _, a := range added {
+		addedPaths = append(addedPaths, a.path)
+	}
+
 	// Counts in the summary describe what this source was asked about. A file
 	// from another agentpakke was skipped above without being compared, so
 	// counting it as "up to date" claims a check that never happened.
 	checked := len(files) - len(foreignPaths)
 
 	result := syncResult{
-		UpToDate:  len(updates) == 0 && len(deletedPaths) == 0 && len(syncErrors) == 0 && pinBump == nil && len(retired) == 0 && (apply || len(conflictPaths) == 0),
+		UpToDate:  len(updates) == 0 && len(added) == 0 && len(deletedPaths) == 0 && len(syncErrors) == 0 && pinBump == nil && len(retired) == 0 && (apply || len(conflictPaths) == 0),
 		Source:    src.SHA,
 		Updates:   updates,
+		Added:     addedPaths,
 		Deletions: deletedPaths,
 		Errors:    syncErrors,
 		Overrides: overriddenPaths,
@@ -550,7 +566,6 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 				}
 			}
 		}
-		reportNewItems(scope, resolver, src)
 		return nil
 	}
 
@@ -560,6 +575,15 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 			yellow("⚠"), len(updates), checked, shortSHA(src.SHA))
 		for _, u := range updates {
 			fmt.Printf("  %s %s\n", yellow("~"), u.Path)
+		}
+		fmt.Println()
+	}
+
+	if len(added) > 0 {
+		fmt.Printf("%s %d artifact(s) the source ships are not installed here (source: %s)\n\n",
+			yellow("⚠"), len(added), shortSHA(src.SHA))
+		for _, a := range added {
+			fmt.Printf("  %s %s\n", green("+"), a.path)
 		}
 		fmt.Println()
 	}
@@ -678,6 +702,13 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		fmt.Printf("%s Removing %d retired artifact(s)\n", dim("→"), len(retired))
 		removeRetiredOrphans(scope, retired, jsonOutput)
 	}
+	if len(added) > 0 {
+		fmt.Printf("%s Installing %d artifact(s) this scope did not have\n", dim("→"), len(added))
+		if err := installPending(scope, resolver, added); err != nil {
+			fmt.Fprintf(os.Stderr, "%s Could not install them: %v\n", yellow("⚠"), err)
+			applyErrors++
+		}
+	}
 	if applyErrors == 0 {
 		bumpDeclarationSHA(scope, src, jsonOutput)
 	}
@@ -702,7 +733,6 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		return errSyncFailed
 	}
 
-	reportNewItems(scope, resolver, src)
 	return nil
 }
 
@@ -1275,12 +1305,27 @@ func conflictStatePaths(scope *InstallScope) []string {
 	return conflicts
 }
 
+// pendingArtifact is an artifact the source ships that a scope does not have
+// yet, held as the kind and name an install needs rather than the line a
+// report prints. Before #878 the list was only ever printed.
+type pendingArtifact struct {
+	kind *ArtifactKind
+	name string
+	path string
+}
+
+func (p pendingArtifact) String() string { return p.kind.Name + ": " + p.name }
+
 // detectNewItems checks if the source has agents/skills/instructions not in the
 // state file. Only relevant for installs that are meant to hold everything
 // their source ships — see [scopeTracksEverything].
-func detectNewItems(scope *InstallScope, resolver *SourceResolver, src *Source) []string {
-	state, err := readScopedState(scope)
-	if err != nil || state == nil || !scopeTracksEverything(scope, state, src) {
+//
+// The state is passed in rather than read: a sync that has not been given
+// --apply holds the adopted pakke identity in memory only (#878), and reading
+// the file back would ask the question against the identity the scope is
+// leaving.
+func detectNewItems(scope *InstallScope, state *StateFile, resolver *SourceResolver, src *Source) []pendingArtifact {
+	if state == nil || !scopeTracksEverything(scope, state, src) {
 		return nil
 	}
 
@@ -1289,22 +1334,54 @@ func detectNewItems(scope *InstallScope, resolver *SourceResolver, src *Source) 
 		installed[f.Path] = true
 	}
 
-	var newItems []string
+	var newItems []pendingArtifact
 	// Every kind except prompts. A hook or an extension that shipped after the
 	// last install is executable code the user has not got yet, which is the
 	// thing #569 exists to surface; a prompt is offered, never enforced.
 	for _, kind := range AllKinds {
-		if kind == KindPrompt {
+		if kind == KindPrompt || !scope.SupportsType(kind.Name) {
 			continue
 		}
 		for _, art := range resolver.List(kind) {
 			relPath := kind.RelPathForName(scope, art.Name)
 			if !installed[relPath] {
-				newItems = append(newItems, kind.Name+": "+art.Name)
+				newItems = append(newItems, pendingArtifact{kind: kind, name: art.Name, path: relPath})
 			}
 		}
 	}
 	return newItems
+}
+
+// installPending installs the artifacts a scope that tracks the whole pakke
+// does not have yet. It is the second half of the adoption (#878): the
+// collection's subset stopped being an ignore list, so the rest of the pakke
+// has to arrive on its own rather than through a command the user is told to
+// run next.
+//
+// Nothing is overwritten. An artifact already on disk under an untracked path
+// goes through the same conflict check every install does, so a file someone
+// edited is kept and reported, not replaced.
+func installPending(scope *InstallScope, resolver *SourceResolver, pending []pendingArtifact) error {
+	result := &installResult{}
+	hashes := scopeStateHashes(scope)
+	for _, p := range pending {
+		if err := installArtifact(resolver, scope, hashes, p.kind, p.name, false, false, result); err != nil {
+			return err
+		}
+	}
+	if len(result.Files) == 0 {
+		return nil
+	}
+	telemetry.RecordInstallItems(scope.Name, telemetryMode(), int64(result.Installed))
+	state, err := readScopedState(scope)
+	if err != nil {
+		return fmt.Errorf("reading state to record %d added artifact(s): %w", len(result.Files), err)
+	}
+	if state == nil {
+		return fmt.Errorf("no state file to record %d added artifact(s) in", len(result.Files))
+	}
+	state.Files = mergeStateFiles(state.Files, result.Files)
+	return writeScopedState(scope, state)
 }
 
 // autoDetectSyncFiles finds customization files in the target that also exist in source.
@@ -1556,20 +1633,6 @@ func scopeTracksEverything(scope *InstallScope, state *StateFile, src *Source) b
 		return state.Collection == src.Pakke.Name
 	}
 	return state.Collection == CollectionAll && scope.IsUser()
-}
-
-// reportNewItems prints a notice if the source has new items not yet installed.
-func reportNewItems(scope *InstallScope, resolver *SourceResolver, src *Source) {
-	newItems := detectNewItems(scope, resolver, src)
-	if len(newItems) == 0 {
-		return
-	}
-	fmt.Println()
-	fmt.Printf("%s %d new item(s) in source not yet installed:\n", dim("ℹ"), len(newItems))
-	for _, item := range newItems {
-		fmt.Printf("    %s\n", item)
-	}
-	fmt.Printf("  Run %s to add them.\n", bold(installCommandFor(scope, src)))
 }
 
 // installCommandFor names the command that would pull new source items into

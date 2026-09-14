@@ -423,22 +423,27 @@ func persistInstalledSource(flagSource string, dryRun bool) {
 // recorded files, but [scopeTracksEverything] goes false, so new content is
 // never mentioned again and no command moves the scope forward.
 //
-// The install itself does not change. The recorded files keep their hashes and
-// statuses; every artifact the pakke ships that the collection never installed
-// is recorded as ignored, so the subset the user chose survives as the ignore
-// list the picker and `nav-pilot add` already understand. An "(all)" install
-// ignored nothing and keeps ignoring nothing. An à-la-carte install never
-// claimed a collection identity and is left alone, as is a scope recorded
-// against a different source than the one being synced.
+// A migrating scope ends up with the whole pakke (#878). Nothing installed is
+// touched, and nothing the pakke ships is written off: the artifacts the
+// collection left out become pending work the file diff reports and --apply
+// installs. Recording them as ignored, as this did until #878, kept the
+// collection alive as an invisible ignore list and made `ignored` mean two
+// things in one file — the user's own deselection in the picker, and a
+// migration's leftovers. Going back out is [declineArtifactHint].
 //
-// The rewrite happens before the file diff and is loud: adoption is a
-// migration the user should read about the one time it runs, not deduce from
-// a renamed state file.
+// An à-la-carte install never claimed a collection identity and is left alone,
+// as is a scope recorded against a different source than the one being synced.
+//
+// The rewrite happens before the file diff, so this sync already runs as the
+// pakke install it now is, and it is loud: adoption is a migration the user
+// should read about, not deduce from a renamed state file. It reaches disk
+// only under --apply, together with the artifacts it brings in — a check-only
+// sync must leave a committed state file exactly as it found it.
 //
 // adopted is the source this run is adopting for a scope whose state predates
 // source tracking; it is not in the state file yet. Without it the adoption
 // read an empty SourceRepo, skipped, and waited for a second sync (#877).
-func adoptPakkeIdentity(scope *InstallScope, src *Source, state *StateFile, resolver *SourceResolver, adopted string, jsonOutput bool) error {
+func adoptPakkeIdentity(scope *InstallScope, src *Source, state *StateFile, resolver *SourceResolver, adopted string, apply, jsonOutput bool) error {
 	if src == nil || src.Pakke == nil || state == nil {
 		return nil
 	}
@@ -453,33 +458,8 @@ func adoptPakkeIdentity(scope *InstallScope, src *Source, state *StateFile, reso
 		return goneSourceError(scope, state, recorded)
 	}
 
-	var ignored []string
-	if old != CollectionAll {
-		installed := make(map[string]bool, len(state.Files))
-		for _, f := range state.Files {
-			installed[f.Path] = true
-		}
-		for _, kind := range AllKinds {
-			if !scope.SupportsType(kind.Name) {
-				continue
-			}
-			for _, art := range resolver.List(kind) {
-				relPath := kind.RelPathForName(scope, art.Name)
-				if installed[relPath] {
-					continue
-				}
-				// Not in state is not the same as not installed (#724). An
-				// artifact put there by an older nav-pilot, or by a collection
-				// install that recorded less, is on disk and in use. Marking it
-				// ignored told sync to skip it forever, and one such file sat on
-				// a model GitHub had withdrawn until doctor noticed.
-				if _, err := os.Stat(filepath.Join(scope.RootDir, relPath)); err == nil {
-					continue
-				}
-				ignored = append(ignored, relPath)
-			}
-		}
-	}
+	state.Collection = src.Pakke.Name
+	pending := detectNewItems(scope, state, resolver, src)
 
 	out := os.Stdout
 	if jsonOutput {
@@ -487,24 +467,42 @@ func adoptPakkeIdentity(scope *InstallScope, src *Source, state *StateFile, reso
 	}
 	fmt.Fprintf(out, "%s The %q collection was folded into the agentpakke %s (navikt/copilot#468).\n",
 		yellow("⚠"), old, bold(src.Pakke.Name))
-	if old == CollectionAll {
-		fmt.Fprintf(out, "  This %s scope now tracks the pakke. Your install is unchanged and still means everything.\n\n", scope.Name)
+	if len(pending) == 0 {
+		fmt.Fprintf(out, "  This %s scope now tracks %s, and already has everything it ships.\n\n",
+			scope.Name, bold(src.Pakke.Name))
 	} else {
-		fmt.Fprintf(out, "  This %s scope now tracks the pakke. Your installed files are unchanged;\n"+
-			"  %d artifact(s) the collection never included are recorded as ignored.\n"+
-			"  Bring one in with %s, or reinstall through the interactive picker.\n\n",
-			scope.Name, len(ignored), bold("nav-pilot add <name>"))
+		arrival := fmt.Sprintf("arrive on the next %s", bold("nav-pilot sync --apply"))
+		if apply {
+			arrival = "are being installed now"
+		}
+		fmt.Fprintf(out, "  This %s scope now tracks %s. Your installed files are unchanged;\n"+
+			"  the %d artifact(s) it does not have yet %s.\n  %s\n\n",
+			scope.Name, bold(src.Pakke.Name), len(pending), arrival, declineArtifactHint(scope))
 	}
 
-	state.Collection = src.Pakke.Name
-	for _, relPath := range ignored {
-		state.Files = append(state.Files, InstalledFile{Path: relPath, Status: fileStatusIgnored})
+	// Only --apply writes. A check-only sync has reported what it would do and
+	// must change nothing on disk, state file included: in a repo scope that
+	// file is committed, and a scheduled check that rewrites it hands every
+	// consumer a dirty tree it never asked for.
+	if !apply {
+		return nil
 	}
 	if err := writeScopedState(scope, state); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not record the adoption in the %s scope's state: %v\n",
 			yellow("⚠"), scope.Name, err)
 	}
 	return nil
+}
+
+// declineArtifactHint says how to take an artifact back out, which is not the
+// same gesture in both scopes: `ignore` refuses anything but a user scope, and
+// a repo scope does it by deleting the file, which the next sync records as
+// ignored.
+func declineArtifactHint(scope *InstallScope) string {
+	if scope.IsUser() {
+		return "Take one back out with " + bold("nav-pilot ignore <name>") + "."
+	}
+	return "Delete one you do not want; the next sync records it as ignored."
 }
 
 // goneSource reports whether a scope's recorded source is a local checkout

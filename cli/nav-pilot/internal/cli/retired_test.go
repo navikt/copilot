@@ -250,15 +250,17 @@ func TestIgnoredButInstalled(t *testing.T) {
 	}
 }
 
-// TestFoldInSparesInstalledArtifacts covers the cause behind #724. The
-// collection fold-in marked every artifact missing from the state file as
+// TestFoldInWritesOffNothing covers the cause behind #724, and what #878 did
+// about it. The fold-in marked every artifact missing from the state file as
 // ignored, on the assumption that missing from state means not installed. It
 // does not: an artifact written by an older nav-pilot, or by a collection
-// install that recorded less, is on disk and in use.
+// install that recorded less, is on disk and in use — and marking such a file
+// ignored told sync to skip it forever. One then sat on a model GitHub had
+// withdrawn until doctor's catalogue check found it.
 //
-// Marking such a file ignored told sync to skip it forever. One then sat on a
-// model GitHub had withdrawn until doctor's catalogue check found it.
-func TestFoldInSparesInstalledArtifacts(t *testing.T) {
+// The fold-in now writes nothing off at all. Both agents are pending work the
+// sync reports, the one on disk included, so neither can go unseen.
+func TestFoldInWritesOffNothing(t *testing.T) {
 	scope, agentDir := userScopeWithAgents(t)
 
 	// The source ships two agents. One is on disk but untracked, the other is
@@ -290,21 +292,23 @@ func TestFoldInSparesInstalledArtifacts(t *testing.T) {
 		Pakke: &agentpakke.Manifest{Name: "nav-pilot"},
 	}
 
-	adoptPakkeIdentity(scope, src, state, NewSourceResolver(sourceDir), "", true)
+	resolver := NewSourceResolver(sourceDir)
+	adoptPakkeIdentity(scope, src, state, resolver, "", true, true)
 
-	var ignored []string
 	for _, f := range state.Files {
 		if f.Status == fileStatusIgnored {
-			ignored = append(ignored, f.Path)
+			t.Errorf("the fold-in wrote %q off as ignored", f.Path)
 		}
 	}
-	for _, p := range ignored {
-		if strings.Contains(p, "onDisk") {
-			t.Errorf("the fold-in marked an installed artifact as ignored: %v", ignored)
-		}
+
+	pending := map[string]bool{}
+	for _, p := range detectNewItems(scope, state, resolver, src) {
+		pending[p.name] = true
 	}
-	if len(ignored) == 0 {
-		t.Error("the fold-in marked nothing as ignored; the genuinely absent agent should be")
+	for _, name := range []string{"onDisk", "absent"} {
+		if !pending[name] {
+			t.Errorf("%q is not pending after the fold-in; it can go unseen again", name)
+		}
 	}
 }
 

@@ -308,3 +308,12 @@ Body.
 		t.Error("expected nav-pilot agent in result")
 	}
 }
+
+// newItemsFor asks what the source ships that a scope has not got, reading the
+// scope's state off disk. It is the call shape detectNewItems had before the
+// state became a parameter (#878), kept here so the tests that only care about
+// the detection still read as one line.
+func newItemsFor(scope *InstallScope, resolver *SourceResolver, src *Source) []pendingArtifact {
+	state, _ := readScopedState(scope)
+	return detectNewItems(scope, state, resolver, src)
+}

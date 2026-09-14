@@ -678,7 +678,7 @@ func TestDetectNewItemsForPakkeScope(t *testing.T) {
 	}
 
 	resolver := resolverFor(srcDir, src.Pakke)
-	if items := detectNewItems(scope, resolver, src); len(items) != 0 {
+	if items := newItemsFor(scope, resolver, src); len(items) != 0 {
 		t.Errorf("freshly installed pakke reported new items: %v", items)
 	}
 
@@ -686,8 +686,8 @@ func TestDetectNewItemsForPakkeScope(t *testing.T) {
 	mustWrite(t, filepath.Join(srcDir, "plugin", "agents", "sausage.agent.md"),
 		"---\nname: sausage\ndescription: S\n---\nBody\n")
 
-	items := detectNewItems(scope, resolver, src)
-	if len(items) != 1 || !strings.Contains(items[0], "sausage") {
+	items := newItemsFor(scope, resolver, src)
+	if len(items) != 1 || items[0].name != "sausage" {
 		t.Errorf("detectNewItems = %v, want the new agent from the pakke layout", items)
 	}
 	if got := installCommandFor(scope, src); got != "nav-pilot install grillmester" {
@@ -706,7 +706,7 @@ func TestDetectNewItemsForPakkeScope(t *testing.T) {
 	if err := writeScopedState(scope, state); err != nil {
 		t.Fatal(err)
 	}
-	if items := detectNewItems(scope, resolver, src); len(items) != 0 {
+	if items := newItemsFor(scope, resolver, src); len(items) != 0 {
 		t.Errorf("detectNewItems reported an ignored item: %v", items)
 	}
 }
@@ -746,7 +746,7 @@ func TestDetectNewItemsLegacyUnchanged(t *testing.T) {
 			}); err != nil {
 				t.Fatal(err)
 			}
-			if got := detectNewItems(scope, resolver, nil); len(got) != tt.want {
+			if got := newItemsFor(scope, resolver, nil); len(got) != tt.want {
 				t.Errorf("detectNewItems = %v (%d), want %d item(s)", got, len(got), tt.want)
 			}
 		})
