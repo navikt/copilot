@@ -290,7 +290,7 @@ func TestFoldInSparesInstalledArtifacts(t *testing.T) {
 		Pakke: &agentpakke.Manifest{Name: "nav-pilot"},
 	}
 
-	adoptPakkeIdentity(scope, src, state, NewSourceResolver(sourceDir), true)
+	adoptPakkeIdentity(scope, src, state, NewSourceResolver(sourceDir), "", true)
 
 	var ignored []string
 	for _, f := range state.Files {

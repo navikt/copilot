@@ -73,6 +73,10 @@ func (m *Manifest) SetNamesByKind(kind *ArtifactKind, names []string) bool {
 // CollectionAll is the collection name used in state files for "install everything".
 const CollectionAll = "(all)"
 
+// CollectionAlaCarte is the label a state file carries when the install was
+// assembled item by item rather than from a collection or an agentpakke.
+const CollectionAlaCarte = "(à la carte)"
+
 // ValidateManifest checks that a loaded manifest has valid content.
 func ValidateManifest(m *Manifest) error {
 	if m.Name == "" {

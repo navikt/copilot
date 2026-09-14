@@ -1,6 +1,10 @@
 package cli
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+)
 
 func recordInstallState(scopeName string, state *StateFile, stateErr error) {
 	if stateErr != nil {
@@ -76,13 +80,28 @@ func installedItemStatus(status string) string {
 	}
 }
 
+// normalizeCollectionLabel buckets a state file's collection value for
+// telemetry. The question it answers is not which collection someone has — the
+// five were folded into one agentpakke (#468) — but how many installs are still
+// waiting to be migrated. So it buckets on the shape of the value, not on the
+// names, which leave the code with the collections themselves.
+//
+// The four buckets are constants, so nothing a user typed into a state file
+// can reach a metric label.
 func normalizeCollectionLabel(collection string) string {
-	switch strings.TrimSpace(collection) {
-	case CollectionAll:
+	switch value := strings.TrimSpace(collection); {
+	case value == CollectionAll:
 		return "all"
-	case "fullstack", "kotlin-backend", "frontend", "nextjs-frontend", "platform":
-		return collection
+	case value == CollectionAlaCarte:
+		return "alacarte"
+	// Before the identifier test: a retired collection name has the shape of a
+	// pakke identifier, and counting it as migrated would hide exactly the
+	// installs this metric exists to count down.
+	case agentpakke.IsLegacyCollection(value):
+		return "legacy"
+	case agentpakke.IsIdentifier(value):
+		return "pakke"
 	default:
-		return "other"
+		return "legacy"
 	}
 }

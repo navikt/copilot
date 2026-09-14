@@ -414,7 +414,7 @@ func TestMalformedDeclarationRefusesSync(t *testing.T) {
 		return nil, nil
 	}
 
-	err := syncScope(scope, "", "", false, false)
+	err := syncScope(scope, "", "", "", false, false)
 	if err == nil {
 		t.Fatal("sync accepted a malformed declaration")
 	}

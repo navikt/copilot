@@ -58,14 +58,17 @@ func TestNormalizeCollectionLabel(t *testing.T) {
 		want       string
 	}{
 		{CollectionAll, "all"},
-		{"fullstack", "fullstack"},
-		{"kotlin-backend", "kotlin-backend"},
-		{"frontend", "frontend"},
-		{"nextjs-frontend", "nextjs-frontend"},
-		{"platform", "platform"},
-		{"my-custom-collection", "other"},
-		{"", "other"},
-		{"  ", "other"},
+		{CollectionAlaCarte, "alacarte"},
+		{"nav-pilot", "pakke"},
+		{"grillmester", "pakke"},
+		{"fullstack", "legacy"},
+		{"kotlin-backend", "legacy"},
+		{"frontend", "legacy"},
+		{"nextjs-frontend", "legacy"},
+		{"platform", "legacy"},
+		{"my custom collection", "legacy"},
+		{"", "legacy"},
+		{"  ", "legacy"},
 	}
 	for _, tt := range tests {
 		got := normalizeCollectionLabel(tt.collection)
