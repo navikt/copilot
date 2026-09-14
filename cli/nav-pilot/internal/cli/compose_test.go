@@ -288,3 +288,153 @@ func TestBaseWithUnusableManifestIsRefused(t *testing.T) {
 		t.Errorf("feilmeldinga peker ikke på manifestet: %v", err)
 	}
 }
+
+// composingSource resolves a pakke that reuses another. "eget" is its own,
+// "felles" is inherited: a path that does not compose delivers the first and
+// silently drops the second (#844).
+func composingSource(t *testing.T) *Source {
+	t.Helper()
+	baseDir, ownDir := t.TempDir(), t.TempDir()
+	writePakke(t, baseDir, "basepakke", "felles")
+	writePakke(t, ownDir, "egenpakke", "eget")
+	declareReuse(t, ownDir, baseDir)
+	return loadSource(t, ownDir)
+}
+
+// stateAgents names the agents a scope's state records as installed.
+func stateAgents(t *testing.T, scope *InstallScope) map[string]bool {
+	t.Helper()
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		t.Fatalf("readScopedState = (%v, %v), want the install", state, err)
+	}
+	got := map[string]bool{}
+	for _, f := range state.Files {
+		got[strings.TrimSuffix(filepath.Base(f.Path), ".agent.md")] = true
+	}
+	return got
+}
+
+func wantAgents(t *testing.T, scope *InstallScope, names ...string) {
+	t.Helper()
+	got := stateAgents(t, scope)
+	for _, n := range names {
+		if !got[n] {
+			t.Errorf("agent %q was not installed; state holds %v", n, got)
+		}
+	}
+}
+
+// Composition was wired into `install <navn>` and `sync` and nowhere else, so
+// four other ways in delivered only the top pakke's content. A consumer running
+// `nav-pilot install --user --all` against a pakke that reuses another got half
+// of it, with no error and no warning (#844).
+func TestEveryInstallPathComposes(t *testing.T) {
+	forceNonInteractive = true
+	t.Cleanup(func() { forceNonInteractive = false })
+
+	// `--all` is the one that matters: a team that builds on a platform pakke
+	// rather than forking it is exactly the team that runs it.
+	t.Run("install --all", func(t *testing.T) {
+		scope := pinEnv(t)
+		src := composingSource(t)
+		if err := installAllFromSource(scope, src, nil, false, false, false); err != nil {
+			t.Fatalf("installAllFromSource: %v", err)
+		}
+		wantAgents(t, scope, "eget", "felles")
+	})
+
+	// The picker builds its own manifest and hands it to installAllFromSource,
+	// so an item it never offered is an item that never lands — composing the
+	// installer alone would not have been enough.
+	t.Run("interactive picker", func(t *testing.T) {
+		scope := pinEnv(t)
+		src := composingSource(t)
+		if err := interactiveUserInstallFromSource(scope, src, ""); err != nil {
+			t.Fatalf("interactiveUserInstallFromSource: %v", err)
+		}
+		wantAgents(t, scope, "eget", "felles")
+	})
+
+	// `install <navn> --type <kind>` lands in cmdAdd without passing the
+	// dispatcher.
+	t.Run("single artifact by type", func(t *testing.T) {
+		scope := pinEnv(t)
+		src := composingSource(t)
+		stubResolveSource(t, src)
+		if err := cmdAdd("agent", "felles", scope, "", "", false, false, false); err != nil {
+			t.Fatalf("cmdAdd of an inherited agent: %v", err)
+		}
+		wantAgents(t, scope, "felles")
+	})
+
+	// Without --type the dispatcher matches the name against the resolver
+	// first. Uncomposed it found nothing and answered "not found" for an
+	// artifact the pakke ships.
+	t.Run("single artifact by name", func(t *testing.T) {
+		scope := pinEnv(t)
+		src := composingSource(t)
+		stubResolveSource(t, src)
+		if err := cmdInstallAuto("felles", "", scope, "", "", false, false, false); err != nil {
+			t.Fatalf("install of an inherited agent by name: %v", err)
+		}
+		wantAgents(t, scope, "felles")
+	})
+
+	// `list` is what made the rest hard to see: it left out the inherited
+	// content too, so what the user read matched what they got and both were
+	// incomplete.
+	t.Run("list", func(t *testing.T) {
+		pinEnv(t)
+		stubResolveSource(t, composingSource(t))
+		var err error
+		out := captureStdoutFor(t, func() { err = cmdList(nil, "", "", true, true) })
+		if err != nil {
+			t.Fatalf("cmdList: %v", err)
+		}
+		if !strings.Contains(out, "felles") {
+			t.Errorf("list does not show the inherited agent:\n%s", out)
+		}
+		if !strings.Contains(out, "eget") {
+			t.Errorf("list does not show the pakke's own agent:\n%s", out)
+		}
+	})
+}
+
+// A consumer's `items` list selects from everything the pakke installs, the
+// inherited half included: applyDeclaredItems validates against the composed
+// manifest, so an inherited name is a name it can narrow to rather than one it
+// refuses as "not shipped". That already held on this path; it is pinned here
+// because routing every path through composedResolverFor is what could quietly
+// take it away, and because `nav-pilot list --items` — the output the refusal
+// sends the reader to — only started showing those names in #844.
+func TestDeclaredItemsCanNameAnInheritedArtifact(t *testing.T) {
+	forceNonInteractive = true
+	t.Cleanup(func() { forceNonInteractive = false })
+	isolatedConfig(t)
+
+	src := composingSource(t)
+	target := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(target, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(target, agentpakke.ManifestDir), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	decl := `{"contractVersion":"1","source":"` + src.Repo + `","items":{"felles":"agent"}}`
+	if err := os.WriteFile(filepath.Join(target, agentpakke.DeclarationPath), []byte(decl), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	scope := ScopeRepo(target)
+	if err := cmdInstallFromSource("egenpakke", src, scope, false, false, false); err != nil {
+		t.Fatalf("install narrowed to an inherited agent: %v", err)
+	}
+	got := stateAgents(t, scope)
+	if !got["felles"] {
+		t.Errorf("the declared inherited agent did not land; state holds %v", got)
+	}
+	if got["eget"] {
+		t.Errorf("the item list was ignored: %v", got)
+	}
+}

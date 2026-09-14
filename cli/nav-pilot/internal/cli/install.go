@@ -249,13 +249,10 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 	}
 
 	if err := copyArtifact(art.AbsPath, dst, scope.RootDir, art.IsDir); err != nil {
-		if kind == KindHook {
-			// The hook script lands in the same denied directory its config
-			// entry does, and it lands there first, so this is the copy that
-			// actually fails inside a cplt sandbox.
-			err = explainHookWrite(err, filepath.Dir(dst))
-		}
-		return fmt.Errorf("copying %s %s: %w", kind.Name, name, err)
+		// Every kind, not just hooks: cplt's deny list covers the skill
+		// directories too since cplt#508, so an install inside a sandbox now
+		// fails here on a skill before it ever reaches a hook (#862).
+		return fmt.Errorf("copying %s %s: %w", kind.Name, name, explainSandboxedWrite(err, kind, filepath.Dir(dst)))
 	}
 	hash, err := rawArtifactHash(dst, art.IsDir)
 	if err != nil {
@@ -399,8 +396,14 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 		}
 	}
 
-	// Check if name matches any artifact
-	resolver := resolverFor(src.Dir, pakkeFor(src, name))
+	// Check if name matches any artifact. Composed: an artifact this pakke
+	// inherits is one it installs, so `nav-pilot install <navn>` has to be able
+	// to find it by name here too, and the "did you mean" candidates below have
+	// to know about it (#844).
+	resolver, _, err := composedResolverFor(src, name)
+	if err != nil {
+		return err
+	}
 	var matchedKinds []*ArtifactKind
 	for _, kind := range AllKinds {
 		if _, ok := resolver.Get(kind, name); ok {
@@ -441,7 +444,7 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 				"--frozen installs what the declaration names; drop the flag to take one item",
 				name, matchedKinds[0].Name, agentpakke.DeclarationPath)
 		}
-		return cmdAddFromSource(matchedKinds[0].Name, name, src, scope, sourceRepo, dryRun, force, jsonOutput)
+		return cmdAddFromSource(resolver, matchedKinds[0].Name, name, src, scope, sourceRepo, dryRun, force, jsonOutput)
 	}
 
 	// The five retired collections get the fold, not a "not found": the name
@@ -498,9 +501,6 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		src = relSrc
 	}
 
-	pakke := pakkeFor(src, collection)
-	resolver := resolverFor(src.Dir, pakke)
-
 	// The repo's committed declaration may narrow the install to named items.
 	// It is read before anything is written, so a list naming something the
 	// agentpakke does not ship refuses the whole install rather than half of it.
@@ -552,7 +552,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	// A pakke that reuses another resolves it here, before its contents are
 	// collected: pakkeContents lists through the resolver, so the reused
 	// artifacts are part of the manifest without a second merge step.
-	resolver, reused, err := composeResolver(resolver, src)
+	resolver, reused, err := composedResolverFor(src, collection)
 	if err != nil {
 		return err
 	}
@@ -727,7 +727,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 
 // cmdAddFromSource installs a single artifact from an already-resolved source.
 // It preserves the à-la-carte state semantics from cmdAdd.
-func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, explicitSource string, dryRun, force bool, jsonOutput bool) error {
+func cmdAddFromSource(resolver *SourceResolver, itemType, name string, src *Source, scope *InstallScope, explicitSource string, dryRun, force bool, jsonOutput bool) error {
 	if !scope.SupportsType(itemType) {
 		return fmt.Errorf("type %q is not supported in user scope. Only %s can be installed to ~/.copilot", itemType, strings.Join(scope.SupportedTypes, ", "))
 	}
@@ -749,7 +749,6 @@ func cmdAddFromSource(itemType, name string, src *Source, scope *InstallScope, e
 	}
 
 	kind := kindByName[itemType]
-	resolver := resolverFor(src.Dir, pakkeFor(src, name))
 	installErr := installArtifact(resolver, scope, scopeStateHashes(scope), kind, name, dryRun, force, result)
 	if installErr != nil {
 		return installErr
@@ -804,7 +803,14 @@ func cmdList(scope *InstallScope, ref, sourceRepo string, showItems bool, jsonOu
 	}
 	defer src.Cleanup()
 
-	resolver := resolverFor(src.Dir, pakkeFor(src, ""))
+	// Composed, for the same reason the installs are: `list` that leaves out
+	// what the pakke inherits shows a set that matches the broken install and
+	// hides it (#844). It is also what the unknown-item refusal sends the user
+	// to read.
+	resolver, _, err := composedResolverFor(src, "")
+	if err != nil {
+		return err
+	}
 
 	var collections []collectionInfo
 	add := func(m *Manifest) {
@@ -1130,9 +1136,6 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		src = relSrc
 	}
 
-	pakke := pakkeFor(src, CollectionAll)
-	resolver := resolverFor(src.Dir, pakke)
-
 	if payloadOnly(src) {
 		return installPakkePin(scope, src, dryRun, jsonOutput)
 	}
@@ -1150,6 +1153,14 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 
 	// Same placement as cmdInstallFromSource: past every refusal (#858).
 	noteProposalConsent(scope, src, dryRun, jsonOutput)
+
+	// `--all` means everything the pakke installs, which includes what it
+	// reuses. Built here and not before the Tier 2 return above: a payload-only
+	// pakke has no layout for a base to contribute to (#844).
+	resolver, reused, err := composedResolverFor(src, CollectionAll)
+	if err != nil {
+		return err
+	}
 
 	if manifest == nil {
 		var err error
@@ -1174,6 +1185,9 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 			fmt.Println(bold(fmt.Sprintf("Installing: all agents, skills & instructions (%d items)", total)))
 		}
 		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, shortSHA(src.SHA))))
+		if reused != nil {
+			fmt.Printf("%s %s\n", dim("Reuses:"), dim(fmt.Sprintf("%s@%s", sourceLabelFor(reused), shortSHA(reused.SHA))))
+		}
 		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
 		fmt.Println()
 	}

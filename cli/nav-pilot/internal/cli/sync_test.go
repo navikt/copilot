@@ -981,7 +981,11 @@ func TestSync_DirectoryPromptAndLocalSource(t *testing.T) {
 
 	// 2. Install directory prompt to target
 	targetScope := ScopeRepo(dir)
-	err = cmdAddFromSource("prompt", "my-prompt", src, targetScope, src.Repo, false, false, false)
+	resolver, _, err := composedResolverFor(src, "my-prompt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cmdAddFromSource(resolver, "prompt", "my-prompt", src, targetScope, src.Repo, false, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}

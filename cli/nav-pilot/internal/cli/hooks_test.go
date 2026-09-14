@@ -274,6 +274,52 @@ func TestInstallHookInsideCpltSandboxNamesCplt(t *testing.T) {
 	}
 }
 
+// The same install, one artifact earlier. cplt denies ~/.copilot/skills/ too
+// since cplt#508, so a `nav-pilot install --user` inside a session now fails on
+// a skill before it ever reaches a hook. Wired to KindHook alone, the
+// explanation was not there and the user got a bare "permission denied" (#862).
+func TestInstallSkillInsideCpltSandboxNamesCplt(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores the mode bits this test denies with")
+	}
+	src := t.TempDir()
+	skill := filepath.Join(src, KindSkill.Dir, "klarsprak")
+	if err := os.MkdirAll(skill, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skill, KindSkill.Marker), []byte("---\nname: klarsprak\ndescription: d\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv(cpltSandboxEnvVar, "1")
+
+	skillsDir := filepath.Join(home, ".copilot", KindSkill.Dir)
+	if err := os.MkdirAll(skillsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(skillsDir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(skillsDir, 0o755) })
+
+	scope, err := ScopeUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = installArtifact(NewSourceResolver(src), scope, nil, KindSkill, "klarsprak", false, false, &installResult{})
+	if err == nil {
+		t.Fatal("install into an unwritable skills dir succeeded; the test denied nothing")
+	}
+	msg := err.Error()
+	for _, want := range []string{"cplt", cpltSandboxEnvVar, skillsDir, "skill", "outside cplt"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("error does not mention %q:\n%s", want, msg)
+		}
+	}
+}
+
 // The annotation is keyed on cplt actually being there. Outside a sandbox the
 // same permission error must stay the plain one — naming cplt when cplt is not
 // involved sends the user somewhere useless.
@@ -281,7 +327,7 @@ func TestHookWriteFailureOutsideCpltIsNotBlamedOnIt(t *testing.T) {
 	if _, set := os.LookupEnv(cpltSandboxEnvVar); set {
 		t.Skip("this test suite is itself running inside cplt")
 	}
-	err := explainHookWrite(&os.PathError{Op: "mkdir", Path: "/x", Err: syscall.EACCES}, "/x")
+	err := explainSandboxedWrite(&os.PathError{Op: "mkdir", Path: "/x", Err: syscall.EACCES}, KindHook, "/x")
 	if strings.Contains(err.Error(), "cplt") {
 		t.Errorf("blamed cplt outside a cplt sandbox: %v", err)
 	}
@@ -290,7 +336,7 @@ func TestHookWriteFailureOutsideCpltIsNotBlamedOnIt(t *testing.T) {
 // A failure that is not a denial is not cplt's doing, even inside a sandbox.
 func TestHookWriteNonPermissionErrorPassesThrough(t *testing.T) {
 	t.Setenv(cpltSandboxEnvVar, "1")
-	err := explainHookWrite(&os.PathError{Op: "write", Path: "/x", Err: syscall.ENOSPC}, "/x")
+	err := explainSandboxedWrite(&os.PathError{Op: "write", Path: "/x", Err: syscall.ENOSPC}, KindHook, "/x")
 	if strings.Contains(err.Error(), "cplt") {
 		t.Errorf("blamed cplt for a full disk: %v", err)
 	}

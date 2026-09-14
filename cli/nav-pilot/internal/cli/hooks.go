@@ -50,10 +50,10 @@ func activateHook(scope *InstallScope, art Resolved, result *installResult) erro
 
 	hooksDir := scope.DstPath(KindHook.Dir)
 	if !scope.IsUser() {
-		return explainHookWrite(source.MergeRepoHooks(hooksDir, []source.HookEntry{entry}), hooksDir)
+		return explainSandboxedWrite(source.MergeRepoHooks(hooksDir, []source.HookEntry{entry}), KindHook, hooksDir)
 	}
 
-	if err := explainHookWrite(source.WriteUserHook(hooksDir, entry), hooksDir); err != nil {
+	if err := explainSandboxedWrite(source.WriteUserHook(hooksDir, entry), KindHook, hooksDir); err != nil {
 		return err
 	}
 	configRel := scope.RelPath(KindHook.Dir, source.UserHookConfigName(art.Name))
@@ -162,16 +162,23 @@ func insideCpltSandbox() bool {
 	return ok
 }
 
-// explainHookWrite turns the bare permission error a hook write gets inside a
-// cplt sandbox into one that names the tool doing the denying.
+// explainSandboxedWrite turns the bare permission error an artifact write gets
+// inside a cplt sandbox into one that names the tool doing the denying.
 //
-// cplt protects exactly the paths nav-pilot's hooks land in, and for a reason
-// that is not a bug: a hook file is code that runs later, unsandboxed, on the
-// host. `~/.copilot/hooks` and `~/.copilot/settings.json` are in cplt's
-// host-persistence deny list for the Copilot agent (cplt src/agent.rs, #331),
-// and `.github/hooks` is re-bound read-only in the project directory (cplt
-// src/sandbox_policy.rs `PROTECTED_IN_ROOT`, #347). Neither is going to change,
-// and nav-pilot should not try to route around a deliberate guard rail.
+// cplt protects exactly the paths nav-pilot installs into, and for a reason
+// that is not a bug: what lands there is instruction and code the agent reads
+// or runs later, unsandboxed, on the host. `~/.copilot/hooks` and
+// `~/.copilot/settings.json` are in cplt's host-persistence deny list for the
+// Copilot agent (cplt src/agent.rs, #331), `~/.copilot/skills/` and
+// `~/.pi/agent/skills/` joined it in cplt#508, and `.github/hooks` is re-bound
+// read-only in the project directory (cplt src/sandbox_policy.rs
+// `PROTECTED_IN_ROOT`, #347). None of that is going to change, and nav-pilot
+// should not try to route around a deliberate guard rail.
+//
+// It takes the kind rather than assuming one. Wired to hooks alone, the
+// explanation moved the moment cplt denied something else: after cplt#508 an
+// install inside a session failed one artifact earlier, on a skill, with a bare
+// "permission denied" (#862). The deny list has grown once and will grow again.
 //
 // What it can do is stop the failure reading as a broken install. Left alone
 // the user sees an EPERM naming a path and neither tool, on a command that
@@ -181,7 +188,7 @@ func insideCpltSandbox() bool {
 // EPERM for the deny, Linux returns EROFS for the read-only bind. A disk-full
 // or missing-directory error is a real error and is passed through untouched,
 // because claiming cplt denied something it did not is its own bug.
-func explainHookWrite(err error, path string) error {
+func explainSandboxedWrite(err error, kind *ArtifactKind, path string) error {
 	if err == nil || !insideCpltSandbox() {
 		return err
 	}
@@ -190,10 +197,10 @@ func explainHookWrite(err error, path string) error {
 	}
 	return fmt.Errorf("%w\n\n"+
 		"    This looks like cplt: nav-pilot is running inside a cplt sandbox (%s is set),\n"+
-		"    and cplt denies writes to Copilot hook paths — %s here. A hook file is code\n"+
-		"    that runs later on the host, outside the sandbox, so cplt refuses to let a\n"+
-		"    sandboxed process plant one. That is deliberate, and nav-pilot will not work\n"+
-		"    around it.\n\n"+
+		"    and cplt denies writes to where nav-pilot puts a %s — %s here. What lands\n"+
+		"    there is read or run later on the host, outside the sandbox, so cplt refuses\n"+
+		"    to let a sandboxed process plant it. That is deliberate, and nav-pilot will\n"+
+		"    not work around it.\n\n"+
 		"    Run the install from a shell outside cplt instead",
-		err, cpltSandboxEnvVar, path)
+		err, cpltSandboxEnvVar, kind.Name, path)
 }

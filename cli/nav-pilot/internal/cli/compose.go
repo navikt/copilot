@@ -27,6 +27,31 @@ import (
 // payload pakke resolved it at build time and ships the result. That is why
 // this is wired into the Tier 1 path only.
 
+// composedResolverFor builds the resolver every path that installs or lists
+// content reads through: this source's own layout, with the pakke it reuses
+// behind it.
+//
+// It exists because four entry points built a bare [resolverFor] and delivered
+// only the top pakke's content — `install --all`, the interactive picker, a
+// single artifact by name, and `list` (#844). Composition was wired into the
+// two paths that noticed it and nowhere else, and `list` showing the same
+// incomplete set is what made it hard to see: what the user saw matched what
+// they got, and both were half a pakke. One place to ask means the next entry
+// point does not have to remember.
+//
+// Composition is Tier 1 only, and the guard is here rather than in each caller:
+// a payload-only pakke installs a pinned revision of a digest-bound tree, not
+// files at paths, so there is nothing for a base to contribute to. The callers
+// that route Tier 2 to [installPakkePin] do it after this call, and `list`
+// never routes it anywhere.
+func composedResolverFor(src *Source, collection string) (*SourceResolver, *Source, error) {
+	resolver := resolverFor(src.Dir, pakkeFor(src, collection))
+	if payloadOnly(src) {
+		return resolver, nil, nil
+	}
+	return composeResolver(resolver, src)
+}
+
 // composeResolver returns the resolver to install from. When this source
 // reuses another agentpakke, the returned resolver falls back to it, and the
 // second return value is the reused source so callers can report it.
