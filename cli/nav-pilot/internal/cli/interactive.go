@@ -354,8 +354,8 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 					yellow("⚠"), bold(s.state.Collection), s.scope.Name, s.state.Version, s.latest)
 				continue
 			}
-			fmt.Printf("%s The %s scope still tracks the retired %s collection; a sync moves it over.\n",
-				yellow("⚠"), s.scope.Name, bold(s.state.Collection))
+			fmt.Printf("%s %s is retired; a sync moves the %s scope over.\n",
+				yellow("⚠"), bold(s.state.Collection), s.scope.Name)
 		}
 		fmt.Println()
 
@@ -850,7 +850,7 @@ func promptInstallScope(targetDir string) (*InstallScope, error) {
 	err := huh.NewSelect[string]().
 		Title("Where to install?").
 		Options(
-			huh.NewOption("This repo (.github/) — collection with prompts, commit and push to enable", "repo"),
+			huh.NewOption("This repo (.github/) — agents and prompts, commit and push to enable", "repo"),
 			huh.NewOption("User home (~/.copilot/) — agents, skills & instructions across all repos", "user"),
 		).
 		Value(&choice).

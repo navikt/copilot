@@ -112,11 +112,11 @@ func cmdDoctor() error {
 			ok, modified, missing, _, _ := countFileIntegrity(userScope.RootDir, userState)
 			if missing > 0 || modified > 0 {
 				hasErrors = true
-				fmt.Printf("    • User scope (~/.copilot): %q collection\n", userState.Collection)
+				fmt.Printf("    • User scope (~/.copilot): %s\n", bold(userState.Collection))
 				fmt.Printf("      %s %d missing files, %d modified\n", red("[✗]"), missing, modified)
 				fmt.Printf("          %s Run %s to restore missing files.\n", red("Solution:"), bold("nav-pilot sync"))
 			} else {
-				fmt.Printf("    • User scope (~/.copilot): %q collection\n", userState.Collection)
+				fmt.Printf("    • User scope (~/.copilot): %s\n", bold(userState.Collection))
 				fmt.Printf("      %s %d files OK\n", green("✓"), ok)
 			}
 			hasErrors = reportGoneSource(userScope, userState) || hasErrors
@@ -139,11 +139,11 @@ func cmdDoctor() error {
 			ok, modified, missing, _, _ := countFileIntegrity(repoScope.RootDir, repoState)
 			if missing > 0 || modified > 0 {
 				hasErrors = true
-				fmt.Printf("    • Repo scope (.github): %q collection\n", repoState.Collection)
+				fmt.Printf("    • Repo scope (.github): %s\n", bold(repoState.Collection))
 				fmt.Printf("      %s %d missing files, %d modified\n", red("[✗]"), missing, modified)
 				fmt.Printf("          %s Run %s to restore missing files.\n", red("Solution:"), bold("nav-pilot sync"))
 			} else {
-				fmt.Printf("    • Repo scope (.github): %q collection\n", repoState.Collection)
+				fmt.Printf("    • Repo scope (.github): %s\n", bold(repoState.Collection))
 				fmt.Printf("      %s %d files OK\n", green("✓"), ok)
 			}
 			hasErrors = reportGoneSource(repoScope, repoState) || hasErrors

@@ -137,6 +137,7 @@ func cmdRollback(jsonOutput bool) error {
 		return outputJSON(map[string]interface{}{
 			"command":          "rollback",
 			"collection":       rolled.Collection,
+			"agentpakke":       rolled.Collection,
 			"scope":            scope.Name,
 			"source_sha":       previous,
 			"rolled_back_from": state.SourceSHA,

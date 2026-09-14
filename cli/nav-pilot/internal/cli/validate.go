@@ -75,7 +75,7 @@ func cmdValidate(ref, sourceRepo string, jsonOutput bool) error {
 	}
 	if len(findings) == 0 {
 		if kind == "legacy" {
-			fmt.Printf("\n%s %s is a valid legacy collection source.\n", green("✓"), label)
+			fmt.Printf("\n%s %s is a valid source without a manifest.\n", green("✓"), label)
 			return nil
 		}
 		fmt.Printf("\n%s %s conforms to the agentpakke contract.\n", green("✓"), label)
@@ -104,7 +104,7 @@ func validateSourceTree(src *Source) (kind string, notes []string, warnings []st
 			}, nil, []error{err}
 		}
 		return "legacy", []string{
-			fmt.Sprintf("no manifest (legacy collection source) — %s is absent", agentpakke.ManifestPath),
+			fmt.Sprintf("no manifest — %s is absent; read as collections/<name>/manifest.json", agentpakke.ManifestPath),
 		}, nil, validateLegacySource(src)
 	}
 
@@ -175,7 +175,7 @@ func validateLegacySource(src *Source) []error {
 			for _, item := range entry.names {
 				if _, ok := resolver.Get(entry.kind, item); !ok {
 					findings = append(findings, fmt.Errorf(
-						"collection %q lists %s %q, which does not exist in %s/",
+						"collections/%s lists %s %q, which does not exist in %s/",
 						name, entry.kind.Name, item, entry.kind.Dir))
 				}
 			}

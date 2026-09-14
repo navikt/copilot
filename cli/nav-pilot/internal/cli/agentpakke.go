@@ -465,7 +465,7 @@ func adoptPakkeIdentity(scope *InstallScope, src *Source, state *StateFile, reso
 	if jsonOutput {
 		out = os.Stderr
 	}
-	fmt.Fprintf(out, "%s The %q collection was folded into the agentpakke %s (navikt/copilot#468).\n",
+	fmt.Fprintf(out, "%s %q is retired, and %s replaces it (navikt/copilot#468).\n",
 		yellow("⚠"), old, bold(src.Pakke.Name))
 	if len(pending) == 0 {
 		fmt.Fprintf(out, "  This %s scope now tracks %s, and already has everything it ships.\n\n",

@@ -420,6 +420,11 @@ func (s *InstallScope) IsUser() bool {
 
 // StateFile tracks what was installed, for safe updates and uninstall.
 type StateFile struct {
+	// Collection is the installed agentpakke's name. The key keeps the word
+	// the state file was born with: it sits in committed .github/ trees and in
+	// every script that reads the file, and renaming it would break each of
+	// them for a word no user has to type (navikt/copilot#878). Command output
+	// carries the same value under "agentpakke"; "collection" is its alias.
 	Collection  string          `json:"collection"`
 	Version     string          `json:"version"`
 	Scope       string          `json:"scope,omitempty"`       // "repo" or "user"; empty means "repo" (backwards compat)

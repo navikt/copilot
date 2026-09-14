@@ -46,7 +46,7 @@ Konsekvensen for alt arbeid på Tier 2: **Tier 2 er den tidlige forekomsten av f
 - Ikke bygg en parallell flyt for Tier 2. Samme install-pipeline, samme state-form, samme vokabular.
 - Ikke anta at en klients tier er fast. `Tier()` utledes av manifestets form ved hver kjøring, og en pakke som senere får en `layout` skal plukkes opp uten migrasjon.
 - Ikke anta at en pakke er *enten* Tier 1 *eller* Tier 2. Blandede pakker er fortsatt gyldige, og predikatet `payloadOnly` (`cli/nav-pilot/internal/cli/agentpakke.go`) treffer bare pakker som er payload-only (`Layout == nil && HasTier(TierPayload)`). Det er også de eneste som pinnes i denne releasen. Tier 2-klienten i en blandet pakke nekter å starte framfor å falle tilbake ([§4](#4-launch-beslutningene)).
-- Vokabularet (`Collection:` i status-output, `"collection"` i state-JSON) står igjen med vilje. Å døpe det om treffer output- og state-kompatibilitet for hver eneste eksisterende bruker, og hører hjemme i milepælen der alle installasjoner er agentpakker, ikke i en Tier 2-spesifikk endring.
+- Statenøkkelen `"collection"` står igjen med vilje, og blir stående: den ligger i committede `.github/`-trær og i alt som leser fila. Output sier ikke lenger ordet ([#878](https://github.com/navikt/copilot/issues/878)), og `--json` bærer samme verdi som `agentpakke` med `collection` som alias.
 
 Alt som forutsetter at Tier 1 og Tier 2 er permanent atskilte modeller, er feil.
 

@@ -61,10 +61,10 @@ func collectDiagnostics(targetDir string) string {
 	if err == nil && state != nil {
 		// Count file integrity
 		ok, modified, missing, _, _ := countFileIntegrity(targetDir, state)
-		fmt.Fprintf(&b, "Collection %s (%s, %s)\n", state.Collection, state.Version, shortSHA(state.SourceSHA))
+		fmt.Fprintf(&b, "Installed  %s (%s, %s)\n", state.Collection, state.Version, shortSHA(state.SourceSHA))
 		fmt.Fprintf(&b, "Files      %d ok, %d modified, %d missing\n", ok, modified, missing)
 	} else {
-		fmt.Fprintf(&b, "Collection (none installed)\n")
+		fmt.Fprintf(&b, "Installed  (none)\n")
 	}
 
 	return strings.TrimRight(b.String(), "\n")
