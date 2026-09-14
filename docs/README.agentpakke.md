@@ -657,6 +657,7 @@ En Tier 1-pakke pinner ingen revisjon, den installerer filer. Abonnementet er de
 - `--ref`, `--frozen` og en `sha` i erklæringa som `install` allerede resolver til, er valg som er tatt, og slår ikke opp releaser. `sync` leser bevisst ikke `sha`-en i erklæringa: jobben er å finne ut hva som har flyttet seg.
 - `nav-pilot list --installed` viser `Package: <versjon> (follows stable releases)` fra staten, uten oppslag. `Version:` er fortsatt nav-pilots egen versjon.
 - `nav-pilot add` følger ikke releases ennå, og plukkeren i den interaktive installen lister elementene fra standardgrenen.
+- Tre mekanismer under gjelder ikke en Tier 1-installasjon: [Rollback uten nett](#rollback-uten-nett), oppstartsspørsmålet i [Ved oppstart](#ved-oppstart) og [Varig oppdateringsvalg](#varig-oppdateringsvalg). Alle tre er gatet på `pinnedState`, som krever et scope uten installerte filer, og en Tier 1-install fører opp filene den la ned. `nav-pilot rollback` nekter med `your user scope pins none`, og de to andre nås aldri. Om gaten skal utvides, er åpent ([#843](https://github.com/navikt/copilot/issues/843)).
 
 ### Status
 

@@ -959,11 +959,12 @@ function CollectionsSection() {
             skrevet. Dine egne hooks blir stående.
           </BodyLong>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            Teamet ditt kan distribuere sitt eget oppsett på samme form.{" "}
+            Teamet ditt kan påvirke verktøykassa uten å bygge den selv.{" "}
             <NextLink href="/nav-pilot/agentpakker" className="underline">
-              Lag en agentpakke
+              Agentpakker
             </NextLink>{" "}
-            er oppskrifta, fra manifest til at et annet team installerer den.
+            tar det i fire steg: bruk en pakke som finnes, ta delene du trenger, bygg videre på en, og lag din egen
+            først når ingenting av det holder.
           </BodyLong>
         </div>
 
