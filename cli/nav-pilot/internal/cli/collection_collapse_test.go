@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -42,17 +45,12 @@ func syncFrom(t *testing.T, dir string) {
 	}
 }
 
-// TestSyncAdoptsCollectionScopeIntoPakke: a scope installed from a collection
-// whose source now ships an agentpakke manifest is rewritten to the pakke
-// identity — loudly. The user's files are untouched, and the rest of the pool
-// is recorded as ignored so the install they chose stays exactly the install
-// they have (the #465 §4 migration).
-func TestSyncAdoptsCollectionScopeIntoPakke(t *testing.T) {
-	isolatedConfig(t)
-	srcDir := legacySourceTree(t)
-	target := repoTarget(t)
-	scope := ScopeRepo(target)
-
+// fullstackScope installs the fullstack collection against the legacy source
+// and returns the repo scope it landed in. The pool grows two artifacts the
+// collection never named once the source collapses.
+func fullstackScope(t *testing.T, srcDir string) *InstallScope {
+	t.Helper()
+	scope := ScopeRepo(repoTarget(t))
 	src := &Source{Dir: srcDir, SHA: "abc1234", Version: "dev", Repo: defaultSourceRepo}
 	if err := attachPakke(src); err != nil {
 		t.Fatal(err)
@@ -62,59 +60,222 @@ func TestSyncAdoptsCollectionScopeIntoPakke(t *testing.T) {
 			t.Fatalf("legacy install: %v", err)
 		}
 	})
+	return scope
+}
+
+// theRestOfThePakke is what a fullstack install does not have once the source
+// collapses: the artifacts no collection ever named.
+var theRestOfThePakke = []string{".github/agents/test-b.agent.md", ".github/skills/test-t/"}
+
+// treeSnapshot is every file under dir with its bytes, so a test can say that
+// a command changed nothing rather than that it changed nothing it looked for.
+func treeSnapshot(t *testing.T, dir string) map[string]string {
+	t.Helper()
+	files := map[string]string{}
+	if err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		files[filepath.ToSlash(rel)] = string(b)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return files
+}
+
+// ignoredPaths lists the entries a scope's state writes off.
+func ignoredPaths(t *testing.T, scope *InstallScope) []string {
+	t.Helper()
+	state, err := readScopedState(scope)
+	if err != nil || state == nil {
+		t.Fatalf("readScopedState = (%v, %v)", state, err)
+	}
+	var paths []string
+	for _, f := range state.Files {
+		if f.Status == fileStatusIgnored {
+			paths = append(paths, f.Path)
+		}
+	}
+	return paths
+}
+
+// TestAdoptionWritesNoIgnores: a collection-era scope meeting its source's
+// manifest keeps the collection alive as an invisible ignore list if the
+// adoption writes off everything the collection left out — and `ignored` then
+// means two things in one file, the user's own deselection in the picker and a
+// migration's leftovers. It means one thing (#878).
+func TestAdoptionWritesNoIgnores(t *testing.T) {
+	isolatedConfig(t)
+	srcDir := legacySourceTree(t)
+	scope := fullstackScope(t, srcDir)
+
+	collapseSource(t, srcDir)
+	syncFrom(t, srcDir)
+
+	out := captureStdoutFor(t, func() { _ = cmdSync(scope, "", "", true, false) })
+	if got := ignoredPaths(t, scope); len(got) != 0 {
+		t.Errorf("adoption wrote %v as ignored; the migration must leave the ignore list to the user:\n%s", got, out)
+	}
+	state, _ := readScopedState(scope)
+	if state == nil || state.Collection != "nav-pilot" {
+		t.Fatalf("state.Collection = %v, want the pakke name", state)
+	}
+	if !strings.Contains(out, "fullstack") || !strings.Contains(out, "nav-pilot") {
+		t.Errorf("adoption is silent; output must name both identities:\n%s", out)
+	}
+}
+
+// TestSyncReportsWhatTheCollectionLeftOut: the artifacts the scope does not
+// have are pending work, reported next to the updates and counted by the exit
+// code. Before this they were a note pointing at `nav-pilot install`, which is
+// not what a user who just ran sync is going to type.
+func TestSyncReportsWhatTheCollectionLeftOut(t *testing.T) {
+	isolatedConfig(t)
+	srcDir := legacySourceTree(t)
+	scope := fullstackScope(t, srcDir)
 
 	collapseSource(t, srcDir)
 	syncFrom(t, srcDir)
 
 	var err error
 	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", false, false) })
-	if err != nil {
-		t.Fatalf("cmdSync = %v, want nil (files are unchanged)", err)
+	if !errors.Is(err, errUpdatesAvailable) {
+		t.Fatalf("cmdSync = %v, want errUpdatesAvailable for a scope missing half its pakke:\n%s", err, out)
 	}
-	if !strings.Contains(out, "fullstack") || !strings.Contains(out, "nav-pilot") {
-		t.Errorf("adoption is silent; output must name both identities:\n%s", out)
+	for _, want := range theRestOfThePakke {
+		if !strings.Contains(out, want) {
+			t.Errorf("sync does not report %q as pending:\n%s", want, out)
+		}
+	}
+}
+
+// TestSyncJSONReportsAdded pins the document `sync --json` writes: `added`
+// arrives next to `updates`, and nothing already there changes shape.
+func TestSyncJSONReportsAdded(t *testing.T) {
+	isolatedConfig(t)
+	srcDir := legacySourceTree(t)
+	scope := fullstackScope(t, srcDir)
+
+	collapseSource(t, srcDir)
+	syncFrom(t, srcDir)
+
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", false, true) })
+	if !errors.Is(err, errUpdatesAvailable) {
+		t.Fatalf("cmdSync --json = %v, want errUpdatesAvailable:\n%s", err, out)
+	}
+	var doc struct {
+		UpToDate bool     `json:"up_to_date"`
+		Added    []string `json:"added"`
+	}
+	if jsonErr := json.Unmarshal([]byte(out), &doc); jsonErr != nil {
+		t.Fatalf("sync --json wrote no document: %v\n%s", jsonErr, out)
+	}
+	if doc.UpToDate {
+		t.Errorf("up_to_date is true with artifacts pending:\n%s", out)
+	}
+	sort.Strings(doc.Added)
+	if strings.Join(doc.Added, " ") != strings.Join(theRestOfThePakke, " ") {
+		t.Errorf("added = %v, want %v", doc.Added, theRestOfThePakke)
+	}
+}
+
+// TestSyncApplyInstallsWhatTheCollectionLeftOut: --apply is what puts them
+// there. Nothing is deleted or overwritten, so the artifacts the collection
+// did include are still on disk afterwards.
+func TestSyncApplyInstallsWhatTheCollectionLeftOut(t *testing.T) {
+	isolatedConfig(t)
+	srcDir := legacySourceTree(t)
+	scope := fullstackScope(t, srcDir)
+
+	collapseSource(t, srcDir)
+	syncFrom(t, srcDir)
+
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	if err != nil {
+		t.Fatalf("cmdSync --apply = %v:\n%s", err, out)
 	}
 
+	tracked := map[string]bool{}
 	state, _ := readScopedState(scope)
-	if state == nil || state.Collection != "nav-pilot" {
-		t.Fatalf("state.Collection = %v, want the pakke name", state)
-	}
-	wantIgnored := map[string]bool{
-		".github/agents/test-b.agent.md": false,
-		".github/skills/test-t/":         false,
+	if state == nil {
+		t.Fatal("no state after sync --apply")
 	}
 	for _, f := range state.Files {
-		if _, ok := wantIgnored[f.Path]; ok {
-			wantIgnored[f.Path] = f.Status == fileStatusIgnored
-			continue
-		}
-		if f.Status == fileStatusIgnored {
-			t.Errorf("adoption ignored %q, an artifact the user had installed", f.Path)
-		}
+		tracked[f.Path] = true
 	}
-	for path, ok := range wantIgnored {
-		if !ok {
-			t.Errorf("%q is not recorded as ignored after adoption", path)
+	for _, want := range append([]string{".github/agents/test-a.agent.md", ".github/skills/test-s/"}, theRestOfThePakke...) {
+		if !tracked[want] {
+			t.Errorf("%q is not tracked after sync --apply; state = %+v", want, state.Files)
 		}
-	}
-	if strings.Contains(out, "new item(s)") {
-		t.Errorf("adoption still reports the ignored pool as new items:\n%s", out)
+		if _, statErr := os.Stat(filepath.Join(scope.RootDir, filepath.FromSlash(strings.TrimSuffix(want, "/")))); statErr != nil {
+			t.Errorf("%q is not on disk after sync --apply: %v", want, statErr)
+		}
 	}
 
-	// The adoption happens once: a second sync is quiet about it.
+	// The migration is over: a second sync has nothing left to say.
 	out = captureStdoutFor(t, func() { err = cmdSync(scope, "", "", false, false) })
 	if err != nil {
-		t.Fatalf("second cmdSync = %v", err)
+		t.Fatalf("second cmdSync = %v:\n%s", err, out)
 	}
 	if strings.Contains(out, "fullstack") {
 		t.Errorf("second sync still talks about the retired collection:\n%s", out)
 	}
 }
 
-// TestSyncAdoptsAllInstallWithoutIgnores: "(all)" meant everything, so its
-// adoption is a rename only — pool growth keeps being reported as new items,
-// exactly as before the manifest shipped.
-func TestSyncAdoptsAllInstallWithoutIgnores(t *testing.T) {
+// TestSyncWithoutApplyChangesNothing: a check-only sync reports the migration
+// and performs none of it. The state file is committed in a repo scope, so a
+// scheduled check that rewrites it hands every consumer a dirty tree.
+func TestSyncWithoutApplyChangesNothing(t *testing.T) {
+	isolatedConfig(t)
+	srcDir := legacySourceTree(t)
+	scope := fullstackScope(t, srcDir)
+
+	collapseSource(t, srcDir)
+	syncFrom(t, srcDir)
+
+	before := treeSnapshot(t, scope.RootDir)
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", false, false) })
+	if !errors.Is(err, errUpdatesAvailable) {
+		t.Fatalf("cmdSync = %v, want errUpdatesAvailable:\n%s", err, out)
+	}
+	if diff := changedPaths(before, treeSnapshot(t, scope.RootDir)); len(diff) != 0 {
+		t.Errorf("a sync without --apply changed %v:\n%s", diff, out)
+	}
+}
+
+// changedPaths names every path that differs between two tree snapshots.
+func changedPaths(before, after map[string]string) []string {
+	var changed []string
+	for path, body := range after {
+		if prior, ok := before[path]; !ok || prior != body {
+			changed = append(changed, path)
+		}
+	}
+	for path := range before {
+		if _, ok := after[path]; !ok {
+			changed = append(changed, path)
+		}
+	}
+	sort.Strings(changed)
+	return changed
+}
+
+// TestSyncAdoptsAllInstallWithPoolGrowth: "(all)" meant everything, so its
+// adoption is a rename — and everything the pool has grown since is pending
+// work, on the same terms as a collection's remainder.
+func TestSyncAdoptsAllInstallWithPoolGrowth(t *testing.T) {
 	isolatedConfig(t)
 	srcDir := legacySourceTree(t)
 	scope, err := ScopeUser()
@@ -138,22 +299,26 @@ func TestSyncAdoptsAllInstallWithoutIgnores(t *testing.T) {
 	syncFrom(t, srcDir)
 
 	var syncErr error
-	out := captureStdoutFor(t, func() { syncErr = cmdSync(scope, "", "", false, false) })
+	out := captureStdoutFor(t, func() { syncErr = cmdSync(scope, "", "", true, false) })
 	if syncErr != nil {
-		t.Fatalf("cmdSync = %v", syncErr)
+		t.Fatalf("cmdSync --apply = %v:\n%s", syncErr, out)
 	}
 
 	state, _ := readScopedState(scope)
 	if state == nil || state.Collection != "nav-pilot" {
 		t.Fatalf("state.Collection = %v, want the pakke name", state)
 	}
-	for _, f := range state.Files {
-		if f.Status == fileStatusIgnored {
-			t.Errorf("an (all) adoption must not ignore anything, got %q ignored", f.Path)
-		}
+	if got := ignoredPaths(t, scope); len(got) != 0 {
+		t.Errorf("an (all) adoption must not ignore anything, got %v", got)
 	}
-	if !strings.Contains(out, "new item(s)") {
-		t.Errorf("(all) scope no longer hears about pool growth:\n%s", out)
+	for _, want := range []string{"agents/test-b.agent.md", "skills/test-t/"} {
+		found := false
+		for _, f := range state.Files {
+			found = found || f.Path == want
+		}
+		if !found {
+			t.Errorf("%q did not arrive in an (all) scope: %+v", want, state.Files)
+		}
 	}
 }
 
@@ -180,9 +345,10 @@ func TestSyncLeavesALaCarteScopeAlone(t *testing.T) {
 	collapseSource(t, srcDir)
 	syncFrom(t, srcDir)
 
-	captureStdoutFor(t, func() {
-		if err := cmdSync(scope, "", "", false, false); err != nil {
-			t.Fatalf("cmdSync = %v", err)
+	before := treeSnapshot(t, target)
+	out := captureStdoutFor(t, func() {
+		if err := cmdSync(scope, "", "", true, false); err != nil {
+			t.Fatalf("cmdSync --apply = %v", err)
 		}
 	})
 
@@ -192,6 +358,12 @@ func TestSyncLeavesALaCarteScopeAlone(t *testing.T) {
 	}
 	if len(state.Files) != 1 || state.Files[0].Status != "" {
 		t.Fatalf("state.Files = %+v, want the single active entry untouched", state.Files)
+	}
+	// Not even under --apply: a scope that picked its artifacts one by one is
+	// not a scope that tracks the whole pakke, and the fold-in must not turn
+	// it into one (#878).
+	if diff := changedPaths(before, treeSnapshot(t, target)); len(diff) != 0 {
+		t.Errorf("sync --apply added %v to an à-la-carte scope:\n%s", diff, out)
 	}
 }
 
@@ -293,14 +465,23 @@ func TestSyncAdoptsPreTrackingScopeWithPendingUpdates(t *testing.T) {
 	if state.SourceRepo == "" {
 		t.Errorf("state.SourceRepo is still empty after a sync that read the source:\n%s", out)
 	}
-	if state.Collection != "nav-pilot" {
-		t.Errorf("state.Collection = %q, want the pakke identity after one sync:\n%s", state.Collection, out)
+	// The identity itself waits for --apply, which is what the check run says
+	// (#878), and one --apply is all it waits for.
+	if !strings.Contains(out, "nav-pilot") {
+		t.Errorf("the check run does not name the migration it is holding:\n%s", out)
+	}
+	out = captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	if err != nil {
+		t.Fatalf("cmdSync --apply = %v:\n%s", err, out)
+	}
+	if state, _ = readScopedState(scope); state.Collection != "nav-pilot" {
+		t.Errorf("state.Collection = %q, want the pakke identity:\n%s", state.Collection, out)
 	}
 }
 
-// TestSyncAdoptsPreTrackingScopeInOneRun: the same scope with nothing pending.
-// The source was recorded only after the sync finished, and the adoption ran
-// before it, so the identity waited for a second sync that nothing asked for.
+// TestSyncAdoptsPreTrackingScopeInOneRun: the source was recorded only after
+// the sync finished, and the adoption ran before it, so the identity waited
+// for a second sync that nothing asked for. One `sync --apply` does both.
 func TestSyncAdoptsPreTrackingScopeInOneRun(t *testing.T) {
 	path := isolatedConfig(t)
 	mustWrite(t, path, "version = 1\nsource = \""+defaultSourceRepo+"\"\n")
@@ -312,14 +493,17 @@ func TestSyncAdoptsPreTrackingScopeInOneRun(t *testing.T) {
 	syncFrom(t, srcDir)
 
 	var err error
-	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", false, false) })
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
 	if err != nil {
-		t.Fatalf("cmdSync = %v:\n%s", err, out)
+		t.Fatalf("cmdSync --apply = %v:\n%s", err, out)
 	}
 
 	state, _ := readScopedState(scope)
 	if state == nil || state.Collection != "nav-pilot" {
 		t.Fatalf("state.Collection = %v after one sync, want the pakke identity:\n%s", state, out)
+	}
+	if state.SourceRepo == "" {
+		t.Errorf("state.SourceRepo is still empty after the same run:\n%s", out)
 	}
 }
 

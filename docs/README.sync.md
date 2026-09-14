@@ -57,6 +57,8 @@ It needs `contents: write` and `pull-requests: write` and nothing else, no token
 
 **User-scope installs** (used `nav-pilot install --user`): the state file (`~/.copilot/.nav-pilot-state.json`) tracks installed agents, skills, and instructions. Paths are remapped during sync (`agents/x` ↔ `.github/agents/x` in source). Instructions use `.github/instructions/` in both local and source paths.
 
+An install that holds a whole agentpakke is also checked the other way round: an artifact the source ships that the install does not have is a pending change like any other, listed under `added` in `--json` and installed by `--apply`. Nothing is overwritten and nothing is deleted. Take one back out with `nav-pilot ignore <name>` in a user-scope install, or by deleting the file in a repo: the next sync records it as ignored and leaves it out from then on.
+
 **Classic repos** (manually copied files): nav-pilot auto-detects files that also exist in the source repo:
 - `.github/agents/*.agent.md`
 - `.github/instructions/*.instructions.md`
