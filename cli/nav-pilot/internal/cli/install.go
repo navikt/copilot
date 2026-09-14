@@ -1617,7 +1617,7 @@ func cmdUninstall(scope *InstallScope, dryRun, force bool) error {
 	}
 
 	if state == nil {
-		fmt.Println("No nav-pilot collection installed. Nothing to uninstall.")
+		fmt.Println("No nav-pilot collection installed. Nothing else to uninstall.")
 		return nil
 	}
 
