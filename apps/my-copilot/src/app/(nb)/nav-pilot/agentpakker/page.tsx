@@ -42,6 +42,7 @@ const DOC_SECTIONS: TocItem[] = [
       { id: "kjorbar-kode", label: "Kjørbar kode" },
       { id: "manifestet", label: "Manifestet" },
       { id: "klientoppforinga", label: "Klientoppføringa" },
+      { id: "hvilken-tier", label: "Hvilken tier skal du velge?" },
       { id: "uten-agent", label: "Pakke uten agent" },
       { id: "mcp-servere", label: "MCP-servere" },
       { id: "valider", label: "Valider" },
@@ -518,6 +519,30 @@ export default function Agentpakker() {
                       ): nav-pilot spør klienten om versjonen og nekter en versjon utenfor. Svarer ikke klienten, eller
                       er svaret uleselig, er det også fatalt. Et område nav-pilot ikke kan håndheve, er ikke håndhevet.
                     </BodyLong>
+
+                    <LinkableHeading id="hvilken-tier" size="small" level="3">
+                      Hvilken tier skal du velge?
+                    </LinkableHeading>
+                    <BodyLong textColor="subtle">
+                      Velg Tier 1 om du ikke har en grunn til noe annet. Innholdet er filer, de havner i repoet eller
+                      profilen og er synlige i en diff, konsumenter kan plukke enkeltdeler med{" "}
+                      <code className="font-mono text-xs">items</code>, og du vedlikeholder ingen byggekjede: nav-pilot
+                      legger inn filene fra <code className="font-mono text-xs">layout</code>.
+                    </BodyLong>
+                    <BodyLong textColor="subtle">
+                      Velg Tier 2 når pakka di er et ferdig bygget oppsett som skal leveres som én enhet, og ikke
+                      plukkes fra. Da får du digestverifisering, én revisjon per bruker framfor filer i repoet, og de
+                      tre mekanismene under{" "}
+                      <a href="#stabile-releases" className={linkClass}>
+                        Stabile releases
+                      </a>{" "}
+                      som i dag bare virker der. Prisen er at du bygger payload-trærne selv og holder dem i takt med
+                      kontrakten. nav-pilot har ingen kommando som bygger dem (
+                      <a href="https://github.com/navikt/copilot/issues/840" className={linkClass}>
+                        #840
+                      </a>
+                      ).
+                    </BodyLong>
                     <BodyLong textColor="subtle">
                       <code className="font-mono text-xs">defaultModel</code> er per klient. Den literale verdien{" "}
                       <code className="font-mono text-xs">&quot;inherit&quot;</code> sender ingen{" "}
@@ -601,6 +626,16 @@ export default function Agentpakker() {
                       utdataene er kilden du oppga, ikke navnet i manifestet. Skjemaet ligger i{" "}
                       <code className="font-mono text-xs">cli/nav-pilot/schemas/agentpakke-v1.json</code>, så CI kan
                       linte manifestet mot det uten nav-pilot.
+                    </BodyLong>
+                    <BodyLong textColor="subtle">
+                      Utelater du <code className="font-mono text-xs">--source</code>, velger nav-pilot kilde i denne
+                      rekkefølgen: <code className="font-mono text-xs">--source</code>, så{" "}
+                      <code className="font-mono text-xs">source</code>-nøkkelen i konfigurasjonen din, så{" "}
+                      <code className="font-mono text-xs">navikt/copilot</code>. Lokal autogjenkjenning gjelder bare en
+                      navikt/copilot-checkout, ikke en vanlig agentpakke. Det er derfor en{" "}
+                      <code className="font-mono text-xs">validate</code> uten{" "}
+                      <code className="font-mono text-xs">--source</code> i pakkerepoet ditt validerer Nav-pakka og
+                      melder alt grønt: den så aldri på din.
                     </BodyLong>
 
                     <LinkableHeading id="distribuer" size="small" level="3">
