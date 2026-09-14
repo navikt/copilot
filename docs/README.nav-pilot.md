@@ -204,9 +204,11 @@ Står på [ki-utvikling.nav.no/nav-pilot/docs](https://ki-utvikling.nav.no/nav-p
 presetet skal settes via `nav-pilot config` og ikke for hånd, når strict ikke anbefales på Linux,
 og hva `proxy.log_level` faktisk logger.
 
-`nav-pilot doctor` sier også fra når cplt selv er utdatert, og foreslår
-`brew upgrade navikt/tap/cplt`. nav-pilot laster aldri ned eller oppgraderer cplt for deg.
-Svarer ikke GitHub, hopper den bare over versjonssjekken.
+`nav-pilot doctor` sier også fra når cplt selv er utdatert, og foreslår kommandoen som
+hører til den cplt-en du har: `sudo apt upgrade cplt` når dpkg eier binæren,
+`brew upgrade navikt/tap/cplt` ellers. Det er eierskapet som avgjør, ikke hvor pakka kom fra:
+en `.deb` installert for hånd får samme svar som en fra arkivet. nav-pilot laster aldri ned eller oppgraderer cplt for
+deg. Svarer ikke GitHub, hopper den bare over versjonssjekken.
 
 ## Klienter
 
@@ -304,6 +306,11 @@ nav-pilot sync
 nav-pilot upgrade
 nav-pilot feedback
 ```
+
+`nav-pilot upgrade` bytter ikke ut en binær Homebrew eller apt eier. Da ville
+pakkedatabasen pekt på en versjon som ikke lenger ligger på disk, og neste `apt upgrade`
+ville rullet oppdateringen tilbake i stillhet. nav-pilot skriver i stedet kommandoen som
+virker: `sudo apt upgrade nav-pilot` eller `brew upgrade navikt/tap/nav-pilot`.
 
 ## Lokal modell (alfa, av som standard)
 
