@@ -46,7 +46,7 @@ func TestRemoveOrphansDeletesWhatTheSourceStoppedShipping(t *testing.T) {
 	scope := &InstallScope{RootDir: root}
 	removeOrphans(scope, prior, []domain.InstalledFile{
 		{Path: "agents/local-worker.agent.md", Hash: kept},
-	})
+	}, "")
 
 	if _, err := os.Stat(filepath.Join(root, "agents/lokal-arbeider.agent.md")); !os.IsNotExist(err) {
 		t.Error("the renamed-away artifact is still installed")

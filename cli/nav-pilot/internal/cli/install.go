@@ -12,6 +12,8 @@ import (
 
 	"github.com/charmbracelet/x/term"
 
+	"github.com/charmbracelet/huh"
+
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 )
 
@@ -483,6 +485,13 @@ func articleFor(kind string) string {
 func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, dryRun, force bool, jsonOutput bool) error {
 	defer suppressHumanOutput(jsonOutput)()
 
+	// Before a byte is written: a scope that changes agentpakke loses the
+	// previous one's content, and that is the last moment the user can say no
+	// without ending up holding both.
+	if !confirmSourceSwitch(scope, src, dryRun, force, jsonOutput) {
+		return errInstallCancelled
+	}
+
 	// A Tier 1 agentpakke that publishes stable releases installs the newest
 	// release, not the default branch this source resolved (#794). Before
 	// anything reads src: the manifest, the resolver and the item list all
@@ -591,6 +600,12 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	// reported a success that left no state and no lock — a CI job could not
 	// tell an install apart from a no-op, and the next sync had nothing to
 	// reconcile against (#797).
+	// Filled in by the state rebuild below; the closure reads them when it
+	// runs, which is after it. The per-file list the human output collapses on
+	// a switch lives here instead.
+	var removedOrphans []string
+	var switchedFrom string
+
 	emitJSON := func() error {
 		doc := map[string]interface{}{
 			"command":     "install",
@@ -603,6 +618,12 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 			"conflicts":   result.Conflicts,
 			"unsupported": result.Unsupported,
 			"dry_run":     dryRun,
+		}
+		if len(removedOrphans) > 0 {
+			doc["removed"] = removedOrphans
+		}
+		if switchedFrom != "" {
+			doc["switched_from"] = switchedFrom
 		}
 		// The same two keys a Tier 2 pin reports (#794): version above is
 		// nav-pilot's own, and cannot carry the agentpakke's.
@@ -655,7 +676,10 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	prior, _ := readScopedState(scope)
 	if prior != nil {
 		state.PreserveUnknownFrom(prior)
-		state.Files = mergeStateFiles(removeOrphans(scope, prior, result.Files), state.Files)
+		var kept []InstalledFile
+		kept, removedOrphans = removeOrphans(scope, prior, result.Files, src.Repo)
+		switchedFrom = sourceSwitch(prior, src.Repo)
+		state.Files = mergeStateFiles(kept, state.Files)
 	}
 	recordRelease(state, prior, src, release, installRef != "")
 	if err := writeScopedState(scope, state); err != nil {
@@ -1073,6 +1097,12 @@ func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bo
 func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, dryRun, force bool, jsonOutput bool, extraStateFiles ...InstalledFile) error {
 	defer suppressHumanOutput(jsonOutput)()
 
+	// Same gate as cmdInstallFromSource, for the same reason: both paths end in
+	// removeOrphans, and both can take another agentpakke's content with them.
+	if !confirmSourceSwitch(scope, src, dryRun, force, jsonOutput) {
+		return errInstallCancelled
+	}
+
 	// The newest stable release, not the default branch, for a Tier 1
 	// agentpakke that publishes one (#794). See [cmdInstallFromSource].
 	//
@@ -1143,6 +1173,9 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	// Deferred past the state write, same reason as cmdInstallFromSource: this
 	// returned before writeScopedState, so `install --all --json` reported a
 	// success that left no state behind (#797).
+	var removedOrphans []string
+	var switchedFrom string
+
 	emitJSON := func() error {
 		doc := map[string]interface{}{
 			"command":    "install",
@@ -1153,6 +1186,12 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 			"installed":  result.Installed,
 			"conflicts":  result.Conflicts,
 			"dry_run":    dryRun,
+		}
+		if len(removedOrphans) > 0 {
+			doc["removed"] = removedOrphans
+		}
+		if switchedFrom != "" {
+			doc["switched_from"] = switchedFrom
 		}
 		if release != nil {
 			doc["pakke_version"], doc["follows_releases"] = release.Version, true
@@ -1196,7 +1235,10 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		// appended above, and they are still on disk on purpose. Passing the
 		// narrower set makes removeOrphans read a deselection as an artifact
 		// the source stopped shipping, and delete a file the user chose to keep.
-		state.Files = mergeStateFiles(removeOrphans(scope, prior, state.Files), state.Files)
+		var kept []InstalledFile
+		kept, removedOrphans = removeOrphans(scope, prior, state.Files, src.Repo)
+		switchedFrom = sourceSwitch(prior, src.Repo)
+		state.Files = mergeStateFiles(kept, state.Files)
 	}
 	recordRelease(state, prior, src, release, installRef != "")
 
@@ -1607,6 +1649,101 @@ func safeToRemove(rootDir string, f InstalledFile) bool {
 	return navPilotOwns(rootDir, f)
 }
 
+// sourceSwitch names the agentpakke a scope is installed from when this install
+// replaces it with a different one, and is empty otherwise: a first install, a
+// state written before source tracking, or the same agentpakke again.
+//
+// The two cases must not share a message. A file that goes because the scope
+// changed agentpakke was not retired upstream — it is still shipped, by the
+// pakke this scope no longer installs from — and saying "no longer in the
+// collection" for it is how someone loses another team's agents and only
+// works out why afterwards.
+func sourceSwitch(prior *StateFile, newRepo string) string {
+	if prior == nil || prior.SourceRepo == "" || newRepo == "" || sameSourceRepo(prior.SourceRepo, newRepo) {
+		return ""
+	}
+	return prior.SourceRepo
+}
+
+// reinstallCommand is the command that puts a scope's previous agentpakke back,
+// with the source filled in. Printed after a switch, because the user has just
+// been told their content was removed and the way back is not obvious.
+func reinstallCommand(scope *InstallScope, prior *StateFile) string {
+	target := prior.Collection
+	if target == "" || target == CollectionAll {
+		target = "--all"
+	}
+	flag := "--repo"
+	if scope.IsUser() {
+		flag = "--user"
+	}
+	return fmt.Sprintf("nav-pilot install %s --source %s %s", target, prior.SourceRepo, flag)
+}
+
+// askSwitch puts the switch question to the user. A var so a test can answer
+// it, like the other prompts the install path owns.
+//
+// The bool it is handed is the default, and it is true: the user named the new
+// source on the command line, so Enter means "yes, go ahead".
+var askSwitch = func(title string, proceed *bool) error {
+	return huh.NewConfirm().
+		Title(title).
+		Value(proceed).
+		WithTheme(navTheme()).
+		Run()
+}
+
+// confirmSourceSwitch says what an install from a different agentpakke is about
+// to remove, and asks first when there is a terminal to ask. It reports whether
+// the install should go ahead.
+//
+// It runs before anything is written: answering "no" after the new content has
+// landed would leave the scope holding both agentpakker, which is exactly the
+// mix [guardScopeSource] exists to refuse.
+//
+// Without a terminal it announces and proceeds. Scripts, CI and our own
+// harnesses install this way, and a refusal path there would break them; what
+// they get instead is a line on stdout saying the scope changed source.
+func confirmSourceSwitch(scope *InstallScope, src *Source, dryRun, force, jsonOutput bool) bool {
+	if dryRun || jsonOutput || src == nil {
+		return true
+	}
+	prior, _ := readScopedState(scope)
+	from := sourceSwitch(prior, src.Repo)
+	if from == "" {
+		return true
+	}
+	// What removeOrphans would consider: a file nav-pilot no longer owns stays
+	// whatever happens. "Up to", because a path the new agentpakke also ships
+	// is overwritten rather than removed, and the summary after the install
+	// prints the number that actually went.
+	owned := 0
+	for _, f := range prior.Files {
+		if navPilotOwns(scope.RootDir, f) {
+			owned++
+		}
+	}
+	fmt.Printf("%s The %s scope is installed from %s. This install switches it to %s.\n",
+		yellow("⚠"), scope.Name, bold(from), bold(src.Repo))
+	fmt.Printf("  Up to %d file(s) from %s will be removed.\n", owned, from)
+	if force || !isInteractive() {
+		fmt.Println(dim("  Switching."))
+		return true
+	}
+	proceed := true
+	if err := askSwitch(fmt.Sprintf("Switch the %s scope to %s?", scope.Name, src.Repo), &proceed); err != nil {
+		// Nothing could answer. That is the non-interactive case arriving late,
+		// and it takes the non-interactive answer.
+		fmt.Println(dim("  Switching."))
+		return true
+	}
+	if !proceed {
+		fmt.Println(dim("Cancelled."))
+		return false
+	}
+	return true
+}
+
 // removeOrphans deletes files the previous install put on disk that this one
 // did not write.
 //
@@ -1628,10 +1765,12 @@ func safeToRemove(rootDir string, f InstalledFile) bool {
 // must survive the install — deleting a file and keeping its state entry would
 // have status report it missing and the next sync report a deletion nav-pilot
 // performed itself.
-func removeOrphans(scope *InstallScope, prior *StateFile, installed []InstalledFile) []InstalledFile {
+func removeOrphans(scope *InstallScope, prior *StateFile, installed []InstalledFile, newRepo string) ([]InstalledFile, []string) {
 	if prior == nil {
-		return nil
+		return nil, nil
 	}
+	switched := sourceSwitch(prior, newRepo)
+	var removed []string
 	written := make(map[string]bool, len(installed))
 	for _, f := range installed {
 		written[f.Path] = true
@@ -1655,9 +1794,19 @@ func removeOrphans(scope *InstallScope, prior *StateFile, installed []InstalledF
 			kept = append(kept, f)
 			continue
 		}
-		fmt.Printf("  %s %s %s\n", red("×"), f.Path, dim("(no longer in the collection)"))
+		removed = append(removed, f.Path)
+		if switched == "" {
+			fmt.Printf("  %s %s %s\n", red("×"), f.Path, dim("(no longer in the collection)"))
+		}
 	}
-	return kept
+	// One line for a switch, not one per file: sixty-three of them said the
+	// same wrong thing sixty-three times. The full list is in --json.
+	if switched != "" && len(removed) > 0 {
+		fmt.Printf("  %s Removed %d file(s) that came from %s. This scope now installs from %s.\n",
+			red("×"), len(removed), bold(switched), bold(newRepo))
+		fmt.Printf("  %s Put %s back with: %s\n", dim("→"), switched, bold(reinstallCommand(scope, prior)))
+	}
+	return kept, removed
 }
 
 // stampRevision records which source revision wrote each file this install
