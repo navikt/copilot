@@ -3,6 +3,7 @@ package provider
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -346,8 +347,17 @@ func TestStagedCopilotRequiresCplt(t *testing.T) {
 	if err == nil {
 		t.Fatal("LaunchCopilotStaged must refuse to launch without cplt")
 	}
-	if !strings.Contains(err.Error(), "brew install navikt/tap/cplt") {
-		t.Errorf("error should name the install command, got: %v", err)
+	// The command is whichever installs cplt on the machine the test runs on:
+	// apt on a Debian runner, brew elsewhere. The brew string alone held only
+	// while the emptied PATH hid /usr/bin/dpkg-query from the platform check.
+	// The expectation is derived from the environment, not from PkgForInstall,
+	// so a wrong or empty hint cannot define the test's answer.
+	want := "brew install navikt/tap/cplt"
+	if _, statErr := os.Stat("/usr/bin/dpkg-query"); runtime.GOOS == "linux" && statErr == nil {
+		want = "sudo apt install cplt"
+	}
+	if !strings.Contains(err.Error(), want) {
+		t.Errorf("error should name the install command %q, got: %v", want, err)
 	}
 }
 
