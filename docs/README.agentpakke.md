@@ -200,9 +200,13 @@ Verktøynøkler nav-pilot ikke implementerer, ignoreres. `pi` og `opencode` kan 
 
 ### Hva en pakke får foreslå
 
-`proxy.allow_private_domains`, og ingenting annet i v1. `reason` er påkrevd og vises ordrett i spørsmålet.
+`proxy.allow_private_domains`, og ingenting annet i v1. `reason` er påkrevd og vises i spørsmålet.
 
-Grensa er cplts egen: dette er den eneste proxy-nøkkelen et repo får foreslå. Skjemaet avviser `preset`, `allow`, `deny`, `repo_dirs`, `inherit_env`, `allowed_domains`, `blocked_domains`, `proxy.forced` og vaktene. Andre nøkler inne i `cplt`-blokka er ikke feil, men de er inerte: nav-pilot navngir dem ved install og honorerer dem aldri.
+Grensa er cplts egen: dette er den eneste proxy-nøkkelen et repo får foreslå. Skjemaet avviser `allow`, `deny`, `gh_guard`, `git_guard`, `proxy.forced`, `allowed_domains`, `blocked_domains` og hele `sandbox`-seksjonen, som dekker `preset`, `repo_dirs`, `inherit_env`, cache-exec-tilgangene og `agents_md` under én regel. cplt lar et repo foreslå `sandbox.pass_env`; den dagen nav-pilot implementerer den, er det én linje i skjemaet.
+
+Andre nøkler inne i `cplt`-blokka er ikke feil, men de er inerte: nav-pilot navngir dem ved install og honorerer dem aldri.
+
+**Tekst fra pakka er utrygg tekst.** `reason` og navnene på inerte nøkler havner på skjermen til den som skal svare. En pakke som får satt et linjeskift i dem, kan skrive en linje som ser ut som nav-pilots egen, og en escape-sekvens kan viske ut linjene over. Derfor to regler, begge to: skjemaet setter en lengdegrense og avviser kontrolltegn, formattegn og linjeseparatorer, og nav-pilot slår sammen all whitespace og erstatter kontrolltegn i det den skriver ut. En pakke kan altså ikke lage et linjeskift på skjermen i det hele tatt; spørsmålet eier hver eneste linje.
 
 Waiveren er DNS-rebinding-vernet, ikke en tillatelse. Den navngir verter én om gangen, blokklista og tillatelseslista gjelder fortsatt, den åpner ingen port, gir ingen sti og kjører ingenting. Verste utfall er at agenten når en intern tjeneste brukerens egen naisdevice alt når.
 
@@ -210,7 +214,7 @@ Waiveren er DNS-rebinding-vernet, ikke en tillatelse. Den navngir verter én om 
 
 Den som installerer svarer, i terminal, ved install og ved enhver `sync --apply` der blokka er endret. Svaret er nøklet på scope, pakke og innholdshash — arrays sortert, kanonisk JSON, sha256 over hele blokka, regnet slik cplt regner sin.
 
-En senere revisjon som legger til eller utvider en oppføring gir ny hash. Det gamle samtykket gjelder da ingenting, og spørsmålet kommer tilbake med diffen på skjermen. Det gjelder også endringer i nøkler nav-pilot ikke implementerer: hashen dekker hele blokka.
+En senere revisjon som legger til eller utvider en oppføring gir ny hash. Det gamle samtykket gjelder da ingenting, og spørsmålet kommer tilbake med endringene på skjermen — felt for felt, siden hashen dekker hele blokka og det som flyttet seg like gjerne kan være `reason` eller en nøkkel nav-pilot ikke implementerer. Posten tar vare på blokka den gjaldt, nettopp for å kunne vise det.
 
 Kjøringer uten terminal godkjenner aldri, og registrerer ingenting heller — et ubesvart spørsmål er ikke et nei. `--json` teller som en slik kjøring.
 
@@ -220,7 +224,7 @@ Kjøringer uten terminal godkjenner aldri, og registrerer ingenting heller — e
 cplt config set proxy.allow_private_domains cloud.nais.io
 ```
 
-`nav-pilot uninstall` sletter posten. Ingen waiver fra pakka overlever installasjonen.
+`nav-pilot uninstall` sletter posten — hver post scopet holder, før den fjerner noe annet, og den nekter å melde suksess hvis den ikke fikk det til. Den rydder også en post som ikke har noen installasjon bak seg: samtykket registreres før state-fila skrives, så en install som feiler midtveis kan etterlate en post alene. Ingen waiver fra pakka overlever installasjonen.
 
 ### Hvor det tar effekt
 
@@ -234,7 +238,13 @@ Samtykkeposten ligger under `~/.nav-pilot/`. Den er ikke skrivbar i en *standard
 
 [navikt/cplt#508](https://github.com/navikt/cplt/pull/508) lukket det ved å føre `~/.nav-pilot/` opp i `DENIED_DOTFILES`, samme liste som holder `.config/cplt`: nektet lesing og skriving, etter enhver `allow` brukeren har satt. Grants *inne i* katalogen virker fortsatt, med vilje — en staget Tier 2-launch sender `~/.nav-pilot/pakker/<eier>-<repo>/<sha>/<klient>/<kontekst>` som `--allow-read` — det er bare en grant på selve katalogen som avvises. Endringen kom i cplt `2026.09.14-105131-446dfbb`.
 
-nav-pilot løser ikke dette selv; en sjekk inne i det som skal beskyttes er ingen sjekk. Den nekter i stedet å bruke posten på en eldre cplt: under den releasen anvendes ingen waiver, og launchen sier hvorfor på én linje. En versjon som ikke kan leses teller som «for gammel».
+nav-pilot løser ikke dette selv; en sjekk inne i det som skal beskyttes er ingen sjekk. Den nekter i stedet å bruke posten med mindre alle tre svarene er ja:
+
+1. **Verner cplt-en som kjører nå?** Under releasen over anvendes ingen waiver. En versjon som ikke kan leses teller som «for gammel».
+2. **Vernet cplt-en som kjørte da svaret ble gitt?** Posten bærer med seg stampen den ble skrevet under. Å oppgradere cplt i ettertid gjør ikke et svar en agent kan ha skrevet troverdig, og en sjekk på launch-tidspunktet ser ikke så langt tilbake.
+3. **Ligger posten i treet cplt verner?** `NAV_PILOT_CONFIG` flytter nav-pilots statekatalog, som er støttet — og som flytter posten ut av deny-regelen mens versjonssjekken fortsatt sier ja.
+
+Launchen sier hvilket av de tre som svarte nei, på én linje.
 
 ## Pensjonerte artefakter
 

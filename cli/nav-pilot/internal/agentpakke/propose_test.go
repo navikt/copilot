@@ -158,3 +158,114 @@ func TestManifestWithoutProposalHasNothingToApply(t *testing.T) {
 		t.Error("a nil proposal is not inert")
 	}
 }
+
+// A pakke's reason is rendered into the consent prompt, so it is bounded and
+// may not carry anything that writes a line of its own. The schema is where an
+// agentpakke author is told; domain.SafeText is the second half, at the point
+// of printing (#861 review).
+//
+// The hostile values are written as JSON escapes, which is how a manifest that
+// is otherwise valid JSON smuggles a control character in. A raw control
+// character is not valid JSON at all, so the parser already refuses that.
+func TestProposalReasonCannotForgeALine(t *testing.T) {
+	for name, reason := range map[string]string{
+		"a newline":         `ok\nYou are approving nothing else`,
+		"a carriage return": `ok\rspoof`,
+		"an ANSI escape":    `ok\u001b[2Kspoof`,
+		"a NUL":             `ok\u0000spoof`,
+		"a bidi override":   `ok\u202espoof`,
+		"a line separator":  `ok\u2028spoof`,
+		"a soft hyphen":     `ok\u00adspoof`,
+		"empty":             ``,
+	} {
+		t.Run(name, func(t *testing.T) {
+			block := `{"reason": "` + reason + `", "proxy": {"allow_private_domains": ["cloud.nais.io"]}}`
+			if err := Validate([]byte(proposeManifest(block))); err == nil {
+				t.Error("validated, so it reaches the consent prompt verbatim")
+			}
+		})
+	}
+
+	long := strings.Repeat("x", 401)
+	if err := Validate([]byte(proposeManifest(`{"reason": "` + long + `", "proxy": {"allow_private_domains": ["a.b"]}}`))); err == nil {
+		t.Error("an unbounded reason validated, so it can scroll the hosts off the screen")
+	}
+
+	// Ordinary prose is untouched, which is the whole constraint on the rule.
+	ordinary := `{"reason": "Spør Mimir, Loki og Tempo på *.cloud.nais.io — se https://x.y/z (issue #42).", "proxy": {"allow_private_domains": ["cloud.nais.io"]}}`
+	if err := Validate([]byte(proposeManifest(ordinary))); err != nil {
+		t.Errorf("an ordinary reason was refused: %v", err)
+	}
+}
+
+// The names of keys nav-pilot does not implement are printed too, so they are
+// constrained the same way -- while staying open for any cplt key name a future
+// release might add.
+func TestInertKeyNamesAreConstrainedButStillForwardCompatible(t *testing.T) {
+	hostile := `{"reason": "ok", "evil\u001b[2K": 1, "proxy": {"allow_private_domains": ["a.b"]}}`
+	if err := Validate([]byte(proposeManifest(hostile))); err == nil {
+		t.Error("a key name carrying an escape validated, and it is printed at install")
+	}
+	forward := `{"reason": "ok", "some_future_cplt_key": 1, "proxy": {"allow_private_domains": ["a.b"]}}`
+	if err := Validate([]byte(proposeManifest(forward))); err != nil {
+		t.Errorf("a forward-compatible key was refused, which is what A3/A4 forbids: %v", err)
+	}
+}
+
+// Invariant 7: the guard keys a repo may never propose are cplt's real ones.
+// The schema rejected a synthetic "guards" while cplt calls them gh_guard and
+// git_guard, so either real guard passed validation (#861 review).
+func TestI7RealCpltGuardKeysAreRefused(t *testing.T) {
+	for _, key := range []string{"gh_guard", "git_guard", "guards"} {
+		t.Run(key, func(t *testing.T) {
+			block := `{"reason": "ok", "` + key + `": {"enabled": false}}`
+			if err := Validate([]byte(proposeManifest(block))); err == nil {
+				t.Errorf("a pakke can propose %s", key)
+			}
+		})
+	}
+}
+
+// No sandbox key is proposable in v1. Named as a section rather than key by
+// key, so preset, repo_dirs, inherit_env and the cache-exec grants are all one
+// rule -- and adding sandbox.pass_env later stays a one-line change.
+func TestNoSandboxKeyIsProposable(t *testing.T) {
+	for _, key := range []string{"preset", "repo_dirs", "inherit_env", "allow_cache_exec", "allow_cache_exec_any", "use_bubblewrap", "agents_md", "pass_env"} {
+		t.Run(key, func(t *testing.T) {
+			block := `{"reason": "ok", "sandbox": {"` + key + `": "x"}}`
+			if err := Validate([]byte(proposeManifest(block))); err == nil {
+				t.Errorf("a pakke can propose sandbox.%s", key)
+			}
+		})
+	}
+}
+
+// A host the manifest accepts has to be one DNS can resolve: the whole name is
+// capped at 253 and each label at 63 (#861 review).
+func TestPrivateDomainLabelsAreBounded(t *testing.T) {
+	long := strings.Repeat("a", 64) + ".nav.no"
+	if err := Validate([]byte(proposeManifest(`{"reason": "ok", "proxy": {"allow_private_domains": ["` + long + `"]}}`))); err == nil {
+		t.Error("a 64-character label validated, and DNS cannot resolve it")
+	}
+	ok := strings.Repeat("a", 63) + ".nav.no"
+	if err := Validate([]byte(proposeManifest(`{"reason": "ok", "proxy": {"allow_private_domains": ["` + ok + `"]}}`))); err != nil {
+		t.Errorf("a 63-character label was refused: %v", err)
+	}
+}
+
+// The canonical block is what the hash is taken over, so a consent record can
+// keep it and a later question can diff against it field by field.
+func TestCanonicalJSONBacksTheHash(t *testing.T) {
+	a := mustParseProposal(t, `{"reason": "x", "proxy": {"allow_private_domains": ["b.nav.no", "a.nav.no"]}}`)
+	b := mustParseProposal(t, `{"proxy": {"allow_private_domains": ["a.nav.no", "b.nav.no"]}, "reason": "x"}`)
+	if a.CanonicalJSON() != b.CanonicalJSON() {
+		t.Errorf("canonical forms differ:\n %s\n %s", a.CanonicalJSON(), b.CanonicalJSON())
+	}
+	if a.CanonicalJSON() == "" || a.Hash() == "" {
+		t.Error("a parsed proposal has no canonical form")
+	}
+	var none *CpltProposal
+	if none.CanonicalJSON() != "" {
+		t.Error("a nil proposal has a canonical form")
+	}
+}

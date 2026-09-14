@@ -107,18 +107,36 @@ func (m *Manifest) CpltProposal() *CpltProposal {
 // previous approval (invariant 2), which is what keeps "inert" from meaning
 // "invisible".
 func (p *CpltProposal) Hash() string {
+	block := p.CanonicalJSON()
+	if block == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(block))
+	return hex.EncodeToString(sum[:])
+}
+
+// CanonicalJSON is the block in the exact form [CpltProposal.Hash] hashes.
+//
+// A consent record keeps it, so the question a changed revision asks can show
+// which field moved rather than only which hosts did. The hash covers the whole
+// block on purpose (invariant 2), so the thing that voided the approval can be
+// a reason or a key nav-pilot does not implement — and a diff that can only
+// compare hosts then has nothing to show for exactly the cases the user most
+// needs to see (#861 review).
+//
+// "" when there is no proposal, or when the block will not re-marshal, which
+// cannot happen for a block that came out of json.Unmarshal. Both make the
+// hash empty too, so a proposal nav-pilot cannot canonicalise is one no record
+// can match: the fail-closed direction.
+func (p *CpltProposal) CanonicalJSON() string {
 	if p == nil {
 		return ""
 	}
 	data, err := json.Marshal(canonicalJSON(p.raw))
 	if err != nil {
-		// Unreachable: raw came out of json.Unmarshal, so it re-marshals.
-		// Returning "" here would make every proposal look unapproved, which is
-		// the fail-closed direction.
 		return ""
 	}
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:])
+	return string(data)
 }
 
 // canonicalJSON sorts every array and leaves objects to encoding/json, which

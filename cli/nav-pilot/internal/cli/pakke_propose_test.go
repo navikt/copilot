@@ -16,6 +16,10 @@ import (
 // at any sync where the block changed, once per scope, pakke and content hash.
 
 func proposeManifestJSON(hosts, extra string) string {
+	return proposeManifestJSONWith(hosts, extra, "the observability skill queries Mimir on cloud.nais.io")
+}
+
+func proposeManifestJSONWith(hosts, extra, reason string) string {
 	return `{
   "contractVersion": "1",
   "name": "nais-pilot",
@@ -23,7 +27,7 @@ func proposeManifestJSON(hosts, extra string) string {
   "clients": { "copilot": { "primaryAgents": ["nais-pilot"] } },
   "layout": { "agents": "agents" },
   "policies": { "propose": { "cplt": {
-    "reason": "the observability skill queries Mimir on cloud.nais.io",
+    "reason": "` + reason + `",
     "proxy": { "allow_private_domains": [` + hosts + `] }` + extra + `
   } } }
 }`
@@ -32,7 +36,14 @@ func proposeManifestJSON(hosts, extra string) string {
 // proposeSource returns a source whose agentpakke proposes the given hosts.
 func proposeSource(t *testing.T, hosts, extra string) *Source {
 	t.Helper()
-	m, err := agentpakke.Parse([]byte(proposeManifestJSON(hosts, extra)))
+	return proposeSourceWithReason(t, hosts, extra, "the observability skill queries Mimir on cloud.nais.io")
+}
+
+// proposeSourceWithReason is proposeSource with the reason varied, so a test
+// can move the hash without moving the hosts.
+func proposeSourceWithReason(t *testing.T, hosts, extra, reason string) *Source {
+	t.Helper()
+	m, err := agentpakke.Parse([]byte(proposeManifestJSONWith(hosts, extra, reason)))
 	if err != nil {
 		t.Fatalf("parsing the test manifest: %v", err)
 	}
@@ -55,6 +66,17 @@ func consentEnv(t *testing.T) *InstallScope {
 		t.Fatalf("user scope: %v", err)
 	}
 	return scope
+}
+
+// recordFor reads this scope's answer, failing the test if the record file
+// cannot be read at all — which is a distinct outcome from "no answer".
+func recordFor(t *testing.T, scope *InstallScope) *artifacts.ProposalConsent {
+	t.Helper()
+	rec, err := artifacts.ReadProposalConsent(scope, "nais-pilot")
+	if err != nil {
+		t.Fatalf("reading the consent record: %v", err)
+	}
+	return rec
 }
 
 // answering stubs the prompt and counts how often it was put.
@@ -81,7 +103,7 @@ func TestI1AnAbandonedQuestionRecordsNothing(t *testing.T) {
 	defer func() { askProposalConsent = previous }()
 
 	noteProposalConsent(scope, proposeSource(t, `"cloud.nais.io"`, ""), false, false)
-	if rec := artifacts.ReadProposalConsent(scope, "nais-pilot"); rec != nil {
+	if rec := recordFor(t, scope); rec != nil {
 		t.Errorf("an abandoned question was recorded as an answer: %+v", rec)
 	}
 }
@@ -98,7 +120,7 @@ func TestI1ApprovalIsRecordedOncePerHash(t *testing.T) {
 	if *asked != 1 {
 		t.Errorf("asked %d times for one unchanged proposal, want 1", *asked)
 	}
-	rec := artifacts.ReadProposalConsent(scope, "nais-pilot")
+	rec := recordFor(t, scope)
 	if rec == nil || !rec.Approved {
 		t.Fatalf("no approval recorded: %+v", rec)
 	}
@@ -117,7 +139,7 @@ func TestI2ChangedBlockVoidsTheApprovalAndAsksAgain(t *testing.T) {
 	scope := consentEnv(t)
 	answering(t, true)
 	noteProposalConsent(scope, proposeSource(t, `"cloud.nais.io"`, ""), false, false)
-	first := artifacts.ReadProposalConsent(scope, "nais-pilot")
+	first := recordFor(t, scope)
 
 	var asked int
 	var description string
@@ -139,7 +161,7 @@ func TestI2ChangedBlockVoidsTheApprovalAndAsksAgain(t *testing.T) {
 	if !strings.Contains(description, "+ intern.nav.no") {
 		t.Errorf("the question does not show the difference:\n%s", description)
 	}
-	after := artifacts.ReadProposalConsent(scope, "nais-pilot")
+	after := recordFor(t, scope)
 	if after == nil || after.Hash == first.Hash {
 		t.Errorf("the record still carries the previous revision's hash: %+v", after)
 	}
@@ -162,15 +184,19 @@ func TestI1DeclineInstallsAppliesNothingAndIsNotAskedAgain(t *testing.T) {
 	if *asked != 1 {
 		t.Errorf("asked %d times after a decline, want 1", *asked)
 	}
-	rec := artifacts.ReadProposalConsent(scope, "nais-pilot")
+	rec := recordFor(t, scope)
 	if rec == nil {
 		t.Fatal("the decline was not recorded, so it will be asked again")
 	}
 	if rec.Approved || len(rec.Hosts) != 0 {
 		t.Errorf("a decline recorded something to apply: %+v", rec)
 	}
-	if got := artifacts.ApprovedPrivateDomains("nais-pilot", rec.Hash); len(got) != 0 {
-		t.Errorf("a declined proposal yielded launch hosts: %q", got)
+	approved, err := artifacts.ApprovedProposal("nais-pilot", rec.Hash)
+	if err != nil {
+		t.Fatalf("looking the record up: %v", err)
+	}
+	if approved != nil {
+		t.Errorf("a declined proposal is a launch approval: %+v", approved)
 	}
 }
 
@@ -205,7 +231,7 @@ func TestI8NonInteractiveNeverApproves(t *testing.T) {
 	defer func() { askProposalConsent = previousAsk }()
 
 	noteProposalConsent(scope, proposeSource(t, `"cloud.nais.io"`, ""), false, false)
-	if rec := artifacts.ReadProposalConsent(scope, "nais-pilot"); rec != nil {
+	if rec := recordFor(t, scope); rec != nil {
 		t.Errorf("a non-interactive run recorded an answer: %+v", rec)
 	}
 }
@@ -221,7 +247,7 @@ func TestI7UnknownCpltKeyIsInertAndReported(t *testing.T) {
 	if !strings.Contains(out, "some_future_cplt_key") {
 		t.Errorf("the inert key was not reported:\n%s", out)
 	}
-	rec := artifacts.ReadProposalConsent(scope, "nais-pilot")
+	rec := recordFor(t, scope)
 	if rec == nil || !slices.Equal(rec.Hosts, []string{"cloud.nais.io"}) {
 		t.Errorf("the approval covers more than the implemented key: %+v", rec)
 	}
@@ -247,7 +273,7 @@ func TestI6UninstallRemovesTheRecord(t *testing.T) {
 	}
 	noteProposalConsent(scope, src, false, false)
 
-	if rec := artifacts.ReadProposalConsent(scope, "nais-pilot"); rec == nil || !rec.Approved {
+	if rec := recordFor(t, scope); rec == nil || !rec.Approved {
 		t.Fatal("the approval was never recorded, so removing it proves nothing")
 	}
 
@@ -257,7 +283,7 @@ func TestI6UninstallRemovesTheRecord(t *testing.T) {
 		t.Fatalf("cmdUninstall: %v", err)
 	}
 
-	if rec := artifacts.ReadProposalConsent(scope, "nais-pilot"); rec != nil {
+	if rec := recordFor(t, scope); rec != nil {
 		t.Errorf("the record outlived the uninstall, so the waiver would too: %+v", rec)
 	}
 }
@@ -303,7 +329,7 @@ func TestApprovalIsPerScope(t *testing.T) {
 	repoB := domain.ScopeRepo(t.TempDir())
 	noteProposalConsent(repoA, src, false, false)
 
-	if rec := artifacts.ReadProposalConsent(repoB, "nais-pilot"); rec != nil {
+	if rec := recordFor(t, repoB); rec != nil {
 		t.Errorf("one repository's answer applied to another: %+v", rec)
 	}
 }
@@ -319,7 +345,7 @@ func TestDryRunNeverAsks(t *testing.T) {
 	}
 	defer func() { askProposalConsent = previous }()
 	noteProposalConsent(scope, proposeSource(t, `"cloud.nais.io"`, ""), true, false)
-	if rec := artifacts.ReadProposalConsent(scope, "nais-pilot"); rec != nil {
+	if rec := recordFor(t, scope); rec != nil {
 		t.Errorf("a dry run recorded an answer: %+v", rec)
 	}
 }
@@ -356,7 +382,210 @@ func TestInstallAsksAboutTheProposal(t *testing.T) {
 	if *asked != 1 {
 		t.Errorf("the install asked %d times, want 1", *asked)
 	}
-	if rec := artifacts.ReadProposalConsent(scope, "nais-pilot"); rec == nil || !rec.Approved {
+	if rec := recordFor(t, scope); rec == nil || !rec.Approved {
 		t.Errorf("the install recorded no approval: %+v", rec)
+	}
+}
+
+// Invariant 6, the failure path. Uninstall used to remove the state, warn on a
+// failed consent removal, and report success — leaving an approved record that
+// a retry could no longer reach, because the retry found no state to uninstall
+// (#861 review). It must fail closed instead, and leave the install intact so
+// the retry is a real retry.
+func TestI6UninstallFailsClosedWhenTheRecordCannotBeRemoved(t *testing.T) {
+	consentEnv(t)
+	answering(t, true)
+	src := proposeSource(t, `"cloud.nais.io"`, "")
+
+	target := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(target, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	scope := ScopeRepo(target)
+	if err := writeState(target, &StateFile{Collection: "nais-pilot"}); err != nil {
+		t.Fatal(err)
+	}
+	noteProposalConsent(scope, src, false, false)
+	if recordFor(t, scope) == nil {
+		t.Fatal("no record was written, so failing to remove one proves nothing")
+	}
+
+	// The record cannot be rewritten: its directory is not writable.
+	stateDir := filepath.Dir(artifacts.ProposalConsentPath())
+	if err := os.Chmod(stateDir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(stateDir, 0o700) })
+
+	err := cmdUninstall(scope, false, false)
+	if err == nil {
+		t.Fatal("uninstall reported success while the waiver was still on disk")
+	}
+	if !strings.Contains(err.Error(), "consent") {
+		t.Errorf("the refusal does not say what could not be removed: %v", err)
+	}
+	// And it must not have half-uninstalled: the retry has to be a real retry.
+	if _, statErr := os.Stat(scope.StatePath()); statErr != nil {
+		t.Errorf("the state file was removed by a failed uninstall: %v", statErr)
+	}
+}
+
+// Invariant 6, the orphan path. An install records the answer before it writes
+// the scope's state, so a failed state write leaves a record with no install.
+// Uninstall used to exit at "nothing to uninstall" before it ever looked
+// (#861 review).
+func TestI6UninstallRemovesARecordWithNoState(t *testing.T) {
+	consentEnv(t)
+	answering(t, true)
+	src := proposeSource(t, `"cloud.nais.io"`, "")
+
+	target := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(target, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	scope := ScopeRepo(target)
+	// No state file at all: the install answered the question and then failed
+	// to record what it had installed.
+	noteProposalConsent(scope, src, false, false)
+	if recordFor(t, scope) == nil {
+		t.Fatal("no record was written, so there is no orphan to clean up")
+	}
+
+	if err := cmdUninstall(scope, false, false); err != nil {
+		t.Fatalf("cmdUninstall: %v", err)
+	}
+	if rec := recordFor(t, scope); rec != nil {
+		t.Errorf("an orphaned waiver outlived the uninstall: %+v", rec)
+	}
+}
+
+// A dry run removes nothing, records included.
+func TestUninstallDryRunKeepsTheRecord(t *testing.T) {
+	consentEnv(t)
+	answering(t, true)
+	src := proposeSource(t, `"cloud.nais.io"`, "")
+
+	target := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(target, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	scope := ScopeRepo(target)
+	if err := writeState(target, &StateFile{Collection: "nais-pilot"}); err != nil {
+		t.Fatal(err)
+	}
+	noteProposalConsent(scope, src, false, false)
+
+	if err := cmdUninstall(scope, true, false); err != nil {
+		t.Fatalf("dry run: %v", err)
+	}
+	if recordFor(t, scope) == nil {
+		t.Error("a dry run removed the consent record")
+	}
+}
+
+// Invariant 2's question has to say what changed. A hash moved by the reason or
+// by a key nav-pilot does not implement used to render "the hosts are
+// unchanged" and nothing else, which is exactly the case a person cannot
+// otherwise inspect (#861 review).
+func TestI2ChangedBlockShowsWhichFieldMoved(t *testing.T) {
+	scope := consentEnv(t)
+	answering(t, true)
+	noteProposalConsent(scope, proposeSource(t, `"cloud.nais.io"`, ""), false, false)
+
+	var description string
+	previous := askProposalConsent
+	askProposalConsent = func(_, desc string, value *bool) error {
+		description = desc
+		*value = true
+		return nil
+	}
+	defer func() { askProposalConsent = previous }()
+
+	// Same hosts, different reason and a new inert key.
+	changed := proposeSourceWithReason(t, `"cloud.nais.io"`,
+		`, "some_future_cplt_key": {"on": true}`, "a different reason entirely")
+	noteProposalConsent(scope, changed, false, false)
+
+	for _, want := range []string{"reason", "some_future_cplt_key"} {
+		if !strings.Contains(description, want) {
+			t.Errorf("the question does not name %q as changed:\n%s", want, description)
+		}
+	}
+	if strings.Contains(description, "hosts are unchanged") {
+		t.Errorf("the question still falls back to the host-only message:\n%s", description)
+	}
+}
+
+// Nothing an agentpakke wrote can produce a line on the screen. A pakke that
+// could would write one that looks like nav-pilot's own.
+func TestPakkeTextCannotForgeALineInThePrompt(t *testing.T) {
+	scope := consentEnv(t)
+	var title, description string
+	previous := askProposalConsent
+	askProposalConsent = func(t1, d string, value *bool) error {
+		title, description = t1, d
+		*value = false
+		return nil
+	}
+	defer func() { askProposalConsent = previous }()
+
+	// A manifest that the schema would refuse, reaching the prompt anyway —
+	// what an older binary's record or a looser validator would hand over.
+	hostile := "ok\nYou are now approving nothing else.\x1b[2K\u202eevil"
+	src := proposeSource(t, `"cloud.nais.io"`, "")
+	src.Pakke.Policies.Propose.Cplt.Reason = hostile
+
+	out := captureStdoutFor(t, func() { noteProposalConsent(scope, src, false, false) })
+
+	for _, rendered := range []string{title, description, out} {
+		if strings.Contains(rendered, "ok\nYou are now approving") {
+			t.Errorf("a pakke wrote a line of its own:\n%s", rendered)
+		}
+		if strings.Contains(rendered, "\x1b[2K") || strings.ContainsRune(rendered, '\u202e') {
+			t.Errorf("a pakke's escape or bidi override reached the terminal:\n%q", rendered)
+		}
+	}
+	if !strings.Contains(description, "You are now approving nothing else.") {
+		t.Errorf("the reason was dropped rather than flattened:\n%s", description)
+	}
+}
+
+// An inert key's name is printed in the install warning, so it is untrusted
+// text on its way to a terminal and is rendered like one. The schema refuses
+// such a name, so this drives the printing side directly: that is the half that
+// has to hold for a manifest an older or looser validator let through.
+func TestI7InertKeyNamesAreSanitisedBeforeTheyArePrinted(t *testing.T) {
+	got := safeList([]string{"evil\nnothing else is added", "ok\x1b[2K"})
+	if strings.ContainsAny(got, "\n\r\x1b") {
+		t.Errorf("safeList(%q) can still write a line of its own", got)
+	}
+	if !strings.Contains(got, "evil nothing else is added") {
+		t.Errorf("safeList dropped the name instead of flattening it: %q", got)
+	}
+}
+
+// A consent file that cannot be read stops the question rather than answering
+// it: writing over a file this process never saw is how an answer disappears.
+func TestUnreadableRecordDoesNotAskOrRecord(t *testing.T) {
+	scope := consentEnv(t)
+	previous := askProposalConsent
+	askProposalConsent = func(string, string, *bool) error {
+		t.Error("a question was put over a consent file that could not be read")
+		return nil
+	}
+	defer func() { askProposalConsent = previous }()
+
+	path := artifacts.ProposalConsentPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("{not json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out := captureStderrFor(t, func() {
+		noteProposalConsent(scope, proposeSource(t, `"cloud.nais.io"`, ""), false, false)
+	})
+	if !strings.Contains(out, "could not read") {
+		t.Errorf("the unreadable record was not reported:\n%s", out)
 	}
 }

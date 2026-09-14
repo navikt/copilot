@@ -22,21 +22,28 @@
       "minLength": 1
     },
     "privateDomain": {
-      "description": "One DNS name whose lookup resolves to a private address, named in full and one at a time. No scheme, no port, no path, no wildcard.",
+      "description": "One DNS name whose lookup resolves to a private address, named in full and one at a time. No scheme, no port, no path, no wildcard. Each label is bounded at 63 characters and the whole name at 253, so a string the manifest accepts is one DNS can actually resolve.",
       "type": "string",
       "maxLength": 253,
-      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
+      "pattern": "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$"
     },
     "cpltProposalReason": {
-      "description": "Why this agentpakke needs the waiver, in one or two sentences. Shown verbatim in the consent prompt, so it is the only thing the person deciding has to go on.",
+      "description": "Why this agentpakke needs the waiver, in one or two sentences. It is rendered into the consent prompt, so it is the only thing the person deciding has to go on — and for the same reason it is bounded and may not carry control characters, escape sequences, line breaks or bidi overrides, which would let a pakke forge lines that look like nav-pilot's own. Ordinary prose is unaffected; nav-pilot collapses whitespace and refuses the rest at the point of printing as well.",
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 400,
+      "pattern": "^[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}]+$"
     },
     "cpltProposal": {
       "description": "Sandbox configuration proposed in cplt's own vocabulary. v1 defines exactly one proposable setting, proxy.allow_private_domains: a DNS-rebinding waiver naming hosts one at a time. It is not a permission — the allowlist and the blocklist still apply, no port is opened, no path is granted, nothing is executed. Everything a repo must never propose (preset, allow.exec, repo_dirs, inherit_env, allowed_domains, blocked_domains, proxy.forced, the guards) is refused here rather than ignored. Other keys are tolerated for forward compatibility, but nav-pilot reports them as inert and never honours them.",
       "type": "object",
       "required": ["reason"],
       "additionalProperties": true,
+      "propertyNames": {
+        "description": "A cplt configuration key: lowercase, snake_case, bounded. Unknown keys stay legal for forward compatibility, but nav-pilot names them in the install warning, so a key name is untrusted text on its way to a terminal and is constrained like one.",
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_.]{0,63}$"
+      },
       "properties": {
         "reason": { "$ref": "#/$defs/cpltProposalReason" },
         "proxy": {
@@ -52,14 +59,22 @@
             }
           }
         },
-        "preset": false,
+        "sandbox": {
+          "description": "No sandbox key is proposable in v1. The section is named rather than left to additionalProperties so preset, repo_dirs, inherit_env, allow_cache_exec, use_bubblewrap and agents_md are all refused by one rule. cplt does let a repo propose sandbox.pass_env; adding it here is a deliberate one-line change on the day nav-pilot implements it.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {}
+        },
         "allow": false,
         "deny": false,
+        "gh_guard": false,
+        "git_guard": false,
+        "guards": false,
+        "preset": false,
         "repo_dirs": false,
         "inherit_env": false,
         "allowed_domains": false,
-        "blocked_domains": false,
-        "guards": false
+        "blocked_domains": false
       }
     }
   },

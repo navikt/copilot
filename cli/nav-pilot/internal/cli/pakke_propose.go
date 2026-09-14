@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -11,6 +13,8 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 // The consent half of #858 step 2: an agentpakke proposes sandbox
@@ -26,6 +30,32 @@ import (
 // and losing the whole install over one waiver would be a worse answer than the
 // one the user gave. What they get instead is the workflow that will fail and
 // the one line that fixes it by hand.
+//
+// # Everything a pakke wrote is untrusted text
+//
+// The prompt shows the pakke's own `reason` and the names of keys nav-pilot
+// does not implement. A pakke that can put a newline in either can write a line
+// that looks like nav-pilot's own — "nothing else in the sandbox changes" — and
+// an escape sequence can erase the lines above it (#861 review). Two rules,
+// both of them rather than either:
+//
+//   - the manifest schema bounds the length and refuses control, format and
+//     line separators, which is where an agentpakke author is told;
+//   - [domain.SafeText] collapses every whitespace run to a space and replaces
+//     control runes at the point of printing, which is what holds for a record
+//     written by an older binary or a manifest validated under a looser rule.
+//
+// So a pakke cannot produce a line break on the screen at all: the prompt owns
+// every one of them.
+
+const (
+	// proposalReasonWidth bounds a pakke's reason on screen. The schema already
+	// caps it at 400; this is the second bound, applied where it is printed.
+	proposalReasonWidth = 400
+	// proposalValueWidth bounds one rendered value in the change list, so a
+	// large inert key cannot push the hosts out of view.
+	proposalValueWidth = 120
+)
 
 // cpltPrivateDomainCommand is the command a user runs to configure the waiver
 // in cplt themselves, for when they decline or have no terminal to be asked in.
@@ -61,14 +91,15 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 	if proposal == nil {
 		return
 	}
-	name := src.Pakke.Name
+	name := safe(src.Pakke.Name, 64)
 
 	// Invariant 7, the reporting half: a key this binary does not implement is
 	// named out loud, so "ignored" never means "unnoticed". Printed before the
-	// question, and printed even when there is no question to ask.
+	// question, and printed even when there is no question to ask. The names
+	// are the pakke's, so they are sanitised like its prose.
 	if inert := proposal.InertKeys(); len(inert) > 0 && !jsonOutput {
 		fmt.Fprintf(os.Stderr, "%s agentpakke %s proposes cplt settings this nav-pilot does not implement: %s. They are ignored.\n",
-			yellow("⚠"), bold(name), strings.Join(inert, ", "))
+			yellow("⚠"), bold(name), safeList(inert))
 	}
 
 	hosts := proposal.AllowPrivateDomains()
@@ -77,7 +108,14 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 	}
 
 	hash := proposal.Hash()
-	prior := artifacts.ReadProposalConsent(scope, name)
+	prior, err := artifacts.ReadProposalConsent(scope, src.Pakke.Name)
+	if err != nil {
+		// Unreadable is not "no answer". Asking again over a file this process
+		// cannot read would write an answer on top of one it never saw.
+		fmt.Fprintf(os.Stderr, "%s agentpakke %s: could not read the sandbox consent record, so nothing was asked or recorded: %v\n",
+			yellow("⚠"), bold(name), err)
+		return
+	}
 	if prior != nil && prior.Hash == hash {
 		// Answered already, for exactly this block. An approval needs no
 		// second look, and a decline must not be asked again — that is what
@@ -102,12 +140,16 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 	}
 
 	record := artifacts.ProposalConsent{
-		Scope:    scope.Name,
-		Root:     scope.RootDir,
-		Pakke:    name,
-		Hash:     hash,
-		Approved: approve,
-		At:       time.Now(),
+		Scope: scope.Name,
+		Root:  scope.RootDir,
+		Pakke: src.Pakke.Name,
+		Hash:  hash,
+		Block: proposal.CanonicalJSON(),
+		// The cplt in force right now, so a launch can tell whether the answer
+		// was given while the record was protected (#861 review).
+		CpltStamp: providerpkg.CpltStamp(),
+		Approved:  approve,
+		At:        time.Now(),
 	}
 	if approve {
 		record.Hosts = hosts
@@ -116,12 +158,18 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 		fmt.Fprintf(os.Stderr, "%s Could not record the answer for %s: %v — you will be asked again.\n", yellow("⚠"), name, err)
 		return
 	}
-	if approve {
-		fmt.Printf("%s %s may reach %s from inside the sandbox.\n", green("✓"), bold(name), strings.Join(hosts, ", "))
+	if !approve {
+		fmt.Printf("%s %s is installed without the waiver, so this will fail: %s\n  Allow it yourself:  %s\n",
+			yellow("⚠"), bold(name), safe(proposal.Reason, proposalReasonWidth), bold(cpltPrivateDomainCommand(hosts)))
 		return
 	}
-	fmt.Printf("%s %s is installed without the waiver, so this will fail: %s\n  Allow it yourself:  %s\n",
-		yellow("⚠"), bold(name), proposal.Reason, bold(cpltPrivateDomainCommand(hosts)))
+	fmt.Printf("%s %s may reach %s from inside the sandbox.\n", green("✓"), bold(name), strings.Join(hosts, ", "))
+	if !providerpkg.CpltProtectsNavPilotState() {
+		// Recorded, and deliberately not usable yet. Saying so here is the
+		// difference between a waiver that has not taken effect and one that
+		// looks like it was never given.
+		fmt.Printf("  %s\n", dim("It takes effect once cplt is new enough to deny writes to ~/.nav-pilot/."))
+	}
 }
 
 // proposalTitle is the question. A revision the user has answered before says
@@ -139,9 +187,10 @@ func proposalTitle(name string, prior *artifacts.ProposalConsent) string {
 // moved since the answer it voids.
 func proposalDescription(proposal *agentpakke.CpltProposal, hosts []string, prior *artifacts.ProposalConsent) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s\n\n", proposal.Reason)
+	fmt.Fprintf(&b, "%s\n\n", safe(proposal.Reason, proposalReasonWidth))
 	if prior != nil {
-		for _, line := range proposalDiff(prior.Hosts, hosts) {
+		b.WriteString("Changed since you last answered:\n")
+		for _, line := range proposalChanges(prior.Block, proposal.CanonicalJSON()) {
 			fmt.Fprintf(&b, "%s\n", line)
 		}
 		b.WriteString("\n")
@@ -152,34 +201,167 @@ func proposalDescription(proposal *agentpakke.CpltProposal, hosts []string, prio
 	return b.String()
 }
 
-// proposalDiff lists what changed between the hosts an earlier answer covered
-// and the ones now asked for.
-func proposalDiff(before, after []string) []string {
-	var lines []string
-	for _, host := range after {
-		if !slices.Contains(before, host) {
-			lines = append(lines, "  + "+host)
+// proposalChanges lists what moved between the block an earlier answer covered
+// and the block now proposed.
+//
+// Field-level, not host-level. The hash covers the whole block, so the change
+// that voided the approval can be the reason or a key nav-pilot does not
+// implement — and a diff that could only compare hosts said "the hosts are
+// unchanged" and showed nothing for exactly those cases (#861 review). Hosts
+// still get their own +/- lines, because that is the list a person reads first.
+func proposalChanges(before, now string) []string {
+	prev, prevOK := decodeBlock(before)
+	next, nextOK := decodeBlock(now)
+	if !prevOK || !nextOK {
+		// A record from a binary that did not keep the block, or one that will
+		// not decode. Saying so beats rendering a difference against nothing.
+		return []string{
+			"  (the proposal you answered before was not kept, so this is the whole of the new one)",
+			"  " + safe(now, proposalValueWidth),
 		}
 	}
-	for _, host := range before {
-		if !slices.Contains(after, host) {
-			lines = append(lines, "  - "+host)
+
+	seen := map[string]bool{}
+	var ordered []string
+	for _, block := range []map[string]any{prev, next} {
+		for key := range block {
+			if !seen[key] {
+				seen[key] = true
+				ordered = append(ordered, key)
+			}
 		}
+	}
+	sort.Strings(ordered)
+
+	var lines []string
+	for _, key := range ordered {
+		was, is := render(prev[key]), render(next[key])
+		if was == is {
+			continue
+		}
+		if key == "proxy" {
+			lines = append(lines, hostChanges(prev[key], next[key])...)
+			continue
+		}
+		lines = append(lines, changeLine(key, was, is))
 	}
 	if len(lines) == 0 {
-		// The hosts are the same, so something else in the block moved — a key
-		// nav-pilot does not implement, or the reason. The hash changed, so the
-		// old answer is void either way, and saying "nothing changed" would be
-		// the one thing that is not true.
-		lines = append(lines, "  (the hosts are unchanged; something else in the proposal moved)")
+		// Unreachable while the hash is taken over this very JSON: different
+		// hashes mean different bytes mean at least one key differs. Kept so
+		// that if that ever stops holding, the prompt says nothing false.
+		lines = append(lines, "  (the proposal changed in a way nav-pilot cannot render)")
 	}
 	return lines
 }
 
-// forgetProposalConsent drops a scope's answer when the pakke leaves it, so no
-// waiver from that pakke outlives the install (invariant 6).
-func forgetProposalConsent(scope *InstallScope, pakke string) {
-	if err := artifacts.RemoveProposalConsent(scope, pakke); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Could not remove the sandbox consent record for %s: %v\n", yellow("⚠"), pakke, err)
+// changeLine renders one field that moved, in whichever of the three shapes is
+// true: added, removed, or replaced.
+func changeLine(key, was, now string) string {
+	key = safe(key, 64)
+	switch {
+	case was == "":
+		return fmt.Sprintf("  + %s: %s", key, safe(now, proposalValueWidth))
+	case now == "":
+		return fmt.Sprintf("  - %s: %s", key, safe(was, proposalValueWidth))
+	default:
+		return fmt.Sprintf("  ~ %s: %s → %s", key, safe(was, proposalValueWidth), safe(now, proposalValueWidth))
 	}
+}
+
+// hostChanges renders the proxy section as the +/- host list a person reads,
+// and falls back to a whole-value line for anything else that moved under it.
+func hostChanges(before, now any) []string {
+	was, wasOK := blockHosts(before)
+	is, isOK := blockHosts(now)
+	if !wasOK || !isOK {
+		return []string{changeLine("proxy", render(before), render(now))}
+	}
+	var lines []string
+	for _, host := range is {
+		if !slices.Contains(was, host) {
+			lines = append(lines, "  + "+safe(host, 253))
+		}
+	}
+	for _, host := range was {
+		if !slices.Contains(is, host) {
+			lines = append(lines, "  - "+safe(host, 253))
+		}
+	}
+	if len(lines) == 0 {
+		return []string{changeLine("proxy", render(before), render(now))}
+	}
+	return lines
+}
+
+// blockHosts pulls proxy.allow_private_domains out of a decoded block.
+func blockHosts(section any) ([]string, bool) {
+	if section == nil {
+		return nil, true
+	}
+	obj, ok := section.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	raw, ok := obj["allow_private_domains"].([]any)
+	if !ok {
+		return nil, len(obj) == 0
+	}
+	hosts := make([]string, 0, len(raw))
+	for _, item := range raw {
+		host, ok := item.(string)
+		if !ok {
+			return nil, false
+		}
+		hosts = append(hosts, host)
+	}
+	return hosts, true
+}
+
+func decodeBlock(block string) (map[string]any, bool) {
+	if block == "" {
+		return nil, false
+	}
+	var out map[string]any
+	if json.Unmarshal([]byte(block), &out) != nil {
+		return nil, false
+	}
+	return out, true
+}
+
+// render is one field's value as compact JSON, "" when the field is absent.
+func render(value any) string {
+	if value == nil {
+		return ""
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return "?"
+	}
+	return string(data)
+}
+
+// safe renders text an agentpakke wrote for this terminal. Every pakke-supplied
+// string on this file's output paths goes through it — see the file comment
+// above for why the schema check is not enough on its own.
+func safe(s string, max int) string { return domain.SafeText(s, max) }
+
+// safeList renders a list of pakke-supplied names.
+func safeList(items []string) string {
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		out = append(out, safe(item, 64))
+	}
+	return strings.Join(out, ", ")
+}
+
+// forgetProposalConsent drops every answer a scope holds, so no waiver from
+// anything installed there outlives the uninstall (invariant 6).
+//
+// It returns its error, and [cmdUninstall] calls it before it removes anything
+// else and fails on it. Printing a warning and reporting success was the hole:
+// a rename that failed left an approved record behind, the retry found no state
+// left to uninstall, and a later reinstall of the same revision picked the old
+// approval straight back up (#861 review).
+func forgetProposalConsent(scope *InstallScope) (int, error) {
+	return artifacts.RemoveProposalConsentsIn(scope)
 }

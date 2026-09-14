@@ -3,6 +3,7 @@ package provider
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
@@ -68,31 +69,107 @@ func defaultCpltProposalFlags() []string {
 	if proposal == nil {
 		return nil
 	}
-	hosts := artifacts.ApprovedPrivateDomains(pakke.Name, proposal.Hash())
-	if len(hosts) == 0 {
+	name := domain.SafeText(pakke.Name, 64)
+	record, err := artifacts.ApprovedProposal(pakke.Name, proposal.Hash())
+	if err != nil {
+		// Unreadable is not approved. Said out loud rather than swallowed: the
+		// user's answer is in that file, and silently launching without it is
+		// how a waiver looks like it was never given.
+		fmt.Fprintf(os.Stderr, "%s %s: no private-domain waiver is applied — %v\n", domain.Yellow("⚠"), name, err)
 		return nil
 	}
-	if !cpltProtectsNavPilotState() {
-		fmt.Fprintf(os.Stderr, "%s %s: the approved private-domain waiver is not applied — this cplt does not write-protect nav-pilot's state directory, so the approval cannot be trusted.\n",
-			domain.Yellow("⚠"), pakke.Name)
+	if record == nil || len(record.Hosts) == 0 {
 		return nil
 	}
+	if reason := untrustworthyRecord(record); reason != "" {
+		fmt.Fprintf(os.Stderr, "%s %s: the approved private-domain waiver is not applied — %s.\n",
+			domain.Yellow("⚠"), name, reason)
+		return nil
+	}
+	hosts := record.Hosts
 	// Invariant 5: what a launch carries is said out loud at launch.
 	fmt.Fprintf(os.Stderr, "%s %s: cplt may resolve %s to private addresses, approved for this scope.\n",
-		domain.Dim("ℹ"), pakke.Name, strings.Join(hosts, ", "))
+		domain.Dim("ℹ"), name, strings.Join(hosts, ", "))
 	return privateDomainFlags(hosts)
 }
 
+// untrustworthyRecord names the reason an approval must not be acted on, or ""
+// when there is none. Three questions, all of which have to answer yes:
+//
+//  1. Does the cplt running now deny ~/.nav-pilot/? Without it, a user's own
+//     allow.write = ["~"] reopens the record for the session about to start.
+//  2. Did the cplt running when the answer was recorded deny it? Upgrading cplt
+//     afterwards does not make an answer written by an agent trustworthy, and
+//     the launch-time check alone cannot see that far back (#861 review).
+//  3. Is the record actually inside the tree cplt denies? NAV_PILOT_CONFIG
+//     relocates nav-pilot's state directory, which is supported and which moves
+//     the record outside the deny rule while the version check still says yes
+//     (#861 review).
+func untrustworthyRecord(record *artifacts.ProposalConsent) string {
+	if !cpltProtectsNavPilotState() {
+		return "this cplt does not deny writes to nav-pilot's state directory, so the approval cannot be trusted"
+	}
+	if record.CpltStamp < minCpltStampProtectingNavPilotState {
+		return fmt.Sprintf(
+			"it was recorded under cplt %s, before %s denied writes to nav-pilot's state directory. Run the install or sync again to answer once more",
+			recordedCpltLabel(record), minCpltStampProtectingNavPilotState)
+	}
+	if !consentRecordIsProtected() {
+		return fmt.Sprintf(
+			"the consent record is at %s, outside the ~/.nav-pilot/ tree cplt denies, so a session could write it",
+			artifacts.ProposalConsentPath())
+	}
+	return ""
+}
+
+// recordedCpltLabel names the cplt a record was made under, for the one line
+// that refuses it. An empty stamp means the probe could not read a version then.
+func recordedCpltLabel(record *artifacts.ProposalConsent) string {
+	if record.CpltStamp == "" {
+		return "a version nav-pilot could not read"
+	}
+	return domain.SafeText(record.CpltStamp, 32)
+}
+
+// consentRecordIsProtected reports whether the record actually sits inside the
+// directory cplt denies. cplt's rule names ~/.nav-pilot/, while
+// NAV_PILOT_CONFIG can put nav-pilot's state anywhere — a supported relocation
+// that would otherwise leave the record writable from a session with the
+// version gate still green (#861 review).
+func consentRecordIsProtected() bool {
+	path := artifacts.ProposalConsentPath()
+	home, err := os.UserHomeDir()
+	if path == "" || err != nil {
+		return false
+	}
+	return domain.PathWithinRoot(filepath.Join(home, ".nav-pilot"), path)
+}
+
+// CpltStamp is the installed cplt release stamp, or "" when there is no cplt or
+// its version cannot be read. It is what a consent record keeps so a later
+// launch can tell which cplt the answer was given under.
+func CpltStamp() string {
+	out, err := probeCpltVersion()
+	if err != nil {
+		return ""
+	}
+	return cpltStamp(out)
+}
+
+// CpltProtectsNavPilotState reports whether a consent recorded now would be
+// usable at launch: the installed cplt denies writes to nav-pilot's state
+// directory, and that directory is the one cplt's rule names. Exported so the
+// consent prompt can say up front that an answer will not take effect yet.
+func CpltProtectsNavPilotState() bool {
+	return cpltProtectsNavPilotState() && consentRecordIsProtected()
+}
+
 // cpltProtectsNavPilotState reports whether the installed cplt is at or past
-// the release that write-denies nav-pilot's state directory. A version that
+// the release that denies writes to nav-pilot's state directory. A version that
 // cannot be read is "no": this gate is the thing standing between an agent and
 // its own waiver, and one that goes green on "could not tell" is not a gate.
 func cpltProtectsNavPilotState() bool {
-	out, err := probeCpltVersion()
-	if err != nil {
-		return false
-	}
-	stamp := cpltStamp(out)
+	stamp := CpltStamp()
 	return stamp != "" && stamp >= minCpltStampProtectingNavPilotState
 }
 

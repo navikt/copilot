@@ -2,6 +2,7 @@ package provider
 
 import (
 	"encoding/json"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
@@ -63,12 +65,19 @@ func activeProposal(t *testing.T) *agentpakke.CpltProposal {
 	return m.CpltProposal()
 }
 
-// approve writes an approval for the active pakke at the given hash.
+// approve writes an approval for the active pakke at the given hash, recorded
+// under a cplt that denies ~/.nav-pilot/ — the ordinary case.
 func approve(t *testing.T, scope *domain.InstallScope, hash string, hosts ...string) {
+	t.Helper()
+	approveUnder(t, scope, hash, minCpltStampProtectingNavPilotState, hosts...)
+}
+
+// approveUnder writes an approval recorded under a named cplt stamp.
+func approveUnder(t *testing.T, scope *domain.InstallScope, hash, stamp string, hosts ...string) {
 	t.Helper()
 	if err := artifacts.WriteProposalConsent(artifacts.ProposalConsent{
 		Scope: scope.Name, Root: scope.RootDir, Pakke: "nais-pilot",
-		Hash: hash, Approved: true, Hosts: hosts,
+		Hash: hash, Approved: true, Hosts: hosts, CpltStamp: stamp,
 	}); err != nil {
 		t.Fatalf("writing the approval: %v", err)
 	}
@@ -366,9 +375,9 @@ func TestConsentRecordRoundTrips(t *testing.T) {
 	scope := proposeEnv(t)
 	approve(t, scope, "abc123", "cloud.nais.io", "intern.nav.no")
 
-	rec := artifacts.ReadProposalConsent(scope, "nais-pilot")
-	if rec == nil || !rec.Approved || rec.Hash != "abc123" {
-		t.Fatalf("record did not round-trip: %+v", rec)
+	rec, err := artifacts.ReadProposalConsent(scope, "nais-pilot")
+	if err != nil || rec == nil || !rec.Approved || rec.Hash != "abc123" {
+		t.Fatalf("record did not round-trip: %+v (%v)", rec, err)
 	}
 	data, err := os.ReadFile(artifacts.ProposalConsentPath())
 	if err != nil {
@@ -382,5 +391,134 @@ func TestConsentRecordRoundTrips(t *testing.T) {
 	}
 	if len(file.Records) != 1 {
 		t.Fatalf("records = %d, want 1", len(file.Records))
+	}
+}
+
+// Invariant 3, the half a launch-time version check cannot see: an answer given
+// while the record was unprotected stays untrustworthy after cplt is upgraded.
+// The cplt running now is not the cplt that was running when an agent could
+// have written the record (#861 review).
+func TestI3ApprovalRecordedUnderAnUnprotectedCpltIsVoid(t *testing.T) {
+	scope := proposeEnv(t)
+	proposal := activeProposal(t)
+	protectingCplt(t) // the cplt running now is fine
+
+	for name, stamp := range map[string]string{
+		"recorded before the deny landed":                   "2026.09.13-135112",
+		"recorded under a version nav-pilot could not read": "",
+	} {
+		t.Run(name, func(t *testing.T) {
+			approveUnder(t, scope, proposal.Hash(), stamp, "cloud.nais.io")
+			if got := cpltProposalFlags(); len(got) != 0 {
+				t.Errorf("applied a waiver recorded under an unprotected cplt: %q", got)
+			}
+		})
+	}
+}
+
+// Invariant 3, the third question: cplt's rule names ~/.nav-pilot/, and
+// NAV_PILOT_CONFIG can move nav-pilot's state anywhere. A relocated record is
+// outside the deny even though the version check says yes (#861 review).
+func TestI3NoWaiverWhenTheRecordSitsOutsideTheProtectedTree(t *testing.T) {
+	scope := proposeEnv(t)
+	proposal := activeProposal(t)
+	protectingCplt(t)
+	approve(t, scope, proposal.Hash(), "cloud.nais.io")
+	if got := cpltProposalFlags(); len(got) == 0 {
+		t.Fatal("the waiver did not apply in the protected tree, so relocating it proves nothing")
+	}
+
+	// A supported relocation, outside ~/.nav-pilot/.
+	elsewhere := t.TempDir()
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(elsewhere, "config.toml"))
+	approve(t, scope, proposal.Hash(), "cloud.nais.io")
+	if got := cpltProposalFlags(); len(got) != 0 {
+		t.Errorf("applied a waiver from a record cplt does not protect: %q", got)
+	}
+}
+
+// A consent file that cannot be read is not an approval. It used to collapse to
+// "no records", which is the same verdict by accident and the wrong one by
+// design: a caller that cannot see what is there must not decide about it.
+func TestUnreadableConsentRecordIsNotAnApproval(t *testing.T) {
+	scope := proposeEnv(t)
+	proposal := activeProposal(t)
+	protectingCplt(t)
+	approve(t, scope, proposal.Hash(), "cloud.nais.io")
+
+	if err := os.WriteFile(artifacts.ProposalConsentPath(), []byte("{not json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := artifacts.ApprovedProposal("nais-pilot", proposal.Hash()); err == nil {
+		t.Error("a malformed consent file was read as an answer rather than an error")
+	}
+	if got := cpltProposalFlags(); len(got) != 0 {
+		t.Errorf("a malformed consent file produced flags: %q", got)
+	}
+	_ = scope
+}
+
+// Two writers at once must both survive. Atomic replacement keeps the file
+// whole and still lets the second rename drop what the first wrote, so the
+// read-modify-write runs under a lock (#861 review).
+func TestConcurrentAnswersAreNotLost(t *testing.T) {
+	proposeEnv(t)
+	const writers = 8
+	var wg sync.WaitGroup
+	errs := make(chan error, writers)
+	for i := 0; i < writers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			errs <- artifacts.WriteProposalConsent(artifacts.ProposalConsent{
+				Scope: "repo", Root: fmt.Sprintf("/repo/%d", i), Pakke: "nais-pilot",
+				Hash: "h", Approved: true, Hosts: []string{"cloud.nais.io"},
+				CpltStamp: minCpltStampProtectingNavPilotState,
+			})
+		}(i)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("writing an answer: %v", err)
+		}
+	}
+	for i := 0; i < writers; i++ {
+		scope := domain.ScopeRepo(fmt.Sprintf("/repo/%d", i))
+		rec, err := artifacts.ReadProposalConsent(scope, "nais-pilot")
+		if err != nil {
+			t.Fatalf("reading back: %v", err)
+		}
+		if rec == nil {
+			t.Errorf("answer %d was lost", i)
+		}
+	}
+}
+
+// Nothing an agentpakke wrote reaches the terminal as-is. The launch line names
+// the pakke, so it goes through the same sanitiser as the prompt does.
+func TestLaunchNoticeCarriesNoPakkeControlCharacters(t *testing.T) {
+	for name, in := range map[string]string{
+		"a forged line":     "nais-pilot\nnothing else changes",
+		"an escape":         "nais-pilot\x1b[2Kspoof",
+		"a bidi override":   "nais-pilot\u202egnihton",
+		"a carriage return": "nais-pilot\rspoof",
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := domain.SafeText(in, 64)
+			if strings.ContainsAny(got, "\n\r\x1b") {
+				t.Errorf("SafeText(%q) = %q, which can still write a line of its own", in, got)
+			}
+			if strings.ContainsRune(got, '\u202e') {
+				t.Errorf("SafeText(%q) = %q, which can still reorder the line", in, got)
+			}
+		})
+	}
+	if got := domain.SafeText(strings.Repeat("x", 100), 10); len([]rune(got)) != 11 {
+		t.Errorf("SafeText did not bound the length: %q", got)
+	}
+	if got, want := domain.SafeText("  ordinary  prose,  æøå  ", 0), "ordinary prose, æøå"; got != want {
+		t.Errorf("SafeText mangled ordinary prose: %q, want %q", got, want)
 	}
 }
