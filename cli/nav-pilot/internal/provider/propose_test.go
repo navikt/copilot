@@ -159,8 +159,9 @@ func TestI2ChangedBlockVoidsTheApprovalAtLaunch(t *testing.T) {
 
 // Invariant 3: nav-pilot cannot enforce the record being unwritable from inside
 // a session — that is a cplt kernel deny — so it refuses to act on the record
-// at all until the cplt in front of it has one. A version it cannot read counts
-// as "does not have it".
+// at all until the cplt in front of it names ~/.nav-pilot/ and so cannot have
+// it reopened by a user's own allow.write. A version it cannot read counts as
+// "does not name it".
 func TestI3NoWaiverAppliedBelowStateProtectingCplt(t *testing.T) {
 	scope := proposeEnv(t)
 	proposal := activeProposal(t)

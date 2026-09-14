@@ -26,23 +26,30 @@ import (
 // [BuildCopilotArgs]. TestI5NoUnaccountedCpltLaunchPath fails if a third
 // appears.
 
-// minCpltStampProtectingNavPilotState is the cplt release that write-denies
-// nav-pilot's state directory from inside a sandbox session.
+// minCpltStampProtectingNavPilotState is the cplt release that denies
+// ~/.nav-pilot/ by name, so no user configuration can reopen it.
 //
 // Invariant 3 says the consent record must not be writable from a cplt session,
-// or an agent approves its own waiver for the next launch. cplt protects
-// ~/.config/cplt and names nothing under ~/.nav-pilot/, so today it does not
-// hold. That is a change in cplt, in flight as a separate piece of work, and
-// until a user's cplt has it an approved waiver could have been written by the
-// agent that benefits from it.
+// or an agent approves its own waiver for the next launch. The precise claim
+// matters here, because the weaker one is the true one: ~/.nav-pilot/ is not
+// writable in a *default* session today — macOS runs (deny default) and Linux
+// runs grant-only Landlock, so an unnamed path is already out of reach. What is
+// missing is that a user's own allow.write = ["~"] reopens it, and nothing
+// tells them it did.
+//
+// navikt/cplt#508 closes that by naming ~/.nav-pilot/ in DENIED_DOTFILES, the
+// same list that holds .config/cplt: denied read and write, after every user
+// allow. Grants *inside* it keep working on purpose — a staged Tier 2 launch
+// passes ~/.nav-pilot/pakker/<owner>-<repo>/<sha>/<client>/<context> as
+// --allow-read — and only a grant on the directory itself is refused.
 //
 // So the gate refuses rather than trusts: below this stamp no waiver is
 // applied, whatever the record says. The placeholder is a stamp no release can
 // meet, which is the fail-closed direction and means the mechanism applies
-// nothing at all until the cplt change ships.
+// nothing at all until that cplt release exists.
 //
-// TODO(#858): replace with the real cplt release stamp once the write-deny for
-// ~/.nav-pilot/ has shipped, and drop this paragraph.
+// TODO(#858): replace with the real cplt release stamp once navikt/cplt#508 has
+// shipped, and drop this paragraph.
 const minCpltStampProtectingNavPilotState = "9999.12.31-235959"
 
 // cpltProposalFlags returns the cplt flags this launch carries for the active

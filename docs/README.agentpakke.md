@@ -230,7 +230,11 @@ Oppføringene skrives ut ved launch, slik at det som faktisk gjelder for økta s
 
 ### Én ting gjenstår
 
-Samtykkeposten ligger under `~/.nav-pilot/`, og cplt verner i dag `~/.config/cplt/` uten å navngi noe under `~/.nav-pilot/`. Så lenge det er tilfellet, kan en post være skrevet av agenten som har nytte av den. nav-pilot løser det ikke selv — det ville vært en sjekk inne i det som skal beskyttes — men nekter å bruke posten: under cplt-releasen som write-denyer `~/.nav-pilot/`, anvendes ingen waiver, og launchen sier hvorfor på én linje. Vernet er en endring i cplt, med presedens: cplt nekter allerede all skriving til nav-pilots `hooks/`- og `extensions/`-kataloger.
+Samtykkeposten ligger under `~/.nav-pilot/`, og cplt navngir ingen sti der ennå. Den er ikke skrivbar i en *standard* økt — macOS kjører `(deny default)` og Linux kjører grant-only Landlock, så en sti ingen har navngitt er allerede utenfor rekkevidde — men brukerens egen `allow.write = ["~"]` åpner den igjen, uten at noe sier fra.
+
+[navikt/cplt#508](https://github.com/navikt/cplt/pull/508) lukker det ved å føre `~/.nav-pilot/` opp i `DENIED_DOTFILES`, samme liste som holder `.config/cplt`: nektet lesing og skriving, etter enhver `allow` brukeren har satt. Grants *inne i* katalogen virker fortsatt, med vilje — en staget Tier 2-launch sender `~/.nav-pilot/pakker/<eier>-<repo>/<sha>/<klient>/<kontekst>` som `--allow-read` — det er bare en grant på selve katalogen som avvises.
+
+nav-pilot løser ikke dette selv; en sjekk inne i det som skal beskyttes er ingen sjekk. Den nekter i stedet å bruke posten: under cplt-releasen som navngir `~/.nav-pilot/`, anvendes ingen waiver, og launchen sier hvorfor på én linje.
 
 ## Pensjonerte artefakter
 
