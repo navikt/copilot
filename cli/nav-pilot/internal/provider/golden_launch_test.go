@@ -270,17 +270,17 @@ func TestGoldenCopilotLaunchArgsNonInteractive(t *testing.T) {
 	resolved := domain.ResolvedConfig{AskUser: true}
 
 	interactive := []string{"--agent", "copilot", "--", "--agent", "nav-pilot"}
-	if got := copilotLaunchArgs("cplt", resolved, true); !slices.Equal(got, interactive) {
+	if got := copilotLaunchArgs("cplt", resolved, true, ""); !slices.Equal(got, interactive) {
 		t.Errorf("cplt with a terminal\n got: %q\nwant: %q", got, interactive)
 	}
 	want := append([]string{"--yes"}, interactive...)
-	if got := copilotLaunchArgs("cplt", resolved, false); !slices.Equal(got, want) {
+	if got := copilotLaunchArgs("cplt", resolved, false, ""); !slices.Equal(got, want) {
 		t.Errorf("cplt without a terminal\n got: %q\nwant: %q", got, want)
 	}
 
 	plain := []string{"--agent", "nav-pilot"}
 	for _, tty := range []bool{true, false} {
-		if got := copilotLaunchArgs("copilot", resolved, tty); !slices.Equal(got, plain) {
+		if got := copilotLaunchArgs("copilot", resolved, tty, ""); !slices.Equal(got, plain) {
 			t.Errorf("the plain copilot CLI must never be given cplt's --yes (tty=%v)\n got: %q\nwant: %q", tty, got, plain)
 		}
 	}

@@ -187,7 +187,13 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		fmt.Fprintf(os.Stderr, "%s nav-pilot ends a turn after %d identical tool calls in a row.\n\n",
 			domain.Dim("ℹ"), local.LoopGuardRepeat())
 	}
-	args := copilotLaunchArgs(cliName, resolved, IsTerminal(os.Stdin))
+	// The second seam. This path builds its own argument vector and runs its
+	// own exec.Command instead of going through cpltArgv/launchViaCplt, so
+	// NAV_PILOT_SKILLS_DIR has to be wired here separately or a Tier 1 copilot
+	// session is the one launch that does not get it (#858).
+	skillsDir := materializedSkillsDir(copilotSkillsRoot())
+	env = withSkillsDirEnv(env, skillsDir)
+	args := copilotLaunchArgs(cliName, resolved, IsTerminal(os.Stdin), skillsDir)
 	if cliName == "cplt" && guard != nil {
 		// The prompt path for a local session is a 127.0.0.1 hop to the guard,
 		// which cplt blocks by default. Name the port so it survives — and so
@@ -340,11 +346,21 @@ func copilotLocalEnv(env []string, m local.Model, guardURL string) []string {
 // longer die on.
 //
 // The plain copilot CLI never gets it: --yes is cplt's flag and copilot has no
-// confirmation to skip.
-func copilotLaunchArgs(cliName string, resolved domain.ResolvedConfig, tty bool) []string {
+// confirmation to skip. The same holds for --pass-env, which is why skillsDir
+// only changes the cplt vector — an unsandboxed copilot inherits the exported
+// variable directly.
+//
+// skillsDir is a parameter rather than a lookup so this stays pure: the golden
+// vectors are pinned by calling it, and a function that read the home directory
+// would make them depend on whether the machine running the test happens to
+// have skills installed.
+func copilotLaunchArgs(cliName string, resolved domain.ResolvedConfig, tty bool, skillsDir string) []string {
 	args := BuildCopilotArgs(cliName, resolved)
 	if cliName != "cplt" {
 		return args
+	}
+	if skillsDir != "" {
+		args = insertCpltPassEnv(args, SkillsDirEnv)
 	}
 	return withCpltConfirmation(args, tty)
 }
