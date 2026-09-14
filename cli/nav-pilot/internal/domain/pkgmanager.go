@@ -70,13 +70,33 @@ func PkgSelf() PkgManager {
 // not have yet. Nothing owns it, so there is no owner to ask and the platform
 // decides: apt where dpkg is in charge, Homebrew everywhere else — including a
 // Linux without dpkg, which is the advice it already got.
+//
+// The one owner worth asking first is nav-pilot's own: a machine that got
+// nav-pilot from the apt archive has the archive configured, and one that got
+// it from Homebrew has brew — on Linux too, where the platform rule alone would
+// send a Linuxbrew user to an archive they never added.
 func PkgForInstall() PkgManager {
-	if runtime.GOOS == "linux" {
-		if _, err := exec.LookPath("dpkg-query"); err == nil {
-			return PkgApt
-		}
+	if self := PkgSelf(); self != PkgNone {
+		return self
+	}
+	if runtime.GOOS == "linux" && dpkgQuery() != "" {
+		return PkgApt
 	}
 	return PkgBrew
+}
+
+// dpkgQuery locates dpkg-query: PATH first, so a test can plant one, then the
+// path dpkg itself installs to. Ownership must not hinge on PATH — a restricted
+// PATH without /usr/bin would otherwise read as "no dpkg", and the guard that
+// keeps self-update off a .deb binary would be the thing that switched off.
+func dpkgQuery() string {
+	if p, err := exec.LookPath("dpkg-query"); err == nil {
+		return p
+	}
+	if _, err := os.Stat("/usr/bin/dpkg-query"); err == nil {
+		return "/usr/bin/dpkg-query"
+	}
+	return ""
 }
 
 // pkgLookupTimeout bounds the dpkg lookup. A package check must never be what
@@ -95,7 +115,11 @@ func dpkgOwns(path string) bool {
 	if !strings.HasPrefix(path, "/usr/bin/") {
 		return false
 	}
+	query := dpkgQuery()
+	if query == "" {
+		return false
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), pkgLookupTimeout)
 	defer cancel()
-	return exec.CommandContext(ctx, "dpkg-query", "-S", path).Run() == nil
+	return exec.CommandContext(ctx, query, "-S", path).Run() == nil
 }

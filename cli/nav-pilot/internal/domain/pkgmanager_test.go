@@ -99,3 +99,19 @@ func TestPick(t *testing.T) {
 		}
 	}
 }
+
+// TestPkgForInstallFollowsNavPilotsOwner: a missing tool is installed the way
+// nav-pilot itself was, when that is known. The platform rule is the fallback,
+// not the first answer — a Linuxbrew nav-pilot has brew, not the apt archive.
+func TestPkgForInstallFollowsNavPilotsOwner(t *testing.T) {
+	for _, mgr := range []PkgManager{PkgBrew, PkgApt} {
+		t.Run(mgr.Name, func(t *testing.T) {
+			orig := PkgOwner
+			t.Cleanup(func() { PkgOwner = orig })
+			PkgOwner = func(string) PkgManager { return mgr }
+			if got := PkgForInstall(); got != mgr {
+				t.Errorf("PkgForInstall = %+v, want nav-pilot's own manager %+v", got, mgr)
+			}
+		})
+	}
+}
