@@ -20,6 +20,47 @@
       "description": "Repo-relative path. Absolute paths and parent traversal are rejected by nav-pilot's semantic validation.",
       "type": "string",
       "minLength": 1
+    },
+    "privateDomain": {
+      "description": "One DNS name whose lookup resolves to a private address, named in full and one at a time. No scheme, no port, no path, no wildcard.",
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
+    },
+    "cpltProposalReason": {
+      "description": "Why this agentpakke needs the waiver, in one or two sentences. Shown verbatim in the consent prompt, so it is the only thing the person deciding has to go on.",
+      "type": "string",
+      "minLength": 1
+    },
+    "cpltProposal": {
+      "description": "Sandbox configuration proposed in cplt's own vocabulary. v1 defines exactly one proposable setting, proxy.allow_private_domains: a DNS-rebinding waiver naming hosts one at a time. It is not a permission — the allowlist and the blocklist still apply, no port is opened, no path is granted, nothing is executed. Everything a repo must never propose (preset, allow.exec, repo_dirs, inherit_env, allowed_domains, blocked_domains, proxy.forced, the guards) is refused here rather than ignored. Other keys are tolerated for forward compatibility, but nav-pilot reports them as inert and never honours them.",
+      "type": "object",
+      "required": ["reason"],
+      "additionalProperties": true,
+      "properties": {
+        "reason": { "$ref": "#/$defs/cpltProposalReason" },
+        "proxy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "allow_private_domains": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/privateDomain" }
+            }
+          }
+        },
+        "preset": false,
+        "allow": false,
+        "deny": false,
+        "repo_dirs": false,
+        "inherit_env": false,
+        "allowed_domains": false,
+        "blocked_domains": false,
+        "guards": false
+      }
     }
   },
   "properties": {
@@ -145,11 +186,19 @@
       }
     },
     "policies": {
-      "description": "Optional pointers to policy artifacts materialized by nav-pilot for Tier 1 clients (E1).",
+      "description": "Optional pointers to policy artifacts materialized by nav-pilot for Tier 1 clients (E1), plus the sandbox configuration this agentpakke proposes to whoever installs it (propose).",
       "type": "object",
       "additionalProperties": true,
       "properties": {
-        "opencodePermissions": { "$ref": "#/$defs/relativePath" }
+        "opencodePermissions": { "$ref": "#/$defs/relativePath" },
+        "propose": {
+          "description": "Sandbox configuration this agentpakke asks the installing user to consent to, keyed by the tool it is expressed in and written in that tool's own vocabulary. A proposal configures nothing by itself: it becomes launch flags only after an interactive approval, and only for the scope that approved it. Tool keys this nav-pilot does not implement are ignored (A3/A4), so pi and opencode can be defined later without invalidating an existing manifest.",
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "cplt": { "$ref": "#/$defs/cpltProposal" }
+          }
+        }
       }
     },
     "profiles": {

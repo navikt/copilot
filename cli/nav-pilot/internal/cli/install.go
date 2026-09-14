@@ -544,6 +544,11 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		return err
 	}
 
+	// Past every refusal, so nothing is consented to for an install that then
+	// does not happen (#858). The Tier 2 route asks from installPakkePin, after
+	// its own guards.
+	noteProposalConsent(scope, src, dryRun, jsonOutput)
+
 	// A pakke that reuses another resolves it here, before its contents are
 	// collected: pakkeContents lists through the resolver, so the reused
 	// artifacts are part of the manifest without a second merge step.
@@ -1143,6 +1148,9 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		return err
 	}
 
+	// Same placement as cmdInstallFromSource: past every refusal (#858).
+	noteProposalConsent(scope, src, dryRun, jsonOutput)
+
 	if manifest == nil {
 		var err error
 		manifest, err = collectAllItemsWith(resolver)
@@ -1614,6 +1622,10 @@ func cmdUninstall(scope *InstallScope, dryRun, force bool) error {
 	if !dryRun {
 		os.Remove(scope.StatePath())
 		removeDeclarationFor(scope, state)
+		// No waiver from this pakke outlives its install (#858, invariant 6).
+		// The launch derives its flags from the record alone, so removing it is
+		// the whole of the removal — there is no cplt configuration to undo.
+		forgetProposalConsent(scope, state.Collection)
 		scope.CleanupDirs()
 	}
 

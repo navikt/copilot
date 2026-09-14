@@ -273,9 +273,14 @@ type ProvenanceOverlay struct {
 	Version   string `json:"version"`
 }
 
-// Policies points at optional policy artifacts.
+// Policies points at optional policy artifacts, and carries the sandbox
+// configuration this agentpakke proposes to whoever installs it.
 type Policies struct {
 	OpenCodePermissions string `json:"opencodePermissions,omitempty"`
+
+	// Propose is the consent-gated sandbox proposal (#858). See propose.go for
+	// what it is and, more to the point, what it is not.
+	Propose *Propose `json:"propose,omitempty"`
 }
 
 // Profiles points at optional launch profiles and names the default one.

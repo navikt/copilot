@@ -255,6 +255,16 @@ func hintFor(loc []string, msg string) string {
 		}
 	case "layout":
 		return "declare each content directory the pakke ships as a repo-relative path, e.g. {\"skills\": \"skills\"}"
+	case "policies":
+		// The one hint an author of a proposal needs, and the message the
+		// schema can give on its own is "false schema" — true, and useless.
+		if len(loc) >= 3 && loc[1] == "propose" && loc[2] == "cplt" {
+			if len(loc) == 3 {
+				return "a proposal must carry a reason; it is shown verbatim to the person asked to approve it"
+			}
+			return "a pakke may propose proxy.allow_private_domains and nothing else in v1: " +
+				"preset, allow, deny, repo_dirs, inherit_env, allowed_domains, blocked_domains, proxy.forced and the guards are never proposable"
+		}
 	case "minNavPilotVersion":
 		return "expected a nav-pilot release version, e.g. 2026.09.01-120000-a1b2c3d"
 	}

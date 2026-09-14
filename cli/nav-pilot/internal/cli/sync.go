@@ -207,6 +207,12 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 		noteDeclarationDisagreement(scope, src)
 	}
 
+	// A revision that changed what the pakke proposes voids the previous
+	// answer, so this is where a sync asks again (#858). Before the tier split
+	// below, so a Tier 2 pin is covered too. A sync that changes nothing about
+	// the block asks nothing: the record is keyed on its content hash.
+	noteProposalConsent(scope, src, !apply, jsonOutput)
+
 	// Scanned here, before any of the early returns below, and consulted by all
 	// of them. A scope whose only problem is a retired leftover has nothing in
 	// updates or deletions and may have no tracked files at all, so a scan
