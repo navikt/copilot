@@ -52,11 +52,11 @@ type cpltLaunch struct {
 
 // cpltArgv is the argument vector launchViaCplt passes to cplt:
 //
-//	[--no-audit] --agent <agent> [cpltArgs...] [--pass-env NAV_PILOT_SKILLS_DIR] -- [agentArgs...]
+//	[--no-audit] --agent <agent> [cpltArgs...] [--pass-env NAV_PILOT_SKILLS_DIR] [--allow-private-domain <host>...] -- [agentArgs...]
 //
-// Pure, so the vector is testable without launching anything. With noAudit
-// false, no cpltArgs and no skillsDir it is byte-identical to what every legacy
-// launch produced before Tier 2 staging existed.
+// With noAudit false, no cpltArgs, no skillsDir and no approved proposal it is
+// byte-identical to what every legacy launch produced before Tier 2 staging
+// existed.
 func cpltArgv(spec cpltLaunch) []string {
 	var args []string
 	if spec.noAudit {
@@ -67,6 +67,11 @@ func cpltArgv(spec cpltLaunch) []string {
 	if spec.skillsDir != "" {
 		args = append(args, "--pass-env", SkillsDirEnv)
 	}
+	// Seam one of two for an approved sandbox proposal (#858). Here rather than
+	// at each cpltLaunch call site: every staged, opencode and pi launch is
+	// assembled by this function, so a new one cannot forget it. The legacy
+	// Copilot launch builds its own vector and carries it in BuildCopilotArgs.
+	args = append(args, cpltProposalFlags()...)
 	args = append(args, "--")
 	return append(args, spec.agentArgs...)
 }

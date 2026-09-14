@@ -544,6 +544,11 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		return err
 	}
 
+	// Past every refusal, so nothing is consented to for an install that then
+	// does not happen (#858). The Tier 2 route asks from installPakkePin, after
+	// its own guards.
+	noteProposalConsent(scope, src, dryRun, jsonOutput)
+
 	// A pakke that reuses another resolves it here, before its contents are
 	// collected: pakkeContents lists through the resolver, so the reused
 	// artifacts are part of the manifest without a second merge step.
@@ -1143,6 +1148,9 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		return err
 	}
 
+	// Same placement as cmdInstallFromSource: past every refusal (#858).
+	noteProposalConsent(scope, src, dryRun, jsonOutput)
+
 	if manifest == nil {
 		var err error
 		manifest, err = collectAllItemsWith(resolver)
@@ -1583,8 +1591,33 @@ func cmdUninstall(scope *InstallScope, dryRun, force bool) error {
 	if err != nil {
 		return fmt.Errorf("reading state: %w", err)
 	}
+
+	// Before anything else is removed, and before the "nothing installed" exit
+	// (#858, invariant 6; #861 review). Two reasons for both halves of that:
+	//
+	//   - First, so uninstall cannot report success with a waiver still on
+	//     disk. It used to run last and only warn, so a failed write left an
+	//     approved record behind, the retry found no state to uninstall, and a
+	//     later reinstall of the same revision picked the old approval up again.
+	//   - Before the exit, so an orphaned record is reachable at all. An install
+	//     records the answer before it writes the scope's state file, so a
+	//     failed state write leaves a record this command would otherwise never
+	//     look for.
+	//
+	// The launch derives its flags from the record alone, so removing it is the
+	// whole of the removal — there is no cplt configuration to undo.
+	if !dryRun {
+		removedConsent, err := forgetProposalConsent(scope)
+		if err != nil {
+			return fmt.Errorf("removing the sandbox consent record for the %s scope: %w\n\nNothing was uninstalled: a waiver that outlives its agentpakke is exactly what this record must not do", scope.Name, err)
+		}
+		if removedConsent > 0 {
+			fmt.Printf("%s Removed %d sandbox consent record(s).\n", green("✓"), removedConsent)
+		}
+	}
+
 	if state == nil {
-		fmt.Println("No nav-pilot collection installed. Nothing to uninstall.")
+		fmt.Println("No nav-pilot collection installed. Nothing else to uninstall.")
 		return nil
 	}
 

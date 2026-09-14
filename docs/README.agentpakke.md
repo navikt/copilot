@@ -66,7 +66,7 @@ Generert fra `cli/nav-pilot/schemas/agentpakke-v1.json`. Ukjente felt på alle n
 | `clients` | objekt, minst én nøkkel | ja | Én oppføring per klient. Se under. |
 | `owner` | objekt: `repo` (`^[^/]+/[^/]+$`), `team` | nei | Kun attribusjon. Kilden til en installasjon er der manifestet ble klonet fra, ikke `owner.repo`. |
 | `layout` | objekt: `agents`, `skills`, `instructions`, `prompts`, `hooks`, `extensions` | ja for Tier 1 | Repo-relative stier til innholdskatalogene. Deklarer dem pakka faktisk har, og minst én av de kjente: ukjente nøkler er tillatt, men ingenting leser dem. Deklarerer du `primaryAgents`, må `agents` være med. |
-| `policies` | objekt: `opencodePermissions` | nei | Peker på policy-artefakter. Sti-sjekkes i dag, materialiseres ikke ennå. |
+| `policies` | objekt: `opencodePermissions`, `propose` | nei | `opencodePermissions` peker på et policy-artefakt; sti-sjekkes i dag, materialiseres ikke ennå. `propose` er sandkassekonfigurasjonen pakka ber den som installerer om samtykke til. Se [Pakka foreslår sandkassekonfigurasjon](#pakka-foreslår-sandkassekonfigurasjon). |
 | `profiles` | objekt: `dir`, `default` | nei | Katalog med launch-profiler og navnet på standardprofilen (`<dir>/<default>.json`). Sti-sjekkes i dag, brukes ikke ennå. |
 | `provenance` | objekt: `base` (`repo`\*, `digest`\*), `overlays[]` (`component`\*, `version`\*) | nei | Opphav for komponert innhold. Ren metadata, nav-pilot verifiserer ikke digest. |
 | `mcpServers` | array av string, unike verdier | nei | MCP-serverne innholdet i pakka forventer, navngitt slik de heter i [Navs MCP-register](https://mcp-registry.nav.no). Skjemaet sjekker formen; medlemskapet sjekkes mot registeret som kjører, i `validate` og `install`. Et navn registeret ikke publiserer er et funn; et registeret ikke svarer på er en advarsel. Å deklarere en server konfigurerer ingenting. Se [MCP-servere](#mcp-servere). |
@@ -178,6 +178,73 @@ nav-pilot does not configure MCP. Enable them in your client: https://mcp-regist
 Mer gjør ikke install. nav-pilot skriver ingen MCP-konfigurasjon for noen klient, og å slå på en server er brukerens handling i klientens egen config.
 
 Feltet ligger på pakkenivå, ikke per klient. Om en MCP-server er tilgjengelig, er en egenskap ved klientens eget oppsett, ikke ved pakka.
+
+## Pakka foreslår sandkassekonfigurasjon
+
+En pakke kan trenge noe av sandkassa rundt seg, og kunne ikke si fra om det. Observabilitetsskillen i `nais/pilot` spør Mimir og Loki på `*.cloud.nais.io`. De navnene slår opp til private IP-er over naisdevice, og cplt avviser enhver vert som gjør det: `403 Private target blocked by cplt`. Feilen kommer midt i en spørring, så både mennesket og modellen leter i PromQL-en.
+
+`policies.propose` er stedet pakka sier det. Blokka er nøklet på verktøy og skrevet i verktøyets eget vokabular:
+
+```json
+"policies": {
+  "propose": {
+    "cplt": {
+      "reason": "Observabilitetsskillen spør Mimir, Loki og Tempo på *.cloud.nais.io, som slår opp til private IP-er over naisdevice.",
+      "proxy": { "allow_private_domains": ["cloud.nais.io"] }
+    }
+  }
+}
+```
+
+Verktøynøkler nav-pilot ikke implementerer, ignoreres. `pi` og `opencode` kan komme senere uten å ugyldiggjøre noe som finnes i dag.
+
+### Hva en pakke får foreslå
+
+`proxy.allow_private_domains`, og ingenting annet i v1. `reason` er påkrevd og vises i spørsmålet.
+
+Grensa er cplts egen: dette er den eneste proxy-nøkkelen et repo får foreslå. Skjemaet avviser `allow`, `deny`, `gh_guard`, `git_guard`, `proxy.forced`, `allowed_domains`, `blocked_domains` og hele `sandbox`-seksjonen, som dekker `preset`, `repo_dirs`, `inherit_env`, cache-exec-tilgangene og `agents_md` under én regel. cplt lar et repo foreslå `sandbox.pass_env`; den dagen nav-pilot implementerer den, er det én linje i skjemaet.
+
+Andre nøkler inne i `cplt`-blokka er ikke feil, men de er inerte: nav-pilot navngir dem ved install og honorerer dem aldri.
+
+**Tekst fra pakka er utrygg tekst.** `reason` og navnene på inerte nøkler havner på skjermen til den som skal svare. En pakke som får satt et linjeskift i dem, kan skrive en linje som ser ut som nav-pilots egen, og en escape-sekvens kan viske ut linjene over. Derfor to regler, begge to: skjemaet setter en lengdegrense og avviser kontrolltegn, formattegn og linjeseparatorer, og nav-pilot slår sammen all whitespace og erstatter kontrolltegn i det den skriver ut. En pakke kan altså ikke lage et linjeskift på skjermen i det hele tatt; spørsmålet eier hver eneste linje.
+
+Waiveren er DNS-rebinding-vernet, ikke en tillatelse. Den navngir verter én om gangen, blokklista og tillatelseslista gjelder fortsatt, den åpner ingen port, gir ingen sti og kjører ingenting. Verste utfall er at agenten når en intern tjeneste brukerens egen naisdevice alt når.
+
+### Samtykke
+
+Den som installerer svarer, i terminal, ved install og ved enhver `sync --apply` der blokka er endret. Svaret er nøklet på scope, pakke og innholdshash — arrays sortert, kanonisk JSON, sha256 over hele blokka, regnet slik cplt regner sin.
+
+En senere revisjon som legger til eller utvider en oppføring gir ny hash. Det gamle samtykket gjelder da ingenting, og spørsmålet kommer tilbake med endringene på skjermen — felt for felt, siden hashen dekker hele blokka og det som flyttet seg like gjerne kan være `reason` eller en nøkkel nav-pilot ikke implementerer. Posten tar vare på blokka den gjaldt, nettopp for å kunne vise det.
+
+Kjøringer uten terminal godkjenner aldri, og registrerer ingenting heller — et ubesvart spørsmål er ikke et nei. `--json` teller som en slik kjøring.
+
+**Avslag installerer likevel.** Du kan ville ha pakka for de andre skillene. Avslaget registreres, så du ikke blir spurt om det samme igjen, og du får vite hvilken arbeidsflyt som ryker og enlinjeren som åpner den for hånd:
+
+```
+cplt config set proxy.allow_private_domains cloud.nais.io
+```
+
+`nav-pilot uninstall` sletter posten — hver post scopet holder, før den fjerner noe annet, og den nekter å melde suksess hvis den ikke fikk det til. Den rydder også en post som ikke har noen installasjon bak seg: samtykket registreres før state-fila skrives, så en install som feiler midtveis kan etterlate en post alene. Ingen waiver fra pakka overlever installasjonen.
+
+### Hvor det tar effekt
+
+Ingen steder i cplts konfigurasjon. Et godkjent forslag blir `--allow-private-domain <vert>` på launch-linja, for launcher fra scopet som godkjente det, og ingenting annet: nav-pilot skriver ikke i `~/.config/cplt/`, ikke i `local/` eller `trust/` under den, og ikke i noen `.cplt.toml`. `allow_private_domains` er et vanlig strengarray uten plass til opphav, så en markør måtte blitt en sidecar-post uansett — og da er konfigurasjonen duplisert tilstand som kan drifte fra posten. Flagget utledes av posten hver launch og kan ikke drifte.
+
+Oppføringene skrives ut ved launch, slik at det som faktisk gjelder for økta står på skjermen.
+
+### Kravet til cplt
+
+Samtykkeposten ligger under `~/.nav-pilot/`. Den er ikke skrivbar i en *standard* økt — macOS kjører `(deny default)` og Linux kjører grant-only Landlock, så en sti ingen har navngitt er allerede utenfor rekkevidde — men brukerens egen `allow.write = ["~"]` åpnet den igjen, uten at noe sa fra. En post kunne da vært skrevet av agenten som har nytte av den.
+
+[navikt/cplt#508](https://github.com/navikt/cplt/pull/508) lukket det ved å føre `~/.nav-pilot/` opp i `DENIED_DOTFILES`, samme liste som holder `.config/cplt`: nektet lesing og skriving, etter enhver `allow` brukeren har satt. Grants *inne i* katalogen virker fortsatt, med vilje — en staget Tier 2-launch sender `~/.nav-pilot/pakker/<eier>-<repo>/<sha>/<klient>/<kontekst>` som `--allow-read` — det er bare en grant på selve katalogen som avvises. Endringen kom i cplt `2026.09.14-105131-446dfbb`.
+
+nav-pilot løser ikke dette selv; en sjekk inne i det som skal beskyttes er ingen sjekk. Den nekter i stedet å bruke posten med mindre alle tre svarene er ja:
+
+1. **Verner cplt-en som kjører nå?** Under releasen over anvendes ingen waiver. En versjon som ikke kan leses teller som «for gammel».
+2. **Vernet cplt-en som kjørte da svaret ble gitt?** Posten bærer med seg stampen den ble skrevet under. Å oppgradere cplt i ettertid gjør ikke et svar en agent kan ha skrevet troverdig, og en sjekk på launch-tidspunktet ser ikke så langt tilbake.
+3. **Ligger posten i treet cplt verner?** `NAV_PILOT_CONFIG` flytter nav-pilots statekatalog, som er støttet — og som flytter posten ut av deny-regelen mens versjonssjekken fortsatt sier ja.
+
+Launchen sier hvilket av de tre som svarte nei, på én linje.
 
 ## Pensjonerte artefakter
 
@@ -760,7 +827,7 @@ Dette er statusen i milepæl 1. Alt under er kjent og planlagt, ikke feil:
 - **Alle deklarerte kontekster materialiseres**, også de brukeren aldri starter, og kontekster som deler innhold lagrer det én gang hver.
 - **En kilde som er en absolutt sti pinnes ikke, og kan ikke installeres.** En pinnet installasjon krever et repo med en immutabel revisjon.
 - **nav-pilot skriver ingen MCP-konfigurasjon.** `mcpServers` er en referanse til [registeret](#mcp-servere), ikke en installasjon. Å slå på en server i klienten er brukerens handling, og å gjøre det for dem er en egen beslutning med sin egen sprengradius.
-- **`policies`, `profiles` og `provenance` er deklarasjoner uten virkning ennå.** Stiene sti-sjekkes, men nav-pilot skriver hverken opencode-permissions eller launch-profiler ut fra manifestet (M3), og sjekker ikke `provenance`-digesten mot innholdet.
+- **`policies.opencodePermissions`, `profiles` og `provenance` er deklarasjoner uten virkning ennå.** Stiene sti-sjekkes, men nav-pilot skriver hverken opencode-permissions eller launch-profiler ut fra manifestet (M3), og sjekker ikke `provenance`-digesten mot innholdet. `policies.propose` virker, men krever cplt `2026.09.14-105131` eller nyere for å anvende en godkjent waiver — se [Kravet til cplt](#kravet-til-cplt).
 - **`nav-pilot export opencode` avviser en payload-only pakke.** Export leser en deklarert `layout` (#728), så en pakke som legger innholdet et annet sted eksporteres riktig. En pakke uten `layout` i det hele tatt har ingen filer på stier å lese, og export stopper med en forklaring framfor å skrive et tomt `.opencode/`-tre.
 - **Erklæringa har ingen egen JSON Schema-fil, og `nav-pilot validate` sjekker den ikke.** Den valideres i binæren, på samme kontraktversjonsgate som manifestet. Validate ser i dag på pakkerepoet, ikke på konsumentrepoet.
 - **`install <navn> --type <type>` skriver ingen erklæring.** En à-la-carte-install fører verken elementet inn i `items` eller kilden inn i fila; lista er håndskrevet, og det er samlings-installen som skriver erklæringa. `items` styrer den heller ikke: `install <navn>` installerer det navnet, uansett hva erklæringa lister. Skal enkeltelement-installen holde den oppdatert, er det en egen endring.

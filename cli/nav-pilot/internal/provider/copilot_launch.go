@@ -100,7 +100,13 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 	}
 	args = append(args, copilotResolvedFlags(resolved)...)
 	if cliName == "cplt" {
-		cpltArgs := append([]string{"--agent", "copilot", "--"}, args...)
+		// Seam two of two for an approved sandbox proposal (#858). This launch
+		// never goes through cpltArgv, so the entries have to be placed here
+		// too — in the cplt-flag slot, before the "--" that hands the rest to
+		// the agent.
+		cpltArgs := append([]string{"--agent", "copilot"}, cpltProposalFlags()...)
+		cpltArgs = append(cpltArgs, "--")
+		cpltArgs = append(cpltArgs, args...)
 		return append(cpltArgs, resolved.ExtraArgs...)
 	}
 	return append(args, resolved.ExtraArgs...)

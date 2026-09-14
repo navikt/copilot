@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 )
 
 // Config holds user-specific nav-pilot configuration read from ~/.nav-pilot/config.toml.
@@ -678,6 +679,54 @@ func Color(code, msg string) string {
 		return msg
 	}
 	return fmt.Sprintf("\033[%sm%s\033[0m", code, msg)
+}
+
+// SafeText renders text nav-pilot did not write for a terminal it does not
+// control. Every string that reaches a user's screen from an agentpakke
+// manifest goes through it.
+//
+// The threat is a forged line, not a mangled one. A consent prompt shows a
+// pakke's own `reason` and the names of keys nav-pilot does not implement, and
+// a pakke that can emit a newline can write a line that looks like nav-pilot's,
+// including one saying nothing else in the sandbox changes. An escape sequence
+// can go further and erase the lines above it. So:
+//
+//   - every whitespace run, line breaks included, collapses to one space, which
+//     leaves the pakke unable to produce a line of its own at all; the prompt
+//     owns every line break on the screen.
+//   - control and format runes — C0, C1, and the bidi overrides that reorder
+//     what is already written — are replaced by U+FFFD rather than dropped, so
+//     a reader sees that something was there.
+//   - the result is bounded at max runes, so a reason cannot scroll the hosts
+//     off the screen. max <= 0 means no bound.
+//
+// The manifest schema refuses the same things, which is where an agentpakke
+// author gets told. This is the half that holds when a record was written by an
+// older binary, hand-edited, or validated by a version with a looser rule.
+func SafeText(s string, max int) string {
+	var b strings.Builder
+	space := false
+	for _, r := range s {
+		switch {
+		case unicode.IsSpace(r):
+			space = b.Len() > 0
+			continue
+		case unicode.IsControl(r) || unicode.Is(unicode.Cf, r):
+			r = '\uFFFD'
+		}
+		if space {
+			b.WriteRune(' ')
+			space = false
+		}
+		b.WriteRune(r)
+	}
+	out := b.String()
+	if max > 0 {
+		if runes := []rune(out); len(runes) > max {
+			out = string(runes[:max]) + "…"
+		}
+	}
+	return out
 }
 
 func Red(msg string) string    { return Color("31", msg) }

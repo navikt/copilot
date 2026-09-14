@@ -818,6 +818,12 @@ func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) 
 		return err
 	}
 
+	// After the pin, so the question is only put for an install that happened
+	// (#858). checkPakkeInstallable runs inside pinRevision and refuses a
+	// repo-scope pin outright; asking before it would record an answer for a
+	// scope that ends up holding nothing.
+	noteProposalConsent(scope, src, dryRun, jsonOutput)
+
 	if jsonOutput {
 		return result()
 	}
