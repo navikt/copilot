@@ -177,7 +177,7 @@ jobs:
               # answered. navikt/copilot publishes an agentpakke, so zero is a
               # broken query or a token that cannot see the results, and both
               # are this pull request's problem to fix.
-              echo "::error::Code search completed and returned no agentpakker. This is not throttling — the query ran. navikt/copilot publishes one, so an empty answer is a broken query or a token that cannot see the results."
+              echo "::error::Code search completed and returned no agentpakker. This is not throttling: the query ran. navikt/copilot publishes one, so an empty answer is a broken query or a token that cannot see the results."
               exit 1
             fi
             echo "Discovered:"
