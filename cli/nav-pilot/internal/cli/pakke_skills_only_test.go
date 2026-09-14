@@ -16,8 +16,8 @@ import (
 // to hold it (#799).
 const skillsOnlyManifestJSON = `{
   "contractVersion": "1",
-  "name": "ferdigheter",
-  "description": "Bare ferdigheter",
+  "name": "grillpakka",
+  "description": "Bare skills",
   "clients": {"copilot": {}},
   "layout": {"skills": "plugin/skills"}
 }`
@@ -33,7 +33,7 @@ func skillsOnlySourceTree(t *testing.T, body string) string {
 
 func skillsOnlySource(t *testing.T, dir, sha string) *Source {
 	t.Helper()
-	src := &Source{Dir: dir, SHA: sha, Version: "dev", Repo: "navikt/ferdigheter"}
+	src := &Source{Dir: dir, SHA: sha, Version: "dev", Repo: "navikt/grillpakka"}
 	if err := attachPakke(src); err != nil {
 		t.Fatalf("attachPakke on a skills-only pakke: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestSkillsOnlyPakkeInstallsInBothScopes(t *testing.T) {
 
 			src := skillsOnlySource(t, skillsOnlySourceTree(t, "# Grilling\n"), "sha-one")
 			captureStdoutFor(t, func() {
-				if err := cmdInstallFromSource("ferdigheter", src, scope, false, false, false); err != nil {
+				if err := cmdInstallFromSource("grillpakka", src, scope, false, false, false); err != nil {
 					t.Fatalf("cmdInstallFromSource: %v", err)
 				}
 			})
@@ -114,11 +114,11 @@ func TestSkillsOnlyPakkeRefusesToLaunch(t *testing.T) {
 	launched := fakeCopilotOnlyOnPath(t)
 	stubResolveSource(t, skillsOnlySource(t, skillsOnlySourceTree(t, "# Grilling\n"), "sha-one"))
 
-	err := launchClientConfirming(ResolvedConfig{Client: "copilot", Source: "navikt/ferdigheter"}, false)
+	err := launchClientConfirming(ResolvedConfig{Client: "copilot", Source: "navikt/grillpakka"}, false)
 	if err == nil {
 		t.Fatal("a pakke that ships no agent must refuse to launch")
 	}
-	if !strings.Contains(err.Error(), "ferdigheter") {
+	if !strings.Contains(err.Error(), "grillpakka") {
 		t.Errorf("the refusal must name the pakke, got: %v", err)
 	}
 	if !strings.Contains(err.Error(), "no agent") {

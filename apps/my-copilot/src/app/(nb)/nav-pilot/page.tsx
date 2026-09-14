@@ -551,7 +551,7 @@ function CollectionsSection() {
               className="no-underline transition-colors"
               style={{ color: "#60a5fa", fontSize: "0.875rem" }}
             >
-              Se alle agenter og ferdigheter →
+              Se alle agenter og skills →
             </NextLink>
           </div>
         </VStack>
@@ -628,7 +628,7 @@ function CollectionCard({
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#a78bfa" }} />
-              <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>{skills} ferdigheter</span>
+              <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>{skills} skills</span>
             </div>
           </div>
 

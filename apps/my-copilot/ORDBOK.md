@@ -18,7 +18,7 @@ Terminologi brukt i statistikkdashboardet og verktøykatalogen. Engelske faguttr
 | merge             | Slå sammen en pull request                         |
 | pull request (PR) | Endringsforslag i Git                              |
 | review            | Gjennomgang — brukes som verb og substantiv        |
-| skill             | Copilot-ferdighet — ikke oversett                  |
+| skill             | Artefakttype i en agentpakke — ikke oversett       |
 | sandbox           | Isoleringsmiljø for agenter (cplt)                 |
 | tokens            | Tekstenheter AI-modellen bruker (ca. 1 per 4 tegn) |
 | prompt injection  | Angrepsteknikk mot AI-agenter                      |
