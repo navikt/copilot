@@ -680,11 +680,14 @@ export default function Agentpakker() {
                       , <code className="font-mono text-xs">repo_dirs</code>,{" "}
                       <code className="font-mono text-xs">inherit_env</code>,{" "}
                       <code className="font-mono text-xs">allowed_domains</code>,{" "}
-                      <code className="font-mono text-xs">blocked_domains</code>, guardene og hele{" "}
-                      <code className="font-mono text-xs">sandbox</code>. Andre nøkler under{" "}
-                      <code className="font-mono text-xs">cplt</code> validerer, men nav-pilot navngir dem ved install
-                      og honorerer dem aldri. Andre verktøynøkler enn <code className="font-mono text-xs">cplt</code>{" "}
-                      ignoreres.
+                      <code className="font-mono text-xs">blocked_domains</code>,{" "}
+                      <code className="font-mono text-xs">proxy.forced</code>, guardene og hele{" "}
+                      <code className="font-mono text-xs">sandbox</code>. Under{" "}
+                      <code className="font-mono text-xs">proxy</code> validerer ingenting annet enn{" "}
+                      <code className="font-mono text-xs">allow_private_domains</code>. Andre nøkler på toppnivå i{" "}
+                      <code className="font-mono text-xs">cplt</code>-blokka validerer, men nav-pilot navngir dem ved
+                      install og honorerer dem aldri. Andre verktøynøkler enn{" "}
+                      <code className="font-mono text-xs">cplt</code> ignoreres.
                     </BodyLong>
                     <BodyLong textColor="subtle">
                       Brukeren svarer i terminalen ved <code className="font-mono text-xs">install</code>, og ved{" "}
