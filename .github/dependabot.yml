@@ -51,8 +51,22 @@ updates:
           - "react-dom"
           - "@navikt/*"
     ignore:
-      - dependency-name: "eslint"
-        versions: [">=10"]
+      # TypeScript 7 er holdt tilbake på 6.x. eslint-config-next trekker inn
+      # typescript-eslint, som per 8.70.0 (siste) sier `typescript: ">=4.8.4
+      # <6.1.0"` og avbryter med «typescript-eslint does not support TS 7.0».
+      # Da faller `pnpm lint` på første fil. `tsc --noEmit` er grønn på TS 7 —
+      # det er kun linten som stopper. Løft dette når typescript-eslint
+      # støtter TS >= 7 (github.com/typescript-eslint/typescript-eslint#10940)
+      # og eslint-config-next har fått den versjonen.
+      - dependency-name: "typescript"
+        versions: [">=7"]
+      # Next 16.3.x knekker produksjonsbygget. Turbopack følger pnpm-symlenken
+      # node_modules/**/@img/sharp-libvips-* under outputFileTracingIncludes,
+      # finner en katalog og panikker: TurbopackInternalError «Is a directory
+      # (os error 21)». Gjelder alle av 16.3.0–16.3.5; 16.2.12 bygger. Løft
+      # når Turbopack håndterer symlenkede kataloger i filsporingen.
+      - dependency-name: "next"
+        versions: [">=16.3"]
     open-pull-requests-limit: 5
 
   # copilot-metrics (Go)
