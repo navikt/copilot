@@ -54,6 +54,13 @@ export const metadata: Metadata = {
 /* ---------- Data ---------- */
 
 const QUICKSTART_COMMAND = "brew install navikt/tap/nav-pilot && nav-pilot";
+const QUICKSTART_APT = [
+  "curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \\",
+  "  | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null",
+  'echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \\',
+  "  | sudo tee /etc/apt/sources.list.d/navikt.list",
+  "sudo apt update && sudo apt install nav-pilot cplt",
+].join("\n");
 
 const COLLECTIONS = [
   {
@@ -412,6 +419,35 @@ logger.info("Vedtak",    `}
               </code>
               <CopyButton copyText={QUICKSTART_COMMAND} size="xsmall" style={{ color: "white" }} />
             </div>
+            <Box
+              paddingBlock="space-8"
+              paddingInline="space-16"
+              borderRadius="8"
+              className="flex items-start gap-3 max-w-full overflow-x-auto text-left"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              <pre
+                className="font-mono"
+                style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.7)", whiteSpace: "pre" }}
+              >
+                {QUICKSTART_APT}
+              </pre>
+              <CopyButton copyText={QUICKSTART_APT} size="xsmall" style={{ color: "white" }} />
+            </Box>
+            <p
+              className="max-w-xl text-center"
+              style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}
+            >
+              Homebrew på macOS, apt-arkivet på Debian og Ubuntu. Arkivet bygges hver time fra den nyeste releasen, så
+              en helt fersk release kan bruke opptil en time på å bli installerbar. Andre distroer og CI:{" "}
+              <NextLink href="/nav-pilot/docs#installasjon" style={{ color: "rgba(255,255,255,0.75)" }}>
+                installasjonsskriptet
+              </NextLink>
+              .
+            </p>
           </div>
         </VStack>
       </Box>

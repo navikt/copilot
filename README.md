@@ -36,7 +36,7 @@ Alle tilpasninger finnes på **[verktøysida](https://min-copilot.ansatt.nav.no/
 **[nav-pilot](docs/README.nav-pilot.md)** er både et CLI-verktøy og en AI-agent. CLI-et klargjør repoet ditt med riktige agenter, skills og instruksjoner, og setter opp en optimalisert integrasjon med token-optimalisering. Agenten `@nav-pilot` tar deg gjennom fire faser i Copilot Chat: Intervju, Plan, Review og Lever.
 
 ```bash
-# Installer nav-pilot CLI
+# Installer nav-pilot CLI (macOS)
 brew install navikt/tap/nav-pilot
 # eller: mise use -g 'github:navikt/copilot[exe=nav-pilot,version_prefix=nav-pilot/]@<versjon>'
 
@@ -47,6 +47,18 @@ nav-pilot install nav-pilot
 # Bruk i Copilot
 @nav-pilot Jeg trenger en ny tjeneste som behandler dagpengesøknader
 ```
+
+På Linux (Debian, Ubuntu) er [apt-arkivet](https://navikt.github.io/apt/) anbefalt vei. Det gir deg både nav-pilot og cplt:
+
+```bash
+curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \
+  | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/navikt.list
+sudo apt update && sudo apt install nav-pilot cplt
+```
+
+Arkivet oppdateres hver time fra den nyeste releasen, så en release du nettopp kuttet kan bruke opptil en time på å bli installerbar. Er du ikke på et Debian-derivat, eller står du i CI, bruk [installasjonsskriptet](docs/README.nav-pilot.md#kom-i-gang).
 
 **[Les mer →](docs/README.nav-pilot.md)** · **[Anbefalte utvalg →](docs/README.collections.md)**
 
@@ -82,15 +94,24 @@ Kernel-level sandbox for AI-agenter. Sandboxer AI-kodingsagenter med OS-primitiv
 **Repo:** [navikt/cplt](https://github.com/navikt/cplt) · **Docs:** [min-copilot.ansatt.nav.no/cplt](https://min-copilot.ansatt.nav.no/cplt)
 
 ```bash
+# macOS
 brew install navikt/tap/cplt
+
+# Linux (Debian, Ubuntu), fra apt-arkivet
+curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \
+  | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/navikt.list
+sudo apt update && sudo apt install cplt
 ```
 
-**Windows (WSL2):** kjør alt inne i Ubuntu, ikke i PowerShell, og bruk installasjonsskriptene i stedet for brew:
+Er du ikke på et Debian-derivat, eller står du i CI, bruk `curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash`.
+
+**Windows (WSL2):** kjør alt inne i Ubuntu, ikke i PowerShell. cplt tar du fra apt-arkivet over. Copilot CLI har ingen apt-pakke og må hentes med skriptet sitt:
 
 ```bash
-curl -fsSL https://gh.io/copilot-install | bash                                   # Copilot CLI
-curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash   # cplt
-export PATH="$HOME/.local/bin:$PATH"   # skriptene installerer hit
+curl -fsSL https://gh.io/copilot-install | bash   # Copilot CLI
+export PATH="$HOME/.local/bin:$PATH"              # skriptet installerer hit
 which -a copilot cplt   # ingen treff skal starte med /mnt/c
 ```
 

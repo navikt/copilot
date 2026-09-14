@@ -72,14 +72,23 @@ export function generateSetupScript(os: OS, workflow: Workflow) {
     });
   } else {
     blocks.push({
-      title: "# 2. Last ned verktøy (inkluderer sandbox)",
-      commands: ["curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"],
+      title: "# 2. Installer Nav-verktøy (inkluderer sandbox)",
+      commands: [
+        "if command -v apt-get >/dev/null; then   # Debian, Ubuntu: apt-arkivet",
+        "  curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \\\n    | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null",
+        '  echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \\\n    | sudo tee /etc/apt/sources.list.d/navikt.list',
+        "  sudo apt update && sudo apt install nav-pilot cplt",
+        "else   # andre distroer: installasjonsskriptet",
+        "  curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash",
+        "fi",
+        "# Arkivet oppdateres hver time, så en helt fersk release kan mangle en liten stund.",
+      ],
     });
   }
 
   blocks.push({
     title: "# 2b. Gjør de nyinstallerte verktøyene tilgjengelige i dette skallet",
-    commands: ['export PATH="$HOME/.local/bin:$PATH"   # installasjonsskriptene legger binærene hit'],
+    commands: ['export PATH="$HOME/.local/bin:$PATH"   # installasjonsskriptet legger binæren hit'],
   });
 
   blocks.push({

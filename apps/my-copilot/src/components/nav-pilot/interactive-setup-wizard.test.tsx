@@ -45,7 +45,12 @@ describe("generateSetupScript", () => {
       expect(result.code).toContain("curl -fsSL https://gh.io/copilot-install | bash");
       expect(result.code).not.toContain("npm install");
       expect(result.code).toContain(
-        "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
+        'echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main"'
+      );
+      expect(result.code).toContain("sudo apt update && sudo apt install nav-pilot cplt");
+      expect(result.code).toContain("if command -v apt-get >/dev/null; then");
+      expect(result.code).toContain(
+        "  curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
       );
       expect(result.code).toContain("nav-pilot install nav-pilot");
       expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"');
@@ -57,7 +62,12 @@ describe("generateSetupScript", () => {
       expect(result.code).toContain("curl -fsSL https://opencode.ai/install | bash");
       expect(result.code).not.toContain("npm install -g opencode");
       expect(result.code).toContain(
-        "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
+        'echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main"'
+      );
+      expect(result.code).toContain("sudo apt update && sudo apt install nav-pilot cplt");
+      expect(result.code).toContain("if command -v apt-get >/dev/null; then");
+      expect(result.code).toContain(
+        "  curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
       );
       expect(result.code).toContain("nav-pilot config set client opencode");
       expect(result.code).toContain("nav-pilot install nav-pilot");
@@ -75,7 +85,12 @@ describe("generateSetupScript", () => {
       expect(result.code).not.toContain("npm install");
       expect(result.code).toContain("which -a copilot cplt nav-pilot");
       expect(result.code).toContain(
-        "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
+        'echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main"'
+      );
+      expect(result.code).toContain("sudo apt update && sudo apt install nav-pilot cplt");
+      expect(result.code).toContain("if command -v apt-get >/dev/null; then");
+      expect(result.code).toContain(
+        "  curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
       );
       expect(result.code).toContain("nav-pilot install nav-pilot");
       expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"');

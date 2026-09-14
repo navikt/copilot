@@ -2322,12 +2322,16 @@ function CliReferenceSection() {
             Oppgrader CLI
           </LinkableHeading>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            nav-pilot sjekker automatisk om det finnes en nyere versjon ved oppstart. Du kan oppgradere på to måter:
+            nav-pilot sjekker automatisk om det finnes en nyere versjon ved oppstart. Du kan oppgradere på tre måter:
           </BodyLong>
           <div className="mt-4 space-y-3">
             {[
               { label: "Selvoppdatering", cmd: "nav-pilot upgrade" },
-              { label: "Via Homebrew", cmd: "brew update && brew upgrade nav-pilot" },
+              { label: "Via Homebrew (macOS)", cmd: "brew update && brew upgrade nav-pilot" },
+              {
+                label: "Via apt (Debian, Ubuntu)",
+                cmd: "sudo apt update && sudo apt install --only-upgrade nav-pilot",
+              },
             ].map((item) => (
               <div key={item.cmd}>
                 <BodyShort size="small" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
@@ -2337,6 +2341,12 @@ function CliReferenceSection() {
               </div>
             ))}
           </div>
+          <BodyLong size="small" className="mt-3" style={{ color: "#64748b" }}>
+            Har du installert med apt, bruk <code className="font-mono text-xs">apt</code> og ikke{" "}
+            <code className="font-mono text-xs">nav-pilot upgrade</code>. Selvoppdateringen kjenner igjen en
+            Homebrew-installasjon og lar den være, men ikke en dpkg-installasjon, så den ville byttet ut binæren uten at
+            dpkg vet om det.
+          </BodyLong>
           <Box background="neutral-soft" padding="space-16" borderRadius="8" className="mt-4">
             <Heading size="xsmall" level="4" style={{ color: "#334155" }}>
               Feilsøking: «already installed»

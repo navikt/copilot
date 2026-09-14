@@ -53,6 +53,13 @@ const TERMINAL_MUTED = "#a5acb6";
 /* ---------- Data ---------- */
 
 const INSTALL_COMMAND = "brew install navikt/tap/cplt";
+const INSTALL_APT = [
+  "curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \\",
+  "  | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null",
+  'echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \\',
+  "  | sudo tee /etc/apt/sources.list.d/navikt.list",
+  "sudo apt update && sudo apt install cplt",
+].join("\n");
 const INSTALL_SCRIPT = "curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash";
 
 const ARTICLE_HREF = "/en/news/sandbox-confines-the-process-not-the-token";
@@ -295,18 +302,24 @@ function HeroSection({ stars }: { stars: number | null }) {
                 </code>
                 <CopyButton copyText={INSTALL_COMMAND} size="small" />
               </div>
-              <div
-                className="rounded-lg px-4 py-2 flex items-center gap-3 max-w-full overflow-x-auto"
+              <Box
+                paddingBlock="space-8"
+                paddingInline="space-16"
+                borderRadius="8"
+                className="flex items-start gap-3 max-w-full overflow-x-auto text-left"
                 style={{
                   background: "rgba(255, 255, 255, 0.04)",
                   border: "1px solid rgba(255, 255, 255, 0.08)",
                 }}
               >
-                <code className="font-mono" style={{ fontSize: CODE_SIZE, color: "var(--ax-text-neutral-subtle)" }}>
-                  {INSTALL_SCRIPT}
-                </code>
-                <CopyButton copyText={INSTALL_SCRIPT} size="small" />
-              </div>
+                <pre
+                  className="font-mono"
+                  style={{ fontSize: CODE_SIZE, color: "var(--ax-text-neutral-subtle)", whiteSpace: "pre" }}
+                >
+                  {INSTALL_APT}
+                </pre>
+                <CopyButton copyText={INSTALL_APT} size="small" />
+              </Box>
               <BodyShort size="small" style={{ color: ACCENT, textAlign: "center" }}>
                 macOS (Apple Seatbelt) · Linux (Landlock + seccomp-BPF) · Windows: WSL2 only
               </BodyShort>
@@ -315,8 +328,23 @@ function HeroSection({ stars }: { stars: number | null }) {
                 className="max-w-xl"
                 style={{ color: "var(--ax-text-neutral-subtle)", textAlign: "center" }}
               >
+                Homebrew on macOS, the{" "}
+                <a href="https://navikt.github.io/apt/" style={{ color: ACCENT }}>
+                  apt archive
+                </a>{" "}
+                on Debian and Ubuntu. The archive is rebuilt hourly from the newest release, so a release cut minutes
+                ago can take up to an hour to become installable. It is a plain apt repository mirroring our releases,
+                not a distribution package with a maintainer. On any other distribution, and in CI, use{" "}
+                <code className="font-mono break-all">{INSTALL_SCRIPT}</code>.
+              </BodyLong>
+              <BodyLong
+                size="small"
+                className="max-w-xl"
+                style={{ color: "var(--ax-text-neutral-subtle)", textAlign: "center" }}
+              >
                 cplt has no Windows sandbox backend. On WSL2 it is an ordinary Linux install and the sandbox is
-                kernel-enforced, so use the install script and run it inside your Linux distribution.
+                kernel-enforced, so install it inside your Linux distribution: the apt archive on Ubuntu or Debian, the
+                install script on anything else.
               </BodyLong>
             </div>
           </VStack>
@@ -1270,7 +1298,8 @@ function HowItWorksSection() {
     {
       title: "Install",
       command: INSTALL_COMMAND,
-      description: "Homebrew on macOS, or the install script at the top of this page on Linux and WSL2.",
+      description:
+        "Homebrew on macOS, the apt archive on Debian and Ubuntu (WSL2 included), the install script anywhere else.",
       Icon: TerminalIcon,
     },
     {
