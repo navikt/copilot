@@ -249,13 +249,10 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 	}
 
 	if err := copyArtifact(art.AbsPath, dst, scope.RootDir, art.IsDir); err != nil {
-		if kind == KindHook {
-			// The hook script lands in the same denied directory its config
-			// entry does, and it lands there first, so this is the copy that
-			// actually fails inside a cplt sandbox.
-			err = explainHookWrite(err, filepath.Dir(dst))
-		}
-		return fmt.Errorf("copying %s %s: %w", kind.Name, name, err)
+		// Every kind, not just hooks: cplt's deny list covers the skill
+		// directories too since cplt#508, so an install inside a sandbox now
+		// fails here on a skill before it ever reaches a hook (#862).
+		return fmt.Errorf("copying %s %s: %w", kind.Name, name, explainSandboxedWrite(err, kind, filepath.Dir(dst)))
 	}
 	hash, err := rawArtifactHash(dst, art.IsDir)
 	if err != nil {
