@@ -466,6 +466,27 @@ export default function Agentpakker() {
                       </BodyLong>
                     </VStack>
 
+                    <VStack gap="space-8">
+                      <LinkableHeading id="skript-i-en-skill" size="small" level="3">
+                        Skript i en skill
+                      </LinkableHeading>
+                      <BodyLong textColor="subtle">
+                        Sender skillen din med et skript, kopieres det med resten av katalogen — men katalogen havner
+                        ulike steder per klient: <code className="font-mono text-xs">~/.copilot/skills/</code> for
+                        copilot, <code className="font-mono text-xs">skills/</code> under konfigurasjonskatalogen for
+                        opencode, <code className="font-mono text-xs">~/.nav-pilot/pi/skills</code> for pi, og{" "}
+                        <code className="font-mono text-xs">skills/</code> i payloadtreet for Tier 2. Skriver du én av
+                        stiene i teksten, er skillen feil på de andre. nav-pilot eksporterer derfor{" "}
+                        <code className="font-mono text-xs">NAV_PILOT_SKILLS_DIR</code> ved hver launch, med roten
+                        skillene faktisk ble lagt i for den klienten, og sender den gjennom sandboxen. Skriv{" "}
+                        <code className="font-mono text-xs">
+                          bash &quot;$NAV_PILOT_SKILLS_DIR/&lt;skill&gt;/&lt;skript&gt;&quot;
+                        </code>{" "}
+                        og den peker riktig overalt. La nav-pilot ingen skills ut for klienten, er variabelen usatt
+                        framfor å peke på en katalog som ikke finnes, så en skill kan teste på den og si fra.
+                      </BodyLong>
+                    </VStack>
+
                     <LinkableHeading id="manifestet" size="small" level="3">
                       Manifestet
                     </LinkableHeading>

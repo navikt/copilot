@@ -40,6 +40,18 @@ To ting følger av det:
 
 Extensions fikk en type fordi et team som hadde skrevet en, ikke kunne distribuere den: nav-pilot kjente ikke formen, så den ble hverken installert, synket eller eksportert ([#572](https://github.com/navikt/copilot/issues/572)).
 
+### Skript i en skill: `NAV_PILOT_SKILLS_DIR`
+
+En skill er en katalog, og hele katalogen kopieres, skript og alt. Problemet er hvor den havner: `copilot` leser `~/.copilot/skills/<navn>/`, `opencode` leser `skills/<navn>/` under sin egen konfigurasjonskatalog, `pi` får `~/.nav-pilot/pi/skills` rakt til seg som `--skill`, og en Tier 2-launch leser `skills/<navn>/` i det verifiserte payloadtreet. En skill som skriver én klients sti i teksten sin, er dermed feil på de andre.
+
+Derfor navngir nav-pilot katalogen ved launch i stedet. Hver launch-sti eksporterer `NAV_PILOT_SKILLS_DIR` med roten skillene faktisk ble materialisert i for den klienten, og sender den gjennom sandboxen med `cplt --pass-env`. Skillen skriver da én form som holder overalt:
+
+```bash
+bash "$NAV_PILOT_SKILLS_DIR/nais-observability/mimir-query.sh" <tenant> <promql>
+```
+
+Materialiserte nav-pilot ingen skills for klienten — pakka deklarerer den ikke, eller den sender ingen skills — er variabelen **usatt**, ikke satt til en katalog som ikke finnes. En usatt variabel kan en skill teste på og si fra om; en sti til ingenting ser ut som en fungerende installasjon helt til skriptet ikke lar seg åpne. Skriv derfor skills som sjekker at variabelen finnes før de bruker den. Skills som bare er tekst modellen leser, trenger ingenting av dette.
+
 ## Feltreferanse
 
 Generert fra `cli/nav-pilot/schemas/agentpakke-v1.json`. Ukjente felt på alle nivåer er tillatt (`additionalProperties: true`) og ignoreres av konsumenten.

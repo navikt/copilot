@@ -820,9 +820,12 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	}
 
 	return launchViaCplt(cpltLaunch{
-		agent:         "opencode",
-		agentArgs:     openCodeAgentArgs(resolved),
-		cpltArgs:      cpltFlags,
+		agent:     "opencode",
+		agentArgs: openCodeAgentArgs(resolved),
+		cpltArgs:  cpltFlags,
+		// EnsureOpenCodeNavContext above wrote into this directory, so ask it
+		// for skills after the materialization rather than before it.
+		skillsDir:     materializedSkillsDir(openCodeNavContextDir()),
 		env:           launchEnv,
 		displayName:   "opencode",
 		messageSuffix: suffix,

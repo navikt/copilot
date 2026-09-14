@@ -181,7 +181,13 @@ func LaunchPi(resolved domain.ResolvedConfig) error {
 		agent:       "pi",
 		displayName: "pi",
 		cpltArgs:    []string{"--allow-read", contextDir},
-		agentArgs:   piLaunchArgs(contextDir, persona, resolved),
+		// pi does materialize skills, contrary to #858's reading: a pakke that
+		// declares pi as Tier 1 is synced into ~/.nav-pilot/pi by
+		// EnsurePiNavContext above, and piSkillArgs hands the same skills/ to
+		// pi as --skill. It is empty only when the pakke declares no pi entry
+		// or ships no skills, and then so is the variable.
+		skillsDir: materializedSkillsDir(contextDir),
+		agentArgs: piLaunchArgs(contextDir, persona, resolved),
 	})
 }
 

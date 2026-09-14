@@ -33,6 +33,15 @@ type cpltLaunch struct {
 	cpltArgs []string
 	// agentArgs are forwarded to the agent process after the "--" separator.
 	agentArgs []string
+	// skillsDir is the materialized skills root for this launch, or "" when
+	// nav-pilot materialized no skills for this client. Non-empty, it is
+	// exported as NAV_PILOT_SKILLS_DIR and passed through the sandbox with
+	// --pass-env, so a skill can find the scripts it ships (#858).
+	//
+	// Every cpltLaunch literal must set it, empty or not: skills_dir_test.go
+	// fails on one that does not, so a launch path added later cannot skip the
+	// variable by omission.
+	skillsDir string
 	// env is the process environment. nil inherits the parent environment.
 	env []string
 	// displayName is the user-facing client name for launch/log messages.
@@ -42,10 +51,12 @@ type cpltLaunch struct {
 }
 
 // cpltArgv is the argument vector launchViaCplt passes to cplt:
-// `[--no-audit] --agent <agent> [cpltArgs...] -- [agentArgs...]`. Pure, so the
-// vector is testable without launching anything. With noAudit false and no
-// cpltArgs it is byte-identical to what every legacy launch produced before
-// Tier 2 staging existed.
+//
+//	[--no-audit] --agent <agent> [cpltArgs...] [--pass-env NAV_PILOT_SKILLS_DIR] -- [agentArgs...]
+//
+// Pure, so the vector is testable without launching anything. With noAudit
+// false, no cpltArgs and no skillsDir it is byte-identical to what every legacy
+// launch produced before Tier 2 staging existed.
 func cpltArgv(spec cpltLaunch) []string {
 	var args []string
 	if spec.noAudit {
@@ -53,6 +64,9 @@ func cpltArgv(spec cpltLaunch) []string {
 	}
 	args = append(args, "--agent", spec.agent)
 	args = append(args, spec.cpltArgs...)
+	if spec.skillsDir != "" {
+		args = append(args, "--pass-env", SkillsDirEnv)
+	}
 	args = append(args, "--")
 	return append(args, spec.agentArgs...)
 }
@@ -122,6 +136,7 @@ func launchViaCplt(spec cpltLaunch) error {
 		return fmt.Errorf("cplt not found in PATH — nav-pilot launches clients inside the cplt sandbox; install cplt to launch %s", spec.displayName)
 	}
 
+	spec.env = withSkillsDirEnv(spec.env, spec.skillsDir)
 	args := withCpltConfirmation(cpltArgv(spec), IsTerminal(os.Stdin))
 
 	fmt.Printf("Launching %s via %s%s...\n\n",

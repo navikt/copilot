@@ -536,7 +536,11 @@ func TestLaunchPi_RoutesThroughCplt(t *testing.T) {
 	// artifacts it wrote: skills by path, the persona as a system-prompt file,
 	// then the model. pi has no --agent, which is why the persona is a file.
 	d := PiNavContextDirOverride
-	want := "cplt --yes --agent pi --allow-read " + d + " --" +
+	// --pass-env NAV_PILOT_SKILLS_DIR because the materialization above wrote
+	// skills into this tree: pi does get a skills root, and the launch names it
+	// so a skill's own scripts are findable (#858).
+	want := "cplt --yes --agent pi --allow-read " + d +
+		" --pass-env NAV_PILOT_SKILLS_DIR --" +
 		" --skill " + d + "/skills" +
 		" --append-system-prompt " + d + "/agents/nav-pilot.md" +
 		" --append-system-prompt " + d + "/AGENTS.md" +
@@ -572,7 +576,11 @@ func TestLaunchPi_ForwardsExtraArgs(t *testing.T) {
 	// the same prefix; this test was written on a branch where that behaviour
 	// did not exist yet.
 	d := PiNavContextDirOverride
-	want := "cplt --yes --agent pi --allow-read " + d + " --" +
+	// --pass-env NAV_PILOT_SKILLS_DIR because the materialization above wrote
+	// skills into this tree: pi does get a skills root, and the launch names it
+	// so a skill's own scripts are findable (#858).
+	want := "cplt --yes --agent pi --allow-read " + d +
+		" --pass-env NAV_PILOT_SKILLS_DIR --" +
 		" --skill " + d + "/skills" +
 		" --append-system-prompt " + d + "/agents/nav-pilot.md" +
 		" --append-system-prompt " + d + "/AGENTS.md" +
