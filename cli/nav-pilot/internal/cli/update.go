@@ -50,16 +50,16 @@ func cmdUpdate() error {
 // actually replaced, so callers can distinguish "already up to date" (no-op)
 // from "successfully updated" and avoid re-executing when nothing changed.
 func doUpdate() (updated bool, err error) {
-	if isBrewManaged() {
+	if mgr := packageManager(); mgr.name != "" {
 		// Print first, then check cplt: the cplt lookup can take seconds, and
 		// the "managed by Homebrew" line used to be instant.
-		fmt.Println("nav-pilot is managed by Homebrew.")
+		fmt.Printf("nav-pilot is managed by %s.\n", mgr.label)
 		fmt.Println()
-		formulae := "navikt/tap/nav-pilot"
-		if cpltBehind() {
-			formulae += " navikt/tap/cplt"
+		upgrade := mgr.upgrade
+		if mgr == pkgBrew && cpltBehind() {
+			upgrade += " navikt/tap/cplt"
 		}
-		fmt.Printf("  brew upgrade %s\n", formulae)
+		fmt.Printf("  %s\n", upgrade)
 		return false, nil
 	}
 
@@ -136,19 +136,57 @@ func doUpdate() (updated bool, err error) {
 	return true, nil
 }
 
-// isBrewManaged returns true if the running binary lives inside a Homebrew
-// prefix. It is a variable so a test can assert what a Homebrew install is
-// told without being installed by Homebrew.
-var isBrewManaged = func() bool {
+// pkgManager is the package manager that owns the running binary. Replacing a
+// file a package manager tracks corrupts its database: the next `brew upgrade`
+// or `apt upgrade` reverts the update, and until then the manager reports a
+// version that is not on disk. So nav-pilot declines and says what to run.
+type pkgManager struct {
+	name    string // as diagnostics report it; empty when nav-pilot owns the binary
+	label   string // as prose names it
+	upgrade string // the command that upgrades this install
+}
+
+var (
+	pkgNone = pkgManager{}
+	pkgBrew = pkgManager{name: "homebrew", label: "Homebrew", upgrade: "brew upgrade navikt/tap/nav-pilot"}
+	pkgApt  = pkgManager{name: "apt", label: "apt", upgrade: "sudo apt upgrade nav-pilot"}
+)
+
+// packageManager returns the manager that owns the running binary, or pkgNone
+// when nav-pilot may replace it itself. It is a variable so a test can assert
+// what a packaged install is told without being installed from a package.
+var packageManager = func() pkgManager {
 	self, err := os.Executable()
 	if err != nil {
-		return false
+		return pkgNone
 	}
 	self, err = filepath.EvalSymlinks(self)
 	if err != nil {
+		return pkgNone
+	}
+	if strings.Contains(self, "/Cellar/") || strings.Contains(self, "/homebrew/") {
+		return pkgBrew
+	}
+	if runtime.GOOS == "linux" && dpkgOwns(self) {
+		return pkgApt
+	}
+	return pkgNone
+}
+
+// dpkgOwns reports whether dpkg tracks path. The path test comes first, so the
+// installs that dpkg never owns — every macOS one, /usr/local/bin, ~/.local/bin
+// — cost nothing; only a path the .deb could have written is confirmed with
+// dpkg-query. The path alone is not enough: a hand-built binary dropped into
+// /usr/bin would otherwise be told to run `sudo apt upgrade`, which cannot
+// upgrade it, while self-update refused — no way forward at all. Every failure
+// (no dpkg-query, a timeout, a path dpkg disowns) answers false, so the worst
+// case is the self-update we did before.
+func dpkgOwns(path string) bool {
+	if !strings.HasPrefix(path, "/usr/bin/") {
 		return false
 	}
-	return strings.Contains(self, "/Cellar/") || strings.Contains(self, "/homebrew/")
+	_, err := runBounded("dpkg-query", "-S", path)
+	return err == nil
 }
 
 // fetchLatestVersion queries the GitHub releases API for the latest nav-pilot release.
@@ -236,7 +274,8 @@ var latestCpltVersion = func() (string, error) {
 	return ver, err
 }
 
-// cpltCommandTimeout bounds every cplt process spawn. Each spawn gets its own
+// cpltCommandTimeout bounds every short process spawn — the cplt checks and
+// the dpkg-query ownership lookup. Each spawn gets its own
 // deadline: no check may share a wall clock with an unrelated one.
 const cpltCommandTimeout = 2 * time.Second
 

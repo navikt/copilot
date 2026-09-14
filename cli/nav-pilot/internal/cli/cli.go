@@ -196,13 +196,13 @@ func startupUpdateCheck() (stop bool, err error) {
 	// even if the (possibly stale) cache still reports a newer version.
 	alreadyReexeced := os.Getenv(reexecGuardEnv) == "1"
 
-	if isBrewManaged() {
-		// nav-pilot cannot replace a binary Homebrew owns: doUpdate declines,
-		// and every offer above it — the auto-update line, the upgrade prompt,
-		// the "run nav-pilot upgrade" nudge — announced something that was
-		// never going to happen. Say what will work instead, in one line.
+	if mgr := packageManager(); mgr.name != "" {
+		// nav-pilot cannot replace a binary Homebrew or dpkg owns: doUpdate
+		// declines, and every offer above it — the auto-update line, the upgrade
+		// prompt, the "run nav-pilot upgrade" nudge — announced something that
+		// was never going to happen. Say what will work instead, in one line.
 		fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s\n",
-			yellow("⚠"), assessment.LatestVersion, Version, bold("brew upgrade navikt/tap/nav-pilot"))
+			yellow("⚠"), assessment.LatestVersion, Version, bold(mgr.upgrade))
 	} else if autoUpdate && !alreadyReexeced {
 		fmt.Fprintf(os.Stderr, "%s Auto-updating nav-pilot %s → %s...\n", yellow("ℹ"), Version, assessment.LatestVersion)
 		updated, err := doUpdate()

@@ -206,3 +206,29 @@ func TestCmdFeedback_FeatureRequest(t *testing.T) {
 		t.Errorf("expected feature template in URL, got: %s", capturedURL)
 	}
 }
+
+// TestCollectDiagnosticsNamesTheOwningPackageManager: a bug report has to say
+// which install it came from — an apt install and a self-updating binary fail
+// in different ways, and "binary" for both hides that.
+func TestCollectDiagnosticsNamesTheOwningPackageManager(t *testing.T) {
+	tests := []struct {
+		name string
+		mgr  pkgManager
+		want string
+	}{
+		{"unmanaged", pkgNone, "Install    binary"},
+		{"homebrew", pkgBrew, "Install    homebrew"},
+		{"apt", pkgApt, "Install    apt"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			orig := packageManager
+			t.Cleanup(func() { packageManager = orig })
+			packageManager = func() pkgManager { return tt.mgr }
+
+			if diag := collectDiagnostics(t.TempDir()); !strings.Contains(diag, tt.want) {
+				t.Errorf("diagnostics did not report %q. Output:\n%s", tt.want, diag)
+			}
+		})
+	}
+}
