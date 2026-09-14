@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 var (
@@ -50,16 +51,17 @@ func cmdUpdate() error {
 // actually replaced, so callers can distinguish "already up to date" (no-op)
 // from "successfully updated" and avoid re-executing when nothing changed.
 func doUpdate() (updated bool, err error) {
-	if isBrewManaged() {
+	if mgr := packageManager(); mgr.Name != "" {
 		// Print first, then check cplt: the cplt lookup can take seconds, and
 		// the "managed by Homebrew" line used to be instant.
-		fmt.Println("nav-pilot is managed by Homebrew.")
+		fmt.Printf("nav-pilot is managed by %s.\n", mgr.Label)
 		fmt.Println()
-		formulae := "navikt/tap/nav-pilot"
+		upgrade := navPilotUpgradeCmd(mgr)
 		if cpltBehind() {
-			formulae += " navikt/tap/cplt"
+			// The apt archive ships cplt too, and apt upgrades both in one go.
+			upgrade += mgr.Pick(" navikt/tap/cplt", " cplt")
 		}
-		fmt.Printf("  brew upgrade %s\n", formulae)
+		fmt.Printf("  %s\n", upgrade)
 		return false, nil
 	}
 
@@ -136,19 +138,15 @@ func doUpdate() (updated bool, err error) {
 	return true, nil
 }
 
-// isBrewManaged returns true if the running binary lives inside a Homebrew
-// prefix. It is a variable so a test can assert what a Homebrew install is
-// told without being installed by Homebrew.
-var isBrewManaged = func() bool {
-	self, err := os.Executable()
-	if err != nil {
-		return false
-	}
-	self, err = filepath.EvalSymlinks(self)
-	if err != nil {
-		return false
-	}
-	return strings.Contains(self, "/Cellar/") || strings.Contains(self, "/homebrew/")
+// packageManager reports which package manager owns the running binary, so
+// nav-pilot never replaces a file Homebrew or dpkg tracks behind its back. It
+// is a variable so a test can assert what a packaged install is told without
+// being installed from a package.
+var packageManager = domain.PkgSelf
+
+// navPilotUpgradeCmd is the command that upgrades this nav-pilot install.
+func navPilotUpgradeCmd(m domain.PkgManager) string {
+	return m.Pick("brew upgrade navikt/tap/nav-pilot", "sudo apt upgrade nav-pilot")
 }
 
 // fetchLatestVersion queries the GitHub releases API for the latest nav-pilot release.

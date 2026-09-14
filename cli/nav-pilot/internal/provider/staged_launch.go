@@ -389,7 +389,7 @@ func LaunchCopilotStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 			"launching agentpakke %q requires the cplt sandbox, which is not in PATH.\n"+
 				"A Tier 2 agentpakke ships pre-built payloads that nav-pilot only hands to a sandboxed client.\n\n"+
 				"  Install it: %s",
-			s.PakkeName, domain.Bold("brew install navikt/tap/cplt"))
+			s.PakkeName, domain.Bold(domain.PkgForInstall().Pick("brew install navikt/tap/cplt", "sudo apt install cplt")))
 	}
 	if err := checkStagedRuntime("copilot", pakkeCompatibility("copilot")); err != nil {
 		return err

@@ -51,11 +51,11 @@ func collectDiagnostics(targetDir string) string {
 	fmt.Fprintf(&b, "nav-pilot  %s (%s)\n", Version, buildInfo.Commit)
 	fmt.Fprintf(&b, "OS         %s/%s\n", runtime.GOOS, runtime.GOARCH)
 
-	if isBrewManaged() {
-		fmt.Fprintf(&b, "Install    homebrew\n")
-	} else {
-		fmt.Fprintf(&b, "Install    binary\n")
+	install := "binary"
+	if mgr := packageManager(); mgr.Name != "" {
+		install = mgr.Name
 	}
+	fmt.Fprintf(&b, "Install    %s\n", install)
 
 	state, err := readState(targetDir)
 	if err == nil && state != nil {

@@ -290,10 +290,12 @@ func (m *Manifest) checkMinVersion(runningVersion string) error {
 		return nil
 	}
 	if versionOlder(runningVersion, required) {
+		// Name the manager that owns this binary: "reinstall via Homebrew" is no
+		// help on a machine that installed nav-pilot from the apt archive.
 		return fmt.Errorf(
 			"agentpakke %q requires nav-pilot %s or newer, but this binary is %s. "+
-				"Run `nav-pilot update` (or reinstall via Homebrew) and try again",
-			m.Name, required, runningVersion)
+				"Run `nav-pilot update` (or reinstall via %s) and try again",
+			m.Name, required, runningVersion, domain.PkgSelf().Pick("Homebrew", "apt"))
 	}
 	return nil
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // stubProbes replaces both staged version probes for the duration of a test, so
@@ -131,7 +132,7 @@ func TestCheckStagedRuntimeCpltFloor(t *testing.T) {
 			if !strings.Contains(err.Error(), minStagedCpltStamp) {
 				t.Errorf("error %q does not name the required floor %q", err, minStagedCpltStamp)
 			}
-			if !strings.Contains(err.Error(), cpltUpgradeHint) {
+			if !strings.Contains(err.Error(), cpltUpgradeHint()) {
 				t.Errorf("error %q does not say how to upgrade", err)
 			}
 		})
@@ -771,5 +772,35 @@ func TestRunStagedProbeReportsAnUncollectedProbeAsSuch(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), "not found") {
 		t.Errorf("a probe that ran was reported as absent: %v", err)
+	}
+}
+
+// TestCpltUpgradeHintFollowsTheOwner: the floor error is read on the machine it
+// fires on, so it has to name a command that machine has. An apt install of
+// cplt cannot be upgraded with brew, which it does not have.
+func TestCpltUpgradeHintFollowsTheOwner(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		mgr  domain.PkgManager
+		want string
+	}{
+		{"apt", domain.PkgApt, "sudo apt upgrade cplt"},
+		{"homebrew", domain.PkgBrew, "brew upgrade cplt"},
+		{"unmanaged", domain.PkgNone, "brew upgrade cplt"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			orig := domain.PkgOwner
+			t.Cleanup(func() { domain.PkgOwner = orig })
+			domain.PkgOwner = func(string) domain.PkgManager { return tt.mgr }
+
+			stubProbes(t, "cplt 2026.08.16-235959-deadbee\n", nil, "1.18.20\n", nil)
+			err := checkStagedRuntime("opencode", "")
+			if err == nil {
+				t.Fatal("checkStagedRuntime succeeded, want a fatal error")
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("error %q does not say %q", err, tt.want)
+			}
+		})
 	}
 }

@@ -356,7 +356,12 @@ func pakkeCompatibility(client string) string {
 	return entry.Compatibility
 }
 
-const cpltUpgradeHint = "brew upgrade cplt"
+// cpltUpgradeHint is the command that upgrades the cplt this machine has —
+// apt when the binary came from the apt archive, Homebrew otherwise.
+func cpltUpgradeHint() string {
+	path, _ := exec.LookPath("cplt")
+	return domain.PkgOwner(path).Pick("brew upgrade cplt", "sudo apt upgrade cplt")
+}
 
 // checkCpltFloor refuses a staged launch on a cplt older than the reviewed
 // baseline, or on one whose version cannot be read at all. Mirrors the
@@ -366,18 +371,18 @@ func checkCpltFloor() error {
 	if err != nil {
 		return fmt.Errorf(
 			"could not read the cplt version, which a staged agentpakke launch requires to be %s or newer: %w\n\n  Upgrade it: %s",
-			minStagedCpltStamp, err, domain.Bold(cpltUpgradeHint))
+			minStagedCpltStamp, err, domain.Bold(cpltUpgradeHint()))
 	}
 	stamp := cpltStamp(out)
 	if stamp == "" {
 		return fmt.Errorf(
 			"could not read a cplt version from %q — a staged agentpakke launch requires cplt %s or newer.\n\n  Upgrade it: %s",
-			strings.TrimSpace(out), minStagedCpltStamp, domain.Bold(cpltUpgradeHint))
+			strings.TrimSpace(out), minStagedCpltStamp, domain.Bold(cpltUpgradeHint()))
 	}
 	if stamp < minStagedCpltStamp {
 		return fmt.Errorf(
 			"cplt %s is older than %s, the reviewed baseline a staged agentpakke launch requires.\n\n  Upgrade it: %s",
-			stamp, minStagedCpltStamp, domain.Bold(cpltUpgradeHint))
+			stamp, minStagedCpltStamp, domain.Bold(cpltUpgradeHint()))
 	}
 	return nil
 }

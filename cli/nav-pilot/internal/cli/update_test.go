@@ -7,13 +7,16 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
-func TestIsBrewManaged(t *testing.T) {
-	// In dev/test, the binary is not in a Homebrew Cellar
-	// This just verifies the function runs without panic
-	_ = isBrewManaged()
+func TestPackageManager(t *testing.T) {
+	// In dev/test, the binary is neither in a Homebrew Cellar nor dpkg-owned.
+	// This just verifies the function runs without panic.
+	_ = packageManager()
 }
 
 func TestSha256sum(t *testing.T) {
@@ -274,5 +277,51 @@ func TestFetchLatestRelease_NoRetryWithoutToken(t *testing.T) {
 	}
 	if calls != 1 {
 		t.Errorf("calls = %d, want 1", calls)
+	}
+}
+
+// TestUpdateRefusesToReplaceAPackagedBinary: nav-pilot must never rename a new
+// binary over one a package manager owns. For the .deb that binary is
+// /usr/bin/nav-pilot, and replacing it leaves dpkg's database claiming a
+// version that is no longer on disk — the next `apt upgrade` or
+// `apt install --reinstall` silently reverts the user's update. So the update
+// declines before it downloads anything, and prints the command that works.
+func TestUpdateRefusesToReplaceAPackagedBinary(t *testing.T) {
+	tests := []struct {
+		name string
+		mgr  domain.PkgManager
+		want string
+	}{
+		{"apt", domain.PkgApt, "sudo apt upgrade nav-pilot"},
+		{"homebrew", domain.PkgBrew, "brew upgrade navikt/tap/nav-pilot"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origManager, origAPI := packageManager, releasesAPI
+			t.Cleanup(func() { packageManager, releasesAPI = origManager, origAPI })
+			packageManager = func() domain.PkgManager { return tt.mgr }
+
+			// A refusal must not reach the network, and the empty PATH keeps the
+			// Homebrew branch's cplt lookup off it too.
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				t.Errorf("a packaged install asked GitHub for a release: %s", r.URL)
+			}))
+			t.Cleanup(srv.Close)
+			releasesAPI = srv.URL
+			t.Setenv("PATH", t.TempDir())
+
+			var updated bool
+			var err error
+			out := captureStdoutFor(t, func() { updated, err = doUpdate() })
+			if err != nil {
+				t.Fatalf("doUpdate = %v", err)
+			}
+			if updated {
+				t.Fatal("doUpdate replaced a binary the package manager owns")
+			}
+			if !strings.Contains(out, tt.want) {
+				t.Errorf("update did not print %q. Output:\n%s", tt.want, out)
+			}
+		})
 	}
 }
