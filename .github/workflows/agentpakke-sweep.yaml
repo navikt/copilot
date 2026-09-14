@@ -106,7 +106,29 @@ jobs:
                 ;;
             esac
 
-            wait_s=$(printf '%s' "$err" | sed -n 's/.*try again in \([0-9][0-9]*\).*/\1/p' | head -n1)
+            # gh prints a Go duration, not a number of seconds: "414.763551ms"
+            # as readily as "60s" or "2m30s". Units are split off longest-first
+            # so the pass is deterministic, then summed, then rounded up — a
+            # sub-second wait becomes one second. Reading the leading digits
+            # alone turned 414ms into 414s, which is how the first run of this
+            # job spent its whole budget on two attempts.
+            wait_s=$(printf '%s' "$err" |
+              sed -n 's/.*try again in \([^ ]*\).*/\1/p' | head -n1 |
+              sed -e 's/ns/ n /g' -e 's/µs/ u /g' -e 's/us/ u /g' \
+                -e 's/ms/ i /g' -e 's/h/ h /g' -e 's/m/ m /g' -e 's/s/ s /g' |
+              awk '{
+                t = 0
+                for (i = 1; i < NF; i += 2) {
+                  v = $i + 0; u = $(i + 1)
+                  if (u == "n") v /= 1000000000
+                  else if (u == "u") v /= 1000000
+                  else if (u == "i") v /= 1000
+                  else if (u == "m") v *= 60
+                  else if (u == "h") v *= 3600
+                  t += v
+                }
+                if (t > 0) printf "%d\n", (t == int(t) ? t : int(t) + 1)
+              }')
             if [ -z "$wait_s" ]; then
               reset=$(gh api rate_limit --jq '.resources.code_search.reset' 2>/dev/null || true)
               case $reset in
