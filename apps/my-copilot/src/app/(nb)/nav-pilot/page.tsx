@@ -419,23 +419,26 @@ logger.info("Vedtak",    `}
               </code>
               <CopyButton copyText={QUICKSTART_COMMAND} size="xsmall" style={{ color: "white" }} />
             </div>
-            <div
-              className="rounded-lg px-4 py-2.5 flex items-start gap-3 max-w-full overflow-x-auto text-left"
+            <Box
+              paddingBlock="space-8"
+              paddingInline="space-16"
+              borderRadius="8"
+              className="flex items-start gap-3 max-w-full overflow-x-auto text-left"
               style={{
                 background: "rgba(255,255,255,0.04)",
                 border: "1px solid rgba(255,255,255,0.08)",
               }}
             >
               <pre
-                className="font-mono m-0"
+                className="font-mono"
                 style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.7)", whiteSpace: "pre" }}
               >
                 {QUICKSTART_APT}
               </pre>
               <CopyButton copyText={QUICKSTART_APT} size="xsmall" style={{ color: "white" }} />
-            </div>
+            </Box>
             <p
-              className="max-w-xl text-center m-0"
+              className="max-w-xl text-center"
               style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}
             >
               Homebrew på macOS, apt-arkivet på Debian og Ubuntu. Arkivet bygges hver time fra den nyeste releasen, så

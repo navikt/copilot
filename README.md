@@ -58,7 +58,7 @@ echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://nav
 sudo apt update && sudo apt install nav-pilot cplt
 ```
 
-Arkivet oppdateres hver time fra den nyeste releasen, så en release du nettopp kuttet kan bruke opptil en time på å bli installerbar. Er du ikke på en Debian-derivat, eller står du i CI, bruk [installasjonsskriptet](docs/README.nav-pilot.md#kom-i-gang).
+Arkivet oppdateres hver time fra den nyeste releasen, så en release du nettopp kuttet kan bruke opptil en time på å bli installerbar. Er du ikke på et Debian-derivat, eller står du i CI, bruk [installasjonsskriptet](docs/README.nav-pilot.md#kom-i-gang).
 
 **[Les mer →](docs/README.nav-pilot.md)** · **[Anbefalte utvalg →](docs/README.collections.md)**
 
@@ -105,7 +105,7 @@ echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://nav
 sudo apt update && sudo apt install cplt
 ```
 
-Er du ikke på en Debian-derivat, eller står du i CI, bruk `curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash`.
+Er du ikke på et Debian-derivat, eller står du i CI, bruk `curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash`.
 
 **Windows (WSL2):** kjør alt inne i Ubuntu, ikke i PowerShell. cplt tar du fra apt-arkivet over. Copilot CLI har ingen apt-pakke og må hentes med skriptet sitt:
 

@@ -302,21 +302,24 @@ function HeroSection({ stars }: { stars: number | null }) {
                 </code>
                 <CopyButton copyText={INSTALL_COMMAND} size="small" />
               </div>
-              <div
-                className="rounded-lg px-4 py-2 flex items-start gap-3 max-w-full overflow-x-auto text-left"
+              <Box
+                paddingBlock="space-8"
+                paddingInline="space-16"
+                borderRadius="8"
+                className="flex items-start gap-3 max-w-full overflow-x-auto text-left"
                 style={{
                   background: "rgba(255, 255, 255, 0.04)",
                   border: "1px solid rgba(255, 255, 255, 0.08)",
                 }}
               >
                 <pre
-                  className="font-mono m-0"
+                  className="font-mono"
                   style={{ fontSize: CODE_SIZE, color: "var(--ax-text-neutral-subtle)", whiteSpace: "pre" }}
                 >
                   {INSTALL_APT}
                 </pre>
                 <CopyButton copyText={INSTALL_APT} size="small" />
-              </div>
+              </Box>
               <BodyShort size="small" style={{ color: ACCENT, textAlign: "center" }}>
                 macOS (Apple Seatbelt) · Linux (Landlock + seccomp-BPF) · Windows: WSL2 only
               </BodyShort>
@@ -340,7 +343,8 @@ function HeroSection({ stars }: { stars: number | null }) {
                 style={{ color: "var(--ax-text-neutral-subtle)", textAlign: "center" }}
               >
                 cplt has no Windows sandbox backend. On WSL2 it is an ordinary Linux install and the sandbox is
-                kernel-enforced, so install it inside your Linux distribution, where the apt archive applies as usual.
+                kernel-enforced, so install it inside your Linux distribution: the apt archive on Ubuntu or Debian, the
+                install script on anything else.
               </BodyLong>
             </div>
           </VStack>
@@ -1294,7 +1298,8 @@ function HowItWorksSection() {
     {
       title: "Install",
       command: INSTALL_COMMAND,
-      description: "Homebrew on macOS, the apt archive on Debian, Ubuntu and WSL2, the install script anywhere else.",
+      description:
+        "Homebrew on macOS, the apt archive on Debian and Ubuntu (WSL2 included), the install script anywhere else.",
       Icon: TerminalIcon,
     },
     {
