@@ -63,8 +63,11 @@ updates:
       # Next 16.3.x knekker produksjonsbygget. Turbopack følger pnpm-symlenken
       # node_modules/**/@img/sharp-libvips-* under outputFileTracingIncludes,
       # finner en katalog og panikker: TurbopackInternalError «Is a directory
-      # (os error 21)». Gjelder alle av 16.3.0–16.3.5; 16.2.12 bygger. Løft
-      # når Turbopack håndterer symlenkede kataloger i filsporingen.
+      # (os error 21)». Gjelder alle av 16.3.0-16.3.5; 16.2.12 bygger. Rettet
+      # oppstrøms i vercel/next.js#97507, som lander i 16.4: vedlikeholderen
+      # som lukket vercel/next.js#96626 bekreftet at reproen feiler på 16.3.4
+      # og lykkes fra 16.4.0-canary.0. Løft når 16.4 er ute som stabil, og se
+      # navikt/copilot#852 for hele sporet.
       - dependency-name: "next"
         versions: [">=16.3"]
     open-pull-requests-limit: 5
