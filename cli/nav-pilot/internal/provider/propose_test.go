@@ -287,7 +287,7 @@ func TestI5NoUnaccountedCpltLaunchPath(t *testing.T) {
 	// agent session and so carry no waiver.
 	accounted := map[string]string{
 		"launchViaCplt":           "cplt.go — argv from cpltArgv, which carries the entries",
-		"LaunchCopilotResolved":   "copilot_launch.go — argv from BuildCopilotArgs, which carries the entries",
+		"LaunchCopilotResolved":   "copilot_launch.go — argv from copilotLaunchArgs over BuildCopilotArgs, which carries the entries; #859's --pass-env is spliced in ahead of the same separator",
 		"runStagedProbe":          "runtime_gate.go — a bounded --version probe, no session",
 		"isCplt":                  "copilot_launch.go — a --version probe, no session",
 		"printCopilotDiagnostics": "copilot_launch.go — diagnostics, no session",
@@ -520,5 +520,57 @@ func TestLaunchNoticeCarriesNoPakkeControlCharacters(t *testing.T) {
 	}
 	if got, want := domain.SafeText("  ordinary  prose,  æøå  ", 0), "ordinary prose, æøå"; got != want {
 		t.Errorf("SafeText mangled ordinary prose: %q, want %q", got, want)
+	}
+}
+
+// The legacy launch carries two things in the cplt-flag slot now: #859's
+// --pass-env NAV_PILOT_SKILLS_DIR and an approved waiver. They are placed by
+// different code — insertCpltPassEnv searches for the separator, the waiver is
+// built into the vector ahead of it — so this drives the vector the launch
+// really assembles rather than either half of it.
+func TestI5SkillsDirAndWaiverBothSurviveTheLegacyVector(t *testing.T) {
+	scope := proposeEnv(t)
+	proposal := activeProposal(t)
+	protectingCplt(t)
+	approve(t, scope, proposal.Hash(), "cloud.nais.io")
+
+	args := copilotLaunchArgs("cplt", domain.ResolvedConfig{Persona: "nais-pilot"}, true, "/skills")
+	joined := strings.Join(args, " ")
+
+	sep := slices.Index(args, "--")
+	if sep < 0 {
+		t.Fatalf("no separator in the vector: %q", args)
+	}
+	before := strings.Join(args[:sep], " ")
+	for _, want := range []string{"--allow-private-domain cloud.nais.io", "--pass-env " + SkillsDirEnv} {
+		if !strings.Contains(before, want) {
+			t.Errorf("%q is missing from the cplt-flag slot:\n %s", want, joined)
+		}
+	}
+	// And the agent's own arguments are still on the far side of it.
+	if !strings.Contains(strings.Join(args[sep:], " "), "--agent nais-pilot") {
+		t.Errorf("the agent arguments moved out of the tail: %s", joined)
+	}
+}
+
+// The same for the staged/opencode/pi seam, which assembles both in cpltArgv.
+func TestI5SkillsDirAndWaiverBothSurviveTheStagedVector(t *testing.T) {
+	scope := proposeEnv(t)
+	proposal := activeProposal(t)
+	protectingCplt(t)
+	approve(t, scope, proposal.Hash(), "cloud.nais.io")
+
+	args := cpltArgv(cpltLaunch{
+		agent:     "opencode",
+		cpltArgs:  []string{"--allow-read", "/staged/x"},
+		skillsDir: "/staged/x/skills",
+		agentArgs: []string{"run"},
+	})
+	sep := slices.Index(args, "--")
+	before := strings.Join(args[:sep], " ")
+	for _, want := range []string{"--allow-private-domain cloud.nais.io", "--pass-env " + SkillsDirEnv, "--allow-read /staged/x"} {
+		if !strings.Contains(before, want) {
+			t.Errorf("%q is missing from the cplt-flag slot:\n %q", want, args)
+		}
 	}
 }

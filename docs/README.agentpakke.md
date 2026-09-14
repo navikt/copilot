@@ -181,7 +181,7 @@ Feltet ligger på pakkenivå, ikke per klient. Om en MCP-server er tilgjengelig,
 
 ## Pakka foreslår sandkassekonfigurasjon
 
-En pakke kan trenge noe av sandkassa rundt seg, og kunne ikke si fra om det. Observabilitetsferdigheten i `nais/pilot` spør Mimir og Loki på `*.cloud.nais.io`. De navnene slår opp til private IP-er over naisdevice, og cplt avviser enhver vert som gjør det: `403 Private target blocked by cplt`. Feilen kommer midt i en spørring, så både mennesket og modellen leter i PromQL-en.
+En pakke kan trenge noe av sandkassa rundt seg, og kunne ikke si fra om det. Observabilitetsskillen i `nais/pilot` spør Mimir og Loki på `*.cloud.nais.io`. De navnene slår opp til private IP-er over naisdevice, og cplt avviser enhver vert som gjør det: `403 Private target blocked by cplt`. Feilen kommer midt i en spørring, så både mennesket og modellen leter i PromQL-en.
 
 `policies.propose` er stedet pakka sier det. Blokka er nøklet på verktøy og skrevet i verktøyets eget vokabular:
 
@@ -189,7 +189,7 @@ En pakke kan trenge noe av sandkassa rundt seg, og kunne ikke si fra om det. Obs
 "policies": {
   "propose": {
     "cplt": {
-      "reason": "Observabilitetsferdigheten spør Mimir, Loki og Tempo på *.cloud.nais.io, som slår opp til private IP-er over naisdevice.",
+      "reason": "Observabilitetsskillen spør Mimir, Loki og Tempo på *.cloud.nais.io, som slår opp til private IP-er over naisdevice.",
       "proxy": { "allow_private_domains": ["cloud.nais.io"] }
     }
   }
@@ -218,7 +218,7 @@ En senere revisjon som legger til eller utvider en oppføring gir ny hash. Det g
 
 Kjøringer uten terminal godkjenner aldri, og registrerer ingenting heller — et ubesvart spørsmål er ikke et nei. `--json` teller som en slik kjøring.
 
-**Avslag installerer likevel.** Du kan ville ha pakka for de andre ferdighetene. Avslaget registreres, så du ikke blir spurt om det samme igjen, og du får vite hvilken arbeidsflyt som ryker og enlinjeren som åpner den for hånd:
+**Avslag installerer likevel.** Du kan ville ha pakka for de andre skillene. Avslaget registreres, så du ikke blir spurt om det samme igjen, og du får vite hvilken arbeidsflyt som ryker og enlinjeren som åpner den for hånd:
 
 ```
 cplt config set proxy.allow_private_domains cloud.nais.io
