@@ -190,8 +190,9 @@ presetet skal settes via `nav-pilot config` og ikke for hånd, når strict ikke 
 og hva `proxy.log_level` faktisk logger.
 
 `nav-pilot doctor` sier også fra når cplt selv er utdatert, og foreslår kommandoen som
-hører til den cplt-en du har: `sudo apt upgrade cplt` når den kom fra apt-arkivet,
-`brew upgrade navikt/tap/cplt` ellers. nav-pilot laster aldri ned eller oppgraderer cplt for
+hører til den cplt-en du har: `sudo apt upgrade cplt` når dpkg eier binæren,
+`brew upgrade navikt/tap/cplt` ellers. Det er eierskapet som avgjør, ikke hvor pakka kom fra:
+en `.deb` installert for hånd får samme svar som en fra arkivet. nav-pilot laster aldri ned eller oppgraderer cplt for
 deg. Svarer ikke GitHub, hopper den bare over versjonssjekken.
 
 ## Klienter
