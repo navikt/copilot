@@ -297,11 +297,13 @@ export default function Agentpakker() {
                       Lås installasjonen
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
-                      <code className="font-mono text-xs">install</code> skriver{" "}
-                      <code className="font-mono text-xs">.nav-pilot/agentpakke.lock.json</code> i repoet ditt, med
-                      kilden og revisjonen. Commit den: da installerer hele teamet fra samme revisjon, og{" "}
-                      <code className="font-mono text-xs">nav-pilot sync --apply</code> flytter pinnen som én linje diff
-                      i en pull request.
+                      Installerer du i et repo, skriver <code className="font-mono text-xs">install</code>{" "}
+                      <code className="font-mono text-xs">.nav-pilot/agentpakke.lock.json</code> med kilden og
+                      revisjonen. Bruker-scope har ingen erklæring, for{" "}
+                      <code className="font-mono text-xs">~/.copilot</code> er ikke et repo: der ligger revisjonen i din
+                      egen tilstandsfil, og gjelder bare deg. Commit erklæringa: da installerer hele teamet fra samme
+                      revisjon, og <code className="font-mono text-xs">nav-pilot sync --apply</code> flytter pinnen som
+                      én linje diff i en pull request.
                     </BodyLong>
                     <BodyLong textColor="subtle">
                       I CI bruker du <code className="font-mono text-xs">--frozen</code>: den installerer nøyaktig det
