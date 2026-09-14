@@ -1,10 +1,7 @@
 "use client";
 
 export type VideoKPIEventName =
-  | "video_feed_impression"
-  | "video_play_started"
-  | "video_play_error"
-  | "video_rebuffer_count";
+  "video_feed_impression" | "video_play_started" | "video_play_error" | "video_rebuffer_count";
 
 type VideoKPIEventPayload = {
   videoId?: string;

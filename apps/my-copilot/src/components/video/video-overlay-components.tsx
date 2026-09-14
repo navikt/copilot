@@ -24,13 +24,6 @@ import {
 } from "@navikt/aksel-icons";
 import { Detail, HStack, VStack } from "@navikt/ds-react";
 import type { OverlayComponent } from "@/lib/public-videos";
-import { accentForEpisode } from "./video-accent";
-
-// ============================================================================
-// Accent Colors: Each episode gets a unique accent for visual identity
-// ============================================================================
-
-export { accentForEpisode };
 
 // ============================================================================
 // Visual Constants: Color tokens for overlay rendering
