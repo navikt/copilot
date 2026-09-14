@@ -52,8 +52,8 @@ func collectDiagnostics(targetDir string) string {
 	fmt.Fprintf(&b, "OS         %s/%s\n", runtime.GOOS, runtime.GOARCH)
 
 	install := "binary"
-	if mgr := packageManager(); mgr.name != "" {
-		install = mgr.name
+	if mgr := packageManager(); mgr.Name != "" {
+		install = mgr.Name
 	}
 	fmt.Fprintf(&b, "Install    %s\n", install)
 

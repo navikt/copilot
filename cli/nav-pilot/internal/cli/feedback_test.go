@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 func TestCollectDiagnostics_NoState(t *testing.T) {
@@ -213,18 +215,18 @@ func TestCmdFeedback_FeatureRequest(t *testing.T) {
 func TestCollectDiagnosticsNamesTheOwningPackageManager(t *testing.T) {
 	tests := []struct {
 		name string
-		mgr  pkgManager
+		mgr  domain.PkgManager
 		want string
 	}{
-		{"unmanaged", pkgNone, "Install    binary"},
-		{"homebrew", pkgBrew, "Install    homebrew"},
-		{"apt", pkgApt, "Install    apt"},
+		{"unmanaged", domain.PkgNone, "Install    binary"},
+		{"homebrew", domain.PkgBrew, "Install    homebrew"},
+		{"apt", domain.PkgApt, "Install    apt"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			orig := packageManager
 			t.Cleanup(func() { packageManager = orig })
-			packageManager = func() pkgManager { return tt.mgr }
+			packageManager = func() domain.PkgManager { return tt.mgr }
 
 			if diag := collectDiagnostics(t.TempDir()); !strings.Contains(diag, tt.want) {
 				t.Errorf("diagnostics did not report %q. Output:\n%s", tt.want, diag)

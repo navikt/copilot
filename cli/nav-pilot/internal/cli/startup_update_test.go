@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // stubStartupUpdate points the startup check at a fixed latest release, a fixed
 // owning package manager and a config with or without auto_update, so a test can
 // read what the user is told without a network call or a packaged install.
-func stubStartupUpdate(t *testing.T, current, latest string, autoUpdate bool, mgr pkgManager) {
+func stubStartupUpdate(t *testing.T, current, latest string, autoUpdate bool, mgr domain.PkgManager) {
 	t.Helper()
 	path := isolatedConfig(t)
 	cfg := "version = 1\n"
@@ -34,7 +35,7 @@ func stubStartupUpdate(t *testing.T, current, latest string, autoUpdate bool, mg
 	assessStaleness = func(string) artifacts.StalenessAssessment {
 		return artifacts.AssessFromLatest(current, latest, "")
 	}
-	packageManager = func() pkgManager { return mgr }
+	packageManager = func() domain.PkgManager { return mgr }
 	// The upgrade prompt would block on a terminal that is not there.
 	isInteractive = func() bool { return false }
 }
@@ -52,7 +53,7 @@ func TestStartupUpdateNeverAnnouncesWhatBrewMustDo(t *testing.T) {
 			name = "auto_update on"
 		}
 		t.Run(name, func(t *testing.T) {
-			stubStartupUpdate(t, current, latest, autoUpdate, pkgBrew)
+			stubStartupUpdate(t, current, latest, autoUpdate, domain.PkgBrew)
 
 			var stop bool
 			var err error
@@ -101,7 +102,7 @@ func TestStartupUpdateQuietPeriod(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Homebrew keeps doUpdate (and the network) out of the auto_update
 			// case; what is under test is whether anything is printed at all.
-			stubStartupUpdate(t, current, tt.latest, tt.autoUpdate, pkgBrew)
+			stubStartupUpdate(t, current, tt.latest, tt.autoUpdate, domain.PkgBrew)
 
 			out := captureStderrFor(t, func() {
 				if _, err := startupUpdateCheck(); err != nil {
@@ -126,7 +127,7 @@ func TestExplicitUpdateIgnoresQuietPeriod(t *testing.T) {
 	// Brew-managed so the explicit path answers from packageManager instead of
 	// the releases API; the quiet period is the variable under test. The empty
 	// PATH keeps the brew branch's cplt lookup off the network too.
-	stubStartupUpdate(t, current, fresh, false, pkgBrew)
+	stubStartupUpdate(t, current, fresh, false, domain.PkgBrew)
 	t.Setenv("PATH", t.TempDir())
 
 	if quiet := captureStderrFor(t, func() {
@@ -161,7 +162,7 @@ func TestStartupUpdateNeverAnnouncesWhatAptMustDo(t *testing.T) {
 			name = "auto_update on"
 		}
 		t.Run(name, func(t *testing.T) {
-			stubStartupUpdate(t, current, latest, autoUpdate, pkgApt)
+			stubStartupUpdate(t, current, latest, autoUpdate, domain.PkgApt)
 
 			var stop bool
 			var err error

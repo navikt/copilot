@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
@@ -164,7 +165,9 @@ func cmdDoctor() error {
 	if cpltPath == "" {
 		hasErrors = true
 		fmt.Printf("      %s Binary not found on PATH\n", red("[✗]"))
-		fmt.Printf("          %s Install cplt via Homebrew: %s\n", red("Solution:"), bold("brew install navikt/tap/cplt"))
+		mgr := domain.PkgForInstall()
+		fmt.Printf("          %s Install cplt via %s: %s\n", red("Solution:"), mgr.Label,
+			bold(mgr.Pick("brew install navikt/tap/cplt", "sudo apt install cplt")))
 	} else {
 		versionOut, err := runBounded(cpltPath, "--version")
 		version := strings.TrimSpace(string(versionOut))
@@ -181,7 +184,8 @@ func cmdDoctor() error {
 		switch classifyCpltSkew(installed, latest, lerr) {
 		case cpltVersionBehind:
 			fmt.Printf("      %s cplt %s is out of date (latest: %s)\n", yellow("⚠"), installed, latest)
-			fmt.Printf("          %s Run %s\n", yellow("Solution:"), bold("brew upgrade navikt/tap/cplt"))
+			fmt.Printf("          %s Run %s\n", yellow("Solution:"),
+				bold(domain.PkgOwner(cpltPath).Pick("brew upgrade navikt/tap/cplt", "sudo apt upgrade cplt")))
 		case cpltVersionCurrent:
 			fmt.Printf("      %s cplt is up to date\n", green("✓"))
 		default:

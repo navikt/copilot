@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 func TestPackageManager(t *testing.T) {
@@ -289,17 +289,17 @@ func TestFetchLatestRelease_NoRetryWithoutToken(t *testing.T) {
 func TestUpdateRefusesToReplaceAPackagedBinary(t *testing.T) {
 	tests := []struct {
 		name string
-		mgr  pkgManager
+		mgr  domain.PkgManager
 		want string
 	}{
-		{"apt", pkgApt, "sudo apt upgrade nav-pilot"},
-		{"homebrew", pkgBrew, "brew upgrade navikt/tap/nav-pilot"},
+		{"apt", domain.PkgApt, "sudo apt upgrade nav-pilot"},
+		{"homebrew", domain.PkgBrew, "brew upgrade navikt/tap/nav-pilot"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			origManager, origAPI := packageManager, releasesAPI
 			t.Cleanup(func() { packageManager, releasesAPI = origManager, origAPI })
-			packageManager = func() pkgManager { return tt.mgr }
+			packageManager = func() domain.PkgManager { return tt.mgr }
 
 			// A refusal must not reach the network, and the empty PATH keeps the
 			// Homebrew branch's cplt lookup off it too.
@@ -324,48 +324,4 @@ func TestUpdateRefusesToReplaceAPackagedBinary(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestDpkgOwns: the path alone cannot decide. A hand-built binary in /usr/bin
-// must still self-update — telling it `sudo apt upgrade` while refusing to
-// update leaves the user with no way forward — so dpkg has to confirm.
-func TestDpkgOwns(t *testing.T) {
-	// packageManager is what limits dpkg to Linux; the check itself is the
-	// same shell call everywhere, so it is tested everywhere.
-	// fakeDpkgQuery puts a dpkg-query with a fixed exit code on PATH.
-	fakeDpkgQuery := func(t *testing.T, exit int) {
-		dir := t.TempDir()
-		mustWrite(t, filepath.Join(dir, "dpkg-query"), fmt.Sprintf("#!/bin/sh\nexit %d\n", exit))
-		if err := os.Chmod(filepath.Join(dir, "dpkg-query"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		t.Setenv("PATH", dir)
-	}
-
-	t.Run("dpkg owns it", func(t *testing.T) {
-		fakeDpkgQuery(t, 0)
-		if !dpkgOwns("/usr/bin/nav-pilot") {
-			t.Error("a binary dpkg reports as its own was treated as unmanaged")
-		}
-	})
-	t.Run("dpkg disowns it", func(t *testing.T) {
-		fakeDpkgQuery(t, 1)
-		if dpkgOwns("/usr/bin/nav-pilot") {
-			t.Error("a hand-built binary in /usr/bin was refused an update it can do")
-		}
-	})
-	t.Run("outside dpkg territory", func(t *testing.T) {
-		// dpkg-query answers yes to everything here: only the path check can
-		// keep the usual installs from paying for a process spawn.
-		fakeDpkgQuery(t, 0)
-		if dpkgOwns("/usr/local/bin/nav-pilot") {
-			t.Error("a /usr/local/bin install asked dpkg about itself")
-		}
-	})
-	t.Run("no dpkg-query", func(t *testing.T) {
-		t.Setenv("PATH", t.TempDir())
-		if dpkgOwns("/usr/bin/nav-pilot") {
-			t.Error("a missing dpkg-query was read as proof of ownership")
-		}
-	})
 }
