@@ -347,7 +347,7 @@ Hva som *ikke* skjedde her, med vilje:
 
 - **`SynthesizeLegacy` består.** Manifestløse tredjepartskilder og pinnede pre-manifest-refs går fortsatt gjennom adapteren. Den pensjoneres med samlingsmekanismen i migrasjonens fase 3, når deprekeringsvinduet — som startet da manifestet skippet — løper ut. Til da holder `TestCommittedManifestMatchesLegacyAdapter` (`internal/agentpakke/manifest_parity_test.go`) det committede manifestet og adapteren i takt: endres ett av dem uten det andre, feiler testen.
 - **Eldre binærer får spike-ens §2-oppførsel mot ny main:** `install frontend` blir «not found» med forslag, og en samlings-scope fryser som delmengde til brukeren oppgraderer. Filsync fortsetter å virke (filene finnes fortsatt i poolene). Akseptert: kilden hentes fra HEAD ved kjøring, så det finnes ingen sekvensering som skåner en binær brukeren ikke oppgraderer.
-- **Velger-forhåndsutvalg** (TUI-komfort for «anbefalte utvalg per teamtype», nå dokumentert i [README.collections.md](README.collections.md)) er fortsatt ugjort og ustilt.
+- **Velger-forhåndsutvalg** (TUI-komfort for «anbefalte utvalg per teamtype») er fortsatt ugjort og ustilt. Rådene er tatt ut av dokumentasjonen: de hvilte på at ubrukte instruksjoner aldri matcher, og tre av sytten matcher alltid.
 
 ## 10. Stabile releases som oppdateringskilde (#779)
 
