@@ -40,11 +40,13 @@ const DOC_SECTIONS: TocItem[] = [
       { id: "struktur", label: "Struktur" },
       { id: "artefakttyper", label: "Artefakttyper" },
       { id: "kjorbar-kode", label: "Kjørbar kode" },
+      { id: "skript-i-en-skill", label: "Skript i en skill" },
       { id: "manifestet", label: "Manifestet" },
       { id: "klientoppforinga", label: "Klientoppføringa" },
       { id: "hvilken-tier", label: "Hvilken tier skal du velge?" },
       { id: "uten-agent", label: "Pakke uten agent" },
       { id: "mcp-servere", label: "MCP-servere" },
+      { id: "sandkasse", label: "Sandkassekonfigurasjon" },
       { id: "valider", label: "Valider" },
       { id: "distribuer", label: "Distribuer" },
     ],
@@ -170,6 +172,20 @@ const MANIFEST_UTEN_AGENT = `{
 const MCP = `{
   "mcpServers": ["io.github.navikt/github-mcp", "io.github.navikt/aksel-mcp"]
 }`;
+
+const PROPOSE = `{
+  "policies": {
+    "propose": {
+      "cplt": {
+        "reason": "The nais-observability skill queries Mimir, Loki and Tempo at *.cloud.nais.io, which resolve to private IP addresses over naisdevice and are blocked without this waiver.",
+        "proxy": { "allow_private_domains": ["cloud.nais.io"] }
+      }
+    }
+  },
+  "minNavPilotVersion": "2026.09.14-131410"
+}`;
+
+const AVSLAG = `cplt config set proxy.allow_private_domains cloud.nais.io`;
 
 const VALIDER_CMD = `nav-pilot validate --source "$PWD"`;
 
@@ -389,19 +405,18 @@ export default function Agentpakker() {
                         Hva som komponerer
                       </LinkableHeading>
                       <BodyLong textColor="subtle">
-                        I dag er det bare hel-pakke-installasjonen{" "}
-                        <code className="font-mono text-xs">install &lt;navn&gt;</code> og{" "}
-                        <code className="font-mono text-xs">sync</code> som tar med det gjenbrukte innholdet.{" "}
+                        Alle installasjonsveiene tar med det gjenbrukte innholdet:{" "}
+                        <code className="font-mono text-xs">install &lt;navn&gt;</code>,{" "}
                         <code className="font-mono text-xs">install --all</code>, den interaktive plukkeren,{" "}
                         <code className="font-mono text-xs">install &lt;navn&gt; --type &lt;type&gt;</code> og{" "}
-                        <code className="font-mono text-xs">list</code> gir bare topp-pakkas innhold, uten feil og uten
-                        advarsel. <code className="font-mono text-xs">list</code> viser heller ikke det arvede
-                        innholdet, så det brukeren ser stemmer med det som ble installert, og begge er ufullstendige. Si
-                        det til konsumentene dine til{" "}
-                        <a href="https://github.com/navikt/copilot/issues/844" className={linkClass}>
-                          #844
-                        </a>{" "}
-                        er lukket.
+                        <code className="font-mono text-xs">sync</code>, og{" "}
+                        <code className="font-mono text-xs">list</code> viser det (
+                        <a href="https://github.com/navikt/copilot/pull/866" className={linkClass}>
+                          #866
+                        </a>
+                        ). En konsument kan navngi et arvet artefakt i <code className="font-mono text-xs">items</code>.{" "}
+                        <code className="font-mono text-xs">validate</code> komponerer med vilje ikke: den sjekker hva
+                        repoet ditt selv sender, så en base kan ikke gjøre en pakke gyldig som ikke er det.
                       </BodyLong>
                     </VStack>
                   </VStack>
@@ -462,7 +477,9 @@ export default function Agentpakker() {
                       <BodyLong textColor="subtle">
                         Hooks og extensions er ikke tekst en modell leser. En hook kjører ved verktøykall, en extension
                         lastes av klienten. Den som installerer pakka di kjører koden din på maskinen sin, så si i
-                        pakkas <code className="font-mono text-xs">description</code> hva den gjør.
+                        pakkas <code className="font-mono text-xs">description</code> hva den gjør. Installasjonen må
+                        skje utenfor cplt: inne i sandkassen nekter cplt å skrive hooks, extensions og skills, og{" "}
+                        <code className="font-mono text-xs">install</code> stopper med en feil som sier det.
                       </BodyLong>
                     </VStack>
 
@@ -501,6 +518,14 @@ export default function Agentpakker() {
                       <code className="font-mono text-xs">install</code> manifestet.
                     </BodyLong>
                     <CodeBlock filename=".nav-pilot/agentpakke.json">{MANIFEST}</CodeBlock>
+                    <BodyLong textColor="subtle">
+                      <code className="font-mono text-xs">owner</code> er attribusjon, ikke tilgangsstyring: kilden til
+                      en installasjon er repoet manifestet ble klonet fra.{" "}
+                      <code className="font-mono text-xs">policies.opencodePermissions</code>,{" "}
+                      <code className="font-mono text-xs">profiles</code> og{" "}
+                      <code className="font-mono text-xs">provenance</code> står i skjemaet, men gjør ingenting ennå:
+                      stiene sti-sjekkes, og nav-pilot leser dem ikke. Vent med dem.
+                    </BodyLong>
 
                     <LinkableHeading id="klientoppforinga" size="small" level="3">
                       Klientoppføringa
@@ -573,7 +598,9 @@ export default function Agentpakker() {
                       nav-pilots releaseformat (<code className="font-mono text-xs">YYYY.MM.DD-HHMMSS</code>, eventuelt
                       med build-sha) og blokkerer eldre binærer med en melding som sier hva de skal gjøre. Et annet
                       format avvises framfor å ignoreres: nav-pilot kan ikke sammenligne det, og å godta det ville slått
-                      av akkurat den gaten manifestet ba om.
+                      av akkurat den gaten manifestet ba om. Et utviklingsbygg (
+                      <code className="font-mono text-xs">dev</code>) er unntatt gaten, så lokalt arbeid på pakka
+                      stopper ikke.
                     </BodyLong>
                     <BodyLong textColor="subtle">
                       <strong>Kjørbar kode når ikke alle klientene.</strong> opencode og pi hopper over hooks, med en
@@ -626,6 +653,62 @@ export default function Agentpakker() {
                       registeret. Det er alt: nav-pilot skriver ingen MCP-konfigurasjon, og brukeren slår på serveren
                       selv i klienten. Feltet ligger på pakkenivå, siden det er klientens eget oppsett som avgjør om en
                       server er tilgjengelig.
+                    </BodyLong>
+
+                    <LinkableHeading id="sandkasse" size="small" level="3">
+                      Sandkassekonfigurasjon
+                    </LinkableHeading>
+                    <BodyLong textColor="subtle">
+                      Trenger en skill noe av sandkassa cplt setter rundt klienten, sier pakka det i{" "}
+                      <code className="font-mono text-xs">policies.propose</code>, i stedet for å la brukeren møte
+                      feilen midt i arbeidet. Nais-pakka spør Mimir, Loki og Tempo på{" "}
+                      <code className="font-mono text-xs">*.cloud.nais.io</code>. Navnene slår opp til private adresser
+                      over naisdevice, og cplt avviser dem (
+                      <code className="font-mono text-xs">403 Private target blocked by cplt</code>) til brukeren har
+                      gitt et unntak. Et forslag konfigurerer ingenting av seg selv: det blir et launch-flagg først når
+                      brukeren har sagt ja.
+                    </BodyLong>
+                    <CodeBlock filename=".nav-pilot/agentpakke.json">{PROPOSE}</CodeBlock>
+                    <BodyLong textColor="subtle">
+                      I v1 er <code className="font-mono text-xs">proxy.allow_private_domains</code> det eneste pakka
+                      får foreslå: 1 til 32 fulle DNS-navn, uten wildcard, port eller sti.{" "}
+                      <code className="font-mono text-xs">reason</code> er påkrevd, høyst 400 tegn, uten linjeskift og
+                      kontrolltegn, og er alt brukeren har å avgjøre på: skriv hva som ryker uten unntaket. nav-pilot
+                      vasker teksten igjen når den skrives ut, så en pakke kan ikke lage en linje som ser ut som
+                      nav-pilots egen. Skjemaet avviser <code className="font-mono text-xs">allow</code>,{" "}
+                      <code className="font-mono text-xs">deny</code>, <code className="font-mono text-xs">preset</code>
+                      , <code className="font-mono text-xs">repo_dirs</code>,{" "}
+                      <code className="font-mono text-xs">inherit_env</code>,{" "}
+                      <code className="font-mono text-xs">allowed_domains</code>,{" "}
+                      <code className="font-mono text-xs">blocked_domains</code>, guardene og hele{" "}
+                      <code className="font-mono text-xs">sandbox</code>. Andre nøkler under{" "}
+                      <code className="font-mono text-xs">cplt</code> validerer, men nav-pilot navngir dem ved install
+                      og honorerer dem aldri. Andre verktøynøkler enn <code className="font-mono text-xs">cplt</code>{" "}
+                      ignoreres.
+                    </BodyLong>
+                    <BodyLong textColor="subtle">
+                      Brukeren svarer i terminalen ved <code className="font-mono text-xs">install</code>, og ved{" "}
+                      <code className="font-mono text-xs">sync --apply</code> når blokka er endret. Svaret lagres per
+                      scope i <code className="font-mono text-xs">~/.nav-pilot/pakke-consent.json</code>, nøklet på en
+                      hash av hele blokka: endrer du <code className="font-mono text-xs">reason</code> eller legger til
+                      en vert, kommer spørsmålet tilbake med det som endret seg. Et nei installerer pakka likevel.
+                      Brukeren får vite hva som ryker, og enlinjeren som åpner det for hånd:
+                    </BodyLong>
+                    <CodeBlock compact>{AVSLAG}</CodeBlock>
+                    <BodyLong textColor="subtle">
+                      Uten terminal, og med <code className="font-mono text-xs">--json</code>, godkjennes ingenting og
+                      noteres ingenting. <code className="font-mono text-xs">nav-pilot uninstall</code> sletter svaret.
+                      Et ja blir <code className="font-mono text-xs">--allow-private-domain &lt;vert&gt;</code> på
+                      cplt-kommandolinja, for launcher fra scopet som svarte, og skrives ut ved hver launch. nav-pilot
+                      rører ikke cplt-konfigurasjonen. Unntaket løfter bare DNS-rebinding-vernet for de navnene:
+                      tillatelses- og blokklista gjelder fortsatt, ingen port åpnes, ingenting kjøres.
+                    </BodyLong>
+                    <BodyLong textColor="subtle">
+                      Sett <code className="font-mono text-xs">minNavPilotVersion</code> til minst{" "}
+                      <code className="font-mono text-xs">2026.09.14-131410</code>. En eldre nav-pilot ignorerer blokka
+                      som et ukjent felt, og brukeren får feilen uten forklaring. Brukeren trenger dessuten cplt{" "}
+                      <code className="font-mono text-xs">2026.09.14-105131</code> eller nyere: under det lagres svaret,
+                      men unntaket anvendes ikke, og launchen sier hvorfor.
                     </BodyLong>
 
                     <LinkableHeading id="valider" size="small" level="3">
@@ -725,11 +808,12 @@ export default function Agentpakker() {
                         <code className="font-mono text-xs">sync --updates auto|ask|keep</code>. En Tier 1-installasjon
                         fører opp filene den la ned, og faller derfor utenfor gaten: rollback nekter med «your user
                         scope pins none», og de to andre nås aldri. Lov derfor ikke konsumentene dine et rollback en
-                        Tier 1-pakke ikke gir dem. Om gaten skal utvides, er åpent (
+                        Tier 1-pakke ikke gir dem. Gaten utvides ikke (
                         <a href="https://github.com/navikt/copilot/issues/843" className={linkClass}>
                           #843
                         </a>
-                        ).
+                        ): vil en Tier 1-konsument tilbake til en eldre revisjon, pinner de den selv med{" "}
+                        <code className="font-mono text-xs">nav-pilot sync --apply --ref &lt;sha&gt;</code>.
                       </BodyLong>
                       <BodyLong textColor="subtle">
                         <strong>Er pakka di Tier 2</strong>, gjelder alle tre. Konsumenten kan rulle tilbake uten nett
