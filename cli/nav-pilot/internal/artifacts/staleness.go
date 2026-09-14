@@ -12,6 +12,14 @@ import (
 const (
 	checkInterval  = 24 * time.Hour
 	staleThreshold = 14
+
+	// ReleaseQuietPeriod is how long a release stays unannounced. This repo
+	// releases several times a day, so without it a user is interrupted on
+	// nearly every command by a version minutes old. Homebrew makes that
+	// worse: navikt/homebrew-tap rebuilds the formula on an hourly cron, so
+	// `brew upgrade` right after a release is a no-op. An explicit
+	// `nav-pilot update` ignores the quiet period — that user asked.
+	ReleaseQuietPeriod = 24 * time.Hour
 )
 
 // StalenessCache persists the last update check result outside the repo.
@@ -178,6 +186,19 @@ func AssessFromLatest(installedVersion, latestVersion, fallbackResult string) St
 		SkewDays:      skewDays,
 		HasSkew:       skewOK,
 	}
+}
+
+// ReleaseIsFresh reports whether version was released less than
+// [ReleaseQuietPeriod] ago, read off the YYYY.MM.DD-HHMMSS-sha stamp so no
+// network call is needed. A version string it cannot parse is reported as not
+// fresh: an unreadable stamp must not silence the nudge.
+func ReleaseIsFresh(version string, now time.Time) bool {
+	released, ok := ParseVersionTimestamp(VersionTimestamp(version))
+	if !ok {
+		return false
+	}
+	// A stamp in the future (clock skew) is newer still, so it counts as fresh.
+	return now.Sub(released) < ReleaseQuietPeriod
 }
 
 func VersionSkewDays(latestVersion, installedVersion string) (int64, bool) {

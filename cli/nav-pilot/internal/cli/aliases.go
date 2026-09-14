@@ -221,6 +221,10 @@ var (
 	// places to forget it.
 	navPilotOwns = artifacts.NavPilotOwns
 
+	// releaseIsFresh gates the startup nudge on the quiet period; see
+	// artifacts.ReleaseQuietPeriod for why a brand-new release stays quiet.
+	releaseIsFresh = artifacts.ReleaseIsFresh
+
 	writeScopedState = func(scope *InstallScope, state *StateFile) error {
 		releasePin(scope, state)
 		return artifacts.WriteScopedState(scope, state)
