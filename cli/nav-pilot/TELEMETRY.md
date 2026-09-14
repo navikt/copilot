@@ -28,6 +28,13 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 - `startup` når brukeren kjører `nav-pilot` uten args (interaktiv flyt)
 - `launch` når nav-pilot forsøker å starte `cplt`/`copilot`
 
+**Merk om `nav_pilot_install_present`:**
+- `collection` er en bøtte, ikke navnet på en samling: `pakke` (scopet sporer en
+  agentpakke), `all` (`(all)`-installasjonen), `alacarte` (plukket element for
+  element) eller `legacy` (en av de fem gamle samlingene, eller en verdi vi ikke
+  kjenner igjen). Spørsmålet metrikken svarer på er hvor mange installasjoner som
+  står igjen å migrere, ikke hvilken samling noen har.
+
 **Merk om `nav_pilot_config_info`:**
 - `config_mode` er konfig-modus (`default`/`plan`/`autopilot`) — ikke å forveksle
   med `mode` på `nav_pilot_command_duration_ms` som er kjøremodus (`interactive`/`non_interactive`).

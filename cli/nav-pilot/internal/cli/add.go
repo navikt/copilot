@@ -152,7 +152,7 @@ func recordAddedFiles(scope *InstallScope, src *Source, result *installResult, e
 	foreign := ""
 	if state == nil {
 		state = &StateFile{
-			Collection:  "(à la carte)",
+			Collection:  CollectionAlaCarte,
 			Scope:       scope.Name,
 			Version:     src.Version,
 			SourceRepo:  sourceLabelFor(src),

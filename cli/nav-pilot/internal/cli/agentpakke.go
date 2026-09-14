@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"os"
@@ -433,16 +434,23 @@ func persistInstalledSource(flagSource string, dryRun bool) {
 // The rewrite happens before the file diff and is loud: adoption is a
 // migration the user should read about the one time it runs, not deduce from
 // a renamed state file.
-func adoptPakkeIdentity(scope *InstallScope, src *Source, state *StateFile, resolver *SourceResolver, jsonOutput bool) {
+//
+// adopted is the source this run is adopting for a scope whose state predates
+// source tracking; it is not in the state file yet. Without it the adoption
+// read an empty SourceRepo, skipped, and waited for a second sync (#877).
+func adoptPakkeIdentity(scope *InstallScope, src *Source, state *StateFile, resolver *SourceResolver, adopted string, jsonOutput bool) error {
 	if src == nil || src.Pakke == nil || state == nil {
-		return
+		return nil
 	}
 	old := state.Collection
 	if old == src.Pakke.Name || (old != CollectionAll && !agentpakke.IsIdentifier(old)) {
-		return
+		return nil
 	}
-	if state.SourceRepo == "" || !sameSourceRepo(state.SourceRepo, sourceLabelFor(src)) {
-		return
+	// The source this scope belongs to: what it records, what it is adopting
+	// in this run, or — for a pre-tracking scope nothing else names — the
+	// source this sync actually read.
+	if recorded := cmp.Or(state.SourceRepo, adopted, sourceLabelFor(src)); !sameSourceRepo(recorded, sourceLabelFor(src)) {
+		return goneSourceError(scope, state, recorded)
 	}
 
 	var ignored []string
@@ -496,4 +504,39 @@ func adoptPakkeIdentity(scope *InstallScope, src *Source, state *StateFile, reso
 		fmt.Fprintf(os.Stderr, "%s Could not record the adoption in the %s scope's state: %v\n",
 			yellow("⚠"), scope.Name, err)
 	}
+	return nil
+}
+
+// goneSource reports whether a scope's recorded source is a local checkout
+// that is no longer there. A repo id cannot be judged without the network, so
+// only a path is answered here — and a path is what a scope ends up recorded
+// against when someone installs from a worktree that later disappears.
+func goneSource(state *StateFile) bool {
+	if state == nil || !filepath.IsAbs(state.SourceRepo) {
+		return false
+	}
+	info, err := os.Stat(state.SourceRepo)
+	return err != nil || !info.IsDir()
+}
+
+// refuseGoneSource stops a sync whose scope names a source that is no longer
+// there. Before this the scope was skipped in silence: the adoption found no
+// matching source and gave up, run after run, with nothing on screen.
+func refuseGoneSource(scope *InstallScope, state *StateFile) error {
+	if !goneSource(state) {
+		return nil
+	}
+	return goneSourceError(scope, state, state.SourceRepo)
+}
+
+// goneSourceError is the one message for both halves of the problem: a
+// recorded source that is gone, and a recorded source that no longer matches
+// what the sync resolved. nav-pilot does not pick a new source for a scope —
+// switching sources is an install (#691) — so the way out is the reinstall.
+func goneSourceError(scope *InstallScope, state *StateFile, recorded string) error {
+	return fmt.Errorf(
+		"the %s scope is installed from %s, which no longer resolves.\n"+
+			"nav-pilot does not switch a scope to another source on its own; that is an install (#691).\n\n"+
+			"  Reinstall it, with a source that exists:  %s",
+		scope.Name, bold(recorded), bold(reinstallCommand(scope, state)))
 }

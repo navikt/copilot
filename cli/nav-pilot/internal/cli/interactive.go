@@ -11,6 +11,7 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
@@ -270,10 +271,31 @@ func scopeStaleness(scope *InstallScope, state *StateFile) string {
 	}
 	assessment := assessStaleness(state.Version)
 	recordFreshness("collection", scope.Name, assessment)
-	if assessment.LatestVersion != "" && versionNewer(assessment.LatestVersion, state.Version) {
+	if assessment.LatestVersion == "" {
+		return ""
+	}
+	// A scope that still records a collection has a migration waiting for it,
+	// and only a sync performs it. Without this a user who never syncs is
+	// never asked — the startup offers a sync for a newer release and nothing
+	// else, so the scope sits on the retired identity indefinitely. The
+	// existing "Sync now?" prompt is the one that covers it; no new dialog.
+	if versionNewer(assessment.LatestVersion, state.Version) || pendingPakkeAdoption(state) {
 		return assessment.LatestVersion
 	}
 	return ""
+}
+
+// pendingPakkeAdoption reports whether a scope still carries a collection-era
+// identity that [adoptPakkeIdentity] would rewrite onto the agentpakke name.
+//
+// Only the retired collections and the synthetic "(all)" count. A scope whose
+// Collection is already a pakke name has nothing to migrate, and an à-la-carte
+// install never claimed a collection.
+func pendingPakkeAdoption(state *StateFile) bool {
+	if state == nil {
+		return false
+	}
+	return state.Collection == CollectionAll || agentpakke.IsLegacyCollection(state.Collection)
 }
 
 // syncPromptOutcome maps the sync prompt's result to what the run does next.
@@ -327,8 +349,13 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 
 	if len(stale) > 0 {
 		for _, s := range stale {
-			fmt.Printf("%s Update available for %s (%s): %s → %s\n",
-				yellow("⚠"), bold(s.state.Collection), s.scope.Name, s.state.Version, s.latest)
+			if versionNewer(s.latest, s.state.Version) {
+				fmt.Printf("%s Update available for %s (%s): %s → %s\n",
+					yellow("⚠"), bold(s.state.Collection), s.scope.Name, s.state.Version, s.latest)
+				continue
+			}
+			fmt.Printf("%s The %s scope still tracks the retired %s collection; a sync moves it over.\n",
+				yellow("⚠"), s.scope.Name, bold(s.state.Collection))
 		}
 		fmt.Println()
 

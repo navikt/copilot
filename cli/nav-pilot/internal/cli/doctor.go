@@ -57,6 +57,19 @@ func reportScopeIgnoredButInstalled(scope *InstallScope) {
 	fmt.Printf("          %s %s brings one back under sync.\n", yellow("Solution:"), bold("nav-pilot add <type> <name> --force"))
 }
 
+// reportGoneSource flags a scope installed from a source that is no longer
+// there, with the same command sync refuses with. doctor is where someone
+// looks once a command has refused, so the two must not disagree, and a scope
+// in this state is stuck until someone reinstalls it.
+func reportGoneSource(scope *InstallScope, state *StateFile) bool {
+	if !goneSource(state) {
+		return false
+	}
+	fmt.Printf("      %s Installed from %s, which is no longer there\n", red("[✗]"), state.SourceRepo)
+	fmt.Printf("          %s Reinstall with %s\n", red("Solution:"), bold(reinstallCommand(scope, state)))
+	return true
+}
+
 // cmdDoctor runs system health checks and outputs actionable diagnostics.
 func cmdDoctor() error {
 	fmt.Printf("%s\n\n", bold("nav-pilot doctor"))
@@ -106,6 +119,7 @@ func cmdDoctor() error {
 				fmt.Printf("    • User scope (~/.copilot): %q collection\n", userState.Collection)
 				fmt.Printf("      %s %d files OK\n", green("✓"), ok)
 			}
+			hasErrors = reportGoneSource(userScope, userState) || hasErrors
 			reportScopeConflicts(userScope)
 			reportScopeIgnoredButInstalled(userScope)
 		} else {
@@ -132,6 +146,7 @@ func cmdDoctor() error {
 				fmt.Printf("    • Repo scope (.github): %q collection\n", repoState.Collection)
 				fmt.Printf("      %s %d files OK\n", green("✓"), ok)
 			}
+			hasErrors = reportGoneSource(repoScope, repoState) || hasErrors
 			reportScopeConflicts(repoScope)
 			reportScopeIgnoredButInstalled(repoScope)
 		} else {
@@ -139,7 +154,7 @@ func cmdDoctor() error {
 		}
 	}
 	if userState == nil && repoState == nil {
-		fmt.Printf("      %s Run %s to install a collection.\n", yellow("Solution:"), bold("nav-pilot install <collection>"))
+		fmt.Printf("      %s Install with %s\n", yellow("Solution:"), bold(installCommandFor(nil, nil)))
 	}
 	fmt.Println()
 

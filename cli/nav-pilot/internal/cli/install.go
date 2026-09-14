@@ -1339,7 +1339,7 @@ func cmdListInstalledAuto(repoDir string, jsonOutput bool) error {
 			return outputJSON(map[string]interface{}{"installed": false})
 		}
 		fmt.Printf("No nav-pilot collection installed (repo or user scope).\n")
-		fmt.Printf("Install with: %s\n", bold("nav-pilot install <collection>"))
+		fmt.Printf("Install with: %s\n", bold(installCommandFor(nil, nil)))
 
 		return nil
 	}
@@ -1422,7 +1422,7 @@ func cmdListInstalledScoped(scope *InstallScope, _ bool, jsonOutput bool) error 
 		} else {
 			fmt.Println("No nav-pilot collection installed.")
 		}
-		fmt.Printf("Install with: %s\n", bold("nav-pilot install <collection>"))
+		fmt.Printf("Install with: %s\n", bold(installCommandFor(nil, nil)))
 		return nil
 	}
 

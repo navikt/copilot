@@ -108,7 +108,8 @@ var (
 
 // Const aliases
 const (
-	CollectionAll = source.CollectionAll
+	CollectionAll      = source.CollectionAll
+	CollectionAlaCarte = source.CollectionAlaCarte
 
 	// defaultSourceRepo is the content source used when neither --source nor
 	// the config file's source key names one.

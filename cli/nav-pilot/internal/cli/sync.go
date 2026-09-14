@@ -93,13 +93,15 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	if adopted != "" && !jsonOutput {
 		noteAdoptedSource(scope, adopted)
 	}
-	if err := syncScope(scope, ref, sourceRepo, apply, jsonOutput); err != nil {
-		return err
-	}
-	if adopted != "" {
+	err = syncScope(scope, ref, sourceRepo, adopted, apply, jsonOutput)
+	// errUpdatesAvailable is a successful check, not a failure: the source was
+	// fetched and read. Recording only on nil left every pre-tracking scope
+	// with a pending update sourceless forever, and so unable to adopt the
+	// pakke identity — "do exactly what the tool says, nothing happens" (#877).
+	if adopted != "" && (err == nil || errors.Is(err, errUpdatesAvailable)) {
 		recordAdoptedSource(scope, adopted)
 	}
-	return nil
+	return err
 }
 
 // refuseSourceSwitch stops a sync that names a different source than the one
@@ -146,7 +148,12 @@ func refuseSourceSwitch(scope *InstallScope, sourceRepo string) error {
 }
 
 // syncScope is the sync itself, once the source question is settled.
-func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool) error {
+//
+// adopted is the source a pre-tracking scope is adopting in this same run. It
+// is not recorded in state yet — that happens after the sync — so the identity
+// adoption has to be told about it, or it waits for a second sync that nothing
+// asked the user to run (#877).
+func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, jsonOutput bool) error {
 	if err := refuseSourceSwitch(scope, sourceRepo); err != nil {
 		return err
 	}
@@ -155,6 +162,13 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	// scope's agentpakke into it.
 	if sourceRepo == "" {
 		if state, err := readScopedState(scope); err == nil && state != nil && state.SourceRepo != "" {
+			// A recorded source that is no longer there resolves to nothing,
+			// and nav-pilot will not pick another one on the scope's behalf:
+			// a source switch is an install (#691). Say so, rather than
+			// failing further down with a git error about a path.
+			if err := refuseGoneSource(scope, state); err != nil {
+				return err
+			}
 			sourceRepo = state.SourceRepo
 			if !jsonOutput {
 				noteRecordedSourceWins(state.SourceRepo)
@@ -260,7 +274,9 @@ func syncScope(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bo
 	// A collection-era scope meets its source's manifest here first: rewrite
 	// it onto the pakke identity before the diff, so this sync already runs —
 	// and reports new items — as the pakke install it now is.
-	adoptPakkeIdentity(scope, src, syncState, resolver, jsonOutput)
+	if err := adoptPakkeIdentity(scope, src, syncState, resolver, adopted, jsonOutput); err != nil {
+		return err
+	}
 
 	// Determine which files to check
 	files, _, err := resolveSyncFiles(scope, resolver, apply)
@@ -1055,12 +1071,22 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 // flow and `list --installed` handle scope discovery.
 func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error {
 	repoScope := ScopeRepo(repoDir)
-	repoState, _ := readScopedState(repoScope)
+	repoState, repoErr := readScopedState(repoScope)
 
 	userScope, userErr := ScopeUser()
 	var userState *StateFile
+	var userStateErr error
 	if userErr == nil {
-		userState, _ = readScopedState(userScope)
+		userState, userStateErr = readScopedState(userScope)
+	}
+
+	// Recorded here as well as from the interactive startup. Emitted only
+	// there, nav_pilot_install_present answered "who starts nav-pilot
+	// interactively": a user who only runs sync, and every CI job, reported
+	// nothing at all.
+	recordInstallState(repoScope.Name, repoState, repoErr)
+	if userErr == nil {
+		recordInstallState(userScope.Name, userState, userStateErr)
 	}
 
 	if repoState == nil && userState == nil {
@@ -1068,7 +1094,7 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 			return outputJSON(map[string]interface{}{"installed": false})
 		}
 		fmt.Println("No nav-pilot collection installed (repo or user scope).")
-		fmt.Printf("Install with: %s\n", bold("nav-pilot install <collection>"))
+		fmt.Printf("Install with: %s\n", bold(installCommandFor(nil, nil)))
 		return nil
 	}
 
@@ -1549,6 +1575,13 @@ func reportNewItems(scope *InstallScope, resolver *SourceResolver, src *Source) 
 // installCommandFor names the command that would pull new source items into
 // this scope: an agentpakke installs by name into a repo, everything else is
 // the user-scope install-all.
+//
+// A nil scope is the question asked before anything is installed, which is
+// where the four first-run commands ask it (#876). They have no resolved
+// source either, and reaching for one would put a network fetch behind a
+// hint — so they get the install-all, which needs no name and no git repo.
+// The one thing it must never be is a placeholder: `nav-pilot install
+// <collection>` was the first instruction a new user got, and it fails.
 func installCommandFor(scope *InstallScope, src *Source) string {
 	if src != nil && src.Pakke != nil && !scope.IsUser() {
 		return "nav-pilot install " + src.Pakke.Name
