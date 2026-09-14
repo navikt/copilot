@@ -75,7 +75,13 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 
 	// Dispatch to the appropriate installer
 	kind := kindByName[itemType]
-	resolver := resolverFor(src.Dir, pakkeFor(src, name))
+	// Composed: a single artifact the pakke inherits is one it ships, and
+	// `install <navn> --type <kind>` lands here without passing the dispatcher
+	// (#844).
+	resolver, _, err := composedResolverFor(src, name)
+	if err != nil {
+		return err
+	}
 	installErr := installArtifact(resolver, scope, scopeStateHashes(scope), kind, name, dryRun, force, result)
 	if installErr != nil {
 		return installErr

@@ -483,7 +483,14 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 		return installPakkePin(scope, src, false, false)
 	}
 
-	manifest, err := collectAllItemsWith(resolverFor(src.Dir, pakkeFor(src, CollectionAll)))
+	// The picker offers what the install installs, which includes what the
+	// pakke reuses. Listing only the top pakke's items meant the inherited ones
+	// could not be deselected because they were never on the list (#844).
+	resolver, _, err := composedResolverFor(src, CollectionAll)
+	if err != nil {
+		return err
+	}
+	manifest, err := collectAllItemsWith(resolver)
 	if err != nil {
 		return err
 	}
