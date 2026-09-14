@@ -318,6 +318,8 @@ agentpakke "grillmester" requires nav-pilot 2026.09.01-120000 or newer, but this
 2026.08.01-100000-abc1234. Run `nav-pilot update` (or reinstall via Homebrew) and try again
 ```
 
+Meldinga navngir pakkesystemet som eier binæren: «apt» der nav-pilot kom fra apt-arkivet, «Homebrew» ellers.
+
 Utviklingsbygg (`dev`) er unntatt gaten, slik at lokalt arbeid på en agentpakke ikke blokkeres.
 
 ## Kompatibilitet
@@ -647,7 +649,7 @@ nav-pilot --client copilot --payload-context focused      # en annen deklarert k
 - **Utvikler du pakka lokalt, pinnes den ikke.** Er `source` en absolutt sti (`nav-pilot config set source /sti/til/pakke`), materialiseres og verifiseres payloadene på nytt ved hver launch, så en endring i arbeidstreet er med på neste start. Hver materialisering publiseres under sitt eget katalognavn, siden den samme commiten stagd på nytt er et nytt tre og SHA-en ikke skiller de to; katalognavnet er derfor identiteten en markør navngir. Samme oppbevaringsregel gjelder: revisjonen launchen bruker, den forrige, og den en økt leser fra. `nav-pilot install` av en lokal Tier 2-kilde nektes: det finnes ingen immutabel revisjon å pinne, og meldingen navngir install fra repoet i stedet. Dette er flyten for å utvikle en pakke.
 - **opencode** startes med `OPENCODE_CONFIG_DIR` mot payload-katalogen til konteksten som startes (`<revisjon>/opencode/<kontekst>`). Den delte `~/.config/opencode/opencode.json` verken leses eller skrives på denne veien. OTel går fortsatt som miljøvariabler.
 - **copilot** startes med `--plugin-dir <revisjon>/copilot/<kontekst>` og personaen kvalifisert med pakkenavnet: `--agent <pakke>:<agent>`.
-- **cplt er påkrevd, og må være minst den gjennomgåtte baselinen.** En staged launch gir klienten et verifisert tre inne i sandkassen. Uten cplt starter ingenting (`brew install navikt/tap/cplt`). En eldre cplt enn `2026.08.17-062831`, eller en cplt nav-pilot ikke får lest versjonen av, avvises også, med `brew upgrade cplt` i feilen.
+- **cplt er påkrevd, og må være minst den gjennomgåtte baselinen.** En staged launch gir klienten et verifisert tre inne i sandkassen. Uten cplt starter ingenting, og feilen navngir installasjonskommandoen for plattformen: `sudo apt install cplt` der dpkg styrer, ellers `brew install navikt/tap/cplt`. En eldre cplt enn `2026.08.17-062831`, eller en cplt nav-pilot ikke får lest versjonen av, avvises også, med `sudo apt upgrade cplt` eller `brew upgrade cplt` i feilen, etter hvem som eier binæren.
 - **`compatibility` håndheves før launch.** Deklarerer klientoppføringa et versjonsområde, prober nav-pilot klienten og avviser en versjon utenfor området. Både en mislykket probe og uleselig versjonsutdata er fatalt: et område som ikke kan håndheves, er ikke håndhevet.
 - **Modell.** `defaultModel: "inherit"` sender ingen `--model` i det hele tatt. En konkret verdi sendes med. En modell brukeren har pinnet selv vinner over begge.
 
