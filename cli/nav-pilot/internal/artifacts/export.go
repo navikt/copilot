@@ -2,6 +2,7 @@ package artifacts
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -25,17 +26,35 @@ func CmdExport(format string, scope *domain.InstallScope, ref, sourceRepo, cliVe
 	}
 }
 
-// refuseNonCanonicalPakke stops an export that would otherwise produce wrong or
-// empty output.
+// pakkeManifest reads the manifest of the source being written out, and is the
+// one place export and sync decide what a failed read means.
 //
-// exportLayout returns the content layout export should read, or nil for the
+// A source that ships no manifest yields (nil, nil). That is the legacy case:
+// navikt/copilot's own content has no manifest to read, and answering anything
+// else there would demote every Nav agent to a subagent and move export off the
 // canonical directories.
-func exportLayout(src *source.Source) *agentpakke.Layout {
-	m, err := agentpakke.Load(src.Dir)
-	if err != nil {
-		return nil //nolint:nilerr // no manifest is the legacy case: canonical names
+//
+// A manifest that exists but does not parse or validate is a different thing,
+// and the error stops the caller. Falling back on the built-in roster there
+// handed the author a tree that was quietly wrong and an exit 0 — the pakke's
+// own primary agent written out as a subagent — on the one occasion they needed
+// to hear that their manifest was broken (#875).
+func pakkeManifest(sourceDir string) (*agentpakke.Manifest, error) {
+	m, err := agentpakke.Load(sourceDir)
+	if errors.Is(err, agentpakke.ErrNoManifest) {
+		return nil, nil
 	}
-	return m.Layout
+	return m, err
+}
+
+// contentLayout is the content layout to read the source from, or nil for the
+// canonical directories.
+func contentLayout(sourceDir string) (*agentpakke.Layout, error) {
+	m, err := pakkeManifest(sourceDir)
+	if err != nil || m == nil {
+		return nil, err
+	}
+	return m.Layout, nil
 }
 
 // refuseUnreadablePakke stops an export that would silently write nothing.
@@ -46,14 +65,11 @@ func exportLayout(src *source.Source) *agentpakke.Layout {
 // payloads rather than files at paths, and exporting it would produce an empty
 // tree without saying so.
 func refuseUnreadablePakke(src *source.Source) error {
-	m, err := agentpakke.Load(src.Dir)
+	m, err := pakkeManifest(src.Dir)
 	if err != nil {
-		// No manifest is the legacy case. A manifest that fails to load is
-		// install and sync's fail-closed error to report, in the words those
-		// commands use; export does not second-guess it here.
-		return nil //nolint:nilerr // deliberate: only a usable manifest changes export's behaviour
+		return err
 	}
-	if m.Layout != nil {
+	if m == nil || m.Layout != nil {
 		return nil
 	}
 	label := src.Repo
@@ -109,7 +125,10 @@ func ExportOpenCode(scope *domain.InstallScope, ref, sourceRepo, cliVersion stri
 	// A manifest-less source, and a manifest that declares the canonical names,
 	// resolve exactly as before: NewSourceResolverForLayout falls back to the
 	// canonical names for every field the layout leaves empty.
-	layout := exportLayout(src)
+	layout, err := contentLayout(sourceDir)
+	if err != nil {
+		return err
+	}
 	// A repo-scope export writes <repo>/.opencode/, which only that repo reads,
 	// so what the team added by hand under .github/ belongs in it — instructions
 	// included, unlike the global materialization in [SyncOpenCodeArtifacts].
@@ -309,7 +328,10 @@ func exportAgents(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layo
 	// pakke: export runs without a launch, so the global still holds the
 	// built-in default and every foreign persona was demoted to a subagent
 	// (#793). The manifest is the only thing that knows this pakke's primaries.
-	primaries := openCodePrimaries(sourceDir)
+	primaries, err := openCodePrimaries(sourceDir)
+	if err != nil {
+		return 0, err
+	}
 	if len(agents) == 0 {
 		return 0, nil
 	}
@@ -552,8 +574,15 @@ func buildLeanAGENTSmd(globalSections []InstructionSection, refs []InstructionRe
 func MaterializeOpenCode(sourceDir, outputDir string) (skills, commands, agents, instructions int, err error) {
 	// Same layout the export path reads (#790): a pakke that declares where its
 	// content lives is materialized from there, not from the canonical names.
-	resolver := source.NewSourceResolverForLayout(sourceDir, syncLayout(sourceDir))
-	primaries := openCodePrimaries(sourceDir)
+	layout, err := contentLayout(sourceDir)
+	if err != nil {
+		return skills, commands, agents, instructions, err
+	}
+	resolver := source.NewSourceResolverForLayout(sourceDir, layout)
+	primaries, err := openCodePrimaries(sourceDir)
+	if err != nil {
+		return skills, commands, agents, instructions, err
+	}
 
 	for _, skill := range resolver.List(source.KindSkill) {
 		dstDir := filepath.Join(outputDir, "skills", skill.Name)
@@ -602,7 +631,7 @@ func MaterializeOpenCode(sourceDir, outputDir string) (skills, commands, agents,
 		agents++
 	}
 
-	globalSections, scopedRefs, collErr := collectInstructionData(syncLayout(sourceDir), sourceDir)
+	globalSections, scopedRefs, collErr := collectInstructionData(layout, sourceDir)
 	if collErr != nil {
 		return skills, commands, agents, instructions, collErr
 	}
@@ -683,15 +712,14 @@ func outputJSON(v interface{}) error {
 
 // openCodePrimaries reads the opencode roster from the manifest of the source
 // being written out. A source with no manifest falls back to the built-in
-// roster, which is the answer the active-pakke global used to give — returning
-// nil there would demote every Nav agent to a subagent.
-func openCodePrimaries(sourceDir string) []string {
-	m, err := agentpakke.Load(sourceDir)
+// roster, which is the answer the active-pakke global used to give.
+func openCodePrimaries(sourceDir string) ([]string, error) {
+	m, err := pakkeManifest(sourceDir)
 	if err != nil {
-		// No manifest is the legacy case, and it must keep the answer it had:
-		// the built-in roster, which is what the global supplied before.
-		// Returning nil here would demote every Nav agent to a subagent.
-		return agentpakke.Default().PrimaryAgents("opencode") //nolint:nilerr // legacy case
+		return nil, err
 	}
-	return m.PrimaryAgents("opencode")
+	if m == nil {
+		return agentpakke.Default().PrimaryAgents("opencode"), nil
+	}
+	return m.PrimaryAgents("opencode"), nil
 }

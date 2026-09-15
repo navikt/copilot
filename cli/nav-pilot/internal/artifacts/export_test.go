@@ -851,7 +851,11 @@ func TestExportUsesTheExportedPakkesRoster(t *testing.T) {
 	// MaterializeOpenCode alone would not prove anything about export, since it
 	// has no non-test caller. Both are covered: export here, materialize below.
 	out := t.TempDir()
-	if _, err := exportAgents(src, "", out, syncLayout(src), false); err != nil {
+	layout, err := contentLayout(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := exportAgents(src, "", out, layout, false); err != nil {
 		t.Fatal(err)
 	}
 	read := func(n string) string {
@@ -879,5 +883,59 @@ func TestExportUsesTheExportedPakkesRoster(t *testing.T) {
 	}
 	if !strings.Contains(string(b), "mode: primary") {
 		t.Errorf("materialize must use the same roster, got:\n%s", b)
+	}
+}
+
+// TestExportRefusesABrokenManifest: a source that declares a manifest and then
+// fails to parse it is not the legacy case. Export used to fall back on Nav's
+// built-in roster there, so the pakke's own primary agent was written out as a
+// subagent and the author heard nothing — exit 0, a tree on disk, wrong (#875).
+func TestExportRefusesABrokenManifest(t *testing.T) {
+	srcDir := t.TempDir()
+	mustWrite(t, filepath.Join(srcDir, ".nav-pilot", "agentpakke.json"), `{
+	  "contractVersion": "1",
+	  "name": "grillmester",
+	  "description": "Grillmester agentpakke",
+	  "clients": {"opencode": {"primaryAgents": ["grillmester"]}},
+	  "layout": {"agents": "agents"
+	}`)
+	mustWrite(t, filepath.Join(srcDir, "agents", "grillmester.agent.md"),
+		"---\nname: grillmester\ndescription: Chef\n---\nBody\n")
+
+	outputDir := t.TempDir()
+	scope := domain.ScopeRepo(outputDir)
+
+	err := ExportOpenCode(scope, "", srcDir, "dev", false, false, false)
+	if err == nil {
+		t.Fatal("export from a source with an unreadable manifest succeeded, want the load error")
+	}
+	// A bare non-nil error would also be satisfied by an unrelated failure, so
+	// the manifest has to be named: that is the whole point of stopping here.
+	if !strings.Contains(err.Error(), agentpakke.ManifestFile) {
+		t.Errorf("error %q does not name %s, so it does not tell the author what to fix", err, agentpakke.ManifestFile)
+	}
+	if _, statErr := os.Stat(filepath.Join(outputDir, ".opencode")); statErr == nil {
+		t.Error("a refused export still wrote an .opencode tree")
+	}
+}
+
+// TestExportWithoutAManifestKeepsTheBuiltInRoster is the case the fallback
+// exists for, and the reason #875 is a distinction rather than a removal:
+// navikt/copilot's own content ships no manifest, and answering nil there would
+// demote every Nav agent to a subagent.
+func TestExportWithoutAManifestKeepsTheBuiltInRoster(t *testing.T) {
+	srcDir := setupTestSource(t)
+	outputDir := t.TempDir()
+	scope := domain.ScopeRepo(outputDir)
+
+	if err := ExportOpenCode(scope, "", srcDir, "dev", false, false, false); err != nil {
+		t.Fatalf("export from a source with no manifest = %v, want nil", err)
+	}
+	b, err := os.ReadFile(filepath.Join(outputDir, ".opencode", "agents", "nav-pilot.md"))
+	if err != nil {
+		t.Fatalf("export wrote no nav-pilot agent: %v", err)
+	}
+	if !strings.Contains(string(b), "mode: primary") {
+		t.Errorf("the built-in roster must still make nav-pilot a primary, got:\n%s", b)
 	}
 }
