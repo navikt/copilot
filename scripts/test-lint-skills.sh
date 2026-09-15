@@ -282,6 +282,56 @@ assert_exit_code 0 "$exit_code" "exits 0 for a complete review contract"
 assert_output_contains "review contract ends in a verdict" "$output" "reports the contract as satisfied"
 rm -rf "$repo"
 
+# ── Test 10: Review skill with no "##" headings at all ────────────────
+echo ""
+echo "Test 10: Review skill with no level-2 headings"
+repo=$(setup_test_repo)
+create_skill "$repo" "headless-review" \
+'---
+name: headless-review
+description: Test
+---
+# Test
+
+Prose only, no sections.
+' \
+'{"description": "Test"}'
+
+exit_code=0
+output=$(cd "$repo" && bash scripts/lint-skills.sh headless-review 2>&1) || exit_code=$?
+assert_exit_code 1 "$exit_code" "exits 1, not aborted by pipefail, when there are no sections"
+assert_output_contains "no \"## Review contract\" section" "$output" "reports the missing contract, not a bash error"
+assert_output_not_contains "unbound variable" "$output" "no bash error leaks into the report"
+rm -rf "$repo"
+
+# ── Test 11: Verdict words live outside the contract ──────────────────
+echo ""
+echo "Test 11: Verdict words in earlier prose, toothless contract"
+repo=$(setup_test_repo)
+# shellcheck disable=SC2016  # backticks are literal markdown, not command substitution
+create_skill "$repo" "leaky-review" \
+'---
+name: leaky-review
+description: Test
+---
+# Test
+
+## Background
+
+Earlier work used `BLOCK`, `CONCERNS` and `CLEAN`, and asked for at least one finding.
+
+## Review contract
+
+Write up whatever you noticed.
+' \
+'{"description": "Test"}'
+
+exit_code=0
+output=$(cd "$repo" && bash scripts/lint-skills.sh leaky-review 2>&1) || exit_code=$?
+assert_exit_code 1 "$exit_code" "exits 1 when the verdict is only defined outside the contract"
+assert_output_contains "never defines" "$output" "does not count prose elsewhere in the skill"
+rm -rf "$repo"
+
 # ── Summary ───────────────────────────────────────────────────────────
 echo ""
 echo "─────────────────────────────────────────────"

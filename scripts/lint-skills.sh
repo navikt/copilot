@@ -181,20 +181,24 @@ lint_skill() {
   # name says it reviews something must end in a contract that forces a finding
   # and names a verdict (#810).
   if [[ "$name" == *review* ]]; then
-    local last_section
-    last_section=$(echo "$body" | grep '^## ' | tail -1)
-    if ! echo "$body" | grep -q '^## Review contract$'; then
+    local last_section contract
+    # `|| true` because pipefail turns grep's no-match into a fatal pipeline failure.
+    last_section=$(echo "$body" | grep '^## ' | tail -1 || true)
+    # Verdicts are only checked inside the contract. Prose elsewhere in the skill
+    # may well say BLOCK or "at least one finding" without forcing anything.
+    contract=$(echo "$body" | awk '/^## Review contract$/{f=1} f')
+    if [[ -z "$contract" ]]; then
       fail "[$name] Review skill has no \"## Review contract\" section — a review that can pass by saying nothing is not a review."
     elif [[ "$last_section" != "## Review contract" ]]; then
       fail "[$name] \"## Review contract\" must be the last section — the verdict ends the review, nothing follows it."
     else
       local missing=""
       for verdict in BLOCK CONCERNS CLEAN; do
-        echo "$body" | grep -qw "$verdict" || missing="$missing $verdict"
+        echo "$contract" | grep -qw "$verdict" || missing="$missing $verdict"
       done
       if [[ -n "$missing" ]]; then
         fail "[$name] Review contract never defines$missing — the verdict must be one of BLOCK, CONCERNS, CLEAN."
-      elif ! echo "$body" | grep -qi 'at least one finding'; then
+      elif ! echo "$contract" | grep -qi 'at least one finding'; then
         fail "[$name] Review contract has a verdict but nothing forces a finding — say that each axis produces at least one finding, or states what it inspected."
       else
         ok "review contract ends in a verdict"

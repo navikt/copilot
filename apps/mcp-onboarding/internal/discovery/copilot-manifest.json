@@ -732,7 +732,7 @@
       "displayName": "nav-architecture-review",
       "description": "Generer Architecture Decision Records (ADR) med flerperspektiv-review tilpasset Nav",
       "filePath": "skills/nav-architecture-review/SKILL.md",
-      "contentHash": "2293e1d394aef74a34c3e23fb7b9a6987832fcd5ffd18dfbe0f760a3fff6354b",
+      "contentHash": "cdca7d1675a2ceddfc59307bf5253c9404200e5303c2695cdcd5018b818a2dcb",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-architecture-review/SKILL.md",
       "references": [
@@ -924,7 +924,7 @@
       "displayName": "postgresql-review",
       "description": "PostgreSQL query review, optimalisering og beste praksis for Nav-applikasjoner",
       "filePath": "skills/postgresql-review/SKILL.md",
-      "contentHash": "17bc0df37d1449b44250011efab3f832da002afe5e232c8fdb050f811e53d5df",
+      "contentHash": "ffe4d02923f1b5bd97ec43ba9e78e210a82fc8d87bf5de06fe5fbcd9067f5d43",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/postgresql-review/SKILL.md"
     },
@@ -934,7 +934,7 @@
       "displayName": "readme-review",
       "description": "Strukturell gjennomgang og generering av README-er tilpasset prosjekttype — tjeneste, bibliotek, monorepo eller naisjob",
       "filePath": "skills/readme-review/SKILL.md",
-      "contentHash": "72f401f9ead6f1baa818d4c30b2d00278ffb1d5b6c762942de61776868eb7f58",
+      "contentHash": "d34a26f84a40c602122743bcdc1a78211732e0573aa116d740f759185b468240",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/readme-review/SKILL.md",
       "references": [
@@ -990,7 +990,7 @@
       "displayName": "security-review",
       "description": "Bruk før commit, push eller pull request for å sjekke at koden er trygg å merge",
       "filePath": "skills/security-review/SKILL.md",
-      "contentHash": "892591ea7a29045132fe4dfc7f4a9693c359ba172042149dd69672916b18ae01",
+      "contentHash": "764400c1ba46873f606a814154517b308364ed879ff33fad7c1842d953043822",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/security-review/SKILL.md"
     },
@@ -1046,7 +1046,7 @@
       "displayName": "web-design-reviewer",
       "description": "Visuell inspeksjon av nettsider for å identifisere og fikse designproblemer",
       "filePath": "skills/web-design-reviewer/SKILL.md",
-      "contentHash": "27d58421b7a122ff5a15d788ef44e0132757f96b1cc443606b2930f38fbbef29",
+      "contentHash": "6246f46cd5e1b8a940a427a5be86ff9ade593165712be55325ef66372bdb55a2",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/web-design-reviewer/SKILL.md",
       "references": [

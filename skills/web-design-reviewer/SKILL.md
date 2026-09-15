@@ -281,11 +281,11 @@ Se [references/framework-fixes.md](references/framework-fixes.md) for rammeverks
 
 ## Review contract
 
-*Axes: the inspection points in Steg 2.2 — layout, responsive, accessibility, visual consistency — across the viewports in Steg 2.3. The block below closes the Rapportformat report.*
+*Axes: the inspection points in Steg 2.2 (layout, responsive, accessibility, visual consistency) across the viewports in Steg 2.3. The block below closes the Rapportformat report.*
 
 The review ends here, in this shape. A review with no output section has not run.
 
-**Judge primary evidence.** The diff, the file, the `EXPLAIN` output, the rendered page — never your own summary of the change, and never your memory of what you meant to write. Resolve the base first, then cover committed, staged, unstaged **and untracked** changes. Read untracked files in full: diff output omits them.
+**Judge primary evidence.** The diff, the file, the `EXPLAIN` output, the rendered page. Never your own summary of the change, and never your memory of what you meant to write. Resolve the base first, then cover committed, staged, unstaged **and untracked** changes. Read untracked files in full: diff output omits them.
 
 **Every axis reports.** Each axis produces at least one finding, or one line saying what it inspected and what that evidence does not prove. An axis that says nothing has not looked.
 
@@ -298,8 +298,8 @@ Findings:      <n blocking, n concerns>
 Verdict:       BLOCK | CONCERNS | CLEAN
 ```
 
-- `BLOCK` — at least one finding that, shipped as written, risks data loss, a security or privacy breach, a production incident, or a wrong answer to a user.
-- `CONCERNS` — no blocking finding, but at least one a maintainer should fix or answer first.
-- `CLEAN` — every axis inspected against primary evidence, nothing at either bar. `CLEAN` claims only the axes above and the files on the `Inspected` line, and it is wrong if a defect is later found in them.
+- `BLOCK`: at least one finding that, shipped as written, risks data loss, a security or privacy breach, a production incident, or a wrong answer to a user.
+- `CONCERNS`: no blocking finding, but at least one a maintainer should fix or answer first.
+- `CLEAN`: every axis inspected against primary evidence, nothing at either bar. `CLEAN` claims only the axes above and the files on the `Inspected` line, and it is wrong if a defect is later found in them.
 
 **Not a review:** `LGTM`; restating what the change does; cosmetic findings only; reading the changed lines without the code they call.
