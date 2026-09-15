@@ -190,7 +190,13 @@ En pakke kan trenge noe av sandkassa rundt seg, og kunne ikke si fra om det. Obs
   "propose": {
     "cplt": {
       "reason": "Observabilitetsskillen spør Mimir, Loki og Tempo på *.cloud.nais.io, som slår opp til private IP-er over naisdevice.",
-      "proxy": { "allow_private_domains": ["cloud.nais.io"] }
+      "proxy": { "allow_private_domains": ["cloud.nais.io"] },
+      "allow": {
+        "read": [
+          "~/Library/Application Support/naisdevice/agent-status.json",
+          "~/.config/naisdevice/agent-status.json"
+        ]
+      }
     }
   }
 }
@@ -200,9 +206,27 @@ Verktøynøkler nav-pilot ikke implementerer, ignoreres. `pi` og `opencode` kan 
 
 ### Hva en pakke får foreslå
 
-`proxy.allow_private_domains`, og ingenting annet i v1. `reason` er påkrevd og vises i spørsmålet.
+`proxy.allow_private_domains` og `allow.read`, og ingenting annet i v1. `reason` er påkrevd og vises i spørsmålet.
 
-Grensa er cplts egen: dette er den eneste proxy-nøkkelen et repo får foreslå. Skjemaet avviser `allow`, `deny`, `gh_guard`, `git_guard`, `proxy.forced`, `allowed_domains`, `blocked_domains` og hele `sandbox`-seksjonen, som dekker `preset`, `repo_dirs`, `inherit_env`, cache-exec-tilgangene og `agents_md` under én regel. cplt lar et repo foreslå `sandbox.pass_env`; den dagen nav-pilot implementerer den, er det én linje i skjemaet.
+Skjemaet avviser `allow.write`, `allow.exec`, `allow.socket`, `deny`, `gh_guard`, `git_guard`, `proxy.forced`, `allowed_domains`, `blocked_domains` og hele `sandbox`-seksjonen, som dekker `preset`, `repo_dirs`, `inherit_env`, cache-exec-tilgangene og `agents_md` under én regel. cplt lar et repo foreslå `sandbox.pass_env`; den dagen nav-pilot implementerer den, er det én linje i skjemaet.
+
+En eldre nav-pilot *avviser* et manifest som bruker `allow.read`, den ignorerer det ikke: skjemaet følger binæren, og der står `allow` fortsatt som forbudt. Sett `minNavPilotVersion` til releasen som innførte nøkkelen.
+
+#### Lesetilgang til én fil
+
+`allow.read` er smalere enn domeneunntaket. cplt sender ut nøyaktig én regel per sti, `(allow file-read* (subpath "<sti>"))` på macOS og `AccessFs::ReadFile | ReadDir` på Linux. Ingen skriving, ingen `network-bind`, ingen utgående trafikk, og `AccessFs::ResolveUnix` gis bare sammen med skrivetilgang, så en leserett kan ikke bli en connect-rett.
+
+**`(subpath …)` på en katalog er alt under den.** Det er hele fella: `~/Library/Application Support/naisdevice` er ett tegn unna å dele ut `private.key` og WireGuard-konfigen. Derfor må stien navngi en fil.
+
+Tre lag holder den grensa:
+
+1. **Skjemaet** krever en sti som begynner med `~/` og ender i et navn med punktum og filendelse. Det avviser et etterstilt skilletegn og et bart katalognavn. Skjemaet kan ikke se etter hva stien faktisk *er*, for fila finnes ofte ikke ennå når manifestet valideres.
+2. **`nav-pilot validate`** avviser `.` og `..` i stien, og alt som ligger på eller under cplts egne `DENIED_DOTFILES`, `DENIED_FILES` og `DENIED_HOME_SUBPATHS`. En pakke kan altså ikke foreslå `~/.ssh/id_ed25519.pub` og regne med at brukeren trykker ja. Dette er strengere enn cplt selv: cplt nekter en grant på `~/.ssh`, men lar en bruker åpne én navngitt fil inne i katalogen, fordi det er slik man kommer til et privat npm-registry. En bruker som velger det for seg selv er ikke det samme som en pakke som ber om det.
+3. **Launchen** stat-er stien. En katalog slippes, og det samme gjør en sti som ikke finnes, eller som havner utenfor hjemmekatalogen etter symlenker.
+
+**Stien skrives `~/`-relativt.** `$HOME` kan ikke stå som konstant i et manifest, og `~/` er formen cplt selv forstår: `cplt config set allow.read "~/..."` lagrer strengen og `expand_tilde` løser den ved innlasting. nav-pilot utvider `~` ved launch og sender den absolutte stien som `--allow-read`, fordi cplts `--allow-read` er en `PathBuf` fra skallet og utvider ingenting selv. Samtykkeposten tar vare på `~/`-formen, altså akkurat den brukeren så på skjermen.
+
+**Samme manifest på macOS og Linux.** Katalogen er ikke den samme: naisdevice legger tilstanden under `~/Library/Application Support/naisdevice/` på macOS og `~/.config/naisdevice/` på Linux. Pakka navngir begge, og launchen sender bare den som finnes. En plattformnøkkel i skjemaet hadde gitt samme resultat for mer arbeid. `$XDG_CONFIG_HOME` utvides ikke: manifestet har én utvidelse, `~/`, og en bruker som har flyttet XDG-katalogen gir tilgangen selv med `cplt config set allow.read`.
 
 Andre nøkler inne i `cplt`-blokka er ikke feil, men de er inerte: nav-pilot navngir dem ved install og honorerer dem aldri.
 
@@ -222,13 +246,16 @@ Kjøringer uten terminal godkjenner aldri, og registrerer ingenting heller — e
 
 ```
 cplt config set proxy.allow_private_domains cloud.nais.io
+cplt config set allow.read "~/Library/Application Support/naisdevice/agent-status.json"
 ```
+
+Én linje per innstilling blokka foreslår. Blokka er ett spørsmål: har den både et domeneunntak og en lesetilgang, ser brukeren begge i samme spørsmål og svarer én gang. Hashen dekker hele blokka, og posten har bare plass til ett svar.
 
 `nav-pilot uninstall` sletter posten — hver post scopet holder, før den fjerner noe annet, og den nekter å melde suksess hvis den ikke fikk det til. Den rydder også en post som ikke har noen installasjon bak seg: samtykket registreres før state-fila skrives, så en install som feiler midtveis kan etterlate en post alene. Ingen waiver fra pakka overlever installasjonen.
 
 ### Hvor det tar effekt
 
-Ingen steder i cplts konfigurasjon. Et godkjent forslag blir `--allow-private-domain <vert>` på launch-linja, for launcher fra scopet som godkjente det, og ingenting annet: nav-pilot skriver ikke i `~/.config/cplt/`, ikke i `local/` eller `trust/` under den, og ikke i noen `.cplt.toml`. `allow_private_domains` er et vanlig strengarray uten plass til opphav, så en markør måtte blitt en sidecar-post uansett — og da er konfigurasjonen duplisert tilstand som kan drifte fra posten. Flagget utledes av posten hver launch og kan ikke drifte.
+Ingen steder i cplts konfigurasjon. Et godkjent forslag blir `--allow-private-domain <vert>` og `--allow-read <absolutt sti>` på launch-linja, for launcher fra scopet som godkjente det, og ingenting annet: nav-pilot skriver ikke i `~/.config/cplt/`, ikke i `local/` eller `trust/` under den, og ikke i noen `.cplt.toml`. `allow_private_domains` er et vanlig strengarray uten plass til opphav, så en markør måtte blitt en sidecar-post uansett — og da er konfigurasjonen duplisert tilstand som kan drifte fra posten. Flagget utledes av posten hver launch og kan ikke drifte.
 
 Oppføringene skrives ut ved launch, slik at det som faktisk gjelder for økta står på skjermen.
 

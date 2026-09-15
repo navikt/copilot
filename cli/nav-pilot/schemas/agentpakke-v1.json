@@ -27,6 +27,13 @@
       "maxLength": 253,
       "pattern": "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$"
     },
+    "proposedReadPath": {
+      "description": "One file under the installing user's home directory, written \"~/\"-relative and named in full. nav-pilot expands the \"~\" at launch — the same leading-\"~/\" form cplt's own expand_tilde accepts — and passes the resolved absolute path as --allow-read. It must name a file, never a directory: cplt grants a subpath, so a directory hands over everything beneath it, and ~/Library/Application Support/naisdevice is one character away from handing over private.key. The pattern demands a final component with a name and an extension, which is what refuses a trailing separator and a bare directory name. nav-pilot refuses the rest semantically, because a schema cannot: \"..\" traversal after expansion, and any path at or under cplt's own DENIED_DOTFILES, DENIED_FILES or DENIED_HOME_SUBPATHS.",
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 256,
+      "pattern": "^~/([^/\\\\\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}]+/)*[^/\\\\.\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}][^/\\\\\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}]*\\.[^/\\\\.\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}]+$"
+    },
     "cpltProposalReason": {
       "description": "Why this agentpakke needs the waiver, in one or two sentences. It is rendered into the consent prompt, so it is the only thing the person deciding has to go on — and for the same reason it is bounded and may not carry control characters, escape sequences, line breaks or bidi overrides, which would let a pakke forge lines that look like nav-pilot's own. Ordinary prose is unaffected; nav-pilot collapses whitespace and refuses the rest at the point of printing as well.",
       "type": "string",
@@ -35,7 +42,7 @@
       "pattern": "^[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}]+$"
     },
     "cpltProposal": {
-      "description": "Sandbox configuration proposed in cplt's own vocabulary. v1 defines exactly one proposable setting, proxy.allow_private_domains: a DNS-rebinding waiver naming hosts one at a time. It is not a permission — the allowlist and the blocklist still apply, no port is opened, no path is granted, nothing is executed. Everything a repo must never propose (preset, allow.exec, repo_dirs, inherit_env, allowed_domains, blocked_domains, proxy.forced, the guards) is refused here rather than ignored. Other keys are tolerated for forward compatibility, but nav-pilot reports them as inert and never honours them.",
+      "description": "Sandbox configuration proposed in cplt's own vocabulary. v1 defines two proposable settings. proxy.allow_private_domains is a DNS-rebinding waiver naming hosts one at a time: not a permission — the allowlist and the blocklist still apply, no port is opened, no path is granted, nothing is executed. allow.read grants read-only access to named files, one cplt rule per file and nothing else: no write, no bind, no outbound. Everything a repo must never propose (preset, allow.write, allow.exec, allow.socket, deny, repo_dirs, inherit_env, allowed_domains, blocked_domains, proxy.forced, the guards) is refused here rather than ignored. Other keys are tolerated for forward compatibility, but nav-pilot reports them as inert and never honours them.",
       "type": "object",
       "required": ["reason"],
       "additionalProperties": true,
@@ -65,7 +72,20 @@
           "additionalProperties": false,
           "properties": {}
         },
-        "allow": false,
+        "allow": {
+          "description": "Read-only path grants. read is the only key here, and it is narrower than the private-domain waiver: cplt emits exactly one rule per entry, `(allow file-read* (subpath \"<path>\"))` on macOS and AccessFs::ReadFile|ReadDir on Linux, and ResolveUnix is granted only alongside a write, so a read grant cannot become a connect right. write, exec and socket are refused.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "read": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/proposedReadPath" }
+            }
+          }
+        },
         "deny": false,
         "gh_guard": false,
         "git_guard": false,

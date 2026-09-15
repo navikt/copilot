@@ -54,10 +54,16 @@ type ProposalConsent struct {
 	// not asked about again — declining a pakke is an answer, not a deferral.
 	Approved bool `json:"approved"`
 
-	// Hosts is what the approval covers, recorded so the launch flags are
-	// derived from the record rather than recomputed from a manifest that may
-	// since have moved.
+	// Hosts is the private-domain waiver the approval covers, recorded so the
+	// launch flags are derived from the record rather than recomputed from a
+	// manifest that may since have moved.
 	Hosts []string `json:"hosts,omitempty"`
+
+	// Reads is the read grant the approval covers, in the "~/"-relative form
+	// the prompt showed. Kept in that form on purpose: it is what the person
+	// agreed to, and the launch expands it against the home it actually runs
+	// under rather than replaying an absolute path recorded somewhere else.
+	Reads []string `json:"reads,omitempty"`
 
 	// Block is the canonical JSON of the proposal this answer was about, kept
 	// so the next revision's question can show which field changed rather than

@@ -574,3 +574,72 @@ func TestI5SkillsDirAndWaiverBothSurviveTheStagedVector(t *testing.T) {
 		}
 	}
 }
+
+// approveReads writes an approval whose read grants are the "~/"-relative
+// paths given, under a protecting cplt.
+func approveReads(t *testing.T, scope *domain.InstallScope, hash string, reads ...string) {
+	t.Helper()
+	if err := artifacts.WriteProposalConsent(artifacts.ProposalConsent{
+		Scope: scope.Name, Root: scope.RootDir, Pakke: "nais-pilot",
+		Hash: hash, Approved: true, Reads: reads,
+		CpltStamp: minCpltStampProtectingNavPilotState,
+	}); err != nil {
+		t.Fatalf("writing the approval: %v", err)
+	}
+}
+
+// An approved read grant reaches cplt as --allow-read with the path resolved
+// against the home this launch runs under. The record keeps the "~/" form the
+// person agreed to; the flag carries an absolute path, because cplt's
+// --allow-read is a PathBuf from the shell and expands nothing itself (#885).
+func TestApprovedReadGrantReachesTheLaunchAsAnAbsolutePath(t *testing.T) {
+	scope := proposeEnv(t)
+	proposal := activeProposal(t)
+	protectingCplt(t)
+
+	home := os.Getenv("HOME")
+	status := filepath.Join(home, "naisdevice", "agent-status.json")
+	if err := os.MkdirAll(filepath.Dir(status), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(status, []byte(`{"connectionState":"Connected"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	approveReads(t, scope, proposal.Hash(), "~/naisdevice/agent-status.json")
+
+	argv := cpltArgv(cpltLaunch{agent: "copilot", agentArgs: []string{"--agent", "nais-pilot"}})
+	i := slices.Index(argv, "--allow-read")
+	if i < 0 || i+1 >= len(argv) {
+		t.Fatalf("the approved read grant never reached the launch: %q", argv)
+	}
+	if got := argv[i+1]; got != status {
+		t.Errorf("--allow-read carried %q, want the resolved absolute path %q", got, status)
+	}
+	if slices.Contains(argv, "--allow-write") || slices.Contains(argv, "--allow-socket") {
+		t.Errorf("a read grant widened into something else: %q", argv)
+	}
+}
+
+// The same manifest ships on macOS and Linux, where naisdevice keeps its state
+// in different places, so a pakke names both. A path that is not there, or that
+// turns out to be a directory, is dropped rather than handed to cplt: a
+// directory grant is a subpath grant, which is the whole trap (#885).
+func TestReadGrantsThatAreNotOneNamedFileNeverReachTheLaunch(t *testing.T) {
+	scope := proposeEnv(t)
+	proposal := activeProposal(t)
+	protectingCplt(t)
+
+	home := os.Getenv("HOME")
+	if err := os.MkdirAll(filepath.Join(home, "looks-like-a-file.json"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	approveReads(t, scope, proposal.Hash(),
+		"~/.config/naisdevice/agent-status.json", // the other platform's path
+		"~/looks-like-a-file.json",               // a directory wearing a file's name
+		"/etc/passwd.conf",                       // not home-relative at all
+	)
+
+	if got := cpltProposalFlags(); len(got) != 0 {
+		t.Errorf("a grant that names no readable file reached the launch: %q", got)
+	}
+}

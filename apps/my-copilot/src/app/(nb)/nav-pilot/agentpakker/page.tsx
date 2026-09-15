@@ -175,15 +175,22 @@ const PROPOSE = `{
   "policies": {
     "propose": {
       "cplt": {
-        "reason": "The nais-observability skill queries Mimir, Loki and Tempo at *.cloud.nais.io, which resolve to private IP addresses over naisdevice and are blocked without this waiver.",
-        "proxy": { "allow_private_domains": ["cloud.nais.io"] }
+        "reason": "The nais-observability skill queries Mimir, Loki and Tempo at *.cloud.nais.io, which resolve to private IP addresses over naisdevice and are blocked without this waiver. The preToolUse gate reads naisdevice's agent-status.json to tell whether you are connected.",
+        "proxy": { "allow_private_domains": ["cloud.nais.io"] },
+        "allow": {
+          "read": [
+            "~/Library/Application Support/naisdevice/agent-status.json",
+            "~/.config/naisdevice/agent-status.json"
+          ]
+        }
       }
     }
   },
   "minNavPilotVersion": "2026.09.14-131410"
 }`;
 
-const AVSLAG = `cplt config set proxy.allow_private_domains cloud.nais.io`;
+const AVSLAG = `cplt config set proxy.allow_private_domains cloud.nais.io
+cplt config set allow.read "~/Library/Application Support/naisdevice/agent-status.json"`;
 
 const VALIDER_CMD = `nav-pilot validate --source "$PWD"`;
 
@@ -669,12 +676,16 @@ export default function Agentpakker() {
                     </BodyLong>
                     <CodeBlock filename=".nav-pilot/agentpakke.json">{PROPOSE}</CodeBlock>
                     <BodyLong textColor="subtle">
-                      I v1 er <code className="font-mono text-xs">proxy.allow_private_domains</code> det eneste pakka
-                      får foreslå: 1 til 32 fulle DNS-navn, uten wildcard, port eller sti.{" "}
-                      <code className="font-mono text-xs">reason</code> er påkrevd, høyst 400 tegn, uten linjeskift og
-                      kontrolltegn, og er alt brukeren har å avgjøre på: skriv hva som ryker uten unntaket. nav-pilot
-                      vasker teksten igjen når den skrives ut, så en pakke kan ikke lage en linje som ser ut som
-                      nav-pilots egen. Skjemaet avviser <code className="font-mono text-xs">allow</code>,{" "}
+                      I v1 får pakka foreslå to ting:{" "}
+                      <code className="font-mono text-xs">proxy.allow_private_domains</code>, 1 til 32 fulle DNS-navn
+                      uten wildcard, port eller sti, og <code className="font-mono text-xs">allow.read</code>, opptil 8
+                      navngitte filer. <code className="font-mono text-xs">reason</code> er påkrevd, høyst 400 tegn,
+                      uten linjeskift og kontrolltegn, og er alt brukeren har å avgjøre på: skriv hva som ryker uten
+                      unntaket. nav-pilot vasker teksten igjen når den skrives ut, så en pakke kan ikke lage en linje
+                      som ser ut som nav-pilots egen. Skjemaet avviser{" "}
+                      <code className="font-mono text-xs">allow.write</code>,{" "}
+                      <code className="font-mono text-xs">allow.exec</code>,{" "}
+                      <code className="font-mono text-xs">allow.socket</code>,{" "}
                       <code className="font-mono text-xs">deny</code>, <code className="font-mono text-xs">preset</code>
                       , <code className="font-mono text-xs">repo_dirs</code>,{" "}
                       <code className="font-mono text-xs">inherit_env</code>,{" "}
@@ -689,26 +700,59 @@ export default function Agentpakker() {
                       <code className="font-mono text-xs">cplt</code> ignoreres.
                     </BodyLong>
                     <BodyLong textColor="subtle">
+                      <strong>En lesetilgang navngir én fil, aldri en katalog.</strong> cplt gir én regel per sti,{" "}
+                      <code className="font-mono text-xs">(allow file-read* (subpath &quot;&lt;sti&gt;&quot;))</code> på
+                      macOS og <code className="font-mono text-xs">AccessFs::ReadFile | ReadDir</code> på Linux. Det er
+                      smalere enn domeneunntaket: ingen skriving, ingen port, ingen utgående trafikk. Men{" "}
+                      <code className="font-mono text-xs">subpath</code> på en katalog er alt under den, og{" "}
+                      <code className="font-mono text-xs">~/Library/Application Support/naisdevice</code> er ett tegn
+                      unna å dele ut <code className="font-mono text-xs">private.key</code>. Derfor krever skjemaet en
+                      sti som begynner med <code className="font-mono text-xs">~/</code> og ender i et navn med punktum
+                      og filendelse, avviser <code className="font-mono text-xs">nav-pilot validate</code> både{" "}
+                      <code className="font-mono text-xs">..</code> og alt som ligger på eller under cplts{" "}
+                      <code className="font-mono text-xs">DENIED_DOTFILES</code>,{" "}
+                      <code className="font-mono text-xs">DENIED_FILES</code> og{" "}
+                      <code className="font-mono text-xs">DENIED_HOME_SUBPATHS</code>, og stat-er launchen stien og
+                      slipper en katalog. Fila finnes ofte ikke ennå når manifestet valideres, så det siste laget er det
+                      eneste som kan se hva stien faktisk er.
+                    </BodyLong>
+                    <BodyLong textColor="subtle">
+                      Stien skrives <code className="font-mono text-xs">~/</code>-relativt, den formen cplt selv
+                      forstår. nav-pilot utvider <code className="font-mono text-xs">~</code> ved launch og sender den
+                      absolutte stien, mens samtykkeposten tar vare på <code className="font-mono text-xs">~/</code>
+                      -formen brukeren så. naisdevice legger tilstanden under{" "}
+                      <code className="font-mono text-xs">~/Library/Application Support/naisdevice/</code> på macOS og{" "}
+                      <code className="font-mono text-xs">~/.config/naisdevice/</code> på Linux, så pakka navngir begge
+                      og launchen sender bare den som finnes.{" "}
+                      <code className="font-mono text-xs">$XDG_CONFIG_HOME</code> utvides ikke: manifestet har én
+                      utvidelse.
+                    </BodyLong>
+                    <BodyLong textColor="subtle">
                       Brukeren svarer i terminalen ved <code className="font-mono text-xs">install</code>, og ved{" "}
                       <code className="font-mono text-xs">sync --apply</code> når blokka er endret. Svaret lagres per
                       scope i <code className="font-mono text-xs">~/.nav-pilot/pakke-consent.json</code>, nøklet på en
                       hash av hele blokka: endrer du <code className="font-mono text-xs">reason</code> eller legger til
-                      en vert, kommer spørsmålet tilbake med det som endret seg. Et nei installerer pakka likevel.
-                      Brukeren får vite hva som ryker, og enlinjeren som åpner det for hånd:
+                      en vert, kommer spørsmålet tilbake med det som endret seg. Blokka er ett spørsmål: et domene og en
+                      lesetilgang i samme blokk vises sammen og besvares én gang. Et nei installerer pakka likevel.
+                      Brukeren får vite hva som ryker, og kommandoene som åpner det for hånd:
                     </BodyLong>
                     <CodeBlock compact>{AVSLAG}</CodeBlock>
                     <BodyLong textColor="subtle">
                       Uten terminal, og med <code className="font-mono text-xs">--json</code>, godkjennes ingenting og
                       noteres ingenting. <code className="font-mono text-xs">nav-pilot uninstall</code> sletter svaret.
-                      Et ja blir <code className="font-mono text-xs">--allow-private-domain &lt;vert&gt;</code> på
+                      Et ja blir <code className="font-mono text-xs">--allow-private-domain &lt;vert&gt;</code> og{" "}
+                      <code className="font-mono text-xs">--allow-read &lt;absolutt sti&gt;</code> på
                       cplt-kommandolinja, for launcher fra scopet som svarte, og skrives ut ved hver launch. nav-pilot
                       rører ikke cplt-konfigurasjonen. Unntaket løfter bare DNS-rebinding-vernet for de navnene:
                       tillatelses- og blokklista gjelder fortsatt, ingen port åpnes, ingenting kjøres.
                     </BodyLong>
                     <BodyLong textColor="subtle">
                       Sett <code className="font-mono text-xs">minNavPilotVersion</code> til minst{" "}
-                      <code className="font-mono text-xs">2026.09.14-131410</code>. En eldre nav-pilot ignorerer blokka
-                      som et ukjent felt, og brukeren får feilen uten forklaring. Brukeren trenger dessuten cplt{" "}
+                      <code className="font-mono text-xs">2026.09.14-131410</code>, og til releasen som innførte{" "}
+                      <code className="font-mono text-xs">allow.read</code> om du bruker den. En eldre nav-pilot
+                      ignorerer blokka som et ukjent felt, og brukeren får feilen uten forklaring. En nav-pilot fra før{" "}
+                      <code className="font-mono text-xs">allow.read</code> gjør noe strengere: skjemaet følger binæren,
+                      så manifestet avvises i sin helhet. Brukeren trenger dessuten cplt{" "}
                       <code className="font-mono text-xs">2026.09.14-105131</code> eller nyere: under det lagres svaret,
                       men unntaket anvendes ikke, og launchen sier hvorfor.
                     </BodyLong>
