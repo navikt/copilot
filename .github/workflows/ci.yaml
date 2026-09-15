@@ -344,6 +344,8 @@ jobs:
         run: cd scripts/generate-docs && go run . --check
       - name: Lint skills
         run: bash scripts/lint-skills.sh
+      - name: Test the skill linter
+        run: bash scripts/test-lint-skills.sh
       - name: Upgrade gh CLI (gh skill requires 2.90.0+)
         run: |
           GH_VERSION=2.90.0

@@ -83,8 +83,12 @@ run = "(cd scripts/generate-docs && go run . --check)"
 # ─── Skills ──────────────────────────────────────────────────────────────────
 
 [tasks."skills:lint"]
-description = "Lint skills/ for quality (token budget, structure, metadata)"
-run = "bash scripts/lint-skills.sh"
+description = "Lint skills/ for quality (token budget, structure, metadata, review contract)"
+run = """
+set -e
+bash scripts/lint-skills.sh
+bash scripts/test-lint-skills.sh
+"""
 
 
 

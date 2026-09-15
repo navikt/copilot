@@ -176,6 +176,32 @@ lint_skill() {
     ok "has numbered steps"
   fi
 
+  # ── review contract ────────────────────────────────────────────────────
+  # A review that can pass by saying nothing is not a review. Any skill whose
+  # name says it reviews something must end in a contract that forces a finding
+  # and names a verdict (#810).
+  if [[ "$name" == *review* ]]; then
+    local last_section
+    last_section=$(echo "$body" | grep '^## ' | tail -1)
+    if ! echo "$body" | grep -q '^## Review contract$'; then
+      fail "[$name] Review skill has no \"## Review contract\" section — a review that can pass by saying nothing is not a review."
+    elif [[ "$last_section" != "## Review contract" ]]; then
+      fail "[$name] \"## Review contract\" must be the last section — the verdict ends the review, nothing follows it."
+    else
+      local missing=""
+      for verdict in BLOCK CONCERNS CLEAN; do
+        echo "$body" | grep -qw "$verdict" || missing="$missing $verdict"
+      done
+      if [[ -n "$missing" ]]; then
+        fail "[$name] Review contract never defines$missing — the verdict must be one of BLOCK, CONCERNS, CLEAN."
+      elif ! echo "$body" | grep -qi 'at least one finding'; then
+        fail "[$name] Review contract has a verdict but nothing forces a finding — say that each axis produces at least one finding, or states what it inspected."
+      else
+        ok "review contract ends in a verdict"
+      fi
+    fi
+  fi
+
   # ── file reference depth ───────────────────────────────────────────────
   local refs
   refs=$(echo "$body" | grep -oE '\./[^] )"]+|references/[^] )"]+' || true)
@@ -223,14 +249,15 @@ for r in d.get('references', []):
     [[ -n "$link" ]] && md_refs+=("$link")
   done < <(echo "$body" | grep -oE '\((\.\/)?references\/[^] )"]+\)' | sed 's|^(||;s|)$||;s|^\./||;s|#.*||' | sort -u || true)
 
-  # Compare: any set non-empty means references exist somewhere
+  # Compare: any set non-empty means references exist somewhere.
+  # ${arr[@]+...} because bash 3.2 (macOS) treats an empty array as unbound under set -u.
   if (( ${#meta_refs[@]} + ${#fs_refs[@]} + ${#md_refs[@]} > 0 )); then
     local drift=0
 
     # Check: files on disk not in metadata
-    for f in "${fs_refs[@]}"; do
+    for f in ${fs_refs[@]+"${fs_refs[@]}"}; do
       local found=0
-      for m in "${meta_refs[@]}"; do [[ "$m" == "$f" ]] && found=1 && break; done
+      for m in ${meta_refs[@]+"${meta_refs[@]}"}; do [[ "$m" == "$f" ]] && found=1 && break; done
       if (( found == 0 )); then
         fail "[$name] Reference file '$f' exists on disk but not in metadata.json"
         drift=1
@@ -238,7 +265,7 @@ for r in d.get('references', []):
     done
 
     # Check: metadata entries not on disk
-    for m in "${meta_refs[@]}"; do
+    for m in ${meta_refs[@]+"${meta_refs[@]}"}; do
       if [[ ! -f "$dir/$m" ]]; then
         fail "[$name] metadata.json lists '$m' but file does not exist"
         drift=1
@@ -246,9 +273,9 @@ for r in d.get('references', []):
     done
 
     # Check: SKILL.md links not in metadata
-    for link in "${md_refs[@]}"; do
+    for link in ${md_refs[@]+"${md_refs[@]}"}; do
       local found=0
-      for m in "${meta_refs[@]}"; do [[ "$m" == "$link" ]] && found=1 && break; done
+      for m in ${meta_refs[@]+"${meta_refs[@]}"}; do [[ "$m" == "$link" ]] && found=1 && break; done
       if (( found == 0 )); then
         warn "[$name] SKILL.md links to '$link' which is not in metadata.json references"
         drift=1
