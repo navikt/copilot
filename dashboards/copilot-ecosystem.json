@@ -25,7 +25,7 @@
       "includeVars": false,
       "keepTime": true,
       "targetBlank": false,
-      "title": "Nav-pilot CLI",
+      "title": "Nav-pilot: CLI",
       "type": "link",
       "url": "/d/nav-pilot-cli"
     },
@@ -33,7 +33,7 @@
       "includeVars": false,
       "keepTime": true,
       "targetBlank": false,
-      "title": "Lokal inferens",
+      "title": "Nav-pilot: Local inference",
       "type": "link",
       "url": "/d/nav-pilot-local"
     }
@@ -3384,6 +3384,7 @@
   "schemaVersion": 42,
   "tags": [
     "copilot",
+    "ecosystem",
     "mcp",
     "nais"
   ],
@@ -3478,7 +3479,7 @@
     ]
   },
   "timezone": "browser",
-  "title": "Copilot Ecosystem",
+  "title": "Copilot: Ecosystem",
   "uid": "copilot-ecosystem",
   "version": 5
 }

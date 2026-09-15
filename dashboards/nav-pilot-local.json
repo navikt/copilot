@@ -1191,7 +1191,7 @@
       "includeVars": false,
       "keepTime": true,
       "targetBlank": false,
-      "title": "Nav-pilot CLI",
+      "title": "Nav-pilot: CLI",
       "type": "link",
       "url": "/d/nav-pilot-cli"
     },
@@ -1199,7 +1199,7 @@
       "includeVars": false,
       "keepTime": true,
       "targetBlank": false,
-      "title": "Copilot Ecosystem",
+      "title": "Copilot: Ecosystem",
       "type": "link",
       "url": "/d/copilot-ecosystem"
     }
@@ -1207,9 +1207,11 @@
   "liveNow": false,
   "preload": false,
   "tags": [
+    "copilot",
     "nav-pilot",
-    "lokal-inferens",
-    "alpha"
+    "local-inference",
+    "alpha",
+    "nais"
   ],
   "timeSettings": {
     "autoRefresh": "",
@@ -1229,7 +1231,7 @@
     "timezone": "browser",
     "to": "now"
   },
-  "title": "nav-pilot — lokal inferens",
+  "title": "Nav-pilot: Local inference",
   "uid": "nav-pilot-local",
   "variables": [
     {

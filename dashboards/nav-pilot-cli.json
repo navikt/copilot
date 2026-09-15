@@ -2505,7 +2505,7 @@
       "includeVars": false,
       "keepTime": true,
       "targetBlank": false,
-      "title": "Lokal inferens",
+      "title": "Nav-pilot: Local inference",
       "type": "link",
       "url": "/d/nav-pilot-local"
     },
@@ -2513,7 +2513,7 @@
       "includeVars": false,
       "keepTime": true,
       "targetBlank": false,
-      "title": "Copilot Ecosystem",
+      "title": "Copilot: Ecosystem",
       "type": "link",
       "url": "/d/copilot-ecosystem"
     }
@@ -2523,6 +2523,8 @@
   "tags": [
     "copilot",
     "nav-pilot",
+    "configuration",
+    "operations",
     "nais"
   ],
   "timeSettings": {
@@ -2543,7 +2545,7 @@
     "timezone": "browser",
     "to": "now"
   },
-  "title": "Nav-pilot CLI",
+  "title": "Nav-pilot: CLI",
   "uid": "nav-pilot-cli",
   "variables": [
     {
