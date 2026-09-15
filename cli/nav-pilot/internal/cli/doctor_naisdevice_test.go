@@ -88,7 +88,12 @@ func wantIn(t *testing.T, out string, phrases ...string) {
 
 func TestReportNaisdevice_NoBinary(t *testing.T) {
 	out := renderNaisdevice(t, "", filepath.Join(t.TempDir(), "agent-status.json"))
-	wantIn(t, out, "naisdevice not found", "not being checked against a tenant", "doc.nais.io")
+	wantIn(t, out, "on PATH, so nothing here can ask which tenant is active", "matches on that tenant", "doc.nais.io")
+	// The CLI is not the agent: the file the gate reads is still worth a verdict.
+	wantIn(t, out, "No status file yet")
+	if strings.Contains(out, "did not answer within") {
+		t.Errorf("a missing CLI is not a wedged agent:\n%s", out)
+	}
 }
 
 func TestReportNaisdevice_NotConnected(t *testing.T) {

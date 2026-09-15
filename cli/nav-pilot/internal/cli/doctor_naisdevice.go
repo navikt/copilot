@@ -178,17 +178,25 @@ func naisPakkeInstalled(states ...*StateFile) bool {
 // reportNaisdevice is the doctor section. naisPath is empty when `nais` is not
 // on PATH; statusPath is where the status file would be.
 func reportNaisdevice(w io.Writer, naisPath, statusPath string) {
-	if naisPath == "" {
-		fmt.Fprintf(w, "    %s naisdevice not found: no %s on PATH\n", yellow("⚠"), bold("nais"))
-		fmt.Fprintf(w, "        The tenant gate in your nais agentpakke has nothing to read, so cluster\n")
-		fmt.Fprintf(w, "        commands are not being checked against a tenant at all.\n")
-		fmt.Fprintf(w, "        %s Install naisdevice: %s\n", yellow("Solution:"), bold("https://doc.nais.io/operate/naisdevice/how-to/install/"))
-		return
-	}
-	fmt.Fprintf(w, "    %s Binary found: %s\n", green("✓"), naisPath)
-
-	connected, tenant, err := naisDeviceStatus(naisPath)
+	// The CLI and the agent are two installs, and only the CLI is on PATH.
+	// Its absence means doctor cannot ask the agent anything; it does not mean
+	// naisdevice is missing, and the status file below can still answer. So
+	// this reports and carries on rather than returning.
+	connected, tenant, err := false, "", errNaisDeviceUnreachable
 	switch {
+	case naisPath == "":
+		fmt.Fprintf(w, "    %s No %s on PATH, so nothing here can ask which tenant is active\n", yellow("⚠"), bold("nais"))
+		fmt.Fprintf(w, "        The tenant gate in your nais agentpakke matches on that tenant.\n")
+		fmt.Fprintf(w, "        %s Install naisdevice and the nais CLI: %s\n",
+			yellow("Solution:"), bold("https://doc.nais.io/operate/naisdevice/how-to/install/"))
+	default:
+		fmt.Fprintf(w, "    %s Binary found: %s\n", green("✓"), naisPath)
+		connected, tenant, err = naisDeviceStatus(naisPath)
+	}
+
+	switch {
+	case naisPath == "":
+		// Already said; do not say it twice in the agent's voice.
 	case err != nil && insideCpltSandbox():
 		// The expected answer in here, and the one that reads as a fault if
 		// nobody says otherwise: `nais device status` returns "make sure
