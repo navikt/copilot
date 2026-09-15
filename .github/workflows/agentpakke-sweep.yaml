@@ -188,6 +188,17 @@ jobs:
                 echo "::warning::Code search did not return $repo, which is known to publish an agentpakke. The results were partial; sweeping it anyway."
               fi
             done
+
+            # The known list is the whole coverage of a throttled run, so it
+            # has to stay current. Nothing said so until now: a package the
+            # search found and the list omits was swept anyway, and the gap
+            # only showed up on the one run that could not afford it. Say it
+            # on a healthy run, when adding the line is free.
+            printf '%s\n' "$discovered" | while IFS= read -r repo; do
+              if ! printf '%s\n' "$known" | grep -qxF "$repo"; then
+                echo "::notice::$repo publishes an agentpakke and is not in the known list in this workflow. It is swept on a healthy run, but a throttled run falls back to the known list and would miss it. Add it to \`known\`."
+              fi
+            done
           fi
 
           # navikt/copilot was validated from the workspace above.
