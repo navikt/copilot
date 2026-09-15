@@ -44,12 +44,42 @@ import (
 // files at paths, so there is nothing for a base to contribute to. The callers
 // that route Tier 2 to [installPakkePin] do it after this call, and `list`
 // never routes it anywhere.
-func composedResolverFor(src *Source, collection string) (*SourceResolver, *Source, error) {
+func composedResolverFor(src *Source, collection string) (*SourceResolver, composedBases, error) {
 	resolver := resolverFor(src.Dir, pakkeFor(src, collection))
 	if payloadOnly(src) {
 		return resolver, nil, nil
 	}
 	return composeResolver(resolver, src)
+}
+
+// composedBases is every source a composition resolved, nearest first.
+//
+// Resolving a base clones it into a temp directory, and only the caller knows
+// when the install, the sync or the listing has stopped reading from it. So the
+// whole chain goes back, and the caller defers cleanup of the set next to the
+// `defer src.Cleanup()` it already has for its own source.
+//
+// Returning only the nearest base left every link behind it without an owner:
+// the recursive call dropped its result, so a pakke that reuses a pakke that
+// reuses a pakke leaked a checkout per link, on every run of every command that
+// composes — `list` included (#867).
+type composedBases []*Source
+
+// cleanup removes the temp checkouts the chain created. A nil chain and a
+// source that was a local path are both no-ops.
+func (b composedBases) cleanup() {
+	for _, src := range b {
+		src.Cleanup()
+	}
+}
+
+// nearest is the base this source reuses directly: the one "Reuses:" names and
+// the one whose retired record sync merges in.
+func (b composedBases) nearest() *Source {
+	if len(b) == 0 {
+		return nil
+	}
+	return b[0]
 }
 
 // composedContentsFor is what an install path asks for: the composed resolver,
@@ -69,11 +99,13 @@ func composedResolverFor(src *Source, collection string) (*SourceResolver, *Sour
 // `list` is deliberately left off this path. The unknown-item refusal sends the
 // reader to `nav-pilot list --items` to find the name they mistyped, and a
 // listing narrowed by that same list could not contain it.
-func composedContentsFor(scope *InstallScope, src *Source, collection string) (*SourceResolver, *Source, *Manifest, error) {
-	resolver, reused, err := composedResolverFor(src, collection)
+func composedContentsFor(scope *InstallScope, src *Source, collection string) (*SourceResolver, composedBases, *Manifest, error) {
+	resolver, bases, err := composedResolverFor(src, collection)
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	// Every refusal from here on is one the caller never sees a chain for, so
+	// the checkouts are cleaned here instead (#867).
 	var manifest *Manifest
 	switch {
 	case collection == CollectionAll:
@@ -86,25 +118,29 @@ func composedContentsFor(scope *InstallScope, src *Source, collection string) (*
 		manifest, err = loadManifest(src.Dir, collection)
 	}
 	if err != nil {
+		bases.cleanup()
 		return nil, nil, nil, err
 	}
 	items, err := declaredItemsFor(scope)
 	if err != nil {
+		bases.cleanup()
 		return nil, nil, nil, err
 	}
 	if manifest, err = applyDeclaredItems(manifest, items); err != nil {
+		bases.cleanup()
 		return nil, nil, nil, err
 	}
-	return resolver, reused, manifest, nil
+	return resolver, bases, manifest, nil
 }
 
 // composeResolver returns the resolver to install from. When this source
 // reuses another agentpakke, the returned resolver falls back to it, and the
-// second return value is the reused source so callers can report it.
+// second return value is the chain of sources that were resolved: the caller
+// reports the nearest one and cleans up the whole set.
 //
 // A source that reuses nothing, which is nearly all of them, gets its own
-// resolver back unchanged and a nil base.
-func composeResolver(resolver *SourceResolver, src *Source) (*SourceResolver, *Source, error) {
+// resolver back unchanged and an empty chain.
+func composeResolver(resolver *SourceResolver, src *Source) (*SourceResolver, composedBases, error) {
 	// Only a manifest-bearing source composes. A collection-era source has no
 	// agentpakke identity to reuse from, and one that happens to carry a
 	// declaration is a consumer repo that also serves content: composing it
@@ -125,7 +161,7 @@ func composeResolver(resolver *SourceResolver, src *Source) (*SourceResolver, *S
 // are one repo, and two spellings of the same path are one directory. With
 // plain equality a pakke could name itself in a different case and be chained
 // to itself, and a cycle went one fetch further before it was noticed.
-func composeResolverSeen(resolver *SourceResolver, src *Source, seen []string) (*SourceResolver, *Source, error) {
+func composeResolverSeen(resolver *SourceResolver, src *Source, seen []string) (*SourceResolver, composedBases, error) {
 	decl, err := agentpakke.LoadDeclaration(src.Dir)
 	if err != nil {
 		if errors.Is(err, agentpakke.ErrNoDeclaration) {
@@ -166,7 +202,7 @@ func composeResolverSeen(resolver *SourceResolver, src *Source, seen []string) (
 		return nil, nil, fmt.Errorf("%s reuses agentpakke %q, which could not be resolved at %s: %w\n\nNothing was installed",
 			sourceLabelFor(src), decl.Source, shortSHA(decl.SHA), err)
 	}
-	if err := attachPakke(baseSrc); err != nil {
+	if err := attachPakkeOrCleanup(baseSrc); err != nil {
 		return nil, nil, err
 	}
 	// A payload-only base has nothing to inherit from. Its unit of delivery is
@@ -175,6 +211,7 @@ func composeResolverSeen(resolver *SourceResolver, src *Source, seen []string) (
 	// the same reason guardDeclaredItems refuses `items` against a Tier 2
 	// pakke: a declaration that cannot do what it says should say so.
 	if payloadOnly(baseSrc) {
+		baseSrc.Cleanup()
 		return nil, nil, fmt.Errorf(
 			"agentpakke %s reuses %q, which ships pre-built payloads (Tier 2).\n"+
 				"A payload tree is staged and digest-verified as a whole, so there are no files to inherit from it.\n\n"+
@@ -184,9 +221,12 @@ func composeResolverSeen(resolver *SourceResolver, src *Source, seen []string) (
 	// A reused pakke may itself reuse one. The chain is built depth-first, so
 	// by the time this source's resolver is wrapped, everything behind it is
 	// already in place.
-	baseResolver, _, err := composeResolverSeen(resolverFor(baseSrc.Dir, baseSrc.Pakke), baseSrc, seen)
+	baseResolver, deeper, err := composeResolverSeen(resolverFor(baseSrc.Dir, baseSrc.Pakke), baseSrc, seen)
 	if err != nil {
+		// The frame below cleaned up whatever it resolved; this checkout is
+		// the one no one else can reach.
+		baseSrc.Cleanup()
 		return nil, nil, err
 	}
-	return resolver.WithBase(baseResolver), baseSrc, nil
+	return resolver.WithBase(baseResolver), append(composedBases{baseSrc}, deeper...), nil
 }

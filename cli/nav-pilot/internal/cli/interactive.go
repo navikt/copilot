@@ -516,10 +516,11 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 	// because they were never on the list (#844); offering the items the
 	// declaration excludes meant the picker showed a set the install was not
 	// going to deliver (#869).
-	_, _, manifest, err := composedContentsFor(scope, src, CollectionAll)
+	_, bases, manifest, err := composedContentsFor(scope, src, CollectionAll)
 	if err != nil {
 		return err
 	}
+	defer bases.cleanup()
 
 	total := len(manifest.Agents) + len(manifest.Skills) + len(manifest.Instructions)
 	if total == 0 {

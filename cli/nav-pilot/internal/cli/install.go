@@ -404,10 +404,11 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 	// Not narrowed by the declaration's item list: this is a name lookup that
 	// ends in cmdAdd, and naming one artifact on the command line is not the
 	// pakke install the list governs. See the same note there (#869).
-	resolver, _, err := composedResolverFor(src, name)
+	resolver, bases, err := composedResolverFor(src, name)
 	if err != nil {
 		return err
 	}
+	defer bases.cleanup()
 	var matchedKinds []*ArtifactKind
 	for _, kind := range AllKinds {
 		if _, ok := resolver.Get(kind, name); ok {
@@ -544,10 +545,12 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	// repo's committed item list narrows the result, and does so before
 	// anything is written: a list naming something the agentpakke does not ship
 	// refuses the whole install rather than half of it.
-	resolver, reused, manifest, err := composedContentsFor(scope, src, collection)
+	resolver, bases, manifest, err := composedContentsFor(scope, src, collection)
 	if err != nil {
 		return err
 	}
+	defer bases.cleanup()
+	reused := bases.nearest()
 
 	sourceLabel := sourceLabelFor(src)
 
@@ -785,10 +788,11 @@ func cmdList(scope *InstallScope, ref, sourceRepo string, showItems bool, jsonOu
 	// what the pakke inherits shows a set that matches the broken install and
 	// hides it (#844). It is also what the unknown-item refusal sends the user
 	// to read.
-	resolver, _, err := composedResolverFor(src, "")
+	resolver, bases, err := composedResolverFor(src, "")
 	if err != nil {
 		return err
 	}
+	defer bases.cleanup()
 
 	var collections []collectionInfo
 	add := func(m *Manifest) {
@@ -1136,10 +1140,12 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	// reuses and excludes what the repo's item list leaves out. Built here and
 	// not before the Tier 2 return above: a payload-only pakke has no layout
 	// for a base to contribute to (#844).
-	resolver, reused, declared, err := composedContentsFor(scope, src, CollectionAll)
+	resolver, bases, declared, err := composedContentsFor(scope, src, CollectionAll)
 	if err != nil {
 		return err
 	}
+	defer bases.cleanup()
+	reused := bases.nearest()
 
 	// A manifest handed in comes from the picker, which offered the declared
 	// set and got a choice out of it. Narrowing that choice a second time would

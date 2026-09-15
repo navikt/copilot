@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
 // writePakke lays down a minimal conforming agentpakke with the named agents.
@@ -56,10 +58,11 @@ func TestComposedInstallInheritsAndShadows(t *testing.T) {
 	declareReuse(t, ownDir, baseDir)
 
 	src := loadSource(t, ownDir)
-	resolver, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	resolver, bases, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
 	if err != nil {
 		t.Fatal(err)
 	}
+	reused := bases.nearest()
 	if reused == nil || reused.Dir != baseDir {
 		t.Fatalf("gjenbrukt kilde = %v, ventet %s", reused, baseDir)
 	}
@@ -104,10 +107,11 @@ func TestPakkeWithoutDeclarationIsUnchanged(t *testing.T) {
 	writePakke(t, dir, "alene", "en")
 	src := loadSource(t, dir)
 	own := resolverFor(src.Dir, src.Pakke)
-	composed, reused, err := composeResolver(own, src)
+	composed, bases, err := composeResolver(own, src)
 	if err != nil {
 		t.Fatal(err)
 	}
+	reused := bases.nearest()
 	if reused != nil {
 		t.Errorf("fant en gjenbrukt kilde der ingen er erklært: %v", reused)
 	}
@@ -146,10 +150,11 @@ func TestUnpinnedLocalPathReuseIsAllowed(t *testing.T) {
 	declareReuse(t, ownDir, baseDir)
 
 	src := loadSource(t, ownDir)
-	_, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	_, bases, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
 	if err != nil {
 		t.Fatalf("en lokal sti uten sha ble nektet: %v", err)
 	}
+	reused := bases.nearest()
 	if reused == nil {
 		t.Fatal("den lokale basen ble ikke gjenbrukt")
 	}
@@ -180,10 +185,11 @@ func TestLegacySourceDoesNotCompose(t *testing.T) {
 	if src.Pakke != nil {
 		t.Fatal("kilden fikk et manifest, da tester dette noe annet enn det står")
 	}
-	_, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	_, bases, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
 	if err != nil {
 		t.Fatal(err)
 	}
+	reused := bases.nearest()
 	if reused != nil {
 		t.Errorf("en manifestløs kilde komponerte %s", reused.Dir)
 	}
@@ -204,10 +210,11 @@ func TestSelfReferenceIsCaseInsensitive(t *testing.T) {
 	src := loadSource(t, dir)
 	src.Repo = "navikt/grillmester"
 
-	_, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	_, bases, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
 	if err != nil {
 		t.Fatalf("komposisjonen feilet: %v", err)
 	}
+	reused := bases.nearest()
 	if reused != nil {
 		t.Errorf("pakka ble kjedet til seg selv via %q", reused.Repo)
 	}
@@ -223,10 +230,11 @@ func TestSelfReferenceResolvesPathSpelling(t *testing.T) {
 	}
 	src := loadSource(t, dir)
 
-	_, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	_, bases, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
 	if err != nil {
 		t.Fatalf("komposisjonen feilet: %v", err)
 	}
+	reused := bases.nearest()
 	if reused != nil {
 		t.Errorf("pakka ble kjedet til seg selv via %q", reused.Dir)
 	}
@@ -253,9 +261,9 @@ func TestPayloadOnlyBaseIsRefused(t *testing.T) {
 	declareReuse(t, ownDir, baseDir)
 
 	src := loadSource(t, ownDir)
-	_, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	_, bases, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
 	if err == nil {
-		t.Fatalf("en payload-pakke ble godtatt som base, gjenbrukt = %v", reused)
+		t.Fatalf("en payload-pakke ble godtatt som base, gjenbrukt = %v", bases.nearest())
 	}
 	if !strings.Contains(err.Error(), "Tier 2") {
 		t.Errorf("feilmeldinga sier ikke hvorfor: %v", err)
@@ -280,9 +288,9 @@ func TestBaseWithUnusableManifestIsRefused(t *testing.T) {
 	declareReuse(t, ownDir, baseDir)
 
 	src := loadSource(t, ownDir)
-	_, reused, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	_, bases, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
 	if err == nil {
-		t.Fatalf("en base med ubrukelig manifest ble godtatt, gjenbrukt = %v", reused)
+		t.Fatalf("en base med ubrukelig manifest ble godtatt, gjenbrukt = %v", bases.nearest())
 	}
 	if !strings.Contains(err.Error(), "agentpakke") {
 		t.Errorf("feilmeldinga peker ikke på manifestet: %v", err)
@@ -436,5 +444,113 @@ func TestDeclaredItemsCanNameAnInheritedArtifact(t *testing.T) {
 	}
 	if got["eget"] {
 		t.Errorf("the item list was ignored: %v", got)
+	}
+}
+
+// declarePinnedReuse erklærer gjenbruk av en repo-formet kilde. Repo-formen
+// krever en revisjon, til forskjell fra den lokale stien declareReuse skriver.
+func declarePinnedReuse(t *testing.T, dir, base string) {
+	t.Helper()
+	body := `{"contractVersion":"1","source":"` + base + `","sha":"` + strings.Repeat("c", 40) + `"}`
+	if err := os.WriteFile(filepath.Join(dir, ".nav-pilot", "agentpakke.lock.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// fakeRemotePakker gjør repo-formede kilder klonbare uten nett. Hver kilde
+// klones til sin egen katalog under rota som returneres, slik testen kan telle
+// checkoutene en komposisjon legger igjen. kjede sier hvilken pakke hver kilde
+// gjenbruker videre; tom verdi er nederste ledd.
+func fakeRemotePakker(t *testing.T, kjede map[string]string) string {
+	t.Helper()
+	root := t.TempDir()
+	orig := source.CloneRemoteFn
+	t.Cleanup(func() { source.CloneRemoteFn = orig })
+	source.CloneRemoteFn = func(_, sourceRepo string) (*source.Source, error) {
+		next, ok := kjede[sourceRepo]
+		if !ok {
+			return nil, fmt.Errorf("testen klonet %q, som den ikke har lagt opp", sourceRepo)
+		}
+		dir, err := os.MkdirTemp(root, "klone-*")
+		if err != nil {
+			return nil, err
+		}
+		name := strings.TrimPrefix(sourceRepo, "navikt/")
+		writePakke(t, dir, name, name+"-agent")
+		if next != "" {
+			declarePinnedReuse(t, dir, next)
+		}
+		return &source.Source{Dir: dir, TempDir: dir, SHA: strings.Repeat("b", 40)}, nil
+	}
+	return root
+}
+
+// clonedDirs er checkoutene som fortsatt ligger under rota.
+func clonedDirs(t *testing.T, root string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	return names
+}
+
+// Hvert ledd i en gjenbrukskjede klones til sin egen temp-katalog. Kalleren kan
+// bare rydde det den får igjen, og fikk før #867 bare det nærmeste leddet:
+// mellomleddene nådde aldri fram, så hver install, sync og list la igjen en
+// katalog per ledd bak det første.
+func TestComposedChainCleansEveryTempCheckout(t *testing.T) {
+	clones := fakeRemotePakker(t, map[string]string{
+		"navikt/mellom": "navikt/bunn",
+		"navikt/bunn":   "",
+	})
+	ownDir := t.TempDir()
+	writePakke(t, ownDir, "egenpakke", "eget")
+	declarePinnedReuse(t, ownDir, "navikt/mellom")
+
+	src := loadSource(t, ownDir)
+	resolver, bases, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := resolver.Get(KindAgent, "bunn-agent"); !ok {
+		t.Fatal("det nederste leddet ble ikke komponert inn, da måler testen noe annet enn den sier")
+	}
+	if len(bases) != 2 {
+		t.Fatalf("kjeden kalleren fikk = %d ledd, ventet 2", len(bases))
+	}
+	if got := clonedDirs(t, clones); len(got) != 2 {
+		t.Fatalf("checkouter under komposisjonen = %d, ventet 2", len(got))
+	}
+
+	bases.cleanup()
+
+	if got := clonedDirs(t, clones); len(got) != 0 {
+		t.Errorf("checkouter igjen etter opprydding: %v", got)
+	}
+}
+
+// En komposisjon som feiler underveis har alt klonet leddene over bruddet.
+// Kalleren får ingenting å rydde, så hvert ledd må ryddes der det ble laget.
+func TestFailedCompositionLeavesNoTempCheckout(t *testing.T) {
+	clones := fakeRemotePakker(t, map[string]string{
+		"navikt/mellom": "navikt/bunn",
+		"navikt/bunn":   "navikt/mellom",
+	})
+	ownDir := t.TempDir()
+	writePakke(t, ownDir, "egenpakke", "eget")
+	declarePinnedReuse(t, ownDir, "navikt/mellom")
+
+	src := loadSource(t, ownDir)
+	_, _, err := composeResolver(resolverFor(src.Dir, src.Pakke), src)
+	if err == nil {
+		t.Fatal("en gjenbrukssyklus ble godtatt")
+	}
+	if got := clonedDirs(t, clones); len(got) != 0 {
+		t.Errorf("checkouter igjen etter at komposisjonen feilet: %v", got)
 	}
 }
