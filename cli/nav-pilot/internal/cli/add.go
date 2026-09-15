@@ -123,6 +123,10 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 
 	fmt.Printf("\n%s Added %s %q.\n", green("✓"), itemType, name)
 	noteForeignSource(scope, foreign, fmt.Sprintf("nav-pilot install %s --type %s --source %s --force", name, itemType, foreign))
+	if kind == KindHook {
+		fmt.Println()
+		warnRepoHooksNeedTrust(scope)
+	}
 	return nil
 }
 

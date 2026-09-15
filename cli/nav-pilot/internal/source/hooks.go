@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // A hook is the fifth artifact kind, and the only one that is executable code
@@ -334,6 +336,60 @@ func WriteUserHook(hooksDir string, entry HookEntry) error {
 // UserHookConfigName is the file WriteUserHook produces for a hook, relative to
 // the user-scope hooks directory.
 func UserHookConfigName(name string) string { return name + ".json" }
+
+// CopilotConfigName is the Copilot CLI's own auto-managed file in the user's
+// ~/.copilot. nav-pilot never writes it; it reads one field out of it.
+const CopilotConfigName = "config.json"
+
+// FolderTrusted reports whether the Copilot CLI counts dir as trusted, which is
+// the condition repo-scope hooks load under at all.
+//
+// This is the second thing an installed hook needs to be true, beside the path,
+// and it is the one that fails quietly. Measured against Copilot CLI 1.0.83 in
+// #888, not read off documentation:
+//
+//   - `copilot -p` in an untrusted folder logs "deferred repo hooks: folder not
+//     trusted; skipping repo hooks (status=2)", and .github/hooks/ never loads.
+//     User-scope hooks in ~/.copilot/hooks/ load in the same run.
+//   - Interactive mode logs the same line at startup, then loads the repo hooks
+//     the moment the folder-trust prompt is answered. Prompt mode has no prompt
+//     and nobody to answer it, so it stops there.
+//   - Trust is the whole gate, not the file name and not the event casing: with
+//     the folder trusted, or with COPILOT_ALLOW_ALL=true or
+//     GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true set, the same config in the
+//     same place fires in the same run.
+//
+// A trusted ancestor counts: trusting a parent directory loads the repo hooks
+// of a checkout inside it, measured the same way. PathWithinRoot resolves
+// symlinks on both sides, so a checkout behind the macOS /tmp -> /private/tmp
+// link compares like with like.
+//
+// The file opens with // comment lines the CLI writes itself, so it is not JSON
+// from byte zero and parsing starts at the first brace. Anything unreadable
+// counts as untrusted: a check that cannot read the file has nothing to say in
+// the user's favour, and the cost of being wrong that way is one warning.
+func FolderTrusted(copilotHome, dir string) bool {
+	data, err := os.ReadFile(filepath.Join(copilotHome, CopilotConfigName))
+	if err != nil {
+		return false
+	}
+	brace := bytes.IndexByte(data, '{')
+	if brace < 0 {
+		return false
+	}
+	var cfg struct {
+		TrustedFolders []string `json:"trustedFolders"`
+	}
+	if err := json.Unmarshal(data[brace:], &cfg); err != nil {
+		return false
+	}
+	for _, trusted := range cfg.TrustedFolders {
+		if trusted != "" && domain.PathWithinRoot(trusted, dir) {
+			return true
+		}
+	}
+	return false
+}
 
 // HookNamesIn lists the hook names a config file has nav-pilot entries for,
 // sorted. Used by tests and by status output.

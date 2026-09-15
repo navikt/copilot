@@ -63,6 +63,10 @@ func installItems(resolver *SourceResolver, scope *InstallScope, manifest *Manif
 		fmt.Println()
 	}
 
+	if !dryRun {
+		warnRepoHooksNeedTrust(scope)
+	}
+
 	return result, nil
 }
 
