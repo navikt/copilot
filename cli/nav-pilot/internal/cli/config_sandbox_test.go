@@ -2,10 +2,13 @@ package cli
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 )
 
 func TestCpltPresetFromConfigGet(t *testing.T) {
@@ -316,6 +319,35 @@ func TestSeededAllowlistStandsAloneForEveryAgent(t *testing.T) {
 		if !containsStr(navAllowedDomains, host) {
 			t.Errorf("%q missing — the file is a delta, and on its own it locks the agent out", host)
 		}
+	}
+}
+
+// Copilot CLI verifies MCP servers against a registry at startup, so a
+// registry it cannot reach is a session that times out and then hangs — not a
+// feature quietly missing. Both of Nav's registry ingresses are in the list
+// because the URL comes from Nav's org-level Copilot MCP policy, which points
+// at dev today and can change without a nav-pilot release.
+func TestSeededAllowlistReachesTheMCPRegistry(t *testing.T) {
+	for _, host := range []string{
+		"mcp-registry.nav.no",
+		"mcp-registry.ekstern.dev.nav.no",
+	} {
+		if !containsStr(navAllowedDomains, host) {
+			t.Errorf("%q missing — Copilot CLI hangs at startup when it cannot reach the registry it verifies servers against", host)
+		}
+	}
+}
+
+// The host nav-pilot allows and the URL it calls in `validate` and `install`
+// are the same registry, and have to stay the same host.
+func TestMCPRegistryURLHostIsAllowed(t *testing.T) {
+	u, err := url.Parse(agentpakke.MCPRegistryURL)
+	if err != nil {
+		t.Fatalf("MCPRegistryURL is not a URL: %v", err)
+	}
+	if !containsStr(navAllowedDomains, u.Hostname()) {
+		t.Errorf("nav-pilot calls %s but does not allow %q, so its own registry check fails under strict",
+			agentpakke.MCPRegistryURL, u.Hostname())
 	}
 }
 
