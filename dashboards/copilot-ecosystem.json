@@ -22,18 +22,22 @@
   "id": 0,
   "links": [
     {
+      "icon": "",
       "includeVars": false,
       "keepTime": true,
       "targetBlank": false,
       "title": "Nav-pilot: CLI",
+      "tooltip": "",
       "type": "link",
       "url": "/d/nav-pilot-cli"
     },
     {
+      "icon": "",
       "includeVars": false,
       "keepTime": true,
       "targetBlank": false,
       "title": "Nav-pilot: Local inference",
+      "tooltip": "",
       "type": "link",
       "url": "/d/nav-pilot-local"
     }

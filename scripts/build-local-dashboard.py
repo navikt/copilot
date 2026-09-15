@@ -182,18 +182,22 @@ def build():
         "layout": {"kind": "RowsLayout", "spec": {"rows": rows}},
         "links": [
             {
+                "icon": "",
                 "includeVars": False,
                 "keepTime": True,
                 "targetBlank": False,
                 "title": "Nav-pilot: CLI",
+                "tooltip": "",
                 "type": "link",
                 "url": "/d/nav-pilot-cli",
             },
             {
+                "icon": "",
                 "includeVars": False,
                 "keepTime": True,
                 "targetBlank": False,
                 "title": "Copilot: Ecosystem",
+                "tooltip": "",
                 "type": "link",
                 "url": "/d/copilot-ecosystem",
             },

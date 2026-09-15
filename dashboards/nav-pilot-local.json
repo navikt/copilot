@@ -1188,18 +1188,22 @@
   },
   "links": [
     {
+      "icon": "",
       "includeVars": false,
       "keepTime": true,
       "targetBlank": false,
       "title": "Nav-pilot: CLI",
+      "tooltip": "",
       "type": "link",
       "url": "/d/nav-pilot-cli"
     },
     {
+      "icon": "",
       "includeVars": false,
       "keepTime": true,
       "targetBlank": false,
       "title": "Copilot: Ecosystem",
+      "tooltip": "",
       "type": "link",
       "url": "/d/copilot-ecosystem"
     }
