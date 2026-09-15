@@ -6,10 +6,10 @@ tools:
   - execute
   - read
   - edit
-  - search
-  - web
+  - grep
+  - glob
+  - web_fetch
   - todo
-  - ms-vscode.vscode-websearchforcopilot/websearch
   - com.figma/figma-mcp/get_design_context
   - com.figma/figma-mcp/get_screenshot
 ---

@@ -63,8 +63,7 @@ Se også [modellvalg.md](modellvalg.md) for gjeldende modellpinning per agent og
 | Instruksjon | Gjelder for | Hva den gjør |
 |-------------|------------|--------------|
 | golang | `*.go` | Go-idiomer, error wrapping, slog-logging |
-| kotlin-spring | `*.kt` | Spring Boot-mønstre, dependency injection |
-| kotlin-ktor | `*.kt` | Ktor-routing, ApplicationBuilder |
+| kotlin | `*.kt` | Ktor og Rapids & Rivers, Spring Boot, Kotliquery, testing |
 | security-owasp | `*.kt, *.go` | OWASP-sjekkliste, inputvalidering |
 | nextjs-aksel | `src/**/*.{tsx,ts}` | Aksel spacing, responsive props, Box/VStack |
 | performance | `src/**/*.{tsx,ts}` | Lazy loading, memo, bundle-størrelse |

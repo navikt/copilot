@@ -6,10 +6,10 @@ tools:
   - execute
   - read
   - edit
-  - search
-  - web
+  - grep
+  - glob
+  - web_fetch
   - todo
-  - ms-vscode.vscode-websearchforcopilot/websearch
   - io.github.navikt/aksel-mcp/aksel_find_docs
   - io.github.navikt/aksel-mcp/aksel_get_doc
   - io.github.navikt/aksel-mcp/aksel_get_component_info

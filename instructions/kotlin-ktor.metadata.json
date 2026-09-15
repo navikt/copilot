@@ -1,9 +1,0 @@
-{
-  "displayName": "Kotlin/Ktor Development",
-  "description": "ApplicationBuilder pattern, sealed classes, kotliquery/HikariCP, Rapids & Rivers.",
-  "domain": "backend",
-  "tags": ["kotlin", "ktor", "backend"],
-  "examples": [
-    "Lag et nytt endepunkt i fp-sak med Azure AD-autentisering og feilhåndtering"
-  ]
-}

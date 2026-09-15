@@ -474,8 +474,7 @@ Within each layer, convert leaf packages first (no internal dependencies), then 
 
 | Resource | Use For |
 |----------|---------|
-| `kotlin-ktor` instruction | Target patterns for Ktor development |
-| `kotlin-spring` instruction | Spring Boot Kotlin patterns (if staying on Spring) |
+| `kotlin` instruction | Target patterns for Ktor and Spring Boot development |
 | `kotlin-app-config` skill | Sealed class configuration pattern |
 | `spring-boot-scaffold` skill | Scaffolding new Spring Boot services |
 | `flyway-migration` skill | Database migration patterns |

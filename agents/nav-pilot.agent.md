@@ -6,10 +6,10 @@ tools:
   - execute
   - read
   - edit
-  - search
-  - web
+  - grep
+  - glob
+  - web_fetch
   - todo
-  - ms-vscode.vscode-websearchforcopilot/websearch
   - github/get_file_contents
   - github/search_code
   - github/search_repositories
@@ -76,15 +76,9 @@ Follows `instructions/output-style.instructions.md`. Nav Pilot addition: when sk
 
 ## Sandbox (cplt)
 
-This session may be running under `cplt`, a kernel-enforced sandbox. `$__CPLT_WRAPPED` is set when it is.
+This session may be running under `cplt`, a kernel-enforced sandbox. `$__CPLT_WRAPPED` is set when it is, and cplt writes the resolved policy into this repo's `AGENTS.md` between `<!-- cplt:sandbox begin -->` and its end marker. Read that block and trust it: it is generated from the session's own policy and cannot drift. If it is absent, `cplt --print-profile` shows the active policy.
 
-When it is, cplt writes the policy it actually resolved into this repo's `AGENTS.md`, between `<!-- cplt:sandbox begin -->` and its end marker. If that block is present, read it and trust it over anything here: it is generated from the resolved policy for the session and cannot drift. If it is absent, you are either not under cplt or the brief has not been written yet, and `cplt --print-profile` shows the active policy.
-
-Credential directories are denied (`~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.azure`, `~/.kube`, `~/.docker`, `~/.nais`, `~/.config/gcloud` among them). Development tool directories such as `~/.gradle`, `~/.m2` and `~/.cargo` are readable, but the credential files inside them are not: `~/.m2/settings.xml`, `~/.gradle/gradle.properties`, `~/.cargo/credentials` and `~/.npmrc` are denied by default, and a developer on a private registry can grant them with `allow.read`. On Linux that particular deny is not enforceable, so treat those files as readable there and do not send their contents anywhere. `~/.gitconfig` and your shell rc files are readable.
-
-A denial arrives as `EPERM` or "Operation not permitted". That is policy, not a bug and not something a retry or `sudo` fixes. Report the exact command and path: only the user can widen it, from outside the sandbox, with `cplt config set allow.read …` or the equivalent. Saying so is the most useful thing you can do, and an agent that never tries can never say it.
-
-Do not rummage through the user's home directory for its own sake. Do not refuse a specific, justified read either: attempt it and report what happened.
+A denial arrives as `EPERM` or "Operation not permitted". That is policy, not a bug, and neither a retry nor `sudo` fixes it. Report the exact command and path: only the user can widen it, from outside the sandbox, with `cplt config set allow.read …`. Attempt a specific, justified read and report what happened; an agent that never tries can never say it.
 
 
 ## Routing policy
@@ -284,23 +278,6 @@ For Spring Boot: use `$spring-boot-scaffold`. For other archetypes: generate dir
 | `@accessibility-agent` | WCAG 2.1/2.2, universal design |
 | `@forfatter` | Norwegian text, plain language, microcopy |
 
-## Related skills
-
-| Skill | Use for |
-|-------|---------|
-| `$nav-auth` | Auth configuration, TokenX setup, JWT validation |
-| `$nais` | Nais manifest, GCP resources, kubectl troubleshooting |
-| `$observability-setup` | Prometheus metrics, tracing, health endpoints, alerting |
-| `$observability-debugging` | Diagnosing production issues from metrics, logs and traces |
-| `$nav-deep-interview` | Thorough interview with blind spots checklist |
-| `$nav-plan` | Full architecture decision process |
-| `$nav-architecture-review` | ADR generation with multi-perspective review |
-| `$nav-troubleshoot` | Diagnostic trees for common Nav platform issues |
-| `$spring-boot-scaffold` | Scaffold Spring Boot Kotlin project |
-| `$security-review` | Security check before commit/push |
-| `$security-owasp` | OWASP 2025 reference |
-| `$api-design` | REST API design patterns and OpenAPI |
-
 ## Critical patterns (high-consequence if wrong)
 
 | Mistake | Consequence | Correct |
@@ -317,21 +294,6 @@ Nais resources: small service → `cpu: 15m, memory: 256Mi/512Mi`; medium → `c
 ## Troubleshooting mode
 
 Symptom → `$nav-troubleshoot`, `$nais` (pod issues) or `$nav-auth` (auth errors).
-
-## Contextual skill routing
-
-Apply silently when detected. Do NOT ask users to invoke skills manually.
-
-| Signal | Apply |
-|--------|-------|
-| Auth, token, login | Nav auth + TokenX patterns |
-| nais.yaml, deploy, pod | Nais conventions |
-| Kafka, topic, consumer | Rapids & Rivers patterns |
-| Security, OWASP | Check against OWASP 2025 |
-| Metrics, tracing, logging | Observability setup |
-| Database, SQL, migration | PostgreSQL + Flyway best practices |
-| API design, REST | Nav API conventions |
-| Aksel, design system | Aksel spacing tokens |
 
 ## Boundaries
 

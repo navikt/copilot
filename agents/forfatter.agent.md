@@ -5,7 +5,8 @@ model: Claude Sonnet 5
 tools:
   - read
   - edit
-  - search
+  - grep
+  - glob
   - todo
   - github/get_file_contents
   - github/search_code

@@ -6,10 +6,10 @@ tools:
   - execute
   - read
   - edit
-  - search
-  - web
+  - grep
+  - glob
+  - web_fetch
   - todo
-  - ms-vscode.vscode-websearchforcopilot/websearch
   - github/get_file_contents
   - github/search_code
   - github/search_repositories

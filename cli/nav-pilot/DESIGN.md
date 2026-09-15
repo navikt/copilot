@@ -954,10 +954,30 @@ Disse forslagene ser lønnsomme ut i en måling og er det ikke. De har vært utr
 |---|---|
 | Trimme personaen mot `nav-pilot-opus.agent.md` (702 tokens) | **Ugyldig sammenligning.** Opus er en *leaf-only* ledsager som nav-pilot kaller for ett avgrenset delproblem (`agents/nav-pilot-opus.agent.md:87-89` — «must not delegate further… hand the result back»). Den har verken fasemaskin, scope-klassifisering, blindsone-sjekkliste eller Nav-tabeller. Et trimmål utledet herfra fjerner det som gjør nav-pilot nyttig. |
 | Fjerne arketype-tabellen, auth-treet, kommunikasjonstreet (310 tokens) | Duplikatet fra `$nav-plan` er **bevisst**. Det er grunnen til at agenten svarer riktig om Nav-arkitektur uten et skill-hopp. |
-| Snevre `applyTo` på `code-review.instructions.md` (604 tokens) | Ville svekket sikkerhetsreview i stillhet. `applyTo` matcher filer under arbeid og kan ikke skille en review-sesjon fra en kodesesjon — snevrer man den, snevrer man reviewen. Innholdet dekker fnr i logger, auth-annotasjoner, `accessPolicy` og upinnede action-SHA-er. Riktig vei er å restrukturere review-kanalen (`.github/copilot-review-instructions.md`), som er en annen mekanisme. |
-| Skille `kotlin-ktor` og `kotlin-spring` med bedre glob (5 748 kontekstuelt) | Ingen løsning finnes. Begge ligger under `src/main/kotlin/**`, og `applyTo` ser verken build-filer eller imports. |
 | Korte ned skill-beskrivelser aggressivt | Beskrivelsen er det modellen bruker for å avgjøre **om skillen fyrer**. For kort = skillen fyrer aldri. Dedupliser gjerne innad, men ikke fjern trigger-vokabular. Median er ~30 tokens; store beskrivelser kan være riktige for brede skills. |
 | Flytte `deliberate-ai-use.instructions.md` (1 182 tokens) | **Eierbeslutning, ikke teknisk opprydding.** Den er agentrettet (L64-90), og personaens rødsone-erklæring i Fase 2 avhenger av klassifiseringen i L20-47 — kobling på tvers av filer. Kom inn med #187 som et publisert Nav-rammeverk, referert fra 8+ dokumenter. |
+
+### `tools:` i agent-frontmatter er et filter, og halvparten av navnene traff ingenting
+
+Copilot CLI dokumenterer `--available-tools` som «only these tools will be available to the model», og `tools:` i en agentfil er samme mekanisme. Den kan ikke legge til et verktøy som ikke finnes, men den kan slippe gjennom GitHub MCP-verktøy som ligger utenfor CLI-ens standardutvalg — og det er nettopp det `github/`-oppføringene gjør.
+
+Målt på Copilot CLI 1.0.83, `copilot -p "say hi" --agent nav-pilot --log-level all`, ved å lese `copilotToolsFingerprint` i wire-loggen:
+
+| Oppsett | Verktøy |
+| --- | --- |
+| Uten `tools:` | 26, derav 5 GitHub MCP (standardutvalget) |
+| `tools:` slik den var | 24, derav 11 GitHub MCP, men uten `grep`, `glob` og `web_fetch` |
+| `tools:` etter rettingen | 27, derav 11 GitHub MCP, med `grep`, `glob` og `web_fetch` |
+
+Fem gruppenavn løses opp: `agent` → `task`, `read_agent`, `list_agents`, `write_agent`; `execute` → `bash`-familien; `read` → `view`; `edit` → `edit`, `create`; `todo` → `sql`. To gjorde det ikke: `search` og `web` ga null verktøy, så ingen agent hadde `grep`, `glob` eller `web_fetch`. Det samme gjaldt `ms-vscode.vscode-websearchforcopilot/websearch`, som er et VS Code-alias. Alle tre er byttet ut med ekte verktøynavn.
+
+`web_search` lar seg ikke slippe gjennom i det hele tatt — verken som `web_search` eller `github/web_search`. Det er et server-side verktøy, og en agent med `tools:` får det ikke. Trenger en agent nettsøk, må den droppe `tools:`-blokka helt.
+
+Sjekk nye navn mot en reell logg før du legger dem inn. `copilot-manifest.test.ts` passer på `github/`-prefikset, men ingen test fanger et gruppenavn som ikke finnes.
+
+### Kotlin er én fil, ikke to
+
+`kotlin-ktor` og `kotlin-spring` hadde begge `applyTo: "**/*.kt"`, så hvert Kotlin-repo lastet begge og minst én var alltid feil. `applyTo` ser verken build-filer eller imports, så ingen glob kan skille dem. De er slått sammen til `kotlin.instructions.md` med én halvdel per rammeverk og en rutingsetning øverst; modellen velger halvdel ut fra imports i fila den redigerer. Ikke del dem opp igjen uten en mekanisme som faktisk kan skille dem.
 
 ### Hvorfor output-komprimering ikke er svaret
 

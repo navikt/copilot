@@ -3,26 +3,45 @@
   "paths": {
     "agents/auth.agent.md": [
       "811b4abbecd5127391a18402837429c7fcb4f1dc",
-      "9629bdfd8f667ad380469689a6119ecd772c734e",
-      "c15389baa31cb85ae820549227d8fe6649b11a38"
+      "9629bdfd8f667ad380469689a6119ecd772c734e"
     ],
     "agents/auth.metadata.json": [
       "170929963d41d939ece16f2e38771175a3a58612"
     ],
     "agents/nais.agent.md": [
-      "1fa06225a633fbb4d2b6f06398a1bf752a2f096f",
       "3705c117b824985ccde45032cbe48fb0473e7724"
     ],
     "agents/nais.metadata.json": [
       "b6898893de22f6e44b93373fde4121a483e65549"
     ],
     "agents/observability.agent.md": [
-      "4102e4e2725c577419ad40749c1dd94d96f376af",
       "84fcd3f2cce4ef5f0c40b9a04ec8941a0bcfbd15",
       "c4bf98ce824a0a130373535dfcd4e402a6e4abef"
     ],
     "agents/observability.metadata.json": [
       "722c5d60a7ec8cf7e0960f3a79140b77f721c528"
+    ],
+    "instructions/code-review.instructions.md": [
+      "ac59a02368df008116727a3276c5fec552ae289b"
+    ],
+    "instructions/code-review.metadata.json": [
+      "5f33d6bc5edbe8a0e9b9d81e941a36e09e8abb32"
+    ],
+    "instructions/kotlin-ktor.instructions.md": [
+      "04b88556de997bfd9a764602b633da3529ce64c1",
+      "c1bc8903253d5421c98268d78cfc8b19844ec46d",
+      "fd414d653007a07a499d27bc8ef54ce5d18b3cb8"
+    ],
+    "instructions/kotlin-ktor.metadata.json": [
+      "b45a27b7859d0581cccf1fd7f3fe5fde9cee6bab"
+    ],
+    "instructions/kotlin-spring.instructions.md": [
+      "61039d2cb531d0ff0532963470116c3c0c336ca6",
+      "909f9db3bf4d639066a2498de2fb617d5838046f",
+      "9efd13f45003761e411bf8a1ccbf0e082dcbd705"
+    ],
+    "instructions/kotlin-spring.metadata.json": [
+      "ff9b226688872751bf5a24e54a0d92408ed22fcb"
     ]
   }
 }
