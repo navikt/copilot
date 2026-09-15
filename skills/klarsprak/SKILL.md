@@ -70,6 +70,8 @@ Bruk verb, ikke substantiv laget av verb. Typisk mønster: -ing + av.
 
 Erstatt eller fjern mønstre som avslører KI-generert tekst.
 
+Listene under er på norsk, men markørene er de samme på engelsk. Skann engelsk tekst etter de samme mønstrene: groundbreaking, seamless, comprehensive, «it is worth noting», «in conclusion», «not only X, but also Y».
+
 ### Svulstige ord og uttrykk
 
 | AI-markør | Gjør i stedet |
@@ -103,6 +105,7 @@ Kutt disse — start med poenget:
 - «dette reiser spørsmål om» — still spørsmålet eller dropp det
 - «oppsummert kan man si at», «kort sagt», «avslutningsvis»
 - «det bør nevnes at», «husk at»
+- «det finnes flere aspekter ved dette» — nevn aspektene eller kutt setninga
 - «fremtiden ser lys ut», «resultatene taler for seg selv» — klisjeer; si konkrete planer eller fakta
 
 ### Retoriske AI-mønstre

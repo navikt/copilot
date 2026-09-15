@@ -6,7 +6,7 @@ applyTo: "**/*.md"
 
 Regler for norsk tekst i markdown-filer: agenter, instruksjoner, skills, dokumentasjon og README-er. Dette er minimumsreglene som gjelder automatisk ved redigering og code review.
 
-Språknøytrale skriveregler (lengde, tetthet, AI-markører, tegnsetting) står i `output-style.instructions.md`. Klarspråk-prinsipper, anglisismer, fagtermer, teksttyper og full språkvask ligger i `klarsprak`-skillen. Bruk den når du skriver eller redigerer norsk tekst av noe omfang. For dypere tekstredaksjon, bruk `@forfatter`-agenten.
+Språknøytrale skriveregler (lengde, tetthet, tegnsetting) står i `output-style.instructions.md`. Ordlistene over AI-markører ligger sammen med klarspråk-prinsipper, anglisismer, fagtermer, teksttyper og full språkvask i `klarsprak`-skillen. Bruk den når du skriver eller redigerer norsk tekst av noe omfang. For dypere tekstredaksjon, bruk `@forfatter`-agenten.
 
 ## Nav, ikke NAV
 
