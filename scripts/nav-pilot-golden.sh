@@ -376,10 +376,18 @@ preflight_client() {
 
   # Credential check: a trivial non-interactive prompt. An unauthenticated CLI
   # fails here with an auth error rather than mid-suite with a confusing timeout.
+  #
+  # The probe captures the CLI's whole stdout, and that includes the status
+  # banner: token counts and the `--resume` session id. A bare `401` therefore
+  # matched a session id like `f313d1ee-401a-49a3-...` and failed the preflight
+  # after the model call was already paid for. The digits have to be delimited
+  # by something that is not alphanumeric, so `HTTP 401` and `401 Unauthorized`
+  # still match and a hex id does not. `[[:<:]]`/`\b` are not portable across
+  # BSD and GNU grep, hence the explicit character classes.
   local probe_out probe_rc
   probe_out="$("$CLI_PATH" -p "svar kun med ordet OK" --no-color --log-level none 2>&1)"
   probe_rc=$?
-  if [[ $probe_rc -ne 0 ]] || grep -qiE "not (logged in|authenticated)|unauthorized|401|please (log ?in|sign in)|GITHUB_TOKEN" <<<"$probe_out"; then
+  if [[ $probe_rc -ne 0 ]] || grep -qiE "not (logged in|authenticated)|unauthorized|(^|[^0-9a-zA-Z])401([^0-9a-zA-Z]|$)|please (log ?in|sign in)|GITHUB_TOKEN" <<<"$probe_out"; then
     fail_preflight \
       "$CLI_NAME is not authenticated (probe prompt failed)" \
       "Run '$CLI_NAME' interactively and complete login, or export a valid GITHUB_TOKEN. Probe said: $(head -c 200 <<<"$probe_out")"

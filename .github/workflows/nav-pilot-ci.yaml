@@ -106,7 +106,7 @@ jobs:
           experimental: true
 
       - name: Run BATS
-        run: mise exec -- bats scripts/install.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats
+        run: mise exec -- bats scripts/install.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats
 
   e2e-install:
     name: E2E test install.sh
