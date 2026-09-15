@@ -317,6 +317,13 @@ func (m *Manifest) Tier(client string) int {
 	return TierLayout
 }
 
+// PayloadOnly reports whether the manifest declares pre-built payloads and no
+// layout — Tier 2 only. Such a manifest has no Tier 1 content to materialize,
+// so the install paths pin a revision of its payloads instead.
+func (m *Manifest) PayloadOnly() bool {
+	return m != nil && m.Layout == nil && m.HasTier(TierPayload)
+}
+
 // Client returns the entry for a client id.
 func (m *Manifest) Client(client string) (ClientEntry, bool) {
 	if m == nil || m.Clients == nil {

@@ -130,6 +130,9 @@ func validateSourceTree(src *Source) (kind string, notes []string, warnings []st
 	}
 
 	warnings = m.ModelWarnings()
+	if w := inertReuseWarning(m, src.Dir); w != "" {
+		warnings = append(warnings, w)
+	}
 	findings = agentpakke.ValidateSource(src.Dir)
 	// Membership in the MCP registry is a live question, so it is asked here
 	// rather than in the schema: the registry gains and retires servers without
@@ -140,6 +143,33 @@ func validateSourceTree(src *Source) (kind string, notes []string, warnings []st
 		warnings = append(warnings, mcpWarning)
 	}
 	return "agentpakke", notes, warnings, findings
+}
+
+// inertReuseWarning reports a reuse declaration that nothing will ever act on.
+//
+// A pakke that ships payloads and no layout takes the pin route in install and
+// sync, and neither of those reads the source's own declaration, so the file is
+// committed, reviewed, and inert (#870). It is not a violation: the declaration
+// harms nothing, and refusing it would break a pakke that already ships one.
+// But validate is where an author asks whether the manifest does what she
+// thinks, so this is the one place the silence has to end.
+func inertReuseWarning(m *agentpakke.Manifest, root string) string {
+	if !m.PayloadOnly() {
+		return ""
+	}
+	d, err := agentpakke.LoadDeclaration(root)
+	if err != nil || d.Source == "" {
+		return ""
+	}
+	return fmt.Sprintf(
+		"%s declares reuse of %q, and nothing reads it: this agentpakke ships payloads and no layout, "+
+			"so install and sync pin a revision of its payloads rather than compose a base into it. "+
+			"A Tier 2 pakke composes at build time, with its own tooling, and ships the result in the payload; "+
+			"record where that content came from in the manifest's provenance.base and provenance.overlays, "+
+			"which nav-pilot parses but never checks against the payload. "+
+			"The file is not an error, and it still names the pakke this repo installs for its own developers, "+
+			"but it adds nothing to what this pakke publishes",
+		agentpakke.DeclarationPath, d.Source)
 }
 
 // validateLegacySource checks a source that ships no manifest. It must still be
