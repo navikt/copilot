@@ -1,6 +1,6 @@
 {
   "displayName": "Output Style",
-  "description": "Felles skriveregler for output: lengde, tetthet, AI-markører og presedens over bevisst AI-bruk.",
+  "description": "Felles skriveregler for output: lengde, tetthet, tegnsetting og presedens over bevisst AI-bruk. Ordlistene over AI-markører ligger i klarsprak-skillen.",
   "domain": "general",
   "tags": ["writing", "output", "ai-markers", "terse", "style"],
   "examples": [

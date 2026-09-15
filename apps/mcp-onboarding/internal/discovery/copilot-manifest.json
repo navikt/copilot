@@ -75,7 +75,7 @@
       "displayName": "@forfatter",
       "description": "Norsk teknisk redaktør, tekstforfatter eller innholdsdesigner: klarspråk, AI-markører, anglisismer, fagtermer, mikrotekst.",
       "filePath": "agents/forfatter.agent.md",
-      "contentHash": "d1192794ce431ab81ecda831edb8ca5d06483a0e4a1062035cb9122fc9c245a9",
+      "contentHash": "4516167e39928ef2c4bac1c701fe9c87a1b321f41a6f32057ef57a082df62970",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -345,7 +345,7 @@
       "displayName": "Norsk tekstkvalitet",
       "description": "Minimumsregler for norsk markdown: Nav, bindestrek i sammensatte ord, engelsk fagspråk, konsekvent bokmål og overskrifter. Full språkvask ligger i klarsprak-skillen.",
       "filePath": "instructions/norwegian-text.instructions.md",
-      "contentHash": "8dc36629d466e9b9157ca5ecb869fcc93608add7f05f59d207b3cdba9b0a530b",
+      "contentHash": "9fe4d16cff71a80e31b203e31f3068350f7741c7002234f39de7e3a539330b80",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/norwegian-text.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/norwegian-text.instructions.md"
     },
@@ -353,7 +353,7 @@
       "type": "instruction",
       "name": "output-style",
       "displayName": "Output Style",
-      "description": "Felles skriveregler for output: lengde, tetthet, AI-markører og presedens over bevisst AI-bruk.",
+      "description": "Felles skriveregler for output: lengde, tetthet, tegnsetting og presedens over bevisst AI-bruk. Ordlistene over AI-markører ligger i klarsprak-skillen.",
       "filePath": "instructions/output-style.instructions.md",
       "contentHash": "919ebcfd22f06b2e60eb394832b862eb911685264ebdcab02443d68bef04a2b6",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/output-style.instructions.md",
