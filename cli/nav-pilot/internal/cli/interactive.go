@@ -510,14 +510,13 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 		return installPakkePin(scope, src, false, false)
 	}
 
-	// The picker offers what the install installs, which includes what the
-	// pakke reuses. Listing only the top pakke's items meant the inherited ones
-	// could not be deselected because they were never on the list (#844).
-	resolver, _, err := composedResolverFor(src, CollectionAll)
-	if err != nil {
-		return err
-	}
-	manifest, err := collectAllItemsWith(resolver)
+	// The picker offers what the install installs: what the pakke reuses is on
+	// the list, and what the repo's declaration leaves out is not. Listing only
+	// the top pakke's items meant the inherited ones could not be deselected
+	// because they were never on the list (#844); offering the items the
+	// declaration excludes meant the picker showed a set the install was not
+	// going to deliver (#869).
+	_, _, manifest, err := composedContentsFor(scope, src, CollectionAll)
 	if err != nil {
 		return err
 	}

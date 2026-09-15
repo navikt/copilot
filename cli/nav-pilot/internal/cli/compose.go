@@ -52,6 +52,52 @@ func composedResolverFor(src *Source, collection string) (*SourceResolver, *Sour
 	return composeResolver(resolver, src)
 }
 
+// composedContentsFor is what an install path asks for: the composed resolver,
+// the pakke it reuses so the caller can report it, and the manifest of what to
+// install — narrowed to the items the scope's declaration selects.
+//
+// The narrowing lives here for the reason the composition does. It hung on
+// `install <navn>` alone, so a repo that had committed a three-item selection
+// got every artifact from the base through `install --all` and through the
+// picker: the committed file said one thing and the install did another (#869).
+// One place to ask means the next entry point does not have to remember.
+//
+// The Tier 2 half of the same question is not here, because a payload-only
+// source returns before any of this: [installPakkePin] is where every path
+// routes one, and where the selection it cannot honour is refused.
+//
+// `list` is deliberately left off this path. The unknown-item refusal sends the
+// reader to `nav-pilot list --items` to find the name they mistyped, and a
+// listing narrowed by that same list could not contain it.
+func composedContentsFor(scope *InstallScope, src *Source, collection string) (*SourceResolver, *Source, *Manifest, error) {
+	resolver, reused, err := composedResolverFor(src, collection)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	var manifest *Manifest
+	switch {
+	case collection == CollectionAll:
+		// Not a name a pakke or a collection can have — CollectionAll is
+		// "(all)" — so this branch cannot swallow a real collection.
+		manifest, err = collectAllItemsWith(resolver)
+	case src.Pakke != nil:
+		manifest, err = pakkeContents(resolver, src)
+	default:
+		manifest, err = loadManifest(src.Dir, collection)
+	}
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	items, err := declaredItemsFor(scope)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if manifest, err = applyDeclaredItems(manifest, items); err != nil {
+		return nil, nil, nil, err
+	}
+	return resolver, reused, manifest, nil
+}
+
 // composeResolver returns the resolver to install from. When this source
 // reuses another agentpakke, the returned resolver falls back to it, and the
 // second return value is the reused source so callers can report it.

@@ -400,6 +400,10 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 	// inherits is one it installs, so `nav-pilot install <navn>` has to be able
 	// to find it by name here too, and the "did you mean" candidates below have
 	// to know about it (#844).
+	//
+	// Not narrowed by the declaration's item list: this is a name lookup that
+	// ends in cmdAdd, and naming one artifact on the command line is not the
+	// pakke install the list governs. See the same note there (#869).
 	resolver, _, err := composedResolverFor(src, name)
 	if err != nil {
 		return err
@@ -501,21 +505,6 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		src = relSrc
 	}
 
-	// The repo's committed declaration may narrow the install to named items.
-	// It is read before anything is written, so a list naming something the
-	// agentpakke does not ship refuses the whole install rather than half of it.
-	decl, err := scopeDeclaration(scope)
-	if err != nil {
-		return err
-	}
-	var declaredItems map[string]string
-	if decl != nil {
-		declaredItems = decl.Items
-	}
-	if err := guardDeclaredItems(src, declaredItems); err != nil {
-		return err
-	}
-
 	// Before the tier split, not inside it: a mixed pakke — layout plus
 	// payloads — takes the Tier 1 route below, so a check on the payload-only
 	// branch would let it install its layout half and report green.
@@ -551,22 +540,12 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 
 	// A pakke that reuses another resolves it here, before its contents are
 	// collected: pakkeContents lists through the resolver, so the reused
-	// artifacts are part of the manifest without a second merge step.
-	resolver, reused, err := composedResolverFor(src, collection)
+	// artifacts are part of the manifest without a second merge step. The
+	// repo's committed item list narrows the result, and does so before
+	// anything is written: a list naming something the agentpakke does not ship
+	// refuses the whole install rather than half of it.
+	resolver, reused, manifest, err := composedContentsFor(scope, src, collection)
 	if err != nil {
-		return err
-	}
-
-	var manifest *Manifest
-	if src.Pakke != nil {
-		manifest, err = pakkeContents(resolver, src)
-	} else {
-		manifest, err = loadManifest(src.Dir, collection)
-	}
-	if err != nil {
-		return err
-	}
-	if manifest, err = applyDeclaredItems(manifest, declaredItems); err != nil {
 		return err
 	}
 
@@ -1154,19 +1133,19 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	noteProposalConsent(scope, src, dryRun, jsonOutput)
 
 	// `--all` means everything the pakke installs, which includes what it
-	// reuses. Built here and not before the Tier 2 return above: a payload-only
-	// pakke has no layout for a base to contribute to (#844).
-	resolver, reused, err := composedResolverFor(src, CollectionAll)
+	// reuses and excludes what the repo's item list leaves out. Built here and
+	// not before the Tier 2 return above: a payload-only pakke has no layout
+	// for a base to contribute to (#844).
+	resolver, reused, declared, err := composedContentsFor(scope, src, CollectionAll)
 	if err != nil {
 		return err
 	}
 
+	// A manifest handed in comes from the picker, which offered the declared
+	// set and got a choice out of it. Narrowing that choice a second time would
+	// refuse the install over every item the user deselected.
 	if manifest == nil {
-		var err error
-		manifest, err = collectAllItemsWith(resolver)
-		if err != nil {
-			return err
-		}
+		manifest = declared
 	}
 
 	total := len(manifest.Agents) + len(manifest.Skills) + len(manifest.Instructions)

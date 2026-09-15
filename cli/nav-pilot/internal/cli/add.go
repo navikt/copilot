@@ -78,6 +78,12 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 	// Composed: a single artifact the pakke inherits is one it ships, and
 	// `install <navn> --type <kind>` lands here without passing the dispatcher
 	// (#844).
+	//
+	// Composed but not narrowed, which is why this reads the resolver rather
+	// than [composedContentsFor]: the declaration's item list says what the
+	// agentpakke install brings in, and this command is the developer naming
+	// one artifact on the command line instead. Refusing it here would make the
+	// list a repo-wide allowlist, which is not what it is (#869).
 	resolver, _, err := composedResolverFor(src, name)
 	if err != nil {
 		return err

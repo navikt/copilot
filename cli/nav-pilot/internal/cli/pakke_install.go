@@ -761,6 +761,20 @@ var installRef string
 // sources and repo scope keep today's behaviour; the last two are refused by
 // checkPakkeInstallable before anything is pinned.
 func installPakkePin(scope *InstallScope, src *Source, dryRun, jsonOutput bool) error {
+	// Here rather than on each path in, for the reason the Tier 1 narrowing
+	// sits in [composedContentsFor]: the guard hung on `install <navn>` alone,
+	// so `install --all` and the picker took a repo's committed item list past
+	// it without a word (#869). Before the switch prompt, because a refusal
+	// that arrives after a question is a question that should not have been
+	// asked.
+	items, err := declaredItemsFor(scope)
+	if err != nil {
+		return err
+	}
+	if err := guardDeclaredItems(src, items); err != nil {
+		return err
+	}
+
 	// The same gate the Tier 1 paths run, here because not every caller comes
 	// through them: the user-scope picker routes a payload-only pakke straight
 	// here, and [pinRevision] removes the outgoing install's files.
