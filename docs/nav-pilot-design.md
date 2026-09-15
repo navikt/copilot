@@ -48,17 +48,24 @@ Uten en fast modell blir det lett:
 
 Faser skal være eksplisitte. Det skal være lett å se om man er i kartlegging, vurdering, planlegging, endring eller verifisering. Dette er en sentral mekanisme for å unngå at utforskning glir over i handling for tidlig.
 
-#### Kjent avvik: fase-checkpointen sendes ikke
+#### Fasegaten virker, checkpoint-blokka gjorde det aldri
 
-Designet krever at `@nav-pilot` sender en checkpoint-blokk ved hver fasegrense på full tier. **Det skjer ikke i praksis.** Golden-test 2 finner null checkpoints, reproduserbart, på modellene som er testet.
+Stopp-og-vent er mekanismen du kan stole på. Golden-test 2 er grønn 7 av 7 i dag og 18 av 18 historisk: på full tier stopper svaret etter Fase 1, med spørsmålene utestående, og venter på bekreftelse.
 
-Dette er ikke en regresjon. `scripts/nav-pilot-golden.sh` ble aldri kjørt mot levende modeller før august 2026, og avviket har ligget der siden `badb737c` (#273, juni 2026).
+Formatet er en annen sak. Designet krevde i tillegg en checkpoint-blokk ved hver fasegrense. Den ble aldri sendt: 25 transkripter, fire modeller, tre persona-revisjoner, null blokker. Blokka er fjernet.
 
-Årsaken er en selvmotsigelse i `agents/nav-pilot.agent.md`. Checkpointen påstår `Fase N ferdig`, mens filas eget utgangskriterium for Fase 1 er «All relevant blind spots addressed + user confirms». Modellen avslutter turen med å *stille* de spørsmålene, så fasen er ikke ferdig etter filas egen definisjon. På samme sted sto i tillegg «Output ONLY the checkpoint block», mot tre andre steder i fila som krever at Fase 1 stiller spørsmål. Modellen fulgte flertallet og droppet blokka.
+Fire forsøk på å få personaen til å sende den feilet:
 
-Status: [issue #484](https://github.com/navikt/copilot/issues/484). En én-linjes fiks ligger i PR #491, på grenen `fix/persona-phase-checkpoint`. Den er ikke merget og ikke verifisert med en harness-kjøring i skrivende stund.
+1. `Output ONLY the checkpoint block`-klausulen ble fjernet (0 av 5).
+2. Utgangskriteriet for Fase 1 ble rettet, så det ikke lenger motsa blokka (0 av 5).
+3. Blokka ble lagt inn i fasemaskinas tillatte arbeid, i `✅ Always`, og som et utfylt eksempel der den skulle brukes (0 av 3).
+4. En kjøring med `--no-instructions` tok de alltid-på skrivereglene helt ut av kontekst (0 av 3).
 
-Fasegaten står som designintensjon. Den er ikke en mekanisme du kan stole på i dag.
+Punkt 4 avgjorde saken. Med ingenting som konkurrerte om plassen sendte modellen den fortsatt ikke, så instruksjonsfilene var aldri årsaken. Modellen sender hvert eneste felt blokka ville båret, som prosa og tidlig i svaret: tier-dommen, arketypen, blindsonene som nummererte spørsmål, rød sone merket, og en omskrevet bekreftelseslinje. Den utelater beholderen, ikke informasjonen.
+
+Ett felt reproduseres ikke av prosa: blindsone-tellinga `Blindsoner reist: N/11`. Personaen ber om den som én linje, og golden-test 2b rapporterer når den mangler. Den er myk og flytter ikke exit-koden, fordi en permanent rød test er en test folk slutter å lese. Første måling etter at blokka ble fjernet var 0 av 3. Holder det seg der etter en bredere kjøring, er det kravet som skal bort, ikke testen som skal skjerpes.
+
+Historikk: [issue #484](https://github.com/navikt/copilot/issues/484), `badb737c` (#273) innførte blokka, `161c849` (#491) rettet selvmotsigelsene og delte test 2 i en hard oppførselssjekk og en myk formatsjekk.
 
 ### Rød/grønn-sone
 
