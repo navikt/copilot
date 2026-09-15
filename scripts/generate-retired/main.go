@@ -134,8 +134,13 @@ func build() (*document, error) {
 }
 
 // deletedPaths lists every path under dir that some commit deleted.
+//
+// --no-renames matters: with rename detection on, git reports a file that was
+// merged into a differently named one as a single rename, and the old path
+// never shows up as deleted. It is still gone from the user's install, which is
+// the only thing this file is for.
 func deletedPaths(dir string) ([]string, error) {
-	out, err := git("log", "--all", "--diff-filter=D", "--format=", "--name-only", "--", dir+"/")
+	out, err := git("log", "--all", "--no-renames", "--diff-filter=D", "--format=", "--name-only", "--", dir+"/")
 	if err != nil {
 		return nil, err
 	}
