@@ -157,6 +157,34 @@ func TestReportNaisStatusFile_FreshInsideSandboxIsEnforcing(t *testing.T) {
 	}
 }
 
+// The state the section exists for, seen from inside: naisdevice is connected,
+// the file is there, and the gate still sees nothing because the read was never
+// granted.
+func TestReportNaisStatusFile_UnreadableNamesTheGrant(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads a 0000 file regardless")
+	}
+	stubNaisStatus(t, naisStatusWithToken("NAV", true), nil)
+	path := writeStatusFile(t, naisAgentStatus{
+		ConnectionState: "Connected", Tenant: "NAV",
+		UpdatedAt: time.Now(), HeartbeatSeconds: 60,
+	})
+	if err := os.Chmod(path, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	out := renderNaisdevice(t, "/usr/local/bin/nais", path)
+	wantIn(t, out, "not allowed to read it", "does not", "cplt config set allow.read")
+	if strings.Contains(out, "Status file is current") {
+		t.Errorf("a file that could not be read is not a current one:\n%s", out)
+	}
+}
+
+func TestReportNaisStatusFile_NoConfigDir(t *testing.T) {
+	stubNaisStatus(t, naisStatusWithToken("NAV", true), nil)
+	out := renderNaisdevice(t, "/usr/local/bin/nais", "")
+	wantIn(t, out, "Could not work out where naisdevice keeps its status file")
+}
+
 func TestReportNaisStatusFile_StaleIsNotCurrent(t *testing.T) {
 	stubNaisStatus(t, naisStatusWithToken("NAV", true), nil)
 	path := writeStatusFile(t, naisAgentStatus{

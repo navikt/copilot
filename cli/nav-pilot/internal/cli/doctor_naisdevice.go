@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -141,9 +142,6 @@ func (s naisAgentStatus) stale(now time.Time) bool {
 // today and returns (nil, nil): nais/device#564 is unreleased, so no machine
 // has one yet.
 func readNaisAgentStatus(path string) (*naisAgentStatus, error) {
-	if path == "" {
-		return nil, os.ErrNotExist
-	}
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return nil, nil
@@ -220,8 +218,22 @@ func reportNaisdevice(w io.Writer, naisPath, statusPath string) {
 // reportNaisStatusFile is the half that actually matters: whether the gate can
 // see any of the above from inside the sandbox.
 func reportNaisStatusFile(w io.Writer, statusPath string) {
+	if statusPath == "" {
+		fmt.Fprintf(w, "    %s Could not work out where naisdevice keeps its status file\n", dim("-"))
+		return
+	}
 	status, err := readNaisAgentStatus(statusPath)
 	switch {
+	case errors.Is(err, fs.ErrPermission):
+		// Inside cplt this is the whole point: the file is there, naisdevice is
+		// connected, and the gate still cannot see a tenant because nobody
+		// granted the read. Outside cplt it is ordinary file permissions, and
+		// the same grant is what a session will need anyway.
+		fmt.Fprintf(w, "    %s Status file is there, but this process is not allowed to read it\n", yellow("⚠"))
+		fmt.Fprintf(w, "        The gate reads this file to see your tenant. Without it the gate does not\n")
+		fmt.Fprintf(w, "        enforce tenant rules, whatever naisdevice says above.\n")
+		fmt.Fprintf(w, "        %s %s\n", yellow("Solution:"), bold(fmt.Sprintf("cplt config set allow.read %q", statusPath)))
+		return
 	case err != nil:
 		fmt.Fprintf(w, "    %s Status file is there but unreadable: %s\n", yellow("⚠"), statusPath)
 		fmt.Fprintf(w, "        The gate reads this file inside cplt, so it is not enforcing tenant rules there.\n")
