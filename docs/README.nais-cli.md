@@ -79,6 +79,29 @@ cplt --allow-socket "$HOME/Library/Application Support/naisdevice/agent.sock"
 Det gir `nais device status` og ingenting annet — ingen innlogging, og `nais app env` feiler
 fortsatt.
 
+## Er porten i nais/pilot faktisk på?
+
+Agentpakka `nais/pilot` har en preToolUse-port som nekter klyngekommandoer mot feil tenant.
+Porten må kunne se hvilken tenant naisdevice står på. Inne i cplt ser den som regel ingenting,
+fordi sandkassen nekter agent-socketen, og da slipper kommandoene gjennom uten at noe sier fra.
+
+`nav-pilot doctor` rapporterer det: om naisdevice er installert, om du er tilkoblet, hvilken
+tenant som er aktiv (og hva porten kaller den), og om porten kan se den tilstanden inne i
+sandkassen. Seksjonen vises bare hvis du har en agentpakke fra `nais` installert. doctor leser
+aldri ut sesjonsnøkkelen som ligger i svaret fra `nais device status --output json`.
+
+Statusfila porten leser i sandkassen, `agent-status.json`, kommer med
+[nais/device#564](https://github.com/nais/device/issues/564) og er ikke released ennå. Fram til
+da mangler den på alle maskiner, og doctor sier det uten å kalle det en feil. Når fila er der,
+gir du cplt lesetilgang én gang:
+
+```sh
+cplt config set allow.read "$HOME/Library/Application Support/naisdevice/agent-status.json"
+```
+
+Det er lesetilgang til en fil med tilkoblingstilstand og tenantnavn, ikke til socketen og ikke
+til legitimasjonen.
+
 ## Småting
 
 - `nais login --nais` inne i sandkassen krever i tillegg *skrivetilgang* til

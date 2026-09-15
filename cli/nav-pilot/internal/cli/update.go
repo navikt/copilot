@@ -240,17 +240,34 @@ const cpltCommandTimeout = 2 * time.Second
 
 // runBounded runs a command with its own deadline and returns its stdout.
 func runBounded(name string, args ...string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), cpltCommandTimeout)
-	defer cancel()
-	return exec.CommandContext(ctx, name, args...).Output()
+	return runBoundedTimeout(cpltCommandTimeout, false, name, args...)
 }
 
 // runBoundedCombined is runBounded, but keeps stderr — for commands whose
 // interesting output is not reliably on stdout.
 func runBoundedCombined(name string, args ...string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), cpltCommandTimeout)
+	return runBoundedTimeout(cpltCommandTimeout, true, name, args...)
+}
+
+// runBoundedTimeout is the spawn every bounded check goes through, for callers
+// whose question needs a different deadline than a local version string does.
+//
+// The WaitDelay is what makes the deadline real. Cancelling the context kills
+// the process nav-pilot started, but Output waits for the read of its stdout to
+// finish, and any grandchild still holding that pipe keeps the read open: a
+// wedged agent behind a wrapper answered a full 30 seconds late under a 3
+// second context. WaitDelay closes the pipes shortly after the kill, so the
+// call returns on time whatever the process tree does. Every doctor spawn
+// inherits the fix, since every one of them comes through here.
+func runBoundedTimeout(timeout time.Duration, combined bool, name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	return exec.CommandContext(ctx, name, args...).CombinedOutput()
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.WaitDelay = time.Second
+	if combined {
+		return cmd.CombinedOutput()
+	}
+	return cmd.Output()
 }
 
 // cpltSkew is the three-way outcome of the cplt version-skew check.
