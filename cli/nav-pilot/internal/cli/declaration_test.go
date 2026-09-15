@@ -330,18 +330,13 @@ func TestUnknownDeclaredItemRefusesInstall(t *testing.T) {
 // quietly ignored.
 func TestDeclaredItemsRefusedForTier2(t *testing.T) {
 	isolatedConfig(t)
-	scope, err := ScopeUser()
-	if err != nil {
-		t.Fatal(err)
-	}
-	// A Tier 2 pakke only installs into user scope, which has no declaration;
-	// the refusal is asserted on the guard itself, which is where every install
-	// path reaches it.
+	// The guard itself, on its own terms: that every install path reaches it is
+	// TestEveryInstallPathRefusesDeclaredItemsForTier2's job, because asserting
+	// it here is what let two of them skip it (#869).
 	src := &Source{Dir: tier2SourceTree(t), SHA: "abc1234", Version: "dev", Repo: "navikt/grillmester"}
 	if err := attachPakke(src); err != nil {
 		t.Fatal(err)
 	}
-	_ = scope
 	if err := guardDeclaredItems(src, map[string]string{"grillmester": "agent"}); err == nil {
 		t.Fatal("per-item selection against a Tier 2 agentpakke was accepted")
 	}

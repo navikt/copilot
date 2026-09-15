@@ -103,6 +103,18 @@ func declaredPin(scope *InstallScope, flagSource, flagRef string) (repo, ref str
 	return d.Source, d.SHA, nil
 }
 
+// declaredItemsFor is the per-item selection a scope has committed, or nil when
+// it has committed none. It is the one read of the list: [composedContentsFor]
+// narrows a Tier 1 install with it, and [installPakkePin] refuses a Tier 2 one
+// over it.
+func declaredItemsFor(scope *InstallScope) (map[string]string, error) {
+	decl, err := scopeDeclaration(scope)
+	if err != nil || decl == nil {
+		return nil, err
+	}
+	return decl.Items, nil
+}
+
 // applyDeclaredItems narrows a content manifest to the items a declaration
 // names, so a team can take four agents out of a platform pakke's twelve
 // without forking it.
