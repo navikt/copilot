@@ -269,9 +269,19 @@ det er to tall som kan bli uenige.
 
 > Grafana-dashboardet [`dashboards/nav-pilot-cli.json`](../../dashboards/nav-pilot-cli.json)
 > heter «Nav-pilot: CLI» og har UID `nav-pilot-cli`.
-> med samme tidsrom. Eksakte Prometheus-serienavn (suffiks som
+> Eksakte Prometheus-serienavn (suffiks som
 > `_bucket`/`_sum`/`_count`, evt. enhetssuffiks, og `target_info` for ressursattributter)
 > bør verifiseres mot den faktiske datakilden og justeres ved behov.
+
+| Dashboard | Mimir-organisasjon | Formål |
+| --- | --- | --- |
+| `Nav-pilot: CLI` | `nais` | Konfigurasjons- og driftshelse for nav-pilot |
+| `Nav-pilot: Local inference` | `nais` | Lokal inferens i nav-pilot |
+| `Copilot: AI telemetry` | `nais` | Copilot-klientmetrikker. Historiske PromQL-spørringer avventes i #902. |
+| `Copilot: Ecosystem` | `tenant` | Driftsdata for Copilot-tjenestene, MCP-tjenestene og seter. |
+
+En Grafana-datakilde kan bare spørre én Mimir-organisasjon om gangen. Ikke
+bland `nais`- og `tenant`-metrikker i samme dashboard.
 
 ### Alarmer (foreslåtte)
 
