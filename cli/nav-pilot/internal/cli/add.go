@@ -84,10 +84,11 @@ func cmdAdd(itemType, name string, scope *InstallScope, ref, sourceRepo string, 
 	// agentpakke install brings in, and this command is the developer naming
 	// one artifact on the command line instead. Refusing it here would make the
 	// list a repo-wide allowlist, which is not what it is (#869).
-	resolver, _, err := composedResolverFor(src, name)
+	resolver, bases, err := composedResolverFor(src, name)
 	if err != nil {
 		return err
 	}
+	defer bases.cleanup()
 	installErr := installArtifact(resolver, scope, scopeStateHashes(scope), kind, name, dryRun, force, result)
 	if installErr != nil {
 		return installErr

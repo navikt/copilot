@@ -260,10 +260,12 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	// from a reused pakke stops resolving the moment the install is over: sync
 	// sees a tracked file its source no longer ships, which is the shape of a
 	// retired artifact, and offers to delete what install just put there.
-	resolver, reusedInSync, err := composeResolver(resolver, src)
+	resolver, bases, err := composeResolver(resolver, src)
 	if err != nil {
 		return err
 	}
+	defer bases.cleanup()
+	reusedInSync := bases.nearest()
 	// A reused pakke retires artifacts too, and its record is its own file.
 	// Reading only the top source's meant an artifact the base withdrew stayed
 	// installed forever in every consumer of a pakke that reuses it, which is
