@@ -171,6 +171,117 @@ assert_output_not_contains "drift" "$output" "no drift messages for plain skill"
 assert_output_not_contains "references" "$output" "no reference messages for plain skill"
 rm -rf "$repo"
 
+echo ""
+echo "🧪 Review contract tests (#810)"
+
+# shellcheck disable=SC2016  # backticks are literal markdown, not command substitution
+CONTRACT='## Review contract
+
+Every axis produces at least one finding, or says what it inspected.
+
+- `BLOCK` - a finding that must not ship.
+- `CONCERNS` - fix or answer first.
+- `CLEAN` - every axis inspected, nothing at either bar.'
+
+# ── Test 6: Review skill without a contract ───────────────────────────
+echo ""
+echo "Test 6: Review skill without a review contract"
+repo=$(setup_test_repo)
+create_skill "$repo" "thing-review" \
+'---
+name: thing-review
+description: Test
+---
+# Test
+
+## Checklist
+
+- [ ] Something
+' \
+'{"description": "Test"}'
+
+exit_code=0
+output=$(cd "$repo" && bash scripts/lint-skills.sh thing-review 2>&1) || exit_code=$?
+assert_exit_code 1 "$exit_code" "exits 1 when a review skill has no contract"
+assert_output_contains "no \"## Review contract\" section" "$output" "names the missing section"
+rm -rf "$repo"
+
+# ── Test 7: Contract present but not the last section ─────────────────
+echo ""
+echo "Test 7: Review contract is not the last section"
+repo=$(setup_test_repo)
+create_skill "$repo" "trailing-review" \
+"---
+name: trailing-review
+description: Test
+---
+# Test
+
+$CONTRACT
+
+## Sources
+
+- Somewhere
+" \
+'{"description": "Test"}'
+
+exit_code=0
+output=$(cd "$repo" && bash scripts/lint-skills.sh trailing-review 2>&1) || exit_code=$?
+assert_exit_code 1 "$exit_code" "exits 1 when the contract is not last"
+assert_output_contains "must be the last section" "$output" "says the verdict ends the review"
+rm -rf "$repo"
+
+# ── Test 8: Verdict without a forced finding ──────────────────────────
+echo ""
+echo "Test 8: Verdict defined, but nothing forces a finding"
+repo=$(setup_test_repo)
+# shellcheck disable=SC2016  # backticks are literal markdown, not command substitution
+create_skill "$repo" "toothless-review" \
+'---
+name: toothless-review
+description: Test
+---
+# Test
+
+## Review contract
+
+- `BLOCK` - a finding that must not ship.
+- `CONCERNS` - fix or answer first.
+- `CLEAN` - nothing found.
+' \
+'{"description": "Test"}'
+
+exit_code=0
+output=$(cd "$repo" && bash scripts/lint-skills.sh toothless-review 2>&1) || exit_code=$?
+assert_exit_code 1 "$exit_code" "exits 1 when nothing forces a finding"
+assert_output_contains "nothing forces a finding" "$output" "names the missing forcing device"
+rm -rf "$repo"
+
+# ── Test 9: Complete contract passes ──────────────────────────────────
+echo ""
+echo "Test 9: Complete review contract"
+repo=$(setup_test_repo)
+create_skill "$repo" "good-review" \
+"---
+name: good-review
+description: Test
+---
+# Test
+
+## Checklist
+
+- [ ] Something
+
+$CONTRACT
+" \
+'{"description": "Test"}'
+
+exit_code=0
+output=$(cd "$repo" && bash scripts/lint-skills.sh good-review 2>&1) || exit_code=$?
+assert_exit_code 0 "$exit_code" "exits 0 for a complete review contract"
+assert_output_contains "review contract ends in a verdict" "$output" "reports the contract as satisfied"
+rm -rf "$repo"
+
 # ── Summary ───────────────────────────────────────────────────────────
 echo ""
 echo "─────────────────────────────────────────────"
