@@ -120,8 +120,7 @@ func stateCollection(src *Source, collection string) string {
 // It is a predicate, not a policy: it says what the source is, and the caller
 // decides what to do about it. [guardPakkeScope] holds the one policy left.
 func payloadOnly(src *Source) bool {
-	return src != nil && src.Pakke != nil && src.Pakke.Layout == nil &&
-		src.Pakke.HasTier(agentpakke.TierPayload)
+	return src != nil && src.Pakke.PayloadOnly()
 }
 
 // guardPakkeScope refuses a Tier 2 install into any scope but the user's.

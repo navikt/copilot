@@ -444,7 +444,7 @@ Kommandoen kjører hele konformanssjekken mot en kilde: manifestet mot schemaet,
 
 Ved funn skriver kommandoen problemene og avslutter med `Error: agentpakke validation failed` på stderr. Det gjelder også med `--json`: JSON-en skrives til stdout først, exit-koden er fortsatt `1`.
 
-Advarsler er en egen kanal og påvirker ikke exit-koden. I dag er det én: en `defaultModel` som ikke står i modellkatalogen. Den skrives med `⚠` i den menneskelige utskriften og som `warnings` i JSON-en.
+Advarsler er en egen kanal og påvirker ikke exit-koden. I dag er det to: en `defaultModel` som ikke står i modellkatalogen, og en gjenbrukserklæring i en payload-pakke, som ingenting leser ([Bindingstidspunktet](#en-pakke-som-gjenbruker-en-annen)). De skrives med `⚠` i den menneskelige utskriften og som `warnings` i JSON-en.
 
 ### `--json`
 
@@ -654,6 +654,11 @@ ingen revisjon å pinne og er unntatt.
 løser erklæringa si ved hver `install` og `sync`. En payload-pakke løste den ved byggetid, og
 payloaden bærer resultatet. `provenance.base` og `provenance.overlays` er feltene som sier
 hvem den kom fra. Det er den samme erklæringa i begge tilfeller, med to bindingstidspunkter.
+
+Sender en payload-pakke likevel en erklæring, **varsler `nav-pilot validate`** om at ingenting
+leser den: install og sync pinner en revisjon av payloadene og komponerer ingen base inn i
+dem. Varselet feller ikke kommandoen, og erklæringa navngir fortsatt pakka repoet selv
+installerer for sine egne utviklere, men den legger ingenting til det pakka publiserer.
 
 ## Slik starter brukerne klienten fra en Tier 2-pakke
 

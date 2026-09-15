@@ -270,6 +270,59 @@ func TestPayloadOnlyBaseIsRefused(t *testing.T) {
 	}
 }
 
+// Motsatt retning: en Tier 2-pakke som selv erklærer gjenbruk. Install og sync
+// pinner en revisjon av payloadene og leser aldri kildens egen erklæring, så
+// komposisjonen skjer aldri. Det nektes ikke — erklæringa skader ingenting, og
+// en pakke som alt sender en, skal fortsatt installere — men validate er stedet
+// forfatteren spør om manifestet gjør det hun tror, så der skal det sies (#870).
+func TestTier2ReuseDeclarationIsReportedInert(t *testing.T) {
+	dir := tier2PinSourceTree(t)
+	declareReuse(t, dir, t.TempDir())
+
+	src := &Source{Dir: dir, SHA: "abc1234", Repo: "navikt/t2"}
+	_, _, warnings, findings := validateSourceTree(src)
+	if len(findings) > 0 {
+		t.Fatalf("erklæringa gjorde pakka ugyldig, den skal bare varsles: %v", findings)
+	}
+	joined := strings.Join(warnings, "\n")
+	if !strings.Contains(joined, agentpakke.DeclarationPath) {
+		t.Errorf("varselet navngir ikke fila:\n%s", joined)
+	}
+	if !strings.Contains(joined, "Tier 2") {
+		t.Errorf("varselet sier ikke at det er tieren som gjør erklæringa virkningsløs:\n%s", joined)
+	}
+	if !strings.Contains(joined, "provenance.base") {
+		t.Errorf("varselet sier ikke hva en Tier 2-forfatter skal gjøre i stedet:\n%s", joined)
+	}
+}
+
+// Varselet gjelder nøyaktig den ene formen. En Tier 2-pakke uten erklæring har
+// ingenting å varsle om, og en Tier 1-pakke med erklæring får gjenbruken sin
+// løst ved hver install og sync: der er den virkelig, og et varsel ville løyet.
+func TestReuseDeclarationWarningIsScopedToTier2(t *testing.T) {
+	t.Run("tier 2 uten erklæring", func(t *testing.T) {
+		src := &Source{Dir: tier2PinSourceTree(t), SHA: "abc1234", Repo: "navikt/t2"}
+		if _, _, warnings, _ := validateSourceTree(src); len(warnings) > 0 {
+			t.Errorf("varsler uten at noe er erklært: %v", warnings)
+		}
+	})
+	t.Run("tier 1 med erklæring", func(t *testing.T) {
+		baseDir, ownDir := t.TempDir(), t.TempDir()
+		writePakke(t, baseDir, "basepakke", "felles")
+		writePakke(t, ownDir, "egenpakke", "eget")
+		declareReuse(t, ownDir, baseDir)
+
+		src := &Source{Dir: ownDir, SHA: "abc1234", Repo: "navikt/t1"}
+		_, _, warnings, findings := validateSourceTree(src)
+		if len(findings) > 0 {
+			t.Fatalf("en Tier 1-pakke med erklæring ble ugyldig: %v", findings)
+		}
+		if len(warnings) > 0 {
+			t.Errorf("varsler om en gjenbruk som faktisk skjer: %v", warnings)
+		}
+	})
+}
+
 // En base med et manifest nav-pilot ikke kan bruke skal nekte, ikke bli
 // komponert som om den var manifestløs. Svelges feilen, får basen nil Pakke,
 // og resolveren leser da de kanoniske katalogene i stedet for layouten basen
