@@ -201,6 +201,64 @@ func TestInstallHookUserScopeDropsFiles(t *testing.T) {
 	}
 }
 
+// A repo-scope hook install writes a file that is correct and, in an untrusted
+// folder, inert: the Copilot CLI does not load .github/hooks/ there, and
+// `copilot -p` has no folder-trust prompt to answer (#888). The install has to
+// say so, because everything else about it looks like success.
+func TestInstallHookRepoScopeWarnsWhenFolderIsNotTrusted(t *testing.T) {
+	src := hookSource(t)
+	home := t.TempDir()
+	target := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("COPILOT_ALLOW_ALL", "")
+	t.Setenv(promptModeRepoHooksEnv, "")
+	scope := ScopeRepo(target)
+
+	out := captureStdout(func() {
+		if err := installArtifact(NewSourceResolver(src), scope, nil, KindHook, "klarsprak-gate", false, false, &installResult{}); err != nil {
+			t.Fatalf("installArtifact: %v", err)
+		}
+		warnRepoHooksNeedTrust(scope)
+	})
+	if !strings.Contains(out, "inert") || !strings.Contains(out, "remember this folder") {
+		t.Errorf("untrusted folder: install did not say the hooks are inert, or did not say how to fix it\n%s", out)
+	}
+
+	// Trust it the way the CLI itself records trust, and the warning goes away.
+	copilotHome := filepath.Join(home, ".copilot")
+	if err := os.MkdirAll(copilotHome, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	config := "// This file is managed automatically.\n" + `{"trustedFolders":["` + target + `"]}`
+	if err := os.WriteFile(filepath.Join(copilotHome, source.CopilotConfigName), []byte(config), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if out := captureStdout(func() { warnRepoHooksNeedTrust(scope) }); out != "" {
+		t.Errorf("trusted folder: want silence, got\n%s", out)
+	}
+
+	// User scope has no folder-trust gate at all, so it must never warn.
+	userScope, err := ScopeUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out := captureStdout(func() { warnRepoHooksNeedTrust(userScope) }); out != "" {
+		t.Errorf("user scope: want silence, got\n%s", out)
+	}
+}
+
+// The env opt-in loads repo hooks for one run without trusting the folder, so
+// nav-pilot must not tell a user who has it set that their hooks are inert.
+func TestRepoHooksCanFireHonoursTheEnvOptIn(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("COPILOT_ALLOW_ALL", "")
+	t.Setenv(promptModeRepoHooksEnv, "true")
+	reason, ok := repoHooksCanFire(t.TempDir())
+	if !ok || !strings.Contains(reason, promptModeRepoHooksEnv) {
+		t.Errorf("repoHooksCanFire = %q, %v; want the env var named", reason, ok)
+	}
+}
+
 func contains(list []string, s string) bool {
 	for _, v := range list {
 		if v == s {

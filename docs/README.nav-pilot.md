@@ -162,6 +162,36 @@ i cplt, stopper installasjonen med en feil som forteller deg akkurat det.
 Kjør installasjonen fra et vanlig skall i stedet. Alle andre artefakttyper — agenter,
 skills, prompts, instruksjoner — installeres helt fint inne i cplt.
 
+### Repo-hooks fyrer bare i en betrodd mappe
+
+En hook i repo-scope må ha to ting på plass, ikke én. Fila må ligge på rett sted, og
+Copilot CLI må stole på mappa. Stien er rett — `.github/hooks/copilot-hooks.json` er det
+klienten leser — men tilliten er ikke gitt, og det er den som ryker stille.
+
+Målt mot Copilot CLI 1.0.83 i [#888](https://github.com/navikt/copilot/issues/888):
+
+| Scope | `copilot` (interaktiv) | `copilot -p` |
+| --- | --- | --- |
+| `~/.copilot/hooks/` (`--user`) | Fyrer | Fyrer |
+| `.github/hooks/` (repo), mappa ikke betrodd | Spør først, fyrer når du svarer | **Fyrer ikke** |
+| `.github/hooks/` (repo), mappa betrodd | Fyrer | Fyrer |
+
+Interaktivt spør klienten «Do you trust the files in this folder?» og laster repo-hookene
+i det du svarer. `copilot -p` spør ingen, så i en mappe du ikke har stolt på lastes de
+aldri: debugloggen sier `folder not trusted; skipping repo hooks`, og ellers ser alt helt
+riktig ut. Fila er committet, den er synlig i differ, og den gjør ingenting.
+
+Svarer du «Yes», gjelder tilliten bare den økta. Det er «Yes, and remember this folder for
+future sessions» som skriver mappa til `trustedFolders` i `~/.copilot/config.json`, og bare
+den hjelper neste `-p`-kjøring. Hver på teamet må gjøre det på sin egen maskin.
+`GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true` laster dem for én kjøring uten å stole på noe;
+den står i endringsloggen til klienten og ikke i dokumentasjonen, så sjekk at den fortsatt
+virker før du bygger noe på den.
+
+`nav-pilot install` sier fra når den skriver hook-oppføringer til en mappe som ikke er
+betrodd, og `nav-pilot doctor` sier om de installerte hookene faktisk kan fyre der du står.
+Tåler ikke porten å være stille ute av funksjon, er `--user` det scopet som fyrer uansett.
+
 ### Hub-repo
 
 Mekanisk er et hub-repo en vanlig repo-installasjon i et repo som ikke er en applikasjon,

@@ -258,6 +258,59 @@ func TestWriteUserHook(t *testing.T) {
 	}
 }
 
+// The Copilot CLI writes // comment lines above the JSON in config.json, a
+// trusted parent directory covers the checkouts under it, and an unreadable
+// file must not read as trusted. All three were measured against Copilot CLI
+// 1.0.83 in #888.
+func TestFolderTrusted(t *testing.T) {
+	home := t.TempDir()
+	repo := filepath.Join(home, "work", "min-app")
+	if err := os.MkdirAll(filepath.Join(repo, "under"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	writeConfig := func(body string) {
+		t.Helper()
+		header := "// User settings belong in settings.json.\n// This file is managed automatically.\n"
+		if err := os.WriteFile(filepath.Join(home, CopilotConfigName), []byte(header+body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if FolderTrusted(home, repo) {
+		t.Error("no config file at all: want untrusted")
+	}
+
+	writeConfig(`{"firstLaunchAt":"2026-09-15T08:57:15.957Z"}`)
+	if FolderTrusted(home, repo) {
+		t.Error("config without trustedFolders: want untrusted")
+	}
+
+	writeConfig(`{"trustedFolders":["` + repo + `"]}`)
+	if !FolderTrusted(home, repo) {
+		t.Error("the folder itself is listed: want trusted")
+	}
+	if !FolderTrusted(home, filepath.Join(repo, "under")) {
+		t.Error("a directory inside a listed folder: want trusted")
+	}
+
+	writeConfig(`{"trustedFolders":["` + filepath.Join(home, "work") + `"]}`)
+	if !FolderTrusted(home, repo) {
+		t.Error("a listed parent directory: want trusted")
+	}
+
+	// A sibling whose name merely starts with the trusted one is not inside it.
+	writeConfig(`{"trustedFolders":["` + filepath.Join(home, "work", "min") + `"]}`)
+	if FolderTrusted(home, repo) {
+		t.Error("string-prefix sibling: want untrusted")
+	}
+
+	writeConfig(`{"trustedFolders":[`)
+	if FolderTrusted(home, repo) {
+		t.Error("malformed config: want untrusted")
+	}
+}
+
 func TestLoadHookMeta(t *testing.T) {
 	dir := t.TempDir()
 	script := filepath.Join(dir, "port.py")

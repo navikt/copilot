@@ -37,6 +37,7 @@ To ting følger av det:
 
 - **De kommer med i «installer alt».** En port som bare når dem som navngir den eksplisitt, er ingen port. Det var begrunnelsen for at hooks ble en type ([#569](https://github.com/navikt/copilot/issues/569)), og den gjelder likt for extensions.
 - **cplt nekter skriving til begge katalogene.** Kjører du `nav-pilot install` fra en agentsesjon inne i sandboxen, stopper installasjonen med en feil som sier hvorfor. En prosess i sandboxen skal ikke kunne legge igjen kode som kjører utenfor den senere. Se [README.nav-pilot.md](README.nav-pilot.md#hooks-kan-ikke-installeres-inne-i-cplt).
+- **En hook i repo-scope fyrer ikke i `copilot -p` før mappa er betrodd.** Sender pakka di en hook som er en sikkerhetsport, er `--repo` alene ikke nok til at porten står på for teamet. Se [README.nav-pilot.md](README.nav-pilot.md#repo-hooks-fyrer-bare-i-en-betrodd-mappe).
 
 Extensions fikk en type fordi et team som hadde skrevet en, ikke kunne distribuere den: nav-pilot kjente ikke formen, så den ble hverken installert, synket eller eksportert ([#572](https://github.com/navikt/copilot/issues/572)).
 

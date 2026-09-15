@@ -96,16 +96,79 @@ func deactivateRepoHooks(scope *InstallScope, dryRun bool) int {
 	return removed
 }
 
+// promptModeRepoHooksEnv is the Copilot CLI's opt-in for loading repo hooks in
+// prompt mode without trusting the folder. It is in the CLI's changelog and not
+// in its public documentation, so nav-pilot names it and never sets it.
+const promptModeRepoHooksEnv = "GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS"
+
+// repoHooksCanFire reports whether repo-scope hooks in repoDir load at all, and
+// says which of the three conditions is carrying them.
+//
+// The conditions are the CLI's, measured in #888 and written down in
+// [source.FolderTrusted]: a trusted folder, or either env var. The env vars are
+// read here rather than there because they are this process's environment, not
+// a fact about the folder — and because a user who exports one in their profile
+// has it in nav-pilot's environment too, which is what makes reading them worth
+// anything.
+func repoHooksCanFire(repoDir string) (reason string, ok bool) {
+	if os.Getenv("COPILOT_ALLOW_ALL") == "true" {
+		return "COPILOT_ALLOW_ALL=true", true
+	}
+	if os.Getenv(promptModeRepoHooksEnv) == "true" {
+		return promptModeRepoHooksEnv + "=true", true
+	}
+	userScope, err := ScopeUser()
+	if err != nil {
+		return "", false
+	}
+	if source.FolderTrusted(userScope.RootDir, repoDir) {
+		return "the folder is trusted", true
+	}
+	return "", false
+}
+
+// warnRepoHooksNeedTrust says, at the moment of installing, that the hook
+// entries just written to .github/hooks/ will not load here.
+//
+// It belongs at install time and not only in `doctor` because the belief a hook
+// forms is formed here: the file is written, committed and visible, and #888 is
+// about it being inert all the same. Saying it afterwards means saying it to
+// someone who has already told their team the gate is on.
+//
+// Nothing is printed when the hooks do load, and nothing when the scope has no
+// repo hook entries at all.
+func warnRepoHooksNeedTrust(scope *InstallScope) {
+	if scope == nil || scope.IsUser() {
+		return
+	}
+	path := filepath.Join(scope.DstPath(KindHook.Dir), source.RepoHooksConfig)
+	if len(source.HookNamesIn(path)) == 0 {
+		return
+	}
+	if _, ok := repoHooksCanFire(scope.RootDir); ok {
+		return
+	}
+	fmt.Printf("%s The hook entries in %s are installed and inert here.\n",
+		yellow("⚠"), source.RepoHooksConfig)
+	fmt.Printf("  %s loads repo hooks only in a folder you have trusted, and %s never asks.\n",
+		bold("copilot"), bold("copilot -p"))
+	fmt.Printf("  Run %s in %s and answer the folder-trust prompt with\n", bold("copilot"), scope.RootDir)
+	fmt.Printf("  %s. Everyone else in the repo\n", bold(`"Yes, and remember this folder for future sessions"`))
+	fmt.Printf("  has to do the same, each on their own machine. Run %s to check.\n", bold("nav-pilot doctor"))
+	fmt.Println()
+}
+
 // reportHooks is the `doctor` section for the fifth artifact kind. A hook is
 // executable code the CLI runs on every matching tool call, so what it says is
-// which scripts are installed and where — and, once any are, the one condition
-// under which they silently do not load.
+// which scripts are installed and where — and, once any are, whether they can
+// fire at all.
 func reportHooks(repoDir string, userScope *InstallScope) {
-	found := 0
+	found, repoFound := 0, 0
 	if repoDir != "" {
 		path := filepath.Join(ScopeRepo(repoDir).DstPath(KindHook.Dir), source.RepoHooksConfig)
 		names := source.HookNamesIn(path)
 		found += len(names)
+		repoFound = len(names)
 		if len(names) > 0 {
 			fmt.Printf("    • Repo scope (%s): %s %s\n", path, green("✓"), strings.Join(names, ", "))
 		} else {
@@ -134,9 +197,24 @@ func reportHooks(repoDir string, userScope *InstallScope) {
 		return
 	}
 	fmt.Printf("      %s Hooks run code on every matching tool call. Read them before you trust them.\n", dim("Note:"))
-	fmt.Printf("      %s In prompt mode (%s) an untrusted folder does not load repo hooks.\n", yellow("Note:"), bold("copilot -p"))
-	fmt.Printf("          Trust the folder, or set %s for that run.\n", bold("GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true"))
-	fmt.Printf("          The variable is in the CLI's changelog but not its public docs, so verify it still works before relying on it.\n")
+	if repoFound == 0 {
+		return
+	}
+
+	// The one thing this section is for. Repo hooks load only in a folder the
+	// Copilot CLI trusts, and in prompt mode nothing asks — so an installed,
+	// committed, perfectly correct .github/hooks/ entry can be doing nothing at
+	// all, and every other line above still says ✓ (#888).
+	if reason, ok := repoHooksCanFire(repoDir); ok {
+		fmt.Printf("      %s Repo hooks load here (%s).\n", green("✓"), reason)
+		return
+	}
+	fmt.Printf("      %s Inert in %s: %s is not a trusted folder.\n", yellow("⚠"), bold("copilot -p"), repoDir)
+	fmt.Printf("          %s Run %s here and answer the folder-trust prompt with\n", yellow("Solution:"), bold("copilot"))
+	fmt.Printf("          %s. Plain %s trusts this\n", bold(`"Yes, and remember this folder for future sessions"`), bold(`"Yes"`))
+	fmt.Printf("          session only, and leaves the next %s run without the hooks.\n", bold("-p"))
+	fmt.Printf("          %s loads them for one run without trusting anything.\n", bold(promptModeRepoHooksEnv+"=true"))
+	fmt.Printf("          It is in the CLI's changelog and not in its public docs, so check it still works.\n")
 }
 
 // ─── hook writes inside a cplt sandbox ───────────────────────────────────────
