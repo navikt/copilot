@@ -180,12 +180,30 @@ def build():
         "editable": True,
         "elements": elements,
         "layout": {"kind": "RowsLayout", "spec": {"rows": rows}},
-        "links": [],
+        "links": [
+            {
+                "includeVars": False,
+                "keepTime": True,
+                "targetBlank": False,
+                "title": "Nav-pilot CLI",
+                "type": "link",
+                "url": "/d/nav-pilot-cli",
+            },
+            {
+                "includeVars": False,
+                "keepTime": True,
+                "targetBlank": False,
+                "title": "Copilot Ecosystem",
+                "type": "link",
+                "url": "/d/copilot-ecosystem",
+            },
+        ],
         "liveNow": False,
         "preload": False,
         "tags": ["nav-pilot", "lokal-inferens", "alpha"],
         "timeSettings": house.get("timeSettings", {"from": "now-7d", "to": "now"}),
         "title": "nav-pilot — lokal inferens",
+        "uid": "nav-pilot-local",
         "variables": variables,
     }
 

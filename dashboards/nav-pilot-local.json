@@ -1186,7 +1186,24 @@
       ]
     }
   },
-  "links": [],
+  "links": [
+    {
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Nav-pilot CLI",
+      "type": "link",
+      "url": "/d/nav-pilot-cli"
+    },
+    {
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Copilot Ecosystem",
+      "type": "link",
+      "url": "/d/copilot-ecosystem"
+    }
+  ],
   "liveNow": false,
   "preload": false,
   "tags": [
@@ -1213,6 +1230,7 @@
     "to": "now"
   },
   "title": "nav-pilot — lokal inferens",
+  "uid": "nav-pilot-local",
   "variables": [
     {
       "kind": "DatasourceVariable",

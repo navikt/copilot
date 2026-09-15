@@ -20,7 +20,24 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": 0,
-  "links": [],
+  "links": [
+    {
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Nav-pilot CLI",
+      "type": "link",
+      "url": "/d/nav-pilot-cli"
+    },
+    {
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Lokal inferens",
+      "type": "link",
+      "url": "/d/nav-pilot-local"
+    }
+  ],
   "panels": [
     {
       "collapsed": false,

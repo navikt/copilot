@@ -144,6 +144,25 @@ nav-pilot. Eksisterende nøkler beholdes (append-merge, ingen overskriving):
 | `nav.pilot.device_id` | pseudonymt `nav-pilot-<hash>` | Join (på verdi) mot nav-pilots egen `device_id`-attributt |
 | `nav.repo` | `navikt/<repo>`-slug fra `origin`-remote | Join (server-side, ved spørring) mot repo→team-mapping, slik at sessionsdata kan aggregeres per team (issue #344) |
 
+### Status for klienttelemetri
+
+Nav-pilot setter samme OTel-endepunkt og resource-attributter for Copilot og
+OpenCode. I dag ser vi Copilot sine `gen_ai_*`- og `github_copilot_*`-metrikker
+i Mimir. OpenCode-spor finnes i Tempo, men OpenCode-metrikker er ikke observert
+i Mimir. Ikke bruk at klienten finnes på PATH som et mål på faktisk bruk.
+
+Collectoren promoterer `nav.pilot.device_id` og `nav.repo` til Mimir-etikettene
+`nav_pilot_device_id` og `nav_repo`. `nav.repo` settes bare for `navikt`-repoer
+og skal overvåkes for kardinalitet. Ikke legg identiteter, filstier, brancher,
+commit-er, prompts, svar, kommandoer, sesjons-ID-er eller trace-ID-er i
+metrikker.
+
+Tempo er kilden for feilsøking av enkeltkjøringer, blant annet tool- og
+MCP-feil, retry-mønstre, modellbytte og attributter fra agent/skill når de er
+begrenset og godkjent. Mimir skal bare brukes til aggregerte, avgrensede
+dimensjoner som klient, pakkeversjon, deklarert oppgaveklasse, godkjent
+skill-/MCP-kategori, resultat og modellfamilie. Ikke aktiver innholdsfangst.
+
 Er nav-pilot-telemetri av, injiseres **ingenting av dette**. Med
 `NAV_PILOT_TELEMETRY_ENABLED=false` eller `DO_NOT_TRACK=1` setter nav-pilot verken
 endepunkt, `COPILOT_OTEL_ENABLED` eller resource-attributter, og klienten startes
@@ -185,28 +204,24 @@ tredjeparts-binær vi ikke instrumenterer) — vi injiserer den som
   Filtrer gjerne videre på Copilot-attributter, f.eks. `gen_ai.request.model`,
   `gen_ai.usage.output_tokens`, `github.copilot.cost`.
 
-- **Mimir (metrics):** OTLP-resource-attributter havner på `target_info`, ikke
-  som etikett på `gen_ai.*`-seriene. To alternativer:
-  1. **Anbefalt — promotér attributten til etikett.** Konfigurer Mimir
-     `promote_resource_attributes` (eller en `transform`/`groupbyattrs`-prosessor
-     i OTel-collectoren) slik at `nav.pilot.device_id` blir en metrikk-etikett
-     (`nav_pilot_device_id`). Da blir spørringen triviell og robust også for de
-     kortlevde Copilot-prosessene:
-     ```promql
-     sum by (gen_ai_request_model) (
-       increase(gen_ai_client_token_usage_sum{nav_pilot_device_id="nav-pilot-abc123"}[$__range])
-     )
-     ```
-  2. **Uten promotering — join mot `target_info`.** Mulig, men skjørt for efemere
-     prosesser (samme staleness-problem som for nav-pilots egne tellere):
-     ```promql
-     increase(gen_ai_client_token_usage_sum[$__range])
-       * on (job, instance) group_left(nav_pilot_device_id) target_info
-     ```
+- **Mimir (metrics):** Den delte collectoren promoterer
+  `nav.pilot.device_id` til `nav_pilot_device_id` og `nav.repo` til
+  `nav_repo` på metrikkdatapunkter. Filtrer direkte på den promoterte
+  etiketten:
+  ```promql
+  sum by (gen_ai_request_model) (
+    increase(gen_ai_client_token_usage_sum{nav_pilot_device_id="nav-pilot-abc123"}[$__range])
+  )
+  ```
+  Dette eksempelet er ikke validert som historisk metrikkontrakt. Hvis en
+  collector ikke promoterer attributtene, ligger de i `target_info`; en join
+  mot den serien er mulig, men er skjør for kortlivede prosesser.
 
 > Eksakte Copilot-metrikk-/etikettnavn (`gen_ai.*`, suffikser, hvordan punktum og
 > bindestrek normaliseres til Prometheus-navn) bør verifiseres mot faktisk data i
-> Mimir og justeres. Copilots egen pseudonyme `enduser.pseudo.id` finnes som
+> Mimir og justeres. `increase()`-eksemplene over er ikke en metrikkontrakt:
+> #902 validerer temporality og riktige historiske spørringer før de brukes i
+> dashboard eller analyse. Copilots egen pseudonyme `enduser.pseudo.id` finnes som
 > span-attributt, men har ingen dokumentert kobling til GitHub-brukernavn —
 > `nav.pilot.device_id` er derfor det stabile håndtaket for egen-data.
 
@@ -227,38 +242,13 @@ $ nav-pilot list
 # ingen endpoint kreves; standard endpoint brukes automatisk
 ```
 
-### Dashboard-eksempler (Grafana / Prometheus)
+### Dashboards og PromQL
 
-> **Viktig — OTel Delta Temporality:** Fra og med v0.x er CLI-en konfigurert med
-> `DeltaTemporality` for tellere. OTel-collectoren konverterer disse til korrekte 
-> kumulative Prometheus-tellere. Bruk standard Prometheus-funksjoner som `increase(<metric>[<range>])` 
-> og `rate()` for grafer. Histogrammer aggregeres med `sum by (le) (increase(<metric>_bucket[<range>]))` før `histogram_quantile`.
-
-**Daglige installs per scope:**
-```promql
-sum by (scope) (increase(nav_pilot_install_items_total[1d]))
-```
-
-**Kommando-varighet p95 per kommando:**
-```promql
-histogram_quantile(0.95, sum by (command, le) (increase(nav_pilot_command_duration_ms_bucket[$__range])))
-```
-
-**Feiltakt (% feil av alle kommandoer):**
-```promql
-100 * sum(sum_over_time(nav_pilot_command_error_total[$__range]))
-    / clamp_min(sum(sum_over_time(nav_pilot_command_duration_ms_count[$__range])), 1)
-```
-
-**Sync-konflikter (totalt) per scope:**
-```promql
-sum by (scope) (increase(nav_pilot_sync_conflicts_total[$__range]))
-```
-
-**Antall kommandokjøringer per versjon:**
-```promql
-sum by (version) (sum_over_time(nav_pilot_command_duration_ms_count[$__range]))
-```
+CLI-en eksporterer `CumulativeTemporality` for tellere og histogrammer. Hver
+CLI-prosess er kortlivet, så PromQL må valideres mot rå Mimir-data før den
+brukes til historiske tellinger eller sammenligninger. #902 sporer denne
+valideringen. Ikke bruk `increase()` eller `rate()` for nav-pilot-metrikker
+uten en slik validering.
 
 ## Metrikker som er fjernet
 
@@ -266,8 +256,8 @@ sum by (version) (sum_over_time(nav_pilot_command_duration_ms_count[$__range]))
 
 `command_total` var label for label identisk med `nav_pilot_command_duration_ms_count`:
 samme funksjon, samme `attrs`-slice, ett `Add` og ett `Record`. Histogrammets `_count`
-*er* antallet kommandoer. Bruk den. De så forskjellige ut en periode fordi tellere ble
-sendt som delta og forkastet, mens histogrammer kom fram hele tiden.
+*er* antallet kommandoer. Bruk den. De så forskjellige ut en periode fordi
+kortlivede prosesser ble håndtert ulikt downstream.
 
 `local_server_total` skrev samme hendelse fra samme kallsted som
 `nav_pilot_local_ready_seconds`, som nå har `outcome`. Den ene verdien den hadde for seg
@@ -277,9 +267,9 @@ produserer `hung`. Den har rapportert `ready` og ingenting annet.
 **En måling per spørsmål.** To metrikker som svarer på det samme er ikke redundans,
 det er to tall som kan bli uenige.
 
-> En ferdig Grafana-dashboard ligger i [`dashboards/nav-pilot-cli.json`](../../dashboards/nav-pilot-cli.json)
-> (uid tildeles ved import). Spørringene er robuste mot manglende data under utrulling
-> (`or vector(0)`, `clamp_min(...)`-vakter). Eksakte Prometheus-serienavn (suffiks som
+> Grafana-dashboardet [`dashboards/nav-pilot-cli.json`](../../dashboards/nav-pilot-cli.json)
+> har UID `nav-pilot-cli`. Dashboardet lenker til lokal inferens og Copilot Ecosystem
+> med samme tidsrom. Eksakte Prometheus-serienavn (suffiks som
 > `_bucket`/`_sum`/`_count`, evt. enhetssuffiks, og `target_info` for ressursattributter)
 > bør verifiseres mot den faktiske datakilden og justeres ved behov.
 

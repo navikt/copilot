@@ -21,7 +21,7 @@
     }
   ],
   "cursorSync": "Crosshair",
-  "description": "Nav-pilot CLI-telemetri: adopsjon/utrulling, pålitelighet og sync/ferskhet. Spørringer er robuste mot manglende data under utrulling.",
+  "description": "Nav-pilot CLI-telemetri for konfigurasjonshelse, pålitelighet, sync og ferskhet. Klienttelemetri ligger i Tempo og Mimir etter at metrikkontrakten er validert i #902.",
   "editable": true,
   "elements": {
     "panel-10": {
@@ -55,7 +55,7 @@
             "transformations": []
           }
         },
-        "description": "Antall kommandokjøringer per intervall. nav_pilot_* er delta-tellere fra efemere CLI-prosesser, så rate()/increase() gir 0 — sum_over_time() summerer hver kjøring korrekt.",
+        "description": "Antall kommandokjøringer per intervall. CLI-en eksporterer kumulative målinger fra kortlivede prosesser. #902 validerer endelig PromQL-semantikk før klienttelemetri tas i bruk.",
         "id": 10,
         "links": [],
         "title": "Kommandokjøringer per intervall",
@@ -2500,7 +2500,24 @@
       ]
     }
   },
-  "links": [],
+  "links": [
+    {
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Lokal inferens",
+      "type": "link",
+      "url": "/d/nav-pilot-local"
+    },
+    {
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Copilot Ecosystem",
+      "type": "link",
+      "url": "/d/copilot-ecosystem"
+    }
+  ],
   "liveNow": false,
   "preload": false,
   "tags": [
@@ -2527,6 +2544,7 @@
     "to": "now"
   },
   "title": "Nav-pilot CLI",
+  "uid": "nav-pilot-cli",
   "variables": [
     {
       "kind": "DatasourceVariable",
