@@ -268,8 +268,7 @@ produserer `hung`. Den har rapportert `ready` og ingenting annet.
 det er to tall som kan bli uenige.
 
 > Grafana-dashboardet [`dashboards/nav-pilot-cli.json`](../../dashboards/nav-pilot-cli.json)
-> heter «Nav-pilot: CLI» og har UID `nav-pilot-cli`. Dashboardet lenker til
-> «Nav-pilot: Local inference» og «Copilot: Ecosystem»
+> heter «Nav-pilot: CLI» og har UID `nav-pilot-cli`.
 > med samme tidsrom. Eksakte Prometheus-serienavn (suffiks som
 > `_bucket`/`_sum`/`_count`, evt. enhetssuffiks, og `target_info` for ressursattributter)
 > bør verifiseres mot den faktiske datakilden og justeres ved behov.

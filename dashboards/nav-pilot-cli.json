@@ -2500,28 +2500,7 @@
       ]
     }
   },
-  "links": [
-    {
-      "icon": "",
-      "includeVars": false,
-      "keepTime": true,
-      "targetBlank": false,
-      "title": "Nav-pilot: Local inference",
-      "tooltip": "",
-      "type": "link",
-      "url": "/d/nav-pilot-local"
-    },
-    {
-      "icon": "",
-      "includeVars": false,
-      "keepTime": true,
-      "targetBlank": false,
-      "title": "Copilot: Ecosystem",
-      "tooltip": "",
-      "type": "link",
-      "url": "/d/copilot-ecosystem"
-    }
-  ],
+  "links": [],
   "liveNow": false,
   "preload": false,
   "tags": [
