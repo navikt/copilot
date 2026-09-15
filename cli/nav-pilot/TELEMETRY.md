@@ -142,6 +142,7 @@ nav-pilot. Eksisterende nøkler beholdes (append-merge, ingen overskriving):
 | `nav.pilot.launcher` | `nav-pilot` | Isolere Copilot-sessions startet via nav-pilot |
 | `nav.pilot.version` | nav-pilot-versjon | Adopsjon/versjon av launcheren |
 | `nav.pilot.device_id` | pseudonymt `nav-pilot-<hash>` | Join (på verdi) mot nav-pilots egen `device_id`-attributt |
+| `nav.pilot.client` | `copilot` eller `opencode` | Skille klienttelemetri med en avgrenset dimensjon |
 | `nav.repo` | `navikt/<repo>`-slug fra `origin`-remote | Join (server-side, ved spørring) mot repo→team-mapping, slik at sessionsdata kan aggregeres per team (issue #344) |
 
 ### Status for klienttelemetri

@@ -48,7 +48,7 @@ func ApplyCopilotOTelEnv(env []string, cliVersion string) ([]string, bool) {
 	if TelemetryEnabled() {
 		deviceID = CopilotDeviceID()
 	}
-	env, updated = applyCopilotResourceAttributes(env, normalizeTelemetryDimension(cliVersion, "dev"), deviceID, detectNavRepo())
+	env, updated = applyCopilotResourceAttributes(env, normalizeTelemetryDimension(cliVersion, "dev"), deviceID, "copilot", detectNavRepo())
 	changed = changed || updated
 
 	return env, changed
@@ -79,7 +79,7 @@ func ApplyOpenCodeOTelEnv(env []string, cliVersion string) ([]string, bool) {
 	if TelemetryEnabled() {
 		deviceID = CopilotDeviceID()
 	}
-	env, updated = applyCopilotResourceAttributes(env, normalizeTelemetryDimension(cliVersion, "dev"), deviceID, detectNavRepo())
+	env, updated = applyCopilotResourceAttributes(env, normalizeTelemetryDimension(cliVersion, "dev"), deviceID, "opencode", detectNavRepo())
 	changed = changed || updated
 
 	env, updated = SetEnvIfAbsent(env, "OPENCODE_CLIENT", "nav-pilot")
@@ -107,11 +107,12 @@ func CopilotDeviceID() string {
 // OTEL_RESOURCE_ATTRIBUTES so Copilot's spans and metrics can be attributed
 // back to nav-pilot. It only appends keys that are not already present, so
 // values set by the user or CI environment are never overwritten.
-func applyCopilotResourceAttributes(env []string, version, deviceID, repo string) ([]string, bool) {
+func applyCopilotResourceAttributes(env []string, version, deviceID, client, repo string) ([]string, bool) {
 	pairs := []struct{ key, value string }{
 		{"nav.pilot.launcher", "nav-pilot"},
 		{"nav.pilot.version", strings.TrimSpace(version)},
 		{"nav.pilot.device_id", strings.TrimSpace(deviceID)},
+		{"nav.pilot.client", strings.TrimSpace(client)},
 		// repo is empty (and the attribute omitted) outside navikt repos, so
 		// it identifies a codebase for team-level joins — never a person.
 		{"nav.repo", strings.TrimSpace(repo)},
