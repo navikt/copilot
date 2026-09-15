@@ -128,8 +128,7 @@ Per-file status. The client columns follow the type rows in the matrix above.
 | Database       | `database.instructions.md`       | ✅         | ✅   |
 | Docker         | `docker.instructions.md`         | ✅         | ✅   |
 | GitHub Actions | `github-actions.instructions.md` | ✅         | ✅   |
-| Kotlin/Ktor    | `kotlin-ktor.instructions.md`    | ✅         | ✅   |
-| Kotlin/Spring  | `kotlin-spring.instructions.md`  | ✅         | ✅   |
+| Kotlin         | `kotlin.instructions.md`         | ✅         | ✅   |
 | Next.js/Aksel  | `nextjs-aksel.instructions.md`   | ✅         | ✅   |
 | Testing        | `testing.instructions.md`        | ✅         | ✅   |
 

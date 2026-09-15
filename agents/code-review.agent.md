@@ -5,10 +5,10 @@ model: GPT-5.3-Codex
 tools:
   - execute
   - read
-  - search
-  - web
+  - grep
+  - glob
+  - web_fetch
   - todo
-  - ms-vscode.vscode-websearchforcopilot/websearch
   - github/get_file_contents
   - github/search_code
   - github/pull_request_read
@@ -145,9 +145,19 @@ Only 34% of Nav developers agree that AI code passes review without extra work �
 
 ### Nais Compliance (🟡)
 
-- `accessPolicy` defined for services that communicate
+- `accessPolicy` defined for services that communicate — check inbound/outbound changes
 - Health endpoints (`/isalive`, `/isready`) present
-- Resource limits set in `.nais/` manifests
+- Resource limits set in `.nais/` manifests, and not silently lowered
+- New `envFrom` secret references or replica count changes
+- Vault or Azure Key Vault references added or changed
+
+### Scope and hygiene (🟡)
+
+- Branch name uses the expected prefix: `feature/`, `fix/`, `chore/`, `docs/`, `refactor/`
+- No unrelated changes bundled into the same PR
+- `.env` files committed (they belong in `.gitignore`)
+- `@Disabled`, `skipTests` or `skip()` added without an explanation
+- Validation annotations that echo user input (`${validatedValue}` in `@Pattern`/`@Size`)
 
 ## Language-Specific Checks
 

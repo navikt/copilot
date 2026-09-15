@@ -16,7 +16,7 @@
         "ui"
       ],
       "filePath": "agents/accessibility.agent.md",
-      "contentHash": "db12f2f3d0734ca4244b5f9aea6ef1a73edb94cc77c2cd0ba85d897c768a631a",
+      "contentHash": "4ad090f6791eb8453c661947c5c75fbd446db205faf17c61373d456e60fc5927",
       "useCases": [
         "Converting Tailwind to Aksel tokens",
         "Responsive layouts"
@@ -38,7 +38,7 @@
         "ui"
       ],
       "filePath": "agents/aksel.agent.md",
-      "contentHash": "0740ec796a3f327322bde87935eef014a8ae7898c4a567932e8dbf91085835eb",
+      "contentHash": "eb6688100005e57fbdc7d86a00da2de55b8d14c220f890918266f1e4eec1c681",
       "useCases": [
         "Converting Tailwind to Aksel tokens",
         "Responsive layouts"
@@ -52,7 +52,7 @@
       "displayName": "@code-review",
       "description": "Kodegjennomgang for Nav-applikasjoner — finner feil, sikkerhetsproblemer og brudd på Nav-konvensjoner",
       "filePath": "agents/code-review.agent.md",
-      "contentHash": "afed6f66d303027c316c82dede91208365f4490ef49a69f0bab82b09c0b0323a",
+      "contentHash": "10ce155690b4c8354e3e7c1ce6db739aefcdeee401f7ce7dcdb4b03c2d659b0f",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -75,7 +75,7 @@
       "displayName": "@forfatter",
       "description": "Norsk teknisk redaktør, tekstforfatter eller innholdsdesigner: klarspråk, AI-markører, anglisismer, fagtermer, mikrotekst.",
       "filePath": "agents/forfatter.agent.md",
-      "contentHash": "7df851588f045edd1f976d16eb99130b71a71c1708c3ede2a7f2dbe1a2975a40",
+      "contentHash": "d1192794ce431ab81ecda831edb8ca5d06483a0e4a1062035cb9122fc9c245a9",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -98,7 +98,7 @@
         "streaming"
       ],
       "filePath": "agents/kafka.agent.md",
-      "contentHash": "436ea7bf0df08cf05282ba2a18fc3004a8b01fb6bbb0f78217c40ae045b32984",
+      "contentHash": "f74565e00c5d05159f29535d910905fe7470cac1813ba7bd2f44131bf21c1cd9",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Creating Kafka event consumers",
@@ -119,7 +119,7 @@
       "displayName": "@nav-pilot-opus",
       "description": "Dyp analyse for høyrisiko planlegging, arkitekturvalg og kritisk review i Nav-prosjekter",
       "filePath": "agents/nav-pilot-opus.agent.md",
-      "contentHash": "3334b6c7d490e130877ca01e562e6fabb6aa68f8a5f9df59a85a53a77cb4922a",
+      "contentHash": "9ce0afc59f0a1912381149bbda0d1d6f22c66594d8935ff803c457335a30a8fd",
       "useCases": [
         "Network policies",
         "Secrets management",
@@ -141,7 +141,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "3daddec881b7d2a89f4c6a2c286a20da90d8039397132adc36874d291b7fe778",
+      "contentHash": "975cec48c7472b7e10e862604e90de7fbe3c86794627fc1aa443c1ea1083c45b",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
@@ -167,7 +167,7 @@
       "displayName": "@research-agent",
       "description": "Utforsker kodebaser, undersøker problemer og samler kontekst før implementering",
       "filePath": "agents/research.agent.md",
-      "contentHash": "14d4e70d37331aa90441ad0f544b9a62cba76e8eacbab454a3554fdc2611f9f7",
+      "contentHash": "b68b9c9b82f12c023995884ade9b51090fed4a84198ba4120664a3e0694b2b49",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Azure AD integration",
@@ -195,7 +195,7 @@
         "quality"
       ],
       "filePath": "agents/rust.agent.md",
-      "contentHash": "b63840cb13e9b83f234a4143bc4c8c75fcd3ed77db53b8a806a82a1c7178e698",
+      "contentHash": "8ee97a471ec8b56008fa477b0d95963e62ebadeb54a328538351127b48556c14",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Health endpoints",
@@ -221,7 +221,7 @@
         "vulnerability"
       ],
       "filePath": "agents/security-champion.agent.md",
-      "contentHash": "910ead105ad5bed3624895e99522cce180c2e0a119a0c4a6ea4122fb5875b463",
+      "contentHash": "2c3200cf23251a702acb1539d5465b98e5e8479a4f18e69d0a8cde5be9cda377",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Azure AD integration",
@@ -244,16 +244,6 @@
       "contentHash": "986ef7aa27d8a1d989c0ca5036d71a5f64fc626148211b671654b46933e64af4",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/accessibility.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/accessibility.instructions.md"
-    },
-    {
-      "type": "instruction",
-      "name": "code-review",
-      "displayName": "Code Review",
-      "description": "Generelle review-instruksjoner for Copilot code review — sikkerhet, NAIS, GitHub Actions og testkvalitet",
-      "filePath": "instructions/code-review.instructions.md",
-      "contentHash": "76088d9c7d0e39090270a9ee0579f5660d41092cd00daeddaea4ece16b5d3626",
-      "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/code-review.instructions.md",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/code-review.instructions.md"
     },
     {
       "type": "instruction",
@@ -319,33 +309,18 @@
     },
     {
       "type": "instruction",
-      "name": "kotlin-ktor",
-      "displayName": "Kotlin/Ktor Development",
-      "description": "ApplicationBuilder pattern, sealed classes, kotliquery/HikariCP, Rapids \u0026 Rivers.",
+      "name": "kotlin",
+      "displayName": "Kotlin Backend Development",
+      "description": "Ktor and Rapids \u0026 Rivers, Spring Boot, Kotliquery/HikariCP, auth, and testing.",
       "tags": [
         "kotlin",
         "ktor",
         "backend"
       ],
-      "filePath": "instructions/kotlin-ktor.instructions.md",
-      "contentHash": "e6a054a0dc9bf8706bfa95affdcf43d579b5546e96ceda09f53da2eb7f63bde5",
-      "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/kotlin-ktor.instructions.md",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/kotlin-ktor.instructions.md"
-    },
-    {
-      "type": "instruction",
-      "name": "kotlin-spring",
-      "displayName": "Kotlin/Spring Development",
-      "description": "Spring Boot patterns: @RestController, @Service, Spring Data.",
-      "tags": [
-        "kotlin",
-        "ktor",
-        "backend"
-      ],
-      "filePath": "instructions/kotlin-spring.instructions.md",
-      "contentHash": "db9355ee1afaeaeff8578552095991fa9c7c38b266f3a077359f17c3e4101996",
-      "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/kotlin-spring.instructions.md",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/kotlin-spring.instructions.md"
+      "filePath": "instructions/kotlin.instructions.md",
+      "contentHash": "b5a426974a5e4ab688682ef50b2191a3437c648ba1ff97b6324c28ccd9e41a8f",
+      "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/kotlin.instructions.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/kotlin.instructions.md"
     },
     {
       "type": "instruction",
@@ -697,7 +672,7 @@
       "displayName": "java-to-kotlin",
       "description": "Trinnvis Java-til-Kotlin-migrering med rammeverk-bevisste transformasjoner for Spring, Ktor og Nav-mønstre",
       "filePath": "skills/java-to-kotlin/SKILL.md",
-      "contentHash": "b8305c1d1251223b25bf5b30d418cd6c1898017a0abfe5742e7f80a1d87ad36d",
+      "contentHash": "b646e646c61be8871ce8a6bbdc389b0910b7a3691e0cd9a3a54c652919015281",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/java-to-kotlin/SKILL.md"
     },

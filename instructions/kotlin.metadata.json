@@ -1,0 +1,10 @@
+{
+  "displayName": "Kotlin Backend Development",
+  "description": "Ktor and Rapids & Rivers, Spring Boot, Kotliquery/HikariCP, auth, and testing.",
+  "domain": "backend",
+  "tags": ["kotlin", "ktor", "spring", "backend"],
+  "examples": [
+    "Lag et nytt endepunkt i fp-sak med Azure AD-autentisering og feilhåndtering",
+    "Lag en REST-controller i kursportalen-backend med Spring Boot og validering"
+  ]
+}

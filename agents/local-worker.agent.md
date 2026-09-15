@@ -4,7 +4,8 @@ description: Runs scoped tasks on a local model, so they draw no AI credits
 tools:
   - read
   - edit
-  - search
+  - grep
+  - glob
   - execute
 ---
 
