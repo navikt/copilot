@@ -2,6 +2,15 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-09-15
+
+### doctor sier om tenant-porten er på
+
+- **`nav-pilot doctor` rapporterer naisdevice**: Agentpakka `nais/pilot` har en preToolUse-port som nekter klyngekommandoer mot feil tenant, og porten virker bare hvis den ser hvilken tenant naisdevice står på. Inne i cplt gjør den som regel ikke det: sandkassen nekter agent-socketen, `nais device status` svarer «make sure naisdevice is running» enten naisdevice kjører eller ikke, og utvikleren tror hen er portet uten å være det. doctor skiller nå de fem tilstandene fra hverandre: ikke installert, installert og frakoblet, tilkoblet med aktiv tenant, tilkoblet men usynlig for sandkassen, og statusfil som mangler fordi naisdevice er eldre enn [nais/device#564](https://github.com/nais/device/issues/564). Det siste er normaltilstanden på alle maskiner i dag og rapporteres som det, ikke som en feil.
+- **Sesjonsnøkkelen forlater aldri prosessen**: `nais device status --output json` har et bearer-token i `Tenants[].session.key`. Strukturen doctor dekoder til har ikke noe felt tokenet kan lande i, så `encoding/json` kaster det på grensa, og ingen verdi i prosessen kan skrive det ut. En kommando som feiler får en fast feilmelding i stedet for sin egen stderr, siden `exec.ExitError` ellers bærer utdata videre. Begge grensene er dekket av tester som er kjørt røde med lekkasjen lagt inn med vilje.
+- **Tenantnavnet vises i begge former**: naisdevice melder domener (`NAV`, `dev-nais.io`, `ssb.no`), porten normaliserer dem (`nav`, `dev-nais`, `ssb`, og `atil`/`ldir` for Arbeidstilsynet og Landbruksdirektoratet). doctor viser navnet brukeren kjenner igjen og sier hva porten kaller det, slik at de to ikke leses som to forskjellige tenanter.
+- **En vranglåst naisdevice-agent henger ikke lenger doctor**: Hver spawn hadde en frist, men fristen holdt ikke. `exec.CommandContext` dreper prosessen nav-pilot startet, mens `Output` venter på at lesinga av stdout skal bli ferdig, og et barnebarn som fortsatt holder røret holder lesinga åpen. Målt: 30 sekunder under en frist på 3. `WaitDelay` lukker rørene rett etter drapet, og alle doctors spawns går gjennom samme hjelper, så de arver fiksen.
+
 ## 2026-09-13
 
 ### G4-røyktesten beviste at en binærfil finnes

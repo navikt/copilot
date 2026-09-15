@@ -356,6 +356,19 @@ func cmdDoctor() error {
 	}
 	fmt.Println()
 
+	// 4b. naisdevice
+	//
+	// Only for a machine running a nais agentpakke: its preToolUse gate is the
+	// thing that needs naisdevice, and a user without one has no tenant rules
+	// to be told about. Nothing here runs at launch — doctor is a command the
+	// user asks for, and `nais device status` is a process spawn.
+	if naisPakkeInstalled(userState, repoState) {
+		fmt.Printf("[i] naisdevice (tenant gate)\n")
+		naisPath, _ := exec.LookPath("nais")
+		reportNaisdevice(os.Stdout, naisPath, naisStatusFilePath())
+		fmt.Println()
+	}
+
 	// 5. Dependencies
 	fmt.Printf("[i] Dependencies\n")
 	checkDep := func(name string) {
