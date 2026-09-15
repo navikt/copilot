@@ -1032,8 +1032,10 @@ if $DRY_RUN; then
 fi
 
 # Regex vocabulary shared by several assertions.
+# Still used by test 1, which asserts a trivial request does NOT stop at a
+# phase. The persona no longer asks for this string anywhere, so the clause is
+# weak on its own; the second half of test 1 is what makes it mean anything.
 RE_CHECKPOINT='Fase[[:space:]]+[0-9]+[[:space:]]+ferdig'
-RE_CONFIRM='Bekreft for å fortsette'
 
 # ── Test 2 vocabulary, derived from transcripts ─────────────────────────────
 # Every regex below was measured against the 36 kept transcripts of the three
@@ -1080,8 +1082,10 @@ RE_FASE2_WORK='^● (Edit|Create|Write|Delete|Update)|Grønn sone'
 MIN_OPEN_QUESTIONS=3
 
 # The blind-spot audit line, in any phrasing (reist / adressert / dekket), as long
-# as it carries the count. Required by `### Fase 1: Intervju`: "Track which blind
-# spots you raise and report the count". Soft: t2 0/18.
+# as it carries the count. Required by `### Fase 1: Intervju`: "end the Fase 1
+# response with the count on a line of its own". Soft: t2 0/18 while the persona
+# asked for it inside the checkpoint block, 0/3 on the first measurement after the
+# block was removed and the count became a plain one-line requirement.
 RE_BLINDSPOT_AUDIT='Blindsoner[^.]{0,40}[0-9]+[[:space:]]*/[[:space:]]*11'
 
 # ── Test 4 vocabulary ───────────────────────────────────────────────────────
@@ -1342,25 +1346,27 @@ run_pass_nav_pilot() {
   #
   # ⚠️  Test 2 used to assert two things at once: that the response stops after
   # Fase 1, and that it stops by emitting the literal checkpoint template. Those
-  # two have opposite track records. The stop held on 18 of 18 transcripts across
-  # three persona revisions and four models. The template appeared in none of them,
-  # in any form, and three attempts to make the persona emit it all failed live:
-  # the ONLY clause was removed, the Fase 1 exit criterion was fixed so it stopped
-  # contradicting the block, the checkpoint was added to the phase machine's
-  # allowed work, to `✅ Always`, and as a filled-in example at the point of use.
-  # Zero for eleven runs. The model emits every field the block would carry, as
-  # prose and front-loaded, and omits the container.
+  # two have opposite track records. The stop holds; the template never rendered.
+  # 25 transcripts across four models and three persona revisions, zero blocks,
+  # and four attempts to make the persona emit it all failed live: the ONLY clause
+  # was removed, the Fase 1 exit criterion was fixed so it stopped contradicting
+  # the block, the block was added to the phase machine's allowed work, to
+  # `✅ Always` and as a filled-in example at the point of use, and a run with
+  # --no-instructions took the always-on terseness rules out of scope entirely.
+  # The last one is what settled it: 0 of 3 with nothing competing for the slot,
+  # so the instruction files were never the cause. The model emits every field the
+  # block would carry, as prose and front-loaded, and omits the container.
   #
-  # So they are split. Test 2 keeps its number and asserts the behaviour, on
-  # regexes derived from the transcripts. Test 2b carries the format as a soft
-  # check that reports and does not fail the suite, because a permanently red test
-  # is a test people stop reading. Test 2b is not decoration: `Blindsoner reist:
-  # N/11` with justification for the skipped ones is required by `### Fase 1:
-  # Intervju`, it is the one field the prose ending does not replace in any run,
-  # and it is a real audit loss for as long as it is missing.
+  # The block is gone from the persona as of this change. What is left is the one
+  # field the prose ending does not replace: `Blindsoner reist: N/11`, with
+  # justification for the skipped ones. That is a real audit loss for as long as
+  # it is missing, so test 2b keeps reporting it, and stays soft, because a
+  # permanently red test is a test people stop reading. It was 0/3 on the first
+  # measurement after the block was removed. If it is still zero after a wider
+  # run, the honest move is to delete the requirement, not to keep asking.
   if selected 2 || selected 2b || selected 3; then
     DESC2="full tier: response stops after Fase 1 with questions outstanding"
-    DESC2B="full tier: Fase 1 checkpoint block emitted, with the blind-spot count"
+    DESC2B="full tier: Fase 1 ends with the blind-spot count"
     DESC3="full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised"
     T2="$(tx t2)"
     if ! run_prompt t2 "ny tjeneste som leser fnr fra ID-porten"; then
@@ -1423,17 +1429,11 @@ run_pass_nav_pilot() {
       if selected 2 || selected 2b; then
         # SOFT. See the block comment above tests 2 + 2b. `--only 2` keeps
         # reporting both parts of the split, and `--only 2b` asks for this part
-        # alone; an ID that preflight accepts has to reach the code that runs it. Each part is reported
-        # separately: if the audit count starts showing up as prose while the block
-        # still does not, that is progress and the next attempt should see it.
-        missing=""
-        absent "$T2" "$RE_CHECKPOINT"      && missing="$missing; no checkpoint header (want: $RE_CHECKPOINT)"
-        absent "$T2" "$RE_CONFIRM"         && missing="$missing; no confirmation line (want: $RE_CONFIRM)"
-        absent "$T2" "$RE_BLINDSPOT_AUDIT" && missing="$missing; no blind-spot audit count (want: $RE_BLINDSPOT_AUDIT)"
-        if [[ -z "$missing" ]]; then
-          record_soft 2b "$DESC2B" 0
+        # alone; an ID that preflight accepts has to reach the code that runs it.
+        if absent "$T2" "$RE_BLINDSPOT_AUDIT"; then
+          record_soft 2b "$DESC2B" 1 "no blind-spot audit count (want: $RE_BLINDSPOT_AUDIT)"
         else
-          record_soft 2b "$DESC2B" 1 "${missing#; }"
+          record_soft 2b "$DESC2B" 0
         fi
       fi
 
