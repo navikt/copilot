@@ -183,9 +183,10 @@ def build():
         "links": [],
         "liveNow": False,
         "preload": False,
-        "tags": ["nav-pilot", "lokal-inferens", "alpha"],
+        "tags": ["copilot", "nav-pilot", "local-inference", "alpha", "nais"],
         "timeSettings": house.get("timeSettings", {"from": "now-7d", "to": "now"}),
-        "title": "nav-pilot — lokal inferens",
+        "title": "Nav-pilot: Local inference",
+        "uid": "nav-pilot-local",
         "variables": variables,
     }
 
