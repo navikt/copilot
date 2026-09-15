@@ -55,12 +55,28 @@ const (
 	// proposalValueWidth bounds one rendered value in the change list, so a
 	// large inert key cannot push the hosts out of view.
 	proposalValueWidth = 120
+	// proposalPathWidth bounds a proposed read grant. The schema caps it at
+	// 256, and this matches rather than undercuts it: the same string is
+	// printed as a command the user can run by hand, and a truncated path is a
+	// command that silently grants something else.
+	proposalPathWidth = 256
 )
 
-// cpltPrivateDomainCommand is the command a user runs to configure the waiver
-// in cplt themselves, for when they decline or have no terminal to be asked in.
-func cpltPrivateDomainCommand(hosts []string) string {
-	return "cplt config set proxy.allow_private_domains " + strings.Join(hosts, ",")
+// cpltSetupCommands are the commands a user runs to configure the proposal in
+// cplt themselves, for when they decline or have no terminal to be asked in.
+//
+// The read grants keep their "~/" form: `cplt config set` stores the string and
+// expand_tilde resolves it at load, so this is the same path the launch would
+// have passed, spelled the way the manifest spells it.
+func cpltSetupCommands(hosts, reads []string) []string {
+	var out []string
+	if len(hosts) > 0 {
+		out = append(out, "cplt config set proxy.allow_private_domains "+strings.Join(hosts, ","))
+	}
+	for _, path := range reads {
+		out = append(out, fmt.Sprintf("cplt config set allow.read %q", safe(path, proposalPathWidth)))
+	}
+	return out
 }
 
 // askProposalConsent puts the question. A var so tests answer it, like every
@@ -103,9 +119,11 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 	}
 
 	hosts := proposal.AllowPrivateDomains()
-	if len(hosts) == 0 {
+	reads := proposal.AllowRead()
+	if len(hosts) == 0 && len(reads) == 0 {
 		return
 	}
+	commands := cpltSetupCommands(hosts, reads)
 
 	hash := proposal.Hash()
 	prior, err := artifacts.ReadProposalConsent(scope, src.Pakke.Name)
@@ -127,13 +145,13 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 	// nothing is recorded either: an unanswered question is not a "no", and
 	// recording one would stop the terminal install from ever asking.
 	if !isInteractive() || jsonOutput {
-		fmt.Fprintf(os.Stderr, "%s agentpakke %s proposes a cplt sandbox waiver, which only an interactive install can approve.\n  %s\n",
-			dim("ℹ"), bold(name), dim(cpltPrivateDomainCommand(hosts)))
+		fmt.Fprintf(os.Stderr, "%s agentpakke %s proposes cplt sandbox settings, which only an interactive install can approve.\n%s\n",
+			dim("ℹ"), bold(name), indented(commands))
 		return
 	}
 
 	approve := false
-	if err := askProposalConsent(proposalTitle(name, prior), proposalDescription(proposal, hosts, prior), &approve); err != nil {
+	if err := askProposalConsent(proposalTitle(name, prior), proposalDescription(proposal, hosts, reads, prior), &approve); err != nil {
 		// Ctrl-C is not an answer: nothing is recorded and the question comes
 		// back at the next install or sync.
 		return
@@ -153,17 +171,18 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 	}
 	if approve {
 		record.Hosts = hosts
+		record.Reads = reads
 	}
 	if err := artifacts.WriteProposalConsent(record); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not record the answer for %s: %v — you will be asked again.\n", yellow("⚠"), name, err)
 		return
 	}
 	if !approve {
-		fmt.Printf("%s %s is installed without the waiver, so this will fail: %s\n  Allow it yourself:  %s\n",
-			yellow("⚠"), bold(name), safe(proposal.Reason, proposalReasonWidth), bold(cpltPrivateDomainCommand(hosts)))
+		fmt.Printf("%s %s is installed without it, so this will fail: %s\n  Allow it yourself:\n%s\n",
+			yellow("⚠"), bold(name), safe(proposal.Reason, proposalReasonWidth), indented(commands))
 		return
 	}
-	fmt.Printf("%s %s may reach %s from inside the sandbox.\n", green("✓"), bold(name), strings.Join(hosts, ", "))
+	fmt.Printf("%s %s may %s from inside the sandbox.\n", green("✓"), bold(name), proposal.Summary())
 	if !providerpkg.CpltProtectsNavPilotState() {
 		// Recorded, and deliberately not usable yet. Saying so here is the
 		// difference between a waiver that has not taken effect and one that
@@ -172,20 +191,38 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 	}
 }
 
+// indented renders the commands a user can run by hand, two spaces in, one per
+// line. A block that carries both a private-domain waiver and a read grant has
+// more than one, and the prompt owns every line break on the screen.
+func indented(commands []string) string {
+	lines := make([]string, 0, len(commands))
+	for _, command := range commands {
+		lines = append(lines, "  "+bold(command))
+	}
+	return strings.Join(lines, "\n")
+}
+
 // proposalTitle is the question. A revision the user has answered before says
 // so, because "approve this" and "approve this again, it changed" are different
 // questions.
+//
+// One question for the whole block, however many kinds of setting it carries:
+// the consent record is keyed on the block's hash, so a second prompt would be
+// a second answer to a question that has only one record to live in.
 func proposalTitle(name string, prior *artifacts.ProposalConsent) string {
 	if prior == nil {
-		return fmt.Sprintf("agentpakke %s asks to reach private hosts from inside the sandbox. Allow it?", name)
+		return fmt.Sprintf("agentpakke %s asks for more than the sandbox gives it. Allow it?", name)
 	}
-	return fmt.Sprintf("agentpakke %s changed what it asks to reach from inside the sandbox. Allow it?", name)
+	return fmt.Sprintf("agentpakke %s changed what it asks of the sandbox. Allow it?", name)
 }
 
 // proposalDescription is what the person decides on: the pakke's own reason,
-// the exact hosts, what the waiver is not, and — for a changed block — what
-// moved since the answer it voids.
-func proposalDescription(proposal *agentpakke.CpltProposal, hosts []string, prior *artifacts.ProposalConsent) string {
+// the exact hosts and files, what each of them is not, and — for a changed
+// block — what moved since the answer it voids.
+//
+// Both kinds in one description, because both are one block, one hash and one
+// answer. A block carrying both lists both and is accepted or declined whole.
+func proposalDescription(proposal *agentpakke.CpltProposal, hosts, reads []string, prior *artifacts.ProposalConsent) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n\n", safe(proposal.Reason, proposalReasonWidth))
 	if prior != nil {
@@ -195,10 +232,20 @@ func proposalDescription(proposal *agentpakke.CpltProposal, hosts []string, prio
 		}
 		b.WriteString("\n")
 	}
-	fmt.Fprintf(&b, "Hosts: %s\n", strings.Join(hosts, ", "))
-	b.WriteString("This lifts cplt's DNS-rebinding guard for those names only. " +
-		"The allowlist and blocklist still apply, no port is opened, no path is granted, nothing is executed.")
-	return b.String()
+	if len(hosts) > 0 {
+		fmt.Fprintf(&b, "Hosts: %s\n", strings.Join(hosts, ", "))
+		b.WriteString("This lifts cplt's DNS-rebinding guard for those names only. " +
+			"The allowlist and blocklist still apply, no port is opened, no path is granted, nothing is executed.\n")
+	}
+	if len(reads) > 0 {
+		if len(hosts) > 0 {
+			b.WriteString("\n")
+		}
+		fmt.Fprintf(&b, "Files: %s\n", safePathList(reads))
+		b.WriteString("Read-only, one file each, under your home directory. " +
+			"Nothing is written, no directory is opened, and a file that turns out to be a directory is skipped at launch.")
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // proposalChanges lists what moved between the block an earlier answer covered
@@ -346,10 +393,16 @@ func render(value any) string {
 func safe(s string, max int) string { return domain.SafeText(s, max) }
 
 // safeList renders a list of pakke-supplied names.
-func safeList(items []string) string {
+func safeList(items []string) string { return safeJoin(items, 64) }
+
+// safePathList renders proposed read grants, which are longer than a name and
+// have to stay whole: the person answering is reading the exact path.
+func safePathList(items []string) string { return safeJoin(items, proposalPathWidth) }
+
+func safeJoin(items []string, max int) string {
 	out := make([]string, 0, len(items))
 	for _, item := range items {
-		out = append(out, safe(item, 64))
+		out = append(out, safe(item, max))
 	}
 	return strings.Join(out, ", ")
 }

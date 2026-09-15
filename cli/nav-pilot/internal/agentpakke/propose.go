@@ -23,14 +23,17 @@ import (
 //
 //   - It is not configuration. nav-pilot writes nothing into ~/.config/cplt,
 //     nothing into a .cplt.toml, and never touches cplt's trust store. An
-//     approved proposal becomes --allow-private-domain on the launch line and
-//     lives nowhere else, so the flag is derived from the consent record and
-//     cannot drift from it.
+//     approved proposal becomes --allow-private-domain and --allow-read on the
+//     launch line and lives nowhere else, so the flags are derived from the
+//     consent record and cannot drift from it.
 //   - It is not a permission. proxy.allow_private_domains is cplt's
 //     DNS-rebinding guard, and waiving it for one named host opens no port,
 //     grants no path and executes nothing. The allowlist and the blocklist
 //     still apply. The worst outcome is that the agent reaches an internal
-//     service the user's own naisdevice already reaches.
+//     service the user's own naisdevice already reaches. allow.read is
+//     narrower still: one read-only rule per named file, no write, no bind, no
+//     outbound, and a path a pakke may propose at all is one neither cplt's
+//     deny lists nor nav-pilot's own rules cover (#885).
 //   - It is not self-applying. It takes effect only after an interactive
 //     approval of exactly this content hash, in the scope that approved it.
 //
@@ -46,7 +49,7 @@ import (
 // proxy.forced, the guards — are refused by the schema instead, because those
 // are not forward compatibility, they are a pakke asking for the sandbox to be
 // taken apart.
-var proposableCpltKeys = []string{"reason", "proxy"}
+var proposableCpltKeys = []string{"allow", "reason", "proxy"}
 
 // Propose is policies.propose: proposals keyed by the tool they are written in.
 type Propose struct {
@@ -61,6 +64,8 @@ type CpltProposal struct {
 
 	Proxy CpltProxy `json:"proxy"`
 
+	Allow CpltAllow `json:"allow"`
+
 	// raw is the block exactly as it was written. It is what [CpltProposal.Hash]
 	// hashes and what [CpltProposal.InertKeys] reads, so a key this binary does
 	// not implement still changes the hash — invariant 2, which is the whole
@@ -68,9 +73,19 @@ type CpltProposal struct {
 	raw map[string]any
 }
 
-// CpltProxy is the one proposable cplt section in v1.
+// CpltProxy is the proposable cplt proxy section.
 type CpltProxy struct {
 	AllowPrivateDomains []string `json:"allow_private_domains,omitempty"`
+}
+
+// CpltAllow is policies.propose.cplt.allow. Read is the only grant a pakke may
+// ask for: cplt emits exactly one rule per entry, `(allow file-read* (subpath
+// "<p>"))` on macOS and AccessFs::ReadFile|ReadDir on Linux. No write, no bind,
+// no outbound, and ResolveUnix is granted only alongside a write, so a read
+// grant cannot become a connect right. allow.write, allow.exec and
+// allow.socket stay refused by the schema.
+type CpltAllow struct {
+	Read []string `json:"read,omitempty"`
 }
 
 // UnmarshalJSON decodes the block and keeps a copy of it verbatim.
@@ -172,18 +187,37 @@ func (p *CpltProposal) AllowPrivateDomains() []string {
 	if p == nil {
 		return nil
 	}
-	seen := make(map[string]bool, len(p.Proxy.AllowPrivateDomains))
-	out := make([]string, 0, len(p.Proxy.AllowPrivateDomains))
-	for _, host := range p.Proxy.AllowPrivateDomains {
-		host = strings.TrimSpace(host)
-		if host == "" || seen[host] {
+	return dedupeSorted(p.Proxy.AllowPrivateDomains)
+}
+
+// dedupeSorted trims, drops empties and duplicates, and sorts.
+func dedupeSorted(values []string) []string {
+	seen := make(map[string]bool, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
 			continue
 		}
-		seen[host] = true
-		out = append(out, host)
+		seen[value] = true
+		out = append(out, value)
 	}
 	sort.Strings(out)
 	return out
+}
+
+// AllowRead returns the files the proposal asks to read, in the "~/"-relative
+// form the manifest declares, sorted and deduplicated. Sorted for the same
+// reason the hosts are: the launch flags are derived from it.
+//
+// Still "~/"-relative here. Expansion happens at launch, against the home the
+// launch actually runs under, so the consent record keeps what the person read
+// on screen and the absolute path is never stored anywhere.
+func (p *CpltProposal) AllowRead() []string {
+	if p == nil {
+		return nil
+	}
+	return dedupeSorted(p.Allow.Read)
 }
 
 // InertKeys names the keys in the block this binary does not implement, sorted.
@@ -205,11 +239,17 @@ func (p *CpltProposal) InertKeys() []string {
 // Summary is the one line the consent prompt and the install log use to say
 // what the proposal would change.
 func (p *CpltProposal) Summary() string {
-	hosts := p.AllowPrivateDomains()
-	if len(hosts) == 0 {
+	var parts []string
+	if hosts := p.AllowPrivateDomains(); len(hosts) > 0 {
+		parts = append(parts, fmt.Sprintf("reach %s, which resolve to private addresses", strings.Join(hosts, ", ")))
+	}
+	if reads := p.AllowRead(); len(reads) > 0 {
+		parts = append(parts, fmt.Sprintf("read %s", strings.Join(reads, ", ")))
+	}
+	if len(parts) == 0 {
 		return "nothing this nav-pilot implements"
 	}
-	return fmt.Sprintf("reach %s, which resolve to private addresses", strings.Join(hosts, ", "))
+	return strings.Join(parts, "; and ")
 }
 
 func contains(list []string, want string) bool {
@@ -219,4 +259,75 @@ func contains(list []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// cpltDeniedHomePaths are the "~/"-relative paths a pakke may never propose a
+// read grant on, mirrored from cplt's own lists in src/sandbox_policy.rs:
+// DENIED_DOTFILES, DENIED_FILES and DENIED_HOME_SUBPATHS.
+//
+// Mirrored rather than deferred to, because cplt refuses less than this on
+// purpose and the difference is the whole point. cplt's grant_is_refused stops
+// a grant on ~/.ssh itself, but a grant on a file *inside* it is a supported
+// override on both backends — that is how a developer with a private registry
+// opens ~/.npmrc, and how anyone opens one named key. A person choosing that
+// for themselves is not the same as a pakke asking for it and getting a yes
+// out of the install prompt, so a proposal is held to the stricter rule: at or
+// under any of the three lists, refused at validate.
+//
+// ponytail: a copied list, so it ages if cplt adds an entry. The upgrade path
+// is cplt publishing them, not nav-pilot growing a probe — and an entry this
+// list lacks is still refused for grants cplt itself refuses.
+var cpltDeniedHomePaths = []string{
+	// DENIED_DOTFILES
+	".ssh", ".gnupg", ".aws", ".azure", ".kube", ".docker", ".nais",
+	".password-store", ".config/gcloud", ".config/op", ".terraform.d",
+	".config/cplt", ".nav-pilot",
+	// DENIED_FILES
+	".netrc", ".pypirc", ".gem/credentials", ".vault-token",
+	// DENIED_HOME_SUBPATHS
+	".m2/settings.xml", ".m2/settings-security.xml", ".gradle/gradle.properties",
+	".cargo/credentials", ".cargo/credentials.toml", ".nuget/NuGet.Config", ".npmrc",
+}
+
+// checkPropose runs the read-grant rules the schema cannot express: what the
+// path resolves to, and what it must never resolve to.
+//
+// The schema owns the shape — leading "~/", no backslash, no control rune, and
+// a final component with a name and an extension, which is how a directory and
+// a trailing separator are refused before anything looks at the value. This
+// owns the two that need a list or a walk: traversal, and the denied paths.
+func (m *Manifest) checkPropose() error {
+	proposal := m.CpltProposal()
+	if proposal == nil {
+		return nil
+	}
+	for _, declared := range proposal.AllowRead() {
+		if err := checkReadGrant(declared); err != nil {
+			return fmt.Errorf("policies.propose.cplt.allow.read: %w", err)
+		}
+	}
+	return nil
+}
+
+// checkReadGrant refuses one proposed read grant, or returns nil.
+func checkReadGrant(declared string) error {
+	rest, ok := strings.CutPrefix(declared, "~/")
+	if !ok {
+		return fmt.Errorf("%q is not a path under the home directory: write it as \"~/<path>\", "+
+			"which nav-pilot expands at launch", declared)
+	}
+	for _, segment := range strings.Split(rest, "/") {
+		if segment == "" || segment == "." || segment == ".." {
+			return fmt.Errorf("%q does not name a file: it has an empty, \".\" or \"..\" component, "+
+				"and a grant that can climb out of what it names is not one anybody can read off the prompt", declared)
+		}
+	}
+	for _, denied := range cpltDeniedHomePaths {
+		if rest == denied || strings.HasPrefix(rest, denied+"/") {
+			return fmt.Errorf("%q is at or under ~/%s, which cplt denies or protects. "+
+				"A pakke may not propose it, and a user who needs it grants it themselves with "+
+				"`cplt config set allow.read`", declared, denied)
+		}
+	}
+	return nil
 }

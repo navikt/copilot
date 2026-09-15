@@ -92,8 +92,8 @@ func parse(data []byte, runningVersion string) (*Manifest, error) {
 
 // checkSemantics runs the fail-closed rules that JSON Schema cannot express:
 // contract-version support, minimum binary version, Tier 1's dependence on
-// layout, the compatibility-range grammar, and path containment for every
-// repo-relative path in the manifest.
+// layout, the compatibility-range grammar, what a proposed read grant may
+// point at, and path containment for every repo-relative path in the manifest.
 func (m *Manifest) checkSemantics(runningVersion string) error {
 	if err := m.checkContractVersion(); err != nil {
 		return err
@@ -111,6 +111,9 @@ func (m *Manifest) checkSemantics(runningVersion string) error {
 		return err
 	}
 	if err := m.checkDefaultContext(); err != nil {
+		return err
+	}
+	if err := m.checkPropose(); err != nil {
 		return err
 	}
 	return m.checkPaths()

@@ -12,7 +12,8 @@ import (
 )
 
 // The launch half of #858 step 2: an approved sandbox proposal becomes
-// --allow-private-domain on the cplt launch line, and nothing else anywhere.
+// --allow-private-domain and --allow-read on the cplt launch line, and nothing
+// else anywhere.
 //
 // Not written into cplt's configuration, on purpose (invariant 4).
 // allow_private_domains is a plain string array with no room for provenance, so
@@ -75,22 +76,85 @@ func defaultCpltProposalFlags() []string {
 		// Unreadable is not approved. Said out loud rather than swallowed: the
 		// user's answer is in that file, and silently launching without it is
 		// how a waiver looks like it was never given.
-		fmt.Fprintf(os.Stderr, "%s %s: no private-domain waiver is applied — %v\n", domain.Yellow("⚠"), name, err)
+		fmt.Fprintf(os.Stderr, "%s %s: no sandbox waiver is applied — %v\n", domain.Yellow("⚠"), name, err)
 		return nil
 	}
-	if record == nil || len(record.Hosts) == 0 {
+	if record == nil || (len(record.Hosts) == 0 && len(record.Reads) == 0) {
 		return nil
 	}
 	if reason := untrustworthyRecord(record); reason != "" {
-		fmt.Fprintf(os.Stderr, "%s %s: the approved private-domain waiver is not applied — %s.\n",
+		fmt.Fprintf(os.Stderr, "%s %s: the approved sandbox waiver is not applied — %s.\n",
 			domain.Yellow("⚠"), name, reason)
 		return nil
 	}
-	hosts := record.Hosts
 	// Invariant 5: what a launch carries is said out loud at launch.
-	fmt.Fprintf(os.Stderr, "%s %s: cplt may resolve %s to private addresses, approved for this scope.\n",
-		domain.Dim("ℹ"), name, strings.Join(hosts, ", "))
-	return privateDomainFlags(hosts)
+	var args []string
+	if hosts := record.Hosts; len(hosts) > 0 {
+		fmt.Fprintf(os.Stderr, "%s %s: cplt may resolve %s to private addresses, approved for this scope.\n",
+			domain.Dim("ℹ"), name, strings.Join(hosts, ", "))
+		args = append(args, privateDomainFlags(hosts)...)
+	}
+	if reads := resolveReadGrants(record.Reads); len(reads) > 0 {
+		fmt.Fprintf(os.Stderr, "%s %s: cplt may read %s, approved for this scope.\n",
+			domain.Dim("ℹ"), name, strings.Join(reads, ", "))
+		args = append(args, readGrantFlags(reads)...)
+	}
+	return args
+}
+
+// resolveReadGrants turns the "~/"-relative paths an approval covers into the
+// absolute paths a launch may pass, dropping the ones it must not.
+//
+// Three drops, all silent, all for the same reason — the grant is optional to
+// the launch and a line per skipped path on every start is noise nobody acts
+// on:
+//
+//   - a path that is not under the home directory, or that does not resolve to
+//     one after symlinks. That is the traversal backstop: validate refuses ".."
+//     in the declared form, and this refuses a path that climbs out by any
+//     other route;
+//   - a directory. cplt grants a subpath, so a directory is everything beneath
+//     it. The schema refuses a directory-shaped name, and this is the check
+//     that can actually look: ~/x.json is a file-shaped name until someone
+//     makes it a directory;
+//   - a path that does not exist. One manifest has to work on macOS and Linux,
+//     where naisdevice keeps its state in different places, so a pakke names
+//     both and only one of them is ever there. cplt would warn about the other
+//     on every launch.
+func resolveReadGrants(declared []string) []string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return nil
+	}
+	out := make([]string, 0, len(declared))
+	for _, path := range declared {
+		rest, ok := strings.CutPrefix(path, "~/")
+		if !ok {
+			continue
+		}
+		resolved := filepath.Join(home, rest)
+		if !domain.PathWithinRoot(home, resolved) {
+			continue
+		}
+		info, err := os.Stat(resolved)
+		if err != nil || info.IsDir() {
+			continue
+		}
+		out = append(out, resolved)
+	}
+	return out
+}
+
+// readGrantFlags renders one --allow-read per file. cplt turns each into a
+// single read-only rule: "(allow file-read* (subpath \"<p>\"))" on macOS,
+// AccessFs::ReadFile|ReadDir on Linux. Nothing here ever passes --allow-write,
+// --allow-exec or --allow-socket, and no proposal can ask for them.
+func readGrantFlags(paths []string) []string {
+	args := make([]string, 0, 2*len(paths))
+	for _, path := range paths {
+		args = append(args, "--allow-read", path)
+	}
+	return args
 }
 
 // untrustworthyRecord names the reason an approval must not be acted on, or ""

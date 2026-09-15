@@ -262,8 +262,14 @@ func hintFor(loc []string, msg string) string {
 			if len(loc) == 3 {
 				return "a proposal must carry a reason; it is shown verbatim to the person asked to approve it"
 			}
-			return "a pakke may propose proxy.allow_private_domains and nothing else in v1: " +
-				"preset, allow, deny, repo_dirs, inherit_env, allowed_domains, blocked_domains, proxy.forced and the guards are never proposable"
+			if len(loc) >= 5 && loc[3] == "allow" && loc[4] == "read" {
+				return `a read grant names one file under the home directory, written "~/<dir>/<name>.<ext>"; ` +
+					"a directory is refused because cplt grants everything beneath it, and so is any path at or under " +
+					"cplt's DENIED_DOTFILES, DENIED_FILES or DENIED_HOME_SUBPATHS"
+			}
+			return "a pakke may propose proxy.allow_private_domains and allow.read, and nothing else in v1: " +
+				"preset, allow.write, allow.exec, allow.socket, deny, repo_dirs, inherit_env, allowed_domains, " +
+				"blocked_domains, proxy.forced and the guards are never proposable"
 		}
 	case "minNavPilotVersion":
 		return "expected a nav-pilot release version, e.g. 2026.09.01-120000-a1b2c3d"

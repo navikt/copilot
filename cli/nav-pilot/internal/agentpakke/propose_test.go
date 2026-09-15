@@ -269,3 +269,44 @@ func TestCanonicalJSONBacksTheHash(t *testing.T) {
 		t.Error("a nil proposal has a canonical form")
 	}
 }
+
+// A read grant names one file, and the paths a pakke must never ask for are
+// refused at validate rather than left to the person clicking yes (#885).
+func TestProposedReadGrantNamesOneFileAndRefusesTheDeniedOnes(t *testing.T) {
+	// The pair the documentation shows: one manifest, both platforms, because
+	// naisdevice keeps its state in a different place on each.
+	ok := `{"reason": "ok", "allow": {"read": [
+		"~/Library/Application Support/naisdevice/agent-status.json",
+		"~/.config/naisdevice/agent-status.json"
+	]}}`
+	if err := Validate([]byte(proposeManifest(ok))); err != nil {
+		t.Fatalf("a read grant on one named file per platform was refused: %v", err)
+	}
+	p := mustParseProposal(t, ok)
+	want := []string{
+		"~/.config/naisdevice/agent-status.json",
+		"~/Library/Application Support/naisdevice/agent-status.json",
+	}
+	if got := p.AllowRead(); !slices.Equal(got, want) {
+		t.Errorf("honoured read grants = %q, want %q", got, want)
+	}
+	for name, path := range map[string]string{
+		"a directory":           "~/Library/Application Support/naisdevice",
+		"a trailing separator":  "~/Library/Application Support/naisdevice/",
+		"a denied dotfile":      "~/.ssh/id_ed25519.pub",
+		"a denied cloud secret": "~/.aws/credentials.json",
+		"nav-pilot's own state": "~/.nav-pilot/pakke-consent.json",
+		"a hard-denied file":    "~/.netrc",
+		"an overridable secret": "~/.m2/settings.xml",
+		"parent traversal":      "~/.config/naisdevice/../../.ssh/id_ed25519.pub",
+		"an absolute path":      "/etc/shadow.conf",
+		"a bare home reference": "~",
+	} {
+		t.Run(name, func(t *testing.T) {
+			block := `{"reason": "ok", "allow": {"read": ["` + path + `"]}}`
+			if err := Validate([]byte(proposeManifest(block))); err == nil {
+				t.Errorf("%s validated as a read grant", name)
+			}
+		})
+	}
+}

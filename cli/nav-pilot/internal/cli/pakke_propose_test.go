@@ -589,3 +589,86 @@ func TestUnreadableRecordDoesNotAskOrRecord(t *testing.T) {
 		t.Errorf("the unreadable record was not reported:\n%s", out)
 	}
 }
+
+// readGrantExtra is the allow.read half of a propose block, for the manifest
+// helpers above.
+const readGrantExtra = `,
+    "allow": { "read": ["~/Library/Application Support/naisdevice/agent-status.json"] }`
+
+// One block, one question, one record — however many kinds of setting it
+// carries. A pakke that needs both a private-domain waiver and a read grant is
+// asking one thing, and the consent record is keyed on the block's hash, so a
+// second prompt would be a second answer with nowhere to live (#885).
+func TestBothKindsOfProposalAreOneQuestionAndOneRecord(t *testing.T) {
+	scope := consentEnv(t)
+	var descriptions []string
+	previous := askProposalConsent
+	askProposalConsent = func(_, description string, value *bool) error {
+		descriptions = append(descriptions, description)
+		*value = true
+		return nil
+	}
+	defer func() { askProposalConsent = previous }()
+
+	noteProposalConsent(scope, proposeSource(t, `"cloud.nais.io"`, readGrantExtra), false, false)
+
+	if len(descriptions) != 1 {
+		t.Fatalf("the block was put as %d questions, not one: %q", len(descriptions), descriptions)
+	}
+	if !strings.Contains(descriptions[0], "cloud.nais.io") || !strings.Contains(descriptions[0], "agent-status.json") {
+		t.Errorf("the one question does not list both halves:\n%s", descriptions[0])
+	}
+	rec := recordFor(t, scope)
+	if rec == nil || !rec.Approved {
+		t.Fatalf("no approval was recorded: %+v", rec)
+	}
+	if !slices.Equal(rec.Hosts, []string{"cloud.nais.io"}) {
+		t.Errorf("recorded hosts = %q", rec.Hosts)
+	}
+	want := []string{"~/Library/Application Support/naisdevice/agent-status.json"}
+	if !slices.Equal(rec.Reads, want) {
+		t.Errorf("recorded read grants = %q, want %q", rec.Reads, want)
+	}
+}
+
+// A decline still installs, and still says what the user can run by hand — now
+// one line per setting, since a block can carry more than one (#885).
+func TestDeclinedReadGrantPrintsTheCommandToRunByHand(t *testing.T) {
+	scope := consentEnv(t)
+	answering(t, false)
+	out := captureStdoutFor(t, func() {
+		noteProposalConsent(scope, proposeSource(t, `"cloud.nais.io"`, readGrantExtra), false, false)
+	})
+	for _, want := range []string{
+		"cplt config set proxy.allow_private_domains cloud.nais.io",
+		`cplt config set allow.read "~/Library/Application Support/naisdevice/agent-status.json"`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the decline does not carry %q:\n%s", want, out)
+		}
+	}
+	rec := recordFor(t, scope)
+	if rec == nil || rec.Approved || len(rec.Reads) != 0 {
+		t.Errorf("a decline recorded a grant: %+v", rec)
+	}
+}
+
+// A block that proposes only a private-domain waiver behaves exactly as it did
+// before the read grant existed: one question, one record, no read grant.
+func TestDomainOnlyProposalIsUnchanged(t *testing.T) {
+	scope := consentEnv(t)
+	asked := answering(t, true)
+	out := captureStdoutFor(t, func() {
+		noteProposalConsent(scope, proposeSource(t, `"cloud.nais.io"`, ""), false, false)
+	})
+	if *asked != 1 {
+		t.Errorf("asked %d times", *asked)
+	}
+	if !strings.Contains(out, "cloud.nais.io") {
+		t.Errorf("the approval does not name the host:\n%s", out)
+	}
+	rec := recordFor(t, scope)
+	if rec == nil || !rec.Approved || len(rec.Reads) != 0 {
+		t.Errorf("a domain-only approval carries a read grant: %+v", rec)
+	}
+}
