@@ -76,9 +76,14 @@ func SynthesizeLegacy(collection string) *Manifest {
 			// opencode's picker offers both Nav personas; everything else
 			// materializes as a subagent. The first entry is the persona
 			// launched by default.
+			//
+			// DefaultModel is a concrete id, not "github-copilot/auto": opencode
+			// has no auto-routing and rejects "auto" as an unknown model.
+			// gpt-5.6-luna is confirmed available on the live opencode+github-copilot
+			// catalog and is the cheapest such model (docs/modellvalg.md).
 			"opencode": {
 				PrimaryAgents: []string{"nav-pilot", "nav-pilot-opus"},
-				DefaultModel:  "github-copilot/auto",
+				DefaultModel:  "github-copilot/gpt-5.6-luna",
 			},
 			// pi consumes no persona today; the entry exists so client
 			// availability is expressible in one place instead of a special

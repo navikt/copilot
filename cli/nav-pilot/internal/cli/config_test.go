@@ -1163,7 +1163,7 @@ func TestConfigAdvisories_KnownCopilotModel_NoWarning(t *testing.T) {
 
 func TestConfigAdvisories_NonCopilotModel_NoWarning(t *testing.T) {
 	// Known Nav-curated opencode model must not generate any warning.
-	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"opencode\"\nmodel = \"github-copilot/auto\"\n")
+	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"opencode\"\nmodel = \"github-copilot/gpt-5.6-luna\"\n")
 	if w := configAdvisories(cfg, meta); len(w) != 0 {
 		t.Errorf("configAdvisories() = %v, want no warnings for known opencode model", w)
 	}

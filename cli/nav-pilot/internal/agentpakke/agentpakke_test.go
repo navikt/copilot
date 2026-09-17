@@ -140,8 +140,8 @@ func TestDefaultMirrorsCurrentBehavior(t *testing.T) {
 	if got := m.PrimaryAgents("opencode")[0]; got != "nav-pilot" {
 		t.Errorf("opencode launch persona = %q, want nav-pilot (OpenCodeAgentPersona)", got)
 	}
-	if got := m.DefaultModel("opencode"); got != "github-copilot/auto" {
-		t.Errorf("opencode defaultModel = %q, want github-copilot/auto (OpenCodeDefaultModel)", got)
+	if got := m.DefaultModel("opencode"); got != "github-copilot/gpt-5.6-luna" {
+		t.Errorf("opencode defaultModel = %q, want github-copilot/gpt-5.6-luna (OpenCodeDefaultModel)", got)
 	}
 	// InheritModel, not empty: copilot now has a declaration point like
 	// opencode, and it declares "pin nothing". Both readers

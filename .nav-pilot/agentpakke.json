@@ -13,7 +13,7 @@
     },
     "opencode": {
       "primaryAgents": ["nav-pilot", "nav-pilot-opus"],
-      "defaultModel": "github-copilot/auto"
+      "defaultModel": "github-copilot/gpt-5.6-luna"
     },
     "pi": {
       "primaryAgents": ["nav-pilot"]

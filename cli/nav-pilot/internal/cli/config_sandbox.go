@@ -317,7 +317,7 @@ var cpltEnforcement = func() *cpltCheckReport {
 // pi through cplt, and only the copilot list carries GitHub and Copilot
 // infrastructure. opencode gets `opencode.ai` and `models.dev`; pi gets the
 // package registries and nothing else. An opencode session on nav-pilot's
-// default `github-copilot/auto` model could not reach a model host at all.
+// default `github-copilot/gpt-5.6-luna` model could not reach a model host at all.
 //
 // Every Nav entry below is something nav-pilot or an artifact it installs
 // actually fetches, with the call site named. Hosts that appear in the
