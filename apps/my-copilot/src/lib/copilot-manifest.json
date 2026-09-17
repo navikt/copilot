@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-17T10:05:44.538Z",
+  "generatedAt": "2026-09-17T10:54:35.504Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -167,7 +167,7 @@
       "filePath": ".github/agents/forfatter.agent.md",
       "repoPath": "agents/forfatter.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/forfatter.agent.md",
-      "contentHash": "4516167e39928ef2c4bac1c701fe9c87a1b321f41a6f32057ef57a082df62970",
+      "contentHash": "7647c85972f59fa7dec3e968131e540d3584a24718476e4fd00f62185d95c863",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fforfatter.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fforfatter.agent.md",
       "tools": ["read", "edit", "grep", "glob", "todo", "github/get_file_contents", "github/search_code"],
@@ -630,7 +630,7 @@
       "filePath": ".github/instructions/norwegian-text.instructions.md",
       "repoPath": "instructions/norwegian-text.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/norwegian-text.instructions.md",
-      "contentHash": "9fe4d16cff71a80e31b203e31f3068350f7741c7002234f39de7e3a539330b80",
+      "contentHash": "8780033ee543f3f23e864ec2f92a06fc87d9e548ee7c1948dff86a6837ec818b",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fnorwegian-text.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fnorwegian-text.instructions.md",
       "applyTo": "**/*.md",
@@ -1134,7 +1134,7 @@
       "filePath": "skills/klarsprak/SKILL.md",
       "repoPath": "skills/klarsprak/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/klarsprak/SKILL.md",
-      "contentHash": "184954847c6d92ee256a662912a224d531dc44c8a3a4609c5b1fb19bc47613a7",
+      "contentHash": "d6ed75d1e08c4867d2d09fbd68f4e87c117f4a40ce708d76122357707b68c0c7",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["norwegian", "klarspråk", "ai-markers", "anglicisms", "text-quality", "spraakvask"],
