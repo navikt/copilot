@@ -99,7 +99,7 @@ Ved oppstart med `--client opencode` normaliseres **CLI-overstyringen** `--model
 med `ToOpenCodeModel`: tom verdi, `auto` eller den gamle `github-copilot/auto`-aliasen
 blir `""`, og `--model`-flagget uteblir helt — opencode løser da sin egen standard,
 verifisert til å velge en modell kontoen faktisk har tilgang til. Bare Copilot-id-er
-(som `claude-sonnet-4.6`) prefikses til `github-copilot/<id>`. Konfigverdi for opencode
+(som `claude-opus-4.8`) prefikses til `github-copilot/<id>`. Konfigverdi for opencode
 må fortsatt være på `provider/model`-format.
 
 En "Custom…"-mulighet i velgeren lar brukeren skrive inn valgfri id med validering.
@@ -171,7 +171,7 @@ flagg-grensesnitt er annerledes enn Copilots, så flere felt oversettes eller dr
 
 | nav-pilot konfig | opencode-flagg | Merknad |
 |---|---|---|
-| `model` | `--model` | Krever `provider/model` (f.eks. `github-copilot/claude-sonnet-4.6`); uteblir helt når unset, og opencode velger da selv. Flagget slår opencodes egen config og recents, og i `opencode run` slår det også agentens eget `model:`-felt (der er flagget forespørselens modell). I TUI-en, som er det nav-pilot starter, vinner agentens eget `model:` over flagget. Rekkefølgen blir altså: agentens spesialisering, så nav-pilots sesjonsmodell, så det klienten selv ville valgt |
+| `model` | `--model` | Krever `provider/model` (f.eks. `github-copilot/claude-opus-4.8`); uteblir helt når unset, og opencode velger da selv. Flagget slår opencodes egen config og recents, og i `opencode run` slår det også agentens eget `model:`-felt (der er flagget forespørselens modell). I TUI-en, som er det nav-pilot starter, vinner agentens eget `model:` over flagget. Rekkefølgen blir altså: agentens spesialisering, så nav-pilots sesjonsmodell, så det klienten selv ville valgt |
 | `mode = plan` | `--agent plan` | opencode har ingen `--mode`; `autopilot` har ingen opencode-ekvivalent — advarsel ved oppstart |
 | `reasoning_effort` | `--variant` | Leverandørspesifikk resonering (f.eks. `high`, `max`) |
 | `allow_all_tools` | `--dangerously-skip-permissions` | |

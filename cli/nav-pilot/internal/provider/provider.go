@@ -63,7 +63,7 @@ type Provider interface {
 // advisory text. It is not a default: opencode gets no forced model unless a
 // user or an agentpakke names one (see [ToOpenCodeModel]), so there is no
 // single id to point to — this is just a well-formed example.
-const openCodeModelFormatExample = openCodeProviderPrefix + "claude-sonnet-4.6"
+const openCodeModelFormatExample = openCodeProviderPrefix + "claude-opus-4.8"
 
 // openCodeProviderPrefix is the opencode provider that cplt authenticates
 // opencode against. Bare Copilot-style model ids are mapped under it.
@@ -103,7 +103,7 @@ const legacyOpenCodeAutoAlias = openCodeProviderPrefix + "auto"
 // unless an agentpakke names a concrete model — opencode picks a sensible,
 // account-aware model on its own when given none (verified live), so
 // nav-pilot no longer forces one. Ids that already carry a provider ("/")
-// pass through; bare Copilot-style ids (e.g. "claude-sonnet-4.6") gain the
+// pass through; bare Copilot-style ids (e.g. "claude-opus-4.8") gain the
 // github-copilot prefix.
 func ToOpenCodeModel(model string) string {
 	model = strings.TrimSpace(model)
