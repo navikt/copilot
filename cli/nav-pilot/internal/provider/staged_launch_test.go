@@ -271,6 +271,14 @@ func TestStagedLaunchModel(t *testing.T) {
 			wantOpen:   []string{"--agent", "grillmester", "--model", "github-copilot/gpt-5.5"},
 			wantCopilo: []string{"--plugin-dir", staged.Dir, "--agent", "grillmester:grillmester", "--model", "gpt-5.5"},
 		},
+		{
+			// A pakke that still declares the legacy alias (Nav's own did,
+			// before this was found) must not forward it to opencode as-is.
+			name:       "legacy github-copilot/auto declaration is normalized for opencode",
+			pakke:      concrete("github-copilot/auto"),
+			wantOpen:   []string{"--agent", "grillmester", "--model", OpenCodeDefaultModel},
+			wantCopilo: []string{"--plugin-dir", staged.Dir, "--agent", "grillmester:grillmester", "--model", "github-copilot/auto"},
+		},
 	}
 
 	for _, tt := range tests {

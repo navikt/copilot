@@ -54,6 +54,22 @@ func TestSetActivePakke(t *testing.T) {
 	}
 }
 
+// TestActivePakkeLegacyAutoIsNormalized covers a pakke that still declares the
+// pre-fix opencode default: it must fall back to the built-in default rather
+// than forwarding the broken alias.
+func TestActivePakkeLegacyAutoIsNormalized(t *testing.T) {
+	t.Cleanup(func() { SetActivePakke(nil) })
+	SetActivePakke(&agentpakke.Manifest{
+		Name: "legacy",
+		Clients: map[string]agentpakke.ClientEntry{
+			"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "github-copilot/auto"},
+		},
+	})
+	if got := ToOpenCodeModel(""); got != OpenCodeDefaultModel {
+		t.Errorf("ToOpenCodeModel(\"\") = %q, want %q", got, OpenCodeDefaultModel)
+	}
+}
+
 // TestBuildCopilotArgsPakkeModel pins the Tier 1 copilot fallback added
 // alongside the copilot DefaultModel declaration: the legacy launch consults
 // the active agentpakke exactly like the staged Tier 2 path

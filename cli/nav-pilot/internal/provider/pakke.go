@@ -81,14 +81,17 @@ func PrimaryAgentFor(client, context string) string {
 //
 // [agentpakke.InheritModel] counts as pinning nothing: consumers of this
 // function (ToOpenCodeModel, the setup label) need a concrete model id, and
-// "inherit" means "whatever the client would use anyway". The staged launch
-// path does not call this at all — it reads the declaration directly and omits
-// --model entirely for inherit. Cosmetic residue: `config setup` run with an
-// inherit-pakke active labels the built-in id "Nav default"; no M2 flow sets a
-// pakke before setup, so nothing reaches it today.
+// "inherit" means "whatever the client would use anyway". [legacyOpenCodeAutoAlias]
+// counts as pinning nothing too: a pakke that still declares it (Nav's own did,
+// before this was found) would otherwise hand back the same broken id it is
+// meant to replace. The staged launch path does not call this at all — it reads
+// the declaration directly and omits --model entirely for inherit. Cosmetic
+// residue: `config setup` run with an inherit-pakke active labels the built-in
+// id "Nav default"; no M2 flow sets a pakke before setup, so nothing reaches it
+// today.
 func openCodeDefaultModel() string {
 	model := source.ActivePakke().DefaultModel("opencode")
-	if model != "" && model != agentpakke.InheritModel {
+	if model != "" && model != agentpakke.InheritModel && model != legacyOpenCodeAutoAlias {
 		return model
 	}
 	return OpenCodeDefaultModel
