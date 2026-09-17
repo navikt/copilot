@@ -224,14 +224,18 @@ func EnsureOpenCodeNavContext(ref, sourceRepo string) (string, error) {
 // Maps resolved config fields to opencode flags; omits unset/default fields.
 func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 	var args []string
-	// The model nav-pilot sets for the session. The flag outranks opencode's own
-	// config and its recent-model list, and on `opencode run` it outranks an
-	// agent's frontmatter too, because there it is the request model. In the TUI,
-	// which is what nav-pilot launches, an agent that declares its own `model:`
-	// uses that instead (verified against opencode 1.18.25). So the order is
-	// agent specialisation, then nav-pilot's session model, then whatever the
-	// client would have picked on its own.
-	args = append(args, "--model", ToOpenCodeModel(resolved.Model))
+	// The model nav-pilot sets for the session, when it sets one. The flag
+	// outranks opencode's own config and its recent-model list, and on
+	// `opencode run` it outranks an agent's frontmatter too, because there it
+	// is the request model. In the TUI, which is what nav-pilot launches, an
+	// agent that declares its own `model:` uses that instead (verified
+	// against opencode 1.18.25). So the order is agent specialisation, then
+	// nav-pilot's session model, then whatever the client would have picked
+	// on its own. ToOpenCodeModel returns "" when nothing is pinned anywhere,
+	// and the flag is omitted so opencode resolves its own default.
+	if model := ToOpenCodeModel(resolved.Model); model != "" {
+		args = append(args, "--model", model)
+	}
 	if resolved.Mode == "plan" {
 		// opencode's built-in read-only planning agent. Nav context still loads
 		// via AGENTS.md regardless of the active agent.

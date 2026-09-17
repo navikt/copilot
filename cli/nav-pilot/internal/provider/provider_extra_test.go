@@ -67,14 +67,15 @@ func TestOpenCodeProvider_DisplayNameAndKnownModels(t *testing.T) {
 	if len(models) == 0 {
 		t.Error("KnownModels() is empty")
 	}
+	const want = "github-copilot/claude-opus-4.8"
 	found := false
 	for _, m := range models {
-		if m.ID == OpenCodeDefaultModel {
+		if m.ID == want {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("KnownModels() missing default model %q", OpenCodeDefaultModel)
+		t.Errorf("KnownModels() missing %q", want)
 	}
 }
 
