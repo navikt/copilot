@@ -63,8 +63,8 @@ type Provider interface {
 // OpenCodeDefaultModel is the Nav-curated default model selector for opencode.
 // opencode is always launched inside cplt, which connects it to the GitHub
 // Copilot provider, so the model id uses the github-copilot/<id> form.
-// Prefer Copilot Auto so default routing can follow the current
-// cost/quality frontier instead of a historically pinned model.
+// It is a concrete pinned id, not Copilot's "auto": opencode's chat API has
+// no auto-routing concept and rejects "auto" as an unknown model.
 // The value is the built-in agentpakke's declaration, so the model id is
 // written down in exactly one place (internal/agentpakke's legacy adapter).
 // It anchors the curated model list and the advisory messages; the model a
@@ -85,14 +85,24 @@ var knownCopilotModels = domain.KnownCopilotModels
 
 // knownOpenCodeModels mirrors knownCopilotModels under the github-copilot
 // provider prefix, so a bare Copilot id never triggers the opencode advisory
-// after ToOpenCodeModel mapping.
+// after ToOpenCodeModel mapping. A curated default gets its real label from
+// the loop below; the prepended fallback only fires for a default outside the
+// curated list, so that id stays selectable without a duplicate row.
 var knownOpenCodeModels = func() []domain.ModelChoice {
-	models := []domain.ModelChoice{{ID: OpenCodeDefaultModel, Label: "Auto (Nav default)"}}
+	models := make([]domain.ModelChoice, 0, len(knownCopilotModels)+1)
+	sawDefault := false
 	for _, m := range knownCopilotModels {
 		if m.ID == "auto" {
 			continue
 		}
-		models = append(models, domain.ModelChoice{ID: openCodeProviderPrefix + m.ID, Label: m.Label})
+		id := openCodeProviderPrefix + m.ID
+		if id == OpenCodeDefaultModel {
+			sawDefault = true
+		}
+		models = append(models, domain.ModelChoice{ID: id, Label: m.Label})
+	}
+	if !sawDefault {
+		models = append([]domain.ModelChoice{{ID: OpenCodeDefaultModel, Label: "Nav default"}}, models...)
 	}
 	return models
 }()
