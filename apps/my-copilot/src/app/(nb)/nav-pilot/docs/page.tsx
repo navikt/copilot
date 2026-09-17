@@ -1506,7 +1506,7 @@ const CONFIG_KEYS = [
   {
     key: "model",
     flag: "--model",
-    values: "f.eks. claude-opus-4.8, gpt-5.5 (Copilot); github-copilot/gpt-5.6-luna (opencode)",
+    values: "f.eks. claude-opus-4.8, gpt-5.5 (Copilot); github-copilot/claude-opus-4.8 (opencode)",
     desc: "Modell å bruke. Format avhenger av klient.",
   },
   {
@@ -1716,12 +1716,11 @@ function KlienterOgKonfigurasjonSection() {
                 bg: "#ecfdf5",
               },
               {
-                title: "Kuratert standardmodell",
+                title: "Ingen påtvunget standardmodell",
                 desc: (
                   <>
-                    Når ingen modell er konfigurert, settes{" "}
-                    <code className="font-mono text-xs">github-copilot/gpt-5.6-luna</code> som Nav-standard for
-                    opencode.
+                    Når ingen modell er konfigurert, sendes ingen <code className="font-mono text-xs">--model</code>
+                    -flagg til opencode — den velger selv en modell kontoen din faktisk har tilgang til.
                   </>
                 ),
                 color: "#3b82f6",
@@ -1832,7 +1831,7 @@ function KlienterOgKonfigurasjonSection() {
 client = "opencode"
 
 # Modell (format avhenger av klient)
-model = "github-copilot/gpt-5.6-luna"
+model = "github-copilot/claude-opus-4.8"
 
 # Modus (default | plan | autopilot), kun Copilot
 # mode = "default"

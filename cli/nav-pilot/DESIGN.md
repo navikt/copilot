@@ -88,16 +88,19 @@ Copilot-id som `claude-opus-4.8` gir hard feil for opencode-provideren.
 Veiviseren viser en **velger** med Nav-kurerte modeller per provider
 (`KnownModels()` fra `Provider`-grensesnittet):
 - Copilot: `knownCopilotModels` — inkluderer `auto`, Claude Sonnet/Haiku/Opus, GPT-5.x, Gemini
-- opencode: `knownOpenCodeModels` — Nav-anbefalt `github-copilot/gpt-5.6-luna` som standard.
+- opencode: `knownOpenCodeModels` — ingen Nav-standard: `DefaultModel()` returnerer `""`
+  når ingen agentpakke pinner en modell, og velgeren viser da "Unset (agent default)".
   Ikke `github-copilot/auto`: opencodes chat-API har ingen auto-routing, `auto` er et
   Copilot-CLI-internt konsept bak et sesjonsendepunkt opencode aldri kaller, så en
   provider-kvalifisert `github-copilot/auto` behandles av opencode som en bokstavelig
   modell-id og avvises.
 
 Ved oppstart med `--client opencode` normaliseres **CLI-overstyringen** `--model`
-med `ToOpenCodeModel`: tom verdi eller `auto` blir `github-copilot/gpt-5.6-luna`
-(Nav-standarden), og bare Copilot-id-er (som `claude-sonnet-4.6`) prefikses til `github-copilot/<id>`.
-Konfigverdi for opencode må fortsatt være på `provider/model`-format.
+med `ToOpenCodeModel`: tom verdi, `auto` eller den gamle `github-copilot/auto`-aliasen
+blir `""`, og `--model`-flagget uteblir helt — opencode løser da sin egen standard,
+verifisert til å velge en modell kontoen faktisk har tilgang til. Bare Copilot-id-er
+(som `claude-sonnet-4.6`) prefikses til `github-copilot/<id>`. Konfigverdi for opencode
+må fortsatt være på `provider/model`-format.
 
 En "Custom…"-mulighet i velgeren lar brukeren skrive inn valgfri id med validering.
 `nav-pilot config explain model` lister opp de kjente id-ene per provider.
@@ -168,7 +171,7 @@ flagg-grensesnitt er annerledes enn Copilots, så flere felt oversettes eller dr
 
 | nav-pilot konfig | opencode-flagg | Merknad |
 |---|---|---|
-| `model` | `--model` | Krever `provider/model` (f.eks. `github-copilot/claude-sonnet-4.6`); Nav-standard er `github-copilot/gpt-5.6-luna` når unset. Flagget slår opencodes egen config og recents, og i `opencode run` slår det også agentens eget `model:`-felt (der er flagget forespørselens modell). I TUI-en, som er det nav-pilot starter, vinner agentens eget `model:` over flagget. Rekkefølgen blir altså: agentens spesialisering, så nav-pilots sesjonsmodell, så det klienten selv ville valgt |
+| `model` | `--model` | Krever `provider/model` (f.eks. `github-copilot/claude-sonnet-4.6`); uteblir helt når unset, og opencode velger da selv. Flagget slår opencodes egen config og recents, og i `opencode run` slår det også agentens eget `model:`-felt (der er flagget forespørselens modell). I TUI-en, som er det nav-pilot starter, vinner agentens eget `model:` over flagget. Rekkefølgen blir altså: agentens spesialisering, så nav-pilots sesjonsmodell, så det klienten selv ville valgt |
 | `mode = plan` | `--agent plan` | opencode har ingen `--mode`; `autopilot` har ingen opencode-ekvivalent — advarsel ved oppstart |
 | `reasoning_effort` | `--variant` | Leverandørspesifikk resonering (f.eks. `high`, `max`) |
 | `allow_all_tools` | `--dangerously-skip-permissions` | |
