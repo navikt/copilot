@@ -229,7 +229,13 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 	if r.Model != "" {
 		bind = append(bind, "--model", ToOpenCodeModel(r.Model))
 	} else if model := pakkeDeclaredModel("opencode"); model != "" {
-		bind = append(bind, "--model", model)
+
+		// Routed through ToOpenCodeModel rather than appended raw: a staged
+		// pakke's declaration is expected to already be provider-qualified,
+		// which ToOpenCodeModel passes through unchanged, but it also catches
+		// a bare id or the legacy "github-copilot/auto" alias instead of
+		// handing either straight to opencode.
+		bind = append(bind, "--model", ToOpenCodeModel(model))
 	}
 	agentArgs := openCodeClientArgs(bind, r.ExtraArgs)
 

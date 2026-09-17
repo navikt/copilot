@@ -107,19 +107,20 @@ var knownOpenCodeModels = func() []domain.ModelChoice {
 	return models
 }()
 
+// legacyOpenCodeAutoAlias was the documented Nav default for opencode before
+// opencode's rejection of "auto" was discovered. opencode has no auto-routing
+// and rejects it as an unknown model, so every path that can produce or
+// receive it — a user's own config, an agentpakke's declaration, the built-in
+// fallback — treats it as equivalent to unset.
+const legacyOpenCodeAutoAlias = openCodeProviderPrefix + "auto"
+
 // ToOpenCodeModel maps a configured model id to an opencode model id for the
 // github-copilot provider that cplt connects opencode to. Empty or "auto" use
 // the Nav default; ids that already carry a provider ("/") pass through; bare
 // Copilot-style ids (e.g. "claude-sonnet-4.6") gain the github-copilot prefix.
-//
-// "github-copilot/auto" is also treated as unset: it was the documented Nav
-// default before opencode's rejection of "auto" was discovered, so configs
-// written against that guidance still carry it. Without this, those configs
-// would pass it straight through as an already-qualified id and keep hitting
-// the exact error this fix resolves.
 func ToOpenCodeModel(model string) string {
 	model = strings.TrimSpace(model)
-	if model == "" || model == "auto" || model == openCodeProviderPrefix+"auto" {
+	if model == "" || model == "auto" || model == legacyOpenCodeAutoAlias {
 		return openCodeDefaultModel()
 	}
 	// Before the provider-qualified pass-through below: a local model id is
