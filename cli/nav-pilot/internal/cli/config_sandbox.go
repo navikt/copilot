@@ -317,10 +317,11 @@ var cpltEnforcement = func() *cpltCheckReport {
 // pi through cplt, and only the copilot list carries GitHub and Copilot
 // infrastructure. opencode gets `opencode.ai` and `models.dev`; pi gets the
 // package registries and nothing else. A hosted opencode session (any model
-// except a local `mlx/<id>` one, see ToOpenCodeModel) goes through the GitHub
-// Copilot provider, so without the Copilot entries Nav adds below, it could
-// not reach a model host at all. A local session instead talks to a loopback
-// server nav-pilot's own local-model guard opens, which needs
+// except the local `mlx/<id>` case, see ToOpenCodeModel, may use a provider
+// other than GitHub Copilot. The Nav default and bare Copilot ids use GitHub
+// Copilot, so without the Copilot entries Nav adds below they could not reach a
+// model host; custom provider-qualified ids need their own allowlist/egress
+// handling. A local session instead talks to a loopback server, which needs
 // `sandbox.allow_localhost_any`, not these entries.
 //
 // Every Nav entry below is something nav-pilot or an artifact it installs
