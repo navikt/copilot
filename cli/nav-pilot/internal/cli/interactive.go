@@ -143,15 +143,16 @@ func promptModel(p Provider, title, description, current string) (string, error)
 		return choice, nil
 	}
 
-	validator := validateOptionalModel
-	if p.DefaultModel() != "" {
-		// Provider-specific validation so opencode gets the provider/model shape check.
-		validator = func(s string) error {
-			if strings.TrimSpace(s) == "" {
-				return nil
-			}
-			return p.ValidateModel(s)
+	// Always provider-specific, not gated on whether the provider has a
+	// concrete default: opencode requires the provider/model shape whether or
+	// not anything is pinned, and blank is accepted regardless, matching
+	// "leave blank for the default" below. For copilot and pi this is the
+	// same check validateOptionalModel already ran on non-blank input.
+	validator := func(s string) error {
+		if strings.TrimSpace(s) == "" {
+			return nil
 		}
+		return p.ValidateModel(s)
 	}
 	// The picker calls the empty choice "Nav default" when the provider has
 	// one, so this prompt has to say the same thing. Saying "agent default"
