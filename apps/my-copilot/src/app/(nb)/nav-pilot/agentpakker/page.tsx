@@ -147,7 +147,7 @@ const KLIENTER = `{
     "opencode": {
       "primaryAgents": ["grillmester"],
       "compatibility": ">=1.18.20,<2",
-      "defaultModel": "github-copilot/auto"
+      "defaultModel": "github-copilot/claude-sonnet-4.6"
     },
     "pi": {
       "primaryAgents": ["grillmester"]
