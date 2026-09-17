@@ -134,6 +134,9 @@ func ResolvedModelNotice(client string, r domain.ResolvedConfig) string {
 //     path does substitute the built-in default for an empty model, but it only
 //     ever runs under the built-in agentpakke, which declares a model rather
 //     than "inherit": only the staged path sets another one.
+//   - a declared opencode model runs through ToOpenCodeModel, same as what the
+//     launch itself sends, so a bare id or the legacy auto alias is reported
+//     as what actually launches rather than what the pakke wrote down.
 func resolvedModelOrigin(client string, r domain.ResolvedConfig) (model, origin string) {
 	if !clientForwardsModel(client) {
 		return "", ""
@@ -145,6 +148,9 @@ func resolvedModelOrigin(client string, r domain.ResolvedConfig) (model, origin 
 		return r.Model, "your setting"
 	}
 	if declared := pakkeDeclaredModel(client); declared != "" {
+		if client == "opencode" {
+			declared = ToOpenCodeModel(declared)
+		}
 		return declared, source.ActivePakke().Name + " default"
 	}
 	return "", ""
