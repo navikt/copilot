@@ -91,7 +91,7 @@ Veiviseren viser en **velger** med Nav-kurerte modeller per provider
 - opencode: `knownOpenCodeModels` — Nav-anbefalt `github-copilot/gpt-5.6-luna` som standard.
   Ikke `github-copilot/auto`: opencodes chat-API har ingen auto-routing, `auto` er et
   Copilot-CLI-internt konsept bak et sesjonsendepunkt opencode aldri kaller, så en
-  provider-kvalifisert `github-copilot/auto` når opencode som en bokstavelig
+  provider-kvalifisert `github-copilot/auto` behandles av opencode som en bokstavelig
   modell-id og avvises.
 
 Ved oppstart med `--client opencode` normaliseres **CLI-overstyringen** `--model`
