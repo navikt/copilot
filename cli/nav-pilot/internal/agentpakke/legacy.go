@@ -60,15 +60,16 @@ func SynthesizeLegacy(collection string) *Manifest {
 			// reachable through it rather than selectable directly.
 			//
 			// DefaultModel is [InheritModel] rather than a model id, and that
-			// is a decision, not a placeholder. Copilot's routing comment in
-			// internal/provider (OpenCodeDefaultModel) prefers letting Copilot
-			// Auto follow the current cost/quality frontier over pinning a
-			// model, and a Tier 1 copilot launch has always emitted no --model
-			// at all when the user pinned none. "inherit" is the value that
-			// says exactly that: the declaration point now exists for both
-			// tiers and for both clients, and no launch argument changes.
-			// Picking a concrete id belongs to whoever owns the routing
-			// decision, in a commit that is about the routing decision.
+			// is a decision, not a placeholder: a Tier 1 copilot launch has
+			// always emitted no --model at all when the user pinned none, and
+			// "inherit" is the value that says exactly that. Copilot CLI's own
+			// "auto" already follows its cost/quality frontier without
+			// nav-pilot naming a model — unlike opencode below, which has no
+			// such routing and must be pinned to a concrete id. The
+			// declaration point now exists for both tiers and for both
+			// clients, and no launch argument changes. Picking a concrete id
+			// for copilot belongs to whoever owns that routing decision, in a
+			// commit that is about the routing decision.
 			"copilot": {
 				PrimaryAgents: []string{"nav-pilot"},
 				DefaultModel:  InheritModel,
