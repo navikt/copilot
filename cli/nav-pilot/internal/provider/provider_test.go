@@ -95,8 +95,8 @@ func TestKnownModelHelpers(t *testing.T) {
 	if KnownCopilotModelIDs() == "" {
 		t.Error("KnownCopilotModelIDs() = empty")
 	}
-	if !IsKnownOpenCodeModel(OpenCodeDefaultModel) {
-		t.Error("IsKnownOpenCodeModel(default) = false")
+	if !IsKnownOpenCodeModel("github-copilot/claude-opus-4.8") {
+		t.Error("IsKnownOpenCodeModel(github-copilot/claude-opus-4.8) = false")
 	}
 	if KnownOpenCodeModelIDs() == "" {
 		t.Error("KnownOpenCodeModelIDs() = empty")
@@ -155,8 +155,8 @@ func TestOpenCodeProvider_Metadata(t *testing.T) {
 	if p.ID() != "opencode" {
 		t.Errorf("ID() = %q, want opencode", p.ID())
 	}
-	if p.DefaultModel() != OpenCodeDefaultModel {
-		t.Errorf("DefaultModel() = %q, want %q", p.DefaultModel(), OpenCodeDefaultModel)
+	if got := p.DefaultModel(); got != "" {
+		t.Errorf("DefaultModel() = %q, want \"\" (opencode picks its own default)", got)
 	}
 }
 
@@ -187,7 +187,7 @@ func TestOpenCodeProvider_ValidateModel(t *testing.T) {
 
 func TestOpenCodeProvider_ModelAdvisory(t *testing.T) {
 	var p Provider = openCodeProvider{}
-	if msg := p.ModelAdvisory(OpenCodeDefaultModel); msg != "" {
+	if msg := p.ModelAdvisory("github-copilot/claude-opus-4.8"); msg != "" {
 		t.Errorf("ModelAdvisory(known) = %q, want empty", msg)
 	}
 	if msg := p.ModelAdvisory("anthropic/claude-3-5-sonnet"); msg == "" {

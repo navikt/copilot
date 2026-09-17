@@ -276,7 +276,7 @@ func TestStagedLaunchModel(t *testing.T) {
 			// before this was found) must not forward it to opencode as-is.
 			name:       "legacy github-copilot/auto declaration is normalized for opencode",
 			pakke:      concrete("github-copilot/auto"),
-			wantOpen:   []string{"--agent", "grillmester", "--model", OpenCodeDefaultModel},
+			wantOpen:   []string{"--agent", "grillmester"},
 			wantCopilo: []string{"--plugin-dir", staged.Dir, "--agent", "grillmester:grillmester", "--model", "github-copilot/auto"},
 		},
 	}
@@ -515,7 +515,7 @@ func TestStagedOpenCodeLeavesSharedConfigAlone(t *testing.T) {
 // vector.
 func TestGoldenCpltArgvWithoutCpltArgs(t *testing.T) {
 	spec := cpltLaunch{agent: "opencode", agentArgs: OpenCodeArgs(domain.ResolvedConfig{})}
-	want := []string{"--agent", "opencode", "--", "--model", "github-copilot/gpt-5.6-luna", "--agent", "nav-pilot"}
+	want := []string{"--agent", "opencode", "--", "--agent", "nav-pilot"}
 	if got := cpltArgv(spec); !slices.Equal(got, want) {
 		t.Errorf("cpltArgv\n got: %q\nwant: %q", got, want)
 	}
@@ -544,11 +544,11 @@ func TestOpenCodeDefaultModelFollowsPakke(t *testing.T) {
 		Name:    "grillmester",
 		Clients: map[string]agentpakke.ClientEntry{"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: agentpakke.InheritModel}},
 	})
-	if got := (openCodeProvider{}).DefaultModel(); got != OpenCodeDefaultModel {
-		t.Errorf("DefaultModel() under an inherit pakke = %q, want the built-in %q", got, OpenCodeDefaultModel)
+	if got := (openCodeProvider{}).DefaultModel(); got != "" {
+		t.Errorf("DefaultModel() under an inherit pakke = %q, want \"\" (opencode picks its own default)", got)
 	}
-	if got := ToOpenCodeModel(""); got != OpenCodeDefaultModel {
-		t.Errorf("ToOpenCodeModel(\"\") under an inherit pakke = %q, want the built-in %q", got, OpenCodeDefaultModel)
+	if got := ToOpenCodeModel(""); got != "" {
+		t.Errorf("ToOpenCodeModel(\"\") under an inherit pakke = %q, want \"\"", got)
 	}
 }
 

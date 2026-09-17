@@ -1240,11 +1240,11 @@ func TestIsKnownOpenCodeModel(t *testing.T) {
 		id   string
 		want bool
 	}{
-		{openCodeDefaultModel, true},
+		{"github-copilot/claude-sonnet-4.6", true},
 		{"github-copilot/claude-opus-4.8", true},
-		{strings.ToUpper(openCodeDefaultModel), true}, // case-insensitive
-		{"anthropic/claude-3-5-sonnet", false},        // direct provider, not in list
-		{"claude-sonnet-4.6", false},                  // bare copilot id, not opencode
+		{strings.ToUpper("github-copilot/claude-sonnet-4.6"), true}, // case-insensitive
+		{"anthropic/claude-3-5-sonnet", false},                      // direct provider, not in list
+		{"claude-sonnet-4.6", false},                                // bare copilot id, not opencode
 		{"", false},
 	}
 	for _, c := range cases {
@@ -1256,7 +1256,7 @@ func TestIsKnownOpenCodeModel(t *testing.T) {
 
 func TestKnownOpenCodeModelIDs(t *testing.T) {
 	got := knownOpenCodeModelIDs()
-	for _, want := range []string{openCodeDefaultModel, "github-copilot/claude-opus-4.8"} {
+	for _, want := range []string{"github-copilot/claude-sonnet-4.6", "github-copilot/claude-opus-4.8"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("knownOpenCodeModelIDs() = %q, missing %q", got, want)
 		}
