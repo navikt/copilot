@@ -464,6 +464,16 @@ func reportSandboxWaiver(w io.Writer, pakke *agentpakke.Manifest) {
 			fmt.Fprintf(w, "          %s\n", bold(command))
 		}
 	default:
+		// Approved is not the same as applied. The launch re-checks the record
+		// against the cplt running now, the cplt it was written under, and
+		// where it sits, so doctor asks the same question rather than reporting
+		// the record and calling it done.
+		if reason := providerpkg.WaiverBlockedReason(record); reason != "" {
+			fmt.Fprintf(w, "      %s Sandbox waiver is approved but not applied at launch\n", yellow("⚠"))
+			fmt.Fprintf(w, "          %s %s\n", dim("Hosts:"), strings.Join(hosts, ", "))
+			fmt.Fprintf(w, "          %s\n", safe(reason, proposalReasonWidth))
+			return
+		}
 		fmt.Fprintf(w, "      %s Sandbox waiver approved for %s\n", green("✓"), strings.Join(hosts, ", "))
 	}
 }

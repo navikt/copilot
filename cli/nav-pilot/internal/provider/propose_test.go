@@ -643,3 +643,88 @@ func TestReadGrantsThatAreNotOneNamedFileNeverReachTheLaunch(t *testing.T) {
 		t.Errorf("a grant that names no readable file reached the launch: %q", got)
 	}
 }
+
+// The built-in default is what stands in for a source that ships no manifest,
+// and it names itself "nav-pilot" whoever the source is. Since navikt/copilot's
+// own pakke proposes a waiver, that identity would otherwise let an approval
+// the user gave navikt/copilot apply to a launch of their own manifest-less
+// source, which never asked for anything.
+//
+// The launch of a real manifest is the same test from the other side: the pakke
+// was set from the source, so the approval applies.
+func TestDefaultPakkeNeverCarriesAnApprovalIntoAForeignLaunch(t *testing.T) {
+	scope := proposeEnv(t)
+	protectingCplt(t)
+
+	stock := agentpakke.Default()
+	proposal := stock.CpltProposal()
+	if proposal == nil {
+		t.Fatal("the built-in default proposes nothing, so this test pins nothing")
+	}
+	hosts := proposal.AllowPrivateDomains()
+	if err := artifacts.WriteProposalConsent(artifacts.ProposalConsent{
+		Scope: scope.Name, Root: scope.RootDir, Pakke: stock.Name,
+		Hash: proposal.Hash(), Approved: true, Hosts: hosts,
+		CpltStamp: minCpltStampProtectingNavPilotState,
+	}); err != nil {
+		t.Fatalf("writing the approval: %v", err)
+	}
+
+	// A manifest-less source: nothing was ever set, so the default stands in.
+	previous := source.ActivePakke()
+	source.SetActivePakke(nil)
+	t.Cleanup(func() { source.SetActivePakke(previous) })
+
+	if got := cpltProposalFlags(); len(got) != 0 {
+		t.Errorf("an approval for %s reached a launch running no manifest: %q", stock.Name, got)
+	}
+	legacy := BuildCopilotArgs("cplt", domain.ResolvedConfig{Persona: "nav-pilot"})
+	if slices.Contains(legacy, "--allow-private-domain") {
+		t.Errorf("an approval for %s reached the legacy vector of a manifest-less launch: %q", stock.Name, legacy)
+	}
+
+	// The same approval, on a launch that did set the pakke from its source.
+	source.SetActivePakke(stock)
+	got := cpltProposalFlags()
+	for _, host := range hosts {
+		if !slices.Contains(got, host) {
+			t.Errorf("the approval did not reach the launch running its own manifest: %q", got)
+		}
+	}
+}
+
+// doctor reports the effective state, so what it asks has to be the same
+// question the launch answers. An approval the launch refuses must not read as
+// approved anywhere.
+func TestWaiverBlockedReasonAgreesWithTheLaunch(t *testing.T) {
+	scope := proposeEnv(t)
+	proposal := activeProposal(t)
+	record := artifacts.ProposalConsent{
+		Scope: scope.Name, Root: scope.RootDir, Pakke: "nais-pilot",
+		Hash: proposal.Hash(), Approved: true, Hosts: proposal.AllowPrivateDomains(),
+		CpltStamp: minCpltStampProtectingNavPilotState,
+	}
+	if err := artifacts.WriteProposalConsent(record); err != nil {
+		t.Fatalf("writing the approval: %v", err)
+	}
+
+	stubCpltVersion(t, func() (string, error) { return cpltBeforeStateDeny, nil })
+	reason := WaiverBlockedReason(&record)
+	if reason == "" {
+		t.Fatal("a cplt that does not deny nav-pilot's state directory gave no reason")
+	}
+	if got := cpltProposalFlags(); len(got) != 0 {
+		t.Errorf("the launch applied a waiver it should have refused: %q", got)
+	}
+
+	protectingCplt(t)
+	if reason := WaiverBlockedReason(&record); reason != "" {
+		t.Errorf("a record the launch accepts was reported as blocked: %s", reason)
+	}
+	if got := cpltProposalFlags(); len(got) == 0 {
+		t.Error("the launch applied nothing for a record WaiverBlockedReason calls fine")
+	}
+	if WaiverBlockedReason(nil) != "" {
+		t.Error("no record is not a blocked record")
+	}
+}

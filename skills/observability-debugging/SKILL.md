@@ -38,6 +38,9 @@ Symptom
 
 ## Quick Access
 
+> Add `--fail-with-body` to every curl below. Without it a sandbox or auth denial goes straight into `jq` and comes back as `parse error: Invalid numeric literal`, which sends you looking at your query instead of at the rule that stopped it. See [When a query returns nothing useful](#when-a-query-returns-nothing-useful).
+
+
 ### Mimir — Metrics API
 
 ```bash
