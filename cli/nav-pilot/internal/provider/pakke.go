@@ -88,7 +88,11 @@ func PrimaryAgentFor(client, context string) string {
 // calling ToOpenCodeModel directly, because its own "" and "auto" branches
 // call back into this function — that would recurse.
 func openCodeDefaultModel() string {
-	model := source.ActivePakke().DefaultModel("opencode")
+	// Trimmed before the sentinel comparisons: an untrimmed match (say,
+	// " auto") falls through to ToOpenCodeModel, which trims and matches one
+	// of the same sentinels, and calls back into this function with the same
+	// untrimmed declaration — infinite recursion instead of an empty return.
+	model := strings.TrimSpace(source.ActivePakke().DefaultModel("opencode"))
 	if model == "" || model == agentpakke.InheritModel || model == "auto" || model == legacyOpenCodeAutoAlias {
 		return ""
 	}

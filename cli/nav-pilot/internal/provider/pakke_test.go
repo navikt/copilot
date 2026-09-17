@@ -102,6 +102,24 @@ func TestActivePakkeBareAutoIsNormalized(t *testing.T) {
 	}
 }
 
+// TestActivePakkeUntrimmedAutoDoesNotRecurse covers a declaration the schema
+// allows but the sentinel comparisons would otherwise miss: an untrimmed
+// match falls through to ToOpenCodeModel, which trims and calls back into
+// openCodeDefaultModel with the same untrimmed value — infinite recursion
+// instead of "". This must terminate.
+func TestActivePakkeUntrimmedAutoDoesNotRecurse(t *testing.T) {
+	t.Cleanup(func() { SetActivePakke(nil) })
+	SetActivePakke(&agentpakke.Manifest{
+		Name: "legacy",
+		Clients: map[string]agentpakke.ClientEntry{
+			"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "  github-copilot/auto  "},
+		},
+	})
+	if got := ToOpenCodeModel(""); got != "" {
+		t.Errorf("ToOpenCodeModel(\"\") = %q, want \"\"", got)
+	}
+}
+
 // TestBuildCopilotArgsPakkeModel pins the Tier 1 copilot fallback added
 // alongside the copilot DefaultModel declaration: the legacy launch consults
 // the active agentpakke exactly like the staged Tier 2 path
