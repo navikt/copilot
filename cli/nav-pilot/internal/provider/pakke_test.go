@@ -219,6 +219,31 @@ func TestResolvedModelNotice(t *testing.T) {
 			client: "pi",
 			want:   "Session model: claude-opus-5 (grillmester default)",
 		},
+		{
+			// A pakke still declaring the legacy alias must be reported as
+			// what actually launches, not the broken id it wrote down.
+			name: "a pakke's legacy auto declaration is normalized",
+			pakke: &agentpakke.Manifest{
+				Name: "grillmester",
+				Clients: map[string]agentpakke.ClientEntry{
+					"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "github-copilot/auto"},
+				},
+			},
+			client: "opencode",
+			want:   "Session model: " + OpenCodeDefaultModel + " (grillmester default)",
+		},
+		{
+			// A bare id also gets the provider prefix, same as a user setting.
+			name: "a pakke's bare declaration gains the provider prefix",
+			pakke: &agentpakke.Manifest{
+				Name: "grillmester",
+				Clients: map[string]agentpakke.ClientEntry{
+					"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "claude-opus-5"},
+				},
+			},
+			client: "opencode",
+			want:   "Session model: github-copilot/claude-opus-5 (grillmester default)",
+		},
 	}
 
 	for _, tt := range tests {
