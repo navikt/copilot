@@ -124,12 +124,12 @@ func TestGoldenOpenCodeArgs(t *testing.T) {
 		{
 			name:     "zero config",
 			resolved: domain.ResolvedConfig{},
-			want:     []string{"--model", "github-copilot/auto", "--agent", "nav-pilot"},
+			want:     []string{"--model", "github-copilot/gpt-5.6-luna", "--agent", "nav-pilot"},
 		},
 		{
 			name:     "explicit auto model",
 			resolved: domain.ResolvedConfig{Model: "auto"},
-			want:     []string{"--model", "github-copilot/auto", "--agent", "nav-pilot"},
+			want:     []string{"--model", "github-copilot/gpt-5.6-luna", "--agent", "nav-pilot"},
 		},
 		{
 			name:     "bare copilot model id gains the provider prefix",
@@ -144,7 +144,7 @@ func TestGoldenOpenCodeArgs(t *testing.T) {
 		{
 			name:     "plan mode selects opencode's built-in plan agent",
 			resolved: domain.ResolvedConfig{Mode: "plan"},
-			want:     []string{"--model", "github-copilot/auto", "--agent", "plan"},
+			want:     []string{"--model", "github-copilot/gpt-5.6-luna", "--agent", "plan"},
 		},
 		{
 			name: "every field set",
@@ -169,7 +169,7 @@ func TestGoldenOpenCodeArgs(t *testing.T) {
 		{
 			name:     "warning log level maps to WARN",
 			resolved: domain.ResolvedConfig{LogLevel: "warning"},
-			want:     []string{"--model", "github-copilot/auto", "--agent", "nav-pilot", "--log-level", "WARN"},
+			want:     []string{"--model", "github-copilot/gpt-5.6-luna", "--agent", "nav-pilot", "--log-level", "WARN"},
 		},
 	}
 
@@ -187,11 +187,11 @@ func TestGoldenOpenCodeArgs(t *testing.T) {
 // alongside the client args above: together they are the full opencode
 // invocation LaunchOpenCode builds.
 func TestGoldenOpenCodeLaunchAgent(t *testing.T) {
-	if got := (openCodeProvider{}).DefaultModel(); got != "github-copilot/auto" {
-		t.Errorf("opencode DefaultModel() = %q, want %q", got, "github-copilot/auto")
+	if got := (openCodeProvider{}).DefaultModel(); got != "github-copilot/gpt-5.6-luna" {
+		t.Errorf("opencode DefaultModel() = %q, want %q", got, "github-copilot/gpt-5.6-luna")
 	}
-	if got := ToOpenCodeModel(""); got != "github-copilot/auto" {
-		t.Errorf("ToOpenCodeModel(\"\") = %q, want %q", got, "github-copilot/auto")
+	if got := ToOpenCodeModel(""); got != "github-copilot/gpt-5.6-luna" {
+		t.Errorf("ToOpenCodeModel(\"\") = %q, want %q", got, "github-copilot/gpt-5.6-luna")
 	}
 }
 
@@ -208,7 +208,7 @@ func TestGoldenOpenCodeLaunchAgent(t *testing.T) {
 // launch that goes through cpltArgv — opencode, pi, and both staged clients.
 func TestGoldenCpltArgvNonInteractive(t *testing.T) {
 	spec := cpltLaunch{agent: "opencode", agentArgs: OpenCodeArgs(domain.ResolvedConfig{})}
-	interactive := []string{"--agent", "opencode", "--", "--model", "github-copilot/auto", "--agent", "nav-pilot"}
+	interactive := []string{"--agent", "opencode", "--", "--model", "github-copilot/gpt-5.6-luna", "--agent", "nav-pilot"}
 
 	if got := withCpltConfirmation(cpltArgv(spec), true); !slices.Equal(got, interactive) {
 		t.Errorf("with a terminal the vector must not change\n got: %q\nwant: %q", got, interactive)
@@ -315,7 +315,7 @@ func TestIsTerminalRejectsDevNull(t *testing.T) {
 // non-interactive path needed them: `nav-pilot -- run "…"` resolved the request
 // and then dropped it, and opencode started its TUI instead.
 func TestGoldenOpenCodeAgentArgs(t *testing.T) {
-	bind := []string{"--model", "github-copilot/auto", "--agent", "nav-pilot"}
+	bind := []string{"--model", "github-copilot/gpt-5.6-luna", "--agent", "nav-pilot"}
 
 	tests := []struct {
 		name  string

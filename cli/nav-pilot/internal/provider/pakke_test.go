@@ -148,7 +148,7 @@ func TestResolvedModelNotice(t *testing.T) {
 			name:   "opencode on the Nav default",
 			pakke:  navPakke,
 			client: "opencode",
-			want:   "Session model: github-copilot/auto (nav-pilot default)",
+			want:   "Session model: github-copilot/gpt-5.6-luna (nav-pilot default)",
 		},
 		{
 			name:   "opencode with the user's own model",
