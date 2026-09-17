@@ -423,7 +423,7 @@ function IntroductionSection() {
             er allerede på i <code className="font-mono text-xs">standard</code>, så det strict legger til er
             nettverket: tvungen proxy, <code className="font-mono text-xs">git_guard</code> som blokkerer i stedet for å
             advare, og <code className="font-mono text-xs">proxy.default_allowlist</code>. Den siste er den viktige.
-            Bare cplt sin innebygde vertsliste, pluss det{" "}
+            Bare cplt sin innebygde host-liste, pluss det{" "}
             <code className="font-mono text-xs">proxy.allowed_domains</code> peker på, er nåbart. Alt annet blokkeres.
           </BodyLong>
           <Box background="warning-soft" borderRadius="8" padding="space-16">
@@ -432,22 +432,22 @@ function IntroductionSection() {
               Navs. Setter du presetet for hånd, slutter nav-pilot sin telemetri å komme fram, og skills som{" "}
               <code className="font-mono text-xs">aksel-builder</code>,{" "}
               <code className="font-mono text-xs">observability-debugging</code> og{" "}
-              <code className="font-mono text-xs">nav-auth</code> mister vertene de er bygget rundt, uten at noe på
+              <code className="font-mono text-xs">nav-auth</code> mister hostene de er bygget rundt, uten at noe på
               skjermen forteller deg hvorfor.
             </BodyLong>
           </Box>
           <BodyLong style={{ color: "#475569" }}>Sett det derfor via nav-pilot:</BodyLong>
           <CodeBlock>{"nav-pilot config     # velg raden «cplt security posture»"}</CodeBlock>
           <BodyLong style={{ color: "#475569" }}>
-            Den skriver vertslista til <code className="font-mono text-xs">~/.nav-pilot/cplt-allowed-domains.txt</code>,
+            Den skriver host-lista til <code className="font-mono text-xs">~/.nav-pilot/cplt-allowed-domains.txt</code>,
             peker <code className="font-mono text-xs">proxy.allowed_domains</code> dit, og setter så presetet, i den
-            rekkefølgen, slik at låsen aldri rekker å tre i kraft uten vertene. Har du allerede en egen{" "}
+            rekkefølgen, slik at låsen aldri rekker å tre i kraft uten hostene. Har du allerede en egen{" "}
             <code className="font-mono text-xs">proxy.allowed_domains</code>, lar nav-pilot den være i fred og sier fra
-            at du må ta med vertene selv. cplt-config er personlig, så nav-pilot setter den aldri stilltiende, og nøkler
+            at du må ta med hostene selv. cplt-config er personlig, så nav-pilot setter den aldri stilltiende, og nøkler
             du har satt selv gjelder fortsatt foran presetet.
           </BodyLong>
           <BodyLong style={{ color: "#475569" }}>
-            Fila er en fullstendig liste, ikke bare Nav-vertene, fordi{" "}
+            Fila er en fullstendig liste, ikke bare Nav-hostene, fordi{" "}
             <code className="font-mono text-xs">proxy.allowed_domains</code> blokkerer alt utenfor seg selv uansett hva{" "}
             <code className="font-mono text-xs">proxy.default_allowlist</code> står på, og cplt sin innebygde liste er
             per agent: bare copilot-lista har GitHub og Copilot i seg, mens opencode har{" "}
@@ -490,15 +490,15 @@ function IntroductionSection() {
           <BodyLong style={{ color: "#475569" }}>
             <code className="font-mono text-xs">proxy.log_level</code> styrer hva cplt sin proxy skriver til stderr.
             Standardverdien er <code className="font-mono text-xs">none</code>, men cplt hever den selv til{" "}
-            <code className="font-mono text-xs">blocked</code> så snart en vertsliste er aktiv. Sikkerhetsnivået
-            nav-pilot anbefaler skriver alltid vertslistefila, så på strict er{" "}
+            <code className="font-mono text-xs">blocked</code> så snart en host-liste er aktiv. Sikkerhetsnivået
+            nav-pilot anbefaler skriver alltid host-lista til fil, så på strict er{" "}
             <code className="font-mono text-xs">blocked</code> allerede i kraft uten at du setter noe.
           </BodyLong>
           <BodyLong style={{ color: "#475569" }}>
             Kjører du <code className="font-mono text-xs">standard</code> uten egen{" "}
-            <code className="font-mono text-xs">proxy.allowed_domains</code>, er det ingen vertsliste å heve for, og
+            <code className="font-mono text-xs">proxy.allowed_domains</code>, er det ingen host-liste å heve for, og
             proxyen tier da om alle andre blokkeringer og feil også: treff i cplt sin egen blokkliste, stengte porter,
-            verter som slår opp til private eller link-local IP-er, og oppslag som feiler. Vil du se dem, setter du
+            hosts som slår opp til private eller link-local IP-er, og oppslag som feiler. Vil du se dem, setter du
             nivået selv:
           </BodyLong>
           <CodeBlock>{"cplt config set proxy.log_level blocked"}</CodeBlock>

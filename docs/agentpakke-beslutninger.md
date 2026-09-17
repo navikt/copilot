@@ -378,7 +378,7 @@ Assetet binder pakkenavn, versjon og kilde-SHA i selve releasen, og en immutable
 
 **En launch nekter å pinne om en pinne som følger releases.** Launchen resolver standardgrenen. Mangler revisjonen på disk, ville `autoPin` pinnet HEAD og dermed avsluttet abonnementet uten å si fra. Den nekter og viser til `sync --apply`, som gjenoppretter releasen.
 
-**Assetets URL må være repoets eget asset-endepunkt i API-et**, fordi tokenet sendes med nedlastingen. GitHub-klienten i Go fjerner `Authorization` ved redirect til et annet vertsnavn, og det er denne egenskapen som holder tokenet unna nedlastingsverten. Testen redirecter til et annet vertsnavn og kontrollerer det.
+**Assetets URL må være repoets eget asset-endepunkt i API-et**, fordi tokenet sendes med nedlastingen. GitHub-klienten i Go fjerner `Authorization` ved redirect til en annen host, og det er denne egenskapen som holder tokenet unna hosten som serverer nedlastingen. Testen redirecter til en annen host og kontrollerer det.
 
 **Nedgraderingsvern med GitHubs compare, ikke versjonssammenligning.** Eldre state har ingen pakkeversjon (`Version` er nav-pilots versjon for eksterne kilder), så installert revisjon kan bare sammenlignes som commit. `ahead` tilbys, `identical` er oppdatert, `behind` og `diverged` tilbys ikke.
 
