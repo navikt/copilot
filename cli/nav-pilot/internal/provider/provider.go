@@ -284,6 +284,12 @@ func (openCodeProvider) ValidateModel(model string) error {
 }
 
 func (p openCodeProvider) ModelAdvisory(model string) string {
+	// The legacy alias isn't in knownOpenCodeModels, but ToOpenCodeModel maps
+	// it to the Nav default rather than passing it through, so it must not
+	// get the "will be passed as-is" warning below — that would be false.
+	if strings.TrimSpace(model) == legacyOpenCodeAutoAlias {
+		return ""
+	}
 	if p.ValidateModel(model) != nil || isKnownOpenCodeModel(model) {
 		return ""
 	}

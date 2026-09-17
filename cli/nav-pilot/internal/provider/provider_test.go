@@ -196,6 +196,9 @@ func TestOpenCodeProvider_ModelAdvisory(t *testing.T) {
 	if msg := p.ModelAdvisory("claude-opus-4.8"); msg != "" {
 		t.Errorf("ModelAdvisory(invalid shape) = %q, want empty", msg)
 	}
+	if msg := p.ModelAdvisory("github-copilot/auto"); msg != "" {
+		t.Errorf("ModelAdvisory(legacy alias) = %q, want empty — it maps to the default, it is not passed as-is", msg)
+	}
 }
 
 func TestOpenCodeProvider_UnsupportedConfigWarnings(t *testing.T) {
