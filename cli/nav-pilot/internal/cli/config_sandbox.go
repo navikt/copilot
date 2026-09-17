@@ -413,6 +413,19 @@ var navOwnDomains = []string{
 	// skills/observability-debugging/SKILL.md.
 	// grafana.nav.cloud.nais.io is deliberately absent: the skill presents it
 	// as a browser link for the human, never as something the agent fetches.
+	//
+	// These four are the only entries in this list that need a second thing as
+	// well. They resolve to private addresses over naisdevice (10.43.0.60 for
+	// Mimir and Loki, 10.6.8.200 and 10.7.8.200 for Tempo), and cplt's
+	// DNS-rebinding guard refuses a private-resolving host after DNS regardless
+	// of this allowlist: "Resolved to a private IP, blocked by cplt". Lifting
+	// that is proxy.allow_private_domains, which the pakke asks the user to
+	// approve rather than nav-pilot writing it: .nav-pilot/agentpakke.json,
+	// policies.propose.cplt. Held equal to this list by
+	// TestObservabilityHostsMatchTheProposal.
+	//
+	// collector-internet.nav.cloud.nais.io above resolves publicly, so it needs
+	// this list and nothing more.
 	"mimir.nav.cloud.nais.io",
 	"loki.nav.cloud.nais.io",
 	"tempo.dev-gcp.nav.cloud.nais.io",

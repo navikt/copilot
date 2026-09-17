@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"slices"
 	"sort"
@@ -417,4 +418,52 @@ func safeJoin(items []string, max int) string {
 // approval straight back up (#861 review).
 func forgetProposalConsent(scope *InstallScope) (int, error) {
 	return artifacts.RemoveProposalConsentsIn(scope)
+}
+
+// reportSandboxWaiver is doctor's row for a pakke's private-domain waiver.
+//
+// It exists because of how the missing waiver fails. cplt blocks a host that
+// resolved to a private IP after DNS, so the agent gets an HTTP 403 with
+// "Resolved to a private IP, blocked by cplt" in the body — not a timeout, not
+// a DNS error. Piped through `jq`, as every curl in
+// skills/observability-debugging is, that body becomes a parse error, and the
+// query looks like the network is down or the PromQL is wrong. Both the human
+// and the model then go looking in the wrong place. Naming it here, before
+// anything is queried, is cheaper than recognising it afterwards.
+//
+// Reported for the pakke passed in, not for every pakke on the machine: doctor
+// resolves no source and clones nothing, so the manifest it can speak for is
+// the built-in default. A pakke installed from elsewhere answers its own
+// question at install, where the prompt is.
+func reportSandboxWaiver(w io.Writer, pakke *agentpakke.Manifest) {
+	proposal := pakke.CpltProposal()
+	if proposal == nil {
+		return
+	}
+	hosts := proposal.AllowPrivateDomains()
+	if len(hosts) == 0 {
+		return
+	}
+	record, err := artifacts.ApprovedProposal(pakke.Name, proposal.Hash())
+	switch {
+	case err != nil:
+		fmt.Fprintf(w, "      %s Could not read whether the %s sandbox waiver is approved: %v\n",
+			yellow("⚠"), bold(safe(pakke.Name, 64)), err)
+	case record == nil:
+		fmt.Fprintf(w, "      %s Sandbox waiver for %d host(s) is not approved\n", yellow("⚠"), len(hosts))
+		fmt.Fprintf(w, "          %s %s\n", dim("Hosts:"), strings.Join(hosts, ", "))
+		fmt.Fprintf(w, "          Those names resolve to private addresses over naisdevice, so cplt answers\n")
+		fmt.Fprintf(w, "          %s. Queries to them fail with that, not with a\n", bold("403 Resolved to a private IP"))
+		fmt.Fprintf(w, "          timeout, so a naisdevice that is merely disconnected looks the same until you read the body.\n")
+		// `nav-pilot sync` without --apply is a dry run, and a dry run asks
+		// nothing and records nothing. Naming the flag is the difference
+		// between advice that works and advice that looks like it did.
+		fmt.Fprintf(w, "          %s Run %s and answer the question, or allow it yourself:\n",
+			yellow("Solution:"), bold("nav-pilot sync --apply"))
+		for _, command := range cpltSetupCommands(hosts, proposal.AllowRead()) {
+			fmt.Fprintf(w, "          %s\n", bold(command))
+		}
+	default:
+		fmt.Fprintf(w, "      %s Sandbox waiver approved for %s\n", green("✓"), strings.Join(hosts, ", "))
+	}
 }

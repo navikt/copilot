@@ -284,6 +284,19 @@ In Grafana Explore:
 2. Click "Logs for this span" on a trace span → jump to Loki with time filter
 3. Use "Split" view to correlate metrics and logs side-by-side
 
+## When a query returns nothing useful
+
+Every curl above is piped to `jq`, so a failure arrives as `parse error: Invalid numeric literal` rather than as an error you can read. Re-run the same command without the pipe, and add `-w '\n%{http_code}'`, before touching the PromQL or the LogQL. The body says which of these it is.
+
+| What comes back | What it is | What fixes it |
+|---|---|---|
+| curl exits non-zero, or the request hangs until it times out | naisdevice is not connected. These hosts are only reachable through it. | `nais device connect`, then `nais device status` |
+| `403` with `Resolved to a private IP, blocked by cplt` | The sandbox's DNS-rebinding guard. `mimir`, `loki` and the two `tempo` hosts resolve to private addresses, and cplt refuses a private-resolving host unless it is waived. | `nav-pilot sync --apply` and answer the sandbox question, or `cplt config set proxy.allow_private_domains mimir.nav.cloud.nais.io,loki.nav.cloud.nais.io,tempo.dev-gcp.nav.cloud.nais.io,tempo.prod-gcp.nav.cloud.nais.io`. `nav-pilot doctor` says whether it is in force. |
+| `403` with `Domain not in allowlist` | The host is outside `proxy.allowed_domains`. Only the four hosts above are listed, so this is a fifth host, and adding one is a decision somebody makes on purpose. | Raise it in navikt/copilot rather than widening the allowlist locally |
+| `401` | `X-Scope-OrgID` did not reach the server. There is no default org. | Send the header. A proxy that strips it is the other cause. |
+
+The first three all look like "the network is down" from inside a jq pipeline, and they have three different fixes. Read the body.
+
 ## Boundaries
 
 ### ✅ Always
