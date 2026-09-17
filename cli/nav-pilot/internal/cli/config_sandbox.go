@@ -316,8 +316,10 @@ var cpltEnforcement = func() *cpltCheckReport {
 // `Agent::default_allowed_domains`). nav-pilot launches copilot, opencode and
 // pi through cplt, and only the copilot list carries GitHub and Copilot
 // infrastructure. opencode gets `opencode.ai` and `models.dev`; pi gets the
-// package registries and nothing else. An opencode session on nav-pilot's
-// default `github-copilot/gpt-5.6-luna` model could not reach a model host at all.
+// package registries and nothing else. Every opencode launch goes through the
+// GitHub Copilot provider, so without the Copilot entries Nav adds below, no
+// opencode session could reach a model host at all, regardless of which
+// model is selected.
 //
 // Every Nav entry below is something nav-pilot or an artifact it installs
 // actually fetches, with the call site named. Hosts that appear in the
