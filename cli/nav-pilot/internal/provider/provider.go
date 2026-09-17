@@ -111,9 +111,15 @@ var knownOpenCodeModels = func() []domain.ModelChoice {
 // github-copilot provider that cplt connects opencode to. Empty or "auto" use
 // the Nav default; ids that already carry a provider ("/") pass through; bare
 // Copilot-style ids (e.g. "claude-sonnet-4.6") gain the github-copilot prefix.
+//
+// "github-copilot/auto" is also treated as unset: it was the documented Nav
+// default before opencode's rejection of "auto" was discovered, so configs
+// written against that guidance still carry it. Without this, those configs
+// would pass it straight through as an already-qualified id and keep hitting
+// the exact error this fix resolves.
 func ToOpenCodeModel(model string) string {
 	model = strings.TrimSpace(model)
-	if model == "" || model == "auto" {
+	if model == "" || model == "auto" || model == openCodeProviderPrefix+"auto" {
 		return openCodeDefaultModel()
 	}
 	// Before the provider-qualified pass-through below: a local model id is
