@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
@@ -249,6 +250,13 @@ func cmdDoctor() error {
 		default:
 			fmt.Printf("      %s Sandbox preset is %s\n", green("✓"), preset)
 		}
+
+		// The waiver the pakke asks for, and whether this scope granted it.
+		// Placed with the allowlist rather than with the pakke sections
+		// because it is the same question from the other side: the allowlist
+		// decides whether a host may be reached at all, this decides whether
+		// a host that resolves privately may be reached once DNS has answered.
+		reportSandboxWaiver(os.Stdout, agentpakke.Default())
 
 		// The persona is pinned by nav-pilot itself, not by user configuration:
 		// BuildCopilotArgs unconditionally emits `cplt --agent copilot --

@@ -19,6 +19,21 @@
       "primaryAgents": ["nav-pilot"]
     }
   },
+  "policies": {
+    "propose": {
+      "cplt": {
+        "reason": "The observability-debugging skill queries Mimir, Loki and Tempo with curl. Those four hosts resolve to private addresses over naisdevice, so cplt refuses every one of them before the request leaves the sandbox. Without this waiver each metrics, logs and trace query in that skill returns a 403 mid-query, where it reads as a broken PromQL rather than as a sandbox rule.",
+        "proxy": {
+          "allow_private_domains": [
+            "mimir.nav.cloud.nais.io",
+            "loki.nav.cloud.nais.io",
+            "tempo.dev-gcp.nav.cloud.nais.io",
+            "tempo.prod-gcp.nav.cloud.nais.io"
+          ]
+        }
+      }
+    }
+  },
   "layout": {
     "agents": "agents",
     "skills": "skills",

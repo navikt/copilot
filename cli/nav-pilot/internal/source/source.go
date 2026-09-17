@@ -34,6 +34,7 @@ var activePakke = agentpakke.Default()
 // manifest restores the built-in default. Call it through
 // provider.SetActivePakke.
 func SetActivePakke(m *agentpakke.Manifest) {
+	activePakkeDeclared = m != nil
 	if m == nil {
 		m = agentpakke.Default()
 	}
@@ -42,6 +43,22 @@ func SetActivePakke(m *agentpakke.Manifest) {
 
 // ActivePakke returns the active agentpakke. Never nil.
 func ActivePakke() *agentpakke.Manifest { return activePakke }
+
+// activePakkeDeclared records whether [SetActivePakke] was given a manifest
+// loaded from a source, rather than the built-in default standing in.
+var activePakkeDeclared bool
+
+// ActivePakkeIsDeclared reports whether the active agentpakke came off disk
+// with the source this launch is running, rather than being the built-in
+// default.
+//
+// The distinction only matters where a manifest asks for something outside
+// itself. The built-in default names itself "nav-pilot" for any source that
+// ships no manifest at all, so a launch of someone's own manifest-less source
+// reads the same identity, and a consent record keyed on pakke and hash would
+// match an approval the user gave navikt/copilot. Content can be inherited
+// that way; a sandbox waiver must not be. See provider's cpltProposalFlags.
+func ActivePakkeIsDeclared() bool { return activePakkeDeclared }
 
 // Source holds a resolved source directory and optional temp dir to clean up.
 type Source struct {

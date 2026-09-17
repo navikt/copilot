@@ -1,6 +1,9 @@
 package agentpakke
 
-import "regexp"
+import (
+	"encoding/json"
+	"regexp"
+)
 
 // DefaultName is the identity of the synthesized manifest that represents
 // navikt/copilot's own content.
@@ -91,7 +94,59 @@ func SynthesizeLegacy(collection string) *Manifest {
 			Prompts:      "prompts",
 			Hooks:        "hooks",
 		},
+		Policies: &Policies{Propose: &Propose{Cplt: defaultCpltProposal()}},
 	}
+}
+
+// defaultCpltProposalJSON is the sandbox proposal navikt/copilot's own pakke
+// makes, byte-for-byte as .nav-pilot/agentpakke.json spells it.
+//
+// The four hosts are the ones skills/observability-debugging curls, and they
+// are named in full rather than as the suffix `cloud.nais.io`, which
+// [is_domain_match] in cplt would also accept. The suffix would waive the
+// DNS-rebinding guard for every host under every Nais tenant; these four are
+// what the skill actually queries, so they are what the pakke asks for. A fifth
+// one is a decision somebody makes on purpose, here, rather than something a
+// new hostname inherits.
+//
+// Only Mimir, Loki and Tempo. grafana.nav.cloud.nais.io and
+// console.nav.cloud.nais.io appear in the same artifacts but resolve publicly
+// and are handed to a human to open in a browser, never fetched, so neither
+// needs a waiver. collector-internet.nav.cloud.nais.io, which nav-pilot itself
+// posts telemetry to, resolves publicly too — it needs the allowlist entry it
+// already has in internal/cli/config_sandbox.go and nothing more.
+//
+// The allowlist and this are different gates and both have to pass: cplt
+// refuses a host outside `proxy.allowed_domains` before DNS
+// ("Domain not in allowlist"), and refuses a host that resolves to a private IP
+// after DNS unless `proxy.allow_private_domains` covers it ("Resolved to a
+// private IP"). navOwnDomains carries these four for the first gate; this block
+// asks the user for the second. TestObservabilityHostsMatchTheProposal holds
+// the two lists together.
+const defaultCpltProposalJSON = `{
+  "reason": "The observability-debugging skill queries Mimir, Loki and Tempo with curl. Those four hosts resolve to private addresses over naisdevice, so cplt refuses every one of them before the request leaves the sandbox. Without this waiver each metrics, logs and trace query in that skill returns a 403 mid-query, where it reads as a broken PromQL rather than as a sandbox rule.",
+  "proxy": {
+    "allow_private_domains": [
+      "mimir.nav.cloud.nais.io",
+      "loki.nav.cloud.nais.io",
+      "tempo.dev-gcp.nav.cloud.nais.io",
+      "tempo.prod-gcp.nav.cloud.nais.io"
+    ]
+  }
+}`
+
+// defaultCpltProposal decodes [defaultCpltProposalJSON] through the same
+// UnmarshalJSON a loaded manifest goes through, so the synthesized proposal
+// carries the verbatim block a hash is taken over and compares equal to the
+// committed manifest's.
+func defaultCpltProposal() *CpltProposal {
+	var p CpltProposal
+	if err := json.Unmarshal([]byte(defaultCpltProposalJSON), &p); err != nil {
+		// Unreachable: the literal is a constant in this file and the test
+		// suite decodes it on every run.
+		panic("agentpakke: default cplt proposal does not decode: " + err.Error())
+	}
+	return &p
 }
 
 // legacyCollections are the five curated collections navikt/copilot shipped

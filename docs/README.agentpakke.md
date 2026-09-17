@@ -235,6 +235,27 @@ Andre nøkler inne i `cplt`-blokka er ikke feil, men de er inerte: nav-pilot nav
 
 Waiveren er DNS-rebinding-vernet, ikke en tillatelse. Den navngir verter én om gangen, blokklista og tillatelseslista gjelder fortsatt, den åpner ingen port, gir ingen sti og kjører ingenting. Verste utfall er at agenten når en intern tjeneste brukerens egen naisdevice alt når.
 
+### Hva nav-pilots egen pakke foreslår
+
+Standardpakka i dette repoet foreslår fire verter, og bare dem:
+
+```
+mimir.nav.cloud.nais.io
+loki.nav.cloud.nais.io
+tempo.dev-gcp.nav.cloud.nais.io
+tempo.prod-gcp.nav.cloud.nais.io
+```
+
+Det er de fire `skills/observability-debugging` faktisk curler. `grafana.nav.cloud.nais.io` og `console.nav.cloud.nais.io` står i de samme artefaktene, men er lenker et menneske åpner i nettleser, og de slår dessuten opp til en offentlig adresse. De trenger ingen waiver og står ikke her.
+
+**Fulle vertsnavn, ikke suffikset.** `allow_private_domains` matcher eksakt eller på underdomene (`is_domain_match` i cplt), så `cloud.nais.io` hadde løftet DNS-rebinding-vernet for hver eneste vert hos hver eneste tenant. Fire navngitte verter er det skillen spør om. En femte er en beslutning noen tar med vilje, i dette repoet, og ikke noe et nytt vertsnavn arver.
+
+`nais/pilot` foreslår `cloud.nais.io` og har rett i det: den pakka er flertenant, tenanten avgjøres av hvilken naisdevice-tilkobling som står oppe, og variabelen står midt i navnet, så suffiksmatching kan ikke uttrykke «mimir hos hvem som helst». Standardpakka gjelder bare `nav`-tenanten og kjenner vertene sine når manifestet skrives. De to listene skal være ulike, og av den grunnen.
+
+**To porter, ikke én.** cplt avviser en vert utenfor `proxy.allowed_domains` før DNS (`Domain not in allowlist`), og avviser en vert som slo opp til en privat adresse etter DNS med mindre `proxy.allow_private_domains` dekker den (`Resolved to a private IP`). En spørring må gjennom begge. `navOwnDomains` i `internal/cli/config_sandbox.go` er den første, forslaget her er den andre, og `TestObservabilityHostsMatchTheProposal` holder de to listene like. `collector-internet.nav.cloud.nais.io`, som nav-pilot selv sender telemetri til, slår opp offentlig og trenger bare den første.
+
+**Slik ser feilen ut uten waiveren.** 403-en kommer midt i en spørring, og hver curl i skillen er rørt til `jq`, så det brukeren ser er `parse error: Invalid numeric literal`. Det ligner på at nettet er nede. `nav-pilot doctor` sier om waiveren er i kraft, skillen har en tabell som skiller de tre 403-ene fra en naisdevice som ikke er koblet til, og avslagsteksten skriver ut enlinjeren som åpner det for hånd.
+
 ### Samtykke
 
 Den som installerer svarer, i terminal, ved install og ved enhver `sync --apply` der blokka er endret. Svaret er nøklet på scope, pakke og innholdshash — arrays sortert, kanonisk JSON, sha256 over hele blokka, regnet slik cplt regner sin.

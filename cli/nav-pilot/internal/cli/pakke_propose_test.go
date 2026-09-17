@@ -672,3 +672,104 @@ func TestDomainOnlyProposalIsUnchanged(t *testing.T) {
 		t.Errorf("a domain-only approval carries a read grant: %+v", rec)
 	}
 }
+
+// navPilotSource is the stock pakke as sync resolves it: the manifest this repo
+// commits, loaded the way attachPakke loads it.
+func navPilotSource(t *testing.T) *Source {
+	t.Helper()
+	m, err := agentpakke.Load(filepath.Join("..", "..", "..", ".."))
+	if err != nil {
+		t.Fatalf("loading the repo's own manifest: %v", err)
+	}
+	return &Source{Dir: t.TempDir(), Repo: "navikt/copilot", SHA: "deadbee", Pakke: m}
+}
+
+// The stock pakke's proposal is new, so every existing install has no record
+// for its hash. This is the question an existing user meets on the next
+// `nav-pilot sync --apply` — including the one the startup dialog runs for a
+// stale or collection-era scope, which calls cmdSync with apply set.
+//
+// It matters because the alternative is silent: without the waiver every curl
+// in skills/observability-debugging comes back 403 from cplt's DNS-rebinding
+// guard, and piped through jq that is a parse error, not a permission error.
+func TestStockProposalAsksAnExistingUserForTheFourHosts(t *testing.T) {
+	scope := consentEnv(t)
+	src := navPilotSource(t)
+
+	var shown string
+	previous := askProposalConsent
+	askProposalConsent = func(title, description string, value *bool) error {
+		shown = description
+		*value = true
+		return nil
+	}
+	t.Cleanup(func() { askProposalConsent = previous })
+
+	noteProposalConsent(scope, src, false, false)
+
+	// Sorted, because that is the order the proposal canonicalises to and the
+	// order the question and the by-hand command print in.
+	want := []string{
+		"loki.nav.cloud.nais.io",
+		"mimir.nav.cloud.nais.io",
+		"tempo.dev-gcp.nav.cloud.nais.io",
+		"tempo.prod-gcp.nav.cloud.nais.io",
+	}
+	for _, host := range want {
+		if !strings.Contains(shown, host) {
+			t.Errorf("the question does not name %s:\n%s", host, shown)
+		}
+	}
+	if strings.Contains(shown, "grafana.") || strings.Contains(shown, "console.") {
+		t.Errorf("the question names a host the skill only hands to a browser:\n%s", shown)
+	}
+
+	rec, err := artifacts.ReadProposalConsent(scope, src.Pakke.Name)
+	if err != nil || rec == nil || !rec.Approved {
+		t.Fatalf("approval was not recorded for %s: rec=%v err=%v", src.Pakke.Name, rec, err)
+	}
+	if !slices.Equal(rec.Hosts, want) {
+		t.Errorf("recorded hosts %v, want %v", rec.Hosts, want)
+	}
+}
+
+// A scripted or --json sync cannot consent for a person, so it prints the
+// command instead. The command has to carry the four hosts, or the user who
+// most needs it gets a line that grants nothing.
+func TestStockProposalPrintsTheByHandCommandWhenNobodyCanBeAsked(t *testing.T) {
+	scope := consentEnv(t)
+	isInteractive = func() bool { return false }
+	src := navPilotSource(t)
+
+	stderr := captureStderr(func() { noteProposalConsent(scope, src, false, false) })
+
+	wantCommand := "cplt config set proxy.allow_private_domains " +
+		"loki.nav.cloud.nais.io,mimir.nav.cloud.nais.io," +
+		"tempo.dev-gcp.nav.cloud.nais.io,tempo.prod-gcp.nav.cloud.nais.io"
+	if !strings.Contains(stderr, wantCommand) {
+		t.Errorf("stderr does not carry the by-hand command %q:\n%s", wantCommand, stderr)
+	}
+	if rec, _ := artifacts.ReadProposalConsent(scope, src.Pakke.Name); rec != nil {
+		t.Errorf("a question nobody was asked was recorded as an answer: %+v", rec)
+	}
+}
+
+// doctor's row for the same state: a scope that has not answered is told what
+// the failure will look like, so a 403 is not mistaken for naisdevice being
+// down.
+func TestDoctorNamesTheWaiverWhenItIsNotApproved(t *testing.T) {
+	consentEnv(t)
+	var out strings.Builder
+	reportSandboxWaiver(&out, agentpakke.Default())
+	got := out.String()
+	for _, want := range []string{
+		"not approved",
+		"mimir.nav.cloud.nais.io",
+		"Resolved to a private IP",
+		"cplt config set proxy.allow_private_domains",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("doctor row does not mention %q:\n%s", want, got)
+		}
+	}
+}

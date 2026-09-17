@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-15T17:47:46.411Z",
+  "generatedAt": "2026-09-17T10:05:44.538Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1424,7 +1424,7 @@
       "filePath": "skills/observability-debugging/SKILL.md",
       "repoPath": "skills/observability-debugging/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-debugging/SKILL.md",
-      "contentHash": "bf5661705b6dbeadd81e7511162c71a06d48c944b31025db7debc12cca03ac36",
+      "contentHash": "c62efb720e1fb93b96edeb691431dceff9311c0ddf075f08a8c5819a582a3af9",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["debugging", "mimir", "loki", "tempo", "prometheus", "traces", "logs", "kubectl", "nais", "nav-pilot"],

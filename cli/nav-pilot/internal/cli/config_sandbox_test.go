@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
 	"testing"
 
@@ -470,5 +472,58 @@ func TestAllowlistIsWrittenAtomically(t *testing.T) {
 	}
 	if perm := fi.Mode().Perm(); perm&0o077 != 0 {
 		t.Errorf("allowlist is %o, want no group or other bits", perm)
+	}
+}
+
+// The two gates a Nais observability query has to pass are configured in two
+// different places, and a host missing from either one fails the query.
+//
+// cplt refuses a host outside `proxy.allowed_domains` before DNS runs
+// ("Domain not in allowlist"), and refuses a host that resolved to a private IP
+// unless `proxy.allow_private_domains` covers it ("Resolved to a private IP").
+// Mimir, Loki and the two Tempo hosts resolve privately over naisdevice, so
+// they need both: navOwnDomains below, and the pakke's own propose block, which
+// the user is asked to approve at install.
+//
+// Adding a fifth observability host to one list and not the other is the kind
+// of half-change that reads as a network fault at the far end, so this holds
+// them equal. Hosts nav-pilot reaches that resolve publicly —
+// collector-internet.nav.cloud.nais.io is one — belong in the allowlist only,
+// which is why this compares the proposal against the allowlist's observability
+// hosts rather than against everything under cloud.nais.io.
+func TestObservabilityHostsMatchTheProposal(t *testing.T) {
+	observability := func(host string) bool {
+		return strings.HasSuffix(host, ".cloud.nais.io") &&
+			(strings.HasPrefix(host, "mimir.") ||
+				strings.HasPrefix(host, "loki.") ||
+				strings.HasPrefix(host, "tempo."))
+	}
+
+	var allowed []string
+	for _, d := range navOwnDomains {
+		if observability(d) {
+			allowed = append(allowed, d)
+		}
+	}
+
+	proposal := agentpakke.Default().CpltProposal()
+	if proposal == nil {
+		t.Fatal("the default pakke proposes nothing; the observability skill's hosts need a private-domain waiver")
+	}
+	proposed := proposal.AllowPrivateDomains()
+
+	sort.Strings(allowed)
+	if !slices.Equal(allowed, proposed) {
+		t.Errorf("allowlist observability hosts %v, proposed waiver %v\n"+
+			"(change navOwnDomains, .nav-pilot/agentpakke.json and legacy.go together)", allowed, proposed)
+	}
+
+	// Named in full, never as a suffix. `cloud.nais.io` would waive the
+	// DNS-rebinding guard for every host under every Nais tenant; each of these
+	// is one host the skill actually curls.
+	for _, host := range proposed {
+		if strings.Count(host, ".") < 4 {
+			t.Errorf("%q is shorter than a full host name, so it waives by suffix", host)
+		}
 	}
 }

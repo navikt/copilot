@@ -65,6 +65,14 @@ var cpltProposalFlags = defaultCpltProposalFlags
 // no approval, returns before the version probe runs. Only a launch that has
 // something to apply pays for `cplt --version`.
 func defaultCpltProposalFlags() []string {
+	// A waiver applies only to a launch running the manifest that asked for it.
+	// The built-in default stands in for every source that ships no manifest,
+	// and it calls itself "nav-pilot", so without this a user who approved
+	// navikt/copilot's proposal would hand the same four hosts to a launch of
+	// their own manifest-less source, which never asked for anything.
+	if !source.ActivePakkeIsDeclared() {
+		return nil
+	}
 	pakke := source.ActivePakke()
 	proposal := pakke.CpltProposal()
 	if proposal == nil {
@@ -184,6 +192,22 @@ func untrustworthyRecord(record *artifacts.ProposalConsent) string {
 			artifacts.ProposalConsentPath())
 	}
 	return ""
+}
+
+// WaiverBlockedReason names why an approved record would not be applied at the
+// next launch, or "" when it would be applied.
+//
+// It exists for doctor. The three gates in [untrustworthyRecord] are checked at
+// launch, not at consent, so an approval can be recorded and still change
+// nothing: an old cplt, a record written under an old cplt, or a relocated
+// state directory. A doctor row that reported the record alone would print a
+// green check over a launch that omits every flag, which is the failure this
+// whole section exists to stop people mistaking for a network fault.
+func WaiverBlockedReason(record *artifacts.ProposalConsent) string {
+	if record == nil {
+		return ""
+	}
+	return untrustworthyRecord(record)
 }
 
 // recordedCpltLabel names the cplt a record was made under, for the one line
