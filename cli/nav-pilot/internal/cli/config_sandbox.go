@@ -316,8 +316,15 @@ var cpltEnforcement = func() *cpltCheckReport {
 // `Agent::default_allowed_domains`). nav-pilot launches copilot, opencode and
 // pi through cplt, and only the copilot list carries GitHub and Copilot
 // infrastructure. opencode gets `opencode.ai` and `models.dev`; pi gets the
-// package registries and nothing else. An opencode session on nav-pilot's
-// default `github-copilot/auto` model could not reach a model host at all.
+// package registries and nothing else. cplt is what connects opencode to the
+// GitHub Copilot provider in the first place, so a hosted session — with an
+// explicit Copilot model, or with none at all, letting opencode resolve its
+// own default from that same provider — needs the Copilot entries Nav adds
+// below, or it cannot reach a model host. The two exceptions: a custom
+// provider-qualified id (e.g. an `anthropic/...` model) routes elsewhere and
+// needs its own allowlist/egress handling, and a local `mlx/<id>` session (see
+// ToOpenCodeModel) talks to a loopback server instead, which needs
+// `sandbox.allow_localhost_any`, not these entries.
 //
 // Every Nav entry below is something nav-pilot or an artifact it installs
 // actually fetches, with the call site named. Hosts that appear in the

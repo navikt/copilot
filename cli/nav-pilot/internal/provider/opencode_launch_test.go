@@ -20,12 +20,15 @@ func TestToOpenCodeModel(t *testing.T) {
 		in   string
 		want string
 	}{
-		{"", OpenCodeDefaultModel},
-		{"auto", OpenCodeDefaultModel},
-		{"  ", OpenCodeDefaultModel},
+		// With no active pakke naming a model, opencode gets no --model at
+		// all — it resolves its own default.
+		{"", ""},
+		{"auto", ""},
+		{"  ", ""},
 		{"claude-sonnet-4.6", "github-copilot/claude-sonnet-4.6"},
 		{"gpt-5.5", "github-copilot/gpt-5.5"},
-		{"github-copilot/auto", "github-copilot/auto"},
+		// Legacy configs written against the old (broken) documented default.
+		{"github-copilot/auto", ""},
 		{"github-copilot/claude-opus-4.8", "github-copilot/claude-opus-4.8"},
 		{"anthropic/claude-3-5-sonnet", "anthropic/claude-3-5-sonnet"},
 		{"  claude-haiku-4.5 ", "github-copilot/claude-haiku-4.5"},
@@ -38,16 +41,15 @@ func TestToOpenCodeModel(t *testing.T) {
 }
 
 func TestOpenCodeArgs(t *testing.T) {
-	def := OpenCodeDefaultModel
 	tests := []struct {
 		name     string
 		resolved domain.ResolvedConfig
 		want     []string
 	}{
 		{
-			name:     "empty resolved applies Nav default model",
+			name:     "empty resolved omits --model (opencode picks its own default)",
 			resolved: domain.ResolvedConfig{Mode: "default", AskUser: true},
-			want:     []string{"--model", def, "--agent", "nav-pilot"},
+			want:     []string{"--agent", "nav-pilot"},
 		},
 		{
 			name:     "explicit model overrides default",
@@ -55,29 +57,29 @@ func TestOpenCodeArgs(t *testing.T) {
 			want:     []string{"--model", "anthropic/claude-3-5-sonnet", "--agent", "nav-pilot"},
 		},
 		{
-			name:     "plan mode maps to --agent plan (default model still emitted)",
+			name:     "plan mode maps to --agent plan",
 			resolved: domain.ResolvedConfig{Mode: "plan", AskUser: true},
-			want:     []string{"--model", def, "--agent", "plan"},
+			want:     []string{"--agent", "plan"},
 		},
 		{
-			name:     "default mode not emitted (only default model)",
+			name:     "default mode not emitted",
 			resolved: domain.ResolvedConfig{Mode: "default", AskUser: true},
-			want:     []string{"--model", def, "--agent", "nav-pilot"},
+			want:     []string{"--agent", "nav-pilot"},
 		},
 		{
 			name:     "reasoning effort maps to --variant",
 			resolved: domain.ResolvedConfig{Mode: "default", ReasoningEffort: "high", AskUser: true},
-			want:     []string{"--model", def, "--agent", "nav-pilot", "--variant", "high"},
+			want:     []string{"--agent", "nav-pilot", "--variant", "high"},
 		},
 		{
 			name:     "allow_all_tools maps to --dangerously-skip-permissions",
 			resolved: domain.ResolvedConfig{Mode: "default", AllowAllTools: true, AskUser: true},
-			want:     []string{"--model", def, "--agent", "nav-pilot", "--dangerously-skip-permissions"},
+			want:     []string{"--agent", "nav-pilot", "--dangerously-skip-permissions"},
 		},
 		{
 			name:     "log level",
 			resolved: domain.ResolvedConfig{Mode: "default", LogLevel: "debug", AskUser: true},
-			want:     []string{"--model", def, "--agent", "nav-pilot", "--log-level", "DEBUG"},
+			want:     []string{"--agent", "nav-pilot", "--log-level", "DEBUG"},
 		},
 		{
 			name: "all fields",
@@ -94,7 +96,7 @@ func TestOpenCodeArgs(t *testing.T) {
 		{
 			name:     "ask_user false not emitted (opencode has no ask-user flag)",
 			resolved: domain.ResolvedConfig{Mode: "default", AskUser: false},
-			want:     []string{"--model", def, "--agent", "nav-pilot"},
+			want:     []string{"--agent", "nav-pilot"},
 		},
 	}
 	for _, tt := range tests {

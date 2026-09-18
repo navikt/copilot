@@ -49,8 +49,74 @@ func TestSetActivePakke(t *testing.T) {
 	if got := PrimaryAgent("copilot"); got != "nav-pilot" {
 		t.Errorf("after SetActivePakke(nil): PrimaryAgent(copilot) = %q, want nav-pilot", got)
 	}
-	if got := ToOpenCodeModel(""); got != OpenCodeDefaultModel {
-		t.Errorf("after SetActivePakke(nil): ToOpenCodeModel(\"\") = %q, want %q", got, OpenCodeDefaultModel)
+	if got := ToOpenCodeModel(""); got != "" {
+		t.Errorf("after SetActivePakke(nil): ToOpenCodeModel(\"\") = %q, want \"\" (opencode picks its own default)", got)
+	}
+}
+
+// TestActivePakkeLegacyAutoIsNormalized covers a pakke that still declares the
+// pre-fix opencode default: it must resolve to "" (nothing pinned, opencode
+// picks) rather than forwarding the broken alias.
+func TestActivePakkeLegacyAutoIsNormalized(t *testing.T) {
+	t.Cleanup(func() { SetActivePakke(nil) })
+	SetActivePakke(&agentpakke.Manifest{
+		Name: "legacy",
+		Clients: map[string]agentpakke.ClientEntry{
+			"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "github-copilot/auto"},
+		},
+	})
+	if got := ToOpenCodeModel(""); got != "" {
+		t.Errorf("ToOpenCodeModel(\"\") = %q, want \"\"", got)
+	}
+}
+
+// TestActivePakkeBareDeclarationGetsPrefixed covers a Tier 1 pakke that
+// declares a bare Copilot id for opencode: it must gain the provider prefix,
+// not reach opencode unqualified.
+func TestActivePakkeBareDeclarationGetsPrefixed(t *testing.T) {
+	t.Cleanup(func() { SetActivePakke(nil) })
+	SetActivePakke(&agentpakke.Manifest{
+		Name: "legacy",
+		Clients: map[string]agentpakke.ClientEntry{
+			"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "gpt-5.6-terra"},
+		},
+	})
+	if got := ToOpenCodeModel(""); got != "github-copilot/gpt-5.6-terra" {
+		t.Errorf("ToOpenCodeModel(\"\") = %q, want github-copilot/gpt-5.6-terra", got)
+	}
+}
+
+// TestActivePakkeBareAutoIsNormalized covers a pakke declaring bare "auto"
+// (valid for Copilot CLI, invalid for opencode): it must not recurse and must
+// resolve to "".
+func TestActivePakkeBareAutoIsNormalized(t *testing.T) {
+	t.Cleanup(func() { SetActivePakke(nil) })
+	SetActivePakke(&agentpakke.Manifest{
+		Name: "legacy",
+		Clients: map[string]agentpakke.ClientEntry{
+			"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "auto"},
+		},
+	})
+	if got := ToOpenCodeModel(""); got != "" {
+		t.Errorf("ToOpenCodeModel(\"\") = %q, want \"\"", got)
+	}
+}
+
+// TestActivePakkeUntrimmedAutoDoesNotRecurse covers a declaration the schema
+// allows but the sentinel comparisons would otherwise miss: an untrimmed
+// match falls through to ToOpenCodeModel, which trims and calls back into
+// openCodeDefaultModel with the same untrimmed value — infinite recursion
+// instead of "". This must terminate.
+func TestActivePakkeUntrimmedAutoDoesNotRecurse(t *testing.T) {
+	t.Cleanup(func() { SetActivePakke(nil) })
+	SetActivePakke(&agentpakke.Manifest{
+		Name: "legacy",
+		Clients: map[string]agentpakke.ClientEntry{
+			"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "  github-copilot/auto  "},
+		},
+	})
+	if got := ToOpenCodeModel(""); got != "" {
+		t.Errorf("ToOpenCodeModel(\"\") = %q, want \"\"", got)
 	}
 }
 
@@ -118,7 +184,7 @@ func TestResolvedModelNotice(t *testing.T) {
 		Name: "nav-pilot",
 		Clients: map[string]agentpakke.ClientEntry{
 			"copilot":  {PrimaryAgents: []string{"nav-pilot"}, DefaultModel: agentpakke.InheritModel},
-			"opencode": {PrimaryAgents: []string{"nav-pilot"}, DefaultModel: OpenCodeDefaultModel},
+			"opencode": {PrimaryAgents: []string{"nav-pilot"}, DefaultModel: agentpakke.InheritModel},
 		},
 	}
 	pinningPakke := &agentpakke.Manifest{
@@ -145,10 +211,12 @@ func TestResolvedModelNotice(t *testing.T) {
 		want   string
 	}{
 		{
-			name:   "opencode on the Nav default",
+			// Nothing pinned anywhere: opencode picks for itself, and there is
+			// nothing meaningful to print.
+			name:   "opencode on inherit says nothing",
 			pakke:  navPakke,
 			client: "opencode",
-			want:   "Session model: github-copilot/auto (nav-pilot default)",
+			want:   "",
 		},
 		{
 			name:   "opencode with the user's own model",
@@ -202,6 +270,48 @@ func TestResolvedModelNotice(t *testing.T) {
 			pakke:  pinningPakke,
 			client: "pi",
 			want:   "Session model: claude-opus-5 (grillmester default)",
+		},
+		{
+			// A pakke still declaring the legacy alias must be reported as
+			// naming nothing, same as inherit, not as the broken id it wrote
+			// down.
+			name: "a pakke's legacy auto declaration says nothing",
+			pakke: &agentpakke.Manifest{
+				Name: "grillmester",
+				Clients: map[string]agentpakke.ClientEntry{
+					"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "github-copilot/auto"},
+				},
+			},
+			client: "opencode",
+			want:   "",
+		},
+		{
+			// A bare id also gets the provider prefix, same as a user setting.
+			name: "a pakke's bare declaration gains the provider prefix",
+			pakke: &agentpakke.Manifest{
+				Name: "grillmester",
+				Clients: map[string]agentpakke.ClientEntry{
+					"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "claude-opus-5"},
+				},
+			},
+			client: "opencode",
+			want:   "Session model: github-copilot/claude-opus-5 (grillmester default)",
+		},
+		{
+			// The user's "auto" isn't a real setting for opencode — it resolves
+			// through the same pakke fallback unset would. The notice must
+			// attribute the resulting model to the pakke, not to "your setting",
+			// or it reports the right model with the wrong origin.
+			name: "user's auto falls through to the pakke default, not your setting",
+			pakke: &agentpakke.Manifest{
+				Name: "grillmester",
+				Clients: map[string]agentpakke.ClientEntry{
+					"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "github-copilot/claude-opus-5"},
+				},
+			},
+			client: "opencode",
+			model:  "auto",
+			want:   "Session model: github-copilot/claude-opus-5 (grillmester default)",
 		},
 	}
 

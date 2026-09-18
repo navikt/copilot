@@ -75,11 +75,17 @@ func (s StagedLaunch) suffix() string {
 }
 
 // pakkeDeclaredModel returns the active agentpakke's model declaration for a
-// client, or "" when it declares none or declares [agentpakke.InheritModel]
-// (F1). "inherit" means no --model flag at all, which is also what the
-// reference launcher passes: build_launch_command forwards no model.
+// client, trimmed, or "" when it declares none or declares
+// [agentpakke.InheritModel] (F1). "inherit" means no --model flag at all,
+// which is also what the reference launcher passes: build_launch_command
+// forwards no model.
+//
+// Trimmed before the sentinel comparison: the schema only requires
+// defaultModel to be a string, so "  inherit  " is a valid declaration that
+// would otherwise miss this check, reach ToOpenCodeModel unrecognized, and be
+// sent to opencode as the literal (and invalid) "github-copilot/inherit".
 func pakkeDeclaredModel(client string) string {
-	model := source.ActivePakke().DefaultModel(client)
+	model := strings.TrimSpace(source.ActivePakke().DefaultModel(client))
 	if model == agentpakke.InheritModel {
 		return ""
 	}
@@ -197,6 +203,16 @@ func stagedPrimaryAgent(client, context, pakkeName string) (string, error) {
 // OPENCODE_CONFIG_DIR pointing at the same payload, and --pass-env for it, with
 // the client receiving --agent <agent>.
 func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch, error) {
+	// Resolved before the local-model refusal below, not just read off
+	// r.Model: "" and "auto"/the legacy alias can still resolve to a payload
+	// pakke's own declared default (the same fallback ToOpenCodeModel applies
+	// further down), so a pakke that declares a local model has to be caught
+	// here too, not only a model the user pinned directly.
+	model := r.Model
+	if isOpenCodeUnsetModel(model) {
+		model = pakkeDeclaredModel("opencode")
+	}
+
 	// Same refusal the staged Copilot path makes, for the same reason: a pakke
 	// launches from a digest-verified payload built and tested against the model
 	// its manifest declares, and nobody reviewed it running on a 4-bit model on a
@@ -204,10 +220,10 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 	// enabled got no worker binding, no dispatch fragment and no loop guard, and
 	// said nothing about it — the developer saw a session that simply never
 	// dispatched.
-	if local.IsLocal(r.Model) {
+	if local.IsLocal(model) {
 		return cpltLaunch{}, fmt.Errorf(
 			"%s is a local model, and agentpakke %q launches from a digest-verified payload that nav-pilot does not point at a server on this machine.\n\n  Launch the pakke on its declared model, or run a local session without it: %s",
-			r.Model, s.PakkeName, domain.Bold("nav-pilot --client opencode"))
+			model, s.PakkeName, domain.Bold("nav-pilot --client opencode"))
 	}
 	if err := rejectReservedClientArgs("opencode", s.PakkeName, r.ExtraArgs); err != nil {
 		return cpltLaunch{}, err
@@ -226,10 +242,12 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 		agent = "plan"
 	}
 	bind := []string{"--agent", agent}
-	if r.Model != "" {
-		bind = append(bind, "--model", ToOpenCodeModel(r.Model))
-	} else if model := pakkeDeclaredModel("opencode"); model != "" {
-		bind = append(bind, "--model", model)
+	// Routed through ToOpenCodeModel rather than appended raw: it passes an
+	// already-qualified id through unchanged, prefixes a bare one, and maps
+	// "", "auto", and the legacy alias to "" so the flag is omitted and
+	// opencode picks for itself.
+	if resolved := ToOpenCodeModel(model); resolved != "" {
+		bind = append(bind, "--model", resolved)
 	}
 	agentArgs := openCodeClientArgs(bind, r.ExtraArgs)
 
@@ -252,10 +270,18 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 // Skills are passed by path rather than discovered, because pi's own auto-load
 // paths are project-local and a staged payload is not in the project.
 func buildStagedPiSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch, error) {
-	if local.IsLocal(r.Model) {
+	// Resolved before the local-model refusal below, not just read off
+	// r.Model: an unset model still falls through to the pakke's own
+	// declaration two lines down, and a pakke that declares a local model has
+	// to be caught here too, the same class of gap buildStagedOpenCodeSpec had.
+	model := r.Model
+	if model == "" {
+		model = pakkeDeclaredModel("pi")
+	}
+	if local.IsLocal(model) {
 		return cpltLaunch{}, fmt.Errorf(
 			"%s is a local model, and agentpakke %q launches from a digest-verified payload that nav-pilot does not point at a server on this machine.\n\n  Launch the pakke on its declared model, or run a local session without it: %s",
-			r.Model, s.PakkeName, domain.Bold("nav-pilot --client pi"))
+			model, s.PakkeName, domain.Bold("nav-pilot --client pi"))
 	}
 	if err := rejectReservedClientArgs("pi", s.PakkeName, r.ExtraArgs); err != nil {
 		return cpltLaunch{}, err
@@ -266,10 +292,8 @@ func buildStagedPiSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch, err
 	}
 
 	agentArgs := piSkillArgs(s.Dir, primary)
-	if r.Model != "" {
-		agentArgs = append(agentArgs, "--model", ToOpenCodeModel(r.Model))
-	} else if model := pakkeDeclaredModel("pi"); model != "" {
-		agentArgs = append(agentArgs, "--model", model)
+	if model != "" {
+		agentArgs = append(agentArgs, "--model", ToOpenCodeModel(model))
 	}
 	agentArgs = append(agentArgs, r.ExtraArgs...)
 

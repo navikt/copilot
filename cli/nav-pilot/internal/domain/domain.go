@@ -150,12 +150,22 @@ const OpenCodeProviderPrefix = "github-copilot/"
 // It returns "" for anything not in [KnownCopilotModels]. That is the point:
 // the caller must then emit no model line at all rather than guess an id that
 // the client would reject at launch.
+//
+// "auto" is in that catalog — it is a real Copilot CLI selection — but is
+// excluded here on purpose: opencode has no auto-routing and rejects
+// "github-copilot/auto" as an unknown model, and an agent's own frontmatter
+// model overrides the session's --model flag in the opencode TUI, so writing
+// it would reproduce the exact launch failure this mapping exists to avoid,
+// for any agent that ever declares "Auto" as its model.
 func OpenCodeModelForLabel(name string) string {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return ""
 	}
 	for _, m := range KnownCopilotModels {
+		if m.ID == "auto" {
+			continue
+		}
 		if strings.EqualFold(m.Label, name) || strings.EqualFold(m.ID, name) {
 			return OpenCodeProviderPrefix + m.ID
 		}

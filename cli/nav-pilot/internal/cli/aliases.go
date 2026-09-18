@@ -77,7 +77,6 @@ var (
 	// provider, not the reverse, so this is the only direction it could go.
 	parseCpltVersion = providerpkg.ParseCpltVersion
 
-	openCodeDefaultModel  = providerpkg.OpenCodeDefaultModel
 	isKnownCopilotModel   = providerpkg.IsKnownCopilotModel
 	knownCopilotModelIDs  = providerpkg.KnownCopilotModelIDs
 	isKnownOpenCodeModel  = providerpkg.IsKnownOpenCodeModel

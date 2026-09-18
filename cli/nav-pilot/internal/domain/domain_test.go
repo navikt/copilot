@@ -391,6 +391,8 @@ func TestOpenCodeModelForLabel(t *testing.T) {
 		{name: "empty", in: "", want: ""},
 		{name: "unknown name resolves to nothing", in: "Claude Sonnet 9000", want: ""},
 		{name: "already qualified is not a known name", in: "github-copilot/claude-opus-5", want: ""},
+		{name: "auto id resolves to nothing, opencode rejects it", in: "auto", want: ""},
+		{name: "auto label resolves to nothing, opencode rejects it", in: "Auto (let Copilot pick)", want: ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

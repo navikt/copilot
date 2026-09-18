@@ -60,15 +60,11 @@ func SynthesizeLegacy(collection string) *Manifest {
 			// reachable through it rather than selectable directly.
 			//
 			// DefaultModel is [InheritModel] rather than a model id, and that
-			// is a decision, not a placeholder. Copilot's routing comment in
-			// internal/provider (OpenCodeDefaultModel) prefers letting Copilot
-			// Auto follow the current cost/quality frontier over pinning a
-			// model, and a Tier 1 copilot launch has always emitted no --model
-			// at all when the user pinned none. "inherit" is the value that
-			// says exactly that: the declaration point now exists for both
-			// tiers and for both clients, and no launch argument changes.
-			// Picking a concrete id belongs to whoever owns the routing
-			// decision, in a commit that is about the routing decision.
+			// is a decision, not a placeholder: a Tier 1 copilot launch has
+			// always emitted no --model at all when the user pinned none, and
+			// "inherit" is the value that says exactly that. Copilot CLI's own
+			// "auto" already follows its cost/quality frontier without
+			// nav-pilot naming a model.
 			"copilot": {
 				PrimaryAgents: []string{"nav-pilot"},
 				DefaultModel:  InheritModel,
@@ -76,9 +72,17 @@ func SynthesizeLegacy(collection string) *Manifest {
 			// opencode's picker offers both Nav personas; everything else
 			// materializes as a subagent. The first entry is the persona
 			// launched by default.
+			//
+			// DefaultModel is [InheritModel] too, for the same reason as
+			// copilot above: a hardcoded id here (first "github-copilot/auto",
+			// later a concrete pin) kept becoming unavailable on some Copilot
+			// plan or another — opencode itself already resolves a sensible,
+			// account-aware default when no --model is given (verified live:
+			// it picked a working model on its own), so nav-pilot no longer
+			// tries to guess one.
 			"opencode": {
 				PrimaryAgents: []string{"nav-pilot", "nav-pilot-opus"},
-				DefaultModel:  "github-copilot/auto",
+				DefaultModel:  InheritModel,
 			},
 			// pi consumes no persona today; the entry exists so client
 			// availability is expressible in one place instead of a special
