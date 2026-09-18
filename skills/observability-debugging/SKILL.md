@@ -65,8 +65,8 @@ curl -s -H "User-Agent: nav-pilot/observability-debugging" -H "X-Scope-OrgID: te
 > Always narrow with labels first, then filter metadata/fields.
 
 > **One global endpoint** (`loki.nav.cloud.nais.io`) — like Mimir. Pick the cluster with the
-> `k8s_cluster_name="$CLUSTER"` label (`dev-gcp`, `prod-gcp`, `dev-fss`, `prod-fss`, …), not an
-> environment-specific host.
+> `k8s_cluster_name="$CLUSTER"` label. For Nav production workloads the label is `prod`, not
+> the Tempo hostname segment `prod-gcp`. Use the label value returned by the metrics or logs.
 
 ```bash
 # Query via the global Loki endpoint — select the cluster with k8s_cluster_name
