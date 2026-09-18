@@ -297,6 +297,22 @@ func TestResolvedModelNotice(t *testing.T) {
 			client: "opencode",
 			want:   "Session model: github-copilot/claude-opus-5 (grillmester default)",
 		},
+		{
+			// The user's "auto" isn't a real setting for opencode — it resolves
+			// through the same pakke fallback unset would. The notice must
+			// attribute the resulting model to the pakke, not to "your setting",
+			// or it reports the right model with the wrong origin.
+			name: "user's auto falls through to the pakke default, not your setting",
+			pakke: &agentpakke.Manifest{
+				Name: "grillmester",
+				Clients: map[string]agentpakke.ClientEntry{
+					"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "github-copilot/claude-opus-5"},
+				},
+			},
+			client: "opencode",
+			model:  "auto",
+			want:   "Session model: github-copilot/claude-opus-5 (grillmester default)",
+		},
 	}
 
 	for _, tt := range tests {

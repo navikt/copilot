@@ -135,12 +135,19 @@ func ResolvedModelNotice(client string, r domain.ResolvedConfig) string {
 //   - a declared opencode model runs through ToOpenCodeModel, same as what the
 //     launch itself sends, so a bare id is reported with its provider prefix,
 //     and a legacy alias or bare "auto" is reported as naming nothing, same as
-//     "inherit", rather than as the broken id the pakke wrote down.
+//     "inherit", rather than as the broken id the pakke wrote down;
+//   - the user's own opencode setting is attributed to them only when it
+//     names something: "auto" or the legacy alias resolve through
+//     ToOpenCodeModel to whatever the active pakke declares (same as leaving
+//     the setting unset would), so the origin falls through to the pakke
+//     branch too — otherwise the notice would show the pakke's model under
+//     "your setting".
 func resolvedModelOrigin(client string, r domain.ResolvedConfig) (model, origin string) {
 	if !clientForwardsModel(client) {
 		return "", ""
 	}
-	if r.Model != "" {
+	userNamesModel := r.Model != "" && !(client == "opencode" && isOpenCodeUnsetModel(r.Model))
+	if userNamesModel {
 		if client == "opencode" {
 			return ToOpenCodeModel(r.Model), "your setting"
 		}
@@ -149,6 +156,9 @@ func resolvedModelOrigin(client string, r domain.ResolvedConfig) (model, origin 
 	if declared := pakkeDeclaredModel(client); declared != "" {
 		if client == "opencode" {
 			declared = ToOpenCodeModel(declared)
+			if declared == "" {
+				return "", ""
+			}
 		}
 		return declared, source.ActivePakke().Name + " default"
 	}

@@ -554,10 +554,11 @@ Da skriver nav-pilot bare ut kommandoen du kan kjøre.
 - opencode (startes via cplt mot GitHub Copilot-provideren): bruk `github-copilot/<id>`,
   f.eks. `github-copilot/claude-opus-4.8`, `github-copilot/gpt-5.5`. Modellen i config
   må være på `provider/model`-format (med `/`). Uten en satt modell (eller `--model auto`
-  på CLI) sendes ingen `--model`-flagg, og opencode velger selv en modell den vet kontoen
-  din har tilgang til. opencode har ingen `auto`-modell selv (det er et Copilot-CLI-konsept),
-  så en ren `github-copilot/auto` avvises av opencode; nav-pilot normaliserer den bort til
-  det samme "la opencode velge"-oppsettet.
+  på CLI) brukes en modell den aktive agentpakken selv har erklært, hvis den har erklært
+  en; ellers sendes ingen `--model`-flagg, og opencode velger selv en modell den vet
+  kontoen din har tilgang til. opencode har ingen `auto`-modell selv (det er et
+  Copilot-CLI-konsept), så en ren `github-copilot/auto` avvises av opencode; nav-pilot
+  normaliserer den bort til det samme oppsettet i stedet.
 
 Veiviseren (`nav-pilot config setup`) viser en modellvelger tilpasset valgt klient, og
 `nav-pilot config explain model` lister opp de kurerte id-ene.

@@ -93,6 +93,25 @@ func modelPickerOptions(p Provider, available map[string]bool) []huh.Option[stri
 	return append(opts, huh.NewOption("Custom (type manually)…", customModelSentinel))
 }
 
+// validateCustomModelInput validates the "Custom model id" input, blank
+// included: always provider-specific, not gated on whether the provider has a
+// concrete default. Empty is accepted regardless, matching "leave blank for
+// the default"; for copilot and pi this is the same check validateOptionalModel
+// already ran on non-blank input, and for opencode it adds the provider/model
+// shape check that a concrete default being unset must not skip.
+//
+// Trimmed before validation, not just before the final save the caller does:
+// ValidateModelValue rejects surrounding whitespace outright, so an untrimmed
+// "gpt-5.5 " would otherwise fail here even though the save path trims it to
+// a perfectly valid id.
+func validateCustomModelInput(p Provider, s string) error {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	return p.ValidateModel(s)
+}
+
 // promptModel asks for a provider's model: a curated picker when the provider
 // ships a known-model list, free text otherwise. A non-empty current
 // preselects the matching option, or the custom entry when the id is unknown.
@@ -143,17 +162,7 @@ func promptModel(p Provider, title, description, current string) (string, error)
 		return choice, nil
 	}
 
-	// Always provider-specific, not gated on whether the provider has a
-	// concrete default: opencode requires the provider/model shape whether or
-	// not anything is pinned, and blank is accepted regardless, matching
-	// "leave blank for the default" below. For copilot and pi this is the
-	// same check validateOptionalModel already ran on non-blank input.
-	validator := func(s string) error {
-		if strings.TrimSpace(s) == "" {
-			return nil
-		}
-		return p.ValidateModel(s)
-	}
+	validator := func(s string) error { return validateCustomModelInput(p, s) }
 	// The picker calls the empty choice "Nav default" when the provider has
 	// one, so this prompt has to say the same thing. Saying "agent default"
 	// under a list that just said "Nav default" reads as two different

@@ -94,8 +94,22 @@ var knownOpenCodeModels = func() []domain.ModelChoice {
 // opencode's rejection of "auto" was discovered. opencode has no auto-routing
 // and rejects it as an unknown model, so every path that can produce or
 // receive it — a user's own config, an agentpakke's declaration — treats it
-// as equivalent to unset.
+// as equivalent to unset. A fourth path, an agent's own materialized
+// frontmatter model (opencode TUI: that overrides the session flag), does not
+// go through this constant at all — it is excluded separately in
+// domain.OpenCodeModelForLabel, the only place that writes it.
 const legacyOpenCodeAutoAlias = openCodeProviderPrefix + "auto"
+
+// isOpenCodeUnsetModel reports whether model names nothing meaningful for
+// opencode: empty, "auto" (a Copilot CLI concept opencode doesn't have), or
+// the legacy alias. Trimmed first, so callers do not have to. Shared between
+// ToOpenCodeModel (what actually resolves the flag) and resolvedModelOrigin
+// (what the launch notice attributes it to), so the two cannot drift apart on
+// which inputs count as "the user didn't really name a model".
+func isOpenCodeUnsetModel(model string) bool {
+	model = strings.TrimSpace(model)
+	return model == "" || model == "auto" || model == legacyOpenCodeAutoAlias
+}
 
 // ToOpenCodeModel maps a configured model id to an opencode model id for the
 // github-copilot provider that cplt connects opencode to. Empty, "auto", and
@@ -106,10 +120,10 @@ const legacyOpenCodeAutoAlias = openCodeProviderPrefix + "auto"
 // pass through; bare Copilot-style ids (e.g. "claude-opus-4.8") gain the
 // github-copilot prefix.
 func ToOpenCodeModel(model string) string {
-	model = strings.TrimSpace(model)
-	if model == "" || model == "auto" || model == legacyOpenCodeAutoAlias {
+	if isOpenCodeUnsetModel(model) {
 		return openCodeDefaultModel()
 	}
+	model = strings.TrimSpace(model)
 	// Before the provider-qualified pass-through below: a local model id is
 	// publisher/repo, so it already contains a slash and would otherwise be
 	// handed to opencode as a provider it does not have. False whenever local

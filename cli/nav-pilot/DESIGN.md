@@ -97,10 +97,11 @@ Veiviseren viser en **velger** med Nav-kurerte modeller per provider
 
 Ved oppstart med `--client opencode` normaliseres **CLI-overstyringen** `--model`
 med `ToOpenCodeModel`: tom verdi, `auto` eller den gamle `github-copilot/auto`-aliasen
-blir `""`, og `--model`-flagget uteblir helt — opencode løser da sin egen standard,
-verifisert til å velge en modell kontoen faktisk har tilgang til. Bare Copilot-id-er
-(som `claude-opus-4.8`) prefikses til `github-copilot/<id>`. Konfigverdi for opencode
-må fortsatt være på `provider/model`-format.
+blir en modell den aktive agentpakken selv har erklært, hvis den har erklært en — ellers
+`""`, og da uteblir `--model`-flagget helt, og opencode løser sin egen standard, verifisert
+til å velge en modell kontoen faktisk har tilgang til. Bare Copilot-id-er (som
+`claude-opus-4.8`) prefikses til `github-copilot/<id>`. Konfigverdi for opencode må
+fortsatt være på `provider/model`-format.
 
 En "Custom…"-mulighet i velgeren lar brukeren skrive inn valgfri id med validering.
 `nav-pilot config explain model` lister opp de kjente id-ene per provider.

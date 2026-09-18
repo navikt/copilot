@@ -280,6 +280,57 @@ func TestStagedCopilotRefusesALocalModel(t *testing.T) {
 	}
 }
 
+// TestStagedOpenCodeRefusesAPakkeDeclaredLocalModel covers the case the user
+// never named: the active agentpakke's own defaultModel is a local id, and
+// nothing was pinned on the command line. The refusal has to be checked
+// against the resolved model, not r.Model alone, or a payload pakke can
+// silently dispatch to a local server nobody reviewed it against.
+func TestStagedOpenCodeRefusesAPakkeDeclaredLocalModel(t *testing.T) {
+	withLocalEnabled(t)
+	id := aLocalModelID(t)
+
+	pakke := stagedFixturePakke()
+	entry := pakke.Clients["opencode"]
+	entry.DefaultModel = id
+	pakke.Clients["opencode"] = entry
+	SetActivePakke(pakke)
+	t.Cleanup(func() { SetActivePakke(nil) })
+
+	staged := StagedLaunch{Dir: "/staged/x", PakkeName: "grillmester", Context: "full"}
+	spec, err := buildStagedOpenCodeSpec(domain.ResolvedConfig{AskUser: true}, staged)
+	if err == nil {
+		t.Fatalf("a staged Tier 2 launch on pakke-declared local model %q was built rather than refused: %q", id, spec.agentArgs)
+	}
+	if !strings.Contains(err.Error(), id) || !strings.Contains(err.Error(), "grillmester") {
+		t.Errorf("the refusal names neither the model nor the agentpakke:\n%v", err)
+	}
+}
+
+// TestStagedPiRefusesAPakkeDeclaredLocalModel is the pi half of
+// TestStagedOpenCodeRefusesAPakkeDeclaredLocalModel: buildStagedPiSpec had the
+// same gap — the local-model refusal read r.Model, not the model the pakke's
+// own declaration resolves to.
+func TestStagedPiRefusesAPakkeDeclaredLocalModel(t *testing.T) {
+	withLocalEnabled(t)
+	id := aLocalModelID(t)
+
+	pakke := stagedFixturePakke()
+	entry := pakke.Clients["pi"]
+	entry.DefaultModel = id
+	pakke.Clients["pi"] = entry
+	SetActivePakke(pakke)
+	t.Cleanup(func() { SetActivePakke(nil) })
+
+	staged := StagedLaunch{Dir: "/staged/x", PakkeName: "grillmester", Context: "full"}
+	spec, err := buildStagedPiSpec(domain.ResolvedConfig{AskUser: true}, staged)
+	if err == nil {
+		t.Fatalf("a staged Tier 2 launch on pakke-declared local model %q was built rather than refused: %q", id, spec.agentArgs)
+	}
+	if !strings.Contains(err.Error(), id) || !strings.Contains(err.Error(), "grillmester") {
+		t.Errorf("the refusal names neither the model nor the agentpakke:\n%v", err)
+	}
+}
+
 // TestCopilotModelPickerOffersTheLocalModel: the Copilot CLI can now reach the
 // local server, so the picker has to say so. Left out, the only way to select
 // the model would be to know its Hugging Face id and type it.

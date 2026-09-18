@@ -14,6 +14,50 @@ import (
 	"github.com/charmbracelet/huh"
 )
 
+// ─── validateCustomModelInput tests ─────────────────────────────────────────
+
+func TestValidateCustomModelInput(t *testing.T) {
+	opencode, err := providerFor("opencode")
+	if err != nil {
+		t.Fatalf("providerFor(opencode): %v", err)
+	}
+	copilot, err := providerFor("copilot")
+	if err != nil {
+		t.Fatalf("providerFor(copilot): %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		p       Provider
+		in      string
+		wantErr bool
+	}{
+		{"opencode: blank is accepted", opencode, "", false},
+		{"opencode: whitespace-only is accepted", opencode, "   ", false},
+		// Regression: the input reaches ValidateModel trimmed, not raw —
+		// ValidateModelValue rejects surrounding whitespace outright, so an
+		// untrimmed id here would wrongly fail a value the save path trims
+		// to something valid.
+		{"opencode: a valid id with surrounding whitespace is accepted", opencode, "  github-copilot/gpt-5.5  ", false},
+		{"opencode: a bare id is rejected (needs provider/model)", opencode, "gpt-5.5", true},
+		{"opencode: a qualified id is accepted", opencode, "github-copilot/gpt-5.5", false},
+		{"copilot: blank is accepted", copilot, "", false},
+		{"copilot: a bare id is accepted", copilot, "gpt-5.5", false},
+		{"copilot: surrounding whitespace is accepted (trimmed first)", copilot, "  gpt-5.5  ", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateCustomModelInput(tt.p, tt.in)
+			if tt.wantErr && err == nil {
+				t.Errorf("validateCustomModelInput(%q) = nil, want error", tt.in)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("validateCustomModelInput(%q) = %v, want nil", tt.in, err)
+			}
+		})
+	}
+}
+
 // ─── buildPickerDefaults tests ──────────────────────────────────────────────
 
 func TestBuildPickerDefaults_FreshInstall(t *testing.T) {
