@@ -1830,8 +1830,9 @@ function KlienterOgKonfigurasjonSection() {
               {`# Klient (copilot er standard)
 client = "opencode"
 
-# Modell (format avhenger av klient)
-model = "github-copilot/claude-opus-4.8"
+# Modell (format avhenger av klient; se tabellen over for eksempler).
+# Ubestemt lar klienten velge selv.
+# model = "github-copilot/claude-opus-4.8"
 
 # Modus (default | plan | autopilot), kun Copilot
 # mode = "default"
