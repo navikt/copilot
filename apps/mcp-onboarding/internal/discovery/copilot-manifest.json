@@ -853,7 +853,7 @@
       "displayName": "observability-debugging",
       "description": "Feilsøk produksjonsproblemer med Mimir-metrikker, Loki-logger og Tempo-traces — strukturerte debugging-workflows for Nav-utviklere",
       "filePath": "skills/observability-debugging/SKILL.md",
-      "contentHash": "a341a61fe6ca973bc3dadee1fa14b8653b200c4f3a059f5aa053b43f6ef4141c",
+      "contentHash": "72190d7c7633e328521c80d825d4ec4b49f21516481697b0643c04a03929da7c",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-debugging/SKILL.md",
       "references": [

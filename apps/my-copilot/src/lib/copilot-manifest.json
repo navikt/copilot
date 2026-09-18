@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-18T08:15:40.907Z",
+  "generatedAt": "2026-09-18T10:20:16.450Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1418,13 +1418,13 @@
     {
       "id": "observability-debugging",
       "name": "observability-debugging",
-      "description": "Feilsøk produksjonsproblemer med Mimir-metrikker, Loki-logger og Tempo-traces — strukturerte debugging-workflows for Nav-utviklere",
+      "description": "Feilsøk produksjonsproblemer med Mimir-metrikker, Loki-logger og Tempo-traces gjennom strukturerte debugging-workflows for Nav-utviklere",
       "type": "skill",
       "domain": "observability",
       "filePath": "skills/observability-debugging/SKILL.md",
       "repoPath": "skills/observability-debugging/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-debugging/SKILL.md",
-      "contentHash": "a341a61fe6ca973bc3dadee1fa14b8653b200c4f3a059f5aa053b43f6ef4141c",
+      "contentHash": "72190d7c7633e328521c80d825d4ec4b49f21516481697b0643c04a03929da7c",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["debugging", "mimir", "loki", "tempo", "prometheus", "traces", "logs", "kubectl", "nais", "nav-pilot"],

@@ -85,14 +85,14 @@ jobs:
           cd cli/nav-pilot && staticcheck ./...
 
   shellcheck:
-    name: Lint install.sh
+    name: Lint shell scripts
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: ShellCheck
-        run: shellcheck scripts/install.sh
+        run: shellcheck scripts/install.sh skills/*/*.sh
 
   bats:
     name: Unit Test install.sh
@@ -106,7 +106,7 @@ jobs:
           experimental: true
 
       - name: Run BATS
-        run: mise exec -- bats scripts/install.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats
+        run: mise exec -- bats scripts/install.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats
 
   e2e-install:
     name: E2E test install.sh
