@@ -71,6 +71,24 @@ func reportGoneSource(scope *InstallScope, state *StateFile) bool {
 	return true
 }
 
+func reportBrokenRtkHook() bool {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return false
+	}
+	hook := filepath.Join(home, ".copilot", "hooks", "rtk-rewrite.json")
+	if st, err := os.Stat(hook); err != nil || !st.Mode().IsRegular() {
+		return false
+	}
+	if rtk, _ := exec.LookPath("rtk"); rtk != "" {
+		return false
+	}
+	fmt.Printf("    %s rtk: hook installed, but binary not found on PATH\n", red("[✗]"))
+	fmt.Printf("        The hook denies every matching Copilot tool call when it cannot start rtk.\n")
+	fmt.Printf("        %s Remove it with %s\n", red("Solution:"), bold("rm -- ~/.copilot/hooks/rtk-rewrite.json"))
+	return true
+}
+
 // cmdDoctor runs system health checks and outputs actionable diagnostics.
 func cmdDoctor() error {
 	fmt.Printf("%s\n\n", bold("nav-pilot doctor"))
@@ -399,7 +417,11 @@ func cmdDoctor() error {
 		}
 	}
 	checkDep("git")
-	checkOptionalDep("rtk")
+	if reportBrokenRtkHook() {
+		hasErrors = true
+	} else {
+		checkOptionalDep("rtk")
+	}
 	fmt.Println()
 
 	if hasErrors {

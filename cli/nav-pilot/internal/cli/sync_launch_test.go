@@ -107,3 +107,38 @@ func TestSyncFlagWarnsUnsandboxedLaunch(t *testing.T) {
 		t.Errorf("run(--sync) with auto_launch = true should still launch the client: %v\nstderr:\n%s", err, stderr)
 	}
 }
+
+func TestSyncFlagRemovesUnusableRtkHook(t *testing.T) {
+	cfgPath := isolatedConfig(t)
+	if err := os.WriteFile(cfgPath, []byte("version = 1\nclient = \"copilot\"\nauto_launch = true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	marker := stubClient(t, "copilot")
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hook := filepath.Join(home, ".copilot", "hooks", "rtk-rewrite.json")
+	if err := os.MkdirAll(filepath.Dir(hook), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(hook, []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	origInteractive := isInteractive
+	isInteractive = func() bool { return true }
+	t.Cleanup(func() { isInteractive = origInteractive })
+
+	var runErr error
+	_, stderr := captureRun(t, func() { runErr = run([]string{"--sync"}) })
+	if runErr != nil {
+		t.Fatalf("run(--sync) = %v\nstderr:\n%s", runErr, stderr)
+	}
+	if _, err := os.Stat(hook); !os.IsNotExist(err) {
+		t.Fatalf("run(--sync) left unusable RTK hook behind: %v", err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Errorf("run(--sync) did not launch Copilot after removing the hook: %v", err)
+	}
+}

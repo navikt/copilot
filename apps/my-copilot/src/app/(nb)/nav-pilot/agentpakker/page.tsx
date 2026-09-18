@@ -732,7 +732,7 @@ export default function Agentpakker() {
                       <code className="font-mono text-xs">sync --apply</code> når blokka er endret. Svaret lagres per
                       scope i <code className="font-mono text-xs">~/.nav-pilot/pakke-consent.json</code>, nøklet på en
                       hash av hele blokka: endrer du <code className="font-mono text-xs">reason</code> eller legger til
-                      en vert, kommer spørsmålet tilbake med det som endret seg. Blokka er ett spørsmål: et domene og en
+                      en host, kommer spørsmålet tilbake med det som endret seg. Blokka er ett spørsmål: et domene og en
                       lesetilgang i samme blokk vises sammen og besvares én gang. Et nei installerer pakka likevel.
                       Brukeren får vite hva som ryker, og kommandoene som åpner det for hånd:
                     </BodyLong>
@@ -740,7 +740,7 @@ export default function Agentpakker() {
                     <BodyLong textColor="subtle">
                       Uten terminal, og med <code className="font-mono text-xs">--json</code>, godkjennes ingenting og
                       noteres ingenting. <code className="font-mono text-xs">nav-pilot uninstall</code> sletter svaret.
-                      Et ja blir <code className="font-mono text-xs">--allow-private-domain &lt;vert&gt;</code> og{" "}
+                      Et ja blir <code className="font-mono text-xs">--allow-private-domain &lt;host&gt;</code> og{" "}
                       <code className="font-mono text-xs">--allow-read &lt;absolutt sti&gt;</code> på
                       cplt-kommandolinja, for launcher fra scopet som svarte, og skrives ut ved hver launch. nav-pilot
                       rører ikke cplt-konfigurasjonen. Unntaket løfter bare DNS-rebinding-vernet for de navnene:

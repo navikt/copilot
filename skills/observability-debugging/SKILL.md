@@ -1,6 +1,6 @@
 ---
 name: observability-debugging
-description: Feilsøk produksjonsproblemer med Mimir-metrikker, Loki-logger og Tempo-traces — strukturerte debugging-workflows for Nav-utviklere
+description: Feilsøk produksjonsproblemer med Mimir-metrikker, Loki-logger og Tempo-traces gjennom strukturerte debugging-workflows for Nav-utviklere
 license: MIT
 compatibility: Application deployed on Nais
 metadata:
@@ -8,7 +8,7 @@ metadata:
   tags: debugging mimir loki tempo prometheus traces logs kubectl nais
 ---
 
-# Observability Debugging — Three-Pillar Diagnostics
+# Observability debugging with three-pillar diagnostics
 
 Structured debugging workflows using Nav's observability stack. Replaces guesswork with systematic investigation across metrics, logs, and traces.
 
@@ -61,7 +61,7 @@ Where `NAV_PILOT_SKILLS_DIR` is unset, nav-pilot materialised no skills for this
 
 Same endpoint either way. The header is the only difference, so a wrong value returns real data answering a different question, or an empty result that looks like an outage. Omitting it is a **401**, not a default. Federation is off, so `nais|tenant` is rejected: needing both means two calls.
 
-### Mimir — metrics
+### Mimir metrics
 
 ```bash
 OBS="$NAV_PILOT_SKILLS_DIR/observability-debugging/obs-query.sh"
@@ -75,16 +75,16 @@ bash "$OBS" mimir "up{app=\"$APP\"}" --range "$(( $(date +%s) - 3600 ))" "$(date
 
 `--range` takes start, end and step, all three. Without it the query is an instant one.
 
-### Loki — logs
+### Loki logs
 
 > **Labels (indexed, fast):** `service_name`, `service_namespace`, `app_name`, `env`, `deployment_environment`, `k8s_cluster_name`, `kind` (log/event/exception/measurement)
 > **Structured metadata (fast filter with `|`):** `k8s_pod_name`, `k8s_node_name`, `k8s_container_name`, `detected_level`
 > **Log line fields (require `| json`, slower):** `level`, `message`, `trace_id`, `span_id`, `logger_name`, `thread_name`
 > Always narrow with labels first, then filter metadata/fields.
 
-> **One global endpoint** (`loki.nav.cloud.nais.io`) — like Mimir. Pick the cluster with the
-> `k8s_cluster_name="$CLUSTER"` label (`dev-gcp`, `prod-gcp`, `dev-fss`, `prod-fss`, …), not an
-> environment-specific host.
+> **One global endpoint** (`loki.nav.cloud.nais.io`), like Mimir. Pick the cluster with the
+> `k8s_cluster_name="$CLUSTER"` label. For Nav production workloads the label is `prod`, not
+> the Tempo hostname segment `prod-gcp`. Use the label value returned by the metrics or logs.
 
 ```bash
 OBS="$NAV_PILOT_SKILLS_DIR/observability-debugging/obs-query.sh"
@@ -98,7 +98,7 @@ bash "$OBS" loki "{k8s_cluster_name=\"$CLUSTER\",service_name=\"$APP\"} | json |
 
 Loki queries are always range queries; the server's own window is the last hour. Narrow it with `--range <start> <end>`, where both are RFC3339 or unix nanoseconds.
 
-### Tempo — traces
+### Tempo traces
 
 > **Gotcha:** Tempo search may return unrelated traces when your service has no spans. Always verify `rootServiceName` matches your app.
 
@@ -205,7 +205,7 @@ All API responses return JSON, and the wrapper puts only a 2xx body on stdout, s
 OBS="$NAV_PILOT_SKILLS_DIR/observability-debugging/obs-query.sh"
 ```
 
-### Basics — Mimir & Loki responses
+### Basics for Mimir and Loki responses
 
 ```bash
 # Extract metric values from a Mimir instant query
@@ -214,12 +214,12 @@ bash "$OBS" mimir "$QUERY" | jq '.data.result[] | {metric: .metric, value: .valu
 # Extract log lines from a Loki response
 bash "$OBS" loki "$SELECTOR" | jq -r '.data.result[].values[][1]'
 
-# Parse JSON log lines (Loki returns them as strings — double-decode)
+# Parse JSON log lines (Loki returns them as strings, so double-decode)
 bash "$OBS" loki "$SELECTOR" | jq -r '.data.result[].values[][1]' \
   | jq -s '.' | jq '.[] | fromjson | {time: .timestamp, msg: .message, level: .level}'
 ```
 
-### Trace data — Tempo responses
+### Trace data in Tempo responses
 
 Tempo returns OpenTelemetry-format traces with deeply nested spans. Key recipes:
 
@@ -262,7 +262,7 @@ bash "$OBS" tempo-trace "$ENV" "$TRACE_ID" | jq '[.batches[].scopeSpans[].spans[
 }] | group_by(.parent) | .[] | {parent: .[0].parent, children: [.[] | {name, duration_ms}]}'
 ```
 
-### Tempo search results — several traces at once
+### Tempo search results with several traces
 
 ```bash
 # Search results → summary table
@@ -345,5 +345,5 @@ The first four all look like "the network is down" from inside a `jq` pipeline, 
 
 - Share trace data containing PII outside the team
 - Run unbounded queries without time limits (`start`/`end`)
-- Assume a single trace represents the general case — check rates first
+- Do not assume a single trace represents the general case. Check rates first
 - Delete or modify logs/traces (they're immutable)

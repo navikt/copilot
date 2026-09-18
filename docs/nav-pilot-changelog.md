@@ -2,6 +2,12 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-09-17
+
+### Riktig cluster-label i observability-debugging
+
+- **`observability-debugging` bruker riktig cluster-label**: Skillen sa at `k8s_cluster_name` kunne være `prod-gcp`. Det er et Tempo-hostsegment, mens labelen for Navs produksjonscluster er `prod`. Eksemplene skiller nå de to.
+
 ## 2026-09-15
 
 ### doctor sier om tenant-porten er på

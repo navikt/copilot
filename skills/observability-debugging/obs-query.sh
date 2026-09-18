@@ -82,7 +82,10 @@ while [ $# -gt 0 ]; do
       if [ $# -ge 1 ]; then
         case "$1" in -*) ;; *) step=$1; shift ;; esac
       fi ;;
-    --) shift ;;
+    --)
+      shift
+      pos+=("$@")
+      break ;;
     -*) die "unknown option: $1" ;;
     *) pos+=("$1"); shift ;;
   esac

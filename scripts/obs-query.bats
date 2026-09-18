@@ -80,7 +80,8 @@ out_of() { bash "$SCRIPT" "$@" 2>/dev/null; }
   run bash "$SCRIPT" loki '{service_name="a"}'
   [ "$status" -eq 0 ]
   argv_has "https://loki.nav.cloud.nais.io/loki/api/v1/query_range"
-  run ! grep -q "^start=" "$ARGV"
+  run grep -q "^start=" "$ARGV"
+  [ "$status" -eq 1 ]
 }
 
 @test "tempo-search puts the env in the host and the expression in q" {
@@ -95,7 +96,14 @@ out_of() { bash "$SCRIPT" "$@" 2>/dev/null; }
   run bash "$SCRIPT" tempo-trace dev-gcp abc123
   [ "$status" -eq 0 ]
   argv_has "https://tempo.dev-gcp.nav.cloud.nais.io/api/traces/abc123"
-  run ! grep -q -- "--data-urlencode" "$ARGV"
+  run grep -q -- "--data-urlencode" "$ARGV"
+  [ "$status" -eq 1 ]
+}
+
+@test "-- stops option parsing" {
+  run bash "$SCRIPT" mimir -- "-up"
+  [ "$status" -eq 0 ]
+  argv_has "query=-up"
 }
 
 @test "--org nais reaches the header" {

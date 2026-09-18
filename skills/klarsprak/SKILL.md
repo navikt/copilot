@@ -175,19 +175,24 @@ Abstrakte metafor-substantiv: «substrat», «vektor», «paradigme», «nordstj
 
 Ikke oversett engelske tekniske termer som er etablert i norsk fagspråk:
 
-- image (ikke «avbilde»), cluster (ikke «klynge»), node, container (ikke «beholder»)
-- deployment (men «deploy» som verb og «rulle ut» er OK), release, plugin
-- backup, failover, rollback, upstream, downstream, overhead
+- image (ikke «avbilde»), cluster (ikke «klynge»), node (ikke «knutepunkt»), container (ikke «beholder»)
+- deployment (ikke «utrulling», men «deploy» som verb og «rulle ut» er OK), release (ikke «utgivelse»), plugin (ikke «tillegg»)
+- backup (ikke «sikkerhetskopi»), failover, rollback, upstream, downstream, overhead
 - secret, namespace, pod, CRD, PVC, PDB — aldri oversett Kubernetes-termer
-- edge case, bug, bugfix, hotfix, patch
-- roadmap, governance, community (i open source-kontekst)
+- edge case (ikke «grensetilfelle»), bug (ikke «feil» alene), bugfix, hotfix, patch
+- roadmap (ikke «veikart»), governance, community (i open source-kontekst)
 - pipeline, workflow, runtime, framework, middleware
 - pull request, merge, commit, branch, rebase
-- endpoint, payload, token, scope
+- endpoint, payload, token, scope, host (ikke «vert» eller «vertsnavn»)
+- skill (ikke «ferdighet»), hook (ikke «krok»), prompt (ikke «ledetekst»)
+
+«Host» står på engelsk i enhver teknisk betydning, maskinen like mye som endepunktet. «Vert» sier ikke hvilken av dem det er, og leseren må gjette mellom maskin, HTTP-host og hypervisor. Det gjelder også sammensetningene: «vertsnavn», «vertsliste» og «vertssystem» blir host, host-liste og host-system.
 
 ### Norsk er OK for
 
-feilsøking, oppgradering, sikkerhetskrav, vedlikehold, bidragsytere, brukervennlighet, tilgjengelighet, kodegjennomgang, avhengighet. (Engelsk parallellform som «debugging» og «code review» er også OK.)
+feilsøking, oppgradering, sikkerhetskrav, vedlikehold, driftsarbeid, bidragsytere, brukervennlighet, tilgjengelighet, kodegjennomgang, avhengighet. (Engelsk parallellform som «debugging» og «code review» er også OK.)
+
+«Ferdighet» om menneskelig kompetanse er en annen betydning enn skill-artefakten, og er riktig norsk.
 
 ### Sammensatte ord med engelske termer
 

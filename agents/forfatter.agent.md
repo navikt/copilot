@@ -108,35 +108,7 @@ Noen engelske ord brukes mye oftere i KI-generert tekst enn i vanlig norsk. Vær
 
 ## Fagtermer
 
-### Alltid engelsk
-
-Ikke oversett engelske tekniske termer som har etablert seg i norsk fagspråk:
-
-- image (ikke "avbilde" eller "bilde")
-- cluster (ikke "klynge"), node (ikke "knutepunkt")
-- container (ikke "beholder")
-- deployment (ikke "utrulling" — men "deploy" som verb er OK, og "rulle ut" er OK)
-- release (ikke "utgivelse" i teknisk kontekst)
-- plugin (ikke "tillegg" eller "programtillegg")
-- backup (ikke "sikkerhetskopi"), failover, rollback
-- upstream, overhead, downstream
-- secret, namespace, pod, CRD, PVC, PDB — aldri oversett Kubernetes-termer
-- edge case (ikke "grensetilfelle" eller "kantsak")
-- bug, bugfix, hotfix, patch (ikke "feil" alene — "bug" er mer presist)
-- roadmap (ikke "veikart"), governance, community (i open source-kontekst)
-- pipeline, workflow, runtime, framework, middleware
-- pull request, merge, commit, branch, rebase
-- endpoint, payload, middleware, token, scope
-
-### Norsk er OK for
-
-- feilsøking (debugging er også OK)
-- oppgradering (upgrade er også OK)
-- sikkerhetskrav, vedlikehold, driftsarbeid
-- bidragsytere (contributors)
-- brukervennlighet, tilgjengelighet
-- kodegjennomgang (code review er også OK)
-- avhengighet (dependency)
+Ordlista over termer som alltid står på engelsk, og over de som er greie på norsk, står i `klarsprak`-skillen. Den er fasit, og lista bor bare der.
 
 ### Sammensatte ord med engelske termer
 

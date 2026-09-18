@@ -950,6 +950,9 @@ func launchClient(resolved ResolvedConfig) error {
 // answering "no" here; they get it by installing cplt, which the warning names.
 // auto_launch = false is the setting for never launching at all.
 func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error {
+	if err := removeUnusableRtkHook(resolved.Client); err != nil {
+		return fmt.Errorf("preparing RTK integration: %w", err)
+	}
 	handled, err := tryPakkeLaunch(resolved)
 	if err != nil {
 		return err

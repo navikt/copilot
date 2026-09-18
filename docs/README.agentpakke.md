@@ -182,7 +182,7 @@ Feltet ligger på pakkenivå, ikke per klient. Om en MCP-server er tilgjengelig,
 
 ## Pakka foreslår sandkassekonfigurasjon
 
-En pakke kan trenge noe av sandkassa rundt seg, og kunne ikke si fra om det. Observabilitetsskillen i `nais/pilot` spør Mimir og Loki på `*.cloud.nais.io`. De navnene slår opp til private IP-er over naisdevice, og cplt avviser enhver vert som gjør det: `403 Private target blocked by cplt`. Feilen kommer midt i en spørring, så både mennesket og modellen leter i PromQL-en.
+En pakke kan trenge noe av sandkassa rundt seg, og kunne ikke si fra om det. Observabilitetsskillen i `nais/pilot` spør Mimir og Loki på `*.cloud.nais.io`. De navnene slår opp til private IP-er over naisdevice, og cplt avviser enhver host som gjør det: `403 Private target blocked by cplt`. Feilen kommer midt i en spørring, så både mennesket og modellen leter i PromQL-en.
 
 `policies.propose` er stedet pakka sier det. Blokka er nøklet på verktøy og skrevet i verktøyets eget vokabular:
 
@@ -233,11 +233,11 @@ Andre nøkler inne i `cplt`-blokka er ikke feil, men de er inerte: nav-pilot nav
 
 **Tekst fra pakka er utrygg tekst.** `reason` og navnene på inerte nøkler havner på skjermen til den som skal svare. En pakke som får satt et linjeskift i dem, kan skrive en linje som ser ut som nav-pilots egen, og en escape-sekvens kan viske ut linjene over. Derfor to regler, begge to: skjemaet setter en lengdegrense og avviser kontrolltegn, formattegn og linjeseparatorer, og nav-pilot slår sammen all whitespace og erstatter kontrolltegn i det den skriver ut. En pakke kan altså ikke lage et linjeskift på skjermen i det hele tatt; spørsmålet eier hver eneste linje.
 
-Waiveren er DNS-rebinding-vernet, ikke en tillatelse. Den navngir verter én om gangen, blokklista og tillatelseslista gjelder fortsatt, den åpner ingen port, gir ingen sti og kjører ingenting. Verste utfall er at agenten når en intern tjeneste brukerens egen naisdevice alt når.
+Waiveren er DNS-rebinding-vernet, ikke en tillatelse. Den navngir hosts én om gangen, blokklista og tillatelseslista gjelder fortsatt, den åpner ingen port, gir ingen sti og kjører ingenting. Verste utfall er at agenten når en intern tjeneste brukerens egen naisdevice alt når.
 
 ### Hva nav-pilots egen pakke foreslår
 
-Standardpakka i dette repoet foreslår fire verter, og bare dem:
+Standardpakka i dette repoet foreslår fire hosts, og bare dem:
 
 ```
 mimir.nav.cloud.nais.io
@@ -248,11 +248,11 @@ tempo.prod-gcp.nav.cloud.nais.io
 
 Det er de fire `skills/observability-debugging` faktisk curler. `grafana.nav.cloud.nais.io` og `console.nav.cloud.nais.io` står i de samme artefaktene, men er lenker et menneske åpner i nettleser, og de slår dessuten opp til en offentlig adresse. De trenger ingen waiver og står ikke her.
 
-**Fulle vertsnavn, ikke suffikset.** `allow_private_domains` matcher eksakt eller på underdomene (`is_domain_match` i cplt), så `cloud.nais.io` hadde løftet DNS-rebinding-vernet for hver eneste vert hos hver eneste tenant. Fire navngitte verter er det skillen spør om. En femte er en beslutning noen tar med vilje, i dette repoet, og ikke noe et nytt vertsnavn arver.
+**Fulle hosts, ikke suffikset.** `allow_private_domains` matcher eksakt eller på underdomene (`is_domain_match` i cplt), så `cloud.nais.io` hadde løftet DNS-rebinding-vernet for hver eneste host hos hver eneste tenant. Fire navngitte hosts er det skillen spør om. En femte er en beslutning noen tar med vilje, i dette repoet, og ikke noe en ny host arver.
 
-`nais/pilot` foreslår `cloud.nais.io` og har rett i det: den pakka er flertenant, tenanten avgjøres av hvilken naisdevice-tilkobling som står oppe, og variabelen står midt i navnet, så suffiksmatching kan ikke uttrykke «mimir hos hvem som helst». Standardpakka gjelder bare `nav`-tenanten og kjenner vertene sine når manifestet skrives. De to listene skal være ulike, og av den grunnen.
+`nais/pilot` foreslår `cloud.nais.io` og har rett i det: den pakka er flertenant, tenanten avgjøres av hvilken naisdevice-tilkobling som står oppe, og variabelen står midt i navnet, så suffiksmatching kan ikke uttrykke «mimir hos hvem som helst». Standardpakka gjelder bare `nav`-tenanten og kjenner hostene sine når manifestet skrives. De to listene skal være ulike, og av den grunnen.
 
-**To porter, ikke én.** cplt avviser en vert utenfor `proxy.allowed_domains` før DNS (`Domain not in allowlist`), og avviser en vert som slo opp til en privat adresse etter DNS med mindre `proxy.allow_private_domains` dekker den (`Resolved to a private IP`). En spørring må gjennom begge. `navOwnDomains` i `internal/cli/config_sandbox.go` er den første, forslaget her er den andre, og `TestObservabilityHostsMatchTheProposal` holder de to listene like. `collector-internet.nav.cloud.nais.io`, som nav-pilot selv sender telemetri til, slår opp offentlig og trenger bare den første.
+**To porter, ikke én.** cplt avviser en host utenfor `proxy.allowed_domains` før DNS (`Domain not in allowlist`), og avviser en host som slo opp til en privat adresse etter DNS med mindre `proxy.allow_private_domains` dekker den (`Resolved to a private IP`). En spørring må gjennom begge. `navOwnDomains` i `internal/cli/config_sandbox.go` er den første, forslaget her er den andre, og `TestObservabilityHostsMatchTheProposal` holder de to listene like. `collector-internet.nav.cloud.nais.io`, som nav-pilot selv sender telemetri til, slår opp offentlig og trenger bare den første.
 
 **Slik ser feilen ut uten waiveren.** 403-en kommer midt i en spørring, og hver curl i skillen er rørt til `jq`, så det brukeren ser er `parse error: Invalid numeric literal`. Det ligner på at nettet er nede. `nav-pilot doctor` sier om waiveren er i kraft, skillen har en tabell som skiller de tre 403-ene fra en naisdevice som ikke er koblet til, og avslagsteksten skriver ut enlinjeren som åpner det for hånd.
 
@@ -277,7 +277,7 @@ cplt config set allow.read "~/Library/Application Support/naisdevice/agent-statu
 
 ### Hvor det tar effekt
 
-Ingen steder i cplts konfigurasjon. Et godkjent forslag blir `--allow-private-domain <vert>` og `--allow-read <absolutt sti>` på launch-linja, for launcher fra scopet som godkjente det, og ingenting annet: nav-pilot skriver ikke i `~/.config/cplt/`, ikke i `local/` eller `trust/` under den, og ikke i noen `.cplt.toml`. `allow_private_domains` er et vanlig strengarray uten plass til opphav, så en markør måtte blitt en sidecar-post uansett — og da er konfigurasjonen duplisert tilstand som kan drifte fra posten. Flagget utledes av posten hver launch og kan ikke drifte.
+Ingen steder i cplts konfigurasjon. Et godkjent forslag blir `--allow-private-domain <host>` og `--allow-read <absolutt sti>` på launch-linja, for launcher fra scopet som godkjente det, og ingenting annet: nav-pilot skriver ikke i `~/.config/cplt/`, ikke i `local/` eller `trust/` under den, og ikke i noen `.cplt.toml`. `allow_private_domains` er et vanlig strengarray uten plass til opphav, så en markør måtte blitt en sidecar-post uansett — og da er konfigurasjonen duplisert tilstand som kan drifte fra posten. Flagget utledes av posten hver launch og kan ikke drifte.
 
 Oppføringene skrives ut ved launch, slik at det som faktisk gjelder for økta står på skjermen.
 
