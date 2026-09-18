@@ -52,12 +52,12 @@ kubectl get pods -n team-x -l app=min-app \
 # Sjekk minnebruk mot limit (Mimir)
 curl -s -G -H "X-Scope-OrgID: tenant" \
   "https://mimir.nav.cloud.nais.io/prometheus/api/v1/query" \
-  --data-urlencode 'query=container_memory_working_set_bytes{k8s_cluster_name="prod-gcp",app="min-app"}/container_spec_memory_limit_bytes{k8s_cluster_name="prod-gcp",app="min-app"}*100'
+  --data-urlencode 'query=container_memory_working_set_bytes{k8s_cluster_name="prod",app="min-app"}/container_spec_memory_limit_bytes{k8s_cluster_name="prod",app="min-app"}*100'
 
 # Finn feilmeldinger rundt OOM-tidspunkt (Loki)
 curl -s -G -H "X-Scope-OrgID: tenant" \
   "https://loki.nav.cloud.nais.io/loki/api/v1/query_range" \
-  --data-urlencode 'query={k8s_cluster_name="prod-gcp",service_name="min-app"} | detected_level="error"'
+  --data-urlencode 'query={k8s_cluster_name="prod",service_name="min-app"} | detected_level="error"'
 
 # Hent trace for å se hvilken downstream-tjeneste som feiler (Tempo)
 curl -s -H "X-Scope-OrgID: tenant" \
