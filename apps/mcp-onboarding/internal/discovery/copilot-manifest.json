@@ -75,9 +75,8 @@
       "displayName": "@forfatter",
       "description": "Norsk teknisk redaktør, tekstforfatter eller innholdsdesigner: klarspråk, AI-markører, anglisismer, fagtermer, mikrotekst.",
       "filePath": "agents/forfatter.agent.md",
-      "contentHash": "4516167e39928ef2c4bac1c701fe9c87a1b321f41a6f32057ef57a082df62970",
+      "contentHash": "7647c85972f59fa7dec3e968131e540d3584a24718476e4fd00f62185d95c863",
       "useCases": [
-        "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
         "Creating Kafka event consumers",
         "Designing event schemas"
@@ -345,7 +344,7 @@
       "displayName": "Norsk tekstkvalitet",
       "description": "Minimumsregler for norsk markdown: Nav, bindestrek i sammensatte ord, engelsk fagspråk, konsekvent bokmål og overskrifter. Full språkvask ligger i klarsprak-skillen.",
       "filePath": "instructions/norwegian-text.instructions.md",
-      "contentHash": "9fe4d16cff71a80e31b203e31f3068350f7741c7002234f39de7e3a539330b80",
+      "contentHash": "ae153e646c932a2878846c6d440aef9e6774fd3587d47d8bb53b471f8db7ca57",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/norwegian-text.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/norwegian-text.instructions.md"
     },
@@ -692,7 +691,7 @@
       "displayName": "klarsprak",
       "description": "Redigér og kvalitetssikre norsk tekst: klarspråk, AI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding",
       "filePath": "skills/klarsprak/SKILL.md",
-      "contentHash": "184954847c6d92ee256a662912a224d531dc44c8a3a4609c5b1fb19bc47613a7",
+      "contentHash": "d6ed75d1e08c4867d2d09fbd68f4e87c117f4a40ce708d76122357707b68c0c7",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/klarsprak/SKILL.md"
     },
