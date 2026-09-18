@@ -16,6 +16,9 @@ import (
 // maybePromptRtkSetup coordinates the interactive prompt and installation of RTK.
 // It is the main entry point called from the interactive launch flow.
 func maybePromptRtkSetup(cfg ResolvedConfig) {
+	if err := removeUnusableRtkHook(cfg.Client); err != nil {
+		fmt.Fprintf(os.Stderr, "%s RTK Setup Warning: %v\n", yellow("⚠"), err)
+	}
 	if !shouldPromptRtk(cfg) {
 		return
 	}
@@ -24,6 +27,21 @@ func maybePromptRtkSetup(cfg ResolvedConfig) {
 		// Log warning but don't fail the launch
 		fmt.Fprintf(os.Stderr, "%s RTK Setup Warning: %v\n", yellow("⚠"), err)
 	}
+}
+
+func removeUnusableRtkHook(client string) error {
+	if client != "copilot" || isRtkInstalled() {
+		return nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("could not determine home directory: %w", err)
+	}
+	hook := filepath.Join(home, ".copilot", "hooks", "rtk-rewrite.json")
+	if err := os.Remove(hook); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("could not remove unusable hook %s: %w", hook, err)
+	}
+	return nil
 }
 
 // shouldPromptRtk determines if the user needs to be prompted.
