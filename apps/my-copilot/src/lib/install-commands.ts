@@ -166,7 +166,8 @@ export function getMcpServerConfig(item: AnyCustomization): string {
   }
 
   if (item.remotes.length > 0) {
-    return JSON.stringify({ [serverName]: { type: "http", url: item.remotes[0].url } }, null, 2);
+    const transportType = item.remotes[0].type === "sse" ? "sse" : "http";
+    return JSON.stringify({ [serverName]: { type: transportType, url: item.remotes[0].url } }, null, 2);
   }
 
   return "";
@@ -191,7 +192,8 @@ export function getVsCodeAddMcpCommand(item: AnyCustomization): string {
   }
 
   if (item.remotes.length > 0) {
-    return `code --add-mcp '${JSON.stringify({ name: serverName, type: "http", url: item.remotes[0].url })}'`;
+    const transportType = item.remotes[0].type === "sse" ? "sse" : "http";
+    return `code --add-mcp '${JSON.stringify({ name: serverName, type: transportType, url: item.remotes[0].url })}'`;
   }
 
   return "";
