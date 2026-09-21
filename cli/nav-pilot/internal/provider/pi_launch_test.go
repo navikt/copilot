@@ -95,6 +95,16 @@ func TestPiLaunchArgsModel(t *testing.T) {
 	})
 }
 
+func TestPiModelArgOmitsNormalizedAutoModels(t *testing.T) {
+	for _, model := range []string{"", "auto", "github-copilot/auto"} {
+		t.Run(model, func(t *testing.T) {
+			if got := piModelArg(model); got != nil {
+				t.Errorf("piModelArg(%q) = %q, want no --model argument", model, got)
+			}
+		})
+	}
+}
+
 // TestPiSkillArgsPersonaFilenames: both spellings of an agent file reach
 // piSkillArgs — Tier 1 materialization renames agents to <name>.md, a staged
 // payload keeps the canonical <name>.agent.md.

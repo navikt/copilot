@@ -722,6 +722,8 @@ func TestStagedPiSpec(t *testing.T) {
 	}{
 		// The fixture declares "inherit", which forwards no --model at all.
 		{"inherit forwards no model", domain.ResolvedConfig{}, base},
+		{"normalized auto model forwards no model", domain.ResolvedConfig{Model: "auto"}, base},
+		{"normalized legacy auto model forwards no model", domain.ResolvedConfig{Model: "github-copilot/auto"}, base},
 		{"a user pin is mapped and forwarded", domain.ResolvedConfig{Model: "claude-sonnet-4.6"},
 			with("--model", ToOpenCodeModel("claude-sonnet-4.6"))},
 		{"forwarded arguments come last", domain.ResolvedConfig{ExtraArgs: []string{"--print", "hi"}},

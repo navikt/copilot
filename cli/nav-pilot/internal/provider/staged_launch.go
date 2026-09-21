@@ -292,9 +292,7 @@ func buildStagedPiSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch, err
 	}
 
 	agentArgs := piSkillArgs(s.Dir, primary)
-	if model != "" {
-		agentArgs = append(agentArgs, "--model", ToOpenCodeModel(model))
-	}
+	agentArgs = append(agentArgs, piModelArg(model)...)
 	agentArgs = append(agentArgs, r.ExtraArgs...)
 
 	return cpltLaunch{
