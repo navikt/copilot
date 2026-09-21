@@ -102,6 +102,15 @@ const remoteMcp: McpServerCustomization = {
   remotes: [{ type: "streamable-http", url: "https://mcp.nav.no/mcp" }],
 };
 
+const remoteSseMcp: McpServerCustomization = {
+  ...base,
+  type: "mcp",
+  name: "sse-mcp",
+  serverId: "io.github.navikt/sse-mcp",
+  version: "1.0.0",
+  remotes: [{ type: "sse", url: "https://mcp.nav.no/sse" }],
+};
+
 const npmMcp: McpServerCustomization = {
   ...base,
   type: "mcp",
@@ -434,6 +443,13 @@ describe("getMcpServerConfig", () => {
     });
   });
 
+  it("generates sse config for sse remote mcp", () => {
+    const config = JSON.parse(getMcpServerConfig(remoteSseMcp));
+    expect(config).toEqual({
+      "io.github.navikt/sse-mcp": { type: "sse", url: "https://mcp.nav.no/sse" },
+    });
+  });
+
   it("generates stdio config for npm package", () => {
     const config = JSON.parse(getMcpServerConfig(npmMcp));
     const entry = config["io.github.navikt/figma-mcp"];
@@ -512,6 +528,14 @@ describe("getVsCodeAddMcpCommand", () => {
     expect(json.name).toBe("io.github.navikt/github-mcp");
     expect(json.type).toBe("http");
     expect(json.url).toBe("https://mcp.nav.no/mcp");
+  });
+
+  it("generates code --add-mcp with sse type for sse remote", () => {
+    const cmd = getVsCodeAddMcpCommand(remoteSseMcp);
+    const json = JSON.parse(cmd.replace("code --add-mcp '", "").replace(/'$/, ""));
+    expect(json.name).toBe("io.github.navikt/sse-mcp");
+    expect(json.type).toBe("sse");
+    expect(json.url).toBe("https://mcp.nav.no/sse");
   });
 
   it("generates code --add-mcp for npm package", () => {
