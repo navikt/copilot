@@ -1,7 +1,7 @@
 ---
 name: security-champion-agent
 description: Navs sikkerhetsarkitektur, trusselmodellering, compliance og sikkerhetspraksis
-model: GPT-6 Sol
+model: GPT-5.6 Sol
 tools:
   - execute
   - read

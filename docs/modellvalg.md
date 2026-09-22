@@ -13,11 +13,11 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | Agent | Modell | Begrunnelse |
 |-------|--------|-------------|
 | `@nav-pilot` | Klientens standardmodell | Orkestratoren pinnes ikke; den arver modellen brukeren allerede kjører i klienten |
-| `@nav-pilot-opus` | Claude Opus 5.5 | Høyrisiko planlegging og kritisk review. Modellen er laget for lange agentoppgaver, har sterkere vern mot prompt injection enn Opus 5 og koster $4.00 / $20.00. Agenten er ikke målt mot den nye modellen |
-| `@security-champion` | GPT-6 Sol | Sikkerhetskritiske vurderinger. Direkte oppgradering fra GPT-5.6 Sol til halv listepris ($2.00 / $10.00). Agenten er ikke målt mot den nye modellen |
+| `@nav-pilot-opus` | GPT-5.6 Sol | Tung resonnering for høy-risiko beslutninger. Billigere enn Opus-modellene ($5.00 / $25.00) på begge akser under 272K kontekst, dyrere på begge akser over 272K. Agenten er ikke målt mot noen Opus-modell |
+| `@security-champion` | GPT-5.6 Sol | Sikkerhetskritiske vurderinger. Agenten er ikke målt mot Opus 4.6 eller mot noen annen modell. Byttet hviler på pris |
 | `@code-review` | GPT-5.3-Codex | Sterkest på kodeforståelse og terminal-oppgaver |
 | `@kafka` | GPT-5.3-Codex | Teknisk presis på hendelsesdrevne mønstre |
-| `@research` | GPT-6 Luna | Leser og søker uten å skrive kode. Den nye Luna-modellen koster $0.10 / $0.50, omtrent halvparten av GPT-5.6 Luna. Gjelder bare når agenten startes direkte, ikke når `@nav-pilot` delegerer til den |
+| `@research` | GPT-5.6 Luna | Leser og søker uten å skrive kode. Luna er omtrent en tiendedel av Codex i listepris. Gjelder bare når agenten startes direkte, ikke når `@nav-pilot` delegerer til den |
 | `@rust` | GPT-5.3-Codex | Terminal-Bench-leder for kompilert kode |
 | `@aksel` | Claude Sonnet 5 | Sterk på komponentstruktur og designsystem-konvensjoner |
 | `@accessibility` | Claude Sonnet 5 | God på WCAG-tolkning og semantisk HTML |
@@ -30,10 +30,10 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | `kafka-topic` | GPT-5.3-Codex | Konsistent med kafka-agenten |
 | `nais-manifest` | GPT-5.3-Codex | God på infrastruktur og YAML-konfigurasjon |
 | `aksel-component` | Gemini 3.6 Flash | Rask og billig for scaffolding av Aksel-komponenter |
-| `ktor-endpoint` | GPT-6 Luna | Enkel strukturert mal, trenger ikke tung modell |
-| `nextjs-api-route` | GPT-6 Luna | Enkel strukturert mal |
-| `spring-boot-endpoint` | GPT-6 Luna | Enkel strukturert mal |
-| `golang-service` | GPT-6 Luna | Enkel strukturert mal |
+| `ktor-endpoint` | GPT-5.6 Luna | Enkel strukturert mal, trenger ikke tung modell |
+| `nextjs-api-route` | GPT-5.6 Luna | Enkel strukturert mal |
+| `spring-boot-endpoint` | GPT-5.6 Luna | Enkel strukturert mal |
+| `golang-service` | GPT-5.6 Luna | Enkel strukturert mal |
 
 ## Pinner og delegering
 
@@ -44,7 +44,7 @@ Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
 `model:`-feltet i en agents frontmatter blir brukt når agenten startes direkte:
 
 ```
-copilot --agent research      # kjører på gpt-5.6-luna, som pinnen sa under målingen
+copilot --agent research      # kjører på gpt-5.6-luna, som pinnen sier
 ```
 
 Blir den samme agenten startet som subagent, arver den forelderens modell, og pinnen leses ikke:
@@ -169,13 +169,12 @@ anslag, ikke noe vi har målt**, og forholdet varierer med oppgaven.
 
 Et kuratert utvalg av modellflåten: modellene vi faktisk vurderer, ikke alle
 GitHub priser. Prisene under er GitHubs listepriser slik de sto
-**22. september 2026**, hentet fra `apps/my-copilot/src/lib/model-pricing.ts`,
+**10. september 2026**, hentet fra `apps/my-copilot/src/lib/model-pricing.ts`,
 som dekker hele flåten. De endrer seg uten varsel, så
 tallene her har et tidsstempel og ikke evig gyldighet.
 
 | Modell | Kategori | Input | Output | Best for |
 |--------|----------|-------|--------|----------|
-| Claude Opus 5.5 | Powerful | $4.00 | $20.00 | Lange agentoppgaver, kodebaseomfattende migreringer, høyrisiko planlegging og sikkerhetskritisk review. Lansert 22. september 2026 |
 | Claude Opus 5 | Powerful | $5.00 | $25.00 | Dyp resonnering, risikovurdering og sikkerhetskritisk kode med justerbar effort (low/medium/high). Lansert 24. juli 2026 |
 | Claude Opus 4.7 / 4.8 | Powerful | $5.00 | $25.00 | Dyp risikovurdering, sikkerhetskritisk kode, kompleks arkitektur. Opus 4.5 og 4.6 falt ut av GitHubs prisliste 5. sep 2026 |
 | Claude Sonnet 4.6 | Versatile | $3.00 | $15.00 | Daglig koding, norsk tekst, planlegging |
@@ -185,8 +184,6 @@ tallene her har et tidsstempel og ikke evig gyldighet.
 | GPT-5.6 Luna | Lightweight | $0.20 | $1.20 | Raske rutineoppgaver, enkel autofullfør. OpenAI plasserer den i nano-sjiktet fra tidligere GPT-5-familier, men med høy reasoning-rating og justerbar effort |
 | GPT-5.6 Terra | Versatile | $2.00 | $12.00 | Allround daglig koding i GPT-familien |
 | GPT-5.6 Sol | Powerful | $4.00 | $20.00 | Tung reasoning over store kodebaser. Listepris; kampanjen gikk ut 3. sep 2026. Lang kontekst over 272K: $8.00 / $30.00 |
-| GPT-6 Luna | Lightweight | $0.10 | $0.50 | Raske rutineoppgaver og faste maler. Lang kontekst over 272K: $0.20 / $0.75 |
-| GPT-6 Sol | Powerful | $2.00 | $10.00 | Daglig agentisk koding med validering i flere steg. Lang kontekst over 272K: $4.00 / $15.00 |
 | Gemini 2.5 Pro | Powerful | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026. Gemini 3.1 Pro, som overtok rollen, falt ut av prislista 5. sep 2026. Google har ingen Powerful-modell igjen hos GitHub. Bruk GPT-5.3-Codex eller Kimi K3 til research over lang kontekst |
 | Gemini 3.5 Flash | Lightweight | $1.50 | $9.00 | Rask og billig for enkle oppgaver |
 | Gemini 3.6 Flash | Versatile | $0.75 | $3.75 | Agentiske workflows med parallell verktøybruk. Kampanjepris t.o.m. 31. des 2026 |

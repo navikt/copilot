@@ -50,9 +50,6 @@ test("buildTable is sorted, non-empty, and includes the pinned entries", () => {
   const table = buildTable(parseCatalog(FEED));
   const ids = table.map((m) => m.id);
   assert.ok(ids.includes("auto"), "auto must be pinned in");
-  assert.ok(ids.includes("claude-opus-5.5"), "newly enabled Opus model must be available");
-  assert.ok(ids.includes("gpt-6-luna"), "newly enabled lightweight model must be available");
-  assert.ok(ids.includes("gpt-6-sol"), "newly enabled powerful model must be available");
   assert.ok(ids.includes("claude-opus-4.6"), "delisted-but-working model must be retained");
   assert.ok(ids.includes("gpt-5.5"), "catalog model must be present");
   assert.deepEqual(ids, [...ids].sort(), "table must be sorted by id");
@@ -148,11 +145,5 @@ test("reconcile surfaces divergence in explicit buckets, not silent drops", () =
   assert.ok(rec.matched.includes("claude-opus-4.8"));
   assert.ok(rec.pricedNotInCatalog.includes("claude-sonnet-4"));
   assert.ok(rec.catalogNotPriced.includes("grok-4.6"), "unpriced catalog model is surfaced, not dropped");
-  assert.deepEqual(rec.pinned, [
-    "auto",
-    "claude-opus-4.6",
-    "claude-opus-5.5",
-    "gpt-6-luna",
-    "gpt-6-sol",
-  ]);
+  assert.deepEqual(rec.pinned, ["auto", "claude-opus-4.6"]);
 });

@@ -1,7 +1,7 @@
 ---
 name: golang-service
 description: Scaffold ein Go HTTP-teneste med NAIS-mønster, pgx, sqlc og slog
-model: GPT-6 Luna
+model: GPT-5.6 Luna
 ---
 
 # Go NAIS Service
