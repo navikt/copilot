@@ -141,15 +141,29 @@ const OpenCodeProviderPrefix = "github-copilot/"
 // not hand-edited: to add or retain a model, change the generator's PINNED list
 // or let the daily sync pick up a catalog change, then run `mise run models:sync`.
 
+// CopilotModelIDForLabel maps a model name as written in Nav agent frontmatter
+// to its Copilot model id. A known id is accepted in the same position, so an
+// agent author who writes the id instead of the label is not silently ignored.
+//
+// It returns "" for anything not in [KnownCopilotModels]. That is the point:
+// callers must distinguish an unknown label from a model unavailable to the
+// current account.
+func CopilotModelIDForLabel(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ""
+	}
+	for _, m := range KnownCopilotModels {
+		if strings.EqualFold(m.Label, name) || strings.EqualFold(m.ID, name) {
+			return m.ID
+		}
+	}
+	return ""
+}
+
 // OpenCodeModelForLabel maps a model name as written in Nav agent frontmatter
 // to the provider-qualified opencode model id. Frontmatter carries display
 // names ("Claude Sonnet 4.6"); opencode needs "github-copilot/claude-sonnet-4.6".
-// A known id is accepted in the same position, so an agent author who writes
-// the id instead of the label is not silently ignored.
-//
-// It returns "" for anything not in [KnownCopilotModels]. That is the point:
-// the caller must then emit no model line at all rather than guess an id that
-// the client would reject at launch.
 //
 // "auto" is in that catalog — it is a real Copilot CLI selection — but is
 // excluded here on purpose: opencode has no auto-routing and rejects
@@ -158,19 +172,11 @@ const OpenCodeProviderPrefix = "github-copilot/"
 // it would reproduce the exact launch failure this mapping exists to avoid,
 // for any agent that ever declares "Auto" as its model.
 func OpenCodeModelForLabel(name string) string {
-	name = strings.TrimSpace(name)
-	if name == "" {
+	id := CopilotModelIDForLabel(name)
+	if id == "" || id == "auto" {
 		return ""
 	}
-	for _, m := range KnownCopilotModels {
-		if m.ID == "auto" {
-			continue
-		}
-		if strings.EqualFold(m.Label, name) || strings.EqualFold(m.ID, name) {
-			return OpenCodeProviderPrefix + m.ID
-		}
-	}
-	return ""
+	return OpenCodeProviderPrefix + id
 }
 
 // IsKnownCopilotModel reports whether id is in [KnownCopilotModels]. The match

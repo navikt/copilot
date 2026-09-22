@@ -86,6 +86,50 @@ func TestActivePakkeBareDeclarationGetsPrefixed(t *testing.T) {
 	}
 }
 
+func TestActivePakkeLocalDefaultIsCheckedBeforeLaunch(t *testing.T) {
+	t.Cleanup(func() { SetActivePakke(nil) })
+	withLocalEnabled(t)
+	model := aLocalModelID(t)
+	SetActivePakke(&agentpakke.Manifest{
+		Name: "local",
+		Clients: map[string]agentpakke.ClientEntry{
+			"opencode": {PrimaryAgents: []string{"worker"}, DefaultModel: model},
+		},
+	})
+
+	if got := openCodeSessionModelForLocalDispatch(""); got != model {
+		t.Fatalf("local dispatch session model = %q, want %q", got, model)
+	}
+	if guard, err := startLocalDispatch(openCodeSessionModelForLocalDispatch("")); err == nil {
+		if guard != nil {
+			guard.Close()
+		}
+		t.Fatal("package-declared local model launched without a local server")
+	}
+}
+
+func TestActivePakkeLocalCopilotDefaultIsCheckedBeforeLaunch(t *testing.T) {
+	t.Cleanup(func() { SetActivePakke(nil) })
+	withLocalEnabled(t)
+	model := aLocalModelID(t)
+	SetActivePakke(&agentpakke.Manifest{
+		Name: "local",
+		Clients: map[string]agentpakke.ClientEntry{
+			"copilot": {PrimaryAgents: []string{"worker"}, DefaultModel: model},
+		},
+	})
+
+	if got := copilotSessionModel(""); got != model {
+		t.Fatalf("copilot session model = %q, want %q", got, model)
+	}
+	if worker, guard, err := copilotLocalWorker(copilotSessionModel("")); err == nil {
+		if guard != nil {
+			guard.Close()
+		}
+		t.Fatalf("package-declared local model launched without a local server: worker=%+v", worker)
+	}
+}
+
 // TestActivePakkeBareAutoIsNormalized covers a pakke declaring bare "auto"
 // (valid for Copilot CLI, invalid for opencode): it must not recurse and must
 // resolve to "".

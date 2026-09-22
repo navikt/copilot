@@ -403,6 +403,23 @@ func TestOpenCodeModelForLabel(t *testing.T) {
 	}
 }
 
+func TestCopilotModelIDForLabel(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{in: "Auto (let Copilot pick)", want: "auto"},
+		{in: "auto", want: "auto"},
+		{in: "Claude Opus 5", want: "claude-opus-5"},
+		{in: "unknown", want: ""},
+	}
+	for _, tt := range tests {
+		if got := CopilotModelIDForLabel(tt.in); got != tt.want {
+			t.Errorf("CopilotModelIDForLabel(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
 // TestAgentFrontmatterModelsAreKnown checks the repo's own agents against the
 // table: a display name nobody recognises materializes without a model line, so
 // a typo would silently disable per-agent model selection for that agent.

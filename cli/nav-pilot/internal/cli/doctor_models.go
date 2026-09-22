@@ -136,7 +136,7 @@ func installedModelPins(scope *InstallScope) []pinnedModel {
 		if label == "" {
 			continue
 		}
-		id := strings.TrimPrefix(domain.OpenCodeModelForLabel(label), domain.OpenCodeProviderPrefix)
+		id := domain.CopilotModelIDForLabel(label)
 		pins = append(pins, pinnedModel{
 			Agent: strings.TrimSuffix(e.Name(), source.KindAgent.Suffix),
 			Label: label,
@@ -190,6 +190,9 @@ func classifyPins(pins []pinnedModel, catalogue []string) (unavailable, unverifi
 		switch {
 		case p.ID == "":
 			unverified = append(unverified, p)
+		case strings.EqualFold(p.ID, "auto"):
+			// Copilot resolves auto client-side, so it is never present in the
+			// server chat-model catalogue and cannot be unavailable.
 		case !have[strings.ToLower(p.ID)]:
 			unavailable = append(unavailable, p)
 		}

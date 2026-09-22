@@ -137,6 +137,20 @@ func ToOpenCodeModel(model string) string {
 	return openCodeProviderPrefix + model
 }
 
+// openCodeSessionModelForLocalDispatch returns the effective session model in
+// the form local dispatch understands. ToOpenCodeModel resolves an unset user
+// model through the active agentpakke, but qualifies known local models as
+// mlx/<id> for opencode. The local package catalogue stores the underlying id.
+func openCodeSessionModelForLocalDispatch(model string) string {
+	effective := ToOpenCodeModel(model)
+	if id, ok := strings.CutPrefix(effective, LocalProviderID+"/"); ok {
+		if _, known := local.Lookup(id); known {
+			return id
+		}
+	}
+	return effective
+}
+
 func isKnownCopilotModel(id string) bool {
 	return domain.IsKnownCopilotModel(id)
 }
