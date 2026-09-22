@@ -147,6 +147,10 @@ function buildPackageArgs(pkg: NonNullable<Extract<AnyCustomization, { type: "mc
   return { runtime, args };
 }
 
+function getRemoteConfigType(remoteType: string): "http" | "sse" {
+  return remoteType === "sse" ? "sse" : "http";
+}
+
 export function getMcpServerConfig(item: AnyCustomization): string {
   if (item.type !== "mcp") return "";
   const serverName = item.serverId;
@@ -166,7 +170,11 @@ export function getMcpServerConfig(item: AnyCustomization): string {
   }
 
   if (item.remotes.length > 0) {
-    return JSON.stringify({ [serverName]: { type: "http", url: item.remotes[0].url } }, null, 2);
+    return JSON.stringify(
+      { [serverName]: { type: getRemoteConfigType(item.remotes[0].type), url: item.remotes[0].url } },
+      null,
+      2
+    );
   }
 
   return "";
@@ -191,7 +199,11 @@ export function getVsCodeAddMcpCommand(item: AnyCustomization): string {
   }
 
   if (item.remotes.length > 0) {
-    return `code --add-mcp '${JSON.stringify({ name: serverName, type: "http", url: item.remotes[0].url })}'`;
+    return `code --add-mcp '${JSON.stringify({
+      name: serverName,
+      type: getRemoteConfigType(item.remotes[0].type),
+      url: item.remotes[0].url,
+    })}'`;
   }
 
   return "";
