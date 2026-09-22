@@ -1,8 +1,8 @@
 ---
-title: "GPT-6 Sol, GPT-6 Luna og Claude Opus 5.5 er tilgjengelige for utprøving"
+title: "Test GPT-6 Sol, GPT-6 Luna og Claude Opus 5.5 før modellbyttet"
 date: 2026-09-22
 category: copilot
-excerpt: "Tre nye modeller er slått på for kontrollert utprøving. Vi endrer ikke standardmodellene før vi har målt kvalitet, kostnad og uønskede bivirkninger."
+excerpt: "Tre nye modeller er tilgjengelige for utprøving. Vi planlegger å bytte standardmodellene innen én til to dager hvis vi ikke finner blokkeringer."
 tags:
   - models
   - gpt
@@ -10,7 +10,7 @@ tags:
   - coding-agents
 ---
 
-GPT-6 Sol, GPT-6 Luna og Claude Opus 5.5 er nå slått på i GitHub Copilot for Nav. Dette er tilgang for utprøving, ikke en anbefaling om å bytte standardmodell. Utrullingen er gradvis, så modellene kan mangle i modellvelgeren en kort stund.
+GPT-6 Sol, GPT-6 Luna og Claude Opus 5.5 er nå slått på i GitHub Copilot for Nav. Vi anbefaler at de fleste prøver modellene på egne oppgaver nå. Vi planlegger å bytte standardmodellene innen én til to dager hvis testene ikke avdekker blokkeringer. Utrullingen er gradvis, så modellene kan mangle i modellvelgeren en kort stund.
 
 ## Slik posisjonerer leverandørene modellene
 
@@ -36,11 +36,11 @@ Opus 5.5 møter særlig skepsis rundt skrivestil og benchmarks. Flere tidlige br
 
 Reddit ga ingen verifiserbare, indekserte diskusjoner om de nye modellene på lanseringskvelden. Det er for tidlig å kalle fraværet positivt eller negativt. Vi oppdaterer vurderingen når det finnes konkrete erfaringer med kodebaser, agentløp og kostnad per ferdig oppgave.
 
-## Standardmodellene endres ikke ennå
+## Standardmodellene endres snart
 
-Vi beholder dagens modellpinner mens utrullingen fullføres. Før vi bytter, skal vi teste de nye modellene på oppgavene agentene faktisk utfører. Vi ser etter regresjoner i kodekvalitet, instruksjonsfølging, sikkerhetsvurderinger, tokenforbruk og antall forsøk per ferdig oppgave.
+Vi beholder dagens modellvalg mens utrullingen fullføres, men planlegger å bytte innen én til to dager. Bruk de nye modellene på oppgavene du vanligvis løser, og meld fra hvis du finner blokkeringer eller tydelige regresjoner. Vi følger særlig med på kodekvalitet, instruksjonsfølging, sikkerhetsvurderinger, tokenforbruk og antall forsøk per ferdig oppgave.
 
-Hvis testene ikke avdekker uønskede bivirkninger, flytter vi `@research` og de enkle malpromptene til GPT-6 Luna, `@security-champion` til GPT-6 Sol og `@nav-pilot-opus` til Claude Opus 5.5. Deretter slår vi av GPT-5.6 Luna, GPT-5.6 Sol og Claude Opus 5 i modellpolicyen. Vi setter ikke en dato før verifiseringen er ferdig, og beholder de eldre modellene som fallback fram til da.
+Hvis vi ikke finner blokkeringer, flytter vi `@research` og de enkle malpromptene til GPT-6 Luna, `@security-champion` til GPT-6 Sol og `@nav-pilot-opus` til Claude Opus 5.5. Deretter slår vi av GPT-5.6 Luna, GPT-5.6 Sol og Claude Opus 5 i modellpolicyen. De eldre modellene forblir tilgjengelige som fallback til vi har kontrollert at overgangen ikke gir uønskede bivirkninger.
 
 ## Relevans for Nav
 
@@ -50,8 +50,9 @@ Hvis testene ikke avdekker uønskede bivirkninger, flytter vi `@research` og de 
 | GPT-6 Sol koster halvparten av GPT-5.6 Sol                    | Vi tester sikkerhetsagentens kvalitet før pris får avgjøre modellvalget                            |
 | Opus 5.5 bruker færre steg og tokens i Anthropics egne tester | Leverandørpåstanden må bekreftes på våre lange plan- og reviewoppgaver                             |
 | Opus 5.5 har alltid aktiv thinking og vannmerker tekst        | Team som integrerer modellen direkte må kontrollere API-endringer og krav til behandling av output |
-| Tidlige brukererfaringer spriker                              | Vi måler kvalitet, kostnad og uønskede bivirkninger før standardmodellene endres                   |
-| Eldre modeller skal fases ut                                  | GPT-5.6 Luna, GPT-5.6 Sol og Claude Opus 5 slås først av når de nye modellene er verifisert        |
+| Tidlige brukererfaringer spriker                              | Vi anbefaler at de fleste prøver modellene nå og melder fra om blokkeringer                        |
+| Standardmodellene endres snart                                | Vi planlegger overgangen innen én til to dager hvis testene ikke avdekker blokkeringer             |
+| Eldre modeller skal fases ut                                  | GPT-5.6 Luna, GPT-5.6 Sol og Claude Opus 5 slås av etter at vi har kontrollert overgangen          |
 
 **Kilder:**
 
