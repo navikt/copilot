@@ -5,8 +5,8 @@ package domain
 
 // KnownCopilotModels is the curated Copilot model list, generated from the
 // models.dev github-copilot catalog plus a short pinned set (see the generator's
-// PINNED list: the "auto" pseudo-model and delisted-but-working models kept on
-// purpose).
+// PINNED list: the "auto" pseudo-model, newly enabled models awaiting catalog
+// support, and delisted-but-working models kept on purpose).
 //
 // It lives in domain rather than internal/provider because two packages need
 // the same pairing and cannot import each other: provider builds the launch
