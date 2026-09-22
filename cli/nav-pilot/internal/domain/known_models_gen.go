@@ -41,6 +41,7 @@ var KnownCopilotModels = []ModelChoice{
 	{ID: "gpt-6-astra", Label: "GPT-6 Astra"},
 	{ID: "grok-4.5", Label: "Grok 4.5"},
 	{ID: "grok-4.6", Label: "Grok 4.6"},
+	{ID: "grok-4.7", Label: "Grok 4.7"},
 	{ID: "kimi-k2.7-code", Label: "Kimi K2.7 Code"},
 	{ID: "kimi-k3", Label: "Kimi K3"},
 	{ID: "mai-code-1-flash-picker", Label: "MAI-Code-1-Flash"},
