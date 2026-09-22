@@ -1,7 +1,7 @@
 ---
 name: nextjs-api-route
 description: Scaffold en Next.js App Router API-rute med validering, feilhåndtering, auth og test
-model: GPT-5.6 Luna
+model: GPT-6 Luna
 ---
 
 # Next.js API Route

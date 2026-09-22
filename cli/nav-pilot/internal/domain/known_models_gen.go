@@ -5,8 +5,8 @@ package domain
 
 // KnownCopilotModels is the curated Copilot model list, generated from the
 // models.dev github-copilot catalog plus a short pinned set (see the generator's
-// PINNED list: the "auto" pseudo-model and delisted-but-working models kept on
-// purpose).
+// PINNED list: the "auto" pseudo-model, newly enabled models awaiting catalog
+// support, and delisted-but-working models kept on purpose).
 //
 // It lives in domain rather than internal/provider because two packages need
 // the same pairing and cannot import each other: provider builds the launch
@@ -23,6 +23,7 @@ var KnownCopilotModels = []ModelChoice{
 	{ID: "claude-opus-4.7", Label: "Claude Opus 4.7"},
 	{ID: "claude-opus-4.8", Label: "Claude Opus 4.8"},
 	{ID: "claude-opus-5", Label: "Claude Opus 5"},
+	{ID: "claude-opus-5.5", Label: "Claude Opus 5.5"},
 	{ID: "claude-sonnet-4.6", Label: "Claude Sonnet 4.6"},
 	{ID: "claude-sonnet-5", Label: "Claude Sonnet 5"},
 	{ID: "gemini-3.5-flash", Label: "Gemini 3.5 Flash"},
@@ -39,6 +40,8 @@ var KnownCopilotModels = []ModelChoice{
 	{ID: "gpt-5.6-sol", Label: "GPT-5.6 Sol"},
 	{ID: "gpt-5.6-terra", Label: "GPT-5.6 Terra"},
 	{ID: "gpt-6-astra", Label: "GPT-6 Astra"},
+	{ID: "gpt-6-luna", Label: "GPT-6 Luna"},
+	{ID: "gpt-6-sol", Label: "GPT-6 Sol"},
 	{ID: "grok-4.5", Label: "Grok 4.5"},
 	{ID: "grok-4.6", Label: "Grok 4.6"},
 	{ID: "grok-4.7", Label: "Grok 4.7"},
