@@ -1,4 +1,4 @@
-import { cacheLife, cacheTag } from "next/cache";
+import { unstable_cache } from "next/cache";
 import type { Domain, McpServerCustomization, SetupInstruction } from "./customization-types";
 import type { UsageExample } from "./manifest-types";
 
@@ -83,11 +83,7 @@ function buildMcpInstallUrl(serverName: string, scheme: "vscode" | "vscode-insid
   return `${scheme}:mcp/${host}/v0.1/servers/${encoded}/versions/latest`;
 }
 
-export async function getMcpServers(): Promise<McpServerCustomization[]> {
-  "use cache";
-  cacheLife({ stale: 3600 });
-  cacheTag("mcp-servers");
-
+async function fetchMcpServers(): Promise<McpServerCustomization[]> {
   try {
     const res = await fetch(`${MCP_REGISTRY_URL}/v0.1/servers`);
     if (!res.ok) {
@@ -133,3 +129,8 @@ export async function getMcpServers(): Promise<McpServerCustomization[]> {
     return [];
   }
 }
+
+export const getMcpServers = unstable_cache(fetchMcpServers, ["mcp-servers"], {
+  revalidate: 3600,
+  tags: ["mcp-servers"],
+});
