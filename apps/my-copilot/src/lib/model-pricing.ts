@@ -1,7 +1,7 @@
 /**
  * GitHub Copilot model pricing data.
  * Source: https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing
- * Last updated: 2026-09-10
+ * Last updated: 2026-09-23
  *
  * All prices are per 1 million tokens in USD.
  * 1 AI credit = $0.01 USD.
@@ -177,6 +177,46 @@ export const MODEL_PRICING: ModelPrice[] = [
     cacheWrite: 25,
     output: 75,
   },
+  {
+    model: "GPT-6 Luna (Default, ≤ 272K)",
+    provider: "OpenAI",
+    category: "Lightweight",
+    status: "GA",
+    input: 0.1,
+    cachedInput: 0.01,
+    cacheWrite: 0.125,
+    output: 0.5,
+  },
+  {
+    model: "GPT-6 Luna (Long context, 272K)",
+    provider: "OpenAI",
+    category: "Lightweight",
+    status: "GA",
+    input: 0.2,
+    cachedInput: 0.02,
+    cacheWrite: 0.25,
+    output: 0.75,
+  },
+  {
+    model: "GPT-6 Sol (Default, ≤ 272K)",
+    provider: "OpenAI",
+    category: "Powerful",
+    status: "GA",
+    input: 2,
+    cachedInput: 0.2,
+    cacheWrite: 2.5,
+    output: 10,
+  },
+  {
+    model: "GPT-6 Sol (Long context, 272K)",
+    provider: "OpenAI",
+    category: "Powerful",
+    status: "GA",
+    input: 4,
+    cachedInput: 0.4,
+    cacheWrite: 5,
+    output: 15,
+  },
   // Anthropic
   {
     model: "Claude Haiku 4.5",
@@ -237,6 +277,16 @@ export const MODEL_PRICING: ModelPrice[] = [
     cachedInput: 0.5,
     cacheWrite: 6.25,
     output: 25,
+  },
+  {
+    model: "Claude Opus 5.5",
+    provider: "Anthropic",
+    category: "Powerful",
+    status: "GA",
+    input: 4,
+    cachedInput: 0.2,
+    cacheWrite: 5,
+    output: 20,
   },
   {
     model: "Claude Sonnet 5",
@@ -353,4 +403,4 @@ export const MODEL_PRICING: ModelPrice[] = [
 ];
 
 export const PRICING_SOURCE_URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing";
-export const PRICING_LAST_UPDATED = "2026-09-10";
+export const PRICING_LAST_UPDATED = "2026-09-23";
