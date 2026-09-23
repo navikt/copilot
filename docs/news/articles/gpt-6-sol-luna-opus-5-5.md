@@ -2,7 +2,7 @@
 title: "Test GPT-6 Sol, GPT-6 Luna og Claude Opus 5.5 før modellbyttet"
 date: 2026-09-22
 category: copilot
-excerpt: "Tre nye modeller er tilgjengelige for utprøving. Vi planlegger å bytte standardmodellene innen én til to dager hvis vi ikke finner blokkeringer."
+excerpt: "Tre nye modeller er tilgjengelige for utprøving. Vi utsetter endringen av standardmodellene mens vi undersøker tidlige regresjonsrapporter."
 tags:
   - models
   - gpt
@@ -10,7 +10,9 @@ tags:
   - coding-agents
 ---
 
-GPT-6 Sol, GPT-6 Luna og Claude Opus 5.5 er nå slått på i GitHub Copilot for Nav. Vi anbefaler at de fleste prøver modellene på egne oppgaver nå. Vi planlegger å bytte standardmodellene innen én til to dager hvis testene ikke avdekker blokkeringer. Utrullingen er gradvis, så modellene kan mangle i modellvelgeren en kort stund.
+GPT-6 Sol, GPT-6 Luna og Claude Opus 5.5 er nå slått på i GitHub Copilot for Nav. Vi anbefaler at de fleste prøver modellene på egne oppgaver nå. Utrullingen er gradvis, så modellene kan mangle i modellvelgeren en kort stund.
+
+> **Oppdatert 23. september:** Vi utsetter endringen av standardmodellene mens vi undersøker tidlige regresjonsrapporter. Én GPT-6 Sol-bruker på Hacker News gikk tilbake til GPT-5.6 Sol etter vesentlig dårligere resultater. En Opus 5.5-bruker fant fire feil linjenumre og to overdrevne funn i en kodegjennomgang på Medium effort. Dette er enkelterfaringer, ikke dokumentasjon på en generell regresjon, men de er konkrete nok til at vi tester før vi bytter.
 
 ## Slik posisjonerer leverandørene modellene
 
@@ -34,13 +36,13 @@ De første GPT-6-kommentarene trekker i ulike retninger. Noen ser Luna som billi
 
 Opus 5.5 møter særlig skepsis rundt skrivestil og benchmarks. Flere tidlige brukere mener modellen fortsatt begraver viktige poenger i lange, garderte svar, selv om «Claude-frasene» er mindre tydelige. Andre tviler på at leverandørens Fable-sammenligning sier nok om praktisk bruk. Positive kommentarer peker på lavere pris, færre tokens og de store migreringseksemplene, men disse eksemplene kommer foreløpig fra Anthropic og utvalgte testere.
 
-Reddit ga ingen verifiserbare, indekserte diskusjoner om de nye modellene på lanseringskvelden. Det er for tidlig å kalle fraværet positivt eller negativt. Vi oppdaterer vurderingen når det finnes konkrete erfaringer med kodebaser, agentløp og kostnad per ferdig oppgave.
+Reddit ga ingen verifiserbare, indekserte diskusjoner om de nye modellene på lanseringskvelden. Det finnes nå diskusjoner om ujevn utrulling, modellvalg og kostnad, men få dokumenterte sammenligninger fra reelle kodebaser. Flere innlegg gjentar leverandørenes priser og benchmarks uten egne målinger. Vi bruker derfor ikke Reddit-reaksjonene som grunnlag for modellbyttet.
 
-## Standardmodellene endres snart
+## Standardmodellbyttet venter på testresultater
 
-Vi beholder dagens modellvalg mens utrullingen fullføres, men planlegger å bytte innen én til to dager. Bruk de nye modellene på oppgavene du vanligvis løser, og meld fra hvis du finner blokkeringer eller tydelige regresjoner. Vi følger særlig med på kodekvalitet, instruksjonsfølging, sikkerhetsvurderinger, tokenforbruk og antall forsøk per ferdig oppgave.
+Vi beholder dagens modellvalg mens vi tester GPT-6 Sol mot GPT-5.6 Sol og følger utrullingen av de andre modellene. Bruk de nye modellene på oppgavene du vanligvis løser, og meld fra hvis du finner blokkeringer eller tydelige regresjoner. Vi følger særlig med på kodekvalitet, instruksjonsfølging, sikkerhetsvurderinger, tokenforbruk og antall forsøk per ferdig oppgave.
 
-Hvis vi ikke finner blokkeringer, flytter vi `@research` og de enkle malpromptene til GPT-6 Luna, `@security-champion` til GPT-6 Sol og `@nav-pilot-opus` til Claude Opus 5.5. Deretter slår vi av GPT-5.6 Luna, GPT-5.6 Sol og Claude Opus 5 i modellpolicyen. De eldre modellene forblir tilgjengelige som fallback til vi har kontrollert at overgangen ikke gir uønskede bivirkninger.
+Hvis testene ikke finner blokkeringer, flytter vi `@research` og de enkle malpromptene til GPT-6 Luna, `@security-champion` til GPT-6 Sol og `@nav-pilot-opus` til Claude Opus 5.5. Deretter slår vi av GPT-5.6 Luna, GPT-5.6 Sol og Claude Opus 5 i modellpolicyen. De eldre modellene forblir tilgjengelige som fallback til vi har kontrollert at overgangen ikke gir uønskede bivirkninger.
 
 ## Relevans for Nav
 
@@ -51,7 +53,7 @@ Hvis vi ikke finner blokkeringer, flytter vi `@research` og de enkle malprompten
 | Opus 5.5 bruker færre steg og tokens i Anthropics egne tester | Leverandørpåstanden må bekreftes på våre lange plan- og reviewoppgaver                             |
 | Opus 5.5 har alltid aktiv thinking og vannmerker tekst        | Team som integrerer modellen direkte må kontrollere API-endringer og krav til behandling av output |
 | Tidlige brukererfaringer spriker                              | Vi anbefaler at de fleste prøver modellene nå og melder fra om blokkeringer                        |
-| Standardmodellene endres snart                                | Vi planlegger overgangen innen én til to dager hvis testene ikke avdekker blokkeringer             |
+| Standardmodellbyttet er utsatt                                | Vi tester konkrete regresjonsrapporter før vi endrer modellvalget                                  |
 | Eldre modeller skal fases ut                                  | GPT-5.6 Luna, GPT-5.6 Sol og Claude Opus 5 slås av etter at vi har kontrollert overgangen          |
 
 **Kilder:**
@@ -63,3 +65,7 @@ Hvis vi ikke finner blokkeringer, flytter vi `@research` og de enkle malprompten
 - [Models and pricing for GitHub Copilot](https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing) (GitHub Docs, lest 22. september 2026)
 - [GPT-6 Sol and Luna](https://news.ycombinator.com/item?id=49805509) (Hacker News, lest 22. september 2026)
 - [Claude Opus 5.5](https://news.ycombinator.com/item?id=49803892) (Hacker News, lest 22. september 2026)
+- [GPT-6 Sol: bruker gikk tilbake til GPT-5.6 Sol](https://news.ycombinator.com/item?id=49811448) (Hacker News, lest 23. september 2026)
+- [Opus 5.5: feil linjenumre i kodegjennomgang](https://news.ycombinator.com/item?id=49810898) (Hacker News, lest 23. september 2026)
+- [GPT-6 Sol og Luna mangler i Codex-utvidelsen](https://www.reddit.com/r/OpenAI/comments/1wnwm69/gpt_6_sol_luna_not_available_on_codex_extension/) (Reddit, lest 23. september 2026)
+- [Diskusjon om kostnad per ferdig oppgave](https://www.reddit.com/r/OpenaiCodex/comments/1wnwivc/stop_comparing_6sol_to_opus_55_the_correct/) (Reddit, lest 23. september 2026)
