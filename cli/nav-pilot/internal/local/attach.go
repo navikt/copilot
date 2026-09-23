@@ -228,6 +228,13 @@ func EnsureOwnServer() error {
 		return fmt.Errorf("%w.\n\n  Start one first:\n\n    %s", ErrNoServerRecorded, start)
 	}
 	if !isRecorded(st.PID, st.Lstart) {
+		if threadDiedInLog() {
+			return fmt.Errorf(
+				"the recorded local %s server (pid %d) exited because its generation thread died, most likely out of memory.\n\n"+
+					"  The traceback is in %s. A shorter context or a smaller model needs less memory.\n\n"+
+					"  Restart it:\n\n    %s",
+				st.Model, st.PID, LogPath(), domain.Bold("nav-pilot alpha local restart"))
+		}
 		return fmt.Errorf(
 			"the recorded local %s server (pid %d) is not running any more.\n\n"+
 				"  Refusing: the loop guard forwards to %s, and nav-pilot cannot tell whether that is still its own server or whatever took the port after it died.\n\n"+
@@ -244,6 +251,22 @@ func EnsureOwnServer() error {
 			domain.Bold("nav-pilot alpha local stop"), start)
 	}
 	return nil
+}
+
+// threadDiedInLog reports whether the server log ends with the line
+// [serverBootstrap] prints before it exits with [serverExitThreadDied]. The last
+// line only: the log is appended across launches, and a death from an earlier
+// run followed by a later one's output says nothing about the server that just
+// went away.
+func threadDiedInLog() bool {
+	// Read whole: it is capped at maxLogBytes and only read once the server is
+	// already gone.
+	data, err := os.ReadFile(LogPath())
+	if err != nil {
+		return false
+	}
+	tail := strings.TrimRight(string(data), "\n")
+	return strings.HasPrefix(tail[strings.LastIndex(tail, "\n")+1:], threadDiedMarker)
 }
 
 // portListeners reports the pids listening on a TCP port. `lsof` because it is

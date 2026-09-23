@@ -1020,6 +1020,54 @@ func serverFlags(params map[string]string) []string {
 	return args
 }
 
+// serverExitThreadDied is the exit status [serverBootstrap] uses when a thread
+// inside the server dies. 70 is EX_SOFTWARE: an internal error, not a bad flag.
+const serverExitThreadDied = 70
+
+// threadDiedMarker starts the last line [serverBootstrap] writes to the log.
+const threadDiedMarker = "nav-pilot: the server's thread "
+
+// serverBootstrap runs mlx_lm.server's main, but exits when any of its threads
+// dies with an uncaught exception.
+//
+// mlx-lm 0.31 does all generation on one thread. When that thread raises — a
+// Metal out-of-memory in generate() is the one we hit — it dies and the HTTP
+// threads carry on, each request then waiting forever on a queue nothing
+// fills. Exiting turns that hang into a crash, which the pid and start-time
+// checks already catch and report as local_server_lost. This was preferred
+// over a completion probe before reuse: a probe costs a generation on every
+// attach, cannot tell a hang from a long request, and still leaves the session
+// that was running hanging; the hook fires the moment the thread dies.
+//
+// Run as `python -c` rather than through the mlx_lm.server entry-point script
+// so no file has to be written next to the venv. Arguments follow the code, so
+// sys.argv is ["-c", flags...]; argv[0] is renamed for argparse's usage line
+// and the flags reach parse_args untouched. No shell is involved.
+const serverBootstrap = `import os, sys, threading, traceback
+def _die(a):
+    if issubclass(a.exc_type, SystemExit):
+        return
+    traceback.print_exception(a.exc_type, a.exc_value, a.exc_traceback)
+    print("nav-pilot: the server's thread %s died, so no request will ever be answered; exiting with status 70" % (a.thread.name if a.thread else "?"), file=sys.stderr, flush=True)
+    os._exit(70)
+threading.excepthook = _die
+sys.argv[0] = "mlx_lm.server"
+from mlx_lm.server import main
+sys.exit(main())
+`
+
+// serverCommand is the program and arguments that launch the server for model
+// on port.
+func serverCommand(model Model, port int) (string, []string) {
+	args := []string{
+		"-c", serverBootstrap,
+		"--model", model.Model,
+		"--host", "127.0.0.1",
+		"--port", strconv.Itoa(port),
+	}
+	return venvBin("python"), append(args, serverFlags(model.Params)...)
+}
+
 func (s *Server) Start(ctx context.Context, model Model) error {
 	s.mu.Lock()
 	if s.proc != nil && s.exit == nil {
@@ -1065,13 +1113,8 @@ func (s *Server) Start(ctx context.Context, model Model) error {
 	// Env as well as flags: MLX_OPENCODE_* are read by nav-pilot itself rather
 	// than by the server, and a future param may be picked up by mlx-lm without
 	// a nav-pilot release. Flags are what actually configure this process.
-	args := []string{
-		"--model", model.Model,
-		"--host", "127.0.0.1",
-		"--port", strconv.Itoa(port),
-	}
-	args = append(args, serverFlags(model.Params)...)
-	p, err := startProcess(ctx, venvBin("mlx_lm.server"), args, env)
+	name, args := serverCommand(model, port)
+	p, err := startProcess(ctx, name, args, env)
 	if err != nil {
 		return fmt.Errorf("starting the local %s server: %w", model.Model, err)
 	}
@@ -1304,6 +1347,9 @@ func describeForeignServer(ctx context.Context, baseURL string) string {
 func describeExit(info exitInfo) string {
 	if info.Signal != 0 {
 		return fmt.Sprintf("killed by %s", info.Signal)
+	}
+	if info.Code == serverExitThreadDied {
+		return fmt.Sprintf("exit status %d: its generation thread died, most likely out of memory", info.Code)
 	}
 	return fmt.Sprintf("exit status %d", info.Code)
 }
