@@ -56,9 +56,11 @@ import (
 const GuardPort = DefaultPort + 1
 
 // DefaultLoopGuardRepeat is how many identical consecutive tool calls end the
-// turn. Eight is well past anything a working agent does — a retry is one or
-// two, a poll loop that means something varies its arguments — and far short of
-// the 203 we measured.
+// turn whatever they return. It is the backstop, not the main rule: see
+// [SameResultRepeat]. Eight is well past anything a working agent does — a
+// retry is one or two — and far short of the 203 we measured. A poll whose
+// output keeps changing still stops here, because a model that has asked the
+// same thing eight times running is waiting rather than working.
 const DefaultLoopGuardRepeat = 8
 
 // loopGuardRepeat is the active threshold. nav-pilot sets it from config.
@@ -76,6 +78,20 @@ func SetLoopGuardRepeat(n int) {
 
 // LoopGuardRepeat reports the active threshold.
 func LoopGuardRepeat() int { return loopGuardRepeat }
+
+// SameResultRepeat is how many identical calls that also got back identical
+// results end the turn: half of [LoopGuardRepeat], and never below 2. Four at
+// the default.
+//
+// It is lower than the backstop because an unchanged result is the evidence
+// the call alone lacks. A classifier shown only the calls could not tell loops
+// from legitimate polls (P(loop) 0.88 on loops, 0.42–0.78 on polls); what
+// separates them is whether anything came back different. The same question
+// answered the same way four times means the model has had that answer three
+// times already and is not using it. Derived from the one knob rather than a
+// second one, so a developer who raises local_loop_guard to let a slow poll
+// run relaxes both rules together.
+func SameResultRepeat() int { return max(2, loopGuardRepeat/2) }
 
 // maxRequestBody caps what the guard reads into memory to inspect. A 64k-token
 // context is a few hundred kilobytes; this is generous enough that a real
@@ -441,8 +457,11 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 		r.Body = io.NopCloser(bytes.NewReader(body))
 		r.ContentLength = int64(len(body))
 
-		if call, n := repeatedToolCall(body); n >= loopGuardRepeat {
-			writeLoopGuardError(w, call, n)
+		if call, n, same := repeatedToolCall(body); same >= SameResultRepeat() {
+			writeLoopGuardError(w, call, same, true)
+			return
+		} else if n >= loopGuardRepeat {
+			writeLoopGuardError(w, call, n, false)
 			return
 		}
 		started := time.Now()
@@ -551,9 +570,11 @@ func objectAt(b []byte) []byte {
 // is left in the bytes that are forwarded.
 type chatRequest struct {
 	Messages []struct {
-		Role      string `json:"role"`
-		Content   any    `json:"content"`
-		ToolCalls []struct {
+		Role       string          `json:"role"`
+		Content    json.RawMessage `json:"content"`
+		ToolCallID string          `json:"tool_call_id"`
+		ToolCalls  []struct {
+			ID       string `json:"id"`
 			Function struct {
 				Name      string `json:"name"`
 				Arguments string `json:"arguments"`
@@ -563,43 +584,76 @@ type chatRequest struct {
 }
 
 // repeatedToolCall counts the run of identical tool calls the conversation ends
-// on, and names it.
+// on, and names it. n is the run of identical calls; same is the part of that
+// run whose results were identical too.
 //
-// It walks backwards from the newest message. Tool results are skipped — they
-// are the other half of each call. An assistant message with tool calls extends
-// the run when it matches, and ends it when it does not. Anything else ends it
-// too: a user message is a new turn, and an assistant message without tool
-// calls is the model having said something instead of looping.
+// It walks backwards from the newest message. Tool results are collected by
+// tool_call_id and paired with the assistant message that made the calls. An
+// assistant message with tool calls extends the run when its calls match, and
+// ends it when they do not. Anything else ends it too: a user message is a new
+// turn, and an assistant message without tool calls is the model having said
+// something instead of looping. Parallel calls in one message are one step:
+// the signature is all of its calls, and its result is all of their results.
+//
+// A result that differs from the newer one ends same but not n: the call did
+// something. A message with a call that got no result cannot show a repeat, so
+// it ends same too — except the newest, whose results may simply not be in
+// this request yet, which is skipped and leaves the pairs before it to decide.
 //
 // The call ids are deliberately not part of the comparison. They differ on
 // every call by construction, so including them would compare nothing.
-func repeatedToolCall(body []byte) (string, int) {
+//
+// ponytail: results are compared byte for byte. Output that embeds a timestamp,
+// a duration or a counter makes a stuck loop look like progress, and only the
+// backstop catches it. Normalise the result (strip digits, or the known noisy
+// fields) before comparing if that turns up in practice.
+func repeatedToolCall(body []byte) (call string, n, same int) {
 	var req chatRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		return "", 0
+		return "", 0, 0
 	}
-	want, n := "", 0
+	results := map[string]string{}
+	wantResult, sameOpen := "", true
 	for i := len(req.Messages) - 1; i >= 0; i-- {
 		m := req.Messages[i]
 		if m.Role == "tool" {
+			results[m.ToolCallID] = string(m.Content)
 			continue
 		}
 		if m.Role != "assistant" || len(m.ToolCalls) == 0 {
 			break
 		}
-		var parts []string
+		var parts, outs []string
+		paired := true
 		for _, c := range m.ToolCalls {
 			parts = append(parts, c.Function.Name+"("+c.Function.Arguments+")")
+			r, ok := results[c.ID]
+			paired = paired && ok && c.ID != ""
+			outs = append(outs, r)
 		}
-		sig := strings.Join(parts, ", ")
+		clear(results)
+		sig, result := strings.Join(parts, ", "), strings.Join(outs, "\x00")
 		if n == 0 {
-			want = sig
-		} else if sig != want {
+			call = sig
+		} else if sig != call {
 			break
 		}
+		newest := n == 0
 		n++
+		switch {
+		case !sameOpen:
+		case !paired && newest:
+		case !paired:
+			sameOpen = false
+		case same == 0:
+			wantResult, same = result, 1
+		case result == wantResult:
+			same++
+		default:
+			sameOpen = false
+		}
 	}
-	return want, n
+	return call, n, same
 }
 
 // writeLoopGuardError ends the turn. It answers in the error envelope the
@@ -609,17 +663,24 @@ func repeatedToolCall(body []byte) (string, int) {
 // The repeated call is named in full up to a limit: the arguments are what
 // distinguishes "reading the same file forever" from "grepping in a circle",
 // and a truncated name alone would leave a developer guessing.
-func writeLoopGuardError(w http.ResponseWriter, call string, n int) {
+//
+// sameResult says which rule tripped. The model reads this too, so it says
+// what was repeated and that repeating it again will not help.
+func writeLoopGuardError(w http.ResponseWriter, call string, n int, sameResult bool) {
 	const maxCall = 400
 	shown := call
 	if len(shown) > maxCall {
 		shown = shown[:maxCall] + "…"
 	}
+	what := fmt.Sprintf("made the same tool call %d times in a row", n)
+	if sameResult {
+		what = fmt.Sprintf("repeated the same tool call with the same result %d times", n)
+	}
 	msg := fmt.Sprintf(
-		"nav-pilot stopped this turn: the local model made the same tool call %d times in a row without the answer changing — %s. "+
-			"That is a runaway loop, not progress; it does not recover on its own. "+
+		"nav-pilot stopped this turn: the local model %s — %s. "+
+			"That is a runaway loop, not progress; repeating it will not change the answer, so try something else. "+
 			"Start a new turn with a narrower task, or raise the threshold with `nav-pilot config set local_loop_guard <n>` (current: %d).",
-		n, shown, loopGuardRepeat)
+		what, shown, loopGuardRepeat)
 
 	writeGuardError(w, msg, "loop_guard")
 }

@@ -803,8 +803,8 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 					domain.Yellow("⚠"), err)
 			}
 		}()
-		fmt.Fprintf(os.Stderr, "%s Local dispatch: nav-pilot ends a turn after %d identical tool calls in a row.\n",
-			domain.Dim("ℹ"), local.LoopGuardRepeat())
+		fmt.Fprintf(os.Stderr, "%s Local dispatch: nav-pilot ends a turn after %d identical tool calls in a row with the same result, or %d whatever they return.\n",
+			domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
 	}
 
 	suffix := ""
