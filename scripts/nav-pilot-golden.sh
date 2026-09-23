@@ -1137,11 +1137,6 @@ RE_CHECKPOINT='Fase[[:space:]]+[0-9]+[[:space:]]+ferdig'
 # persona revisions on this branch (18 t2, 18 t4, four models). The hit rates in
 # the comments are those measurements, not estimates.
 #
-# The response reached Fase 1 at all. Gate, not assertion: no Fase 1 output means
-# the stop invariant was never exercised, which is "not evaluated", never a pass.
-# Hit rate: t2 18/18, t4 1/18.
-RE_FASE1_REACHED='Fase[[:space:]]*1|Intervju'
-
 # Fase 2 or later *work*, the leak the stop invariant forbids. Two markers, both
 # with clean separation: t2 0/18, t4 18/18.
 #
@@ -1471,11 +1466,9 @@ run_pass_nav_pilot() {
         # Invariant: PHASE INTEGRITY, "STOP after each phase […] wait for explicit
         # user confirmation", and Boundaries → 🚫 Never, "Do work belonging to a
         # later phase in the same response when on full-tier".
-        # Order matters. The leak is checked before the Fase 1 gate, because the
-        # worst regression, a full-tier response that skips the interview and goes
-        # straight to writing files, has no Fase 1 output to gate on. Gating first
-        # reports that as amber "not evaluated" instead of red. Only a response that
-        # did neither Fase 1 nor Fase 2 work is genuinely unevaluable.
+        # Order matters. Later-phase work is the strongest failure signal. If
+        # there is no write or explicit Fase 2 work, the question count decides
+        # whether an interview happened; a heading is formatting, not behaviour.
         q="$(count_of "$T2" '[?]')"
         ok=0; detail=""
         # ⚠️  THE WORKSPACE FIRST, THE TRANSCRIPT SECOND (#583).
@@ -1500,22 +1493,17 @@ run_pass_nav_pilot() {
         # one; t4a is byte-identical to t2's prompt.
         #
         # Checked before RE_FASE2_WORK so the failure detail names the files
-        # rather than a regex, and before the Fase 1 gate for the reason above:
-        # a response that skips the interview and starts writing has no Fase 1
-        # output, and gating first would report that as amber.
+        # rather than a regex.
         if ws_wrote; then
           record 2 "$DESC2" 1 \
             "the agent wrote to the workspace in a Fase 1 turn: $(ws_written_files). PHASE INTEGRITY («STOP after each phase») regressed. Read off the fingerprint, so a shell write counts the same as an edit-tool call"
         elif ! absent "$T2" "$RE_FASE2_WORK"; then
           record 2 "$DESC2" 1 \
             "response did Fase 2 work (matched: $RE_FASE2_WORK): PHASE INTEGRITY rule regressed"
-        elif ! present "$T2" "$RE_FASE1_REACHED"; then
-          record_error 2 "$DESC2" \
-            "no Fase 1 output and no Fase 2 work (no match for: $RE_FASE1_REACHED): the stop invariant was never exercised, so it was not evaluated. Re-run with --keep and check whether tier classification regressed."
+        elif [[ "$q" -lt "$MIN_OPEN_QUESTIONS" ]]; then
+          record 2 "$DESC2" 1 \
+            "only $q question mark(s), need ≥$MIN_OPEN_QUESTIONS: the turn gave no later-phase tool work, but it did not conduct the required interview or stop with questions outstanding"
         else
-          if [[ "$q" -lt "$MIN_OPEN_QUESTIONS" ]]; then
-            ok=1; detail="only $q question mark(s), need ≥$MIN_OPEN_QUESTIONS: the turn did not end with questions outstanding, so it did not stop for the user"
-          fi
           record 2 "$DESC2" "$ok" "$detail"
         fi
       fi
@@ -1589,9 +1577,9 @@ run_pass_nav_pilot() {
     elif ! absent "$T4A" "$RE_FASE2_WORK"; then
       record_error 4 "$DESC4" \
         "turn 1 did Fase 2 work (matched: $RE_FASE2_WORK) instead of stopping to interview, so turn 2 answered an interview that never happened. That is test 2's failure to report, not test 4's — check test 2 first."
-    elif ! present "$T4A" "$RE_FASE1_REACHED"; then
+    elif [[ "$(count_of "$T4A" '[?]')" -lt "$MIN_OPEN_QUESTIONS" ]]; then
       record_error 4 "$DESC4" \
-        "turn 1 produced no Fase 1 output (no match for: $RE_FASE1_REACHED) and no Fase 2 work either, so there is no interview for turn 2 to answer. Re-run with --keep and read t4a before touching anything here."
+        "turn 1 asked fewer than $MIN_OPEN_QUESTIONS questions and did no Fase 2 tool work, so there is no completed interview for turn 2 to answer. This is the same phase-stop regression test 2 reports; re-run with --keep and read t4a."
     elif ! run_prompt t4b "$T4_ANSWERS" "$S4"; then
       record_error 4 "$DESC4" "turn 2 (svar): $LAST_PROMPT_DETAIL"
     elif ! present "$T4B" "$RE_FASE2_PLAN"; then
