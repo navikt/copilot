@@ -13,11 +13,11 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | Agent | Modell | Begrunnelse |
 |-------|--------|-------------|
 | `@nav-pilot` | Klientens standardmodell | Orkestratoren pinnes ikke; den arver modellen brukeren allerede kjører i klienten |
-| `@nav-pilot-opus` | Claude Opus 5.5 | Høyrisiko planlegging og kritisk review. Modellen er laget for lange agentoppgaver, har sterkere vern mot prompt injection enn Opus 5 og koster $4.00 / $20.00. Agenten er ikke målt mot den nye modellen |
-| `@security-champion` | GPT-6 Sol | Sikkerhetskritiske vurderinger. Direkte oppgradering fra GPT-5.6 Sol til halv listepris ($2.00 / $10.00). Agenten er ikke målt mot den nye modellen |
+| `@nav-pilot-opus` | Claude Opus 5.5 | Høyrisikoplanlegging og kritisk kodegjennomgang. High effort traff de plantede linjene i fem av fem gjennomganger. Opus 5 beholdes som fallback mens vi måler agenten direkte |
+| `@security-champion` | GPT-6 Sol | Sikkerhetskritiske vurderinger. Modellen fant personvern, tilgangskontroll og riktig TokenX-mønster i fem av fem kjøringer. Ett fasebrudd i `nav-pilot` følges under utrullingen |
 | `@code-review` | GPT-5.3-Codex | Sterkest på kodeforståelse og terminal-oppgaver |
 | `@kafka` | GPT-5.3-Codex | Teknisk presis på hendelsesdrevne mønstre |
-| `@research` | GPT-6 Luna | Leser og søker uten å skrive kode. Den nye Luna-modellen koster $0.10 / $0.50, omtrent halvparten av GPT-5.6 Luna. Gjelder bare når agenten startes direkte, ikke når `@nav-pilot` delegerer til den |
+| `@research` | GPT-6 Luna | Leser og søker uten å skrive kode. Modellen besto ti av ti avgrensede krav og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna. Gjelder bare når agenten startes direkte, ikke når `@nav-pilot` delegerer til den |
 | `@rust` | GPT-5.3-Codex | Terminal-Bench-leder for kompilert kode |
 | `@aksel` | Claude Sonnet 5 | Sterk på komponentstruktur og designsystem-konvensjoner |
 | `@accessibility` | Claude Sonnet 5 | God på WCAG-tolkning og semantisk HTML |
@@ -30,10 +30,25 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | `kafka-topic` | GPT-5.3-Codex | Konsistent med kafka-agenten |
 | `nais-manifest` | GPT-5.3-Codex | God på infrastruktur og YAML-konfigurasjon |
 | `aksel-component` | Gemini 3.6 Flash | Rask og billig for scaffolding av Aksel-komponenter |
-| `ktor-endpoint` | GPT-6 Luna | Enkel strukturert mal, trenger ikke tung modell |
-| `nextjs-api-route` | GPT-6 Luna | Enkel strukturert mal |
-| `spring-boot-endpoint` | GPT-6 Luna | Enkel strukturert mal |
-| `golang-service` | GPT-6 Luna | Enkel strukturert mal |
+| `ktor-endpoint` | GPT-6 Luna | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
+| `nextjs-api-route` | GPT-6 Luna | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
+| `spring-boot-endpoint` | GPT-6 Luna | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
+| `golang-service` | GPT-6 Luna | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
+
+## Blokkeringsskjerm for GPT-6 og Opus 5.5
+
+Målt 23. september 2026 med Copilot CLI 1.0.88-2, standard kontekstvindu og fem kjøringer per testarm. Utvalget kan finne tydelige blokkeringer, men kan ikke slå fast at kandidatene er minst like gode som kontrollmodellene.
+
+| Kandidat | Kontroll | Resultat | Anbefaling |
+|----------|----------|----------|------------|
+| GPT-6 Luna Medium | GPT-5.6 Luna Medium | Begge besto ti av ti avgrensede krav. GPT-6 Luna brukte 8,667 credits mot 15,894, med omtrent lik veggklokketid | Rull ut på `@research` og malpromptene. Behold GPT-5.6 Luna som fallback |
+| GPT-6 Sol High | GPT-5.6 Sol High | GPT-6 Sol hoppet over intervjuet i én av fem kjøringer, men fant alle sikkerhets- og auth-krav. GPT-5.6 Sol fulgte fasekravet i fem av fem | Rull ut på `@security-champion`, følg fasebrudd og behold GPT-5.6 Sol som fallback |
+| Claude Opus 5.5 Medium | Claude Opus 5 High | Medium var raskere og billigere, men oppga feil linjenumre i to av fem TSX-gjennomganger | Bruk ikke Medium til kodegjennomgang der presise linjer er viktig |
+| Claude Opus 5.5 High | Claude Opus 5 High | Begge traff de plantede linjene i fem av fem. Opus 5.5 kostet 209,514 credits mot 186,763 og var tregere | Rull ut på den avgrensede `@nav-pilot-opus`-agenten. Behold Opus 5 som fallback |
+
+Råmålingen bruker eksakte `assistant_usage_events`, inkludert retries og subagenter. Fem kjøringer er ikke nok til å rangere modellene bredt. Utrullingen må derfor kunne reverseres uten at de eldre modellene først fjernes.
+
+Vi tilpasset ikke agentpersonaene eller instruksjonene til de nye modellene før målingen. Bare testoppsettet ble rettet: Det måler nå Fase 2 på riktig tur og bruker faktiske intervjuspørsmål i stedet for en bestemt faseoverskrift. Modellresultatene kommer dermed fra de samme agentfilene som kontrollmodellene brukte.
 
 ## Pinner og delegering
 
