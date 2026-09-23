@@ -75,7 +75,7 @@
 #   The agent EDITS that workspace: t1 fixes a typo and t6 renames a variable
 #   across three files. So the workspace is rebuilt from a pristine template
 #   before EVERY prompt, not once per suite and not once per --repeat pass.
-#   The one exception is a continuation turn (test 4's second and third), which
+#   The one exception is a continuation turn (test 4's second), which
 #   answers questions asked about the workspace as turn one found it and would
 #   be describing a repo that no longer exists if it were reseeded.
 #
@@ -172,10 +172,10 @@
 # COST
 #   One live model call per prompt, not per assertion: assertions that can be
 #   read off the same transcript share it. Test 4 is the exception in the other
-#   direction: it is one assertion over three turns, because no single prompt
+#   direction: it is one assertion over two turns, because no single prompt
 #   reaches a Fase 2 plan (see the note at the test, and #534).
-#     nav-pilot      7 calls per pass (tests 2 and 3 share one prompt, test 4
-#                    spends three: an interview, its answers, a confirmation)
+#     nav-pilot      6 calls per pass (tests 2 and 3 share one prompt, test 4
+#                    spends two: an interview and its answers)
 #     code-review    2 calls per pass (cr1, cr2 and cr3 share one)
 #     accessibility  4 calls per pass (uu1 and uu2 share one)
 #   --repeat N multiplies that: nav-pilot at --repeat 5 is ~35 calls.
@@ -1199,27 +1199,22 @@ RE_BLINDSPOT_AUDIT='Blindsoner[^.]{0,40}[0-9]+[[:space:]]*/[[:space:]]*11'
 #
 #   turn 1 (t4a)  test 2's prompt, verbatim. The only prompt in this harness
 #                 with a measured stop rate, and the stop is the precondition.
-#   turn 2 (t4b)  T4_ANSWERS. The persona answers this with the Fase 1
-#                 checkpoint and stops again — `### Phase transition format`
-#                 ends "Bekreft for å fortsette", and the phase machine's exit
-#                 criterion for Fase 1 is "answers still pending".
-#   turn 3 (t4c)  T4_CONFIRM. The confirmation the checkpoint asks for.
+#   turn 2 (t4b)  T4_ANSWERS. The answers close the interview and explicitly
+#                 confirm every open question, so the persona enters Fase 2.
 #
-# ⚠️  #534 proposed two turns. Three is what the persona actually needs, and the
-# third is not padding: answering the questions ENDS Fase 1, it does not enter
-# Fase 2. The first live run of the two-turn version got a complete, correct
-# `✅ Fase 1 ferdig` block in turn two, with `• 🔴 Rød sone:` filled in as a
-# checkpoint summary line, and no plan. That transcript is also the reason the
-# plan gate below cannot key on red-zone wording: a Fase 1 checkpoint carries it.
-#
-# All three turns run in one client session (`--session-id`, see run_prompt), so
+# Both turns run in one client session (`--session-id`, see run_prompt), so
 # turn two does not have to restate the interview it is answering.
 #
 # The turns are a separate session from test 2's, not a fourth assertion hung
-# off test 2's transcript. That costs two extra model calls per pass (7, not 5),
-# and buys `--only 4` as a self-contained test plus a test 2 whose sample
-# nothing else perturbs. Test 2 and test 4 have shared machinery before, and the
-# note above RE_FASE2_WORK is what that cost.
+# off test 2's transcript. That buys `--only 4` as a self-contained test plus a
+# test 2 whose sample nothing else perturbs.
+#
+# This used to be three turns. Before #905, the persona required a literal
+# checkpoint after the answers and a separate confirmation before Fase 2. #905
+# removed that checkpoint but left the phase gate: answering every pending
+# question now confirms that the interview is complete. Keeping the third turn
+# made the harness inspect Fase 3 and report every current model as "not
+# evaluated".
 
 # The answers to Fase 1, fixed and written down rather than generated. A
 # generated answer would make each run measure the answer as much as the
@@ -1256,16 +1251,20 @@ T4_ANSWERS='Her er svarene på spørsmålene fra intervjuet:
 8, 9 og 10. Nybygg. Ingen gammel løsning, ingen bakoverkompatibilitet og ingenting som skal avvikles.
 11. Kompetanse: TokenX og Wonderwall er nytt for teamet.
 
-Det er alle svarene.'
+Det er alle svarene. Dette bekrefter at intervjuet er ferdig; bruk antakelsene dine der noe fortsatt er uavklart, og gå videre.'
 
-# The confirmation the Fase 1 checkpoint asks for, and the whole of turn three.
-# «Bekreftet» is the persona's own word («Bekreft for å fortsette»). The second
-# sentence exists because the checkpoint may still list open questions even when
-# every blind spot has been answered — the first live run listed two — and a
-# turn that answers those instead of confirming is another interview turn.
-T4_CONFIRM='Bekreftet. Ingen flere avklaringer fra meg — bruk antakelsene dine der noe er uavklart, og gå videre.'
-
-# A Fase 2 plan was produced in turn three. Test 4's gate.
+# A Fase 2 plan is produced in turn two. Test 4's gate.
+#
+# CURRENT CALIBRATION, 2026-09-23 after #905:
+#
+#   GPT-6 Sol:   t4a 0/5, t4b 5/5
+#   GPT-5.6 Sol: t4a 0/5, t4b 5/5
+#
+# All ten t4c transcripts from the obsolete third turn contained Fase 3 review
+# work. The harness therefore checks t4b and no longer sends t4c.
+#
+# HISTORICAL CALIBRATION BELOW. It documents why the plan marker is strict, but
+# its turn counts describe the checkpoint protocol that #905 removed.
 #
 # MEASURED, over the fifteen transcripts of the five-run calibration below, and
 # read across all three turns because the interesting question is what separates
@@ -1552,71 +1551,53 @@ run_pass_nav_pilot() {
   # Invariant: Boundaries → ✅ Always, "Include 🔴 Rød-sone-deklarasjon in every
   # Phase 2 plan", and `### Fase 2: Plan` item 10, which calls it MANDATORY.
   #
-  # THREE TURNS, one session: the full-tier prompt, the answers to the interview
-  # it opens, and the confirmation its checkpoint asks for. Why it cannot be one
-  # turn, and why it cannot be two, is in the vocabulary block above.
+  # TWO TURNS, one session: the full-tier prompt and the answers that close its
+  # interview. Why it cannot be one turn is in the vocabulary block above.
   #
   # WHAT THE EARLY TURNS GATE ON. Turn one must reach Fase 1 and must not have
   # done Fase 2 work, checked with test 2's own two expressions. A turn one that
   # skipped the interview never asked the questions turn two answers, so the plan
-  # turn three produced would not be the one under test: that is "not evaluated",
+  # turn two produced would not be the one under test: that is "not evaluated",
   # neither a pass nor a failure, and it is test 2's failure to report.
   #
-  # CALIBRATED 2026-08-31, `--only 4 --repeat 5 --keep --model claude-sonnet-4.6`
-  # against the fixture and persona of this commit. Fifteen transcripts, five of
-  # each turn, read by hand. The model is pinned because the persona is the one
-  # agent file with no `model:` field, and it is the model of
-  # docs/golden-baselines/2026-08-31-persona-checkpoint-fix-v3.txt so the sizes
-  # sit next to something. Result 5/5, with the two expressions above measured
-  # at t4a 0/5, t4b 0/5, t4c 5/5 and t4a 0/5, t4b 3/5, t4c 5/5. Medians:
-  # t4a 1073B (907-1173), t4b 1274B (1251-1647), t4c 6318B (4599-7366).
+  # CALIBRATED 2026-09-23 against five GPT-6 Sol and five GPT-5.6 Sol runs
+  # recorded before this correction. All ten t4b transcripts contain a Fase 2
+  # plan and all ten obsolete t4c transcripts contain Fase 3 review work.
   #
-  # The pass branch is restored on that basis, and it is not vacuous: replaying
-  # the same fifteen transcripts with every red-zone declaration line stripped
-  # out of t4c reports the test RED, and replaying them with the two plan
-  # markers stripped reports it "not evaluated". Neither degrades to green.
-  #
-  # SLUGS. The turns are recorded as t4a, t4b and t4c, and the t4 slug is
-  # retired. Baselines key on slugs, so a baseline recorded before this change
-  # has a t4 row and no t4a/t4b/t4c rows: `--compare` prints the new slugs
-  # against a "-" baseline instead of silently comparing a one-turn
-  # compressed-tier answer against turn three of a full-tier conversation. All
-  # three turns are measured, because they are different lengths of different
-  # things and one median over them would describe none of them. t4c is the
-  # plan; t4a is an interview turn and should track t2, which is the same prompt.
+  # SLUGS. The turns are recorded as t4a and t4b. Baselines key on slugs, so
+  # removing t4c makes output size, latency and cost reflect only work the
+  # assertion uses. t4a is the interview; t4b is the plan.
   if selected 4; then
     DESC4="Fase 2 output contains a 🔴 Rød sone declaration"
-    T4A="$(tx t4a)"; T4C="$(tx t4c)"
+    T4A="$(tx t4a)"; T4B="$(tx t4b)"
     # One session id per pass, generated fresh so that --repeat samples separate
     # conversations rather than piling fifteen turns into one.
     S4="$(uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]')"
     # Checked, not assumed. The script runs without `set -e`, so a missing
     # uuidgen fails silently: S4 is empty, run_prompt omits --session-id, and
-    # the three turns become three UNLINKED calls in which turn two answers an
-    # interview nobody held and turn three confirms nothing. That reports on
-    # whatever those three strangers happened to say, and it bills for three
-    # live calls to do it. uuidgen is on macOS and in util-linux, so this is a
+    # the two turns become two UNLINKED calls in which turn two answers an
+    # interview nobody held. That reports on whatever those strangers happened
+    # to say, and it bills for two live calls to do it. uuidgen is on macOS and
+    # in util-linux, so this is a
     # slim container rather than a likely path, which is exactly the kind that
     # goes unnoticed. Cheaper to refuse than to spend the calls and wonder.
     if [[ -z "$S4" ]]; then
       record_error 4 "$DESC4" \
-        "could not generate a session id (is uuidgen on PATH?). Test 4 is three turns of one conversation, and without an id they would be three unlinked calls, so the run is refused before it bills for them."
+        "could not generate a session id (is uuidgen on PATH?). Test 4 is two turns of one conversation, and without an id they would be two unlinked calls, so the run is refused before it bills for them."
     elif ! run_prompt t4a "ny tjeneste som leser fnr fra ID-porten" "$S4"; then
       record_error 4 "$DESC4" "turn 1 (intervju): $LAST_PROMPT_DETAIL"
     elif ! absent "$T4A" "$RE_FASE2_WORK"; then
       record_error 4 "$DESC4" \
-        "turn 1 did Fase 2 work (matched: $RE_FASE2_WORK) instead of stopping to interview, so turns 2 and 3 answered and confirmed an interview that never happened. That is test 2's failure to report, not test 4's — check test 2 first."
+        "turn 1 did Fase 2 work (matched: $RE_FASE2_WORK) instead of stopping to interview, so turn 2 answered an interview that never happened. That is test 2's failure to report, not test 4's — check test 2 first."
     elif ! present "$T4A" "$RE_FASE1_REACHED"; then
       record_error 4 "$DESC4" \
         "turn 1 produced no Fase 1 output (no match for: $RE_FASE1_REACHED) and no Fase 2 work either, so there is no interview for turn 2 to answer. Re-run with --keep and read t4a before touching anything here."
     elif ! run_prompt t4b "$T4_ANSWERS" "$S4"; then
       record_error 4 "$DESC4" "turn 2 (svar): $LAST_PROMPT_DETAIL"
-    elif ! run_prompt t4c "$T4_CONFIRM" "$S4"; then
-      record_error 4 "$DESC4" "turn 3 (bekreftelse): $LAST_PROMPT_DETAIL"
-    elif ! present "$T4C" "$RE_FASE2_PLAN"; then
+    elif ! present "$T4B" "$RE_FASE2_PLAN"; then
       record_error 4 "$DESC4" \
-        "turn 3 produced no Fase 2 plan (no match for: $RE_FASE2_PLAN) — a red-zone declaration is a property of a plan, so with no plan there is nothing to assert and this is not a pass. Either the interview did not close in turn 2 and the persona asked again, or the session did not carry the earlier turns. Re-run with --keep and read t4b and t4c in order."
-    elif ! present "$T4C" "$RE_T4_RED_ZONE"; then
+        "turn 2 produced no Fase 2 plan (no match for: $RE_FASE2_PLAN) — a red-zone declaration is a property of a plan, so with no plan there is nothing to assert and this is not a pass. Either the interview did not close or the session did not carry turn 1. Re-run with --keep and read t4a and t4b in order."
+    elif ! present "$T4B" "$RE_T4_RED_ZONE"; then
       record 4 "$DESC4" 1 \
         "a Fase 2 plan with no 🔴 Rød-sone-deklarasjon in it (no match for: $RE_T4_RED_ZONE) — mandatory per \`### Fase 2: Plan\` item 10 and Boundaries → ✅ Always. «🔴 Rød sone: ingen for denne oppgaven» would satisfy this; saying nothing does not."
     else
