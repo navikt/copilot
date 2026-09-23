@@ -2,7 +2,7 @@
 title: "Test GPT-6 Sol, GPT-6 Luna og Claude Opus 5.5 før modellbyttet"
 date: 2026-09-22
 category: copilot
-excerpt: "Tre nye modeller er tilgjengelige for utprøving. Vi utsetter endringen av standardmodellene mens vi undersøker tidlige regresjonsrapporter."
+excerpt: "Tre nye modeller er tilgjengelige for utprøving. Vi går videre med en kontrollert utrulling og beholder de eldre modellene som fallback."
 tags:
   - models
   - gpt
@@ -11,10 +11,6 @@ tags:
 ---
 
 GPT-6 Sol, GPT-6 Luna og Claude Opus 5.5 er nå slått på i GitHub Copilot for Nav. Vi anbefaler at de fleste prøver modellene på egne oppgaver nå. Utrullingen er gradvis, så modellene kan mangle i modellvelgeren en kort stund.
-
-> **Oppdatert 23. september:** Vi utsetter endringen av standardmodellene mens vi undersøker tidlige regresjonsrapporter. Én GPT-6 Sol-bruker på Hacker News gikk tilbake til GPT-5.6 Sol etter vesentlig dårligere resultater. En Opus 5.5-bruker fant fire feil linjenumre og to overdrevne funn i en kodegjennomgang på Medium effort. Dette er enkelterfaringer, ikke dokumentasjon på en generell regresjon, men de er konkrete nok til at vi tester før vi bytter.
-
-> **Testresultat 23. september:** Den første blokkeringsskjermen fant én GPT-6 Sol-kjøring av fem som hoppet over intervjuet og ga en løsningsanbefaling uten spørsmål. GPT-5.6 Sol fulgte fasekravene i fem av fem kjøringer. Opus 5.5 Medium oppga feil linjenumre i to av fem kodegjennomganger. GPT-6 Luna fulgte de avgrensede kravene i ti av ti oppgaver og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna. Funnene krever oppfølging, men er ikke store nok til å stoppe en kontrollert utrulling med de eldre modellene som fallback.
 
 ## Slik posisjonerer leverandørene modellene
 
@@ -77,3 +73,5 @@ Vi går videre med de planlagte modellbyttene og følger feilrate, credit-forbru
 - [Opus 5.5: feil linjenumre i kodegjennomgang](https://news.ycombinator.com/item?id=49810898) (Hacker News, lest 23. september 2026)
 - [GPT-6 Sol og Luna mangler i Codex-utvidelsen](https://www.reddit.com/r/OpenAI/comments/1wnwm69/gpt_6_sol_luna_not_available_on_codex_extension/) (Reddit, lest 23. september 2026)
 - [Diskusjon om kostnad per ferdig oppgave](https://www.reddit.com/r/OpenaiCodex/comments/1wnwivc/stop_comparing_6sol_to_opus_55_the_correct/) (Reddit, lest 23. september 2026)
+
+*Oppdatert 23. september 2026 med nye brukererfaringer, egne testresultater og beslutningen om kontrollert utrulling med de eldre modellene som fallback.*
