@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
@@ -304,6 +305,29 @@ func TestHostedLaunchStartsNoLoopGuard(t *testing.T) {
 	if guard != nil {
 		guard.Close()
 		t.Error("a refused launch started a loop guard")
+	}
+}
+
+func TestPakkeLocalDefaultIsResolvedBeforeDispatch(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	withLocalEnabled(t)
+	id := aLocalModelID(t)
+	SetActivePakke(&agentpakke.Manifest{
+		Name: "local-pakke",
+		Clients: map[string]agentpakke.ClientEntry{
+			"opencode": {
+				PrimaryAgents: []string{"local-agent"},
+				DefaultModel:  id,
+			},
+		},
+	})
+	t.Cleanup(func() { SetActivePakke(nil) })
+
+	if got := openCodeSessionModel(""); got != id {
+		t.Fatalf("openCodeSessionModel(\"\") = %q, want package default %q", got, id)
+	}
+	if _, err := startOpenCodeLocalDispatch(domain.ResolvedConfig{}); err == nil {
+		t.Fatal("package-declared local model was treated as hosted when no local server was running")
 	}
 }
 

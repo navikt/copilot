@@ -774,7 +774,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	// Local dispatch, whether or not this session's own model is local: a cloud
 	// main agent handing focused tasks to a local worker is the case the
 	// feature exists for.
-	guard, err := startLocalDispatch(openCodeSessionModelForLocalDispatch(resolved.Model))
+	guard, err := startOpenCodeLocalDispatch(resolved)
 	if err != nil {
 		return err
 	}
@@ -900,6 +900,10 @@ func localWorker() (local.Model, error) {
 			st.Model, domain.Bold("nav-pilot alpha local stop"), domain.Bold("nav-pilot alpha local start"))
 	}
 	return m, nil
+}
+
+func startOpenCodeLocalDispatch(resolved domain.ResolvedConfig) (*local.Guard, error) {
+	return startLocalDispatch(openCodeSessionModelForLocalDispatch(resolved.Model))
 }
 
 // startLocalDispatch sets local dispatch up for one session: the opencode
