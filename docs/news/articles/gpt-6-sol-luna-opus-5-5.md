@@ -14,6 +14,8 @@ GPT-6 Sol, GPT-6 Luna og Claude Opus 5.5 er nå slått på i GitHub Copilot for 
 
 > **Oppdatert 23. september:** Vi utsetter endringen av standardmodellene mens vi undersøker tidlige regresjonsrapporter. Én GPT-6 Sol-bruker på Hacker News gikk tilbake til GPT-5.6 Sol etter vesentlig dårligere resultater. En Opus 5.5-bruker fant fire feil linjenumre og to overdrevne funn i en kodegjennomgang på Medium effort. Dette er enkelterfaringer, ikke dokumentasjon på en generell regresjon, men de er konkrete nok til at vi tester før vi bytter.
 
+> **Testresultat 23. september:** Den første blokkeringsskjermen fant én GPT-6 Sol-kjøring av fem som hoppet over intervjuet og ga en løsningsanbefaling uten spørsmål. GPT-5.6 Sol fulgte fasekravene i fem av fem kjøringer. Opus 5.5 Medium oppga feil linjenumre i to av fem kodegjennomganger. GPT-6 Luna fulgte de avgrensede kravene i ti av ti oppgaver og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna. Funnene krever oppfølging, men er ikke store nok til å stoppe en kontrollert utrulling med de eldre modellene som fallback.
+
 ## Slik posisjonerer leverandørene modellene
 
 | Modell              | Kategori    | Pris per 1M tokens          | Leverandørens tiltenkte bruk                                                |
@@ -38,11 +40,15 @@ Opus 5.5 møter særlig skepsis rundt skrivestil og benchmarks. Flere tidlige br
 
 Reddit ga ingen verifiserbare, indekserte diskusjoner om de nye modellene på lanseringskvelden. Det finnes nå diskusjoner om ujevn utrulling, modellvalg og kostnad, men få dokumenterte sammenligninger fra reelle kodebaser. Flere innlegg gjentar leverandørenes priser og benchmarks uten egne målinger. Vi bruker derfor ikke Reddit-reaksjonene som grunnlag for modellbyttet.
 
-## Standardmodellbyttet venter på testresultater
+## Vi går videre med en kontrollert utrulling
 
-Vi beholder dagens modellvalg mens vi tester GPT-6 Sol mot GPT-5.6 Sol og følger utrullingen av de andre modellene. Bruk de nye modellene på oppgavene du vanligvis løser, og meld fra hvis du finner blokkeringer eller tydelige regresjoner. Vi følger særlig med på kodekvalitet, instruksjonsfølging, sikkerhetsvurderinger, tokenforbruk og antall forsøk per ferdig oppgave.
+GPT-6 Sol brøt stopp-og-vent-regelen i én av fem `nav-pilot`-kjøringer. Kontrollmodellen GPT-5.6 Sol fulgte regelen i fem av fem kjøringer. Dette er et negativt signal som vi skal følge, men ikke en bred kvalitetsregresjon: modellen fant personvern, tilgangskontroll og riktig TokenX-mønster i alle fem kjøringer. GPT-6 Sol brukte også færre credits og var raskere i deler av testen.
 
-Hvis testene ikke finner blokkeringer, flytter vi `@research` og de enkle malpromptene til GPT-6 Luna, `@security-champion` til GPT-6 Sol og `@nav-pilot-opus` til Claude Opus 5.5. Deretter slår vi av GPT-5.6 Luna, GPT-5.6 Sol og Claude Opus 5 i modellpolicyen. De eldre modellene forblir tilgjengelige som fallback til vi har kontrollert at overgangen ikke gir uønskede bivirkninger.
+GPT-6 Luna er fortsatt den mest lovende kandidaten for avgrensede oppgaver. Den besto de samme ti smale kravene som GPT-5.6 Luna og brukte omtrent 45 prosent færre credits, med omtrent lik veggklokketid. Testen dekker ikke generell kodekvalitet eller lange agentoppgaver. Vi ruller derfor ut på `@research` og malpromptene med GPT-5.6 Luna som fallback.
+
+Opus 5.5 Medium var billigere og raskere, men plasserte flere funn på feil linje i to av fem TSX-gjennomganger. High traff de plantede linjene i fem av fem kjøringer. Den kostet 12 prosent mer og var tregere enn Opus 5 High, men nøyaktigheten gjør High til et bedre valg for kodegjennomgang med høy risiko.
+
+Vi går videre med de planlagte modellbyttene og følger feilrate, credit-forbruk og konkrete regresjonsrapporter. Prøv de nye modellene på oppgaver du kjenner godt, og meld fra om feil med prompt, modell, effort-nivå og forventet resultat. Vi beholder GPT-5.6 Luna, GPT-5.6 Sol og Claude Opus 5 som fallback. Vi slår dem ikke av før større tester viser at etterfølgerne ikke gir uønskede bivirkninger.
 
 ## Relevans for Nav
 
@@ -52,9 +58,11 @@ Hvis testene ikke finner blokkeringer, flytter vi `@research` og de enkle malpro
 | GPT-6 Sol koster halvparten av GPT-5.6 Sol                    | Vi tester sikkerhetsagentens kvalitet før pris får avgjøre modellvalget                            |
 | Opus 5.5 bruker færre steg og tokens i Anthropics egne tester | Leverandørpåstanden må bekreftes på våre lange plan- og reviewoppgaver                             |
 | Opus 5.5 har alltid aktiv thinking og vannmerker tekst        | Team som integrerer modellen direkte må kontrollere API-endringer og krav til behandling av output |
-| Tidlige brukererfaringer spriker                              | Vi anbefaler at de fleste prøver modellene nå og melder fra om blokkeringer                        |
-| Standardmodellbyttet er utsatt                                | Vi tester konkrete regresjonsrapporter før vi endrer modellvalget                                  |
-| Eldre modeller skal fases ut                                  | GPT-5.6 Luna, GPT-5.6 Sol og Claude Opus 5 slås av etter at vi har kontrollert overgangen          |
+| GPT-6 Sol brøt fasekravet i én av fem kjøringer              | Vi ruller ut med GPT-5.6 Sol som fallback og følger fasebrudd særskilt                              |
+| GPT-6 Luna besto den smale testen med lavere credit-forbruk  | Vi bruker den på avgrensede research- og maloppgaver og følger kostnad per ferdig oppgave           |
+| Opus 5.5 Medium oppga feil linjer i to av fem reviews        | Vi bruker High fremfor Medium på oppgaver der presise funn er viktig                                |
+| Opus 5.5 High var dyrere og tregere enn Opus 5 High          | Vi ruller ut på den avgrensede høyrisikoagenten og beholder Opus 5 som fallback                     |
+| Eldre modeller skal fases ut                                  | GPT-5.6 Luna, GPT-5.6 Sol og Claude Opus 5 slås først av etter en kontrollert overgang              |
 
 **Kilder:**
 
