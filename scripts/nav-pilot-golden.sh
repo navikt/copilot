@@ -123,13 +123,14 @@
 #   export target. The Copilot CLI this harness drives reads
 #   .github/instructions/ directly, and `nav-pilot install` writes no AGENTS.md.
 #
-# MEASURING OUTPUT SIZE
+# MEASURING OUTPUT SIZE, TIME AND USAGE
 #   Behavioural assertions answer "did it still do the right thing". They cannot
 #   answer "did it get shorter", which is the question an always-on output-style
-#   instruction raises. So every run also records bytes, lines and words per
-#   transcript, and reports the median with its min/max spread. Size is
-#   reported, never asserted: a size change never fails the run. The spread is
-#   the point: a 5% median delta inside a 40% spread is noise.
+#   instruction raises. So every run also records bytes, lines, words and
+#   wall-clock time per transcript, and reports the median with its min/max
+#   spread. These measurements are reported, never asserted: a change never
+#   fails the run. The spread is the point: a 5% median delta inside a 40%
+#   spread is noise.
 #
 #   Model output is non-deterministic, so a single sample proves nothing. Use
 #   --repeat N (N runs per prompt, median across them), --save-baseline to
@@ -145,6 +146,12 @@
 #   per-run, per-assertion rows. Commit both. Sizes alone cannot be audited, and
 #   every retraction in #583 was possible only because a --keep directory
 #   happened to survive in $TMPDIR (recommendation 3; #585 did it by hand).
+#
+#   When $HOME/.copilot/session-store.db is readable, it also writes
+#   <date>-<label>-usage.psv. This contains exact per-call model, token, cache,
+#   reasoning, credit and latency data from assistant_usage_events. Override
+#   the path with NAV_PILOT_GOLDEN_USAGE_DB when cplt or an isolated HOME keeps
+#   the database elsewhere. The CLI's rounded banner is not used as raw data.
 #
 # PASS/FAIL ACROSS REPEATS
 #   A test passes only if *every* run of it passed. One failure in five runs is
@@ -180,6 +187,8 @@
 #   ./scripts/nav-pilot-golden.sh --only 2,5      # run selected tests
 #   ./scripts/nav-pilot-golden.sh --keep          # keep transcripts for inspection
 #   ./scripts/nav-pilot-golden.sh --model <model> # pin a model (default: CLI default)
+#   ./scripts/nav-pilot-golden.sh --effort high   # pin reasoning effort
+#   ./scripts/nav-pilot-golden.sh --context long_context # pin context tier
 #   ./scripts/nav-pilot-golden.sh --json          # machine-readable summary (needs jq)
 #   ./scripts/nav-pilot-golden.sh -v              # echo each transcript as it lands
 #   ./scripts/nav-pilot-golden.sh --repeat 5      # 5 samples per prompt, median reported
@@ -228,6 +237,8 @@ KEEP=false
 VERBOSE=false
 JSON=false
 MODEL=""
+EFFORT=""
+CONTEXT_TIER=""
 REPEAT=1
 WITH_INSTRUCTIONS=true
 SAVE_BASELINE=""
@@ -249,6 +260,8 @@ while [[ $# -gt 0 ]]; do
     --only)    need_val "$@"; ONLY="$2"; shift 2 ;;
     --keep)    KEEP=true; shift ;;
     --model)   need_val "$@"; MODEL="$2"; shift 2 ;;
+    --effort)  need_val "$@"; EFFORT="$2"; shift 2 ;;
+    --context) need_val "$@"; CONTEXT_TIER="$2"; shift 2 ;;
     --json)    JSON=true; shift ;;
     --repeat)  need_val "$@"; REPEAT="$2"; shift 2 ;;
     --no-instructions) WITH_INSTRUCTIONS=false; shift ;;
@@ -339,12 +352,21 @@ AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:
   "--repeat takes a positive integer, got '$REPEAT'" \
   "Each repeat costs another full set of live model calls."
 
+[[ -z "$EFFORT" || "$EFFORT" =~ ^(none|minimal|low|medium|high|xhigh|max)$ ]] || fail_preflight \
+  "--effort has an invalid value: '$EFFORT'" \
+  "Use one of: none, minimal, low, medium, high, xhigh, max."
+
+[[ -z "$CONTEXT_TIER" || "$CONTEXT_TIER" =~ ^(default|long_context)$ ]] || fail_preflight \
+  "--context has an invalid value: '$CONTEXT_TIER'" \
+  "Use default or long_context."
+
 [[ -z "$COMPARE_TO" || -f "$COMPARE_TO" ]] || fail_preflight \
   "--compare: no baseline file at $COMPARE_TO" \
   "Record one first: ./scripts/nav-pilot-golden.sh --repeat 5 --save-baseline $COMPARE_TO"
 
 CLI_PATH=""
 CLI_NAME="(dry run, no client)"
+CLI_VERSION=""
 
 # preflight_client resolves and probes the CLI. Skipped by --dry-run, which
 # builds and prints the scratch workspace and stops: that path exists so the
@@ -368,7 +390,7 @@ preflight_client() {
       "Install the Copilot CLI (https://github.com/github/copilot-cli), or 'brew install navikt/tap/cplt' for the sandboxed wrapper."
   fi
 
-  if ! "$CLI_PATH" --version >/dev/null 2>&1; then
+  if ! CLI_VERSION="$("$CLI_PATH" --version 2>&1)"; then
     fail_preflight \
       "'$CLI_NAME --version' failed — the CLI is on PATH but not runnable" \
       "Try running '$CLI_NAME' once interactively to complete setup."
@@ -398,6 +420,20 @@ $DRY_RUN || preflight_client
 
 if $JSON && ! command -v jq >/dev/null 2>&1; then
   fail_preflight "--json needs jq" "brew install jq"
+fi
+
+USAGE_HELPER="$REPO_ROOT/scripts/copilot-usage.py"
+USAGE_DB="${NAV_PILOT_GOLDEN_USAGE_DB:-$HOME/.copilot/session-store.db}"
+USAGE_TRACKING=false
+USAGE_UNAVAILABLE=""
+if [[ ! -f "$USAGE_DB" ]]; then
+  USAGE_UNAVAILABLE="no session database at $USAGE_DB"
+elif ! command -v python3 >/dev/null 2>&1; then
+  USAGE_UNAVAILABLE="python3 is unavailable"
+elif ! python3 "$USAGE_HELPER" cursor "$USAGE_DB" >/dev/null 2>&1; then
+  USAGE_UNAVAILABLE="assistant_usage_events is unavailable in $USAGE_DB"
+else
+  USAGE_TRACKING=true
 fi
 
 # ─── Throwaway workspace ─────────────────────────────────────────────────────
@@ -806,14 +842,17 @@ ws_written_files() {
 
 # Per-run rows, one file each, aggregated after the last run:
 #   RESULTS_FILE  id|run|status|assertion|detail      (one row per test per run)
-#   MEASURES      slug|bytes|lines|words              (one row per transcript)
+#   MEASURES      slug|bytes|lines|words|elapsed_ms   (one row per transcript)
+#   USAGE_FILE    exact assistant_usage_events rows   (zero or more per prompt)
 # Files rather than arrays because the aggregation reads them repeatedly, and
 # because bash 3.2 (stock macOS) makes an empty array an unbound-variable error
 # under `set -u`, while an empty file just reads as nothing.
 RESULTS_FILE="$WORKDIR/results.psv"
 MEASURES="$WORKDIR/measures.psv"
+USAGE_FILE="$WORKDIR/usage.psv"
 : >"$RESULTS_FILE"
 : >"$MEASURES"
+: >"$USAGE_FILE"
 
 pass_count=0
 fail_count=0
@@ -826,6 +865,23 @@ RUN=1
 tx() { printf '%s/%s.run%s.txt' "$WORKDIR" "$1" "$RUN"; }
 
 run_tag() { [[ "$REPEAT" -gt 1 ]] && printf '%s[run %s/%s]%s ' "$DIM" "$RUN" "$REPEAT" "$RESET"; return 0; }
+
+new_session_id() {
+  local id
+  id="$(uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+  if [[ -z "$id" ]] && command -v python3 >/dev/null 2>&1; then
+    id="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+  fi
+  printf '%s' "$id"
+}
+
+now_ms() {
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import time; print(time.time_ns() // 1_000_000)'
+  else
+    echo "$(($(date +%s) * 1000))"
+  fi
+}
 
 # A transcript shorter than this is treated as "the call did not happen", not as
 # a response. Every assertion below is either an absent() — which succeeds
@@ -858,8 +914,8 @@ run_prompt() {
   # SESSION-ID (optional) makes a prompt part of a multi-turn conversation. The
   # first call carrying a given id opens the session; every later call carrying
   # the same id is another turn in it, and the client replays the earlier turns
-  # as context. Omit it and the call is a standalone one-turn prompt, which is
-  # what every test but 4 wants and byte-for-byte what they got before.
+  # as context. Standalone calls get a fresh id so their exact usage rows can be
+  # attributed without matching timestamps or mixing in another CLI process.
   #
   # A continuation does NOT reseed the workspace. The point of turn two is to
   # answer the questions turn one asked about this repo; resetting the files
@@ -869,8 +925,13 @@ run_prompt() {
   out="$(tx "$slug")"
   local -a args=(-p "$prompt" --agent "$AGENT_NAME" --allow-all-tools --no-color --log-level none)
   [[ -n "$MODEL" ]] && args+=(--model "$MODEL")
+  [[ -n "$EFFORT" ]] && args+=(--reasoning-effort "$EFFORT")
+  [[ -n "$CONTEXT_TIER" ]] && args+=(--context "$CONTEXT_TIER")
 
   local continuing=false
+  if [[ -z "$session" ]]; then
+    session="$(new_session_id)"
+  fi
   if [[ -n "$session" ]]; then
     args+=(--session-id "$session")
     case "$SESSIONS_SEEN" in
@@ -889,6 +950,15 @@ run_prompt() {
   echo "${DIM}  → $(run_tag)prompting ($slug)…${RESET}" >&2
   local -a runner=()
   [[ -n "$TIMEOUT_BIN" ]] && runner=("$TIMEOUT_BIN" "$TIMEOUT_SECS")
+  local usage_cursor=0 started_ms ended_ms elapsed_ms
+  if $USAGE_TRACKING && [[ -n "$session" ]]; then
+    if ! usage_cursor="$(python3 "$USAGE_HELPER" cursor "$USAGE_DB")"; then
+      USAGE_TRACKING=false
+      USAGE_UNAVAILABLE="could not read assistant_usage_events before $slug"
+      echo "${YELLOW}⚠ usage tracking disabled: $USAGE_UNAVAILABLE${RESET}" >&2
+    fi
+  fi
+  started_ms="$(now_ms)"
   # ${arr[@]+"${arr[@]}"} — bash 3.2 (stock macOS) treats an empty array as an
   # unbound variable under `set -u`, and the no-coreutils fallback above leaves
   # `runner` empty on exactly that platform.
@@ -900,6 +970,17 @@ run_prompt() {
   # is a no-op, which is exactly the empty-HOOK_ENV case.
   ( cd "$WS" && ${runner[@]+"${runner[@]}"} env ${HOOK_ENV[@]+"${HOOK_ENV[@]}"} "$CLI_PATH" "${args[@]}" ) >"$out" 2>"${out%.txt}.err"
   local rc=$?
+  ended_ms="$(now_ms)"
+  elapsed_ms=$((ended_ms - started_ms))
+  if $USAGE_TRACKING && [[ -n "$session" ]]; then
+    if ! python3 "$USAGE_HELPER" export "$USAGE_DB" \
+      --session "$session" --after "$usage_cursor" --slug "$slug" --run "$RUN" \
+      >>"$USAGE_FILE"; then
+      USAGE_TRACKING=false
+      USAGE_UNAVAILABLE="could not export assistant_usage_events after $slug"
+      echo "${YELLOW}⚠ usage tracking disabled: $USAGE_UNAVAILABLE${RESET}" >&2
+    fi
+  fi
   # Taken unconditionally, including after a dead call: an agent that wrote and
   # then timed out still wrote, and the no-auto-fix assertions want to say so.
   ws_fingerprint >"$FP_AFTER"
@@ -920,8 +1001,9 @@ run_prompt() {
   # Size is measured for every usable transcript, whatever the assertions then
   # say about it. A dead transcript is deliberately not measured: its length
   # describes the failure, not the persona.
-  printf '%s|%s|%s|%s\n' "$slug" "$size" \
-    "$(wc -l <"$out" | tr -d ' ')" "$(wc -w <"$out" | tr -d ' ')" >>"$MEASURES"
+  printf '%s|%s|%s|%s|%s\n' "$slug" "$size" \
+    "$(wc -l <"$out" | tr -d ' ')" "$(wc -w <"$out" | tr -d ' ')" \
+    "$elapsed_ms" >>"$MEASURES"
   return 0
 }
 
@@ -1020,8 +1102,13 @@ selected() {
 }
 
 echo "${BOLD}golden-prompt harness, agent under test: $AGENT${RESET}"
-echo "${DIM}client: $CLI_NAME${CLI_PATH:+ ($CLI_PATH)}${RESET}"
+echo "${DIM}client: $CLI_NAME${CLI_VERSION:+ $CLI_VERSION}${CLI_PATH:+ ($CLI_PATH)}${RESET}"
 echo "${DIM}agent file: $PERSONA (launched as --agent $AGENT_NAME)${RESET}"
+if $USAGE_TRACKING; then
+  echo "${DIM}usage: exact rows from $USAGE_DB${RESET}"
+else
+  echo "${YELLOW}usage: unavailable ($USAGE_UNAVAILABLE)${RESET}"
+fi
 if $WITH_INSTRUCTIONS; then
   echo "${DIM}instructions: $INSTR_COUNT in .github/instructions/, $ALWAYS_ON_COUNT always-on (applyTo \"**\")${RESET}"
 else
@@ -2116,8 +2203,10 @@ for slug in $(uniq_field "$MEASURES" 1); do
   read -r b_med b_min b_max <<<"$(cut -d'|' -f2 <<<"$rows" | stats)"
   read -r l_med l_min l_max <<<"$(cut -d'|' -f3 <<<"$rows" | stats)"
   read -r w_med w_min w_max <<<"$(cut -d'|' -f4 <<<"$rows" | stats)"
-  printf '%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n' "$slug" "$n" \
-    "$b_med" "$b_min" "$b_max" "$l_med" "$l_min" "$l_max" "$w_med" "$w_min" "$w_max" >>"$AGG_SIZES"
+  read -r t_med t_min t_max <<<"$(cut -d'|' -f5 <<<"$rows" | stats)"
+  printf '%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n' "$slug" "$n" \
+    "$b_med" "$b_min" "$b_max" "$l_med" "$l_min" "$l_max" "$w_med" "$w_min" "$w_max" \
+    "$t_med" "$t_min" "$t_max" >>"$AGG_SIZES"
 done
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
@@ -2145,12 +2234,35 @@ if [[ "$REPEAT" -gt 1 && -s "$AGG_TESTS" ]]; then
 fi
 
 if [[ -s "$AGG_SIZES" ]]; then
-  echo "${BOLD}Response size${RESET} ${DIM}(median per prompt over the n usable transcripts of $REPEAT, spread in brackets)${RESET}"
-  printf '  %-6s %9s %8s %8s   %s\n' "prompt" "bytes" "lines" "words" "bytes min-max"
-  while IFS='|' read -r slug n b_med b_min b_max l_med l_min l_max w_med w_min w_max; do
-    printf '  %-6s %9s %8s %8s   %s\n' "$slug" "$b_med" "$l_med" "$w_med" "${DIM}$b_min-$b_max (n=$n)${RESET}"
+  echo "${BOLD}Response size and wall time${RESET} ${DIM}(median per prompt over the n usable transcripts of $REPEAT, spread in brackets)${RESET}"
+  printf '  %-6s %9s %8s %8s %10s   %s\n' "prompt" "bytes" "lines" "words" "elapsed" "bytes min-max"
+  while IFS='|' read -r slug n b_med b_min b_max l_med l_min l_max w_med w_min w_max t_med t_min t_max; do
+    printf '  %-6s %9s %8s %8s %8.1fs   %s\n' "$slug" "$b_med" "$l_med" "$w_med" \
+      "$(awk -v ms="$t_med" 'BEGIN { print ms / 1000 }')" \
+      "${DIM}$b_min-$b_max (n=$n, elapsed $(awk -v lo="$t_min" -v hi="$t_max" 'BEGIN { printf "%.1f-%.1fs", lo / 1000, hi / 1000 }'))${RESET}"
   done <"$AGG_SIZES"
-  echo "${DIM}Sizes are reported, never asserted. A wide spread means a small median delta is noise.${RESET}"
+  echo "${DIM}Sizes and time are reported, never asserted. A wide spread means a small median delta is noise.${RESET}"
+  echo
+fi
+
+if [[ -s "$USAGE_FILE" ]]; then
+  echo "${BOLD}Model usage${RESET} ${DIM}(exact assistant_usage_events rows; totals include failed attempts and subagents)${RESET}"
+  printf '  %-6s %6s %10s %10s %10s %10s\n' "prompt" "calls" "credits" "written" "cached" "output"
+  for slug in $(uniq_field "$USAGE_FILE" 1); do
+    grep "^$slug|" "$USAGE_FILE" | awk -F'|' -v slug="$slug" '
+      {
+        calls++
+        output += $9
+        cached += $10
+        written += $11
+        nano += $13
+      }
+      END {
+        printf "  %-6s %6d %10.3f %10d %10d %10d\n",
+          slug, calls, nano / 1000000000, written, cached, output
+      }'
+  done
+  echo "${DIM}Credits are total_nano_aiu / 1e9. Token columns are cache writes, cache reads and output.${RESET}"
   echo
 fi
 
@@ -2170,13 +2282,16 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     echo "# date:         $(date -u +%Y-%m-%d)"
     echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
     echo "# client:       $CLI_NAME"
+    echo "# clientVersion: $CLI_VERSION"
     echo "# model:        ${MODEL:-CLI default}"
+    echo "# effort:       ${EFFORT:-CLI default}"
+    echo "# context:      ${CONTEXT_TIER:-CLI default}"
     echo "# repeats:      $REPEAT"
     echo "# instructions: $INSTR_DESC"
     echo "# fixture:      $FIXTURE_SUM"
     echo "# prompts:      ${ONLY:-all}"
     echo "#"
-    echo "# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max"
+    echo "# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max|elapsed_ms_median|elapsed_ms_min|elapsed_ms_max"
     cat "$AGG_SIZES"
   } >"$SAVE_BASELINE"
   echo "${DIM}size baseline written to $SAVE_BASELINE${RESET}"
@@ -2207,6 +2322,10 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     echo "# date:         $(date -u +%Y-%m-%d)"
     echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
     echo "# model:        ${MODEL:-CLI default}"
+    echo "# client:       $CLI_NAME"
+    echo "# clientVersion: $CLI_VERSION"
+    echo "# effort:       ${EFFORT:-CLI default}"
+    echo "# context:      ${CONTEXT_TIER:-CLI default}"
     echo "# instructions: $INSTR_DESC"
     echo "# repeat:       $REPEAT"
     echo "# fixture:      $FIXTURE_SUM"
@@ -2220,6 +2339,32 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     cat "$RESULTS_FILE"
   } >"$RESULTS_BASELINE"
   echo "${DIM}per-run assertion outcomes written to $RESULTS_BASELINE${RESET}"
+
+  if [[ -s "$USAGE_FILE" ]]; then
+    USAGE_BASELINE="${SAVE_BASELINE%.txt}-usage.psv"
+    {
+      echo "# golden-prompt EXACT MODEL USAGE"
+      echo "# agent:        $AGENT"
+      echo "# date:         $(date -u +%Y-%m-%d)"
+      echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+      echo "# model:        ${MODEL:-CLI default}"
+      echo "# client:       $CLI_NAME"
+      echo "# clientVersion: $CLI_VERSION"
+      echo "# effort:       ${EFFORT:-CLI default}"
+      echo "# context:      ${CONTEXT_TIER:-CLI default}"
+      echo "# instructions: $INSTR_DESC"
+      echo "# repeat:       $REPEAT"
+      echo "# fixture:      $FIXTURE_SUM"
+      echo "# prompts:      ${ONLY:-all}"
+      echo "# source:       assistant_usage_events"
+      echo "#"
+      echo "# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id"
+      cat "$USAGE_FILE"
+    } >"$USAGE_BASELINE"
+    echo "${DIM}exact model usage written to $USAGE_BASELINE${RESET}"
+  else
+    echo "${YELLOW}exact model usage was not recorded: ${USAGE_UNAVAILABLE:-no usage rows matched the benchmark sessions}${RESET}"
+  fi
   echo
 fi
 
@@ -2283,7 +2428,10 @@ if [[ -n "$COMPARE_TO" ]]; then
   fi
   [[ "$BASE_AGENT" == "$AGENT" ]] || \
     echo "  ${YELLOW}⚠ baseline agent: '$BASE_AGENT', this run: '$AGENT'. Different agents, different prompts. Not comparable.${RESET}"
+  compat_warn clientVersion "$CLI_VERSION"
   compat_warn model "${MODEL:-CLI default}"
+  compat_warn effort "${EFFORT:-CLI default}"
+  compat_warn context "${CONTEXT_TIER:-CLI default}"
   compat_note instructions "$INSTR_DESC"
   compat_warn repeats "$REPEAT"
   compat_warn prompts "${ONLY:-all}"
@@ -2316,6 +2464,8 @@ if $JSON; then
   # stream still yields a well-formed summary.
   { sed 's/^/test|/' "$AGG_TESTS"; sed 's/^/size|/' "$AGG_SIZES"; } \
     | jq -R -s --argjson repeat "$REPEAT" --arg agent "$AGENT" \
+        --arg model "${MODEL:-CLI default}" --arg effort "${EFFORT:-CLI default}" \
+        --arg context "${CONTEXT_TIER:-CLI default}" --arg client "$CLI_VERSION" \
         --argjson instructions "$($WITH_INSTRUCTIONS && echo true || echo false)" '
     (split("\n") | map(select(length > 0) | split("|"))) as $rows
     | ($rows | map(select(.[0] == "test") | {
@@ -2330,13 +2480,18 @@ if $JSON; then
        soft_met:   ($tests | map(select(.status == "soft-pass")) | length),
        soft_unmet: ($tests | map(select(.status == "soft-fail")) | length),
        repeat: $repeat,
+       model: $model,
+       effort: $effort,
+       context: $context,
+       client: $client,
        instructions: $instructions,
        tests: $tests,
        sizes: ($rows | map(select(.[0] == "size") | {
          slug: .[1], runs: (.[2] | tonumber),
          bytes: {median: (.[3] | tonumber), min: (.[4] | tonumber), max: (.[5] | tonumber)},
          lines: {median: (.[6] | tonumber), min: (.[7] | tonumber), max: (.[8] | tonumber)},
-         words: {median: (.[9] | tonumber), min: (.[10] | tonumber), max: (.[11] | tonumber)}
+         words: {median: (.[9] | tonumber), min: (.[10] | tonumber), max: (.[11] | tonumber)},
+         elapsed_ms: {median: (.[12] | tonumber), min: (.[13] | tonumber), max: (.[14] | tonumber)}
        }))}'
 fi
 
