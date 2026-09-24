@@ -17,7 +17,7 @@ Med `nav-pilot alpha local` kan du kjøre en modell fra Qwen-familien på din eg
 
 Vi kaller den bakkemodellen. Hovedagenten blir i skya og bestemmer, bakkemodellen utfører. I logger og konfigurasjon heter den `local-worker`.
 
-Den arbeidsdelingen krever opencode som klient. Bare der blir bakkemodellen en underagent hovedagenten kan sende avgrensede oppgaver til. Under Copilot CLI, som er standardklienten i nav-pilot, finnes ingen slik underagent: klienten setter modelleverandøren som en miljøvariabel for hele prosessen, så én leverandør betjener hele økten. Valget der er hele økten på den lokale modellen eller ingenting lokalt. Vi har verifisert det mot Copilot CLI 1.0.83-3. Vil du ha utsending, bytt med `nav-pilot config set client opencode`. Vi har bedt GitHub om å kunne velge modelleverandør per agent i Copilot CLI, og det ligger som en feature request hos dem.
+Den arbeidsdelingen krever opencode som klient. Bare der blir bakkemodellen en underagent hovedagenten kan sende avgrensede oppgaver til. Under Copilot CLI, som er standardklienten i nav-pilot, finnes ingen slik underagent: klienten setter modelleverandøren som en miljøvariabel for hele prosessen, så én leverandør betjener hele økten. Valget der er hele økten på den lokale modellen eller ingenting lokalt. Vi har verifisert det mot Copilot CLI 1.0.83-3. Vil du ha utsending, bytt med `nav-pilot config set client opencode`. Å velge leverandør per agent er verken støttet eller dokumentert i Copilot CLI ennå. Runtimen har eksperimentell støtte for det, og vi tester den ([github/copilot-cli#4703](https://github.com/github/copilot-cli/issues/4703)).
 
 ```
 nav-pilot alpha local init
@@ -72,7 +72,7 @@ Vil du prøve den likevel:
 
 ```bash
 nav-pilot models
-nav-pilot config set model mlx-community/Qwen3.8-27B-4bit
+nav-pilot config set local_model mlx-community/Qwen3.8-27B-4bit
 nav-pilot alpha local init
 ```
 
@@ -107,11 +107,26 @@ Senere kjøringer avdekket tool-looper på 203 og 220 kall. Den lokale loop-guar
 
 Serveren avslutter nå hvis genereringstråden krasjer, for eksempel ved Metal OOM. Neste session får en konkret restart-melding i stedet for å koble seg til en prosess som svarer på porten, men aldri leverer et resultat.
 
-Manifestet kan også styre sampling og `--prefill-step-size`. Dette gjør det mulig å rette modellspesifikke problemer uten en ny nav-pilot-release. Verdiene settes først etter målinger.
+Manifestet kan også styre sampling og `--prefill-step-size`. Dette gjør det mulig å rette modellspesifikke problemer uten en ny nav-pilot-release. Verdiene settes først etter målinger. Se oppdateringen under for dem som nå er satt.
 
 Nav-pilot leser nå delegeringsklasser fra modellmanifestet. For standardmodellen er bare `edit-multi-mechanical` godkjent for delegering: mekaniske endringer som følger ett mønster gjennom flere filer. Spørsmål, enkel filredigering, nye filer og debugging blir i skyen.
 
 Qwen 3.8-profilene har foreløpig ingen oppgaveklasse godkjent for delegering. Vurderingen kommer fra minst fem kjøringer og to ulike oppgaver per klasse, med en kvalitetsgrense mot skyarmen.
+
+### Oppdatering 24. september (kveld): verdiene er satt, og Qwen 3.8 kan velges
+
+Standardmodellen kjører nå med temperatur 0,6 og top_p 0,95, de samme verdiene vi målte den med. For Qwen 3.8 setter manifestet ingen temperatur ennå, fordi den målingen ikke er ferdig.
+
+Begge Qwen 3.8-modellene kan velges med `nav-pilot config set local_model`. Ingen av dem blir standard:
+
+- **Qwen3.8-27B 4-bit** har 64k kontekst og svar på inntil 8k tokens. Den er mye tregere enn standard og langt mindre forutsigbar: to kjøringer av de samme oppgavene ga median 88 og 906 sekunder.
+- **Qwen3.8-27B 8-bit** har 48k kontekst og svar på inntil 4k tokens. Den leser prompten i steg på 512 tokens, så en lang prompt holder seg innenfor minnegrensen på 36 GB. Den løste 31 av 40 oppgaver mot standardens 28, men bruker omtrent ti ganger så lang tid.
+
+8-bit krever nav-pilot 2026.09.24-110317 eller nyere. Eldre versjoner kjenner ikke steglengden og kan gå tom for minne nær 48k. Manifestet sier nå hvilken nav-pilot hver modell krever, og en eldre nav-pilot skjuler modellen. Peker `local_model` på den, faller nav-pilot tilbake til standardmodellen og sier hvilken versjon du trenger.
+
+Tabellen over modellene på [ki-utvikling.nav.no/nav-pilot/docs](https://ki-utvikling.nav.no/nav-pilot/docs#lokal-modeller) er nå generert fra manifestet, så kontekst, minnekrav og minste versjon følger det nav-pilot selv leser.
+
+Svarer ikke GitHub når du starter en agentpakke som `nais/pilot`, bruker nav-pilot nå manifestet fra forrige vellykkede oppstart og skriver en advarsel. Før feilet hver oppstart, også økter med lokal modell der ingenting annet trenger nett.
 
 ## Hva vi trenger fra deg
 
@@ -129,6 +144,8 @@ Meld deg i #nav-pilot. Vi tar inn én og én i starten.
 
 Hele rapporten, med metode og alle tallene: [local-inference-findings.md](https://github.com/navikt/mlx-workspace/blob/main/reports/local-inference-findings.md). Hvorfor akkurat denne modellen, og hva vi forkastet: [alpha-model-decision.md](https://github.com/navikt/mlx-workspace/blob/main/reports/alpha-model-decision.md). Rådataene ligger i [navikt/mlx-workspace](https://github.com/navikt/mlx-workspace), også kjøringene som gikk galt.
 
+> **Rettelse 24. september (kveld):** Kommandoen for å bytte til Qwen 3.8 satte `model`, som er modellen økten kjører på. Riktig nøkkel er `local_model`. Saken sa også at valg av leverandør per agent lå som en feature request hos GitHub. Runtimen har nå eksperimentell støtte, og vi tester den.
+
 > **Rettelse 31. august:** Saken oppga først at 8-bit gikk i timeout på 8 av 11 oppgaver, og forklarte deretter tallet med en chat-mal vi skrev selv, men verken tallet eller den forklaringen kan vi stå inne for.
 
 **Kilder:**
@@ -139,3 +156,10 @@ Hele rapporten, med metode og alle tallene: [local-inference-findings.md](https:
 - [Let the manifest set mlx-lm's prefill step size](https://github.com/navikt/copilot/pull/936) (navikt/copilot, 24. september 2026)
 - [Generate the dispatch policy from manifest capabilities](https://github.com/navikt/copilot/pull/941) (navikt/copilot, 24. september 2026)
 - [Score task classes against the local-vs-cloud bar](https://github.com/navikt/mlx-workspace/pull/27) (navikt/mlx-workspace, 24. september 2026)
+- [Fall back to the cached agent source when it cannot be fetched](https://github.com/navikt/copilot/pull/942) (navikt/copilot, 24. september 2026)
+- [Gate manifest entries on min_nav_pilot](https://github.com/navikt/copilot/pull/943) (navikt/copilot, 24. september 2026)
+- [Withheld defaults, non-string minimums and status from cache](https://github.com/navikt/copilot/pull/945) (navikt/copilot, 24. september 2026)
+- [8-bit Qwen3.8 at 48k with prefill step 512, and data-based model texts](https://github.com/navikt/mlx-workspace/pull/28) (navikt/mlx-workspace, 24. september 2026)
+- [Set min_nav_pilot from the params an entry uses](https://github.com/navikt/mlx-workspace/pull/30) (navikt/mlx-workspace, 24. september 2026)
+- [Run the default model at temperature 0.6, as benchmarked](https://github.com/navikt/mlx-workspace/pull/31) (navikt/mlx-workspace, 24. september 2026)
+- [Generer tabellen over lokale modeller fra manifestet](https://github.com/navikt/copilot/pull/947) (navikt/copilot, 24. september 2026)
