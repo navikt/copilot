@@ -110,10 +110,14 @@ func TestLoopGuardKeepsStatePerSession(t *testing.T) {
 	var out string
 	for range 4 {
 		p, _ := ParsePayload(payload("s1", "bash", `{"command":"ls"}`, "a.go"))
-		out = LoopGuard(dir, p, 8)
+		out, _ = LoopGuard(dir, p, 8)
 		// A second session doing the same thing in between must not add to s1's run.
 		q, _ := ParsePayload(payload("s2", "bash", `{"command":"ls"}`, "a.go"))
 		LoopGuard(dir, q, 8)
+	}
+	// The run lives in the session's own directory, where Copilot keeps the session.
+	if _, err := os.Stat(filepath.Join(dir, "s1", "nav-pilot-loop-guard.json")); err != nil {
+		t.Errorf("no state in the session directory: %v", err)
 	}
 	var got struct {
 		ModifiedResult struct {
@@ -138,35 +142,22 @@ func TestLoopGuardFailsOpen(t *testing.T) {
 	} {
 		p, _ := ParsePayload(raw)
 		for range 10 {
-			if out := LoopGuard(dir, p, 2); out != NoChange {
+			if out, _ := LoopGuard(dir, p, 2); out != NoChange {
 				t.Errorf("%s: %s", name, out)
 			}
 		}
 	}
-	// A state directory that cannot be created is a pass, not a failure.
+	// A state directory that cannot be created is a pass, and says so.
 	blocker := filepath.Join(dir, "file")
 	os.WriteFile(blocker, nil, 0o600)
 	p, _ := ParsePayload(payload("s", "bash", `{}`, "x"))
 	for range 10 {
-		if out := LoopGuard(filepath.Join(blocker, "sub"), p, 2); out != NoChange {
+		out, err := LoopGuard(blocker, p, 2)
+		if out != NoChange {
 			t.Errorf("unwritable state dir: %s", out)
 		}
-	}
-}
-
-func TestLoopGuardRemovesStaleSessions(t *testing.T) {
-	dir := t.TempDir()
-	old := filepath.Join(dir, "loop-old.json")
-	os.WriteFile(old, []byte("{}"), 0o600)
-	past := time.Now().Add(-2 * LoopStateTTL)
-	os.Chtimes(old, past, past)
-
-	p, _ := ParsePayload(payload("new", "bash", `{}`, "x"))
-	LoopGuard(dir, p, 8)
-	if _, err := os.Stat(old); !os.IsNotExist(err) {
-		t.Errorf("stale state survived a new session: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "loop-new.json")); err != nil {
-		t.Errorf("new session has no state: %v", err)
+		if err == nil {
+			t.Errorf("unwritable state dir: no error to report")
+		}
 	}
 }
