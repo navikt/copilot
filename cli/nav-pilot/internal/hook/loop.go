@@ -18,7 +18,7 @@ import (
 // (internal/local/guard.go, repeatedToolCall), run as a postToolUse hook.
 //
 // The rule is the same. The same call with the same result [SameResult] times
-// in a row is a loop; the same call [Threshold] times in a row is one whatever
+// in a row is a loop; the same call threshold times in a row is one whatever
 // it returns. Results are compared after local.NormaliseResult, as the guard
 // compares them.
 //
@@ -62,16 +62,16 @@ func (s LoopState) Step(call, resultType, result string) LoopState {
 }
 
 // Signature is what makes two calls the same call: the tool name and its
-// arguments, with keys in a fixed order. The shell tool's "description" is
+// arguments, with keys in a fixed order. A shell tool's "description" is
 // left out: the model writes a new one for the same command at will, and
 // counting it would let an identical `gh run view` look like a new call every
-// time.
+// time. Other tools keep it, since there it can be a real argument.
 func Signature(tool string, args json.RawMessage) string {
 	var v any
 	if err := json.Unmarshal(args, &v); err != nil {
 		return tool + "(" + string(args) + ")"
 	}
-	if m, ok := v.(map[string]any); ok {
+	if m, ok := v.(map[string]any); ok && shellTools[strings.ToLower(tool)] {
 		delete(m, "description")
 	}
 	b, err := json.Marshal(v)
@@ -111,6 +111,10 @@ func LoopMessage(s LoopState, threshold int) string {
 // SameResult is the same-result threshold for a given backstop, derived as
 // local.SameResultRepeat derives it: half, and never below 2.
 func SameResult(threshold int) int { return max(2, threshold/2) }
+
+// shellTools are the shell tool names, as the hook artifacts' matcher
+// (bash|shell|execute) lists them, plus PowerShell on Windows.
+var shellTools = map[string]bool{"bash": true, "shell": true, "execute": true, "powershell": true}
 
 var unsafeID = regexp.MustCompile(`[^A-Za-z0-9_-]`)
 

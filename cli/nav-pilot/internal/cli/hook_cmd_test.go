@@ -37,7 +37,7 @@ func TestHookLoopGuardCommand(t *testing.T) {
 		{"off in config", "version = 1\nhook_loop_guard = false\n", "", loopPayload, false},
 		{"a local session is the local guard's", "version = 1\n", "nav-pilot", loopPayload, false},
 		{"another BYOK key is not a local session", "version = 1\n", "sk-other", loopPayload, true},
-		{"a broken config is the defaults", "version = [\n", "", loopPayload, true},
+		{"a broken config passes", "version = [\n", "", loopPayload, false},
 		{"an unreadable payload passes", "version = 1\n", "", "not json", false},
 	}
 	for _, tt := range tests {

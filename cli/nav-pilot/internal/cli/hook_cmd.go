@@ -57,9 +57,11 @@ func runHookCommand(args []string, stdin io.Reader, stdout io.Writer) {
 	if err != nil {
 		return
 	}
+	// A config that cannot be read may be the one that turned this hook off,
+	// so a broken file means pass, not the defaults.
 	cfg, err := readConfig()
 	if err != nil {
-		cfg = nil // a broken config file is the defaults here, not a failed call
+		return
 	}
 	r := resolve(cfg, CLIOverrides{})
 

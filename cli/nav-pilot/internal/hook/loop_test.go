@@ -46,6 +46,12 @@ func TestSignatureIgnoresTheShellDescription(t *testing.T) {
 	if c := Signature("bash", json.RawMessage(`{"command":"gh run view 2"}`)); c == a {
 		t.Errorf("different command gave the same signature %q", c)
 	}
+	// Outside the shell tool a description can be the argument that matters.
+	x := Signature("create_issue", json.RawMessage(`{"title":"t","description":"first"}`))
+	y := Signature("create_issue", json.RawMessage(`{"title":"t","description":"second"}`))
+	if x == y {
+		t.Errorf("a non-shell tool lost its description argument: %q", x)
+	}
 }
 
 func TestLoopRule(t *testing.T) {
