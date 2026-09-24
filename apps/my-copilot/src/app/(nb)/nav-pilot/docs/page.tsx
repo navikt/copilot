@@ -1574,7 +1574,7 @@ const CONFIG_KEYS = [
   {
     key: "local_model",
     flag: "—",
-    values: "modell-id fra 'nav-pilot models', f.eks. mlx-community/Qwen3.8-27B-4bit",
+    values: "modell-id fra 'nav-pilot models', f.eks. mlx-community/Qwen3.8-27B-OptiQ-4bit",
     desc: "Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Krever modellen en nyere nav-pilot enn din, faller den tilbake til standard og sier hvilken versjon du trenger.",
   },
   {
@@ -2120,7 +2120,7 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot models
-nav-pilot config set local_model mlx-community/Qwen3.8-27B-4bit
+nav-pilot config set local_model mlx-community/Qwen3.8-27B-OptiQ-4bit
 nav-pilot alpha local init      # laster ned vektene for den nye modellen
 nav-pilot alpha local start`}
           </CodeBlock>

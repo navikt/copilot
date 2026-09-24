@@ -409,7 +409,7 @@ og de settes hver for seg.
 
 ```bash
 nav-pilot models
-nav-pilot config set local_model mlx-community/Qwen3.8-27B-4bit
+nav-pilot config set local_model mlx-community/Qwen3.8-27B-OptiQ-4bit
 nav-pilot alpha local init      # laster ned vektene for den nye modellen
 nav-pilot alpha local start
 ```
@@ -419,8 +419,8 @@ et nettverkskall der ville lagt seg foran alt annet nav-pilot gjør. Har du nett
 om en ny modell og ikke ser den, er `start` det som henter listen på nytt.
 
 **Qwen 3.6 er standard fordi den er rask og forutsigbar.** De to Qwen 3.8-modellene kan velges,
-men de er mye tregere. 4-bit er i tillegg langt mindre forutsigbar, og 8-bit løste litt flere
-oppgaver enn standard i siste måling, men brukte mange ganger så lang tid.
+men de er mye tregere. 8-bit løste litt flere oppgaver enn standard i siste måling, men brukte
+mange ganger så lang tid.
 
 Kontekst, svarlengde, minnekrav, vekter og minste nav-pilot-versjon for hver modell står i
 [tabellen på ki-utvikling.nav.no](https://ki-utvikling.nav.no/nav-pilot/docs#lokal-modeller).
