@@ -56,6 +56,10 @@ type Config struct {
 	// worker has to be able to name both.
 	LocalModel      *string `toml:"local_model"`
 	CopilotAuthMode *string `toml:"copilot_auth_mode"`
+	// HookLoopGuard turns the loop-guard hook on and off: the postToolUse hook
+	// nav-pilot writes to ~/.copilot/hooks/ so the local guard's loop rule
+	// also covers cloud sessions. Unset means on.
+	HookLoopGuard *bool `toml:"hook_loop_guard"`
 }
 
 // ResolvedConfig holds the final configuration after applying precedence:
@@ -90,6 +94,7 @@ type ResolvedConfig struct {
 	LocalLoopGuard    int      // identical consecutive tool calls that end a local turn; 0 = built-in default
 	LocalModel        string   // local model id to serve; empty = the manifest default
 	CopilotAuthMode   string   // auto | env_only | gh_only
+	HookLoopGuard     bool     // the loop-guard postToolUse hook for every Copilot CLI session
 	ExtraArgs         []string // pass-through arguments for the client
 }
 

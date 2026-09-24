@@ -680,10 +680,11 @@ type chatRequest struct {
 // The call ids are deliberately not part of the comparison. They differ on
 // every call by construction, so including them would compare nothing.
 //
-// ponytail: results are compared byte for byte. Output that embeds a timestamp,
-// a duration or a counter makes a stuck loop look like progress, and only the
-// backstop catches it. Normalise the result (strip digits, or the known noisy
-// fields) before comparing if that turns up in practice.
+// Results are compared after [NormaliseResult]: output that embeds a timestamp,
+// a duration or a counter would otherwise make a stuck loop look like progress,
+// and only the backstop would catch it. The Copilot CLI postToolUse hook
+// (`nav-pilot hook loop-guard`) applies the same rule with the same
+// normalisation to sessions this guard never sees.
 func repeatedToolCall(body []byte) (call string, n, same int) {
 	var req chatRequest
 	if err := json.Unmarshal(body, &req); err != nil {
@@ -694,7 +695,7 @@ func repeatedToolCall(body []byte) (call string, n, same int) {
 	for i := len(req.Messages) - 1; i >= 0; i-- {
 		m := req.Messages[i]
 		if m.Role == "tool" {
-			results[m.ToolCallID] = string(m.Content)
+			results[m.ToolCallID] = NormaliseResult(string(m.Content))
 			continue
 		}
 		if m.Role != "assistant" || len(m.ToolCalls) == 0 {

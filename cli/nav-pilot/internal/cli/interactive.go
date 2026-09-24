@@ -950,6 +950,7 @@ func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error
 	if err := removeUnusableRtkHook(resolved.Client); err != nil {
 		return fmt.Errorf("preparing RTK integration: %w", err)
 	}
+	syncBuiltinHooks(resolved)
 	handled, err := tryPakkeLaunch(resolved)
 	if err != nil {
 		return err

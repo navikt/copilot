@@ -1569,6 +1569,12 @@ const CONFIG_KEYS = [
     values: "et tall, standard 8",
     desc: "Hvor mange identiske tool calls på rad som avslutter en lokal tur, uansett hva de returnerer. Gir kallene samme resultat hver gang, holder det med halvparten (minst 2). Lokale modeller setter seg fast og gjentar det samme kallet; vi har målt serier på 203.",
   },
+  {
+    key: "hook_loop_guard",
+    flag: "—",
+    values: "true · false",
+    desc: "Samme løkkeregel i alle Copilot CLI-økter, også i skyen. nav-pilot skriver en postToolUse-hook til ~/.copilot/hooks/ ved oppstart, og modellen får beskjed om at den står fast i stedet for det samme svaret igjen. På som standard; false fjerner hooken ved neste oppstart.",
+  },
 ];
 
 function KlienterOgKonfigurasjonSection() {
