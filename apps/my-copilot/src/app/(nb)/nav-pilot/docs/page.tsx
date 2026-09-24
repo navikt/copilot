@@ -26,6 +26,7 @@ import {
 import { PipelineFlow } from "@/components/pipeline-flow";
 import type { Metadata } from "next";
 import NextLink from "next/link";
+import localModels from "@/lib/local-models.json";
 
 export const metadata: Metadata = {
   title: "nav-pilot dokumentasjon",
@@ -899,6 +900,13 @@ function PakkeSection() {
             tar det i fire steg: bruk en pakke som finnes, ta delene du trenger, bygg videre på en, og lag din egen
             først når ingenting av det holder.
           </BodyLong>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            For noen agentpakker, for eksempel <code className="font-mono text-xs">source = nais/pilot</code>, henter
+            nav-pilot manifestet fra GitHub ved hver oppstart. Svarer ikke GitHub innen 15 sekunder, bruker nav-pilot
+            manifestet fra forrige vellykkede oppstart og skriver en advarsel: hvilken kilde, hvor gammel kopien er og
+            hvilken commit den er fra. Uten en lagret kopi venter nav-pilot på GitHub som før, og starter ingenting hvis
+            hentingen feiler.
+          </BodyLong>
         </div>
 
         {/* Planning skills table */}
@@ -1564,6 +1572,12 @@ const CONFIG_KEYS = [
     desc: "La en vanlig 'nav-pilot' starte serveren selv når den trengs og ingen kjører. Av som standard: å starte en 21 GB prosess uten å bli bedt om det er ikke greit.",
   },
   {
+    key: "local_model",
+    flag: "—",
+    values: "modell-id fra 'nav-pilot models', f.eks. mlx-community/Qwen3.8-27B-4bit",
+    desc: "Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Krever modellen en nyere nav-pilot enn din, faller den tilbake til standard og sier hvilken versjon du trenger.",
+  },
+  {
     key: "local_loop_guard",
     flag: "—",
     values: "et tall, standard 8",
@@ -1926,6 +1940,48 @@ reasoning_effort = "high"
    Section 7: CLI-referanse
    ═══════════════════════════════════════════════════════════════ */
 
+// Tabellen over lokale modeller kommer fra src/lib/local-models.json, som
+// scripts/sync-local-models.mjs genererer fra manifestet i navikt/mlx-workspace.
+// Alle tall kommer derfra. Her står bare de norske beskrivelsene, uten tall.
+// Mangler en modell beskrivelse, viser siden rollen fra manifestet (engelsk).
+const LOCAL_MODEL_TEXT: Record<string, string> = {
+  "qwen3.6-35b-a3b-optiq":
+    "Rask og forutsigbar, og svarer på sekunder. Det eneste hovedagenten kan sende hit uten forbehold, er en mekanisk endring over flere filer.",
+  "qwen3.8-27b-4bit":
+    "Mye tregere enn standard og langt mindre forutsigbar: to kjøringer av de samme oppgavene ga helt ulik median, og den når tidsgrensen der standard ikke gjør det.",
+  "qwen3.8-27b-8bit-mlx":
+    "Den tregeste. Løste litt flere oppgaver enn standard i siste måling, men bruker mange ganger så lang tid. Leser lange prompter i små steg for å holde seg innenfor minnet, og det steget kjenner bare nyere nav-pilot til.",
+};
+
+const TASK_CLASS_LABEL: Record<string, string> = {
+  "read-qa": "svar og forklaringer om kode",
+  "edit-single": "endring i én fil",
+  "edit-multi-mechanical": "mekanisk endring over flere filer",
+  "create-file": "ny fil",
+  debug: "feilsøking",
+};
+
+type LocalModel = (typeof localModels.models)[number];
+
+const LOCAL_MODELS: LocalModel[] = localModels.models;
+const DEFAULT_LOCAL_MODEL = LOCAL_MODELS.find((m) => m.default) ?? LOCAL_MODELS[0];
+const kTokens = (n: number) => `${Math.round(n / 1024)}k`;
+const classLabel = (id: string) => TASK_CLASS_LABEL[id] ?? id;
+const nbNumber = (n: number) => n.toLocaleString("nb-NO");
+
+function trustedClasses(m: LocalModel) {
+  return Object.entries(m.classes).flatMap(([id, c]) => [
+    ...(c.delegate === "trusted" ? [`${classLabel(id)} (sendt fra en skyagent)`] : []),
+    ...(c.local === "trusted" ? [`${classLabel(id)} (hele økten lokalt)`] : []),
+  ]);
+}
+
+function cloudClasses(m: LocalModel) {
+  return Object.entries(m.classes)
+    .filter(([, c]) => c.delegate !== "trusted" && c.local !== "trusted")
+    .map(([id]) => classLabel(id));
+}
+
 function LocalModelSection() {
   return (
     <section id="lokal-modell">
@@ -1944,9 +2000,9 @@ function LocalModelSection() {
           </BodyLong>
           <BodyLong textColor="subtle">
             Dette er alfa, og av som standard. Ingenting endres før du kjører{" "}
-            <code className="font-mono text-xs">init</code> selv. Du trenger en Mac med Apple Silicon og 48 GB minne, og
-            rundt 26 GB ledig disk: 25 GB vekter pluss Python-miljøet. Intel-Macer blir avvist, fordi MLX bare finnes
-            for M-brikkene.
+            <code className="font-mono text-xs">init</code> selv. Du trenger en Mac med Apple Silicon og{" "}
+            {DEFAULT_LOCAL_MODEL.min_ram_gb} GB minne, og ledig disk til {DEFAULT_LOCAL_MODEL.weights_gb} GB vekter
+            pluss Python-miljøet. Intel-Macer blir avvist, fordi MLX bare finnes for M-brikkene.
           </BodyLong>
         </VStack>
 
@@ -1964,6 +2020,7 @@ nav-pilot alpha local start     # starter serveren
 nav-pilot alpha local status    # kjører den? svarer den? hvilken modell? hva har den gjort?
 nav-pilot alpha local ask -p "..."  # still ett spørsmål rett til modellen
 nav-pilot alpha local stop
+nav-pilot alpha local restart   # stop og start i ett
 nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
 nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`}
@@ -1973,65 +2030,72 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
               Modeller i alfa
             </LinkableHeading>
             <BodyLong size="small" textColor="subtle">
-              Tre modeller er tilgjengelige. Én er standard, de to andre kan velges. Tallene er fra vårt eget sett på
-              åtte oppgaver, og oppgis som spenn fordi det er spennet som skiller dem.
+              {LOCAL_MODELS.length} modeller er tilgjengelige. Én er standard, resten må du velge selv. Tabellen er
+              generert fra{" "}
+              <a href={localModels.source} style={{ textDecoration: "underline" }}>
+                modellmanifestet
+              </a>
+              , det samme nav-pilot leser når du kjører <code className="font-mono text-xs">init</code> og{" "}
+              <code className="font-mono text-xs">start</code>. Kontekst og svar er det største vinduet og det lengste
+              svaret nav-pilot gir modellen.
             </BodyLong>
             <div className="overflow-x-auto">
               <Table size="small" className="w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHeaderCell scope="col">Modell</TableHeaderCell>
-                    <TableHeaderCell scope="col">Vekter</TableHeaderCell>
-                    <TableHeaderCell scope="col">Løser</TableHeaderCell>
+                    <TableHeaderCell scope="col">Kontekst / svar</TableHeaderCell>
+                    <TableHeaderCell scope="col">Minne</TableHeaderCell>
+                    <TableHeaderCell scope="col">Krever nav-pilot</TableHeaderCell>
                     <TableHeaderCell scope="col">Kort sagt</TableHeaderCell>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow>
-                    <TableDataCell>
-                      <VStack gap="space-2">
-                        <code className="font-mono text-xs">Qwen3.6-35B-A3B-OptiQ-4bit</code>
-                        <div className="text-xs" style={{ color: "#0f6d6a" }}>
-                          standard
-                        </div>
-                      </VStack>
-                    </TableDataCell>
-                    <TableDataCell>25 GB</TableDataCell>
-                    <TableDataCell>2–4 av 8</TableDataCell>
-                    <TableDataCell>
-                      Rask og forutsigbar. Median 10–12 sekunder per oppgave, og 3, 2, 4 og 4 av 8 over fire kjøringer.
-                      Ingen av de andre modellene løser målbart flere.
-                    </TableDataCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableDataCell>
-                      <code className="font-mono text-xs">Qwen3.8-27B-4bit</code>
-                    </TableDataCell>
-                    <TableDataCell>16 GB</TableDataCell>
-                    <TableDataCell>3–4 av 8</TableDataCell>
-                    <TableDataCell>
-                      Løser omtrent like mye som standard og bruker sju ganger så lang tid. Fire kjøringer ga 4, 4, 3 og
-                      4 av 8 mot standardens 3, 2, 4 og 4. Spennene overlapper, og forskjellen er ikke målbar (p =
-                      0,71). Median 58–104 sekunder, og ti treff på sju-minutterstaket mot standardens ett. Vi skrev
-                      tidligere at den løste mer; det var målt før vi oppdaget at ingen av modellene kunne kompilere.
-                    </TableDataCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableDataCell>
-                      <code className="font-mono text-xs">Qwen3.8-27B-8bit</code>
-                    </TableDataCell>
-                    <TableDataCell>30 GB</TableDataCell>
-                    <TableDataCell>ikke målt</TableDataCell>
-                    <TableDataCell>
-                      Den mest omtalte, og den vi kan si minst om: de siste kjøringene ble forstyrret av en endring vi
-                      selv gjorde, så vi oppgir ingen tall. Mindre plass til kontekst enn 4-bit, 65k mot 131k.
-                    </TableDataCell>
-                  </TableRow>
+                  {LOCAL_MODELS.map((m) => (
+                    <TableRow key={m.id}>
+                      <TableDataCell>
+                        <VStack gap="space-2">
+                          <code className="font-mono text-xs">{m.model.split("/").pop()}</code>
+                          <div className="text-xs" style={{ color: m.default ? "#0f6d6a" : "#64748b" }}>
+                            {m.default ? "standard" : "valgfri"}
+                          </div>
+                        </VStack>
+                      </TableDataCell>
+                      <TableDataCell className="whitespace-nowrap">
+                        {kTokens(m.context)} / {kTokens(m.output)}
+                      </TableDataCell>
+                      <TableDataCell>
+                        {m.min_ram_gb} GB, vektene tar {m.weights_gb} GB
+                      </TableDataCell>
+                      <TableDataCell>
+                        {m.min_nav_pilot ? (
+                          <code className="font-mono text-xs">≥ {m.min_nav_pilot}</code>
+                        ) : (
+                          "alle versjoner"
+                        )}
+                      </TableDataCell>
+                      <TableDataCell>{LOCAL_MODEL_TEXT[m.id] ?? m.role}</TableDataCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>
             <BodyShort size="small" textColor="subtle">
-              Én kjøring er ikke en måling. Derfor står alle kjøringene der, ikke bare et snitt. De ligger i{" "}
+              Står det en versjon under «Krever nav-pilot», skjuler eldre nav-pilot modellen. Peker{" "}
+              <code className="font-mono text-xs">local_model</code> på den, faller nav-pilot tilbake til
+              standardmodellen, og <code className="font-mono text-xs">init</code>,{" "}
+              <code className="font-mono text-xs">start</code> og <code className="font-mono text-xs">status</code> sier
+              hvilken versjon du trenger. Oppdater med <code className="font-mono text-xs">nav-pilot update</code>.
+            </BodyShort>
+            {DEFAULT_LOCAL_MODEL?.temperature != null && (
+              <BodyShort size="small" textColor="subtle">
+                Standardmodellen kjører med temperatur {nbNumber(DEFAULT_LOCAL_MODEL.temperature)}
+                {DEFAULT_LOCAL_MODEL.top_p != null && <> og top_p {nbNumber(DEFAULT_LOCAL_MODEL.top_p)}</>}, verdiene
+                den ble målt med.
+              </BodyShort>
+            )}
+            <BodyShort size="small" textColor="subtle">
+              Én kjøring er ikke en måling. Alle kjøringene står i{" "}
               <a
                 href="https://github.com/navikt/mlx-workspace/blob/main/MODELS.md"
                 style={{ textDecoration: "underline" }}
@@ -2061,8 +2125,8 @@ nav-pilot alpha local init      # laster ned vektene for den nye modellen
 nav-pilot alpha local start`}
           </CodeBlock>
           <BodyLong size="small" textColor="subtle">
-            Qwen 3.6 er standard fordi den er rask og forutsigbar, ikke fordi den løser mest. Tallene står i tabellen
-            over. Bytter du, må vektene lastes ned én gang til, 16 GB for 3.8 4-bit og 30 GB for 8-bit.
+            Qwen 3.6 er standard fordi den er rask og forutsigbar, ikke fordi den løser mest. Bytter du, må vektene til
+            den nye modellen lastes ned én gang. Størrelsen står i tabellen over.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
             Vil du slippe å starte serveren selv, kan en vanlig <code className="font-mono text-xs">nav-pilot</code>{" "}
@@ -2109,13 +2173,16 @@ nav-pilot alpha local start`}
             klarer.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
-            Under <strong>Copilot CLI</strong> finnes ingen slik underagent, og kan ikke finnes i dag. Copilot CLI er
-            standardklienten, så dette gjelder deg med mindre du har byttet. Valget der er hele økten på den lokale
-            modellen eller ingenting lokalt, fordi klienten setter modelleverandøren som en miljøvariabel for hele
-            prosessen, så én leverandør betjener hele økten. Vi har verifisert det mot Copilot CLI 1.0.83-3. Vil du ha
-            utsending, bytt med <code className="font-mono text-xs">nav-pilot config set client opencode</code>. Vi har
-            bedt GitHub om å kunne velge modelleverandør per agent i Copilot CLI, og det ligger som en feature request
-            hos dem.
+            Under <strong>Copilot CLI</strong> finnes ingen slik underagent i dag. Copilot CLI er standardklienten, så
+            dette gjelder deg med mindre du har byttet. Valget der er hele økten på den lokale modellen eller ingenting
+            lokalt, fordi Copilot CLI leser modelleverandøren fra en miljøvariabel for hele prosessen, så én leverandør
+            betjener hele økten. Vi har verifisert det mot Copilot CLI 1.0.83-3. Å velge leverandør per agent er verken
+            støttet eller dokumentert i Copilot CLI ennå. Runtimen har eksperimentell støtte for det, og vi tester den (
+            <a href="https://github.com/github/copilot-cli/issues/4703" style={{ textDecoration: "underline" }}>
+              github/copilot-cli#4703
+            </a>
+            ). Vil du ha utsending nå, bytt med{" "}
+            <code className="font-mono text-xs">nav-pilot config set client opencode</code>.
           </BodyLong>
         </VStack>
 
@@ -2129,27 +2196,36 @@ nav-pilot alpha local start`}
             skymodellen trenger når den gjør oppgaven alene: bruker den mange, sparer du mye på å sende det mekaniske
             til bakkemodellen, og går oppgaven unna på to steg koster utsendingen mer enn den sparer.
           </BodyShort>
-          <HGrid gap="space-16" columns={{ xs: 1, md: 2 }}>
-            <Box padding="space-16" borderRadius="8" style={{ background: "#f0fdf4" }}>
-              <Label size="small" spacing>
-                Fungerer
-              </Label>
-              <BodyLong size="small" textColor="subtle">
-                Slå opp noe i koden. Legge til en kommentar. Døpe om et symbol i mange filer. Tre et felt gjennom en
-                mapper og kallstedene. I våre kjøringer lyktes den omtrent to av tre ganger på de største endringene, og
-                der fanget testene feilene.
-              </BodyLong>
-            </Box>
-            <Box padding="space-16" borderRadius="8" style={{ background: "#fef2f2" }}>
-              <Label size="small" spacing>
-                Fungerer ikke
-              </Label>
-              <BodyLong size="small" textColor="subtle">
-                Skrive en ny fil fra bunnen: i våre forsøk gjorde den da ingenting i det hele tatt. Oppgaver der noe må
-                vurderes underveis, eller der en feil endring er dyr.
-              </BodyLong>
-            </Box>
-          </HGrid>
+          <BodyShort size="small" textColor="subtle">
+            Manifestet sier for hver modell hvilke oppgavetyper hovedagenten kan sende til den. En oppgavetype blir
+            godkjent først når modellen har holdt kvalitetsgrensen mot skyen over nok kjøringer og ulike oppgaver. Det
+            som ikke er godkjent, gjør hovedagenten selv.
+          </BodyShort>
+          <div className="overflow-x-auto">
+            <Table size="small" className="w-full">
+              <TableHeader>
+                <TableRow>
+                  <TableHeaderCell scope="col">Modell</TableHeaderCell>
+                  <TableHeaderCell scope="col">Godkjent</TableHeaderCell>
+                  <TableHeaderCell scope="col">Blir i skyen</TableHeaderCell>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {LOCAL_MODELS.map((m) => {
+                  const trusted = trustedClasses(m);
+                  return (
+                    <TableRow key={m.id}>
+                      <TableDataCell>
+                        <code className="font-mono text-xs">{m.model.split("/").pop()}</code>
+                      </TableDataCell>
+                      <TableDataCell>{trusted.length ? trusted.join(", ") : "ingen oppgavetyper ennå"}</TableDataCell>
+                      <TableDataCell>{cloudClasses(m).join(", ")}</TableDataCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
           <Box padding="space-16" borderRadius="8" style={{ background: "#fffbeb" }}>
             <Label size="small" spacing>
               Sjekk resultatet
@@ -2177,7 +2253,7 @@ nav-pilot alpha local start`}
           </BodyShort>
           <CodeBlock compact>
             {`nav-pilot alpha local status
-# står det hung: nav-pilot alpha local stop && nav-pilot alpha local start`}
+# står det hung: nav-pilot alpha local restart`}
           </CodeBlock>
           <BodyLong size="small" textColor="subtle">
             nav-pilot slipper gjennom én forespørsel om gangen, så flere oppgaver står i kø framfor å kjøre parallelt.
@@ -2185,10 +2261,21 @@ nav-pilot alpha local start`}
             direkte utenom nav-pilot.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
-            To ting til, som du vil møte før noe dokument nevner dem. nav-pilot avslutter en tur hvis modellen gjentar
-            det samme verktøykallet åtte ganger på rad, og sier fra i økten: det er en vakt mot at den setter seg fast,
-            ikke en feil i koden din. Og starter du serveren på nytt midt i en økt, må økten startes på nytt også; den
-            gamle er bundet til serveren som forsvant.
+            nav-pilot avslutter en tur hvis modellen gjør det samme verktøykallet fire ganger på rad og får samme
+            resultat hver gang, eller åtte ganger på rad uansett resultat, og sier fra i økten. Det er en vakt mot at
+            modellen setter seg fast, ikke en feil i koden din. Grensene er standardverdier, og du endrer dem med{" "}
+            <code className="font-mono text-xs">local_loop_guard</code>.
+          </BodyLong>
+          <BodyLong size="small" textColor="subtle">
+            Går modellen tom for minne, for eksempel på en lang prompt, dør tråden som genererer svar. Serveren
+            avslutter seg da selv i stedet for å henge, og neste økt sier{" "}
+            <code className="font-mono text-xs">generation thread died, most likely out of memory</code>, med stien til
+            tracebacken. Start den igjen med <code className="font-mono text-xs">nav-pilot alpha local restart</code>.
+            Skjer det igjen, velg en modell med kortere kontekst.
+          </BodyLong>
+          <BodyLong size="small" textColor="subtle">
+            Starter du serveren på nytt midt i en økt, må økten startes på nytt også. Den gamle er bundet til serveren
+            som forsvant.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
             Si fra med <code className="font-mono text-xs">nav-pilot feedback</code> om noe henger, om en endring
@@ -2400,8 +2487,10 @@ function CliReferenceSection() {
               <Box background="neutral-soft" padding="space-12" borderRadius="8" className="mt-3">
                 <BodyShort size="small" style={{ color: "#475569" }}>
                   <strong>Exit-koder:</strong> 0 = suksess, 1 = feil eller oppdateringer tilgjengelig (sync), 2 =
-                  sync-sjekk feilet. <code className="font-mono text-xs">--json</code> fungerer på install, add, status,
-                  sync, list og export.
+                  sync-sjekk feilet. Når nav-pilot starter en klient, gir den videre klientens exit-kode. Kunne den ikke
+                  starte klienten i det hele tatt, blir koden 1, og en klient som ble drept av et signal gir 128 pluss
+                  signalnummeret, slik et shell gjør. <code className="font-mono text-xs">--json</code> fungerer på
+                  install, add, status, sync, list og export.
                 </BodyShort>
               </Box>
             </div>

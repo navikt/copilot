@@ -417,24 +417,21 @@ Listen oppdateres når du kjører `init` eller `start` — ikke ved hver kommand
 et nettverkskall der ville lagt seg foran alt annet nav-pilot gjør. Har du nettopp hørt
 om en ny modell og ikke ser den, er `start` det som henter listen på nytt.
 
-**Qwen 3.6 er standard fordi den er rask, og fordi ingen av de andre løser målbart flere oppgaver.**
-Over fire kjøringer av de samme åtte oppgavene løser den 3, 2, 4 og 4. Qwen 3.8 4-bit løser 4, 4,
-3 og 4. Spennene overlapper helt, og forskjellen er ikke målbar (p = 0,71). Til gjengjeld bruker
-3.8 omtrent sju ganger så lang tid — median 58–104 sekunder mot 10–12 — og traff
-sju-minutterstaket ti ganger der standarden traff det én gang.
+**Qwen 3.6 er standard fordi den er rask og forutsigbar.** De to Qwen 3.8-modellene kan velges,
+men de er mye tregere. 4-bit er i tillegg langt mindre forutsigbar, og 8-bit løste litt flere
+oppgaver enn standard i siste måling, men brukte mange ganger så lang tid.
 
-**Vi skrev tidligere at 3.8 løser mer.** Det holdt ikke. De tallene ble målt før vi oppdaget at
-sandkassen aldri ga modellene tilgang til byggverktøyene: ingen av dem kunne kompilere eller
-kjøre tester, og målet var heller ikke pinnet, så de to modellene jobbet på kodebaser fire dager
-fra hverandre. Da det ble rettet, forsvant forspranget. Hele historikken står i
+Kontekst, svarlengde, minnekrav, vekter og minste nav-pilot-versjon for hver modell står i
+[tabellen på ki-utvikling.nav.no](https://ki-utvikling.nav.no/nav-pilot/docs#lokal-modeller).
+Den er generert fra [modellmanifestet](https://github.com/navikt/mlx-workspace/blob/main/manifest/models.json),
+det samme nav-pilot leser, så tallene står ikke her. Målingene bak står i
 [MODELS.md](https://github.com/navikt/mlx-workspace/blob/main/MODELS.md).
 
-Valget er altså hastighet mot ingenting målbart — som er en grunn til å beholde standarden. `nav-pilot config explain model`
-sier det samme kortere, og
-[MODELS.md](https://github.com/navikt/mlx-workspace/blob/main/MODELS.md) har tallene.
+Krever en modell nyere nav-pilot enn du har, skjuler nav-pilot den. Peker `local_model` på den,
+faller nav-pilot tilbake til standardmodellen, og `init`, `start` og `status` sier hvilken versjon
+du trenger. Oppdater med `nav-pilot update`.
 
-Bytter du modell, må vektene lastes ned én gang til — 16 GB for 3.8 4-bit, 30 GB for
-8-bit. `purge` fjerner det du ikke vil beholde.
+Bytter du modell, må vektene til den nye lastes ned én gang. `purge` fjerner det du ikke vil beholde.
 
 Vil du slippe å starte serveren selv, kan en vanlig `nav-pilot` gjøre det når den trenger den:
 
@@ -453,34 +450,32 @@ uendret.
 kan sende avgrensede oppgaver til. Hovedagenten bestemmer fortsatt alt. Den sender videre
 det som er mekanisk og spesifisert, og gjør resten selv.
 
-**Under Copilot CLI finnes ingen slik underagent, og kan ikke finnes i dag.** Copilot CLI
-er standardklienten i nav-pilot, så dette gjelder deg med mindre du har byttet. Der er
-valget hele økten på den lokale modellen eller ingenting lokalt. Grunnen er at klienten
-setter modelleverandøren som en miljøvariabel for hele prosessen, så én leverandør betjener
-hele økten. Vi har verifisert det mot Copilot CLI 1.0.83-3. Hele økten lokalt passer til
-arbeid som allerede er spesifisert, ikke til oppgaver der modellen må finne ut hva som skal
-gjøres.
+**Under Copilot CLI finnes ingen slik underagent i dag.** Copilot CLI er standardklienten i
+nav-pilot, så dette gjelder deg med mindre du har byttet. Der er valget hele økten på den lokale
+modellen eller ingenting lokalt. Grunnen er at Copilot CLI leser modelleverandøren fra en
+miljøvariabel for hele prosessen, så én leverandør betjener hele økten. Vi har verifisert det mot
+Copilot CLI 1.0.83-3. Hele økten lokalt passer til arbeid som allerede er spesifisert, ikke til
+oppgaver der modellen må finne ut hva som skal gjøres.
 
-Vil du ha utsending, bytt klient:
+Å velge leverandør per agent er verken støttet eller dokumentert i Copilot CLI ennå. Runtimen har
+eksperimentell støtte for det, og vi tester den
+([github/copilot-cli#4703](https://github.com/github/copilot-cli/issues/4703)). Vil du ha
+utsending nå, bytt klient:
 
 ```bash
 nav-pilot config set client opencode
 ```
-
-Vi har bedt GitHub om å kunne velge modelleverandør per agent i Copilot CLI. Det ligger som
-en feature request hos dem.
 
 ### Hva den er god og dårlig til
 
 Målt i et kontrollert testoppsett, på én maskin, og nesten alt på ett Ktor-repo. På den ene Spring-appen vi målte kostet lokal utsending mer enn å la være. Den utfører en avgjørelse godt og tar en
 avgjørelse dårlig.
 
-| Fungerer                                | Fungerer ikke                             |
-| --------------------------------------- | ----------------------------------------- |
-| Slå opp noe i koden                     | Skrive en ny fil fra bunnen               |
-| Legge til kommentarer og loggsetninger  | Finne ut hvilke filer en endring treffer  |
-| Døpe om et symbol i mange filer         | Endringer som krever en vurdering per fil |
-| Legge til et felt og oppdatere mapperen | Oppgaver der en feil endring er dyr       |
+Manifestet sier for hver modell hvilke oppgavetyper hovedagenten kan sende til den. For
+standardmodellen er det bare mekaniske endringer over flere filer, sendt fra en skyagent. Svar og
+forklaringer om kode, endringer i én fil, nye filer og feilsøking blir i skyen. Qwen 3.8-modellene
+har ingen godkjent oppgavetype ennå. Den gjeldende lista står i
+[tabellen på ki-utvikling.nav.no](https://ki-utvikling.nav.no/nav-pilot/docs#lokal-hva-den-klarer).
 
 Tiden varierer: fra omtrent som skyen på små endringer til rundt fire ganger så lenge på en omdøping. På den største mekaniske endringen vi målte var den raskere enn skyen.
 
@@ -490,9 +485,18 @@ Tiden varierer: fra omtrent som skyen på små endringer til rundt fire ganger s
 nav-pilot alpha local status
 ```
 
-Den skiller «treg» fra «død». Sier den `hung`, restart med `stop` og `start`. Serveren
+Den skiller «treg» fra «død». Sier den `hung`, kjør `nav-pilot alpha local restart`. Serveren
 svarer på én forespørsel om gangen, så flere samtidige oppgaver står i kø framfor å kjøre
 parallelt.
+
+Går modellen tom for minne, dør tråden som genererer svar. Serveren avslutter seg da selv i stedet
+for å henge, og neste økt sier `generation thread died, most likely out of memory` med stien til
+tracebacken. Start den igjen med `nav-pilot alpha local restart`, og velg en modell med kortere
+kontekst hvis det skjer igjen.
+
+nav-pilot avslutter en tur hvis modellen gjør samme verktøykall fire ganger på rad med samme
+resultat, eller åtte ganger på rad uansett resultat. Grensene er standardverdier for
+`local_loop_guard`.
 
 Dette er alfa. Si fra om noe henger, om en endring kompilerer men er feil, eller om
 ventetiden ikke er verdt det: `nav-pilot feedback`.
