@@ -40,4 +40,9 @@ test("refuses a malformed manifest", () => {
   assert.throws(() => buildTable({ models: [entry(), entry({ key: "n" })] }));
   assert.throws(() => buildTable({ models: [entry({ params: {} })] }));
   assert.throws(() => buildTable({ models: [entry({ params: { MLX_OPENCODE_CONTEXT: "x", MLX_OPENCODE_OUTPUT: "1" } })] }));
+  assert.throws(() => buildTable({ models: [entry({ params: { MLX_OPENCODE_CONTEXT: null, MLX_OPENCODE_OUTPUT: "1" } })] }));
+  assert.throws(() => buildTable({ models: [entry({ min_ram_gb: "48" })] }));
+  assert.throws(() => buildTable({ models: [entry({ weights_gb: undefined })] }));
+  assert.throws(() => buildTable({ models: [entry({ min_nav_pilot: null })] }));
+  assert.throws(() => buildTable({ models: [entry({ min_nav_pilot: "soon" })] }));
 });

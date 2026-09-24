@@ -1950,7 +1950,7 @@ const LOCAL_MODEL_TEXT: Record<string, string> = {
   "qwen3.8-27b-4bit":
     "Mye tregere enn standard og langt mindre forutsigbar: to kjøringer av de samme oppgavene ga helt ulik median, og den når tidsgrensen der standard ikke gjør det.",
   "qwen3.8-27b-8bit-mlx":
-    "Den tregeste. Løste litt flere oppgaver enn standard i siste måling, men bruker mange ganger så lang tid. Leser lange prompter i små steg for å holde seg innenfor minnet, og det steget kjenner bare nyere nav-pilot til.",
+    "Den tregeste. Løste litt flere oppgaver enn standard i siste måling, men bruker mange ganger så lang tid. Leser lange prompter i små steg for å bruke mindre minne, og det steget kjenner bare nyere nav-pilot til.",
 };
 
 const TASK_CLASS_LABEL: Record<string, string> = {
@@ -2176,8 +2176,9 @@ nav-pilot alpha local start`}
             Under <strong>Copilot CLI</strong> finnes ingen slik underagent i dag. Copilot CLI er standardklienten, så
             dette gjelder deg med mindre du har byttet. Valget der er hele økten på den lokale modellen eller ingenting
             lokalt, fordi Copilot CLI leser modelleverandøren fra en miljøvariabel for hele prosessen, så én leverandør
-            betjener hele økten. Vi har verifisert det mot Copilot CLI 1.0.83-3. Å velge leverandør per agent er verken
-            støttet eller dokumentert i Copilot CLI ennå. Runtimen har eksperimentell støtte for det, og vi tester den (
+            betjener hele økten. Vi har verifisert det mot Copilot CLI 1.0.83-3. Runtimen under Copilot CLI kan ha flere
+            leverandører i én økt, men Copilot CLI lar ikke en agent velge sin egen ennå, og det er ikke dokumentert. Vi
+            tester om det kan tas i bruk (
             <a href="https://github.com/github/copilot-cli/issues/4703" style={{ textDecoration: "underline" }}>
               github/copilot-cli#4703
             </a>

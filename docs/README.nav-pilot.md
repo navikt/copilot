@@ -457,8 +457,8 @@ miljøvariabel for hele prosessen, så én leverandør betjener hele økten. Vi 
 Copilot CLI 1.0.83-3. Hele økten lokalt passer til arbeid som allerede er spesifisert, ikke til
 oppgaver der modellen må finne ut hva som skal gjøres.
 
-Å velge leverandør per agent er verken støttet eller dokumentert i Copilot CLI ennå. Runtimen har
-eksperimentell støtte for det, og vi tester den
+Runtimen under Copilot CLI kan ha flere leverandører i én økt, men Copilot CLI lar ikke en agent
+velge sin egen ennå, og det er ikke dokumentert. Vi tester om det kan tas i bruk
 ([github/copilot-cli#4703](https://github.com/github/copilot-cli/issues/4703)). Vil du ha
 utsending nå, bytt klient:
 

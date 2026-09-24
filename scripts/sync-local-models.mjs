@@ -32,13 +32,36 @@ function isPlainObject(v) {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-/** A manifest param as a number, or null when unset. Throws on garbage. */
+// nav-pilot's release-version format (cli/nav-pilot/internal/agentpakke/version.go).
+const RELEASE_VERSION = /^\d{4}\.\d{2}\.\d{2}-\d{6}(-[0-9a-zA-Z][0-9a-zA-Z.-]*)?$/;
+
+/** A manifest param as a number, or null when unset. Params are strings; anything else throws. */
 function num(params, name) {
   const v = params[name];
-  if (v === undefined || v === "") return null;
-  const n = Number(v);
-  if (!Number.isFinite(n)) throw new Error(`param ${name}=${JSON.stringify(v)} is not a number`);
+  if (v === undefined) return null;
+  const n = typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+  if (!Number.isFinite(n)) throw new Error(`param ${name}=${JSON.stringify(v)} is not a number string`);
   return n;
+}
+
+/** A required positive integer field. */
+function int(e, name) {
+  const v = e[name];
+  if (!Number.isInteger(v) || v <= 0) throw new Error(`${e.key} has no valid ${name}`);
+  return v;
+}
+
+/**
+ * min_nav_pilot: null when omitted. nav-pilot withholds an entry whose value is
+ * present but unreadable, so the table must not show it as available: throw.
+ */
+function minVersion(e) {
+  if (!("min_nav_pilot" in e)) return null;
+  const v = e.min_nav_pilot;
+  if (typeof v !== "string" || !RELEASE_VERSION.test(v)) {
+    throw new Error(`${e.key} has an unreadable min_nav_pilot ${JSON.stringify(v)}`);
+  }
+  return v;
 }
 
 /** Project one manifest entry onto what the page renders. Throws on a bad entry. */
@@ -65,9 +88,9 @@ function projectEntry(e) {
     model: e.model,
     default: e.default === true,
     role: e.role,
-    weights_gb: typeof e.weights_gb === "number" ? e.weights_gb : null,
-    min_ram_gb: typeof e.min_ram_gb === "number" ? e.min_ram_gb : null,
-    min_nav_pilot: typeof e.min_nav_pilot === "string" && e.min_nav_pilot ? e.min_nav_pilot : null,
+    weights_gb: int(e, "weights_gb"),
+    min_ram_gb: int(e, "min_ram_gb"),
+    min_nav_pilot: minVersion(e),
     context,
     output,
     temperature: num(params, "MLX_NAV_PILOT_TEMPERATURE"),
