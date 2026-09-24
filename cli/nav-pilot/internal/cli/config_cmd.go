@@ -163,7 +163,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "local_loop_guard",
 		kind:        keyKindInt,
-		description: "Identical consecutive tool calls that end a local turn. Local models get stuck repeating one call; this is where nav-pilot stops them.",
+		description: "Identical consecutive tool calls that end a local turn whatever they return. Half this many (at least 2) end it when the results repeat too. Local models get stuck repeating one call; this is where nav-pilot stops them.",
 		allowed:     nil,
 		defaultVal:  strconv.Itoa(local.DefaultLoopGuardRepeat),
 		flag:        "",
@@ -316,9 +316,10 @@ version = 1
 # Default: false
 # local_autostart = false
 
-# Identical consecutive tool calls that end a local turn. Local models get
-# stuck repeating one call — we measured runs of 203 — and this is where
-# nav-pilot stops them. Minimum 2.
+# Identical consecutive tool calls that end a local turn, whatever they
+# return. Half this many (at least 2) end it when each call also got the same
+# result back. Local models get stuck repeating one call — we measured runs
+# of 203 — and this is where nav-pilot stops them. Minimum 2.
 # Default: 8
 # local_loop_guard = 8
 

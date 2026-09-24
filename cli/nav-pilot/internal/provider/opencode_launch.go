@@ -617,18 +617,18 @@ func localPolicyPath() string {
 //
 // Generated rather than shipped as a file, because everything load-bearing in
 // it moves. The model id and the role and expect prose come from the resolved
-// manifest entry, which is a file in another repo; the threshold is the
-// developer's local_loop_guard. A hand-written copy is wrong the first time any
-// of them changes, and wrong in the direction that costs: what is safe to
-// dispatch is a property of the model behind the endpoint, and we have measured
-// two that fail in opposite directions — one declines to edit, the other loops.
+// manifest entry, which is a file in another repo; the thresholds are the
+// developer's local_loop_guard and the same-result one derived from it. A
+// hand-written copy is wrong the first time any of them changes, and wrong in
+// the direction that costs: what is safe to dispatch is a property of the
+// model behind the endpoint, and we have measured two that fail in opposite directions — one declines to edit, the other loops.
 // Naming the model is also what makes a transcript readable later, when someone
 // reports an edit that went wrong.
 //
 // A pure function of its inputs, which is the point: opencode reads the file
 // into the system prompt, and the 99.3–99.5% prompt-cache reuse a local session
 // depends on holds only while that prefix is byte-identical from turn to turn.
-func LocalDispatchPolicy(m local.Model, loopGuard int) string {
+func LocalDispatchPolicy(m local.Model, sameResult, loopGuard int) string {
 	var b strings.Builder
 	b.WriteString("# Local worker on this machine\n\n")
 	fmt.Fprintf(&b, "The `local-worker` agent runs on %s here on the machine. It draws no AI credits: everything it generates is free, however many tokens it takes. That is the whole reason to send anything to it.\n\n", m.Model)
@@ -647,7 +647,7 @@ func LocalDispatchPolicy(m local.Model, loopGuard int) string {
 	fmt.Fprintf(&b, "It usually answers in seconds, but a single token has been measured at three and a half minutes under load. The client gives up on its own after %d minutes without an answer, so wait for it. Interrupting earlier can duplicate a change that is still in flight. Send one task at a time: the model runs on one GPU, so concurrent calls get nothing done faster.\n\n", max(1, chunkTimeoutMS(m)/60000))
 	b.WriteString("It fails in two ways. Both are cheap to spot, and both mean you take the task yourself rather than sending it again:\n")
 	b.WriteString("- It often says no and changes nothing. Check the file actually changed. If it did not, you lost a few seconds and no credits.\n")
-	fmt.Fprintf(&b, "- It can repeat the same tool call until nav-pilot ends the turn after %d identical calls in a row.\n", loopGuard)
+	fmt.Fprintf(&b, "- It can repeat the same tool call. nav-pilot ends the turn after %d identical calls in a row that got the same result back, or after %d identical calls whatever they return.\n", sameResult, loopGuard)
 	return b.String()
 }
 
@@ -686,7 +686,7 @@ func EnsureOpenCodeLocalPolicy(m local.Model) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("creating opencode config dir: %w", err)
 	}
-	if err := os.WriteFile(path, []byte(LocalDispatchPolicy(m, local.LoopGuardRepeat())), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(LocalDispatchPolicy(m, local.SameResultRepeat(), local.LoopGuardRepeat())), 0o600); err != nil {
 		return fmt.Errorf("writing the local dispatch policy: %w", err)
 	}
 	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
@@ -807,8 +807,8 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 					domain.Yellow("⚠"), err)
 			}
 		}()
-		fmt.Fprintf(os.Stderr, "%s Local dispatch: nav-pilot ends a turn after %d identical tool calls in a row.\n",
-			domain.Dim("ℹ"), local.LoopGuardRepeat())
+		fmt.Fprintf(os.Stderr, "%s Local dispatch: nav-pilot ends a turn after %d identical tool calls in a row with the same result, or %d whatever they return.\n",
+			domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
 	}
 
 	suffix := ""
@@ -1009,7 +1009,7 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 	// binding below names.
 	// The guard comes up first now, because its address is what goes into the
 	// provider block and the port is this session's rather than a constant.
-	guard, err := local.StartGuard(local.ServerURL())
+	guard, err := local.StartGuard(local.ServerURL(), worker)
 	if err != nil {
 		return nil, err
 	}

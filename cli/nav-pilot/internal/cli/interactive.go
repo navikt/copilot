@@ -402,8 +402,7 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 		}
 	}
 
-	offerLaunchCopilotWithAgents(allAgents, resolved)
-	return nil
+	return offerLaunchCopilotWithAgents(allAgents, resolved)
 }
 
 // interactiveFreshInstall handles the case where no install exists and we're in a git repo.
@@ -441,8 +440,7 @@ func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
 		}
 		return err
 	}
-	offerLaunchCopilot(resolved)
-	return nil
+	return offerLaunchCopilot(resolved)
 }
 
 // interactiveUserOnlyInstall handles fresh install when not in a git repo.
@@ -480,8 +478,7 @@ func interactiveUserInstall(src *Source, resolved ResolvedConfig) error {
 		}
 		return err
 	}
-	offerLaunchCopilot(resolved)
-	return nil
+	return offerLaunchCopilot(resolved)
 }
 
 // pickerDeclined reports whether the install picker's outcome is a user who
@@ -1049,10 +1046,16 @@ func decideLaunch(available, autoLaunch, sandboxed, interactive bool) launchDeci
 // asks: a healthy setup launches, a missing sandbox launches behind a warning,
 // a missing binary is warned about and not launched, and auto_launch = false
 // prints the command to run instead of launching anything.
-func offerLaunchCopilot(resolved ResolvedConfig) {
+//
+// A launch that fails is returned, not only printed: the launch is the last
+// step of every path that reaches here, and a warning with exit status 0 left
+// scripts unable to tell a client that never started from one that ran. A
+// client that ran and exited non-zero comes back as its *exec.ExitError, so
+// exitCodeFor passes its status through; anything else exits 1.
+func offerLaunchCopilot(resolved ResolvedConfig) error {
 	p, err := providerFor(resolved.Client)
 	if err != nil {
-		return
+		return err
 	}
 
 	sandboxed := true
@@ -1068,7 +1071,7 @@ func offerLaunchCopilot(resolved ResolvedConfig) {
 
 	decision := decideLaunch(p.Available(), resolved.AutoLaunch, sandboxed, isInteractive())
 	if decision == launchSkipQuiet {
-		return
+		return nil
 	}
 
 	fmt.Println()
@@ -1088,10 +1091,10 @@ func offerLaunchCopilot(resolved ResolvedConfig) {
 		}
 		fmt.Fprintf(os.Stderr, "%s %s was not found on PATH — skipping launch. Run %s to diagnose.\n",
 			yellow("⚠"), missing, bold("nav-pilot doctor"))
-		return
+		return nil
 	case launchSkipOptedOut:
 		fmt.Println(dim(fmt.Sprintf("Not launching (auto_launch = false). Start it yourself with: %s", cmdName)))
-		return
+		return nil
 	}
 
 	// The missing-sandbox warning is deferred into the launch itself: see
@@ -1102,14 +1105,15 @@ func offerLaunchCopilot(resolved ResolvedConfig) {
 	if err := runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
 		return launchClientConfirming(resolved, warnUnsandboxed)
 	}); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Launch failed: %v\n", yellow("⚠"), err)
+		return fmt.Errorf("launch failed: %w", err)
 	}
+	return nil
 }
 
 // offerLaunchCopilotWithAgents is offerLaunchCopilot for callers that have the
 // installed agent list at hand; the launch config already carries the persona,
 // so the list is unused.
-func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) {
+func offerLaunchCopilotWithAgents(agents []string, resolved ResolvedConfig) error {
 	_ = agents
-	offerLaunchCopilot(resolved)
+	return offerLaunchCopilot(resolved)
 }

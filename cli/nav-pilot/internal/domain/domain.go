@@ -45,7 +45,8 @@ type Config struct {
 	// 21 GB process is not something to do without being asked.
 	LocalAutostart *bool `toml:"local_autostart"`
 	// LocalLoopGuard is how many identical consecutive tool calls end a local
-	// turn. Unset means the built-in default. It is a knob because the right
+	// turn whatever they return; half as many end it when the results repeat
+	// too. Unset means the built-in default. It is a knob because the right
 	// number depends on the model and the task, not because anyone should
 	// have to set it.
 	LocalLoopGuard *int `toml:"local_loop_guard"`
