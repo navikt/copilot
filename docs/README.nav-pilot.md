@@ -140,7 +140,7 @@ Dette når den ikke:
 
 - **Prompts.** Se over.
 - **Instruksjoner utenfor nav-pilot.** De havner i `~/.copilot/.github/instructions/`, og
-  leses bare når `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` peker på `~/.copilot`. Starter du
+  leses bare når `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` peker på den mappen. Starter du
   klienten med `nav-pilot`, settes den for deg (`copilotEnv` i
   `cli/nav-pilot/internal/provider/copilot_launch.go`). Starter du `copilot` eller `cplt`
   direkte, må du sette den selv: `eval "$(nav-pilot env)"`. Agenter og skills plukkes opp
