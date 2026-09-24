@@ -75,7 +75,7 @@
 #   The agent EDITS that workspace: t1 fixes a typo and t6 renames a variable
 #   across three files. So the workspace is rebuilt from a pristine template
 #   before EVERY prompt, not once per suite and not once per --repeat pass.
-#   The one exception is a continuation turn (test 4's second and third), which
+#   The one exception is a continuation turn (test 4's second), which
 #   answers questions asked about the workspace as turn one found it and would
 #   be describing a repo that no longer exists if it were reseeded.
 #
@@ -123,13 +123,14 @@
 #   export target. The Copilot CLI this harness drives reads
 #   .github/instructions/ directly, and `nav-pilot install` writes no AGENTS.md.
 #
-# MEASURING OUTPUT SIZE
+# MEASURING OUTPUT SIZE, TIME AND USAGE
 #   Behavioural assertions answer "did it still do the right thing". They cannot
 #   answer "did it get shorter", which is the question an always-on output-style
-#   instruction raises. So every run also records bytes, lines and words per
-#   transcript, and reports the median with its min/max spread. Size is
-#   reported, never asserted: a size change never fails the run. The spread is
-#   the point: a 5% median delta inside a 40% spread is noise.
+#   instruction raises. So every run also records bytes, lines, words and
+#   wall-clock time per transcript, and reports the median with its min/max
+#   spread. These measurements are reported, never asserted: a change never
+#   fails the run. The spread is the point: a 5% median delta inside a 40%
+#   spread is noise.
 #
 #   Model output is non-deterministic, so a single sample proves nothing. Use
 #   --repeat N (N runs per prompt, median across them), --save-baseline to
@@ -145,6 +146,12 @@
 #   per-run, per-assertion rows. Commit both. Sizes alone cannot be audited, and
 #   every retraction in #583 was possible only because a --keep directory
 #   happened to survive in $TMPDIR (recommendation 3; #585 did it by hand).
+#
+#   When $HOME/.copilot/session-store.db is readable, it also writes
+#   <date>-<label>-usage.psv. This contains exact per-call model, token, cache,
+#   reasoning, credit and latency data from assistant_usage_events. Override
+#   the path with NAV_PILOT_GOLDEN_USAGE_DB when cplt or an isolated HOME keeps
+#   the database elsewhere. The CLI's rounded banner is not used as raw data.
 #
 # PASS/FAIL ACROSS REPEATS
 #   A test passes only if *every* run of it passed. One failure in five runs is
@@ -165,10 +172,10 @@
 # COST
 #   One live model call per prompt, not per assertion: assertions that can be
 #   read off the same transcript share it. Test 4 is the exception in the other
-#   direction: it is one assertion over three turns, because no single prompt
+#   direction: it is one assertion over two turns, because no single prompt
 #   reaches a Fase 2 plan (see the note at the test, and #534).
-#     nav-pilot      7 calls per pass (tests 2 and 3 share one prompt, test 4
-#                    spends three: an interview, its answers, a confirmation)
+#     nav-pilot      6 calls per pass (tests 2 and 3 share one prompt, test 4
+#                    spends two: an interview and its answers)
 #     code-review    2 calls per pass (cr1, cr2 and cr3 share one)
 #     accessibility  4 calls per pass (uu1 and uu2 share one)
 #   --repeat N multiplies that: nav-pilot at --repeat 5 is ~35 calls.
@@ -180,6 +187,8 @@
 #   ./scripts/nav-pilot-golden.sh --only 2,5      # run selected tests
 #   ./scripts/nav-pilot-golden.sh --keep          # keep transcripts for inspection
 #   ./scripts/nav-pilot-golden.sh --model <model> # pin a model (default: CLI default)
+#   ./scripts/nav-pilot-golden.sh --effort high   # pin reasoning effort
+#   ./scripts/nav-pilot-golden.sh --context long_context # pin context tier
 #   ./scripts/nav-pilot-golden.sh --json          # machine-readable summary (needs jq)
 #   ./scripts/nav-pilot-golden.sh -v              # echo each transcript as it lands
 #   ./scripts/nav-pilot-golden.sh --repeat 5      # 5 samples per prompt, median reported
@@ -228,6 +237,8 @@ KEEP=false
 VERBOSE=false
 JSON=false
 MODEL=""
+EFFORT=""
+CONTEXT_TIER=""
 REPEAT=1
 WITH_INSTRUCTIONS=true
 SAVE_BASELINE=""
@@ -249,6 +260,8 @@ while [[ $# -gt 0 ]]; do
     --only)    need_val "$@"; ONLY="$2"; shift 2 ;;
     --keep)    KEEP=true; shift ;;
     --model)   need_val "$@"; MODEL="$2"; shift 2 ;;
+    --effort)  need_val "$@"; EFFORT="$2"; shift 2 ;;
+    --context) need_val "$@"; CONTEXT_TIER="$2"; shift 2 ;;
     --json)    JSON=true; shift ;;
     --repeat)  need_val "$@"; REPEAT="$2"; shift 2 ;;
     --no-instructions) WITH_INSTRUCTIONS=false; shift ;;
@@ -339,12 +352,21 @@ AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:
   "--repeat takes a positive integer, got '$REPEAT'" \
   "Each repeat costs another full set of live model calls."
 
+[[ -z "$EFFORT" || "$EFFORT" =~ ^(none|minimal|low|medium|high|xhigh|max)$ ]] || fail_preflight \
+  "--effort has an invalid value: '$EFFORT'" \
+  "Use one of: none, minimal, low, medium, high, xhigh, max."
+
+[[ -z "$CONTEXT_TIER" || "$CONTEXT_TIER" =~ ^(default|long_context)$ ]] || fail_preflight \
+  "--context has an invalid value: '$CONTEXT_TIER'" \
+  "Use default or long_context."
+
 [[ -z "$COMPARE_TO" || -f "$COMPARE_TO" ]] || fail_preflight \
   "--compare: no baseline file at $COMPARE_TO" \
   "Record one first: ./scripts/nav-pilot-golden.sh --repeat 5 --save-baseline $COMPARE_TO"
 
 CLI_PATH=""
 CLI_NAME="(dry run, no client)"
+CLI_VERSION=""
 
 # preflight_client resolves and probes the CLI. Skipped by --dry-run, which
 # builds and prints the scratch workspace and stops: that path exists so the
@@ -368,7 +390,7 @@ preflight_client() {
       "Install the Copilot CLI (https://github.com/github/copilot-cli), or 'brew install navikt/tap/cplt' for the sandboxed wrapper."
   fi
 
-  if ! "$CLI_PATH" --version >/dev/null 2>&1; then
+  if ! CLI_VERSION="$("$CLI_PATH" --version 2>&1)"; then
     fail_preflight \
       "'$CLI_NAME --version' failed — the CLI is on PATH but not runnable" \
       "Try running '$CLI_NAME' once interactively to complete setup."
@@ -398,6 +420,20 @@ $DRY_RUN || preflight_client
 
 if $JSON && ! command -v jq >/dev/null 2>&1; then
   fail_preflight "--json needs jq" "brew install jq"
+fi
+
+USAGE_HELPER="$REPO_ROOT/scripts/copilot-usage.py"
+USAGE_DB="${NAV_PILOT_GOLDEN_USAGE_DB:-$HOME/.copilot/session-store.db}"
+USAGE_TRACKING=false
+USAGE_UNAVAILABLE=""
+if [[ ! -f "$USAGE_DB" ]]; then
+  USAGE_UNAVAILABLE="no session database at $USAGE_DB"
+elif ! command -v python3 >/dev/null 2>&1; then
+  USAGE_UNAVAILABLE="python3 is unavailable"
+elif ! python3 "$USAGE_HELPER" cursor "$USAGE_DB" >/dev/null 2>&1; then
+  USAGE_UNAVAILABLE="assistant_usage_events is unavailable in $USAGE_DB"
+else
+  USAGE_TRACKING=true
 fi
 
 # ─── Throwaway workspace ─────────────────────────────────────────────────────
@@ -806,14 +842,17 @@ ws_written_files() {
 
 # Per-run rows, one file each, aggregated after the last run:
 #   RESULTS_FILE  id|run|status|assertion|detail      (one row per test per run)
-#   MEASURES      slug|bytes|lines|words              (one row per transcript)
+#   MEASURES      slug|bytes|lines|words|elapsed_ms   (one row per transcript)
+#   USAGE_FILE    exact assistant_usage_events rows   (zero or more per prompt)
 # Files rather than arrays because the aggregation reads them repeatedly, and
 # because bash 3.2 (stock macOS) makes an empty array an unbound-variable error
 # under `set -u`, while an empty file just reads as nothing.
 RESULTS_FILE="$WORKDIR/results.psv"
 MEASURES="$WORKDIR/measures.psv"
+USAGE_FILE="$WORKDIR/usage.psv"
 : >"$RESULTS_FILE"
 : >"$MEASURES"
+: >"$USAGE_FILE"
 
 pass_count=0
 fail_count=0
@@ -826,6 +865,23 @@ RUN=1
 tx() { printf '%s/%s.run%s.txt' "$WORKDIR" "$1" "$RUN"; }
 
 run_tag() { [[ "$REPEAT" -gt 1 ]] && printf '%s[run %s/%s]%s ' "$DIM" "$RUN" "$REPEAT" "$RESET"; return 0; }
+
+new_session_id() {
+  local id
+  id="$(uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+  if [[ -z "$id" ]] && command -v python3 >/dev/null 2>&1; then
+    id="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+  fi
+  printf '%s' "$id"
+}
+
+now_ms() {
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import time; print(time.time_ns() // 1_000_000)'
+  else
+    echo "$(($(date +%s) * 1000))"
+  fi
+}
 
 # A transcript shorter than this is treated as "the call did not happen", not as
 # a response. Every assertion below is either an absent() — which succeeds
@@ -858,8 +914,8 @@ run_prompt() {
   # SESSION-ID (optional) makes a prompt part of a multi-turn conversation. The
   # first call carrying a given id opens the session; every later call carrying
   # the same id is another turn in it, and the client replays the earlier turns
-  # as context. Omit it and the call is a standalone one-turn prompt, which is
-  # what every test but 4 wants and byte-for-byte what they got before.
+  # as context. Standalone calls get a fresh id so their exact usage rows can be
+  # attributed without matching timestamps or mixing in another CLI process.
   #
   # A continuation does NOT reseed the workspace. The point of turn two is to
   # answer the questions turn one asked about this repo; resetting the files
@@ -869,8 +925,13 @@ run_prompt() {
   out="$(tx "$slug")"
   local -a args=(-p "$prompt" --agent "$AGENT_NAME" --allow-all-tools --no-color --log-level none)
   [[ -n "$MODEL" ]] && args+=(--model "$MODEL")
+  [[ -n "$EFFORT" ]] && args+=(--reasoning-effort "$EFFORT")
+  [[ -n "$CONTEXT_TIER" ]] && args+=(--context "$CONTEXT_TIER")
 
   local continuing=false
+  if [[ -z "$session" ]]; then
+    session="$(new_session_id)"
+  fi
   if [[ -n "$session" ]]; then
     args+=(--session-id "$session")
     case "$SESSIONS_SEEN" in
@@ -889,6 +950,15 @@ run_prompt() {
   echo "${DIM}  → $(run_tag)prompting ($slug)…${RESET}" >&2
   local -a runner=()
   [[ -n "$TIMEOUT_BIN" ]] && runner=("$TIMEOUT_BIN" "$TIMEOUT_SECS")
+  local usage_cursor=0 started_ms ended_ms elapsed_ms
+  if $USAGE_TRACKING && [[ -n "$session" ]]; then
+    if ! usage_cursor="$(python3 "$USAGE_HELPER" cursor "$USAGE_DB")"; then
+      USAGE_TRACKING=false
+      USAGE_UNAVAILABLE="could not read assistant_usage_events before $slug"
+      echo "${YELLOW}⚠ usage tracking disabled: $USAGE_UNAVAILABLE${RESET}" >&2
+    fi
+  fi
+  started_ms="$(now_ms)"
   # ${arr[@]+"${arr[@]}"} — bash 3.2 (stock macOS) treats an empty array as an
   # unbound variable under `set -u`, and the no-coreutils fallback above leaves
   # `runner` empty on exactly that platform.
@@ -900,6 +970,17 @@ run_prompt() {
   # is a no-op, which is exactly the empty-HOOK_ENV case.
   ( cd "$WS" && ${runner[@]+"${runner[@]}"} env ${HOOK_ENV[@]+"${HOOK_ENV[@]}"} "$CLI_PATH" "${args[@]}" ) >"$out" 2>"${out%.txt}.err"
   local rc=$?
+  ended_ms="$(now_ms)"
+  elapsed_ms=$((ended_ms - started_ms))
+  if $USAGE_TRACKING && [[ -n "$session" ]]; then
+    if ! python3 "$USAGE_HELPER" export "$USAGE_DB" \
+      --session "$session" --after "$usage_cursor" --slug "$slug" --run "$RUN" \
+      >>"$USAGE_FILE"; then
+      USAGE_TRACKING=false
+      USAGE_UNAVAILABLE="could not export assistant_usage_events after $slug"
+      echo "${YELLOW}⚠ usage tracking disabled: $USAGE_UNAVAILABLE${RESET}" >&2
+    fi
+  fi
   # Taken unconditionally, including after a dead call: an agent that wrote and
   # then timed out still wrote, and the no-auto-fix assertions want to say so.
   ws_fingerprint >"$FP_AFTER"
@@ -920,8 +1001,9 @@ run_prompt() {
   # Size is measured for every usable transcript, whatever the assertions then
   # say about it. A dead transcript is deliberately not measured: its length
   # describes the failure, not the persona.
-  printf '%s|%s|%s|%s\n' "$slug" "$size" \
-    "$(wc -l <"$out" | tr -d ' ')" "$(wc -w <"$out" | tr -d ' ')" >>"$MEASURES"
+  printf '%s|%s|%s|%s|%s\n' "$slug" "$size" \
+    "$(wc -l <"$out" | tr -d ' ')" "$(wc -w <"$out" | tr -d ' ')" \
+    "$elapsed_ms" >>"$MEASURES"
   return 0
 }
 
@@ -1020,8 +1102,13 @@ selected() {
 }
 
 echo "${BOLD}golden-prompt harness, agent under test: $AGENT${RESET}"
-echo "${DIM}client: $CLI_NAME${CLI_PATH:+ ($CLI_PATH)}${RESET}"
+echo "${DIM}client: $CLI_NAME${CLI_VERSION:+ $CLI_VERSION}${CLI_PATH:+ ($CLI_PATH)}${RESET}"
 echo "${DIM}agent file: $PERSONA (launched as --agent $AGENT_NAME)${RESET}"
+if $USAGE_TRACKING; then
+  echo "${DIM}usage: exact rows from $USAGE_DB${RESET}"
+else
+  echo "${YELLOW}usage: unavailable ($USAGE_UNAVAILABLE)${RESET}"
+fi
 if $WITH_INSTRUCTIONS; then
   echo "${DIM}instructions: $INSTR_COUNT in .github/instructions/, $ALWAYS_ON_COUNT always-on (applyTo \"**\")${RESET}"
 else
@@ -1050,11 +1137,6 @@ RE_CHECKPOINT='Fase[[:space:]]+[0-9]+[[:space:]]+ferdig'
 # persona revisions on this branch (18 t2, 18 t4, four models). The hit rates in
 # the comments are those measurements, not estimates.
 #
-# The response reached Fase 1 at all. Gate, not assertion: no Fase 1 output means
-# the stop invariant was never exercised, which is "not evaluated", never a pass.
-# Hit rate: t2 18/18, t4 1/18.
-RE_FASE1_REACHED='Fase[[:space:]]*1|Intervju'
-
 # Fase 2 or later *work*, the leak the stop invariant forbids. Two markers, both
 # with clean separation: t2 0/18, t4 18/18.
 #
@@ -1112,27 +1194,22 @@ RE_BLINDSPOT_AUDIT='Blindsoner[^.]{0,40}[0-9]+[[:space:]]*/[[:space:]]*11'
 #
 #   turn 1 (t4a)  test 2's prompt, verbatim. The only prompt in this harness
 #                 with a measured stop rate, and the stop is the precondition.
-#   turn 2 (t4b)  T4_ANSWERS. The persona answers this with the Fase 1
-#                 checkpoint and stops again — `### Phase transition format`
-#                 ends "Bekreft for å fortsette", and the phase machine's exit
-#                 criterion for Fase 1 is "answers still pending".
-#   turn 3 (t4c)  T4_CONFIRM. The confirmation the checkpoint asks for.
+#   turn 2 (t4b)  T4_ANSWERS. The answers close the interview and explicitly
+#                 confirm every open question, so the persona enters Fase 2.
 #
-# ⚠️  #534 proposed two turns. Three is what the persona actually needs, and the
-# third is not padding: answering the questions ENDS Fase 1, it does not enter
-# Fase 2. The first live run of the two-turn version got a complete, correct
-# `✅ Fase 1 ferdig` block in turn two, with `• 🔴 Rød sone:` filled in as a
-# checkpoint summary line, and no plan. That transcript is also the reason the
-# plan gate below cannot key on red-zone wording: a Fase 1 checkpoint carries it.
-#
-# All three turns run in one client session (`--session-id`, see run_prompt), so
+# Both turns run in one client session (`--session-id`, see run_prompt), so
 # turn two does not have to restate the interview it is answering.
 #
 # The turns are a separate session from test 2's, not a fourth assertion hung
-# off test 2's transcript. That costs two extra model calls per pass (7, not 5),
-# and buys `--only 4` as a self-contained test plus a test 2 whose sample
-# nothing else perturbs. Test 2 and test 4 have shared machinery before, and the
-# note above RE_FASE2_WORK is what that cost.
+# off test 2's transcript. That buys `--only 4` as a self-contained test plus a
+# test 2 whose sample nothing else perturbs.
+#
+# This used to be three turns. Before #905, the persona required a literal
+# checkpoint after the answers and a separate confirmation before Fase 2. #905
+# removed that checkpoint but left the phase gate: answering every pending
+# question now confirms that the interview is complete. Keeping the third turn
+# made the harness inspect Fase 3 and report every current model as "not
+# evaluated".
 
 # The answers to Fase 1, fixed and written down rather than generated. A
 # generated answer would make each run measure the answer as much as the
@@ -1169,16 +1246,20 @@ T4_ANSWERS='Her er svarene på spørsmålene fra intervjuet:
 8, 9 og 10. Nybygg. Ingen gammel løsning, ingen bakoverkompatibilitet og ingenting som skal avvikles.
 11. Kompetanse: TokenX og Wonderwall er nytt for teamet.
 
-Det er alle svarene.'
+Det er alle svarene. Dette bekrefter at intervjuet er ferdig; bruk antakelsene dine der noe fortsatt er uavklart, og gå videre.'
 
-# The confirmation the Fase 1 checkpoint asks for, and the whole of turn three.
-# «Bekreftet» is the persona's own word («Bekreft for å fortsette»). The second
-# sentence exists because the checkpoint may still list open questions even when
-# every blind spot has been answered — the first live run listed two — and a
-# turn that answers those instead of confirming is another interview turn.
-T4_CONFIRM='Bekreftet. Ingen flere avklaringer fra meg — bruk antakelsene dine der noe er uavklart, og gå videre.'
-
-# A Fase 2 plan was produced in turn three. Test 4's gate.
+# A Fase 2 plan is produced in turn two. Test 4's gate.
+#
+# CURRENT CALIBRATION, 2026-09-23 after #905:
+#
+#   GPT-6 Sol:   t4a 0/5, t4b 5/5
+#   GPT-5.6 Sol: t4a 0/5, t4b 5/5
+#
+# All ten t4c transcripts from the obsolete third turn contained Fase 3 review
+# work. The harness therefore checks t4b and no longer sends t4c.
+#
+# HISTORICAL CALIBRATION BELOW. It documents why the plan marker is strict, but
+# its turn counts describe the checkpoint protocol that #905 removed.
 #
 # MEASURED, over the fifteen transcripts of the five-run calibration below, and
 # read across all three turns because the interesting question is what separates
@@ -1385,11 +1466,9 @@ run_pass_nav_pilot() {
         # Invariant: PHASE INTEGRITY, "STOP after each phase […] wait for explicit
         # user confirmation", and Boundaries → 🚫 Never, "Do work belonging to a
         # later phase in the same response when on full-tier".
-        # Order matters. The leak is checked before the Fase 1 gate, because the
-        # worst regression, a full-tier response that skips the interview and goes
-        # straight to writing files, has no Fase 1 output to gate on. Gating first
-        # reports that as amber "not evaluated" instead of red. Only a response that
-        # did neither Fase 1 nor Fase 2 work is genuinely unevaluable.
+        # Order matters. Later-phase work is the strongest failure signal. If
+        # there is no write or explicit Fase 2 work, the question count decides
+        # whether an interview happened; a heading is formatting, not behaviour.
         q="$(count_of "$T2" '[?]')"
         ok=0; detail=""
         # ⚠️  THE WORKSPACE FIRST, THE TRANSCRIPT SECOND (#583).
@@ -1414,22 +1493,17 @@ run_pass_nav_pilot() {
         # one; t4a is byte-identical to t2's prompt.
         #
         # Checked before RE_FASE2_WORK so the failure detail names the files
-        # rather than a regex, and before the Fase 1 gate for the reason above:
-        # a response that skips the interview and starts writing has no Fase 1
-        # output, and gating first would report that as amber.
+        # rather than a regex.
         if ws_wrote; then
           record 2 "$DESC2" 1 \
             "the agent wrote to the workspace in a Fase 1 turn: $(ws_written_files). PHASE INTEGRITY («STOP after each phase») regressed. Read off the fingerprint, so a shell write counts the same as an edit-tool call"
         elif ! absent "$T2" "$RE_FASE2_WORK"; then
           record 2 "$DESC2" 1 \
             "response did Fase 2 work (matched: $RE_FASE2_WORK): PHASE INTEGRITY rule regressed"
-        elif ! present "$T2" "$RE_FASE1_REACHED"; then
-          record_error 2 "$DESC2" \
-            "no Fase 1 output and no Fase 2 work (no match for: $RE_FASE1_REACHED): the stop invariant was never exercised, so it was not evaluated. Re-run with --keep and check whether tier classification regressed."
+        elif [[ "$q" -lt "$MIN_OPEN_QUESTIONS" ]]; then
+          record 2 "$DESC2" 1 \
+            "only $q question mark(s), need ≥$MIN_OPEN_QUESTIONS: the turn gave no later-phase tool work, but it did not conduct the required interview or stop with questions outstanding"
         else
-          if [[ "$q" -lt "$MIN_OPEN_QUESTIONS" ]]; then
-            ok=1; detail="only $q question mark(s), need ≥$MIN_OPEN_QUESTIONS: the turn did not end with questions outstanding, so it did not stop for the user"
-          fi
           record 2 "$DESC2" "$ok" "$detail"
         fi
       fi
@@ -1465,71 +1539,53 @@ run_pass_nav_pilot() {
   # Invariant: Boundaries → ✅ Always, "Include 🔴 Rød-sone-deklarasjon in every
   # Phase 2 plan", and `### Fase 2: Plan` item 10, which calls it MANDATORY.
   #
-  # THREE TURNS, one session: the full-tier prompt, the answers to the interview
-  # it opens, and the confirmation its checkpoint asks for. Why it cannot be one
-  # turn, and why it cannot be two, is in the vocabulary block above.
+  # TWO TURNS, one session: the full-tier prompt and the answers that close its
+  # interview. Why it cannot be one turn is in the vocabulary block above.
   #
   # WHAT THE EARLY TURNS GATE ON. Turn one must reach Fase 1 and must not have
   # done Fase 2 work, checked with test 2's own two expressions. A turn one that
   # skipped the interview never asked the questions turn two answers, so the plan
-  # turn three produced would not be the one under test: that is "not evaluated",
+  # turn two produced would not be the one under test: that is "not evaluated",
   # neither a pass nor a failure, and it is test 2's failure to report.
   #
-  # CALIBRATED 2026-08-31, `--only 4 --repeat 5 --keep --model claude-sonnet-4.6`
-  # against the fixture and persona of this commit. Fifteen transcripts, five of
-  # each turn, read by hand. The model is pinned because the persona is the one
-  # agent file with no `model:` field, and it is the model of
-  # docs/golden-baselines/2026-08-31-persona-checkpoint-fix-v3.txt so the sizes
-  # sit next to something. Result 5/5, with the two expressions above measured
-  # at t4a 0/5, t4b 0/5, t4c 5/5 and t4a 0/5, t4b 3/5, t4c 5/5. Medians:
-  # t4a 1073B (907-1173), t4b 1274B (1251-1647), t4c 6318B (4599-7366).
+  # CALIBRATED 2026-09-23 against five GPT-6 Sol and five GPT-5.6 Sol runs
+  # recorded before this correction. All ten t4b transcripts contain a Fase 2
+  # plan and all ten obsolete t4c transcripts contain Fase 3 review work.
   #
-  # The pass branch is restored on that basis, and it is not vacuous: replaying
-  # the same fifteen transcripts with every red-zone declaration line stripped
-  # out of t4c reports the test RED, and replaying them with the two plan
-  # markers stripped reports it "not evaluated". Neither degrades to green.
-  #
-  # SLUGS. The turns are recorded as t4a, t4b and t4c, and the t4 slug is
-  # retired. Baselines key on slugs, so a baseline recorded before this change
-  # has a t4 row and no t4a/t4b/t4c rows: `--compare` prints the new slugs
-  # against a "-" baseline instead of silently comparing a one-turn
-  # compressed-tier answer against turn three of a full-tier conversation. All
-  # three turns are measured, because they are different lengths of different
-  # things and one median over them would describe none of them. t4c is the
-  # plan; t4a is an interview turn and should track t2, which is the same prompt.
+  # SLUGS. The turns are recorded as t4a and t4b. Baselines key on slugs, so
+  # removing t4c makes output size, latency and cost reflect only work the
+  # assertion uses. t4a is the interview; t4b is the plan.
   if selected 4; then
     DESC4="Fase 2 output contains a 🔴 Rød sone declaration"
-    T4A="$(tx t4a)"; T4C="$(tx t4c)"
+    T4A="$(tx t4a)"; T4B="$(tx t4b)"
     # One session id per pass, generated fresh so that --repeat samples separate
     # conversations rather than piling fifteen turns into one.
     S4="$(uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]')"
     # Checked, not assumed. The script runs without `set -e`, so a missing
     # uuidgen fails silently: S4 is empty, run_prompt omits --session-id, and
-    # the three turns become three UNLINKED calls in which turn two answers an
-    # interview nobody held and turn three confirms nothing. That reports on
-    # whatever those three strangers happened to say, and it bills for three
-    # live calls to do it. uuidgen is on macOS and in util-linux, so this is a
+    # the two turns become two UNLINKED calls in which turn two answers an
+    # interview nobody held. That reports on whatever those strangers happened
+    # to say, and it bills for two live calls to do it. uuidgen is on macOS and
+    # in util-linux, so this is a
     # slim container rather than a likely path, which is exactly the kind that
     # goes unnoticed. Cheaper to refuse than to spend the calls and wonder.
     if [[ -z "$S4" ]]; then
       record_error 4 "$DESC4" \
-        "could not generate a session id (is uuidgen on PATH?). Test 4 is three turns of one conversation, and without an id they would be three unlinked calls, so the run is refused before it bills for them."
+        "could not generate a session id (is uuidgen on PATH?). Test 4 is two turns of one conversation, and without an id they would be two unlinked calls, so the run is refused before it bills for them."
     elif ! run_prompt t4a "ny tjeneste som leser fnr fra ID-porten" "$S4"; then
       record_error 4 "$DESC4" "turn 1 (intervju): $LAST_PROMPT_DETAIL"
     elif ! absent "$T4A" "$RE_FASE2_WORK"; then
       record_error 4 "$DESC4" \
-        "turn 1 did Fase 2 work (matched: $RE_FASE2_WORK) instead of stopping to interview, so turns 2 and 3 answered and confirmed an interview that never happened. That is test 2's failure to report, not test 4's — check test 2 first."
-    elif ! present "$T4A" "$RE_FASE1_REACHED"; then
+        "turn 1 did Fase 2 work (matched: $RE_FASE2_WORK) instead of stopping to interview, so turn 2 answered an interview that never happened. That is test 2's failure to report, not test 4's — check test 2 first."
+    elif [[ "$(count_of "$T4A" '[?]')" -lt "$MIN_OPEN_QUESTIONS" ]]; then
       record_error 4 "$DESC4" \
-        "turn 1 produced no Fase 1 output (no match for: $RE_FASE1_REACHED) and no Fase 2 work either, so there is no interview for turn 2 to answer. Re-run with --keep and read t4a before touching anything here."
+        "turn 1 asked fewer than $MIN_OPEN_QUESTIONS questions and did no Fase 2 tool work, so there is no completed interview for turn 2 to answer. This is the same phase-stop regression test 2 reports; re-run with --keep and read t4a."
     elif ! run_prompt t4b "$T4_ANSWERS" "$S4"; then
       record_error 4 "$DESC4" "turn 2 (svar): $LAST_PROMPT_DETAIL"
-    elif ! run_prompt t4c "$T4_CONFIRM" "$S4"; then
-      record_error 4 "$DESC4" "turn 3 (bekreftelse): $LAST_PROMPT_DETAIL"
-    elif ! present "$T4C" "$RE_FASE2_PLAN"; then
+    elif ! present "$T4B" "$RE_FASE2_PLAN"; then
       record_error 4 "$DESC4" \
-        "turn 3 produced no Fase 2 plan (no match for: $RE_FASE2_PLAN) — a red-zone declaration is a property of a plan, so with no plan there is nothing to assert and this is not a pass. Either the interview did not close in turn 2 and the persona asked again, or the session did not carry the earlier turns. Re-run with --keep and read t4b and t4c in order."
-    elif ! present "$T4C" "$RE_T4_RED_ZONE"; then
+        "turn 2 produced no Fase 2 plan (no match for: $RE_FASE2_PLAN) — a red-zone declaration is a property of a plan, so with no plan there is nothing to assert and this is not a pass. Either the interview did not close or the session did not carry turn 1. Re-run with --keep and read t4a and t4b in order."
+    elif ! present "$T4B" "$RE_T4_RED_ZONE"; then
       record 4 "$DESC4" 1 \
         "a Fase 2 plan with no 🔴 Rød-sone-deklarasjon in it (no match for: $RE_T4_RED_ZONE) — mandatory per \`### Fase 2: Plan\` item 10 and Boundaries → ✅ Always. «🔴 Rød sone: ingen for denne oppgaven» would satisfy this; saying nothing does not."
     else
@@ -2116,8 +2172,10 @@ for slug in $(uniq_field "$MEASURES" 1); do
   read -r b_med b_min b_max <<<"$(cut -d'|' -f2 <<<"$rows" | stats)"
   read -r l_med l_min l_max <<<"$(cut -d'|' -f3 <<<"$rows" | stats)"
   read -r w_med w_min w_max <<<"$(cut -d'|' -f4 <<<"$rows" | stats)"
-  printf '%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n' "$slug" "$n" \
-    "$b_med" "$b_min" "$b_max" "$l_med" "$l_min" "$l_max" "$w_med" "$w_min" "$w_max" >>"$AGG_SIZES"
+  read -r t_med t_min t_max <<<"$(cut -d'|' -f5 <<<"$rows" | stats)"
+  printf '%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n' "$slug" "$n" \
+    "$b_med" "$b_min" "$b_max" "$l_med" "$l_min" "$l_max" "$w_med" "$w_min" "$w_max" \
+    "$t_med" "$t_min" "$t_max" >>"$AGG_SIZES"
 done
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
@@ -2145,12 +2203,35 @@ if [[ "$REPEAT" -gt 1 && -s "$AGG_TESTS" ]]; then
 fi
 
 if [[ -s "$AGG_SIZES" ]]; then
-  echo "${BOLD}Response size${RESET} ${DIM}(median per prompt over the n usable transcripts of $REPEAT, spread in brackets)${RESET}"
-  printf '  %-6s %9s %8s %8s   %s\n' "prompt" "bytes" "lines" "words" "bytes min-max"
-  while IFS='|' read -r slug n b_med b_min b_max l_med l_min l_max w_med w_min w_max; do
-    printf '  %-6s %9s %8s %8s   %s\n' "$slug" "$b_med" "$l_med" "$w_med" "${DIM}$b_min-$b_max (n=$n)${RESET}"
+  echo "${BOLD}Response size and wall time${RESET} ${DIM}(median per prompt over the n usable transcripts of $REPEAT, spread in brackets)${RESET}"
+  printf '  %-6s %9s %8s %8s %10s   %s\n' "prompt" "bytes" "lines" "words" "elapsed" "bytes min-max"
+  while IFS='|' read -r slug n b_med b_min b_max l_med l_min l_max w_med w_min w_max t_med t_min t_max; do
+    printf '  %-6s %9s %8s %8s %8.1fs   %s\n' "$slug" "$b_med" "$l_med" "$w_med" \
+      "$(awk -v ms="$t_med" 'BEGIN { print ms / 1000 }')" \
+      "${DIM}$b_min-$b_max (n=$n, elapsed $(awk -v lo="$t_min" -v hi="$t_max" 'BEGIN { printf "%.1f-%.1fs", lo / 1000, hi / 1000 }'))${RESET}"
   done <"$AGG_SIZES"
-  echo "${DIM}Sizes are reported, never asserted. A wide spread means a small median delta is noise.${RESET}"
+  echo "${DIM}Sizes and time are reported, never asserted. A wide spread means a small median delta is noise.${RESET}"
+  echo
+fi
+
+if [[ -s "$USAGE_FILE" ]]; then
+  echo "${BOLD}Model usage${RESET} ${DIM}(exact assistant_usage_events rows; totals include failed attempts and subagents)${RESET}"
+  printf '  %-6s %6s %10s %10s %10s %10s\n' "prompt" "calls" "credits" "written" "cached" "output"
+  for slug in $(uniq_field "$USAGE_FILE" 1); do
+    grep "^$slug|" "$USAGE_FILE" | awk -F'|' -v slug="$slug" '
+      {
+        calls++
+        output += $9
+        cached += $10
+        written += $11
+        nano += $13
+      }
+      END {
+        printf "  %-6s %6d %10.3f %10d %10d %10d\n",
+          slug, calls, nano / 1000000000, written, cached, output
+      }'
+  done
+  echo "${DIM}Credits are total_nano_aiu / 1e9. Token columns are cache writes, cache reads and output.${RESET}"
   echo
 fi
 
@@ -2170,13 +2251,16 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     echo "# date:         $(date -u +%Y-%m-%d)"
     echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
     echo "# client:       $CLI_NAME"
+    echo "# clientVersion: $CLI_VERSION"
     echo "# model:        ${MODEL:-CLI default}"
+    echo "# effort:       ${EFFORT:-CLI default}"
+    echo "# context:      ${CONTEXT_TIER:-CLI default}"
     echo "# repeats:      $REPEAT"
     echo "# instructions: $INSTR_DESC"
     echo "# fixture:      $FIXTURE_SUM"
     echo "# prompts:      ${ONLY:-all}"
     echo "#"
-    echo "# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max"
+    echo "# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max|elapsed_ms_median|elapsed_ms_min|elapsed_ms_max"
     cat "$AGG_SIZES"
   } >"$SAVE_BASELINE"
   echo "${DIM}size baseline written to $SAVE_BASELINE${RESET}"
@@ -2207,6 +2291,10 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     echo "# date:         $(date -u +%Y-%m-%d)"
     echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
     echo "# model:        ${MODEL:-CLI default}"
+    echo "# client:       $CLI_NAME"
+    echo "# clientVersion: $CLI_VERSION"
+    echo "# effort:       ${EFFORT:-CLI default}"
+    echo "# context:      ${CONTEXT_TIER:-CLI default}"
     echo "# instructions: $INSTR_DESC"
     echo "# repeat:       $REPEAT"
     echo "# fixture:      $FIXTURE_SUM"
@@ -2220,6 +2308,32 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     cat "$RESULTS_FILE"
   } >"$RESULTS_BASELINE"
   echo "${DIM}per-run assertion outcomes written to $RESULTS_BASELINE${RESET}"
+
+  if [[ -s "$USAGE_FILE" ]]; then
+    USAGE_BASELINE="${SAVE_BASELINE%.txt}-usage.psv"
+    {
+      echo "# golden-prompt EXACT MODEL USAGE"
+      echo "# agent:        $AGENT"
+      echo "# date:         $(date -u +%Y-%m-%d)"
+      echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+      echo "# model:        ${MODEL:-CLI default}"
+      echo "# client:       $CLI_NAME"
+      echo "# clientVersion: $CLI_VERSION"
+      echo "# effort:       ${EFFORT:-CLI default}"
+      echo "# context:      ${CONTEXT_TIER:-CLI default}"
+      echo "# instructions: $INSTR_DESC"
+      echo "# repeat:       $REPEAT"
+      echo "# fixture:      $FIXTURE_SUM"
+      echo "# prompts:      ${ONLY:-all}"
+      echo "# source:       assistant_usage_events"
+      echo "#"
+      echo "# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id"
+      cat "$USAGE_FILE"
+    } >"$USAGE_BASELINE"
+    echo "${DIM}exact model usage written to $USAGE_BASELINE${RESET}"
+  else
+    echo "${YELLOW}exact model usage was not recorded: ${USAGE_UNAVAILABLE:-no usage rows matched the benchmark sessions}${RESET}"
+  fi
   echo
 fi
 
@@ -2283,7 +2397,10 @@ if [[ -n "$COMPARE_TO" ]]; then
   fi
   [[ "$BASE_AGENT" == "$AGENT" ]] || \
     echo "  ${YELLOW}⚠ baseline agent: '$BASE_AGENT', this run: '$AGENT'. Different agents, different prompts. Not comparable.${RESET}"
+  compat_warn clientVersion "$CLI_VERSION"
   compat_warn model "${MODEL:-CLI default}"
+  compat_warn effort "${EFFORT:-CLI default}"
+  compat_warn context "${CONTEXT_TIER:-CLI default}"
   compat_note instructions "$INSTR_DESC"
   compat_warn repeats "$REPEAT"
   compat_warn prompts "${ONLY:-all}"
@@ -2316,6 +2433,8 @@ if $JSON; then
   # stream still yields a well-formed summary.
   { sed 's/^/test|/' "$AGG_TESTS"; sed 's/^/size|/' "$AGG_SIZES"; } \
     | jq -R -s --argjson repeat "$REPEAT" --arg agent "$AGENT" \
+        --arg model "${MODEL:-CLI default}" --arg effort "${EFFORT:-CLI default}" \
+        --arg context "${CONTEXT_TIER:-CLI default}" --arg client "$CLI_VERSION" \
         --argjson instructions "$($WITH_INSTRUCTIONS && echo true || echo false)" '
     (split("\n") | map(select(length > 0) | split("|"))) as $rows
     | ($rows | map(select(.[0] == "test") | {
@@ -2330,13 +2449,18 @@ if $JSON; then
        soft_met:   ($tests | map(select(.status == "soft-pass")) | length),
        soft_unmet: ($tests | map(select(.status == "soft-fail")) | length),
        repeat: $repeat,
+       model: $model,
+       effort: $effort,
+       context: $context,
+       client: $client,
        instructions: $instructions,
        tests: $tests,
        sizes: ($rows | map(select(.[0] == "size") | {
          slug: .[1], runs: (.[2] | tonumber),
          bytes: {median: (.[3] | tonumber), min: (.[4] | tonumber), max: (.[5] | tonumber)},
          lines: {median: (.[6] | tonumber), min: (.[7] | tonumber), max: (.[8] | tonumber)},
-         words: {median: (.[9] | tonumber), min: (.[10] | tonumber), max: (.[11] | tonumber)}
+         words: {median: (.[9] | tonumber), min: (.[10] | tonumber), max: (.[11] | tonumber)},
+         elapsed_ms: {median: (.[12] | tonumber), min: (.[13] | tonumber), max: (.[14] | tonumber)}
        }))}'
 fi
 
