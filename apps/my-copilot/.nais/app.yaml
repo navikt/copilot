@@ -22,6 +22,7 @@ spec:
           - id: 879f302e-73e9-48bf-8103-16edd8606c4a # infra
           - id: afcbfed4-d5d4-4964-8db5-f59b6f61b929 # azure
           - id: 8396d3ec-e263-49c7-b72a-87440d7ee3f4 # design
+          - id: c0b6df4d-35b4-4312-aaaa-74ea33108875 # GitHub Copilot Produktutvikling
     sidecar:
       enabled: true
       autoLogin: true
