@@ -60,6 +60,12 @@ type Config struct {
 	// nav-pilot writes to ~/.copilot/hooks/ so the local guard's loop rule
 	// also covers cloud sessions. Unset means on.
 	HookLoopGuard *bool `toml:"hook_loop_guard"`
+	// HookRedactSecrets, HookRedactFNR and HookInjectionNote are the three
+	// parts of the redaction hook, a postToolUse hook that looks at each tool
+	// result before the model reads it. Unset means on.
+	HookRedactSecrets *bool `toml:"hook_redact_secrets"`
+	HookRedactFNR     *bool `toml:"hook_redact_fnr"`
+	HookInjectionNote *bool `toml:"hook_injection_note"`
 }
 
 // ResolvedConfig holds the final configuration after applying precedence:
@@ -95,6 +101,9 @@ type ResolvedConfig struct {
 	LocalModel        string   // local model id to serve; empty = the manifest default
 	CopilotAuthMode   string   // auto | env_only | gh_only
 	HookLoopGuard     bool     // the loop-guard postToolUse hook for every Copilot CLI session
+	HookRedactSecrets bool     // mask secrets in tool results
+	HookRedactFNR     bool     // mask fødselsnummer and D-nummer in tool results
+	HookInjectionNote bool     // flag instruction-like text in tool results
 	ExtraArgs         []string // pass-through arguments for the client
 }
 

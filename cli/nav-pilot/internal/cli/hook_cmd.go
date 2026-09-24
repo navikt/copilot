@@ -32,6 +32,9 @@ type builtinHook struct {
 
 var builtinHooks = []builtinHook{
 	{name: "nav-pilot-loop-guard", arg: "loop-guard", enabled: func(r ResolvedConfig) bool { return r.HookLoopGuard }},
+	{name: "nav-pilot-redact-tool-output", arg: "redact", enabled: func(r ResolvedConfig) bool {
+		return r.HookRedactSecrets || r.HookRedactFNR || r.HookInjectionNote
+	}},
 }
 
 // runHookCommand runs one built-in hook and always exits 0 with a JSON answer.
@@ -74,6 +77,21 @@ func runHookCommand(args []string, stdin io.Reader, stdout io.Writer) {
 			return
 		}
 		out = hook.LoopGuard(hookStateDir(), p, localLoopGuard(r))
+	case "redact":
+		// Local sessions too: the local guard only watches for loops, and a
+		// secret in a local session's context still ends up in logs and in
+		// whatever the session writes.
+		if !p.HasResult {
+			return
+		}
+		text, changed := hook.Redact(p.Result, hook.RedactOptions{
+			Secrets:       r.HookRedactSecrets,
+			FNR:           r.HookRedactFNR,
+			InjectionNote: r.HookInjectionNote,
+		})
+		if changed {
+			out = hook.ModifiedResult(p.ResultType, text)
+		}
 	}
 }
 
