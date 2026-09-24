@@ -1548,6 +1548,11 @@ func EnsureServerRunning(ctx context.Context, announce func(string), record Reco
 		// here means one was hand-assembled or the embedded copy is damaged.
 		return errors.New("the local-model manifest names no default model; it is empty or malformed")
 	}
+	// A launch reaches this without `alpha local start`'s output, so the
+	// fallback from a withheld local_model is said here too.
+	if w, ok := manifest.WithheldEntry(selectedModel); ok {
+		fmt.Fprintf(os.Stderr, "%s. Using the default %s instead.\n", w.Reason, m.Model)
+	}
 	if announce != nil {
 		announce(m.Model)
 	}

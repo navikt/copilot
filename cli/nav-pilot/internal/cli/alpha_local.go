@@ -134,7 +134,17 @@ func activeManifest() (*local.Manifest, error) {
 	} else if src != local.SourceNetwork {
 		fmt.Fprintf(os.Stderr, "%s Using the %s local-model manifest.\n", dim("ℹ"), src)
 	}
+	printWithheld(m)
 	return m, nil
+}
+
+// printWithheld names the manifest entries this binary does not offer, with
+// why: an entry that needs a newer nav-pilot, or one whose min_nav_pilot could
+// not be read.
+func printWithheld(m *local.Manifest) {
+	for _, w := range m.Withheld {
+		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), w.Reason)
+	}
 }
 
 // localModel picks the model these commands act on: the configured one when it
@@ -149,6 +159,13 @@ func localModel(m *local.Manifest) (local.Model, error) {
 	}
 	if entry, ok := local.Chosen(m); ok {
 		if configured != "" && entry.Model != configured {
+			// Withheld for this version: the reason was printed with the
+			// manifest, so only the fallback is left to say.
+			if _, ok := m.WithheldEntry(configured); ok {
+				fmt.Fprintf(os.Stderr, "%s local_model is %s, which needs a newer nav-pilot. Using the default %s instead.\n",
+					yellow("⚠"), bold(configured), bold(entry.Model))
+				return entry, nil
+			}
 			fmt.Fprintf(os.Stderr, "%s local_model is %s, which this manifest does not offer. Using the default %s instead.\n",
 				yellow("⚠"), bold(configured), bold(entry.Model))
 		}
@@ -579,6 +596,11 @@ func cmdLocalStatus() error {
 	enabled := cfg != nil && cfg.LocalEnabled != nil && *cfg.LocalEnabled
 	fmt.Printf("  Environment  %s\n", installedLabel())
 	fmt.Printf("  Dispatch     %s\n", enabledLabel(enabled))
+	// Cached, not Active: Active can still be the embedded copy parsed before
+	// the version was set, when local dispatch is off or not provisioned.
+	if m, _, _ := local.Cached(); m != nil {
+		printWithheld(m)
+	}
 
 	st, ok, err := local.LoadState()
 	if err != nil {

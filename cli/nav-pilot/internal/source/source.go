@@ -2,6 +2,7 @@ package source
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -133,6 +134,12 @@ func shorthandFor(v string) string {
 	}
 	return parts[0] + "/" + parts[1]
 }
+
+// FetchTimeout bounds a remote fetch when non-zero. Zero leaves git's own
+// timeouts, which let an unreachable github.com hold a launch for 75 s on the
+// connect alone. The launch path sets it when it has a cached copy of the
+// source to fall back on, so being offline costs seconds rather than a minute.
+var FetchTimeout time.Duration
 
 // CloneRemoteFn is overridable in tests.
 var CloneRemoteFn = cloneRemote
@@ -309,14 +316,23 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 		}
 	}()
 
+	ctx := context.Background()
+	if FetchTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, FetchTimeout)
+		defer cancel()
+	}
 	var stderr bytes.Buffer
-	err = fetchRevision(tmpDir, repoURL, ref, &stderr)
+	err = fetchRevision(ctx, tmpDir, repoURL, ref, &stderr)
 
 	close(done)
 	fmt.Fprintf(os.Stderr, "\r\033[K")
 	if err != nil {
 		os.RemoveAll(tmpDir)
 		gitErr := strings.TrimSpace(stderr.String())
+		if ctx.Err() != nil {
+			gitErr = strings.TrimSpace(gitErr + fmt.Sprintf("\ngave up after %s", FetchTimeout))
+		}
 		if gitErr != "" {
 			gitErr = "\n\n  " + strings.ReplaceAll(gitErr, "\n", "\n  ")
 		}
@@ -350,7 +366,7 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 //
 // An abbreviated SHA is not fetchable: git wants a full object id in a fetch
 // request. That is why [getGitSHA] records all forty characters.
-func fetchRevision(dir, repoURL, ref string, stderr *bytes.Buffer) error {
+func fetchRevision(ctx context.Context, dir, repoURL, ref string, stderr *bytes.Buffer) error {
 	// An empty ref means the remote's default branch, which is what HEAD names.
 	if ref == "" {
 		ref = "HEAD"
@@ -364,7 +380,10 @@ func fetchRevision(dir, repoURL, ref string, stderr *bytes.Buffer) error {
 		{"-c", "advice.detachedHead=false", "checkout", "--quiet", "FETCH_HEAD"},
 	}
 	for _, args := range steps {
-		cmd := exec.Command("git", args...)
+		cmd := exec.CommandContext(ctx, "git", args...)
+		// git hands https to a git-remote-https child that holds stderr open
+		// after git itself is killed; without a WaitDelay, Run waits for it.
+		cmd.WaitDelay = time.Second
 		cmd.Dir = dir
 		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 		// Suppressed during the fetch so it does not overwrite the spinner;

@@ -17,6 +17,17 @@
 // applies to malformed declarations of *known* constructs, and to the trust
 // boundary below.
 //
+// # Minimum version
+//
+// An entry may carry "min_nav_pilot", a release version such as
+// "2026.09.24-110317-abc1234": the oldest nav-pilot that honours every param it
+// sets. An older binary withholds the entry ([Manifest.Withheld]) and treats it
+// as not offered, so a configured local_model naming it falls back to the
+// default, with a message saying which version it needs. A dev build is never
+// withheld from, and a malformed minimum skips that entry only. Binaries older
+// than the field ignore it, like any unknown field; for them the schema major
+// is the only brake.
+//
 // # Trust boundary
 //
 // The served file names weights that a developer's machine downloads and loads
@@ -62,6 +73,7 @@ import (
 
 	_ "embed"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
@@ -170,6 +182,32 @@ type Model struct {
 	// Capabilities is the benchmark's verdict per task class, or nil for a
 	// manifest generated before the block existed. See [Capabilities].
 	Capabilities *Capabilities `json:"capabilities,omitempty"`
+
+	// MinNavPilot is the oldest nav-pilot release that runs this entry as the
+	// generator meant it, in the release format (2026.09.24-110317-abc1234).
+	// Empty means any version. An older binary withholds the entry: see
+	// [Manifest.Withheld].
+	MinNavPilot releaseVersion `json:"min_nav_pilot,omitempty"`
+}
+
+// releaseVersion is min_nav_pilot as read from the manifest. It never fails to
+// decode: a value that is not a JSON string is kept as its raw text, which the
+// gate then rejects as malformed, so a wrong type costs that entry only rather
+// than the whole manifest. That includes null, which json.Unmarshal would
+// otherwise accept as an empty string and so as no minimum at all.
+type releaseVersion string
+
+func (v *releaseVersion) UnmarshalJSON(b []byte) error {
+	if string(b) == "null" || json.Unmarshal(b, (*string)(v)) != nil {
+		*v = releaseVersion(b)
+	}
+	return nil
+}
+
+// Withheld is a manifest entry this binary does not offer, and why.
+type Withheld struct {
+	Model  Model
+	Reason string
 }
 
 // Manifest is a parsed, validated local-model manifest.
@@ -184,6 +222,12 @@ type Manifest struct {
 	Channel string `json:"channel"`
 
 	Models []Model `json:"models"`
+
+	// Withheld are the entries [Parse] took out of Models because this binary
+	// is older than their min_nav_pilot, or could not read that field. They
+	// are treated exactly like entries the manifest does not list; the reason
+	// is kept so a developer who configured one is told why.
+	Withheld []Withheld `json:"-"`
 }
 
 // Parse validates raw manifest bytes and returns the manifest. Validation is
@@ -201,6 +245,9 @@ func Parse(data []byte) (*Manifest, error) {
 	if err := m.checkSchemaVersion(); err != nil {
 		return nil, err
 	}
+	// Before checkModels: an entry meant for a newer binary may carry values
+	// this one's rules do not know, and it is not offered here anyway.
+	m.withholdTooNew()
 	if err := m.checkModels(); err != nil {
 		return nil, err
 	}
@@ -318,12 +365,60 @@ func (m *Manifest) checkModels() error {
 	// Exactly one: zero leaves the picker with nothing to preselect, and two
 	// makes "the default" depend on iteration order — a silent wrong answer
 	// rather than a loud one.
+	// Any withheld default, not only a missing one: a withheld default beside
+	// an offered one is a manifest with two defaults, which is refused below.
+	for _, w := range m.Withheld {
+		if w.Model.Default {
+			return fmt.Errorf("local-model manifest's default model is withheld: %s", w.Reason)
+		}
+	}
 	if len(defaults) != 1 {
 		return fmt.Errorf(
 			"local-model manifest must mark exactly one model as \"default\": true, this one marks %d (%s)",
 			len(defaults), strings.Join(defaults, ", "))
 	}
 	return nil
+}
+
+// withholdTooNew moves entries this binary must not offer from Models to
+// Withheld. It is the one per-entry exception to Parse's whole-file rule: a
+// min_nav_pilot this binary is too old for is the manifest working as meant,
+// and a malformed one costs that entry only, since refusing the whole file
+// over it would leave every developer on a stale cache.
+func (m *Manifest) withholdTooNew() {
+	kept := m.Models[:0]
+	for _, model := range m.Models {
+		if model.MinNavPilot == "" {
+			kept = append(kept, model)
+			continue
+		}
+		older, err := agentpakke.RunningOlderThan(string(model.MinNavPilot))
+		switch {
+		case err != nil:
+			m.Withheld = append(m.Withheld, Withheld{model, fmt.Sprintf(
+				"%s has a min_nav_pilot this nav-pilot cannot read, so it is skipped: %v", model.Name, err)})
+		case older:
+			m.Withheld = append(m.Withheld, Withheld{model, fmt.Sprintf(
+				"%s needs nav-pilot ≥ %s; you have %s. Update with %s (or reinstall via %s)",
+				model.Name, model.MinNavPilot, agentpakke.RunningVersion(),
+				domain.Bold("nav-pilot update"), domain.PkgSelf().Pick("Homebrew", "apt"))})
+		default:
+			kept = append(kept, model)
+		}
+	}
+	m.Models = kept
+}
+
+// WithheldEntry returns the withheld entry for a model id, if there is one.
+func (m *Manifest) WithheldEntry(model string) (Withheld, bool) {
+	if m != nil {
+		for _, w := range m.Withheld {
+			if w.Model.Model == model {
+				return w, true
+			}
+		}
+	}
+	return Withheld{}, false
 }
 
 // maxPrefillStepSize bounds MLX_PREFILL_STEP_SIZE. mlx-lm's default is 2048,

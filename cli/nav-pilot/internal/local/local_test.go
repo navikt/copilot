@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 )
 
 // modelJSON renders one manifest entry. Tests vary only the fields the rules
@@ -628,5 +630,96 @@ func TestParseCapabilities(t *testing.T) {
 	var none *Capabilities
 	if send, keep := none.DelegateTrusted(); send != nil || len(keep) != len(TaskClasses) {
 		t.Errorf("a nil block trusted %v", send)
+	}
+}
+
+// TestMinNavPilotGate: an entry whose min_nav_pilot is newer than this binary
+// is withheld, not offered, and the rest of the manifest is untouched. A dev
+// build is treated as newest, and a malformed minimum costs only its entry.
+func TestMinNavPilotGate(t *testing.T) {
+	t.Cleanup(func() { agentpakke.SetVersion("dev"); SetSelectedModel("") })
+	gated := func(min string) string {
+		return fmt.Sprintf(`{"key":"big","name":"Big 8bit","model":"mlx-community/Big-8bit","backend":"mlx-lm","weights_gb":30,"min_ram_gb":64,"params":{},"min_nav_pilot":%q}`, min)
+	}
+	const min = "2026.09.24-110317-abc1234"
+
+	tests := []struct {
+		name, running, min string
+		offered            bool
+		reason             string
+	}{
+		{"older client withholds", "2026.09.20-080000-1111111", min, false, "Big 8bit needs nav-pilot ≥ " + min + "; you have 2026.09.20-080000-1111111"},
+		{"equal client offers", "2026.09.24-110317-2222222", min, true, ""},
+		{"newer client offers", "2026.10.01-000000-3333333", min, true, ""},
+		{"dev build offers", "dev", min, true, ""},
+		{"malformed minimum skips the entry", "2026.10.01-000000-3333333", "2026-09-24", false, "cannot read"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			agentpakke.SetVersion(tt.running)
+			m, err := Parse(manifestJSON("1", modelJSON("qwen", okModel, true), gated(tt.min)))
+			if err != nil {
+				t.Fatalf("Parse: %v", err)
+			}
+			_, withheld := m.WithheldEntry("mlx-community/Big-8bit")
+			offered := slices.ContainsFunc(m.Models, func(e Model) bool { return e.Model == "mlx-community/Big-8bit" })
+			if offered != tt.offered || withheld == tt.offered {
+				t.Fatalf("offered=%v withheld=%v, want offered=%v", offered, withheld, tt.offered)
+			}
+			if !slices.ContainsFunc(m.Models, func(e Model) bool { return e.Model == okModel }) {
+				t.Errorf("the ungated entry was dropped: %+v", m.Models)
+			}
+			if !tt.offered {
+				if w, _ := m.WithheldEntry("mlx-community/Big-8bit"); !strings.Contains(w.Reason, tt.reason) {
+					t.Errorf("reason = %q, want it to contain %q", w.Reason, tt.reason)
+				}
+				// Configured but withheld: falls back to the default, like an
+				// entry the manifest does not list.
+				SetSelectedModel("mlx-community/Big-8bit")
+				if got, ok := Chosen(m); !ok || got.Model != okModel {
+					t.Errorf("Chosen = %q/%v, want the default %q", got.Model, ok, okModel)
+				}
+			}
+		})
+	}
+}
+
+// TestMinNavPilotWithheldDefaultNamesTheReason: gating the default leaves the
+// manifest with none, which Parse refuses; the error says why.
+func TestMinNavPilotWithheldDefaultNamesTheReason(t *testing.T) {
+	t.Cleanup(func() { agentpakke.SetVersion("dev") })
+	agentpakke.SetVersion("2026.09.20-080000-1111111")
+	_, err := Parse(manifestJSON("1", `{"key":"q","name":"Q","model":"`+okModel+`","backend":"mlx-lm","default":true,"params":{},"min_nav_pilot":"2026.09.24-110317-abc1234"}`))
+	if err == nil || !strings.Contains(err.Error(), "default model is withheld") {
+		t.Errorf("Parse error = %v, want one naming the withheld default", err)
+	}
+}
+
+// TestMinNavPilotWrongTypeSkipsOnlyThatEntry: a non-string min_nav_pilot is
+// malformed like a bad string, not a reason to refuse the whole manifest. null
+// counts: it must not pass as an absent field.
+func TestMinNavPilotWrongTypeSkipsOnlyThatEntry(t *testing.T) {
+	for _, raw := range []string{"123", "null", "{}"} {
+		m, err := Parse(manifestJSON("1", modelJSON("qwen", okModel, true),
+			`{"key":"big","name":"Big","model":"mlx-community/Big-8bit","backend":"mlx-lm","params":{},"min_nav_pilot":`+raw+`}`))
+		if err != nil {
+			t.Fatalf("%s: Parse: %v", raw, err)
+		}
+		if w, ok := m.WithheldEntry("mlx-community/Big-8bit"); !ok || !strings.Contains(w.Reason, "cannot read") {
+			t.Errorf("%s: WithheldEntry = %+v/%v, want it skipped as unreadable", raw, w, ok)
+		}
+		if len(m.Models) != 1 || m.Models[0].Model != okModel {
+			t.Errorf("%s: Models = %+v, want only the default", raw, m.Models)
+		}
+	}
+}
+
+// TestMinNavPilotWithheldSecondDefaultIsRefused: a withheld default beside an
+// offered one is still two defaults, and must not pass by being filtered out.
+func TestMinNavPilotWithheldSecondDefaultIsRefused(t *testing.T) {
+	_, err := Parse(manifestJSON("1", modelJSON("qwen", okModel, true),
+		`{"key":"big","name":"Big","model":"mlx-community/Big-8bit","backend":"mlx-lm","default":true,"params":{},"min_nav_pilot":"bad"}`))
+	if err == nil || !strings.Contains(err.Error(), "default model is withheld") {
+		t.Errorf("Parse error = %v, want the withheld default named", err)
 	}
 }

@@ -1,11 +1,13 @@
 package source
 
 import (
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // gitRun runs git in dir and fails the test on error.
@@ -154,5 +156,44 @@ func TestCloneRemoteUnknownRef(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "no-such-ref") {
 		t.Errorf("error %q does not name the ref that failed", err)
+	}
+}
+
+// FetchTimeout is what keeps an offline launch with a cached copy from waiting
+// out git's 75 s connect timeout. A server that accepts the connection and
+// never answers stands in for a network that does not respond.
+func TestFetchTimeoutAbortsAHangingFetch(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			t.Cleanup(func() { c.Close() })
+		}
+	}()
+	t.Setenv("NO_PROXY", "*")
+	t.Setenv("no_proxy", "*")
+	orig := RemoteURLFn
+	t.Cleanup(func() { RemoteURLFn = orig })
+	RemoteURLFn = func(string) string { return "http://" + ln.Addr().String() + "/x.git" }
+	t.Cleanup(func() { FetchTimeout = 0 })
+	FetchTimeout = 300 * time.Millisecond
+
+	start := time.Now()
+	_, err = cloneRemote("", "owner/name")
+	if err == nil {
+		t.Fatal("a fetch from a server that never answers must fail")
+	}
+	if took := time.Since(start); took > 10*time.Second {
+		t.Errorf("fetch took %s, want it cut off near FetchTimeout", took)
+	}
+	if !strings.Contains(err.Error(), "gave up after 300ms") {
+		t.Errorf("the error must say the fetch timed out, got: %v", err)
 	}
 }
