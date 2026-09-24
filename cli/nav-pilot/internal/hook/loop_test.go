@@ -115,9 +115,14 @@ func TestLoopGuardKeepsStatePerSession(t *testing.T) {
 		q, _ := ParsePayload(payload("s2", "bash", `{"command":"ls"}`, "a.go"))
 		LoopGuard(dir, q, 8)
 	}
-	// The run lives in the session's own directory, where Copilot keeps the session.
-	if _, err := os.Stat(filepath.Join(dir, "s1", "nav-pilot-loop-guard.json")); err != nil {
+	// The run lives in the session's own directory, where Copilot keeps the
+	// session, as hashes and counts: neither the arguments nor the result.
+	state, err := os.ReadFile(filepath.Join(dir, "s1", "nav-pilot-loop-guard.json"))
+	if err != nil {
 		t.Errorf("no state in the session directory: %v", err)
+	}
+	if strings.Contains(string(state), "ls") || strings.Contains(string(state), "a.go") {
+		t.Errorf("state holds the call or the result: %s", state)
 	}
 	var got struct {
 		ModifiedResult struct {

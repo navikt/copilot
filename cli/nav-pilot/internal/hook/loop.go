@@ -33,7 +33,7 @@ import (
 
 // LoopState is the run a session is on, as kept between hook calls.
 type LoopState struct {
-	Call   string `json:"call"`
+	Call   string `json:"call"` // sha256 of the call's Signature
 	N      int    `json:"n"`
 	Same   int    `json:"same"`
 	Result string `json:"result"` // sha256 of the normalised result
@@ -139,14 +139,22 @@ func LoopGuard(root string, p Payload, threshold int) (string, error) {
 	if data, err := os.ReadFile(path); err == nil {
 		_ = json.Unmarshal(data, &st)
 	}
-	st = st.Step(Signature(p.ToolName, p.ToolArgs), p.ResultType, p.Result)
-	err := saveState(dir, path, st)
-
-	msg := LoopMessage(st, threshold)
-	if msg == "" {
+	// The call is kept as a hash too: its arguments can hold anything.
+	sig := Signature(p.ToolName, p.ToolArgs)
+	sum := sha256.Sum256([]byte(sig))
+	st = st.Step(hex.EncodeToString(sum[:]), p.ResultType, p.Result)
+	// A count that was not saved is not one to act on: the next call would
+	// start from the old state again.
+	if err := saveState(dir, path, st); err != nil {
 		return NoChange, err
 	}
-	return ModifiedResult(p.ResultType, msg+"\n\nThe tool result, unchanged:\n"+p.Result), err
+
+	st.Call = sig
+	msg := LoopMessage(st, threshold)
+	if msg == "" {
+		return NoChange, nil
+	}
+	return ModifiedResult(p.ResultType, msg+"\n\nThe tool result, unchanged:\n"+p.Result), nil
 }
 
 func saveState(dir, path string, st LoopState) error {
