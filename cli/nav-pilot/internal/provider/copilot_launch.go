@@ -190,8 +190,8 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		env = copilotLocalEnv(env, worker, guard.URL())
 		fmt.Fprintf(os.Stderr, "%s Local inference: this whole session runs on %s here on the machine.\n",
 			domain.Dim("ℹ"), domain.Bold(worker.Model))
-		fmt.Fprintf(os.Stderr, "%s nav-pilot ends a turn after %d identical tool calls in a row.\n\n",
-			domain.Dim("ℹ"), local.LoopGuardRepeat())
+		fmt.Fprintf(os.Stderr, "%s nav-pilot ends a turn after %d identical tool calls in a row with the same result, or %d whatever they return.\n\n",
+			domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
 	}
 	// The second seam. This path builds its own argument vector and runs its
 	// own exec.Command instead of going through cpltArgv/launchViaCplt, so
