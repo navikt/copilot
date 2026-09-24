@@ -170,6 +170,8 @@ func TestDecideThresholdExitCodes(t *testing.T) {
 		{"--threshold", "0.5"},                  // no --expect
 		{"--threshold", "0.5", "--expect", "x"}, // not an option
 		{"--threshold", "2", "--expect", "yes"},
+		{"--threshold", "-0.1"}, // was silently ignored
+		{"--threshold", "-0.1", "--expect", "yes"},
 	} {
 		if _, _, code := runDecide(t, append([]string{"Is it?", "--options", "yes,no"}, args...)...); code != 2 {
 			t.Errorf("%v: exit %d, want 2", args, code)

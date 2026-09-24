@@ -104,7 +104,7 @@ func cmdDecide(args []string) error {
 	fs.SetOutput(io.Discard)
 	optionsFlag := fs.String("options", "", "")
 	evidenceFlag := fs.String("evidence", "", "")
-	threshold := fs.Float64("threshold", -1, "")
+	threshold := fs.Float64("threshold", 0, "")
 	expect := fs.String("expect", "", "")
 	jsonFlag := fs.Bool("json", false, "")
 	timeout := fs.Duration("timeout", 10*time.Second, "")
@@ -151,11 +151,12 @@ func cmdDecide(args []string) error {
 	if err := validateOptions(options); err != nil {
 		return decideFail(err)
 	}
-	thresholdSet := *threshold >= 0
+	thresholdSet := false
+	fs.Visit(func(f *flag.Flag) { thresholdSet = thresholdSet || f.Name == "threshold" })
 	if thresholdSet != (*expect != "") {
 		return decideFail(fmt.Errorf("--threshold and --expect go together"))
 	}
-	if thresholdSet && (*threshold > 1) {
+	if thresholdSet && (*threshold < 0 || *threshold > 1) {
 		return decideFail(fmt.Errorf("--threshold is a probability between 0 and 1, got %v", *threshold))
 	}
 	if *expect != "" && !slices.Contains(options, *expect) {

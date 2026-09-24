@@ -2,6 +2,7 @@ package local
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -145,6 +146,12 @@ func Acquire(ctx context.Context) (url, model string, release func(), err error)
 	if err := EnsureOwnServer(); err != nil {
 		release()
 		return "", "", nil, err
+	}
+	// Re-read under the lock: a restart while this call waited leaves a new
+	// port and model, and the check above validated those, not the first read.
+	if st, ok, err = LoadState(); err != nil || !ok {
+		release()
+		return "", "", nil, fmt.Errorf("the local server record changed while waiting: %w", cmp.Or(err, ErrNoServerRecorded))
 	}
 	return fmt.Sprintf("http://127.0.0.1:%d", st.ServerPort()), st.Model, release, nil
 }
