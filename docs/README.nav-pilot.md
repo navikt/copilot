@@ -424,7 +424,7 @@ oppgaver enn standard i siste måling, men brukte mange ganger så lang tid.
 
 Kontekst, svarlengde, minnekrav, vekter og minste nav-pilot-versjon for hver modell står i
 [tabellen på ki-utvikling.nav.no](https://ki-utvikling.nav.no/nav-pilot/docs#lokal-modeller).
-Den er generert fra [modellmanifestet](https://github.com/navikt/mlx-workspace/blob/main/manifest/models.json),
+Den hentes fra [modellmanifestet](https://github.com/navikt/mlx-workspace/blob/main/manifest/models.json),
 det samme nav-pilot leser, så tallene står ikke her. Målingene bak står i
 [MODELS.md](https://github.com/navikt/mlx-workspace/blob/main/MODELS.md).
 
