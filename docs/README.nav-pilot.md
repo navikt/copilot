@@ -394,6 +394,7 @@ Krever en Mac med Apple Silicon og 48 GB minne, og rundt 26 GB ledig disk. `init
 nav-pilot alpha local init      # gjør alt: miljø, vekter, minnegrense, og starter serveren
 nav-pilot alpha local status    # kjører den? svarer den? hvilken modell? hva har den gjort?
 nav-pilot alpha local ask -p "..."  # still ett spørsmål rett til modellen
+nav-pilot alpha decide "..." --options ja,nei --evidence fil  # typet avgjørelse, se under
 nav-pilot alpha local stop      # og start igjen med start
 nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
@@ -478,6 +479,62 @@ har ingen godkjent oppgavetype ennå. Den gjeldende lista står i
 [tabellen på ki-utvikling.nav.no](https://ki-utvikling.nav.no/nav-pilot/docs#lokal-hva-den-klarer).
 
 Tiden varierer: fra omtrent som skyen på små endringer til rundt fire ganger så lenge på en omdøping. På den største mekaniske endringen vi målte var den raskere enn skyen.
+
+### Typede avgjørelser med `alpha decide`
+
+`nav-pilot alpha decide` stiller den lokale modellen ett flervalgsspørsmål og svarer med
+sannsynligheter for hvert alternativ, ikke med fritekst. Modellen genererer ett token, så et
+varmt svar tar under ett sekund. Svaret er JSON når utdata går til et skript:
+
+```json
+{"choice":"ja","p":{"ja":0.93,"nei":0.07},"model":"…","ms":410,"evidence":true}
+```
+
+En avgjørelse blir aldri bedre enn grunnlaget modellen får. Gi den det den skal vurdere med
+`--evidence <fil>` eller `--evidence -` (stdin). Uten grunnlag får du en advarsel og
+`"evidence": false`.
+
+En `commit-msg`-hook som stopper meldinger som ikke følger Conventional Commits:
+
+```bash
+#!/bin/sh
+nav-pilot alpha decide "Følger commit-meldingen Conventional Commits?" \
+  --options ja,nei --evidence "$1" --threshold 0.8 --expect ja
+```
+
+Exit 0 betyr at p(ja) er minst 0,8, 1 at den er lavere, og 2 at noe feilet, for eksempel at
+serveren ikke kjører. Skal hooken slippe gjennom når modellen ikke svarer, må du behandle 2
+som «ok».
+
+Se etter feil i en logg:
+
+```bash
+tail -n 200 app.log | nav-pilot alpha decide "Viser loggen en feil som krever handling?" \
+  --options ja,nei --evidence - --json
+```
+
+Mål spørsmålet før du bruker det i en hook. Lag en JSONL-fil med eksempler du kjenner fasiten
+på, ett per linje:
+
+```json
+{"question":"Følger commit-meldingen Conventional Commits?","options":["ja","nei"],"evidence":"feat: legg til eksport","expect":"ja"}
+```
+
+```bash
+nav-pilot alpha decide --eval cases.jsonl
+```
+
+Du får treffsikkerhet, en forvekslingsmatrise, gjennomsnittlig sannsynlighet for riktige og
+gale svar (er modellen like sikker når den tar feil?) og p50/p95-svartid.
+
+Forbehold:
+
+- Hvor treffsikker modellen er på ditt spørsmål, vet du ikke før du har kjørt `--eval`.
+- Serveren svarer på én forespørsel om gangen. Kjører en agentsesjon mot den samtidig, venter
+  `decide` til sesjonens forespørsel er ferdig. `--timeout` (standard 10s) teller med ventetiden.
+- `decide` starter ikke serveren selv, fordi en kaldstart tar 5–10 sekunder og legger modellen
+  på GPU-en. Start den med `nav-pilot alpha local start`.
+- Alt skjer lokalt. Spørsmålet og grunnlaget forlater ikke maskinen.
 
 ### Når noe henger
 

@@ -2,6 +2,7 @@ package local
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -26,16 +27,14 @@ const askMaxTokens = 4096
 // No streaming, so the usage block comes back in the response rather than only
 // in a final frame the caller has to ask for.
 func Ask(ctx context.Context, prompt string) (answer string, in, out int64, err error) {
-	st, ok, err := LoadState()
+	base, model, release, err := Acquire(ctx)
 	if err != nil {
 		return "", 0, 0, err
 	}
-	if !ok {
-		return "", 0, 0, fmt.Errorf("no local server is running. Start it: nav-pilot alpha local start")
-	}
+	defer release()
 
 	body, err := json.Marshal(map[string]any{
-		"model":    st.Model,
+		"model":    model,
 		"messages": []map[string]string{{"role": "user", "content": prompt}},
 		"stream":   false,
 		// The server's default cap is 512 tokens, and this is a thinking model:
@@ -49,23 +48,7 @@ func Ask(ctx context.Context, prompt string) (answer string, in, out int64, err 
 		return "", 0, 0, err
 	}
 
-	release, err := lockServer(ctx)
-	if err != nil {
-		return "", 0, 0, fmt.Errorf("the local server is busy with another session: %w", err)
-	}
-	defer release()
-
-	// Prove the recorded server is still ours before sending a prompt to it.
-	// The guard does this on every completion it forwards; this path bypassed
-	// the guard entirely and trusted the port in the state file, so a server
-	// that died and left its port to whatever bound next would have been handed
-	// the developer's question. Under the lock, so the answer cannot go stale
-	// between the check and the request.
-	if err := EnsureOwnServer(); err != nil {
-		return "", 0, 0, err
-	}
-
-	url := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", st.ServerPort())
+	url := base + "/v1/chat/completions"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return "", 0, 0, err
@@ -133,6 +116,45 @@ func Ask(ctx context.Context, prompt string) (answer string, in, out int64, err 
 		}
 	}
 	return answer, parsed.Usage.PromptTokens, parsed.Usage.CompletionTokens, nil
+}
+
+// Acquire takes the machine-wide server lock and proves the recorded server
+// is still nav-pilot's own, then hands back its base URL, its model and the
+// release. Every direct request to the server (ask, decide) goes through here.
+//
+// "Nothing recorded" fails before the lock, so a caller with no server does not
+// wait behind one. The lock wait honours ctx, which is how a caller's timeout
+// covers a session holding the server.
+func Acquire(ctx context.Context) (url, model string, release func(), err error) {
+	_, ok, err := LoadState()
+	if err != nil {
+		return "", "", nil, err
+	}
+	if !ok {
+		return "", "", nil, fmt.Errorf("%w. Start it: nav-pilot alpha local start", ErrNoServerRecorded)
+	}
+	release, err = lockServer(ctx)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("the local server is busy with another session: %w", err)
+	}
+	// Prove the recorded server is still ours before sending a prompt to it.
+	// The guard does this on every completion it forwards; a direct request
+	// bypasses the guard and would otherwise trust the port in the state file,
+	// so a server that died and left its port to whatever bound next would be
+	// handed the prompt. Under the lock, so the answer cannot go stale between
+	// the check and the request.
+	if err := EnsureOwnServer(); err != nil {
+		release()
+		return "", "", nil, err
+	}
+	// Re-read under the lock: a restart while this call waited leaves a new
+	// port and model, and the check above validated those, not the first read.
+	st, ok, err := LoadState()
+	if err != nil || !ok {
+		release()
+		return "", "", nil, fmt.Errorf("the local server record changed while waiting: %w", cmp.Or(err, ErrNoServerRecorded))
+	}
+	return fmt.Sprintf("http://127.0.0.1:%d", st.ServerPort()), st.Model, release, nil
 }
 
 func firstLine(b []byte) string {
