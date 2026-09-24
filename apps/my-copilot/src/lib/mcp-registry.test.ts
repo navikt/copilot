@@ -1,11 +1,29 @@
 import { getMcpServers } from "./mcp-registry";
 
+const cacheConfiguration = vi.hoisted(() => ({
+  keyParts: [] as string[],
+  revalidate: 0,
+  tags: [] as string[],
+}));
+
 vi.mock("next/cache", () => ({
-  cacheLife: vi.fn(),
-  cacheTag: vi.fn(),
+  unstable_cache: vi.fn((fn: () => unknown, keyParts: string[], options: { revalidate: number; tags: string[] }) => {
+    cacheConfiguration.keyParts = keyParts;
+    cacheConfiguration.revalidate = options.revalidate;
+    cacheConfiguration.tags = options.tags;
+    return fn;
+  }),
 }));
 
 describe("getMcpServers", () => {
+  it("caches registry results for one hour", () => {
+    expect(cacheConfiguration).toEqual({
+      keyParts: ["mcp-servers"],
+      revalidate: 3600,
+      tags: ["mcp-servers"],
+    });
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
