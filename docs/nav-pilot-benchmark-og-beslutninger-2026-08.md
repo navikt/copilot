@@ -177,6 +177,21 @@ en `*-results.psv` med rader per kjøring og per påstand. Skal denne testen kj�
 mot nye data, er det den fila som må ligge ved siden av baselinen; uten den er
 neste analyse like uetterrettelig som denne.
 
+Fra 23. september skriver harnesset også veggklokketid per prompt. Når
+`$HOME/.copilot/session-store.db` er tilgjengelig, skriver det en
+`*-usage.psv` med de eksakte radene fra `assistant_usage_events`. Fila skiller
+mellom input, output, cache-lesing, cache-skriving og reasoning-tokens. Den har
+også `total_nano_aiu`, modellkall, reasoning effort og latency per kall.
+Kjøringen kan pinne `--effort` og `--context`, og baseline-headeren lagrer disse
+sammen med eksakt klientversjon. Dermed blir ikke en skjult endring fra High til
+Medium effort lest som en modellforskjell.
+
+Dette gjør kostnad og kjøretid etterprøvbart. Det gjør ikke conformance-suiten
+til en generell modellbenchmark. En billig grønn respons kan fortsatt være
+faglig svak, og en korrekt respons kan kreve menneskelig retting som harnesset
+ikke ser. Kostnad per godkjent oppgave krever egne oppgaver med kjørbare
+akseptansekriterier og registrert retting, slik #584 beskriver.
+
 ## 2. Funnet som betyr mer enn modellvalget
 
 **Den påkrevde personvern-blindsonen blir oversett på alle modeller som ble
