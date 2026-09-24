@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
@@ -653,6 +654,37 @@ func TestLocalModelKeySelectsTheServedModel(t *testing.T) {
 	}
 	if !strings.Contains(out, "org/NotOffered") || !strings.Contains(out, "org/Default") {
 		t.Errorf("no advisory naming the fallback, got: %q", out)
+	}
+}
+
+// TestLocalModelWithheldFallsBackWithTheReason: a local_model this binary is
+// too old for takes the not-offered fallback, and start says why and how to
+// update rather than only that the id is not offered.
+func TestLocalModelWithheldFallsBackWithTheReason(t *testing.T) {
+	localTestHome(t)
+	t.Cleanup(func() { local.SetSelectedModel(""); agentpakke.SetVersion("dev") })
+	agentpakke.SetVersion("2026.09.20-080000-1111111")
+	m, err := local.Parse([]byte(`{"schema_version":1,"channel":"alpha","models":[
+		{"key":"d","name":"Default","model":"mlx-community/Default","backend":"mlx-lm","default":true,"params":{}},
+		{"key":"big","name":"Qwen 3.8 27B 8bit","model":"mlx-community/Big-8bit","backend":"mlx-lm","params":{},"min_nav_pilot":"2026.09.24-110317-abc1234"}]}`))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if _, err := writeConfigKey("local_model", "mlx-community/Big-8bit"); err != nil {
+		t.Fatalf("writing local_model: %v", err)
+	}
+	var got local.Model
+	out := captureStderr(func() {
+		printWithheld(m)
+		got, err = localModel(m)
+	})
+	if err != nil || got.Model != "mlx-community/Default" {
+		t.Errorf("localModel = %q/%v, want the default", got.Model, err)
+	}
+	for _, want := range []string{"Qwen 3.8 27B 8bit needs nav-pilot ≥ 2026.09.24-110317-abc1234", "you have 2026.09.20-080000-1111111", "nav-pilot update", "needs a newer nav-pilot", "mlx-community/Default"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("stderr lacks %q, got: %q", want, out)
+		}
 	}
 }
 
