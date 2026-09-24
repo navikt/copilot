@@ -203,12 +203,21 @@ viser dem sammen med de andre.
 | Hook | Fil | Hva den gjør | Slå av |
 | --- | --- | --- | --- |
 | Løkkevakt | `nav-pilot-loop-guard.json` | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring. | `nav-pilot config set hook_loop_guard false` |
+| Maskering | `nav-pilot-redact-tool-output.json` | Maskerer hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er og verdien i `password=`/`api_key=`) og fødselsnummer, D-nummer og H-nummer i verktøyresultatet før modellen leser det. Setter en merknad foran et resultat som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører). | `hook_redact_secrets`, `hook_redact_fnr` og `hook_injection_note`, hver for seg |
 
 En hook etter verktøykallet (`postToolUse`) kan ikke avslutte en tur. Den kan bare endre
 det modellen leser. Når løkkevakten slår til, får modellen derfor en beskjed om at den står
 fast, med resultatet under, i stedet for det samme svaret en gang til. Terskelen følger
 `local_loop_guard`, og det som skjedde tidligere i økta ligger i en liten fil per økt under
 `~/.nav-pilot/hook-state/`. Filer som er eldre enn ett døgn ryddes bort.
+
+Maskeringen bytter ut funnet med `[REDACTED:<type>]`, for eksempel `[REDACTED:fnr]`, og lar
+resten av resultatet stå. Et fødselsnummer maskeres bare når datoen er gyldig og begge
+kontrollsifrene stemmer. D-nummer (dag + 40) og H-nummer (måned + 40) regnes med. Et
+tilfeldig tall på elleve sifre blir derfor stående. Merknaden om instrukser stopper
+ingenting: den sier bare til modellen at teksten kommer fra verktøyet og ikke skal følges.
+Mønstrene er et lite utvalg av standardreglene i gitleaks, og de er valgt for å gi få
+falske treff i vanlig kode og vanlige logger. Hooken fanger ikke alle hemmeligheter.
 
 I en lokal økt står vakten i nav-pilot allerede foran modellen og avslutter turen. Der gjør
 hooken ingenting, så modellen ikke får to beskjeder om samme løkke. Hookene er laget for å

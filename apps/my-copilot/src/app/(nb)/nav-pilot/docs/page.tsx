@@ -1575,6 +1575,24 @@ const CONFIG_KEYS = [
     values: "true · false",
     desc: "Samme løkkeregel i alle Copilot CLI-økter, også i skyen. nav-pilot skriver en postToolUse-hook til ~/.copilot/hooks/ ved oppstart, og modellen får beskjed om at den står fast i stedet for det samme svaret igjen. På som standard; false fjerner hooken ved neste oppstart.",
   },
+  {
+    key: "hook_redact_secrets",
+    flag: "—",
+    values: "true · false",
+    desc: "Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-økter. På som standard.",
+  },
+  {
+    key: "hook_redact_fnr",
+    flag: "—",
+    values: "true · false",
+    desc: "Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. Bare elleve sifre der datoen og begge kontrollsifrene stemmer blir maskert. På som standard.",
+  },
+  {
+    key: "hook_injection_note",
+    flag: "—",
+    values: "true · false",
+    desc: "Sett en merknad foran verktøyresultater som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører), så modellen behandler dem som data. Stopper ingenting. På som standard.",
+  },
 ];
 
 function KlienterOgKonfigurasjonSection() {

@@ -188,6 +188,33 @@ var configKeyDefs = []configKeyDef{
 		group:       "Hooks",
 	},
 	{
+		name:        "hook_redact_secrets",
+		kind:        keyKindBool,
+		description: "Mask secrets (GitHub tokens, AWS key ids, private keys, JWTs, password=/api_key= values) in tool results before the model reads them, in every Copilot CLI session. Written at launch as a postToolUse hook in ~/.copilot/hooks/.",
+		allowed:     nil,
+		defaultVal:  "true",
+		flag:        "",
+		group:       "Hooks",
+	},
+	{
+		name:        "hook_redact_fnr",
+		kind:        keyKindBool,
+		description: "Mask fødselsnummer, D-nummer and H-nummer in tool results before the model reads them. Only eleven digits whose date and both mod-11 control digits check out are masked.",
+		allowed:     nil,
+		defaultVal:  "true",
+		flag:        "",
+		group:       "Hooks",
+	},
+	{
+		name:        "hook_injection_note",
+		kind:        keyKindBool,
+		description: "Put a note in front of a tool result that reads like instructions to the model (\"ignore previous instructions\", role markers), telling it the text is data. Flags; never blocks.",
+		allowed:     nil,
+		defaultVal:  "true",
+		flag:        "",
+		group:       "Hooks",
+	},
+	{
 		name:        "rtk_prompted_client",
 		kind:        keyKindString,
 		description: "Comma-separated list of clients where the RTK setup was prompted.",
@@ -344,6 +371,23 @@ version = 1
 # rule to each tool result; false removes it at the next launch.
 # Default: true
 # hook_loop_guard = true
+
+# The redaction hook (~/.copilot/hooks/nav-pilot-redact-tool-output.json)
+# looks at every tool result before the model reads it, in every Copilot CLI
+# session. Each part can be turned off on its own; with all three off the
+# hook is removed at the next launch.
+# Mask secrets: GitHub tokens, AWS key ids, private keys, JWTs, and the value
+# of password=/api_key=-style assignments.
+# Default: true
+# hook_redact_secrets = true
+# Mask fødselsnummer, D-nummer and H-nummer (date and both mod-11 control
+# digits valid).
+# Default: true
+# hook_redact_fnr = true
+# Put a note in front of a result that reads like instructions to the model
+# ("ignore previous instructions", role markers). Flags; never blocks.
+# Default: true
+# hook_injection_note = true
 
 # Internal flag to track which client the user was last prompted to set up rtk for.
 # Default: unset
@@ -565,6 +609,12 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return r.LocalModel
 	case "hook_loop_guard":
 		return strconv.FormatBool(r.HookLoopGuard)
+	case "hook_redact_secrets":
+		return strconv.FormatBool(r.HookRedactSecrets)
+	case "hook_redact_fnr":
+		return strconv.FormatBool(r.HookRedactFNR)
+	case "hook_injection_note":
+		return strconv.FormatBool(r.HookInjectionNote)
 	case "rtk_prompted_client":
 		return r.RtkPromptedClient
 	case "rtk_prompted_at":
