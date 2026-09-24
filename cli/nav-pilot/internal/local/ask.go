@@ -126,7 +126,7 @@ func Ask(ctx context.Context, prompt string) (answer string, in, out int64, err 
 // wait behind one. The lock wait honours ctx, which is how a caller's timeout
 // covers a session holding the server.
 func Acquire(ctx context.Context) (url, model string, release func(), err error) {
-	st, ok, err := LoadState()
+	_, ok, err := LoadState()
 	if err != nil {
 		return "", "", nil, err
 	}
@@ -149,7 +149,8 @@ func Acquire(ctx context.Context) (url, model string, release func(), err error)
 	}
 	// Re-read under the lock: a restart while this call waited leaves a new
 	// port and model, and the check above validated those, not the first read.
-	if st, ok, err = LoadState(); err != nil || !ok {
+	st, ok, err := LoadState()
+	if err != nil || !ok {
 		release()
 		return "", "", nil, fmt.Errorf("the local server record changed while waiting: %w", cmp.Or(err, ErrNoServerRecorded))
 	}
