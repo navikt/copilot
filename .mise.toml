@@ -133,6 +133,18 @@ run = "node --test scripts/sync-copilot-models.test.mjs"
 description = "Fetch the models.dev github-copilot catalog and regenerate the picker"
 run = "node scripts/sync-copilot-models.mjs"
 
+[tasks."local-models:check"]
+description = "Check if the local-model table on the docs page matches the mlx-workspace manifest"
+run = "node scripts/sync-local-models.mjs --check"
+
+[tasks."local-models:test"]
+description = "Test the local-model table generator (malformed-manifest guards)"
+run = "node --test scripts/sync-local-models.test.mjs"
+
+[tasks."local-models:sync"]
+description = "Fetch the mlx-workspace model manifest and regenerate the docs page's local-model table"
+run = "node scripts/sync-local-models.mjs"
+
 # ─── nav-pilot installer ─────────────────────────────────────────────────────
 
 [tasks."nav-pilot:build"]

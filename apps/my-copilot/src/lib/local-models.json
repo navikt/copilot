@@ -1,0 +1,116 @@
+{
+  "source": "https://raw.githubusercontent.com/navikt/mlx-workspace/main/manifest/models.json",
+  "models": [
+    {
+      "id": "qwen3.6-35b-a3b-optiq",
+      "name": "Qwen 3.6 35B A3B OptiQ 4bit",
+      "model": "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "default": true,
+      "role": "Sub-agent worker for focused tasks",
+      "weights_gb": 25,
+      "min_ram_gb": 48,
+      "min_nav_pilot": null,
+      "context": 65536,
+      "output": 16384,
+      "temperature": 0.6,
+      "top_p": 0.95,
+      "prefill_step": null,
+      "classes": {
+        "read-qa": {
+          "delegate": "cloud",
+          "local": "not-yet"
+        },
+        "edit-single": {
+          "delegate": "cloud",
+          "local": "not-yet"
+        },
+        "edit-multi-mechanical": {
+          "delegate": "trusted",
+          "local": "cloud"
+        },
+        "create-file": {
+          "delegate": "cloud",
+          "local": "cloud"
+        },
+        "debug": {
+          "delegate": "cloud",
+          "local": "cloud"
+        }
+      }
+    },
+    {
+      "id": "qwen3.8-27b-4bit",
+      "name": "Qwen 3.8 27B 4bit",
+      "model": "mlx-community/Qwen3.8-27B-4bit",
+      "default": false,
+      "role": "Opt-in alternative, slower and much less predictable",
+      "weights_gb": 16,
+      "min_ram_gb": 48,
+      "min_nav_pilot": null,
+      "context": 65536,
+      "output": 8192,
+      "temperature": 0.6,
+      "top_p": 0.95,
+      "prefill_step": null,
+      "classes": {
+        "read-qa": {
+          "delegate": "cloud",
+          "local": "not-yet"
+        },
+        "edit-single": {
+          "delegate": "cloud",
+          "local": "not-yet"
+        },
+        "edit-multi-mechanical": {
+          "delegate": "cloud",
+          "local": "cloud"
+        },
+        "create-file": {
+          "delegate": "cloud",
+          "local": "cloud"
+        },
+        "debug": {
+          "delegate": "cloud",
+          "local": "cloud"
+        }
+      }
+    },
+    {
+      "id": "qwen3.8-27b-8bit-mlx",
+      "name": "Qwen 3.8 27B 8bit (mlx-lm)",
+      "model": "mlx-community/Qwen3.8-27B-8bit",
+      "default": false,
+      "role": "Opt-in alternative, the 8-bit build, slowest here",
+      "weights_gb": 30,
+      "min_ram_gb": 48,
+      "min_nav_pilot": "2026.09.24-110317-3596754",
+      "context": 49152,
+      "output": 4096,
+      "temperature": 0.6,
+      "top_p": 0.95,
+      "prefill_step": 512,
+      "classes": {
+        "read-qa": {
+          "delegate": "cloud",
+          "local": "not-yet"
+        },
+        "edit-single": {
+          "delegate": "cloud",
+          "local": "not-yet"
+        },
+        "edit-multi-mechanical": {
+          "delegate": "cloud",
+          "local": "cloud"
+        },
+        "create-file": {
+          "delegate": "cloud",
+          "local": "cloud"
+        },
+        "debug": {
+          "delegate": "cloud",
+          "local": "cloud"
+        }
+      }
+    }
+  ]
+}
