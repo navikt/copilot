@@ -694,3 +694,29 @@ func TestMinNavPilotWithheldDefaultNamesTheReason(t *testing.T) {
 		t.Errorf("Parse error = %v, want one naming the withheld default", err)
 	}
 }
+
+// TestMinNavPilotWrongTypeSkipsOnlyThatEntry: a non-string min_nav_pilot is
+// malformed like a bad string, not a reason to refuse the whole manifest.
+func TestMinNavPilotWrongTypeSkipsOnlyThatEntry(t *testing.T) {
+	m, err := Parse(manifestJSON("1", modelJSON("qwen", okModel, true),
+		`{"key":"big","name":"Big","model":"mlx-community/Big-8bit","backend":"mlx-lm","params":{},"min_nav_pilot":123}`))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if w, ok := m.WithheldEntry("mlx-community/Big-8bit"); !ok || !strings.Contains(w.Reason, "cannot read") {
+		t.Errorf("WithheldEntry = %+v/%v, want it skipped as unreadable", w, ok)
+	}
+	if len(m.Models) != 1 || m.Models[0].Model != okModel {
+		t.Errorf("Models = %+v, want only the default", m.Models)
+	}
+}
+
+// TestMinNavPilotWithheldSecondDefaultIsRefused: a withheld default beside an
+// offered one is still two defaults, and must not pass by being filtered out.
+func TestMinNavPilotWithheldSecondDefaultIsRefused(t *testing.T) {
+	_, err := Parse(manifestJSON("1", modelJSON("qwen", okModel, true),
+		`{"key":"big","name":"Big","model":"mlx-community/Big-8bit","backend":"mlx-lm","default":true,"params":{},"min_nav_pilot":"bad"}`))
+	if err == nil || !strings.Contains(err.Error(), "default model is withheld") {
+		t.Errorf("Parse error = %v, want the withheld default named", err)
+	}
+}

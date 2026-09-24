@@ -596,7 +596,11 @@ func cmdLocalStatus() error {
 	enabled := cfg != nil && cfg.LocalEnabled != nil && *cfg.LocalEnabled
 	fmt.Printf("  Environment  %s\n", installedLabel())
 	fmt.Printf("  Dispatch     %s\n", enabledLabel(enabled))
-	printWithheld(local.Active())
+	// Cached, not Active: Active can still be the embedded copy parsed before
+	// the version was set, when local dispatch is off or not provisioned.
+	if m, _, _ := local.Cached(); m != nil {
+		printWithheld(m)
+	}
 
 	st, ok, err := local.LoadState()
 	if err != nil {

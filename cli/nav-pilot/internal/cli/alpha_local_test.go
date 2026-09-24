@@ -721,3 +721,31 @@ func TestLocalOffLeavesLocalModelAlone(t *testing.T) {
 		t.Errorf("local_model = %v after off, want it untouched", cfg.LocalModel)
 	}
 }
+
+// TestLocalStatusReportsAWithheldCachedEntry: status with dispatch off still
+// reads the cached manifest under the running version, so an entry this binary
+// is too old for is reported rather than hidden behind the embedded copy that
+// was parsed while the version was still dev.
+func TestLocalStatusReportsAWithheldCachedEntry(t *testing.T) {
+	home := localTestHome(t)
+	t.Cleanup(func() { agentpakke.SetVersion("dev") })
+	agentpakke.SetVersion("2026.09.20-080000-1111111")
+	manifest := `{"schema_version":1,"channel":"alpha","models":[
+		{"key":"d","name":"Default","model":"mlx-community/Default","backend":"mlx-lm","default":true,"params":{}},
+		{"key":"big","name":"Qwen 3.8 27B 8bit","model":"mlx-community/Big-8bit","backend":"mlx-lm","params":{},"min_nav_pilot":"2026.09.24-110317-abc1234"}]}`
+	path := filepath.Join(home, ".nav-pilot", "local-models.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out := captureStderr(func() {
+		if err := cmdLocalStatus(); err != nil {
+			t.Errorf("cmdLocalStatus() errored: %v", err)
+		}
+	})
+	if !strings.Contains(out, "Qwen 3.8 27B 8bit needs nav-pilot ≥ 2026.09.24-110317-abc1234") {
+		t.Errorf("status does not report the withheld entry, got: %q", out)
+	}
+}
