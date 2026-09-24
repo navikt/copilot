@@ -1331,6 +1331,7 @@ func TestServerFlagsCarryTheTunedKnobs(t *testing.T) {
 		"MLX_MAX_TOKENS":         "32768",
 		"MLX_CACHE_SIZE":         "3",
 		"MLX_CHAT_TEMPLATE_ARGS": `{"enable_thinking": false}`,
+		"MLX_PREFILL_STEP_SIZE":  "512",
 		"MLX_OPENCODE_CONTEXT":   "65536",
 	})
 	// Exact equality rather than substring matching. serverFlags is
@@ -1344,6 +1345,7 @@ func TestServerFlagsCarryTheTunedKnobs(t *testing.T) {
 		"--max-tokens", "32768",
 		"--prompt-cache-size", "3",
 		"--chat-template-args", `{"enable_thinking": false}`,
+		"--prefill-step-size", "512",
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("serverFlags =\n  %v\nwant\n  %v", got, want)

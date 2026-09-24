@@ -137,6 +137,30 @@ func TestParse(t *testing.T) {
 			data: manifestJSON("1", paramsJSON("knobs", `{"MLX_MODEL":"x","MLX_TOP_P":"0.95","MLX_CACHE_BYTES":"12884901888"}`)),
 		},
 		{
+			name: "a prefill step size below mlx-lm's default is accepted",
+			data: manifestJSON("1", paramsJSON("prefill", `{"MLX_PREFILL_STEP_SIZE":"512"}`)),
+		},
+		{
+			// Zero or a negative step would reach mlx-lm's prefill loop; the
+			// flag is only ever meant to shrink the per-chunk transient.
+			name:    "a zero prefill step size is rejected",
+			data:    manifestJSON("1", paramsJSON("prefill", `{"MLX_PREFILL_STEP_SIZE":"0"}`)),
+			isErr:   true,
+			wantErr: "MLX_PREFILL_STEP_SIZE",
+		},
+		{
+			name:    "a prefill step size above the bound is rejected",
+			data:    manifestJSON("1", paramsJSON("prefill", `{"MLX_PREFILL_STEP_SIZE":"16385"}`)),
+			isErr:   true,
+			wantErr: "MLX_PREFILL_STEP_SIZE",
+		},
+		{
+			name:    "a prefill step size that is not a whole number is rejected",
+			data:    manifestJSON("1", paramsJSON("prefill", `{"MLX_PREFILL_STEP_SIZE":"1024 --trust-remote-code"}`)),
+			isErr:   true,
+			wantErr: "MLX_PREFILL_STEP_SIZE",
+		},
+		{
 			name: "the second allowed publisher is accepted",
 			data: manifestJSON("1", modelJSON("lms", "lmstudio-community/Qwen3-4bit", true)),
 		},
