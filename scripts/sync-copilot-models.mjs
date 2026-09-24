@@ -37,20 +37,14 @@ const PRICING_FILE = new URL(
   import.meta.url,
 );
 
-// Pinned entries that the models.dev catalog cannot currently supply but that
-// must stay in the picker. `auto` is Copilot's server-side pseudo-model. New
-// Copilot models can be pinned while the catalog catches up, and
-// delisted-but-working models are retained on purpose. A model leaves the picker
-// only by leaving the catalog AND not being pinned here, which is an explicit
-// human edit, never a silent catalog drop. Keep this list short and justify
-// every entry.
+// Pinned entries that are never in the models.dev catalog but must stay in the
+// picker. `auto` is Copilot's server-side pseudo-model. Delisted-but-working
+// models are retained here on purpose: dropping a model that still launches is
+// the exact picker-drift bug. A model leaves the picker only by leaving the
+// catalog AND not being pinned here, which is an explicit human edit, never a
+// silent catalog drop. Keep this list short and justify every entry.
 const PINNED = [
   { id: "auto", label: "Auto (let Copilot pick)" },
-  // Enabled in Copilot 2026-09-22, but models.dev had not published them yet.
-  // Keep the picker usable on release day; catalog labels win once it catches up.
-  { id: "claude-opus-5.5", label: "Claude Opus 5.5" },
-  { id: "gpt-6-luna", label: "GPT-6 Luna" },
-  { id: "gpt-6-sol", label: "GPT-6 Sol" },
   // Delisted from GitHub's price list 2026-09-05 but still launches; see
   // docs/modellvalg.md. Remove once it stops resolving at launch.
   { id: "claude-opus-4.6", label: "Claude Opus 4.6" },
@@ -91,7 +85,9 @@ function parseCatalog(catalog) {
   for (const [id, model] of Object.entries(models)) {
     if (typeof id !== "string" || id === "") continue;
     const label =
-      isPlainObject(model) && typeof model.name === "string" && model.name.trim()
+      isPlainObject(model) &&
+      typeof model.name === "string" &&
+      model.name.trim()
         ? model.name.trim()
         : id;
     entries.push({ id, label });
@@ -114,7 +110,9 @@ function buildTable(catalogEntries) {
   const byId = new Map();
   for (const p of PINNED) byId.set(p.id, { id: p.id, label: p.label });
   for (const e of catalogEntries) byId.set(e.id, { id: e.id, label: e.label });
-  return [...byId.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return [...byId.values()].sort((a, b) =>
+    a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+  );
 }
 
 /** Slugify a pricing display name to a candidate catalog id. */
@@ -185,8 +183,8 @@ package domain
 
 // KnownCopilotModels is the curated Copilot model list, generated from the
 // models.dev ${PROVIDER_ID} catalog plus a short pinned set (see the generator's
-// PINNED list: the "auto" pseudo-model, newly enabled models awaiting catalog
-// support, and delisted-but-working models kept on purpose).
+// PINNED list: the "auto" pseudo-model and delisted-but-working models kept on
+// purpose).
 //
 // It lives in domain rather than internal/provider because two packages need
 // the same pairing and cannot import each other: provider builds the launch
@@ -232,7 +230,9 @@ async function main() {
   writeFileSync(goPath, newContent, "utf-8");
   console.log(`\n✓ Wrote ${table.length} models to ${goPath}`);
 
-  const pricedIds = parsePricingIds(readFileSync(fileURLToPath(PRICING_FILE), "utf-8"));
+  const pricedIds = parsePricingIds(
+    readFileSync(fileURLToPath(PRICING_FILE), "utf-8"),
+  );
   const catalogIds = catalogEntries.map((e) => e.id).sort();
   printReconciliation(reconcile(catalogIds, pricedIds));
 }
@@ -247,7 +247,10 @@ export {
   MIN_CATALOG_MODELS,
 };
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   main().catch((err) => {
     console.error("Failed:", err.message);
     process.exit(1);

@@ -52,7 +52,7 @@
       "displayName": "@code-review",
       "description": "Kodegjennomgang for Nav-applikasjoner — finner feil, sikkerhetsproblemer og brudd på Nav-konvensjoner",
       "filePath": "agents/code-review.agent.md",
-      "contentHash": "10ce155690b4c8354e3e7c1ce6db739aefcdeee401f7ce7dcdb4b03c2d659b0f",
+      "contentHash": "5a019cbf3eda9ce2789ee1810253542448be72bbd3c84e9fdda5caae276bfd2f",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -97,7 +97,7 @@
         "streaming"
       ],
       "filePath": "agents/kafka.agent.md",
-      "contentHash": "f74565e00c5d05159f29535d910905fe7470cac1813ba7bd2f44131bf21c1cd9",
+      "contentHash": "c2616223f6228f8e583c122d0b70dd42f4b5cebbb99494e4be919c319707c232",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Creating Kafka event consumers",
@@ -194,7 +194,7 @@
         "quality"
       ],
       "filePath": "agents/rust.agent.md",
-      "contentHash": "8ee97a471ec8b56008fa477b0d95963e62ebadeb54a328538351127b48556c14",
+      "contentHash": "877fab8c93fa0ae62db368791b9afb3316499d03d2d375119e71339ca1bdd718",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Health endpoints",
@@ -485,7 +485,7 @@
         "infrastructure"
       ],
       "filePath": "prompts/kafka-topic.prompt.md",
-      "contentHash": "d485c12c7b6d44d6529077a5b019c682b423f6db2b28584fd3fa796bc8f967bf",
+      "contentHash": "4dedc8bfb89c321c87e932baa8e289705819206cdcb84da1c464bb9455135169",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/prompts/kafka-topic.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/kafka-topic.prompt.md"
     },
@@ -511,7 +511,7 @@
         "infrastructure"
       ],
       "filePath": "prompts/nais-manifest.prompt.md",
-      "contentHash": "f90a562ca7f8233c7ee7a32a26cc5c9140097379266cfe66b58fe9461e2972ed",
+      "contentHash": "df650deedb8cf0f024d5b9fb51cb78979a6a1ffd5e52cd9b24609a82359429ae",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/prompts/nais-manifest.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/nais-manifest.prompt.md"
     },

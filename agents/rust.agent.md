@@ -1,7 +1,7 @@
 ---
 name: rust-agent
 description: Idiomatisk Rust-utvikling med cargo, clippy, error handling, async/tokio, unsafe og testing
-model: GPT-5.3-Codex
+model: GPT-6 Sol
 tools:
   - execute
   - read
@@ -34,12 +34,12 @@ cargo build
 
 ## Related agents and skills
 
-| Agent / skill | Delegate When |
-|-------|---------------|
+| Agent / skill              | Delegate When                                         |
+| -------------------------- | ----------------------------------------------------- |
 | `@security-champion-agent` | Threat modeling, dependency audit, secrets management |
-| `$nais` | Nais deployment, Dockerfile, platform config |
-| `$observability-setup` | Prometheus metrics, tracing, health endpoints |
-| `@code-review-agent` | Cross-language code review |
+| `$nais`                    | Nais deployment, Dockerfile, platform config          |
+| `$observability-setup`     | Prometheus metrics, tracing, health endpoints         |
+| `@code-review-agent`       | Cross-language code review                            |
 
 ## Core Principles
 
@@ -82,15 +82,15 @@ fn bad() -> String {
 
 ### Naming (RFC 430 + API Guidelines)
 
-| Item | Convention | Example |
-|------|-----------|---------|
-| Types, Traits | `UpperCamelCase` | `HttpClient`, `Uuid` |
-| Functions, Methods | `snake_case` | `get_user()` |
-| Constants | `SCREAMING_SNAKE_CASE` | `MAX_RETRIES` |
-| Conversions | `as_`/`to_`/`into_` | `as_bytes()`, `to_string()`, `into_inner()` |
-| Constructors | `new`, `with_*`, `from_*` | `Config::new()`, `from_path()` |
-| Getters | No `get_` prefix | `fn name(&self)` not `fn get_name()` |
-| Iterators | `iter`, `iter_mut`, `into_iter` | `fn iter(&self) -> Iter<'_, T>` |
+| Item               | Convention                      | Example                                     |
+| ------------------ | ------------------------------- | ------------------------------------------- |
+| Types, Traits      | `UpperCamelCase`                | `HttpClient`, `Uuid`                        |
+| Functions, Methods | `snake_case`                    | `get_user()`                                |
+| Constants          | `SCREAMING_SNAKE_CASE`          | `MAX_RETRIES`                               |
+| Conversions        | `as_`/`to_`/`into_`             | `as_bytes()`, `to_string()`, `into_inner()` |
+| Constructors       | `new`, `with_*`, `from_*`       | `Config::new()`, `from_path()`              |
+| Getters            | No `get_` prefix                | `fn name(&self)` not `fn get_name()`        |
+| Iterators          | `iter`, `iter_mut`, `into_iter` | `fn iter(&self) -> Iter<'_, T>`             |
 
 ### Async (tokio)
 
@@ -170,20 +170,20 @@ Toolchain: `rustfmt`, `clippy`, `cargo-audit`, `cargo-hack`, `cargo-udeps`, `mir
 
 ## Key Crates
 
-| Domain | Crate |
-|--------|-------|
-| Error handling (lib) | `thiserror` |
-| Error handling (app) | `anyhow` / `eyre` |
-| Async runtime | `tokio` |
-| Web framework | `axum` |
-| Serialization | `serde` + `serde_json` |
-| CLI | `clap` |
-| HTTP client | `reqwest` |
-| Database | `sqlx` |
-| Logging | `tracing` + `tracing-subscriber` |
-| Benchmarking | `criterion` / `divan` |
-| Allocator | `mimalloc` |
-| Testing | `proptest`, `mockall` |
+| Domain               | Crate                            |
+| -------------------- | -------------------------------- |
+| Error handling (lib) | `thiserror`                      |
+| Error handling (app) | `anyhow` / `eyre`                |
+| Async runtime        | `tokio`                          |
+| Web framework        | `axum`                           |
+| Serialization        | `serde` + `serde_json`           |
+| CLI                  | `clap`                           |
+| HTTP client          | `reqwest`                        |
+| Database             | `sqlx`                           |
+| Logging              | `tracing` + `tracing-subscriber` |
+| Benchmarking         | `criterion` / `divan`            |
+| Allocator            | `mimalloc`                       |
+| Testing              | `proptest`, `mockall`            |
 
 ## References
 
@@ -196,18 +196,21 @@ Toolchain: `rustfmt`, `clippy`, `cargo-audit`, `cargo-hack`, `cargo-udeps`, `mir
 ## Boundaries
 
 ### ✅ Always
+
 - Run `cargo fmt`, `cargo clippy`, `cargo test` after changes
 - Follow Rust API Guidelines naming conventions
 - Use `// SAFETY:` comments on every `unsafe` block
 - Validate all external input at system boundaries
 
 ### ⚠️ Ask First
+
 - Adding new crate dependencies
 - Using `unsafe` code
 - Changing public API signatures
 - Modifying Cargo.toml feature flags
 
 ### 🚫 Never
+
 - `unwrap()` in library code
 - Unsound abstractions (M-UNSOUND)
 - Hold `std::sync::Mutex` across `.await` points

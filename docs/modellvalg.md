@@ -4,51 +4,55 @@ Levende referansedokument for hvilke modeller vi bruker, hvorfor, og hvordan vi 
 
 ## Gjeldende modellpinning
 
-De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter. `nav-pilot` har det ikke: orkestratoren kjører på klientens egen standardmodell. Valget følger oppgavetype, kostnad og ytelse, ikke leverandørpreferanse. Priser og kategori står i modelltabellen under.
+De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter. `nav-pilot` har det ikke, men agentpakken bruker GPT-6 Sol når brukeren ikke har valgt en modell. En brukerpinne vinner fortsatt over pakkas standard. Valget følger oppgavetype, kostnad og ytelse, ikke leverandørpreferanse. Priser og kategori står i modelltabellen under.
 
 **Pinnene under gjelder når agenten startes direkte.** Blir den startet som subagent av `@nav-pilot`, arver den modellen forelderen kjører på. Se [Pinner og delegering](#pinner-og-delegering).
 
 ### Agenter
 
-| Agent | Modell | Begrunnelse |
-|-------|--------|-------------|
-| `@nav-pilot` | Klientens standardmodell | Orkestratoren pinnes ikke; den arver modellen brukeren allerede kjører i klienten |
-| `@nav-pilot-opus` | Claude Opus 5.5 | Høyrisikoplanlegging og kritisk kodegjennomgang. High effort traff de plantede linjene i fem av fem gjennomganger. Opus 5 beholdes som fallback mens vi måler agenten direkte |
-| `@security-champion` | GPT-6 Sol | Sikkerhetskritiske vurderinger. Modellen fant personvern, tilgangskontroll og riktig TokenX-mønster i fem av fem kjøringer. Ett fasebrudd i `nav-pilot` følges under utrullingen |
-| `@code-review` | GPT-5.3-Codex | Sterkest på kodeforståelse og terminal-oppgaver |
-| `@kafka` | GPT-5.3-Codex | Teknisk presis på hendelsesdrevne mønstre |
-| `@research` | GPT-6 Luna | Leser og søker uten å skrive kode. Modellen besto ti av ti avgrensede krav og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna. Gjelder bare når agenten startes direkte, ikke når `@nav-pilot` delegerer til den |
-| `@rust` | GPT-5.3-Codex | Terminal-Bench-leder for kompilert kode |
-| `@aksel` | Claude Sonnet 5 | Sterk på komponentstruktur og designsystem-konvensjoner |
-| `@accessibility` | Claude Sonnet 5 | God på WCAG-tolkning og semantisk HTML |
-| `@forfatter` | Claude Sonnet 5 | Anthropic-modellene er best på norsk klarspråk |
+| Agent                | Modell          | Begrunnelse                                                                                                                                                                                                               |
+| -------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@nav-pilot`         | GPT-6 Sol       | Agentpakkas standard for Copilot, opencode og pi. GPT-5.6 Sol beholdes som fallback. En brukerpinne overstyrer standarden                                                                                                 |
+| `@nav-pilot-opus`    | Claude Opus 5.5 | Høyrisikoplanlegging og kritisk kodegjennomgang. High effort traff de plantede linjene i fem av fem gjennomganger. Opus 5 beholdes som fallback mens vi måler agenten direkte                                             |
+| `@security-champion` | GPT-6 Sol       | Sikkerhetskritiske vurderinger. Modellen fant personvern, tilgangskontroll og riktig TokenX-mønster i fem av fem kjøringer. Ett fasebrudd i `nav-pilot` følges under utrullingen                                          |
+| `@code-review`       | Claude Opus 5.5 | High effort traff de plantede linjene i fem av fem gjennomganger. Bruk High når klienten støtter effort-valg, og kontroller linjene mot diffen. GPT-5.3-Codex er fallback                                                 |
+| `@kafka`             | GPT-6 Sol       | Verktøytung kodeagent. Sol er den nye standarden for agentisk koding; GPT-5.3-Codex beholdes som fallback mens vi følger resultatene på Kafka-oppgaver                                                                    |
+| `@research`          | GPT-6 Luna      | Leser og søker uten å skrive kode. Modellen besto ti av ti avgrensede krav og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna. Gjelder bare når agenten startes direkte, ikke når `@nav-pilot` delegerer til den |
+| `@rust`              | GPT-6 Sol       | Verktøytung kodeagent. Sol er den nye standarden for agentisk koding; GPT-5.3-Codex beholdes som fallback mens vi følger resultatene på Rust-oppgaver                                                                     |
+| `@aksel`             | Claude Sonnet 5 | Sterk på komponentstruktur og designsystem-konvensjoner                                                                                                                                                                   |
+| `@accessibility`     | Claude Sonnet 5 | God på WCAG-tolkning og semantisk HTML                                                                                                                                                                                    |
+| `@forfatter`         | Claude Sonnet 5 | Anthropic-modellene er best på norsk klarspråk                                                                                                                                                                            |
 
 ### Prompts
 
-| Prompt | Modell | Begrunnelse |
-|--------|--------|-------------|
-| `kafka-topic` | GPT-5.3-Codex | Konsistent med kafka-agenten |
-| `nais-manifest` | GPT-5.3-Codex | God på infrastruktur og YAML-konfigurasjon |
-| `aksel-component` | Gemini 3.6 Flash | Rask og billig for scaffolding av Aksel-komponenter |
-| `ktor-endpoint` | GPT-6 Luna | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
-| `nextjs-api-route` | GPT-6 Luna | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
-| `spring-boot-endpoint` | GPT-6 Luna | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
-| `golang-service` | GPT-6 Luna | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
+| Prompt                 | Modell           | Begrunnelse                                                                 |
+| ---------------------- | ---------------- | --------------------------------------------------------------------------- |
+| `kafka-topic`          | GPT-6 Luna       | Fast scaffold-prompt. GPT-5.3-Codex beholdes som fallback                   |
+| `nais-manifest`        | GPT-6 Luna       | Fast scaffold-prompt. GPT-5.3-Codex beholdes som fallback                   |
+| `aksel-component`      | Gemini 3.6 Flash | Rask og billig for scaffolding av Aksel-komponenter                         |
+| `ktor-endpoint`        | GPT-6 Luna       | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
+| `nextjs-api-route`     | GPT-6 Luna       | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
+| `spring-boot-endpoint` | GPT-6 Luna       | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
+| `golang-service`       | GPT-6 Luna       | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
 
 ## Blokkeringsskjerm for GPT-6 og Opus 5.5
 
 Målt 23. september 2026 med Copilot CLI 1.0.88-2, standard kontekstvindu og fem kjøringer per testarm. Utvalget kan finne tydelige blokkeringer, men kan ikke slå fast at kandidatene er minst like gode som kontrollmodellene.
 
-| Kandidat | Kontroll | Resultat | Anbefaling |
-|----------|----------|----------|------------|
-| GPT-6 Luna Medium | GPT-5.6 Luna Medium | Begge besto ti av ti avgrensede krav. GPT-6 Luna brukte 8,667 credits mot 15,894, med omtrent lik veggklokketid | Rull ut på `@research` og malpromptene. Behold GPT-5.6 Luna som fallback |
-| GPT-6 Sol High | GPT-5.6 Sol High | GPT-6 Sol hoppet over intervjuet i én av fem kjøringer, men fant alle sikkerhets- og auth-krav. GPT-5.6 Sol fulgte fasekravet i fem av fem | Rull ut på `@security-champion`, følg fasebrudd og behold GPT-5.6 Sol som fallback |
-| Claude Opus 5.5 Medium | Claude Opus 5 High | Medium var raskere og billigere, men oppga feil linjenumre i to av fem TSX-gjennomganger | Bruk ikke Medium til kodegjennomgang der presise linjer er viktig |
-| Claude Opus 5.5 High | Claude Opus 5 High | Begge traff de plantede linjene i fem av fem. Opus 5.5 kostet 209,514 credits mot 186,763 og var tregere | Rull ut på den avgrensede `@nav-pilot-opus`-agenten. Behold Opus 5 som fallback |
+| Kandidat               | Kontroll            | Resultat                                                                                                                                   | Anbefaling                                                                                                                          |
+| ---------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| GPT-6 Luna Medium      | GPT-5.6 Luna Medium | Begge besto ti av ti avgrensede krav. GPT-6 Luna brukte 8,667 credits mot 15,894, med omtrent lik veggklokketid                            | Rull ut på `@research` og malpromptene. Behold GPT-5.6 Luna som fallback                                                            |
+| GPT-6 Sol High         | GPT-5.6 Sol High    | GPT-6 Sol hoppet over intervjuet i én av fem kjøringer, men fant alle sikkerhets- og auth-krav. GPT-5.6 Sol fulgte fasekravet i fem av fem | Bruk som standard for `@nav-pilot` og verktøytunge kodeagenter. Følg fasebrudd og behold GPT-5.6 Sol og GPT-5.3-Codex som fallbacks |
+| Claude Opus 5.5 Medium | Claude Opus 5 High  | Medium var raskere og billigere, men oppga feil linjenumre i to av fem TSX-gjennomganger                                                   | Bruk ikke Medium til kodegjennomgang der presise linjer er viktig                                                                   |
+| Claude Opus 5.5 High   | Claude Opus 5 High  | Begge traff de plantede linjene i fem av fem. Opus 5.5 kostet 209,514 credits mot 186,763 og var tregere                                   | Rull ut på `@nav-pilot-opus` og `@code-review`. Behold Opus 5 og GPT-5.3-Codex som fallbacks                                        |
 
 Råmålingen bruker eksakte `assistant_usage_events`, inkludert retries og subagenter. Fem kjøringer er ikke nok til å rangere modellene bredt. Utrullingen må derfor kunne reverseres uten at de eldre modellene først fjernes.
 
 Vi tilpasset ikke agentpersonaene eller instruksjonene til de nye modellene før målingen. Bare testoppsettet ble rettet: Det måler nå Fase 2 på riktig tur og bruker faktiske intervjuspørsmål i stedet for en bestemt faseoverskrift. Modellresultatene kommer dermed fra de samme agentfilene som kontrollmodellene brukte.
+
+`@code-review` flyttes til Opus 5.5 med en eksplisitt anbefaling om High effort. Agent-frontmatter kan ikke håndheve effort, så en direkte start kan fortsatt arve Medium fra sesjonen. Medium oppga feil TSX-linjer i to av fem kjøringer. Kontroller derfor alle rapporterte linjer mot diffen, og bruk GPT-5.3-Codex som fallback ved regresjoner.
+
+Kafka- og Rust-agentene flyttes til Sol, mens `kafka-topic` og `nais-manifest` flyttes til Luna. Blokkeringsskjermen målte samme oppgaveklasse, men ikke disse fire artefaktene direkte. Dette er derfor en kontrollert utrulling med fallbacks, ikke dokumentasjon på at de nye modellene er bedre på Kafka, Rust eller Nais-manifester.
 
 ## Pinner og delegering
 
@@ -59,7 +63,7 @@ Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
 `model:`-feltet i en agents frontmatter blir brukt når agenten startes direkte:
 
 ```
-copilot --agent research      # kjører på gpt-5.6-luna, som pinnen sa under målingen
+copilot --agent research      # kjører på gpt-6-luna, som pinnen sier
 ```
 
 Blir den samme agenten startet som subagent, arver den forelderens modell, og pinnen leses ikke:
@@ -72,7 +76,7 @@ copilot --agent nav-pilot --model gpt-5.6-sol -p "start subagenten research"
   -> ● Research (model: gpt-5.6-sol)
 ```
 
-Det betyr at `@nav-pilot` sin modell i praksis er modellen for hele delegeringstreet. Modellporten i `agents/nav-pilot.agent.md` bytter persona ved eskalering til `@nav-pilot-opus`, ikke modell, med mindre noen sier noe annet eksplisitt.
+Det betyr at `@nav-pilot` sin modell i praksis er modellen for hele delegeringstreet. Agentpakkas standard er GPT-6 Sol. Modellporten i `agents/nav-pilot.agent.md` bytter persona ved eskalering til `@nav-pilot-opus`, ikke modell, med mindre noen sier noe annet eksplisitt.
 
 Verktøyet tar imot en modell hvis den som kaller ber om det. Da gjelder den:
 
@@ -102,11 +106,11 @@ Klientens egen konfigurasjon setter modell per subagent, uavhengig av hva modell
 
 **Nøkkelen er filnavnet, ikke `name:` i frontmatteren.** Målt med kontroll:
 
-| Nøkkel | Modell subagenten kjørte på |
-|--------|-----------------------------|
-| `research` (filnavnet, `research.agent.md`) | gpt-5.6-luna |
-| `research-agent` (frontmatterens `name:`) | gpt-5.6-sol |
-| `tullball` (kontroll) | gpt-5.6-sol |
+| Nøkkel                                      | Modell subagenten kjørte på |
+| ------------------------------------------- | --------------------------- |
+| `research` (filnavnet, `research.agent.md`) | gpt-5.6-luna                |
+| `research-agent` (frontmatterens `name:`)   | gpt-5.6-sol                 |
+| `tullball` (kontroll)                       | gpt-5.6-sol                 |
 
 Seks av agentene våre har et `name:` som ikke er filnavnet: `accessibility`, `aksel`, `kafka`, `research`, `rust` og `security-champion` heter alle `<navn>-agent` i frontmatteren. Den som setter opp dette fra agentens eget navn får ingen feilmelding, bare ingen effekt.
 
@@ -116,11 +120,11 @@ Nav-pilot skriver ikke klientkonfigurasjon i dag, men skal gjøre det: [beslutni
 
 Samme agent, samme oppgave, 10,0k input-tokens:
 
-| Modell | AI Credits |
-|--------|-----------|
-| GPT-5.6 Luna | 0,26 |
-| GPT-5.6 Sol | 0,26 |
-| Claude Opus 5 | 0,26 |
+| Modell        | AI Credits |
+| ------------- | ---------- |
+| GPT-5.6 Luna  | 0,26       |
+| GPT-5.6 Sol   | 0,26       |
+| Claude Opus 5 | 0,26       |
 
 Kredittene følger tokenforbruk, ikke modellklasse: en nav-pilot-tur på 52k tokens kostet omtrent 18. Tallet CLI-en viser kan altså ikke brukes til å vise gevinsten av et modellbytte.
 
@@ -140,12 +144,12 @@ Når sikkerhet ikke skiller dem, avgjør kostnad.
 Blandet pris under forutsetter **10 input-tokens per output-token. Det er et
 anslag, ikke noe vi har målt**, og forholdet varierer med oppgaven.
 
-| Modell | Input | Output | Blandet $/1M ved 10:1 (anslag) |
-|--------|-------|--------|-------------------------------|
-| GPT-5.6 Luna | $0.20 | $1.20 | 0,29 |
-| Claude Haiku 4.5 | $1.00 | $5.00 | 1,36 |
-| GPT-5.3-Codex | $1.75 | $14.00 | 2,86 |
-| Claude Sonnet 4.6 | $3.00 | $15.00 | 4,09 |
+| Modell            | Input | Output | Blandet $/1M ved 10:1 (anslag) |
+| ----------------- | ----- | ------ | ------------------------------ |
+| GPT-5.6 Luna      | $0.20 | $1.20  | 0,29                           |
+| Claude Haiku 4.5  | $1.00 | $5.00  | 1,36                           |
+| GPT-5.3-Codex     | $1.75 | $14.00 | 2,86                           |
+| Claude Sonnet 4.6 | $3.00 | $15.00 | 4,09                           |
 
 ### Hva som flyttes
 
@@ -160,13 +164,13 @@ anslag, ikke noe vi har målt**, og forholdet varierer med oppgaven.
 
 ### Hva som ikke flyttes hit
 
-- `@code-review` og `@accessibility` står igjen på henholdsvis GPT-5.3-Codex og
-  Anthropic-modellen sin. De ble opprinnelig foreslått til Luna som lesende
-  mønsteranvendere, men det stemmer ikke: `@code-review` har `execute`, og
-  `@accessibility` har `execute` og `edit`. De kjører altså kommandoer og
-  skriver filer. GitHub plasserer Luna i Lightweight-klassen, og målingen dekket
-  bare nav-pilot-personaen, aldri en verktøytung agent. Byttet er derfor ubelagt
-  og måles separat.
+- Augustmålingen flyttet ikke `@code-review` eller `@accessibility` til Luna.
+  De ble opprinnelig vurdert som lesende mønsteranvendere, men begge er
+  verktøytunge agenter. `@code-review` har `execute`, mens `@accessibility` har
+  `execute` og `edit`. Opus 5.5 ble senere testet på kodegjennomgang: High
+  traff fem av fem, mens Medium oppga feil linjer i to av fem. Etter byttet til
+  Opus 5.5 er High anbefalt, linjene må kontrolleres mot diffen og
+  GPT-5.3-Codex er fallback. `@accessibility` beholder Claude Sonnet 5.
 - `@forfatter` beholder Anthropic-modellen sin. Jobben er å skille bokmål fra
   nynorsk og luke ut norske AI-markører. Målingen sier ingenting om det, og
   gevinsten er nær null mot en kjent nedside.
@@ -177,8 +181,10 @@ anslag, ikke noe vi har målt**, og forholdet varierer med oppgaven.
 > `runSubagent`: navnet er ikke et verktøy noen klient kjenner, så grantet var en
 > stille null og er fjernet (#689). Argumentet står likevel, siden `execute` og
 > `edit` alene gjør agenten verktøytung.
-- Resten av GPT-5.3-Codex-pinningene står urørt. Å flytte dem er en egen
-  beslutning som denne målingen ikke gir grunnlag for.
+
+- Resten av GPT-5.3-Codex-pinningene sto urørt etter augustmålingen. Kafka- og
+  Rust-agentene samt `kafka-topic` og `nais-manifest` ble flyttet i den
+  kontrollerte GPT-6-utrullingen i september 2026.
 
 ## Tilgjengelige modeller og bruksområder
 
@@ -188,25 +194,25 @@ GitHub priser. Prisene under er GitHubs listepriser slik de sto
 som dekker hele flåten. De endrer seg uten varsel, så
 tallene her har et tidsstempel og ikke evig gyldighet.
 
-| Modell | Kategori | Input | Output | Best for |
-|--------|----------|-------|--------|----------|
-| Claude Opus 5.5 | Powerful | $4.00 | $20.00 | Lange agentoppgaver, kodebaseomfattende migreringer, høyrisiko planlegging og sikkerhetskritisk review. Lansert 22. september 2026 |
-| Claude Opus 5 | Powerful | $5.00 | $25.00 | Dyp resonnering, risikovurdering og sikkerhetskritisk kode med justerbar effort (low/medium/high). Lansert 24. juli 2026 |
-| Claude Opus 4.7 / 4.8 | Powerful | $5.00 | $25.00 | Dyp risikovurdering, sikkerhetskritisk kode, kompleks arkitektur. Opus 4.5 og 4.6 falt ut av GitHubs prisliste 5. sep 2026 |
-| Claude Sonnet 4.6 | Versatile | $3.00 | $15.00 | Daglig koding, norsk tekst, planlegging |
-| Claude Sonnet 5 | Versatile | $2.00 | $10.00 | Samme som Sonnet 4.6. ⚠️ Kampanjen vi noterte gikk ut 31. aug 2026, og standardprisen er ukjent. Se noten under tabellen |
-| Claude Haiku 4.5 | Versatile | $1.00 | $5.00 | Sjekklister, maler, scaffold-prompts |
-| GPT-5.3-Codex | Powerful | $1.75 | $14.00 | Kodeforståelse, terminal, infrastruktur |
-| GPT-5.6 Luna | Lightweight | $0.20 | $1.20 | Raske rutineoppgaver, enkel autofullfør. OpenAI plasserer den i nano-sjiktet fra tidligere GPT-5-familier, men med høy reasoning-rating og justerbar effort |
-| GPT-5.6 Terra | Versatile | $2.00 | $12.00 | Allround daglig koding i GPT-familien |
-| GPT-5.6 Sol | Powerful | $4.00 | $20.00 | Tung reasoning over store kodebaser. Listepris; kampanjen gikk ut 3. sep 2026. Lang kontekst over 272K: $8.00 / $30.00 |
-| GPT-6 Luna | Lightweight | $0.10 | $0.50 | Raske rutineoppgaver og faste maler. Lang kontekst over 272K: $0.20 / $0.75 |
-| GPT-6 Sol | Powerful | $2.00 | $10.00 | Daglig agentisk koding med validering i flere steg. Lang kontekst over 272K: $4.00 / $15.00 |
-| Gemini 2.5 Pro | Powerful | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026. Gemini 3.1 Pro, som overtok rollen, falt ut av prislista 5. sep 2026. Google har ingen Powerful-modell igjen hos GitHub. Bruk GPT-5.3-Codex eller Kimi K3 til research over lang kontekst |
-| Gemini 3.5 Flash | Lightweight | $1.50 | $9.00 | Rask og billig for enkle oppgaver |
-| Gemini 3.6 Flash | Versatile | $0.75 | $3.75 | Agentiske workflows med parallell verktøybruk. Kampanjepris t.o.m. 31. des 2026 |
-| Kimi K2.7 Code | Versatile | $0.95 | $4.00 | Rimeligste alternativ for kode-agent-løkker (open-weight) |
-| Kimi K3 | Powerful | $3.00 | $15.00 | Rimeligste Powerful-modell på lista (open-weight). Ikke pinnet, ikke målt hos oss |
+| Modell                | Kategori    | Input    | Output   | Best for                                                                                                                                                                                                        |
+| --------------------- | ----------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Claude Opus 5.5       | Powerful    | $4.00    | $20.00   | Lange agentoppgaver, kodebaseomfattende migreringer, høyrisiko planlegging og sikkerhetskritisk review. Lansert 22. september 2026                                                                              |
+| Claude Opus 5         | Powerful    | $5.00    | $25.00   | Dyp resonnering, risikovurdering og sikkerhetskritisk kode med justerbar effort (low/medium/high). Lansert 24. juli 2026                                                                                        |
+| Claude Opus 4.7 / 4.8 | Powerful    | $5.00    | $25.00   | Dyp risikovurdering, sikkerhetskritisk kode, kompleks arkitektur. Opus 4.5 og 4.6 falt ut av GitHubs prisliste 5. sep 2026                                                                                      |
+| Claude Sonnet 4.6     | Versatile   | $3.00    | $15.00   | Daglig koding, norsk tekst, planlegging                                                                                                                                                                         |
+| Claude Sonnet 5       | Versatile   | $2.00    | $10.00   | Samme som Sonnet 4.6. ⚠️ Kampanjen vi noterte gikk ut 31. aug 2026, og standardprisen er ukjent. Se noten under tabellen                                                                                        |
+| Claude Haiku 4.5      | Versatile   | $1.00    | $5.00    | Sjekklister, maler, scaffold-prompts                                                                                                                                                                            |
+| GPT-5.3-Codex         | Powerful    | $1.75    | $14.00   | Kodeforståelse, terminal, infrastruktur                                                                                                                                                                         |
+| GPT-5.6 Luna          | Lightweight | $0.20    | $1.20    | Raske rutineoppgaver, enkel autofullfør. OpenAI plasserer den i nano-sjiktet fra tidligere GPT-5-familier, men med høy reasoning-rating og justerbar effort                                                     |
+| GPT-5.6 Terra         | Versatile   | $2.00    | $12.00   | Allround daglig koding i GPT-familien                                                                                                                                                                           |
+| GPT-5.6 Sol           | Powerful    | $4.00    | $20.00   | Tung reasoning over store kodebaser. Listepris; kampanjen gikk ut 3. sep 2026. Lang kontekst over 272K: $8.00 / $30.00                                                                                          |
+| GPT-6 Luna            | Lightweight | $0.10    | $0.50    | Raske rutineoppgaver og faste maler. Lang kontekst over 272K: $0.20 / $0.75                                                                                                                                     |
+| GPT-6 Sol             | Powerful    | $2.00    | $10.00   | Daglig agentisk koding med validering i flere steg. Lang kontekst over 272K: $4.00 / $15.00                                                                                                                     |
+| Gemini 2.5 Pro        | Powerful    | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026. Gemini 3.1 Pro, som overtok rollen, falt ut av prislista 5. sep 2026. Google har ingen Powerful-modell igjen hos GitHub. Bruk GPT-6 Sol eller Kimi K3 til research over lang kontekst |
+| Gemini 3.5 Flash      | Lightweight | $1.50    | $9.00    | Rask og billig for enkle oppgaver                                                                                                                                                                               |
+| Gemini 3.6 Flash      | Versatile   | $0.75    | $3.75    | Agentiske workflows med parallell verktøybruk. Kampanjepris t.o.m. 31. des 2026                                                                                                                                 |
+| Kimi K2.7 Code        | Versatile   | $0.95    | $4.00    | Rimeligste alternativ for kode-agent-løkker (open-weight)                                                                                                                                                       |
+| Kimi K3               | Powerful    | $3.00    | $15.00   | Rimeligste Powerful-modell på lista (open-weight). Ikke pinnet, ikke målt hos oss                                                                                                                               |
 
 **Kampanjepriser.** GitHub merker enkelte rader med kampanjepris i fotnoter, og
 fotnotene følger ikke med når vi synkroniserer pristabellen
@@ -218,8 +224,7 @@ gjelder det:
   standardvinduet og $8.00 / $30.00 over 272K. Det er nøyaktig de tallene vi
   regnet oss fram til fra «50 % off», så anslaget traff. Sol har ingen fotnote
   lenger, og tallene i tabellen over er nå publisert listepris, ikke utregning.
-- **Gemini 3.6 Flash og Gemini 3.7 Flash:** $0.75 input og $3.75 output t.o.m.
-  31. desember 2026. Standardprisen står ikke i fotnoten. Gemini 3.7 Flash er
+- **Gemini 3.6 Flash og Gemini 3.7 Flash:** $0.75 input og $3.75 output t.o.m. 31. desember 2026. Standardprisen står ikke i fotnoten. Gemini 3.7 Flash er
   ikke pinnet noe sted hos oss og står derfor ikke i tabellen over.
 - **Claude Sonnet 5:** notatet vårt sa kampanje t.o.m. 31. august 2026. GitHubs
   pristabell viser fortsatt $2.00 / $10.00 og har ingen fotnote for Sonnet 5, så
@@ -239,8 +244,7 @@ Se [prissiden](/priser) for fullstendig og oppdatert pristabell.
 
 `@security-champion` og `@nav-pilot-opus` går fra Claude Opus 4.6 til GPT-5.6
 Sol. **Byttet hviler på pris. Disse to agentene er ikke målt mot noen modell,
-heller ikke mot den de flytter fra.** Opus 4.6 falt ut av GitHubs prisliste
-5. september 2026; Opus 4.7, 4.8 og 5 ligger på samme $5.00 / $25.00, så
+heller ikke mot den de flytter fra.** Opus 4.6 falt ut av GitHubs prisliste 5. september 2026; Opus 4.7, 4.8 og 5 ligger på samme $5.00 / $25.00, så
 regnestykket under er uendret med en av dem i stedet.
 
 Golden-prompt-harnessen kjørte nav-pilot-personaen mot Claude Sonnet 4.6,
@@ -266,13 +270,13 @@ Sammenlikningen under er blandet pris per million tokens ved **10 input-tokens
 per output-token. Forholdet er et anslag, ikke noe vi har målt**, og varierer
 med oppgaven.
 
-| Modell | Input | Output | Blandet $/1M ved 10:1 (anslag) |
-|--------|-------|--------|-------------------------------|
-| GPT-5.6 Sol, kampanje (utløpt 3. sep 2026) | $2.00 | $10.00 | 2,73 |
-| Claude Sonnet 4.6 | $3.00 | $15.00 | 4,09 |
-| Kimi K3 | $3.00 | $15.00 | 4,09 |
-| GPT-5.6 Sol, listepris i dag | $4.00 | $20.00 | 5,45 |
-| Claude Opus 4.7 / 4.8 / 5 | $5.00 | $25.00 | 6,82 |
+| Modell                                     | Input | Output | Blandet $/1M ved 10:1 (anslag) |
+| ------------------------------------------ | ----- | ------ | ------------------------------ |
+| GPT-5.6 Sol, kampanje (utløpt 3. sep 2026) | $2.00 | $10.00 | 2,73                           |
+| Claude Sonnet 4.6                          | $3.00 | $15.00 | 4,09                           |
+| Kimi K3                                    | $3.00 | $15.00 | 4,09                           |
+| GPT-5.6 Sol, listepris i dag               | $4.00 | $20.00 | 5,45                           |
+| Claude Opus 4.7 / 4.8 / 5                  | $5.00 | $25.00 | 6,82                           |
 
 ### Hva byttet faktisk sparer
 
@@ -322,11 +326,11 @@ Vi bytter **ikke** modell automatisk når noe nytt lanseres. Et bytte krever at 
 
 ### Eksempel: GPT-5.3-Codex → GPT-5.6 Terra
 
-| Kriterium | Status |
-|-----------|--------|
-| Bekreftet ID | ❌ Ikke verifisert i model picker |
-| Kostnad | ⚖️ Jevnt, se regnestykket under |
-| Testet | ⚠️ Testet på nav-pilot-personaen (45 kjøringer), ikke på en kodegjennomgangsoppgave |
+| Kriterium    | Status                                                                              |
+| ------------ | ----------------------------------------------------------------------------------- |
+| Bekreftet ID | ❌ Ikke verifisert i model picker                                                   |
+| Kostnad      | ⚖️ Jevnt, se regnestykket under                                                     |
+| Testet       | ⚠️ Testet på nav-pilot-personaen (45 kjøringer), ikke på en kodegjennomgangsoppgave |
 
 Terra koster $2.00 mot Codex $1.75 på input, men $12.00 mot $14.00 på output, så hvilken som er billigst avhenger av blandingen. Terra er billigere ved alt under åtte input-tokens per output-token, og 1,6 % dyrere ved 10:1 ($2,91 mot $2,86 per million tokens). **Forholdet 10:1 er et anslag, ikke noe vi har målt.** Konklusjonen tåler hele spennet uansett: forskjellen er noen få prosent i begge retninger, og kostnad er ikke lenger et argument mot Terra.
 
@@ -351,16 +355,16 @@ Når nye modeller slås på (som nå med Claude Opus 5, GPT-5.6-familien, Kimi K
 
 Slik ser navnekonvensjonene i `model:`-feltet ut i dag:
 
-| Modell | Format | Merk |
-|--------|--------|------|
-| `GPT-5.3-Codex` | Bindestrek mellom versjon og variant | Fungerer |
-| `Claude Sonnet 4.6` | Mellomrom | Fungerer |
-| `Claude Opus 4.6` | Mellomrom | Fungerer, men modellen falt ut av GitHubs prisliste 5. sep 2026. Bruk 4.7, 4.8 eller 5 |
-| `GPT-5.6 Sol` | Mellomrom | Verifisert gjennom golden-prompt-kjøringene (august 2026) |
-| `Claude Opus 5` | Mellomrom | Verifisert (GitHub changelog / Anthropic, 24. juli 2026). API-ID `claude-opus-5` |
-| `Gemini 3.5 Flash` | Mellomrom | Fungerer |
-| `Gemini 3.6 Flash` | Mellomrom | Antatt, ikke verifisert i praksis |
-| `GPT-5.6 Luna` | Mellomrom | Verifisert gjennom golden-prompt-kjøringene (august 2026) |
-| `GPT-5.6 Terra` | Mellomrom | Verifisert gjennom golden-prompt-kjøringene, men ikke pinnet |
+| Modell              | Format                               | Merk                                                                                   |
+| ------------------- | ------------------------------------ | -------------------------------------------------------------------------------------- |
+| `GPT-5.3-Codex`     | Bindestrek mellom versjon og variant | Fungerer                                                                               |
+| `Claude Sonnet 4.6` | Mellomrom                            | Fungerer                                                                               |
+| `Claude Opus 4.6`   | Mellomrom                            | Fungerer, men modellen falt ut av GitHubs prisliste 5. sep 2026. Bruk 4.7, 4.8 eller 5 |
+| `GPT-5.6 Sol`       | Mellomrom                            | Verifisert gjennom golden-prompt-kjøringene (august 2026)                              |
+| `Claude Opus 5`     | Mellomrom                            | Verifisert (GitHub changelog / Anthropic, 24. juli 2026). API-ID `claude-opus-5`       |
+| `Gemini 3.5 Flash`  | Mellomrom                            | Fungerer                                                                               |
+| `Gemini 3.6 Flash`  | Mellomrom                            | Antatt, ikke verifisert i praksis                                                      |
+| `GPT-5.6 Luna`      | Mellomrom                            | Verifisert gjennom golden-prompt-kjøringene (august 2026)                              |
+| `GPT-5.6 Terra`     | Mellomrom                            | Verifisert gjennom golden-prompt-kjøringene, men ikke pinnet                           |
 
 Frem til en modell er verifisert i praksis, merkes den som «Antatt» og bør ikke brukes i produksjonspinning.
