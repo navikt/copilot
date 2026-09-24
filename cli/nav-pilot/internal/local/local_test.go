@@ -161,6 +161,46 @@ func TestParse(t *testing.T) {
 			wantErr: "MLX_PREFILL_STEP_SIZE",
 		},
 		{
+			name: "sampling within range is accepted",
+			data: manifestJSON("1", paramsJSON("sampling", `{"MLX_NAV_PILOT_TEMPERATURE":"0","MLX_NAV_PILOT_TOP_P":"1"}`)),
+		},
+		{
+			name:    "sampling MLX_NAV_PILOT_TEMPERATURE=2.1 is rejected",
+			data:    manifestJSON("1", paramsJSON("bad0", `{"MLX_NAV_PILOT_TEMPERATURE":"2.1"}`)),
+			isErr:   true,
+			wantErr: "MLX_NAV_PILOT_TEMPERATURE",
+		},
+		{
+			name:    "sampling MLX_NAV_PILOT_TEMPERATURE=-0.1 is rejected",
+			data:    manifestJSON("1", paramsJSON("bad1", `{"MLX_NAV_PILOT_TEMPERATURE":"-0.1"}`)),
+			isErr:   true,
+			wantErr: "MLX_NAV_PILOT_TEMPERATURE",
+		},
+		{
+			name:    "sampling MLX_NAV_PILOT_TEMPERATURE=NaN is rejected",
+			data:    manifestJSON("1", paramsJSON("bad2", `{"MLX_NAV_PILOT_TEMPERATURE":"NaN"}`)),
+			isErr:   true,
+			wantErr: "MLX_NAV_PILOT_TEMPERATURE",
+		},
+		{
+			name:    "sampling MLX_NAV_PILOT_TEMPERATURE=warm is rejected",
+			data:    manifestJSON("1", paramsJSON("bad3", `{"MLX_NAV_PILOT_TEMPERATURE":"warm"}`)),
+			isErr:   true,
+			wantErr: "MLX_NAV_PILOT_TEMPERATURE",
+		},
+		{
+			name:    "sampling MLX_NAV_PILOT_TOP_P=0 is rejected",
+			data:    manifestJSON("1", paramsJSON("bad4", `{"MLX_NAV_PILOT_TOP_P":"0"}`)),
+			isErr:   true,
+			wantErr: "MLX_NAV_PILOT_TOP_P",
+		},
+		{
+			name:    "sampling MLX_NAV_PILOT_TOP_P=1.5 is rejected",
+			data:    manifestJSON("1", paramsJSON("bad5", `{"MLX_NAV_PILOT_TOP_P":"1.5"}`)),
+			isErr:   true,
+			wantErr: "MLX_NAV_PILOT_TOP_P",
+		},
+		{
 			name: "the second allowed publisher is accepted",
 			data: manifestJSON("1", modelJSON("lms", "lmstudio-community/Qwen3-4bit", true)),
 		},

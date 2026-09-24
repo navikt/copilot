@@ -299,6 +299,9 @@ func (m *Manifest) checkModels() error {
 		if err := checkPrefillStepSize(where, model.Params["MLX_PREFILL_STEP_SIZE"]); err != nil {
 			return err
 		}
+		if _, err := samplingOverride(model.Params); err != nil {
+			return fmt.Errorf("local-model manifest entry %q: %w", where, err)
+		}
 		for field, value := range map[string]string{"role": model.Role, "expect": model.Expect} {
 			if err := checkProse(where, field, value); err != nil {
 				return err
