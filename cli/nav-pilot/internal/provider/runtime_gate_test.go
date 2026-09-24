@@ -3,6 +3,7 @@ package provider
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -655,6 +656,13 @@ func TestRunStagedProbeReportsAClientThatCannotStart(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "Unexpected server error") {
 		t.Errorf("error drops the client's own stderr, which is the only diagnosis there is: %v", err)
+	}
+	// nav-pilot's exit code passes a wrapped *exec.ExitError through as the
+	// client's own status. A probe is a nav-pilot preflight, not the client
+	// session, so its exit status must not be reachable that way.
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		t.Errorf("probe failure wraps the probe's *exec.ExitError, so nav-pilot would exit with the probe's status: %v", err)
 	}
 }
 
