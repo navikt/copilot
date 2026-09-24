@@ -105,6 +105,21 @@ func TestPiModelArgOmitsNormalizedAutoModels(t *testing.T) {
 	}
 }
 
+func TestPiModelArgDoesNotInheritOpenCodeDefault(t *testing.T) {
+	SetActivePakke(&agentpakke.Manifest{
+		Name: "p",
+		Clients: map[string]agentpakke.ClientEntry{
+			"opencode": {DefaultModel: "claude-opus-5"},
+			"pi":       {DefaultModel: agentpakke.InheritModel},
+		},
+	})
+	t.Cleanup(func() { SetActivePakke(nil) })
+
+	if got := piModelArg(""); got != nil {
+		t.Errorf("piModelArg(\"\") = %q, want no --model argument", got)
+	}
+}
+
 // TestPiSkillArgsPersonaFilenames: both spellings of an agent file reach
 // piSkillArgs — Tier 1 materialization renames agents to <name>.md, a staged
 // payload keeps the canonical <name>.agent.md.
