@@ -44,6 +44,7 @@ func alphaUsage() {
 
 Usage:
   nav-pilot alpha local <command>
+  nav-pilot alpha decide "<question>" --options a,b   (see: nav-pilot alpha decide --help)
 
 Local inference. Run a model on this machine instead of sending prompts to a
 hosted one. Off until you run init, and invisible everywhere until then.
@@ -72,6 +73,9 @@ func cmdAlpha(args []string) error {
 	if len(args) == 0 || args[0] == "help" {
 		alphaUsage()
 		return nil
+	}
+	if args[0] == "decide" {
+		return cmdDecide(args[1:])
 	}
 	if args[0] != "local" {
 		return fmt.Errorf("unknown alpha group: %s. Run %s for usage", args[0], bold("nav-pilot alpha help"))

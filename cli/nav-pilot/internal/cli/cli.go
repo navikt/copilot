@@ -447,7 +447,8 @@ func run(args []string) error {
 	// flag. Parsing it here would reject -p as unknown and, worse, would eat a
 	// question that happens to begin with a dash. Everything after `ask` goes
 	// through untouched, the same courtesy `--` gives the launch clients.
-	if command == "alpha" && len(rest) >= 2 && rest[0] == "local" && rest[1] == "ask" {
+	// `alpha decide` likewise: a question, and flags of its own.
+	if command == "alpha" && ((len(rest) >= 2 && rest[0] == "local" && rest[1] == "ask") || (len(rest) >= 1 && rest[0] == "decide")) {
 		return runWithCommandTelemetry("alpha", telemetryMode(), "none", func() error {
 			return cmdAlpha(rest)
 		})
@@ -949,6 +950,13 @@ func exitCodeFor(err error) int {
 			return 128 + int(status.Signal())
 		}
 		return exitErr.ExitCode()
+	}
+	var ec *exitCode
+	if errors.As(err, &ec) {
+		if ec.err != nil {
+			fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), ec.err)
+		}
+		return ec.code
 	}
 	if isFrozenRefusal(err) {
 		fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Frozen:"), err)
