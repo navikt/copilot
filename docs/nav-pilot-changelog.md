@@ -2,6 +2,15 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-09-24
+
+### GPT-6 Sol er standardmodellen
+
+- **Agentpakken bruker GPT-6 Sol som standard**: Copilot, opencode og pi starter GPT-6 Sol når brukeren ikke har valgt en modell. En brukerpinne vinner fortsatt. GPT-6 Sol fant alle sikkerhets- og auth-krav i blokkeringsskjermen, koster halvparten av GPT-5.6 Sol etter listepris og beholdes sammen med GPT-5.6 Sol som fallback.
+- **Kodegjennomgang bruker Claude Opus 5.5**: High effort traff de plantede linjene i fem av fem kjøringer. Medium oppga feil TSX-linjer i to av fem, så agenten anbefaler High og krever at linjene kontrolleres mot diffen. GPT-5.3-Codex er fallback.
+- **Avgrensede oppgaver bruker Luna**: `@research` og seks scaffold-prompts bruker GPT-6 Luna. Modellen besto ti av ti avgrensede krav og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna.
+- **Verktøytunge kodeagenter bruker Sol**: Kafka- og Rust-agentene flyttes fra GPT-5.3-Codex. De fire artefaktene ble ikke målt direkte, så dette er en kontrollert utrulling med Codex som fallback.
+
 ## 2026-09-17
 
 ### Riktig cluster-label i observability-debugging
@@ -22,7 +31,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 ### G4-røyktesten beviste at en binærfil finnes
 
 - **`--version`-proben er ikke en readiness-test, og heter ikke det lenger**: `nav-pilot --client opencode --payload-context full -- --version` svarer før OpenCode laster config. En launch som dør under config-lasting under sandboxen gir derfor exit 0 og et versjonsnummer, som er nøyaktig hvordan [#565](https://github.com/navikt/copilot/issues/565) kunne shippe med hver TUI-launch død på ferske maskiner. En automatisk readiness-probe krever cplt, klienten, en PTY og en autentisert konto; CI-runnerne er `ubuntu-latest` og har ingen av dem. Porten er derfor navngitt som tilstedeværelses- og versjonssjekk, og den manuelle G4-prosedyren står med eksakt kommando og forventet markør (`Ask anything`, modellfritt) i [agentpakke-beslutninger.md §6.1](agentpakke-beslutninger.md#61-g4-røyktesten-beviser-tilstedeværelse-ikke-at-klienten-kan-starte) (#662).
-- **Pre-seedingen godtok stier OpenCode regner som fraværende**: Sjekken var `Lstat`, så en hengende symlink eller en katalog på `~/.config/opencode/.gitignore` returnerte suksess. OpenCode resolver stien, finner ingenting, gjør write-if-absent mot den read-only monterte config-katalogen og dør med «Unexpected server error» — #565 på nytt, med pre-seedingen som meldte grønt. Den krever nå en regulær fil som lar seg resolve, og nekter launchen med stien navngitt. Dette er den ene delen av feilklassen som *er* sjekkbar offline, deterministisk og uten binærfiler, så den kjører i CI.
+- **Pre-seedingen godtok stier OpenCode regner som fraværende**: Sjekken var `Lstat`, så en hengende symlink eller en katalog på `~/.config/opencode/.gitignore` returnerte suksess. OpenCode resolver stien, finner ingenting, gjør write-if-absent mot den read-only monterte config-katalogen og dør med «Unexpected server error» — #565 på nytt, med pre-seedingen som meldte grønt. Den krever nå en regulær fil som lar seg resolve, og nekter launchen med stien navngitt. Dette er den ene delen av feilklassen som _er_ sjekkbar offline, deterministisk og uten binærfiler, så den kjører i CI.
 - **En probe som feiler sier nå hvilken av to ting som gikk galt**: «ikke installert» og «installert, men startet ikke» kom begge tilbake som `exit status 1` bak «could not read the version». Klientens egen stderr ble samlet opp av `exec.Cmd.Output` og aldri lest, selv om #565s OpenCode skrev feilen sin nettopp der. `probeFailure` skiller tilfellene og tar med første stderr-linje.
 
 ## 2026-09-07
@@ -32,14 +41,12 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **`@aksel`, `@accessibility` og `@forfatter` er repinnet til Claude Sonnet 5**: Copilot CLI avviser den gamle id-en, med "Model 'Claude Sonnet 4.6' is not available" og en liste over hva som finnes. Agentene feilet altså ved oppstart, ikke ved bruk. Sonnet 5 er etterfølgeren og koster $2.00 / $10.00 mot 4.6-ens $3.00 / $15.00 i listepris, så begrunnelsene i modellvalg.md står uendret.
 - **Modellvelgeren tilbyr fortsatt modeller klienten avviser**: Katalogen genereres fra models.dev, som er global, mens tilgjengeligheten er knyttet til konto og plan. På maskinen dette ble målt på mangler 14 av oppføringene i den levende katalogen. `PINNED` i generatoren dekker det motsatte tilfellet, en modell som er tatt av prislista men fortsatt starter. Ingen oppføringer er fjernet på grunnlag av én konto; avviket er beskrevet i eget issue.
 
-
 ### Subagenter arver modellen, og pinnen leses ikke
 
 - **`model:` i frontmatteren gjelder bare når agenten startes direkte**: Startet som subagent arver den forelderens modell. Målt begge veier med samme agent: `--model gpt-5.6-terra` ga `● Research (model: gpt-5.6-terra)`, `--model gpt-5.6-sol` ga `● Research (model: gpt-5.6-sol)`. Pinnen sier `gpt-5.6-luna`. Konsekvensen er at modellen `@nav-pilot` kjører på i praksis er modellen for hele delegeringstreet, og at modellporten bytter persona ved eskalering, ikke modell (#688).
 - **Den deterministiske overstyringen er klientkonfigurasjon, ikke agentfila**: `subagents.agents.<navn>.model` i `~/.copilot/settings.json` setter modellen per subagent uansett hva modellen finner på. Nøkkelen er filnavnet og ikke `name:` i frontmatteren, verifisert med kontroll: `research` ga Luna, `research-agent` ga Sol, og en oppdiktet nøkkel ga Sol. Seks av agentene våre har et `name:` som ikke er filnavnet, så den som setter dette opp fra agentens eget navn får ingen effekt og ingen feilmelding.
 - **AI-kreditter skiller ikke modeller**: Samme agent og oppgave på 10,0k input-tokens kostet 0,26 på både Luna, Sol og Opus 5. Kredittene følger tokenforbruk, ikke modellklasse. Tallet CLI-en viser kan derfor ikke brukes til å vise gevinsten av et modellbytte, og kostnadsargumentene i modellvalg.md er listepris ganget med et anslag, ikke målt forbruk.
 - **Ingen pinner er endret.** `@nav-pilot` står fortsatt upinnet: benchmarken fra august skiller ingen modeller på noen påstand uten gjennom artefakter, så det finnes ikke grunnlag for en pinne, og under arv er orkestratorens modell brukerens valg for hele treet.
-
 
 ### Orkestratoren manglet verktøyet den orkestrerer med
 
@@ -95,12 +102,12 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 Første benchmark av personaen mot levende modeller, rundt 195 kjøringer på én påstand fra golden-test 3: at personaen reiser blindsonene personvern og tilgangskontroll for prompten «ny tjeneste som leser fnr fra ID-porten».
 
-| Modell | Feil | Kjøringer |
-|---|---|---|
-| Claude Sonnet 4.6 (sittende) | 2 | 50 |
-| GPT-5.6 Sol | 1 | 50 |
-| GPT-5.6 Luna | 1 | 50 |
-| GPT-5.6 Terra | 5 | 45 |
+| Modell                       | Feil | Kjøringer |
+| ---------------------------- | ---- | --------- |
+| Claude Sonnet 4.6 (sittende) | 2    | 50        |
+| GPT-5.6 Sol                  | 1    | 50        |
+| GPT-5.6 Luna                 | 1    | 50        |
+| GPT-5.6 Terra                | 5    | 45        |
 
 - **Ingen av forskjellene er signifikante**. Fisher eksakt mot den sittende modellen gir p = 1,00 for Sol og Luna og p = 0,25 for Terra. Punktestimatene ser ut som en rangering, men konfidensintervallene overlapper alle. Målingen viste ikke at noen modell er tryggere, og ikke at noen er mindre trygg.
 - **Funnet som betyr mer enn modellvalget**: Den påkrevde personvern-blindsonen blir oversett på alle modeller som ble testet. Feilen ligger i personaen, ikke i modellen, og ingen modellbytte fikser den.
@@ -281,6 +288,7 @@ Runden fra 1. til 3. juli ligger som direktecommits uten PR-numre.
 ## 2026-06-30
 
 ### nav-pilot CLI — robusthet, proxy og credential-varsling
+
 - **Robust ferskhetssjekk & feilcooldown**: Lagt til 1-times cooldown på mislykkede API-søk mot GitHub for å hindre rate-limiting feilsirkler under ustabile nettverk eller offline-tilstand.
 - **Proxy- og tokenstøtte**: Lagt til støtte for system-proxy (`http.ProxyFromEnvironment`) og bruk av `GITHUB_TOKEN` for ferskhetssjekk- og oppdateringskall. Økt sjekktimeout fra 2s til 5s for bedriftsnettverk.
 - **Installasjons-fallback (rtk_setup)**: Implementert fallback-installasjon fra Brew til `curl` dersom Homebrew feiler. Lagt til hjelpetekster til Stderr ved mislykket hook-initialisering.
@@ -291,9 +299,11 @@ Runden fra 1. til 3. juli ligger som direktecommits uten PR-numre.
 ## 2026-06-26
 
 ### Refaktorering og struktur
+
 - **Rotmappe-migrering**: Flyttet alle customization-artefakter (agents, skills, instructions, prompts) til prosjektets rotmappe for ryddigere struktur (#330).
 
 ### nav-pilot CLI — UX, robusthet og auto-oppdatering
+
 - **nav-pilot doctor**: Erstattet den gamle `status`-kommandoen med en ny, handlingsrettet `doctor`-kommando som kjører systemhelsesjekk og gir proaktive, kopierbare løsninger på manglende kontekst, feil i konfigurasjon eller cplt sandbox-tilganger (#308, #231).
 - **Sandbox-konfigurasjon**: Implementert konfigurasjon for `cplt` sandbox og synlighet i den interaktive oppsettveiviseren for å enklere sette riktig prosjektmodus (#309).
 - **Auto-oppdatering og varsler**: CLI-en tilbyr nå en interaktiv oppgradering for utdaterte nav-pilot-installasjoner, samt støtte for `auto_update`-konfigurasjon (7-dagers terskel).
@@ -303,11 +313,13 @@ Runden fra 1. til 3. juli ligger som direktecommits uten PR-numre.
 - **Sikkerhetskontekst (Sandbox)**: Dokumentert `cplt` sandbox-restriksjoner eksplisitt i `nav-pilot.agent.md` og globale `AGENTS.md` for å forhindre filtilgang utenfor gjeldende workspace (#326).
 
 ### Standardisering av språk og innhold
+
 - **Språkstandardisering**: Body-tekst i instruksjoner og skills er harmonisert til engelsk, mens metadata i YAML frontmatter forblir på norsk (#179).
 - **Tilgjengelighet slanket**: Trimmet `accessibility.instructions.md` kraftig for å unngå dobbeltoppføring. Dype WCAG-remedieringer og ARIA-eksempler er samlet i `@accessibility`-agenten (#167).
 - **Konsistente agentnavn**: Navngivning av flere agenter er strømlinjeformet (f.eks. ble `auth-agent` til `@auth` og `code-review-agent` til `@code-review`), inkludert manifest-oppdateringer og oppdaterte prompt-eksempler.
 
 ### Telemetri og test
+
 - **Separasjon av bakgrunnssynk**: Telemetri skiller nå `auto_sync` fra manuelle `sync`-kall for å gi mer nøyaktig bruksstatistikk.
 - **Test-robusthet (Bats)**: Bypasset macOS `noexec`-restriksjoner på `/tmp` ved å peke Bats tmp-katalog til workspace-mappen.
 - Diverse opprydding etter grundige kodegjennomganger (Adversarial Review og Opus).
@@ -478,7 +490,7 @@ Oppdatert sikkerhetsskill med OWASP Top 10 2025, utvidet fra kun Go/Kotlin til o
 
 ### Agenter vs skills — deprecation og erstatning
 
-Deprecerte 5 agenter som manglet verktøytilgang (ga kun råd, kunne ikke gjøre endringer). Erstattet med tilsvarende skills som fungerer som kunnskapspakker inne i agenter som *har* verktøy.
+Deprecerte 5 agenter som manglet verktøytilgang (ga kun råd, kunne ikke gjøre endringer). Erstattet med tilsvarende skills som fungerer som kunnskapspakker inne i agenter som _har_ verktøy.
 
 Refs: #255
 
@@ -691,6 +703,7 @@ Gjennomført kryssreferanseaudit av alle 4 samlinger. Lagt til `Related`-tabelle
 ### Tre innganger til nav-pilot
 
 Dokumentert tre måter å bruke nav-pilot på:
+
 - **Terminal**: `copilot --agent nav-pilot`
 - **VS Code / JetBrains**: `@nav-pilot` i chat
 - **nav-pilot CLI**: interaktiv modus med agentvelger
@@ -707,10 +720,10 @@ Dokumentert tre måter å bruke nav-pilot på:
 
 ### Samlingsoversikt
 
-| Kategori | Antall |
-|----------|--------|
-| Agenter | 12 |
-| Skills | 22 |
-| Instruksjoner | 13 |
-| Prompts | 7 |
-| Samlinger | 4 |
+| Kategori      | Antall |
+| ------------- | ------ |
+| Agenter       | 12     |
+| Skills        | 22     |
+| Instruksjoner | 13     |
+| Prompts       | 7      |
+| Samlinger     | 4      |

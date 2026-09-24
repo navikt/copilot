@@ -49,8 +49,8 @@ func TestSetActivePakke(t *testing.T) {
 	if got := PrimaryAgent("copilot"); got != "nav-pilot" {
 		t.Errorf("after SetActivePakke(nil): PrimaryAgent(copilot) = %q, want nav-pilot", got)
 	}
-	if got := ToOpenCodeModel(""); got != "" {
-		t.Errorf("after SetActivePakke(nil): ToOpenCodeModel(\"\") = %q, want \"\" (opencode picks its own default)", got)
+	if got := ToOpenCodeModel(""); got != "github-copilot/gpt-6-sol" {
+		t.Errorf("after SetActivePakke(nil): ToOpenCodeModel(\"\") = %q, want the built-in default", got)
 	}
 }
 
@@ -179,8 +179,8 @@ func TestBuildCopilotArgsPakkeModel(t *testing.T) {
 		want      []string
 	}{
 		{
-			name: "built-in default declares inherit and emits no model",
-			want: []string{"--agent", "nav-pilot"},
+			name: "built-in default supplies GPT-6 Sol",
+			want: []string{"--agent", "nav-pilot", "--model", "gpt-6-sol"},
 		},
 		{
 			name:     "pakke declaration supplies the default model",

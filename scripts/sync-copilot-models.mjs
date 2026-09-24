@@ -85,7 +85,9 @@ function parseCatalog(catalog) {
   for (const [id, model] of Object.entries(models)) {
     if (typeof id !== "string" || id === "") continue;
     const label =
-      isPlainObject(model) && typeof model.name === "string" && model.name.trim()
+      isPlainObject(model) &&
+      typeof model.name === "string" &&
+      model.name.trim()
         ? model.name.trim()
         : id;
     entries.push({ id, label });
@@ -108,7 +110,9 @@ function buildTable(catalogEntries) {
   const byId = new Map();
   for (const p of PINNED) byId.set(p.id, { id: p.id, label: p.label });
   for (const e of catalogEntries) byId.set(e.id, { id: e.id, label: e.label });
-  return [...byId.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return [...byId.values()].sort((a, b) =>
+    a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+  );
 }
 
 /** Slugify a pricing display name to a candidate catalog id. */
@@ -226,7 +230,9 @@ async function main() {
   writeFileSync(goPath, newContent, "utf-8");
   console.log(`\n✓ Wrote ${table.length} models to ${goPath}`);
 
-  const pricedIds = parsePricingIds(readFileSync(fileURLToPath(PRICING_FILE), "utf-8"));
+  const pricedIds = parsePricingIds(
+    readFileSync(fileURLToPath(PRICING_FILE), "utf-8"),
+  );
   const catalogIds = catalogEntries.map((e) => e.id).sort();
   printReconciliation(reconcile(catalogIds, pricedIds));
 }
@@ -241,7 +247,10 @@ export {
   MIN_CATALOG_MODELS,
 };
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   main().catch((err) => {
     console.error("Failed:", err.message);
     process.exit(1);

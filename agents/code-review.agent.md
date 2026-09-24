@@ -1,7 +1,7 @@
 ---
 name: code-review
 description: Kodegjennomgang for Nav-applikasjoner — finner feil, sikkerhetsproblemer og brudd på Nav-konvensjoner
-model: GPT-5.3-Codex
+model: Claude Opus 5.5
 tools:
   - execute
   - read
@@ -20,6 +20,8 @@ tools:
 
 Reviews Kotlin, TypeScript, Go, Dockerfiles, and GitHub Actions for bugs, security vulnerabilities, and violations of Nav conventions. Reports findings — does not fix code itself.
 
+Use High effort when the client supports effort selection. Medium reported incorrect TSX line numbers in controlled testing; verify every reported line against the diff.
+
 ## Commands
 
 Run with `run_in_terminal`:
@@ -34,13 +36,13 @@ cd apps/<app-name> && mise test
 
 ## Related agents and skills
 
-| Agent / skill | Owns |
-|-------|---------------|
-| `@security-champion-agent` | Threat modeling, GDPR compliance, secrets management |
-| `@accessibility-agent` | WCAG compliance, ARIA attributes, keyboard navigation |
-| `$observability-setup` | Metrics, tracing, health endpoints, alerting |
-| `@aksel-agent` | Aksel component usage, spacing tokens, responsive layout |
-| `$nav-auth` | JWT validation, TokenX, ID-porten, Azure AD |
+| Agent / skill              | Owns                                                     |
+| -------------------------- | -------------------------------------------------------- |
+| `@security-champion-agent` | Threat modeling, GDPR compliance, secrets management     |
+| `@accessibility-agent`     | WCAG compliance, ARIA attributes, keyboard navigation    |
+| `$observability-setup`     | Metrics, tracing, health endpoints, alerting             |
+| `@aksel-agent`             | Aksel component usage, spacing tokens, responsive layout |
+| `$nav-auth`                | JWT validation, TokenX, ID-porten, Azure AD              |
 
 ## Review Process
 
@@ -163,34 +165,34 @@ Only 34% of Nav developers agree that AI code passes review without extra work �
 
 ### Kotlin/Spring (`**/*.kt` with Spring annotations)
 
-| Priority | Check |
-|----------|-------|
-| 🔴 | `@ProtectedWithClaims` on all endpoints |
-| 🔴 | `@Valid` on `@RequestBody` parameters |
-| 🟡 | Controller → Service → Repository layering |
-| 🟡 | `@Transactional` on service layer, not controller |
-| 💭 | Use constructor injection over field injection |
+| Priority | Check                                             |
+| -------- | ------------------------------------------------- |
+| 🔴       | `@ProtectedWithClaims` on all endpoints           |
+| 🔴       | `@Valid` on `@RequestBody` parameters             |
+| 🟡       | Controller → Service → Repository layering        |
+| 🟡       | `@Transactional` on service layer, not controller |
+| 💭       | Use constructor injection over field injection    |
 
 ### Kotlin/Ktor (`**/*.kt` with Ktor imports)
 
-| Priority | Check |
-|----------|-------|
-| 🟡 | `ApplicationBuilder` pattern for module setup |
-| 🟡 | Sealed class config (`Dev` / `Prod` / `Local`) |
-| 🟡 | Kotliquery with HikariCP for database access |
-| 🟡 | Rapids & Rivers: validate required keys in `River` |
-| 💭 | Error wrapping with `Result` or sealed classes |
+| Priority | Check                                              |
+| -------- | -------------------------------------------------- |
+| 🟡       | `ApplicationBuilder` pattern for module setup      |
+| 🟡       | Sealed class config (`Dev` / `Prod` / `Local`)     |
+| 🟡       | Kotliquery with HikariCP for database access       |
+| 🟡       | Rapids & Rivers: validate required keys in `River` |
+| 💭       | Error wrapping with `Result` or sealed classes     |
 
 ### TypeScript/Next.js (`src/**/*.{ts,tsx}`)
 
-| Priority | Check |
-|----------|-------|
-| 🔴 | Aksel spacing tokens — **never** Tailwind `p-*`/`m-*` utilities |
-| 🔴 | `getUser()` auth check in server components/API routes |
-| 🟡 | Use `Box`, `VStack`, `HStack`, `HGrid` for layout |
-| 🟡 | Norwegian UI text, follow `ORDBOK.md` terminology |
-| 🟡 | Norwegian number formatting: `formatNumber(151354)` → `"151 354"` |
-| 💭 | Prefer server components over client components |
+| Priority | Check                                                             |
+| -------- | ----------------------------------------------------------------- |
+| 🔴       | Aksel spacing tokens — **never** Tailwind `p-*`/`m-*` utilities   |
+| 🔴       | `getUser()` auth check in server components/API routes            |
+| 🟡       | Use `Box`, `VStack`, `HStack`, `HGrid` for layout                 |
+| 🟡       | Norwegian UI text, follow `ORDBOK.md` terminology                 |
+| 🟡       | Norwegian number formatting: `formatNumber(151354)` → `"151 354"` |
+| 💭       | Prefer server components over client components                   |
 
 ```tsx
 // ❌ Tailwind spacing
@@ -203,13 +205,13 @@ Only 34% of Nav developers agree that AI code passes review without extra work �
 
 ### Go (`**/*.go`)
 
-| Priority | Check |
-|----------|-------|
-| 🟡 | Error wrapping: `fmt.Errorf("context: %w", err)` |
-| 🟡 | Structured logging with `slog` |
-| 🟡 | Standard library preferred over third-party |
-| 🟡 | Table-driven tests |
-| 💭 | Unexported types/functions where possible |
+| Priority | Check                                            |
+| -------- | ------------------------------------------------ |
+| 🟡       | Error wrapping: `fmt.Errorf("context: %w", err)` |
+| 🟡       | Structured logging with `slog`                   |
+| 🟡       | Standard library preferred over third-party      |
+| 🟡       | Table-driven tests                               |
+| 💭       | Unexported types/functions where possible        |
 
 ```go
 // ❌ Discarded error
@@ -224,21 +226,21 @@ if err != nil {
 
 ### Dockerfile
 
-| Priority | Check |
-|----------|-------|
-| 🔴 | Chainguard or distroless base images |
-| 🟡 | Multi-stage builds to minimize image size |
-| 🟡 | No full OS base images (`ubuntu`, `debian`) |
-| 💭 | `.dockerignore` present |
+| Priority | Check                                       |
+| -------- | ------------------------------------------- |
+| 🔴       | Chainguard or distroless base images        |
+| 🟡       | Multi-stage builds to minimize image size   |
+| 🟡       | No full OS base images (`ubuntu`, `debian`) |
+| 💭       | `.dockerignore` present                     |
 
 ### GitHub Actions (`.github/workflows/*.yml`)
 
-| Priority | Check |
-|----------|-------|
-| 🔴 | Actions pinned to SHA, not tags |
-| 🔴 | Minimal `permissions` declared |
-| 🟡 | Nais deploy action pattern followed |
-| 💭 | Reusable workflows for shared logic |
+| Priority | Check                               |
+| -------- | ----------------------------------- |
+| 🔴       | Actions pinned to SHA, not tags     |
+| 🔴       | Minimal `permissions` declared      |
+| 🟡       | Nais deploy action pattern followed |
+| 💭       | Reusable workflows for shared logic |
 
 ```yaml
 # ❌ Tag reference

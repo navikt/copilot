@@ -140,15 +140,13 @@ func TestDefaultMirrorsCurrentBehavior(t *testing.T) {
 	if got := m.PrimaryAgents("opencode")[0]; got != "nav-pilot" {
 		t.Errorf("opencode launch persona = %q, want nav-pilot (OpenCodeAgentPersona)", got)
 	}
-	// InheritModel, not a pinned id, for both clients: copilot's own "auto"
-	// and opencode's own account-aware default each already pick sensibly,
-	// so nav-pilot declares no model and both readers (provider.pakkeDeclaredModel
-	// and provider.openCodeDefaultModel) map InheritModel back to "pin nothing".
-	if got := m.DefaultModel("opencode"); got != InheritModel {
-		t.Errorf("opencode defaultModel = %q, want %q (declaring no pin)", got, InheritModel)
+	if got := m.DefaultModel("copilot"); got != "gpt-6-sol" {
+		t.Errorf("copilot defaultModel = %q, want gpt-6-sol", got)
 	}
-	if got := m.DefaultModel("copilot"); got != InheritModel {
-		t.Errorf("copilot defaultModel = %q, want %q (declared, and declaring no pin)", got, InheritModel)
+	for _, client := range []string{"opencode", "pi"} {
+		if got := m.DefaultModel(client); got != "github-copilot/gpt-6-sol" {
+			t.Errorf("%s defaultModel = %q, want github-copilot/gpt-6-sol", client, got)
+		}
 	}
 	if m.IsPrimaryAgent("opencode", "kafka") {
 		t.Error("kafka is a subagent in opencode today, not a primary agent")

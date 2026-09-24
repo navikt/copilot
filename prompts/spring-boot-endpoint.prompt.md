@@ -1,7 +1,7 @@
 ---
 name: spring-boot-endpoint
 description: Scaffold et Spring Boot REST-endepunkt med Controller, Service, Repository, Test og Nais-konfig
-model: GPT-5.6 Luna
+model: GPT-6 Luna
 ---
 
 # Spring Boot Endpoint

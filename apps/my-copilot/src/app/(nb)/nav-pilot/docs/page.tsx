@@ -1740,11 +1740,11 @@ function KlienterOgKonfigurasjonSection() {
                 bg: "#ecfdf5",
               },
               {
-                title: "Ingen påtvunget standardmodell",
+                title: "GPT-6 Sol som standard",
                 desc: (
                   <>
-                    Når ingen modell er konfigurert, sendes ingen <code className="font-mono text-xs">--model</code>
-                    -flagg til opencode — den velger selv en modell kontoen din faktisk har tilgang til.
+                    Når ingen modell er konfigurert, starter nav-pilot opencode med GPT-6 Sol. Ditt eget modellvalg
+                    vinner over standarden.
                   </>
                 ),
                 color: "#3b82f6",

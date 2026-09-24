@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-18T10:20:16.450Z",
+  "generatedAt": "2026-09-24T15:52:58.950Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -124,7 +124,7 @@
       "filePath": ".github/agents/code-review.agent.md",
       "repoPath": "agents/code-review.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/code-review.agent.md",
-      "contentHash": "10ce155690b4c8354e3e7c1ce6db739aefcdeee401f7ce7dcdb4b03c2d659b0f",
+      "contentHash": "5a019cbf3eda9ce2789ee1810253542448be72bbd3c84e9fdda5caae276bfd2f",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fcode-review.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fcode-review.agent.md",
       "tools": [
@@ -140,7 +140,7 @@
         "github/list_pull_requests",
         "github/search_pull_requests"
       ],
-      "model": ["GPT-5.3-Codex"],
+      "model": ["Claude Opus 5.5"],
       "agentReferences": ["accessibility-agent", "aksel-agent", "security-champion-agent"],
       "tags": ["code-review", "quality", "conventions", "pre-merge"],
       "examples": [
@@ -205,7 +205,7 @@
       "filePath": ".github/agents/kafka.agent.md",
       "repoPath": "agents/kafka.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/kafka.agent.md",
-      "contentHash": "f74565e00c5d05159f29535d910905fe7470cac1813ba7bd2f44131bf21c1cd9",
+      "contentHash": "c2616223f6228f8e583c122d0b70dd42f4b5cebbb99494e4be919c319707c232",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fkafka.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fkafka.agent.md",
       "tools": [
@@ -226,7 +226,7 @@
         "github/pull_request_read",
         "github/search_pull_requests"
       ],
-      "model": ["GPT-5.3-Codex"],
+      "model": ["GPT-6 Sol"],
       "agentReferences": ["security-champion-agent"],
       "tags": ["kafka", "events", "rapids-rivers", "streaming"],
       "examples": [
@@ -251,7 +251,7 @@
       "filePath": ".github/agents/nav-pilot-opus.agent.md",
       "repoPath": "agents/nav-pilot-opus.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/nav-pilot-opus.agent.md",
-      "contentHash": "9ce0afc59f0a1912381149bbda0d1d6f22c66594d8935ff803c457335a30a8fd",
+      "contentHash": "9589574e7c94010a6615e0f6979bbcb7a0792c0317db11a0fce27adf14b76940",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot-opus.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot-opus.agent.md",
       "tools": [
@@ -274,7 +274,7 @@
         "github/get_latest_release",
         "github/list_releases"
       ],
-      "model": ["GPT-5.6 Sol"],
+      "model": ["Claude Opus 5.5"],
       "tags": ["planning", "architecture", "review", "security", "nav-pilot"],
       "examples": [
         {
@@ -364,7 +364,7 @@
       "filePath": ".github/agents/research.agent.md",
       "repoPath": "agents/research.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/research.agent.md",
-      "contentHash": "b68b9c9b82f12c023995884ade9b51090fed4a84198ba4120664a3e0694b2b49",
+      "contentHash": "22005ea46dec85a06fee168a2a0be309296809cf3737cca18047e54c67529195",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fresearch.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fresearch.agent.md",
       "tools": [
@@ -388,7 +388,7 @@
         "github/list_tags",
         "github/list_branches"
       ],
-      "model": ["GPT-5.6 Luna"],
+      "model": ["GPT-6 Luna"],
       "agentReferences": ["aksel-agent", "kafka-agent", "security-champion-agent"],
       "tags": ["research", "analysis", "codebase-exploration"],
       "examples": [
@@ -411,7 +411,7 @@
       "filePath": ".github/agents/rust.agent.md",
       "repoPath": "agents/rust.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/rust.agent.md",
-      "contentHash": "8ee97a471ec8b56008fa477b0d95963e62ebadeb54a328538351127b48556c14",
+      "contentHash": "877fab8c93fa0ae62db368791b9afb3316499d03d2d375119e71339ca1bdd718",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Frust.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Frust.agent.md",
       "tools": [
@@ -426,7 +426,7 @@
         "github/search_code",
         "github/search_repositories"
       ],
-      "model": ["GPT-5.3-Codex"],
+      "model": ["GPT-6 Sol"],
       "agentReferences": ["security-champion-agent"],
       "tags": ["rust", "cargo", "clippy", "async", "tokio"],
       "deprecated": true,
@@ -441,7 +441,7 @@
       "filePath": ".github/agents/security-champion.agent.md",
       "repoPath": "agents/security-champion.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/security-champion.agent.md",
-      "contentHash": "2c3200cf23251a702acb1539d5465b98e5e8479a4f18e69d0a8cde5be9cda377",
+      "contentHash": "f7c85c203663cafe991bdebc901049b796748c333566663a2b1146be31152942",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fsecurity-champion.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fsecurity-champion.agent.md",
       "tools": [
@@ -468,7 +468,7 @@
         "github/list_tags",
         "github/list_branches"
       ],
-      "model": ["GPT-5.6 Sol"],
+      "model": ["GPT-6 Sol"],
       "tags": ["security", "compliance", "gdpr", "threat-modeling"],
       "examples": [
         {
@@ -779,11 +779,11 @@
       "filePath": ".github/prompts/golang-service.prompt.md",
       "repoPath": "prompts/golang-service.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/golang-service.prompt.md",
-      "contentHash": "dc21d1c2ee4c168502d3aef869e7e7908e6b96eefab0512f0f1f0e0243d0966d",
+      "contentHash": "7fde0ad3e09207507985e4ed7902f84e7494bf1bbf22fc85d894145f10a11abe",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fgolang-service.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fgolang-service.prompt.md",
       "invocation": "#golang-service",
-      "model": ["GPT-5.6 Luna"]
+      "model": ["GPT-6 Luna"]
     },
     {
       "id": "kafka-topic",
@@ -794,11 +794,11 @@
       "filePath": ".github/prompts/kafka-topic.prompt.md",
       "repoPath": "prompts/kafka-topic.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/kafka-topic.prompt.md",
-      "contentHash": "d485c12c7b6d44d6529077a5b019c682b423f6db2b28584fd3fa796bc8f967bf",
+      "contentHash": "4dedc8bfb89c321c87e932baa8e289705819206cdcb84da1c464bb9455135169",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fkafka-topic.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fkafka-topic.prompt.md",
       "invocation": "#kafka-topic",
-      "model": ["GPT-5.3-Codex"],
+      "model": ["GPT-6 Luna"],
       "tags": ["nais", "kafka", "rapids-rivers", "infrastructure"],
       "examples": ["#kafka-topic Legg til et topic for sykmeldingshendelser"]
     },
@@ -811,11 +811,11 @@
       "filePath": ".github/prompts/ktor-endpoint.prompt.md",
       "repoPath": "prompts/ktor-endpoint.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/ktor-endpoint.prompt.md",
-      "contentHash": "78a11bb6d225b6646f2588f5b3efa69126f47826d490ca0cdcb32d0b94adfa93",
+      "contentHash": "19f9709a094b034ea627f41a0febaf1ab1d51cf59b8832aae0587842c9375da7",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fktor-endpoint.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fktor-endpoint.prompt.md",
       "invocation": "#ktor-endpoint",
-      "model": ["GPT-5.6 Luna"]
+      "model": ["GPT-6 Luna"]
     },
     {
       "id": "nais-manifest",
@@ -826,11 +826,11 @@
       "filePath": ".github/prompts/nais-manifest.prompt.md",
       "repoPath": "prompts/nais-manifest.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/nais-manifest.prompt.md",
-      "contentHash": "f90a562ca7f8233c7ee7a32a26cc5c9140097379266cfe66b58fe9461e2972ed",
+      "contentHash": "df650deedb8cf0f024d5b9fb51cb78979a6a1ffd5e52cd9b24609a82359429ae",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fnais-manifest.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fnais-manifest.prompt.md",
       "invocation": "#nais-manifest",
-      "model": ["GPT-5.3-Codex"],
+      "model": ["GPT-6 Luna"],
       "tags": ["nais", "kubernetes", "deployment", "infrastructure"],
       "examples": ["#nais-manifest Generer et manifest for dp-soknad i prod-gcp"]
     },
@@ -843,11 +843,11 @@
       "filePath": ".github/prompts/nextjs-api-route.prompt.md",
       "repoPath": "prompts/nextjs-api-route.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/nextjs-api-route.prompt.md",
-      "contentHash": "5f65db6b410ea3e63988772a1af8fcacec54c13daafc91339ee304a32c698053",
+      "contentHash": "f5344c834c5fb49269251a038ef94913557175a179254683df817204b7e621e6",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fnextjs-api-route.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fnextjs-api-route.prompt.md",
       "invocation": "#nextjs-api-route",
-      "model": ["GPT-5.6 Luna"],
+      "model": ["GPT-6 Luna"],
       "tags": ["nextjs", "api-route", "app-router", "scaffold"],
       "examples": ["#api-route Lag en API-route for å hente brukerdata fra BigQuery"]
     },
@@ -860,11 +860,11 @@
       "filePath": ".github/prompts/spring-boot-endpoint.prompt.md",
       "repoPath": "prompts/spring-boot-endpoint.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/spring-boot-endpoint.prompt.md",
-      "contentHash": "82404ec13b5fd880203d06fed3e98965bcee18ac205fd8b86bc56b8036e04f71",
+      "contentHash": "e2e2a7c6af3729b33dc1e0f2e98650e4e71e5437bf2a3999bb74696db65fe83e",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fspring-boot-endpoint.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fspring-boot-endpoint.prompt.md",
       "invocation": "#spring-boot-endpoint",
-      "model": ["GPT-5.6 Luna"],
+      "model": ["GPT-6 Luna"],
       "tags": ["spring-boot", "kotlin", "rest", "endpoint", "scaffold"],
       "examples": ["#spring-boot-endpoint Lag et CRUD-endepunkt for vedtak med PostgreSQL"]
     },

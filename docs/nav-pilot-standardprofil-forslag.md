@@ -1,6 +1,6 @@
 # Forslag: ekstern standardprofil for nav-pilot
 
-**Status: forslag, ikke gjeldende oppførsel.** Ingenting i dette dokumentet er implementert. `nav-pilot` henter ingen profil i dag, og ingen av nøklene, filene eller endepunktene som beskrives her finnes utenfor forslaget. Dokumentet er skrevet for å bli motsagt: siste seksjon ([§12](#12-når-dette-er-feil-valg)) er en samling argumenter mot å bygge det.
+**Status: forslag, ikke gjeldende oppførsel.** Ingenting i dette dokumentet er implementert. `nav-pilot` henter ingen profil i dag, og ingen av nøklene, filene eller endepunktene som beskrives her finnes utenfor forslaget. Agentpakken fikk GPT-6 Sol som konkret standard 24. september 2026. Påstandene under om at standarden fortsatt er `inherit` beskriver kodebasen 31. august, ikke dagens oppsett. Dokumentet er skrevet for å bli motsagt: siste seksjon ([§12](#12-når-dette-er-feil-valg)) er en samling argumenter mot å bygge det.
 
 **Regel for dokumentet, lånt fra [agentpakke-beslutninger.md](agentpakke-beslutninger.md):** hver påstand om koden skal kunne sjekkes mot fil og linje. Der oppdraget som utløste dokumentet sier noe annet enn koden, er koden fasit, og avviket noteres ([§13](#13-påstander-som-ikke-overlevde-kontrollen)).
 
@@ -54,13 +54,13 @@ Det er den enkeltopplysningen som svekker behovet mest, og den står her framfor
 
 Branchen `feat/model-default-profile` (`2bf00734`) har en komplett implementasjon: profil-JSON i repoet, henting i release-budsjettet, cache i `StalenessCache`, validering mot innebygd skjema, mykt fall, lest i `openCodeDefaultModel()`. Den ble frarådet merget. Slik står innvendingene nå.
 
-| # | Innvending | Status |
-| --- | --- | --- |
-| 1 | Nådde bare opencode | **Løst, men ikke av grunnen oppdraget oppgir.** Se under. |
-| 2 | Verdien var allerede `github-copilot/auto` | **Står, og er styrket.** Se under. |
-| 3 | Lesestedet skal slettes | **Delvis feil premiss.** Se under. |
-| 4 | 14 % av kredittbruken | **Står uimotsagt.** Kan ikke etterprøves i repoet. |
-| 5 | To rekonstruksjonssteder for `StalenessCache` | **Står, og det er tre, ikke to.** |
+| #   | Innvending                                    | Status                                                    |
+| --- | --------------------------------------------- | --------------------------------------------------------- |
+| 1   | Nådde bare opencode                           | **Løst, men ikke av grunnen oppdraget oppgir.** Se under. |
+| 2   | Verdien var allerede `github-copilot/auto`    | **Står, og er styrket.** Se under.                        |
+| 3   | Lesestedet skal slettes                       | **Delvis feil premiss.** Se under.                        |
+| 4   | 14 % av kredittbruken                         | **Står uimotsagt.** Kan ikke etterprøves i repoet.        |
+| 5   | To rekonstruksjonssteder for `StalenessCache` | **Står, og det er tre, ikke to.**                         |
 
 **1. «Nådde bare opencode.»** Løst. Etter #490 finnes det et lesested for copilot Tier 1 ([copilot_launch.go:82](../cli/nav-pilot/internal/provider/copilot_launch.go)), og alle fire launch-stiene leser nå manifestet på samme måte: Tier 1 copilot (linje 82), Tier 1 opencode gjennom `ToOpenCodeModel` ([provider.go:96-106](../cli/nav-pilot/internal/provider/provider.go)) og `openCodeDefaultModel` ([pakke.go:82-88](../cli/nav-pilot/internal/provider/pakke.go)), Tier 2 opencode ([staged_launch.go:218](../cli/nav-pilot/internal/provider/staged_launch.go)) og Tier 2 copilot ([staged_launch.go:252](../cli/nav-pilot/internal/provider/staged_launch.go)). Men merk hva som løste det: det var manifest-fallbacket, ikke frontmatter-linja. `nav-pilot.agent.md` har fortsatt ingen `model:`, så frontmatter-halvdelen av #490 rører ikke standardpersonaen. Oppdraget krediterer feil halvdel av PR-en.
 
@@ -88,7 +88,7 @@ Forrige forsøk fant og oppdaterte alle tre. Det er ikke en garanti for at den f
 
 Utløseren er et bevisst hevet `defaultsVersion` i profilen. Et tidsstempel endrer seg ved hver redigering, inkludert rene tekstrettinger i `note`-feltet, og ville nudget hele Nav for en kommafeil. Et heltall som Nav hever når endringen er verdt å spørre om, lar den som redigerer bestemme hva som er verdt oppmerksomhet. Det er monotont, så en revert som hever versjonen videre oppfører seg riktig, og klokkeskjev på klienten betyr ingenting.
 
-Å lagre en boolean («er varslet») ville trengt en nullstilling for hver endring, altså en skriveoperasjon Nav ikke kan utføre på brukerens maskin. Å lagre selve verdien gjør nullstillingen implisitt: den lagrede versjonen er ulik den nye versjonen, og det er hele testen. Dette er samme resonnement som `rtk_prompted_client` bruker: den lagrer *hvilke klienter* som er spurt, ikke *om* noen er spurt ([config_cmd.go:138-145](../cli/nav-pilot/internal/cli/config_cmd.go)), fordi et ja/nei ikke kunne svare på «er denne brukeren spurt for opencode».
+Å lagre en boolean («er varslet») ville trengt en nullstilling for hver endring, altså en skriveoperasjon Nav ikke kan utføre på brukerens maskin. Å lagre selve verdien gjør nullstillingen implisitt: den lagrede versjonen er ulik den nye versjonen, og det er hele testen. Dette er samme resonnement som `rtk_prompted_client` bruker: den lagrer _hvilke klienter_ som er spurt, ikke _om_ noen er spurt ([config_cmd.go:138-145](../cli/nav-pilot/internal/cli/config_cmd.go)), fordi et ja/nei ikke kunne svare på «er denne brukeren spurt for opencode».
 
 Lagre versjonen, ikke modell-id-en. Modell-id-en er avledet: to profiler kan sette samme id via ulike veier, og en id kan endres kosmetisk. Versjonen er det Nav faktisk styrer.
 
@@ -123,14 +123,14 @@ Verdien er profilens `defaultsVersion` som streng. Skriving skjer **før** meldi
 
 Rekkefølgen under er lest ut av koden, ikke gjengitt fra en plan. Den er høyeste først.
 
-| Lag | Hvor den bor | Sted i koden |
-| --- | --- | --- |
-| 1. CLI-flagg `--model` | prosessargument | [config.go:305-307](../cli/nav-pilot/internal/cli/config.go) skriver over filverdien |
-| 2. Konfigfil `model` | `~/.nav-pilot/config.toml` | [config.go:257-259](../cli/nav-pilot/internal/cli/config.go) |
-| 3. Agentens frontmatter `model:` | den materialiserte agentfila | [export.go:318](../cli/nav-pilot/internal/artifacts/export.go), virkningen er klientavhengig |
+| Lag                                      | Hvor den bor                                                | Sted i koden                                                                                                                                                                                                                                                                            |
+| ---------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. CLI-flagg `--model`                   | prosessargument                                             | [config.go:305-307](../cli/nav-pilot/internal/cli/config.go) skriver over filverdien                                                                                                                                                                                                    |
+| 2. Konfigfil `model`                     | `~/.nav-pilot/config.toml`                                  | [config.go:257-259](../cli/nav-pilot/internal/cli/config.go)                                                                                                                                                                                                                            |
+| 3. Agentens frontmatter `model:`         | den materialiserte agentfila                                | [export.go:318](../cli/nav-pilot/internal/artifacts/export.go), virkningen er klientavhengig                                                                                                                                                                                            |
 | 4. Agentpakke-manifestets `defaultModel` | `.nav-pilot/agentpakke.json`, eller den innebygde adapteren | [copilot_launch.go:82](../cli/nav-pilot/internal/provider/copilot_launch.go), [staged_launch.go:218](../cli/nav-pilot/internal/provider/staged_launch.go) og [:252](../cli/nav-pilot/internal/provider/staged_launch.go), [pakke.go:82-88](../cli/nav-pilot/internal/provider/pakke.go) |
-| 5. Profilen (foreslått) | hentet dokument, cachet | eksisterer ikke |
-| 6. Innkompilert standard | `OpenCodeDefaultModel` | [provider.go:65](../cli/nav-pilot/internal/provider/provider.go) |
+| 5. Profilen (foreslått)                  | hentet dokument, cachet                                     | eksisterer ikke                                                                                                                                                                                                                                                                         |
+| 6. Innkompilert standard                 | `OpenCodeDefaultModel`                                      | [provider.go:65](../cli/nav-pilot/internal/provider/provider.go)                                                                                                                                                                                                                        |
 
 **Tre presiseringer oppdragets liste mangler.**
 
@@ -154,14 +154,14 @@ I samme kall som release-sjekken lykkes, altså høyst én gang i døgnet, på s
 
 ### 7.3 Feilmodusene
 
-| Situasjon | Oppførsel |
-| --- | --- |
-| Offline, varm cache | Forrige kjente profil brukes. Ingen melding. |
-| Offline, kald cache | Innkompilert standard. Ingen melding. Ingen forsinkelse ut over de 5 sekundene release-sjekken allerede bruker. |
-| Henting feiler, varm cache | Forrige profil rir videre. Ny-forsøk om en time, ikke om et døgn ([:117-119](../cli/nav-pilot/internal/artifacts/staleness.go)). |
-| Profilen er ugyldig JSON eller feiler skjemaet | Forrige profil rir videre. Ingen melding til brukeren; hun kan ikke gjøre noe med det. |
-| Profilen mangler helt (404) | Forrige profil rir videre. Å slette fila er dermed ikke en måte å ødelegge starter på. |
-| Profilen deklarerer en ukjent `profileVersion` | Hele dokumentet ignoreres. Slik holder en fremtidig inkompatibel profil seg ufarlig for dagens binærer. |
+| Situasjon                                      | Oppførsel                                                                                                                        |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Offline, varm cache                            | Forrige kjente profil brukes. Ingen melding.                                                                                     |
+| Offline, kald cache                            | Innkompilert standard. Ingen melding. Ingen forsinkelse ut over de 5 sekundene release-sjekken allerede bruker.                  |
+| Henting feiler, varm cache                     | Forrige profil rir videre. Ny-forsøk om en time, ikke om et døgn ([:117-119](../cli/nav-pilot/internal/artifacts/staleness.go)). |
+| Profilen er ugyldig JSON eller feiler skjemaet | Forrige profil rir videre. Ingen melding til brukeren; hun kan ikke gjøre noe med det.                                           |
+| Profilen mangler helt (404)                    | Forrige profil rir videre. Å slette fila er dermed ikke en måte å ødelegge starter på.                                           |
+| Profilen deklarerer en ukjent `profileVersion` | Hele dokumentet ignoreres. Slik holder en fremtidig inkompatibel profil seg ufarlig for dagens binærer.                          |
 
 Merk at release-sjekken **ikke** skal utløse en ekstra henting når den selv feiler. En feilet release-oppslag er det sterkeste tilgjengelige signalet om at det ikke finnes nett, og en andre forespørsel bruker bare opp startens budsjett på samme timeout. Forrige forsøk kom fram til det samme og skrev det ned i `staleness.go`; det resonnementet er verdt å beholde.
 
@@ -269,13 +269,13 @@ Fire argumenter mot, i synkende styrke. En gjennomgang som ender med å avvise f
 
 Fra oppdraget som utløste dokumentet, og fra den forrige gjennomgangen.
 
-| Påstand | Hva koden sier |
-| --- | --- |
-| «PR #498 gjorde at nav-pilot skriver Nav-standarden inn i opencodes egen konfigurasjon» | **#498 er åpen, ikke merget** (`gh pr view 498`). Alt som hviler på den er betinget. |
+| Påstand                                                                                                   | Hva koden sier                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| «PR #498 gjorde at nav-pilot skriver Nav-standarden inn i opencodes egen konfigurasjon»                   | **#498 er åpen, ikke merget** (`gh pr view 498`). Alt som hviler på den er betinget.                                                                                                                                                                                                                                                                                                                            |
 | «#490 gjorde at materialiserte opencode-agenter bærer modellen sin, og det er det som løser innvending 1» | Halvparten stemmer. `BuildAgentFrontmatter` skriver `model:` ([frontmatter.go:196-207](../cli/nav-pilot/internal/source/frontmatter.go)), men `nav-pilot.agent.md` har ingen `model:`-linje, så standardpersonaen påvirkes ikke. Det som løser innvending 1 er manifest-fallbacket på Tier 1 copilot ([copilot_launch.go:82](../cli/nav-pilot/internal/provider/copilot_launch.go)), som oppdraget ikke nevner. |
-| «To rekonstruksjonssteder for `StalenessCache`» | **Tre**: [staleness.go:133](../cli/nav-pilot/internal/artifacts/staleness.go), [staleness.go:141](../cli/nav-pilot/internal/artifacts/staleness.go), [update.go:130](../cli/nav-pilot/internal/cli/update.go). |
-| «#485 er en PR» | #485 er et **issue**, åpent, merket «Ikke implementer nå». |
-| «Lesestedet ligger på en kodesti som skal slettes» | Det som slettes er den innebygde adapteren `Default()` ([legacy.go:15-23](../cli/nav-pilot/internal/agentpakke/legacy.go)). Lesestedene leser `source.ActivePakke()` og blir stående. |
-| «Verdien som gjøres oppdaterbar var allerede `github-copilot/auto`» | Stemmer for opencode ([legacy.go:78](../cli/nav-pilot/internal/agentpakke/legacy.go)). For copilot, som er standardklienten, er verdien `inherit`, altså ingen verdi ([legacy.go:71](../cli/nav-pilot/internal/agentpakke/legacy.go)). Innvendingen er sterkere enn den ble formulert. |
-| «Rate-limit på anonyme api.github.com» er relevant for profilen | Bare hvis profilen legges på `api.github.com`. Anbefalingen i [§8](#8-hvor-profilen-bor) bruker `raw.githubusercontent.com`, som ikke deler det taket. Det er release-sjekken som lever med det ([update.go:22](../cli/nav-pilot/internal/cli/update.go)). |
-| «14 % / 60 % av kredittbruken» | Kan ikke etterprøves i repoet. Står ubestridt, og er gjengitt i [§11](#11-hva-dette-ikke-løser) som premiss, ikke som verifisert tall. |
+| «To rekonstruksjonssteder for `StalenessCache`»                                                           | **Tre**: [staleness.go:133](../cli/nav-pilot/internal/artifacts/staleness.go), [staleness.go:141](../cli/nav-pilot/internal/artifacts/staleness.go), [update.go:130](../cli/nav-pilot/internal/cli/update.go).                                                                                                                                                                                                  |
+| «#485 er en PR»                                                                                           | #485 er et **issue**, åpent, merket «Ikke implementer nå».                                                                                                                                                                                                                                                                                                                                                      |
+| «Lesestedet ligger på en kodesti som skal slettes»                                                        | Det som slettes er den innebygde adapteren `Default()` ([legacy.go:15-23](../cli/nav-pilot/internal/agentpakke/legacy.go)). Lesestedene leser `source.ActivePakke()` og blir stående.                                                                                                                                                                                                                           |
+| «Verdien som gjøres oppdaterbar var allerede `github-copilot/auto`»                                       | Stemmer for opencode ([legacy.go:78](../cli/nav-pilot/internal/agentpakke/legacy.go)). For copilot, som er standardklienten, er verdien `inherit`, altså ingen verdi ([legacy.go:71](../cli/nav-pilot/internal/agentpakke/legacy.go)). Innvendingen er sterkere enn den ble formulert.                                                                                                                          |
+| «Rate-limit på anonyme api.github.com» er relevant for profilen                                           | Bare hvis profilen legges på `api.github.com`. Anbefalingen i [§8](#8-hvor-profilen-bor) bruker `raw.githubusercontent.com`, som ikke deler det taket. Det er release-sjekken som lever med det ([update.go:22](../cli/nav-pilot/internal/cli/update.go)).                                                                                                                                                      |
+| «14 % / 60 % av kredittbruken»                                                                            | Kan ikke etterprøves i repoet. Står ubestridt, og er gjengitt i [§11](#11-hva-dette-ikke-løser) som premiss, ikke som verifisert tall.                                                                                                                                                                                                                                                                          |

@@ -83,19 +83,19 @@ func TestBuildCopilotArgs(t *testing.T) {
 			name:     "cplt pins copilot sandbox agent and emits nav-pilot persona",
 			cliName:  "cplt",
 			resolved: domain.ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true},
-			want:     []string{"--agent", "copilot", "--", "--agent", "nav-pilot"},
+			want:     []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-6-sol"},
 		},
 		{
 			name:     "copilot always emits nav-pilot persona",
 			cliName:  "copilot",
 			resolved: domain.ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true},
-			want:     []string{"--agent", "nav-pilot"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6-sol"},
 		},
 		{
 			name:     "resolved.Client=copilot still emits --agent nav-pilot (not --agent copilot)",
 			cliName:  "copilot",
 			resolved: domain.ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true},
-			want:     []string{"--agent", "nav-pilot"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6-sol"},
 		},
 		{
 			name:     "copilot with model and mode",
@@ -124,19 +124,19 @@ func TestBuildCopilotArgs(t *testing.T) {
 			name:     "copilot with allow-all-tools and no-ask-user",
 			cliName:  "copilot",
 			resolved: domain.ResolvedConfig{Client: "copilot", Mode: "default", AllowAllTools: true, AskUser: false},
-			want:     []string{"--agent", "nav-pilot", "--allow-all-tools", "--no-ask-user"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6-sol", "--allow-all-tools", "--no-ask-user"},
 		},
 		{
 			name:     "default mode not emitted",
 			cliName:  "copilot",
 			resolved: domain.ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true},
-			want:     []string{"--agent", "nav-pilot"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6-sol"},
 		},
 		{
 			name:     "default context not emitted",
 			cliName:  "copilot",
 			resolved: domain.ResolvedConfig{Client: "copilot", Mode: "default", ContextTier: "default", AskUser: true},
-			want:     []string{"--agent", "nav-pilot"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6-sol"},
 		},
 	}
 	for _, tt := range tests {
