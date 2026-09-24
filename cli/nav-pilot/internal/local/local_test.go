@@ -696,18 +696,21 @@ func TestMinNavPilotWithheldDefaultNamesTheReason(t *testing.T) {
 }
 
 // TestMinNavPilotWrongTypeSkipsOnlyThatEntry: a non-string min_nav_pilot is
-// malformed like a bad string, not a reason to refuse the whole manifest.
+// malformed like a bad string, not a reason to refuse the whole manifest. null
+// counts: it must not pass as an absent field.
 func TestMinNavPilotWrongTypeSkipsOnlyThatEntry(t *testing.T) {
-	m, err := Parse(manifestJSON("1", modelJSON("qwen", okModel, true),
-		`{"key":"big","name":"Big","model":"mlx-community/Big-8bit","backend":"mlx-lm","params":{},"min_nav_pilot":123}`))
-	if err != nil {
-		t.Fatalf("Parse: %v", err)
-	}
-	if w, ok := m.WithheldEntry("mlx-community/Big-8bit"); !ok || !strings.Contains(w.Reason, "cannot read") {
-		t.Errorf("WithheldEntry = %+v/%v, want it skipped as unreadable", w, ok)
-	}
-	if len(m.Models) != 1 || m.Models[0].Model != okModel {
-		t.Errorf("Models = %+v, want only the default", m.Models)
+	for _, raw := range []string{"123", "null", "{}"} {
+		m, err := Parse(manifestJSON("1", modelJSON("qwen", okModel, true),
+			`{"key":"big","name":"Big","model":"mlx-community/Big-8bit","backend":"mlx-lm","params":{},"min_nav_pilot":`+raw+`}`))
+		if err != nil {
+			t.Fatalf("%s: Parse: %v", raw, err)
+		}
+		if w, ok := m.WithheldEntry("mlx-community/Big-8bit"); !ok || !strings.Contains(w.Reason, "cannot read") {
+			t.Errorf("%s: WithheldEntry = %+v/%v, want it skipped as unreadable", raw, w, ok)
+		}
+		if len(m.Models) != 1 || m.Models[0].Model != okModel {
+			t.Errorf("%s: Models = %+v, want only the default", raw, m.Models)
+		}
 	}
 }
 

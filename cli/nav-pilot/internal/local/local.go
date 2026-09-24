@@ -193,11 +193,12 @@ type Model struct {
 // releaseVersion is min_nav_pilot as read from the manifest. It never fails to
 // decode: a value that is not a JSON string is kept as its raw text, which the
 // gate then rejects as malformed, so a wrong type costs that entry only rather
-// than the whole manifest.
+// than the whole manifest. That includes null, which json.Unmarshal would
+// otherwise accept as an empty string and so as no minimum at all.
 type releaseVersion string
 
 func (v *releaseVersion) UnmarshalJSON(b []byte) error {
-	if err := json.Unmarshal(b, (*string)(v)); err != nil {
+	if string(b) == "null" || json.Unmarshal(b, (*string)(v)) != nil {
 		*v = releaseVersion(b)
 	}
 	return nil
