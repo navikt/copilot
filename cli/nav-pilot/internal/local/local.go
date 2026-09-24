@@ -55,6 +55,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -165,6 +166,10 @@ type Model struct {
 	// need them, and a typed struct here would make every new knob a nav-pilot
 	// release.
 	Params map[string]string `json:"params"`
+
+	// Capabilities is the benchmark's verdict per task class, or nil for a
+	// manifest generated before the block existed. See [Capabilities].
+	Capabilities *Capabilities `json:"capabilities,omitempty"`
 }
 
 // Manifest is a parsed, validated local-model manifest.
@@ -295,6 +300,12 @@ func (m *Manifest) checkModels() error {
 					where, key, model.Model, allowedParamKey)
 			}
 		}
+		if err := checkPrefillStepSize(where, model.Params["MLX_PREFILL_STEP_SIZE"]); err != nil {
+			return err
+		}
+		if _, err := samplingOverride(model.Params); err != nil {
+			return fmt.Errorf("local-model manifest entry %q: %w", where, err)
+		}
 		for field, value := range map[string]string{"role": model.Role, "expect": model.Expect} {
 			if err := checkProse(where, field, value); err != nil {
 				return err
@@ -311,6 +322,31 @@ func (m *Manifest) checkModels() error {
 		return fmt.Errorf(
 			"local-model manifest must mark exactly one model as \"default\": true, this one marks %d (%s)",
 			len(defaults), strings.Join(defaults, ", "))
+	}
+	return nil
+}
+
+// maxPrefillStepSize bounds MLX_PREFILL_STEP_SIZE. mlx-lm's default is 2048,
+// and the knob exists to go below it: each chunk materialises attention scores
+// in proportion to its size, which at long context is the transient that runs a
+// model out of Metal memory. Eight times the default is already far past any
+// value that helps.
+const maxPrefillStepSize = 16384
+
+// checkPrefillStepSize refuses an MLX_PREFILL_STEP_SIZE that is not a whole
+// number of tokens in 1..[maxPrefillStepSize]. mlx-lm would reject a
+// non-integer at startup, but zero or a negative number would reach its
+// prefill loop, and a huge one would undo what the knob is for. An absent or
+// blank value is fine: the flag is then not passed and mlx-lm keeps 2048.
+func checkPrefillStepSize(where, value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	if n, err := strconv.Atoi(value); err != nil || n < 1 || n > maxPrefillStepSize {
+		return fmt.Errorf(
+			"local-model manifest entry %q sets MLX_PREFILL_STEP_SIZE to %q, want a whole number of tokens from 1 to %d",
+			where, value, maxPrefillStepSize)
 	}
 	return nil
 }

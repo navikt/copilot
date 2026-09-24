@@ -114,10 +114,14 @@ func fileExists(path string) bool {
 // id, which is the same shape opencode wants, so ToOpenCodeModel's mapping
 // applies unchanged.
 func piModelArg(model string) []string {
+	if isOpenCodeUnsetModel(model) {
+		return nil
+	}
+	model = ToOpenCodeModel(model)
 	if model == "" {
 		return nil
 	}
-	return []string{"--model", ToOpenCodeModel(model)}
+	return []string{"--model", model}
 }
 
 // PiUnsupportedConfigWarnings names the settings a pi launch still drops.

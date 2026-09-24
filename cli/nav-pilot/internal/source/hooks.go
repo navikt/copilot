@@ -53,6 +53,11 @@ const (
 
 	hookEventRepo = "preToolUse"
 	hookEventUser = "PreToolUse"
+
+	// HookEventPostToolUse is the user-dialect event for a hook that runs after
+	// the tool, with its result. nav-pilot's own built-in hooks use it; the
+	// Python hook artifacts are all preToolUse gates.
+	HookEventPostToolUse = "PostToolUse"
 )
 
 // HookMeta is the sidecar a hook ships alongside its script: hooks/<name>.py is
@@ -203,6 +208,9 @@ type HookEntry struct {
 	Matcher string
 	Command string
 	Timeout int
+	// Event is the user-dialect event the entry is filed under. Empty means
+	// PreToolUse, which is what every hook artifact is.
+	Event string
 }
 
 // wireEntry is the on-disk shape of an entry nav-pilot writes. It exists as a
@@ -321,13 +329,17 @@ func RemoveRepoHooks(hooksDir string, only ...string) (removed int, err error) {
 // directory. No merge: each hook is its own file there, so an install can only
 // ever overwrite the file it wrote itself.
 func WriteUserHook(hooksDir string, entry HookEntry) error {
-	raw, err := entry.marshal(hookEventUser)
+	event := entry.Event
+	if event == "" {
+		event = hookEventUser
+	}
+	raw, err := entry.marshal(event)
 	if err != nil {
 		return err
 	}
 	f := &hooksFile{
 		Version: 1,
-		Hooks:   map[string][]json.RawMessage{hookEventUser: {raw}},
+		Hooks:   map[string][]json.RawMessage{event: {raw}},
 		rest:    map[string]json.RawMessage{},
 	}
 	return f.write(filepath.Join(hooksDir, entry.Name+".json"))

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"path/filepath"
 	"testing"
 )
@@ -30,10 +29,10 @@ func TestFirstRunSetupReceivesFlagSource(t *testing.T) {
 		return nil
 	}
 
-	// The --sync path launches a client once it has synced. Denying it a
-	// provider is what keeps this test from starting one.
+	// The --sync path launches a client once it has synced. A provider that is
+	// not installed is what keeps this test from starting one.
 	origProviderFor := providerFor
-	providerFor = func(string) (Provider, error) { return nil, errors.New("no provider in this test") }
+	providerFor = func(string) (Provider, error) { return failingProvider{unavailable: true}, nil }
 
 	t.Cleanup(func() {
 		isInteractive = origInteractive

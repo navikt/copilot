@@ -26,37 +26,60 @@ func stubOwnership(t *testing.T, f func() error) {
 	t.Cleanup(func() { ownershipCheck = orig })
 }
 
-// assistantCall is one assistant turn that made a tool call.
+// assistantCall is one assistant turn that made a tool call. Its id pairs with
+// no result, so on its own it is a call whose result is not in the request.
 func assistantCall(name, args string) string {
 	return fmt.Sprintf(
 		`{"role":"assistant","tool_calls":[{"id":"call_%d","type":"function","function":{"name":%q,"arguments":%q}}]}`,
 		len(name)+len(args), name, args)
 }
 
+// toolResult answers a call id no assistant message made: an unpaired result.
 const toolResult = `{"role":"tool","tool_call_id":"call_x","content":"same answer as last time"}`
+
+// step is one call and its result, paired by id the way both clients send them.
+func step(id, name, args, result string) []string {
+	return []string{
+		fmt.Sprintf(`{"role":"assistant","tool_calls":[{"id":%q,"type":"function","function":{"name":%q,"arguments":%q}}]}`,
+			id, name, args),
+		fmt.Sprintf(`{"role":"tool","tool_call_id":%q,"content":%q}`, id, result),
+	}
+}
 
 // conversation builds a request body out of raw message objects.
 func conversation(messages ...string) []byte {
 	return []byte(`{"model":"m","messages":[` + strings.Join(messages, ",") + `]}`)
 }
 
-// repeat is n identical call/result pairs, the shape a runaway loop leaves in
-// the message list.
+// repeat is n identical calls that each got the same answer back, the shape a
+// runaway loop leaves in the message list.
 func repeat(n int, name, args string) []string {
+	return poll(n, name, args, func(int) string { return "same answer as last time" })
+}
+
+// poll is n identical calls whose i-th result is result(i).
+func poll(n int, name, args string, result func(i int) string) []string {
 	var out []string
-	for range n {
-		out = append(out, assistantCall(name, args), toolResult)
+	for i := range n {
+		out = append(out, step(fmt.Sprintf("call_%d", i), name, args, result(i))...)
 	}
 	return out
 }
 
 func TestRepeatedToolCall(t *testing.T) {
 	user := `{"role":"user","content":"do the thing"}`
+	// Progress a normaliser cannot mistake for noise: the output grows. A
+	// changing number alone would normalise away (see NormaliseResult).
+	changing := func(i int) string { return "build " + strings.Repeat("#", i+1) }
+	stamped := func(i int) string {
+		return fmt.Sprintf("%s run 4e1f9c2a1b status=queued elapsed %d.%ds", time.Date(2026, 9, 24, 10, 0, i, 0, time.UTC).Format(time.RFC3339), i, i)
+	}
 
 	tests := []struct {
 		name     string
 		messages []string
 		wantN    int
+		wantSame int
 		wantCall string
 	}{
 		{
@@ -67,13 +90,39 @@ func TestRepeatedToolCall(t *testing.T) {
 			name:     "one call is not a loop",
 			messages: append([]string{user}, repeat(1, "read", `{"path":"a.go"}`)...),
 			wantN:    1,
+			wantSame: 1,
 			wantCall: `read({"path":"a.go"})`,
 		},
 		{
-			name:     "the measured failure: the same call over and over",
+			name:     "the measured failure: the same call and the same answer over and over",
 			messages: append([]string{user}, repeat(12, "read", `{"path":"a.go"}`)...),
 			wantN:    12,
+			wantSame: 12,
 			wantCall: `read({"path":"a.go"})`,
+		},
+		{
+			name:     "a poll whose output changes is the same call but not the same result",
+			messages: append([]string{user}, poll(7, "bash", `{"cmd":"make status"}`, changing)...),
+			wantN:    7,
+			wantSame: 1,
+		},
+		{
+			name: "a poll whose 7th result differs resets the same-result run",
+			messages: append([]string{user}, poll(7, "bash", `{"cmd":"make status"}`, func(i int) string {
+				if i == 6 {
+					return "done"
+				}
+				return "running"
+			})...),
+			wantN:    7,
+			wantSame: 1,
+		},
+		{
+			name:     "timestamps, ids and durations do not make a stuck poll look like progress",
+			messages: append([]string{user}, poll(6, "bash", `{"cmd":"gh run view"}`, stamped)...),
+			wantN:    6,
+			wantSame: 6,
+			wantCall: `bash({"cmd":"gh run view"})`,
 		},
 		{
 			name: "different arguments are progress, not a loop",
@@ -87,29 +136,102 @@ func TestRepeatedToolCall(t *testing.T) {
 		{
 			name: "an earlier run does not count once the model moved on",
 			messages: append(append([]string{user}, repeat(9, "read", `{"path":"a.go"}`)...),
-				assistantCall("write", `{"path":"a.go"}`), toolResult),
+				step("w", "write", `{"path":"a.go"}`, "ok")...),
 			wantN:    1,
+			wantSame: 1,
 			wantCall: `write({"path":"a.go"})`,
 		},
 		{
 			name: "a user message ends the run",
 			messages: append(append([]string{user}, repeat(9, "read", `{"path":"a.go"}`)...),
 				user),
-			wantN: 0,
 		},
 		{
 			name: "an assistant message with no tool call ends the run",
 			messages: append(append([]string{user}, repeat(9, "read", `{"path":"a.go"}`)...),
 				`{"role":"assistant","content":"here is what I found"}`),
-			wantN: 0,
+		},
+		{
+			name: "parallel calls: the whole set and all its results repeat",
+			messages: []string{user,
+				`{"role":"assistant","tool_calls":[{"id":"a1","function":{"name":"read","arguments":"x"}},{"id":"b1","function":{"name":"read","arguments":"y"}}]}`,
+				`{"role":"tool","tool_call_id":"b1","content":"Y"}`,
+				`{"role":"tool","tool_call_id":"a1","content":"X"}`,
+				`{"role":"assistant","tool_calls":[{"id":"a2","function":{"name":"read","arguments":"x"}},{"id":"b2","function":{"name":"read","arguments":"y"}}]}`,
+				`{"role":"tool","tool_call_id":"a2","content":"X"}`,
+				`{"role":"tool","tool_call_id":"b2","content":"Y"}`,
+			},
+			wantN:    2,
+			wantSame: 2,
+			wantCall: `read(x), read(y)`,
+		},
+		{
+			name: "parallel calls: the same set in another order is the same step",
+			messages: []string{user,
+				`{"role":"assistant","tool_calls":[{"id":"a1","function":{"name":"read","arguments":"x"}},{"id":"b1","function":{"name":"read","arguments":"y"}}]}`,
+				`{"role":"tool","tool_call_id":"a1","content":"X"}`,
+				`{"role":"tool","tool_call_id":"b1","content":"Y"}`,
+				`{"role":"assistant","tool_calls":[{"id":"b2","function":{"name":"read","arguments":"y"}},{"id":"a2","function":{"name":"read","arguments":"x"}}]}`,
+				`{"role":"tool","tool_call_id":"b2","content":"Y"}`,
+				`{"role":"tool","tool_call_id":"a2","content":"X"}`,
+			},
+			wantN:    2,
+			wantSame: 2,
+			wantCall: `read(x), read(y)`,
+		},
+		{
+			name: "parallel calls: results swapped between the calls are not the same result",
+			messages: []string{user,
+				`{"role":"assistant","tool_calls":[{"id":"a1","function":{"name":"read","arguments":"x"}},{"id":"b1","function":{"name":"read","arguments":"y"}}]}`,
+				`{"role":"tool","tool_call_id":"a1","content":"X"}`,
+				`{"role":"tool","tool_call_id":"b1","content":"Y"}`,
+				`{"role":"assistant","tool_calls":[{"id":"b2","function":{"name":"read","arguments":"y"}},{"id":"a2","function":{"name":"read","arguments":"x"}}]}`,
+				`{"role":"tool","tool_call_id":"b2","content":"X"}`,
+				`{"role":"tool","tool_call_id":"a2","content":"Y"}`,
+			},
+			wantN:    2,
+			wantSame: 1,
+		},
+		{
+			name: "parallel calls: one changed result breaks the same-result run",
+			messages: []string{user,
+				`{"role":"assistant","tool_calls":[{"id":"a1","function":{"name":"read","arguments":"x"}},{"id":"b1","function":{"name":"read","arguments":"y"}}]}`,
+				`{"role":"tool","tool_call_id":"a1","content":"X"}`,
+				`{"role":"tool","tool_call_id":"b1","content":"Y"}`,
+				`{"role":"assistant","tool_calls":[{"id":"a2","function":{"name":"read","arguments":"x"}},{"id":"b2","function":{"name":"read","arguments":"y"}}]}`,
+				`{"role":"tool","tool_call_id":"a2","content":"X"}`,
+				`{"role":"tool","tool_call_id":"b2","content":"Y2"}`,
+			},
+			wantN:    2,
+			wantSame: 1,
+		},
+		{
+			name:     "the newest call has no result yet: the pairs before it decide",
+			messages: append(append([]string{user}, repeat(5, "read", `{"path":"a.go"}`)...), assistantCall("read", `{"path":"a.go"}`)),
+			wantN:    6,
+			wantSame: 5,
+		},
+		{
+			name: "an unpaired result in the middle ends the same-result run",
+			messages: append(append(append([]string{user}, repeat(3, "read", `{"path":"a.go"}`)...),
+				assistantCall("read", `{"path":"a.go"}`), toolResult),
+				repeat(2, "read", `{"path":"a.go"}`)...),
+			wantN:    6,
+			wantSame: 2,
+		},
+		{
+			name:     "results that never pair count no same-result run",
+			messages: append([]string{user}, assistantCall("bash", "ls"), toolResult, assistantCall("bash", "ls"), toolResult),
+			wantN:    2,
+			wantSame: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			call, n := repeatedToolCall(conversation(tt.messages...))
-			if n != tt.wantN {
-				t.Errorf("repeatedToolCall() n = %d, want %d", n, tt.wantN)
+			call, n, same := repeatedToolCall(conversation(tt.messages...))
+			if n != tt.wantN || same != tt.wantSame {
+				t.Errorf("repeatedToolCall() n, same = %d, %d, want %d, %d", n, same, tt.wantN, tt.wantSame)
 			}
 			if tt.wantCall != "" && call != tt.wantCall {
 				t.Errorf("repeatedToolCall() call = %q, want %q", call, tt.wantCall)
@@ -122,7 +244,7 @@ func TestRepeatedToolCall(t *testing.T) {
 // cannot parse is not a loop, so it is forwarded rather than refused.
 func TestRepeatedToolCallIgnoresUnreadableBodies(t *testing.T) {
 	for _, body := range []string{"", "not json", `{"messages":"nope"}`, `{}`} {
-		if _, n := repeatedToolCall([]byte(body)); n != 0 {
+		if _, n, _ := repeatedToolCall([]byte(body)); n != 0 {
 			t.Errorf("repeatedToolCall(%q) = %d, want 0", body, n)
 		}
 	}
@@ -147,38 +269,86 @@ func TestGuardAbortsTheTurnOnARunawayLoop(t *testing.T) {
 		return rec
 	}
 
-	// One short of the threshold: still the model's business.
-	under := post(conversation(repeat(loopGuardRepeat-1, "bash", `{"cmd":"ls"}`)...))
-	if under.Code != http.StatusOK {
-		t.Fatalf("a run of %d was refused: %d %s", loopGuardRepeat-1, under.Code, under.Body)
+	changing := func(i int) string { return "tick " + strings.Repeat(".", i+1) }
+	tests := []struct {
+		name     string
+		messages []string
+		refuse   bool
+		wantMsg  []string
+		notMsg   []string
+	}{
+		{
+			name:     "same call, same result, one short of the threshold",
+			messages: repeat(SameResultRepeat()-1, "bash", `{"cmd":"ls"}`),
+		},
+		{
+			name:     "same call, same result, at the threshold",
+			messages: repeat(SameResultRepeat(), "bash", `{"cmd":"ls"}`),
+			refuse:   true,
+			wantMsg:  []string{fmt.Sprintf("repeated the same tool call with the same result %d times", SameResultRepeat()), "will not change the answer", "try something else"},
+		},
+		{
+			name:     "a changing poll below the backstop",
+			messages: poll(loopGuardRepeat-1, "bash", `{"cmd":"ls"}`, changing),
+		},
+		{
+			name:     "the backstop stops an endless poll even though its results change",
+			messages: poll(loopGuardRepeat, "bash", `{"cmd":"ls"}`, changing),
+			refuse:   true,
+			wantMsg:  []string{fmt.Sprintf("made the same tool call %d times in a row, even though the results changed", loopGuardRepeat), "try another approach", "local_loop_guard"},
+			// Its results did change, so it must not be told otherwise.
+			notMsg: []string{"will not change the answer", "not progress"},
+		},
 	}
-	if forwarded != 1 {
-		t.Fatalf("forwarded %d requests, want 1", forwarded)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			before := forwarded
+			rec := post(conversation(tt.messages...))
+			if !tt.refuse {
+				if rec.Code != http.StatusOK || forwarded != before+1 {
+					t.Fatalf("refused: %d %s", rec.Code, rec.Body)
+				}
+				return
+			}
+			if rec.Code != http.StatusBadRequest || forwarded != before {
+				t.Fatalf("allowed through: %d, forwarded %d", rec.Code, forwarded-before)
+			}
+			var parsed struct {
+				Error struct {
+					Message string `json:"message"`
+					Type    string `json:"type"`
+					Code    string `json:"code"`
+				} `json:"error"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &parsed); err != nil {
+				t.Fatalf("the refusal is not JSON the client can render: %v", err)
+			}
+			if parsed.Error.Type != "nav_pilot_loop_guard" || parsed.Error.Code != "loop_guard" {
+				t.Errorf("error type, code = %q, %q, want nav_pilot_loop_guard, loop_guard", parsed.Error.Type, parsed.Error.Code)
+			}
+			// Naming the call is the requirement: "it looped" is not actionable.
+			for _, want := range append([]string{`bash({"cmd":"ls"})`}, tt.wantMsg...) {
+				if !strings.Contains(parsed.Error.Message, want) {
+					t.Errorf("the refusal does not say %q: %q", want, parsed.Error.Message)
+				}
+			}
+			for _, not := range tt.notMsg {
+				if strings.Contains(parsed.Error.Message, not) {
+					t.Errorf("the refusal says %q: %q", not, parsed.Error.Message)
+				}
+			}
+		})
 	}
+}
 
-	over := post(conversation(repeat(loopGuardRepeat, "bash", `{"cmd":"ls"}`)...))
-	if over.Code != http.StatusBadRequest {
-		t.Fatalf("a run of %d was allowed through: %d", loopGuardRepeat, over.Code)
-	}
-	if forwarded != 1 {
-		t.Errorf("the guard forwarded a request it should have refused (%d forwarded)", forwarded)
-	}
-
-	var parsed struct {
-		Error struct {
-			Message string `json:"message"`
-			Type    string `json:"type"`
-		} `json:"error"`
-	}
-	if err := json.Unmarshal(over.Body.Bytes(), &parsed); err != nil {
-		t.Fatalf("the refusal is not JSON the client can render: %v", err)
-	}
-	if parsed.Error.Type != "nav_pilot_loop_guard" {
-		t.Errorf("error type = %q, want nav_pilot_loop_guard", parsed.Error.Type)
-	}
-	// Naming the call is the requirement: "it looped" is not actionable.
-	if !strings.Contains(parsed.Error.Message, `bash({"cmd":"ls"})`) {
-		t.Errorf("the refusal does not name the repeated call: %q", parsed.Error.Message)
+func TestSameResultRepeatIsHalfTheBackstop(t *testing.T) {
+	orig := loopGuardRepeat
+	t.Cleanup(func() { loopGuardRepeat = orig })
+	for _, tt := range []struct{ backstop, want int }{{8, 4}, {20, 10}, {3, 2}, {2, 2}} {
+		loopGuardRepeat = tt.backstop
+		if got := SameResultRepeat(); got != tt.want {
+			t.Errorf("local_loop_guard %d: SameResultRepeat() = %d, want %d", tt.backstop, got, tt.want)
+		}
 	}
 }
 
@@ -227,6 +397,50 @@ func TestGuardForwardsTheBodyItRead(t *testing.T) {
 	}
 }
 
+// TestGuardSampling: with no sampling in the manifest the body is forwarded
+// byte for byte; with it, the manifest's values replace the client's, whether
+// the client sent an explicit 0 (the Copilot CLI) or nothing (opencode).
+func TestGuardSampling(t *testing.T) {
+	stubDirs(t) // lockServer writes under HOME; without this the suite flocks the developer's own
+	stubOwnership(t, func() error { return nil })
+	send := func(g *Guard, path, body string) []byte {
+		var got []byte
+		handler := guardHandler(g, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			got, _ = io.ReadAll(r.Body)
+		}), "")
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, path, strings.NewReader(body)))
+		return got
+	}
+	copilot := `{"model":"m","messages":[{"role":"user","content":"<hei>"}],"temperature":0,"top_p":0.95}`
+	opencode := `{"model":"m","messages":[{"role":"user","content":"hei"}]}`
+
+	if got := send(&Guard{}, "/v1/chat/completions", copilot); string(got) != copilot {
+		t.Errorf("unset: upstream received %s, want the body untouched %s", got, copilot)
+	}
+
+	sampling, err := samplingOverride(map[string]string{"MLX_NAV_PILOT_TEMPERATURE": "0.7", "MLX_NAV_PILOT_TOP_P": "0.8"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, body := range []string{copilot, opencode} {
+		var got struct {
+			Temperature *float64 `json:"temperature"`
+			TopP        *float64 `json:"top_p"`
+			Messages    []any    `json:"messages"`
+		}
+		if err := json.Unmarshal(send(&Guard{sampling: sampling}, "/v1/chat/completions", body), &got); err != nil {
+			t.Fatalf("set: upstream body is not JSON: %v", err)
+		}
+		if got.Temperature == nil || *got.Temperature != 0.7 || got.TopP == nil || *got.TopP != 0.8 || len(got.Messages) != 1 {
+			t.Errorf("set: %s forwarded as %+v, want temperature 0.7, top_p 0.8 and the messages kept", body, got)
+		}
+	}
+
+	if got := send(&Guard{sampling: sampling}, "/v1/completions", copilot); string(got) != copilot {
+		t.Errorf("non-chat endpoint: upstream received %s, want the body untouched", got)
+	}
+}
+
 func TestSetLoopGuardRepeatRefusesAThresholdThatIsNotAGuard(t *testing.T) {
 	orig := loopGuardRepeat
 	t.Cleanup(func() { loopGuardRepeat = orig })
@@ -253,7 +467,7 @@ func TestStartGuardProxiesToTheServer(t *testing.T) {
 	defer upstream.Close()
 
 	stubOwnership(t, func() error { return nil })
-	g, err := StartGuard(upstream.URL)
+	g, err := StartGuard(upstream.URL, Model{})
 	if err != nil {
 		t.Fatalf("StartGuard: %v", err)
 	}
@@ -307,7 +521,7 @@ func TestGuardCloseWaitsForItsHandlers(t *testing.T) {
 		return nil
 	})
 
-	g, err := StartGuard(upstream.URL)
+	g, err := StartGuard(upstream.URL, Model{})
 	if err != nil {
 		t.Fatalf("StartGuard: %v", err)
 	}
@@ -383,7 +597,7 @@ func TestGuardCloseDoesNotWaitForAnotherSessionsLock(t *testing.T) {
 		t.Fatalf("taking the lock: %v", err)
 	}
 
-	g, err := StartGuard(upstream.URL)
+	g, err := StartGuard(upstream.URL, Model{})
 	if err != nil {
 		t.Fatalf("StartGuard: %v", err)
 	}
@@ -534,9 +748,9 @@ func TestGuardReadsARealCopilotCLIRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	call, n := repeatedToolCall(body)
-	if n != 6 {
-		t.Errorf("repeatedToolCall counted %d repeats in a real Copilot CLI request, want the 6 the client actually made", n)
+	call, n, same := repeatedToolCall(body)
+	if n != 6 || same != 6 {
+		t.Errorf("repeatedToolCall counted %d repeats (%d with the same result) in a real Copilot CLI request, want the 6 the client actually made", n, same)
 	}
 	if !strings.Contains(call, "view(") || !strings.Contains(call, "/work/calc.py") {
 		t.Errorf("the repeated call is named %q; a developer reading the refusal learns nothing from that", call)

@@ -72,24 +72,24 @@ Tre former er i bruk i Nav, og de løser ulike problemer. `install` spør hvor d
 installere, i repoet (`.github/`) eller i hjemmekatalogen (`~/.copilot/`). Svar på forhånd
 med `--repo`, `--user` eller `--target <mappe>` for å hoppe over spørsmålet.
 
-| Form | Hvor | Kort sagt |
-|---|---|---|
-| Repo (`--repo`) | `<repo>/.github/` | Hele teamet får det samme, og Copilot på github.com ser det |
-| Personlig (`--user`) | `~/.copilot/` | Følger deg på tvers av alle repoer, ingenting sjekkes inn |
-| Hub-repo | ett repo med `.github/` pluss egne artefakter | Ett sted å vedlikeholde teamets egne skills |
+| Form                 | Hvor                                          | Kort sagt                                                   |
+| -------------------- | --------------------------------------------- | ----------------------------------------------------------- |
+| Repo (`--repo`)      | `<repo>/.github/`                             | Hele teamet får det samme, og Copilot på github.com ser det |
+| Personlig (`--user`) | `~/.copilot/`                                 | Følger deg på tvers av alle repoer, ingenting sjekkes inn   |
+| Hub-repo             | ett repo med `.github/` pluss egne artefakter | Ett sted å vedlikeholde teamets egne skills                 |
 
 De utelukker ikke hverandre. `nav-pilot sync` uten scope-flagg synker alle scope som har en
 tilstandsfil, og de spores hver for seg.
 
 ### Hvilken form bør du velge?
 
-| Situasjonen din | Anbefalt | Hvorfor |
-|---|---|---|
-| Teamet skal ha samme oppsett, og dere vil ha det på github.com også | Repo | Copilot på github.com leser bare `.github/` i repoet. Ingen annen form gir deg den synligheten |
-| Du jobber i mange repoer, eller i repoer du ikke kan endre `.github/` i | `--user` | Én installasjon å holde fersk, i stedet for én per repo |
-| Du vil ikke sjekke inn generert innhold | `--user` | Ingenting havner i differ eller kodegjennomgang |
-| Teamet har egne skills å vedlikeholde ved siden av Nav-artefaktene | Hub-repo | Ett sted som eier både det felles og deres eget |
-| Du bruker opencode | Repo, eller Hub-repo | opencode materialiserer fra kilden pluss `.github/` i repoet du står i, ikke fra `~/.copilot/` |
+| Situasjonen din                                                         | Anbefalt             | Hvorfor                                                                                        |
+| ----------------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------- |
+| Teamet skal ha samme oppsett, og dere vil ha det på github.com også     | Repo                 | Copilot på github.com leser bare `.github/` i repoet. Ingen annen form gir deg den synligheten |
+| Du jobber i mange repoer, eller i repoer du ikke kan endre `.github/` i | `--user`             | Én installasjon å holde fersk, i stedet for én per repo                                        |
+| Du vil ikke sjekke inn generert innhold                                 | `--user`             | Ingenting havner i differ eller kodegjennomgang                                                |
+| Teamet har egne skills å vedlikeholde ved siden av Nav-artefaktene      | Hub-repo             | Ett sted som eier både det felles og deres eget                                                |
+| Du bruker opencode                                                      | Repo, eller Hub-repo | opencode materialiserer fra kilden pluss `.github/` i repoet du står i, ikke fra `~/.copilot/` |
 
 Er du i tvil, og bare deg det gjelder: ta `--user`. Den er reversibel uten at noen andre
 merker det, og du kan legge til repo-installasjon senere uten å fjerne den.
@@ -140,7 +140,7 @@ Dette når den ikke:
 
 - **Prompts.** Se over.
 - **Instruksjoner utenfor nav-pilot.** De havner i `~/.copilot/.github/instructions/`, og
-  leses bare når `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` peker på `~/.copilot`. Starter du
+  leses bare når `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` peker på den mappen. Starter du
   klienten med `nav-pilot`, settes den for deg (`copilotEnv` i
   `cli/nav-pilot/internal/provider/copilot_launch.go`). Starter du `copilot` eller `cplt`
   direkte, må du sette den selv: `eval "$(nav-pilot env)"`. Agenter og skills plukkes opp
@@ -170,11 +170,11 @@ klienten leser — men tilliten er ikke gitt, og det er den som ryker stille.
 
 Målt mot Copilot CLI 1.0.83 i [#888](https://github.com/navikt/copilot/issues/888):
 
-| Scope | `copilot` (interaktiv) | `copilot -p` |
-| --- | --- | --- |
-| `~/.copilot/hooks/` (`--user`) | Fyrer | Fyrer |
+| Scope                                       | `copilot` (interaktiv)          | `copilot -p`   |
+| ------------------------------------------- | ------------------------------- | -------------- |
+| `~/.copilot/hooks/` (`--user`)              | Fyrer                           | Fyrer          |
 | `.github/hooks/` (repo), mappa ikke betrodd | Spør først, fyrer når du svarer | **Fyrer ikke** |
-| `.github/hooks/` (repo), mappa betrodd | Fyrer | Fyrer |
+| `.github/hooks/` (repo), mappa betrodd      | Fyrer                           | Fyrer          |
 
 Interaktivt spør klienten «Do you trust the files in this folder?» og laster repo-hookene
 i det du svarer. `copilot -p` spør ingen, så i en mappe du ikke har stolt på lastes de
@@ -191,6 +191,39 @@ virker før du bygger noe på den.
 `nav-pilot install` sier fra når den skriver hook-oppføringer til en mappe som ikke er
 betrodd, og `nav-pilot doctor` sier om de installerte hookene faktisk kan fyre der du står.
 Tåler ikke porten å være stille ute av funksjon, er `--user` det scopet som fyrer uansett.
+
+### nav-pilots egne hooks
+
+Hookene over er Python-skript du velger å installere. nav-pilot har i tillegg egne hooks
+som er bygd inn i selve programmet. Når du starter Copilot CLI med `nav-pilot`, skriver den
+dem til `~/.copilot/hooks/`. Derfra kjører de i alle Copilot CLI-økter på maskinen, også
+når modellen kjører i skyen og også når du starter `copilot` direkte. `nav-pilot doctor`
+viser dem sammen med de andre.
+
+| Hook      | Fil                         | Hva den gjør                                                                                                                                                                                                                              | Slå av                                       |
+| --------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Løkkevakt | `nav-pilot-loop-guard.json` | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring. | `nav-pilot config set hook_loop_guard false` |
+| Maskering | `nav-pilot-redact-tool-output.json` | Maskerer hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er og verdien i `password=`/`api_key=`) og fødselsnummer, D-nummer og H-nummer i verktøyresultatet før modellen leser det. Setter en merknad foran et resultat som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører). | `hook_redact_secrets`, `hook_redact_fnr` og `hook_injection_note`, hver for seg |
+
+En hook etter verktøykallet (`postToolUse`) kan ikke avslutte en tur. Den kan bare endre
+det modellen leser. Når løkkevakten slår til, får modellen derfor en beskjed om at den står
+fast, med resultatet under, i stedet for det samme svaret en gang til. Terskelen følger
+`local_loop_guard`, og det som skjedde tidligere i økta ligger i en liten fil per økt under
+`~/.nav-pilot/hook-state/`. Filer som er eldre enn ett døgn ryddes bort.
+
+Maskeringen bytter ut funnet med `[REDACTED:<type>]`, for eksempel `[REDACTED:fnr]`, og lar
+resten av resultatet stå. Et fødselsnummer maskeres bare når datoen er gyldig og begge
+kontrollsifrene stemmer. D-nummer (dag + 40) og H-nummer (måned + 40) regnes med. Et
+tilfeldig tall på elleve sifre blir derfor stående. Merknaden om instrukser stopper
+ingenting: den sier bare til modellen at teksten kommer fra verktøyet og ikke skal følges.
+Mønstrene er et lite utvalg av standardreglene i gitleaks, og de er valgt for å gi få
+falske treff i vanlig kode og vanlige logger. Hooken fanger ikke alle hemmeligheter.
+
+I en lokal økt står vakten i nav-pilot allerede foran modellen og avslutter turen. Der gjør
+hooken ingenting, så modellen ikke får to beskjeder om samme løkke. Hookene er laget for å
+slippe gjennom ved feil: finnes ikke `nav-pilot` på `PATH`, eller går noe galt, blir
+resultatet stående som det var. opencode får ikke disse hookene ennå
+([#709](https://github.com/navikt/copilot/issues/709)).
 
 ### Hub-repo
 
@@ -252,11 +285,13 @@ deg. Svarer ikke GitHub, hopper den bare over versjonssjekken.
 
 nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
 
-| Klient | Binær | Nav-kontekst | Standard modell |
-|---|---|---|---|
-| `copilot` (standard) | `cplt` / `copilot` | Installeres i `.github/` | Agentens eget valg |
-| `opencode` | `cplt` + `opencode` | Materialiseres automatisk i brukerens OpenCode config-mappe | `github-copilot/auto` |
-| `pi` *(eksperimentell)* | `cplt` + `pi` | Via `AGENTS.md` i prosjektroten | Pis eget valg (`model`/`mode` videresendes ikke ennå) |
+| Klient                  | Binær               | Nav-kontekst                                                | Standard modell |
+| ----------------------- | ------------------- | ----------------------------------------------------------- | --------------- |
+| `copilot` (standard)    | `cplt` / `copilot`  | Installeres i `.github/`                                    | GPT-6 Sol       |
+| `opencode`              | `cplt` + `opencode` | Materialiseres automatisk i brukerens OpenCode config-mappe | GPT-6 Sol       |
+| `pi` _(eksperimentell)_ | `cplt` + `pi`       | Via `AGENTS.md` i prosjektroten                             | GPT-6 Sol       |
+
+En modell du velger med config eller `--model`, vinner over agentpakkas standard.
 
 > **Bruk cplt-sandboxen.** nav-pilot foretrekker `cplt` og kjører klienten via
 > `cplt --agent <klient>`. Agenten kan da lese og skrive prosjektfiler, men når ikke
@@ -265,7 +300,7 @@ nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
 
 > **Auth-detalj (Copilot/cplt):** nav-pilot henter ikke ut GitHub-tokenet selv.
 > Med `cplt`s gh-guard på, som `sandbox.preset = strict` slår på og `nav-pilot
-> doctor` anbefaler, skaffer `cplt` tokenet: den bruker `GH_TOKEN`,
+doctor` anbefaler, skaffer `cplt` tokenet: den bruker `GH_TOKEN`,
 > `GITHUB_TOKEN` eller `COPILOT_GITHUB_TOKEN` hvis en av dem er satt, ellers
 > `gh auth token` utenfor sandkassen, og leverer det via en 0600-fil som leses
 > én gang. Med gh-guarden av gjør `cplt` ingenting her, og Copilot autentiserer
@@ -326,11 +361,11 @@ repoet den kom fra melder konflikt framfor å overskrive den.
 
 Til ditt **personlige** oppsett trenger du ikke `export` i det hele tatt.
 
-| Kommando | Mål | Tilstandssporing | Når |
-|---|---|---|---|
-| `nav-pilot --client opencode` (oppstart) | `~/.config/opencode/` | ✅ konflikt + ferskhet | Personlig kontekst, skjer automatisk |
-| `nav-pilot sync` | `~/.config/opencode/` | ✅ oppdaterer sporet tilstand | Frisk opp personlig kontekst |
-| `nav-pilot export opencode` (repo-scope) | `<repo>/.opencode/` | ingen | Sjekk Nav-kontekst inn i et **prosjektrepo** for hele teamet |
+| Kommando                                 | Mål                   | Tilstandssporing              | Når                                                          |
+| ---------------------------------------- | --------------------- | ----------------------------- | ------------------------------------------------------------ |
+| `nav-pilot --client opencode` (oppstart) | `~/.config/opencode/` | ✅ konflikt + ferskhet        | Personlig kontekst, skjer automatisk                         |
+| `nav-pilot sync`                         | `~/.config/opencode/` | ✅ oppdaterer sporet tilstand | Frisk opp personlig kontekst                                 |
+| `nav-pilot export opencode` (repo-scope) | `<repo>/.opencode/`   | ingen                         | Sjekk Nav-kontekst inn i et **prosjektrepo** for hele teamet |
 
 > **Avviklet:** `nav-pilot export opencode --user` er erstattet av automatisk materialisering
 > ved oppstart pluss `nav-pilot sync`, som i tillegg gir tilstandssporing og
@@ -440,12 +475,12 @@ en feature request hos dem.
 Målt i et kontrollert testoppsett, på én maskin, og nesten alt på ett Ktor-repo. På den ene Spring-appen vi målte kostet lokal utsending mer enn å la være. Den utfører en avgjørelse godt og tar en
 avgjørelse dårlig.
 
-| Fungerer | Fungerer ikke |
-|---|---|
-| Slå opp noe i koden | Skrive en ny fil fra bunnen |
-| Legge til kommentarer og loggsetninger | Finne ut hvilke filer en endring treffer |
-| Døpe om et symbol i mange filer | Endringer som krever en vurdering per fil |
-| Legge til et felt og oppdatere mapperen | Oppgaver der en feil endring er dyr |
+| Fungerer                                | Fungerer ikke                             |
+| --------------------------------------- | ----------------------------------------- |
+| Slå opp noe i koden                     | Skrive en ny fil fra bunnen               |
+| Legge til kommentarer og loggsetninger  | Finne ut hvilke filer en endring treffer  |
+| Døpe om et symbol i mange filer         | Endringer som krever en vurdering per fil |
+| Legge til et felt og oppdatere mapperen | Oppgaver der en feil endring er dyr       |
 
 Tiden varierer: fra omtrent som skyen på små endringer til rundt fire ganger så lenge på en omdøping. På den største mekaniske endringen vi målte var den raskere enn skyen.
 
@@ -546,16 +581,20 @@ Etter synk eller installasjon starter nav-pilot kodeagenten automatisk. Sett
 Da skriver nav-pilot bare ut kommandoen du kan kjøre.
 
 **Modell per klient:**
+
 - Copilot: `auto`, `claude-opus-5`, `claude-fable-5`, `claude-sonnet-5`,
   `claude-sonnet-4.6`, `claude-haiku-4.5`, `claude-opus-4.8`, `claude-opus-4.6`,
   `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.5`, `gpt-5.4`,
   `gpt-5.3-codex`, `gpt-5.4-mini`, `gpt-5-mini`, `gemini-3.6-flash`,
   `gemini-3.1-pro-preview`, `gemini-3.5-flash`, `kimi-k2.7-code`, `kimi-k3`
 - opencode (startes via cplt mot GitHub Copilot-provideren): bruk `github-copilot/<id>`,
-  f.eks. `github-copilot/auto` (Nav-standard), `github-copilot/claude-opus-4.8`,
-  `github-copilot/gpt-5.5`. Modellen i config må være på `provider/model`-format (med `/`).
-  `--model auto` på CLI (eller tom CLI-verdi) normaliseres til Nav-standarden
-  `github-copilot/auto`.
+  f.eks. `github-copilot/claude-opus-4.8`, `github-copilot/gpt-5.5`. Modellen i config
+  må være på `provider/model`-format (med `/`). Uten en satt modell (eller `--model auto`
+  på CLI) brukes en modell den aktive agentpakken selv har erklært, hvis den har erklært
+  en; ellers sendes ingen `--model`-flagg, og opencode velger selv en modell den vet
+  kontoen din har tilgang til. opencode har ingen `auto`-modell selv (det er et
+  Copilot-CLI-konsept), så en ren `github-copilot/auto` avvises av opencode; nav-pilot
+  normaliserer den bort til det samme oppsettet i stedet.
 
 Veiviseren (`nav-pilot config setup`) viser en modellvelger tilpasset valgt klient, og
 `nav-pilot config explain model` lister opp de kurerte id-ene.

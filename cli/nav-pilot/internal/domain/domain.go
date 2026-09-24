@@ -45,7 +45,8 @@ type Config struct {
 	// 21 GB process is not something to do without being asked.
 	LocalAutostart *bool `toml:"local_autostart"`
 	// LocalLoopGuard is how many identical consecutive tool calls end a local
-	// turn. Unset means the built-in default. It is a knob because the right
+	// turn whatever they return; half as many end it when the results repeat
+	// too. Unset means the built-in default. It is a knob because the right
 	// number depends on the model and the task, not because anyone should
 	// have to set it.
 	LocalLoopGuard *int `toml:"local_loop_guard"`
@@ -55,6 +56,16 @@ type Config struct {
 	// worker has to be able to name both.
 	LocalModel      *string `toml:"local_model"`
 	CopilotAuthMode *string `toml:"copilot_auth_mode"`
+	// HookLoopGuard turns the loop-guard hook on and off: the postToolUse hook
+	// nav-pilot writes to ~/.copilot/hooks/ so the local guard's loop rule
+	// also covers cloud sessions. Unset means on.
+	HookLoopGuard *bool `toml:"hook_loop_guard"`
+	// HookRedactSecrets, HookRedactFNR and HookInjectionNote are the three
+	// parts of the redaction hook, a postToolUse hook that looks at each tool
+	// result before the model reads it. Unset means on.
+	HookRedactSecrets *bool `toml:"hook_redact_secrets"`
+	HookRedactFNR     *bool `toml:"hook_redact_fnr"`
+	HookInjectionNote *bool `toml:"hook_injection_note"`
 }
 
 // ResolvedConfig holds the final configuration after applying precedence:
@@ -89,6 +100,10 @@ type ResolvedConfig struct {
 	LocalLoopGuard    int      // identical consecutive tool calls that end a local turn; 0 = built-in default
 	LocalModel        string   // local model id to serve; empty = the manifest default
 	CopilotAuthMode   string   // auto | env_only | gh_only
+	HookLoopGuard     bool     // the loop-guard postToolUse hook for every Copilot CLI session
+	HookRedactSecrets bool     // mask secrets in tool results
+	HookRedactFNR     bool     // mask fødselsnummer, D- and H-nummer in tool results
+	HookInjectionNote bool     // flag instruction-like text in tool results
 	ExtraArgs         []string // pass-through arguments for the client
 }
 
@@ -141,26 +156,42 @@ const OpenCodeProviderPrefix = "github-copilot/"
 // not hand-edited: to add or retain a model, change the generator's PINNED list
 // or let the daily sync pick up a catalog change, then run `mise run models:sync`.
 
-// OpenCodeModelForLabel maps a model name as written in Nav agent frontmatter
-// to the provider-qualified opencode model id. Frontmatter carries display
-// names ("Claude Sonnet 4.6"); opencode needs "github-copilot/claude-sonnet-4.6".
-// A known id is accepted in the same position, so an agent author who writes
-// the id instead of the label is not silently ignored.
+// CopilotModelIDForLabel maps a model name as written in Nav agent frontmatter
+// to its Copilot model id. A known id is accepted in the same position, so an
+// agent author who writes the id instead of the label is not silently ignored.
 //
 // It returns "" for anything not in [KnownCopilotModels]. That is the point:
-// the caller must then emit no model line at all rather than guess an id that
-// the client would reject at launch.
-func OpenCodeModelForLabel(name string) string {
+// callers must distinguish an unknown label from a model unavailable to the
+// current account.
+func CopilotModelIDForLabel(name string) string {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return ""
 	}
 	for _, m := range KnownCopilotModels {
 		if strings.EqualFold(m.Label, name) || strings.EqualFold(m.ID, name) {
-			return OpenCodeProviderPrefix + m.ID
+			return m.ID
 		}
 	}
 	return ""
+}
+
+// OpenCodeModelForLabel maps a model name as written in Nav agent frontmatter
+// to the provider-qualified opencode model id. Frontmatter carries display
+// names ("Claude Sonnet 4.6"); opencode needs "github-copilot/claude-sonnet-4.6".
+//
+// "auto" is in that catalog — it is a real Copilot CLI selection — but is
+// excluded here on purpose: opencode has no auto-routing and rejects
+// "github-copilot/auto" as an unknown model, and an agent's own frontmatter
+// model overrides the session's --model flag in the opencode TUI, so writing
+// it would reproduce the exact launch failure this mapping exists to avoid,
+// for any agent that ever declares "Auto" as its model.
+func OpenCodeModelForLabel(name string) string {
+	id := CopilotModelIDForLabel(name)
+	if id == "" || id == "auto" {
+		return ""
+	}
+	return OpenCodeProviderPrefix + id
 }
 
 // IsKnownCopilotModel reports whether id is in [KnownCopilotModels]. The match

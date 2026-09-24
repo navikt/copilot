@@ -24,6 +24,7 @@ package local
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -35,6 +36,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -56,9 +59,11 @@ import (
 const GuardPort = DefaultPort + 1
 
 // DefaultLoopGuardRepeat is how many identical consecutive tool calls end the
-// turn. Eight is well past anything a working agent does — a retry is one or
-// two, a poll loop that means something varies its arguments — and far short of
-// the 203 we measured.
+// turn whatever they return. It is the backstop, not the main rule: see
+// [SameResultRepeat]. Eight is well past anything a working agent does — a
+// retry is one or two — and far short of the 203 we measured. A poll whose
+// output keeps changing still stops here, because a model that has asked the
+// same thing eight times running is waiting rather than working.
 const DefaultLoopGuardRepeat = 8
 
 // loopGuardRepeat is the active threshold. nav-pilot sets it from config.
@@ -76,6 +81,20 @@ func SetLoopGuardRepeat(n int) {
 
 // LoopGuardRepeat reports the active threshold.
 func LoopGuardRepeat() int { return loopGuardRepeat }
+
+// SameResultRepeat is how many identical calls that also got back identical
+// results end the turn: half of [LoopGuardRepeat], and never below 2. Four at
+// the default.
+//
+// It is lower than the backstop because an unchanged result is the evidence
+// the call alone lacks. A classifier shown only the calls could not tell loops
+// from legitimate polls (P(loop) 0.88 on loops, 0.42–0.78 on polls); what
+// separates them is whether anything came back different. The same question
+// answered the same way four times means the model has had that answer three
+// times already and is not using it. Derived from the one knob rather than a
+// second one, so a developer who raises local_loop_guard to let a slow poll
+// run relaxes both rules together.
+func SameResultRepeat() int { return max(2, loopGuardRepeat/2) }
 
 // maxRequestBody caps what the guard reads into memory to inspect. A 64k-token
 // context is a few hundred kilobytes; this is generous enough that a real
@@ -128,6 +147,70 @@ type Guard struct {
 	// session that dispatched nothing has to be distinguishable from a session
 	// whose transcript we failed to parse.
 	completions atomic.Int64
+
+	// sampling is the body fields the manifest overrides on every completion,
+	// already encoded. Nil when the active model sets none, and then the body
+	// is forwarded exactly as the client sent it.
+	sampling map[string]json.RawMessage
+}
+
+// samplingParams are the manifest params the guard writes into completion
+// requests. Local models run greedy today from both clients: mlx-lm defaults
+// --temp to 0.0, opencode sends no temperature for a custom model, and the
+// Copilot CLI sends "temperature": 0 explicitly. MLX_TEMP becomes --temp, the
+// server's default, which a request's own value overrides, so it would reach
+// opencode and never the Copilot CLI. The guard sees both clients' requests, so
+// it is the one place that can set sampling for both, and it is the only
+// mechanism: no server flag is derived from these.
+var samplingParams = []struct {
+	key, field, want string
+	ok               func(float64) bool
+}{
+	{"MLX_NAV_PILOT_TEMPERATURE", "temperature", "from 0 to 2", func(v float64) bool { return v >= 0 && v <= 2 }},
+	{"MLX_NAV_PILOT_TOP_P", "top_p", "above 0 and at most 1", func(v float64) bool { return v > 0 && v <= 1 }},
+}
+
+// samplingOverride reads the sampling params a model sets. Nil with no error
+// when it sets none. The manifest check calls it too, so an out-of-range value
+// refuses the manifest rather than reaching a request.
+func samplingOverride(params map[string]string) (map[string]json.RawMessage, error) {
+	var out map[string]json.RawMessage
+	for _, s := range samplingParams {
+		raw := strings.TrimSpace(params[s.key])
+		if raw == "" {
+			continue
+		}
+		// NaN and the infinities fail the range check, and re-encoding the parsed
+		// number keeps forms ParseFloat accepts but JSON does not ("0x1p-1") out of
+		// the body.
+		v, err := strconv.ParseFloat(raw, 64)
+		if err != nil || !s.ok(v) {
+			return nil, fmt.Errorf("param %s is %q, want a number %s", s.key, raw, s.want)
+		}
+		if out == nil {
+			out = map[string]json.RawMessage{}
+		}
+		out[s.field], _ = json.Marshal(v)
+	}
+	return out, nil
+}
+
+// withSampling replaces the sampling fields in a completion body. A body that
+// is not a JSON object is returned unchanged, like everything else the guard
+// cannot read.
+func withSampling(body []byte, sampling map[string]json.RawMessage) []byte {
+	var req map[string]json.RawMessage
+	if json.Unmarshal(body, &req) != nil || req == nil {
+		return body
+	}
+	for k, v := range sampling {
+		req[k] = v
+	}
+	out, err := json.Marshal(req)
+	if err != nil {
+		return body
+	}
+	return out
 }
 
 // isProviderAPIPath reports whether a path is one the provider config would make
@@ -181,10 +264,14 @@ func (g *Guard) Port() int {
 	return g.ln.Addr().(*net.TCPAddr).Port
 }
 
-// StartGuard puts the guard in front of a local server and returns once it is
-// listening. Close it when the session ends: the guard's goroutines outlive the
+// StartGuard puts the guard in front of the local server serving m and returns
+// once it is listening. Close it when the session ends: the guard's goroutines outlive the
 // call that started them, and only [Guard.Close] waits for them.
-func StartGuard(target string) (*Guard, error) {
+func StartGuard(target string, m Model) (*Guard, error) {
+	sampling, err := samplingOverride(m.Params)
+	if err != nil {
+		return nil, fmt.Errorf("local model %s: %w", m.Model, err)
+	}
 	u, err := url.Parse(target)
 	if err != nil {
 		return nil, fmt.Errorf("the local server address %q is not a URL: %w", target, err)
@@ -213,7 +300,7 @@ func StartGuard(target string) (*Guard, error) {
 	// statsPath is resolved here and not per request, because the handler runs
 	// on its own goroutine and must not read the directory globals while
 	// something else is changing them.
-	g := &Guard{ln: ln, statsPath: statsPath(), cancelHandlers: cancelHandlers}
+	g := &Guard{ln: ln, statsPath: statsPath(), cancelHandlers: cancelHandlers, sampling: sampling}
 	g.srv = &http.Server{
 		Handler:           guardHandler(g, proxy, target),
 		ReadHeaderTimeout: 30 * time.Second,
@@ -342,7 +429,7 @@ func ownershipGate() func() error {
 }
 
 // guardHandler inspects a completion request and either refuses it or forwards
-// it unchanged.
+// it, unchanged unless the manifest sets sampling ([samplingParams]).
 //
 // Everything it cannot read — another path, a body over the cap, a body that is
 // not the JSON it expects — is forwarded untouched. The guard exists to stop
@@ -438,13 +525,21 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 			return
 		}
 		r.Body.Close()
-		r.Body = io.NopCloser(bytes.NewReader(body))
-		r.ContentLength = int64(len(body))
 
-		if call, n := repeatedToolCall(body); n >= loopGuardRepeat {
-			writeLoopGuardError(w, call, n)
+		if call, n, same := repeatedToolCall(body); same >= SameResultRepeat() {
+			writeLoopGuardError(w, call, same, true)
+			return
+		} else if n >= loopGuardRepeat {
+			writeLoopGuardError(w, call, n, false)
 			return
 		}
+		// Only when the manifest sets sampling: otherwise the body goes on
+		// byte for byte. A body over the cap was forwarded above without it.
+		if g.sampling != nil {
+			body = withSampling(body, g.sampling)
+		}
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		r.ContentLength = int64(len(body))
 		started := time.Now()
 		tap := &usageTap{ResponseWriter: w}
 		proxy.ServeHTTP(tap, r)
@@ -551,9 +646,11 @@ func objectAt(b []byte) []byte {
 // is left in the bytes that are forwarded.
 type chatRequest struct {
 	Messages []struct {
-		Role      string `json:"role"`
-		Content   any    `json:"content"`
-		ToolCalls []struct {
+		Role       string          `json:"role"`
+		Content    json.RawMessage `json:"content"`
+		ToolCallID string          `json:"tool_call_id"`
+		ToolCalls  []struct {
+			ID       string `json:"id"`
 			Function struct {
 				Name      string `json:"name"`
 				Arguments string `json:"arguments"`
@@ -563,43 +660,86 @@ type chatRequest struct {
 }
 
 // repeatedToolCall counts the run of identical tool calls the conversation ends
-// on, and names it.
+// on, and names it. n is the run of identical calls; same is the part of that
+// run whose results were identical too.
 //
-// It walks backwards from the newest message. Tool results are skipped — they
-// are the other half of each call. An assistant message with tool calls extends
-// the run when it matches, and ends it when it does not. Anything else ends it
-// too: a user message is a new turn, and an assistant message without tool
-// calls is the model having said something instead of looping.
+// It walks backwards from the newest message. Tool results are collected by
+// tool_call_id and paired with the assistant message that made the calls. An
+// assistant message with tool calls extends the run when its calls match, and
+// ends it when they do not. Anything else ends it too: a user message is a new
+// turn, and an assistant message without tool calls is the model having said
+// something instead of looping. Parallel calls in one message are one step:
+// the signature is all of its calls, and its result is all of their results,
+// compared as a set so the same calls in another order are the same step.
+//
+// A result that differs from the newer one ends same but not n: the call did
+// something. A message with a call that got no result cannot show a repeat, so
+// it ends same too — except the newest, whose results may simply not be in
+// this request yet, which is skipped and leaves the pairs before it to decide.
 //
 // The call ids are deliberately not part of the comparison. They differ on
 // every call by construction, so including them would compare nothing.
-func repeatedToolCall(body []byte) (string, int) {
+//
+// Results are compared after [NormaliseResult]: output that embeds a timestamp,
+// a duration or a counter would otherwise make a stuck loop look like progress,
+// and only the backstop would catch it. The Copilot CLI postToolUse hook
+// (`nav-pilot hook loop-guard`) applies the same rule with the same
+// normalisation to sessions this guard never sees.
+func repeatedToolCall(body []byte) (call string, n, same int) {
 	var req chatRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		return "", 0
+		return "", 0, 0
 	}
-	want, n := "", 0
+	results := map[string]string{}
+	wantResult, sameOpen := "", true
 	for i := len(req.Messages) - 1; i >= 0; i-- {
 		m := req.Messages[i]
 		if m.Role == "tool" {
+			results[m.ToolCallID] = NormaliseResult(string(m.Content))
 			continue
 		}
 		if m.Role != "assistant" || len(m.ToolCalls) == 0 {
 			break
 		}
-		var parts []string
+		// Parallel calls are a set: sorted, each call kept with its own result,
+		// so the same calls issued in another order are still the same step.
+		pairs := make([][2]string, 0, len(m.ToolCalls))
+		paired := true
 		for _, c := range m.ToolCalls {
-			parts = append(parts, c.Function.Name+"("+c.Function.Arguments+")")
+			r, ok := results[c.ID]
+			paired = paired && ok && c.ID != ""
+			pairs = append(pairs, [2]string{c.Function.Name + "(" + c.Function.Arguments + ")", r})
 		}
-		sig := strings.Join(parts, ", ")
+		clear(results)
+		slices.SortFunc(pairs, func(a, b [2]string) int {
+			return cmp.Or(cmp.Compare(a[0], b[0]), cmp.Compare(a[1], b[1]))
+		})
+		parts, outs := make([]string, len(pairs)), make([]string, len(pairs))
+		for i, p := range pairs {
+			parts[i], outs[i] = p[0], p[1]
+		}
+		sig, result := strings.Join(parts, ", "), strings.Join(outs, "\x00")
 		if n == 0 {
-			want = sig
-		} else if sig != want {
+			call = sig
+		} else if sig != call {
 			break
 		}
+		newest := n == 0
 		n++
+		switch {
+		case !sameOpen:
+		case !paired && newest:
+		case !paired:
+			sameOpen = false
+		case same == 0:
+			wantResult, same = result, 1
+		case result == wantResult:
+			same++
+		default:
+			sameOpen = false
+		}
 	}
-	return want, n
+	return call, n, same
 }
 
 // writeLoopGuardError ends the turn. It answers in the error envelope the
@@ -609,17 +749,30 @@ func repeatedToolCall(body []byte) (string, int) {
 // The repeated call is named in full up to a limit: the arguments are what
 // distinguishes "reading the same file forever" from "grepping in a circle",
 // and a truncated name alone would leave a developer guessing.
-func writeLoopGuardError(w http.ResponseWriter, call string, n int) {
+//
+// sameResult says which rule tripped. The model reads this too, so it says
+// what was repeated and what to do instead. Only the same-result rule may call
+// it a loop that will not change the answer: the backstop also stops polls
+// whose output was changing, and telling a model its progress was not progress
+// would be false.
+func writeLoopGuardError(w http.ResponseWriter, call string, n int, sameResult bool) {
 	const maxCall = 400
 	shown := call
 	if len(shown) > maxCall {
 		shown = shown[:maxCall] + "…"
 	}
 	msg := fmt.Sprintf(
-		"nav-pilot stopped this turn: the local model made the same tool call %d times in a row without the answer changing — %s. "+
-			"That is a runaway loop, not progress; it does not recover on its own. "+
-			"Start a new turn with a narrower task, or raise the threshold with `nav-pilot config set local_loop_guard <n>` (current: %d).",
+		"nav-pilot stopped this turn: the local model made the same tool call %d times in a row, even though the results changed — %s. "+
+			"If it is waiting on something slow, wait longer between calls or try another approach. "+
+			"Start a new turn, or raise the threshold with `nav-pilot config set local_loop_guard <n>` (current: %d).",
 		n, shown, loopGuardRepeat)
+	if sameResult {
+		msg = fmt.Sprintf(
+			"nav-pilot stopped this turn: the local model repeated the same tool call with the same result %d times — %s. "+
+				"That is a runaway loop, not progress; repeating it will not change the answer, so try something else. "+
+				"Start a new turn with a narrower task, or raise the threshold with `nav-pilot config set local_loop_guard <n>` (current: %d).",
+			n, shown, loopGuardRepeat)
+	}
 
 	writeGuardError(w, msg, "loop_guard")
 }

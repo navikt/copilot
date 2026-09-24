@@ -1506,7 +1506,7 @@ const CONFIG_KEYS = [
   {
     key: "model",
     flag: "--model",
-    values: "f.eks. claude-opus-4.8, gpt-5.5 (Copilot); github-copilot/auto (opencode)",
+    values: "f.eks. claude-opus-4.8, gpt-5.5 (Copilot); github-copilot/claude-opus-4.8 (opencode)",
     desc: "Modell å bruke. Format avhenger av klient.",
   },
   {
@@ -1567,7 +1567,31 @@ const CONFIG_KEYS = [
     key: "local_loop_guard",
     flag: "—",
     values: "et tall, standard 8",
-    desc: "Hvor mange identiske tool calls på rad som avslutter en lokal tur. Lokale modeller setter seg fast og gjentar det samme kallet; vi har målt serier på 203.",
+    desc: "Hvor mange identiske tool calls på rad som avslutter en lokal tur, uansett hva de returnerer. Gir kallene samme resultat hver gang, holder det med halvparten (minst 2). Lokale modeller setter seg fast og gjentar det samme kallet; vi har målt serier på 203.",
+  },
+  {
+    key: "hook_loop_guard",
+    flag: "—",
+    values: "true · false",
+    desc: "Samme løkkeregel i alle Copilot CLI-økter, også i skyen. nav-pilot skriver en postToolUse-hook til ~/.copilot/hooks/ ved oppstart, og modellen får beskjed om at den står fast i stedet for det samme svaret igjen. På som standard; false fjerner hooken ved neste oppstart.",
+  },
+  {
+    key: "hook_redact_secrets",
+    flag: "—",
+    values: "true · false",
+    desc: "Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-økter. På som standard.",
+  },
+  {
+    key: "hook_redact_fnr",
+    flag: "—",
+    values: "true · false",
+    desc: "Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. Bare elleve sifre der datoen og begge kontrollsifrene stemmer blir maskert. På som standard.",
+  },
+  {
+    key: "hook_injection_note",
+    flag: "—",
+    values: "true · false",
+    desc: "Sett en merknad foran verktøyresultater som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører), så modellen behandler dem som data. Stopper ingenting. På som standard.",
   },
 ];
 
@@ -1716,11 +1740,11 @@ function KlienterOgKonfigurasjonSection() {
                 bg: "#ecfdf5",
               },
               {
-                title: "Kuratert standardmodell",
+                title: "GPT-6 Sol som standard",
                 desc: (
                   <>
-                    Når ingen modell er konfigurert, settes{" "}
-                    <code className="font-mono text-xs">github-copilot/auto</code> som Nav-standard for opencode.
+                    Når ingen modell er konfigurert, starter nav-pilot opencode med GPT-6 Sol. Ditt eget modellvalg
+                    vinner over standarden.
                   </>
                 ),
                 color: "#3b82f6",
@@ -1830,8 +1854,9 @@ function KlienterOgKonfigurasjonSection() {
               {`# Klient (copilot er standard)
 client = "opencode"
 
-# Modell (format avhenger av klient)
-model = "github-copilot/auto"
+# Modell (format avhenger av klient; se tabellen over for eksempler).
+# Ubestemt lar klienten velge selv.
+# model = "github-copilot/claude-opus-4.8"
 
 # Modus (default | plan | autopilot), kun Copilot
 # mode = "default"

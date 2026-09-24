@@ -4,9 +4,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
 func TestFindCopilotCLI(t *testing.T) {
@@ -81,19 +83,19 @@ func TestBuildCopilotArgs(t *testing.T) {
 			name:     "cplt pins copilot sandbox agent and emits nav-pilot persona",
 			cliName:  "cplt",
 			resolved: domain.ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true},
-			want:     []string{"--agent", "copilot", "--", "--agent", "nav-pilot"},
+			want:     []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-6-sol"},
 		},
 		{
 			name:     "copilot always emits nav-pilot persona",
 			cliName:  "copilot",
 			resolved: domain.ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true},
-			want:     []string{"--agent", "nav-pilot"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6-sol"},
 		},
 		{
 			name:     "resolved.Client=copilot still emits --agent nav-pilot (not --agent copilot)",
 			cliName:  "copilot",
 			resolved: domain.ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true},
-			want:     []string{"--agent", "nav-pilot"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6-sol"},
 		},
 		{
 			name:     "copilot with model and mode",
@@ -122,19 +124,19 @@ func TestBuildCopilotArgs(t *testing.T) {
 			name:     "copilot with allow-all-tools and no-ask-user",
 			cliName:  "copilot",
 			resolved: domain.ResolvedConfig{Client: "copilot", Mode: "default", AllowAllTools: true, AskUser: false},
-			want:     []string{"--agent", "nav-pilot", "--allow-all-tools", "--no-ask-user"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6-sol", "--allow-all-tools", "--no-ask-user"},
 		},
 		{
 			name:     "default mode not emitted",
 			cliName:  "copilot",
 			resolved: domain.ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true},
-			want:     []string{"--agent", "nav-pilot"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6-sol"},
 		},
 		{
 			name:     "default context not emitted",
 			cliName:  "copilot",
 			resolved: domain.ResolvedConfig{Client: "copilot", Mode: "default", ContextTier: "default", AskUser: true},
-			want:     []string{"--agent", "nav-pilot"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6-sol"},
 		},
 	}
 	for _, tt := range tests {
@@ -152,30 +154,69 @@ func TestBuildCopilotArgs(t *testing.T) {
 	}
 }
 
-func TestUserCopilotDir(t *testing.T) {
+func TestUserInstructionsDir(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 
-	if got := userCopilotDir(); got != "" {
+	if got := userInstructionsDir(); got != "" {
 		t.Errorf("expected empty for no customizations, got %q", got)
 	}
 
+	// Copilot reads ~/.copilot/agents itself; agents alone need no injection.
 	agentsDir := filepath.Join(home, ".copilot", "agents")
 	_ = os.MkdirAll(agentsDir, 0o755)
 	_ = os.WriteFile(filepath.Join(agentsDir, "nav-pilot.agent.md"), []byte("test"), 0o644)
-
-	expected := filepath.Join(home, ".copilot")
-	if got := userCopilotDir(); got != expected {
-		t.Errorf("expected %q for agents-only, got %q", expected, got)
+	if got := userInstructionsDir(); got != "" {
+		t.Errorf("expected empty for agents-only, got %q", got)
 	}
 
-	_ = os.RemoveAll(agentsDir)
 	instrDir := filepath.Join(home, ".copilot", ".github", "instructions")
 	_ = os.MkdirAll(instrDir, 0o755)
 	_ = os.WriteFile(filepath.Join(instrDir, "golang.instructions.md"), []byte("test"), 0o644)
+	if got := userInstructionsDir(); got != instrDir {
+		t.Errorf("expected %q with instructions installed, got %q", instrDir, got)
+	}
+}
 
-	if got := userCopilotDir(); got != expected {
-		t.Errorf("expected %q for instructions-only, got %q", expected, got)
+// TestCopilotEnvScopesInstructionsDir pins that the injected directory is
+// nav-pilot's instructions directory, never ~/.copilot. Copilot searches the
+// directory recursively, and ~/.copilot/session-state holds other sessions'
+// worktrees with their own *.instructions.md files.
+func TestCopilotEnvScopesInstructionsDir(t *testing.T) {
+	const key = "COPILOT_CUSTOM_INSTRUCTIONS_DIRS"
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	instrDir := filepath.Join(home, ".copilot", ".github", "instructions")
+	worktree := filepath.Join(home, ".copilot", "session-state", "abc", "files", "repo-worktree", "instructions")
+	for _, d := range []string{instrDir, worktree} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(d, "golang.instructions.md"), []byte("# Go\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tests := []struct {
+		name, existing, want string
+	}{
+		{"unset", "", instrDir},
+		{"appends to user value", "/team/instructions", "/team/instructions," + instrDir},
+		{"already present", "/a, " + instrDir, "/a, " + instrDir},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(key, tt.existing)
+			got := telemetry.LookupEnvValue(CopilotEnv(""), key)
+			if got != tt.want {
+				t.Errorf("%s = %q, want %q", key, got, tt.want)
+			}
+			for _, p := range strings.Split(got, ",") {
+				if strings.TrimSpace(p) == filepath.Join(home, ".copilot") {
+					t.Errorf("%s contains ~/.copilot, which pulls in session-state worktrees", key)
+				}
+			}
+		})
 	}
 }
 

@@ -391,6 +391,8 @@ func TestOpenCodeModelForLabel(t *testing.T) {
 		{name: "empty", in: "", want: ""},
 		{name: "unknown name resolves to nothing", in: "Claude Sonnet 9000", want: ""},
 		{name: "already qualified is not a known name", in: "github-copilot/claude-opus-5", want: ""},
+		{name: "auto id resolves to nothing, opencode rejects it", in: "auto", want: ""},
+		{name: "auto label resolves to nothing, opencode rejects it", in: "Auto (let Copilot pick)", want: ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -398,6 +400,23 @@ func TestOpenCodeModelForLabel(t *testing.T) {
 				t.Errorf("OpenCodeModelForLabel(%q) = %q, want %q", tt.in, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestCopilotModelIDForLabel(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{in: "Auto (let Copilot pick)", want: "auto"},
+		{in: "auto", want: "auto"},
+		{in: "Claude Opus 5", want: "claude-opus-5"},
+		{in: "unknown", want: ""},
+	}
+	for _, tt := range tests {
+		if got := CopilotModelIDForLabel(tt.in); got != tt.want {
+			t.Errorf("CopilotModelIDForLabel(%q) = %q, want %q", tt.in, got, tt.want)
+		}
 	}
 }
 

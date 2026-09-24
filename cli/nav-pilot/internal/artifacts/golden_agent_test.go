@@ -105,10 +105,11 @@ You are %NAME%.
 `
 
 	tests := []struct {
-		name  string
-		agent string
-		model string
-		want  string
+		name     string
+		agent    string
+		model    string
+		wantWarn bool
+		want     string
 	}{
 		{
 			name:  "display name maps to the provider-qualified id",
@@ -153,9 +154,23 @@ You are nav-pilot-opus.
 `,
 		},
 		{
-			name:  "an unknown name writes no model line",
+			name:     "an unknown name writes no model line",
+			agent:    "aksel",
+			model:    "Claude Sonnet 9000",
+			wantWarn: true,
+			want: `---
+description: Plan and build Nav applications
+mode: subagent
+---
+
+
+You are aksel.
+`,
+		},
+		{
+			name:  "auto writes no model line without an unknown-model warning",
 			agent: "aksel",
-			model: "Claude Sonnet 9000",
+			model: "Auto",
 			want: `---
 description: Plan and build Nav applications
 mode: subagent
@@ -181,9 +196,8 @@ You are aksel.
 			// An unmappable name must not pass in silence: the only place a
 			// maintainer can notice is the sync that materialized it.
 			warned := strings.Contains(stderr, tt.model)
-			wantWarn := !strings.Contains(tt.want, "model:")
-			if warned != wantWarn {
-				t.Errorf("stderr warning = %v, want %v (stderr: %q)", warned, wantWarn, stderr)
+			if warned != tt.wantWarn {
+				t.Errorf("stderr warning = %v, want %v (stderr: %q)", warned, tt.wantWarn, stderr)
 			}
 		})
 	}

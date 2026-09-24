@@ -1,10 +1,12 @@
 package local
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -135,6 +137,70 @@ func TestParse(t *testing.T) {
 		{
 			name: "the generator's own MLX_ knobs are accepted",
 			data: manifestJSON("1", paramsJSON("knobs", `{"MLX_MODEL":"x","MLX_TOP_P":"0.95","MLX_CACHE_BYTES":"12884901888"}`)),
+		},
+		{
+			name: "a prefill step size below mlx-lm's default is accepted",
+			data: manifestJSON("1", paramsJSON("prefill", `{"MLX_PREFILL_STEP_SIZE":"512"}`)),
+		},
+		{
+			// Zero or a negative step would reach mlx-lm's prefill loop; the
+			// flag is only ever meant to shrink the per-chunk transient.
+			name:    "a zero prefill step size is rejected",
+			data:    manifestJSON("1", paramsJSON("prefill", `{"MLX_PREFILL_STEP_SIZE":"0"}`)),
+			isErr:   true,
+			wantErr: "MLX_PREFILL_STEP_SIZE",
+		},
+		{
+			name:    "a prefill step size above the bound is rejected",
+			data:    manifestJSON("1", paramsJSON("prefill", `{"MLX_PREFILL_STEP_SIZE":"16385"}`)),
+			isErr:   true,
+			wantErr: "MLX_PREFILL_STEP_SIZE",
+		},
+		{
+			name:    "a prefill step size that is not a whole number is rejected",
+			data:    manifestJSON("1", paramsJSON("prefill", `{"MLX_PREFILL_STEP_SIZE":"1024 --trust-remote-code"}`)),
+			isErr:   true,
+			wantErr: "MLX_PREFILL_STEP_SIZE",
+		},
+		{
+			name: "sampling within range is accepted",
+			data: manifestJSON("1", paramsJSON("sampling", `{"MLX_NAV_PILOT_TEMPERATURE":"0","MLX_NAV_PILOT_TOP_P":"1"}`)),
+		},
+		{
+			name:    "sampling MLX_NAV_PILOT_TEMPERATURE=2.1 is rejected",
+			data:    manifestJSON("1", paramsJSON("bad0", `{"MLX_NAV_PILOT_TEMPERATURE":"2.1"}`)),
+			isErr:   true,
+			wantErr: "MLX_NAV_PILOT_TEMPERATURE",
+		},
+		{
+			name:    "sampling MLX_NAV_PILOT_TEMPERATURE=-0.1 is rejected",
+			data:    manifestJSON("1", paramsJSON("bad1", `{"MLX_NAV_PILOT_TEMPERATURE":"-0.1"}`)),
+			isErr:   true,
+			wantErr: "MLX_NAV_PILOT_TEMPERATURE",
+		},
+		{
+			name:    "sampling MLX_NAV_PILOT_TEMPERATURE=NaN is rejected",
+			data:    manifestJSON("1", paramsJSON("bad2", `{"MLX_NAV_PILOT_TEMPERATURE":"NaN"}`)),
+			isErr:   true,
+			wantErr: "MLX_NAV_PILOT_TEMPERATURE",
+		},
+		{
+			name:    "sampling MLX_NAV_PILOT_TEMPERATURE=warm is rejected",
+			data:    manifestJSON("1", paramsJSON("bad3", `{"MLX_NAV_PILOT_TEMPERATURE":"warm"}`)),
+			isErr:   true,
+			wantErr: "MLX_NAV_PILOT_TEMPERATURE",
+		},
+		{
+			name:    "sampling MLX_NAV_PILOT_TOP_P=0 is rejected",
+			data:    manifestJSON("1", paramsJSON("bad4", `{"MLX_NAV_PILOT_TOP_P":"0"}`)),
+			isErr:   true,
+			wantErr: "MLX_NAV_PILOT_TOP_P",
+		},
+		{
+			name:    "sampling MLX_NAV_PILOT_TOP_P=1.5 is rejected",
+			data:    manifestJSON("1", paramsJSON("bad5", `{"MLX_NAV_PILOT_TOP_P":"1.5"}`)),
+			isErr:   true,
+			wantErr: "MLX_NAV_PILOT_TOP_P",
 		},
 		{
 			name: "the second allowed publisher is accepted",
@@ -519,5 +585,48 @@ func TestManifestRefusesAnUnknownBackend(t *testing.T) {
 		if !strings.Contains(err.Error(), "not a manifest change") {
 			t.Errorf("backend %q rejected with %q, want the message to say why widening it is a code change", backend, err)
 		}
+	}
+}
+
+// TestParseCapabilities: the block is optional, parsed when present, and
+// forward compatible: unknown classes and verdicts do not refuse the manifest.
+func TestParseCapabilities(t *testing.T) {
+	var doc map[string]any
+	if err := json.Unmarshal(embeddedManifest, &doc); err != nil {
+		t.Fatal(err)
+	}
+	m, err := Parse(embeddedManifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range m.Models {
+		if e.Capabilities != nil {
+			t.Fatalf("the embedded manifest has no capabilities block, yet %s parsed one", e.Key)
+		}
+	}
+	models := doc["models"].([]any)
+	models[0].(map[string]any)["capabilities"] = map[string]any{
+		"bar": map[string]any{"confidence": 0.9},
+		"classes": map[string]any{
+			"edit-multi-mechanical": map[string]any{"delegate": "trusted", "local": "cloud", "delegate_k": 35, "delegate_n": 35},
+			"some-future-class":     map[string]any{"delegate": "trusted", "local": "trusted"},
+			"read-qa":               map[string]any{"delegate": "a-future-verdict", "local": "not-yet"},
+		},
+	}
+	raw, _ := json.Marshal(doc)
+	m, err = Parse(raw)
+	if err != nil {
+		t.Fatalf("a manifest with a capabilities block was refused: %v", err)
+	}
+	send, keep := m.Models[0].Capabilities.DelegateTrusted()
+	if !slices.Equal(send, []string{"edit-multi-mechanical"}) {
+		t.Errorf("trusted = %v, want only edit-multi-mechanical", send)
+	}
+	if len(keep) != len(TaskClasses)-1 || slices.Contains(keep, "some-future-class") {
+		t.Errorf("not trusted = %v, want every other known class and no unknown one", keep)
+	}
+	var none *Capabilities
+	if send, keep := none.DelegateTrusted(); send != nil || len(keep) != len(TaskClasses) {
+		t.Errorf("a nil block trusted %v", send)
 	}
 }

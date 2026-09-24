@@ -1,7 +1,7 @@
 ---
 name: nais-manifest
 description: Generer et produksjonsklart Nais-applikasjonsmanifest for Kubernetes-deployment
-model: GPT-5.3-Codex
+model: GPT-6 Luna
 ---
 
 You are creating a Nais application manifest for deploying to Nav's Kubernetes platform.

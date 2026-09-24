@@ -269,12 +269,16 @@ func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 // Precedence: CLI flag > file value > built-in default.
 func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	r := ResolvedConfig{
-		Client:          "copilot",
-		Mode:            "default",
-		AskUser:         true,
-		AutoLaunch:      true,
-		OtelLogLevel:    "none",
-		CopilotAuthMode: "auto",
+		Client:            "copilot",
+		Mode:              "default",
+		AskUser:           true,
+		AutoLaunch:        true,
+		OtelLogLevel:      "none",
+		CopilotAuthMode:   "auto",
+		HookLoopGuard:     true,
+		HookRedactSecrets: true,
+		HookRedactFNR:     true,
+		HookInjectionNote: true,
 	}
 
 	// Apply file values.
@@ -335,6 +339,18 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		}
 		if file.CopilotAuthMode != nil {
 			r.CopilotAuthMode = *file.CopilotAuthMode
+		}
+		if file.HookLoopGuard != nil {
+			r.HookLoopGuard = *file.HookLoopGuard
+		}
+		if file.HookRedactSecrets != nil {
+			r.HookRedactSecrets = *file.HookRedactSecrets
+		}
+		if file.HookRedactFNR != nil {
+			r.HookRedactFNR = *file.HookRedactFNR
+		}
+		if file.HookInjectionNote != nil {
+			r.HookInjectionNote = *file.HookInjectionNote
 		}
 	}
 

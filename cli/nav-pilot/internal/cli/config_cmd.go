@@ -163,7 +163,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "local_loop_guard",
 		kind:        keyKindInt,
-		description: "Identical consecutive tool calls that end a local turn. Local models get stuck repeating one call; this is where nav-pilot stops them.",
+		description: "Identical consecutive tool calls that end a local turn whatever they return. Half this many (at least 2) end it when the results repeat too. Local models get stuck repeating one call; this is where nav-pilot stops them.",
 		allowed:     nil,
 		defaultVal:  strconv.Itoa(local.DefaultLoopGuardRepeat),
 		flag:        "",
@@ -177,6 +177,42 @@ var configKeyDefs = []configKeyDef{
 		defaultVal:  "",
 		flag:        "",
 		group:       "Local models (alpha)",
+	},
+	{
+		name:        "hook_loop_guard",
+		kind:        keyKindBool,
+		description: "Warn the model when it repeats one tool call, in every Copilot CLI session and not only local ones. nav-pilot writes a postToolUse hook to ~/.copilot/hooks/ at launch that applies the local_loop_guard rule; false removes it at the next launch.",
+		allowed:     nil,
+		defaultVal:  "true",
+		flag:        "",
+		group:       "Hooks",
+	},
+	{
+		name:        "hook_redact_secrets",
+		kind:        keyKindBool,
+		description: "Mask secrets (GitHub tokens, AWS key ids, private keys, JWTs, password=/api_key= values) in tool results before the model reads them, in every Copilot CLI session. Written at launch as a postToolUse hook in ~/.copilot/hooks/.",
+		allowed:     nil,
+		defaultVal:  "true",
+		flag:        "",
+		group:       "Hooks",
+	},
+	{
+		name:        "hook_redact_fnr",
+		kind:        keyKindBool,
+		description: "Mask fødselsnummer, D-nummer and H-nummer in tool results before the model reads them. Only eleven digits whose date and both mod-11 control digits check out are masked.",
+		allowed:     nil,
+		defaultVal:  "true",
+		flag:        "",
+		group:       "Hooks",
+	},
+	{
+		name:        "hook_injection_note",
+		kind:        keyKindBool,
+		description: "Put a note in front of a tool result that reads like instructions to the model (\"ignore previous instructions\", role markers), telling it the text is data. Flags; never blocks.",
+		allowed:     nil,
+		defaultVal:  "true",
+		flag:        "",
+		group:       "Hooks",
 	},
 	{
 		name:        "rtk_prompted_client",
@@ -244,9 +280,9 @@ version = 1
 # Corresponds to nav-pilot flag: --source
 # source = "navikt/copilot"
 
-# Model id. Common Copilot models: auto, claude-opus-5, claude-sonnet-5,
+# Model id. Common Copilot models: auto, claude-opus-5.5, claude-sonnet-5,
 # claude-haiku-4.5, claude-opus-4.8, claude-opus-4.7,
-# gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna, gpt-5.5, gpt-5.4, gpt-5.3-codex,
+# gpt-6-sol, gpt-6-luna, gpt-5.6-terra, gpt-5.5, gpt-5.4, gpt-5.3-codex,
 # gpt-5.4-mini, gpt-5-mini, gemini-3.6-flash, gemini-3.5-flash,
 # kimi-k2.7-code, kimi-k3.
 # For opencode (launched via cplt → GitHub Copilot provider): a bare Copilot id
@@ -316,9 +352,10 @@ version = 1
 # Default: false
 # local_autostart = false
 
-# Identical consecutive tool calls that end a local turn. Local models get
-# stuck repeating one call — we measured runs of 203 — and this is where
-# nav-pilot stops them. Minimum 2.
+# Identical consecutive tool calls that end a local turn, whatever they
+# return. Half this many (at least 2) end it when each call also got the same
+# result back. Local models get stuck repeating one call — we measured runs
+# of 203 — and this is where nav-pilot stops them. Minimum 2.
 # Default: 8
 # local_loop_guard = 8
 
@@ -327,6 +364,30 @@ version = 1
 # model key picks that, and the two are set independently.
 # Default: unset
 # local_model = "mlx-community/Qwen3.8-27B-4bit"
+
+# Warn the model when it repeats one tool call, in every Copilot CLI session
+# and not only local ones. At launch nav-pilot writes a postToolUse hook to
+# ~/.copilot/hooks/nav-pilot-loop-guard.json that applies the local_loop_guard
+# rule to each tool result; false removes it at the next launch.
+# Default: true
+# hook_loop_guard = true
+
+# The redaction hook (~/.copilot/hooks/nav-pilot-redact-tool-output.json)
+# looks at every tool result before the model reads it, in every Copilot CLI
+# session. Each part can be turned off on its own; with all three off the
+# hook is removed at the next launch.
+# Mask secrets: GitHub tokens, AWS key ids, private keys, JWTs, and the value
+# of password=/api_key=-style assignments.
+# Default: true
+# hook_redact_secrets = true
+# Mask fødselsnummer, D-nummer and H-nummer (date and both mod-11 control
+# digits valid).
+# Default: true
+# hook_redact_fnr = true
+# Put a note in front of a result that reads like instructions to the model
+# ("ignore previous instructions", role markers). Flags; never blocks.
+# Default: true
+# hook_injection_note = true
 
 # Internal flag to track which client the user was last prompted to set up rtk for.
 # Default: unset
@@ -546,6 +607,14 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return strconv.Itoa(localLoopGuard(r))
 	case "local_model":
 		return r.LocalModel
+	case "hook_loop_guard":
+		return strconv.FormatBool(r.HookLoopGuard)
+	case "hook_redact_secrets":
+		return strconv.FormatBool(r.HookRedactSecrets)
+	case "hook_redact_fnr":
+		return strconv.FormatBool(r.HookRedactFNR)
+	case "hook_injection_note":
+		return strconv.FormatBool(r.HookInjectionNote)
 	case "rtk_prompted_client":
 		return r.RtkPromptedClient
 	case "rtk_prompted_at":

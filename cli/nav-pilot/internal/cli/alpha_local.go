@@ -515,8 +515,8 @@ func startSummary(model local.Model, serverURL string, pid int, wired local.Wire
 	fmt.Fprintf(&b, "\n%s %s is ready after %s.\n", green("✓"), bold(model.Name), took.Round(time.Second))
 	fmt.Fprintf(&b, "  Serving  %s (pid %d)\n", serverURL, pid)
 	fmt.Fprintf(&b, "  Guard    %s\n", dim(wrapIndent(fmt.Sprintf(
-		"started by the launch below, not by this command. It ends a turn after %d identical tool calls in a row, and a client pointed straight at the address above goes unguarded",
-		local.LoopGuardRepeat()), "           ", 78)))
+		"started by the launch below, not by this command. It ends a turn after %d identical tool calls in a row that return the same result, or %d whatever they return, and a client pointed straight at the address above goes unguarded",
+		local.SameResultRepeat(), local.LoopGuardRepeat()), "           ", 78)))
 	fmt.Fprintf(&b, "  Wired    %d GB required, %d GB set\n\n", wired.RequiredGB, wired.CurrentGB)
 	fmt.Fprintf(&b, "  Launch:  %s\n", bold("nav-pilot --client opencode --model "+model.Model))
 	fmt.Fprintf(&b, "  Stop:    %s\n\n", bold("nav-pilot alpha local stop"))

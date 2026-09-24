@@ -228,6 +228,13 @@ func EnsureOwnServer() error {
 		return fmt.Errorf("%w.\n\n  Start one first:\n\n    %s", ErrNoServerRecorded, start)
 	}
 	if !isRecorded(st.PID, st.Lstart) {
+		if threadDiedInLog(st.PID) {
+			return fmt.Errorf(
+				"the recorded local %s server (pid %d) exited because its generation thread died, most likely out of memory.\n\n"+
+					"  The traceback is in %s. A shorter context or a smaller model needs less memory.\n\n"+
+					"  Restart it:\n\n    %s",
+				st.Model, st.PID, LogPath(), domain.Bold("nav-pilot alpha local restart"))
+		}
 		return fmt.Errorf(
 			"the recorded local %s server (pid %d) is not running any more.\n\n"+
 				"  Refusing: the loop guard forwards to %s, and nav-pilot cannot tell whether that is still its own server or whatever took the port after it died.\n\n"+
@@ -245,6 +252,34 @@ func EnsureOwnServer() error {
 	}
 	return nil
 }
+
+// threadDiedInLog reports whether the server log ends with the line
+// [serverBootstrap] prints for pid before it exits with [serverExitThreadDied].
+// The last line only, and only for that pid: the log is appended across
+// launches, so an earlier run's death followed by a later one's output, or by
+// nothing at all from a later server that was SIGKILLed, says nothing about
+// the server that just went away.
+func threadDiedInLog(pid int) bool {
+	f, err := os.Open(LogPath())
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	// The tail only: maxLogBytes is checked when a server starts, and one left
+	// up for days can grow the log far past it before this reads it.
+	buf := make([]byte, logTailBytes)
+	fi, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	n, _ := f.ReadAt(buf, max(0, fi.Size()-logTailBytes))
+	tail := strings.TrimRight(string(buf[:n]), "\n")
+	return strings.HasPrefix(tail[strings.LastIndex(tail, "\n")+1:], fmt.Sprintf(threadDiedMarker, pid))
+}
+
+// logTailBytes is how much of the log's end [threadDiedInLog] reads. The marker
+// is one short line; the rest is margin.
+const logTailBytes = 64 << 10
 
 // portListeners reports the pids listening on a TCP port. `lsof` because it is
 // what answers "who holds this port" on macOS without a privileged interface,

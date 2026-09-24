@@ -154,6 +154,7 @@ echo "  test..."    && go test -race ./... && \
 echo "  vet..."     && go vet ./... && \
 echo "  staticcheck..." && go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./... && \
 cd ../.. && \
+echo "  benchmark usage..." && python3 scripts/copilot-usage.py --selftest && \
 echo "  shellcheck..." && shellcheck scripts/install.sh skills/*/*.sh && \
 echo "  bats..." && bats scripts/install.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats && \
 echo "  ✅ nav-pilot checks passed"

@@ -28,13 +28,13 @@ func TestGoldenBuildCopilotArgs(t *testing.T) {
 			cliName: "cplt",
 			// AskUser is false in a zero ResolvedConfig, hence --no-ask-user.
 			resolved: domain.ResolvedConfig{},
-			want:     []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--no-ask-user"},
+			want:     []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-6-sol", "--no-ask-user"},
 		},
 		{
 			name:     "cplt/ask user",
 			cliName:  "cplt",
 			resolved: domain.ResolvedConfig{AskUser: true},
-			want:     []string{"--agent", "copilot", "--", "--agent", "nav-pilot"},
+			want:     []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-6-sol"},
 		},
 		{
 			name:    "cplt/every field set",
@@ -70,13 +70,13 @@ func TestGoldenBuildCopilotArgs(t *testing.T) {
 				ContextTier: "default",
 				AskUser:     true,
 			},
-			want: []string{"--agent", "copilot", "--", "--agent", "nav-pilot"},
+			want: []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-6-sol"},
 		},
 		{
 			name:     "copilot/zero config",
 			cliName:  "copilot",
 			resolved: domain.ResolvedConfig{},
-			want:     []string{"--agent", "nav-pilot", "--no-ask-user"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6-sol", "--no-ask-user"},
 		},
 		{
 			name:    "copilot/every field set",
@@ -122,14 +122,14 @@ func TestGoldenOpenCodeArgs(t *testing.T) {
 		want     []string
 	}{
 		{
-			name:     "zero config",
+			name:     "zero config uses the package default",
 			resolved: domain.ResolvedConfig{},
-			want:     []string{"--model", "github-copilot/auto", "--agent", "nav-pilot"},
+			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"},
 		},
 		{
-			name:     "explicit auto model",
+			name:     "explicit auto resolves through the package default",
 			resolved: domain.ResolvedConfig{Model: "auto"},
-			want:     []string{"--model", "github-copilot/auto", "--agent", "nav-pilot"},
+			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"},
 		},
 		{
 			name:     "bare copilot model id gains the provider prefix",
@@ -144,7 +144,7 @@ func TestGoldenOpenCodeArgs(t *testing.T) {
 		{
 			name:     "plan mode selects opencode's built-in plan agent",
 			resolved: domain.ResolvedConfig{Mode: "plan"},
-			want:     []string{"--model", "github-copilot/auto", "--agent", "plan"},
+			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "plan"},
 		},
 		{
 			name: "every field set",
@@ -169,7 +169,7 @@ func TestGoldenOpenCodeArgs(t *testing.T) {
 		{
 			name:     "warning log level maps to WARN",
 			resolved: domain.ResolvedConfig{LogLevel: "warning"},
-			want:     []string{"--model", "github-copilot/auto", "--agent", "nav-pilot", "--log-level", "WARN"},
+			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--log-level", "WARN"},
 		},
 	}
 
@@ -187,11 +187,12 @@ func TestGoldenOpenCodeArgs(t *testing.T) {
 // alongside the client args above: together they are the full opencode
 // invocation LaunchOpenCode builds.
 func TestGoldenOpenCodeLaunchAgent(t *testing.T) {
-	if got := (openCodeProvider{}).DefaultModel(); got != "github-copilot/auto" {
-		t.Errorf("opencode DefaultModel() = %q, want %q", got, "github-copilot/auto")
+	const want = "github-copilot/gpt-6-sol"
+	if got := (openCodeProvider{}).DefaultModel(); got != want {
+		t.Errorf("opencode DefaultModel() = %q, want %q", got, want)
 	}
-	if got := ToOpenCodeModel(""); got != "github-copilot/auto" {
-		t.Errorf("ToOpenCodeModel(\"\") = %q, want %q", got, "github-copilot/auto")
+	if got := ToOpenCodeModel(""); got != want {
+		t.Errorf("ToOpenCodeModel(\"\") = %q, want %q", got, want)
 	}
 }
 
@@ -208,7 +209,7 @@ func TestGoldenOpenCodeLaunchAgent(t *testing.T) {
 // launch that goes through cpltArgv — opencode, pi, and both staged clients.
 func TestGoldenCpltArgvNonInteractive(t *testing.T) {
 	spec := cpltLaunch{agent: "opencode", agentArgs: OpenCodeArgs(domain.ResolvedConfig{})}
-	interactive := []string{"--agent", "opencode", "--", "--model", "github-copilot/auto", "--agent", "nav-pilot"}
+	interactive := []string{"--agent", "opencode", "--", "--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"}
 
 	if got := withCpltConfirmation(cpltArgv(spec), true); !slices.Equal(got, interactive) {
 		t.Errorf("with a terminal the vector must not change\n got: %q\nwant: %q", got, interactive)
@@ -269,7 +270,7 @@ func TestNonInteractiveLaunchAddsOnlyYes(t *testing.T) {
 func TestGoldenCopilotLaunchArgsNonInteractive(t *testing.T) {
 	resolved := domain.ResolvedConfig{AskUser: true}
 
-	interactive := []string{"--agent", "copilot", "--", "--agent", "nav-pilot"}
+	interactive := []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-6-sol"}
 	if got := copilotLaunchArgs("cplt", resolved, true, ""); !slices.Equal(got, interactive) {
 		t.Errorf("cplt with a terminal\n got: %q\nwant: %q", got, interactive)
 	}
@@ -278,7 +279,7 @@ func TestGoldenCopilotLaunchArgsNonInteractive(t *testing.T) {
 		t.Errorf("cplt without a terminal\n got: %q\nwant: %q", got, want)
 	}
 
-	plain := []string{"--agent", "nav-pilot"}
+	plain := []string{"--agent", "nav-pilot", "--model", "gpt-6-sol"}
 	for _, tty := range []bool{true, false} {
 		if got := copilotLaunchArgs("copilot", resolved, tty, ""); !slices.Equal(got, plain) {
 			t.Errorf("the plain copilot CLI must never be given cplt's --yes (tty=%v)\n got: %q\nwant: %q", tty, got, plain)
@@ -315,7 +316,7 @@ func TestIsTerminalRejectsDevNull(t *testing.T) {
 // non-interactive path needed them: `nav-pilot -- run "…"` resolved the request
 // and then dropped it, and opencode started its TUI instead.
 func TestGoldenOpenCodeAgentArgs(t *testing.T) {
-	bind := []string{"--model", "github-copilot/auto", "--agent", "nav-pilot"}
+	bind := []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"}
 
 	tests := []struct {
 		name  string

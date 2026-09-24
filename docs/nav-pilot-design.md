@@ -35,14 +35,14 @@ Uten en fast modell blir det lett:
 
 ## Designprinsipper
 
-| Prinsipp | Betydning |
-|---|---|
-| Fasedisiplin | Arbeid skal deles i tydelige faser med ulike mål og risikonivå. |
-| Rød/grønn-sone | Utforskning og endring må ikke blandes ukritisk; sonene styrer trygghet og fokus. |
-| Spesialistruting | Oppgaver skal styres mot riktig rolle, ikke presses gjennom én generell flyt. |
-| Lav overraskelse | Samme type oppgave skal gi samme type håndtering så langt som mulig. |
-| Dokumentert intensjon | Beslutninger skal forklares kort og klart, ikke bare implementeres. |
-| Bevarende endring | Endringer skal bygge videre på eksisterende modell, ikke erstatte den uten grunn. |
+| Prinsipp              | Betydning                                                                         |
+| --------------------- | --------------------------------------------------------------------------------- |
+| Fasedisiplin          | Arbeid skal deles i tydelige faser med ulike mål og risikonivå.                   |
+| Rød/grønn-sone        | Utforskning og endring må ikke blandes ukritisk; sonene styrer trygghet og fokus. |
+| Spesialistruting      | Oppgaver skal styres mot riktig rolle, ikke presses gjennom én generell flyt.     |
+| Lav overraskelse      | Samme type oppgave skal gi samme type håndtering så langt som mulig.              |
+| Dokumentert intensjon | Beslutninger skal forklares kort og klart, ikke bare implementeres.               |
+| Bevarende endring     | Endringer skal bygge videre på eksisterende modell, ikke erstatte den uten grunn. |
 
 ### Fasedisiplin
 
@@ -111,7 +111,7 @@ Beslutningen endrer ikke spesialistruting som prinsipp. Den endrer hvilken form 
 
 Modell er en egenskap ved hva en agent er til for, ikke ved sesjonen den kjører i. Derfor pinnes modellen per agent framfor per sesjon.
 
-`BuildAgentFrontmatter` skriver nå en `model:`-linje, slik at en materialisert opencode-agent bærer modellen sin til klienten i stedet for å falle tilbake på sesjonens (#490). Samme endring ga copilot Tier 1 en pakke-erklæring, i dag `inherit`.
+`BuildAgentFrontmatter` skriver nå en `model:`-linje, slik at en materialisert opencode-agent bærer modellen sin til klienten i stedet for å falle tilbake på sesjonens (#490). Samme endring ga copilot Tier 1 en pakke-erklæring. Agentpakken bruker GPT-6 Sol når brukeren ikke har valgt en modell.
 
 Hvordan den linja rangeres mot et `--model` ved oppstart er klientens avgjørelse, ikke nav-pilots, og klientene svarer ulikt. Det er målt og registrert i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md` §4.3. Ikke skriv en felles presedensrekkefølge inn i dette dokumentet; det finnes ingen.
 
@@ -227,13 +227,13 @@ Hvis disse tre divergerer, mister systemet koherens.
 
 Noen tips fra den opprinnelige Copilot-bruksanalysen skal brukes som inspirasjon, men ikke kopieres direkte inn i nav-pilot.
 
-| Tips | Vurdering | Hvordan det skal brukes i nav-pilot |
-|---|---|---|
-| `/tasks` for å følge agenter | Ikke relevant | Nav-pilot bruker fase- og rutingsmodell, ikke task-monitoring som prinsipp. |
-| `/fleet` for automatisk parallellitet | Ikke relevant | Parallelitet skal være eksplisitt orkestrering mellom spesialister, ikke en generell modus. |
-| `/research` for raskere feilsøking | Delvis relevant | Oversettes til “research først” før plan eller beslutning. |
-| `/plan` for multi-phase roadmaps | Relevant | Matcher fase 2 og `$nav-plan` direkte. |
-| `/review` + `security-review` | Delvis relevant | Oversettes til fase 3 review + `security-champion`/`$security-review` ved høy risiko. |
+| Tips                                  | Vurdering       | Hvordan det skal brukes i nav-pilot                                                         |
+| ------------------------------------- | --------------- | ------------------------------------------------------------------------------------------- |
+| `/tasks` for å følge agenter          | Ikke relevant   | Nav-pilot bruker fase- og rutingsmodell, ikke task-monitoring som prinsipp.                 |
+| `/fleet` for automatisk parallellitet | Ikke relevant   | Parallelitet skal være eksplisitt orkestrering mellom spesialister, ikke en generell modus. |
+| `/research` for raskere feilsøking    | Delvis relevant | Oversettes til “research først” før plan eller beslutning.                                  |
+| `/plan` for multi-phase roadmaps      | Relevant        | Matcher fase 2 og `$nav-plan` direkte.                                                      |
+| `/review` + `security-review`         | Delvis relevant | Oversettes til fase 3 review + `security-champion`/`$security-review` ved høy risiko.       |
 
 ## Aktuelle referanser
 

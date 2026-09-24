@@ -271,6 +271,14 @@ func TestStagedLaunchModel(t *testing.T) {
 			wantOpen:   []string{"--agent", "grillmester", "--model", "github-copilot/gpt-5.5"},
 			wantCopilo: []string{"--plugin-dir", staged.Dir, "--agent", "grillmester:grillmester", "--model", "gpt-5.5"},
 		},
+		{
+			// A pakke that still declares the legacy alias (Nav's own did,
+			// before this was found) must not forward it to opencode as-is.
+			name:       "legacy github-copilot/auto declaration is normalized for opencode",
+			pakke:      concrete("github-copilot/auto"),
+			wantOpen:   []string{"--agent", "grillmester"},
+			wantCopilo: []string{"--plugin-dir", staged.Dir, "--agent", "grillmester:grillmester", "--model", "github-copilot/auto"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -507,7 +515,7 @@ func TestStagedOpenCodeLeavesSharedConfigAlone(t *testing.T) {
 // vector.
 func TestGoldenCpltArgvWithoutCpltArgs(t *testing.T) {
 	spec := cpltLaunch{agent: "opencode", agentArgs: OpenCodeArgs(domain.ResolvedConfig{})}
-	want := []string{"--agent", "opencode", "--", "--model", "github-copilot/auto", "--agent", "nav-pilot"}
+	want := []string{"--agent", "opencode", "--", "--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"}
 	if got := cpltArgv(spec); !slices.Equal(got, want) {
 		t.Errorf("cpltArgv\n got: %q\nwant: %q", got, want)
 	}
@@ -536,11 +544,11 @@ func TestOpenCodeDefaultModelFollowsPakke(t *testing.T) {
 		Name:    "grillmester",
 		Clients: map[string]agentpakke.ClientEntry{"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: agentpakke.InheritModel}},
 	})
-	if got := (openCodeProvider{}).DefaultModel(); got != OpenCodeDefaultModel {
-		t.Errorf("DefaultModel() under an inherit pakke = %q, want the built-in %q", got, OpenCodeDefaultModel)
+	if got := (openCodeProvider{}).DefaultModel(); got != "" {
+		t.Errorf("DefaultModel() under an inherit pakke = %q, want \"\" (opencode picks its own default)", got)
 	}
-	if got := ToOpenCodeModel(""); got != OpenCodeDefaultModel {
-		t.Errorf("ToOpenCodeModel(\"\") under an inherit pakke = %q, want the built-in %q", got, OpenCodeDefaultModel)
+	if got := ToOpenCodeModel(""); got != "" {
+		t.Errorf("ToOpenCodeModel(\"\") under an inherit pakke = %q, want \"\"", got)
 	}
 }
 
@@ -714,6 +722,8 @@ func TestStagedPiSpec(t *testing.T) {
 	}{
 		// The fixture declares "inherit", which forwards no --model at all.
 		{"inherit forwards no model", domain.ResolvedConfig{}, base},
+		{"normalized auto model forwards no model", domain.ResolvedConfig{Model: "auto"}, base},
+		{"normalized legacy auto model forwards no model", domain.ResolvedConfig{Model: "github-copilot/auto"}, base},
 		{"a user pin is mapped and forwarded", domain.ResolvedConfig{Model: "claude-sonnet-4.6"},
 			with("--model", ToOpenCodeModel("claude-sonnet-4.6"))},
 		{"forwarded arguments come last", domain.ResolvedConfig{ExtraArgs: []string{"--print", "hi"}},

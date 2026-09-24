@@ -10,7 +10,9 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -1331,6 +1333,7 @@ func TestServerFlagsCarryTheTunedKnobs(t *testing.T) {
 		"MLX_MAX_TOKENS":         "32768",
 		"MLX_CACHE_SIZE":         "3",
 		"MLX_CHAT_TEMPLATE_ARGS": `{"enable_thinking": false}`,
+		"MLX_PREFILL_STEP_SIZE":  "512",
 		"MLX_OPENCODE_CONTEXT":   "65536",
 	})
 	// Exact equality rather than substring matching. serverFlags is
@@ -1344,6 +1347,7 @@ func TestServerFlagsCarryTheTunedKnobs(t *testing.T) {
 		"--max-tokens", "32768",
 		"--prompt-cache-size", "3",
 		"--chat-template-args", `{"enable_thinking": false}`,
+		"--prefill-step-size", "512",
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("serverFlags =\n  %v\nwant\n  %v", got, want)
@@ -1413,5 +1417,143 @@ func TestCheckWiredLimitRefusesBelowDeclaredMinimum(t *testing.T) {
 				t.Fatalf("CheckWiredLimit() errored: %v", err)
 			}
 		})
+	}
+}
+
+// TestServerCommandRunsTheBootstrapWithTheSameFlags pins the launch argv: the
+// bootstrap as `python -c`, then exactly the flags mlx_lm.server used to get.
+func TestServerCommandRunsTheBootstrapWithTheSameFlags(t *testing.T) {
+	stubDirs(t)
+	name, args := serverCommand(Model{Model: "org/m", Params: map[string]string{"MLX_TEMP": "0.6"}}, 8123)
+	if name != venvBin("python") {
+		t.Errorf("serverCommand program = %q, want the venv python %q", name, venvBin("python"))
+	}
+	want := []string{"-c", serverBootstrap, "--model", "org/m", "--host", "127.0.0.1", "--port", "8123", "--temp", "0.6"}
+	if !slices.Equal(args, want) {
+		t.Errorf("serverCommand args =\n  %q\nwant\n  %q", args, want)
+	}
+	if !strings.Contains(serverBootstrap, threadDiedMarker) {
+		t.Errorf("serverBootstrap does not print %q; the log check would never match", threadDiedMarker)
+	}
+}
+
+// TestADeadGenerationThreadEndsTheServer runs the real bootstrap under the
+// system python against a fake mlx_lm.server whose worker thread raises while
+// the main thread carries on, the way mlx-lm's HTTP loop does after a Metal
+// OOM. The process must exit 70, and the guard's ownership check must then say
+// why.
+func TestADeadGenerationThreadEndsTheServer(t *testing.T) {
+	py, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("no python3 on PATH")
+	}
+	stubDirs(t)
+	pkg := filepath.Join(t.TempDir(), "mlx_lm")
+	if err := os.MkdirAll(pkg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fake := "import sys, threading, time\n" +
+		"def main():\n" +
+		"    print('argv', sys.argv, flush=True)\n" +
+		"    threading.Thread(target=lambda: 1 / 0).start()\n" +
+		"    time.sleep(30)\n"
+	for name, body := range map[string]string{"__init__.py": "", "server.py": fake} {
+		if err := os.WriteFile(filepath.Join(pkg, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	_, args := serverCommand(Model{Model: "it's m", Params: map[string]string{"MLX_TEMP": "0.6"}}, 8123)
+	p, err := startProcess(context.Background(), py, args, append(os.Environ(), "PYTHONPATH="+filepath.Dir(pkg)))
+	if err != nil {
+		t.Fatalf("startProcess: %v", err)
+	}
+	done := make(chan exitInfo, 1)
+	go func() { done <- p.Wait() }()
+	var info exitInfo
+	select {
+	case info = <-done:
+	case <-time.After(20 * time.Second):
+		_ = p.Signal(syscall.SIGKILL)
+		t.Fatal("the server outlived its dead thread; every request would hang")
+	}
+	if info.Code != serverExitThreadDied {
+		t.Errorf("exit = %+v, want status %d", info, serverExitThreadDied)
+	}
+	if got := describeExit(info); !strings.Contains(got, "out of memory") {
+		t.Errorf("describeExit = %q, want it to name a likely out-of-memory", got)
+	}
+
+	log, _ := os.ReadFile(LogPath())
+	for _, want := range []string{
+		`argv ['mlx_lm.server', '--model', "it's m", '--host', '127.0.0.1', '--port', '8123', '--temp', '0.6']`,
+		"ZeroDivisionError",
+	} {
+		if !strings.Contains(string(log), want) {
+			t.Errorf("server log lacks %q:\n%s", want, log)
+		}
+	}
+
+	st := aRunningState()
+	st.PID = p.PID()
+	if err := SaveState(st); err != nil {
+		t.Fatal(err)
+	}
+	stubAlive(t, func(int) bool { return false })
+	err = EnsureOwnServer()
+	if err == nil || !strings.Contains(err.Error(), "generation thread died") || !strings.Contains(err.Error(), "alpha local restart") {
+		t.Errorf("EnsureOwnServer() after the thread died = %v, want the out-of-memory explanation and restart", err)
+	}
+}
+
+// TestThreadDiedInLogOnlyBlamesThisLaunch: the log is appended across launches,
+// so an earlier server's death line, still last because the next server was
+// SIGKILLed before it wrote anything, must not be pinned on the new pid.
+func TestThreadDiedInLogOnlyBlamesThisLaunch(t *testing.T) {
+	stubDirs(t)
+	if err := os.MkdirAll(filepath.Dir(LogPath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	line := fmt.Sprintf(threadDiedMarker, 111) + "Thread-1 died, so no request will ever be answered; exiting with status 70\n"
+	if err := os.WriteFile(LogPath(), []byte("Traceback ...\n"+line), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !threadDiedInLog(111) {
+		t.Error("threadDiedInLog(111) = false for pid 111's own death line")
+	}
+	if threadDiedInLog(222) {
+		t.Error("threadDiedInLog(222) = true: pid 111's earlier death was blamed on a later launch")
+	}
+}
+
+// TestThreadDiedInLogReadsOnlyTheTail: maxLogBytes is enforced when a server
+// starts, so a long-lived one can leave a log of any size behind. The check
+// must find the marker at its end without reading the rest.
+func TestThreadDiedInLogReadsOnlyTheTail(t *testing.T) {
+	stubDirs(t)
+	if err := os.MkdirAll(filepath.Dir(LogPath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const size = 64 << 20
+	line := fmt.Sprintf(threadDiedMarker, 111) + "Thread-1 died; exiting with status 70\n"
+	f, err := os.Create(LogPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Sparse: 64 MiB on paper, a few bytes on disk.
+	if _, err := f.WriteAt([]byte("\n"+line), size); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	found := threadDiedInLog(111)
+	runtime.ReadMemStats(&after)
+	if !found {
+		t.Error("threadDiedInLog missed the marker at the end of a large log")
+	}
+	if got := after.TotalAlloc - before.TotalAlloc; got > 1<<20 {
+		t.Errorf("threadDiedInLog allocated %d bytes for a %d-byte log, want only a bounded tail", got, size)
 	}
 }
