@@ -187,7 +187,21 @@ type Model struct {
 	// generator meant it, in the release format (2026.09.24-110317-abc1234).
 	// Empty means any version. An older binary withholds the entry: see
 	// [Manifest.Withheld].
-	MinNavPilot string `json:"min_nav_pilot,omitempty"`
+	MinNavPilot releaseVersion `json:"min_nav_pilot,omitempty"`
+}
+
+// releaseVersion is min_nav_pilot as read from the manifest. It never fails to
+// decode: a value that is not a JSON string is kept as its raw text, which the
+// gate then rejects as malformed, so a wrong type costs that entry only rather
+// than the whole manifest. That includes null, which json.Unmarshal would
+// otherwise accept as an empty string and so as no minimum at all.
+type releaseVersion string
+
+func (v *releaseVersion) UnmarshalJSON(b []byte) error {
+	if string(b) == "null" || json.Unmarshal(b, (*string)(v)) != nil {
+		*v = releaseVersion(b)
+	}
+	return nil
 }
 
 // Withheld is a manifest entry this binary does not offer, and why.
@@ -351,11 +365,11 @@ func (m *Manifest) checkModels() error {
 	// Exactly one: zero leaves the picker with nothing to preselect, and two
 	// makes "the default" depend on iteration order — a silent wrong answer
 	// rather than a loud one.
-	if len(defaults) == 0 {
-		for _, w := range m.Withheld {
-			if w.Model.Default {
-				return fmt.Errorf("local-model manifest's default model is withheld: %s", w.Reason)
-			}
+	// Any withheld default, not only a missing one: a withheld default beside
+	// an offered one is a manifest with two defaults, which is refused below.
+	for _, w := range m.Withheld {
+		if w.Model.Default {
+			return fmt.Errorf("local-model manifest's default model is withheld: %s", w.Reason)
 		}
 	}
 	if len(defaults) != 1 {
@@ -378,7 +392,7 @@ func (m *Manifest) withholdTooNew() {
 			kept = append(kept, model)
 			continue
 		}
-		older, err := agentpakke.RunningOlderThan(model.MinNavPilot)
+		older, err := agentpakke.RunningOlderThan(string(model.MinNavPilot))
 		switch {
 		case err != nil:
 			m.Withheld = append(m.Withheld, Withheld{model, fmt.Sprintf(
