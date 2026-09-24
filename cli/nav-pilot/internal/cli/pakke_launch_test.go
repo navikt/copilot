@@ -12,6 +12,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
 // A Tier 2 agentpakke: payload-bearing client entries, no layout. Shaped like
@@ -1036,14 +1037,23 @@ func TestUnresolvableTier1SourceRefuses(t *testing.T) {
 	if _, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"}); err != nil {
 		t.Fatalf("priming launch: %v", err)
 	}
+	// ...but no copy of it is left to fall back on.
+	if err := os.Remove(sourceCachePath("navikt/grillmester")); err != nil {
+		t.Fatalf("the priming launch should have cached the manifest: %v", err)
+	}
 
 	orig := resolveSource
 	t.Cleanup(func() { resolveSource = orig })
+	var timeout time.Duration
 	resolveSource = func(string, string) (*Source, error) {
+		timeout = source.FetchTimeout
 		return nil, errors.New("dial tcp: no route to host")
 	}
 
 	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
+	if timeout != 0 {
+		t.Errorf("with nothing to fall back on the fetch must keep git's own timeouts, got a %s deadline", timeout)
+	}
 	if !handled {
 		t.Fatal("an unreachable Tier 1 source must be handled, not fall through to the legacy launch")
 	}
@@ -1055,6 +1065,65 @@ func TestUnresolvableTier1SourceRefuses(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "Nothing was launched") {
 		t.Errorf("the refusal must say nothing started, got: %v", err)
+	}
+}
+
+// A Tier 1 source that cannot be fetched now, but was before, runs from the
+// manifest that fetch left behind: the same pakke at an older revision is not
+// the substitution #795 refuses. It says so, with the copy's age, and the fetch
+// that failed ran under the short deadline rather than git's 75 s connect.
+func TestUnresolvableTier1SourceUsesCachedCopy(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+
+	src := pakkeSource(t, "navikt/grillmester")
+	stubResolveSource(t, src)
+	if _, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"}); err != nil {
+		t.Fatalf("priming launch: %v", err)
+	}
+	entry, ok := readSourceCache("navikt/grillmester")
+	if !ok {
+		t.Fatal("a successful Tier 1 launch must cache the manifest")
+	}
+	entry.FetchedAt = time.Now().Add(-3 * time.Hour)
+	data, _ := json.Marshal(entry)
+	if err := os.WriteFile(sourceCachePath("navikt/grillmester"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	providerpkg.SetActivePakke(nil) // as a fresh process would start
+
+	orig := resolveSource
+	t.Cleanup(func() { resolveSource = orig })
+	var timeout time.Duration
+	resolveSource = func(string, string) (*Source, error) {
+		timeout = source.FetchTimeout
+		return nil, errors.New("could not clone navikt/grillmester — check your network connection\n\n  fatal: unable to access")
+	}
+
+	var handled bool
+	var err error
+	stderr := captureStderrFor(t, func() {
+		handled, err = tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
+	})
+	if handled || err != nil {
+		t.Fatalf("tryPakkeLaunch(offline, cached) = (%v, %v), want (false, nil): the cached copy launches", handled, err)
+	}
+	if timeout != cachedFetchTimeout {
+		t.Errorf("fetch deadline = %s, want %s while a cached copy exists", timeout, cachedFetchTimeout)
+	}
+	if source.FetchTimeout != 0 {
+		t.Errorf("FetchTimeout left at %s after the launch; it must be restored", source.FetchTimeout)
+	}
+	for _, want := range []string{"navikt/grillmester", "3 h ago", shortSHA(src.SHA), "check your network connection", "updates on the next launch"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("warning must mention %q, got: %s", want, stderr)
+		}
+	}
+	if strings.Contains(stderr, "fatal:") {
+		t.Errorf("warning should carry only the first line of the fetch error, got: %s", stderr)
+	}
+	if got, want := providerpkg.PrimaryAgent("copilot"), src.Pakke.PrimaryAgents("copilot")[0]; got != want {
+		t.Errorf("PrimaryAgent = %q, want the cached pakke's %q", got, want)
 	}
 }
 
