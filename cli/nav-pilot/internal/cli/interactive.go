@@ -1045,7 +1045,7 @@ func decideLaunch(available, autoLaunch, sandboxed, interactive bool) launchDeci
 func offerLaunchCopilot(resolved ResolvedConfig) error {
 	p, err := providerFor(resolved.Client)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	sandboxed := true

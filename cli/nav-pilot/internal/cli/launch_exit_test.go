@@ -10,12 +10,13 @@ import (
 // path calls are implemented; the embedded nil interface panics on any other.
 type failingProvider struct {
 	Provider
-	launchErr error
+	launchErr   error
+	unavailable bool
 }
 
 func (failingProvider) ID() string          { return "pi" }
 func (failingProvider) DisplayName() string { return "Pi" }
-func (failingProvider) Available() bool     { return true }
+func (f failingProvider) Available() bool   { return !f.unavailable }
 func (f failingProvider) Launch(ResolvedConfig) error {
 	return f.launchErr
 }
@@ -52,6 +53,12 @@ func TestOfferLaunchCopilotReturnsLaunchFailure(t *testing.T) {
 				t.Errorf("exitCodeFor = %d, want %d", code, tc.wantCode)
 			}
 		})
+	}
+
+	// A client nav-pilot cannot resolve never launched, so it is a failure too.
+	providerFor = func(string) (Provider, error) { return nil, errors.New(`unknown client "nope"`) }
+	if code := exitCodeFor(offerLaunchCopilot(ResolvedConfig{Client: "nope", AutoLaunch: true})); code != ExitError {
+		t.Errorf("unknown client: exitCodeFor = %d, want %d", code, ExitError)
 	}
 
 	// Skipping the launch is not a failure.
