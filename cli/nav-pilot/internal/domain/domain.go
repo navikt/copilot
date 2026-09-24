@@ -102,7 +102,7 @@ type ResolvedConfig struct {
 	CopilotAuthMode   string   // auto | env_only | gh_only
 	HookLoopGuard     bool     // the loop-guard postToolUse hook for every Copilot CLI session
 	HookRedactSecrets bool     // mask secrets in tool results
-	HookRedactFNR     bool     // mask fødselsnummer and D-nummer in tool results
+	HookRedactFNR     bool     // mask fødselsnummer, D- and H-nummer in tool results
 	HookInjectionNote bool     // flag instruction-like text in tool results
 	ExtraArgs         []string // pass-through arguments for the client
 }

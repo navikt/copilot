@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // Redaction and the injection note: what a tool result carries into the model's
@@ -38,17 +39,18 @@ var secretPatterns = []struct {
 }{
 	{"private-key", []string{"PRIVATE KEY"}, regexp.MustCompile(`-----BEGIN[ A-Z0-9_-]*PRIVATE KEY(?: BLOCK)?-----[\s\S]*?-----END[ A-Z0-9_-]*PRIVATE KEY(?: BLOCK)?-----`)},
 	{"github-token", []string{"ghp_", "gho_", "ghu_", "ghs_", "ghr_", "github_pat_"}, regexp.MustCompile(`\b(?:gh[pousr]_[A-Za-z0-9]{36,255}|github_pat_[A-Za-z0-9_]{82})\b`)},
-	{"aws-access-key", []string{"AKIA", "ASIA", "ABIA", "ACCA"}, regexp.MustCompile(`\b(?:AKIA|ASIA|ABIA|ACCA)[A-Z2-7]{16}\b`)},
+	{"aws-access-key", []string{"AKIA", "ASIA", "ABIA", "ACCA"}, regexp.MustCompile(`\b(?:AKIA|ASIA|ABIA|ACCA)[A-Z0-9]{16}\b`)},
 	{"jwt", []string{"eyJ"}, regexp.MustCompile(`\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}`)},
 }
 
 // secretAssignment is `password=…`, `api_key: "…"`, `"client_secret": "…"`.
 // Only the value is replaced, so the model still sees which setting it is.
 // Groups: 1 key, 2 closing quote of the key, 3 and 5 space around the
-// separator (4), 6 opening quote of the value, 7 the value, 8 a "(" after it.
+// separator (4), then the value: 6 double-quoted, 7 single-quoted (both to
+// the closing quote, spaces included), or 8 bare; 9 a "(" after a bare value.
 // Which of these make it a secret rather than code is secretValue's call.
 var secretAssignment = regexp.MustCompile(
-	`(?i)((?:password|passwd|pwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|private[_-]?key)[A-Za-z0-9_.-]*)(["']?)(\s*)([:=!]=?)(\s*)(["']?)([^\s"'&,;()]{8,})(\(?)`)
+	`(?i)((?:password|passwd|pwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|private[_-]?key)[A-Za-z0-9_.-]*)(["']?)(\s*)([:=!]=?)(\s*)(?:"([^"\n]{8,})"|'([^'\n]{8,})'|([^\s"'&,;()]{8,})(\(?))`)
 
 var identifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
@@ -98,7 +100,14 @@ func Redact(text string, o RedactOptions) (out string, changed bool) {
 				if !secretValue(g) {
 					return m
 				}
-				return strings.Join(g[1:7], "") + "[REDACTED:secret]"
+				prefix := strings.Join(g[1:6], "")
+				switch {
+				case g[6] != "":
+					return prefix + `"[REDACTED:secret]"`
+				case g[7] != "":
+					return prefix + `'[REDACTED:secret]'`
+				}
+				return prefix + "[REDACTED:secret]"
 			})
 		}
 	}
@@ -133,11 +142,15 @@ func Redact(text string, o RedactOptions) (out string, changed bool) {
 //     identifier on the right of a spaced `=`, which is an assignment in code
 //     (`authToken = defaultToken2`).
 func secretValue(g []string) bool {
-	key, ws1, sep, ws2, quote, v, call := g[1], g[3], g[4], g[5], g[6], g[7], g[8]
+	key, ws1, sep, ws2, call := g[1], g[3], g[4], g[5], g[9]
+	v, quoted := g[6]+g[7], true
+	if v == "" {
+		v, quoted = g[8], false
+	}
 	if (sep != "=" && sep != ":") || call != "" || strings.ContainsAny(v[:1], "$%{<[") || strings.HasPrefix(v, "[REDACTED") {
 		return false
 	}
-	if quote != "" || (sep == "=" && ws1 == "" && ws2 == "" && key == strings.ToUpper(key)) {
+	if quoted || (sep == "=" && ws1 == "" && ws2 == "" && key == strings.ToUpper(key)) {
 		return true
 	}
 	if !strings.ContainsAny(v, "0123456789") || strings.IndexFunc(v, func(r rune) bool {
@@ -175,7 +188,9 @@ func ValidFNR(s string) bool {
 	if month > 40 {
 		month -= 40
 	}
-	if day < 1 || day > 31 || month < 1 || month > 12 {
+	// The year is not needed to rule out 31 February: 2000 is a leap year,
+	// so the only date it would wrongly refuse does not exist.
+	if month < 1 || month > 12 || day < 1 || time.Date(2000, time.Month(month), day, 0, 0, 0, 0, time.UTC).Day() != day {
 		return false
 	}
 	k1 := control(d[:9], []int{3, 7, 6, 1, 8, 9, 4, 5, 2})

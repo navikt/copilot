@@ -12,6 +12,7 @@ var (
 	fakeFineGH   = "github" + "_pat_" + strings.Repeat("A1_", 27) + "x"
 	fakeAWS      = "AK" + "IA" + "QWERTYUIOPASDFGH"
 	fakeJWT      = "ey" + "JhbGciOiJIUzI1NiJ9.ey" + "JzdWIiOiIxMjM0NTY3ODkwIn0.c2lnbmF0dXJlLXZhbHVl"
+	fakeAWS2     = "AK" + "IA" + "Q0W1E8R9TYUIOPAS"
 	fakeEnvValue = "SuperSecret" + "PasswordNoDigits"
 	fakeAPIValue = "k3y" + "-v4lue-9x8y"
 	fakePrivKey  = "-----BEGIN " + "RSA PRIVATE KEY-----\nMIIEfake\nlines\n-----END RSA PRIVATE KEY-----"
@@ -31,6 +32,7 @@ func TestValidFNR(t *testing.T) {
 		{"15078545610", false}, // first control digit wrong
 		{"32078545620", false}, // day 32
 		{"15138545620", false}, // month 13
+		{"31029012345", false}, // 31 February, whatever the control digits
 		{"12345678901", false}, // a plain number
 		{"00000000000", false}, // day 0
 		{"1507854562", false},  // ten digits
@@ -60,6 +62,8 @@ func TestRedact(t *testing.T) {
 		{"password assignment keeps the key", "DB_PASSWORD=hunter2hunter2", all, []string{"DB_PASSWORD=[REDACTED:secret]"}, []string{"hunter2hunter2"}},
 		{"json api key", `{"api_key": "` + fakeAPIValue + `"}`, all, []string{`"api_key": "[REDACTED:secret]`}, []string{fakeAPIValue}},
 		{"env line without digits", "DB_PASSWORD=" + fakeEnvValue, all, []string{"DB_PASSWORD=[REDACTED:secret]"}, []string{fakeEnvValue}},
+		{"quoted value with spaces", `password: "correct horse battery"`, all, []string{`password: "[REDACTED:secret]"`}, []string{"horse", "battery"}},
+		{"aws key id with 0, 1, 8 and 9", fakeAWS2, all, []string{"[REDACTED:aws-access-key]"}, []string{fakeAWS2}},
 		{"quoted yaml value without digits", "password: \"" + fakeEnvValue + "\"", all, []string{`password: "[REDACTED:secret]`}, nil},
 		{"fnr in a log line", "bruker 15078545620 ikke funnet", all, []string{"bruker [REDACTED:fnr] ikke funnet"}, []string{"15078545620"}},
 		{"fnr written with a space", "fnr: 150785 45620", all, []string{"[REDACTED:fnr]"}, []string{"45620"}},

@@ -199,7 +199,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "hook_redact_fnr",
 		kind:        keyKindBool,
-		description: "Mask fødselsnummer and D-nummer in tool results before the model reads them. Only eleven digits whose date and both mod-11 control digits check out are masked.",
+		description: "Mask fødselsnummer, D-nummer and H-nummer in tool results before the model reads them. Only eleven digits whose date and both mod-11 control digits check out are masked.",
 		allowed:     nil,
 		defaultVal:  "true",
 		flag:        "",
@@ -380,7 +380,8 @@ version = 1
 # of password=/api_key=-style assignments.
 # Default: true
 # hook_redact_secrets = true
-# Mask fødselsnummer and D-nummer (date and both mod-11 control digits valid).
+# Mask fødselsnummer, D-nummer and H-nummer (date and both mod-11 control
+# digits valid).
 # Default: true
 # hook_redact_fnr = true
 # Put a note in front of a result that reads like instructions to the model

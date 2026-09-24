@@ -1585,7 +1585,7 @@ const CONFIG_KEYS = [
     key: "hook_redact_fnr",
     flag: "—",
     values: "true · false",
-    desc: "Masker fødselsnummer og D-nummer i verktøyresultater. Bare elleve sifre der datoen og begge kontrollsifrene stemmer blir maskert. På som standard.",
+    desc: "Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. Bare elleve sifre der datoen og begge kontrollsifrene stemmer blir maskert. På som standard.",
   },
   {
     key: "hook_injection_note",

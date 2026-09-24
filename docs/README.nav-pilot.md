@@ -203,7 +203,7 @@ viser dem sammen med de andre.
 | Hook | Fil | Hva den gjør | Slå av |
 | --- | --- | --- | --- |
 | Løkkevakt | `nav-pilot-loop-guard.json` | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring. | `nav-pilot config set hook_loop_guard false` |
-| Maskering | `nav-pilot-redact-tool-output.json` | Maskerer hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er og verdien i `password=`/`api_key=`) og fødselsnummer/D-nummer i verktøyresultatet før modellen leser det. Setter en merknad foran et resultat som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører). | `hook_redact_secrets`, `hook_redact_fnr` og `hook_injection_note`, hver for seg |
+| Maskering | `nav-pilot-redact-tool-output.json` | Maskerer hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er og verdien i `password=`/`api_key=`) og fødselsnummer, D-nummer og H-nummer i verktøyresultatet før modellen leser det. Setter en merknad foran et resultat som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører). | `hook_redact_secrets`, `hook_redact_fnr` og `hook_injection_note`, hver for seg |
 
 En hook etter verktøykallet (`postToolUse`) kan ikke avslutte en tur. Den kan bare endre
 det modellen leser. Når løkkevakten slår til, får modellen derfor en beskjed om at den står
