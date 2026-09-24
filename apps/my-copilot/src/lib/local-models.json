@@ -39,12 +39,12 @@
       }
     },
     {
-      "id": "qwen3.8-27b-4bit",
-      "name": "Qwen 3.8 27B 4bit",
-      "model": "mlx-community/Qwen3.8-27B-4bit",
+      "id": "qwen3.8-27b-optiq-4bit",
+      "name": "Qwen 3.8 27B OptiQ 4bit (mixed 4/8-bit)",
+      "model": "mlx-community/Qwen3.8-27B-OptiQ-4bit",
       "default": false,
-      "role": "Opt-in alternative, slower and much less predictable",
-      "weights_gb": 16,
+      "role": "Opt-in alternative, slower, the more robust 4-bit build",
+      "weights_gb": 19,
       "min_ram_gb": 48,
       "min_nav_pilot": null,
       "context": 65536,
@@ -55,11 +55,11 @@
       "classes": {
         "read-qa": {
           "delegate": "cloud",
-          "local": "not-yet"
+          "local": "cloud"
         },
         "edit-single": {
           "delegate": "cloud",
-          "local": "not-yet"
+          "local": "cloud"
         },
         "edit-multi-mechanical": {
           "delegate": "cloud",

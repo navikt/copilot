@@ -1578,7 +1578,7 @@ const CONFIG_KEYS = [
   {
     key: "local_model",
     flag: "—",
-    values: "modell-id fra 'nav-pilot models', f.eks. mlx-community/Qwen3.8-27B-4bit",
+    values: "modell-id fra 'nav-pilot models', f.eks. mlx-community/Qwen3.8-27B-OptiQ-4bit",
     desc: "Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Krever modellen en nyere nav-pilot enn din, faller den tilbake til standard og sier hvilken versjon du trenger.",
   },
   {
@@ -1952,8 +1952,8 @@ reasoning_effort = "high"
 const LOCAL_MODEL_TEXT: Record<string, string> = {
   "qwen3.6-35b-a3b-optiq":
     "Rask og forutsigbar, og svarer på sekunder. Det eneste hovedagenten kan sende hit uten forbehold, er en mekanisk endring over flere filer.",
-  "qwen3.8-27b-4bit":
-    "Mye tregere enn standard og langt mindre forutsigbar: to kjøringer av de samme oppgavene ga helt ulik median, og den når tidsgrensen der standard ikke gjør det.",
+  "qwen3.8-27b-optiq-4bit":
+    "Mye tregere enn standard. Bruker 8 bit på de mest følsomme lagene og 4 bit på resten. I siste måling nådde ingen oppgaver tidsgrensen, noe den vanlige 4-bitversjonen den erstatter gjorde.",
   "qwen3.8-27b-8bit-mlx":
     "Den tregeste. Løste litt flere oppgaver enn standard i siste måling, men bruker mange ganger så lang tid. Leser lange prompter i små steg for å bruke mindre minne, og det steget kjenner bare nyere nav-pilot til.",
 };
@@ -2138,7 +2138,7 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot models
-nav-pilot config set local_model mlx-community/Qwen3.8-27B-4bit
+nav-pilot config set local_model mlx-community/Qwen3.8-27B-OptiQ-4bit
 nav-pilot alpha local init      # laster ned vektene for den nye modellen
 nav-pilot alpha local start`}
           </CodeBlock>
