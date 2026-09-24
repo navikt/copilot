@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -1491,12 +1492,66 @@ func TestADeadGenerationThreadEndsTheServer(t *testing.T) {
 		}
 	}
 
-	if err := SaveState(aRunningState()); err != nil {
+	st := aRunningState()
+	st.PID = p.PID()
+	if err := SaveState(st); err != nil {
 		t.Fatal(err)
 	}
 	stubAlive(t, func(int) bool { return false })
 	err = EnsureOwnServer()
 	if err == nil || !strings.Contains(err.Error(), "generation thread died") || !strings.Contains(err.Error(), "alpha local restart") {
 		t.Errorf("EnsureOwnServer() after the thread died = %v, want the out-of-memory explanation and restart", err)
+	}
+}
+
+// TestThreadDiedInLogOnlyBlamesThisLaunch: the log is appended across launches,
+// so an earlier server's death line, still last because the next server was
+// SIGKILLed before it wrote anything, must not be pinned on the new pid.
+func TestThreadDiedInLogOnlyBlamesThisLaunch(t *testing.T) {
+	stubDirs(t)
+	if err := os.MkdirAll(filepath.Dir(LogPath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	line := fmt.Sprintf(threadDiedMarker, 111) + "Thread-1 died, so no request will ever be answered; exiting with status 70\n"
+	if err := os.WriteFile(LogPath(), []byte("Traceback ...\n"+line), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !threadDiedInLog(111) {
+		t.Error("threadDiedInLog(111) = false for pid 111's own death line")
+	}
+	if threadDiedInLog(222) {
+		t.Error("threadDiedInLog(222) = true: pid 111's earlier death was blamed on a later launch")
+	}
+}
+
+// TestThreadDiedInLogReadsOnlyTheTail: maxLogBytes is enforced when a server
+// starts, so a long-lived one can leave a log of any size behind. The check
+// must find the marker at its end without reading the rest.
+func TestThreadDiedInLogReadsOnlyTheTail(t *testing.T) {
+	stubDirs(t)
+	if err := os.MkdirAll(filepath.Dir(LogPath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const size = 64 << 20
+	line := fmt.Sprintf(threadDiedMarker, 111) + "Thread-1 died; exiting with status 70\n"
+	f, err := os.Create(LogPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Sparse: 64 MiB on paper, a few bytes on disk.
+	if _, err := f.WriteAt([]byte("\n"+line), size); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	found := threadDiedInLog(111)
+	runtime.ReadMemStats(&after)
+	if !found {
+		t.Error("threadDiedInLog missed the marker at the end of a large log")
+	}
+	if got := after.TotalAlloc - before.TotalAlloc; got > 1<<20 {
+		t.Errorf("threadDiedInLog allocated %d bytes for a %d-byte log, want only a bounded tail", got, size)
 	}
 }

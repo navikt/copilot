@@ -1024,8 +1024,11 @@ func serverFlags(params map[string]string) []string {
 // inside the server dies. 70 is EX_SOFTWARE: an internal error, not a bad flag.
 const serverExitThreadDied = 70
 
-// threadDiedMarker starts the last line [serverBootstrap] writes to the log.
-const threadDiedMarker = "nav-pilot: the server's thread "
+// threadDiedMarker starts the last line [serverBootstrap] writes to the log,
+// formatted with the dying server's pid. The pid ties the line to one launch:
+// the log is appended across launches, and a later server killed before it
+// writes anything would otherwise inherit an earlier one's death.
+const threadDiedMarker = "nav-pilot: pid %d: the server's thread "
 
 // serverBootstrap runs mlx_lm.server's main, but exits when any of its threads
 // dies with an uncaught exception.
@@ -1048,7 +1051,7 @@ def _die(a):
     if issubclass(a.exc_type, SystemExit):
         return
     traceback.print_exception(a.exc_type, a.exc_value, a.exc_traceback)
-    print("nav-pilot: the server's thread %s died, so no request will ever be answered; exiting with status 70" % (a.thread.name if a.thread else "?"), file=sys.stderr, flush=True)
+    print("nav-pilot: pid %d: the server's thread %s died, so no request will ever be answered; exiting with status 70" % (os.getpid(), a.thread.name if a.thread else "?"), file=sys.stderr, flush=True)
     os._exit(70)
 threading.excepthook = _die
 sys.argv[0] = "mlx_lm.server"
