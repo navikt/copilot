@@ -142,7 +142,7 @@ func copilotResolvedFlags(resolved domain.ResolvedConfig) []string {
 
 // LaunchCopilotResolved launches the Copilot CLI with the resolved launch config.
 // If user-scope instructions exist, it sets COPILOT_CUSTOM_INSTRUCTIONS_DIRS
-// so cplt picks up ~/.copilot/.github/instructions/*.instructions.md.
+// to ~/.copilot/.github/instructions so cplt picks up the files there.
 //
 // When launched via cplt, CopilotAuthMode constrains where cplt may get the
 // Copilot token from: env_only aborts the launch unless one is already in the
@@ -190,8 +190,8 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		env = copilotLocalEnv(env, worker, guard.URL())
 		fmt.Fprintf(os.Stderr, "%s Local inference: this whole session runs on %s here on the machine.\n",
 			domain.Dim("ℹ"), domain.Bold(worker.Model))
-		fmt.Fprintf(os.Stderr, "%s nav-pilot ends a turn after %d identical tool calls in a row.\n\n",
-			domain.Dim("ℹ"), local.LoopGuardRepeat())
+		fmt.Fprintf(os.Stderr, "%s nav-pilot ends a turn after %d identical tool calls in a row with the same result, or %d whatever they return.\n\n",
+			domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
 	}
 	// The second seam. This path builds its own argument vector and runs its
 	// own exec.Command instead of going through cpltArgv/launchViaCplt, so
@@ -297,7 +297,7 @@ func copilotLocalWorker(sessionModel string) (local.Model, *local.Guard, error) 
 			domain.Bold("nav-pilot alpha local stop"),
 			domain.Bold("nav-pilot alpha local start"))
 	}
-	guard, err := local.StartGuard(local.ServerURL())
+	guard, err := local.StartGuard(local.ServerURL(), worker)
 	if err != nil {
 		return local.Model{}, nil, err
 	}
@@ -526,8 +526,8 @@ func PrintModelAvailabilityHint(model string) {
 }
 
 // CopilotEnv returns the environment for launching cplt, injecting
-// COPILOT_CUSTOM_INSTRUCTIONS_DIRS if user-scope customizations exist
-// (instructions and/or agents), and OTEL_LOG_LEVEL if otelLogLevel is set.
+// COPILOT_CUSTOM_INSTRUCTIONS_DIRS if user-scope instructions exist (see
+// userInstructionsDir), and OTEL_LOG_LEVEL if otelLogLevel is set.
 func CopilotEnv(otelLogLevel string) []string {
 	return copilotEnv(otelLogLevel, true)
 }
@@ -538,7 +538,7 @@ func CopilotEnv(otelLogLevel string) []string {
 // exported COPILOT_CUSTOM_INSTRUCTIONS_DIRS is still inherited untouched from
 // os.Environ(), as the reference launcher does.
 func copilotEnv(otelLogLevel string, injectUserInstructions bool) []string {
-	copilotDir := userCopilotDir()
+	copilotDir := userInstructionsDir()
 	if !injectUserInstructions {
 		copilotDir = ""
 	}
@@ -573,25 +573,26 @@ func copilotEnv(otelLogLevel string, injectUserInstructions bool) []string {
 	return env
 }
 
-// userCopilotDir returns ~/.copilot if it contains user-scope customizations
-// (instructions or agents), or "" otherwise.
-func userCopilotDir() string {
+// userInstructionsDir returns ~/.copilot/.github/instructions, where
+// `nav-pilot install --user` puts instructions, if it holds any, or "" otherwise.
+//
+// It must not return ~/.copilot. Copilot CLI searches every directory in
+// COPILOT_CUSTOM_INSTRUCTIONS_DIRS recursively for *.instructions.md (and
+// nested AGENTS.md), and ~/.copilot/session-state holds git worktrees that
+// agent sessions leave behind, each with its own instructions. Pointing at
+// ~/.copilot loaded all of them into every session. Copilot CLI 1.0.88 and
+// 1.0.89 load the files when given the instructions directory itself.
+//
+// Agents need no injection: Copilot reads ~/.copilot/agents on its own.
+func userInstructionsDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""
 	}
-	base := filepath.Join(home, ".copilot")
-
-	instructions, _ := filepath.Glob(filepath.Join(base, ".github", "instructions", "*.instructions.md"))
-	if len(instructions) > 0 {
-		return base
+	dir := filepath.Join(home, ".copilot", ".github", "instructions")
+	if matches, _ := filepath.Glob(filepath.Join(dir, "*.instructions.md")); len(matches) > 0 {
+		return dir
 	}
-
-	agents, _ := filepath.Glob(filepath.Join(base, "agents", "*.agent.md"))
-	if len(agents) > 0 {
-		return base
-	}
-
 	return ""
 }
 

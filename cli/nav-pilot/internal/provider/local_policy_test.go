@@ -39,13 +39,16 @@ func aLocalModel(t *testing.T) local.Model {
 // turn. "The local model" and "a few calls" would carry neither.
 func TestLocalDispatchPolicyNamesTheModelAndTheThreshold(t *testing.T) {
 	m := aLocalModel(t)
-	got := LocalDispatchPolicy(m, 5)
+	got := LocalDispatchPolicy(m, 3, 5)
 
 	if !strings.Contains(got, m.Model) {
 		t.Errorf("the dispatch policy does not name the model %q:\n%s", m.Model, got)
 	}
-	if !strings.Contains(got, " 5 identical calls") {
-		t.Errorf("the dispatch policy does not name the configured threshold 5:\n%s", got)
+	if !strings.Contains(got, " 3 identical calls in a row that got the same result back") {
+		t.Errorf("the dispatch policy does not name the same-result threshold 3:\n%s", got)
+	}
+	if !strings.Contains(got, " 5 identical calls whatever they return") {
+		t.Errorf("the dispatch policy does not name the configured backstop 5:\n%s", got)
 	}
 	if strings.Contains(got, strconv.Itoa(local.DefaultLoopGuardRepeat)+" identical calls") {
 		t.Errorf("the dispatch policy names the built-in default instead of the configured threshold:\n%s", got)
@@ -68,9 +71,9 @@ func TestLocalDispatchPolicyNamesTheModelAndTheThreshold(t *testing.T) {
 // in here would cost a full prefill on every tool call of every turn.
 func TestLocalDispatchPolicyIsByteIdenticalAcrossGenerations(t *testing.T) {
 	m := aLocalModel(t)
-	first := LocalDispatchPolicy(m, 8)
+	first := LocalDispatchPolicy(m, 4, 8)
 	for i := range 20 {
-		if got := LocalDispatchPolicy(m, 8); got != first {
+		if got := LocalDispatchPolicy(m, 4, 8); got != first {
 			t.Fatalf("generation %d of the dispatch policy differs from the first:\n%s\n---\n%s", i, first, got)
 		}
 	}
@@ -355,7 +358,7 @@ func TestTurningLocalOffUnregistersTheDispatchPolicy(t *testing.T) {
 // duplicate an edit that is still in flight.
 func TestDispatchPolicyTimingMatchesTheConfiguredTimeout(t *testing.T) {
 	m := aLocalModel(t)
-	got := LocalDispatchPolicy(m, 5)
+	got := LocalDispatchPolicy(m, 3, 5)
 	want := fmt.Sprintf("%d minutes", chunkTimeoutMS(m)/60000)
 	if !strings.Contains(got, want) {
 		t.Errorf("the dispatch policy does not name the configured timeout (%q):\n%s", want, got)

@@ -1567,7 +1567,7 @@ const CONFIG_KEYS = [
     key: "local_loop_guard",
     flag: "—",
     values: "et tall, standard 8",
-    desc: "Hvor mange identiske tool calls på rad som avslutter en lokal tur. Lokale modeller setter seg fast og gjentar det samme kallet; vi har målt serier på 203.",
+    desc: "Hvor mange identiske tool calls på rad som avslutter en lokal tur, uansett hva de returnerer. Gir kallene samme resultat hver gang, holder det med halvparten (minst 2). Lokale modeller setter seg fast og gjentar det samme kallet; vi har målt serier på 203.",
   },
 ];
 

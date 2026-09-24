@@ -271,8 +271,9 @@ func TestCmdEnv_WithInstructions(t *testing.T) {
 	if cmdErr != nil {
 		t.Errorf("cmdEnv() with instructions = %v, want nil", cmdErr)
 	}
-	if len(out) == 0 {
-		t.Error("cmdEnv() produced no stdout output")
+	want := "export COPILOT_CUSTOM_INSTRUCTIONS_DIRS=\"" + instrDir + "\"\n"
+	if out != want {
+		t.Errorf("cmdEnv() stdout = %q, want %q (the instructions dir, not ~/.copilot)", out, want)
 	}
 }
 

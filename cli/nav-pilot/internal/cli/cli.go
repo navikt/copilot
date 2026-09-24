@@ -426,8 +426,7 @@ func run(args []string) error {
 		// so auto_launch = false was ignored and the unsandboxed-launch
 		// warning never fired. offerLaunchCopilot records its own launch
 		// telemetry, with the mode telemetryMode() resolves.
-		offerLaunchCopilot(resolved)
-		return nil
+		return offerLaunchCopilot(resolved)
 	}
 
 	command := args[0]
@@ -940,6 +939,11 @@ func exitCodeFor(err error) int {
 	}
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) {
+		// A child killed by a signal has no exit code (ExitCode is -1, which
+		// os.Exit turns into 255); report it the way a shell does, 128+n.
+		if status, ok := exitErr.Sys().(syscall.WaitStatus); ok && status.Signaled() {
+			return 128 + int(status.Signal())
+		}
 		return exitErr.ExitCode()
 	}
 	if isFrozenRefusal(err) {

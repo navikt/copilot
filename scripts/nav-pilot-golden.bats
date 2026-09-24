@@ -60,3 +60,15 @@ Resume     copilot --resume=f313d1ee-401a-49a3-8434-6ebc7e35b464'
   [[ "$output" == *"is not authenticated"* ]]
   [ "$status" -eq 2 ]
 }
+
+@test "ukjent reasoning effort avvises før modellkall" {
+  run bash "$SCRIPT" --dry-run --effort impossible
+  [[ "$output" == *"--effort has an invalid value"* ]]
+  [ "$status" -eq 2 ]
+}
+
+@test "ukjent context tier avvises før modellkall" {
+  run bash "$SCRIPT" --dry-run --context huge
+  [[ "$output" == *"--context has an invalid value"* ]]
+  [ "$status" -eq 2 ]
+}
