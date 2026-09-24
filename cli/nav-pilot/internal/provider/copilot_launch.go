@@ -334,7 +334,7 @@ func copilotLocalEnv(env []string, m local.Model, guardURL string) []string {
 		// Optional for a local provider, per `copilot help providers`. Sent
 		// anyway so the value in the logs is nav-pilot's name and not a
 		// developer's real key picked up from the environment.
-		{"COPILOT_PROVIDER_API_KEY", "nav-pilot"},
+		{"COPILOT_PROVIDER_API_KEY", LocalProviderAPIKey},
 		{"COPILOT_MODEL", m.Model},
 		{"COPILOT_PROVIDER_MAX_PROMPT_TOKENS", strconv.Itoa(localParamInt(m, "MLX_OPENCODE_CONTEXT", 32768))},
 		{"COPILOT_PROVIDER_MAX_OUTPUT_TOKENS", strconv.Itoa(localParamInt(m, "MLX_OPENCODE_OUTPUT", 8192))},
@@ -343,6 +343,11 @@ func copilotLocalEnv(env []string, m local.Model, guardURL string) []string {
 	}
 	return env
 }
+
+// LocalProviderAPIKey is the API key a local Copilot session is launched with.
+// It doubles as the mark of such a session: nav-pilot's own hooks read it to
+// tell that the local guard already watches this session's tool calls.
+const LocalProviderAPIKey = "nav-pilot"
 
 // copilotLaunchArgs is the vector LaunchCopilot passes to the binary it
 // resolved: [BuildCopilotArgs], plus cplt's --yes when no terminal can answer

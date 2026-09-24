@@ -179,6 +179,15 @@ var configKeyDefs = []configKeyDef{
 		group:       "Local models (alpha)",
 	},
 	{
+		name:        "hook_loop_guard",
+		kind:        keyKindBool,
+		description: "Warn the model when it repeats one tool call, in every Copilot CLI session and not only local ones. nav-pilot writes a postToolUse hook to ~/.copilot/hooks/ at launch that applies the local_loop_guard rule; false removes it at the next launch.",
+		allowed:     nil,
+		defaultVal:  "true",
+		flag:        "",
+		group:       "Hooks",
+	},
+	{
 		name:        "rtk_prompted_client",
 		kind:        keyKindString,
 		description: "Comma-separated list of clients where the RTK setup was prompted.",
@@ -328,6 +337,13 @@ version = 1
 # model key picks that, and the two are set independently.
 # Default: unset
 # local_model = "mlx-community/Qwen3.8-27B-4bit"
+
+# Warn the model when it repeats one tool call, in every Copilot CLI session
+# and not only local ones. At launch nav-pilot writes a postToolUse hook to
+# ~/.copilot/hooks/nav-pilot-loop-guard.json that applies the local_loop_guard
+# rule to each tool result; false removes it at the next launch.
+# Default: true
+# hook_loop_guard = true
 
 # Internal flag to track which client the user was last prompted to set up rtk for.
 # Default: unset
@@ -547,6 +563,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return strconv.Itoa(localLoopGuard(r))
 	case "local_model":
 		return r.LocalModel
+	case "hook_loop_guard":
+		return strconv.FormatBool(r.HookLoopGuard)
 	case "rtk_prompted_client":
 		return r.RtkPromptedClient
 	case "rtk_prompted_at":

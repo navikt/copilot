@@ -884,6 +884,10 @@ func reexecSelf() error {
 }
 
 func Main(info BuildInfo) {
+	if len(os.Args) > 1 && os.Args[1] == "hook" {
+		runHookCommand(os.Args[2:], os.Stdin, os.Stdout)
+		return
+	}
 	Version = info.Version
 	buildInfo = info
 	providerpkg.SetVersion(info.Version)

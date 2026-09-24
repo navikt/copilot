@@ -68,7 +68,12 @@ func poll(n int, name, args string, result func(i int) string) []string {
 
 func TestRepeatedToolCall(t *testing.T) {
 	user := `{"role":"user","content":"do the thing"}`
-	changing := func(i int) string { return fmt.Sprintf("build %d%% done", i*10) }
+	// Progress a normaliser cannot mistake for noise: the output grows. A
+	// changing number alone would normalise away (see NormaliseResult).
+	changing := func(i int) string { return "build " + strings.Repeat("#", i+1) }
+	stamped := func(i int) string {
+		return fmt.Sprintf("%s run 4e1f9c2a1b status=queued elapsed %d.%ds", time.Date(2026, 9, 24, 10, 0, i, 0, time.UTC).Format(time.RFC3339), i, i)
+	}
 
 	tests := []struct {
 		name     string
@@ -111,6 +116,13 @@ func TestRepeatedToolCall(t *testing.T) {
 			})...),
 			wantN:    7,
 			wantSame: 1,
+		},
+		{
+			name:     "timestamps, ids and durations do not make a stuck poll look like progress",
+			messages: append([]string{user}, poll(6, "bash", `{"cmd":"gh run view"}`, stamped)...),
+			wantN:    6,
+			wantSame: 6,
+			wantCall: `bash({"cmd":"gh run view"})`,
 		},
 		{
 			name: "different arguments are progress, not a loop",
@@ -257,7 +269,7 @@ func TestGuardAbortsTheTurnOnARunawayLoop(t *testing.T) {
 		return rec
 	}
 
-	changing := func(i int) string { return fmt.Sprintf("tick %d", i) }
+	changing := func(i int) string { return "tick " + strings.Repeat(".", i+1) }
 	tests := []struct {
 		name     string
 		messages []string
