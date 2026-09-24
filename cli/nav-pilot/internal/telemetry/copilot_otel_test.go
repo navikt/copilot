@@ -124,6 +124,17 @@ func TestApplyCopilotOTelEnv(t *testing.T) {
 		if !strings.Contains(got, "nav.pilot.device_id=") {
 			t.Fatalf("OTEL_RESOURCE_ATTRIBUTES = %q, want nav.pilot.device_id", got)
 		}
+		if !strings.Contains(got, "nav.pilot.client=copilot") {
+			t.Fatalf("OTEL_RESOURCE_ATTRIBUTES = %q, want nav.pilot.client=copilot", got)
+		}
+	})
+
+	t.Run("labels OpenCode telemetry with its client", func(t *testing.T) {
+		stubDetectNavRepo(t, "")
+		envOut, _ := ApplyOpenCodeOTelEnv([]string{}, "dev")
+		if got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES"); !strings.Contains(got, "nav.pilot.client=opencode") {
+			t.Fatalf("OTEL_RESOURCE_ATTRIBUTES = %q, want nav.pilot.client=opencode", got)
+		}
 	})
 
 	// Opting out used to drop the device id and inject everything else, which
@@ -197,7 +208,7 @@ func stubDetectNavRepo(t *testing.T, repo string) {
 func TestApplyCopilotResourceAttributes(t *testing.T) {
 	t.Run("appends to existing attributes without clobbering", func(t *testing.T) {
 		envIn := []string{"OTEL_RESOURCE_ATTRIBUTES=team=foo,nav.pilot.version=9.9.9"}
-		envOut, changed := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123", "")
+		envOut, changed := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123", "copilot", "")
 		if !changed {
 			t.Fatal("expected env to be changed")
 		}
@@ -217,18 +228,18 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 	})
 
 	t.Run("skips empty values", func(t *testing.T) {
-		envOut, changed := applyCopilotResourceAttributes([]string{}, "", "", "")
+		envOut, changed := applyCopilotResourceAttributes([]string{}, "", "", "copilot", "")
 		if !changed {
 			t.Fatal("expected launcher attribute to be added")
 		}
 		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
-		if got != "nav.pilot.launcher=nav-pilot" {
-			t.Fatalf("OTEL_RESOURCE_ATTRIBUTES = %q, want only launcher", got)
+		if got != "nav.pilot.launcher=nav-pilot,nav.pilot.client=copilot" {
+			t.Fatalf("OTEL_RESOURCE_ATTRIBUTES = %q, want launcher and client", got)
 		}
 	})
 
 	t.Run("percent-encodes unsafe characters", func(t *testing.T) {
-		envOut, _ := applyCopilotResourceAttributes([]string{}, "1.0 beta,rc=1", "id", "")
+		envOut, _ := applyCopilotResourceAttributes([]string{}, "1.0 beta,rc=1", "id", "copilot", "")
 		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
 		if !strings.Contains(got, "nav.pilot.version=1.0%20beta%2Crc%3D1") {
 			t.Fatalf("value not percent-encoded: %q", got)
@@ -236,11 +247,11 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 	})
 
 	t.Run("is idempotent across relaunch", func(t *testing.T) {
-		env1, changed1 := applyCopilotResourceAttributes([]string{}, "1.2.3", "nav-pilot-abc123", "")
+		env1, changed1 := applyCopilotResourceAttributes([]string{}, "1.2.3", "nav-pilot-abc123", "copilot", "")
 		if !changed1 {
 			t.Fatal("expected first call to change env")
 		}
-		env2, changed2 := applyCopilotResourceAttributes(env1, "1.2.3", "nav-pilot-abc123", "")
+		env2, changed2 := applyCopilotResourceAttributes(env1, "1.2.3", "nav-pilot-abc123", "copilot", "")
 		if changed2 {
 			t.Fatal("expected second call to be a no-op")
 		}
@@ -251,7 +262,7 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 
 	t.Run("recognises a bare existing key without value", func(t *testing.T) {
 		envIn := []string{"OTEL_RESOURCE_ATTRIBUTES=nav.pilot.launcher"}
-		envOut, _ := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123", "")
+		envOut, _ := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123", "copilot", "")
 		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
 		if strings.Contains(got, "nav.pilot.launcher=nav-pilot") {
 			t.Fatalf("bare existing key should not be re-added with a value: %q", got)
@@ -260,7 +271,7 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 
 	t.Run("tolerates whitespace and trailing commas in existing value", func(t *testing.T) {
 		envIn := []string{"OTEL_RESOURCE_ATTRIBUTES= team = foo ,"}
-		envOut, changed := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123", "")
+		envOut, changed := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123", "copilot", "")
 		if !changed {
 			t.Fatal("expected env to be changed")
 		}
@@ -274,7 +285,7 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 	})
 
 	t.Run("appends nav.repo when a repo is detected", func(t *testing.T) {
-		envOut, changed := applyCopilotResourceAttributes([]string{}, "1.2.3", "nav-pilot-abc123", "navikt/foo")
+		envOut, changed := applyCopilotResourceAttributes([]string{}, "1.2.3", "nav-pilot-abc123", "copilot", "navikt/foo")
 		if !changed {
 			t.Fatal("expected env to be changed")
 		}
@@ -285,7 +296,7 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 	})
 
 	t.Run("omits nav.repo when no repo is detected", func(t *testing.T) {
-		envOut, _ := applyCopilotResourceAttributes([]string{}, "1.2.3", "nav-pilot-abc123", "")
+		envOut, _ := applyCopilotResourceAttributes([]string{}, "1.2.3", "nav-pilot-abc123", "copilot", "")
 		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
 		if strings.Contains(got, "nav.repo=") {
 			t.Fatalf("nav.repo should be omitted when empty: %q", got)
@@ -294,7 +305,7 @@ func TestApplyCopilotResourceAttributes(t *testing.T) {
 
 	t.Run("preserves a user-set nav.repo", func(t *testing.T) {
 		envIn := []string{"OTEL_RESOURCE_ATTRIBUTES=nav.repo=custom/override"}
-		envOut, _ := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123", "navikt/foo")
+		envOut, _ := applyCopilotResourceAttributes(envIn, "1.2.3", "nav-pilot-abc123", "copilot", "navikt/foo")
 		got := LookupEnvValue(envOut, "OTEL_RESOURCE_ATTRIBUTES")
 		if strings.Count(got, "nav.repo=") != 1 {
 			t.Fatalf("user-set nav.repo was overwritten: %q", got)
