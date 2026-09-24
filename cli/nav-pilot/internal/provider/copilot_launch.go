@@ -78,6 +78,13 @@ func copilotAgentArgs(agent string) []string {
 // Note: the forwarded --agent is always the active agentpakke's copilot
 // persona; resolved.Client selects the launcher and is consumed by
 // launchClient before reaching here.
+func copilotSessionModel(model string) string {
+	if model != "" {
+		return model
+	}
+	return pakkeDeclaredModel("copilot")
+}
+
 func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 	persona := resolved.Persona
 	if persona == "" {
@@ -86,9 +93,7 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 	var args []string
 	args = append(args, "--agent", persona)
 	args = append(args, copilotAgentArgs(persona)...)
-	if resolved.Model != "" {
-		args = append(args, "--model", resolved.Model)
-	} else if model := pakkeDeclaredModel("copilot"); model != "" {
+	if model := copilotSessionModel(resolved.Model); model != "" {
 		// Same fallback the staged Tier 2 copilot path has
 		// (buildStagedCopilotSpec), and the same one Tier 1 opencode gets
 		// through ToOpenCodeModel. Without it copilot behaved differently by
@@ -158,7 +163,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	//
 	// Nil guard for everyone who has not opted in, and for every hosted session
 	// of everyone who has, so no existing launch changes.
-	worker, guard, err := copilotLocalWorker(resolved.Model)
+	worker, guard, err := copilotLocalWorker(copilotSessionModel(resolved.Model))
 	if err != nil {
 		return err
 	}
@@ -334,7 +339,7 @@ func copilotLocalEnv(env []string, m local.Model, guardURL string) []string {
 		// Optional for a local provider, per `copilot help providers`. Sent
 		// anyway so the value in the logs is nav-pilot's name and not a
 		// developer's real key picked up from the environment.
-		{"COPILOT_PROVIDER_API_KEY", "nav-pilot"},
+		{"COPILOT_PROVIDER_API_KEY", LocalProviderAPIKey},
 		{"COPILOT_MODEL", m.Model},
 		{"COPILOT_PROVIDER_MAX_PROMPT_TOKENS", strconv.Itoa(localParamInt(m, "MLX_OPENCODE_CONTEXT", 32768))},
 		{"COPILOT_PROVIDER_MAX_OUTPUT_TOKENS", strconv.Itoa(localParamInt(m, "MLX_OPENCODE_OUTPUT", 8192))},
@@ -343,6 +348,11 @@ func copilotLocalEnv(env []string, m local.Model, guardURL string) []string {
 	}
 	return env
 }
+
+// LocalProviderAPIKey is the API key a local Copilot session is launched with.
+// It doubles as the mark of such a session: nav-pilot's own hooks read it to
+// tell that the local guard already watches this session's tool calls.
+const LocalProviderAPIKey = "nav-pilot"
 
 // copilotLaunchArgs is the vector LaunchCopilot passes to the binary it
 // resolved: [BuildCopilotArgs], plus cplt's --yes when no terminal can answer

@@ -396,7 +396,7 @@ func openCodeAgentModel(fm []byte, name string) string {
 		return ""
 	}
 	model := domain.OpenCodeModelForLabel(declared)
-	if model == "" {
+	if model == "" && domain.CopilotModelIDForLabel(declared) != "auto" {
 		fmt.Fprintf(os.Stderr, "%s agent %s declares model %q, which is not a known Copilot model. Materializing it without a model line; it will run on the session default. Fix the name in the source repo, or add the model to domain.KnownCopilotModels.\n",
 			domain.Yellow("⚠"), name, declared)
 	}

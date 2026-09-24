@@ -1506,7 +1506,7 @@ const CONFIG_KEYS = [
   {
     key: "model",
     flag: "--model",
-    values: "f.eks. claude-opus-4.8, gpt-5.5 (Copilot); github-copilot/auto (opencode)",
+    values: "f.eks. claude-opus-4.8, gpt-5.5 (Copilot); github-copilot/claude-opus-4.8 (opencode)",
     desc: "Modell å bruke. Format avhenger av klient.",
   },
   {
@@ -1568,6 +1568,12 @@ const CONFIG_KEYS = [
     flag: "—",
     values: "et tall, standard 8",
     desc: "Hvor mange identiske tool calls på rad som avslutter en lokal tur, uansett hva de returnerer. Gir kallene samme resultat hver gang, holder det med halvparten (minst 2). Lokale modeller setter seg fast og gjentar det samme kallet; vi har målt serier på 203.",
+  },
+  {
+    key: "hook_loop_guard",
+    flag: "—",
+    values: "true · false",
+    desc: "Samme løkkeregel i alle Copilot CLI-økter, også i skyen. nav-pilot skriver en postToolUse-hook til ~/.copilot/hooks/ ved oppstart, og modellen får beskjed om at den står fast i stedet for det samme svaret igjen. På som standard; false fjerner hooken ved neste oppstart.",
   },
 ];
 
@@ -1716,11 +1722,11 @@ function KlienterOgKonfigurasjonSection() {
                 bg: "#ecfdf5",
               },
               {
-                title: "Kuratert standardmodell",
+                title: "Ingen påtvunget standardmodell",
                 desc: (
                   <>
-                    Når ingen modell er konfigurert, settes{" "}
-                    <code className="font-mono text-xs">github-copilot/auto</code> som Nav-standard for opencode.
+                    Når ingen modell er konfigurert, sendes ingen <code className="font-mono text-xs">--model</code>
+                    -flagg til opencode — den velger selv en modell kontoen din faktisk har tilgang til.
                   </>
                 ),
                 color: "#3b82f6",
@@ -1830,8 +1836,9 @@ function KlienterOgKonfigurasjonSection() {
               {`# Klient (copilot er standard)
 client = "opencode"
 
-# Modell (format avhenger av klient)
-model = "github-copilot/auto"
+# Modell (format avhenger av klient; se tabellen over for eksempler).
+# Ubestemt lar klienten velge selv.
+# model = "github-copilot/claude-opus-4.8"
 
 # Modus (default | plan | autopilot), kun Copilot
 # mode = "default"

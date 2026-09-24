@@ -166,6 +166,10 @@ type Model struct {
 	// need them, and a typed struct here would make every new knob a nav-pilot
 	// release.
 	Params map[string]string `json:"params"`
+
+	// Capabilities is the benchmark's verdict per task class, or nil for a
+	// manifest generated before the block existed. See [Capabilities].
+	Capabilities *Capabilities `json:"capabilities,omitempty"`
 }
 
 // Manifest is a parsed, validated local-model manifest.

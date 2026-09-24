@@ -192,6 +192,30 @@ virker før du bygger noe på den.
 betrodd, og `nav-pilot doctor` sier om de installerte hookene faktisk kan fyre der du står.
 Tåler ikke porten å være stille ute av funksjon, er `--user` det scopet som fyrer uansett.
 
+### nav-pilots egne hooks
+
+Hookene over er Python-skript du velger å installere. nav-pilot har i tillegg egne hooks
+som er bygd inn i selve programmet. Når du starter Copilot CLI med `nav-pilot`, skriver den
+dem til `~/.copilot/hooks/`. Derfra kjører de i alle Copilot CLI-økter på maskinen, også
+når modellen kjører i skyen og også når du starter `copilot` direkte. `nav-pilot doctor`
+viser dem sammen med de andre.
+
+| Hook | Fil | Hva den gjør | Slå av |
+| --- | --- | --- | --- |
+| Løkkevakt | `nav-pilot-loop-guard.json` | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring. | `nav-pilot config set hook_loop_guard false` |
+
+En hook etter verktøykallet (`postToolUse`) kan ikke avslutte en tur. Den kan bare endre
+det modellen leser. Når løkkevakten slår til, får modellen derfor en beskjed om at den står
+fast, med resultatet under, i stedet for det samme svaret en gang til. Terskelen følger
+`local_loop_guard`, og det som skjedde tidligere i økta ligger i en liten fil per økt under
+`~/.nav-pilot/hook-state/`. Filer som er eldre enn ett døgn ryddes bort.
+
+I en lokal økt står vakten i nav-pilot allerede foran modellen og avslutter turen. Der gjør
+hooken ingenting, så modellen ikke får to beskjeder om samme løkke. Hookene er laget for å
+slippe gjennom ved feil: finnes ikke `nav-pilot` på `PATH`, eller går noe galt, blir
+resultatet stående som det var. opencode får ikke disse hookene ennå
+([#709](https://github.com/navikt/copilot/issues/709)).
+
 ### Hub-repo
 
 Mekanisk er et hub-repo en vanlig repo-installasjon i et repo som ikke er en applikasjon,
@@ -255,7 +279,7 @@ nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
 | Klient | Binær | Nav-kontekst | Standard modell |
 |---|---|---|---|
 | `copilot` (standard) | `cplt` / `copilot` | Installeres i `.github/` | Agentens eget valg |
-| `opencode` | `cplt` + `opencode` | Materialiseres automatisk i brukerens OpenCode config-mappe | `github-copilot/auto` |
+| `opencode` | `cplt` + `opencode` | Materialiseres automatisk i brukerens OpenCode config-mappe | opencodes eget valg |
 | `pi` *(eksperimentell)* | `cplt` + `pi` | Via `AGENTS.md` i prosjektroten | Pis eget valg (`model`/`mode` videresendes ikke ennå) |
 
 > **Bruk cplt-sandboxen.** nav-pilot foretrekker `cplt` og kjører klienten via
@@ -552,10 +576,13 @@ Da skriver nav-pilot bare ut kommandoen du kan kjøre.
   `gpt-5.3-codex`, `gpt-5.4-mini`, `gpt-5-mini`, `gemini-3.6-flash`,
   `gemini-3.1-pro-preview`, `gemini-3.5-flash`, `kimi-k2.7-code`, `kimi-k3`
 - opencode (startes via cplt mot GitHub Copilot-provideren): bruk `github-copilot/<id>`,
-  f.eks. `github-copilot/auto` (Nav-standard), `github-copilot/claude-opus-4.8`,
-  `github-copilot/gpt-5.5`. Modellen i config må være på `provider/model`-format (med `/`).
-  `--model auto` på CLI (eller tom CLI-verdi) normaliseres til Nav-standarden
-  `github-copilot/auto`.
+  f.eks. `github-copilot/claude-opus-4.8`, `github-copilot/gpt-5.5`. Modellen i config
+  må være på `provider/model`-format (med `/`). Uten en satt modell (eller `--model auto`
+  på CLI) brukes en modell den aktive agentpakken selv har erklært, hvis den har erklært
+  en; ellers sendes ingen `--model`-flagg, og opencode velger selv en modell den vet
+  kontoen din har tilgang til. opencode har ingen `auto`-modell selv (det er et
+  Copilot-CLI-konsept), så en ren `github-copilot/auto` avvises av opencode; nav-pilot
+  normaliserer den bort til det samme oppsettet i stedet.
 
 Veiviseren (`nav-pilot config setup`) viser en modellvelger tilpasset valgt klient, og
 `nav-pilot config explain model` lister opp de kurerte id-ene.

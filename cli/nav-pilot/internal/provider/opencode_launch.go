@@ -224,14 +224,18 @@ func EnsureOpenCodeNavContext(ref, sourceRepo string) (string, error) {
 // Maps resolved config fields to opencode flags; omits unset/default fields.
 func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 	var args []string
-	// The model nav-pilot sets for the session. The flag outranks opencode's own
-	// config and its recent-model list, and on `opencode run` it outranks an
-	// agent's frontmatter too, because there it is the request model. In the TUI,
-	// which is what nav-pilot launches, an agent that declares its own `model:`
-	// uses that instead (verified against opencode 1.18.25). So the order is
-	// agent specialisation, then nav-pilot's session model, then whatever the
-	// client would have picked on its own.
-	args = append(args, "--model", ToOpenCodeModel(resolved.Model))
+	// The model nav-pilot sets for the session, when it sets one. The flag
+	// outranks opencode's own config and its recent-model list, and on
+	// `opencode run` it outranks an agent's frontmatter too, because there it
+	// is the request model. In the TUI, which is what nav-pilot launches, an
+	// agent that declares its own `model:` uses that instead (verified
+	// against opencode 1.18.25). So the order is agent specialisation, then
+	// nav-pilot's session model, then whatever the client would have picked
+	// on its own. ToOpenCodeModel returns "" when nothing is pinned anywhere,
+	// and the flag is omitted so opencode resolves its own default.
+	if model := ToOpenCodeModel(resolved.Model); model != "" {
+		args = append(args, "--model", model)
+	}
 	if resolved.Mode == "plan" {
 		// opencode's built-in read-only planning agent. Nav context still loads
 		// via AGENTS.md regardless of the active agent.
@@ -621,6 +625,11 @@ func localPolicyPath() string {
 // Naming the model is also what makes a transcript readable later, when someone
 // reports an edit that went wrong.
 //
+// What to send and what to keep comes from the entry's capabilities block when
+// it has one, so a benchmark verdict changes the policy with a manifest PR
+// rather than a release. An entry without the block gets the text releases
+// before it shipped, byte for byte.
+//
 // A pure function of its inputs, which is the point: opencode reads the file
 // into the system prompt, and the 99.3–99.5% prompt-cache reuse a local session
 // depends on holds only while that prefix is byte-identical from turn to turn.
@@ -637,14 +646,68 @@ func LocalDispatchPolicy(m local.Model, sameResult, loopGuard int) string {
 	if m.Role != "" || m.Expect != "" {
 		b.WriteString("\n")
 	}
-	b.WriteString("Send it: lookups in the code, comments, log lines, a single test file, and mechanical changes that follow one pattern. A rename hits call sites in several files and still belongs there.\n")
-	b.WriteString("Describe the change fully when you send it: which file, which line, what it becomes. The model carries out a decision well and makes one badly, so if you doubt it can do the task, do it yourself. The measurements say you judge this correctly.\n")
-	b.WriteString("Do not send it: changes needing a judgement per file, tasks needing many rounds, changes where a wrong edit is expensive.\n\n")
+	if m.Capabilities == nil {
+		// A manifest from before the capabilities block: the text every
+		// release before it shipped, unchanged to the byte.
+		b.WriteString("Send it: lookups in the code, comments, log lines, a single test file, and mechanical changes that follow one pattern. A rename hits call sites in several files and still belongs there.\n")
+		b.WriteString(describeFully)
+		b.WriteString("Do not send it: changes needing a judgement per file, tasks needing many rounds, changes where a wrong edit is expensive.\n\n")
+	} else {
+		writeDispatchClasses(&b, m.Capabilities)
+	}
 	fmt.Fprintf(&b, "It usually answers in seconds, but a single token has been measured at three and a half minutes under load. The client gives up on its own after %d minutes without an answer, so wait for it. Interrupting earlier can duplicate a change that is still in flight. Send one task at a time: the model runs on one GPU, so concurrent calls get nothing done faster.\n\n", max(1, chunkTimeoutMS(m)/60000))
 	b.WriteString("It fails in two ways. Both are cheap to spot, and both mean you take the task yourself rather than sending it again:\n")
 	b.WriteString("- It often says no and changes nothing. Check the file actually changed. If it did not, you lost a few seconds and no credits.\n")
 	fmt.Fprintf(&b, "- It can repeat the same tool call. nav-pilot ends the turn after %d identical calls in a row that got the same result back, or after %d identical calls whatever they return.\n", sameResult, loopGuard)
 	return b.String()
+}
+
+const describeFully = "Describe the change fully when you send it: which file, which line, what it becomes. The model carries out a decision well and makes one badly, so if you doubt it can do the task, do it yourself. The measurements say you judge this correctly.\n"
+
+// sendPhrase and keepPhrase are nav-pilot's words for each task class in
+// [local.TaskClasses], as something to send to the worker and as something to
+// keep. The manifest only says which list a class goes in.
+var (
+	sendPhrase = map[string]string{
+		"read-qa":               "lookups and questions about the code",
+		"edit-single":           "a fully specified edit to one file, such as a comment or a log line",
+		"edit-multi-mechanical": "mechanical changes that follow one pattern across several files, such as a rename or a field threaded through its call sites. It pays off when you would otherwise need several steps; a change you can make in two is cheaper to make yourself",
+		"create-file":           "a new file, tests included",
+		"debug":                 "finding and fixing the cause of a failing test",
+	}
+	keepPhrase = map[string]string{
+		"read-qa":               "questions about the code and explanations of it",
+		"edit-single":           "comments, log lines and other single-file edits",
+		"edit-multi-mechanical": "mechanical changes across several files",
+		"create-file":           "new files, tests included",
+		"debug":                 "debugging",
+	}
+)
+
+// writeDispatchClasses writes the send and keep lines from the manifest's
+// verdicts: only classes measured as trusted in delegate mode are named as
+// work for the worker, and every other known class is named as work to keep.
+func writeDispatchClasses(b *strings.Builder, c *local.Capabilities) {
+	send, keep := c.DelegateTrusted()
+	if len(send) == 0 {
+		b.WriteString("Send it nothing for now: no kind of task has yet passed the measurements for this model, so do the work yourself.\n")
+	} else {
+		b.WriteString("Send it: ")
+		for i, class := range send {
+			if i > 0 {
+				b.WriteString("; ")
+			}
+			b.WriteString(sendPhrase[class])
+		}
+		b.WriteString(".\n")
+		b.WriteString(describeFully)
+	}
+	b.WriteString("Do not send it: ")
+	for _, class := range keep {
+		b.WriteString(keepPhrase[class])
+		b.WriteString("; ")
+	}
+	b.WriteString("changes needing a judgement per file; tasks needing many rounds; changes where a wrong edit is expensive.\n\n")
 }
 
 // EnsureOpenCodeLocalPolicy provisions the dispatch policy beside the worker
@@ -770,7 +833,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	// Local dispatch, whether or not this session's own model is local: a cloud
 	// main agent handing focused tasks to a local worker is the case the
 	// feature exists for.
-	guard, err := startLocalDispatch(resolved.Model)
+	guard, err := startOpenCodeLocalDispatch(resolved)
 	if err != nil {
 		return err
 	}
@@ -896,6 +959,10 @@ func localWorker() (local.Model, error) {
 			st.Model, domain.Bold("nav-pilot alpha local stop"), domain.Bold("nav-pilot alpha local start"))
 	}
 	return m, nil
+}
+
+func startOpenCodeLocalDispatch(resolved domain.ResolvedConfig) (*local.Guard, error) {
+	return startLocalDispatch(openCodeSessionModelForLocalDispatch(resolved.Model))
 }
 
 // startLocalDispatch sets local dispatch up for one session: the opencode

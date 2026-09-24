@@ -275,6 +275,7 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		AutoLaunch:      true,
 		OtelLogLevel:    "none",
 		CopilotAuthMode: "auto",
+		HookLoopGuard:   true,
 	}
 
 	// Apply file values.
@@ -335,6 +336,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		}
 		if file.CopilotAuthMode != nil {
 			r.CopilotAuthMode = *file.CopilotAuthMode
+		}
+		if file.HookLoopGuard != nil {
+			r.HookLoopGuard = *file.HookLoopGuard
 		}
 	}
 
