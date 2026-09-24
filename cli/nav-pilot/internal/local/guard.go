@@ -24,6 +24,7 @@ package local
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -35,6 +36,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -593,7 +595,8 @@ type chatRequest struct {
 // ends it when they do not. Anything else ends it too: a user message is a new
 // turn, and an assistant message without tool calls is the model having said
 // something instead of looping. Parallel calls in one message are one step:
-// the signature is all of its calls, and its result is all of their results.
+// the signature is all of its calls, and its result is all of their results,
+// compared as a set so the same calls in another order are the same step.
 //
 // A result that differs from the newer one ends same but not n: the call did
 // something. A message with a call that got no result cannot show a repeat, so
@@ -623,15 +626,23 @@ func repeatedToolCall(body []byte) (call string, n, same int) {
 		if m.Role != "assistant" || len(m.ToolCalls) == 0 {
 			break
 		}
-		var parts, outs []string
+		// Parallel calls are a set: sorted, each call kept with its own result,
+		// so the same calls issued in another order are still the same step.
+		pairs := make([][2]string, 0, len(m.ToolCalls))
 		paired := true
 		for _, c := range m.ToolCalls {
-			parts = append(parts, c.Function.Name+"("+c.Function.Arguments+")")
 			r, ok := results[c.ID]
 			paired = paired && ok && c.ID != ""
-			outs = append(outs, r)
+			pairs = append(pairs, [2]string{c.Function.Name + "(" + c.Function.Arguments + ")", r})
 		}
 		clear(results)
+		slices.SortFunc(pairs, func(a, b [2]string) int {
+			return cmp.Or(cmp.Compare(a[0], b[0]), cmp.Compare(a[1], b[1]))
+		})
+		parts, outs := make([]string, len(pairs)), make([]string, len(pairs))
+		for i, p := range pairs {
+			parts[i], outs[i] = p[0], p[1]
+		}
 		sig, result := strings.Join(parts, ", "), strings.Join(outs, "\x00")
 		if n == 0 {
 			call = sig
@@ -665,22 +676,28 @@ func repeatedToolCall(body []byte) (call string, n, same int) {
 // and a truncated name alone would leave a developer guessing.
 //
 // sameResult says which rule tripped. The model reads this too, so it says
-// what was repeated and that repeating it again will not help.
+// what was repeated and what to do instead. Only the same-result rule may call
+// it a loop that will not change the answer: the backstop also stops polls
+// whose output was changing, and telling a model its progress was not progress
+// would be false.
 func writeLoopGuardError(w http.ResponseWriter, call string, n int, sameResult bool) {
 	const maxCall = 400
 	shown := call
 	if len(shown) > maxCall {
 		shown = shown[:maxCall] + "…"
 	}
-	what := fmt.Sprintf("made the same tool call %d times in a row", n)
-	if sameResult {
-		what = fmt.Sprintf("repeated the same tool call with the same result %d times", n)
-	}
 	msg := fmt.Sprintf(
-		"nav-pilot stopped this turn: the local model %s — %s. "+
-			"That is a runaway loop, not progress; repeating it will not change the answer, so try something else. "+
-			"Start a new turn with a narrower task, or raise the threshold with `nav-pilot config set local_loop_guard <n>` (current: %d).",
-		what, shown, loopGuardRepeat)
+		"nav-pilot stopped this turn: the local model made the same tool call %d times in a row, even though the results changed — %s. "+
+			"If it is waiting on something slow, wait longer between calls or try another approach. "+
+			"Start a new turn, or raise the threshold with `nav-pilot config set local_loop_guard <n>` (current: %d).",
+		n, shown, loopGuardRepeat)
+	if sameResult {
+		msg = fmt.Sprintf(
+			"nav-pilot stopped this turn: the local model repeated the same tool call with the same result %d times — %s. "+
+				"That is a runaway loop, not progress; repeating it will not change the answer, so try something else. "+
+				"Start a new turn with a narrower task, or raise the threshold with `nav-pilot config set local_loop_guard <n>` (current: %d).",
+			n, shown, loopGuardRepeat)
+	}
 
 	writeGuardError(w, msg, "loop_guard")
 }

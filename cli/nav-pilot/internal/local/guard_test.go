@@ -154,6 +154,33 @@ func TestRepeatedToolCall(t *testing.T) {
 			wantCall: `read(x), read(y)`,
 		},
 		{
+			name: "parallel calls: the same set in another order is the same step",
+			messages: []string{user,
+				`{"role":"assistant","tool_calls":[{"id":"a1","function":{"name":"read","arguments":"x"}},{"id":"b1","function":{"name":"read","arguments":"y"}}]}`,
+				`{"role":"tool","tool_call_id":"a1","content":"X"}`,
+				`{"role":"tool","tool_call_id":"b1","content":"Y"}`,
+				`{"role":"assistant","tool_calls":[{"id":"b2","function":{"name":"read","arguments":"y"}},{"id":"a2","function":{"name":"read","arguments":"x"}}]}`,
+				`{"role":"tool","tool_call_id":"b2","content":"Y"}`,
+				`{"role":"tool","tool_call_id":"a2","content":"X"}`,
+			},
+			wantN:    2,
+			wantSame: 2,
+			wantCall: `read(x), read(y)`,
+		},
+		{
+			name: "parallel calls: results swapped between the calls are not the same result",
+			messages: []string{user,
+				`{"role":"assistant","tool_calls":[{"id":"a1","function":{"name":"read","arguments":"x"}},{"id":"b1","function":{"name":"read","arguments":"y"}}]}`,
+				`{"role":"tool","tool_call_id":"a1","content":"X"}`,
+				`{"role":"tool","tool_call_id":"b1","content":"Y"}`,
+				`{"role":"assistant","tool_calls":[{"id":"b2","function":{"name":"read","arguments":"y"}},{"id":"a2","function":{"name":"read","arguments":"x"}}]}`,
+				`{"role":"tool","tool_call_id":"b2","content":"X"}`,
+				`{"role":"tool","tool_call_id":"a2","content":"Y"}`,
+			},
+			wantN:    2,
+			wantSame: 1,
+		},
+		{
 			name: "parallel calls: one changed result breaks the same-result run",
 			messages: []string{user,
 				`{"role":"assistant","tool_calls":[{"id":"a1","function":{"name":"read","arguments":"x"}},{"id":"b1","function":{"name":"read","arguments":"y"}}]}`,
@@ -235,7 +262,8 @@ func TestGuardAbortsTheTurnOnARunawayLoop(t *testing.T) {
 		name     string
 		messages []string
 		refuse   bool
-		wantMsg  string
+		wantMsg  []string
+		notMsg   []string
 	}{
 		{
 			name:     "same call, same result, one short of the threshold",
@@ -245,7 +273,7 @@ func TestGuardAbortsTheTurnOnARunawayLoop(t *testing.T) {
 			name:     "same call, same result, at the threshold",
 			messages: repeat(SameResultRepeat(), "bash", `{"cmd":"ls"}`),
 			refuse:   true,
-			wantMsg:  fmt.Sprintf("repeated the same tool call with the same result %d times", SameResultRepeat()),
+			wantMsg:  []string{fmt.Sprintf("repeated the same tool call with the same result %d times", SameResultRepeat()), "will not change the answer", "try something else"},
 		},
 		{
 			name:     "a changing poll below the backstop",
@@ -255,7 +283,9 @@ func TestGuardAbortsTheTurnOnARunawayLoop(t *testing.T) {
 			name:     "the backstop stops an endless poll even though its results change",
 			messages: poll(loopGuardRepeat, "bash", `{"cmd":"ls"}`, changing),
 			refuse:   true,
-			wantMsg:  fmt.Sprintf("made the same tool call %d times in a row", loopGuardRepeat),
+			wantMsg:  []string{fmt.Sprintf("made the same tool call %d times in a row, even though the results changed", loopGuardRepeat), "try another approach", "local_loop_guard"},
+			// Its results did change, so it must not be told otherwise.
+			notMsg: []string{"will not change the answer", "not progress"},
 		},
 	}
 	for _, tt := range tests {
@@ -285,9 +315,14 @@ func TestGuardAbortsTheTurnOnARunawayLoop(t *testing.T) {
 				t.Errorf("error type, code = %q, %q, want nav_pilot_loop_guard, loop_guard", parsed.Error.Type, parsed.Error.Code)
 			}
 			// Naming the call is the requirement: "it looped" is not actionable.
-			for _, want := range []string{`bash({"cmd":"ls"})`, tt.wantMsg, "try something else"} {
+			for _, want := range append([]string{`bash({"cmd":"ls"})`}, tt.wantMsg...) {
 				if !strings.Contains(parsed.Error.Message, want) {
 					t.Errorf("the refusal does not say %q: %q", want, parsed.Error.Message)
+				}
+			}
+			for _, not := range tt.notMsg {
+				if strings.Contains(parsed.Error.Message, not) {
+					t.Errorf("the refusal says %q: %q", not, parsed.Error.Message)
 				}
 			}
 		})
