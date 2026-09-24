@@ -13,6 +13,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
 // tryPakkeLaunch runs the Tier 2 (payload) launch path when — and only when —
@@ -257,6 +258,15 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 	// this source and client. Warning and taking the legacy path there is the
 	// same silent downgrade mixedPakkeRefusal and errUnusableManifest exist to
 	// refuse, so it fails closed instead.
+	//
+	// With a cached manifest to fall back on, the fetch gets a short deadline:
+	// an unreachable github.com otherwise holds the launch for git's 75 s
+	// connect timeout before the fallback below can answer.
+	cached, hasCache := readSourceCache(resolved.Source)
+	if hasCache {
+		defer func(d time.Duration) { source.FetchTimeout = d }(source.FetchTimeout)
+		source.FetchTimeout = cachedFetchTimeout
+	}
 	src, err := resolveSource("", resolved.Source)
 	if err != nil {
 		if errors.Is(err, errUnusableManifest) {
@@ -295,6 +305,20 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 			// recent still knows legacy would be a downgrade.
 			return nil, true, unresolvablePayloadRefusal(resolved, err)
 		}
+		// A Tier 1 source this launch fetched before, and still has the manifest
+		// of: run it from that copy. The refusal below exists so a launch never
+		// swaps in a *different* pakke (#795); an older revision of the same one
+		// is not that, and the Tier 1 content itself is already installed in
+		// the scope. The manifest is parsed again, so a copy this binary cannot
+		// use falls through to the refusal rather than launching.
+		if hasCache {
+			if m, perr := agentpakke.Parse(cached.Manifest); perr == nil && m.Tier(resolved.Client) == agentpakke.TierLayout {
+				fmt.Fprintf(os.Stderr, "%s %s.\n  Using the copy of %s fetched %s (%s, %s). It updates on the next launch that reaches the network.\n",
+					yellow("⚠"), strings.SplitN(err.Error(), "\n", 2)[0], resolved.Source, cached.FetchedAt.Local().Format("2006-01-02 15:04"), ageText(time.Since(cached.FetchedAt)), shortSHA(cached.SHA))
+				providerpkg.SetActivePakke(m)
+				return nil, false, payloadContextUnsupported(resolved, resolved.Source)
+			}
+		}
 		// A *foreign* Tier 1 source this client has resolved before. Falling
 		// through would launch Nav's own persona under a configuration that
 		// asked for someone else's, which #779 rules out: "Ingen stille bytte
@@ -329,6 +353,9 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 		tier = src.Pakke.Tier(resolved.Client)
 	}
 	rememberTier(resolved.Source, resolved.Client, tier)
+	if tier == agentpakke.TierLayout {
+		writeSourceCache(resolved.Source, src)
+	}
 	// --persona is only meaningful for a Tier 1 launch, where the client entry
 	// carries the roster. Tier 2 takes its persona from the payload manifest,
 	// and a manifest-less source has no roster at all. Both used to ignore the
@@ -832,4 +859,79 @@ func installedLayoutSource(sourceRepo string) bool {
 		}
 	}
 	return false
+}
+
+// cachedFetchTimeout is how long a launch waits on the fetch when it has a
+// cached manifest to fall back on. Long enough for a shallow fetch on a slow
+// link, short enough that being offline is not a wait.
+const cachedFetchTimeout = 15 * time.Second
+
+// sourceCacheEntry is the last manifest a launch fetched for a Tier 1 source.
+// The manifest is all a Tier 1 launch reads from the source — the agents and
+// skills are already installed in the scope — so it is all that is kept.
+type sourceCacheEntry struct {
+	SHA       string          `json:"sha"`
+	FetchedAt time.Time       `json:"fetchedAt"`
+	Manifest  json.RawMessage `json:"manifest"`
+}
+
+// sourceCachePath is ~/.nav-pilot/source-cache/<owner>-<repo>.json, beside the
+// tier cache and named like the revision directories under pakker/.
+func sourceCachePath(sourceRepo string) string {
+	return filepath.Join(filepath.Dir(configPath()), "source-cache",
+		strings.ToLower(strings.ReplaceAll(sourceRepo, "/", "-"))+".json")
+}
+
+func readSourceCache(sourceRepo string) (sourceCacheEntry, bool) {
+	var e sourceCacheEntry
+	if !tierCacheable(sourceRepo) {
+		return e, false
+	}
+	data, err := os.ReadFile(sourceCachePath(sourceRepo))
+	if err != nil || json.Unmarshal(data, &e) != nil || len(e.Manifest) == 0 {
+		return e, false
+	}
+	return e, true
+}
+
+// writeSourceCache records the manifest a launch just fetched. Best effort, and
+// written through a rename so a concurrent launch never reads half a file.
+func writeSourceCache(sourceRepo string, src *Source) {
+	if !tierCacheable(sourceRepo) {
+		return
+	}
+	manifest, err := os.ReadFile(filepath.Join(src.Dir, agentpakke.ManifestPath))
+	if err != nil {
+		return
+	}
+	data, err := json.Marshal(sourceCacheEntry{SHA: src.SHA, FetchedAt: time.Now(), Manifest: manifest})
+	if err != nil {
+		return
+	}
+	path := sourceCachePath(sourceRepo)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".tmp-")
+	if err != nil {
+		return
+	}
+	_, werr := tmp.Write(data)
+	if cerr := tmp.Close(); werr != nil || cerr != nil || os.Rename(tmp.Name(), path) != nil {
+		os.Remove(tmp.Name())
+	}
+}
+
+// ageText renders how long ago a copy was fetched, coarsely.
+func ageText(d time.Duration) string {
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return fmt.Sprintf("%d min ago", int(d.Minutes()))
+	case d < 48*time.Hour:
+		return fmt.Sprintf("%d h ago", int(d.Hours()))
+	default:
+		return fmt.Sprintf("%d days ago", int(d.Hours()/24))
+	}
 }
