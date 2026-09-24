@@ -297,7 +297,7 @@ func copilotLocalWorker(sessionModel string) (local.Model, *local.Guard, error) 
 			domain.Bold("nav-pilot alpha local stop"),
 			domain.Bold("nav-pilot alpha local start"))
 	}
-	guard, err := local.StartGuard(local.ServerURL())
+	guard, err := local.StartGuard(local.ServerURL(), worker)
 	if err != nil {
 		return local.Model{}, nil, err
 	}

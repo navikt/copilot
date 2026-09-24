@@ -385,6 +385,50 @@ func TestGuardForwardsTheBodyItRead(t *testing.T) {
 	}
 }
 
+// TestGuardSampling: with no sampling in the manifest the body is forwarded
+// byte for byte; with it, the manifest's values replace the client's, whether
+// the client sent an explicit 0 (the Copilot CLI) or nothing (opencode).
+func TestGuardSampling(t *testing.T) {
+	stubDirs(t) // lockServer writes under HOME; without this the suite flocks the developer's own
+	stubOwnership(t, func() error { return nil })
+	send := func(g *Guard, path, body string) []byte {
+		var got []byte
+		handler := guardHandler(g, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			got, _ = io.ReadAll(r.Body)
+		}), "")
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, path, strings.NewReader(body)))
+		return got
+	}
+	copilot := `{"model":"m","messages":[{"role":"user","content":"<hei>"}],"temperature":0,"top_p":0.95}`
+	opencode := `{"model":"m","messages":[{"role":"user","content":"hei"}]}`
+
+	if got := send(&Guard{}, "/v1/chat/completions", copilot); string(got) != copilot {
+		t.Errorf("unset: upstream received %s, want the body untouched %s", got, copilot)
+	}
+
+	sampling, err := samplingOverride(map[string]string{"MLX_NAV_PILOT_TEMPERATURE": "0.7", "MLX_NAV_PILOT_TOP_P": "0.8"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, body := range []string{copilot, opencode} {
+		var got struct {
+			Temperature *float64 `json:"temperature"`
+			TopP        *float64 `json:"top_p"`
+			Messages    []any    `json:"messages"`
+		}
+		if err := json.Unmarshal(send(&Guard{sampling: sampling}, "/v1/chat/completions", body), &got); err != nil {
+			t.Fatalf("set: upstream body is not JSON: %v", err)
+		}
+		if got.Temperature == nil || *got.Temperature != 0.7 || got.TopP == nil || *got.TopP != 0.8 || len(got.Messages) != 1 {
+			t.Errorf("set: %s forwarded as %+v, want temperature 0.7, top_p 0.8 and the messages kept", body, got)
+		}
+	}
+
+	if got := send(&Guard{sampling: sampling}, "/v1/completions", copilot); string(got) != copilot {
+		t.Errorf("non-chat endpoint: upstream received %s, want the body untouched", got)
+	}
+}
+
 func TestSetLoopGuardRepeatRefusesAThresholdThatIsNotAGuard(t *testing.T) {
 	orig := loopGuardRepeat
 	t.Cleanup(func() { loopGuardRepeat = orig })
@@ -411,7 +455,7 @@ func TestStartGuardProxiesToTheServer(t *testing.T) {
 	defer upstream.Close()
 
 	stubOwnership(t, func() error { return nil })
-	g, err := StartGuard(upstream.URL)
+	g, err := StartGuard(upstream.URL, Model{})
 	if err != nil {
 		t.Fatalf("StartGuard: %v", err)
 	}
@@ -465,7 +509,7 @@ func TestGuardCloseWaitsForItsHandlers(t *testing.T) {
 		return nil
 	})
 
-	g, err := StartGuard(upstream.URL)
+	g, err := StartGuard(upstream.URL, Model{})
 	if err != nil {
 		t.Fatalf("StartGuard: %v", err)
 	}
@@ -541,7 +585,7 @@ func TestGuardCloseDoesNotWaitForAnotherSessionsLock(t *testing.T) {
 		t.Fatalf("taking the lock: %v", err)
 	}
 
-	g, err := StartGuard(upstream.URL)
+	g, err := StartGuard(upstream.URL, Model{})
 	if err != nil {
 		t.Fatalf("StartGuard: %v", err)
 	}

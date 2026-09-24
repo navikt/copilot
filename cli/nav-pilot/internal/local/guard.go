@@ -37,6 +37,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -146,6 +147,70 @@ type Guard struct {
 	// session that dispatched nothing has to be distinguishable from a session
 	// whose transcript we failed to parse.
 	completions atomic.Int64
+
+	// sampling is the body fields the manifest overrides on every completion,
+	// already encoded. Nil when the active model sets none, and then the body
+	// is forwarded exactly as the client sent it.
+	sampling map[string]json.RawMessage
+}
+
+// samplingParams are the manifest params the guard writes into completion
+// requests. Local models run greedy today from both clients: mlx-lm defaults
+// --temp to 0.0, opencode sends no temperature for a custom model, and the
+// Copilot CLI sends "temperature": 0 explicitly. MLX_TEMP becomes --temp, the
+// server's default, which a request's own value overrides, so it would reach
+// opencode and never the Copilot CLI. The guard sees both clients' requests, so
+// it is the one place that can set sampling for both, and it is the only
+// mechanism: no server flag is derived from these.
+var samplingParams = []struct {
+	key, field, want string
+	ok               func(float64) bool
+}{
+	{"MLX_NAV_PILOT_TEMPERATURE", "temperature", "from 0 to 2", func(v float64) bool { return v >= 0 && v <= 2 }},
+	{"MLX_NAV_PILOT_TOP_P", "top_p", "above 0 and at most 1", func(v float64) bool { return v > 0 && v <= 1 }},
+}
+
+// samplingOverride reads the sampling params a model sets. Nil with no error
+// when it sets none. The manifest check calls it too, so an out-of-range value
+// refuses the manifest rather than reaching a request.
+func samplingOverride(params map[string]string) (map[string]json.RawMessage, error) {
+	var out map[string]json.RawMessage
+	for _, s := range samplingParams {
+		raw := strings.TrimSpace(params[s.key])
+		if raw == "" {
+			continue
+		}
+		// NaN and the infinities fail the range check, and re-encoding the parsed
+		// number keeps forms ParseFloat accepts but JSON does not ("0x1p-1") out of
+		// the body.
+		v, err := strconv.ParseFloat(raw, 64)
+		if err != nil || !s.ok(v) {
+			return nil, fmt.Errorf("param %s is %q, want a number %s", s.key, raw, s.want)
+		}
+		if out == nil {
+			out = map[string]json.RawMessage{}
+		}
+		out[s.field], _ = json.Marshal(v)
+	}
+	return out, nil
+}
+
+// withSampling replaces the sampling fields in a completion body. A body that
+// is not a JSON object is returned unchanged, like everything else the guard
+// cannot read.
+func withSampling(body []byte, sampling map[string]json.RawMessage) []byte {
+	var req map[string]json.RawMessage
+	if json.Unmarshal(body, &req) != nil || req == nil {
+		return body
+	}
+	for k, v := range sampling {
+		req[k] = v
+	}
+	out, err := json.Marshal(req)
+	if err != nil {
+		return body
+	}
+	return out
 }
 
 // isProviderAPIPath reports whether a path is one the provider config would make
@@ -199,10 +264,14 @@ func (g *Guard) Port() int {
 	return g.ln.Addr().(*net.TCPAddr).Port
 }
 
-// StartGuard puts the guard in front of a local server and returns once it is
-// listening. Close it when the session ends: the guard's goroutines outlive the
+// StartGuard puts the guard in front of the local server serving m and returns
+// once it is listening. Close it when the session ends: the guard's goroutines outlive the
 // call that started them, and only [Guard.Close] waits for them.
-func StartGuard(target string) (*Guard, error) {
+func StartGuard(target string, m Model) (*Guard, error) {
+	sampling, err := samplingOverride(m.Params)
+	if err != nil {
+		return nil, fmt.Errorf("local model %s: %w", m.Model, err)
+	}
 	u, err := url.Parse(target)
 	if err != nil {
 		return nil, fmt.Errorf("the local server address %q is not a URL: %w", target, err)
@@ -231,7 +300,7 @@ func StartGuard(target string) (*Guard, error) {
 	// statsPath is resolved here and not per request, because the handler runs
 	// on its own goroutine and must not read the directory globals while
 	// something else is changing them.
-	g := &Guard{ln: ln, statsPath: statsPath(), cancelHandlers: cancelHandlers}
+	g := &Guard{ln: ln, statsPath: statsPath(), cancelHandlers: cancelHandlers, sampling: sampling}
 	g.srv = &http.Server{
 		Handler:           guardHandler(g, proxy, target),
 		ReadHeaderTimeout: 30 * time.Second,
@@ -360,7 +429,7 @@ func ownershipGate() func() error {
 }
 
 // guardHandler inspects a completion request and either refuses it or forwards
-// it unchanged.
+// it, unchanged unless the manifest sets sampling ([samplingParams]).
 //
 // Everything it cannot read — another path, a body over the cap, a body that is
 // not the JSON it expects — is forwarded untouched. The guard exists to stop
@@ -456,8 +525,6 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 			return
 		}
 		r.Body.Close()
-		r.Body = io.NopCloser(bytes.NewReader(body))
-		r.ContentLength = int64(len(body))
 
 		if call, n, same := repeatedToolCall(body); same >= SameResultRepeat() {
 			writeLoopGuardError(w, call, same, true)
@@ -466,6 +533,13 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 			writeLoopGuardError(w, call, n, false)
 			return
 		}
+		// Only when the manifest sets sampling: otherwise the body goes on
+		// byte for byte. A body over the cap was forwarded above without it.
+		if g.sampling != nil {
+			body = withSampling(body, g.sampling)
+		}
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		r.ContentLength = int64(len(body))
 		started := time.Now()
 		tap := &usageTap{ResponseWriter: w}
 		proxy.ServeHTTP(tap, r)

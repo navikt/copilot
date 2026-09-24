@@ -1001,7 +1001,7 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 	// binding below names.
 	// The guard comes up first now, because its address is what goes into the
 	// provider block and the port is this session's rather than a constant.
-	guard, err := local.StartGuard(local.ServerURL())
+	guard, err := local.StartGuard(local.ServerURL(), worker)
 	if err != nil {
 		return nil, err
 	}
