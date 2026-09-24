@@ -13,7 +13,7 @@
     },
     "opencode": {
       "primaryAgents": ["nav-pilot", "nav-pilot-opus"],
-      "defaultModel": "github-copilot/auto"
+      "defaultModel": "inherit"
     },
     "pi": {
       "primaryAgents": ["nav-pilot"]

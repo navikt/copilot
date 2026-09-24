@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
@@ -60,17 +59,11 @@ type Provider interface {
 	PrintSystemDiagnostics()
 }
 
-// OpenCodeDefaultModel is the Nav-curated default model selector for opencode.
-// opencode is always launched inside cplt, which connects it to the GitHub
-// Copilot provider, so the model id uses the github-copilot/<id> form.
-// Prefer Copilot Auto so default routing can follow the current
-// cost/quality frontier instead of a historically pinned model.
-// The value is the built-in agentpakke's declaration, so the model id is
-// written down in exactly one place (internal/agentpakke's legacy adapter).
-// It anchors the curated model list and the advisory messages; the model a
-// launch actually falls back to comes from the active agentpakke, via
-// openCodeDefaultModel.
-var OpenCodeDefaultModel = agentpakke.Default().DefaultModel("opencode")
+// openCodeModelFormatExample is a valid provider/model id shown in error and
+// advisory text. It is not a default: opencode gets no forced model unless a
+// user or an agentpakke names one (see [ToOpenCodeModel]), so there is no
+// single id to point to — this is just a well-formed example.
+const openCodeModelFormatExample = openCodeProviderPrefix + "claude-opus-4.8"
 
 // openCodeProviderPrefix is the opencode provider that cplt authenticates
 // opencode against. Bare Copilot-style model ids are mapped under it.
@@ -87,7 +80,7 @@ var knownCopilotModels = domain.KnownCopilotModels
 // provider prefix, so a bare Copilot id never triggers the opencode advisory
 // after ToOpenCodeModel mapping.
 var knownOpenCodeModels = func() []domain.ModelChoice {
-	models := []domain.ModelChoice{{ID: OpenCodeDefaultModel, Label: "Auto (Nav default)"}}
+	models := make([]domain.ModelChoice, 0, len(knownCopilotModels))
 	for _, m := range knownCopilotModels {
 		if m.ID == "auto" {
 			continue
@@ -97,15 +90,40 @@ var knownOpenCodeModels = func() []domain.ModelChoice {
 	return models
 }()
 
-// ToOpenCodeModel maps a configured model id to an opencode model id for the
-// github-copilot provider that cplt connects opencode to. Empty or "auto" use
-// the Nav default; ids that already carry a provider ("/") pass through; bare
-// Copilot-style ids (e.g. "claude-sonnet-4.6") gain the github-copilot prefix.
-func ToOpenCodeModel(model string) string {
+// legacyOpenCodeAutoAlias was the documented Nav default for opencode before
+// opencode's rejection of "auto" was discovered. opencode has no auto-routing
+// and rejects it as an unknown model, so every path that can produce or
+// receive it — a user's own config, an agentpakke's declaration — treats it
+// as equivalent to unset. A fourth path, an agent's own materialized
+// frontmatter model (opencode TUI: that overrides the session flag), does not
+// go through this constant at all — it is excluded separately in
+// domain.OpenCodeModelForLabel, the only place that writes it.
+const legacyOpenCodeAutoAlias = openCodeProviderPrefix + "auto"
+
+// isOpenCodeUnsetModel reports whether model names nothing meaningful for
+// opencode: empty, "auto" (a Copilot CLI concept opencode doesn't have), or
+// the legacy alias. Trimmed first, so callers do not have to. Shared between
+// ToOpenCodeModel (what actually resolves the flag) and resolvedModelOrigin
+// (what the launch notice attributes it to), so the two cannot drift apart on
+// which inputs count as "the user didn't really name a model".
+func isOpenCodeUnsetModel(model string) bool {
 	model = strings.TrimSpace(model)
-	if model == "" || model == "auto" {
+	return model == "" || model == "auto" || model == legacyOpenCodeAutoAlias
+}
+
+// ToOpenCodeModel maps a configured model id to an opencode model id for the
+// github-copilot provider that cplt connects opencode to. Empty, "auto", and
+// the legacy alias all resolve through openCodeDefaultModel, which returns ""
+// unless an agentpakke names a concrete model — opencode picks a sensible,
+// account-aware model on its own when given none (verified live), so
+// nav-pilot no longer forces one. Ids that already carry a provider ("/")
+// pass through; bare Copilot-style ids (e.g. "claude-opus-4.8") gain the
+// github-copilot prefix.
+func ToOpenCodeModel(model string) string {
+	if isOpenCodeUnsetModel(model) {
 		return openCodeDefaultModel()
 	}
+	model = strings.TrimSpace(model)
 	// Before the provider-qualified pass-through below: a local model id is
 	// publisher/repo, so it already contains a slash and would otherwise be
 	// handed to opencode as a provider it does not have. False whenever local
@@ -117,6 +135,20 @@ func ToOpenCodeModel(model string) string {
 		return model
 	}
 	return openCodeProviderPrefix + model
+}
+
+// openCodeSessionModelForLocalDispatch returns the effective session model in
+// the form local dispatch understands. ToOpenCodeModel resolves an unset user
+// model through the active agentpakke, but qualifies known local models as
+// mlx/<id> for opencode. The local package catalogue stores the underlying id.
+func openCodeSessionModelForLocalDispatch(model string) string {
+	effective := ToOpenCodeModel(model)
+	if id, ok := strings.CutPrefix(effective, LocalProviderID+"/"); ok {
+		if _, known := local.Lookup(id); known {
+			return id
+		}
+	}
+	return effective
 }
 
 func isKnownCopilotModel(id string) bool {
@@ -224,9 +256,9 @@ func (openCodeProvider) Available() bool {
 func (openCodeProvider) Launch(r domain.ResolvedConfig) error { return LaunchOpenCode(r) }
 
 // DefaultModel reports the model an opencode launch falls back to, read from
-// the active agentpakke — the same source the launch fallback reads, so the
-// "Nav default" label in `config setup` and the model actually launched can
-// never disagree.
+// the active agentpakke, or "" when it names none — opencode then picks for
+// itself, and modelPickerOptions' "Unset (agent default)" label already
+// covers that case correctly.
 func (openCodeProvider) DefaultModel() string { return openCodeDefaultModel() }
 
 // KnownModels is the curated list plus the models this machine can serve
@@ -261,18 +293,24 @@ func (openCodeProvider) ValidateModel(model string) error {
 		return err
 	}
 	if strings.Count(model, "/") != 1 || strings.HasSuffix(model, "/") {
-		return fmt.Errorf("model %q must be in provider/model format for opencode (e.g. %q)", model, OpenCodeDefaultModel)
+		return fmt.Errorf("model %q must be in provider/model format for opencode (e.g. %q)", model, openCodeModelFormatExample)
 	}
 	return nil
 }
 
 func (p openCodeProvider) ModelAdvisory(model string) string {
+	// The legacy alias isn't in knownOpenCodeModels, but ToOpenCodeModel maps
+	// it to "" (opencode picks) rather than passing it through, so it must
+	// not get the "will be passed as-is" warning below — that would be false.
+	if strings.TrimSpace(model) == legacyOpenCodeAutoAlias {
+		return ""
+	}
 	if p.ValidateModel(model) != nil || isKnownOpenCodeModel(model) {
 		return ""
 	}
 	return fmt.Sprintf(
-		"model %q is not a Nav-curated opencode model id; it will be passed as-is (Nav default: %s, known ids: %s)",
-		model, OpenCodeDefaultModel, knownOpenCodeModelIDs())
+		"model %q is not a Nav-curated opencode model id; it will be passed as-is (known ids: %s)",
+		model, knownOpenCodeModelIDs())
 }
 
 func (openCodeProvider) UnsupportedConfigWarnings(r domain.ResolvedConfig) []string {

@@ -39,6 +39,7 @@ func TestClassifyPins(t *testing.T) {
 	pins := []pinnedModel{
 		{Agent: "ok-label", Label: "Claude Sonnet 5", ID: "claude-sonnet-5"},
 		{Agent: "dead", Label: "Claude Sonnet 4.6", ID: "claude-sonnet-4.6"},
+		{Agent: "auto", Label: "Auto (let Copilot pick)", ID: "auto"},
 		// A label the picker has not learned resolves to no id. The catalogue is
 		// a list of ids, so there is nothing to compare it against: reporting it
 		// as unavailable would cry wolf on every model GitHub adds before the
@@ -91,6 +92,27 @@ func TestInstalledModelPins(t *testing.T) {
 	}
 	if pins[0].ID != "claude-sonnet-5" {
 		t.Errorf("pin id = %q, want the resolved Copilot id", pins[0].ID)
+	}
+}
+
+func TestInstalledModelPinsRecognizesCopilotAuto(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	scope, err := ScopeUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := scope.DstPath(source.KindAgent.Dir)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "auto.agent.md"), []byte(
+		"---\nname: auto\nmodel: Auto (let Copilot pick)\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	pins := installedModelPins(scope)
+	if len(pins) != 1 || pins[0].ID != "auto" {
+		t.Fatalf("installedModelPins = %+v, want one pin resolved to auto", pins)
 	}
 }
 

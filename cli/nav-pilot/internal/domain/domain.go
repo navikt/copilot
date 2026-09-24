@@ -147,26 +147,42 @@ const OpenCodeProviderPrefix = "github-copilot/"
 // not hand-edited: to add or retain a model, change the generator's PINNED list
 // or let the daily sync pick up a catalog change, then run `mise run models:sync`.
 
-// OpenCodeModelForLabel maps a model name as written in Nav agent frontmatter
-// to the provider-qualified opencode model id. Frontmatter carries display
-// names ("Claude Sonnet 4.6"); opencode needs "github-copilot/claude-sonnet-4.6".
-// A known id is accepted in the same position, so an agent author who writes
-// the id instead of the label is not silently ignored.
+// CopilotModelIDForLabel maps a model name as written in Nav agent frontmatter
+// to its Copilot model id. A known id is accepted in the same position, so an
+// agent author who writes the id instead of the label is not silently ignored.
 //
 // It returns "" for anything not in [KnownCopilotModels]. That is the point:
-// the caller must then emit no model line at all rather than guess an id that
-// the client would reject at launch.
-func OpenCodeModelForLabel(name string) string {
+// callers must distinguish an unknown label from a model unavailable to the
+// current account.
+func CopilotModelIDForLabel(name string) string {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return ""
 	}
 	for _, m := range KnownCopilotModels {
 		if strings.EqualFold(m.Label, name) || strings.EqualFold(m.ID, name) {
-			return OpenCodeProviderPrefix + m.ID
+			return m.ID
 		}
 	}
 	return ""
+}
+
+// OpenCodeModelForLabel maps a model name as written in Nav agent frontmatter
+// to the provider-qualified opencode model id. Frontmatter carries display
+// names ("Claude Sonnet 4.6"); opencode needs "github-copilot/claude-sonnet-4.6".
+//
+// "auto" is in that catalog — it is a real Copilot CLI selection — but is
+// excluded here on purpose: opencode has no auto-routing and rejects
+// "github-copilot/auto" as an unknown model, and an agent's own frontmatter
+// model overrides the session's --model flag in the opencode TUI, so writing
+// it would reproduce the exact launch failure this mapping exists to avoid,
+// for any agent that ever declares "Auto" as its model.
+func OpenCodeModelForLabel(name string) string {
+	id := CopilotModelIDForLabel(name)
+	if id == "" || id == "auto" {
+		return ""
+	}
+	return OpenCodeProviderPrefix + id
 }
 
 // IsKnownCopilotModel reports whether id is in [KnownCopilotModels]. The match

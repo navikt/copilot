@@ -78,6 +78,13 @@ func copilotAgentArgs(agent string) []string {
 // Note: the forwarded --agent is always the active agentpakke's copilot
 // persona; resolved.Client selects the launcher and is consumed by
 // launchClient before reaching here.
+func copilotSessionModel(model string) string {
+	if model != "" {
+		return model
+	}
+	return pakkeDeclaredModel("copilot")
+}
+
 func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 	persona := resolved.Persona
 	if persona == "" {
@@ -86,9 +93,7 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 	var args []string
 	args = append(args, "--agent", persona)
 	args = append(args, copilotAgentArgs(persona)...)
-	if resolved.Model != "" {
-		args = append(args, "--model", resolved.Model)
-	} else if model := pakkeDeclaredModel("copilot"); model != "" {
+	if model := copilotSessionModel(resolved.Model); model != "" {
 		// Same fallback the staged Tier 2 copilot path has
 		// (buildStagedCopilotSpec), and the same one Tier 1 opencode gets
 		// through ToOpenCodeModel. Without it copilot behaved differently by
@@ -158,7 +163,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	//
 	// Nil guard for everyone who has not opted in, and for every hosted session
 	// of everyone who has, so no existing launch changes.
-	worker, guard, err := copilotLocalWorker(resolved.Model)
+	worker, guard, err := copilotLocalWorker(copilotSessionModel(resolved.Model))
 	if err != nil {
 		return err
 	}

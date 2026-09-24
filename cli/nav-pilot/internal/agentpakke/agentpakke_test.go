@@ -129,7 +129,7 @@ func TestDefaultMirrorsCurrentBehavior(t *testing.T) {
 	// Values duplicated from their current call sites. When those move to the
 	// manifest in stage 2, this test is what catches a silent drift in between:
 	//   internal/provider/copilot_launch.go  CopilotAgentPersona
-	//   internal/provider/provider.go        OpenCodeAgentPersona, OpenCodeDefaultModel
+	//   internal/provider/provider.go        OpenCodeAgentPersona
 	//   internal/source/frontmatter.go       openCodePrimaryAgents
 	if got := m.PrimaryAgents("copilot"); !reflect.DeepEqual(got, []string{"nav-pilot"}) {
 		t.Errorf("copilot primaryAgents = %v, want [nav-pilot] (CopilotAgentPersona)", got)
@@ -140,14 +140,13 @@ func TestDefaultMirrorsCurrentBehavior(t *testing.T) {
 	if got := m.PrimaryAgents("opencode")[0]; got != "nav-pilot" {
 		t.Errorf("opencode launch persona = %q, want nav-pilot (OpenCodeAgentPersona)", got)
 	}
-	if got := m.DefaultModel("opencode"); got != "github-copilot/auto" {
-		t.Errorf("opencode defaultModel = %q, want github-copilot/auto (OpenCodeDefaultModel)", got)
+	// InheritModel, not a pinned id, for both clients: copilot's own "auto"
+	// and opencode's own account-aware default each already pick sensibly,
+	// so nav-pilot declares no model and both readers (provider.pakkeDeclaredModel
+	// and provider.openCodeDefaultModel) map InheritModel back to "pin nothing".
+	if got := m.DefaultModel("opencode"); got != InheritModel {
+		t.Errorf("opencode defaultModel = %q, want %q (declaring no pin)", got, InheritModel)
 	}
-	// InheritModel, not empty: copilot now has a declaration point like
-	// opencode, and it declares "pin nothing". Both readers
-	// (provider.pakkeDeclaredModel and provider.openCodeDefaultModel) map
-	// InheritModel back to "pin nothing", so no copilot launch emits a --model
-	// it did not emit before.
 	if got := m.DefaultModel("copilot"); got != InheritModel {
 		t.Errorf("copilot defaultModel = %q, want %q (declared, and declaring no pin)", got, InheritModel)
 	}
