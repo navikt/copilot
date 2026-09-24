@@ -26,7 +26,8 @@ import {
 import { PipelineFlow } from "@/components/pipeline-flow";
 import type { Metadata } from "next";
 import NextLink from "next/link";
-import localModels from "@/lib/local-models.json";
+import { Suspense } from "react";
+import { FALLBACK_TABLE, MANIFEST_URL, getLocalModels, type LocalModel } from "@/lib/local-models";
 
 export const metadata: Metadata = {
   title: "nav-pilot dokumentasjon",
@@ -287,7 +288,10 @@ export default function NavPilotDocs() {
                 <CompetenceSection />
                 <SyncSection />
                 <CustomizationSection />
-                <LocalModelSection />
+                {/* Skallet viser reservekopien til manifestet er hentet. */}
+                <Suspense fallback={<LocalModelSection models={FALLBACK_TABLE.models} />}>
+                  <LiveLocalModelSection />
+                </Suspense>
                 <CliReferenceSection />
                 <HowItWorksSection />
                 <ResourcesSection />
@@ -1940,10 +1944,11 @@ reasoning_effort = "high"
    Section 7: CLI-referanse
    ═══════════════════════════════════════════════════════════════ */
 
-// Tabellen over lokale modeller kommer fra src/lib/local-models.json, som
-// scripts/sync-local-models.mjs genererer fra manifestet i navikt/mlx-workspace.
-// Alle tall kommer derfra. Her står bare de norske beskrivelsene, uten tall.
-// Mangler en modell beskrivelse, viser siden rollen fra manifestet (engelsk).
+// Tabellen over lokale modeller hentes fra manifestet i navikt/mlx-workspace
+// når siden kjører (src/lib/local-models.ts), med src/lib/local-models.json som
+// reservekopi. Alle tall kommer derfra. Her står bare de norske beskrivelsene,
+// uten tall. Mangler en modell beskrivelse, viser siden rollen fra manifestet
+// (engelsk) med en synlig merknad.
 const LOCAL_MODEL_TEXT: Record<string, string> = {
   "qwen3.6-35b-a3b-optiq":
     "Rask og forutsigbar, og svarer på sekunder. Det eneste hovedagenten kan sende hit uten forbehold, er en mekanisk endring over flere filer.",
@@ -1961,10 +1966,6 @@ const TASK_CLASS_LABEL: Record<string, string> = {
   debug: "feilsøking",
 };
 
-type LocalModel = (typeof localModels.models)[number];
-
-const LOCAL_MODELS: LocalModel[] = localModels.models;
-const DEFAULT_LOCAL_MODEL = LOCAL_MODELS.find((m) => m.default) ?? LOCAL_MODELS[0];
 const kTokens = (n: number) => `${Math.round(n / 1024)}k`;
 const classLabel = (id: string) => TASK_CLASS_LABEL[id] ?? id;
 const nbNumber = (n: number) => n.toLocaleString("nb-NO");
@@ -1982,7 +1983,23 @@ function cloudClasses(m: LocalModel) {
     .map(([id]) => classLabel(id));
 }
 
-function LocalModelSection() {
+function LocalModelText({ m }: { m: LocalModel }) {
+  const text = LOCAL_MODEL_TEXT[m.id];
+  if (text) return text;
+  return (
+    <>
+      {m.role} <span className="text-xs italic">(norsk beskrivelse mangler)</span>
+    </>
+  );
+}
+
+async function LiveLocalModelSection() {
+  const { models } = await getLocalModels();
+  return <LocalModelSection models={models} />;
+}
+
+function LocalModelSection({ models }: { models: LocalModel[] }) {
+  const defaultModel = models.find((m) => m.default) ?? models[0];
   return (
     <section id="lokal-modell">
       <VStack gap="space-16">
@@ -2001,8 +2018,8 @@ function LocalModelSection() {
           <BodyLong textColor="subtle">
             Dette er alfa, og av som standard. Ingenting endres før du kjører{" "}
             <code className="font-mono text-xs">init</code> selv. Du trenger en Mac med Apple Silicon og{" "}
-            {DEFAULT_LOCAL_MODEL.min_ram_gb} GB minne, og ledig disk til {DEFAULT_LOCAL_MODEL.weights_gb} GB vekter
-            pluss Python-miljøet. Intel-Macer blir avvist, fordi MLX bare finnes for M-brikkene.
+            {defaultModel.min_ram_gb} GB minne, og ledig disk til {defaultModel.weights_gb} GB vekter pluss
+            Python-miljøet. Intel-Macer blir avvist, fordi MLX bare finnes for M-brikkene.
           </BodyLong>
         </VStack>
 
@@ -2030,9 +2047,8 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
               Modeller i alfa
             </LinkableHeading>
             <BodyLong size="small" textColor="subtle">
-              {LOCAL_MODELS.length} modeller er tilgjengelige. Én er standard, resten må du velge selv. Tabellen er
-              generert fra{" "}
-              <a href={localModels.source} style={{ textDecoration: "underline" }}>
+              {models.length} modeller er tilgjengelige. Én er standard, resten må du velge selv. Tabellen hentes fra{" "}
+              <a href={MANIFEST_URL} style={{ textDecoration: "underline" }}>
                 modellmanifestet
               </a>
               , det samme nav-pilot leser når du kjører <code className="font-mono text-xs">init</code> og{" "}
@@ -2051,7 +2067,7 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {LOCAL_MODELS.map((m) => (
+                  {models.map((m) => (
                     <TableRow key={m.id}>
                       <TableDataCell>
                         <VStack gap="space-2">
@@ -2074,7 +2090,9 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
                           "alle versjoner"
                         )}
                       </TableDataCell>
-                      <TableDataCell>{LOCAL_MODEL_TEXT[m.id] ?? m.role}</TableDataCell>
+                      <TableDataCell>
+                        <LocalModelText m={m} />
+                      </TableDataCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -2087,11 +2105,11 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
               <code className="font-mono text-xs">start</code> og <code className="font-mono text-xs">status</code> sier
               hvilken versjon du trenger. Oppdater med <code className="font-mono text-xs">nav-pilot update</code>.
             </BodyShort>
-            {DEFAULT_LOCAL_MODEL?.temperature != null && (
+            {defaultModel?.temperature != null && (
               <BodyShort size="small" textColor="subtle">
-                Standardmodellen kjører med temperatur {nbNumber(DEFAULT_LOCAL_MODEL.temperature)}
-                {DEFAULT_LOCAL_MODEL.top_p != null && <> og top_p {nbNumber(DEFAULT_LOCAL_MODEL.top_p)}</>}, verdiene
-                den ble målt med.
+                Standardmodellen kjører med temperatur {nbNumber(defaultModel.temperature)}
+                {defaultModel.top_p != null && <> og top_p {nbNumber(defaultModel.top_p)}</>}, verdiene den ble målt
+                med.
               </BodyShort>
             )}
             <BodyShort size="small" textColor="subtle">
@@ -2212,7 +2230,7 @@ nav-pilot alpha local start`}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {LOCAL_MODELS.map((m) => {
+                {models.map((m) => {
                   const trusted = trustedClasses(m);
                   return (
                     <TableRow key={m.id}>
