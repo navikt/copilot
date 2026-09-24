@@ -589,7 +589,7 @@ func TestManifestRefusesAnUnknownBackend(t *testing.T) {
 }
 
 // TestParseCapabilities: the block is optional, parsed when present, and
-// forward compatible — unknown classes and verdicts do not refuse the manifest.
+// forward compatible: unknown classes and verdicts do not refuse the manifest.
 func TestParseCapabilities(t *testing.T) {
 	var doc map[string]any
 	if err := json.Unmarshal(embeddedManifest, &doc); err != nil {
