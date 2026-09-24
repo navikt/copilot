@@ -1,6 +1,7 @@
 package agentpakke
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -61,4 +62,23 @@ func isReleaseVersion(v string) bool {
 // comparison of the date-time prefix is a correct ordering.
 func versionOlder(running, required string) bool {
 	return versionTimestamp(running) < versionTimestamp(required)
+}
+
+// RunningVersion is the version [SetVersion] recorded, "dev" when unset.
+func RunningVersion() string { return cliVersion }
+
+// RunningOlderThan is the minNavPilotVersion comparison for callers outside
+// this package (the local-model manifest's min_nav_pilot): whether the running
+// binary is strictly older than required. A required value that is not a
+// release version is an error, for the reason [isReleaseVersionFormat] gives.
+// A development build is never older: it has no comparable version and is
+// treated as newest, so developers are not gated out of their own work.
+func RunningOlderThan(required string) (bool, error) {
+	if !isReleaseVersionFormat(required) {
+		return false, fmt.Errorf("%q is not a nav-pilot release version (want YYYY.MM.DD-HHMMSS-sha7)", required)
+	}
+	if !isReleaseVersion(cliVersion) {
+		return false, nil
+	}
+	return versionOlder(cliVersion, required), nil
 }
