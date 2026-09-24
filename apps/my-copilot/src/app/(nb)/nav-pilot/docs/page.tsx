@@ -1947,8 +1947,8 @@ reasoning_effort = "high"
 const LOCAL_MODEL_TEXT: Record<string, string> = {
   "qwen3.6-35b-a3b-optiq":
     "Rask og forutsigbar, og svarer på sekunder. Det eneste hovedagenten kan sende hit uten forbehold, er en mekanisk endring over flere filer.",
-  "qwen3.8-27b-4bit":
-    "Mye tregere enn standard og langt mindre forutsigbar: to kjøringer av de samme oppgavene ga helt ulik median, og den når tidsgrensen der standard ikke gjør det.",
+  "qwen3.8-27b-optiq-4bit":
+    "Mye tregere enn standard. Bruker 8 bit på de mest følsomme lagene og 4 bit på resten. I siste måling nådde ingen oppgaver tidsgrensen, noe den vanlige 4-bitversjonen den erstatter gjorde.",
   "qwen3.8-27b-8bit-mlx":
     "Den tregeste. Løste litt flere oppgaver enn standard i siste måling, men bruker mange ganger så lang tid. Leser lange prompter i små steg for å bruke mindre minne, og det steget kjenner bare nyere nav-pilot til.",
 };
