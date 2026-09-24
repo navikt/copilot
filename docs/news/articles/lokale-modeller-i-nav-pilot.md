@@ -17,7 +17,7 @@ Med `nav-pilot alpha local` kan du kjøre en modell fra Qwen-familien på din eg
 
 Vi kaller den bakkemodellen. Hovedagenten blir i skya og bestemmer, bakkemodellen utfører. I logger og konfigurasjon heter den `local-worker`.
 
-Den arbeidsdelingen krever opencode som klient. Bare der blir bakkemodellen en underagent hovedagenten kan sende avgrensede oppgaver til. Under Copilot CLI, som er standardklienten i nav-pilot, finnes ingen slik underagent: klienten setter modelleverandøren som en miljøvariabel for hele prosessen, så én leverandør betjener hele økten. Valget der er hele økten på den lokale modellen eller ingenting lokalt. Vi har verifisert det mot Copilot CLI 1.0.83-3. Vil du ha utsending, bytt med `nav-pilot config set client opencode`. Å velge leverandør per agent er verken støttet eller dokumentert i Copilot CLI ennå. Runtimen har eksperimentell støtte for det, og vi tester den ([github/copilot-cli#4703](https://github.com/github/copilot-cli/issues/4703)).
+Den arbeidsdelingen krever opencode som klient. Bare der blir bakkemodellen en underagent hovedagenten kan sende avgrensede oppgaver til. Under Copilot CLI, som er standardklienten i nav-pilot, finnes ingen slik underagent: klienten setter modelleverandøren som en miljøvariabel for hele prosessen, så én leverandør betjener hele økten. Valget der er hele økten på den lokale modellen eller ingenting lokalt. Vi har verifisert det mot Copilot CLI 1.0.83-3. Vil du ha utsending, bytt med `nav-pilot config set client opencode`. Runtimen under Copilot CLI kan ha flere leverandører i én økt, men Copilot CLI lar ikke en agent velge sin egen ennå, og det er ikke dokumentert. Vi tester om det kan tas i bruk ([github/copilot-cli#4703](https://github.com/github/copilot-cli/issues/4703)).
 
 ```
 nav-pilot alpha local init
@@ -120,7 +120,7 @@ Standardmodellen kjører nå med temperatur 0,6 og top_p 0,95, de samme verdiene
 Begge Qwen 3.8-modellene kan velges med `nav-pilot config set local_model`. Ingen av dem blir standard:
 
 - **Qwen3.8-27B 4-bit** har 64k kontekst og svar på inntil 8k tokens. Den er mye tregere enn standard og langt mindre forutsigbar: to kjøringer av de samme oppgavene ga median 88 og 906 sekunder.
-- **Qwen3.8-27B 8-bit** har 48k kontekst og svar på inntil 4k tokens. Den leser prompten i steg på 512 tokens, så en lang prompt holder seg innenfor minnegrensen på 36 GB. Den løste 31 av 40 oppgaver mot standardens 28, men bruker omtrent ti ganger så lang tid.
+- **Qwen3.8-27B 8-bit** har 48k kontekst og svar på inntil 4k tokens. Den leser prompten i steg på 512 tokens for å bruke mindre minne på lange prompter. Før gikk den tom for minne rundt 51k tokens. Den løste 31 av 40 oppgaver mot standardens 28, men bruker omtrent ti ganger så lang tid.
 
 8-bit krever nav-pilot 2026.09.24-110317 eller nyere. Eldre versjoner kjenner ikke steglengden og kan gå tom for minne nær 48k. Manifestet sier nå hvilken nav-pilot hver modell krever, og en eldre nav-pilot skjuler modellen. Peker `local_model` på den, faller nav-pilot tilbake til standardmodellen og sier hvilken versjon du trenger.
 
@@ -144,7 +144,7 @@ Meld deg i #nav-pilot. Vi tar inn én og én i starten.
 
 Hele rapporten, med metode og alle tallene: [local-inference-findings.md](https://github.com/navikt/mlx-workspace/blob/main/reports/local-inference-findings.md). Hvorfor akkurat denne modellen, og hva vi forkastet: [alpha-model-decision.md](https://github.com/navikt/mlx-workspace/blob/main/reports/alpha-model-decision.md). Rådataene ligger i [navikt/mlx-workspace](https://github.com/navikt/mlx-workspace), også kjøringene som gikk galt.
 
-> **Rettelse 24. september (kveld):** Kommandoen for å bytte til Qwen 3.8 satte `model`, som er modellen økten kjører på. Riktig nøkkel er `local_model`. Saken sa også at valg av leverandør per agent lå som en feature request hos GitHub. Runtimen har nå eksperimentell støtte, og vi tester den.
+> **Rettelse 24. september (kveld):** Kommandoen for å bytte til Qwen 3.8 satte `model`, som er modellen økten kjører på. Riktig nøkkel er `local_model`. Saken sa også at valg av leverandør per agent bare lå som en feature request hos GitHub. Runtimen under Copilot CLI kan allerede ha flere leverandører i én økt, og vi tester om det kan tas i bruk.
 
 > **Rettelse 31. august:** Saken oppga først at 8-bit gikk i timeout på 8 av 11 oppgaver, og forklarte deretter tallet med en chat-mal vi skrev selv, men verken tallet eller den forklaringen kan vi stå inne for.
 
