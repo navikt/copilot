@@ -1008,6 +1008,8 @@ func serverFlags(params map[string]string) []string {
 		{"MLX_CACHE_SIZE", "--prompt-cache-size"},
 		{"MLX_CACHE_BYTES", "--prompt-cache-bytes"},
 		{"MLX_CHAT_TEMPLATE_ARGS", "--chat-template-args"},
+		// Validated by checkPrefillStepSize when the manifest is parsed.
+		{"MLX_PREFILL_STEP_SIZE", "--prefill-step-size"},
 	}
 	var args []string
 	for _, s := range spec {
