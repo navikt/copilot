@@ -1,10 +1,15 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/BurntSushi/toml"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/hook"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
@@ -27,14 +32,17 @@ const maxHookPayload = 16 << 20
 type builtinHook struct {
 	name    string // file and marker name
 	arg     string // `nav-pilot hook <arg>`
+	keys    []string
 	enabled func(ResolvedConfig) bool
 }
 
 var builtinHooks = []builtinHook{
-	{name: "nav-pilot-loop-guard", arg: "loop-guard", enabled: func(r ResolvedConfig) bool { return r.HookLoopGuard }},
-	{name: "nav-pilot-redact-tool-output", arg: "redact", enabled: func(r ResolvedConfig) bool {
-		return r.HookRedactSecrets || r.HookRedactFNR || r.HookInjectionNote
-	}},
+	{name: "nav-pilot-loop-guard", arg: "loop-guard", keys: []string{"hook_loop_guard", "local_loop_guard"},
+		enabled: func(r ResolvedConfig) bool { return r.HookLoopGuard }},
+	{name: "nav-pilot-redact-tool-output", arg: "redact", keys: []string{"hook_redact_secrets", "hook_redact_fnr", "hook_injection_note"},
+		enabled: func(r ResolvedConfig) bool {
+			return r.HookRedactSecrets || r.HookRedactFNR || r.HookInjectionNote
+		}},
 }
 
 // runHookCommand runs one built-in hook and always exits 0 with a JSON answer.
@@ -60,9 +68,7 @@ func runHookCommand(args []string, stdin io.Reader, stdout io.Writer) {
 	if err != nil {
 		return
 	}
-	// A config that cannot be read may be the one that turned this hook off,
-	// so a broken file means pass, not the defaults.
-	cfg, err := readConfig()
+	cfg, err := hookConfig(args[1:])
 	if err != nil {
 		return
 	}
@@ -76,7 +82,11 @@ func runHookCommand(args []string, stdin io.Reader, stdout io.Writer) {
 		if !r.HookLoopGuard || os.Getenv("COPILOT_PROVIDER_API_KEY") == providerpkg.LocalProviderAPIKey {
 			return
 		}
-		out = hook.LoopGuard(hookStateDir(), p, localLoopGuard(r))
+		var err error
+		out, err = hook.LoopGuard(hookStateDir(), p, localLoopGuard(r))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "nav-pilot loop guard: cannot keep the run, so it will not trip: %v\n", err)
+		}
 	case "redact":
 		// Local sessions too: the local guard only watches for loops, and a
 		// secret in a local session's context still ends up in logs and in
@@ -95,18 +105,47 @@ func runHookCommand(args []string, stdin io.Reader, stdout io.Writer) {
 	}
 }
 
-// hookStateDir is where hooks keep what they remember between calls: beside
-// the config file, as the rest of nav-pilot's own state is.
+// hookConfig is the config a hook runs with. The file is read on every call,
+// so turning a hook off takes effect at once.
+//
+// cplt denies ~/.nav-pilot to everything in its sandbox, and a hook run by a
+// sandboxed Copilot is inside it. There the settings the launch wrote into the
+// hook's own command (settings, as key=value) stand in for the file. Any other
+// read or parse error passes: a config that cannot be read may be the one that
+// turned this hook off.
+func hookConfig(settings []string) (*Config, error) {
+	cfg, err := readConfig()
+	if err == nil || !errors.Is(err, fs.ErrPermission) || len(settings) == 0 {
+		return cfg, err
+	}
+	var c Config
+	if _, err := toml.Decode(strings.Join(settings, "\n"), &c); err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+// hookStateDir is where the loop guard keeps its run: in Copilot's own
+// session directory, ~/.copilot/session-state/<sessionId>. ~/.nav-pilot is out
+// of reach inside cplt; the session directory is where Copilot itself writes.
 func hookStateDir() string {
-	return filepath.Join(filepath.Dir(configPath()), "hook-state")
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".copilot", "session-state")
 }
 
 // builtinHookCommand is the shell command an entry runs. nav-pilot is found
 // on PATH rather than by absolute path: an upgrade moves the binary, and a hook
 // pointing at the old one would fail on every tool call until the next launch.
 // Without nav-pilot on PATH the entry answers "{}", no change.
-func builtinHookCommand(arg string) string {
-	return "command -v nav-pilot >/dev/null 2>&1 && nav-pilot hook " + arg + " || echo '{}'"
+//
+// The hook's settings ride along as key=value arguments, for when the config
+// file is out of reach ([hookConfig]). They are the values at the last launch.
+func builtinHookCommand(h builtinHook, r ResolvedConfig) string {
+	cmd := "nav-pilot hook " + h.arg
+	for _, k := range h.keys {
+		cmd += " " + k + "=" + resolvedFieldStr(r, k)
+	}
+	return "command -v nav-pilot >/dev/null 2>&1 && " + cmd + " || echo '{}'"
 }
 
 // syncBuiltinHooks writes each enabled built-in hook to the user's Copilot
@@ -136,7 +175,7 @@ func syncBuiltinHooks(r ResolvedConfig) {
 		}
 		entry := source.HookEntry{
 			Name:    h.name,
-			Command: builtinHookCommand(h.arg),
+			Command: builtinHookCommand(h, r),
 			Timeout: 5,
 			Event:   source.HookEventPostToolUse,
 		}

@@ -12,16 +12,54 @@ import (
 
 const loopPayload = `{"sessionId":"s1","toolName":"bash","toolArgs":{"command":"gh run view 1"},"toolResult":{"resultType":"success","textResultForLlm":"queued"}}`
 
-// runLoopGuard feeds the same payload to `nav-pilot hook loop-guard` n times
-// and returns the last answer.
-func runLoopGuard(t *testing.T, n int, payload string) string {
+// runLoopGuard feeds the same payload to `nav-pilot hook loop-guard [args]` n
+// times, in a fresh home, and returns the last answer.
+func runLoopGuard(t *testing.T, n int, payload string, args ...string) string {
 	t.Helper()
+	t.Setenv("HOME", t.TempDir())
 	var out bytes.Buffer
 	for range n {
 		out.Reset()
-		runHookCommand([]string{"loop-guard"}, strings.NewReader(payload), &out)
+		runHookCommand(append([]string{"loop-guard"}, args...), strings.NewReader(payload), &out)
 	}
 	return strings.TrimSpace(out.String())
+}
+
+// cplt denies ~/.nav-pilot inside its sandbox, where the hook runs: the
+// settings in the hook's command stand in for the config then, and only then.
+func TestHookLoopGuardUnreadableConfig(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads a mode-000 file")
+	}
+	tests := []struct {
+		name    string
+		args    []string
+		wantHit bool
+	}{
+		{"settings from the command", []string{"hook_loop_guard=true", "local_loop_guard=8"}, true},
+		{"threshold from the command", []string{"hook_loop_guard=true", "local_loop_guard=20"}, false},
+		{"off in the command", []string{"hook_loop_guard=false", "local_loop_guard=8"}, false},
+		{"no settings passes", nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := writeTestConfig(t, "version = 1\n")
+			if err := os.Chmod(path, 0); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("COPILOT_PROVIDER_API_KEY", "")
+			out := runLoopGuard(t, 4, loopPayload, tt.args...)
+			if hit := strings.Contains(out, "modifiedResult"); hit != tt.wantHit {
+				t.Errorf("4 identical calls: %s, want hit=%v", out, tt.wantHit)
+			}
+		})
+	}
+
+	// A readable config wins over the command's settings.
+	writeTestConfig(t, "version = 1\nhook_loop_guard = false\n")
+	if out := runLoopGuard(t, 4, loopPayload, "hook_loop_guard=true"); out != "{}" {
+		t.Errorf("command settings overrode a readable config: %s", out)
+	}
 }
 
 func TestHookLoopGuardCommand(t *testing.T) {
@@ -70,7 +108,7 @@ func TestSyncBuiltinHooks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("hook not written: %v", err)
 	}
-	for _, want := range []string{`"PostToolUse"`, `nav-pilot hook loop-guard`, `"navPilot": "nav-pilot-loop-guard"`} {
+	for _, want := range []string{`"PostToolUse"`, `nav-pilot hook loop-guard hook_loop_guard=true local_loop_guard=8 ||`, `"navPilot": "nav-pilot-loop-guard"`} {
 		if !strings.Contains(string(data), want) {
 			t.Errorf("hook file lacks %s:\n%s", want, data)
 		}

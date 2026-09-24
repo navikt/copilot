@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 )
@@ -39,11 +38,6 @@ type LoopState struct {
 	Same   int    `json:"same"`
 	Result string `json:"result"` // sha256 of the normalised result
 }
-
-// LoopStateTTL is how old a session's state file may get before the next new
-// session deletes it. A day is longer than any session's gap between two tool
-// calls and short enough that the directory never grows past a day of work.
-const LoopStateTTL = 24 * time.Hour
 
 // Step folds one call and its result into the run and says which rule, if
 // any, it trips: n is the run of identical calls, same the part of it whose
@@ -118,60 +112,54 @@ var shellTools = map[string]bool{"bash": true, "shell": true, "execute": true, "
 
 var unsafeID = regexp.MustCompile(`[^A-Za-z0-9_-]`)
 
-// LoopGuard runs the rule for one postToolUse payload, with state under dir.
-// It returns the hook's stdout. Every failure returns NoChange: a guard that
-// cannot read its state lets the call through rather than get in the way.
+// LoopGuard runs the rule for one postToolUse payload and returns the hook's
+// stdout. The run is kept in the session's own directory under root (Copilot's
+// session-state directory), which Copilot creates for every session and which
+// cplt's sandbox lets the session write. The state is a hash and two counts,
+// never the call or the result.
+//
+// Every failure answers NoChange: a guard that cannot keep its state lets the
+// call through rather than get in the way. A state that could not be saved is
+// also returned as err, since a guard that cannot count never trips and would
+// otherwise look like one that has nothing to report.
 //
 // ponytail: read-modify-write without a lock. Parallel tool calls in one step
 // can race and lose a count, which errs toward not stopping; the guard treats
 // parallel calls as one step and this hook sees them one by one, so a loop of
 // parallel calls is left to the per-call view. Add flock if it matters.
-func LoopGuard(dir string, p Payload, threshold int) string {
+func LoopGuard(root string, p Payload, threshold int) (string, error) {
 	id := unsafeID.ReplaceAllString(p.SessionID, "")
 	if id == "" || !p.HasResult || p.ToolName == "" {
-		return NoChange
+		return NoChange, nil
 	}
-	path := filepath.Join(dir, "loop-"+id+".json")
+	dir := filepath.Join(root, id)
+	path := filepath.Join(dir, "nav-pilot-loop-guard.json")
 
 	var st LoopState
 	if data, err := os.ReadFile(path); err == nil {
 		_ = json.Unmarshal(data, &st)
-	} else {
-		if err := os.MkdirAll(dir, 0o700); err != nil {
-			return NoChange
-		}
-		removeStale(dir, time.Now().Add(-LoopStateTTL))
 	}
-
 	st = st.Step(Signature(p.ToolName, p.ToolArgs), p.ResultType, p.Result)
-	if data, err := json.Marshal(st); err == nil {
-		tmp := path + ".tmp"
-		if os.WriteFile(tmp, data, 0o600) == nil {
-			_ = os.Rename(tmp, path)
-		}
-	}
+	err := saveState(dir, path, st)
 
 	msg := LoopMessage(st, threshold)
 	if msg == "" {
-		return NoChange
+		return NoChange, err
 	}
-	return ModifiedResult(p.ResultType, msg+"\n\nThe tool result, unchanged:\n"+p.Result)
+	return ModifiedResult(p.ResultType, msg+"\n\nThe tool result, unchanged:\n"+p.Result), err
 }
 
-// removeStale deletes the loop state of sessions not heard from since cutoff.
-// It runs once per new session rather than on every call, so a long session
-// pays for it once.
-func removeStale(dir string, cutoff time.Time) {
-	entries, err := os.ReadDir(dir)
+func saveState(dir, path string, st LoopState) error {
+	data, err := json.Marshal(st)
 	if err != nil {
-		return
+		return err
 	}
-	for _, e := range entries {
-		if !strings.HasPrefix(e.Name(), "loop-") {
-			continue
-		}
-		if info, err := e.Info(); err == nil && info.ModTime().Before(cutoff) {
-			_ = os.Remove(filepath.Join(dir, e.Name()))
-		}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
 	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }

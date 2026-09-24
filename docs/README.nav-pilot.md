@@ -208,8 +208,13 @@ viser dem sammen med de andre.
 En hook etter verktøykallet (`postToolUse`) kan ikke avslutte en tur. Den kan bare endre
 det modellen leser. Når løkkevakten slår til, får modellen derfor en beskjed om at den står
 fast, med resultatet under, i stedet for det samme svaret en gang til. Terskelen følger
-`local_loop_guard`, og det som skjedde tidligere i økta ligger i en liten fil per økt under
-`~/.nav-pilot/hook-state/`. Filer som er eldre enn ett døgn ryddes bort.
+`local_loop_guard`, og det som skjedde tidligere i økta ligger i en liten fil i øktas egen
+mappe, `~/.copilot/session-state/<økt-id>/nav-pilot-loop-guard.json`. Filen inneholder bare
+en hash og to tellere, aldri selve kallet eller resultatet.
+
+I sandkassen til cplt får hookene verken lese eller skrive `~/.nav-pilot/`. Der bruker de
+innstillingene nav-pilot skrev inn i hook-kommandoen ved siste oppstart. En endring med
+`nav-pilot config set` gjelder derfor i sandkassen fra neste gang du starter `nav-pilot`.
 
 Maskeringen bytter ut funnet med `[REDACTED:<type>]`, for eksempel `[REDACTED:fnr]`, og lar
 resten av resultatet stå. Et fødselsnummer maskeres bare når datoen er gyldig og begge
