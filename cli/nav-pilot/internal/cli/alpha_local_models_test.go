@@ -22,7 +22,8 @@ func modelsFixture(t *testing.T) string {
 	manifest := `{"schema_version":1,"channel":"alpha","models":[
 		{"key":"qwen3.6-35b","name":"Qwen 3.6 35B A3B","model":"mlx-community/Qwen3.6-35B","backend":"mlx-lm","default":true,"weights_gb":25,"params":{"MLX_OPENCODE_CONTEXT":"65536"}},
 		{"key":"qwen3.8-27b","name":"Qwen 3.8 27B OptiQ","model":"mlx-community/Qwen3.8-27B","backend":"mlx-lm","weights_gb":19,"params":{"MLX_OPENCODE_CONTEXT":"49152"}},
-		{"key":"qwen3.8-8bit","name":"Qwen 3.8 27B 8bit","model":"mlx-community/Qwen3.8-27B-8bit","backend":"mlx-lm","weights_gb":30,"params":{},"min_nav_pilot":"2026.09.24-110317-abc1234"}]}`
+		{"key":"qwen3.8-8bit","name":"Qwen 3.8 27B 8bit","model":"mlx-community/Qwen3.8-27B-8bit","backend":"mlx-lm","weights_gb":30,"params":{},"min_nav_pilot":"2026.09.24-110317-abc1234"},
+		{"key":"broken","name":"Broken","model":"mlx-community/Broken","backend":"mlx-lm","params":{},"min_nav_pilot":123}]}`
 	writeFile(t, filepath.Join(home, ".nav-pilot", "local-models.json"), manifest)
 	snap := filepath.Join(home, "hf", "hub", "models--mlx-community--Qwen3.8-27B", "snapshots", "abc")
 	writeFile(t, filepath.Join(snap, "config.json"), "{}")
@@ -81,6 +82,7 @@ func TestLocalModelsTable(t *testing.T) {
 		"qwen3.6-35b":  {"25 GB", "64k", "default, not downloaded"},
 		"qwen3.8-27b":  {"*", "19 GB", "48k", "downloaded"},
 		"qwen3.8-8bit": {"30 GB", "withheld: needs nav-pilot ≥ 2026.09.24-110317-abc1234"},
+		"broken":       {"withheld: unreadable min_nav_pilot"},
 	}
 	for key, wants := range checks {
 		row := tableRow(out, key)

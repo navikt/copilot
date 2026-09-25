@@ -73,9 +73,12 @@ func printLocalModels(m *local.Manifest) {
 		if e.Default {
 			status = append(status, "default")
 		}
-		if ok, _ := local.WeightsPresent(e.Model); ok {
+		switch ok, err := local.WeightsPresent(e.Model); {
+		case err != nil:
+			status = append(status, "cache unreadable")
+		case ok:
 			status = append(status, "downloaded")
-		} else {
+		default:
 			status = append(status, "not downloaded")
 		}
 		if e.Model == running {
@@ -87,7 +90,17 @@ func printLocalModels(m *local.Manifest) {
 		row(e, status)
 	}
 	for _, wh := range m.Withheld {
-		row(wh.Model, []string{"withheld: needs nav-pilot ≥ " + string(wh.Model.MinNavPilot)})
+		// Parse also withholds an unreadable min_nav_pilot, which names no
+		// version to need.
+		status := []string{"withheld: unreadable min_nav_pilot"}
+		if strings.Contains(wh.Reason, "needs nav-pilot ≥") {
+			status = []string{"withheld: needs nav-pilot ≥ " + string(wh.Model.MinNavPilot)}
+		}
+		// A server an older nav-pilot started can still serve it.
+		if wh.Model.Model == running {
+			status = append(status, "running")
+		}
+		row(wh.Model, status)
 	}
 	_ = w.Flush()
 	fmt.Printf("\n  Switch: %s\n", bold("nav-pilot alpha local use <key>"))

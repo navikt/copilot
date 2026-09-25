@@ -641,7 +641,11 @@ func cmdLocalStatus() error {
 	if stats, err := local.ReadStats(); err == nil && stats.Requests > 0 {
 		defer printLocalStats(stats)
 	}
-	fmt.Printf("  Serving      %s\n", bold(st.Model))
+	if health == local.HealthCrashed {
+		fmt.Printf("  Last served  %s\n", bold(st.Model))
+	} else {
+		fmt.Printf("  Serving      %s\n", bold(st.Model))
+	}
 	// A server keeps serving what it loaded. Changing local_model under a
 	// running one leaves the config and the process disagreeing, and every
 	// answer comes from the old model with nothing on screen to say so.
