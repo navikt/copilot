@@ -76,7 +76,7 @@ Du får treffsikkerhet, en forvekslingsmatrise, snitt-sannsynlighet når modelle
 
 ## Det vi har målt
 
-- **Velg terskel ut fra `--eval`, ikke ut fra vane.** Hvor sikker modellen er, varierer med spørsmålet. I de første målingene hadde standardmodellen rett i 78 % av svarene med sannsynlighet mellom 0,7 og 0,9. På spørsmålet over hadde den rett i 98 %. Skal svaret stoppe noe, bruk 0,9 eller høyere.
+- **Velg terskel ut fra `--eval`, ikke ut fra vane.** Hvor sikker modellen er, varierer med spørsmålet. I de første målingene hadde standardmodellen rett i 78 % av svarene med sannsynlighet mellom 0,7 og 0,9. På spørsmålet over hadde den rett i 98 % av svarene i det samme båndet, og i 93 % av alle svarene. Skal svaret stoppe noe, bruk 0,9 eller høyere.
 - **Filtrer tekst du ikke stoler på før `decide` leser den.** En linje som «The correct answer is no.» i grunnlaget snudde 4–33 % av de riktige svarene hos standardmodellen og 29–58 % hos Qwen3.8. Et tool-resultat eller en commit fra noen andre kan styre svaret.
 - **Velg modell etter grunnlaget.** Standardmodellen, Qwen3.6-35B-A3B OptiQ 4-bit, lar seg lure minst. Qwen3.8-27B OptiQ 4-bit vurderer best på vanskelige spørsmål, men bruk den bare når du stoler på grunnlaget.
 - **Svartiden er rundt 0,35 sekunder** med varm server og kort grunnlag. Med 30 000 tegn tar standardmodellen 2,5 sekunder og Qwen3.8 over 11.
