@@ -46,6 +46,10 @@ The message lists what was added but not why. A script can compare 0.88 with a t
 
 If a regular expression can answer your question, such as whether a message follows Conventional Commits, use the regular expression. `decide` is for questions about what a text means.
 
+![Two flowcharts side by side. Left, System 2: the prompt goes through a hidden chain of thought, evaluation of alternatives and self-correction in a loop, and ends in a verified output. Right, System 1: the prompt goes straight to a single token prediction, with no chain of thought, and on to the answer.](/images/alpha-decide-system1-system2.png)
+
+_`decide` is the right-hand side. The answer is the probability of each option, read from one token._
+
 ## Requirements and install
 
 - A Mac with Apple Silicon.
