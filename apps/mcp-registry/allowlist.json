@@ -316,7 +316,7 @@
           "url": "https://nav-etterlevelse-mcp.{{domain_internal}}/mcp"
         }
       ],
-      "tools": ["list_etterlevelse_dokumentasjoner", "get_etterlevelse_dokumentasjon", "create_etterlevelse_dokumentasjon", "get_etterlevelse_status_oversikt", "list_krav", "get_krav_for_gjennomgang", "get_pvk_dokument", "create_pvk_dokument", "list_risikoscenarioer", "list_tiltak", "search_behandlinger", "get_my_teams"],
+      "tools": ["list_etterlevelse_dokumentasjoner", "get_etterlevelse_dokumentasjon", "create_etterlevelse_dokumentasjon", "get_etterlevelse_status_oversikt", "list_krav", "get_krav_for_gjennomgang", "begin_sk_review", "write_suksesskriterium", "write_krav_status", "get_pvk_dokument", "create_pvk_dokument", "list_risikoscenarioer", "list_tiltak", "search_behandlinger", "get_my_teams"],
       "tags": ["compliance", "privacy", "etterlevelse", "pvk", "dpia", "nav-internal"],
       "examples": [
         {
@@ -330,6 +330,10 @@
         {
           "scenario": "Finn krav for et dokument",
           "prompt": "Hvilke etterlevelseskrav er relevante for etterlevelsesdokumentasjon E123?"
+        },
+        {
+          "scenario": "Skriv besvarelse for ett suksesskriterium (med obligatorisk gjennomgang)",
+          "prompt": "Start gjennomgangen for suksesskriterium 1 på K102.3 i etterlevelsesdokumentasjon E123"
         }
       ]
     },
