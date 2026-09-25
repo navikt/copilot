@@ -8,9 +8,9 @@ package local
 // Nothing here is a command. Provisioning, downloading, starting and checking
 // are separate calls so a command can sequence them and report between steps,
 // and so the one privileged action in the neighbourhood — raising the wired
-// memory limit, which needs sudo — stays out of this package entirely:
-// [CheckWiredLimit] reports what is needed and what is set, and nothing here
-// writes a sysctl.
+// memory limit, which needs sudo — runs only when a command calls
+// [RaiseWiredLimit] after asking: [CheckWiredLimit] reports what is needed and
+// what is set, and nothing else here writes a sysctl.
 //
 // Every external interaction (a process, a download, an HTTP request, a
 // sysctl) is behind a package-level func var, the same seam local.go uses for
@@ -1392,9 +1392,12 @@ type WiredLimit struct {
 	RequiredGB int
 
 	// CurrentGB is what iogpu.wired_limit_mb is set to now. Zero means unset,
-	// which is the macOS default (roughly 75% of RAM) and not "zero
-	// allowed".
+	// which is the macOS default and not "zero allowed".
 	CurrentGB int
+
+	// DefaultGB is what the macOS default comes to on this machine, an estimate
+	// used only while CurrentGB is unset. See [macOSDefaultWiredGB].
+	DefaultGB int
 
 	// MachineRAMGB is the machine's physical memory.
 	MachineRAMGB int
@@ -1435,10 +1438,21 @@ func CheckWiredLimit(m Model) (WiredLimit, error) {
 
 	// An unset iogpu.wired_limit_mb is not an error: the sysctl only exists
 	// once it has been set on some systems, and unset means the OS default.
-	if cur, err := sysctlInt(ctx, "iogpu.wired_limit_mb"); err == nil {
-		w.CurrentGB = int(cur / 1024)
+	var curMB int64
+	if cur, err := sysctlInt(ctx, "iogpu.wired_limit_mb"); err == nil && cur > 0 {
+		curMB = cur
+		// Rounded up, so a cap set below 1 GB still reads as set, not unset.
+		w.CurrentGB = int((cur + 1023) / 1024)
 	}
-	w.Sufficient = w.CurrentGB >= w.RequiredGB
+	if curMB > 0 {
+		w.Sufficient = curMB >= int64(w.RequiredGB)*1024
+	} else {
+		// Unset used to count as zero, so a 128 GB machine fresh from a reboot
+		// was told to raise a limit already near 96 GB. The default is an
+		// estimate, so it has to clear the requirement with room to spare.
+		w.DefaultGB = macOSDefaultWiredGB(w.MachineRAMGB)
+		w.Sufficient = w.DefaultGB >= w.RequiredGB+defaultWiredMarginGB
+	}
 
 	// The manifest's own floor, checked rather than merely printed. Profiles
 	// are measured on one machine and shipped to a fleet with 36, 48 and 64 GB
@@ -1457,6 +1471,34 @@ func CheckWiredLimit(m Model) (WiredLimit, error) {
 			m.Model, w.RequiredGB, w.MachineRAMGB-w.RequiredGB, w.MachineRAMGB, minFreeGB)
 	}
 	return w, nil
+}
+
+// defaultWiredMarginGB is how far the estimated default must clear a model's
+// requirement before it counts as enough. The estimate is Apple's published
+// rule rather than a reading, so a model that would need nearly all of it gets
+// the explicit sysctl instead.
+const defaultWiredMarginGB = 4
+
+// macOSDefaultWiredGB estimates the GPU wired-memory limit macOS applies while
+// iogpu.wired_limit_mb is unset: Metal's recommendedMaxWorkingSetSize, which is
+// about two thirds of RAM up to 36 GB and three quarters above. The real value
+// is only reachable through Metal, which needs cgo; this binary has none, so
+// Apple's rule stands in for it, rounded down.
+func macOSDefaultWiredGB(ramGB int) int {
+	if ramGB <= 36 {
+		return ramGB * 2 / 3
+	}
+	return ramGB * 3 / 4
+}
+
+// Label names the limit that applies now, for a developer reading status or an
+// error. Unset is the macOS default, not zero, and "0 GB" would read as a
+// broken machine.
+func (w WiredLimit) Label() string {
+	if w.CurrentGB == 0 {
+		return fmt.Sprintf("no limit set, so the macOS default applies (about %d GB)", w.DefaultGB)
+	}
+	return fmt.Sprintf("%d GB", w.CurrentGB)
 }
 
 // sysctlInt reads one integer sysctl. Shelling out rather than using the
@@ -1564,8 +1606,8 @@ func EnsureServerRunning(ctx context.Context, announce func(string), record Reco
 		return err
 	} else if !w.Sufficient {
 		return fmt.Errorf(
-			"%s needs a %d GB wired-memory limit and this machine is at %d GB.\n\n  Raise it, then launch again (it resets at reboot):\n\n    %s",
-			m.Model, w.RequiredGB, w.CurrentGB, domain.Bold(w.Command))
+			"%s needs a %d GB wired-memory limit and this machine has %s.\n\n  Raise it, then launch again (it resets at reboot):\n\n    %s",
+			m.Model, w.RequiredGB, w.Label(), domain.Bold(w.Command))
 	}
 
 	// Autostart must not start a 23 GB download inside a launch. `alpha local
@@ -1619,7 +1661,8 @@ func EnsureServerRunning(ctx context.Context, announce func(string), record Reco
 // not automated: a developer who has just waited out a 25 GB download should not
 // then be handed a sysctl invocation to paste. It resets at reboot, which is the
 // kernel's behaviour and not something nav-pilot can persist without installing
-// something at boot, so `start` raises it again when it finds it low.
+// something at boot, so `start` offers to raise it again when it finds it low.
+// A launch's autostart never does: it runs unattended and only says what to run.
 func RaiseWiredLimit(ctx context.Context, w WiredLimit) error {
 	if w.Sufficient {
 		return nil
