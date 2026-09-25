@@ -515,7 +515,11 @@ func run(args []string) error {
 			i++
 			updates = rest[i]
 		case "-h", "--help":
-			usage()
+			if command == "alpha" {
+				alphaUsage()
+			} else {
+				usage()
+			}
 			return nil
 		default:
 			if rest[i] == "--" {

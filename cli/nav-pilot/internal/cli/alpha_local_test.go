@@ -784,3 +784,24 @@ func TestStartRaisesTheWiredLimitOnlyWhenAsked(t *testing.T) {
 		t.Errorf("after a raise the limit reads %q (sufficient %t), want the raised 36 GB", wired.Label(), wired.Sufficient)
 	}
 }
+
+// The flag loop used to answer -h/--help with the top-level usage before the
+// alpha dispatch ever ran, so `alpha --help` hid the alpha commands.
+func TestAlphaHelpFlagsPrintAlphaUsage(t *testing.T) {
+	for _, args := range [][]string{
+		{"alpha", "help"}, {"alpha", "--help"}, {"alpha", "-h"},
+		{"alpha", "local", "--help"}, {"alpha", "local", "-h"},
+	} {
+		out, err := captureRunStderr(t, args)
+		if err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+		if !strings.Contains(out, "nav-pilot alpha: features that are not supported yet") {
+			t.Errorf("%v printed something other than the alpha usage:\n%s", args, out)
+		}
+	}
+	_, errOut, _ := runDecide(t, "--help")
+	if !strings.Contains(errOut, "nav-pilot alpha decide") || strings.Contains(errOut, "features that are not supported yet") {
+		t.Errorf("alpha decide --help lost its own usage:\n%s", errOut)
+	}
+}
