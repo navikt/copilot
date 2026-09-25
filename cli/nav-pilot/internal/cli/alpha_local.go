@@ -460,7 +460,7 @@ func cmdLocalStart() error {
 				return raise, err
 			}
 		}
-		if err := raiseWiredForStart(ctx, model, wired, ask); err != nil {
+		if err := raiseWiredForStart(ctx, model, &wired, ask); err != nil {
 			return err
 		}
 	}
@@ -564,7 +564,10 @@ var raiseWiredLimit = local.RaiseWiredLimit
 // a model over the cap is refused by its own server before it produces a token.
 // A cap that would starve the rest of the machine never gets this far, because
 // CheckWiredLimit refuses it.
-func raiseWiredForStart(ctx context.Context, model local.Model, wired local.WiredLimit, ask func() (bool, error)) error {
+//
+// On success wired is updated to the raised limit, so start's summary reports
+// what is set now rather than what it found.
+func raiseWiredForStart(ctx context.Context, model local.Model, wired *local.WiredLimit, ask func() (bool, error)) error {
 	refuse := fmt.Errorf(
 		"%s needs a %d GB wired-memory limit; this machine has %s.\n\n  Raise it, then start again (it resets at reboot):\n\n    %s",
 		model.Model, wired.RequiredGB, wired.Label(), bold(wired.Command))
@@ -576,9 +579,10 @@ func raiseWiredForStart(ctx context.Context, model local.Model, wired local.Wire
 		return refuse
 	}
 	fmt.Printf("%s Raising the wired-memory limit to %d GB (sudo; it resets at reboot)…\n", dim("→"), wired.RequiredGB)
-	if err := raiseWiredLimit(ctx, wired); err != nil {
+	if err := raiseWiredLimit(ctx, *wired); err != nil {
 		return err
 	}
+	wired.CurrentGB, wired.Sufficient = wired.RequiredGB, true
 	fmt.Printf("%s Wired-memory limit raised.\n", green("✓"))
 	return nil
 }

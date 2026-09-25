@@ -1438,11 +1438,14 @@ func CheckWiredLimit(m Model) (WiredLimit, error) {
 
 	// An unset iogpu.wired_limit_mb is not an error: the sysctl only exists
 	// once it has been set on some systems, and unset means the OS default.
-	if cur, err := sysctlInt(ctx, "iogpu.wired_limit_mb"); err == nil {
-		w.CurrentGB = int(cur / 1024)
+	var curMB int64
+	if cur, err := sysctlInt(ctx, "iogpu.wired_limit_mb"); err == nil && cur > 0 {
+		curMB = cur
+		// Rounded up, so a cap set below 1 GB still reads as set, not unset.
+		w.CurrentGB = int((cur + 1023) / 1024)
 	}
-	if w.CurrentGB > 0 {
-		w.Sufficient = w.CurrentGB >= w.RequiredGB
+	if curMB > 0 {
+		w.Sufficient = curMB >= int64(w.RequiredGB)*1024
 	} else {
 		// Unset used to count as zero, so a 128 GB machine fresh from a reboot
 		// was told to raise a limit already near 96 GB. The default is an

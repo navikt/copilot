@@ -1060,6 +1060,11 @@ func TestCheckWiredLimit(t *testing.T) {
 			currentMB: "20480", wantSufficient: false, wantCurrentGB: 20,
 		},
 		{
+			// A cap under 1 GB is still a cap someone set, not the default.
+			name: "a sub-gigabyte explicit cap is not unset", wiredLimitGB: 36, ramGB: 128,
+			currentMB: "512", wantSufficient: false, wantCurrentGB: 1,
+		},
+		{
 			// 36 GB on a 48 GB machine leaves 12, exactly the reserve.
 			name: "exactly at the reserve", wiredLimitGB: 36, ramGB: 48,
 			currentMB: "36864", wantSufficient: true, wantCurrentGB: 36,

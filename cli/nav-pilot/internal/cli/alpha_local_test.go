@@ -764,20 +764,23 @@ func TestStartRaisesTheWiredLimitOnlyWhenAsked(t *testing.T) {
 	wired := local.WiredLimit{RequiredGB: 36, DefaultGB: 36, MachineRAMGB: 48, Command: "sudo sysctl -w iogpu.wired_limit_mb=36864"}
 	ctx := context.Background()
 
-	err := raiseWiredForStart(ctx, model, wired, nil)
+	err := raiseWiredForStart(ctx, model, &wired, nil)
 	if err == nil || !strings.Contains(err.Error(), wired.Command) || !strings.Contains(err.Error(), "about 36 GB") {
 		t.Errorf("without a terminal = %v, want the refusal naming the command and the default", err)
 	}
 	captureStdout(func() {
-		err = raiseWiredForStart(ctx, model, wired, func() (bool, error) { return false, nil })
+		err = raiseWiredForStart(ctx, model, &wired, func() (bool, error) { return false, nil })
 	})
 	if err == nil || raised != 0 {
 		t.Errorf("after a no: err = %v, raised %d times; want a refusal and no sudo", err, raised)
 	}
 	out := captureStdout(func() {
-		err = raiseWiredForStart(ctx, model, wired, func() (bool, error) { return true, nil })
+		err = raiseWiredForStart(ctx, model, &wired, func() (bool, error) { return true, nil })
 	})
 	if err != nil || raised != 1 || !strings.Contains(out, "Raising the wired-memory limit to 36 GB") {
 		t.Errorf("after a yes: err = %v, raised %d times, out %q; want one announced raise", err, raised, out)
+	}
+	if !wired.Sufficient || wired.Label() != "36 GB" {
+		t.Errorf("after a raise the limit reads %q (sufficient %t), want the raised 36 GB", wired.Label(), wired.Sufficient)
 	}
 }
