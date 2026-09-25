@@ -59,13 +59,15 @@ exit 0`;
 const DECIDE_EVAL_CASES = String.raw`{"question":"Does the commit message explain why ...?","options":["yes","no"],"evidence":"Commit message:\nfix: bump timeout to 30s\n\nDiff:\n...","expect":"no"}
 {"question":"Does the commit message explain why ...?","options":["yes","no"],"evidence":"Commit message:\nfix: bump timeout to 30s\n\nThe batch job takes 20s on large tenants.\n\nDiff:\n...","expect":"yes"}`;
 
-const DECIDE_PR_DESCRIPTION = String.raw`gh pr view N --json title,body -q '.title + "\n\n" + .body' \
+const DECIDE_PR_DESCRIPTION = String.raw`gh pr view N --json title,body \
+    -q '"Pull request title: " + .title + "\n-----\n" + .body + "\n-----"' \
   | nav-pilot alpha decide \
     "Does this pull request description explain why the change is needed?" \
     --options yes,no --evidence -`;
 
-const DECIDE_ISSUE_LABEL = String.raw`gh issue view N --json title,body -q '.title + "\n\n" + .body' \
-  | nav-pilot alpha decide "Which label fits this issue best?" \
+const DECIDE_ISSUE_LABEL = String.raw`gh issue view N --json title,body -q '"Title: " + .title + "\n\n" + .body' \
+  | nav-pilot alpha decide \
+    "Is this GitHub issue a bug report (something does not work as intended), a feature request (new or changed functionality), or a question (something to clarify, investigate or decide)?" \
     --options bug,feature,question --evidence - --json \
   | jq -r 'select(.p[.choice] >= 0.9) | .choice'`;
 
@@ -2364,8 +2366,8 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             Oppskrifter for <code className="font-mono">alpha decide</code>
           </LinkableHeading>
           <BodyShort size="small" textColor="subtle">
-            Commit-hooken under er den eneste vi har målt. De andre eksemplene er ikke målt ennå. Alle advarer bare,
-            ingen stopper noe.
+            Commit-hooken og etikettforslaget er målt. PR-sjekken er målt og svak, og loggsorteringen er ikke målt ennå.
+            Alle advarer eller foreslår, ingen stopper noe.
           </BodyShort>
 
           <HStack gap="space-8" align="center">
@@ -2419,28 +2421,53 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             inn i en hook.
           </BodyLong>
 
+          <Label size="small">Tekst andre har skrevet</Label>
+          <BodyLong size="small" textColor="subtle">
+            PR-beskrivelser, issues og logger er skrevet av andre, og teksten kan inneholde instruksjoner til modellen
+            (prompt injection). La sjekker på slik tekst bare advare eller foreslå, aldri stoppe noe. Tallene under er
+            fra{" "}
+            <a
+              href="https://github.com/navikt/mlx-workspace/blob/main/bench/decide-sets-20260925-225356.md"
+              className="text-blue-600 hover:underline"
+            >
+              målingene 25. september
+            </a>{" "}
+            med standardmodellen.
+          </BodyLong>
+
           <HStack gap="space-8" align="center">
-            <Label size="small">Eksempler vi ikke har målt</Label>
-            <Tag size="small" variant="warning">
-              Ikke målt
+            <Label size="small">Foreslå en etikett på et issue</Label>
+            <Tag size="small" variant="success">
+              Målt
             </Tag>
           </HStack>
           <BodyLong size="small" textColor="subtle">
-            Vi måler disse nå. Til da: la dem bare advare eller foreslå. Ikke la en sjekk stoppe noe på grunnlag av
-            tekst andre har skrevet, som PR-beskrivelser, issues og logger. Teksten kan inneholde instruksjoner til
-            modellen (prompt injection).
+            Modellen valgte riktig mellom bug, feature og question på 95 av 105 issues (90 %). Når den bare fikk svare
+            ved p ≥ 0,9, svarte den på omtrent to tredjedeler av issuene og hadde rett alle 71 gangene. Behold filteret:
+            under 0,9 gir kommandoen ingen etikett, og da setter du den selv.
           </BodyLong>
-          <BodyShort size="small" textColor="subtle">
-            Forklarer PR-beskrivelsen hvorfor endringen trengs? (ikke målt)
-          </BodyShort>
-          <CodeBlock compact>{DECIDE_PR_DESCRIPTION}</CodeBlock>
-          <BodyShort size="small" textColor="subtle">
-            Foreslå en etikett på et issue, men bare når modellen er minst 90 % sikker (ikke målt):
-          </BodyShort>
           <CodeBlock compact>{DECIDE_ISSUE_LABEL}</CodeBlock>
+
+          <HStack gap="space-8" align="center">
+            <Label size="small">Forklarer PR-beskrivelsen hvorfor?</Label>
+            <Tag size="small" variant="warning">
+              Målt: svak – bruk som et hint, ikke som sperre
+            </Tag>
+          </HStack>
+          <BodyLong size="small" textColor="subtle">
+            Den flagget ingen av de 24 beskrivelsene som forklarer hvorfor, men fant bare 3 av 12 der grunnen var tatt
+            ut. Et «no» er verdt å se på. Et «yes» betyr lite.
+          </BodyLong>
+          <CodeBlock compact>{DECIDE_PR_DESCRIPTION}</CodeBlock>
+
+          <HStack gap="space-8" align="center">
+            <Label size="small">Sorter en logg før du leser den selv</Label>
+            <Tag size="small" variant="neutral">
+              Ikke målt
+            </Tag>
+          </HStack>
           <BodyShort size="small" textColor="subtle">
-            Sorter en logg før du leser den selv (ikke målt). <code className="font-mono text-xs">tail -c 30000</code>{" "}
-            holder grunnlaget under grensen på 32 KiB:
+            <code className="font-mono text-xs">tail -c 30000</code> holder grunnlaget under grensen på 32 KiB.
           </BodyShort>
           <CodeBlock compact>{DECIDE_LOG_TRIAGE}</CodeBlock>
         </VStack>
