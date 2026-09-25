@@ -364,6 +364,15 @@ func TestGuardAbortsTheTurnOnARunawayLoop(t *testing.T) {
 			wantMsg: []string{fmt.Sprintf("repeating a cycle of 2 tool calls and got the same results %d times", SameResultRepeat()), `bash({"cmd":"pwd"})`, "will not change the answer"},
 		},
 		{
+			name: "one call whose results alternate is left to the backstop",
+			messages: poll(loopGuardRepeat, "bash", `{"cmd":"ls"}`, func(i int) string {
+				return []string{"running", "queued"}[i%2]
+			}),
+			refuse:  true,
+			wantMsg: []string{"even though the results changed"},
+			notMsg:  []string{"cycle"},
+		},
+		{
 			name:     "a changing poll below the backstop",
 			messages: poll(loopGuardRepeat-1, "bash", `{"cmd":"ls"}`, changing),
 		},

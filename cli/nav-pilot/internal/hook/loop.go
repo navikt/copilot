@@ -101,7 +101,9 @@ func LoopMessage(s LoopState, threshold int) string {
 				"Repeating it will not change the answer. Stop calling it: use the result you already have, try a different approach, "+
 				"or tell the user you are stuck. (Threshold: `nav-pilot config set local_loop_guard <n>`, current %d.)",
 			s.Same, shown, threshold)
-	case reps >= SameResult(threshold):
+	// A run of one call covering the whole cycle is a poll whose results
+	// alternate: the backstop's case, not this one.
+	case reps >= SameResult(threshold) && s.N < period*reps:
 		return fmt.Sprintf(
 			"[nav-pilot loop guard] You are repeating a cycle of %d tool calls and got the same results every time, %d times in a row. This call is part of it: %s. "+
 				"Repeating it will not change the answer. Stop calling it: use the result you already have, try a different approach, "+
