@@ -71,8 +71,8 @@ skal ikke brukes til å velge modell. Nye kjøringer på det reparerte oppsettet
 Vil du prøve den likevel:
 
 ```bash
-nav-pilot models
-nav-pilot config set local_model mlx-community/Qwen3.8-27B-4bit
+nav-pilot alpha local models
+nav-pilot alpha local use qwen3.8-27b-optiq-4bit
 nav-pilot alpha local init
 ```
 
@@ -117,7 +117,7 @@ Qwen 3.8-profilene har foreløpig ingen oppgaveklasse godkjent for delegering. V
 
 Standardmodellen kjører nå med temperatur 0,6 og top_p 0,95, de samme verdiene vi målte den med. For Qwen 3.8 setter manifestet ingen temperatur ennå, fordi den målingen ikke er ferdig.
 
-Begge Qwen 3.8-modellene kan velges med `nav-pilot config set local_model`. Ingen av dem blir standard:
+Begge Qwen 3.8-modellene kan velges med `nav-pilot alpha local use`. Ingen av dem blir standard:
 
 - **Qwen3.8-27B 4-bit** har 64k kontekst og svar på inntil 8k tokens. Den er mye tregere enn standard og langt mindre forutsigbar: to kjøringer av de samme oppgavene ga median 88 og 906 sekunder.
 - **Qwen3.8-27B 8-bit** har 48k kontekst og svar på inntil 4k tokens. Den leser prompten i steg på 512 tokens for å bruke mindre minne på lange prompter. Før gikk den tom for minne rundt 51k tokens. Den løste 31 av 40 oppgaver mot standardens 28, men bruker omtrent ti ganger så lang tid.

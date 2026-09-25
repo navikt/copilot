@@ -225,7 +225,7 @@ Velg terskel ut fra `--eval` på ditt eget spørsmål. I de første målingene h
 - Exit-koden er 0 når sannsynligheten for `--expect` er minst terskelen, 1 når den er lavere og 2 når noe feilet. Behandle 2 for seg, ellers stopper skriptet ditt hver gang serveren ikke kjører.
 - Det er en alfa. Flagg og format kan endre seg.
 
-Hjelpeteksten ligger i `nav-pilot alpha decide --help`, og dokumentasjonen på [nav-pilot-siden](/nav-pilot/docs#lokal-modell).
+Hjelpeteksten ligger i `nav-pilot alpha decide --help`, og dokumentasjonen under [Typede avgjørelser](/nav-pilot/docs#lokal-decide) på nav-pilot-siden.
 
 **Kilder:**
 
