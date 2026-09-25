@@ -144,7 +144,7 @@ Bruk eksempler fra ditt eget repo, også de vanskelige. Ta med minst like mange 
 
 Dette virker i dag, fordi alt som kan kjøre en shell-kommando kan kalle `decide`:
 
-- **pre-commit og lefthook:** kall skriptet over fra `commit-msg`- eller `pre-commit`-steget.
+- **pre-commit og lefthook:** kall hooken over fra `commit-msg`-steget. Den trenger meldingsfila i `$1`, og den finnes ikke ennå i `pre-commit`-steget.
 - **Lokale sjekker:** en Makefile-target eller mise-oppgave som kjøres før du pusher. I CI-miljøer finnes det ingen lokal modell, så dette hører hjemme på utviklermaskinen.
 - **Oppgaver i editoren:** en task i VS Code eller en ekstern kommando i IntelliJ som sender den åpne fila eller utvalget som `--evidence -`.
 - **Copilot CLI-hooks:** nav-pilot bruker allerede `postToolUse` til loop-guard og maskering, men de to hookene bruker regler, ikke modellen. En egen `postToolUse`-hook får tool-resultatet og kan sende det som grunnlag til `decide`. Hooken må feile åpent og holde seg innenfor tidsgrensen for hooks. Under en økt på den lokale modellen venter `decide` til øktens forespørsel er ferdig, men økten mister ikke prompt-cachen sin (se målingene under).
@@ -185,7 +185,7 @@ Deretter kjørte vi 974 tilfeller mot tre modeller for å finne grensene:
 
 ### Råd
 
-- Bruk `--threshold 0.9` eller høyere. Mellom 0,7 og 0,9 hadde standardmodellen rett i 78 % av tilfellene, over 0,99 i 99 %.
+- Bruk `--threshold 0.9` eller høyere. Mellom 0,7 og 0,9 hadde standardmodellen rett i 78 % av tilfellene, med p ≥ 0,99 i 99 %.
 - Kjør `--eval` på ditt eget spørsmål før du bygger det inn i en hook.
 - Filtrer tool-resultater og annen tekst du ikke stoler på før `decide` leser den, eller la være å spørre. Tekst i grunnlaget kan styre svaret.
 - Kommer grunnlaget utenfra, bruk standardmodellen. Stoler du på grunnlaget og spørsmålet er vanskelig, bruk Qwen3.8:
@@ -193,7 +193,7 @@ Deretter kjørte vi 974 tilfeller mot tre modeller for å finne grensene:
 ```bash
 nav-pilot config set local_model mlx-community/Qwen3.8-27B-OptiQ-4bit
 nav-pilot alpha local init
-nav-pilot alpha local start
+nav-pilot alpha local restart
 ```
 
 - Du kan bruke `decide` mens en agentøkt kjører mot den lokale serveren. Kallet venter på tur, men økten beholder cachen sin.
