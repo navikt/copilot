@@ -64,7 +64,7 @@ Hooken kjører hver gang du committer. Den sender meldingen og diffen til den lo
 
 ```bash
 brew install navikt/tap/nav-pilot   # første gang
-nav-pilot upgrade                   # har du den fra før
+brew upgrade navikt/tap/nav-pilot   # har du den fra før
 ```
 
 `decide` kom i 2026.09.24. `nav-pilot version` viser hvilken versjon du har.
@@ -168,10 +168,11 @@ Du får treffsikkerhet, en forvekslingsmatrise, snitt-sannsynlighet når modelle
 ### Skru av eller fjern
 
 ```bash
-chmod -x .git/hooks/commit-msg   # skru av, git hopper over hooken
-rm .git/hooks/commit-msg         # fjern den
-nav-pilot alpha local stop       # frigjør minnet
-nav-pilot alpha local purge      # slett vekter og miljø, viser hva og hvor mye først
+chmod -x .git/hooks/commit-msg     # skru av, git hopper over hooken
+rm .git/hooks/commit-msg           # fjern den
+nav-pilot alpha local stop         # frigjør minnet
+nav-pilot alpha local purge        # viser hva som slettes og hvor mye
+nav-pilot alpha local purge --yes  # sletter vekter og miljø
 ```
 
 ## Hva målingen viser
