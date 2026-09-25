@@ -94,27 +94,42 @@ func LoopMessage(s LoopState, threshold int) string {
 		shown = shown[:maxCall] + "…"
 	}
 	period, reps := local.RepeatedCycle(s.Steps)
-	switch {
-	case s.Same >= SameResult(threshold):
+	switch LoopRule(s, threshold) {
+	case "same_result":
 		return fmt.Sprintf(
 			"[nav-pilot loop guard] You have made this exact tool call %d times in a row and got the same result every time: %s. "+
 				"Repeating it will not change the answer. Stop calling it: use the result you already have, try a different approach, "+
 				"or tell the user you are stuck. (Threshold: `nav-pilot config set local_loop_guard <n>`, current %d.)",
 			s.Same, shown, threshold)
-	// A run of one call covering the whole cycle is a poll whose results
-	// alternate: the backstop's case, not this one.
-	case reps >= SameResult(threshold) && s.N < period*reps:
+	case "cycle":
 		return fmt.Sprintf(
 			"[nav-pilot loop guard] You are repeating a cycle of %d tool calls and got the same results every time, %d times in a row. This call is part of it: %s. "+
 				"Repeating it will not change the answer. Stop calling it: use the result you already have, try a different approach, "+
 				"or tell the user you are stuck. (Threshold: `nav-pilot config set local_loop_guard <n>`, current %d.)",
 			period, reps, shown, threshold)
-	case s.N >= threshold:
+	case "backstop":
 		return fmt.Sprintf(
 			"[nav-pilot loop guard] You have made this exact tool call %d times in a row: %s. The results changed, but that is "+
 				"waiting, not working. If you are waiting on something slow, use a command that blocks until it is done; otherwise "+
 				"try something else or tell the user. (Threshold: `nav-pilot config set local_loop_guard <n>`, current %d.)",
 			s.N, shown, threshold)
+	}
+	return ""
+}
+
+// LoopRule is the rule s trips, as telemetry names it: same_result, cycle,
+// backstop, or "" for none.
+func LoopRule(s LoopState, threshold int) string {
+	period, reps := local.RepeatedCycle(s.Steps)
+	switch {
+	case s.Same >= SameResult(threshold):
+		return "same_result"
+	// A run of one call covering the whole cycle is a poll whose results
+	// alternate: the backstop's case, not this one.
+	case reps >= SameResult(threshold) && s.N < period*reps:
+		return "cycle"
+	case s.N >= threshold:
+		return "backstop"
 	}
 	return ""
 }
@@ -145,10 +160,12 @@ var unsafeID = regexp.MustCompile(`[^A-Za-z0-9_-]`)
 // can race and lose a count, which errs toward not stopping; the guard treats
 // parallel calls as one step and this hook sees them one by one, so a loop of
 // parallel calls is left to the per-call view. Add flock if it matters.
-func LoopGuard(root string, p Payload, threshold int) (string, error) {
+//
+// rule is the rule that tripped, "" when none did.
+func LoopGuard(root string, p Payload, threshold int) (out, rule string, err error) {
 	id := unsafeID.ReplaceAllString(p.SessionID, "")
 	if id == "" || !p.HasResult || p.ToolName == "" {
-		return NoChange, nil
+		return NoChange, "", nil
 	}
 	dir := filepath.Join(root, id)
 	path := filepath.Join(dir, "nav-pilot-loop-guard.json")
@@ -167,15 +184,15 @@ func LoopGuard(root string, p Payload, threshold int) (string, error) {
 	// A count that was not saved is not one to act on: the next call would
 	// start from the old state again.
 	if err := saveState(dir, path, st); err != nil {
-		return NoChange, err
+		return NoChange, "", err
 	}
 
 	st.Call = sig
 	msg := LoopMessage(st, threshold)
 	if msg == "" {
-		return NoChange, nil
+		return NoChange, "", nil
 	}
-	return ModifiedResult(p.ResultType, msg+"\n\nThe tool result, unchanged:\n"+p.Result), nil
+	return ModifiedResult(p.ResultType, msg+"\n\nThe tool result, unchanged:\n"+p.Result), LoopRule(st, threshold), nil
 }
 
 func saveState(dir, path string, st LoopState) error {

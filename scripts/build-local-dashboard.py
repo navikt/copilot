@@ -99,6 +99,36 @@ def panels():
         (22, "Modeller i bruk", "piechart",
          "Skal være én. Flere betyr at noen kjører noe vi ikke har målt.",
          [(f"sum by (model) (sum_over_time(nav_pilot_local_dispatches_count{SEL}[$__range]))", "{{model}}")]),
+
+        (30, "decide-kall per utfall", "timeseries",
+         "decided og below_threshold er svar; no_server betyr at ingen lokal server kjørte, og "
+         "timeout at den var opptatt eller treg. Én kjøring av `alpha decide` er ett punkt. "
+         "--eval teller ikke her, bare som kommandoen `alpha decide eval`.",
+         [(f"sum by (result) (sum_over_time(nav_pilot_decide_result_total{SEL}[$__interval]))", "{{result}}")]),
+        (31, "Hvem kaller decide", "piechart",
+         "hook: git kjørte kallet (GIT_INDEX_FILE/GIT_EXEC_PATH satt). tty: en person i terminalen. "
+         "script: alt annet. Er dette mest tty, prøver folk den ut; er det hook, bruker de den.",
+         [(f"sum by (caller) (sum_over_time(nav_pilot_decide_result_total{SEL}[$__range]))", "{{caller}}")]),
+        (32, "decide-latens, p95 per evidensstørrelse", "timeseries",
+         "Bare besvarte kall. Venting på serverlåsen er med: en agentøkt på samme server "
+         "forsinker decide, og det er den ventetiden en git-hook merker.",
+         [(f'histogram_quantile(0.95, sum by (evidence_size, le) (sum_over_time(nav_pilot_decide_latency_ms_bucket{SEL}[$__range])))', "p95 {{evidence_size}}"),
+          (f'histogram_quantile(0.5, sum by (le) (sum_over_time(nav_pilot_decide_latency_ms_bucket{SEL}[$__range])))', "p50 alle")]),
+        (33, "Andel valg med p under 0,8, per modell", "timeseries",
+         "Hvor ofte modellen er usikker på sitt eget valg. Stiger den for en modell, er "
+         "spørsmålene folk stiller den vanskeligere enn det den ble målt på.",
+         [(f'100 * sum by (model) (sum_over_time(nav_pilot_decide_p_choice_bucket{{version=~"$version", le="0.8"}}[$__range]))'
+           f' / clamp_min(sum by (model) (sum_over_time(nav_pilot_decide_p_choice_count{SEL}[$__range])), 1)', "{{model}}")]),
+
+        (40, "Løkkevakten slo til, per regel", "timeseries",
+         "session=local er vakten foran den lokale modellen, som avslutter turen. session=cloud "
+         "er postToolUse-hooken i Copilot-økter mot skymodeller, som bare kan skrive om "
+         "resultatet. Begge telles når nav-pilot-økten avslutter, ikke når de skjer.",
+         [(f"sum by (rule, session) (sum_over_time(nav_pilot_hook_loop_guard_total{SEL}[$__interval]))", "{{session}} {{rule}}")]),
+        (41, "Maskeringer i verktøyresultater", "timeseries",
+         "Antall, aldri innhold. secret og fnr er maskerte verdier; injection_note er resultater "
+         "som fikk en merknad om at teksten ser ut som instruksjoner.",
+         [(f"sum by (kind) (sum_over_time(nav_pilot_hook_redact_total{SEL}[$__interval]))", "{{kind}}")]),
     ]
 
 
@@ -106,6 +136,8 @@ ROWS = [
     ("Adopsjon", [1, 2, 3, 4]),
     ("Dispatch — brukes workeren?", [10, 11, 12]),
     ("Lokal server", [20, 21, 22]),
+    ("alpha decide", [30, 31, 32, 33]),
+    ("Hooks", [40, 41]),
 ]
 
 

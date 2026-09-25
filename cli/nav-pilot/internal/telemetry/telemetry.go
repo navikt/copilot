@@ -55,6 +55,9 @@ type Recorder interface {
 	RecordRtkSetup(client, choice, result string)
 	RecordLocalSession(client, model string, dispatches int64, sawTraffic bool)
 	RecordLocalReadySeconds(model, outcome string, seconds int64)
+	RecordDecide(e DecideEvent)
+	RecordHookLoopGuard(rule, session string)
+	RecordHookRedact(kind string, count int64)
 	Shutdown(ctx context.Context) error
 }
 
@@ -76,6 +79,9 @@ func (NoopRecorder) RecordConfig(string, string, string, string, string, string,
 func (NoopRecorder) RecordClientAvailable(string, bool)    {}
 func (NoopRecorder) RecordLaunchError(string, string)      {}
 func (NoopRecorder) RecordRtkSetup(string, string, string) {}
+func (NoopRecorder) RecordDecide(DecideEvent)              {}
+func (NoopRecorder) RecordHookLoopGuard(string, string)    {}
+func (NoopRecorder) RecordHookRedact(string, int64)        {}
 func (NoopRecorder) Shutdown(context.Context) error        { return nil }
 
 type otelTelemetry struct {
@@ -98,6 +104,11 @@ type otelTelemetry struct {
 	rtkSetupTotal      metric.Int64Counter
 	localDispatches    metric.Int64Histogram
 	localReadySeconds  metric.Int64Histogram
+	decideResultTotal  metric.Int64Counter
+	decideLatencyMS    metric.Int64Histogram
+	decidePChoice      metric.Float64Histogram
+	hookLoopGuardTotal metric.Int64Counter
+	hookRedactTotal    metric.Int64Counter
 
 	version          string
 	device           string
@@ -243,6 +254,32 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create local ready histogram: %w", err)
 	}
+	decideResultTotal, err := meter.Int64Counter("nav_pilot_decide_result_total",
+		metric.WithDescription("alpha decide calls by outcome. Attributes are enums and the manifest model id; never the question, options or evidence."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create decide result counter: %w", err)
+	}
+	decideLatencyMS, err := meter.Int64Histogram("nav_pilot_decide_latency_ms",
+		metric.WithDescription("Milliseconds an answered alpha decide call took, lock wait included."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create decide latency histogram: %w", err)
+	}
+	decidePChoice, err := meter.Float64Histogram("nav_pilot_decide_p_choice",
+		metric.WithDescription("Probability the model gave the option it chose."),
+		metric.WithExplicitBucketBoundaries(decidePBuckets...))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create decide p histogram: %w", err)
+	}
+	hookLoopGuardTotal, err := meter.Int64Counter("nav_pilot_hook_loop_guard_total",
+		metric.WithDescription("Loop guard trips by rule, in local sessions (the guard proxy) and cloud sessions (the postToolUse hook)."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create hook loop guard counter: %w", err)
+	}
+	hookRedactTotal, err := meter.Int64Counter("nav_pilot_hook_redact_total",
+		metric.WithDescription("Redactions the postToolUse hook made, by kind. Counts only."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create hook redact counter: %w", err)
+	}
 
 	tel := &otelTelemetry{
 		provider:           provider,
@@ -263,6 +300,11 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 		rtkSetupTotal:      rtkSetupTotal,
 		localDispatches:    localDispatches,
 		localReadySeconds:  localReadySeconds,
+		decideResultTotal:  decideResultTotal,
+		decideLatencyMS:    decideLatencyMS,
+		decidePChoice:      decidePChoice,
+		hookLoopGuardTotal: hookLoopGuardTotal,
+		hookRedactTotal:    hookRedactTotal,
 		version:            version,
 		device:             device,
 		executionContext:   execCtx,
@@ -597,6 +639,132 @@ func (t *otelTelemetry) RecordRtkSetup(client, choice, result string) {
 	))
 }
 
+// DecideEvent is one `alpha decide` call as raw facts. The recorder turns them
+// into bounded attributes; nothing of the question, the options or the evidence
+// is in here, only their sizes. Model must already be a manifest model id,
+// "custom" or empty: the caller sanitises it against the manifest.
+type DecideEvent struct {
+	Result        string // decided, below_threshold, no_server, timeout, error
+	Model         string
+	Evidence      bool
+	EvidenceBytes int
+	Options       int
+	ThresholdUsed bool
+	Caller        string // tty, hook, script
+	Answered      bool   // the model gave probabilities: MS and PChoice are set
+	MS            int64
+	PChoice       float64
+}
+
+var decidePBuckets = []float64{0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99}
+
+// oneOf returns v if it is one of allowed, otherwise "unknown". Every attribute
+// the decide and hook instruments carry, except the model, goes through it or
+// a bucket function, so no caller can put free text on a series by mistake.
+func oneOf(v string, allowed ...string) string {
+	for _, a := range allowed {
+		if v == a {
+			return v
+		}
+	}
+	return "unknown"
+}
+
+func yesNo(b bool) string {
+	if b {
+		return "yes"
+	}
+	return "no"
+}
+
+func optionsBucket(n int) string {
+	switch {
+	case n <= 2:
+		return "2"
+	case n <= 4:
+		return "3-4"
+	case n <= 11:
+		return "5-11"
+	default:
+		return "12+"
+	}
+}
+
+func evidenceSizeBucket(has bool, n int) string {
+	switch {
+	case !has:
+		return "none"
+	case n < 1<<10:
+		return "<1k"
+	case n < 8<<10:
+		return "1-8k"
+	case n <= 32<<10:
+		return "8-32k"
+	default:
+		return "32k+"
+	}
+}
+
+// RecordDecide emits the outcome of one decide call, and for an answered call
+// its latency and the probability of the chosen option.
+func (t *otelTelemetry) RecordDecide(e DecideEvent) {
+	ctx := context.Background()
+	model := orUnset(e.Model)
+	t.decideResultTotal.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("result", oneOf(e.Result, "decided", "below_threshold", "no_server", "timeout", "error")),
+		attribute.String("model", model),
+		attribute.String("evidence", yesNo(e.Evidence)),
+		attribute.String("options", optionsBucket(e.Options)),
+		attribute.String("threshold_used", yesNo(e.ThresholdUsed)),
+		attribute.String("caller", oneOf(e.Caller, "tty", "hook", "script")),
+		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
+		attribute.String("execution_context", t.executionContext),
+	))
+	if !e.Answered {
+		return
+	}
+	t.decideLatencyMS.Record(ctx, maxInt64(0, e.MS), metric.WithAttributes(
+		attribute.String("model", model),
+		attribute.String("evidence_size", evidenceSizeBucket(e.Evidence, e.EvidenceBytes)),
+		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
+		attribute.String("execution_context", t.executionContext),
+	))
+	t.decidePChoice.Record(ctx, e.PChoice, metric.WithAttributes(
+		attribute.String("model", model),
+		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+// RecordHookLoopGuard counts one loop guard trip. session is local (the guard
+// proxy in front of the local model) or cloud (the postToolUse hook).
+func (t *otelTelemetry) RecordHookLoopGuard(rule, session string) {
+	t.hookLoopGuardTotal.Add(context.Background(), 1, metric.WithAttributes(
+		attribute.String("rule", oneOf(rule, "same_result", "cycle", "backstop")),
+		attribute.String("session", oneOf(session, "local", "cloud")),
+		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+// RecordHookRedact counts redactions of one kind: secret, fnr or
+// injection_note.
+func (t *otelTelemetry) RecordHookRedact(kind string, count int64) {
+	if count <= 0 {
+		return
+	}
+	t.hookRedactTotal.Add(context.Background(), count, metric.WithAttributes(
+		attribute.String("kind", oneOf(kind, "secret", "fnr", "injection_note")),
+		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
 func normalizeTelemetryDimension(v, fallback string) string {
 	v = strings.TrimSpace(v)
 	if v == "" {
@@ -609,6 +777,11 @@ func normalizeTelemetryDimension(v, fallback string) string {
 	// invisible while we were running an alpha.
 	case "install", "sync", "rollback", "upgrade", "list", "startup", "launch", "doctor",
 		"alpha", "update", "auto_sync",
+		// alpha split per subcommand (alphaCommand in internal/cli), so decide
+		// and each local command are their own series instead of one "alpha".
+		"alpha decide", "alpha decide eval",
+		"alpha local init", "alpha local start", "alpha local stop", "alpha local restart", "alpha local status",
+		"alpha local on", "alpha local off", "alpha local ask", "alpha local purge",
 		"init", "export", "uninstall", "config", "validate", "env", "feedback", "models", "ignore", "add",
 		// A dry-run sync builds mode as "<mode>_dry_run"; unlisted, both spellings
 		// fell back to "non_interactive", so the dry-run distinction the code

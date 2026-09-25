@@ -12,6 +12,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
+	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
 type fakeTok struct {
@@ -279,5 +282,98 @@ func TestEvalLatencyPercentiles(t *testing.T) {
 	r := evalMetrics(cases, ds)
 	if r.P50MS != 100 || r.P95MS != 190 {
 		t.Errorf("p50/p95 = %d/%d, want 100/190", r.P50MS, r.P95MS)
+	}
+}
+
+// decideTelemetry keeps what the decide path records.
+type decideTelemetry struct {
+	noopTelemetry
+	events   []telemetrypkg.DecideEvent
+	commands []string
+}
+
+func (d *decideTelemetry) RecordDecide(e telemetrypkg.DecideEvent) { d.events = append(d.events, e) }
+func (d *decideTelemetry) RecordCommand(command, _, _, _, _ string, _ time.Duration) {
+	d.commands = append(d.commands, command)
+}
+
+func watchDecideTelemetry(t *testing.T) *decideTelemetry {
+	t.Helper()
+	rec := &decideTelemetry{}
+	orig := telemetry
+	telemetry = rec
+	t.Cleanup(func() { telemetry = orig })
+	return rec
+}
+
+func TestDecideTelemetry(t *testing.T) {
+	fakeDecideServer(t, yesMostly) // p(yes) = 0.875
+	t.Setenv("GIT_INDEX_FILE", "")
+	t.Setenv("GIT_EXEC_PATH", "")
+	rec := watchDecideTelemetry(t)
+	evidence := filepath.Join(t.TempDir(), "msg.txt")
+	if err := os.WriteFile(evidence, []byte("feat: x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	runDecide(t, "Is it?", "--options", "yes,no,maybe", "--evidence", evidence, "--threshold", "0.9", "--expect", "yes")
+	runDecide(t, "Is it?", "--options", "yes") // a usage error is not a decide call
+	if len(rec.events) != 1 {
+		t.Fatalf("recorded %d decide events, want 1: %+v", len(rec.events), rec.events)
+	}
+	got := rec.events[0]
+	want := telemetrypkg.DecideEvent{
+		Result: "below_threshold", Model: "custom", Evidence: true, EvidenceBytes: 7, Options: 3,
+		ThresholdUsed: true, Caller: "script", Answered: true, MS: got.MS, PChoice: 0.875,
+	}
+	if got != want {
+		t.Errorf("event %+v, want %+v", got, want)
+	}
+	if strings.Join(rec.commands, ",") != "alpha decide,alpha decide" {
+		t.Errorf("commands %v, want alpha decide twice", rec.commands)
+	}
+
+	t.Setenv("GIT_INDEX_FILE", ".git/index")
+	runDecide(t, "Is it?", "--options", "yes,no", "--evidence", evidence)
+	if e := rec.events[1]; e.Result != "decided" || e.Caller != "hook" {
+		t.Errorf("under a git hook: %+v", e)
+	}
+}
+
+func TestDecideTelemetryNoServer(t *testing.T) {
+	localTestHome(t)
+	rec := watchDecideTelemetry(t)
+	runDecide(t, "Is it?", "--options", "yes,no")
+	if len(rec.events) != 1 || rec.events[0].Result != "no_server" || rec.events[0].Answered {
+		t.Errorf("events %+v, want one unanswered no_server", rec.events)
+	}
+}
+
+func TestDecideModelLabel(t *testing.T) {
+	for _, m := range local.Active().Models {
+		if got := decideModelLabel(m.Model); got != m.Model {
+			t.Errorf("manifest model %q labelled %q", m.Model, got)
+		}
+	}
+	if got := decideModelLabel("/Users/someone/models/private-finetune"); got != "custom" {
+		t.Errorf("a model id off the manifest is labelled %q, want custom", got)
+	}
+}
+
+func TestAlphaCommand(t *testing.T) {
+	for args, want := range map[string]string{
+		"":                               "alpha",
+		"help":                           "alpha",
+		"decide Is it? --options a,b":    "alpha decide",
+		"decide --eval cases.jsonl":      "alpha decide eval",
+		"decide --eval=cases.jsonl":      "alpha decide eval",
+		"local status":                   "alpha local status",
+		"local ask -p hello":             "alpha local ask",
+		"local rm-rf-everything":         "alpha",
+		"something-else entirely secret": "alpha",
+	} {
+		if got := alphaCommand(strings.Fields(args)); got != want {
+			t.Errorf("alphaCommand(%q) = %q, want %q", args, got, want)
+		}
 	}
 }

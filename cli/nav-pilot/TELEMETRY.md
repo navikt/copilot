@@ -23,10 +23,30 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_staleness_check_total` | Counter | Antall ferskhetssjekker per resultat | `component=collection`, `scope=user`, `result=stale` |
 | `nav_pilot_up_to_date` | Gauge | Om komponent er tilstrekkelig oppdatert (1/0) | `component=cli`, `scope=none` |
 | `nav_pilot_version_skew_days` | Histogram | Dager mellom installert og siste tilgjengelig versjon | `component=collection`, `scope=repo` |
+| `nav_pilot_decide_result_total` | Counter | Utfall av `alpha decide` | `result=decided\|below_threshold\|no_server\|timeout\|error`, `model`, `evidence=yes\|no`, `options=2\|3-4\|5-11\|12+`, `threshold_used=yes\|no`, `caller=tty\|hook\|script` |
+| `nav_pilot_decide_latency_ms` | Histogram | Tid for et besvart `alpha decide`-kall, inkludert venting på serveren | `model`, `evidence_size=none\|<1k\|1-8k\|8-32k\|32k+` |
+| `nav_pilot_decide_p_choice` | Histogram | Sannsynligheten modellen ga alternativet den valgte | `model` |
+| `nav_pilot_hook_loop_guard_total` | Counter | Løkkevakten slo til | `rule=same_result\|cycle\|backstop`, `session=local\|cloud` |
+| `nav_pilot_hook_redact_total` | Counter | Antall maskeringer i verktøyresultater | `kind=secret\|fnr\|injection_note` |
+
+**Merk om `alpha decide` og hookene:**
+- Spørsmålet, alternativene, evidensen og valget sendes aldri, bare antall og
+  størrelse i bøtter. `model` er en modell-id fra lokal-manifestet, `custom` for
+  alt annet, eller `unset`.
+- `caller=hook` betyr at git kjørte kallet (`GIT_INDEX_FILE` eller
+  `GIT_EXEC_PATH` er satt); `tty` at stdin og stdout er en terminal; ellers `script`.
+- `--eval` teller som kommandoen `alpha decide eval` og gir ingen `decide_*`-punkter.
+- Hookene sender ingenting selv: en eksport fra en hook-prosess er en ny
+  TLS-forbindelse, målt til ca. 80 ms varm og 1,7 s kald, på et kall Copilot
+  venter på. De legger en linje i `~/.copilot/session-state/<økt>/nav-pilot-hook-events`,
+  og nav-pilot sender dem når en Copilot-økt startet med nav-pilot avslutter.
+  `session=local` kommer fra løkkevakten foran den lokale modellen, og telles også
+  ved avslutning.
 
 `command`-dimensjonen inkluderer også livssyklus-eventer:
 - `startup` når brukeren kjører `nav-pilot` uten args (interaktiv flyt)
 - `launch` når nav-pilot forsøker å starte `cplt`/`copilot`
+- `alpha decide`, `alpha decide eval` og `alpha local <kommando>` (før: bare `alpha` for alle)
 
 **Merk om `nav_pilot_install_present`:**
 - `collection` er en bøtte, ikke navnet på en samling: `pakke` (scopet sporer en

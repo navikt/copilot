@@ -102,6 +102,11 @@ func SameResultRepeat() int { return max(2, loopGuardRepeat/2) }
 // memory. A body over the cap is forwarded unread rather than refused.
 const maxRequestBody = 32 << 20
 
+// OnLoopGuard is called with the rule (same_result, cycle, backstop) each time
+// the guard refuses a request. nav-pilot points it at telemetry; this package
+// does not import it.
+var OnLoopGuard = func(rule string) {}
+
 // ServerURL is where the local model server listens. The address is fixed for
 // the same reason [GuardPort] is: it is written into a client configuration
 // file by one command and read by another process entirely.
@@ -529,13 +534,16 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 		call, n, same, cycle, reps := repeatedToolCall(body)
 		switch {
 		case same >= SameResultRepeat():
+			OnLoopGuard("same_result")
 			writeLoopGuardError(w, call, same, 1, true)
 			return
 		// One call with alternating results is a poll: the backstop's case.
 		case reps >= SameResultRepeat() && slices.ContainsFunc(cycle, func(c string) bool { return c != cycle[0] }):
+			OnLoopGuard("cycle")
 			writeLoopGuardError(w, strings.Join(cycle, " → "), reps, len(cycle), true)
 			return
 		case n >= loopGuardRepeat:
+			OnLoopGuard("backstop")
 			writeLoopGuardError(w, call, n, 1, false)
 			return
 		}
