@@ -214,6 +214,19 @@ func TestLoopRuleCatchesShortCycles(t *testing.T) {
 	}
 }
 
+// One call whose results alternate is a poll that changed: at the threshold
+// the backstop names it, not the cycle rule.
+func TestLoopRuleLeavesAlternatingPollsToTheBackstop(t *testing.T) {
+	var st LoopState
+	for i := range 8 {
+		st = st.Step("poll", "success", []string{"running", "queued"}[i%2])
+	}
+	msg := LoopMessage(st, 8)
+	if !strings.Contains(msg, "The results changed") || strings.Contains(msg, "cycle") {
+		t.Errorf("wrong rule named: %q", msg)
+	}
+}
+
 // TestLoopGuardReplaysTheGPT5MiniEvasion replays the calls gpt-5-mini made in
 // Copilot session 3d20bfa3 (navikt/mlx-workspace
 // bench/loop-hook-20260925-002708.json): 23 identical reads of a file that

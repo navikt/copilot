@@ -531,7 +531,8 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 		case same >= SameResultRepeat():
 			writeLoopGuardError(w, call, same, 1, true)
 			return
-		case reps >= SameResultRepeat():
+		// One call with alternating results is a poll: the backstop's case.
+		case reps >= SameResultRepeat() && slices.ContainsFunc(cycle, func(c string) bool { return c != cycle[0] }):
 			writeLoopGuardError(w, strings.Join(cycle, " → "), reps, len(cycle), true)
 			return
 		case n >= loopGuardRepeat:
