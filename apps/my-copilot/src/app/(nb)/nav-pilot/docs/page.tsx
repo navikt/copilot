@@ -60,12 +60,13 @@ const DECIDE_EVAL_CASES = String.raw`{"question":"Does the commit message explai
 {"question":"Does the commit message explain why ...?","options":["yes","no"],"evidence":"Commit message:\nfix: bump timeout to 30s\n\nThe batch job takes 20s on large tenants.\n\nDiff:\n...","expect":"yes"}`;
 
 const DECIDE_PR_DESCRIPTION = String.raw`gh pr view N --json title,body \
-    -q '"Pull request title: " + .title + "\n-----\n" + .body + "\n-----"' \
+    -q '"Pull request title: " + .title + "\n-----\n"
+        + (if (.body // "") == "" then "(empty)" else .body end) + "\n-----"' \
   | nav-pilot alpha decide \
     "Does this pull request description explain why the change is needed?" \
     --options yes,no --evidence -`;
 
-const DECIDE_ISSUE_LABEL = String.raw`gh issue view N --json title,body -q '"Title: " + .title + "\n\n" + .body' \
+const DECIDE_ISSUE_LABEL = String.raw`gh issue view N --json title,body -q '"Title: " + .title + "\n\n" + (.body // "")' \
   | nav-pilot alpha decide \
     "Is this GitHub issue a bug report (something does not work as intended), a feature request (new or changed functionality), or a question (something to clarify, investigate or decide)?" \
     --options bug,feature,question --evidence - --json \
