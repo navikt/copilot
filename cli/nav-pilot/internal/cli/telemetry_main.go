@@ -108,7 +108,7 @@ func alphaCommand(args []string) string {
 	case "local":
 		if len(args) > 1 {
 			switch args[1] {
-			case "init", "start", "stop", "restart", "status", "on", "off", "ask", "purge":
+			case "init", "start", "stop", "restart", "status", "models", "use", "on", "off", "ask", "purge":
 				return "alpha local " + args[1]
 			}
 		}

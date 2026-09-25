@@ -780,7 +780,7 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		// alpha split per subcommand (alphaCommand in internal/cli), so decide
 		// and each local command are their own series instead of one "alpha".
 		"alpha decide", "alpha decide eval",
-		"alpha local init", "alpha local start", "alpha local stop", "alpha local restart", "alpha local status",
+		"alpha local init", "alpha local start", "alpha local stop", "alpha local restart", "alpha local status", "alpha local models", "alpha local use",
 		"alpha local on", "alpha local off", "alpha local ask", "alpha local purge",
 		"init", "export", "uninstall", "config", "validate", "env", "feedback", "models", "ignore", "add",
 		// A dry-run sync builds mode as "<mode>_dry_run"; unlisted, both spellings

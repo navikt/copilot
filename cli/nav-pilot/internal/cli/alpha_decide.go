@@ -44,7 +44,9 @@ so a warm answer takes well under a second. Nothing leaves this machine.
   --timeout     Give up after this long, waiting included (default 10s).
   --eval        Run a JSONL file of cases, one per line:
                 {"question":"...","options":["a","b"],"evidence":"...","expect":"a"}
-                and report accuracy, a confusion matrix, calibration and latency.
+                and report accuracy, a confusion matrix, the mean p of right and
+                wrong answers, and latency. Nothing is saved per case, and the
+                first case that fails stops the run.
                 Do this before wiring a question into a hook: how well the model
                 answers a given question is unknown until you have measured it.
 
@@ -147,7 +149,7 @@ func cmdDecide(args []string) (err error) {
 
 	question := strings.TrimSpace(strings.Join(positional, " "))
 	if question == "" {
-		return decideFail(fmt.Errorf("no question. Try: nav-pilot alpha decide \"Is this a conventional commit?\" --options yes,no --evidence msg.txt"))
+		return decideFail(fmt.Errorf("no question. Try: nav-pilot alpha decide \"Does the commit message explain why the change was made?\" --options yes,no --evidence msg.txt"))
 	}
 	if err := validateOptions(options); err != nil {
 		return decideFail(err)

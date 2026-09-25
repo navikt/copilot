@@ -118,6 +118,7 @@ const DOC_SECTIONS: TocItem[] = [
     children: [
       { id: "lokal-kom-i-gang", label: "Kom i gang" },
       { id: "lokal-hva-den-klarer", label: "Hva den klarer" },
+      { id: "lokal-decide", label: "Typede avgjørelser" },
       { id: "lokal-feilsoking", label: "Når noe henger" },
     ],
   },
@@ -246,6 +247,14 @@ const CLI_COMMANDS = [
   { command: "nav-pilot config validate", description: "Valider konfigurasjonsfilen" },
   { command: "nav-pilot export opencode --dry-run", description: "Forhåndsvis hva som eksporteres" },
   { command: "nav-pilot version", description: "Vis versjonsinformasjon" },
+  {
+    command: "nav-pilot alpha local <command>",
+    description: "Lokal modell (alfa): init, start, status, models, use, restart, stop, ask, on, off, purge",
+  },
+  {
+    command: 'nav-pilot alpha decide "<spørsmål>" --options a,b',
+    description: "Typet avgjørelse fra den lokale modellen (alfa). Se --help",
+  },
 ];
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1578,7 +1587,8 @@ const CONFIG_KEYS = [
   {
     key: "local_model",
     flag: "—",
-    values: "modell-id fra 'nav-pilot models', f.eks. mlx-community/Qwen3.8-27B-OptiQ-4bit",
+    values:
+      "modell-id, f.eks. mlx-community/Qwen3.8-27B-OptiQ-4bit. Enklest satt med 'nav-pilot alpha local use <key>'",
     desc: "Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Krever modellen en nyere nav-pilot enn din, faller den tilbake til standard og sier hvilken versjon du trenger.",
   },
   {
@@ -2035,7 +2045,10 @@ function LocalModelSection({ models }: { models: LocalModel[] }) {
             {`nav-pilot alpha local init      # laster ned modellen og setter opp miljøet
 nav-pilot alpha local start     # starter serveren
 nav-pilot alpha local status    # kjører den? svarer den? hvilken modell? hva har den gjort?
+nav-pilot alpha local models    # modellene som tilbys, og hvilken som er i bruk
+nav-pilot alpha local use <key> # velg modellen serveren laster
 nav-pilot alpha local ask -p "..."  # still ett spørsmål rett til modellen
+nav-pilot alpha decide "..." --options ja,nei --evidence fil  # typet avgjørelse
 nav-pilot alpha local stop
 nav-pilot alpha local restart   # stop og start i ett
 nav-pilot alpha local on        # skru på igjen etter off
@@ -2128,23 +2141,31 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
             Bytte modell
           </LinkableHeading>
           <BodyLong size="small" textColor="subtle">
-            <code className="font-mono text-xs">nav-pilot models</code> viser hva som er tilgjengelig; de lokale står
-            merket <code className="font-mono text-xs">(local)</code>.{" "}
-            <code className="font-mono text-xs">local_model</code> velger hvilken av dem serveren laster;{" "}
-            <code className="font-mono text-xs">model</code> er modellen økten selv kjører på, og de settes hver for
-            seg. Listen oppdateres når du kjører <code className="font-mono text-xs">init</code> eller{" "}
+            <code className="font-mono text-xs">nav-pilot alpha local models</code> viser de lokale modellene:
+            størrelse, kontekst, om de er lastet ned eller kjører, og hvilken serveren laster (merket{" "}
+            <code className="font-mono text-xs">*</code>).{" "}
+            <code className="font-mono text-xs">nav-pilot alpha local use &lt;key&gt;</code> velger modell og skriver
+            den til <code className="font-mono text-xs">local_model</code>. Den laster ikke ned og starter ikke noe
+            selv. <code className="font-mono text-xs">model</code> er modellen økten selv kjører på, og settes for seg.
+            Listen oppdateres når du kjører <code className="font-mono text-xs">init</code> eller{" "}
             <code className="font-mono text-xs">start</code>, ikke ved hver kommando. Et nettverkskall der ville lagt
             seg foran alt annet nav-pilot gjør.
           </BodyLong>
           <CodeBlock compact>
-            {`nav-pilot models
-nav-pilot config set local_model mlx-community/Qwen3.8-27B-OptiQ-4bit
-nav-pilot alpha local init      # laster ned vektene for den nye modellen
-nav-pilot alpha local start`}
+            {`nav-pilot alpha local models
+nav-pilot alpha local use qwen3.8-27b-optiq-4bit
+nav-pilot alpha local init      # laster ned vektene hvis de mangler, og starter
+nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell`}
           </CodeBlock>
           <BodyLong size="small" textColor="subtle">
             Qwen 3.6 er standard fordi den er rask og forutsigbar, ikke fordi den løser mest. Bytter du, må vektene til
             den nye modellen lastes ned én gang. Størrelsen står i tabellen over.
+          </BodyLong>
+          <BodyLong size="small" textColor="subtle">
+            <code className="font-mono text-xs">nav-pilot alpha local status</code> viser hvilken modell som er valgt,
+            og om den er valgt med <code className="font-mono text-xs">local_model</code> eller er standard. Kjører
+            serveren en annen modell, sier status det og gir deg kommandoen for omstart. Krever modellen du har valgt en
+            nyere nav-pilot, sier status at den har falt tilbake til standard, og hvorfor.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
             Vil du slippe å starte serveren selv, kan en vanlig <code className="font-mono text-xs">nav-pilot</code>{" "}
@@ -2177,7 +2198,10 @@ nav-pilot alpha local start`}
               <code className="font-mono text-xs">init</code> hever grensen for deg med{" "}
               <code className="font-mono text-xs">sudo</code> og sier fra når den gjør det. Grensen er et tak og ikke en
               reservasjon: den tar ikke minne fra andre programmer før modellen faktisk bruker det. Den nullstilles ved
-              omstart, og <code className="font-mono text-xs">start</code> hever den igjen når den trengs.
+              omstart. Er standardgrensen i macOS høy nok, som på en maskin med mye minne, skjer ingenting. Er den for
+              lav, spør <code className="font-mono text-xs">start</code> før den hever den igjen. Uten terminal skriver
+              den kommandoen du må kjøre i stedet, og en automatisk start fra en vanlig{" "}
+              <code className="font-mono text-xs">nav-pilot</code> ber aldri om passord.
             </BodyLong>
           </Box>
           <BodyLong size="small" textColor="subtle">
@@ -2260,6 +2284,37 @@ nav-pilot alpha local start`}
             omdøping. På store mekaniske endringer kan den være raskere enn skyen. Kjør{" "}
             <code className="font-mono text-xs">stop</code> når du ikke bruker den; den holder rundt 21 GB minne så
             lenge den er oppe.
+          </BodyLong>
+        </VStack>
+
+        <VStack id="lokal-decide" gap="space-12">
+          <LinkableHeading size="small" level="3">
+            Typede avgjørelser med <code className="font-mono">alpha decide</code>
+          </LinkableHeading>
+          <BodyShort size="small" textColor="subtle">
+            <code className="font-mono text-xs">nav-pilot alpha decide</code> stiller bakkemodellen ett
+            flervalgsspørsmål og svarer med en sannsynlighet for hvert alternativ, ikke med fritekst. Modellen genererer
+            ett token, så et varmt svar tar under ett sekund. Spørsmålet og grunnlaget forlater ikke maskinen.
+          </BodyShort>
+          <CodeBlock compact>
+            {`nav-pilot alpha decide \\
+  "Does the commit message explain why?" \\
+  --options yes,no --evidence msg.txt
+# {"choice":"yes","p":{"yes":0.93,"no":0.07},…}`}
+          </CodeBlock>
+          <BodyLong size="small" textColor="subtle">
+            Bruk den til vurderinger en regel ikke kan gjøre. Om en commit-melding følger Conventional Commits, avgjør
+            et regulært uttrykk. Om meldingen forklarer hvorfor, kan bare en modell vurdere. Med{" "}
+            <code className="font-mono text-xs">--threshold</code> og{" "}
+            <code className="font-mono text-xs">--expect</code> blir exit-koden 0 eller 1, så den passer i hooks og
+            skript.
+          </BodyLong>
+          <BodyLong size="small" textColor="subtle">
+            Mål spørsmålet før du bygger på det. <code className="font-mono text-xs">--eval cases.jsonl</code> kjører
+            eksempler du kjenner fasiten på, og viser treffsikkerhet, en forvekslingsmatrise, gjennomsnittlig
+            sannsynlighet for riktige og gale svar, og svartid. Serveren må kjøre, for{" "}
+            <code className="font-mono text-xs">decide</code> starter den ikke selv. Alle valg står i{" "}
+            <code className="font-mono text-xs">nav-pilot alpha decide --help</code>.
           </BodyLong>
         </VStack>
 
