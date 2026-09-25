@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
@@ -18,7 +19,9 @@ import (
 //
 // The rule is the same. The same call with the same result [SameResult] times
 // in a row is a loop; the same call threshold times in a row is one whatever
-// it returns. Results are compared after local.NormaliseResult, as the guard
+// it returns; a short cycle of calls that keeps getting the same answers
+// ([local.RepeatedCycle]) is a loop after as many repeats as the same-result
+// rule. Results are compared after local.NormaliseResult, as the guard
 // compares them.
 //
 // What differs is the reach. The guard sees the whole conversation on every
@@ -37,6 +40,9 @@ type LoopState struct {
 	N      int    `json:"n"`
 	Same   int    `json:"same"`
 	Result string `json:"result"` // sha256 of the normalised result
+	// Steps are the latest calls with their results, oldest first, as short
+	// hashes: what the cycle rule compares.
+	Steps []string `json:"steps,omitempty"`
 }
 
 // Step folds one call and its result into the run and says which rule, if
@@ -45,13 +51,15 @@ type LoopState struct {
 func (s LoopState) Step(call, resultType, result string) LoopState {
 	sum := sha256.Sum256([]byte(resultType + "\x00" + local.NormaliseResult(result)))
 	h := hex.EncodeToString(sum[:])
+	step := sha256.Sum256([]byte(call + "\x00" + h))
+	steps := append(slices.Clip(s.Steps), hex.EncodeToString(step[:8]))
 	switch {
 	case call != s.Call:
-		return LoopState{Call: call, N: 1, Same: 1, Result: h}
+		return LoopState{Call: call, N: 1, Same: 1, Result: h, Steps: steps}
 	case h == s.Result:
-		return LoopState{Call: call, N: s.N + 1, Same: s.Same + 1, Result: h}
+		return LoopState{Call: call, N: s.N + 1, Same: s.Same + 1, Result: h, Steps: steps}
 	default:
-		return LoopState{Call: call, N: s.N + 1, Same: 1, Result: h}
+		return LoopState{Call: call, N: s.N + 1, Same: 1, Result: h, Steps: steps}
 	}
 }
 
@@ -85,6 +93,7 @@ func LoopMessage(s LoopState, threshold int) string {
 	if len(shown) > maxCall {
 		shown = shown[:maxCall] + "…"
 	}
+	period, reps := local.RepeatedCycle(s.Steps)
 	switch {
 	case s.Same >= SameResult(threshold):
 		return fmt.Sprintf(
@@ -92,6 +101,12 @@ func LoopMessage(s LoopState, threshold int) string {
 				"Repeating it will not change the answer. Stop calling it: use the result you already have, try a different approach, "+
 				"or tell the user you are stuck. (Threshold: `nav-pilot config set local_loop_guard <n>`, current %d.)",
 			s.Same, shown, threshold)
+	case reps >= SameResult(threshold):
+		return fmt.Sprintf(
+			"[nav-pilot loop guard] You are repeating a cycle of %d tool calls and got the same results every time, %d times in a row. This call is part of it: %s. "+
+				"Repeating it will not change the answer. Stop calling it: use the result you already have, try a different approach, "+
+				"or tell the user you are stuck. (Threshold: `nav-pilot config set local_loop_guard <n>`, current %d.)",
+			period, reps, shown, threshold)
 	case s.N >= threshold:
 		return fmt.Sprintf(
 			"[nav-pilot loop guard] You have made this exact tool call %d times in a row: %s. The results changed, but that is "+
@@ -115,8 +130,9 @@ var unsafeID = regexp.MustCompile(`[^A-Za-z0-9_-]`)
 // LoopGuard runs the rule for one postToolUse payload and returns the hook's
 // stdout. The run is kept in the session's own directory under root (Copilot's
 // session-state directory), which Copilot creates for every session and which
-// cplt's sandbox lets the session write. The state is a hash and two counts,
-// never the call or the result.
+// cplt's sandbox lets the session write. The state is hashes and two counts,
+// never the call or the result, with the steps capped at what the cycle rule
+// needs to count up to the threshold.
 //
 // Every failure answers NoChange: a guard that cannot keep its state lets the
 // call through rather than get in the way. A state that could not be saved is
@@ -143,6 +159,9 @@ func LoopGuard(root string, p Payload, threshold int) (string, error) {
 	sig := Signature(p.ToolName, p.ToolArgs)
 	sum := sha256.Sum256([]byte(sig))
 	st = st.Step(hex.EncodeToString(sum[:]), p.ResultType, p.Result)
+	if keep := local.MaxCyclePeriod * threshold; len(st.Steps) > keep {
+		st.Steps = st.Steps[len(st.Steps)-keep:]
+	}
 	// A count that was not saved is not one to act on: the next call would
 	// start from the old state again.
 	if err := saveState(dir, path, st); err != nil {

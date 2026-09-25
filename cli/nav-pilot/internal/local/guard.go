@@ -526,11 +526,16 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 		}
 		r.Body.Close()
 
-		if call, n, same := repeatedToolCall(body); same >= SameResultRepeat() {
-			writeLoopGuardError(w, call, same, true)
+		call, n, same, cycle, reps := repeatedToolCall(body)
+		switch {
+		case same >= SameResultRepeat():
+			writeLoopGuardError(w, call, same, 1, true)
 			return
-		} else if n >= loopGuardRepeat {
-			writeLoopGuardError(w, call, n, false)
+		case reps >= SameResultRepeat():
+			writeLoopGuardError(w, strings.Join(cycle, " → "), reps, len(cycle), true)
+			return
+		case n >= loopGuardRepeat:
+			writeLoopGuardError(w, call, n, 1, false)
 			return
 		}
 		// Only when the manifest sets sampling: otherwise the body goes on
@@ -685,13 +690,21 @@ type chatRequest struct {
 // and only the backstop would catch it. The Copilot CLI postToolUse hook
 // (`nav-pilot hook loop-guard`) applies the same rule with the same
 // normalisation to sessions this guard never sees.
-func repeatedToolCall(body []byte) (call string, n, same int) {
+//
+// cycle and reps are the cycle rule: the latest steps, each a call with its
+// result, checked by [RepeatedCycle] for a short cycle of calls that
+// keeps getting the same answers. cycle names its calls, oldest first.
+func repeatedToolCall(body []byte) (call string, n, same int, cycle []string, reps int) {
 	var req chatRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		return "", 0, 0
+		return "", 0, 0, nil, 0
 	}
 	results := map[string]string{}
-	wantResult, sameOpen := "", true
+	wantResult, sameOpen, runOpen := "", true, true
+	// The latest steps, newest first, for the cycle rule: enough for the
+	// longest cycle to repeat as often as the backstop allows.
+	var keys, sigs []string
+	limit := MaxCyclePeriod * loopGuardRepeat
 	for i := len(req.Messages) - 1; i >= 0; i-- {
 		m := req.Messages[i]
 		if m.Role == "tool" {
@@ -719,12 +732,27 @@ func repeatedToolCall(body []byte) (call string, n, same int) {
 			parts[i], outs[i] = p[0], p[1]
 		}
 		sig, result := strings.Join(parts, ", "), strings.Join(outs, "\x00")
+		newest := n == 0
 		if n == 0 {
 			call = sig
 		} else if sig != call {
-			break
+			runOpen = false
 		}
-		newest := n == 0
+		// A step without its result cannot repeat another. The newest may only
+		// be waiting for it and is left out; an older one breaks any cycle.
+		switch {
+		case len(keys) >= limit:
+		case paired:
+			keys, sigs = append(keys, sig+"\x01"+result), append(sigs, sig)
+		case !newest:
+			keys, sigs = append(keys, "\x02"+strconv.Itoa(i)), append(sigs, sig)
+		}
+		if !runOpen {
+			if len(keys) >= limit {
+				break
+			}
+			continue
+		}
 		n++
 		switch {
 		case !sameOpen:
@@ -739,7 +767,13 @@ func repeatedToolCall(body []byte) (call string, n, same int) {
 			sameOpen = false
 		}
 	}
-	return call, n, same
+	slices.Reverse(keys)
+	period, reps := RepeatedCycle(keys)
+	if reps > 0 {
+		cycle = slices.Clone(sigs[:period])
+		slices.Reverse(cycle)
+	}
+	return call, n, same, cycle, reps
 }
 
 // writeLoopGuardError ends the turn. It answers in the error envelope the
@@ -755,7 +789,10 @@ func repeatedToolCall(body []byte) (call string, n, same int) {
 // it a loop that will not change the answer: the backstop also stops polls
 // whose output was changing, and telling a model its progress was not progress
 // would be false.
-func writeLoopGuardError(w http.ResponseWriter, call string, n int, sameResult bool) {
+//
+// A period above 1 is the cycle rule: call is the calls of the cycle and n
+// how many times the cycle repeated.
+func writeLoopGuardError(w http.ResponseWriter, call string, n, period int, sameResult bool) {
 	const maxCall = 400
 	shown := call
 	if len(shown) > maxCall {
@@ -772,6 +809,13 @@ func writeLoopGuardError(w http.ResponseWriter, call string, n int, sameResult b
 				"That is a runaway loop, not progress; repeating it will not change the answer, so try something else. "+
 				"Start a new turn with a narrower task, or raise the threshold with `nav-pilot config set local_loop_guard <n>` (current: %d).",
 			n, shown, loopGuardRepeat)
+	}
+	if period > 1 {
+		msg = fmt.Sprintf(
+			"nav-pilot stopped this turn: the local model is repeating a cycle of %d tool calls and got the same results %d times — %s. "+
+				"That is a runaway loop, not progress; repeating it will not change the answer, so try something else. "+
+				"Start a new turn with a narrower task, or raise the threshold with `nav-pilot config set local_loop_guard <n>` (current: %d).",
+			period, n, shown, loopGuardRepeat)
 	}
 
 	writeGuardError(w, msg, "loop_guard")

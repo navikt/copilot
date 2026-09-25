@@ -166,3 +166,105 @@ func TestLoopGuardFailsOpen(t *testing.T) {
 		}
 	}
 }
+
+func TestLoopRuleCatchesShortCycles(t *testing.T) {
+	const threshold = 8 // the default: a cycle trips after 4 repeats
+	type call struct{ sig, result string }
+	times := func(n int, cycle ...call) []call {
+		var out []call
+		for range n {
+			out = append(out, cycle...)
+		}
+		return out
+	}
+	a, b, c := call{"view(a)", "x"}, call{"view(a,[1,-1])", "x"}, call{"view(a,[1,1])", "x"}
+	var edits []call
+	for i := range 5 {
+		edits = append(edits, call{fmt.Sprintf("edit(v%d)", i), "ok"}, call{"bash(go test)", "FAIL " + strings.Repeat("x", i+1)})
+	}
+
+	tests := []struct {
+		name    string
+		calls   []call
+		wantHit bool
+	}{
+		{"A B C with the same results, three times", times(3, a, b, c), false},
+		{"four times", times(4, a, b, c), true},
+		{"A B A B, four times", times(4, a, b), true},
+		{"a cycle whose results change", []call{
+			{"read(x)", "a"}, {"read(y)", "b"}, {"read(x)", "aa"}, {"read(y)", "bb"},
+			{"read(x)", "aaa"}, {"read(y)", "bbb"}, {"read(x)", "aaaa"}, {"read(y)", "bbbb"},
+		}, false},
+		{"edit then test, new edit and new output each time", edits, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var st LoopState
+			for _, c := range tt.calls {
+				st = st.Step(c.sig, "success", c.result)
+			}
+			msg := LoopMessage(st, threshold)
+			if (msg != "") != tt.wantHit {
+				t.Fatalf("message %q, want hit=%v", msg, tt.wantHit)
+			}
+			if tt.wantHit && (!strings.Contains(msg, "repeating a cycle of") || !strings.Contains(msg, "same results")) {
+				t.Errorf("a cycle must be named as one: %q", msg)
+			}
+		})
+	}
+}
+
+// TestLoopGuardReplaysTheGPT5MiniEvasion replays the calls gpt-5-mini made in
+// Copilot session 3d20bfa3 (navikt/mlx-workspace
+// bench/loop-hook-20260925-002708.json): 23 identical reads of a file that
+// said "status: waiting", warned from the 4th, then 54 more that cycled the
+// `view` range between none, [1,-1] and [1,1] with the same answers, which
+// the one-call rules never saw. Only the shape is kept: the path and the file
+// are stand-ins.
+func TestLoopGuardReplaysTheGPT5MiniEvasion(t *testing.T) {
+	dir := t.TempDir()
+	const path = `"path":"/w/ready.txt"`
+	whole, line := "status: waiting\n", "status: waiting"
+	seq := make([][2]string, 0, 77)
+	for range 23 {
+		seq = append(seq, [2]string{`{` + path + `}`, whole})
+	}
+	for range 18 {
+		seq = append(seq,
+			[2]string{`{` + path + `,"view_range":[1,-1]}`, whole},
+			[2]string{`{` + path + `,"view_range":[1,1]}`, line},
+			[2]string{`{` + path + `}`, whole})
+	}
+	var warned []int
+	for i, s := range seq {
+		p, _ := ParsePayload(payload("3d20bfa3", "view", s[0], s[1]))
+		out, err := LoopGuard(dir, p, 8)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out != NoChange {
+			warned = append(warned, i+1)
+		}
+	}
+	// Calls 4–23 as before; then, once the cycle has gone round four times,
+	// every call to the end instead of none. The last plain read is the first
+	// step of the cycle, so the fourth round ends on call 23+4*3-1.
+	want := []int{}
+	for n := 4; n <= 23; n++ {
+		want = append(want, n)
+	}
+	for n := 23 + 4*3 - 1; n <= len(seq); n++ {
+		want = append(want, n)
+	}
+	if fmt.Sprint(warned) != fmt.Sprint(want) {
+		t.Errorf("warned on calls %v,\nwant %v", warned, want)
+	}
+	state, _ := os.ReadFile(filepath.Join(dir, "3d20bfa3", "nav-pilot-loop-guard.json"))
+	var st LoopState
+	if err := json.Unmarshal(state, &st); err != nil || len(st.Steps) != 3*8 {
+		t.Errorf("steps kept: %d, want the cap of %d (%v)", len(st.Steps), 3*8, err)
+	}
+	if strings.Contains(string(state), "ready") || strings.Contains(string(state), "waiting") {
+		t.Errorf("state holds the call or the result: %s", state)
+	}
+}

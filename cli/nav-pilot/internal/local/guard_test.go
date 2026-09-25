@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -229,7 +230,7 @@ func TestRepeatedToolCall(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			call, n, same := repeatedToolCall(conversation(tt.messages...))
+			call, n, same, _, _ := repeatedToolCall(conversation(tt.messages...))
 			if n != tt.wantN || same != tt.wantSame {
 				t.Errorf("repeatedToolCall() n, same = %d, %d, want %d, %d", n, same, tt.wantN, tt.wantSame)
 			}
@@ -240,11 +241,73 @@ func TestRepeatedToolCall(t *testing.T) {
 	}
 }
 
+// TestRepeatedToolCallCycles pins the cycle rule: a model warned about one
+// repeated call can keep looping by cycling between a few calls that all
+// answer the same.
+func TestRepeatedToolCallCycles(t *testing.T) {
+	user := `{"role":"user","content":"do the thing"}`
+	// calls is one step per "name args => result" entry, each with its own id.
+	calls := func(seq ...string) []string {
+		out := []string{user}
+		for i, c := range seq {
+			call, result, _ := strings.Cut(c, " => ")
+			name, args, _ := strings.Cut(call, " ")
+			out = append(out, step(fmt.Sprintf("call_%d", i), name, args, result)...)
+		}
+		return out
+	}
+	times := func(n int, seq ...string) []string {
+		var out []string
+		for range n {
+			out = append(out, seq...)
+		}
+		return out
+	}
+	a, b, c := `view {"path":"f"} => x`, `view {"path":"f","view_range":[1,-1]} => x`, `view {"path":"f","view_range":[1,1]} => x`
+	edit := func(i int) string { return fmt.Sprintf(`edit {"line":"v%d"} => ok`, i) }
+	test := func(i int) string { return "bash go test => FAIL " + strings.Repeat("x", i+1) }
+
+	tests := []struct {
+		name       string
+		seq        []string
+		wantPeriod int
+		wantReps   int
+	}{
+		{"A B C with the same results, repeated", times(4, a, b, c), 3, 4},
+		{"one short of four repeats", times(4, a, b, c)[1:], 3, 3},
+		{"A B A B", times(4, a, b), 2, 4},
+		{"a cycle whose results change is not a repeat", []string{
+			"read x => 1a", "read y => b", "read x => 2a", "read y => bb", "read x => 3aa", "read y => bbb",
+			"read x => 4aaa", "read y => bbbb",
+		}, 0, 0},
+		{"edit then test, with a new edit and new output each time", []string{
+			edit(0), test(0), edit(1), test(1), edit(2), test(2), edit(3), test(3), edit(4), test(4),
+		}, 0, 0},
+		{"one call over and over is the one-call rule's, not a cycle", times(8, a), 0, 0},
+		{"a cycle only counts from where it starts", append(times(5, a), times(2, b, c)...), 2, 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, _, cycle, reps := repeatedToolCall(conversation(calls(tt.seq...)...))
+			if len(cycle) != tt.wantPeriod || reps != tt.wantReps {
+				t.Errorf("cycle %q repeated %d times, want %d calls repeated %d times", cycle, reps, tt.wantPeriod, tt.wantReps)
+			}
+		})
+	}
+
+	// The cycle is named in the order the model made the calls.
+	_, _, _, cycle, _ := repeatedToolCall(conversation(calls(times(4, a, b, c)...)...))
+	want := []string{`view({"path":"f"})`, `view({"path":"f","view_range":[1,-1]})`, `view({"path":"f","view_range":[1,1]})`}
+	if !slices.Equal(cycle, want) {
+		t.Errorf("cycle = %q, want %q", cycle, want)
+	}
+}
+
 // TestRepeatedToolCallIgnoresUnreadableBodies pins fail-open: a body the guard
 // cannot parse is not a loop, so it is forwarded rather than refused.
 func TestRepeatedToolCallIgnoresUnreadableBodies(t *testing.T) {
 	for _, body := range []string{"", "not json", `{"messages":"nope"}`, `{}`} {
-		if _, n, _ := repeatedToolCall([]byte(body)); n != 0 {
+		if _, n, _, _, _ := repeatedToolCall([]byte(body)); n != 0 {
 			t.Errorf("repeatedToolCall(%q) = %d, want 0", body, n)
 		}
 	}
@@ -286,6 +349,19 @@ func TestGuardAbortsTheTurnOnARunawayLoop(t *testing.T) {
 			messages: repeat(SameResultRepeat(), "bash", `{"cmd":"ls"}`),
 			refuse:   true,
 			wantMsg:  []string{fmt.Sprintf("repeated the same tool call with the same result %d times", SameResultRepeat()), "will not change the answer", "try something else"},
+		},
+		{
+			name: "a cycle of calls with the same results, at the threshold",
+			messages: func() []string {
+				var out []string
+				for i := range SameResultRepeat() {
+					out = append(out, step(fmt.Sprintf("l%d", i), "bash", `{"cmd":"ls"}`, "a.go")...)
+					out = append(out, step(fmt.Sprintf("p%d", i), "bash", `{"cmd":"pwd"}`, "/w")...)
+				}
+				return out
+			}(),
+			refuse:  true,
+			wantMsg: []string{fmt.Sprintf("repeating a cycle of 2 tool calls and got the same results %d times", SameResultRepeat()), `bash({"cmd":"pwd"})`, "will not change the answer"},
 		},
 		{
 			name:     "a changing poll below the backstop",
@@ -748,7 +824,7 @@ func TestGuardReadsARealCopilotCLIRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	call, n, same := repeatedToolCall(body)
+	call, n, same, _, _ := repeatedToolCall(body)
 	if n != 6 || same != 6 {
 		t.Errorf("repeatedToolCall counted %d repeats (%d with the same result) in a real Copilot CLI request, want the 6 the client actually made", n, same)
 	}
