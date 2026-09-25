@@ -110,7 +110,7 @@ func TestLoopGuardKeepsStatePerSession(t *testing.T) {
 	var out string
 	for range 4 {
 		p, _ := ParsePayload(payload("s1", "bash", `{"command":"ls"}`, "a.go"))
-		out, _ = LoopGuard(dir, p, 8)
+		out, _, _ = LoopGuard(dir, p, 8)
 		// A second session doing the same thing in between must not add to s1's run.
 		q, _ := ParsePayload(payload("s2", "bash", `{"command":"ls"}`, "a.go"))
 		LoopGuard(dir, q, 8)
@@ -147,7 +147,7 @@ func TestLoopGuardFailsOpen(t *testing.T) {
 	} {
 		p, _ := ParsePayload(raw)
 		for range 10 {
-			if out, _ := LoopGuard(dir, p, 2); out != NoChange {
+			if out, _, _ := LoopGuard(dir, p, 2); out != NoChange {
 				t.Errorf("%s: %s", name, out)
 			}
 		}
@@ -157,7 +157,7 @@ func TestLoopGuardFailsOpen(t *testing.T) {
 	os.WriteFile(blocker, nil, 0o600)
 	p, _ := ParsePayload(payload("s", "bash", `{}`, "x"))
 	for range 10 {
-		out, err := LoopGuard(blocker, p, 2)
+		out, _, err := LoopGuard(blocker, p, 2)
 		if out != NoChange {
 			t.Errorf("unwritable state dir: %s", out)
 		}
@@ -251,7 +251,7 @@ func TestLoopGuardReplaysTheGPT5MiniEvasion(t *testing.T) {
 	var warned []int
 	for i, s := range seq {
 		p, _ := ParsePayload(payload("3d20bfa3", "view", s[0], s[1]))
-		out, err := LoopGuard(dir, p, 8)
+		out, _, err := LoopGuard(dir, p, 8)
 		if err != nil {
 			t.Fatal(err)
 		}

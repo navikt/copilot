@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/huh"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
@@ -449,7 +450,7 @@ func run(args []string) error {
 	// through untouched, the same courtesy `--` gives the launch clients.
 	// `alpha decide` likewise: a question, and flags of its own.
 	if command == "alpha" && ((len(rest) >= 2 && rest[0] == "local" && rest[1] == "ask") || (len(rest) >= 1 && rest[0] == "decide")) {
-		return runWithCommandTelemetry("alpha", telemetryMode(), "none", func() error {
+		return runWithCommandTelemetry(alphaCommand(rest), telemetryMode(), "none", func() error {
 			return cmdAlpha(rest)
 		})
 	}
@@ -838,7 +839,7 @@ func run(args []string) error {
 			return cmdModels(jsonOutput)
 		})
 	case "alpha":
-		return runWithCommandTelemetry("alpha", telemetryMode(), "none", func() error {
+		return runWithCommandTelemetry(alphaCommand(positional), telemetryMode(), "none", func() error {
 			return cmdAlpha(positional)
 		})
 	case "version", "--version", "-v":
@@ -912,6 +913,7 @@ func Main(info BuildInfo) {
 	}
 	telemetry = tel
 	providerpkg.SetTelemetry(tel)
+	local.OnLoopGuard = countLocalTrip
 	for _, p := range allProviders() {
 		telemetry.RecordClientAvailable(p.ID(), p.Available())
 	}
@@ -921,6 +923,7 @@ func Main(info BuildInfo) {
 		exitCode = exitCodeFor(err)
 	}
 
+	recordHookEvents()
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
 	_ = telemetry.Shutdown(ctx)
