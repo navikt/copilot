@@ -55,11 +55,11 @@
       "classes": {
         "read-qa": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "not-yet"
         },
         "edit-single": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "not-yet"
         },
         "edit-multi-mechanical": {
           "delegate": "cloud",
