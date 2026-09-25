@@ -60,7 +60,8 @@ RESULTS_PARAGRAPH
 Hvor treffsikker modellen er, vet du ikke før du har målt det på ditt spørsmål. Lag en JSONL-fil med eksempler fra ditt eget repo der du vet svaret, med minst like mange «no» som «yes»:
 
 ```json
-{"question":"Does the commit message explain why ...?","options":["yes","no"],"evidence":"Commit message:\n...\nStaged diff:\n...","expect":"no"}
+{"question":"Does the commit message explain why ...?","options":["yes","no"],"evidence":"Commit message:\nfix: bump timeout to 30s\n\nStaged diff:\n...","expect":"no"}
+{"question":"Does the commit message explain why ...?","options":["yes","no"],"evidence":"Commit message:\nfix: bump timeout to 30s\n\nThe batch job takes 20s on large tenants.\n\nStaged diff:\n...","expect":"yes"}
 ```
 
 ```bash
