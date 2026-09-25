@@ -12,9 +12,10 @@ package cli
 // server has answered a real completion, because a port bind proves nothing.
 // status spends one probe. stop and off spend nothing.
 //
-// Nothing here runs sudo. Raising the wired-memory limit is the one privileged
-// action in the neighbourhood and it stays a command the developer types:
-// internal/local reports what is needed and what is set, this prints it.
+// Raising the wired-memory limit is the one privileged action in the
+// neighbourhood. init and start run it through sudo, and only after saying so
+// and, for start, asking; without a terminal to ask on they print the command
+// instead. A launch's autostart never runs it.
 
 import (
 	"context"
@@ -318,7 +319,7 @@ func cmdLocalInit() error {
 	if !wired.Sufficient {
 		fmt.Printf("%s Raising the wired-memory limit to %d GB (sudo; it resets at reboot)…\n",
 			dim("→"), wired.RequiredGB)
-		if err := local.RaiseWiredLimit(ctx, wired); err != nil {
+		if err := raiseWiredLimit(ctx, wired); err != nil {
 			return err
 		}
 		fmt.Printf("%s Wired-memory limit raised.\n", green("✓"))
@@ -447,13 +448,21 @@ func cmdLocalStart() error {
 		return err
 	}
 	if !wired.Sufficient {
-		// Not raised here, and not warned past either. The measurement is that
-		// a model over the cap is refused by its own server before it produces
-		// a token, and that a cap raised too far takes the compositor with it —
-		// so the number belongs to a command the developer types.
-		return fmt.Errorf(
-			"%s needs a %d GB wired-memory limit; this machine has %s.\n\n  Raise it, then start again (it resets at reboot):\n\n    %s",
-			model.Model, wired.RequiredGB, currentWiredLabel(wired), bold(wired.Command))
+		var ask func() (bool, error)
+		if providerpkg.IsTerminal(os.Stdin) {
+			ask = func() (bool, error) {
+				raise := true
+				err := huh.NewConfirm().
+					Title(fmt.Sprintf("Raise it to %d GB with sudo? It resets at reboot.", wired.RequiredGB)).
+					Value(&raise).
+					WithTheme(navTheme()).
+					Run()
+				return raise, err
+			}
+		}
+		if err := raiseWiredForStart(ctx, model, wired, ask); err != nil {
+			return err
+		}
 	}
 
 	fmt.Printf("%s Starting %s…\n", dim("→"), bold(model.Name))
@@ -538,19 +547,40 @@ func startSummary(model local.Model, serverURL string, pid int, wired local.Wire
 	fmt.Fprintf(&b, "  Guard    %s\n", dim(wrapIndent(fmt.Sprintf(
 		"started by the launch below, not by this command. It ends a turn after %d identical tool calls in a row that return the same result, or %d whatever they return, and a client pointed straight at the address above goes unguarded",
 		local.SameResultRepeat(), local.LoopGuardRepeat()), "           ", 78)))
-	fmt.Fprintf(&b, "  Wired    %d GB required, %d GB set\n\n", wired.RequiredGB, wired.CurrentGB)
+	fmt.Fprintf(&b, "  Wired    %d GB required, %s\n\n", wired.RequiredGB, wired.Label())
 	fmt.Fprintf(&b, "  Launch:  %s\n", bold("nav-pilot --client opencode --model "+model.Model))
 	fmt.Fprintf(&b, "  Stop:    %s\n\n", bold("nav-pilot alpha local stop"))
 	return b.String()
 }
 
-// currentWiredLabel names what the cap is now. Unset is the macOS default, not
-// zero, and saying "0 GB" would read as a broken machine.
-func currentWiredLabel(w local.WiredLimit) string {
-	if w.CurrentGB == 0 {
-		return "no limit set, so the macOS default (roughly 75% of RAM) applies"
+// raiseWiredLimit is the sudo sysctl, a var so a test can say yes without
+// running it.
+var raiseWiredLimit = local.RaiseWiredLimit
+
+// raiseWiredForStart does what init does about a low wired-memory limit, once
+// the developer agrees: a reboot resets the limit, and start used to answer that
+// with an error and a command to paste. ask is nil when there is no terminal to
+// ask on, and then the command is printed as before. It is never warned past:
+// a model over the cap is refused by its own server before it produces a token.
+// A cap that would starve the rest of the machine never gets this far, because
+// CheckWiredLimit refuses it.
+func raiseWiredForStart(ctx context.Context, model local.Model, wired local.WiredLimit, ask func() (bool, error)) error {
+	refuse := fmt.Errorf(
+		"%s needs a %d GB wired-memory limit; this machine has %s.\n\n  Raise it, then start again (it resets at reboot):\n\n    %s",
+		model.Model, wired.RequiredGB, wired.Label(), bold(wired.Command))
+	if ask == nil {
+		return refuse
 	}
-	return fmt.Sprintf("%d GB", w.CurrentGB)
+	fmt.Printf("%s The wired-memory limit is %s; %s needs %d GB.\n", yellow("⚠"), wired.Label(), model.Name, wired.RequiredGB)
+	if ok, err := ask(); err != nil || !ok {
+		return refuse
+	}
+	fmt.Printf("%s Raising the wired-memory limit to %d GB (sudo; it resets at reboot)…\n", dim("→"), wired.RequiredGB)
+	if err := raiseWiredLimit(ctx, wired); err != nil {
+		return err
+	}
+	fmt.Printf("%s Wired-memory limit raised.\n", green("✓"))
+	return nil
 }
 
 // ─── stop ────────────────────────────────────────────────────────────────────
@@ -650,7 +680,7 @@ func cmdLocalStatus() error {
 	// not wait on a network to do it.
 	if model, found := local.Lookup(st.Model); found {
 		if wired, werr := local.CheckWiredLimit(model); werr == nil {
-			fmt.Printf("  Wired limit  %d GB required, %s\n", wired.RequiredGB, currentWiredLabel(wired))
+			fmt.Printf("  Wired limit  %d GB required, %s\n", wired.RequiredGB, wired.Label())
 			if !wired.Sufficient {
 				fmt.Printf("               %s %s\n", yellow("⚠"), bold(wired.Command))
 			}

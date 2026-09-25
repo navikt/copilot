@@ -1035,11 +1035,29 @@ func TestCheckWiredLimit(t *testing.T) {
 			currentMB: "36864", wantSufficient: true, wantCurrentGB: 36,
 		},
 		{
-			// The same machine with the cap still at the default: not
+			// The cap still at the default on a 48 GB machine: the default is
+			// about 36 GB, which does not clear 36 with the margin. Not
 			// refused, just not raised yet. Raising it needs sudo and is a
 			// command's job.
-			name: "insufficient but raisable", wiredLimitGB: 36, ramGB: 64,
+			name: "insufficient but raisable", wiredLimitGB: 36, ramGB: 48,
 			currentMB: "", wantSufficient: false, wantCurrentGB: 0,
+		},
+		{
+			// Unset on 128 GB after a reboot: the default is about 96 GB, so
+			// there is nothing to raise. Unset used to count as zero here.
+			name: "the default is enough on a large machine", wiredLimitGB: 36, ramGB: 128,
+			currentMB: "", wantSufficient: true, wantCurrentGB: 0,
+		},
+		{
+			// Unset reads as 0 from the sysctl too, not only as a missing oid.
+			name: "an explicit zero is the default", wiredLimitGB: 36, ramGB: 128,
+			currentMB: "0", wantSufficient: true, wantCurrentGB: 0,
+		},
+		{
+			// Set explicitly below the requirement: the setting wins over
+			// the default it replaced.
+			name: "a low explicit cap is not enough", wiredLimitGB: 36, ramGB: 128,
+			currentMB: "20480", wantSufficient: false, wantCurrentGB: 20,
 		},
 		{
 			// 36 GB on a 48 GB machine leaves 12, exactly the reserve.
