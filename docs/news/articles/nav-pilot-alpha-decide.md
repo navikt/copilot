@@ -75,7 +75,7 @@ brew upgrade navikt/tap/nav-pilot   # har du den fra før
 nav-pilot alpha local init
 ```
 
-`init` viser hva den skal laste ned og spør før den begynner. Første gang er det rundt 26 GB. På 100 Mbit/s tilsvarer det rundt 35 minutter, på 1 Gbit/s rundt 4. Så hever den minnegrensen og starter serveren. Målte oppstarter har tatt under ett minutt.
+`init` viser hva den skal laste ned og spør før den begynner. Første gang er det rundt 26 GB. På 100 Mbit/s tilsvarer det rundt 35 minutter, på 1 Gbit/s rundt 4. Så hever den minnegrensen og starter serveren. Målte oppstarter har tatt under ett minutt. Mer om oppsettet står i [dokumentasjonen for lokal modell](/nav-pilot/docs#lokal-kom-i-gang).
 
 Grensen nullstilles når du starter maskinen på nytt. Kjør da `nav-pilot alpha local start`. Trengs grensen hevet igjen, skriver den ut kommandoen.
 
@@ -220,7 +220,7 @@ Velg terskel ut fra `--eval` på ditt eget spørsmål. I de første målingene h
 - Exit-koden er 0 når sannsynligheten for `--expect` er minst terskelen, 1 når den er lavere og 2 når noe feilet. Behandle 2 for seg, ellers stopper skriptet ditt hver gang serveren ikke kjører.
 - Det er en alfa. Flagg og format kan endre seg.
 
-Hjelpeteksten ligger i `nav-pilot alpha decide --help`, og dokumentasjonen på [nav-pilot-siden](/nav-pilot/docs).
+Hjelpeteksten ligger i `nav-pilot alpha decide --help`, og dokumentasjonen på [nav-pilot-siden](/nav-pilot/docs#lokal-modell).
 
 **Kilder:**
 
