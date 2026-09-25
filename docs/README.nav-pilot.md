@@ -202,7 +202,7 @@ viser dem sammen med de andre.
 
 | Hook      | Fil                         | Hva den gjør                                                                                                                                                                                                                              | Slå av                                       |
 | --------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| Løkkevakt | `nav-pilot-loop-guard.json` | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring. | `nav-pilot config set hook_loop_guard false` |
+| Løkkevakt | `nav-pilot-loop-guard.json` | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, en syklus på to eller tre kall med de samme resultatene 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring. | `nav-pilot config set hook_loop_guard false` |
 | Maskering | `nav-pilot-redact-tool-output.json` | Maskerer hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er og verdien i `password=`/`api_key=`) og fødselsnummer, D-nummer og H-nummer i verktøyresultatet før modellen leser det. Setter en merknad foran et resultat som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører). | `hook_redact_secrets`, `hook_redact_fnr` og `hook_injection_note`, hver for seg |
 
 En hook etter verktøykallet (`postToolUse`) kan ikke avslutte en tur. Den kan bare endre
@@ -210,7 +210,7 @@ det modellen leser. Når løkkevakten slår til, får modellen derfor en beskjed
 fast, med resultatet under, i stedet for det samme svaret en gang til. Terskelen følger
 `local_loop_guard`, og det som skjedde tidligere i økta ligger i en liten fil i øktas egen
 mappe, `~/.copilot/session-state/<økt-id>/nav-pilot-loop-guard.json`. Filen inneholder bare
-en hash og to tellere, aldri selve kallet eller resultatet.
+hasher og to tellere, aldri selve kallet eller resultatet.
 
 I sandkassen til cplt får hookene verken lese eller skrive `~/.nav-pilot/`. Der bruker de
 innstillingene nav-pilot skrev inn i hook-kommandoen ved siste oppstart. En endring med
@@ -557,7 +557,8 @@ tracebacken. Start den igjen med `nav-pilot alpha local restart`, og velg en mod
 kontekst hvis det skjer igjen.
 
 nav-pilot avslutter en tur hvis modellen gjør samme verktøykall fire ganger på rad med samme
-resultat, eller åtte ganger på rad uansett resultat. Grensene er standardverdier for
+resultat, går fire ganger rundt i en syklus på to eller tre kall som gir de samme resultatene,
+eller gjør samme kall åtte ganger på rad uansett resultat. Grensene er standardverdier for
 `local_loop_guard`.
 
 Dette er alfa. Si fra om noe henger, om en endring kompilerer men er feil, eller om
