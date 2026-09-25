@@ -1,4 +1,4 @@
-import { Heading, BodyShort, BodyLong, Box, HGrid, Label, VStack, Tag } from "@navikt/ds-react";
+import { Heading, BodyShort, BodyLong, Box, HGrid, HStack, Label, VStack, Tag } from "@navikt/ds-react";
 import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell } from "@/components/aksel-table";
 import { CodeBlock } from "@/components/code-block";
 import { AltInstall } from "@/components/alt-install";
@@ -33,6 +33,46 @@ export const metadata: Metadata = {
   title: "nav-pilot dokumentasjon",
   description: "Dokumentasjon for nav-pilot, Navs AI-utviklerverktøy for GitHub Copilot.",
 };
+
+/* Oppskrifter for alpha decide. String.raw keeps the shell's \n and \ intact. */
+
+const COMMIT_EXPLAINS_WHY_HOOK = String.raw`#!/bin/sh
+# Advarer når meldingen bare beskriver det diffen viser. Stopper aldri commiten.
+command -v nav-pilot >/dev/null 2>&1 || exit 0
+
+{
+  printf 'Commit message:\n-----\n'
+  grep -v '^#' "$1"
+  printf -- '-----\n\nDiff:\n-----\n'
+  git diff --cached | head -c 7500
+  printf -- '\n-----\n'
+} | nav-pilot alpha decide \
+  "Does the commit message explain why the change was made, beyond describing what the diff already shows?" \
+  --options yes,no --evidence - --threshold 0.7 --expect no \
+  --timeout 3s >/dev/null 2>&1
+
+if [ $? -eq 0 ]; then
+  echo "commit-msg: meldingen ser ut til å si hva som endret seg, men ikke hvorfor." >&2
+fi
+exit 0`;
+
+const DECIDE_EVAL_CASES = String.raw`{"question":"Does the commit message explain why ...?","options":["yes","no"],"evidence":"Commit message:\nfix: bump timeout to 30s\n\nDiff:\n...","expect":"no"}
+{"question":"Does the commit message explain why ...?","options":["yes","no"],"evidence":"Commit message:\nfix: bump timeout to 30s\n\nThe batch job takes 20s on large tenants.\n\nDiff:\n...","expect":"yes"}`;
+
+const DECIDE_PR_DESCRIPTION = String.raw`gh pr view N --json title,body -q '.title + "\n\n" + .body' \
+  | nav-pilot alpha decide \
+    "Does this pull request description explain why the change is needed?" \
+    --options yes,no --evidence -`;
+
+const DECIDE_ISSUE_LABEL = String.raw`gh issue view N --json title,body -q '.title + "\n\n" + .body' \
+  | nav-pilot alpha decide "Which label fits this issue best?" \
+    --options bug,feature,question --evidence - --json \
+  | jq -r 'select(.p[.choice] >= 0.9) | .choice'`;
+
+const DECIDE_LOG_TRIAGE = String.raw`kubectl logs deploy/min-app --since=1h | tail -c 30000 \
+  | nav-pilot alpha decide \
+    "Do these logs show the app failing to reach a dependency?" \
+    --options yes,no --evidence -`;
 
 /* ═══════════════════════════════════════════════════════════════
    Table of Contents structure
@@ -119,6 +159,7 @@ const DOC_SECTIONS: TocItem[] = [
       { id: "lokal-kom-i-gang", label: "Kom i gang" },
       { id: "lokal-hva-den-klarer", label: "Hva den klarer" },
       { id: "lokal-decide", label: "Typede avgjørelser" },
+      { id: "lokal-decide-oppskrifter", label: "Oppskrifter for decide" },
       { id: "lokal-feilsoking", label: "Når noe henger" },
     ],
   },
@@ -2316,6 +2357,91 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             <code className="font-mono text-xs">decide</code> starter den ikke selv. Alle valg står i{" "}
             <code className="font-mono text-xs">nav-pilot alpha decide --help</code>.
           </BodyLong>
+        </VStack>
+
+        <VStack id="lokal-decide-oppskrifter" gap="space-12">
+          <LinkableHeading size="small" level="3">
+            Oppskrifter for <code className="font-mono">alpha decide</code>
+          </LinkableHeading>
+          <BodyShort size="small" textColor="subtle">
+            Commit-hooken under er den eneste vi har målt. De andre eksemplene er ikke målt ennå. Alle advarer bare,
+            ingen stopper noe.
+          </BodyShort>
+
+          <HStack gap="space-8" align="center">
+            <Label size="small">Commit-meldingen forklarer hvorfor</Label>
+            <Tag size="small" variant="success">
+              Målt
+            </Tag>
+          </HStack>
+          <BodyLong size="small" textColor="subtle">
+            Lagre skriptet som <code className="font-mono text-xs">scripts/commit-explains-why.sh</code> i repoet og
+            kjør <code className="font-mono text-xs">chmod +x</code> på det. Det advarer når meldingen bare sier hva
+            diffen viser, og slipper alltid commiten gjennom. Uten nav-pilot på maskinen gjør det ingenting.
+          </BodyLong>
+          <CodeBlock compact>{COMMIT_EXPLAINS_WHY_HOOK}</CodeBlock>
+          <BodyLong size="small" textColor="subtle">
+            Med <code className="font-mono text-xs">pre-commit</code> legger du det inn som en lokal hook i{" "}
+            <code className="font-mono text-xs">.pre-commit-config.yaml</code>:
+          </BodyLong>
+          <CodeBlock compact>
+            {`repos:
+  - repo: local
+    hooks:
+      - id: commit-explains-why
+        name: commit-meldingen forklarer hvorfor
+        entry: scripts/commit-explains-why.sh
+        language: script
+        stages: [commit-msg]`}
+          </CodeBlock>
+          <CodeBlock compact>{`pre-commit install --hook-type commit-msg`}</CodeBlock>
+          <BodyLong size="small" textColor="subtle">
+            Med Lefthook går det i <code className="font-mono text-xs">lefthook.yml</code>.{" "}
+            <code className="font-mono text-xs">{"{1}"}</code> er fila git lagrer meldingen i:
+          </BodyLong>
+          <CodeBlock compact>
+            {`commit-msg:
+  commands:
+    explains-why:
+      run: scripts/commit-explains-why.sh {1}`}
+          </CodeBlock>
+
+          <Label size="small">Mål ditt eget spørsmål</Label>
+          <BodyLong size="small" textColor="subtle">
+            Vil du stille modellen et annet spørsmål, mål det først. Lag en JSONL-fil med eksempler fra ditt eget repo
+            der du vet svaret, ett per linje. Ta med omtrent like mange av hvert svar:
+          </BodyLong>
+          <CodeBlock compact>{DECIDE_EVAL_CASES}</CodeBlock>
+          <CodeBlock compact>{`nav-pilot alpha decide --eval cases.jsonl`}</CodeBlock>
+          <BodyLong size="small" textColor="subtle">
+            Er modellen like sikker når den tar feil som når den har rett, hjelper ingen terskel. Da bør spørsmålet ikke
+            inn i en hook.
+          </BodyLong>
+
+          <HStack gap="space-8" align="center">
+            <Label size="small">Eksempler vi ikke har målt</Label>
+            <Tag size="small" variant="warning">
+              Ikke målt
+            </Tag>
+          </HStack>
+          <BodyLong size="small" textColor="subtle">
+            Vi måler disse nå. Til da: la dem bare advare eller foreslå. Ikke la en sjekk stoppe noe på grunnlag av
+            tekst andre har skrevet, som PR-beskrivelser, issues og logger. Teksten kan inneholde instruksjoner til
+            modellen (prompt injection).
+          </BodyLong>
+          <BodyShort size="small" textColor="subtle">
+            Forklarer PR-beskrivelsen hvorfor endringen trengs? (ikke målt)
+          </BodyShort>
+          <CodeBlock compact>{DECIDE_PR_DESCRIPTION}</CodeBlock>
+          <BodyShort size="small" textColor="subtle">
+            Foreslå en etikett på et issue, men bare når modellen er minst 90 % sikker (ikke målt):
+          </BodyShort>
+          <CodeBlock compact>{DECIDE_ISSUE_LABEL}</CodeBlock>
+          <BodyShort size="small" textColor="subtle">
+            Sorter en logg før du leser den selv (ikke målt). <code className="font-mono text-xs">tail -c 30000</code>{" "}
+            holder grunnlaget under grensen på 32 KiB:
+          </BodyShort>
+          <CodeBlock compact>{DECIDE_LOG_TRIAGE}</CodeBlock>
         </VStack>
 
         <VStack id="lokal-feilsoking" gap="space-12">
