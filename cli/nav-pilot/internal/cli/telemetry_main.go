@@ -89,3 +89,29 @@ func configModelLabel(model string) string {
 	}
 	return "custom"
 }
+
+// alphaCommand is the telemetry command name for an alpha invocation: "alpha
+// decide", "alpha decide eval", "alpha local <sub>", or plain "alpha" for help
+// and anything unknown. Only these fixed names; never an argument.
+func alphaCommand(args []string) string {
+	if len(args) == 0 {
+		return "alpha"
+	}
+	switch args[0] {
+	case "decide":
+		for _, a := range args[1:] {
+			if a == "--eval" || a == "-eval" || strings.HasPrefix(a, "--eval=") || strings.HasPrefix(a, "-eval=") {
+				return "alpha decide eval"
+			}
+		}
+		return "alpha decide"
+	case "local":
+		if len(args) > 1 {
+			switch args[1] {
+			case "init", "start", "stop", "restart", "status", "on", "off", "ask", "purge":
+				return "alpha local " + args[1]
+			}
+		}
+	}
+	return "alpha"
+}

@@ -20,6 +20,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
+	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
 const decideHelp = `nav-pilot alpha decide: a typed decision from the local model
@@ -99,7 +100,7 @@ type decision struct {
 	Evidence bool               `json:"evidence"`
 }
 
-func cmdDecide(args []string) error {
+func cmdDecide(args []string) (err error) {
 	fs := flag.NewFlagSet("decide", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	optionsFlag := fs.String("options", "", "")
@@ -163,6 +164,20 @@ func cmdDecide(args []string) error {
 		return decideFail(fmt.Errorf("--expect %q is not one of the options %v", *expect, options))
 	}
 
+	// Recorded from here on: a usage error above is already in the command
+	// metric, and is not a decide call. Only sizes, counts and enums.
+	ev := telemetrypkg.DecideEvent{
+		Options:       len(options),
+		ThresholdUsed: thresholdSet,
+		Evidence:      *evidenceFlag != "",
+		Caller:        decideCaller(),
+	}
+	defer func() {
+		ev.Result = decideResult(err)
+		ev.Model = decideModelLabel(ev.Model)
+		telemetry.RecordDecide(ev)
+	}()
+
 	evidence := ""
 	if *evidenceFlag == "" {
 		fmt.Fprintln(os.Stderr, "warning: deciding without evidence. The model sees only the question; pass --evidence <file> or --evidence -")
@@ -175,6 +190,7 @@ func cmdDecide(args []string) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
+	ev.EvidenceBytes = len(evidence)
 	d, err := decide(ctx, question, options, evidence, *evidenceFlag != "")
 	if err != nil {
 		return decideFail(explainDecideError(err, *timeout))
@@ -190,11 +206,57 @@ func cmdDecide(args []string) error {
 		}
 		fmt.Printf("\n  %s\n\n", dim(fmt.Sprintf("%s · %d ms · evidence: %v", d.Model, d.MS, d.Evidence)))
 	}
+	ev.Model, ev.Answered, ev.MS, ev.PChoice = d.Model, true, d.MS, d.P[d.Choice]
 
 	if thresholdSet && d.P[*expect] < *threshold {
 		return &exitCode{code: 1}
 	}
 	return nil
+}
+
+// decideCaller is who ran decide: a git hook (git sets GIT_INDEX_FILE or
+// GIT_EXEC_PATH for the hooks it runs), a person at a terminal, or a script.
+func decideCaller() string {
+	if os.Getenv("GIT_INDEX_FILE") != "" || os.Getenv("GIT_EXEC_PATH") != "" {
+		return "hook"
+	}
+	if providerpkg.IsTerminal(os.Stdin) && providerpkg.IsTerminal(os.Stdout) {
+		return "tty"
+	}
+	return "script"
+}
+
+func decideResult(err error) string {
+	var ec *exitCode
+	switch {
+	case err == nil:
+		return "decided"
+	case errors.As(err, &ec) && ec.code == 1:
+		return "below_threshold"
+	case errors.Is(err, local.ErrNoServerRecorded):
+		return "no_server"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "timeout"
+	default:
+		return "error"
+	}
+}
+
+// decideModelLabel is the model as telemetry may see it: a model id from the
+// local manifest, "custom" for anything else, "" (reported as unset) when no
+// call got as far as a server. The id comes from the server's state file, so
+// it is checked rather than trusted.
+func decideModelLabel(id string) string {
+	if id == "" {
+		if m, ok := local.Chosen(local.Active()); ok {
+			return m.Model
+		}
+		return ""
+	}
+	if _, ok := local.Lookup(id); ok {
+		return id
+	}
+	return "custom"
 }
 
 func validateOptions(options []string) error {

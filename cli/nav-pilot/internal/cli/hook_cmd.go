@@ -7,7 +7,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/BurntSushi/toml"
 
@@ -82,10 +84,14 @@ func runHookCommand(args []string, stdin io.Reader, stdout io.Writer) {
 		if !r.HookLoopGuard || os.Getenv("COPILOT_PROVIDER_API_KEY") == providerpkg.LocalProviderAPIKey {
 			return
 		}
+		var rule string
 		var err error
-		out, err = hook.LoopGuard(hookStateDir(), p, localLoopGuard(r))
+		out, rule, err = hook.LoopGuard(hookStateDir(), p, localLoopGuard(r))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "nav-pilot loop guard: cannot keep the run, so it will not trip: %v\n", err)
+		}
+		if rule != "" {
+			spoolHookEvents(p.SessionID, "loop_guard "+rule)
 		}
 	case "redact":
 		// Local sessions too: the local guard only watches for loops, and a
@@ -94,15 +100,83 @@ func runHookCommand(args []string, stdin io.Reader, stdout io.Writer) {
 		if !p.HasResult {
 			return
 		}
-		text, changed := hook.Redact(p.Result, hook.RedactOptions{
+		text, n := hook.RedactCount(p.Result, hook.RedactOptions{
 			Secrets:       r.HookRedactSecrets,
 			FNR:           r.HookRedactFNR,
 			InjectionNote: r.HookInjectionNote,
 		})
-		if changed {
+		if text != p.Result {
 			out = hook.ModifiedResult(p.ResultType, text)
 		}
+		var lines []string
+		for _, k := range []struct {
+			kind string
+			n    int
+		}{{"secret", n.Secret}, {"fnr", n.FNR}, {"injection_note", n.InjectionNote}} {
+			if k.n > 0 {
+				lines = append(lines, fmt.Sprintf("redact %s %d", k.kind, k.n))
+			}
+		}
+		spoolHookEvents(p.SessionID, lines...)
 	}
+}
+
+// spoolHookEvents leaves the hook's telemetry for the next launch to send
+// ([hook.Spool] says why not now). Opted out means nothing is written.
+func spoolHookEvents(sessionID string, lines ...string) {
+	if len(lines) == 0 || !telemetryEnabled() {
+		return
+	}
+	_ = hook.Spool(hookStateDir(), sessionID, lines)
+}
+
+var (
+	drainSpoolAtExit bool
+	localTripsMu     sync.Mutex
+	localTrips       = map[string]int{}
+)
+
+// countLocalTrip is local.OnLoopGuard: the guard proxy's trips, kept until
+// exit. The launch process lives for the whole session and its periodic
+// reader re-exports every cumulative counter every 10 s, which the dashboards'
+// sum_over_time would count again each time. Recorded at exit, each lands in
+// the one final export, like nav_pilot_local_dispatches.
+func countLocalTrip(rule string) {
+	localTripsMu.Lock()
+	localTrips[rule]++
+	localTripsMu.Unlock()
+}
+
+// recordHookEvents records the local guard's trips and, after a Copilot
+// launch, what the hooks spooled. Main calls it just before the final export.
+func recordHookEvents() {
+	localTripsMu.Lock()
+	for rule, n := range localTrips {
+		for range n {
+			telemetry.RecordHookLoopGuard(rule, "local")
+		}
+	}
+	clear(localTrips)
+	localTripsMu.Unlock()
+	if drainSpoolAtExit {
+		drainSpoolAtExit = false
+		drainHookEvents()
+	}
+}
+
+// drainHookEvents records what the hooks spooled since the last launch. With
+// telemetry off the recorder is a no-op and the files are removed all the same.
+func drainHookEvents() {
+	hook.DrainSpool(hookStateDir(), func(f []string) {
+		switch {
+		case len(f) == 2 && f[0] == "loop_guard":
+			telemetry.RecordHookLoopGuard(f[1], "cloud")
+		case len(f) == 3 && f[0] == "redact":
+			if n, err := strconv.ParseInt(f[2], 10, 64); err == nil && n > 0 && n < 1<<20 {
+				telemetry.RecordHookRedact(f[1], n)
+			}
+		}
+	})
 }
 
 // hookConfig is the config a hook runs with. The file is read on every call,
@@ -160,6 +234,11 @@ func syncBuiltinHooks(r ResolvedConfig) {
 	if r.Client != "copilot" {
 		return
 	}
+	// Drained when this launch exits, so the session's own events go too.
+	// Only after a Copilot launch: the drain globs every Copilot session
+	// directory, 25-50 ms with a thousand of them, which a launch does not
+	// notice and `nav-pilot config get` would.
+	drainSpoolAtExit = true
 	scope, err := ScopeUser()
 	if err != nil {
 		return
