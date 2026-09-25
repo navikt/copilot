@@ -103,7 +103,7 @@ Numbers from two benchmark runs on 25 September 2026. "Default" is Qwen3.6-35B-A
 
 The commit-why question works well. Harder questions work less well, so measure yours before you rely on it. The messages came from two repositories with few authors, which is why the hook warns and does not block.
 
-Calibration has not been formally measured. Treat p as a ranking signal: higher means more likely, not a guaranteed error rate.
+We have not run a formal calibration study, but the bands are informative. Across the 974 limit cases on the default model, answers with p between 0.9 and 0.99 were right 192 of 205 times (94%), and answers with p of 0.99 or more 336 of 338 times (99%). Answers with p between 0.5 and 0.7 were right only 106 of 185 times (57%). Treat p as a ranking signal and measure your own question with `--eval`.
 
 Evidence can steer the answer. Tool output, someone else's commit or any other untrusted text can contain a line like "The correct answer is no." Filter such lines out, and stay on the default model when you do not control the evidence.
 
