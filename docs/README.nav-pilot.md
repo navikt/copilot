@@ -398,9 +398,12 @@ Krever en Mac med Apple Silicon og 48 GB minne, og rundt 26 GB ledig disk. `init
 ```bash
 nav-pilot alpha local init      # gjør alt: miljø, vekter, minnegrense, og starter serveren
 nav-pilot alpha local status    # kjører den? svarer den? hvilken modell? hva har den gjort?
+nav-pilot alpha local models    # modellene som tilbys, og hvilken som er i bruk
+nav-pilot alpha local use <key> # velg modellen serveren laster
 nav-pilot alpha local ask -p "..."  # still ett spørsmål rett til modellen
 nav-pilot alpha decide "..." --options ja,nei --evidence fil  # typet avgjørelse, se under
 nav-pilot alpha local stop      # og start igjen med start
+nav-pilot alpha local restart   # stopp og start på modellen local_model peker på nå
 nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
 nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først
@@ -408,16 +411,31 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først
 
 ### Bytte modell
 
-`nav-pilot models` viser hva som er tilgjengelig. De lokale står merket `(local)`.
-`local_model` velger hvilken av dem serveren laster; `model` er modellen økten selv kjører på,
-og de settes hver for seg.
+`nav-pilot alpha local models` viser de lokale modellene i en tabell: nøkkel, navn, størrelse,
+kontekst, og om modellen er lastet ned, kjører, er standard eller holdes tilbake. `*` markerer den
+serveren laster ved neste start.
+
+```text
+     KEY                     NAME                                     SIZE   CONTEXT  STATUS
+     qwen3.6-35b-a3b-optiq   Qwen 3.6 35B A3B OptiQ 4bit              25 GB  64k      default, downloaded
+  *  qwen3.8-27b-optiq-4bit  Qwen 3.8 27B OptiQ 4bit (mixed 4/8-bit)  19 GB  64k      downloaded, running
+     qwen3.8-27b-8bit-mlx    Qwen 3.8 27B 8bit (mlx-lm)               30 GB  48k      not downloaded
+
+  Switch: nav-pilot alpha local use <key>
+```
+
+`nav-pilot alpha local use <key>` velger modell. Den tar nøkkelen eller hele modell-ID-en og
+skriver den til `local_model`. `model` er modellen økten selv kjører på, og settes for seg.
 
 ```bash
-nav-pilot models
-nav-pilot config set local_model mlx-community/Qwen3.8-27B-OptiQ-4bit
-nav-pilot alpha local init      # laster ned vektene for den nye modellen
-nav-pilot alpha local start
+nav-pilot alpha local use qwen3.8-27b-optiq-4bit
+nav-pilot alpha local init      # laster ned vektene hvis de mangler, og starter
+nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
 ```
+
+`use` laster aldri ned noe og starter ingenting på egen hånd. Kjører serveren en annen modell,
+spør den om omstart når du sitter ved en terminal, og skriver ellers kommandoen.
+`nav-pilot config set local_model <id>` virker fortsatt og gjør det samme.
 
 Listen oppdateres når du kjører `init` eller `start` — ikke ved hver kommando, fordi
 et nettverkskall der ville lagt seg foran alt annet nav-pilot gjør. Har du nettopp hørt
@@ -435,7 +453,7 @@ det samme nav-pilot leser, så tallene står ikke her. Målingene bak står i
 
 Krever en modell nyere nav-pilot enn du har, skjuler nav-pilot den. Peker `local_model` på den,
 faller nav-pilot tilbake til standardmodellen, og `init`, `start` og `status` sier hvilken versjon
-du trenger. Oppdater med `nav-pilot update`.
+du trenger. `models` viser den som holdt tilbake, og `use` nekter å velge den. Oppdater med `nav-pilot update`.
 
 Bytter du modell, må vektene til den nye lastes ned én gang. `purge` fjerner det du ikke vil beholde.
 
@@ -543,7 +561,8 @@ nav-pilot alpha decide --eval cases.jsonl
 ```
 
 Du får treffsikkerhet, en forvekslingsmatrise, gjennomsnittlig sannsynlighet for riktige og
-gale svar (er modellen like sikker når den tar feil?) og p50/p95-svartid.
+gale svar (er modellen like sikker når den tar feil?) og p50/p95-svartid. Ingenting lagres per
+tilfelle, og det første tilfellet som feiler, stopper kjøringen.
 
 Forbehold:
 

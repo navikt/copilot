@@ -207,8 +207,8 @@ func configAdvisories(cfg *Config, meta toml.MetaData) []string {
 	if cfg.LocalModel == nil {
 		if _, ok := local.Lookup(*cfg.Model); ok {
 			return []string{fmt.Sprintf(
-				"model %q runs this session on the local model. To choose which model the local server loads, set %s instead.",
-				*cfg.Model, bold("local_model"))}
+				"model %q runs this session on the local model. To choose which model the local server loads, set local_model instead: %s.",
+				*cfg.Model, bold("nav-pilot alpha local use <key>"))}
 		}
 	}
 	clientID := "copilot"

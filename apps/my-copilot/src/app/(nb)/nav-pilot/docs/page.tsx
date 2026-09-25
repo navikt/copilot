@@ -246,6 +246,14 @@ const CLI_COMMANDS = [
   { command: "nav-pilot config validate", description: "Valider konfigurasjonsfilen" },
   { command: "nav-pilot export opencode --dry-run", description: "Forhåndsvis hva som eksporteres" },
   { command: "nav-pilot version", description: "Vis versjonsinformasjon" },
+  {
+    command: "nav-pilot alpha local <command>",
+    description: "Lokal modell (alfa): init, start, status, models, use, restart, stop, ask, on, off, purge",
+  },
+  {
+    command: 'nav-pilot alpha decide "<spørsmål>" --options a,b',
+    description: "Typet avgjørelse fra den lokale modellen (alfa). Se --help",
+  },
 ];
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1578,7 +1586,8 @@ const CONFIG_KEYS = [
   {
     key: "local_model",
     flag: "—",
-    values: "modell-id fra 'nav-pilot models', f.eks. mlx-community/Qwen3.8-27B-OptiQ-4bit",
+    values:
+      "modell-id, f.eks. mlx-community/Qwen3.8-27B-OptiQ-4bit. Enklest satt med 'nav-pilot alpha local use <key>'",
     desc: "Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Krever modellen en nyere nav-pilot enn din, faller den tilbake til standard og sier hvilken versjon du trenger.",
   },
   {
@@ -2035,7 +2044,10 @@ function LocalModelSection({ models }: { models: LocalModel[] }) {
             {`nav-pilot alpha local init      # laster ned modellen og setter opp miljøet
 nav-pilot alpha local start     # starter serveren
 nav-pilot alpha local status    # kjører den? svarer den? hvilken modell? hva har den gjort?
+nav-pilot alpha local models    # modellene som tilbys, og hvilken som er i bruk
+nav-pilot alpha local use <key> # velg modellen serveren laster
 nav-pilot alpha local ask -p "..."  # still ett spørsmål rett til modellen
+nav-pilot alpha decide "..." --options ja,nei --evidence fil  # typet avgjørelse
 nav-pilot alpha local stop
 nav-pilot alpha local restart   # stop og start i ett
 nav-pilot alpha local on        # skru på igjen etter off
@@ -2128,19 +2140,21 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
             Bytte modell
           </LinkableHeading>
           <BodyLong size="small" textColor="subtle">
-            <code className="font-mono text-xs">nav-pilot models</code> viser hva som er tilgjengelig; de lokale står
-            merket <code className="font-mono text-xs">(local)</code>.{" "}
-            <code className="font-mono text-xs">local_model</code> velger hvilken av dem serveren laster;{" "}
-            <code className="font-mono text-xs">model</code> er modellen økten selv kjører på, og de settes hver for
-            seg. Listen oppdateres når du kjører <code className="font-mono text-xs">init</code> eller{" "}
+            <code className="font-mono text-xs">nav-pilot alpha local models</code> viser de lokale modellene:
+            størrelse, kontekst, om de er lastet ned eller kjører, og hvilken serveren laster (merket{" "}
+            <code className="font-mono text-xs">*</code>).{" "}
+            <code className="font-mono text-xs">nav-pilot alpha local use &lt;key&gt;</code> velger modell og skriver
+            den til <code className="font-mono text-xs">local_model</code>. Den laster ikke ned og starter ikke noe
+            selv. <code className="font-mono text-xs">model</code> er modellen økten selv kjører på, og settes for seg.
+            Listen oppdateres når du kjører <code className="font-mono text-xs">init</code> eller{" "}
             <code className="font-mono text-xs">start</code>, ikke ved hver kommando. Et nettverkskall der ville lagt
             seg foran alt annet nav-pilot gjør.
           </BodyLong>
           <CodeBlock compact>
-            {`nav-pilot models
-nav-pilot config set local_model mlx-community/Qwen3.8-27B-OptiQ-4bit
-nav-pilot alpha local init      # laster ned vektene for den nye modellen
-nav-pilot alpha local start`}
+            {`nav-pilot alpha local models
+nav-pilot alpha local use qwen3.8-27b-optiq-4bit
+nav-pilot alpha local init      # laster ned vektene hvis de mangler, og starter
+nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell`}
           </CodeBlock>
           <BodyLong size="small" textColor="subtle">
             Qwen 3.6 er standard fordi den er rask og forutsigbar, ikke fordi den løser mest. Bytter du, må vektene til

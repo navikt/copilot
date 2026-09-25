@@ -150,7 +150,8 @@ func TestDecideBuckets(t *testing.T) {
 // own entries they would all report as command="unknown".
 func TestAlphaCommandNamesSurviveNormalisation(t *testing.T) {
 	for _, c := range []string{"alpha", "alpha decide", "alpha decide eval", "alpha local init", "alpha local start",
-		"alpha local stop", "alpha local restart", "alpha local status", "alpha local on", "alpha local off",
+		"alpha local stop", "alpha local restart", "alpha local status", "alpha local models", "alpha local use",
+		"alpha local on", "alpha local off",
 		"alpha local ask", "alpha local purge"} {
 		if got := normalizeTelemetryDimension(c, "unknown"); got != c {
 			t.Errorf("%q normalised to %q", c, got)

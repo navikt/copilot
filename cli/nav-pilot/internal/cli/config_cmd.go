@@ -172,7 +172,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "local_model",
 		kind:        keyKindString,
-		description: "Which local model the server loads and serves (alpha). Empty means the manifest default. Separate from model, which is the session model.",
+		description: "Which local model the server loads and serves (alpha). Empty means the manifest default. Separate from model, which is the session model. `nav-pilot alpha local use <key>` sets it by key.",
 		allowed:     nil,
 		defaultVal:  "",
 		flag:        "",

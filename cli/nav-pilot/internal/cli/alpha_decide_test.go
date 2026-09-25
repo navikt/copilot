@@ -369,6 +369,7 @@ func TestAlphaCommand(t *testing.T) {
 		"decide --eval=cases.jsonl":      "alpha decide eval",
 		"local status":                   "alpha local status",
 		"local ask -p hello":             "alpha local ask",
+		"local use org/secret-model":     "alpha local use",
 		"local rm-rf-everything":         "alpha",
 		"something-else entirely secret": "alpha",
 	} {

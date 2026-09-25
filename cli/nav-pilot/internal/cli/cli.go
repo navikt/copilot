@@ -102,6 +102,7 @@ Commands:
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
   feedback                Report a bug or request a feature
   alpha local <cmd>       Run a model on this machine (alpha; off until you run 'alpha local init')
+  alpha decide "<q>"      Ask the local model a multiple-choice question (alpha; see 'alpha decide --help')
   version                 Show version information
 
 Flags:

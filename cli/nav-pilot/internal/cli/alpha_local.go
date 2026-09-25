@@ -7,10 +7,11 @@ package cli
 // group provisions and enables, and until it has, [local.IsLocal] answers false
 // everywhere and no other command behaves differently.
 //
-// The five commands split along what each one costs. init spends an afternoon
+// The commands split along what each one costs. init spends an afternoon
 // of bandwidth and says so first. start loads the weights and blocks until the
 // server has answered a real completion, because a port bind proves nothing.
-// status spends one probe. stop and off spend nothing.
+// status spends one probe. models and use read the cached manifest and the
+// disk. stop and off spend nothing.
 //
 // Nothing here runs sudo. Raising the wired-memory limit is the one privileged
 // action in the neighbourhood and it stays a command the developer types:
@@ -54,14 +55,16 @@ hosted one. Off until you run init, and invisible everywhere until then.
   restart   Stop the server and start one on the model local_model names now
   stop      Stop the server
   status    Model, health, resident memory, the wired-memory limit, the log and what it has done
+  models    The local models on offer: size, context, downloaded, running, and which is in use
+  use       Pick the model the server loads: use <key|model-id>
   ask       Put one question straight to the local model: ask -p "..." (or pipe stdin)
   on        Dispatch to it again after off, without downloading anything
   off       Stop dispatching to it; the weights stay on disk
   purge     Remove the environment and the weights, after showing what and how big
 
 Switching model:
-  nav-pilot models                                  what is offered; local ones say (local)
-  nav-pilot config set local_model <id>             pick one
+  nav-pilot alpha local models                      what is offered, and which is in use
+  nav-pilot alpha local use <key>                   pick one (sets local_model)
   nav-pilot alpha local init                        download its weights, then start
 
 The list refreshes on init and start, not on every command.
@@ -95,6 +98,10 @@ func cmdAlpha(args []string) error {
 		return cmdLocalRestart()
 	case "status":
 		return cmdLocalStatus()
+	case "models":
+		return cmdLocalModels()
+	case "use":
+		return cmdLocalUse(args[2:])
 	case "on":
 		return cmdLocalOn()
 	case "off":
@@ -107,7 +114,7 @@ func cmdAlpha(args []string) error {
 		alphaUsage()
 		return nil
 	default:
-		if hint := suggest(sub, []string{"init", "start", "restart", "stop", "status", "ask", "on", "off", "purge"}); hint != "" {
+		if hint := suggest(sub, []string{"init", "start", "restart", "stop", "status", "models", "use", "ask", "on", "off", "purge"}); hint != "" {
 			return fmt.Errorf("unknown command: nav-pilot alpha local %s. Did you mean %s?", sub, hint)
 		}
 		return fmt.Errorf("unknown command: nav-pilot alpha local %s. Run %s for usage", sub, bold("nav-pilot alpha help"))
@@ -156,27 +163,37 @@ func printWithheld(m *local.Manifest) {
 // IsLocal — this runs before anything is enabled, which is exactly when init
 // needs to read the manifest.
 func localModel(m *local.Manifest) (local.Model, error) {
-	configured := ""
+	entry, configured, why, err := localSelection(m)
+	if why != "" {
+		fmt.Fprintf(os.Stderr, "%s local_model is %s, %s. Using the default %s instead.\n",
+			yellow("⚠"), bold(configured), why, bold(entry.Model))
+	}
+	return entry, err
+}
+
+// localSelection is localModel without the printing, for the commands that
+// show the choice rather than act on it: the entry a start would load, the
+// configured local_model ("" when unset), and why that one was passed over (""
+// when it was used or nothing is configured).
+func localSelection(m *local.Manifest) (entry local.Model, configured, why string, err error) {
 	if cfg, err := readConfig(); err == nil && cfg != nil && cfg.LocalModel != nil {
 		configured = strings.TrimSpace(*cfg.LocalModel)
 		local.SetSelectedModel(configured)
 	}
-	if entry, ok := local.Chosen(m); ok {
-		if configured != "" && entry.Model != configured {
-			// Withheld for this version: the reason was printed with the
-			// manifest, so only the fallback is left to say.
-			if _, ok := m.WithheldEntry(configured); ok {
-				fmt.Fprintf(os.Stderr, "%s local_model is %s, which needs a newer nav-pilot. Using the default %s instead.\n",
-					yellow("⚠"), bold(configured), bold(entry.Model))
-				return entry, nil
-			}
-			fmt.Fprintf(os.Stderr, "%s local_model is %s, which this manifest does not offer. Using the default %s instead.\n",
-				yellow("⚠"), bold(configured), bold(entry.Model))
-		}
-		return entry, nil
+	entry, ok := local.Chosen(m)
+	if !ok {
+		// Unreachable: Parse refuses a manifest without exactly one default.
+		return local.Model{}, configured, "", errors.New("the local-model manifest names no default model")
 	}
-	// Unreachable: Parse refuses a manifest without exactly one default.
-	return local.Model{}, errors.New("the local-model manifest names no default model")
+	if configured == "" || entry.Model == configured {
+		return entry, configured, "", nil
+	}
+	// Withheld for this version: the reason was printed with the manifest, so
+	// only the fallback is left to say.
+	if _, ok := m.WithheldEntry(configured); ok {
+		return entry, configured, "which needs a newer nav-pilot", nil
+	}
+	return entry, configured, "which this manifest does not offer", nil
 }
 
 // ─── init ────────────────────────────────────────────────────────────────────
@@ -602,8 +619,11 @@ func cmdLocalStatus() error {
 	fmt.Printf("  Dispatch     %s\n", enabledLabel(enabled))
 	// Cached, not Active: Active can still be the embedded copy parsed before
 	// the version was set, when local dispatch is off or not provisioned.
-	if m, _, _ := local.Cached(); m != nil {
+	m, _, _ := local.Cached()
+	var configured local.Model
+	if m != nil {
 		printWithheld(m)
+		configured = printConfiguredModel(m)
 	}
 
 	st, ok, err := local.LoadState()
@@ -621,13 +641,13 @@ func cmdLocalStatus() error {
 	if stats, err := local.ReadStats(); err == nil && stats.Requests > 0 {
 		defer printLocalStats(stats)
 	}
-	fmt.Printf("  Model        %s\n", bold(st.Model))
+	fmt.Printf("  Serving      %s\n", bold(st.Model))
 	// A server keeps serving what it loaded. Changing local_model under a
 	// running one leaves the config and the process disagreeing, and every
 	// answer comes from the old model with nothing on screen to say so.
-	if want, ok := local.Chosen(local.Active()); ok && want.Model != st.Model {
-		fmt.Printf("               %s local_model is %s now. Run %s to serve it.\n",
-			yellow("⚠"), bold(want.Model), bold("nav-pilot alpha local restart"))
+	if configured.Model != "" && configured.Model != st.Model && health != local.HealthCrashed {
+		fmt.Printf("               %s Not the configured model. Run %s to serve it.\n",
+			yellow("⚠"), bold("nav-pilot alpha local restart"))
 	}
 	fmt.Printf("  Server       %s, %s\n", healthColour(health), dim(healthMeaning(health)))
 	fmt.Printf("  Process      pid %d, up %s, listening on %s\n",
@@ -664,6 +684,26 @@ func cmdLocalStatus() error {
 	}
 	fmt.Println()
 	return nil
+}
+
+// printConfiguredModel is status's Model line: the model a start would load,
+// and whether local_model or the manifest default chose it. A local_model the
+// manifest passed over is said here, since otherwise status is where a
+// developer would look for it and find nothing.
+func printConfiguredModel(m *local.Manifest) local.Model {
+	entry, configured, why, err := localSelection(m)
+	if err != nil {
+		return local.Model{}
+	}
+	via := "manifest default"
+	if configured != "" && why == "" {
+		via = "set via local_model"
+	}
+	fmt.Printf("  Model        %s %s\n", bold(entry.Key), dim("("+entry.Name+", "+via+")"))
+	if why != "" {
+		fmt.Printf("               %s local_model is %s, %s. Using the default.\n", yellow("⚠"), bold(configured), why)
+	}
+	return entry
 }
 
 func installedLabel() string {

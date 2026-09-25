@@ -46,7 +46,9 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 `command`-dimensjonen inkluderer også livssyklus-eventer:
 - `startup` når brukeren kjører `nav-pilot` uten args (interaktiv flyt)
 - `launch` når nav-pilot forsøker å starte `cplt`/`copilot`
-- `alpha decide`, `alpha decide eval` og `alpha local <kommando>` (før: bare `alpha` for alle)
+- `alpha decide`, `alpha decide eval` og `alpha local <kommando>` (før: bare `alpha` for alle).
+  Kommandoene er `init`, `start`, `stop`, `restart`, `status`, `models`, `use`, `on`, `off`,
+  `ask` og `purge`; en ukjent underkommando telles som `alpha`
 
 **Merk om `nav_pilot_install_present`:**
 - `collection` er en bøtte, ikke navnet på en samling: `pakke` (scopet sporer en
