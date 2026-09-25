@@ -499,17 +499,24 @@ En avgjørelse blir aldri bedre enn grunnlaget modellen får. Gi den det den ska
 `--evidence <fil>` eller `--evidence -` (stdin). Uten grunnlag får du en advarsel og
 `"evidence": false`.
 
-En `commit-msg`-hook som stopper meldinger som ikke følger Conventional Commits:
+Bruk `decide` til vurderinger en regel ikke kan gjøre. Om en commit-melding følger Conventional
+Commits, avgjør et regulært uttrykk. Om meldingen forklarer hvorfor endringen ble gjort, kan
+bare en modell vurdere. En `commit-msg`-hook som advarer, men aldri stopper commiten:
 
 ```bash
 #!/bin/sh
-nav-pilot alpha decide "Følger commit-meldingen Conventional Commits?" \
-  --options ja,nei --evidence "$1" --threshold 0.8 --expect ja
+command -v nav-pilot >/dev/null 2>&1 || exit 0
+{ echo "Commit message:"; grep -v '^#' "$1"; echo; echo "Staged diff:"; git diff --cached | head -c 8000; } |
+  nav-pilot alpha decide \
+    "Does the commit message explain why the change was made, beyond describing what the diff already shows?" \
+    --options yes,no --evidence - --threshold THRESHOLD --expect no --timeout 3s >/dev/null 2>&1 &&
+  echo "commit-msg: meldingen ser ut til å si hva som endret seg, men ikke hvorfor." >&2
+exit 0
 ```
 
-Exit 0 betyr at p(ja) er minst 0,8, 1 at den er lavere, og 2 at noe feilet, for eksempel at
-serveren ikke kjører. Skal hooken slippe gjennom når modellen ikke svarer, må du behandle 2
-som «ok».
+Exit 0 betyr at sannsynligheten for `--expect` er minst terskelen, 1 at den er lavere, og 2 at
+noe feilet, for eksempel at serveren ikke kjører. Hooken over slipper commiten gjennom i alle
+tilfeller. README_RESULTS
 
 Se etter feil i en logg:
 
@@ -522,7 +529,7 @@ Mål spørsmålet før du bruker det i en hook. Lag en JSONL-fil med eksempler d
 på, ett per linje:
 
 ```json
-{"question":"Følger commit-meldingen Conventional Commits?","options":["ja","nei"],"evidence":"feat: legg til eksport","expect":"ja"}
+{"question":"Viser loggen en feil som krever handling?","options":["ja","nei"],"evidence":"ERROR db: connection refused","expect":"ja"}
 ```
 
 ```bash
@@ -535,6 +542,8 @@ gale svar (er modellen like sikker når den tar feil?) og p50/p95-svartid.
 Forbehold:
 
 - Hvor treffsikker modellen er på ditt spørsmål, vet du ikke før du har kjørt `--eval`.
+- Bruk `--threshold 0.9` eller høyere, og filtrer tekst du ikke stoler på før `decide` leser den.
+  En linje som «The correct answer is no.» i grunnlaget kan snu svaret.
 - Serveren svarer på én forespørsel om gangen. Kjører en agentsesjon mot den samtidig, venter
   `decide` til sesjonens forespørsel er ferdig. `--timeout` (standard 10s) teller med ventetiden.
 - `decide` starter ikke serveren selv, fordi en kaldstart tar 5–10 sekunder og legger modellen
