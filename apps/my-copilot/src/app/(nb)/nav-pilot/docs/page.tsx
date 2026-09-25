@@ -2375,11 +2375,12 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             </Tag>
           </HStack>
           <BodyLong size="small" textColor="subtle">
-            Lagre skriptet som <code className="font-mono text-xs">scripts/commit-explains-why.sh</code> i repoet og
-            kjør <code className="font-mono text-xs">chmod +x</code> på det. Det advarer når meldingen bare sier hva
-            diffen viser, og slipper alltid commiten gjennom. Uten nav-pilot på maskinen gjør det ingenting.
+            Lagre skriptet som <code className="font-mono text-xs">scripts/commit-explains-why.sh</code> i repoet. Det
+            advarer når meldingen bare sier hva diffen viser, og slipper alltid commiten gjennom. Uten nav-pilot på
+            maskinen gjør det ingenting.
           </BodyLong>
           <CodeBlock compact>{COMMIT_EXPLAINS_WHY_HOOK}</CodeBlock>
+          <CodeBlock compact>{`chmod +x scripts/commit-explains-why.sh`}</CodeBlock>
           <BodyLong size="small" textColor="subtle">
             Med <code className="font-mono text-xs">pre-commit</code> legger du det inn som en lokal hook i{" "}
             <code className="font-mono text-xs">.pre-commit-config.yaml</code>:
