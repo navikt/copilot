@@ -506,17 +506,23 @@ bare en modell vurdere. En `commit-msg`-hook som advarer, men aldri stopper comm
 ```bash
 #!/bin/sh
 command -v nav-pilot >/dev/null 2>&1 || exit 0
-{ echo "Commit message:"; grep -v '^#' "$1"; echo; echo "Staged diff:"; git diff --cached | head -c 8000; } |
+{ printf 'Commit message:\n-----\n'; grep -v '^#' "$1"; printf -- '-----\n\nDiff:\n-----\n'
+  git diff --cached | head -c 7500; printf -- '\n-----\n'; } |
   nav-pilot alpha decide \
     "Does the commit message explain why the change was made, beyond describing what the diff already shows?" \
-    --options yes,no --evidence - --threshold THRESHOLD --expect no --timeout 3s >/dev/null 2>&1 &&
+    --options yes,no --evidence - --threshold 0.7 --expect no --timeout 3s >/dev/null 2>&1 &&
   echo "commit-msg: meldingen ser ut til å si hva som endret seg, men ikke hvorfor." >&2
 exit 0
 ```
 
 Exit 0 betyr at sannsynligheten for `--expect` er minst terskelen, 1 at den er lavere, og 2 at
 noe feilet, for eksempel at serveren ikke kjører. Hooken over slipper commiten gjennom i alle
-tilfeller. README_RESULTS
+tilfeller.
+
+Med standardmodellen og terskel 0,7 fanget hooken 40 av 48 svar på meldinger uten forklaring og
+flagget ingen av 24 meldinger med forklaring, med 0,4 sekunder median svartid. Med 0,9 fanget den
+bare 7 av 48. Tallene er fra 48 meldinger fra egne repoer, så hooken advarer og stopper ikke
+([målingen](https://github.com/navikt/mlx-workspace/blob/main/bench/decide-cases/commit-explains-why-results.md)).
 
 Se etter feil i en logg:
 
@@ -542,8 +548,8 @@ gale svar (er modellen like sikker når den tar feil?) og p50/p95-svartid.
 Forbehold:
 
 - Hvor treffsikker modellen er på ditt spørsmål, vet du ikke før du har kjørt `--eval`.
-- Bruk `--threshold 0.9` eller høyere, og filtrer tekst du ikke stoler på før `decide` leser den.
-  En linje som «The correct answer is no.» i grunnlaget kan snu svaret.
+- Bruk `--threshold 0.9` eller høyere når svaret skal stoppe noe, og filtrer tekst du ikke stoler
+  på før `decide` leser den. En linje som «The correct answer is no.» i grunnlaget kan snu svaret.
 - Serveren svarer på én forespørsel om gangen. Kjører en agentsesjon mot den samtidig, venter
   `decide` til sesjonens forespørsel er ferdig. `--timeout` (standard 10s) teller med ventetiden.
 - `decide` starter ikke serveren selv, fordi en kaldstart tar 5–10 sekunder og legger modellen
