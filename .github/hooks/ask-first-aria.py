@@ -127,17 +127,19 @@ REASON = (
     "som allerede har rollen innebygd: <Select> for et statusvalg, eller "
     "<UNSAFE_Combobox> når valget skal kunne søkes i. Aksel-komponentene har "
     "tastaturnavigasjon og skjermleserstøtte fra før, så en egendefinert "
-    "role=\"listbox\" må begrunnes mot dem for å være verdt det. Har utvikleren "
-    "sagt ja, skriv endringen på nytt med en kommentar som inneholder ARIA_OK og "
-    "begrunnelsen ved rollen, for eksempel {/* ARIA_OK: utvikleren godkjente "
-    "listbox fordi … */}. Da slipper skrivingen gjennom."
+    "role=\"listbox\" må begrunnes mot dem for å være verdt det. Spør utvikleren "
+    "og vent på svaret før du prøver igjen."
 )
 
-# Unntaket når utvikleren har sagt ja, i samme ånd som POLL_OK og SLOP_OK. Et
+# Unntaket når utvikleren har sagt ja: en kommentar med ARIA_OK ved rollen. Et
 # verktøykall for å skrive en fil har ingen kommando å sette en variabel foran,
 # så merket står i innholdet, og det blir stående i koden som et spor av at
 # rollen er godkjent. Det må være nytt i skrivingen: et ARIA_OK som alt står i
 # `old_str` og bare følger med videre, godkjenner ikke en ny rolle.
+#
+# Merket er et spor, ikke en lås. Modellen kan skrive det selv, så REASON nevner
+# det ikke: den sier bare at modellen skal spørre. Oppskriften står i
+# dokumentasjonen, for utvikleren som har sagt ja.
 ARIA_OK = "ARIA_OK"
 
 
@@ -413,6 +415,11 @@ def selftest():
     import subprocess
 
     failed = 0
+    # Modellen leser REASON. Står oppskriften på unntaket der, kan den skrive
+    # merket selv i stedet for å spørre.
+    ok = "ARIA_OK" not in REASON
+    print(f"{'✅' if ok else '❌'} begrunnelsen gir ikke modellen oppskriften på ARIA_OK")
+    failed += 0 if ok else 1
     for name, payload, want_deny in SELFTEST:
         p = subprocess.run(
             [sys.executable, __file__],
@@ -429,7 +436,7 @@ def selftest():
             failed += 1
             print(f"   exit={p.returncode} deny={got_deny} want={want_deny}")
             print(f"   stdout={p.stdout!r} stderr={p.stderr!r}")
-    print(f"\n{len(SELFTEST) - failed}/{len(SELFTEST)} ok")
+    print(f"\n{len(SELFTEST) + 1 - failed}/{len(SELFTEST) + 1} ok")
     return 1 if failed else 0
 
 

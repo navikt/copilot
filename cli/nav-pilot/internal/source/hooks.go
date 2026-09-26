@@ -90,30 +90,39 @@ func LoadHookMeta(scriptPath string) HookMeta {
 	if got.TimeoutSec <= 0 {
 		got.TimeoutSec = meta.TimeoutSec
 	}
+	// HookCommand kills the script a second before the deadline; below 2 s
+	// that second is all there is, and the watchdog would race Copilot.
+	got.TimeoutSec = max(2, got.TimeoutSec)
 	return got
 }
 
 // HookCommand is the shell command a hook entry runs. Every way python3 can
 // fail allows the call instead of denying it, because a gate that fails closed
 // is worse than no gate: no python3 at all (the `command -v` guard), a script
-// that errors (exit 0 whatever it returned), and a python3 too slow to answer.
+// that exits non-zero (its output is dropped), and a python3 too slow to
+// answer.
 //
 // The last one needs a deadline of its own. Copilot denies a preToolUse call
 // whose hook outlives timeoutSec, so a cold or wedged interpreter used to turn
-// into a deny. The script is killed a second before that, and a script killed
-// before it finished has allowed the call. macOS has no timeout(1), so the
-// watchdog is plain sh: a background sleep that kills python3, itself killed
-// as soon as python3 is done.
+// into a deny. The script is killed a second before that, and a killed script
+// has allowed the call. macOS has no timeout(1), so the watchdog is plain sh:
+// a background sleep that kills python3, itself killed once python3 is done.
+// Killing the watchdog subshell can leave its `sleep` running until it ends on
+// its own; it holds no pipe of the hook's and kills nothing once python3 has
+// been reaped, so it is left alone rather than chased with job control that a
+// non-interactive sh does not have.
 //
 // The script writes to temp files, printed once it exits 0, rather than to the
 // hook's own stdout and stderr: a python3 behind a wrapper (pyenv, asdf) leaves
 // children that would hold those pipes open past the kill, and Copilot waits
-// for them. python3 runs in the background, where sh gives it /dev/null for
-// stdin, so the payload is handed over on fd 3. Without a temp directory the
-// gate is skipped: unguarded, it could outlive the deadline. What the script
-// printed counts only when it exited 0; an error or a kill allows the call. The shell's own stderr goes to
-// /dev/null (fd 4 keeps the real one for the script's), so bash-as-sh does not
-// report the jobs it killed.
+// for them. Without a temp directory the gate is skipped, since unguarded it
+// could outlive the deadline. python3 runs in the background, where sh gives it
+// /dev/null for stdin, so the payload is handed over on fd 3. The shell's own
+// stderr goes to /dev/null (fd 4 keeps the real one for the script's), so
+// bash-as-sh does not report the jobs it killed.
+//
+// The path is single-quoted: a HOME with a space in it would otherwise make
+// python3 fail to open the script, and every call would be allowed.
 func HookCommand(scriptPath string, timeoutSec int) string {
 	deadline := max(1, timeoutSec-1)
 	return fmt.Sprintf("command -v python3 >/dev/null 2>&1 || exit 0; "+
@@ -121,7 +130,12 @@ func HookCommand(scriptPath string, timeoutSec int) string {
 		"python3 %[1]s <&3 >\"$o\" 2>\"$e\" 3<&- 4>&- & p=$!; "+
 		"(sleep %[2]d; kill $p) >/dev/null 3<&- 4>&- & w=$!; "+
 		"wait $p && cat \"$o\"; cat \"$e\" >&4; kill $w; rm -f \"$o\" \"$e\"; exit 0",
-		scriptPath, deadline)
+		shellQuote(scriptPath), deadline)
+}
+
+// shellQuote quotes s for sh: single quotes, with each ' written as '\”.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // hooksFile is a Copilot hooks config, with every entry kept as raw JSON.

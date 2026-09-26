@@ -206,15 +206,26 @@ og da slipper kallet gjennom. Det samme skjer når `python3` mangler eller skrip
 port som nekter alt når Python er treg, er verre enn ingen port. Kommandoen bruker bare `sh`,
 fordi macOS ikke har `timeout`.
 
-Hver port har et unntak for når den tar feil, og begrunnelsen modellen får, sier hvilket:
+Det et skript skriver ut, teller bare når det avslutter med exitkode 0. Skriver en hook fra en
+annen pakke et `deny`-svar og avslutter med 2, slipper kallet altså gjennom. Skal en port nekte,
+må den skrive svaret og avslutte med 0, slik nav-pilots egne porter gjør.
+
+Hver port har et unntak for når den tar feil:
 
 | Port             | Unntak                                                                                          |
 | ---------------- | ----------------------------------------------------------------------------------------------- |
 | `gh-poll-gate`   | `POLL_OK=1` foran kommandoen                                                                    |
 | `ask-first-aria` | En kommentar med `ARIA_OK` og begrunnelsen like ved hver ny rolle, etter at utvikleren har sagt ja |
 
-`ARIA_OK` står i koden etterpå, som et spor av at rollen er godkjent. Det må være nytt i
-skrivingen: et merke som bare følger med fra før, godkjenner ikke en ny rolle.
+Begrunnelsen `gh-poll-gate` gir modellen, nevner `POLL_OK=1`: polling er noen ganger riktig,
+og det avgjør modellen selv. Begrunnelsen fra `ask-first-aria` nevner ikke `ARIA_OK`. Den sier
+bare at modellen skal spørre utvikleren, fordi det er utvikleren som skal si ja til en
+egendefinert rolle.
+
+`ARIA_OK` er et spor, ikke en lås. Utvikleren, eller modellen etter at utvikleren har sagt
+ja, legger merket i koden, og der blir det stående som et tegn på at rollen er godkjent.
+Ingenting hindrer en modell i å skrive merket uten å spørre. Merket må være nytt i skrivingen:
+et merke som bare følger med fra før, godkjenner ikke en ny rolle.
 
 ### nav-pilots egne hooks
 
@@ -260,7 +271,9 @@ hooken ingenting, så modellen ikke får to beskjeder om samme løkke. Hookene e
 slippe gjennom ved feil: finnes ikke `nav-pilot` på `PATH`, eller går noe galt, blir
 resultatet stående som det var. Unntaket er en `config.toml` som ikke lar seg lese. Da
 kjører hookene med standardverdiene, altså med maskering og løkkevakt på, og skriver én
-linje om det på stderr. En ødelagt fil skal ikke være det som slår av maskeringen.
+linje om det på stderr. En ødelagt fil skal ikke være det som slår av maskeringen. En nøkkel
+med feil type, for eksempel `hook_redact_secrets = "false"` med anførselstegn, blir hoppet
+over, så standardverdien gjelder, og hooken sier fra om det på stderr.
 `nav-pilot doctor` sier fra om fila, og `nav-pilot` starter ikke før den er rettet. opencode får ikke disse hookene ennå
 ([#709](https://github.com/navikt/copilot/issues/709)).
 

@@ -32,6 +32,14 @@ exec nav-pilot hook loop-guard
 stdout 'nav-pilot loop guard'
 stderr 'running with the defaults'
 
+# A key of the wrong type is left out and its default applies; the hook says so.
+cp wrongtype.toml $HOME/config.toml
+stdin token.json
+exec nav-pilot hook redact
+stdout '\[REDACTED:github-token\]'
+stderr -count=1 'hook_redact_secrets must be true or false'
+
+cp broken.toml $HOME/config.toml
 # doctor says what the broken file means for the hooks. Fake clients only:
 # doctor probes cplt, and the developer's own must not run here.
 fake-bin copilot
@@ -42,6 +50,9 @@ stdout 'built-in hooks ignore it'
 -- broken.toml --
 model = "a
 b"
+-- wrongtype.toml --
+version = 1
+hook_redact_secrets = "false"
 -- token.json --
 {"sessionId":"s1","toolName":"bash","toolArgs":{"command":"cat .env"},"toolResult":{"resultType":"success","textResultForLlm":"GITHUB_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz0123456789"}}
 -- poll.json --

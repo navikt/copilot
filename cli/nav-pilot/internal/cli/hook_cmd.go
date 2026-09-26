@@ -194,8 +194,15 @@ func drainHookEvents() {
 // sandboxed Copilot is inside it. There the settings the launch wrote into the
 // hook's own command (settings, as key=value) stand in for the file. Any other
 // read or parse error is returned, and the caller runs with the defaults.
+//
+// A key of the wrong type (hook_redact_secrets = "false") is left out, so its
+// default applies; the hook says so on stderr rather than quietly running with
+// a setting the user did not choose.
 func hookConfig(settings []string) (*Config, error) {
-	cfg, err := readConfig()
+	cfg, problems, err := loadConfig()
+	if len(problems) > 0 {
+		fmt.Fprintf(os.Stderr, "nav-pilot hook: %s (nav-pilot config validate)\n", strings.Join(problems, "; "))
+	}
 	if err == nil || !errors.Is(err, fs.ErrPermission) || len(settings) == 0 {
 		return cfg, err
 	}
