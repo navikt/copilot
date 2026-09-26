@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
@@ -299,14 +300,16 @@ func TestUpdateRefusesToReplaceAPackagedBinary(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			origManager, origAPI := packageManager, releasesAPI
-			t.Cleanup(func() { packageManager, releasesAPI = origManager, origAPI })
+			origManager, origAPI, origVersion := packageManager, releasesAPI, Version
+			t.Cleanup(func() { packageManager, releasesAPI, Version = origManager, origAPI, origVersion })
+			Version = "2026.09.01-120000-aaaaaaa"
 			packageManager = func() domain.PkgManager { return tt.mgr }
 
-			// A refusal must not reach the network, and the empty PATH keeps the
-			// Homebrew branch's cplt lookup off it too.
+			// A newer release than the running one: the refusal must still
+			// print the package manager's command. The empty PATH keeps the
+			// Homebrew branch's cplt lookup off the network.
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				t.Errorf("a packaged install asked GitHub for a release: %s", r.URL)
+				fmt.Fprint(w, `[{"tag_name": "nav-pilot/2099.01.01-000000-fffffff"}]`)
 			}))
 			t.Cleanup(srv.Close)
 			releasesAPI = srv.URL
@@ -325,5 +328,23 @@ func TestUpdateRefusesToReplaceAPackagedBinary(t *testing.T) {
 				t.Errorf("update did not print %q. Output:\n%s", tt.want, out)
 			}
 		})
+	}
+}
+
+// A GitHub that does not answer is reported within releaseCheckTimeout, in
+// words ("did not answer within"), not as "context deadline exceeded" after 30s.
+func TestLatestReleaseTimesOutInWords(t *testing.T) {
+	block := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-block
+	}))
+	t.Cleanup(func() { close(block); srv.Close() })
+	origAPI, origTimeout := releasesAPI, releaseCheckTimeout
+	t.Cleanup(func() { releasesAPI, releaseCheckTimeout = origAPI, origTimeout })
+	releasesAPI, releaseCheckTimeout = srv.URL, 50*time.Millisecond
+
+	_, _, err := latestRelease()
+	if err == nil || !strings.Contains(err.Error(), "GitHub did not answer within 50ms") {
+		t.Fatalf("latestRelease = %v, want a timeout in words", err)
 	}
 }

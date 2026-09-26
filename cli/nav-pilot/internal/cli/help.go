@@ -126,6 +126,21 @@ Subcommands:
   explain [key]           Describe the keys
   sandbox                 Configure the cplt sandbox profile
 `,
+	"models": `Usage: nav-pilot models [filter...] [flags]
+
+List the models nav-pilot knows for the client: the curated Copilot list, plus
+the local models when alpha local is on. The model you have set is marked *.
+Words after models filter the list: nav-pilot models claude opus.
+
+The list is nav-pilot's, not GitHub's: what you can use also depends on your
+Copilot plan and your organization's policy.
+
+Flags:
+  --client <name>         List for copilot, opencode or pi instead of your client
+  --json                  Output the list as JSON
+
+Set the model: nav-pilot config set model <id>
+`,
 	"upgrade": `Usage: nav-pilot upgrade [flags]
 
 Replace this nav-pilot with the latest release, after checking its SHA-256

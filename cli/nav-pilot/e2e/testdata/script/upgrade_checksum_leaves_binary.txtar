@@ -1,0 +1,10 @@
+# A checksum that does not match says so in words and says nothing was
+# replaced; the binary is the one you had.
+
+fake-gh badsum
+exits 1 nav-pilot upgrade
+stdout 'Verifying checksum... ✗'
+stderr 'checksum mismatch: the download does not match SHA256SUMS'
+stderr 'nav-pilot is unchanged'
+exec nav-pilot version
+stdout '^nav-pilot 2026.09.01-120000-aaaaaaa'

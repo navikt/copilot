@@ -1,0 +1,10 @@
+# An install directory nav-pilot can't write to is named, with a way forward.
+
+[root] skip 'root writes to a read-only directory'
+fake-gh
+chmod 0555 $WORK/bin
+exits 1 nav-pilot upgrade
+stderr 'can''t write to .*bin, where nav-pilot is installed'
+stderr 'nav-pilot is unchanged'
+stderr 'install.sh --dir ~/.local/bin'
+chmod 0755 $WORK/bin

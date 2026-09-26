@@ -57,7 +57,11 @@ func TestScripts(t *testing.T) {
 		RequireExplicitExec: true,
 		// [pty]: ttyin needs /dev/ptmx. Scripts skip on it rather than fail
 		// where a container or sandbox withholds one.
+		// [root]: running as root, where a read-only directory is still writable.
 		Condition: func(cond string) (bool, error) {
+			if cond == "root" {
+				return os.Geteuid() == 0, nil
+			}
 			if cond != "pty" {
 				return false, fmt.Errorf("unknown condition %q", cond)
 			}

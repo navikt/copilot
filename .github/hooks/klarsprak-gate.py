@@ -107,15 +107,16 @@ MARKERS = [
 MARKER_RE = re.compile("|".join(r"(?<![\wæøå])(?:%s)" % m for m in MARKERS), re.IGNORECASE)
 
 REASON_HEAD = (
-    "Teksten som publiseres her bærer norske AI-markører, og "
-    "skills/klarsprak/SKILL.md ber deg fjerne dem før teksten når et menneske. "
+    "Teksten som publiseres her bærer norske AI-markører, og klarspråk-skillen "
+    "ber deg fjerne dem før teksten når et menneske. "
     "Funnet: "
 )
 
 REASON_TAIL = (
     ". Skriv om: si hva som faktisk skjedde eller hva endringen gjør, med "
     "vanlige ord og aktiv form, og kjør kommandoen på nytt. Trenger du hele "
-    "sjekklista, les skills/klarsprak/SKILL.md."
+    "sjekklista, les "
+    "https://github.com/navikt/copilot/blob/main/skills/klarsprak/SKILL.md."
 )
 
 
@@ -287,7 +288,12 @@ def selftest():
             failed += 1
             print(f"   exit={p.returncode} deny={got_deny} want={want_deny}")
             print(f"   stdout={p.stdout!r} stderr={p.stderr!r}")
-    print(f"\n{len(SELFTEST) - failed}/{len(SELFTEST)} ok")
+    # Grunnen peker til en URL, ikke til en sti i dette repoet: den som får
+    # beskjeden, har sjelden skills/klarsprak/SKILL.md på disk.
+    paths = [w for w in re.findall(r"\S+\.md", REASON_HEAD + REASON_TAIL) if not w.startswith("https://")]
+    print(f"{'❌' if paths else '✅'} grunnen nevner ingen lokal sti {paths or ''}")
+    failed += bool(paths)
+    print(f"\n{len(SELFTEST) + 1 - failed}/{len(SELFTEST) + 1} ok")
     return 1 if failed else 0
 
 

@@ -1,0 +1,17 @@
+# config set model suggests the id you probably meant, and a local model's
+# key points to alpha local use. config get on an unset model says so on
+# stderr and keeps stdout empty for scripts.
+
+exec nav-pilot config get model
+stdout '^$'
+stderr 'not set, default: none, so the client picks'
+
+exec nav-pilot config set model claude-sonet-5
+stderr 'Did you mean claude-sonnet-5\?'
+
+exec nav-pilot config set model opus
+stderr 'Did you mean one of claude-opus-'
+
+exec nav-pilot config set model qwen3.6-35b-a3b-optiq
+stderr 'is a local model key, not a model id'
+stderr 'nav-pilot alpha local use qwen3.6-35b-a3b-optiq'

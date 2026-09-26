@@ -275,8 +275,15 @@ const CLI_COMMANDS = [
   { command: "nav-pilot sync --json", description: "Maskinlesbar JSON-output" },
   {
     command: "<command> --json",
-    description: "Globalt flagg: JSON-output på alle kommandoer (install, list, sync, export)",
+    description:
+      "JSON på stdout for install, list, sync, export, rollback, validate, models, version og config. doctor, uninstall og upgrade har ikke JSON",
   },
+  { command: "nav-pilot models", description: "Modellene klienten kan bruke, med den du har valgt markert" },
+  {
+    command: "nav-pilot models claude",
+    description: "Filtrer listen: bare modellene med «claude» i id-en eller navnet",
+  },
+  { command: "nav-pilot models --client opencode", description: "Vis listen for en annen klient" },
   { command: "nav-pilot env", description: "Skriv shell-eksport for Copilot CLI-integrasjon" },
   { command: "nav-pilot upgrade", description: "Oppdater nav-pilot CLI til nyeste versjon" },
   {
@@ -2703,10 +2710,10 @@ function CliReferenceSection() {
           <div className="mt-4 space-y-3">
             {[
               { label: "Selvoppdatering", cmd: "nav-pilot upgrade" },
-              { label: "Via Homebrew (macOS)", cmd: "brew update && brew upgrade nav-pilot" },
+              { label: "Via Homebrew (macOS)", cmd: "brew upgrade navikt/tap/nav-pilot" },
               {
                 label: "Via apt (Debian, Ubuntu)",
-                cmd: "sudo apt update && sudo apt install --only-upgrade nav-pilot",
+                cmd: "sudo apt update && sudo apt upgrade nav-pilot",
               },
             ].map((item) => (
               <div key={item.cmd}>
@@ -2718,10 +2725,8 @@ function CliReferenceSection() {
             ))}
           </div>
           <BodyLong size="small" className="mt-3" style={{ color: "#64748b" }}>
-            Har du installert med apt, bruk <code className="font-mono text-xs">apt</code> og ikke{" "}
-            <code className="font-mono text-xs">nav-pilot upgrade</code>. Selvoppdateringen kjenner igjen en
-            Homebrew-installasjon og lar den være, men ikke en dpkg-installasjon, så den ville byttet ut binæren uten at
-            dpkg vet om det.
+            <code className="font-mono text-xs">nav-pilot upgrade</code> kjenner igjen en binær som Homebrew eller dpkg
+            eier. Den lar den være og skriver kommandoen som virker, eller sier at du allerede er på nyeste versjon.
           </BodyLong>
           <BodyLong size="small" className="mt-3" style={{ color: "#64748b" }}>
             <code className="font-mono text-xs">nav-pilot upgrade</code> spør ikke, og installerer alltid nyeste
@@ -2745,7 +2750,7 @@ function CliReferenceSection() {
             <div className="mt-2">
               <CodeBlock
                 compact
-              >{`sudo chown -R $(whoami) /opt/homebrew\nbrew update && brew upgrade nav-pilot`}</CodeBlock>
+              >{`sudo chown -R $(whoami) /opt/homebrew\nbrew update && brew upgrade navikt/tap/nav-pilot`}</CodeBlock>
             </div>
           </Box>
         </div>

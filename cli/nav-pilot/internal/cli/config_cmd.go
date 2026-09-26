@@ -665,7 +665,20 @@ func cmdConfigGet(key string, jsonOutput bool) error {
 	if env, ok := configEnvOverrides[key]; ok && os.Getenv(env) != "" {
 		v = os.Getenv(env)
 	}
-	fmt.Println(v)
+	if v != "" {
+		fmt.Println(v)
+	} else {
+		// stdout stays empty for $(nav-pilot config get …); the person at
+		// the terminal learns why it is.
+		def := kd.defaultVal
+		if def == "" {
+			def = "none"
+			if key == "model" {
+				def = "none, so the client picks"
+			}
+		}
+		fmt.Fprintf(os.Stderr, "%s\n", dim(fmt.Sprintf("(not set, default: %s)", def)))
+	}
 	return nil
 }
 

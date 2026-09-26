@@ -1,0 +1,30 @@
+# The first launch that writes nav-pilot's own hooks to ~/.copilot/hooks says
+# so on stderr, once: what each hook does and how to turn it off. Later
+# launches say nothing about them.
+
+fake-bin cplt copilot
+
+mkdir plattform/skills proj
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd $WORK/proj
+
+exec nav-pilot --sync --source $WORK/plattform -- -p 'hello'
+stderr 'nav-pilot added Copilot hooks to .*\.copilot/hooks'
+stderr 'nav-pilot-loop-guard.*Off: nav-pilot config set hook_loop_guard false'
+stderr 'nav-pilot-redact-tool-output.*hook_redact_secrets false'
+exists $HOME/.copilot/hooks/nav-pilot-loop-guard.json
+
+exec nav-pilot --sync --source $WORK/plattform -- -p 'hello'
+! stderr 'added Copilot hooks'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

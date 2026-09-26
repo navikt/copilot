@@ -1,0 +1,4 @@
+# A typo of update or upgrade is pointed at upgrade: update is the old name.
+
+exits 1 nav-pilot updat
+stderr 'Did you mean upgrade\?'

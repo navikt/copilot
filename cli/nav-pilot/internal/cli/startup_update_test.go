@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -130,6 +133,13 @@ func TestExplicitUpdateIgnoresQuietPeriod(t *testing.T) {
 	// PATH keeps the brew branch's cplt lookup off the network too.
 	stubStartupUpdate(t, current, fresh, false, domain.PkgBrew)
 	t.Setenv("PATH", t.TempDir())
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s"}]`, fresh)
+	}))
+	t.Cleanup(srv.Close)
+	origAPI := releasesAPI
+	t.Cleanup(func() { releasesAPI = origAPI })
+	releasesAPI = srv.URL
 
 	if quiet := captureStderrFor(t, func() {
 		if _, err := startupUpdateCheck(); err != nil {
