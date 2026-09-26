@@ -166,22 +166,36 @@ func printWithheld(m *local.Manifest) {
 func localModel(m *local.Manifest) (local.Model, error) {
 	entry, configured, why, err := localSelection(m)
 	if why != "" {
-		fmt.Fprintf(os.Stderr, "%s local_model is %s, %s. Using the default %s instead.\n",
-			yellow("⚠"), bold(configured), why, bold(entry.Model))
+		fmt.Fprintf(os.Stderr, "%s local_model is %s, %s. Using the default %s instead.%s\n",
+			yellow("⚠"), bold(configured), why, bold(entry.Model), pickOne(why))
 	}
-	if n := local.ReplacedNotice(m); n != "" {
-		fmt.Fprintf(os.Stderr, "%s %s\n", dim("ℹ"), n)
-	}
+	nudge(local.ReplacedNotice(m))
 	return entry, err
 }
 
-// printPinnedAdvisory shows [local.PinnedAdvisory] on start and restart
-// (through start). status prints it in its own layout, launches from the
-// provider, and `alpha decide` never.
-func printPinnedAdvisory(m *local.Manifest) {
-	if a := local.PinnedAdvisory(m); a != "" {
-		fmt.Fprintf(os.Stderr, "%s %s\n", dim("ℹ"), a)
+const whyNotOffered = "which this manifest does not offer"
+
+// pickOne names the fix for a local_model the manifest dropped, which
+// otherwise warns on every run.
+func pickOne(why string) string {
+	if why != whyNotOffered {
+		return ""
 	}
+	return " Pick one to silence this: " + bold("nav-pilot alpha local use <key>")
+}
+
+// stderrIsTerminal is a var so tests can be the developer at a terminal.
+var stderrIsTerminal = func() bool { return providerpkg.IsTerminal(os.Stderr) }
+
+// nudge shows a manifest nudge ([local.ReplacedNotice], [local.PinnedAdvisory])
+// once per distinct line, on stderr, and only when someone is there to read
+// it: a line marked seen while piped into a script would never reach a person.
+// Called by start, status and models; never by launches or `alpha decide`.
+func nudge(line string) {
+	if line == "" || !stderrIsTerminal() || !local.ShowOnce(line) {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "%s %s\n", dim("ℹ"), wrapIndent(line, "  ", 78))
 }
 
 // localSelection is localModel without the printing, for the commands that
@@ -206,7 +220,7 @@ func localSelection(m *local.Manifest) (entry local.Model, configured, why strin
 	if _, ok := m.WithheldEntry(configured); ok {
 		return entry, configured, "which needs a newer nav-pilot", nil
 	}
-	return entry, configured, "which this manifest does not offer", nil
+	return entry, configured, whyNotOffered, nil
 }
 
 // ─── init ────────────────────────────────────────────────────────────────────
@@ -442,7 +456,7 @@ func cmdLocalStart() error {
 	if err != nil {
 		return err
 	}
-	printPinnedAdvisory(m)
+	nudge(local.PinnedAdvisory(m))
 
 	// An already-running server is reported, not replaced. Two mlx-lm processes
 	// on one machine is two copies of the weights resident at once, which on a
@@ -747,23 +761,18 @@ func printConfiguredModel(m *local.Manifest) local.Model {
 		return local.Model{}
 	}
 	via := "manifest default"
-	notice := local.ReplacedNotice(m)
 	switch {
-	case notice != "":
+	case configured != "" && entry.Model != configured && why == "":
 		via = "replaces local_model"
 	case configured != "" && why == "":
 		via = "set via local_model"
 	}
 	fmt.Printf("  Model        %s %s\n", bold(entry.Key), dim("("+entry.Name+", "+via+")"))
 	if why != "" {
-		fmt.Printf("               %s local_model is %s, %s. Using the default.\n", yellow("⚠"), bold(configured), why)
+		fmt.Printf("               %s local_model is %s, %s. Using the default.%s\n", yellow("⚠"), bold(configured), why, pickOne(why))
 	}
-	if notice != "" {
-		fmt.Printf("               %s %s\n", dim("ℹ"), notice)
-	}
-	if a := local.PinnedAdvisory(m); a != "" {
-		fmt.Printf("               %s %s\n", dim("ℹ"), a)
-	}
+	nudge(local.ReplacedNotice(m))
+	nudge(local.PinnedAdvisory(m))
 	return entry
 }
 
@@ -961,18 +970,23 @@ func cmdLocalPurge(args []string) error {
 			st.PID, bold("nav-pilot alpha local stop"))
 	}
 
-	// The recorded server names the model it loaded; the manifest names what
-	// this machine would load next. Either identifies the weights to remove, and
-	// a machine with neither has none to remove.
-	var model string
+	// Every model id this machine may have downloaded: the recorded server's,
+	// each entry the manifest offers or withholds, and each it lists as
+	// replaced. Removables keeps only those whose weights are on disk.
+	var models []string
 	if st, ok, _ := local.LoadState(); ok {
-		model = st.Model
-	} else if m, _, err := local.Cached(); err == nil && m != nil {
-		if chosen, ok := local.Chosen(m); ok {
-			model = chosen.Model
-		}
+		models = append(models, st.Model)
 	}
-	items := local.Removables(model)
+	if m, _, _ := local.Cached(); m != nil {
+		for _, e := range m.Models {
+			models = append(models, e.Model)
+		}
+		for _, w := range m.Withheld {
+			models = append(models, w.Model.Model)
+		}
+		models = append(models, m.ReplacedIDs()...)
+	}
+	items := local.Removables(models...)
 	if len(items) == 0 {
 		fmt.Printf("%s Nothing to remove. Local inference is not provisioned on this machine.\n", dim("ℹ"))
 		return nil

@@ -20,7 +20,7 @@ func modelsFixture(t *testing.T) string {
 	t.Cleanup(func() { local.SetSelectedModel(""); agentpakke.SetVersion("dev") })
 	agentpakke.SetVersion("2026.09.20-080000-1111111")
 	manifest := `{"schema_version":1,"channel":"alpha","models":[
-		{"key":"qwen3.6-35b","name":"Qwen 3.6 35B A3B","model":"mlx-community/Qwen3.6-35B","backend":"mlx-lm","default":true,"weights_gb":25,"params":{"MLX_OPENCODE_CONTEXT":"65536"},"recommended_for":["default","decide-untrusted-evidence"]},
+		{"key":"qwen3.6-35b","name":"Qwen 3.6 35B A3B","model":"mlx-community/Qwen3.6-35B","backend":"mlx-lm","default":true,"weights_gb":25,"params":{"MLX_OPENCODE_CONTEXT":"65536"},"recommended_for":["decide-untrusted-evidence"]},
 		{"key":"qwen3.8-27b","name":"Qwen 3.8 27B OptiQ","model":"mlx-community/Qwen3.8-27B","backend":"mlx-lm","weights_gb":19,"params":{"MLX_OPENCODE_CONTEXT":"49152"},"recommended_for":["decide-nuanced","not-a-key"]},
 		{"key":"qwen3.8-8bit","name":"Qwen 3.8 27B 8bit","model":"mlx-community/Qwen3.8-27B-8bit","backend":"mlx-lm","weights_gb":30,"params":{},"min_nav_pilot":"2026.09.24-110317-abc1234"},
 		{"key":"broken","name":"Broken","model":"mlx-community/Broken","backend":"mlx-lm","params":{},"min_nav_pilot":123}]}`
@@ -79,8 +79,8 @@ func TestLocalModelsTable(t *testing.T) {
 		}
 	}
 	checks := map[string][]string{
-		"qwen3.6-35b":  {"25 GB", "64k", "general, decide: untrusted input", "default, not downloaded"},
-		"qwen3.8-27b":  {"*", "19 GB", "48k", "decide: nuanced  ", "downloaded"},
+		"qwen3.6-35b":  {"25 GB", "64k", "untrusted decide", "default, not downloaded"},
+		"qwen3.8-27b":  {"*", "19 GB", "48k", "nuanced decide  ", "downloaded"},
 		"qwen3.8-8bit": {"30 GB", "withheld: needs nav-pilot ≥ 2026.09.24-110317-abc1234"},
 		"broken":       {"withheld: unreadable min_nav_pilot"},
 	}
@@ -211,69 +211,164 @@ func TestLocalStatusShowsTheConfiguredModel(t *testing.T) {
 	}
 }
 
-// TestPinnedAdvisoryOnStatusNotOnDecide: a developer pinned to a non-default
-// model is told once what the default is recommended for, by status, and
-// `alpha decide`, which runs in hooks and scripts, never says it.
-func TestPinnedAdvisoryOnStatusNotOnDecide(t *testing.T) {
+// atTerminal makes nudges visible, as they are to a developer at a terminal.
+func atTerminal(t *testing.T) {
+	t.Helper()
+	orig := stderrIsTerminal
+	stderrIsTerminal = func() bool { return true }
+	t.Cleanup(func() { stderrIsTerminal = orig })
+}
+
+func statusStderr(t *testing.T) string {
+	t.Helper()
+	var errOut string
+	captureStdout(func() {
+		errOut = stripANSI(captureStderr(func() {
+			if err := cmdLocalStatus(); err != nil {
+				t.Errorf("cmdLocalStatus: %v", err)
+			}
+		}))
+	})
+	// Joined back into one line: nudges wrap at the terminal width.
+	return strings.Join(strings.Fields(errOut), " ")
+}
+
+const pinnedAdvice = "For decide on evidence you don't control, the default qwen3.6-35b is recommended; you use qwen3.8-27b."
+
+// TestPinnedAdvisory: a developer pinned to a non-default model is told once
+// what the default is recommended for. Never by `alpha decide`, which runs in
+// hooks and scripts, never when nobody is at the terminal, and not right after
+// they chose the model themselves with `use`.
+func TestPinnedAdvisory(t *testing.T) {
 	fakeDecideServer(t, yesMostly)
-	home := modelsFixture(t)
+	modelsFixture(t)
 	if _, err := writeConfigKey("local_model", "mlx-community/Qwen3.8-27B"); err != nil {
 		t.Fatal(err)
 	}
-	const advice = "You use qwen3.8-27b. The default qwen3.6-35b is recommended for decide on evidence you don't control."
 
-	_, errOut, _ := runDecide(t, "Is it?", "--options", "yes,no", "--evidence", "-")
-	if strings.Contains(errOut, "You use") {
+	// Piped: nothing shown and nothing marked, so the terminal still gets it.
+	if out := statusStderr(t); strings.Contains(out, "you use") {
+		t.Errorf("status printed the advisory into a pipe:\n%s", out)
+	}
+
+	atTerminal(t)
+	if _, errOut, _ := runDecide(t, "Is it?", "--options", "yes,no", "--evidence", "-"); strings.Contains(errOut, "you use") {
 		t.Errorf("decide printed the advisory: %q", errOut)
 	}
-	if _, err := os.Stat(filepath.Join(home, ".nav-pilot", "local-models.json.advised")); err == nil {
-		t.Error("decide marked the advisory as seen")
+	out := statusStderr(t)
+	if !strings.Contains(out, pinnedAdvice) || !strings.Contains(out, "nav-pilot alpha local use qwen3.6-35b") {
+		t.Errorf("first status at a terminal lacks the advisory:\n%s", out)
 	}
-
-	status := func() string {
-		var out string
-		captureStderr(func() {
-			out = captureStdout(func() { _ = cmdLocalStatus() })
-		})
-		return out
-	}
-	if out := status(); !strings.Contains(out, advice) || !strings.Contains(out, "nav-pilot alpha local use qwen3.6-35b") {
-		t.Errorf("first status lacks the advisory:\n%s", out)
-	}
-	if out := status(); strings.Contains(out, "You use") {
+	if out := statusStderr(t); strings.Contains(out, "you use") {
 		t.Errorf("second status repeated the advisory:\n%s", out)
 	}
 }
 
-// TestReplacedLocalModelResolvesToItsReplacement: a local_model the manifest
-// removed and lists as replaced loads the replacement, says so once with the
-// command that makes it explicit, and leaves the config alone.
-func TestReplacedLocalModelResolvesToItsReplacement(t *testing.T) {
-	localTestHome(t)
-	t.Cleanup(func() { local.SetSelectedModel("") })
-	m, err := local.Parse([]byte(`{"schema_version":1,"channel":"alpha","models":[
-		{"key":"d","name":"Default","model":"mlx-community/Default","backend":"mlx-lm","default":true,"params":{}},
-		{"key":"q38-optiq","name":"OptiQ","model":"mlx-community/Qwen3.8-27B-OptiQ-4bit","backend":"mlx-lm","params":{}}],
-		"replaced":{"mlx-community/Qwen3.8-27B-4bit":"q38-optiq"}}`))
-	if err != nil {
-		t.Fatalf("Parse: %v", err)
+func TestPinnedAdvisoryNotAfterUse(t *testing.T) {
+	modelsFixture(t)
+	atTerminal(t)
+	captureStdout(func() {
+		if err := cmdLocalUse([]string{"qwen3.8-27b"}); err != nil {
+			t.Errorf("use: %v", err)
+		}
+	})
+	if out := statusStderr(t); strings.Contains(out, "you use") {
+		t.Errorf("status right after a deliberate use advised switching back:\n%s", out)
 	}
+}
+
+// replacedFixture is modelsFixture's cache plus a replaced map pointing the
+// plain 4-bit at qwen3.8-27b, and the plain 4-bit's weights on disk. The
+// replacement's weights are on disk too unless removed.
+func replacedFixture(t *testing.T) (home string) {
+	t.Helper()
+	home = modelsFixture(t)
+	path := filepath.Join(home, ".nav-pilot", "local-models.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withReplaced := strings.TrimSuffix(strings.TrimSpace(string(data)), "}") +
+		`,"replaced":{"mlx-community/Qwen3.8-27B-4bit":"qwen3.8-27b"}}`
+	writeFile(t, path, withReplaced)
+	snap := filepath.Join(home, "hf", "hub", "models--mlx-community--Qwen3.8-27B-4bit", "snapshots", "old")
+	writeFile(t, filepath.Join(snap, "config.json"), "{}")
+	writeFile(t, filepath.Join(snap, "model.safetensors"), "x")
 	if _, err := writeConfigKey("local_model", "mlx-community/Qwen3.8-27B-4bit"); err != nil {
 		t.Fatal(err)
 	}
+	return home
+}
+
+// TestReplacedLocalModel: a local_model the manifest lists as replaced keeps
+// running while only its weights are here, moves to the replacement once that
+// is downloaded, says which once, and never rewrites the config.
+func TestReplacedLocalModel(t *testing.T) {
+	home := replacedFixture(t)
+	atTerminal(t)
+	m, err := cachedManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Replacement downloaded (the fixture has it): use it.
 	var got local.Model
 	out := stripANSI(captureStderr(func() { got, err = localModel(m) }))
-	if err != nil || got.Model != "mlx-community/Qwen3.8-27B-OptiQ-4bit" {
+	if err != nil || got.Model != "mlx-community/Qwen3.8-27B" {
 		t.Errorf("localModel = %q/%v, want the replacement", got.Model, err)
 	}
-	want := "mlx-community/Qwen3.8-27B-4bit was replaced by q38-optiq; run nav-pilot alpha local use q38-optiq to make it explicit."
-	if !strings.Contains(out, want) || strings.Count(out, "was replaced by") != 1 {
-		t.Errorf("stderr = %q, want once: %q", out, want)
+	want := "mlx-community/Qwen3.8-27B-4bit was replaced by qwen3.8-27b; nav-pilot uses qwen3.8-27b now. To pin it: nav-pilot alpha local use qwen3.8-27b"
+	if !strings.Contains(strings.Join(strings.Fields(out), " "), want) || strings.Contains(out, "Using the default") {
+		t.Errorf("stderr = %q, want %q", out, want)
 	}
-	if strings.Contains(out, "Using the default") {
-		t.Errorf("stderr claims a fallback to the default: %q", out)
+	if out := stripANSI(captureStderr(func() { _, _ = localModel(m) })); out != "" {
+		t.Errorf("second run repeated the notice: %q", out)
 	}
+
+	// Replacement not downloaded: keep serving the old pin, not a download.
+	if err := os.RemoveAll(filepath.Join(home, "hf", "hub", "models--mlx-community--Qwen3.8-27B")); err != nil {
+		t.Fatal(err)
+	}
+	out = stripANSI(captureStderr(func() { got, err = localModel(m) }))
+	if err != nil || got.Model != "mlx-community/Qwen3.8-27B-4bit" {
+		t.Errorf("localModel = %q/%v, want the old pin kept", got.Model, err)
+	}
+	want = "mlx-community/Qwen3.8-27B-4bit is replaced by qwen3.8-27b (19 GB, not downloaded). Still using mlx-community/Qwen3.8-27B-4bit. Switch when ready: nav-pilot alpha local use qwen3.8-27b && nav-pilot alpha local init"
+	if !strings.Contains(strings.Join(strings.Fields(out), " "), want) {
+		t.Errorf("stderr = %q, want %q", out, want)
+	}
+	table := captureStdout(func() { printLocalModels(m) })
+	if row := tableRow(table, "mlx-community/Qwen3.8-27B-4bit"); !strings.Contains(row, "*") || !strings.Contains(row, "replaced by qwen3.8-27b") {
+		t.Errorf("the kept pin has no marked row:\n%s", table)
+	}
+
 	if got := configuredLocalModel(t); got != "mlx-community/Qwen3.8-27B-4bit" {
 		t.Errorf("local_model was rewritten to %q", got)
+	}
+
+	// use of the old id points at the replacement instead of a near miss.
+	err = cmdLocalUse([]string{"mlx-community/Qwen3.8-27B-4bit"})
+	if err == nil || !strings.Contains(stripANSI(err.Error()), "was replaced by qwen3.8-27b. Use: nav-pilot alpha local use qwen3.8-27b") {
+		t.Errorf("use of a replaced id = %v, want the replacement named", err)
+	}
+
+	// purge offers the old weights that are actually on disk.
+	purge := captureStdout(func() { _ = cmdLocalPurge(nil) })
+	if !strings.Contains(purge, "models--mlx-community--Qwen3.8-27B-4bit") {
+		t.Errorf("purge does not list the old pinned weights:\n%s", purge)
+	}
+}
+
+// TestDroppedPinNamesTheFix: a local_model the manifest no longer offers
+// warns on every run, so the warning says how to make it stop.
+func TestDroppedPinNamesTheFix(t *testing.T) {
+	modelsFixture(t)
+	if _, err := writeConfigKey("local_model", "mlx-community/Gone"); err != nil {
+		t.Fatal(err)
+	}
+	m, _ := cachedManifest()
+	out := stripANSI(captureStderr(func() { _, _ = localModel(m) }))
+	if !strings.Contains(out, "Pick one to silence this: nav-pilot alpha local use <key>") {
+		t.Errorf("stderr = %q, want the fix named", out)
 	}
 }

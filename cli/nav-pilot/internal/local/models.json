@@ -29,7 +29,6 @@
         "MLX_MIN_P": "0.0"
       },
       "recommended_for": [
-        "default",
         "decide-untrusted-evidence"
       ]
     }

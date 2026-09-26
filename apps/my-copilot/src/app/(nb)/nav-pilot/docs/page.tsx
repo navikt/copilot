@@ -2221,11 +2221,12 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
             Har du valgt en annen modell enn standard, sier <code className="font-mono text-xs">start</code>,{" "}
-            <code className="font-mono text-xs">status</code> og launchen én gang hva standardmodellen er anbefalt til,
-            med kommandoen for å bytte. Du får beskjeden igjen bare når manifestet endrer anbefalingen.{" "}
-            <code className="font-mono text-xs">alpha decide</code> sier det aldri. Er modellen i{" "}
-            <code className="font-mono text-xs">local_model</code> fjernet og erstattet av en annen, bruker nav-pilot
-            erstatningen i stedet for standard og sier fra. Konfigurasjonen din endres ikke;{" "}
+            <code className="font-mono text-xs">status</code> og <code className="font-mono text-xs">models</code> én
+            gang hva standardmodellen er anbefalt til, og hvordan du bytter. Du ser beskjeden igjen bare hvis manifestet
+            endrer den, og aldri fra <code className="font-mono text-xs">alpha decide</code>, en vanlig launch eller når
+            utskriften går til et skript. Er modellen i <code className="font-mono text-xs">local_model</code> fjernet
+            og erstattet av en annen, fortsetter nav-pilot med den gamle så lenge bare vektene til den gamle ligger på
+            maskinen, og bytter når erstatningen er lastet ned. Konfigurasjonen din endres ikke;{" "}
             <code className="font-mono text-xs">nav-pilot alpha local use &lt;key&gt;</code> gjør valget eksplisitt.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">

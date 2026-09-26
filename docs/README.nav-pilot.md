@@ -423,10 +423,10 @@ kontekst, hva modellen er anbefalt til, og om den er lastet ned, kjører, er sta
 tilbake. `*` markerer den serveren laster ved neste start.
 
 ```text
-     KEY                     NAME                                     SIZE   CONTEXT  RECOMMENDED                       STATUS
-     qwen3.6-35b-a3b-optiq   Qwen 3.6 35B A3B OptiQ 4bit              25 GB  64k      general, decide: untrusted input  default, downloaded
-  *  qwen3.8-27b-optiq-4bit  Qwen 3.8 27B OptiQ 4bit (mixed 4/8-bit)  19 GB  64k      decide: nuanced                   downloaded, running
-     qwen3.8-27b-8bit-mlx    Qwen 3.8 27B 8bit (mlx-lm)               30 GB  48k      -                                 not downloaded
+     KEY                     NAME                                     SIZE   CONTEXT  RECOMMENDED       STATUS
+     qwen3.6-35b-a3b-optiq   Qwen 3.6 35B A3B OptiQ 4bit              25 GB  64k      untrusted decide  default, downloaded
+  *  qwen3.8-27b-optiq-4bit  Qwen 3.8 27B OptiQ 4bit (mixed 4/8-bit)  19 GB  64k      nuanced decide    downloaded, running
+     qwen3.8-27b-8bit-mlx    Qwen 3.8 27B 8bit (mlx-lm)               30 GB  48k      -                 not downloaded
 
   Switch: nav-pilot alpha local use <key>
 ```
@@ -462,11 +462,17 @@ Krever en modell nyere nav-pilot enn du har, skjuler nav-pilot den. Peker `local
 faller nav-pilot tilbake til standardmodellen, og `init`, `start` og `status` sier hvilken versjon
 du trenger. `models` viser den som holdt tilbake, og `use` nekter å velge den. Oppdater med `nav-pilot update`.
 
-Har du valgt en annen modell enn standard, sier `start`, `status` og launchen én gang hva
-standardmodellen er anbefalt til, med kommandoen for å bytte. Beskjeden kommer igjen bare når
-manifestet endrer anbefalingen, og `alpha decide` sier det aldri. Er modellen i `local_model` fjernet
-og erstattet av en annen, bruker nav-pilot erstatningen i stedet for standard og sier fra.
-Konfigurasjonen endres ikke; `nav-pilot alpha local use <key>` gjør valget eksplisitt.
+`RECOMMENDED` sier hva målingene anbefaler modellen til: `untrusted decide` er `alpha decide` på
+tekst du ikke kontrollerer selv, som issues og PR-beskrivelser, og `nuanced decide` er nyanserte
+ja/nei-spørsmål. Har du valgt en annen modell enn standard, sier `start`, `status` og `models` én
+gang hva standardmodellen er anbefalt til, og hvordan du bytter. Du ser beskjeden igjen bare hvis
+manifestet endrer den, og aldri fra `alpha decide`, en vanlig launch eller når utskriften går til
+et skript.
+
+Er modellen i `local_model` fjernet fra manifestet og erstattet av en annen, fortsetter nav-pilot
+med den gamle så lenge bare vektene til den gamle ligger på maskinen. Når erstatningen er lastet
+ned, bytter nav-pilot til den. Begge deler får du beskjed om én gang, og konfigurasjonen endres
+ikke. `nav-pilot alpha local use <key>` gjør valget eksplisitt.
 
 Bytter du modell, må vektene til den nye lastes ned én gang. `purge` fjerner det du ikke vil beholde.
 

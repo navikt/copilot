@@ -42,6 +42,8 @@ func cmdLocalModels() error {
 		return err
 	}
 	printLocalModels(m)
+	nudge(local.ReplacedNotice(m))
+	nudge(local.PinnedAdvisory(m))
 	return nil
 }
 
@@ -110,6 +112,17 @@ func printLocalModels(m *local.Manifest) {
 		}
 		row(wh.Model, status)
 	}
+	// A replaced id still in use because only its weights are here: not a
+	// manifest entry, but what a start loads, so it gets the `*`.
+	if !slices.ContainsFunc(m.Models, func(e local.Model) bool { return e.Model == active.Model }) {
+		if repl, ok := m.ReplacedBy(active.Model); ok {
+			status := []string{"downloaded", "replaced by " + repl.Key}
+			if active.Model == running {
+				status = append(status, "running")
+			}
+			row(active, status)
+		}
+	}
 	_ = w.Flush()
 	fmt.Printf("\n  Switch: %s\n", bold("nav-pilot alpha local use <key>"))
 }
@@ -147,6 +160,9 @@ func cmdLocalUse(args []string) error {
 		}
 	}
 	i := slices.IndexFunc(m.Models, match)
+	if repl, ok := m.ReplacedBy(arg); ok && i < 0 {
+		return fmt.Errorf("%s was replaced by %s. Use: %s", arg, repl.Key, bold("nav-pilot alpha local use "+repl.Key))
+	}
 	if i < 0 {
 		var names []string
 		for _, e := range m.Models {
@@ -165,6 +181,10 @@ func cmdLocalUse(args []string) error {
 		return err
 	}
 	fmt.Printf("%s local_model = %s %s\n", green("✓"), bold(e.Key), dim("("+e.Model+")"))
+	// Just chosen on purpose, so the advisory this choice would trigger has
+	// nothing to tell them.
+	local.SetSelectedModel(e.Model)
+	local.MarkSeen(local.PinnedAdvisory(m))
 
 	present, err := local.WeightsPresent(e.Model)
 	if err != nil {

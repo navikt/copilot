@@ -228,9 +228,10 @@ type Manifest struct {
 	Models []Model `json:"models"`
 
 	// Replaced maps a model id that was removed from the manifest to the key
-	// (or model id) of the entry that replaces it. A local_model naming a
-	// replaced id resolves to its replacement when that is offered; see
-	// [Chosen] and [ReplacedNotice].
+	// (or model id) of the entry that replaces it, with the same settings. A
+	// local_model naming a replaced id keeps running while only its weights
+	// are here, and resolves to the replacement otherwise; see [Chosen] and
+	// [ReplacedNotice].
 	Replaced map[string]string `json:"replaced,omitempty"`
 
 	// Withheld are the entries [Parse] took out of Models because this binary
@@ -630,8 +631,9 @@ var selectedModel string
 func SetSelectedModel(id string) { selectedModel = id }
 
 // Chosen returns the model a start would load: the configured one when the
-// manifest offers it, else its offered replacement when the manifest lists the
-// configured id as replaced, otherwise the manifest's default.
+// manifest offers it; for an id the manifest lists as replaced, the old
+// weights while only they are downloaded and the replacement otherwise;
+// failing both, the manifest's default.
 //
 // It exists because the manifest carried exactly one model until 1 September
 // 2026, which made `Models[0]` correct by accident in two places. Adding a
@@ -649,8 +651,11 @@ func Chosen(m *Manifest) (Model, bool) {
 				return e, true
 			}
 		}
-		if e, ok := m.replacement(selectedModel); ok {
-			return e, true
+		if old, repl, ok := m.legacy(selectedModel); ok {
+			if keepLegacy(old, repl) {
+				return old, true
+			}
+			return repl, true
 		}
 	}
 	for _, e := range m.Models {
@@ -666,6 +671,11 @@ func Lookup(model string) (Model, bool) {
 		if m.Model == model {
 			return m, true
 		}
+	}
+	// A replaced id [Chosen] kept serving is still a local model: a launch
+	// must be able to describe the server it runs.
+	if old, _, ok := Active().legacy(model); ok {
+		return old, true
 	}
 	return Model{}, false
 }
