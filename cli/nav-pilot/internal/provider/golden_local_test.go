@@ -115,6 +115,7 @@ func TestGoldenLaunchEnvIsUnchangedWithoutLocal(t *testing.T) {
 	// A home with no ~/.copilot customizations and no OTel endpoint, so the
 	// golden below is the launch's own doing and not the machine's.
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("NAV_PILOT_CONFIG", "")
 	for _, key := range []string{
 		"COPILOT_CUSTOM_INSTRUCTIONS_DIRS", "OTEL_LOG_LEVEL",
 		"OTEL_EXPORTER_OTLP_ENDPOINT", "COPILOT_OTEL_ENDPOINT",
