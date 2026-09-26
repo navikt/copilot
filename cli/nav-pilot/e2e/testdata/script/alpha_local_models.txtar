@@ -11,7 +11,7 @@ stdout 'Set it up: nav-pilot alpha local init'
 
 exec nav-pilot alpha local models
 stdout '\* +qwen3.6-35b-a3b-optiq .* default, not downloaded'
-stdout '\* is the model start loads: local_model if set, otherwise the default\.'
+stdout '\* marks the model alpha local start loads: local_model if set, otherwise the default\.'
 stdout 'gemma3-4b +Gemma 3 4B .* not downloaded'
 stdout 'Switch: nav-pilot alpha local use <key>'
 ! stderr .

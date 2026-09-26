@@ -151,7 +151,7 @@ func printLocalModels(out io.Writer, m *local.Manifest) {
 		}
 	}
 	_ = w.Flush()
-	fmt.Fprintf(out, "\n  %s\n", dim("* is the model start loads: local_model if set, otherwise the default."))
+	fmt.Fprintf(out, "\n  %s\n", dim("* marks the model alpha local start loads: local_model if set, otherwise the default."))
 	if len(m.Withheld) > 0 {
 		fmt.Fprintln(out)
 		printWithheld(out, m)
