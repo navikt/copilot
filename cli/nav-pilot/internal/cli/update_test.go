@@ -300,14 +300,16 @@ func TestUpdateRefusesToReplaceAPackagedBinary(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			origManager, origAPI := packageManager, releasesAPI
-			t.Cleanup(func() { packageManager, releasesAPI = origManager, origAPI })
+			origManager, origAPI, origVersion := packageManager, releasesAPI, Version
+			t.Cleanup(func() { packageManager, releasesAPI, Version = origManager, origAPI, origVersion })
+			Version = "2026.09.01-120000-aaaaaaa"
 			packageManager = func() domain.PkgManager { return tt.mgr }
 
-			// A refusal must not reach the network, and the empty PATH keeps the
-			// Homebrew branch's cplt lookup off it too.
+			// A newer release than the running one: the refusal must still
+			// print the package manager's command. The empty PATH keeps the
+			// Homebrew branch's cplt lookup off the network.
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				t.Errorf("a packaged install asked GitHub for a release: %s", r.URL)
+				fmt.Fprint(w, `[{"tag_name": "nav-pilot/2099.01.01-000000-fffffff"}]`)
 			}))
 			t.Cleanup(srv.Close)
 			releasesAPI = srv.URL

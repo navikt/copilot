@@ -131,10 +131,9 @@ func latestRelease() (ver, tag string, err error) {
 func doUpdate(w io.Writer) (updated bool, err error) {
 	if mgr := packageManager(); mgr.Name != "" {
 		// Up to date says so, rather than sending the user to brew for a
-		// no-op. The same cached lookup as the startup nudge (at most one
-		// request a day), so the two never disagree; when it knows nothing,
-		// the package manager's command is still the answer.
-		if a := assessStaleness(Version); a.LatestVersion != "" && !versionNewer(a.LatestVersion, Version) {
+		// no-op. A fresh lookup, not the startup cache: that can be a day
+		// old. When it fails, the package manager's command is the answer.
+		if latest, _, err := latestRelease(); err == nil && !versionNewer(latest, Version) {
 			fmt.Fprintf(w, "✓ nav-pilot is up to date (%s)\n", Version)
 			return false, nil
 		}
@@ -287,13 +286,13 @@ func releaseCheckError(resp *http.Response) error {
 	if reset, err := strconv.ParseInt(resp.Header.Get("X-RateLimit-Reset"), 10, 64); err == nil {
 		msg += fmt.Sprintf(" until %s", time.Unix(reset, 0).Format("15:04"))
 	}
-	// githubGet retries without the token when GitHub refuses it, so the
-	// answer that got here was anonymous whenever a token was set.
+	// githubGet retries without the token on a 401 or 403, which a token
+	// over its own limit answers too, so this says what happened, not why.
 	switch {
 	case os.Getenv("GITHUB_TOKEN") == "":
 		msg += ". Set GITHUB_TOKEN for a higher limit"
 	case resp.Request != nil && resp.Request.Header.Get("Authorization") == "":
-		msg += ". GitHub refused GITHUB_TOKEN, so nav-pilot retried without it, and that hit the limit"
+		msg += ". The request with GITHUB_TOKEN was turned away (a rejected token, or its own limit), so nav-pilot retried without it, and that hit the limit too"
 	}
 	return fmt.Errorf("%s. Try again later, or download nav-pilot from %s", msg, releasesPage)
 }

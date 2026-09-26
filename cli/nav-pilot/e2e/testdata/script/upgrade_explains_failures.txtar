@@ -12,7 +12,7 @@ stderr 'https://github.com/navikt/copilot/releases'
 
 env GITHUB_TOKEN=ghp_fake
 exits 1 nav-pilot upgrade
-stderr 'GitHub refused GITHUB_TOKEN, so nav-pilot retried without it'
+stderr 'The request with GITHUB_TOKEN was turned away .*so nav-pilot retried without it'
 env GITHUB_TOKEN=
 
 env NAV_PILOT_E2E_VERSION=dev
