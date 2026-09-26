@@ -14,6 +14,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"golang.org/x/sys/unix"
 )
 
 // DefaultRepo is the content source used when neither --source nor the config
@@ -282,6 +283,12 @@ func FindGitRoot(dir string) string {
 	}
 }
 
+// stderrIsTerminal asks the kernel whether stderr is a terminal.
+func stderrIsTerminal() bool {
+	_, err := unix.IoctlGetWinsize(int(os.Stderr.Fd()), unix.TIOCGWINSZ)
+	return err == nil
+}
+
 func cloneRemote(ref, sourceRepo string) (*Source, error) {
 	tmpDir, err := os.MkdirTemp("", "nav-pilot-*")
 	if err != nil {
@@ -299,8 +306,17 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 		msg = fmt.Sprintf("Fetching %s@%s...", label, ref)
 	}
 
+	// The spinner only on a terminal: into a pipe or a log it is a line of
+	// frames glued together with carriage returns.
 	done := make(chan struct{})
+	stopped := make(chan struct{})
+	spin := stderrIsTerminal()
 	go func() {
+		defer close(stopped)
+		if !spin {
+			<-done
+			return
+		}
 		frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 		i := 0
 		ticker := time.NewTicker(80 * time.Millisecond)
@@ -308,6 +324,7 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 		for {
 			select {
 			case <-done:
+				fmt.Fprintf(os.Stderr, "\r\033[K")
 				return
 			case <-ticker.C:
 				fmt.Fprintf(os.Stderr, "\r%s %s", domain.Dim(frames[i%len(frames)]), msg)
@@ -326,7 +343,7 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 	err = fetchRevision(ctx, tmpDir, repoURL, ref, &stderr)
 
 	close(done)
-	fmt.Fprintf(os.Stderr, "\r\033[K")
+	<-stopped
 	if err != nil {
 		os.RemoveAll(tmpDir)
 		gitErr := strings.TrimSpace(stderr.String())

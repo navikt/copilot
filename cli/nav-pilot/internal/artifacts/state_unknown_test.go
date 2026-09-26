@@ -178,7 +178,7 @@ func TestSyncOpenCodeArtifactsKeepsUnknownKeys(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	if _, _, _, _, _, err := SyncOpenCodeArtifacts(sourceDir, "", outputDir, "1.0.0", "abc123", ""); err != nil {
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "1.0.0", "abc123", ""); err != nil {
 		t.Fatalf("first sync: %v", err)
 	}
 
@@ -212,7 +212,7 @@ func TestSyncOpenCodeArtifactsKeepsUnknownKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, _, _, _, _, err := SyncOpenCodeArtifacts(sourceDir, "", outputDir, "1.0.1", "def456", ""); err != nil {
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "1.0.1", "def456", ""); err != nil {
 		t.Fatalf("second sync: %v", err)
 	}
 

@@ -112,6 +112,7 @@ const DOC_SECTIONS: TocItem[] = [
       { id: "opencode", label: "OpenCode" },
       { id: "konfigurasjon", label: "Konfigurasjon" },
       { id: "konfig-nokler", label: "Konfigurasjonsnøkler" },
+      { id: "personvern", label: "Personvern og telemetri" },
     ],
   },
   {
@@ -772,7 +773,7 @@ nav-pilot`}
                 </Label>
                 <div className="mt-1">
                   <CodeBlock compact>
-                    {`cplt -- --agent nav-pilot --prompt "Jeg trenger en ny tjeneste som behandler dagpengesøknader"`}
+                    {`cplt --project-dir . -- --agent nav-pilot --prompt "Jeg trenger en ny tjeneste som behandler dagpengesøknader"`}
                   </CodeBlock>
                 </div>
               </div>
@@ -1576,7 +1577,7 @@ const CONFIG_KEYS = [
     key: "client",
     flag: "--client",
     values: "copilot · opencode · pi",
-    desc: "Klient å starte. copilot er standard; pi er reservert og støttes ikke ennå.",
+    desc: "Klient å starte: copilot (standard), opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen.",
   },
   {
     key: "model",
@@ -1721,11 +1722,11 @@ function KlienterOgKonfigurasjonSection() {
               },
               {
                 name: "pi",
-                badge: "Reservert",
-                badgeColor: "#94a3b8",
-                badgeBg: "#f1f5f9",
-                desc: "Ikke støttet ennå, så nav-pilot returnerer feilmelding om du velger denne.",
-                color: "#94a3b8",
+                badge: "Eksperimentell",
+                badgeColor: "#b45309",
+                badgeBg: "#fef3c7",
+                desc: "pi-klienten i cplt-sandkassen, med Nav-kontekst (skills, agenter og AGENTS.md) levert ved oppstart. Krever både pi og cplt.",
+                color: "#b45309",
               },
             ].map((c) => (
               <div
@@ -1998,6 +1999,36 @@ reasoning_effort = "high"
               </tbody>
             </table>
           </div>
+        </div>
+
+        <div id="personvern">
+          <LinkableHeading size="small" level="3">
+            Personvern og telemetri
+          </LinkableHeading>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            nav-pilot sender bruksmålinger til Nav: hvor ofte kommandoene kjøres, hvilken klient og hvilke innstillinger
+            som brukes, og hvilke typer feil som oppstår. Målingene er faste kategorier og tall. Prompter, kode,
+            filinnhold og filnavn er aldri med. Maskinen kjennes igjen på en pseudonym ID, ikke på navn eller
+            brukernavn. Starter nav-pilot Copilot, slår den også på Copilots egne målinger og sporinger mot samme
+            mottaker, merket med hvilket repo økten kjører i.
+          </BodyLong>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            Første gang du kjører nav-pilot i en terminal, står dette på én linje. Slå av målingene i shell-profilen din
+            med én av disse:
+          </BodyLong>
+          <CodeBlock compact>{`export DO_NOT_TRACK=1
+export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
+          <BodyLong className="mt-2" size="small" style={{ color: "#64748b" }}>
+            <code className="font-mono text-xs">DO_NOT_TRACK=1</code> slår av målinger i alle verktøy som følger
+            konvensjonen, ikke bare nav-pilot. Alt som måles, står i{" "}
+            <a
+              href="https://github.com/navikt/copilot/blob/main/cli/nav-pilot/TELEMETRY.md"
+              className="text-blue-600 hover:underline"
+            >
+              TELEMETRY.md
+            </a>
+            .
+          </BodyLong>
         </div>
       </VStack>
     </section>
@@ -2400,6 +2431,30 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             Commit-hooken og etikettforslaget er målt. PR-sjekken er målt og svak, og loggsorteringen er ikke målt ennå.
             Alle advarer eller foreslår, ingen stopper noe.
           </BodyShort>
+          <BodyLong size="small" textColor="subtle">
+            Tre råd når du skriver egne spørsmål:
+          </BodyLong>
+          <ul className="text-sm space-y-1 list-disc pl-5" style={{ color: "#64748b" }}>
+            <li>Still spørsmålet positivt: «Forklarer meldingen hvorfor?», ikke «Mangler meldingen en forklaring?».</li>
+            <li>
+              Sett <code className="font-mono text-xs">yes</code> først i alternativene.
+            </li>
+            <li>
+              Kjør <code className="font-mono text-xs">--eval</code> på nøyaktig den ordlyden du skal bruke.
+            </li>
+          </ul>
+          <BodyLong size="small" textColor="subtle">
+            Grunnen: «ja»-svarene er stabile, men «nei»-svarene vipper mot «teksten er grei» når alternativene bytter
+            plass eller spørsmålet snus. Standardmodellen svarte riktig på 85 % av spørsmålene i opprinnelig form og 58
+            % når de var snudd.{" "}
+            <a
+              href="https://github.com/navikt/mlx-workspace/blob/main/bench/decide-layout-results.md"
+              className="text-blue-600 hover:underline"
+            >
+              Se målingen
+            </a>
+            .
+          </BodyLong>
 
           <HStack gap="space-8" align="center">
             <Label size="small">Commit-meldingen forklarer hvorfor</Label>

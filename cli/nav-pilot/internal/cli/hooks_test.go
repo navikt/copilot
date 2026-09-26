@@ -283,7 +283,7 @@ func TestOpenCodeRefusesHooks(t *testing.T) {
 
 	src := hookSource(t)
 	out := t.TempDir()
-	if _, _, _, _, _, err := artifacts.SyncOpenCodeArtifacts(src, "", out, "v1", "sha", "repo"); err != nil {
+	if _, _, _, _, _, err := artifacts.SyncOpenCodeArtifacts("opencode", src, "", out, "v1", "sha", "repo"); err != nil {
 		t.Fatalf("SyncOpenCodeArtifacts: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(out, "hooks")); !os.IsNotExist(err) {

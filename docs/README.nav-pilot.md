@@ -290,11 +290,11 @@ deg. Svarer ikke GitHub, hopper den bare over versjonssjekken.
 
 nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
 
-| Klient                  | Binær               | Nav-kontekst                                                | Standard modell |
-| ----------------------- | ------------------- | ----------------------------------------------------------- | --------------- |
-| `copilot` (standard)    | `cplt` / `copilot`  | Installeres i `.github/`                                    | GPT-6 Sol       |
-| `opencode`              | `cplt` + `opencode` | Materialiseres automatisk i brukerens OpenCode config-mappe | GPT-6 Sol       |
-| `pi` _(eksperimentell)_ | `cplt` + `pi`       | Via `AGENTS.md` i prosjektroten                             | GPT-6 Sol       |
+| Klient                  | Binær               | Nav-kontekst                                                  | Standard modell |
+| ----------------------- | ------------------- | ------------------------------------------------------------- | --------------- |
+| `copilot` (standard)    | `cplt` / `copilot`  | Installeres i `.github/`                                      | GPT-6 Sol       |
+| `opencode`              | `cplt` + `opencode` | Materialiseres automatisk i brukerens OpenCode config-mappe   | GPT-6 Sol       |
+| `pi` _(eksperimentell)_ | `cplt` + `pi`       | Materialiseres i `~/.nav-pilot/pi` og gis til pi ved oppstart | GPT-6 Sol       |
 
 En modell du velger med config eller `--model`, vinner over agentpakkas standard.
 
@@ -311,7 +311,10 @@ En modell du velger med config eller `--model`, vinner over agentpakkas standard
 > Står du i en undermappe, får agenten lese (ikke skrive) repoets instruksjoner i roten:
 > `.github/`, `.nav-pilot/`, `.opencode/`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` og
 > `opencode.json`, de som finnes. nav-pilot skriver omfanget på stderr ved hver oppstart.
-> Hjemmekatalogen og `/` avviser cplt selv som for vide.
+> Hjemmekatalogen og `/` avviser cplt selv som for vide, og nav-pilot starter ingenting derfra.
+>
+> **Starter du cplt selv,** gi den samme omfang: `cplt --project-dir . -- --agent nav-pilot`.
+> `copilot --agent nav-pilot` uten cplt kjører uten sandbox.
 
 > **Auth-detalj (Copilot/cplt):** nav-pilot henter ikke ut GitHub-tokenet selv.
 > Med `cplt`s gh-guard på, som `sandbox.preset = strict` slår på og `nav-pilot
@@ -644,8 +647,9 @@ kompatibilitetsregler og CI-validering.
 
 nav-pilot sender OTel-metrikker som standard i pilot. Standard endpoint er
 `https://collector-internet.nav.cloud.nais.io/v1/metrics`, og du kan overstyre den med
-`NAV_PILOT_TELEMETRY_ENDPOINT`. `NAV_PILOT_TELEMETRY_ENABLED=0` (eller `off`) slår av
-telemetry.
+`NAV_PILOT_TELEMETRY_ENDPOINT`. `NAV_PILOT_TELEMETRY_ENABLED=0` (eller `off`) eller
+`DO_NOT_TRACK=1` slår av telemetry. Første gang nav-pilot kjører i en terminal med telemetry
+på, sier den det på én linje på stderr, én gang per maskin.
 
 Når nav-pilot starter `cplt`/`copilot`, setter den `OTEL_EXPORTER_OTLP_ENDPOINT` for Copilot
 CLI til samme collector-base (`https://collector-internet.nav.cloud.nais.io`, uten

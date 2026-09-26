@@ -1,0 +1,53 @@
+# Smaller launch fixes: --project-dir must name a directory, the refusal for a
+# missing client says how to install it, auto_launch = false names a command
+# that starts the same session, the skipped-hooks warning names the client it
+# is about and says it once, no spinner frames without a terminal, and
+# version --json is JSON.
+
+exits 1 nav-pilot --project-dir nope
+stderr '[-]-project-dir nope: no such directory'
+exits 1 nav-pilot --project-dir plattform/agents/grillmester.agent.md
+stderr 'is not a directory'
+
+exec nav-pilot version --json
+validjson stdout
+stdout '"version"'
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo
+
+fake-bin cplt
+exits 1 nav-pilot --sync --source $WORK/plattform --client opencode -- run x
+stderr 'Not launching: opencode is not installed\. Install it: npm i -g opencode-ai'
+
+fake-bin cplt copilot
+exits 1 nav-pilot --sync --source $WORK/plattform --no-auto-launch -- -p x
+stderr 'Not launching: auto_launch = false\. Start it yourself with: nav-pilot --auto-launch, or cplt --project-dir .*/repo --agent copilot'
+
+fake-bin cplt pi
+exec nav-pilot --sync --source $WORK/plattform --client pi -- -p x
+stderr -count=1 '1 hook\(s\) not installed for pi: vakt\. nav-pilot installs hooks for copilot only'
+! stderr 'OpenCode'
+
+# A remote source that cannot be reached: an error, and no spinner frames.
+exits 1 nav-pilot list --source navikt/finnes-ikke
+! stderr '⠋'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"pi":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/hooks/vakt.hook.json --
+{"matcher": "bash", "timeoutSec": 5}
+-- plattform/hooks/vakt.py --
+print("ok")

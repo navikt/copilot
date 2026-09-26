@@ -150,7 +150,7 @@ func runConfigSetup(flagSource string) error {
 	// Model picker: providers with a curated model list get a select widget;
 	// others (pi, unknown future providers) get a free-text input.
 	p, _ := providerFor(answers.Client)
-	modelDesc := "Pick a model, or leave unset to use the agent default."
+	modelDesc := "Pick a model, or leave it unset for the agentpakke's default (the agent's own if it names none)."
 	if p != nil && p.DefaultModel() != "" {
 		modelDesc = "Pick a model (provider/model format), or leave unset to use the Nav default."
 	}
@@ -164,7 +164,7 @@ func runConfigSetup(flagSource string) error {
 		Title("Reasoning effort").
 		Description("Controls how hard the model thinks. Leave unset to use the agent default.").
 		Options(
-			huh.NewOption("Unset (agent default)", ""),
+			huh.NewOption("Unset (the agent's own default)", ""),
 			huh.NewOption("none", "none"),
 			huh.NewOption("low", "low"),
 			huh.NewOption("medium", "medium"),
@@ -184,7 +184,7 @@ func runConfigSetup(flagSource string) error {
 		Description("Automatically install new CLI versions in the background.").
 		Options(
 			huh.NewOption("Yes (recommended)", "true"),
-			huh.NewOption("No (prompt after 7 days)", "false"),
+			huh.NewOption("No: say when a new version is out, and ask to upgrade once 7 days behind", "false"),
 		).
 		Value(&answers.AutoUpdate).
 		WithTheme(navTheme()).

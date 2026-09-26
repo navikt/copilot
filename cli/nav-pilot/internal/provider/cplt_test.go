@@ -293,3 +293,15 @@ func TestCopilotSessionModelDropsPrefix(t *testing.T) {
 		t.Errorf("CopilotModelID(anthropic/x) = %q, %v", id, dropped)
 	}
 }
+
+// FirstTime answers true once per name, then false: the marker lives in
+// nav-pilot's config directory, so the next process sees it too.
+func TestFirstTime(t *testing.T) {
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "config.toml"))
+	if !FirstTime("x") || FirstTime("x") {
+		t.Error("FirstTime(x) should be true once, then false")
+	}
+	if !FirstTime("y") {
+		t.Error("another name has its own marker")
+	}
+}

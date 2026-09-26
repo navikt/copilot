@@ -109,7 +109,7 @@ func TestSyncOpenCodeArtifacts_FirstRun(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	skills, commands, agents, instructions, conflicts, err := SyncOpenCodeArtifacts(sourceDir, "", outputDir, "2026.06.16-120000", "abc123", "")
+	skills, commands, agents, instructions, conflicts, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "2026.06.16-120000", "abc123", "")
 	if err != nil {
 		t.Fatalf("SyncOpenCodeArtifacts error: %v", err)
 	}
@@ -152,14 +152,14 @@ func TestSyncOpenCodeArtifacts_Idempotent(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	s1, c1, a1, i1, conf1, err := SyncOpenCodeArtifacts(sourceDir, "", outputDir, "2026.06.16-120000", "abc", "")
+	s1, c1, a1, i1, conf1, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "2026.06.16-120000", "abc", "")
 	if err != nil {
 		t.Fatalf("SyncOpenCodeArtifacts run 1 error: %v", err)
 	}
 
 	agentsMD1, _ := os.ReadFile(filepath.Join(outputDir, "AGENTS.md"))
 
-	s2, c2, a2, i2, conf2, err := SyncOpenCodeArtifacts(sourceDir, "", outputDir, "2026.06.16-120000", "abc", "")
+	s2, c2, a2, i2, conf2, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "2026.06.16-120000", "abc", "")
 	if err != nil {
 		t.Fatalf("second run error: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestSyncOpenCodeArtifacts_ConflictNotOverwritten(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	if _, _, _, _, _, err := SyncOpenCodeArtifacts(sourceDir, "", outputDir, "2026.06.01-120000", "old", ""); err != nil {
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "2026.06.01-120000", "old", ""); err != nil {
 		t.Fatalf("setup SyncOpenCodeArtifacts: %v", err)
 	}
 
@@ -191,7 +191,7 @@ func TestSyncOpenCodeArtifacts_ConflictNotOverwritten(t *testing.T) {
 		t.Fatalf("writing user AGENTS.md: %v", err)
 	}
 
-	_, _, _, _, conflicts, err := SyncOpenCodeArtifacts(sourceDir, "", outputDir, "2026.06.16-120000", "new", "")
+	_, _, _, _, conflicts, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "2026.06.16-120000", "new", "")
 	if err != nil {
 		t.Fatalf("second run error: %v", err)
 	}
@@ -242,12 +242,12 @@ Updated content.
 
 	outputDir := t.TempDir()
 
-	if _, _, _, _, _, err := SyncOpenCodeArtifacts(sourceV1, "", outputDir, "2026.06.01-120000", "v1sha", ""); err != nil {
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", sourceV1, "", outputDir, "2026.06.01-120000", "v1sha", ""); err != nil {
 		t.Fatalf("setup SyncOpenCodeArtifacts: %v", err)
 	}
 	agentV1, _ := os.ReadFile(filepath.Join(outputDir, "agents", "nav-pilot.md"))
 
-	_, _, _, _, conflicts, err := SyncOpenCodeArtifacts(sourceV2, "", outputDir, "2026.06.16-120000", "v2sha", "")
+	_, _, _, _, conflicts, err := SyncOpenCodeArtifacts("opencode", sourceV2, "", outputDir, "2026.06.16-120000", "v2sha", "")
 	if err != nil {
 		t.Fatalf("v2 run error: %v", err)
 	}
@@ -276,7 +276,7 @@ func TestPrintOpenCodeStatusBlockNamesTheInstall(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	if _, _, _, _, _, err := SyncOpenCodeArtifacts(sourceDir, "", outputDir, "2026.06.16-120000", "abc", ""); err != nil {
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "2026.06.16-120000", "abc", ""); err != nil {
 		t.Fatalf("sync error: %v", err)
 	}
 
@@ -332,7 +332,7 @@ func TestSyncOpenCodeArtifacts_RejectsSymlink(t *testing.T) {
 		t.Fatalf("symlink: %v", err)
 	}
 
-	_, _, _, _, _, err := SyncOpenCodeArtifacts(sourceDir, "", outputDir, "2026.06.16-120000", "abc", "")
+	_, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "2026.06.16-120000", "abc", "")
 	if err == nil {
 		t.Error("SyncOpenCodeArtifacts() = nil, want error when writing through symlink")
 	}
@@ -370,7 +370,7 @@ func TestSyncOpenCodeArtifacts_ScopeExtras(t *testing.T) {
 	scopeDir := setupTestScope(t)
 	outputDir := t.TempDir()
 
-	skills, commands, agents, instructions, _, err := SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, "2026.06.16-120000", "abc123", "")
+	skills, commands, agents, instructions, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, scopeDir, outputDir, "2026.06.16-120000", "abc123", "")
 	if err != nil {
 		t.Fatalf("SyncOpenCodeArtifacts error: %v", err)
 	}
@@ -443,7 +443,7 @@ func TestSyncOpenCodeArtifacts_InstalledScopeUnchanged(t *testing.T) {
 
 	tree := func(scopeDir string) map[string]string {
 		out := t.TempDir()
-		if _, _, _, _, _, err := SyncOpenCodeArtifacts(sourceDir, scopeDir, out, "2026.06.16-120000", "abc", ""); err != nil {
+		if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, scopeDir, out, "2026.06.16-120000", "abc", ""); err != nil {
 			t.Fatalf("SyncOpenCodeArtifacts(%q): %v", scopeDir, err)
 		}
 		files := map[string]string{}
@@ -482,7 +482,7 @@ func TestSyncOpenCodeArtifacts_KeepsEditedFileOnScopeSwitch(t *testing.T) {
 	scopeDir := setupTestScope(t)
 	outputDir := t.TempDir()
 
-	if _, _, _, _, _, err := SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, "2026.06.16-120000", "abc", ""); err != nil {
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, scopeDir, outputDir, "2026.06.16-120000", "abc", ""); err != nil {
 		t.Fatalf("first sync: %v", err)
 	}
 
@@ -491,7 +491,7 @@ func TestSyncOpenCodeArtifacts_KeepsEditedFileOnScopeSwitch(t *testing.T) {
 	untouched := filepath.Join(outputDir, "agents", "watson.md")
 
 	// Second run from another repo: the extras are no longer in the file set.
-	if _, _, _, _, _, err := SyncOpenCodeArtifacts(sourceDir, "", outputDir, "2026.06.16-120000", "abc", ""); err != nil {
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "2026.06.16-120000", "abc", ""); err != nil {
 		t.Fatalf("second sync: %v", err)
 	}
 
@@ -508,7 +508,7 @@ func TestSyncOpenCodeArtifacts_KeepsEditedFileOnScopeSwitch(t *testing.T) {
 
 	// Back in the first repo. The kept file must still be the user's: keeping it
 	// on the way out is worthless if the return trip overwrites it.
-	_, _, _, _, conflicts, err := SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, "2026.06.16-120000", "abc", "")
+	_, _, _, _, conflicts, err := SyncOpenCodeArtifacts("opencode", sourceDir, scopeDir, outputDir, "2026.06.16-120000", "abc", "")
 	if err != nil {
 		t.Fatalf("third sync: %v", err)
 	}
@@ -535,7 +535,7 @@ func TestSyncOpenCodeArtifacts_ConflictSurvivesASecondSync(t *testing.T) {
 	outputDir := t.TempDir()
 
 	// Synk 1: alt skrives, ingen konflikt.
-	if _, _, _, _, conflicts, err := SyncOpenCodeArtifacts(sourceDir, "", outputDir, "v1", "sha1", ""); err != nil {
+	if _, _, _, _, conflicts, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "v1", "sha1", ""); err != nil {
 		t.Fatalf("første synk: %v", err)
 	} else if len(conflicts) != 0 {
 		t.Fatalf("konflikter på første synk: %v", conflicts)
@@ -549,7 +549,7 @@ func TestSyncOpenCodeArtifacts_ConflictSurvivesASecondSync(t *testing.T) {
 	}
 
 	// Synk 2: konflikt rapporteres, fila står.
-	_, _, _, _, conflicts, err := SyncOpenCodeArtifacts(sourceDir, "", outputDir, "v1", "sha1", "")
+	_, _, _, _, conflicts, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "v1", "sha1", "")
 	if err != nil {
 		t.Fatalf("andre synk: %v", err)
 	}
@@ -561,7 +561,7 @@ func TestSyncOpenCodeArtifacts_ConflictSurvivesASecondSync(t *testing.T) {
 	}
 
 	// Synk 3: den som pleide å overskrive i stillhet.
-	_, _, _, _, conflicts, err = SyncOpenCodeArtifacts(sourceDir, "", outputDir, "v1", "sha1", "")
+	_, _, _, _, conflicts, err = SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "v1", "sha1", "")
 	if err != nil {
 		t.Fatalf("tredje synk: %v", err)
 	}

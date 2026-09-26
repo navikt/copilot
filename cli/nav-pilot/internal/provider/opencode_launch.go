@@ -204,7 +204,7 @@ func EnsureOpenCodeNavContext(ref, sourceRepo string) (string, error) {
 		recordFreshness("opencode", artifacts.OpenCodeScopeName, assessment)
 	}
 
-	skills, commands, agents, instrCount, conflicts, err := artifacts.SyncOpenCodeArtifacts(src.Dir, repoScopeDir(), outputDir, src.Version, src.SHA, src.Repo)
+	skills, commands, agents, instrCount, conflicts, err := artifacts.SyncOpenCodeArtifacts("opencode", src.Dir, repoScopeDir(), outputDir, src.Version, src.SHA, src.Repo)
 	if err != nil {
 		return "", err
 	}
