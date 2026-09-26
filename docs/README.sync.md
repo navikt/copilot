@@ -8,9 +8,10 @@ Teams that have installed customization files run **nav-pilot sync** to check fo
 
 ```bash
 nav-pilot sync              # Sync all scopes (repo + user)
-nav-pilot sync --apply      # Apply updates directly (all scopes)
+nav-pilot sync --apply      # Apply updates directly (all scopes); in a terminal it asks before removing files
+nav-pilot sync --apply --yes  # ...without asking
 nav-pilot sync --user       # Sync user-scope only (~/.copilot/)
-nav-pilot sync --json       # Machine-readable output
+nav-pilot sync --json       # One JSON document: {"scopes": [{"scope": "repo", ...}, ...]}
 nav-pilot sync --source navikt/my-team-copilot  # Sync from different source repo
 nav-pilot --sync            # Sync all scopes and launch Copilot (non-interactive)
 ```
@@ -46,6 +47,10 @@ The reusable workflow (`.github/workflows/copilot-customization-sync.yml`) uses 
 2. Runs `nav-pilot sync --json` to detect updates
 3. Applies them with `nav-pilot sync --apply` if it finds any
 4. Creates or updates a PR on the `copilot-customization-sync` branch
+
+Step 2 reads one JSON document on stdout, `{"scopes": [...]}`, with one entry per scope, each naming its `scope`. `sync --user`, `--repo` or `--target` prints that one scope's entry on its own. Exit codes are 0 for up to date, 1 for updates available and 2 for a sync that could not run. On 2, the scope that failed has `{"scope": ..., "error": ...}` in place of its lists, so the workflow can say what went wrong instead of finding stdout empty. `--apply --json` applies and reports what it did (`"applied": true`). The PR lists updated, added and deleted files, marks updates that replace a local edit, and lists the pin.
+
+If the GitHub releases API cannot be reached, sync does not move a committed pin to the default branch on a guess. It keeps the pin, says why on stderr and exits 2. `--ref <branch|sha>` moves the pin deliberately.
 
 Step 2 counts the pinned revision in `.nav-pilot/agentpakke.lock.json` as an update in its own right (`pin_bump` in the JSON). An agentpakke can move forward without any installed file changing — a change to a file this repo never installed, a docs change upstream — and the pin would otherwise stay behind for good, because step 3 only runs when step 2 found something. The PR lists it like any other change.
 

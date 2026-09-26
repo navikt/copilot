@@ -1,0 +1,41 @@
+# sync --apply --json reported what --apply would do, applied nothing and
+# exited 1. It applies, reports what it did, and exits 0.
+
+mkdir plattform/skills forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../forbruker
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+
+cp ../v2.md ../plattform/agents/grillmester.agent.md
+cd ../plattform
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qam v2
+cd ../forbruker
+
+exec nav-pilot sync --repo --apply --json --source $WORK/plattform
+validjson stdout
+stdout '"applied": true'
+stdout '"up_to_date": true'
+stdout '"\.github/agents/grillmester\.agent\.md"'
+cmp .github/agents/grillmester.agent.md ../v2.md
+
+exec nav-pilot sync --repo --source $WORK/plattform
+stdout 'All 1 files up to date'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- v2.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform v2

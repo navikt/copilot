@@ -160,7 +160,8 @@ Get started:
   nav-pilot install nav-pilot --repo     # Install to this repo without being asked
   nav-pilot sync                         # Check for updates
   nav-pilot export opencode              # Export for OpenCode/oh-my-openagent
-  nav-pilot install --source navikt/x    # Install another team's agentpakke (and remember it)
+  nav-pilot install <name> --source navikt/x   # Install another team's agentpakke
+  nav-pilot install <name> --source navikt/x --save-source   # ...and make it your default source
   nav-pilot validate --source navikt/x   # Check an agentpakke repo against the contract
   nav-pilot install nav-pilot --frozen --force    # CI: install exactly the pinned revision, or fail
 
@@ -510,7 +511,7 @@ func run(args []string) error {
 		command = canonical
 	}
 
-	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled, frozen, yes bool
+	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled, frozen, yes, saveSource bool
 	var targetDir, ref, sourceRepo, installType, updates string
 	var positional []string
 
@@ -545,6 +546,8 @@ func run(args []string) error {
 			installAll = true
 		case "--frozen":
 			frozen = true
+		case "--save-source":
+			saveSource = true
 		case "-F", "--feature":
 			featureRequest = true
 		case "-u", "--user":
@@ -586,8 +589,9 @@ func run(args []string) error {
 			i++
 			updates = rest[i]
 		case "--yes":
-			// Consent for an install without a terminal to ask in.
-			if command == "install" {
+			// Consent for an install without a terminal to ask in, and for an
+			// uninstall without the question.
+			if command == "install" || command == "uninstall" || command == "sync" {
 				yes = true
 				continue
 			}
@@ -753,8 +757,11 @@ func run(args []string) error {
 		// after the document is written.
 		defer suppressHumanOutput(jsonOutput)()
 		return runWithCommandTelemetry("install", telemetryMode(), scope.Name, func() error {
+			// --source is for this install. It becomes the default for later
+			// commands only when --save-source says so: a one-off install of
+			// another team's pakke used to repoint every repo on the machine (#8).
 			install := func(err error) error {
-				return finishInstall(err, sourceRepo, dryRun, installType == "")
+				return finishInstall(err, sourceRepo, dryRun, saveSource && installType == "")
 			}
 			// An explicit scope flag plus --all leaves nothing to pick: the
 			// flag named the target and --all named the selection, so install
@@ -860,6 +867,14 @@ func run(args []string) error {
 				return err
 			}
 		}
+		// Everything a sync prints for people is off stdout under --json, so
+		// the one document there parses; warnings stay on stderr.
+		defer suppressHumanOutput(jsonOutput)()
+		// --dry-run is what sync does without --apply, and wins over it: a
+		// command line that says both must not write.
+		apply = apply && !dryRun
+		syncAsk = apply && !yes
+		defer func() { syncAsk = false }()
 		return runWithCommandTelemetry("sync", telemetryMode(), syncScope, func() error {
 			if scopeProvided {
 				return cmdSync(scope, ref, sourceRepo, apply, jsonOutput)
@@ -897,6 +912,8 @@ func run(args []string) error {
 			return cmdDoctor()
 		})
 	case "uninstall":
+		uninstallAsk = !yes
+		defer func() { uninstallAsk = false }()
 		return runWithCommandTelemetry("uninstall", telemetryMode(), scope.Name, func() error {
 			return cmdUninstall(scope, dryRun, force)
 		})

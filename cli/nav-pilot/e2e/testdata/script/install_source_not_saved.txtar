@@ -1,0 +1,38 @@
+# install --source X made X the default source for every later command on the
+# machine. It is for the one install now, the scope's own sync keeps using
+# it, and --save-source makes it the default. The hints list prints carry
+# --source, since nothing else remembers it.
+
+mkdir plattform/skills forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../forbruker
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+! stdout 'Saved'
+! exists $HOME/config.toml
+
+exec nav-pilot list --source $WORK/plattform
+stdout 'Install: nav-pilot install plattform --source '
+
+exec nav-pilot sync --repo
+stdout 'All 1 files up to date'
+
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes --save-source
+stdout 'Saved .* as your source'
+grep 'plattform' $HOME/config.toml
+
+exec nav-pilot --help
+! stdout 'nav-pilot install --source navikt/x '
+stdout 'install <name> --source navikt/x --save-source'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

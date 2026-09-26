@@ -2,6 +2,8 @@ package cli
 
 import (
 	"fmt"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 )
 
 // Local rollback of a pinned Tier 2 agentpakke (#783).
@@ -56,6 +58,20 @@ func cmdRollback(jsonOutput bool) error {
 	// pinnedState, not pinnedRevisionOnDisk: a pin whose own revision directory
 	// is gone is exactly a scope that wants an older one back.
 	if !pinnedState(state) || !pinnable(state.SourceRepo) {
+		// In a repository with a committed pin, that pin is what the user
+		// wants back, and git is what moves it (#10).
+		if root := findGitRoot("."); root != "" {
+			if d, _ := scopeDeclaration(ScopeRepo(root)); d != nil && d.SHA != "" {
+				return fmt.Errorf(
+					"rollback moves the agentpakke pinned in your user scope, and it pins none.\n"+
+						"This repository pins %s at %s in %s, and that pin moves with git:\n\n"+
+						"  Find an earlier pin:        %s\n"+
+						"  Restore it and install it:  %s",
+					d.Source, shortSHA(d.SHA), agentpakke.DeclarationPath,
+					bold("git log -p -- "+agentpakke.DeclarationPath),
+					bold("git checkout <commit> -- "+agentpakke.DeclarationPath+" && nav-pilot install "+pakkeNameFor(d.Source)+" --frozen"))
+			}
+		}
 		return fmt.Errorf(
 			"rollback moves a pinned agentpakke back to the previous revision on this machine, and your user scope pins none.\n\n"+
 				"  Pin one:  %s",

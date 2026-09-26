@@ -114,7 +114,7 @@ func refreshHookRegistration(scope *InstallScope, art Resolved) error {
 // config on uninstall. The config is not a tracked file — it is shared, and
 // deleting it would take the user's own hooks with it — so the ordinary file
 // loop cannot do this, and something has to.
-func deactivateRepoHooks(scope *InstallScope, dryRun bool) int {
+func deactivateRepoHooks(scope *InstallScope, dryRun, quiet bool) int {
 	if scope.IsUser() {
 		return 0 // user-scope hook configs are tracked files; the file loop has them
 	}
@@ -126,7 +126,9 @@ func deactivateRepoHooks(scope *InstallScope, dryRun bool) int {
 	}
 	if dryRun {
 		for _, name := range names {
-			fmt.Printf("  %s %s (hook entry in %s)\n", dim("×"), name, source.RepoHooksConfig)
+			if !quiet {
+				fmt.Printf("  %s %s (hook entry in %s)\n", dim("×"), name, source.RepoHooksConfig)
+			}
 		}
 		return len(names)
 	}
@@ -136,7 +138,9 @@ func deactivateRepoHooks(scope *InstallScope, dryRun bool) int {
 		return 0
 	}
 	for _, name := range names {
-		fmt.Printf("  %s %s (hook entry in %s)\n", red("×"), name, source.RepoHooksConfig)
+		if !quiet {
+			fmt.Printf("  %s %s (hook entry in %s)\n", red("×"), name, source.RepoHooksConfig)
+		}
 	}
 	return removed
 }

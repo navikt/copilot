@@ -1,0 +1,37 @@
+# A dry run listed the artifacts and left out the rest of what the install
+# writes: the hook registrations, the state file and the lock file. Every
+# path is listed now, user-scope ones under ~/.copilot.
+
+mkdir plattform/skills forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../forbruker
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --dry-run
+stdout '→ \.github/agents/grillmester\.agent\.md'
+stdout '→ \.github/hooks/vakt\.py'
+stdout '→ \.github/hooks/copilot-hooks\.json \(entry for vakt\)'
+stdout '→ \.github/\.nav-pilot-state\.json'
+stdout '→ \.nav-pilot/agentpakke\.lock\.json'
+! exists .github
+
+exec nav-pilot install --user --all --source $WORK/plattform --dry-run
+stdout '→ ~/\.copilot/agents/grillmester\.agent\.md'
+stdout '→ ~/\.copilot/hooks/vakt\.py'
+stdout '→ ~/\.copilot/hooks/vakt\.json'
+stdout '→ ~/\.copilot/\.nav-pilot-state\.json'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/hooks/vakt.hook.json --
+{"matcher": "bash", "timeoutSec": 5}
+-- plattform/hooks/vakt.py --
+print("vakt")

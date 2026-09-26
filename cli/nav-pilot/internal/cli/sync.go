@@ -10,14 +10,20 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/charmbracelet/huh"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 )
 
 // syncResult holds the outcome of a sync check for machine-readable output.
 type syncResult struct {
-	UpToDate bool         `json:"up_to_date"`
-	Source   string       `json:"source"`
-	Updates  []syncUpdate `json:"updates,omitempty"`
+	// Scope is "repo" or "user": which scope this document is about.
+	Scope    string `json:"scope,omitempty"`
+	UpToDate bool   `json:"up_to_date"`
+	// Applied says --apply ran and wrote what the lists name. Without it the
+	// lists are what --apply would do.
+	Applied bool         `json:"applied,omitempty"`
+	Source  string       `json:"source"`
+	Updates []syncUpdate `json:"updates,omitempty"`
 	// Added names artifacts the source ships that this scope does not have
 	// yet, which `--apply` installs for a scope that tracks the whole pakke
 	// (#878). Paths, like every other list here.
@@ -101,7 +107,7 @@ var cmdSyncFn = cmdSync
 func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool) error {
 	adopted, err := adoptSyncSource(scope, sourceRepo)
 	if err != nil {
-		return err
+		return syncFailed(scope, err, jsonOutput)
 	}
 	if adopted != "" && !jsonOutput {
 		noteAdoptedSource(scope, adopted)
@@ -114,7 +120,7 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	if adopted != "" && (err == nil || errors.Is(err, errUpdatesAvailable)) {
 		recordAdoptedSource(scope, adopted)
 	}
-	return err
+	return syncFailed(scope, err, jsonOutput)
 }
 
 // refuseSourceSwitch stops a sync that names a different source than the one
@@ -223,7 +229,19 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	// how a release reaches a repo at all.
 	relSrc, release, err := tier1Release(scope, src, ref != "")
 	if err != nil {
-		return err
+		// The default branch is only a guess at what the next release will
+		// be. A repo that committed a pin chose a revision, and moving it onto
+		// HEAD because the releases API was unreachable is how a pin landed
+		// ahead of every release (#13). Only --ref may move it without one.
+		var lookup *releaseLookupError
+		if d, _ := scopeDeclaration(scope); errors.As(err, &lookup) && d != nil && d.SHA != "" {
+			return fmt.Errorf("%v.\nThe pin in %s stays at %s: sync does not move a committed pin to the default branch when it cannot tell which release is newest.\n\n"+
+				"  Try again when the GitHub API answers, or move it deliberately:  %s",
+				err, agentpakke.DeclarationPath, shortSHA(d.SHA), bold("nav-pilot sync --apply --ref <branch|sha>"))
+		}
+		if !fallBackToHead(err) {
+			return err
+		}
 	}
 	if relSrc != src {
 		defer relSrc.Cleanup()
@@ -309,7 +327,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	if len(files) == 0 {
 		if len(retired) > 0 {
 			if jsonOutput {
-				if err := outputJSON(syncResult{Source: src.SHA, Retired: retiredPaths(retired)}); err != nil {
+				if err := emitSync(scope, syncResult{Source: src.SHA, Retired: retiredPaths(retired)}); err != nil {
 					return err
 				}
 				if !apply {
@@ -336,7 +354,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 				bumpDeclarationSHA(scope, src, jsonOutput)
 			}
 			if jsonOutput {
-				if err := outputJSON(syncResult{UpToDate: apply, Source: src.SHA, PinBump: pinBump}); err != nil {
+				if err := emitSync(scope, syncResult{UpToDate: apply, Source: src.SHA, PinBump: pinBump}); err != nil {
 					return err
 				}
 			} else if !apply {
@@ -350,7 +368,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 			return nil
 		}
 		if jsonOutput {
-			return outputJSON(syncResult{UpToDate: true, Source: src.SHA})
+			return emitSync(scope, syncResult{UpToDate: true, Source: src.SHA})
 		}
 		fmt.Println("No customization files found to sync.")
 		return nil
@@ -540,8 +558,10 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	telemetry.RecordSyncUpdates(scope.Name, tMode, int64(len(result.Updates)))
 	telemetry.RecordSyncConflicts(scope.Name, tMode, int64(len(result.ReplacedLocalEdits)))
 
-	if jsonOutput {
-		if err := outputJSON(result); err != nil {
+	// --apply --json applies and then reports, below; only a check reports
+	// here. It used to report for both and apply nothing (#6).
+	if jsonOutput && !apply {
+		if err := emitSync(scope, result); err != nil {
 			return err
 		}
 		// Exit 2 if any errors occurred (even with updates/deletions)
@@ -606,7 +626,20 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 				}
 			}
 		}
+		if jsonOutput {
+			result.Applied = apply
+			return emitSync(scope, result)
+		}
 		return nil
+	}
+
+	// Which revision this is a move from and to, before what it changes (#11).
+	if syncState != nil && syncState.SourceSHA != "" && !sameSHA(syncState.SourceSHA, src.SHA) {
+		from, to := shortSHA(syncState.SourceSHA), shortSHA(src.SHA)
+		if syncState.PakkeVersion != "" && release != nil {
+			from, to = syncState.PakkeVersion+" ("+from+")", release.Version+" ("+to+")"
+		}
+		fmt.Printf("%s %s %s → %s\n\n", dim("→"), bold(sourceLabelFor(src)), from, to)
 	}
 
 	// Report updates
@@ -671,6 +704,21 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		return errUpdatesAvailable
 	}
 
+	// A removal is the one change sync cannot give back, so in a terminal it
+	// is asked about first (#11). Declining changes nothing at all: applying
+	// the rest would record the scope as synced while it still holds files
+	// the source dropped.
+	if len(deletedPaths) > 0 && syncAsk && isInteractive() && !jsonOutput {
+		ok, err := askSyncDeletions(fmt.Sprintf("Remove the %d file(s) the source deleted, and apply the rest?", len(deletedPaths)))
+		if err != nil && !errors.Is(err, huh.ErrUserAborted) {
+			return fmt.Errorf("could not ask: %w\n\n  Apply without asking:  %s", err, bold("nav-pilot sync --apply --yes"))
+		}
+		if err != nil || !ok {
+			fmt.Println(dim("Cancelled. Nothing was changed."))
+			return nil
+		}
+	}
+
 	// Apply updates
 	applied := 0
 	var appliedUpdates []syncUpdate
@@ -689,6 +737,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 			saved, err := saveOrig(filepath.Join(scope.RootDir, u.Path), filepath.Join(root, u.SourcePath), scope.RootDir, strings.HasSuffix(u.Path, "/"))
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s Kept %s: could not save your copy before replacing it: %v\n", yellow("⚠"), u.Path, err)
+				result.Errors = append(result.Errors, fmt.Sprintf("%s: saving the local copy: %v", u.Path, err))
 				applyErrors++
 				continue
 			}
@@ -696,6 +745,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		}
 		if err := applySyncUpdate(scope, root, u); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not update %s: %v\n", yellow("⚠"), u.Path, err)
+			result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", u.Path, err))
 			applyErrors++
 			continue
 		}
@@ -717,6 +767,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		}
 		if rmErr != nil && !os.IsNotExist(rmErr) {
 			fmt.Fprintf(os.Stderr, "%s Could not remove %s: %v\n", yellow("⚠"), p, rmErr)
+			result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", p, rmErr))
 			applyErrors++
 			continue
 		}
@@ -757,6 +808,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		fmt.Printf("%s Installing %d artifact(s) this scope did not have\n", dim("→"), len(added))
 		if err := installPending(scope, resolver, added); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not install them: %v\n", yellow("⚠"), err)
+			result.Errors = append(result.Errors, fmt.Sprintf("installing %d added artifact(s): %v", len(added), err))
 			applyErrors++
 		}
 	}
@@ -780,11 +832,53 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		}
 	}
 
+	if jsonOutput {
+		result.Applied, result.UpToDate = true, applyErrors == 0
+		if err := emitSync(scope, result); err != nil {
+			return err
+		}
+	}
 	if applyErrors > 0 {
 		return errSyncFailed
 	}
 
 	return nil
+}
+
+// syncDocs collects the per-scope documents of a sync --json that covers
+// more than one scope, so the command prints one document and not two
+// concatenated ones (#5). Nil when a single scope was named.
+var syncDocs *[]any
+
+// emitSync writes a scope's sync document, tagged with the scope it is about,
+// or collects it for the multi-scope document.
+func emitSync(scope *InstallScope, r syncResult) error {
+	r.Scope = scope.Name
+	if syncDocs != nil {
+		*syncDocs = append(*syncDocs, r)
+		return nil
+	}
+	return outputJSON(r)
+}
+
+// syncFailed turns a sync that could not run into exit 2, the code the help
+// documents for it, and with --json into a document on stdout: a workflow
+// that finds stdout empty cannot tell a failure from a crash (#4).
+// errUpdatesAvailable and errSyncFailed pass through; the latter has already
+// been reported.
+func syncFailed(scope *InstallScope, err error, jsonOutput bool) error {
+	if err == nil || errors.Is(err, errUpdatesAvailable) || errors.Is(err, errSyncFailed) {
+		return err
+	}
+	if jsonOutput {
+		doc := map[string]any{"scope": scope.Name, "error": err.Error()}
+		if syncDocs != nil {
+			*syncDocs = append(*syncDocs, doc)
+		} else if jsonErr := outputJSON(doc); jsonErr != nil {
+			return jsonErr
+		}
+	}
+	return &exitCode{code: ExitSyncFailed, err: err}
 }
 
 // pinnedState reports whether a scope's state has the shape [pinRevision]
@@ -929,7 +1023,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 				src.Repo, shortSHA(state.SourceSHA), err)
 			if pinnedRevisionOnDisk(state) {
 				if jsonOutput {
-					return outputJSON(syncResult{UpToDate: true, Skipped: true, Source: state.SourceSHA, Version: version, Warning: warning})
+					return emitSync(scope, syncResult{UpToDate: true, Skipped: true, Source: state.SourceSHA, Version: version, Warning: warning})
 				}
 				fmt.Printf("%s %s\n", yellow("⚠"), warning)
 				return nil
@@ -951,14 +1045,14 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 			restore = true
 		case outcome == releaseNotOffered:
 			if jsonOutput {
-				return outputJSON(syncResult{UpToDate: true, Source: state.SourceSHA, Version: version})
+				return emitSync(scope, syncResult{UpToDate: true, Source: state.SourceSHA, Version: version})
 			}
 			fmt.Printf("%s %s is pinned at %s, which is newer than or diverged from the latest stable release %s (%s). It is not offered.\n",
 				green("✓"), bold(state.Collection), shortSHA(state.SourceSHA), rel.Version, shortSHA(rel.SHA))
 			return nil
 		case outcome == releaseUpToDate && pinnedRevisionOnDisk(state):
 			if jsonOutput {
-				return outputJSON(syncResult{UpToDate: true, Source: state.SourceSHA, Version: rel.Version})
+				return emitSync(scope, syncResult{UpToDate: true, Source: state.SourceSHA, Version: rel.Version})
 			}
 			fmt.Printf("%s %s is up to date (%s, pinned at %s).\n", green("✓"), bold(state.Collection), rel.Version, shortSHA(state.SourceSHA))
 			return nil
@@ -1033,7 +1127,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 				state.Collection, heldKind, held, shortSHA(state.SourceSHA)))
 		}
 		if jsonOutput {
-			return outputJSON(syncResult{UpToDate: true, Source: state.SourceSHA, Version: version,
+			return emitSync(scope, syncResult{UpToDate: true, Source: state.SourceSHA, Version: version,
 				UpdateChoice: string(pakkeUpdateChoice(state)), Warning: warning})
 		}
 		if hold == holdKeep {
@@ -1077,7 +1171,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 	if !pinnedRevisionOnDisk(state) {
 		if !apply {
 			if jsonOutput {
-				if err := outputJSON(syncResult{UpToDate: false, Source: src.SHA, Version: cmp.Or(release.version(), version), Warning: warning}); err != nil {
+				if err := emitSync(scope, syncResult{UpToDate: false, Source: src.SHA, Version: cmp.Or(release.version(), version), Warning: warning}); err != nil {
 					return err
 				}
 				return errUpdatesAvailable
@@ -1095,7 +1189,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 			return err
 		}
 		if jsonOutput {
-			return outputJSON(syncResult{UpToDate: true, Source: src.SHA, Version: cmp.Or(release.version(), version), Warning: warning})
+			return emitSync(scope, syncResult{UpToDate: true, Source: src.SHA, Version: cmp.Or(release.version(), version), Warning: warning})
 		}
 		fmt.Printf("%s Restored %s at revision %s.\n", green("✓"), bold(src.Pakke.Name), shortSHA(src.SHA))
 		return nil
@@ -1113,7 +1207,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 	// something to write: the pin stops following.
 	if sameSHA(src.SHA, state.SourceSHA) && (ref == "" || !follows) {
 		if jsonOutput {
-			return outputJSON(syncResult{UpToDate: true, Source: src.SHA, Version: release.version(), Warning: warning})
+			return emitSync(scope, syncResult{UpToDate: true, Source: src.SHA, Version: release.version(), Warning: warning})
 		}
 		fmt.Printf("%s %s is up to date (pinned at %s).\n", green("✓"), bold(src.Pakke.Name), shortSHA(src.SHA))
 		return nil
@@ -1121,7 +1215,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 
 	if !apply {
 		if jsonOutput {
-			if err := outputJSON(syncResult{UpToDate: false, Source: src.SHA, Version: release.version(), Warning: warning}); err != nil {
+			if err := emitSync(scope, syncResult{UpToDate: false, Source: src.SHA, Version: release.version(), Warning: warning}); err != nil {
 				return err
 			}
 			return errUpdatesAvailable
@@ -1141,7 +1235,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 		return err
 	}
 	if jsonOutput {
-		return outputJSON(syncResult{UpToDate: true, Source: src.SHA, Version: release.version(), Warning: warning})
+		return emitSync(scope, syncResult{UpToDate: true, Source: src.SHA, Version: release.version(), Warning: warning})
 	}
 	fmt.Printf("%s Updated %s to revision %s.\n", green("✓"), bold(src.Pakke.Name), release.label(src.SHA))
 	return nil
@@ -1176,25 +1270,45 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 		recordInstallState(userScope.Name, userState, userStateErr)
 	}
 
-	if repoState == nil && userState == nil {
+	orphan := orphanedPin(repoScope, repoState)
+	if repoState == nil && userState == nil && orphan == nil {
 		if jsonOutput {
-			return outputJSON(map[string]interface{}{"installed": false})
+			return outputJSON(map[string]interface{}{"installed": false, "scopes": []any{}})
 		}
 		fmt.Println("nav-pilot is not installed (repo or user scope).")
 		fmt.Printf("Install with: %s\n", bold(installCommandFor(nil, nil)))
 		return nil
 	}
 
+	// One document for every scope this run covers, printed once at the end.
+	if jsonOutput {
+		docs := []any{}
+		syncDocs = &docs
+		defer func() { syncDocs = nil }()
+	}
+
 	var firstErr error
+	// A failure outranks "updates available": exit 2 must not be hidden by a
+	// scope that merely has something to apply.
+	note := func(err error) {
+		if firstErr == nil || errors.Is(firstErr, errUpdatesAvailable) && !errors.Is(err, errUpdatesAvailable) {
+			firstErr = err
+		}
+	}
+
+	if orphan != nil {
+		note(syncFailed(repoScope, orphan, jsonOutput))
+		if !jsonOutput {
+			fmt.Printf("%s Repo scope sync failed.\n", yellow("⚠"))
+		}
+	}
 
 	if repoState != nil {
 		if !jsonOutput {
 			fmt.Printf("%s Syncing %s scope...\n", dim("→"), bold("repo"))
 		}
 		if err := cmdSyncFn(repoScope, ref, sourceRepo, apply, jsonOutput); err != nil {
-			if firstErr == nil {
-				firstErr = err
-			}
+			note(err)
 			if !jsonOutput {
 				if err == errUpdatesAvailable {
 					fmt.Printf("%s Repo scope has updates available.\n", yellow("⚠"))
@@ -1215,9 +1329,7 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 			fmt.Printf("%s Syncing %s scope...\n", dim("→"), bold("user"))
 		}
 		if err := cmdSyncFn(userScope, ref, sourceRepo, apply, jsonOutput); err != nil {
-			if firstErr == nil {
-				firstErr = err
-			}
+			note(err)
 			if !jsonOutput {
 				if err == errUpdatesAvailable {
 					fmt.Printf("%s User scope has updates available.\n", yellow("⚠"))
@@ -1248,11 +1360,16 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 		if res.Managed {
 			hasPrevOutput = true
 		}
-		if res.Err != nil && firstErr == nil {
-			firstErr = errSyncFailed
+		if res.Err != nil {
+			note(errSyncFailed)
 		}
 	}
 
+	if jsonOutput {
+		if err := outputJSON(map[string]any{"scopes": *syncDocs}); err != nil {
+			return err
+		}
+	}
 	return firstErr
 }
 
@@ -1741,4 +1858,49 @@ func scopePath(scope *InstallScope, abs string) string {
 		return "~/.copilot/" + filepath.ToSlash(rel)
 	}
 	return filepath.ToSlash(rel)
+}
+
+// pakkeNameFor is the agentpakke name a hint can put in a command for a
+// source: Nav's own is nav-pilot, and any other is looked up with
+// `nav-pilot list`, so the hint keeps the placeholder.
+func pakkeNameFor(source string) string {
+	if sameSourceRepo(source, defaultSourceRepo) {
+		return "nav-pilot"
+	}
+	return "<name>"
+}
+
+// orphanedPin is the error for a repository whose lock file pins a revision
+// while nothing is installed, or whose lock file cannot be read. Plain "not
+// installed" sent the user to `install --user` in a repo that had only lost
+// its .github/ (#14); what it needs is the pinned revision back.
+func orphanedPin(scope *InstallScope, state *StateFile) error {
+	if state != nil {
+		return nil
+	}
+	d, err := scopeDeclaration(scope)
+	if err != nil {
+		return err
+	}
+	if d == nil || d.SHA == "" {
+		return nil
+	}
+	name := pakkeNameFor(d.Source)
+	return fmt.Errorf("%s pins %s at %s, but nothing is installed in this repository (%s is missing).\n\n"+
+		"  Install the pinned revision:  %s",
+		agentpakke.DeclarationPath, d.Source, shortSHA(d.SHA), filepath.ToSlash(scope.StateFile),
+		bold("nav-pilot install "+name+" --frozen"))
+}
+
+// syncAsk is set by run() for `sync --apply` without --yes. Functions called
+// directly, as the tests and `nav-pilot --sync` do, are not asked.
+var syncAsk bool
+
+// askSyncDeletions is the question sync --apply asks before removing files.
+// Overridable in tests.
+var askSyncDeletions = func(title string) (bool, error) {
+	ok := true
+	err := huh.NewConfirm().Title(title).Affirmative("Apply").Negative("Cancel").
+		Value(&ok).WithTheme(navTheme()).Run()
+	return ok, err
 }

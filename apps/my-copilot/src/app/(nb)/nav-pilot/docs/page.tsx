@@ -1306,7 +1306,7 @@ jobs:
             <div className="space-y-3">
               {[
                 { label: "Sjekk om oppdateringer finnes", cmd: "nav-pilot sync" },
-                { label: "Oppdater filer direkte", cmd: "nav-pilot sync --apply" },
+                { label: "Oppdater filer direkte (spør før den sletter filer)", cmd: "nav-pilot sync --apply" },
                 { label: "Maskinlesbar JSON-output", cmd: "nav-pilot sync --json" },
               ].map((item) => (
                 <div key={item.label}>
@@ -1591,7 +1591,7 @@ const CONFIG_KEYS = [
     key: "source",
     flag: "--source",
     values: "owner/name eller en absolutt sti (standard: navikt/copilot)",
-    desc: "Hvor agentpakken hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source; nav-pilot config unset source går tilbake til standarden.",
+    desc: "Hvor agentpakken hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source --save-source; nav-pilot config unset source går tilbake til standarden.",
   },
   {
     key: "model",
@@ -2846,7 +2846,10 @@ function CliReferenceSection() {
                   skrevet). Når nav-pilot starter en klient, gir den videre klientens exit-kode. Kunne den ikke starte
                   klienten i det hele tatt, blir koden 1, og en klient som ble drept av et signal gir 128 pluss
                   signalnummeret, slik et shell gjør. <code className="font-mono text-xs">--json</code> fungerer på
-                  install, add, status, sync, list og export.
+                  install, add, status, sync, list og export. <code className="font-mono text-xs">sync --json</code> gir
+                  ett dokument med én oppføring per scope, og et scope som feilet har et{" "}
+                  <code className="font-mono text-xs">error</code>-felt. Når ikke sync fram til GitHubs release-API,
+                  blir den committede pinnen stående, og sync avslutter med 2.
                 </BodyShort>
               </Box>
             </div>

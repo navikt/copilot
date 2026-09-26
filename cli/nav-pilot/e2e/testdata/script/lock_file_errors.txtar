@@ -1,0 +1,40 @@
+# Lock-file problems name the lock file and say what to do. A repository that
+# lost its .github/ while the pin stayed was told nav-pilot was not installed
+# and to install to the user scope.
+
+mkdir plattform/skills forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../forbruker
+exec git init -q .
+# A GitHub-style source, served from $WORK, so the install pins a revision
+# in .nav-pilot/agentpakke.lock.json the way it does for navikt/copilot.
+exec git config --global url.file://$WORK/plattform.insteadOf https://github.com/navikt/plattform.git
+exec git config --global protocol.file.allow always
+exec nav-pilot install plattform --source navikt/plattform --repo --yes
+exists .nav-pilot/agentpakke.lock.json
+
+rm .github
+exits 2 nav-pilot sync
+stderr '\.nav-pilot/agentpakke\.lock\.json pins .* but nothing is installed in this repository'
+stderr 'nav-pilot install <name> --frozen'
+! stderr 'install --user'
+
+cp ../broken.json .nav-pilot/agentpakke.lock.json
+! exec nav-pilot install plattform --repo --yes
+stderr '\.nav-pilot/agentpakke\.lock\.json is not valid JSON'
+stderr 'git checkout -- \.nav-pilot/agentpakke\.lock\.json && nav-pilot install <name> --frozen'
+stderr 'rm \.nav-pilot/agentpakke\.lock\.json'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- broken.json --
+{"contractVersion":"1",

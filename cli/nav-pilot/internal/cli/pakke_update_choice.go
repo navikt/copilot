@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"cmp"
 	"fmt"
 	"strings"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 )
 
 // The durable update choice of a pinned agentpakke (#781).
@@ -189,6 +192,23 @@ func cmdUpdateChoice(value string, jsonOutput bool) error {
 		return fmt.Errorf("reading state: %w", err)
 	}
 	if !pinnedState(state) || !pinnable(state.SourceRepo) {
+		// Say what the user does have, since that is what they meant to
+		// change (#16): files in ~/.copilot, or a repository's lock file.
+		var have []string
+		if state != nil && installsContent(state) {
+			have = append(have, fmt.Sprintf("Your user scope holds files from %s, and %s updates them.",
+				cmp.Or(state.SourceRepo, "an agentpakke"), bold("nav-pilot sync --user --apply")))
+		}
+		if root := findGitRoot("."); root != "" {
+			if d, _ := scopeDeclaration(ScopeRepo(root)); d != nil && d.SHA != "" {
+				have = append(have, fmt.Sprintf("This repository pins %s at %s in %s. %s moves the pin, and %s moves it to a revision you choose.",
+					d.Source, shortSHA(d.SHA), agentpakke.DeclarationPath, bold("nav-pilot sync --repo --apply"), bold("--ref")))
+			}
+		}
+		if len(have) > 0 {
+			return fmt.Errorf("--updates sets how an agentpakke pinned as a revision in your user scope takes new stable releases, and your user scope pins none.\n\n%s",
+				strings.Join(have, "\n"))
+		}
 		return fmt.Errorf(
 			"--updates sets what happens when a pinned agentpakke publishes a new stable release, and your user scope pins none.\n\n"+
 				"  Pin one:  %s",

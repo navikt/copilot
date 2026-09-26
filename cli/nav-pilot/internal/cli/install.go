@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/huh"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
 type installResult struct {
@@ -270,7 +271,11 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 				extra = dim(fmt.Sprintf(" (%d reference file(s))", refCount))
 			}
 		}
-		fmt.Printf("  %s %s%s\n", dim("→"), relPath, extra)
+		// Every path it would write, the way the user types it (#9).
+		fmt.Printf("  %s %s%s\n", dim("→"), scopePath(scope, dst)+dirSlash(art.IsDir), extra)
+		if kind == KindHook {
+			fmt.Printf("  %s %s\n", dim("→"), hookRegistrationPath(scope, art.Name))
+		}
 		result.Installed++
 		return nil
 	}
@@ -532,7 +537,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	// anything reads src: the manifest, the resolver and the item list all
 	// belong to the revision being installed.
 	relSrc, release, err := tier1Release(scope, src, installRef != "" || pinnedByDeclaration(scope, src))
-	if err != nil {
+	if err != nil && !fallBackToHead(err) {
 		return err
 	}
 	if relSrc != src {
@@ -676,6 +681,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		if jsonOutput {
 			return emitJSON()
 		}
+		printDryRunRecords(scope, !installFrozen)
 		fmt.Printf("%s Would install %d items from %q.\n",
 			dim("→"), result.Installed, collection)
 		return nil
@@ -814,7 +820,17 @@ func cmdAddFromSource(resolver *SourceResolver, itemType, name string, src *Sour
 // declaration an install would: listing the default pakke's items in a repo
 // pinned elsewhere is how the unknown-item refusal ends up sending a user to
 // output that cannot contain the name they mistyped.
+// hintSource is " --source <repo>" while `list --source` prints the commands
+// to run next, and empty otherwise. --source is not remembered unless the
+// install says --save-source, so a hint without it would install from
+// somewhere else.
+var hintSource string
+
 func cmdList(scope *InstallScope, ref, sourceRepo string, showItems bool, jsonOutput bool) error {
+	if sourceRepo != "" {
+		hintSource = " --source " + sourceRepo
+		defer func() { hintSource = "" }()
+	}
 	if !jsonOutput {
 		fmt.Println(dim("Resolving source..."))
 	}
@@ -977,9 +993,9 @@ func printPakkeListing(out io.Writer, source string, c collectionInfo, payloads 
 		printWrapped(out, func(s string) string { return s }, c.Description, body)
 	}
 	fmt.Fprintln(out)
-	fmt.Fprintf(out, "Install: %s\n", bold("nav-pilot install "+c.Name))
+	fmt.Fprintf(out, "Install: %s\n", bold("nav-pilot install "+c.Name+hintSource))
 	if !showItems {
-		fmt.Fprintf(out, "Items:   %s\n", bold("nav-pilot list --items"))
+		fmt.Fprintf(out, "Items:   %s\n", bold("nav-pilot list --items"+hintSource))
 	}
 }
 
@@ -1032,7 +1048,7 @@ func listAvailableItems(resolver *SourceResolver) error {
 		}
 		fmt.Println(bold(fmt.Sprintf("Available %s:", kind.Dir)))
 		for _, item := range items {
-			fmt.Printf("  %-30s %s\n", item.Name, dim("nav-pilot install "+item.Name))
+			fmt.Printf("  %-30s %s\n", item.Name, dim("nav-pilot install "+item.Name+hintSource))
 		}
 		fmt.Println()
 	}
@@ -1150,7 +1166,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	// reported as missing rather than never offered. Move the swap into
 	// interactiveUserInstallFromSource if that is ever more than theoretical.
 	relSrc, release, err := tier1Release(scope, src, installRef != "" || pinnedByDeclaration(scope, src))
-	if err != nil {
+	if err != nil && !fallBackToHead(err) {
 		return err
 	}
 	if relSrc != src {
@@ -1271,6 +1287,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		if jsonOutput {
 			return emitJSON()
 		}
+		printDryRunRecords(scope, false)
 		fmt.Printf("%s Would install %d items.\n", dim("→"), result.Installed)
 		return nil
 	}
@@ -1630,6 +1647,19 @@ func removePinnedRevisions(repo string, dryRun bool) int {
 // cmdUninstall removes an installed collection. force removes files that differ
 // from what nav-pilot installed too; without it those are left in place and
 // named, because uninstall must not be how a developer loses an edit (#729).
+// uninstallAsk is set by run() for an uninstall command line without --yes.
+// Functions called directly, as the tests do, are not asked.
+var uninstallAsk bool
+
+// askUninstall is the question uninstall asks in a terminal. Overridable in
+// tests.
+var askUninstall = func(title string) (bool, error) {
+	ok := false
+	err := huh.NewConfirm().Title(title).Affirmative("Remove").Negative("Cancel").
+		Value(&ok).WithTheme(navTheme()).Run()
+	return ok, err
+}
+
 func cmdUninstall(scope *InstallScope, dryRun, force bool) error {
 	state, err := readScopedState(scope)
 	if err != nil {
@@ -1650,6 +1680,29 @@ func cmdUninstall(scope *InstallScope, dryRun, force bool) error {
 	//
 	// The launch derives its flags from the record alone, so removing it is the
 	// whole of the removal — there is no cplt configuration to undo.
+	// In a terminal it lists everything first and asks (#10). The list is the
+	// dry run, so what is asked about is exactly what is then removed.
+	if !dryRun && uninstallAsk && isInteractive() && state != nil {
+		fmt.Println(bold(fmt.Sprintf("Uninstall %s from %s", state.Collection, uninstallScopeLabel(scope))))
+		fmt.Println()
+		n, kept := uninstallItems(scope, state, true, false, force)
+		fmt.Println()
+		if kept > 0 {
+			fmt.Printf("%s %d file(s) changed since nav-pilot installed them and stay. %s removes them too.\n\n",
+				yellow("⚠"), kept, bold("nav-pilot uninstall --force"))
+		}
+		ok, err := askUninstall(fmt.Sprintf("Remove these %d items?", n))
+		if err != nil && !errors.Is(err, huh.ErrUserAborted) {
+			return fmt.Errorf("could not ask: %w\n\n  Uninstall without asking:  %s", err, bold("nav-pilot uninstall --yes"))
+		}
+		if err != nil || !ok {
+			fmt.Println(dim("Cancelled. Nothing was removed."))
+			return nil
+		}
+		uninstallQuiet = true
+		defer func() { uninstallQuiet = false }()
+	}
+
 	if !dryRun {
 		removedConsent, err := forgetProposalConsent(scope)
 		if err != nil {
@@ -1665,28 +1718,16 @@ func cmdUninstall(scope *InstallScope, dryRun, force bool) error {
 		return nil
 	}
 
-	if dryRun {
-		fmt.Println(bold("Dry run: would uninstall"))
-	} else {
-		fmt.Println(bold(fmt.Sprintf("Uninstalling: %s", state.Collection)))
+	if !uninstallQuiet {
+		if dryRun {
+			fmt.Println(bold(fmt.Sprintf("Dry run: would uninstall %s from %s", state.Collection, uninstallScopeLabel(scope))))
+		} else {
+			fmt.Println(bold(fmt.Sprintf("Uninstalling %s from %s", state.Collection, uninstallScopeLabel(scope))))
+		}
+		fmt.Println()
 	}
-	fmt.Println()
 
-	removed, kept := removeStateFiles(scope, state, dryRun, false, force)
-	removed += deactivateRepoHooks(scope, dryRun)
-
-	// A pinned Tier 2 install keeps everything it materialized outside the
-	// scope, so the file loop above removed nothing and the revisions are the
-	// only thing this command actually deletes — which is exactly why the dry
-	// run has to name them too.
-	//
-	// Only a user-scope pin has revisions: [pinRevision] writes nowhere else,
-	// and the state shape it writes is what [pinnedState] recognizes. A
-	// repo-scope or Tier 1 state that happens to track no files is not a pin
-	// and must not take the user's revisions with it.
-	if scope.IsUser() && pinnedState(state) {
-		removed += removePinnedRevisions(state.SourceRepo, dryRun)
-	}
+	removed, kept := uninstallItems(scope, state, dryRun, uninstallQuiet, force)
 
 	if !dryRun {
 		os.Remove(scope.StatePath())
@@ -1700,15 +1741,63 @@ func cmdUninstall(scope *InstallScope, dryRun, force bool) error {
 	} else {
 		fmt.Printf("%s Removed %d items.\n", green("✓"), removed)
 	}
-	if kept > 0 {
-		verb := "were left in place"
-		if dryRun {
-			verb = "would be left in place"
-		}
-		fmt.Printf("%s %d file(s) differ from what nav-pilot installed and %s. %s removes them too.\n",
-			yellow("⚠"), kept, verb, bold("nav-pilot uninstall --force"))
+	// Before the removal, --force is the way to take these too. After it the
+	// state that named them is gone, and `uninstall --force` would only say
+	// nothing is installed, so the hint there is to delete them by hand.
+	if kept > 0 && dryRun {
+		fmt.Printf("%s %d file(s) differ from what nav-pilot installed and would be left in place. %s removes them too.\n",
+			yellow("⚠"), kept, bold("nav-pilot uninstall --force"))
+	} else if kept > 0 {
+		fmt.Printf("%s %d file(s) differ from what nav-pilot installed and were left in place (marked ⊘ above). They are yours now: delete them yourself if you do not want them.\n",
+			yellow("⚠"), kept)
 	}
 	return nil
+}
+
+// uninstallQuiet is set once uninstall has listed and been confirmed, so the
+// removal does not print the same list a second time.
+var uninstallQuiet bool
+
+// uninstallItems removes (or with dryRun lists) everything an uninstall takes:
+// the tracked files, nav-pilot's hook entries, a pin's revisions, and the two
+// records, state file and lock file, which were removed without being named.
+func uninstallItems(scope *InstallScope, state *StateFile, dryRun, quiet, force bool) (removed, kept int) {
+	removed, kept = removeStateFiles(scope, state, dryRun, quiet, force)
+	removed += deactivateRepoHooks(scope, dryRun, quiet)
+
+	// A pinned Tier 2 install keeps everything it materialized outside the
+	// scope, so the file loop above removed nothing and the revisions are the
+	// only thing this command actually deletes — which is exactly why the dry
+	// run has to name them too.
+	//
+	// Only a user-scope pin has revisions: [pinRevision] writes nowhere else,
+	// and the state shape it writes is what [pinnedState] recognizes. A
+	// repo-scope or Tier 1 state that happens to track no files is not a pin
+	// and must not take the user's revisions with it.
+	if scope.IsUser() && pinnedState(state) {
+		removed += removePinnedRevisions(state.SourceRepo, dryRun)
+	}
+	if !quiet {
+		mark := red("×")
+		if dryRun {
+			mark = dim("×")
+		}
+		fmt.Printf("  %s %s\n", mark, scopePath(scope, scope.StatePath()))
+		if declarationGoesWith(scope, state) {
+			fmt.Printf("  %s %s\n", mark, agentpakke.DeclarationPath)
+		}
+	}
+	return removed, kept
+}
+
+// uninstallScopeLabel says which scope an uninstall covers, and where the
+// other one is: the two are separate, and uninstall in a repo left the user
+// scope's hooks running without a word (#10).
+func uninstallScopeLabel(scope *InstallScope) string {
+	if scope.IsUser() {
+		return "~/.copilot (user scope; a repository's install is removed in that repository)"
+	}
+	return scope.RootDir + " (this repository only; ~/.copilot is nav-pilot uninstall --user)"
 }
 
 // safeToRemove is the one predicate every deletion path asks before removing a
@@ -2089,4 +2178,34 @@ func confirmInstallWrites(scope *InstallScope, resolver *SourceResolver, manifes
 		return errInstallCancelled
 	}
 	return nil
+}
+
+// dirSlash is the trailing slash that marks a directory in a listed path.
+func dirSlash(isDir bool) string {
+	if isDir {
+		return "/"
+	}
+	return ""
+}
+
+// hookRegistrationPath names what makes a hook run, as a dry run lists it:
+// the shared repo config with the hook's entry in it, or the hook's own file
+// in ~/.copilot/hooks.
+func hookRegistrationPath(scope *InstallScope, name string) string {
+	if scope.IsUser() {
+		return scopePath(scope, scope.DstPath(KindHook.Dir, source.UserHookConfigName(name)))
+	}
+	return scopePath(scope, scope.DstPath(KindHook.Dir, source.RepoHooksConfig)) + " (entry for " + name + ")"
+}
+
+// printDryRunRecords lists the bookkeeping an install writes beside the
+// artifacts: the state file always, and in a repo the lock file that pins the
+// revision (not under --frozen, which never writes it).
+func printDryRunRecords(scope *InstallScope, lock bool) {
+	fmt.Println(bold("Records:"))
+	fmt.Printf("  %s %s\n", dim("→"), scopePath(scope, scope.StatePath()))
+	if lock && !scope.IsUser() {
+		fmt.Printf("  %s %s\n", dim("→"), agentpakke.DeclarationPath)
+	}
+	fmt.Println()
 }
