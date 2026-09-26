@@ -332,7 +332,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	if len(files) == 0 {
 		if len(retired) > 0 {
 			if jsonOutput {
-				if err := emitSync(scope, syncResult{Source: src.SHA, Retired: retiredPaths(retired)}); err != nil {
+				if err := emitSync(scope, syncResult{UpToDate: apply, Applied: apply, Source: src.SHA, Retired: retiredPaths(retired)}); err != nil {
 					return err
 				}
 				if !apply {
@@ -359,7 +359,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 				bumpDeclarationSHA(scope, src, jsonOutput)
 			}
 			if jsonOutput {
-				if err := emitSync(scope, syncResult{UpToDate: apply, Source: src.SHA, PinBump: pinBump}); err != nil {
+				if err := emitSync(scope, syncResult{UpToDate: apply, Applied: apply, Source: src.SHA, PinBump: pinBump}); err != nil {
 					return err
 				}
 			} else if !apply {
@@ -1194,7 +1194,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 			return err
 		}
 		if jsonOutput {
-			return emitSync(scope, syncResult{UpToDate: true, Source: src.SHA, Version: cmp.Or(release.version(), version), Warning: warning})
+			return emitSync(scope, syncResult{UpToDate: true, Applied: true, Source: src.SHA, Version: cmp.Or(release.version(), version), Warning: warning})
 		}
 		fmt.Printf("%s Restored %s at revision %s.\n", green("✓"), bold(src.Pakke.Name), shortSHA(src.SHA))
 		return nil
@@ -1240,7 +1240,7 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 		return err
 	}
 	if jsonOutput {
-		return emitSync(scope, syncResult{UpToDate: true, Source: src.SHA, Version: release.version(), Warning: warning})
+		return emitSync(scope, syncResult{UpToDate: true, Applied: true, Source: src.SHA, Version: release.version(), Warning: warning})
 	}
 	fmt.Printf("%s Updated %s to revision %s.\n", green("✓"), bold(src.Pakke.Name), release.label(src.SHA))
 	return nil
@@ -1367,6 +1367,10 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 		}
 		if res.Err != nil {
 			note(errSyncFailed)
+			// The cause, where CI reads it, as for a scope that failed.
+			if jsonOutput {
+				*syncDocs = append(*syncDocs, map[string]any{"scope": p.ID(), "error": res.Err.Error()})
+			}
 		}
 	}
 

@@ -1787,6 +1787,12 @@ func uninstallItems(scope *InstallScope, state *StateFile, dryRun, quiet, force 
 			fmt.Printf("  %s %s\n", mark, agentpakke.DeclarationPath)
 		}
 	}
+	// Counted as listed, so the question and the summary give the number
+	// the list shows.
+	removed++
+	if declarationGoesWith(scope, state) {
+		removed++
+	}
 	return removed, kept
 }
 
