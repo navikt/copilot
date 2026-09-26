@@ -132,7 +132,7 @@ func printLocalModels(m *local.Manifest) {
 // Only the refusals that are about this machine's memory; a manifest entry with
 // no measured limit is start's to explain.
 func tooBigHere(e local.Model) string {
-	w, err := local.CheckWiredLimit(e)
+	w, err := checkWiredLimit(e)
 	if err == nil || w.MachineRAMGB == 0 {
 		return ""
 	}
@@ -140,6 +140,21 @@ func tooBigHere(e local.Model) string {
 		return fmt.Sprintf("needs %d GB RAM", e.MinRAMGB)
 	}
 	return "too big for this machine"
+}
+
+// refuseTooBig is tooBigHere as use's refusal: the same check init and start
+// refuse on, said before local_model points at a model this machine cannot load.
+func refuseTooBig(e local.Model) error {
+	w, err := checkWiredLimit(e)
+	if err == nil || w.MachineRAMGB == 0 {
+		return nil
+	}
+	need := fmt.Sprintf("a %d GB wired-memory limit", w.RequiredGB)
+	if e.MinRAMGB > w.MachineRAMGB {
+		need = fmt.Sprintf("%d GB RAM", e.MinRAMGB)
+	}
+	return fmt.Errorf("%s needs %s; this machine has %d GB. Models that fit: %s",
+		e.Key, need, w.MachineRAMGB, bold("nav-pilot alpha local models"))
 }
 
 func cmdLocalUse(args []string) error {
@@ -174,6 +189,10 @@ func cmdLocalUse(args []string) error {
 		return fmt.Errorf("unknown local model: %s. Run %s to see what is offered", arg, bold("nav-pilot alpha local models"))
 	}
 	e := m.Models[i]
+
+	if err := refuseTooBig(e); err != nil {
+		return err
+	}
 
 	// Written even when it is the default, so the choice survives the manifest
 	// moving its default to something else.

@@ -1429,7 +1429,9 @@ func TestCheckWiredLimitRefusesBelowDeclaredMinimum(t *testing.T) {
 				}
 				// The refusal has to name both numbers, or the developer
 				// cannot tell whether it is their machine or the entry.
-				for _, want := range []string{"48 GB", "36 GB"} {
+				// And it has to point at the local list: `nav-pilot models`
+				// lists the hosted models.
+				for _, want := range []string{"48 GB", "36 GB", "nav-pilot alpha local models", "nav-pilot alpha local use <key>"} {
 					if !strings.Contains(err.Error(), want) {
 						t.Errorf("CheckWiredLimit() error = %q, want it to mention %q", err, want)
 					}

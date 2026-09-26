@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,6 +24,7 @@ func modelsFixture(t *testing.T) string {
 		{"key":"qwen3.6-35b","name":"Qwen 3.6 35B A3B","model":"mlx-community/Qwen3.6-35B","backend":"mlx-lm","default":true,"weights_gb":25,"params":{"MLX_OPENCODE_CONTEXT":"65536"},"recommended_for":["decide-untrusted-evidence"]},
 		{"key":"qwen3.8-27b","name":"Qwen 3.8 27B OptiQ","model":"mlx-community/Qwen3.8-27B","backend":"mlx-lm","weights_gb":19,"params":{"MLX_OPENCODE_CONTEXT":"49152"},"recommended_for":["decide-nuanced","not-a-key"]},
 		{"key":"qwen3.8-8bit","name":"Qwen 3.8 27B 8bit","model":"mlx-community/Qwen3.8-27B-8bit","backend":"mlx-lm","weights_gb":30,"params":{},"min_nav_pilot":"2026.09.24-110317-abc1234"},
+		{"key":"qwen-big","name":"Qwen Big","model":"mlx-community/Qwen-Big","backend":"mlx-lm","weights_gb":40,"min_ram_gb":64,"params":{}},
 		{"key":"broken","name":"Broken","model":"mlx-community/Broken","backend":"mlx-lm","params":{},"min_nav_pilot":123}]}`
 	writeFile(t, filepath.Join(home, ".nav-pilot", "local-models.json"), manifest)
 	snap := filepath.Join(home, "hf", "hub", "models--mlx-community--Qwen3.8-27B", "snapshots", "abc")
@@ -370,5 +372,45 @@ func TestDroppedPinNamesTheFix(t *testing.T) {
 	out := stripANSI(captureStderr(func() { _, _ = localModel(m) }))
 	if !strings.Contains(out, "Pick one to silence this: nav-pilot alpha local use <key>") {
 		t.Errorf("stderr = %q, want the fix named", out)
+	}
+}
+
+// fakeMachine stands in for the sysctl reads behind checkWiredLimit: a machine
+// with ramGB of memory whose wired-memory limit is, or is not, high enough.
+// A model with a min_ram_gb above ramGB is refused, as CheckWiredLimit does.
+func fakeMachine(t *testing.T, ramGB int, sufficient bool) {
+	t.Helper()
+	orig := checkWiredLimit
+	t.Cleanup(func() { checkWiredLimit = orig })
+	checkWiredLimit = func(m local.Model) (local.WiredLimit, error) {
+		w := local.WiredLimit{RequiredGB: m.WiredLimitGB, MachineRAMGB: ramGB, Sufficient: sufficient,
+			DefaultGB: ramGB * 3 / 4, Command: "sudo sysctl -w iogpu.wired_limit_mb=36864"}
+		if m.MinRAMGB > ramGB {
+			return w, errors.New("needs a bigger machine")
+		}
+		return w, nil
+	}
+}
+
+// TestLocalUseRefusesAModelThisMachineCannotHold: the table said "needs 64 GB
+// RAM" and use answered with a ✓, leaving init and start to refuse later.
+func TestLocalUseRefusesAModelThisMachineCannotHold(t *testing.T) {
+	modelsFixture(t)
+	fakeMachine(t, 48, true)
+
+	err := cmdLocalUse([]string{"qwen-big"})
+	if err == nil {
+		t.Fatal("use accepted a model that needs 64 GB on a 48 GB machine")
+	}
+	for _, want := range []string{"qwen-big needs 64 GB RAM; this machine has 48 GB", "nav-pilot alpha local models"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal %q lacks %q", err, want)
+		}
+	}
+	if got := configuredLocalModel(t); got != "" {
+		t.Errorf("a refused use wrote local_model = %q", got)
+	}
+	if code := exitCodeFor(err); code != ExitError {
+		t.Errorf("exit code = %d, want %d", code, ExitError)
 	}
 }
