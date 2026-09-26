@@ -169,7 +169,19 @@ func localModel(m *local.Manifest) (local.Model, error) {
 		fmt.Fprintf(os.Stderr, "%s local_model is %s, %s. Using the default %s instead.\n",
 			yellow("⚠"), bold(configured), why, bold(entry.Model))
 	}
+	if n := local.ReplacedNotice(m); n != "" {
+		fmt.Fprintf(os.Stderr, "%s %s\n", dim("ℹ"), n)
+	}
 	return entry, err
+}
+
+// printPinnedAdvisory shows [local.PinnedAdvisory] on start and restart
+// (through start). status prints it in its own layout, launches from the
+// provider, and `alpha decide` never.
+func printPinnedAdvisory(m *local.Manifest) {
+	if a := local.PinnedAdvisory(m); a != "" {
+		fmt.Fprintf(os.Stderr, "%s %s\n", dim("ℹ"), a)
+	}
 }
 
 // localSelection is localModel without the printing, for the commands that
@@ -186,7 +198,7 @@ func localSelection(m *local.Manifest) (entry local.Model, configured, why strin
 		// Unreachable: Parse refuses a manifest without exactly one default.
 		return local.Model{}, configured, "", errors.New("the local-model manifest names no default model")
 	}
-	if configured == "" || entry.Model == configured {
+	if configured == "" || entry.Model == configured || local.ReplacedNotice(m) != "" {
 		return entry, configured, "", nil
 	}
 	// Withheld for this version: the reason was printed with the manifest, so
@@ -430,6 +442,7 @@ func cmdLocalStart() error {
 	if err != nil {
 		return err
 	}
+	printPinnedAdvisory(m)
 
 	// An already-running server is reported, not replaced. Two mlx-lm processes
 	// on one machine is two copies of the weights resident at once, which on a
@@ -734,12 +747,22 @@ func printConfiguredModel(m *local.Manifest) local.Model {
 		return local.Model{}
 	}
 	via := "manifest default"
-	if configured != "" && why == "" {
+	notice := local.ReplacedNotice(m)
+	switch {
+	case notice != "":
+		via = "replaces local_model"
+	case configured != "" && why == "":
 		via = "set via local_model"
 	}
 	fmt.Printf("  Model        %s %s\n", bold(entry.Key), dim("("+entry.Name+", "+via+")"))
 	if why != "" {
 		fmt.Printf("               %s local_model is %s, %s. Using the default.\n", yellow("⚠"), bold(configured), why)
+	}
+	if notice != "" {
+		fmt.Printf("               %s %s\n", dim("ℹ"), notice)
+	}
+	if a := local.PinnedAdvisory(m); a != "" {
+		fmt.Printf("               %s %s\n", dim("ℹ"), a)
 	}
 	return entry
 }

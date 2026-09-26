@@ -20,8 +20,8 @@ func modelsFixture(t *testing.T) string {
 	t.Cleanup(func() { local.SetSelectedModel(""); agentpakke.SetVersion("dev") })
 	agentpakke.SetVersion("2026.09.20-080000-1111111")
 	manifest := `{"schema_version":1,"channel":"alpha","models":[
-		{"key":"qwen3.6-35b","name":"Qwen 3.6 35B A3B","model":"mlx-community/Qwen3.6-35B","backend":"mlx-lm","default":true,"weights_gb":25,"params":{"MLX_OPENCODE_CONTEXT":"65536"}},
-		{"key":"qwen3.8-27b","name":"Qwen 3.8 27B OptiQ","model":"mlx-community/Qwen3.8-27B","backend":"mlx-lm","weights_gb":19,"params":{"MLX_OPENCODE_CONTEXT":"49152"}},
+		{"key":"qwen3.6-35b","name":"Qwen 3.6 35B A3B","model":"mlx-community/Qwen3.6-35B","backend":"mlx-lm","default":true,"weights_gb":25,"params":{"MLX_OPENCODE_CONTEXT":"65536"},"recommended_for":["default","decide-untrusted-evidence"]},
+		{"key":"qwen3.8-27b","name":"Qwen 3.8 27B OptiQ","model":"mlx-community/Qwen3.8-27B","backend":"mlx-lm","weights_gb":19,"params":{"MLX_OPENCODE_CONTEXT":"49152"},"recommended_for":["decide-nuanced","not-a-key"]},
 		{"key":"qwen3.8-8bit","name":"Qwen 3.8 27B 8bit","model":"mlx-community/Qwen3.8-27B-8bit","backend":"mlx-lm","weights_gb":30,"params":{},"min_nav_pilot":"2026.09.24-110317-abc1234"},
 		{"key":"broken","name":"Broken","model":"mlx-community/Broken","backend":"mlx-lm","params":{},"min_nav_pilot":123}]}`
 	writeFile(t, filepath.Join(home, ".nav-pilot", "local-models.json"), manifest)
@@ -73,14 +73,14 @@ func TestLocalModelsTable(t *testing.T) {
 			t.Errorf("cmdLocalModels: %v", err)
 		}
 	})
-	for _, want := range []string{"KEY", "NAME", "SIZE", "CONTEXT", "STATUS", "nav-pilot alpha local use <key>"} {
+	for _, want := range []string{"KEY", "NAME", "SIZE", "CONTEXT", "RECOMMENDED", "STATUS", "nav-pilot alpha local use <key>"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("table lacks %q:\n%s", want, out)
 		}
 	}
 	checks := map[string][]string{
-		"qwen3.6-35b":  {"25 GB", "64k", "default, not downloaded"},
-		"qwen3.8-27b":  {"*", "19 GB", "48k", "downloaded"},
+		"qwen3.6-35b":  {"25 GB", "64k", "general, decide: untrusted input", "default, not downloaded"},
+		"qwen3.8-27b":  {"*", "19 GB", "48k", "decide: nuanced  ", "downloaded"},
 		"qwen3.8-8bit": {"30 GB", "withheld: needs nav-pilot ≥ 2026.09.24-110317-abc1234"},
 		"broken":       {"withheld: unreadable min_nav_pilot"},
 	}
@@ -91,6 +91,9 @@ func TestLocalModelsTable(t *testing.T) {
 				t.Errorf("row %s lacks %q: %q", key, want, row)
 			}
 		}
+	}
+	if strings.Contains(out, "not-a-key") {
+		t.Errorf("an unknown recommended_for key reached the table:\n%s", out)
 	}
 	if strings.Contains(tableRow(out, "qwen3.6-35b"), "*") {
 		t.Errorf("the default is marked active while local_model names another: %q", tableRow(out, "qwen3.6-35b"))
@@ -205,5 +208,72 @@ func TestLocalStatusShowsTheConfiguredModel(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("status of a server on another model lacks %q:\n%s", want, out)
 		}
+	}
+}
+
+// TestPinnedAdvisoryOnStatusNotOnDecide: a developer pinned to a non-default
+// model is told once what the default is recommended for, by status, and
+// `alpha decide`, which runs in hooks and scripts, never says it.
+func TestPinnedAdvisoryOnStatusNotOnDecide(t *testing.T) {
+	fakeDecideServer(t, yesMostly)
+	home := modelsFixture(t)
+	if _, err := writeConfigKey("local_model", "mlx-community/Qwen3.8-27B"); err != nil {
+		t.Fatal(err)
+	}
+	const advice = "You use qwen3.8-27b. The default qwen3.6-35b is recommended for decide on evidence you don't control."
+
+	_, errOut, _ := runDecide(t, "Is it?", "--options", "yes,no", "--evidence", "-")
+	if strings.Contains(errOut, "You use") {
+		t.Errorf("decide printed the advisory: %q", errOut)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".nav-pilot", "local-models.json.advised")); err == nil {
+		t.Error("decide marked the advisory as seen")
+	}
+
+	status := func() string {
+		var out string
+		captureStderr(func() {
+			out = captureStdout(func() { _ = cmdLocalStatus() })
+		})
+		return out
+	}
+	if out := status(); !strings.Contains(out, advice) || !strings.Contains(out, "nav-pilot alpha local use qwen3.6-35b") {
+		t.Errorf("first status lacks the advisory:\n%s", out)
+	}
+	if out := status(); strings.Contains(out, "You use") {
+		t.Errorf("second status repeated the advisory:\n%s", out)
+	}
+}
+
+// TestReplacedLocalModelResolvesToItsReplacement: a local_model the manifest
+// removed and lists as replaced loads the replacement, says so once with the
+// command that makes it explicit, and leaves the config alone.
+func TestReplacedLocalModelResolvesToItsReplacement(t *testing.T) {
+	localTestHome(t)
+	t.Cleanup(func() { local.SetSelectedModel("") })
+	m, err := local.Parse([]byte(`{"schema_version":1,"channel":"alpha","models":[
+		{"key":"d","name":"Default","model":"mlx-community/Default","backend":"mlx-lm","default":true,"params":{}},
+		{"key":"q38-optiq","name":"OptiQ","model":"mlx-community/Qwen3.8-27B-OptiQ-4bit","backend":"mlx-lm","params":{}}],
+		"replaced":{"mlx-community/Qwen3.8-27B-4bit":"q38-optiq"}}`))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if _, err := writeConfigKey("local_model", "mlx-community/Qwen3.8-27B-4bit"); err != nil {
+		t.Fatal(err)
+	}
+	var got local.Model
+	out := stripANSI(captureStderr(func() { got, err = localModel(m) }))
+	if err != nil || got.Model != "mlx-community/Qwen3.8-27B-OptiQ-4bit" {
+		t.Errorf("localModel = %q/%v, want the replacement", got.Model, err)
+	}
+	want := "mlx-community/Qwen3.8-27B-4bit was replaced by q38-optiq; run nav-pilot alpha local use q38-optiq to make it explicit."
+	if !strings.Contains(out, want) || strings.Count(out, "was replaced by") != 1 {
+		t.Errorf("stderr = %q, want once: %q", out, want)
+	}
+	if strings.Contains(out, "Using the default") {
+		t.Errorf("stderr claims a fallback to the default: %q", out)
+	}
+	if got := configuredLocalModel(t); got != "mlx-community/Qwen3.8-27B-4bit" {
+		t.Errorf("local_model was rewritten to %q", got)
 	}
 }

@@ -419,14 +419,14 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først
 ### Bytte modell
 
 `nav-pilot alpha local models` viser de lokale modellene i en tabell: nøkkel, navn, størrelse,
-kontekst, og om modellen er lastet ned, kjører, er standard eller holdes tilbake. `*` markerer den
-serveren laster ved neste start.
+kontekst, hva modellen er anbefalt til, og om den er lastet ned, kjører, er standard eller holdes
+tilbake. `*` markerer den serveren laster ved neste start.
 
 ```text
-     KEY                     NAME                                     SIZE   CONTEXT  STATUS
-     qwen3.6-35b-a3b-optiq   Qwen 3.6 35B A3B OptiQ 4bit              25 GB  64k      default, downloaded
-  *  qwen3.8-27b-optiq-4bit  Qwen 3.8 27B OptiQ 4bit (mixed 4/8-bit)  19 GB  64k      downloaded, running
-     qwen3.8-27b-8bit-mlx    Qwen 3.8 27B 8bit (mlx-lm)               30 GB  48k      not downloaded
+     KEY                     NAME                                     SIZE   CONTEXT  RECOMMENDED                       STATUS
+     qwen3.6-35b-a3b-optiq   Qwen 3.6 35B A3B OptiQ 4bit              25 GB  64k      general, decide: untrusted input  default, downloaded
+  *  qwen3.8-27b-optiq-4bit  Qwen 3.8 27B OptiQ 4bit (mixed 4/8-bit)  19 GB  64k      decide: nuanced                   downloaded, running
+     qwen3.8-27b-8bit-mlx    Qwen 3.8 27B 8bit (mlx-lm)               30 GB  48k      -                                 not downloaded
 
   Switch: nav-pilot alpha local use <key>
 ```
@@ -461,6 +461,12 @@ det samme nav-pilot leser, så tallene står ikke her. Målingene bak står i
 Krever en modell nyere nav-pilot enn du har, skjuler nav-pilot den. Peker `local_model` på den,
 faller nav-pilot tilbake til standardmodellen, og `init`, `start` og `status` sier hvilken versjon
 du trenger. `models` viser den som holdt tilbake, og `use` nekter å velge den. Oppdater med `nav-pilot update`.
+
+Har du valgt en annen modell enn standard, sier `start`, `status` og launchen én gang hva
+standardmodellen er anbefalt til, med kommandoen for å bytte. Beskjeden kommer igjen bare når
+manifestet endrer anbefalingen, og `alpha decide` sier det aldri. Er modellen i `local_model` fjernet
+og erstattet av en annen, bruker nav-pilot erstatningen i stedet for standard og sier fra.
+Konfigurasjonen endres ikke; `nav-pilot alpha local use <key>` gjør valget eksplisitt.
 
 Bytter du modell, må vektene til den nye lastes ned én gang. `purge` fjerner det du ikke vil beholde.
 

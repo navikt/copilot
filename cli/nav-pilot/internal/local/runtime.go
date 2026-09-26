@@ -1595,6 +1595,9 @@ func EnsureServerRunning(ctx context.Context, announce func(string), record Reco
 	if w, ok := manifest.WithheldEntry(selectedModel); ok {
 		fmt.Fprintf(os.Stderr, "%s. Using the default %s instead.\n", w.Reason, m.Model)
 	}
+	if n := ReplacedNotice(manifest); n != "" {
+		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Dim("ℹ"), n)
+	}
 	if announce != nil {
 		announce(m.Model)
 	}

@@ -959,6 +959,9 @@ func localWorker() (local.Model, error) {
 			"the running local server serves %q, which this nav-pilot's model manifest does not name.\n\n  Start it again:\n\n    %s\n    %s",
 			st.Model, domain.Bold("nav-pilot alpha local stop"), domain.Bold("nav-pilot alpha local start"))
 	}
+	if a := local.PinnedAdvisory(local.Active()); a != "" {
+		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Dim("ℹ"), a)
+	}
 	return m, nil
 }
 

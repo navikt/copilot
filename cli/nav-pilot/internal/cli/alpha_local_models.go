@@ -53,7 +53,7 @@ func printLocalModels(m *local.Manifest) {
 	running := runningModel()
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "  \tKEY\tNAME\tSIZE\tCONTEXT\tSTATUS")
+	fmt.Fprintln(w, "  \tKEY\tNAME\tSIZE\tCONTEXT\tRECOMMENDED\tSTATUS")
 	row := func(e local.Model, status []string) {
 		mark := ""
 		if e.Model == active.Model {
@@ -66,7 +66,15 @@ func printLocalModels(m *local.Manifest) {
 		if n, err := strconv.Atoi(e.Params["MLX_OPENCODE_CONTEXT"]); err == nil && n > 0 {
 			ctx = fmt.Sprintf("%dk", n/1024)
 		}
-		fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\t%s\n", mark, e.Key, e.Name, size, ctx, strings.Join(status, ", "))
+		rec := "-"
+		if r := e.Recommended(); len(r) > 0 {
+			var short []string
+			for _, x := range r {
+				short = append(short, x.Short)
+			}
+			rec = strings.Join(short, ", ")
+		}
+		fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\t%s\t%s\n", mark, e.Key, e.Name, size, ctx, rec, strings.Join(status, ", "))
 	}
 	for _, e := range m.Models {
 		var status []string

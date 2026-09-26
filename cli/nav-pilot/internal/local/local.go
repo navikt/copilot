@@ -188,6 +188,10 @@ type Model struct {
 	// Empty means any version. An older binary withholds the entry: see
 	// [Manifest.Withheld].
 	MinNavPilot releaseVersion `json:"min_nav_pilot,omitempty"`
+
+	// RecommendedFor lists keys from [Recommendations]: what the benchmark
+	// recommends this entry for. Unknown keys are ignored; see [Model.Recommended].
+	RecommendedFor []string `json:"recommended_for,omitempty"`
 }
 
 // releaseVersion is min_nav_pilot as read from the manifest. It never fails to
@@ -222,6 +226,12 @@ type Manifest struct {
 	Channel string `json:"channel"`
 
 	Models []Model `json:"models"`
+
+	// Replaced maps a model id that was removed from the manifest to the key
+	// (or model id) of the entry that replaces it. A local_model naming a
+	// replaced id resolves to its replacement when that is offered; see
+	// [Chosen] and [ReplacedNotice].
+	Replaced map[string]string `json:"replaced,omitempty"`
 
 	// Withheld are the entries [Parse] took out of Models because this binary
 	// is older than their min_nav_pilot, or could not read that field. They
@@ -620,7 +630,8 @@ var selectedModel string
 func SetSelectedModel(id string) { selectedModel = id }
 
 // Chosen returns the model a start would load: the configured one when the
-// manifest offers it, otherwise the manifest's default.
+// manifest offers it, else its offered replacement when the manifest lists the
+// configured id as replaced, otherwise the manifest's default.
 //
 // It exists because the manifest carried exactly one model until 1 September
 // 2026, which made `Models[0]` correct by accident in two places. Adding a
@@ -637,6 +648,9 @@ func Chosen(m *Manifest) (Model, bool) {
 			if e.Model == selectedModel {
 				return e, true
 			}
+		}
+		if e, ok := m.replacement(selectedModel); ok {
+			return e, true
 		}
 	}
 	for _, e := range m.Models {
