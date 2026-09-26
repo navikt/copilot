@@ -78,8 +78,11 @@ const OrigSuffix = ".orig"
 func DirHash(dir string) (string, error) {
 	h := sha256.New()
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || strings.HasSuffix(path, OrigSuffix) {
+		if skip, err := origEntry(dir, path, d, err); skip || err != nil {
 			return err
+		}
+		if d.IsDir() {
+			return nil
 		}
 		rel, _ := filepath.Rel(dir, path)
 		h.Write([]byte(rel))
@@ -187,37 +190,72 @@ func CopyDir(src, dst, boundary string) error {
 // removeAllButOrig empties dir of everything except [OrigSuffix] files, and
 // removes it outright when there is nothing to keep.
 func removeAllButOrig(dir string) error {
-	keep := false
+	var dirs []string
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		switch {
-		case err != nil:
+		if skip, err := origEntry(dir, path, d, err); skip || err != nil {
 			return err
-		case d.IsDir():
-			return nil
-		case strings.HasSuffix(path, OrigSuffix):
-			keep = true
+		}
+		if d.IsDir() {
+			dirs = append(dirs, path)
 			return nil
 		}
 		return os.Remove(path)
 	})
-	if os.IsNotExist(err) || (err == nil && !keep) {
-		return os.RemoveAll(dir)
+	if os.IsNotExist(err) {
+		return nil
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	// Children before parents (the walk is in lexical order), so a directory
+	// the source dropped goes, and one still holding a saved copy stays.
+	for i := len(dirs) - 1; i >= 0; i-- {
+		_ = os.Remove(dirs[i])
+	}
+	return nil
+}
+
+// origEntry is the WalkDir step both walks share: skip is true for a saved
+// [OrigSuffix] file or directory under root, which is the user's and not part
+// of the artifact.
+func origEntry(root, path string, d fs.DirEntry, err error) (skip bool, _ error) {
+	if err != nil {
+		return false, err
+	}
+	if path == root || !strings.HasSuffix(path, OrigSuffix) {
+		return false, nil
+	}
+	if d.IsDir() {
+		return true, fs.SkipDir
+	}
+	return true, nil
 }
 
 // SaveOrig keeps the local copy of an artifact nav-pilot is about to replace,
 // as <file>.orig beside it, and returns the paths it wrote. One backup per
 // file: the next replacement overwrites it. In a directory only the files that
 // differ from src are saved, inside the directory, where [CopyDir] keeps them.
+//
+// A symlink is never followed: its target may be any file on the machine, and
+// a copy of it inside the repository is one commit away from being published.
+// The artifact itself being a link is an error; a link inside a directory is
+// not content and is not saved.
 func SaveOrig(local, src, boundary string, isDir bool) ([]string, error) {
+	if info, err := os.Lstat(local); err != nil {
+		return nil, err
+	} else if info.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("%s is a symlink, and nav-pilot does not follow one to save a copy", local)
+	}
 	if !isDir {
 		return []string{local + OrigSuffix}, CopyFile(local, local+OrigSuffix, boundary)
 	}
 	var saved []string
 	err := filepath.WalkDir(local, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || strings.HasSuffix(path, OrigSuffix) {
+		if skip, err := origEntry(local, path, d, err); skip || err != nil {
 			return err
+		}
+		if d.IsDir() || d.Type()&fs.ModeSymlink != 0 {
+			return nil
 		}
 		rel, err := filepath.Rel(local, path)
 		if err != nil {
