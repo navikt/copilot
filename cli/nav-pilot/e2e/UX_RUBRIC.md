@@ -1,7 +1,7 @@
 # UX rubric for nav-pilot transcripts
 
 You are reviewing a transcript of `nav-pilot` runs: each command, its stdout,
-stderr, exit code, and whether stdin/stdout were a terminal. You have no source
+stderr, exit code, and which of stdin, stdout and stderr were a terminal. You have no source
 code and no docs. Judge only what is printed.
 
 Play a novice who has never used nav-pilot and reads only what is on screen.
@@ -13,7 +13,7 @@ Review each transcript as each of these personas, where it applies:
 - **New user.** Nothing installed or configured. Follows only what the output tells them.
 - **Pinned user.** Has a config and a chosen model and is switching or upgrading.
   Cares whether their choice was kept and what changed.
-- **Scripted user.** Runs it from CI, a git hook or a pipe, with no TTY.
+- **Scripted user.** Runs it from CI, a git hook or a pipe. No stream is a TTY.
   Reads exit codes and stdout. Never answers a prompt.
 
 ## 1. Walk each step
@@ -29,7 +29,8 @@ naming it, or do they have to guess? A step fails if the answer to 3 is "guess".
   it fails or proceeds and says which flag to pass.
 - **Streams.** stdout is for data and results. Messages, warnings, progress and
   errors go to stderr. Piping stdout into a file or `jq` must not carry chatter.
-- **Colour.** With `NO_COLOR` set, or output not a terminal, there are no escape codes.
+- **Colour.** With `NO_COLOR` set, or on a stream that isn't a terminal, there
+  are no escape codes.
 - **JSON.** `--json` output is one parseable document with stable field names,
   and nothing else on stdout.
 - **Help.** Help and errors suggest the next command, spelled out.
