@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
@@ -21,7 +22,7 @@ var errValidationFailed = errors.New("agentpakke validation failed")
 // source, and it is validated as one.
 func cmdValidate(ref, sourceRepo string, jsonOutput bool) error {
 	if !jsonOutput {
-		fmt.Println(dim("Resolving source..."))
+		fmt.Fprintln(os.Stderr, dim("Resolving source..."))
 	}
 	src, err := resolveSourceRaw(ref, sourceRepo)
 	if err != nil {

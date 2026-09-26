@@ -253,8 +253,8 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 		// installed by an older revision of the source, and saying "you changed
 		// this" to someone who did not is how a reader learns to ignore the
 		// warning.
-		fmt.Fprintf(os.Stderr, "  %s %s (differs from what nav-pilot installed, kept; %s takes the source's version and saves yours as .orig)\n",
-			yellow("⚠"), name, bold("nav-pilot sync --apply"))
+		fmt.Fprintf(os.Stderr, "  %s kept %s %s: it differs from what nav-pilot installed. %s takes the source's version and saves yours as .orig\n",
+			yellow("⚠"), kind.Name, name, bold("nav-pilot sync --apply"))
 		existingHash, hashErr := rawArtifactHash(dst, art.IsDir)
 		if hashErr == nil {
 			result.Files = append(result.Files, InstalledFile{Path: relPath, Hash: existingHash, Status: fileStatusConflict})
@@ -323,9 +323,11 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 // It says "kept" and not "kept as you edited them" (#692): a file installed
 // from an older revision of the source differs without anyone having touched
 // it, and the hash comparison behind this cannot tell the two apart.
+//
+// On stderr, with the per-file lines it sums up: one warning, one stream.
 func printConflictHint(n int) {
-	fmt.Printf("%s %d file(s) kept, differing from what nav-pilot installed.\n", yellow("⚠"), n)
-	fmt.Printf("  %s takes the source's version and saves yours as <file>.orig.\n",
+	fmt.Fprintf(os.Stderr, "%s %d file(s) kept, differing from what nav-pilot installed.\n", yellow("⚠"), n)
+	fmt.Fprintf(os.Stderr, "  %s takes the source's version and saves yours as <file>.orig.\n",
 		bold("nav-pilot sync --apply"))
 }
 
@@ -399,7 +401,7 @@ func cmdInstallAuto(name, itemType string, scope *InstallScope, ref, sourceRepo 
 	}
 
 	if !jsonOutput {
-		fmt.Println(dim("Resolving source..."))
+		fmt.Fprintln(os.Stderr, dim("Resolving source..."))
 	}
 	src, err := resolveDeclaredSource(scope, ref, sourceRepo)
 	if err != nil {
@@ -832,7 +834,7 @@ func cmdList(scope *InstallScope, ref, sourceRepo string, showItems bool, jsonOu
 		defer func() { hintSource = "" }()
 	}
 	if !jsonOutput {
-		fmt.Println(dim("Resolving source..."))
+		fmt.Fprintln(os.Stderr, dim("Resolving source..."))
 	}
 	src, err := resolveDeclaredSource(scope, ref, sourceRepo)
 	if err != nil {
@@ -1098,7 +1100,7 @@ func cmdInstallInteractive(scope *InstallScope, targetDir, ref, sourceRepo strin
 		}
 	}
 
-	fmt.Println(dim("Resolving source..."))
+	fmt.Fprintln(os.Stderr, dim("Resolving source..."))
 	src, err := resolveDeclaredSource(scope, ref, sourceRepo)
 	if err != nil {
 		return err
@@ -1125,7 +1127,7 @@ func cmdInstallAll(scope *InstallScope, ref, sourceRepo string, dryRun, force bo
 		return err
 	}
 	if !jsonOutput {
-		fmt.Println(dim("Resolving source..."))
+		fmt.Fprintln(os.Stderr, dim("Resolving source..."))
 	}
 	src, err := resolveDeclaredSource(scope, ref, sourceRepo)
 	if err != nil {
@@ -1207,9 +1209,9 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		manifest = declared
 	}
 
-	total := len(manifest.Agents) + len(manifest.Skills) + len(manifest.Instructions)
+	total := scopeItemCount(scope, manifest)
 	if total == 0 {
-		return fmt.Errorf("no agents, skills, or instructions found in source")
+		return fmt.Errorf("nothing in the source that %s can hold", scope.Label())
 	}
 	if err := confirmInstallWrites(scope, resolver, manifest, dryRun, jsonOutput); err != nil {
 		return err
@@ -1226,11 +1228,13 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	sourceLabel := sourceLabelFor(src)
 
 	if !jsonOutput {
+		// Every kind this scope holds, hooks included: agents, skills and
+		// instructions alone said 58 above an "Installed 61".
 		fmt.Println()
 		if dryRun {
-			fmt.Println(bold(fmt.Sprintf("Dry run: all agents, skills & instructions (%d items)", total)))
+			fmt.Println(bold(fmt.Sprintf("Dry run: all %d items", total)))
 		} else {
-			fmt.Println(bold(fmt.Sprintf("Installing: all agents, skills & instructions (%d items)", total)))
+			fmt.Println(bold(fmt.Sprintf("Installing: all %d items", total)))
 		}
 		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, shortSHA(src.SHA))))
 		if reused != nil {
@@ -1335,8 +1339,13 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		return emitJSON()
 	}
 
-	fmt.Printf("%s Installed %d items to %s (v%s, %s).\n",
-		green("✓"), result.Installed, scope.Label(), stateVersion, shortSHA(src.SHA))
+	// "of M" when something was kept or skipped, so the two numbers agree.
+	of := ""
+	if result.Installed != total {
+		of = fmt.Sprintf(" of %d", total)
+	}
+	fmt.Printf("%s Installed %d%s items to %s (v%s, %s).\n",
+		green("✓"), result.Installed, of, scope.Label(), stateVersion, shortSHA(src.SHA))
 	fmt.Println()
 	reach := "in this repository"
 	if scope.IsUser() {
@@ -2214,4 +2223,16 @@ func printDryRunRecords(scope *InstallScope, lock bool) {
 		fmt.Printf("  %s %s\n", dim("→"), agentpakke.DeclarationPath)
 	}
 	fmt.Println()
+}
+
+// scopeItemCount is how many of a manifest's items a scope can hold, every
+// kind included: a pakke of hooks alone is a pakke.
+func scopeItemCount(scope *InstallScope, manifest *Manifest) int {
+	n := 0
+	for _, kind := range AllKinds {
+		if names, ok := manifest.NamesByKind(kind); ok && scope.SupportsType(kind.Name) {
+			n += len(names)
+		}
+	}
+	return n
 }

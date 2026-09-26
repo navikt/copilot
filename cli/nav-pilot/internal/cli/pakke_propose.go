@@ -100,6 +100,10 @@ var askProposalConsent = func(title, description string, approve *bool) error {
 // declined proposal nor an unwritable record is a reason to fail the install
 // that is otherwise fine. Every failure path ends with no approval, which is
 // the direction that applies nothing.
+// notedProposals is the proposals this run has already printed the
+// non-interactive note for, by pakke and block hash.
+var notedProposals = map[string]bool{}
+
 func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bool) {
 	if scope == nil || src == nil || src.Pakke == nil || dryRun {
 		return
@@ -146,8 +150,13 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 	// nothing is recorded either: an unanswered question is not a "no", and
 	// recording one would stop the terminal install from ever asking.
 	if !isInteractive() || jsonOutput {
-		fmt.Fprintf(os.Stderr, "%s agentpakke %s proposes cplt sandbox settings, which only an interactive install can approve.\n%s\n",
-			dim("ℹ"), bold(name), indented(commands))
+		// Once per run: a sync over two scopes of the same pakke printed it
+		// twice.
+		if key := name + "@" + hash; !notedProposals[key] {
+			notedProposals[key] = true
+			fmt.Fprintf(os.Stderr, "%s agentpakke %s proposes cplt sandbox settings, which only an interactive install can approve.\n%s\n",
+				dim("ℹ"), bold(name), indented(commands))
+		}
 		return
 	}
 
@@ -179,7 +188,7 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 		return
 	}
 	if !approve {
-		fmt.Printf("%s %s is installed without it, so this will fail: %s\n  Allow it yourself:\n%s\n",
+		fmt.Fprintf(os.Stderr, "%s Declined. %s is installed without the sandbox change, so what it was for will not work: %s\n  To allow it later:\n%s\n",
 			yellow("⚠"), bold(name), safe(proposal.Reason, proposalReasonWidth), indented(commands))
 		return
 	}

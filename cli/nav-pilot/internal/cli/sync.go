@@ -754,7 +754,8 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 			applyErrors++
 			continue
 		}
-		fmt.Printf("  %s %s\n", green("✓"), u.Path)
+		// The check's markers, with what was done: ~ updated, - deleted.
+		fmt.Printf("  %s %s %s\n", green("~"), u.Path, dim("(updated)"))
 		applied++
 		appliedUpdates = append(appliedUpdates, u)
 	}
@@ -777,7 +778,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 			continue
 		}
 		afterArtifactRemoved(scope, localFull, jsonOutput)
-		fmt.Printf("  %s %s (deleted)\n", red("×"), p)
+		fmt.Printf("  %s %s %s\n", red("-"), p, dim("(deleted)"))
 		deleted++
 		deletedSuccessPaths = append(deletedSuccessPaths, p)
 	}

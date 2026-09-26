@@ -1,0 +1,59 @@
+# Polish from the DX test of sync. Progress and warnings go to stderr, each
+# warning on one stream with its item type named. The count in an install's
+# header is the count it ends on. Check and apply use the same markers. The
+# sandbox proposal note is printed once per run, not once per scope.
+
+mkdir plattform/skills forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../forbruker
+exec git init -q .
+
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+stderr 'Resolving source'
+! stdout 'Resolving source'
+
+exec nav-pilot install --user --all --source $WORK/plattform
+stdout 'Installing: all 2 items'
+stdout 'Installed 2 items'
+
+# A kept file: the per-file line and the summary, both on stderr.
+cp ../edited.md .github/agents/grillmester.agent.md
+cp ../v2.md ../plattform/agents/grillmester.agent.md
+cd ../plattform
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qam v2
+cd ../forbruker
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+stderr 'kept agent grillmester: it differs from what nav-pilot installed'
+stderr '1 file\(s\) kept'
+! stdout 'kept'
+
+# Both scopes sync the same pakke: one note, not two.
+exec nav-pilot sync --apply --yes
+stderr -count=1 'proposes cplt sandbox settings'
+stdout '~ \.github/agents/grillmester\.agent\.md \(updated\)'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}},"policies":{"propose":{"cplt":{"reason":"the skill queries loki","proxy":{"allow_private_domains":["loki.example.test"]}}}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/skills/brann/SKILL.md --
+---
+name: brann
+description: fra plattform
+---
+brann
+-- edited.md --
+edited here
+-- v2.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform v2

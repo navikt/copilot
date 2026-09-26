@@ -205,7 +205,8 @@ func TestI1DeclineInstallsAppliesNothingAndIsNotAskedAgain(t *testing.T) {
 func TestDeclineNamesTheWorkflowAndTheOneLiner(t *testing.T) {
 	scope := consentEnv(t)
 	answering(t, false)
-	out := captureStdoutFor(t, func() {
+	// A warning, so on stderr with every other one.
+	out := captureStderrFor(t, func() {
 		noteProposalConsent(scope, proposeSource(t, `"cloud.nais.io"`, ""), false, false)
 	})
 	if !strings.Contains(out, "queries Mimir") {
@@ -636,7 +637,8 @@ func TestBothKindsOfProposalAreOneQuestionAndOneRecord(t *testing.T) {
 func TestDeclinedReadGrantPrintsTheCommandToRunByHand(t *testing.T) {
 	scope := consentEnv(t)
 	answering(t, false)
-	out := captureStdoutFor(t, func() {
+	// A warning, so on stderr with every other one.
+	out := captureStderrFor(t, func() {
 		noteProposalConsent(scope, proposeSource(t, `"cloud.nais.io"`, readGrantExtra), false, false)
 	})
 	for _, want := range []string{

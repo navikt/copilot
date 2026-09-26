@@ -451,7 +451,7 @@ func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
 		return cancelledError{}
 	}
 
-	fmt.Println(dim("Resolving source..."))
+	fmt.Fprintln(os.Stderr, dim("Resolving source..."))
 	src, err := resolveDeclaredSource(scope, "", "")
 	if err != nil {
 		return err
@@ -478,7 +478,7 @@ func interactiveUserOnlyInstall(resolved ResolvedConfig) error {
 	fmt.Println(bold("nav-pilot") + dim(" — Nav's Copilot toolkit"))
 	fmt.Println()
 	fmt.Println(dim("Not in a git repository — installing to user home."))
-	fmt.Println(dim("Resolving source..."))
+	fmt.Fprintln(os.Stderr, dim("Resolving source..."))
 
 	src, err := resolveSource("", "")
 	if err != nil {
@@ -558,10 +558,10 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 	}
 	defer bases.cleanup()
 
-	total := len(manifest.Agents) + len(manifest.Skills) + len(manifest.Instructions)
-	if total == 0 {
-		return fmt.Errorf("no agents, skills, or instructions found in source")
+	if scopeItemCount(scope, manifest) == 0 {
+		return fmt.Errorf("nothing in the source that %s can hold", scope.Label())
 	}
+	total := len(manifest.Agents) + len(manifest.Skills) + len(manifest.Instructions)
 
 	// Check for existing install to pre-select items
 	existingState, _ := readScopedState(scope)

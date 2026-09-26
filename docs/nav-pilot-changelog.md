@@ -20,6 +20,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **`--source` huskes ikke uten `--save-source`**: `install --source X` gjorde X til standardkilde for alle repoer på maskinen.
 - **Tørrkjøring viser alle stier**, også `copilot-hooks.json`, state-fila og lock-fila. **uninstall** lister alt den fjerner, spør først i en terminal og sier hvilket scope den gjelder. uninstall og rollback har egne hjelpesider. **sync --apply** viser hvilken revisjon den flytter fra og til, og spør før den sletter filer i en terminal.
 
+### Ryddigere utdata fra install og sync
+
+- Framdrift og advarsler går til stderr, og en advarsel står i sin helhet på én strøm. «Beholdt»-advarsler sier hva slags artefakt det gjelder. Tallet i overskrifta til en install er det samme som i oppsummeringa, også med hooks. `sync --apply` bruker de samme tegnene som sjekken (`~` oppdatert, `-` slettet). Merknaden om cplt-forslaget skrives én gang per kjøring, og et avslag sier tydelig hva som ikke vil virke.
+
 ## 2026-09-24
 
 ### GPT-6 Sol er standardmodellen
