@@ -218,6 +218,16 @@ func isRecorded(pid int, lstart string) bool {
 // a 48 GB machine.
 var ErrNoServerRecorded = errors.New("no local server is recorded as running")
 
+// ServerGoneError is EnsureOwnServer's "the recorded server has died". Its
+// message explains the refusal in the loop guard's terms, which is right for a
+// session; a one-off request (ask, decide) says it more plainly.
+type ServerGoneError struct {
+	PID int
+	err error
+}
+
+func (e *ServerGoneError) Error() string { return e.err.Error() }
+
 func EnsureOwnServer() error {
 	st, ok, err := LoadState()
 	if err != nil {
@@ -235,11 +245,11 @@ func EnsureOwnServer() error {
 					"  Restart it: %s",
 				st.Model, st.PID, LogPath(), domain.Bold("nav-pilot alpha local restart"))
 		}
-		return fmt.Errorf(
+		return &ServerGoneError{PID: st.PID, err: fmt.Errorf(
 			"the recorded local %s server (pid %d) is not running any more.\n\n"+
 				"  Refusing: the loop guard forwards to %s, and nav-pilot cannot tell whether that is still its own server or whatever took the port after it died.\n\n"+
 				"  Start it again: %s",
-			st.Model, st.PID, ServerURL(), start)
+			st.Model, st.PID, ServerURL(), start)}
 	}
 	if !slices.Contains(portListeners(st.ServerPort()), st.PID) {
 		return fmt.Errorf(

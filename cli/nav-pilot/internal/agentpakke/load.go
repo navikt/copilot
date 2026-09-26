@@ -254,7 +254,7 @@ func checkContractVersionFor(version, remedy string) error {
 	}
 	return fmt.Errorf(
 		"contractVersion %q is not supported by this nav-pilot; supported contract versions: %s. "+
-			"Upgrade nav-pilot (nav-pilot update) or %s",
+			"Upgrade nav-pilot (nav-pilot upgrade) or %s",
 		version, strings.Join(SupportedContractMajors, ", "), remedy)
 }
 
@@ -297,7 +297,7 @@ func (m *Manifest) checkMinVersion(runningVersion string) error {
 		// help on a machine that installed nav-pilot from the apt archive.
 		return fmt.Errorf(
 			"agentpakke %q requires nav-pilot %s or newer, but this binary is %s. "+
-				"Run `nav-pilot update` (or reinstall via %s) and try again",
+				"Run `nav-pilot upgrade` (or reinstall via %s) and try again",
 			m.Name, required, runningVersion, domain.PkgSelf().Pick("Homebrew", "apt"))
 	}
 	return nil

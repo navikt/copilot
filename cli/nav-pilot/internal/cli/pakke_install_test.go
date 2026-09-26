@@ -1551,7 +1551,7 @@ func TestUnlaunchableClientRefusalNamesUpdate(t *testing.T) {
 	if !namesACommand(err) {
 		t.Errorf("handover refusal %q names no command to run", err)
 	}
-	if strings.Contains(err.Error(), "nav-pilot update") {
+	if strings.Contains(err.Error(), "nav-pilot update") || strings.Contains(err.Error(), "nav-pilot upgrade") {
 		t.Errorf("refusal still offers an upgrade that cannot help: %q", err)
 	}
 }

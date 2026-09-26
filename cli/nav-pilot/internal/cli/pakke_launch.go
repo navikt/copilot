@@ -112,7 +112,7 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 	launch, ok := stagedLaunchers[resolved.Client]
 	if !ok {
 		return true, fmt.Errorf("agentpakke %q declares payloads for %s, but this nav-pilot cannot launch staged payloads for that client\n\n  Upgrade it:  %s",
-			pakke.Name, resolved.Client, bold("nav-pilot update"))
+			pakke.Name, resolved.Client, bold("nav-pilot upgrade"))
 	}
 	// After the handover gate: the notice announces a session that is about to
 	// start, and this is the last point that can still refuse to start one.

@@ -3,6 +3,7 @@ package local
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -344,4 +345,24 @@ func stubPortListeners(t *testing.T, fn func(int) []int) {
 	orig := portListeners
 	portListeners = fn
 	t.Cleanup(func() { portListeners = orig })
+}
+
+// A one-off request (decide, ask) used to be told about the loop guard and a
+// session when the recorded server had died. It gets the plain version; a
+// launch keeps the loop guard's reasoning.
+func TestAcquireSaysPlainlyThatTheServerStopped(t *testing.T) {
+	stubDirs(t)
+	stubAlive(t, func(int) bool { return false })
+	if err := SaveState(aRunningState()); err != nil {
+		t.Fatal(err)
+	}
+	st, _, _ := LoadState()
+	_, _, _, err := Acquire(context.Background())
+	want := fmt.Sprintf("the local server (pid %d) has stopped. Start it: ", st.PID)
+	if err == nil || !strings.Contains(err.Error(), want) || strings.Contains(err.Error(), "loop guard") {
+		t.Errorf("Acquire() with a dead server = %v, want %q and no loop guard", err, want)
+	}
+	if err := EnsureOwnServer(); err == nil || !strings.Contains(err.Error(), "loop guard") {
+		t.Errorf("EnsureOwnServer() lost the launch's reasoning: %v", err)
+	}
 }

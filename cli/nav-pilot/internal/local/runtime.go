@@ -1503,6 +1503,19 @@ func macOSDefaultWiredGB(ramGB int) int {
 // Label names the limit that applies now, for a developer reading status or an
 // error. Unset is the macOS default, not zero, and "0 GB" would read as a
 // broken machine.
+// Shortfall says why the limit is not enough, as a sentence about the model
+// that needs it.
+func (w WiredLimit) Shortfall() string {
+	if w.CurrentGB > 0 {
+		return fmt.Sprintf("The wired-memory limit is %d GB, below the %d GB this model needs.", w.CurrentGB, w.RequiredGB)
+	}
+	near := "too close to"
+	if w.DefaultGB < w.RequiredGB {
+		near = "below"
+	}
+	return fmt.Sprintf("No limit is set. macOS allows about %d GB by default, %s the %d GB this model needs.", w.DefaultGB, near, w.RequiredGB)
+}
+
 func (w WiredLimit) Label() string {
 	if w.CurrentGB == 0 {
 		return fmt.Sprintf("no limit set, so the macOS default applies (about %d GB)", w.DefaultGB)
@@ -1615,8 +1628,8 @@ func EnsureServerRunning(ctx context.Context, announce func(string), record Reco
 		return err
 	} else if !w.Sufficient {
 		return fmt.Errorf(
-			"%s needs a %d GB wired-memory limit and this machine has %s.\n\n  Raise it (it resets at reboot), then launch again: %s",
-			m.Model, w.RequiredGB, w.Label(), domain.Bold(w.Command))
+			"%s cannot start: %s\n\n  Raise the limit (it resets at reboot), then launch again: %s",
+			m.Model, w.Shortfall(), domain.Bold(w.Command))
 	}
 
 	// Autostart must not start a 23 GB download inside a launch. `alpha local

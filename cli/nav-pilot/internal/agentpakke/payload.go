@@ -110,7 +110,7 @@ func ParsePayloadManifest(data []byte) (*PayloadManifest, error) {
 	if err := json.Unmarshal(data, &gate); err == nil && gate.SchemaVersion != nil && *gate.SchemaVersion != PayloadSchemaVersion {
 		return nil, fmt.Errorf(
 			"payload manifest declares schemaVersion %d; this nav-pilot verifies payload schemaVersion %d. "+
-				"Upgrade nav-pilot (nav-pilot update) or ask the agentpakke to publish a payload manifest on a supported version",
+				"Upgrade nav-pilot (nav-pilot upgrade) or ask the agentpakke to publish a payload manifest on a supported version",
 			*gate.SchemaVersion, PayloadSchemaVersion)
 	}
 
@@ -135,7 +135,7 @@ func ParsePayloadManifest(data []byte) (*PayloadManifest, error) {
 	if doc.SchemaVersion != PayloadSchemaVersion {
 		return nil, fmt.Errorf(
 			"payload manifest declares schemaVersion %d; this nav-pilot verifies payload schemaVersion %d. "+
-				"Upgrade nav-pilot (nav-pilot update) or ask the agentpakke to publish a payload manifest on a supported version",
+				"Upgrade nav-pilot (nav-pilot upgrade) or ask the agentpakke to publish a payload manifest on a supported version",
 			doc.SchemaVersion, PayloadSchemaVersion)
 	}
 	if doc.Files == nil {

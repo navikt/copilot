@@ -364,7 +364,7 @@ Kjører brukeren en eldre release enn kravet:
 
 ```
 agentpakke "grillmester" requires nav-pilot 2026.09.01-120000 or newer, but this binary is
-2026.08.01-100000-abc1234. Run `nav-pilot update` (or reinstall via Homebrew) and try again
+2026.08.01-100000-abc1234. Run `nav-pilot upgrade` (or reinstall via Homebrew) and try again
 ```
 
 Meldinga navngir pakkesystemet som eier binæren: «apt» når dpkg eier den, «Homebrew» ellers. Eierskapet er det som teller, ikke hvor pakka kom fra, så en `.deb` installert for hånd regnes også som apt.
