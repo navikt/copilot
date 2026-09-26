@@ -1,12 +1,14 @@
 # init from a script (no TTY) must not start a 25 GB download on its own. It
-# refuses, downloads nothing, and says how to consent: --yes.
+# refuses before printing the plan, downloads nothing, and says how to
+# consent: --yes. stdout stays empty, and the refusal is the last thing said.
 
 [!darwin] skip 'local inference needs an Apple Silicon Mac'
 [!arm64] skip 'local inference needs an Apple Silicon Mac'
 
 exits 2 nav-pilot alpha local init
-stdout 'Needs +8 GB RAM'
-stderr '--yes'
+! stdout .
+stderr 'init would download about 26 GB\. Run it in a terminal, or pass --yes\n$'
+! stderr 'While this is alpha'
 ! stderr 'downloading'
 ! exists home/.nav-pilot/local/bin/uv
 ! exists home/.nav-pilot/local/venv

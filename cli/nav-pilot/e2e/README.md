@@ -71,6 +71,9 @@ sees transcripts only, never source, so it judges what a user would see.
    stdout and stderr were a TTY.
 3. Give the reviewer `UX_RUBRIC.md` and the transcripts, and nothing else.
 
+Don't give it `UX_CALIBRATION.md`. Record the human labels for each
+round there after the review.
+
 Treat what comes back as hypotheses to check with a person or a new journey,
 not as a verdict. Don't commit the review as expected output. Put it in the
 PR description.
