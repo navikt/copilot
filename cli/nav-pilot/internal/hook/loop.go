@@ -40,6 +40,11 @@ type LoopState struct {
 	N      int    `json:"n"`
 	Same   int    `json:"same"`
 	Result string `json:"result"` // sha256 of the normalised result
+	// Raw is the sha256 of the last result as it came, and Varied says the
+	// run's results differed before normalisation (numbers, ids, timestamps).
+	// A state from before Raw existed has none, and proves nothing.
+	Raw    string `json:"raw,omitempty"`
+	Varied bool   `json:"varied,omitempty"`
 	// Steps are the latest calls with their results, oldest first, as short
 	// hashes: what the cycle rule compares.
 	Steps []string `json:"steps,omitempty"`
@@ -51,15 +56,17 @@ type LoopState struct {
 func (s LoopState) Step(call, resultType, result string) LoopState {
 	sum := sha256.Sum256([]byte(resultType + "\x00" + local.NormaliseResult(result)))
 	h := hex.EncodeToString(sum[:])
+	rawSum := sha256.Sum256([]byte(resultType + "\x00" + result))
+	raw := hex.EncodeToString(rawSum[:])
 	step := sha256.Sum256([]byte(call + "\x00" + h))
 	steps := append(slices.Clip(s.Steps), hex.EncodeToString(step[:8]))
 	switch {
 	case call != s.Call:
-		return LoopState{Call: call, N: 1, Same: 1, Result: h, Steps: steps}
+		return LoopState{Call: call, N: 1, Same: 1, Result: h, Raw: raw, Steps: steps}
 	case h == s.Result:
-		return LoopState{Call: call, N: s.N + 1, Same: s.Same + 1, Result: h, Steps: steps}
+		return LoopState{Call: call, N: s.N + 1, Same: s.Same + 1, Result: h, Raw: raw, Varied: s.Varied || (s.Raw != "" && raw != s.Raw), Steps: steps}
 	default:
-		return LoopState{Call: call, N: s.N + 1, Same: 1, Result: h, Steps: steps}
+		return LoopState{Call: call, N: s.N + 1, Same: 1, Result: h, Raw: raw, Steps: steps}
 	}
 }
 
@@ -87,6 +94,10 @@ func Signature(tool string, args json.RawMessage) string {
 // trips, or "" when none does. It says which rule, and only the same-result
 // rule calls it a loop that will not change the answer: the backstop also
 // catches polls whose output was changing.
+//
+// It names no threshold and no config key. The model reads it, and a model
+// told how to raise the limit that stopped it has been told how to stop being
+// stopped; the human gets that on stderr (see the hook command).
 func LoopMessage(s LoopState, threshold int) string {
 	const maxCall = 400
 	shown := s.Call
@@ -96,23 +107,32 @@ func LoopMessage(s LoopState, threshold int) string {
 	period, reps := local.RepeatedCycle(s.Steps)
 	switch LoopRule(s, threshold) {
 	case "same_result":
+		same := "the same result every time"
+		if s.Varied {
+			same = "the same result every time apart from numbers, ids and timestamps"
+		}
+		wait := ""
+		if isShellCall(s.Call) {
+			wait = " If you are waiting for something to finish, use a command that blocks until it is done " +
+				"(for GitHub Actions: `gh run watch <run-id> --exit-status`) instead of asking again."
+		}
 		return fmt.Sprintf(
-			"[nav-pilot loop guard] You have made this exact tool call %d times in a row and got the same result every time: %s. "+
+			"[nav-pilot loop guard] You have made this exact tool call %d times in a row and got %s: %s. "+
 				"Repeating it will not change the answer. Stop calling it: use the result you already have, try a different approach, "+
-				"or tell the user you are stuck. (Threshold: `nav-pilot config set local_loop_guard <n>`, current %d.)",
-			s.Same, shown, threshold)
+				"or tell the user you are stuck.%s",
+			s.Same, same, shown, wait)
 	case "cycle":
 		return fmt.Sprintf(
 			"[nav-pilot loop guard] You are repeating a cycle of %d tool calls and got the same results every time, %d times in a row. This call is part of it: %s. "+
 				"Repeating it will not change the answer. Stop calling it: use the result you already have, try a different approach, "+
-				"or tell the user you are stuck. (Threshold: `nav-pilot config set local_loop_guard <n>`, current %d.)",
-			period, reps, shown, threshold)
+				"or tell the user you are stuck.",
+			period, reps, shown)
 	case "backstop":
 		return fmt.Sprintf(
 			"[nav-pilot loop guard] You have made this exact tool call %d times in a row: %s. The results changed, but that is "+
 				"waiting, not working. If you are waiting on something slow, use a command that blocks until it is done; otherwise "+
-				"try something else or tell the user. (Threshold: `nav-pilot config set local_loop_guard <n>`, current %d.)",
-			s.N, shown, threshold)
+				"try something else or tell the user.",
+			s.N, shown)
 	}
 	return ""
 }
@@ -141,6 +161,12 @@ func SameResult(threshold int) int { return max(2, threshold/2) }
 // shellTools are the shell tool names, as the hook artifacts' matcher
 // (bash|shell|execute) lists them, plus PowerShell on Windows.
 var shellTools = map[string]bool{"bash": true, "shell": true, "execute": true, "powershell": true}
+
+// isShellCall reports whether a Signature is a shell tool's.
+func isShellCall(sig string) bool {
+	tool, _, _ := strings.Cut(sig, "(")
+	return shellTools[strings.ToLower(tool)]
+}
 
 var unsafeID = regexp.MustCompile(`[^A-Za-z0-9_-]`)
 

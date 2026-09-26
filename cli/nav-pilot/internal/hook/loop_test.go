@@ -281,3 +281,16 @@ func TestLoopGuardReplaysTheGPT5MiniEvasion(t *testing.T) {
 		t.Errorf("state holds the call or the result: %s", state)
 	}
 }
+
+// A run saved before Raw existed has no raw hash: the next identical result
+// must not read as "only the counters changed".
+func TestStepLegacyStateIsNotVaried(t *testing.T) {
+	legacy := LoopState{}.Step("c", "success", "queued 1")
+	legacy.Raw = ""
+	if s := legacy.Step("c", "success", "queued 1"); s.Varied {
+		t.Error("a legacy state marked the run varied")
+	}
+	if s := legacy.Step("c", "success", "queued 1").Step("c", "success", "queued 2"); !s.Varied {
+		t.Error("a raw difference after the first compared step was missed")
+	}
+}

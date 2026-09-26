@@ -965,6 +965,19 @@ function PakkeSection() {
             skrevet. Dine egne hooks blir stående.
           </BodyLong>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            Portene slipper gjennom når Python svikter: mangler <code className="font-mono text-xs">python3</code>,
+            feiler skriptet eller svarer det ikke innen ett sekund før fristen, blir kallet tillatt. Hver port har et
+            unntak: <code className="font-mono text-xs">POLL_OK=1</code> foran kommandoen for polling-porten, og en
+            kommentar med <code className="font-mono text-xs">ARIA_OK</code> og begrunnelsen ved rollen for ARIA-porten.
+            ARIA-porten ber bare modellen spørre deg og nevner ikke merket. Merket er et spor du legger igjen etter at
+            du har sagt ja, ikke en lås: en modell kan skrive det selv.
+          </BodyLong>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            nav-pilots egne hooks (løkkevakt og maskering) kjører med maskering og løkkevakt på selv om{" "}
+            <code className="font-mono text-xs">config.toml</code> ikke lar seg lese, og sier fra på stderr. Beskjeden
+            fra løkkevakten nevner ikke terskelen, så modellen ikke hever den selv; den står på stderr for deg.
+          </BodyLong>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
             Teamet ditt kan påvirke verktøykassa uten å bygge den selv.{" "}
             <NextLink href="/nav-pilot/agentpakker" className="underline">
               Agentpakker

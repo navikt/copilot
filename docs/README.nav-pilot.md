@@ -198,6 +198,35 @@ virker før du bygger noe på den.
 betrodd, og `nav-pilot doctor` sier om de installerte hookene faktisk kan fyre der du står.
 Tåler ikke porten å være stille ute av funksjon, er `--user` det scopet som fyrer uansett.
 
+### Portene slipper gjennom når Python svikter
+
+Copilot CLI nekter et verktøykall når en `preToolUse`-hook bruker lengre tid enn
+`timeoutSec`. Kommandoen nav-pilot skriver, stopper derfor skriptet ett sekund før fristen,
+og da slipper kallet gjennom. Det samme skjer når `python3` mangler eller skriptet feiler. En
+port som nekter alt når Python er treg, er verre enn ingen port. Kommandoen bruker bare `sh`,
+fordi macOS ikke har `timeout`.
+
+Det et skript skriver ut, teller bare når det avslutter med exitkode 0. Skriver en hook fra en
+annen pakke et `deny`-svar og avslutter med 2, slipper kallet altså gjennom. Skal en port nekte,
+må den skrive svaret og avslutte med 0, slik nav-pilots egne porter gjør.
+
+Hver port har et unntak for når den tar feil:
+
+| Port             | Unntak                                                                                          |
+| ---------------- | ----------------------------------------------------------------------------------------------- |
+| `gh-poll-gate`   | `POLL_OK=1` foran kommandoen                                                                    |
+| `ask-first-aria` | En kommentar med `ARIA_OK` og begrunnelsen like ved hver ny rolle, etter at utvikleren har sagt ja |
+
+Begrunnelsen `gh-poll-gate` gir modellen, nevner `POLL_OK=1`: polling er noen ganger riktig,
+og det avgjør modellen selv. Begrunnelsen fra `ask-first-aria` nevner ikke `ARIA_OK`. Den sier
+bare at modellen skal spørre utvikleren, fordi det er utvikleren som skal si ja til en
+egendefinert rolle.
+
+`ARIA_OK` er et spor, ikke en lås. Utvikleren, eller modellen etter at utvikleren har sagt
+ja, legger merket i koden, og der blir det stående som et tegn på at rollen er godkjent.
+Ingenting hindrer en modell i å skrive merket uten å spørre. Merket må være nytt i skrivingen:
+et merke som bare følger med fra før, godkjenner ikke en ny rolle.
+
 ### nav-pilots egne hooks
 
 Hookene over er Python-skript du velger å installere. nav-pilot har i tillegg egne hooks
@@ -216,14 +245,21 @@ det modellen leser. Når løkkevakten slår til, får modellen derfor en beskjed
 fast, med resultatet under, i stedet for det samme svaret en gang til. Terskelen følger
 `local_loop_guard`, og det som skjedde tidligere i økta ligger i en liten fil i øktas egen
 mappe, `~/.copilot/session-state/<økt-id>/nav-pilot-loop-guard.json`. Filen inneholder bare
-hasher og to tellere, aldri selve kallet eller resultatet.
+hasher og tellere, aldri selve kallet eller resultatet.
+
+Beskjeden til modellen nevner verken terskelen eller hvordan den endres. En modell som får
+vite hvordan grensen heves, kan heve den selv. Terskelen og `nav-pilot config set
+local_loop_guard <n>` står i stedet på stderr, for deg. Var resultatene like bare etter at
+tall, id-er og tidsstempler er tatt bort, sier beskjeden det, og for et skallkall peker den på en
+kommando som venter til noe er ferdig (`gh run watch <run-id> --exit-status`).
 
 I sandkassen til cplt får hookene verken lese eller skrive `~/.nav-pilot/`. Der bruker de
 innstillingene nav-pilot skrev inn i hook-kommandoen ved siste oppstart. En endring med
 `nav-pilot config set` gjelder derfor i sandkassen fra neste gang du starter `nav-pilot`.
 
 Maskeringen bytter ut funnet med `[REDACTED:<type>]`, for eksempel `[REDACTED:fnr]`, og lar
-resten av resultatet stå. Et fødselsnummer maskeres bare når datoen er gyldig og begge
+resten av resultatet stå. Øverst i resultatet står en merknad til modellen om at noe er
+maskert, at fila på disk er uendret, og at den ikke skal skrive plassholderne tilbake. Et fødselsnummer maskeres bare når datoen er gyldig og begge
 kontrollsifrene stemmer. D-nummer (dag + 40) og H-nummer (måned + 40) regnes med. Et
 tilfeldig tall på elleve sifre blir derfor stående. Merknaden om instrukser stopper
 ingenting: den sier bare til modellen at teksten kommer fra verktøyet og ikke skal følges.
@@ -233,7 +269,12 @@ falske treff i vanlig kode og vanlige logger. Hooken fanger ikke alle hemmelighe
 I en lokal økt står vakten i nav-pilot allerede foran modellen og avslutter turen. Der gjør
 hooken ingenting, så modellen ikke får to beskjeder om samme løkke. Hookene er laget for å
 slippe gjennom ved feil: finnes ikke `nav-pilot` på `PATH`, eller går noe galt, blir
-resultatet stående som det var. opencode får ikke disse hookene ennå
+resultatet stående som det var. Unntaket er en `config.toml` som ikke lar seg lese. Da
+kjører hookene med standardverdiene, altså med maskering og løkkevakt på, og skriver én
+linje om det på stderr. En ødelagt fil skal ikke være det som slår av maskeringen. En nøkkel
+med feil type, for eksempel `hook_redact_secrets = "false"` med anførselstegn, blir hoppet
+over, så standardverdien gjelder, og hooken sier fra om det på stderr.
+`nav-pilot doctor` sier fra om fila, og `nav-pilot` starter ikke før den er rettet. opencode får ikke disse hookene ennå
 ([#709](https://github.com/navikt/copilot/issues/709)).
 
 ### Hub-repo

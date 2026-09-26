@@ -120,14 +120,27 @@ SAFE_ROLES = frozenset(
 )
 
 REASON = (
-    "En egendefinert ARIA-rolle er ⚠️ Ask First i accessibility.agent.md:249, "
-    "og et avvik fra Aksel-mønsteret er det samme på :250. Ikke skriv endringen "
-    "selv. Spør utvikleren om bekreftelse først, eller vis til Aksel-komponenten "
+    "En egendefinert ARIA-rolle og et avvik fra Aksel-mønsteret står begge under "
+    "⚠️ Ask First i accessibility-agenten "
+    "(https://github.com/navikt/copilot/blob/main/agents/accessibility.agent.md). "
+    "Ikke skriv endringen selv. Spør utvikleren om bekreftelse først, eller vis til Aksel-komponenten "
     "som allerede har rollen innebygd: <Select> for et statusvalg, eller "
     "<UNSAFE_Combobox> når valget skal kunne søkes i. Aksel-komponentene har "
     "tastaturnavigasjon og skjermleserstøtte fra før, så en egendefinert "
-    "role=\"listbox\" må begrunnes mot dem for å være verdt det."
+    "role=\"listbox\" må begrunnes mot dem for å være verdt det. Spør utvikleren "
+    "og vent på svaret før du prøver igjen."
 )
+
+# Unntaket når utvikleren har sagt ja: en kommentar med ARIA_OK ved rollen. Et
+# verktøykall for å skrive en fil har ingen kommando å sette en variabel foran,
+# så merket står i innholdet, og det blir stående i koden som et spor av at
+# rollen er godkjent. Det må være nytt i skrivingen: et ARIA_OK som alt står i
+# `old_str` og bare følger med videre, godkjenner ikke en ny rolle.
+#
+# Merket er et spor, ikke en lås. Modellen kan skrive det selv, så REASON nevner
+# det ikke: den sier bare at modellen skal spørre. Oppskriften står i
+# dokumentasjonen, for utvikleren som har sagt ja.
+ARIA_OK = "ARIA_OK"
 
 
 def text_of(args, keys):
@@ -237,6 +250,25 @@ def writes_of(args):
     return [(path, new, old) for path in paths_of(args)]
 
 
+# Hvor nær rollen merket må stå, i tegn, før eller etter attributtet.
+ARIA_OK_NEAR = 200
+
+
+def aria_ok(new, old):
+    """→ True når hver ny, utrygg rolle har et ARIA_OK like ved seg, og det
+    finnes flere merker enn før. Ett merke et helt annet sted i fila godkjenner
+    altså ikke en rolle, og et merke som bare følger med fra `old`, heller ikke."""
+    if new.count(ARIA_OK) <= old.count(ARIA_OK):
+        return False
+    fresh = role_names(new) - role_names(old) - SAFE_ROLES
+    for m in ROLE_ATTR.finditer(new):
+        if role_names(m.group(0)) & fresh:
+            near = new[max(0, m.start() - ARIA_OK_NEAR):m.end() + ARIA_OK_NEAR]
+            if ARIA_OK not in near:
+                return False
+    return True
+
+
 def decide(payload):
     """→ grunntekst hvis kallet skal nektes, ellers None."""
     args = payload.get("toolArgs")
@@ -251,6 +283,8 @@ def decide(payload):
         # flyttes innfører ingenting, mens en ny rolle ved siden av en gammel
         # skal fortsatt nektes.
         if (role_names(new) - role_names(old)) - SAFE_ROLES:
+            if aria_ok(new, old):
+                continue
             return REASON
     return None
 
@@ -365,12 +399,27 @@ SELFTEST = [
      _sr("src/lib/roller.ts", "x", '<ul role="listbox" />'), False),
     ("slipper gjennom en rolle delt over to redigeringer",
      _sr(TSX, "<ul", '<ul rol'), False),
+
+    # ── ARIA_OK etter at utvikleren har sagt ja ──────────────────────────────
+    ("slipper gjennom en rolle med et nytt ARIA_OK ved siden av",
+     _sr(TSX, "<ul>", '{/* ARIA_OK: godkjent av utvikleren */}<ul role="listbox">'), False),
+    ("nekter en rolle når ARIA_OK står et helt annet sted",
+     _sr(TSX, "<ul>", "// ARIA_OK" + " " * 400 + '<ul role="listbox">'), True),
+    ("nekter en andre rolle uten eget ARIA_OK like ved",
+     _sr(TSX, "<ul>", '{/* ARIA_OK: listbox */}<ul role="listbox">' + " " * 400 + '<div role="grid">'), True),
+    ("nekter en ny rolle når ARIA_OK bare følger med fra før",
+     _sr(TSX, '{/* ARIA_OK: a */}<ul>', '{/* ARIA_OK: a */}<ul role="listbox">'), True),
 ]
 
 def selftest():
     import subprocess
 
     failed = 0
+    # Modellen leser REASON. Står oppskriften på unntaket der, kan den skrive
+    # merket selv i stedet for å spørre.
+    ok = "ARIA_OK" not in REASON
+    print(f"{'✅' if ok else '❌'} begrunnelsen gir ikke modellen oppskriften på ARIA_OK")
+    failed += 0 if ok else 1
     for name, payload, want_deny in SELFTEST:
         p = subprocess.run(
             [sys.executable, __file__],
@@ -387,7 +436,7 @@ def selftest():
             failed += 1
             print(f"   exit={p.returncode} deny={got_deny} want={want_deny}")
             print(f"   stdout={p.stdout!r} stderr={p.stderr!r}")
-    print(f"\n{len(SELFTEST) - failed}/{len(SELFTEST)} ok")
+    print(f"\n{len(SELFTEST) + 1 - failed}/{len(SELFTEST) + 1} ok")
     return 1 if failed else 0
 
 

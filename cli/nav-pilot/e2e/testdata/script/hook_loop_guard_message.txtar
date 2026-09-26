@@ -1,0 +1,45 @@
+# What the loop guard hands the model. It names no threshold and no config
+# key: a model told how to raise the limit that stopped it can do just that.
+# The human gets both on stderr. A poll whose output changed only in its
+# counters says so instead of "the same result every time", and a shell poll
+# is pointed at a command that blocks.
+
+stdin p1.json
+exec nav-pilot hook loop-guard
+stdout '^\{\}$'
+stdin p2.json
+exec nav-pilot hook loop-guard
+stdin p3.json
+exec nav-pilot hook loop-guard
+! stderr .
+stdin p4.json
+exec nav-pilot hook loop-guard
+stdout 'got the same result every time apart from numbers, ids and timestamps'
+stdout 'use a command that blocks until it is done \(for GitHub Actions: .gh run watch'
+! stdout 'local_loop_guard'
+! stdout 'config set'
+stderr 'nav-pilot loop guard: same_result tripped \(local_loop_guard = 8; nav-pilot config set local_loop_guard <n> changes it\)'
+
+# Identical results: no "apart from".
+stdin v.json
+exec nav-pilot hook loop-guard
+stdin v.json
+exec nav-pilot hook loop-guard
+stdin v.json
+exec nav-pilot hook loop-guard
+stdin v.json
+exec nav-pilot hook loop-guard
+stdout 'got the same result every time: view'
+! stdout 'apart from'
+! stdout 'gh run watch'
+
+-- p1.json --
+{"sessionId":"s1","toolName":"bash","toolArgs":{"command":"gh run view 123"},"toolResult":{"resultType":"success","textResultForLlm":"in_progress, 1 of 30 jobs, 12s"}}
+-- p2.json --
+{"sessionId":"s1","toolName":"bash","toolArgs":{"command":"gh run view 123"},"toolResult":{"resultType":"success","textResultForLlm":"in_progress, 2 of 30 jobs, 31s"}}
+-- p3.json --
+{"sessionId":"s1","toolName":"bash","toolArgs":{"command":"gh run view 123"},"toolResult":{"resultType":"success","textResultForLlm":"in_progress, 3 of 30 jobs, 50s"}}
+-- p4.json --
+{"sessionId":"s1","toolName":"bash","toolArgs":{"command":"gh run view 123"},"toolResult":{"resultType":"success","textResultForLlm":"in_progress, 4 of 30 jobs, 69s"}}
+-- v.json --
+{"sessionId":"s2","toolName":"view","toolArgs":{"path":"README.md"},"toolResult":{"resultType":"success","textResultForLlm":"hello"}}
