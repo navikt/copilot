@@ -43,7 +43,10 @@ func binary(t *testing.T) string {
 			return
 		}
 		binPath = filepath.Join(dir, "nav-pilot")
-		cmd := exec.Command("go", "build", "-o", binPath, ".")
+		// The e2e seams let fake-gh stand in for GitHub (see fakegh_test.go).
+		// A release build leaves them off, so its binary never reads them.
+		cmd := exec.Command("go", "build", "-o", binPath,
+			"-ldflags", "-X github.com/navikt/copilot/cli/nav-pilot/internal/cli.e2eSeams=1", ".")
 		cmd.Dir = ".."
 		if out, err := cmd.CombinedOutput(); err != nil {
 			buildErr = err

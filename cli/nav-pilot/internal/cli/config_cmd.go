@@ -117,7 +117,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "auto_update",
 		kind:        keyKindBool,
-		description: "Automatically upgrade nav-pilot when a new version is available, skipping the interactive prompt.",
+		description: "Automatically upgrade nav-pilot when a new version is available, skipping the interactive prompt. A failed upgrade runs the command on the current version and waits 24 hours before trying again.",
 		allowed:     nil,
 		defaultVal:  "false",
 		flag:        "",

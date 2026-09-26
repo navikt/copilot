@@ -197,9 +197,9 @@ func userScopeAccepts(itemType string) bool {
 // command runs. stop is true when the caller should return without running the
 // command, which happens only when an update landed but the re-exec failed.
 //
-// An explicit `nav-pilot update` does not come through here: it calls doUpdate
-// directly, so neither the quiet period nor the brew branch below applies to a
-// user who asked for the update.
+// An explicit `nav-pilot upgrade` does not come through here (run skips it): it
+// calls doUpdate directly, so neither the quiet period nor the brew branch below
+// applies to a user who asked for the update, and no prompt asks them again.
 func startupUpdateCheck() (stop bool, err error) {
 	// Self-check: warn if nav-pilot binary is outdated (fast, cached)
 	assessment := assessStaleness(Version)
@@ -229,11 +229,15 @@ func startupUpdateCheck() (stop bool, err error) {
 		// was never going to happen. Say what will work instead, in one line.
 		fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s\n",
 			yellow("⚠"), assessment.LatestVersion, Version, bold(navPilotUpgradeCmd(mgr)))
-	} else if autoUpdate && !alreadyReexeced {
+	} else if autoUpdate && !alreadyReexeced && !autoUpdateBackingOff(time.Now()) {
 		fmt.Fprintf(os.Stderr, "%s Auto-updating nav-pilot %s → %s...\n", yellow("ℹ"), Version, assessment.LatestVersion)
-		updated, err := doUpdate()
+		// On stderr: this runs in front of another command, and that
+		// command's stdout (a --json document) must stay its own.
+		updated, err := doUpdate(os.Stderr)
 		if err != nil {
-			return false, fmt.Errorf("auto-update failed: %w", err)
+			// The command the user ran still runs, on the version they have.
+			autoUpdateFailed(assessment.LatestVersion, err)
+			return false, nil
 		}
 		if updated {
 			if err := reexecSelf(); err != nil {
@@ -254,9 +258,10 @@ func startupUpdateCheck() (stop bool, err error) {
 			Run()
 
 		if err == nil && upgradeChoice {
-			updated, err := doUpdate()
+			updated, err := doUpdate(os.Stderr)
 			if err != nil {
-				return false, fmt.Errorf("interactive upgrade failed: %w", err)
+				fmt.Fprintf(os.Stderr, "%s Upgrade failed: %v\n  Running %s instead.\n\n", yellow("⚠"), err, Version)
+				return false, nil
 			}
 			if updated {
 				if err := reexecSelf(); err != nil {
@@ -270,9 +275,9 @@ func startupUpdateCheck() (stop bool, err error) {
 		fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s to upgrade\n",
 			yellow("⚠"), assessment.LatestVersion, Version, bold("nav-pilot upgrade"))
 	} else {
-		// autoUpdate is true but alreadyReexeced is true: we already tried
-		// updating once in this process chain and it didn't stick (e.g.
-		// stale cache). Warn instead of looping.
+		// autoUpdate is true, but either we already tried updating once in
+		// this process chain and it didn't stick (e.g. stale cache), or an
+		// auto-update failed within the backoff. Warn instead of retrying.
 		fmt.Fprintf(os.Stderr, "%s nav-pilot %s still reported after a recent update attempt (current: %s) — run %s to retry\n",
 			yellow("⚠"), assessment.LatestVersion, Version, bold("nav-pilot upgrade"))
 	}
@@ -282,8 +287,13 @@ func startupUpdateCheck() (stop bool, err error) {
 func run(args []string) error {
 	// Per run, not per process: a second run() in one process prints it again.
 	notedProposals = map[string]bool{}
-	if stop, err := startupUpdateCheck(); stop || err != nil {
-		return err
+	// upgrade is the update: checking first would offer (and, answered No,
+	// still run) the same upgrade, and --dry-run would install before it
+	// could check.
+	if len(args) == 0 || (args[0] != "upgrade" && args[0] != "update" && args[0] != "up") {
+		if stop, err := startupUpdateCheck(); stop || err != nil {
+			return err
+		}
 	}
 
 	// --client=opencode reads as --client opencode. alpha keeps its own
@@ -511,6 +521,11 @@ func run(args []string) error {
 	// Resolve short aliases to canonical command names.
 	if canonical, ok := commandAliases[command]; ok {
 		command = canonical
+	}
+
+	// upgrade takes its own flags; see cmdUpgrade.
+	if command == "upgrade" || command == "update" {
+		return cmdUpgrade(command, rest)
 	}
 
 	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled, frozen, yes, saveSource bool
@@ -919,15 +934,6 @@ func run(args []string) error {
 		return runWithCommandTelemetry("uninstall", telemetryMode(), scope.Name, func() error {
 			return cmdUninstall(scope, dryRun, force)
 		})
-	case "upgrade":
-		return runWithCommandTelemetry("upgrade", telemetryMode(), "none", cmdUpdate)
-	case "update":
-		// Deprecated: hidden alias for backward compatibility
-		if !jsonOutput {
-			fmt.Fprintf(os.Stderr, "%s %s is deprecated. Use: %s\n\n",
-				yellow("⚠"), bold("nav-pilot update"), bold("nav-pilot upgrade"))
-		}
-		return runWithCommandTelemetry("update", telemetryMode(), "none", cmdUpdate)
 	case "config":
 		return runWithCommandTelemetry("config", telemetryMode(), "none", func() error {
 			return cmdConfig(positional, force, jsonOutput)
@@ -966,6 +972,9 @@ func run(args []string) error {
 			name := positional[0]
 			if canonical, ok := commandAliases[name]; ok {
 				name = canonical
+			}
+			if name == "update" {
+				name = "upgrade" // the deprecated name
 			}
 			if name == "alpha" {
 				alphaUsage(os.Stdout)
@@ -1009,7 +1018,7 @@ const reexecGuardEnv = "NAV_PILOT_REEXEC_GUARD"
 // if the executable path cannot be determined or exec fails, instead of
 // silently falling through as the previous implementation did.
 func reexecSelf() error {
-	fmt.Println("Upgrade successful! Re-executing command...")
+	fmt.Fprintln(os.Stderr, "Upgrade successful! Re-executing command...")
 	exe, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("cannot determine binary path: %w", err)
@@ -1031,6 +1040,7 @@ func Main(info BuildInfo) {
 		runHookCommand(os.Args[2:], os.Stdin, os.Stdout)
 		return
 	}
+	applyE2ESeams(&info)
 	Version = info.Version
 	buildInfo = info
 	providerpkg.SetVersion(info.Version)

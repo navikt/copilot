@@ -1,0 +1,39 @@
+# upgrade --dry-run checks and changes nothing: current → latest, exit 1 when
+# an update is available and 0 when up to date, the way sync reports. It used
+# to replace the binary.
+
+fake-gh
+
+exits 1 nav-pilot upgrade --dry-run
+stdout 'Update available: 2026.09.01-120000-aaaaaaa → 2026.09.24-120000-bbbbbbb'
+stdout 'Run nav-pilot upgrade to install it'
+! stdout 'Downloading'
+! stdout 'Updated'
+exec nav-pilot version
+stdout '^nav-pilot 2026.09.01-120000-aaaaaaa'
+
+exits 1 nav-pilot upgrade -n
+exec nav-pilot version
+stdout '^nav-pilot 2026.09.01-120000-aaaaaaa'
+
+# Up to date: exit 0.
+env NAV_PILOT_E2E_VERSION=2026.09.24-120000-bbbbbbb
+exits 0 nav-pilot upgrade --dry-run
+stdout 'up to date \(2026.09.24-120000-bbbbbbb\)'
+env NAV_PILOT_E2E_VERSION=2026.09.01-120000-aaaaaaa
+
+# An unknown flag is refused, and -y no longer reads as a typo for -n.
+exits 1 nav-pilot upgrade --json
+stderr 'unknown flag --json. Run nav-pilot help upgrade'
+exec nav-pilot help upgrade
+stdout '--dry-run'
+stdout '--yes'
+exec nav-pilot help update
+stdout 'Usage: nav-pilot upgrade'
+
+# --yes (and -y) is the non-interactive upgrade.
+exec nav-pilot upgrade -y
+stdout 'Updated to nav-pilot 2026.09.24-120000-bbbbbbb'
+! stderr 'Did you mean'
+exec nav-pilot version
+stdout upgraded

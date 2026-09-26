@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -139,8 +140,8 @@ func TestExplicitUpdateIgnoresQuietPeriod(t *testing.T) {
 	}
 
 	out := captureStdoutFor(t, func() {
-		if err := cmdUpdate(); err != nil {
-			t.Fatalf("cmdUpdate = %v", err)
+		if _, err := doUpdate(os.Stdout); err != nil {
+			t.Fatalf("doUpdate = %v", err)
 		}
 	})
 	if !strings.Contains(out, "brew upgrade navikt/tap/nav-pilot") {

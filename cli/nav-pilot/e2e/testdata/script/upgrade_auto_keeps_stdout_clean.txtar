@@ -1,0 +1,17 @@
+# An auto-update in front of another command prints its progress on stderr, so
+# that command's --json document is the only thing on stdout. The progress
+# lines used to land on stdout ahead of the JSON.
+
+fake-gh
+
+exec nav-pilot models --json
+validjson stdout
+stdout '"upgraded"'
+! stdout 'Downloading|Verifying|Updated|Re-executing'
+stderr 'Auto-updating nav-pilot 2026.09.01-120000-aaaaaaa → 2026.09.24-120000-bbbbbbb'
+stderr 'Downloading'
+stderr 'Updated to nav-pilot 2026.09.24-120000-bbbbbbb'
+stderr 'Re-executing'
+
+-- home/config.toml --
+auto_update = true

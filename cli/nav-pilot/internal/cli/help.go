@@ -126,6 +126,24 @@ Subcommands:
   explain [key]           Describe the keys
   sandbox                 Configure the cplt sandbox profile
 `,
+	"upgrade": `Usage: nav-pilot upgrade [flags]
+
+Replace this nav-pilot with the latest release, after checking its SHA-256
+checksum. It never asks. A Homebrew or apt install is left to its package
+manager: upgrade prints the command that updates it instead.
+
+upgrade installs the latest release only. To pin a version, use your package
+manager, or download it from ` + releasesPage + `.
+
+Flags:
+  -n, --dry-run           Only check: print current → latest and change nothing.
+                          Exit 0 when up to date, 1 when an update is available
+  -y, --yes               Upgrade without asking (upgrade never asks; for scripts)
+
+With auto_update = true, nav-pilot upgrades itself before other commands. A
+failed auto-update warns on stderr, runs the version you have and waits 24
+hours before it tries again. Turn it off: nav-pilot config set auto_update false
+`,
 }
 
 // printHelp prints the page for command, or the top-level page when it has none.
