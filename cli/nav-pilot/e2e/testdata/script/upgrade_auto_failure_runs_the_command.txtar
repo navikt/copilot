@@ -1,0 +1,22 @@
+# A failed auto-update does not fail the command. It warns on stderr, runs the
+# version you have, names the way to turn it off, and waits a day before it
+# tries again. It used to abort every command with the checksum error.
+
+fake-gh badsum
+
+exec nav-pilot version --json
+validjson stdout
+stdout '"version": "2026.09.01-120000-aaaaaaa"'
+stderr 'Auto-update to nav-pilot 2026.09.24-120000-bbbbbbb failed: checksum mismatch'
+stderr 'Running 2026.09.01-120000-aaaaaaa instead'
+stderr 'nav-pilot config set auto_update false'
+
+# Within the day it does not download again: it only says an update is due.
+exec nav-pilot version --json
+validjson stdout
+! stderr 'Auto-updating'
+! stderr 'failed'
+stderr 'run nav-pilot upgrade to retry'
+
+-- home/config.toml --
+auto_update = true

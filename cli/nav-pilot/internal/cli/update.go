@@ -39,46 +39,109 @@ type ghRelease struct {
 	TagName string `json:"tag_name"`
 }
 
-// cmdUpdate checks for a newer version and updates the binary in-place.
-// If installed via Homebrew, it tells the user to use brew upgrade instead.
-func cmdUpdate() error {
-	_, err := doUpdate()
-	return err
+// releasesPage is where a user picks one nav-pilot version by hand.
+const releasesPage = "https://github.com/navikt/copilot/releases?q=nav-pilot"
+
+// cmdUpgrade is `nav-pilot upgrade` (and the deprecated `update`). It parses
+// its own flags: the shared loop accepts every command's flags everywhere, so
+// `upgrade --dry-run` used to parse and then upgrade anyway, and `upgrade
+// 2026.09.10-…` installed the latest release without a word about the version.
+func cmdUpgrade(command string, args []string) error {
+	check := false
+	for _, a := range args {
+		switch a {
+		case "-n", "--dry-run":
+			check = true
+		case "-y", "--yes":
+			// upgrade never asks. Accepted so a script can say it means it.
+		case "-h", "--help":
+			printHelp(os.Stdout, "upgrade")
+			return nil
+		default:
+			if strings.HasPrefix(a, "-") {
+				return fmt.Errorf("unknown flag %s. Run nav-pilot help upgrade for its flags", a)
+			}
+			return fmt.Errorf("upgrade doesn't take a version: it installs the latest release. To pin %s, use your package manager or download it from %s", a, releasesPage)
+		}
+	}
+	if command == "update" {
+		fmt.Fprintf(os.Stderr, "%s %s is deprecated. Use: %s\n\n",
+			yellow("⚠"), bold("nav-pilot update"), bold("nav-pilot upgrade"))
+	}
+	return runWithCommandTelemetry(command, telemetryMode(), "none", func() error {
+		if check {
+			return checkUpdate()
+		}
+		_, err := doUpdate(os.Stdout)
+		return err
+	})
+}
+
+// checkUpdate is `upgrade --dry-run`: it says whether a newer release exists
+// and changes nothing. Exit 1 when one does, the way sync reports updates.
+func checkUpdate() error {
+	latest, _, err := latestRelease()
+	if err != nil {
+		return err
+	}
+	if !versionNewer(latest, Version) {
+		fmt.Printf("✓ nav-pilot is up to date (%s)\n", Version)
+		return nil
+	}
+	how := "nav-pilot upgrade"
+	if mgr := packageManager(); mgr.Name != "" {
+		how = navPilotUpgradeCmd(mgr)
+	}
+	fmt.Printf("Update available: %s → %s\nRun %s to install it.\n", Version, latest, bold(how))
+	return errUpdatesAvailable
+}
+
+// latestRelease looks up the newest nav-pilot release for an explicit upgrade.
+func latestRelease() (ver, tag string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	ver, tag, err = fetchLatestVersion(ctx)
+	if err != nil {
+		return "", "", fmt.Errorf("could not check for updates: %w", err)
+	}
+	return ver, tag, nil
 }
 
 // doUpdate performs the update check and, if a newer version is available,
 // downloads and installs it. It returns updated=true only if the binary was
 // actually replaced, so callers can distinguish "already up to date" (no-op)
 // from "successfully updated" and avoid re-executing when nothing changed.
-func doUpdate() (updated bool, err error) {
+//
+// Everything it prints goes to w: stdout for `nav-pilot upgrade`, whose output
+// this is, and stderr for the auto-update in front of another command, whose
+// stdout (a --json document, say) must stay its own.
+func doUpdate(w io.Writer) (updated bool, err error) {
 	if mgr := packageManager(); mgr.Name != "" {
 		// Print first, then check cplt: the cplt lookup can take seconds, and
 		// the "managed by Homebrew" line used to be instant.
-		fmt.Printf("nav-pilot is managed by %s.\n", mgr.Label)
-		fmt.Println()
+		fmt.Fprintf(w, "nav-pilot is managed by %s.\n", mgr.Label)
+		fmt.Fprintln(w)
 		upgrade := navPilotUpgradeCmd(mgr)
 		if cpltBehind() {
 			// The apt archive ships cplt too, and apt upgrades both in one go.
 			upgrade += mgr.Pick(" navikt/tap/cplt", " cplt")
 		}
-		fmt.Printf("  %s\n", upgrade)
+		fmt.Fprintf(w, "  %s\n", upgrade)
 		return false, nil
 	}
 
 	current := Version
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	latest, tag, err := fetchLatestVersion(ctx)
+	latest, tag, err := latestRelease()
 	if err != nil {
-		return false, fmt.Errorf("could not check for updates: %w", err)
+		return false, err
 	}
 
 	if !versionNewer(latest, current) {
-		fmt.Printf("✓ nav-pilot is up to date (%s)\n", current)
+		fmt.Fprintf(w, "✓ nav-pilot is up to date (%s)\n", current)
 		return false, nil
 	}
 
-	fmt.Printf("Update available: %s → %s\n", current, latest)
+	fmt.Fprintf(w, "Update available: %s → %s\n", current, latest)
 
 	self, err := os.Executable()
 	if err != nil {
@@ -93,13 +156,13 @@ func doUpdate() (updated bool, err error) {
 	assetURL := fmt.Sprintf("%s/%s/%s", downloadURL, tag, asset)
 	checksumURL := fmt.Sprintf("%s/%s/SHA256SUMS", downloadURL, tag)
 
-	fmt.Printf("→ Downloading %s...\n", asset)
+	fmt.Fprintf(w, "→ Downloading %s...\n", asset)
 	bin, err := httpGet(assetURL)
 	if err != nil {
 		return false, fmt.Errorf("download failed: %w", err)
 	}
 
-	if err := verifyChecksum(bin, asset, checksumURL); err != nil {
+	if err := verifyChecksum(w, bin, asset, checksumURL); err != nil {
 		return false, err
 	}
 
@@ -134,7 +197,10 @@ func doUpdate() (updated bool, err error) {
 		LatestVersion: latest,
 	})
 
-	fmt.Printf("✓ Updated to nav-pilot %s\n", latest)
+	if p := autoUpdateFailedPath(); p != "" {
+		_ = os.Remove(p) // this one worked, so the next auto-update need not wait
+	}
+	fmt.Fprintf(w, "✓ Updated to nav-pilot %s\n", latest)
 	return true, nil
 }
 
@@ -335,11 +401,17 @@ func httpGet(url string) ([]byte, error) {
 
 // verifyChecksum downloads SHA256SUMS and verifies the binary checksum.
 // Fails hard if checksums cannot be fetched or the asset entry is missing.
-func verifyChecksum(data []byte, asset, checksumURL string) error {
-	fmt.Print("→ Verifying checksum...")
+func verifyChecksum(w io.Writer, data []byte, asset, checksumURL string) (err error) {
+	fmt.Fprint(w, "→ Verifying checksum...")
+	// End the progress line either way, so what follows starts on its own.
+	defer func() {
+		if err != nil {
+			fmt.Fprintln(w, " ✗")
+		}
+	}()
 	sums, err := httpGet(checksumURL)
 	if err != nil {
-		return fmt.Errorf(" failed to download checksums: %w", err)
+		return fmt.Errorf("failed to download checksums: %w", err)
 	}
 
 	var expected string
@@ -354,19 +426,78 @@ func verifyChecksum(data []byte, asset, checksumURL string) error {
 	}
 
 	if expected == "" {
-		return fmt.Errorf(" no checksum entry found for %s", asset)
+		return fmt.Errorf("no checksum entry found for %s", asset)
 	}
 
 	actual := sha256sum(data)
 	if actual != expected {
-		return fmt.Errorf(" checksum mismatch!\n  Expected: %s\n  Got:      %s", expected, actual)
+		return fmt.Errorf("checksum mismatch!\n  Expected: %s\n  Got:      %s", expected, actual)
 	}
 
-	fmt.Println(" ✓")
+	fmt.Fprintln(w, " ✓")
 	return nil
 }
 
 func sha256sum(data []byte) string {
 	h := sha256.Sum256(data)
 	return hex.EncodeToString(h[:])
+}
+
+// autoUpdateBackoff is how long a failed auto-update waits before it tries
+// again. Every command runs the update first, so without it one bad release
+// (a checksum that does not match, a read-only install dir) failed every
+// command until someone found the config key.
+const autoUpdateBackoff = 24 * time.Hour
+
+// autoUpdateFailedPath is the marker a failed auto-update leaves; its mtime is
+// when it failed. Beside the staleness cache, in nav-pilot's state directory.
+func autoUpdateFailedPath() string {
+	p := artifacts.CacheFilePath()
+	if p == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(p), "auto-update-failed")
+}
+
+// autoUpdateBackingOff reports whether an auto-update failed within the backoff.
+func autoUpdateBackingOff(now time.Time) bool {
+	p := autoUpdateFailedPath()
+	if p == "" {
+		return false
+	}
+	fi, err := os.Stat(p)
+	return err == nil && now.Sub(fi.ModTime()) < autoUpdateBackoff
+}
+
+// autoUpdateFailed tells the user the update did not happen and the command
+// runs on the version they have, and remembers the failure for the backoff.
+func autoUpdateFailed(latest string, err error) {
+	if p := autoUpdateFailedPath(); p != "" {
+		_ = os.MkdirAll(filepath.Dir(p), 0o755)
+		_ = os.WriteFile(p, []byte(latest+"\n"), 0o644)
+	}
+	fmt.Fprintf(os.Stderr, "%s Auto-update to nav-pilot %s failed: %v\n", yellow("⚠"), latest, err)
+	fmt.Fprintf(os.Stderr, "  Running %s instead. nav-pilot tries again in 24 hours; %s updates now, %s turns it off.\n\n",
+		Version, bold("nav-pilot upgrade"), bold("nav-pilot config set auto_update false"))
+}
+
+// e2eSeams is set to "1" by the e2e suite's build (-ldflags -X), and by
+// nothing else. Only then does nav-pilot read NAV_PILOT_E2E_GITHUB (a fake
+// GitHub serving the releases API and downloads) and NAV_PILOT_E2E_VERSION
+// (the version it claims to be), so a journey can drive upgrade without the
+// network. A release build has no such variables.
+var e2eSeams string
+
+func applyE2ESeams(info *BuildInfo) {
+	if e2eSeams != "1" {
+		return
+	}
+	if gh := os.Getenv("NAV_PILOT_E2E_GITHUB"); gh != "" {
+		releasesAPI = gh + "/repos/navikt/copilot/releases"
+		downloadURL = gh + "/download"
+		cpltReleasesAPI = gh + "/repos/navikt/cplt/releases"
+	}
+	if v := os.Getenv("NAV_PILOT_E2E_VERSION"); v != "" {
+		info.Version = v
+	}
 }

@@ -1,0 +1,11 @@
+# upgrade installs the latest release only. Given a version it says so and
+# changes nothing; it used to install the latest release and ignore the version.
+
+fake-gh
+
+exits 1 nav-pilot upgrade 2026.09.10-120000-eeeeeee
+stderr 'upgrade doesn''t take a version'
+stderr 'use your package manager or download it from https://github.com/navikt/copilot/releases'
+! stdout .
+exec nav-pilot version
+stdout '^nav-pilot 2026.09.01-120000-aaaaaaa'

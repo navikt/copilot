@@ -279,6 +279,10 @@ const CLI_COMMANDS = [
   },
   { command: "nav-pilot env", description: "Skriv shell-eksport for Copilot CLI-integrasjon" },
   { command: "nav-pilot upgrade", description: "Oppdater nav-pilot CLI til nyeste versjon" },
+  {
+    command: "nav-pilot upgrade --dry-run",
+    description: "Bare sjekk: vis gjeldende → nyeste versjon. Exit 1 når en oppdatering finnes, 0 når du er à jour",
+  },
   { command: "nav-pilot feedback", description: "Rapporter feil. Åpner GitHub issue med diagnostikk" },
   { command: "nav-pilot feedback --feature", description: "Foreslå ny funksjon" },
   { command: "nav-pilot export opencode", description: "Eksporter til .opencode/-format (OpenCode / oh-my-openagent)" },
@@ -1639,7 +1643,7 @@ const CONFIG_KEYS = [
     key: "auto_update",
     flag: "—",
     values: "true · false (standard: false)",
-    desc: "Oppgrader nav-pilot automatisk når en ny versjon er ute, uten å spørre.",
+    desc: "Oppgrader nav-pilot automatisk når en ny versjon er ute, uten å spørre. Feiler oppgraderingen, kjører kommandoen på versjonen du har, og neste forsøk kommer etter 24 timer.",
   },
   {
     key: "log_level",
@@ -2705,6 +2709,16 @@ function CliReferenceSection() {
             <code className="font-mono text-xs">nav-pilot upgrade</code>. Selvoppdateringen kjenner igjen en
             Homebrew-installasjon og lar den være, men ikke en dpkg-installasjon, så den ville byttet ut binæren uten at
             dpkg vet om det.
+          </BodyLong>
+          <BodyLong size="small" className="mt-3" style={{ color: "#64748b" }}>
+            <code className="font-mono text-xs">nav-pilot upgrade</code> spør ikke, og installerer alltid nyeste
+            versjon. <code className="font-mono text-xs">--dry-run</code> (<code className="font-mono text-xs">-n</code>
+            ) sjekker bare og endrer ingenting. Vil du ha en bestemt versjon, bruk pakkebehandleren eller last den ned
+            fra <a href="https://github.com/navikt/copilot/releases?q=nav-pilot">GitHub-releasene</a>. Med{" "}
+            <code className="font-mono text-xs">auto_update = true</code> oppgraderer nav-pilot seg selv før andre
+            kommandoer, med fremdriften på stderr. Feiler det, får du en advarsel, kommandoen kjører på versjonen du
+            har, og neste forsøk kommer etter 24 timer. Slå det av med{" "}
+            <code className="font-mono text-xs">nav-pilot config set auto_update false</code>.
           </BodyLong>
           <Box background="neutral-soft" padding="space-16" borderRadius="8" className="mt-4">
             <Heading size="xsmall" level="4" style={{ color: "#334155" }}>

@@ -1,0 +1,14 @@
+# `nav-pilot upgrade` in a terminal upgrades, once, without first asking
+# "Upgrade now?". The startup check used to put that question in front of
+# upgrade too, and answering No still upgraded.
+
+[!pty] skip 'needs a pseudo-terminal'
+fake-gh
+
+exits 0 pty-run -- nav-pilot upgrade
+! stdout 'Upgrade now'
+stdout 'Updated to nav-pilot 2026.09.24-120000-bbbbbbb'
+! stdout 'available \(current'
+
+exec nav-pilot version
+stdout upgraded

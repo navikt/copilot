@@ -100,6 +100,7 @@ func TestScripts(t *testing.T) {
 			"validjson": cmdValidJSON,
 			"fake-mlx":  cmdFakeMLX,
 			"fake-bin":  cmdFakeBin,
+			"fake-gh":   cmdFakeGH,
 		},
 	})
 }

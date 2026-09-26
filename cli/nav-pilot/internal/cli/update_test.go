@@ -5,8 +5,10 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -37,7 +39,7 @@ func TestVerifyChecksum_Valid(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	err := verifyChecksum(data, "nav-pilot-linux-amd64", srv.URL+"/SHA256SUMS")
+	err := verifyChecksum(io.Discard, data, "nav-pilot-linux-amd64", srv.URL+"/SHA256SUMS")
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -51,7 +53,7 @@ func TestVerifyChecksum_Mismatch(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	err := verifyChecksum(data, "nav-pilot-linux-amd64", srv.URL+"/SHA256SUMS")
+	err := verifyChecksum(io.Discard, data, "nav-pilot-linux-amd64", srv.URL+"/SHA256SUMS")
 	if err == nil {
 		t.Fatal("expected checksum mismatch error")
 	}
@@ -66,7 +68,7 @@ func TestVerifyChecksum_NoSumsFile(t *testing.T) {
 	defer srv.Close()
 
 	// Should error — checksum verification is mandatory
-	err := verifyChecksum(data, "nav-pilot-linux-amd64", srv.URL+"/SHA256SUMS")
+	err := verifyChecksum(io.Discard, data, "nav-pilot-linux-amd64", srv.URL+"/SHA256SUMS")
 	if err == nil {
 		t.Fatal("expected error when checksums unavailable")
 	}
@@ -80,7 +82,7 @@ func TestVerifyChecksum_NoEntry(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	err := verifyChecksum(data, "nav-pilot-linux-amd64", srv.URL+"/SHA256SUMS")
+	err := verifyChecksum(io.Discard, data, "nav-pilot-linux-amd64", srv.URL+"/SHA256SUMS")
 	if err == nil {
 		t.Fatal("expected error when asset entry is missing")
 	}
@@ -312,7 +314,7 @@ func TestUpdateRefusesToReplaceAPackagedBinary(t *testing.T) {
 
 			var updated bool
 			var err error
-			out := captureStdoutFor(t, func() { updated, err = doUpdate() })
+			out := captureStdoutFor(t, func() { updated, err = doUpdate(os.Stdout) })
 			if err != nil {
 				t.Fatalf("doUpdate = %v", err)
 			}
