@@ -74,6 +74,10 @@ jobs:
         env:
           SOURCE_REPO: ${{ inputs.source_repo }}
           SOURCE_REF: ${{ inputs.source_ref }}
+          # The stable-release lookup reads the GitHub API. Anonymous calls
+          # share a small rate limit, and a lookup that fails keeps the
+          # committed pin and exits 2 rather than guessing.
+          GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           # Build nav-pilot flags from workflow inputs
@@ -155,6 +159,7 @@ jobs:
         env:
           SOURCE_REPO: ${{ inputs.source_repo }}
           SOURCE_REF: ${{ inputs.source_ref }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           SYNC_FLAGS="--apply"
           if [[ "$SOURCE_REPO" != "navikt/copilot" ]]; then
