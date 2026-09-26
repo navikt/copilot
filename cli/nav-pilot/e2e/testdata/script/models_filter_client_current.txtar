@@ -1,0 +1,33 @@
+# models lists what the client can use: the current model marked, a filter,
+# --client for another client's list (as a models flag or before the command),
+# and its own help. No note about local entries when there are none.
+
+exec nav-pilot config set model claude-opus-5
+exec nav-pilot models
+stdout '\* claude-opus-5 .*\(current\)'
+! stdout 'Local entries'
+
+exec nav-pilot models opus
+stdout 'claude-opus-5'
+! stdout 'gpt-'
+! stdout 'claude-sonnet'
+
+exec nav-pilot models --json claude
+validjson stdout
+stdout '"id": "claude-opus-5",\s+"label": "Claude Opus 5",\s+"current": true'
+
+exec nav-pilot models --client opencode
+stdout 'Known models \(opencode\)'
+stdout 'github-copilot/claude-opus-5 .*\(current\)'
+exec nav-pilot --client opencode models
+stdout 'Known models \(opencode\)'
+
+exec nav-pilot help models
+stdout 'Usage: nav-pilot models'
+exec nav-pilot models --help
+stdout 'Usage: nav-pilot models'
+exec nav-pilot --help
+stdout 'models \[filter\]'
+
+exits 1 nav-pilot models --local
+stderr 'unknown flag --local. Run nav-pilot help models'

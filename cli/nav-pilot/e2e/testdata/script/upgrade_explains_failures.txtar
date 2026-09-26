@@ -1,0 +1,21 @@
+# upgrade's failures say what happened and what to do. A rate limit names the
+# limit, GITHUB_TOKEN and the releases page ("GitHub API returned 403" named
+# none of it); with a token set, it says the token was tried and dropped. A bad
+# checksum says the binary is untouched. A dev build says it can't update
+# itself rather than "up to date (dev)".
+
+fake-gh ratelimit
+exits 1 nav-pilot upgrade
+stderr 'rate limit for this address is used up'
+stderr 'Set GITHUB_TOKEN for a higher limit'
+stderr 'https://github.com/navikt/copilot/releases'
+
+env GITHUB_TOKEN=ghp_fake
+exits 1 nav-pilot upgrade
+stderr 'GitHub refused GITHUB_TOKEN, so nav-pilot retried without it'
+env GITHUB_TOKEN=
+
+env NAV_PILOT_E2E_VERSION=dev
+exits 1 nav-pilot upgrade
+stderr 'can''t self-update a development build'
+! stdout 'up to date'

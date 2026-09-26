@@ -108,6 +108,7 @@ Commands:
   feedback                Report a bug or request a feature
   alpha local <cmd>       Run a model on this machine (alpha; off until you run 'alpha local init')
   alpha decide "<q>"      Ask the local model a multiple-choice question (alpha; see 'alpha decide --help')
+  models [filter]         List the models the client can use, the current one marked
   version                 Show version information
 
 Flags:
@@ -149,7 +150,7 @@ Exit Codes:
   2   Sync failed
   3   Frozen install refused (no declaration, no usable pin, another revision, or a partial install)
 
-Run nav-pilot help <command> for a command's own flags (install, sync, list, config).
+Run nav-pilot help <command> for a command's own flags (install, sync, uninstall, rollback, list, config, models, upgrade).
 
 Get started:
   nav-pilot                              # Interactive: install, upgrade, or launch Copilot
@@ -249,13 +250,23 @@ func startupUpdateCheck() (stop bool, err error) {
 		// If updated == false, the binary was already up to date (e.g. the
 		// cache was stale); fall through and run the command normally
 		// instead of re-executing and looping.
-	} else if !autoUpdate && isInteractive() && assessment.SkewDays > 7 {
+	} else if !autoUpdate && isInteractive() && assessment.SkewDays > 7 && !markedWithin(updateDeclinedPath(), 24*time.Hour, time.Now()) {
 		var upgradeChoice bool
 		err := huh.NewConfirm().
 			Title(fmt.Sprintf("nav-pilot %s is available (you are %d days behind). Upgrade now?", assessment.LatestVersion, assessment.SkewDays)).
 			Value(&upgradeChoice).
 			WithTheme(navTheme()).
 			Run()
+		if errors.Is(err, huh.ErrUserAborted) {
+			// Ctrl-C stops nav-pilot, as it does at every other prompt.
+			return true, cancelledError{nothingWritten: true}
+		}
+		if err == nil && !upgradeChoice {
+			if p := updateDeclinedPath(); p != "" {
+				_ = os.MkdirAll(filepath.Dir(p), 0o755)
+				_ = os.WriteFile(p, []byte(assessment.LatestVersion+"\n"), 0o644)
+			}
+		}
 
 		if err == nil && upgradeChoice {
 			updated, err := doUpdate(os.Stderr)
@@ -523,9 +534,14 @@ func run(args []string) error {
 		command = canonical
 	}
 
-	// upgrade takes its own flags; see cmdUpgrade.
+	// upgrade and models take their own flags; see cmdUpgrade and cmdModels.
 	if command == "upgrade" || command == "update" {
 		return cmdUpgrade(command, rest)
+	}
+	if command == "models" {
+		return runWithCommandTelemetry("models", telemetryMode(), "none", func() error {
+			return cmdModels(rest, cliOverrides)
+		})
 	}
 
 	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled, frozen, yes, saveSource bool
@@ -953,10 +969,6 @@ func run(args []string) error {
 		return runWithCommandTelemetry("feedback", telemetryMode(), "none", func() error {
 			return cmdFeedback(targetDir, featureRequest)
 		})
-	case "models":
-		return runWithCommandTelemetry("models", telemetryMode(), "none", func() error {
-			return cmdModels(jsonOutput)
-		})
 	case "alpha":
 		return runWithCommandTelemetry(alphaCommand(positional), telemetryMode(), "none", func() error {
 			return cmdAlpha(positional)
@@ -1001,6 +1013,9 @@ func run(args []string) error {
 		}
 		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "models", "alpha", "version", "help"}
 		if hint := suggest(command, knownCmds); hint != "" {
+			if hint == "update" {
+				hint = "upgrade" // update is the deprecated name
+			}
 			return fmt.Errorf("unknown command: %s. Did you mean %s?\nRun with --help for usage", command, hint)
 		}
 		return fmt.Errorf("unknown command: %s. Run with --help for usage", command)
@@ -1049,7 +1064,9 @@ func Main(info BuildInfo) {
 	// ask local.IsLocal, and it must already know whether local dispatch is on.
 	applyLocalConfig()
 	providerpkg.FetchLatestVersion = func() (string, string, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// In front of every command, at most once a day: a GitHub that is slow
+		// to answer must not hold up the command for long.
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		return fetchLatestVersion(ctx)
 	}

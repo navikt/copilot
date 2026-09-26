@@ -258,6 +258,7 @@ func syncBuiltinHooks(r ResolvedConfig) {
 		return
 	}
 	dir := scope.DstPath(KindHook.Dir)
+	var added []string
 	for _, h := range builtinHooks {
 		path := filepath.Join(dir, source.UserHookConfigName(h.name))
 		if !h.enabled(r) {
@@ -272,9 +273,31 @@ func syncBuiltinHooks(r ResolvedConfig) {
 			Timeout: 5,
 			Event:   source.HookEventPostToolUse,
 		}
+		_, statErr := os.Stat(path)
 		if err := source.WriteUserHook(dir, entry); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not write the %s hook: %v\n", yellow("⚠"), h.name,
 				explainSandboxedWrite(err, KindHook, dir))
+		} else if os.IsNotExist(statErr) {
+			added = append(added, h.name)
 		}
 	}
+	announceBuiltinHooks(dir, added)
+}
+
+// announceBuiltinHooks says once per machine, on stderr, what the launch just
+// put in ~/.copilot/hooks and how to turn it off. Hooks run on every tool
+// call, so a file appearing there unannounced is worth one paragraph.
+func announceBuiltinHooks(dir string, added []string) {
+	if len(added) == 0 || !providerpkg.FirstTime("builtin-hooks-notice") {
+		return
+	}
+	what := map[string]string{
+		"nav-pilot-loop-guard":         "tells the agent when it repeats the same tool call. Off: nav-pilot config set hook_loop_guard false",
+		"nav-pilot-redact-tool-output": "masks secrets and fødselsnumre in tool output before the model reads it. Off: nav-pilot config set hook_redact_secrets false (and hook_redact_fnr, hook_injection_note)",
+	}
+	fmt.Fprintf(os.Stderr, "%s nav-pilot added Copilot hooks to %s. They run after every tool call:\n", dim("ℹ"), dir)
+	for _, name := range added {
+		fmt.Fprintf(os.Stderr, "  %s %s\n", bold(name), what[name])
+	}
+	fmt.Fprintln(os.Stderr)
 }

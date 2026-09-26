@@ -10,6 +10,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
@@ -316,15 +317,54 @@ func modelAdvice(model, client string, localModelSet, atLaunch bool) (problem, a
 				model, bold("nav-pilot alpha local use <key>"))
 		}
 	}
+	// A local manifest key (qwen3.6-35b-a3b-optiq) is what alpha local use
+	// takes; model wants a model id, so the key would go to Copilot as-is.
+	for _, m := range local.Active().Models {
+		if m.Key == model && m.Model != model {
+			return "", fmt.Sprintf("%q is a local model key, not a model id. To run it on this machine: %s",
+				model, bold("nav-pilot alpha local use "+model))
+		}
+	}
 	if client == "copilot" && !atLaunch {
 		if note := providerpkg.CopilotModelNote(model); note != "" {
 			return "", fmt.Sprintf("model %q: %s.", model, note)
 		}
 	}
 	if p, err := providerFor(client); err == nil {
-		return "", p.ModelAdvisory(model)
+		advisory := p.ModelAdvisory(model)
+		if advisory != "" {
+			if hint := modelHint(model, p.KnownModels()); hint != "" {
+				return "", fmt.Sprintf("model %q is not a recognized model id. Did you mean %s? It will be sent as-is; nav-pilot models lists the known ids.", model, hint)
+			}
+		}
+		return "", advisory
 	}
 	return "", ""
+}
+
+// modelHint names the known ids an unknown one was probably meant as: a typo
+// (claude-sonet-5) or a family name (opus). Empty when nothing is close.
+func modelHint(model string, known []domain.ModelChoice) string {
+	ids := make([]string, 0, len(known))
+	for _, m := range known {
+		ids = append(ids, m.ID)
+	}
+	if hint := suggest(model, ids); hint != "" {
+		return hint
+	}
+	var matches []string
+	for _, id := range ids {
+		if len(model) >= 3 && strings.Contains(id, strings.ToLower(model)) {
+			matches = append(matches, id)
+		}
+	}
+	if len(matches) == 0 || len(matches) > 8 {
+		return ""
+	}
+	if len(matches) == 1 {
+		return matches[0]
+	}
+	return "one of " + strings.Join(matches, ", ")
 }
 
 // configAdvice returns the non-fatal notes for a parsed config: a missing

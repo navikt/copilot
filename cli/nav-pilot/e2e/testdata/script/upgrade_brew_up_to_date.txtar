@@ -1,0 +1,9 @@
+# A Homebrew install that is already on the latest release is told so, not
+# sent to brew for a no-op.
+
+fake-gh -brew
+env NAV_PILOT_E2E_VERSION=2026.09.24-120000-bbbbbbb
+exec nav-pilot version
+exec nav-pilot upgrade
+stdout 'up to date \(2026.09.24-120000-bbbbbbb\)'
+! stdout 'brew upgrade'

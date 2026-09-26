@@ -35,9 +35,9 @@ bash install.sh
 > henter den nyeste `.deb`-en fra hver release, så en release du nettopp kuttet
 > er ikke installerbar med `apt` med det samme. Det er et vanlig apt-arkiv som
 > speiler releasene våre, ikke en distropakke med egen vedlikeholder. Oppgrader
-> med `sudo apt upgrade`, ikke med `nav-pilot upgrade`: selvoppdateringen kjenner
-> igjen en Homebrew-installasjon, men ikke en dpkg-installasjon, og ville byttet
-> ut binæren uten at dpkg vet om det.
+> med `sudo apt update && sudo apt upgrade nav-pilot`. `nav-pilot upgrade` kjenner
+> igjen en binær som Homebrew eller dpkg eier, lar den være og skriver kommandoen
+> som virker.
 
 > ⚠ **Pin versjonen med mise.** Versjonsstrengene våre er ikke gyldig semver, så
 > `mise latest` plukker en eldre release enn den nyeste. Oppgi versjonen selv,
@@ -233,7 +233,8 @@ Hookene over er Python-skript du velger å installere. nav-pilot har i tillegg e
 som er bygd inn i selve programmet. Når du starter Copilot CLI med `nav-pilot`, skriver den
 dem til `~/.copilot/hooks/`. Derfra kjører de i alle Copilot CLI-økter på maskinen, også
 når modellen kjører i skyen og også når du starter `copilot` direkte. `nav-pilot doctor`
-viser dem sammen med de andre.
+viser dem sammen med de andre. Første gang nav-pilot skriver dem, sier den fra på stderr
+hva hver av dem gjør og hvordan du slår den av.
 
 | Hook      | Fil                         | Hva den gjør                                                                                                                                                                                                                              | Slå av                                       |
 | --------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
@@ -442,13 +443,25 @@ Til ditt **personlige** oppsett trenger du ikke `export` i det hele tatt.
 nav-pilot list --installed
 nav-pilot sync
 nav-pilot upgrade
+nav-pilot models            # modellene klienten kan bruke, med den du har valgt markert
+nav-pilot models claude     # bare modellene med «claude» i navnet
 nav-pilot feedback
 ```
+
+`nav-pilot models --client opencode` viser listen for en annen klient. `--json` gir
+listen som JSON. `nav-pilot config set model` foreslår riktig id når du skriver feil
+(`claude-sonet-5` → `claude-sonnet-5`), og peker deg til `nav-pilot alpha local use` når
+du oppgir nøkkelen til en lokal modell. `nav-pilot config get model` skriver ingenting på
+stdout når modellen ikke er satt, men sier fra på stderr at klienten velger.
+
+Svarer du nei på «Upgrade now?» ved oppstart, spør nav-pilot ikke igjen det neste døgnet;
+du får bare en linje på stderr. Ctrl-C ved spørsmålet avbryter kommandoen.
 
 `nav-pilot upgrade` bytter ikke ut en binær Homebrew eller apt eier. Da ville
 pakkedatabasen pekt på en versjon som ikke lenger ligger på disk, og neste `apt upgrade`
 ville rullet oppdateringen tilbake i stillhet. nav-pilot skriver i stedet kommandoen som
-virker: `sudo apt upgrade nav-pilot` eller `brew upgrade navikt/tap/nav-pilot`.
+virker: `sudo apt upgrade nav-pilot` eller `brew upgrade navikt/tap/nav-pilot`. Er du
+allerede på nyeste versjon, sier den det i stedet.
 
 `nav-pilot upgrade` spør ikke, og installerer alltid nyeste versjon. `nav-pilot upgrade --dry-run`
 sjekker bare: den viser gjeldende → nyeste versjon og avslutter med 1 når en oppdatering finnes,

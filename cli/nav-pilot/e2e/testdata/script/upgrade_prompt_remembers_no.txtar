@@ -1,0 +1,18 @@
+# At the startup "Upgrade now?", No holds for a day: the next command gets a
+# one-line nudge, not the question again. Ctrl-C at the question stops
+# nav-pilot instead of running the command.
+
+[!pty] skip 'needs a pseudo-terminal'
+fake-gh
+
+exits 130 pty-run -wait 'Upgrade now' -send '\x03' -- nav-pilot version
+! stdout 'nav-pilot 2026.09.01'
+
+exec pty-run -wait 'Upgrade now' -send 'n' -- nav-pilot version
+stdout 'nav-pilot 2026.09.01-120000-aaaaaaa'
+! stdout 'Updated'
+
+exec pty-run -- nav-pilot version
+! stdout 'Upgrade now'
+stdout 'available \(current: 2026.09.01-120000-aaaaaaa\)'
+stdout 'nav-pilot 2026.09.01-120000-aaaaaaa'

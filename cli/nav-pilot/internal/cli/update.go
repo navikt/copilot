@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -64,6 +66,9 @@ func cmdUpgrade(command string, args []string) error {
 			return fmt.Errorf("upgrade doesn't take a version: it installs the latest release. To pin %s, use your package manager or download it from %s", a, releasesPage)
 		}
 	}
+	if !versionParseable(Version) {
+		return fmt.Errorf("can't self-update a development build (%s). Install a release instead: brew install navikt/tap/nav-pilot, or the release script (https://github.com/navikt/copilot/blob/main/docs/README.nav-pilot.md#kom-i-gang)", Version)
+	}
 	if command == "update" {
 		fmt.Fprintf(os.Stderr, "%s %s is deprecated. Use: %s\n\n",
 			yellow("⚠"), bold("nav-pilot update"), bold("nav-pilot upgrade"))
@@ -96,11 +101,19 @@ func checkUpdate() error {
 	return errUpdatesAvailable
 }
 
+// releaseCheckTimeout bounds an explicit upgrade's release lookup. Long enough
+// for a slow link, short enough that a GitHub that does not answer is reported
+// rather than waited on.
+var releaseCheckTimeout = 15 * time.Second
+
 // latestRelease looks up the newest nav-pilot release for an explicit upgrade.
 func latestRelease() (ver, tag string, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), releaseCheckTimeout)
 	defer cancel()
 	ver, tag, err = fetchLatestVersion(ctx)
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "", "", fmt.Errorf("could not check for updates: GitHub did not answer within %s. Try again later, or download nav-pilot from %s", releaseCheckTimeout, releasesPage)
+	}
 	if err != nil {
 		return "", "", fmt.Errorf("could not check for updates: %w", err)
 	}
@@ -117,6 +130,14 @@ func latestRelease() (ver, tag string, err error) {
 // stdout (a --json document, say) must stay its own.
 func doUpdate(w io.Writer) (updated bool, err error) {
 	if mgr := packageManager(); mgr.Name != "" {
+		// Up to date says so, rather than sending the user to brew for a
+		// no-op. The same cached lookup as the startup nudge (at most one
+		// request a day), so the two never disagree; when it knows nothing,
+		// the package manager's command is still the answer.
+		if a := assessStaleness(Version); a.LatestVersion != "" && !versionNewer(a.LatestVersion, Version) {
+			fmt.Fprintf(w, "✓ nav-pilot is up to date (%s)\n", Version)
+			return false, nil
+		}
 		// Print first, then check cplt: the cplt lookup can take seconds, and
 		// the "managed by Homebrew" line used to be instant.
 		fmt.Fprintf(w, "nav-pilot is managed by %s.\n", mgr.Label)
@@ -170,7 +191,7 @@ func doUpdate(w io.Writer) (updated bool, err error) {
 	dir := filepath.Dir(self)
 	tmp, err := os.CreateTemp(dir, ".nav-pilot-update-*")
 	if err != nil {
-		return false, fmt.Errorf("cannot create temp file (is %s writable?): %w", dir, err)
+		return false, fmt.Errorf("can't write to %s, where nav-pilot is installed: %w\nnav-pilot is unchanged. Run the upgrade as the user who owns that directory, or reinstall somewhere you can write: bash install.sh --dir ~/.local/bin (see https://github.com/navikt/copilot/blob/main/docs/README.nav-pilot.md#kom-i-gang)", dir, err)
 	}
 	tmpPath := tmp.Name()
 	defer os.Remove(tmpPath)
@@ -234,7 +255,7 @@ func fetchLatestRelease(ctx context.Context, api, prefix string) (ver string, ta
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", "", fmt.Errorf("GitHub API returned %d", resp.StatusCode)
+		return "", "", releaseCheckError(resp)
 	}
 
 	var releases []ghRelease
@@ -251,6 +272,30 @@ func fetchLatestRelease(ctx context.Context, api, prefix string) (ver string, ta
 	}
 
 	return "", "", fmt.Errorf("no release found with tag prefix %q", prefix)
+}
+
+// releaseCheckError explains a failed release lookup. A rate limit says so,
+// says whether a GITHUB_TOKEN was tried, and where to get nav-pilot meanwhile:
+// "GitHub API returned 403" named none of that.
+func releaseCheckError(resp *http.Response) error {
+	limited := (resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests) &&
+		resp.Header.Get("X-RateLimit-Remaining") == "0"
+	if !limited {
+		return fmt.Errorf("GitHub API returned %d", resp.StatusCode)
+	}
+	msg := "GitHub's API rate limit for this address is used up"
+	if reset, err := strconv.ParseInt(resp.Header.Get("X-RateLimit-Reset"), 10, 64); err == nil {
+		msg += fmt.Sprintf(" until %s", time.Unix(reset, 0).Format("15:04"))
+	}
+	// githubGet retries without the token when GitHub refuses it, so the
+	// answer that got here was anonymous whenever a token was set.
+	switch {
+	case os.Getenv("GITHUB_TOKEN") == "":
+		msg += ". Set GITHUB_TOKEN for a higher limit"
+	case resp.Request != nil && resp.Request.Header.Get("Authorization") == "":
+		msg += ". GitHub refused GITHUB_TOKEN, so nav-pilot retried without it, and that hit the limit"
+	}
+	return fmt.Errorf("%s. Try again later, or download nav-pilot from %s", msg, releasesPage)
 }
 
 // githubGet issues a GET against the GitHub API, authenticated with
@@ -411,7 +456,7 @@ func verifyChecksum(w io.Writer, data []byte, asset, checksumURL string) (err er
 	}()
 	sums, err := httpGet(checksumURL)
 	if err != nil {
-		return fmt.Errorf("failed to download checksums: %w", err)
+		return fmt.Errorf("could not download SHA256SUMS to verify the download: %w\nnav-pilot is unchanged", err)
 	}
 
 	var expected string
@@ -426,12 +471,12 @@ func verifyChecksum(w io.Writer, data []byte, asset, checksumURL string) (err er
 	}
 
 	if expected == "" {
-		return fmt.Errorf("no checksum entry found for %s", asset)
+		return fmt.Errorf("SHA256SUMS has no checksum for %s, so the download can't be verified.\nnav-pilot is unchanged", asset)
 	}
 
 	actual := sha256sum(data)
 	if actual != expected {
-		return fmt.Errorf("checksum mismatch!\n  Expected: %s\n  Got:      %s", expected, actual)
+		return fmt.Errorf("checksum mismatch: the download does not match SHA256SUMS\n  Expected: %s\n  Got:      %s\nnav-pilot is unchanged. Try again later; if it keeps failing, report it with nav-pilot feedback", expected, actual)
 	}
 
 	fmt.Fprintln(w, " ✓")
@@ -449,31 +494,42 @@ func sha256sum(data []byte) string {
 // command until someone found the config key.
 const autoUpdateBackoff = 24 * time.Hour
 
-// autoUpdateFailedPath is the marker a failed auto-update leaves; its mtime is
-// when it failed. Beside the staleness cache, in nav-pilot's state directory.
-func autoUpdateFailedPath() string {
+// stateMarker is the path of a marker file in nav-pilot's state directory,
+// beside the staleness cache. A marker's mtime is when it was left.
+func stateMarker(name string) string {
 	p := artifacts.CacheFilePath()
 	if p == "" {
 		return ""
 	}
-	return filepath.Join(filepath.Dir(p), "auto-update-failed")
+	return filepath.Join(filepath.Dir(p), name)
 }
 
-// autoUpdateBackingOff reports whether an auto-update failed within the backoff.
-func autoUpdateBackingOff(now time.Time) bool {
-	p := autoUpdateFailedPath()
-	if p == "" {
+// markedWithin reports whether the marker was left less than d before now.
+func markedWithin(path string, d time.Duration, now time.Time) bool {
+	if path == "" {
 		return false
 	}
-	fi, err := os.Stat(p)
+	fi, err := os.Stat(path)
 	if err != nil {
 		return false
 	}
-	// A marker from the future (the clock stepped back) does not hold off
-	// updates for a day beyond it.
+	// A marker from the future (the clock stepped back) holds nothing off.
 	age := now.Sub(fi.ModTime())
-	return age >= 0 && age < autoUpdateBackoff
+	return age >= 0 && age < d
 }
+
+// autoUpdateFailedPath is the marker a failed auto-update leaves.
+func autoUpdateFailedPath() string { return stateMarker("auto-update-failed") }
+
+// autoUpdateBackingOff reports whether an auto-update failed within the backoff.
+func autoUpdateBackingOff(now time.Time) bool {
+	return markedWithin(autoUpdateFailedPath(), autoUpdateBackoff, now)
+}
+
+// updateDeclinedPath is the marker a No at the startup "Upgrade now?" leaves.
+// For a day after it, the prompt is a one-line nudge: asking again on every
+// command made No mean "not this command" rather than "not now".
+func updateDeclinedPath() string { return stateMarker("update-declined") }
 
 // autoUpdateFailed tells the user the update did not happen and the command
 // runs on the version they have, and remembers the failure for the backoff.

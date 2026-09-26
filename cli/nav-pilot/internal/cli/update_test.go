@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
@@ -325,5 +326,23 @@ func TestUpdateRefusesToReplaceAPackagedBinary(t *testing.T) {
 				t.Errorf("update did not print %q. Output:\n%s", tt.want, out)
 			}
 		})
+	}
+}
+
+// A GitHub that does not answer is reported within releaseCheckTimeout, in
+// words ("did not answer within"), not as "context deadline exceeded" after 30s.
+func TestLatestReleaseTimesOutInWords(t *testing.T) {
+	block := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-block
+	}))
+	t.Cleanup(func() { close(block); srv.Close() })
+	origAPI, origTimeout := releasesAPI, releaseCheckTimeout
+	t.Cleanup(func() { releasesAPI, releaseCheckTimeout = origAPI, origTimeout })
+	releasesAPI, releaseCheckTimeout = srv.URL, 50*time.Millisecond
+
+	_, _, err := latestRelease()
+	if err == nil || !strings.Contains(err.Error(), "GitHub did not answer within 50ms") {
+		t.Fatalf("latestRelease = %v, want a timeout in words", err)
 	}
 }

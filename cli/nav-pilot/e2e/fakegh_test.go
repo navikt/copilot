@@ -27,24 +27,31 @@ const (
 // document on stdout.
 const fakeGHBinary = "#!/bin/sh\necho '{\"upgraded\": \"" + fakeGHLatest + "\"}'\n"
 
-// fake-gh [ok|badsum] serves the GitHub releases API and the release
+// fake-gh [-brew] [ok|badsum|ratelimit] serves the GitHub releases API and the release
 // downloads nav-pilot upgrades from, on 127.0.0.1, and copies nav-pilot into
 // $WORK/bin (first on PATH) so an upgrade replaces that copy and never the
 // binary every other journey runs. nav-pilot claims to be fakeGHCurrent and
-// finds fakeGHLatest. badsum serves a SHA256SUMS that matches nothing.
+// finds fakeGHLatest. badsum serves a SHA256SUMS that matches nothing;
+// ratelimit answers the releases API the way GitHub does when an address has
+// used up its limit. -brew puts the copy under a Homebrew Cellar path, so
+// nav-pilot takes itself for a Homebrew install.
 //
 // The binary reads NAV_PILOT_E2E_GITHUB and NAV_PILOT_E2E_VERSION only because
 // the suite builds it with the e2e seams on (see binary()); a release build
 // ignores both.
 func cmdFakeGH(ts *testscript.TestScript, neg bool, args []string) {
+	brew := len(args) > 0 && args[0] == "-brew"
+	if brew {
+		args = args[1:]
+	}
 	if neg || len(args) > 1 {
-		ts.Fatalf("usage: fake-gh [ok|badsum]")
+		ts.Fatalf("usage: fake-gh [-brew] [ok|badsum|ratelimit]")
 	}
 	mode := "ok"
 	if len(args) == 1 {
 		mode = args[0]
 	}
-	if mode != "ok" && mode != "badsum" {
+	if mode != "ok" && mode != "badsum" && mode != "ratelimit" {
 		ts.Fatalf("fake-gh: unknown mode %q", mode)
 	}
 	asset := fmt.Sprintf("nav-pilot-%s-%s", runtime.GOOS, runtime.GOARCH)
@@ -57,6 +64,13 @@ func cmdFakeGH(ts *testscript.TestScript, neg bool, args []string) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/repos/navikt/copilot/releases":
+			if mode == "ratelimit" {
+				w.Header().Set("X-RateLimit-Remaining", "0")
+				w.Header().Set("X-RateLimit-Reset", "1790000000")
+				w.WriteHeader(http.StatusForbidden)
+				fmt.Fprint(w, `{"message": "API rate limit exceeded"}`)
+				return
+			}
 			fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s"}]`, fakeGHLatest)
 		case "/repos/navikt/cplt/releases":
 			fmt.Fprint(w, `[{"tag_name": "2026.09.24-192459-38642b4"}]`)
@@ -71,6 +85,9 @@ func cmdFakeGH(ts *testscript.TestScript, neg bool, args []string) {
 	ts.Defer(srv.Close)
 
 	bin := ts.MkAbs("bin")
+	if brew {
+		bin = ts.MkAbs("Cellar/nav-pilot/2026.09.01/bin")
+	}
 	ts.Check(os.MkdirAll(bin, 0o755))
 	// cp, not os.WriteFile: a parallel script forking while this process
 	// holds the file open for writing would carry the descriptor into its
