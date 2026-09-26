@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -71,9 +72,12 @@ func cmdFakeGH(ts *testscript.TestScript, neg bool, args []string) {
 
 	bin := ts.MkAbs("bin")
 	ts.Check(os.MkdirAll(bin, 0o755))
-	data, err := os.ReadFile(binPath)
-	ts.Check(err)
-	ts.Check(os.WriteFile(filepath.Join(bin, "nav-pilot"), data, 0o755))
+	// cp, not os.WriteFile: a parallel script forking while this process
+	// holds the file open for writing would carry the descriptor into its
+	// child, and exec of the copy then fails with "text file busy" (Linux).
+	if out, err := exec.Command("cp", binPath, filepath.Join(bin, "nav-pilot")).CombinedOutput(); err != nil {
+		ts.Fatalf("copying nav-pilot: %v\n%s", err, out)
+	}
 	ts.Setenv("PATH", bin+string(os.PathListSeparator)+ts.Getenv("PATH"))
 	ts.Setenv("NAV_PILOT_E2E_GITHUB", srv.URL)
 	ts.Setenv("NAV_PILOT_E2E_VERSION", fakeGHCurrent)
