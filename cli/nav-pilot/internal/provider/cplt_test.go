@@ -242,6 +242,24 @@ func TestProjectDirReadsRepoInstructions(t *testing.T) {
 		}
 	})
 
+	t.Run("a symlinked instruction path is not granted", func(t *testing.T) {
+		secret := t.TempDir()
+		if err := os.Symlink(secret, filepath.Join(repo, "CLAUDE.md")); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Remove(filepath.Join(repo, "CLAUDE.md")) })
+		t.Chdir(filepath.Join(repo, "app"))
+		out := fakeCpltArgs(t)
+		if err := launchViaCplt(cpltLaunch{agent: "copilot", displayName: "copilot"}); err != nil {
+			t.Fatalf("launchViaCplt: %v", err)
+		}
+		for _, p := range allowReads(t, out) {
+			if filepath.Base(p) == "CLAUDE.md" {
+				t.Errorf("--allow-read %q follows a symlink out of the repository", p)
+			}
+		}
+	})
+
 	t.Run("repository root: nothing extra", func(t *testing.T) {
 		t.Chdir(repo)
 		out := fakeCpltArgs(t)

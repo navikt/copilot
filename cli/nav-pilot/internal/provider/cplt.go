@@ -173,16 +173,25 @@ var repoInstructionPaths = []string{
 
 // repoInstructionReads returns the repository-level instruction paths a
 // sandbox scoped to dir cannot see: those at the root of the git repository
-// dir sits in, when dir is a subfolder of it. Only paths that exist are
-// returned. Empty when dir is the repository root or is in no repository.
+// dir sits in, when dir is a subfolder of it. Empty when dir is the
+// repository root or is in no repository.
+//
+// Only real files and directories are granted. A symlink is skipped: the
+// checkout decides where it points, and a grant that follows it would let a
+// branch hand the sandbox read access to anything the user can read. A
+// repository rooted at $HOME gets nothing, because <home>/.nav-pilot is
+// nav-pilot's own state directory, not a repository's.
 func repoInstructionReads(dir string) (root string, paths []string) {
 	root = source.FindGitRoot(dir)
 	if root == "" || filepath.Clean(root) == filepath.Clean(dir) {
 		return "", nil
 	}
+	if home, err := os.UserHomeDir(); err == nil && filepath.Clean(home) == filepath.Clean(root) {
+		return "", nil
+	}
 	for _, name := range repoInstructionPaths {
 		p := filepath.Join(root, name)
-		if _, err := os.Stat(p); err == nil {
+		if fi, err := os.Lstat(p); err == nil && fi.Mode()&os.ModeSymlink == 0 {
 			paths = append(paths, p)
 		}
 	}
