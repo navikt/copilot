@@ -235,9 +235,9 @@ func editConfigKey(key string, r ResolvedConfig) error {
 	case kd.kind == keyKindBool:
 		opts = []huh.Option[string]{huh.NewOption("true", "true"), huh.NewOption("false", "false")}
 	case key == "client":
-		// Display names, not bare ids, so the picker reads like the setup wizard.
+		// The same labels as the setup wizard.
 		for _, p := range allProviders() {
-			opts = append(opts, huh.NewOption(p.DisplayName(), p.ID()))
+			opts = append(opts, huh.NewOption(clientLabel[p.ID()], p.ID()))
 		}
 	case len(kd.allowed) > 0:
 		for _, a := range kd.allowed {
@@ -347,6 +347,10 @@ func printPageSummary(before, after map[string]any) {
 
 // escCancel is the footer's name for Esc in a prompt: cancel the edit.
 var escCancel = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"))
+
+// clientLabel is the one name each client goes by where a person picks one:
+// the setup wizard and the settings page.
+var clientLabel = map[string]string{"copilot": "GitHub Copilot", "opencode": "OpenCode", "pi": "pi"}
 
 // runField runs one prompt of the settings page or the wizard. Esc cancels
 // it, like ctrl+c, and the footer names the keys, esc included.

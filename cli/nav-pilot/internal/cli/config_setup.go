@@ -52,11 +52,16 @@ func writeSetupConfig(answers setupAnswers) error {
 		}
 	}
 
-	clientVal, _ := formatTOMLValue(findKeyDef("client"), answers.Client)
-	lines = append(lines, "client = "+clientVal)
-
-	modeVal, _ := formatTOMLValue(findKeyDef("mode"), answers.Mode)
-	lines = append(lines, "mode = "+modeVal)
+	// Only what differs from the built-in default is written, so a default
+	// that changes later reaches this file too.
+	if answers.Client != findKeyDef("client").defaultVal {
+		clientVal, _ := formatTOMLValue(findKeyDef("client"), answers.Client)
+		lines = append(lines, "client = "+clientVal)
+	}
+	if answers.Mode != findKeyDef("mode").defaultVal {
+		modeVal, _ := formatTOMLValue(findKeyDef("mode"), answers.Mode)
+		lines = append(lines, "mode = "+modeVal)
+	}
 
 	if answers.Model != "" {
 		modelVal, _ := formatTOMLValue(findKeyDef("model"), answers.Model)
@@ -67,10 +72,8 @@ func writeSetupConfig(answers setupAnswers) error {
 		lines = append(lines, "reasoning_effort = "+effortVal)
 	}
 
-	if answers.AutoUpdate == "true" {
-		lines = append(lines, "auto_update = true")
-	} else if answers.AutoUpdate == "false" {
-		lines = append(lines, "auto_update = false")
+	if answers.AutoUpdate != "" && answers.AutoUpdate != findKeyDef("auto_update").defaultVal {
+		lines = append(lines, "auto_update = "+answers.AutoUpdate)
 	}
 
 	content := strings.Join(lines, "\n") + "\n"
@@ -106,17 +109,19 @@ func runConfigSetup(flagSource string) error {
 	fmt.Println(dim("  Set your preferences — change anytime with 'nav-pilot config set'."))
 	fmt.Println()
 
+	// Preselected answers are the built-in defaults.
 	answers := setupAnswers{
-		Client: "copilot",
-		Mode:   "default",
+		Client:     findKeyDef("client").defaultVal,
+		Mode:       findKeyDef("mode").defaultVal,
+		AutoUpdate: findKeyDef("auto_update").defaultVal,
 	}
 
 	err := huh.NewSelect[string]().
 		Title("Which coding agent?").
 		Options(
-			huh.NewOption("GitHub Copilot (default)", "copilot"),
-			huh.NewOption("OpenCode", "opencode"),
-			huh.NewOption("π (pi)", "pi"),
+			huh.NewOption(clientLabel["copilot"]+" (default)", "copilot"),
+			huh.NewOption(clientLabel["opencode"], "opencode"),
+			huh.NewOption(clientLabel["pi"], "pi"),
 		).
 		Value(&answers.Client).
 		WithTheme(navTheme()).
@@ -175,7 +180,7 @@ func runConfigSetup(flagSource string) error {
 		Title("Auto-update nav-pilot").
 		Description("Automatically install new CLI versions in the background.").
 		Options(
-			huh.NewOption("Yes (recommended)", "true"),
+			huh.NewOption("Yes", "true"),
 			huh.NewOption("No: say when a new version is out, and ask to upgrade once 7 days behind", "false"),
 		).
 		Value(&answers.AutoUpdate).

@@ -702,10 +702,35 @@ Mangler `version`, leses filen som versjon 1, med én linje som sier fra. `confi
 `config unset` og innstillingssiden endrer bare den ene nøkkelen og beholder kommentarer.
 Forrige versjon av filen ligger i `config.toml.bak`.
 
-Støttede felt er `client`, `model`, `mode`, `reasoning_effort`, `context_tier`,
-`allow_all_tools`, `ask_user`, `auto_launch` og `log_level`. Du kan overstyre dem per kjøring
-med globale flagg som `--client`, `--model`, `--mode`, `--effort`, `--context`,
-`--allow-all-tools`, `--no-ask-user`, `--auto-launch`/`--no-auto-launch` og `--log-level`.
+Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra koden
+(`configKeyDefs`); `nav-pilot config explain` viser det samme i terminalen.
+
+<!-- config-keys:start -->
+| Nøkkel | CLI-flagg | Verdier | Beskrivelse |
+| --- | --- | --- | --- |
+| `version` | — | 1 | Skjemaversjon. Mangler den, leses filen som versjon 1, og nav-pilot sier fra med én linje. |
+| `client` | --client | copilot · opencode · pi (standard: copilot) | Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen. |
+| `source` | --source | owner/name eller en absolutt sti (standard: navikt/copilot) | Hvor agentpakken hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source; nav-pilot config unset source går tilbake til standarden. |
+| `model` | --model | modell-id, f.eks. claude-opus-4.8 | Modell å bruke. En Copilot-id som claude-opus-4.8 virker for copilot og opencode (opencode kjører den som github-copilot/&lt;id&gt;); opencode tar også provider/model. nav-pilot config explain model lister id-ene. |
+| `mode` | --mode | default · plan · autopilot (standard: default) | Modus for Copilot-agenten. plan tilsvarer opencode --agent plan; autopilot er kun Copilot. |
+| `reasoning_effort` | --effort | none · low · medium · high · xhigh · max | Resonneringsinnsats. Copilot bruker --effort, opencode bruker --variant. |
+| `context_tier` | --context | default · long_context | Kontekstnivå. Kun Copilot, og nav-pilot advarer om feltet er satt for opencode. |
+| `allow_all_tools` | --allow-all-tools / --no-allow-all-tools | true · false (standard: false) | La agenten kjøre alle verktøy uten å spørre først. |
+| `ask_user` | --ask-user / --no-ask-user | true · false (standard: true) | La agenten stoppe og spørre deg. Kun Copilot, og nav-pilot advarer om feltet er satt for opencode. |
+| `auto_launch` | --auto-launch / --no-auto-launch | true · false (standard: true) | Start kodeagenten etter synk eller installasjon. Med false skriver nav-pilot bare ut kommandoen. |
+| `auto_update` | — | true · false (standard: false) | Oppgrader nav-pilot automatisk når en ny versjon er ute, uten å spørre. |
+| `log_level` | --log-level | none · error · warning · info · debug · all · default | Loggnivå for Copilot CLI. |
+| `otel_log_level` | --otel-log-level | none · error · warning · warn · info · debug · verbose · all (standard: none) | Loggnivå for OpenTelemetry i Copilot CLI (OTEL_LOG_LEVEL). En OTEL_LOG_LEVEL i skallet vinner, og config show merker den env. |
+| `local_enabled` | — | true · false (standard: false) | Send avgrensede oppgaver til en lokal modell (alfa). Settes av alpha local init, nullstilles av alpha local off. Så lenge den er false finnes ingen lokale modeller i nav-pilot. |
+| `local_autostart` | — | true · false (standard: false) | La en vanlig nav-pilot starte den lokale serveren når den trengs og ingen kjører. Av som standard: å starte en 21 GB prosess uten å bli bedt om det er ikke greit. |
+| `local_loop_guard` | — | et heltall (standard: 8) | Hvor mange identiske verktøykall på rad som avslutter en lokal tur, uansett hva de returnerer. Gir kallene samme resultat hver gang, holder det med halvparten (minst 2). |
+| `local_model` | — | modell-id fra manifestet | Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Enklest satt med nav-pilot alpha local use &lt;key&gt;. |
+| `hook_loop_guard` | — | true · false (standard: true) | Samme løkkeregel i alle Copilot CLI-økter, også i skyen: en postToolUse-hook i ~/.copilot/hooks/ sier fra til modellen når den står fast. false fjerner hooken ved neste oppstart. |
+| `hook_redact_secrets` | — | true · false (standard: true) | Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-økter. |
+| `hook_redact_fnr` | — | true · false (standard: true) | Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. Bare elleve sifre der datoen og begge kontrollsifrene stemmer blir maskert. |
+| `hook_injection_note` | — | true · false (standard: true) | Sett en merknad foran verktøyresultater som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører), så modellen behandler dem som data. Stopper ingenting. |
+| `copilot_auth_mode` | — | auto · env_only · gh_only (standard: auto) | Hvilken innlogging som når cplt for Copilot. auto begrenser ingenting; env_only krever et token i GH_TOKEN, GITHUB_TOKEN eller COPILOT_GITHUB_TOKEN; gh_only fjerner dem. |
+<!-- config-keys:end -->
 
 Mangler cplt, spør nav-pilot før den starter `copilot` uten sandbox. Uten terminal nekter den,
 med mindre du sender `--no-sandbox`. Installer cplt med `brew install navikt/tap/cplt` eller
@@ -738,7 +763,7 @@ Da skriver nav-pilot bare ut kommandoen du kan kjøre.
   `claude-sonnet-4.6`, `claude-haiku-4.5`, `claude-opus-4.8`, `claude-opus-4.6`,
   `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.5`, `gpt-5.4`,
   `gpt-5.3-codex`, `gpt-5.4-mini`, `gpt-5-mini`, `gemini-3.6-flash`,
-  `gemini-3.1-pro-preview`, `gemini-3.5-flash`, `kimi-k2.7-code`, `kimi-k3`
+  `gemini-3.5-flash`, `kimi-k2.7-code`, `kimi-k3`
 - opencode (startes via cplt mot GitHub Copilot-provideren): bruk en Copilot-id som
   `claude-opus-4.8`, som kjøres som `github-copilot/claude-opus-4.8`, eller en full
   `provider/model`-id, som sendes videre som den er. Uten en satt modell (eller `--model auto`

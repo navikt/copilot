@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -40,6 +42,13 @@ func availableModelIDs() map[string]bool {
 		if err != nil {
 			return
 		}
+		// The probe runs copilot directly, not through cplt: it asks for a
+		// model that does not exist, so copilot exits after fetching the
+		// catalogue and before any prompt, tool or file access. Starting the
+		// sandbox would add its start-up to every picker for nothing it
+		// could contain. Still, it is a process the user did not start, so
+		// the picker says so.
+		fmt.Fprintln(os.Stderr, dim("Checking which models your account has… (runs copilot once, outside the cplt sandbox; it stops before any prompt)"))
 		ids, ok := clientChatModels(copilotPath)
 		if !ok {
 			return

@@ -104,23 +104,25 @@ func TestWriteSetupConfig_EmptyEffortSkipped(t *testing.T) {
 	}
 }
 
-func TestWriteSetupConfig_DefaultsApplied(t *testing.T) {
+func TestWriteSetupConfig_DefaultsNotWritten(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
-	// Zero-value setupAnswers — should fall back to "copilot" / "default".
-	answers := setupAnswers{}
+	// Defaults are left out, so a changed default reaches this file too.
+	answers := setupAnswers{Client: "copilot", Mode: "default", AutoUpdate: "false"}
 	if err := writeSetupConfig(answers); err != nil {
 		t.Fatalf("writeSetupConfig() error: %v", err)
 	}
 
 	data, _ := os.ReadFile(configPath())
 	content := string(data)
-	if !strings.Contains(content, `client = "copilot"`) {
-		t.Errorf("expected default client=copilot, got:\n%s", content)
+	for _, key := range []string{"client", "mode", "auto_update"} {
+		if strings.Contains(content, key+" =") {
+			t.Errorf("default %s written:\n%s", key, content)
+		}
 	}
-	if !strings.Contains(content, `mode = "default"`) {
-		t.Errorf("expected default mode=default, got:\n%s", content)
+	if !strings.Contains(content, "version = 1") {
+		t.Errorf("version missing:\n%s", content)
 	}
 }
 

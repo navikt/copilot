@@ -875,6 +875,9 @@ func TestValidateSourceValue(t *testing.T) {
 		{"./relative", true},
 		{"~/home", true},
 		{" navikt/copilot", true},
+		{`a"b/c`, true},
+		{"navikt/my repo", true},
+		{"navikt/.github", false},
 	}
 	for _, tt := range tests {
 		err := validateSourceValue(tt.value)
