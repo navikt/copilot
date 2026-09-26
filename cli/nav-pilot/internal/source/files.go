@@ -67,12 +67,18 @@ func NormalizedFileHash(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil))[:16], nil
 }
 
-// DirHash hashes all files in a directory recursively.
+// OrigSuffix marks the copy of a locally edited file that nav-pilot saved
+// before replacing it. It is the user's, not part of the artifact: [DirHash]
+// leaves it out and [CopyDir] leaves it in place.
+const OrigSuffix = ".orig"
+
+// DirHash hashes all files in a directory recursively, except saved
+// [OrigSuffix] copies.
 // Markdown files (.md) are normalized before hashing for formatting tolerance.
 func DirHash(dir string) (string, error) {
 	h := sha256.New()
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+		if err != nil || d.IsDir() || strings.HasSuffix(path, OrigSuffix) {
 			return err
 		}
 		rel, _ := filepath.Rel(dir, path)
@@ -149,14 +155,15 @@ func CheckSymlink(path, boundary string) error {
 	return domain.CheckSymlink(path, boundary)
 }
 
-// CopyDir copies a directory recursively, creating it fresh (removes stale files).
+// CopyDir copies a directory recursively, creating it fresh (removes stale
+// files). Saved [OrigSuffix] copies stay: they are the user's own edits.
 // boundary is the trusted root directory; symlink checks stop there.
 func CopyDir(src, dst, boundary string) error {
 	// B2: Check BEFORE RemoveAll to prevent deleting through symlinks.
 	if err := CheckSymlink(dst, boundary); err != nil {
 		return err
 	}
-	if err := os.RemoveAll(dst); err != nil {
+	if err := removeAllButOrig(dst); err != nil {
 		return err
 	}
 
@@ -175,6 +182,58 @@ func CopyDir(src, dst, boundary string) error {
 		}
 		return CopyFile(path, target, boundary)
 	})
+}
+
+// removeAllButOrig empties dir of everything except [OrigSuffix] files, and
+// removes it outright when there is nothing to keep.
+func removeAllButOrig(dir string) error {
+	keep := false
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			return err
+		case d.IsDir():
+			return nil
+		case strings.HasSuffix(path, OrigSuffix):
+			keep = true
+			return nil
+		}
+		return os.Remove(path)
+	})
+	if os.IsNotExist(err) || (err == nil && !keep) {
+		return os.RemoveAll(dir)
+	}
+	return err
+}
+
+// SaveOrig keeps the local copy of an artifact nav-pilot is about to replace,
+// as <file>.orig beside it, and returns the paths it wrote. One backup per
+// file: the next replacement overwrites it. In a directory only the files that
+// differ from src are saved, inside the directory, where [CopyDir] keeps them.
+func SaveOrig(local, src, boundary string, isDir bool) ([]string, error) {
+	if !isDir {
+		return []string{local + OrigSuffix}, CopyFile(local, local+OrigSuffix, boundary)
+	}
+	var saved []string
+	err := filepath.WalkDir(local, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || strings.HasSuffix(path, OrigSuffix) {
+			return err
+		}
+		rel, err := filepath.Rel(local, path)
+		if err != nil {
+			return err
+		}
+		mine, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if theirs, err := os.ReadFile(filepath.Join(src, rel)); err == nil && bytes.Equal(mine, theirs) {
+			return nil
+		}
+		saved = append(saved, path+OrigSuffix)
+		return CopyFile(path, path+OrigSuffix, boundary)
+	})
+	return saved, err
 }
 
 // CountDirFiles counts all files in dir recursively.

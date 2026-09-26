@@ -575,8 +575,9 @@ func TestInstallConflictBlocked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Conflicts != 1 {
-		t.Errorf("conflicts = %d, want 1", result.Conflicts)
+	// Not nav-pilot's file: skipped, and not a conflict nav-pilot would track.
+	if len(result.Existing) != 1 || result.Conflicts != 0 {
+		t.Errorf("existing = %v, conflicts = %d, want one existing and no conflict", result.Existing, result.Conflicts)
 	}
 	if result.Installed != 0 {
 		t.Errorf("installed = %d, want 0", result.Installed)
@@ -594,6 +595,10 @@ func TestInstallConflictForced(t *testing.T) {
 	os.MkdirAll(dstAgents, 0o755)
 	os.WriteFile(filepath.Join(dstAgents, "test.agent.md"), []byte("local modified content"), 0o644)
 
+	// Only the --force typed on the command line takes over a file nav-pilot
+	// did not install.
+	installForce = true
+	t.Cleanup(func() { installForce = false })
 	result := &installResult{}
 	err := installArtifact(NewSourceResolver(srcDir), ScopeRepo(dstDir), nil, KindAgent, "test", false, true, result) // force=true
 	if err != nil {
@@ -601,6 +606,9 @@ func TestInstallConflictForced(t *testing.T) {
 	}
 	if result.Installed != 1 {
 		t.Errorf("installed = %d, want 1", result.Installed)
+	}
+	if got, _ := os.ReadFile(filepath.Join(dstAgents, "test.agent.md.orig")); string(got) != "local modified content" {
+		t.Errorf("the overwritten file was not saved as .orig: %q", got)
 	}
 
 	// Verify content was overwritten

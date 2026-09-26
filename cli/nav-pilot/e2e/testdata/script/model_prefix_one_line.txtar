@@ -12,7 +12,7 @@ exec git add -A
 exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
 cd ../repo
 exec git init -q .
-exec nav-pilot install plattform --source $WORK/plattform --repo
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
 
 exec nav-pilot --sync --source $WORK/plattform -- -p x
 ! stderr 'not a recognized Copilot model id'

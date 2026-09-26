@@ -510,7 +510,7 @@ func run(args []string) error {
 		command = canonical
 	}
 
-	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled, frozen bool
+	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled, frozen, yes bool
 	var targetDir, ref, sourceRepo, installType, updates string
 	var positional []string
 
@@ -586,6 +586,11 @@ func run(args []string) error {
 			i++
 			updates = rest[i]
 		case "--yes":
+			// Consent for an install without a terminal to ask in.
+			if command == "install" {
+				yes = true
+				continue
+			}
 			// Consent for `alpha local init` and `purge`, which read it from
 			// their own arguments. Everywhere else it is not a flag.
 			if line := strings.Join(rest, " ") + " "; command != "alpha" || (!strings.HasPrefix(line, "local init ") && !strings.HasPrefix(line, "local purge ")) {
@@ -739,7 +744,10 @@ func run(args []string) error {
 	switch command {
 	case "install":
 		installFrozen, installRef, installForce = frozen, ref, force
-		defer func() { installFrozen, installRef, installForce = false, "", false }()
+		// --all with a scope flag, and --frozen, are the documented ways to
+		// install without being asked; --yes is the general one.
+		installConsentRequired = !(yes || (installAll && scopeProvided) || frozen)
+		defer func() { installFrozen, installRef, installForce, installConsentRequired = false, "", false, false }()
 		// One suppressor for the whole command, finalization included: every
 		// dispatch below reaches installArtifact, and finishInstall prints
 		// after the document is written.

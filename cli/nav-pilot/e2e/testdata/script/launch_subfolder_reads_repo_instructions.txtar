@@ -14,7 +14,7 @@ exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
 
 cd ../repo
 exec git init -q .
-exec nav-pilot install plattform --source $WORK/plattform --repo
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
 exists .github/agents/grillmester.agent.md
 
 cd app

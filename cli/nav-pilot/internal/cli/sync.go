@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
@@ -26,7 +27,15 @@ type syncResult struct {
 	Overrides []string `json:"overrides,omitempty"`
 	Ignored   []string `json:"ignored,omitempty"`
 	Foreign   []string `json:"foreign,omitempty"`
-	Conflicts []string `json:"conflicts,omitempty"`
+	// ReplacedLocalEdits names the updates that replace a file whose content
+	// changed since nav-pilot installed it. --apply saves each local copy as
+	// <file>.orig first. They are in Updates too; this says which of them a
+	// reviewer should look at.
+	ReplacedLocalEdits []string `json:"replaced_local_edits,omitempty"`
+	// SkippedExisting names artifacts the source ships whose path already
+	// holds a file nav-pilot did not install. Sync never takes such a file
+	// over, and it is not pending work.
+	SkippedExisting []string `json:"skipped_existing,omitempty"`
 	// Kept names files the source deleted that sync left on disk because they
 	// differ from what nav-pilot installed (#729). They are not deletions: a
 	// workflow reading this document must not report them as removed.
@@ -284,38 +293,20 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		return err
 	}
 
-	// Determine which files to check
-	files, _, err := resolveSyncFiles(scope, resolver, apply)
-	if err != nil {
-		return err
-	}
-
-	conflictPaths := conflictStatePaths(scope)
-	if err := clearResolvedConflicts(scope, resolver, conflictPaths); err != nil {
+	// Determine which files to check. A file recorded as differing from what
+	// nav-pilot installed is checked like any other: an update to it replaces
+	// it, after saving the local copy as <file>.orig.
+	if err := clearResolvedConflicts(scope, resolver, conflictStatePaths(scope)); err != nil {
 		if !jsonOutput {
 			fmt.Fprintf(os.Stderr, "%s Could not clear resolved conflicts: %v\n", yellow("⚠"), err)
 		}
 	}
-	// Re-fetch conflictPaths in case any were resolved
-	conflictPaths = conflictStatePaths(scope)
+	files, _, err := resolveSyncFiles(scope, resolver, true)
+	if err != nil {
+		return err
+	}
 
 	if len(files) == 0 {
-		if len(conflictPaths) > 0 && !apply {
-			telemetry.RecordSyncConflicts(scope.Name, telemetryMode(), int64(len(conflictPaths)))
-			result := syncResult{
-				UpToDate:  false,
-				Source:    src.SHA,
-				Conflicts: conflictPaths,
-			}
-			if jsonOutput {
-				if err := outputJSON(result); err != nil {
-					return err
-				}
-				return errUpdatesAvailable
-			}
-			printConflictSummary(scope, conflictPaths, src.SHA)
-			return errUpdatesAvailable
-		}
 		if len(retired) > 0 {
 			if jsonOutput {
 				if err := outputJSON(syncResult{Source: src.SHA, Retired: retiredPaths(retired)}); err != nil {
@@ -399,6 +390,17 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	var syncErrors []string
 	var ignoredPaths []string
 	var foreignPaths []string
+	var editedPaths []string
+	var keptHooks []string
+	// A hook is its script and what registers it, and a hook the source
+	// dropped goes or stays as one: if either file changed since nav-pilot
+	// wrote it, both stay, and the hook keeps running.
+	hookKept := map[string]bool{}
+	for _, sf := range files {
+		if name, _ := hookOfPath(scope, sf.localPath); name != "" && sf.tracked != nil && !safeToRemove(scope.RootDir, *sf.tracked) {
+			hookKept[name] = true
+		}
+	}
 	for _, sf := range files {
 		// Check if local file exists; if missing, treat as intentional deletion
 		localFull := filepath.Join(scope.RootDir, sf.localPath)
@@ -423,15 +425,26 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		// that absence as "deleted upstream" deleted everything the base
 		// supplied on the first sync after install.
 		sourceRoot, found := resolver.SourceRootFor(sf.sourcePath)
-		if !found && isUserHookConfig(scope, resolver, sf.localPath) {
-			// Generated, not copied: --apply rebuilds it from the current
-			// .hook.json, so a new matcher or timeout reaches it too.
-			if apply {
-				if err := refreshUserHookConfig(scope, resolver, sf.localPath); err != nil {
+		if hook, config := hookOfPath(scope, sf.localPath); hook != "" {
+			art, shipped := resolver.Get(KindHook, hook)
+			found = found && shipped
+			switch {
+			case shipped && apply && !config && sf.tracked != nil:
+				// What registers it is generated, not copied: --apply rebuilds
+				// it from the current .hook.json in both scopes, so a new
+				// matcher or timeout reaches it too.
+				if err := refreshHookRegistration(scope, art); err != nil {
 					syncErrors = append(syncErrors, fmt.Sprintf("%s: %v", sf.localPath, err))
 				}
+			case shipped && config:
+				continue
+			case !shipped && hookKept[hook]:
+				keptPaths = append(keptPaths, sf.localPath)
+				if !config {
+					keptHooks = append(keptHooks, sf.localPath)
+				}
+				continue
 			}
-			continue
 		}
 		if !found {
 			// Deleted upstream — but only nav-pilot's own untouched copy is
@@ -457,6 +470,9 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		}
 		if u != nil {
 			updates = append(updates, *u)
+			if sf.tracked != nil && !navPilotOwns(scope.RootDir, *sf.tracked) {
+				editedPaths = append(editedPaths, sf.localPath)
+			}
 		}
 	}
 
@@ -487,10 +503,13 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	// like any update rather than a note pointing at another command (#878).
 	// syncState is the state the adoption just rewrote in memory; on a run
 	// without --apply that rewrite is not on disk yet.
-	added := detectNewItems(scope, syncState, resolver, src)
-	var addedPaths []string
+	added, existing := splitExisting(scope, resolver, detectNewItems(scope, syncState, resolver, src))
+	var addedPaths, skippedExisting []string
 	for _, a := range added {
 		addedPaths = append(addedPaths, a.path)
+	}
+	for _, a := range existing {
+		skippedExisting = append(skippedExisting, a.path)
 	}
 
 	// Counts in the summary describe what this source was asked about. A file
@@ -499,26 +518,27 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	checked := len(files) - len(foreignPaths)
 
 	result := syncResult{
-		UpToDate:  len(updates) == 0 && len(added) == 0 && len(deletedPaths) == 0 && len(syncErrors) == 0 && pinBump == nil && len(retired) == 0 && (apply || len(conflictPaths) == 0),
-		Source:    src.SHA,
-		Updates:   updates,
-		Added:     addedPaths,
-		Deletions: deletedPaths,
-		Errors:    syncErrors,
-		Overrides: overriddenPaths,
-		Ignored:   ignoredPaths,
-		Foreign:   foreignPaths,
-		Conflicts: conflictPaths,
-		Kept:      keptPaths,
-		PinBump:   pinBump,
-		Retired:   retiredPaths(retired),
+		UpToDate:           len(updates) == 0 && len(added) == 0 && len(deletedPaths) == 0 && len(syncErrors) == 0 && pinBump == nil && len(retired) == 0,
+		Source:             src.SHA,
+		Updates:            updates,
+		Added:              addedPaths,
+		Deletions:          deletedPaths,
+		Errors:             syncErrors,
+		Overrides:          overriddenPaths,
+		Ignored:            ignoredPaths,
+		Foreign:            foreignPaths,
+		ReplacedLocalEdits: editedPaths,
+		SkippedExisting:    skippedExisting,
+		Kept:               keptPaths,
+		PinBump:            pinBump,
+		Retired:            retiredPaths(retired),
 	}
 	tMode := telemetryMode()
 	if !apply {
 		tMode += "_dry_run"
 	}
 	telemetry.RecordSyncUpdates(scope.Name, tMode, int64(len(result.Updates)))
-	telemetry.RecordSyncConflicts(scope.Name, tMode, int64(len(result.Conflicts)))
+	telemetry.RecordSyncConflicts(scope.Name, tMode, int64(len(result.ReplacedLocalEdits)))
 
 	if jsonOutput {
 		if err := outputJSON(result); err != nil {
@@ -548,6 +568,14 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		}
 		fmt.Printf("Delete them yourself if you no longer want them, or list them under %s in %s to stop sync mentioning them.\n\n",
 			bold("overrides"), bold(syncConfigPath))
+	}
+	// Louder than the list above: a kept file is inert, a kept hook is not.
+	for _, p := range keptHooks {
+		fmt.Fprintf(os.Stderr, "%s The source removed hook %s, and it is still active: %s changed since nav-pilot installed it, so it was kept and still runs on every matching tool call. Delete it yourself to stop it.\n",
+			red("⚠"), bold(strings.TrimSuffix(filepath.Base(p), KindHook.Suffix)), bold(p))
+	}
+	for _, a := range existing {
+		printSkippedExisting(scope, a.kind, a.name, a.path)
 	}
 
 	if result.UpToDate {
@@ -586,6 +614,10 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		fmt.Printf("%s %d of %d files have updates available (source: %s)\n\n",
 			yellow("⚠"), len(updates), checked, shortSHA(src.SHA))
 		for _, u := range updates {
+			if slices.Contains(editedPaths, u.Path) {
+				fmt.Printf("  %s %s %s\n", yellow("~"), u.Path, dim("(changed here; your copy is saved as .orig)"))
+				continue
+			}
 			fmt.Printf("  %s %s\n", yellow("~"), u.Path)
 		}
 		fmt.Println()
@@ -634,10 +666,6 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 			shortSHA(pinBump.From), shortSHA(pinBump.To), shortSHA(src.SHA))
 	}
 
-	if len(conflictPaths) > 0 && !apply {
-		printConflictSummary(scope, conflictPaths, src.SHA)
-	}
-
 	if !apply {
 		fmt.Printf("Run %s to apply updates.\n", bold("nav-pilot sync --apply"))
 		return errUpdatesAvailable
@@ -654,6 +682,17 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		root := u.SourceRoot
 		if root == "" {
 			root = src.Dir
+		}
+		if slices.Contains(editedPaths, u.Path) {
+			// Most people never edit a synced file, so an edit does not stop
+			// the update. It is not lost either.
+			saved, err := saveOrig(filepath.Join(scope.RootDir, u.Path), filepath.Join(root, u.SourcePath), scope.RootDir, strings.HasSuffix(u.Path, "/"))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s Kept %s: could not save your copy before replacing it: %v\n", yellow("⚠"), u.Path, err)
+				applyErrors++
+				continue
+			}
+			warnReplacedLocalEdits(scope, u.Path, saved)
 		}
 		if err := applySyncUpdate(scope, root, u); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not update %s: %v\n", yellow("⚠"), u.Path, err)
@@ -808,47 +847,6 @@ func pinnedSync(state *StateFile, src *Source) bool {
 // the one the source resolved to and, with --apply, pins the new revision.
 //
 // Without this branch a zero-item pin state falls all the way through
-// isUserHookConfig reports whether localPath is the ~/.copilot/hooks/<name>.json
-// entry activateHook generated for a hook the source still ships. It has no
-// file of its own in the source (it is made from hooks/<name>.py and its
-// .hook.json), so reading it as "deleted in source" removed the entry of every
-// installed hook on the next sync and left the scripts behind.
-func isUserHookConfig(scope *InstallScope, resolver *SourceResolver, localPath string) bool {
-	dir, file := filepath.Split(filepath.ToSlash(localPath))
-	if !scope.IsUser() || dir != KindHook.Dir+"/" || !strings.HasSuffix(file, ".json") {
-		return false
-	}
-	name := strings.TrimSuffix(file, ".json")
-	_, _, ok := resolver.GetFile(KindHook.Dir, name+KindHook.Suffix)
-	return ok
-}
-
-// refreshUserHookConfig rewrites a ~/.copilot/hooks/<name>.json entry from
-// the source's hook and records its new hash, so uninstall still knows the
-// file as nav-pilot's own.
-func refreshUserHookConfig(scope *InstallScope, resolver *SourceResolver, localPath string) error {
-	name := strings.TrimSuffix(filepath.Base(localPath), ".json")
-	art, ok := resolver.Get(KindHook, name)
-	if !ok {
-		return nil
-	}
-	var res installResult
-	if err := activateHook(scope, art, &res); err != nil {
-		return err
-	}
-	state, err := readScopedState(scope)
-	if err != nil || state == nil || len(res.Files) == 0 {
-		return err
-	}
-	for i := range state.Files {
-		if state.Files[i].Path == res.Files[0].Path && state.Files[i].Hash != res.Files[0].Hash {
-			state.Files[i].Hash = res.Files[0].Hash
-			return writeScopedState(scope, state)
-		}
-	}
-	return nil
-}
-
 // resolveSyncFiles to the "No customization files found to sync." dead end and
 // returns nil — sync reporting success over an install that can never advance.
 //
@@ -1311,38 +1309,6 @@ func resolveSyncFiles(scope *InstallScope, resolver *SourceResolver, includeConf
 	return autoDetectSyncFiles(scope.RootDir, resolver)
 }
 
-// printConflictSummary reports the files a plain sync leaves alone.
-//
-// One function for both branches, because there were two and they drifted: the
-// path where there is nothing else to sync kept the wording #623 objected to
-// ("in conflict state and were skipped", then "Run sync --apply to apply
-// updates") long after the main path was rewritten (#651). A message written
-// twice is a message that will say two things.
-//
-// "differs from what nav-pilot installed" and not "your own edits" (#692). The
-// status says content changed since the recorded hash; it says nothing about
-// who changed it. A reader who knows they edited nothing rightly rejects the
-// sentence, and the only remedy offered is --apply, which then takes the
-// source's version whether that is newer or older than what is on disk.
-func printConflictSummary(scope *InstallScope, conflictPaths []string, srcSHA string) {
-	fmt.Printf("%s %d file(s) "+conflictWording+" and are left alone by a plain sync (source: %s)\n\n",
-		yellow("⚠"), len(conflictPaths), shortSHA(srcSHA))
-	// Per-file provenance turns a bare path into a fact the reader can act on
-	// (#729): a file installed from an older revision than the one the scope is
-	// on is behind, not edited, and those are different problems with the same
-	// hash symptom. A file with no recorded revision predates provenance and
-	// says nothing extra rather than guessing.
-	revisions := installedRevisions(scope)
-	for _, p := range conflictPaths {
-		line := fmt.Sprintf("  %s %s", dim("⊘"), p)
-		if rev := revisions[p]; rev != "" && !sameRevision(rev, srcSHA) {
-			line += dim(fmt.Sprintf("  (installed from %s)", shortSHA(rev)))
-		}
-		fmt.Println(line)
-	}
-	fmt.Printf("%s to take the source's version of these too.\n\n", bold("nav-pilot sync --apply"))
-}
-
 // conflictWording is the one phrase nav-pilot has for "the bytes on disk are
 // not the bytes nav-pilot wrote". Written once because it is written in two
 // reports — the conflict summary and the files sync declines to delete — and
@@ -1709,4 +1675,70 @@ func installCommandFor(scope *InstallScope, src *Source) string {
 		return "nav-pilot install " + src.Pakke.Name
 	}
 	return "nav-pilot install --user"
+}
+
+// splitExisting separates the artifacts a scope lacks into the ones sync may
+// install and the ones whose path already holds a file nav-pilot did not put
+// there. That file is the team's, and nothing takes it over: install skips it
+// too, so offering it again on every sync would be pending work nothing can do.
+//
+// A file that already holds exactly the source's content is not in the way,
+// and install records it like any other.
+func splitExisting(scope *InstallScope, resolver *SourceResolver, pending []pendingArtifact) (install, existing []pendingArtifact) {
+	for _, p := range pending {
+		if art, ok := resolver.Get(p.kind, p.name); ok {
+			if c, err := checkConflict(filepath.Join(scope.RootDir, p.path), art.AbsPath, art.IsDir); err != nil || c != nil {
+				existing = append(existing, p)
+				continue
+			}
+		}
+		install = append(install, p)
+	}
+	return install, existing
+}
+
+// printSkippedExisting says an artifact was not installed because a file
+// nav-pilot did not write is already at its path.
+func printSkippedExisting(scope *InstallScope, kind *ArtifactKind, name, relPath string) {
+	fmt.Fprintf(os.Stderr, "%s skipped %s %s: %s already exists and isn't from nav-pilot. Keep it, or remove it and re-run to install nav-pilot's version.\n",
+		yellow("⚠"), kind.Name, name, scopePath(scope, filepath.Join(scope.RootDir, relPath)))
+}
+
+// warnReplacedLocalEdits says an update replaced a file that had changed since
+// nav-pilot installed it, and where the old copy is.
+func warnReplacedLocalEdits(scope *InstallScope, relPath string, saved []string) {
+	label := relPath
+	if kind, name := artifactOfPath(relPath); kind != nil {
+		label = kind.Name + " " + name
+	}
+	shown := make([]string, len(saved))
+	for i, p := range saved {
+		shown[i] = scopePath(scope, p)
+	}
+	fmt.Fprintf(os.Stderr, "%s %s: your local changes were replaced by the new version; your copy is saved as %s\n",
+		yellow("⚠"), label, strings.Join(shown, ", "))
+}
+
+// artifactOfPath names the kind and artifact a scope-relative path belongs
+// to: ".github/skills/kafka/" is the skill kafka.
+func artifactOfPath(relPath string) (*ArtifactKind, string) {
+	kind, rest := kindForPath(strings.TrimPrefix(filepath.ToSlash(relPath), ".github/"), nil)
+	if kind == nil {
+		return nil, ""
+	}
+	name, _, _ := strings.Cut(rest, "/")
+	return kind, strings.TrimSuffix(name, kind.Suffix)
+}
+
+// scopePath is an absolute path inside a scope as a user would type it:
+// relative to the repo, or under ~/.copilot.
+func scopePath(scope *InstallScope, abs string) string {
+	rel, err := filepath.Rel(scope.RootDir, abs)
+	if err != nil {
+		return abs
+	}
+	if scope.IsUser() {
+		return "~/.copilot/" + filepath.ToSlash(rel)
+	}
+	return filepath.ToSlash(rel)
 }

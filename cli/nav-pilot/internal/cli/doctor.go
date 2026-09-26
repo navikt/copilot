@@ -30,7 +30,7 @@ func reportScopeConflicts(scope *InstallScope) {
 	for _, p := range conflicts {
 		fmt.Printf("          %s %s\n", dim("⊘"), p)
 	}
-	fmt.Printf("          %s %s takes the source's version of these too.\n", yellow("Solution:"), bold("nav-pilot sync --apply"))
+	fmt.Printf("          %s %s takes the source's version of these too, and saves yours as <file>.orig.\n", yellow("Solution:"), bold("nav-pilot sync --apply"))
 }
 
 // reportScopeIgnoredButInstalled names files marked ignored in state that are

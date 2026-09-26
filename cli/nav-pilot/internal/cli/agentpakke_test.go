@@ -1557,7 +1557,7 @@ func TestInstallJSONIsParseable(t *testing.T) {
 // the other. Both have to stay off stdout, or `--json | jq` still fails (#808).
 func TestInstallJSONIsParseableOnEveryDispatch(t *testing.T) {
 	for _, args := range [][]string{
-		{"install", "grillmester", "--json", "--source", "navikt/grillmester"},
+		{"install", "grillmester", "--json", "--yes", "--source", "navikt/grillmester"},
 		{"install", "grillmester", "--type", "agent", "--json", "--source", "navikt/grillmester"},
 	} {
 		t.Run(strings.Join(args[1:], " "), func(t *testing.T) {

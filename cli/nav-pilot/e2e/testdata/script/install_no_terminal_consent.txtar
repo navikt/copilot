@@ -1,0 +1,48 @@
+# Without a terminal, `install <name>` wrote a whole agentpakke and
+# `install --user` did the same in ~/.copilot, hooks included, though the help
+# says it asks. Now both refuse, say what they would write, and exit 2, the
+# way `alpha local init` does. --yes and --all are the consent.
+
+mkdir plattform/skills forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../forbruker
+exec git init -q .
+
+exits 2 nav-pilot install plattform --source $WORK/plattform --repo
+stderr 'install would write 3 files to .*forbruker, including 1 hooks that run outside the sandbox\. Run it in a terminal, or pass --yes'
+! exists .github
+
+exits 2 nav-pilot install --user --source $WORK/plattform
+stderr 'install would write 3 files to ~/\.copilot \(user-wide\), including 1 hooks that run outside the sandbox\. Run it in a terminal, or pass --yes'
+! exists $HOME/.copilot/hooks
+
+# A dry run writes nothing, so it needs no consent.
+exec nav-pilot install plattform --source $WORK/plattform --repo --dry-run
+! exists .github
+
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+exists .github/hooks/vakt.py
+exec nav-pilot install --user --all --source $WORK/plattform
+exists $HOME/.copilot/hooks/vakt.py
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/skills/brann/SKILL.md --
+---
+name: brann
+description: fra plattform
+---
+plattform
+-- plattform/hooks/vakt.hook.json --
+{"matcher": "bash", "timeoutSec": 5}
+-- plattform/hooks/vakt.py --
+print("vakt")

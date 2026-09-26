@@ -67,6 +67,30 @@ An install that holds a whole agentpakke is also checked the other way round: an
 
 > `AGENTS.md` and `.github/copilot-instructions.md` are never synced. They are always repo-specific.
 
+## Files you have edited
+
+`nav-pilot sync --apply` takes the source's version of a file even when the file changed here since nav-pilot installed it. Most people never edit a synced file, so an edit does not hold the update back. It is not lost either: sync saves your copy as `<file>.orig` beside the new one and says so.
+
+```
+⚠ agent nav-pilot: your local changes were replaced by the new version; your copy is saved as .github/agents/nav-pilot.agent.md.orig
+```
+
+In a skill directory only the files that differ are saved, each as `<file>.orig` inside the directory. There is one backup per file, and the next replacement overwrites it. `--json` lists these files under `updates` and again under `replaced_local_edits`, and the scheduled workflow marks them in the PR body. A plain `nav-pilot sync` marks them too, before anything is written.
+
+To keep your own version for good, list the file under `overrides` (see below).
+
+## Files that were there before install
+
+A file that already exists when `nav-pilot install` runs, with a name the agentpakke also ships and different content, is your team's. Install leaves it alone and does not record it as nav-pilot's:
+
+```
+⚠ skipped agent nav-pilot: .github/agents/nav-pilot.agent.md already exists and isn't from nav-pilot. Keep it, or remove it and re-run to install nav-pilot's version.
+```
+
+No later sync touches it. Sync names it on every run, and `--json` lists it under `skipped_existing`. It is not an available update, so the scheduled workflow does not open a PR for it. `nav-pilot install --force` is the only way to replace it, and saves it as `<file>.orig` first.
+
+Older nav-pilot versions did record such a file as nav-pilot's, marked as differing from what nav-pilot installed. Sync treats that record as a local edit: `--apply` takes the source's version and keeps yours as `<file>.orig`.
+
 ## What sync will not delete
 
 When the source stops shipping a file, `nav-pilot sync --apply` removes your copy of it — but only when that copy is byte-for-byte what nav-pilot installed. A file whose content has changed since then is left on disk and named in the output:
@@ -78,7 +102,9 @@ When the source stops shipping a file, `nav-pilot sync --apply` removes your cop
 Delete them yourself if you no longer want them, or list them under overrides in .github/copilot-sync.json to stop sync mentioning them.
 ```
 
-There is no flag that makes sync delete it. A file that differs may be your team's own work, and an overwrite can be taken again from the source while a delete cannot. `--json` reports these under `kept`, separately from `deletions`, and a kept file is not counted as an available update, so the scheduled workflow does not open a PR for it.
+There is no flag that makes sync delete it. A file that differs may be your team's own work, and a delete leaves no `.orig` behind. `--json` reports these under `kept`, separately from `deletions`, and a kept file is not counted as an available update, so the scheduled workflow does not open a PR for it.
+
+A hook the source removes goes as a whole: the script, its entry in `.github/hooks/copilot-hooks.json` (repo) or its `~/.copilot/hooks/<name>.json` (user), and its record in the state file. If the script or its entry changed here, the hook stays, and sync warns on stderr that it is still active and names the file.
 
 The same rule governs `nav-pilot uninstall`: it removes the files nav-pilot installed and still owns, leaves the ones that differ, and says how many. `nav-pilot uninstall --force` removes those too.
 
@@ -98,7 +124,7 @@ Create `.github/copilot-sync.json` in your repo:
 }
 ```
 
-> **Important:** Sync only touches files whose names also exist in the source repo. If your team creates a file with the same name as a source file, say your own `kotlin-app-config` skill, sync sees a hash mismatch and proposes overwriting it. Add it to `overrides` to protect your version. Files with names that don't exist in the source are never affected by sync.
+> **Important:** Sync only touches files whose names also exist in the source repo. In a repo that used `nav-pilot install`, a same-named file your team had before the install is never taken over (see above). In a classic repo with manually copied files, sync sees a hash mismatch and proposes overwriting it. Add it to `overrides` to protect your version. Files with names that don't exist in the source are never affected by sync.
 
 Overrides are also how you opt out of framework-specific files. Teams on Astro, Remix, or anything else that isn't Next.js can override the Next.js files the agentpakke installs, such as `.github/instructions/nextjs-aksel.instructions.md`, `.github/instructions/performance.instructions.md` and `.github/prompts/nextjs-api-route.prompt.md`.
 

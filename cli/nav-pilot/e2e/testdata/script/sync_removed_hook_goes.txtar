@@ -1,0 +1,68 @@
+# A hook the agentpakke stops shipping has to stop running. In repo scope the
+# script and its copilot-hooks.json entry used to stay, because the source
+# repo keeps hooks of its own under .github/hooks/ and the lookup fell back to
+# them. In user scope only the generated .json went, and the script stayed
+# tracked. Both scopes now remove the script, what registers it and its
+# tracking. A hook edited here is kept, and sync says loudly that it still
+# runs.
+
+mkdir plattform/skills forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+
+cd ../forbruker
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+exec nav-pilot install --user --all --source $WORK/plattform
+grep '"vakt"' .github/hooks/copilot-hooks.json
+exists $HOME/.copilot/hooks/vakt.json
+
+# Someone edited vokter here, in both scopes.
+cp ../edited.py .github/hooks/vokter.py
+cp ../edited.py $HOME/.copilot/hooks/vokter.py
+
+# Upstream drops both hooks.
+cd ../plattform
+exec git rm -q hooks/vakt.py hooks/vakt.hook.json hooks/vokter.py hooks/vokter.hook.json
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm 'drop hooks'
+cd ../forbruker
+
+exec nav-pilot sync --repo --apply --source $WORK/plattform
+stdout '× \.github/hooks/vakt\.py \(deleted\)'
+! exists .github/hooks/vakt.py
+! grep '"vakt"' .github/hooks/copilot-hooks.json
+! grep 'hooks/vakt' .github/.nav-pilot-state.json
+stderr 'The source removed hook vokter, and it is still active: \.github/hooks/vokter\.py changed since nav-pilot installed it'
+exists .github/hooks/vokter.py
+grep '"vokter"' .github/hooks/copilot-hooks.json
+
+exec nav-pilot sync --user --apply --source $WORK/plattform
+! exists $HOME/.copilot/hooks/vakt.py
+! exists $HOME/.copilot/hooks/vakt.json
+! grep 'hooks/vakt' $HOME/.copilot/.nav-pilot-state.json
+stderr 'The source removed hook vokter, and it is still active: hooks/vokter\.py changed'
+exists $HOME/.copilot/hooks/vokter.py
+exists $HOME/.copilot/hooks/vokter.json
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/hooks/vakt.hook.json --
+{"matcher": "bash", "timeoutSec": 5}
+-- plattform/hooks/vakt.py --
+print("vakt")
+-- plattform/hooks/vokter.hook.json --
+{"matcher": "bash", "timeoutSec": 5}
+-- plattform/hooks/vokter.py --
+print("vokter")
+-- plattform/.github/hooks/vakt.py --
+print("the source repo's own hook, not the agentpakke's")
+-- edited.py --
+print("vokter, edited here")

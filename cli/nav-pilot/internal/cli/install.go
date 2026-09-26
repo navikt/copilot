@@ -22,8 +22,11 @@ type installResult struct {
 	// Missing names every artifact the manifest listed and the source does not
 	// ship. installArtifact warns and moves on, so the count is the third way
 	// an install lands incomplete — beside a conflict and an unsupported kind.
-	Missing     []string
-	Conflicts   int
+	Missing   []string
+	Conflicts int
+	// Existing names the paths skipped because a file nav-pilot did not
+	// install was already there. They are not recorded in state.
+	Existing    []string
 	Unsupported []string
 	Files       []InstalledFile
 }
@@ -134,6 +137,11 @@ func pakkeContents(resolver *SourceResolver, src *Source) (*Manifest, error) {
 // recorded hash, so an untouched-but-ignored file would hash equal, be
 // overwritten as an ordinary update, and come back with an empty status —
 // silently un-ignored and back under sync's management.
+//
+// Both are still present, with an empty hash: the path is nav-pilot's, and
+// install keeps a differing file there and records it. Left out entirely it
+// would read as a file nav-pilot never installed, be skipped, and then be
+// removed as an orphan.
 func scopeStateHashes(scope *InstallScope) map[string]string {
 	hashes := map[string]string{}
 	state, err := readScopedState(scope)
@@ -141,7 +149,10 @@ func scopeStateHashes(scope *InstallScope) map[string]string {
 		return hashes
 	}
 	for _, f := range state.Files {
-		if f.Status != fileStatusConflict && f.Status != fileStatusIgnored && f.Hash != "" {
+		switch {
+		case f.Status == fileStatusConflict || f.Status == fileStatusIgnored:
+			hashes[f.Path] = ""
+		case f.Hash != "":
 			hashes[f.Path] = f.Hash
 		}
 	}
@@ -203,10 +214,10 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 
 	// A tracked file that still hashes to what nav-pilot recorded is nav-pilot's
 	// own and untouched, so a differing source is an update, not a conflict.
-	// Only an untracked path falls back to the byte comparison, where a
-	// hand-placed or foreign file genuinely is one.
-	conflicted := false
-	if storedHash, tracked := stateHashes[relPath]; tracked {
+	// Only an untracked path, or one recorded as a conflict, falls back to the
+	// byte comparison.
+	conflicted, foreign := false, false
+	if storedHash, tracked := stateHashes[relPath]; tracked && storedHash != "" {
 		// An absent or unreadable file is not the user's edit either, so it is
 		// not a conflict — it is simply reinstalled.
 		current, hashErr := rawArtifactHash(dst, art.IsDir)
@@ -216,7 +227,19 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 		if err != nil {
 			return err
 		}
-		conflicted = c != nil
+		conflicted = tracked && c != nil
+		foreign = !tracked && c != nil
+	}
+
+	// A file nav-pilot did not install is the team's, whatever it is called.
+	// Recording it as nav-pilot's is what let a later sync --apply overwrite
+	// it, so it is left untracked and never written. Only the --force typed on
+	// this command line takes it over; the force a re-install implies for
+	// nav-pilot's own files does not.
+	if foreign && !(force && installForce) {
+		printSkippedExisting(scope, kind, name, relPath)
+		result.Existing = append(result.Existing, relPath)
+		return nil
 	}
 
 	if conflicted && !force {
@@ -229,7 +252,7 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 		// installed by an older revision of the source, and saying "you changed
 		// this" to someone who did not is how a reader learns to ignore the
 		// warning.
-		fmt.Fprintf(os.Stderr, "  %s %s (differs from what nav-pilot installed, kept; %s takes the source's version)\n",
+		fmt.Fprintf(os.Stderr, "  %s %s (differs from what nav-pilot installed, kept; %s takes the source's version and saves yours as .orig)\n",
 			yellow("⚠"), name, bold("nav-pilot sync --apply"))
 		existingHash, hashErr := rawArtifactHash(dst, art.IsDir)
 		if hashErr == nil {
@@ -252,6 +275,13 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 		return nil
 	}
 
+	if conflicted || foreign {
+		saved, err := saveOrig(dst, art.AbsPath, scope.RootDir, art.IsDir)
+		if err != nil {
+			return fmt.Errorf("saving your copy of %s before replacing it: %w", relPath, err)
+		}
+		warnReplacedLocalEdits(scope, relPath, saved)
+	}
 	if err := copyArtifact(art.AbsPath, dst, scope.RootDir, art.IsDir); err != nil {
 		// Every kind, not just hooks: cplt's deny list covers the skill
 		// directories too since cplt#508, so an install inside a sandbox now
@@ -290,8 +320,8 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 // it, and the hash comparison behind this cannot tell the two apart.
 func printConflictHint(n int) {
 	fmt.Printf("%s %d file(s) kept, differing from what nav-pilot installed.\n", yellow("⚠"), n)
-	fmt.Printf("  %s to take the source's version, or %s to overwrite on the next install.\n",
-		bold("nav-pilot sync --apply"), bold("--force"))
+	fmt.Printf("  %s takes the source's version and saves yours as <file>.orig.\n",
+		bold("nav-pilot sync --apply"))
 }
 
 // ─── Commands ───────────────────────────────────────────────────────────────
@@ -538,11 +568,6 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		return err
 	}
 
-	// Past every refusal, so nothing is consented to for an install that then
-	// does not happen (#858). The Tier 2 route asks from installPakkePin, after
-	// its own guards.
-	noteProposalConsent(scope, src, dryRun, jsonOutput)
-
 	// A pakke that reuses another resolves it here, before its contents are
 	// collected: pakkeContents lists through the resolver, so the reused
 	// artifacts are part of the manifest without a second merge step. The
@@ -555,6 +580,14 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	}
 	defer bases.cleanup()
 	reused := bases.nearest()
+
+	if err := confirmInstallWrites(scope, resolver, manifest, dryRun, jsonOutput); err != nil {
+		return err
+	}
+	// Past every refusal, so nothing is consented to for an install that then
+	// does not happen (#858). The Tier 2 route asks from installPakkePin, after
+	// its own guards.
+	noteProposalConsent(scope, src, dryRun, jsonOutput)
 
 	sourceLabel := sourceLabelFor(src)
 
@@ -613,6 +646,9 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 		}, stateCollection(src, collection))
 		if len(removedOrphans) > 0 {
 			doc["removed"] = removedOrphans
+		}
+		if len(result.Existing) > 0 {
+			doc["skipped_existing"] = result.Existing
 		}
 		if switchedFrom != "" {
 			doc["switched_from"] = switchedFrom
@@ -1137,9 +1173,6 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		return err
 	}
 
-	// Same placement as cmdInstallFromSource: past every refusal (#858).
-	noteProposalConsent(scope, src, dryRun, jsonOutput)
-
 	// `--all` means everything the pakke installs, which includes what it
 	// reuses and excludes what the repo's item list leaves out. Built here and
 	// not before the Tier 2 return above: a payload-only pakke has no layout
@@ -1162,6 +1195,11 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	if total == 0 {
 		return fmt.Errorf("no agents, skills, or instructions found in source")
 	}
+	if err := confirmInstallWrites(scope, resolver, manifest, dryRun, jsonOutput); err != nil {
+		return err
+	}
+	// Same placement as cmdInstallFromSource: past every refusal (#858).
+	noteProposalConsent(scope, src, dryRun, jsonOutput)
 	// Without a terminal nobody saw a question naming them, so say it here:
 	// hooks run outside the sandbox on every matching tool call.
 	if !isInteractive() && !jsonOutput && len(manifest.Hooks) > 0 {
@@ -1216,6 +1254,9 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		}, stateCollection(src, CollectionAll))
 		if len(removedOrphans) > 0 {
 			doc["removed"] = removedOrphans
+		}
+		if len(result.Existing) > 0 {
+			doc["skipped_existing"] = result.Existing
 		}
 		if switchedFrom != "" {
 			doc["switched_from"] = switchedFrom
@@ -1869,6 +1910,9 @@ func removeOrphans(scope *InstallScope, prior *StateFile, installed []InstalledF
 			kept = append(kept, f)
 			continue
 		}
+		// A hook's script went, so what registers it goes too; a skill's
+		// directory, likewise. The same cleanup as every other removal path.
+		afterArtifactRemoved(scope, full, switched != "")
 		removed = append(removed, f.Path)
 		if switched == "" {
 			fmt.Printf("  %s %s %s\n", red("×"), f.Path, dim("(no longer part of the install)"))
@@ -1979,4 +2023,70 @@ func kindLabel(kind *ArtifactKind) string {
 		return kind.Name
 	}
 	return strings.ToUpper(kind.Dir[:1]) + kind.Dir[1:]
+}
+
+// installConsentRequired is set by run() for an install command line that has
+// not already said yes: no --yes, no --all with a scope flag, no --frozen.
+// Functions called directly, as the tests and the pickers do, are not asked.
+var installConsentRequired bool
+
+// askHooks is the question a user-scope install asks before it writes hooks.
+// Overridable in tests.
+var askHooks = func(title, description string) (bool, error) {
+	ok := true
+	err := huh.NewConfirm().Title(title).Description(description).
+		Affirmative("Install").Negative("Cancel").Value(&ok).WithTheme(navTheme()).Run()
+	return ok, err
+}
+
+// confirmInstallWrites is the consent an install needs before it writes
+// anything, asked once for every way into it.
+//
+// Without a terminal nobody can be asked, and "install nav-pilot" in a script
+// wrote 152 files and three hooks that run outside the sandbox on every
+// matching tool call. So it refuses, the way `alpha local init` does, and says
+// what it would have done. In a terminal, a user-scope install that brings
+// hooks asks about them, whichever command got there: the picker behind
+// `install --user` always did, the scope picker behind `install <name>` did
+// not.
+func confirmInstallWrites(scope *InstallScope, resolver *SourceResolver, manifest *Manifest, dryRun, jsonOutput bool) error {
+	if dryRun || !installConsentRequired {
+		return nil
+	}
+	files := 0
+	for _, kind := range AllKinds {
+		names, _ := manifest.NamesByKind(kind)
+		if !scope.SupportsType(kind.Name) {
+			continue
+		}
+		for _, name := range names {
+			if art, ok := resolver.Get(kind, name); ok && art.IsDir {
+				files += countDirFiles(art.AbsPath)
+			} else if ok {
+				files++
+			}
+		}
+	}
+	hooks := len(manifest.Hooks)
+	if !isInteractive() || jsonOutput {
+		what := fmt.Sprintf("%d files to %s", files, scope.Label())
+		if hooks > 0 {
+			what += fmt.Sprintf(", including %d hooks that run outside the sandbox", hooks)
+		}
+		return &exitCode{code: 2, err: fmt.Errorf("install would write %s. Run it in a terminal, or pass --yes", what)}
+	}
+	if !scope.IsUser() || hooks == 0 {
+		return nil
+	}
+	ok, err := askHooks(
+		fmt.Sprintf("Install %d files and %d hooks to ~/.copilot?", files, hooks),
+		fmt.Sprintf("Hooks run outside the sandbox on every matching tool call: %s", strings.Join(manifest.Hooks, ", ")))
+	if err != nil && !errors.Is(err, huh.ErrUserAborted) {
+		return fmt.Errorf("could not ask about the hooks: %w\n\n  Install without asking:  %s", err, bold("nav-pilot install <name> --user --yes"))
+	}
+	if err != nil || !ok {
+		fmt.Println(dim("Cancelled."))
+		return errInstallCancelled
+	}
+	return nil
 }

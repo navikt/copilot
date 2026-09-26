@@ -1,0 +1,36 @@
+# `install <name>` in a terminal asks where to install. Picking "User home"
+# installed the agentpakke's hooks into ~/.copilot without the question
+# `install --user` asks about them. It asks it now.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+cp config home/config.toml
+mkdir plattform/skills forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../forbruker
+exec git init -q .
+
+exits 0 pty-run -wait 'Where to install' -send '\x1b[B' -wait 'User home' -send '\r' -wait 'hooks to ~/\.copilot' -send '\x03' -- nav-pilot install plattform --source $WORK/plattform
+stdout 'Install 2 files and 1 hooks to ~/\.copilot\?'
+stdout 'Hooks run outside the sandbox on every matching tool call: vakt'
+stdout 'Cancelled\.'
+! exists $HOME/.copilot/hooks/vakt.py
+
+-- config --
+version = 1
+model = "github-copilot/claude-opus-4.7"
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/hooks/vakt.hook.json --
+{"matcher": "bash", "timeoutSec": 5}
+-- plattform/hooks/vakt.py --
+print("vakt")

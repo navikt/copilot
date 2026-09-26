@@ -170,6 +170,7 @@ var (
 	rawArtifactHash        = source.RawArtifactHash
 	comparableArtifactHash = source.ComparableArtifactHash
 	checkConflict          = source.CheckConflict
+	saveOrig               = source.SaveOrig
 
 	// manifest.go
 	validateName        = source.ValidateName

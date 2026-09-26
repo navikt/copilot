@@ -114,9 +114,13 @@ jobs:
             # the agentpakke can move forward without any installed file
             # changing, and the lock file is then the only thing in the PR
             # (#606). Listing only .updates[].path never mentioned it.
+            # An update that replaces a file edited in this repo says so: the
+            # apply step keeps the edited copy as <file>.orig, and the
+            # reviewer is the one who decides which version stays.
             # sync-pr-body-filter-start
             CHANGE_FILTER='
-              (.updates // [])[].path,
+              (.replaced_local_edits // []) as $edited
+              | ((.updates // [])[].path | . as $p | if any($edited[]; . == $p) then $p + " (replaces local edits, kept as .orig)" else $p end),
               ((.deletions // [])[] | . + " (deleted upstream)"),
               (if .pin_bump then "\(.pin_bump.path) (pinned revision \(.pin_bump.from[0:7]) → \(.pin_bump.to[0:7]))" else empty end)
             '

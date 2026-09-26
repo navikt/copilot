@@ -17,7 +17,7 @@ func TestGoldenPath(t *testing.T) {
 	if out, code := e.run(src, "validate", "--source", src); code != 0 {
 		t.Fatalf("validate feilet: %d\n%s", code, out)
 	}
-	out, code := e.run(cons, "install", "plattform", "--source", src, "--repo")
+	out, code := e.run(cons, "install", "plattform", "--source", src, "--repo", "--yes")
 	if code != 0 {
 		t.Fatalf("install feilet: %d\n%s", code, out)
 	}
@@ -45,7 +45,7 @@ func TestReuseSurvivesSync(t *testing.T) {
 	e.declareReuse(own, base)
 	cons := e.consumer("forbruker")
 
-	out, code := e.run(cons, "install", "egenpakke", "--source", own, "--repo")
+	out, code := e.run(cons, "install", "egenpakke", "--source", own, "--repo", "--yes")
 	if code != 0 {
 		t.Fatalf("install feilet: %d\n%s", code, out)
 	}
@@ -81,7 +81,7 @@ func TestOwnArtifactShadowsInherited(t *testing.T) {
 	e.declareReuse(own, base)
 	cons := e.consumer("forbruker")
 
-	if out, code := e.run(cons, "install", "egenpakke", "--source", own, "--repo"); code != 0 {
+	if out, code := e.run(cons, "install", "egenpakke", "--source", own, "--repo", "--yes"); code != 0 {
 		t.Fatalf("install feilet: %d\n%s", code, out)
 	}
 	body, err := os.ReadFile(filepath.Join(cons, ".github", "agents", "grillmester.agent.md"))
@@ -102,7 +102,7 @@ func TestApplyRestoresDriftedInheritedFile(t *testing.T) {
 	e.declareReuse(own, base)
 	cons := e.consumer("forbruker")
 
-	if out, code := e.run(cons, "install", "egenpakke", "--source", own, "--repo"); code != 0 {
+	if out, code := e.run(cons, "install", "egenpakke", "--source", own, "--repo", "--yes"); code != 0 {
 		t.Fatalf("install feilet: %d\n%s", code, out)
 	}
 	inherited := filepath.Join(cons, ".github", "agents", "felles.agent.md")
@@ -128,7 +128,7 @@ func TestSelfInstallKeepsReuseDeclaration(t *testing.T) {
 	own := e.pakke("egenpakke", "eget")
 	e.declareReuse(own, base)
 
-	if out, code := e.run(own, "install", "egenpakke", "--source", own, "--repo"); code != 0 {
+	if out, code := e.run(own, "install", "egenpakke", "--source", own, "--repo", "--yes"); code != 0 {
 		t.Fatalf("install feilet: %d\n%s", code, out)
 	}
 	body, err := os.ReadFile(filepath.Join(own, ".nav-pilot", "agentpakke.lock.json"))
@@ -170,7 +170,7 @@ func TestInstallWritesInsideTheSandbox(t *testing.T) {
 		t.Fatal("sandkassens HOME er utviklerens egen, da isolerer harnessen ingenting")
 	}
 
-	if out, code := e.run(cons, "install", "plattform", "--source", src, "--repo"); code != 0 {
+	if out, code := e.run(cons, "install", "plattform", "--source", src, "--repo", "--yes"); code != 0 {
 		t.Fatalf("install feilet: %d\n%s", code, out)
 	}
 
@@ -208,7 +208,7 @@ func TestInheritedFilesAreNotStampedWithTheTopRevision(t *testing.T) {
 	e.declareReuse(own, base)
 	cons := e.consumer("forbruker")
 
-	if out, code := e.run(cons, "install", "egenpakke", "--source", own, "--repo"); code != 0 {
+	if out, code := e.run(cons, "install", "egenpakke", "--source", own, "--repo", "--yes"); code != 0 {
 		t.Fatalf("install feilet: %d\n%s", code, out)
 	}
 	body, err := os.ReadFile(filepath.Join(cons, ".github", ".nav-pilot-state.json"))
@@ -252,7 +252,7 @@ func TestSyncReadsTheDeclaredSource(t *testing.T) {
 	other := e.pakke("annen", "noeannet")
 	cons := e.consumer("forbruker")
 
-	if out, code := e.run(cons, "install", "erklaert", "--source", declared, "--repo"); code != 0 {
+	if out, code := e.run(cons, "install", "erklaert", "--source", declared, "--repo", "--yes"); code != 0 {
 		t.Fatalf("install feilet: %d\n%s", code, out)
 	}
 	// Config peker et annet sted enn erklæringa.
@@ -279,7 +279,7 @@ func TestRetirementsInTheBaseReachTheConsumer(t *testing.T) {
 	e.declareReuse(own, base)
 	cons := e.consumer("forbruker")
 
-	if out, code := e.run(cons, "install", "egenpakke", "--source", own, "--repo"); code != 0 {
+	if out, code := e.run(cons, "install", "egenpakke", "--source", own, "--repo", "--yes"); code != 0 {
 		t.Fatalf("install feilet: %d\n%s", code, out)
 	}
 	installed := filepath.Join(cons, ".github", "agents", "utgaar.agent.md")

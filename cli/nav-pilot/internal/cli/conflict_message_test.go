@@ -32,9 +32,6 @@ func TestConflictSummaryHasOneCallSiteEach(t *testing.T) {
 	if got := strings.Count(src, "differ from what nav-pilot installed"); got != 1 {
 		t.Errorf("formuleringa står %d steder i sync.go, ventet 1", got)
 	}
-	if got := strings.Count(src, "printConflictSummary(scope, conflictPaths, src.SHA)"); got != 2 {
-		t.Errorf("printConflictSummary kalles %d steder, ventet 2", got)
-	}
 }
 
 // doctor nevnte ikke konflikter i det hele tatt (#651).

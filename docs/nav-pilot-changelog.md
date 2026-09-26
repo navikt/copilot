@@ -2,6 +2,15 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-09-26
+
+### sync mister ikke lenger lokale endringer
+
+- **Lokale endringer lagres som `.orig`**: `nav-pilot sync --apply` tok kildens versjon av en fil som var endret lokalt, uten kopi, også i `~/.copilot`, som ikke ligger i git. Oppdateringen går fortsatt gjennom, men din kopi lagres som `<fil>.orig` ved siden av, og sync sier fra. `--json` lister filene under `replaced_local_edits`, og sync-workflowen merker dem i PR-en.
+- **Filer som fantes før install, tas ikke over**: install registrerte en eksisterende fil med samme navn som nav-pilots, og neste `sync --apply` overskrev den. Nå hopper install over fila med en melding, og sync lar den være.
+- **En hook kilden fjerner, slutter å kjøre**: I repo-scope ble skriptet og oppføringa i `copilot-hooks.json` liggende, og i bruker-scope ble skriptet stående sporet. Nå fjernes skript, registrering og sporing i begge scope. En hook som er endret lokalt, beholdes, og sync advarer om at den fortsatt kjører.
+- **Install uten terminal krever `--yes`**: `install nav-pilot` uten terminal skrev 152 filer, hooks inkludert. Nå nekter den og sier hva den ville ha skrevet, med exit 2, med mindre kommandoen har `--yes`, `--all` eller `--frozen`. I en terminal spør «User home» i scope-velgeren om hooks, slik `install --user` gjør.
+
 ## 2026-09-24
 
 ### GPT-6 Sol er standardmodellen
