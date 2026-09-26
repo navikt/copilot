@@ -1,0 +1,32 @@
+# cplt refuses to sandbox $HOME as too broad, and a first run from a fresh
+# terminal starts exactly there. nav-pilot does not launch from $HOME: it says
+# where to go instead. (The TTY first-run path prints "Installed." first; see
+# TestOfferLaunchAfterInstallFromHome.)
+
+fake-bin cplt copilot
+
+mkdir plattform/skills
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+
+cd $HOME
+exec nav-pilot install --user --all --source $WORK/plattform
+exits 1 nav-pilot --sync --source $WORK/plattform -- -p 'hello'
+stderr 'Not launching from your home directory: the sandbox would cover all of it\. cd into a project and run nav-pilot, or pass --project-dir <dir>\.'
+! exists $WORK/fake/cplt.log
+
+# --project-dir names somewhere narrower, and the launch goes ahead.
+mkdir $WORK/proj
+exec nav-pilot --sync --source $WORK/plattform --project-dir $WORK/proj -- -p 'hello'
+grep '^hello\n---' $WORK/fake/cplt.log
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

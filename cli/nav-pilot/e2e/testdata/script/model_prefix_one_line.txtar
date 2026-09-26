@@ -1,0 +1,35 @@
+# The opencode spelling github-copilot/<id> on the copilot client: copilot is
+# given <id>, and nothing warns that the id is unknown. config validate says
+# the same thing as the launch.
+
+fake-bin cplt copilot
+cp config home/config.toml
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo
+
+exec nav-pilot --sync --source $WORK/plattform -- -p x
+! stderr 'not a recognized Copilot model id'
+grep '^--model\nclaude-opus-4.7\n' $WORK/fake/cplt.log
+
+exec nav-pilot config validate
+stdout 'copilot runs claude-opus-4.7 \(github-copilot/ prefix dropped\)'
+! stdout 'translates automatically'
+
+-- config --
+version = 1
+model = "github-copilot/claude-opus-4.7"
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

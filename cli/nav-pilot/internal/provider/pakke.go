@@ -159,6 +159,11 @@ func resolvedModelOrigin(client string, r domain.ResolvedConfig) (model, origin 
 		if client == "opencode" {
 			return ToOpenCodeModel(r.Model), "your setting"
 		}
+		if client == "copilot" {
+			if id, dropped := CopilotModelID(r.Model); dropped {
+				return id, "your setting, github-copilot/ prefix dropped"
+			}
+		}
 		return r.Model, "your setting"
 	}
 	if declared := pakkeDeclaredModel(client); declared != "" {
@@ -166,6 +171,11 @@ func resolvedModelOrigin(client string, r domain.ResolvedConfig) (model, origin 
 			declared = ToOpenCodeModel(declared)
 			if declared == "" {
 				return "", ""
+			}
+		}
+		if client == "copilot" {
+			if id, dropped := CopilotModelID(declared); dropped {
+				return id, source.ActivePakke().Name + " default, github-copilot/ prefix dropped"
 			}
 		}
 		return declared, source.ActivePakke().Name + " default"

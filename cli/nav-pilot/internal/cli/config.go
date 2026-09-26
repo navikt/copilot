@@ -116,7 +116,11 @@ func validateConfigProblems(cfg *Config) []string {
 	}
 	var problems []string
 
-	if cfg.Version != 1 {
+	switch cfg.Version {
+	case 1:
+	case 0:
+		problems = append(problems, "version is missing: add version = 1 at the top (or run nav-pilot config set version 1)")
+	default:
 		problems = append(problems, fmt.Sprintf("version must be 1 (got %d)", cfg.Version))
 	}
 	if cfg.Client != nil && !containsStr(validProviderIDs, *cfg.Client) {
@@ -236,17 +240,17 @@ func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 		return ResolvedConfig{}, err
 	}
 	if err := validateConfig(file); err != nil {
-		return ResolvedConfig{}, fmt.Errorf("%w\n\nFix %s or run `nav-pilot config setup`", err, configPath())
+		return ResolvedConfig{}, fmt.Errorf("%w\n\n%s", err, configFixHint())
 	}
 	// Unknown keys are a hard error: a stray key (e.g. `agent = "..."`) would
 	// otherwise be silently ignored, masking intent.
 	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
-		var keys []string
+		var problems []string
 		for _, k := range undecoded {
-			keys = append(keys, strings.Join(k, "."))
+			problems = append(problems, "  - "+unknownKeyProblem(strings.Join(k, ".")))
 		}
-		return ResolvedConfig{}, fmt.Errorf("config has unknown key(s): %s\n\nFix %s or run `nav-pilot config setup`",
-			strings.Join(keys, ", "), configPath())
+		return ResolvedConfig{}, fmt.Errorf("config has unknown key(s):\n%s\n\n%s",
+			strings.Join(problems, "\n"), configFixHint())
 	}
 	for _, w := range configAdvisories(file, meta) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), w)
@@ -263,6 +267,32 @@ func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 		resolved.AskUser,
 	)
 	return resolved, nil
+}
+
+// renamedConfigKeys maps a retired config key to the key that replaced it.
+var renamedConfigKeys = map[string]string{"agent": "client"}
+
+// unknownKeyProblem describes a key the config does not know. A renamed key
+// names its successor and the command that moves its value over; `config set`
+// drops the old line when it writes the new one.
+func unknownKeyProblem(key string) string {
+	next, ok := renamedConfigKeys[key]
+	if !ok {
+		return "unknown key: " + key
+	}
+	value := "<value>"
+	var raw map[string]any
+	if _, err := toml.DecodeFile(configPath(), &raw); err == nil {
+		if v, ok := raw[key].(string); ok {
+			value = v
+		}
+	}
+	return fmt.Sprintf("%s was renamed to %s: nav-pilot config set %s %s", key, next, next, value)
+}
+
+// configFixHint is the way out of a config nav-pilot refuses to launch with.
+func configFixHint() string {
+	return fmt.Sprintf("Fix %s, or start over with nav-pilot config setup --force", configPath())
 }
 
 // resolve builds a ResolvedConfig from file config and CLI overrides.
@@ -395,6 +425,7 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		r.OtelLogLevel = cli.OtelLogLevel
 	}
 	r.ProjectDir = cli.ProjectDir
+	r.NoSandbox = cli.NoSandbox
 	r.ExtraArgs = cli.ExtraArgs
 	return r
 }

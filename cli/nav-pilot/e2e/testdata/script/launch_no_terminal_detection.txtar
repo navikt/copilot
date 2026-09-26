@@ -1,0 +1,18 @@
+# Interactivity is stdin AND stdout being terminals, by the kernel's answer.
+# /dev/null is a character device, so the file-mode check counted it as a
+# terminal: bare nav-pilot opened a prompt and crashed in huh on /dev/tty.
+
+fake-bin cplt copilot
+
+# Bare, stdin from /dev/null: the usage page on stderr, exit 0, no prompt.
+exec /bin/sh -c 'nav-pilot </dev/null'
+stderr '^Usage:'
+! stderr '/dev/tty'
+! stdout .
+
+# Launch flags and no terminal: not a usage page with exit 0, but a refusal
+# that says what would work.
+exits 1 /bin/sh -c 'nav-pilot --client opencode </dev/null'
+stderr '^Not launching: no terminal\. Run it in a terminal, or without one: nav-pilot --sync --client opencode -- -p "…"$'
+! stdout .
+! exists $WORK/fake/cplt.log

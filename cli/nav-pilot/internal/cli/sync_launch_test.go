@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -21,7 +22,9 @@ func stubClient(t *testing.T, name string) (markerPath string) {
 	// test must not depend on what that env keeps.
 	// ": >" is a shell builtin, so the stub works under the curated launch env
 	// even when that env carries no PATH.
-	script := "#!/bin/sh\n: > \"" + markerPath + "\"\n"
+	// A --version probe (FindCopilotCLI asks a plain copilot whether it is
+	// cplt) is not a launch.
+	script := "#!/bin/sh\n[ \"$1\" = --version ] && exit 0\n: > \"" + markerPath + "\"\n"
 	if err := os.WriteFile(filepath.Join(binDir, name), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -86,30 +89,37 @@ func TestSyncFlagHonoursAutoLaunchFalse(t *testing.T) {
 	}
 }
 
-// The --sync path must warn about an unsandboxed copilot launch (#472): the
-// plain copilot CLI without cplt gets the missing-sandbox warning decideLaunch
-// produces on every other path, and then launches.
-func TestSyncFlagWarnsUnsandboxedLaunch(t *testing.T) {
-	cfgPath := isolatedConfig(t)
-	if err := os.WriteFile(cfgPath, []byte("version = 1\nclient = \"copilot\"\nauto_launch = true\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	marker := stubClient(t, "copilot")
+// The --sync path must not launch an unsandboxed copilot unasked (#472): the
+// plain copilot CLI without cplt gets the missing-sandbox question
+// decideLaunch produces on every other path, defaulting to no.
+func TestSyncFlagAsksBeforeUnsandboxedLaunch(t *testing.T) {
+	for _, answer := range []bool{true, false} {
+		t.Run(fmt.Sprintf("answer %v", answer), func(t *testing.T) {
+			cfgPath := isolatedConfig(t)
+			if err := os.WriteFile(cfgPath, []byte("version = 1\nclient = \"copilot\"\nauto_launch = true\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			marker := stubClient(t, "copilot")
+			t.Chdir(t.TempDir())
 
-	origInteractive := isInteractive
-	isInteractive = func() bool { return true }
-	t.Cleanup(func() { isInteractive = origInteractive })
+			origInteractive, origConfirm := isInteractive, confirmUnsandboxedFn
+			isInteractive = func() bool { return true }
+			asked := 0
+			confirmUnsandboxedFn = func(string) (bool, error) { asked++; return answer, nil }
+			t.Cleanup(func() { isInteractive, confirmUnsandboxedFn = origInteractive, origConfirm })
 
-	var runErr error
-	_, stderr := captureRun(t, func() { runErr = run([]string{"--sync"}) })
-	if runErr != nil {
-		t.Fatalf("run(--sync) = %v", runErr)
-	}
-	if !strings.Contains(stderr, "unsandboxed") {
-		t.Errorf("run(--sync) with plain copilot should warn about the missing sandbox, got stderr:\n%s", stderr)
-	}
-	if _, err := os.Stat(marker); err != nil {
-		t.Errorf("run(--sync) with auto_launch = true should still launch the client: %v\nstderr:\n%s", err, stderr)
+			var runErr error
+			_, stderr := captureRun(t, func() { runErr = run([]string{"--sync"}) })
+			if runErr != nil {
+				t.Fatalf("run(--sync) = %v", runErr)
+			}
+			if asked != 1 || !strings.Contains(stderr, "brew install navikt/tap/cplt (or sudo apt install cplt)") {
+				t.Errorf("asked %d times, want 1, with the install command on stderr:\n%s", asked, stderr)
+			}
+			if _, err := os.Stat(marker); (err == nil) != answer {
+				t.Errorf("answered %v, launched = %v", answer, err == nil)
+			}
+		})
 	}
 }
 
@@ -131,9 +141,10 @@ func TestSyncFlagRemovesUnusableRtkHook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	origInteractive := isInteractive
+	origInteractive, origConfirm := isInteractive, confirmUnsandboxedFn
 	isInteractive = func() bool { return true }
-	t.Cleanup(func() { isInteractive = origInteractive })
+	confirmUnsandboxedFn = func(string) (bool, error) { return true, nil }
+	t.Cleanup(func() { isInteractive, confirmUnsandboxedFn = origInteractive, origConfirm })
 
 	var runErr error
 	_, stderr := captureRun(t, func() { runErr = run([]string{"--sync"}) })

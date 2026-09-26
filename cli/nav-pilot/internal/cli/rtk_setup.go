@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,19 +15,27 @@ import (
 )
 
 // maybePromptRtkSetup coordinates the interactive prompt and installation of RTK.
-// It is the main entry point called from the interactive launch flow.
-func maybePromptRtkSetup(cfg ResolvedConfig) {
+// It is the main entry point called from the interactive launch flow. The only
+// error it returns is a cancelledError, for Ctrl-C at the prompt; a failed
+// setup is a warning and the launch goes on.
+func maybePromptRtkSetup(cfg ResolvedConfig) error {
 	if err := removeUnusableRtkHook(cfg.Client); err != nil {
 		fmt.Fprintf(os.Stderr, "%s RTK Setup Warning: %v\n", yellow("⚠"), err)
 	}
 	if !shouldPromptRtk(cfg) {
-		return
+		return nil
 	}
 
-	if err := promptAndInstallRtk(cfg); err != nil {
+	err := promptAndInstallRtk(cfg)
+	var c cancelledError
+	if errors.As(err, &c) {
+		return err
+	}
+	if err != nil {
 		// Log warning but don't fail the launch
 		fmt.Fprintf(os.Stderr, "%s RTK Setup Warning: %v\n", yellow("⚠"), err)
 	}
+	return nil
 }
 
 func removeUnusableRtkHook(client string) error {
@@ -88,7 +97,10 @@ func promptAndInstallRtk(cfg ResolvedConfig) error {
 
 	if err != nil {
 		telemetry.RecordRtkSetup(cfg.Client, "aborted", "success")
-		return nil // User aborted
+		if errors.Is(err, huh.ErrUserAborted) {
+			return cancelledError{}
+		}
+		return nil // the prompt could not run
 	}
 	if choice != "yes" {
 		telemetry.RecordRtkSetup(cfg.Client, "no", "success")

@@ -347,6 +347,7 @@ func buildStagedCopilotSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch
 	if model == "" {
 		model = pakkeDeclaredModel("copilot")
 	}
+	model, _ = CopilotModelID(model)
 	// The refusal the legacy path no longer needs, kept where it is still true.
 	// A local session is BYOK: COPILOT_PROVIDER_BASE_URL replaces the model
 	// routing for the whole session, and GitHub authentication stops being

@@ -130,8 +130,7 @@ func runConfigSetup(flagSource string) error {
 		WithTheme(navTheme()).
 		Run()
 	if err != nil {
-		fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
-		return nil
+		return setupSkipped(err)
 	}
 
 	err = huh.NewSelect[string]().
@@ -145,8 +144,7 @@ func runConfigSetup(flagSource string) error {
 		WithTheme(navTheme()).
 		Run()
 	if err != nil {
-		fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
-		return nil
+		return setupSkipped(err)
 	}
 
 	// Model picker: providers with a curated model list get a select widget;
@@ -158,8 +156,7 @@ func runConfigSetup(flagSource string) error {
 	}
 	model, err := promptModel(p, "Model", modelDesc, "")
 	if err != nil {
-		fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
-		return nil
+		return setupSkipped(err)
 	}
 	answers.Model = model
 
@@ -179,8 +176,7 @@ func runConfigSetup(flagSource string) error {
 		WithTheme(navTheme()).
 		Run()
 	if err != nil {
-		fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
-		return errors.New("setup aborted by user")
+		return setupSkipped(err)
 	}
 
 	err = huh.NewSelect[string]().
@@ -194,8 +190,7 @@ func runConfigSetup(flagSource string) error {
 		WithTheme(navTheme()).
 		Run()
 	if err != nil {
-		fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
-		return errors.New("setup aborted by user")
+		return setupSkipped(err)
 	}
 
 	if err := writeSetupConfig(answers); err != nil {
@@ -234,6 +229,18 @@ func runConfigSetup(flagSource string) error {
 	return nil
 }
 
+// setupSkipped is how the wizard ends when a prompt returns err. Ctrl-C ends
+// the whole run, and the wizard has written nothing yet. Any other error is a
+// prompt that could not run: the wizard steps aside with one line and the run
+// goes on without a config.
+func setupSkipped(err error) error {
+	if errors.Is(err, huh.ErrUserAborted) {
+		return cancelledError{nothingWritten: true}
+	}
+	fmt.Println(dim("  Setup skipped — run 'nav-pilot config setup' anytime."))
+	return nil
+}
+
 // maybeRunFirstRunSetup runs the config wizard on the first interactive run.
 // It is a no-op when any of the following are true:
 //   - the terminal is not interactive (isInteractive() == false)
@@ -253,16 +260,32 @@ func maybeRunFirstRunSetup(flagSource string) error {
 // Refuses to clobber an existing config and directs the user to 'config set'.
 func cmdConfigSetup(force bool) error {
 	if _, err := os.Stat(configPath()); err == nil {
+		if !force && isInteractive() {
+			// Ask instead of refusing: the launch error that sent the user here
+			// says to start over, and a refusal would send them round again.
+			if err := huh.NewConfirm().
+				Title(fmt.Sprintf("%s already exists. Replace it?", configPath())).
+				Affirmative("Replace").
+				Negative("Keep it").
+				Value(&force).
+				WithTheme(navTheme()).
+				Run(); errors.Is(err, huh.ErrUserAborted) {
+				return cancelledError{nothingWritten: true}
+			} else if err != nil {
+				force = false // a prompt that could not run is no answer: keep the file
+			}
+		}
 		if force {
 			// Remove config to allow setup to overwrite cleanly
 			if rmErr := os.Remove(configPath()); rmErr != nil {
 				return fmt.Errorf("failed to remove existing config with --force: %w", rmErr)
 			}
 		} else {
-			return fmt.Errorf("config file already exists: %s\n\nTo update individual settings:  %s\nTo see current settings:        %s\nTo replace entirely: delete the file and re-run 'nav-pilot config setup', or use the --force flag",
+			return fmt.Errorf("config file already exists: %s\n\nChange one setting:  %s\nSee the settings:    %s\nReplace the file:    %s",
 				configPath(),
 				bold("nav-pilot config set <key> <value>"),
-				bold("nav-pilot config show"))
+				bold("nav-pilot config show"),
+				bold("nav-pilot config setup --force"))
 		}
 	}
 	if !isInteractive() {
@@ -275,7 +298,7 @@ func cmdConfigSetup(force bool) error {
 	}
 
 	if resolved, err := loadConfigForLaunch(CLIOverrides{}); err == nil {
-		maybePromptRtkSetup(resolved)
+		return maybePromptRtkSetup(resolved)
 	}
 	return nil
 }

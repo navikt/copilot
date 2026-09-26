@@ -25,9 +25,27 @@ import (
 // "Cancelled."
 var errInstallCancelled = errors.New("install cancelled")
 
-// isInteractive returns true when stdin is a terminal (not piped). It is a
-// variable so a test can assert what a flag does *in* a terminal — refusing to
-// prompt is only meaningful where there would have been a prompt.
+// cancelledError is Ctrl-C at a prompt of the bare interactive run. One press
+// ends the run: exitCodeFor prints it and exits 130, the shell's code for
+// SIGINT. nothingWritten says so when the run had not written anything yet.
+type cancelledError struct{ nothingWritten bool }
+
+func (c cancelledError) Error() string {
+	if c.nothingWritten {
+		return "Cancelled. Nothing was written."
+	}
+	return "Cancelled."
+}
+
+// isInteractive reports whether a person can answer a prompt: stdin and
+// stdout are both terminals, by the kernel's answer (providerpkg.IsTerminal).
+// It is a variable so a test can assert what a flag does *in* a terminal —
+// refusing to prompt is only meaningful where there would have been a prompt.
+//
+// Not the file mode: os.ModeCharDevice is set for /dev/null too, so a run
+// with stdin from /dev/null counted as interactive, opened a prompt, and
+// crashed in huh on "open /dev/tty". And stdout too, since a prompt drawn into
+// a pipe is one nobody sees.
 var isInteractive = func() bool {
 	if forceNonInteractive {
 		return false
@@ -35,11 +53,7 @@ var isInteractive = func() bool {
 	if os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != "" {
 		return false
 	}
-	fi, err := os.Stdin.Stat()
-	if err != nil {
-		return false
-	}
-	return fi.Mode()&os.ModeCharDevice != 0
+	return providerpkg.IsTerminal(os.Stdin) && providerpkg.IsTerminal(os.Stdout)
 }
 
 // forceNonInteractive can be set in tests to prevent huh from blocking.
@@ -200,8 +214,8 @@ func isGitRepo(dir string) bool {
 // The run() entry point also gates cmdInteractive behind isInteractive().
 func cmdInteractive(overrides CLIOverrides) error {
 	// On first interactive run without a config, offer the setup wizard.
-	if err := maybeRunFirstRunSetup(overrides.Source); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Config setup failed: %v\n", yellow("⚠"), err)
+	if err := firstRunSetup(overrides.Source); err != nil {
+		return err
 	}
 
 	// Resolve config once for the entire interactive session. Refuses to start
@@ -212,7 +226,9 @@ func cmdInteractive(overrides CLIOverrides) error {
 		return cfgErr
 	}
 
-	maybePromptRtkSetup(resolved)
+	if err := maybePromptRtkSetup(resolved); err != nil {
+		return err
+	}
 
 	// Check user-scope state (always available regardless of git repo)
 	var userScope *InstallScope
@@ -256,6 +272,20 @@ func cmdInteractive(overrides CLIOverrides) error {
 
 	// Not in a git repo — only user-home scope is possible
 	return interactiveUserOnlyInstall(resolved)
+}
+
+// firstRunSetup runs the first-run wizard for the launch paths. Ctrl-C in it
+// ends the run; any other failure is a warning and the run goes on.
+func firstRunSetup(flagSource string) error {
+	err := maybeRunFirstRunSetup(flagSource)
+	var c cancelledError
+	if errors.As(err, &c) {
+		return err
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s Config setup failed: %v\n", yellow("⚠"), err)
+	}
+	return nil
 }
 
 // staleScope pairs a scope with the newer nav-pilot release found for it.
@@ -418,8 +448,7 @@ func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
 		return err
 	}
 	if scope == nil {
-		fmt.Println(dim("Cancelled."))
-		return nil
+		return cancelledError{}
 	}
 
 	fmt.Println(dim("Resolving source..."))
@@ -440,7 +469,7 @@ func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
 		}
 		return err
 	}
-	return offerLaunchCopilot(resolved)
+	return offerLaunchAfterInstall(resolved)
 }
 
 // interactiveUserOnlyInstall handles fresh install when not in a git repo.
@@ -478,7 +507,7 @@ func interactiveUserInstall(src *Source, resolved ResolvedConfig) error {
 		}
 		return err
 	}
-	return offerLaunchCopilot(resolved)
+	return offerLaunchAfterInstall(resolved)
 }
 
 // pickerDeclined reports whether the install picker's outcome is a user who
@@ -541,11 +570,22 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 
 	if isInteractive() {
 		fmt.Println()
+		// Hooks are named in the question: they are scripts the client runs
+		// on every matching tool call, outside the cplt sandbox.
+		title := fmt.Sprintf("Install %d agents, skills & instructions to ~/.copilot?", total)
+		description := ""
+		everything := total
+		if n := len(manifest.Hooks); n > 0 {
+			title = fmt.Sprintf("Install %d agents, skills & instructions and %d hooks to ~/.copilot?", total, n)
+			description = fmt.Sprintf("Hooks run outside the sandbox on every matching tool call: %s", strings.Join(manifest.Hooks, ", "))
+			everything += n
+		}
 		var installChoice string
 		err = huh.NewSelect[string]().
-			Title(fmt.Sprintf("Install %d agents, skills & instructions to ~/.copilot?", total)).
+			Title(title).
+			Description(description).
 			Options(
-				huh.NewOption(fmt.Sprintf("Install everything (%d items)", total), "all"),
+				huh.NewOption(fmt.Sprintf("Install everything (%d items)", everything), "all"),
 				huh.NewOption("Customize selection", "custom"),
 				huh.NewOption("Cancel", "cancel"),
 			).
@@ -990,7 +1030,9 @@ func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error
 		return err
 	}
 	if warnUnsandboxed {
-		warnUnsandboxedLaunch(resolved.Client)
+		if err := confirmUnsandboxed(resolved); err != nil {
+			return err
+		}
 	}
 	p, err := providerFor(resolved.Client)
 	if err != nil {
@@ -1000,15 +1042,76 @@ func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error
 	return p.Launch(resolved)
 }
 
-// warnUnsandboxedLaunch says that cplt is missing and the client is about to
-// run without the sandbox, and names the way to get it back.
-func warnUnsandboxedLaunch(client string) {
-	name := client
-	if p, err := providerFor(client); err == nil && p.DisplayName() != "" {
+// cpltInstallHint is how to get the sandbox.
+const cpltInstallHint = "brew install navikt/tap/cplt (or sudo apt install cplt)"
+
+// errUnsandboxedDeclined: the user said no to launching without the sandbox.
+// Not a failure; offerLaunchCopilot ends the run with exit 0.
+var errUnsandboxedDeclined = errors.New("unsandboxed launch declined")
+
+// confirmUnsandboxedFn asks whether to launch without the sandbox; a variable
+// so a test can answer it.
+var confirmUnsandboxedFn = func(name string) (bool, error) {
+	yes := false
+	err := huh.NewConfirm().
+		Title(fmt.Sprintf("Launch %s without the sandbox?", name)).
+		Affirmative("Yes").
+		Negative("No").
+		Value(&yes).
+		WithTheme(navTheme()).
+		Run()
+	return yes, err
+}
+
+// confirmUnsandboxed runs when cplt is missing and copilot would start without
+// it. --no-sandbox launches with one line of warning. In a terminal it asks,
+// defaulting to no. Without one it refuses: nobody is there to say yes.
+func confirmUnsandboxed(resolved ResolvedConfig) error {
+	name := resolved.Client
+	if p, err := providerFor(resolved.Client); err == nil && p.DisplayName() != "" {
 		name = p.DisplayName()
 	}
-	fmt.Fprintf(os.Stderr, "%s The cplt sandbox was not found, so %s runs unsandboxed. %s installs it.\n",
-		yellow("⚠"), name, bold("nav-pilot config setup"))
+	if resolved.NoSandbox {
+		fmt.Fprintf(os.Stderr, "%s cplt (the sandbox) is not installed: %s runs unsandboxed (--no-sandbox).\n", yellow("⚠"), name)
+		return nil
+	}
+	fmt.Fprintf(os.Stderr, "%s cplt (the sandbox) is not installed. Install it: %s\n", yellow("⚠"), bold(cpltInstallHint))
+	if !isInteractive() {
+		fmt.Fprintf(os.Stderr, "Not launching %s unsandboxed without a terminal. Pass --no-sandbox to do it anyway.\n", name)
+		return &exitCode{code: ExitError}
+	}
+	yes, err := confirmUnsandboxedFn(name)
+	if errors.Is(err, huh.ErrUserAborted) {
+		return cancelledError{}
+	}
+	if err != nil || !yes {
+		return errUnsandboxedDeclined
+	}
+	return nil
+}
+
+// launchDirTooBroad reports whether the launch would sandbox the home
+// directory or /, which cplt refuses as too broad.
+func launchDirTooBroad(projectDir string) bool {
+	dir := projectDir
+	if dir == "" {
+		dir, _ = os.Getwd()
+	}
+	dir, _ = filepath.Abs(dir)
+	if d, err := filepath.EvalSymlinks(dir); err == nil {
+		dir = d
+	}
+	if dir == "/" {
+		return true
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return false
+	}
+	if h, err := filepath.EvalSymlinks(home); err == nil {
+		home = h
+	}
+	return dir == home
 }
 
 // launchDecision is what offerLaunchCopilot should do about launching.
@@ -1054,6 +1157,10 @@ func decideLaunch(available, autoLaunch, sandboxed, interactive bool) launchDeci
 // client that ran and exited non-zero comes back as its *exec.ExitError, so
 // exitCodeFor passes its status through; anything else exits 1.
 func offerLaunchCopilot(resolved ResolvedConfig) error {
+	return offerLaunch(resolved, false)
+}
+
+func offerLaunch(resolved ResolvedConfig, installed bool) error {
 	p, err := providerFor(resolved.Client)
 	if err != nil {
 		return err
@@ -1081,8 +1188,22 @@ func offerLaunchCopilot(resolved ResolvedConfig) error {
 	if decision == launchSkipQuiet {
 		return nil
 	}
-	if headless && decision != launchGo {
+	if headless && decision != launchGo && !(decision == launchWarnUnsandboxed && resolved.NoSandbox) {
 		return headlessRefusal(decision, p, missingCommand(resolved.Client, cmdName))
+	}
+	// Launching from $HOME (or /): cplt refuses it as too broad, and a first
+	// run from a fresh terminal lands exactly there. Say where to go instead.
+	if (decision == launchGo || decision == launchWarnUnsandboxed) && launchDirTooBroad(resolved.ProjectDir) {
+		msg := "cd into a project and run nav-pilot, or pass --project-dir <dir>."
+		if installed {
+			fmt.Printf("\n%s Installed. %s\n", green("✓"), msg)
+			return nil
+		}
+		fmt.Fprintf(os.Stderr, "Not launching from your home directory: the sandbox would cover all of it. %s\n", msg)
+		if headless {
+			return &exitCode{code: ExitError}
+		}
+		return nil
 	}
 
 	fmt.Println()
@@ -1095,6 +1216,11 @@ func offerLaunchCopilot(resolved ResolvedConfig) error {
 			missing = cmdName
 		}
 		missing = missingCommand(resolved.Client, missing)
+		if missing == "cplt" {
+			fmt.Fprintf(os.Stderr, "%s cplt (the sandbox) is not installed, and %s only launches inside it. Install it: %s\n",
+				yellow("⚠"), p.DisplayName(), bold(cpltInstallHint))
+			return nil
+		}
 		fmt.Fprintf(os.Stderr, "%s %s was not found on PATH — skipping launch. Run %s to diagnose.\n",
 			yellow("⚠"), missing, bold("nav-pilot doctor"))
 		return nil
@@ -1111,6 +1237,15 @@ func offerLaunchCopilot(resolved ResolvedConfig) error {
 	if err := runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
 		return launchClientConfirming(resolved, warnUnsandboxed)
 	}); err != nil {
+		if errors.Is(err, errUnsandboxedDeclined) {
+			fmt.Println(dim("Not launched."))
+			return nil
+		}
+		var c cancelledError
+		var ec *exitCode
+		if errors.As(err, &c) || errors.As(err, &ec) {
+			return err
+		}
 		return fmt.Errorf("launch failed: %w", err)
 	}
 	return nil
@@ -1128,6 +1263,13 @@ func missingCommand(client, name string) string {
 	return name
 }
 
+// offerLaunchAfterInstall is offerLaunchCopilot at the end of an install:
+// the same launch, and from $HOME it says the install worked before saying
+// where to launch from.
+func offerLaunchAfterInstall(resolved ResolvedConfig) error {
+	return offerLaunch(resolved, true)
+}
+
 // headlessRefusal says why a launch with no terminal and a prompt after "--"
 // does not run, and exits 1, so a CI job cannot mistake a dropped prompt for
 // one that ran.
@@ -1138,8 +1280,8 @@ func headlessRefusal(decision launchDecision, p Provider, cmdName string) error 
 	case launchSkipOptedOut:
 		fmt.Fprintf(os.Stderr, "Not launching: auto_launch = false. Start it yourself with: %s\n", cmdName)
 	default:
-		fmt.Fprintf(os.Stderr, "Not launching: no terminal, and without cplt %s would run unsandboxed with nobody watching.\n  Install cplt: %s\n",
-			p.DisplayName(), bold("brew install navikt/tap/cplt"))
+		fmt.Fprintf(os.Stderr, "Not launching: no terminal, and without cplt %s would run unsandboxed with nobody watching.\n  Install cplt: %s\n  Or pass --no-sandbox to run it anyway.\n",
+			p.DisplayName(), bold(cpltInstallHint))
 	}
 	return &exitCode{code: ExitError}
 }

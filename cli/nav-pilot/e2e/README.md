@@ -40,8 +40,21 @@ Commands beyond the
 | `fake-bin NAME...` | Replaces `PATH` with recording fakes for the named clients (`cplt`, `copilot`, `opencode`, `pi`), plus `git` and `nav-pilot`. Each fake appends its arguments, then `---`, to `$WORK/fake/NAME.log`. A client not named is missing. |
 
 The `[pty]` condition is true where a pseudo-terminal can be opened. Put
-`[!pty] skip '...'` at the start of any script that uses `ttyin`. Keep TTY
-scripts to detection and the first prompt: don't drive a full TUI.
+`[!pty] skip '...'` at the start of any script that uses `ttyin` or
+`pty-run`. Keep TTY scripts to detection and a prompt or two: don't drive a
+full TUI.
+
+`ttyin` puts a terminal on stdin only. nav-pilot prompts only when stdin and
+stdout are both terminals, so journeys through its prompts use `pty-run`, a
+program on `PATH` (the test binary under another name):
+
+```
+exits 130 pty-run -wait 'Which coding agent' -send '\x03' -- nav-pilot
+```
+
+It runs the command with stdin, stdout and stderr on one terminal and copies
+what it prints to stdout. Each `-wait` regex is awaited in turn, then its
+`-send` keys are typed (Go escapes: `\r` is Enter, `\x03` is Ctrl-C).
 
 Assert on stdout and stderr separately, and assert the empty one too
 (`! stdout .`). Most of the value is in checking which stream a message goes to.

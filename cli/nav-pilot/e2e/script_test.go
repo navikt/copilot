@@ -39,6 +39,9 @@ func TestMain(m *testing.M) {
 		serveFakeMLX()
 		return
 	}
+	if filepath.Base(os.Args[0]) == ptyRunName {
+		os.Exit(ptyRun(os.Args[1:]))
+	}
 	os.Exit(m.Run())
 }
 

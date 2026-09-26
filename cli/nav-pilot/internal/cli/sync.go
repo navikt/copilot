@@ -423,6 +423,16 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		// that absence as "deleted upstream" deleted everything the base
 		// supplied on the first sync after install.
 		sourceRoot, found := resolver.SourceRootFor(sf.sourcePath)
+		if !found && isUserHookConfig(scope, resolver, sf.localPath) {
+			// Generated, not copied: --apply rebuilds it from the current
+			// .hook.json, so a new matcher or timeout reaches it too.
+			if apply {
+				if err := refreshUserHookConfig(scope, resolver, sf.localPath); err != nil {
+					syncErrors = append(syncErrors, fmt.Sprintf("%s: %v", sf.localPath, err))
+				}
+			}
+			continue
+		}
 		if !found {
 			// Deleted upstream — but only nav-pilot's own untouched copy is
 			// nav-pilot's to remove. A file whose bytes have changed since it
@@ -798,6 +808,47 @@ func pinnedSync(state *StateFile, src *Source) bool {
 // the one the source resolved to and, with --apply, pins the new revision.
 //
 // Without this branch a zero-item pin state falls all the way through
+// isUserHookConfig reports whether localPath is the ~/.copilot/hooks/<name>.json
+// entry activateHook generated for a hook the source still ships. It has no
+// file of its own in the source (it is made from hooks/<name>.py and its
+// .hook.json), so reading it as "deleted in source" removed the entry of every
+// installed hook on the next sync and left the scripts behind.
+func isUserHookConfig(scope *InstallScope, resolver *SourceResolver, localPath string) bool {
+	dir, file := filepath.Split(filepath.ToSlash(localPath))
+	if !scope.IsUser() || dir != KindHook.Dir+"/" || !strings.HasSuffix(file, ".json") {
+		return false
+	}
+	name := strings.TrimSuffix(file, ".json")
+	_, _, ok := resolver.GetFile(KindHook.Dir, name+KindHook.Suffix)
+	return ok
+}
+
+// refreshUserHookConfig rewrites a ~/.copilot/hooks/<name>.json entry from
+// the source's hook and records its new hash, so uninstall still knows the
+// file as nav-pilot's own.
+func refreshUserHookConfig(scope *InstallScope, resolver *SourceResolver, localPath string) error {
+	name := strings.TrimSuffix(filepath.Base(localPath), ".json")
+	art, ok := resolver.Get(KindHook, name)
+	if !ok {
+		return nil
+	}
+	var res installResult
+	if err := activateHook(scope, art, &res); err != nil {
+		return err
+	}
+	state, err := readScopedState(scope)
+	if err != nil || state == nil || len(res.Files) == 0 {
+		return err
+	}
+	for i := range state.Files {
+		if state.Files[i].Path == res.Files[0].Path && state.Files[i].Hash != res.Files[0].Hash {
+			state.Files[i].Hash = res.Files[0].Hash
+			return writeScopedState(scope, state)
+		}
+	}
+	return nil
+}
+
 // resolveSyncFiles to the "No customization files found to sync." dead end and
 // returns nil — sync reporting success over an install that can never advance.
 //

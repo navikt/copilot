@@ -10,9 +10,10 @@ fake-mlx mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
 exec nav-pilot alpha local use gemma3-4b
 stdout '✓ Already on disk\. Nothing to download\.'
 ! stdout 'Downloaded'
-stdout '⚠ The running server still serves mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit\.'
-stdout 'Load it: nav-pilot alpha local restart'
+stderr '⚠ The running server still serves mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit\.'
+stderr 'Load it: nav-pilot alpha local restart'
 ! stdout 'Restart the server'
+! stdout '⚠'
 
 # With one, it asks instead. The prompt draws on stderr (the TUI hides the
 # cursor first). Its title is not asserted: the answer is already queued when
@@ -21,8 +22,8 @@ stdout 'Load it: nav-pilot alpha local restart'
 # is left running and the way back is printed.
 ttyin -stdin answer-no
 exec nav-pilot alpha local use gemma3-4b
-! stdout 'Load it:'
-stdout 'Later: nav-pilot alpha local restart'
+! stderr 'Load it:'
+stderr 'Later: nav-pilot alpha local restart'
 stderr '\x1b\[\?25l'
 ! stdout 'Stopped'
 exists home/.nav-pilot/local/server.json

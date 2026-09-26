@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -696,6 +697,22 @@ func writeConfigKey(key, value string) (string, error) {
 	// and only otherwise a commented-out one: replacing the comment while an
 	// active line lives further down would define the key twice and leave the
 	// config unparseable.
+	// Setting the key that replaced a renamed one drops the old line, so the
+	// command a launch prints for `agent` also fixes the file.
+	for old, next := range renamedConfigKeys {
+		if next != key {
+			continue
+		}
+		kept := lines[:0]
+		for _, line := range lines {
+			if isConfigKeyLine(line, old) && !strings.HasPrefix(strings.TrimLeft(line, " \t"), "#") {
+				continue
+			}
+			kept = append(kept, line)
+		}
+		lines = kept
+	}
+
 	replace := -1
 	for i, line := range lines {
 		if !isConfigKeyLine(line, key) {
@@ -840,7 +857,7 @@ func cmdConfigValidate() error {
 
 	// Unknown keys (keys in file not recognized by nav-pilot).
 	for _, key := range meta.Undecoded() {
-		problems = append(problems, fmt.Sprintf("unknown key: %s", strings.Join(key, ".")))
+		problems = append(problems, unknownKeyProblem(strings.Join(key, ".")))
 	}
 
 	// Semantic validation — append the []string slice directly.
@@ -882,8 +899,16 @@ func configHints(cfg *Config) []string {
 		return nil
 	}
 	var hints []string
+	// opencode and pi take provider/model; the hint is about the copilot client.
+	if cfg.Client != nil && *cfg.Client != "copilot" {
+		return nil
+	}
 	if cfg.Model != nil {
 		m := *cfg.Model
+		// Same line the launch prints, so validate and launch agree.
+		if note := providerpkg.CopilotModelNote(m); note != "" {
+			return []string{fmt.Sprintf("model %q: %s.", m, note)}
+		}
 		if strings.Contains(m, "/") {
 			shortID := strings.SplitN(m, "/", 2)[1]
 			if shortID == "" {

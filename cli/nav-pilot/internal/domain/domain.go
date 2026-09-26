@@ -107,6 +107,7 @@ type ResolvedConfig struct {
 	HookRedactFNR     bool     // mask fødselsnummer, D- and H-nummer in tool results
 	HookInjectionNote bool     // flag instruction-like text in tool results
 	ProjectDir        string   // --project-dir: the directory cplt may read and write; empty = the working directory
+	NoSandbox         bool     // --no-sandbox: launch copilot without cplt when cplt is missing, without asking
 	ExtraArgs         []string // pass-through arguments for the client
 }
 
@@ -133,6 +134,7 @@ type CLIOverrides struct {
 	LogLevel        string
 	OtelLogLevel    string
 	ProjectDir      string
+	NoSandbox       bool
 	ExtraArgs       []string
 }
 

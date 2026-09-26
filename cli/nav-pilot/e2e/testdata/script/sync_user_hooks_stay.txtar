@@ -1,0 +1,51 @@
+# A user-scope install puts the agentpakke's hooks in ~/.copilot/hooks. A sync
+# from the same revision must leave them alone. It used to report the hook
+# entries (hooks/*.json) as "deleted in source" and remove them, leaving the
+# scripts behind.
+
+mkdir plattform/skills
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ..
+
+exec nav-pilot install --user --all --source $WORK/plattform
+exists home/.copilot/hooks/vakt.py
+# No question without a terminal, so it is said instead.
+stderr 'Installing 1 hooks, which run outside the sandbox on every matching tool call: vakt'
+
+
+exec nav-pilot sync --user --apply --source $WORK/plattform
+! stdout 'deleted in source'
+! stdout 'Removed'
+exists home/.copilot/hooks/vakt.py
+exists home/.copilot/hooks/vakt.json
+
+# A new matcher in the source reaches the generated entry on the next sync.
+cp vakt-v2.hook.json plattform/hooks/vakt.hook.json
+cd plattform
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qam matcher
+cd ..
+exec nav-pilot sync --user --apply --source $WORK/plattform
+grep 'edit' home/.copilot/hooks/vakt.json
+! stdout 'deleted in source'
+
+# Still nav-pilot's own file: uninstall takes it.
+exec nav-pilot uninstall --user
+! exists home/.copilot/hooks/vakt.json
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/hooks/vakt.hook.json --
+{"matcher": "bash", "timeoutSec": 5}
+-- vakt-v2.hook.json --
+{"matcher": "edit", "timeoutSec": 5}
+-- plattform/hooks/vakt.py --
+print("ok")

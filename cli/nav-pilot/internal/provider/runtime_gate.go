@@ -170,7 +170,7 @@ var probeClientVersion = func(client string) (string, error) {
 // launched under its own name and probed the same way.
 var probeLaunchClientVersion = func(client string) (string, error) {
 	if client != "copilot" {
-		return runStagedProbe(clientProbeTimeout, client, "--version")
+		return cachedVersion(client, clientProbeTimeout)
 	}
 	path, name := FindCopilotCLI()
 	if path == "" {
@@ -179,7 +179,7 @@ var probeLaunchClientVersion = func(client string) (string, error) {
 	if name == "cplt" {
 		return probeClientVersion(client)
 	}
-	return runStagedProbe(clientProbeTimeout, path, "--version")
+	return cachedVersion(path, clientProbeTimeout)
 }
 
 func stagedCpltPath() (string, error) {
