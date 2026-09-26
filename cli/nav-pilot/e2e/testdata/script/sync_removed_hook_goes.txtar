@@ -30,7 +30,7 @@ exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm 'drop hooks'
 cd ../forbruker
 
 exec nav-pilot sync --repo --apply --source $WORK/plattform
-stdout '× \.github/hooks/vakt\.py \(deleted\)'
+stdout '- \.github/hooks/vakt\.py \(deleted\)'
 ! exists .github/hooks/vakt.py
 ! grep '"vakt"' .github/hooks/copilot-hooks.json
 ! grep 'hooks/vakt' .github/.nav-pilot-state.json

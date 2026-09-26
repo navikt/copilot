@@ -451,7 +451,7 @@ func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
 		return cancelledError{}
 	}
 
-	fmt.Println(dim("Resolving source..."))
+	fmt.Fprintln(os.Stderr, dim("Resolving source..."))
 	src, err := resolveDeclaredSource(scope, "", "")
 	if err != nil {
 		return err
@@ -478,7 +478,7 @@ func interactiveUserOnlyInstall(resolved ResolvedConfig) error {
 	fmt.Println(bold("nav-pilot") + dim(" — Nav's Copilot toolkit"))
 	fmt.Println()
 	fmt.Println(dim("Not in a git repository — installing to user home."))
-	fmt.Println(dim("Resolving source..."))
+	fmt.Fprintln(os.Stderr, dim("Resolving source..."))
 
 	src, err := resolveSource("", "")
 	if err != nil {

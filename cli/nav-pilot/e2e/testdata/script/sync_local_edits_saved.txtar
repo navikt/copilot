@@ -32,7 +32,7 @@ stdout '"\.github/agents/grillmester\.agent\.md"'
 stdout '"\.github/skills/brann/"'
 
 exec nav-pilot sync --repo --apply --source $WORK/plattform
-stdout '✓ \.github/agents/grillmester\.agent\.md'
+stdout '~ \.github/agents/grillmester\.agent\.md \(updated\)'
 stderr '⚠ agent grillmester: your local changes were replaced by the new version; your copy is saved as \.github/agents/grillmester\.agent\.md\.orig'
 stderr '⚠ skill brann: your local changes were replaced by the new version; your copy is saved as \.github/skills/brann/SKILL\.md\.orig'
 cmp .github/agents/grillmester.agent.md ../upstream-v2.md
