@@ -568,10 +568,14 @@ func PrintModelAvailabilityHint(model string) {
 	if model == "" || model == "auto" {
 		return
 	}
-	// A provider-qualified id is covered elsewhere: the session-model line says
-	// a github-copilot/ prefix was dropped, and ModelAdvisory says any other
-	// prefix is not a Copilot model id. One line each, never both.
+	// github-copilot/<id> is covered by the session-model line, which says the
+	// prefix was dropped. Any other prefix is not a Copilot model id.
+	if _, dropped := CopilotModelID(model); dropped {
+		return
+	}
 	if strings.Contains(model, "/") {
+		fmt.Printf("%s Model %s is not a Copilot model id (Copilot takes ids like claude-opus-4.8), so Copilot may reject it.\n\n",
+			domain.Yellow("⚠"), domain.Bold(model))
 		return
 	}
 	fmt.Printf("%s Model: %s — if unavailable in your org, run: %s\n\n",

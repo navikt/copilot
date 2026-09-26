@@ -424,8 +424,13 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		// supplied on the first sync after install.
 		sourceRoot, found := resolver.SourceRootFor(sf.sourcePath)
 		if !found && isUserHookConfig(scope, resolver, sf.localPath) {
-			// ponytail: the entry is only rewritten by an install; a sync that
-			// changes only the .hook.json matcher leaves the old one in place.
+			// Generated, not copied: --apply rebuilds it from the current
+			// .hook.json, so a new matcher or timeout reaches it too.
+			if apply {
+				if err := refreshUserHookConfig(scope, resolver, sf.localPath); err != nil {
+					syncErrors = append(syncErrors, fmt.Sprintf("%s: %v", sf.localPath, err))
+				}
+			}
 			continue
 		}
 		if !found {
@@ -816,6 +821,32 @@ func isUserHookConfig(scope *InstallScope, resolver *SourceResolver, localPath s
 	name := strings.TrimSuffix(file, ".json")
 	_, _, ok := resolver.GetFile(KindHook.Dir, name+KindHook.Suffix)
 	return ok
+}
+
+// refreshUserHookConfig rewrites a ~/.copilot/hooks/<name>.json entry from
+// the source's hook and records its new hash, so uninstall still knows the
+// file as nav-pilot's own.
+func refreshUserHookConfig(scope *InstallScope, resolver *SourceResolver, localPath string) error {
+	name := strings.TrimSuffix(filepath.Base(localPath), ".json")
+	art, ok := resolver.Get(KindHook, name)
+	if !ok {
+		return nil
+	}
+	var res installResult
+	if err := activateHook(scope, art, &res); err != nil {
+		return err
+	}
+	state, err := readScopedState(scope)
+	if err != nil || state == nil || len(res.Files) == 0 {
+		return err
+	}
+	for i := range state.Files {
+		if state.Files[i].Path == res.Files[0].Path && state.Files[i].Hash != res.Files[0].Hash {
+			state.Files[i].Hash = res.Files[0].Hash
+			return writeScopedState(scope, state)
+		}
+	}
+	return nil
 }
 
 // resolveSyncFiles to the "No customization files found to sync." dead end and

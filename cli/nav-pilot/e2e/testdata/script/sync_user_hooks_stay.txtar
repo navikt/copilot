@@ -20,6 +20,20 @@ exec nav-pilot sync --user --apply --source $WORK/plattform
 ! stdout 'deleted in source'
 ! stdout 'Removed'
 exists home/.copilot/hooks/vakt.py
+exists home/.copilot/hooks/vakt.json
+
+# A new matcher in the source reaches the generated entry on the next sync.
+cp vakt-v2.hook.json plattform/hooks/vakt.hook.json
+cd plattform
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qam matcher
+cd ..
+exec nav-pilot sync --user --apply --source $WORK/plattform
+grep 'edit' home/.copilot/hooks/vakt.json
+! stdout 'deleted in source'
+
+# Still nav-pilot's own file: uninstall takes it.
+exec nav-pilot uninstall --user
+! exists home/.copilot/hooks/vakt.json
 
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
@@ -31,5 +45,7 @@ description: fra plattform
 plattform
 -- plattform/hooks/vakt.hook.json --
 {"matcher": "bash", "timeoutSec": 5}
+-- vakt-v2.hook.json --
+{"matcher": "edit", "timeoutSec": 5}
 -- plattform/hooks/vakt.py --
 print("ok")
