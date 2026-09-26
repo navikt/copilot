@@ -1,0 +1,73 @@
+# A pinned user switches model. status says what would load before and after,
+# models lists what is on offer, and use handles a typo, a full model id and a
+# bare call. All of it is non-TTY: nothing prompts, nothing is downloaded.
+# The manifest is the cached copy under $HOME, so no network is involved.
+
+exec nav-pilot alpha local status
+stdout 'Model +qwen3.6-35b-a3b-optiq \(.*manifest default\)'
+stdout 'Start it: nav-pilot alpha local start'
+! stderr .
+
+exec nav-pilot alpha local models
+stdout '\* +qwen3.6-35b-a3b-optiq .* default, not downloaded'
+stdout 'gemma3-4b +Gemma 3 4B .* not downloaded'
+stdout 'Switch: nav-pilot alpha local use <key>'
+! stderr .
+
+# A typo: a failure, on stderr, that suggests the right command.
+! exec nav-pilot alpha local use gemma3-4
+! stdout .
+stderr 'unknown local model: gemma3-4\. Did you mean nav-pilot alpha local use gemma3-4b\?'
+
+# Something nowhere near: point at the list instead.
+! exec nav-pilot alpha local use llama
+stderr 'unknown local model: llama\. Run nav-pilot alpha local models'
+
+# No argument: the table plus usage, and success.
+exec nav-pilot alpha local use
+stdout 'KEY +NAME'
+stdout 'Usage: +nav-pilot alpha local use <key\|model-id>'
+! stderr .
+
+# The full model id works as well as the key, and says what comes next.
+exec nav-pilot alpha local use mlx-community/gemma-3-4b-it-4bit
+stdout '✓ local_model = gemma3-4b \(mlx-community/gemma-3-4b-it-4bit\)'
+stdout '⚠ Not downloaded yet \(about 3 GB\)\. nav-pilot alpha local init downloads it'
+! stderr .
+grep 'local_model = "mlx-community/gemma-3-4b-it-4bit"' home/config.toml
+
+exec nav-pilot alpha local status
+stdout 'Model +gemma3-4b'
+! stdout 'manifest default'
+
+exec nav-pilot alpha local models
+stdout '\* +gemma3-4b'
+
+-- home/.nav-pilot/local-models.json --
+{
+  "schema_version": 1,
+  "channel": "alpha",
+  "models": [
+    {
+      "key": "qwen3.6-35b-a3b-optiq",
+      "name": "Qwen 3.6 35B A3B OptiQ 4bit",
+      "model": "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "backend": "mlx-lm",
+      "default": true,
+      "weights_gb": 25,
+      "min_ram_gb": 8,
+      "wired_limit_gb": 4,
+      "params": {"MLX_OPENCODE_CONTEXT": "65536"}
+    },
+    {
+      "key": "gemma3-4b",
+      "name": "Gemma 3 4B",
+      "model": "mlx-community/gemma-3-4b-it-4bit",
+      "backend": "mlx-lm",
+      "weights_gb": 3,
+      "min_ram_gb": 8,
+      "wired_limit_gb": 4,
+      "params": {"MLX_OPENCODE_CONTEXT": "32768"}
+    }
+  ]
+}

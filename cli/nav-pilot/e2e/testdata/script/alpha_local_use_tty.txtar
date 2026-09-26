@@ -1,0 +1,61 @@
+# The one TTY journey. With stdin a terminal, switching to a downloaded model
+# while the server runs another offers to restart it. This checks TTY
+# detection and the first prompt only; the TUI itself is not driven.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+fake-mlx mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
+
+# Without a terminal the same switch never prompts: it prints the command.
+exec nav-pilot alpha local use gemma3-4b
+stdout '✓ Downloaded\.'
+stdout '⚠ The running server still serves mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit\.'
+stdout 'Load it: nav-pilot alpha local restart'
+! stdout 'Restart the server'
+
+# With one, it asks instead. The prompt draws on stderr (the TUI hides the
+# cursor first). Its title is not asserted: the answer is already queued when
+# the prompt starts, so it can finish before the first frame is drawn, and a
+# check on that frame would be a check on timing. "n" declines, so the server
+# is left running and the way back is printed.
+ttyin -stdin answer-no
+exec nav-pilot alpha local use gemma3-4b
+! stdout 'Load it:'
+stdout 'Later: nav-pilot alpha local restart'
+stderr '\x1b\[\?25l'
+! stdout 'Stopped'
+exists home/.nav-pilot/local/server.json
+
+-- answer-no --
+n
+-- home/.nav-pilot/local-models.json --
+{
+  "schema_version": 1,
+  "channel": "alpha",
+  "models": [
+    {
+      "key": "qwen3.6-35b-a3b-optiq",
+      "name": "Qwen 3.6 35B A3B OptiQ 4bit",
+      "model": "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "backend": "mlx-lm",
+      "default": true,
+      "weights_gb": 25,
+      "min_ram_gb": 8,
+      "wired_limit_gb": 4,
+      "params": {"MLX_OPENCODE_CONTEXT": "65536"}
+    },
+    {
+      "key": "gemma3-4b",
+      "name": "Gemma 3 4B",
+      "model": "mlx-community/gemma-3-4b-it-4bit",
+      "backend": "mlx-lm",
+      "weights_gb": 3,
+      "min_ram_gb": 8,
+      "wired_limit_gb": 4,
+      "params": {"MLX_OPENCODE_CONTEXT": "32768"}
+    }
+  ]
+}
+-- home/.cache/huggingface/hub/models--mlx-community--gemma-3-4b-it-4bit/snapshots/0000/config.json --
+{}
+-- home/.cache/huggingface/hub/models--mlx-community--gemma-3-4b-it-4bit/snapshots/0000/model.safetensors --

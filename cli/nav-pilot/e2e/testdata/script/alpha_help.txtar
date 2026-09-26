@@ -1,0 +1,19 @@
+# A new user's first look at the alpha surface: help is text for a person,
+# so it goes to stderr, stdout stays empty, and it names the next command.
+
+exec nav-pilot alpha --help
+! stdout .
+stderr 'Usage:'
+stderr 'nav-pilot alpha local <command>'
+stderr 'nav-pilot alpha local models'
+
+exec nav-pilot alpha local --help
+! stdout .
+stderr 'init +Set it all up'
+stderr 'use +Pick the model'
+stderr 'Switching model:'
+
+exec nav-pilot alpha decide --help
+! stdout .
+stderr 'Exit codes: 0 decided'
+stderr 'Needs a running local server'
