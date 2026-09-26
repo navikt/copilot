@@ -1070,9 +1070,19 @@ func offerLaunchCopilot(resolved ResolvedConfig) error {
 		}
 	}
 
-	decision := decideLaunch(p.Available(), resolved.AutoLaunch, sandboxed, isInteractive())
+	// No terminal, but a prompt after "--": `nav-pilot --sync -- -p "…"` from
+	// CI or a script. That launches, sandboxed, with cplt's --yes standing in
+	// for the confirmation nobody can answer (withCpltConfirmation). Anything
+	// short of that launch is an error: the caller asked for a prompt to run,
+	// and exit 0 without running it read as success.
+	interactive := isInteractive()
+	headless := !interactive && len(resolved.ExtraArgs) > 0
+	decision := decideLaunch(p.Available(), resolved.AutoLaunch, sandboxed, interactive || headless)
 	if decision == launchSkipQuiet {
 		return nil
+	}
+	if headless && decision != launchGo {
+		return headlessRefusal(decision, p, cmdName)
 	}
 
 	fmt.Println()
@@ -1109,6 +1119,22 @@ func offerLaunchCopilot(resolved ResolvedConfig) error {
 		return fmt.Errorf("launch failed: %w", err)
 	}
 	return nil
+}
+
+// headlessRefusal says why a launch with no terminal and a prompt after "--"
+// does not run, and exits 1, so a CI job cannot mistake a dropped prompt for
+// one that ran.
+func headlessRefusal(decision launchDecision, p Provider, cmdName string) error {
+	switch decision {
+	case launchSkipUnavailable:
+		fmt.Fprintf(os.Stderr, "Not launching: %s was not found on PATH. Run %s to diagnose.\n", cmdName, bold("nav-pilot doctor"))
+	case launchSkipOptedOut:
+		fmt.Fprintf(os.Stderr, "Not launching: auto_launch = false. Start it yourself with: %s\n", cmdName)
+	default:
+		fmt.Fprintf(os.Stderr, "Not launching: no terminal, and without cplt %s would run unsandboxed with nobody watching.\n  Install cplt: %s\n",
+			p.DisplayName(), bold("brew install navikt/tap/cplt"))
+	}
+	return &exitCode{code: ExitError}
 }
 
 // offerLaunchCopilotWithAgents is offerLaunchCopilot for callers that have the

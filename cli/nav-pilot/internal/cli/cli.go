@@ -121,7 +121,8 @@ Flags:
   --frozen                Install only what .nav-pilot/agentpakke.lock.json declares: never prompts, never moves the pin (install only)
   --apply                 Apply available updates (sync only)
   --updates <mode>        How a pinned agentpakke handles new stable releases: auto, ask or keep (sync only)
-  --sync                  Sync all scopes and launch Copilot (non-interactive)
+  --sync                  Sync all scopes without asking, then launch the client. Without a terminal it
+                          launches only with a prompt after -- (nav-pilot --sync -- -p "…"), sandboxed
   --project-dir <dir>     Directory the launched agent may read and write (default: current directory, not the enclosing git root)
   --json                  Output results as JSON
   -F, --feature           Submit a feature request (feedback only)
@@ -432,6 +433,11 @@ func run(args []string) error {
 		resolved, cfgErr := loadConfigForLaunch(cliOverrides)
 		if cfgErr != nil {
 			return cfgErr
+		}
+		if !isInteractive() && len(resolved.ExtraArgs) == 0 {
+			fmt.Fprintf(os.Stderr, "%s Not launching: no terminal. To run a prompt, pass it after --: %s\n",
+				dim("ℹ"), bold(`nav-pilot --sync -- -p "…"`))
+			return nil
 		}
 		// Through the same decision function as every other launch path
 		// (#472): calling launchClient directly here skipped decideLaunch,

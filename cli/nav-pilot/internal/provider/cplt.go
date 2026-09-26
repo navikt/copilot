@@ -7,9 +7,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
 // cpltLaunch describes how to launch a coding-agent client inside the cplt
@@ -159,13 +161,69 @@ func cpltProjectDir(explicit string) (string, error) {
 	return filepath.Abs(explicit)
 }
 
-// withCpltProjectDir prefixes cplt's --project-dir, resolved by [cpltProjectDir].
+// repoInstructionPaths are the entries at a repository root that the clients
+// read instructions, agents and skills from: .github (copilot-instructions.md,
+// instructions/, agents/, skills/, hooks/), .nav-pilot (the pin and the
+// agentpakke manifest), .opencode and opencode.json(c) for opencode, and the
+// AGENTS.md family that copilot, opencode and pi look for at the root.
+var repoInstructionPaths = []string{
+	".github", ".nav-pilot", ".opencode",
+	"AGENTS.md", "CLAUDE.md", "GEMINI.md", "opencode.json", "opencode.jsonc",
+}
+
+// repoInstructionReads returns the repository-level instruction paths a
+// sandbox scoped to dir cannot see: those at the root of the git repository
+// dir sits in, when dir is a subfolder of it. Only paths that exist are
+// returned. Empty when dir is the repository root or is in no repository.
+func repoInstructionReads(dir string) (root string, paths []string) {
+	root = source.FindGitRoot(dir)
+	if root == "" || filepath.Clean(root) == filepath.Clean(dir) {
+		return "", nil
+	}
+	for _, name := range repoInstructionPaths {
+		p := filepath.Join(root, name)
+		if _, err := os.Stat(p); err == nil {
+			paths = append(paths, p)
+		}
+	}
+	return root, paths
+}
+
+// withCpltProjectDir prefixes cplt's --project-dir, resolved by
+// [cpltProjectDir], and says once what the sandbox covers.
+//
+// Scoping to a subfolder of a repository (#969) put the repository's own
+// instructions outside the sandbox: copilot got "Operation not permitted" on
+// <root>/.github/copilot-instructions.md, the file nav-pilot had just
+// installed. Writes stay scoped to the directory; the instruction paths at the
+// root are granted read-only with --allow-read.
 func withCpltProjectDir(args []string, explicit string) ([]string, error) {
 	dir, err := cpltProjectDir(explicit)
 	if err != nil {
 		return nil, err
 	}
-	return append([]string{"--project-dir", dir}, args...), nil
+	pre := []string{"--project-dir", dir}
+	root, reads := repoInstructionReads(dir)
+	for _, p := range reads {
+		pre = append(pre, "--allow-read", p)
+	}
+	printSandboxScope(dir, root, reads)
+	return append(pre, args...), nil
+}
+
+// printSandboxScope prints the sandbox's write scope, and the repository
+// instructions it may read outside it, on stderr.
+func printSandboxScope(dir, root string, reads []string) {
+	if len(reads) == 0 {
+		fmt.Fprintf(os.Stderr, "%s Sandbox: %s\n", domain.Dim("ℹ"), dir)
+		return
+	}
+	names := make([]string, len(reads))
+	for i, p := range reads {
+		names[i] = filepath.Base(p)
+	}
+	fmt.Fprintf(os.Stderr, "%s Sandbox: %s (reads repo instructions from %s: %s)\n",
+		domain.Dim("ℹ"), dir, root, strings.Join(names, ", "))
 }
 
 // launchViaCplt runs the given client agent inside the cplt sandbox, wiring

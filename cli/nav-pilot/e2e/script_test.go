@@ -92,6 +92,7 @@ func TestScripts(t *testing.T) {
 			"exits":     cmdExits,
 			"validjson": cmdValidJSON,
 			"fake-mlx":  cmdFakeMLX,
+			"fake-bin":  cmdFakeBin,
 		},
 	})
 }
@@ -132,6 +133,38 @@ func cmdExits(ts *testscript.TestScript, neg bool, args []string) {
 	if within > 0 && took > within {
 		ts.Fatalf("took %s, want under %s", took.Round(time.Millisecond), within)
 	}
+}
+
+// fake-bin NAME... replaces PATH with a directory holding a recording fake for
+// each NAME (cplt, copilot, opencode, pi), git, and nav-pilot, and nothing
+// else, so a real client on the developer's PATH can never start. Each fake
+// appends its arguments, one per line and then "---", to $WORK/fake/NAME.log.
+// A trailing --version prints a version; anything else exits 0 without doing
+// anything. A client left out of NAME is missing, which is how a journey tests
+// a machine without cplt.
+func cmdFakeBin(ts *testscript.TestScript, neg bool, args []string) {
+	if neg || len(args) == 0 {
+		ts.Fatalf("usage: fake-bin NAME...")
+	}
+	dir := ts.MkAbs("fake")
+	ts.Check(os.MkdirAll(dir, 0o755))
+	for _, name := range args {
+		version := "GitHub Copilot CLI 1.0.40"
+		if name == "cplt" {
+			version = "cplt 2026.09.24-192459-38642b4"
+		}
+		script := "#!/bin/sh\n" +
+			"printf '%s\\n' \"$@\" --- >> '" + filepath.Join(dir, name+".log") + "'\n" +
+			"for a in \"$@\"; do last=$a; done\n" +
+			"[ \"$last\" = --version ] && echo '" + version + "'\n" +
+			"exit 0\n"
+		ts.Check(os.WriteFile(filepath.Join(dir, name), []byte(script), 0o755))
+	}
+	git, err := exec.LookPath("git")
+	ts.Check(err)
+	_ = os.Remove(filepath.Join(dir, "git"))
+	ts.Check(os.Symlink(git, filepath.Join(dir, "git")))
+	ts.Setenv("PATH", dir+string(os.PathListSeparator)+filepath.Dir(binPath))
 }
 
 // validjson FILE asserts that FILE (or stdout/stderr) is exactly one JSON value.

@@ -37,6 +37,7 @@ Commands beyond the
 | `exits [-within DUR] CODE PROG ARGS...` | Runs PROG and asserts its exact exit code (`! exec` only knows non-zero). `-within` also fails a run slower than DUR. |
 | `validjson FILE` | FILE, `stdout` or `stderr` holds exactly one JSON value. |
 | `fake-mlx [MODEL]` | Starts a fake mlx-lm server in its own process and records it as the running local server. Exports `FAKE_MLX_URL`. |
+| `fake-bin NAME...` | Replaces `PATH` with recording fakes for the named clients (`cplt`, `copilot`, `opencode`, `pi`), plus `git` and `nav-pilot`. Each fake appends its arguments, then `---`, to `$WORK/fake/NAME.log`. A client not named is missing. |
 
 The `[pty]` condition is true where a pseudo-terminal can be opened. Put
 `[!pty] skip '...'` at the start of any script that uses `ttyin`. Keep TTY

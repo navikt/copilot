@@ -1101,7 +1101,13 @@ func syncPakkePin(scope *InstallScope, src *Source, state *StateFile, ref string
 // cmdSyncAuto syncs all detected scopes (repo + user) when the user didn't
 // explicitly pick one with --user or --target. Mirrors how the interactive
 // flow and `list --installed` handle scope discovery.
+//
+// repoDir may be any directory in the repository: the repo scope is its git
+// root, so `nav-pilot --sync` from a subfolder finds the install.
 func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error {
+	if root := findGitRoot(repoDir); root != "" {
+		repoDir = root
+	}
 	repoScope := ScopeRepo(repoDir)
 	repoState, repoErr := readScopedState(repoScope)
 

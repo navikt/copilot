@@ -265,7 +265,15 @@ type InstallScope struct {
 }
 
 // ScopeRepo creates a scope for repo-level installs (.github/).
+//
+// targetDir is made absolute: the scope's root is the boundary every symlink
+// check runs against, and CheckSymlink refuses a relative one. `nav-pilot
+// --sync` passed ".", so its pin check failed with "boundary must be a
+// non-empty absolute path" on every run and silently checked nothing.
 func ScopeRepo(targetDir string) *InstallScope {
+	if abs, err := filepath.Abs(targetDir); err == nil {
+		targetDir = abs
+	}
 	return &InstallScope{
 		Name:           "repo",
 		RootDir:        targetDir,

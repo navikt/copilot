@@ -472,7 +472,9 @@ function IntroductionSection() {
             nav-pilot gir cplt katalogen du står i som prosjektkatalog, med{" "}
             <code className="font-mono text-xs">--project-dir</code>. Agenten kan lese og skrive der og under, ikke i
             mapper ved siden av. Står du i en undermappe av et repo, gjelder sandboxen bare undermappa, ikke hele
-            repoet. Trenger agenten hele repoet, starter du fra roten av repoet eller kjører{" "}
+            repoet. Repoets instruksjoner i roten, som <code className="font-mono text-xs">.github/</code> og{" "}
+            <code className="font-mono text-xs">AGENTS.md</code>, kan agenten likevel lese. Trenger agenten hele
+            repoet, starter du fra roten av repoet eller kjører{" "}
             <code className="font-mono text-xs">nav-pilot --project-dir &lt;katalog&gt;</code>. Hjemmekatalogen og{" "}
             <code className="font-mono text-xs">/</code> avviser cplt selv, fordi de er for vide.
           </BodyLong>
