@@ -36,8 +36,8 @@ stderr 'Usage: +nav-pilot alpha local use <key\|model-id>'
 # The full model id works as well as the key, and says what comes next.
 exec nav-pilot alpha local use mlx-community/gemma-3-4b-it-4bit
 stdout '✓ local_model = gemma3-4b \(mlx-community/gemma-3-4b-it-4bit\)'
-stdout '⚠ Not downloaded yet \(about 3 GB\)\. nav-pilot alpha local init downloads it'
-! stderr .
+stderr '⚠ Not downloaded yet \(about 3 GB\)\. nav-pilot alpha local init downloads it'
+! stdout '⚠'
 grep 'local_model = "mlx-community/gemma-3-4b-it-4bit"' home/config.toml
 
 exec nav-pilot alpha local status

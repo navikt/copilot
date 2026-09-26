@@ -118,7 +118,7 @@ func TestLocalUse(t *testing.T) {
 	}
 
 	// By id, and the default is written too so the choice is explicit.
-	out = captureStdout(func() {
+	_, out = captureRun(t, func() {
 		if err := cmdLocalUse([]string{"mlx-community/Qwen3.6-35B"}); err != nil {
 			t.Errorf("use by id: %v", err)
 		}
@@ -165,14 +165,15 @@ func TestLocalUseHintsRestartWithoutATerminal(t *testing.T) {
 	if err := local.SaveState(local.State{PID: os.Getpid(), Model: "mlx-community/Qwen3.6-35B", Port: 1}); err != nil {
 		t.Fatal(err)
 	}
-	out := captureStdout(func() {
+	// On stderr: it is a warning, and stdout carries only the ✓ result.
+	_, out := captureRun(t, func() {
 		if err := cmdLocalUse([]string{"qwen3.8-27b"}); err != nil {
 			t.Errorf("use: %v", err)
 		}
 	})
 	for _, want := range []string{"still serves", "Load it:", "nav-pilot alpha local restart"} {
 		if !strings.Contains(out, want) {
-			t.Errorf("use lacks %q:\n%s", want, out)
+			t.Errorf("use lacks %q on stderr:\n%s", want, out)
 		}
 	}
 	if _, running, _ := local.LoadState(); !running {

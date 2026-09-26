@@ -48,7 +48,15 @@ func binary(t *testing.T) string {
 		if out, err := cmd.CombinedOutput(); err != nil {
 			buildErr = err
 			buildOut = string(out)
+			return
 		}
+		// pty-run beside nav-pilot: this test binary, which runs a command on
+		// a terminal when called by that name (ptyRun).
+		self, err := os.Executable()
+		if err == nil {
+			err = os.Symlink(self, filepath.Join(dir, ptyRunName))
+		}
+		buildErr = err
 	})
 	if buildErr != nil {
 		t.Fatalf("building nav-pilot: %v\n%s", buildErr, buildOut)

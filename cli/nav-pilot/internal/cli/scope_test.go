@@ -658,19 +658,21 @@ var errStubNoSource = errors.New("stubbed: no source")
 
 // ─── explicit install asks where to install ──────────────────────────────────
 
-// forceInteractive makes isInteractive() report true deterministically:
-// /dev/null is a character device, which is what isInteractive() checks.
+// forceInteractive makes isInteractive() report true, unless a test sets
+// forceNonInteractive on top of it. Stdin is /dev/null, so a prompt the test
+// did not stub fails at once instead of waiting on the test's own stdin.
 func forceInteractive(t *testing.T) {
 	t.Helper()
-	t.Setenv("CI", "")
-	t.Setenv("GITHUB_ACTIONS", "")
+	orig := isInteractive
+	isInteractive = func() bool { return !forceNonInteractive }
+	t.Cleanup(func() { isInteractive = orig })
 	devnull, err := os.Open(os.DevNull)
 	if err != nil {
 		t.Skipf("cannot open %s: %v", os.DevNull, err)
 	}
-	orig := os.Stdin
+	origStdin := os.Stdin
 	os.Stdin = devnull
-	t.Cleanup(func() { os.Stdin = orig; devnull.Close() })
+	t.Cleanup(func() { os.Stdin = origStdin; devnull.Close() })
 }
 
 // stubScopePrompt replaces the scope picker and reports whether it was asked.

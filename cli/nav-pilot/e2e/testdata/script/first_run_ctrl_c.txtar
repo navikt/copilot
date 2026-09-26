@@ -1,0 +1,14 @@
+# One Ctrl-C at the first prompt of a first run ends the run. It took three:
+# the wizard said "Setup skipped", then "Config setup failed", then the rtk
+# prompt and the install scope prompt each needed their own Ctrl-C, and the
+# run exited 0. pty-run puts stdin and stdout on a terminal, as a person has.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+exits 130 pty-run -wait 'Which coding agent' -send '\x03' -- nav-pilot
+stdout 'Cancelled\. Nothing was written\.'
+stdout -count=1 'Cancelled'
+! stdout 'Setup skipped'
+! stdout 'Config setup failed'
+! stdout 'Terminal output filter'
+! exists home/config.toml

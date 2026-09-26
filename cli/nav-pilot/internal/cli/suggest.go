@@ -1,5 +1,10 @@
 package cli
 
+import (
+	"slices"
+	"strings"
+)
+
 // suggest returns the closest match from candidates if the edit distance is <= 2.
 // Returns "" if no close match is found.
 func suggest(input string, candidates []string) string {
@@ -81,4 +86,39 @@ var knownFlags = []string{
 	"-r", "--ref",
 	"-s", "--source",
 	"-h", "--help",
+	"--installed", "--all", "--type",
+}
+
+// launchFlags are the flags nav-pilot takes with no command, when it launches
+// the client. Suggestions for a typo there come from these.
+var launchFlags = []string{
+	"--client", "--source", "--project-dir", "--persona", "--model", "--mode",
+	"--effort", "--context", "--payload-context", "--log-level", "--otel-log-level",
+	"--allow-all-tools", "--no-allow-all-tools", "--ask-user", "--no-ask-user",
+	"--auto-launch", "--no-auto-launch", "--no-sandbox", "--sync",
+	"--version", "-v", "--help", "-h",
+}
+
+// valueFlags take a value, so --flag=value can be split into --flag value.
+var valueFlags = []string{
+	"--client", "--source", "--project-dir", "--persona", "--model", "--mode",
+	"--effort", "--context", "--payload-context", "--log-level", "--otel-log-level",
+	"--target", "--ref", "--type", "--updates",
+}
+
+// splitFlagValues rewrites --flag=value as --flag value for the flags in
+// valueFlags, up to a "--" separator: what follows it belongs to the client.
+func splitFlagValues(args []string) []string {
+	out := make([]string, 0, len(args))
+	for i, a := range args {
+		if a == "--" {
+			return append(out, args[i:]...)
+		}
+		if name, value, ok := strings.Cut(a, "="); ok && slices.Contains(valueFlags, name) {
+			out = append(out, name, value)
+			continue
+		}
+		out = append(out, a)
+	}
+	return out
 }

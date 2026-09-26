@@ -1,0 +1,38 @@
+# A first run from $HOME: the install question names the hooks, which run
+# outside the sandbox. After the install, nav-pilot does not launch (cplt
+# refuses to sandbox $HOME as too broad); it says the install worked and
+# where to launch from, and exits 0.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+fake-bin cplt copilot
+
+mkdir plattform/skills
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+
+cd $HOME
+exec nav-pilot config set source $WORK/plattform
+exec nav-pilot config set rtk_prompted_client copilot
+
+exits 0 pty-run -wait 'and 1 hooks to ~/.copilot' -send '\r' -- nav-pilot
+stdout 'Install 1 agents, skills & instructions and 1 hooks to ~/.copilot\?'
+stdout 'Hooks run outside the sandbox on every matching tool call: vakt'
+stdout 'Installed\. cd into a project and run nav-pilot, or pass --project-dir <dir>\.'
+exists $HOME/.copilot/hooks/vakt.py
+! exists $WORK/fake/cplt.log
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/hooks/vakt.hook.json --
+{"matcher": "bash", "timeoutSec": 5}
+-- plattform/hooks/vakt.py --
+print("ok")

@@ -343,7 +343,7 @@ func buildStagedCopilotSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch
 		return cpltLaunch{}, err
 	}
 
-	model := r.Model
+	model, _ := CopilotModelID(r.Model)
 	if model == "" {
 		model = pakkeDeclaredModel("copilot")
 	}

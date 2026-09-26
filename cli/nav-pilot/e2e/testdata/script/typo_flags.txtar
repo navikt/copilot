@@ -1,0 +1,35 @@
+# A mistyped flag is called a flag, with the closest real one. --flag=value
+# works for flags that take a value. '--' outside a launch says what it is for.
+
+exits 1 nav-pilot --clinet opencode
+stderr 'unknown flag --clinet\. Did you mean --client\?'
+! stderr 'unknown command'
+
+exits 1 nav-pilot --verison
+stderr 'unknown flag --verison\. Did you mean --version\?'
+
+exits 1 nav-pilot --sycn
+stderr 'unknown flag --sycn\. Did you mean --sync\?'
+
+exits 1 nav-pilot list --instaled
+stderr 'unknown flag --instaled\. Did you mean --installed\?'
+
+exits 1 nav-pilot opencode
+stderr 'Did you mean nav-pilot --client opencode\?'
+
+exits 1 nav-pilot launch
+stderr 'there is no launch command: nav-pilot with no command launches the client'
+
+exits 1 nav-pilot sync --project-dir ..
+stderr '[-]-project-dir is a launch flag: use it with no command'
+
+exits 1 nav-pilot install x -- foo
+stderr 'passes flags on to the client, so it only works when nav-pilot launches one'
+! stderr 'launch. command' 
+
+# --client=value is --client value: here it reaches the no-terminal refusal
+# rather than failing as an unknown command.
+exits 1 nav-pilot --client=pi
+stderr 'Not launching: no terminal'
+exits 1 nav-pilot --client=nope
+stderr '[-]-client "nope" is not valid'

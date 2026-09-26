@@ -689,6 +689,10 @@ Støttede felt er `client`, `model`, `mode`, `reasoning_effort`, `context_tier`,
 med globale flagg som `--client`, `--model`, `--mode`, `--effort`, `--context`,
 `--allow-all-tools`, `--no-ask-user`, `--auto-launch`/`--no-auto-launch` og `--log-level`.
 
+Mangler cplt, spør nav-pilot før den starter `copilot` uten sandbox. Uten terminal nekter den,
+med mindre du sender `--no-sandbox`. Installer cplt med `brew install navikt/tap/cplt` eller
+`sudo apt install cplt`.
+
 `--project-dir <katalog>` bestemmer hvilken katalog agenten får lese og skrive i cplt-sandboxen.
 Standard er katalogen du står i, ikke roten av git-repoet rundt den. Repoets instruksjoner i
 roten kan agenten fortsatt lese.

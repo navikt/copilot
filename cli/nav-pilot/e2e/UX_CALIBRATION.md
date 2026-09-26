@@ -23,6 +23,6 @@ artefacts. The legend row groups three of them.
 | `Later:` vs `Load it:` for the same state | Not yet assessed | |
 | TLS-proxy warning names no workaround | Not yet assessed | |
 | `init` doesn't mention `use <key>` for picking a smaller model | Not yet assessed | |
-| Bare `alpha` prints usage to stderr while `--help` uses stdout | Not labelled | |
-| `alpha local --help` prints the same page as `alpha --help` | Not labelled | |
-| `use` prints its ⚠ warning to stdout with the ✓ result | Not labelled | |
+| Bare `alpha` prints usage to stderr while `--help` uses stdout | Not real | Correct per clig.dev: usage shown for an error goes to stderr, help that was asked for goes to stdout |
+| `alpha local --help` prints the same page as `alpha --help` | Polish, accepted | Not scheduled |
+| `use` prints its ⚠ warning to stdout with the ✓ result | Real | Fixed: the warnings go to stderr |

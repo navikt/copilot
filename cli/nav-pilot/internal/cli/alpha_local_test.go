@@ -905,7 +905,7 @@ func TestAlphaLocalTakesYes(t *testing.T) {
 		t.Errorf("purge --yes on an empty machine printed:\n%s", out)
 	}
 	for _, args := range [][]string{{"list", "--yes"}, {"alpha", "local", "start", "--yes"}} {
-		if err := run(args); err == nil || !strings.Contains(err.Error(), "unknown flag: --yes") {
+		if err := run(args); err == nil || !strings.Contains(err.Error(), "unknown flag --yes") {
 			t.Errorf("%v = %v, want unknown flag", args, err)
 		}
 	}

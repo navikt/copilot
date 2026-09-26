@@ -423,6 +423,11 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		// that absence as "deleted upstream" deleted everything the base
 		// supplied on the first sync after install.
 		sourceRoot, found := resolver.SourceRootFor(sf.sourcePath)
+		if !found && isUserHookConfig(scope, resolver, sf.localPath) {
+			// ponytail: the entry is only rewritten by an install; a sync that
+			// changes only the .hook.json matcher leaves the old one in place.
+			continue
+		}
 		if !found {
 			// Deleted upstream — but only nav-pilot's own untouched copy is
 			// nav-pilot's to remove. A file whose bytes have changed since it
@@ -798,6 +803,21 @@ func pinnedSync(state *StateFile, src *Source) bool {
 // the one the source resolved to and, with --apply, pins the new revision.
 //
 // Without this branch a zero-item pin state falls all the way through
+// isUserHookConfig reports whether localPath is the ~/.copilot/hooks/<name>.json
+// entry activateHook generated for a hook the source still ships. It has no
+// file of its own in the source (it is made from hooks/<name>.py and its
+// .hook.json), so reading it as "deleted in source" removed the entry of every
+// installed hook on the next sync and left the scripts behind.
+func isUserHookConfig(scope *InstallScope, resolver *SourceResolver, localPath string) bool {
+	dir, file := filepath.Split(filepath.ToSlash(localPath))
+	if !scope.IsUser() || dir != KindHook.Dir+"/" || !strings.HasSuffix(file, ".json") {
+		return false
+	}
+	name := strings.TrimSuffix(file, ".json")
+	_, _, ok := resolver.GetFile(KindHook.Dir, name+KindHook.Suffix)
+	return ok
+}
+
 // resolveSyncFiles to the "No customization files found to sync." dead end and
 // returns nil — sync reporting success over an install that can never advance.
 //

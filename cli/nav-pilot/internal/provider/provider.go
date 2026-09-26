@@ -224,6 +224,11 @@ func (copilotProvider) ModelAdvisory(model string) string {
 	if domain.ValidateModelValue(model) != nil || isKnownCopilotModel(model) || local.IsLocal(model) {
 		return ""
 	}
+	// github-copilot/<known id> is translated at launch, which says so in one
+	// line (CopilotModelNote); an advisory on top of it contradicted that line.
+	if id, dropped := CopilotModelID(model); dropped && isKnownCopilotModel(id) {
+		return ""
+	}
 	return fmt.Sprintf(
 		"model %q is not a recognized Copilot model id; it will be sent as-is and may be rejected by the server (known ids: %s)",
 		model, knownCopilotModelIDs())

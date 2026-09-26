@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -85,7 +86,7 @@ Once installed, use @nav-pilot in Copilot Chat to plan and build Nav apps.
 
 Usage:
   nav-pilot <command> [flags]
-  nav-pilot [options] [-- [client-flags]]
+  nav-pilot [launch flags] [-- client-flags]
 
 Commands:
   install (i) <name>      Install the agentpakke or an individual agent/skill/instruction/prompt
@@ -121,17 +122,33 @@ Flags:
   --frozen                Install only what .nav-pilot/agentpakke.lock.json declares: never prompts, never moves the pin (install only)
   --apply                 Apply available updates (sync only)
   --updates <mode>        How a pinned agentpakke handles new stable releases: auto, ask or keep (sync only)
-  --sync                  Sync all scopes without asking, then launch the client. Without a terminal it
-                          launches only with a prompt after -- (nav-pilot --sync -- -p "…"), sandboxed
-  --project-dir <dir>     Directory the launched agent may read and write (default: current directory, not the enclosing git root)
   --json                  Output results as JSON
   -F, --feature           Submit a feature request (feedback only)
+
+Launch flags (nav-pilot with no command; each overrides the config key for one run):
+  --client <name>         Coding agent: copilot, opencode or pi
+  --persona <name>        Which of the agentpakke's agents to start
+  --model <id>            Model id
+  --mode <mode>           default, plan or autopilot
+  --effort <level>        Reasoning effort: none, low, medium, high, xhigh or max
+  --context <tier>        default or long_context
+  --allow-all-tools       Let the agent run tools without asking (--no-allow-all-tools to turn off)
+  --no-ask-user           Don't let the agent stop to ask questions
+  --no-auto-launch        Install or sync, but don't start the agent (--auto-launch to turn on)
+  --project-dir <dir>     Directory the agent may read and write (default: current directory, not
+                          the enclosing git root; the root's instructions stay readable)
+  --no-sandbox            Start copilot without cplt when cplt is missing, without asking
+  --sync                  Sync all scopes without asking, then launch. Without a terminal it
+                          launches only with a prompt after -- (nav-pilot --sync -- -p "…"), sandboxed
+  -- <client-flags>       Everything after -- goes to the client unchanged
 
 Exit Codes:
   0   Success
   1   Error / Updates available (sync)
   2   Sync failed
   3   Frozen install refused (no declaration, no usable pin, another revision, or a partial install)
+
+Run nav-pilot help <command> for a command's own flags (install, sync, list, config).
 
 Get started:
   nav-pilot                              # Interactive: install, upgrade, or launch Copilot
@@ -265,9 +282,16 @@ func run(args []string) error {
 		return err
 	}
 
+	// --client=opencode reads as --client opencode. alpha keeps its own
+	// parsing: decide and ask take free text.
+	if len(args) == 0 || args[0] != "alpha" {
+		args = splitFlagValues(args)
+	}
+
 	// Pre-scan: extract launch-override flags before command dispatch.
 	// These apply to the interactive flow and --sync launch, not to subcommands.
 	var cliOverrides CLIOverrides
+	launchArgs := args
 	if len(args) == 0 || args[0] == "--sync" || !isKnownCommand(args[0]) {
 		var cleanArgs []string
 		for i := 0; i < len(args); i++ {
@@ -388,6 +412,8 @@ func run(args []string) error {
 			case "--no-ask-user":
 				f := false
 				cliOverrides.AskUser = &f
+			case "--no-sandbox":
+				cliOverrides.NoSandbox = true
 			case "--auto-launch":
 				t := true
 				cliOverrides.AutoLaunch = &t
@@ -414,16 +440,24 @@ func run(args []string) error {
 				return cmdInteractive(cliOverrides)
 			})
 		}
+		if len(launchArgs) > 0 {
+			// Flags for a launch, and nothing that can run one: printing the
+			// usage page and exiting 0 read as if the launch had happened.
+			try := "nav-pilot --sync " + strings.Join(launchArgs, " ")
+			if len(cliOverrides.ExtraArgs) == 0 {
+				try += ` -- -p "…"`
+			}
+			fmt.Fprintf(os.Stderr, "Not launching: no terminal. Run it in a terminal, or without one: %s\n", bold(try))
+			return &exitCode{code: ExitError}
+		}
 		usage(os.Stderr)
 		return nil
 	}
 
 	// Handle --sync flag: non-interactive sync-all + launch
 	if args[0] == "--sync" {
-		if isInteractive() {
-			if err := maybeRunFirstRunSetup(cliOverrides.Source); err != nil {
-				fmt.Fprintf(os.Stderr, "%s Config setup failed: %v\n", yellow("⚠"), err)
-			}
+		if err := firstRunSetup(cliOverrides.Source); err != nil {
+			return err
 		}
 		if err := runWithCommandTelemetry("auto_sync", "non_interactive", "auto", func() error {
 			return cmdSyncAuto(".", "", cliOverrides.Source, true, false)
@@ -534,19 +568,19 @@ func run(args []string) error {
 			// Consent for `alpha local init` and `purge`, which read it from
 			// their own arguments. Everywhere else it is not a flag.
 			if line := strings.Join(rest, " ") + " "; command != "alpha" || (!strings.HasPrefix(line, "local init ") && !strings.HasPrefix(line, "local purge ")) {
-				return fmt.Errorf("unknown flag: --yes")
+				return fmt.Errorf("unknown flag --yes")
 			}
 			positional = append(positional, rest[i])
 		case "-h", "--help":
 			if command == "alpha" {
 				alphaUsage(os.Stdout)
 			} else {
-				usage(os.Stdout)
+				printHelp(os.Stdout, command)
 			}
 			return nil
 		default:
 			if rest[i] == "--" {
-				return fmt.Errorf("the '--' separator is only supported for the 'launch' command to pass extra arguments")
+				return fmt.Errorf("'--' passes flags on to the client, so it only works when nav-pilot launches one, with no command: nav-pilot [launch flags] -- <client flags>")
 			}
 			if rest[i] == "-" {
 				positional = append(positional, rest[i])
@@ -554,9 +588,12 @@ func run(args []string) error {
 			}
 			if strings.HasPrefix(rest[i], "-") {
 				if hint := suggest(rest[i], knownFlags); hint != "" {
-					return fmt.Errorf("unknown flag: %s. Did you mean %s?", rest[i], hint)
+					return fmt.Errorf("unknown flag %s. Did you mean %s?", rest[i], hint)
 				}
-				return fmt.Errorf("unknown flag: %s", rest[i])
+				if slices.Contains(launchFlags, rest[i]) {
+					return fmt.Errorf("%s is a launch flag: use it with no command, as in nav-pilot %s <value>", rest[i], rest[i])
+				}
+				return fmt.Errorf("unknown flag %s. Run nav-pilot help %s for its flags", rest[i], command)
 			}
 			positional = append(positional, rest[i])
 		}
@@ -874,9 +911,34 @@ func run(args []string) error {
 		fmt.Printf("nav-pilot %s (commit: %s, built: %s)\n", Version, buildInfo.Commit, buildInfo.BuildDate)
 		return nil
 	case "-h", "--help", "help":
+		if len(positional) > 0 {
+			name := positional[0]
+			if canonical, ok := commandAliases[name]; ok {
+				name = canonical
+			}
+			if name == "alpha" {
+				alphaUsage(os.Stdout)
+				return nil
+			}
+			printHelp(os.Stdout, name)
+			return nil
+		}
 		usage(os.Stdout)
 		return nil
 	default:
+		// A flag the launch pre-scan did not know lands here as the command.
+		if strings.HasPrefix(command, "-") {
+			if hint := suggest(command, launchFlags); hint != "" {
+				return fmt.Errorf("unknown flag %s. Did you mean %s?", command, hint)
+			}
+			return fmt.Errorf("unknown flag %s. Run nav-pilot --help for the flags", command)
+		}
+		if levenshtein(command, "launch") <= 2 {
+			return fmt.Errorf("there is no launch command: nav-pilot with no command launches the client")
+		}
+		if containsStr(validProviderIDs, command) {
+			return fmt.Errorf("unknown command: %s. Did you mean nav-pilot --client %s?", command, command)
+		}
 		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "models", "alpha", "version", "help"}
 		if hint := suggest(command, knownCmds); hint != "" {
 			return fmt.Errorf("unknown command: %s. Did you mean %s?\nRun with --help for usage", command, hint)
@@ -981,6 +1043,11 @@ func exitCodeFor(err error) int {
 			return 128 + int(status.Signal())
 		}
 		return exitErr.ExitCode()
+	}
+	var cancelled cancelledError
+	if errors.As(err, &cancelled) {
+		fmt.Fprintln(os.Stderr, dim(cancelled.Error()))
+		return 130
 	}
 	var ec *exitCode
 	if errors.As(err, &ec) {

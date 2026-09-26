@@ -1,0 +1,40 @@
+# help <cmd> and <cmd> --help show that command's page, not the global one,
+# and the global page documents the launch flags.
+
+exec nav-pilot help sync
+stdout '^Usage: nav-pilot sync \[flags\]'
+stdout '--apply'
+! stdout 'Commands:'
+! stderr .
+
+exec nav-pilot sync --help
+stdout '^Usage: nav-pilot sync \[flags\]'
+
+exec nav-pilot help install
+stdout '^Usage: nav-pilot install <name> \[flags\]'
+
+exec nav-pilot i --help
+stdout '^Usage: nav-pilot install <name> \[flags\]'
+
+exec nav-pilot help ls
+stdout '^Usage: nav-pilot list \[flags\]'
+
+exec nav-pilot config --help
+stdout '^Usage: nav-pilot config \[subcommand\]'
+stdout 'setup \[--force\]'
+
+# A command without a page of its own gets the global one.
+exec nav-pilot help doctor
+stdout 'Commands:'
+
+exec nav-pilot --help
+stdout 'Launch flags'
+stdout '--client <name>'
+stdout '--persona <name>'
+stdout '--model <id>'
+stdout '--mode <mode>'
+stdout '--effort <level>'
+stdout '--context <tier>'
+stdout '--allow-all-tools'
+stdout '--no-auto-launch'
+stdout '--no-sandbox'

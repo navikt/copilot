@@ -116,7 +116,7 @@ func TestValidateConfig_VersionZero(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for version=0")
 	}
-	if !strings.Contains(err.Error(), "version must be 1") {
+	if !strings.Contains(err.Error(), "add version = 1") {
 		t.Errorf("error should mention version, got: %v", err)
 	}
 }

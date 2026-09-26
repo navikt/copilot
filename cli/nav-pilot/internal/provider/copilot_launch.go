@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -38,17 +39,32 @@ func FindCopilotCLI() (path, name string) {
 
 // isCplt checks if a binary is actually cplt (Copilot Sandbox) by inspecting
 // its version output. Returns true if the binary identifies as cplt/sandbox.
-// The spawn is bounded: FindCopilotCLI runs it on every launch path where a
-// plain `copilot` binary is on PATH, and a hanging binary must not hang us.
+// The answer comes from cachedVersion, so a launch asks a plain copilot for
+// its version once, however many times FindCopilotCLI runs.
 func isCplt(binPath string) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	out, err := exec.CommandContext(ctx, binPath, "--version").CombinedOutput()
-	if err != nil {
-		return false
+	out, err := cachedVersion(binPath)
+	s := strings.ToLower(out)
+	return err == nil && (strings.Contains(s, "cplt") || strings.Contains(s, "copilot-sandbox"))
+}
+
+type versionAnswer struct {
+	out string
+	err error
+}
+
+var versionCache sync.Map
+
+// cachedVersion is `<bin> --version`, bounded like every other version probe
+// (runStagedProbe), and asked once per binary per process. One launch used to
+// spawn a plain copilot eight times for it, at about a second each.
+func cachedVersion(bin string) (string, error) {
+	if v, ok := versionCache.Load(bin); ok {
+		a := v.(versionAnswer)
+		return a.out, a.err
 	}
-	s := strings.ToLower(string(out))
-	return strings.Contains(s, "cplt") || strings.Contains(s, "copilot-sandbox")
+	out, err := runStagedProbe(clientProbeTimeout, bin, "--version")
+	versionCache.Store(bin, versionAnswer{out, err})
+	return out, err
 }
 
 // CLIDisplayName returns a user-friendly name for the CLI binary.
@@ -80,9 +96,32 @@ func copilotAgentArgs(agent string) []string {
 // launchClient before reaching here.
 func copilotSessionModel(model string) string {
 	if model != "" {
-		return model
+		id, _ := CopilotModelID(model)
+		return id
 	}
 	return pakkeDeclaredModel("copilot")
+}
+
+// CopilotModelID is the id the Copilot CLI gets for a configured model: the
+// opencode-style "github-copilot/<id>" loses its prefix, which Copilot does
+// not know. dropped says the prefix was removed. Any other value is returned
+// as it is.
+func CopilotModelID(model string) (id string, dropped bool) {
+	if rest, ok := strings.CutPrefix(model, "github-copilot/"); ok && rest != "" {
+		return rest, true
+	}
+	return model, false
+}
+
+// CopilotModelNote is what config validate says about a github-copilot/ model
+// on the copilot client, in the words the launch's session-model line uses;
+// "" for any other model.
+func CopilotModelNote(model string) string {
+	id, dropped := CopilotModelID(model)
+	if !dropped {
+		return ""
+	}
+	return fmt.Sprintf("copilot runs %s (github-copilot/ prefix dropped)", id)
 }
 
 func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
@@ -526,13 +565,10 @@ func PrintModelAvailabilityHint(model string) {
 	if model == "" || model == "auto" {
 		return
 	}
+	// A provider-qualified id is covered elsewhere: the session-model line says
+	// a github-copilot/ prefix was dropped, and ModelAdvisory says any other
+	// prefix is not a Copilot model id. One line each, never both.
 	if strings.Contains(model, "/") {
-		shortID := strings.SplitN(model, "/", 2)[1]
-		if shortID == "" {
-			shortID = model
-		}
-		fmt.Printf("%s Model %s is in provider-qualified format. nav-pilot translates it, but the canonical form is preferred: %s\n\n",
-			domain.Yellow("⚠"), domain.Bold(model), domain.Bold("nav-pilot config set model "+shortID))
 		return
 	}
 	fmt.Printf("%s Model: %s — if unavailable in your org, run: %s\n\n",

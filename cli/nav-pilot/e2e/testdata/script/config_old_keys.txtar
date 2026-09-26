@@ -1,0 +1,30 @@
+# An old config says what to do, in a command that works: a renamed key names
+# its successor, a missing version says to add it, and the way out does not
+# send the user round to a `config setup` that refuses to run.
+
+cp config-agent home/config.toml
+exits 1 nav-pilot config validate
+stdout 'agent was renamed to client: nav-pilot config set client copilot'
+exits 1 nav-pilot --sync -- -p x
+stderr 'agent was renamed to client: nav-pilot config set client copilot'
+stderr 'start over with nav-pilot config setup --force'
+
+# The command it prints fixes the file: the old key goes with it.
+exec nav-pilot config set client copilot
+exec nav-pilot config validate
+stdout 'Config is valid'
+! grep 'agent' home/config.toml
+
+cp config-noversion home/config.toml
+exits 1 nav-pilot config validate
+stdout 'version is missing: add version = 1 at the top \(or run nav-pilot config set version 1\)'
+
+# Without a terminal, setup on an existing file names --force.
+exits 1 nav-pilot config setup
+stderr 'Replace the file:    nav-pilot config setup --force'
+
+-- config-agent --
+version = 1
+agent = "copilot"
+-- config-noversion --
+client = "copilot"

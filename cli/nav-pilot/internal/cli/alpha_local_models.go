@@ -254,7 +254,7 @@ func cmdLocalUse(args []string) error {
 		}
 		// start refuses missing weights rather than fetching them, so init is
 		// the command that downloads.
-		fmt.Printf("%s Not downloaded yet%s. %s downloads it and starts it.\n",
+		fmt.Fprintf(os.Stderr, "%s Not downloaded yet%s. %s downloads it and starts it.\n",
 			yellow("⚠"), size, bold("nav-pilot alpha local init"))
 	}
 
@@ -262,13 +262,13 @@ func cmdLocalUse(args []string) error {
 	if running == "" || running == e.Model {
 		return nil
 	}
-	fmt.Printf("%s The running server still serves %s.\n", yellow("⚠"), bold(running))
+	fmt.Fprintf(os.Stderr, "%s The running server still serves %s.\n", yellow("⚠"), bold(running))
 	if !present {
-		fmt.Printf("  After init, load it with %s\n", bold("nav-pilot alpha local restart"))
+		fmt.Fprintf(os.Stderr, "  After init, load it with %s\n", bold("nav-pilot alpha local restart"))
 		return nil
 	}
 	if !providerpkg.IsTerminal(os.Stdin) {
-		fmt.Printf("  Load it: %s\n", bold("nav-pilot alpha local restart"))
+		fmt.Fprintf(os.Stderr, "  Load it: %s\n", bold("nav-pilot alpha local restart"))
 		return nil
 	}
 	restart := true
@@ -277,7 +277,7 @@ func cmdLocalUse(args []string) error {
 		Value(&restart).
 		WithTheme(navTheme()).
 		Run(); err != nil || !restart {
-		fmt.Printf("  Later: %s\n", bold("nav-pilot alpha local restart"))
+		fmt.Fprintf(os.Stderr, "  Later: %s\n", bold("nav-pilot alpha local restart"))
 		return nil
 	}
 	return cmdLocalRestart()
