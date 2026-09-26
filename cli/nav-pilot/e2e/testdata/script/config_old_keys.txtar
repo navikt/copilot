@@ -19,9 +19,9 @@ cp config-noversion home/config.toml
 exits 1 nav-pilot config validate
 stdout 'version is missing: add version = 1 at the top \(or run nav-pilot config set version 1\)'
 
-# Without a terminal, setup on an existing file names --force.
+# Without a terminal, setup leaves the file alone and names config set.
 exits 1 nav-pilot config setup
-stderr 'Replace the file:    nav-pilot config setup --force'
+stderr 'config setup needs a terminal; your config was left as it is. To script it, use nav-pilot config set <key> <value>'
 
 -- config-agent --
 version = 1

@@ -282,16 +282,18 @@ func TestCmdConfigExplain_UnknownKey(t *testing.T) {
 
 // ─── cmdConfigSetup non-interactive paths ─────────────────────────────────────
 
-func TestCmdConfigSetup_FileAlreadyExists(t *testing.T) {
-	path := writeTempConfig(t, "version = 1\n")
-	t.Setenv("NAV_PILOT_CONFIG", path)
+func TestCmdConfigSetup_NoTerminalLeavesFileAlone(t *testing.T) {
+	for _, force := range []bool{false, true} {
+		path := writeTempConfig(t, "version = 1\n")
+		t.Setenv("NAV_PILOT_CONFIG", path)
 
-	err := cmdConfigSetup(false)
-	if err == nil {
-		t.Fatal("expected error when config file already exists")
-	}
-	if !strings.Contains(err.Error(), "already exists") {
-		t.Errorf("expected 'already exists' in error message, got: %v", err)
+		err := cmdConfigSetup(force)
+		if err == nil || !strings.Contains(err.Error(), "your config was left as it is") {
+			t.Errorf("force=%v: err = %v, want the file-left-alone message", force, err)
+		}
+		if data, rerr := os.ReadFile(path); rerr != nil || string(data) != "version = 1\n" {
+			t.Errorf("force=%v: config changed: %q, %v", force, data, rerr)
+		}
 	}
 }
 
@@ -305,8 +307,8 @@ func TestCmdConfigSetup_NonInteractiveNoFile(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when non-interactive and no config file")
 	}
-	if !strings.Contains(err.Error(), "config init") {
-		t.Errorf("expected 'config init' in error message, got: %v", err)
+	if !strings.Contains(err.Error(), "nav-pilot config set <key> <value>") {
+		t.Errorf("expected the config set hint in error message, got: %v", err)
 	}
 }
 
@@ -345,11 +347,10 @@ func TestCmdConfigGet_OtelLogLevel_DefaultNone(t *testing.T) {
 
 // ─── config set / setup permissions ──────────────────────────────────────────
 
-func TestCmdConfigSet_PermsTightenedOnPreExistingFile(t *testing.T) {
+func TestCmdConfigSet_KeepsFileMode(t *testing.T) {
 	path := writeTempConfig(t, "version = 1\nagent = \"copilot\"\n")
 	t.Setenv("NAV_PILOT_CONFIG", path)
 
-	// Widen permissions so WriteFile's mode arg alone wouldn't fix it.
 	if err := os.Chmod(path, 0o644); err != nil {
 		t.Fatalf("chmod: %v", err)
 	}
@@ -362,8 +363,8 @@ func TestCmdConfigSet_PermsTightenedOnPreExistingFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stat: %v", err)
 	}
-	if info.Mode().Perm() != 0o600 {
-		t.Errorf("mode = %o, want 0600", info.Mode().Perm())
+	if info.Mode().Perm() != 0o644 {
+		t.Errorf("mode = %o, want 0644 kept", info.Mode().Perm())
 	}
 }
 

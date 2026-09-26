@@ -1,0 +1,10 @@
+# `config set` took the first of several values and dropped the rest, so an
+# unquoted path with a space was stored cut short. It now refuses.
+
+exits 1 nav-pilot config set source /Users/x/my repo
+stderr 'config set takes one value, got 2; quote values with spaces'
+! exists home/config.toml
+
+exec nav-pilot config set source '/Users/x/my repo'
+exec nav-pilot config get source
+stdout '^/Users/x/my repo$'

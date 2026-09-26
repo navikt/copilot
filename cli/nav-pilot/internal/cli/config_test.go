@@ -934,38 +934,6 @@ ask_user = true
 	}
 }
 
-// ─── isConfigKeyLine ─────────────────────────────────────────────────────────
-
-func TestIsConfigKeyLine(t *testing.T) {
-	tests := []struct {
-		line string
-		key  string
-		want bool
-	}{
-		{`client = "copilot"`, "client", true},
-		{`# client = "copilot"`, "client", true},
-		{`  # client = "copilot"`, "client", true},
-		{`## client = "copilot"`, "client", true},
-		{`client="copilot"`, "client", true},
-		{`# This is a general comment`, "client", false},
-		{`# model = "gpt-4"`, "client", false},
-		{`allow_all_tools = false`, "allow_all_tools", true},
-		{`# allow_all_tools = false`, "allow_all_tools", true},
-		// Key must not match a longer key name.
-		{`allow_all_tools_extra = "x"`, "allow_all_tools", false},
-		{`reasoning_effort = "high"`, "reasoning_effort", true},
-		{`reason = "other"`, "reasoning_effort", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.line+"_"+tt.key, func(t *testing.T) {
-			got := isConfigKeyLine(tt.line, tt.key)
-			if got != tt.want {
-				t.Errorf("isConfigKeyLine(%q, %q) = %v, want %v", tt.line, tt.key, got, tt.want)
-			}
-		})
-	}
-}
-
 // ─── validateKeyValue ────────────────────────────────────────────────────────
 
 func TestValidateKeyValue(t *testing.T) {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -460,6 +459,9 @@ func cmdConfig(args []string, force bool, jsonOutput bool) error {
 		if len(rest) < 2 {
 			return fmt.Errorf("config set requires a key and value.\n\nUsage: nav-pilot config set <key> <value>")
 		}
+		if len(rest) > 2 {
+			return fmt.Errorf("config set takes one value, got %d; quote values with spaces\n\nUsage: nav-pilot config set <key> <value>", len(rest)-1)
+		}
 		return cmdConfigSet(rest[0], rest[1])
 	case "validate":
 		return cmdConfigValidate()
@@ -488,11 +490,8 @@ func cmdConfigInit() error {
 		return fmt.Errorf("checking config path: %w", err)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("creating config directory: %w", err)
-	}
-	if err := os.WriteFile(path, []byte(configInitTemplate), 0o600); err != nil {
-		return fmt.Errorf("writing config: %w", err)
+	if err := writeConfigFile(path, []byte(configInitTemplate), nil); err != nil {
+		return err
 	}
 
 	fmt.Printf("%s Created %s\n", green("✓"), path)
@@ -654,9 +653,8 @@ func effectiveSourceLabel(r ResolvedConfig) string {
 	return r.Source
 }
 
-// writeConfigKey validates a key/value pair and writes it into the config file,
-// replacing the first matching line (active or commented out) or appending it.
-// It returns the TOML literal written. Callers own the user-facing message —
+// writeConfigKey validates a key/value pair and writes it into the config file
+// through updateConfigKey (config_write.go). It returns the TOML literal written. Callers own the user-facing message —
 // `config set` prints one, install's source persistence prints another.
 func writeConfigKey(key, value string) (string, error) {
 	kd := findKeyDef(key)
@@ -671,94 +669,10 @@ func writeConfigKey(key, value string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	newLine := key + " = " + tomlVal
-
-	path := configPath()
-
-	// Read existing content (if any).
-	var lines []string
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return "", fmt.Errorf("reading config: %w", err)
-		}
-		// New file: seed the required schema version so the resulting config
-		// passes on-launch validation (validateConfig requires version = 1).
-		lines = []string{"version = 1"}
-	} else {
-		lines = strings.Split(string(data), "\n")
-		// Remove trailing empty element from trailing newline.
-		if len(lines) > 0 && lines[len(lines)-1] == "" {
-			lines = lines[:len(lines)-1]
-		}
+	if err := updateConfigKey(key, tomlVal); err != nil {
+		return "", err
 	}
-
-	// Replace an active line for the key if there is one anywhere in the file,
-	// and only otherwise a commented-out one: replacing the comment while an
-	// active line lives further down would define the key twice and leave the
-	// config unparseable.
-	// Setting the key that replaced a renamed one drops the old line, so the
-	// command a launch prints for `agent` also fixes the file.
-	for old, next := range renamedConfigKeys {
-		if next != key {
-			continue
-		}
-		kept := lines[:0]
-		for _, line := range lines {
-			if isConfigKeyLine(line, old) && !strings.HasPrefix(strings.TrimLeft(line, " \t"), "#") {
-				continue
-			}
-			kept = append(kept, line)
-		}
-		lines = kept
-	}
-
-	replace := -1
-	for i, line := range lines {
-		if !isConfigKeyLine(line, key) {
-			continue
-		}
-		if !strings.HasPrefix(strings.TrimLeft(line, " \t"), "#") {
-			replace = i
-			break
-		}
-		if replace == -1 {
-			replace = i
-		}
-	}
-	if replace >= 0 {
-		lines[replace] = newLine
-	} else {
-		lines = append(lines, newLine)
-	}
-
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return "", fmt.Errorf("creating config directory: %w", err)
-	}
-	content := strings.Join(lines, "\n") + "\n"
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		return "", fmt.Errorf("writing config: %w", err)
-	}
-	if err := os.Chmod(path, 0o600); err != nil {
-		return "", fmt.Errorf("setting config permissions: %w", err)
-	}
-
 	return tomlVal, nil
-}
-
-// isConfigKeyLine returns true if line (active or commented-out) represents the given key.
-func isConfigKeyLine(line, key string) bool {
-	s := strings.TrimLeft(line, " \t")
-	// Strip leading comment characters and spaces.
-	s = strings.TrimLeft(s, "#")
-	s = strings.TrimLeft(s, " \t")
-	// Must start exactly with the key followed by optional spaces then '='.
-	if !strings.HasPrefix(s, key) {
-		return false
-	}
-	rest := s[len(key):]
-	rest = strings.TrimLeft(rest, " \t")
-	return strings.HasPrefix(rest, "=")
 }
 
 // validateKeyValue checks that a value is valid for a given key definition.
@@ -811,7 +725,7 @@ func validateKeyValue(kd *configKeyDef, value string) error {
 func formatTOMLValue(kd *configKeyDef, value string) (string, error) {
 	switch kd.kind {
 	case keyKindString:
-		return fmt.Sprintf("%q", value), nil
+		return tomlString(value), nil
 	case keyKindInt:
 		n, err := strconv.Atoi(value)
 		if err != nil {

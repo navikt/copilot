@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -85,14 +84,7 @@ func writeSetupConfig(answers setupAnswers) error {
 		return fmt.Errorf("internal error: generated config is invalid: %w", err)
 	}
 
-	path := configPath()
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("creating config directory: %w", err)
-	}
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		return err
-	}
-	return os.Chmod(path, 0o600)
+	return writeConfigFile(configPath(), []byte(content), nil)
 }
 
 // runConfigSetupFn is overridable in tests, the way cmdSyncFn is: the wizard
@@ -257,39 +249,38 @@ func maybeRunFirstRunSetup(flagSource string) error {
 }
 
 // cmdConfigSetup implements the 'nav-pilot config setup' subcommand.
-// Refuses to clobber an existing config and directs the user to 'config set'.
+// It touches nothing until the wizard has every answer: the existing file is
+// replaced, with a backup, only by the wizard's final atomic write.
 func cmdConfigSetup(force bool) error {
-	if _, err := os.Stat(configPath()); err == nil {
-		if !force && isInteractive() {
-			// Ask instead of refusing: the launch error that sent the user here
-			// says to start over, and a refusal would send them round again.
-			if err := huh.NewConfirm().
-				Title(fmt.Sprintf("%s already exists. Replace it?", configPath())).
-				Affirmative("Replace").
-				Negative("Keep it").
-				Value(&force).
-				WithTheme(navTheme()).
-				Run(); errors.Is(err, huh.ErrUserAborted) {
-				return cancelledError{nothingWritten: true}
-			} else if err != nil {
-				force = false // a prompt that could not run is no answer: keep the file
-			}
+	_, statErr := os.Stat(configPath())
+	exists := statErr == nil
+	if !isInteractive() {
+		left := ""
+		if exists {
+			left = "; your config was left as it is"
 		}
-		if force {
-			// Remove config to allow setup to overwrite cleanly
-			if rmErr := os.Remove(configPath()); rmErr != nil {
-				return fmt.Errorf("failed to remove existing config with --force: %w", rmErr)
-			}
-		} else {
-			return fmt.Errorf("config file already exists: %s\n\nChange one setting:  %s\nSee the settings:    %s\nReplace the file:    %s",
+		return fmt.Errorf("config setup needs a terminal%s. To script it, use nav-pilot config set <key> <value>", left)
+	}
+	if exists && !force {
+		// Ask instead of refusing: the launch error that sent the user here
+		// says to start over, and a refusal would send them round again.
+		if err := huh.NewConfirm().
+			Title(fmt.Sprintf("%s already exists. Replace it?", configPath())).
+			Affirmative("Replace").
+			Negative("Keep it").
+			Value(&force).
+			WithTheme(navTheme()).
+			Run(); errors.Is(err, huh.ErrUserAborted) {
+			return cancelledError{nothingWritten: true}
+		} else if err != nil {
+			force = false // a prompt that could not run is no answer: keep the file
+		}
+		if !force {
+			return fmt.Errorf("config file already exists: %s\n\nChange one setting:  %s\nSee the settings:    %s",
 				configPath(),
 				bold("nav-pilot config set <key> <value>"),
-				bold("nav-pilot config show"),
-				bold("nav-pilot config setup --force"))
+				bold("nav-pilot config show"))
 		}
-	}
-	if !isInteractive() {
-		return fmt.Errorf("config setup requires an interactive terminal.\n\nUse 'nav-pilot config init' to create a template, then edit it directly")
 	}
 	// No flag source: `config setup` does not persist one, so seeding from a
 	// --source would materialize a pakke the config it just wrote never names.
