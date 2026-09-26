@@ -818,6 +818,13 @@ func TestInitWithoutATerminalNeedsYes(t *testing.T) {
 	orig := raiseWiredLimit
 	t.Cleanup(func() { raiseWiredLimit = orig })
 	raiseWiredLimit = func(context.Context, local.WiredLimit) error { raised++; return nil }
+	devnull, derr := os.Open(os.DevNull)
+	if derr != nil {
+		t.Fatal(derr)
+	}
+	origStdin := os.Stdin
+	os.Stdin = devnull
+	t.Cleanup(func() { os.Stdin = origStdin; devnull.Close() })
 
 	var err error
 	out := captureStdout(func() { captureStderr(func() { err = cmdLocalInit(nil) }) })
@@ -867,7 +874,9 @@ func TestAlphaLocalTakesYes(t *testing.T) {
 	if !strings.Contains(out, "Nothing to remove") {
 		t.Errorf("purge --yes on an empty machine printed:\n%s", out)
 	}
-	if err := run([]string{"list", "--yes"}); err == nil || !strings.Contains(err.Error(), "unknown flag: --yes") {
-		t.Errorf("--yes outside alpha = %v, want unknown flag", err)
+	for _, args := range [][]string{{"list", "--yes"}, {"alpha", "local", "start", "--yes"}} {
+		if err := run(args); err == nil || !strings.Contains(err.Error(), "unknown flag: --yes") {
+			t.Errorf("%v = %v, want unknown flag", args, err)
+		}
 	}
 }
