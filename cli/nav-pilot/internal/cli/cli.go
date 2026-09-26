@@ -973,6 +973,9 @@ func run(args []string) error {
 			if canonical, ok := commandAliases[name]; ok {
 				name = canonical
 			}
+			if name == "update" {
+				name = "upgrade" // the deprecated name
+			}
 			if name == "alpha" {
 				alphaUsage(os.Stdout)
 				return nil

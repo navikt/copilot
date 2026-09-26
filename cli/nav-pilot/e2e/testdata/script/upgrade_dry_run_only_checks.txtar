@@ -28,6 +28,8 @@ stderr 'unknown flag --json. Run nav-pilot help upgrade'
 exec nav-pilot help upgrade
 stdout '--dry-run'
 stdout '--yes'
+exec nav-pilot help update
+stdout 'Usage: nav-pilot upgrade'
 
 # --yes (and -y) is the non-interactive upgrade.
 exec nav-pilot upgrade -y

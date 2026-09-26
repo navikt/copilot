@@ -466,11 +466,19 @@ func autoUpdateBackingOff(now time.Time) bool {
 		return false
 	}
 	fi, err := os.Stat(p)
-	return err == nil && now.Sub(fi.ModTime()) < autoUpdateBackoff
+	if err != nil {
+		return false
+	}
+	// A marker from the future (the clock stepped back) does not hold off
+	// updates for a day beyond it.
+	age := now.Sub(fi.ModTime())
+	return age >= 0 && age < autoUpdateBackoff
 }
 
 // autoUpdateFailed tells the user the update did not happen and the command
 // runs on the version they have, and remembers the failure for the backoff.
+// Every failure arms it, a network blip included: one lookup a day is the
+// cost, and nagging on every command about a GitHub that is down is worse.
 func autoUpdateFailed(latest string, err error) {
 	if p := autoUpdateFailedPath(); p != "" {
 		_ = os.MkdirAll(filepath.Dir(p), 0o755)
