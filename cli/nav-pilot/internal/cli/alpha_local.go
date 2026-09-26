@@ -1025,13 +1025,25 @@ func applyLocalConfig() {
 	// exactly that. A fetch here put a connect timeout on the front of every
 	// command for anyone behind a captive portal. init and start act on the
 	// manifest and pay for a fresh one; nothing else does.
-	if m, _, _ := local.Cached(); m != nil {
-		local.SetActive(m)
-	}
+	activateCachedManifest()
 	local.SetEnabled(true)
 	local.SetAutostart(r.LocalAutostart)
 	if cfg.LocalModel != nil {
 		local.SetSelectedModel(strings.TrimSpace(*cfg.LocalModel))
+	}
+}
+
+// activateCachedManifest installs the cached manifest as the active one. A
+// refused bench manifest (local/bench.go) has no fallback here either:
+// answering from the built-in copy would bench a model nobody asked for, so
+// nothing is local this run, and stderr says why.
+func activateCachedManifest() {
+	switch m, src, err := local.Cached(); {
+	case m != nil:
+		local.SetActive(m)
+	case src == local.SourceBench:
+		local.SetActive(&local.Manifest{})
+		fmt.Fprintf(os.Stderr, "%s %v; no local models this run\n", yellow("⚠"), err)
 	}
 }
 

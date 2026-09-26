@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -80,9 +81,18 @@ func benchManifest() (m *Manifest, ok bool, err error) {
 		}
 		return nil, false, nil
 	}
-	data, err := os.ReadFile(path)
+	if abs, aerr := filepath.Abs(path); aerr == nil {
+		path = abs
+	}
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, true, fmt.Errorf("%s: %w", BenchManifestEnv, err)
+	}
+	defer f.Close()
+	// The same cap as the network path (fetchManifest).
+	data, err := io.ReadAll(io.LimitReader(f, 1<<20))
+	if err != nil {
+		return nil, true, fmt.Errorf("%s=%s: %w", BenchManifestEnv, path, err)
 	}
 	m, err = parse(data, benchOrgs())
 	if err != nil {

@@ -33,11 +33,16 @@ func TestBenchOverride(t *testing.T) {
 		t.Setenv(BenchManifestEnv, path)
 		t.Setenv(BenchAllowOrgsEnv, " Accio-Lab ")
 		stubFetch(t, nil, os.ErrDeadlineExceeded)
+		cached := manifestJSON("1", modelJSON("qwen", okModel, true))
+		cache := stubCache(t, cached)
 		for name, get := range map[string]func() (*Manifest, Source, error){"Cached": Cached, "Resolve": Resolve} {
 			m, src, err := get()
 			if err != nil || m == nil || src != SourceBench || m.Models[0].Model != benchModel {
 				t.Fatalf("%s: got %v %q %v, want the bench manifest", name, m, src, err)
 			}
+		}
+		if got, _ := os.ReadFile(cache); !bytes.Equal(got, cached) {
+			t.Fatalf("the bench manifest reached the cache: %s", got)
 		}
 		if got := warn.String(); got != "bench override: allowing unvetted publisher Accio-Lab\n" {
 			t.Fatalf("warning = %q", got)
@@ -72,6 +77,24 @@ func TestBenchOverride(t *testing.T) {
 		m, src, err := Cached()
 		if m != nil || src != SourceBench || err == nil || !strings.Contains(err.Error(), "allowed publisher") {
 			t.Fatalf("Cached = %v %q %v, want a refusal and no fallback", m, src, err)
+		}
+	})
+
+	t.Run("the orgs widen the publisher rule and nothing else", func(t *testing.T) {
+		captureBenchWarnings(t)
+		t.Setenv(BenchAllowOrgsEnv, "Accio-Lab")
+		for name, entry := range map[string]string{
+			"backend": strings.Replace(modelJSON("occamy", benchModel, true), `"mlx-lm"`, `"sh"`, 1),
+			"param":   strings.Replace(modelJSON("occamy", benchModel, true), `"MLX_MODEL"`, `"PYTHONPATH"`, 1),
+		} {
+			path := filepath.Join(t.TempDir(), "bench.json")
+			if err := os.WriteFile(path, manifestJSON("1", entry), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv(BenchManifestEnv, path)
+			if m, _, err := Cached(); m != nil || err == nil || !strings.Contains(err.Error(), name) {
+				t.Fatalf("%s: Cached = %v %v, want a refusal", name, m, err)
+			}
 		}
 	})
 

@@ -945,3 +945,17 @@ func TestLocalOnAndOffAgree(t *testing.T) {
 		t.Errorf("off and on disagree about the server:\noff: %s\non: %s", off, on)
 	}
 }
+
+// A refused bench manifest leaves nothing local, not the built-in copy: a bench
+// run must not answer from a model it did not name.
+func TestActivateCachedManifestHasNoFallbackForABenchFile(t *testing.T) {
+	t.Setenv(local.BenchManifestEnv, filepath.Join(t.TempDir(), "missing.json"))
+	t.Cleanup(func() { local.SetActive(nil) })
+	out := captureStderr(activateCachedManifest)
+	if n := len(local.Active().Models); n != 0 {
+		t.Errorf("active manifest has %d models after a refused bench file, want 0", n)
+	}
+	if !strings.Contains(out, local.BenchManifestEnv) || !strings.Contains(out, "no local models this run") {
+		t.Errorf("stderr = %q, want the refusal named", out)
+	}
+}
