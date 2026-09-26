@@ -46,6 +46,16 @@ exec nav-pilot sync --repo --source $WORK/plattform
 stdout 'All 2 files up to date'
 exists .github/skills/brann/SKILL.md.orig
 
+# Nor does removing the skill take the copy with it.
+cd ../plattform
+exec git rm -q -r skills/brann
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm 'drop brann'
+cd ../forbruker
+exec nav-pilot sync --repo --apply --source $WORK/plattform
+stdout '\.github/skills/brann/ \(deleted\)'
+! exists .github/skills/brann/SKILL.md
+cmp .github/skills/brann/SKILL.md.orig ../local-edit.md
+
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
 -- plattform/agents/grillmester.agent.md --

@@ -166,7 +166,7 @@ func CopyDir(src, dst, boundary string) error {
 	if err := CheckSymlink(dst, boundary); err != nil {
 		return err
 	}
-	if err := removeAllButOrig(dst); err != nil {
+	if err := RemoveAllButOrig(dst); err != nil {
 		return err
 	}
 
@@ -187,9 +187,10 @@ func CopyDir(src, dst, boundary string) error {
 	})
 }
 
-// removeAllButOrig empties dir of everything except [OrigSuffix] files, and
-// removes it outright when there is nothing to keep.
-func removeAllButOrig(dir string) error {
+// RemoveAllButOrig removes an artifact directory, except the [OrigSuffix]
+// copies nav-pilot saved in it: they are the user's, whichever command takes
+// the artifact away. The directory stays only if it still holds one.
+func RemoveAllButOrig(dir string) error {
 	var dirs []string
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if skip, err := origEntry(dir, path, d, err); skip || err != nil {

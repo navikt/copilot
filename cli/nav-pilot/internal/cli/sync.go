@@ -711,7 +711,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		localFull := filepath.Join(scope.RootDir, p)
 		var rmErr error
 		if strings.HasSuffix(p, "/") {
-			rmErr = os.RemoveAll(localFull)
+			rmErr = removeAllButOrig(localFull)
 		} else {
 			rmErr = os.Remove(localFull)
 		}

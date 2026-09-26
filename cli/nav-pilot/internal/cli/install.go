@@ -1895,7 +1895,7 @@ func removeOrphans(scope *InstallScope, prior *StateFile, installed []InstalledF
 		full := filepath.Join(scope.RootDir, f.Path)
 		var err error
 		if strings.HasSuffix(f.Path, "/") {
-			err = os.RemoveAll(full)
+			err = removeAllButOrig(full)
 		} else {
 			err = os.Remove(full)
 		}

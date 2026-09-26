@@ -505,7 +505,7 @@ func removeStateFiles(scope *InstallScope, state *StateFile, dryRun, quiet, forc
 		}
 
 		if strings.HasSuffix(f.Path, "/") {
-			if err := os.RemoveAll(path); err != nil && !os.IsNotExist(err) {
+			if err := removeAllButOrig(path); err != nil && !os.IsNotExist(err) {
 				warn(f.Path, err)
 				continue
 			}

@@ -171,6 +171,7 @@ var (
 	comparableArtifactHash = source.ComparableArtifactHash
 	checkConflict          = source.CheckConflict
 	saveOrig               = source.SaveOrig
+	removeAllButOrig       = source.RemoveAllButOrig
 
 	// manifest.go
 	validateName        = source.ValidateName

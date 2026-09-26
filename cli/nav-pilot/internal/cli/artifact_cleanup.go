@@ -51,7 +51,7 @@ func afterArtifactRemoved(scope *InstallScope, absLocal string, quiet bool) {
 	if filepath.Base(absLocal) == KindSkill.Marker {
 		dir := filepath.Dir(absLocal)
 		if filepath.Dir(dir) == skillsDir {
-			_ = os.RemoveAll(dir)
+			_ = removeAllButOrig(dir)
 		}
 	}
 }
