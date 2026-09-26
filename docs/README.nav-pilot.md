@@ -460,7 +460,7 @@ det samme nav-pilot leser, så tallene står ikke her. Målingene bak står i
 
 Krever en modell nyere nav-pilot enn du har, skjuler nav-pilot den. Peker `local_model` på den,
 faller nav-pilot tilbake til standardmodellen, og `init`, `start` og `status` sier hvilken versjon
-du trenger. `models` viser den som holdt tilbake, og `use` nekter å velge den. Oppdater med `nav-pilot update`.
+du trenger. `models` viser den som holdt tilbake, og `use` nekter å velge den. Oppdater med `nav-pilot upgrade`.
 
 `RECOMMENDED` sier hva målingene anbefaler modellen til: `untrusted decide` er `alpha decide` på
 tekst du ikke kontrollerer selv, som issues og PR-beskrivelser, og `nuanced decide` er nyanserte

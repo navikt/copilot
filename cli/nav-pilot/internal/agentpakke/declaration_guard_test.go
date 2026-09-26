@@ -153,7 +153,7 @@ func TestContractVersionAdviceFitsTheDeclaration(t *testing.T) {
 	if strings.Contains(err.Error(), "publish a manifest") {
 		t.Errorf("the declaration's refusal sends the reader to the wrong artifact: %v", err)
 	}
-	if !strings.Contains(err.Error(), "nav-pilot update") {
+	if !strings.Contains(err.Error(), "nav-pilot upgrade") {
 		t.Errorf("the refusal does not say how to proceed: %v", err)
 	}
 }

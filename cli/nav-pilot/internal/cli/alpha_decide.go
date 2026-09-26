@@ -41,6 +41,8 @@ so a warm answer takes well under a second. Nothing leaves this machine.
   --expect      The option the threshold is about.
   --json        JSON on stdout. The default when stdout is not a terminal:
                 {"choice":"a","p":{"a":0.93,"b":0.07},"model":"...","ms":410,"evidence":true}
+                Probabilities are rounded to 4 decimals. With --threshold it adds
+                "pass": true or false. Empty evidence counts as none.
   --timeout     Give up after this long, waiting included (default 10s).
   --eval        Run a JSONL file of cases, one per line:
                 {"question":"...","options":["a","b"],"evidence":"...","expect":"a"}
@@ -100,6 +102,58 @@ type decision struct {
 	Model    string             `json:"model"`
 	MS       int64              `json:"ms"`
 	Evidence bool               `json:"evidence"`
+	// Pass is set when --threshold is: whether p(expect) reached it.
+	Pass *bool `json:"pass,omitempty"`
+}
+
+// round4 is how probabilities go into JSON: 0.9394, not 0.9393939393939394.
+func round4(p float64) float64 { return math.Round(p*1e4) / 1e4 }
+
+// decideFlagExamples is what a flag's value looks like, for the errors that
+// would otherwise only say it is wrong.
+var decideFlagExamples = map[string]string{
+	"options":   "--options yes,no",
+	"evidence":  "--evidence msg.txt",
+	"threshold": "--threshold 0.8",
+	"expect":    "--expect yes",
+	"timeout":   "--timeout 5s",
+	"eval":      "--eval cases.jsonl",
+}
+
+// decideFlagError turns the flag package's errors into ones that say what to
+// type instead.
+func decideFlagError(err error) error {
+	msg := err.Error()
+	if name, ok := strings.CutPrefix(msg, "flag provided but not defined: "); ok {
+		name = "--" + strings.TrimLeft(name, "-")
+		var known []string
+		for f := range decideFlagExamples {
+			known = append(known, "--"+f)
+		}
+		known = append(known, "--json", "--help")
+		if hint := suggest(name, known); hint != "" {
+			return fmt.Errorf("unknown flag %s. Did you mean %s?", name, hint)
+		}
+		return fmt.Errorf("unknown flag %s. Usage: nav-pilot alpha decide --help", name)
+	}
+	if name, ok := strings.CutPrefix(msg, "flag needs an argument: "); ok {
+		name = strings.TrimLeft(name, "-")
+		if ex := decideFlagExamples[name]; ex != "" {
+			return fmt.Errorf("--%s needs a value, as in %s", name, ex)
+		}
+	}
+	// invalid value "5" for flag -timeout: parse error
+	if rest, ok := strings.CutPrefix(msg, "invalid value "); ok {
+		value, flagName, _ := strings.Cut(rest, " for flag -")
+		flagName, _, _ = strings.Cut(flagName, ":")
+		switch flagName {
+		case "timeout":
+			return fmt.Errorf("--timeout takes durations like 5s or 1m, got %s", value)
+		case "threshold":
+			return fmt.Errorf("--threshold takes a probability like 0.8, got %s", value)
+		}
+	}
+	return fmt.Errorf("%v. Usage: nav-pilot alpha decide --help", err)
 }
 
 func cmdDecide(args []string) (err error) {
@@ -122,7 +176,7 @@ func cmdDecide(args []string) (err error) {
 				fmt.Print(decideHelp)
 				return nil
 			}
-			return decideFail(fmt.Errorf("%v. Run nav-pilot alpha decide --help", err))
+			return decideFail(decideFlagError(err))
 		}
 		if fs.NArg() == 0 {
 			break
@@ -157,7 +211,7 @@ func cmdDecide(args []string) (err error) {
 	thresholdSet := false
 	fs.Visit(func(f *flag.Flag) { thresholdSet = thresholdSet || f.Name == "threshold" })
 	if thresholdSet != (*expect != "") {
-		return decideFail(fmt.Errorf("--threshold and --expect go together"))
+		return decideFail(fmt.Errorf("--threshold and --expect go together, as in --threshold 0.8 --expect %s", options[0]))
 	}
 	if thresholdSet && (*threshold < 0 || *threshold > 1) {
 		return decideFail(fmt.Errorf("--threshold is a probability between 0 and 1, got %v", *threshold))
@@ -182,28 +236,47 @@ func cmdDecide(args []string) (err error) {
 
 	evidence := ""
 	if *evidenceFlag != "" {
+		// A terminal on stdin with nothing piped looks like a hang.
+		if *evidenceFlag == "-" && providerpkg.IsTerminal(os.Stdin) {
+			fmt.Fprintln(os.Stderr, dim("Reading evidence from stdin (Ctrl-D to end)…"))
+		}
 		var err error
 		if evidence, err = readEvidence(*evidenceFlag); err != nil {
 			return decideFail(err)
 		}
 	}
+	// Empty evidence is no evidence, and is reported as none.
+	hasEvidence := strings.TrimSpace(evidence) != ""
+	ev.Evidence = hasEvidence
 
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	ev.EvidenceBytes = len(evidence)
-	d, err := decide(ctx, question, options, evidence, *evidenceFlag != "")
+	d, err := decide(ctx, question, options, evidence, hasEvidence)
 	if err != nil {
 		return decideFail(explainDecideError(err, *timeout))
 	}
 	// Said once there is an answer to qualify: before, it sat above a "no
 	// server" error that had nothing to do with evidence.
-	if !d.Evidence {
+	switch {
+	case *evidenceFlag != "" && !hasEvidence:
+		fmt.Fprintf(os.Stderr, "%s The evidence was empty: the model saw only the question.\n", yellow("⚠"))
+	case !hasEvidence:
 		fmt.Fprintf(os.Stderr, "%s No --evidence: the model saw only the question. Pass --evidence <file> or --evidence -\n", yellow("⚠"))
 	}
+	pass := !thresholdSet || d.P[*expect] >= *threshold
 
 	if asJSON {
-		out, _ := json.Marshal(d)
-		fmt.Println(string(out))
+		out := d
+		out.P = make(map[string]float64, len(d.P))
+		for o, p := range d.P {
+			out.P[o] = round4(p)
+		}
+		if thresholdSet {
+			out.Pass = &pass
+		}
+		b, _ := json.Marshal(out)
+		fmt.Println(string(b))
 	} else {
 		fmt.Printf("\n  %s  %s\n\n", bold(d.Choice), dim(fmt.Sprintf("p=%.2f", d.P[d.Choice])))
 		for _, o := range options {
@@ -213,7 +286,12 @@ func cmdDecide(args []string) (err error) {
 	}
 	ev.Model, ev.Answered, ev.MS, ev.PChoice = d.Model, true, d.MS, d.P[d.Choice]
 
-	if thresholdSet && d.P[*expect] < *threshold {
+	if !pass {
+		// A person at a terminal gets told why the exit is 1; a script reads
+		// the exit code, or "pass" in the JSON.
+		if !asJSON {
+			fmt.Fprintf(os.Stderr, "p(%s)=%.2f < %.2f → exit 1\n", *expect, d.P[*expect], *threshold)
+		}
 		return &exitCode{code: 1}
 	}
 	return nil
@@ -266,7 +344,7 @@ func decideModelLabel(id string) string {
 
 func validateOptions(options []string) error {
 	if len(options) < 2 || len(options) > 26 {
-		return fmt.Errorf("--options needs 2 to 26 comma-separated labels, got %d", len(options))
+		return fmt.Errorf("--options needs 2 to 26 comma-separated labels, as in --options yes,no; got %d", len(options))
 	}
 	seen := map[string]bool{}
 	for _, o := range options {
@@ -319,7 +397,15 @@ func explainDecideError(err error, timeout time.Duration) error {
 		return fmt.Errorf("%w\n\n  %s", err, wrapIndent("decide does not start one itself: a cold start takes 5-10 s and loads the model onto the GPU, which a hook must not do behind your back.", "  ", 76))
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return fmt.Errorf("no decision within %s. The local server answers one request at a time, and an agent session using it delays this call; raise --timeout or try again: %w", timeout, err)
+		// The Go error ("Post ...: context deadline exceeded") says nothing
+		// the sentence does not, so it is kept for DEBUG, the one debug
+		// switch nav-pilot reads. Wrapped either way, so it still counts as
+		// a timeout.
+		detail := ""
+		if os.Getenv("DEBUG") != "" {
+			detail = "\n\n  " + err.Error()
+		}
+		return &wrappedErr{msg: fmt.Sprintf("no decision within %s (the server may be busy). Raise --timeout or retry.%s", timeout, detail), err: err}
 	}
 	return err
 }
@@ -519,6 +605,7 @@ func runDecideEval(path string, defaultOptions []string, timeout time.Duration, 
 	r := evalMetrics(cases, ds)
 
 	if asJSON {
+		r.Accuracy, r.MeanPCorrect, r.MeanPWrong = round4(r.Accuracy), round4(r.MeanPCorrect), round4(r.MeanPWrong)
 		out, _ := json.Marshal(r)
 		fmt.Println(string(out))
 		return nil
@@ -540,6 +627,15 @@ func runDecideEval(path string, defaultOptions []string, timeout time.Duration, 
 	fmt.Println()
 	return nil
 }
+
+// wrappedErr is an error with its own message that still unwraps to the cause.
+type wrappedErr struct {
+	msg string
+	err error
+}
+
+func (e *wrappedErr) Error() string { return e.msg }
+func (e *wrappedErr) Unwrap() error { return e.err }
 
 func evalMetrics(cases []evalCase, ds []decision) evalReport {
 	r := evalReport{Cases: len(ds), Confusion: map[string]map[string]int{}}

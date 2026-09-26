@@ -2174,7 +2174,7 @@ nav-pilot alpha local purge     # viser hva som fjernes og hvor mye; --yes slett
               <code className="font-mono text-xs">local_model</code> på den, faller nav-pilot tilbake til
               standardmodellen, og <code className="font-mono text-xs">init</code>,{" "}
               <code className="font-mono text-xs">start</code> og <code className="font-mono text-xs">status</code> sier
-              hvilken versjon du trenger. Oppdater med <code className="font-mono text-xs">nav-pilot update</code>.
+              hvilken versjon du trenger. Oppdater med <code className="font-mono text-xs">nav-pilot upgrade</code>.
             </BodyShort>
             {defaultModel?.temperature != null && (
               <BodyShort size="small" textColor="subtle">

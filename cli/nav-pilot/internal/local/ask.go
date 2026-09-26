@@ -5,11 +5,14 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // askMaxTokens is room for a real answer plus the thinking that precedes it.
@@ -145,6 +148,10 @@ func Acquire(ctx context.Context) (url, model string, release func(), err error)
 	// the check and the request.
 	if err := EnsureOwnServer(); err != nil {
 		release()
+		var gone *ServerGoneError
+		if errors.As(err, &gone) {
+			err = fmt.Errorf("the local server (pid %d) has stopped. Start it: %s", gone.PID, domain.Bold("nav-pilot alpha local start"))
+		}
 		return "", "", nil, err
 	}
 	// Re-read under the lock: a restart while this call waited leaves a new

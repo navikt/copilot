@@ -188,7 +188,7 @@ func TestParseRejectsMalformedKnownConstructs(t *testing.T) {
 			// contract major means this binary is too old, not that the
 			// manifest is broken. The schema hint says neither, so this is
 			// what proves the version gate ran before the schema (#504 U1).
-			wantErrs: []string{"contractVersion", "supported", "Upgrade nav-pilot", "nav-pilot update"},
+			wantErrs: []string{"contractVersion", "supported", "Upgrade nav-pilot", "nav-pilot upgrade"},
 		},
 		{
 			// The launch resolves the default context and looks the payload
@@ -391,7 +391,7 @@ func TestMinNavPilotVersion(t *testing.T) {
 				if err == nil {
 					t.Fatal("parse = nil, want a version error")
 				}
-				for _, want := range []string{tt.required, tt.running, "nav-pilot update"} {
+				for _, want := range []string{tt.required, tt.running, "nav-pilot upgrade"} {
 					if !strings.Contains(err.Error(), want) {
 						t.Errorf("error %q does not mention %q", err, want)
 					}

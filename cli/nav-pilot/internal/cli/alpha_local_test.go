@@ -675,14 +675,13 @@ func TestLocalModelWithheldFallsBackWithTheReason(t *testing.T) {
 		t.Fatalf("writing local_model: %v", err)
 	}
 	var got local.Model
-	out := captureStderr(func() {
-		printWithheld(m)
+	out := strings.Join(strings.Fields(captureStderr(func() {
 		got, err = localModel(m)
-	})
+	})), " ")
 	if err != nil || got.Model != "mlx-community/Default" {
 		t.Errorf("localModel = %q/%v, want the default", got.Model, err)
 	}
-	for _, want := range []string{"Qwen 3.8 27B 8bit needs nav-pilot ≥ 2026.09.24-110317-abc1234", "you have 2026.09.20-080000-1111111", "nav-pilot update", "needs a newer nav-pilot", "mlx-community/Default"} {
+	for _, want := range []string{"Qwen 3.8 27B 8bit needs nav-pilot ≥ 2026.09.24-110317-abc1234", "you have 2026.09.20-080000-1111111", "nav-pilot upgrade", "needs a newer nav-pilot", "mlx-community/Default"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("stderr lacks %q, got: %q", want, out)
 		}
@@ -725,11 +724,14 @@ func TestLocalOffLeavesLocalModelAlone(t *testing.T) {
 
 // TestLocalStatusReportsAWithheldCachedEntry: status with dispatch off still
 // reads the cached manifest under the running version, so an entry this binary
-// is too old for is reported rather than hidden behind the embedded copy that
-// was parsed while the version was still dev.
+// is too old for is known rather than hidden behind the embedded copy that
+// was parsed while the version was still dev. It is reported only when
+// local_model names it: it used to print on every status, start and init,
+// unindented in the middle of the status table, whether anyone wanted it or not.
+// models always lists it.
 func TestLocalStatusReportsAWithheldCachedEntry(t *testing.T) {
 	home := localTestHome(t)
-	t.Cleanup(func() { agentpakke.SetVersion("dev") })
+	t.Cleanup(func() { agentpakke.SetVersion("dev"); local.SetSelectedModel("") })
 	agentpakke.SetVersion("2026.09.20-080000-1111111")
 	manifest := `{"schema_version":1,"channel":"alpha","models":[
 		{"key":"d","name":"Default","model":"mlx-community/Default","backend":"mlx-lm","default":true,"params":{}},
@@ -741,13 +743,26 @@ func TestLocalStatusReportsAWithheldCachedEntry(t *testing.T) {
 	if err := os.WriteFile(path, []byte(manifest), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	out := captureStderr(func() {
-		if err := cmdLocalStatus(); err != nil {
-			t.Errorf("cmdLocalStatus() errored: %v", err)
-		}
-	})
-	if !strings.Contains(out, "Qwen 3.8 27B 8bit needs nav-pilot ≥ 2026.09.24-110317-abc1234") {
-		t.Errorf("status does not report the withheld entry, got: %q", out)
+	const reason = "Qwen 3.8 27B 8bit needs nav-pilot ≥ 2026.09.24-110317-abc1234"
+	status := func() string {
+		out, errOut := captureRun(t, func() {
+			if err := cmdLocalStatus(); err != nil {
+				t.Errorf("cmdLocalStatus() errored: %v", err)
+			}
+		})
+		return strings.Join(strings.Fields(out+errOut), " ")
+	}
+	if out := status(); strings.Contains(out, "needs nav-pilot ≥") {
+		t.Errorf("status names a withheld entry nobody picked: %q", out)
+	}
+	if out := strings.Join(strings.Fields(captureStdout(func() { _ = cmdLocalModels() })), " "); !strings.Contains(out, reason) {
+		t.Errorf("models does not give the withheld entry's reason: %q", out)
+	}
+	if _, err := writeConfigKey("local_model", "mlx-community/Big-8bit"); err != nil {
+		t.Fatal(err)
+	}
+	if out := status(); !strings.Contains(out, reason) || !strings.Contains(out, "nav-pilot upgrade") {
+		t.Errorf("status with local_model on the withheld entry does not say why: %q", out)
 	}
 }
 
@@ -893,5 +908,40 @@ func TestAlphaLocalTakesYes(t *testing.T) {
 		if err := run(args); err == nil || !strings.Contains(err.Error(), "unknown flag: --yes") {
 			t.Errorf("%v = %v, want unknown flag", args, err)
 		}
+	}
+}
+
+// F6: status on a fresh machine said "Start it: ... start", which refuses an
+// unprovisioned machine.
+func TestLocalStatusPointsAFreshMachineAtInit(t *testing.T) {
+	localTestHome(t)
+	out := captureStdout(func() { _ = cmdLocalStatus() })
+	if !strings.Contains(out, "Set it up: nav-pilot alpha local init") || strings.Contains(out, "Start it:") {
+		t.Errorf("status on a fresh machine:\n%s", out)
+	}
+	markProvisioned(t)
+	if out := captureStdout(func() { _ = cmdLocalStatus() }); !strings.Contains(out, "Start it: nav-pilot alpha local start") {
+		t.Errorf("status on a provisioned machine:\n%s", out)
+	}
+}
+
+// F11: off pointed at init to come back, and on used a stricter liveness
+// check than off, so the two disagreed about a server that was up.
+func TestLocalOnAndOffAgree(t *testing.T) {
+	localTestHome(t)
+	markProvisioned(t)
+	if err := local.SaveState(local.State{PID: os.Getpid(), Model: "m", Port: 1}); err != nil {
+		t.Fatal(err)
+	}
+	var off, on string
+	captureStderr(func() {
+		off = captureStdout(func() { _ = cmdLocalOff() })
+		on = captureStdout(func() { _ = cmdLocalOn() })
+	})
+	if !strings.Contains(off, "nav-pilot alpha local on brings it back") {
+		t.Errorf("off does not point at on:\n%s", off)
+	}
+	if !strings.Contains(off, "still running") || !strings.Contains(on, "still running") {
+		t.Errorf("off and on disagree about the server:\noff: %s\non: %s", off, on)
 	}
 }

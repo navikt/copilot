@@ -1582,3 +1582,20 @@ func TestThreadDiedInLogReadsOnlyTheTail(t *testing.T) {
 		t.Errorf("threadDiedInLog allocated %d bytes for a %d-byte log, want only a bounded tail", got, size)
 	}
 }
+
+// The unset case used to read "the wired-memory limit is no limit set, so the
+// macOS default applies (about 36 GB)".
+func TestWiredShortfall(t *testing.T) {
+	for _, tc := range []struct {
+		w    WiredLimit
+		want string
+	}{
+		{WiredLimit{RequiredGB: 36, DefaultGB: 36}, "No limit is set. macOS allows about 36 GB by default, too close to the 36 GB this model needs."},
+		{WiredLimit{RequiredGB: 36, DefaultGB: 27}, "No limit is set. macOS allows about 27 GB by default, below the 36 GB this model needs."},
+		{WiredLimit{RequiredGB: 36, CurrentGB: 30}, "The wired-memory limit is 30 GB, below the 36 GB this model needs."},
+	} {
+		if got := tc.w.Shortfall(); got != tc.want {
+			t.Errorf("Shortfall(%+v) = %q, want %q", tc.w, got, tc.want)
+		}
+	}
+}

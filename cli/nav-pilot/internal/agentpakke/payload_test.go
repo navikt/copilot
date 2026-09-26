@@ -108,7 +108,7 @@ func TestParsePayloadManifestFailsClosed(t *testing.T) {
 		{
 			name:     "unsupported schemaVersion",
 			patch:    func(doc map[string]any) { doc["schemaVersion"] = 2 },
-			wantErrs: []string{"schemaVersion 2", "nav-pilot update"},
+			wantErrs: []string{"schemaVersion 2", "nav-pilot upgrade"},
 		},
 		{
 			name:     "missing schemaVersion",

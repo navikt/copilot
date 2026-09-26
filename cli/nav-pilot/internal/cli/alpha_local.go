@@ -72,7 +72,7 @@ Switching model:
   nav-pilot alpha local use <key>                   pick one (sets local_model)
   nav-pilot alpha local init                        download its weights, then start
 
-The list refreshes on init and start, not on every command.
+The list refreshes on init and start, and on first use; not on every command.
 `)
 }
 
@@ -157,17 +157,26 @@ func activeManifest() (*local.Manifest, error) {
 	} else if src != local.SourceNetwork {
 		fmt.Fprintf(os.Stderr, "%s Using the %s local-model manifest.\n", dim("ℹ"), src)
 	}
-	printWithheld(m)
 	return m, nil
 }
 
 // printWithheld names the manifest entries this binary does not offer, with
 // why: an entry that needs a newer nav-pilot, or one whose min_nav_pilot could
-// not be read.
+// not be read. Only models prints it, under its table: it used to print on
+// every status, start and init, twice in init, whether or not anyone wanted
+// that model.
 func printWithheld(m *local.Manifest) {
 	for _, w := range m.Withheld {
-		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), w.Reason)
+		fmt.Printf("  %s %s\n", yellow("⚠"), wrapIndent(w.Reason, "    ", 76))
 	}
+}
+
+// withheldReason is why local_model is withheld, or "" when it is not.
+func withheldReason(m *local.Manifest, configured string) string {
+	if w, ok := m.WithheldEntry(configured); ok {
+		return w.Reason
+	}
+	return ""
 }
 
 // localModel picks the model these commands act on: the configured one when it
@@ -179,6 +188,9 @@ func localModel(m *local.Manifest) (local.Model, error) {
 	if why != "" {
 		fmt.Fprintf(os.Stderr, "%s local_model is %s, %s. Using the default %s instead.%s\n",
 			yellow("⚠"), bold(configured), why, bold(entry.Model), pickOne(why))
+		if reason := withheldReason(m, configured); reason != "" {
+			fmt.Fprintf(os.Stderr, "  %s\n", wrapIndent(reason, "  ", 76))
+		}
 	}
 	nudge(local.ReplacedNotice(m))
 	return entry, err
@@ -226,8 +238,7 @@ func localSelection(m *local.Manifest) (entry local.Model, configured, why strin
 	if configured == "" || entry.Model == configured || local.ReplacedNotice(m) != "" {
 		return entry, configured, "", nil
 	}
-	// Withheld for this version: the reason was printed with the manifest, so
-	// only the fallback is left to say.
+	// Withheld for this version: the callers print the reason beside this.
 	if _, ok := m.WithheldEntry(configured); ok {
 		return entry, configured, "which needs a newer nav-pilot", nil
 	}
@@ -394,6 +405,12 @@ func cmdLocalInit(args []string) error {
 	if err := cmdLocalStart(); err != nil {
 		return err
 	}
+	// start left a server on another model running and said so. "Ready"
+	// under that would be about a model nothing serves.
+	if running := runningModel(); running != "" && running != model.Model {
+		fmt.Println()
+		return nil
+	}
 
 	// "the local worker" is only true on a client that has one. On the Copilot
 	// CLI the session either runs on the local model or does not, and telling
@@ -504,6 +521,13 @@ func cmdLocalStart() error {
 		return err
 	} else if ok {
 		if local.Attach(st).Status().Health != local.HealthCrashed {
+			if st.Model != model.Model {
+				// Reported, not replaced, as above, but not as a success:
+				// every answer still comes from the old model.
+				fmt.Printf("%s The server still runs %s. Load %s: %s\n",
+					yellow("⚠"), bold(st.Model), model.Key, bold("nav-pilot alpha local restart"))
+				return nil
+			}
 			fmt.Printf("%s A local server is already running: %s (pid %d, %s)\n",
 				green("✓"), bold(st.Model), st.PID, local.ServerURL())
 			return nil
@@ -655,12 +679,12 @@ var checkWiredLimit = local.CheckWiredLimit
 // what is set now rather than what it found.
 func raiseWiredForStart(ctx context.Context, model local.Model, wired *local.WiredLimit, ask func() (bool, error)) error {
 	refuse := fmt.Errorf(
-		"%s needs a %d GB wired-memory limit; this machine has %s.\n\n  Raise it (it resets at reboot), then start again: %s",
-		model.Model, wired.RequiredGB, wired.Label(), bold(wired.Command))
+		"%s cannot start: %s\n\n  Raise the limit (it resets at reboot), then start again: %s",
+		model.Model, wired.Shortfall(), bold(wired.Command))
 	if ask == nil {
 		return refuse
 	}
-	fmt.Printf("%s The wired-memory limit is %s; %s needs %d GB.\n", yellow("⚠"), wired.Label(), model.Name, wired.RequiredGB)
+	fmt.Printf("%s %s\n", yellow("⚠"), wired.Shortfall())
 	if ok, err := ask(); err != nil || !ok {
 		return refuse
 	}
@@ -725,7 +749,6 @@ func cmdLocalStatus() error {
 	m, _, _ := local.Cached()
 	var configured local.Model
 	if m != nil {
-		printWithheld(m)
 		configured = printConfiguredModel(m)
 	}
 
@@ -735,7 +758,12 @@ func cmdLocalStatus() error {
 	}
 	if !ok {
 		fmt.Printf("  Server       %s %s\n\n", local.HealthNotStarted, dim("(nothing recorded)"))
-		fmt.Printf("  Start it: %s\n\n", bold("nav-pilot alpha local start"))
+		// start refuses an unprovisioned machine, so it is not the next step there.
+		if local.Installed() {
+			fmt.Printf("  Start it: %s\n\n", bold("nav-pilot alpha local start"))
+		} else {
+			fmt.Printf("  Set it up: %s\n\n", bold("nav-pilot alpha local init"))
+		}
 		return nil
 	}
 
@@ -812,6 +840,9 @@ func printConfiguredModel(m *local.Manifest) local.Model {
 	fmt.Printf("  Model        %s %s\n", bold(entry.Key), dim("("+entry.Name+", "+via+")"))
 	if why != "" {
 		fmt.Printf("               %s local_model is %s, %s. Using the default.%s\n", yellow("⚠"), bold(configured), why, pickOne(why))
+		if reason := withheldReason(m, configured); reason != "" {
+			fmt.Printf("                 %s\n", wrapIndent(reason, "                 ", 62))
+		}
 	}
 	nudge(local.ReplacedNotice(m))
 	nudge(local.PinnedAdvisory(m))
@@ -883,8 +914,10 @@ func cmdLocalOn() error {
 	}
 	fmt.Printf("%s Local dispatch is on.\n", green("✓"))
 
-	if st, ok, _ := local.LoadState(); ok && local.Attach(st).Status().Health == local.HealthReady {
-		fmt.Printf("%s The server is already up (pid %d).\n", dim("ℹ"), st.PID)
+	// The same liveness check off uses: a server that is up but not yet
+	// ready is still up, and starting another would load a second copy.
+	if st, ok, _ := local.LoadState(); ok && local.Attach(st).Status().Health != local.HealthCrashed {
+		fmt.Printf("%s The server is still running (pid %d).\n", dim("ℹ"), st.PID)
 		return nil
 	}
 	fmt.Printf("%s Start the server when you need it: %s\n", dim("ℹ"), bold("nav-pilot alpha local start"))
@@ -938,7 +971,7 @@ func cmdLocalOff() error {
 			yellow("⚠"), st.PID, bold("nav-pilot alpha local stop"))
 	}
 	fmt.Printf("%s Weights are left on disk. %s brings it back without downloading them again.\n\n",
-		dim("ℹ"), bold("nav-pilot alpha local init"))
+		dim("ℹ"), bold("nav-pilot alpha local on"))
 	return nil
 }
 

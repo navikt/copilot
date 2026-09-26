@@ -224,8 +224,12 @@ func TestDecideTimeout(t *testing.T) {
 
 	started := time.Now()
 	_, errOut, code := runDecide(t, "Is it?", "--options", "yes,no", "--timeout", "100ms")
-	if code != 2 || !strings.Contains(errOut, "no decision within 100ms") {
+	if code != 2 || !strings.Contains(errOut, "no decision within 100ms (the server may be busy). Raise --timeout or retry.") {
 		t.Errorf("exit %d, stderr %q", code, errOut)
+	}
+	// The Go error is for DEBUG only.
+	if strings.Contains(errOut, "deadline exceeded") && os.Getenv("DEBUG") == "" {
+		t.Errorf("the raw Go error reached a user without DEBUG: %q", errOut)
 	}
 	if time.Since(started) > 5*time.Second {
 		t.Errorf("took %s, the timeout was not honoured", time.Since(started))
@@ -391,6 +395,77 @@ func TestAlphaCommand(t *testing.T) {
 	} {
 		if got := alphaCommand(strings.Fields(args)); got != want {
 			t.Errorf("alphaCommand(%q) = %q, want %q", args, got, want)
+		}
+	}
+}
+
+// F17: probabilities went into JSON as 0.9393939393939394, and a script had
+// only the exit code to learn whether the threshold held.
+func TestDecideJSONRoundsAndSaysPass(t *testing.T) {
+	fakeDecideServer(t, func(string) []fakeTok { return []fakeTok{{"A", 0.2}, {"B", 0.1}} })
+	ev := filepath.Join(t.TempDir(), "msg.txt")
+	if err := os.WriteFile(ev, []byte("fix: it"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, errOut, code := runDecide(t, "Is it?", "--options", "yes,no", "--evidence", ev, "--threshold", "0.8", "--expect", "yes")
+	var got map[string]any
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("stdout %q: %v", out, err)
+	}
+	if p := got["p"].(map[string]any)["yes"]; p != 0.6667 {
+		t.Errorf("p(yes) = %v, want 0.6667", p)
+	}
+	if got["pass"] != false || code != 1 {
+		t.Errorf("pass = %v, exit %d; want false and 1", got["pass"], code)
+	}
+	// Silent without a terminal: the exit code and "pass" say it.
+	if strings.Contains(errOut, "→ exit 1") {
+		t.Errorf("below-threshold note on stderr without a terminal: %q", errOut)
+	}
+
+	out, _, _ = runDecide(t, "Is it?", "--options", "yes,no", "--evidence", ev)
+	if strings.Contains(out, `"pass"`) {
+		t.Errorf("pass without --threshold: %s", out)
+	}
+}
+
+// F21: empty evidence was sent as evidence and reported as "evidence": true.
+func TestDecideEmptyEvidenceIsNone(t *testing.T) {
+	last := fakeDecideServer(t, yesMostly)
+	empty := filepath.Join(t.TempDir(), "empty.txt")
+	if err := os.WriteFile(empty, []byte(" \n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out, errOut, _ := runDecide(t, "Is it?", "--options", "yes,no", "--evidence", empty)
+	var d decision
+	if err := json.Unmarshal([]byte(out), &d); err != nil {
+		t.Fatalf("stdout %q: %v", out, err)
+	}
+	if d.Evidence || !strings.Contains(errOut, "⚠ The evidence was empty") {
+		t.Errorf("evidence=%v stderr=%q; want false and a warning", d.Evidence, errOut)
+	}
+	if prompt := last()["messages"].([]any)[0].(map[string]any)["content"].(string); strings.Contains(prompt, "EVIDENCE") {
+		t.Errorf("empty evidence was framed as evidence: %q", prompt)
+	}
+}
+
+// F16: flag errors said what was wrong but not what to type.
+func TestDecideFlagErrorsShowWhatToType(t *testing.T) {
+	localTestHome(t)
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"Why?", "--option", "yes,no"}, "Did you mean --options?"},
+		{[]string{"Why?", "--options"}, "--options needs a value, as in --options yes,no"},
+		{[]string{"Why?", "--options", "yes,no", "--timeout", "5"}, "durations like 5s"},
+		{[]string{"Why?", "--options", "yes,no", "--threshold", "0.8"}, "--threshold 0.8 --expect yes"},
+		{[]string{"Why?", "--options", "yes"}, "--options yes,no"},
+	} {
+		_, errOut, code := runDecide(t, tc.args...)
+		if code != 2 || !strings.Contains(errOut, tc.want) {
+			t.Errorf("%v: exit %d, stderr %q; want %q", tc.args, code, errOut, tc.want)
 		}
 	}
 }

@@ -277,7 +277,7 @@ func (m *Manifest) checkSchemaVersion() error {
 	return fmt.Errorf(
 		"local-model manifest schema_version %q is newer than this nav-pilot understands (supported: %s); "+
 			"the last cached manifest is used instead — run %s to get a binary that reads it",
-		m.SchemaVersion.String(), strings.Join(SupportedSchemaMajors, ", "), domain.Bold("nav-pilot update"))
+		m.SchemaVersion.String(), strings.Join(SupportedSchemaMajors, ", "), domain.Bold("nav-pilot upgrade"))
 }
 
 // maxProseRunes bounds the manifest's free text. Role and Expect reach two places
@@ -412,7 +412,7 @@ func (m *Manifest) withholdTooNew() {
 			m.Withheld = append(m.Withheld, Withheld{model, fmt.Sprintf(
 				"%s needs nav-pilot ≥ %s; you have %s. Update with %s (or reinstall via %s)",
 				model.Name, model.MinNavPilot, agentpakke.RunningVersion(),
-				domain.Bold("nav-pilot update"), domain.PkgSelf().Pick("Homebrew", "apt"))})
+				domain.Bold("nav-pilot upgrade"), domain.PkgSelf().Pick("Homebrew", "apt"))})
 		default:
 			kept = append(kept, model)
 		}

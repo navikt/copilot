@@ -414,3 +414,60 @@ func TestLocalUseRefusesAModelThisMachineCannotHold(t *testing.T) {
 		t.Errorf("exit code = %d, want %d", code, ExitError)
 	}
 }
+
+// F20: with no cached manifest a fresh user's models showed only the model
+// built into the binary. One quiet fetch fills it in; with a cache, none.
+func TestLocalModelsFetchesWhenNothingIsCached(t *testing.T) {
+	localTestHome(t)
+	fetched := 0
+	resolveLocalManifest = func() (*local.Manifest, local.Source, error) {
+		fetched++
+		m, err := local.Parse([]byte(`{"schema_version":1,"channel":"alpha","models":[
+			{"key":"fresh","name":"Fresh","model":"mlx-community/Fresh","backend":"mlx-lm","default":true,"params":{}}]}`))
+		return m, local.SourceNetwork, err
+	}
+	out := captureStdout(func() { _ = cmdLocalModels() })
+	if fetched != 1 || tableRow(out, "fresh") == "" {
+		t.Errorf("fetched %d times; table:\n%s", fetched, out)
+	}
+
+	modelsFixture(t) // writes a cache, and puts Cached back as the resolver
+	fetched = 0
+	resolveLocalManifest = func() (*local.Manifest, local.Source, error) {
+		fetched++
+		return nil, local.SourceNetwork, errors.New("offline")
+	}
+	captureStdout(func() { _ = cmdLocalModels() })
+	if fetched != 0 {
+		t.Errorf("models fetched %d times with a cache in place", fetched)
+	}
+}
+
+// F12: models is where a withheld entry's reason and the upgrade command are
+// shown.
+func TestLocalModelsExplainsWithheldEntries(t *testing.T) {
+	modelsFixture(t)
+	out := strings.Join(strings.Fields(captureStdout(func() { _ = cmdLocalModels() })), " ")
+	if !strings.Contains(out, "⚠ Qwen 3.8 27B 8bit needs nav-pilot ≥ 2026.09.24-110317-abc1234") || !strings.Contains(out, "nav-pilot upgrade") {
+		t.Errorf("models does not explain the withheld entry:\n%s", out)
+	}
+}
+
+// F5: start with a server on another model used to report it as a success,
+// and init then said "Ready".
+func TestLocalStartSaysTheOldModelIsStillServed(t *testing.T) {
+	modelsFixture(t)
+	markProvisioned(t)
+	if _, err := writeConfigKey("local_model", "mlx-community/Qwen3.8-27B"); err != nil {
+		t.Fatal(err)
+	}
+	if err := local.SaveState(local.State{PID: os.Getpid(), Model: "mlx-community/Qwen3.6-35B", Port: 1}); err != nil {
+		t.Fatal(err)
+	}
+	var err error
+	out := captureStdout(func() { captureStderr(func() { err = cmdLocalStart() }) })
+	want := "The server still runs mlx-community/Qwen3.6-35B. Load qwen3.8-27b: nav-pilot alpha local restart"
+	if err != nil || !strings.Contains(out, want) || strings.Contains(out, "already running") {
+		t.Errorf("start = %v, output:\n%s\nwant %q", err, out, want)
+	}
+}

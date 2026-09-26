@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/charmbracelet/huh"
 
@@ -20,8 +21,33 @@ import (
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
+// manifestFetchWait is how long models and use wait for a first fetch before
+// settling for the copy built into the binary.
+var manifestFetchWait = 2 * time.Second
+
+// cachedManifest is the cached manifest, and on a machine with no cache yet one
+// quiet fetch: without it a fresh user saw only the one model built into the
+// binary. A fetch that fails or takes longer than manifestFetchWait leaves the
+// embedded copy, and says nothing.
 func cachedManifest() (*local.Manifest, error) {
-	m, _, _ := local.Cached()
+	m, src, _ := local.Cached()
+	if src == local.SourceEmbedded {
+		fetched := make(chan *local.Manifest, 1)
+		go func() {
+			fm, fsrc, _ := resolveLocalManifest()
+			if fsrc != local.SourceNetwork {
+				fm = nil
+			}
+			fetched <- fm
+		}()
+		select {
+		case fm := <-fetched:
+			if fm != nil {
+				m = fm
+			}
+		case <-time.After(manifestFetchWait):
+		}
+	}
 	if m == nil {
 		return nil, errors.New("no local-model manifest is available; the copy built into this nav-pilot is broken")
 	}
@@ -124,6 +150,10 @@ func printLocalModels(m *local.Manifest) {
 		}
 	}
 	_ = w.Flush()
+	if len(m.Withheld) > 0 {
+		fmt.Println()
+		printWithheld(m)
+	}
 	fmt.Printf("\n  Switch: %s\n", bold("nav-pilot alpha local use <key>"))
 }
 
