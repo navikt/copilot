@@ -4,21 +4,21 @@
       {
         "type": "command",
         "matcher": "edit|create|str_replace|str_replace_editor|apply_patch|view",
-        "command": "command -v python3 >/dev/null 2>&1 || exit 0; o=$(mktemp) && e=$(mktemp) || { python3 .github/hooks/ask-first-aria.py; exit 0; }; exec 3<&0 4>&2 2>/dev/null; python3 .github/hooks/ask-first-aria.py <&3 >\"$o\" 2>\"$e\" 3<&- 4>&- & p=$!; (sleep 4; kill $p) >/dev/null 3<&- 4>&- & w=$!; wait $p; [ $? -gt 128 ] || cat \"$o\"; cat \"$e\" >&4; kill $w; rm -f \"$o\" \"$e\"; exit 0",
+        "command": "command -v python3 >/dev/null 2>&1 || exit 0; o=$(mktemp) && e=$(mktemp) || { rm -f \"$o\"; exit 0; }; exec 3<&0 4>&2 2>/dev/null; python3 .github/hooks/ask-first-aria.py <&3 >\"$o\" 2>\"$e\" 3<&- 4>&- & p=$!; (sleep 4; kill $p) >/dev/null 3<&- 4>&- & w=$!; wait $p && cat \"$o\"; cat \"$e\" >&4; kill $w; rm -f \"$o\" \"$e\"; exit 0",
         "timeoutSec": 5,
         "navPilot": "ask-first-aria"
       },
       {
         "type": "command",
         "matcher": "bash|shell|execute",
-        "command": "command -v python3 >/dev/null 2>&1 || exit 0; o=$(mktemp) && e=$(mktemp) || { python3 .github/hooks/klarsprak-gate.py; exit 0; }; exec 3<&0 4>&2 2>/dev/null; python3 .github/hooks/klarsprak-gate.py <&3 >\"$o\" 2>\"$e\" 3<&- 4>&- & p=$!; (sleep 4; kill $p) >/dev/null 3<&- 4>&- & w=$!; wait $p; [ $? -gt 128 ] || cat \"$o\"; cat \"$e\" >&4; kill $w; rm -f \"$o\" \"$e\"; exit 0",
+        "command": "command -v python3 >/dev/null 2>&1 || exit 0; o=$(mktemp) && e=$(mktemp) || { rm -f \"$o\"; exit 0; }; exec 3<&0 4>&2 2>/dev/null; python3 .github/hooks/klarsprak-gate.py <&3 >\"$o\" 2>\"$e\" 3<&- 4>&- & p=$!; (sleep 4; kill $p) >/dev/null 3<&- 4>&- & w=$!; wait $p && cat \"$o\"; cat \"$e\" >&4; kill $w; rm -f \"$o\" \"$e\"; exit 0",
         "timeoutSec": 5,
         "navPilot": "klarsprak-gate"
       },
       {
         "type": "command",
         "matcher": "bash|shell|execute",
-        "command": "command -v python3 >/dev/null 2>&1 || exit 0; o=$(mktemp) && e=$(mktemp) || { python3 .github/hooks/gh-poll-gate.py; exit 0; }; exec 3<&0 4>&2 2>/dev/null; python3 .github/hooks/gh-poll-gate.py <&3 >\"$o\" 2>\"$e\" 3<&- 4>&- & p=$!; (sleep 4; kill $p) >/dev/null 3<&- 4>&- & w=$!; wait $p; [ $? -gt 128 ] || cat \"$o\"; cat \"$e\" >&4; kill $w; rm -f \"$o\" \"$e\"; exit 0",
+        "command": "command -v python3 >/dev/null 2>&1 || exit 0; o=$(mktemp) && e=$(mktemp) || { rm -f \"$o\"; exit 0; }; exec 3<&0 4>&2 2>/dev/null; python3 .github/hooks/gh-poll-gate.py <&3 >\"$o\" 2>\"$e\" 3<&- 4>&- & p=$!; (sleep 4; kill $p) >/dev/null 3<&- 4>&- & w=$!; wait $p && cat \"$o\"; cat \"$e\" >&4; kill $w; rm -f \"$o\" \"$e\"; exit 0",
         "timeoutSec": 5,
         "navPilot": "gh-poll-gate"
       }

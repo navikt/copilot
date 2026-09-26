@@ -14,7 +14,7 @@ exec nav-pilot hook loop-guard
 ! stderr .
 stdin p4.json
 exec nav-pilot hook loop-guard
-stdout 'got the same result every time apart from counters and timestamps'
+stdout 'got the same result every time apart from numbers, ids and timestamps'
 stdout 'use a command that blocks until it is done \(for GitHub Actions: .gh run watch'
 ! stdout 'local_loop_guard'
 ! stdout 'config set'

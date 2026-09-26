@@ -41,7 +41,8 @@ type LoopState struct {
 	Same   int    `json:"same"`
 	Result string `json:"result"` // sha256 of the normalised result
 	// Raw is the sha256 of the last result as it came, and Varied says the
-	// run's results differed before normalisation (counters, timestamps).
+	// run's results differed before normalisation (numbers, ids, timestamps).
+	// A state from before Raw existed has none, and proves nothing.
 	Raw    string `json:"raw,omitempty"`
 	Varied bool   `json:"varied,omitempty"`
 	// Steps are the latest calls with their results, oldest first, as short
@@ -63,7 +64,7 @@ func (s LoopState) Step(call, resultType, result string) LoopState {
 	case call != s.Call:
 		return LoopState{Call: call, N: 1, Same: 1, Result: h, Raw: raw, Steps: steps}
 	case h == s.Result:
-		return LoopState{Call: call, N: s.N + 1, Same: s.Same + 1, Result: h, Raw: raw, Varied: s.Varied || raw != s.Raw, Steps: steps}
+		return LoopState{Call: call, N: s.N + 1, Same: s.Same + 1, Result: h, Raw: raw, Varied: s.Varied || (s.Raw != "" && raw != s.Raw), Steps: steps}
 	default:
 		return LoopState{Call: call, N: s.N + 1, Same: 1, Result: h, Raw: raw, Steps: steps}
 	}
@@ -108,7 +109,7 @@ func LoopMessage(s LoopState, threshold int) string {
 	case "same_result":
 		same := "the same result every time"
 		if s.Varied {
-			same = "the same result every time apart from counters and timestamps"
+			same = "the same result every time apart from numbers, ids and timestamps"
 		}
 		wait := ""
 		if isShellCall(s.Call) {

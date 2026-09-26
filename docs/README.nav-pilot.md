@@ -211,7 +211,7 @@ Hver port har et unntak for når den tar feil, og begrunnelsen modellen får, si
 | Port             | Unntak                                                                                          |
 | ---------------- | ----------------------------------------------------------------------------------------------- |
 | `gh-poll-gate`   | `POLL_OK=1` foran kommandoen                                                                    |
-| `ask-first-aria` | En kommentar med `ARIA_OK` og begrunnelsen ved rollen, skrevet etter at utvikleren har sagt ja |
+| `ask-first-aria` | En kommentar med `ARIA_OK` og begrunnelsen like ved hver ny rolle, etter at utvikleren har sagt ja |
 
 `ARIA_OK` står i koden etterpå, som et spor av at rollen er godkjent. Det må være nytt i
 skrivingen: et merke som bare følger med fra før, godkjenner ikke en ny rolle.
@@ -239,7 +239,7 @@ hasher og tellere, aldri selve kallet eller resultatet.
 Beskjeden til modellen nevner verken terskelen eller hvordan den endres. En modell som får
 vite hvordan grensen heves, kan heve den selv. Terskelen og `nav-pilot config set
 local_loop_guard <n>` står i stedet på stderr, for deg. Var resultatene like bare etter at
-tall og tidsstempler er tatt bort, sier beskjeden det, og for et skallkall peker den på en
+tall, id-er og tidsstempler er tatt bort, sier beskjeden det, og for et skallkall peker den på en
 kommando som venter til noe er ferdig (`gh run watch <run-id> --exit-status`).
 
 I sandkassen til cplt får hookene verken lese eller skrive `~/.nav-pilot/`. Der bruker de

@@ -248,6 +248,25 @@ def writes_of(args):
     return [(path, new, old) for path in paths_of(args)]
 
 
+# Hvor nær rollen merket må stå, i tegn, før eller etter attributtet.
+ARIA_OK_NEAR = 200
+
+
+def aria_ok(new, old):
+    """→ True når hver ny, utrygg rolle har et ARIA_OK like ved seg, og det
+    finnes flere merker enn før. Ett merke et helt annet sted i fila godkjenner
+    altså ikke en rolle, og et merke som bare følger med fra `old`, heller ikke."""
+    if new.count(ARIA_OK) <= old.count(ARIA_OK):
+        return False
+    fresh = role_names(new) - role_names(old) - SAFE_ROLES
+    for m in ROLE_ATTR.finditer(new):
+        if role_names(m.group(0)) & fresh:
+            near = new[max(0, m.start() - ARIA_OK_NEAR):m.end() + ARIA_OK_NEAR]
+            if ARIA_OK not in near:
+                return False
+    return True
+
+
 def decide(payload):
     """→ grunntekst hvis kallet skal nektes, ellers None."""
     args = payload.get("toolArgs")
@@ -262,7 +281,7 @@ def decide(payload):
         # flyttes innfører ingenting, mens en ny rolle ved siden av en gammel
         # skal fortsatt nektes.
         if (role_names(new) - role_names(old)) - SAFE_ROLES:
-            if new.count(ARIA_OK) > old.count(ARIA_OK):
+            if aria_ok(new, old):
                 continue
             return REASON
     return None
@@ -382,6 +401,10 @@ SELFTEST = [
     # ── ARIA_OK etter at utvikleren har sagt ja ──────────────────────────────
     ("slipper gjennom en rolle med et nytt ARIA_OK ved siden av",
      _sr(TSX, "<ul>", '{/* ARIA_OK: godkjent av utvikleren */}<ul role="listbox">'), False),
+    ("nekter en rolle når ARIA_OK står et helt annet sted",
+     _sr(TSX, "<ul>", "// ARIA_OK" + " " * 400 + '<ul role="listbox">'), True),
+    ("nekter en andre rolle uten eget ARIA_OK like ved",
+     _sr(TSX, "<ul>", '{/* ARIA_OK: listbox */}<ul role="listbox">' + " " * 400 + '<div role="grid">'), True),
     ("nekter en ny rolle når ARIA_OK bare følger med fra før",
      _sr(TSX, '{/* ARIA_OK: a */}<ul>', '{/* ARIA_OK: a */}<ul role="listbox">'), True),
 ]

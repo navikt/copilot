@@ -109,18 +109,18 @@ func LoadHookMeta(scriptPath string) HookMeta {
 // hook's own stdout and stderr: a python3 behind a wrapper (pyenv, asdf) leaves
 // children that would hold those pipes open past the kill, and Copilot waits
 // for them. python3 runs in the background, where sh gives it /dev/null for
-// stdin, so the payload is handed over on fd 3. Without a temp directory it
-// runs python3 as it always did, unguarded, rather than not at all. What the
-// script printed counts whatever it exited with, unless the watchdog killed it. The shell's own stderr goes to
+// stdin, so the payload is handed over on fd 3. Without a temp directory the
+// gate is skipped: unguarded, it could outlive the deadline. What the script
+// printed counts only when it exited 0; an error or a kill allows the call. The shell's own stderr goes to
 // /dev/null (fd 4 keeps the real one for the script's), so bash-as-sh does not
 // report the jobs it killed.
 func HookCommand(scriptPath string, timeoutSec int) string {
 	deadline := max(1, timeoutSec-1)
 	return fmt.Sprintf("command -v python3 >/dev/null 2>&1 || exit 0; "+
-		"o=$(mktemp) && e=$(mktemp) || { python3 %[1]s; exit 0; }; exec 3<&0 4>&2 2>/dev/null; "+
+		"o=$(mktemp) && e=$(mktemp) || { rm -f \"$o\"; exit 0; }; exec 3<&0 4>&2 2>/dev/null; "+
 		"python3 %[1]s <&3 >\"$o\" 2>\"$e\" 3<&- 4>&- & p=$!; "+
 		"(sleep %[2]d; kill $p) >/dev/null 3<&- 4>&- & w=$!; "+
-		"wait $p; [ $? -gt 128 ] || cat \"$o\"; cat \"$e\" >&4; kill $w; rm -f \"$o\" \"$e\"; exit 0",
+		"wait $p && cat \"$o\"; cat \"$e\" >&4; kill $w; rm -f \"$o\" \"$e\"; exit 0",
 		scriptPath, deadline)
 }
 
