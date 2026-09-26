@@ -115,6 +115,22 @@ func TestDecideMissingOptionsGetZero(t *testing.T) {
 	}
 }
 
+// TestDecideWarnsAboutEvidenceOnlyOnceItHasAServer: the missing-evidence
+// warning used to print above a "no server" error, about a question that was
+// never put.
+func TestDecideWarnsAboutEvidenceOnlyOnceItHasAServer(t *testing.T) {
+	localTestHome(t)
+	orig := decideServer
+	t.Cleanup(func() { decideServer = orig })
+	decideServer = func(context.Context) (string, string, func(), error) {
+		return "", "", nil, local.ErrNoServerRecorded
+	}
+	_, errOut, code := runDecide(t, "Is it?", "--options", "yes,no")
+	if code != 2 || strings.Contains(errOut, "evidence") {
+		t.Errorf("exit %d, stderr %q; want exit 2 and no evidence warning", code, errOut)
+	}
+}
+
 func TestDecideNoOptionLetterIsAnError(t *testing.T) {
 	fakeDecideServer(t, func(string) []fakeTok { return []fakeTok{{"The", 0.9}} })
 	if _, _, code := runDecide(t, "Is it?", "--options", "yes,no"); code != 2 {
@@ -130,7 +146,7 @@ func TestDecideEvidenceFlagAndWarning(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &d); err != nil || code != 0 {
 		t.Fatalf("stdout %q, exit %d: %v", out, code, err)
 	}
-	if d.Evidence || !strings.Contains(errOut, "without evidence") {
+	if d.Evidence || !strings.Contains(errOut, "⚠ No --evidence: ") {
 		t.Errorf("no evidence: evidence=%v stderr=%q", d.Evidence, errOut)
 	}
 
@@ -140,7 +156,7 @@ func TestDecideEvidenceFlagAndWarning(t *testing.T) {
 	}
 	out, errOut, _ = runDecide(t, "Is it?", "--options", "yes,no", "--evidence", ev)
 	_ = json.Unmarshal([]byte(out), &d)
-	if !d.Evidence || strings.Contains(errOut, "without evidence") {
+	if !d.Evidence || strings.Contains(errOut, "No --evidence") {
 		t.Errorf("with evidence: evidence=%v stderr=%q", d.Evidence, errOut)
 	}
 	prompt := last()["messages"].([]any)[0].(map[string]any)["content"].(string)

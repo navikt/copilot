@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"slices"
@@ -41,8 +42,10 @@ import (
 // hotel connection, and the weights beside it are twenty times larger.
 const envDownloadGB = 1
 
-func alphaUsage() {
-	fmt.Fprint(os.Stderr, `nav-pilot alpha: features that are not supported yet
+// alphaUsage goes to stdout when asked for (help, --help) and to stderr when a
+// bare `nav-pilot alpha` gets it in place of a command.
+func alphaUsage(w io.Writer) {
+	fmt.Fprint(w, `nav-pilot alpha: features that are not supported yet
 
 Usage:
   nav-pilot alpha local <command>
@@ -75,15 +78,19 @@ The list refreshes on init and start, not on every command.
 
 // cmdAlpha dispatches the alpha groups. There is one.
 func cmdAlpha(args []string) error {
-	if len(args) == 0 || args[0] == "help" {
-		alphaUsage()
+	if len(args) == 0 {
+		alphaUsage(os.Stderr)
+		return nil
+	}
+	if args[0] == "help" {
+		alphaUsage(os.Stdout)
 		return nil
 	}
 	if args[0] == "decide" {
 		return cmdDecide(args[1:])
 	}
 	if args[0] != "local" {
-		return fmt.Errorf("unknown alpha group: %s. Run %s for usage", args[0], bold("nav-pilot alpha help"))
+		return fmt.Errorf("unknown alpha group: %s. Usage: %s", args[0], bold("nav-pilot alpha help"))
 	}
 	sub := ""
 	if len(args) > 1 {
@@ -112,14 +119,17 @@ func cmdAlpha(args []string) error {
 		return cmdLocalAsk(args[2:])
 	case "purge":
 		return cmdLocalPurge(args[1:])
-	case "", "help":
-		alphaUsage()
+	case "":
+		alphaUsage(os.Stderr)
+		return nil
+	case "help":
+		alphaUsage(os.Stdout)
 		return nil
 	default:
 		if hint := suggest(sub, []string{"init", "start", "restart", "stop", "status", "models", "use", "ask", "on", "off", "purge"}); hint != "" {
 			return fmt.Errorf("unknown command: nav-pilot alpha local %s. Did you mean %s?", sub, hint)
 		}
-		return fmt.Errorf("unknown command: nav-pilot alpha local %s. Run %s for usage", sub, bold("nav-pilot alpha help"))
+		return fmt.Errorf("unknown command: nav-pilot alpha local %s. Usage: %s", sub, bold("nav-pilot alpha help"))
 	}
 }
 
@@ -474,7 +484,7 @@ func cmdLocalStart() error {
 	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopSignals()
 	if !local.Installed() {
-		return fmt.Errorf("the local-inference environment is not provisioned. Run %s first", bold("nav-pilot alpha local init"))
+		return fmt.Errorf("the local-inference environment is not provisioned. Set it up: %s", bold("nav-pilot alpha local init"))
 	}
 	m, err := activeManifest()
 	if err != nil {
@@ -511,7 +521,7 @@ func cmdLocalStart() error {
 	if present, err := local.WeightsPresent(model.Model); err != nil {
 		return err
 	} else if !present {
-		return fmt.Errorf("the weights for %s are not on this machine.\n\n  Download them first:\n\n    %s",
+		return fmt.Errorf("the weights for %s are not on this machine. Download them: %s",
 			model.Model, bold("nav-pilot alpha local init"))
 	}
 
@@ -645,7 +655,7 @@ var checkWiredLimit = local.CheckWiredLimit
 // what is set now rather than what it found.
 func raiseWiredForStart(ctx context.Context, model local.Model, wired *local.WiredLimit, ask func() (bool, error)) error {
 	refuse := fmt.Errorf(
-		"%s needs a %d GB wired-memory limit; this machine has %s.\n\n  Raise it, then start again (it resets at reboot):\n\n    %s",
+		"%s needs a %d GB wired-memory limit; this machine has %s.\n\n  Raise it (it resets at reboot), then start again: %s",
 		model.Model, wired.RequiredGB, wired.Label(), bold(wired.Command))
 	if ask == nil {
 		return refuse
@@ -743,7 +753,7 @@ func cmdLocalStatus() error {
 	// running one leaves the config and the process disagreeing, and every
 	// answer comes from the old model with nothing on screen to say so.
 	if configured.Model != "" && configured.Model != st.Model && health != local.HealthCrashed {
-		fmt.Printf("               %s Not the configured model. Run %s to serve it.\n",
+		fmt.Printf("               %s Not the configured model. Serve it: %s\n",
 			yellow("⚠"), bold("nav-pilot alpha local restart"))
 	}
 	fmt.Printf("  Server       %s, %s\n", healthColour(health), dim(healthMeaning(health)))
@@ -812,7 +822,7 @@ func installedLabel() string {
 	if local.Installed() {
 		return green("provisioned")
 	}
-	return dim("not provisioned. Run 'nav-pilot alpha local init'")
+	return dim("not provisioned. Set it up: ") + bold("nav-pilot alpha local init")
 }
 
 func enabledLabel(on bool) string {
@@ -848,7 +858,7 @@ func healthMeaning(h local.Health) string {
 		// state where the developer has nothing else to go on, and a crash
 		// report that quotes only "the process is gone" is a report nobody can
 		// act on.
-		return "the process is gone; start it again. What it printed is in " + local.LogPath()
+		return "the process is gone; start it again. What it printed is in the log below"
 	case local.HealthHung:
 		return "alive and accepting connections but not answering; it will not recover, restart it"
 	}
@@ -865,7 +875,7 @@ func healthMeaning(h local.Health) string {
 // so this was only ever a naming problem, and the fix is the name.
 func cmdLocalOn() error {
 	if !local.Installed() {
-		return fmt.Errorf("local inference is not provisioned on this machine. Run %s first",
+		return fmt.Errorf("local inference is not provisioned on this machine. Set it up: %s",
 			bold("nav-pilot alpha local init"))
 	}
 	if _, err := writeConfigKey("local_enabled", "true"); err != nil {
@@ -924,7 +934,7 @@ func cmdLocalOff() error {
 	}
 
 	if st, ok, _ := local.LoadState(); ok && local.Attach(st).Status().Health != local.HealthCrashed {
-		fmt.Printf("%s The server is still running (pid %d). Run %s to free the memory.\n",
+		fmt.Printf("%s The server is still running (pid %d). Free the memory: %s\n",
 			yellow("⚠"), st.PID, bold("nav-pilot alpha local stop"))
 	}
 	fmt.Printf("%s Weights are left on disk. %s brings it back without downloading them again.\n\n",
@@ -963,8 +973,9 @@ func applyLocalConfig() {
 		// Silence there sends a local model id down the hosted path, where it
 		// fails with an error about something else entirely.
 		if r.LocalEnabled {
-			fmt.Fprintf(os.Stderr, "%s Local dispatch is on but the environment is not provisioned to the versions this nav-pilot pins. Local models are hidden and launches go hosted. Run %s.\n",
-				yellow("⚠"), bold("nav-pilot alpha local init"))
+			fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), wrapIndent(
+				"Local dispatch is on but the environment is not provisioned to the versions this nav-pilot pins. Local models are hidden and launches go hosted. Provision it: "+
+					bold("nav-pilot alpha local init"), "  ", 76))
 		}
 		return
 	}
@@ -998,7 +1009,7 @@ func cmdLocalPurge(args []string) error {
 	confirmed := slices.Contains(args, "--yes")
 
 	if st, ok, _ := local.LoadState(); ok && local.Attach(st).Status().Health != local.HealthCrashed {
-		return fmt.Errorf("the local server is still running (pid %d).\n\n  Stop it first:\n\n    %s",
+		return fmt.Errorf("the local server is still running (pid %d). Stop it first: %s",
 			st.PID, bold("nav-pilot alpha local stop"))
 	}
 
@@ -1032,7 +1043,7 @@ func cmdLocalPurge(args []string) error {
 	fmt.Printf("\n  %s in total.\n\n", bold(humanBytes(total)))
 
 	if !confirmed {
-		fmt.Printf("%s Nothing was deleted. To go ahead:\n\n    %s\n\n",
+		fmt.Printf("%s Nothing was deleted. To go ahead: %s\n\n",
 			dim("ℹ"), bold("nav-pilot alpha local purge --yes"))
 		return nil
 	}
