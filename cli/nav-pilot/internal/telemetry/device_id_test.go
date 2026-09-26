@@ -64,6 +64,7 @@ func TestDeviceIDFormatValid(t *testing.T) {
 
 func TestDeviceIDPersistence(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("NAV_PILOT_CONFIG", "")
 
 	// Get or create
 	id1, err := GetOrCreateDeviceID()
@@ -115,6 +116,7 @@ func TestDeviceIDNoUserInfo(t *testing.T) {
 func TestGetOrCreateDeviceID_ValidStoredIDReturned(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
+	t.Setenv("NAV_PILOT_CONFIG", "")
 
 	idFile := dir + "/.nav-pilot/device-id"
 	if err := os.MkdirAll(dir+"/.nav-pilot", 0o700); err != nil {
@@ -149,6 +151,7 @@ func TestGetOrCreateDeviceID_InvalidStoredIDRegenerates(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
 			t.Setenv("HOME", dir)
+			t.Setenv("NAV_PILOT_CONFIG", "")
 
 			idFile := dir + "/.nav-pilot/device-id"
 			if err := os.MkdirAll(dir+"/.nav-pilot", 0o700); err != nil {
