@@ -119,7 +119,7 @@ func cmdDecide(args []string) (err error) {
 	for {
 		if err := fs.Parse(args); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
-				fmt.Fprint(os.Stderr, decideHelp)
+				fmt.Print(decideHelp)
 				return nil
 			}
 			return decideFail(fmt.Errorf("%v. Run nav-pilot alpha decide --help", err))
@@ -181,9 +181,7 @@ func cmdDecide(args []string) (err error) {
 	}()
 
 	evidence := ""
-	if *evidenceFlag == "" {
-		fmt.Fprintln(os.Stderr, "warning: deciding without evidence. The model sees only the question; pass --evidence <file> or --evidence -")
-	} else {
+	if *evidenceFlag != "" {
 		var err error
 		if evidence, err = readEvidence(*evidenceFlag); err != nil {
 			return decideFail(err)
@@ -196,6 +194,11 @@ func cmdDecide(args []string) (err error) {
 	d, err := decide(ctx, question, options, evidence, *evidenceFlag != "")
 	if err != nil {
 		return decideFail(explainDecideError(err, *timeout))
+	}
+	// Said once there is an answer to qualify: before, it sat above a "no
+	// server" error that had nothing to do with evidence.
+	if !d.Evidence {
+		fmt.Fprintf(os.Stderr, "%s No --evidence: the model saw only the question. Pass --evidence <file> or --evidence -\n", yellow("⚠"))
 	}
 
 	if asJSON {
@@ -296,7 +299,7 @@ func readEvidence(path string) (string, error) {
 	if len(b) <= decideEvidenceCap {
 		return string(b), nil
 	}
-	fmt.Fprintf(os.Stderr, "warning: evidence is over %d KiB; the model sees only the first %d KiB\n", decideEvidenceCap>>10, decideEvidenceCap>>10)
+	fmt.Fprintf(os.Stderr, "%s Evidence is over %d KiB; the model sees only the first %d KiB\n", yellow("⚠"), decideEvidenceCap>>10, decideEvidenceCap>>10)
 	return truncateEvidence(string(b)), nil
 }
 
@@ -313,7 +316,7 @@ func truncateEvidence(s string) string {
 
 func explainDecideError(err error, timeout time.Duration) error {
 	if errors.Is(err, local.ErrNoServerRecorded) {
-		return fmt.Errorf("%w\n\n  decide does not start one itself: a cold start takes 5-10 s and loads the model onto the GPU, which a hook must not do behind your back", err)
+		return fmt.Errorf("%w\n\n  %s", err, wrapIndent("decide does not start one itself: a cold start takes 5-10 s and loads the model onto the GPU, which a hook must not do behind your back.", "  ", 76))
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return fmt.Errorf("no decision within %s. The local server answers one request at a time, and an agent session using it delays this call; raise --timeout or try again: %w", timeout, err)

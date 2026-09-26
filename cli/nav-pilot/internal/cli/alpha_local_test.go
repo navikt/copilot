@@ -786,23 +786,38 @@ func TestStartRaisesTheWiredLimitOnlyWhenAsked(t *testing.T) {
 }
 
 // The flag loop used to answer -h/--help with the top-level usage before the
-// alpha dispatch ever ran, so `alpha --help` hid the alpha commands.
+// alpha dispatch ever ran, so `alpha --help` hid the alpha commands. Help that
+// was asked for goes to stdout, so `| less` and `| grep` work on it; usage
+// printed in place of a command stays on stderr.
 func TestAlphaHelpFlagsPrintAlphaUsage(t *testing.T) {
 	for _, args := range [][]string{
 		{"alpha", "help"}, {"alpha", "--help"}, {"alpha", "-h"},
-		{"alpha", "local", "--help"}, {"alpha", "local", "-h"},
+		{"alpha", "local", "--help"}, {"alpha", "local", "-h"}, {"alpha", "local", "help"},
 	} {
-		out, err := captureRunStderr(t, args)
+		var err error
+		out, errOut := captureRun(t, func() { err = run(args) })
 		if err != nil {
 			t.Fatalf("%v: %v", args, err)
 		}
-		if !strings.Contains(out, "nav-pilot alpha: features that are not supported yet") {
-			t.Errorf("%v printed something other than the alpha usage:\n%s", args, out)
+		if !strings.Contains(out, "nav-pilot alpha: features that are not supported yet") || errOut != "" {
+			t.Errorf("%v: want the alpha usage on stdout only\nstdout:\n%s\nstderr:\n%s", args, out, errOut)
 		}
 	}
-	_, errOut, _ := runDecide(t, "--help")
-	if !strings.Contains(errOut, "nav-pilot alpha decide") || strings.Contains(errOut, "features that are not supported yet") {
-		t.Errorf("alpha decide --help lost its own usage:\n%s", errOut)
+	for _, args := range [][]string{{"alpha"}, {"alpha", "local"}} {
+		out, errOut := captureRun(t, func() { _ = run(args) })
+		if out != "" || !strings.Contains(errOut, "features that are not supported yet") {
+			t.Errorf("%v: want the usage on stderr, got stdout %q", args, out)
+		}
+	}
+	for _, args := range [][]string{{"help"}, {"--help"}} {
+		out, errOut := captureRun(t, func() { _ = run(args) })
+		if !strings.Contains(out, "Nav's Copilot toolkit") || errOut != "" {
+			t.Errorf("%v: want the usage on stdout only, got stderr %q", args, errOut)
+		}
+	}
+	out, errOut, _ := runDecide(t, "--help")
+	if !strings.Contains(out, "nav-pilot alpha decide") || strings.Contains(out, "features that are not supported yet") || errOut != "" {
+		t.Errorf("alpha decide --help: want its own usage on stdout\nstdout:\n%s\nstderr:\n%s", out, errOut)
 	}
 }
 

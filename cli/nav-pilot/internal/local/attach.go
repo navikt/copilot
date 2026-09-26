@@ -225,20 +225,20 @@ func EnsureOwnServer() error {
 	}
 	start := domain.Bold("nav-pilot alpha local start")
 	if !ok {
-		return fmt.Errorf("%w.\n\n  Start one first:\n\n    %s", ErrNoServerRecorded, start)
+		return fmt.Errorf("%w. Start one: %s", ErrNoServerRecorded, start)
 	}
 	if !isRecorded(st.PID, st.Lstart) {
 		if threadDiedInLog(st.PID) {
 			return fmt.Errorf(
 				"the recorded local %s server (pid %d) exited because its generation thread died, most likely out of memory.\n\n"+
 					"  The traceback is in %s. A shorter context or a smaller model needs less memory.\n\n"+
-					"  Restart it:\n\n    %s",
+					"  Restart it: %s",
 				st.Model, st.PID, LogPath(), domain.Bold("nav-pilot alpha local restart"))
 		}
 		return fmt.Errorf(
 			"the recorded local %s server (pid %d) is not running any more.\n\n"+
 				"  Refusing: the loop guard forwards to %s, and nav-pilot cannot tell whether that is still its own server or whatever took the port after it died.\n\n"+
-				"  Start it again:\n\n    %s",
+				"  Start it again: %s",
 			st.Model, st.PID, ServerURL(), start)
 	}
 	if !slices.Contains(portListeners(st.ServerPort()), st.PID) {

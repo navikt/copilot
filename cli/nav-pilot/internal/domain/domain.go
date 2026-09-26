@@ -12,6 +12,8 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+
+	"golang.org/x/sys/unix"
 )
 
 // Config holds user-specific nav-pilot configuration read from ~/.nav-pilot/config.toml.
@@ -704,12 +706,21 @@ const FileStatusIgnored = "ignored"
 // The user declined to overwrite it, so sync should not touch it until resolved.
 const FileStatusConflict = "conflict"
 
-var UseColor = true
+// UseColor is whether Color emits ANSI escapes: only when NO_COLOR is unset
+// and both stdout and stderr are terminals. Escapes used to go into pipes, git
+// hooks and CI logs, because only NO_COLOR was checked.
+//
+// ponytail: one switch for both streams, because a coloured string is built
+// before the code picks the stream it goes to. A terminal whose other stream
+// is piped loses colour rather than a pipe gaining escapes. Per-stream colour
+// needs every stderr write routed through a writer that strips them.
+var UseColor = os.Getenv("NO_COLOR") == "" && isTerminal(os.Stdout) && isTerminal(os.Stderr)
 
-func init() {
-	if os.Getenv("NO_COLOR") != "" {
-		UseColor = false
-	}
+// isTerminal asks the kernel, not the file mode: /dev/null is a character
+// device too.
+func isTerminal(f *os.File) bool {
+	_, err := unix.IoctlGetWinsize(int(f.Fd()), unix.TIOCGWINSZ)
+	return err == nil
 }
 
 func Color(code, msg string) string {

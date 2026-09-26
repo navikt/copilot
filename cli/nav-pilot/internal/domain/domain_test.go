@@ -541,3 +541,24 @@ func TestKnownJSONKeysUntaggedField(t *testing.T) {
 		t.Errorf(`a json:"-" field must not be known under any name: %v`, keys)
 	}
 }
+
+// Colour escapes used to reach pipes, git hooks and CI logs, because only
+// NO_COLOR was checked. Neither a pipe nor /dev/null is a terminal.
+func TestIsTerminalRefusesPipesAndDevNull(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	defer w.Close()
+	devnull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer devnull.Close()
+	for name, f := range map[string]*os.File{"pipe": w, "/dev/null": devnull} {
+		if isTerminal(f) {
+			t.Errorf("isTerminal(%s) = true; colour would go into it", name)
+		}
+	}
+}

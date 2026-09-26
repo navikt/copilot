@@ -186,7 +186,7 @@ func cmdLocalUse(args []string) error {
 		if hint := suggest(arg, names); hint != "" {
 			return fmt.Errorf("unknown local model: %s. Did you mean %s?", arg, bold("nav-pilot alpha local use "+hint))
 		}
-		return fmt.Errorf("unknown local model: %s. Run %s to see what is offered", arg, bold("nav-pilot alpha local models"))
+		return fmt.Errorf("unknown local model: %s. See what is offered: %s", arg, bold("nav-pilot alpha local models"))
 	}
 	e := m.Models[i]
 

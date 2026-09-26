@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -74,8 +75,10 @@ func isKnownCommand(arg string) bool {
 	}
 }
 
-func usage() {
-	fmt.Fprintf(os.Stderr, `nav-pilot — Nav's Copilot toolkit
+// usage prints the top-level help: to stdout when it was asked for, to stderr
+// when it stands in for an answer the invocation did not get.
+func usage(w io.Writer) {
+	fmt.Fprintf(w, `nav-pilot — Nav's Copilot toolkit
 
 CLI tool that installs agents, skills, and instructions for GitHub Copilot.
 Once installed, use @nav-pilot in Copilot Chat to plan and build Nav apps.
@@ -410,7 +413,7 @@ func run(args []string) error {
 				return cmdInteractive(cliOverrides)
 			})
 		}
-		usage()
+		usage(os.Stderr)
 		return nil
 	}
 
@@ -530,9 +533,9 @@ func run(args []string) error {
 			positional = append(positional, rest[i])
 		case "-h", "--help":
 			if command == "alpha" {
-				alphaUsage()
+				alphaUsage(os.Stdout)
 			} else {
-				usage()
+				usage(os.Stdout)
 			}
 			return nil
 		default:
@@ -865,7 +868,7 @@ func run(args []string) error {
 		fmt.Printf("nav-pilot %s (commit: %s, built: %s)\n", Version, buildInfo.Commit, buildInfo.BuildDate)
 		return nil
 	case "-h", "--help", "help":
-		usage()
+		usage(os.Stdout)
 		return nil
 	default:
 		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "models", "alpha", "version", "help"}

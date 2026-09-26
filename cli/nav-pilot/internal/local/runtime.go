@@ -1615,7 +1615,7 @@ func EnsureServerRunning(ctx context.Context, announce func(string), record Reco
 		return err
 	} else if !w.Sufficient {
 		return fmt.Errorf(
-			"%s needs a %d GB wired-memory limit and this machine has %s.\n\n  Raise it, then launch again (it resets at reboot):\n\n    %s",
+			"%s needs a %d GB wired-memory limit and this machine has %s.\n\n  Raise it (it resets at reboot), then launch again: %s",
 			m.Model, w.RequiredGB, w.Label(), domain.Bold(w.Command))
 	}
 
@@ -1628,7 +1628,7 @@ func EnsureServerRunning(ctx context.Context, announce func(string), record Reco
 	if present, err := WeightsPresent(m.Model); err != nil {
 		return err
 	} else if !present {
-		return fmt.Errorf("the weights for %s are not on this machine.\n\n  Download them first:\n\n    %s",
+		return fmt.Errorf("the weights for %s are not on this machine. Download them: %s",
 			m.Model, domain.Bold("nav-pilot alpha local init"))
 	}
 
@@ -1679,7 +1679,7 @@ func RaiseWiredLimit(ctx context.Context, w WiredLimit) error {
 	out, err := runCommand(ctx, "/usr/bin/sudo",
 		[]string{sysctlPath, "-w", fmt.Sprintf("iogpu.wired_limit_mb=%d", w.RequiredGB*1024)}, nil)
 	if err != nil {
-		return fmt.Errorf("raising the wired-memory limit: %w: %s\n\n  Run it yourself:\n\n    %s",
+		return fmt.Errorf("raising the wired-memory limit: %w: %s\n\n  Run it yourself: %s",
 			err, strings.TrimSpace(out), domain.Bold(w.Command))
 	}
 	return nil
