@@ -892,6 +892,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		env:           launchEnv,
 		displayName:   "opencode",
 		messageSuffix: suffix,
+		projectDir:    resolved.ProjectDir,
 	})
 }
 

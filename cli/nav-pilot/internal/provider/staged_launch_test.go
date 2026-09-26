@@ -101,9 +101,9 @@ func buildStagedSpec(t *testing.T, client string, r domain.ResolvedConfig, s Sta
 // entry of the launched context's own primaryAgents roster (WP7), which is why
 // the two focused rows expect barista where the full rows expect grillmester.
 //
-// Not adopted, deliberately: --project-dir (lines 666-667) — nav-pilot treats
-// the working directory as the project scope, which is what the client inherits
-// anyway. No --model either: the fixture declares "inherit", and the reference
+// Not in these specs: --project-dir (lines 666-667). launchViaCplt adds it to
+// every launch at exec time, since it reads the working directory
+// (TestLaunchViaCpltPassesProjectDir). No --model either: the fixture declares "inherit", and the reference
 // forwards no model at all.
 func TestStagedLaunchSpecs(t *testing.T) {
 	SetActivePakke(stagedFixturePakke())

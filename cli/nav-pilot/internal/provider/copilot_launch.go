@@ -205,6 +205,11 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	skillsDir := materializedSkillsDir(copilotSkillsRoot())
 	env = withSkillsDirEnv(env, skillsDir)
 	args := copilotLaunchArgs(cliName, resolved, IsTerminal(os.Stdin), skillsDir)
+	if cliName == "cplt" {
+		if args, err = withCpltProjectDir(args, resolved.ProjectDir); err != nil {
+			return err
+		}
+	}
 	if cliName == "cplt" && guard != nil {
 		// The prompt path for a local session is a 127.0.0.1 hop to the guard,
 		// which cplt blocks by default. Name the port so it survives — and so

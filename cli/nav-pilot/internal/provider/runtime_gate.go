@@ -135,9 +135,8 @@ var probeCpltVersion = func() (string, error) {
 //     884-886, and _client_probe's project_dir at line 862). Asking a version
 //     question from the user's cwd instead engages that repository's .cplt.toml
 //     trust flow and hands the client read/write over the user's repo — for a
-//     `--version`. This is the first and only place --project-dir appears in
-//     nav-pilot, and it is not a reversal of the recorded decision to omit it
-//     on the launch (see staged_launch.go): a launch is scoped to the user's
+//     `--version`. A launch passes --project-dir too, set to the user's
+//     working directory (cpltProjectDir): a launch is scoped to the user's
 //     project on purpose, a version probe is scoped to nothing on purpose.
 var probeClientVersion = func(client string) (string, error) {
 	if client == "opencode" {

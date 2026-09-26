@@ -119,6 +119,7 @@ Flags:
   --apply                 Apply available updates (sync only)
   --updates <mode>        How a pinned agentpakke handles new stable releases: auto, ask or keep (sync only)
   --sync                  Sync all scopes and launch Copilot (non-interactive)
+  --project-dir <dir>     Directory the launched agent may read and write (default: current directory, not the enclosing git root)
   --json                  Output results as JSON
   -F, --feature           Submit a feature request (feedback only)
 
@@ -287,6 +288,12 @@ func run(args []string) error {
 				if err := validateSourceValue(cliOverrides.Source); err != nil {
 					return err
 				}
+			case "--project-dir":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--project-dir requires a value")
+				}
+				i++
+				cliOverrides.ProjectDir = args[i]
 			case "--persona":
 				if i+1 >= len(args) {
 					return fmt.Errorf("--persona requires a value")

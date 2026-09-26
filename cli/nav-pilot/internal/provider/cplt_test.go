@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -91,4 +92,109 @@ func TestClassifyLaunchErrorSeparatesQuittingFromFailing(t *testing.T) {
 			}
 		})
 	}
+}
+
+// fakeCpltArgs puts a cplt on PATH that records its argument vector, one
+// argument per line, and returns the file it records to.
+func fakeCpltArgs(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	out := filepath.Join(dir, "args.txt")
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + out + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	return out
+}
+
+// projectDirArg returns the operand of --project-dir in the recorded vector,
+// and fails the test when there is none or it is not ahead of the "--".
+func projectDirArg(t *testing.T, out string) string {
+	t.Helper()
+	raw, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("the fake cplt recorded nothing: %v", err)
+	}
+	args := strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n")
+	i := slices.Index(args, "--project-dir")
+	sep := slices.Index(args, "--")
+	if i < 0 || i+1 >= len(args) || (sep >= 0 && i > sep) {
+		t.Fatalf("cplt vector %q has no --project-dir operand before --", args)
+	}
+	return args[i+1]
+}
+
+func sameDir(t *testing.T, got, want string) {
+	t.Helper()
+	g, err1 := filepath.EvalSymlinks(got)
+	w, err2 := filepath.EvalSymlinks(want)
+	if err1 != nil || err2 != nil || g != w {
+		t.Errorf("--project-dir = %q, want %q", got, want)
+	}
+}
+
+// TestLaunchViaCpltPassesProjectDir pins the sandbox scope to the working
+// directory. Without an explicit --project-dir, cplt widens a directory inside
+// a git repository to the repository root, so a session started from a
+// subfolder that is not a repository itself could edit its siblings.
+func TestLaunchViaCpltPassesProjectDir(t *testing.T) {
+	isolateHome(t)
+	repo := t.TempDir()
+	if err := os.Mkdir(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(repo, "workspaces", "one")
+	mustMkdir(t, sub)
+	t.Chdir(sub)
+
+	t.Run("working directory by default", func(t *testing.T) {
+		out := fakeCpltArgs(t)
+		if err := launchViaCplt(cpltLaunch{agent: "opencode", displayName: "opencode"}); err != nil {
+			t.Fatalf("launchViaCplt: %v", err)
+		}
+		sameDir(t, projectDirArg(t, out), sub)
+	})
+
+	t.Run("explicit --project-dir wins, made absolute", func(t *testing.T) {
+		out := fakeCpltArgs(t)
+		if err := launchViaCplt(cpltLaunch{agent: "opencode", displayName: "opencode", projectDir: "../.."}); err != nil {
+			t.Fatalf("launchViaCplt: %v", err)
+		}
+		got := projectDirArg(t, out)
+		if !filepath.IsAbs(got) {
+			t.Errorf("--project-dir %q is not absolute", got)
+		}
+		sameDir(t, got, repo)
+	})
+
+	t.Run("legacy copilot seam, explicit --project-dir wins", func(t *testing.T) {
+		out := fakeCpltArgs(t)
+		if err := LaunchCopilotResolved(domain.ResolvedConfig{Client: "copilot", AskUser: true, ProjectDir: repo}); err != nil {
+			t.Fatalf("LaunchCopilotResolved: %v", err)
+		}
+		sameDir(t, projectDirArg(t, out), repo)
+	})
+
+	t.Run("legacy copilot seam, working directory by default", func(t *testing.T) {
+		out := fakeCpltArgs(t)
+		if err := LaunchCopilotResolved(domain.ResolvedConfig{Client: "copilot", AskUser: true}); err != nil {
+			t.Fatalf("LaunchCopilotResolved: %v", err)
+		}
+		sameDir(t, projectDirArg(t, out), sub)
+	})
+}
+
+// TestLaunchViaCpltHandsHomeToCplt: nav-pilot does not duplicate cplt's own
+// refusal of $HOME and / as too broad ("cplt refuses to sandbox '<dir>', it
+// is too broad"). It passes the directory through unchanged and lets cplt say
+// no.
+func TestLaunchViaCpltHandsHomeToCplt(t *testing.T) {
+	home := isolateHome(t)
+	t.Chdir(home)
+	out := fakeCpltArgs(t)
+	if err := launchViaCplt(cpltLaunch{agent: "opencode", displayName: "opencode"}); err != nil {
+		t.Fatalf("launchViaCplt: %v", err)
+	}
+	sameDir(t, projectDirArg(t, out), home)
 }
