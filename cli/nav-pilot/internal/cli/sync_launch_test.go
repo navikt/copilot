@@ -64,6 +64,10 @@ func TestSyncFlagHonoursAutoLaunchFalse(t *testing.T) {
 		t.Fatal(err)
 	}
 	marker := stubClient(t, "pi")
+	// pi launches only inside cplt, so without it pi is not available at all.
+	if err := os.WriteFile(filepath.Join(os.Getenv("PATH"), "cplt"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	origInteractive := isInteractive
 	isInteractive = func() bool { return true }

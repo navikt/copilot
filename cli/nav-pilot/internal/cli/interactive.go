@@ -1082,7 +1082,7 @@ func offerLaunchCopilot(resolved ResolvedConfig) error {
 		return nil
 	}
 	if headless && decision != launchGo {
-		return headlessRefusal(decision, p, cmdName)
+		return headlessRefusal(decision, p, missingCommand(resolved.Client, cmdName))
 	}
 
 	fmt.Println()
@@ -1094,12 +1094,7 @@ func offerLaunchCopilot(resolved ResolvedConfig) error {
 		if missing == "" {
 			missing = cmdName
 		}
-		// opencode needs both opencode and cplt; name whichever is missing.
-		if resolved.Client == "opencode" {
-			if _, err := exec.LookPath("opencode"); err == nil {
-				missing = "cplt"
-			}
-		}
+		missing = missingCommand(resolved.Client, missing)
 		fmt.Fprintf(os.Stderr, "%s %s was not found on PATH — skipping launch. Run %s to diagnose.\n",
 			yellow("⚠"), missing, bold("nav-pilot doctor"))
 		return nil
@@ -1119,6 +1114,18 @@ func offerLaunchCopilot(resolved ResolvedConfig) error {
 		return fmt.Errorf("launch failed: %w", err)
 	}
 	return nil
+}
+
+// missingCommand is what to name when client cannot launch: cplt when the
+// client is opencode or pi and its own binary is there, since both need cplt
+// too; otherwise name.
+func missingCommand(client, name string) string {
+	if client == "opencode" || client == "pi" {
+		if _, err := exec.LookPath(client); err == nil {
+			return "cplt"
+		}
+	}
+	return name
 }
 
 // headlessRefusal says why a launch with no terminal and a prompt after "--"

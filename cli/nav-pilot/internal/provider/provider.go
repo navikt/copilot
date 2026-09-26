@@ -481,9 +481,14 @@ func (piProvider) PrintContextStatus() {
 }
 func (piProvider) PrintSystemDiagnostics() {}
 
+// Available reports whether pi can be launched: like opencode, pi only ever
+// launches inside cplt, so both must be on PATH.
 func (piProvider) Available() bool {
-	_, err := exec.LookPath("pi")
-	return err == nil
+	if _, err := exec.LookPath("pi"); err != nil {
+		return false
+	}
+	_, name := FindCopilotCLI()
+	return name == "cplt"
 }
 
 var providerRegistry = []Provider{
