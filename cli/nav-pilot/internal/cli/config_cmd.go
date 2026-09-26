@@ -96,7 +96,7 @@ var configKeyDefs = []configKeyDef{
 		description: "Allow all tools without per-tool confirmation.",
 		allowed:     nil,
 		defaultVal:  "false",
-		flag:        "--allow-all-tools",
+		flag:        "--allow-all-tools / --no-allow-all-tools",
 	},
 	{
 		name:        "ask_user",
@@ -104,7 +104,7 @@ var configKeyDefs = []configKeyDef{
 		description: "Ask the user before taking actions. Set to false to disable.",
 		allowed:     nil,
 		defaultVal:  "true",
-		flag:        "--no-ask-user (when false)",
+		flag:        "--ask-user / --no-ask-user",
 	},
 	{
 		name:        "auto_launch",
@@ -249,12 +249,38 @@ func findKeyDef(name string) *configKeyDef {
 	return nil
 }
 
-func knownKeyNames() string {
-	names := make([]string, len(configKeyDefs))
-	for i, kd := range configKeyDefs {
-		names[i] = kd.name
+// userKeyNames are the keys a person sets: every key but nav-pilot's own
+// rtk_* bookkeeping.
+func userKeyNames() []string {
+	var names []string
+	for _, kd := range configKeyDefs {
+		if !strings.HasPrefix(kd.name, "rtk_") {
+			names = append(names, kd.name)
+		}
 	}
-	return strings.Join(names, ", ")
+	return names
+}
+
+func knownKeyNames() string {
+	return strings.Join(userKeyNames(), ", ")
+}
+
+// userKey is the key a person typed, as nav-pilot knows it: a renamed key
+// maps to its successor with a note, and an unknown one gets the closest
+// real name.
+func userKey(key string) (string, error) {
+	if findKeyDef(key) != nil {
+		return key, nil
+	}
+	if next, ok := renamedConfigKeys[key]; ok {
+		fmt.Fprintf(os.Stderr, "%s %s was renamed to %s\n", yellow("⚠"), key, next)
+		return next, nil
+	}
+	msg := fmt.Sprintf("unknown key: %q", key)
+	if hint := suggest(key, userKeyNames()); hint != "" {
+		msg += fmt.Sprintf(". Did you mean %s?", hint)
+	}
+	return "", fmt.Errorf("%s\n\nKnown keys: %s", msg, knownKeyNames())
 }
 
 // ─── Init template ────────────────────────────────────────────────────────────
@@ -312,7 +338,7 @@ version = 1
 
 # Ask the user before taking actions. Set to false to disable.
 # Default: true
-# Corresponds to Copilot CLI flag: --no-ask-user (when false)
+# Corresponds to nav-pilot flags: --ask-user / --no-ask-user
 # ask_user = true
 
 # Launch the coding agent automatically after sync/install. Set to false to
@@ -460,7 +486,11 @@ func cmdConfig(args []string, force bool, jsonOutput bool) error {
 		if len(rest) == 0 {
 			return fmt.Errorf("config get requires a key.\n\nUsage: nav-pilot config get <key>\n\nKnown keys: %s", knownKeyNames())
 		}
-		return cmdConfigGet(rest[0], jsonOutput)
+		key, err := userKey(rest[0])
+		if err != nil {
+			return err
+		}
+		return cmdConfigGet(key, jsonOutput)
 	case "set":
 		if len(rest) < 2 {
 			return fmt.Errorf("config set requires a key and value.\n\nUsage: nav-pilot config set <key> <value>")
@@ -468,18 +498,29 @@ func cmdConfig(args []string, force bool, jsonOutput bool) error {
 		if len(rest) > 2 {
 			return fmt.Errorf("config set takes one value, got %d; quote values with spaces\n\nUsage: nav-pilot config set <key> <value>", len(rest)-1)
 		}
-		return cmdConfigSet(rest[0], rest[1])
+		key, err := userKey(rest[0])
+		if err != nil {
+			return err
+		}
+		return cmdConfigSet(key, rest[1])
 	case "unset":
 		if len(rest) != 1 {
 			return fmt.Errorf("config unset takes one key.\n\nUsage: nav-pilot config unset <key>")
 		}
-		return cmdConfigUnset(rest[0])
+		key, err := userKey(rest[0])
+		if err != nil {
+			return err
+		}
+		return cmdConfigUnset(key)
 	case "validate":
 		return cmdConfigValidate(jsonOutput)
 	case "explain":
 		key := ""
 		if len(rest) > 0 {
-			key = rest[0]
+			var err error
+			if key, err = userKey(rest[0]); err != nil {
+				return err
+			}
 		}
 		return cmdConfigExplain(key)
 	case "sandbox":
@@ -959,11 +1000,11 @@ func cmdConfigExplain(key string) error {
 	}
 
 	// Print all keys.
-	for i := range configKeyDefs {
+	for i, name := range userKeyNames() {
 		if i > 0 {
 			fmt.Println()
 		}
-		printKeyExplain(&configKeyDefs[i], resolved)
+		printKeyExplain(findKeyDef(name), resolved)
 	}
 	return nil
 }

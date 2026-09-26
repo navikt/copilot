@@ -1,0 +1,22 @@
+# get and set take a renamed key under its new name and say so, and a typo
+# gets the closest key. The internal rtk_* keys are not offered.
+
+exec nav-pilot config set agent opencode
+stderr 'agent was renamed to client'
+stdout '✓ client: copilot \(default\) → opencode'
+exec nav-pilot config get agent
+stdout '^opencode$'
+
+exits 1 nav-pilot config get reasoning_efort
+stderr 'unknown key: "reasoning_efort"\. Did you mean reasoning_effort\?'
+! stderr 'rtk_prompted'
+
+exec nav-pilot config explain
+! stdout 'rtk_prompted'
+
+# A source that cannot be a repo name is refused.
+exits 1 nav-pilot config set source 'a"b/c'
+stderr 'must be a GitHub repo \(owner/name\) or an absolute path'
+
+exec nav-pilot --help
+stdout '--ask-user to turn on'

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -106,12 +107,15 @@ func ValidateSourceValue(v string) error {
 			return fmt.Errorf("source %q is a URL. nav-pilot takes owner/name, try %q", v, short)
 		}
 	}
-	owner, name, ok := strings.Cut(v, "/")
-	if !ok || owner == "" || name == "" || strings.Contains(name, "/") {
+	if !githubRepo.MatchString(v) {
 		return fmt.Errorf("source %q must be a GitHub repo (owner/name) or an absolute path", v)
 	}
 	return nil
 }
+
+// githubRepo is owner/name in the characters GitHub allows: a quote, a space
+// or a second slash is never part of a repository name.
+var githubRepo = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9._-]+$`)
 
 // shorthandFor extracts owner/name from a clone URL, or "" when it cannot.
 // Only a repository root maps to a shorthand: a browse URL like

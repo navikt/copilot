@@ -1,0 +1,16 @@
+# The wizard preselects the built-in defaults, auto_update included, and
+# writes only what differs from them. Its client labels are the settings
+# page's. Before the model list it says it is asking the account which
+# models it has, and that the probe runs outside the sandbox.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+fake-bin cplt copilot
+exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'rtk' -send '\x03' -- nav-pilot config setup
+stdout 'GitHub Copilot \(default\)'
+stdout 'OpenCode'
+stdout 'Checking which models your account has… \(runs copilot once, outside the cplt sandbox; it stops before any prompt\)'
+! grep 'client =' home/config.toml
+! grep 'mode =' home/config.toml
+! grep 'auto_update' home/config.toml
+grep 'version = 1' home/config.toml

@@ -134,7 +134,7 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
   --effort <level>        Reasoning effort: none, low, medium, high, xhigh or max
   --context <tier>        default or long_context
   --allow-all-tools       Let the agent run tools without asking (--no-allow-all-tools to turn off)
-  --no-ask-user           Don't let the agent stop to ask questions
+  --no-ask-user           Don't let the agent stop to ask questions (--ask-user to turn on)
   --no-auto-launch        Install or sync, but don't start the agent (--auto-launch to turn on)
   --project-dir <dir>     Directory the agent may read and write (default: current directory, not
                           the enclosing git root; the root's instructions stay readable)
