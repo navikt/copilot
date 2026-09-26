@@ -23,7 +23,7 @@ stderr '--threshold and --expect go together, as in --threshold 0.8 --expect yes
 # server is asked anything.
 exits 2 nav-pilot alpha decide --eval cases.jsonl
 ! stdout .
-stderr 'cases.jsonl:2: '
+stderr 'cases.jsonl:2: invalid JSON \(unexpected end of JSON input\)\. Each line is \{"question":"...","options":\["a","b"\],"evidence":"...","expect":"a"\}'
 ! stderr 'no local server'
 
 # A server that died and left its record behind: say it is gone and how to

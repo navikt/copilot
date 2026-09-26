@@ -8,7 +8,8 @@ fake-mlx mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
 
 # Without a terminal the same switch never prompts: it prints the command.
 exec nav-pilot alpha local use gemma3-4b
-stdout '✓ Downloaded\.'
+stdout '✓ Already on disk\. Nothing to download\.'
+! stdout 'Downloaded'
 stdout '⚠ The running server still serves mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit\.'
 stdout 'Load it: nav-pilot alpha local restart'
 ! stdout 'Restart the server'

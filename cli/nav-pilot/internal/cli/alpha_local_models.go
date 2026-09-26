@@ -8,6 +8,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"slices"
 	"strconv"
@@ -67,7 +68,7 @@ func cmdLocalModels() error {
 	if err != nil {
 		return err
 	}
-	printLocalModels(m)
+	printLocalModels(os.Stdout, m)
 	nudge(local.ReplacedNotice(m))
 	nudge(local.PinnedAdvisory(m))
 	return nil
@@ -76,11 +77,11 @@ func cmdLocalModels() error {
 // printLocalModels is the table models prints and use falls back to. `*` marks
 // what a start would load, which is not always what local_model says: see
 // [localSelection].
-func printLocalModels(m *local.Manifest) {
+func printLocalModels(out io.Writer, m *local.Manifest) {
 	active, _, _, _ := localSelection(m)
 	running := runningModel()
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "  \tKEY\tNAME\tSIZE\tCONTEXT\tRECOMMENDED\tSTATUS")
 	row := func(e local.Model, status []string) {
 		mark := ""
@@ -150,11 +151,12 @@ func printLocalModels(m *local.Manifest) {
 		}
 	}
 	_ = w.Flush()
+	fmt.Fprintf(out, "\n  %s\n", dim("* is the model start loads: local_model if set, otherwise the default."))
 	if len(m.Withheld) > 0 {
-		fmt.Println()
-		printWithheld(m)
+		fmt.Fprintln(out)
+		printWithheld(out, m)
 	}
-	fmt.Printf("\n  Switch: %s\n", bold("nav-pilot alpha local use <key>"))
+	fmt.Fprintf(out, "\n  Switch: %s\n", bold("nav-pilot alpha local use <key>"))
 }
 
 // tooBigHere is init's memory refusal as a table cell: [local.CheckWiredLimit]
@@ -192,10 +194,13 @@ func cmdLocalUse(args []string) error {
 	if err != nil {
 		return err
 	}
+	// No key is a mistake, not a query: a script that lost its argument
+	// must not read the table as a successful switch. Exit 2, like any
+	// usage error, with the table on stderr to pick from.
 	if len(args) == 0 {
-		printLocalModels(m)
-		fmt.Printf("  Usage:  %s\n", bold("nav-pilot alpha local use <key|model-id>"))
-		return nil
+		printLocalModels(os.Stderr, m)
+		fmt.Fprintf(os.Stderr, "  Usage:  %s\n", bold("nav-pilot alpha local use <key|model-id>"))
+		return &exitCode{code: 2}
 	}
 	arg := strings.TrimSpace(args[0])
 	match := func(e local.Model) bool { return e.Key == arg || e.Model == arg }
@@ -240,7 +245,8 @@ func cmdLocalUse(args []string) error {
 		return err
 	}
 	if present {
-		fmt.Printf("%s Downloaded.\n", green("✓"))
+		// use never downloads, so say which of the two it means.
+		fmt.Printf("%s Already on disk. Nothing to download.\n", green("✓"))
 	} else {
 		size := ""
 		if e.WeightsGB > 0 {

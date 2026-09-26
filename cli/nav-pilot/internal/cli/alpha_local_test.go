@@ -838,8 +838,8 @@ func TestAlphaHelpFlagsPrintAlphaUsage(t *testing.T) {
 
 // TestInitWithoutATerminalNeedsYes: a scripted init used to skip the question
 // and start a 26 GB download, then a sudo, with nobody there to say no. It now
-// refuses with exit 2 and says how to consent, having printed the plan, sudo
-// included, and done nothing.
+// refuses with exit 2 and says how to consent, before printing the plan, and
+// having done nothing. The refusal itself names the download and the sudo.
 func TestInitWithoutATerminalNeedsYes(t *testing.T) {
 	home := localTestHome(t)
 	t.Setenv("HF_HOME", filepath.Join(home, "hf"))
@@ -867,8 +867,8 @@ func TestInitWithoutATerminalNeedsYes(t *testing.T) {
 			t.Errorf("refusal %q lacks %q", err, want)
 		}
 	}
-	if !strings.Contains(out, "Needs sudo once to raise the wired-memory limit to") {
-		t.Errorf("the plan does not mention sudo:\n%s", out)
+	if out != "" {
+		t.Errorf("init printed to stdout before refusing:\n%s", out)
 	}
 	if raised != 0 || local.Installed() || strings.Contains(out, "Provisioning") {
 		t.Errorf("init did something before it had consent: raised %d, output:\n%s", raised, out)

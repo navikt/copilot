@@ -58,14 +58,15 @@ hosted one. Off until you run init, and invisible everywhere until then.
   init      Set it all up: environment, weights, memory limit, and a running server.
             Asks before it downloads or runs sudo; --yes answers for a script
   start     Start the server and wait until it answers a real completion
-  restart   Stop the server and start one on the model local_model names now
+  restart   Stop the server and start one on local_model, the config key use sets
   stop      Stop the server
   status    Model, health, resident memory, the wired-memory limit, the log and what it has done
   models    The local models on offer: size, context, downloaded, running, and which is in use
   use       Pick the model the server loads: use <key|model-id>
   ask       Put one question straight to the local model: ask -p "..." (or pipe stdin)
-  on        Dispatch to it again after off, without downloading anything
-  off       Stop dispatching to it; the weights stay on disk
+  on        Turn dispatch back on after off. Dispatch is nav-pilot handing
+            sessions or tasks to the local model. Downloads nothing
+  off       Stop dispatching: sessions go to the hosted model; the weights stay on disk
   purge     Remove the environment and the chosen model's weights, after showing what and how big (--yes deletes, --all: every model's)
 
 Switching model:
@@ -166,9 +167,9 @@ func activeManifest() (*local.Manifest, error) {
 // not be read. Only models prints it, under its table: it used to print on
 // every status, start and init, twice in init, whether or not anyone wanted
 // that model.
-func printWithheld(m *local.Manifest) {
+func printWithheld(out io.Writer, m *local.Manifest) {
 	for _, w := range m.Withheld {
-		fmt.Printf("  %s %s\n", yellow("⚠"), wrapIndent(w.Reason, "    ", 76))
+		fmt.Fprintf(out, "  %s %s\n", yellow("⚠"), wrapIndent(w.Reason, "    ", 76))
 	}
 }
 
@@ -271,6 +272,28 @@ func cmdLocalInit(args []string) error {
 	if err != nil {
 		return err
 	}
+	download := envDownloadGB
+	if !present {
+		download += model.WeightsGB
+	}
+	if present && local.Installed() {
+		download = 0
+	}
+
+	// Without a terminal nobody can say no, so init refuses rather than
+	// spending the download and a sudo on a script's behalf. --yes is the
+	// script saying yes. The refusal comes before the plan: a script's
+	// stdout gets nothing, and its log ends on the one line that matters.
+	// The plan prints when init actually runs, with --yes or in a terminal.
+	//
+	// The kernel's answer, not the file mode's. isInteractive reads
+	// os.ModeCharDevice, which is set for /dev/null too — so a scripted init
+	// put its question to /dev/null, got an error back, printed "Cancelled" and
+	// exited 0.
+	consent := initConsent(download, wired)
+	if consent != "" && !yes && !providerpkg.IsTerminal(os.Stdin) {
+		return &exitCode{code: 2, err: fmt.Errorf("init would %s. Run it in a terminal, or pass --yes", consent)}
+	}
 
 	fmt.Printf("%s  %s\n\n", bold("nav-pilot alpha local init"), dim("(alpha, unsupported)"))
 	fmt.Printf("  Model    %s\n", bold(model.Name))
@@ -287,14 +310,9 @@ func cmdLocalInit(args []string) error {
 		fmt.Printf("           Needs sudo once to raise the wired-memory limit to %d GB (resets at reboot).\n", wired.RequiredGB)
 	}
 
-	download := envDownloadGB
-	if !present {
-		download += model.WeightsGB
-	}
 	switch {
 	case present && local.Installed():
 		fmt.Printf("\n  %s Environment and weights are already here. Nothing to download.\n", green("✓"))
-		download = 0
 	case present:
 		fmt.Printf("\n  %s Weights are already here. Download: about %d GB (the Python environment).\n",
 			green("✓"), download)
@@ -335,19 +353,8 @@ func cmdLocalInit(args []string) error {
 	fmt.Printf("  %s\n", dim("DO_NOT_TRACK=1 turns all of it off, local included, as does"))
 	fmt.Printf("  %s\n\n", dim("NAV_PILOT_TELEMETRY_ENABLED=false if you would rather set it per tool."))
 
-	// The kernel's answer, not the file mode's. isInteractive reads
-	// os.ModeCharDevice, which is set for /dev/null too — so a scripted init
-	// put its question to /dev/null, got an error back, printed "Cancelled" and
-	// exited 0. The caller was told nothing, and carried on against an
-	// environment that had never been provisioned.
-	//
-	// Without a terminal nobody can say no, so init refuses rather than
-	// spending the download and a sudo on a script's behalf. --yes is the
-	// script saying yes.
-	if consent := initConsent(download, wired); consent != "" && !yes {
-		if !providerpkg.IsTerminal(os.Stdin) {
-			return &exitCode{code: 2, err: fmt.Errorf("init would %s. Run it in a terminal, or pass --yes", consent)}
-		}
+	// A terminal here: the refusal above has already handled a script.
+	if consent != "" && !yes {
 		if err := confirmDownload(download, func() (bool, error) {
 			var proceed bool
 			err := huh.NewConfirm().
@@ -371,14 +378,14 @@ func cmdLocalInit(args []string) error {
 	fmt.Printf("%s Environment ready.\n", green("✓"))
 
 	if present {
-		fmt.Printf("%s Weights already downloaded.\n", green("✓"))
+		fmt.Printf("%s Weights already on disk. Nothing downloaded.\n", green("✓"))
 	} else {
 		fmt.Printf("%s Downloading weights…\n", dim("→"))
 		if err := local.DownloadWeights(ctx, model.Model, progressLine); err != nil {
 			fmt.Println()
 			return err
 		}
-		fmt.Printf("\r%s\r%s Weights downloaded.\n", strings.Repeat(" ", 78), green("✓"))
+		fmt.Printf("\r%s\r%s Weights downloaded (about %d GB).\n", strings.Repeat(" ", 78), green("✓"), model.WeightsGB)
 	}
 
 	if _, err := writeConfigKey("local_enabled", "true"); err != nil {

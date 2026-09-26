@@ -11,6 +11,7 @@ stdout 'Set it up: nav-pilot alpha local init'
 
 exec nav-pilot alpha local models
 stdout '\* +qwen3.6-35b-a3b-optiq .* default, not downloaded'
+stdout '\* is the model start loads: local_model if set, otherwise the default\.'
 stdout 'gemma3-4b +Gemma 3 4B .* not downloaded'
 stdout 'Switch: nav-pilot alpha local use <key>'
 ! stderr .
@@ -24,11 +25,13 @@ stderr 'unknown local model: gemma3-4\. Did you mean nav-pilot alpha local use g
 ! exec nav-pilot alpha local use llama
 stderr 'unknown local model: llama\. See what is offered: nav-pilot alpha local models'
 
-# No argument: the table plus usage, and success.
-exec nav-pilot alpha local use
-stdout 'KEY +NAME'
-stdout 'Usage: +nav-pilot alpha local use <key\|model-id>'
-! stderr .
+# No argument is a usage error: exit 2, the table and usage on stderr, and
+# nothing on stdout for a script to read as a successful switch.
+exits 2 nav-pilot alpha local use
+! stdout .
+stderr 'KEY +NAME'
+stderr 'Usage: +nav-pilot alpha local use <key\|model-id>'
+! exists home/config.toml
 
 # The full model id works as well as the key, and says what comes next.
 exec nav-pilot alpha local use mlx-community/gemma-3-4b-it-4bit

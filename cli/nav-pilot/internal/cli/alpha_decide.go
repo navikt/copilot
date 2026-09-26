@@ -551,6 +551,10 @@ type evalReport struct {
 	WithoutEvidence int                       `json:"cases_without_evidence"`
 }
 
+// evalLineFormat is one --eval case, as the help shows it and a parse error
+// repeats it.
+const evalLineFormat = `{"question":"...","options":["a","b"],"evidence":"...","expect":"a"}`
+
 func runDecideEval(path string, defaultOptions []string, timeout time.Duration, asJSON bool) error {
 	f, err := os.Open(path)
 	if err != nil {
@@ -568,7 +572,7 @@ func runDecideEval(path string, defaultOptions []string, timeout time.Duration, 
 		}
 		var c evalCase
 		if err := json.Unmarshal([]byte(line), &c); err != nil {
-			return decideFail(fmt.Errorf("%s:%d: %w", path, n, err))
+			return decideFail(fmt.Errorf("%s:%d: invalid JSON (%w). Each line is %s", path, n, err, evalLineFormat))
 		}
 		if len(c.Options) == 0 {
 			c.Options = defaultOptions

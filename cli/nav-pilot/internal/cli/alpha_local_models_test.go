@@ -113,8 +113,8 @@ func TestLocalUse(t *testing.T) {
 	if got := configuredLocalModel(t); got != "mlx-community/Qwen3.8-27B" {
 		t.Errorf("use by key wrote local_model = %q", got)
 	}
-	if !strings.Contains(out, "Downloaded") {
-		t.Errorf("use of a downloaded model does not say so:\n%s", out)
+	if !strings.Contains(out, "Already on disk. Nothing to download.") {
+		t.Errorf("use of a downloaded model does not say it downloaded nothing:\n%s", out)
 	}
 
 	// By id, and the default is written too so the choice is explicit.
@@ -142,10 +142,17 @@ func TestLocalUse(t *testing.T) {
 		t.Errorf("a refused use changed local_model to %q", got)
 	}
 
-	// No argument: the table and the usage, and nothing written.
-	out = captureStdout(func() { _ = cmdLocalUse(nil) })
-	if !strings.Contains(out, "STATUS") || !strings.Contains(out, "use <key|model-id>") {
-		t.Errorf("use with no argument does not print the table and usage:\n%s", out)
+	// No argument: a usage error. The table and the usage on stderr, exit 2,
+	// nothing on stdout for a script to mistake for a result.
+	var noArg error
+	var errOut string
+	out = captureStdout(func() { errOut = captureStderr(func() { noArg = cmdLocalUse(nil) }) })
+	var ec *exitCode
+	if !errors.As(noArg, &ec) || ec.code != 2 {
+		t.Errorf("use with no argument = %v, want exit 2", noArg)
+	}
+	if out != "" || !strings.Contains(errOut, "STATUS") || !strings.Contains(errOut, "use <key|model-id>") {
+		t.Errorf("use with no argument: want the table and usage on stderr only\nstdout:\n%s\nstderr:\n%s", out, errOut)
 	}
 }
 
@@ -339,7 +346,7 @@ func TestReplacedLocalModel(t *testing.T) {
 	if !strings.Contains(strings.Join(strings.Fields(out), " "), want) {
 		t.Errorf("stderr = %q, want %q", out, want)
 	}
-	table := captureStdout(func() { printLocalModels(m) })
+	table := captureStdout(func() { printLocalModels(os.Stdout, m) })
 	if row := tableRow(table, "mlx-community/Qwen3.8-27B-4bit"); !strings.Contains(row, "*") || !strings.Contains(row, "replaced by qwen3.8-27b") {
 		t.Errorf("the kept pin has no marked row:\n%s", table)
 	}

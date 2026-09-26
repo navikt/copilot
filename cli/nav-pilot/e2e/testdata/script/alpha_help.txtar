@@ -13,6 +13,8 @@ exec nav-pilot alpha local --help
 stdout 'init +Set it all up'
 stdout '--yes answers for a script'
 stdout 'use +Pick the model'
+stdout 'restart .*local_model, the config key use sets'
+stdout 'Dispatch is nav-pilot handing'
 stdout 'Switching model:'
 
 exec nav-pilot alpha decide --help
