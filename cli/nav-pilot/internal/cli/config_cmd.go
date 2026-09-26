@@ -490,7 +490,7 @@ func cmdConfigInit() error {
 		return fmt.Errorf("checking config path: %w", err)
 	}
 
-	if err := writeConfigFile(path, []byte(configInitTemplate)); err != nil {
+	if err := writeConfigFile(path, []byte(configInitTemplate), nil); err != nil {
 		return err
 	}
 

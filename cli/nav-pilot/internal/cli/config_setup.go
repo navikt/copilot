@@ -84,7 +84,7 @@ func writeSetupConfig(answers setupAnswers) error {
 		return fmt.Errorf("internal error: generated config is invalid: %w", err)
 	}
 
-	return writeConfigFile(configPath(), []byte(content))
+	return writeConfigFile(configPath(), []byte(content), nil)
 }
 
 // runConfigSetupFn is overridable in tests, the way cmdSyncFn is: the wizard

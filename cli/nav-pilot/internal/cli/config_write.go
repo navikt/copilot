@@ -187,7 +187,8 @@ func editTopLevelKey(content, key, tomlVal, replaces string) (string, error) {
 	default:
 		newLine := key + " = " + tomlVal
 		if i, ok := layout.commented[key]; ok {
-			lines[i] = newLine
+			body := strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(lines[i]), "#"))
+			lines[i] = leadingSpace(lines[i]) + newLine + inlineComment(body)
 			break
 		}
 		at := layout.regionEnd
@@ -261,25 +262,40 @@ func updateConfigKey(key, tomlVal string) error {
 	if err != nil {
 		return fmt.Errorf("could not change %s in %s, %w: %v", key, path, errNothingWritten, err)
 	}
-	return writeConfigFile(path, []byte(out))
+	var base []byte
+	if err == nil {
+		base = data
+	}
+	return writeConfigFile(path, []byte(out), base)
 }
 
 // writeConfigFile replaces the config file with content: it must parse, the
 // previous file is kept as config.toml.bak, and the new one lands by rename
 // from a temp file in the same directory, so a crash or Ctrl-C leaves either
 // the old file or the new one. The file keeps its mode; a new one is 0600.
-func writeConfigFile(path string, content []byte) error {
+//
+// base, when not nil, is the file the new content was made from: if the file
+// no longer holds it, another process changed it meanwhile and nothing is
+// written rather than losing that change.
+// ponytail: compare-then-rename leaves a window of microseconds; take a lock
+// file if two nav-pilot processes ever edit the config at the same moment.
+func writeConfigFile(path string, content []byte, base []byte) error {
 	if _, ok := decodesTo(string(content)); !ok {
 		return fmt.Errorf("internal error: the new %s would not parse, %w", path, errNothingWritten)
 	}
 	// Write through a symlink (a dotfiles checkout) rather than replacing it.
 	if real, err := filepath.EvalSymlinks(path); err == nil {
 		path = real
+	} else if fi, lerr := os.Lstat(path); lerr == nil && fi.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("%s is a symlink to a file that does not exist, %w", path, errNothingWritten)
 	}
 	mode := os.FileMode(0o600)
 	old, err := os.ReadFile(path)
 	switch {
 	case err == nil:
+		if base != nil && !bytes.Equal(old, base) {
+			return fmt.Errorf("%s changed while nav-pilot was editing it, %w; run the command again", path, errNothingWritten)
+		}
 		if bytes.Equal(old, content) {
 			return nil
 		}

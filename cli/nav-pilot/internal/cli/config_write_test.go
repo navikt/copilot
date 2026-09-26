@@ -41,6 +41,8 @@ func TestEditTopLevelKey(t *testing.T) {
 			"model = \"m\" # note\nmode = \"plan\"\n"},
 		{"CRLF file keeps CRLF", "version = 1\r\nmode = \"plan\"   # team\r\n", "mode", `"autopilot"`, "",
 			"version = 1\r\nmode = \"autopilot\"   # team\r\n"},
+		{"commented template keeps indent and note", "version = 1\n  # mode = \"default\" # team note\n", "mode", `"plan"`, "",
+			"version = 1\n  mode = \"plan\" # team note\n"},
 		{"unset removes the line", "version = 1\nmode = \"plan\" # x\nmodel = \"m\"\n", "mode", "", "",
 			"version = 1\nmodel = \"m\"\n"},
 	}
@@ -122,6 +124,26 @@ func TestUpdateConfigKeyWritesThroughSymlink(t *testing.T) {
 	}
 	if got, _ := os.ReadFile(real); !strings.Contains(string(got), `mode = "plan"`) {
 		t.Errorf("target not updated: %q", got)
+	}
+}
+
+func TestWriteConfigFileRefuses(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	_ = os.WriteFile(path, []byte("version = 1\nmode = \"plan\"\n"), 0o600)
+	// Another process changed the file after it was read.
+	if err := writeConfigFile(path, []byte("version = 1\n"), []byte("version = 1\n")); err == nil {
+		t.Error("overwrote a file that changed meanwhile")
+	}
+	dangling := filepath.Join(dir, "link.toml")
+	if err := os.Symlink(filepath.Join(dir, "missing.toml"), dangling); err != nil {
+		t.Skip(err)
+	}
+	if err := writeConfigFile(dangling, []byte("version = 1\n"), nil); err == nil {
+		t.Error("replaced a dangling symlink")
+	}
+	if fi, _ := os.Lstat(dangling); fi.Mode()&os.ModeSymlink == 0 {
+		t.Error("symlink is gone")
 	}
 }
 
