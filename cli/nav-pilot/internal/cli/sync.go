@@ -234,7 +234,12 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		// HEAD because the releases API was unreachable is how a pin landed
 		// ahead of every release (#13). Only --ref may move it without one.
 		var lookup *releaseLookupError
-		if d, _ := scopeDeclaration(scope); errors.As(err, &lookup) && d != nil && d.SHA != "" {
+		d, declErr := scopeDeclaration(scope)
+		if errors.As(err, &lookup) && declErr != nil {
+			// A lock file that cannot be read is no licence to take HEAD.
+			return declErr
+		}
+		if errors.As(err, &lookup) && d != nil && d.SHA != "" {
 			return fmt.Errorf("%v.\nThe pin in %s stays at %s: sync does not move a committed pin to the default branch when it cannot tell which release is newest.\n\n"+
 				"  Try again when the GitHub API answers, or move it deliberately:  %s",
 				err, agentpakke.DeclarationPath, shortSHA(d.SHA), bold("nav-pilot sync --apply --ref <branch|sha>"))
