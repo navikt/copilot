@@ -2111,7 +2111,7 @@ nav-pilot alpha local stop
 nav-pilot alpha local restart   # stop og start i ett
 nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
-nav-pilot alpha local purge     # viser hva som fjernes og hvor mye; --yes sletter`}
+nav-pilot alpha local purge     # viser hva som fjernes og hvor mye; --yes sletter, --all tar alle modellene`}
           </CodeBlock>
           <VStack id="lokal-modeller" gap="space-12">
             <LinkableHeading size="small" level="3">
@@ -2217,7 +2217,11 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
           </CodeBlock>
           <BodyLong size="small" textColor="subtle">
             Qwen 3.6 er standard fordi den er rask og forutsigbar, ikke fordi den løser mest. Bytter du, må vektene til
-            den nye modellen lastes ned én gang. Størrelsen står i tabellen over.
+            den nye modellen lastes ned én gang. Størrelsen står i tabellen over.{" "}
+            <code className="font-mono text-xs">purge</code> fjerner Python-miljøet, den valgte modellen og modeller
+            manifestet har erstattet. Andre modeller du har lastet ned, blir liggende, og listen sier hvilke.{" "}
+            <code className="font-mono text-xs">purge --all</code> fjerner alle. Ingenting slettes før du legger til{" "}
+            <code className="font-mono text-xs">--yes</code>.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
             <code className="font-mono text-xs">nav-pilot alpha local status</code> viser hvilken modell som er valgt,

@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/signal"
 	"slices"
@@ -65,7 +66,7 @@ hosted one. Off until you run init, and invisible everywhere until then.
   ask       Put one question straight to the local model: ask -p "..." (or pipe stdin)
   on        Dispatch to it again after off, without downloading anything
   off       Stop dispatching to it; the weights stay on disk
-  purge     Remove the environment and the weights, after showing what and how big (--yes deletes)
+  purge     Remove the environment and the chosen model's weights, after showing what and how big (--yes deletes, --all: every model's)
 
 Switching model:
   nav-pilot alpha local models                      what is offered, and which is in use
@@ -1040,31 +1041,26 @@ func applyLocalConfig() {
 // cache that another MLX tool on the machine may be using.
 func cmdLocalPurge(args []string) error {
 	confirmed := slices.Contains(args, "--yes")
+	all := slices.Contains(args, "--all")
 
 	if st, ok, _ := local.LoadState(); ok && local.Attach(st).Status().Health != local.HealthCrashed {
 		return fmt.Errorf("the local server is still running (pid %d). Stop it first: %s",
 			st.PID, bold("nav-pilot alpha local stop"))
 	}
 
-	// Every model id this machine may have downloaded: the recorded server's,
-	// each entry the manifest offers or withholds, and each it lists as
-	// replaced. Removables keeps only those whose weights are on disk.
-	var models []string
-	if st, ok, _ := local.LoadState(); ok {
-		models = append(models, st.Model)
-	}
-	if m, _, _ := local.Cached(); m != nil {
-		for _, e := range m.Models {
-			models = append(models, e.Model)
-		}
-		for _, w := range m.Withheld {
-			models = append(models, w.Model.Model)
-		}
-		models = append(models, m.ReplacedIDs()...)
-	}
-	items := local.Removables(models...)
-	if len(items) == 0 {
+	remove, kept := purgeModels(all)
+	items := local.Removables(remove...)
+	if len(items) == 0 && len(kept) == 0 {
 		fmt.Printf("%s Nothing to remove. Local inference is not provisioned on this machine.\n", dim("ℹ"))
+		return nil
+	}
+	if len(items) == 0 {
+		// Only other models' downloads are here: name them and the way to
+		// remove them, rather than claiming there is nothing.
+		for _, k := range kept {
+			fmt.Printf("  %s %s %s\n", dim("kept:"), k, dim("(not chosen)"))
+		}
+		fmt.Printf("\n%s Nothing else to remove. To remove the kept models too: %s\n", dim("ℹ"), bold("nav-pilot alpha local purge --all"))
 		return nil
 	}
 
@@ -1074,10 +1070,19 @@ func cmdLocalPurge(args []string) error {
 		fmt.Printf("  %s  %s\n      %s\n", bold(humanBytes(it.Bytes)), it.Path, dim(it.What))
 	}
 	fmt.Printf("\n  %s in total.\n\n", bold(humanBytes(total)))
+	for _, k := range kept {
+		fmt.Printf("  %s %s %s\n", dim("kept:"), k, dim("(not chosen; purge --all removes it)"))
+	}
+	if len(kept) > 0 {
+		fmt.Println()
+	}
 
 	if !confirmed {
-		fmt.Printf("%s Nothing was deleted. To go ahead: %s\n\n",
-			dim("ℹ"), bold("nav-pilot alpha local purge --yes"))
+		cmd := "nav-pilot alpha local purge --yes"
+		if all {
+			cmd = "nav-pilot alpha local purge --all --yes"
+		}
+		fmt.Printf("%s Nothing was deleted. To go ahead: %s\n\n", dim("ℹ"), bold(cmd))
 		return nil
 	}
 
@@ -1092,6 +1097,45 @@ func cmdLocalPurge(args []string) error {
 	fmt.Printf("%s Removed %s. %s puts it back.\n",
 		green("✓"), bold(humanBytes(total)), bold("nav-pilot alpha local init"))
 	return nil
+}
+
+// purgeModels splits the model ids whose weights purge may remove from those it
+// keeps. By default it removes the chosen model (a kept replaced pin included)
+// and every replaced id, the obvious leftovers; the other models with weights
+// on disk are named as kept, by key where they have one. all removes every
+// model the manifest knows, plus whatever the recorded server loaded.
+func purgeModels(all bool) (remove, kept []string) {
+	m, _, _ := local.Cached()
+	if m == nil {
+		return nil, nil
+	}
+	if chosen, _, _, err := localSelection(m); err == nil {
+		remove = append(remove, chosen.Model)
+	}
+	remove = append(remove, m.ReplacedIDs()...)
+	others := map[string]string{}
+	for _, e := range m.Models {
+		others[e.Model] = e.Key
+	}
+	for _, w := range m.Withheld {
+		others[w.Model.Model] = w.Model.Key
+	}
+	if st, ok, _ := local.LoadState(); ok {
+		if _, known := others[st.Model]; !known {
+			others[st.Model] = st.Model
+		}
+	}
+	for _, id := range slices.Sorted(maps.Keys(others)) {
+		if slices.Contains(remove, id) {
+			continue
+		}
+		if all {
+			remove = append(remove, id)
+		} else if _, onDisk := local.WeightsOnDisk(id); onDisk {
+			kept = append(kept, others[id])
+		}
+	}
+	return remove, kept
 }
 
 // humanBytes is for a developer deciding whether to reclaim the space, so it is

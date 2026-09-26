@@ -171,18 +171,27 @@ func Removables(models ...string) []Removable {
 		}
 	}
 	for _, model := range slices.Compact(slices.Sorted(slices.Values(models))) {
-		h := hfHome()
-		if h == "" || model == "" {
-			continue
-		}
-		// The cache layout huggingface_hub writes: models--org--name.
-		dir := filepath.Join(h, "hub", "models--"+strings.ReplaceAll(model, "/", "--"))
-		if n, err := dirSize(dir); err == nil && n > 0 {
-			out = append(out, Removable{Path: dir, Bytes: n, What: "the model weights, shared with any other MLX tool on this machine"})
+		if w, ok := WeightsOnDisk(model); ok {
+			out = append(out, w)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Bytes > out[j].Bytes })
 	return out
+}
+
+// WeightsOnDisk is a model's download in the Hugging Face cache, when there is
+// one.
+func WeightsOnDisk(model string) (Removable, bool) {
+	h := hfHome()
+	if h == "" || model == "" {
+		return Removable{}, false
+	}
+	// The cache layout huggingface_hub writes: models--org--name.
+	dir := filepath.Join(h, "hub", "models--"+strings.ReplaceAll(model, "/", "--"))
+	if n, err := dirSize(dir); err == nil && n > 0 {
+		return Removable{Path: dir, Bytes: n, What: "the model weights, shared with any other MLX tool on this machine"}, true
+	}
+	return Removable{}, false
 }
 
 func dirSize(root string) (int64, error) {
