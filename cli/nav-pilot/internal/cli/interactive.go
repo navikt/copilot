@@ -138,14 +138,12 @@ func validateCustomModelInput(p Provider, s string) error {
 func promptModel(p Provider, title, description, current string) (string, error) {
 	if p == nil || len(p.KnownModels()) == 0 {
 		value := current
-		err := huh.NewInput().
+		err := runField(huh.NewInput().
 			Title(title).
 			Description(description).
 			Placeholder("model-id").
 			Value(&value).
-			Validate(validateOptionalModel).
-			WithTheme(navTheme()).
-			Run()
+			Validate(validateOptionalModel))
 		return strings.TrimSpace(value), err
 	}
 
@@ -191,13 +189,11 @@ func promptModel(p Provider, title, description, current string) (string, error)
 		blankMeans = "Leave blank for the Nav default (" + def + ")."
 	}
 	value := current
-	err := huh.NewInput().
+	err := runField(huh.NewInput().
 		Title("Custom model id").
 		Description(blankMeans).
 		Value(&value).
-		Validate(validator).
-		WithTheme(navTheme()).
-		Run()
+		Validate(validator))
 	return strings.TrimSpace(value), err
 }
 

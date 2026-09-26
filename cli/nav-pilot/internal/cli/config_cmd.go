@@ -566,9 +566,9 @@ func warnConfigProblems(problems []string) {
 // configJSONValue is a key's effective value with its TOML type: a number or
 // a boolean rather than its string form.
 func configJSONValue(r ResolvedConfig, kd *configKeyDef) any {
-	v := resolvedFieldStr(r, kd.name)
-	if kd.name == "source" {
-		v = effectiveSourceLabel(r)
+	v := configKeyValue(r, kd.name)
+	if kd.name == "model" {
+		v = resolvedFieldStr(r, "model") // the id, not the picker label
 	}
 	switch kd.kind {
 	case keyKindInt:

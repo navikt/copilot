@@ -60,6 +60,16 @@ func readConfig() (*Config, error) {
 // order. Only TOML that does not parse is an error. A missing file is
 // (nil, nil, nil).
 func loadConfig() (*Config, []string, error) {
+	cfg, problems, err := readConfigFile()
+	if cfg != nil {
+		problems = append(problems, validateConfigProblems(cfg)...)
+	}
+	return cfg, problems, err
+}
+
+// readConfigFile is loadConfig without the value checks: the problems are
+// keys of the wrong type and unknown keys.
+func readConfigFile() (*Config, []string, error) {
 	path := configPath()
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -96,7 +106,6 @@ func loadConfig() (*Config, []string, error) {
 	for _, k := range meta.Undecoded() {
 		problems = append(problems, unknownKeyProblem(strings.Join(k, ".")))
 	}
-	problems = append(problems, validateConfigProblems(&cfg)...)
 	return &cfg, problems, nil
 }
 
@@ -255,6 +264,25 @@ func validateConfig(cfg *Config) error {
 	return fmt.Errorf("config validation failed:\n  - %s", strings.Join(problems, "\n  - "))
 }
 
+// launchConfig is the file config with the launch's --client and --model in
+// place of the file's values, or nil when there is neither.
+func launchConfig(file *Config, cli CLIOverrides) *Config {
+	if cli.Client == "" && cli.Model == "" {
+		return file
+	}
+	eff := Config{Version: 1}
+	if file != nil {
+		eff = *file
+	}
+	if cli.Client != "" {
+		eff.Client = &cli.Client
+	}
+	if cli.Model != "" {
+		eff.Model = &cli.Model
+	}
+	return &eff
+}
+
 // versionMissingAdvice is the one line a config without a version gets.
 const versionMissingAdvice = "version is missing, so nav-pilot reads the file as version 1. Add it to silence this: nav-pilot config set version 1"
 
@@ -323,17 +351,22 @@ func configAdvice(cfg *Config, atLaunch bool) []string {
 // with a broken config. Non-fatal advisories (unrecognized model ids) are printed
 // to stderr but do not block the launch.
 func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
-	file, problems, err := loadConfig()
+	file, problems, err := readConfigFile()
 	if err != nil {
 		return ResolvedConfig{}, fmt.Errorf("%w\n\n%s", err, configFixHint())
 	}
+	// Values are checked as this launch will use them: --client and --model
+	// replace the file's, so the model is checked against the client that
+	// actually starts.
+	effective := launchConfig(file, cli)
+	problems = append(problems, validateConfigProblems(effective)...)
 	// Every problem, the same list config validate prints: fixing one only to
 	// be shown the next is a loop.
 	if len(problems) > 0 {
 		return ResolvedConfig{}, fmt.Errorf("config has %d problem(s):\n  - %s\n\n%s",
 			len(problems), strings.Join(problems, "\n  - "), configFixHint())
 	}
-	for _, w := range configAdvice(file, true) {
+	for _, w := range configAdvice(effective, true) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), w)
 	}
 	resolved := resolve(file, cli)

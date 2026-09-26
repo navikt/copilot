@@ -1427,3 +1427,17 @@ func readConfigWithMeta() (*Config, toml.MetaData, error) {
 
 // configAdvisories is what a launch warns about.
 func configAdvisories(cfg *Config, _ toml.MetaData) []string { return configAdvice(cfg, true) }
+
+func TestLoadConfigForLaunchChecksTheEffectiveModel(t *testing.T) {
+	path := writeTempConfig(t, "version = 1\nclient = \"opencode\"\nmodel = \"a/b/c\"\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+	// --client copilot runs a/b/c as a copilot id, which is only advice.
+	if _, err := loadConfigForLaunch(CLIOverrides{Client: "copilot"}); err != nil {
+		t.Errorf("--client copilot: %v", err)
+	}
+	path = writeTempConfig(t, "version = 1\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+	if _, err := loadConfigForLaunch(CLIOverrides{Client: "opencode", Model: "a/b/c"}); err == nil {
+		t.Error("--client opencode --model a/b/c launched")
+	}
+}

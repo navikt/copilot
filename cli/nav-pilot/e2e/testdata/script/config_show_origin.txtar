@@ -15,6 +15,10 @@ validjson stdout
 stdout '"mode": \{\s*"origin": "file",\s*"value": "plan"'
 stdout '"local_loop_guard": \{\s*"origin": "default",\s*"value": 8'
 
+exec nav-pilot config get otel_log_level --json
+stdout '"origin": "env"'
+stdout '"value": "debug"'
+
 exec nav-pilot config get mode --json
 validjson stdout
 stdout '"origin": "file"'
