@@ -698,7 +698,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	agent := installedPrimaryAgent(src)
 	if scope.IsUser() {
 		fmt.Println(dim("Agents and skills are now available across all your repos."))
-		fmt.Println(dim(fmt.Sprintf("Use @%s in Copilot Chat or copilot --agent %s", agent, agent)))
+		fmt.Println(dim(fmt.Sprintf("Use @%s in Copilot Chat, or start it in the sandbox with nav-pilot (or cplt -- --agent %s)", agent, agent)))
 	} else {
 		fmt.Println(dim("Next steps:"))
 		fmt.Println(dim("  1. Review the installed files in .github/"))
@@ -1286,7 +1286,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	}
 	fmt.Println(dim(fmt.Sprintf("Agents and skills are now available %s.", reach)))
 	agent := installedPrimaryAgent(src)
-	fmt.Println(dim(fmt.Sprintf("Use @%s in Copilot Chat or copilot --agent %s", agent, agent)))
+	fmt.Println(dim(fmt.Sprintf("Use @%s in Copilot Chat, or start it in the sandbox with nav-pilot (or cplt -- --agent %s)", agent, agent)))
 
 	if len(manifest.Instructions) > 0 && scope.IsUser() {
 		fmt.Println()

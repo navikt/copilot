@@ -1,0 +1,21 @@
+# The first-run wizard says what leaving the model unset does (the
+# agentpakke's default, the agent's own if it names none), the auto-update
+# answer says what "no" means, and the rtk question defaults to no: Enter
+# installs nothing.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'Model' -send '\x03' -- nav-pilot
+stdout 'leave it unset for the agentpakke.s default \(the agent.s own if it names none\)'
+stdout 'Unset \(agentpakke default\)'
+
+rm home/config.toml
+exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\x03' -- nav-pilot
+stdout 'No: say when a new version is out, and ask to upgrade once 7 days behind'
+
+# With a config, the rtk question comes first. Enter is "No thanks". (The
+# run then fails to reach the default source, which the e2e proxy blocks.)
+exec nav-pilot config set client copilot
+exits 1 pty-run -wait 'terminal output filter \(rtk\) for copilot' -send '\r' -- nav-pilot
+grep 'rtk_prompted_client = "copilot"' home/config.toml
+! stdout 'Installing rtk'

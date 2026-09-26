@@ -523,9 +523,6 @@ func stripEnvTokens(env []string) []string {
 	return out
 }
 
-// cpltSandboxHintShown tracks whether the cplt sandbox hint has been shown this session.
-var cpltSandboxHintShown bool
-
 // IsTerminal reports whether f is a terminal. Used to suppress informational
 // hints in non-interactive contexts, to decide whether anything can answer
 // cplt's launch confirmation (see withCpltConfirmation), and by `alpha local
@@ -541,21 +538,38 @@ func IsTerminal(f *os.File) bool {
 	return err == nil
 }
 
-// PrintCpltSandboxHint prints a one-time tip about cplt sandbox configuration
-// for users who may not know how to configure cplt outside of nav-pilot.
-// Suppressed by NAV_PILOT_CPLT_HINT=0 or in non-interactive mode.
+// PrintCpltSandboxHint prints a tip about configuring cplt outside nav-pilot,
+// once per machine: FirstTime records that it was shown. Suppressed by
+// NAV_PILOT_CPLT_HINT=0 and without a terminal, and then not marked as seen.
 func PrintCpltSandboxHint() {
-	if cpltSandboxHintShown || !IsTerminal(os.Stdin) {
+	if !IsTerminal(os.Stdin) {
 		return
 	}
 	if strings.EqualFold(strings.TrimSpace(os.Getenv("NAV_PILOT_CPLT_HINT")), "0") {
 		return
 	}
-	cpltSandboxHintShown = true
+	if !FirstTime("cplt-hint") {
+		return
+	}
 	fmt.Printf("%s Launching via cplt (Copilot Sandbox). Sandbox settings are managed by cplt, not nav-pilot.\n", domain.Dim("ℹ"))
 	fmt.Printf("  View current settings: %s\n", domain.Bold("cplt config list"))
-	fmt.Printf("  Change a setting:      %s\n", domain.Bold("cplt config set <key> <value>"))
-	fmt.Printf("  Suppress this hint:    set %s in your shell\n\n", domain.Bold("NAV_PILOT_CPLT_HINT=0"))
+	fmt.Printf("  Change a setting:      %s\n\n", domain.Bold("cplt config set <key> <value>"))
+}
+
+// FirstTime reports whether the one-time notice name has not been shown on
+// this machine yet, and records that it now has been: a marker file named
+// seen-<name> in nav-pilot's config directory. When the marker cannot be
+// written it answers false, so a notice can go missing but never nags.
+func FirstTime(name string) bool {
+	dir, err := telemetrypkg.GetConfigDir()
+	if err != nil {
+		return false
+	}
+	f, err := os.OpenFile(filepath.Join(dir, "seen-"+name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return false
+	}
+	return f.Close() == nil
 }
 
 // PrintModelAvailabilityHint shows a note when a specific model is configured.

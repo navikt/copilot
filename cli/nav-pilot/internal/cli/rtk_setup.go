@@ -82,9 +82,11 @@ func promptAndInstallRtk(cfg ResolvedConfig) error {
 	var choice string
 	err := huh.NewSelect[string]().
 		Title(fmt.Sprintf("Install the terminal output filter (rtk) for %s?", cfg.Client)).
+		// "No" first, so Enter installs nothing: installing a tool is opt-in,
+		// and the note above says its savings claim is unproven.
 		Options(
-			huh.NewOption("Yes, set it up", "yes"),
 			huh.NewOption("No thanks", "no"),
+			huh.NewOption("Yes, set it up", "yes"),
 		).
 		Value(&choice).
 		WithTheme(navTheme()).

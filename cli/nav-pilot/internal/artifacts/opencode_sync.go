@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
@@ -113,6 +114,10 @@ func withScopeExtras(entries []source.Resolved, scopeDir string, kind *source.Ar
 	return entries
 }
 
+// hookWarningSaid records the clients the skipped-hooks warning has been
+// printed for in this process.
+var hookWarningSaid sync.Map
+
 // SyncOpenCodeArtifacts materializes Nav context into outputDir with conflict detection
 // and state tracking. It is the state-aware counterpart to MaterializeOpenCode.
 //
@@ -132,7 +137,7 @@ func withScopeExtras(entries []source.Resolved, scopeDir string, kind *source.Ar
 // read when it is invoked. That is a smaller price than always-on prose, which
 // is why the two are treated differently. [ExportOpenCode] writes project-local
 // files instead, and merges instructions for that reason.
-func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, sourceSHA, sourceRepo string) (skills, commands, agents, instructions int, conflicts []string, err error) {
+func SyncOpenCodeArtifacts(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceSHA, sourceRepo string) (skills, commands, agents, instructions int, conflicts []string, err error) {
 	existingState, _ := ReadOpenCodeState(outputDir)
 	stateHashes := map[string]string{}
 	stillConflicted := map[string]bool{}
@@ -217,8 +222,12 @@ func SyncOpenCodeArtifacts(sourceDir, scopeDir, outputDir, sourceVersion, source
 		// stderr, not stdout: this function also runs under `nav-pilot sync
 		// --json` (through every provider's SyncContext), and a source with
 		// hooks prepended this line to the JSON document.
-		fmt.Fprintf(os.Stderr, "  %s %d hook(s) not exported: %s. nav-pilot does not yet install them for OpenCode; see navikt/copilot#709.\n",
-			domain.Yellow("⚠"), len(names), strings.Join(names, ", "))
+		// Once per client per run: a sync visits opencode and pi, and a launch
+		// materializes again, and each said it anew — naming OpenCode for pi.
+		if _, said := hookWarningSaid.LoadOrStore(client, true); !said {
+			fmt.Fprintf(os.Stderr, "  %s %d hook(s) not installed for %s: %s. nav-pilot installs hooks for copilot only; see navikt/copilot#709.\n",
+				domain.Yellow("⚠"), len(names), client, strings.Join(names, ", "))
+		}
 	}
 
 	for _, skill := range withScopeExtras(resolver.List(source.KindSkill), scopeDir, source.KindSkill) {

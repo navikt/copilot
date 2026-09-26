@@ -364,7 +364,7 @@ func (openCodeProvider) SyncContext(ref, sourceRepo string, jsonOutput, hasPrevO
 	}
 	defer ocSrc.Cleanup()
 
-	_, _, _, _, ocConflicts, ocErr := artifacts.SyncOpenCodeArtifacts(ocSrc.Dir, repoScopeDir(), ocOutputDir, ocSrc.Version, ocSrc.SHA, ocSrc.Repo)
+	_, _, _, _, ocConflicts, ocErr := artifacts.SyncOpenCodeArtifacts("opencode", ocSrc.Dir, repoScopeDir(), ocOutputDir, ocSrc.Version, ocSrc.SHA, ocSrc.Repo)
 	if ocErr != nil {
 		if !jsonOutput {
 			fmt.Fprintf(os.Stderr, "%s Opencode sync error: %v\n", domain.Yellow("⚠"), ocErr)

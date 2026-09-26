@@ -41,7 +41,7 @@ stderr 'Install cplt: brew install navikt/tap/cplt'
 # pi only runs inside cplt: with pi and no cplt, the refusal names cplt.
 fake-bin pi
 exits 1 nav-pilot --sync --source $WORK/plattform --client pi -- -p 'review this PR'
-stderr 'Not launching: cplt was not found on PATH'
+stderr 'Not launching: cplt is not installed\. Install it: brew install navikt/tap/cplt'
 ! exists $WORK/fake/pi.log
 
 -- plattform/.nav-pilot/agentpakke.json --

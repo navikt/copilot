@@ -1,0 +1,28 @@
+# With telemetry on, the first run with someone to read it says so once, on
+# stderr, with the way to turn it off. Never without a terminal, never twice,
+# never when it is off.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+env NAV_PILOT_TELEMETRY_ENABLED=true
+env DO_NOT_TRACK=
+env NAV_PILOT_TELEMETRY_ENDPOINT=http://127.0.0.1:9/v1/metrics
+
+# No terminal: nothing said, nothing recorded.
+exec nav-pilot version
+! stderr 'usage metrics'
+! exists home/seen-telemetry-notice
+
+exec pty-run -- nav-pilot version
+stdout -count=1 'nav-pilot sends pseudonymous usage metrics \(no content\), and turns on Copilot.s own telemetry'
+stdout 'Turn off: DO_NOT_TRACK=1 or NAV_PILOT_TELEMETRY_ENABLED=false\.'
+exists home/seen-telemetry-notice
+
+exec pty-run -- nav-pilot version
+! stdout 'usage metrics'
+
+# Off: nothing to say.
+rm home/seen-telemetry-notice
+env DO_NOT_TRACK=1
+exec pty-run -- nav-pilot version
+! stdout 'usage metrics'

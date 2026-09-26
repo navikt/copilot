@@ -83,7 +83,9 @@ const (
 // modelPickerOptions builds the curated model picker for a provider: unset
 // first, then the known models, then a custom entry for anything else.
 func modelPickerOptions(p Provider, available map[string]bool) []huh.Option[string] {
-	defLabel := "Unset (agent default)"
+	// Unset means the agentpakke's default model, and only when it names none
+	// the client's own: that is what the launch does (resolvedModelOrigin).
+	defLabel := "Unset (agentpakke default)"
 	if def := p.DefaultModel(); def != "" {
 		defLabel = "Unset (Nav default: " + def + ")"
 	}
@@ -182,7 +184,7 @@ func promptModel(p Provider, title, description, current string) (string, error)
 	// under a list that just said "Nav default" reads as two different
 	// fallbacks, and a developer choosing between them cannot tell which they
 	// are about to get.
-	blankMeans := "Leave blank for the agent default."
+	blankMeans := "Leave blank for the agentpakke default."
 	if def := p.DefaultModel(); def != "" {
 		blankMeans = "Leave blank for the Nav default (" + def + ")."
 	}
@@ -1189,7 +1191,7 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 		return nil
 	}
 	if headless && decision != launchGo && !(decision == launchWarnUnsandboxed && resolved.NoSandbox) {
-		return headlessRefusal(decision, p, missingCommand(resolved.Client, cmdName))
+		return headlessRefusal(decision, p, missingCommand(resolved.Client, cmdName), startCommand(resolved))
 	}
 	// Launching from $HOME (or /): cplt refuses it as too broad, and a first
 	// run from a fresh terminal lands exactly there. Say where to go instead.
@@ -1209,23 +1211,21 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 	fmt.Println()
 	switch decision {
 	case launchSkipUnavailable:
-		missing := p.DisplayName()
-		// With no client on PATH the copilot provider has no name to display;
-		// cmdName always holds a real command to point at.
-		if missing == "" {
-			missing = cmdName
-		}
-		missing = missingCommand(resolved.Client, missing)
-		if missing == "cplt" {
-			fmt.Fprintf(os.Stderr, "%s cplt (the sandbox) is not installed, and %s only launches inside it. Install it: %s\n",
-				yellow("⚠"), p.DisplayName(), bold(cpltInstallHint))
+		if resolved.Client == "copilot" {
+			fmt.Fprintf(os.Stderr, "%s Neither cplt nor copilot is installed, so nothing was launched. Install cplt, which runs copilot in its sandbox: %s\n",
+				yellow("⚠"), bold(cpltInstallHint))
 			return nil
 		}
-		fmt.Fprintf(os.Stderr, "%s %s was not found on PATH — skipping launch. Run %s to diagnose.\n",
-			yellow("⚠"), missing, bold("nav-pilot doctor"))
+		if missingCommand(resolved.Client, resolved.Client) == "cplt" {
+			fmt.Fprintf(os.Stderr, "%s cplt (the sandbox) is not installed, and %s only launches inside it. Install it: %s\n",
+				yellow("⚠"), resolved.Client, bold(cpltInstallHint))
+			return nil
+		}
+		fmt.Fprintf(os.Stderr, "%s %s is not installed, so nothing was launched. Install it: %s\n",
+			yellow("⚠"), resolved.Client, bold(clientInstallCommand[resolved.Client]))
 		return nil
 	case launchSkipOptedOut:
-		fmt.Println(dim(fmt.Sprintf("Not launching (auto_launch = false). Start it yourself with: %s", cmdName)))
+		fmt.Println(dim(fmt.Sprintf("Not launching (auto_launch = false). Start it yourself with: %s", startCommand(resolved))))
 		return nil
 	}
 
@@ -1251,6 +1251,44 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 	return nil
 }
 
+// clientInstallCommand is how to install the clients nav-pilot launches
+// inside cplt. copilot needs none: cplt brings the Copilot runtime itself.
+var clientInstallCommand = map[string]string{
+	"opencode": "npm i -g opencode-ai",
+	"pi":       "npm i -g @earendil-works/pi-coding-agent",
+}
+
+// startCommand is the command that starts what auto_launch = false did not:
+// nav-pilot itself for the session it would have launched, or the client in
+// the same sandbox scope, with the agent it would have started.
+func startCommand(resolved ResolvedConfig) string {
+	// Always cplt, even when it is missing: naming the bare client would
+	// point at a session without the sandbox.
+	dir := resolved.ProjectDir
+	if dir == "" {
+		dir, _ = os.Getwd()
+	}
+	dir, _ = filepath.Abs(dir)
+	cmd := fmt.Sprintf("cplt --project-dir %s --agent %s", shellQuote(dir), resolved.Client)
+	persona := resolved.Persona
+	if persona == "" {
+		persona = providerpkg.PrimaryAgent(resolved.Client)
+	}
+	if persona != "" && resolved.Client != "pi" {
+		cmd += " -- --agent " + shellQuote(persona)
+	}
+	return "nav-pilot --auto-launch, or " + cmd
+}
+
+// shellQuote makes s one word for a POSIX shell, quoting it only when it
+// needs it.
+func shellQuote(s string) string {
+	if s != "" && strings.Trim(s, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/._-:+@") == "" {
+		return s
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
 // missingCommand is what to name when client cannot launch: cplt when the
 // client is opencode or pi and its own binary is there, since both need cplt
 // too; otherwise name.
@@ -1273,12 +1311,16 @@ func offerLaunchAfterInstall(resolved ResolvedConfig) error {
 // headlessRefusal says why a launch with no terminal and a prompt after "--"
 // does not run, and exits 1, so a CI job cannot mistake a dropped prompt for
 // one that ran.
-func headlessRefusal(decision launchDecision, p Provider, cmdName string) error {
+func headlessRefusal(decision launchDecision, p Provider, missing, start string) error {
 	switch decision {
 	case launchSkipUnavailable:
-		fmt.Fprintf(os.Stderr, "Not launching: %s was not found on PATH. Run %s to diagnose.\n", cmdName, bold("nav-pilot doctor"))
+		install := cpltInstallHint
+		if cmd, ok := clientInstallCommand[missing]; ok {
+			install = cmd
+		}
+		fmt.Fprintf(os.Stderr, "Not launching: %s is not installed. Install it: %s\n", missing, bold(install))
 	case launchSkipOptedOut:
-		fmt.Fprintf(os.Stderr, "Not launching: auto_launch = false. Start it yourself with: %s\n", cmdName)
+		fmt.Fprintf(os.Stderr, "Not launching: auto_launch = false. Start it yourself with: %s\n", start)
 	default:
 		fmt.Fprintf(os.Stderr, "Not launching: no terminal, and without cplt %s would run unsandboxed with nobody watching.\n  Install cplt: %s\n  Or pass --no-sandbox to run it anyway.\n",
 			p.DisplayName(), bold(cpltInstallHint))

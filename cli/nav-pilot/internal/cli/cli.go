@@ -18,6 +18,7 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
+	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
 type BuildInfo struct {
@@ -430,6 +431,17 @@ func run(args []string) error {
 		args = cleanArgs
 	}
 
+	// Checked here, before any sync or install: cplt would otherwise be handed
+	// a directory that is not there, or a file.
+	if d := cliOverrides.ProjectDir; d != "" {
+		if fi, err := os.Stat(d); os.IsNotExist(err) {
+			return fmt.Errorf("--project-dir %s: no such directory", d)
+		} else if err != nil {
+			return fmt.Errorf("--project-dir: %w", err)
+		} else if !fi.IsDir() {
+			return fmt.Errorf("--project-dir %s is not a directory", d)
+		}
+	}
 	if cliOverrides.Client != "" && !containsStr(validProviderIDs, cliOverrides.Client) {
 		return fmt.Errorf("--client %q is not valid (allowed: %s)", cliOverrides.Client, strings.Join(validProviderIDs, ", "))
 	}
@@ -908,6 +920,9 @@ func run(args []string) error {
 			return cmdAlpha(positional)
 		})
 	case "version", "--version", "-v":
+		if jsonOutput {
+			return outputJSON(map[string]string{"version": Version, "commit": buildInfo.Commit, "built": buildInfo.BuildDate})
+		}
 		fmt.Printf("nav-pilot %s (commit: %s, built: %s)\n", Version, buildInfo.Commit, buildInfo.BuildDate)
 		return nil
 	case "-h", "--help", "help":
@@ -1008,6 +1023,8 @@ func Main(info BuildInfo) {
 		telemetry.RecordClientAvailable(p.ID(), p.Available())
 	}
 
+	maybeTelemetryNotice()
+
 	exitCode := 0
 	if err := run(os.Args[1:]); err != nil {
 		exitCode = exitCodeFor(err)
@@ -1020,6 +1037,16 @@ func Main(info BuildInfo) {
 	if exitCode != 0 {
 		os.Exit(exitCode)
 	}
+}
+
+// maybeTelemetryNotice says once per machine, the first time there is someone
+// to read it, that telemetry is on and how to turn it off. On stderr: it is
+// not the output of the command that was run.
+func maybeTelemetryNotice() {
+	if !telemetrypkg.TelemetryEnabled() || !isInteractive() || !providerpkg.FirstTime("telemetry-notice") {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "%s nav-pilot sends pseudonymous usage metrics (no content), and turns on Copilot's own telemetry for sessions it starts.\n  Turn off: DO_NOT_TRACK=1 or NAV_PILOT_TELEMETRY_ENABLED=false.\n\n", dim("ℹ"))
 }
 
 // exitCodeFor maps a run error to an exit code.
