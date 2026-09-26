@@ -72,8 +72,8 @@ func writeSetupConfig(answers setupAnswers) error {
 		lines = append(lines, "reasoning_effort = "+effortVal)
 	}
 
-	if answers.AutoUpdate == "true" {
-		lines = append(lines, "auto_update = true")
+	if answers.AutoUpdate != "" && answers.AutoUpdate != findKeyDef("auto_update").defaultVal {
+		lines = append(lines, "auto_update = "+answers.AutoUpdate)
 	}
 
 	content := strings.Join(lines, "\n") + "\n"

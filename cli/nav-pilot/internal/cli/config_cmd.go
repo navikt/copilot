@@ -518,6 +518,9 @@ func cmdConfig(args []string, force bool, jsonOutput bool) error {
 		key := ""
 		if len(rest) > 0 {
 			var err error
+			if strings.HasPrefix(rest[0], "rtk_") {
+				return fmt.Errorf("unknown key: %q\n\nKnown keys: %s", rest[0], knownKeyNames())
+			}
 			if key, err = userKey(rest[0]); err != nil {
 				return err
 			}
