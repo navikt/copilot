@@ -95,9 +95,10 @@ func cmdDoctor() error {
 	hasErrors := false
 
 	// 1. Configuration
-	configPath := filepath.Join(os.Getenv("HOME"), ".nav-pilot", "config.toml")
-	fmt.Printf("[i] Configuration (%s)\n", configPath)
-	data, err := os.ReadFile(configPath)
+	// The file every other command reads, NAV_PILOT_CONFIG included.
+	cfgPath := configPath()
+	fmt.Printf("[i] Configuration (%s)\n", cfgPath)
+	data, err := os.ReadFile(cfgPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			fmt.Printf("    • File not found (using default values)\n")
@@ -112,7 +113,9 @@ func cmdDoctor() error {
 		if parseErr != nil {
 			hasErrors = true
 			fmt.Printf("    %s TOML parse error: %v\n", red("[✗]"), parseErr)
-			fmt.Printf("      %s Fix syntax in %s or run %s\n\n", red("Solution:"), configPath, bold("nav-pilot config validate"))
+			fmt.Printf("      Until it parses, nav-pilot will not launch, and the built-in hooks ignore it\n")
+			fmt.Printf("      and run with their defaults (redaction and loop guard on).\n")
+			fmt.Printf("      %s Fix syntax in %s or run %s\n\n", red("Solution:"), cfgPath, bold("nav-pilot config validate"))
 		} else {
 			fmt.Printf("    %s Valid syntax and known keys\n\n", green("✓"))
 		}

@@ -44,7 +44,7 @@ func activateHook(scope *InstallScope, art Resolved, result *installResult) erro
 	entry := source.HookEntry{
 		Name:    art.Name,
 		Matcher: meta.Matcher,
-		Command: source.HookCommand(filepath.ToSlash(scriptPath)),
+		Command: source.HookCommand(filepath.ToSlash(scriptPath), meta.TimeoutSec),
 		Timeout: meta.TimeoutSec,
 	}
 

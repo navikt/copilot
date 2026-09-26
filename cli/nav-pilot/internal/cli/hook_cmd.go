@@ -72,7 +72,11 @@ func runHookCommand(args []string, stdin io.Reader, stdout io.Writer) {
 	}
 	cfg, err := hookConfig(args[1:])
 	if err != nil {
-		return
+		// Fail safe, not open: a config that does not parse must not be what
+		// switches redaction and the loop guard off. One line for the human;
+		// the model reads stdout only.
+		fmt.Fprintf(os.Stderr, "nav-pilot hook: %v; running with the defaults (redaction and loop guard on)\n", err)
+		cfg = nil
 	}
 	r := resolve(cfg, CLIOverrides{})
 
@@ -91,6 +95,10 @@ func runHookCommand(args []string, stdin io.Reader, stdout io.Writer) {
 			fmt.Fprintf(os.Stderr, "nav-pilot loop guard: cannot keep the run, so it will not trip: %v\n", err)
 		}
 		if rule != "" {
+			// For the human, not the model: the threshold and how to move it
+			// stay out of what the model reads (hook.LoopMessage).
+			fmt.Fprintf(os.Stderr, "nav-pilot loop guard: %s tripped (local_loop_guard = %d; nav-pilot config set local_loop_guard <n> changes it)\n",
+				rule, localLoopGuard(r))
 			spoolHookEvents(p.SessionID, "loop_guard "+rule)
 		}
 	case "redact":
@@ -185,8 +193,7 @@ func drainHookEvents() {
 // cplt denies ~/.nav-pilot to everything in its sandbox, and a hook run by a
 // sandboxed Copilot is inside it. There the settings the launch wrote into the
 // hook's own command (settings, as key=value) stand in for the file. Any other
-// read or parse error passes: a config that cannot be read may be the one that
-// turned this hook off.
+// read or parse error is returned, and the caller runs with the defaults.
 func hookConfig(settings []string) (*Config, error) {
 	cfg, err := readConfig()
 	if err == nil || !errors.Is(err, fs.ErrPermission) || len(settings) == 0 {

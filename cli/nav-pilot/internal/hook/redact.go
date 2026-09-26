@@ -90,6 +90,10 @@ func Redact(text string, o RedactOptions) (out string, changed bool) {
 	return out, out != text
 }
 
+// MaskedNote goes in front of a result that had values masked.
+const MaskedNote = "[nav-pilot] Some values in this output were masked ([REDACTED:…]). The file on disk is unchanged. " +
+	"Do not write the placeholders back; ask the user if you need a value."
+
 // RedactCounts is how many of each kind Redact replaced, and whether it added
 // the injection note: counts only, for telemetry.
 type RedactCounts struct {
@@ -135,6 +139,11 @@ func RedactCount(text string, o RedactOptions) (out string, n RedactCounts) {
 			}
 			return m
 		})
+	}
+	// Without a word about it, a model that reads a placeholder takes it for
+	// the file's content and writes it back, or asks for a value it cannot see.
+	if n.Secret+n.FNR > 0 {
+		out = MaskedNote + "\n\n" + out
 	}
 	if o.InjectionNote && containsAny(lower, injectionHints) {
 		if hit := injectionPatterns.FindString(out); hit != "" {

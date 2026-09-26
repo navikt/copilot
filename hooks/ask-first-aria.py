@@ -120,14 +120,25 @@ SAFE_ROLES = frozenset(
 )
 
 REASON = (
-    "En egendefinert ARIA-rolle er ⚠️ Ask First i accessibility.agent.md:249, "
-    "og et avvik fra Aksel-mønsteret er det samme på :250. Ikke skriv endringen "
-    "selv. Spør utvikleren om bekreftelse først, eller vis til Aksel-komponenten "
+    "En egendefinert ARIA-rolle og et avvik fra Aksel-mønsteret står begge under "
+    "⚠️ Ask First i accessibility-agenten "
+    "(https://github.com/navikt/copilot/blob/main/agents/accessibility.agent.md). "
+    "Ikke skriv endringen selv. Spør utvikleren om bekreftelse først, eller vis til Aksel-komponenten "
     "som allerede har rollen innebygd: <Select> for et statusvalg, eller "
     "<UNSAFE_Combobox> når valget skal kunne søkes i. Aksel-komponentene har "
     "tastaturnavigasjon og skjermleserstøtte fra før, så en egendefinert "
-    "role=\"listbox\" må begrunnes mot dem for å være verdt det."
+    "role=\"listbox\" må begrunnes mot dem for å være verdt det. Har utvikleren "
+    "sagt ja, skriv endringen på nytt med en kommentar som inneholder ARIA_OK og "
+    "begrunnelsen ved rollen, for eksempel {/* ARIA_OK: utvikleren godkjente "
+    "listbox fordi … */}. Da slipper skrivingen gjennom."
 )
+
+# Unntaket når utvikleren har sagt ja, i samme ånd som POLL_OK og SLOP_OK. Et
+# verktøykall for å skrive en fil har ingen kommando å sette en variabel foran,
+# så merket står i innholdet, og det blir stående i koden som et spor av at
+# rollen er godkjent. Det må være nytt i skrivingen: et ARIA_OK som alt står i
+# `old_str` og bare følger med videre, godkjenner ikke en ny rolle.
+ARIA_OK = "ARIA_OK"
 
 
 def text_of(args, keys):
@@ -251,6 +262,8 @@ def decide(payload):
         # flyttes innfører ingenting, mens en ny rolle ved siden av en gammel
         # skal fortsatt nektes.
         if (role_names(new) - role_names(old)) - SAFE_ROLES:
+            if new.count(ARIA_OK) > old.count(ARIA_OK):
+                continue
             return REASON
     return None
 
@@ -365,6 +378,12 @@ SELFTEST = [
      _sr("src/lib/roller.ts", "x", '<ul role="listbox" />'), False),
     ("slipper gjennom en rolle delt over to redigeringer",
      _sr(TSX, "<ul", '<ul rol'), False),
+
+    # ── ARIA_OK etter at utvikleren har sagt ja ──────────────────────────────
+    ("slipper gjennom en rolle med et nytt ARIA_OK ved siden av",
+     _sr(TSX, "<ul>", '{/* ARIA_OK: godkjent av utvikleren */}<ul role="listbox">'), False),
+    ("nekter en ny rolle når ARIA_OK bare følger med fra før",
+     _sr(TSX, '{/* ARIA_OK: a */}<ul>', '{/* ARIA_OK: a */}<ul role="listbox">'), True),
 ]
 
 def selftest():

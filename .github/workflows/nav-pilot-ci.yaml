@@ -13,6 +13,8 @@ on:
       - '.nav-pilot/**'
       - 'instructions/**'
       - 'prompts/**'
+      - 'hooks/**'
+      - '.github/hooks/**'
       - '.github/workflows/nav-pilot-ci.yaml'
   pull_request:
     branches: [main]
@@ -26,6 +28,8 @@ on:
       - '.nav-pilot/**'
       - 'instructions/**'
       - 'prompts/**'
+      - 'hooks/**'
+      - '.github/hooks/**'
       - '.github/workflows/nav-pilot-ci.yaml'
   workflow_dispatch:
 
@@ -78,6 +82,16 @@ jobs:
 
       - name: Vet
         run: cd cli/nav-pilot && go vet ./...
+
+      # The preToolUse gates nav-pilot installs. Each one tests itself through
+      # real stdin and stdout; .github/hooks/ is this repo's own install of
+      # them and must not drift from the source (mise run hooks:test).
+      - name: Hook selftests
+        run: |
+          for f in hooks/*.py; do
+            python3 "$f" --selftest
+            diff -q "$f" ".github/hooks/$(basename "$f")"
+          done
 
       - name: Staticcheck
         run: |

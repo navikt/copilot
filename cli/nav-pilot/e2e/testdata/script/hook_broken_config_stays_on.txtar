@@ -1,0 +1,48 @@
+# A config.toml that does not parse used to switch the built-in hooks off
+# without a word: redaction answered {} and a token reached the model. The
+# hooks now run with their defaults (redaction and loop guard on) and say so
+# on stderr, for the human. A masked result tells the model what happened, so
+# it does not write the placeholder back into the file.
+
+# Healthy config first: the token is masked and the model is told.
+stdin token.json
+exec nav-pilot hook redact
+stdout 'GITHUB_TOKEN=\[REDACTED:github-token\]'
+stdout 'Some values in this output were masked'
+stdout 'The file on disk is unchanged'
+! stderr .
+
+# Broken config: still masked, one line on stderr.
+cp broken.toml $HOME/config.toml
+stdin token.json
+exec nav-pilot hook redact hook_redact_secrets=true
+stdout '\[REDACTED:github-token\]'
+! stdout 'ghp_'
+stderr -count=1 'running with the defaults \(redaction and loop guard on\)'
+
+# The loop guard too.
+stdin poll.json
+exec nav-pilot hook loop-guard
+stdin poll.json
+exec nav-pilot hook loop-guard
+stdin poll.json
+exec nav-pilot hook loop-guard
+stdin poll.json
+exec nav-pilot hook loop-guard
+stdout 'nav-pilot loop guard'
+stderr 'running with the defaults'
+
+# doctor says what the broken file means for the hooks. Fake clients only:
+# doctor probes cplt, and the developer's own must not run here.
+fake-bin copilot
+exec nav-pilot doctor
+stdout 'TOML parse error'
+stdout 'built-in hooks ignore it'
+
+-- broken.toml --
+model = "a
+b"
+-- token.json --
+{"sessionId":"s1","toolName":"bash","toolArgs":{"command":"cat .env"},"toolResult":{"resultType":"success","textResultForLlm":"GITHUB_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz0123456789"}}
+-- poll.json --
+{"sessionId":"s2","toolName":"bash","toolArgs":{"command":"gh run view 1"},"toolResult":{"resultType":"success","textResultForLlm":"queued"}}

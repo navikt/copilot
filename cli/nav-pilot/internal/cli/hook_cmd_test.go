@@ -41,7 +41,7 @@ func TestHookLoopGuardUnreadableConfig(t *testing.T) {
 		{"settings from the command", []string{"hook_loop_guard=true", "local_loop_guard=8"}, true},
 		{"threshold from the command", []string{"hook_loop_guard=true", "local_loop_guard=20"}, false},
 		{"off in the command", []string{"hook_loop_guard=false", "local_loop_guard=8"}, false},
-		{"no settings passes", nil, false},
+		{"no settings runs the defaults", nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -77,7 +77,7 @@ func TestHookLoopGuardCommand(t *testing.T) {
 		{"off in config", "version = 1\nhook_loop_guard = false\n", "", loopPayload, false},
 		{"a local session is the local guard's", "version = 1\n", "nav-pilot", loopPayload, false},
 		{"another BYOK key is not a local session", "version = 1\n", "sk-other", loopPayload, true},
-		{"a broken config passes", "version = [\n", "", loopPayload, false},
+		{"a broken config runs the defaults", "version = [\n", "", loopPayload, true},
 		{"an unreadable payload passes", "version = 1\n", "", "not json", false},
 	}
 	for _, tt := range tests {

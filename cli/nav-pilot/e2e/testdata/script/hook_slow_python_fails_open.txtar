@@ -1,0 +1,52 @@
+# Copilot denies a preToolUse call whose hook outlives its timeout, so a slow
+# python3 turned every gated call into a deny. The installed command now kills
+# the script a second before the deadline and allows the call. A script that
+# answers in time still reaches the model, payload and all.
+
+[!exec:python3] skip 'needs python3'
+
+mkdir forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../forbruker
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+
+# The slow gate: killed before the 2 s deadline, nothing on stdout, exit 0.
+exits -within 1900ms 0 python3 ../run.py treg
+! stdout .
+
+# The fast gate: reads the payload, and its deny comes through.
+exits 0 python3 ../run.py rask
+stdout '"permissionDecision": "deny"'
+
+-- run.py --
+# Runs a hook entry the way Copilot does: sh -c, payload on stdin.
+import json, subprocess, sys
+entries = json.load(open(".github/hooks/copilot-hooks.json"))["hooks"]["preToolUse"]
+e = next(e for e in entries if e["navPilot"] == sys.argv[1])
+p = subprocess.run(["/bin/sh", "-c", e["command"]], input=b'{"toolName":"bash","toolArgs":{"command":"x"}}', capture_output=True, timeout=e["timeoutSec"])
+sys.stdout.write(p.stdout.decode())
+sys.exit(p.returncode)
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/hooks/treg.hook.json --
+{"matcher": "bash", "timeoutSec": 2}
+-- plattform/hooks/treg.py --
+import time
+time.sleep(30)
+print('{"permissionDecision": "deny"}')
+-- plattform/hooks/rask.hook.json --
+{"matcher": "bash", "timeoutSec": 2}
+-- plattform/hooks/rask.py --
+import json, sys
+if json.load(sys.stdin)["toolArgs"]["command"] == "x":
+    print('{"permissionDecision": "deny"}')
