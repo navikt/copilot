@@ -20,6 +20,10 @@ env NAV_PILOT_BENCH_MANIFEST=$WORK/bench.json
 ! exec nav-pilot alpha local models
 stderr 'NAV_PILOT_BENCH_MANIFEST=.*bench.json: .*not published by an allowed publisher'
 ! stdout .
+! exec nav-pilot alpha local status
+stderr 'not published by an allowed publisher'
+! exec nav-pilot alpha local purge
+stderr 'not published by an allowed publisher'
 
 # Both: the model is offered and can be picked, with the warning each time.
 env NAV_PILOT_BENCH_ALLOW_ORGS=Accio-Lab

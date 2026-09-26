@@ -745,6 +745,9 @@ func cmdLocalStop() error {
 // ─── status ──────────────────────────────────────────────────────────────────
 
 func cmdLocalStatus() error {
+	if err := benchManifestErr(); err != nil {
+		return err
+	}
 	ctx := context.Background()
 	fmt.Printf("%s  %s\n\n", bold("nav-pilot alpha local status"), dim("(alpha, unsupported)"))
 
@@ -1047,6 +1050,16 @@ func activateCachedManifest() {
 	}
 }
 
+// benchManifestErr is why NAV_PILOT_BENCH_MANIFEST was refused, or nil. status
+// and purge read the manifest without failing on a missing one, and a bench
+// file that is refused must not look like a machine with nothing on it.
+func benchManifestErr() error {
+	if m, src, err := local.Cached(); m == nil && src == local.SourceBench {
+		return err
+	}
+	return nil
+}
+
 // ─── purge ───────────────────────────────────────────────────────────────────
 
 // cmdLocalPurge removes what init put on this machine, after saying what it is.
@@ -1061,6 +1074,9 @@ func activateCachedManifest() {
 func cmdLocalPurge(args []string) error {
 	confirmed := slices.Contains(args, "--yes")
 	all := slices.Contains(args, "--all")
+	if err := benchManifestErr(); err != nil {
+		return err
+	}
 
 	if st, ok, _ := local.LoadState(); ok && local.Attach(st).Status().Health != local.HealthCrashed {
 		return fmt.Errorf("the local server is still running (pid %d). Stop it first: %s",
