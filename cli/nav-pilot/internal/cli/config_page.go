@@ -345,24 +345,28 @@ func printPageSummary(before, after map[string]any) {
 	}
 }
 
-// escCancel is Esc as the settings page's prompts read it: cancel the edit.
-var escCancel = key.NewBinding(key.WithKeys("ctrl+c", "esc"), key.WithHelp("esc", "cancel"))
+// escCancel is the footer's name for Esc in a prompt: cancel the edit.
+var escCancel = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"))
 
 // runField runs one prompt of the settings page or the wizard. Esc cancels
 // it, like ctrl+c, and the footer names the keys, esc included.
 func runField(f huh.Field) error {
-	km := huh.NewDefaultKeyMap()
-	km.Quit = escCancel
-	return huh.NewForm(huh.NewGroup(escHelpField{f})).WithKeyMap(km).WithShowHelp(true).WithTheme(navTheme()).Run()
+	return huh.NewForm(huh.NewGroup(escHelpField{f})).WithShowHelp(true).WithTheme(navTheme()).Run()
 }
 
-// escHelpField adds "esc cancel" to a field's footer: huh's footer lists the
-// field's own keys, and the form's quit key is not one of them.
+// escHelpField makes Esc cancel a prompt and says so in its footer. While a
+// select is filtering, Esc is still the select's own: it clears the filter.
 type escHelpField struct{ huh.Field }
 
 func (f escHelpField) KeyBinds() []key.Binding { return append(f.Field.KeyBinds(), escCancel) }
 
 func (f escHelpField) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if k, ok := msg.(tea.KeyMsg); ok && k.Type == tea.KeyEsc {
+		if fl, ok := f.Field.(interface{ GetFiltering() bool }); !ok || !fl.GetFiltering() {
+			// ctrl+c is the form's quit key: pass Esc on as it.
+			return f, func() tea.Msg { return tea.KeyMsg{Type: tea.KeyCtrlC} }
+		}
+	}
 	m, cmd := f.Field.Update(msg)
 	if field, ok := m.(huh.Field); ok {
 		return escHelpField{field}, cmd

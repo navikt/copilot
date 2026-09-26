@@ -617,7 +617,11 @@ func cmdConfigGet(key string, jsonOutput bool) error {
 			"origin": configKeyOrigin(cfg, key),
 		})
 	}
-	fmt.Println(resolvedFieldStr(resolved, key))
+	v := resolvedFieldStr(resolved, key)
+	if env, ok := configEnvOverrides[key]; ok && os.Getenv(env) != "" {
+		v = os.Getenv(env)
+	}
+	fmt.Println(v)
 	return nil
 }
 

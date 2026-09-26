@@ -308,7 +308,7 @@ func (p openCodeProvider) ModelAdvisory(model string) string {
 	// The legacy alias isn't in knownOpenCodeModels, but ToOpenCodeModel maps
 	// it to "" (opencode picks) rather than passing it through, so it must
 	// not get the "will be passed as-is" warning below — that would be false.
-	if strings.TrimSpace(model) == legacyOpenCodeAutoAlias {
+	if isOpenCodeUnsetModel(model) {
 		return ""
 	}
 	id := model

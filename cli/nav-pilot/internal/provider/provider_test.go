@@ -196,6 +196,9 @@ func TestOpenCodeProvider_ModelAdvisory(t *testing.T) {
 	if msg := p.ModelAdvisory("claude-opus-4.8"); msg != "" {
 		t.Errorf("ModelAdvisory(bare known id) = %q, want empty", msg)
 	}
+	if msg := p.ModelAdvisory("auto"); msg != "" {
+		t.Errorf("ModelAdvisory(auto) = %q, want empty — opencode picks, nothing is passed as-is", msg)
+	}
 	if msg := p.ModelAdvisory("github-copilot/auto"); msg != "" {
 		t.Errorf("ModelAdvisory(legacy alias) = %q, want empty — it maps to the default, it is not passed as-is", msg)
 	}
