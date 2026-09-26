@@ -49,12 +49,17 @@ func decodesTo(s string) (map[string]any, bool) {
 	return m, true
 }
 
+// singleKey is the one top-level key a statement sets to a plain value. A
+// dotted key (model.x = 1) or an inline table sets a table, and is not the
+// statement for that key: replacing it would drop what else the table holds.
 func singleKey(m map[string]any) string {
 	if len(m) != 1 {
 		return ""
 	}
-	for k := range m {
-		return k
+	for k, v := range m {
+		if _, table := v.(map[string]any); !table {
+			return k
+		}
 	}
 	return ""
 }
@@ -102,22 +107,21 @@ func layoutConfig(lines []string) (configLayout, error) {
 	return l, nil
 }
 
-// inlineComment returns the trailing "  # …" of a one-line statement, spacing
-// included, or "". The comment starts at the first '#' the value does not need.
-func inlineComment(line string) string {
-	full, ok := decodesTo(line)
+// inlineComment returns the trailing "  # …" on the last line of a statement,
+// spacing included, or "". The comment starts at the first '#' on that line
+// the value does not need.
+func inlineComment(stmt string) string {
+	full, ok := decodesTo(stmt)
 	if !ok {
 		return ""
 	}
-	for p := strings.IndexByte(line, '#'); p >= 0; {
-		if m, ok := decodesTo(line[:p]); ok && reflect.DeepEqual(m, full) {
-			return line[len(strings.TrimRight(line[:p], " \t")):]
+	for p := strings.LastIndexByte(stmt, '\n') + 1; p < len(stmt); p++ {
+		if stmt[p] != '#' {
+			continue
 		}
-		next := strings.IndexByte(line[p+1:], '#')
-		if next < 0 {
-			break
+		if m, ok := decodesTo(stmt[:p]); ok && reflect.DeepEqual(m, full) {
+			return stmt[len(strings.TrimRight(stmt[:p], " \t")):]
 		}
-		p += 1 + next
 	}
 	return ""
 }
@@ -137,6 +141,9 @@ func editTopLevelKey(content, key, tomlVal, replaces string) (string, error) {
 		_, err := toml.Decode(content, &map[string]any{})
 		return "", fmt.Errorf("the file does not parse, so nav-pilot will not edit it: %v\n\nFix it by hand; nav-pilot config validate shows where", err)
 	}
+	// Work on \n lines and give a CRLF file its line endings back at the end.
+	crlf := strings.Contains(content, "\r\n")
+	content = strings.ReplaceAll(content, "\r\n", "\n")
 	lines := strings.Split(strings.TrimSuffix(content, "\n"), "\n")
 	if content == "" {
 		lines = nil
@@ -175,10 +182,7 @@ func editTopLevelKey(content, key, tomlVal, replaces string) (string, error) {
 	case tomlVal == "":
 		splice(target.start, target.end)
 	case target != nil:
-		comment := ""
-		if target.start == target.end {
-			comment = inlineComment(lines[target.start])
-		}
+		comment := inlineComment(strings.Join(lines[target.start:target.end+1], "\n"))
 		splice(target.start, target.end, leadingSpace(lines[target.start])+key+" = "+tomlVal+comment)
 	default:
 		newLine := key + " = " + tomlVal
@@ -223,6 +227,9 @@ func editTopLevelKey(content, key, tomlVal, replaces string) (string, error) {
 	}
 	if !reflect.DeepEqual(want, after) {
 		return "", fmt.Errorf("%s did not end up as a top-level key with the new value", key)
+	}
+	if crlf {
+		out = strings.ReplaceAll(out, "\n", "\r\n")
 	}
 	return out, nil
 }

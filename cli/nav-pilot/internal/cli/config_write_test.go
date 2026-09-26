@@ -37,6 +37,10 @@ func TestEditTopLevelKey(t *testing.T) {
 			"client = \"copilot\"\n"},
 		{"retired key before the new one", "agent = \"opencode\"\nclient = \"pi\"\n", "client", `"copilot"`, "agent",
 			"client = \"copilot\"\n"},
+		{"comment after a multi-line value is kept", "model = \"\"\"\nx\n\"\"\" # note\nmode = \"plan\"\n", "model", `"m"`, "",
+			"model = \"m\" # note\nmode = \"plan\"\n"},
+		{"CRLF file keeps CRLF", "version = 1\r\nmode = \"plan\"   # team\r\n", "mode", `"autopilot"`, "",
+			"version = 1\r\nmode = \"autopilot\"   # team\r\n"},
 		{"unset removes the line", "version = 1\nmode = \"plan\" # x\nmodel = \"m\"\n", "mode", "", "",
 			"version = 1\nmodel = \"m\"\n"},
 	}
@@ -53,9 +57,14 @@ func TestEditTopLevelKey(t *testing.T) {
 	}
 }
 
-func TestEditTopLevelKeyRefusesUnparseable(t *testing.T) {
-	if _, err := editTopLevelKey("model = \"a\"\nmodel = \"b\"\n", "mode", `"plan"`, ""); err == nil {
-		t.Fatal("edited a file that does not parse")
+func TestEditTopLevelKeyRefuses(t *testing.T) {
+	for name, in := range map[string]string{
+		"duplicate key":                   "model = \"a\"\nmodel = \"b\"\n",
+		"dotted key would lose its table": "version = 1\nmodel.reasoning = \"high\"\n",
+	} {
+		if out, err := editTopLevelKey(in, "model", `"gpt-5"`, ""); err == nil {
+			t.Errorf("%s: edited it: %q", name, out)
+		}
 	}
 }
 
