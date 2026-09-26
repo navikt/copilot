@@ -2010,7 +2010,7 @@ reasoning_effort = "high"
             som brukes, og hvilke typer feil som oppstår. Målingene er faste kategorier og tall. Prompter, kode,
             filinnhold og filnavn er aldri med. Maskinen kjennes igjen på en pseudonym ID, ikke på navn eller
             brukernavn. Starter nav-pilot Copilot, slår den også på Copilots egne målinger og sporinger mot samme
-            mottaker, merket med hvilket repo økten kjører i.
+            mottaker. Kjører økten i et navikt-repo, merkes de med repoets navn.
           </BodyLong>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
             Første gang du kjører nav-pilot i en terminal, står dette på én linje. Slå av målingene i shell-profilen din
@@ -2434,7 +2434,12 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
           <BodyLong size="small" textColor="subtle">
             Tre råd når du skriver egne spørsmål:
           </BodyLong>
-          <ul className="text-sm space-y-1 list-disc pl-5" style={{ color: "#64748b" }}>
+          <VStack
+            as="ul"
+            gap="space-4"
+            className="text-sm list-disc"
+            style={{ color: "#64748b", paddingInlineStart: "var(--ax-space-20)" }}
+          >
             <li>Still spørsmålet positivt: «Forklarer meldingen hvorfor?», ikke «Mangler meldingen en forklaring?».</li>
             <li>
               Sett <code className="font-mono text-xs">yes</code> først i alternativene.
@@ -2442,7 +2447,7 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             <li>
               Kjør <code className="font-mono text-xs">--eval</code> på nøyaktig den ordlyden du skal bruke.
             </li>
-          </ul>
+          </VStack>
           <BodyLong size="small" textColor="subtle">
             Grunnen: «ja»-svarene er stabile, men «nei»-svarene vipper mot «teksten er grei» når alternativene bytter
             plass eller spørsmålet snus. Standardmodellen svarte riktig på 85 % av spørsmålene i opprinnelig form og 58

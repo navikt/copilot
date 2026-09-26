@@ -434,8 +434,10 @@ func run(args []string) error {
 	// Checked here, before any sync or install: cplt would otherwise be handed
 	// a directory that is not there, or a file.
 	if d := cliOverrides.ProjectDir; d != "" {
-		if fi, err := os.Stat(d); err != nil {
+		if fi, err := os.Stat(d); os.IsNotExist(err) {
 			return fmt.Errorf("--project-dir %s: no such directory", d)
+		} else if err != nil {
+			return fmt.Errorf("--project-dir: %w", err)
 		} else if !fi.IsDir() {
 			return fmt.Errorf("--project-dir %s is not a directory", d)
 		}

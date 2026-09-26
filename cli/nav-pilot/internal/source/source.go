@@ -306,8 +306,8 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 		msg = fmt.Sprintf("Fetching %s@%s...", label, ref)
 	}
 
-	// The spinner only on a terminal: into a pipe or a log it is a line of
-	// frames glued together with carriage returns.
+	// The spinner runs only on a terminal: into a pipe or a log it is a line
+	// of frames glued together with carriage returns.
 	done := make(chan struct{})
 	stopped := make(chan struct{})
 	spin := stderrIsTerminal()

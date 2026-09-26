@@ -1191,7 +1191,7 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 		return nil
 	}
 	if headless && decision != launchGo && !(decision == launchWarnUnsandboxed && resolved.NoSandbox) {
-		return headlessRefusal(decision, p, missingCommand(resolved.Client, cmdName), startCommand(resolved, cmdName))
+		return headlessRefusal(decision, p, missingCommand(resolved.Client, cmdName), startCommand(resolved))
 	}
 	// Launching from $HOME (or /): cplt refuses it as too broad, and a first
 	// run from a fresh terminal lands exactly there. Say where to go instead.
@@ -1225,7 +1225,7 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 			yellow("⚠"), resolved.Client, bold(clientInstallCommand[resolved.Client]))
 		return nil
 	case launchSkipOptedOut:
-		fmt.Println(dim(fmt.Sprintf("Not launching (auto_launch = false). Start it yourself with: %s", startCommand(resolved, cmdName))))
+		fmt.Println(dim(fmt.Sprintf("Not launching (auto_launch = false). Start it yourself with: %s", startCommand(resolved))))
 		return nil
 	}
 
@@ -1261,24 +1261,32 @@ var clientInstallCommand = map[string]string{
 // startCommand is the command that starts what auto_launch = false did not:
 // nav-pilot itself for the session it would have launched, or the client in
 // the same sandbox scope, with the agent it would have started.
-func startCommand(resolved ResolvedConfig, cmdName string) string {
-	if cmdName != "cplt" {
-		return "nav-pilot --auto-launch, or " + cmdName
-	}
+func startCommand(resolved ResolvedConfig) string {
+	// Always cplt, even when it is missing: naming the bare client would
+	// point at a session without the sandbox.
 	dir := resolved.ProjectDir
 	if dir == "" {
 		dir, _ = os.Getwd()
 	}
 	dir, _ = filepath.Abs(dir)
-	cmd := fmt.Sprintf("cplt --project-dir %s --agent %s", dir, resolved.Client)
+	cmd := fmt.Sprintf("cplt --project-dir %s --agent %s", shellQuote(dir), resolved.Client)
 	persona := resolved.Persona
 	if persona == "" {
 		persona = providerpkg.PrimaryAgent(resolved.Client)
 	}
 	if persona != "" && resolved.Client != "pi" {
-		cmd += " -- --agent " + persona
+		cmd += " -- --agent " + shellQuote(persona)
 	}
 	return "nav-pilot --auto-launch, or " + cmd
+}
+
+// shellQuote makes s one word for a POSIX shell, quoting it only when it
+// needs it.
+func shellQuote(s string) string {
+	if s != "" && strings.Trim(s, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/._-:+@") == "" {
+		return s
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // missingCommand is what to name when client cannot launch: cplt when the

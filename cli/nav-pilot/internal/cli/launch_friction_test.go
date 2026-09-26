@@ -75,3 +75,18 @@ func TestOfferLaunchAfterInstallFromHome(t *testing.T) {
 		t.Error("launched from $HOME")
 	}
 }
+
+// The auto_launch = false command always names cplt, never the bare client,
+// and survives a path with a space when pasted into a shell.
+func TestStartCommandIsSandboxedAndQuoted(t *testing.T) {
+	got := startCommand(ResolvedConfig{Client: "opencode", ProjectDir: "/tmp/my project"})
+	if !strings.Contains(got, "cplt --project-dir '/tmp/my project' --agent opencode") {
+		t.Errorf("startCommand = %q", got)
+	}
+	if q := shellQuote("it's"); q != `'it'\''s'` {
+		t.Errorf("shellQuote(it's) = %s", q)
+	}
+	if q := shellQuote("/plain/path"); q != "/plain/path" {
+		t.Errorf("shellQuote(/plain/path) = %s", q)
+	}
+}
