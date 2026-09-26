@@ -7,7 +7,8 @@
 fake-bin cplt
 cp cfg.toml home/config.toml
 
-exec pty-run -wait 'esc close' -send '\r' -wait 'esc cancel' -send '\x1b' -wait 'esc close' -send '\x1b[B\x1b[B\r' -wait 'Other… \(type a model id\)' -send '\x1b' -wait 'esc close' -send '\x03' -- nav-pilot config
+exec pty-run -wait 'esc close' -send '\r' -wait 'esc cancel' -send '\x1b' -wait 'esc close' -send '\x1b[B\x1b[B\r' -wait 'esc cancel' -send '\x1b' -wait 'esc close' -send '\x03' -- nav-pilot config
+stdout 'Other… \(type a model id\)'
 stdout 'No changes\.'
 cmp home/config.toml cfg.toml
 
