@@ -1,0 +1,21 @@
+# Replacing the config in the wizard and then pressing Ctrl-C used to delete
+# the file while saying "Nothing was written". The wizard now writes only once
+# it has every answer, so a cancel leaves the file byte for byte.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+cp keep.toml home/config.toml
+exits 130 pty-run -wait 'Keep it' -send '\x1b[D\r' -wait 'Which coding agent' -send '\x03' -- nav-pilot config setup
+stdout 'Cancelled\. Nothing was written\.'
+cmp home/config.toml keep.toml
+! exists home/config.toml.bak
+
+# --force skips the question, and a cancel still writes nothing.
+exits 130 pty-run -wait 'Which coding agent' -send '\x03' -- nav-pilot config setup --force
+cmp home/config.toml keep.toml
+
+-- keep.toml --
+# my notes
+version = 1
+client = "opencode"   # we use opencode
+source = "navikt/copilot"

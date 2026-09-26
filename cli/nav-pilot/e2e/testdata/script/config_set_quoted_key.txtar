@@ -1,0 +1,36 @@
+# A quoted key ("model" = …) is the same key as model. `config set` used to add
+# a second model line, and from then on every command failed to parse the
+# file. Inline comments and indentation survive an edit, and a file that does
+# not parse is refused rather than edited.
+
+cp quoted.toml home/config.toml
+exec nav-pilot config set mode autopilot
+exec nav-pilot config set model gpt-5.4
+exec nav-pilot config set ask_user true
+cmp home/config.toml want.toml
+exec nav-pilot config validate
+stdout 'Config is valid'
+exec nav-pilot config get model
+stdout '^gpt-5.4$'
+
+# A duplicate key does not parse: nothing is written, and the command fails.
+cp broken.toml home/config.toml
+exits 1 nav-pilot config set mode plan
+stderr 'does not parse'
+stderr 'nothing was written'
+cmp home/config.toml broken.toml
+
+-- quoted.toml --
+version = 1
+mode = "plan"   # team default, see wiki
+"model" = "gpt-5.5"
+  ask_user=false
+-- want.toml --
+version = 1
+mode = "autopilot"   # team default, see wiki
+model = "gpt-5.4"
+  ask_user = true
+-- broken.toml --
+version = 1
+model = "a"
+model = "b"

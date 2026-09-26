@@ -1,0 +1,16 @@
+# `config setup --force` without a terminal used to delete the config and then
+# fail with "requires an interactive terminal". It now checks for a terminal
+# first and touches nothing.
+
+cp keep.toml home/config.toml
+exits 1 nav-pilot config setup --force
+stderr 'config setup needs a terminal; your config was left as it is. To script it, use nav-pilot config set <key> <value>'
+! stdout .
+cmp home/config.toml keep.toml
+
+exits 1 nav-pilot config setup
+cmp home/config.toml keep.toml
+
+-- keep.toml --
+version = 1
+client = "opencode"

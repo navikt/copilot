@@ -3,7 +3,6 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 
@@ -344,24 +343,5 @@ func clearConfigKey(key string) error {
 	if findKeyDef(key) == nil {
 		return fmt.Errorf("unknown key: %q", key)
 	}
-	path := configPath()
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		return fmt.Errorf("reading config: %w", err)
-	}
-	var kept []string
-	for _, line := range strings.Split(string(data), "\n") {
-		trimmed := strings.TrimLeft(line, " \t")
-		if isConfigKeyLine(line, key) && !strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		kept = append(kept, line)
-	}
-	if err := os.WriteFile(path, []byte(strings.Join(kept, "\n")), 0o600); err != nil {
-		return fmt.Errorf("writing config: %w", err)
-	}
-	return os.Chmod(path, 0o600)
+	return updateConfigKey(key, "")
 }

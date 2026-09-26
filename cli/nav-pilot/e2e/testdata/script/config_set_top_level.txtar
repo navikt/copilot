@@ -1,0 +1,48 @@
+# `config set` writes a top-level key above the first table header. It used to
+# append at the end of the file, so `set version 1` (the fix validate itself
+# prints) landed under [extra] and the version stayed missing.
+
+cp odd.toml home/config.toml
+exits 1 nav-pilot config validate
+stdout 'version is missing'
+
+exec nav-pilot config set version 1
+stdout 'version = 1'
+cmp home/config.toml want-version.toml
+cmp home/config.toml.bak odd.toml
+
+exec nav-pilot config set client opencode
+cmp home/config.toml want-client.toml
+
+exits 1 nav-pilot config validate
+! stdout 'version is missing'
+! stdout 'extra.version'
+! stdout 'extra.client'
+stdout 'unknown key: extra.theme'
+
+-- odd.toml --
+# My nav-pilot config — do not lose these notes!
+
+agent = "opencode"   # we use opencode
+model = "github-copilot/claude-opus-4.8"
+
+[extra]
+theme = "dark"
+-- want-version.toml --
+# My nav-pilot config — do not lose these notes!
+
+agent = "opencode"   # we use opencode
+model = "github-copilot/claude-opus-4.8"
+version = 1
+
+[extra]
+theme = "dark"
+-- want-client.toml --
+# My nav-pilot config — do not lose these notes!
+
+client = "opencode"   # we use opencode
+model = "github-copilot/claude-opus-4.8"
+version = 1
+
+[extra]
+theme = "dark"
