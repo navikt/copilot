@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -80,6 +81,10 @@ func TestScripts(t *testing.T) {
 			// 127.0.0.1 are exempt and still answer.
 			e.Setenv("HTTP_PROXY", "http://127.0.0.1:9")
 			e.Setenv("HTTPS_PROXY", "http://127.0.0.1:9")
+			// Set, not inherited: a bypass list naming a real host would let
+			// that host through. Go never proxies loopback anyway.
+			e.Setenv("NO_PROXY", "127.0.0.1,localhost")
+			e.Setenv("no_proxy", "127.0.0.1,localhost")
 			e.Setenv("PATH", filepath.Dir(bin)+string(os.PathListSeparator)+e.Getenv("PATH"))
 			return os.MkdirAll(home, 0o755)
 		},
@@ -137,8 +142,14 @@ func cmdValidJSON(ts *testscript.TestScript, neg bool, args []string) {
 	dec := json.NewDecoder(strings.NewReader(ts.ReadFile(args[0])))
 	var v any
 	err := dec.Decode(&v)
-	if err == nil && dec.More() {
-		err = errors.New("more than one JSON value")
+	if err == nil {
+		// More() is no end-of-input check at the top level (it is false
+		// before a stray "}"), so ask for a second value and want EOF.
+		if err = dec.Decode(&v); err == io.EOF {
+			err = nil
+		} else if err == nil {
+			err = errors.New("more than one JSON value")
+		}
 	}
 	if neg != (err != nil) {
 		ts.Fatalf("%s: valid JSON = %v, want %v (%v)", args[0], err == nil, !neg, err)
