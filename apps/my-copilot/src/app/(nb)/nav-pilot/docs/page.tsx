@@ -2194,8 +2194,8 @@ nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`
           </LinkableHeading>
           <BodyLong size="small" textColor="subtle">
             <code className="font-mono text-xs">nav-pilot alpha local models</code> viser de lokale modellene:
-            størrelse, kontekst, om de er lastet ned eller kjører, og hvilken serveren laster (merket{" "}
-            <code className="font-mono text-xs">*</code>).{" "}
+            størrelse, kontekst, hva de er anbefalt til, om de er lastet ned eller kjører, og hvilken serveren laster
+            (merket <code className="font-mono text-xs">*</code>).{" "}
             <code className="font-mono text-xs">nav-pilot alpha local use &lt;key&gt;</code> velger modell og skriver
             den til <code className="font-mono text-xs">local_model</code>. Den laster ikke ned og starter ikke noe
             selv. <code className="font-mono text-xs">model</code> er modellen økten selv kjører på, og settes for seg.
@@ -2218,6 +2218,16 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             og om den er valgt med <code className="font-mono text-xs">local_model</code> eller er standard. Kjører
             serveren en annen modell, sier status det og gir deg kommandoen for omstart. Krever modellen du har valgt en
             nyere nav-pilot, sier status at den har falt tilbake til standard, og hvorfor.
+          </BodyLong>
+          <BodyLong size="small" textColor="subtle">
+            Har du valgt en annen modell enn standard, sier <code className="font-mono text-xs">start</code>,{" "}
+            <code className="font-mono text-xs">status</code> og <code className="font-mono text-xs">models</code> én
+            gang hva standardmodellen er anbefalt til, og hvordan du bytter. Du ser beskjeden igjen bare hvis manifestet
+            endrer den, og aldri fra <code className="font-mono text-xs">alpha decide</code>, en vanlig launch eller når
+            utskriften går til et skript. Er modellen i <code className="font-mono text-xs">local_model</code> fjernet
+            og erstattet av en annen, fortsetter nav-pilot med den gamle så lenge bare vektene til den gamle ligger på
+            maskinen, og bytter når erstatningen er lastet ned. Konfigurasjonen din endres ikke;{" "}
+            <code className="font-mono text-xs">nav-pilot alpha local use &lt;key&gt;</code> gjør valget eksplisitt.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
             Vil du slippe å starte serveren selv, kan en vanlig <code className="font-mono text-xs">nav-pilot</code>{" "}

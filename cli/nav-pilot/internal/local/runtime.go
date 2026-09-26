@@ -34,6 +34,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -162,14 +163,18 @@ type Removable struct {
 // and they live in the shared Hugging Face cache: another tool on the machine may
 // be using the same download, which is why removing them is a choice rather than
 // part of turning the feature off.
-func Removables(model string) []Removable {
+func Removables(models ...string) []Removable {
 	var out []Removable
 	if d := dataDir(); d != "" {
 		if n, err := dirSize(d); err == nil && n > 0 {
 			out = append(out, Removable{Path: d, Bytes: n, What: "the Python environment, the uv binary and the server log"})
 		}
 	}
-	if h := hfHome(); h != "" && model != "" {
+	for _, model := range slices.Compact(slices.Sorted(slices.Values(models))) {
+		h := hfHome()
+		if h == "" || model == "" {
+			continue
+		}
 		// The cache layout huggingface_hub writes: models--org--name.
 		dir := filepath.Join(h, "hub", "models--"+strings.ReplaceAll(model, "/", "--"))
 		if n, err := dirSize(dir); err == nil && n > 0 {

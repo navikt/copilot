@@ -42,6 +42,8 @@ func cmdLocalModels() error {
 		return err
 	}
 	printLocalModels(m)
+	nudge(local.ReplacedNotice(m))
+	nudge(local.PinnedAdvisory(m))
 	return nil
 }
 
@@ -53,7 +55,7 @@ func printLocalModels(m *local.Manifest) {
 	running := runningModel()
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "  \tKEY\tNAME\tSIZE\tCONTEXT\tSTATUS")
+	fmt.Fprintln(w, "  \tKEY\tNAME\tSIZE\tCONTEXT\tRECOMMENDED\tSTATUS")
 	row := func(e local.Model, status []string) {
 		mark := ""
 		if e.Model == active.Model {
@@ -66,7 +68,15 @@ func printLocalModels(m *local.Manifest) {
 		if n, err := strconv.Atoi(e.Params["MLX_OPENCODE_CONTEXT"]); err == nil && n > 0 {
 			ctx = fmt.Sprintf("%dk", n/1024)
 		}
-		fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\t%s\n", mark, e.Key, e.Name, size, ctx, strings.Join(status, ", "))
+		rec := "-"
+		if r := e.Recommended(); len(r) > 0 {
+			var short []string
+			for _, x := range r {
+				short = append(short, x.Short)
+			}
+			rec = strings.Join(short, ", ")
+		}
+		fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\t%s\t%s\n", mark, e.Key, e.Name, size, ctx, rec, strings.Join(status, ", "))
 	}
 	for _, e := range m.Models {
 		var status []string
@@ -101,6 +111,17 @@ func printLocalModels(m *local.Manifest) {
 			status = append(status, "running")
 		}
 		row(wh.Model, status)
+	}
+	// A replaced id still in use because only its weights are here: not a
+	// manifest entry, but what a start loads, so it gets the `*`.
+	if !slices.ContainsFunc(m.Models, func(e local.Model) bool { return e.Model == active.Model }) {
+		if repl, ok := m.ReplacedBy(active.Model); ok {
+			status := []string{"downloaded", "replaced by " + repl.Key}
+			if active.Model == running {
+				status = append(status, "running")
+			}
+			row(active, status)
+		}
 	}
 	_ = w.Flush()
 	fmt.Printf("\n  Switch: %s\n", bold("nav-pilot alpha local use <key>"))
@@ -139,6 +160,9 @@ func cmdLocalUse(args []string) error {
 		}
 	}
 	i := slices.IndexFunc(m.Models, match)
+	if repl, ok := m.ReplacedBy(arg); ok && i < 0 {
+		return fmt.Errorf("%s was replaced by %s. Use: %s", arg, repl.Key, bold("nav-pilot alpha local use "+repl.Key))
+	}
 	if i < 0 {
 		var names []string
 		for _, e := range m.Models {
@@ -157,6 +181,10 @@ func cmdLocalUse(args []string) error {
 		return err
 	}
 	fmt.Printf("%s local_model = %s %s\n", green("✓"), bold(e.Key), dim("("+e.Model+")"))
+	// Just chosen on purpose, so the advisory this choice would trigger has
+	// nothing to tell them.
+	local.SetSelectedModel(e.Model)
+	local.MarkSeen(local.PinnedAdvisory(m))
 
 	present, err := local.WeightsPresent(e.Model)
 	if err != nil {
