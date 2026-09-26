@@ -1582,7 +1582,7 @@ const CONFIG_KEYS = [
   {
     key: "model",
     flag: "--model",
-    values: "f.eks. claude-opus-4.8, gpt-5.5 (Copilot); github-copilot/claude-opus-4.8 (opencode)",
+    values: "f.eks. claude-opus-4.8, gpt-5.5 (Copilot og opencode; opencode kjører dem som github-copilot/<id>)",
     desc: "Modell å bruke. Format avhenger av klient.",
   },
   {
@@ -1934,12 +1934,16 @@ function KlienterOgKonfigurasjonSection() {
               Eksempel: ~/.nav-pilot/config.toml
             </Label>
             <CodeBlock compact>
-              {`# Klient (copilot er standard)
+              {`# Skjemaversjon
+version = 1
+
+# Klient (copilot er standard)
 client = "opencode"
 
-# Modell (format avhenger av klient; se tabellen over for eksempler).
+# Modell. En Copilot-id som claude-opus-4.8 virker for copilot og opencode;
+# opencode kjører den som github-copilot/claude-opus-4.8.
 # Ubestemt lar klienten velge selv.
-# model = "github-copilot/claude-opus-4.8"
+# model = "claude-opus-4.8"
 
 # Modus (default | plan | autopilot), kun Copilot
 # mode = "default"

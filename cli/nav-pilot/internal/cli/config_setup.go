@@ -276,10 +276,8 @@ func cmdConfigSetup(force bool) error {
 			force = false // a prompt that could not run is no answer: keep the file
 		}
 		if !force {
-			return fmt.Errorf("config file already exists: %s\n\nChange one setting:  %s\nSee the settings:    %s",
-				configPath(),
-				bold("nav-pilot config set <key> <value>"),
-				bold("nav-pilot config show"))
+			fmt.Printf("Kept %s.\n", configPath())
+			return nil
 		}
 	}
 	// No flag source: `config setup` does not persist one, so seeding from a

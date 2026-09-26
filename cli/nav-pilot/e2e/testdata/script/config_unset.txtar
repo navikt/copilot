@@ -1,0 +1,19 @@
+# config unset removes a key so its default applies, the command-line ctrl+r.
+# An empty value names it, and set says what changed.
+
+exec nav-pilot config set mode plan
+stdout '✓ mode: default \(default\) → plan'
+exec nav-pilot config set mode autopilot
+stdout '✓ mode: plan → autopilot'
+stdout 'Previous file kept as .*config\.toml\.bak'
+grep 'mode = "plan"' home/config.toml.bak
+
+exec nav-pilot config unset mode
+stdout '✓ mode: autopilot → default \(default\)'
+! grep 'mode' home/config.toml
+
+exits 1 nav-pilot config set model ''
+stderr 'model cannot be set to an empty value. To clear it, run nav-pilot config unset model'
+
+exits 1 nav-pilot config unset nosuchkey
+stderr 'unknown key: "nosuchkey"'

@@ -297,8 +297,9 @@ func (openCodeProvider) ValidateModel(model string) error {
 	if err := domain.ValidateModelValue(model); err != nil {
 		return err
 	}
-	if strings.Count(model, "/") != 1 || strings.HasSuffix(model, "/") {
-		return fmt.Errorf("model %q must be in provider/model format for opencode (e.g. %q)", model, openCodeModelFormatExample)
+	// A bare id is a Copilot id: ToOpenCodeModel runs it as github-copilot/<id>.
+	if strings.Count(model, "/") > 1 || strings.HasPrefix(model, "/") || strings.HasSuffix(model, "/") {
+		return fmt.Errorf("model %q must be a Copilot id (claude-opus-4.8) or provider/model for opencode (e.g. %q)", model, openCodeModelFormatExample)
 	}
 	return nil
 }
@@ -310,7 +311,11 @@ func (p openCodeProvider) ModelAdvisory(model string) string {
 	if strings.TrimSpace(model) == legacyOpenCodeAutoAlias {
 		return ""
 	}
-	if p.ValidateModel(model) != nil || isKnownOpenCodeModel(model) {
+	id := model
+	if !strings.Contains(id, "/") {
+		id = openCodeProviderPrefix + id // what ToOpenCodeModel runs
+	}
+	if p.ValidateModel(model) != nil || isKnownOpenCodeModel(id) {
 		return ""
 	}
 	return fmt.Sprintf(

@@ -1,0 +1,24 @@
+# show and get still answer on a config with problems, with one warning on
+# stderr. A value of the wrong type is a problem with the line to write, and
+# the others are still reported.
+
+cp broken.toml home/config.toml
+exec nav-pilot config get client
+stdout '^opencode$'
+stderr 'your config has 3 problems: nav-pilot config validate'
+
+exec nav-pilot config show
+stdout 'client  *= opencode'
+stderr 'your config has 3 problems'
+
+exits 1 nav-pilot config validate
+stdout 'local_loop_guard must be a number: write local_loop_guard = 8'
+stdout 'allow_all_tools must be true or false: write allow_all_tools = true'
+stdout 'mode "yolo" is not valid'
+
+-- broken.toml --
+version = 1
+client = "opencode"
+mode = "yolo"
+local_loop_guard = "8"
+allow_all_tools = "yes"

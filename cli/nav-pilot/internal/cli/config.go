@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 // validateModelForClient validates a model identifier by delegating to the
@@ -26,51 +28,121 @@ func validateModelForClient(model, client string) error {
 
 // configPath returns the path to the user config file.
 // Honors NAV_PILOT_CONFIG env var if set.
+// A leading ~ is expanded and a relative path made absolute, so every command
+// names the same file whatever directory it runs in. $XDG_CONFIG_HOME is not
+// read: the file lives in ~/.nav-pilot next to the rest of nav-pilot's state.
 func configPath() string {
-	if p := os.Getenv("NAV_PILOT_CONFIG"); p != "" {
-		return p
-	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".nav-pilot", "config.toml")
+	p := os.Getenv("NAV_PILOT_CONFIG")
+	if p == "" {
+		return filepath.Join(home, ".nav-pilot", "config.toml")
+	}
+	if p == "~" || strings.HasPrefix(p, "~/") {
+		p = filepath.Join(home, p[1:])
+	}
+	if abs, err := filepath.Abs(p); err == nil {
+		p = abs
+	}
+	return p
 }
 
 // readConfig reads and parses the config file at configPath().
 // Returns (nil, nil) if the file does not exist (fail-soft).
-// Returns an error if the file exists but cannot be parsed.
+// Returns an error if the file is not valid TOML. A key of the wrong type is
+// left out (so its default applies); loadConfig reports it.
 func readConfig() (*Config, error) {
-	path := configPath()
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("reading config %s: %w", path, err)
-	}
-	var cfg Config
-	if _, err := toml.Decode(string(data), &cfg); err != nil {
-		return nil, fmt.Errorf("parsing config %s: %w", path, err)
-	}
-	return &cfg, nil
+	cfg, _, err := loadConfig()
+	return cfg, err
 }
 
-// readConfigWithMeta reads and parses the config file, returning TOML metadata.
-// MetaData.Undecoded() is used to detect unknown keys (hard error on launch).
-// Returns (nil, zero-meta, nil) if the file does not exist.
-func readConfigWithMeta() (*Config, toml.MetaData, error) {
+// loadConfig reads the config file and returns it with every problem found
+// in it: keys of the wrong type, unknown keys, and invalid values, in that
+// order. Only TOML that does not parse is an error. A missing file is
+// (nil, nil, nil).
+func loadConfig() (*Config, []string, error) {
 	path := configPath()
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, toml.MetaData{}, nil
+			return nil, nil, nil
 		}
-		return nil, toml.MetaData{}, fmt.Errorf("reading config %s: %w", path, err)
+		return nil, nil, fmt.Errorf("reading config %s: %w", path, err)
+	}
+	raw := map[string]any{}
+	if _, err := toml.Decode(string(data), &raw); err != nil {
+		return nil, nil, fmt.Errorf("parsing config %s: %w", path, err)
+	}
+	// A value of the wrong type is a problem to report, not a reason to stop
+	// reading: take it out and decode the rest.
+	var problems []string
+	for _, kd := range configKeyDefs {
+		if v, ok := raw[kd.name]; ok && !valueFitsKind(v, kd.kind) {
+			problems = append(problems, typeProblem(&kd, v))
+			delete(raw, kd.name)
+		}
+	}
+	text := string(data)
+	if len(problems) > 0 {
+		var b strings.Builder
+		if err := toml.NewEncoder(&b).Encode(raw); err == nil {
+			text = b.String()
+		}
 	}
 	var cfg Config
-	meta, err := toml.Decode(string(data), &cfg)
+	meta, err := toml.Decode(text, &cfg)
 	if err != nil {
-		return nil, toml.MetaData{}, fmt.Errorf("parsing config %s: %w", path, err)
+		return nil, nil, fmt.Errorf("parsing config %s: %w", path, err)
 	}
-	return &cfg, meta, nil
+	for _, k := range meta.Undecoded() {
+		problems = append(problems, unknownKeyProblem(strings.Join(k, ".")))
+	}
+	problems = append(problems, validateConfigProblems(&cfg)...)
+	return &cfg, problems, nil
+}
+
+func valueFitsKind(v any, kind keyKind) bool {
+	switch kind {
+	case keyKindInt:
+		_, ok := v.(int64)
+		return ok
+	case keyKindBool:
+		_, ok := v.(bool)
+		return ok
+	default:
+		_, ok := v.(string)
+		return ok
+	}
+}
+
+// typeProblem says what a key of the wrong type should look like, with the
+// line to write: `local_loop_guard = "8"` becomes local_loop_guard = 8.
+func typeProblem(kd *configKeyDef, v any) string {
+	s := strings.TrimSpace(fmt.Sprint(v))
+	switch kd.kind {
+	case keyKindInt:
+		example := kd.defaultVal
+		if _, err := strconv.Atoi(s); err == nil {
+			example = s
+		}
+		if example == "" {
+			example = "1"
+		}
+		return fmt.Sprintf("%s must be a number: write %s = %s", kd.name, kd.name, example)
+	case keyKindBool:
+		example := kd.defaultVal
+		switch strings.ToLower(s) {
+		case "true", "yes", "on", "1":
+			example = "true"
+		case "false", "no", "off", "0":
+			example = "false"
+		}
+		if example == "" {
+			example = "false"
+		}
+		return fmt.Sprintf("%s must be true or false: write %s = %s", kd.name, kd.name, example)
+	default:
+		return fmt.Sprintf("%s must be a string in quotes: write %s = %s", kd.name, kd.name, tomlString(s))
+	}
 }
 
 // configuredSourceRepo returns the source persisted in the config file, or the
@@ -117,9 +189,7 @@ func validateConfigProblems(cfg *Config) []string {
 	var problems []string
 
 	switch cfg.Version {
-	case 1:
-	case 0:
-		problems = append(problems, "version is missing: add version = 1 at the top (or run nav-pilot config set version 1)")
+	case 0, 1: // a missing version reads as 1; configAdvice says so
 	default:
 		problems = append(problems, fmt.Sprintf("version must be 1 (got %d)", cfg.Version))
 	}
@@ -128,12 +198,8 @@ func validateConfigProblems(cfg *Config) []string {
 			*cfg.Client, strings.Join(validProviderIDs, ", ")))
 	}
 	if cfg.Model != nil {
-		client := ""
-		if cfg.Client != nil {
-			client = *cfg.Client
-		}
-		if err := validateModelForClient(*cfg.Model, client); err != nil {
-			problems = append(problems, err.Error())
+		if problem, _ := modelAdvice(*cfg.Model, cfgClient(cfg), cfg.LocalModel != nil, false); problem != "" {
+			problems = append(problems, problem)
 		}
 	}
 	// An empty source is how the key is cleared back to the default, so only a
@@ -189,44 +255,66 @@ func validateConfig(cfg *Config) error {
 	return fmt.Errorf("config validation failed:\n  - %s", strings.Join(problems, "\n  - "))
 }
 
-// configAdvisories returns non-fatal warnings for a parsed config.
-// Delegates to each client's ModelAdvisory for client-specific advisory logic.
-// Unknown TOML keys are handled as hard errors in loadConfigForLaunch, not here.
-func configAdvisories(cfg *Config, meta toml.MetaData) []string {
-	if cfg == nil {
-		return nil
+// versionMissingAdvice is the one line a config without a version gets.
+const versionMissingAdvice = "version is missing, so nav-pilot reads the file as version 1. Add it to silence this: nav-pilot config set version 1"
+
+func cfgClient(cfg *Config) string {
+	if cfg == nil || cfg.Client == nil {
+		return "copilot"
 	}
-	if cfg.Model == nil || validateModelValue(*cfg.Model) != nil {
-		return nil
+	return *cfg.Client
+}
+
+// modelAdvice is everything nav-pilot says about a model id for a client:
+// problem makes the config invalid, advice does not. config set, config
+// validate, the launch and the init template's wording all follow it, so they
+// cannot disagree. atLaunch leaves out the github-copilot/ note, which the
+// launch's session-model line already gives.
+func modelAdvice(model, client string, localModelSet, atLaunch bool) (problem, advice string) {
+	if client == "" {
+		client = "copilot"
+	}
+	if err := validateModelForClient(model, client); err != nil {
+		return err.Error(), ""
 	}
 	// model naming a local id is legal and means "run the session locally".
 	// It is also the mistake people make when they meant to pick which model
-	// the worker loads, so it is said out loud rather than guessed at.
-	//
-	// Only when local_model is unset. Someone who has set both keys has already
-	// been told the difference and chosen; repeating it on every launch is a
-	// warning that fires when nothing is wrong, which is how a developer learns
-	// to stop reading warnings. It also fires immediately after they follow the
-	// "use what is running" remedy, which sets exactly this pair on purpose.
-	if cfg.LocalModel == nil {
-		if _, ok := local.Lookup(*cfg.Model); ok {
-			return []string{fmt.Sprintf(
+	// the worker loads, so it is said out loud rather than guessed at — but
+	// only while local_model is unset: someone who has set both has chosen.
+	if !localModelSet {
+		if _, ok := local.Lookup(model); ok {
+			return "", fmt.Sprintf(
 				"model %q runs this session on the local model. To choose which model the local server loads, set local_model instead: %s.",
-				*cfg.Model, bold("nav-pilot alpha local use <key>"))}
+				model, bold("nav-pilot alpha local use <key>"))
 		}
 	}
-	clientID := "copilot"
-	if cfg.Client != nil {
-		clientID = *cfg.Client
+	if client == "copilot" && !atLaunch {
+		if note := providerpkg.CopilotModelNote(model); note != "" {
+			return "", fmt.Sprintf("model %q: %s.", model, note)
+		}
 	}
-	p, err := providerFor(clientID)
-	if err != nil {
+	if p, err := providerFor(client); err == nil {
+		return "", p.ModelAdvisory(model)
+	}
+	return "", ""
+}
+
+// configAdvice returns the non-fatal notes for a parsed config: a missing
+// version, and what modelAdvice says about the model.
+func configAdvice(cfg *Config, atLaunch bool) []string {
+	if cfg == nil {
 		return nil
 	}
-	if msg := p.ModelAdvisory(*cfg.Model); msg != "" {
-		return []string{msg}
+	var advice []string
+	if cfg.Version == 0 {
+		advice = append(advice, versionMissingAdvice)
 	}
-	return nil
+	if cfg.Model != nil {
+		if _, a := modelAdvice(*cfg.Model, cfgClient(cfg), cfg.LocalModel != nil, atLaunch); a != "" {
+			advice = append(advice, a)
+		}
+	}
+	return advice
 }
 
 // loadConfigForLaunch reads, validates, and resolves the user config ahead of a
@@ -235,24 +323,17 @@ func configAdvisories(cfg *Config, meta toml.MetaData) []string {
 // with a broken config. Non-fatal advisories (unrecognized model ids) are printed
 // to stderr but do not block the launch.
 func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
-	file, meta, err := readConfigWithMeta()
+	file, problems, err := loadConfig()
 	if err != nil {
-		return ResolvedConfig{}, err
-	}
-	if err := validateConfig(file); err != nil {
 		return ResolvedConfig{}, fmt.Errorf("%w\n\n%s", err, configFixHint())
 	}
-	// Unknown keys are a hard error: a stray key (e.g. `agent = "..."`) would
-	// otherwise be silently ignored, masking intent.
-	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
-		var problems []string
-		for _, k := range undecoded {
-			problems = append(problems, "  - "+unknownKeyProblem(strings.Join(k, ".")))
-		}
-		return ResolvedConfig{}, fmt.Errorf("config has unknown key(s):\n%s\n\n%s",
-			strings.Join(problems, "\n"), configFixHint())
+	// Every problem, the same list config validate prints: fixing one only to
+	// be shown the next is a loop.
+	if len(problems) > 0 {
+		return ResolvedConfig{}, fmt.Errorf("config has %d problem(s):\n  - %s\n\n%s",
+			len(problems), strings.Join(problems, "\n  - "), configFixHint())
 	}
-	for _, w := range configAdvisories(file, meta) {
+	for _, w := range configAdvice(file, true) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), w)
 	}
 	resolved := resolve(file, cli)
@@ -292,7 +373,7 @@ func unknownKeyProblem(key string) string {
 
 // configFixHint is the way out of a config nav-pilot refuses to launch with.
 func configFixHint() string {
-	return fmt.Sprintf("Fix %s, or start over with nav-pilot config setup --force", configPath())
+	return fmt.Sprintf("Fix %s, then check it with nav-pilot config validate", configPath())
 }
 
 // resolve builds a ResolvedConfig from file config and CLI overrides.

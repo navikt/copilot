@@ -1,0 +1,19 @@
+# NAV_PILOT_CONFIG with ~ or a relative path names an absolute file, and help
+# and the not-found line say where the file is and how to move it.
+
+env NAV_PILOT_CONFIG=~/np.toml
+exec nav-pilot config path
+stdout '^'$WORK'/home/np.toml$'
+exec nav-pilot config set mode plan
+exists home/np.toml
+
+env NAV_PILOT_CONFIG=rel/config.toml
+exec nav-pilot config path
+stdout '^'$WORK'/rel/config.toml$'
+
+exec nav-pilot config show
+stdout 'not found, using defaults; NAV_PILOT_CONFIG sets another path'
+
+exec nav-pilot config --help
+stdout 'Manage '$WORK'/rel/config.toml'
+stdout 'XDG_CONFIG_HOME is not read'

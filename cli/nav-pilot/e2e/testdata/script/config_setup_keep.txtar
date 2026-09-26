@@ -1,0 +1,14 @@
+# "Keep it" at the replace prompt keeps the file and says so, with exit 0. It
+# used to print "config file already exists" as an error.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+cp keep.toml home/config.toml
+exec pty-run -wait 'Keep it' -send '\r' -- nav-pilot config setup
+stdout 'Kept .*config\.toml\.'
+! stdout 'Error'
+cmp home/config.toml keep.toml
+
+-- keep.toml --
+version = 1
+client = "opencode"

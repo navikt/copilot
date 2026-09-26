@@ -3,9 +3,12 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
@@ -31,6 +34,9 @@ func userFacingPageKeys() []string {
 // configKeyValue returns the effective value of a key as displayed, spelling
 // out the built-in default repo when no source is persisted.
 func configKeyValue(r ResolvedConfig, key string) string {
+	if env, ok := configEnvOverrides[key]; ok && os.Getenv(env) != "" {
+		return os.Getenv(env)
+	}
 	if key == "source" {
 		return effectiveSourceLabel(r)
 	}
@@ -58,10 +64,19 @@ func modelValueLabel(r ResolvedConfig) string {
 	return id
 }
 
-// configKeySource labels where a key's effective value comes from: "file" when
-// the config file sets it, otherwise "default" or "unset" depending on whether
-// the key has a built-in default.
-func configKeySource(cfg *Config, key string) string {
+// configEnvOverrides names the environment variable that wins over a key at
+// launch. OTEL_LOG_LEVEL is the only one: the launch sets it from
+// otel_log_level only when the shell has not.
+var configEnvOverrides = map[string]string{"otel_log_level": "OTEL_LOG_LEVEL"}
+
+// configKeyOrigin labels where a key's effective value comes from: "env" when
+// an environment variable overrides it, "file" when the config file sets it,
+// otherwise "default" or "unset" depending on whether the key has a built-in
+// default.
+func configKeyOrigin(cfg *Config, key string) string {
+	if env, ok := configEnvOverrides[key]; ok && os.Getenv(env) != "" {
+		return "env"
+	}
 	if cfg != nil && configKeyInFile(cfg, key) {
 		return "file"
 	}
@@ -123,7 +138,7 @@ func buildConfigPageEntries(cfg *Config, r ResolvedConfig) []configPageEntry {
 		entries = append(entries, configPageEntry{
 			Key:         key,
 			Value:       configKeyValue(r, key),
-			Source:      configKeySource(cfg, key),
+			Source:      configKeyOrigin(cfg, key),
 			Description: kd.description,
 		})
 	}
@@ -158,6 +173,7 @@ func cmdConfigPage() error {
 	preset := cpltSandboxPreset()
 
 	fmt.Printf("%s %s\n\n", dim("Config file:"), configPath())
+	start := configSnapshot()
 
 	for {
 		cfg, err := readConfig()
@@ -174,6 +190,7 @@ func cmdConfigPage() error {
 
 		switch choice {
 		case "", configPageDone:
+			printPageSummary(start, configSnapshot())
 			return nil
 		case configPageSandbox:
 			// "cplt not on PATH" is a notice, not a reason to leave the page.
@@ -239,7 +256,7 @@ func editConfigKey(key string, r ResolvedConfig) error {
 		field = huh.NewSelect[string]().Title(key).Description(kd.description).Options(opts...).Value(&value)
 	}
 
-	if err := field.WithTheme(navTheme()).Run(); err != nil {
+	if err := runField(field); err != nil {
 		if errors.Is(err, huh.ErrUserAborted) {
 			return nil
 		}
@@ -288,7 +305,7 @@ func editLocalModelKey(current string) error {
 	}
 	value := current
 	field := huh.NewSelect[string]().Title("local_model").Description(kd.description).Options(opts...).Value(&value)
-	if err := field.WithTheme(navTheme()).Run(); err != nil {
+	if err := runField(field); err != nil {
 		if errors.Is(err, huh.ErrUserAborted) {
 			return nil
 		}
@@ -297,22 +314,69 @@ func editLocalModelKey(current string) error {
 	return persistConfigValue("local_model", strings.TrimSpace(value))
 }
 
-// persistConfigValue writes value for key, clearing the key when value is
-// blank so it falls back to its built-in default.
+// configSnapshot is the config file's values, for counting what the settings
+// page changed. A missing or broken file is empty.
+func configSnapshot() map[string]any {
+	data, _ := os.ReadFile(configPath())
+	m, _ := decodesTo(string(data))
+	return m
+}
+
+// printPageSummary is the settings page's last line: how many keys it changed.
+func printPageSummary(before, after map[string]any) {
+	n := 0
+	for k, v := range after {
+		if !reflect.DeepEqual(before[k], v) {
+			n++
+		}
+	}
+	for k := range before {
+		if _, ok := after[k]; !ok {
+			n++
+		}
+	}
+	switch n {
+	case 0:
+		fmt.Println("No changes.")
+	case 1:
+		fmt.Printf("%s Saved 1 change to %s\n", green("✓"), configPath())
+	default:
+		fmt.Printf("%s Saved %d changes to %s\n", green("✓"), n, configPath())
+	}
+}
+
+// escCancel is Esc as the settings page's prompts read it: cancel the edit.
+var escCancel = key.NewBinding(key.WithKeys("ctrl+c", "esc"), key.WithHelp("esc", "cancel"))
+
+// runField runs one prompt of the settings page or the wizard. Esc cancels
+// it, like ctrl+c, and the footer names the keys, esc included.
+func runField(f huh.Field) error {
+	km := huh.NewDefaultKeyMap()
+	km.Quit = escCancel
+	return huh.NewForm(huh.NewGroup(escHelpField{f})).WithKeyMap(km).WithShowHelp(true).WithTheme(navTheme()).Run()
+}
+
+// escHelpField adds "esc cancel" to a field's footer: huh's footer lists the
+// field's own keys, and the form's quit key is not one of them.
+type escHelpField struct{ huh.Field }
+
+func (f escHelpField) KeyBinds() []key.Binding { return append(f.Field.KeyBinds(), escCancel) }
+
+func (f escHelpField) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m, cmd := f.Field.Update(msg)
+	if field, ok := m.(huh.Field); ok {
+		return escHelpField{field}, cmd
+	}
+	return m, cmd
+}
+
+// persistConfigValue writes value for key the way config set does, or clears
+// the key the way config unset does when value is blank.
 func persistConfigValue(key, value string) error {
 	if value == "" {
-		if err := clearConfigKey(key); err != nil {
-			return err
-		}
-		fmt.Printf("%s %s cleared\n", green("✓"), key)
-		return nil
+		return cmdConfigUnset(key)
 	}
-	tomlVal, err := writeConfigKey(key, value)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("%s %s = %s\n", green("✓"), key, tomlVal)
-	return nil
+	return cmdConfigSet(key, value)
 }
 
 // wordWrap wraps s at width on word boundaries.

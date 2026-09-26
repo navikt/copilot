@@ -1,0 +1,39 @@
+# show labels each value file, env or default, and --json carries every key
+# with its origin. --json works for get, path and validate and is refused by
+# the subcommands that have no JSON form. A launch flag in front of config is
+# refused rather than ignored.
+
+cp cfg.toml home/config.toml
+env OTEL_LOG_LEVEL=debug
+exec nav-pilot config show
+stdout 'mode  *= plan  *\(file\)'
+stdout 'otel_log_level  *= debug  *\(env\)'
+stdout 'client  *= copilot  *\(default\)'
+
+exec nav-pilot config show --json
+validjson stdout
+stdout '"mode": \{\s*"origin": "file",\s*"value": "plan"'
+stdout '"local_loop_guard": \{\s*"origin": "default",\s*"value": 8'
+
+exec nav-pilot config get mode --json
+validjson stdout
+stdout '"origin": "file"'
+
+exec nav-pilot config path --json
+validjson stdout
+stdout '"exists": true'
+
+exec nav-pilot config validate --json
+validjson stdout
+stdout '"valid": true'
+
+exits 1 nav-pilot config set mode plan --json
+stderr '--json is not supported by config set'
+
+exits 1 nav-pilot --model gpt-5.5 config get model
+stderr '--model is a launch flag, and config does not launch'
+! stdout .
+
+-- cfg.toml --
+version = 1
+mode = "plan"

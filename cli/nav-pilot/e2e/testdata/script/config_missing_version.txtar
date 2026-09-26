@@ -1,0 +1,18 @@
+# A config without version = 1 is read as version 1, with one line that says
+# so. It used to refuse to launch, and the example config in the docs had no
+# version line.
+
+cp noversion.toml home/config.toml
+exec nav-pilot config validate
+stdout 'Config is valid'
+stdout 'version is missing, so nav-pilot reads the file as version 1'
+
+# The launch goes on past the config; it fails later, at the source the e2e
+# proxy blocks.
+exits 1 nav-pilot --sync -- -p x
+stderr -count=1 'reads the file as version 1'
+! stderr 'config has'
+
+-- noversion.toml --
+client = "opencode"
+reasoning_effort = "high"

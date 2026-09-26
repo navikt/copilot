@@ -168,8 +168,8 @@ func TestOpenCodeProvider_ValidateModel(t *testing.T) {
 	}{
 		{"anthropic/claude-sonnet-4-5", false},
 		{"openai/gpt-4o", false},
-		{"claude-opus-4.8", true},
-		{"gpt-5.5", true},
+		{"claude-opus-4.8", false}, // bare Copilot id, run as github-copilot/<id>
+		{"gpt-5.5", false},
 		{"anthropic/", true},
 		{"a/b/c", true},
 		{"", true},
@@ -194,7 +194,7 @@ func TestOpenCodeProvider_ModelAdvisory(t *testing.T) {
 		t.Error("ModelAdvisory(uncurated valid shape) = empty, want advisory")
 	}
 	if msg := p.ModelAdvisory("claude-opus-4.8"); msg != "" {
-		t.Errorf("ModelAdvisory(invalid shape) = %q, want empty", msg)
+		t.Errorf("ModelAdvisory(bare known id) = %q, want empty", msg)
 	}
 	if msg := p.ModelAdvisory("github-copilot/auto"); msg != "" {
 		t.Errorf("ModelAdvisory(legacy alias) = %q, want empty — it maps to the default, it is not passed as-is", msg)

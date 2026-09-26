@@ -16,7 +16,7 @@ func TestCmdConfig_NoArgs_NonInteractiveKeepsUsageError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected usage error when no subcommand given")
 	}
-	for _, want := range []string{"config requires a subcommand", "Usage: nav-pilot config <subcommand>", "sandbox"} {
+	for _, want := range []string{"config requires a subcommand", "Usage: nav-pilot config", "sandbox"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error missing %q:\n%v", want, err)
 		}
@@ -136,15 +136,15 @@ func TestModelPickerOptions(t *testing.T) {
 	if opts[0].Value != "" {
 		t.Errorf("first option = %q, want unset (empty value)", opts[0].Value)
 	}
-	if last := opts[len(opts)-1]; last.Value != customModelSentinel {
-		t.Errorf("last option = %q, want the custom sentinel", last.Value)
+	if opts[1].Value != customModelSentinel {
+		t.Errorf("second option = %q, want Other…", opts[1].Value)
 	}
 	for i, m := range p.KnownModels() {
-		if opts[i+1].Value != m.ID {
-			t.Errorf("option %d = %q, want %q", i+1, opts[i+1].Value, m.ID)
+		if opts[i+2].Value != m.ID {
+			t.Errorf("option %d = %q, want %q", i+2, opts[i+2].Value, m.ID)
 		}
-		if !strings.Contains(opts[i+1].Key, m.Label) {
-			t.Errorf("option %d label %q missing %q", i+1, opts[i+1].Key, m.Label)
+		if !strings.Contains(opts[i+2].Key, m.Label) {
+			t.Errorf("option %d label %q missing %q", i+2, opts[i+2].Key, m.Label)
 		}
 	}
 }

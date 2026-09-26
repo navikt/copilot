@@ -428,6 +428,15 @@ func run(args []string) error {
 				cleanArgs = append(cleanArgs, args[i])
 			}
 		}
+		// A launch flag in front of `config` used to vanish: nav-pilot
+		// --model x config get model printed the file's model, not x.
+		if len(cleanArgs) > 0 && cleanArgs[0] == "config" {
+			for _, a := range args {
+				if slices.Contains(launchFlags, a) {
+					return fmt.Errorf("%s is a launch flag, and config does not launch: it shows and edits %s. Run nav-pilot config without %s", a, configPath(), a)
+				}
+			}
+		}
 		args = cleanArgs
 	}
 

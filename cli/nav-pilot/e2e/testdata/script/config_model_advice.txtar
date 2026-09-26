@@ -1,0 +1,26 @@
+# One model check, per client, behind config set, config validate and the
+# launch. opencode runs a bare Copilot id as github-copilot/<id>, as the
+# template says, so validate no longer rejects what set accepted.
+
+exec nav-pilot config set client opencode
+exec nav-pilot config set model claude-opus-4.8
+! stderr .
+exec nav-pilot config validate
+stdout 'Config is valid'
+! stdout 'Hints'
+
+# A model the client cannot run is refused by set, not at the next launch.
+exits 1 nav-pilot config set model a/b/c
+stderr 'must be a Copilot id \(claude-opus-4.8\) or provider/model for opencode'
+stderr 'nothing was written'
+exec nav-pilot config get model
+stdout '^claude-opus-4.8$'
+
+# On copilot, set and validate say the same thing about an unknown id, and
+# neither claims nav-pilot translates it.
+exec nav-pilot config set client copilot
+exec nav-pilot config set model openai/gpt-5.5
+stderr 'model "openai/gpt-5.5" is not a recognized Copilot model id'
+exec nav-pilot config validate
+stdout 'model "openai/gpt-5.5" is not a recognized Copilot model id'
+! stdout 'translates automatically'

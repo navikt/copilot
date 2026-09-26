@@ -679,14 +679,28 @@ Metrikkene bærer også `execution_context` for å skille organisk bruk fra CI (
 
 ## Konfigurasjon
 
-Du kan lagre standardvalg i `~/.nav-pilot/config.toml`.
+Du kan lagre standardvalg i `~/.nav-pilot/config.toml`, eller i filen `NAV_PILOT_CONFIG`
+peker på. `$XDG_CONFIG_HOME` leses ikke.
+
+```toml
+version = 1
+client = "opencode"
+model = "claude-opus-4.8"
+```
 
 ```bash
 nav-pilot config          # interaktiv innstillingsside, alle valg med forklaring
 nav-pilot config init
 nav-pilot config setup
-nav-pilot config show
+nav-pilot config show            # hver nøkkel med verdi og hvor den kommer fra (file, env, default)
+nav-pilot config set mode plan
+nav-pilot config unset mode      # fjern nøkkelen, så gjelder standardverdien
+nav-pilot config validate
 ```
+
+Mangler `version`, leses filen som versjon 1, med én linje som sier fra. `config set`,
+`config unset` og innstillingssiden endrer bare den ene nøkkelen og beholder kommentarer.
+Forrige versjon av filen ligger i `config.toml.bak`.
 
 Støttede felt er `client`, `model`, `mode`, `reasoning_effort`, `context_tier`,
 `allow_all_tools`, `ask_user`, `auto_launch` og `log_level`. Du kan overstyre dem per kjøring
@@ -725,9 +739,9 @@ Da skriver nav-pilot bare ut kommandoen du kan kjøre.
   `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.5`, `gpt-5.4`,
   `gpt-5.3-codex`, `gpt-5.4-mini`, `gpt-5-mini`, `gemini-3.6-flash`,
   `gemini-3.1-pro-preview`, `gemini-3.5-flash`, `kimi-k2.7-code`, `kimi-k3`
-- opencode (startes via cplt mot GitHub Copilot-provideren): bruk `github-copilot/<id>`,
-  f.eks. `github-copilot/claude-opus-4.8`, `github-copilot/gpt-5.5`. Modellen i config
-  må være på `provider/model`-format (med `/`). Uten en satt modell (eller `--model auto`
+- opencode (startes via cplt mot GitHub Copilot-provideren): bruk en Copilot-id som
+  `claude-opus-4.8`, som kjøres som `github-copilot/claude-opus-4.8`, eller en full
+  `provider/model`-id, som sendes videre som den er. Uten en satt modell (eller `--model auto`
   på CLI) brukes en modell den aktive agentpakken selv har erklært, hvis den har erklært
   en; ellers sendes ingen `--model`-flagg, og opencode velger selv en modell den vet
   kontoen din har tilgang til. opencode har ingen `auto`-modell selv (det er et
