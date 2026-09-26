@@ -970,7 +970,7 @@ func cmdLocalOff() error {
 		fmt.Printf("%s The server is still running (pid %d). Free the memory: %s\n",
 			yellow("⚠"), st.PID, bold("nav-pilot alpha local stop"))
 	}
-	fmt.Printf("%s Weights are left on disk. %s brings it back without downloading them again.\n\n",
+	fmt.Printf("%s Weights are left on disk. Turn it back on: %s\n\n",
 		dim("ℹ"), bold("nav-pilot alpha local on"))
 	return nil
 }

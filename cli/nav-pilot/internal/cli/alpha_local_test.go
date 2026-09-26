@@ -938,7 +938,7 @@ func TestLocalOnAndOffAgree(t *testing.T) {
 		off = captureStdout(func() { _ = cmdLocalOff() })
 		on = captureStdout(func() { _ = cmdLocalOn() })
 	})
-	if !strings.Contains(off, "nav-pilot alpha local on brings it back") {
+	if !strings.Contains(off, "Turn it back on: nav-pilot alpha local on") {
 		t.Errorf("off does not point at on:\n%s", off)
 	}
 	if !strings.Contains(off, "still running") || !strings.Contains(on, "still running") {
