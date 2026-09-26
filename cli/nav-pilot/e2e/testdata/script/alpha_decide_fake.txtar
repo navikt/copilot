@@ -16,13 +16,16 @@ stdout '"evidence":true'
 
 # Above the threshold: 0. Below it: 1, still with the decision on stdout.
 exits 0 nav-pilot alpha decide 'Is this a bug fix?' --options yes,no --evidence msg.txt --threshold 0.5 --expect yes
+stdout '"pass":true'
 exits 1 nav-pilot alpha decide 'Is this a bug fix?' --options yes,no --evidence msg.txt --threshold 0.5 --expect no
 stdout '"choice":"yes"'
+stdout '"pass":false'
+! stderr .
 
 # No evidence: still answers, and warns on stderr, not stdout.
 exec nav-pilot alpha decide 'Is this a bug fix?' --options yes,no
 validjson stdout
-stderr 'warning: deciding without evidence'
+stderr '⚠ No --evidence: the model saw only the question'
 
 -- msg.txt --
 fix: stop sync from deleting composed agents

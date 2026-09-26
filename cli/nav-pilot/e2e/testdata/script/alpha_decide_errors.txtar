@@ -12,12 +12,12 @@ stderr 'decide does not start one itself'
 # No --options.
 exits 2 nav-pilot alpha decide 'Is this a bug fix?'
 ! stdout .
-stderr '--options needs 2 to 26 comma-separated labels, got 0'
+stderr '--options needs 2 to 26 comma-separated labels, as in --options yes,no; got 0'
 
 # --threshold without --expect.
 exits 2 nav-pilot alpha decide 'Is this a bug fix?' --options yes,no --threshold 0.8
 ! stdout .
-stderr '--threshold and --expect go together'
+stderr '--threshold and --expect go together, as in --threshold 0.8 --expect yes'
 
 # An eval file with one malformed line: file and line number, before any
 # server is asked anything.
@@ -32,7 +32,7 @@ mkdir home/.nav-pilot/local
 cp stale-server.json home/.nav-pilot/local/server.json
 exits -within 3s 2 nav-pilot alpha decide 'Is this a bug fix?' --options yes,no --evidence msg.txt --timeout 30s
 ! stdout .
-stderr 'not running any more'
+stderr 'the local server \(pid [0-9]+\) has stopped'
 stderr 'nav-pilot alpha local start'
 ! stderr 'loop guard'
 

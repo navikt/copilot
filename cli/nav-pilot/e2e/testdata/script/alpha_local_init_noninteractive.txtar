@@ -5,7 +5,7 @@
 [!arm64] skip 'local inference needs an Apple Silicon Mac'
 
 exits 2 nav-pilot alpha local init
-! stdout .
+stdout 'Needs +8 GB RAM'
 stderr '--yes'
 ! stderr 'downloading'
 ! exists home/.nav-pilot/local/bin/uv
