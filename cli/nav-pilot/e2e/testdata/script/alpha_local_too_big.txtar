@@ -1,0 +1,54 @@
+# A user picks a model this machine cannot hold. use refuses it up front, and
+# the refusal points at the list of models that fit, by its real name.
+
+# The memory check reads hw.memsize, which only macOS has.
+[!darwin] skip 'the RAM check is macOS only'
+
+exec nav-pilot alpha local models
+stdout 'huge-1t .*needs 4096 GB RAM'
+
+! exec nav-pilot alpha local use huge-1t
+! stdout 'local_model ='
+stderr '4096 GB'
+stderr 'nav-pilot alpha local models'
+! stderr '`nav-pilot models`'
+! exists home/config.toml
+
+-- home/.nav-pilot/local-models.json --
+{
+  "schema_version": 1,
+  "channel": "alpha",
+  "models": [
+    {
+      "key": "qwen3.6-35b-a3b-optiq",
+      "name": "Qwen 3.6 35B A3B OptiQ 4bit",
+      "model": "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "backend": "mlx-lm",
+      "default": true,
+      "weights_gb": 25,
+      "min_ram_gb": 8,
+      "wired_limit_gb": 4,
+      "params": {"MLX_OPENCODE_CONTEXT": "65536"}
+    },
+    {
+      "key": "gemma3-4b",
+      "name": "Gemma 3 4B",
+      "model": "mlx-community/gemma-3-4b-it-4bit",
+      "backend": "mlx-lm",
+      "weights_gb": 3,
+      "min_ram_gb": 8,
+      "wired_limit_gb": 4,
+      "params": {"MLX_OPENCODE_CONTEXT": "32768"}
+    },
+    {
+      "key": "huge-1t",
+      "name": "Huge 1T",
+      "model": "mlx-community/Huge-1T-4bit",
+      "backend": "mlx-lm",
+      "weights_gb": 600,
+      "min_ram_gb": 4096,
+      "wired_limit_gb": 3500,
+      "params": {"MLX_OPENCODE_CONTEXT": "32768"}
+    }
+  ]
+}

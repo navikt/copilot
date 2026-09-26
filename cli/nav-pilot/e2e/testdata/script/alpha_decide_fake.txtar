@@ -1,0 +1,31 @@
+# decide against a running server (a fake mlx-lm that puts most of its mass
+# on the first option). JSON on stdout when stdout is not a terminal, and the
+# threshold decides the exit code.
+
+# nav-pilot proves the server is its own with /usr/sbin/lsof, which is where
+# macOS keeps it; Linux has it elsewhere or not at all.
+[!exec:/usr/sbin/lsof] skip 'needs /usr/sbin/lsof for the server ownership check (macOS)'
+
+fake-mlx
+
+exec nav-pilot alpha decide 'Is this a bug fix?' --options yes,no --evidence msg.txt
+validjson stdout
+stdout '"choice":"yes"'
+stdout '"evidence":true'
+! stderr .
+
+# Above the threshold: 0. Below it: 1, still with the decision on stdout.
+exits 0 nav-pilot alpha decide 'Is this a bug fix?' --options yes,no --evidence msg.txt --threshold 0.5 --expect yes
+stdout '"pass":true'
+exits 1 nav-pilot alpha decide 'Is this a bug fix?' --options yes,no --evidence msg.txt --threshold 0.5 --expect no
+stdout '"choice":"yes"'
+stdout '"pass":false'
+! stderr .
+
+# No evidence: still answers, and warns on stderr, not stdout.
+exec nav-pilot alpha decide 'Is this a bug fix?' --options yes,no
+validjson stdout
+stderr '⚠ No --evidence: the model saw only the question'
+
+-- msg.txt --
+fix: stop sync from deleting composed agents

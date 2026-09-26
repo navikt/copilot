@@ -1,0 +1,27 @@
+# A new user's first look at the alpha surface. Help that was asked for goes
+# to stdout (so it pages and greps), stderr stays empty, and it names the next
+# command.
+
+exec nav-pilot alpha --help
+! stderr .
+stdout 'Usage:'
+stdout 'nav-pilot alpha local <command>'
+stdout 'nav-pilot alpha local models'
+
+exec nav-pilot alpha local --help
+! stderr .
+stdout 'init +Set it all up'
+stdout '--yes answers for a script'
+stdout 'use +Pick the model'
+stdout 'Switching model:'
+
+exec nav-pilot alpha decide --help
+! stderr .
+stdout 'Exit codes: 0 decided'
+stdout 'Needs a running local server'
+
+# Bare `alpha` is usage printed in place of a command, not help asked for:
+# it stays on stderr.
+exec nav-pilot alpha
+! stdout .
+stderr 'Usage:'

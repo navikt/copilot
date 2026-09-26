@@ -1,0 +1,54 @@
+# A scripted user who never set NO_COLOR. With stdout and stderr piped, every
+# stream must be plain text: escape codes in a log or a jq pipe are noise.
+
+env NO_COLOR=
+
+exec nav-pilot alpha local status
+! stdout '\x1b'
+! stderr '\x1b'
+
+exec nav-pilot alpha local models
+! stdout '\x1b'
+
+! exec nav-pilot alpha local use gemma3-4
+! stdout '\x1b'
+! stderr '\x1b'
+stderr 'Did you mean'
+
+exits 2 nav-pilot alpha decide 'Is this a bug fix?' --options yes,no --evidence msg.txt
+! stderr '\x1b'
+stderr 'no local server is recorded as running'
+
+! exec nav-pilot alpha frobnicate
+! stderr '\x1b'
+
+-- msg.txt --
+fix: stop sync from deleting composed agents
+-- home/.nav-pilot/local-models.json --
+{
+  "schema_version": 1,
+  "channel": "alpha",
+  "models": [
+    {
+      "key": "qwen3.6-35b-a3b-optiq",
+      "name": "Qwen 3.6 35B A3B OptiQ 4bit",
+      "model": "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "backend": "mlx-lm",
+      "default": true,
+      "weights_gb": 25,
+      "min_ram_gb": 8,
+      "wired_limit_gb": 4,
+      "params": {"MLX_OPENCODE_CONTEXT": "65536"}
+    },
+    {
+      "key": "gemma3-4b",
+      "name": "Gemma 3 4B",
+      "model": "mlx-community/gemma-3-4b-it-4bit",
+      "backend": "mlx-lm",
+      "weights_gb": 3,
+      "min_ram_gb": 8,
+      "wired_limit_gb": 4,
+      "params": {"MLX_OPENCODE_CONTEXT": "32768"}
+    }
+  ]
+}

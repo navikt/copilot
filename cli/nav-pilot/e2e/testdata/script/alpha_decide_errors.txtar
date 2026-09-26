@@ -1,0 +1,46 @@
+# decide from a script, on a machine with no local server. Every failure is
+# exit 2 with a message on stderr and nothing on stdout, so a hook can tell
+# "error" (2) from "below the threshold" (1).
+
+# No server: says so, says decide will not start one, and returns at once
+# rather than waiting out the 30 s --timeout.
+exits -within 3s 2 nav-pilot alpha decide 'Is this a bug fix?' --options yes,no --evidence msg.txt --timeout 30s
+! stdout .
+stderr 'no local server is recorded as running\. Start it: nav-pilot alpha local start'
+stderr 'decide does not start one itself'
+
+# No --options.
+exits 2 nav-pilot alpha decide 'Is this a bug fix?'
+! stdout .
+stderr '--options needs 2 to 26 comma-separated labels, as in --options yes,no; got 0'
+
+# --threshold without --expect.
+exits 2 nav-pilot alpha decide 'Is this a bug fix?' --options yes,no --threshold 0.8
+! stdout .
+stderr '--threshold and --expect go together, as in --threshold 0.8 --expect yes'
+
+# An eval file with one malformed line: file and line number, before any
+# server is asked anything.
+exits 2 nav-pilot alpha decide --eval cases.jsonl
+! stdout .
+stderr 'cases.jsonl:2: '
+! stderr 'no local server'
+
+# A server that died and left its record behind: say it is gone and how to
+# start it again, in decide's terms. The loop guard is not decide's business.
+mkdir home/.nav-pilot/local
+cp stale-server.json home/.nav-pilot/local/server.json
+exits -within 3s 2 nav-pilot alpha decide 'Is this a bug fix?' --options yes,no --evidence msg.txt --timeout 30s
+! stdout .
+stderr 'the local server \(pid [0-9]+\) has stopped'
+stderr 'nav-pilot alpha local start'
+! stderr 'loop guard'
+
+-- stale-server.json --
+{"pid":2147483600,"model":"mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit","started":"2026-09-26T08:00:00Z","port":1,"lstart":"Sat Sep 26 08:00:00 2026"}
+-- msg.txt --
+fix: stop sync from deleting composed agents
+-- cases.jsonl --
+{"question":"Is this a bug fix?","options":["yes","no"],"evidence":"fix: typo","expect":"yes"}
+{"question":"Is this a bug fix?","options":["yes","no"],"evidence":"feat: new flag","expect":"no"
+{"question":"Is this a bug fix?","options":["yes","no"],"evidence":"docs: readme","expect":"no"}

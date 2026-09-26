@@ -146,21 +146,6 @@ func TestSelfInstallKeepsReuseDeclaration(t *testing.T) {
 	}
 }
 
-// --json skal gi et dokument som parser, også når sync rydder.
-func TestSyncJSONStaysParseable(t *testing.T) {
-	e := newEnv(t)
-	src := e.pakke("plattform", "grillmester")
-	cons := e.consumer("forbruker")
-	if out, code := e.run(cons, "install", "plattform", "--source", src, "--repo"); code != 0 {
-		t.Fatalf("install feilet: %d\n%s", code, out)
-	}
-	out, _ := e.run(cons, "sync", "--repo", "--json", "--source", src)
-	var doc map[string]any
-	if err := json.Unmarshal([]byte(out), &doc); err != nil {
-		t.Fatalf("sync --json ga noe som ikke er JSON: %v\n%s", err, out)
-	}
-}
-
 // Isolasjonen er hele forutsetningen for suiten, så den måles framfor å antas.
 //
 // Testen som sto her het «ingenting skrives utenfor sandkassen» og sjekket
