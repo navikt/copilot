@@ -37,10 +37,12 @@ import (
 // that behaviour, plus a cplt minimum-version gate that enforces the baseline —
 // not the flag looking redundant.
 //
-// --project-dir (lines 666-667) stays omitted: nav-pilot treats the working
-// directory as the project scope. No launch path sets cmd.Dir, so cplt and the
-// client inherit the user's cwd, which is what the reference passes explicitly.
-// eSyfo accept the omission on exactly that condition.
+// --project-dir (lines 666-667) is passed, as the reference does: the working
+// directory, or the user's own nav-pilot --project-dir. It used to be omitted
+// on the belief that cplt would inherit the cwd, but cplt widens a cwd inside a
+// git repository to the repository root, so a session started from a subfolder
+// was scoped to the whole checkout. launchViaCplt adds it for every launch;
+// see cpltProjectDir.
 //
 // Note on provenance: the reference launcher does not stage — it points cplt at
 // the payload in place inside its immutable Homebrew bundle. The
@@ -166,7 +168,8 @@ func containsOption(args []string, option string) bool {
 // by the digest-verified payload: a forwarded --plugin-dir would append an
 // unverified plugin directory to a verified session. The reference's cplt-side
 // checks (lines 613-632) have no counterpart here — nav-pilot builds its cplt
-// argument vector itself and forwards nothing of the user's into it.
+// argument vector itself, and the only user input it forwards into it is the
+// directory named by nav-pilot's own --project-dir.
 //
 // Refused, not dropped: the user typed it and deserves to be told why it did
 // not take effect. Only the staged path is guarded; the legacy path has no
@@ -260,6 +263,7 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 		env:           env,
 		displayName:   "opencode",
 		messageSuffix: s.suffix(),
+		projectDir:    r.ProjectDir,
 	}, nil
 }
 
@@ -303,6 +307,7 @@ func buildStagedPiSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch, err
 		agentArgs:     agentArgs,
 		displayName:   "pi",
 		messageSuffix: s.suffix(),
+		projectDir:    r.ProjectDir,
 	}, nil
 }
 
@@ -371,6 +376,7 @@ func buildStagedCopilotSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch
 		env:           copilotEnv(r.OtelLogLevel, pakkeAcceptsUserContext("copilot")),
 		displayName:   CLIDisplayName("cplt"),
 		messageSuffix: s.suffix(),
+		projectDir:    r.ProjectDir,
 	}, nil
 }
 

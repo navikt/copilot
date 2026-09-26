@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"syscall"
 
@@ -33,6 +34,9 @@ type cpltLaunch struct {
 	cpltArgs []string
 	// agentArgs are forwarded to the agent process after the "--" separator.
 	agentArgs []string
+	// projectDir is the user's --project-dir, or "" for the working
+	// directory. launchViaCplt always passes one; see [cpltProjectDir].
+	projectDir string
 	// skillsDir is the materialized skills root for this launch, or "" when
 	// nav-pilot materialized no skills for this client. Non-empty, it is
 	// exported as NAV_PILOT_SKILLS_DIR and passed through the sandbox with
@@ -131,6 +135,39 @@ func withCpltAllowLocalhost(args []string, port int) []string {
 	return append([]string{"--allow-localhost", strconv.Itoa(port)}, args...)
 }
 
+// cpltProjectDir is the absolute directory every launch hands cplt as
+// --project-dir: the user's --project-dir if given, else the working directory.
+//
+// Always explicit. Left to itself, cplt widens a working directory inside a
+// git repository to the repository root, so a session started from a
+// subfolder that is not a repository of its own — a monorepo package, a
+// scratch workspace under a checkout — could read and write its siblings.
+// nav-pilot's promise is the working directory, and this makes cplt keep it.
+// The wider scope is still one step away: start from the repository root, or
+// pass --project-dir.
+//
+// No check for $HOME or / here: cplt refuses both itself ("too broad"), and an
+// explicit --project-dir makes sure that refusal is reached.
+func cpltProjectDir(explicit string) (string, error) {
+	if explicit == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("could not read the working directory to scope the cplt sandbox: %w", err)
+		}
+		return wd, nil
+	}
+	return filepath.Abs(explicit)
+}
+
+// withCpltProjectDir prefixes cplt's --project-dir, resolved by [cpltProjectDir].
+func withCpltProjectDir(args []string, explicit string) ([]string, error) {
+	dir, err := cpltProjectDir(explicit)
+	if err != nil {
+		return nil, err
+	}
+	return append([]string{"--project-dir", dir}, args...), nil
+}
+
 // launchViaCplt runs the given client agent inside the cplt sandbox, wiring
 // stdio to the current process. cplt is required: if it is not found on PATH the
 // launch fails with guidance instead of falling back to an unsandboxed binary.
@@ -142,7 +179,10 @@ func launchViaCplt(spec cpltLaunch) error {
 	}
 
 	spec.env = withSkillsDirEnv(spec.env, spec.skillsDir)
-	args := withCpltConfirmation(cpltArgv(spec), IsTerminal(os.Stdin))
+	args, err := withCpltProjectDir(withCpltConfirmation(cpltArgv(spec), IsTerminal(os.Stdin)), spec.projectDir)
+	if err != nil {
+		return err
+	}
 
 	fmt.Printf("Launching %s via %s%s...\n\n",
 		domain.Bold(spec.displayName), domain.Bold("cplt sandbox"), spec.messageSuffix)

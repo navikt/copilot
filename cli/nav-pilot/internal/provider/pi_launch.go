@@ -190,8 +190,9 @@ func LaunchPi(resolved domain.ResolvedConfig) error {
 		// EnsurePiNavContext above, and piSkillArgs hands the same skills/ to
 		// pi as --skill. It is empty only when the pakke declares no pi entry
 		// or ships no skills, and then so is the variable.
-		skillsDir: materializedSkillsDir(contextDir),
-		agentArgs: piLaunchArgs(contextDir, persona, resolved),
+		skillsDir:  materializedSkillsDir(contextDir),
+		agentArgs:  piLaunchArgs(contextDir, persona, resolved),
+		projectDir: resolved.ProjectDir,
 	})
 }
 

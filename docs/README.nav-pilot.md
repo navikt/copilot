@@ -247,9 +247,9 @@ Det virker fordi begge klientene leser scopet fra arbeidskatalogen:
 
 Skarpe kanter:
 
-- **Konteksten følger arbeidskatalogen.** nav-pilot sender ingen prosjektkatalog med til
-  cplt, så klienten arver katalogen du står i. Står du i hub-repoet, har du hub-repoets
-  artefakter og hub-repoets filer. Går du til applikasjonsrepoet for å endre kode der, har
+- **Konteksten følger arbeidskatalogen.** nav-pilot gir cplt katalogen du står i som
+  `--project-dir`, og klienten arver den samme katalogen. Står du i hub-repoet, har du
+  hub-repoets artefakter og hub-repoets filer. Går du til applikasjonsrepoet for å endre kode der, har
   du ikke lenger hub-repoets egne skills i scopet.
 - **Kilden vinner ved navnekollisjon.** En håndlagd skill med samme navn som en installert
   taper i opencode. Se «Hva scopet ditt bidrar med» under opencode-avsnittet.
@@ -302,6 +302,13 @@ En modell du velger med config eller `--model`, vinner over agentpakkas standard
 > `cplt --agent <klient>`. Agenten kan da lese og skrive prosjektfiler, men når ikke
 > SSH-nøkler, tilgangsinformasjon for skytjenester eller andre hemmeligheter. `cplt` må
 > være installert for å starte `opencode` og `pi`, i tillegg til selve klient-binæren.
+>
+> **Sandboxen gjelder katalogen du står i.** nav-pilot sender alltid `--project-dir` med
+> til cplt, satt til arbeidskatalogen. Uten det utvider cplt en undermappe til roten av
+> git-repoet den ligger i, så en økt startet fra `workspaces/noe/` kunne endre mapper ved
+> siden av. Trenger du hele repoet, for eksempel for endringer på tvers av pakker i et
+> monorepo, starter du fra roten av repoet eller bruker `nav-pilot --project-dir <katalog>`.
+> Hjemmekatalogen og `/` avviser cplt selv som for vide.
 
 > **Auth-detalj (Copilot/cplt):** nav-pilot henter ikke ut GitHub-tokenet selv.
 > Med `cplt`s gh-guard på, som `sandbox.preset = strict` slår på og `nav-pilot
@@ -663,6 +670,9 @@ Støttede felt er `client`, `model`, `mode`, `reasoning_effort`, `context_tier`,
 `allow_all_tools`, `ask_user`, `auto_launch` og `log_level`. Du kan overstyre dem per kjøring
 med globale flagg som `--client`, `--model`, `--mode`, `--effort`, `--context`,
 `--allow-all-tools`, `--no-ask-user`, `--auto-launch`/`--no-auto-launch` og `--log-level`.
+
+`--project-dir <katalog>` bestemmer hvilken katalog agenten får lese og skrive i cplt-sandboxen.
+Standard er katalogen du står i, ikke roten av git-repoet rundt den.
 
 `--persona <navn>` velger hvilken av agentpakkens `primaryAgents` som startes. Uten
 flagget startes den første. Et navn som ikke er deklarert for klienten avvises med
