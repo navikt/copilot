@@ -1466,17 +1466,21 @@ func CheckWiredLimit(m Model) (WiredLimit, error) {
 	// as far as loading weights before macOS decided how it ended.
 	if m.MinRAMGB > 0 && m.MinRAMGB > w.MachineRAMGB {
 		return w, fmt.Errorf(
-			"%s needs a machine with at least %d GB of memory, and this one has %d GB.\n\n  Run `nav-pilot models` and pick an entry this machine can hold",
-			m.Model, m.MinRAMGB, w.MachineRAMGB)
+			"%s needs a machine with at least %d GB of memory, and this one has %d GB.\n\n  %s",
+			m.Model, m.MinRAMGB, w.MachineRAMGB, pickSmaller)
 	}
 
 	if w.RequiredGB+minFreeGB > w.MachineRAMGB {
 		return w, fmt.Errorf(
-			"%s needs a %d GB wired-memory limit, which would leave %d GB of this %d GB machine for everything else, below the %d GB the rest of the system needs.\n\n  Pick a smaller model. A cap this close to physical memory is how a machine running containers and a browser loses its compositor and has to be power-cycled",
-			m.Model, w.RequiredGB, w.MachineRAMGB-w.RequiredGB, w.MachineRAMGB, minFreeGB)
+			"%s needs a %d GB wired-memory limit, which would leave %d GB of this %d GB machine for everything else, below the %d GB the rest of the system needs.\n\n  A cap this close to physical memory is how a machine running containers and a browser loses its compositor and has to be power-cycled. %s",
+			m.Model, w.RequiredGB, w.MachineRAMGB-w.RequiredGB, w.MachineRAMGB, minFreeGB, pickSmaller)
 	}
 	return w, nil
 }
+
+// pickSmaller is where both memory refusals send the developer. It used to say
+// `nav-pilot models`, which lists the hosted models, not the local ones.
+const pickSmaller = "Pick one this machine can hold: nav-pilot alpha local models, then nav-pilot alpha local use <key>"
 
 // defaultWiredMarginGB is how far the estimated default must clear a model's
 // requirement before it counts as enough. The estimate is Apple's published

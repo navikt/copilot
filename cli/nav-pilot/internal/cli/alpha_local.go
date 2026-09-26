@@ -51,7 +51,8 @@ Usage:
 Local inference. Run a model on this machine instead of sending prompts to a
 hosted one. Off until you run init, and invisible everywhere until then.
 
-  init      Set it all up: environment, weights, memory limit, and a running server
+  init      Set it all up: environment, weights, memory limit, and a running server.
+            Asks before it downloads or runs sudo; --yes answers for a script
   start     Start the server and wait until it answers a real completion
   restart   Stop the server and start one on the model local_model names now
   stop      Stop the server
@@ -61,7 +62,7 @@ hosted one. Off until you run init, and invisible everywhere until then.
   ask       Put one question straight to the local model: ask -p "..." (or pipe stdin)
   on        Dispatch to it again after off, without downloading anything
   off       Stop dispatching to it; the weights stay on disk
-  purge     Remove the environment and the weights, after showing what and how big
+  purge     Remove the environment and the weights, after showing what and how big (--yes deletes)
 
 Switching model:
   nav-pilot alpha local models                      what is offered, and which is in use
@@ -90,7 +91,7 @@ func cmdAlpha(args []string) error {
 	}
 	switch sub {
 	case "init":
-		return cmdLocalInit()
+		return cmdLocalInit(args[2:])
 	case "start":
 		return cmdLocalStart()
 	case "stop":
@@ -225,8 +226,9 @@ func localSelection(m *local.Manifest) (entry local.Model, configured, why strin
 
 // ─── init ────────────────────────────────────────────────────────────────────
 
-func cmdLocalInit() error {
+func cmdLocalInit(args []string) error {
 	ctx := context.Background()
+	yes := slices.Contains(args, "--yes")
 	m, err := activeManifest()
 	if err != nil {
 		return err
@@ -238,7 +240,7 @@ func cmdLocalInit() error {
 
 	// Before anything is downloaded: a machine that cannot run the model must
 	// not spend an afternoon of bandwidth finding out.
-	wired, err := local.CheckWiredLimit(model)
+	wired, err := checkWiredLimit(model)
 	if err != nil {
 		return err
 	}
@@ -259,6 +261,9 @@ func cmdLocalInit() error {
 	}
 	fmt.Printf("  Needs    %d GB RAM, a %d GB wired-memory limit (this machine has %d GB)\n",
 		model.MinRAMGB, wired.RequiredGB, wired.MachineRAMGB)
+	if !wired.Sufficient {
+		fmt.Printf("           Needs sudo once to raise the wired-memory limit to %d GB (resets at reboot).\n", wired.RequiredGB)
+	}
 
 	download := envDownloadGB
 	if !present {
@@ -313,11 +318,18 @@ func cmdLocalInit() error {
 	// put its question to /dev/null, got an error back, printed "Cancelled" and
 	// exited 0. The caller was told nothing, and carried on against an
 	// environment that had never been provisioned.
-	if download > 0 && providerpkg.IsTerminal(os.Stdin) {
+	//
+	// Without a terminal nobody can say no, so init refuses rather than
+	// spending the download and a sudo on a script's behalf. --yes is the
+	// script saying yes.
+	if consent := initConsent(download, wired); consent != "" && !yes {
+		if !providerpkg.IsTerminal(os.Stdin) {
+			return &exitCode{code: 2, err: fmt.Errorf("init would %s. Run it in a terminal, or pass --yes", consent)}
+		}
 		if err := confirmDownload(download, func() (bool, error) {
 			var proceed bool
 			err := huh.NewConfirm().
-				Title(fmt.Sprintf("Download about %d GB and provision the local-inference environment?", download)).
+				Title(strings.ToUpper(consent[:1]) + consent[1:] + "?").
 				Value(&proceed).
 				WithTheme(navTheme()).
 				Run()
@@ -386,6 +398,19 @@ func cmdLocalInit() error {
 	return nil
 }
 
+// initConsent is what init is about to do that needs a yes: the download, the
+// sudo, both, or "" for neither.
+func initConsent(downloadGB int, wired local.WiredLimit) string {
+	var parts []string
+	if downloadGB > 0 {
+		parts = append(parts, fmt.Sprintf("download about %d GB", downloadGB))
+	}
+	if !wired.Sufficient {
+		parts = append(parts, "raise the wired-memory limit with sudo")
+	}
+	return strings.Join(parts, " and ")
+}
+
 // confirmDownload reports a refusal as an error rather than as a clean exit.
 // init used to print "Cancelled. Nothing was downloaded." and return nil, so a
 // script that ran init and carried on carried on regardless — and every command
@@ -396,6 +421,9 @@ func cmdLocalInit() error {
 func confirmDownload(gb int, ask func() (bool, error)) error {
 	proceed, err := ask()
 	if err != nil || !proceed {
+		if gb == 0 {
+			return errors.New("cancelled. Local inference was not enabled")
+		}
 		return fmt.Errorf("cancelled. The %d GB was not downloaded and local inference was not enabled", gb)
 	}
 	return nil
@@ -487,7 +515,7 @@ func cmdLocalStart() error {
 			model.Model, bold("nav-pilot alpha local init"))
 	}
 
-	wired, err := local.CheckWiredLimit(model)
+	wired, err := checkWiredLimit(model)
 	if err != nil {
 		return err
 	}
@@ -600,6 +628,10 @@ func startSummary(model local.Model, serverURL string, pid int, wired local.Wire
 // raiseWiredLimit is the sudo sysctl, a var so a test can say yes without
 // running it.
 var raiseWiredLimit = local.RaiseWiredLimit
+
+// checkWiredLimit is the memory check init, start, models and use share, a var
+// so a test can be a 48 GB machine without running sysctl.
+var checkWiredLimit = local.CheckWiredLimit
 
 // raiseWiredForStart does what init does about a low wired-memory limit, once
 // the developer agrees: a reboot resets the limit, and start used to answer that
@@ -734,7 +766,7 @@ func cmdLocalStatus() error {
 	// a fresh one: status answers a question about this machine, and it should
 	// not wait on a network to do it.
 	if model, found := local.Lookup(st.Model); found {
-		if wired, werr := local.CheckWiredLimit(model); werr == nil {
+		if wired, werr := checkWiredLimit(model); werr == nil {
 			fmt.Printf("  Wired limit  %d GB required, %s\n", wired.RequiredGB, wired.Label())
 			if !wired.Sufficient {
 				fmt.Printf("               %s %s\n", yellow("⚠"), bold(wired.Command))

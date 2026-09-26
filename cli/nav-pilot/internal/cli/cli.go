@@ -521,6 +521,13 @@ func run(args []string) error {
 			}
 			i++
 			updates = rest[i]
+		case "--yes":
+			// Consent for `alpha local init` and `purge`, which read it from
+			// their own arguments. Everywhere else it is not a flag.
+			if line := strings.Join(rest, " ") + " "; command != "alpha" || (!strings.HasPrefix(line, "local init ") && !strings.HasPrefix(line, "local purge ")) {
+				return fmt.Errorf("unknown flag: --yes")
+			}
+			positional = append(positional, rest[i])
 		case "-h", "--help":
 			if command == "alpha" {
 				alphaUsage()

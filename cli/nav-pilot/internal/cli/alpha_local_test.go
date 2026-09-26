@@ -805,3 +805,78 @@ func TestAlphaHelpFlagsPrintAlphaUsage(t *testing.T) {
 		t.Errorf("alpha decide --help lost its own usage:\n%s", errOut)
 	}
 }
+
+// TestInitWithoutATerminalNeedsYes: a scripted init used to skip the question
+// and start a 26 GB download, then a sudo, with nobody there to say no. It now
+// refuses with exit 2 and says how to consent, having printed the plan, sudo
+// included, and done nothing.
+func TestInitWithoutATerminalNeedsYes(t *testing.T) {
+	home := localTestHome(t)
+	t.Setenv("HF_HOME", filepath.Join(home, "hf"))
+	fakeMachine(t, 48, false)
+	raised := 0
+	orig := raiseWiredLimit
+	t.Cleanup(func() { raiseWiredLimit = orig })
+	raiseWiredLimit = func(context.Context, local.WiredLimit) error { raised++; return nil }
+	devnull, derr := os.Open(os.DevNull)
+	if derr != nil {
+		t.Fatal(derr)
+	}
+	origStdin := os.Stdin
+	os.Stdin = devnull
+	t.Cleanup(func() { os.Stdin = origStdin; devnull.Close() })
+
+	var err error
+	out := captureStdout(func() { captureStderr(func() { err = cmdLocalInit(nil) }) })
+	var ec *exitCode
+	if !errors.As(err, &ec) || ec.code != 2 {
+		t.Fatalf("init without a terminal = %v, want exit 2", err)
+	}
+	for _, want := range []string{"init would download about", "raise the wired-memory limit with sudo", "Run it in a terminal, or pass --yes"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal %q lacks %q", err, want)
+		}
+	}
+	if !strings.Contains(out, "Needs sudo once to raise the wired-memory limit to") {
+		t.Errorf("the plan does not mention sudo:\n%s", out)
+	}
+	if raised != 0 || local.Installed() || strings.Contains(out, "Provisioning") {
+		t.Errorf("init did something before it had consent: raised %d, output:\n%s", raised, out)
+	}
+}
+
+func TestInitConsentNamesWhatNeedsAYes(t *testing.T) {
+	for _, tc := range []struct {
+		gb     int
+		enough bool
+		want   string
+	}{
+		{26, true, "download about 26 GB"},
+		{0, false, "raise the wired-memory limit with sudo"},
+		{26, false, "download about 26 GB and raise the wired-memory limit with sudo"},
+		{0, true, ""},
+	} {
+		if got := initConsent(tc.gb, local.WiredLimit{Sufficient: tc.enough}); got != tc.want {
+			t.Errorf("initConsent(%d, %t) = %q, want %q", tc.gb, tc.enough, got, tc.want)
+		}
+	}
+}
+
+// --yes used to be refused by the top-level flag loop, so `purge --yes` could
+// never delete and `init --yes` could not be passed.
+func TestAlphaLocalTakesYes(t *testing.T) {
+	localTestHome(t)
+	var err error
+	out := captureStdout(func() { err = run([]string{"alpha", "local", "purge", "--yes"}) })
+	if err != nil {
+		t.Fatalf("alpha local purge --yes = %v", err)
+	}
+	if !strings.Contains(out, "Nothing to remove") {
+		t.Errorf("purge --yes on an empty machine printed:\n%s", out)
+	}
+	for _, args := range [][]string{{"list", "--yes"}, {"alpha", "local", "start", "--yes"}} {
+		if err := run(args); err == nil || !strings.Contains(err.Error(), "unknown flag: --yes") {
+			t.Errorf("%v = %v, want unknown flag", args, err)
+		}
+	}
+}

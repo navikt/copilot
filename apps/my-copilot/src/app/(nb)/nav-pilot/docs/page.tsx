@@ -2093,8 +2093,14 @@ function LocalModelSection({ models }: { models: LocalModel[] }) {
             Første <code className="font-mono text-xs">start</code> laster modellen inn i minnet. Ti målte oppstarter på
             seks maskiner lå alle under 50 sekunder, seks av dem under ti.
           </BodyShort>
+          <BodyShort size="small" textColor="subtle">
+            <code className="font-mono text-xs">init</code> viser hva den skal laste ned, og om den trenger{" "}
+            <code className="font-mono text-xs">sudo</code> for å heve minnegrensen, og spør før den begynner. Uten
+            terminal nekter den, med mindre du sender med <code className="font-mono text-xs">--yes</code>.
+          </BodyShort>
           <CodeBlock compact>
             {`nav-pilot alpha local init      # laster ned modellen og setter opp miljøet
+nav-pilot alpha local init --yes # det samme fra et skript, uten å spørre
 nav-pilot alpha local start     # starter serveren
 nav-pilot alpha local status    # kjører den? svarer den? hvilken modell? hva har den gjort?
 nav-pilot alpha local models    # modellene som tilbys, og hvilken som er i bruk
@@ -2105,7 +2111,7 @@ nav-pilot alpha local stop
 nav-pilot alpha local restart   # stop og start i ett
 nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
-nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først`}
+nav-pilot alpha local purge     # viser hva som fjernes og hvor mye; --yes sletter`}
           </CodeBlock>
           <VStack id="lokal-modeller" gap="space-12">
             <LinkableHeading size="small" level="3">
