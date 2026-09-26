@@ -39,7 +39,7 @@ func TestValidateCustomModelInput(t *testing.T) {
 		// untrimmed id here would wrongly fail a value the save path trims
 		// to something valid.
 		{"opencode: a valid id with surrounding whitespace is accepted", opencode, "  github-copilot/gpt-5.5  ", false},
-		{"opencode: a bare id is rejected (needs provider/model)", opencode, "gpt-5.5", true},
+		{"opencode: a bare Copilot id is accepted", opencode, "gpt-5.5", false},
 		{"opencode: a qualified id is accepted", opencode, "github-copilot/gpt-5.5", false},
 		{"copilot: blank is accepted", copilot, "", false},
 		{"copilot: a bare id is accepted", copilot, "gpt-5.5", false},

@@ -1,14 +1,12 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/BurntSushi/toml"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 )
@@ -435,11 +433,19 @@ func cmdConfig(args []string, force bool, jsonOutput bool) error {
 				return err
 			}
 		}
-		return fmt.Errorf("config requires a subcommand.\n\nUsage: nav-pilot config <subcommand> [options]\n\nSubcommands:\n  init      Create ~/.nav-pilot/config.toml with all options commented out\n  setup     Run the interactive first-run setup wizard\n  show      Print effective configuration (file values merged with defaults)\n  path      Print the config file path\n  get       Print one key value\n  set       Set a key value (creates file if missing)\n  validate  Validate config syntax, unknown keys, and values\n  explain   Describe configuration keys\n  sandbox   Interactively configure cplt sandbox profile")
+		return fmt.Errorf("config requires a subcommand.\n\n%s", strings.TrimSuffix(fmt.Sprintf(commandHelp["config"], configPath()), "\n"))
 	}
 
 	sub := args[0]
 	rest := args[1:]
+
+	switch sub {
+	case "show", "get", "path", "validate":
+	default:
+		if jsonOutput {
+			return fmt.Errorf("--json is not supported by config %s; it works with config show, get, path and validate", sub)
+		}
+	}
 
 	switch sub {
 	case "init":
@@ -449,12 +455,12 @@ func cmdConfig(args []string, force bool, jsonOutput bool) error {
 	case "show":
 		return cmdConfigShow(jsonOutput)
 	case "path":
-		return cmdConfigPath()
+		return cmdConfigPath(jsonOutput)
 	case "get":
 		if len(rest) == 0 {
 			return fmt.Errorf("config get requires a key.\n\nUsage: nav-pilot config get <key>\n\nKnown keys: %s", knownKeyNames())
 		}
-		return cmdConfigGet(rest[0])
+		return cmdConfigGet(rest[0], jsonOutput)
 	case "set":
 		if len(rest) < 2 {
 			return fmt.Errorf("config set requires a key and value.\n\nUsage: nav-pilot config set <key> <value>")
@@ -463,8 +469,13 @@ func cmdConfig(args []string, force bool, jsonOutput bool) error {
 			return fmt.Errorf("config set takes one value, got %d; quote values with spaces\n\nUsage: nav-pilot config set <key> <value>", len(rest)-1)
 		}
 		return cmdConfigSet(rest[0], rest[1])
+	case "unset":
+		if len(rest) != 1 {
+			return fmt.Errorf("config unset takes one key.\n\nUsage: nav-pilot config unset <key>")
+		}
+		return cmdConfigUnset(rest[0])
 	case "validate":
-		return cmdConfigValidate()
+		return cmdConfigValidate(jsonOutput)
 	case "explain":
 		key := ""
 		if len(rest) > 0 {
@@ -474,7 +485,7 @@ func cmdConfig(args []string, force bool, jsonOutput bool) error {
 	case "sandbox":
 		return cmdConfigSandbox()
 	default:
-		return fmt.Errorf("unknown config subcommand: %q\n\nSubcommands: init, setup, show, path, get, set, validate, explain, sandbox", sub)
+		return fmt.Errorf("unknown config subcommand: %q\n\nSubcommands: init, setup, show, path, get, set, unset, validate, explain, sandbox", sub)
 	}
 }
 
@@ -502,33 +513,27 @@ func cmdConfigInit() error {
 // ─── config show ─────────────────────────────────────────────────────────────
 
 func cmdConfigShow(jsonOutput bool) error {
-	cfg, err := readConfig()
+	cfg, problems, err := loadConfig()
 	if err != nil {
 		return err
 	}
+	warnConfigProblems(problems)
 	resolved := resolve(cfg, CLIOverrides{})
 
 	if jsonOutput {
-		return outputJSON(map[string]interface{}{
-			"client":            resolved.Client,
-			"source":            effectiveSourceLabel(resolved),
-			"model":             resolved.Model,
-			"mode":              resolved.Mode,
-			"reasoning_effort":  resolved.ReasoningEffort,
-			"context_tier":      resolved.ContextTier,
-			"allow_all_tools":   resolved.AllowAllTools,
-			"ask_user":          resolved.AskUser,
-			"auto_launch":       resolved.AutoLaunch,
-			"auto_update":       resolved.AutoUpdate,
-			"log_level":         resolved.LogLevel,
-			"otel_log_level":    resolved.OtelLogLevel,
-			"copilot_auth_mode": resolved.CopilotAuthMode,
-		})
+		out := map[string]any{}
+		for _, kd := range configKeyDefs {
+			out[kd.name] = map[string]any{
+				"value":  configJSONValue(resolved, &kd),
+				"origin": configKeyOrigin(cfg, kd.name),
+			}
+		}
+		return outputJSON(out)
 	}
 
 	path := configPath()
 	if cfg == nil {
-		fmt.Printf("# Config file: %s %s\n\n", path, dim("(not found, using defaults)"))
+		fmt.Printf("# Config file: %s %s\n\n", path, dim("(not found, using defaults; NAV_PILOT_CONFIG sets another path)"))
 	} else {
 		fmt.Printf("# Config file: %s\n\n", path)
 	}
@@ -538,35 +543,85 @@ func cmdConfigShow(jsonOutput bool) error {
 		if val == "" {
 			val = "(unset)"
 		}
-		fmt.Printf("  %-20s = %-20s (%s)\n", key, val, configKeySource(cfg, key))
+		fmt.Printf("  %-20s = %-20s (%s)\n", key, val, configKeyOrigin(cfg, key))
 	}
 
 	return nil
 }
 
+// warnConfigProblems is the one line show and get print about a config with
+// problems. They still answer: the values they print are what a launch would
+// use once the problems are fixed.
+func warnConfigProblems(problems []string) {
+	if len(problems) == 0 {
+		return
+	}
+	noun := "problems"
+	if len(problems) == 1 {
+		noun = "problem"
+	}
+	fmt.Fprintf(os.Stderr, "%s your config has %d %s: %s\n", yellow("⚠"), len(problems), noun, bold("nav-pilot config validate"))
+}
+
+// configJSONValue is a key's effective value with its TOML type: a number or
+// a boolean rather than its string form.
+func configJSONValue(r ResolvedConfig, kd *configKeyDef) any {
+	v := configKeyValue(r, kd.name)
+	if kd.name == "model" {
+		v = resolvedFieldStr(r, "model") // the id, not the picker label
+	}
+	switch kd.kind {
+	case keyKindInt:
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+	case keyKindBool:
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
+		}
+	}
+	return v
+}
+
 // ─── config path ─────────────────────────────────────────────────────────────
 
-func cmdConfigPath() error {
-	fmt.Println(configPath())
+func cmdConfigPath(jsonOutput bool) error {
+	path := configPath()
+	if jsonOutput {
+		_, err := os.Stat(path)
+		return outputJSON(map[string]any{"path": path, "exists": err == nil})
+	}
+	fmt.Println(path)
 	return nil
 }
 
 // ─── config get ──────────────────────────────────────────────────────────────
 
-func cmdConfigGet(key string) error {
+func cmdConfigGet(key string, jsonOutput bool) error {
 	kd := findKeyDef(key)
 	if kd == nil {
 		return fmt.Errorf("unknown key: %q\n\nKnown keys: %s", key, knownKeyNames())
 	}
 
-	cfg, err := readConfig()
+	cfg, problems, err := loadConfig()
 	if err != nil {
 		return err
 	}
+	warnConfigProblems(problems)
 	resolved := resolve(cfg, CLIOverrides{})
 
-	val := resolvedFieldStr(resolved, key)
-	fmt.Println(val)
+	if jsonOutput {
+		return outputJSON(map[string]any{
+			"key":    key,
+			"value":  configJSONValue(resolved, kd),
+			"origin": configKeyOrigin(cfg, key),
+		})
+	}
+	v := resolvedFieldStr(resolved, key)
+	if env, ok := configEnvOverrides[key]; ok && os.Getenv(env) != "" {
+		v = os.Getenv(env)
+	}
+	fmt.Println(v)
 	return nil
 }
 
@@ -628,8 +683,18 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 // ─── config set ──────────────────────────────────────────────────────────────
 
 func cmdConfigSet(key, value string) error {
-	tomlVal, err := writeConfigKey(key, value)
-	if err != nil {
+	cfg, _, _ := loadConfig()
+	// A model the configured client cannot run is refused here rather than
+	// at the next launch.
+	if key == "model" && strings.TrimSpace(value) != "" {
+		if problem, _ := modelAdvice(value, cfgClient(cfg), cfg != nil && cfg.LocalModel != nil, false); problem != "" {
+			return fmt.Errorf("%s, nothing was written", problem)
+		}
+	}
+	before := configChangeLabel(cfg, key)
+	old, _ := os.ReadFile(configPath())
+
+	if _, err := writeConfigKey(key, value); err != nil {
 		return err
 	}
 	if key == "source" && strings.TrimSpace(value) == "" {
@@ -637,11 +702,71 @@ func cmdConfigSet(key, value string) error {
 			green("✓"), bold(defaultSourceRepo))
 		return nil
 	}
-	fmt.Printf("%s %s = %s\n", green("✓"), key, tomlVal)
+	after, _, _ := loadConfig()
+	printConfigChange(key, before, configChangeLabel(after, key), old)
+	if key == "model" || key == "client" {
+		warnModelAdvice(after)
+	}
 	if key == "local_model" {
 		warnServerServesSomethingElse(value)
 	}
 	return nil
+}
+
+// cmdConfigUnset removes a key from the file so its built-in default applies:
+// the command-line form of ctrl+r on the settings page.
+func cmdConfigUnset(key string) error {
+	if findKeyDef(key) == nil {
+		return fmt.Errorf("unknown key: %q\n\nKnown keys: %s", key, knownKeyNames())
+	}
+	cfg, _, _ := loadConfig()
+	before := configChangeLabel(cfg, key)
+	old, _ := os.ReadFile(configPath())
+	if err := updateConfigKey(key, ""); err != nil {
+		return err
+	}
+	after, _, _ := loadConfig()
+	printConfigChange(key, before, configChangeLabel(after, key), old)
+	return nil
+}
+
+// configChangeLabel is a key's effective value as `set` and `unset` print it,
+// with "(default)" when the file does not set it.
+func configChangeLabel(cfg *Config, key string) string {
+	v := resolvedFieldStr(resolve(cfg, CLIOverrides{}), key)
+	if key == "source" && v == "" {
+		v = defaultSourceRepo
+	}
+	switch origin := configKeyOrigin(cfg, key); {
+	case v == "" || origin == "unset":
+		return "(unset)"
+	case origin != "file":
+		return v + " (" + origin + ")"
+	}
+	return v
+}
+
+// printConfigChange prints "✓ client: opencode → pi" and, when the file
+// changed, where the previous one was kept.
+func printConfigChange(key, before, after string, old []byte) {
+	fmt.Printf("%s %s: %s → %s\n", green("✓"), key, before, after)
+	if cur, err := os.ReadFile(configPath()); err == nil && old != nil && !bytes.Equal(cur, old) {
+		fmt.Printf("  %s\n", dim("Previous file kept as "+configPath()+".bak"))
+	}
+}
+
+// warnModelAdvice prints what modelAdvice says about the configured model,
+// after a change to the model or the client it is for.
+func warnModelAdvice(cfg *Config) {
+	if cfg == nil || cfg.Model == nil {
+		return
+	}
+	problem, advice := modelAdvice(*cfg.Model, cfgClient(cfg), cfg.LocalModel != nil, false)
+	for _, w := range []string{problem, advice} {
+		if w != "" {
+			fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), w)
+		}
+	}
 }
 
 // effectiveSourceLabel names the source a resolved config selects, spelling out
@@ -677,6 +802,9 @@ func writeConfigKey(key, value string) (string, error) {
 
 // validateKeyValue checks that a value is valid for a given key definition.
 func validateKeyValue(kd *configKeyDef, value string) error {
+	if strings.TrimSpace(value) == "" && kd.name != "source" {
+		return fmt.Errorf("%s cannot be set to an empty value. To clear it, run nav-pilot config unset %s", kd.name, kd.name)
+	}
 	switch kd.kind {
 	case keyKindInt:
 		if _, err := strconv.Atoi(value); err != nil {
@@ -747,38 +875,44 @@ func formatTOMLValue(kd *configKeyDef, value string) (string, error) {
 
 // ─── config validate ─────────────────────────────────────────────────────────
 
-func cmdConfigValidate() error {
+func cmdConfigValidate(jsonOutput bool) error {
 	path := configPath()
 
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			fmt.Printf("%s No config file found at %s\n", yellow("⚠"), path)
-			fmt.Printf("  Run %s to create one.\n", bold("nav-pilot config init"))
-			return nil
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		if jsonOutput {
+			return outputJSON(map[string]any{"path": path, "exists": false, "valid": true, "problems": []string{}, "hints": []string{}})
 		}
-		return fmt.Errorf("reading config: %w", err)
+		fmt.Printf("%s No config file found at %s\n", yellow("⚠"), path)
+		fmt.Printf("  Run %s to create one, or set NAV_PILOT_CONFIG to use another file.\n", bold("nav-pilot config init"))
+		return nil
 	}
 
-	var cfg Config
-	meta, parseErr := toml.Decode(string(data), &cfg)
-	if parseErr != nil {
-		fmt.Printf("%s TOML parse error: %v\n", red("✗"), parseErr)
+	cfg, problems, err := loadConfig()
+	if err != nil {
+		if jsonOutput {
+			_ = outputJSON(map[string]any{"path": path, "exists": true, "valid": false, "problems": []string{err.Error()}, "hints": []string{}})
+			return fmt.Errorf("config file has invalid TOML syntax")
+		}
+		fmt.Printf("%s TOML parse error: %v\n", red("✗"), err)
 		return fmt.Errorf("config file has invalid TOML syntax")
 	}
+	hints := configAdvice(cfg, false)
 
-	var problems []string
-
-	// Unknown keys (keys in file not recognized by nav-pilot).
-	for _, key := range meta.Undecoded() {
-		problems = append(problems, unknownKeyProblem(strings.Join(key, ".")))
+	if jsonOutput {
+		if problems == nil {
+			problems = []string{}
+		}
+		if hints == nil {
+			hints = []string{}
+		}
+		if err := outputJSON(map[string]any{"path": path, "exists": true, "valid": len(problems) == 0, "problems": problems, "hints": hints}); err != nil {
+			return err
+		}
+		if len(problems) > 0 {
+			return fmt.Errorf("config validation failed")
+		}
+		return nil
 	}
-
-	// Semantic validation — append the []string slice directly.
-	problems = append(problems, validateConfigProblems(&cfg)...)
-
-	// Non-fatal hints about best practices.
-	hints := configHints(&cfg)
 
 	if len(problems) == 0 && len(hints) == 0 {
 		fmt.Printf("%s Config is valid (%s)\n", green("✓"), path)
@@ -804,37 +938,6 @@ func cmdConfigValidate() error {
 		return fmt.Errorf("config validation failed")
 	}
 	return nil
-}
-
-// configHints returns non-fatal informational hints for a config.
-// Unlike validateConfigProblems, these do not cause validation to fail.
-func configHints(cfg *Config) []string {
-	if cfg == nil {
-		return nil
-	}
-	var hints []string
-	// opencode and pi take provider/model; the hint is about the copilot client.
-	if cfg.Client != nil && *cfg.Client != "copilot" {
-		return nil
-	}
-	if cfg.Model != nil {
-		m := *cfg.Model
-		// Same line the launch prints, so validate and launch agree.
-		if note := providerpkg.CopilotModelNote(m); note != "" {
-			return []string{fmt.Sprintf("model %q: %s.", m, note)}
-		}
-		if strings.Contains(m, "/") {
-			shortID := strings.SplitN(m, "/", 2)[1]
-			if shortID == "" {
-				shortID = m // malformed provider/ with no model — keep full string
-			}
-			hints = append(hints, fmt.Sprintf(
-				"model %q uses a provider-qualified format — nav-pilot translates automatically. Use the canonical short-id instead: run %s.",
-				m, bold("nav-pilot config set model "+shortID),
-			))
-		}
-	}
-	return hints
 }
 
 // ─── config explain ──────────────────────────────────────────────────────────

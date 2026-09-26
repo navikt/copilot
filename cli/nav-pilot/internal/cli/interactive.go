@@ -89,7 +89,9 @@ func modelPickerOptions(p Provider, available map[string]bool) []huh.Option[stri
 	if def := p.DefaultModel(); def != "" {
 		defLabel = "Unset (Nav default: " + def + ")"
 	}
-	opts := []huh.Option[string]{huh.NewOption(defLabel, "")}
+	// "Other…" second, not last: at the end of a 35-entry list nobody found it
+	// and typed the id into the filter instead.
+	opts := []huh.Option[string]{huh.NewOption(defLabel, ""), huh.NewOption("Other… (type a model id)", customModelSentinel)}
 	for _, m := range p.KnownModels() {
 		// Marked, not hidden (#717). The list is generated from a global
 		// catalogue while availability follows the account, so an entry missing
@@ -106,7 +108,7 @@ func modelPickerOptions(p Provider, available map[string]bool) []huh.Option[stri
 		}
 		opts = append(opts, huh.NewOption(label, m.ID))
 	}
-	return append(opts, huh.NewOption("Custom (type manually)…", customModelSentinel))
+	return opts
 }
 
 // validateCustomModelInput validates the "Custom model id" input, blank
@@ -136,14 +138,12 @@ func validateCustomModelInput(p Provider, s string) error {
 func promptModel(p Provider, title, description, current string) (string, error) {
 	if p == nil || len(p.KnownModels()) == 0 {
 		value := current
-		err := huh.NewInput().
+		err := runField(huh.NewInput().
 			Title(title).
 			Description(description).
 			Placeholder("model-id").
 			Value(&value).
-			Validate(validateOptionalModel).
-			WithTheme(navTheme()).
-			Run()
+			Validate(validateOptionalModel))
 		return strings.TrimSpace(value), err
 	}
 
@@ -171,7 +171,7 @@ func promptModel(p Provider, title, description, current string) (string, error)
 	if len(opts) > maxVisibleSelectOptions {
 		sel = sel.WithHeight(maxVisibleSelectOptions + selectChromeLines)
 	}
-	if err := sel.Run(); err != nil {
+	if err := runField(sel); err != nil {
 		return "", err
 	}
 	if choice != customModelSentinel {
@@ -189,13 +189,11 @@ func promptModel(p Provider, title, description, current string) (string, error)
 		blankMeans = "Leave blank for the Nav default (" + def + ")."
 	}
 	value := current
-	err := huh.NewInput().
+	err := runField(huh.NewInput().
 		Title("Custom model id").
 		Description(blankMeans).
 		Value(&value).
-		Validate(validator).
-		WithTheme(navTheme()).
-		Run()
+		Validate(validator))
 	return strings.TrimSpace(value), err
 }
 

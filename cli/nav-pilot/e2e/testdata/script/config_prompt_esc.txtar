@@ -1,0 +1,12 @@
+# Esc cancels a prompt (it used to do nothing), the footer names it, and the
+# model picker offers "Other…" near the top. The settings page and the wizard
+# share these prompts; this drives the wizard, since a journey should not
+# drive the full settings page (see e2e/README.md). Leaving the settings page
+# with "Saved N changes" is covered by TestPrintPageSummary.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait '(?s)Other… \(type a model id\).*esc cancel' -send '\x1b' -- nav-pilot config setup
+stdout 'esc cancel'
+stdout 'Cancelled\. Nothing was written\.'
+! exists home/config.toml

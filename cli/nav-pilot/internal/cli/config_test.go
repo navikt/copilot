@@ -112,12 +112,11 @@ func TestValidateConfig_NilConfig(t *testing.T) {
 
 func TestValidateConfig_VersionZero(t *testing.T) {
 	cfg := &Config{Version: 0}
-	err := validateConfig(cfg)
-	if err == nil {
-		t.Fatal("expected error for version=0")
+	if err := validateConfig(cfg); err != nil {
+		t.Fatalf("a missing version reads as 1, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "add version = 1") {
-		t.Errorf("error should mention version, got: %v", err)
+	if advice := configAdvice(cfg, false); len(advice) != 1 || !strings.Contains(advice[0], "nav-pilot config set version 1") {
+		t.Errorf("advice = %v, want the one-line version note", advice)
 	}
 }
 
@@ -338,13 +337,13 @@ func TestValidateConfigProblems_MultipleProblems(t *testing.T) {
 
 func TestCmdConfigValidate_NoBulletDoubling(t *testing.T) {
 	// Regression: validate must print "  - version must be 1 (got 0)", not "  - - version…"
-	path := writeTempConfig(t, "version = 0\n")
+	path := writeTempConfig(t, "version = 2\n")
 	t.Setenv("NAV_PILOT_CONFIG", path)
 
 	// cmdConfigValidate prints to stdout and returns an error for invalid configs.
-	err := cmdConfigValidate()
+	err := cmdConfigValidate(false)
 	if err == nil {
-		t.Fatal("expected error for version=0")
+		t.Fatal("expected error for version=2")
 	}
 	// The error itself is just "config validation failed", not the bullet-prefixed message.
 	if strings.Contains(err.Error(), "- -") {
@@ -363,7 +362,7 @@ func TestCmdConfigInit_ValidatesOK(t *testing.T) {
 		t.Fatalf("cmdConfigInit() error: %v", err)
 	}
 	// The generated file must pass validation without any user edits.
-	if err := cmdConfigValidate(); err != nil {
+	if err := cmdConfigValidate(false); err != nil {
 		t.Errorf("config validate after init should succeed, got: %v", err)
 	}
 }
@@ -861,7 +860,7 @@ func TestCmdConfigGet_KnownKey(t *testing.T) {
 
 	// Verify the key def lookup works for all known keys.
 	for _, kd := range configKeyDefs {
-		if err := cmdConfigGet(kd.name); err != nil {
+		if err := cmdConfigGet(kd.name, false); err != nil {
 			t.Errorf("cmdConfigGet(%q) returned unexpected error: %v", kd.name, err)
 		}
 	}
@@ -871,7 +870,7 @@ func TestCmdConfigGet_UnknownKey(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
-	err := cmdConfigGet("does_not_exist")
+	err := cmdConfigGet("does_not_exist", false)
 	if err == nil {
 		t.Fatal("expected error for unknown key")
 	}
@@ -884,7 +883,7 @@ func TestCmdConfigValidate_MissingFile(t *testing.T) {
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
 	// Missing file should not return an error (just print a warning).
-	if err := cmdConfigValidate(); err != nil {
+	if err := cmdConfigValidate(false); err != nil {
 		t.Errorf("expected nil error for missing file, got: %v", err)
 	}
 }
@@ -893,7 +892,7 @@ func TestCmdConfigValidate_InvalidTOML(t *testing.T) {
 	path := writeTempConfig(t, `{invalid toml`)
 	t.Setenv("NAV_PILOT_CONFIG", path)
 
-	err := cmdConfigValidate()
+	err := cmdConfigValidate(false)
 	if err == nil {
 		t.Fatal("expected error for invalid TOML")
 	}
@@ -903,7 +902,7 @@ func TestCmdConfigValidate_UnknownKey(t *testing.T) {
 	path := writeTempConfig(t, "version = 1\nbad_key = \"oops\"\n")
 	t.Setenv("NAV_PILOT_CONFIG", path)
 
-	err := cmdConfigValidate()
+	err := cmdConfigValidate(false)
 	if err == nil {
 		t.Fatal("expected error for unknown key")
 	}
@@ -913,7 +912,7 @@ func TestCmdConfigValidate_InvalidVersion(t *testing.T) {
 	path := writeTempConfig(t, "version = 99\n")
 	t.Setenv("NAV_PILOT_CONFIG", path)
 
-	err := cmdConfigValidate()
+	err := cmdConfigValidate(false)
 	if err == nil {
 		t.Fatal("expected error for invalid version")
 	}
@@ -929,7 +928,7 @@ ask_user = true
 `)
 	t.Setenv("NAV_PILOT_CONFIG", path)
 
-	if err := cmdConfigValidate(); err != nil {
+	if err := cmdConfigValidate(false); err != nil {
 		t.Errorf("expected nil error for valid config, got: %v", err)
 	}
 }
@@ -1167,8 +1166,9 @@ func TestValidateModelForClient(t *testing.T) {
 		{"openai/gpt-4o", "opencode", false, ""},
 		{"google/gemini-2-0-flash", "opencode", false, ""},
 		// opencode: bare id (no slash) — must error
-		{"claude-opus-4.8", "opencode", true, "provider/model"},
-		{"gpt-5.5", "opencode", true, "provider/model"},
+		// opencode: a bare Copilot id runs as github-copilot/<id>
+		{"claude-opus-4.8", "opencode", false, ""},
+		{"gpt-5.5", "opencode", false, ""},
 		// opencode: double-slash — must error
 		{"a/b/c", "opencode", true, "provider/model"},
 		// opencode: trailing slash (empty model part) — must error
@@ -1231,18 +1231,17 @@ func TestKnownOpenCodeModelIDs(t *testing.T) {
 	}
 }
 
-// TestValidateConfigProblems_OpenCodeBareModel ensures that an opencode config
-// with a bare (non-provider/model) id is a hard validation error.
+// TestValidateConfigProblems_OpenCodeBareModel: a bare Copilot id is valid for
+// opencode, which runs it as github-copilot/<id>, and draws no advisory.
 func TestValidateConfigProblems_OpenCodeBareModel(t *testing.T) {
 	client := "opencode"
 	model := "claude-opus-4.8"
 	cfg := &Config{Version: 1, Client: &client, Model: &model}
-	problems := validateConfigProblems(cfg)
-	if len(problems) == 0 {
-		t.Fatal("expected validation error for opencode bare model id, got none")
+	if problems := validateConfigProblems(cfg); len(problems) != 0 {
+		t.Fatalf("problems = %v, want none for a bare Copilot id", problems)
 	}
-	if !strings.Contains(problems[0], "provider/model") {
-		t.Errorf("problem = %q, want mention of provider/model format", problems[0])
+	if advice := configAdvice(cfg, false); len(advice) != 0 {
+		t.Errorf("advice = %v, want none for a known bare id", advice)
 	}
 }
 
@@ -1411,5 +1410,34 @@ func TestValidateConfig_OtelLogLevel(t *testing.T) {
 				t.Errorf("expected valid otel_log_level %q, got error: %v", tt.level, err)
 			}
 		})
+	}
+}
+
+// readConfigWithMeta decodes the config file with its TOML metadata, for the
+// tests that look at undecoded keys directly.
+func readConfigWithMeta() (*Config, toml.MetaData, error) {
+	data, err := os.ReadFile(configPath())
+	if err != nil {
+		return nil, toml.MetaData{}, err
+	}
+	var cfg Config
+	meta, err := toml.Decode(string(data), &cfg)
+	return &cfg, meta, err
+}
+
+// configAdvisories is what a launch warns about.
+func configAdvisories(cfg *Config, _ toml.MetaData) []string { return configAdvice(cfg, true) }
+
+func TestLoadConfigForLaunchChecksTheEffectiveModel(t *testing.T) {
+	path := writeTempConfig(t, "version = 1\nclient = \"opencode\"\nmodel = \"a/b/c\"\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+	// --client copilot runs a/b/c as a copilot id, which is only advice.
+	if _, err := loadConfigForLaunch(CLIOverrides{Client: "copilot"}); err != nil {
+		t.Errorf("--client copilot: %v", err)
+	}
+	path = writeTempConfig(t, "version = 1\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+	if _, err := loadConfigForLaunch(CLIOverrides{Client: "opencode", Model: "a/b/c"}); err == nil {
+		t.Error("--client opencode --model a/b/c launched")
 	}
 }

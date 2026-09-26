@@ -7,7 +7,7 @@ exits 1 nav-pilot config validate
 stdout 'version is missing'
 
 exec nav-pilot config set version 1
-stdout 'version = 1'
+stdout 'version: \(unset\) → 1'
 cmp home/config.toml want-version.toml
 cmp home/config.toml.bak odd.toml
 

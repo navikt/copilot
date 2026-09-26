@@ -201,8 +201,8 @@ func TestCmdConfigPath_PrintsConfigPath(t *testing.T) {
 	t.Setenv("NAV_PILOT_CONFIG", customPath)
 
 	out := captureStdout(func() {
-		if err := cmdConfigPath(); err != nil {
-			t.Errorf("cmdConfigPath() returned unexpected error: %v", err)
+		if err := cmdConfigPath(false); err != nil {
+			t.Errorf("cmdConfigPath(false) returned unexpected error: %v", err)
 		}
 	})
 
@@ -336,7 +336,7 @@ func TestCmdConfigGet_OtelLogLevel_DefaultNone(t *testing.T) {
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
 
 	out := captureStdout(func() {
-		if err := cmdConfigGet("otel_log_level"); err != nil {
+		if err := cmdConfigGet("otel_log_level", false); err != nil {
 			t.Fatalf("cmdConfigGet(otel_log_level) returned unexpected error: %v", err)
 		}
 	})
@@ -372,13 +372,13 @@ func TestCmdConfigSet_KeepsFileMode(t *testing.T) {
 
 func TestConfigHints_ProviderQualifiedModelTriggersHint(t *testing.T) {
 	m := "anthropic/claude-3-5-sonnet"
-	cfg := &Config{Model: &m}
-	hints := configHints(cfg)
+	cfg := &Config{Version: 1, Model: &m}
+	hints := configAdvice(cfg, false)
 	if len(hints) != 1 {
 		t.Fatalf("expected 1 hint, got %d: %v", len(hints), hints)
 	}
-	if !strings.Contains(hints[0], "claude-3-5-sonnet") {
-		t.Errorf("hint missing short-id: %s", hints[0])
+	if strings.Contains(hints[0], "translates automatically") {
+		t.Errorf("only github-copilot/ is translated: %s", hints[0])
 	}
 	if !strings.Contains(hints[0], "anthropic/claude-3-5-sonnet") {
 		t.Errorf("hint missing original model: %s", hints[0])
@@ -387,8 +387,8 @@ func TestConfigHints_ProviderQualifiedModelTriggersHint(t *testing.T) {
 
 func TestConfigHints_GithubCopilotPrefixTriggersHint(t *testing.T) {
 	m := "github-copilot/claude-sonnet-4.6"
-	cfg := &Config{Model: &m}
-	hints := configHints(cfg)
+	cfg := &Config{Version: 1, Model: &m}
+	hints := configAdvice(cfg, false)
 	if len(hints) != 1 {
 		t.Fatalf("expected 1 hint for github-copilot/ prefixed model, got %d: %v", len(hints), hints)
 	}
@@ -404,8 +404,8 @@ func TestConfigHints_CanonicalShortIdNoHint(t *testing.T) {
 	for _, m := range []string{"claude-sonnet-4.6", "gpt-5.5", "auto", "gemini-3.5-flash"} {
 		m := m
 		t.Run(m, func(t *testing.T) {
-			cfg := &Config{Model: &m}
-			if hints := configHints(cfg); len(hints) != 0 {
+			cfg := &Config{Version: 1, Model: &m}
+			if hints := configAdvice(cfg, false); len(hints) != 0 {
 				t.Errorf("unexpected hint for canonical model %q: %v", m, hints)
 			}
 		})
@@ -413,22 +413,22 @@ func TestConfigHints_CanonicalShortIdNoHint(t *testing.T) {
 }
 
 func TestConfigHints_NilConfigNoHint(t *testing.T) {
-	if hints := configHints(nil); len(hints) != 0 {
+	if hints := configAdvice(nil, false); len(hints) != 0 {
 		t.Errorf("expected nil hints for nil config, got: %v", hints)
 	}
 }
 
 func TestConfigHints_NilModelNoHint(t *testing.T) {
-	cfg := &Config{} // Model is nil
-	if hints := configHints(cfg); len(hints) != 0 {
+	cfg := &Config{Version: 1} // Model is nil
+	if hints := configAdvice(cfg, false); len(hints) != 0 {
 		t.Errorf("expected no hints when model is unset, got: %v", hints)
 	}
 }
 
 func TestConfigHints_EmptyShortIDFallsBack(t *testing.T) {
 	m := "anthropic/"
-	cfg := &Config{Model: &m}
-	hints := configHints(cfg)
+	cfg := &Config{Version: 1, Model: &m}
+	hints := configAdvice(cfg, false)
 	if len(hints) != 1 {
 		t.Fatalf("expected 1 hint, got %d", len(hints))
 	}

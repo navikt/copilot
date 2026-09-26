@@ -66,17 +66,21 @@ Flags:
 `,
 	"config": `Usage: nav-pilot config [subcommand]
 
-Manage ~/.nav-pilot/config.toml. With no subcommand in a terminal, it opens
+Manage %s. With no subcommand in a terminal, it opens
 the settings page.
+
+The file is ~/.nav-pilot/config.toml unless NAV_PILOT_CONFIG names another
+one. $XDG_CONFIG_HOME is not read.
 
 Subcommands:
   init                    Create the file with every option commented out
   setup [--force]         Run the setup wizard (--force replaces an existing file)
-  show                    Print the effective configuration
-  path                    Print the config file path
-  get <key>               Print one value
+  show [--json]           Print every key with its value and where it comes from
+  path [--json]           Print the config file path
+  get <key> [--json]      Print one value
   set <key> <value>       Set one value
-  validate                Check syntax, keys and values
+  unset <key>             Remove a key so its default applies
+  validate [--json]       Check syntax, keys and values
   explain [key]           Describe the keys
   sandbox                 Configure the cplt sandbox profile
 `,
@@ -85,6 +89,9 @@ Subcommands:
 // printHelp prints the page for command, or the top-level page when it has none.
 func printHelp(w io.Writer, command string) {
 	if page, ok := commandHelp[command]; ok {
+		if command == "config" {
+			page = fmt.Sprintf(page, configPath())
+		}
 		fmt.Fprint(w, page)
 		return
 	}

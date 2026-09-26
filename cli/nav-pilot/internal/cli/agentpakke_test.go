@@ -953,8 +953,8 @@ func TestConfigShowIncludesSource(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatalf("parsing config show --json output %q: %v", out, err)
 	}
-	if got["source"] != "navikt/grillmester" {
-		t.Errorf("config show source = %v, want navikt/grillmester", got["source"])
+	if src := got["source"].(map[string]interface{}); src["value"] != "navikt/grillmester" || src["origin"] != "file" {
+		t.Errorf("config show source = %v, want navikt/grillmester from file", got["source"])
 	}
 }
 
@@ -971,8 +971,8 @@ func TestConfigShowSourceDefaults(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatalf("parsing config show --json output %q: %v", out, err)
 	}
-	if got["source"] != defaultSourceRepo {
-		t.Errorf("config show source = %v, want %s", got["source"], defaultSourceRepo)
+	if src := got["source"].(map[string]interface{}); src["value"] != defaultSourceRepo || src["origin"] != "default" {
+		t.Errorf("config show source = %v, want %s by default", got["source"], defaultSourceRepo)
 	}
 }
 

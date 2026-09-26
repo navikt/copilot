@@ -1,0 +1,24 @@
+# A launch refused over the config lists every problem, the same list
+# config validate prints. It used to name only the first, so fixing it
+# showed the next one, one launch at a time.
+
+cp odd.toml home/config.toml
+exits 1 nav-pilot --sync -- -p x
+stderr 'config has 5 problem\(s\):'
+stderr 'agent was renamed to client: nav-pilot config set client opencode'
+stderr 'unknown key: extra\.theme'
+stderr 'mode "yolo" is not valid'
+stderr 'local_loop_guard must be a number: write local_loop_guard = 8'
+stderr 'then check it with nav-pilot config validate'
+
+exits 1 nav-pilot config validate
+stdout 'Config has 5 problem\(s\)'
+
+-- odd.toml --
+version = 1
+agent = "opencode"
+mode = "yolo"
+local_loop_guard = "8"
+
+[extra]
+theme = "dark"
