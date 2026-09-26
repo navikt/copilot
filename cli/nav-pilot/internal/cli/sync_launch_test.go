@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -140,5 +141,53 @@ func TestSyncFlagRemovesUnusableRtkHook(t *testing.T) {
 	}
 	if _, err := os.Stat(marker); err != nil {
 		t.Errorf("run(--sync) did not launch Copilot after removing the hook: %v", err)
+	}
+}
+
+// --project-dir must reach cplt from the command line, made absolute: the
+// provider tests set ResolvedConfig.ProjectDir directly, so they cannot see
+// the flag being parsed or carried into the resolved config.
+func TestProjectDirFlagReachesCplt(t *testing.T) {
+	cfgPath := isolatedConfig(t)
+	if err := os.WriteFile(cfgPath, []byte("version = 1\nclient = \"copilot\"\nauto_launch = true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	binDir := t.TempDir()
+	argsFile := filepath.Join(t.TempDir(), "args")
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"" + argsFile + "\"\n"
+	if err := os.WriteFile(filepath.Join(binDir, "cplt"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir)
+
+	root := t.TempDir()
+	sub := filepath.Join(root, "sub")
+	if err := os.Mkdir(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(sub)
+
+	origInteractive := isInteractive
+	isInteractive = func() bool { return true }
+	t.Cleanup(func() { isInteractive = origInteractive })
+
+	var runErr error
+	_, stderr := captureRun(t, func() { runErr = run([]string{"--sync", "--project-dir", ".."}) })
+	if runErr != nil {
+		t.Fatalf("run(--sync --project-dir ..) = %v\nstderr:\n%s", runErr, stderr)
+	}
+	raw, err := os.ReadFile(argsFile)
+	if err != nil {
+		t.Fatalf("cplt was not launched: %v\nstderr:\n%s", err, stderr)
+	}
+	args := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	i := slices.Index(args, "--project-dir")
+	if i < 0 || i+1 >= len(args) {
+		t.Fatalf("cplt vector %q has no --project-dir operand", args)
+	}
+	got, _ := filepath.EvalSymlinks(args[i+1])
+	want, _ := filepath.EvalSymlinks(root)
+	if !filepath.IsAbs(args[i+1]) || got != want {
+		t.Errorf("--project-dir = %q, want the absolute path of %q", args[i+1], root)
 	}
 }
