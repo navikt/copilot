@@ -1070,9 +1070,19 @@ func offerLaunchCopilot(resolved ResolvedConfig) error {
 		}
 	}
 
-	decision := decideLaunch(p.Available(), resolved.AutoLaunch, sandboxed, isInteractive())
+	// No terminal, but a prompt after "--": `nav-pilot --sync -- -p "…"` from
+	// CI or a script. That launches, sandboxed, with cplt's --yes standing in
+	// for the confirmation nobody can answer (withCpltConfirmation). Anything
+	// short of that launch is an error: the caller asked for a prompt to run,
+	// and exit 0 without running it read as success.
+	interactive := isInteractive()
+	headless := !interactive && len(resolved.ExtraArgs) > 0
+	decision := decideLaunch(p.Available(), resolved.AutoLaunch, sandboxed, interactive || headless)
 	if decision == launchSkipQuiet {
 		return nil
+	}
+	if headless && decision != launchGo {
+		return headlessRefusal(decision, p, missingCommand(resolved.Client, cmdName))
 	}
 
 	fmt.Println()
@@ -1084,12 +1094,7 @@ func offerLaunchCopilot(resolved ResolvedConfig) error {
 		if missing == "" {
 			missing = cmdName
 		}
-		// opencode needs both opencode and cplt; name whichever is missing.
-		if resolved.Client == "opencode" {
-			if _, err := exec.LookPath("opencode"); err == nil {
-				missing = "cplt"
-			}
-		}
+		missing = missingCommand(resolved.Client, missing)
 		fmt.Fprintf(os.Stderr, "%s %s was not found on PATH — skipping launch. Run %s to diagnose.\n",
 			yellow("⚠"), missing, bold("nav-pilot doctor"))
 		return nil
@@ -1109,6 +1114,34 @@ func offerLaunchCopilot(resolved ResolvedConfig) error {
 		return fmt.Errorf("launch failed: %w", err)
 	}
 	return nil
+}
+
+// missingCommand is what to name when client cannot launch: cplt when the
+// client is opencode or pi and its own binary is there, since both need cplt
+// too; otherwise name.
+func missingCommand(client, name string) string {
+	if client == "opencode" || client == "pi" {
+		if _, err := exec.LookPath(client); err == nil {
+			return "cplt"
+		}
+	}
+	return name
+}
+
+// headlessRefusal says why a launch with no terminal and a prompt after "--"
+// does not run, and exits 1, so a CI job cannot mistake a dropped prompt for
+// one that ran.
+func headlessRefusal(decision launchDecision, p Provider, cmdName string) error {
+	switch decision {
+	case launchSkipUnavailable:
+		fmt.Fprintf(os.Stderr, "Not launching: %s was not found on PATH. Run %s to diagnose.\n", cmdName, bold("nav-pilot doctor"))
+	case launchSkipOptedOut:
+		fmt.Fprintf(os.Stderr, "Not launching: auto_launch = false. Start it yourself with: %s\n", cmdName)
+	default:
+		fmt.Fprintf(os.Stderr, "Not launching: no terminal, and without cplt %s would run unsandboxed with nobody watching.\n  Install cplt: %s\n",
+			p.DisplayName(), bold("brew install navikt/tap/cplt"))
+	}
+	return &exitCode{code: ExitError}
 }
 
 // offerLaunchCopilotWithAgents is offerLaunchCopilot for callers that have the

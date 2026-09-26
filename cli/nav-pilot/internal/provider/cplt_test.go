@@ -198,3 +198,87 @@ func TestLaunchViaCpltHandsHomeToCplt(t *testing.T) {
 	}
 	sameDir(t, projectDirArg(t, out), home)
 }
+
+// TestProjectDirReadsRepoInstructions: a sandbox scoped to a subfolder of a
+// repository keeps its write scope, and gets read access to the repository's
+// instruction files at the root. Without it copilot could not read the
+// .github/copilot-instructions.md nav-pilot had just installed ("Operation not
+// permitted"), a regression from scoping to the working directory (#969).
+func TestProjectDirReadsRepoInstructions(t *testing.T) {
+	isolateHome(t)
+	repo := t.TempDir()
+	for _, d := range []string{".git", ".github", "app"} {
+		mustMkdir(t, filepath.Join(repo, d))
+	}
+	if err := os.WriteFile(filepath.Join(repo, "AGENTS.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	allowReads := func(t *testing.T, out string) []string {
+		t.Helper()
+		raw, _ := os.ReadFile(out)
+		args := strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n")
+		var got []string
+		for i, a := range args {
+			if a == "--" {
+				break
+			}
+			if a == "--allow-read" && i+1 < len(args) {
+				got = append(got, args[i+1])
+			}
+		}
+		return got
+	}
+
+	t.Run("subfolder: root instructions are readable, writes stay in the subfolder", func(t *testing.T) {
+		t.Chdir(filepath.Join(repo, "app"))
+		out := fakeCpltArgs(t)
+		if err := launchViaCplt(cpltLaunch{agent: "copilot", displayName: "copilot"}); err != nil {
+			t.Fatalf("launchViaCplt: %v", err)
+		}
+		sameDir(t, projectDirArg(t, out), filepath.Join(repo, "app"))
+		want := []string{filepath.Join(repo, ".github"), filepath.Join(repo, "AGENTS.md")}
+		if got := allowReads(t, out); !slices.Equal(got, want) {
+			t.Errorf("--allow-read = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("a symlinked instruction path is not granted", func(t *testing.T) {
+		secret := t.TempDir()
+		if err := os.Symlink(secret, filepath.Join(repo, "CLAUDE.md")); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Remove(filepath.Join(repo, "CLAUDE.md")) })
+		t.Chdir(filepath.Join(repo, "app"))
+		out := fakeCpltArgs(t)
+		if err := launchViaCplt(cpltLaunch{agent: "copilot", displayName: "copilot"}); err != nil {
+			t.Fatalf("launchViaCplt: %v", err)
+		}
+		for _, p := range allowReads(t, out) {
+			if filepath.Base(p) == "CLAUDE.md" {
+				t.Errorf("--allow-read %q follows a symlink out of the repository", p)
+			}
+		}
+	})
+
+	t.Run("repository root: nothing extra", func(t *testing.T) {
+		t.Chdir(repo)
+		out := fakeCpltArgs(t)
+		if err := LaunchCopilotResolved(domain.ResolvedConfig{Client: "copilot", AskUser: true}); err != nil {
+			t.Fatalf("LaunchCopilotResolved: %v", err)
+		}
+		if got := allowReads(t, out); len(got) != 0 {
+			t.Errorf("--allow-read = %q at the repository root, want none", got)
+		}
+	})
+}
+
+// allowReadsFor is the --allow-read part withCpltProjectDir adds for dir, as
+// it appears in a space-joined vector.
+func allowReadsFor(dir string) string {
+	_, reads := repoInstructionReads(dir)
+	var s string
+	for _, p := range reads {
+		s += " --allow-read " + p
+	}
+	return s
+}

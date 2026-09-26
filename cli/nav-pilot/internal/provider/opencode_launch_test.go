@@ -539,10 +539,12 @@ func TestLaunchPi_RoutesThroughCplt(t *testing.T) {
 	// --pass-env NAV_PILOT_SKILLS_DIR because the materialization above wrote
 	// skills into this tree: pi does get a skills root, and the launch names it
 	// so a skill's own scripts are findable (#858).
+	// This package runs from a subfolder of the checkout, so the vector also
+	// grants read access to the root's instructions (TestProjectDirReadsRepoInstructions).
 	wd, _ := os.Getwd()
 	// --project-dir first: every launch names the working directory, so cplt
 	// cannot widen the sandbox to an enclosing git repository.
-	want := "cplt --project-dir " + wd + " --yes --agent pi --allow-read " + d +
+	want := "cplt --project-dir " + wd + allowReadsFor(wd) + " --yes --agent pi --allow-read " + d +
 		" --pass-env NAV_PILOT_SKILLS_DIR --" +
 		" --skill " + d + "/skills" +
 		" --append-system-prompt " + d + "/agents/nav-pilot.md" +
@@ -582,10 +584,12 @@ func TestLaunchPi_ForwardsExtraArgs(t *testing.T) {
 	// --pass-env NAV_PILOT_SKILLS_DIR because the materialization above wrote
 	// skills into this tree: pi does get a skills root, and the launch names it
 	// so a skill's own scripts are findable (#858).
+	// This package runs from a subfolder of the checkout, so the vector also
+	// grants read access to the root's instructions (TestProjectDirReadsRepoInstructions).
 	wd, _ := os.Getwd()
 	// --project-dir first: every launch names the working directory, so cplt
 	// cannot widen the sandbox to an enclosing git repository.
-	want := "cplt --project-dir " + wd + " --yes --agent pi --allow-read " + d +
+	want := "cplt --project-dir " + wd + allowReadsFor(wd) + " --yes --agent pi --allow-read " + d +
 		" --pass-env NAV_PILOT_SKILLS_DIR --" +
 		" --skill " + d + "/skills" +
 		" --append-system-prompt " + d + "/agents/nav-pilot.md" +

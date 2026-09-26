@@ -1,0 +1,46 @@
+# Launching from a subfolder of a repository scopes the sandbox's writes to
+# that subfolder (#969), and grants read access to the instructions at the
+# repository root. Without the read grant copilot got "Operation not
+# permitted" on the .github/copilot-instructions.md nav-pilot had just
+# installed. The scope is printed once, on stderr.
+
+fake-bin cplt copilot
+
+mkdir plattform/skills repo/app
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo
+exists .github/agents/grillmester.agent.md
+
+cd app
+exec nav-pilot --sync --source $WORK/plattform -- -p 'review this'
+stderr '^ℹ Sandbox: .*/repo/app \(reads repo instructions from .*/repo: \.github, \.nav-pilot, AGENTS\.md\)$'
+stderr -count=1 'Sandbox:'
+
+# Writes stay in app/, reads cover the root's instruction paths, and the
+# prompt reaches copilot after the separator.
+grep '^--project-dir\n.*/repo/app\n--allow-read\n.*/repo/\.github\n--allow-read\n.*/repo/\.nav-pilot\n--allow-read\n.*/repo/AGENTS\.md\n' $WORK/fake/cplt.log
+grep '^-p\nreview this\n---' $WORK/fake/cplt.log
+
+# From the repository root there is nothing outside the sandbox to grant.
+cd ..
+rm $WORK/fake/cplt.log
+exec nav-pilot --sync --source $WORK/plattform -- -p 'review this'
+stderr '^ℹ Sandbox: .*/repo$'
+! grep 'allow-read' $WORK/fake/cplt.log
+
+-- repo/AGENTS.md --
+Repo instructions.
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

@@ -308,6 +308,9 @@ En modell du velger med config eller `--model`, vinner over agentpakkas standard
 > git-repoet den ligger i, så en økt startet fra `workspaces/noe/` kunne endre mapper ved
 > siden av. Trenger du hele repoet, for eksempel for endringer på tvers av pakker i et
 > monorepo, starter du fra roten av repoet eller bruker `nav-pilot --project-dir <katalog>`.
+> Står du i en undermappe, får agenten lese (ikke skrive) repoets instruksjoner i roten:
+> `.github/`, `.nav-pilot/`, `.opencode/`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` og
+> `opencode.json`, de som finnes. nav-pilot skriver omfanget på stderr ved hver oppstart.
 > Hjemmekatalogen og `/` avviser cplt selv som for vide.
 
 > **Auth-detalj (Copilot/cplt):** nav-pilot henter ikke ut GitHub-tokenet selv.
@@ -687,7 +690,8 @@ med globale flagg som `--client`, `--model`, `--mode`, `--effort`, `--context`,
 `--allow-all-tools`, `--no-ask-user`, `--auto-launch`/`--no-auto-launch` og `--log-level`.
 
 `--project-dir <katalog>` bestemmer hvilken katalog agenten får lese og skrive i cplt-sandboxen.
-Standard er katalogen du står i, ikke roten av git-repoet rundt den.
+Standard er katalogen du står i, ikke roten av git-repoet rundt den. Repoets instruksjoner i
+roten kan agenten fortsatt lese.
 
 `--persona <navn>` velger hvilken av agentpakkens `primaryAgents` som startes. Uten
 flagget startes den første. Et navn som ikke er deklarert for klienten avvises med

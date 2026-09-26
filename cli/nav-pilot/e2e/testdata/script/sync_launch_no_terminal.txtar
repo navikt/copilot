@@ -1,0 +1,54 @@
+# `nav-pilot --sync -- -p "…"` without a terminal is the CI form: sync, then
+# run the prompt in the sandbox. It used to sync and exit 0 at "Pi scope
+# synced", dropping the prompt. Now it launches with cplt's --yes, and every
+# case where it cannot launch exits non-zero and says why.
+
+fake-bin cplt copilot
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo
+
+# The prompt runs, sandboxed, without a confirmation nobody can answer.
+exec nav-pilot --sync --source $WORK/plattform -- -p 'review this PR'
+stdout 'Repo scope synced'
+stdout 'Launching Copilot Sandbox \(cplt\)'
+grep '^--yes\n' $WORK/fake/cplt.log
+grep '^-p\nreview this PR\n---' $WORK/fake/cplt.log
+# The pin check reads .nav-pilot/agentpakke.lock.json under an absolute root.
+! stderr 'boundary must be'
+! stderr 'Could not read .nav-pilot/agentpakke.lock.json'
+
+# No prompt, no terminal: nothing to run. Sync still happens, exit 0.
+rm $WORK/fake/cplt.log
+exits 0 nav-pilot --sync --source $WORK/plattform
+stdout 'Repo scope synced'
+stderr 'Not launching: no terminal\. To run a prompt, pass it after --: nav-pilot --sync -- -p "…"'
+! exists $WORK/fake/cplt.log
+
+# Without cplt, copilot would run unsandboxed with nobody watching: refused.
+fake-bin copilot
+exits 1 nav-pilot --sync --source $WORK/plattform -- -p 'review this PR'
+stderr 'Not launching: no terminal, and without cplt copilot would run unsandboxed'
+stderr 'Install cplt: brew install navikt/tap/cplt'
+! exists $WORK/fake/copilot.log
+
+# pi only runs inside cplt: with pi and no cplt, the refusal names cplt.
+fake-bin pi
+exits 1 nav-pilot --sync --source $WORK/plattform --client pi -- -p 'review this PR'
+stderr 'Not launching: cplt was not found on PATH'
+! exists $WORK/fake/pi.log
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
