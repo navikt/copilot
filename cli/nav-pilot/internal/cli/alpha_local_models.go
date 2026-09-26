@@ -31,7 +31,10 @@ var manifestFetchWait = 2 * time.Second
 // binary. A fetch that fails or takes longer than manifestFetchWait leaves the
 // embedded copy, and says nothing.
 func cachedManifest() (*local.Manifest, error) {
-	m, src, _ := local.Cached()
+	m, src, cerr := local.Cached()
+	if src == local.SourceBench && m == nil {
+		return nil, cerr
+	}
 	if src == local.SourceEmbedded {
 		fetched := make(chan *local.Manifest, 1)
 		go func() {

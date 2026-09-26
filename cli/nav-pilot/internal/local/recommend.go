@@ -85,7 +85,7 @@ func (m *Manifest) legacy(id string) (old, repl Model, ok bool) {
 	if !ok || domain.ValidateModelValue(id) != nil {
 		return Model{}, Model{}, false
 	}
-	if publisher, _, _ := strings.Cut(id, "/"); !slices.Contains(allowedPublishers, publisher) {
+	if publisher, _, _ := strings.Cut(id, "/"); !m.publisherAllowed(publisher) {
 		return Model{}, Model{}, false
 	}
 	old = repl
