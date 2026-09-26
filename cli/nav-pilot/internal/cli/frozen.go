@@ -165,10 +165,10 @@ func frozenComplete(result *installResult, scope *InstallScope) error {
 	if !installFrozen || result == nil {
 		return nil
 	}
-	if result.Conflicts > 0 {
+	if n := result.Conflicts + len(result.Existing); n > 0 {
 		return frozenf("%d file(s) already exist and differ from %s, so the tree is not the pinned revision.\n"+
 			"Pass %s to make it match, or resolve the differences",
-			result.Conflicts, agentpakke.DeclarationPath, bold("--force"))
+			n, agentpakke.DeclarationPath, bold("--force"))
 	}
 	if len(result.Missing) > 0 {
 		return frozenf("the source does not ship %s, which the manifest names, so %d of %d item(s) landed and the tree is not the pinned revision.\n"+

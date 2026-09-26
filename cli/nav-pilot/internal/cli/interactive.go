@@ -605,6 +605,8 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 				err, bold("nav-pilot install <name> --user"))
 		}
 
+		// The question above named the hooks, and this was the answer.
+		installConsentRequired = false
 		if installChoice == "custom" {
 			selected, skipped, pickerErr := interactiveItemPicker(manifest, existingState, scope)
 			if pickerErr != nil {

@@ -13,6 +13,8 @@ var commandHelp = map[string]string{
 
 Install the agentpakke, or one agent, skill, instruction or prompt from it.
 Without --user or --repo it asks where to install when there is a terminal.
+Without a terminal it installs a whole agentpakke only with --yes, --all
+or --frozen, and says what it would write otherwise (exit 2).
 
 Flags:
   -u, --user              Install to ~/.copilot (agents, skills & instructions)
@@ -23,7 +25,8 @@ Flags:
   -s, --source <repo>     Install from another agentpakke (owner/name or an absolute path)
   -r, --ref <ref>         Git branch or tag to install from
   --frozen                Install exactly what .nav-pilot/agentpakke.lock.json pins, or fail
-  -f, --force             Overwrite files that differ from the source
+  --yes                   Install without asking, also without a terminal
+  -f, --force             Overwrite files that differ from the source (yours are saved as .orig)
   -n, --dry-run           Show what would happen
   --json                  Output results as JSON
 
@@ -38,7 +41,9 @@ Check installed scopes for updates. Without --user, --repo or --target it
 checks every scope it finds; --apply installs the updates.
 
 Flags:
-  --apply                 Apply available updates
+  --apply                 Apply available updates. A file changed here since
+                          nav-pilot installed it is replaced too, and your copy
+                          is saved as <file>.orig
   -u, --user              Only the user scope (~/.copilot)
   --repo                  Only this repository
   -t, --target <dir>      Only another repository

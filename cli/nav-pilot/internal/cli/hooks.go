@@ -65,6 +65,51 @@ func activateHook(scope *InstallScope, art Resolved, result *installResult) erro
 	return nil
 }
 
+// hookOfPath names the hook a tracked path belongs to: its script, in either
+// scope, or its generated ~/.copilot/hooks/<name>.json entry in user scope
+// (config true). Empty when the path is no hook's.
+//
+// Sync asks the source about a hook by this name and never by the path. A
+// path lookup falls back to .github/hooks/, where the source repo keeps hooks
+// of its own, so a hook the agentpakke had dropped still resolved and kept
+// running in every repo that installed it (#982).
+func hookOfPath(scope *InstallScope, localPath string) (name string, config bool) {
+	dir, file := filepath.Split(filepath.ToSlash(localPath))
+	if dir != filepath.ToSlash(scope.RelPath(KindHook.Dir))+"/" {
+		return "", false
+	}
+	if name, ok := strings.CutSuffix(file, KindHook.Suffix); ok {
+		return name, false
+	}
+	if name, ok := strings.CutSuffix(file, ".json"); ok && scope.IsUser() {
+		return name, true
+	}
+	return "", false
+}
+
+// refreshHookRegistration rewrites what makes a hook the source still ships
+// run: its entry in the repo's copilot-hooks.json, or its own
+// ~/.copilot/hooks/<name>.json, whose new hash is recorded so uninstall still
+// knows it as nav-pilot's. Install goes through [activateHook] as well, so a
+// new matcher or timeout reaches both scopes the same way.
+func refreshHookRegistration(scope *InstallScope, art Resolved) error {
+	var res installResult
+	if err := activateHook(scope, art, &res); err != nil {
+		return err
+	}
+	state, err := readScopedState(scope)
+	if err != nil || state == nil || len(res.Files) == 0 {
+		return err
+	}
+	for i := range state.Files {
+		if state.Files[i].Path == res.Files[0].Path && state.Files[i].Hash != res.Files[0].Hash {
+			state.Files[i].Hash = res.Files[0].Hash
+			return writeScopedState(scope, state)
+		}
+	}
+	return nil
+}
+
 // deactivateRepoHooks strips nav-pilot's entries out of the shared repo hooks
 // config on uninstall. The config is not a tracked file — it is shared, and
 // deleting it would take the user's own hooks with it — so the ordinary file

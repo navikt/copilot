@@ -1387,8 +1387,10 @@ jobs:
           </BodyShort>
           <BodyShort size="small" className="mt-2" style={{ color: "#94a3b8", fontStyle: "italic" }}>
             Har teamet en egen versjon av en fil med samme navn som kilden (f.eks. en egen{" "}
-            <code className="font-mono text-xs">kotlin-app-config</code> skill), vil sync prøve å overskrive den. Bruk
-            overrides for å beskytte filen. Filer med navn som ikke finnes i kilden blir aldri berørt av sync.
+            <code className="font-mono text-xs">kotlin-app-config</code> skill) fra før{" "}
+            <code className="font-mono text-xs">nav-pilot install</code>, hopper install over den og sync lar den være.
+            I et repo med kopierte filer og uten install vil sync prøve å overskrive den. Bruk overrides for å beskytte
+            filen der. Filer med navn som ikke finnes i kilden blir aldri berørt av sync.
           </BodyShort>
         </div>
 
@@ -1405,7 +1407,7 @@ jobs:
               },
               {
                 q: "Hva om jeg har tilpasset en fil lokalt?",
-                a: "PR-en viser diff. Du kan gjennomgå, merge selektivt, eller lukke den. Workflowen tvinger aldri oppdateringer.",
+                a: "Oppdateringen tar kildens versjon, men lagrer din kopi som <fil>.orig ved siden av og sier fra. I CI står filen under «Changed» i PR-en med merknad om lokale endringer. Du kan gjennomgå, merge selektivt eller lukke PR-en. Workflowen tvinger aldri oppdateringer.",
               },
               {
                 q: "Kan jeg sjekke oppdateringer lokalt uten CI?",
@@ -1429,7 +1431,7 @@ jobs:
               },
               {
                 q: "Hva skjer hvis vi har en egen fil med samme navn som kilden?",
-                a: "Sync sammenligner hasher og foreslår å overskrive den med kildens versjon. Legg filen i overrides for å beskytte den. Filer med navn som ikke finnes i kilden ignoreres helt.",
+                a: "Fantes filen før nav-pilot install, tar nav-pilot den aldri over: install hopper over den og sier fra, og sync rører den ikke. I et repo uten nav-pilot install (kopierte filer) foreslår sync å overskrive den med kildens versjon. Legg den i overrides for å beskytte den. Filer med navn som ikke finnes i kilden ignoreres helt.",
               },
             ].map((faq) => (
               <div
@@ -2826,7 +2828,7 @@ function CliReferenceSection() {
                 {[
                   { label: "JSON-output for alle kommandoer", cmd: "nav-pilot list --installed --json | jq ." },
                   { label: "Sjekk oppdateringer i CI (exit 1 = oppdateringer finnes)", cmd: "nav-pilot sync --json" },
-                  { label: "Installer i CI med JSON-resultat", cmd: "nav-pilot install --json nav-pilot" },
+                  { label: "Installer i CI med JSON-resultat", cmd: "nav-pilot install nav-pilot --repo --yes --json" },
                 ].map((item) => (
                   <div key={item.cmd}>
                     <BodyShort size="small" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
@@ -2839,8 +2841,10 @@ function CliReferenceSection() {
               <Box background="neutral-soft" padding="space-12" borderRadius="8" className="mt-3">
                 <BodyShort size="small" style={{ color: "#475569" }}>
                   <strong>Exit-koder:</strong> 0 = suksess, 1 = feil eller oppdateringer tilgjengelig (sync), 2 =
-                  sync-sjekk feilet. Når nav-pilot starter en klient, gir den videre klientens exit-kode. Kunne den ikke
-                  starte klienten i det hele tatt, blir koden 1, og en klient som ble drept av et signal gir 128 pluss
+                  sync-sjekk feilet, eller install uten terminal og uten{" "}
+                  <code className="font-mono text-xs">--yes</code> (den skriver ingenting og sier hva den ville ha
+                  skrevet). Når nav-pilot starter en klient, gir den videre klientens exit-kode. Kunne den ikke starte
+                  klienten i det hele tatt, blir koden 1, og en klient som ble drept av et signal gir 128 pluss
                   signalnummeret, slik et shell gjør. <code className="font-mono text-xs">--json</code> fungerer på
                   install, add, status, sync, list og export.
                 </BodyShort>

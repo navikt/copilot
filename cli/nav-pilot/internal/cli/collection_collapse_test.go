@@ -640,7 +640,9 @@ func TestFirstRunCommandsSuggestSomethingThatRuns(t *testing.T) {
 			forceNonInteractive = true
 			t.Cleanup(func() { forceNonInteractive = false })
 			stubResolveSource(t, mustAttachPakke(t, &Source{Dir: srcDir, SHA: "abc1234", Version: "dev", Repo: defaultSourceRepo}))
-			args := strings.Fields(suggested)[1:]
+			// Without a terminal an install asks for consent it cannot get,
+			// and says to pass --yes; in one, the picker is the consent.
+			args := append(strings.Fields(suggested)[1:], "--yes")
 			var runErr error
 			captureStdoutFor(t, func() { runErr = run(args) })
 			if runErr != nil {

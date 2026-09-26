@@ -1,0 +1,62 @@
+# A file the team wrote before installing, with a name the agentpakke also
+# ships. install used to record it as nav-pilot's ("kept, differing"), and the
+# next sync --apply overwrote it. Now install leaves it untracked and says so,
+# and no later sync touches it.
+
+mkdir plattform/skills forbruker/.github/agents
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+
+cd ../forbruker
+exec git init -q .
+cp ../team.md .github/agents/grillmester.agent.md
+
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+stderr '⚠ skipped agent grillmester: \.github/agents/grillmester\.agent\.md already exists and isn''t from nav-pilot\. Keep it, or remove it and re-run to install nav-pilot''s version\.'
+! stdout 'kept, differing'
+! grep 'grillmester' .github/.nav-pilot-state.json
+cmp .github/agents/grillmester.agent.md ../team.md
+
+# Upstream changes it. Sync reports it and leaves it alone, and it is not
+# work for the scheduled workflow.
+cp ../upstream-v2.md ../plattform/agents/grillmester.agent.md
+cd ../plattform
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qam v2
+cd ../forbruker
+exec nav-pilot sync --repo --apply --source $WORK/plattform
+stderr 'skipped agent grillmester'
+cmp .github/agents/grillmester.agent.md ../team.md
+! exists .github/agents/grillmester.agent.md.orig
+
+exec nav-pilot sync --repo --json --source $WORK/plattform
+stdout '"skipped_existing": \['
+! stdout '"added"'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/skills/brann/SKILL.md --
+---
+name: brann
+description: fra plattform
+---
+plattform
+-- team.md --
+---
+name: grillmester
+description: teamets egen
+---
+teamets egen
+-- upstream-v2.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform v2

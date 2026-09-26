@@ -1,0 +1,84 @@
+# A file edited here and changed upstream too. sync --apply used to overwrite
+# it with no word and no copy, in .github/ and in ~/.copilot alike. It still
+# takes the new version, since most people never edit a synced file, but it
+# saves the local copy as <file>.orig first and says so. --json lists the
+# file under replaced_local_edits for the sync workflow's PR body.
+
+mkdir plattform/skills forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+
+cd ../forbruker
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+
+# Edited here.
+cp ../local-edit.md .github/agents/grillmester.agent.md
+cp ../local-edit.md .github/skills/brann/SKILL.md
+
+# Changed upstream.
+cp ../upstream-v2.md ../plattform/agents/grillmester.agent.md
+cp ../upstream-v2.md ../plattform/skills/brann/SKILL.md
+cd ../plattform
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qam v2
+cd ../forbruker
+
+! exec nav-pilot sync --repo --json --source $WORK/plattform
+validjson stdout
+stdout '"replaced_local_edits": \['
+stdout '"\.github/agents/grillmester\.agent\.md"'
+stdout '"\.github/skills/brann/"'
+
+exec nav-pilot sync --repo --apply --source $WORK/plattform
+stdout '✓ \.github/agents/grillmester\.agent\.md'
+stderr '⚠ agent grillmester: your local changes were replaced by the new version; your copy is saved as \.github/agents/grillmester\.agent\.md\.orig'
+stderr '⚠ skill brann: your local changes were replaced by the new version; your copy is saved as \.github/skills/brann/SKILL\.md\.orig'
+cmp .github/agents/grillmester.agent.md ../upstream-v2.md
+cmp .github/agents/grillmester.agent.md.orig ../local-edit.md
+cmp .github/skills/brann/SKILL.md ../upstream-v2.md
+cmp .github/skills/brann/SKILL.md.orig ../local-edit.md
+
+# The copy is the user's, not part of the skill: the next sync is clean and
+# leaves it where it is.
+exec nav-pilot sync --repo --source $WORK/plattform
+stdout 'All 2 files up to date'
+exists .github/skills/brann/SKILL.md.orig
+
+# Nor does removing the skill take the copy with it.
+cd ../plattform
+exec git rm -q -r skills/brann
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm 'drop brann'
+cd ../forbruker
+exec nav-pilot sync --repo --apply --source $WORK/plattform
+stdout '\.github/skills/brann/ \(deleted\)'
+! exists .github/skills/brann/SKILL.md
+cmp .github/skills/brann/SKILL.md.orig ../local-edit.md
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/skills/brann/SKILL.md --
+---
+name: brann
+description: fra plattform
+---
+plattform
+-- local-edit.md --
+---
+name: grillmester
+description: fra plattform
+---
+teamets egen linje
+-- upstream-v2.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform v2

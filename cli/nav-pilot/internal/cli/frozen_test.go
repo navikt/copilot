@@ -87,6 +87,10 @@ func TestFrozenRefusesPartialInstallAndForceGetsThrough(t *testing.T) {
 		t.Errorf("the refusal does not say how to get through:\n%v", err)
 	}
 
+	// run() sets both from --force; the file was never nav-pilot's, so only
+	// the flag as typed takes it over.
+	installForce = true
+	t.Cleanup(func() { installForce = false })
 	captureStdoutFor(t, func() {
 		err = cmdInstallAuto("grillmester", "", scope, "", "", false, true, false)
 	})

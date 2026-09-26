@@ -117,6 +117,12 @@ kodegjennomgang. Hele agentpakka er 141 filer og rundt 844 KB målt på artefakt
 kilden, mindre om du velger bort i velgeren. Filer teamet vil eie selv kan merkes som overrides i `.github/copilot-sync.json`,
 og blir da hoppet over ved sync.
 
+Uten terminal, i et skript eller i CI, installerer nav-pilot en hel agentpakke bare når
+kommandoen sier ja: `--yes`, `--all` sammen med `--user` eller `--repo`, eller `--frozen`.
+Ellers skriver den ingenting, sier hvor mange filer og hooks den ville ha skrevet, og
+avslutter med kode 2. En fil som fantes fra før med samme navn som noe i pakka, tar install
+aldri over. Den hoppes over med en melding og røres ikke av sync.
+
 ### Personlig installasjon (`--user`)
 
 ```bash

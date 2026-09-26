@@ -92,9 +92,10 @@ func TestInstallUserEditIsConflict(t *testing.T) {
 	}
 }
 
-// TestInstallUntrackedHandPlacedConflicts: a foreign file nav-pilot never wrote
-// is still a conflict.
-func TestInstallUntrackedHandPlacedConflicts(t *testing.T) {
+// TestInstallLeavesHandPlacedFileUntracked: a file nav-pilot never wrote is the
+// team's. Recording it as a conflict made it nav-pilot's, and the next
+// sync --apply overwrote it.
+func TestInstallLeavesHandPlacedFileUntracked(t *testing.T) {
 	isolatedConfig(t)
 	srcDir := driftSource(t)
 	target := repoTarget(t)
@@ -112,8 +113,8 @@ func TestInstallUntrackedHandPlacedConflicts(t *testing.T) {
 	if got, _ := os.ReadFile(filepath.Join(target, agentB)); string(got) != "hand placed\n" {
 		t.Errorf("hand-placed file was overwritten: %q", got)
 	}
-	if e := stateEntry(t, scope, agentB); e == nil || e.Status != fileStatusConflict {
-		t.Errorf("hand-placed file not recorded as a conflict: %+v", e)
+	if e := stateEntry(t, scope, agentB); e != nil {
+		t.Errorf("hand-placed file was recorded as nav-pilot's: %+v", e)
 	}
 }
 
@@ -316,5 +317,50 @@ func TestDeselectedItemIsNotDeleted(t *testing.T) {
 
 	if _, err := os.Stat(filepath.Join(target, agentB)); err != nil {
 		t.Errorf("deselecting %s in the picker deleted it from disk: %v", agentB, err)
+	}
+}
+
+// TestSyncReplacesAdoptedFileWithBackup: an older nav-pilot recorded a
+// hand-placed file as a conflict, and sync --apply then overwrote it with no
+// copy. Repos still carry such state. The file is now replaced like any local
+// edit, and its content is kept as <file>.orig.
+func TestSyncReplacesAdoptedFileWithBackup(t *testing.T) {
+	isolatedConfig(t)
+	srcDir := driftSource(t)
+	target := repoTarget(t)
+	scope := ScopeRepo(target)
+	if err := cmdInstallFromSource("narrow", localSource(srcDir), scope, false, false, false); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	mustWrite(t, filepath.Join(target, agentA), "hand placed\n")
+	state, err := readScopedState(scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range state.Files {
+		if state.Files[i].Path == agentA {
+			state.Files[i].Status = fileStatusConflict
+			state.Files[i].Hash, _ = rawArtifactHash(filepath.Join(target, agentA), false)
+		}
+	}
+	if err := writeScopedState(scope, state); err != nil {
+		t.Fatal(err)
+	}
+
+	orig := resolveSourceForSync
+	t.Cleanup(func() { resolveSourceForSync = orig })
+	resolveSourceForSync = func(string, string) (*Source, error) { return localSource(srcDir), nil }
+	captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	if err != nil {
+		t.Fatalf("sync --apply: %v", err)
+	}
+	if got, _ := os.ReadFile(filepath.Join(target, agentA)); string(got) != "---\nname: test-a\ndescription: A\n---\nBody A\n" {
+		t.Errorf("sync --apply did not take the source's version: %q", got)
+	}
+	if got, _ := os.ReadFile(filepath.Join(target, agentA+".orig")); string(got) != "hand placed\n" {
+		t.Errorf("the replaced file was not kept as .orig: %q", got)
+	}
+	if e := stateEntry(t, scope, agentA); e == nil || e.Status != "" {
+		t.Errorf("the replaced file is still recorded as a conflict: %+v", e)
 	}
 }

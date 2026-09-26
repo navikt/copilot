@@ -512,6 +512,11 @@ func TestInstallArtifact_ConflictStillTracked(t *testing.T) {
 	if result.Installed != 4 {
 		t.Fatalf("expected 4 installed, got %d", result.Installed)
 	}
+	// What the install commands write after installItems: only a file in
+	// state is nav-pilot's, and only nav-pilot's file can be in conflict.
+	if err := writeScopedState(ScopeRepo(target), &StateFile{Collection: "test-collection", Files: result.Files}); err != nil {
+		t.Fatal(err)
+	}
 
 	// Modify one installed file to create a conflict
 	agentPath := filepath.Join(target, ".github/agents/test.agent.md")

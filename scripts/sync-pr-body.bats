@@ -47,3 +47,11 @@ changes() { # $1 = sync JSON
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
+
+@test "marks an update that replaces a local edit" {
+  run changes '{"up_to_date":false,"updates":[{"path":"a.md"},{"path":".github/skills/s/"}],"replaced_local_edits":[".github/skills/s/"]}'
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "a.md" ]
+  [ "${lines[1]}" = ".github/skills/s/ (replaces local edits, kept as .orig)" ]
+  [ "${#lines[@]}" -eq 2 ]
+}
