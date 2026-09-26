@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -257,4 +258,41 @@ func TestTier1FollowingNeverFallsBackToTheDefaultBranch(t *testing.T) {
 		t.Fatalf("install with the metadata gone = nil, want a refusal. Output:\n%s", out)
 	}
 	assertTier1Release(t, scope, shaA, "0.4.1", true)
+}
+
+// TestTier1SyncKeepsACommittedPinWhenReleasesAreUnreachable: with the releases
+// API down, sync used to read the default branch and --apply moved the
+// committed pin onto it (#13). The pin stays, sync says why and fails, and
+// only --ref moves it.
+func TestTier1SyncKeepsACommittedPinWhenReleasesAreUnreachable(t *testing.T) {
+	isolatedConfig(t)
+	scope := ScopeRepo(repoTarget(t))
+	tier1ReleaseSource(t, shaB)
+	stubRelease(t, releaseNoMetadata, pakkeRelease{}, nil)
+	tier1Install(t, scope, shaB)
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"`+shaA+`"}`)
+
+	stubRelease(t, releaseNoMetadata, pakkeRelease{}, errors.New("dial tcp: connection refused"))
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	if err == nil || errors.Is(err, errUpdatesAvailable) {
+		t.Fatalf("sync --apply with the releases API down = %v, want a refusal. Output:\n%s", err, out)
+	}
+	if code := exitCodeFor(err); code != ExitSyncFailed {
+		t.Errorf("exit = %d, want %d", code, ExitSyncFailed)
+	}
+	if !strings.Contains(err.Error(), "stays at "+shortSHA(shaA)) {
+		t.Errorf("the refusal does not say the pin stays: %v", err)
+	}
+	if d, _ := scopeDeclaration(scope); d == nil || d.SHA != shaA {
+		t.Errorf("the committed pin moved to %+v", d)
+	}
+
+	out = captureStdoutFor(t, func() { err = cmdSync(scope, shaB, "", true, false) })
+	if err != nil {
+		t.Fatalf("sync --apply --ref = %v. Output:\n%s", err, out)
+	}
+	if d, _ := scopeDeclaration(scope); d == nil || d.SHA != shaB {
+		t.Errorf("--ref did not move the pin: %+v", d)
+	}
 }

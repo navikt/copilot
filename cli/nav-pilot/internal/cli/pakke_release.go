@@ -433,11 +433,38 @@ func releaseStart(src *Source, follows bool) (*Source, *pakkeRelease, error) {
 // Nothing is stranded by it. Unlike a pin, a Tier 1 install resolves the newest
 // release again on the next install or sync, and no downgrade guard stands
 // between the two — so the fallback lasts exactly as long as the outage.
+//
+// It returns src with a *releaseLookupError, and the caller decides: install
+// takes the default branch through [fallBackToHead], and sync refuses when a
+// committed pin would otherwise move onto it on a guess.
 func headFallback(src *Source, name string, err error) (*Source, *pakkeRelease, error) {
-	fmt.Fprintf(os.Stderr, "%s could not resolve a stable release of %s: %v\n"+
-		"  %s is read from %s's default branch instead.\n",
-		yellow("⚠"), bold(name), err, name, src.Repo)
-	return src, nil, nil
+	return src, nil, &releaseLookupError{name: name, repo: src.Repo, err: err}
+}
+
+// releaseLookupError is a stable-release lookup a Tier 1 source could not
+// finish, most often because the releases API could not be reached.
+type releaseLookupError struct {
+	name, repo string
+	err        error
+}
+
+func (e *releaseLookupError) Error() string {
+	return fmt.Sprintf("could not resolve a stable release of %s: %v", e.name, e.err)
+}
+
+func (e *releaseLookupError) Unwrap() error { return e.err }
+
+// fallBackToHead reports whether err is a [releaseLookupError], and if so says
+// on stderr that the default branch is read instead (stdout may be a JSON
+// document).
+func fallBackToHead(err error) bool {
+	var lookup *releaseLookupError
+	if !errors.As(err, &lookup) {
+		return false
+	}
+	fmt.Fprintf(os.Stderr, "%s %v\n  %s is read from %s's default branch instead.\n",
+		yellow("⚠"), err, lookup.name, lookup.repo)
+	return true
 }
 
 // tier1Release swaps a Tier 1 source for the newest stable release's revision,

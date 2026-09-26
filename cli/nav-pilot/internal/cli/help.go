@@ -22,10 +22,13 @@ Flags:
   -t, --target <dir>      Install to another repository
   --all                   Install everything without prompting (with --user or --repo)
   --type <type>           agent, skill, instruction or prompt
-  -s, --source <repo>     Install from another agentpakke (owner/name or an absolute path)
+  -s, --source <repo>     Install from another agentpakke (owner/name or an absolute path).
+                          Sync then keeps using it for this scope; other commands
+                          need --source again unless you pass --save-source
   -r, --ref <ref>         Git branch or tag to install from
   --frozen                Install exactly what .nav-pilot/agentpakke.lock.json pins, or fail
   --yes                   Install without asking, also without a terminal
+  --save-source           Make --source the default source for later commands
   -f, --force             Overwrite files that differ from the source (yours are saved as .orig)
   -n, --dry-run           Show what would happen
   --json                  Output results as JSON
@@ -34,6 +37,7 @@ Examples:
   nav-pilot install nav-pilot --repo
   nav-pilot install --user --all
   nav-pilot install security-champion --type agent
+  nav-pilot install plattform --source navikt/plattform --repo
 `,
 	"sync": `Usage: nav-pilot sync [flags]
 
@@ -50,11 +54,44 @@ Flags:
   --updates <mode>        How a pinned agentpakke takes new stable releases: auto, ask or keep
   -s, --source <repo>     Sync from another agentpakke
   -r, --ref <ref>         Git branch or tag to sync to
-  --json                  Output results as JSON
+  -n, --dry-run           Report only, even with --apply (the same as leaving --apply out)
+  --yes                   With --apply, do not ask before removing files the source deleted
+  --json                  One JSON document on stdout: {"scopes": [...]} when
+                          several scopes are synced, one scope's document when
+                          --user, --repo or --target names it. A scope that
+                          fails has {"scope": ..., "error": ...}
 
 Exit codes: 0 up to date, 1 updates available, 2 sync failed.
 
 To sync and then launch the client, use nav-pilot --sync.
+`,
+	"uninstall": `Usage: nav-pilot uninstall [flags]
+
+Remove what nav-pilot installed in one scope: this repository's .github/ by
+default, or ~/.copilot with --user. It lists everything it removes, the state
+file and the lock file included, and in a terminal asks first. A file that
+changed since nav-pilot installed it is left in place and named.
+
+Flags:
+  -u, --user              Uninstall from ~/.copilot instead of this repository
+  -t, --target <dir>      Uninstall from another repository
+  -f, --force             Remove files that changed since nav-pilot installed them too
+  -n, --dry-run           List what would be removed, and remove nothing
+  --yes                   Do not ask, also in a terminal
+`,
+	"rollback": `Usage: nav-pilot rollback [--json]
+
+Move the agentpakke pinned in your user scope (~/.copilot) back to the
+previous revision on this machine. No network, nothing deleted: the revision
+it leaves is still there for sync --apply --ref.
+
+A repository's pin is .nav-pilot/agentpakke.lock.json, and it moves with git:
+  git log -p -- .nav-pilot/agentpakke.lock.json     # earlier pins
+  git checkout <commit> -- .nav-pilot/agentpakke.lock.json
+  nav-pilot install <name> --frozen                 # install that pin again
+
+Flags:
+  --json                  Output results as JSON
 `,
 	"list": `Usage: nav-pilot list [flags]
 

@@ -170,12 +170,12 @@ func TestInstallWritesInsideTheSandbox(t *testing.T) {
 		t.Fatal("sandkassens HOME er utviklerens egen, da isolerer harnessen ingenting")
 	}
 
-	if out, code := e.run(cons, "install", "plattform", "--source", src, "--repo", "--yes"); code != 0 {
+	if out, code := e.run(cons, "install", "plattform", "--source", src, "--repo", "--yes", "--save-source"); code != 0 {
 		t.Fatalf("install feilet: %d\n%s", code, out)
 	}
 
-	// Kilden install lagrer havner i sandkassens config, altså ble
-	// NAV_PILOT_CONFIG lest.
+	// Kilden install lagrer med --save-source havner i sandkassens config,
+	// altså ble NAV_PILOT_CONFIG lest.
 	body, err := os.ReadFile(filepath.Join(e.home, "config.toml"))
 	if err != nil {
 		t.Fatalf("kilden ble ikke lagret i sandkassens config: %v", err)

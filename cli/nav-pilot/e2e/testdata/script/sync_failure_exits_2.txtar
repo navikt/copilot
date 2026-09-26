@@ -1,0 +1,39 @@
+# A sync that cannot run exits 2, as its help says, and --json still puts a
+# document on stdout. It exited 1, the code for "updates available", and
+# --json printed nothing, which a workflow's `jq empty` took for success.
+
+mkdir plattform/skills forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../forbruker
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+
+# The source is gone.
+cd ..
+mv plattform borte
+cd forbruker
+
+exits 2 nav-pilot sync --repo --json
+validjson stdout
+stdout '"scope": "repo"'
+stdout '"error": '
+
+exits 2 nav-pilot sync --json
+validjson stdout
+stdout '"scopes": \['
+stdout '"error": '
+
+exits 2 nav-pilot sync
+stderr 'Error: '
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

@@ -34,6 +34,10 @@ exec nav-pilot sync --repo --json --source $WORK/plattform
 stdout '"skipped_existing": \['
 ! stdout '"added"'
 
+# A plain sync whose only difference is that file exits 0 and names it.
+exec nav-pilot sync
+stderr 'skipped agent grillmester'
+
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
 -- plattform/agents/grillmester.agent.md --

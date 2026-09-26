@@ -140,7 +140,10 @@ func LoadDeclaration(root string) (*Declaration, error) {
 	}
 	var d Declaration
 	if err := json.Unmarshal(data, &d); err != nil {
-		return nil, fmt.Errorf("%s is not valid JSON: %w", DeclarationPath, err)
+		return nil, fmt.Errorf("%s is not valid JSON: %w\n\n"+
+			"  Restore it and install what it pins:  git checkout -- %s && nav-pilot install <name> --frozen\n"+
+			"  Or delete it to install without a pin: rm %s",
+			DeclarationPath, err, DeclarationPath, DeclarationPath)
 	}
 	if err := d.validate(); err != nil {
 		return nil, err

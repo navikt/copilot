@@ -159,7 +159,8 @@ func TestUninstallDryRunReportsWhatItWouldKeep(t *testing.T) {
 	if !strings.Contains(out, "differ from what nav-pilot installed") {
 		t.Errorf("dry run did not report the file it would keep:\n%s", out)
 	}
-	if !strings.Contains(out, "Would remove 1 item") {
+	// The one untouched file, and the state file the list names too.
+	if !strings.Contains(out, "Would remove 2 items") {
 		t.Errorf("dry run counted the kept file as a removal:\n%s", out)
 	}
 }

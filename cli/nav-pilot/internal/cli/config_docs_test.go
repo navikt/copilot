@@ -31,7 +31,7 @@ var (
 var configKeyDocNB = map[string]string{
 	"version":             "Skjemaversjon. Mangler den, leses filen som versjon 1, og nav-pilot sier fra med én linje.",
 	"client":              "Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen.",
-	"source":              "Hvor agentpakken hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source; nav-pilot config unset source går tilbake til standarden.",
+	"source":              "Hvor agentpakken hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source --save-source; nav-pilot config unset source går tilbake til standarden.",
 	"model":               "Modell å bruke. En Copilot-id som claude-opus-4.8 virker for copilot og opencode (opencode kjører den som github-copilot/<id>); opencode tar også provider/model. nav-pilot config explain model lister id-ene.",
 	"mode":                "Modus for Copilot-agenten. plan tilsvarer opencode --agent plan; autopilot er kun Copilot.",
 	"reasoning_effort":    "Resonneringsinnsats. Copilot bruker --effort, opencode bruker --variant.",

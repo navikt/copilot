@@ -74,6 +74,10 @@ jobs:
         env:
           SOURCE_REPO: ${{ inputs.source_repo }}
           SOURCE_REF: ${{ inputs.source_ref }}
+          # The stable-release lookup reads the GitHub API. Anonymous calls
+          # share a small rate limit, and a lookup that fails keeps the
+          # committed pin and exits 2 rather than guessing.
+          GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           # Build nav-pilot flags from workflow inputs
@@ -93,16 +97,19 @@ jobs:
           EXIT_CODE=$?
           set -e
 
+          # One document: {"scopes": [{"scope": "repo", ...}, ...]}. A scope
+          # that could not sync carries "error" instead of the lists.
           if [[ $EXIT_CODE -eq 0 ]]; then
             echo "has_updates=false" >> "$GITHUB_OUTPUT"
           elif [[ $EXIT_CODE -eq 2 ]]; then
-            echo "::error::nav-pilot sync encountered errors"
+            echo "::error::nav-pilot sync failed: $(jq -r '[.scopes[]? | select(.error) | "\(.scope): \(.error)"] | join("; ")' "$SYNC_RESULT" 2>/dev/null)"
             cat "$SYNC_RESULT"
             exit 1
           elif [[ $EXIT_CODE -eq 1 ]]; then
-            # Verify we got valid JSON before treating as "updates available"
-            if ! jq empty "$SYNC_RESULT" &>/dev/null; then
-              echo "::error::nav-pilot sync failed (no valid JSON output)"
+            # `jq empty` accepts empty input, so it cannot tell a document
+            # from nothing. Require the shape before trusting "updates".
+            if ! jq -e '(.scopes | type == "array") and (.scopes | length > 0)' "$SYNC_RESULT" &>/dev/null; then
+              echo "::error::nav-pilot sync failed (no sync document on stdout)"
               cat "$SYNC_RESULT"
               exit 1
             fi
@@ -119,8 +126,10 @@ jobs:
             # reviewer is the one who decides which version stays.
             # sync-pr-body-filter-start
             CHANGE_FILTER='
-              (.replaced_local_edits // []) as $edited
+              (if has("scopes") then .scopes[] else . end)
+              | (.replaced_local_edits // []) as $edited
               | ((.updates // [])[].path | . as $p | if any($edited[]; . == $p) then $p + " (replaces local edits, kept as .orig)" else $p end),
+              ((.added // [])[] | . + " (new upstream)"),
               ((.deletions // [])[] | . + " (deleted upstream)"),
               (if .pin_bump then "\(.pin_bump.path) (pinned revision \(.pin_bump.from[0:7]) → \(.pin_bump.to[0:7]))" else empty end)
             '
@@ -150,6 +159,7 @@ jobs:
         env:
           SOURCE_REPO: ${{ inputs.source_repo }}
           SOURCE_REF: ${{ inputs.source_ref }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           SYNC_FLAGS="--apply"
           if [[ "$SOURCE_REPO" != "navikt/copilot" ]]; then

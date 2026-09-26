@@ -87,6 +87,7 @@ var knownFlags = []string{
 	"-s", "--source",
 	"-h", "--help",
 	"--installed", "--all", "--type",
+	"--yes", "--save-source",
 }
 
 // launchFlags are the flags nav-pilot takes with no command, when it launches

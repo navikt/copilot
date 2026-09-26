@@ -11,6 +11,15 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **En hook kilden fjerner, slutter å kjøre**: I repo-scope ble skriptet og oppføringa i `copilot-hooks.json` liggende, og i bruker-scope ble skriptet stående sporet. Nå fjernes skript, registrering og sporing i begge scope. En hook som er endret lokalt, beholdes, og sync advarer om at den fortsatt kjører.
 - **Install uten terminal krever `--yes`**: `install nav-pilot` uten terminal skrev 152 filer, hooks inkludert. Nå nekter den og sier hva den ville ha skrevet, med exit 2, med mindre kommandoen har `--yes`, `--all` eller `--frozen`. I en terminal spør «User home» i scope-velgeren om hooks, slik `install --user` gjør.
 
+### sync i CI sier fra når den feiler
+
+- **Exit 2 og et JSON-dokument når sync feiler**: En sync som ikke fikk kjørt, ga exit 1, samme kode som «oppdateringer finnes», og `--json` skrev ingenting på stdout. Nå gir den exit 2, og scopet som feilet får `{"scope": ..., "error": ...}`.
+- **Ett JSON-dokument for alle scope**: `sync --json` skrev to dokumenter etter hverandre uten å si hvilket scope de gjaldt. Nå skriver den `{"scopes": [...]}`, og sync-workflowen leser det.
+- **`sync --apply --json` oppdaterer**: Den rapporterte hva den ville gjort, oppdaterte ingenting og ga exit 1.
+- **Pinnen står når release-API-et er nede**: sync flyttet den committede pinnen til default-branchen. Nå blir den stående, og sync avslutter med 2. `--ref` flytter den.
+- **`--source` huskes ikke uten `--save-source`**: `install --source X` gjorde X til standardkilde for alle repoer på maskinen.
+- **Tørrkjøring viser alle stier**, også `copilot-hooks.json`, state-fila og lock-fila. **uninstall** lister alt den fjerner, spør først i en terminal og sier hvilket scope den gjelder. uninstall og rollback har egne hjelpesider. **sync --apply** viser hvilken revisjon den flytter fra og til, og spør før den sletter filer i en terminal.
+
 ## 2026-09-24
 
 ### GPT-6 Sol er standardmodellen

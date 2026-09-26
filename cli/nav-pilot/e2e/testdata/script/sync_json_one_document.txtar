@@ -1,0 +1,35 @@
+# sync --json over both scopes printed two JSON documents back to back, and
+# neither said which scope it was. Now it prints one, {"scopes": [...]}, and
+# each entry names its scope.
+
+mkdir plattform/skills forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../forbruker
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+exec nav-pilot install --user --all --source $WORK/plattform
+
+exec nav-pilot sync --json
+validjson stdout
+stdout '"scopes": \['
+stdout '"scope": "repo"'
+stdout '"scope": "user"'
+! stdout 'Syncing'
+
+# --updates is for a Tier 2 pin. Without one it says what this machine has
+# instead, rather than only "pin one".
+! exec nav-pilot sync --updates keep
+stderr 'your user scope pins none'
+stderr 'Your user scope holds files from'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

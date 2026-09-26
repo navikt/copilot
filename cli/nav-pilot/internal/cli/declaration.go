@@ -376,7 +376,15 @@ func resolveDeclaredSource(scope *InstallScope, ref, sourceRepo string) (*Source
 	if sourceRepo == "" {
 		sourceRepo = declRepo
 	}
-	return resolveSource(ref, sourceRepo)
+	src, err := resolveSource(ref, sourceRepo)
+	// A pin that cannot be fetched is the lock file's problem, and the
+	// message has to say which file that is.
+	if err != nil && declRef != "" && ref == declRef {
+		return nil, fmt.Errorf("%w\n\n%s pins %s, and that revision could not be fetched.\n"+
+			"  Pin the newest revision instead:  %s",
+			err, agentpakke.DeclarationPath, declRef, bold("nav-pilot install "+pakkeNameFor(declRepo)+" --ref <branch|sha>"))
+	}
+	return src, err
 }
 
 // selfInstall reports whether the scope being written to is the source repo
@@ -397,6 +405,16 @@ func selfInstall(scope *InstallScope, src *Source) bool {
 	return filepath.Clean(a) == filepath.Clean(b)
 }
 
+// declarationGoesWith reports whether an uninstall of state takes the repo's
+// lock file with it: it names the source being uninstalled.
+func declarationGoesWith(scope *InstallScope, state *StateFile) bool {
+	if scope == nil || scope.IsUser() || state == nil || state.SourceRepo == "" {
+		return false
+	}
+	d, err := scopeDeclaration(scope)
+	return err == nil && d != nil && d.Source != "" && sameSourceRepo(d.Source, state.SourceRepo)
+}
+
 // removeDeclarationFor deletes the reuse declaration an uninstall leaves
 // behind, when it names the source being uninstalled.
 //
@@ -406,14 +424,7 @@ func selfInstall(scope *InstallScope, src *Source) bool {
 // declaration can also describe a base this repo composes, which an uninstall
 // of something else must not touch.
 func removeDeclarationFor(scope *InstallScope, state *StateFile) {
-	if scope == nil || scope.IsUser() || state == nil || state.SourceRepo == "" {
-		return
-	}
-	d, err := scopeDeclaration(scope)
-	if err != nil || d == nil || d.Source == "" {
-		return
-	}
-	if !sameSourceRepo(d.Source, state.SourceRepo) {
+	if !declarationGoesWith(scope, state) {
 		return
 	}
 	path := filepath.Join(scope.RootDir, agentpakke.DeclarationPath)

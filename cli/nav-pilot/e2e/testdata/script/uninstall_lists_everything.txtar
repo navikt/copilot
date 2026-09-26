@@ -1,0 +1,59 @@
+# uninstall and rollback had no help pages of their own. uninstall did not
+# name the state file or the lock file it removed, or say that it covers one
+# scope. After it, its own hint "uninstall --force removes them too" led to
+# "not installed". And rollback in a repo with a committed pin only said to
+# pin something in user scope.
+
+exec nav-pilot uninstall --help
+stdout '^Usage: nav-pilot uninstall \[flags\]'
+stdout '--user'
+exec nav-pilot help rollback
+stdout '^Usage: nav-pilot rollback'
+stdout 'git log -p -- \.nav-pilot/agentpakke\.lock\.json'
+exec nav-pilot rollback --help
+stdout '^Usage: nav-pilot rollback'
+
+mkdir plattform/skills forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../forbruker
+exec git init -q .
+# A GitHub-style source, served from $WORK, so the install pins a revision
+# in .nav-pilot/agentpakke.lock.json the way it does for navikt/copilot.
+exec git config --global url.file://$WORK/plattform.insteadOf https://github.com/navikt/plattform.git
+exec git config --global protocol.file.allow always
+exec nav-pilot install plattform --source navikt/plattform --repo --yes
+exists .nav-pilot/agentpakke.lock.json
+
+! exec nav-pilot rollback
+stderr 'This repository pins navikt/plattform at [0-9a-f]{7} in \.nav-pilot/agentpakke\.lock\.json, and that pin moves with git'
+
+# --updates is for a Tier 2 pin in user scope, and says where this pin is.
+! exec nav-pilot sync --updates keep
+stderr 'This repository pins navikt/plattform'
+
+cp ../edited.md .github/agents/grillmester.agent.md
+exec nav-pilot uninstall --dry-run
+stdout 'this repository only; ~/\.copilot is nav-pilot uninstall --user'
+stdout '× \.github/\.nav-pilot-state\.json'
+stdout '× \.nav-pilot/agentpakke\.lock\.json'
+stdout 'uninstall --force removes them too'
+
+exec nav-pilot uninstall
+! stdout 'uninstall --force'
+stdout 'They are yours now'
+! exists .nav-pilot/agentpakke.lock.json
+exists .github/agents/grillmester.agent.md
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- edited.md --
+edited here

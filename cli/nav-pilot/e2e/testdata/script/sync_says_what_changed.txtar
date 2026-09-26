@@ -1,0 +1,49 @@
+# sync listed files and never said which revision it was moving from and to,
+# and --apply removed files the source deleted without asking, in a terminal
+# too. It names the move, and asks before a removal.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+cp config home/config.toml
+mkdir plattform/skills forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../forbruker
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+
+cd ../plattform
+exec git rm -q skills/brann/SKILL.md
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm 'drop brann'
+cd ../forbruker
+
+! exec nav-pilot sync --repo --source $WORK/plattform
+stdout '→ .*plattform [0-9a-f]{7} → [0-9a-f]{7}'
+
+exits 0 pty-run -wait 'Remove the 1 file' -send '\x03' -- nav-pilot sync --repo --apply --source $WORK/plattform
+stdout 'Cancelled\. Nothing was changed\.'
+exists .github/skills/brann/SKILL.md
+
+# --yes, and no terminal, do not ask.
+exec nav-pilot sync --repo --apply --yes --source $WORK/plattform
+! exists .github/skills/brann/SKILL.md
+
+-- config --
+version = 1
+model = "github-copilot/claude-opus-4.7"
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/skills/brann/SKILL.md --
+---
+name: brann
+description: fra plattform
+---
+brann

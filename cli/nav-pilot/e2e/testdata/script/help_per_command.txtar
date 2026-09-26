@@ -9,6 +9,7 @@ stdout '--apply'
 
 exec nav-pilot sync --help
 stdout '^Usage: nav-pilot sync \[flags\]'
+stdout '--dry-run'
 
 exec nav-pilot help install
 stdout '^Usage: nav-pilot install <name> \[flags\]'
