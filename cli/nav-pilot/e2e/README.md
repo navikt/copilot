@@ -58,3 +58,19 @@ git diff testdata/script
 `-update` records whatever the binary does now, regressions included. Read the
 diff before you commit it. `stdout`/`stderr` regex assertions aren't
 rewritten; edit those by hand.
+
+## Reviewing a transcript with the UX rubric
+
+[UX_RUBRIC.md](UX_RUBRIC.md) is a prompt for an LLM reviewer. The reviewer
+sees transcripts only, never source, so it judges what a user would see.
+
+1. Print the transcripts: `go test ./e2e -run TestScripts/<name> -v`.
+2. Remove the assertion lines (`> stdout ...`, `> stderr ...`) and the
+   script's `#` comments. They tell the reviewer what to expect. Keep each
+   command, its `[stdout]`/`[stderr]`, its exit code, and whether stdin was
+   a TTY.
+3. Give the reviewer `UX_RUBRIC.md` and the transcripts, and nothing else.
+
+Treat what comes back as hypotheses to check with a person or a new journey,
+not as a verdict. Don't commit the review as expected output. Put it in the
+PR description.
