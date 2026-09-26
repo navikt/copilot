@@ -413,7 +413,7 @@ nav-pilot alpha local stop      # og start igjen med start
 nav-pilot alpha local restart   # stopp og start på modellen local_model peker på nå
 nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
-nav-pilot alpha local purge     # fjern alt igjen, viser hva og hvor mye først
+nav-pilot alpha local purge     # fjern miljøet og valgt modell, viser hva og hvor mye først
 ```
 
 ### Bytte modell
@@ -474,7 +474,10 @@ med den gamle så lenge bare vektene til den gamle ligger på maskinen. Når ers
 ned, bytter nav-pilot til den. Begge deler får du beskjed om én gang, og konfigurasjonen endres
 ikke. `nav-pilot alpha local use <key>` gjør valget eksplisitt.
 
-Bytter du modell, må vektene til den nye lastes ned én gang. `purge` fjerner det du ikke vil beholde.
+Bytter du modell, må vektene til den nye lastes ned én gang. `purge` fjerner Python-miljøet, vektene
+til modellen du har valgt og vektene til modeller manifestet har erstattet. Andre modeller du har
+lastet ned, blir liggende, og listen sier hvilke. `purge --all` fjerner vektene til alle modellene.
+Ingenting slettes før du legger til `--yes`.
 
 Vil du slippe å starte serveren selv, kan en vanlig `nav-pilot` gjøre det når den trenger den:
 

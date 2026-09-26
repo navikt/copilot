@@ -471,3 +471,86 @@ func TestLocalStartSaysTheOldModelIsStillServed(t *testing.T) {
 		t.Errorf("start = %v, output:\n%s\nwant %q", err, out, want)
 	}
 }
+
+// TestPurgeRemovesTheChosenModelOnly: purge takes the chosen model's weights
+// and replaced leftovers, names the other downloads it keeps, and --all takes
+// every model's.
+func TestPurgeRemovesTheChosenModelOnly(t *testing.T) {
+	home := modelsFixture(t)
+	hub := filepath.Join(home, "hf", "hub")
+	defaultSnap := filepath.Join(hub, "models--mlx-community--Qwen3.6-35B", "snapshots", "abc")
+	writeFile(t, filepath.Join(defaultSnap, "config.json"), "{}")
+	writeFile(t, filepath.Join(defaultSnap, "model.safetensors"), "x")
+	if _, err := writeConfigKey("local_model", "mlx-community/Qwen3.8-27B"); err != nil {
+		t.Fatal(err)
+	}
+
+	out := stripANSI(captureStdout(func() { _ = cmdLocalPurge(nil) }))
+	if !strings.Contains(out, "models--mlx-community--Qwen3.8-27B") || strings.Contains(out, "models--mlx-community--Qwen3.6-35B") {
+		t.Errorf("purge should list only the chosen model's weights:\n%s", out)
+	}
+	if !strings.Contains(out, "kept: qwen3.6-35b (not chosen; purge --all removes it)") {
+		t.Errorf("purge does not name the kept download:\n%s", out)
+	}
+
+	all := stripANSI(captureStdout(func() { _ = cmdLocalPurge([]string{"--all"}) }))
+	for _, want := range []string{"models--mlx-community--Qwen3.8-27B", "models--mlx-community--Qwen3.6-35B", "purge --all --yes"} {
+		if !strings.Contains(all, want) {
+			t.Errorf("purge --all lacks %q:\n%s", want, all)
+		}
+	}
+	if strings.Contains(all, "kept:") {
+		t.Errorf("purge --all keeps something:\n%s", all)
+	}
+
+	captureStdout(func() {
+		captureStderr(func() {
+			if err := cmdLocalPurge([]string{"--yes"}); err != nil {
+				t.Errorf("purge --yes: %v", err)
+			}
+		})
+	})
+	if _, err := os.Stat(filepath.Join(hub, "models--mlx-community--Qwen3.8-27B")); !os.IsNotExist(err) {
+		t.Errorf("purge --yes left the chosen weights: %v", err)
+	}
+	if _, err := os.Stat(defaultSnap); err != nil {
+		t.Errorf("purge --yes removed weights it said it kept: %v", err)
+	}
+}
+
+// TestPurgeTakesReplacedLeftovers: the old weights of a replaced id go with
+// the chosen model, since nothing will load them again.
+func TestPurgeTakesReplacedLeftovers(t *testing.T) {
+	replacedFixture(t)
+	out := stripANSI(captureStdout(func() { _ = cmdLocalPurge(nil) }))
+	for _, want := range []string{"models--mlx-community--Qwen3.8-27B-4bit", "models--mlx-community--Qwen3.8-27B\n"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("purge lacks %q:\n%s", strings.TrimSpace(want), out)
+		}
+	}
+	if strings.Contains(out, "kept:") {
+		t.Errorf("nothing else is on disk, yet purge keeps something:\n%s", out)
+	}
+}
+
+// TestPurgeNamesKeptModelsWhenNothingElseIsHere: with no environment and the
+// chosen model not downloaded, purge still names the other downloads and how
+// to remove them, rather than saying there is nothing.
+func TestPurgeNamesKeptModelsWhenNothingElseIsHere(t *testing.T) {
+	home := modelsFixture(t)
+	if _, err := writeConfigKey("local_model", "mlx-community/Qwen3.6-35B"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(home, ".nav-pilot", "local")); err != nil {
+		t.Fatal(err)
+	}
+	out := stripANSI(captureStdout(func() { _ = cmdLocalPurge(nil) }))
+	for _, want := range []string{"kept: qwen3.8-27b", "nav-pilot alpha local purge --all"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("purge lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "not provisioned") {
+		t.Errorf("purge claims nothing is here:\n%s", out)
+	}
+}
