@@ -578,6 +578,26 @@ tmp, err := os.CreateTemp(filepath.Dir(dst), ".nav-pilot-*")
 os.Rename(tmpPath, dst)
 ```
 
+### Utgivere av lokale modeller (bare for benchmark)
+
+Manifestet for lokale modeller godtar bare modeller fra `mlx-community` og
+`lmstudio-community` (`allowedPublishers` i `internal/local/local.go`). Å utvide
+lista er en kodeendring. For å benchmarke en modell fra en annen utgiver finnes
+to miljøvariabler, og de er ment for benchmark-kjøringer, ikke for brukere:
+
+```sh
+NAV_PILOT_BENCH_MANIFEST=/sti/til/models.json   # les denne fila som manifest: ikke nett, cache eller innebygd kopi
+NAV_PILOT_BENCH_ALLOW_ORGS=Accio-Lab            # godta også disse utgiverne, kommaseparert
+```
+
+`NAV_PILOT_BENCH_ALLOW_ORGS` gjelder bare fila `NAV_PILOT_BENCH_MANIFEST` peker
+på. Manifestet fra nettet, cachen og den innebygde kopien holdes alltid til
+lista over, og uten `NAV_PILOT_BENCH_MANIFEST` sier nav-pilot på stderr at
+variabelen ignoreres. Hver prosess som godtar en utgiver utenfor lista, skriver
+`bench override: allowing unvetted publisher <org>` på stderr. Blir fila
+avvist eller mangler den, feiler kommandoen i stedet for å falle tilbake til
+standardmodellen. Se `internal/local/bench.go`.
+
 ## Fil-IO
 
 ### Kopiering

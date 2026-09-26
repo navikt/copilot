@@ -1,0 +1,70 @@
+# A bench run tries a model from a publisher outside the allow-list. The org
+# override works only for the manifest file NAV_PILOT_BENCH_MANIFEST names, and
+# says so on stderr every time. The same variable next to the cache (which is
+# what the network writes) changes nothing.
+
+# Orgs alone: ignored, and it says so. The cache holds the unvetted model, is
+# refused, and the built-in manifest is used instead.
+env NAV_PILOT_BENCH_ALLOW_ORGS=Accio-Lab
+exec nav-pilot alpha local models
+! stdout occamy
+stderr '^bench override: NAV_PILOT_BENCH_ALLOW_ORGS is ignored without NAV_PILOT_BENCH_MANIFEST$'
+! stderr 'allowing unvetted'
+! exec nav-pilot alpha local use occamy
+stderr 'unknown local model: occamy'
+
+# The bench manifest without the orgs: the allow-list still holds, and there is
+# no fallback to another model.
+env NAV_PILOT_BENCH_ALLOW_ORGS=
+env NAV_PILOT_BENCH_MANIFEST=$WORK/bench.json
+! exec nav-pilot alpha local models
+stderr 'NAV_PILOT_BENCH_MANIFEST=.*bench.json: .*not published by an allowed publisher'
+! stdout .
+! exec nav-pilot alpha local status
+stderr 'not published by an allowed publisher'
+! exec nav-pilot alpha local purge
+stderr 'not published by an allowed publisher'
+
+# Both: the model is offered and can be picked, with the warning each time.
+env NAV_PILOT_BENCH_ALLOW_ORGS=Accio-Lab
+exec nav-pilot alpha local models
+stdout '\* +occamy +Occamy 1.0 MLX 4bit'
+stderr '^bench override: allowing unvetted publisher Accio-Lab$'
+exec nav-pilot alpha local use occamy
+stdout 'local_model = occamy \(Accio-Lab/occamy-1.0-MLX-4bit\)'
+stderr '^bench override: allowing unvetted publisher Accio-Lab$'
+
+-- bench.json --
+{
+  "schema_version": 1,
+  "channel": "alpha",
+  "models": [
+    {
+      "key": "occamy",
+      "name": "Occamy 1.0 MLX 4bit",
+      "model": "Accio-Lab/occamy-1.0-MLX-4bit",
+      "backend": "mlx-lm",
+      "default": true,
+      "weights_gb": 18,
+      "min_ram_gb": 32,
+      "params": {"MLX_OPENCODE_CONTEXT": "65536"}
+    }
+  ]
+}
+-- home/.nav-pilot/local-models.json --
+{
+  "schema_version": 1,
+  "channel": "alpha",
+  "models": [
+    {
+      "key": "occamy",
+      "name": "Occamy 1.0 MLX 4bit",
+      "model": "Accio-Lab/occamy-1.0-MLX-4bit",
+      "backend": "mlx-lm",
+      "default": true,
+      "weights_gb": 18,
+      "min_ram_gb": 32,
+      "params": {"MLX_OPENCODE_CONTEXT": "65536"}
+    }
+  ]
+}

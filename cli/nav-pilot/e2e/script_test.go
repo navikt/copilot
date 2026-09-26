@@ -77,6 +77,10 @@ func TestScripts(t *testing.T) {
 			e.Setenv("NO_COLOR", "1")
 			e.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "false")
 			e.Setenv("DO_NOT_TRACK", "1")
+			// Bench-only overrides (internal/local/bench.go): a developer's
+			// shell must not change what any other journey sees.
+			e.Setenv("NAV_PILOT_BENCH_MANIFEST", "")
+			e.Setenv("NAV_PILOT_BENCH_ALLOW_ORGS", "")
 			// A proxy that refuses every connection. Go's HTTP client sends
 			// all non-loopback requests through it, so the manifest fetch,
 			// update checks and anything else that would reach a real service

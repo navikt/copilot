@@ -108,6 +108,10 @@ var SupportedSchemaMajors = []string{"1"}
 // Pinning specific repositories, or a weights digest, would close it properly.
 // That is a real change rather than a comment, and it is written down in
 // reports/alpha-status.md rather than implied by this list.
+//
+// NAV_PILOT_BENCH_ALLOW_ORGS widens it for a benchmark run, and only for the
+// local file NAV_PILOT_BENCH_MANIFEST names, never for the served manifest,
+// the cache or the embedded copy. See bench.go.
 var allowedPublishers = []string{"mlx-community", "lmstudio-community"}
 
 // allowedBackends lists the inference servers a manifest entry may ask for.
@@ -239,6 +243,10 @@ type Manifest struct {
 	// are treated exactly like entries the manifest does not list; the reason
 	// is kept so a developer who configured one is told why.
 	Withheld []Withheld `json:"-"`
+
+	// benchOrgs are the publishers NAV_PILOT_BENCH_ALLOW_ORGS adds, set only
+	// on the manifest read from NAV_PILOT_BENCH_MANIFEST. See bench.go.
+	benchOrgs []string
 }
 
 // Parse validates raw manifest bytes and returns the manifest. Validation is
@@ -246,8 +254,12 @@ type Manifest struct {
 // entirely rather than filtered down to its acceptable entries, because a
 // manifest carrying an entry this binary refuses is not the manifest the
 // generator meant to publish.
-func Parse(data []byte) (*Manifest, error) {
-	var m Manifest
+func Parse(data []byte) (*Manifest, error) { return parse(data, nil) }
+
+// parse is [Parse] with extra allowed publishers, which only the bench
+// manifest passes (bench.go).
+func parse(data []byte, benchOrgs []string) (*Manifest, error) {
+	m := Manifest{benchOrgs: benchOrgs}
 	// No DisallowUnknownFields: unknown fields are the contract's forward
 	// compatibility, see the package doc.
 	if err := json.Unmarshal(data, &m); err != nil {
@@ -334,7 +346,7 @@ func (m *Manifest) checkModels() error {
 			return fmt.Errorf("local-model manifest entry %q: %w", where, err)
 		}
 		publisher, _, ok := strings.Cut(model.Model, "/")
-		if !ok || !slices.Contains(allowedPublishers, publisher) {
+		if !ok || !m.publisherAllowed(publisher) {
 			return fmt.Errorf(
 				"local-model manifest entry %q names model %q, which is not published by an allowed publisher (%s); "+
 					"the manifest names weights this machine downloads and runs, so allowing another publisher is a nav-pilot code change, not a manifest change",
@@ -514,8 +526,11 @@ var cachePath = func() string { return navPilotPath("local-models.json") }
 // The returned error is advisory, not fatal — it explains why a fallback was
 // used so a caller can say so once — and the manifest is usable whenever it is
 // non-nil. Only a broken embedded copy (a defect in this repo, pinned by a
-// test) yields a nil manifest.
+// test) or a refused NAV_PILOT_BENCH_MANIFEST (bench.go) yields a nil manifest.
 func Resolve() (*Manifest, Source, error) {
+	if m, ok, err := benchManifest(); ok {
+		return m, SourceBench, err
+	}
 	data, err := fetchManifest(ManifestURL)
 	if err == nil {
 		m, perr := Parse(data)
@@ -550,8 +565,12 @@ func Resolve() (*Manifest, Source, error) {
 // only they may pay for a fresh one.
 //
 // The error is advisory, and only ever explains a cache that was skipped. A nil
-// manifest means the embedded copy is broken, which is a defect in this repo.
+// manifest means the embedded copy is broken, which is a defect in this repo,
+// or that NAV_PILOT_BENCH_MANIFEST names a file it refused (bench.go).
 func Cached() (*Manifest, Source, error) {
+	if m, ok, err := benchManifest(); ok {
+		return m, SourceBench, err
+	}
 	var err error
 	if path := cachePath(); path != "" {
 		if cached, cerr := os.ReadFile(path); cerr == nil {
