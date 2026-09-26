@@ -280,6 +280,8 @@ func startupUpdateCheck() (stop bool, err error) {
 }
 
 func run(args []string) error {
+	// Per run, not per process: a second run() in one process prints it again.
+	notedProposals = map[string]bool{}
 	if stop, err := startupUpdateCheck(); stop || err != nil {
 		return err
 	}

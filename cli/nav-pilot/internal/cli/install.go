@@ -1209,9 +1209,9 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		manifest = declared
 	}
 
-	total := len(manifest.Agents) + len(manifest.Skills) + len(manifest.Instructions)
+	total := scopeItemCount(scope, manifest)
 	if total == 0 {
-		return fmt.Errorf("no agents, skills, or instructions found in source")
+		return fmt.Errorf("nothing in the source that %s can hold", scope.Label())
 	}
 	if err := confirmInstallWrites(scope, resolver, manifest, dryRun, jsonOutput); err != nil {
 		return err
@@ -1228,20 +1228,13 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	sourceLabel := sourceLabelFor(src)
 
 	if !jsonOutput {
-		// The count the summary line ends on: every kind this scope holds,
-		// hooks included. Agents, skills and instructions alone said 58 above
-		// an "Installed 61".
-		shown := 0
-		for _, kind := range AllKinds {
-			if names, ok := manifest.NamesByKind(kind); ok && scope.SupportsType(kind.Name) {
-				shown += len(names)
-			}
-		}
+		// Every kind this scope holds, hooks included: agents, skills and
+		// instructions alone said 58 above an "Installed 61".
 		fmt.Println()
 		if dryRun {
-			fmt.Println(bold(fmt.Sprintf("Dry run: all %d items", shown)))
+			fmt.Println(bold(fmt.Sprintf("Dry run: all %d items", total)))
 		} else {
-			fmt.Println(bold(fmt.Sprintf("Installing: all %d items", shown)))
+			fmt.Println(bold(fmt.Sprintf("Installing: all %d items", total)))
 		}
 		fmt.Printf("%s %s\n", dim("Source:"), dim(fmt.Sprintf("%s@%s", sourceLabel, shortSHA(src.SHA))))
 		if reused != nil {
@@ -1346,8 +1339,13 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 		return emitJSON()
 	}
 
-	fmt.Printf("%s Installed %d items to %s (v%s, %s).\n",
-		green("✓"), result.Installed, scope.Label(), stateVersion, shortSHA(src.SHA))
+	// "of M" when something was kept or skipped, so the two numbers agree.
+	of := ""
+	if result.Installed != total {
+		of = fmt.Sprintf(" of %d", total)
+	}
+	fmt.Printf("%s Installed %d%s items to %s (v%s, %s).\n",
+		green("✓"), result.Installed, of, scope.Label(), stateVersion, shortSHA(src.SHA))
 	fmt.Println()
 	reach := "in this repository"
 	if scope.IsUser() {
@@ -2225,4 +2223,16 @@ func printDryRunRecords(scope *InstallScope, lock bool) {
 		fmt.Printf("  %s %s\n", dim("→"), agentpakke.DeclarationPath)
 	}
 	fmt.Println()
+}
+
+// scopeItemCount is how many of a manifest's items a scope can hold, every
+// kind included: a pakke of hooks alone is a pakke.
+func scopeItemCount(scope *InstallScope, manifest *Manifest) int {
+	n := 0
+	for _, kind := range AllKinds {
+		if names, ok := manifest.NamesByKind(kind); ok && scope.SupportsType(kind.Name) {
+			n += len(names)
+		}
+	}
+	return n
 }

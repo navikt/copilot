@@ -1561,7 +1561,7 @@ func TestInstallAllFromSource_EmptySource(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for empty source")
 	}
-	if !strings.Contains(err.Error(), "no agents, skills, or instructions") {
+	if !strings.Contains(err.Error(), "nothing in the source") {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
