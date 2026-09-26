@@ -46,5 +46,6 @@ regexes = ['''billing/seat/SAML''']
 description = "Profilnøkkel i nav-pilots modellmanifest, ikke en API-nøkkel"
 condition = "AND"
 regexTarget = "line"
-paths = ['''cli/nav-pilot/internal/local/models\.json''']
+# e2e-testscript-filene bærer kopier av det samme manifestet som fixtures.
+paths = ['''cli/nav-pilot/internal/local/models\.json''', '''cli/nav-pilot/e2e/testdata/script/[^/]+\.txtar''']
 regexes = ['''"key":\s*"[a-z0-9][a-z0-9.\-]*"''']
