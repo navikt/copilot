@@ -12,6 +12,9 @@ cd ..
 
 exec nav-pilot install --user --all --source $WORK/plattform
 exists home/.copilot/hooks/vakt.py
+# No question without a terminal, so it is said instead.
+stderr 'Installing 1 hooks, which run outside the sandbox on every matching tool call: vakt'
+
 
 exec nav-pilot sync --user --apply --source $WORK/plattform
 ! stdout 'deleted in source'

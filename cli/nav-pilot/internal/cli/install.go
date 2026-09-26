@@ -1162,6 +1162,12 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	if total == 0 {
 		return fmt.Errorf("no agents, skills, or instructions found in source")
 	}
+	// Without a terminal nobody saw a question naming them, so say it here:
+	// hooks run outside the sandbox on every matching tool call.
+	if !isInteractive() && !jsonOutput && len(manifest.Hooks) > 0 {
+		fmt.Fprintf(os.Stderr, "%s Installing %d hooks, which run outside the sandbox on every matching tool call: %s\n",
+			yellow("ℹ"), len(manifest.Hooks), strings.Join(manifest.Hooks, ", "))
+	}
 
 	sourceLabel := sourceLabelFor(src)
 

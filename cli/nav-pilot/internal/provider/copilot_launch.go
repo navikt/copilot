@@ -42,7 +42,7 @@ func FindCopilotCLI() (path, name string) {
 // The answer comes from cachedVersion, so a launch asks a plain copilot for
 // its version once, however many times FindCopilotCLI runs.
 func isCplt(binPath string) bool {
-	out, err := cachedVersion(binPath)
+	out, err := cachedVersion(binPath, 2*time.Second)
 	s := strings.ToLower(out)
 	return err == nil && (strings.Contains(s, "cplt") || strings.Contains(s, "copilot-sandbox"))
 }
@@ -57,12 +57,15 @@ var versionCache sync.Map
 // cachedVersion is `<bin> --version`, bounded like every other version probe
 // (runStagedProbe), and asked once per binary per process. One launch used to
 // spawn a plain copilot eight times for it, at about a second each.
-func cachedVersion(bin string) (string, error) {
+//
+// timeout bounds the first ask: 2s where the answer only tells a disguised
+// cplt apart (isCplt), clientProbeTimeout where the launch waits on it.
+func cachedVersion(bin string, timeout time.Duration) (string, error) {
 	if v, ok := versionCache.Load(bin); ok {
 		a := v.(versionAnswer)
 		return a.out, a.err
 	}
-	out, err := runStagedProbe(clientProbeTimeout, bin, "--version")
+	out, err := runStagedProbe(timeout, bin, "--version")
 	versionCache.Store(bin, versionAnswer{out, err})
 	return out, err
 }
@@ -95,11 +98,11 @@ func copilotAgentArgs(agent string) []string {
 // persona; resolved.Client selects the launcher and is consumed by
 // launchClient before reaching here.
 func copilotSessionModel(model string) string {
-	if model != "" {
-		id, _ := CopilotModelID(model)
-		return id
+	if model == "" {
+		model = pakkeDeclaredModel("copilot")
 	}
-	return pakkeDeclaredModel("copilot")
+	id, _ := CopilotModelID(model)
+	return id
 }
 
 // CopilotModelID is the id the Copilot CLI gets for a configured model: the

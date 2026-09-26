@@ -271,6 +271,8 @@ func cmdConfigSetup(force bool) error {
 				WithTheme(navTheme()).
 				Run(); errors.Is(err, huh.ErrUserAborted) {
 				return cancelledError{nothingWritten: true}
+			} else if err != nil {
+				force = false // a prompt that could not run is no answer: keep the file
 			}
 		}
 		if force {

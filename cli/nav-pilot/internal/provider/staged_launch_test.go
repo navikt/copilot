@@ -259,10 +259,11 @@ func TestStagedLaunchModel(t *testing.T) {
 			wantCopilo: []string{"--plugin-dir", staged.Dir, "--agent", "grillmester:grillmester"},
 		},
 		{
-			name:       "manifest default model is forwarded",
-			pakke:      concrete("github-copilot/claude-opus-5"),
-			wantOpen:   []string{"--agent", "grillmester", "--model", "github-copilot/claude-opus-5"},
-			wantCopilo: []string{"--plugin-dir", staged.Dir, "--agent", "grillmester:grillmester", "--model", "github-copilot/claude-opus-5"},
+			name:     "manifest default model is forwarded",
+			pakke:    concrete("github-copilot/claude-opus-5"),
+			wantOpen: []string{"--agent", "grillmester", "--model", "github-copilot/claude-opus-5"},
+			// copilot does not know the github-copilot/ prefix, so it is dropped.
+			wantCopilo: []string{"--plugin-dir", staged.Dir, "--agent", "grillmester:grillmester", "--model", "claude-opus-5"},
 		},
 		{
 			name:       "user pin wins over the manifest default",
@@ -277,7 +278,7 @@ func TestStagedLaunchModel(t *testing.T) {
 			name:       "legacy github-copilot/auto declaration is normalized for opencode",
 			pakke:      concrete("github-copilot/auto"),
 			wantOpen:   []string{"--agent", "grillmester"},
-			wantCopilo: []string{"--plugin-dir", staged.Dir, "--agent", "grillmester:grillmester", "--model", "github-copilot/auto"},
+			wantCopilo: []string{"--plugin-dir", staged.Dir, "--agent", "grillmester:grillmester", "--model", "auto"},
 		},
 	}
 

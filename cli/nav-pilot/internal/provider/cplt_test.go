@@ -282,3 +282,14 @@ func allowReadsFor(dir string) string {
 	}
 	return s
 }
+
+// A github-copilot/ prefix is dropped for copilot wherever the model comes
+// from, the agentpakke's own default included.
+func TestCopilotSessionModelDropsPrefix(t *testing.T) {
+	if got := copilotSessionModel("github-copilot/claude-opus-4.7"); got != "claude-opus-4.7" {
+		t.Errorf("copilotSessionModel = %q", got)
+	}
+	if id, dropped := CopilotModelID("anthropic/x"); dropped || id != "anthropic/x" {
+		t.Errorf("CopilotModelID(anthropic/x) = %q, %v", id, dropped)
+	}
+}

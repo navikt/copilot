@@ -173,6 +173,11 @@ func resolvedModelOrigin(client string, r domain.ResolvedConfig) (model, origin 
 				return "", ""
 			}
 		}
+		if client == "copilot" {
+			if id, dropped := CopilotModelID(declared); dropped {
+				return id, source.ActivePakke().Name + " default, github-copilot/ prefix dropped"
+			}
+		}
 		return declared, source.ActivePakke().Name + " default"
 	}
 	return "", ""
