@@ -53,6 +53,7 @@ func registerInternalRoutes(mux *http.ServeMux, auth func(http.Handler) http.Han
 // 403, including every user token; a missing or invalid one gets 401.
 func samlNameIDHandler(surveyClientID string, lookup func(context.Context, string) (string, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		body := http.MaxBytesReader(w, r.Body, 1<<10)
 		rec := &statusCounter{ResponseWriter: w}
 		defer func() {
 			if c := samlNameIDRequests[rec.status]; c != nil {
@@ -72,7 +73,7 @@ func samlNameIDHandler(surveyClientID string, lookup func(context.Context, strin
 		var body struct {
 			Login string `json:"login"`
 		}
-		dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10))
+		dec := json.NewDecoder(body)
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&body); err != nil || !isValidGitHubUsername(body.Login) {
 			respondError(w, "invalid_parameter", `The body must be {"login": "<GitHub login>"}`, http.StatusBadRequest)
