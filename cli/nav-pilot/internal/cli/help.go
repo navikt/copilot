@@ -162,8 +162,8 @@ hours before it tries again. Turn it off: nav-pilot config set auto_update false
 	"doctor": `Usage: nav-pilot doctor
 
 Check this machine and say what to fix: the config file, what is installed in
-~/.copilot and this repository, hooks, the clients (cplt, opencode, pi),
-model pins, the cplt sandbox and git. Each problem comes with the
+~/.copilot and this repository, hooks, the coding agents and cplt, model
+pins, the cplt sandbox and git. Each problem comes with the
 command that fixes it. Reads only; changes nothing.
 
 Exit code is 0 also when it finds problems: read the Solution lines.
