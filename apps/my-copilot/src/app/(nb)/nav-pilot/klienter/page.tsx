@@ -302,7 +302,7 @@ export default function Klienter() {
           <li>pi starter ikke.</li>
           <li>
             En agentpakke i Tier 2 starter ikke, uansett klient. Tier 2 vil si at pakka har ferdigbygde filer som
-            nav-pilot sjekker mot en digest og pinner som én revisjon per bruker, se{" "}
+            nav-pilot sjekker mot en digest og låser den som én revisjon per bruker, se{" "}
             <NextLink href="/nav-pilot/agentpakker#hvilken-tier" className={linkClass}>
               Hvilken tier
             </NextLink>
@@ -348,7 +348,7 @@ export default function Klienter() {
           du ikke får en versjon utenfor det testede området midt i en økt. I tillegg setter nav-pilot{" "}
           {c('"share": "disabled"')} i {c("~/.config/opencode/opencode.json")} når fila ikke sier noe om deling, så det
           gjelder også når du starter opencode selv. Det skjer når nav-pilot starter en agentpakke i Tier 1 og i
-          oppsettet, ikke med Tier 2, som aldri skriver i {c("~/.config/opencode/")}. Står det {c('"auto"')} der, får du
+          oppsettet, ikke med Tier 2, som ikke rører {c("opencode.json")}. Står det {c('"auto"')} der, får du
           en advarsel.
         </BodyLong>
         <LinkableHeading id="utsending" size="small" level="3">
