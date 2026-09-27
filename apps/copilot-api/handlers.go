@@ -224,20 +224,20 @@ func respondJSON(w http.ResponseWriter, data interface{}, status int) {
 	}
 }
 
-// redactPath hides the last segment of GET /api/v1/copilot/saml/{identity},
-// which is the caller's Nav e-mail, so a request log never names who was
-// active when. Matched on "/saml/" anywhere, so an uncleaned path such as
-// //api/v1/copilot/saml/x is caught too.
+// redactPath replaces everything after /saml/ in
+// GET /api/v1/copilot/saml/{identity}, which is the caller's Nav e-mail, so a
+// request log never names who was active when. Case-insensitive, so
+// /SAML/<e-mail> (a 404, but logged first) is caught too.
 func redactPath(p string) string {
-	if i := strings.Index(p, "/saml/"); i >= 0 {
+	if i := strings.Index(strings.ToLower(p), "/saml/"); i >= 0 {
 		return p[:i] + "/saml/{identity}"
 	}
 	return p
 }
 
-// tracePath reports whether a request may be traced: never the SAML lookup,
-// since otelhttp records the full path on the span.
-func tracePath(r *http.Request) bool { return !strings.Contains(r.URL.Path, "/saml/") }
+// tracePath reports whether a request may be traced. The SAML lookup never
+// is, since otelhttp records the full path on the span.
+func tracePath(r *http.Request) bool { return redactPath(r.URL.Path) == r.URL.Path }
 
 // loggingMiddleware logs HTTP requests
 func loggingMiddleware(config *Config, next http.Handler) http.Handler {

@@ -236,7 +236,7 @@ func TestAPIRoutesRequireAuth(t *testing.T) {
 	}
 }
 
-// The SAML lookup's path ends in the caller's Nav e-mail: neither the request
+// The SAML lookup's path ends in the caller's Nav e-mail. Neither the request
 // log nor a trace may carry it.
 func TestSAMLPathNeverLoggedOrTraced(t *testing.T) {
 	var buf bytes.Buffer
@@ -244,10 +244,10 @@ func TestSAMLPathNeverLoggedOrTraced(t *testing.T) {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
 	t.Cleanup(func() { slog.SetDefault(prev) })
 
-	email := "ola.nordmann" + "@nav.no"
-	config := &Config{LoggedEndpoints: map[string]bool{"/api/v1/": true, "//api/": true}}
+	email := "ola.nordmann@nav.no"
+	config := &Config{LoggedEndpoints: map[string]bool{"/api/v1/": true}}
 	h := loggingMiddleware(config, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
-	for _, p := range []string{"/api/v1/copilot/saml/" + email, "//api/v1/copilot/saml/" + email} {
+	for _, p := range []string{"/api/v1/copilot/saml/" + email, "/api/v1/copilot/SAML/" + email} {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		req.URL.Path = p
 		h.ServeHTTP(httptest.NewRecorder(), req)
