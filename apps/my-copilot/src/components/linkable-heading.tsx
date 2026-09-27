@@ -4,7 +4,7 @@ import { Heading, HeadingProps } from "@navikt/ds-react";
 import { LinkIcon, CheckmarkIcon } from "@navikt/aksel-icons";
 import { useState } from "react";
 
-function slugify(text: string): string {
+export function slugify(text: string): string {
   return text
     .toLowerCase()
     .replace(/[^a-zæøå0-9\s-]/g, "")

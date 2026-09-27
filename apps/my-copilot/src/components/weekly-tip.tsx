@@ -13,7 +13,7 @@ interface Tip {
 const TIPS: Tip[] = [
   {
     text: "Bruk WRAP-metoden: Write → Refine → Atomic → Pair. Tenk på det som å onboarde en ny kollega.",
-    href: "/praksis/guide/wrap-metoden",
+    href: "/praksis/guide/skrive-presise-prompts",
     label: "WRAP-metoden",
   },
   {
@@ -23,7 +23,7 @@ const TIPS: Tip[] = [
   },
   {
     text: "Bryt ned oppgaver i små, uavhengige deler. Copilot håndterer «lag login-skjema med validering» bedre enn «bygg komplett auth-system».",
-    href: "/praksis/guide/wrap-metoden",
+    href: "/praksis/guide/skrive-presise-prompts",
     label: "Atomiske oppgaver",
   },
   {

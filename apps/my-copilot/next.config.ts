@@ -59,6 +59,8 @@ const nextConfig: NextConfig = {
       { source: "/stats", destination: "/statistikk", permanent: true },
       { source: "/overview", destination: "/kostnad", permanent: true },
       { source: "/cost", destination: "/kostnad", permanent: true },
+      // The WRAP guide was merged into the prompt guide in #321.
+      { source: "/praksis/guide/wrap-metoden", destination: "/praksis/guide/skrive-presise-prompts", permanent: true },
     ];
   },
   // Enable Cache Components (Partial Prerendering) — disabled in dev because the

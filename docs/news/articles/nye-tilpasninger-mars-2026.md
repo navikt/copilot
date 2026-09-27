@@ -44,7 +44,7 @@ Skills lastes på forespørsel. Agenten henter SKILL.md når oppgaven matcher.
 
 ## Nye agenter
 
-### [`@code-review-agent`](/verktoy?item=code-review-agent)
+### [`@code-review-agent`](/verktoy?item=code-review)
 
 Gjennomgår kode på tvers av Navs stack, fra Kotlin/Spring, Kotlin/Ktor og TypeScript/Next.js til Go, Dockerfile og GitHub Actions. Agenten:
 
@@ -78,7 +78,7 @@ Bruk: `@accessibility-agent Sjekk skjemaet i denne filen for UU-feil`
 
 Seks filer har fått nytt innhold:
 
-- [**kotlin-spring**](/verktoy?item=kotlin-spring) har fått ProblemDetail-feilhåndtering, `@ConfigurationProperties`, test slices (`@WebMvcTest`, `@DataJpaTest`)
+- [**kotlin-spring**](/verktoy?item=kotlin) har fått ProblemDetail-feilhåndtering, `@ConfigurationProperties`, test slices (`@WebMvcTest`, `@DataJpaTest`)
 - [**testing**](/verktoy?item=testing) har fått teststrategi-tabell, Playwright E2E-seksjon, axe-core for a11y-testing
 - [**nextjs-aksel**](/verktoy?item=nextjs-aksel) dekker nå `loading.tsx`, `error.tsx`, Suspense med streaming, Server Actions med `useActionState`
 - [**database**](/verktoy?item=database) har fått PostgreSQL-stoff om EXPLAIN ANALYZE, JSONB med GIN-indeks, window functions og store migrasjoner

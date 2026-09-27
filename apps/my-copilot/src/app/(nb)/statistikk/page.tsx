@@ -199,6 +199,8 @@ function UsageTabs({ usage, token }: { usage: EnterpriseMetrics[]; token: string
       ),
       hashIds: [
         "dashboard",
+        // /kostnad and older links point at #kostnad.
+        "kostnad",
         "nokkeltall",
         "månedlige-trender",
         "måned-hittil-modeller-og-kostnad",

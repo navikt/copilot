@@ -155,6 +155,16 @@ To run the tests:
 pnpm test
 ```
 
+### Links must keep working
+
+`src/lib/link-inventory.json` lists every path and anchor on the site that has been published or linked. `src/link-inventory.test.ts` checks that each one still resolves, and fails when the repo links to something that is not listed. After adding a page, a heading or a link, run:
+
+```bash
+pnpm link-inventory:update
+```
+
+It only adds entries. When a page moves, add a permanent redirect in `next.config.ts`. When an anchor moves, add it to `src/lib/legacy-anchors.ts`. Never delete an inventory entry.
+
 ### Deployment
 
 This project uses GitHub Actions for CI/CD. The workflow is defined in `.github/workflows/build-deploy.yaml`. The application is deployed to the Nais platform.

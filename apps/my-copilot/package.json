@@ -18,7 +18,8 @@
     "generate": "node --experimental-strip-types scripts/generate-manifest.ts",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "prestart": "node scripts/prepare-standalone.mjs"
+    "prestart": "node scripts/prepare-standalone.mjs",
+    "link-inventory:update": "UPDATE_LINK_INVENTORY=1 vitest run src/link-inventory.test.ts && prettier --write src/lib/link-inventory.json"
   },
   "dependencies": {
     "@grafana/faro-web-sdk": "^2.11.0",

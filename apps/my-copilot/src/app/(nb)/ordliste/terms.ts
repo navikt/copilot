@@ -76,7 +76,7 @@ export const terms: Term[] = [
     term: "Coding agent",
     definition:
       "Copilots autonome agent på GitHub. Du tildeler en issue til Copilot, og agenten skriver kode, kjører tester og oppretter en pull request du kan gjennomgå.",
-    link: { href: "/praksis/guide/wrap-metoden", label: "WRAP-metoden" },
+    link: { href: "/praksis/guide/skrive-presise-prompts", label: "WRAP-metoden" },
   },
   {
     term: "Completion",
