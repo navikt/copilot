@@ -175,6 +175,35 @@ nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)�
 > GitHub's username rules before being accepted. If copilot-cli is not
 > a pre-authorized inbound app the trust path stays disabled (fails closed).
 
+#### Accepted risk: copilot-cli asserts who answered a survey
+
+copilot-cli will also forward survey answers to copilot-survey with the same
+M2M token and `X-On-Behalf-Of` header (#1089, #1090). copilot-survey cannot
+check the login itself: it trusts copilot-cli, as copilot-api does for
+usage reads. #337 accepted that trust for reads; this accepts it for one
+write.
+
+- **What a compromised copilot-cli can do:** submit one answer per navikt
+  member per open survey, under that member's real dedup hash. The member is
+  then refused with 409 when they try to answer. It cannot read answers,
+  change a stored answer, or answer twice for anyone.
+- **Blast radius:** every navikt member, one answer per open survey. Nothing
+  outside surveys.
+- **Why it is accepted:** the M2M token only exists inside the copilot-cli
+  pod, and a signed per-request token would not help against a compromised
+  pod (the architecture review, D4 and D11).
+- **Limits in code:** copilot-survey honours the header only on an app token
+  (`idtyp=app` or the `access_as_application` role, no NAVident or e-mail)
+  whose `azp` is copilot-cli, only on `POST /api/v1/surveys/{id}/responses`,
+  and only with a well-formed GitHub login. A user token with the header is
+  refused.
+- **Detection:** `survey_submissions_total{survey,status}` on copilot-survey
+  and `copilot_api_saml_name_id_requests_total{status}` on copilot-api count
+  answers and e-mail lookups, with no identity. Alert on a burst of either.
+
+Owner: the survey owner. Revisit if copilot-cli gets a public ingress or a
+second write route.
+
 ### my-copilot (`apps/my-copilot/.nais/app.yaml`)
 
 Inbound is public via ingress, and Wonderwall enforces auth on the protected routes. Outbound goes to copilot-api through Nais service discovery.
