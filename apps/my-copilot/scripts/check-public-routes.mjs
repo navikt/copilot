@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { autoLoginIgnorePaths as allowed, matches } from "./auto-login-ignore-paths.mjs";
 
 const appDir = dirname(dirname(fileURLToPath(import.meta.url)));
-const PRIVATE_ROUTES = ["/abonnement", "/kostnad", "/overview", "/usage"];
+const PRIVATE_ROUTES = ["/abonnement", "/kostnad"];
 
 function routeFor(pageFile) {
   const rel = relative(join(appDir, "src", "app"), dirname(pageFile));

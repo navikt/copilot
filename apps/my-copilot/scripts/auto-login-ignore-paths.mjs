@@ -12,9 +12,10 @@ if (!block) throw new Error("could not find autoLoginIgnorePaths in .nais/app.ya
 export const autoLoginIgnorePaths = [...block[1].matchAll(/^\s*- (\S+)/gm)].map((m) => m[1]);
 
 // Wonderwall semantics for the two forms used here: an exact path, or /x/**,
-// which matches everything below /x but not /x itself.
+// which matches /x and everything below it.
 export function matches(route, pattern) {
   if (pattern === route) return true;
-  if (pattern.endsWith("/**")) return route.startsWith(pattern.slice(0, -2));
-  return false;
+  if (!pattern.endsWith("/**")) return false;
+  const base = pattern.slice(0, -3);
+  return route === base || route.startsWith(base + "/");
 }

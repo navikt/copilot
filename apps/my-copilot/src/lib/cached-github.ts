@@ -7,23 +7,11 @@
  * call site passes a per-user OBO token as an argument, which would create a
  * separate cache entry per user and defeat org-level caching.
  */
-import type { CopilotBilling, Contributor } from "./types";
+import type { Contributor } from "./types";
 import { backendRequest } from "./backend-api";
 
 function getErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
-}
-
-export async function getCopilotBilling(token: string): Promise<{
-  billing: CopilotBilling | null;
-  error: string | null;
-}> {
-  try {
-    const billing = await backendRequest<CopilotBilling>("/api/v1/copilot/billing", token);
-    return { billing, error: null };
-  } catch (error) {
-    return { billing: null, error: getErrorMessage(error) };
-  }
 }
 
 /**

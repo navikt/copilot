@@ -361,7 +361,8 @@ describe("link inventory", () => {
   // too, and src/proxy.ts sends readers without a token to the login.
   it("every inventoried path is let through by Wonderwall", () => {
     const blocked = Object.keys(inventory).filter((p) => !autoLoginIgnorePaths.some((a) => matches(p, a)));
-    expect(blocked, "Add them to autoLoginIgnorePaths in .nais/app.yaml").toEqual([]);
+    expect(autoLoginIgnorePaths).not.toContain("/**");
+    expect(blocked, "Add them to autoLoginIgnorePaths in apps/my-copilot/.nais/app.yaml").toEqual([]);
   });
 
   it("every inventoried anchor exists on the page it lands on", () => {
