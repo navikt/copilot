@@ -149,18 +149,22 @@ nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)�
 4. copilot-cli calls copilot-api with the M2M token and an
    `X-On-Behalf-Of: <github-username>` header identifying the verified user.
 
-- A second sign-in path takes Entra ID OBO tokens from my-copilot (in-cluster,
-  for ki-utvikling): Texas introspection, then a user token only (no app-only
-  tokens) from a pre-authorized app. It serves survey submissions; usage stays
-  GitHub-only.
-- Inbound: my-copilot (service discovery), and the `.intern.nav.no` ingress,
-  which requires naisdevice. No CORS: browsers never call it.
+- GitHub is the only sign-in path. No app in the cluster calls copilot-cli:
+  `accessPolicy.inbound` is empty, and `azure.application` is on only for the
+  M2M token to copilot-api.
+- Inbound: the `.intern.nav.no` ingress, which requires naisdevice. No CORS:
+  browsers never call it.
+- Secrets: the nav-pilot GitHub App's client id and secret (for the token
+  check), `SURVEY_KEY_<ID>` per open survey, and the Postgres credentials
+  NAIS injects. No GitHub App private key.
 - Outbound: copilot-api (service discovery) + `api.github.com` / `github.com`.
 - Survey answers: a second answer is refused through a per-survey keyed HMAC
   of the Nav e-mail in a participation table, and the answers go to a
   separate table with no identifier, written in shuffled batches. The key and
   the participation rows are deleted when the survey closes. Data model, key
-  lifecycle and residual risks: `apps/copilot-cli/README.md`.
+  lifecycle and residual risks: `apps/copilot-cli/README.md`. Submissions
+  answer 503 for now: copilot-cli has no way to find a GitHub user's Nav
+  e-mail without a GitHub App key, and it must not hold one.
 
 > **Status:** copilot-api trusts `X-On-Behalf-Of` via its Identity Resolver
 > architecture (see `apps/copilot-api/ARCHITECTURE.md`). The
@@ -247,7 +251,7 @@ When `NAIS_CLUSTER_NAME` is unset (local development):
 - Forward raw upstream error messages to clients, return a generic message instead
 - Skip input validation on external boundaries
 - Bypass `azp` validation on any backend API request, even for "internal" services
-- Give my-copilot, or any app other than copilot-api, access to GitHub App credentials
+- Give my-copilot, or any app other than copilot-api, a GitHub App private key or installation token (copilot-cli holds only the nav-pilot App's client id and secret, which check a user token and grant nothing on the org)
 
 ---
 

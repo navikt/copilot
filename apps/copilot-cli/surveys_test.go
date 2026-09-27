@@ -36,13 +36,9 @@ func (f *fakeStore) submit(_ context.Context, surveyID, hash string, _ time.Time
 	return true, nil
 }
 
-// fakeEmails stands in for the SAML lookup: hans on GitHub is the same person
-// as the Entra test user.
+// fakeEmails stands in for the SAML lookup.
 func fakeEmails(_ context.Context, u *AuthenticatedUser) (string, error) {
-	switch {
-	case u.Issuer == issuerEntra:
-		return u.email, nil
-	case u.Login == "hans":
+	if u.Login == "hans" {
 		return "hans.test@NAV.no ", nil
 	}
 	return "", errNoNavIdentity
@@ -98,7 +94,6 @@ func TestSubmit(t *testing.T) {
 		{"no token", "", path, good, 401},
 		{"github user", "good-token", path, good, 201},
 		{"same github user again", "good-token", path, good, 409},
-		{"same person on the web", entraToken, path, good, 409},
 		{"github member without a Nav identity", "nosso-token", path, good, 403},
 		{"closed survey", "good-token", "/api/v1/surveys/old/responses", `{"answers":{"a":1},` + goodCtx + `}`, 404},
 		{"unknown survey", "good-token", "/api/v1/surveys/nope/responses", good, 404},
@@ -192,9 +187,6 @@ func TestUsageRoute(t *testing.T) {
 	h, _ := testRouter(t)
 	if rec := do(h, "POST", "/api/v1/usage", "", ""); rec.Code != 405 {
 		t.Fatalf("POST usage = %d, want 405 before auth", rec.Code)
-	}
-	if rec := do(h, "GET", "/api/v1/usage", entraToken, ""); rec.Code != 403 {
-		t.Fatalf("entra usage = %d, want 403", rec.Code)
 	}
 	if rec := do(h, "GET", "/api/v1/surveys/q4-2026/responses", "good-token", ""); rec.Code != 405 {
 		t.Fatalf("GET responses = %d, want 405", rec.Code)

@@ -5,7 +5,9 @@ ki-utvikling.nav.no. It holds the GitHub App and BigQuery credentials; my-copilo
 holds neither.
 
 `copilot-cli` is the second caller: a gateway that lets `nav-pilot` reach the same
-backend from a terminal. It holds no secrets either.
+backend from a terminal. It holds the nav-pilot GitHub App's client id and secret,
+for checking a user's token, plus the survey keys and database. It holds no GitHub App
+private key.
 
 This document covers the shape of the system and the reasoning behind it. The endpoint
 list, the full config table and the error-type catalogue live in
@@ -56,7 +58,7 @@ copilot-cli (Go gateway, naisdevice-gated ingress)
 copilot-api
 ```
 
-`copilot-cli` holds no secrets either. An M2M token carries no user claims, so the
+An M2M token carries no user claims, so the
 resolved GitHub username travels in an explicit `X-On-Behalf-Of` header, which
 `copilot-api` trusts only for GET requests from a pre-authorized `azp`. That trust path
 and its limits are set out in [SECURITY.md](./SECURITY.md).

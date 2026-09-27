@@ -1,41 +1,34 @@
 # copilot-cli
 
-Gateway for [nav-pilot](../../cli/nav-pilot) and ki-utvikling (my-copilot). It
-signs callers in, forwards Copilot usage lookups to copilot-api, and takes
-answers to user surveys. See [#337](https://github.com/navikt/copilot/issues/337)
+Gateway for [nav-pilot](../../cli/nav-pilot). It signs developers in with
+GitHub, forwards Copilot usage lookups to copilot-api, and serves user
+surveys. See [#337](https://github.com/navikt/copilot/issues/337)
 (gateway) and [#1023](https://github.com/navikt/copilot/issues/1023) (surveys).
 
 ## Sign-in
 
-Two paths, one normalised identity (`issuer` + the issuer's stable id):
-
 | Caller | Token | Checked by | Identity |
 | --- | --- | --- | --- |
 | nav-pilot (laptop, naisdevice) | GitHub App user token from the device flow | `POST /applications/{client_id}/token` with the app's own credentials: the token must be issued **to this app** (a gh CLI or IDE token is refused), live, then `GET /orgs/navikt/members/{login}` must answer 204 | `github` + numeric user id |
-| my-copilot (in-cluster) | Entra ID OBO token, audience copilot-cli | Texas introspection (signature, issuer, audience, expiry), then: a user token (`NAVident` set, `idtyp` not `app`), from a pre-authorized app (`azp` in `AZURE_APP_PRE_AUTHORIZED_APPS`) | `entra` + `oid` |
 
-A JWT goes to the Entra path, anything else to GitHub. Every failure is a
-refusal (fail closed). Outcomes are cached by SHA-256 of the token (success 5
-minutes, never past the token's expiry; refusal 1 minute). Cache misses are
-of the GitHub path are rate limited globally (1/s, burst 10), below the
+Every failure is a refusal (fail closed). Outcomes are cached by SHA-256 of
+the token (success 5 minutes, never past the token's expiry; refusal 1
+minute). Cache misses are rate limited globally (1/s, burst 10), below the
 app's 5,000/h GitHub quota, so a flood of random tokens costs a 429, not the
-quota; the Entra path goes to the local Texas sidecar and is not limited.
-copilot-cli logs neither tokens nor identities; copilot-api logs the GitHub
-login of each usage request it serves on someone's behalf (audit).
+quota. copilot-cli logs neither tokens nor identities; copilot-api logs the
+GitHub login of each usage request it serves on someone's behalf (audit).
 
-**GitHub App prerequisites.** Device flow enabled; organization permissions
-*Members: read* and whatever lets it read the org's SAML identities (the
-permission copilot-api's App uses for `externalIdentities`; verify in dev);
-installed on `navikt`. Without the installation, org
+**GitHub App prerequisites.** Device flow enabled; organization permission
+*Members: read*, nothing else; installed on `navikt`. Without the installation, org
 membership answers 302 for everyone and every sign-in gets 403. User token
 expiry: nav-pilot stores no refresh token yet, so either turn expiry off on
 the App or add refresh before rollout.
 
-No CORS headers: browsers never call this service. my-copilot calls it server
-to server.
+No CORS headers: browsers never call this service, and no app in the cluster
+does either.
 
-Usage (`/api/v1/usage`) needs the GitHub path: copilot-api keys usage by GitHub
-login and trusts `X-On-Behalf-Of` only from copilot-cli, only on GETs.
+copilot-api keys usage by GitHub login and trusts `X-On-Behalf-Of` only from
+copilot-cli, only on GETs.
 
 ## Endpoints
 
@@ -43,7 +36,7 @@ login and trusts `X-On-Behalf-Of` only from copilot-cli, only on GETs.
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/usage` | GitHub | Current month usage summary |
 | `GET` | `/api/v1/surveys/active` | none | Open surveys from [`surveys/`](surveys/README.md) |
-| `POST` | `/api/v1/surveys/{id}/responses` | GitHub or Entra | Submit answers: 201, 409 already answered, 400 invalid, 404 not open |
+| `POST` | `/api/v1/surveys/{id}/responses` | GitHub | Submit answers: 201, 409 already answered, 400 invalid, 404 not open; 503 for now (see below) |
 | `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus |
 
 ## Surveys: data model and retention
@@ -57,16 +50,16 @@ to a person, not even pseudonymously.**
 A submission is `{"answers": {…}, "context": {…}}`, strictly validated,
 unknown fields refused, body at most 32 KiB. Then:
 
-1. The respondent's Nav e-mail is found: from the Entra token
-   (`preferred_username`), or for a GitHub sign-in from the member's SAML SSO
-   identity in navikt (`externalIdentities … samlIdentity.nameId`, read with
-   the nav-pilot GitHub App's installation token). A GitHub account with no
-   SAML identity gets 403 and is told to answer on ki-utvikling. The e-mail is
-   used in memory for step 2 only and never stored or logged (the Entra one
-   sits in the in-memory token cache for at most 5 minutes). The two strings
-   must be the same address for one person, or that person can answer twice:
-   check with a real user in dev that `preferred_username` and the SAML
-   `nameId` agree before launch.
+1. The respondent's Nav e-mail is found from the member's SAML SSO identity
+   in navikt (`externalIdentities … samlIdentity.nameId`). That lookup needs a
+   GitHub App installation token, and copilot-cli holds no App key, so
+   **submissions answer 503 here** until the survey code moves to its own
+   service, which asks copilot-api for the lookup. A GitHub account with no
+   SAML identity gets 403 and is told to answer on ki-utvikling. The e-mail
+   is used in memory for step 2 only and never stored or logged. On the web
+   it will come from the Entra `preferred_username`; the two strings must be
+   the same address for one person, or that person can answer twice: check
+   with a real user in dev that they agree before launch.
 2. The dedup hash is `HMAC-SHA256(survey key, lowercased e-mail)`. A hash
    already written or queued gets 409, from nav-pilot and the web alike.
 3. The submission is queued per survey. Every 10 (k) submissions to one
@@ -161,7 +154,7 @@ question id; `construct` and `reverse` come from the definition file.
 
 ## Configuration
 
-NAIS injects the Entra, Texas and database variables. The rest comes from the
+NAIS injects the Texas and database variables. The rest comes from the
 secret `copilot-cli` (namespace `copilot`), created by hand in the Nais console
 in each cluster:
 
@@ -169,15 +162,12 @@ in each cluster:
 | --- | --- | --- |
 | `GITHUB_CLIENT_ID` | the nav-pilot GitHub App's client id | the App's settings page |
 | `GITHUB_CLIENT_SECRET` | checks that a token was issued to that App | App → *Generate a new client secret* |
-| `GITHUB_APP_ID` | the App's id, for its installation token | the App's settings page |
-| `GITHUB_APP_PRIVATE_KEY` | signs the App's JWT (PEM) | App → *Generate a private key* |
-| `GITHUB_APP_INSTALLATION_ID` | the App's installation on navikt | the installation's URL |
 | `SURVEY_KEY_<ID>` | one per survey, see above | `openssl rand -base64 32`; delete at close |
 
-Missing GitHub credentials turn the GitHub path off (503). A survey without
-its key, or no database, takes no answers (503). Without the App's
-installation credentials, GitHub sign-ins cannot answer (503); the web still
-can.
+Missing GitHub credentials turn sign-in off (503). A survey without its key,
+or no database, takes no answers (503). `GITHUB_APP_ID`,
+`GITHUB_APP_PRIVATE_KEY` and `GITHUB_APP_INSTALLATION_ID` are no longer read;
+delete them from the secret if they are there.
 
 | Variable | Description | Default |
 | --- | --- | --- |

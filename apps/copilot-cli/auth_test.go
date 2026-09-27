@@ -14,22 +14,8 @@ import (
 
 const testClientID = "Iv1.test"
 
-// Fake JWT-shaped tokens, assembled at run time so no token-shaped literal
-// sits in the source for secret scanners to flag.
-var (
-	entraToken   = fakeJWT("user")
-	appToken     = fakeJWT("app")
-	foreignToken = fakeJWT("foreign")
-	inactiveTok  = fakeJWT("inactive")
-)
-
-func fakeJWT(name string) string { return "ey" + "J-" + name + ".ey" + "J-" + name + ".not-signed" }
-
-// fakeIssuers is GitHub and the Texas introspection endpoint in one server.
-// GitHub knows good-token (org member hans, id 42), outsider-token (not a
-// member) and other-app-token (issued to another app). Texas knows
-// entraToken (a user via my-copilot), appToken (app-only) and foreignToken
-// (a user, via an app that is not pre-authorized).
+// fakeIssuers is GitHub. It knows good-token (org member hans, id 42),
+// outsider-token (not a member) and other-app-token (issued to another app).
 func fakeIssuers(t *testing.T) (*httptest.Server, *atomic.Int32) {
 	t.Helper()
 	var calls atomic.Int32
@@ -63,22 +49,6 @@ func fakeIssuers(t *testing.T) (*httptest.Server, *atomic.Int32) {
 		case strings.HasPrefix(r.URL.Path, "/orgs/navikt/members/"):
 			// What GitHub answers when the requester is not a member.
 			http.Redirect(w, r, "/orgs/navikt/public_members/x", http.StatusFound)
-		case r.URL.Path == "/introspect":
-			var body struct {
-				Token string `json:"token"`
-			}
-			_ = json.NewDecoder(r.Body).Decode(&body)
-			exp := time.Now().Add(time.Hour).Unix()
-			switch body.Token {
-			case entraToken:
-				_ = json.NewEncoder(w).Encode(map[string]any{"active": true, "azp": "my-copilot-id", "oid": "oid-1", "NAVident": "Z999999", "preferred_username": "Hans.Test@nav.no", "exp": exp})
-			case appToken:
-				_ = json.NewEncoder(w).Encode(map[string]any{"active": true, "azp": "my-copilot-id", "oid": "oid-app", "idtyp": "app", "exp": exp})
-			case foreignToken:
-				_ = json.NewEncoder(w).Encode(map[string]any{"active": true, "azp": "someone-else", "oid": "oid-1", "NAVident": "Z999999", "exp": exp})
-			default:
-				_, _ = w.Write([]byte(`{"active":false,"error":"invalid token"}`))
-			}
 		default:
 			w.WriteHeader(http.StatusTeapot)
 		}
@@ -93,7 +63,6 @@ func testAuthenticator(t *testing.T) (*authenticator, *atomic.Int32) {
 	gh.baseURL = srv.URL
 	return &authenticator{
 		github: gh,
-		entra:  newEntraClient(srv.URL+"/introspect", `[{"name":"dev-gcp:copilot:my-copilot","clientId":"my-copilot-id"}]`),
 		org:    "navikt",
 		cache:  newTokenCache(5 * time.Minute),
 		limit:  rate.NewLimiter(rate.Inf, 1),
@@ -117,10 +86,7 @@ func TestAuthenticate(t *testing.T) {
 		{"github non-member", "Bearer outsider-token", 403, "", ""},
 		{"github token of another app", "Bearer other-app-token", 401, "", ""},
 		{"github unknown token", "Bearer nope", 401, "", ""},
-		{"entra user", "Bearer " + entraToken, 200, issuerEntra, "oid-1"},
-		{"entra app-only token", "Bearer " + appToken, 403, "", ""},
-		{"entra token via a non-pre-authorized app", "Bearer " + foreignToken, 401, "", ""},
-		{"entra inactive", "Bearer " + inactiveTok, 401, "", ""},
+		{"a JWT (the Entra path is gone)", "Bearer ey" + "J-x.ey" + "J-x.not-signed", 401, "", ""},
 		{"basic scheme", "Basic dXNlcjpwYXNz", 401, "", ""},
 		{"two tokens", "Bearer a b", 401, "", ""},
 		{"oversized token", "Bearer " + strings.Repeat("a", 9000), 401, "", ""},
@@ -169,22 +135,16 @@ func TestAuthenticateRateLimitsCacheMisses(t *testing.T) {
 	if _, err := a.resolve(t.Context(), "nope"); err != errInvalidToken {
 		t.Fatalf("cached refusal should not spend the limit: %v", err)
 	}
-	if _, err := a.resolve(t.Context(), entraToken); err != nil {
-		t.Fatalf("the Entra path is not behind the GitHub limit: %v", err)
-	}
 }
 
 func TestAuthenticateOffWithoutConfig(t *testing.T) {
 	a := &authenticator{
 		github: newGitHubClient("", ""),
-		entra:  newEntraClient("http://texas", ""),
 		cache:  newTokenCache(time.Minute),
 		limit:  rate.NewLimiter(rate.Inf, 1),
 	}
-	for _, tok := range []string{"good-token", entraToken} {
-		if _, err := a.resolve(t.Context(), tok); err != errIssuerOffline {
-			t.Fatalf("%s: err = %v, want errIssuerOffline", tok, err)
-		}
+	if _, err := a.resolve(t.Context(), "good-token"); err != errIssuerOffline {
+		t.Fatalf("err = %v, want errIssuerOffline", err)
 	}
 }
 

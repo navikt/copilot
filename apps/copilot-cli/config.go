@@ -1,7 +1,6 @@
-// Package main implements copilot-cli, a NAIS-hosted gateway for nav-pilot
-// and ki-utvikling. It signs callers in with a GitHub token (nav-pilot, navikt
-// org members only) or an Entra ID OBO token (my-copilot), forwards usage
-// requests to copilot-api, and takes answers to user surveys.
+// Package main implements copilot-cli, a NAIS-hosted gateway for nav-pilot.
+// It signs callers in with a GitHub token (navikt org members only), forwards
+// usage requests to copilot-api, and serves user surveys.
 package main
 
 import (
@@ -38,20 +37,9 @@ type Config struct {
 	GitHubClientID     string
 	GitHubClientSecret string
 
-	// NaisTokenIntrospectionEndpoint and AzurePreAuthorizedApps turn on the
-	// Entra ID sign-in path; NAIS injects both.
-	NaisTokenIntrospectionEndpoint string
-	AzurePreAuthorizedApps         string
-
 	// DatabaseURL turns on survey submissions; each survey also needs its
 	// own key, SURVEY_KEY_<ID> (see surveyKeys).
 	DatabaseURL string
-
-	// The nav-pilot GitHub App's installation credentials, for looking up a
-	// GitHub user's Nav e-mail in navikt's SAML SSO (see samlLookup).
-	GitHubAppID             string
-	GitHubAppInstallationID string
-	GitHubAppPrivateKey     string
 
 	// OrgMembershipCacheTTL controls how long a verified org membership is
 	// cached, keyed by a SHA-256 hash of the caller's GitHub token, to avoid
@@ -72,14 +60,9 @@ func loadConfig() *Config {
 		NaisTokenEndpoint:     os.Getenv("NAIS_TOKEN_ENDPOINT"),
 		OrgMembershipCacheTTL: 5 * time.Minute,
 
-		GitHubClientID:                 os.Getenv("GITHUB_CLIENT_ID"),
-		GitHubClientSecret:             os.Getenv("GITHUB_CLIENT_SECRET"),
-		NaisTokenIntrospectionEndpoint: os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT"),
-		AzurePreAuthorizedApps:         os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS"),
-		DatabaseURL:                    os.Getenv("DB_URL"),
-		GitHubAppID:                    os.Getenv("GITHUB_APP_ID"),
-		GitHubAppInstallationID:        os.Getenv("GITHUB_APP_INSTALLATION_ID"),
-		GitHubAppPrivateKey:            os.Getenv("GITHUB_APP_PRIVATE_KEY"),
+		GitHubClientID:     os.Getenv("GITHUB_CLIENT_ID"),
+		GitHubClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
+		DatabaseURL:        os.Getenv("DB_URL"),
 	}
 }
 
