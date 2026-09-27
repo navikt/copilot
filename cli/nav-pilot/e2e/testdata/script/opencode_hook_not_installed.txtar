@@ -1,0 +1,36 @@
+# A hook the source ships runs in opencode once it is installed (the hooks
+# bridge, #709). One that is not installed does not, and the launch says so,
+# naming it and how to add it.
+
+fake-bin cplt opencode
+env PATH=$PATH${:}/bin${:}/usr/bin
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot config set source $WORK/plattform
+exec nav-pilot install grillmester --user --yes
+
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+stderr -count=1 '1 hook\(s\) the source ships are not installed, so they do not run: vakt\. Run nav-pilot install to add them\.'
+
+exec nav-pilot install plattform --user --yes
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+! stderr 'not installed'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/hooks/vakt.hook.json --
+{"matcher": "bash", "timeoutSec": 5}
+-- plattform/hooks/vakt.py --
+print("{}")

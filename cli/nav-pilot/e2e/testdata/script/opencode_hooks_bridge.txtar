@@ -37,6 +37,8 @@ grep '^--allow-write\n.*/\.local/share/nav-pilot/opencode-hook-state\n' $WORK/fa
 exists $HOME/.local/share/nav-pilot/opencode-plugin/nav-pilot-hooks.js
 ! exists $HOME/.config/opencode/plugins/nav-pilot-hooks.js
 ! stderr 'do not run with --pure'
+# The agentpakke's hook runs here, so the launch no longer says it was left out.
+! stderr 'not installed for opencode'
 
 exec cat $WORK/driver.out
 # Redaction, in opencode's own tools and in an MCP tool's content.

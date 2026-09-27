@@ -275,8 +275,9 @@ kjører hookene med standardverdiene, altså med maskering og løkkevakt på, og
 linje om det på stderr. En ødelagt fil skal ikke være det som slår av maskeringen. En nøkkel
 med feil type, for eksempel `hook_redact_secrets = "false"` med anførselstegn, blir hoppet
 over, så standardverdien gjelder, og hooken sier fra om det på stderr.
-`nav-pilot doctor` sier fra om fila, og `nav-pilot` starter ikke før den er rettet. opencode får ikke disse hookene ennå
-([#709](https://github.com/navikt/copilot/issues/709)).
+`nav-pilot doctor` sier fra om fila, og `nav-pilot` starter ikke før den er rettet. Hookene kjører også i en
+OpenCode-økt som nav-pilot starter, via hook-broen ([opencode-hooks.md](../cli/nav-pilot/docs/opencode-hooks.md)).
+Der holdes resultatet tilbake hvis maskeringen feiler. Starter du `opencode` selv, eller med `--pure`, kjører de ikke.
 
 ### Hub-repo
 
