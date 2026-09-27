@@ -123,10 +123,12 @@ type surveyContext struct {
 
 // surveyCollected is shown before any question, so nobody answers without
 // knowing what is sent.
-const surveyCollected = "Sent: your answers, nav-pilot version, OS, which client you use, and whether local models are on.\n" +
-	"Not sent: your name, GitHub user, device id, code or anything from your sessions.\n" +
-	"Your GitHub sign-in only stops a second answer. Nothing stored links the answers to you,\n" +
-	"so they cannot be changed or withdrawn afterwards."
+const surveyCollected = "Dette sendes: svarene dine, nav-pilot-versjon, operativsystem, hvilken klient du\n" +
+	"bruker og om lokale modeller er på.\n" +
+	"Dette sendes ikke: navn, GitHub-bruker, enhets-ID, kode eller noe fra øktene dine.\n" +
+	"GitHub-innloggingen brukes bare til å hindre at noen svarer to ganger. Svarene\n" +
+	"lagres uten noe som knytter dem til deg, så de kan ikke endres eller trekkes\n" +
+	"tilbake etterpå."
 
 func surveyStatePath() (string, error) {
 	dir, err := telemetrypkg.GetConfigDir()
@@ -243,15 +245,15 @@ func maybeSurvey(client string) {
 	switch askSurvey(*s, rec.Asks) {
 	case "never":
 		rec.Done = "never"
-		fmt.Println(dim("  nav-pilot won't ask about this survey again. To turn off all surveys: nav-pilot config set surveys false"))
+		fmt.Println(dim("  nav-pilot spør ikke om denne undersøkelsen igjen. Slå av alle undersøkelser: nav-pilot config set surveys false"))
 	case "now":
 		answerSurvey(r, st, *s, base)
 		return
 	default:
 		if rec.Done == "exhausted" {
-			fmt.Println(dim("  That was the last time nav-pilot asks about this survey. You can still answer it with nav-pilot survey."))
+			fmt.Println(dim("  Dette var siste gang nav-pilot spurte om denne undersøkelsen. Du kan fortsatt svare med nav-pilot survey."))
 		} else {
-			fmt.Println(dim("  nav-pilot will ask again in a few days."))
+			fmt.Println(dim("  nav-pilot spør igjen om noen dager."))
 		}
 	}
 	writeSurveyState(st)
@@ -302,7 +304,7 @@ func countAsk(st surveyState, id string, now time.Time) *surveyRecord {
 func answerSurvey(r ResolvedConfig, st surveyState, s surveyDef, base string) bool {
 	answers, ok := runSurveyForm(s)
 	if !ok {
-		fmt.Println(dim("  Not sent."))
+		fmt.Println(dim("  Ikke sendt."))
 		writeSurveyState(st)
 		return false
 	}
@@ -337,7 +339,7 @@ func maybeSurveyHint(client string) {
 		return
 	}
 	countAsk(st, s.ID, now)
-	fmt.Fprintf(os.Stderr, "%s User survey: %s (%d questions). Answer it any time with %s\n\n", dim("ℹ"), s.Title, len(s.Questions), bold("nav-pilot survey"))
+	fmt.Fprintf(os.Stderr, "%s Brukerundersøkelse: %s (%d spørsmål). Svar når det passer deg: %s\n\n", dim("ℹ"), s.Title, len(s.Questions), bold("nav-pilot survey"))
 }
 
 // cmdSurvey is nav-pilot survey: lists the open surveys, and in a terminal
@@ -352,14 +354,14 @@ func cmdSurvey(jsonOutput bool) error {
 		st.Active, st.Fetched = active, now
 		writeSurveyState(st)
 	} else if len(st.Active) == 0 {
-		return fmt.Errorf("could not reach copilot-cli to find open surveys (naisdevice on?): %w", err)
+		return fmt.Errorf("fikk ikke kontakt med copilot-cli for å finne åpne undersøkelser (er naisdevice på?): %w", err)
 	}
 	var open []surveyDef
 	for _, d := range st.Active {
 		switch {
 		case !d.openOn(now):
 		case !d.renderable():
-			fmt.Fprintf(os.Stderr, "%s %s needs a newer nav-pilot: %s\n", yellow("⚠"), d.Title, bold("nav-pilot upgrade"))
+			fmt.Fprintf(os.Stderr, "%s %s krever en nyere nav-pilot: %s\n", yellow("⚠"), d.Title, bold("nav-pilot upgrade"))
 		default:
 			open = append(open, d)
 		}
@@ -373,21 +375,21 @@ func cmdSurvey(jsonOutput bool) error {
 			return outputJSON(list)
 		}
 		if len(open) == 0 {
-			fmt.Println("No open surveys right now.")
+			fmt.Println("Ingen åpne undersøkelser akkurat nå.")
 			return nil
 		}
 		for _, d := range open {
-			fmt.Printf("%s  %s (%d questions, open until %s)\n", d.ID, d.Title, len(d.Questions), d.Ends)
+			fmt.Printf("%s  %s (%d spørsmål, åpen til %s)\n", d.ID, d.Title, len(d.Questions), d.Ends)
 		}
-		fmt.Println(dim("Run nav-pilot survey in a terminal to answer."))
+		fmt.Println(dim("Kjør nav-pilot survey i en terminal for å svare."))
 		return nil
 	}
 	if len(open) == 0 {
-		fmt.Println("No open surveys right now.")
+		fmt.Println("Ingen åpne undersøkelser akkurat nå.")
 		return nil
 	}
 	if !canSignIn() {
-		return fmt.Errorf("answering needs a GitHub sign-in: run %s", bold("nav-pilot auth login"))
+		return fmt.Errorf("du må logge inn med GitHub for å svare: kjør %s", bold("nav-pilot auth login"))
 	}
 	deliverPending(base, st)
 	s := open[0]
@@ -397,12 +399,12 @@ func cmdSurvey(jsonOutput bool) error {
 			opts = append(opts, huh.NewOption(d.Title, d.ID))
 		}
 		id := open[0].ID
-		if err := runField(huh.NewSelect[string]().Title("Which survey?").Options(opts...).Value(&id)); err != nil {
+		if err := runField(huh.NewSelect[string]().Title("Hvilken undersøkelse?").Options(opts...).Value(&id)); err != nil {
 			return cancelledError{}
 		}
 		s = open[slices.IndexFunc(open, func(d surveyDef) bool { return d.ID == id })]
 	}
-	fmt.Printf("\n%s (%d questions)\n", bold(s.Title), len(s.Questions))
+	fmt.Printf("\n%s (%d spørsmål)\n", bold(s.Title), len(s.Questions))
 	if s.Intro != "" {
 		fmt.Println(s.Intro)
 	}
@@ -424,12 +426,12 @@ func askSurvey(s surveyDef, ask int) string {
 	}
 	choice := "later"
 	err := runField(huh.NewSelect[string]().
-		Title(fmt.Sprintf("User survey: %s (%d questions, asked %d of %d)", s.Title, len(s.Questions), ask, surveyMaxAsks)).
+		Title(fmt.Sprintf("Brukerundersøkelse: %s (%d spørsmål, spurt %d av %d ganger)", s.Title, len(s.Questions), ask, surveyMaxAsks)).
 		Description(desc).
 		Options(
-			huh.NewOption("Answer now", "now"),
-			huh.NewOption("Later", "later"),
-			huh.NewOption("Never for this survey", "never"),
+			huh.NewOption("Svar nå", "now"),
+			huh.NewOption("Senere", "later"),
+			huh.NewOption("Aldri for denne undersøkelsen", "never"),
 		).
 		Value(&choice))
 	if err != nil {
@@ -477,20 +479,20 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 				}
 			}
 			if !q.Required {
-				opts = append(opts, huh.NewOption("Skip", ""))
+				opts = append(opts, huh.NewOption("Hopp over", ""))
 			}
 			field = huh.NewSelect[string]().Title(q.Text).Options(opts...).Value(&picks[i])
 		case "multi":
 			ms := huh.NewMultiSelect[string]().Title(q.Text).Options(huh.NewOptions(q.Options...)...).Value(&multis[i])
-			desc := "Space to pick, enter when done."
+			desc := "Mellomrom for å velge, Enter når du er ferdig."
 			if q.MaxChoices > 0 {
 				ms = ms.Limit(q.MaxChoices)
-				desc = fmt.Sprintf("Pick up to %d. %s", q.MaxChoices, desc)
+				desc = fmt.Sprintf("Velg opptil %d. %s", q.MaxChoices, desc)
 			}
 			if q.Required {
 				ms = ms.Validate(func(v []string) error {
 					if len(v) == 0 {
-						return errors.New("pick at least one")
+						return errors.New("velg minst ett svar")
 					}
 					return nil
 				})
@@ -501,14 +503,14 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 			if q.Required {
 				in = in.Validate(func(v string) error {
 					if strings.TrimSpace(v) == "" {
-						return errors.New("write an answer")
+						return errors.New("skriv et svar")
 					}
 					return nil
 				})
 			}
-			desc := "Write nothing that identifies you or anyone else."
+			desc := "Skriv ikke noe som kan identifisere deg eller andre."
 			if !q.Required {
-				desc += " Optional: leave empty to skip."
+				desc += " Valgfritt: la feltet stå tomt for å hoppe over."
 			}
 			field = in.Description(desc)
 		}
@@ -601,21 +603,21 @@ func sendAnswered(base string, st surveyState, id string) {
 	switch {
 	case status == http.StatusCreated:
 		rec.Pending = nil
-		fmt.Println(green("  ✓ ") + "Thank you! Your answers were sent.")
+		fmt.Println(green("  ✓ ") + "Takk! Svaret ditt er sendt.")
 	case status == http.StatusConflict:
 		rec.Pending = nil
-		fmt.Println(dim("  You have already answered this survey, so these answers were not sent. Thank you!"))
+		fmt.Println(dim("  Du har allerede svart på denne undersøkelsen, så dette svaret ble ikke sendt. Takk!"))
 	case status == http.StatusUnauthorized && surveyToken() == "":
-		fmt.Println(yellow("  ⚠ ") + "Answers saved. Log in with " + bold("nav-pilot auth login") + " and nav-pilot sends them after your next session.")
+		fmt.Println(yellow("  ⚠ ") + "Svaret er lagret. Logg inn med " + bold("nav-pilot auth login") + ", så sender nav-pilot det etter neste økt.")
 	case status == http.StatusUnauthorized:
-		fmt.Println(yellow("  ⚠ ") + "copilot-cli did not accept your GitHub sign-in. Answers saved. Run " + bold("nav-pilot auth login") + " and nav-pilot sends them after your next session.")
+		fmt.Println(yellow("  ⚠ ") + "copilot-cli godtok ikke GitHub-innloggingen din. Svaret er lagret. Kjør " + bold("nav-pilot auth login") + ", så sender nav-pilot det etter neste økt.")
 	case status >= 400 && status < 500:
 		rec.Pending = nil
-		fmt.Println(yellow("  ⚠ ") + "copilot-cli refused the answers" + surveyErrDetail(err) + ". Sorry, they were not saved.")
+		fmt.Println(yellow("  ⚠ ") + "copilot-cli avviste svaret" + surveyErrDetail(err) + ". Det ble dessverre ikke lagret.")
 	case status >= 500 || status == http.StatusTooManyRequests:
-		fmt.Println(dim("  copilot-cli could not take the answers now" + surveyErrDetail(err) + ". Answers saved. nav-pilot sends them after your next session."))
+		fmt.Println(dim("  copilot-cli kunne ikke ta imot svaret nå" + surveyErrDetail(err) + ". Svaret er lagret, og nav-pilot sender det etter neste økt."))
 	default:
-		fmt.Println(dim("  Could not reach copilot-cli (naisdevice on?). Answers saved. nav-pilot sends them after your next session."))
+		fmt.Println(dim("  Fikk ikke kontakt med copilot-cli (er naisdevice på?). Svaret er lagret, og nav-pilot sender det etter neste økt."))
 	}
 	writeSurveyState(st)
 }
@@ -667,7 +669,7 @@ func postSurvey(base, id string, payload []byte, interactive bool) (int, error) 
 		if !interactive || navPilotGitHubClientID() == navPilotGitHubClientIDDefault {
 			return http.StatusUnauthorized, nil
 		}
-		fmt.Println(dim("  Sign in with GitHub once to send your answers."))
+		fmt.Println(dim("  Logg inn med GitHub én gang for å sende svaret."))
 		if err := cmdAuthLogin(); err != nil {
 			return http.StatusUnauthorized, err
 		}

@@ -24,8 +24,8 @@ exec nav-pilot config set rtk_prompted_client copilot
 
 # No terminal: a list, not a form.
 exec nav-pilot survey
-stdout '^e2e-2026  E2E survey \(4 questions, open until 2099-12-31\)$'
-stdout 'Run nav-pilot survey in a terminal to answer'
+stdout '^e2e-2026  E2E survey \(4 spørsmål, åpen til 2099-12-31\)$'
+stdout 'Kjør nav-pilot survey i en terminal for å svare'
 exec nav-pilot survey --json
 validjson stdout
 stdout '"id": "e2e-2026"'
@@ -34,19 +34,19 @@ stdout '"id": "e2e-2026"'
 # Opted out of the automatic prompts, and "never" said before: still works.
 exec nav-pilot config set surveys false
 env DO_NOT_TRACK=1
-exec pty-run -wait 'How useful is nav-pilot' -send '\r' -wait 'Pick up to 2' -send ' \r' -wait 'Anything else' -send '\r' -- nav-pilot survey
-stdout 'Sent: your answers'
-stdout 'Thank you! Your answers were sent'
+exec pty-run -wait 'How useful is nav-pilot' -send '\r' -wait 'Velg opptil 2' -send ' \r' -wait 'Anything else' -send '\r' -- nav-pilot survey
+stdout 'Dette sendes: svarene dine'
+stdout 'Takk! Svaret ditt er sendt'
 grep -count=1 '^POST 201 ' $WORK/survey-posts.log
 
 # Again: copilot-cli refuses the second answer.
-exec pty-run -wait 'How useful is nav-pilot' -send '\r' -wait 'Pick up to 2' -send ' \r' -wait 'Anything else' -send '\r' -- nav-pilot survey
-stdout 'You have already answered this survey'
+exec pty-run -wait 'How useful is nav-pilot' -send '\r' -wait 'Velg opptil 2' -send ' \r' -wait 'Anything else' -send '\r' -- nav-pilot survey
+stdout 'Du har allerede svart på denne undersøkelsen'
 
 # No sign-in, and no GitHub App to sign in with.
 env NAV_PILOT_E2E_GITHUB_TOKEN=
 ! exec pty-run -- nav-pilot survey
-stdout 'answering needs a GitHub sign-in'
+stdout 'du må logge inn med GitHub for å svare'
 
 -- home/surveys.json --
 {"surveys":{"e2e-2026":{"asks":3,"done":"never"}}}

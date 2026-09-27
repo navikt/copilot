@@ -27,26 +27,26 @@ env NAV_PILOT_E2E_SURVEY_GAP=0s
 # The first session fetches the definitions (after the session); no prompt,
 # since this survey is not a calm one.
 exec pty-run -- nav-pilot
-! stdout 'User survey'
+! stdout 'Brukerundersøkelse'
 
 exec pty-run -- nav-pilot
-stdout -count=1 'User survey: E2E survey \(4 questions\)\. Answer it any time with nav-pilot survey'
+stdout -count=1 'Brukerundersøkelse: E2E survey \(4 spørsmål\)\. Svar når det passer deg: nav-pilot survey'
 
 # Not headless, not in CI.
 exec pty-run -- nav-pilot -- -p hei
-! stdout 'User survey'
+! stdout 'Brukerundersøkelse'
 env CI=true
 exec pty-run -- nav-pilot
-! stdout 'User survey'
+! stdout 'Brukerundersøkelse'
 env CI=
 
 # Three in all.
 exec pty-run -- nav-pilot
-stdout 'User survey: E2E survey'
+stdout 'Brukerundersøkelse: E2E survey'
 exec pty-run -- nav-pilot
-stdout 'User survey: E2E survey'
+stdout 'Brukerundersøkelse: E2E survey'
 exec pty-run -- nav-pilot
-! stdout 'User survey'
+! stdout 'Brukerundersøkelse'
 ! exists $WORK/survey-posts.log
 
 -- plattform/.nav-pilot/agentpakke.json --

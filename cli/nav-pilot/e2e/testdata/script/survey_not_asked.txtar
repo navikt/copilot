@@ -26,50 +26,50 @@ env NAV_PILOT_E2E_SURVEY_GAP=0s
 # CI, even in a terminal.
 env CI=true
 exec pty-run -- nav-pilot
-! stdout 'User survey'
+! stdout 'Brukerundersøkelse'
 env CI=
 
 # Headless: client args after --, even in a terminal.
 exec pty-run -- nav-pilot -- -p hei
-! stdout 'User survey'
+! stdout 'Brukerundersøkelse'
 
 # surveys = false.
 exec nav-pilot config set surveys false
 exec pty-run -- nav-pilot
-! stdout 'User survey'
+! stdout 'Brukerundersøkelse'
 exec nav-pilot config unset surveys
 
 # DO_NOT_TRACK.
 env DO_NOT_TRACK=1
 exec pty-run -- nav-pilot
-! stdout 'User survey'
+! stdout 'Brukerundersøkelse'
 env DO_NOT_TRACK=
 
 # NAV_PILOT_TELEMETRY_ENABLED=false.
 env NAV_PILOT_TELEMETRY_ENABLED=false
 exec pty-run -- nav-pilot
-! stdout 'User survey'
+! stdout 'Brukerundersøkelse'
 env NAV_PILOT_TELEMETRY_ENABLED=true
 
 # No session: auto_launch = false prints the command and starts nothing.
 exec nav-pilot config set auto_launch false
 exec pty-run -- nav-pilot
 stdout 'auto_launch = false'
-! stdout 'User survey'
+! stdout 'Brukerundersøkelse'
 exec nav-pilot config unset auto_launch
 
 # Not signed in, and no GitHub App to sign in with.
 env NAV_PILOT_E2E_GITHUB_TOKEN=
 exec pty-run -- nav-pilot
-! stdout 'User survey'
+! stdout 'Brukerundersøkelse'
 env NAV_PILOT_E2E_GITHUB_TOKEN=gho_e2e
 
 ! exists $WORK/survey-posts.log
 ! exists $HOME/surveys.json.tmp
 
 # And with nothing holding it back, it asks: the journey above proves something.
-exec pty-run -wait 'asked 1 of 3' -send '\r' -- nav-pilot
-stdout 'User survey'
+exec pty-run -wait 'spurt 1 av 3' -send '\r' -- nav-pilot
+stdout 'Brukerundersøkelse'
 
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
