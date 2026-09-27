@@ -64,7 +64,7 @@ type ResolvedIdentity struct {
 
 **Chain order matters** — on-behalf-of is registered before SAML because a trusted M2M token typically has no email claim for SAML to resolve.
 
-`IdentityMiddleware` refuses `X-On-Behalf-Of` on a user token with 401, so a user token never asserts someone else. `onBehalfOfRoutes` is keyed on the ServeMux pattern, so the header is only honoured after routing, in `requireResolvedIdentity`.
+`IdentityMiddleware` answers 401 when a user token carries `X-On-Behalf-Of`, so a user token never asserts someone else. `onBehalfOfRoutes` is keyed on the ServeMux pattern, which only exists after routing, so the header is honoured in `requireResolvedIdentity` alone.
 
 ### Sentinel Errors
 

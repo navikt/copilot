@@ -74,7 +74,7 @@ nav-pilot → copilot-cli → Texas (M2M) → copilot-api → GitHub/BigQuery
 API supports multiple authentication mechanisms via the **Identity Resolver** architecture (see [ARCHITECTURE.md](ARCHITECTURE.md)):
 
 1. **Azure AD OBO tokens** (from `my-copilot` BFF) — resolved to GitHub username via SAML/SCIM lookup
-2. **Azure AD M2M tokens** (from `copilot-cli`) — GitHub username provided via `X-On-Behalf-Of` header (format-validated), on the per-user usage `GET`s only. The header on a user token is refused.
+2. **Azure AD M2M tokens** (from `copilot-cli`) — GitHub username provided via `X-On-Behalf-Of` header (format-validated), on the per-user usage `GET`s only. A user token carrying the header gets 401.
 
 **Token validation:**
 

@@ -81,7 +81,7 @@ func TestRequireOwnershipIntegration(t *testing.T) {
 	})
 
 	// A user token that carries X-On-Behalf-Of is refused, not resolved
-	// through SAML with the header ignored: a user never asserts someone else.
+	// through SAML with the header ignored. A user never asserts someone else.
 	t.Run("user token with X-On-Behalf-Of is refused", func(t *testing.T) {
 		chain := NewIdentityResolverChain(
 			NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}),
