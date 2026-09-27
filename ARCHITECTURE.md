@@ -1,7 +1,7 @@
 # Copilot backend API architecture
 
 `copilot-api` is the Go service behind `my-copilot`, the Next.js portal at
-min-copilot.ansatt.nav.no. It holds the GitHub App and BigQuery credentials; my-copilot
+ki-utvikling.nav.no. It holds the GitHub App and BigQuery credentials; my-copilot
 holds neither.
 
 `copilot-cli` is the second caller: a gateway that lets `nav-pilot` reach the same

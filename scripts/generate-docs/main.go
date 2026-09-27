@@ -148,7 +148,7 @@ func installBadge(installType, vscodeScheme, rawPath string) string {
 	innerURL := fmt.Sprintf("vscode:%s/install?url=https://raw.githubusercontent.com/navikt/copilot/main/%s",
 		vscodeScheme, rawPath)
 	encodedInner := url.QueryEscape(innerURL)
-	installURL := fmt.Sprintf("https://min-copilot.ansatt.nav.no/install/%s?url=%s",
+	installURL := fmt.Sprintf("https://ki-utvikling.nav.no/install/%s?url=%s",
 		installType, encodedInner)
 	return fmt.Sprintf("[![Install](https://img.shields.io/badge/VS_Code-Install-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](%s)", installURL)
 }

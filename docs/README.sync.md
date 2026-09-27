@@ -2,7 +2,7 @@
 
 Teams that have installed customization files run **nav-pilot sync** to check for updates, either locally or through a GitHub Actions workflow that opens the PRs for them.
 
-📖 **Full documentation:** [min-copilot.ansatt.nav.no/nav-pilot/docs](https://min-copilot.ansatt.nav.no/nav-pilot/docs)
+📖 **Full documentation:** [ki-utvikling.nav.no/nav-pilot/docs](https://ki-utvikling.nav.no/nav-pilot/docs)
 
 ## Quick reference
 
