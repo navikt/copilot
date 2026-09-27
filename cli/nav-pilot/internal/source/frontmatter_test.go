@@ -1,6 +1,8 @@
 package source
 
 import (
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -350,5 +352,52 @@ func TestReassemble(t *testing.T) {
 				t.Errorf("reassemble:\ngot:  %q\nwant: %q", string(got), tt.want)
 			}
 		})
+	}
+}
+
+func TestExtractFrontmatterList(t *testing.T) {
+	tests := []struct {
+		name  string
+		fm    string
+		want  []string
+		unset bool
+	}{
+		{"indented block", "tools:\n  - read\n  - edit\nmodel: x\n", []string{"read", "edit"}, false},
+		{"unindented block", "tools:\n- read\n- edit\nmodel: x\n", []string{"read", "edit"}, false},
+		{"block with comments", "tools:\n  # tools\n  - read # only\n  - 'edit'\n", []string{"read", "edit"}, false},
+		{"flow", "tools: ['read', \"edit\"] # all\n", []string{"read", "edit"}, false},
+		{"multi-line flow", "tools: [\n  read,\n  edit\n]\nmodel: x\n", []string{"read", "edit"}, false},
+		{"comma string", "tools: read, edit\n", []string{"read", "edit"}, false},
+		{"empty flow", "tools: []\n", nil, false},
+		{"null", "tools:\nmodel: x\n", nil, true},
+		{"block scalar", "tools: |\n  read\n", nil, true},
+		{"absent", "model: x\n", nil, true},
+		{"nested key is not the key", "x:\n  tools:\n    - read\n", nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := ExtractFrontmatterList([]byte(tt.fm), "tools")
+			if ok == tt.unset || !slices.Equal(got, tt.want) {
+				t.Fatalf("got %q, ok %v; want %q, ok %v", got, ok, tt.want, !tt.unset)
+			}
+		})
+	}
+}
+
+func TestOpenCodeToolPermission(t *testing.T) {
+	if got := OpenCodeToolPermission([]string{"*"}); got != nil {
+		t.Fatalf(`"*" is every tool, got %q`, got)
+	}
+	if got := OpenCodeToolPermission([]string{"Read", "Edit", "WebFetch", "TodoWrite", "execute", "grep", "glob"}); got != nil {
+		t.Fatalf("Copilot's documented spellings grant their tools, got %q", got)
+	}
+	if got := string(OpenCodeToolPermission([]string{"apply_patch"})); strings.Contains(got, "edit: deny") {
+		t.Fatalf("apply_patch grants edit, got %q", got)
+	}
+	got := string(OpenCodeToolPermission(nil))
+	for _, k := range []string{"bash", "read", "edit", "grep", "glob", "webfetch", "todowrite"} {
+		if !strings.Contains(got, "  "+k+": deny\n") {
+			t.Errorf("tools: [] leaves %s allowed: %q", k, got)
+		}
 	}
 }

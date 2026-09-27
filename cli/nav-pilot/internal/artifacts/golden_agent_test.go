@@ -22,9 +22,7 @@ func TestGoldenTransformAgent(t *testing.T) {
 	const input = `---
 name: %NAME%
 description: Plan and build Nav applications
-tools:
-  - execute
-  - read
+tools: [execute, read, edit, grep, glob, web_fetch, web_search, todo]
 ---
 
 You are %NAME%.
@@ -96,9 +94,7 @@ func TestGoldenTransformAgentModel(t *testing.T) {
 name: %NAME%
 description: Plan and build Nav applications
 model: %MODEL%
-tools:
-  - execute
-  - read
+tools: [execute, read, edit, grep, glob, web_fetch, web_search, todo]
 ---
 
 You are %NAME%.
@@ -228,3 +224,23 @@ func captureStderr(t *testing.T, fn func()) string {
 // goldenPrimaries is the opencode roster these golden cases were written
 // against: the built-in default, which is what the global used to supply.
 var goldenPrimaries = agentpakke.Default().PrimaryAgents("opencode")
+
+// An agent's tools: allowlist reaches opencode as denies for what it leaves
+// out (#1026): a read-only agent stays read-only.
+func TestGoldenTransformAgentTools(t *testing.T) {
+	src := []byte("---\nname: research\ndescription: Research\ntools:\n  - read\n  - grep\n  - glob\n  - web_fetch\n  - github/search_code\n---\nbody\n")
+	want := "---\ndescription: Research\nmode: subagent\npermission:\n  bash: deny\n  edit: deny\n  todowrite: deny\n---\n\nbody\n"
+	if got := string(transformAgent(src, "research", nil)); got != want {
+		t.Errorf("got:  %q\nwant: %q", got, want)
+	}
+	src = []byte("---\nname: git\ndescription: Git\ntools: ['read', 'shell(git:*)']\n---\nbody\n")
+	want = "---\ndescription: Git\nmode: subagent\npermission:\n  bash:\n    \"*\": deny\n    \"git *\": allow\n  edit: deny\n  grep: deny\n  glob: deny\n  webfetch: deny\n  todowrite: deny\n---\n\nbody\n"
+	if got := string(transformAgent(src, "git", nil)); got != want {
+		t.Errorf("got:  %q\nwant: %q", got, want)
+	}
+	// No tools: key, no restriction.
+	src = []byte("---\nname: open\ndescription: Open\n---\nbody\n")
+	if got := string(transformAgent(src, "open", nil)); strings.Contains(got, "permission") {
+		t.Errorf("an agent without tools: got a permission block: %q", got)
+	}
+}
