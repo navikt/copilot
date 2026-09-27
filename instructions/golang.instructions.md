@@ -1,4 +1,5 @@
 ---
+description: "Go-mønstre for Nav-tjenester på Nais: stdlib HTTP, pgx og sqlc, goose-migreringer, slog, feilhåndtering, samtidighet og testing."
 applyTo: "**/*.go"
 ---
 

@@ -967,8 +967,8 @@ function PakkeSection() {
             <code className="font-mono text-xs">nav-pilot install nav-pilot</code> gir deg alle agenter, skills,
             instruksjoner, prompts, hooks og extensions. Det er bevisst alt: skills lastes når de trengs, de fleste
             instruksjonene er scopet til filmønstre og slår aldri til i et repo som ikke har dem, noen få gjelder hver
-            tur, og bare nav-pilot-personaene er primæragenter. Vil du ha mindre, velger du bort i den interaktive
-            velgeren. Fravalgene huskes og overlever sync.
+            tur (skrivestil, bevisst AI-bruk og sikkerhetskjernen), og bare nav-pilot-personaene er primæragenter. Vil
+            du ha mindre, velger du bort i den interaktive velgeren. Fravalgene huskes og overlever sync.
           </BodyLong>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
             Merk at hooks er kjørbar kode: et Python-skript Copilot CLI kjører ved hvert verktøykall som treffer

@@ -1,4 +1,5 @@
 ---
+description: "Next.js med Aksel: spacing-tokens i stedet for Tailwind p-/m-, riktige token-navn, responsiv layout, App Router, Server Components og auth."
 applyTo: "src/**/*.{tsx,ts}"
 ---
 

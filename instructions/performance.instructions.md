@@ -1,4 +1,5 @@
 ---
+description: "Ytelse i Next.js: Core Web Vitals, Server Components, datahenting, bilder, fonter, bundle-størrelse og caching."
 applyTo: "src/**/*.{tsx,ts}"
 ---
 

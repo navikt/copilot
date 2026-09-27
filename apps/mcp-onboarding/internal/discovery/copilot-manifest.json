@@ -220,7 +220,7 @@
         "vulnerability"
       ],
       "filePath": "agents/security-champion.agent.md",
-      "contentHash": "f7c85c203663cafe991bdebc901049b796748c333566663a2b1146be31152942",
+      "contentHash": "09850437ed89c7bbf32a1994ba3975bd747ef115f7337286f28d3c74cd6f09f2",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Azure AD integration",
@@ -240,7 +240,7 @@
       "displayName": "Accessibility (UU)",
       "description": "WCAG 2.1 AA, semantisk HTML, ARIA, Aksel a11y-patterns, keyboard-navigasjon.",
       "filePath": "instructions/accessibility.instructions.md",
-      "contentHash": "986ef7aa27d8a1d989c0ca5036d71a5f64fc626148211b671654b46933e64af4",
+      "contentHash": "c3715d3fc2782a5b9784bb74f48765aa10a23014c2a5906a4a71da0e116bc5c6",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/accessibility.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/accessibility.instructions.md"
     },
@@ -258,9 +258,9 @@
       "type": "instruction",
       "name": "deliberate-ai-use",
       "displayName": "Bevisst AI-bruk",
-      "description": "Rammeverk for bevisst AI-bruk: grønn/rød sone, generer-så-forstå og kompetansebevaring",
+      "description": "Regler for bevisst AI-bruk som alltid gjelder: forklar valg, merk rød sone, spør før full delegering. Hele rammeverket ligger i deliberate-ai-use-skillen",
       "filePath": "instructions/deliberate-ai-use.instructions.md",
-      "contentHash": "68b3ca596e278482d36026b412895399e42f1882a21c6de2999db9f10ec737ad",
+      "contentHash": "5e2d7a2f23285de8b92728b7fa076f0360a951c2fb5cbfcc1f1f7c0f8cd1a56e",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/deliberate-ai-use.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/deliberate-ai-use.instructions.md"
     },
@@ -270,7 +270,7 @@
       "displayName": "Dockerfile Standards",
       "description": "Multi-stage builds, distroless base images, layer caching, non-root.",
       "filePath": "instructions/docker.instructions.md",
-      "contentHash": "32db7a2f8aaab2acb99abc0169f425cc65ad2ffd571c731726d81b61114a6f08",
+      "contentHash": "d29c19982baad0d4212ad124e38ba4d4eb4c5ad04049580555bd64ccd0f5e060",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/docker.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/docker.instructions.md"
     },
@@ -286,7 +286,7 @@
         "infrastructure"
       ],
       "filePath": "instructions/github-actions.instructions.md",
-      "contentHash": "bbef6f3e56b8b3b31cad5f4cbee0ee85c85735b3bb677807b3e899463ba6c01b",
+      "contentHash": "553b61e739b1430d29abeac82cbca158139bd33e7f1e602948daba0857917e3a",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/github-actions.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/github-actions.instructions.md"
     },
@@ -302,7 +302,7 @@
         "infrastructure"
       ],
       "filePath": "instructions/golang.instructions.md",
-      "contentHash": "b7bdff62f6964099c0159972590a2048c2d8b1e11b15b58d723be42562c12219",
+      "contentHash": "49ac99c6740220c6fe769968c029eeebbfa051a1829c5a97ae90ab9c9f467812",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/golang.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/golang.instructions.md"
     },
@@ -334,7 +334,7 @@
         "ui"
       ],
       "filePath": "instructions/nextjs-aksel.instructions.md",
-      "contentHash": "75e0932dfe465508ff386098b39ff0f6b4eeb8afedaea6e02c046d16eebcd823",
+      "contentHash": "342cce96431f6ca53c1e9539bbe17b49d27b09756c4a0010e18a1d9c6f6a237a",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/nextjs-aksel.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/nextjs-aksel.instructions.md"
     },
@@ -344,7 +344,7 @@
       "displayName": "Norsk tekstkvalitet",
       "description": "Minimumsregler for norsk markdown: Nav, bindestrek i sammensatte ord, engelsk fagspråk, konsekvent bokmål og overskrifter. Full språkvask ligger i klarsprak-skillen.",
       "filePath": "instructions/norwegian-text.instructions.md",
-      "contentHash": "ae153e646c932a2878846c6d440aef9e6774fd3587d47d8bb53b471f8db7ca57",
+      "contentHash": "acc8fd7c93f48b8562ec581569b26908d0bb61e05f1847b44ee1616a62abdea4",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/norwegian-text.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/norwegian-text.instructions.md"
     },
@@ -371,15 +371,31 @@
         "ui"
       ],
       "filePath": "instructions/performance.instructions.md",
-      "contentHash": "74be7b9e34c1681e15a8f00ba3e5e0373515ca5796c76a36fb12d85c55bfe8ba",
+      "contentHash": "cde5b75a73890cbce5f05a084474d956b794878fb7dcbd3812cff537e4527d64",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/performance.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/performance.instructions.md"
     },
     {
       "type": "instruction",
+      "name": "security-core",
+      "displayName": "Sikkerhetskjerne",
+      "description": "Sikkerhetsregler som alltid gjelder: ingen hemmeligheter eller personopplysninger i logger, hemmeligheter fra miljøet, parameteriserte spørringer, eierskapssjekk, azp-validering og TLS",
+      "tags": [
+        "security",
+        "compliance",
+        "gdpr",
+        "vulnerability"
+      ],
+      "filePath": "instructions/security-core.instructions.md",
+      "contentHash": "5f9b18a450d64fe7ae03db3baa4d5022ea4823acb95cb65ef91e7f4a43150669",
+      "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/security-core.instructions.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/security-core.instructions.md"
+    },
+    {
+      "type": "instruction",
       "name": "security-owasp",
       "displayName": "OWASP Top 10:2025",
-      "description": "Sikkerhetskritiske regler for all kode — peker til $security-owasp skill for detaljerte mønstre",
+      "description": "Peker til skillen $security-owasp for detaljerte OWASP-mønstre. Kjernereglene ligger i Sikkerhetskjerne: installer den sammen med denne",
       "tags": [
         "security",
         "compliance",
@@ -387,7 +403,7 @@
         "vulnerability"
       ],
       "filePath": "instructions/security-owasp.instructions.md",
-      "contentHash": "3388700634dd315d4224813dbb1d3e35f4784e28ad6d0993f4e1e16e6919f86e",
+      "contentHash": "3829d8b32cac8b700b657f8996c4b44e20f90cceae3e611f93fb66555ad0bf40",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/security-owasp.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/security-owasp.instructions.md"
     },
@@ -630,6 +646,16 @@
       "contentHash": "3ee8419b48ef77fbe0954d6884d2a442ff082345a126c85c3cab760f5b97ac17",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/conventional-commit/SKILL.md"
+    },
+    {
+      "type": "skill",
+      "name": "deliberate-ai-use",
+      "displayName": "deliberate-ai-use",
+      "description": "Bevisst AI-bruk i Nav: grønn og rød sone, tre-forsøks-regelen, erfaringsnivå og generer-så-forstå, med forskningen bak",
+      "filePath": "skills/deliberate-ai-use/SKILL.md",
+      "contentHash": "5a2a6c24a50c9802033f9907860d91b85a956320e643fdac76ca68e688fa46b5",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/deliberate-ai-use/SKILL.md"
     },
     {
       "type": "skill",

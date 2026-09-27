@@ -75,7 +75,8 @@ git log -p --all -S 'password' -- '*.kt' '*.ts' | head -100
 | `$observability-setup` | Security alerts, anomaly detection |
 | `threat-model` skill | STRIDE-A systematic analysis with data flow diagrams |
 | `security-review` skill | Pre-commit scanning (trivy, zizmor, govulncheck) |
-| `security-owasp` instruction | Code-level OWASP Top 10:2025 anti-patterns for Kotlin/Go |
+| `security-core` instruction | Always-on rules: logging, secrets, queries, ownership, `azp`, TLS |
+| `$security-owasp` skill | Code-level OWASP Top 10:2025 anti-patterns for Kotlin/Go |
 
 ## Nav Security Principles
 

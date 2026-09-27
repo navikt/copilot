@@ -1,4 +1,5 @@
 ---
+description: "Universell utforming i React-komponenter: WCAG 2.1 AA, Aksel-komponenter, semantisk HTML, overskriftshierarki, bilder, ARIA og tastaturnavigasjon."
 applyTo: "src/**/*.{tsx,jsx}"
 ---
 
