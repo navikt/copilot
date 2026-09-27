@@ -1,0 +1,147 @@
+# An opencode launch runs nav-pilot's hooks the way a Copilot launch does
+# (#1025): redaction and the loop guard after every tool call, the installed
+# gates before one. The launch names its plugin in OPENCODE_CONFIG_CONTENT
+# rather than writing it into ~/.config/opencode, and lets the sandbox read
+# the gate's script and write the hooks' state.
+#
+# The fake cplt plays opencode: node loads the plugin the launch named, from
+# the environment the launch passed, and calls its hooks the way opencode does
+# (packages/opencode/src/session/tools.ts at v1.18.32).
+
+[!exec:node] skip 'needs node to load the plugin'
+[!exec:python3] skip 'needs python3 for the gate'
+
+# Real paths, not shims: fake-bin leaves only the fakes on PATH.
+mkdir bin
+exec node -e 'require("fs").symlinkSync(process.execPath, "bin/node")'
+exec python3 -c 'import os, sys; os.symlink(sys.executable, "bin/python3")'
+fake-bin cplt opencode
+env PATH=$PATH${:}$WORK/bin${:}/bin${:}/usr/bin
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot config set source $WORK/plattform
+exec nav-pilot install plattform --user --yes
+exists $HOME/.copilot/hooks/vakt.json
+
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+grep '^--pass-env\nNAV_PILOT_OPENCODE_HOOKS\n' $WORK/fake/cplt.log
+grep '^--pass-env\nOPENCODE_CONFIG_CONTENT\n' $WORK/fake/cplt.log
+grep '^--allow-read\n.*/\.copilot/hooks\n' $WORK/fake/cplt.log
+grep '^--allow-write\n.*/\.local/share/nav-pilot/opencode-hook-state\n' $WORK/fake/cplt.log
+exists $HOME/.local/share/nav-pilot/opencode-plugin/nav-pilot-hooks.js
+! exists $HOME/.config/opencode/plugins/nav-pilot-hooks.js
+! stderr 'do not run with --pure'
+
+exec cat $WORK/driver.out
+# Redaction, in opencode's own tools and in an MCP tool's content.
+stdout '^after bash: .*\[REDACTED:github-token\].*\[REDACTED:fnr\]'
+! stdout 'ghp_0123'
+! stdout '15078545620'
+stdout '^after mcp: .*\[REDACTED:github-token\]'
+stdout '^after mcp split: .*hello.*\[REDACTED:github-token\].*\|$'
+# A subagent's session is redacted too.
+stdout '^after child: .*\[REDACTED:github-token\]'
+# Output with nothing in it is left alone.
+stdout '^after clean: hello$'
+# The gate, with opencode's arguments put in Copilot's names.
+stdout '^before forbidden: denied: vakt says no$'
+stdout '^before fine: allowed$'
+# A thrown error and an interrupted call's partial output, redacted by the
+# messages transform.
+stdout '^transform error: .*\[REDACTED:github-token\]'
+stdout '^transform interrupted: .*\[REDACTED:github-token\]'
+# Redaction fails closed: no nav-pilot to run, so the output is withheld.
+stdout '^after broken: \[nav-pilot: this tool output was withheld because the redaction hook failed'
+! stdout '^after broken: .*ghp_'
+# The loop guard, on the sixth identical call.
+stdout '^after loop: \[nav-pilot loop guard\]'
+exists $HOME/.local/share/nav-pilot/opencode-hook-state/ses_parent/nav-pilot-loop-guard.json
+
+# --pure loads no plugins: said on stderr.
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- --pure run x </dev/null'
+stderr 'hooks \(redaction, loop guard, gates\) do not run with --pure'
+
+# Redaction off: the output goes through as it was, and the gate still runs.
+exec nav-pilot config set hook_redact_secrets false
+exec nav-pilot config set hook_redact_fnr false
+exec nav-pilot config set hook_injection_note false
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+exec cat $WORK/driver.out
+stdout '^after bash: token=ghp_0123'
+stdout '^before forbidden: denied'
+
+-- fake/cplt.sh --
+"$WORK/bin/node" "$WORK/driver.mjs" > "$WORK/driver.out" 2>&1
+-- driver.mjs --
+const cfg = JSON.parse(process.env.OPENCODE_CONFIG_CONTENT)
+const mod = await import(cfg.plugin[0])
+const hooks = await mod.NavPilotHooks({ directory: process.cwd(), worktree: process.cwd() })
+// Built at run time, so no token-shaped string sits in the repository.
+const secret = "token=" + ["ghp", "0123456789abcdefghijABCDEFGHIJ012345"].join("_") + "\nbruker 15078545620\n"
+const one = (s) => s.replace(/\n/g, " | ")
+const after = async (label, tool, output, session = "ses_parent") => {
+  await hooks["tool.execute.after"]({ tool, sessionID: session, callID: "c", args: { command: "cat x" } }, output)
+  const text = output.output ?? output.content[0].text
+  console.log(`after ${label}: ${one(text)}`)
+}
+const before = async (label, command) => {
+  try {
+    await hooks["tool.execute.before"]({ tool: "bash", sessionID: "ses_parent", callID: "c" }, { args: { command } })
+    console.log(`before ${label}: allowed`)
+  } catch (e) {
+    console.log(`before ${label}: denied: ${e.message}`)
+  }
+}
+await after("bash", "bash", { title: "", output: secret, metadata: {} })
+await after("mcp", "github_get_file", { content: [{ type: "text", text: secret }] })
+// Two items: one pass over both, the rewrite in the first.
+const split = { content: [{ type: "text", text: "hello" }, { type: "text", text: secret }] }
+await hooks["tool.execute.after"]({ tool: "github_get_file", sessionID: "ses_parent", callID: "m2", args: {} }, split)
+console.log(`after mcp split: ${one(split.content.map((c) => c.text).join("|"))}`)
+await after("child", "bash", { title: "", output: secret, metadata: {} }, "ses_child")
+await after("clean", "bash", { title: "", output: "hello", metadata: {} })
+await before("forbidden", "echo forbidden")
+await before("fine", "echo ok")
+for (let i = 1; i <= 6; i++) {
+  const out = { title: "", output: "same", metadata: {} }
+  await hooks["tool.execute.after"]({ tool: "bash", sessionID: "ses_parent", callID: "l" + i, args: { command: "gh run list" } }, out)
+  if (i === 6) console.log(`after loop: ${one(out.output)}`)
+}
+// A tool that threw, and one the user interrupted: redacted on the way to the
+// model by the messages transform.
+const msgs = { messages: [{ info: {}, parts: [
+  { type: "tool", tool: "webfetch", callID: "e1", sessionID: "ses_parent", state: { status: "error", input: {}, error: secret } },
+  { type: "tool", tool: "bash", callID: "e2", sessionID: "ses_parent", state: { status: "error", input: { command: "cat .env" }, error: "Cancelled", metadata: { interrupted: true, output: secret } } },
+] }] }
+await hooks["experimental.chat.messages.transform"]({}, msgs)
+console.log(`transform error: ${one(msgs.messages[0].parts[0].state.error)}`)
+console.log(`transform interrupted: ${one(msgs.messages[0].parts[1].state.metadata.output)}`)
+// Redaction that cannot run: the same plugin, handed a nav-pilot that is gone.
+const cfgHooks = JSON.parse(process.env.NAV_PILOT_OPENCODE_HOOKS)
+for (const h of cfgHooks.post) h.argv[0] = "/nonexistent/nav-pilot"
+process.env.NAV_PILOT_OPENCODE_HOOKS = JSON.stringify(cfgHooks)
+const broken = await mod.NavPilotHooks({ directory: process.cwd(), worktree: process.cwd() })
+const bout = { title: "", output: secret, metadata: {} }
+await broken["tool.execute.after"]({ tool: "bash", sessionID: "ses_b", callID: "b", args: {} }, bout)
+console.log(`after broken: ${one(bout.output)}`)
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/hooks/vakt.hook.json --
+{"matcher": "bash", "timeoutSec": 5}
+-- plattform/hooks/vakt.py --
+import json, sys
+p = json.load(sys.stdin)
+if "forbidden" in (p.get("toolArgs") or {}).get("command", ""):
+    print(json.dumps({"permissionDecision": "deny", "permissionDecisionReason": "vakt says no"}))

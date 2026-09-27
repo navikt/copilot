@@ -236,3 +236,36 @@ func TestHookSpoolsNothingWhenOptedOut(t *testing.T) {
 		t.Errorf("DO_NOT_TRACK=1 and the hook still spooled: %v", left)
 	}
 }
+
+// The OpenCode bridge withholds output when redaction cannot run, so it has to
+// be told the hook failed. Copilot's entries never ask, and keep getting "{}".
+func TestHookRedactFailClosed(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	run := func(payload string) string {
+		var out bytes.Buffer
+		runHookCommand([]string{"redact"}, strings.NewReader(payload), &out)
+		return strings.TrimSpace(out.String())
+	}
+	if got := run("not json"); got != "{}" {
+		t.Fatalf("without the variable: %s, want {}", got)
+	}
+	t.Setenv(hookFailClosedEnv, "1")
+	if got := run("not json"); !strings.Contains(got, `"error"`) {
+		t.Fatalf("fail-closed, bad payload: %s, want an error", got)
+	}
+	if got := run(`{"sessionId":"s","toolName":"view","toolResult":{"resultType":"success","textResultForLlm":"nothing"}}`); got != "{}" {
+		t.Fatalf("fail-closed, nothing to redact: %s, want {}", got)
+	}
+}
+
+func TestHookStateDirEnv(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("NAV_PILOT_HOOK_STATE_DIR", dir)
+	if got := hookStateDir(); got != dir {
+		t.Fatalf("hookStateDir = %s, want %s", got, dir)
+	}
+	t.Setenv("NAV_PILOT_HOOK_STATE_DIR", "relative")
+	if got := hookStateDir(); got == "relative" {
+		t.Fatal("a relative state dir is taken")
+	}
+}

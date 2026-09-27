@@ -459,3 +459,25 @@ func HookNamesIn(path string) []string {
 	sort.Strings(names)
 	return names
 }
+
+// PreToolUseHooks lists nav-pilot's own preToolUse entries in a Copilot hooks
+// config, in either dialect: what the OpenCode bridge runs in Copilot's place.
+// Entries without the marker are the user's and are not read. A missing or
+// unreadable file has none.
+func PreToolUseHooks(path string) []HookEntry {
+	f, err := readHooksFile(path)
+	if err != nil {
+		return nil
+	}
+	var out []HookEntry
+	for _, event := range []string{hookEventRepo, hookEventUser} {
+		for _, raw := range f.Hooks[event] {
+			var w wireEntry
+			if markerOf(raw) == "" || json.Unmarshal(raw, &w) != nil || w.Command == "" {
+				continue
+			}
+			out = append(out, HookEntry{Name: w.NavPilot, Matcher: w.Matcher, Command: w.Command, Timeout: max(w.TimeoutSec, w.Timeout)})
+		}
+	}
+	return out
+}
