@@ -54,13 +54,14 @@ unknown fields refused, body at most 32 KiB. Then:
    in navikt (`externalIdentities … samlIdentity.nameId`). That lookup needs a
    GitHub App installation token, and copilot-cli holds no App key, so
    **submissions answer 503 here** until the survey code moves to its own
-   service, which asks copilot-api for the lookup. A GitHub account with no
-   SAML identity gets 403 and is told to answer on ki-utvikling. The e-mail
-   is used in memory for step 2 only and never stored or logged. The planned
-   web form will take the e-mail from the Entra `preferred_username`, through
-   the survey service, not through copilot-cli. The two strings must be the
-   same address for one person, or that person can answer twice. Check with
-   a real user in dev that they agree before launch.
+   service, which asks copilot-api for the lookup. There, a GitHub account
+   with no SAML identity will get 403 and be told to answer on ki-utvikling.
+   The e-mail is used in memory for step 2 only and never stored or logged.
+   The planned web form will take the e-mail from the Entra
+   `preferred_username`, through the survey service, not through copilot-cli.
+   The two strings must be the same address for one person, or that person
+   can answer twice. Check with a real user in dev that they agree before
+   launch.
 2. The dedup hash is `HMAC-SHA256(survey key, lowercased e-mail)`. A hash
    already written or queued gets 409, from nav-pilot and the web alike.
 3. The submission is queued per survey. Every 10 (k) submissions to one

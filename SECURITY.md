@@ -101,9 +101,10 @@ copilot-api validates the Azure AD JWT (signature, issuer, audience, expiry) and
 | GitHub App Private Key | copilot-api pod (via Nais Secret) | copilot-api only |
 | GitHub Installation ID | copilot-api pod (via Nais Secret) | copilot-api only |
 | BigQuery credentials | copilot-api pod (via GCP Workload Identity) | copilot-api only |
+| nav-pilot GitHub App client ID + secret | copilot-cli pod (via Nais Secret) | copilot-cli only; checks a user token, grants nothing on the org by itself |
 | Azure AD client config | Both pods (injected by Nais) | Auto-managed |
 
-All external service credentials (GitHub App, BigQuery) live exclusively in the copilot-api pod. `my-copilot` holds none of them; it reaches Copilot billing, seat and BigQuery data through `copilot-api`, using Azure AD OBO tokens.
+The GitHub App private key and installation credentials, and the BigQuery credentials, live exclusively in the copilot-api pod. `my-copilot` holds none of them; it reaches Copilot billing, seat and BigQuery data through `copilot-api`, using Azure AD OBO tokens.
 
 ## Network policy
 
@@ -251,7 +252,7 @@ When `NAIS_CLUSTER_NAME` is unset (local development):
 - Forward raw upstream error messages to clients, return a generic message instead
 - Skip input validation on external boundaries
 - Bypass `azp` validation on any backend API request, even for "internal" services
-- Give my-copilot, or any app other than copilot-api, a GitHub App private key or installation token. copilot-cli holds only the nav-pilot App's client id and secret, which check a user token and grant nothing on the org.
+- Give my-copilot, or any app other than copilot-api, a GitHub App private key or installation token. copilot-cli holds only the nav-pilot App's client id and secret, which check a user token and grant nothing on the org by themselves.
 
 ---
 
