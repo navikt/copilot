@@ -55,9 +55,11 @@ type surveyStore struct {
 
 // surveyQueue is one survey's submissions not written yet.
 //
-// ponytail: in memory only. A restart drops them (at most answerBatch-1 per
-// survey): their senders are not recorded as participants and may answer
-// again. Persisting them would bring back the timing link batching removes.
+// ponytail: in memory, in one pod (replicas max 1: a second pod would have
+// its own queue and dedup). A restart drops them (at most answerBatch-1 per
+// survey while the database is healthy): their senders are not recorded as
+// participants and may answer again. Persisting them would bring back the
+// timing link batching removes.
 type surveyQueue struct {
 	closesOn time.Time
 	hashes   map[string]bool
@@ -163,7 +165,9 @@ func (s *surveyStore) purgeExpired(ctx context.Context, now func() time.Time) {
 // retain closes out surveys that no longer take answers: writes their last,
 // smaller batch and then deletes their participation rows (their keys are
 // deleted by hand, see README). It also deletes answers past retention.
-func (s *surveyStore) retain(ctx context.Context, now time.Time) {
+func (s *surveyStore) retain(parent context.Context, now time.Time) {
+	ctx, cancel := context.WithTimeout(parent, time.Minute)
+	defer cancel()
 	s.mu.Lock()
 	for id, q := range s.queues {
 		if !now.Before(q.closesOn) {

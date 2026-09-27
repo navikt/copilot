@@ -8,6 +8,8 @@ metadata:
 spec:
   image: {{image}}
   port: 8080
+  # Exactly one: the survey queue and its dedup live in the pod's memory
+  # (store.go). More replicas would let one person answer twice.
   replicas:
     min: {{replicas_min}}
     max: {{replicas_max}}

@@ -79,7 +79,7 @@ Two tables, nothing shared but the survey id:
 | Table | Columns |
 | --- | --- |
 | `survey_participation` | `survey_id`, `participant_hash`, `closes_on` |
-| `survey_answers` | `survey_id`, `answers` (`{question id: value}`), `question_versions` (`{question id: version}`), `context` (nav-pilot version as year.month, OS, arch, client, local models on/off), `delete_after` |
+| `survey_answers` | `survey_id`, `answers` (`{question id: value}`), `question_versions` (`{question id: version}`), `context` (nav-pilot version as year.month, OS, client, local models on/off), `delete_after` |
 
 No row id, no timestamp, no request id, no IP, no login, oid, NAVident,
 e-mail or token in either. Because nothing links an answer to its
@@ -106,13 +106,17 @@ warning at start for every key whose survey has closed.
 **1 of k.** Because both tables are written only in batches of k = 10 per
 survey, in one transaction, with rows shuffled, commit time, transaction id
 and row order place an answer among the 10 participants of its batch, no
-fewer. Even someone with the key and the database can narrow an answer to
-10 named people, not to one. The exception is the survey's last batch,
+fewer. That is k before the answer's own content narrows it: someone with the
+key and the database can name the 10, and if only one of them uses Windows,
+or opencode with local models, the answer with those context values is that
+person's. This is why the context is kept coarse (no CPU type, version as
+year.month) and why exports suppress small segments. The exception is the survey's last batch,
 written when it closes with whatever is left (1 to 9): its participation rows
 are deleted in the same close-out, but WAL and backups keep them for the
 backup retention period.
 
-Submissions still queued are lost on a restart (at most 9 per survey): their
+Submissions still queued are lost on a restart (at most 9 per survey while
+the database is healthy; more if a batch write is failing): their
 senders are not recorded and can answer again, but were told "recorded".
 Avoid deploying copilot-cli while a survey is open. Writing the queue early
 instead would break the 1 of k.
@@ -124,6 +128,9 @@ Residual risks, for the privacy review:
 
 - Small segments: a rare combination of context values narrows who answered.
   Exports must suppress or merge any segment with fewer than 5 respondents.
+- Colluding insiders: k assumes the other 9 in a batch are real respondents.
+  One account answers once per survey, but a group of 9 insiders answering
+  together could pin the 10th.
 - Free text: the one answer that can name its author ("as the only Rust dev
   on team X"). A survey has at most one text question, nav-pilot asks people
   not to write anything that identifies anyone, and text should go through a

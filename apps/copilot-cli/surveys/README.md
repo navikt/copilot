@@ -43,6 +43,26 @@ level: answers are not linked to a person across waves (see
 - `construct` names what a question measures (for analysis) and `reverse`
   marks a scale where agreeing is the negative end. Clients ignore both.
 
+## Before a survey opens
+
+- Its definition is merged here and reviewed by the survey owner.
+- A real user in dev has checked that their Entra `preferred_username` and
+  their navikt SAML `nameId` are the same address (else one person can answer
+  twice, from nav-pilot and the web).
+- The ingress access log has been checked for what it records of
+  `POST /api/v1/surveys/…` (source address per device, or per naisdevice
+  gateway).
+- DPIA / personvernombud has signed off.
+- Only then: `SURVEY_KEY_<ID>` (`openssl rand -base64 32`) is added to the
+  `copilot-cli` secret. Without it the survey takes no answers.
+- No copilot-cli deploys while it is open (a restart drops queued answers).
+
+## When it closes
+
+The day after `ends`, copilot-cli writes the last answers and deletes the
+survey's participation rows. The survey owner deletes `SURVEY_KEY_<ID>` from
+the secret the same day; copilot-cli warns at start while it is still there.
+
 ## Fields
 
 - `id`, `series`, question ids: lowercase letters, digits and `-`.

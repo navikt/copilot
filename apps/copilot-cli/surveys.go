@@ -221,7 +221,6 @@ type submission struct {
 type techContext struct {
 	Version     string `json:"version"`
 	OS          string `json:"os"`
-	Arch        string `json:"arch"`
 	Client      string `json:"client"`
 	LocalModels bool   `json:"local_models"`
 }
@@ -242,8 +241,6 @@ func (c *techContext) validate() error {
 	switch {
 	case !slices.Contains([]string{"darwin", "linux", "windows", "other"}, c.OS):
 		return errors.New("context.os is not one of darwin, linux, windows, other")
-	case !slices.Contains([]string{"amd64", "arm64", "other"}, c.Arch):
-		return errors.New("context.arch is not one of amd64, arm64, other")
 	case !slices.Contains([]string{"copilot", "opencode", "pi", "web", "none"}, c.Client):
 		return errors.New("context.client is not one of copilot, opencode, pi, web, none")
 	}
@@ -429,7 +426,9 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	// Detached from the request: a batch write it triggers must not be
 	// cancelled because this caller hung up.
-	fresh, err := a.store(context.WithoutCancel(r.Context()), s.ID, participantHash(key, email), s.closesOn(), response{
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 10*time.Second)
+	defer cancel()
+	fresh, err := a.store(ctx, s.ID, participantHash(key, email), s.closesOn(), response{
 		SurveyID: s.ID, Answers: answers, QuestionVersions: versions,
 		Context: sub.Context, DeleteAfter: s.closesOn().Add(retention),
 	})

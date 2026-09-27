@@ -26,7 +26,7 @@ func TestSurveyStore(t *testing.T) {
 	}
 	day := func(d int) time.Time { return time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, d) }
 	r := response{SurveyID: "s", Answers: map[string]any{"q": 1}, QuestionVersions: map[string]int{"q": 1},
-		Context: techContext{Version: "1.2", OS: "linux", Arch: "amd64", Client: "pi"}, DeleteAfter: day(100)}
+		Context: techContext{Version: "1.2", OS: "linux", Client: "pi"}, DeleteAfter: day(100)}
 	submit := func(survey, hash string, closes time.Time) bool {
 		t.Helper()
 		ok, err := s.submit(t.Context(), survey, hash, closes, r)

@@ -75,7 +75,7 @@ func do(h http.Handler, method, path, token, body string) *httptest.ResponseReco
 	return rec
 }
 
-const goodCtx = `"context":{"version":"1.42.0","os":"darwin","arch":"arm64","client":"copilot","local_models":true}`
+const goodCtx = `"context":{"version":"1.42.0","os":"darwin","client":"copilot","local_models":true}`
 
 func TestActiveSurveysArePublic(t *testing.T) {
 	h, _ := testRouter(t)
@@ -137,7 +137,7 @@ func TestSubmitValidation(t *testing.T) {
 		"not json":           `{`,
 		"trailing data":      `{"answers":{"overall":3},` + goodCtx + `}{}`,
 		"unknown top field":  `{"answers":{"overall":3},"device_id":"abc",` + goodCtx + `}`,
-		"unknown ctx field":  `{"answers":{"overall":3},"context":{"version":"1.0.0","os":"darwin","arch":"arm64","client":"copilot","cwd":"/x"}}`,
+		"unknown ctx field":  `{"answers":{"overall":3},"context":{"version":"1.0.0","os":"darwin","client":"copilot","cwd":"/x"}}`,
 		"missing required":   `{"answers":{"client":"copilot"},` + goodCtx + `}`,
 		"scale out of range": `{"answers":{"overall":6},` + goodCtx + `}`,
 		"scale not integer":  `{"answers":{"overall":3.5},` + goodCtx + `}`,
@@ -150,8 +150,8 @@ func TestSubmitValidation(t *testing.T) {
 		"multi not option":   `{"answers":{"overall":3,"tools":["a","z"]},` + goodCtx + `}`,
 		"multi too many":     `{"answers":{"overall":3,"tools":["a","b","c"]},` + goodCtx + `}`,
 		"skipped answered":   `{"answers":{"overall":3,"client":"copilot","why":"habit"},` + goodCtx + `}`,
-		"bad os":             `{"answers":{"overall":3},"context":{"version":"1.0.0","os":"plan9","arch":"arm64","client":"copilot"}}`,
-		"version is text":    `{"answers":{"overall":3},"context":{"version":"my repo","os":"darwin","arch":"arm64","client":"copilot"}}`,
+		"bad os":             `{"answers":{"overall":3},"context":{"version":"1.0.0","os":"plan9","client":"copilot"}}`,
+		"version is text":    `{"answers":{"overall":3},"context":{"version":"my repo","os":"darwin","client":"copilot"}}`,
 		"too big":            `{"answers":{"comment":"` + strings.Repeat("x", 40<<10) + `"},` + goodCtx + `}`,
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -239,7 +239,7 @@ func TestShippedSurveys(t *testing.T) {
 
 func TestContextKeepsOnlyCoarseVersion(t *testing.T) {
 	for in, want := range map[string]string{"2026.09.24-120000-abc1234": "2026.09", "v1.2.3": "1.2", "dev": "dev"} {
-		c := techContext{Version: in, OS: "linux", Arch: "amd64", Client: "pi"}
+		c := techContext{Version: in, OS: "linux", Client: "pi"}
 		if err := c.validate(); err != nil || c.Version != want {
 			t.Errorf("%s: got %q, %v; want %q", in, c.Version, err, want)
 		}
