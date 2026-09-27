@@ -10,7 +10,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -20,6 +19,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // ---------------------------------------------------------------------------
@@ -1468,10 +1469,7 @@ func TestServerCommandRunsTheBootstrapWithTheSameFlags(t *testing.T) {
 // OOM. The process must exit 70, and the guard's ownership check must then say
 // why.
 func TestADeadGenerationThreadEndsTheServer(t *testing.T) {
-	py, err := exec.LookPath("python3")
-	if err != nil {
-		t.Skip("no python3 on PATH")
-	}
+	py := testhome.Python3(t)
 	stubDirs(t)
 	pkg := filepath.Join(t.TempDir(), "mlx_lm")
 	if err := os.MkdirAll(pkg, 0o755); err != nil {

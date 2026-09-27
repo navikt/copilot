@@ -11,8 +11,10 @@
 package testhome
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -164,5 +166,37 @@ func diff(before, after map[string]string) string {
 			return p
 		}
 	}
+	return ""
+}
+
+// Python3 returns a python3 that actually runs, or skips the test. A mise
+// shim first on PATH finds its config through HOME, so under a temporary HOME
+// it fails; the rest of PATH, then `mise which python3` in the original
+// environment, usually hold the real interpreter behind it.
+func Python3(t testing.TB) string {
+	t.Helper()
+	var candidates []string
+	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
+		if dir != "" {
+			candidates = append(candidates, filepath.Join(dir, "python3"))
+		}
+	}
+	mise := exec.Command("mise", "which", "python3")
+	mise.Env = OriginalEnv()
+	if out, err := mise.Output(); err == nil {
+		candidates = append(candidates, strings.TrimSpace(string(out)))
+	}
+	for _, py := range candidates {
+		if fi, err := os.Stat(py); err != nil || fi.IsDir() || fi.Mode()&0o111 == 0 {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		err := exec.CommandContext(ctx, py, "-c", "pass").Run()
+		cancel()
+		if err == nil {
+			return py
+		}
+	}
+	t.Skip("no working python3: none on PATH runs, and `mise which python3` found none")
 	return ""
 }
