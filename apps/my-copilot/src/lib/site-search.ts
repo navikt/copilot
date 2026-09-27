@@ -8,7 +8,7 @@ export type SearchEntry = { href: string; title: string; context: string };
 export const SEARCH_INDEX_URL = "/search-index.json";
 
 /** Lower case without diacritics, so «malte» finds «Målte». Æ and ø have none and stay. */
-export const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+export const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 /**
  * Entries where every word in the query is in the title or the context.
