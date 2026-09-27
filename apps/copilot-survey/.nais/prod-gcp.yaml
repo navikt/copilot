@@ -1,0 +1,9 @@
+namespace: copilot
+team: copilot
+image: "{{image}}"
+memory_limit: 256Mi
+cpu_request: 10m
+memory_request: 64Mi
+azure_tenant: nav.no
+log_level: INFO
+db_tier: db-f1-micro

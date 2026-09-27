@@ -35,5 +35,4 @@ jobs:
       # while a survey is open drops queued answers.
       deploy-pr-to-dev: false
       nais-team: copilot
-      # dev-gcp only. Add prod-gcp when the survey owner enables prod.
-      nais-clusters: '["dev-gcp"]'
+      nais-clusters: '["dev-gcp", "prod-gcp"]'
