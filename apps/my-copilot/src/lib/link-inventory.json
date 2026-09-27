@@ -1233,6 +1233,7 @@
       "apps/my-copilot/src/components/pulse-strip.tsx",
       "apps/my-copilot/src/components/sidebar.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
+      "cli/nav-pilot/internal/provider/opencode_mcp.go",
       "docs/README.agents.md",
       "docs/README.instructions.md",
       "docs/README.mcp.md",

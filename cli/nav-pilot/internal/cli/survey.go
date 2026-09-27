@@ -214,12 +214,9 @@ func maybeSurvey(client string) {
 	if !hasPending && !fetchDue && nextSurvey(st, now, "calm") == nil {
 		return
 	}
+	// Nothing can be sent without a sign-in, so no network without one.
+	// Checked every session end, so a new sign-in is noticed at once.
 	if !canSignIn() {
-		// Not again until tomorrow: no keychain read at every session end.
-		if fetchDue {
-			st.Fetched = now
-			writeSurveyState(st)
-		}
 		return
 	}
 	base := copilotCLIURL()

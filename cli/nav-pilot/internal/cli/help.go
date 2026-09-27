@@ -141,6 +141,19 @@ Flags:
 
 Set the model: nav-pilot config set model <id>
 `,
+	"survey": `Usage: nav-pilot survey [--json]
+
+Answer an open user survey. In a terminal it opens the survey (or asks which,
+if there are several). Without a terminal, or with --json, it lists the open
+surveys.
+
+It works even with automatic survey prompts turned off (surveys = false,
+DO_NOT_TRACK) and after you said never: you asked for it. Answering needs a
+GitHub sign-in (nav-pilot auth login), and each person can answer once.
+
+Flags:
+  --json   List the open surveys as JSON
+`,
 	"upgrade": `Usage: nav-pilot upgrade [flags]
 
 Replace this nav-pilot with the latest release, after checking its SHA-256
