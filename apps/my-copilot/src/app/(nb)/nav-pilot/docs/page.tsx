@@ -1621,7 +1621,7 @@ const CONFIG_KEYS = [
     key: "client",
     flag: "--client",
     values: "copilot · opencode · pi (standard: copilot)",
-    desc: "Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen. Mangler cplt, spør copilot og opencode i terminalen om de skal starte uten sandkasse (standard nei). Uten terminal, for eksempel i CI, starter de bare med --no-sandbox.",
+    desc: "Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen. Mangler cplt, spør nav-pilot i terminalen om copilot eller opencode skal starte uten sandkasse (standard nei). Uten terminal, for eksempel i CI, starter de bare med --no-sandbox.",
   },
   {
     key: "source",
@@ -1923,6 +1923,34 @@ function KlienterOgKonfigurasjonSection() {
                 desc: "OpenTelemetry-konfigurasjon settes opp automatisk. Ingen manuell konfigurasjon er nødvendig.",
                 color: "#7c3aed",
                 bg: "#f5f3ff",
+              },
+              {
+                title: "Samme hooks og verktøyregler",
+                desc: (
+                  <>
+                    Maskering av hemmeligheter og fødselsnumre, løkkevakten og hookene du har installert kjører også i
+                    OpenCode. Feiler maskeringen, holder nav-pilot verktøyresultatet tilbake. En agents{" "}
+                    <code className="font-mono text-xs">tools:</code>-liste blir tillatelser i OpenCode.
+                  </>
+                ),
+                color: "#0f766e",
+                bg: "#f0fdfa",
+              },
+              {
+                title: "Navs regler ved oppstart",
+                desc: (
+                  <>
+                    Deling til opencode.ai er av, og oppdateringer kommer som varsel. nav-pilot slår av MCP-servere som
+                    ikke står i Navs MCP-register for økten, som i Copilot. Se{" "}
+                    <NextLink href="/verktoy" className="text-blue-600 hover:underline">
+                      Verktøy
+                    </NextLink>{" "}
+                    for godkjente servere. <code className="font-mono text-xs">nav-pilot doctor</code> viser hvilke
+                    servere som slås av, og om OpenCode-versjonen er testet.
+                  </>
+                ),
+                color: "#b91c1c",
+                bg: "#fef2f2",
               },
               {
                 title: "Tilstandsfil",

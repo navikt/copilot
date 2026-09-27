@@ -62,3 +62,12 @@ Read in the OpenCode 1.18.32 source (`packages/opencode/src/session/tools.ts`, `
 - **The hooks' stderr is discarded**, because inheriting it would draw over the TUI. A tripped loop guard is still counted in telemetry.
 - An MCP result with many text items runs the hooks once per item.
 - Repo gates run without Copilot's folder-trust check. OpenCode has no such check and already loads a repo's `.opencode/plugins` as code, so a repo's gate entries give it nothing new. With `OPENCODE_DISABLE_PROJECT_CONFIG` set, repo gates are not run either.
+
+## MCP servers outside Nav's registry (#1027)
+
+A launch turns off every configured MCP server the registry does not list, with `enabled: false`. That only decides how the session starts. OpenCode's `/mcp` dialog can still connect one. The hooks bridge therefore also refuses, in `tool.execute.before`, every tool whose name starts with a turned-off server's name. OpenCode names MCP tools `<server>_<tool>`. The longest matching server name decides, and built-in tool names are never refused.
+
+What the launch does not cover:
+- a server added in the middle of a session (`POST /mcp`, the `/mcp` dialog);
+- config from a `.well-known/opencode` or console org endpoint the user has signed in to, which OpenCode merges after nav-pilot's;
+- macOS managed preferences, which merge last and win.

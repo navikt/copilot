@@ -99,11 +99,41 @@ function texts(output) {
 }
 
 export const NavPilotHooks = async ({ directory, worktree }) => {
-  let cfg
+  let cfg = {}
   try {
-    cfg = JSON.parse(process.env.NAV_PILOT_OPENCODE_HOOKS ?? "")
-  } catch {
-    return {}
+    cfg = JSON.parse(process.env.NAV_PILOT_OPENCODE_HOOKS ?? "") ?? {}
+  } catch {}
+  // MCP servers Nav's registry does not list (#1027). The launch starts them
+  // disabled; this refuses their tools too, since OpenCode's /mcp dialog can
+  // connect one anyway. OpenCode names an MCP tool <server>_<tool>, with
+  // anything outside [A-Za-z0-9_-] in the server name turned into "_".
+  // The longest matching server prefix decides, so a listed "gh_extra" is
+  // not caught by a blocked "gh"; a tool that is exactly a built-in's name
+  // is never an MCP tool.
+  const prefix = (n) => String(n).replace(/[^a-zA-Z0-9_-]/g, "_") + "_"
+  let servers = []
+  try {
+    const m = JSON.parse(process.env.NAV_PILOT_MCP_BLOCKED ?? "{}")
+    servers = [
+      ...(m.blocked ?? []).map((n) => ({ p: prefix(n), name: n, blocked: true })),
+      ...(m.listed ?? []).map((n) => ({ p: prefix(n), name: n, blocked: false })),
+    ].sort((a, b) => b.p.length - a.p.length)
+  } catch {}
+  // ponytail: a hand-kept list of OpenCode's own tools (1.18.32). A custom tool
+  // whose name starts with a blocked server's name is refused too, and so are
+  // a listed server's tools when a blocked one sanitizes to the same name.
+  // Both fail closed; a tool registry lookup would be the upgrade.
+  const builtin = new Set(["bash", "read", "edit", "write", "apply_patch", "glob", "grep", "list", "task", "webfetch", "websearch", "codesearch", "todowrite", "todoread", "skill", "question", "lsp", "invalid", "plan_enter", "plan_exit", "batch"])
+  // MCP resource tools name the server in an argument, not in the tool name.
+  const resourceTools = new Set(["list_mcp_resources", "list_mcp_resource_templates", "read_mcp_resource"])
+  const blockedServer = (tool, args) => {
+    if (resourceTools.has(tool)) {
+      const hit = servers.find((s) => s.blocked && s.name === args?.server)
+      return hit?.name
+    }
+    if (builtin.has(tool)) return undefined
+    const hit = servers.find((s) => String(tool).startsWith(s.p))
+    return hit?.blocked ? hit.name : undefined
   }
   const post = Array.isArray(cfg?.post) ? cfg.post : []
   const pre = (Array.isArray(cfg?.pre) ? cfg.pre : []).flatMap((h) => {
@@ -160,6 +190,11 @@ export const NavPilotHooks = async ({ directory, worktree }) => {
       if (input?.sessionID && input?.model?.providerID) providers.set(input.sessionID, input.model.providerID)
     },
     "tool.execute.before": async (input, output) => {
+      const server = blockedServer(input.tool, output?.args)
+      if (server)
+        throw new Error(
+          `nav-pilot: the MCP server ${server} is not in Nav's MCP registry, so its tools are turned off in this session. Tell the user.`,
+        )
       if (!pre.length) return
       const [toolName, toolArgs] = toCopilot(input.tool, output?.args)
       for (const h of pre) {

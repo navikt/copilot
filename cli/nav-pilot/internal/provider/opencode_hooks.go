@@ -96,11 +96,15 @@ func OpenCodeHookStateDir() string { return filepath.Join(navPilotDataDir(), "op
 // A failure to write the plugin is a warning and the launch goes on, as a
 // failed Copilot hook write is: the session is not held hostage to it.
 func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string) ([]string, []string) {
+	// The session's policy (share, autoupdate, MCP) rides in this variable
+	// whether or not any hook runs, and cplt passes only what it is told to.
+	cpltArgs = append(cpltArgs, "--pass-env", openCodeConfigContentEnv)
 	if OpenCodeHookBridge == nil {
 		return env, cpltArgs
 	}
 	b := OpenCodeHookBridge(r)
-	if len(b.Post) == 0 && len(b.Pre) == 0 {
+	blocked := slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, MCPBlockedEnv+"=") })
+	if len(b.Post) == 0 && len(b.Pre) == 0 && !blocked {
 		return env, cpltArgs
 	}
 	plugin, err := writeHooksBridgePlugin()
@@ -117,6 +121,9 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	env = withOpenCodeConfigContent(env, map[string]any{"plugin": []any{(&url.URL{Scheme: "file", Path: plugin}).String()}})
 	if slices.Contains(r.ExtraArgs, "--pure") {
 		fmt.Fprintf(os.Stderr, "%s nav-pilot's hooks (redaction, loop guard, gates) do not run with --pure: opencode loads no plugins then.\n", domain.Yellow("⚠"))
+		if blocked {
+			fmt.Fprintf(os.Stderr, "%s With --pure, an MCP server turned off for this session can be connected again from /mcp and used.\n", domain.Yellow("⚠"))
+		}
 	}
 	// Only a sandboxed session is limited in where it may execute from.
 	_, launcher := FindCopilotCLI()
@@ -128,7 +135,7 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 		"--allow-write", OpenCodeHookStateDir(),
 		"--pass-env", OpenCodeHooksEnv,
 		"--pass-env", HookStateDirEnv,
-		"--pass-env", openCodeConfigContentEnv)
+		"--pass-env", MCPBlockedEnv)
 	for _, d := range b.ReadDirs {
 		cpltArgs = append(cpltArgs, "--allow-read", d)
 	}
@@ -176,7 +183,7 @@ func withOpenCodeConfigContent(env []string, add map[string]any) []string {
 			cfg[k] = have
 			continue
 		}
-		cfg[k] = v
+		cfg[k] = mergeJSON(cfg[k], v)
 	}
 	out, _ := json.Marshal(cfg)
 	env, _ = telemetry.SetEnvValue(env, openCodeConfigContentEnv, string(out))
@@ -201,4 +208,17 @@ func underCpltExecRoot(dir string) bool {
 		}
 	}
 	return false
+}
+
+// mergeJSON merges add over have: objects key by key, anything else replaced.
+func mergeJSON(have, add any) any {
+	h, ok1 := have.(map[string]any)
+	a, ok2 := add.(map[string]any)
+	if !ok1 || !ok2 {
+		return add
+	}
+	for k, v := range a {
+		h[k] = mergeJSON(h[k], v)
+	}
+	return h
 }
