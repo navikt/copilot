@@ -282,16 +282,24 @@ func SyncOpenCodeArtifacts(client, sourceDir, scopeDir, outputDir, sourceVersion
 
 	// The same layout the export path reads (#728): a pakke that declares where
 	// its agents live is mirrored from there, not from the canonical names.
-	for _, entry := range withScopeExtras(agentEntries(sourceDir, layout), scopeDir, source.KindAgent) {
+	for _, entry := range withLocalWorker(withScopeExtras(agentEntries(sourceDir, layout), scopeDir, source.KindAgent)) {
 		relPath := "agents/" + entry.Name + ".md"
 		dstPath := filepath.Join(outputDir, "agents", entry.Name+".md")
-		if isConflict(relPath, dstPath, false) {
+		conflict := isConflict(relPath, dstPath, false)
+		if _, tracked := stateHashes[relPath]; entry.Data != nil && !tracked {
+			// The built-in worker lands where no pakke put one, so a file already
+			// there is the developer's own, likely written by hand for this gap.
+			if _, statErr := os.Stat(dstPath); statErr == nil {
+				conflict = true
+			}
+		}
+		if conflict {
 			h, _ := source.RawArtifactHash(dstPath, false)
 			files = append(files, domain.InstalledFile{Path: relPath, Hash: h, Status: domain.FileStatusConflict})
 			conflicts = append(conflicts, relPath)
 			continue
 		}
-		data, readErr := os.ReadFile(entry.AbsPath)
+		data, readErr := readEntry(entry)
 		if readErr != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("agent %s: %w", entry.Name, readErr)
 		}

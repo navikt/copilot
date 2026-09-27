@@ -322,6 +322,33 @@ func agentEntries(sourceDir string, layout *agentpakke.Layout) []source.Resolved
 	return slices.DeleteFunc(entries, func(e source.Resolved) bool { return e.Name == local.WorkerAgent })
 }
 
+// withLocalWorker adds nav-pilot's built-in [local.WorkerAgent] while local
+// dispatch is on and neither the pakke nor the scope has one. A pakke without
+// it (nais/pilot has none) otherwise leaves opencode with only the model
+// binding, which it lists as a manual-only agent, so the main agent never
+// dispatches. A pakke's or a scope's own worker always wins. Only the launch
+// sync uses it: `export opencode` writes a repo's .opencode/, which teammates
+// without a local model read too.
+func withLocalWorker(entries []source.Resolved) []source.Resolved {
+	if !local.Enabled() || slices.ContainsFunc(entries, func(e source.Resolved) bool { return e.Name == local.WorkerAgent }) {
+		return entries
+	}
+	return append(entries, source.Resolved{
+		Kind:    source.KindAgent,
+		Name:    local.WorkerAgent,
+		RelPath: "agents/" + local.WorkerAgent + source.KindAgent.Suffix,
+		Data:    local.WorkerAgentFile,
+	})
+}
+
+// readEntry is an artifact's content: its built-in bytes, or its file.
+func readEntry(e source.Resolved) ([]byte, error) {
+	if e.Data != nil {
+		return e.Data, nil
+	}
+	return os.ReadFile(e.AbsPath)
+}
+
 func exportAgents(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layout, dryRun bool) (int, error) {
 	agents := withScopeExtras(agentEntries(sourceDir, layout), scopeDir, source.KindAgent)
 	// The roster comes from the manifest being exported, not from the active

@@ -664,6 +664,14 @@ func LocalDispatchPolicy(m local.Model, sameResult, loopGuard int) string {
 
 const describeFully = "Describe the change fully when you send it: which file, which line, what it becomes. The model carries out a decision well and makes one badly, so if you doubt it can do the task, do it yourself. The measurements say you judge this correctly.\n"
 
+// sendTrusted replaces describeFully when the manifest has measured what the
+// worker is trusted with. It carries no step-count threshold and no "do it
+// yourself if you doubt it": Sonnet 5 makes a multi-file rename in one sed, so
+// both read as "keep it", and it dispatched 0 of 7 probe samples under them
+// against Sonnet 4.6's 23 of 24 under a text without them. The measured scope
+// is the send and keep lines around it.
+const sendTrusted = "Send these to `local-worker` instead of doing them yourself, even when you could do them in one or two steps: they are what it was measured to do reliably. Give it the files, exactly what to change or answer, and how to check it, such as a command that verifies the change. When it answers, check the result.\n"
+
 // sendPhrase and keepPhrase are nav-pilot's words for each task class in
 // [local.TaskClasses], as something to send to the worker and as something to
 // keep. The manifest only says which list a class goes in.
@@ -671,7 +679,7 @@ var (
 	sendPhrase = map[string]string{
 		"read-qa":               "lookups and questions about the code",
 		"edit-single":           "a fully specified edit to one file, such as a comment or a log line",
-		"edit-multi-mechanical": "mechanical changes that follow one pattern across several files, such as a rename or a field threaded through its call sites. It pays off when you would otherwise need several steps; a change you can make in two is cheaper to make yourself",
+		"edit-multi-mechanical": "mechanical changes that follow one pattern across several files, such as a rename or a field threaded through its call sites",
 		"create-file":           "a new file, tests included",
 		"debug":                 "finding and fixing the cause of a failing test",
 	}
@@ -700,7 +708,7 @@ func writeDispatchClasses(b *strings.Builder, c *local.Capabilities) {
 			b.WriteString(sendPhrase[class])
 		}
 		b.WriteString(".\n")
-		b.WriteString(describeFully)
+		b.WriteString(sendTrusted)
 	}
 	b.WriteString("Do not send it: ")
 	for _, class := range keep {

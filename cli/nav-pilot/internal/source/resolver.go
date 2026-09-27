@@ -73,6 +73,7 @@ type Resolved struct {
 	AbsPath string // full filesystem path
 	RelPath string // relative to source root (e.g. "agents/foo.agent.md")
 	IsDir   bool   // actual shape on disk
+	Data    []byte // built-in content, read instead of AbsPath when set
 }
 
 // FileName returns the name used for destination paths.
