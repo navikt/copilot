@@ -8,7 +8,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: nav.replace }),
 }));
 vi.mock("@/lib/legacy-anchors", () => ({
-  LEGACY_ANCHORS: { "/nav-pilot/docs#gammelt-anker": "/nav-pilot/lokal#nytt-anker" },
+  LEGACY_ANCHORS: {
+    "/nav-pilot/docs#gammelt-anker": "/nav-pilot/lokal#nytt-anker",
+    "/nav-pilot/lokal#gammelt-anker": "/nav-pilot/lokal#nytt-anker",
+  },
 }));
 
 describe("HashAnchorScroll", () => {
@@ -55,8 +58,15 @@ describe("HashAnchorScroll", () => {
     expect(nav.replace).toHaveBeenCalledWith("/nav-pilot/lokal#nytt-anker");
   });
 
-  it("leaves the same anchor alone on another page", async () => {
+  it("sends an anchor moved within the page to its new place", () => {
     nav.pathname = "/nav-pilot/lokal";
+    window.location.hash = "#gammelt-anker";
+    render(<HashAnchorScroll />);
+    expect(nav.replace).toHaveBeenCalledWith("/nav-pilot/lokal#nytt-anker");
+  });
+
+  it("leaves the same anchor alone on another page", async () => {
+    nav.pathname = "/statistikk";
     window.location.hash = "#gammelt-anker";
     render(<HashAnchorScroll />);
     await new Promise((r) => setTimeout(r, 100));
