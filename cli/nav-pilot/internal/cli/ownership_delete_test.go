@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -40,8 +43,9 @@ func deletionScope(t *testing.T) (string, *InstallScope, string) {
 		},
 	})
 
-	// The source ships nothing, so both paths are "deleted upstream".
-	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
+	// The source ships neither, so both paths are "deleted upstream". It
+	// ships something else: a source that ships nothing is refused.
+	mustWrite(t, filepath.Join(sourceDir, "agents", "other.agent.md"), "# Other\n")
 
 	orig := resolveSourceForSync
 	t.Cleanup(func() { resolveSourceForSync = orig })
@@ -52,14 +56,18 @@ func deletionScope(t *testing.T) (string, *InstallScope, string) {
 	return dir, ScopeRepo(dir), sourceDir
 }
 
-// TestSyncKeepsALocallyEditedFileDeletedUpstream: sync's delete path must apply
-// the same ownership predicate removeOrphans does. An edited file is the user's
-// and stays; nav-pilot's own untouched copy still goes (#729).
-func TestSyncKeepsALocallyEditedFileDeletedUpstream(t *testing.T) {
+// TestSyncSavesALocallyEditedFileDeletedUpstream: a file the source dropped
+// goes, edited or not, because leaving an edited one in place kept a dropped
+// always-on instruction loading in every session. The edit is not lost: it is
+// saved as <file>.orig first, as an update does (#987). #729 kept the file in
+// place instead; the .orig copy keeps its guarantee that nothing edited is
+// ever deleted outright.
+func TestSyncSavesALocallyEditedFileDeletedUpstream(t *testing.T) {
 	dir, scope, _ := deletionScope(t)
 
 	// The user edits one of the two after install.
-	mustWrite(t, filepath.Join(dir, ".github", "agents", "kept.agent.md"), "# Kept, and edited by me\n")
+	edited := "# Kept, and edited by me\n"
+	mustWrite(t, filepath.Join(dir, ".github", "agents", "kept.agent.md"), edited)
 
 	var err error
 	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
@@ -67,29 +75,33 @@ func TestSyncKeepsALocallyEditedFileDeletedUpstream(t *testing.T) {
 		t.Fatalf("sync --apply: %v\n%s", err, out)
 	}
 
-	if _, statErr := os.Stat(filepath.Join(dir, ".github", "agents", "kept.agent.md")); statErr != nil {
-		t.Errorf("sync deleted a locally edited file: %v", statErr)
+	if _, statErr := os.Stat(filepath.Join(dir, ".github", "agents", "kept.agent.md")); !os.IsNotExist(statErr) {
+		t.Errorf("sync left the edited file the source deleted in place: %v", statErr)
+	}
+	if got, readErr := os.ReadFile(filepath.Join(dir, ".github", "agents", "kept.agent.md.orig")); readErr != nil || string(got) != edited {
+		t.Errorf("the edited copy was not saved as .orig: %q, %v", got, readErr)
 	}
 	if _, statErr := os.Stat(filepath.Join(dir, ".github", "agents", "gone.agent.md")); !os.IsNotExist(statErr) {
 		t.Errorf("sync kept an untouched file the source deleted: %v", statErr)
 	}
-	if !strings.Contains(out, "kept.agent.md") || !strings.Contains(out, "differ from what nav-pilot installed") {
-		t.Errorf("sync did not say it kept the edited file:\n%s", out)
+	if _, statErr := os.Stat(filepath.Join(dir, ".github", "agents", "gone.agent.md.orig")); !os.IsNotExist(statErr) {
+		t.Errorf("sync saved a copy of an untouched file: %v", statErr)
 	}
-
-	// The entry has to survive: dropping it makes the file invisible to every
-	// later sync, which is the hole mergeStateFiles exists to close.
-	if e := stateEntry(t, scope, ".github/agents/kept.agent.md"); e == nil {
-		t.Error("state no longer tracks the file sync decided not to delete")
+	if !strings.Contains(out, "kept.agent.md (changed here; your copy is saved as .orig)") {
+		t.Errorf("sync did not say it saved the edited file:\n%s", out)
 	}
-	if e := stateEntry(t, scope, ".github/agents/gone.agent.md"); e != nil {
-		t.Errorf("state still tracks the file sync deleted: %+v", e)
+	// Both files were the only ones tracked, so the state may be gone too.
+	if st, _ := readScopedState(scope); st != nil {
+		for _, f := range st.Files {
+			t.Errorf("state still tracks a file sync deleted: %+v", f)
+		}
 	}
 }
 
-// TestSyncJSONReportsTheKeptFile: --json is the workflow's eye, so a skipped
-// deletion has to reach it too, and must not be listed as a deletion.
-func TestSyncJSONReportsTheKeptFile(t *testing.T) {
+// TestSyncJSONReportsTheEditedDeletion: --json is the workflow's eye, so a
+// deletion that saves a local edit is listed with the deletions and named
+// under removed_local_edits, the way an update is under replaced_local_edits.
+func TestSyncJSONReportsTheEditedDeletion(t *testing.T) {
 	dir, scope, _ := deletionScope(t)
 	mustWrite(t, filepath.Join(dir, ".github", "agents", "kept.agent.md"), "# Kept, and edited by me\n")
 
@@ -98,11 +110,26 @@ func TestSyncJSONReportsTheKeptFile(t *testing.T) {
 	if err != nil && err != errUpdatesAvailable {
 		t.Fatalf("sync --json: %v\n%s", err, out)
 	}
-	if !strings.Contains(out, `"kept"`) || !strings.Contains(out, "kept.agent.md") {
-		t.Errorf("JSON does not report the file sync will not delete:\n%s", out)
+	var doc struct {
+		Deletions         []string `json:"deletions"`
+		RemovedLocalEdits []string `json:"removed_local_edits"`
+		Kept              []string `json:"kept"`
 	}
-	if strings.Contains(out, `"deletions":["`+".github/agents/kept.agent.md") {
-		t.Errorf("JSON lists the edited file as a deletion:\n%s", out)
+	if jsonErr := json.Unmarshal([]byte(out), &doc); jsonErr != nil {
+		t.Fatalf("sync --json: %v\n%s", jsonErr, out)
+	}
+	if !slices.Contains(doc.Deletions, ".github/agents/kept.agent.md") || !slices.Contains(doc.Deletions, ".github/agents/gone.agent.md") {
+		t.Errorf("deletions = %v, want both files", doc.Deletions)
+	}
+	if !reflect.DeepEqual(doc.RemovedLocalEdits, []string{".github/agents/kept.agent.md"}) {
+		t.Errorf("removed_local_edits = %v, want the edited file only", doc.RemovedLocalEdits)
+	}
+	if len(doc.Kept) != 0 {
+		t.Errorf("kept = %v, want none: only a hook is kept", doc.Kept)
+	}
+	// A check writes nothing.
+	if _, statErr := os.Stat(filepath.Join(dir, ".github", "agents", "kept.agent.md.orig")); !os.IsNotExist(statErr) {
+		t.Errorf("a check without --apply saved a copy: %v", statErr)
 	}
 }
 
@@ -218,5 +245,50 @@ func TestInstallAdoptsAByteMatchingUntrackedFile(t *testing.T) {
 	}
 	if e.Hash == "" {
 		t.Errorf("adopted entry has no hash, so nothing can ever prove it unedited: %+v", e)
+	}
+}
+
+// TestSyncSavesAHashlessEntryBeforeRemoving: a state written before hashes
+// were recorded cannot tell nav-pilot's copy from an edited one, so a file the
+// source dropped is saved as .orig before it goes.
+func TestSyncSavesAHashlessEntryBeforeRemoving(t *testing.T) {
+	dir, scope, _ := deletionScope(t)
+	writeState(dir, &StateFile{
+		Collection: "kotlin-backend",
+		Version:    "2026.06",
+		SourceRepo: "my-custom/repo",
+		Files:      []InstalledFile{{Path: ".github/agents/kept.agent.md"}},
+	})
+
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	if err != nil {
+		t.Fatalf("sync --apply: %v\n%s", err, out)
+	}
+	if _, statErr := os.Stat(filepath.Join(dir, ".github", "agents", "kept.agent.md")); !os.IsNotExist(statErr) {
+		t.Errorf("sync left the file the source deleted in place: %v", statErr)
+	}
+	if got, readErr := os.ReadFile(filepath.Join(dir, ".github", "agents", "kept.agent.md.orig")); readErr != nil || string(got) != "# Kept\n" {
+		t.Errorf("the hashless entry's copy was not saved as .orig: %q, %v", got, readErr)
+	}
+}
+
+// TestSyncRefusesASourceThatShipsNothing: an empty source is a broken one, and
+// reading it as "everything was deleted upstream" would empty the scope.
+func TestSyncRefusesASourceThatShipsNothing(t *testing.T) {
+	dir, scope, sourceDir := deletionScope(t)
+	if err := os.RemoveAll(filepath.Join(sourceDir, "agents")); err != nil {
+		t.Fatal(err)
+	}
+
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	if err == nil || !strings.Contains(err.Error(), "ships no agents") {
+		t.Fatalf("sync --apply against an empty source: err = %v\n%s", err, out)
+	}
+	for _, name := range []string{"kept.agent.md", "gone.agent.md"} {
+		if _, statErr := os.Stat(filepath.Join(dir, ".github", "agents", name)); statErr != nil {
+			t.Errorf("%s was removed: %v", name, statErr)
+		}
 	}
 }

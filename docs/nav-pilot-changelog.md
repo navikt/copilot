@@ -2,6 +2,14 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-09-27
+
+### sync fjerner det kilden har sluttet å levere, og opencode finner instruksjonene
+
+- **En fil kilden har fjernet, fjernes også når du har endret den**: Før ble en endret fil liggende, så en fjernet alltid-på-instruks ble lastet i hver økt. Nå lagres kopien din som `<fil>.orig` før fila fjernes, som ved en oppdatering. `--json` lister den under både `deletions` og `removed_local_edits`, og sync-workflowen merker den i PR-en. En hook du har endret, blir fortsatt stående og kjører videre.
+- **opencode-scopet følger samme liste**: `nav-pilot sync` uten `--apply` skrev om `~/.config/opencode`. Nå endrer den ingenting der, men lister hva den ville fjerne under scopet `opencode`, også i `--json`, og avslutter med 1 når noe skal fjernes.
+- **opencode finner de filavgrensede instruksjonene**: `AGENTS.md` pekte på `@.opencode/instructions/<navn>.md`, relativt til prosjektet, mens filene ligger i opencodes globale konfigurasjonsmappe. Fra et repo uten egen `.opencode/` fant modellen dem ikke. Nå står den absolutte stien der, sammen med beskrivelsen fra instruksjonen, slik Copilot CLI viser den i sin `applyTo`-tabell.
+
 ## 2026-09-26
 
 ### sync mister ikke lenger lokale endringer

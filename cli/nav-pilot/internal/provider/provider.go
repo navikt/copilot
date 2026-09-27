@@ -25,6 +25,11 @@ var telemetryRecorder telemetry.Recorder = telemetry.NoopRecorder{}
 type ProviderSyncResult struct {
 	Managed bool
 	Err     error
+	// Removed and Kept are files an earlier sync wrote that the source no
+	// longer ships: removed, or on a dry run to be removed, and kept because
+	// they changed since. Paths are relative to the provider's context dir.
+	Removed []string
+	Kept    []string
 }
 
 // ProviderContextStatus holds the data needed to display provider context status.
@@ -53,7 +58,8 @@ type Provider interface {
 	// --source flag resolves the built-in default whenever nobody typed one
 	// (#813).
 	Bootstrap(resolved domain.ResolvedConfig) (string, error)
-	SyncContext(ref, sourceRepo string, jsonOutput, hasPrevOutput bool) ProviderSyncResult
+	// SyncContext writes nothing unless apply is set.
+	SyncContext(ref, sourceRepo string, apply, jsonOutput, hasPrevOutput bool) ProviderSyncResult
 	ContextStatus() *ProviderContextStatus
 	PrintContextStatus()
 	PrintSystemDiagnostics()
@@ -236,7 +242,7 @@ func (copilotProvider) ModelAdvisory(model string) string {
 
 func (copilotProvider) UnsupportedConfigWarnings(_ domain.ResolvedConfig) []string { return nil }
 func (copilotProvider) Bootstrap(_ domain.ResolvedConfig) (string, error)          { return "", nil }
-func (copilotProvider) SyncContext(_, _ string, _, _ bool) ProviderSyncResult {
+func (copilotProvider) SyncContext(_, _ string, _, _, _ bool) ProviderSyncResult {
 	return ProviderSyncResult{}
 }
 func (copilotProvider) ContextStatus() *ProviderContextStatus { return nil }
@@ -338,7 +344,7 @@ func (openCodeProvider) Bootstrap(r domain.ResolvedConfig) (string, error) {
 	return summary, nil
 }
 
-func (openCodeProvider) SyncContext(ref, sourceRepo string, jsonOutput, hasPrevOutput bool) ProviderSyncResult {
+func (openCodeProvider) SyncContext(ref, sourceRepo string, apply, jsonOutput, hasPrevOutput bool) ProviderSyncResult {
 	ocOutputDir := openCodeNavContextDir()
 	ocState, _ := artifacts.ReadOpenCodeState(ocOutputDir)
 	if ocState == nil {
@@ -369,7 +375,8 @@ func (openCodeProvider) SyncContext(ref, sourceRepo string, jsonOutput, hasPrevO
 	}
 	defer ocSrc.Cleanup()
 
-	_, _, _, _, ocConflicts, ocErr := artifacts.SyncOpenCodeArtifacts("opencode", ocSrc.Dir, repoScopeDir(), ocOutputDir, ocSrc.Version, ocSrc.SHA, ocSrc.Repo)
+	report, ocErr := artifacts.SyncOpenCodeArtifactsReport("opencode", ocSrc.Dir, repoScopeDir(), ocOutputDir, ocSrc.Version, ocSrc.SHA, ocSrc.Repo, !apply)
+	ocConflicts := report.Conflicts
 	if ocErr != nil {
 		if !jsonOutput {
 			fmt.Fprintf(os.Stderr, "%s Opencode sync error: %v\n", domain.Yellow("⚠"), ocErr)
@@ -382,14 +389,37 @@ func (openCodeProvider) SyncContext(ref, sourceRepo string, jsonOutput, hasPrevO
 		for _, c := range ocConflicts {
 			fmt.Printf("  %s %s (conflict — not overwritten)\n", domain.Yellow("⊘"), c)
 		}
-		if len(ocConflicts) > 0 {
+		// What the source dropped, the way the Copilot scopes list it. A kept
+		// file is one the user changed; it stays until they delete it.
+		for _, p := range report.Removed {
+			label := "(deleted)"
+			if !apply {
+				label = "(deleted in source; will be removed)"
+			}
+			fmt.Printf("  %s %s %s\n", domain.Red("-"), p, domain.Dim(label))
+		}
+		for _, p := range report.Kept {
+			fmt.Printf("  %s %s %s\n", domain.Dim("⊘"), p, domain.Dim("(deleted in source, changed here: kept)"))
+		}
+		if !apply {
+			// The mirror of the repo's own .github/ is compared with the repo as
+			// it is now; what the repo scope is about to remove goes here too
+			// on --apply, but is not listed yet.
+			fmt.Printf("  %s\n", domain.Dim("(skills and agents mirrored from this repo's .github/ follow the repo scope; they are not listed here)"))
+		}
+		switch {
+		case !apply && len(report.Removed) > 0:
+			fmt.Printf("%s Opencode scope has %d file(s) to remove. Run %s to apply.\n", domain.Yellow("⚠"), len(report.Removed), domain.Bold("nav-pilot sync --apply"))
+		case !apply:
+			fmt.Printf("%s Opencode scope checked; %s refreshes it.\n", domain.Dim("→"), domain.Bold("nav-pilot sync --apply"))
+		case len(ocConflicts) > 0:
 			fmt.Printf("%s Opencode scope synced (%d conflict(s)).\n", domain.Yellow("⚠"), len(ocConflicts))
-		} else {
+		default:
 			fmt.Printf("%s Opencode scope synced.\n", domain.Green("✓"))
 		}
 	}
 
-	return ProviderSyncResult{Managed: true}
+	return ProviderSyncResult{Managed: true, Removed: report.Removed, Kept: report.Kept}
 }
 
 func (openCodeProvider) ContextStatus() *ProviderContextStatus {
@@ -442,7 +472,7 @@ func (piProvider) Bootstrap(r domain.ResolvedConfig) (string, error) {
 // (internal/cli/sync.go), so a pakke merely declaring pi must not make an
 // ordinary `nav-pilot sync` create ~/.nav-pilot/pi. The state file is what
 // Bootstrap or a launch writes, so its absence means pi was never launched.
-func (piProvider) SyncContext(ref, sourceRepo string, jsonOutput, hasPrevOutput bool) ProviderSyncResult {
+func (piProvider) SyncContext(ref, sourceRepo string, _, jsonOutput, hasPrevOutput bool) ProviderSyncResult {
 	if !piDeclaresTier1() {
 		return ProviderSyncResult{}
 	}

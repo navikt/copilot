@@ -38,13 +38,21 @@ type syncResult struct {
 	// <file>.orig first. They are in Updates too; this says which of them a
 	// reviewer should look at.
 	ReplacedLocalEdits []string `json:"replaced_local_edits,omitempty"`
+	// RemovedLocalEdits names the deletions whose file changed since nav-pilot
+	// installed it. --apply saves each local copy as <file>.orig before it
+	// removes the artifact, so a dropped instruction stops loading and the
+	// edit is not lost. They are in Deletions too.
+	RemovedLocalEdits []string `json:"removed_local_edits,omitempty"`
 	// SkippedExisting names artifacts the source ships whose path already
 	// holds a file nav-pilot did not install. Sync never takes such a file
 	// over, and it is not pending work.
 	SkippedExisting []string `json:"skipped_existing,omitempty"`
-	// Kept names files the source deleted that sync left on disk because they
-	// differ from what nav-pilot installed (#729). They are not deletions: a
-	// workflow reading this document must not report them as removed.
+	// Kept names hook files the source deleted that sync left on disk because
+	// they differ from what nav-pilot installed (#729). They are not
+	// deletions: a workflow reading this document must not report them as
+	// removed. Every other kind is removed with its local copy saved as .orig
+	// (RemovedLocalEdits); a hook is kept because removing an edited gate
+	// would turn off enforcement someone chose to keep.
 	Kept []string `json:"kept,omitempty"`
 	// Retired names artifacts the source has withdrawn that are still
 	// installed, and whose bytes nav-pilot published (#716).
@@ -414,6 +422,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	var ignoredPaths []string
 	var foreignPaths []string
 	var editedPaths []string
+	var editedRemovals []string
 	var keptHooks []string
 	// A hook is its script and what registers it, and a hook the source
 	// dropped goes or stays as one: if either file changed since nav-pilot
@@ -470,14 +479,17 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 			}
 		}
 		if !found {
-			// Deleted upstream — but only nav-pilot's own untouched copy is
-			// nav-pilot's to remove. A file whose bytes have changed since it
-			// was installed is the user's work, and a silent delete is the one
-			// outcome it can never be recovered from. Same predicate
-			// removeOrphans has always used (#729); it guarded that path alone.
-			if sf.tracked != nil && !safeToRemove(scope.RootDir, *sf.tracked) {
-				keptPaths = append(keptPaths, sf.localPath)
-				continue
+			// Deleted upstream. nav-pilot's own untouched copy just goes. A file
+			// whose bytes have changed since it was installed is the user's
+			// work, and a silent delete is the one outcome it can never be
+			// recovered from (#729), so --apply saves it as <file>.orig first,
+			// as an update does. Leaving it in place kept a dropped
+			// always-on instruction in every session. A hook never gets here
+			// edited: hookKept above keeps it running.
+			// A state written before hashes were recorded cannot say whether
+			// the file was edited, so its copy is saved too.
+			if sf.tracked != nil && (sf.tracked.Hash == "" || !safeToRemove(scope.RootDir, *sf.tracked)) {
+				editedRemovals = append(editedRemovals, sf.localPath)
 			}
 			deletedPaths = append(deletedPaths, sf.localPath)
 			continue
@@ -497,6 +509,15 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 				editedPaths = append(editedPaths, sf.localPath)
 			}
 		}
+	}
+
+	// A source that ships nothing at all is a broken source, not one that
+	// retired everything: a wrong --ref, an empty branch, a layout pointing at
+	// empty directories. Reading it as "deleted upstream" would remove every
+	// file this scope has, in CI without anyone asked.
+	if len(deletedPaths) > 0 && shipsNothing(resolver) {
+		return fmt.Errorf("%s ships no agents, skills, instructions, prompts or hooks at %s, so sync would remove all %d of this scope's files.\nNothing was changed. Check the source and --ref; to remove everything on purpose, run %s",
+			sourceLabelFor(src), shortSHA(src.SHA), len(deletedPaths), bold("nav-pilot uninstall"))
 	}
 
 	// Mark missing files as ignored in state
@@ -551,6 +572,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		Ignored:            ignoredPaths,
 		Foreign:            foreignPaths,
 		ReplacedLocalEdits: editedPaths,
+		RemovedLocalEdits:  editedRemovals,
 		SkippedExisting:    skippedExisting,
 		Kept:               keptPaths,
 		PinBump:            pinBump,
@@ -690,6 +712,10 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		fmt.Printf("%s %d file(s) deleted in source and will be removed (source: %s)\n\n",
 			yellow("⚠"), len(deletedPaths), shortSHA(src.SHA))
 		for _, p := range deletedPaths {
+			if slices.Contains(editedRemovals, p) {
+				fmt.Printf("  %s %s %s\n", red("-"), p, dim("(changed here; your copy is saved as .orig)"))
+				continue
+			}
 			fmt.Printf("  %s %s\n", red("-"), p)
 		}
 		fmt.Println()
@@ -765,6 +791,16 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	var deletedSuccessPaths []string
 	for _, p := range deletedPaths {
 		localFull := filepath.Join(scope.RootDir, p)
+		if slices.Contains(editedRemovals, p) {
+			saved, err := saveOrig(localFull, "", scope.RootDir, strings.HasSuffix(p, "/"))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s Kept %s: could not save your copy before removing it: %v\n", yellow("⚠"), p, err)
+				result.Errors = append(result.Errors, fmt.Sprintf("%s: saving the local copy: %v", p, err))
+				applyErrors++
+				continue
+			}
+			warnRemovedLocalEdits(scope, p, saved)
+		}
 		var rmErr error
 		if strings.HasSuffix(p, "/") {
 			rmErr = removeAllButOrig(localFull)
@@ -1362,9 +1398,26 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 	}
 	hasPrevOutput := repoState != nil || userState != nil
 	for _, p := range allProviders() {
-		res := p.SyncContext(ref, providerSource, jsonOutput, hasPrevOutput)
+		res := p.SyncContext(ref, providerSource, apply, jsonOutput, hasPrevOutput)
 		if res.Managed {
 			hasPrevOutput = true
+		}
+		// Removals are listed like a Copilot scope's, in the same document.
+		// On a check they are pending work, so the exit code says so.
+		if len(res.Removed) > 0 || len(res.Kept) > 0 {
+			if jsonOutput {
+				doc := map[string]any{"scope": p.ID(), "applied": apply}
+				if len(res.Removed) > 0 {
+					doc["deletions"] = res.Removed
+				}
+				if len(res.Kept) > 0 {
+					doc["kept"] = res.Kept
+				}
+				*syncDocs = append(*syncDocs, doc)
+			}
+			if !apply && len(res.Removed) > 0 {
+				note(errUpdatesAvailable)
+			}
 		}
 		if res.Err != nil {
 			note(errSyncFailed)
@@ -1844,6 +1897,37 @@ func warnReplacedLocalEdits(scope *InstallScope, relPath string, saved []string)
 	}
 	fmt.Fprintf(os.Stderr, "%s %s: your local changes were replaced by the new version; your copy is saved as %s\n",
 		yellow("⚠"), label, strings.Join(shown, ", "))
+}
+
+// warnRemovedLocalEdits is warnReplacedLocalEdits for an artifact the source
+// dropped: there is no new version, only the saved copy. A directory is named
+// once: every file in it was saved.
+func warnRemovedLocalEdits(scope *InstallScope, relPath string, saved []string) {
+	label := relPath
+	if kind, name := artifactOfPath(relPath); kind != nil {
+		label = kind.Name + " " + name
+	}
+	where := "your copy is saved as " + strings.Join(func() []string {
+		shown := make([]string, len(saved))
+		for i, p := range saved {
+			shown[i] = scopePath(scope, p)
+		}
+		return shown
+	}(), ", ")
+	if strings.HasSuffix(relPath, "/") {
+		where = "your copy is saved as *.orig in " + scopePath(scope, filepath.Join(scope.RootDir, relPath))
+	}
+	fmt.Fprintf(os.Stderr, "%s %s: the source removed it, and it had local changes; %s\n", yellow("⚠"), label, where)
+}
+
+// shipsNothing reports whether a source resolves no artifact of any kind.
+func shipsNothing(resolver *SourceResolver) bool {
+	for _, kind := range AllKinds {
+		if len(resolver.List(kind)) > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // artifactOfPath names the kind and artifact a scope-relative path belongs

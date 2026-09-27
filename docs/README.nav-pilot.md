@@ -384,6 +384,10 @@ oppstart:
 1. Løser opp Nav-kildeartifaktene (skills, agenter, prompts, instruksjoner)
 2. Skriver dem til OpenCode-konfigurasjonsmappen (f.eks. `~/.config/opencode/` eller via `XDG_CONFIG_HOME`) som `AGENTS.md`, `skills/`, `commands/`, `agents/` og `instructions/`
 3. Holder dem synkronisert med versjonskontroll (konflikt-deteksjon, ferskhetssjekk)
+
+   Instruksjoner med `applyTo: "**"` står i `AGENTS.md`. De andre ligger i `instructions/`, og
+   `AGENTS.md` lister dem med mønster, full sti og beskrivelse, så modellen leser en fil når
+   mønsteret passer. Stien er absolutt fordi mappa leses fra alle repoer.
 4. Starter opencode i cplt-sandboxen med Nav-agenten (`cplt --agent opencode -- --agent nav-pilot --model …`)
 
 Den materialiserte `nav-pilot`-agenten er en **primær** opencode-agent, så den dukker opp i
@@ -421,7 +425,9 @@ Artefakter fra et annet repo blir liggende i den globale konfigurasjonen til nes
 og er synlige ved navn og beskrivelse der. De ryddes bort ved neste oppstart, med mindre
 du har endret dem selv: nav-pilot sletter bare det den selv har skrevet og som fortsatt
 er uendret. En fil du har redigert blir stående, og forblir sporet, slik at neste sync i
-repoet den kom fra melder konflikt framfor å overskrive den.
+repoet den kom fra melder konflikt framfor å overskrive den. `nav-pilot sync` uten `--apply`
+skriver ingenting her. Den lister hva som ville blitt fjernet under scopet `opencode`, også i
+`--json`, men ikke endret innhold. Det skriver `--apply` og neste oppstart.
 
 #### `export opencode` vs. automatisk materialisering
 
@@ -430,7 +436,7 @@ Til ditt **personlige** oppsett trenger du ikke `export` i det hele tatt.
 | Kommando                                 | Mål                   | Tilstandssporing              | Når                                                          |
 | ---------------------------------------- | --------------------- | ----------------------------- | ------------------------------------------------------------ |
 | `nav-pilot --client opencode` (oppstart) | `~/.config/opencode/` | ✅ konflikt + ferskhet        | Personlig kontekst, skjer automatisk                         |
-| `nav-pilot sync`                         | `~/.config/opencode/` | ✅ oppdaterer sporet tilstand | Frisk opp personlig kontekst                                 |
+| `nav-pilot sync --apply`                 | `~/.config/opencode/` | ✅ oppdaterer sporet tilstand | Frisk opp personlig kontekst                                 |
 | `nav-pilot export opencode` (repo-scope) | `<repo>/.opencode/`   | ingen                         | Sjekk Nav-kontekst inn i et **prosjektrepo** for hele teamet |
 
 > **Avviklet:** `nav-pilot export opencode --user` er erstattet av automatisk materialisering
