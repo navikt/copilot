@@ -1,8 +1,8 @@
 {
   "id": "q4-2026",
   "series": "utviklerundersokelsen",
-  "title": "Utviklerundersøkelsen, høsten 2026",
-  "intro": "Andre runde av Utviklerundersøkelsen fra våren 2026, med de samme spørsmålene så vi kan se hva som har endret seg. Tar rundt 5 minutter.",
+  "title": "Utviklerundersøkelsen høsten 2026",
+  "intro": "Samme spørsmål som i våres, så vi kan se hva som har endret seg, pluss ett nytt om agenter. Tar rundt fem minutter.",
   "starts": "2026-10-12",
   "ends": "2026-11-01",
   "questions": [
@@ -133,7 +133,7 @@
       "version": 1,
       "type": "scale",
       "construct": "agent-trust",
-      "text": "Jeg stoler på at en AI-agent kan gjøre flerstegsoppgaver i kodebasen vår uten at jeg følger med på hvert steg.",
+      "text": "Jeg stoler på at en AI-agent løser oppgaver i flere steg i kodebasen vår uten at jeg følger med på hvert steg.",
       "min": 1, "max": 5,
       "labels": ["Helt uenig", "Uenig", "Nøytral", "Enig", "Helt enig"]
     },
