@@ -65,7 +65,7 @@ Read in the OpenCode 1.18.32 source (`packages/opencode/src/session/tools.ts`, `
 
 ## MCP servers outside Nav's registry (#1027)
 
-A launch turns such servers off with `enabled: false`. That only decides how the session starts: OpenCode's `/mcp` dialog can still connect one. The hooks bridge therefore also refuses, in `tool.execute.before`, every tool whose name starts with a turned-off server's name. OpenCode names MCP tools `<server>_<tool>`. The longest matching server name decides, and built-in tool names are never refused.
+A launch turns off every configured MCP server the registry does not list, with `enabled: false`. That only decides how the session starts. OpenCode's `/mcp` dialog can still connect one. The hooks bridge therefore also refuses, in `tool.execute.before`, every tool whose name starts with a turned-off server's name. OpenCode names MCP tools `<server>_<tool>`. The longest matching server name decides, and built-in tool names are never refused.
 
 What the launch does not cover:
 - a server added in the middle of a session (`POST /mcp`, the `/mcp` dialog);

@@ -58,6 +58,6 @@ func warnUntestedOpenCode() {
 	if err != nil || tested {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "%s opencode %s is outside the versions nav-pilot is tested with (%s). Hooks, the dispatch gate or the policy may not apply as described; %s says more.\n",
+	fmt.Fprintf(os.Stderr, "%s opencode %s is outside the tested range (%s). Hooks, the dispatch gate and the session policy may not apply as described. See %s.\n",
 		domain.Yellow("⚠"), v, OpenCodeTestedRange, domain.Bold("nav-pilot doctor"))
 }

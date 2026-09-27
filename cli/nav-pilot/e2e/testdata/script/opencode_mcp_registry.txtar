@@ -27,7 +27,7 @@ exec nav-pilot install plattform --user --yes
 # registry_only: the unlisted remote and local servers are turned off.
 env POLICY=registry_only
 exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
-stderr 'Turned off MCP server\(s\) Nav''s MCP registry does not list: egen-lokal, tredjepart\. See https://ki-utvikling\.nav\.no/verktoy'
+stderr 'MCP servers turned off for this session \(not in Nav''s MCP registry\): egen-lokal, tredjepart\. See https://ki-utvikling\.nav\.no/verktoy'
 exec cat $WORK/env.out
 stdout '"tredjepart":\{"enabled":false\}'
 stdout '"egen-lokal":\{"enabled":false\}'
@@ -61,7 +61,7 @@ stdout '"tredjepart":\{"enabled":false\}'
 # A policy that allows every server: nothing is turned off.
 env POLICY=allow_all
 exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
-! stderr 'Turned off MCP'
+! stderr 'MCP servers turned off'
 exec cat $WORK/env.out
 ! stdout 'enabled'
 

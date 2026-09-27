@@ -73,7 +73,7 @@ type mcpRegistry struct {
 var fetchMCPPolicy = func() (registry string, err error) {
 	gh, err := exec.LookPath("gh")
 	if err != nil {
-		return "", fmt.Errorf("gh is not installed, so nav-pilot cannot read the MCP policy")
+		return "", fmt.Errorf("gh is not installed")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), mcpPolicyTimeout)
 	defer cancel()
@@ -321,7 +321,7 @@ func openCodeMCPServers(projectDir string, env []string) map[string]mcpServer {
 		})
 		if json.Unmarshal(stripJSONC(doc), &cfg) != nil {
 			if bytes.Contains(doc, []byte(`"mcp"`)) {
-				fmt.Fprintf(os.Stderr, "%s An OpenCode config with MCP servers could not be read, so they were not checked against Nav's MCP registry.\n", domain.Yellow("⚠"))
+				fmt.Fprintf(os.Stderr, "%s nav-pilot could not read an OpenCode config with MCP servers, so those servers were not checked against Nav's MCP registry; they run as configured.\n", domain.Yellow("⚠"))
 			}
 			continue
 		}
@@ -362,7 +362,7 @@ func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
 	for _, name := range off {
 		mcp[name] = map[string]any{"enabled": false}
 	}
-	fmt.Fprintf(os.Stderr, "%s Turned off MCP server(s) Nav's MCP registry does not list: %s. See %s\n",
+	fmt.Fprintf(os.Stderr, "%s MCP servers turned off for this session (not in Nav's MCP registry): %s. See %s\n",
 		domain.Yellow("⚠"), strings.Join(off, ", "), MCPRegistryHelpURL)
 	var listed []string
 	for name := range servers {
