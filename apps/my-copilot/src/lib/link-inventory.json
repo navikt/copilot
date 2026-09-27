@@ -1,0 +1,1242 @@
+{
+  "/": {
+    "sources": [
+      "README.md",
+      "apps/my-copilot/src/app/(en)/en/news/[slug]/page.tsx",
+      "apps/my-copilot/src/app/(en)/en/news/page.tsx",
+      "apps/my-copilot/src/app/(en)/layout.tsx",
+      "apps/my-copilot/src/app/(en)/not-found.tsx",
+      "apps/my-copilot/src/app/(nb)/(home)/page.tsx",
+      "apps/my-copilot/src/app/(nb)/layout.tsx",
+      "apps/my-copilot/src/app/(nb)/not-found.tsx",
+      "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nyheter/utviklerundersokelsen-2026/page.tsx",
+      "apps/my-copilot/src/app/(nb)/videos/[id]/not-found.tsx",
+      "apps/my-copilot/src/app/(nb)/videos/[id]/page.tsx",
+      "apps/my-copilot/src/app/global-not-found.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/site-shell.tsx"
+    ],
+    "anchors": {}
+  },
+  "/abonnement": {
+    "sources": [
+      "apps/my-copilot/src/app/(en)/layout.tsx",
+      "apps/my-copilot/src/app/(nb)/abonnement/page.tsx",
+      "apps/my-copilot/src/app/(nb)/layout.tsx",
+      "apps/my-copilot/src/components/nav-pilot/interactive-setup-wizard.tsx"
+    ],
+    "anchors": {
+      "din-plassering-i-nav": ["apps/my-copilot/src/app/(nb)/abonnement/page.tsx"]
+    }
+  },
+  "/adopsjon": {
+    "sources": ["apps/my-copilot/src/app/(nb)/adopsjon/page.tsx", "apps/my-copilot/src/lib/nav-items.ts"],
+    "anchors": {}
+  },
+  "/best-practices": {
+    "sources": ["apps/my-copilot/next.config.ts"],
+    "anchors": {}
+  },
+  "/cost": {
+    "sources": ["apps/my-copilot/next.config.ts"],
+    "anchors": {}
+  },
+  "/cplt": {
+    "sources": [
+      "README.md",
+      "apps/my-copilot/src/app/(nb)/cplt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
+      "apps/my-copilot/src/lib/nav-items.ts",
+      "docs/news/articles/cplt-juli-2026-sikkerhetsoppdatering.md",
+      "docs/news/articles/cplt-lokal-config-og-flere-repoer.md",
+      "docs/news/articles/cplt-mai-2026-oppdatering.md",
+      "docs/news/articles/sandboxing-er-pakrevd-pa-nav-utstyr.md"
+    ],
+    "anchors": {
+      "security-boundary": ["apps/my-copilot/src/app/(nb)/cplt/page.tsx"]
+    }
+  },
+  "/customizations": {
+    "sources": ["apps/my-copilot/next.config.ts"],
+    "anchors": {}
+  },
+  "/en": {
+    "sources": ["apps/my-copilot/next.config.ts"],
+    "anchors": {}
+  },
+  "/en/news": {
+    "sources": [
+      "apps/my-copilot/src/app/(en)/en/news/[slug]/page.tsx",
+      "apps/my-copilot/src/app/(en)/en/news/page.tsx",
+      "apps/my-copilot/src/app/(en)/not-found.tsx",
+      "apps/my-copilot/src/app/global-not-found.tsx"
+    ],
+    "anchors": {}
+  },
+  "/en/news/alpha-decide": {
+    "sources": [
+      "apps/my-copilot/src/app/(en)/en/news/[slug]/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts"
+    ],
+    "anchors": {}
+  },
+  "/en/news/sandbox-confines-the-process-not-the-token": {
+    "sources": ["apps/my-copilot/src/app/(en)/en/news/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/images/alpha-decide-system1-system2.png": {
+    "sources": ["docs/news/articles/alpha-decide.md", "docs/news/articles/nav-pilot-alpha-decide.md"],
+    "anchors": {}
+  },
+  "/images/nav-pilot-decide-threshold.svg": {
+    "sources": ["docs/news/articles/nav-pilot-alpha-decide.md"],
+    "anchors": {}
+  },
+  "/images/nav-pilot-step-count.svg": {
+    "sources": ["docs/news/articles/lokale-modeller-i-nav-pilot.md"],
+    "anchors": {}
+  },
+  "/install/agent": {
+    "sources": [
+      "apps/my-copilot/src/app/install/[type]/route.ts",
+      "apps/my-copilot/src/app/install/agent/route.ts",
+      "docs/README.agents.md"
+    ],
+    "anchors": {}
+  },
+  "/install/instructions": {
+    "sources": [
+      "apps/my-copilot/src/app/install/[type]/route.ts",
+      "apps/my-copilot/src/app/install/instructions/route.ts",
+      "docs/README.instructions.md"
+    ],
+    "anchors": {}
+  },
+  "/install/prompt": {
+    "sources": [
+      "apps/my-copilot/src/app/install/[type]/route.ts",
+      "apps/my-copilot/src/app/install/prompt/route.ts",
+      "docs/README.prompts.md"
+    ],
+    "anchors": {}
+  },
+  "/kom-i-gang": {
+    "sources": [
+      "README.md",
+      "apps/my-copilot/src/app/(nb)/(home)/page.tsx",
+      "apps/my-copilot/src/app/(nb)/kom-i-gang/page.tsx",
+      "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/lib/nav-items.ts"
+    ],
+    "anchors": {}
+  },
+  "/kostnad": {
+    "sources": ["apps/my-copilot/src/app/(nb)/kostnad/page.tsx", "apps/my-copilot/src/app/(nb)/ordliste/terms.ts"],
+    "anchors": {}
+  },
+  "/nav-pilot": {
+    "sources": [
+      "README.md",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/lib/nav-items.ts",
+      "docs/README.nav-pilot.md",
+      "docs/nav-pilot-changelog.md",
+      "docs/nav-pilot-design.md",
+      "docs/news/articles/cplt-lokal-config-og-flere-repoer.md",
+      "docs/news/articles/model-pinning-kostnadsoptimalisering.md"
+    ],
+    "anchors": {}
+  },
+  "/nav-pilot/agentpakker": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "docs/README.agentpakke.md",
+      "docs/README.nav-pilot.md"
+    ],
+    "anchors": {
+      "artefakttyper": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "bruk-en-som-finnes": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "bygg-videre-pa-en": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "distribuer": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "hva-det-er": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "hva-som-komponerer": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "hvilken-tier": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "kjorbar-kode": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "klientoppforinga": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "kollisjoner": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "lag-din-egen": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "las-installasjonen": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "manifestet": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "mcp-servere": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "nar-endringen-nar-fram": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "pakkene-som-finnes": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "pensjonering": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "ressurser": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "sandkasse": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "skript-i-en-skill": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "stabile-releases": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "struktur": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "ta-delene-du-trenger": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "uten-agent": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "valider": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "vedlikehold": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"]
+    }
+  },
+  "/nav-pilot/docs": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/page.tsx",
+      "docs/README.nav-pilot.md",
+      "docs/README.sync.md"
+    ],
+    "anchors": {
+      "agentpakke": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "arkitektur": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "automatisk-sync": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "bytte-modell": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "cli-referanse": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "collections": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "cplt-sikkerhetsniva": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "de-fire-fasene": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "demo-i-praksis": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "designprinsipper": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "faq": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "filstruktur": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "fire-faser": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "gronn-rod-sone": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "grønn-og-rød-sone": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "hva-den-klarer": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "hva-er-nav-pilot": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "hva-nav-pilot-vet": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "hva-nav-pilot-vet-som-copilot-ikke-vet": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "hvor-installere": [
+        "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+        "apps/my-copilot/src/components/nav-pilot/interactive-setup-wizard.tsx"
+      ],
+      "hvor-mye-som-sendes": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "hvor-skal-artefaktene-installeres": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "hvorfor-nav-pilot": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "ignorere-enkeltkomponenter": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "installasjon": [
+        "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+        "apps/my-copilot/src/app/(nb)/nav-pilot/page.tsx"
+      ],
+      "installasjon-5-min": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "installer-cli": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "introduksjon": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "isolasjon-er-pakrevd": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "isolasjon-er-påkrevd-på-nav-utstyr": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "klienter-og-konfig": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "klienter-og-konfigurasjon": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "kom-i-gang": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "kommandooversikt": [
+        "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+        "apps/my-copilot/src/app/(nb)/nav-pilot/page.tsx"
+      ],
+      "kompetansebevaring": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "konfig-nokler": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "konfigurasjon": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "konfigurasjonsnøkler": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "lenker": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "logging-av-blokkeringer": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "lokal-decide": [
+        "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+        "docs/news/articles/nav-pilot-alpha-decide.md"
+      ],
+      "lokal-decide-oppskrifter": [
+        "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+        "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"
+      ],
+      "lokal-egen-server": [
+        "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+        "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
+        "docs/news/articles/alpha-decide.md",
+        "docs/news/articles/nav-pilot-alpha-decide.md"
+      ],
+      "lokal-feilsoking": [
+        "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+        "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"
+      ],
+      "lokal-hva-den-klarer": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx", "docs/README.nav-pilot.md"],
+      "lokal-kom-i-gang": [
+        "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+        "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
+        "docs/news/articles/nav-pilot-alpha-decide.md"
+      ],
+      "lokal-modell": [
+        "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+        "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"
+      ],
+      "lokal-modeller": [
+        "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+        "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
+        "docs/README.nav-pilot.md",
+        "docs/news/articles/lokale-modeller-i-nav-pilot.md"
+      ],
+      "lokal-sync": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "lokal-utsending": [
+        "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+        "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"
+      ],
+      "modeller-i-alfa": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "nar-strict-ikke-anbefales": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "når-noe-henger": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "når-strict-ikke-anbefales": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "opencode": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "oppgrader-cli": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "overstyre-installerte-filer": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "personvern": [
+        "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+        "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"
+      ],
+      "personvern-og-telemetri": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "planleggingspipelinen": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "planning-skills": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "prosjektkontekst-med-nav-pilot-init": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "ressurser": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "sikkerhetsnivå-i-cplt": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "skills-i-detalj": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "slik-fungerer-det": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "stotte-klienter": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "støttede-klienter": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "sync-faq": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "sync-og-oppdatering": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "team-egne-instruksjoner": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "tilpasning": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "tilpasse-sync": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "vanlige-oppgaver": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"]
+    }
+  },
+  "/nav-pilot/lokal": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts"
+    ],
+    "anchors": {
+      "egen-server": ["apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"],
+      "hva-du-far": ["apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"],
+      "hva-kommer": ["apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"],
+      "kom-i-gang": ["apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"],
+      "lenker": ["apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"],
+      "malt": ["apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"],
+      "malt-decide": ["apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"],
+      "malt-utsending": ["apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"],
+      "utsending": ["apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"]
+    }
+  },
+  "/nyheter": {
+    "sources": ["apps/my-copilot/next.config.ts"],
+    "anchors": {}
+  },
+  "/nyheter/add-images-agent-sessions": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/agent-apps-marketplace": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/agent-automation-controls-issues": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/agent-based-observability": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/agent-hq": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/agent-sessions-issues-projects": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/agent-tasks-rest-api": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/agenter-bytter-modell": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/agenter-skills-instruksjoner": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/agentic-autofix-code-scanning": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/agentic-code-review": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/agentic-workflows": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/agents-md-vs-skills": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/ai-credit-pools-cost-visibility": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/ai-security-detections-prs": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/anthropic-trends-2026": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/april-2026": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/ask-copilot-security-assessments": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/audit-cloud-agent-config-api": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/bevisst-ai-bruk-rammeverk": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/chronicle-agent-insights": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/claude-opus-4-7-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/claude-opus-5-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/claude-sonnet-4-deprecated": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/claude-tekstvannmerking": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/cloud-agent-auto-model-selection": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/cloud-agent-automations": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/cloud-agent-custom-images": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/cloud-agent-custom-properties": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/cloud-agent-fast-models": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/code-review-actions-minutes": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/code-review-configurability-july": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/code-review-skills-mcp": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/coding-agent-50-faster": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/coding-agent-api-tilgangsstyring": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/coding-agent-session-visibility": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/coding-agent-skip-ci-approval": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/coding-agent-validation-tools": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-4-7m-subscribers": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-agent-session-streaming": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-app-available-to-all": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-app-canvases": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-app-technical-preview": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-chat-pr-context": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-chat-pr-context-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-cli-build-2026": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-cli-byok-local-models": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-cloud-agent-linear": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-co-author-controversy": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-code-review-cli": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-data-policy-change": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-endringer-pr": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-explore-repo-web": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-impact-dashboard-repo-metrics": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-individual-plans-paused": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-memory": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-memory-business-enterprise": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-memory-default": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-memory-deletion-scope-cli": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-memory-user-preferences": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-pr-merge-metrics": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-sandboxes-public-preview": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-sdk": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-sdk-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-sdk-public-preview": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-spaces-api-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-sync-workflow": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-vision-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-web-context-chat": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/copilot-web-debugging": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/cplt-gh-guard-git-guard": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/cplt-juli-2026-sikkerhetsoppdatering": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/cplt-lokal-config-og-flere-repoer": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/cplt-mai-2026-oppdatering": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/cplt-sandbox-copilot-cli": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "docs/news/articles/fleet-og-worktrees.md"
+    ],
+    "anchors": {}
+  },
+  "/nyheter/cplt-team-config": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/dependabot-agent-remediation": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/dependabot-pre-commit": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/enterprise-ai-controls-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/enterprise-managed-plugins-cli": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/enterprise-otel-mdm-governance": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/februar-2026": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/figma-mcp-server": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/fix-code-review-with-cloud-agent": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/fleet-og-worktrees": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/gemini-2-5-pro-3-flash-deprecation": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/gemini-3-1-pro-jetbrains-xcode": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/gemini-3-5-flash-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/gemini-3-6-flash-ga": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "docs/news/articles/gemini-2-5-pro-3-flash-deprecation.md"
+    ],
+    "anchors": {}
+  },
+  "/nyheter/gemini-models-cli-cloud-app": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/gemma-4-open-source": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/gh-skill-cli": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/github-code-quality-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/github-mcp-server-next-spec": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/go-best-language-agents": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/gpt-4-1-deprecated": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/gpt-5-1-codex-deprecated": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/gpt-5-2-deprecation": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/gpt-5-3-codex-base-model": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/gpt-5-3-codex-lts": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/gpt-5-4-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/gpt-5-5-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/gpt-5-6-luna-sol-terra-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/gpt-6-sol-luna-opus-5-5": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/grok-code-fast-1": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/grok-code-fast-1-deprecated": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/issue-fields": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/jetbrains-agentic-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/juni-2026": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/ki-utvikling-offentlig": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/kimi-k2-7-code-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/larger-context-reasoning-levels": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/legacy-metrics-api-sunset": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/llm-workflow-stavros": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/lokale-modeller-i-nav-pilot": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts"
+    ],
+    "anchors": {}
+  },
+  "/nyheter/mai-code-1-flash": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/mars-2026": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/mcp-registry-tools-page": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/mcp-vs-cli": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/model-pinning-kostnadsoptimalisering": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "docs/news/articles/token-forbruk-verktoy-teknikker.md"
+    ],
+    "anchors": {}
+  },
+  "/nyheter/model-selection-third-party-agents": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/nav-pilot-alpha-decide": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "docs/news/articles/alpha-decide.md"
+    ],
+    "anchors": {}
+  },
+  "/nyheter/nav-pilot-hooks-redaction-loop-guard": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/nye-modeller-juli-2026": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/nye-tilpasninger-mars-2026": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/one-click-fix-failing-actions": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/org-runner-controls-cloud-agent": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/personlige-tilpasninger": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/pick-model-pr-comments": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/project-glasswing": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/remote-control-cli-sessions": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/remote-control-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/rubber-duck-cross-model": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/cplt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
+      "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "docs/README.nav-pilot.md"
+    ],
+    "anchors": {}
+  },
+  "/nyheter/security-reviews-copilot-app": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/stabile-agentpakker": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/target-models-organizations-model-rules": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/team-level-usage-metrics-api": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/token-forbruk-verktoy-teknikker": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx",
+      "apps/my-copilot/src/app/sitemap.ts"
+    ],
+    "anchors": {}
+  },
+  "/nyheter/usage-based-billing": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/usage-metrics-api-cohorts": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/utviklerundersokelsen-2026": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nyheter/utviklerundersokelsen-2026/page.tsx"
+    ],
+    "anchors": {}
+  },
+  "/nyheter/visual-studio-april-update": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/visual-studio-june-2026-update": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/visual-studio-march-update": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/vscode-1-124-agents-autopilot": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/vscode-april-releases": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/vscode-execution-subagent": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/vscode-june-2026-releases": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/vscode-march-releases": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/vscode-may-2026-releases": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/vscode-memory-agents": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/vscode-v1-110": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/vscode-v1-118": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/oauth2/login": {
+    "sources": ["apps/my-copilot/src/components/site-shell.tsx"],
+    "anchors": {}
+  },
+  "/ordbok": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/ordbok/page.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/resources.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/lib/nav-items.ts"
+    ],
+    "anchors": {
+      "arkitektur-heading": ["apps/my-copilot/src/app/(nb)/ordbok/page.tsx"],
+      "arkitektur-og-tillitsgrenser": ["apps/my-copilot/src/app/(nb)/ordbok/page.tsx"]
+    }
+  },
+  "/ordliste": {
+    "sources": ["apps/my-copilot/src/app/(nb)/ordliste/page.tsx"],
+    "anchors": {
+      "ordbok-kategori-filter": ["apps/my-copilot/src/app/(nb)/ordliste/glossary.tsx"]
+    }
+  },
+  "/overview": {
+    "sources": ["apps/my-copilot/next.config.ts", "apps/my-copilot/src/app/(nb)/overview/page.tsx"],
+    "anchors": {}
+  },
+  "/personvern": {
+    "sources": [
+      "apps/my-copilot/src/app/(en)/layout.tsx",
+      "apps/my-copilot/src/app/(nb)/layout.tsx",
+      "apps/my-copilot/src/app/(nb)/personvern/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts"
+    ],
+    "anchors": {}
+  },
+  "/practice": {
+    "sources": ["apps/my-copilot/next.config.ts"],
+    "anchors": {}
+  },
+  "/praksis": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(home)/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/guide/layout.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/page.tsx",
+      "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/interactive-setup-wizard.tsx",
+      "apps/my-copilot/src/lib/nav-items.ts"
+    ],
+    "anchors": {}
+  },
+  "/praksis/guide/feilsoking": {
+    "sources": ["apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/praksis/guide/forberede-prosjektet": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx",
+      "apps/my-copilot/src/components/weekly-tip.tsx"
+    ],
+    "anchors": {}
+  },
+  "/praksis/guide/gjennomfore-code-review": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx",
+      "apps/my-copilot/src/components/weekly-tip.tsx"
+    ],
+    "anchors": {}
+  },
+  "/praksis/guide/kom-i-gang": {
+    "sources": ["apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/praksis/guide/lese-og-forsta-kode": {
+    "sources": ["apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/praksis/guide/nyttige-ressurser": {
+    "sources": ["apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/praksis/guide/orkestrere-agenter": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx",
+      "apps/my-copilot/src/components/weekly-tip.tsx"
+    ],
+    "anchors": {}
+  },
+  "/praksis/guide/redusere-token-bruk": {
+    "sources": ["apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/praksis/guide/skreddersy-med-skills-og-rules": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx",
+      "apps/my-copilot/src/components/weekly-tip.tsx"
+    ],
+    "anchors": {}
+  },
+  "/praksis/guide/skrive-og-kjore-tester": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx"
+    ],
+    "anchors": {}
+  },
+  "/praksis/guide/skrive-presise-prompts": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx",
+      "apps/my-copilot/src/components/weekly-tip.tsx"
+    ],
+    "anchors": {}
+  },
+  "/praksis/guide/styrker-og-farer": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx",
+      "apps/my-copilot/src/components/weekly-tip.tsx"
+    ],
+    "anchors": {}
+  },
+  "/praksis/guide/velge-riktig-verktoy": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx"
+    ],
+    "anchors": {}
+  },
+  "/praksis/guide/wrap-metoden": {
+    "sources": [
+      "apps/my-copilot/next.config.ts",
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/components/weekly-tip.tsx"
+    ],
+    "anchors": {}
+  },
+  "/priser": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx",
+      "apps/my-copilot/src/app/(nb)/priser/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/lib/nav-items.ts",
+      "docs/news/articles/model-pinning-kostnadsoptimalisering.md",
+      "docs/news/articles/nye-modeller-juli-2026.md",
+      "docs/news/articles/usage-based-billing.md"
+    ],
+    "anchors": {}
+  },
+  "/retningslinjer": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/lib/nav-items.ts",
+      "docs/news/articles/claude-tekstvannmerking.md"
+    ],
+    "anchors": {}
+  },
+  "/sitemap.xml": {
+    "sources": ["apps/my-copilot/public/robots.txt"],
+    "anchors": {}
+  },
+  "/statistikk": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/app/(nb)/statistikk/page.tsx",
+      "apps/my-copilot/src/app/(nb)/usage/page.tsx",
+      "apps/my-copilot/src/components/pulse-strip.tsx",
+      "apps/my-copilot/src/lib/nav-items.ts"
+    ],
+    "anchors": {
+      "ai-adopsjonsfaser": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "ai-modeller-i-bruk": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "ai-modeller-over-tid": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "bruker-vs-agent": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "daglig-aktivitet": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "daglig-oversikt": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "dashboard": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "details": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "kodeforslag": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "kostnad": [
+        "apps/my-copilot/src/app/(nb)/kostnad/page.tsx",
+        "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx",
+        "apps/my-copilot/src/app/(nb)/statistikk/page.tsx"
+      ],
+      "manedlige-trender": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "måned-hittil-modeller-og-kostnad": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "månedlige-trender": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "nokkeltall": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "pull-requests-og-code-review": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "repositorier": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "repositories": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "sprak-og-verktoy": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "team": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "topp-språk": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "verktøy": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"]
+    }
+  },
+  "/statistikk/json": {
+    "sources": ["apps/my-copilot/src/app/(nb)/statistikk/json/route.ts"],
+    "anchors": {}
+  },
+  "/stats": {
+    "sources": ["apps/my-copilot/next.config.ts"],
+    "anchors": {}
+  },
+  "/tilgjengelighet": {
+    "sources": [
+      "apps/my-copilot/src/app/(en)/layout.tsx",
+      "apps/my-copilot/src/app/(nb)/layout.tsx",
+      "apps/my-copilot/src/app/(nb)/tilgjengelighet/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts"
+    ],
+    "anchors": {}
+  },
+  "/usage": {
+    "sources": ["apps/my-copilot/next.config.ts", "apps/my-copilot/src/app/(nb)/usage/page.tsx"],
+    "anchors": {}
+  },
+  "/verktoy": {
+    "sources": [
+      "README.md",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/effective-customizations.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/prepare-for-success.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/resources.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/tools-and-modes.tsx",
+      "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
+      "apps/my-copilot/src/app/(nb)/verktoy/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/pulse-strip.tsx",
+      "apps/my-copilot/src/components/sidebar.tsx",
+      "apps/my-copilot/src/lib/nav-items.ts",
+      "docs/README.agents.md",
+      "docs/README.instructions.md",
+      "docs/README.mcp.md",
+      "docs/README.prompts.md",
+      "docs/README.skills.md",
+      "docs/news/articles/nye-tilpasninger-mars-2026.md"
+    ],
+    "anchors": {
+      "catalog": ["apps/my-copilot/src/app/(nb)/verktoy/page.tsx"]
+    }
+  }
+}

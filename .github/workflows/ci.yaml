@@ -93,6 +93,11 @@ jobs:
               - 'instructions/**'
               - 'prompts/**'
               - 'skills/**'
+              # Files src/link-inventory.test.ts scans for links to the site.
+              - '**/*.md'
+              - 'cli/**/*.go'
+              - 'scripts/**'
+              - '.github/ISSUE_TEMPLATE/**'
               - '.github/workflows/my-copilot.yaml'
               - '.github/workflows/mise-build-deploy-nais.yaml'
               - '.github/workflows/ci.yaml'
