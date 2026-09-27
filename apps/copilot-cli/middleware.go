@@ -81,9 +81,10 @@ func (a *authenticator) resolve(ctx context.Context, token string) (*Authenticat
 	switch {
 	case err == nil:
 		a.cache.set(token, user, nil)
-	case errors.Is(err, errInvalidToken), errors.Is(err, errNotAUser), errors.Is(err, errNotOrgMember):
-		// A refusal is cached briefly too: retrying a bad token must not
-		// reach GitHub every time.
+	case !looksLikeJWT(token) && (errors.Is(err, errInvalidToken) || errors.Is(err, errNotOrgMember)):
+		// A GitHub refusal is cached briefly too: retrying a bad token
+		// must not reach GitHub every time. Entra refusals are not: Texas is
+		// local, and caching every random JWT would grow the map unchecked.
 		a.cache.set(token, nil, err)
 	}
 	return user, err

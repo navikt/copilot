@@ -56,15 +56,15 @@ func main() {
 		slog.Error("Invalid GitHub App credentials", "error", err)
 		os.Exit(1)
 	}
-	surveys := &surveyAPI{surveys: defs, keys: surveyKeys(defs), emailFor: emailFor(lookup), now: time.Now}
+	surveys := &surveyAPI{surveys: defs, keys: surveyKeys(defs, time.Now()), emailFor: emailFor(lookup), now: time.Now}
 	var store *surveyStore
 	if config.DatabaseURL != "" {
 		if store, err = openSurveyStore(ctx, config.DatabaseURL); err != nil {
 			slog.Error("Survey storage unavailable", "error", err)
 			os.Exit(1)
 		}
-		surveys.participate, surveys.record = store.participate, store.record
-		go store.purgeExpired(ctx)
+		surveys.store = store.submit
+		go store.purgeExpired(ctx, time.Now)
 	}
 	slog.Info("Survey submissions", "storage", store != nil, "github_email_lookup", lookup != nil,
 		"surveys", len(defs), "surveys_with_key", len(surveys.keys))
@@ -98,7 +98,11 @@ func main() {
 		slog.Error("Server shutdown error", "error", err)
 	}
 	if store != nil {
-		store.flush(ctx) // write answers still queued for a batch
+		// Writing a batch smaller than k would let its answers be linked to
+		// the few participants in it; losing them is the lesser harm.
+		if n := store.dropped(); n > 0 {
+			slog.Warn("survey: queued submissions dropped at shutdown; their senders can answer again", "count", n)
+		}
 	}
 	slog.Info("Server stopped")
 }

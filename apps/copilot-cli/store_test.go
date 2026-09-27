@@ -25,38 +25,45 @@ func TestSurveyStore(t *testing.T) {
 		return n
 	}
 	day := func(d int) time.Time { return time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, d) }
-
-	if ok, err := s.participate(t.Context(), "s", "h1", day(10)); !ok || err != nil {
-		t.Fatalf("first: %v %v", ok, err)
-	}
-	if ok, err := s.participate(t.Context(), "s", "h1", day(10)); ok || err != nil {
-		t.Fatalf("duplicate: %v %v, want false, nil", ok, err)
-	}
-	if ok, _ := s.participate(t.Context(), "closed", "h2", day(0)); !ok {
-		t.Fatal("closed survey participation not stored")
-	}
-
 	r := response{SurveyID: "s", Answers: map[string]any{"q": 1}, QuestionVersions: map[string]int{"q": 1},
 		Context: techContext{Version: "1.2", OS: "linux", Arch: "amd64", Client: "pi"}, DeleteAfter: day(100)}
-	for range answerBatch - 1 {
-		s.record(t.Context(), r)
+	submit := func(survey, hash string, closes time.Time) bool {
+		t.Helper()
+		ok, err := s.submit(t.Context(), survey, hash, closes, r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ok
 	}
-	if n := count("survey_answers"); n != 0 {
-		t.Fatalf("%d answers written before a full batch", n)
-	}
-	s.record(t.Context(), r)
-	if n := count("survey_answers"); n != answerBatch {
-		t.Fatalf("answers = %d after a full batch, want %d", n, answerBatch)
-	}
-	expired := r
-	expired.DeleteAfter = day(-1)
-	s.record(t.Context(), expired)
-	s.retain(t.Context()) // flushes the one queued, then deletes it as expired
 
-	if n := count("survey_answers"); n != answerBatch {
-		t.Fatalf("answers = %d after retention, want %d", n, answerBatch)
+	for i := range answerBatch - 1 {
+		if !submit("s", string(rune('a'+i)), day(10)) {
+			t.Fatal("fresh submission refused")
+		}
 	}
-	if n := count("survey_participation"); n != 1 {
-		t.Fatalf("participation = %d, want 1 (the closed survey's deleted)", n)
+	if submit("s", "a", day(10)) {
+		t.Fatal("a queued duplicate was accepted")
+	}
+	// Another survey's submission is not written with s's batch.
+	submit("other", "a", day(1))
+	if count("survey_answers")+count("survey_participation") != 0 {
+		t.Fatal("rows written before a full batch")
+	}
+	submit("s", "z", day(10))
+	if count("survey_answers") != answerBatch || count("survey_participation") != answerBatch {
+		t.Fatalf("after a full batch: %d answers, %d participation", count("survey_answers"), count("survey_participation"))
+	}
+	if submit("s", "a", day(10)) {
+		t.Fatal("a written duplicate was accepted")
+	}
+
+	// Close-out: the other survey's short last batch is written, then all
+	// participation of closed surveys goes.
+	s.retain(t.Context(), day(2))
+	if count("survey_answers") != answerBatch+1 {
+		t.Fatalf("answers after close-out = %d, want %d", count("survey_answers"), answerBatch+1)
+	}
+	if n := count("survey_participation"); n != answerBatch {
+		t.Fatalf("participation = %d; the rows of s (closes in 10 days) stay until it closes", n)
 	}
 }

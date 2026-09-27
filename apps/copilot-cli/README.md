@@ -42,7 +42,7 @@ login and trusts `X-On-Behalf-Of` only from copilot-cli, only on GETs.
 | Method | Path | Auth | Description |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/usage` | GitHub | Current month usage summary |
-| `GET` | `/api/v1/surveys/active` | none | Open surveys from [`surveys.json`](surveys.json) |
+| `GET` | `/api/v1/surveys/active` | none | Open surveys from [`surveys/`](surveys/README.md) |
 | `POST` | `/api/v1/surveys/{id}/responses` | GitHub or Entra | Submit answers: 201, 409 already answered, 400 invalid, 404 not open |
 | `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus |
 
@@ -62,12 +62,17 @@ unknown fields refused, body at most 32 KiB. Then:
    identity in navikt (`externalIdentities … samlIdentity.nameId`, read with
    the nav-pilot GitHub App's installation token). A GitHub account with no
    SAML identity gets 403 and is told to answer on ki-utvikling. The e-mail is
-   used in memory for step 2 only: never stored, logged or cached.
-2. `survey_participation` gets `(survey_id, HMAC-SHA256(survey key, lowercased
-   e-mail))`. Its primary key refuses a second answer (409), from nav-pilot
-   and the web alike.
-3. The answers are queued and written to `survey_answers` in shuffled batches
-   of 10, in one transaction per batch.
+   used in memory for step 2 only and never stored or logged (the Entra one
+   sits in the in-memory token cache for at most 5 minutes). The two strings
+   must be the same address for one person, or that person can answer twice:
+   check with a real user in dev that `preferred_username` and the SAML
+   `nameId` agree before launch.
+2. The dedup hash is `HMAC-SHA256(survey key, lowercased e-mail)`. A hash
+   already written or queued gets 409, from nav-pilot and the web alike.
+3. The submission is queued per survey. Every 10 (k) submissions to one
+   survey are written together, in one transaction: their 10 hashes to
+   `survey_participation` and their 10 answers to `survey_answers`, each
+   shuffled.
 
 Two tables, nothing shared but the survey id:
 
@@ -81,7 +86,8 @@ e-mail or token in either. Because nothing links an answer to its
 participation row, **an answer cannot be changed or withdrawn** after it is
 sent; nav-pilot and the web say so before sending.
 
-**Per-survey key lifecycle.** Each survey has its own random key,
+**Per-survey key lifecycle.** (Close-out owner: whoever owns the survey,
+named in its pull request.) Each survey has its own random key,
 `SURVEY_KEY_<ID>` (id upper-cased, `-` as `_`; `openssl rand -base64 32`),
 in the Nais secret `copilot-cli`, namespace `copilot`, created by the team
 before the survey opens. Who can read it: members of the `copilot` Nais team
@@ -91,28 +97,48 @@ and the team deletes its key from the secret. From then on no key exists to
 recompute a hash, and no table holds one.
 
 **Pseudonymous while open.** Until the key and the participation rows are
-deleted, someone with both the key and database access can test whether a
-given e-mail answered (HMAC of a guessed e-mail; Nav e-mails are guessable).
-They still cannot tell *which* answers are that person's. After close-out the
-retained data is meant to be anonymous: no identifier, no key.
+deleted, anyone who holds both the key and database access (members of the
+`copilot` Nais team) can test whether a given e-mail answered: Nav e-mails are
+enumerable, so this is a trivial dictionary test. Without the key the hash
+cannot be reversed (HMAC-SHA256, 256-bit random key). copilot-cli logs a
+warning at start for every key whose survey has closed.
 
-**Timing and order.** Answers reach the database only in shuffled batches of
-10 (or fewer at shutdown and in the daily flush), so row order and commit time
-place an answer among at least the participants since the previous batch, not
-next to one participation row. A crash loses the answers still queued (at
-most 9) while their participation stays recorded.
+**1 of k.** Because both tables are written only in batches of k = 10 per
+survey, in one transaction, with rows shuffled, commit time, transaction id
+and row order place an answer among the 10 participants of its batch, no
+fewer. Even someone with the key and the database can narrow an answer to
+10 named people, not to one. The exception is the survey's last batch,
+written when it closes with whatever is left (1 to 9): its participation rows
+are deleted in the same close-out, but WAL and backups keep them for the
+backup retention period.
+
+Submissions still queued are lost on a restart (at most 9 per survey): their
+senders are not recorded and can answer again, but were told "recorded".
+Avoid deploying copilot-cli while a survey is open. Writing the queue early
+instead would break the 1 of k.
+
+After close-out the retained answers have no identifier and no key exists:
+they are meant to be anonymous.
 
 Residual risks, for the privacy review:
 
 - Small segments: a rare combination of context values narrows who answered.
   Exports must suppress or merge any segment with fewer than 5 respondents.
+- Free text: the one answer that can name its author ("as the only Rust dev
+  on team X"). A survey has at most one text question, nav-pilot asks people
+  not to write anything that identifies anyone, and text should go through a
+  redaction pass before analysis.
+- Whether the ingress sees each naisdevice as its own address (in the access
+  log) or only the naisdevice gateway's: not verified; check in dev.
+- Cloud SQL query insights are off for this instance; keep them off, and keep
+  `log_statement` at its default (none).
 - Ingress access logs hold the time and source address of each
   `POST /api/v1/surveys/…`. copilot-cli itself logs no identity, hash or
   answer on this path, but the Nais ingress log is outside its control: ask
   the platform team to drop or sample access logs for this path, or keep their
   retention short.
 - Cloud SQL backups and WAL keep deleted participation rows (and batch commit
-  times) for the backup retention period.
+  times) for the backup retention period (7 backups by default).
 - Upgrade path, if the separation of the two tables is judged not convincing:
   blind-signed one-time tokens (Privacy Pass style), so the server never sees
   who spends a token.

@@ -154,6 +154,12 @@ func validateSurveys(surveys []survey) error {
 		if s.Series != "" && !idPattern.MatchString(s.Series) {
 			return fmt.Errorf("survey %s: bad series %q", s.ID, s.Series)
 		}
+		// One free-text question at most: it is the one answer that batching
+		// and segment suppression cannot keep from naming its author.
+		if texts := slices.IndexFunc(s.Questions, func(q question) bool { return q.Type == "text" }); texts >= 0 &&
+			slices.ContainsFunc(s.Questions[texts+1:], func(q question) bool { return q.Type == "text" }) {
+			return fmt.Errorf("survey %s: at most one text question", s.ID)
+		}
 		qseen := map[string]bool{}
 		for i, q := range s.Questions {
 			ok := idPattern.MatchString(q.ID) && !qseen[q.ID] && q.Text != "" && q.Version >= 1 &&
@@ -347,12 +353,10 @@ type surveyAPI struct {
 	// a GitHub sign-in through navikt's SAML SSO identity. Used only as the
 	// input to participantHash, never stored or logged.
 	emailFor func(context.Context, *AuthenticatedUser) (string, error)
-	// participate records that hash answered survey id; false means it
-	// already had.
-	participate func(ctx context.Context, surveyID, hash string, closesOn time.Time) (bool, error)
-	// record queues the answers for a shuffled batch write.
-	record func(context.Context, response)
-	now    func() time.Time
+	// store queues a submission for a batch write (surveyStore.submit);
+	// false means hash has already answered.
+	store func(ctx context.Context, surveyID, hash string, closesOn time.Time, r response) (bool, error)
+	now   func() time.Time
 }
 
 func (a *surveyAPI) active(w http.ResponseWriter, _ *http.Request) {
@@ -384,7 +388,7 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	s := a.surveys[i]
 	key := a.keys[s.ID]
-	if a.participate == nil || a.record == nil || a.emailFor == nil || len(key) == 0 {
+	if a.store == nil || a.emailFor == nil || len(key) == 0 {
 		writeError(w, http.StatusServiceUnavailable, "this survey is not taking answers right now")
 		return
 	}
@@ -411,22 +415,12 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, errNoNavIdentity):
 		writeError(w, http.StatusForbidden, err.Error()+"; answer on ki-utvikling.nav.no instead")
 		return
-	case err != nil || !strings.HasSuffix(normaliseEmail(email), "@nav.no"):
+	case err != nil || normaliseEmail(email) == "":
 		slog.Warn("survey: e-mail lookup failed", "survey", s.ID, "error_type", fmt.Sprintf("%T", err))
 		writeError(w, http.StatusServiceUnavailable, "could not confirm your Nav identity, try again later")
 		return
 	}
 
-	fresh, err := a.participate(r.Context(), s.ID, participantHash(key, email), s.closesOn())
-	if err != nil {
-		slog.Error("survey: recording participation failed", "survey", s.ID, "error_type", fmt.Sprintf("%T", err))
-		writeError(w, http.StatusServiceUnavailable, "could not store the answer, try again later")
-		return
-	}
-	if !fresh {
-		writeError(w, http.StatusConflict, "already answered")
-		return
-	}
 	versions := map[string]int{}
 	for _, q := range s.Questions {
 		if _, ok := answers[q.ID]; ok {
@@ -435,10 +429,19 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	// Detached from the request: a batch write it triggers must not be
 	// cancelled because this caller hung up.
-	a.record(context.WithoutCancel(r.Context()), response{
+	fresh, err := a.store(context.WithoutCancel(r.Context()), s.ID, participantHash(key, email), s.closesOn(), response{
 		SurveyID: s.ID, Answers: answers, QuestionVersions: versions,
 		Context: sub.Context, DeleteAfter: s.closesOn().Add(retention),
 	})
+	if err != nil {
+		slog.Error("survey: checking participation failed", "survey", s.ID, "error_type", fmt.Sprintf("%T", err))
+		writeError(w, http.StatusServiceUnavailable, "could not store the answer, try again later")
+		return
+	}
+	if !fresh {
+		writeError(w, http.StatusConflict, "already answered")
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_, _ = w.Write([]byte(`{"status":"recorded","note":"answers cannot be changed or withdrawn: nothing links them to you"}`))

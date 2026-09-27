@@ -34,7 +34,8 @@ level: answers are not linked to a person across waves (see
 
 - Each wave is a new file and a new `id`; `series` groups them.
 - A question keeps its `id` across waves. `version` starts at 1 and goes up
-  on any change to its text, options, labels or scale. Same `id` and
+  on any change to its text, options, labels or scale that could change how
+  people answer it. Same `id` and
   `version` in two waves means the results compare; a higher `version` means
   they do not, and the pull request says why.
 - A question that is dropped is simply absent; its `id` is never reused for
@@ -50,8 +51,8 @@ level: answers are not linked to a person across waves (see
   given, names every step. Stored as the number.
 - `choice`: one option. `multi`: one or more, at most `max_choices` if set.
   At least two options, no duplicates. Stored as the option text.
-- `text`: `max_length` from 1 to 2000 characters. Ask for free text only
-  where needed: it is the one field that can hold anything.
+- `text`: `max_length` from 1 to 2000 characters. At most one per survey:
+  it is the one answer that can name its author.
 - `skip_if`: skip this (optional) question when an earlier `choice` answer is,
   or `multi` answer includes, `answer`.
 - `required`: must be answered unless skipped.

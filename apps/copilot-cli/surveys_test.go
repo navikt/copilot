@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +16,7 @@ const testSurveys = `[{"id":"q4-2026","title":"Q4","starts":"2026-10-01","ends":
  {"id":"overall","version":1,"type":"scale","text":"How useful?","min":1,"max":5,"required":true},
  {"id":"client","version":1,"type":"choice","text":"Which client?","options":["copilot","opencode"]},
  {"id":"tools","version":1,"type":"multi","text":"Which tools?","options":["a","b","c"],"max_choices":2},
- {"id":"why","version":1,"type":"text","text":"Why not copilot?","max_length":20,"skip_if":{"question":"client","answer":"copilot"}},
+ {"id":"why","version":1,"type":"choice","text":"Why not copilot?","options":["habit","other"],"skip_if":{"question":"client","answer":"copilot"}},
  {"id":"comment","version":1,"type":"text","text":"Anything else?","max_length":20}]},
  {"id":"old","title":"Old","starts":"2025-01-01","ends":"2025-01-31","questions":[{"id":"a","version":1,"type":"scale","text":"?","min":1,"max":3}]}]`
 
@@ -24,16 +26,15 @@ type fakeStore struct {
 	answers      []response
 }
 
-func (f *fakeStore) participate(_ context.Context, surveyID, hash string, _ time.Time) (bool, error) {
+func (f *fakeStore) submit(_ context.Context, surveyID, hash string, _ time.Time, r response) (bool, error) {
 	k := surveyID + "/" + hash
 	if f.participants[k] {
 		return false, nil
 	}
 	f.participants[k] = true
+	f.answers = append(f.answers, r)
 	return true, nil
 }
-
-func (f *fakeStore) record(_ context.Context, r response) { f.answers = append(f.answers, r) }
 
 // fakeEmails stands in for the SAML lookup: hans on GitHub is the same person
 // as the Entra test user.
@@ -55,12 +56,11 @@ func testRouter(t *testing.T) (http.Handler, *fakeStore) {
 	a, _ := testAuthenticator(t)
 	store := &fakeStore{participants: map[string]bool{}}
 	api := &surveyAPI{
-		surveys:     defs,
-		keys:        map[string][]byte{"q4-2026": []byte("0123456789abcdef0123456789abcdef")},
-		emailFor:    fakeEmails,
-		participate: store.participate,
-		record:      store.record,
-		now:         func() time.Time { return time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC) },
+		surveys:  defs,
+		keys:     map[string][]byte{"q4-2026": []byte("0123456789abcdef0123456789abcdef")},
+		emailFor: fakeEmails,
+		store:    store.submit,
+		now:      func() time.Time { return time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC) },
 	}
 	return makeRouter(a, newCopilotAPIProxy("http://unused.invalid", newTexasClient("", "")), api), store
 }
@@ -149,7 +149,7 @@ func TestSubmitValidation(t *testing.T) {
 		"multi twice":        `{"answers":{"overall":3,"tools":["a","a"]},` + goodCtx + `}`,
 		"multi not option":   `{"answers":{"overall":3,"tools":["a","z"]},` + goodCtx + `}`,
 		"multi too many":     `{"answers":{"overall":3,"tools":["a","b","c"]},` + goodCtx + `}`,
-		"skipped answered":   `{"answers":{"overall":3,"client":"copilot","why":"x"},` + goodCtx + `}`,
+		"skipped answered":   `{"answers":{"overall":3,"client":"copilot","why":"habit"},` + goodCtx + `}`,
 		"bad os":             `{"answers":{"overall":3},"context":{"version":"1.0.0","os":"plan9","arch":"arm64","client":"copilot"}}`,
 		"version is text":    `{"answers":{"overall":3},"context":{"version":"my repo","os":"darwin","arch":"arm64","client":"copilot"}}`,
 		"too big":            `{"answers":{"comment":"` + strings.Repeat("x", 40<<10) + `"},` + goodCtx + `}`,
@@ -210,11 +210,23 @@ func TestLoadSurveysRejectsBadDefinitions(t *testing.T) {
 		"no version":    `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","type":"scale","text":"?","min":1,"max":5}]}]`,
 		"labels count":  `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5,"labels":["a","b"]}]}]`,
 		"skip_if later": `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":{"question":"r","answer":"x"}},{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"]}]}]`,
+		"two texts":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?","max_length":5},{"id":"r","version":1,"type":"text","text":"?","max_length":5}]}]`,
 		"id with slash": `[{"id":"a/b","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
 	} {
 		if _, err := loadSurveys([]byte(raw)); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+}
+
+func TestSurveyKeysOnlyForOpenSurveys(t *testing.T) {
+	defs, _ := loadSurveys([]byte(testSurveys))
+	testKey := base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32))
+	t.Setenv("SURVEY_KEY_Q4_2026", testKey)
+	t.Setenv("SURVEY_KEY_OLD", testKey)
+	keys := surveyKeys(defs, time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC))
+	if len(keys["q4-2026"]) != 32 || keys["old"] != nil {
+		t.Fatalf("keys: %v", keys)
 	}
 }
 
