@@ -55,9 +55,6 @@ const TEMPORARY_REDIRECTS = new Set(["/en", "/nyheter"]);
 // Served by Wonderwall, the login sidecar in front of the app.
 const PLATFORM_PREFIXES = ["/oauth2/"];
 
-// Element ids that are not anchors a reader would link to.
-const NON_ANCHOR_TAGS = new Set(["marker", "linearGradient", "radialGradient", "clipPath", "Select", "TextField"]);
-
 // ── routes ───────────────────────────────────────────────────────────────────
 
 type Route = { pattern: string; file: string };
@@ -121,10 +118,12 @@ function landingPath(pathname: string, hops = 0): string {
 
 // ── anchors ──────────────────────────────────────────────────────────────────
 
-// The source files of a page: everything in its directory except nested routes.
+// The source files of a page: everything in its directory except nested routes,
+// and the files those import from src/components or by relative path, one
+// level down.
 function pageSources(routeFile: string): string[] {
   const dir = path.dirname(routeFile);
-  return fs
+  const own = fs
     .globSync("**/*.{ts,tsx}", { cwd: dir })
     .filter((f) => !/\.(test|stories)\.tsx?$/.test(f))
     .filter((f) => {
@@ -137,18 +136,35 @@ function pageSources(routeFile: string): string[] {
       );
     })
     .map((f) => path.join(dir, f));
+  return [...new Set([...own, ...own.flatMap(imports)])];
+}
+
+// ponytail: static `from "…"` imports only; dynamic import() and re-exports
+// are not followed. Follow them if an anchor in one goes missing.
+function imports(file: string): string[] {
+  return [...fs.readFileSync(file, "utf-8").matchAll(/from\s+"(@\/components\/[^"]+|\.\.?\/[^"]+)"/g)].flatMap((m) => {
+    const base = m[1].startsWith("@/")
+      ? path.join(APP_ROOT, "src", m[1].slice(2))
+      : path.resolve(path.dirname(file), m[1]);
+    const hit = ["", ".tsx", ".ts", "/index.tsx", "/index.ts"]
+      .map((ext) => base + ext)
+      .find((f) => fs.existsSync(f) && fs.statSync(f).isFile());
+    return hit && !/\.(test|stories)\.tsx?$/.test(hit) ? [hit] : [];
+  });
 }
 
 // Ids a page defines: literal id="…" attributes, LinkableHeading ids (explicit,
 // or slugified from plain-text children, as the component does) and Tabs
-// hashIds.
-function definedAnchors(routeFile: string): Map<string, string> {
+// hashIds. With headingsOnly, other id="…" attributes are left out: they only
+// need to keep working once something links to them, and the repo scan finds
+// those links.
+function definedAnchors(routeFile: string, headingsOnly = false): Map<string, string> {
   const ids = new Map<string, string>();
   for (const file of pageSources(routeFile)) {
     const src = fs.readFileSync(file, "utf-8");
     for (const m of src.matchAll(/(?<![\w-])id="([^"]+)"/g)) {
       const tag = src.slice(src.lastIndexOf("<", m.index) + 1).match(/^[\w.]+/)?.[0] ?? "";
-      if (!NON_ANCHOR_TAGS.has(tag)) ids.set(m[1], rel(file));
+      if (!headingsOnly || tag === "LinkableHeading") ids.set(m[1], rel(file));
     }
     for (const m of src.matchAll(/<LinkableHeading((?:[^>"]|"[^"]*")*)>([^<{]+)<\/LinkableHeading>/g)) {
       if (!/\bid=/.test(m[1]))
@@ -174,7 +190,7 @@ function definedAnchors(routeFile: string): Map<string, string> {
 const SITE_URL = /https?:\/\/(?:ki-utvikling\.nav\.no|min-copilot\.ansatt\.nav\.no)(\/[^\s"'`)<>\]]*)?/g;
 // Relative links in code the site renders.
 const CODE_LINK =
-  /(?:\b(?:href|link|to)|Href)\s*[=:]\s*\{?\s*["'`](\/[^"'`\s]*)["'`]|\b(?:redirect|push|replace)\(\s*["'`](\/[^"'`\s]*)["'`]/g;
+  /(?:\b(?:href|link|to)|Href)\s*[=:]\s*\{?\s*["'`](\/[^"'`\s]*)["'`]|\b(?:redirect|permanentRedirect|push|replace)\(\s*["'`](\/[^"'`\s]*)["'`]/g;
 const MARKDOWN_LINK = /\]\((\/[^)\s]*)\)|^\[[^\]]+\]:\s*(\/\S+)/gm;
 
 // Where site links can hide. Relative links only count in files the site
@@ -262,7 +278,7 @@ function currentSite(): Found[] {
     const source = rel(route.file);
     if (!route.pattern.includes("[")) {
       found.push({ path: route.pattern, source });
-      for (const [anchor, file] of definedAnchors(route.file))
+      for (const [anchor, file] of definedAnchors(route.file, true))
         found.push({ path: route.pattern, anchor, source: file });
     }
   }
@@ -348,6 +364,10 @@ describe("link inventory", () => {
       expect(ids.has("installasjon-5-min")).toBe(true); // slug from LinkableHeading text
       expect(ids.has("finnes-ikke")).toBe(false);
     }
+    const stats = resolvePath("/statistikk");
+    if ("file" in stats) expect(definedAnchors(stats.file).has("modellkostnad-historikk")).toBe(true); // in a component
+    const ordliste = resolvePath("/ordliste");
+    if ("file" in ordliste) expect(definedAnchors(ordliste.file, true).has("ordbok-kategori-filter")).toBe(false); // a form field
   });
 
   it("has a slug check for every dynamic route", () => {
