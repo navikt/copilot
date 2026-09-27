@@ -137,7 +137,7 @@ export function SurveyForm({ survey }: { survey: Survey }) {
         )}
         {result?.status === "closed" && (
           <Alert variant="warning" ref={resultRef} tabIndex={-1}>
-            Undersøkelsen er stengt, så svaret ble ikke sendt.
+            Undersøkelsen er avsluttet, så svaret ble ikke sendt.
           </Alert>
         )}
         {result?.status === "error" && (

@@ -31,6 +31,6 @@ describe("submitAnswers", () => {
   });
   it("passes on the reason for a 400", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response('{"error":"no answers"}', { status: 400 })));
-    expect(await submitAnswers("token", "q4-2026", {})).toEqual({ status: "invalid", message: "no answers" });
+    expect(await submitAnswers("token", "q4-2026", {})).toEqual({ status: "invalid" });
   });
 });

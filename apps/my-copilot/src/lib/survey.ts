@@ -36,7 +36,7 @@ export type Answers = Record<string, number | string | string[]>;
 export type SubmitResult =
   | { status: "recorded" }
   | { status: "duplicate" }
-  | { status: "invalid"; message: string }
+  | { status: "invalid" }
   | { status: "no-identity" }
   | { status: "closed" }
   | { status: "error" };
@@ -92,8 +92,8 @@ export async function submitAnswers(userToken: string, surveyId: string, answers
       // The form checks what copilot-cli checks, so this should not happen.
       // Log the reason; the page shows a plain message.
       const body = (await res.json().catch(() => ({}))) as { error?: string };
-      console.error(`survey ${surveyId}: answers refused: ${body.error ?? ""}`);
-      return { status: "invalid", message: body.error ?? "" };
+      console.error("survey answers refused", JSON.stringify({ survey: surveyId, reason: body.error ?? "" }));
+      return { status: "invalid" };
     }
     case 404:
       return { status: "closed" };
