@@ -1011,9 +1011,7 @@
   },
   "/ordliste": {
     "sources": ["apps/my-copilot/src/app/(nb)/ordliste/page.tsx"],
-    "anchors": {
-      "ordbok-kategori-filter": ["apps/my-copilot/src/app/(nb)/ordliste/glossary.tsx"]
-    }
+    "anchors": {}
   },
   "/overview": {
     "sources": ["apps/my-copilot/next.config.ts", "apps/my-copilot/src/app/(nb)/overview/page.tsx"],
@@ -1182,8 +1180,17 @@
         "apps/my-copilot/src/app/(nb)/statistikk/page.tsx"
       ],
       "manedlige-trender": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
-      "måned-hittil-modeller-og-kostnad": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
-      "månedlige-trender": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "modellkostnad-historikk": ["apps/my-copilot/src/components/charts/BillingModelBreakdownChart.tsx"],
+      "måned-hittil-modeller-og-kostnad": [
+        "apps/my-copilot/src/app/(nb)/kostnad/page.tsx",
+        "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx",
+        "apps/my-copilot/src/app/(nb)/statistikk/page.tsx",
+        "apps/my-copilot/src/components/charts/BillingMonthNowChart.tsx"
+      ],
+      "månedlige-trender": [
+        "apps/my-copilot/src/app/(nb)/statistikk/page.tsx",
+        "apps/my-copilot/src/components/charts/MonthlyTrendsChart.tsx"
+      ],
       "nokkeltall": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
       "pull-requests-og-code-review": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
       "repositorier": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
