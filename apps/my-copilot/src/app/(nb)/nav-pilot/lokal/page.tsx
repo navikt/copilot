@@ -16,6 +16,11 @@ export const metadata: Metadata = {
 const linkClass = "text-blue-600 hover:underline";
 const code = "font-mono text-xs";
 
+// The result tables and reports below measure this exact model. Pin it here instead of
+// deriving it from the live manifest default, so a future default change doesn't relabel
+// these old results as measurements of a different model. See SOURCES below.
+const MEASURED_MODEL = "Qwen3.6-35B-A3B-OptiQ-4bit";
+
 const REPORTS = "https://github.com/navikt/mlx-workspace/blob/main";
 const SOURCES = {
   night1: `${REPORTS}/reports/2026-09-25-quality-frontier/night-1.md`,
@@ -135,7 +140,8 @@ function Card({ title, children }: { title: React.ReactNode; children: React.Rea
 export default async function LokalModell() {
   const { models } = await getLocalModels();
   const defaultModel = models.find((m) => m.default) ?? models[0];
-  const modelName = defaultModel.model.split("/").pop();
+  const liveModelName = defaultModel.model.split("/").pop();
+  const liveModelDiffers = liveModelName !== MEASURED_MODEL;
 
   return (
     <main>
@@ -241,11 +247,17 @@ export default async function LokalModell() {
                   Hva den klarer, målt
                 </LinkableHeading>
                 <BodyLong textColor="subtle">
-                  Tallene gjelder standardmodellen, <code className={code}>{modelName}</code>, og kommer fra
-                  kontrollerte målinger, ikke fra daglig bruk. Kodeoppgavene er hentet fra et Kotlin-repo i Nav, og hver
-                  løsning er sjekket av en test. En oppgavetype blir godkjent for utsending først når modellen holder
-                  kvalitetsgrensen mot skymodellen over nok kjøringer.
+                  Tallene gjelder <code className={code}>{MEASURED_MODEL}</code>, og kommer fra kontrollerte målinger,
+                  ikke fra daglig bruk. Kodeoppgavene er hentet fra et Kotlin-repo i Nav, og hver løsning er sjekket av
+                  en test. En oppgavetype blir godkjent for utsending først når modellen holder kvalitetsgrensen mot
+                  skymodellen over nok kjøringer.
                 </BodyLong>
+                {liveModelDiffers && (
+                  <BodyShort size="small" textColor="subtle">
+                    Standardmodellen i dag er <code className={code}>{liveModelName}</code>. Tallene over er ikke målt
+                    på nytt for den ennå.
+                  </BodyShort>
+                )}
                 <LinkableHeading id="malt-utsending" size="small" level="3">
                   Kodeoppgaver
                 </LinkableHeading>

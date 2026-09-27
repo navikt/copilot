@@ -1027,13 +1027,18 @@ function GetStartedSection() {
             >
               Les dokumentasjonen →
             </NextLink>
-            <NextLink
-              href="/nav-pilot/lokal"
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-medium no-underline transition-colors"
+            <Box
+              asChild
+              paddingInline="space-20"
+              paddingBlock="space-12"
+              borderRadius="8"
+              className="inline-flex items-center gap-1.5 font-medium"
               style={{ border: "1px solid #d1d5db", color: "#374151", fontSize: "0.875rem" }}
             >
-              Lokal modell og decide →
-            </NextLink>
+              <NextLink href="/nav-pilot/lokal" className="no-underline transition-colors">
+                Lokal modell og decide →
+              </NextLink>
+            </Box>
             <NextLink
               href="/verktoy"
               className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-medium no-underline transition-colors"
