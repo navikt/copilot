@@ -1,9 +1,9 @@
 /**
  * User surveys, served and stored by copilot-survey (apps/copilot-survey). The
  * definitions are the same files nav-pilot's terminal survey renders
- * (apps/copilot-survey/surveys/). Answers go straight to copilot-survey with
- * an OBO token; copilot-survey refuses a second answer from the same person, from the
- * web or nav-pilot, without storing anything that links the answer to them.
+ * (apps/copilot-survey/surveys/). Answers go straight to copilot-survey with an
+ * OBO token; copilot-survey refuses a second answer from the same person, from
+ * the web or nav-pilot, without storing anything that links the answer to them.
  */
 import { exchangeTokenFor, fetchWithTimeout, isLocalDev } from "@/lib/backend-api";
 
