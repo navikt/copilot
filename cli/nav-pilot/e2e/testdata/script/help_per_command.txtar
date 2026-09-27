@@ -24,9 +24,38 @@ exec nav-pilot config --help
 stdout '^Usage: nav-pilot config \[subcommand\]'
 stdout 'setup \[--force\]'
 
-# A command without a page of its own gets the global one.
+# Every command has a page of its own (#1040).
 exec nav-pilot help doctor
-stdout 'Commands:'
+stdout '^Usage: nav-pilot doctor'
+! stdout 'Commands:'
+! stderr .
+
+exec nav-pilot validate --help
+stdout '^Usage: nav-pilot validate'
+stdout 'Exit codes: 0 valid, 1 violations found'
+
+exec nav-pilot env -h
+stdout '^Usage: nav-pilot env'
+stdout 'eval "\$\(nav-pilot env\)"'
+
+# So does each alpha local subcommand, and --help exits 0 on the ones that
+# parse their own flags.
+exec nav-pilot alpha local status --help
+stdout '^Usage: nav-pilot alpha local status'
+! stdout 'features that are not supported yet'
+! stderr .
+
+exec nav-pilot alpha local setup --help
+stdout '^Usage: nav-pilot alpha local setup \[flags\]'
+stdout '--fix-context'
+! stderr .
+
+exec nav-pilot alpha local ask --help
+stdout '^Usage: nav-pilot alpha local ask'
+! stderr .
+
+exec nav-pilot help alpha local purge
+stdout '^Usage: nav-pilot alpha local purge'
 
 exec nav-pilot --help
 stdout 'Launch flags'

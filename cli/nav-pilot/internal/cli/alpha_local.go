@@ -85,8 +85,13 @@ Switching model:
   nav-pilot alpha local init                        download its weights, then start
 
 The list refreshes on init and start, and on first use; not on every command.
+
+Run nav-pilot alpha local <command> --help for one command's flags.
 `)
 }
+
+// localCommands is every alpha local subcommand cmdAlpha dispatches.
+var localCommands = []string{"init", "start", "restart", "stop", "status", "models", "use", "ask", "on", "off", "purge", "doctor", "setup"}
 
 // cmdAlpha dispatches the alpha groups. There is one.
 func cmdAlpha(args []string) error {
@@ -107,6 +112,11 @@ func cmdAlpha(args []string) error {
 	sub := ""
 	if len(args) > 1 {
 		sub = args[1]
+	}
+	// ask and setup reach here with their flags unparsed, so --help too.
+	if _, ok := localHelp[sub]; ok && wantsHelp(args[2:]) {
+		alphaHelp(os.Stdout, args)
+		return nil
 	}
 	switch sub {
 	case "init":
@@ -142,7 +152,7 @@ func cmdAlpha(args []string) error {
 		alphaUsage(os.Stdout)
 		return nil
 	default:
-		if hint := suggest(sub, []string{"init", "start", "restart", "stop", "status", "models", "use", "ask", "on", "off", "purge", "doctor", "setup"}); hint != "" {
+		if hint := suggest(sub, localCommands); hint != "" {
 			return fmt.Errorf("unknown command: nav-pilot alpha local %s. Did you mean %s?", sub, hint)
 		}
 		return fmt.Errorf("unknown command: nav-pilot alpha local %s. Usage: %s", sub, bold("nav-pilot alpha help"))
