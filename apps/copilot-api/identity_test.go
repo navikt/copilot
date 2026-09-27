@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -88,36 +89,75 @@ func TestSAMLIdentityResolverResolve(t *testing.T) {
 	}
 }
 
+// cliApp is copilot-cli's M2M token as copilot-api sees it.
+var cliApp = &User{AZP: "copilot-cli-client-id", Idtyp: "app"}
+
+// routed returns a request as the ServeMux hands it to a handler: with the
+// pattern it matched set.
+func routed(method, pattern string) *http.Request {
+	req := httptest.NewRequest(method, "/", nil)
+	req.Pattern = pattern
+	return req
+}
+
 func TestOnBehalfOfIdentityResolverCanResolve(t *testing.T) {
 	r := NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true})
-	get := httptest.NewRequest(http.MethodGet, "/", nil)
+	get := routed(http.MethodGet, "GET /api/v1/copilot/usage/user/{username}")
 
-	if r.CanResolve(&User{AZP: "copilot-cli-client-id"}, get) != true {
-		t.Error("expected CanResolve true for trusted azp on GET")
+	if !r.CanResolve(cliApp, get) {
+		t.Error("expected CanResolve true for a trusted app token on an allowlisted GET")
 	}
-	if r.CanResolve(&User{AZP: "some-other-client"}, get) != false {
-		t.Error("expected CanResolve false for untrusted azp")
+	if !r.CanResolve(&User{AZP: "copilot-cli-client-id", Roles: []string{"access_as_application"}}, get) {
+		t.Error("expected CanResolve true for the access_as_application role without idtyp")
 	}
-	if r.CanResolve(nil, get) != false {
-		t.Error("expected CanResolve false for nil user")
+	for name, u := range map[string]*User{
+		"untrusted azp":    {AZP: "some-other-client", Idtyp: "app"},
+		"no idtyp or role": {AZP: "copilot-cli-client-id"},
+		"user token":       {AZP: "copilot-cli-client-id", NAVident: "Z123456", Email: "ola@nav.no"},
+		"app with e-mail":  {AZP: "copilot-cli-client-id", Idtyp: "app", Email: "ola@nav.no"},
+		"nil user":         nil,
+	} {
+		if r.CanResolve(u, get) {
+			t.Errorf("%s: expected CanResolve false", name)
+		}
 	}
-	if r.CanResolve(&User{AZP: "copilot-cli-client-id"}, nil) != false {
+	if r.CanResolve(cliApp, nil) {
 		t.Error("expected CanResolve false for nil request")
+	}
+
+	// Only the allowlisted routes: never the outer mux's "/api/v1/" (the
+	// global pass) or an empty pattern.
+	for _, pattern := range []string{"", "/api/v1/", "GET /api/v1/copilot/seats/{username}", "GET /api/v1/copilot/budget", "GET /api/v1/copilot/usage/metrics"} {
+		if r.CanResolve(cliApp, routed(http.MethodGet, pattern)) {
+			t.Errorf("expected CanResolve false on %q", pattern)
+		}
 	}
 
 	// Trust is scoped to read-only routes: write methods must never match,
 	// even for a trusted azp, so a compromised intermediary can't mutate
 	// arbitrary users' resources (e.g. seats) via X-On-Behalf-Of.
 	for _, method := range []string{http.MethodPost, http.MethodDelete, http.MethodPut, http.MethodPatch} {
-		req := httptest.NewRequest(method, "/", nil)
-		if r.CanResolve(&User{AZP: "copilot-cli-client-id"}, req) != false {
+		if r.CanResolve(cliApp, routed(method, "GET /api/v1/copilot/usage/user/{username}")) {
 			t.Errorf("expected CanResolve false for trusted azp on %s (read-only trust)", method)
 		}
 	}
 
 	empty := NewOnBehalfOfIdentityResolver(nil)
-	if empty.CanResolve(&User{AZP: "copilot-cli-client-id"}, get) != false {
+	if empty.CanResolve(cliApp, get) {
 		t.Error("expected CanResolve false when trustedClientIDs is empty/nil")
+	}
+}
+
+// Every allowlisted pattern must be one the API router registers, or the
+// allowlist silently stops matching after a route is renamed.
+func TestOnBehalfOfRoutesAreRegistered(t *testing.T) {
+	mux := makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain()).(*http.ServeMux)
+	for pattern := range onBehalfOfRoutes {
+		method, path, _ := strings.Cut(pattern, " ")
+		req := httptest.NewRequest(method, strings.ReplaceAll(path, "{username}", "ola"), nil)
+		if _, got := mux.Handler(req); got != pattern {
+			t.Errorf("%q routes to %q", pattern, got)
+		}
 	}
 }
 
@@ -183,10 +223,10 @@ func TestIdentityResolverChain(t *testing.T) {
 	chain := NewIdentityResolverChain(onBehalfOf, saml)
 
 	t.Run("trusted intermediary takes priority", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req := routed(http.MethodGet, "GET /api/v1/copilot/usage/user/{username}")
 		req.Header.Set("X-On-Behalf-Of", "hans")
 
-		identity, err := chain.Resolve(context.Background(), &User{AZP: "copilot-cli-client-id", Email: "hans@nav.no"}, req)
+		identity, err := chain.Resolve(context.Background(), cliApp, req)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -223,7 +263,7 @@ func TestIdentityResolverChain(t *testing.T) {
 		t.Run("write method with trusted azp is not resolved: "+method, func(t *testing.T) {
 			req := httptest.NewRequest(method, "/api/v1/copilot/seats", nil)
 			req.Header.Set("X-On-Behalf-Of", "hans")
-			_, err := chain.Resolve(context.Background(), &User{AZP: "copilot-cli-client-id"}, req)
+			_, err := chain.Resolve(context.Background(), cliApp, req)
 			if !errors.Is(err, ErrNoApplicableResolver) {
 				t.Fatalf("expected ErrNoApplicableResolver for %s, got %v", method, err)
 			}
@@ -296,9 +336,9 @@ func TestIdentityMiddleware(t *testing.T) {
 	t.Run("required=true, rejects malformed X-On-Behalf-Of header", func(t *testing.T) {
 		gotIdentity = nil
 		handler := IdentityMiddleware(chain, true)(next)
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req := routed(http.MethodGet, "GET /api/v1/copilot/usage/user/{username}")
 		req.Header.Set("X-On-Behalf-Of", "inv@lid")
-		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{AZP: "copilot-cli-client-id"}))
+		req = req.WithContext(context.WithValue(req.Context(), userContextKey, cliApp))
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
@@ -306,6 +346,25 @@ func TestIdentityMiddleware(t *testing.T) {
 			t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 		}
 	})
+
+	// A user's own token must not assert someone else, even on a route
+	// where identity is optional.
+	for _, required := range []bool{true, false} {
+		t.Run(fmt.Sprintf("required=%v, refuses X-On-Behalf-Of on a user token", required), func(t *testing.T) {
+			gotIdentity = nil
+			handler := IdentityMiddleware(chain, required)(next)
+			req := routed(http.MethodGet, "GET /api/v1/copilot/usage/user/{username}")
+			req.Header.Set("X-On-Behalf-Of", "someone-else")
+			req = req.WithContext(context.WithValue(req.Context(), userContextKey,
+				&User{AZP: "copilot-cli-client-id", NAVident: "Z123456", Email: "hans@nav.no"}))
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusUnauthorized || gotIdentity != nil {
+				t.Errorf("status = %d, identity = %+v; want 401 and no identity", rec.Code, gotIdentity)
+			}
+		})
+	}
 
 	t.Run("required=false, proceeds without identity on failure", func(t *testing.T) {
 		gotIdentity = nil

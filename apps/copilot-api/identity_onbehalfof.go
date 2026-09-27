@@ -35,21 +35,36 @@ func NewOnBehalfOfIdentityResolver(trustedClientIDs map[string]bool) *OnBehalfOf
 	return &OnBehalfOfIdentityResolver{trustedClientIDs: trustedClientIDs}
 }
 
-// CanResolve applies only when the caller's M2M token azp is in the trusted
-// set AND the request is a read-only GET. The GET constraint is a
-// blast-radius limitation: copilot-cli only ever proxies a single GET
-// (usage lookup), so a compromised or buggy intermediary must not be able to
-// resolve an arbitrary developer's identity for a write route (e.g.
-// POST/DELETE /api/v1/copilot/seats). Non-GET requests fall through the chain
-// to ErrNoApplicableResolver → 401, which is the intended fail-closed
-// behavior.
+// onBehalfOfRoutes are the only routes X-On-Behalf-Of is honoured on: the
+// per-user usage reads copilot-cli forwards for nav-pilot. Keyed on the
+// ServeMux pattern, so it matches only in the per-route
+// requireResolvedIdentity. The global IdentityMiddleware pass sees the outer
+// mux's pattern, "/api/v1/", so it never resolves (and never writes the
+// audit line).
+var onBehalfOfRoutes = map[string]bool{
+	"GET /api/v1/copilot/usage/user/{username}":               true,
+	"GET /api/v1/copilot/usage/user/{username}/weekly":        true,
+	"GET /api/v1/copilot/usage/user/{username}/daily-credits": true,
+}
+
+// CanResolve applies only when all of these hold:
+//
+//   - the token is an app token (User.isAppToken), not a user's OBO token;
+//   - its azp is in the trusted set (copilot-cli);
+//   - the request is a GET on a route in onBehalfOfRoutes.
+//
+// GET-only and the route list bound the blast radius: a compromised or buggy
+// intermediary cannot resolve an arbitrary developer's identity for a write
+// route (e.g. POST/DELETE /api/v1/copilot/seats) or a read it never forwards.
+// Anything else falls through the chain to ErrNoApplicableResolver → 401,
+// the intended fail-closed behaviour.
 //
 // Must be checked before any general-purpose resolver (e.g. SAML) in the
 // chain, since a trusted intermediary's M2M token typically has no email
 // claim to resolve via SAML in the first place.
 func (o *OnBehalfOfIdentityResolver) CanResolve(user *User, r *http.Request) bool {
-	return user != nil && r != nil && r.Method == http.MethodGet &&
-		len(o.trustedClientIDs) > 0 && o.trustedClientIDs[user.AZP]
+	return user != nil && r != nil && r.Method == http.MethodGet && onBehalfOfRoutes[r.Pattern] &&
+		user.isAppToken() && len(o.trustedClientIDs) > 0 && o.trustedClientIDs[user.AZP]
 }
 
 // Resolve trusts the X-On-Behalf-Of header value as the caller's GitHub

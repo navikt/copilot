@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/golang-jwt/jwt/v5"
 	"time"
 )
 
@@ -334,5 +336,25 @@ func TestJWKSCache(t *testing.T) {
 	_, err = cache.getKey("test-kid")
 	if err != nil {
 		t.Errorf("getKey() error = %v", err)
+	}
+}
+
+// The claims that decide isAppToken must be read from a real token's shape:
+// JSON arrays decode to []interface{}, and a role given as a string is not a
+// list of roles.
+func TestUserFromClaimsAppToken(t *testing.T) {
+	for name, tc := range map[string]struct {
+		claims jwt.MapClaims
+		app    bool
+	}{
+		"M2M token":          {jwt.MapClaims{"idtyp": "app", "roles": []interface{}{"access_as_application"}}, true},
+		"role only":          {jwt.MapClaims{"roles": []interface{}{"access_as_application"}}, true},
+		"role as a string":   {jwt.MapClaims{"roles": "access_as_application"}, false},
+		"user (OBO) token":   {jwt.MapClaims{"NAVident": "Z123456", "preferred_username": "ola@nav.no"}, false},
+		"app with an e-mail": {jwt.MapClaims{"idtyp": "app", "email": "ola@nav.no"}, false},
+	} {
+		if got := userFromClaims("azp", tc.claims).isAppToken(); got != tc.app {
+			t.Errorf("%s: isAppToken = %v, want %v", name, got, tc.app)
+		}
 	}
 }
