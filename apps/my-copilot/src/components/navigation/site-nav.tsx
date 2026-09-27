@@ -6,6 +6,7 @@ import NextLink from "next/link";
 import { usePathname } from "next/navigation";
 import { useId, useState, type MouseEvent, type ReactNode } from "react";
 import NavBudgetBar from "@/components/nav-budget-bar";
+import { SiteSearch } from "@/components/navigation/site-search";
 import { SECTION, TOP_LINKS, activeTop, inSection, sectionGroup } from "@/lib/nav-items";
 
 // The header menu and the nav-pilot section menu, §6.3–§6.6 in
@@ -22,6 +23,7 @@ export interface HeaderLabels {
   menu: string;
   back: string;
   showSection: string;
+  search: string;
 }
 
 // As Aksel's header links: "page" on the page itself, "true" anywhere else in the group.
@@ -60,6 +62,10 @@ export function SiteHeader({ labels, userName }: { labels: HeaderLabels; userNam
             ))}
           </ul>
         </nav>
+        {/* One search on every width: on phones it sits next to «Meny», one tap away, not inside the menu dialog. */}
+        <div className="ml-auto lg:ml-0">
+          <SiteSearch label={labels.search} />
+        </div>
         <div className="hidden lg:flex items-center gap-4 text-sm">
           {userName ? (
             <>
@@ -75,7 +81,7 @@ export function SiteHeader({ labels, userName }: { labels: HeaderLabels; userNam
             </a>
           )}
         </div>
-        <div className="lg:hidden ml-auto">
+        <div className="lg:hidden">
           <MobileMenu labels={labels} userName={userName} />
         </div>
       </div>
