@@ -55,6 +55,7 @@ Se også [modellvalg.md](modellvalg.md) for gjeldende modellpinning per agent og
 | rust-development | Idiomatisk Rust-utvikling | Språkspesifikt |
 | nav-troubleshoot | Diagnostiske trær for plattformproblemer | Feilsøking |
 | workstation-security | Sikkerhetssjekk for utviklermaskiner | Drift |
+| deliberate-ai-use | Grønn og rød sone, tre-forsøks-regelen, generer-så-forstå | Kompetanse |
 
 ---
 
@@ -64,7 +65,8 @@ Se også [modellvalg.md](modellvalg.md) for gjeldende modellpinning per agent og
 |-------------|------------|--------------|
 | golang | `*.go` | Go-idiomer, error wrapping, slog-logging |
 | kotlin | `*.kt` | Ktor og Rapids & Rivers, Spring Boot, Kotliquery, testing |
-| security-owasp | `*.kt, *.go` | OWASP-sjekkliste, inputvalidering |
+| security-core | Alle filer | Sikkerhetsregler som alltid gjelder: logging, hemmeligheter, spørringer, eierskap, `azp`, TLS |
+| security-owasp | `*.{kt,go,java,ts,tsx}` | Peker til `$security-owasp` for OWASP-mønstre |
 | nextjs-aksel | `src/**/*.{tsx,ts}` | Aksel spacing, responsive props, Box/VStack |
 | performance | `src/**/*.{tsx,ts}` | Lazy loading, memo, bundle-størrelse |
 | accessibility | `src/**/*.{tsx,jsx}` | ARIA, semantisk HTML, tastaturnavigasjon |
@@ -75,7 +77,7 @@ Se også [modellvalg.md](modellvalg.md) for gjeldende modellpinning per agent og
 | github-actions | `*.yml/*.yaml` | Workflow-sikkerhet, SHA-pinning |
 | docker | `Dockerfile` | Multi-stage, Chainguard, .dockerignore |
 | database | `**/db/migration/**/*.sql` | Flyway-konvensjoner, idempotens |
-| deliberate-ai-use | Alle filer | Grønn/rød sone, generer-så-forstå |
+| deliberate-ai-use | Alle filer | Forklar valg, merk rød sone. Resten av rammeverket ligger i skillen `$deliberate-ai-use` |
 
 ---
 

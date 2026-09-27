@@ -10,6 +10,12 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **opencode-scopet følger samme liste**: `nav-pilot sync` uten `--apply` skrev om `~/.config/opencode`. Nå endrer den ingenting der, men lister hva den ville fjerne under scopet `opencode`, også i `--json`, og avslutter med 1 når noe skal fjernes.
 - **opencode finner de filavgrensede instruksjonene**: `AGENTS.md` pekte på `@.opencode/instructions/<navn>.md`, relativt til prosjektet, mens filene ligger i opencodes globale konfigurasjonsmappe. Fra et repo uten egen `.opencode/` fant modellen dem ikke. Nå står den absolutte stien der, sammen med beskrivelsen fra instruksjonen, slik Copilot CLI viser den i sin `applyTo`-tabell.
 
+### Sikkerhetsreglene gjelder i hver økt
+
+- **Ny instruksjon `security-core` med `applyTo: "**"`**: De seks kritiske reglene lå i `security-owasp`, som bare gjelder kodefiler og bare når modellen åpner fila. I 117 målte skysesjoner med `nav-pilot`-agenten som endret kode, åpnet modellen fila i 37. Nå er reglene alltid i kontekst: ingen tokens eller personopplysninger i logger, hemmeligheter fra miljøet, parameteriserte spørringer, eierskapssjekk, `azp` for maskin-til-maskin og TLS. `security-owasp` peker til `security-core` og `$security-owasp`.
+- **Alle filscopede instruksjoner har `description`**: Copilot CLI viser feltet i tabellen over instruksjonsfiler. Uten det hadde modellen bare et filmønster å gå etter for accessibility, docker, github-actions, golang, nextjs-aksel, norwegian-text, performance og security-owasp.
+- **`deliberate-ai-use` er delt i en instruksjon og en skill**: Instruksjonen beholder reglene til agenten, grensene og en kort definisjon av grønn og rød sone. Forskningen, kildene, sonelistene, tre-forsøks-regelen, erfaringsnivå og generer-så-forstå ligger i skillen `deliberate-ai-use`, som lastes ved behov.
+
 ## 2026-09-26
 
 ### sync mister ikke lenger lokale endringer

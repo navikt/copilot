@@ -19,7 +19,7 @@ Denne inventaren teller konkrete artefakter, altså filer, verktøy og endepunkt
 
 ## Relasjon til bevisst AI-bruk (#187)
 
-Grønn/rød sone-rammeverket (`deliberate-ai-use.instructions.md`) styrer *utviklerens kompetanse*, ikke koden direkte. Det er et governance-lag som ligger over Fowlers harness-modell.
+Grønn/rød sone-rammeverket (skillen `deliberate-ai-use`, med reglene som alltid gjelder i `deliberate-ai-use.instructions.md`) styrer *utviklerens kompetanse*, ikke koden direkte. Det er et governance-lag som ligger over Fowlers harness-modell.
 
 - Grønn sone er en feedforward guide for når AI-delegering er trygt.
 - Rød sone er en feedforward guide for når manuell koding bygger kritisk kompetanse.
