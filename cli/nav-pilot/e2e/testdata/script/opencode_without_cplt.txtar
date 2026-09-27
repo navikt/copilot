@@ -30,6 +30,7 @@ exec cat $WORK/env.out
 stdout '^NAV_PILOT_OPENCODE_HOOKS=\{"post"'
 stdout '^OPENCODE_CONFIG_CONTENT=\{"plugin"'
 stdout '^PWD=.*/repo$'
+! stderr 'where the cplt sandbox may not let the session start it'
 
 # cplt present: --no-sandbox does not skip it.
 cd $WORK
