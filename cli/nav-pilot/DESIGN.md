@@ -81,9 +81,10 @@ nav-pilot --log-level debug         # Set log level
 `^[A-Za-z0-9][A-Za-z0-9._/-]*$` — dekker Copilot-ids (`claude-opus-4.8`,
 `gpt-5.5`) og opencode-ids (`anthropic/claude-sonnet-4-5`).
 
-**Per-klient-validering:** `openCodeProvider.ValidateModel` krever i tillegg at id-en
-er på `provider/model`-format (nøyaktig én `/`, ikke-tom på begge sider). En bare
-Copilot-id som `claude-opus-4.8` gir hard feil for opencode-provideren.
+**Per-klient-validering:** `openCodeProvider.ValidateModel` godtar en Copilot-id
+uten prefiks eller en id på `provider/model`-format (høyst én `/`, ikke-tom på begge
+sider). En Copilot-id som `claude-opus-4.8` sendes til opencode som
+`github-copilot/claude-opus-4.8` (`ToOpenCodeModel` i `provider.go`).
 
 Veiviseren viser en **velger** med Nav-kurerte modeller per provider
 (`KnownModels()` fra `Provider`-grensesnittet):
@@ -146,15 +147,15 @@ type Provider interface {
 
 `providerRegistry` holder de tre implementasjonene i rekkefølge:
 1. `copilotProvider` — starter via `cplt`/`copilot` CLI
-2. `openCodeProvider` — starter via `opencode run` i `opencode_launch.go`
-3. `piProvider` — returnerer "not supported"-feil (stub)
+2. `openCodeProvider` — starter opencode-TUI-en i `opencode_launch.go`, i cplt når den finnes
+3. `piProvider` — starter pi i cplt (`pi_launch.go`), eksperimentell
 
 `ValidProviderIDs` er avledet fra registeret — ingen separat hardkodet liste.
 Å legge til en fjerde provider krever én struct + ett registre-element, ingen
 if/else-grening i andre filer.
 
 nav-pilot bruker et lite, kontrollert sett av klienter (`copilot`, `opencode`,
-`pi`). `cplt`-sandkassen støtter flere (`gemini`, `antigravity`, `shell`), men
+`pi`). `cplt`-sandkassen støtter flere (`gemini`, `antigravity`, `claude`, `goose`, `dsh`, `shell`), men
 nav-pilot eksponerer bare klienter med bekreftet launch-sti og Nav-kontekst.
 
 > **Bakoverkompatibilitet:** Eksisterende konfig-filer med `agent = "..."` godtas
@@ -167,12 +168,12 @@ persona + flagg etter `--`-separatoren: `cplt --agent copilot -- --agent nav-pil
 
 ### OpenCode alternativ-mapping
 
-`openCodeArgs` mapper resolvert konfig til `opencode run`-flagg. opencode sitt
+`OpenCodeArgs` mapper resolvert konfig til flagg for opencode-TUI-en. opencode sitt
 flagg-grensesnitt er annerledes enn Copilots, så flere felt oversettes eller dropper:
 
 | nav-pilot konfig | opencode-flagg | Merknad |
 |---|---|---|
-| `model` | `--model` | Krever `provider/model` (f.eks. `github-copilot/claude-opus-4.8`); uteblir helt når unset, og opencode velger da selv. Flagget slår opencodes egen config og recents, og i `opencode run` slår det også agentens eget `model:`-felt (der er flagget forespørselens modell). I TUI-en, som er det nav-pilot starter, vinner agentens eget `model:` over flagget. Rekkefølgen blir altså: agentens spesialisering, så nav-pilots sesjonsmodell, så det klienten selv ville valgt |
+| `model` | `--model` | `provider/model` (f.eks. `github-copilot/claude-opus-4.8`), og en Copilot-id uten prefiks får `github-copilot/` foran; uteblir helt når unset, og opencode velger da selv. Flagget slår opencodes egen config og recents, og i `opencode run` slår det også agentens eget `model:`-felt (der er flagget forespørselens modell). I TUI-en, som er det nav-pilot starter, vinner agentens eget `model:` over flagget. Rekkefølgen blir altså: agentens spesialisering, så nav-pilots sesjonsmodell, så det klienten selv ville valgt |
 | `mode = plan` | `--agent plan` | opencode har ingen `--mode`; `autopilot` har ingen opencode-ekvivalent — advarsel ved oppstart |
 | `reasoning_effort` | `--variant` | Leverandørspesifikk resonering (f.eks. `high`, `max`) |
 | `allow_all_tools` | `--dangerously-skip-permissions` | |

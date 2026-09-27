@@ -2,6 +2,8 @@
 
 Which customization types work in which GitHub Copilot clients, and how each one gets installed.
 
+This matrix covers GitHub's own clients only. For the clients nav-pilot launches (Copilot CLI, opencode and pi), including hooks, MCP registry enforcement and what each one lacks, see [ki-utvikling.nav.no/nav-pilot/klienter](https://ki-utvikling.nav.no/nav-pilot/klienter).
+
 ## References
 
 Re-check these when you update the matrix.

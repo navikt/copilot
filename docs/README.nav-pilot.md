@@ -1,6 +1,6 @@
 # 🧭 nav-pilot
 
-nav-pilot er et CLI-verktøy og en AI-agent for Nav-utvikling med GitHub Copilot og opencode.
+nav-pilot er et CLI-verktøy og en AI-agent for Nav-utvikling med GitHub Copilot, opencode og pi (eksperimentell).
 
 📖 **Online docs (primær):** https://ki-utvikling.nav.no/nav-pilot  
 📝 **Endringslogg:** [docs/nav-pilot-changelog.md](nav-pilot-changelog.md)
@@ -337,12 +337,13 @@ deg. Svarer ikke GitHub, hopper den bare over versjonssjekken.
 
 ## Klienter
 
-nav-pilot støtter tre kodingsagenter (`client`-feltet i konfig):
+nav-pilot støtter tre klienter (`client`-feltet i konfig). Hva hver av dem kan, og hva som mangler, står på
+[ki-utvikling.nav.no/nav-pilot/klienter](https://ki-utvikling.nav.no/nav-pilot/klienter).
 
 | Klient                  | Binær               | Nav-kontekst                                                  | Standard modell |
 | ----------------------- | ------------------- | ------------------------------------------------------------- | --------------- |
-| `copilot` (standard)    | `cplt` / `copilot`  | Installeres i `.github/`                                      | GPT-6 Sol       |
-| `opencode`              | `cplt` + `opencode` | Materialiseres automatisk i brukerens OpenCode config-mappe   | GPT-6 Sol       |
+| `copilot` (standard)    | `cplt` / `copilot`  | `.github/`, eller `~/.copilot/` med `--user`                  | GPT-6 Sol       |
+| `opencode`              | `cplt` / `opencode` | Materialiseres automatisk i brukerens OpenCode config-mappe   | GPT-6 Sol       |
 | `pi` _(eksperimentell)_ | `cplt` + `pi`       | Materialiseres i `~/.nav-pilot/pi` og gis til pi ved oppstart | GPT-6 Sol       |
 
 En modell du velger med config eller `--model`, vinner over agentpakkas standard.
@@ -350,7 +351,9 @@ En modell du velger med config eller `--model`, vinner over agentpakkas standard
 > **Bruk cplt-sandboxen.** nav-pilot foretrekker `cplt` og kjører klienten via
 > `cplt --agent <klient>`. Agenten kan da lese og skrive prosjektfiler, men når ikke
 > SSH-nøkler, tilgangsinformasjon for skytjenester eller andre hemmeligheter. `cplt` må
-> være installert for å starte `opencode` og `pi`, i tillegg til selve klient-binæren.
+> være installert for å starte `pi`. Mangler cplt, spør nav-pilot om `copilot` eller
+> `opencode` skal starte uten sandkasse, eller starter dem uten med `--no-sandbox`.
+> En agentpakke med ferdigbygde payloads (Tier 2) krever cplt for alle klientene.
 >
 > **Sandboxen gjelder katalogen du står i.** nav-pilot sender alltid `--project-dir` med
 > til cplt, satt til arbeidskatalogen. Uten det utvider cplt en undermappe til roten av

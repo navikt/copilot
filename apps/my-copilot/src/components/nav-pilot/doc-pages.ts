@@ -31,6 +31,19 @@ export const GUIDE_PAGES: DocLink[] = [
   },
 ];
 
+export const REFERENCE_PAGES: DocLink[] = [
+  {
+    href: "/nav-pilot/referanse",
+    title: "Kommandoer, konfig og tabeller",
+    desc: "Kommandoene, avslutningskodene, konfignøklene, sikkerhetsnivåene, telemetrien, de lokale modellene og filene nav-pilot installerer.",
+  },
+  {
+    href: "/nav-pilot/klienter",
+    title: "Klienter",
+    desc: "Hva Copilot CLI, opencode og pi kan, Navs MCP-register i opencode, og hva som mangler.",
+  },
+];
+
 export const EXPLANATION_PAGES: DocLink[] = [
   {
     href: "/nav-pilot/forklaring/planlegging",

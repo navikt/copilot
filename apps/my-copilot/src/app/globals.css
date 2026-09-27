@@ -608,7 +608,7 @@ pre.text-sm {
   }
 }
 
-/* Two-column reference tables: on a phone, the description goes under the
+/* Reference tables: on a phone, the description goes under the
    command instead of beside it. The roles on the cells keep the table
    semantics that display: block would drop. */
 @media (max-width: 767px) {
@@ -631,5 +631,10 @@ pre.text-sm {
   .table-stack tr {
     border-bottom: 1px solid var(--ax-border-neutral-subtle);
     padding-block: var(--ax-space-12);
+  }
+  /* Wider tables name the column before each value, as .cplt-table does. */
+  .table-stack td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--ax-text-neutral-subtle);
   }
 }

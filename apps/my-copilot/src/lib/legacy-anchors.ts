@@ -11,7 +11,8 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   // /nav-pilot/docs was split into guides, reference and explanation pages
   // (docs/nav-pilot-dokumentasjon-forslag.md §1.4). next.config.ts sends the
   // page to /nav-pilot/referanse, so the old anchors are keyed there.
-  // #filstruktur, #lenker, #opencode and #stotte-klienter still exist there.
+  // #filstruktur and #lenker still exist there. The client sections moved on to
+  // /nav-pilot/klienter (§4, PR 7).
   "/nav-pilot/referanse#agentpakke": "/nav-pilot/agentpakker#pakkene-som-finnes",
   "/nav-pilot/referanse#arkitektur": "/nav-pilot/forklaring/arkitektur#arkitektur",
   "/nav-pilot/referanse#automatisk-sync": "/nav-pilot/guider/synkronisere#automatisk-sync",
@@ -44,8 +45,9 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/referanse#introduksjon": "/kom-i-gang#hva-er-nav-pilot",
   "/nav-pilot/referanse#isolasjon-er-pakrevd": "/nav-pilot/forklaring/sandkassen#isolasjon-er-pakrevd",
   "/nav-pilot/referanse#isolasjon-er-påkrevd-på-nav-utstyr": "/nav-pilot/forklaring/sandkassen#isolasjon-er-pakrevd",
-  "/nav-pilot/referanse#klienter-og-konfig": "/nav-pilot/referanse#klienter",
-  "/nav-pilot/referanse#klienter-og-konfigurasjon": "/nav-pilot/referanse#klienter",
+  "/nav-pilot/referanse#klienter": "/nav-pilot/klienter#stotte-klienter",
+  "/nav-pilot/referanse#klienter-og-konfig": "/nav-pilot/klienter#stotte-klienter",
+  "/nav-pilot/referanse#klienter-og-konfigurasjon": "/nav-pilot/klienter#stotte-klienter",
   "/nav-pilot/referanse#kom-i-gang": "/kom-i-gang#installer",
   "/nav-pilot/referanse#kommandooversikt": "/nav-pilot/referanse#kommandoer",
   "/nav-pilot/referanse#kompetansebevaring": "/nav-pilot/forklaring/planlegging#kompetansebevaring",
@@ -79,7 +81,9 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/referanse#sikkerhetsnivå-i-cplt": "/nav-pilot/forklaring/sandkassen#sikkerhetsniva",
   "/nav-pilot/referanse#skills-i-detalj": "/nav-pilot/forklaring/planlegging#skills-i-detalj",
   "/nav-pilot/referanse#slik-fungerer-det": "/nav-pilot/referanse#filstruktur",
-  "/nav-pilot/referanse#støttede-klienter": "/nav-pilot/referanse#stotte-klienter",
+  "/nav-pilot/referanse#opencode": "/nav-pilot/klienter#opencode",
+  "/nav-pilot/referanse#stotte-klienter": "/nav-pilot/klienter#stotte-klienter",
+  "/nav-pilot/referanse#støttede-klienter": "/nav-pilot/klienter#stotte-klienter",
   "/nav-pilot/referanse#sync-faq": "/nav-pilot/guider/synkronisere#faq",
   "/nav-pilot/referanse#sync-og-oppdatering": "/nav-pilot/guider/synkronisere#automatisk-sync",
   "/nav-pilot/referanse#team-egne-instruksjoner": "/nav-pilot/guider/tilpasse#team-egne-instruksjoner",
