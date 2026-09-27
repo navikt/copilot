@@ -1172,12 +1172,14 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 
 	sandboxed := true
 	cmdName := resolved.Client // opencode and pi are launched under their own name
-	if resolved.Client == "copilot" {
+	if resolved.Client == "opencode" || resolved.Client == "copilot" {
 		_, name := findCopilotCLI()
 		sandboxed = name == "cplt"
-		cmdName = "cplt"
-		if name != "" {
-			cmdName = name
+		if resolved.Client == "copilot" {
+			cmdName = "cplt"
+			if name != "" {
+				cmdName = name
+			}
 		}
 	}
 
@@ -1293,10 +1295,10 @@ func shellQuote(s string) string {
 }
 
 // missingCommand is what to name when client cannot launch: cplt when the
-// client is opencode or pi and its own binary is there, since both need cplt
-// too; otherwise name.
+// client is pi and its own binary is there, since pi needs cplt too;
+// otherwise name. opencode, like copilot, can launch without cplt.
 func missingCommand(client, name string) string {
-	if client == "opencode" || client == "pi" {
+	if client == "pi" {
 		if _, err := exec.LookPath(client); err == nil {
 			return "cplt"
 		}

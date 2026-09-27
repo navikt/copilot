@@ -941,9 +941,11 @@ func RemoveDispatchGatePlugin() error {
 	return nil
 }
 
-// LaunchOpenCode launches opencode inside the cplt sandbox with the resolved config.
-// Before launching, it materializes Nav context into opencode's user config directory.
-// cplt sandboxes the opencode binary, so opencode must also be installed on PATH.
+// LaunchOpenCode launches opencode with the resolved config: inside the cplt
+// sandbox when cplt is on PATH, and otherwise opencode itself, which the cli
+// allows only after asking or with --no-sandbox (#1028). A staged Tier 2
+// launch (LaunchOpenCodeStaged) always requires cplt. Before launching, it
+// materializes Nav context into opencode's user config directory.
 func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	if _, err := exec.LookPath("opencode"); err != nil {
 		return fmt.Errorf("opencode not found in PATH — install it first: https://opencode.ai")
@@ -952,7 +954,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	// cplt the launch dies before the TUI if OpenCode has to create it itself
 	// (#565).
 	if err := ensureOpenCodeRuntimeGitignore(); err != nil {
-		return fmt.Errorf("preparing opencode's config directory for the sandbox: %w", err)
+		return fmt.Errorf("preparing opencode's config directory: %w", err)
 	}
 
 	env := os.Environ()
@@ -1039,9 +1041,10 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	launchEnv, cpltFlags = applyOpenCodeHooks(resolved, launchEnv, cpltFlags)
 
 	return launchViaCplt(cpltLaunch{
-		agent:     "opencode",
-		agentArgs: openCodeAgentArgs(resolved),
-		cpltArgs:  cpltFlags,
+		agent:         "opencode",
+		unsandboxedOK: true,
+		agentArgs:     openCodeAgentArgs(resolved),
+		cpltArgs:      cpltFlags,
 		// EnsureOpenCodeNavContext above wrote into this directory, so ask it
 		// for skills after the materialization rather than before it.
 		skillsDir:     materializedSkillsDir(openCodeNavContextDir()),

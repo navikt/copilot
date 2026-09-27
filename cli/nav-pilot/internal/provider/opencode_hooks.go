@@ -118,7 +118,9 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	if slices.Contains(r.ExtraArgs, "--pure") {
 		fmt.Fprintf(os.Stderr, "%s nav-pilot's hooks (redaction, loop guard, gates) do not run with --pure: opencode loads no plugins then.\n", domain.Yellow("⚠"))
 	}
-	if dir := filepath.Dir(b.Bin); len(b.Post) > 0 && filepath.IsAbs(b.Bin) && !underCpltExecRoot(dir) {
+	// Only a sandboxed session is limited in where it may execute from.
+	_, launcher := FindCopilotCLI()
+	if dir := filepath.Dir(b.Bin); launcher == "cplt" && len(b.Post) > 0 && filepath.IsAbs(b.Bin) && !underCpltExecRoot(dir) {
 		fmt.Fprintf(os.Stderr, "%s nav-pilot runs from %s, where the cplt sandbox may not let the session start it. If so, redaction withholds every tool output. Install nav-pilot under ~/.local/bin or Homebrew.\n", domain.Yellow("⚠"), dir)
 	}
 	cpltArgs = append(cpltArgs,

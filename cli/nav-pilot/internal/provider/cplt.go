@@ -50,6 +50,11 @@ type cpltLaunch struct {
 	skillsDir string
 	// env is the process environment. nil inherits the parent environment.
 	env []string
+	// unsandboxedOK lets the launch run the agent directly when cplt is
+	// missing. Only a legacy opencode launch sets it, and only after the cli
+	// asked (or was told --no-sandbox): a staged payload launch never runs
+	// unsandboxed.
+	unsandboxedOK bool
 	// displayName is the user-facing client name for launch/log messages.
 	displayName string
 	// messageSuffix is appended to the "Launching …" line (e.g. nav-context summary).
@@ -240,6 +245,9 @@ func printSandboxScope(dir, root string, reads []string) {
 // launch fails with guidance instead of falling back to an unsandboxed binary.
 func launchViaCplt(spec cpltLaunch) error {
 	cliPath, cliName := FindCopilotCLI()
+	if (cliPath == "" || cliName != "cplt") && spec.unsandboxedOK {
+		return launchUnsandboxed(spec)
+	}
 	if cliPath == "" || cliName != "cplt" {
 		telemetryRecorder.RecordLaunchError(spec.agent, "client_not_found")
 		return fmt.Errorf("cplt not found in PATH — nav-pilot launches clients inside the cplt sandbox; install cplt to launch %s", spec.displayName)
@@ -312,4 +320,30 @@ func classifyLaunchError(err error) string {
 		return "client_not_found"
 	}
 	return "unknown"
+}
+
+// launchUnsandboxed runs the agent itself, without cplt, in the project
+// directory: what --no-sandbox means for opencode, as it does for copilot.
+// The environment is the launch's own (hooks, policy and OTel variables
+// included); cplt's flags have nothing to apply to.
+func launchUnsandboxed(spec cpltLaunch) error {
+	path, err := exec.LookPath(spec.agent)
+	if err != nil {
+		telemetryRecorder.RecordLaunchError(spec.agent, "client_not_found")
+		return fmt.Errorf("%s not found in PATH", spec.agent)
+	}
+	fmt.Printf("Launching %s %s%s...\n\n", domain.Bold(spec.displayName), domain.Yellow("without the sandbox"), spec.messageSuffix)
+	cmd := exec.Command(path, spec.agentArgs...)
+	cmd.Dir = spec.projectDir
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = withSkillsDirEnv(spec.env, spec.skillsDir)
+	if err := cmd.Run(); err != nil {
+		if kind := classifyLaunchError(err); kind != "" {
+			telemetryRecorder.RecordLaunchError(spec.agent, kind)
+		}
+		return err
+	}
+	return nil
 }
