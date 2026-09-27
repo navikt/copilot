@@ -1043,8 +1043,13 @@ func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error
 		return err
 	}
 	printModelNotice(resolved)
+	sessionClient = resolved.Client
 	return p.Launch(resolved)
 }
+
+// sessionClient is the client a coding session was started with in this
+// process, "" when none was: the survey prompt follows only a real session.
+var sessionClient string
 
 // cpltInstallHint is how to get the sandbox.
 const cpltInstallHint = "brew install navikt/tap/cplt (or sudo apt install cplt)"

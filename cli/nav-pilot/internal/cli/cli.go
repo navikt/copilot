@@ -64,7 +64,7 @@ var commandAliases = map[string]string{
 }
 
 // dispatchedCommands is every command name run dispatches.
-var dispatchedCommands = []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "models", "alpha", "auth", "usage", "version", "help"}
+var dispatchedCommands = []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "survey", "models", "alpha", "auth", "usage", "version", "help"}
 
 func isKnownCommand(arg string) bool {
 	if _, ok := commandAliases[arg]; ok {
@@ -102,6 +102,7 @@ Commands:
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
   feedback                Report a bug or request a feature
+  survey                  Answer an open user survey (lists them with --json or without a terminal)
   alpha local <cmd>       Run a model on this machine (alpha; off until you run 'alpha local init')
   alpha decide "<q>"      Ask the local model a multiple-choice question (alpha; see 'alpha decide --help')
   models [filter]         List the models the client can use, the current one marked
@@ -524,9 +525,19 @@ func run(args []string) error {
 
 	if len(args) < 1 {
 		if isInteractive() {
-			return runWithCommandTelemetry("startup", telemetryMode(), "auto", func() error {
+			maybeSurveyHint(cliOverrides.Client)
+			err := runWithCommandTelemetry("startup", telemetryMode(), "auto", func() error {
 				return cmdInteractive(cliOverrides)
 			})
+			// The session is over: the one calm moment to ask about a
+			// survey. Only after a client really ran (not after Esc at a
+			// menu, a declined launch or auto_launch = false), and not after
+			// nav-pilot itself failed; a client's own exit code is still a
+			// session that ended.
+			if sessionEndedCalmly(err) {
+				maybeSurvey(sessionClient)
+			}
+			return err
 		}
 		if len(launchArgs) > 0 {
 			// Flags for a launch, and nothing that can run one: printing the
@@ -1009,6 +1020,10 @@ func run(args []string) error {
 		})
 	case "env":
 		return runWithCommandTelemetry("env", telemetryMode(), "none", cmdEnv)
+	case "survey":
+		return runWithCommandTelemetry("survey", telemetryMode(), "none", func() error {
+			return cmdSurvey(jsonOutput)
+		})
 	case "feedback":
 		return runWithCommandTelemetry("feedback", telemetryMode(), "none", func() error {
 			return cmdFeedback(targetDir, featureRequest)
@@ -1071,6 +1086,27 @@ func run(args []string) error {
 		}
 		return fmt.Errorf("unknown command: %s. Run with --help for usage", command)
 	}
+}
+
+// sessionEndedCalmly reports whether a client ran and ended on its own: with
+// no error or its own exit code, but not interrupted (Ctrl-C, SIGTERM:
+// signalled, or the shell's 130 and 143 for them), which means stop.
+func sessionEndedCalmly(err error) bool {
+	if sessionClient == "" {
+		return false
+	}
+	if err == nil {
+		return true
+	}
+	exitErr, ok := errors.AsType[*exec.ExitError](err)
+	if !ok {
+		return false
+	}
+	if status, ok := exitErr.Sys().(syscall.WaitStatus); ok && status.Signaled() {
+		return false
+	}
+	code := exitErr.ExitCode()
+	return code != 130 && code != 143
 }
 
 // reexecGuardEnv marks a process as having already attempted a self re-exec

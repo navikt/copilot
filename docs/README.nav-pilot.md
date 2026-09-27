@@ -453,6 +453,7 @@ nav-pilot upgrade
 nav-pilot models            # modellene klienten kan bruke, med den du har valgt markert
 nav-pilot models claude     # bare modellene med «claude» i navnet
 nav-pilot feedback
+nav-pilot survey            # svar på en åpen brukerundersøkelse
 nav-pilot -- -p "…"         # start klienten med argumentene etter --, uten spørsmål fra nav-pilot og uten synk
 nav-pilot --client opencode -- run "…"   # det samme i opencode, som bruker run i stedet for -p
 ```
@@ -895,6 +896,7 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | `ask_user` | --ask-user / --no-ask-user | true · false (standard: true) | La agenten stoppe og spørre deg. Kun Copilot, og nav-pilot advarer om feltet er satt for opencode. |
 | `auto_launch` | --auto-launch / --no-auto-launch | true · false (standard: true) | Start kodeagenten etter synk eller installasjon. Med false skriver nav-pilot bare ut kommandoen. |
 | `auto_update` | — | true · false (standard: false) | Oppgrader nav-pilot automatisk når en ny versjon er ute, uten å spørre. Feiler oppgraderingen, kjører kommandoen på versjonen du har, og neste forsøk kommer etter 24 timer. |
+| `surveys` | — | true · false (standard: true) | Spør av og til, etter en økt, om du vil svare på en kort brukerundersøkelse (høyst tre ganger per undersøkelse). Med false spør nav-pilot aldri. DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false slår det også av. |
 | `log_level` | --log-level | none · error · warning · info · debug · all · default | Loggnivå for Copilot CLI. |
 | `otel_log_level` | --otel-log-level | none · error · warning · warn · info · debug · verbose · all (standard: none) | Loggnivå for OpenTelemetry i Copilot CLI (OTEL_LOG_LEVEL). En OTEL_LOG_LEVEL i skallet vinner, og config show merker den env. |
 | `local_enabled` | — | true · false (standard: false) | Send avgrensede oppgaver til en lokal modell (alfa). Settes av alpha local init, nullstilles av alpha local off. Så lenge den er false finnes ingen lokale modeller i nav-pilot. |

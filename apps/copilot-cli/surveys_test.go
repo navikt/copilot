@@ -223,6 +223,7 @@ func TestLoadSurveysRejectsBadDefinitions(t *testing.T) {
 		"no version":    `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","type":"scale","text":"?","min":1,"max":5}]}]`,
 		"labels count":  `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5,"labels":["a","b"]}]}]`,
 		"skip_if later": `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":{"question":"r","answer":"x"}},{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"]}]}]`,
+		"bad nudge":     `[{"id":"a","title":"t","nudge":"loud","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
 		"two texts":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?","max_length":5},{"id":"r","version":1,"type":"text","text":"?","max_length":5}]}]`,
 		"id with slash": `[{"id":"a/b","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
 	} {
