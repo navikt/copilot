@@ -45,7 +45,11 @@ type survey struct {
 	Intro  string `json:"intro,omitempty"`
 	// Active must be set, in its own reviewed pull request, before a survey
 	// is served or takes answers: a definition merges inactive.
-	Active    bool       `json:"active,omitempty"`
+	Active bool `json:"active,omitempty"`
+	// Nudge is where nav-pilot brings the survey up by itself: calm (after
+	// a session ends; the default), start (a one-line hint as a session
+	// starts) or off (only through nav-pilot survey).
+	Nudge     string     `json:"nudge,omitempty"`
 	Starts    string     `json:"starts"` // YYYY-MM-DD, first day open (UTC)
 	Ends      string     `json:"ends"`   // YYYY-MM-DD, last day open (UTC)
 	Questions []question `json:"questions"`
@@ -153,6 +157,9 @@ func validateSurveys(surveys []survey) error {
 		end, err2 := time.Parse(time.DateOnly, s.Ends)
 		if err1 != nil || err2 != nil || end.Before(start) || len(s.Questions) == 0 {
 			return fmt.Errorf("survey %s: needs starts <= ends and questions", s.ID)
+		}
+		if !slices.Contains([]string{"", "calm", "start", "off"}, s.Nudge) {
+			return fmt.Errorf("survey %s: nudge is calm, start or off", s.ID)
 		}
 		if s.Series != "" && !idPattern.MatchString(s.Series) {
 			return fmt.Errorf("survey %s: bad series %q", s.ID, s.Series)
@@ -437,14 +444,14 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		slog.Error("survey: checking participation failed", "survey", s.ID, "error_type", fmt.Sprintf("%T", err))
-		writeError(w, http.StatusServiceUnavailable, "could not store the answer, try again later")
+		writeError(w, http.StatusServiceUnavailable, "could not store your answers, try again later")
 		return
 	}
 	if !fresh {
-		writeError(w, http.StatusConflict, "already answered")
+		writeError(w, http.StatusConflict, "you have already answered this survey")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_, _ = w.Write([]byte(`{"status":"recorded","note":"answers cannot be changed or withdrawn: nothing links them to you"}`))
+	_, _ = w.Write([]byte(`{"status":"recorded","note":"nothing links the answers to you, so they cannot be changed or withdrawn"}`))
 }

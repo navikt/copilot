@@ -12,6 +12,7 @@ fit the format below; unknown fields are refused too.
   "series": "utviklerundersokelsen",
   "title": "Shown as the survey's name",
   "active": false,
+  "nudge": "calm",
   "intro": "Optional, shown before the first question",
   "starts": "2026-10-01",
   "ends": "2026-11-30",
@@ -72,6 +73,11 @@ the secret the same day; copilot-cli warns at start while it is still there.
   served and takes answers only when `active` is true *and* today is within
   `starts`–`ends`. Setting it true is its own pull request, approved by the
   survey owner, after the checklist below.
+- `nudge`: where nav-pilot brings the survey up by itself. `calm` (default):
+  asks after a session ends. `start`: a one-line hint as a session starts,
+  pointing at `nav-pilot survey`. `off`: only `nav-pilot survey`. Either way at
+  most three times per person, and never without a terminal, in CI or when
+  opted out.
 - `starts`, `ends`: first and last day it takes answers (UTC).
 - `scale`: whole numbers from `min` to `max` (at most 11 steps). `labels`, if
   given, names every step. Stored as the number.

@@ -301,6 +301,10 @@ const CLI_COMMANDS = [
   },
   { command: "nav-pilot feedback", description: "Rapporter feil. Åpner GitHub issue med diagnostikk" },
   { command: "nav-pilot feedback --feature", description: "Foreslå ny funksjon" },
+  {
+    command: "nav-pilot survey",
+    description: "Svar på en åpen brukerundersøkelse, også når du har slått av spørsmålene",
+  },
   { command: "nav-pilot export opencode", description: "Eksporter til .opencode/-format (OpenCode / oh-my-openagent)" },
   { command: "nav-pilot export opencode --user", description: "Eksporter til ~/.config/opencode/ (globalt)" },
   { command: "nav-pilot config", description: "Interaktiv innstillingsside i terminalen" },
@@ -2160,20 +2164,26 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
             Brukerundersøkelser
           </LinkableHeading>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            Når vi kjører en brukerundersøkelse, kan nav-pilot spørre om du vil svare, rett etter at en økt er ferdig,
-            aldri midt i arbeidet. Du velger svar nå, senere eller aldri. Velger du senere, spør nav-pilot igjen om noen
-            dager, høyst tre ganger per undersøkelse. Før første spørsmål står det hva som sendes: svarene dine,
-            nav-pilot-versjon, operativsystem, klient og om lokale modeller er på. Navn, kode, device-ID og innhold fra
-            øktene dine sendes ikke.
+            Når vi kjører en brukerundersøkelse, kan nav-pilot spørre om du vil svare. Det skjer rett etter at en økt er
+            ferdig, aldri midt i arbeidet. Du kan svare nå, senere eller aldri. Velger du senere, spør nav-pilot igjen
+            om noen dager, høyst tre ganger per undersøkelse. Før første spørsmål står det hva som sendes: svarene dine,
+            nav-pilot-versjon, operativsystem, klient og om lokale modeller er på. Navn, GitHub-bruker, kode, device-ID
+            og innhold fra øktene dine sendes ikke.
           </BodyLong>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            Du logger inn med GitHub (<code className="font-mono text-xs">nav-pilot auth login</code>) bare for at hver
-            person skal kunne svare én gang. Svarene lagres uten noe som knytter dem til deg, så de kan ikke endres
-            eller trekkes tilbake etterpå. Du får aldri spørsmålet uten en terminal, i CI, når klientens argumenter står
-            etter <code className="font-mono text-xs">--</code>, eller når målinger er slått av. Slå av undersøkelser
-            alene:
+            nav-pilot bruker GitHub-innloggingen din (<code className="font-mono text-xs">nav-pilot auth login</code>)
+            bare til å hindre at noen svarer to ganger. Svarene lagres uten noe som knytter dem til deg, så de kan ikke
+            endres eller trekkes tilbake etterpå. nav-pilot spør ikke uten terminal, i CI, når klientens argumenter står
+            etter <code className="font-mono text-xs">--</code>, eller når målinger er slått av. Vil du slå av bare
+            undersøkelsene, ikke målingene:
           </BodyLong>
           <CodeBlock compact>{`nav-pilot config set surveys false`}</CodeBlock>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            Noen undersøkelser nevnes i stedet med én linje når en økt starter. Du kan alltid svare selv med{" "}
+            <code className="font-mono text-xs">nav-pilot survey</code>, også når spørsmålene er slått av, etter at du
+            har sagt nei, eller etter tre spørsmål. Uten terminal lister kommandoen bare de åpne undersøkelsene. Har du
+            svart før, sier den fra.
+          </BodyLong>
           <BodyLong className="mt-2" size="small" style={{ color: "#64748b" }}>
             <code className="font-mono text-xs">DO_NOT_TRACK=1</code> og{" "}
             <code className="font-mono text-xs">NAV_PILOT_TELEMETRY_ENABLED=false</code> slår dem også av.

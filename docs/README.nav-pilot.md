@@ -453,6 +453,7 @@ nav-pilot upgrade
 nav-pilot models            # modellene klienten kan bruke, med den du har valgt markert
 nav-pilot models claude     # bare modellene med «claude» i navnet
 nav-pilot feedback
+nav-pilot survey            # svar på en åpen brukerundersøkelse
 nav-pilot -- -p "…"         # start klienten med argumentene etter --, uten spørsmål fra nav-pilot og uten synk
 nav-pilot --client opencode -- run "…"   # det samme i opencode, som bruker run i stedet for -p
 ```

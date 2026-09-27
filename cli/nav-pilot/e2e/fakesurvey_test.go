@@ -23,15 +23,19 @@ const fakeSurveyDefs = `{"surveys":[{"id":"e2e-2026","title":"E2E survey","start
 {"id":"why","version":1,"type":"choice","text":"Why not copilot?","options":["habit","other"],"skip_if":{"question":"clients","answer":"copilot"}},
 {"id":"comment","version":1,"type":"text","text":"Anything else?","max_length":50}]}]}`
 
-// fake-survey serves copilot-cli's survey endpoints on 127.0.0.1 and points
+// fake-survey [-nudge-start] serves copilot-cli's survey endpoints on 127.0.0.1 and points
 // nav-pilot at it (NAV_PILOT_COPILOT_CLI_URL). Every POST is described on one
 // line of $WORK/survey-posts.log: the status it got, whether it carried a
 // bearer token, its top-level and context keys, and whether the body holds
 // the device id in $HOME/device-id. The first POST per token gets 201, the
 // next 409, like the real dedup. $WORK/survey-gets.log counts the GETs.
 func cmdFakeSurvey(ts *testscript.TestScript, neg bool, args []string) {
-	if neg || len(args) != 0 {
-		ts.Fatalf("usage: fake-survey")
+	if neg || len(args) > 1 || (len(args) == 1 && args[0] != "-nudge-start") {
+		ts.Fatalf("usage: fake-survey [-nudge-start]")
+	}
+	defs := fakeSurveyDefs
+	if len(args) == 1 {
+		defs = strings.Replace(defs, `"title":"E2E survey",`, `"title":"E2E survey","nudge":"start",`, 1)
 	}
 	// Read here, not in the handler: the script's env is not safe to read
 	// from the server's goroutines.
@@ -51,7 +55,7 @@ func cmdFakeSurvey(ts *testscript.TestScript, neg bool, args []string) {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/surveys/active":
 			appendLine("survey-gets.log", "GET")
-			fmt.Fprint(w, fakeSurveyDefs)
+			fmt.Fprint(w, defs)
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/surveys/e2e-2026/responses":
 			body, _ := io.ReadAll(r.Body)
 			token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")

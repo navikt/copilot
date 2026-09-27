@@ -207,7 +207,7 @@ func bearerToken(r *http.Request) (string, error) {
 	// The auth scheme is case-insensitive per RFC 9110 §11.1.
 	fields := strings.Fields(header)
 	if len(fields) == 0 || !strings.EqualFold(fields[0], "Bearer") {
-		return "", errors.New("authorization header must use bearer scheme")
+		return "", errors.New("the Authorization header must use the Bearer scheme")
 	}
 	if len(fields) != 2 || len(fields[1]) > 8192 {
 		return "", errors.New("empty or malformed bearer token")
