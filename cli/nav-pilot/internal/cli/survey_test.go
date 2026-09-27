@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os/exec"
+	"strconv"
 	"sync/atomic"
 	"testing"
 )
@@ -57,6 +60,33 @@ func TestSurveyVersionShape(t *testing.T) {
 	} {
 		if versionShape(v) != want {
 			t.Errorf("versionShape(%q) = %v", v, !want)
+		}
+	}
+}
+
+func TestSessionEndedCalmly(t *testing.T) {
+	t.Cleanup(func() { sessionClient = "" })
+	exitWith := func(code int) error {
+		err := exec.Command("sh", "-c", "exit "+strconv.Itoa(code)).Run()
+		return err
+	}
+	sessionClient = ""
+	if sessionEndedCalmly(nil) {
+		t.Error("no session ran, yet it counted")
+	}
+	sessionClient = "copilot"
+	for _, tc := range []struct {
+		err  error
+		want bool
+	}{
+		{nil, true},
+		{exitWith(1), true},
+		{exitWith(130), false},
+		{exitWith(143), false},
+		{errors.New("nav-pilot failed"), false},
+	} {
+		if got := sessionEndedCalmly(tc.err); got != tc.want {
+			t.Errorf("sessionEndedCalmly(%v) = %v, want %v", tc.err, got, tc.want)
 		}
 	}
 }

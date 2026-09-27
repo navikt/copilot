@@ -303,7 +303,7 @@ const CLI_COMMANDS = [
   { command: "nav-pilot feedback --feature", description: "Foreslå ny funksjon" },
   {
     command: "nav-pilot survey",
-    description: "Svar på en åpen brukerundersøkelse, også når du har slått av spørsmålene",
+    description: "Svar på en åpen brukerundersøkelse, også når nav-pilot ikke spør selv",
   },
   { command: "nav-pilot export opencode", description: "Eksporter til .opencode/-format (OpenCode / oh-my-openagent)" },
   { command: "nav-pilot export opencode --user", description: "Eksporter til ~/.config/opencode/ (globalt)" },
@@ -2179,9 +2179,9 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
           </BodyLong>
           <CodeBlock compact>{`nav-pilot config set surveys false`}</CodeBlock>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            Noen undersøkelser nevnes i stedet med én linje når en økt starter. Du kan alltid svare selv med{" "}
-            <code className="font-mono text-xs">nav-pilot survey</code>, også når spørsmålene er slått av, etter at du
-            har sagt nei, eller etter tre spørsmål. Uten terminal lister kommandoen bare de åpne undersøkelsene. Har du
+            Noen undersøkelser nevner nav-pilot i stedet med én linje når en økt starter. Du kan alltid svare selv med{" "}
+            <code className="font-mono text-xs">nav-pilot survey</code>, også etter at du har svart aldri, etter tre
+            spørsmål, eller når surveys er false. Uten terminal lister kommandoen bare de åpne undersøkelsene. Har du
             svart før, sier den fra.
           </BodyLong>
           <BodyLong className="mt-2" size="small" style={{ color: "#64748b" }}>

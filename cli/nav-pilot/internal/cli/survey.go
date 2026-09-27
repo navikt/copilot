@@ -356,7 +356,7 @@ func cmdSurvey(jsonOutput bool) error {
 			return outputJSON(list)
 		}
 		if len(open) == 0 {
-			fmt.Println("No open surveys.")
+			fmt.Println("No open surveys right now.")
 			return nil
 		}
 		for _, d := range open {

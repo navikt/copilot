@@ -534,7 +534,7 @@ func run(args []string) error {
 			// menu, a declined launch or auto_launch = false), and not after
 			// nav-pilot itself failed; a client's own exit code is still a
 			// session that ended.
-			if _, clientExit := errors.AsType[*exec.ExitError](err); sessionClient != "" && (err == nil || clientExit) {
+			if sessionEndedCalmly(err) {
 				maybeSurvey(sessionClient)
 			}
 			return err
@@ -1086,6 +1086,27 @@ func run(args []string) error {
 		}
 		return fmt.Errorf("unknown command: %s. Run with --help for usage", command)
 	}
+}
+
+// sessionEndedCalmly reports whether a client ran and ended on its own: with
+// no error or its own exit code, but not interrupted (Ctrl-C, SIGTERM:
+// signalled, or the shell's 130 and 143 for them), which means stop.
+func sessionEndedCalmly(err error) bool {
+	if sessionClient == "" {
+		return false
+	}
+	if err == nil {
+		return true
+	}
+	exitErr, ok := errors.AsType[*exec.ExitError](err)
+	if !ok {
+		return false
+	}
+	if status, ok := exitErr.Sys().(syscall.WaitStatus); ok && status.Signaled() {
+		return false
+	}
+	code := exitErr.ExitCode()
+	return code != 130 && code != 143
 }
 
 // reexecGuardEnv marks a process as having already attempted a self re-exec

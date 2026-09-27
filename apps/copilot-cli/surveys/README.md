@@ -73,11 +73,11 @@ the secret the same day; copilot-cli warns at start while it is still there.
   served and takes answers only when `active` is true *and* today is within
   `starts`–`ends`. Setting it true is its own pull request, approved by the
   survey owner, after the checklist below.
-- `nudge`: where nav-pilot brings the survey up by itself. `calm` (default):
-  asks after a session ends. `start`: a one-line hint as a session starts,
-  pointing at `nav-pilot survey`. `off`: only `nav-pilot survey`. Either way at
-  most three times per person, and never without a terminal, in CI or when
-  opted out.
+- `nudge`: when nav-pilot mentions the survey unasked. `calm` (default) asks
+  after a session ends. `start` prints a one-line hint as a session starts,
+  pointing at `nav-pilot survey`. `off` leaves it to `nav-pilot survey`.
+  `calm` and `start` happen at most three times per person, and never without
+  a terminal, in CI or when opted out.
 - `starts`, `ends`: first and last day it takes answers (UTC).
 - `scale`: whole numbers from `min` to `max` (at most 11 steps). `labels`, if
   given, names every step. Stored as the number.
