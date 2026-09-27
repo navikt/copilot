@@ -162,21 +162,21 @@ hours before it tries again. Turn it off: nav-pilot config set auto_update false
 	"doctor": `Usage: nav-pilot doctor
 
 Check this machine and say what to fix: the config file, what is installed in
-~/.copilot and this repository, hooks, the coding agents and cplt, model
-pins, the cplt sandbox and git. Each problem comes with the
-command that fixes it. Reads only; changes nothing.
+~/.copilot and this repository, hooks, the clients (copilot, opencode, pi) and
+cplt, model pins, the cplt sandbox and git. Each problem comes with the command
+that fixes it. Reads only; changes nothing.
 
-Exit code is 0 also when it finds problems: read the Solution lines.
+Exits 0 even when it finds problems; read the Solution lines.
 `,
 	"env": `Usage: nav-pilot env
 
-Print the shell export that makes Copilot CLI read the instructions installed
+Print the shell export that makes the Copilot CLI read the instructions installed
 in ~/.copilot. Add it to your shell profile:
 
   eval "$(nav-pilot env)"
 
-Prints nothing on stdout until instructions are installed with
-nav-pilot install --user.
+Until instructions are installed (nav-pilot install --user) it prints nothing
+on stdout.
 `,
 	"init": `Usage: nav-pilot init [flags]
 
@@ -186,7 +186,7 @@ filled in from the stack it detects. Existing files are left alone.
 
 Flags:
   -t, --target <dir>      Another repository instead of this one
-  -f, --force             Overwrite files that exist
+  -f, --force             Overwrite existing files
   -n, --dry-run           Show what would be created
 `,
 	"export": `Usage: nav-pilot export opencode [flags]
@@ -206,7 +206,7 @@ Flags:
 	"feedback": `Usage: nav-pilot feedback [--feature]
 
 Open a new GitHub issue in navikt/copilot in your browser, with version and
-system details filled in. Prints the URL when no browser opens. Nothing is
+system details filled in. When no browser opens it prints the URL. Nothing is
 sent until you submit the issue.
 
 Flags:
@@ -282,7 +282,7 @@ var localHelp = map[string]string{
 	"init": `Usage: nav-pilot alpha local init [--yes]
 
 Set up local inference: the Python environment, the model's weights, the
-wired-memory limit, and a running server. Says how much it downloads and asks
+wired-memory limit and a running server. Says how much it downloads and asks
 before it downloads or runs sudo. With local_endpoint set, it checks that
 server instead and downloads nothing.
 
@@ -319,7 +319,8 @@ running, and which one is in use.
 	"use": `Usage: nav-pilot alpha local use <key|model-id>
 
 Pick the model the server loads (sets local_model). Then run
-nav-pilot alpha local init to download it, or restart if it is downloaded.
+nav-pilot alpha local init to download it, or nav-pilot alpha local restart if
+it is already downloaded.
 
 Exit codes: 0 set, 1 unknown model, 2 no model named.
 `,
@@ -330,7 +331,7 @@ Put one question to the running local model and print its answer, with token
 counts and time. Needs a running server: nav-pilot alpha local start.
 
 Flags:
-  -p, --prompt <text>     The question (or pass it as plain words, or on stdin)
+  -p, --prompt <text>     The question; plain words after ask, or stdin, also work
 `,
 	"on": `Usage: nav-pilot alpha local on
 
@@ -349,7 +350,7 @@ lists what it would remove and how big, and removes nothing. Stop the server
 first.
 
 Flags:
-  --yes                   Remove
+  --yes                   Remove without asking
   --all                   Every downloaded model's weights, not only the chosen one
 `,
 	"setup": `Usage: nav-pilot alpha local setup [flags]
@@ -365,7 +366,7 @@ Flags:
   --fix-context           Raise Ollama's context window
   --yes                   Save without asking; needed without a terminal
 
-Exit codes: 0 saved, 1 a check failed or no server found, 2 bad flags, or no
+Exit codes: 0 saved; 1 a check failed or no server found; 2 bad flags, or no
 terminal and no --yes.
 `,
 	"doctor": `Usage: nav-pilot alpha local doctor

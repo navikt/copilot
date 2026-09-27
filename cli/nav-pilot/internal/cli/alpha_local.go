@@ -86,7 +86,7 @@ Switching model:
 
 The list refreshes on init and start, and on first use; not on every command.
 
-Run nav-pilot alpha local <command> --help for one command's flags.
+Run nav-pilot alpha local <command> --help for a command's own flags.
 `)
 }
 
