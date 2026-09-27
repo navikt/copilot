@@ -1,0 +1,39 @@
+name: copilot-survey build-deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/copilot-survey/**'
+      - '.github/workflows/copilot-survey.yaml'
+      - '.github/workflows/mise-build-deploy-nais.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/copilot-survey/**'
+      - '.github/workflows/copilot-survey.yaml'
+      - '.github/workflows/mise-build-deploy-nais.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/mise-build-deploy-nais.yaml
+    with:
+      working-directory: apps/copilot-survey
+      mise-setup-tasks: '["install"]'
+      mise-tasks: '["lint", "check"]'
+      deploys-to-nais: true
+      # No PR deploys: the pod needs the copilot-survey secret, and a deploy
+      # while a survey is open drops queued answers.
+      deploy-pr-to-dev: false
+      nais-team: copilot
+      # dev-gcp only; prod-gcp is added when the survey owner enables prod.
+      nais-clusters: '["dev-gcp"]'
