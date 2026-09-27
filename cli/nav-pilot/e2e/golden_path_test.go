@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // Den gylne stien, ende til ende: lag pakke, valider, installer, synk.
@@ -165,8 +167,8 @@ func TestInstallWritesInsideTheSandbox(t *testing.T) {
 	src := e.pakke("plattform", "grillmester")
 	cons := e.consumer("forbruker")
 
-	real, err := os.UserHomeDir()
-	if err == nil && real == e.home {
+	// testhome.Run has already moved HOME; compare with the one it replaced.
+	if testhome.RealHome() == e.home {
 		t.Fatal("sandkassens HOME er utviklerens egen, da isolerer harnessen ingenting")
 	}
 
