@@ -126,9 +126,10 @@ jobs:
               - '.github/workflows/docs.yaml'
               - '.github/workflows/ci.yaml'
             # Files apps/my-copilot/src/link-inventory.test.ts scans for links
-            # to ki-utvikling.nav.no.
+            # to ki-utvikling.nav.no, and the MCP ids it checks ?item= against.
             link-guard:
               - 'apps/my-copilot/**'
+              - 'apps/mcp-registry/allowlist.json'
               - '**/*.md'
               - 'cli/**/*.go'
               - 'scripts/**'

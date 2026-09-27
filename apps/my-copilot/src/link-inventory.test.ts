@@ -24,9 +24,11 @@ import { LEGACY_ANCHORS } from "@/lib/legacy-anchors";
 import { getArticle, getLinkTarget } from "@/lib/news";
 import inventoryJson from "@/lib/link-inventory.json";
 import { autoLoginIgnorePaths, matches } from "../scripts/auto-login-ignore-paths.mjs";
+import manifest from "@/lib/copilot-manifest.json";
+import mcpAllowlist from "../../mcp-registry/allowlist.json";
 
 type Entry = { sources: string[]; anchors: Record<string, string[]> };
-type Found = { path: string; anchor?: string; source: string };
+type Found = { path: string; anchor?: string; item?: string; source: string };
 
 const inventory: Record<string, Entry> = inventoryJson;
 const APP_ROOT = path.resolve(__dirname, "..");
@@ -198,9 +200,11 @@ function parseLink(raw: string, source: string, base?: string): Found | undefine
   }
   if (link.startsWith("//") || /\$\{|%[sdv]/.test(link)) return undefined;
   const [beforeHash, anchor] = link.split("#");
-  let pathname = beforeHash.split("?")[0] || "/";
+  const [before, query] = beforeHash.split("?");
+  let pathname = before || "/";
   if (pathname.length > 1) pathname = pathname.replace(/\/$/, "");
-  return { path: pathname, anchor: anchor ? decodeURIComponent(anchor) : undefined, source };
+  const item = new URLSearchParams(query).get("item") ?? undefined;
+  return { path: pathname, anchor: anchor ? decodeURIComponent(anchor) : undefined, item, source };
 }
 
 // The route a file in src/app belongs to, for same-page #links.
@@ -405,6 +409,19 @@ describe("link inventory", () => {
       .filter((file) => fs.readFileSync(file, "utf-8").includes("//min-copilot.ansatt.nav.no"))
       .map(rel);
     expect(old, "Replace min-copilot.ansatt.nav.no with ki-utvikling.nav.no").toEqual([]);
+  });
+
+  // /verktoy?item=<id> opens one customization. An unknown id shows the
+  // catalog with nothing open, so the link looks fine and is not.
+  it("every /verktoy?item= link names an item that exists", () => {
+    const ids = new Set([
+      ...manifest.items.map((i) => i.id),
+      ...mcpAllowlist.servers.map((s) => `mcp-${s.name}`), // as in src/lib/mcp-registry.ts
+    ]);
+    const unknown = found
+      .filter((f) => f.path === "/verktoy" && f.item !== undefined && !ids.has(f.item))
+      .map((f) => `${f.item} (${f.source})`);
+    expect([...new Set(unknown)]).toEqual([]);
   });
 
   // A news article renders at /nyheter/<slug>, so a repo-relative link like
