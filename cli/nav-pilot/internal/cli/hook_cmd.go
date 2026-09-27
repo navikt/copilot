@@ -349,13 +349,20 @@ func init() { providerpkg.OpenCodeHookBridge = openCodeHookBridge }
 // entries give it nothing it did not have.
 func openCodeHookBridge(r ResolvedConfig) providerpkg.HookBridge {
 	var b providerpkg.HookBridge
-	bin := "nav-pilot"
-	if _, err := exec.LookPath(bin); err != nil {
-		// Not on PATH: the binary this launch runs, by absolute path.
-		if exe, err := os.Executable(); err == nil {
-			bin = exe
+	// An absolute path either way: a bare name is resolved inside the session,
+	// after a chdir, where a relative PATH entry would let a file in the repo
+	// answer for redaction. The PATH entry itself (a Homebrew symlink, say)
+	// survives an upgrade; the running binary's path is the fallback.
+	bin, err := exec.LookPath("nav-pilot")
+	if err == nil {
+		bin, err = filepath.Abs(bin)
+	}
+	if err != nil {
+		if bin, err = os.Executable(); err != nil {
+			bin = "nav-pilot"
 		}
 	}
+	b.Bin = bin
 	// builtinHooks lists the loop guard first, so redaction runs last and
 	// nothing another hook adds reaches the model unchecked.
 	for _, h := range builtinHooks {
@@ -388,6 +395,12 @@ func openCodeHookBridge(r ResolvedConfig) providerpkg.HookBridge {
 	dir := r.ProjectDir
 	if dir == "" {
 		dir = "."
+	}
+	// A user who turned off OpenCode's project config turned off the repo's
+	// own plugins, which is the argument for running its gates without a trust
+	// check; so they do not run either.
+	if os.Getenv("OPENCODE_DISABLE_PROJECT_CONFIG") != "" {
+		return b
 	}
 	if root := source.FindGitRoot(dir); root != "" {
 		b.Pre = append(b.Pre, bridgeHooks(source.PreToolUseHooks(filepath.Join(ScopeRepo(root).DstPath(KindHook.Dir), source.RepoHooksConfig)))...)

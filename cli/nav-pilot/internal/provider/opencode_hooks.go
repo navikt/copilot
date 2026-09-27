@@ -61,6 +61,8 @@ type HookBridge struct {
 	Pre           []BridgeHook `json:"pre,omitempty"`
 	LocalProvider string       `json:"localProvider,omitempty"`
 	ReadDirs      []string     `json:"-"`
+	// Bin is the nav-pilot the post hooks run, for the launch's exec check.
+	Bin string `json:"-"`
 }
 
 // OpenCodeHookBridge builds the hooks for a launch. The cli package sets it,
@@ -116,6 +118,9 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	if slices.Contains(r.ExtraArgs, "--pure") {
 		fmt.Fprintf(os.Stderr, "%s nav-pilot's hooks (redaction, loop guard, gates) do not run with --pure: opencode loads no plugins then.\n", domain.Yellow("⚠"))
 	}
+	if dir := filepath.Dir(b.Bin); len(b.Post) > 0 && filepath.IsAbs(b.Bin) && !underCpltExecRoot(dir) {
+		fmt.Fprintf(os.Stderr, "%s nav-pilot runs from %s, where the cplt sandbox may not let the session start it. If so, redaction withholds every tool output. Install nav-pilot under ~/.local/bin or Homebrew.\n", domain.Yellow("⚠"), dir)
+	}
 	cpltArgs = append(cpltArgs,
 		"--allow-read", filepath.Dir(plugin),
 		"--allow-write", OpenCodeHookStateDir(),
@@ -157,7 +162,10 @@ func withOpenCodeConfigContent(env []string, add map[string]any) []string {
 	}
 	for k, v := range add {
 		if list, ok := v.([]any); ok {
-			have, _ := cfg[k].([]any)
+			have, isList := cfg[k].([]any)
+			if one, isStr := cfg[k].(string); !isList && isStr {
+				have = []any{one}
+			}
 			for _, item := range list {
 				if !slices.Contains(have, item) {
 					have = append(have, item)
@@ -171,4 +179,24 @@ func withOpenCodeConfigContent(env []string, add map[string]any) []string {
 	out, _ := json.Marshal(cfg)
 	env, _ = telemetry.SetEnvValue(env, openCodeConfigContentEnv, string(out))
 	return env
+}
+
+// underCpltExecRoot reports whether dir is under a tree cplt lets a sandboxed
+// session execute from by default.
+//
+// ponytail: a copy of cplt's default exec roots (cplt --print-profile, macOS,
+// 2026.09.24); it only decides whether to warn, so a stale list costs a
+// needless warning or a missing one, never a launch.
+func underCpltExecRoot(dir string) bool {
+	home, _ := os.UserHomeDir()
+	roots := []string{"/opt/homebrew", "/usr/local", "/usr/bin", "/bin", "/usr/sbin", "/nix", "/home/linuxbrew/.linuxbrew"}
+	for _, r := range []string{".local/bin", "go/bin", ".cargo/bin", ".mise", ".bun", ".local/share/mise"} {
+		roots = append(roots, filepath.Join(home, r))
+	}
+	for _, r := range roots {
+		if domain.PathWithinRoot(r, dir) {
+			return true
+		}
+	}
+	return false
 }

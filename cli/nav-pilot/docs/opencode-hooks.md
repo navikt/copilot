@@ -32,18 +32,33 @@ Any other tool keeps its own name and arguments.
 
 ## Why redaction fails closed here
 
-In OpenCode, a plugin hook's answer controls what the model reads. Copilot's postToolUse can only ignore a hook that fails. So the OpenCode bridge withholds the output when redaction cannot run: the binary is missing, the hook times out (5 s), the answer is not JSON, or `nav-pilot hook redact` reports an error. The bridge asks for that report with `NAV_PILOT_HOOK_FAIL_CLOSED=1`, since otherwise the hook answers `{}` on every failure. The model gets a line that names the failure and how to turn redaction off. The loop guard and the gates fail open, as under Copilot, because a broken guard must not stop work.
+In OpenCode, a plugin hook's answer controls what the model reads. Copilot's postToolUse can only ignore a hook that fails. So the OpenCode bridge withholds the output when redaction cannot run: the binary cannot be started, the hook times out (5 s), the answer is not JSON, or `nav-pilot hook redact` reports an error. The bridge asks for that report with `NAV_PILOT_HOOK_FAIL_CLOSED=1`, since otherwise the hook answers `{}` on every failure. The model is told the output was withheld and to tell the user. How to turn redaction off is kept out of that text, as the loop guard's message keeps its threshold out. The loop guard and the gates fail open, as under Copilot, because a broken guard must not stop work.
+
+The hooks run the nav-pilot binary by absolute path: the one on PATH at launch, or the running binary. Under cplt the session may execute only from a few trees (Homebrew, `/usr/local`, `~/.local/bin`, `~/go/bin` and similar). A nav-pilot outside them cannot start, which would withhold every output, so the launch warns when the binary lives elsewhere.
+
+## Two more hops: thrown errors and interrupted calls
+
+Two kinds of tool text reach the model without `tool.execute.after`:
+- the error message of a tool that threw;
+- the partial output of a call the user interrupted, which OpenCode keeps in `metadata.output` and sends on the next turn.
+
+The plugin also implements `experimental.chat.messages.transform`, which OpenCode runs over the whole history before every model call and before compaction. It redacts both kinds of text there, fail-closed like the rest, and keeps each answer so a text is checked once per session. This was verified against opencode 1.18.32: a `read` of a missing file whose path held a GitHub token reached the model with the token masked. The hook is marked experimental in OpenCode, so a release that drops it reopens these two gaps; the version range check (#1027) is where that gets caught.
 
 ## Subagents
 
 `tool.execute.before` and `after` fire in every session, a subagent's child session included (verified against opencode 1.18.32: a `general` subagent's `cat` of a secret reached its model redacted). Redaction and the loop guard run there on purpose, because a secret a subagent reads reaches a model the same way. The gates also run there, as they do for Copilot subagents. The loop guard keeps one run per session and skips sessions on the local provider (`mlx`), where the guard proxy already ends the turn.
 
+A gate that answers `ask` is treated as `deny` with its reason. Under Copilot, `ask` asks the human, and a plugin has no one to ask. None of the shipped gates answers `ask`.
+
 ## Known gaps
 
-Read in the OpenCode 1.18.32 source (`packages/opencode/src/session/tools.ts`, `session/message-v2.ts`, `tool/code-mode.ts`):
+Read in the OpenCode 1.18.32 source (`packages/opencode/src/session/tools.ts`, `session/message-v2.ts`, `session/processor.ts`, `tool/code-mode.ts`):
 
-- **A tool that throws skips `tool.execute.after`.** The error message reaches the model unredacted. Built-in tools mostly throw with a path or a status; the case that matters is an MCP tool reporting `isError` in code mode, whose error text is its content.
-- **An interrupted `bash` call** (the user cancels it) hands the model the partial output from `metadata.output` without `tool.execute.after`.
 - **`--pure`** loads no plugins, so no hooks run. nav-pilot says so on stderr at launch.
-- The human sees unredacted output in the TUI (`metadata`), as with Copilot, because redaction changes what the model reads, not the terminal.
-- Repo gates run without Copilot's folder-trust check. OpenCode has no such check and already loads a repo's `.opencode/plugins` as code, so a repo's gate entries give it nothing new.
+- **Code mode** (`experimentalCodeMode`): a program sees an MCP result's `structuredContent` and `resource_link` names before redaction. What the program returns is redacted.
+- **Attachments** (images, PDFs from `read` or an MCP resource) go to the model as they are. Redaction works on text.
+- **The terminal** shows the human the unredacted output (`metadata`), as with Copilot, because redaction changes what the model reads, not the TUI.
+- **The hook state directory is writable from the session**, as Copilot's session directory is. An agent could reset its own loop guard, and spooled telemetry lines are enum-checked before they are recorded.
+- **The hooks' stderr is discarded**, because inheriting it would draw over the TUI. A tripped loop guard is still counted in telemetry.
+- An MCP result with many text items runs the hooks once per item.
+- Repo gates run without Copilot's folder-trust check. OpenCode has no such check and already loads a repo's `.opencode/plugins` as code, so a repo's gate entries give it nothing new. With `OPENCODE_DISABLE_PROJECT_CONFIG` set, repo gates are not run either.

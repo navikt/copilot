@@ -22,10 +22,12 @@
 // fails open (the call and its result go through), as under Copilot.
 import { spawn } from "node:child_process"
 
+// What the model reads when redaction could not run. How to turn redaction off
+// is left out on purpose: that is for the human (docs, `nav-pilot doctor`),
+// not an instruction a prompt-injected agent should be handed.
 const WITHHELD =
   "[nav-pilot: this tool output was withheld because the redaction hook failed (%s). " +
-  "Nothing was redacted, so nothing was shown. Run `nav-pilot doctor`, or turn redaction off with " +
-  "`nav-pilot config set hook_redact_secrets false` (and hook_redact_fnr, hook_injection_note).]"
+  "Nothing was redacted, so nothing was shown. Tell the user, and suggest `nav-pilot doctor`.]"
 
 // Not exported: opencode calls every export of a plugin module as a plugin.
 // opencode's tools under the names and argument keys Copilot CLI uses, which
@@ -67,6 +69,9 @@ function run(argv, payload, ms, cwd, env) {
       clearTimeout(timer)
       resolve(null)
     })
+    // Decoded as one stream: a multibyte character split across two chunks
+    // must not turn into U+FFFD in the text the model reads.
+    child.stdout.setEncoding("utf8")
     child.stdout.on("data", (d) => (out += d))
     child.on("close", (code) => {
       clearTimeout(timer)
@@ -110,6 +115,45 @@ export const NavPilotHooks = async ({ directory, worktree }) => {
   })
   const cwd = worktree && worktree !== "/" ? worktree : directory
   const providers = new Map()
+  const redact = post.filter((h) => h.failClosed)
+  const seen = new Map()
+
+  // postHooks runs the post hooks over one text in order, redaction last, and
+  // returns what the model should read.
+  const postHooks = async (sessionID, tool, args, text, hooks = post) => {
+    const [toolName, toolArgs] = toCopilot(tool, args)
+    let current = text
+    for (const h of hooks) {
+      if (h.skipLocal && cfg.localProvider && providers.get(sessionID) === cfg.localProvider) continue
+      const payload = { sessionId: sessionID, toolName, toolArgs, toolResult: { resultType: "success", textResultForLlm: current } }
+      const env = h.failClosed ? { NAV_PILOT_HOOK_FAIL_CLOSED: "1" } : {}
+      const out = await run(h.argv, payload, (h.timeout || 5) * 1000, cwd, env)
+      let answer
+      try {
+        answer = out === null ? null : JSON.parse(out)
+      } catch {
+        answer = null
+      }
+      const rewrite = answer?.modifiedResult?.textResultForLlm
+      const ok = answer !== null && typeof answer === "object" && !answer.error
+      if (!ok || (answer.modifiedResult && typeof rewrite !== "string")) {
+        if (h.failClosed) return WITHHELD.replace("%s", answer?.error ? String(answer.error) : `${h.name} did not answer`)
+        continue
+      }
+      if (typeof rewrite === "string") current = rewrite
+    }
+    return current
+  }
+
+  const redactOnce = async (part, text) => {
+    const key = part.callID + "\u0000" + text
+    if (!seen.has(key)) {
+      const out = await postHooks(part.sessionID, part.tool, part.state?.input, text, redact)
+      seen.set(key, out)
+      seen.set(part.callID + "\u0000" + out, out)
+    }
+    return seen.get(key)
+  }
 
   return {
     "chat.params": async (input) => {
@@ -129,7 +173,9 @@ export const NavPilotHooks = async ({ directory, worktree }) => {
           continue
         }
         const decision = answer?.permissionDecision ?? answer?.hookSpecificOutput?.permissionDecision
-        if (decision === "deny") {
+        // "ask" asks the human under Copilot; a plugin has no one to ask, so
+        // it refuses with the reason, which the model can relay.
+        if (decision === "deny" || decision === "ask") {
           throw new Error(
             answer.permissionDecisionReason ?? answer.hookSpecificOutput?.permissionDecisionReason ?? `denied by ${h.name}`,
           )
@@ -138,37 +184,27 @@ export const NavPilotHooks = async ({ directory, worktree }) => {
     },
     "tool.execute.after": async (input, output) => {
       if (!post.length) return
-      const [toolName, toolArgs] = toCopilot(input.tool, input.args)
       for (const [text, put] of texts(output)) {
-        let current = text
-        for (const h of post) {
-          if (h.skipLocal && cfg.localProvider && providers.get(input.sessionID) === cfg.localProvider) continue
-          const payload = {
-            sessionId: input.sessionID,
-            toolName,
-            toolArgs,
-            toolResult: { resultType: "success", textResultForLlm: current },
-          }
-          const env = h.failClosed ? { NAV_PILOT_HOOK_FAIL_CLOSED: "1" } : {}
-          const out = await run(h.argv, payload, (h.timeout || 5) * 1000, cwd, env)
-          let answer
-          try {
-            answer = out === null ? null : JSON.parse(out)
-          } catch {
-            answer = null
-          }
-          const rewrite = answer?.modifiedResult?.textResultForLlm
-          const ok = answer !== null && typeof answer === "object" && !answer.error
-          if (!ok || (answer.modifiedResult && typeof rewrite !== "string")) {
-            if (h.failClosed) {
-              current = WITHHELD.replace("%s", answer?.error ? String(answer.error) : `${h.name} did not answer`)
-              break
-            }
-            continue
-          }
-          if (typeof rewrite === "string") current = rewrite
+        const next = await postHooks(input.sessionID, input.tool, input.args, text)
+        if (next !== text) put(next)
+      }
+    },
+    // The last hop before every model call (and compaction). Two kinds of tool
+    // text reach the model without tool.execute.after: a tool that threw (its
+    // error message) and a tool the user interrupted (its partial output, kept
+    // in metadata). Redaction runs over those here; the loop guard does not,
+    // since neither is a result it should count. Each text is checked once and
+    // the answer kept, since the whole history passes through on every call.
+    "experimental.chat.messages.transform": async (_input, output) => {
+      if (!redact.length) return
+      for (const msg of output?.messages ?? []) {
+        for (const part of msg?.parts ?? []) {
+          const st = part?.type === "tool" ? part.state : undefined
+          if (st?.status !== "error") continue
+          if (typeof st.error === "string" && st.error) st.error = await redactOnce(part, st.error)
+          if (st.metadata?.interrupted === true && typeof st.metadata.output === "string")
+            st.metadata.output = await redactOnce(part, st.metadata.output)
         }
-        if (current !== text) put(current)
       }
     },
   }

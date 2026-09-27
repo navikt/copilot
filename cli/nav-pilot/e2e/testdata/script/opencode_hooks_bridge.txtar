@@ -51,6 +51,10 @@ stdout '^after clean: hello$'
 # The gate, with opencode's arguments put in Copilot's names.
 stdout '^before forbidden: denied: vakt says no$'
 stdout '^before fine: allowed$'
+# A thrown error and an interrupted call's partial output, redacted by the
+# messages transform.
+stdout '^transform error: .*\[REDACTED:github-token\]'
+stdout '^transform interrupted: .*\[REDACTED:github-token\]'
 # Redaction fails closed: no nav-pilot to run, so the output is withheld.
 stdout '^after broken: \[nav-pilot: this tool output was withheld because the redaction hook failed'
 ! stdout '^after broken: .*ghp_'
@@ -104,10 +108,23 @@ for (let i = 1; i <= 6; i++) {
   await hooks["tool.execute.after"]({ tool: "bash", sessionID: "ses_parent", callID: "l" + i, args: { command: "gh run list" } }, out)
   if (i === 6) console.log(`after loop: ${one(out.output)}`)
 }
-const path = process.env.PATH
-process.env.PATH = "/nonexistent"
-await after("broken", "bash", { title: "", output: secret, metadata: {} })
-process.env.PATH = path
+// A tool that threw, and one the user interrupted: redacted on the way to the
+// model by the messages transform.
+const msgs = { messages: [{ info: {}, parts: [
+  { type: "tool", tool: "webfetch", callID: "e1", sessionID: "ses_parent", state: { status: "error", input: {}, error: secret } },
+  { type: "tool", tool: "bash", callID: "e2", sessionID: "ses_parent", state: { status: "error", input: { command: "cat .env" }, error: "Cancelled", metadata: { interrupted: true, output: secret } } },
+] }] }
+await hooks["experimental.chat.messages.transform"]({}, msgs)
+console.log(`transform error: ${one(msgs.messages[0].parts[0].state.error)}`)
+console.log(`transform interrupted: ${one(msgs.messages[0].parts[1].state.metadata.output)}`)
+// Redaction that cannot run: the same plugin, handed a nav-pilot that is gone.
+const cfgHooks = JSON.parse(process.env.NAV_PILOT_OPENCODE_HOOKS)
+for (const h of cfgHooks.post) h.argv[0] = "/nonexistent/nav-pilot"
+process.env.NAV_PILOT_OPENCODE_HOOKS = JSON.stringify(cfgHooks)
+const broken = await mod.NavPilotHooks({ directory: process.cwd(), worktree: process.cwd() })
+const bout = { title: "", output: secret, metadata: {} }
+await broken["tool.execute.after"]({ tool: "bash", sessionID: "ses_b", callID: "b", args: {} }, bout)
+console.log(`after broken: ${one(bout.output)}`)
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
 -- plattform/agents/grillmester.agent.md --
