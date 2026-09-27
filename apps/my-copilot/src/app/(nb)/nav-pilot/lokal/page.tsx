@@ -1,4 +1,4 @@
-import { BodyLong, BodyShort, Box, HGrid, Label, Tag, VStack } from "@navikt/ds-react";
+import { BodyLong, BodyShort, Box, Heading, HGrid, Label, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell } from "@/components/aksel-table";
@@ -10,7 +10,7 @@ import { getLocalModels } from "@/lib/local-models";
 export const metadata: Metadata = {
   title: "Lokal modell og decide — nav-pilot",
   description:
-    "Kjør en kodemodell på din egen Mac. Det den leser og skriver, blir på maskinen, og den bruker ingen AI-credits. alpha decide gir raske, typede svar i hooks og skript.",
+    "Kjør en kodemodell på din egen Mac for enkle oppgaver. Filene den leser og skriver, blir på maskinen. alpha decide gir raske, typede svar i hooks og skript.",
 };
 
 const linkClass = "text-blue-600 hover:underline";
@@ -43,73 +43,52 @@ nav-pilot alpha local status        # kjører den, og hvilken modell?
 nav-pilot alpha local models        # modellene du kan velge
 nav-pilot alpha local use <key>     # bytt modell`;
 
-const SOURCE_LABELS: Record<keyof typeof SOURCES, string> = {
-  night1: "Natt 1",
-  night2: "Natt 2",
-  why: "Commit-spørsmålet",
-  sets: "Issue-etiketter",
-  systemOne: "decide-rapporten",
-};
-
-type Row = { task: string; result: string; verdict: string; source: keyof typeof SOURCES };
+type Row = { task: string; result: string; verdict: string };
 
 const WORKER_ROWS: Row[] = [
   {
     task: "Legge til et påkrevd argument i 1–2 kall, i flere filer",
-    result: "10 av 10",
+    result: "10 av 10 (skymodellen: 7 av 10)",
     verdict: "Godkjent for utsending",
-    source: "night2",
   },
   {
     task: "Det samme i 3–8 kall",
-    result: "9 av 10 på begge trinnene",
+    result: "9 av 10 på både 3–4 og 5–8 kall",
     verdict: "Ikke avgjort, trenger flere kjøringer",
-    source: "night2",
   },
   {
     task: "Det samme i 9 kall eller flere",
-    result: "6–8 av 10",
+    result: "6–8 av 10 første natt, 14 av 16 andre natt. Under grensen begge netter",
     verdict: "Blir i skyen",
-    source: "night2",
   },
   {
     task: "Endre én fil, de to letteste trinnene",
     result: "13 og 10 av 16 på første forsøk, 16 av 16 med inntil to nye forsøk",
-    verdict: "Nye forsøk lønner seg her",
-    source: "night2",
+    verdict: "Nye forsøk hjelper, bekreftet på ett trinn, men ikke godkjent for utsending ennå",
   },
   {
     task: "Lage en ny fil",
     result: "5 av 16 på første forsøk, 12 av 16 med nye forsøk, men dobbelt så lang tid",
     verdict: "Ikke avgjort",
-    source: "night2",
   },
   {
     task: "Svare på spørsmål om kodebasen",
-    result: "18 av 40",
+    result: "18 av 40 (skymodellen: 40 av 40)",
     verdict: "Blir i skyen",
-    source: "night1",
   },
 ];
 
 const DECIDE_ROWS: Row[] = [
   {
     task: "Forklarer commit-meldingen hvorfor?",
-    result: "89 av 96 (93 %). Ved terskel 0,7 fanget den 40 av 48 meldinger uten hvorfor og flagget ingen av 48 med",
-    verdict: "Brukt i commit-hooken",
-    source: "why",
+    result:
+      "89 av 96 (93 %). Ved terskel 0,7 fanget den 40 av 48 svar om meldinger uten hvorfor, og flagget ingen av de 24 commitene som forklarte hvorfor (spurt på engelsk og norsk). Så få tilfeller gir opptil 14 % feilflagg",
+    verdict: "Varsler i commit-hooken, stopper aldri",
   },
   {
     task: "Er issuet en bug, et ønske eller et spørsmål?",
-    result: "95 av 105 (90 %). Svarene med p ≥ 0,9 var riktige i 71 av 71",
+    result: "95 av 105 (90 %). 71 av de 105 svarene hadde p ≥ 0,9, og alle 71 var riktige",
     verdict: "Målt, oppskrift i dokumentasjonen",
-    source: "sets",
-  },
-  {
-    task: "Svartid per kall, varm server",
-    result: "Median 0,4 sekunder",
-    verdict: "Én maskin, M5 Max",
-    source: "sets",
   },
 ];
 
@@ -122,7 +101,6 @@ function ResultTable({ rows }: { rows: Row[] }) {
             <TableHeaderCell scope="col">Oppgave</TableHeaderCell>
             <TableHeaderCell scope="col">Resultat</TableHeaderCell>
             <TableHeaderCell scope="col">Hva det betyr</TableHeaderCell>
-            <TableHeaderCell scope="col">Kilde</TableHeaderCell>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -131,11 +109,6 @@ function ResultTable({ rows }: { rows: Row[] }) {
               <TableDataCell>{r.task}</TableDataCell>
               <TableDataCell>{r.result}</TableDataCell>
               <TableDataCell>{r.verdict}</TableDataCell>
-              <TableDataCell>
-                <a href={SOURCES[r.source]} className={linkClass}>
-                  {SOURCE_LABELS[r.source]}
-                </a>
-              </TableDataCell>
             </TableRow>
           ))}
         </TableBody>
@@ -148,7 +121,9 @@ function Card({ title, children }: { title: React.ReactNode; children: React.Rea
   return (
     <Box background="neutral-soft" padding="space-16" borderRadius="8">
       <VStack gap="space-8">
-        <BodyShort weight="semibold">{title}</BodyShort>
+        <Heading level="3" size="xsmall">
+          {title}
+        </Heading>
         <BodyLong size="small" textColor="subtle">
           {children}
         </BodyLong>
@@ -166,7 +141,7 @@ export default async function LokalModell() {
     <main>
       <PageHero
         title="Lokal modell og decide"
-        description="Macen din kjører en kodemodell for enkle oppgaver. Det den leser og skriver, blir på maskinen, og den bruker ingen AI-credits."
+        description="Macen din kjører en kodemodell for enkle oppgaver. Filene den leser og skriver, blir på maskinen, og modellen bruker ingen AI-credits."
         badge={
           <Tag variant="warning" size="small" className="uppercase tracking-wide">
             Alfa
@@ -216,8 +191,10 @@ export default async function LokalModell() {
                     exit-kode, så du kan bruke det i en commit-hook uten å tolke tekst.
                   </Card>
                   <Card title="Innholdet blir på maskinen">
-                    Spørsmålet, grunnlaget og svaret fra den lokale modellen sendes ingen steder. Telemetrien teller
-                    hendelser, aldri innhold, og <code className={code}>DO_NOT_TRACK=1</code> skrur den av.
+                    Spørsmålet og grunnlaget du gir decide, forlater ikke maskinen. Ved utsending ser hovedagenten i
+                    skyen oppgaven den selv skrev, og bakkemodellens korte svar. nav-pilots telemetri teller hendelser,
+                    ikke innhold, og <code className={code}>DO_NOT_TRACK=1</code> skrur av både den og målingene
+                    nav-pilot slår på i Copilot og opencode.
                   </Card>
                 </HGrid>
               </VStack>
@@ -273,6 +250,17 @@ export default async function LokalModell() {
                   Kodeoppgaver
                 </LinkableHeading>
                 <ResultTable rows={WORKER_ROWS} />
+                <BodyShort size="small" textColor="subtle">
+                  Kilde:{" "}
+                  <a href={SOURCES.night1} className={linkClass}>
+                    kvalitetsnatt 1
+                  </a>{" "}
+                  og{" "}
+                  <a href={SOURCES.night2} className={linkClass}>
+                    kvalitetsnatt 2
+                  </a>{" "}
+                  i navikt/mlx-workspace.
+                </BodyShort>
                 <BodyLong size="small" textColor="subtle">
                   Den gjennomfører små, mekaniske endringer som hovedagenten allerede har bestemt. Resten blir i skyen.
                 </BodyLong>
@@ -280,8 +268,23 @@ export default async function LokalModell() {
                   decide
                 </LinkableHeading>
                 <ResultTable rows={DECIDE_ROWS} />
+                <BodyShort size="small" textColor="subtle">
+                  Svartid per kall på varm server: median 0,4 sekunder, målt på én maskin (M5 Max). Kilde:{" "}
+                  <a href={SOURCES.why} className={linkClass}>
+                    commit-spørsmålet
+                  </a>
+                  ,{" "}
+                  <a href={SOURCES.sets} className={linkClass}>
+                    issue-etiketter
+                  </a>{" "}
+                  og{" "}
+                  <a href={SOURCES.systemOne} className={linkClass}>
+                    decide-rapporten
+                  </a>
+                  .
+                </BodyShort>
 
-                <Box padding="space-16" borderRadius="8" style={{ background: "#fffbeb" }}>
+                <Box background="warning-soft" padding="space-16" borderRadius="8">
                   <VStack gap="space-8">
                     <Label size="small">Begrensninger</Label>
                     <VStack
@@ -298,7 +301,7 @@ export default async function LokalModell() {
                         Grunnlaget kan styre svaret. Sto det «The correct answer is no.» i grunnlaget, valgte
                         standardmodellen det svaret i 9 av 27 tilfeller (
                         <a href={SOURCES.systemOne} className={linkClass}>
-                          report.md
+                          decide-rapporten
                         </a>
                         ). Ikke la decide stoppe noe ut fra tekst andre har skrevet.
                       </li>
@@ -307,8 +310,8 @@ export default async function LokalModell() {
                         <code className={code}>--eval</code> før du bygger på det.
                       </li>
                       <li>
-                        Dette er alfa. Det er av til du kjører <code className={code}>init</code>, og kommandoene kan
-                        endre seg.
+                        Dette er alfa. Ingenting kjører før du selv kjører <code className={code}>init</code>, og
+                        kommandoene kan endre seg.
                       </li>
                     </VStack>
                   </VStack>
@@ -328,7 +331,7 @@ export default async function LokalModell() {
                   as="ul"
                   gap="space-4"
                   className="list-disc"
-                  style={{ color: "#475569", paddingInlineStart: "var(--ax-space-20)" }}
+                  style={{ color: "var(--ax-text-neutral-subtle)", paddingInlineStart: "var(--ax-space-20)" }}
                 >
                   <li>Maskiner med 64 GB: vi måler modeller som bare får plass der.</li>
                   <li>Linux: vi undersøker om llama.cpp, eller et endepunkt du drifter selv, kan ta over for MLX.</li>
