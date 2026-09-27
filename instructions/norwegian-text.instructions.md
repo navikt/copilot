@@ -1,4 +1,5 @@
 ---
+description: "Minimumsregler for norsk markdown: Nav, ikke NAV, sammensatte ord, engelsk fagspråk, overskrifter og konsekvent bokmål."
 applyTo: "**/*.md"
 ---
 

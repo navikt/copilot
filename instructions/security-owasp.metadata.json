@@ -1,6 +1,6 @@
 {
   "displayName": "OWASP Top 10:2025",
-  "description": "Sikkerhetskritiske regler for all kode — peker til $security-owasp skill for detaljerte mønstre",
+  "description": "Peker til $security-owasp-skillen for detaljerte OWASP-mønstre. Kjernereglene ligger i Sikkerhetskjerne, som alltid er lastet",
   "domain": "auth",
   "tags": ["security", "owasp", "kotlin", "go", "java", "nodejs", "typescript"],
   "examples": [

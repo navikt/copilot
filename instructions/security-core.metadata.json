@@ -1,0 +1,10 @@
+{
+  "displayName": "Sikkerhetskjerne",
+  "description": "Sikkerhetsregler som alltid gjelder: ingen hemmeligheter eller personopplysninger i logger, hemmeligheter fra miljøet, parameteriserte spørringer, eierskapssjekk, azp-validering og TLS",
+  "domain": "auth",
+  "tags": ["security", "owasp", "secrets", "logging", "pii"],
+  "examples": [
+    "Sørg for at ingen tokens eller fødselsnummer havner i loggene",
+    "Sjekk at endepunktet verifiserer at brukeren eier ressursen"
+  ]
+}
