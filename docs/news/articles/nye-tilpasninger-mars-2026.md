@@ -87,4 +87,4 @@ Seks filer har fått nytt innhold:
 
 ## Installer
 
-Alle tilpasninger er tilgjengelige fra [verktøysiden](https://min-copilot.ansatt.nav.no/verktoy) med ett-klikk-installasjon for VS Code. Du kan også kopiere filene manuelt til `.github/`-mappa i repoet ditt.
+Alle tilpasninger er tilgjengelige fra [verktøysiden](https://ki-utvikling.nav.no/verktoy) med ett-klikk-installasjon for VS Code. Du kan også kopiere filene manuelt til `.github/`-mappa i repoet ditt.
