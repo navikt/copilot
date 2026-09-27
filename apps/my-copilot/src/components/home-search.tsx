@@ -20,7 +20,7 @@ export function HomeSearch() {
       className="home-search max-w-md hero-animate-d2"
     >
       <MagnifyingGlassIcon aria-hidden fontSize="1.5rem" />
-      Søk i nav-pilot og nyhetene
+      Søk i sidene om nav-pilot og i nyhetene
     </button>
   );
 }

@@ -82,6 +82,8 @@ export function SiteSearch({ label }: { label: string }) {
     const cmdK = e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey;
     const slash = e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !isTyping(e.target);
     if (!cmdK && !slash) return;
+    // Not on top of another dialog, such as the «Meny» panel.
+    if (!open && document.querySelector('[role="dialog"][aria-modal="true"]')) return;
     e.preventDefault();
     onOpenChange(true);
   });
@@ -113,9 +115,11 @@ export function SiteSearch({ label }: { label: string }) {
     index === "error"
       ? "Søket er ikke tilgjengelig nå. Prøv igjen senere."
       : !index
-        ? "Henter søket …"
+        ? "Laster …"
         : term
-          ? `${found.length} treff`
+          ? found.length
+            ? `${found.length} treff`
+            : "Ingen treff. Enter søker i verktøykatalogen."
           : "Søk i sidene om nav-pilot og i nyhetene.";
 
   return (
@@ -175,12 +179,7 @@ export function SiteSearch({ label }: { label: string }) {
             />
           </Dialog.Header>
           <Dialog.Body>
-            <BodyShort
-              role="status"
-              aria-live="polite"
-              size="small"
-              className="mb-1 text-[var(--ax-text-neutral-subtle)]"
-            >
+            <BodyShort role="status" size="small" className="mb-1 text-[var(--ax-text-neutral-subtle)]">
               {status}
             </BodyShort>
             <ul role="listbox" id={`${id}-list`} aria-label="Treff" className="list-none">

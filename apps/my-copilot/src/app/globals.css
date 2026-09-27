@@ -811,11 +811,11 @@ button.section-link {
   padding-inline: var(--ax-space-12);
   border: 1px solid var(--ax-border-neutral);
   border-radius: var(--ax-radius-4);
-  background: #fff;
-  color: #49515e;
+  background: var(--ax-bg-default);
+  color: var(--ax-text-neutral-subtle);
   font-size: 1rem;
   text-align: left;
-  cursor: text;
+  cursor: pointer;
 }
 .home-search:hover {
   border-color: #fff;
