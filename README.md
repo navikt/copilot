@@ -37,7 +37,7 @@ Alle tilpasninger finnes på **[verktøysida](https://min-copilot.ansatt.nav.no/
 
 ```bash
 # Installer nav-pilot CLI (macOS)
-brew install navikt/tap/nav-pilot
+brew install navikt/tap/nav-pilot navikt/tap/cplt
 # eller: mise use -g 'github:navikt/copilot[exe=nav-pilot,version_prefix=nav-pilot/]@<versjon>'
 
 # Installer Nav-agentpakka i repoet ditt

@@ -3,14 +3,7 @@
 import { useState } from "react";
 import { CopyButton } from "@navikt/ds-react";
 import { CodeBlock } from "@/components/code-block";
-
-const APT_COMMAND = [
-  "curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \\",
-  "  | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null",
-  'echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \\',
-  "  | sudo tee /etc/apt/sources.list.d/navikt.list",
-  "sudo apt update && sudo apt install nav-pilot cplt",
-].join("\n");
+import { NAV_PILOT_APT_INSTALL } from "@/lib/install-commands";
 
 const INSTALL_SCRIPT_COMMAND =
   "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash";
@@ -46,7 +39,7 @@ export function AltInstall() {
             <strong>Debian og Ubuntu:</strong> installer fra apt-arkivet. Det er anbefalt vei på Linux, og du får både
             nav-pilot og cplt.
           </div>
-          <CodeBlock compact>{APT_COMMAND}</CodeBlock>
+          <CodeBlock compact>{NAV_PILOT_APT_INSTALL}</CodeBlock>
           <div style={{ marginTop: "0.375rem", fontSize: "0.7rem", color: "#64748b", lineHeight: "1.5" }}>
             Arkivet oppdateres hver time fra den nyeste releasen, så en release som nettopp er kuttet kan bruke opptil
             en time på å bli installerbar. Det er et vanlig apt-arkiv som speiler releasene våre, ikke en distropakke

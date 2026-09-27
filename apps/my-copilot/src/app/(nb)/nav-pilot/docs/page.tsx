@@ -2,6 +2,7 @@ import { Heading, BodyShort, BodyLong, Box, HGrid, HStack, Label, VStack, Tag } 
 import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell } from "@/components/aksel-table";
 import { CodeBlock } from "@/components/code-block";
 import { AltInstall } from "@/components/alt-install";
+import { NAV_PILOT_BREW_INSTALL, NAV_PILOT_BREW_UPGRADE } from "@/lib/install-commands";
 import { FileExplorer } from "@/components/file-explorer";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { PageHero } from "@/components/page-hero";
@@ -741,7 +742,7 @@ function QuickStartSection() {
                 Installer nav-pilot CLI
               </Label>
             </div>
-            <CodeBlock compact>{`brew install navikt/tap/nav-pilot navikt/tap/cplt`}</CodeBlock>
+            <CodeBlock compact>{NAV_PILOT_BREW_INSTALL}</CodeBlock>
             <AltInstall />
             <BodyLong className="mt-3" size="small" style={{ color: "#64748b" }}>
               Valgfritt for zsh eller bash: Legg{" "}
@@ -2218,8 +2219,10 @@ function LocalModelSection({ models }: { models: LocalModel[] }) {
             Kom i gang
           </LinkableHeading>
           <BodyShort size="small" textColor="subtle">
-            Første <code className="font-mono text-xs">start</code> laster modellen inn i minnet. Ti målte oppstarter på
-            seks maskiner lå alle under 50 sekunder, seks av dem under ti.
+            <code className="font-mono text-xs">init</code> starter serveren til slutt, så du trenger ikke kjøre{" "}
+            <code className="font-mono text-xs">start</code> etterpå. Den trenger du etter en omstart av maskinen.
+            Første oppstart laster modellen inn i minnet. Ti målte oppstarter på seks maskiner lå alle under 50
+            sekunder, seks av dem under ti.
           </BodyShort>
           <BodyShort size="small" textColor="subtle">
             <code className="font-mono text-xs">init</code> viser hva den skal laste ned, og om den trenger{" "}
@@ -2227,9 +2230,9 @@ function LocalModelSection({ models }: { models: LocalModel[] }) {
             terminal nekter den, med mindre du sender med <code className="font-mono text-xs">--yes</code>.
           </BodyShort>
           <CodeBlock compact>
-            {`nav-pilot alpha local init      # laster ned modellen og setter opp miljøet
+            {`nav-pilot alpha local init      # laster ned modellen, setter opp miljøet og starter serveren
 nav-pilot alpha local init --yes # det samme fra et skript, uten å spørre
-nav-pilot alpha local start     # starter serveren
+nav-pilot alpha local start     # starter serveren igjen etter en omstart av maskinen
 nav-pilot alpha local status    # kjører den? svarer den? hvilken modell? hva har den gjort?
 nav-pilot alpha local models    # modellene som tilbys, og hvilken som er i bruk
 nav-pilot alpha local use <key> # velg modellen serveren laster
@@ -2859,12 +2862,12 @@ function CliReferenceSection() {
           <div className="mt-4">
             <VStack gap="space-12">
               <div>
-                <CodeBlock compact>{`brew install navikt/tap/nav-pilot`}</CodeBlock>
+                <CodeBlock compact>{NAV_PILOT_BREW_INSTALL}</CodeBlock>
                 <AltInstall />
               </div>
               <BodyLong size="small" style={{ color: "#64748b" }}>
-                Installer også <code className="font-mono text-xs">cplt</code> før du starter en agent. Sandboxing er et
-                krav på Nav-utstyr.
+                Kommandoen installerer også <code className="font-mono text-xs">cplt</code>, som kjører agenten i en
+                sandkasse. Sandboxing er et krav på Nav-utstyr.
               </BodyLong>
             </VStack>
           </div>
@@ -2881,7 +2884,7 @@ function CliReferenceSection() {
           <div className="mt-4 space-y-3">
             {[
               { label: "Selvoppdatering", cmd: "nav-pilot upgrade" },
-              { label: "Via Homebrew (macOS)", cmd: "brew upgrade navikt/tap/nav-pilot" },
+              { label: "Via Homebrew (macOS)", cmd: NAV_PILOT_BREW_UPGRADE },
               {
                 label: "Via apt (Debian, Ubuntu)",
                 cmd: "sudo apt update && sudo apt upgrade nav-pilot",

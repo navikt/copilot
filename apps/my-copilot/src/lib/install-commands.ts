@@ -1,5 +1,17 @@
 import type { Agent, AnyCustomization, CustomizationType } from "./customization-types";
 
+// The nav-pilot and cplt install commands, shared by every page that shows them
+// so the landing page, docs, lokal and the setup wizard can't drift apart.
+export const NAV_PILOT_BREW_INSTALL = "brew install navikt/tap/nav-pilot navikt/tap/cplt";
+export const NAV_PILOT_BREW_UPGRADE = "brew upgrade navikt/tap/nav-pilot";
+export const NAV_PILOT_APT_INSTALL = [
+  "curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \\",
+  "  | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null",
+  'echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \\',
+  "  | sudo tee /etc/apt/sources.list.d/navikt.list",
+  "sudo apt update && sudo apt install nav-pilot cplt",
+].join("\n");
+
 export const INSTALL_DIRS: Record<Exclude<CustomizationType, "mcp">, string> = {
   agent: ".github/agents",
   instruction: ".github/instructions",
