@@ -54,6 +54,11 @@ exec nav-pilot alpha local ask --help
 stdout '^Usage: nav-pilot alpha local ask'
 ! stderr .
 
+# For ask the words are the question: a -h inside it is not help.
+! exec nav-pilot alpha local ask what does -h mean
+! stdout 'Usage:'
+stderr 'no local server is running'
+
 exec nav-pilot help alpha local purge
 stdout '^Usage: nav-pilot alpha local purge'
 

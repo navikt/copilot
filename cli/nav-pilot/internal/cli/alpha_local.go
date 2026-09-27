@@ -114,7 +114,7 @@ func cmdAlpha(args []string) error {
 		sub = args[1]
 	}
 	// ask and setup reach here with their flags unparsed, so --help too.
-	if _, ok := localHelp[sub]; ok && wantsHelp(args[2:]) {
+	if _, ok := localHelp[sub]; ok && wantsHelp(sub, args[2:]) {
 		alphaHelp(os.Stdout, args)
 		return nil
 	}

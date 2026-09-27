@@ -56,20 +56,26 @@ func TestEveryCommandHasItsOwnHelp(t *testing.T) {
 	}
 }
 
-// A -h after -p is the question, not a request for help.
+// For ask the words are the question: only a leading -h is help, and a -h
+// after -p is the question.
 func TestWantsHelp(t *testing.T) {
 	for _, c := range []struct {
+		sub  string
 		args []string
 		want bool
 	}{
-		{nil, false},
-		{[]string{"--help"}, true},
-		{[]string{"--model", "x", "-h"}, true},
-		{[]string{"-p", "-h"}, false},
-		{[]string{"--prompt", "--help"}, false},
+		{"setup", nil, false},
+		{"setup", []string{"--help"}, true},
+		{"setup", []string{"--model", "x", "-h"}, true},
+		{"ask", []string{"--help"}, true},
+		{"ask", []string{"-h"}, true},
+		{"ask", []string{"-p", "-h"}, false},
+		{"ask", []string{"--prompt", "--help"}, false},
+		{"ask", []string{"what", "does", "-h", "mean"}, false},
+		{"ask", []string{"what", "--help"}, false},
 	} {
-		if got := wantsHelp(c.args); got != c.want {
-			t.Errorf("wantsHelp(%q) = %v, want %v", c.args, got, c.want)
+		if got := wantsHelp(c.sub, c.args); got != c.want {
+			t.Errorf("wantsHelp(%q, %q) = %v, want %v", c.sub, c.args, got, c.want)
 		}
 	}
 }
@@ -103,12 +109,12 @@ func switchCases(t *testing.T, file, marker string) []string {
 // to a dispatch switch and not to the list fails here, so it cannot skip
 // the help test.
 func TestDispatchListsMatchTheSwitches(t *testing.T) {
-	for _, name := range switchCases(t, "cli.go", "\tswitch command {\n") {
+	for _, name := range switchCases(t, "cli.go", "\n\tswitch command {\n") {
 		if !strings.HasPrefix(name, "-") && !slices.Contains(dispatchedCommands, name) {
 			t.Errorf("run dispatches %q, which is not in dispatchedCommands", name)
 		}
 	}
-	for _, name := range switchCases(t, "alpha_local.go", "\tswitch sub {\n") {
+	for _, name := range switchCases(t, "alpha_local.go", "\n\tswitch sub {\n") {
 		if name != "" && name != "help" && !slices.Contains(localCommands, name) {
 			t.Errorf("cmdAlpha dispatches alpha local %q, which is not in localCommands", name)
 		}

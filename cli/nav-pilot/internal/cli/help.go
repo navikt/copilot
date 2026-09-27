@@ -393,8 +393,13 @@ func alphaHelp(w io.Writer, args []string) {
 	alphaUsage(w)
 }
 
-// wantsHelp reports whether args ask for help. A -h after -p is the question.
-func wantsHelp(args []string) bool {
+// wantsHelp reports whether args, the words after alpha local sub, ask for
+// help. For ask the words are the question, so only a leading -h/--help is
+// help: "ask what does -h mean" asks. A -h after -p is the question too.
+func wantsHelp(sub string, args []string) bool {
+	if sub == "ask" && len(args) > 1 {
+		args = args[:1]
+	}
 	for i, a := range args {
 		if (a == "-h" || a == "--help") && (i == 0 || (args[i-1] != "-p" && args[i-1] != "--prompt")) {
 			return true
