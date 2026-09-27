@@ -27,6 +27,21 @@ const securityHeaders = [
   },
 ];
 
+// The app was called min-copilot until 2026. The old ingresses stay in
+// .nais/*.yaml so old links keep working; this sends them to the new name.
+// Paths that must stay on the host they came in on are left alone:
+// /oauth2 (Wonderwall, which answers before Next anyway), /api, /internal,
+// /health (probes use the pod IP and never match; kept for manual checks).
+// Next never redirects /_next itself, so assets for pages already open on the
+// old host keep loading.
+const OLD_HOSTS: Record<string, string> = {
+  "min-copilot.intern.nav.no": "ki-utvikling.nav.no",
+  "min-copilot.ansatt.nav.no": "ki-utvikling.nav.no",
+  "min-copilot.intern.dev.nav.no": "ki-utvikling.ekstern.dev.nav.no",
+  "min-copilot.ansatt.dev.nav.no": "ki-utvikling.ekstern.dev.nav.no",
+};
+const HOST_REDIRECT_SOURCE = "/:path((?!(?:oauth2|api|internal|health)(?:/|$)).*)";
+
 const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: ["pino", "thread-stream", "@google-cloud/bigquery"],
@@ -48,6 +63,14 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // Next matches `host` against the Host header, which the ingress and
+      // Wonderwall pass through unchanged. The query string is kept.
+      ...Object.entries(OLD_HOSTS).map(([oldHost, newHost]) => ({
+        source: HOST_REDIRECT_SOURCE,
+        has: [{ type: "host" as const, value: oldHost }],
+        destination: `https://${newHost}/:path`,
+        permanent: true,
+      })),
       { source: "/en", destination: "/en/news", permanent: false },
       // /nyheter has no index page; the news list is the front page. It used to
       // answer 200 with the not-found body, so old links to it exist.

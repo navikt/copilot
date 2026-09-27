@@ -85,7 +85,9 @@ function matchRoute(pathname: string): Route | undefined {
   return routes.find((r) => fits(r, false)) ?? routes.find((r) => fits(r, true));
 }
 
-const redirects = await nextConfig.redirects!();
+// Host redirects (old min-copilot hosts) never change a path on the site's own
+// host, so the inventory skips them; src/host-redirect.test.ts covers them.
+const redirects = (await nextConfig.redirects!()).filter((r) => !r.has);
 
 // Where a path ends up: a page, a route handler or a public file. Returns an
 // error message when it does not resolve.
