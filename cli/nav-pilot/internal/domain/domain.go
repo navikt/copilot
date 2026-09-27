@@ -37,6 +37,9 @@ type Config struct {
 	RtkPromptedClient *string `toml:"rtk_prompted_client"`
 	RtkPromptedAt     *string `toml:"rtk_prompted_at"`
 	AutoUpdate        *bool   `toml:"auto_update"`
+	// Surveys lets nav-pilot ask, now and then, whether you want to answer a
+	// short user survey. false never asks.
+	Surveys *bool `toml:"surveys"`
 	// LocalEnabled is the alpha opt-in for local inference. Unset and false
 	// both mean off, and off means a developer sees no trace of it anywhere:
 	// no local models in the picker, no branch taken on any launch path.
@@ -107,6 +110,7 @@ type ResolvedConfig struct {
 	RtkPromptedClient  string   // comma-separated list of clients where the RTK setup was prompted
 	RtkPromptedAt      string   // RFC3339 timestamp of when the user was last prompted
 	AutoUpdate         bool     // true to bypass upgrade prompt
+	Surveys            bool     // false: never ask to answer a survey
 	LocalEnabled       bool     // local inference opt-in (alpha)
 	LocalAutostart     bool     // start the local server on demand at launch
 	LocalLoopGuard     int      // identical consecutive tool calls that end a local turn; 0 = built-in default

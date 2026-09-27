@@ -1,0 +1,52 @@
+# "Later" asks again after a while, three times in all, then never again.
+# "Never" ends it at once. Enter, Esc and Ctrl-C all mean later.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+env NAV_PILOT_TELEMETRY_ENABLED=true
+env DO_NOT_TRACK=
+env NAV_PILOT_TELEMETRY_ENDPOINT=http://127.0.0.1:9/v1/metrics
+env NAV_PILOT_E2E_GITHUB_TOKEN=gho_e2e
+fake-survey
+fake-bin cplt copilot
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+exec nav-pilot config set rtk_prompted_client copilot
+
+# The wait between asks, shortened for the journey.
+env NAV_PILOT_E2E_SURVEY_GAP=0s
+
+exec pty-run -wait 'asked 1 of 3' -send '\r' -- nav-pilot
+stdout 'nav-pilot will ask again in a few days'
+exec pty-run -wait 'asked 2 of 3' -send '\x1b' -- nav-pilot
+stdout 'nav-pilot will ask again in a few days'
+exec pty-run -wait 'asked 3 of 3' -send '\r' -- nav-pilot
+stdout 'That was the last time nav-pilot asks about this survey'
+exec pty-run -- nav-pilot
+! stdout 'User survey'
+! exists $WORK/survey-posts.log
+
+# A fresh start, and never.
+rm $HOME/surveys.json
+exec pty-run -wait 'asked 1 of 3' -send '\x1b[B\r' -- nav-pilot
+stdout 'won.t ask about this survey again'
+stdout 'nav-pilot config set surveys false'
+exec pty-run -- nav-pilot
+! stdout 'User survey'
+! exists $WORK/survey-posts.log
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

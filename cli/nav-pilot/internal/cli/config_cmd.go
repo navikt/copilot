@@ -123,6 +123,14 @@ var configKeyDefs = []configKeyDef{
 		flag:        "",
 	},
 	{
+		name:        "surveys",
+		kind:        keyKindBool,
+		description: "Now and then, after a session, ask whether you want to answer a short user survey (at most three times per survey). Set to false to never be asked. DO_NOT_TRACK and NAV_PILOT_TELEMETRY_ENABLED=false turn it off too.",
+		allowed:     nil,
+		defaultVal:  "true",
+		flag:        "",
+	},
+	{
 		name:        "log_level",
 		kind:        keyKindString,
 		description: "Log level for Copilot CLI output.",
@@ -377,6 +385,11 @@ version = 1
 # interactive prompt.
 # Default: false
 # auto_update = false
+
+# Now and then, after a session, ask whether you want to answer a short user
+# survey (at most three times per survey). false never asks.
+# Default: true
+# surveys = true
 
 # Log level for Copilot CLI output.
 # Allowed: none, error, warning, info, debug, all, default — Default: unset
@@ -751,6 +764,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return strconv.FormatBool(r.AutoLaunch)
 	case "auto_update":
 		return strconv.FormatBool(r.AutoUpdate)
+	case "surveys":
+		return strconv.FormatBool(r.Surveys)
 	case "log_level":
 		return r.LogLevel
 	case "otel_log_level":

@@ -112,6 +112,7 @@ func TestScripts(t *testing.T) {
 			"fake-gh":           cmdFakeGH,
 			"fake-endpoint":     cmdFakeEndpoint,
 			"fake-mcp-registry": cmdFakeMCPRegistry,
+			"fake-survey":       cmdFakeSurvey,
 		},
 	})
 }

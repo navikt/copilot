@@ -1,0 +1,73 @@
+# Never a survey prompt without someone at a terminal who has not said no:
+# not in CI, not on a launch with client args after --, not with
+# surveys = false or DO_NOT_TRACK, and not without a way to sign in.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+env NAV_PILOT_TELEMETRY_ENABLED=true
+env DO_NOT_TRACK=
+env NAV_PILOT_TELEMETRY_ENDPOINT=http://127.0.0.1:9/v1/metrics
+env NAV_PILOT_E2E_GITHUB_TOKEN=gho_e2e
+fake-survey
+fake-bin cplt copilot
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+exec nav-pilot config set rtk_prompted_client copilot
+env NAV_PILOT_E2E_SURVEY_GAP=0s
+
+# CI, even in a terminal.
+env CI=true
+exec pty-run -- nav-pilot
+! stdout 'User survey'
+env CI=
+
+# Headless: client args after --, even in a terminal.
+exec pty-run -- nav-pilot -- -p hei
+! stdout 'User survey'
+
+# surveys = false.
+exec nav-pilot config set surveys false
+exec pty-run -- nav-pilot
+! stdout 'User survey'
+exec nav-pilot config unset surveys
+
+# DO_NOT_TRACK.
+env DO_NOT_TRACK=1
+exec pty-run -- nav-pilot
+! stdout 'User survey'
+env DO_NOT_TRACK=
+
+# NAV_PILOT_TELEMETRY_ENABLED=false.
+env NAV_PILOT_TELEMETRY_ENABLED=false
+exec pty-run -- nav-pilot
+! stdout 'User survey'
+env NAV_PILOT_TELEMETRY_ENABLED=true
+
+# Not signed in, and no GitHub App to sign in with.
+env NAV_PILOT_E2E_GITHUB_TOKEN=
+exec pty-run -- nav-pilot
+! stdout 'User survey'
+env NAV_PILOT_E2E_GITHUB_TOKEN=gho_e2e
+
+! exists $WORK/survey-posts.log
+! exists $HOME/surveys.json.tmp
+
+# And with nothing holding it back, it asks: the journey above proves something.
+exec pty-run -wait 'asked 1 of 3' -send '\r' -- nav-pilot
+stdout 'User survey'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

@@ -1678,6 +1678,12 @@ const CONFIG_KEYS = [
     desc: "Oppgrader nav-pilot automatisk når en ny versjon er ute, uten å spørre. Feiler oppgraderingen, kjører kommandoen på versjonen du har, og neste forsøk kommer etter 24 timer.",
   },
   {
+    key: "surveys",
+    flag: "—",
+    values: "true · false (standard: true)",
+    desc: "Spør av og til, etter en økt, om du vil svare på en kort brukerundersøkelse (høyst tre ganger per undersøkelse). Med false spør nav-pilot aldri. DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false slår det også av.",
+  },
+  {
     key: "log_level",
     flag: "--log-level",
     values: "none · error · warning · info · debug · all · default",

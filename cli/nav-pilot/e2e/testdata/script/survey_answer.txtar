@@ -1,0 +1,61 @@
+# After an interactive session, and only in a terminal, nav-pilot asks about
+# an open survey, says what is sent before any question, and sends the
+# answers with the GitHub sign-in. The payload is the answers and five enums:
+# no device id, nothing from the session. A second answer to the same survey
+# is refused by copilot-cli and said so plainly.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+env NAV_PILOT_TELEMETRY_ENABLED=true
+env DO_NOT_TRACK=
+env NAV_PILOT_TELEMETRY_ENDPOINT=http://127.0.0.1:9/v1/metrics
+env NAV_PILOT_E2E_GITHUB_TOKEN=gho_e2e
+fake-survey
+fake-bin cplt copilot
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+exec nav-pilot config set rtk_prompted_client copilot
+
+# No terminal: no survey, and copilot-cli is not even asked.
+exec nav-pilot -- -p hei
+! stdout 'User survey'
+! exists $WORK/survey-gets.log
+
+# Terminal: the session ends, then the question, with what is sent. Enter
+# alone means later; answering takes a step up.
+exec pty-run -wait 'User survey: E2E survey \(2 questions, asked 1 of 3\)' -send '\x1b[A\r' -wait 'How useful is nav-pilot' -send '\x1b[B\x1b[B\x1b[B\r' -wait 'Anything else' -send 'works fine\r' -- nav-pilot
+stdout 'Sent: your answers, nav-pilot version, OS and CPU type, which client you use'
+stdout 'Not sent: your name, GitHub user, device id, code or anything from your sessions'
+stdout 'Thank you! Your answers were sent'
+grep -count=1 '^POST 201 bearer=true keys=answers,context context=arch,client,local_models,os,version device_id_leak=no ' $WORK/survey-posts.log
+grep '"answers":\{"comment":"works fine","useful":4\}' $WORK/survey-posts.log
+grep '"client":"copilot","local_models":false' $WORK/survey-posts.log
+! grep 'hei|repo|plattform|e2e@example' $WORK/survey-posts.log
+
+# Answered: never asked again.
+exec pty-run -- nav-pilot
+! stdout 'User survey'
+
+# The same person again, from a fresh machine state: copilot-cli says 409.
+rm $HOME/surveys.json
+exec pty-run -wait 'User survey' -send '\x1b[A\r' -wait 'How useful' -send '\r' -wait 'Anything else' -send '\r' -- nav-pilot
+stdout 'You have already answered this survey, so these answers were not sent'
+grep -count=1 '^POST 409 ' $WORK/survey-posts.log
+
+-- home/device-id --
+nav-pilot-0123456789ab
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

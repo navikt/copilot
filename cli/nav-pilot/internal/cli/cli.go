@@ -524,9 +524,16 @@ func run(args []string) error {
 
 	if len(args) < 1 {
 		if isInteractive() {
-			return runWithCommandTelemetry("startup", telemetryMode(), "auto", func() error {
+			err := runWithCommandTelemetry("startup", telemetryMode(), "auto", func() error {
 				return cmdInteractive(cliOverrides)
 			})
+			// The session is over: the one calm moment to ask about a
+			// survey. Not after nav-pilot itself failed or was cancelled; a
+			// client's own exit code is still a session that ended.
+			if _, clientExit := errors.AsType[*exec.ExitError](err); err == nil || clientExit {
+				maybeSurvey(cliOverrides.Client)
+			}
+			return err
 		}
 		if len(launchArgs) > 0 {
 			// Flags for a launch, and nothing that can run one: printing the
