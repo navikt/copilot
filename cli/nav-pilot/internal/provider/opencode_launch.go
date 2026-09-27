@@ -1036,6 +1036,8 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		}
 	}
 
+	launchEnv, cpltFlags = applyOpenCodeHooks(resolved, launchEnv, cpltFlags)
+
 	return launchViaCplt(cpltLaunch{
 		agent:     "opencode",
 		agentArgs: openCodeAgentArgs(resolved),

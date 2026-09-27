@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -30,6 +32,9 @@ import (
 // through untouched rather than read into memory.
 const maxHookPayload = 16 << 20
 
+// hookFailClosedEnv asks a hook to say it failed rather than answer "{}".
+const hookFailClosedEnv = "NAV_PILOT_HOOK_FAIL_CLOSED"
+
 // builtinHook is one hook nav-pilot writes to ~/.copilot/hooks/ itself.
 type builtinHook struct {
 	name    string // file and marker name
@@ -51,23 +56,39 @@ var builtinHooks = []builtinHook{
 // Every failure — an unreadable payload, a broken config, a panic — prints
 // "{}", which leaves the tool result as it was: a hook that fails must never be
 // what breaks a session.
+//
+// With NAV_PILOT_HOOK_FAIL_CLOSED=1 in the environment, which only the
+// OpenCode bridge sets and only for redact, a failure answers {"error": …}
+// instead, so the caller can withhold the output rather than pass on text
+// nothing has looked at (hooks-bridge.js). Copilot cannot act on that, so its
+// entries never set it.
 func runHookCommand(args []string, stdin io.Reader, stdout io.Writer) {
 	out := hook.NoChange
+	failed := func(why string) {
+		if os.Getenv(hookFailClosedEnv) == "1" {
+			b, _ := json.Marshal(map[string]string{"error": why})
+			out = string(b)
+		}
+	}
 	defer func() {
 		if recover() != nil {
 			out = hook.NoChange
+			failed("the hook crashed")
 		}
 		fmt.Fprintln(stdout, out)
 	}()
 	if len(args) == 0 {
+		failed("no hook named")
 		return
 	}
 	data, err := io.ReadAll(io.LimitReader(stdin, maxHookPayload+1))
 	if err != nil || len(data) > maxHookPayload {
+		failed("the tool output could not be read, or is over 16 MiB")
 		return
 	}
 	p, err := hook.ParsePayload(data)
 	if err != nil {
+		failed("the payload is not JSON")
 		return
 	}
 	cfg, err := hookConfig(args[1:])
@@ -175,16 +196,20 @@ func recordHookEvents() {
 // drainHookEvents records what the hooks spooled since the last launch. With
 // telemetry off the recorder is a no-op and the files are removed all the same.
 func drainHookEvents() {
-	hook.DrainSpool(hookStateDir(), func(f []string) {
-		switch {
-		case len(f) == 2 && f[0] == "loop_guard":
-			telemetry.RecordHookLoopGuard(f[1], "cloud")
-		case len(f) == 3 && f[0] == "redact":
-			if n, err := strconv.ParseInt(f[2], 10, 64); err == nil && n > 0 && n < 1<<20 {
-				telemetry.RecordHookRedact(f[1], n)
-			}
+	for _, dir := range []string{hookStateDir(), providerpkg.OpenCodeHookStateDir()} {
+		hook.DrainSpool(dir, recordHookEvent)
+	}
+}
+
+func recordHookEvent(f []string) {
+	switch {
+	case len(f) == 2 && f[0] == "loop_guard":
+		telemetry.RecordHookLoopGuard(f[1], "cloud")
+	case len(f) == 3 && f[0] == "redact":
+		if n, err := strconv.ParseInt(f[2], 10, 64); err == nil && n > 0 && n < 1<<20 {
+			telemetry.RecordHookRedact(f[1], n)
 		}
-	})
+	}
 }
 
 // hookConfig is the config a hook runs with. The file is read on every call,
@@ -216,7 +241,13 @@ func hookConfig(settings []string) (*Config, error) {
 // hookStateDir is where the loop guard keeps its run: in Copilot's own
 // session directory, ~/.copilot/session-state/<sessionId>. ~/.nav-pilot is out
 // of reach inside cplt; the session directory is where Copilot itself writes.
+//
+// An OpenCode launch points it elsewhere with NAV_PILOT_HOOK_STATE_DIR, a
+// directory of nav-pilot's own that the launch lets the sandbox write.
 func hookStateDir() string {
+	if d := os.Getenv(providerpkg.HookStateDirEnv); d != "" && filepath.IsAbs(d) {
+		return d
+	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".copilot", "session-state")
 }
@@ -245,6 +276,11 @@ func builtinHookCommand(h builtinHook, r ResolvedConfig) string {
 // A write that fails is reported and the launch goes on: a missing hook costs
 // a warning, not the session.
 func syncBuiltinHooks(r ResolvedConfig) {
+	if r.Client == "opencode" {
+		// The OpenCode bridge spools to a directory of its own, and the
+		// launch hands the hooks over itself (openCodeHookBridge).
+		drainSpoolAtExit = true
+	}
 	if r.Client != "copilot" {
 		return
 	}
@@ -300,4 +336,69 @@ func announceBuiltinHooks(dir string, added []string) {
 		fmt.Fprintf(os.Stderr, "  %s %s\n", bold(name), what[name])
 	}
 	fmt.Fprintln(os.Stderr)
+}
+
+func init() { providerpkg.OpenCodeHookBridge = openCodeHookBridge }
+
+// openCodeHookBridge is the OpenCode side of the same hooks: the built-in ones
+// with the argv their Copilot entries run, and the gates nav-pilot installed
+// for Copilot, read out of Copilot's own hook configs so there is one list.
+//
+// Repo gates run without Copilot's folder-trust check. OpenCode has none: it
+// loads a repo's .opencode/plugins as code on its own, so a repo's gate
+// entries give it nothing it did not have.
+func openCodeHookBridge(r ResolvedConfig) providerpkg.HookBridge {
+	var b providerpkg.HookBridge
+	bin := "nav-pilot"
+	if _, err := exec.LookPath(bin); err != nil {
+		// Not on PATH: the binary this launch runs, by absolute path.
+		if exe, err := os.Executable(); err == nil {
+			bin = exe
+		}
+	}
+	// builtinHooks lists the loop guard first, so redaction runs last and
+	// nothing another hook adds reaches the model unchecked.
+	for _, h := range builtinHooks {
+		if !h.enabled(r) {
+			continue
+		}
+		argv := []string{bin, "hook", h.arg}
+		for _, k := range h.keys {
+			argv = append(argv, k+"="+resolvedFieldStr(r, k))
+		}
+		// Redaction fails closed: the output is withheld if it cannot be
+		// checked. The loop guard fails open, as under Copilot.
+		redact := h.arg == "redact"
+		b.Post = append(b.Post, providerpkg.BridgeHook{Name: h.name, Argv: argv, Timeout: 5,
+			FailClosed: redact, SkipLocal: !redact})
+	}
+	b.LocalProvider = providerpkg.LocalProviderID
+
+	if scope, err := ScopeUser(); err == nil {
+		dir := scope.DstPath(KindHook.Dir)
+		files, _ := filepath.Glob(filepath.Join(dir, "*.json"))
+		n := len(b.Pre)
+		for _, f := range files {
+			b.Pre = append(b.Pre, bridgeHooks(source.PreToolUseHooks(f))...)
+		}
+		if len(b.Pre) > n {
+			b.ReadDirs = append(b.ReadDirs, dir)
+		}
+	}
+	dir := r.ProjectDir
+	if dir == "" {
+		dir = "."
+	}
+	if root := source.FindGitRoot(dir); root != "" {
+		b.Pre = append(b.Pre, bridgeHooks(source.PreToolUseHooks(filepath.Join(ScopeRepo(root).DstPath(KindHook.Dir), source.RepoHooksConfig)))...)
+	}
+	return b
+}
+
+func bridgeHooks(entries []source.HookEntry) []providerpkg.BridgeHook {
+	out := make([]providerpkg.BridgeHook, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, providerpkg.BridgeHook{Name: e.Name, Command: e.Command, Matcher: e.Matcher, Timeout: e.Timeout})
+	}
+	return out
 }

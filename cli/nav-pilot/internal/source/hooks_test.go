@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -331,5 +332,24 @@ func TestLoadHookMeta(t *testing.T) {
 	got := LoadHookMeta(script)
 	if got.Matcher != "shell|execute|bash" || got.TimeoutSec != 9 {
 		t.Errorf("with sidecar: %#v", got)
+	}
+}
+
+func TestPreToolUseHooks(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "h.json")
+	if err := os.WriteFile(path, []byte(`{"version":1,"hooks":{
+		"preToolUse":[{"type":"command","matcher":"bash","command":"a","timeoutSec":4,"navPilot":"a"},{"type":"command","command":"mine"}],
+		"PreToolUse":[{"type":"command","command":"b","timeout":6,"navPilot":"b"}],
+		"PostToolUse":[{"type":"command","command":"c","navPilot":"c"}]}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := PreToolUseHooks(path)
+	want := []HookEntry{{Name: "a", Matcher: "bash", Command: "a", Timeout: 4}, {Name: "b", Command: "b", Timeout: 6}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %+v, want %+v", got, want)
+	}
+	if PreToolUseHooks(filepath.Join(dir, "missing.json")) != nil {
+		t.Fatal("a missing file has hooks")
 	}
 }
