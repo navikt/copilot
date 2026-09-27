@@ -229,8 +229,10 @@ func respondJSON(w http.ResponseWriter, data interface{}, status int) {
 // request log never names who was active when. Case-insensitive, so
 // /SAML/<e-mail> (a 404, but logged first) is caught too.
 func redactPath(p string) string {
-	if i := strings.Index(strings.ToLower(p), "/saml/"); i >= 0 {
-		return p[:i] + "/saml/{identity}"
+	// Slice the lowered string: ToLower can change a rune's byte length.
+	low := strings.ToLower(p)
+	if i := strings.Index(low, "/saml/"); i >= 0 {
+		return low[:i] + "/saml/{identity}"
 	}
 	return p
 }

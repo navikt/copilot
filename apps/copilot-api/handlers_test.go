@@ -247,7 +247,7 @@ func TestSAMLPathNeverLoggedOrTraced(t *testing.T) {
 	email := "ola.nordmann@nav.no"
 	config := &Config{LoggedEndpoints: map[string]bool{"/api/v1/": true}}
 	h := loggingMiddleware(config, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
-	for _, p := range []string{"/api/v1/copilot/saml/" + email, "/api/v1/copilot/SAML/" + email} {
+	for _, p := range []string{"/api/v1/copilot/saml/" + email, "/api/v1/copilot/SAML/" + email, "/api/v1/ȺȺȺȺȺȺȺȺȺȺ/saml/" + email} {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		req.URL.Path = p
 		h.ServeHTTP(httptest.NewRecorder(), req)
