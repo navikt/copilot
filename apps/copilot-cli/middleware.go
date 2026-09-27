@@ -19,38 +19,29 @@ type contextKey string
 
 const requestUserContextKey contextKey = "copilot-cli-user"
 
-const (
-	issuerGitHub = "github"
-	issuerEntra  = "entra"
-)
+const issuerGitHub = "github"
 
-// AuthenticatedUser is the caller, normalised across the two sign-in paths:
-// nav-pilot with a GitHub token, and ki-utvikling (my-copilot) with an
-// Entra ID OBO token. Subject is the issuer's stable id (GitHub's numeric
-// user id, Entra's oid), never an e-mail or a name. Login is GitHub only.
+// AuthenticatedUser is the caller: a navikt member signed in to nav-pilot
+// with a GitHub App user token. Subject is GitHub's numeric user id, never an
+// e-mail or a name.
 type AuthenticatedUser struct {
 	Issuer  string
 	Subject string
 	Login   string
 
-	// email is the Nav e-mail from an Entra token; empty for GitHub (see
-	// GitHubClient.navEmail). Unexported and never logged.
-	email     string
 	expiresAt time.Time
 }
 
-// authenticator resolves a bearer token to a user through the issuer the
-// token's shape names: an Entra token is a JWT, a GitHub token never is.
+// authenticator resolves a GitHub bearer token to a navikt member.
 type authenticator struct {
 	github *GitHubClient
-	entra  *entraClient
 	org    string
 	cache  *tokenCache
 	// limit caps GitHub token checks on a cache miss below the app's GitHub
 	// quota (5,000/h), so a flood of random tokens costs a 429 and not the
 	// quota. Global, not per client: behind naisdevice many users share a
 	// source address. A flood can make sign-in slow for others, never let
-	// anyone in. Texas (the Entra path) is a local sidecar and not limited.
+	// anyone in.
 	limit *rate.Limiter
 }
 
@@ -61,30 +52,23 @@ func (a *authenticator) resolve(ctx context.Context, token string) (*Authenticat
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	var user *AuthenticatedUser
-	var err error
-	if looksLikeJWT(token) {
-		user, err = a.entra.resolveUser(ctx, token)
-	} else {
-		if !a.limit.Allow() {
-			return nil, errRateLimited
-		}
-		user, err = a.github.resolveUser(ctx, token)
-		if err == nil {
-			var member bool
-			member, err = a.github.isOrgMember(ctx, token, a.org, user.Login)
-			if err == nil && !member {
-				err = errNotOrgMember
-			}
+	if !a.limit.Allow() {
+		return nil, errRateLimited
+	}
+	user, err := a.github.resolveUser(ctx, token)
+	if err == nil {
+		var member bool
+		member, err = a.github.isOrgMember(ctx, token, a.org, user.Login)
+		if err == nil && !member {
+			err = errNotOrgMember
 		}
 	}
 	switch {
 	case err == nil:
 		a.cache.set(token, user, nil)
-	case !looksLikeJWT(token) && (errors.Is(err, errInvalidToken) || errors.Is(err, errNotOrgMember)):
-		// A GitHub refusal is cached briefly too: retrying a bad token
-		// must not reach GitHub every time. Entra refusals are not: Texas is
-		// local, and caching every random JWT would grow the map unchecked.
+	case errors.Is(err, errInvalidToken) || errors.Is(err, errNotOrgMember):
+		// A refusal is cached briefly too: retrying a bad token must not
+		// reach GitHub every time.
 		a.cache.set(token, nil, err)
 	}
 	return user, err
@@ -94,13 +78,6 @@ var (
 	errNotOrgMember = errors.New("not a member of the GitHub organisation")
 	errRateLimited  = errors.New("too many sign-in attempts, try again shortly")
 )
-
-// looksLikeJWT reports whether token has a JWT's shape: three base64url
-// segments, the first a JSON header ("eyJ"). GitHub tokens are prefixed
-// opaque strings (ghu_, gho_, …) and never have it.
-func looksLikeJWT(token string) bool {
-	return strings.HasPrefix(token, "eyJ") && strings.Count(token, ".") == 2
-}
 
 // tokenCache remembers a token's outcome for a short while, keyed by a hash
 // of the token so the raw token is never kept. A success is never kept past
@@ -118,9 +95,8 @@ type cacheEntry struct {
 	expiresAt time.Time
 }
 
-// ponytail: map with lazy eviction. The limiter bounds GitHub entries to a few
-// thousand; Entra entries are only created for tokens Texas answered for.
-// Add a size cap if memory ever shows it.
+// ponytail: map with lazy eviction. The limiter bounds entries to a few
+// thousand. Add a size cap if memory ever shows it.
 func newTokenCache(ttl time.Duration) *tokenCache {
 	return &tokenCache{ttl: ttl, negTTL: time.Minute, entries: make(map[string]cacheEntry)}
 }
@@ -180,9 +156,6 @@ func authMiddleware(a *authenticator, next http.HandlerFunc) http.HandlerFunc {
 			return
 		case errors.Is(err, errNotOrgMember):
 			writeError(w, http.StatusForbidden, fmt.Sprintf("user is not a member of %s", a.org))
-			return
-		case errors.Is(err, errNotAUser):
-			writeError(w, http.StatusForbidden, err.Error())
 			return
 		case errors.Is(err, errInvalidToken):
 			writeError(w, http.StatusUnauthorized, err.Error())

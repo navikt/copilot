@@ -356,9 +356,10 @@ type surveyAPI struct {
 	// survey's key when it closes is what makes its participation hashes
 	// unlinkable for good.
 	keys map[string][]byte
-	// emailFor finds the caller's Nav e-mail: from the Entra token, or for
-	// a GitHub sign-in through navikt's SAML SSO identity. Used only as the
-	// input to participantHash, never stored or logged.
+	// emailFor finds the caller's Nav e-mail through navikt's SAML SSO
+	// identity for their GitHub login. Used only as the input to
+	// participantHash, never stored or logged. Nil in this service: the
+	// lookup belongs with copilot-api's GitHub App, not here.
 	emailFor func(context.Context, *AuthenticatedUser) (string, error)
 	// store queues a submission for a batch write (surveyStore.submit);
 	// false means hash has already answered.

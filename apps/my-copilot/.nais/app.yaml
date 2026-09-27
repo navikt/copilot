@@ -150,8 +150,6 @@ spec:
           namespace: copilot
         - application: mcp-registry
           namespace: copilot
-        - application: copilot-cli
-          namespace: copilot
       external:
         - host: api.github.com
         - host: avatars.githubusercontent.com

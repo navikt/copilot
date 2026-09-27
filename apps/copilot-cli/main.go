@@ -36,12 +36,11 @@ func main() {
 
 	auth := &authenticator{
 		github: newGitHubClient(config.GitHubClientID, config.GitHubClientSecret),
-		entra:  newEntraClient(config.NaisTokenIntrospectionEndpoint, config.AzurePreAuthorizedApps),
 		org:    config.GitHubOrg,
 		cache:  newTokenCache(config.OrgMembershipCacheTTL),
 		limit:  rate.NewLimiter(1, 10),
 	}
-	slog.Info("Sign-in paths", "github", auth.github.configured(), "entra", auth.entra.configured())
+	slog.Info("GitHub sign-in", "configured", auth.github.configured())
 
 	texas := newTexasClient(config.NaisTokenEndpoint, config.CopilotAPIAudience)
 	proxy := newCopilotAPIProxy(config.CopilotAPIURL, texas)
@@ -51,12 +50,9 @@ func main() {
 		slog.Error("Invalid survey definitions", "error", err)
 		os.Exit(1)
 	}
-	lookup, err := newSAMLLookup(config.GitHubOrg, config.GitHubAppID, config.GitHubAppInstallationID, config.GitHubAppPrivateKey)
-	if err != nil {
-		slog.Error("Invalid GitHub App credentials", "error", err)
-		os.Exit(1)
-	}
-	surveys := &surveyAPI{surveys: defs, keys: surveyKeys(defs, time.Now()), emailFor: emailFor(lookup), now: time.Now}
+	// No emailFor: the Nav e-mail lookup for a GitHub login is not in this
+	// service, so submissions answer 503 until copilot-survey takes them.
+	surveys := &surveyAPI{surveys: defs, keys: surveyKeys(defs, time.Now()), now: time.Now}
 	var store *surveyStore
 	if config.DatabaseURL != "" {
 		if store, err = openSurveyStore(ctx, config.DatabaseURL); err != nil {
@@ -66,7 +62,7 @@ func main() {
 		surveys.store = store.submit
 		go store.purgeExpired(ctx, time.Now)
 	}
-	slog.Info("Survey submissions", "storage", store != nil, "github_email_lookup", lookup != nil,
+	slog.Info("Survey submissions", "storage", store != nil,
 		"surveys", len(defs), "surveys_with_key", len(surveys.keys))
 
 	server := &http.Server{

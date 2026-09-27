@@ -27,9 +27,8 @@ func readyHandler(w http.ResponseWriter, r *http.Request) {
 // makeRouter wires the health endpoints, the survey definitions (public) and
 // the signed-in /api/v1/* routes.
 //
-// No CORS headers are set, on purpose: browsers never call this service.
-// ki-utvikling reaches it server to server from my-copilot with an OBO token,
-// so a cross-origin browser request is refused by the browser itself.
+// No CORS headers are set, on purpose: browsers never call this service, so
+// a cross-origin browser request is refused by the browser itself.
 func makeRouter(auth *authenticator, proxy *copilotAPIProxy, surveys *surveyAPI) http.Handler {
 	mux := http.NewServeMux()
 
@@ -43,11 +42,6 @@ func makeRouter(auth *authenticator, proxy *copilotAPIProxy, surveys *surveyAPI)
 		user, ok := userFromContext(r.Context())
 		if !ok {
 			writeError(w, http.StatusInternalServerError, "missing authenticated user in context")
-			return
-		}
-		// Usage is keyed by GitHub login, which only the GitHub path has.
-		if user.Issuer != issuerGitHub {
-			writeError(w, http.StatusForbidden, "usage needs a GitHub sign-in")
 			return
 		}
 		proxy.forward(usagePath(user.Login))(w, r)

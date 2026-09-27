@@ -34,18 +34,16 @@ spec:
   prometheus:
     enabled: true
     path: /metrics
-  # naisdevice-only ingress: nav-pilot on developer laptops. ki-utvikling
-  # (my-copilot) calls in-cluster, server to server, with an OBO token.
+  # naisdevice-only ingress: nav-pilot on developer laptops.
   ingresses:
     {{#each ingresses}}
     - {{this}}
     {{/each}}
+  # For the M2M token to copilot-api. No inbound callers use Entra.
   azure:
     application:
       enabled: true
       tenant: {{azure_tenant}}
-      # Every Nav user may get an OBO token for this app via my-copilot.
-      allowAllUsers: true
   gcp:
     sqlInstances:
       - type: POSTGRES_17
@@ -57,10 +55,9 @@ spec:
         databases:
           - name: copilot-cli
             envVarPrefix: DB
-  # The nav-pilot GitHub App's credentials (GITHUB_CLIENT_ID,
-  # GITHUB_CLIENT_SECRET, GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY,
-  # GITHUB_APP_INSTALLATION_ID) and one SURVEY_KEY_<ID> per open survey.
-  # Created by hand in the Nais console; see README.
+  # The nav-pilot GitHub App's GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET,
+  # and one SURVEY_KEY_<ID> per open survey. Created by hand in the Nais
+  # console; see README.
   envFrom:
     - secret: copilot-cli
   env:
@@ -71,10 +68,6 @@ spec:
     - name: LOG_LEVEL
       value: "{{log_level}}"
   accessPolicy:
-    inbound:
-      rules:
-        - application: my-copilot
-          namespace: {{namespace}}
     outbound:
       rules:
         - application: copilot-api
