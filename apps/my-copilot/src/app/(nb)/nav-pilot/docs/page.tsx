@@ -2175,6 +2175,13 @@ function LocalModelSection({ models }: { models: LocalModel[] }) {
             {defaultModel.min_ram_gb} GB minne, og ledig disk til {defaultModel.weights_gb} GB vekter pluss
             Python-miljøet. Intel-Macer blir avvist, fordi MLX bare finnes for M-brikkene.
           </BodyLong>
+          <BodyLong textColor="subtle">
+            Hva du får og hva den klarer, med målte tall, står på{" "}
+            <NextLink href="/nav-pilot/lokal" style={{ textDecoration: "underline" }}>
+              Lokal modell og decide
+            </NextLink>
+            .
+          </BodyLong>
         </VStack>
 
         <VStack id="lokal-kom-i-gang" gap="space-12">
