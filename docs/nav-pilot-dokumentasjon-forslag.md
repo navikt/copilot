@@ -1,6 +1,6 @@
 # Forslag: ny struktur for nav-pilot-dokumentasjonen og menyen på ki-utvikling.nav.no
 
-**Status: forslag.** Ingenting her er bygget ennå. Dokumentet skal gi grunnlag for fem valg ([§0](#0-valg-som-trengs)). Når de er tatt, deler vi arbeidet i tre PR-er ([§6](#6-plan-for-gjennomføring)).
+**Status: vedtatt 27.09.2026.** Valgene i [§0](#0-valg-som-trengs) er tatt, se «Vedtak» under. Arbeidet deles i små PR-er, ett emne om gangen ([§6](#6-plan-for-gjennomføring)).
 
 Hva som er lest på hvilken commit:
 
@@ -9,6 +9,16 @@ Hva som er lest på hvilken commit:
 - Menyprototypen i §5 ligger på grenen `proto/menu`, som bygger på `d24cac46`.
 
 ## 0. Valg som trengs
+
+### Vedtak
+
+- **V1:** Guider og Forklaring får én side per emnegruppe, med en myk grense på omtrent 400 linjer. Referanse og Klienter får én side hver.
+- **V2:** `/nav-pilot/lokal` blir introduksjonen for Mac.
+- **V3:** Alternativ B for hele nettstedet: en vanlig `<nav>` i toppfeltet med disclosure-mønsteret og hamburgermeny på mobil. I tillegg seksjonsmenyen fra C, bare for nav-pilot. Eierne av de andre sidene får se skjermbildene i meny-PR-en, og den flettes ikke inn før brukeren har sett dem.
+- **V4:** Som foreslått. Valget av standardklient hører til #1022. Klientsiden viser paritetsstatusen fra #1022.
+- **V5:** pi blir værende, merket «eksperimentell», med en liste over det som mangler.
+
+### Forslaget som lå til grunn
 
 | #   | Valg                                                  | Anbefaling                                                                                                                                                                                                                                | Alternativ                                                                         |
 | --- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
@@ -479,13 +489,18 @@ Menyen berører alle sider. Eierne av Praksis, Retningslinjer, Statistikk og Ado
 
 ## 6. Plan for gjennomføring
 
-Tre PR-er, i denne rekkefølgen. Hver har skjermbilder for desktop (1440 px) og mobil (390 px), språkvask, gjennomgang av en annen modell, grønn CI og ingen åpne tråder før den går i flettekøen.
+Små PR-er, ett emne om gangen, i denne rekkefølgen. Hver har språkvask, gjennomgang av en annen modell, grønn CI og ingen åpne tråder før den går i flettekøen. PR-er som endrer nettsiden har skjermbilder for desktop (1440 px) og mobil (390 px). PR-er som endrer CLI-en kjøres gjennom de syntetiske brukerreisene.
 
-1. **Menyen.** Valgt alternativ fra §5. Endrer `site-shell.tsx`, `page-hero.tsx`, `lib/nav-items.ts`, forsiden (`(home)/page.tsx`), `components/sidebar.tsx` (`QuickNav` fjernes eller bruker de nye gruppene) og `(en)/layout.tsx` (engelske tekster i `ShellLabels`). Den berører sidene til alle team, så den går først og alene.
-2. **Diátaxis-sidene og videresendingen.** Nye sider etter §1.2 og innhold flyttet etter §1.3. `/nav-pilot/docs` får en permanent oppføring i `redirects()` i `next.config.ts`, og `HashAnchorScroll` får tabellen over gamle ankere med test (§1.4). Interne lenker oppdateres, også i `interactive-setup-wizard.tsx`. Sitemap (`app/sitemap.ts`) og `src/middleware.test.ts` (testene for `src/proxy.ts`) får de nye rutene.
-3. **Lokal-guiden og klientsiden.** `/nav-pilot/lokal` etter §2, `/nav-pilot/klienter` etter §3 med paritetsstatusen fra #1022, rettelser i §3.4 og kortere README.
+1. **CLI-feil**, hver som en sak og en PR med test: hjelp per kommando (H8), `--local-dispatch` i `--help` (H11) og en sjekk i `doctor` for Copilot CLI (H2).
+2. **Hull i oppstarten** (§4.2). Først `init` og `start` i `docs#lokal-kom-i-gang` (H6) og de ulike installasjonskommandoene (H1).
+3. **Diátaxis-sidene og videresendingen.** Nye sider etter §1.2 og innhold flyttet etter §1.3. `/nav-pilot/docs` får en permanent oppføring i `redirects()` i `next.config.ts`, og `HashAnchorScroll` får tabellen over gamle ankere med test (§1.4). Interne lenker oppdateres, også i `interactive-setup-wizard.tsx`. Sitemap (`app/sitemap.ts`) og `src/middleware.test.ts` (testene for `src/proxy.ts`) får de nye rutene.
+4. **Lokal-guiden.** `/nav-pilot/lokal` etter §2, og kortere README.
+5. **Klientsiden.** `/nav-pilot/klienter` etter §3 med paritetsstatusen fra #1022, og rettelsene i §3.4.
+6. **Menyen** etter §5.5. Endrer `site-shell.tsx`, `page-hero.tsx`, `lib/nav-items.ts`, forsiden (`(home)/page.tsx`), `components/sidebar.tsx` (`QuickNav` fjernes eller bruker de nye gruppene) og `(en)/layout.tsx` (engelske tekster i `ShellLabels`). Den berører sidene til alle team. Eierne får se skjermbildene i PR-en, og den flettes ikke inn før brukeren har sett dem.
+
+Hull som ikke løses i disse PR-ene, blir egne saker.
 
 Utenfor disse PR-ene:
 
-- CLI: H2, H8 og H11, og generering av avslutningskoder og telemetri (§4.3).
-- Klientparitet fra #1022: #1025, #709, #1026, #1027, #1028 og #1029. PR 3 viser bare status for dem.
+- Generering av avslutningskoder og telemetri (§4.3).
+- Klientparitet fra #1022: #1025, #709, #1026, #1027, #1028 og #1029. Klientsiden viser bare status for dem.
