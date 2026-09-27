@@ -356,10 +356,12 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 					}
 					return nil
 				})
-			} else {
-				in = in.Description("Optional. Leave empty to skip.")
 			}
-			field = in
+			desc := "Write nothing that identifies you or anyone else."
+			if !q.Required {
+				desc += " Optional: leave empty to skip."
+			}
+			field = in.Description(desc)
 		}
 		g := huh.NewGroup(escHelpField{field})
 		if q.SkipIf != nil {

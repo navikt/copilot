@@ -16,12 +16,12 @@ import (
 )
 
 // fakeSurveyDefs is one open survey: a required scale and an optional text.
-// fakeSurveyDefs is one open survey: a labelled scale, a multi, a text that
+// fakeSurveyDefs is one open survey: a labelled scale, a multi, a choice that
 // is skipped when the multi includes copilot, and an optional text.
 const fakeSurveyDefs = `{"surveys":[{"id":"e2e-2026","title":"E2E survey","starts":"2020-01-01","ends":"2099-12-31","questions":[
 {"id":"useful","version":1,"type":"scale","text":"How useful is nav-pilot?","min":1,"max":5,"labels":["Helt uenig","Uenig","Nøytral","Enig","Helt enig"],"required":true},
 {"id":"clients","version":1,"type":"multi","text":"Which clients do you use?","options":["copilot","opencode","pi"],"max_choices":2},
-{"id":"why","version":1,"type":"text","text":"Why not copilot?","max_length":50,"skip_if":{"question":"clients","answer":"copilot"}},
+{"id":"why","version":1,"type":"choice","text":"Why not copilot?","options":["habit","other"],"skip_if":{"question":"clients","answer":"copilot"}},
 {"id":"comment","version":1,"type":"text","text":"Anything else?","max_length":50}]}]}`
 
 // fake-survey serves copilot-cli's survey endpoints on 127.0.0.1 and points
