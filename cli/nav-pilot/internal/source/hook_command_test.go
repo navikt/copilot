@@ -6,14 +6,20 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // A HOME with a space or a quote in it must still run the gate: unquoted, the
 // path split, python3 could not open it, and every call was allowed.
 func TestHookCommandQuotesThePath(t *testing.T) {
-	if _, err := exec.LookPath("python3"); err != nil {
-		t.Skip("needs python3")
+	// HookCommand runs whichever python3 is on PATH; put a working one first.
+	bin := t.TempDir()
+	wrapper := "#!/bin/sh\nexec '" + testhome.Python3(t) + "' \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(bin, "python3"), []byte(wrapper), 0o755); err != nil {
+		t.Fatal(err)
 	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	dir := filepath.Join(t.TempDir(), "Hans Kristian's home")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
