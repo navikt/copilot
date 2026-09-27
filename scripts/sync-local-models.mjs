@@ -2,7 +2,8 @@
 /**
  * Refreshes the fallback copy of the local-model table on ki-utvikling.nav.no.
  *
- * The nav-pilot docs page fetches navikt/mlx-workspace's manifest at run time
+ * /nav-pilot/referanse and /nav-pilot/forklaring/lokal-modell fetch
+ * navikt/mlx-workspace's manifest at run time
  * (apps/my-copilot/src/lib/local-models.ts, revalidated hourly). When that fetch
  * fails or the manifest does not validate, it renders
  * apps/my-copilot/src/lib/local-models.json instead, which this script writes.

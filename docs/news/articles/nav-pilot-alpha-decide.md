@@ -64,7 +64,7 @@ Hooken kjører hver gang du committer. Den sender meldingen og diffen til den lo
 - Rundt 26 GB ledig diskplass: 25 GB til vektene og rundt 1 GB til et Python-miljø.
 - Passordet ditt. `init` bruker `sudo` for å heve en minnegrense i macOS.
 
-Dette gjelder modellen nav-pilot setter opp selv. På Linux kan du i stedet bruke en server du kjører selv, som Ollama eller llama-server (alfa, ikke målt). Da laster nav-pilot ikke ned noe og trenger ikke `sudo`. Se [egen lokal server](/nav-pilot/docs#lokal-egen-server).
+Dette gjelder modellen nav-pilot setter opp selv. På Linux kan du i stedet bruke en server du kjører selv, som Ollama eller llama-server (alfa, ikke målt). Da laster nav-pilot ikke ned noe og trenger ikke `sudo`. Se [egen lokal server](/nav-pilot/guider/lokal#egen-server).
 
 ### 1. Installer eller oppdater nav-pilot
 
@@ -81,7 +81,7 @@ brew upgrade navikt/tap/nav-pilot   # har du den fra før
 nav-pilot alpha local init
 ```
 
-`init` viser hva den skal laste ned, og spør før den begynner. Første gang er det rundt 26 GB. Det tar rundt 35 minutter på 100 Mbit/s og rundt 4 minutter på 1 Gbit/s. Deretter hever `init` minnegrensen og starter serveren. Oppstartene vi har målt, har tatt under ett minutt. Mer om oppsettet står i [dokumentasjonen for lokal modell](/nav-pilot/docs#lokal-kom-i-gang).
+`init` viser hva den skal laste ned, og spør før den begynner. Første gang er det rundt 26 GB. Det tar rundt 35 minutter på 100 Mbit/s og rundt 4 minutter på 1 Gbit/s. Deretter hever `init` minnegrensen og starter serveren. Oppstartene vi har målt, har tatt under ett minutt. Mer om oppsettet står i [dokumentasjonen for lokal modell](/nav-pilot/lokal#kom-i-gang).
 
 macOS nullstiller minnegrensen når du starter maskinen på nytt. Da kjører du `nav-pilot alpha local start`. Er grensen for lav, spør `start` før den hever den med `sudo`.
 
@@ -229,7 +229,7 @@ nav-pilot alpha local restart                       # hvis serveren kjører en a
 - Exit-koden er 0 når sannsynligheten for `--expect` er lik eller høyere enn terskelen, 1 når den er lavere og 2 når noe feilet. Håndter 2 for seg, ellers stopper skriptet ditt hver gang serveren er nede.
 - `decide` er i alfa, så flagg og format kan endre seg.
 
-Hjelpeteksten får du med `nav-pilot alpha decide --help`, og dokumentasjonen ligger under [Typede avgjørelser](/nav-pilot/docs#lokal-decide) på nav-pilot-siden.
+Hjelpeteksten får du med `nav-pilot alpha decide --help`, og dokumentasjonen ligger under [Typede avgjørelser](/nav-pilot/guider/lokal#decide-oppskrifter) på nav-pilot-siden.
 
 **Kilder:**
 

@@ -251,23 +251,23 @@ export default async function LokalModell() {
                 <BodyLong textColor="subtle">
                   Vil du at hovedagenten skal sende oppgaver til modellen, bytter du klient med{" "}
                   <code className={code}>nav-pilot config set client opencode</code>. Detaljene står i dokumentasjonen:{" "}
-                  <NextLink href="/nav-pilot/docs#lokal-kom-i-gang" className={linkClass}>
+                  <NextLink href="/nav-pilot/guider/lokal" className={linkClass}>
                     oppsett
                   </NextLink>
                   ,{" "}
-                  <NextLink href="/nav-pilot/docs#lokal-modeller" className={linkClass}>
+                  <NextLink href="/nav-pilot/referanse#lokale-modeller" className={linkClass}>
                     modellene du kan velge
                   </NextLink>
                   ,{" "}
-                  <NextLink href="/nav-pilot/docs#lokal-egen-server" className={linkClass}>
+                  <NextLink href="/nav-pilot/guider/lokal#egen-server" className={linkClass}>
                     egen server
                   </NextLink>
                   ,{" "}
-                  <NextLink href="/nav-pilot/docs#lokal-decide-oppskrifter" className={linkClass}>
+                  <NextLink href="/nav-pilot/guider/lokal#decide-oppskrifter" className={linkClass}>
                     oppskrifter for decide
                   </NextLink>{" "}
                   og{" "}
-                  <NextLink href="/nav-pilot/docs#lokal-feilsoking" className={linkClass}>
+                  <NextLink href="/nav-pilot/guider/feilsoking#lokal" className={linkClass}>
                     når noe henger
                   </NextLink>
                   .
@@ -324,7 +324,7 @@ export default async function LokalModell() {
                   som da den gjorde oppgaven selv, og tok nesten tre ganger så lang tid. Går stoppet i veien for deg,
                   velg <code className={code}>conservative</code>: da vurderer hovedagenten selv, og nav-pilot stopper
                   ingenting. Svarer ikke den lokale serveren, stopper nav-pilot heller ingenting. Reglene står i{" "}
-                  <NextLink href="/nav-pilot/docs#lokal-utsending" className={linkClass}>
+                  <NextLink href="/nav-pilot/guider/lokal#utsending" className={linkClass}>
                     dokumentasjonen
                   </NextLink>
                   .
@@ -485,12 +485,12 @@ export default async function LokalModell() {
                     (nyhetssak om bakkemodellen)
                   </li>
                   <li>
-                    <NextLink href="/nav-pilot/docs#lokal-modell" className={linkClass}>
+                    <NextLink href="/nav-pilot/guider/lokal" className={linkClass}>
                       Dokumentasjonen for bakkemodellen
                     </NextLink>
                   </li>
                   <li>
-                    <NextLink href="/nav-pilot/docs#personvern" className={linkClass}>
+                    <NextLink href="/nav-pilot/forklaring/personvern" className={linkClass}>
                       Personvern og telemetri
                     </NextLink>
                   </li>

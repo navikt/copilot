@@ -61,6 +61,9 @@ const nextConfig: NextConfig = {
       { source: "/cost", destination: "/kostnad", permanent: true },
       // The WRAP guide was merged into the prompt guide in #321.
       { source: "/praksis/guide/wrap-metoden", destination: "/praksis/guide/skrive-presise-prompts", permanent: true },
+      // Split into guides, reference and explanation pages. Old anchors are in
+      // src/lib/legacy-anchors.ts, keyed by /nav-pilot/referanse.
+      { source: "/nav-pilot/docs", destination: "/nav-pilot/referanse", permanent: true },
     ];
   },
   // Enable Cache Components (Partial Prerendering) — disabled in dev because the

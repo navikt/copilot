@@ -10,6 +10,7 @@ export interface TocItem {
 
 interface TableOfContentsProps {
   items: TocItem[];
+  title?: string;
 }
 
 function flattenItems(items: TocItem[]): TocItem[] {
@@ -23,7 +24,7 @@ function flattenItems(items: TocItem[]): TocItem[] {
   return flat;
 }
 
-export function TableOfContents({ items }: TableOfContentsProps) {
+export function TableOfContents({ items, title = "Innhold" }: TableOfContentsProps) {
   const [activeId, setActiveId] = useState<string>("");
   const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -69,7 +70,7 @@ export function TableOfContents({ items }: TableOfContentsProps) {
         className="text-xs font-semibold text-gray-400 uppercase tracking-wider"
         style={{ marginBottom: "var(--a-spacing-5)" }}
       >
-        Innhold
+        {title}
       </p>
       <ul style={{ display: "flex", flexDirection: "column", gap: "var(--a-spacing-2)" }}>
         {items.map((item, index) =>

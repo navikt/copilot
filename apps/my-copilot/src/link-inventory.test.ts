@@ -356,18 +356,21 @@ describe("link inventory", () => {
     expect(resolvePath("/nyheter/finnes-ikke")).toHaveProperty("error");
     expect(resolvePath("/praksis/guide/finnes-ikke")).toHaveProperty("error");
     expect(resolvePath("/praksis/guide/wrap-metoden")).toHaveProperty("file");
-    const docs = resolvePath("/nav-pilot/docs");
+    const docs = resolvePath("/nav-pilot/docs"); // a redirect to /nav-pilot/referanse
     expect(docs).toHaveProperty("file");
     if ("file" in docs) {
       const ids = definedAnchors(docs.file);
-      expect(ids.has("lokal-modeller")).toBe(true);
-      expect(ids.has("installasjon-5-min")).toBe(true); // slug from LinkableHeading text
+      expect(ids.has("lokale-modeller")).toBe(true);
       expect(ids.has("finnes-ikke")).toBe(false);
     }
     const stats = resolvePath("/statistikk");
     if ("file" in stats) expect(definedAnchors(stats.file).has("modellkostnad-historikk")).toBe(true); // in a component
     const ordliste = resolvePath("/ordliste");
     if ("file" in ordliste) expect(definedAnchors(ordliste.file, true).has("ordbok-kategori-filter")).toBe(false); // a form field
+    const abonnement = resolvePath("/abonnement");
+    if ("file" in abonnement) {
+      expect(definedAnchors(abonnement.file).has("din-plassering-i-nav")).toBe(true); // slug from LinkableHeading text
+    }
   });
 
   it("has a slug check for every dynamic route", () => {

@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-// The key tables on the docs page and in docs/README.nav-pilot.md are made
+// The key tables on /nav-pilot/referanse and in docs/README.nav-pilot.md are made
 // from configKeyDefs: which keys exist, their flags, allowed values and
 // defaults. Only the Norwegian prose is written by hand, below. When this test
 // fails, run
@@ -23,7 +23,7 @@ import (
 var updateConfigDocs = flag.Bool("update-config-docs", false, "rewrite the config key tables in the docs")
 
 var (
-	configDocsPage   = filepath.Join("..", "..", "..", "..", "apps", "my-copilot", "src", "app", "(nb)", "nav-pilot", "docs", "page.tsx")
+	configDocsPage   = filepath.Join("..", "..", "..", "..", "apps", "my-copilot", "src", "app", "(nb)", "nav-pilot", "referanse", "data.ts")
 	configDocsReadme = filepath.Join("..", "..", "..", "..", "docs", "README.nav-pilot.md")
 )
 

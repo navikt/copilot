@@ -325,7 +325,7 @@ med andre som trenger den.
 
 ### Sikkerhetsnivå, strict og logging
 
-Står på [ki-utvikling.nav.no/nav-pilot/docs](https://ki-utvikling.nav.no/nav-pilot/docs): hva `sandbox.preset = strict` låser, hvorfor
+Står på [ki-utvikling.nav.no/nav-pilot/forklaring/sandkassen](https://ki-utvikling.nav.no/nav-pilot/forklaring/sandkassen): hva `sandbox.preset = strict` låser, hvorfor
 presetet skal settes via `nav-pilot config` og ikke for hånd, når strict ikke anbefales på Linux,
 og hva `proxy.log_level` faktisk logger.
 
@@ -542,7 +542,7 @@ men de er mye tregere. 8-bit løste litt flere oppgaver enn standard i siste må
 mange ganger så lang tid.
 
 Kontekst, svarlengde, minnekrav, vekter og minste nav-pilot-versjon for hver modell står i
-[tabellen på ki-utvikling.nav.no](https://ki-utvikling.nav.no/nav-pilot/docs#lokal-modeller).
+[tabellen på ki-utvikling.nav.no](https://ki-utvikling.nav.no/nav-pilot/referanse#lokale-modeller).
 Den hentes fra [modellmanifestet](https://github.com/navikt/mlx-workspace/blob/main/manifest/models.json),
 det samme nav-pilot leser, så tallene står ikke her. Målingene bak står i
 [MODELS.md](https://github.com/navikt/mlx-workspace/blob/main/MODELS.md).
@@ -702,7 +702,7 @@ Manifestet sier for hver modell hvilke oppgavetyper hovedagenten kan sende til d
 standardmodellen er det bare mekaniske endringer over flere filer, sendt fra en skyagent. Svar og
 forklaringer om kode, endringer i én fil, nye filer og feilsøking blir i skyen. Qwen 3.8-modellene
 har ingen godkjent oppgavetype ennå. Den gjeldende lista står i
-[tabellen på ki-utvikling.nav.no](https://ki-utvikling.nav.no/nav-pilot/docs#lokal-hva-den-klarer).
+[tabellen på ki-utvikling.nav.no](https://ki-utvikling.nav.no/nav-pilot/forklaring/lokal-modell#malte-grenser).
 
 Tiden varierer: fra omtrent som skyen på små endringer til rundt fire ganger så lenge på en omdøping. På den største mekaniske endringen vi målte var den raskere enn skyen.
 

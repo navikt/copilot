@@ -319,7 +319,7 @@ logger.info("Vedtak",    `}
           <div className="flex flex-col items-center gap-4 hero-animate-d2">
             <div className="flex flex-wrap gap-3 justify-center">
               <NextLink
-                href="/nav-pilot/docs"
+                href="/nav-pilot/referanse"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-lg font-medium no-underline transition-all"
                 style={{
                   background: "linear-gradient(135deg, #3b82f6, #6366f1)",
@@ -366,7 +366,10 @@ logger.info("Vedtak",    `}
             >
               Homebrew på macOS, apt-arkivet på Debian og Ubuntu. Arkivet bygges hver time fra den nyeste releasen, så
               en helt fersk release kan bruke opptil en time på å bli installerbar. Andre distroer og CI:{" "}
-              <NextLink href="/nav-pilot/docs#installasjon" style={{ color: "rgba(255,255,255,0.75)" }}>
+              <NextLink
+                href="/nav-pilot/guider/installere-og-oppgradere#installere-i-ci"
+                style={{ color: "rgba(255,255,255,0.75)" }}
+              >
                 installasjonsskriptet
               </NextLink>
               .
@@ -1016,7 +1019,7 @@ function GetStartedSection() {
 
           <div className="flex flex-wrap gap-3 justify-center">
             <NextLink
-              href="/nav-pilot/docs"
+              href="/nav-pilot/guider"
               className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-medium no-underline transition-all"
               style={{ background: "#3b82f6", color: "white", fontSize: "0.875rem" }}
             >
@@ -1083,7 +1086,7 @@ function FooterTagline() {
           </p>
           <div className="flex flex-wrap gap-6 justify-center" style={{ fontSize: "0.875rem" }}>
             <NextLink
-              href="/nav-pilot/docs#kommandooversikt"
+              href="/nav-pilot/referanse#kommandoer"
               className="no-underline transition-colors"
               style={{ color: "rgba(255,255,255,0.5)" }}
             >

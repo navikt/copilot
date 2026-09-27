@@ -256,8 +256,8 @@ export default function Agentpakker() {
                       steg i rekkefølge: bruk en pakke som finnes, ta delene du trenger av den, bygg videre på den, og
                       lag din egen først når ingenting av det holder. Skal du bare bruke Nav-innholdet, trenger du ikke
                       denne sida:{" "}
-                      <NextLink href="/nav-pilot/docs" className={linkClass}>
-                        nav-pilot-dokumentasjonen
+                      <NextLink href="/nav-pilot/guider" className={linkClass}>
+                        guidene for nav-pilot
                       </NextLink>{" "}
                       dekker installasjon og bruk.
                     </BodyLong>
