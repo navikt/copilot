@@ -130,8 +130,6 @@ export function SiteSearch({ label }: { label: string }) {
         >
           <Dialog.Header>
             <Dialog.Title>Søk</Dialog.Title>
-          </Dialog.Header>
-          <Dialog.Body>
             <Search
               ref={inputRef}
               label="Søk i sidene om nav-pilot og i nyhetene"
@@ -155,14 +153,19 @@ export function SiteSearch({ label }: { label: string }) {
                   e.preventDefault();
                   setOpen(false);
                   router.push(hits[active].href);
+                } else if (e.key === "Escape") {
+                  // Aksel Search would only clear the field. Esc closes the dialog, text or not.
+                  setOpen(false);
                 }
               }}
             />
+          </Dialog.Header>
+          <Dialog.Body>
             <BodyShort
               role="status"
               aria-live="polite"
               size="small"
-              className="mt-3 mb-1 text-[var(--ax-text-neutral-subtle)]"
+              className="mb-1 text-[var(--ax-text-neutral-subtle)]"
             >
               {status}
             </BodyShort>

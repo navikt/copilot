@@ -774,7 +774,11 @@ button.section-link {
   opacity: 0.7;
 }
 .site-search .aksel-dialog__body {
-  min-height: 16rem;
+  min-height: 12rem;
+}
+/* The field sits in the header under the title, so it stays put while the hits scroll */
+.site-search .aksel-dialog__header .aksel-search {
+  margin-top: var(--ax-space-16);
 }
 .search-hit {
   display: flex;

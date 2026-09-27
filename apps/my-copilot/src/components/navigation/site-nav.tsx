@@ -41,7 +41,7 @@ export function SiteHeader({ labels, userName }: { labels: HeaderLabels; userNam
       <a href="#hovedinnhold" className="skip-link">
         {labels.skip}
       </a>
-      <div className="flex items-center gap-8">
+      <div className="flex items-center gap-2 lg:gap-8">
         <NextLink href="/" className="wordmark">
           <span className="wordmark-name">nav-pilot</span>
           <span className="wordmark-tagline">{labels.tagline}</span>
