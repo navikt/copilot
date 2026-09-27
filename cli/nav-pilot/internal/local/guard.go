@@ -160,6 +160,40 @@ type Guard struct {
 	// already encoded. Nil when the active model sets none, and then the body
 	// is forwarded exactly as the client sent it.
 	sampling map[string]json.RawMessage
+
+	// target is the server this guard forwards to, and gate the dispatch
+	// gate when the launch turned it on ([Guard.EnableDispatchGate]).
+	target string
+	gate   atomic.Pointer[dispatchGate]
+}
+
+// EnableDispatchGate turns the dispatch gate on for this session (gate.go),
+// with the rules the manifest's trusted classes allow and the session's
+// project directory in rules.Root.
+func (g *Guard) EnableDispatchGate(rules GateRules) {
+	if g != nil && rules.Any() {
+		g.gate.Store(newDispatchGate(g.target, rules))
+	}
+}
+
+// GateURL is the address the opencode plugin asks, or "" with the gate off.
+func (g *Guard) GateURL() string {
+	if g == nil || g.gate.Load() == nil {
+		return ""
+	}
+	return g.URL() + GatePath
+}
+
+// GateCounts is what the gate decided this session, by outcome. Nil with the
+// gate off.
+func (g *Guard) GateCounts() map[string]int64 {
+	if g == nil {
+		return nil
+	}
+	if gt := g.gate.Load(); gt != nil {
+		return gt.snapshot()
+	}
+	return nil
 }
 
 // samplingParams are the manifest params the guard writes into completion
@@ -313,7 +347,7 @@ func StartGuard(target string, m Model) (*Guard, error) {
 	// statsPath is resolved here and not per request, because the handler runs
 	// on its own goroutine and must not read the directory globals while
 	// something else is changing them.
-	g := &Guard{ln: ln, statsPath: statsPath(), cancelHandlers: cancelHandlers, sampling: sampling}
+	g := &Guard{ln: ln, statsPath: statsPath(), cancelHandlers: cancelHandlers, sampling: sampling, target: target}
 	g.srv = &http.Server{
 		Handler:           guardHandler(g, proxy, target),
 		ReadHeaderTimeout: 30 * time.Second,
@@ -473,6 +507,17 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 	// against itself and leave them racing each other.
 	oneAtATime := make(chan struct{}, 1)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Before anything else: the gate is nav-pilot's own route, and must
+		// neither reach the server nor queue behind a completion.
+		if r.URL.Path == GatePath {
+			if gt := g.gate.Load(); gt != nil {
+				gt.serve(w, r)
+			} else {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte("{}"))
+			}
+			return
+		}
 		// Counted for API-shaped requests only, not for everything that reaches
 		// the port. A session that dispatched nothing is three different things,
 		// and this is what separates them: a client that asked for the model list

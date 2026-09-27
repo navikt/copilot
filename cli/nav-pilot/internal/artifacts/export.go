@@ -302,7 +302,7 @@ func transformPrompt(data []byte) []byte {
 // agentEntries lists the agents to materialize.
 //
 // It is [source.SourceResolver.List] minus [local.WorkerAgent] while local
-// dispatch is off, which is every launch for the ~650 developers who never run
+// dispatch is off or local_dispatch is off ([local.WorkerOffered]), which is every launch for the ~650 developers who never run
 // `nav-pilot alpha local init`. That agent's description promises work that
 // draws no AI credits, and it can only keep that promise when the launch
 // has bound it to the local provider model — so shipping it to a machine with
@@ -316,7 +316,7 @@ func transformPrompt(data []byte) []byte {
 // the new listing does not.
 func agentEntries(sourceDir string, layout *agentpakke.Layout) []source.Resolved {
 	entries := source.NewSourceResolverForLayout(sourceDir, layout).List(source.KindAgent)
-	if local.Enabled() {
+	if local.WorkerOffered() {
 		return entries
 	}
 	return slices.DeleteFunc(entries, func(e source.Resolved) bool { return e.Name == local.WorkerAgent })
@@ -330,7 +330,7 @@ func agentEntries(sourceDir string, layout *agentpakke.Layout) []source.Resolved
 // sync uses it: `export opencode` writes a repo's .opencode/, which teammates
 // without a local model read too.
 func withLocalWorker(entries []source.Resolved) []source.Resolved {
-	if !local.Enabled() || slices.ContainsFunc(entries, func(e source.Resolved) bool { return e.Name == local.WorkerAgent }) {
+	if !local.WorkerOffered() || slices.ContainsFunc(entries, func(e source.Resolved) bool { return e.Name == local.WorkerAgent }) {
 		return entries
 	}
 	return append(entries, source.Resolved{

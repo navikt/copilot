@@ -53,7 +53,8 @@ type Recorder interface {
 	RecordClientAvailable(client string, available bool)
 	RecordLaunchError(client, errorType string)
 	RecordRtkSetup(client, choice, result string)
-	RecordLocalSession(client, model, backend string, dispatches int64, sawTraffic bool)
+	RecordLocalSession(client, model, backend, level string, dispatches int64, sawTraffic bool)
+	RecordLocalGate(outcome string, count int64)
 	RecordLocalReadySeconds(model, outcome string, seconds int64)
 	RecordDecide(e DecideEvent)
 	RecordHookLoopGuard(rule, session string)
@@ -64,7 +65,8 @@ type Recorder interface {
 type NoopRecorder struct{}
 
 func (NoopRecorder) RecordCommand(string, string, string, string, string, time.Duration) {}
-func (NoopRecorder) RecordLocalSession(string, string, string, int64, bool)              {}
+func (NoopRecorder) RecordLocalSession(string, string, string, string, int64, bool)      {}
+func (NoopRecorder) RecordLocalGate(string, int64)                                       {}
 func (NoopRecorder) RecordLocalReadySeconds(string, string, int64)                       {}
 func (NoopRecorder) RecordInstallItems(string, string, int64)                            {}
 func (NoopRecorder) RecordSyncUpdates(string, string, int64)                             {}
@@ -109,6 +111,7 @@ type otelTelemetry struct {
 	decidePChoice      metric.Float64Histogram
 	hookLoopGuardTotal metric.Int64Counter
 	hookRedactTotal    metric.Int64Counter
+	localGateTotal     metric.Int64Counter
 
 	version          string
 	device           string
@@ -281,8 +284,15 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 		return NoopRecorder{}, fmt.Errorf("create hook redact counter: %w", err)
 	}
 
+	localGateTotal, err := meter.Int64Counter("nav_pilot_local_gate_total",
+		metric.WithDescription("Dispatch gate decisions at local_dispatch = balanced or aggressive, by outcome: deny_files, deny_scripted, deny_create, dispatched_after_deny."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create local gate counter: %w", err)
+	}
+
 	tel := &otelTelemetry{
 		provider:           provider,
+		localGateTotal:     localGateTotal,
 		commandDurationMS:  commandDurationMS,
 		commandErrorTotal:  commandErrorTotal,
 		launchErrorTotal:   launchErrorTotal,
@@ -433,9 +443,11 @@ func (t *otelTelemetry) RecordConfig(client, configMode, model, reasoningEffort,
 // than protect a cardinality budget of at most a handful of manifest entries.
 // backend is mlx or endpoint; an endpoint's model id is typed by the developer,
 // so the caller passes "custom" for it (local.TelemetryModel).
-func (t *otelTelemetry) RecordLocalSession(client, model, backend string, dispatches int64, sawTraffic bool) {
+func (t *otelTelemetry) RecordLocalSession(client, model, backend, level string, dispatches int64, sawTraffic bool) {
 	t.localDispatches.Record(context.Background(), dispatches, metric.WithAttributes(
 		attribute.String("client", orUnset(client)),
+		// local_dispatch, so the dispatch rate can be read per level.
+		attribute.String("dispatch_level", oneOf(level, "off", "conservative", "balanced", "aggressive")),
 		// Whether the client sent this guard anything at all. Zero dispatches
 		// with traffic is the orchestrator declining; zero without is wiring
 		// that never reached it. Reported as an attribute rather than a second
@@ -750,6 +762,20 @@ func (t *otelTelemetry) RecordHookLoopGuard(rule, session string) {
 	t.hookLoopGuardTotal.Add(context.Background(), 1, metric.WithAttributes(
 		attribute.String("rule", oneOf(rule, "same_result", "cycle", "backstop")),
 		attribute.String("session", oneOf(session, "local", "cloud")),
+		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+// RecordLocalGate counts the dispatch gate's decisions of one outcome in a
+// session, recorded at exit like nav_pilot_local_dispatches.
+func (t *otelTelemetry) RecordLocalGate(outcome string, count int64) {
+	if count <= 0 || t.localGateTotal == nil {
+		return
+	}
+	t.localGateTotal.Add(context.Background(), count, metric.WithAttributes(
+		attribute.String("outcome", oneOf(outcome, "deny_files", "deny_scripted", "deny_create", "dispatched_after_deny")),
 		attribute.String("version", t.version),
 		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),

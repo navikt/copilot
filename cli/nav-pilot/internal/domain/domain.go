@@ -63,7 +63,11 @@ type Config struct {
 	// LocalEndpointModel is the model id to ask it for.
 	LocalEndpoint      *string `toml:"local_endpoint"`
 	LocalEndpointModel *string `toml:"local_endpoint_model"`
-	CopilotAuthMode    *string `toml:"copilot_auth_mode"`
+	// LocalDispatch is how hard a cloud orchestrator is pushed to send work
+	// to the local worker: off, conservative, balanced or aggressive. Unset
+	// means balanced. See docs/local-dispatch.md.
+	LocalDispatch   *string `toml:"local_dispatch"`
+	CopilotAuthMode *string `toml:"copilot_auth_mode"`
 	// HookLoopGuard turns the loop-guard hook on and off: the postToolUse hook
 	// nav-pilot writes to ~/.copilot/hooks/ so the local guard's loop rule
 	// also covers cloud sessions. Unset means on.
@@ -109,6 +113,7 @@ type ResolvedConfig struct {
 	LocalModel         string   // local model id to serve; empty = the manifest default
 	LocalEndpoint      string   // own OpenAI-compatible server; empty = the managed mlx-lm server
 	LocalEndpointModel string   // model id to ask LocalEndpoint for
+	LocalDispatch      string   // off | conservative | balanced | aggressive; always set
 	CopilotAuthMode    string   // auto | env_only | gh_only
 	HookLoopGuard      bool     // the loop-guard postToolUse hook for every Copilot CLI session
 	HookRedactSecrets  bool     // mask secrets in tool results
@@ -141,6 +146,7 @@ type CLIOverrides struct {
 	AutoLaunch      *bool
 	LogLevel        string
 	OtelLogLevel    string
+	LocalDispatch   string
 	ProjectDir      string
 	NoSandbox       bool
 	ExtraArgs       []string
@@ -153,6 +159,7 @@ var (
 	ValidLogLevels        = []string{"none", "error", "warning", "info", "debug", "all", "default"}
 	ValidOtelLogLevels    = []string{"none", "error", "warning", "warn", "info", "debug", "verbose", "all"}
 	ValidCopilotAuthModes = []string{"auto", "env_only", "gh_only"}
+	ValidLocalDispatch    = []string{"off", "conservative", "balanced", "aggressive"}
 )
 
 // ModelChoice pairs a model id (the --model value) with a human-readable label.

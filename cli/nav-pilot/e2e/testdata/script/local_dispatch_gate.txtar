@@ -1,0 +1,139 @@
+# local_dispatch on an opencode launch with a cloud orchestrator and the local
+# server up: the launch hands opencode the gate's address, and the gate
+# refuses the orchestrator's own edit of a 5th file (balanced and aggressive)
+# and a new test file it would write itself (aggressive, create-file trusted).
+# The fake cplt plays opencode's plugin: it posts what the plugin would post
+# for five edits and one new file. conservative and off hand opencode no gate.
+# With the server gone mid-session the gate lets everything through, and a
+# launch with no server has no gate.
+
+# nav-pilot proves the server is its own with /usr/sbin/lsof (macOS).
+[!exec:/usr/sbin/lsof] skip 'needs /usr/sbin/lsof for the server ownership check (macOS)'
+[!exec:/usr/bin/curl] skip 'needs curl to play the plugin'
+
+fake-bin cplt opencode
+# fake-bin leaves only the fakes on PATH. The ownership check needs ps, and the
+# fake cplt below needs curl and sed; none of them is a coding agent.
+env PATH=$PATH${:}/bin${:}/usr/bin
+fake-mlx
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot config set source $WORK/plattform
+exec nav-pilot install plattform --user --yes
+exec nav-pilot config set local_enabled true
+
+# aggressive: the 5th file is refused, the first four are not, and so is the
+# new test file.
+exec nav-pilot config set local_dispatch aggressive
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+grep '^--pass-env\nNAV_PILOT_DISPATCH_GATE\n' $WORK/fake/cplt.log
+exec cat $WORK/gate.out
+stdout -count=4 '^\{\}$'
+stdout -count=1 '"deny":"nav-pilot \(local_dispatch\): this is a mechanical change across several files'
+stdout -count=1 '"deny":"nav-pilot \(local_dispatch = aggressive\): new files go to `local-worker` first'
+exists $HOME/.config/opencode/plugins/nav-pilot-dispatch-gate.js
+grep 'nav-pilot enforces this in every tier' $HOME/.config/opencode/nav-pilot-local-dispatch.md
+grep 'A new file you would write yourself' $HOME/.config/opencode/nav-pilot-local-dispatch.md
+! stderr 'not enforced with --pure'
+
+# --pure turns opencode's plugins off, the gate with them: said on stderr.
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- --pure run x </dev/null'
+stderr 'local_dispatch = aggressive is not enforced with --pure'
+
+# balanced: the 5th file is refused once, as a checkpoint; new files are not
+# its business.
+exec nav-pilot config set local_dispatch balanced
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+exec cat $WORK/gate.out
+stdout -count=5 '^\{\}$'
+stdout -count=1 'this looks like a mechanical change across several files.*make the same edit again and it goes through'
+! stdout 'new files go to'
+! grep 'A new file you would write yourself' $HOME/.config/opencode/nav-pilot-local-dispatch.md
+
+# The flag wins over the file, and conservative has no gate.
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 --local-dispatch conservative -- run x </dev/null'
+exec cat $WORK/gate.out
+stdout '^no gate$'
+
+# off: no worker offered, so no policy. The plugin stays: it does nothing
+# without the variable, and only alpha local off removes it.
+exec nav-pilot config set local_dispatch off
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+exec cat $WORK/gate.out
+stdout '^no gate$'
+! exists $HOME/.config/opencode/nav-pilot-local-dispatch.md
+
+# The server dies mid-session: the gate fails open.
+exec nav-pilot config set local_dispatch aggressive
+env KILL_SERVER=1
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+exec cat $WORK/gate.out
+stdout -count=6 '^\{\}$'
+! stdout deny
+
+# The next launch finds no server: a cloud-only session, and no gate.
+env KILL_SERVER=
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+stderr 'this session runs entirely in the cloud'
+exec cat $WORK/gate.out
+stdout '^no gate$'
+
+# alpha local off takes the plugin out.
+exec nav-pilot alpha local off
+! exists $HOME/.config/opencode/plugins/nav-pilot-dispatch-gate.js
+
+-- fake/cplt.sh --
+# Play opencode's gate plugin: five edits of five files in one turn.
+if [ -z "$NAV_PILOT_DISPATCH_GATE" ]; then
+  echo 'no gate' > "$WORK/gate.out"
+else
+  if [ -n "$KILL_SERVER" ]; then
+    kill "$(sed 's/.*"pid":\([0-9]*\).*/\1/' "$HOME/.nav-pilot/local/server.json")"
+    sleep 0.5
+  fi
+  : > "$WORK/gate.out"
+  for f in 1 2 3 4 5; do
+    curl -s -d "{\"session\":\"s\",\"turn\":1,\"agent\":\"build\",\"tool\":\"edit\",\"path\":\"$WORK/repo/src/F$f.kt\"}" "$NAV_PILOT_DISPATCH_GATE" >> "$WORK/gate.out"
+    echo >> "$WORK/gate.out"
+  done
+  curl -s -d "{\"session\":\"s\",\"turn\":1,\"agent\":\"build\",\"tool\":\"write\",\"create\":true,\"path\":\"$WORK/repo/src/FooTest.kt\"}" "$NAV_PILOT_DISPATCH_GATE" >> "$WORK/gate.out"
+  echo >> "$WORK/gate.out"
+fi
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- home/.nav-pilot/local-models.json --
+{
+  "schema_version": 1,
+  "channel": "alpha",
+  "models": [
+    {
+      "key": "qwen3.6-35b-a3b-optiq",
+      "name": "Qwen 3.6 35B A3B OptiQ 4bit",
+      "model": "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "backend": "mlx-lm",
+      "default": true,
+      "weights_gb": 25,
+      "min_ram_gb": 8,
+      "wired_limit_gb": 4,
+      "params": {"MLX_OPENCODE_CONTEXT": "65536"},
+      "capabilities": {"classes": {"edit-multi-mechanical": {"delegate": "trusted", "local": "not-yet"}, "create-file": {"delegate": "trusted", "local": "not-yet"}}}
+    }
+  ]
+}
+-- repo/src/F1.kt --
+-- repo/src/F2.kt --
+-- repo/src/F3.kt --
+-- repo/src/F4.kt --
+-- repo/src/F5.kt --

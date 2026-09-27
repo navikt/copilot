@@ -419,6 +419,17 @@ func run(args []string) error {
 					return fmt.Errorf("--otel-log-level %q is not valid (allowed: %s)", v, strings.Join(validOtelLogLevels, ", "))
 				}
 				cliOverrides.OtelLogLevel = v
+			case "--local-dispatch":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--local-dispatch requires a value")
+				}
+				i++
+				v := args[i]
+				if !containsStr(validLocalDispatch, v) {
+					return fmt.Errorf("--local-dispatch %q is not valid (allowed: %s)", v, strings.Join(validLocalDispatch, ", "))
+				}
+				cliOverrides.LocalDispatch = v
+				local.SetDispatchLevel(v)
 			case "--allow-all-tools":
 				t := true
 				cliOverrides.AllowAllTools = &t

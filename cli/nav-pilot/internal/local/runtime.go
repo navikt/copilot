@@ -403,6 +403,10 @@ func readStamp() (envStamp, error) {
 	return s, json.Unmarshal(data, &s)
 }
 
+// Pins are the mlx-lm and mlx versions this binary provisions, and what
+// [Installed] compares the environment's stamp with.
+func Pins() (mlxLM, mlx string) { return mlxLMVersion, mlxVersion }
+
 func writeStamp() error {
 	data, err := json.Marshal(envStamp{MLXLM: mlxLMVersion, MLX: mlxVersion})
 	if err != nil {

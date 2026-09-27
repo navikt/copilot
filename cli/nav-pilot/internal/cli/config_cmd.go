@@ -192,6 +192,14 @@ var configKeyDefs = []configKeyDef{
 		allowed:     nil,
 		defaultVal:  "",
 		flag:        "",
+	},
+	{
+		name:        "local_dispatch",
+		kind:        keyKindString,
+		description: "How hard nav-pilot pushes a cloud orchestrator to send work to the local worker (opencode): off, conservative, balanced or aggressive. balanced refuses the orchestrator's own edit once when a mechanical change reaches a 5th file (the same edit again passes); aggressive refuses it until the file has been sent to the worker, and does the same for new files.",
+		allowed:     validLocalDispatch,
+		defaultVal:  "balanced",
+		flag:        "--local-dispatch",
 		group:       "Local models (alpha)",
 	},
 	{
@@ -415,6 +423,15 @@ version = 1
 # Default: unset
 # local_endpoint = "http://127.0.0.1:11434/v1"
 # local_endpoint_model = "qwen3.6:35b"
+
+# How hard nav-pilot pushes a cloud orchestrator (opencode) to send work to
+# the local worker. off: the worker is not offered. conservative: send only
+# large changes, the orchestrator decides. balanced: nav-pilot refuses the
+# orchestrator's own edit once when a mechanical change reaches a 5th file;
+# the same edit again passes. aggressive: refused until the file is sent to
+# the worker, and new files too.
+# Allowed: off, conservative, balanced, aggressive — Default: balanced
+# local_dispatch = "balanced"
 
 # Warn the model when it repeats one tool call, in every Copilot CLI session
 # and not only local ones. At launch nav-pilot writes a postToolUse hook to
@@ -750,6 +767,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return r.LocalEndpoint
 	case "local_endpoint_model":
 		return r.LocalEndpointModel
+	case "local_dispatch":
+		return r.LocalDispatch
 	case "hook_loop_guard":
 		return strconv.FormatBool(r.HookLoopGuard)
 	case "hook_redact_secrets":

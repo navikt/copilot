@@ -1012,6 +1012,9 @@ func cmdLocalOff() error {
 	if err := providerpkg.RemoveOpenCodeLocalPolicy(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not remove the local dispatch policy from opencode: %v\n", yellow("⚠"), err)
 	}
+	if err := providerpkg.RemoveDispatchGatePlugin(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Could not remove the dispatch gate plugin from opencode: %v\n", yellow("⚠"), err)
+	}
 
 	// Then the provider block and the worker's binding that start wrote. Left
 	// there, the model stays selectable and pointed at the guard's port — which
@@ -1053,6 +1056,7 @@ func applyLocalConfig() {
 	}
 	r := resolve(cfg, CLIOverrides{})
 	local.SetLoopGuardRepeat(localLoopGuard(r))
+	local.SetDispatchLevel(r.LocalDispatch)
 	if r.LocalEndpoint != "" {
 		applyEndpointConfig(r)
 		return
