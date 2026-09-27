@@ -390,12 +390,15 @@ jobs:
           MQ_HEAD: ${{ github.event.merge_group.head_sha }}
         run: |
           case "$EVENT" in
-            pull_request) range="origin/${PR_BASE}..HEAD" ;;
-            merge_group)  range="${MQ_BASE}..${MQ_HEAD}" ;;
+            pull_request) range="origin/${PR_BASE:?}..HEAD" ;;
+            merge_group)  range="${MQ_BASE:?}..${MQ_HEAD:?}" ;;
             *)            range="HEAD" ;; # workflow_dispatch: full history of the ref
           esac
+          # gitleaks exits 0 on an unknown revision, so resolve the range first.
+          git rev-list -n1 "$range" > /dev/null
           echo "Scanning $range"
-          "${RUNNER_TEMP}/gitleaks" git --redact --verbose --exit-code 1 --log-opts="$range" .
+          # -m: also scan merge commits' diffs, e.g. a conflict resolution.
+          "${RUNNER_TEMP}/gitleaks" git --redact --verbose --exit-code 1 --log-opts="-m $range" .
 
   # ── the gate ───────────────────────────────────────────────────────────────
   # Single check to require in the branch ruleset. Succeeds when every needed

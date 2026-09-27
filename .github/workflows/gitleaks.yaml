@@ -42,5 +42,8 @@ jobs:
           echo "${GITLEAKS_SHA256}  ${RUNNER_TEMP}/gitleaks.tar.gz" | sha256sum -c -
           tar -xzf "${RUNNER_TEMP}/gitleaks.tar.gz" -C "${RUNNER_TEMP}" gitleaks
 
+      # HEAD, ikke gitleaks' standard --all: fetchen har med alle brancher, og en
+      # fixture på en annen branch er ikke en lekkasje på main. -m tar med
+      # diffen i merge-commits.
       - name: Scan full git history
-        run: '"${RUNNER_TEMP}/gitleaks" git --redact --verbose --exit-code 1 .'
+        run: '"${RUNNER_TEMP}/gitleaks" git --redact --verbose --exit-code 1 --log-opts="-m HEAD" .'
