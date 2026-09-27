@@ -359,8 +359,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   # ── secret scanning ────────────────────────────────────────────────────────
-  # Mirrors gitleaks.yaml's scan job so secret scanning also gates the merge
-  # queue. Always runs (no path filter) — it scans the whole history.
+  # Gates PRs and the merge queue on secrets in the commits they add. Scans only
+  # that range: the full fetch holds every branch, and a fixture on an unrelated
+  # branch must not fail every PR. gitleaks.yaml scans full history on push to
+  # main. Always runs (no path filter).
 
   gitleaks:
     name: gitleaks
@@ -369,7 +371,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          # Full history so gitleaks can scan every commit
+          # Full history so the base of the range is present
           fetch-depth: 0
       - name: Download gitleaks
         env:
@@ -380,8 +382,20 @@ jobs:
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           echo "${GITLEAKS_SHA256}  ${RUNNER_TEMP}/gitleaks.tar.gz" | sha256sum -c -
           tar -xzf "${RUNNER_TEMP}/gitleaks.tar.gz" -C "${RUNNER_TEMP}" gitleaks
-      - name: Scan full git history
-        run: '"${RUNNER_TEMP}/gitleaks" git --redact --verbose --exit-code 1 .'
+      - name: Scan the commits this change adds
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.base_ref }}
+          MQ_BASE: ${{ github.event.merge_group.base_sha }}
+          MQ_HEAD: ${{ github.event.merge_group.head_sha }}
+        run: |
+          case "$EVENT" in
+            pull_request) range="origin/${PR_BASE}..HEAD" ;;
+            merge_group)  range="${MQ_BASE}..${MQ_HEAD}" ;;
+            *)            range="HEAD" ;; # workflow_dispatch: full history of the ref
+          esac
+          echo "Scanning $range"
+          "${RUNNER_TEMP}/gitleaks" git --redact --verbose --exit-code 1 --log-opts="$range" .
 
   # ── the gate ───────────────────────────────────────────────────────────────
   # Single check to require in the branch ruleset. Succeeds when every needed
