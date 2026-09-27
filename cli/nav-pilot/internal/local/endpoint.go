@@ -104,7 +104,14 @@ func refuseRedirect(r *http.Response) error {
 // ServerClient is the HTTP client for requests to the local server. No
 // timeout: a local completion at a large context legitimately takes minutes,
 // and the caller's context bounds it.
-var ServerClient = &http.Client{Transport: serverTransport}
+//
+// It follows no redirect: no completion server sends one, and a redirect
+// would make one request into two, possibly to another service on the same
+// network. The 3xx comes back to the caller as the answer.
+var ServerClient = &http.Client{
+	Transport:     serverTransport,
+	CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+}
 
 // EndpointManifest is the one-entry manifest endpoint mode answers from, so
 // [IsLocal], [Lookup] and [Chosen] name the endpoint's model and nothing else.

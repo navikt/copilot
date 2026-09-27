@@ -415,7 +415,9 @@ func pickChoice(ctx context.Context, servers []foundServer, f setupFlags) (setup
 		}
 	}
 	if len(all) == 0 {
-		return setupChoice{}, noServerFound(false)
+		fmt.Printf("\n  The server here lists no model nav-pilot can use. Load or pull one (on Ollama: %s), then run %s again.\n\n",
+			bold("ollama pull "+ollamaRecommended), bold("nav-pilot alpha local setup"))
+		return setupChoice{}, &exitCode{code: 1}
 	}
 	if all[0].Rank > 0 {
 		fmt.Printf("\n  Recommended  %s on %s: %s\n", bold(all[0].Model), kindName[all[0].Server.Kind], all[0].Why)
