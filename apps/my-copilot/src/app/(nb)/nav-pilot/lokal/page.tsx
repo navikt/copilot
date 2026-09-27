@@ -49,7 +49,7 @@ nav-pilot alpha local models        # modellene du kan velge
 nav-pilot alpha local use <key>     # bytt modell`;
 
 const EGEN_SERVER = `nav-pilot alpha local setup    # finner serveren, foreslår en modell og sjekker den
-nav-pilot alpha local doctor   # sjekker serveren på nytt: verktøykall, logprobs, kontekst og svartid`;
+nav-pilot alpha local doctor   # sjekker serveren på nytt: verktøykall, logprobs, kontekst og tid til første token`;
 
 type Row = { task: string; result: string; verdict: string };
 
@@ -150,7 +150,7 @@ export default async function LokalModell() {
     <main>
       <PageHero
         title="Lokal modell og decide"
-        description="Macen din kjører en kodemodell for enkle oppgaver. Filene den leser og skriver, blir på maskinen, og modellen bruker ingen AI-credits."
+        description="Din egen Mac, eller en server du kjører selv, kjører en kodemodell for enkle oppgaver. Modellen bruker ingen AI-credits."
         badge={
           <Tag variant="warning" size="small" className="uppercase tracking-wide">
             Alfa
@@ -168,9 +168,9 @@ export default async function LokalModell() {
                 <BodyLong>
                   nav-pilot kan kjøre en kodemodell på din egen Mac, eller bruke en server du kjører selv, for eksempel
                   Ollama på Linux. Hovedagenten i skyen planlegger og sender avgrensede oppgaver til den, for eksempel å
-                  føre et nytt argument gjennom et par kall. Med <code className={code}>nav-pilot alpha decide</code>{" "}
-                  stiller du den samme modellen et flervalgsspørsmål fra en hook eller et skript, og får svar på under
-                  et halvt sekund.
+                  føre et nytt argument gjennom kallstedene i mange filer. Med{" "}
+                  <code className={code}>nav-pilot alpha decide</code> stiller du den samme modellen et
+                  flervalgsspørsmål fra en hook eller et skript, og får svar på under et halvt sekund.
                 </BodyLong>
                 <BodyLong textColor="subtle">
                   Her er eksempelet fra{" "}
@@ -205,7 +205,7 @@ export default async function LokalModell() {
                     <code className={code}>--threshold</code> og <code className={code}>--expect</code> blir svaret en
                     exit-kode, så du kan bruke det i en commit-hook uten å tolke tekst.
                   </Card>
-                  <Card title="Innholdet blir på maskinen">
+                  <Card title="Innholdet blir hos deg">
                     Spørsmålet og grunnlaget du gir decide, forlater ikke maskinen, eller serveren du selv har pekt
                     nav-pilot på. Ved utsending ser hovedagenten i skyen oppgaven den selv skrev, og bakkemodellens
                     korte svar. nav-pilots telemetri teller hendelser, ikke innhold, og{" "}
@@ -300,16 +300,17 @@ export default async function LokalModell() {
                     Standardmodellen på Mac er godkjent bare for mekaniske endringer i flere filer. På{" "}
                     <code className={code}>balanced</code> stopper nav-pilot hovedagenten én gang per tur, og samme
                     redigering går gjennom andre gang. På <code className={code}>aggressive</code> slipper en fil
-                    gjennom først når den er sendt til <code className={code}>local-worker</code>. Nye filer stopper
-                    ikke, fordi modellen ikke er godkjent for dem.
+                    gjennom først når den er sendt til <code className={code}>local-worker</code>, og nav-pilot stopper
+                    høyst to ganger per tur. Nye filer stopper ikke, fordi modellen ikke er godkjent for dem.
                   </li>
                   <li>
                     Qwen 3.8-modellene er ikke godkjent for noen oppgavetype. Hovedagenten blir bedt om ikke å sende
                     noe, og nav-pilot stopper ingenting.
                   </li>
                   <li>
-                    Med egen server er modellen ikke målt. Hovedagenten får en generell instruks, og nav-pilot stopper
-                    ingenting.
+                    Med egen server er modellen ikke målt. Hovedagenten får derfor den eldre, generelle instruksen: send
+                    oppslag, kommentarer, én testfil og mekaniske endringer. Ingen av dem er målt på denne modellen, og
+                    nav-pilot stopper ingenting.
                   </li>
                 </VStack>
                 <BodyLong textColor="subtle">

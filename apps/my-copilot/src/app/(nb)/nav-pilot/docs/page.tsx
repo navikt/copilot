@@ -1724,7 +1724,7 @@ const CONFIG_KEYS = [
     key: "local_dispatch",
     flag: "--local-dispatch",
     values: "off · conservative · balanced · aggressive (standard: balanced)",
-    desc: "Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer. Med aggressive slipper den gjennom først når filen er sendt til den lokale modellen, og det samme gjelder nye filer. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for.",
+    desc: "Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer, ti redigeringer eller en skriptet løkke. Med aggressive slipper den gjennom først når filen er sendt til den lokale modellen, og det samme gjelder nye filer. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for.",
   },
   {
     key: "hook_loop_guard",
@@ -2190,7 +2190,7 @@ function LocalModelSection({ models }: { models: LocalModel[] }) {
             </Tag>
           </LinkableHeading>
           <BodyLong textColor="subtle">
-            nav-pilot kan kjøre en modell på din egen maskin. Vi kaller den bakkemodellen: hovedagenten blir i skya og
+            nav-pilot kan kjøre en modell på din egen maskin. Vi kaller den bakkemodellen: hovedagenten blir i skyen og
             bestemmer, bakkemodellen står på bakken og utfører. Den trekker ingen AI-credits, uansett hvor mye den
             genererer. Til gjengjeld er den langsommere enn skyen, og den klarer bare en del av arbeidet.
           </BodyLong>
@@ -2241,7 +2241,7 @@ nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
 nav-pilot alpha local purge     # viser hva som fjernes og hvor mye; --yes sletter, --all tar alle modellene
 nav-pilot alpha local setup     # egen server: finner den, foreslår modell og sjekker den
-nav-pilot alpha local doctor    # egen server: sjekker verktøykall, logprobs, kontekst og svartid`}
+nav-pilot alpha local doctor    # egen server: sjekker verktøykall, logprobs, kontekst og tid til første token`}
           </CodeBlock>
           <VStack id="lokal-modeller" gap="space-12">
             <LinkableHeading size="small" level="3">
@@ -2487,9 +2487,10 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
           <BodyLong size="small" textColor="subtle">
             Hva nivåene gjør i dag, avhenger av modellen. Standardmodellen på Mac er godkjent bare for mekaniske
             endringer i flere filer, så regelen om nye filer på <code className="font-mono text-xs">aggressive</code>{" "}
-            slår ikke inn. Qwen 3.8-modellene er ikke godkjent for noe, og en modell på egen server er ikke målt. Med
-            dem stopper nav-pilot ingenting på noe nivå. Nivåene er nye, og vi har ikke målt om stoppet får hovedagenten
-            til å sende mer, eller om det sparer AI-credits.
+            slår ikke inn. Qwen 3.8-modellene er ikke godkjent for noe, og med dem stopper nav-pilot ingenting på noe
+            nivå. En modell på egen server er ikke målt, men får den eldre, generelle instruksen og heller ikke noe
+            stopp. Nivåene er nye, og vi har ikke målt om stoppet får hovedagenten til å sende mer, eller om det sparer
+            AI-credits.
           </BodyLong>
         </VStack>
 
@@ -2504,8 +2505,9 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             Har du Linux, eller vil du heller bruke Ollama, llama-server eller LM Studio på Macen, kan du peke nav-pilot
             på en server du kjører selv. Da laster nav-pilot ikke ned noe og starter ingenting. Løkkevakten, utsendingen
             til bakkemodellen og <code className="font-mono text-xs">alpha decide</code> går til serveren din. Vi har
-            ikke målt noen modell på denne veien. nav-pilot merker derfor modellen som ikke målt, og hovedagenten får
-            ingen godkjente oppgavetyper å gå etter.
+            ikke målt noen modell på denne veien. Hovedagenten får derfor den eldre, generelle instruksen: send oppslag,
+            kommentarer, én testfil og mekaniske endringer. Ingen av dem er målt på denne modellen, og nav-pilot stopper
+            ingenting.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
             Koden din sendes til serveren, så nav-pilot godtar bare localhost og private IP-adresser (for eksempel
