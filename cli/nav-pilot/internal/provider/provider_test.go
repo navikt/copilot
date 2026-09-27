@@ -141,7 +141,7 @@ func TestCopilotProvider_ContextLifecycle(t *testing.T) {
 	if err != nil || summary != "" {
 		t.Errorf("Bootstrap() = (%q, %v), want (\"\", nil)", summary, err)
 	}
-	res := p.SyncContext("", "", false, false)
+	res := p.SyncContext("", "", true, false, false)
 	if res.Managed {
 		t.Error("SyncContext().Managed = true, want false")
 	}
@@ -222,7 +222,7 @@ func TestOpenCodeProvider_ContextStatusNoState(t *testing.T) {
 	if cs := p.ContextStatus(); cs != nil {
 		t.Errorf("ContextStatus() = %v, want nil (no state file)", cs)
 	}
-	res := p.SyncContext("", "", false, false)
+	res := p.SyncContext("", "", true, false, false)
 	if res.Managed {
 		t.Error("SyncContext().Managed = true, want false (no state file)")
 	}
@@ -262,7 +262,7 @@ func TestPiProvider_ContextLifecycle(t *testing.T) {
 		if summary, err := p.Bootstrap(domain.ResolvedConfig{}); err != nil || summary != "" {
 			t.Errorf("Bootstrap() = (%q, %v), want (\"\", nil)", summary, err)
 		}
-		if res := p.SyncContext("", "", false, false); res.Managed {
+		if res := p.SyncContext("", "", true, false, false); res.Managed {
 			t.Error("SyncContext().Managed = true, want false")
 		}
 		if cs := p.ContextStatus(); cs != nil {
@@ -289,7 +289,7 @@ func TestPiProvider_ContextLifecycle(t *testing.T) {
 
 		// An ordinary sync must not create the directory: the sync loop calls
 		// every provider, and one with no managed state skips silently.
-		if res := p.SyncContext("", "", true, false); res.Managed {
+		if res := p.SyncContext("", "", true, true, false); res.Managed {
 			t.Error("SyncContext() before Bootstrap reported a managed scope")
 		}
 
@@ -336,7 +336,7 @@ func TestPiProvider_ContextLifecycle(t *testing.T) {
 		}
 
 		// With state on disk the scope is now part of the sync loop.
-		if res := p.SyncContext("", sourceDir, true, false); !res.Managed || res.Err != nil {
+		if res := p.SyncContext("", sourceDir, true, true, false); !res.Managed || res.Err != nil {
 			t.Errorf("SyncContext() = %+v, want managed with no error", res)
 		}
 	})

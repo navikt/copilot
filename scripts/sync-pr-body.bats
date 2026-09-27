@@ -56,6 +56,14 @@ changes() { # $1 = sync JSON
   [ "${#lines[@]}" -eq 2 ]
 }
 
+@test "marks a deletion whose local edit is kept as .orig" {
+  run changes '{"up_to_date":false,"deletions":["a.md",".github/skills/s/"],"removed_local_edits":[".github/skills/s/"]}'
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "a.md (deleted upstream)" ]
+  [ "${lines[1]}" = ".github/skills/s/ (deleted upstream; local edits kept as .orig)" ]
+  [ "${#lines[@]}" -eq 2 ]
+}
+
 @test "lists what every scope of the one document changes, added artifacts included" {
   run changes '{"scopes":[{"scope":"repo","up_to_date":false,"updates":[{"path":"a.md"}],"added":[".github/skills/ny/"]},{"scope":"user","up_to_date":true}]}'
   [ "$status" -eq 0 ]

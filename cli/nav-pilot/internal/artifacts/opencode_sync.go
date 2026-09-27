@@ -138,6 +138,32 @@ var hookWarningSaid sync.Map
 // is why the two are treated differently. [ExportOpenCode] writes project-local
 // files instead, and merges instructions for that reason.
 func SyncOpenCodeArtifacts(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceSHA, sourceRepo string) (skills, commands, agents, instructions int, conflicts []string, err error) {
+	return syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceSHA, sourceRepo, false, &OpenCodeSyncReport{})
+}
+
+// OpenCodeSyncReport is what one materialization did, or on a dry run would
+// do, to files a previous one wrote.
+type OpenCodeSyncReport struct {
+	Conflicts []string
+	// Removed names files nav-pilot wrote that the new set no longer has, and
+	// that were still byte-for-byte nav-pilot's, so they went.
+	Removed []string
+	// Kept names files the new set no longer has that changed since nav-pilot
+	// wrote them. They stay, and stay tracked (see the removal loop).
+	Kept []string
+}
+
+// SyncOpenCodeArtifactsReport is [SyncOpenCodeArtifacts] for `nav-pilot sync`:
+// it says what it removed and what it kept, and with dryRun it writes and
+// removes nothing and says what it would have done.
+func SyncOpenCodeArtifactsReport(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceSHA, sourceRepo string, dryRun bool) (OpenCodeSyncReport, error) {
+	var r OpenCodeSyncReport
+	_, _, _, _, conflicts, err := syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceSHA, sourceRepo, dryRun, &r)
+	r.Conflicts = conflicts
+	return r, err
+}
+
+func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceSHA, sourceRepo string, dryRun bool, report *OpenCodeSyncReport) (skills, commands, agents, instructions int, conflicts []string, err error) {
 	existingState, _ := ReadOpenCodeState(outputDir)
 	stateHashes := map[string]string{}
 	stillConflicted := map[string]bool{}
@@ -242,11 +268,13 @@ func SyncOpenCodeArtifacts(client, sourceDir, scopeDir, outputDir, sourceVersion
 		if err := source.CheckSymlink(dstDir, outputDir); err != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("skill %s: %w", skill.Name, err)
 		}
-		if mkErr := os.MkdirAll(filepath.Dir(dstDir), 0o755); mkErr != nil {
-			return skills, commands, agents, instructions, conflicts, mkErr
-		}
-		if cpErr := copyDirSimple(skill.AbsPath, dstDir); cpErr != nil {
-			return skills, commands, agents, instructions, conflicts, fmt.Errorf("skill %s: %w", skill.Name, cpErr)
+		if !dryRun {
+			if mkErr := os.MkdirAll(filepath.Dir(dstDir), 0o755); mkErr != nil {
+				return skills, commands, agents, instructions, conflicts, mkErr
+			}
+			if cpErr := copyDirSimple(skill.AbsPath, dstDir); cpErr != nil {
+				return skills, commands, agents, instructions, conflicts, fmt.Errorf("skill %s: %w", skill.Name, cpErr)
+			}
 		}
 		h, _ := source.RawArtifactHash(dstDir, true)
 		files = append(files, domain.InstalledFile{Path: relPath, Hash: h})
@@ -272,7 +300,7 @@ func SyncOpenCodeArtifacts(client, sourceDir, scopeDir, outputDir, sourceVersion
 		if err := source.CheckSymlink(dstPath, outputDir); err != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("command %s: %w", entry.Name, err)
 		}
-		if wErr := writeFile(dstPath, transformPrompt(data)); wErr != nil {
+		if wErr := writeUnlessDry(dryRun, dstPath, transformPrompt(data)); wErr != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("command %s: %w", entry.Name, wErr)
 		}
 		h, _ := source.RawArtifactHash(dstPath, false)
@@ -306,7 +334,7 @@ func SyncOpenCodeArtifacts(client, sourceDir, scopeDir, outputDir, sourceVersion
 		if err := source.CheckSymlink(dstPath, outputDir); err != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("agent %s: %w", entry.Name, err)
 		}
-		if wErr := writeFile(dstPath, transformAgent(data, entry.Name, primaries)); wErr != nil {
+		if wErr := writeUnlessDry(dryRun, dstPath, transformAgent(data, entry.Name, primaries)); wErr != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("agent %s: %w", entry.Name, wErr)
 		}
 		h, _ := source.RawArtifactHash(dstPath, false)
@@ -331,7 +359,7 @@ func SyncOpenCodeArtifacts(client, sourceDir, scopeDir, outputDir, sourceVersion
 			if err := source.CheckSymlink(dstPath, outputDir); err != nil {
 				return skills, commands, agents, instructions, conflicts, fmt.Errorf("instruction %s: %w", ref.Name, err)
 			}
-			if wErr := writeFile(dstPath, ref.Body); wErr != nil {
+			if wErr := writeUnlessDry(dryRun, dstPath, ref.Body); wErr != nil {
 				return skills, commands, agents, instructions, conflicts, fmt.Errorf("instruction %s: %w", ref.Name, wErr)
 			}
 			h, _ := source.RawArtifactHash(dstPath, false)
@@ -348,7 +376,7 @@ func SyncOpenCodeArtifacts(client, sourceDir, scopeDir, outputDir, sourceVersion
 			if err := source.CheckSymlink(agentsMDPath, outputDir); err != nil {
 				return skills, commands, agents, instructions, conflicts, fmt.Errorf("AGENTS.md: %w", err)
 			}
-			if wErr := writeFile(agentsMDPath, agentsMD); wErr != nil {
+			if wErr := writeUnlessDry(dryRun, agentsMDPath, agentsMD); wErr != nil {
 				return skills, commands, agents, instructions, conflicts, fmt.Errorf("AGENTS.md: %w", wErr)
 			}
 			h, _ := source.RawArtifactHash(agentsMDPath, false)
@@ -382,11 +410,22 @@ func SyncOpenCodeArtifacts(client, sourceDir, scopeDir, outputDir, sourceVersion
 			if newFilesMap[f.Path] {
 				continue
 			}
+			dst := filepath.Join(outputDir, f.Path)
+			_, statErr := os.Lstat(dst)
+			present := statErr == nil
 			if !NavPilotOwns(outputDir, f) {
 				files = append(files, f)
+				if present {
+					report.Kept = append(report.Kept, f.Path)
+				}
 				continue
 			}
-			dst := filepath.Join(outputDir, f.Path)
+			if present {
+				report.Removed = append(report.Removed, f.Path)
+			}
+			if dryRun {
+				continue
+			}
 			if strings.HasSuffix(f.Path, "/") {
 				os.RemoveAll(dst)
 			} else {
@@ -407,11 +446,21 @@ func SyncOpenCodeArtifacts(client, sourceDir, scopeDir, outputDir, sourceVersion
 	// Entries carried over untouched above keep their own unknown keys; the
 	// ones this sync rebuilt do not, and neither does the top level (#588).
 	newState.PreserveUnknownFrom(existingState)
+	if dryRun {
+		return skills, commands, agents, instructions, conflicts, nil
+	}
 	if wErr := WriteOpenCodeState(outputDir, newState); wErr != nil {
 		fmt.Fprintf(os.Stderr, "%s could not write opencode state: %v\n", domain.Yellow("⚠"), wErr)
 	}
 
 	return skills, commands, agents, instructions, conflicts, nil
+}
+
+func writeUnlessDry(dryRun bool, path string, data []byte) error {
+	if dryRun {
+		return nil
+	}
+	return writeFile(path, data)
 }
 
 // PrintOpenCodeStatusBlock prints the integrity status of nav-pilot-managed opencode files.

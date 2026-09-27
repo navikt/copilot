@@ -164,7 +164,7 @@ func TestOpenCodeProvider_SyncContext_PropagatesSourceError(t *testing.T) {
 	}
 
 	var p Provider = openCodeProvider{}
-	res := p.SyncContext("", "", true, false)
+	res := p.SyncContext("", "", true, true, false)
 
 	if !res.Managed {
 		t.Error("SyncContext() Managed = false, want true")

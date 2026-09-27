@@ -236,6 +236,8 @@ func origEntry(root, path string, d fs.DirEntry, err error) (skip bool, _ error)
 // as <file>.orig beside it, and returns the paths it wrote. One backup per
 // file: the next replacement overwrites it. In a directory only the files that
 // differ from src are saved, inside the directory, where [CopyDir] keeps them.
+// An empty src means there is nothing to replace it with (the source dropped
+// the artifact), so every file in the directory is saved.
 //
 // A symlink is never followed: its target may be any file on the machine, and
 // a copy of it inside the repository is one commit away from being published.
@@ -266,8 +268,10 @@ func SaveOrig(local, src, boundary string, isDir bool) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		if theirs, err := os.ReadFile(filepath.Join(src, rel)); err == nil && bytes.Equal(mine, theirs) {
-			return nil
+		if src != "" {
+			if theirs, err := os.ReadFile(filepath.Join(src, rel)); err == nil && bytes.Equal(mine, theirs) {
+				return nil
+			}
 		}
 		saved = append(saved, path+OrigSuffix)
 		return CopyFile(path, path+OrigSuffix, boundary)

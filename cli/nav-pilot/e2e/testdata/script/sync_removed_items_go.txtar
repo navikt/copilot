@@ -1,0 +1,133 @@
+# An instruction, a skill or an agent the agentpakke stops shipping goes on
+# the next sync, in every scope nav-pilot manages, the way a dropped hook does
+# (sync_removed_hook_goes). A stale always-on instruction otherwise stays in
+# every session's context. The safety is the same as for an update: a copy
+# edited here is saved as .orig before the artifact goes, a file nav-pilot did
+# not install is never touched, and a check lists every removal, in --json too,
+# before --apply makes it.
+
+fake-bin cplt opencode
+env PATH=$PATH${:}/bin${:}/usr/bin
+
+mkdir plattform forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+
+cd ../forbruker
+exec git init -q .
+exec nav-pilot config set source $WORK/plattform
+exec nav-pilot install plattform --repo --yes
+exec nav-pilot install --user --all
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+exists $HOME/.config/opencode/instructions/gammel.md
+exists $HOME/.config/opencode/skills/gammel/SKILL.md
+exists $HOME/.config/opencode/agents/gammel.md
+
+# Edited here: the repo's copy of the old instruction and the user scope's
+# copy of the old skill. The team also has an instruction of its own that
+# nav-pilot never installed.
+cp $WORK/edited.md .github/instructions/gammel.instructions.md
+cp $WORK/edited.md $HOME/.copilot/skills/gammel/SKILL.md
+cp $WORK/edited.md .github/instructions/teamets.instructions.md
+
+# Upstream drops one of each.
+cd ../plattform
+exec git rm -q -r instructions/gammel.instructions.md skills/gammel agents/gammel.agent.md
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm 'drop gammel'
+cd ../forbruker
+
+# A check lists every removal, marks the edited ones, and changes nothing.
+exits 1 nav-pilot sync --json
+validjson stdout
+stdout '"scope": "repo"'
+stdout '"\.github/instructions/gammel\.instructions\.md"'
+stdout '"\.github/skills/gammel/"'
+stdout '"\.github/agents/gammel\.agent\.md"'
+stdout '"removed_local_edits": \[\s*"\.github/instructions/gammel\.instructions\.md"'
+stdout '"scope": "user"'
+stdout '"removed_local_edits": \[\s*"skills/gammel/"'
+stdout '"agents/gammel\.agent\.md"'
+# opencode also mirrors the repo's own skills and agents, and on a check the
+# repo still has them, so only the instruction is listed for it here.
+stdout '"scope": "opencode"'
+stdout '"instructions/gammel\.md"'
+! stdout teamets
+exists .github/instructions/gammel.instructions.md
+exists $HOME/.copilot/agents/gammel.agent.md
+exists $HOME/.config/opencode/instructions/gammel.md
+
+exits 1 nav-pilot sync
+stdout '- \.github/instructions/gammel\.instructions\.md \(changed here; your copy is saved as \.orig\)'
+stdout '- \.github/skills/gammel/$'
+stdout '- instructions/gammel\.md \(deleted in source; will be removed\)'
+exists $HOME/.config/opencode/skills/gammel/SKILL.md
+
+exec nav-pilot sync --apply --yes
+stderr 'instruction gammel: the source removed it, and it had local changes; your copy is saved as \.github/instructions/gammel\.instructions\.md\.orig'
+stderr 'skill gammel: the source removed it, and it had local changes; your copy is saved as ~/\.copilot/skills/gammel/SKILL\.md\.orig'
+
+# Repo scope: all three gone, the edit saved, the team's own file untouched.
+! exists .github/instructions/gammel.instructions.md
+cmp .github/instructions/gammel.instructions.md.orig $WORK/edited.md
+! exists .github/skills/gammel
+! exists .github/agents/gammel.agent.md
+cmp .github/instructions/teamets.instructions.md $WORK/edited.md
+exists .github/instructions/ny.instructions.md
+! grep gammel .github/.nav-pilot-state.json
+
+# User scope: the skill's edit is saved inside its directory, and nothing
+# else of it stays.
+! exists $HOME/.copilot/skills/gammel/SKILL.md
+cmp $HOME/.copilot/skills/gammel/SKILL.md.orig $WORK/edited.md
+! exists $HOME/.copilot/agents/gammel.agent.md
+! exists $HOME/.copilot/.github/instructions/gammel.instructions.md
+! grep gammel $HOME/.copilot/.nav-pilot-state.json
+
+# opencode: gone from disk, from AGENTS.md and from its state.
+! exists $HOME/.config/opencode/instructions/gammel.md
+! exists $HOME/.config/opencode/skills/gammel
+! exists $HOME/.config/opencode/agents/gammel.md
+! grep gammel $HOME/.config/opencode/AGENTS.md
+! grep gammel $HOME/.config/opencode/.nav-pilot-state.json
+
+# Nothing left to do.
+exec nav-pilot sync
+! stdout gammel
+
+-- edited.md --
+---
+applyTo: "**"
+---
+Our own words.
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills","instructions":"instructions"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/agents/gammel.agent.md --
+---
+name: gammel
+description: gammel agent
+---
+gammel
+-- plattform/instructions/gammel.instructions.md --
+---
+applyTo: "**/*.kt"
+---
+gammel
+-- plattform/instructions/ny.instructions.md --
+---
+applyTo: "**"
+---
+ny
+-- plattform/skills/gammel/SKILL.md --
+---
+name: gammel
+description: gammel skill
+---
+gammel
