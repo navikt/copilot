@@ -1028,6 +1028,13 @@ function GetStartedSection() {
               Les dokumentasjonen →
             </NextLink>
             <NextLink
+              href="/nav-pilot/lokal"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-medium no-underline transition-colors"
+              style={{ border: "1px solid #d1d5db", color: "#374151", fontSize: "0.875rem" }}
+            >
+              Lokal modell og decide →
+            </NextLink>
+            <NextLink
               href="/verktoy"
               className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-medium no-underline transition-colors"
               style={{ border: "1px solid #d1d5db", color: "#374151", fontSize: "0.875rem" }}
@@ -1081,6 +1088,13 @@ function FooterTagline() {
               style={{ color: "rgba(255,255,255,0.5)" }}
             >
               Kommandoer
+            </NextLink>
+            <NextLink
+              href="/nav-pilot/lokal"
+              className="no-underline transition-colors"
+              style={{ color: "rgba(255,255,255,0.5)" }}
+            >
+              Lokal modell
             </NextLink>
             <NextLink
               href="https://github.com/navikt/copilot/issues/new/choose"
