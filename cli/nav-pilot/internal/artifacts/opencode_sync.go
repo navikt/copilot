@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -118,6 +119,11 @@ func withScopeExtras(entries []source.Resolved, scopeDir string, kind *source.Ar
 // printed for in this process.
 var hookWarningSaid sync.Map
 
+// InstalledHookNames lists the hooks nav-pilot installed, user and repo
+// scope, which an opencode launch runs through the hooks bridge. The cli
+// package sets it, since the scopes are its business.
+var InstalledHookNames func() []string
+
 // SyncOpenCodeArtifacts materializes Nav context into outputDir with conflict detection
 // and state tracking. It is the state-aware counterpart to MaterializeOpenCode.
 //
@@ -223,27 +229,32 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 	}
 
 	// Hooks are not materialized: they are code, and they run from where
-	// `nav-pilot install` put them. For opencode that is enough. A launch hands
-	// the installed gates, agentpakke hooks included, to the hooks bridge
+	// `nav-pilot install` put them. An opencode launch hands the installed
+	// gates, agentpakke hooks included, to the hooks bridge
 	// (provider/hooks-bridge.js, #1025, #709), which runs them from
-	// tool.execute.before the way Copilot CLI does. pi has no bridge, so there
-	// the gap is said out loud rather than skipped in silence: a user who
-	// installed an enforcement gate would otherwise believe it came along.
+	// tool.execute.before as Copilot CLI does. So for opencode the ones worth
+	// a line are those the source ships and nobody installed. pi has no
+	// bridge, so there every hook is named. Said out loud rather than skipped
+	// in silence: a user would otherwise believe the gate came along.
 	// ValidateOpenCodeStatePath keeps refusing hooks/ regardless, so nothing
 	// can slip in through state either.
-	if skipped := resolver.List(source.KindHook); len(skipped) > 0 && client != "opencode" {
-		names := make([]string, len(skipped))
-		for i, h := range skipped {
-			names[i] = h.Name
+	var skipped []string
+	for _, h := range resolver.List(source.KindHook) {
+		if client != "opencode" || InstalledHookNames == nil || !slices.Contains(InstalledHookNames(), h.Name) {
+			skipped = append(skipped, h.Name)
 		}
-		// stderr, not stdout: this function also runs under `nav-pilot sync
-		// --json` (through every provider's SyncContext), and a source with
-		// hooks prepended this line to the JSON document.
-		// Once per client per run: a sync visits opencode and pi, and a launch
-		// materializes again, and each said it anew — naming OpenCode for pi.
-		if _, said := hookWarningSaid.LoadOrStore(client, true); !said {
-			fmt.Fprintf(os.Stderr, "  %s %d hook(s) not installed for %s: %s. nav-pilot runs hooks for copilot and opencode only; see navikt/copilot#709.\n",
-				domain.Yellow("⚠"), len(names), client, strings.Join(names, ", "))
+	}
+	// stderr, not stdout: this function also runs under `nav-pilot sync
+	// --json`, and a source with hooks prepended this line to the JSON
+	// document. Once per client per run: a launch materializes again.
+	if _, said := hookWarningSaid.Load(client); len(skipped) > 0 && !said {
+		hookWarningSaid.Store(client, true)
+		if client == "opencode" {
+			fmt.Fprintf(os.Stderr, "  %s %d hook(s) the source ships are not installed, so they do not run: %s. Run nav-pilot install to add them.\n",
+				domain.Yellow("⚠"), len(skipped), strings.Join(skipped, ", "))
+		} else {
+			fmt.Fprintf(os.Stderr, "  %s %d hook(s) not installed for %s: %s. Hooks run under copilot and opencode only; see navikt/copilot#709.\n",
+				domain.Yellow("⚠"), len(skipped), client, strings.Join(skipped, ", "))
 		}
 	}
 

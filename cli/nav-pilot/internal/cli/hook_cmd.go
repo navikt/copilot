@@ -15,6 +15,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/hook"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
@@ -338,7 +339,16 @@ func announceBuiltinHooks(dir string, added []string) {
 	fmt.Fprintln(os.Stderr)
 }
 
-func init() { providerpkg.OpenCodeHookBridge = openCodeHookBridge }
+func init() {
+	providerpkg.OpenCodeHookBridge = openCodeHookBridge
+	artifacts.InstalledHookNames = func() []string {
+		var names []string
+		for _, h := range openCodeHookBridge(ResolvedConfig{}).Pre {
+			names = append(names, h.Name)
+		}
+		return names
+	}
+}
 
 // openCodeHookBridge is the OpenCode side of the same hooks: the built-in ones
 // with the argv their Copilot entries run, and the gates nav-pilot installed

@@ -32,7 +32,7 @@ stderr 'Not launching: auto_launch = false\. Start it yourself with: nav-pilot -
 
 fake-bin cplt pi
 exec nav-pilot --sync --source $WORK/plattform --client pi -- -p x
-stderr -count=1 '1 hook\(s\) not installed for pi: vakt\. nav-pilot runs hooks for copilot and opencode only'
+stderr -count=1 '1 hook\(s\) not installed for pi: vakt\. Hooks run under copilot and opencode only'
 ! stderr 'OpenCode'
 
 # A remote source that cannot be reached: an error, and no spinner frames.
