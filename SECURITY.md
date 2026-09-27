@@ -156,7 +156,7 @@ nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)�
 - Inbound: the `.intern.nav.no` ingress, which requires naisdevice. No CORS:
   browsers never call it.
 - Secrets: the nav-pilot GitHub App's client id and secret (for the token
-  check), nothing else. No GitHub App private key, no survey key, no database.
+  check). No GitHub App private key, no survey key, no database.
 - Outbound: copilot-api and copilot-survey (service discovery) +
   `api.github.com` / `github.com`.
 - Survey answers go to copilot-survey with the M2M token and

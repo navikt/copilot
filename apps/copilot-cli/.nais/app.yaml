@@ -43,7 +43,7 @@ spec:
       enabled: true
       tenant: {{azure_tenant}}
   # The nav-pilot GitHub App's GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET,
-  # nothing else. Created by hand in the Nais console; see README.
+  # and nothing else. Created by hand in the Nais console; see README.
   envFrom:
     - secret: copilot-cli
   env:

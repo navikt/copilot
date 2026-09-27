@@ -32,8 +32,8 @@ func fakeUpstream(t *testing.T, got *seen) (*upstream, *upstream) {
 	return newUpstream("copilot-api", srv.URL, texas), newUpstream("copilot-survey", srv.URL, texas)
 }
 
-// The /api/v1/* shapes shipped nav-pilot binaries call: each goes to its
-// service unchanged, signed-in ones with the M2M token and the login.
+// Each /api/v1/* route that shipped nav-pilot binaries call reaches its
+// service unchanged; signed-in ones carry the M2M token and the login.
 func TestRoutesForward(t *testing.T) {
 	a, _ := testAuthenticator(t)
 	var got seen

@@ -29,7 +29,7 @@ func main() {
 	)
 
 	if config.NaisTokenEndpoint == "" {
-		slog.Warn("NAIS_TOKEN_ENDPOINT not configured — M2M proxy calls to copilot-api will fail (expected in local dev)")
+		slog.Warn("NAIS_TOKEN_ENDPOINT not configured — M2M calls to copilot-api and copilot-survey will fail (expected in local dev)")
 	}
 
 	auth := &authenticator{

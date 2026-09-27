@@ -1,7 +1,7 @@
 # copilot-cli
 
 Gateway for [nav-pilot](../../cli/nav-pilot). It signs developers in with
-GitHub and forwards its requests: Copilot usage to copilot-api, user surveys
+GitHub and forwards nav-pilot's requests: Copilot usage to copilot-api, user surveys
 to [copilot-survey](../copilot-survey/README.md). See [#337](https://github.com/navikt/copilot/issues/337)
 (gateway) and [#1023](https://github.com/navikt/copilot/issues/1023) (surveys).
 
@@ -34,7 +34,7 @@ public survey definitions go without a token or header.
 
 ## Endpoints
 
-These shapes never change: shipped nav-pilot binaries call them. A new shape
+These shapes never change, because shipped nav-pilot binaries call them. A new shape
 gets a new path (`/api/v2/…`).
 
 | Method | Path | Auth | Forwarded to |
@@ -46,7 +46,7 @@ gets a new path (`/api/v2/…`).
 
 Status, body, `Content-Type` and `Cache-Control` come back unchanged; an
 unreachable service gives 502. No retry, so no request body is buffered.
-Survey data model, key lifecycle and residual risks: copilot-survey's README.
+Survey data model, key lifecycle and residual risks: [copilot-survey's README](../copilot-survey/README.md).
 
 ## Configuration
 
