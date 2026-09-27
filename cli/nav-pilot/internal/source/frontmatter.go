@@ -339,7 +339,7 @@ var openCodeToolKeys = []struct {
 }{
 	{"bash", []string{"execute", "shell", "bash", "powershell"}},
 	{"read", []string{"read", "view", "notebookread"}},
-	{"edit", []string{"edit", "write", "create", "multiedit", "notebookedit"}},
+	{"edit", []string{"edit", "write", "create", "apply_patch", "str_replace", "str_replace_editor", "multiedit", "notebookedit"}},
 	{"grep", []string{"grep", "search"}},
 	{"glob", []string{"glob", "search"}},
 	{"webfetch", []string{"web_fetch", "webfetch", "fetch", "web"}},

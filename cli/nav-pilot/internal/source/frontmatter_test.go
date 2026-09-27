@@ -391,6 +391,9 @@ func TestOpenCodeToolPermission(t *testing.T) {
 	if got := OpenCodeToolPermission([]string{"Read", "Edit", "WebFetch", "TodoWrite", "execute", "grep", "glob"}); got != nil {
 		t.Fatalf("Copilot's documented spellings grant their tools, got %q", got)
 	}
+	if got := string(OpenCodeToolPermission([]string{"apply_patch"})); strings.Contains(got, "edit: deny") {
+		t.Fatalf("apply_patch grants edit, got %q", got)
+	}
 	got := string(OpenCodeToolPermission(nil))
 	for _, k := range []string{"bash", "read", "edit", "grep", "glob", "webfetch", "todowrite"} {
 		if !strings.Contains(got, "  "+k+": deny\n") {
