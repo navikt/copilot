@@ -25,8 +25,8 @@ import (
 // ship with the service: changing a question is a pull request and a deploy.
 // They are the single source of truth for every client (nav-pilot's TUI, the
 // web), which render them from GET /api/v1/surveys/active (through copilot-cli
-// or my-copilot). The format is
-// checked by loadSurveyDir, at start and in CI (TestShippedSurveys); see
+// or my-copilot). The format is checked by loadSurveyDir, at start and in CI
+// (TestShippedSurveys); see
 // surveys/README.md. The files are public and must never hold anything that
 // is not.
 //

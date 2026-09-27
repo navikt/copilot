@@ -56,7 +56,7 @@ func loadConfig() *Config {
 // clientIDForApp finds the client id of a pre-authorized app by its NAIS
 // name in AZURE_APP_PRE_AUTHORIZED_APPS ([{"name":"<cluster>:<ns>:<app>",
 // "clientId":"…"}]). Empty when the app is missing, the input is malformed,
-// or more than one entry matches: trust must never go to the wrong app.
+// or more than one entry matches, so trust never goes to the wrong app.
 func clientIDForApp(preAuthorizedApps, app string) string {
 	var apps []struct {
 		Name     string `json:"name"`

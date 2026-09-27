@@ -8,7 +8,7 @@ credentials.
 
 ## Callers
 
-The Entra token is checked by Texas introspection, then one of two branches
+Texas introspection checks the Entra token, then one of two branches
 applies. Anything else is refused.
 
 | Caller | Token | Who answered |
@@ -31,8 +31,8 @@ only.
 No OpenTelemetry, no auto-instrumentation, no body logging, no retry that
 buffers a body. Logs carry survey id, status, batch size and error type,
 never who answered. A batch write runs on its own background context, never
-the request's, so nothing of the k-th submitter's request is attached to the
-write of all ten.
+the request's, so the write of all ten carries nothing from the tenth
+submitter's request.
 
 ## Surveys: data model and retention
 
@@ -130,9 +130,9 @@ Residual risks, for the privacy review:
   `log_statement` at its default (none).
 - Ingress access logs hold the time and source address of each
   `POST /api/v1/surveys/…` on copilot-cli and my-copilot. Neither they nor
-  copilot-survey log an identity, hash or answer on this path, but the Nais ingress log is outside its control: ask
-  the platform team to drop or sample access logs for this path, or keep their
-  retention short.
+  copilot-survey log an identity, hash or answer on this path, but the Nais
+  ingress log is outside our control. Ask the platform team to drop or sample
+  access logs for this path, or keep their retention short.
 - Cloud SQL backups and WAL keep deleted participation rows (and batch commit
   times) for the backup retention period (7 backups by default).
 - Upgrade path, if the separation of the two tables is judged not convincing:

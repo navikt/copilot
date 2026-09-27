@@ -8,8 +8,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-// submissions counts answers per survey and status (201, 409, 503, …): the
-// signal for alerts on error ratio and on bursts. No identity, ever.
+// submissions counts answers per survey and status (201, 409, 503, …), the
+// signal for alerts on error ratio and bursts. No identity, ever.
 var submissions = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "survey_submissions_total",
 	Help: "Survey submissions by survey id and HTTP status.",

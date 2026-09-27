@@ -13,7 +13,7 @@ import (
 
 // nameIDClient asks copilot-api for a GitHub login's Nav e-mail (the nameId
 // of its SAML SSO identity in navikt), through POST
-// /internal/v1/saml/name-id with an M2M token. The GitHub App key that
+// /internal/v1/saml/name-id with an M2M token. The GitHub App key the
 // lookup needs stays in copilot-api. One try, no retry, no cache: the e-mail
 // is only ever held in memory for the dedup hash.
 type nameIDClient struct {

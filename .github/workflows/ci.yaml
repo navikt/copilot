@@ -73,6 +73,8 @@ jobs:
             copilot-cli:
               - 'apps/copilot-cli/**'
               - '.github/workflows/copilot-cli.yaml'
+              - '.github/workflows/mise-build-deploy-nais.yaml'
+              - '.github/workflows/ci.yaml'
             copilot-survey:
               - 'apps/copilot-survey/**'
               - '.github/workflows/copilot-survey.yaml'
