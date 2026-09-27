@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 )
@@ -107,8 +108,7 @@ func alphaCommand(args []string) string {
 		return "alpha decide"
 	case "local":
 		if len(args) > 1 {
-			switch args[1] {
-			case "init", "start", "stop", "restart", "status", "models", "use", "on", "off", "ask", "purge", "doctor", "setup":
+			if slices.Contains(localCommands, args[1]) {
 				return "alpha local " + args[1]
 			}
 		}

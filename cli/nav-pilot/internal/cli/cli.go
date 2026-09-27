@@ -63,19 +63,14 @@ var commandAliases = map[string]string{
 	"rm": "uninstall",
 }
 
+// dispatchedCommands is every command name run dispatches.
+var dispatchedCommands = []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "models", "alpha", "auth", "usage", "version", "help"}
+
 func isKnownCommand(arg string) bool {
 	if _, ok := commandAliases[arg]; ok {
 		return true
 	}
-	switch arg {
-	case "install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor",
-		"uninstall", "upgrade", "update", "config", "validate", "env", "feedback",
-		"models", "alpha", "auth", "usage",
-		"version", "--version", "-v", "-h", "--help", "help":
-		return true
-	default:
-		return false
-	}
+	return slices.Contains(dispatchedCommands, arg) || slices.Contains([]string{"--version", "-v", "-h", "--help"}, arg)
 }
 
 // usage prints the top-level help: to stdout when it was asked for, to stderr
@@ -156,7 +151,7 @@ Exit Codes:
   2   Sync failed, or a launch with -- found nothing installed
   3   Frozen install refused (no declaration, no usable pin, another revision, or a partial install)
 
-Run nav-pilot help <command> for a command's own flags (install, sync, uninstall, rollback, list, config, models, upgrade).
+Run nav-pilot help <command> (or nav-pilot <command> --help) for a command's own flags.
 
 Get started:
   nav-pilot                              # Interactive: install, upgrade, or launch Copilot
@@ -679,7 +674,7 @@ func run(args []string) error {
 			positional = append(positional, rest[i])
 		case "-h", "--help":
 			if command == "alpha" {
-				alphaUsage(os.Stdout)
+				alphaHelp(os.Stdout, positional)
 			} else {
 				printHelp(os.Stdout, command)
 			}
@@ -1040,7 +1035,7 @@ func run(args []string) error {
 				name = "upgrade" // the deprecated name
 			}
 			if name == "alpha" {
-				alphaUsage(os.Stdout)
+				alphaHelp(os.Stdout, positional[1:])
 				return nil
 			}
 			printHelp(os.Stdout, name)
@@ -1062,8 +1057,7 @@ func run(args []string) error {
 		if containsStr(validProviderIDs, command) {
 			return fmt.Errorf("unknown command: %s. Did you mean nav-pilot --client %s?", command, command)
 		}
-		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "models", "alpha", "auth", "usage", "version", "help"}
-		if hint := suggest(command, knownCmds); hint != "" {
+		if hint := suggest(command, dispatchedCommands); hint != "" {
 			if hint == "update" {
 				hint = "upgrade" // update is the deprecated name
 			}
