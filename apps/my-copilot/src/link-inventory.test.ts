@@ -387,10 +387,13 @@ describe("link inventory", () => {
   });
 
   // min-copilot.ansatt.nav.no only answers on naisdevice. Dated news articles
-  // keep the domain they were written with.
+  // keep the domain they were written with, and the proposal that moved the
+  // links away from it names it.
   it("links use ki-utvikling.nav.no, not the old domain", () => {
+    const allowed = (f: string) =>
+      f.startsWith("docs/news/articles/") || f === "docs/nav-pilot-dokumentasjon-forslag.md";
     const old = [...new Set(SCAN.absolute.flatMap(glob))]
-      .filter((file) => !rel(file).startsWith("docs/news/articles/"))
+      .filter((file) => !allowed(rel(file)))
       .filter((file) => fs.readFileSync(file, "utf-8").includes("min-copilot.ansatt.nav.no"))
       .map(rel);
     expect(old, "Replace min-copilot.ansatt.nav.no with ki-utvikling.nav.no").toEqual([]);
