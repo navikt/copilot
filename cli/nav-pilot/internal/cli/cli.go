@@ -138,12 +138,11 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
   --mode <mode>           default, plan or autopilot
   --effort <level>        Reasoning effort: none, low, medium, high, xhigh or max
   --context <tier>        default or long_context
-  --payload-context <id>  Which pre-built payload of the agentpakke to launch, for an agentpakke
-                          that ships them
+  --payload-context <id>  Which of the agentpakke's pre-built payloads to launch, if it ships any
   --local-dispatch <lvl>  How hard to push work to the local model (alpha): off, conservative,
                           balanced or aggressive
   --log-level <level>     Copilot CLI log level: none, error, warning, info, debug, all or default
-  --otel-log-level <lvl>  OpenTelemetry diagnostics: none, error, warning (or warn), info, debug,
+  --otel-log-level <lvl>  OpenTelemetry log level: none, error, warning (or warn), info, debug,
                           verbose or all
   --allow-all-tools       Let the agent run tools without asking (--no-allow-all-tools to turn off)
   --no-ask-user           Don't let the agent stop to ask questions (--ask-user to turn on)
