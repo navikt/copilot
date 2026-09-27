@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { introspectToken, parseBearerToken } from "@/lib/introspect";
 
-const PRIVATE_PAGE_PATHS = ["/statistikk", "/adopsjon", "/kostnad", "/abonnement"];
+export const PRIVATE_PAGE_PATHS = ["/statistikk", "/adopsjon", "/kostnad", "/abonnement"];
 
-const PRIVATE_API_PATHS = ["/api/copilot", "/api/adoption", "/statistikk/json"];
+export const PRIVATE_API_PATHS = ["/api/copilot", "/api/adoption", "/statistikk/json"];
 
 export function isPrivatePath(pathname: string): boolean {
   return (

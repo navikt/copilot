@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { isPrivatePath, proxy } from "./proxy";
+import { config, isPrivatePath, PRIVATE_API_PATHS, PRIVATE_PAGE_PATHS, proxy } from "./proxy";
 
 vi.mock("next/server", () => {
   return {
@@ -65,6 +65,18 @@ describe("isPrivatePath", () => {
     expect(isPrivatePath("/statistikkfoo")).toBe(false);
     expect(isPrivatePath("/adopsjon-test")).toBe(false);
     expect(isPrivatePath("/kostnadsfri")).toBe(false);
+  });
+});
+
+describe("config.matcher", () => {
+  it("covers every private path, so none skips the proxy", () => {
+    const covered = config.matcher.map((m) => m.replace("/:path*", ""));
+    for (const path of [...PRIVATE_PAGE_PATHS, ...PRIVATE_API_PATHS]) {
+      expect(
+        covered.some((c) => path === c || path.startsWith(c + "/")),
+        path
+      ).toBe(true);
+    }
   });
 });
 
@@ -173,6 +185,13 @@ describe("proxy", () => {
   });
 
   describe("client-supplied Authorization header is validated, not trusted (#1070)", () => {
+    it("rejects in production when the introspection endpoint is unset", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NAIS_TOKEN_INTROSPECTION_ENDPOINT", "");
+      await expect(proxy(createMockRequest("/statistikk", { auth: "Bearer x" }))).rejects.toThrow();
+      expect(NextResponse.next).not.toHaveBeenCalled();
+    });
+
     it("redirects a private page when Texas says the token is inactive", async () => {
       fetchMock.mockResolvedValue({ ok: true, json: async () => ({ active: false, error: "token is not valid" }) });
       await proxy(createMockRequest("/abonnement", { auth: "Bearer x" }));

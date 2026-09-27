@@ -52,7 +52,7 @@ export async function introspectToken(token: string): Promise<IntrospectionRespo
 
     const result: IntrospectionResponse = await response.json();
 
-    if (!result.active) {
+    if (result.active !== true) {
       console.error("Token introspection: inactive token:", result.error);
       return null;
     }

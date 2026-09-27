@@ -88,7 +88,7 @@ copilot-api validates the Azure AD JWT (signature, issuer, audience, expiry) and
 
 ### Key design decisions
 
-- **Wonderwall sets the Authorization header, but does not strip one the client sent.** On the Zone 2 paths, which are in `autoLoginIgnorePaths`, a request without a session reaches the app with whatever `Authorization` header the client set. The header is therefore never trusted on presence alone: `proxy.ts` and `getUser()` both validate the token with Texas introspection, so a private request costs two introspection calls to the local sidecar.
+- **Wonderwall sets the Authorization header, but does not strip one the client sent.** Wonderwall proxies a request without a valid session "to the upstream host as-is without modifications" ([Wonderwall README](https://github.com/nais/wonderwall#unauthenticated-requests)), so on the Zone 2 paths, which are in `autoLoginIgnorePaths`, it reaches the app with whatever `Authorization` header the client set. The header is therefore never trusted on presence alone: `proxy.ts` and `getUser()` both validate the token with Texas introspection, so a private request costs two introspection calls to the local sidecar.
 - **Texas handles token exchange.** Next.js never sees client secrets. The OBO exchange goes through `NAIS_TOKEN_EXCHANGE_ENDPOINT`.
 - **Azure AD OBO, NOT TokenX.** TokenX is for ID-porten, which is citizen-facing with BankID. This system uses Azure AD/Entra ID for Nav employees.
 - **azp validation is fail-closed.** If `AZURE_APP_PRE_AUTHORIZED_APPS` is empty or missing, copilot-api rejects ALL requests. No silent bypass.
