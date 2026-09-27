@@ -36,7 +36,7 @@ Alle tilpasninger finnes på **[verktøysida](https://min-copilot.ansatt.nav.no/
 **[nav-pilot](docs/README.nav-pilot.md)** er både et CLI-verktøy og en AI-agent. CLI-et klargjør repoet ditt med riktige agenter, skills og instruksjoner, og setter opp en optimalisert integrasjon med token-optimalisering. Agenten `@nav-pilot` tar deg gjennom fire faser i Copilot Chat: Intervju, Plan, Review og Lever.
 
 ```bash
-# Installer nav-pilot CLI (macOS)
+# Installer nav-pilot og cplt (macOS)
 brew install navikt/tap/nav-pilot navikt/tap/cplt
 # eller: mise use -g 'github:navikt/copilot[exe=nav-pilot,version_prefix=nav-pilot/]@<versjon>'
 

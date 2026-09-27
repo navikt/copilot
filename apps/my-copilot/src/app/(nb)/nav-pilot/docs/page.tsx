@@ -2870,8 +2870,8 @@ function CliReferenceSection() {
                 <AltInstall />
               </div>
               <BodyLong size="small" style={{ color: "#64748b" }}>
-                Kommandoen installerer også <code className="font-mono text-xs">cplt</code>, som kjører agenten i en
-                sandkasse. Det er et krav på Nav-utstyr.
+                Kommandoen installerer også <code className="font-mono text-xs">cplt</code>, som kjører klienten i en
+                sandkasse. Sandkasse er et krav på Nav-utstyr.
               </BodyLong>
             </VStack>
           </div>

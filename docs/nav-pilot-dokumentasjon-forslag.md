@@ -23,8 +23,9 @@ Hva som er lest på hvilken commit:
 - **V8:** Seksjonsmenyen dekker hele paraplyen, med én felles layout i en rutegruppe.
 - **V9:** `/kom-i-gang` er den eneste introduksjonen. Vi lager ikke `/nav-pilot/kom-i-gang`.
 - **V10:** Toppfeltet viser «nav-pilot» med «Copilot i Nav» under. Personvernerklæringen og tilgjengelighetserklæringen oppdateres til det nye navnet i samme serie med PR-er.
+- **V11 Søk:** Toppfeltet får en «Søk»-knapp, som på aksel.nav.no. Knappen åpner en `Dialog` fra Aksel med et søkefelt av typen combobox. Snarveiene er Cmd/Ctrl+K og «/». Hintet om snarveiene vises bare på desktop. På mobil ligger søket i toppfeltet eller øverst i «Meny»-dialogen. Treffene dekker sidene i paraplyen med seksjoner og ankere, og nyhetene. De kommer fra en statisk JSON-indeks som lages når nettstedet bygges, fra oversikten fra lenkesjekken (`src/lib/link-inventory.json`) og sidetitlene. En liten matcher i nettleseren gjør søket, uten nye avhengigheter. Søket på forsiden (`src/components/home-search.tsx`) gjenbrukes og utvides, så vi ikke får to søk. Tilgjengelighet: fokus holdes i dialogen, Esc lukker den og setter fokus tilbake på knappen, feltet er en combobox med listbox og `aria-activedescendant`, piltastene flytter mellom treffene, og antall treff leses opp (`aria-live`). Søket får en egen PR etter meny-PR-en ([§7](#7-plan-for-gjennomføring)).
 
-Tidligere vedtak om V3 (disclosure-nedtrekk og at meny-PR-en venter på svar fra eierne) er erstattet av V6: brukeren har sett skjermbildene. Eierne av de andre sidene får skjermbildene og et varsel i meny-PR-en, med omtrent én arbeidsdag før den flettes inn.
+Tidligere vedtak om V3 (disclosure-nedtrekk og at meny-PR-en venter på svar fra eierne) er erstattet av V6, etter at skjermbildene var vist. Eierne av de andre sidene får skjermbildene og et varsel i meny-PR-en, med omtrent én arbeidsdag før den flettes inn.
 
 ### Hva som er endret, og hvorfor
 
@@ -34,7 +35,7 @@ Brukerne ser nav-pilot som paraplyen for alt Copilot-relatert i Nav, og det er r
 2. **Seksjonsmenyen dekker hele paraplyen**, ikke bare `/nav-pilot/*`. `/kom-i-gang`, `/verktoy` og `/cplt` får samme seksjonsmeny som nav-pilot-sidene.
 3. **Ingen URL-er utenfor `/nav-pilot/docs` flyttes.** Hierarkiet vises med meny, seksjonsmeny og en linje over sidetittelen med navnet på gruppen. Aksel gjør det samme: `/komponenter`, `/grunnleggende` og `/monster-maler` ligger på toppnivå, men menyen viser dem som «Designsystemet» [40][42].
 4. **Ny regel: lenker brytes aldri** ([§2](#2-lenker-brytes-aldri)). Det er et krav til hver PR, ikke et valg.
-5. **Aksel er forbildet for navigasjonen.** Aksel bestemmer hvordan vi bygger. nav-pilot er det vi bygger.
+5. **Aksel er forbildet for navigasjonen.**
 
 V1, V2, V4 og V5 står som før. Fra V3 beholder vi den vanlige `<nav>`, hamburgermenyen og seksjonsmenyen. Gruppene og rekkevidden til seksjonsmenyen er nye.
 
@@ -63,7 +64,7 @@ Nettstedet har 22 ruter med innhold under `(nb)` og to under `(en)`. De står so
 | Innsikt           | `/statistikk` (lås), `/adopsjon` (lås), `/kostnad` (lås), `/priser`, ny oversiktsside `/innsikt`                          | `/innsikt` er ny, ikke flyttet. Den trengs fordi gruppen ellers ikke har noe sted å lenke til                     |
 | Ved siden av      | `/` (nyheter), `/nyheter/<slug>`, `/videos/<id>`, `/en/news`, `/abonnement`, `/ordbok`, `/personvern`, `/tilgjengelighet` | Forsiden er nyhetsstrømmen. Abonnement ligger i toppfeltet, Ordbok og de engelske sidene i bunnteksten            |
 
-Forsiden blir stående som den er. Den har allerede kort til Kom i gang og God praksis, og den er navet brukerne kommer inn gjennom [71].
+Forsiden blir stående som den er. Den har allerede kort til Kom i gang og God praksis, og den er inngangen for de fleste brukerne [71].
 
 ### 1.2 Problemet i dag
 
@@ -83,7 +84,7 @@ Forsiden blir stående som den er. Den har allerede kort til Kom i gang og God p
 
 ### 1.3 URL-er
 
-Vedtak (V1): Referanse og Klienter får én side hver, fordi leseren søker på siden. Guider og Forklaring får én side per emnegruppe, med en myk grense på omtrent 400 linjer JSX. Uten grensen får `/nav-pilot/guider` rundt 1030 linjer og `/nav-pilot/forklaring` rundt 1000, og da har vi to sider med de samme problemene som i dag. Linjetallene er talt fra dagens `docs/page.tsx` og er grove.
+Vedtak (V1): Referanse og Klienter får én side hver, fordi leseren bruker søk i siden (Ctrl+F). Guider og Forklaring får én side per emnegruppe, med en myk grense på omtrent 400 linjer JSX. Uten grensen får `/nav-pilot/guider` rundt 1030 linjer og `/nav-pilot/forklaring` rundt 1000, og da har vi to sider med de samme problemene som i dag. Linjetallene er talt fra dagens `docs/page.tsx` og er grove.
 
 Anbefaling (V9): `/kom-i-gang` er allerede veiviseren for nav-pilot. En ny `/nav-pilot/kom-i-gang` ville gitt to sider med samme jobb. Vi skriver om `/kom-i-gang` etter §5.1 og lar den være introduksjonen for hele paraplyen. De lokale introduksjonene legges under `/nav-pilot/lokal`, som finnes fra før.
 
@@ -214,7 +215,7 @@ Nettstedet gjør allerede dette for sju gamle ruter (`next.config.ts:49-62`, for
 
 **Det gamle domenet.** `min-copilot.ansatt.nav.no` står i `README.md:19,67,93,121` og i installasjonslenkene som `scripts/generate-docs/main.go:151` skriver inn i alle de genererte README-ene. Domenet svarer bare fra naisdevice, så en lenkesjekk i GitHub Actions kan ikke se om det videresender. Derfor:
 
-1. En egen PR (PR 10 i §7) bytter til `ki-utvikling.nav.no` i README og `main.go:151` og genererer README-ene på nytt.
+1. En egen PR (PR 11 i §7) bytter til `ki-utvikling.nav.no` i README og `main.go:151` og genererer README-ene på nytt.
 2. Én gang, manuelt fra naisdevice: sjekk at `min-copilot.ansatt.nav.no/verktoy` og `/install/agent` svarer med 30x til `ki-utvikling.nav.no`. Gjør de ikke det, lager vi en sak til plattformteamet.
 3. CI-sjekken sjekker med `grep` at interne lenker bruker `ki-utvikling.nav.no`. Den sjekker ikke om det gamle domenet svarer.
 
@@ -222,9 +223,9 @@ Nettstedet gjør allerede dette for sju gamle ruter (`next.config.ts:49-62`, for
 
 Sjekken bygges i en egen PR. Den er et krav for PR-ene med nye sider og for meny-PR-en, og de flettes ikke inn før den er grønn.
 
-- **Oversikt:** alle offentlige ruter og ankere, og alle lenker til nettstedet fra sitemap (`app/sitemap.ts`), interne lenker, nyhetssakene i `docs/news/articles/`, README-ene, andre dokumenter i repoet, CLI-en, installasjonsskriptet og de genererte installasjonslenkene. Lenker til `min-copilot.ansatt.nav.no` feiler sjekken (§2.2).
-- **Enhetstest:** feiler hvis en lenke gir 404, eller hvis målet for et anker ikke finnes som `id` på målsiden. Hver oppføring i tabellen over gamle ankere testes også.
-- **Mulig tillegg:** lychee med `--include-fragments` på det bygde nettstedet [56]. linkinator sjekker bare ankere i HTML fra serveren og ser ikke ankere som legges til med JavaScript [57].
+- Oversikten dekker alle offentlige ruter og ankere, og alle lenker til nettstedet fra sitemap (`app/sitemap.ts`), interne lenker, nyhetssakene i `docs/news/articles/`, README-ene, andre dokumenter i repoet, CLI-en, installasjonsskriptet og de genererte installasjonslenkene. Lenker til `min-copilot.ansatt.nav.no` feiler sjekken (§2.2).
+- Enhetstesten feiler hvis en lenke gir 404, eller hvis målet for et anker ikke finnes som `id` på målsiden. Hver oppføring i tabellen over gamle ankere testes også.
+- Et mulig tillegg er lychee med `--include-fragments` på det bygde nettstedet [56]. linkinator sjekker bare ankere i HTML fra serveren og ser ikke ankere som legges til med JavaScript [57].
 
 ## 3. Introduksjon: lokal modell på Mac
 
@@ -257,7 +258,7 @@ Sjekken bygges i en egen PR. Den er et krav for PR-ene med nye sider og for meny
    cd ~/kode/mitt-repo
    nav-pilot
    ```
-   Be om en mekanisk endring over flere filer, for eksempel «legg til parameteren `ctx` i alle kall til `hentBruker`». Med standardnivået `balanced` stopper nav-pilot hovedagenten når endringen når fem filer, og ber den sende jobben til `local-worker`. Etterpå viser `nav-pilot alpha local status` hva modellen har gjort. Kjørte ikke serveren, sier nav-pilot fra både før og etter økten at alt gikk i skyen (`opencode_launch.go:1228-1240`).
+   Be om en mekanisk endring over flere filer, for eksempel «legg til parameteren `ctx` i alle kall til `hentBruker`». Med standardnivået `balanced` stopper nav-pilot hovedagenten ved fem filer, og ber den sende jobben til `local-worker`. Etterpå viser `nav-pilot alpha local status` hva modellen har gjort. Kjørte ikke serveren, sier nav-pilot fra både før og etter økten at alt gikk i skyen (`opencode_launch.go:1228-1240`).
 5. **Første decide.**
    ```sh
    echo "Legg til retry i klienten" | nav-pilot alpha decide \
@@ -338,7 +339,7 @@ cplt-kolonnen er fra `cplt --help` (versjon 2026.09.24).
 
 Om opencode skal bli standardklient, avgjøres i navikt/copilot#1022. Saken er åpen. Vedtakene der fra 27.09.2026 er:
 
-1. Lokal worker og dispatch-gate finnes bare i opencode, og det skal stå tydelig i klientinformasjonen på ki-utvikling.
+1. `local-worker` og dispatch-gaten finnes bare i opencode, og det skal stå tydelig i klientinformasjonen på ki-utvikling.
 2. Hooks og `tools:`-begrensninger skal porteres til opencode der det går. Der det ikke går, dokumenteres gapet nøyaktig.
 3. Eksisterende brukere flyttes ikke. De får et tilbud om opencode.
 4. nav-pilot håndhever policy for opencode ved oppstart.
@@ -359,7 +360,7 @@ Dette forslaget tar ikke stilling til standardklienten. Det legger til:
 
 1. **Innspill til #1022 om lokal utsending.** Hybridrapporten (`reports/2026-09-27-hybrid-orchestration-research/research.md` §4 i mlx-workspace) setter besparelsen til noen cent per jobb med Sonnet 5-priser. Sonnet 5 sendte oppgaver i 1 av 29 kjøringer. Nettsiden beskriver derfor opencode som klienten for lokal utsending, noe du velger selv. Får Copilot CLI underagenter på egen leverandør (github/copilot-cli#4703), faller hovedgrunnen til opencode bort.
 2. **Klient nummer fire, hvis noen: Goose.** Den har innebygd Copilot-innlogging og underagenter på en annen leverandør, som er samme form som `local-worker`. Den har også hooks, MCP, skills og `AGENTS.md` [11][12]. Lisensen er Apache-2.0, og cplt kan allerede kjøre den.
-3. **Ikke Claude Code, Codex, Gemini CLI eller Qwen Code.** Ingen av dem kan bruke Copilot-abonnementet uten en proxy som bryter vilkårene, og Nav kjøper modelltilgang gjennom Copilot. Det er et lisensvalg, ikke et teknisk: cplt kjører allerede `claude` og `gemini`.
+3. **Ikke Claude Code, Codex, Gemini CLI eller Qwen Code.** Ingen av dem kan bruke Copilot-abonnementet uten en proxy som bryter vilkårene, og Nav kjøper modelltilgang gjennom Copilot. Det er et lisensvalg. Teknisk går det, cplt kjører allerede `claude` og `gemini`.
 4. **pi (V5).** pi blir værende. Klientsiden merker den «eksperimentell» og lister det som mangler: hooks, utsending, `local_endpoint`, `--agent` og innstillingene som ignoreres med en advarsel (`pi_launch.go:132-156`). En lokal modell-id går til pi som `--model mlx/<id>` (`pi_launch.go:116-125` via `ToOpenCodeModel`, `provider.go:137-138`). Om pi har en `mlx`-leverandør, sjekkes før klientsiden publiseres.
 
 ### 4.4 Feil i eksisterende dokumenter
@@ -393,12 +394,12 @@ GitHub Docs har «Get started» øverst i Copilot-menyen [62], og GOV.UK Design 
 
 | #   | Hull                                                                                                                                                                               | Hvor                                                               | PR  |
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | --- |
-| H1  | Installasjonskommandoen er ulik på hver side. Landingssiden og `/nav-pilot/lokal` har ikke med cplt. `docs#installer-cli` har bare nav-pilot                                       | `nav-pilot/page.tsx:53`, `lokal/page.tsx:44`, `docs/page.tsx:2866` | 2   |
+| H1  | Installasjonskommandoen er ulik på hver side. Landingssiden og `/nav-pilot/lokal` har ikke med cplt. `docs#installer-cli` har bare nav-pilot. Rettet i #1042                       | `nav-pilot/page.tsx:53`, `lokal/page.tsx:44`, `docs/page.tsx:2866` | 2   |
 | H2  | Copilot CLI og abonnementet står bare i veiviseren på `/kom-i-gang`. `doctor` sjekker ikke om `copilot` finnes, og start uten gir bare `copilot cli not found`                     | `provider/copilot_launch.go:225`                                   | 1   |
 | H3  | Førstegangsveiviseren (fem spørsmål), rtk-spørsmålet og telemetrivarselet er ikke beskrevet noe sted                                                                               | `docs#installasjon`                                                | 3   |
 | H4  | Veiviseren på `/kom-i-gang` skriver `export PATH="$HOME/.local/bin:$PATH"` også for brew, og bruker `curl … \| bash` på Linux uten apt. README advarer mot det siste               | `components/nav-pilot/interactive-setup-wizard.tsx:82,91`          | 3   |
 | H5  | Råd om installasjonssted spriker. README sier det kommer an på, `doctor`/`sync`/`list` foreslår `--user`, og veiviseren på nettet bruker `--repo`                                  | `interactive-setup-wizard.tsx:96`                                  | 3   |
-| H6  | Lokal oppstart står 3–4 steder med ulike steg. `docs#lokal-kom-i-gang` kjører `init` og så `start`, men `init` starter serveren                                                    | `docs/page.tsx:2233-2235`                                          | 2   |
+| H6  | Lokal oppstart står 3–4 steder med ulike steg. `docs#lokal-kom-i-gang` kjører `init` og så `start`, men `init` starter serveren. Rettet i #1042                                    | `docs/page.tsx:2233-2235`                                          | 2   |
 | H7  | commit-msg-hooken står to steder. README mangler filsti og installasjonssteg, og nettsiden mangler vanlig `.git/hooks`. Ingen sier at hooken slipper alt gjennom når serveren står | README:723-743, `docs#lokal-decide-oppskrifter`                    | 5   |
 | H8  | `help <kommando>` viser den globale hjelpen for `doctor`, `env`, `init`, `export`, `feedback`, `validate` og `ignore`. `alpha local setup --help` gir kode 2                       | `cli/help.go`                                                      | 1   |
 | H9  | Avslutningskoder står tre steder med ulikt innhold. `docs#kommandooversikt` mangler 3 (`--frozen`) og har to ulike lister over `--json`-kommandoer                                 | `docs/page.tsx:286`, `:3050`                                       | 4   |
@@ -428,7 +429,7 @@ Toppfeltet har ingen meny. `site-shell.tsx` har bare ordet «Oh-My-Nav» (linje 
 
 - På mobil (390 px) går de ti pillene over fem linjer før innholdet begynner.
 - Sider uten `PageHero` har ingen meny. `/nav-pilot` og alle de nye sidene er blant dem.
-- Statistikk, Adopsjon, Kostnad og Abonnement krever innlogging (`PRIVATE_PAGE_PATHS` i `src/proxy.ts:4`). Statistikk og Adopsjon og har et låsikon i menyen (`aria-label="Krever innlogging"`). Det beholder de, og Kostnad får det samme.
+- Statistikk, Adopsjon, Kostnad og Abonnement krever innlogging (`PRIVATE_PAGE_PATHS` i `src/proxy.ts:4`). Statistikk og Adopsjon har et låsikon i menyen (`aria-label="Krever innlogging"`). Det beholder de, og Kostnad får det samme.
 - `/retningslinjer` lenkes bare fra pillene og sitemap. Ingen annen side lenker dit.
 - `/kostnad`, `/nyheter/*`, `/videos/*`, `/praksis/guide/*` og undersidene til nav-pilot står ikke i noen meny.
 - Nettstedet har ingen «Hopp til innhold»-lenke. Med en meny i toppfeltet trengs den (WCAG 2.4.1). Aksel har en [39].
@@ -496,7 +497,7 @@ Klikk fra en vilkårlig side til målet, på desktop. «I dag» gjelder de 13 si
 | Kostnad              | –     | –                     | 2           | 2                     |
 | Ordbok               | 1     | bunnteksten           | bunnteksten | bunnteksten           |
 
-D og D2 koster like mange klikk. Forskjellen er hvor lenkene står: i D på en side du lander på, i D2 i en liste som åpner seg i toppfeltet. D2 er nærmere det eierne av Praksis, Retningslinjer, Statistikk og Adopsjon fikk love å se i V3.
+D og D2 koster like mange klikk. Forskjellen er hvor lenkene står: i D på en side du lander på, i D2 i en liste som åpner seg i toppfeltet. D2 er nærmere det eierne av Praksis, Retningslinjer, Statistikk og Adopsjon ble lovet å få se i V3.
 
 **Vedtatt: D.** Aksel har ingen nedtrekk i toppfeltet [39]. «Sider i denne delen» på `/praksis` gir Retningslinjer den lenken den ellers ville mistet. D2 trenger rundt 110 linjer egen kode for fokus, peker og Escape, uten noe mønster fra Aksel bak seg, og nedtrekkene må få engelske tekster på `/en`. Prototypen ligger på den lokale grenen `proto/menu-d` (bygger på `main`, ikke pushet).
 
@@ -545,7 +546,7 @@ nav-pilot
 
 - Tittelen «nav-pilot» øverst i seksjonsmenyen lenker til `/nav-pilot`.
 - Gruppene er disclosure-knapper med `aria-expanded` og `aria-controls`. Den åpne gruppen er en vanlig `<ul>` med lenker. Gruppen som inneholder siden du står på, er åpen. Aktiv side får `aria-current="page"` [42].
-- Landingssiden `/nav-pilot` ligger utenfor rutegruppen, i `app/(nb)/nav-pilot/page.tsx` sammen med `opengraph-image.tsx` og `loading.tsx`. Heltebildet går over hele bredden. Undersidene ligger i gruppen, i `app/(nb)/(nav-pilot)/nav-pilot/`. Next.js tillater det, og ingen URL endres. Aksel gjør det samme: forsiden aksel.nav.no/ er en salgsside uten sidemeny, mens dokumentasjonssidene har den. Det mørke heltebildet ved siden av en lys sidemeny ser ut som et panel og svekker inngangen. «Oversikt» står fortsatt først i seksjonsmenyen, og i mobilpanelet hører `/nav-pilot` til paraplyen.
+- Landingssiden `/nav-pilot` ligger utenfor rutegruppen, i `app/(nb)/nav-pilot/page.tsx` sammen med `opengraph-image.tsx` og `loading.tsx`. Hero-blokken (`PageHero`) går over hele bredden. Undersidene ligger i gruppen, i `app/(nb)/(nav-pilot)/nav-pilot/`. Next.js tillater det, og ingen URL endres. Aksel gjør det samme: forsiden aksel.nav.no/ er en salgsside uten sidemeny, mens dokumentasjonssidene har den. Den mørke hero-blokken ved siden av en lys sidemeny ser ut som et panel og svekker inngangen. «Oversikt» står fortsatt først i seksjonsmenyen, og i mobilpanelet hører `/nav-pilot` til paraplyen.
 - Innholdsfortegnelsen for siden («Innhold på siden») står til høyre som `<aside>`, bare fra 1280 px, som hos Aksel [43].
 - Seksjonsmenyen kan ikke skjules. Aksel har ingen slik knapp. På `/verktoy` brytes kortene med domenene over flere linjer (`grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]`) i stedet for å bli kuttet.
 
@@ -565,7 +566,7 @@ Under 1024 px blir toppmenyen og seksjonsmenyen borte, og en knapp med teksten �
 - Panelet er lyst, som sidene. Toppfeltet blir mørkt. Aktiv lenke har samme stil på begge nivåer: fet skrift og nøytral bakgrunn, som hos Aksel.
 - Tittelen i panelet er «Meny». Aksel bruker nettstedets navn, men hos oss står «nav-pilot» allerede som lenke rett under.
 - Panelet har to nivåer, som hos Aksel: først de fem gruppene, og på sider i paraplyen seksjonsmenyen med en tilbakeknapp [41].
-- Panelet lukkes når ruten endres. Aksel gjør det med `MobileNavProvider` [41]. Uten det blir panelet stående åpent etter en lenke i klienten.
+- Panelet lukkes når ruten endres. Aksel gjør det med `MobileNavProvider` [41]. Uten det blir panelet stående åpent etter at du har klikket en lenke.
 - Seksjonsmenyen fra prototype C ble en `<select>` som bytter side når du velger. Det bryter WCAG 3.2.2 og erstattes av panelet.
 
 ### 6.6 Tilgjengelighet
@@ -593,7 +594,7 @@ Aksel bestemmer hvordan vi bygger. nav-pilot er det vi bygger. Navigasjon, kompo
 - Risiko: Abonnement, Statistikk og Kostnad handler om Copilot-lisensen, ikke om CLI-en. Lenketeksten «Copilot-abonnement» og gruppen Innsikt må si det.
 - Å beholde «Oh-My-Nav» koster ingenting, men gir to navn for det samme, og navnet sier ikke hva nettstedet er. «KI-utvikling i Nav» passer domenet, men da er ikke nav-pilot paraplyen.
 
-**Ordmerket.** `nav-pilot` med små bokstaver i monospace, som i terminalen, og «Copilot i Nav» under i vanlig skrift. Toppfeltet er allerede mørkt (`#0f1825`). Beta-merket (`nav-pilot/page.tsx:205-210`) står bare i heltebildet på landingssiden. Det står ikke i seksjonsmenyen, fordi menyen også dekker verktøykatalogen og cplt, som ikke er beta.
+**Ordmerket.** `nav-pilot` med små bokstaver i monospace, som i terminalen, og «Copilot i Nav» under i vanlig skrift. Toppfeltet er allerede mørkt (`#0f1825`). Beta-merket (`nav-pilot/page.tsx:205-210`) står bare i hero-blokken (`PageHero`) på landingssiden. Det står ikke i seksjonsmenyen, fordi menyen også dekker verktøykatalogen og cplt, som ikke er beta.
 
 **Sidene under paraplyen** viser at de hører til med linja over tittelen (§6.3) og seksjonsmenyen med tittelen «nav-pilot». Den mørke gradienten og terminalbildene blir på landingssiden. Dokumentasjonssidene bruker Aksel-tokens og lys bakgrunn, fordi de skal leses.
 
@@ -621,12 +622,12 @@ Samme ord for samme ting på alle sider. Tabellen viser valget og hvor nettstede
 
 ## 7. Plan for gjennomføring
 
-Små PR-er, ett emne om gangen, i denne rekkefølgen. Hver har språkvask, gjennomgang av en annen modell, grønn CI og ingen åpne tråder før den går i flettekøen. PR-er som endrer nettsiden har skjermbilder for desktop (1440 px) og mobil (390 px). PR-er som endrer CLI-en testes med de syntetiske brukerreisene (persona-testene for CLI-en).
+Små PR-er, ett emne om gangen, i denne rekkefølgen. Hver har språkvask, gjennomgang av en annen KI-modell, grønn CI og ingen åpne tråder før den går i flettekøen. PR-er som endrer nettsiden har skjermbilder for desktop (1440 px) og mobil (390 px). PR-er som endrer CLI-en testes med de syntetiske brukerreisene (persona-testene for CLI-en).
 
-Forutsetning: CI-sjekken for lenker (§2.3) er flettet inn før PR 4, 5, 8, 9 og 10.
+Forutsetning: CI-sjekken for lenker (§2.3) er flettet inn før PR 4, 5, 8, 9, 10 og 11.
 
 1. **CLI-feil** (H2, H8, H11), hver som en sak og en PR med test.
-2. **Rask retting på dagens sider** (H1, H6), til PR 4 og 5 erstatter dem.
+2. **Rask retting på dagens sider**, til PR 4 og 5 erstatter dem. Flettet som #1042.
 3. **Kom i gang.** `/kom-i-gang` etter §5.1 (H3, H4, H5).
 4. **Diátaxis-sidene og videresendingen.** Nye sider etter §1.3 og innhold flyttet etter §1.4 (H9, H10, H12, H13). `/nav-pilot/docs` får en oppføring i `redirects()`, og `HashAnchorScroll` får tabellen over gamle ankere med test (§2). Interne lenker oppdateres, også i `interactive-setup-wizard.tsx`. `app/sitemap.ts` får de nye sidene, og `/cplt`, som mangler i dag. `/nav-pilot/docs` står ikke der og skal ikke inn. Seksjonsmenyen og rutegruppen (§6.4) kommer her, fordi de nye sidene trenger dem.
 5. **Lokal-sidene.** `/nav-pilot/lokal` etter §3, `/nav-pilot/lokal/egen-server`, `/nav-pilot/lokal/decide` og kortere README (H7, H14).
@@ -634,7 +635,8 @@ Forutsetning: CI-sjekken for lenker (§2.3) er flettet inn før PR 4, 5, 8, 9 og
 7. **Klientsiden.** `/nav-pilot/klienter` etter §4 med paritetsstatusen fra #1022, og rettelsene i §4.4. Når håndhevingen av MCP-registeret (#1027) er flettet inn, beskriver siden den.
 8. **`/innsikt` og «Sider i denne delen»** på `/praksis` og `/innsikt` (§6.3). Kostnad får låsikon.
 9. **Toppfeltet og merkevaren** etter §6.3, §6.5 og §6.7. Endrer `site-shell.tsx`, `page-hero.tsx`, `lib/nav-items.ts`, forsiden, `components/sidebar.tsx` (`QuickNav` fjernes) og `(en)/layout.tsx` (engelske tekster i `ShellLabels`, med `lang="en"`). Den berører sidene til alle team. Eierne av Praksis, Retningslinjer, Statistikk og Adopsjon får se skjermbildene av D og D2 i PR-en, og den flettes ikke inn før de har svart.
-10. **Det gamle domenet** (§2.2). README og `scripts/generate-docs/main.go:151` bytter til `ki-utvikling.nav.no`, README-ene genereres på nytt, og CI-sjekken får `grep`-en. Den manuelle sjekken fra naisdevice gjøres før PR-en. Kan tas når som helst.
+10. **Søk** etter V11. En «Søk»-knapp i toppfeltet som åpner en dialog, med en statisk indeks bygd fra `src/lib/link-inventory.json` og sidetitlene. Utvider `home-search.tsx` i stedet for å lage et nytt søk.
+11. **Det gamle domenet** (§2.2). README og `scripts/generate-docs/main.go:151` bytter til `ki-utvikling.nav.no`, README-ene genereres på nytt, og CI-sjekken får `grep`-en. Den manuelle sjekken fra naisdevice gjøres før PR-en. Kan tas når som helst.
 
 Utenfor disse PR-ene:
 

@@ -3,7 +3,7 @@ title: "Agentpakker følger stabile releases"
 date: 2026-09-24
 author: starefossen
 category: nav-pilot
-excerpt: "Nav-pilot samler standardoppsettet i én agentpakke og lar pakker publisere stabile releases med kontrollerte oppdateringer."
+excerpt: "nav-pilot samler standardoppsettet i én agentpakke og lar pakker publisere stabile releases med kontrollerte oppdateringer."
 tags:
   - nav-pilot
   - agentpakker
@@ -11,7 +11,7 @@ tags:
   - customizations
 ---
 
-Nav-pilot har erstattet de fem gamle samlingene med én standardpakke. Samtidig har agentpakker fått stabile releases og støtte for Copilot, opencode og pi.
+nav-pilot har erstattet de fem gamle samlingene med én standardpakke. Samtidig har agentpakker fått stabile releases og støtte for Copilot, opencode og pi.
 
 En agentpakke kan inneholde agenter, skills, instruksjoner, prompts, hooks og extensions. Manifestet sier hvilke klienter pakka støtter, hvilken persona som starter og hvor innholdet ligger.
 
