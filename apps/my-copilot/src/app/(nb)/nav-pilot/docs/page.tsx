@@ -2436,6 +2436,15 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             Koden din sendes til serveren, så nav-pilot godtar bare localhost og private IP-adresser (for eksempel
             127.0.0.1 og 192.168.x.x). En offentlig adresse blir avvist.
           </BodyLong>
+          <BodyLong size="small" textColor="subtle">
+            Enklest er <code className="font-mono text-xs">nav-pilot alpha local setup</code>. Den finner servere som
+            allerede kjører på maskinen (Ollama, llama-server, LM Studio, vLLM), foreslår modellen som ligger nærmest
+            vår egen, og sjekker den. Mangler modellen i Ollama, eller er konteksten for liten, tilbyr den å hente
+            modellen eller lage en kopi med 64k kontekst. Den spør før den laster ned eller lagrer noe, og starter aldri
+            en server selv. Uten terminal gjør den det bare med <code className="font-mono text-xs">--pull</code>,{" "}
+            <code className="font-mono text-xs">--fix-context</code> og <code className="font-mono text-xs">--yes</code>
+            . Vil du gjøre det for hånd:
+          </BodyLong>
           <CodeBlock compact>
             {`# Ollama
 OLLAMA_CONTEXT_LENGTH=65536 ollama serve

@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -273,19 +274,26 @@ func serveFakeMLX() {
 	}))
 }
 
-// fake-endpoint [-no-logprobs] [-no-tools] [-ctx N] [-models a,b] starts an
+// fake-endpoint [-no-logprobs] [-no-tools] [-ctx N] [-models a,b] [-export VAR] [-llama] starts an
 // OpenAI-compatible server in the test process, the kind a developer runs
 // themselves for local_endpoint (Ollama, llama-server), and exports
 // FAKE_ENDPOINT_URL (with /v1). By default it lists qwen3.6:35b, answers a
 // tool call with a parsed tool_calls entry, returns 11 top_logprobs with most
 // of the mass on "A", and keeps every prompt token. -ctx N cuts the reported
 // prompt to N tokens, the way Ollama's small default num_ctx does. Every
-// request path goes to $WORK/fake/endpoint.log.
+// request path goes to $WORK/fake/endpoint.log. Like Ollama, it answers
+// POST /api/pull (the model is listed afterwards) and /api/create with a
+// "from" and "parameters.num_ctx" (the copy keeps that many tokens). -export
+// -llama makes it llama-server rather than Ollama (no /api/version). -export
+// names the variable instead of FAKE_ENDPOINT_URL, and VAR_ADDR gets host:port.
 func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 	if neg {
 		ts.Fatalf("usage: fake-endpoint [-no-logprobs] [-no-tools] [-ctx N] [-models a,b]")
 	}
-	logprobs, tools, ctxTokens, models := true, true, 0, []string{"qwen3.6:35b"}
+	logprobs, tools, ctxTokens, models, export := true, true, 0, []string{"qwen3.6:35b"}, "FAKE_ENDPOINT_URL"
+	ollama := true
+	var mu sync.Mutex
+	modelCtx := map[string]int{}
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "-no-logprobs":
@@ -299,7 +307,15 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 			ctxTokens = n
 		case "-models":
 			i++
-			models = strings.Split(args[i], ",")
+			models = nil
+			if args[i] != "" {
+				models = strings.Split(args[i], ",")
+			}
+		case "-llama":
+			ollama = false
+		case "-export":
+			i++
+			export = args[i]
 		default:
 			ts.Fatalf("fake-endpoint: unknown flag %s", args[i])
 		}
@@ -307,12 +323,42 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 	dir := ts.MkAbs("fake")
 	ts.Check(os.MkdirAll(dir, 0o755))
 	logPath := filepath.Join(dir, "endpoint.log")
+	if export != "FAKE_ENDPOINT_URL" {
+		logPath = filepath.Join(dir, strings.ToLower(export)+".log")
+	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
 			fmt.Fprintln(f, r.Method, r.URL.Path)
 			f.Close()
 		}
+		mu.Lock()
+		defer mu.Unlock()
 		switch r.URL.Path {
+		case "/api/version":
+			if ollama {
+				_, _ = w.Write([]byte(`{"version":"0.34.4"}`))
+			} else {
+				http.NotFound(w, r)
+			}
+			return
+		case "/api/pull", "/api/create":
+			var req struct {
+				Model      string `json:"model"`
+				Parameters struct {
+					NumCtx int `json:"num_ctx"`
+				} `json:"parameters"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			models = append(models, req.Model)
+			if req.Parameters.NumCtx > 0 {
+				modelCtx[req.Model] = req.Parameters.NumCtx
+			}
+			if r.URL.Path == "/api/pull" {
+				fmt.Fprintln(w, `{"status":"pulling manifest"}`)
+				fmt.Fprintln(w, `{"status":"pulling abc","total":23000000000,"completed":23000000000}`)
+			}
+			fmt.Fprintln(w, `{"status":"success"}`)
+			return
 		case "/v1/models":
 			var data []any
 			for _, m := range models {
@@ -326,6 +372,7 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 			return
 		}
 		var req struct {
+			Model    string `json:"model"`
 			Messages []struct {
 				Content string `json:"content"`
 			} `json:"messages"`
@@ -337,8 +384,12 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 			chars += len(m.Content)
 		}
 		prompt := chars / 4
-		if ctxTokens > 0 && prompt > ctxTokens {
-			prompt = ctxTokens
+		limit := ctxTokens
+		if n, ok := modelCtx[req.Model]; ok {
+			limit = n
+		}
+		if limit > 0 && prompt > limit {
+			prompt = limit
 		}
 		msg := map[string]any{"role": "assistant", "content": "A"}
 		if len(req.Tools) > 0 {
@@ -365,5 +416,6 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 		})
 	}))
 	ts.Defer(srv.Close)
-	ts.Setenv("FAKE_ENDPOINT_URL", srv.URL+"/v1")
+	ts.Setenv(export, srv.URL+"/v1")
+	ts.Setenv(export+"_ADDR", strings.TrimPrefix(srv.URL, "http://"))
 }

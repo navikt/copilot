@@ -1,0 +1,10 @@
+# In a terminal setup asks: which model, then whether to save.
+
+[!pty] skip 'needs a pseudo-terminal'
+fake-endpoint -export OLLAMA -models llama3:8b,qwen3.6:35b
+env NAV_PILOT_SETUP_CANDIDATES=ollama=$OLLAMA_ADDR
+
+exec pty-run -wait 'Which model' -send '\r' -wait 'Save and turn local dispatch on' -send '\r' -- nav-pilot alpha local setup
+stdout 'Saved\. Local dispatch is on, to qwen3\.6:35b'
+exec nav-pilot config get local_endpoint_model
+stdout '^qwen3\.6:35b$'

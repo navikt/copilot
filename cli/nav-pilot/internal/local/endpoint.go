@@ -171,8 +171,10 @@ func probeEndpoint() error {
 		}
 		err = errors.New(resp.Status)
 	}
-	return fmt.Errorf("%w at %s (%v).\n\n  Start your server, for example %s or %s, then check it: %s",
-		ErrEndpointDown, endpointURL, err,
-		domain.Bold("ollama serve"), domain.Bold("llama-server --jinja -c 65536 -m <model.gguf>"),
-		domain.Bold("nav-pilot alpha local doctor"))
+	start := "for example " + domain.Bold("ollama serve") + " or " + domain.Bold("llama-server --jinja -c 65536 -m <model.gguf>")
+	if strings.HasSuffix(endpointURL, ":11434") {
+		start = "Ollama's default port: " + domain.Bold("ollama serve")
+	}
+	return fmt.Errorf("%w at %s (%v).\n\n  Start your server (%s), then check it: %s",
+		ErrEndpointDown, endpointURL, err, start, domain.Bold("nav-pilot alpha local doctor"))
 }

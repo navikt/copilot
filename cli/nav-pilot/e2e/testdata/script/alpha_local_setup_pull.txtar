@@ -1,0 +1,27 @@
+# Ollama without a model nav-pilot knows: setup shows the pull and its size,
+# and downloads only with consent (--pull without a terminal).
+
+fake-endpoint -export OLLAMA -models llama3:8b
+env NAV_PILOT_SETUP_CANDIDATES=ollama=$OLLAMA_ADDR
+
+exits 2 nav-pilot alpha local setup
+stdout 'Ollama has no model nav-pilot knows\. Recommended: qwen3\.6:35b'
+stdout 'about 23 GB'
+stdout 'ollama pull qwen3\.6:35b'
+stdout 'Not downloaded\. Run it yourself, or pass --pull'
+stdout 'Continuing with llama3:8b, which nav-pilot knows nothing about'
+stderr 'With the recommended model: nav-pilot alpha local setup --pull --yes\. With llama3:8b anyway: nav-pilot alpha local setup --model llama3:8b --yes'
+! grep 'POST /api/pull' fake/ollama.log
+! exists home/config.toml
+
+# --pull alone would download and then refuse to save: refused up front.
+exits 2 nav-pilot alpha local setup --pull
+stderr '--pull and --fix-context go with --yes'
+! grep 'POST /api/pull' fake/ollama.log
+
+exec nav-pilot alpha local setup --pull --yes
+stdout 'Pulled qwen3\.6:35b'
+stdout 'Saved\. Local dispatch is on, to qwen3\.6:35b'
+grep 'POST /api/pull' fake/ollama.log
+exec nav-pilot config get local_endpoint_model
+stdout '^qwen3\.6:35b$'

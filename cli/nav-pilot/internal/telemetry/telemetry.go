@@ -786,7 +786,7 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		// and each local command are their own series instead of one "alpha".
 		"alpha decide", "alpha decide eval",
 		"alpha local init", "alpha local start", "alpha local stop", "alpha local restart", "alpha local status", "alpha local models", "alpha local use",
-		"alpha local on", "alpha local off", "alpha local ask", "alpha local purge", "alpha local doctor",
+		"alpha local on", "alpha local off", "alpha local ask", "alpha local purge", "alpha local doctor", "alpha local setup",
 		"init", "export", "uninstall", "config", "validate", "env", "feedback", "models", "ignore", "add",
 		// A dry-run sync builds mode as "<mode>_dry_run"; unlisted, both spellings
 		// fell back to "non_interactive", so the dry-run distinction the code
