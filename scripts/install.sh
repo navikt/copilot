@@ -254,7 +254,7 @@ else
   echo "  ⚠ WARNING: GitHub CLI (gh) not found — skipping provenance verification!"
   echo "  This means the binary's build origin cannot be confirmed."
   echo "  Install gh for full supply chain security: https://cli.github.com"
-  echo "  Or install via Homebrew for a verified install: brew install navikt/tap/nav-pilot navikt/tap/cplt"
+  echo "  Or use Homebrew, which verifies the download: brew install navikt/tap/nav-pilot navikt/tap/cplt"
   echo ""
 fi
 

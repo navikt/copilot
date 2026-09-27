@@ -67,7 +67,7 @@ func cmdUpgrade(command string, args []string) error {
 		}
 	}
 	if !versionParseable(Version) {
-		return fmt.Errorf("can't self-update a development build (%s). Install a release instead: brew install navikt/tap/nav-pilot navikt/tap/cplt, or the release script (https://github.com/navikt/copilot/blob/main/docs/README.nav-pilot.md#kom-i-gang)", Version)
+		return fmt.Errorf("can't self-update a development build (%s). Install a release: brew install navikt/tap/nav-pilot navikt/tap/cplt (or the install script, see https://github.com/navikt/copilot/blob/main/docs/README.nav-pilot.md#kom-i-gang)", Version)
 	}
 	if command == "update" {
 		fmt.Fprintf(os.Stderr, "%s %s is deprecated. Use: %s\n\n",

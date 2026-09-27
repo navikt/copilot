@@ -36,9 +36,9 @@ Alle tilpasninger finnes på **[verktøysida](https://min-copilot.ansatt.nav.no/
 **[nav-pilot](docs/README.nav-pilot.md)** er både et CLI-verktøy og en AI-agent. CLI-et klargjør repoet ditt med riktige agenter, skills og instruksjoner, og setter opp en optimalisert integrasjon med token-optimalisering. Agenten `@nav-pilot` tar deg gjennom fire faser i Copilot Chat: Intervju, Plan, Review og Lever.
 
 ```bash
-# Installer nav-pilot CLI (macOS)
+# Installer nav-pilot og cplt (macOS)
 brew install navikt/tap/nav-pilot navikt/tap/cplt
-# eller: mise use -g 'github:navikt/copilot[exe=nav-pilot,version_prefix=nav-pilot/]@<versjon>'
+# eller: mise use -g 'github:navikt/cplt' && mise use -g 'github:navikt/copilot[exe=nav-pilot,version_prefix=nav-pilot/]@<versjon>'
 
 # Installer Nav-agentpakka i repoet ditt
 cd /path/to/your/repo
@@ -114,7 +114,7 @@ export PATH="$HOME/.local/bin:$PATH"              # skriptet installerer hit
 which -a copilot cplt   # ingen treff skal starte med /mnt/c
 ```
 
-Bruker du OpenCode som klient, installer den på samme måte inne i Ubuntu (`curl -fsSL https://opencode.ai/install | bash`) og sjekk `which -a opencode`.
+Bruker du opencode som klient, installer den på samme måte inne i Ubuntu (`curl -fsSL https://opencode.ai/install | bash`) og sjekk `which -a opencode`.
 
 WSL2 arver Windows-PATH. Mangler et verktøy i Ubuntu, plukker terminalen Windows-varianten i stedet, og den kjører via interop som en Windows-prosess — den installerer til Windows-siden og ser ikke Linux-filsystemet slik du forventer. Vanligste fella: `apt install nodejs` gir `node` i Ubuntu, men ikke `npm`, så `npm install -g` havner i Windows-prefixet og henter win32-pakken. Symptomet er `no platform package found` fra `copilot --version`. Jobb også fra Linux-filsystemet (`~/git/...`), ikke `/mnt/c/...` — 9p-I/O er tregt.
 

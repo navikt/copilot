@@ -50,7 +50,7 @@ export function generateSetupScript(os: OS, workflow: Workflow) {
   if (isWindows) {
     blocks.push({
       title:
-        "# Nav-pilot (agent og context) fungerer best i WSL (Linux).\n# Åpne WSL2-terminalen din og kjør følgende.\n# Alt skal installeres inne i Linux. Verktøy du har på Windows installerer og kjører på Windows-siden.",
+        "# nav-pilot fungerer best i WSL (Linux).\n# Åpne WSL2-terminalen din og kjør følgende.\n# Alt skal installeres inne i Linux. Verktøy du har på Windows installerer og kjører på Windows-siden.",
       commands: [],
     });
   }
@@ -63,17 +63,17 @@ export function generateSetupScript(os: OS, workflow: Workflow) {
       commands: ["curl -fsSL https://gh.io/copilot-install | bash"],
     });
   } else if (workflow === "opencode") {
-    blocks.push({ title: "# 1. Installer OpenCode", commands: ["curl -fsSL https://opencode.ai/install | bash"] });
+    blocks.push({ title: "# 1. Installer opencode", commands: ["curl -fsSL https://opencode.ai/install | bash"] });
   }
 
   if (isMac) {
     blocks.push({
-      title: "# 2. Installer Nav-verktøy",
+      title: "# 2. Installer nav-pilot og cplt",
       commands: [NAV_PILOT_BREW_INSTALL],
     });
   } else {
     blocks.push({
-      title: "# 2. Installer Nav-verktøy (inkluderer sandbox)",
+      title: "# 2. Installer nav-pilot og cplt",
       commands: [
         "if command -v apt-get >/dev/null; then   # Debian, Ubuntu: apt-arkivet",
         "  curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \\\n    | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null",
@@ -255,7 +255,7 @@ export function StepWorkflow({
             onNext();
           }}
           icon={<MonitorIcon aria-hidden />}
-          title="OpenCode"
+          title="opencode"
           description="Åpen kildekode-alternativ. Fullverdig autonom agent med et TUI-grensesnitt for de som foretrekker det fremfor GitHubs CLI."
         />
         <ChoiceCard
