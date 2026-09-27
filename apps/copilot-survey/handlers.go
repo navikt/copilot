@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"slices"
+	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -44,7 +45,7 @@ func makeRouter(auth *authenticator, surveys *surveyAPI) http.Handler {
 		if id := r.PathValue("id"); slices.ContainsFunc(surveys.surveys, func(s survey) bool { return s.ID == id }) {
 			label = id
 		}
-		submissions.WithLabelValues(label, http.StatusText(rec.status)).Inc()
+		submissions.WithLabelValues(label, strconv.Itoa(rec.status)).Inc()
 	})
 	return mux
 }
