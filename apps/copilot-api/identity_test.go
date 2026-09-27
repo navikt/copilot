@@ -125,8 +125,9 @@ func TestOnBehalfOfIdentityResolverCanResolve(t *testing.T) {
 		t.Error("expected CanResolve false for nil request")
 	}
 
-	// Only the allowlisted routes, and never before routing (no pattern).
-	for _, pattern := range []string{"", "GET /api/v1/copilot/seats/{username}", "GET /api/v1/copilot/budget", "GET /api/v1/copilot/usage/metrics"} {
+	// Only the allowlisted routes: never the outer mux's "/api/v1/" (the
+	// global pass) or an empty pattern.
+	for _, pattern := range []string{"", "/api/v1/", "GET /api/v1/copilot/seats/{username}", "GET /api/v1/copilot/budget", "GET /api/v1/copilot/usage/metrics"} {
 		if r.CanResolve(cliApp, routed(http.MethodGet, pattern)) {
 			t.Errorf("expected CanResolve false on %q", pattern)
 		}

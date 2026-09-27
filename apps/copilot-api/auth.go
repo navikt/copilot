@@ -269,6 +269,11 @@ func (v *TokenValidator) validate(tokenString string) (*User, error) {
 		return nil, fmt.Errorf("unauthorized client: %s", azp)
 	}
 
+	return userFromClaims(azp, claims), nil
+}
+
+// userFromClaims maps a validated token's claims to a User.
+func userFromClaims(azp string, claims jwt.MapClaims) *User {
 	// Extract user information
 	email := getStringClaim(claims, "email")
 	if email == "" {
@@ -301,7 +306,7 @@ func (v *TokenValidator) validate(tokenString string) (*User, error) {
 		}
 	}
 
-	return user, nil
+	return user
 }
 
 func getStringClaim(claims jwt.MapClaims, key string) string {

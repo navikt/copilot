@@ -37,9 +37,10 @@ func NewOnBehalfOfIdentityResolver(trustedClientIDs map[string]bool) *OnBehalfOf
 
 // onBehalfOfRoutes are the only routes X-On-Behalf-Of is honoured on: the
 // per-user usage reads copilot-cli forwards for nav-pilot. Keyed on the
-// ServeMux pattern, so it matches only after routing, in the per-route
-// requireResolvedIdentity; the global pre-routing pass never resolves (and
-// never writes the audit line).
+// ServeMux pattern, so it matches only in the per-route
+// requireResolvedIdentity. The global IdentityMiddleware pass sees the outer
+// mux's pattern, "/api/v1/", so it never resolves (and never writes the
+// audit line).
 var onBehalfOfRoutes = map[string]bool{
 	"GET /api/v1/copilot/usage/user/{username}":               true,
 	"GET /api/v1/copilot/usage/user/{username}/weekly":        true,
