@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -204,18 +205,21 @@ func maybeSurvey(client string) {
 	if !surveysAllowed(r) {
 		return
 	}
-	// Nothing can be sent without a sign-in, so no network either.
-	if !canSignIn() {
+	st := readSurveyState()
+	now := time.Now()
+	hasPending := slices.ContainsFunc(slices.Collect(maps.Values(st.Surveys)), func(r *surveyRecord) bool { return len(r.Pending) > 0 })
+	fetchDue := now.Sub(st.Fetched) >= surveyFetchEvery
+	// Nothing to do: no keychain read. Nothing can be sent without a
+	// sign-in, so no network without one either.
+	if (!hasPending && !fetchDue && nextSurvey(st, now, "calm") == nil) || !canSignIn() {
 		return
 	}
-	st := readSurveyState()
 	base := copilotCLIURL()
-	now := time.Now()
 
 	dropStalePending(st, now)
 	deliverPending(base, st)
 
-	if now.Sub(st.Fetched) >= surveyFetchEvery {
+	if fetchDue {
 		// Out of reach (no naisdevice, offline) is the same as no survey,
 		// and is not retried until the next day.
 		if active, err := fetchActiveSurveys(base); err == nil {
@@ -288,13 +292,14 @@ func countAsk(st surveyState, id string, now time.Time) *surveyRecord {
 	return rec
 }
 
-// answerSurvey runs the questions and sends the answers.
-func answerSurvey(r ResolvedConfig, st surveyState, s surveyDef, base string) {
+// answerSurvey runs the questions and sends the answers. false means the
+// form was left before the end, and nothing was sent.
+func answerSurvey(r ResolvedConfig, st surveyState, s surveyDef, base string) bool {
 	answers, ok := runSurveyForm(s)
 	if !ok {
 		fmt.Println(dim("  Not sent."))
 		writeSurveyState(st)
-		return
+		return false
 	}
 	rec := st.Surveys[s.ID]
 	if rec == nil {
@@ -306,6 +311,7 @@ func answerSurvey(r ResolvedConfig, st surveyState, s surveyDef, base string) {
 	rec.Pending = payload
 	writeSurveyState(st)
 	sendAnswered(base, st, s.ID)
+	return true
 }
 
 // maybeSurveyHint is the start nudge: one line on stderr as a session starts,
@@ -314,13 +320,15 @@ func answerSurvey(r ResolvedConfig, st surveyState, s surveyDef, base string) {
 // counts as one of the three asks.
 func maybeSurveyHint(client string) {
 	cfg, _ := readConfig()
-	if !surveysAllowed(resolve(cfg, CLIOverrides{Client: client})) || !canSignIn() {
+	if !surveysAllowed(resolve(cfg, CLIOverrides{Client: client})) {
 		return
 	}
 	st := readSurveyState()
 	now := time.Now()
+	// The keychain only when there is something to show: reading it can
+	// start a subprocess or an unlock dialog.
 	s := nextSurvey(st, now, "start")
-	if s == nil {
+	if s == nil || !canSignIn() {
 		return
 	}
 	countAsk(st, s.ID, now)
@@ -343,7 +351,11 @@ func cmdSurvey(jsonOutput bool) error {
 	}
 	var open []surveyDef
 	for _, d := range st.Active {
-		if d.openOn(now) && d.renderable() {
+		switch {
+		case !d.openOn(now):
+		case !d.renderable():
+			fmt.Fprintf(os.Stderr, "%s %s needs a newer nav-pilot: %s\n", yellow("⚠"), d.Title, bold("nav-pilot upgrade"))
+		default:
 			open = append(open, d)
 		}
 	}
@@ -381,7 +393,7 @@ func cmdSurvey(jsonOutput bool) error {
 		}
 		id := open[0].ID
 		if err := runField(huh.NewSelect[string]().Title("Which survey?").Options(opts...).Value(&id)); err != nil {
-			return cancelledError{nothingWritten: true}
+			return cancelledError{}
 		}
 		s = open[slices.IndexFunc(open, func(d surveyDef) bool { return d.ID == id })]
 	}
@@ -392,7 +404,9 @@ func cmdSurvey(jsonOutput bool) error {
 	fmt.Println(dim(surveyCollected))
 	fmt.Println()
 	cfg, _ := readConfig()
-	answerSurvey(resolve(cfg, CLIOverrides{}), st, s, base)
+	if !answerSurvey(resolve(cfg, CLIOverrides{}), st, s, base) {
+		return cancelledError{}
+	}
 	return nil
 }
 
