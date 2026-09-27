@@ -400,6 +400,12 @@ func transformAgent(data []byte, name string, primaries []string) []byte {
 
 	mode := source.OpenCodeAgentMode(name, primaries)
 	newFM := source.BuildAgentFrontmatter(description, mode, openCodeAgentModel(fm, name))
+	// The agent's tools: allowlist, as OpenCode permissions (#1026). Without
+	// it an agent that is read-only under Copilot could edit and run shell
+	// commands under OpenCode.
+	if tools, ok := source.ExtractFrontmatterList(fm, "tools"); ok {
+		newFM = append(newFM, source.OpenCodeToolPermission(tools)...)
+	}
 	return source.Reassemble(newFM, body)
 }
 

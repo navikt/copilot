@@ -3,6 +3,7 @@ package source
 import (
 	"bytes"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -193,6 +194,9 @@ func OpenCodeAgentMode(name string, primaries []string) string {
 // every user on their next launch with nothing in between to catch it. Adding a
 // key here is a decision; passing keys through by stripping known-bad ones is
 // not the same decision.
+//
+// The one key added since is permission, built from tools: by
+// [OpenCodeToolPermission] in opencode's own shape rather than passed through.
 func BuildAgentFrontmatter(description, mode, model string) []byte {
 	if mode == "" {
 		mode = "subagent"
@@ -251,4 +255,105 @@ func Reassemble(fm, body []byte) []byte {
 		buf.Write(body)
 	}
 	return buf.Bytes()
+}
+
+// ExtractFrontmatterList reads a top-level YAML list: a block ("key:" then
+// "  - item" lines) or a flow list ("key: [a, 'b']"). ok is false when the key
+// is absent.
+func ExtractFrontmatterList(fm []byte, key string) (items []string, ok bool) {
+	unquote := func(s string) string {
+		s = strings.TrimSpace(s)
+		if len(s) >= 2 && (s[0] == '"' || s[0] == '\'') && s[len(s)-1] == s[0] {
+			return s[1 : len(s)-1]
+		}
+		return s
+	}
+	lines := strings.Split(string(fm), "\n")
+	for i, line := range lines {
+		rest, found := strings.CutPrefix(strings.TrimRight(line, " \t"), key+":")
+		if !found {
+			continue
+		}
+		if rest = strings.TrimSpace(rest); strings.HasPrefix(rest, "[") {
+			for _, it := range strings.Split(strings.Trim(rest, "[]"), ",") {
+				if it = unquote(it); it != "" {
+					items = append(items, it)
+				}
+			}
+			return items, true
+		}
+		for _, next := range lines[i+1:] {
+			t := strings.TrimSpace(next)
+			item, isItem := strings.CutPrefix(t, "- ")
+			if !isItem || next == t {
+				break
+			}
+			items = append(items, unquote(item))
+		}
+		return items, true
+	}
+	return nil, false
+}
+
+// openCodeToolKeys maps each OpenCode permission key nav-pilot controls to the
+// Copilot tool names (and aliases) that grant it. A Copilot agent's tools: is
+// an allowlist, so a key none of its entries grants is denied. OpenCode keys
+// left out are not Copilot's to decide: question, skill, lsp, doom_loop,
+// external_directory. task is left out on purpose: OpenCode's local worker
+// is a task, and denying it would take local dispatch from a persona that has
+// it today. MCP tools are left out because OpenCode names them after the
+// user's own server key, which the agent file cannot know.
+var openCodeToolKeys = []struct {
+	key   string
+	grant []string
+}{
+	{"bash", []string{"execute", "shell", "bash", "powershell"}},
+	{"read", []string{"read", "view"}},
+	{"list", []string{"read", "view"}},
+	{"edit", []string{"edit", "write", "create"}},
+	{"grep", []string{"grep", "search"}},
+	{"glob", []string{"glob", "search"}},
+	{"webfetch", []string{"web_fetch", "fetch", "web"}},
+	{"websearch", []string{"web_search", "web"}},
+	{"todowrite", []string{"todo"}},
+}
+
+// OpenCodeToolPermission is the permission block for a Copilot agent's tools:
+// list, as frontmatter lines, or nil when it restricts nothing OpenCode has.
+// A shell entry with a command pattern ("shell(git:*)") allows that command
+// and denies the rest.
+func OpenCodeToolPermission(tools []string) []byte {
+	granted := map[string]bool{}
+	var bashPatterns []string
+	for _, t := range tools {
+		t = strings.ToLower(strings.TrimSpace(t))
+		name, arg, hasArg := strings.Cut(strings.TrimSuffix(t, ")"), "(")
+		if hasArg && slices.Contains(openCodeToolKeys[0].grant, name) {
+			cmd := strings.TrimSpace(strings.TrimSuffix(arg, ":*"))
+			bashPatterns = append(bashPatterns, cmd)
+			if strings.HasSuffix(arg, ":*") {
+				bashPatterns = append(bashPatterns, cmd+" *")
+			}
+			continue
+		}
+		granted[t] = true
+	}
+	var buf bytes.Buffer
+	for _, k := range openCodeToolKeys {
+		if slices.ContainsFunc(k.grant, func(g string) bool { return granted[g] }) {
+			continue
+		}
+		if k.key == "bash" && len(bashPatterns) > 0 {
+			buf.WriteString("  bash:\n    \"*\": deny\n")
+			for _, p := range bashPatterns {
+				buf.WriteString("    " + strconv.Quote(p) + ": allow\n")
+			}
+			continue
+		}
+		buf.WriteString("  " + k.key + ": deny\n")
+	}
+	if buf.Len() == 0 {
+		return nil
+	}
+	return append([]byte("permission:\n"), buf.Bytes()...)
 }

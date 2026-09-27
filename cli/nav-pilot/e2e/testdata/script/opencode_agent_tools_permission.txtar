@@ -1,0 +1,44 @@
+# An agent's tools: allowlist reaches opencode as a permission block (#1026):
+# what the list leaves out is denied, so an agent that cannot edit or run shell
+# commands under Copilot cannot under opencode either. An agent without tools:
+# gets no block.
+
+fake-bin cplt opencode
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot config set source $WORK/plattform
+exec nav-pilot install plattform --user --yes
+
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+grep '^permission:$' $HOME/.config/opencode/agents/leser.md
+grep '^  bash: deny$' $HOME/.config/opencode/agents/leser.md
+grep '^  edit: deny$' $HOME/.config/opencode/agents/leser.md
+! grep '^  grep: deny$' $HOME/.config/opencode/agents/leser.md
+! grep 'tools' $HOME/.config/opencode/agents/leser.md
+! grep 'permission' $HOME/.config/opencode/agents/grillmester.md
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/agents/leser.agent.md --
+---
+name: leser
+description: leser bare
+tools:
+  - read
+  - grep
+  - glob
+  - github/search_code
+---
+leser
