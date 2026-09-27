@@ -344,7 +344,7 @@ func SyncOpenCodeArtifacts(client, sourceDir, scopeDir, outputDir, sourceVersion
 			files = append(files, domain.InstalledFile{Path: "AGENTS.md", Hash: h, Status: domain.FileStatusConflict})
 			conflicts = append(conflicts, "AGENTS.md")
 		} else {
-			agentsMD := buildLeanAGENTSmd(globalSections, scopedRefs)
+			agentsMD := buildLeanAGENTSmd(globalSections, scopedRefs, instructionsRefDir(outputDir, true))
 			if err := source.CheckSymlink(agentsMDPath, outputDir); err != nil {
 				return skills, commands, agents, instructions, conflicts, fmt.Errorf("AGENTS.md: %w", err)
 			}

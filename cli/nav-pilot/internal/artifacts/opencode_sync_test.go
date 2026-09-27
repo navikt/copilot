@@ -457,7 +457,9 @@ func TestSyncOpenCodeArtifacts_InstalledScopeUnchanged(t *testing.T) {
 				return nil // holds a timestamp
 			}
 			data, err := os.ReadFile(p)
-			files[rel] = string(data)
+			// AGENTS.md names the scoped instructions by absolute path,
+			// and each run writes to its own directory.
+			files[rel] = strings.ReplaceAll(string(data), out, "$OUT")
 			return err
 		}); err != nil {
 			t.Fatalf("walking output: %v", err)

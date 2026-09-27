@@ -1,0 +1,59 @@
+# The AGENTS.md nav-pilot writes for opencode ends with a "Context Loading"
+# list: one line per file-scoped instruction, and the model reads the file
+# when the glob matches. The launch writes those files to opencode's global
+# config directory, so every path in the list has to resolve from wherever the
+# session runs, not only from a repo that happens to have its own .opencode/.
+# The fake opencode plays the model: it reads each listed path from the
+# session's working directory, as opencode's read tool would.
+
+fake-bin cplt opencode
+env PATH=$PATH${:}/bin${:}/usr/bin
+
+mkdir plattform repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot config set source $WORK/plattform
+exec nav-pilot install plattform --user --yes
+
+cp $WORK/opencode.sh $WORK/fake/opencode.sh
+cp $WORK/opencode.sh $WORK/fake/cplt.sh
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+
+exists $HOME/.config/opencode/instructions/kotlin.md
+exec cat $WORK/read.out
+stdout 'ok .*kotlin\.md'
+! stdout missing
+
+# The row says what the file is for, as Copilot's applyTo table does.
+grep 'Kotlin-mønstre for Nav' $HOME/.config/opencode/AGENTS.md
+
+-- opencode.sh --
+# Only the session itself reads; the launch's own --version probes do not.
+case "$*" in *--version*) return 0 ;; esac
+sed -n 's/^- `[^`]*` → @\{0,1\}\([^ ]*\.md\).*/\1/p' "$HOME/.config/opencode/AGENTS.md" | while read -r p; do
+  if [ -f "$p" ]; then echo "ok $p"; else echo "missing $p"; fi
+done > "$WORK/read.out"
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills","instructions":"instructions"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/skills/.keep --
+-- plattform/instructions/stil.instructions.md --
+---
+applyTo: "**"
+---
+Svar kort.
+-- plattform/instructions/kotlin.instructions.md --
+---
+description: "Kotlin-mønstre for Nav"
+applyTo: "**/*.kt"
+---
+Bruk data-klasser.
