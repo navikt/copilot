@@ -176,7 +176,7 @@ func withOpenCodeConfigContent(env []string, add map[string]any) []string {
 			cfg[k] = have
 			continue
 		}
-		cfg[k] = v
+		cfg[k] = mergeJSON(cfg[k], v)
 	}
 	out, _ := json.Marshal(cfg)
 	env, _ = telemetry.SetEnvValue(env, openCodeConfigContentEnv, string(out))
@@ -201,4 +201,17 @@ func underCpltExecRoot(dir string) bool {
 		}
 	}
 	return false
+}
+
+// mergeJSON merges add over have: objects key by key, anything else replaced.
+func mergeJSON(have, add any) any {
+	h, ok1 := have.(map[string]any)
+	a, ok2 := add.(map[string]any)
+	if !ok1 || !ok2 {
+		return add
+	}
+	for k, v := range a {
+		h[k] = mergeJSON(h[k], v)
+	}
+	return h
 }

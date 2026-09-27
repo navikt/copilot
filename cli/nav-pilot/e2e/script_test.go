@@ -104,12 +104,13 @@ func TestScripts(t *testing.T) {
 			return os.MkdirAll(home, 0o755)
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
-			"exits":         cmdExits,
-			"validjson":     cmdValidJSON,
-			"fake-mlx":      cmdFakeMLX,
-			"fake-bin":      cmdFakeBin,
-			"fake-gh":       cmdFakeGH,
-			"fake-endpoint": cmdFakeEndpoint,
+			"exits":             cmdExits,
+			"validjson":         cmdValidJSON,
+			"fake-mlx":          cmdFakeMLX,
+			"fake-bin":          cmdFakeBin,
+			"fake-gh":           cmdFakeGH,
+			"fake-endpoint":     cmdFakeEndpoint,
+			"fake-mcp-registry": cmdFakeMCPRegistry,
 		},
 	})
 }
@@ -429,4 +430,24 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 	ts.Defer(srv.Close)
 	ts.Setenv(export, srv.URL+"/v1")
 	ts.Setenv(export+"_ADDR", strings.TrimPrefix(srv.URL, "http://"))
+}
+
+// fake-mcp-registry FILE serves FILE as an MCP registry's /v0.1/servers on
+// 127.0.0.1 and exports its base URL as MCP_REGISTRY_URL (with the trailing
+// slash the org policy's URL has).
+func cmdFakeMCPRegistry(ts *testscript.TestScript, neg bool, args []string) {
+	if neg || len(args) != 1 {
+		ts.Fatalf("usage: fake-mcp-registry FILE")
+	}
+	body := ts.ReadFile(args[0])
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v0.1/servers" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, body)
+	}))
+	ts.Defer(srv.Close)
+	ts.Setenv("MCP_REGISTRY_URL", srv.URL+"/")
 }

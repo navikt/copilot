@@ -1,0 +1,56 @@
+# Every opencode session nav-pilot launches keeps sharing off and updates to a
+# notice, whatever the user's opencode.json says (#1027). The policy rides in
+# OPENCODE_CONFIG_CONTENT, so the user's file is not rewritten for it. An
+# opencode outside the tested range gets a warning, not a refusal, and doctor
+# says which version it found.
+
+fake-bin cplt opencode
+env PATH=$PATH${:}/bin${:}/usr/bin
+
+mkdir plattform/skills repo home/.config/opencode
+cp manual.json home/.config/opencode/opencode.json
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot config set source $WORK/plattform
+exec nav-pilot install plattform --user --yes
+
+env OC_VERSION=1.18.32
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+grep '^--pass-env\nOPENCODE_CONFIG_CONTENT\n' $WORK/fake/cplt.log
+exec cat $WORK/env.out
+stdout '"share":"disabled"'
+stdout '"autoupdate":"notify"'
+grep '"share": "manual"' $HOME/.config/opencode/opencode.json
+! stderr 'outside the versions nav-pilot is tested with'
+
+env OC_VERSION=1.19.0
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+stderr 'opencode 1\.19\.0 is outside the versions nav-pilot is tested with \(>=1\.18\.20,<1\.19\)'
+exec cat $WORK/env.out
+stdout '"share":"disabled"'
+
+exec nav-pilot doctor
+stdout 'Version 1\.19\.0 is outside the tested range'
+env OC_VERSION=1.18.32
+exec nav-pilot doctor
+stdout 'Version 1\.18\.32, inside the tested range'
+
+-- fake/opencode.sh --
+for a in "$@"; do last=$a; done
+[ "$last" = --version ] && { echo "$OC_VERSION"; exit 0; }
+-- fake/cplt.sh --
+env | grep '^OPENCODE_CONFIG_CONTENT=' > "$WORK/env.out"
+-- manual.json --
+{"share": "manual"}
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

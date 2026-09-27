@@ -1925,6 +1925,34 @@ function KlienterOgKonfigurasjonSection() {
                 bg: "#f5f3ff",
               },
               {
+                title: "Samme hooks og verktøyregler",
+                desc: (
+                  <>
+                    Maskering av hemmeligheter og fødselsnumre, loop-vakten og hookene du har installert kjører også i
+                    OpenCode. Feiler maskeringen, holdes verktøyresultatet tilbake. En agents{" "}
+                    <code className="font-mono text-xs">tools:</code>-liste blir tillatelser i OpenCode.
+                  </>
+                ),
+                color: "#0f766e",
+                bg: "#f0fdfa",
+              },
+              {
+                title: "Retningslinjer ved oppstart",
+                desc: (
+                  <>
+                    Deling til opencode.ai er av, og oppdateringer kommer som varsel. MCP-servere som Navs MCP-register
+                    ikke har, slås av for økten, som i Copilot. Se{" "}
+                    <NextLink href="/verktoy" className="text-blue-600 hover:underline">
+                      Verktøy
+                    </NextLink>{" "}
+                    for godkjente servere. <code className="font-mono text-xs">nav-pilot doctor</code> viser hvilke
+                    servere som slås av, og om OpenCode-versjonen er testet.
+                  </>
+                ),
+                color: "#b91c1c",
+                bg: "#fef2f2",
+              },
+              {
                 title: "Tilstandsfil",
                 desc: (
                   <>

@@ -355,7 +355,7 @@ func EnsureOpenCodeConfig() error {
 		cfg["share"] = "disabled"
 		changed = true
 	case share == "auto":
-		fmt.Fprintf(os.Stderr, "%s %s has \"share\": \"auto\": opencode uploads every session to opencode.ai. Set it to \"disabled\" to keep sessions on this machine.\n", domain.Yellow("⚠"), path)
+		fmt.Fprintf(os.Stderr, "%s %s has \"share\": \"auto\": opencode uploads every session to opencode.ai when you run it yourself. Sessions nav-pilot launches keep sharing off. Set it to \"disabled\" to keep every session on this machine.\n", domain.Yellow("⚠"), path)
 	}
 
 	if telemetry.TelemetryEnabled() && telemetry.CopilotOTelEndpointConfigured(os.Environ()) {
@@ -974,6 +974,9 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	}
 
 	launchEnv, _ := telemetry.ApplyOpenCodeOTelEnv(env, cliVersion)
+	launchEnv = applyOpenCodePolicy(launchEnv)
+	launchEnv = applyOpenCodeMCPPolicy(launchEnv, resolved.ProjectDir)
+	warnUntestedOpenCode()
 
 	// Local dispatch, whether or not this session's own model is local: a cloud
 	// main agent handing focused tasks to a local worker is the case the

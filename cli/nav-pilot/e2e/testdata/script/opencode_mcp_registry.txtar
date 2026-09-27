@@ -1,0 +1,88 @@
+# An opencode launch applies the MCP registry policy Copilot CLI applies
+# (#1027): it asks GitHub which registry Nav's org policy names (gh api
+# /copilot/mcp_registry) and turns off, for this session only, every MCP server
+# that registry does not list. Remote servers match by URL, local ones by the
+# npm package in their command. The user's opencode.json is not edited. A
+# registry that does not answer changes nothing, with a warning, and so does a
+# policy that allows every server.
+
+fake-bin cplt opencode gh
+env PATH=$PATH${:}/bin${:}/usr/bin
+fake-mcp-registry registry.json
+
+mkdir plattform/skills repo home/.config/opencode
+cp user.json home/.config/opencode/opencode.json
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+cp ../project.json opencode.json
+exec nav-pilot config set source $WORK/plattform
+exec nav-pilot install plattform --user --yes
+
+# registry_only: the unlisted remote and local servers are turned off.
+env POLICY=registry_only
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+stderr 'Turned off MCP server\(s\) Nav''s MCP registry does not list: egen-lokal, tredjepart\. See https://ki-utvikling\.nav\.no/verktoy'
+exec cat $WORK/env.out
+stdout '"tredjepart":\{"enabled":false\}'
+stdout '"egen-lokal":\{"enabled":false\}'
+! stdout '"aksel"'
+! stdout '"playwright"'
+! stdout '"av"'
+cmp $HOME/.config/opencode/opencode.json $WORK/user.json
+
+exec nav-pilot doctor
+stdout 'MCP servers turned off at launch \(not in Nav''s MCP registry\): egen-lokal, tredjepart'
+
+# A policy that allows every server: nothing is turned off.
+env POLICY=allow_all
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+! stderr 'Turned off MCP'
+exec cat $WORK/env.out
+! stdout 'enabled'
+
+# The registry does not answer: nothing is turned off, and it says so.
+env POLICY=registry_only
+env MCP_REGISTRY_URL=http://127.0.0.1:1/
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+stderr 'MCP servers were not checked against Nav''s MCP registry'
+exec cat $WORK/env.out
+! stdout 'enabled'
+
+-- fake/gh.sh --
+if [ "$1 $2" = "api /copilot/mcp_registry" ]; then
+  echo "{\"mcp_registries\":[{\"url\":\"$MCP_REGISTRY_URL\",\"registry_access\":\"$POLICY\",\"owner\":{\"priority\":1}}]}"
+  exit 0
+fi
+-- fake/cplt.sh --
+env | grep '^OPENCODE_CONFIG_CONTENT=' > "$WORK/env.out"
+-- registry.json --
+{"servers":[
+  {"server":{"name":"io.github.navikt/aksel-mcp","remotes":[{"type":"streamable-http","url":"https://aksel-mcp.nav.no/mcp"}]}},
+  {"server":{"name":"com.microsoft/playwright-mcp","packages":[{"registryType":"npm","identifier":"@playwright/mcp"}]}}
+],"metadata":{"count":2}}
+-- user.json --
+{
+  // the developer's own servers
+  "mcp": {
+    "aksel": {"type": "remote", "url": "https://aksel-mcp.nav.no/mcp/"},
+    "tredjepart": {"type": "remote", "url": "https://mcp.example.com/sse"},
+    "av": {"type": "remote", "url": "https://off.example.com", "enabled": false},
+  }
+}
+-- project.json --
+{"mcp": {
+  "playwright": {"type": "local", "command": ["npx", "-y", "@playwright/mcp@latest"]},
+  "egen-lokal": {"type": "local", "command": ["node", "./server.js"]}
+}}
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

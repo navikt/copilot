@@ -298,6 +298,23 @@ func cmdDoctor() error {
 		fmt.Printf("      [i] Binary not found on PATH (optional)\n")
 	} else {
 		fmt.Printf("      %s Binary found: %s\n", green("✓"), ocPath)
+		switch v, tested, err := providerpkg.OpenCodeVersionStatus(); {
+		case err != nil:
+			fmt.Printf("      %s Could not read the opencode version: %v\n", yellow("⚠"), err)
+		case tested:
+			fmt.Printf("      %s Version %s, inside the tested range (%s)\n", green("✓"), v, providerpkg.OpenCodeTestedRange)
+		default:
+			fmt.Printf("      %s Version %s is outside the tested range (%s): hooks, the dispatch gate and the session policy may not apply as described\n", yellow("⚠"), v, providerpkg.OpenCodeTestedRange)
+		}
+		switch listed, unlisted, err := providerpkg.OpenCodeMCPReport(""); {
+		case err != nil:
+			fmt.Printf("      %s MCP servers not checked against Nav's MCP registry: %v\n", yellow("⚠"), err)
+		case len(unlisted) > 0:
+			fmt.Printf("      %s MCP servers turned off at launch (not in Nav's MCP registry): %s\n", yellow("⚠"), strings.Join(unlisted, ", "))
+			fmt.Printf("          See %s\n", providerpkg.MCPRegistryHelpURL)
+		case len(listed) > 0:
+			fmt.Printf("      %s MCP servers in Nav's MCP registry: %s\n", green("✓"), strings.Join(listed, ", "))
+		}
 		// Check opencode context
 		configDir, err := os.UserConfigDir()
 		if err != nil {
