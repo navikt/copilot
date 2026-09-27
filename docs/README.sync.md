@@ -48,7 +48,7 @@ The reusable workflow (`.github/workflows/copilot-customization-sync.yml`) uses 
 3. Applies them with `nav-pilot sync --apply` if it finds any
 4. Creates or updates a PR on the `copilot-customization-sync` branch
 
-Step 2 reads one JSON document on stdout, `{"scopes": [...]}`, with one entry per scope, each naming its `scope`. `sync --user`, `--repo` or `--target` prints that one scope's entry on its own. Exit codes are 0 for up to date, 1 for updates available and 2 for a sync that could not run. On 2, the scope that failed has `{"scope": ..., "error": ...}` in place of its lists, so the workflow can say what went wrong instead of finding stdout empty. `--apply --json` applies and reports what it did (`"applied": true`). The PR lists updated, added and deleted files, marks updates that replace a local edit, and lists the pin.
+Step 2 reads one JSON document on stdout, `{"scopes": [...]}`, with one entry per scope, each naming its `scope`. `sync --user`, `--repo` or `--target` prints that one scope's entry on its own. Exit codes are 0 for up to date, 1 for updates available and 2 for a sync that could not run. On 2, the scope that failed has `{"scope": ..., "error": ...}` in place of its lists, so the workflow can say what went wrong instead of finding stdout empty. `--apply --json` applies and reports what it did (`"applied": true`). The PR lists updated, added and deleted files, marks updates and deletions that replace a local edit, and lists the pin.
 
 If the GitHub releases API cannot be reached, sync does not move a committed pin to the default branch on a guess. It keeps the pin, says why on stderr and exits 2. `--ref <branch|sha>` moves the pin deliberately.
 
@@ -96,20 +96,23 @@ No later sync touches it. Sync names it on every run, and `--json` lists it unde
 
 Older nav-pilot versions did record such a file as nav-pilot's, marked as differing from what nav-pilot installed. Sync treats that record as a local edit: `--apply` takes the source's version and keeps yours as `<file>.orig`.
 
-## What sync will not delete
+## Files the source removed
 
-When the source stops shipping a file, `nav-pilot sync --apply` removes your copy of it — but only when that copy is byte-for-byte what nav-pilot installed. A file whose content has changed since then is left on disk and named in the output:
+When the source stops shipping an instruction, a skill, an agent or a prompt, `nav-pilot sync --apply` removes your copy of it, in the repo and in `~/.copilot`. A plain `nav-pilot sync` lists them first and changes nothing. If your copy changed since nav-pilot installed it, sync saves it as `<file>.orig` before it removes the artifact, and says so:
 
 ```
-⚠ 1 file(s) deleted in source differ from what nav-pilot installed and were kept (source: a1b2c3d)
+⚠ 1 file(s) deleted in source and will be removed (source: a1b2c3d)
 
-  ⊘ .github/agents/nais.agent.md
-Delete them yourself if you no longer want them, or list them under overrides in .github/copilot-sync.json to stop sync mentioning them.
+  - .github/instructions/code-review.instructions.md (changed here; your copy is saved as .orig)
 ```
 
-There is no flag that makes sync delete it. A file that differs may be your team's own work, and a delete leaves no `.orig` behind. `--json` reports these under `kept`, separately from `deletions`, and a kept file is not counted as an available update, so the scheduled workflow does not open a PR for it.
+In a skill directory every file is saved, each as `<file>.orig` inside the directory. A `.orig` file is not loaded by Copilot, so a dropped always-on instruction stops costing context in every session even when it was edited. `--json` lists these under `deletions` and again under `removed_local_edits`, and the scheduled workflow marks them in the PR body. To keep a file the source dropped, list it under `overrides` (see below) before you run `--apply`.
 
-A hook the source removes goes as a whole: the script, its entry in `.github/hooks/copilot-hooks.json` (repo) or its `~/.copilot/hooks/<name>.json` (user), and its record in the state file. If the script or its entry changed here, the hook stays, and sync warns on stderr that it is still active and names the file.
+Sync only removes files nav-pilot installed and records in the state file. A file you added yourself, or one that was there before install (see above), is never touched.
+
+A hook the source removes goes as a whole: the script, its entry in `.github/hooks/copilot-hooks.json` (repo) or its `~/.copilot/hooks/<name>.json` (user), and its record in the state file. If the script or its entry changed here, the hook stays, because removing it would turn off a gate someone chose to keep. Sync warns on stderr that it is still active and names the file, and `--json` lists it under `kept`, not under `deletions`.
+
+opencode's copy in `~/.config/opencode` (or `$XDG_CONFIG_HOME/opencode`) follows the same list. `nav-pilot sync` names what it would remove there under the scope `opencode`, and `--apply` removes it. A file there that changed since nav-pilot wrote it stays and is listed under `kept`: that directory also holds the skills and agents of the repo you last launched from, so a file missing from the new set is not always one the source dropped.
 
 The same rule governs `nav-pilot uninstall`: it removes the files nav-pilot installed and still owns, leaves the ones that differ, and says how many. `nav-pilot uninstall --force` removes those too.
 

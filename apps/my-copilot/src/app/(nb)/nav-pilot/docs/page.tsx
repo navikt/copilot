@@ -1441,6 +1441,10 @@ jobs:
                 a: "Oppdateringen tar kildens versjon, men lagrer din kopi som <fil>.orig ved siden av og sier fra. I CI står filen under «Changed» i PR-en med merknad om lokale endringer. Du kan gjennomgå, merge selektivt eller lukke PR-en. Workflowen tvinger aldri oppdateringer.",
               },
               {
+                q: "Hva skjer når kilden slutter å levere en fil?",
+                a: "nav-pilot sync --apply fjerner kopien din, i repoet, i ~/.copilot og i opencode-mappa. nav-pilot sync uten --apply lister filene først og endrer ingenting. Har du endret filen, lagres kopien din som <fil>.orig før den fjernes, og i CI er den merket i PR-en. Et hook du har endret blir stående og kjører videre, og sync sier fra om det. Vil du beholde filen, legg den i overrides før du kjører --apply.",
+              },
+              {
                 q: "Kan jeg sjekke oppdateringer lokalt uten CI?",
                 a: "Ja. Kjør nav-pilot sync for å sjekke, eller nav-pilot sync --apply for å oppdatere direkte.",
               },
