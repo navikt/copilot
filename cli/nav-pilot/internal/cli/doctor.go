@@ -89,6 +89,24 @@ func reportBrokenRtkHook() bool {
 	return true
 }
 
+// reportCopilotCLI says whether the copilot binary is on PATH, and returns
+// false only when it is missing and the client is copilot: for an opencode
+// or pi user it is optional, like their clients are for a copilot user.
+func reportCopilotCLI() bool {
+	if p, _ := exec.LookPath("copilot"); p != "" {
+		fmt.Printf("      %s Binary found: %s (cplt starts the copilot on PATH)\n", green("✓"), p)
+		return true
+	}
+	cfg, _ := readConfig()
+	if resolve(cfg, CLIOverrides{}).Client != "copilot" {
+		fmt.Printf("      [i] Binary not found on PATH (optional)\n")
+		return true
+	}
+	fmt.Printf("      %s Binary not found on PATH. Your client is copilot, so nav-pilot cannot launch it\n", red("[✗]"))
+	fmt.Printf("          %s Install the Copilot CLI: %s\n", red("Solution:"), bold(providerpkg.CopilotInstallCommand))
+	return false
+}
+
 // cmdDoctor runs system health checks and outputs actionable diagnostics.
 func cmdDoctor() error {
 	fmt.Printf("%s\n\n", bold("nav-pilot doctor"))
@@ -195,6 +213,13 @@ func cmdDoctor() error {
 
 	// 3. Client Agents
 	fmt.Printf("[i] Client Agents\n")
+
+	// copilot. cplt is only the sandbox: it starts the copilot it finds on
+	// PATH, so without one no copilot launch works, sandboxed or not.
+	fmt.Printf("    • copilot\n")
+	if !reportCopilotCLI() {
+		hasErrors = true
+	}
 
 	// copilot (cplt)
 	fmt.Printf("    • copilot (cplt)\n")

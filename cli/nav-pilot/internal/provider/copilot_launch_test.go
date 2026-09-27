@@ -324,3 +324,14 @@ func TestApplyCopilotAuthMode_WindowsCaseInsensitivity(t *testing.T) {
 		t.Fatalf("unix gh_only must leave gh_token alone, got %v", kept)
 	}
 }
+
+// Neither cplt nor copilot on PATH: the error names what is missing and the
+// command that installs it (#1051). It used to be "copilot cli not found".
+func TestLaunchCopilotResolved_NoCLINamesTheInstallCommand(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("PATH", t.TempDir())
+	err := LaunchCopilotResolved(domain.ResolvedConfig{Client: "copilot", AskUser: true, OtelLogLevel: "none"})
+	if err == nil || !strings.Contains(err.Error(), "not on PATH") || !strings.Contains(err.Error(), CopilotInstallCommand) {
+		t.Fatalf("want the missing binary and %q, got %v", CopilotInstallCommand, err)
+	}
+}

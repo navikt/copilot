@@ -21,6 +21,10 @@ import (
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
+// CopilotInstallCommand installs the Copilot CLI. The same command as the
+// setup guide on the site (interactive-setup-wizard.tsx).
+const CopilotInstallCommand = "curl -fsSL https://gh.io/copilot-install | bash"
+
 // FindCopilotCLI returns the path to cplt or copilot CLI.
 // Prefers cplt (unambiguous GitHub Copilot CLI).
 // If the "copilot" binary is actually cplt (aliased), it's treated as cplt.
@@ -222,7 +226,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	cliPath, cliName := FindCopilotCLI()
 	if cliPath == "" {
 		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
-		return fmt.Errorf("copilot cli not found")
+		return fmt.Errorf("the Copilot CLI (copilot) is not on PATH. Install it: %s", domain.Bold(CopilotInstallCommand))
 	}
 	if cliName == "cplt" {
 		PrintCpltSandboxHint()

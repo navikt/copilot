@@ -1,0 +1,47 @@
+# cplt starts the copilot it finds on PATH, so doctor checks for copilot and
+# names the install command. Missing is an error only when the client is
+# copilot. A launch without it says the same (#1051).
+
+fake-bin opencode
+
+exec nav-pilot doctor
+stdout '• copilot\n +\[✗\] Binary not found on PATH\. Your client is copilot'
+stdout 'Solution: Install the Copilot CLI: curl -fsSL https://gh\.io/copilot-install \| bash'
+! stderr .
+
+exec nav-pilot config set client opencode
+exec nav-pilot doctor
+stdout '• copilot\n +\[i\] Binary not found on PATH \(optional\)'
+! stdout 'copilot-install'
+exec nav-pilot config set client copilot
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+
+# Neither copilot nor cplt: the refusal names both installs, copilot first.
+# It used to name only cplt, which then stops with "Copilot not found in PATH".
+exits 1 nav-pilot --sync --source $WORK/plattform -- -p 'hello'
+stderr 'Not launching: copilot is not installed\. Install the Copilot CLI: curl -fsSL https://gh\.io/copilot-install \| bash, and cplt, which runs it in a sandbox: brew install navikt/tap/cplt'
+! stdout 'Not launching'
+
+# In a terminal it warns with the same two commands and exits 0.
+[!pty] stop 'no pseudo-terminal here (/dev/ptmx will not open)'
+exec nav-pilot config set rtk_prompted_client copilot
+exits 0 pty-run -- nav-pilot --sync --source $WORK/plattform
+stdout 'Neither copilot nor cplt is installed, so nothing was launched'
+stdout 'Install the Copilot CLI: curl -fsSL https://gh\.io/copilot-install \| bash, and cplt'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

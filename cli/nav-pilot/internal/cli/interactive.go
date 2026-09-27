@@ -1217,8 +1217,7 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 	switch decision {
 	case launchSkipUnavailable:
 		if resolved.Client == "copilot" {
-			fmt.Fprintf(os.Stderr, "%s Neither cplt nor copilot is installed, so nothing was launched. Install cplt, which runs copilot in its sandbox: %s\n",
-				yellow("⚠"), bold(cpltInstallHint))
+			fmt.Fprintf(os.Stderr, "%s Neither copilot nor cplt is installed, so nothing was launched. %s\n", yellow("⚠"), copilotInstallHint())
 			return nil
 		}
 		if missingCommand(resolved.Client, resolved.Client) == "cplt" {
@@ -1257,10 +1256,17 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 }
 
 // clientInstallCommand is how to install the clients nav-pilot launches
-// inside cplt. copilot needs none: cplt brings the Copilot runtime itself.
+// inside cplt. copilot is not here: see copilotInstallHint.
 var clientInstallCommand = map[string]string{
 	"opencode": "npm i -g opencode-ai",
 	"pi":       "npm i -g @earendil-works/pi-coding-agent",
+}
+
+// copilotInstallHint names both installs a copilot launch needs when neither
+// is there. cplt does not bring copilot: it starts the copilot on PATH.
+func copilotInstallHint() string {
+	return fmt.Sprintf("Install the Copilot CLI: %s, and cplt, which runs it in a sandbox: %s",
+		bold(providerpkg.CopilotInstallCommand), bold(cpltInstallHint))
 }
 
 // startCommand is the command that starts what auto_launch = false did not:
@@ -1319,6 +1325,10 @@ func offerLaunchAfterInstall(resolved ResolvedConfig) error {
 func headlessRefusal(decision launchDecision, p Provider, missing, start string) error {
 	switch decision {
 	case launchSkipUnavailable:
+		if p.ID() == "copilot" {
+			fmt.Fprintf(os.Stderr, "Not launching: copilot is not installed. %s\n", copilotInstallHint())
+			break
+		}
 		install := cpltInstallHint
 		if cmd, ok := clientInstallCommand[missing]; ok {
 			install = cmd
