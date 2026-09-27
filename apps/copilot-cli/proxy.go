@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -38,7 +39,7 @@ func newUpstream(name, baseURL string, texas *texasClient) *upstream {
 // forward proxies r to path on the upstream. A request with no signed-in
 // user (the public survey definitions) goes without a token or header.
 func (p *upstream) forward(w http.ResponseWriter, r *http.Request, path string) {
-	req, err := http.NewRequestWithContext(r.Context(), r.Method, p.baseURL+path, http.MaxBytesReader(w, r.Body, 64<<10))
+	req, err := http.NewRequestWithContext(r.Context(), r.Method, p.baseURL+path, http.MaxBytesReader(w, r.Body, 32<<10))
 	if err != nil {
 		slog.Error("failed to build upstream request", "upstream", p.name, "error", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
@@ -59,12 +60,26 @@ func (p *upstream) forward(w http.ResponseWriter, r *http.Request, path string) 
 	}
 
 	resp, err := p.httpClient.Do(req)
+	var tooBig *http.MaxBytesError
+	if errors.As(err, &tooBig) {
+		writeError(w, http.StatusRequestEntityTooLarge, "body is larger than 32 KiB")
+		return
+	}
 	if err != nil {
 		slog.Error("upstream request failed", "upstream", p.name, "error_type", fmt.Sprintf("%T", err))
 		writeError(w, http.StatusBadGateway, p.name+" unavailable")
 		return
 	}
 	defer resp.Body.Close()
+
+	// A 401 from the service is about copilot-cli's own token, never the
+	// caller's: the caller's GitHub sign-in was checked here. Passing it on
+	// would tell nav-pilot to sign in again and drop a pending answer.
+	if resp.StatusCode == http.StatusUnauthorized && req.Header.Get("Authorization") != "" {
+		slog.Error("upstream refused copilot-cli's token", "upstream", p.name)
+		writeError(w, http.StatusBadGateway, p.name+" refused the gateway")
+		return
+	}
 
 	contentType := resp.Header.Get("Content-Type")
 	if contentType == "" {

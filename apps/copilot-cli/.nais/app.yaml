@@ -37,7 +37,7 @@ spec:
     {{#each ingresses}}
     - {{this}}
     {{/each}}
-  # For the M2M token to copilot-api. No inbound callers use Entra.
+  # For the M2M tokens to copilot-api and copilot-survey. No inbound callers use Entra.
   azure:
     application:
       enabled: true

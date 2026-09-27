@@ -101,3 +101,37 @@ func TestRoutesRefuseBeforeForwarding(t *testing.T) {
 		}
 	}
 }
+
+// A 401 from the service is copilot-cli's problem, not the caller's: it
+// becomes 502, so nav-pilot keeps the answer and retries. An oversized body
+// is 413, not a retryable 502.
+func TestForwardErrorMapping(t *testing.T) {
+	a, _ := testAuthenticator(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/token" {
+			_, _ = w.Write([]byte(`{"access_token":"m2m","expires_in":3600}`))
+			return
+		}
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+	texas := newTexasClient(srv.URL+"/token", "api://x")
+	h := makeRouter(a, newUpstream("copilot-api", srv.URL, texas), newUpstream("copilot-survey", srv.URL, texas))
+
+	for _, tc := range []struct {
+		body string
+		want int
+	}{
+		{`{"answers":{}}`, 502},
+		{`{"answers":"` + strings.Repeat("a", 40<<10) + `"}`, 413},
+	} {
+		req := httptest.NewRequest("POST", "/api/v1/surveys/q4-2026/responses", strings.NewReader(tc.body))
+		req.Header.Set("Authorization", "Bearer good-token")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != tc.want {
+			t.Fatalf("body of %d bytes: %d, want %d", len(tc.body), rec.Code, tc.want)
+		}
+	}
+}
