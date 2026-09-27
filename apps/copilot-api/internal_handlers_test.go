@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestSAMLNameIDHandler(t *testing.T) {
@@ -46,7 +47,7 @@ func TestSAMLNameIDHandler(t *testing.T) {
 		{"no user", "survey-id", nil, lookup, `{"login":"hans"}`, 403},
 		{"malformed login", "survey-id", survey, lookup, `{"login":"inv@lid"}`, 400},
 		{"unknown field", "survey-id", survey, lookup, `{"login":"hans","x":1}`, 400},
-		{"oversized body", "survey-id", survey, lookup, `{"login":"` + strings.Repeat("a", 2000) + `"}`, 400},
+		{"oversized body", "survey-id", survey, lookup, `{"login":"hans"` + strings.Repeat(" ", 1100) + `}`, 400},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/internal/v1/saml/name-id", strings.NewReader(tc.body))
@@ -65,5 +66,88 @@ func TestSAMLNameIDHandler(t *testing.T) {
 	}
 	if strings.Contains(buf.String(), "broken") || strings.Contains(buf.String(), "hans") {
 		t.Fatalf("a login reached the log: %s", buf.String())
+	}
+}
+
+// The route sits on the root mux behind the token check, and nowhere under
+// /api/v1/.
+func TestRegisterInternalRoutes(t *testing.T) {
+	mux := http.NewServeMux()
+	auth := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if _, err := extractBearerToken(r); err != nil {
+				respondError(w, "unauthorized", err.Error(), http.StatusUnauthorized)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+	registerInternalRoutes(mux, auth, "survey-id", nil)
+	for _, tc := range []struct {
+		method, path string
+		want         int
+	}{
+		{http.MethodPost, "/internal/v1/saml/name-id", 401},
+		{http.MethodGet, "/internal/v1/saml/name-id", 405},
+		{http.MethodPost, "/api/v1/internal/v1/saml/name-id", 404},
+	} {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest(tc.method, tc.path, nil))
+		if rec.Code != tc.want {
+			t.Errorf("%s %s = %d, want %d", tc.method, tc.path, rec.Code, tc.want)
+		}
+	}
+}
+
+// rewrite sends every request to srv, whatever its host.
+type rewrite struct{ srv *httptest.Server }
+
+func (rw rewrite) RoundTrip(r *http.Request) (*http.Response, error) {
+	r.URL.Scheme, r.URL.Host = "http", strings.TrimPrefix(rw.srv.URL, "http://")
+	return http.DefaultTransport.RoundTrip(r)
+}
+
+func TestGetSamlNameIDByLogin(t *testing.T) {
+	var answer string
+	status := http.StatusOK
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/graphql" || r.Header.Get("Authorization") != "Bearer inst" {
+			w.WriteHeader(http.StatusTeapot)
+			return
+		}
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(answer))
+	}))
+	defer srv.Close()
+	g := &GitHubClient{httpClient: &http.Client{Transport: rewrite{srv}}, org: "navikt",
+		token: "inst", tokenExpiry: time.Now().Add(time.Hour)}
+
+	node := func(login, nameID string) string {
+		return `{"data":{"organization":{"samlIdentityProvider":{"externalIdentities":{"nodes":[{"samlIdentity":{"nameId":"` + nameID + `"},"user":{"login":"` + login + `"}}]}}}}}`
+	}
+	for _, tc := range []struct {
+		name, answer string
+		status       int
+		want         string
+		wantErr      error
+		anyErr       bool
+	}{
+		{"found, login case differs", node("Hans", "hans.test@nav.no"), 200, "hans.test@nav.no", nil, false},
+		{"another user's identity", node("someone", "x@nav.no"), 200, "", errNoSAMLIdentity, false},
+		{"no nodes", `{"data":{"organization":{"samlIdentityProvider":{"externalIdentities":{"nodes":[]}}}}}`, 200, "", errNoSAMLIdentity, false},
+		{"no SAML access", `{"data":{"organization":{"samlIdentityProvider":null}}}`, 200, "", nil, true},
+		{"GraphQL errors", `{"errors":[{"message":"x"}]}`, 200, "", nil, true},
+		{"not 200", ``, 502, "", nil, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			answer, status = tc.answer, tc.status
+			got, err := g.getSamlNameIDByLogin(t.Context(), "hans")
+			switch {
+			case tc.wantErr != nil && !errors.Is(err, tc.wantErr),
+				tc.anyErr && (err == nil || errors.Is(err, errNoSAMLIdentity)),
+				!tc.anyErr && tc.wantErr == nil && (err != nil || got != tc.want):
+				t.Fatalf("got %q, %v", got, err)
+			}
+		})
 	}
 }

@@ -4,22 +4,62 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
+	"sync/atomic"
 )
 
-// samlNameIDHandler serves POST /internal/v1/saml/name-id: a GitHub login in
-// the body, the Nav e-mail (the nameId of the login's SAML SSO identity in
-// navikt) out. It exists so the GitHub App key stays in this pod: the only
-// caller is copilot-survey, which needs the e-mail for its dedup hash when an
-// answer comes from nav-pilot.
+// samlNameIDRequests counts calls to the name-id route by status. Volume and
+// status carry no personal data and are the one tripwire on a route that
+// otherwise leaves no record: a burst means copilot-survey is enumerating.
+var samlNameIDRequests = map[int]*atomic.Int64{
+	http.StatusOK: {}, http.StatusBadRequest: {}, http.StatusForbidden: {},
+	http.StatusNotFound: {}, http.StatusServiceUnavailable: {},
+}
+
+// samlNameIDMetrics is the counter in Prometheus text format.
+func samlNameIDMetrics() string {
+	var b strings.Builder
+	b.WriteString("\n# HELP copilot_api_saml_name_id_requests_total Calls to POST /internal/v1/saml/name-id by status\n")
+	b.WriteString("# TYPE copilot_api_saml_name_id_requests_total counter\n")
+	for _, status := range []int{200, 400, 403, 404, 503} {
+		fmt.Fprintf(&b, "copilot_api_saml_name_id_requests_total{status=\"%d\"} %d\n", status, samlNameIDRequests[status].Load())
+	}
+	return b.String()
+}
+
+// registerInternalRoutes mounts the name-id route on the root mux, behind
+// the token check but outside /api/v1/. Off (403) unless copilot-survey is
+// a pre-authorized app.
+func registerInternalRoutes(mux *http.ServeMux, auth func(http.Handler) http.Handler, surveyClientID string, lookup func(context.Context, string) (string, error)) {
+	if surveyClientID != "" {
+		slog.Info("copilot-survey trusted for POST /internal/v1/saml/name-id", "client_id", surveyClientID)
+	}
+	mux.Handle("POST /internal/v1/saml/name-id", auth(samlNameIDHandler(surveyClientID, lookup)))
+}
+
+// samlNameIDHandler serves POST /internal/v1/saml/name-id. It takes a GitHub
+// login in the body and returns the Nav e-mail, the nameId of the login's
+// SAML SSO identity in navikt. The only caller is copilot-survey, which needs
+// the e-mail for its dedup hash when an answer comes from nav-pilot. Doing
+// the lookup here keeps the GitHub App key in this pod.
 //
-// Outside the /api/v1/ chain on purpose: no identity resolver, so no audit
-// line; no request log or trace; the login travels in the body, so the path
-// names no one. Only an app token whose azp is copilot-survey's client id
-// gets through; everyone else gets 403, including every user token.
+// The route is outside the /api/v1/ chain on purpose. There is no identity
+// resolver and so no audit line, no request log and no trace, and the login
+// travels in the body, so the path names no one. Only an app token whose azp
+// is copilot-survey's client id gets through. Every other valid token gets
+// 403, including every user token; a missing or invalid one gets 401.
 func samlNameIDHandler(surveyClientID string, lookup func(context.Context, string) (string, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		rec := &statusCounter{ResponseWriter: w}
+		defer func() {
+			if c := samlNameIDRequests[rec.status]; c != nil {
+				c.Add(1)
+			}
+		}()
+		w = rec
 		user, ok := getUserFromContext(r.Context())
 		if !ok || surveyClientID == "" || !user.isAppToken() || user.AZP != surveyClientID {
 			respondError(w, "forbidden", "Only copilot-survey may call this route", http.StatusForbidden)
@@ -51,4 +91,14 @@ func samlNameIDHandler(surveyClientID string, lookup func(context.Context, strin
 			respondJSON(w, map[string]string{"name_id": nameID}, http.StatusOK)
 		}
 	}
+}
+
+type statusCounter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (s *statusCounter) WriteHeader(code int) {
+	s.status = code
+	s.ResponseWriter.WriteHeader(code)
 }

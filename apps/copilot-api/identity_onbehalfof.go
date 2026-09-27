@@ -140,7 +140,7 @@ func trustedClientIDForApp(preAuthorizedApps, appName string) (string, error) {
 	case 1:
 		return matches[0], nil
 	default:
-		slog.Warn("multiple pre-authorized apps match name — refusing X-On-Behalf-Of trust (ambiguous)",
+		slog.Warn("multiple pre-authorized apps match name — refusing to trust any of them (ambiguous)",
 			"app", appName, "match_count", len(matches))
 		return "", nil
 	}

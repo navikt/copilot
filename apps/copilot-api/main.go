@@ -163,8 +163,8 @@ func main() {
 		loggingMiddleware(config, authMiddleware(identityMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers, identityChain)))),
 	))
 
-	// copilot-survey's lookup of a nav-pilot user's Nav e-mail. Not under
-	// /api/v1/: no identity chain, request log or trace (see
+	// copilot-survey looks up a nav-pilot user's Nav e-mail here. Not under
+	// /api/v1/, so no identity chain, request log or trace (see
 	// samlNameIDHandler). Off unless copilot-survey is pre-authorized.
 	copilotSurveyClientID, err := trustedClientIDForApp(config.PreAuthorizedApps, "copilot-survey")
 	if err != nil {
@@ -174,7 +174,7 @@ func main() {
 	if githubClient != nil {
 		nameIDLookup = githubClient.getSamlNameIDByLogin
 	}
-	mux.Handle("POST /internal/v1/saml/name-id", authMiddleware(samlNameIDHandler(copilotSurveyClientID, nameIDLookup)))
+	registerInternalRoutes(mux, authMiddleware, copilotSurveyClientID, nameIDLookup)
 
 	slog.Info("Server listening", "port", config.Port)
 

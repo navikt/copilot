@@ -75,7 +75,7 @@ copilot_seats_pending_cancellation %d
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 		w.Header().Set("Cache-Control", "no-store")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(metrics))
+		w.Write([]byte(metrics + samlNameIDMetrics()))
 	})
 }
 

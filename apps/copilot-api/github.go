@@ -705,12 +705,12 @@ func (g *GitHubClient) getRepositoryContributors(ctx context.Context, owner, rep
 var errNoSAMLIdentity = errors.New("no SAML identity linked to this GitHub account")
 
 // getSamlNameIDByLogin returns the nameId (the Nav e-mail) of login's SAML
-// SSO identity in the org: the reverse of getUsernameBySamlIdentity. No
-// cache and no log: the answer is personal data, used only by copilot-survey
-// for its dedup hash.
+// SSO identity in the org, for current members only. It is the reverse of
+// getUsernameBySamlIdentity. The answer is personal data, used only by
+// copilot-survey for its dedup hash, so it is neither cached nor logged.
 func (g *GitHubClient) getSamlNameIDByLogin(ctx context.Context, login string) (string, error) {
 	query := `query($org: String!, $login: String!) {
-		organization(login: $org) { samlIdentityProvider { externalIdentities(first: 1, login: $login) {
+		organization(login: $org) { samlIdentityProvider { externalIdentities(first: 1, login: $login, membersOnly: true) {
 			nodes { samlIdentity { nameId } user { login } } } } } }`
 	payload, err := json.Marshal(map[string]any{"query": query, "variables": map[string]string{"org": g.org, "login": login}})
 	if err != nil {
@@ -755,7 +755,7 @@ func (g *GitHubClient) getSamlNameIDByLogin(ctx context.Context, login string) (
 		return "", errors.New("decode response")
 	}
 	if len(out.Errors) > 0 || out.Data.Organization.SAMLIdentityProvider == nil {
-		// The App cannot see SAML identities: a server fault, not the user's.
+		// The App cannot see SAML identities. That is a server fault, not the user's.
 		return "", errors.New("no access to the org's SAML identities")
 	}
 	for _, n := range out.Data.Organization.SAMLIdentityProvider.ExternalIdentities.Nodes {
