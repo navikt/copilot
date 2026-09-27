@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -697,4 +698,70 @@ func (g *GitHubClient) getRepositoryContributors(ctx context.Context, owner, rep
 	}
 
 	return contributors, nil
+}
+
+// errNoSAMLIdentity means the GitHub account has no SAML SSO identity in the
+// org, so no Nav e-mail can be found for it.
+var errNoSAMLIdentity = errors.New("no SAML identity linked to this GitHub account")
+
+// getSamlNameIDByLogin returns the nameId (the Nav e-mail) of login's SAML
+// SSO identity in the org: the reverse of getUsernameBySamlIdentity. No
+// cache and no log: the answer is personal data, used only by copilot-survey
+// for its dedup hash.
+func (g *GitHubClient) getSamlNameIDByLogin(ctx context.Context, login string) (string, error) {
+	query := `query($org: String!, $login: String!) {
+		organization(login: $org) { samlIdentityProvider { externalIdentities(first: 1, login: $login) {
+			nodes { samlIdentity { nameId } user { login } } } } } }`
+	payload, err := json.Marshal(map[string]any{"query": query, "variables": map[string]string{"org": g.org, "login": login}})
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/graphql", bytes.NewReader(payload))
+	if err != nil {
+		return "", err
+	}
+	if err := g.setAuthHeaders(req); err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := g.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GitHub API returned %d", resp.StatusCode)
+	}
+	var out struct {
+		Data struct {
+			Organization struct {
+				SAMLIdentityProvider *struct {
+					ExternalIdentities struct {
+						Nodes []struct {
+							SAMLIdentity *struct {
+								NameID string `json:"nameId"`
+							} `json:"samlIdentity"`
+							User *struct {
+								Login string `json:"login"`
+							} `json:"user"`
+						} `json:"nodes"`
+					} `json:"externalIdentities"`
+				} `json:"samlIdentityProvider"`
+			} `json:"organization"`
+		} `json:"data"`
+		Errors []json.RawMessage `json:"errors"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out); err != nil {
+		return "", errors.New("decode response")
+	}
+	if len(out.Errors) > 0 || out.Data.Organization.SAMLIdentityProvider == nil {
+		// The App cannot see SAML identities: a server fault, not the user's.
+		return "", errors.New("no access to the org's SAML identities")
+	}
+	for _, n := range out.Data.Organization.SAMLIdentityProvider.ExternalIdentities.Nodes {
+		if n.User != nil && strings.EqualFold(n.User.Login, login) && n.SAMLIdentity != nil && n.SAMLIdentity.NameID != "" {
+			return n.SAMLIdentity.NameID, nil
+		}
+	}
+	return "", errNoSAMLIdentity
 }

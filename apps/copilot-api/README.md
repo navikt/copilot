@@ -69,6 +69,10 @@ nav-pilot → copilot-cli → Texas (M2M) → copilot-api → GitHub/BigQuery
 
 - `GET /api/v1/mcp/servers` — Not implemented yet
 
+### Internal (copilot-survey only)
+
+- `POST /internal/v1/saml/name-id` — `{"login": "<GitHub login>"}` in, `{"name_id": "<Nav e-mail>"}` out: the nameId of the login's SAML SSO identity in navikt. 404 when the account has none. Only an app token (`idtyp=app` or role `access_as_application`) whose `azp` is copilot-survey's client id gets an answer; everyone else gets 403. Outside `/api/v1/`, so no identity resolver, no audit line, no request log and no trace. No cache.
+
 ## Authentication
 
 API supports multiple authentication mechanisms via the **Identity Resolver** architecture (see [ARCHITECTURE.md](ARCHITECTURE.md)):
