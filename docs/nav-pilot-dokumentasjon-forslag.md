@@ -25,7 +25,7 @@ Brukerne ser nav-pilot som paraplyen for alt Copilot-relatert i Nav, og det er r
 
 1. **Gruppene i V3 byttes ut.** nav-pilot blir inngangen. Kom i gang, verktøykatalogen, agentpakkene og cplt ligger under eller ved siden av den ([§1.1](#11-hva-paraplyen-dekker)).
 2. **Seksjonsmenyen dekker hele paraplyen**, ikke bare `/nav-pilot/*`. `/kom-i-gang`, `/verktoy` og `/cplt` får samme seksjonsmeny som nav-pilot-sidene.
-3. **Ingen URL-er utenfor `/nav-pilot/docs` flyttes.** Hierarkiet vises med meny, seksjonsmeny og en linje over sidetittelen. Aksel gjør det samme: `/komponenter`, `/grunnleggende` og `/monster-maler` ligger på toppnivå, men menyen viser dem som «Designsystemet» [40][42].
+3. **Ingen URL-er utenfor `/nav-pilot/docs` flyttes.** Hierarkiet vises med meny, seksjonsmeny og en linje over sidetittelen med navnet på gruppen. Aksel gjør det samme: `/komponenter`, `/grunnleggende` og `/monster-maler` ligger på toppnivå, men menyen viser dem som «Designsystemet» [40][42].
 4. **Ny regel: lenker brytes aldri** ([§2](#2-lenker-brytes-aldri)). Det er et krav til hver PR, ikke et valg.
 5. **Aksel er forbildet for navigasjonen.** Aksel bestemmer hvordan vi bygger. nav-pilot er det vi bygger.
 
@@ -33,13 +33,13 @@ V1, V2, V4 og V5 står som før. Fra V3 beholder vi den vanlige `<nav>`, hamburg
 
 ### Valg som trengs
 
-| #   | Valg                        | Anbefaling                                                                                                                                                                                                                  | Alternativ                                                                                                                         |
-| --- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| V6  | Toppmenyen                  | Velges etter skjermbildene av D og D2 ([§6.3](#63-toppfeltet)). D: fem flate lenker, som Aksel. D2: flate lenker for Kom i gang, nav-pilot og Tilpasning, og nedtrekk (disclosure) for Praksis og regler og Innsikt, nær V3 | –                                                                                                                                  |
-| V7  | Gruppene i toppmenyen       | G1: Kom i gang · nav-pilot · Tilpasning · Praksis og regler · Innsikt ([§6.2](#62-grupper))                                                                                                                                 | G2: nav-pilot · Praksis og regler · Innsikt, pluss en «Kom i gang»-knapp. G3: dagens V3 (Kom i gang · Verktøy · Praksis · Innsikt) |
-| V8  | Hvor seksjonsmenyen gjelder | S1: hele paraplyen (Kom i gang, nav-pilot, Tilpasning) med én felles layout i en rutegruppe ([§6.4](#64-seksjonsmenyen))                                                                                                    | S2: hele nettstedet. S3: bare `/nav-pilot/*`, som i V3                                                                             |
-| V9  | Kom i gang                  | `/kom-i-gang` blir introduksjonen for både Copilot og nav-pilot. Vi lager ikke `/nav-pilot/kom-i-gang` ([§1.3](#13-url-er))                                                                                                 | Ny side `/nav-pilot/kom-i-gang` i tillegg, slik V1-tabellen hadde                                                                  |
-| V10 | Navnet i toppfeltet         | «nav-pilot» med «Copilot i Nav» under, i stedet for «Oh-My-Nav» ([§6.7](#67-merkevaren))                                                                                                                                    | Beholde «Oh-My-Nav». Et nøytralt navn som «KI-utvikling i Nav»                                                                     |
+| #   | Valg                        | Anbefaling                                                                                                                  | Alternativ                                                                                                                                          |
+| --- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| V6  | Toppmenyen                  | D: fem flate lenker, som Aksel ([§6.3](#63-toppfeltet)). Du velger etter skjermbildene                                      | D2: flate lenker for Kom i gang, nav-pilot og Tilpasning, og nedtrekk (disclosure) for Praksis og regler og Innsikt, nær V3                         |
+| V7  | Gruppene i toppmenyen       | G1: Kom i gang · nav-pilot · Tilpasning · Praksis og regler · Innsikt ([§6.2](#62-grupper))                                 | G2: Kom i gang · nav-pilot · Praksis og regler · Innsikt, med Tilpasning inne i nav-pilot. G3: dagens V3 (Kom i gang · Verktøy · Praksis · Innsikt) |
+| V8  | Hvor seksjonsmenyen gjelder | S1: hele paraplyen (Kom i gang, nav-pilot, Tilpasning) med én felles layout i en rutegruppe ([§6.4](#64-seksjonsmenyen))    | S2: hele nettstedet. S3: bare `/nav-pilot/*`, som i V3                                                                                              |
+| V9  | Kom i gang                  | `/kom-i-gang` blir introduksjonen for både Copilot og nav-pilot. Vi lager ikke `/nav-pilot/kom-i-gang` ([§1.3](#13-url-er)) | Ny side `/nav-pilot/kom-i-gang` i tillegg, slik V1-tabellen hadde                                                                                   |
+| V10 | Navnet i toppfeltet         | «nav-pilot» med «Copilot i Nav» under, i stedet for «Oh-My-Nav» ([§6.7](#67-merkevaren))                                    | Beholde «Oh-My-Nav». Et nøytralt navn som «KI-utvikling i Nav»                                                                                      |
 
 ## 1. Informasjonsarkitektur
 
@@ -443,7 +443,7 @@ Felles er et kort toppnivå på tre til sju punkter og dybden i en sidemeny per 
 
 **G1: Kom i gang · nav-pilot · Tilpasning · Praksis og regler · Innsikt (anbefalt).** Det er gruppene brukerne selv har foreslått. De tre første deler én seksjonsmeny med tittelen «nav-pilot» (S1), så paraplyen synes både i ordmerket og i seksjonsmenyen. Tilpasning får egen lenke fordi mange bruker verktøykatalogen fra VS Code uten å kjøre nav-pilot, og `/verktoy` står i README-ene. Den skal ikke ligge to klikk unna.
 
-**G2: nav-pilot · Praksis og regler · Innsikt, og «Kom i gang» som knapp.** Nærmest Aksel og den mest bokstavelige paraplyen. Kom i gang, Tilpasning og cplt finnes bare i seksjonsmenyen. Prisen er at verktøykatalogen blir vanskeligere å finne.
+**G2: Kom i gang · nav-pilot · Praksis og regler · Innsikt, med Tilpasning inne i nav-pilot.** Den som ligger nærmest Aksel. Toppfeltet og seksjonsmenyen sier det samme: «nav-pilot» er aktiv på alle sidene med seksjonsmenyen, slik «Designsystemet» er hos Aksel [40]. Prisen er at verktøykatalogen blir to klikk unna (nav-pilot, så Verktøykatalog), og at katalogen, som mange bruker fra VS Code uten nav-pilot, står under navnet til CLI-en.
 
 **G3: Kom i gang · Verktøy · Praksis · Innsikt (V3 slik det ble vedtatt).** nav-pilot er ett av tre punkter under Verktøy, ved siden av cplt og katalogen. Det er motsatt av paraplyen. Vi anbefaler ikke å beholde den.
 
@@ -488,11 +488,13 @@ Klikk fra en vilkårlig side til målet, på desktop. «I dag» gjelder de 13 si
 | Kostnad              | –     | –                     | 2           | 2                     |
 | Ordbok               | 1     | bunnteksten           | bunnteksten | bunnteksten           |
 
-D og D2 koster like mange klikk. Forskjellen er hvor lenkene står: i D på en side du lander på, i D2 i en liste som åpner seg i toppfeltet. D er enklere å bygge og å bruke med tastatur. D2 er nærmere det eierne av Praksis, Retningslinjer, Statistikk og Adopsjon fikk love å se i V3. Du velger etter å ha sett skjermbildene. Prototypen ligger på den lokale grenen `proto/menu-d` (bygger på `main`, ikke pushet).
+D og D2 koster like mange klikk. Forskjellen er hvor lenkene står: i D på en side du lander på, i D2 i en liste som åpner seg i toppfeltet. D2 er nærmere det eierne av Praksis, Retningslinjer, Statistikk og Adopsjon fikk love å se i V3.
+
+**Anbefaling: D.** Aksel har ingen nedtrekk i toppfeltet [39]. «Sider i denne delen» på `/praksis` gir Retningslinjer den lenken den ellers ville mistet. D2 trenger rundt 110 linjer egen kode for fokus, peker og Escape, uten noe mønster fra Aksel bak seg, og nedtrekkene må få engelske tekster på `/en`. Du velger likevel etter å ha sett skjermbildene. Prototypen ligger på den lokale grenen `proto/menu-d` (bygger på `main`, ikke pushet).
 
 | Variant D                                                                                                  |                                                                                                          |
 | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| ![D, forsiden](assets/nav-pilot-dokumentasjon-forslag/menu-d-1440-home.png)                                | ![D, /nav-pilot med seksjonsmeny](assets/nav-pilot-dokumentasjon-forslag/menu-d-1440-nav-pilot.png)      |
+| ![D, forsiden](assets/nav-pilot-dokumentasjon-forslag/menu-d-1440-home.png)                                | ![D, /nav-pilot](assets/nav-pilot-dokumentasjon-forslag/menu-d-1440-nav-pilot.png)                       |
 | ![D, /nav-pilot/agentpakker](assets/nav-pilot-dokumentasjon-forslag/menu-d-1440-nav-pilot-agentpakker.png) | ![D, /praksis med «Sider i denne delen»](assets/nav-pilot-dokumentasjon-forslag/menu-d-1440-praksis.png) |
 | ![D, mobilmeny nivå 1](assets/nav-pilot-dokumentasjon-forslag/menu-d-390-menu-level1.png)                  | ![D, mobilmeny nivå 2](assets/nav-pilot-dokumentasjon-forslag/menu-d-390-menu-level2.png)                |
 
@@ -508,11 +510,11 @@ V3 med de gamle gruppene, prototype B:
 
 Prototype A (grupperte piller i `PageHero`) er forkastet, fordi sider uten `PageHero` fortsatt ikke får meny. Skjermbildene ligger i `assets/nav-pilot-dokumentasjon-forslag/menu-a-*.png`.
 
-**Brødsmuler: nei.** GOV.UK fraråder brødsmuler der siden allerede har en sidemeny [67], og Aksel har ingen [44]. NN/g anbefaler dem først fra tre nivåer [70]. Vi viser i stedet en linje over sidetittelen, som Aksel [44]: «nav-pilot · Guide · Beta», «Tilpasning · Agentpakker». Den sier hvor du er og hvilken type side det er.
+**Brødsmuler: nei.** GOV.UK fraråder brødsmuler der siden allerede har en sidemeny [67], og Aksel har ingen [44]. NN/g anbefaler dem først fra tre nivåer [70]. Vi viser i stedet en linje over sidetittelen med navnet på gruppen i seksjonsmenyen, som Aksel [44]: «Kom i gang», «Guider», «Tilpasning», «Referanse» eller «Forklaring». Oversikten og `/cplt` har ingen. Linja har ikke med nettstedets navn, fordi ordmerket og seksjonsmenyen sier det, og ikke sidens navn, fordi tittelen rett under sier det. Den får fargen `--ax-text-brand-blue-subtle`, og tittelen `Heading size="xlarge"`, som hos Aksel.
 
 ### 6.4 Seksjonsmenyen
 
-**Anbefaling (V8): S1, én seksjonsmeny for hele paraplyen.** Next.js-rutegrupper endrer ikke URL-en. Vi flytter mappene `kom-i-gang`, `nav-pilot`, `verktoy` og `cplt` inn i `app/(nb)/(nav-pilot)/` og legger én `layout.tsx` der. Aksel gjør det samme med `(designsystemet)/layout.tsx` [42].
+**Anbefaling (V8): S1, én seksjonsmeny for hele paraplyen.** Next.js-rutegrupper endrer ikke URL-en. Vi flytter mappene `kom-i-gang`, `verktoy`, `cplt` og undersidene til `nav-pilot` inn i `app/(nb)/(nav-pilot)/` og legger én `layout.tsx` der. Aksel gjør det samme med `(designsystemet)/layout.tsx` [42].
 
 ```
 nav-pilot
@@ -533,10 +535,11 @@ nav-pilot
   Sandkassen (cplt)              /cplt
 ```
 
+- Tittelen «nav-pilot» øverst i seksjonsmenyen lenker til `/nav-pilot`.
 - Gruppene er disclosure-knapper med `aria-expanded` og `aria-controls`. Den åpne gruppen er en vanlig `<ul>` med lenker. Gruppen som inneholder siden du står på, er åpen. Aktiv side får `aria-current="page"` [42].
-- Landingssiden `/nav-pilot` ligger også i rutegruppen og har seksjonsmenyen, som `/designsystemet` hos Aksel. Der faller bare «Innhold på siden» bort [42]. Heltebildet står i innholdskolonnen.
+- Landingssiden `/nav-pilot` ligger utenfor rutegruppen, i `app/(nb)/nav-pilot/page.tsx` sammen med `opengraph-image.tsx` og `loading.tsx`. Heltebildet går over hele bredden. Undersidene ligger i gruppen, i `app/(nb)/(nav-pilot)/nav-pilot/`. Next.js tillater det, og ingen URL endres. Aksel gjør det samme: forsiden aksel.nav.no/ er en salgsside uten sidemeny, mens dokumentasjonssidene har den. Det mørke heltebildet ved siden av en lys sidemeny ser ut som et panel og svekker inngangen. «Oversikt» står fortsatt først i seksjonsmenyen, og i mobilpanelet hører `/nav-pilot` til paraplyen.
 - Innholdsfortegnelsen for siden («Innhold på siden») står til høyre som `<aside>`, bare fra 1280 px, som hos Aksel [43].
-- `/verktoy` har sin egen filterkolonne. Om seksjonsmenyen skal være lukket der, avgjøres i skissene.
+- Seksjonsmenyen kan ikke skjules. Aksel har ingen slik knapp. På `/verktoy` brytes kortene med domenene over flere linjer (`grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]`) i stedet for å bli kuttet.
 
 S2, én seksjonsmeny for hele nettstedet, gjentar toppmenyen og blir en lang liste. GitHub Docs og Aksel har sidemeny per produkt eller seksjon, ikke for alt [62][42]. S3, bare `/nav-pilot/*`, lar `/kom-i-gang`, `/verktoy` og `/cplt` stå som øyer, og det er problemet paraplyen skal løse. Praksis og Innsikt får ingen seksjonsmeny. De får blokken «Sider i denne delen» på oversiktssiden (D) eller et nedtrekk (D2).
 
@@ -551,6 +554,8 @@ Prototype C viser en seksjonsmeny på `/nav-pilot` med den gamle inndelingen:
 Under 1024 px blir toppmenyen og seksjonsmenyen borte, og en knapp med teksten «Meny» åpner et panel fra høyre. NN/g skriver at ordet «Meny» kan være lettere å forstå enn et ikon alene, og GOV.UK bruker det [71][66].
 
 - Panelet er Aksel `Dialog`, som gir fokusfelle og sender fokus tilbake til knappen. `@navikt/ds-react@8.16.2` har den (`./Dialog` i `package.json`). Aksel bruker `DialogPopup position="right"` med tittelen «Aksel» [41].
+- Panelet er lyst, som sidene. Toppfeltet blir mørkt. Aktiv lenke har samme stil på begge nivåer: fet skrift og nøytral bakgrunn, som hos Aksel.
+- Tittelen i panelet er «Meny». Aksel bruker nettstedets navn, men hos oss står «nav-pilot» allerede som lenke rett under.
 - Panelet har to nivåer, som hos Aksel: først de fem gruppene, og på sider i paraplyen seksjonsmenyen med en tilbakeknapp [41].
 - Panelet lukkes når ruten endres. Aksel gjør det med `MobileNavProvider` [41]. Uten det blir panelet stående åpent etter en lenke i klienten.
 - Seksjonsmenyen fra prototype C ble en `<select>` som bytter side når du velger. Det bryter WCAG 3.2.2 og erstattes av panelet.
@@ -562,13 +567,16 @@ Påstandene om `ActionMenu` er sjekket mot `@navikt/ds-react@8.16.2` (`esm/utils
 - `ActionMenu` bruker `role="menu"`. WAI-ARIA anbefaler disclosure-mønsteret for navigasjon på nettsider [60]: en knapp med `aria-expanded` og en vanlig liste med lenker. Med `role="menu"` hører skjermleserbrukere en programmeny, og Tab kommer ikke ut av en åpen meny. Vi bruker ikke `ActionMenu` til navigasjon.
 - Aksel bruker disclosure i seksjonsmenyen og vanlige lenker i toppfeltet [39][42]. Vi gjør det samme. Nedtrekkene i D2 bygges også som disclosure.
 - `aria-current="true"` på gruppen i toppfeltet når du er et sted i den, `aria-current="page"` på lenken til siden du står på [40][42].
-- «Hopp til innhold» først i `<header>`, til `<main id="hovedinnhold">`. Lenken er skjult til den får fokus, og synlig da.
-- Lenker og knapper i menyene er minst 24 × 24 px (WCAG 2.2, 2.5.8), helst 44 px. Det gjelder også pilene i seksjonsmenyen og «Meny»-knappen.
+- «Hopp til innhold» først i `<header>`, til `id="hovedinnhold"`. Lenken er skjult til den får fokus, og synlig da. Aksel setter `id`-en på `<main>`. Prototypen setter den på en `<div tabIndex={-1}>` rundt hver sides `<main>`. Begge virker, men i PR-en flytter vi den til `<main>`.
+- Lenker og knapper i menyene er minst 24 × 24 px (WCAG 2.2, 2.5.8), helst 44 px. «Meny»-knappen har standardstørrelsen i Aksel (44 px), og lenkene i toppfeltet har `min-height: 2.75rem`, som hos Aksel.
+- Alle disclosure-knapper har `aria-controls` som peker på `id`-en til lista. Nivå 2 i mobilpanelet ligger i `<nav aria-label="nav-pilot">`, som på desktop.
 - Låsikonet beholder `aria-label="Krever innlogging"`.
 
 ### 6.7 Merkevaren
 
 Aksel bestemmer hvordan vi bygger. nav-pilot er det vi bygger. Navigasjon, komponenter og tokens følger Aksel. Navnet, ordmerket og stemmen er nav-pilot.
+
+«nav-pilot» betyr tre ting, én på hvert nivå: ordmerket er hele nettstedet, tittelen i seksjonsmenyen er nav-pilot-delen og lenker til `/nav-pilot`, og lenken i toppfeltet er CLI-en og dokumentasjonen for den.
 
 **Navnet (V10).** Nettstedet heter tre ting i dag: «Oh-My-Nav» i toppfeltet og sidetittelen (`site-shell.tsx:58`, `(nb)/layout.tsx:9-10,20-21`, `(en)/layout.tsx:9-10,17-18`), «Min Copilot» (`nyheter/utviklerundersokelsen-2026/page.tsx:8`) og «ki-utvikling.nav.no». README-ene lenker til `min-copilot.ansatt.nav.no`. Anbefalingen er å bruke «nav-pilot» i toppfeltet og i tittelmalen (`%s — nav-pilot`), med «Copilot i Nav» som undertittel. Det er allerede tittelen på landingssiden (`nav-pilot/page.tsx:34`).
 
@@ -577,7 +585,7 @@ Aksel bestemmer hvordan vi bygger. nav-pilot er det vi bygger. Navigasjon, kompo
 - Risiko: Abonnement, Statistikk og Kostnad handler om Copilot-lisensen, ikke om CLI-en. Lenketeksten «Copilot-abonnement» og gruppen Innsikt må si det.
 - Å beholde «Oh-My-Nav» koster ingenting, men gir to navn for det samme, og navnet sier ikke hva nettstedet er. «KI-utvikling i Nav» passer domenet, men da er ikke nav-pilot paraplyen.
 
-**Ordmerket.** `nav-pilot` med små bokstaver i monospace, som i terminalen, og «Copilot i Nav» under i vanlig skrift. Toppfeltet er allerede mørkt (`#0f1825`). Beta-merket fra landingssiden (`nav-pilot/page.tsx:205-210`) står i heltebildet der og i linja over tittelen på guidene og referansen for CLI-en. Det står ikke ved tittelen i seksjonsmenyen, fordi menyen også dekker verktøykatalogen og cplt, som ikke er beta.
+**Ordmerket.** `nav-pilot` med små bokstaver i monospace, som i terminalen, og «Copilot i Nav» under i vanlig skrift. Toppfeltet er allerede mørkt (`#0f1825`). Beta-merket (`nav-pilot/page.tsx:205-210`) står bare i heltebildet på landingssiden. Det står ikke i seksjonsmenyen, fordi menyen også dekker verktøykatalogen og cplt, som ikke er beta.
 
 **Sidene under paraplyen** viser at de hører til med linja over tittelen (§6.3) og seksjonsmenyen med tittelen «nav-pilot». Den mørke gradienten og terminalbildene blir på landingssiden. Dokumentasjonssidene bruker Aksel-tokens og lys bakgrunn, fordi de skal leses.
 
@@ -587,18 +595,19 @@ Aksel bestemmer hvordan vi bygger. nav-pilot er det vi bygger. Navigasjon, kompo
 
 Samme ord for samme ting på alle sider. Tabellen viser valget og hvor nettstedet spriker i dag (`apps/my-copilot/src/app`, `components`, `lib`).
 
-| Begrep           | Bruk                                                                                         | Ikke                   | Spriker i dag                                                                                                                                             |
-| ---------------- | -------------------------------------------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| nav-pilot        | alltid små bokstaver                                                                         | Nav-pilot              | nyhetsetiketten (`lib/news-types.ts:27`), `components/nav-pilot/interactive-setup-wizard.tsx:52`, `lokal/page.tsx:478`                                    |
-| agentpakke       | pakken `nav-pilot install` installerer (agenter, skills, instruksjoner)                      | collection, samling    | ankeret `#collections` (`docs/page.tsx:119,958`, README.nav-pilot.md:61). Ankeret beholdes, teksten endres                                                |
-| klient           | programmet nav-pilot starter: Copilot CLI, opencode, pi                                      | agent, verktøy         | `docs/page.tsx:1623` sier at alle klienter kjører i cplt-sandkassen, men Copilot kan kjøre uten (§4.4)                                                    |
-| cplt, sandkassen | «cplt» er navnet, «sandkassen» er det den gjør                                               | sandbox i norsk tekst  | `/cplt` er skrevet på engelsk under `(nb)` («cplt: Sandbox for AI coding agents», `cplt/page.tsx:15`, `<main lang="en">` på linje 170). Oversettes i PR 6 |
-| lokal modell     | modellen på maskinen din eller din egen server                                               | bakkemodell            | «bakkemodellen» på `lokal/page.tsx:193,210,287,480,484` og `docs/page.tsx:2197`, «lokal modell» ellers                                                    |
-| egen server      | en OpenAI-kompatibel server du drifter selv (`local_endpoint`)                               | eget endepunkt         | –                                                                                                                                                         |
-| utsending        | når hovedagenten sender en jobb til `local-worker`. Nøkkelen heter fortsatt `local_dispatch` | dispatch i norsk tekst | `alpha local status` skriver «Dispatch off» om `alpha local off` (H12)                                                                                    |
-| Copilot CLI      | GitHubs CLI-klient                                                                           | copilot-cli i tekst    | –                                                                                                                                                         |
-| Ordbok           | `/ordbok`                                                                                    | Ordliste               | `/ordliste` videresender allerede                                                                                                                         |
-| installasjon     | én kommando: `brew install navikt/tap/nav-pilot navikt/tap/cplt`                             | varianter uten cplt    | fem varianter (H1): `nav-pilot/page.tsx:53`, `lokal/page.tsx:44`, `docs/page.tsx:744,2866`, `interactive-setup-wizard.tsx:71`                             |
+| Begrep           | Bruk                                                                                                         | Ikke                   | Spriker i dag                                                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| nav-pilot        | alltid små bokstaver                                                                                         | Nav-pilot              | nyhetsetiketten (`lib/news-types.ts:27`), `components/nav-pilot/interactive-setup-wizard.tsx:52`, `lokal/page.tsx:478`                                    |
+| agentpakke       | pakken `nav-pilot install` installerer (agenter, skills, instruksjoner)                                      | collection, samling    | ankeret `#collections` (`docs/page.tsx:119,958`, README.nav-pilot.md:61). Ankeret beholdes, teksten endres                                                |
+| klient           | programmet nav-pilot starter: Copilot CLI, opencode, pi                                                      | agent, verktøy         | `docs/page.tsx:1623` sier at alle klienter kjører i cplt-sandkassen, men Copilot kan kjøre uten (§4.4)                                                    |
+| cplt, sandkassen | «cplt» er navnet, «sandkassen» er det den gjør                                                               | sandbox i norsk tekst  | `/cplt` er skrevet på engelsk under `(nb)` («cplt: Sandbox for AI coding agents», `cplt/page.tsx:15`, `<main lang="en">` på linje 170). Oversettes i PR 6 |
+| lokal modell     | modellen på maskinen din eller din egen server                                                               | bakkemodell            | «bakkemodellen» på `lokal/page.tsx:193,210,287,480,484` og `docs/page.tsx:2197`, «lokal modell» ellers                                                    |
+| egen server      | en OpenAI-kompatibel server du drifter selv (`local_endpoint`)                                               | eget endepunkt         | –                                                                                                                                                         |
+| utsending        | når hovedagenten sender en jobb til `local-worker`. Nøkkelen heter fortsatt `local_dispatch`                 | dispatch i norsk tekst | `alpha local status` skriver «Dispatch off» om `alpha local off` (H12)                                                                                    |
+| Copilot CLI      | GitHubs CLI-klient                                                                                           | copilot-cli i tekst    | –                                                                                                                                                         |
+| Verktøykatalog   | gruppen heter Tilpasning, siden heter Verktøykatalog (også i `<h1>`), og det som står i den, er tilpasninger | Verktøy som sidetittel | `/verktoy` har fire navn: «Verktøy» i tittelen, «Tilpasning» i toppfeltet, «Verktøykatalog» i seksjonsmenyen og «tilpasninger» i teksten                  |
+| Ordbok           | `/ordbok`                                                                                                    | Ordliste               | `/ordliste` videresender allerede                                                                                                                         |
+| installasjon     | én kommando: `brew install navikt/tap/nav-pilot navikt/tap/cplt`                                             | varianter uten cplt    | fem varianter (H1): `nav-pilot/page.tsx:53`, `lokal/page.tsx:44`, `docs/page.tsx:744,2866`, `interactive-setup-wizard.tsx:71`                             |
 
 «bakkemodell» er et godt bilde, men et ord til for det samme. Vi foreslår å bruke «lokal modell» overalt.
 
@@ -613,7 +622,7 @@ Forutsetning: CI-sjekken for lenker (§2.3) er flettet inn før PR 4, 5, 8, 9 og
 3. **Kom i gang.** `/kom-i-gang` etter §5.1 (H3, H4, H5).
 4. **Diátaxis-sidene og videresendingen.** Nye sider etter §1.3 og innhold flyttet etter §1.4 (H9, H10, H12, H13). `/nav-pilot/docs` får en oppføring i `redirects()`, og `HashAnchorScroll` får tabellen over gamle ankere med test (§2). Interne lenker oppdateres, også i `interactive-setup-wizard.tsx`. `app/sitemap.ts` får de nye sidene, og `/cplt`, som mangler i dag. `/nav-pilot/docs` står ikke der og skal ikke inn. Seksjonsmenyen og rutegruppen (§6.4) kommer her, fordi de nye sidene trenger dem.
 5. **Lokal-sidene.** `/nav-pilot/lokal` etter §3, `/nav-pilot/lokal/egen-server`, `/nav-pilot/lokal/decide` og kortere README (H7, H14).
-6. **Begreper** etter §6.8, på alle sider. `/cplt` oversettes til norsk.
+6. **Begreper** etter §6.8, på alle sider. `/cplt` oversettes til norsk, og `/verktoy` får tittelen «Verktøykatalog».
 7. **Klientsiden.** `/nav-pilot/klienter` etter §4 med paritetsstatusen fra #1022, og rettelsene i §4.4. Når håndhevingen av MCP-registeret (#1027) er flettet inn, beskriver siden den.
 8. **`/innsikt` og «Sider i denne delen»** på `/praksis` og `/innsikt` (§6.3). Kostnad får låsikon.
 9. **Toppfeltet og merkevaren** etter §6.3, §6.5 og §6.7. Endrer `site-shell.tsx`, `page-hero.tsx`, `lib/nav-items.ts`, forsiden, `components/sidebar.tsx` (`QuickNav` fjernes) og `(en)/layout.tsx` (engelske tekster i `ShellLabels`, med `lang="en"`). Den berører sidene til alle team. Eierne av Praksis, Retningslinjer, Statistikk og Adopsjon får se skjermbildene av D og D2 i PR-en, og den flettes ikke inn før de har svart.
