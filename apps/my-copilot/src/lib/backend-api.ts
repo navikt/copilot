@@ -160,7 +160,7 @@ async function backendRequest<T>(path: string, userToken: string, options: Reque
 
 /**
  * Exchange the user token for an OBO token to another app in the copilot
- * namespace (e.g. copilot-cli). No in-flight deduplication: callers make one
+ * namespace (e.g. copilot-survey). No in-flight deduplication: callers make one
  * call per request.
  */
 function exchangeTokenFor(userToken: string, app: string): Promise<string> {

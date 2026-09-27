@@ -127,8 +127,8 @@ spec:
       value: "{{mcp_registry_public_url}}"
     - name: COPILOT_API_URL
       value: "http://copilot-api"
-    - name: COPILOT_CLI_URL
-      value: "http://copilot-cli"
+    - name: COPILOT_SURVEY_URL
+      value: "http://copilot-survey"
   liveness:
     path: "/health"
     port: 3000
@@ -152,7 +152,7 @@ spec:
           namespace: copilot
         - application: mcp-registry
           namespace: copilot
-        - application: copilot-cli
+        - application: copilot-survey
           namespace: copilot
       external:
         - host: api.github.com

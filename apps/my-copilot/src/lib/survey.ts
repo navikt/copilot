@@ -1,13 +1,13 @@
 /**
- * User surveys, served and stored by copilot-cli (apps/copilot-cli). The
+ * User surveys, served and stored by copilot-survey (apps/copilot-survey). The
  * definitions are the same files nav-pilot's terminal survey renders
- * (apps/copilot-cli/surveys/). Answers go through copilot-cli with an OBO
- * token; copilot-cli refuses a second answer from the same person, from the
+ * (apps/copilot-survey/surveys/). Answers go straight to copilot-survey with
+ * an OBO token; copilot-survey refuses a second answer from the same person, from the
  * web or nav-pilot, without storing anything that links the answer to them.
  */
 import { exchangeTokenFor, fetchWithTimeout, isLocalDev } from "@/lib/backend-api";
 
-const COPILOT_CLI_URL = process.env.COPILOT_CLI_URL || "http://copilot-cli";
+const COPILOT_SURVEY_URL = process.env.COPILOT_SURVEY_URL || "http://copilot-survey";
 
 export type SurveyQuestion = {
   id: string;
@@ -43,11 +43,11 @@ export type SubmitResult =
 
 const KNOWN_TYPES = ["scale", "choice", "multi", "text"];
 
-/** The open surveys this page can show; [] when copilot-cli has none or is out of reach. */
+/** The open surveys this page can show; [] when copilot-survey has none or is out of reach. */
 export async function getActiveSurveys(): Promise<Survey[]> {
   try {
     const res = await fetchWithTimeout(
-      `${COPILOT_CLI_URL}/api/v1/surveys/active`,
+      `${COPILOT_SURVEY_URL}/api/v1/surveys/active`,
       { cache: "no-store" },
       5000,
       "timeout"
@@ -70,10 +70,10 @@ export function isSkipped(q: SurveyQuestion, answers: Answers): boolean {
 export async function submitAnswers(userToken: string, surveyId: string, answers: Answers): Promise<SubmitResult> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (!isLocalDev) {
-    headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-cli")}`;
+    headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
   }
   const res = await fetchWithTimeout(
-    `${COPILOT_CLI_URL}/api/v1/surveys/${encodeURIComponent(surveyId)}/responses`,
+    `${COPILOT_SURVEY_URL}/api/v1/surveys/${encodeURIComponent(surveyId)}/responses`,
     {
       method: "POST",
       headers,
@@ -89,7 +89,7 @@ export async function submitAnswers(userToken: string, surveyId: string, answers
     case 409:
       return { status: "duplicate" };
     case 400: {
-      // The form checks what copilot-cli checks, so this should not happen.
+      // The form checks what copilot-survey checks, so this should not happen.
       // Log the reason; the page shows a plain message.
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       console.error("survey answers refused", JSON.stringify({ survey: surveyId, reason: body.error ?? "" }));
