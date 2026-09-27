@@ -81,6 +81,16 @@ spec:
       - /kalkulator/**
       - /priser
       - /priser/**
+      # Old paths with a permanent redirect in next.config.ts. Listed so the
+      # redirect answers before Wonderwall does; the private targets
+      # (/statistikk, /kostnad) still require a login in src/proxy.ts.
+      - /best-practices
+      - /practice
+      - /customizations
+      - /usage
+      - /stats
+      - /overview
+      - /cost
       # Health (metrics NOT listed — Wonderwall blocks public access, Prometheus scrapes pod directly)
       - /health
       # NOTE: /api/copilot and /api/adoption are NOT listed — Wonderwall enforces auth for APIs

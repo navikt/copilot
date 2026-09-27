@@ -23,6 +23,7 @@ import { INSTALL_TYPES } from "@/lib/install-redirect";
 import { LEGACY_ANCHORS } from "@/lib/legacy-anchors";
 import { getArticle, getLinkTarget } from "@/lib/news";
 import inventoryJson from "@/lib/link-inventory.json";
+import { autoLoginIgnorePaths, matches } from "../scripts/auto-login-ignore-paths.mjs";
 
 type Entry = { sources: string[]; anchors: Record<string, string[]> };
 type Found = { path: string; anchor?: string; source: string };
@@ -352,6 +353,15 @@ describe("link inventory", () => {
       .filter(({ r }) => "error" in r)
       .map(({ p, r }) => `${p}: ${"error" in r ? r.error : ""} (linked from ${inventory[p].sources.join(", ")})`);
     expect(broken).toEqual([]);
+  });
+
+  // Wonderwall answers a path missing from autoLoginIgnorePaths with a login
+  // before Next.js sees it, so an anonymous reader never gets the page or the
+  // redirect (#1058). There is no exemption for private pages: they are listed
+  // too, and src/proxy.ts sends readers without a token to the login.
+  it("every inventoried path is let through by Wonderwall", () => {
+    const blocked = Object.keys(inventory).filter((p) => !autoLoginIgnorePaths.some((a) => matches(p, a)));
+    expect(blocked, "Add them to autoLoginIgnorePaths in .nais/app.yaml").toEqual([]);
   });
 
   it("every inventoried anchor exists on the page it lands on", () => {
