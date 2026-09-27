@@ -64,8 +64,14 @@ stdout '- \.github/skills/gammel/$'
 stdout '- instructions/gammel\.md \(deleted in source; will be removed\)'
 exists $HOME/.config/opencode/skills/gammel/SKILL.md
 
-exec nav-pilot sync --apply --yes
+# --apply --json applies the repo scope and still prints one document on
+# stdout; the warning about the saved copy goes to stderr.
+exec nav-pilot sync --repo --apply --json
+validjson stdout
+stdout '"applied": true'
 stderr 'instruction gammel: the source removed it, and it had local changes; your copy is saved as \.github/instructions/gammel\.instructions\.md\.orig'
+
+exec nav-pilot sync --apply --yes
 stderr 'skill gammel: the source removed it, and it had local changes; your copy is saved as ~/\.copilot/skills/gammel/SKILL\.md\.orig'
 
 # Repo scope: all three gone, the edit saved, the team's own file untouched.

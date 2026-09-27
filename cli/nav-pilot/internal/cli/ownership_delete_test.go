@@ -246,3 +246,28 @@ func TestInstallAdoptsAByteMatchingUntrackedFile(t *testing.T) {
 		t.Errorf("adopted entry has no hash, so nothing can ever prove it unedited: %+v", e)
 	}
 }
+
+// TestSyncSavesAHashlessEntryBeforeRemoving: a state written before hashes
+// were recorded cannot tell nav-pilot's copy from an edited one, so a file the
+// source dropped is saved as .orig before it goes.
+func TestSyncSavesAHashlessEntryBeforeRemoving(t *testing.T) {
+	dir, scope, _ := deletionScope(t)
+	writeState(dir, &StateFile{
+		Collection: "kotlin-backend",
+		Version:    "2026.06",
+		SourceRepo: "my-custom/repo",
+		Files:      []InstalledFile{{Path: ".github/agents/kept.agent.md"}},
+	})
+
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	if err != nil {
+		t.Fatalf("sync --apply: %v\n%s", err, out)
+	}
+	if _, statErr := os.Stat(filepath.Join(dir, ".github", "agents", "kept.agent.md")); !os.IsNotExist(statErr) {
+		t.Errorf("sync left the file the source deleted in place: %v", statErr)
+	}
+	if got, readErr := os.ReadFile(filepath.Join(dir, ".github", "agents", "kept.agent.md.orig")); readErr != nil || string(got) != "# Kept\n" {
+		t.Errorf("the hashless entry's copy was not saved as .orig: %q, %v", got, readErr)
+	}
+}

@@ -486,7 +486,9 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 			// as an update does. Leaving it in place kept a dropped
 			// always-on instruction in every session. A hook never gets here
 			// edited: hookKept above keeps it running.
-			if sf.tracked != nil && !safeToRemove(scope.RootDir, *sf.tracked) {
+			// A state written before hashes were recorded cannot say whether
+			// the file was edited, so its copy is saved too.
+			if sf.tracked != nil && (sf.tracked.Hash == "" || !safeToRemove(scope.RootDir, *sf.tracked)) {
 				editedRemovals = append(editedRemovals, sf.localPath)
 			}
 			deletedPaths = append(deletedPaths, sf.localPath)
