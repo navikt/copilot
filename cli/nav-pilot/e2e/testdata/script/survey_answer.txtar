@@ -1,6 +1,6 @@
 # After an interactive session, and only in a terminal, nav-pilot asks about
 # an open survey, says what is sent before any question, and sends the
-# answers with the GitHub sign-in. The payload is the answers and five enums:
+# answers with the GitHub sign-in. The payload is the answers and four enums:
 # no device id, nothing from the session. A second answer to the same survey
 # is refused by copilot-cli and said so plainly. An optional choice starts on
 # Skip.
@@ -32,13 +32,13 @@ exec nav-pilot -- -p hei
 # Terminal: the session ends, then the question, with what is sent. Enter
 # alone means later; answering takes a step up.
 exec pty-run -wait 'User survey: E2E survey \(4 questions, asked 1 of 3\)' -send '\x1b[A\r' -wait '4  Enig' -send '\x1b[B\x1b[B\x1b[B\r' -wait 'Pick up to 2' -send ' \r' -wait 'Anything else' -send 'works fine\r' -- nav-pilot
-stdout 'Sent: your answers, nav-pilot version, OS and CPU type, which client you use'
+stdout 'Sent: your answers, nav-pilot version, OS, which client you use'
 stdout 'Not sent: your name, GitHub user, device id, code or anything from your sessions'
 stdout 'cannot be changed or withdrawn afterwards'
 stdout 'Write nothing that identifies you or anyone else'
 ! stdout 'Why not copilot'
 stdout 'Thank you! Your answers were sent'
-grep -count=1 '^POST 201 bearer=true keys=answers,context context=arch,client,local_models,os,version device_id_leak=no ' $WORK/survey-posts.log
+grep -count=1 '^POST 201 bearer=true keys=answers,context context=client,local_models,os,version device_id_leak=no ' $WORK/survey-posts.log
 grep '"answers":\{"clients":\["copilot"\],"comment":"works fine","useful":4\}' $WORK/survey-posts.log
 grep '"client":"copilot","local_models":false' $WORK/survey-posts.log
 ! grep 'hei|repo|plattform|e2e@example' $WORK/survey-posts.log

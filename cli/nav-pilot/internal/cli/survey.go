@@ -104,7 +104,7 @@ type surveyRecord struct {
 	Pending json.RawMessage `json:"pending,omitempty"`
 }
 
-// surveyPayload is everything that leaves the machine: the answers and five
+// surveyPayload is everything that leaves the machine: the answers and four
 // enums about the setup. No device id, no user name, no path, no content.
 type surveyPayload struct {
 	Answers map[string]any `json:"answers"`
@@ -114,14 +114,13 @@ type surveyPayload struct {
 type surveyContext struct {
 	Version     string `json:"version"`
 	OS          string `json:"os"`
-	Arch        string `json:"arch"`
 	Client      string `json:"client"`
 	LocalModels bool   `json:"local_models"`
 }
 
 // surveyCollected is shown before any question, so nobody answers without
 // knowing what is sent.
-const surveyCollected = "Sent: your answers, nav-pilot version, OS and CPU type, which client you use, and whether local models are on.\n" +
+const surveyCollected = "Sent: your answers, nav-pilot version, OS, which client you use, and whether local models are on.\n" +
 	"Not sent: your name, GitHub user, device id, code or anything from your sessions.\n" +
 	"Your GitHub sign-in is used only to stop a second answer; your answers are stored with nothing that links them to you,\n" +
 	"so they cannot be changed or withdrawn afterwards."
@@ -400,15 +399,12 @@ func (s surveyDef) renderable() bool {
 }
 
 func surveyContextNow(r ResolvedConfig) surveyContext {
-	c := surveyContext{Version: Version, OS: "other", Arch: "other", Client: "none"}
+	c := surveyContext{Version: Version, OS: "other", Client: "none"}
 	if !versionShape(Version) {
 		c.Version = "dev"
 	}
 	if slices.Contains([]string{"darwin", "linux", "windows"}, runtime.GOOS) {
 		c.OS = runtime.GOOS
-	}
-	if slices.Contains([]string{"amd64", "arm64"}, runtime.GOARCH) {
-		c.Arch = runtime.GOARCH
 	}
 	if slices.Contains([]string{"copilot", "opencode", "pi"}, r.Client) {
 		c.Client = r.Client

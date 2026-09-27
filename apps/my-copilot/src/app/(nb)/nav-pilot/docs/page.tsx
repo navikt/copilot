@@ -2163,7 +2163,7 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
             Når vi kjører en brukerundersøkelse, kan nav-pilot spørre om du vil svare, rett etter at en økt er ferdig,
             aldri midt i arbeidet. Du velger svar nå, senere eller aldri. Velger du senere, spør nav-pilot igjen om noen
             dager, høyst tre ganger per undersøkelse. Før første spørsmål står det hva som sendes: svarene dine,
-            nav-pilot-versjon, operativsystem, prosessortype, klient og om lokale modeller er på. Navn, kode, device-ID
+            nav-pilot-versjon, operativsystem, klient og om lokale modeller er på. Navn, kode, device-ID
             og innhold fra øktene dine sendes ikke.
           </BodyLong>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
