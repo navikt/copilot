@@ -51,7 +51,21 @@ export function SiteSearch({ label }: { label: string }) {
   const opener = useRef<Element | null>(null);
   const hint = useShortcutHint();
 
-  const hits = Array.isArray(index) ? searchEntries(index, query) : [];
+  const term = query.trim();
+  const found = Array.isArray(index) ? searchEntries(index, term) : [];
+  // The catalogue has its own search over agents, skills and instructions.
+  // The last hit hands the term over to it, as the front-page field used to.
+  const hits: SearchEntry[] =
+    Array.isArray(index) && term
+      ? [
+          ...found,
+          {
+            href: `/verktoy?q=${encodeURIComponent(term)}`,
+            title: `Søk etter «${term}» i verktøykatalogen`,
+            context: "Tilpasning",
+          },
+        ]
+      : [];
   const optionId = (i: number) => `${id}-hit-${i}`;
 
   const onOpenChange = (next: boolean) => {
@@ -100,8 +114,8 @@ export function SiteSearch({ label }: { label: string }) {
       ? "Søket er ikke tilgjengelig nå. Prøv igjen senere."
       : !index
         ? "Henter søket …"
-        : query.trim()
-          ? `${hits.length} treff`
+        : term
+          ? `${found.length} treff`
           : "Søk i sidene om nav-pilot og i nyhetene.";
 
   return (

@@ -6,7 +6,7 @@ import { openSiteSearch } from "@/components/navigation/site-search";
 /**
  * The search field on the front page. It opens the same dialog as «Søk» in
  * the header, so the site has one search (V11). The tool catalogue at
- * /verktoy keeps its own search, and the index links to it.
+ * /verktoy keeps its own search, and the last hit hands the term over to it.
  *
  * A button that looks like a field, not a field that opens a dialog on
  * focus: moving focus must not change the context (WCAG 3.2.1).
