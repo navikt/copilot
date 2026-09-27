@@ -183,6 +183,22 @@ func TestSubmitWithoutStorage(t *testing.T) {
 	}
 }
 
+// As main.go wires it: storage and a key, but no e-mail lookup. A valid
+// submission still gets 503 and is not stored.
+func TestSubmitWithoutEmailLookup(t *testing.T) {
+	defs, _ := loadSurveys([]byte(testSurveys))
+	a, _ := testAuthenticator(t)
+	store := &fakeStore{participants: map[string]bool{}}
+	api := &surveyAPI{surveys: defs, store: store.submit,
+		keys: map[string][]byte{"q4-2026": []byte("0123456789abcdef0123456789abcdef")},
+		now:  func() time.Time { return time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC) }}
+	h := makeRouter(a, nil, api)
+	body := `{"answers":{"overall":4},` + goodCtx + `}`
+	if rec := do(h, "POST", "/api/v1/surveys/q4-2026/responses", "good-token", body); rec.Code != 503 || len(store.answers) != 0 {
+		t.Fatalf("status = %d, stored = %d; want 503 and nothing stored", rec.Code, len(store.answers))
+	}
+}
+
 func TestUsageRoute(t *testing.T) {
 	h, _ := testRouter(t)
 	if rec := do(h, "POST", "/api/v1/usage", "", ""); rec.Code != 405 {
