@@ -69,7 +69,7 @@ func TestAuthBranches(t *testing.T) {
 		{"inactive", "nope", "", caller{}, errUnauthorized},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := a.resolve(t.Context(), tc.token, tc.header)
+			got, err := a.resolve(t.Context(), tc.token, tc.header, tc.header != "")
 			if !errors.Is(err, tc.err) || (err == nil && *got != tc.want) {
 				t.Fatalf("got %+v, %v; want %+v, %v", got, err, tc.want, tc.err)
 			}
@@ -81,7 +81,7 @@ func TestAuthOffWithoutPreAuthorizedApps(t *testing.T) {
 	a := testAuthenticator(t)
 	a.cliID, a.webID = "", ""
 	for _, tok := range []string{cliToken, webToken} {
-		if _, err := a.resolve(t.Context(), tok, map[string]string{cliToken: "hans"}[tok]); !errors.Is(err, errForbidden) {
+		if _, err := a.resolve(t.Context(), tok, map[string]string{cliToken: "hans"}[tok], tok == cliToken); !errors.Is(err, errForbidden) {
 			t.Fatalf("%s: %v, want errForbidden", tok, err)
 		}
 	}
@@ -141,5 +141,19 @@ func TestNameIDClient(t *testing.T) {
 	}
 	if email, err := c.emailFor(context.Background(), &caller{email: "web@nav.no"}); err != nil || email != "web@nav.no" {
 		t.Fatalf("web: %q, %v", email, err)
+	}
+}
+
+// A blank X-On-Behalf-Of on the wire reaches the handler as "": the
+// middleware must still see that it was sent.
+func TestBlankHeaderOnUserTokenRefused(t *testing.T) {
+	h := authMiddleware(testAuthenticator(t), func(http.ResponseWriter, *http.Request) { t.Fatal("reached handler") })
+	req := httptest.NewRequest("POST", "/", nil)
+	req.Header.Set("Authorization", "Bearer "+webToken)
+	req.Header["X-On-Behalf-Of"] = []string{""}
+	rec := httptest.NewRecorder()
+	h(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
 	}
 }

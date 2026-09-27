@@ -60,7 +60,7 @@ var (
 
 var githubLogin = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$`)
 
-func (a *authenticator) resolve(ctx context.Context, token, onBehalfOf string) (*caller, error) {
+func (a *authenticator) resolve(ctx context.Context, token, onBehalfOf string, headerSent bool) (*caller, error) {
 	if a.endpoint == "" {
 		return nil, errUnauthorized
 	}
@@ -92,7 +92,6 @@ func (a *authenticator) resolve(ctx context.Context, token, onBehalfOf string) (
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&c); err != nil {
 		return nil, fmt.Errorf("decoding introspection response: %w", err)
 	}
-	headerSent := onBehalfOf != ""
 	onBehalfOf = strings.TrimSpace(onBehalfOf)
 	switch {
 	case !c.Active:
@@ -128,7 +127,9 @@ func authMiddleware(a *authenticator, next http.HandlerFunc) http.HandlerFunc {
 			writeError(w, http.StatusUnauthorized, "missing or malformed bearer token")
 			return
 		}
-		c, err := a.resolve(r.Context(), fields[1], r.Header.Get("X-On-Behalf-Of"))
+		// Presence, not value: net/http trims a blank header to "".
+		_, sent := r.Header["X-On-Behalf-Of"]
+		c, err := a.resolve(r.Context(), fields[1], r.Header.Get("X-On-Behalf-Of"), sent)
 		switch {
 		case err == nil:
 			next(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, c)))
