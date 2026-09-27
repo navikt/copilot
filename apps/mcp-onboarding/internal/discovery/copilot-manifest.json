@@ -395,7 +395,7 @@
       "type": "instruction",
       "name": "security-owasp",
       "displayName": "OWASP Top 10:2025",
-      "description": "Peker til $security-owasp-skillen for detaljerte OWASP-mønstre. Kjernereglene ligger i Sikkerhetskjerne, som alltid er lastet",
+      "description": "Peker til skillen $security-owasp for detaljerte OWASP-mønstre. Kjernereglene ligger i Sikkerhetskjerne: installer den sammen med denne",
       "tags": [
         "security",
         "compliance",
@@ -403,7 +403,7 @@
         "vulnerability"
       ],
       "filePath": "instructions/security-owasp.instructions.md",
-      "contentHash": "9c38727100051bf5eb523b1cd20c078df61c82f0fd685230b3309a322a51bdb0",
+      "contentHash": "3829d8b32cac8b700b657f8996c4b44e20f90cceae3e611f93fb66555ad0bf40",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/security-owasp.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/security-owasp.instructions.md"
     },

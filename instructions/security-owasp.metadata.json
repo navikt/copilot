@@ -1,6 +1,6 @@
 {
   "displayName": "OWASP Top 10:2025",
-  "description": "Peker til $security-owasp-skillen for detaljerte OWASP-mønstre. Kjernereglene ligger i Sikkerhetskjerne, som alltid er lastet",
+  "description": "Peker til skillen $security-owasp for detaljerte OWASP-mønstre. Kjernereglene ligger i Sikkerhetskjerne: installer den sammen med denne",
   "domain": "auth",
   "tags": ["security", "owasp", "kotlin", "go", "java", "nodejs", "typescript"],
   "examples": [
