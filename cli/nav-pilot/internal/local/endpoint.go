@@ -92,6 +92,15 @@ var serverTransport = func() *http.Transport {
 	return t
 }()
 
+// refuseRedirect is the guard's answer to a redirect from the server: an
+// error, which the reverse proxy turns into a 502.
+func refuseRedirect(r *http.Response) error {
+	if r.StatusCode >= 300 && r.StatusCode < 400 {
+		return fmt.Errorf("the local server answered %s with a redirect to %q; nav-pilot does not pass redirects on", r.Status, r.Header.Get("Location"))
+	}
+	return nil
+}
+
 // ServerClient is the HTTP client for requests to the local server. No
 // timeout: a local completion at a large context legitimately takes minutes,
 // and the caller's context bounds it.

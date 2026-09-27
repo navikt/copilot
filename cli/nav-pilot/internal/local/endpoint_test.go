@@ -130,3 +130,27 @@ func TestEndpointManifestIsUnmeasured(t *testing.T) {
 		t.Error("an endpoint's model reached telemetry as typed")
 	}
 }
+
+// The guard never hands a redirect to the client, whose own HTTP stack would
+// follow it past the address checks.
+func TestGuardRefusesRedirects(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	srv := httptest.NewServer(http.RedirectHandler("http://8.8.8.8/v1/chat/completions", http.StatusTemporaryRedirect))
+	defer srv.Close()
+	g, err := StartGuard(srv.URL, Model{Model: "m"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer g.Close()
+	orig := ownershipCheck
+	ownershipCheck = func() error { return nil }
+	t.Cleanup(func() { ownershipCheck = orig })
+	resp, err := http.Get(g.URL() + "/v1/models")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusBadGateway || resp.Header.Get("Location") != "" {
+		t.Errorf("guard answered %s with Location %q, want 502 and none", resp.Status, resp.Header.Get("Location"))
+	}
+}

@@ -299,6 +299,10 @@ func StartGuard(target string, m Model) (*Guard, error) {
 	// dropped connection mid-generation.
 	proxy.FlushInterval = -1
 	proxy.Transport = serverTransport
+	// A redirect is passed on to the client, which would follow it with its
+	// own HTTP stack and none of serverTransport's address checks. No
+	// completion server redirects, so one is refused rather than forwarded.
+	proxy.ModifyResponse = refuseRedirect
 
 	// The parent of every request context this guard serves. net/http derives a
 	// connection context from BaseContext and the request context from that, so

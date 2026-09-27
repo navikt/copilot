@@ -40,12 +40,13 @@ type doctorCheck struct {
 // doctorContextTokens is roughly what the context probe sends: more than the
 // 21.7k tokens of a Copilot session's static context, which is what a 4k
 // window silently cuts. doctorContextMin is the least usage.prompt_tokens a
-// server that kept all of it reports; the margin is for tokenizers that count
-// the filler differently.
+// server that kept all of it reports: the filler is about 10 tokens a sentence
+// in the tokenizers we know, and the margin is for one that merges a word or
+// two, not for a window that cuts a few thousand tokens off.
 const (
 	doctorFillerSentence = "The quick brown fox jumps over the lazy dog. "
 	doctorFillerRepeats  = 3000 // about 30k tokens
-	doctorContextMin     = 20000
+	doctorContextMin     = 26000
 	doctorSlowTTFT       = 60 * time.Second
 )
 
