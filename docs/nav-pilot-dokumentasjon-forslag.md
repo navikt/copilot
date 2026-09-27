@@ -6,7 +6,7 @@ Hva som er lest på hvilken commit:
 
 - Nettsiden (`apps/my-copilot`), README-ene og Go-koden: `9fbd3089` (`main`, 27.09.2026). Kommandoene ble kjørt mot en binær bygget fra `356c41a4` med tom `HOME`. Linjenumrene er sjekket på nytt på `9fbd3089`.
 - Klientfunnene i §4 bygger på notater tatt på `d24cac46`.
-- Menyprototypen i §6 ligger på grenen `proto/menu` (bygger på `d24cac46`). A, B og C viser de gamle gruppene. D og D2 viser paraplyen, og du velger mellom dem etter å ha sett skjermbildene ([§6.3](#63-toppfeltet)).
+- Menyprototypene ligger på de lokale grenene `proto/menu` (A, B og C, bygger på `d24cac46`, de gamle gruppene) og `proto/menu-d` (D og D2, bygger på `main`, paraplyen), og du velger mellom dem etter å ha sett skjermbildene ([§6.3](#63-toppfeltet)).
 - Aksel-mønstrene i §6 er lest i kildekoden til aksel.nav.no, navikt/aksel på `3f5153d` [39]–[45]. Andre utviklerportaler er lest på nett 27.09.2026 [60]–[73].
 
 ## 0. Vedtak og valg
@@ -488,7 +488,17 @@ Klikk fra en vilkårlig side til målet, på desktop. «I dag» gjelder de 13 si
 | Kostnad              | –     | –                     | 2           | 2                     |
 | Ordbok               | 1     | bunnteksten           | bunnteksten | bunnteksten           |
 
-D og D2 koster like mange klikk. Forskjellen er hvor lenkene står: i D på en side du lander på, i D2 i en liste som åpner seg i toppfeltet. D er enklere å bygge og å bruke med tastatur. D2 er nærmere det eierne av Praksis, Retningslinjer, Statistikk og Adopsjon fikk love å se i V3. Skjermbildene ligger i `assets/nav-pilot-dokumentasjon-forslag/`, som `menu-d-*.png` og `menu-d2-*.png`. Du velger etter å ha sett dem.
+D og D2 koster like mange klikk. Forskjellen er hvor lenkene står: i D på en side du lander på, i D2 i en liste som åpner seg i toppfeltet. D er enklere å bygge og å bruke med tastatur. D2 er nærmere det eierne av Praksis, Retningslinjer, Statistikk og Adopsjon fikk love å se i V3. Du velger etter å ha sett skjermbildene. Prototypen ligger på den lokale grenen `proto/menu-d` (bygger på `main`, ikke pushet).
+
+| Variant D                                                                                                  |                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| ![D, forsiden](assets/nav-pilot-dokumentasjon-forslag/menu-d-1440-home.png)                                | ![D, /nav-pilot med seksjonsmeny](assets/nav-pilot-dokumentasjon-forslag/menu-d-1440-nav-pilot.png)      |
+| ![D, /nav-pilot/agentpakker](assets/nav-pilot-dokumentasjon-forslag/menu-d-1440-nav-pilot-agentpakker.png) | ![D, /praksis med «Sider i denne delen»](assets/nav-pilot-dokumentasjon-forslag/menu-d-1440-praksis.png) |
+| ![D, mobilmeny nivå 1](assets/nav-pilot-dokumentasjon-forslag/menu-d-390-menu-level1.png)                  | ![D, mobilmeny nivå 2](assets/nav-pilot-dokumentasjon-forslag/menu-d-390-menu-level2.png)                |
+
+| Variant D2                                                                                |                                                                                    |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| ![D2, Innsikt åpen](assets/nav-pilot-dokumentasjon-forslag/menu-d2-1440-innsikt-open.png) | ![D2, mobilmeny](assets/nav-pilot-dokumentasjon-forslag/menu-d2-390-menu-open.png) |
 
 V3 med de gamle gruppene, prototype B:
 
