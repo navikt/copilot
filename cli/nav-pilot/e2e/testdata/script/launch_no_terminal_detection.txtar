@@ -13,6 +13,6 @@ stderr '^Usage:'
 # Launch flags and no terminal: not a usage page with exit 0, but a refusal
 # that says what would work.
 exits 1 /bin/sh -c 'nav-pilot --client opencode </dev/null'
-stderr '^Not launching: no terminal\. Run it in a terminal, or without one: nav-pilot --sync --client opencode -- -p "…"$'
+stderr '^Not launching: no terminal\. Run it in a terminal, or without one: nav-pilot --client opencode -- -p "…"$'
 ! stdout .
 ! exists $WORK/fake/cplt.log

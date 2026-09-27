@@ -248,6 +248,11 @@ const CLI_COMMANDS = [
   { command: "nav-pilot", description: "Interaktivt: installer, oppgrader eller start Copilot-sandkassen (cplt)" },
   { command: "nav-pilot --client opencode", description: "Start OpenCode-sesjonen med Nav-kontekst levert automatisk" },
   {
+    command: 'nav-pilot -- -p "…"',
+    description:
+      "Start klienten med argumentene etter -- uten meny, spørsmål fra nav-pilot eller synk, med eller uten terminal (CI, skript). Legg til --sync for å synke først. I en terminal viser cplt fortsatt sin egen bekreftelse",
+  },
+  {
     command: "nav-pilot install nav-pilot",
     description: "Installer agentpakka. Spør om repoet (.github/) eller hjemmekatalogen (~/.copilot/)",
   },

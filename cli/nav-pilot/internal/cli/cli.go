@@ -140,14 +140,16 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
   --project-dir <dir>     Directory the agent may read and write (default: current directory, not
                           the enclosing git root; the root's instructions stay readable)
   --no-sandbox            Start copilot without cplt when cplt is missing, without asking
-  --sync                  Sync all scopes without asking, then launch. Without a terminal it
-                          launches only with a prompt after -- (nav-pilot --sync -- -p "…"), sandboxed
-  -- <client-flags>       Everything after -- goes to the client unchanged
+  --sync                  Sync all scopes without asking, then launch (opt-in; nav-pilot -- … never syncs)
+  -- <client-flags>       Launch now with these flags, passed to the client unchanged: no menu, no
+                          nav-pilot prompt, no sync, with or without a terminal (nav-pilot -- -p "…").
+                          Needs an install and cplt (or --no-sandbox); exits 2 if nothing is installed.
+                          In a terminal cplt still shows its own sandbox confirmation
 
 Exit Codes:
   0   Success
   1   Error / Updates available (sync)
-  2   Sync failed
+  2   Sync failed, or a launch with -- found nothing installed
   3   Frozen install refused (no declaration, no usable pin, another revision, or a partial install)
 
 Run nav-pilot help <command> for a command's own flags (install, sync, uninstall, rollback, list, config, models, upgrade).
@@ -298,14 +300,6 @@ func startupUpdateCheck() (stop bool, err error) {
 func run(args []string) error {
 	// Per run, not per process: a second run() in one process prints it again.
 	notedProposals = map[string]bool{}
-	// upgrade is the update: checking first would offer (and, answered No,
-	// still run) the same upgrade, and --dry-run would install before it
-	// could check.
-	if len(args) == 0 || (args[0] != "upgrade" && args[0] != "update" && args[0] != "up") {
-		if stop, err := startupUpdateCheck(); stop || err != nil {
-			return err
-		}
-	}
 
 	// --client=opencode reads as --client opencode. alpha keeps its own
 	// parsing: decide and ask take free text.
@@ -479,6 +473,39 @@ func run(args []string) error {
 		return fmt.Errorf("--client %q is not valid (allowed: %s)", cliOverrides.Client, strings.Join(validProviderIDs, ", "))
 	}
 
+	// Client args after -- and no command: the caller said exactly what to
+	// run, so nav-pilot asks nothing, terminal or not. Set before the update
+	// check, which would otherwise offer an upgrade under a pty.
+	explicitLaunch := len(args) == 0 && len(cliOverrides.ExtraArgs) > 0
+	if explicitLaunch {
+		prev := forceNonInteractive
+		forceNonInteractive = true
+		defer func() { forceNonInteractive = prev }()
+	}
+
+	// upgrade is the update: checking first would offer (and, answered No,
+	// still run) the same upgrade, and --dry-run would install before it
+	// could check.
+	if len(launchArgs) == 0 || (launchArgs[0] != "upgrade" && launchArgs[0] != "update" && launchArgs[0] != "up") {
+		if stop, err := startupUpdateCheck(); stop || err != nil {
+			return err
+		}
+	}
+
+	if explicitLaunch {
+		// No menu, no sync, no install: a benchmark or CI run must not
+		// rewrite ~/.copilot. --sync stays opt-in (nav-pilot --sync -- …).
+		if nothingInstalled() {
+			// Installing needs a yes, and --sync is not one: say what is.
+			return &exitCode{code: 2, err: fmt.Errorf("nothing is installed, and a launch with client args after -- installs nothing. Install first: %s", bold("nav-pilot install --user --all --yes"))}
+		}
+		resolved, err := loadConfigForLaunch(cliOverrides)
+		if err != nil {
+			return err
+		}
+		return offerLaunchCopilot(resolved)
+	}
+
 	if len(args) < 1 {
 		if isInteractive() {
 			return runWithCommandTelemetry("startup", telemetryMode(), "auto", func() error {
@@ -488,10 +515,8 @@ func run(args []string) error {
 		if len(launchArgs) > 0 {
 			// Flags for a launch, and nothing that can run one: printing the
 			// usage page and exiting 0 read as if the launch had happened.
-			try := "nav-pilot --sync " + strings.Join(launchArgs, " ")
-			if len(cliOverrides.ExtraArgs) == 0 {
-				try += ` -- -p "…"`
-			}
+			// A bare trailing -- is in launchArgs too; the hint adds its own.
+			try := "nav-pilot " + strings.Join(slices.DeleteFunc(slices.Clone(launchArgs), func(a string) bool { return a == "--" }), " ") + ` -- -p "…"`
 			fmt.Fprintf(os.Stderr, "Not launching: no terminal. Run it in a terminal, or without one: %s\n", bold(try))
 			return &exitCode{code: ExitError}
 		}
@@ -1152,4 +1177,21 @@ func exitCodeFor(err error) int {
 	}
 	fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), err)
 	return ExitError
+}
+
+// nothingInstalled reports whether neither the user scope nor this
+// repository has an install (a pinned agentpakke counts: it lives in the
+// user scope's state).
+func nothingInstalled() bool {
+	if s, err := ScopeUser(); err == nil {
+		if st, err := readScopedState(s); err != nil || st != nil {
+			return false
+		}
+	}
+	if root := findGitRoot("."); root != "" {
+		if st, err := readScopedState(ScopeRepo(root)); err != nil || st != nil {
+			return false
+		}
+	}
+	return true
 }
