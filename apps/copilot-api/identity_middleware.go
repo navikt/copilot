@@ -38,6 +38,13 @@ func IdentityMiddleware(chain *IdentityResolverChain, required bool) func(http.H
 				return
 			}
 
+			// A user's own token never asserts someone else: refuse the
+			// header rather than ignore it.
+			if r.Header.Get("X-On-Behalf-Of") != "" && !user.isAppToken() {
+				respondError(w, "unauthorized", "X-On-Behalf-Of is not accepted on a user token", http.StatusUnauthorized)
+				return
+			}
+
 			identity, err := chain.Resolve(r.Context(), user, r)
 			if err != nil {
 				if required {

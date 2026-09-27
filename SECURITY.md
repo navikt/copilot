@@ -167,8 +167,11 @@ nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)�
 > `OnBehalfOfIdentityResolver` activates when the calling token's `azp` claim
 > matches copilot-cli's client ID, which copilot-api derives automatically
 > from `AZURE_APP_PRE_AUTHORIZED_APPS` (NAIS injects it from
-> `accessPolicy.inbound.rules` — no manual secret step). Trust is scoped to
-> read-only `GET` requests only, and the header value is format-validated
+> `accessPolicy.inbound.rules` — no manual secret step). The token must also be
+> an app token (`idtyp=app` or the `access_as_application` role, with no
+> NAVident or e-mail). Trust is scoped to read-only `GET`s on the per-user
+> usage routes (`onBehalfOfRoutes` in `identity_onbehalfof.go`), the header on
+> a user token is refused with 401, and the header value is format-validated
 > against GitHub's username rules before being accepted. If copilot-cli is not
 > a pre-authorized inbound app the trust path stays disabled (fails closed).
 

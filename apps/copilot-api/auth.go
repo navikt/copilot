@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"math/big"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -36,6 +37,18 @@ type User struct {
 	PreferredUsername string   `json:"preferred_username"`
 	Groups            []string `json:"groups"`
 	AZP               string   `json:"azp"` // Authorized party (client ID)
+	// Idtyp is "app" on an app-only (client credentials) token; Roles holds
+	// access_as_application there. Both are empty on a user (OBO) token.
+	Idtyp string   `json:"idtyp,omitempty"`
+	Roles []string `json:"roles,omitempty"`
+}
+
+// isAppToken reports whether the token is an app's own (M2M), not a user's:
+// idtyp app or the access_as_application role, and no NAVident or e-mail.
+// Only such a token may assert a user with X-On-Behalf-Of.
+func (u *User) isAppToken() bool {
+	return (u.Idtyp == "app" || slices.Contains(u.Roles, "access_as_application")) &&
+		u.NAVident == "" && u.Email == ""
 }
 
 // JWKS represents the JSON Web Key Set
@@ -268,6 +281,14 @@ func (v *TokenValidator) validate(tokenString string) (*User, error) {
 		Email:             email,
 		Name:              getStringClaim(claims, "name"),
 		NAVident:          getStringClaim(claims, "NAVident"),
+		Idtyp:             getStringClaim(claims, "idtyp"),
+	}
+	if roles, ok := claims["roles"].([]interface{}); ok {
+		for _, r := range roles {
+			if role, ok := r.(string); ok {
+				user.Roles = append(user.Roles, role)
+			}
+		}
 	}
 
 	// Extract groups

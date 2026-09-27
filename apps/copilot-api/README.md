@@ -74,7 +74,7 @@ nav-pilot → copilot-cli → Texas (M2M) → copilot-api → GitHub/BigQuery
 API supports multiple authentication mechanisms via the **Identity Resolver** architecture (see [ARCHITECTURE.md](ARCHITECTURE.md)):
 
 1. **Azure AD OBO tokens** (from `my-copilot` BFF) — resolved to GitHub username via SAML/SCIM lookup
-2. **Azure AD M2M tokens** (from `copilot-cli`) — GitHub username provided via `X-On-Behalf-Of` header (format-validated)
+2. **Azure AD M2M tokens** (from `copilot-cli`) — GitHub username provided via `X-On-Behalf-Of` header (format-validated), on the per-user usage `GET`s only. The header on a user token is refused.
 
 **Token validation:**
 
@@ -103,7 +103,6 @@ API supports multiple authentication mechanisms via the **Identity Resolver** ar
 | `AZURE_OPENID_CONFIG_ISSUER` | Expected issuer | (injected by NAIS) |
 | `AZURE_OPENID_CONFIG_JWKS_URI` | JWKS endpoint | (injected by NAIS) |
 | `AZURE_APP_PRE_AUTHORIZED_APPS` | Allowed client IDs (JSON) | (injected by NAIS) |
-| `COPILOT_CLI_CLIENT_ID` | Trusted copilot-cli Azure AD client ID (enables X-On-Behalf-Of) | (empty = disabled) |
 | `GITHUB_ORG` | GitHub organization | `navikt` |
 | `GITHUB_APP_ID` | GitHub App ID | (secret) |
 | `GITHUB_APP_PRIVATE_KEY` | GitHub App private key | (secret) |

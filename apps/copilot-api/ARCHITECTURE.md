@@ -59,10 +59,12 @@ type ResolvedIdentity struct {
 
 | File | Resolver | Condition | Resolution |
 |------|----------|-----------|------------|
-| `identity_onbehalfof.go` | `OnBehalfOfIdentityResolver` | Token `azp` ∈ trusted set | `X-On-Behalf-Of` header (format-validated) |
+| `identity_onbehalfof.go` | `OnBehalfOfIdentityResolver` | App token (`idtyp=app` or role `access_as_application`, no NAVident or e-mail), `azp` ∈ trusted set, `GET` on a route in `onBehalfOfRoutes` | `X-On-Behalf-Of` header (format-validated) |
 | `identity_saml.go` | `SAMLIdentityResolver` | User has non-empty email | GitHub SCIM API lookup |
 
 **Chain order matters** — on-behalf-of is registered before SAML because a trusted M2M token typically has no email claim for SAML to resolve.
+
+`IdentityMiddleware` refuses `X-On-Behalf-Of` on a user token with 401, so a user token never asserts someone else. `onBehalfOfRoutes` is keyed on the ServeMux pattern, so the header is only honoured after routing, in `requireResolvedIdentity`.
 
 ### Sentinel Errors
 

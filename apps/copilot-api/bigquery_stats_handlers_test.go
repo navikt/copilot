@@ -28,6 +28,7 @@ func (m *mockBudgetGetter) getGlobalBudget(_ context.Context) (*GlobalBudget, er
 func TestRequireOwnershipIntegration(t *testing.T) {
 	newRequest := func(user *User, onBehalfOf string) *http.Request {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/user/hans", nil)
+		req.Pattern = "GET /api/v1/copilot/usage/user/{username}"
 		if user != nil {
 			req = req.WithContext(context.WithValue(req.Context(), userContextKey, user))
 		}
@@ -48,7 +49,7 @@ func TestRequireOwnershipIntegration(t *testing.T) {
 		mw := IdentityMiddleware(chain, true)
 
 		rec := httptest.NewRecorder()
-		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(&User{AZP: "copilot-cli-client-id"}, "hans"))
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(cliApp, "hans"))
 
 		if rec.Code != http.StatusOK {
 			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusOK, rec.Body.String())
@@ -60,7 +61,7 @@ func TestRequireOwnershipIntegration(t *testing.T) {
 		mw := IdentityMiddleware(chain, true)
 
 		rec := httptest.NewRecorder()
-		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(&User{AZP: "copilot-cli-client-id"}, "someone-else"))
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(cliApp, "someone-else"))
 
 		if rec.Code != http.StatusForbidden {
 			t.Errorf("status: got %d, want %d", rec.Code, http.StatusForbidden)
@@ -72,10 +73,28 @@ func TestRequireOwnershipIntegration(t *testing.T) {
 		mw := IdentityMiddleware(chain, true)
 
 		rec := httptest.NewRecorder()
-		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(&User{AZP: "copilot-cli-client-id"}, ""))
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(cliApp, ""))
 
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("status: got %d, want %d", rec.Code, http.StatusUnauthorized)
+		}
+	})
+
+	// A user token that carries X-On-Behalf-Of is refused, not resolved
+	// through SAML with the header ignored: a user never asserts someone else.
+	t.Run("user token with X-On-Behalf-Of is refused", func(t *testing.T) {
+		chain := NewIdentityResolverChain(
+			NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}),
+			NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "hans"}),
+		)
+		mw := IdentityMiddleware(chain, true)
+
+		req := newRequest(&User{AZP: "my-copilot-client-id", Email: "hans@nav.no"}, "attacker")
+		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusUnauthorized, rec.Body.String())
 		}
 	})
 
@@ -86,21 +105,7 @@ func TestRequireOwnershipIntegration(t *testing.T) {
 		)
 		mw := IdentityMiddleware(chain, true)
 
-		req := newRequest(&User{AZP: "my-copilot-client-id", Email: "hans@nav.no"}, "attacker") // header must be ignored
-		rec := httptest.NewRecorder()
-		mw(http.HandlerFunc(handler)).ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusOK, rec.Body.String())
-		}
-	})
-
-	t.Run("copilot-cli resolver not registered ignores X-On-Behalf-Of entirely", func(t *testing.T) {
-		// Chain has only a SAML resolver wired (equivalent to CopilotCLIClientID being unset).
-		chain := NewIdentityResolverChain(NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "hans"}))
-		mw := IdentityMiddleware(chain, true)
-
-		req := newRequest(&User{AZP: "copilot-cli-client-id", Email: "hans@nav.no"}, "attacker")
+		req := newRequest(&User{AZP: "my-copilot-client-id", Email: "hans@nav.no"}, "")
 		rec := httptest.NewRecorder()
 		mw(http.HandlerFunc(handler)).ServeHTTP(rec, req)
 
