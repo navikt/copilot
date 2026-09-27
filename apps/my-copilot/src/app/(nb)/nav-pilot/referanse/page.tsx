@@ -2,11 +2,11 @@ import { BodyLong, BodyShort, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { Suspense } from "react";
-import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell } from "@/components/aksel-table";
+import { Table, TableBody, TableRow, TableDataCell } from "@/components/aksel-table";
 import { CodeBlock } from "@/components/code-block";
 import { FileExplorer } from "@/components/file-explorer";
 import { LinkableHeading } from "@/components/linkable-heading";
-import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
+import { Bullets, DocPage, HeaderRow, code, linkClass } from "@/components/nav-pilot/doc-page";
 import { REFERENCE_PAGES } from "@/components/nav-pilot/doc-pages";
 import { LocalModelsTable } from "@/components/nav-pilot/local-model-tables";
 import type { TocItem } from "@/components/table-of-contents";
@@ -74,22 +74,6 @@ nav-pilot alpha local setup     # egen server: finner den, foreslår modell og s
 nav-pilot alpha local doctor    # egen server: sjekker verktøykall, logprobs, kontekst og tid til første token`;
 
 const nb = (n: number) => n.toLocaleString("nb-NO");
-
-// With stack, the roles keep the table semantics that the .table-stack CSS
-// (display: block on a phone) would otherwise drop.
-function HeaderRow({ cells, stack }: { cells: string[]; stack?: boolean }) {
-  return (
-    <TableHeader role={stack ? "rowgroup" : undefined}>
-      <TableRow role={stack ? "row" : undefined}>
-        {cells.map((c) => (
-          <TableHeaderCell key={c} scope="col" role={stack ? "columnheader" : undefined}>
-            {c}
-          </TableHeaderCell>
-        ))}
-      </TableRow>
-    </TableHeader>
-  );
-}
 
 async function LiveLocalModels() {
   const { models } = await getLocalModels();

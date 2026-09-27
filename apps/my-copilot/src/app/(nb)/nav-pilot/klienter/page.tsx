@@ -2,10 +2,10 @@ import { BodyLong, BodyShort, Box, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import type { ReactNode } from "react";
-import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell } from "@/components/aksel-table";
+import { Table, TableBody, TableRow, TableDataCell } from "@/components/aksel-table";
 import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
-import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
+import { Bullets, DocPage, HeaderRow, code, linkClass } from "@/components/nav-pilot/doc-page";
 import { REFERENCE_PAGES } from "@/components/nav-pilot/doc-pages";
 import type { TocItem } from "@/components/table-of-contents";
 
@@ -34,7 +34,7 @@ const CLIENTS = [
   {
     name: "copilot",
     tag: { text: "Standard", variant: "info" as const },
-    desc: "GitHub Copilot CLI, i cplt når den finnes. Agentpakka virker også i VS Code, JetBrains og på github.com.",
+    desc: "GitHub Copilot CLI, i sandkassen cplt når den er installert. Agentpakka virker også i VS Code, JetBrains og på github.com.",
   },
   {
     name: "opencode",
@@ -44,7 +44,7 @@ const CLIENTS = [
   {
     name: "pi",
     tag: { text: "Eksperimentell", variant: "warning" as const },
-    desc: "pi i cplt, med skills, agenter og AGENTS.md lagt inn ved oppstart. Mangler blant annet hooks.",
+    desc: "pi i cplt, med skills, persona og AGENTS.md lagt inn ved oppstart. Mangler blant annet hooks.",
   },
 ];
 
@@ -56,7 +56,11 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     copilot: "Ja",
     opencode: "Ja",
     pi: "Nei",
-    note: <>I opencode holdes verktøyresultatet tilbake hvis maskeringen feiler. Ikke med {c("--pure")}.</>,
+    note: (
+      <>
+        Feiler maskeringen i opencode, holder nav-pilot verktøyresultatet tilbake. Med {c("--pure")} kjører ingen hooks.
+      </>
+    ),
   },
   { what: "Løkkevakt", copilot: "Ja", opencode: "Ja", pi: "Nei" },
   {
@@ -64,29 +68,28 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     copilot: "Ja",
     opencode: "Ja",
     pi: "Nei",
-    note: "Gates fra repoet kjører i opencode uten at du først har godtatt mappen, slik Copilot krever.",
+    note: "Gates fra repoet kjører i opencode uten at du først har godtatt mappa, slik Copilot CLI krever.",
   },
   {
     what: <>{c("tools:")} i agentene</>,
     copilot: "Ja",
     opencode: "Ja, som permission per agent",
     pi: "Nei",
-    note: <>MCP-verktøy og {c("task")} blir ikke oversatt.</>,
+    note: <>nav-pilot oversetter ikke MCP-verktøy og {c("task")}.</>,
   },
   {
     what: "Navs MCP-register",
     copilot: "Ja, GitHub håndhever",
     opencode: "Ja, nav-pilot håndhever",
     pi: "Nei",
-    note: "Servere utenfor registeret slås av, og verktøyene deres blir avvist.",
+    note: "nav-pilot slår av servere utenfor registeret og avviser verktøyene deres.",
   },
   {
-    what: "Deling av, oppdatering som varsel",
+    what: "Deling slått av, oppdateringer som varsel",
     copilot: "Ikke aktuelt",
     opencode: "Ja, i hver økt",
     pi: "Ikke aktuelt",
   },
-  { what: "Testet versjon, med varsel og doctor", copilot: "–", opencode: OPENCODE_RANGE, pi: "–" },
   {
     what: <>Uten cplt ({c("--no-sandbox")}, CI)</>,
     copilot: "Ja",
@@ -101,7 +104,12 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     pi: "Nei",
     note: "Copilot CLI kjører en økt helt lokalt eller helt i skyen, aldri blandet.",
   },
-  { what: <>Stopp for {c("local_dispatch")} (balanced, aggressive)</>, copilot: "Nei", opencode: "Ja", pi: "Nei" },
+  {
+    what: <>Stopper hovedagenten som redigerer selv ({c("local_dispatch")} balanced og aggressive)</>,
+    copilot: "Nei",
+    opencode: "Ja",
+    pi: "Nei",
+  },
   { what: <>Egen server ({c("local_endpoint")})</>, copilot: "Ja, hele økten", opencode: "Ja", pi: "Nei" },
   {
     what: (
@@ -112,13 +120,12 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     copilot: "Ja",
     opencode: "Nei",
     pi: "Nei",
-    note: "nav-pilot advarer ved oppstart.",
+    note: "nav-pilot advarer ved oppstart, én advarsel per innstilling.",
   },
   { what: "Utvidelser (extensions) for Copilot CLI", copilot: "Ja", opencode: "Nei", pi: "Nei" },
-  { what: "Veiledning for WSL2", copilot: "Ja", opencode: "Ja", pi: "–" },
 ];
 
-const MCP_WARNING = `⚠ MCP servers turned off for this session (not in Nav's MCP registry): <navn>. See ki-utvikling.nav.no/verktoy (approved servers); to add one: github.com/navikt/copilot/blob/main/apps/mcp-registry/README.md#adding-servers`;
+const MCP_WARNING = `⚠ MCP servers turned off for this session (not in Nav's MCP registry): <navn>. See https://ki-utvikling.nav.no/verktoy (approved servers); to add one: https://github.com/navikt/copilot/blob/main/apps/mcp-registry/README.md#adding-servers`;
 
 function Section({ children }: { children: ReactNode }) {
   return (
@@ -150,15 +157,7 @@ export default function Klienter() {
         </BodyLong>
         <div className="overflow-x-auto">
           <Table size="small" className="table-stack" role="table">
-            <TableHeader role="rowgroup">
-              <TableRow role="row">
-                {["Klient", "Status", "Hva du får"].map((h) => (
-                  <TableHeaderCell key={h} scope="col" role="columnheader">
-                    {h}
-                  </TableHeaderCell>
-                ))}
-              </TableRow>
-            </TableHeader>
+            <HeaderRow stack cells={["Klient", "Status", "Hva du får"]} />
             <TableBody role="rowgroup">
               {CLIENTS.map((k) => (
                 <TableRow role="row" key={k.name}>
@@ -189,15 +188,7 @@ export default function Klienter() {
         </BodyLong>
         <div className="overflow-x-auto">
           <Table size="small" className="table-stack" role="table">
-            <TableHeader role="rowgroup">
-              <TableRow role="row">
-                {cols.map((h) => (
-                  <TableHeaderCell key={h} scope="col" role="columnheader">
-                    {h}
-                  </TableHeaderCell>
-                ))}
-              </TableRow>
-            </TableHeader>
+            <HeaderRow stack cells={cols} />
             <TableBody role="rowgroup">
               {PARITY.map((r, i) => (
                 <TableRow role="row" key={i}>
@@ -230,8 +221,13 @@ export default function Klienter() {
           Navs MCP-register
         </LinkableHeading>
         <BodyLong>
-          Nav tillater bare MCP-servere som står i Navs MCP-register. Copilot CLI spør GitHub om policyen og kjører bare
-          serverne registeret lister. opencode spør ingen, så nav-pilot gjør det samme når den starter opencode:
+          MCP-servere gir agenten verktøy utenfor klienten, for eksempel Playwright eller GitHub. Nav tillater bare
+          servere som står i Navs MCP-register, lista over godkjente servere (se{" "}
+          <NextLink href="/verktoy?type=mcp" className={linkClass}>
+            verktøykatalogen
+          </NextLink>
+          ). Copilot CLI spør GitHub om policyen og kjører bare serverne registeret lister. opencode har ingen slik
+          sjekk, så nav-pilot gjør den når den starter opencode:
         </BodyLong>
         <Bullets>
           <li>
@@ -241,25 +237,32 @@ export default function Klienter() {
             {c("OPENCODE_CONFIG_DIR")} og {c("OPENCODE_CONFIG_CONTENT")}.
           </li>
           <li>
-            Den spør GitHub, som deg ({c("gh api /copilot/mcp_registry")}), hvilket register policyen peker på, og
-            henter lista derfra.
+            Den spør GitHub med din gh-innlogging ({c("gh api /copilot/mcp_registry")}) hvilket register policyen peker
+            på, og henter lista derfra.
           </li>
           <li>
             Hver server som er på og ikke står i registeret, slås av for økten med {c('"enabled": false')}. En ekstern
             server må ha samme URL som i registeret. En lokal server må starte en pakke registeret lister, for eksempel{" "}
             {c("npx @playwright/mcp")}.
           </li>
-          <li>Kobler du til en avslått server med {c("/mcp")} i økten, blir verktøyene dens avvist likevel.</li>
+          <li>
+            Kobler du til en avslått server med {c("/mcp")} i økten, blir verktøyene dens avvist likevel. Det gjør
+            hooks-pluginen, så med {c("--pure")} kan serveren kobles til og brukes. nav-pilot advarer om det ved
+            oppstart.
+          </li>
         </Bullets>
         <BodyLong>
-          nav-pilot endrer ikke {c("opencode.json")}, og opencode du starter uten nav-pilot, blir ikke berørt. Ved
-          oppstart ser du hvilke servere som ble slått av:
+          MCP-oppføringene i {c("opencode.json")} rører nav-pilot ikke, og opencode du starter uten nav-pilot, blir ikke
+          berørt. Ved oppstart ser du hvilke servere som ble slått av:
         </BodyLong>
-        <CodeBlock compact>{MCP_WARNING}</CodeBlock>
+        {/* The URLs have no break points; let them wrap on a phone. */}
+        <div className="[&_pre]:[overflow-wrap:anywhere]">
+          <CodeBlock compact>{MCP_WARNING}</CodeBlock>
+        </div>
         <BodyLong>
-          {c("nav-pilot doctor")} viser det samme før du starter. Har du ingen MCP-servere, spør nav-pilot ikke nettet.
-          Mangler {c("gh")}, eller svarer ikke GitHub eller registeret, slår nav-pilot ingenting av. Da får du en
-          advarsel, og serverne kjører som du har satt dem opp.
+          {c("nav-pilot doctor")} viser det samme før du starter. Har du ingen MCP-servere, gjør nav-pilot ingen
+          nettkall. Mangler {c("gh")}, eller svarer ikke GitHub eller registeret, slår nav-pilot ingenting av. Da får du
+          en advarsel, og serverne kjører som du har satt dem opp.
         </BodyLong>
         <LinkableHeading id="legg-til-server" size="small" level="3">
           Få en server inn i registeret
@@ -269,8 +272,8 @@ export default function Klienter() {
           <NextLink href="/verktoy" className={linkClass}>
             verktøykatalogen
           </NextLink>
-          . Mangler serveren du trenger, legger du den til i {c("apps/mcp-registry/allowlist.json")} og lager en pull
-          request. Den må gjennom en sikkerhetsgjennomgang. Hvordan du skriver oppføringen, står i{" "}
+          . Mangler serveren du trenger, legger du den til i {c("apps/mcp-registry/allowlist.json")} i navikt/copilot og
+          lager en pull request. Den må gjennom en sikkerhetsgjennomgang. Hvordan du skriver oppføringen, står i{" "}
           <a href={`${GH}/blob/main/apps/mcp-registry/README.md#adding-servers`} className={linkClass}>
             README for MCP-registeret
           </a>
@@ -299,7 +302,7 @@ export default function Klienter() {
           <li>pi starter ikke.</li>
           <li>
             En agentpakke i Tier 2 starter ikke, uansett klient. Tier 2 vil si at pakka har ferdigbygde filer som
-            nav-pilot sjekker mot en digest og låser per bruker, se{" "}
+            nav-pilot sjekker mot en digest og pinner som én revisjon per bruker, se{" "}
             <NextLink href="/nav-pilot/agentpakker#hvilken-tier" className={linkClass}>
               Hvilken tier
             </NextLink>
@@ -333,8 +336,8 @@ export default function Klienter() {
         </LinkableHeading>
         <BodyLong>
           nav-pilot er testet mot opencode {c(OPENCODE_RANGE)}. Er versjonen din utenfor, skriver nav-pilot en advarsel
-          og starter likevel. Hooks, stoppet for utsending og øktpolicyen virker da kanskje ikke som beskrevet her.{" "}
-          {c("nav-pilot doctor")} viser versjonen og om den er testet.
+          og starter likevel. Hooks, utsendingsstoppet og innstillingene nav-pilot setter per økt, virker da kanskje
+          ikke som beskrevet her. {c("nav-pilot doctor")} viser versjonen og om den er testet.
         </BodyLong>
         <LinkableHeading id="deling-og-oppdatering" size="small" level="3">
           Deling og oppdatering
@@ -344,7 +347,9 @@ export default function Klienter() {
           {c("opencode.json")} sier. Deling ville lastet opp økten til opencode.ai. Oppdateringer kommer som varsel, så
           du ikke får en versjon utenfor det testede området midt i en økt. I tillegg setter nav-pilot{" "}
           {c('"share": "disabled"')} i {c("~/.config/opencode/opencode.json")} når fila ikke sier noe om deling, så det
-          gjelder også når du starter opencode selv. Står det {c('"auto"')} der, får du en advarsel.
+          gjelder også når du starter opencode selv. Det skjer når nav-pilot starter en agentpakke i Tier 1 og i
+          oppsettet, ikke med Tier 2, som aldri skriver i {c("~/.config/opencode/")}. Står det {c('"auto"')} der, får du
+          en advarsel.
         </BodyLong>
         <LinkableHeading id="utsending" size="small" level="3">
           Lokal utsending
@@ -366,7 +371,9 @@ export default function Klienter() {
         </LinkableHeading>
         <BodyLong>
           {c("mode = autopilot")}, {c("context_tier")}, {c("ask_user")} og utvidelser (extensions) finnes bare i Copilot
-          CLI. Har du satt dem og bruker opencode, skriver nav-pilot én advarsel. En lokal modell tar hele økten, se{" "}
+          CLI. Har du satt en av de tre innstillingene og bruker opencode, skriver nav-pilot én advarsel per
+          innstilling. For utvidelser kommer ingen advarsel. I Copilot CLI tar en lokal modell hele økten, uten
+          utsending, se{" "}
           <NextLink href="/nav-pilot/lokal" className={linkClass}>
             Lokal modell på Mac
           </NextLink>
@@ -396,14 +403,15 @@ export default function Klienter() {
         <Bullets>
           <li>Hooks: ingen maskering, ingen løkkevakt og ingen gates.</li>
           <li>
-            {c("--agent")}: pi har ikke agenter. Personaen blir en del av systemprompten, og {c("tools:")} gjelder ikke.
+            {c("--agent")}: pi kan ikke bytte agent. Personaen blir en del av systemprompten, og {c("tools:")} gjelder
+            ikke.
           </li>
           <li>
             Lokal modell: ingen utsending til {c("local-worker")}, ingen {c("local_dispatch")} og ingen{" "}
             {c("local_endpoint")}.
           </li>
           <li>Sjekk mot Navs MCP-register.</li>
-          <li>Start uten cplt. pi krever både pi og cplt.</li>
+          <li>Start uten cplt. pi starter bare i sandkassen.</li>
           <li>
             Innstillinger som ikke sendes videre, med en advarsel: {c("mode")}, {c("reasoning_effort")},{" "}
             {c("context_tier")}, {c("allow_all_tools")}, {c("ask_user")} og {c("log_level")}.
@@ -422,18 +430,13 @@ export default function Klienter() {
           <li>{c("--pure")}: opencode laster ingen plugins, så ingen hooks kjører. nav-pilot sier fra ved oppstart.</li>
           <li>Vedlegg som bilder og PDF-er går til modellen uten maskering. Maskeringen virker på tekst.</li>
           <li>
-            Kodemodus ({c("experimentalCodeMode")}): et program ser deler av et MCP-svar før maskeringen. Det programmet
-            returnerer, blir maskert.
-          </li>
-          <li>Terminalen viser deg utdata uten maskering, som i Copilot. Maskeringen gjelder det modellen leser.</li>
-          <li>Økten kan skrive i mappen der hookene holder rede på tilstand, som i Copilot.</li>
-          <li>
-            MCP-servere lagt til midt i en økt, konfig fra en {c(".well-known/opencode")}-adresse eller en organisasjon
-            du har logget inn i, og administrerte innstillinger på macOS blir ikke sjekket mot registeret.
+            nav-pilot sjekker ikke disse mot registeret: en server du legger til midt i økten og som ikke sto i konfigen
+            ved oppstart, konfig fra en {c(".well-known/opencode")}-adresse eller en organisasjon du har logget inn i,
+            og administrerte innstillinger på macOS.
           </li>
         </Bullets>
         <BodyShort size="small" textColor="subtle">
-          Detaljene står i{" "}
+          Resten, blant annet kodemodus og hva terminalen viser, står i{" "}
           <a href={`${GH}/blob/main/cli/nav-pilot/docs/opencode-hooks.md`} className={linkClass}>
             opencode-hooks.md
           </a>
