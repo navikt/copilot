@@ -56,22 +56,19 @@ func openCodeConfigDir() string {
 	return filepath.Join(home, ".config", "opencode")
 }
 
-// openCodeNavContextDir returns the directory for Nav context materialization.
-// Always uses the user-global opencode config dir (~/.config/opencode/) so Nav
-// context is available across all repos regardless of whether the developer
-// is inside a git repo or has run `nav-pilot export opencode` manually before.
+// openCodeNavContextDir returns the directory for Nav context materialization:
+// opencode's user config directory, so Nav context is available across all
+// repos. It is openCodeConfigDir, XDG_CONFIG_HOME included: materialized under
+// ~/.config/opencode while opencode reads $XDG_CONFIG_HOME/opencode, the persona,
+// skills and agents (local-worker among them) were written where the session
+// never looks, and cplt, which grants only the directory opencode reads, denied
+// it the other one.
 // Honors NavContextDirOverride (test seam).
-// Falls back to os.TempDir() when the home directory cannot be resolved so the
-// returned path is always absolute.
 func openCodeNavContextDir() string {
 	if NavContextDirOverride != "" {
 		return NavContextDirOverride
 	}
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		return filepath.Join(os.TempDir(), "nav-pilot", ".config", "opencode")
-	}
-	return filepath.Join(home, ".config", "opencode")
+	return openCodeConfigDir()
 }
 
 // openCodeRuntimeGitignore is the exact content OpenCode writes to
