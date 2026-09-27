@@ -257,16 +257,28 @@ func Reassemble(fm, body []byte) []byte {
 	return buf.Bytes()
 }
 
-// ExtractFrontmatterList reads a top-level YAML list: a block ("key:" then
-// "  - item" lines) or a flow list ("key: [a, 'b']"). ok is false when the key
-// is absent.
+// ExtractFrontmatterList reads a top-level YAML list of plain strings, in the
+// shapes agent files use: a block list (indented or not), a flow list over
+// one line or several, or a comma-separated string. A ` #` comment is dropped.
+// ok is false when the key is absent or has no value (YAML null), which a
+// caller should treat as unset; `key: []` is ok with no items.
 func ExtractFrontmatterList(fm []byte, key string) (items []string, ok bool) {
-	unquote := func(s string) string {
+	clean := func(s string) string {
+		if i := strings.Index(s, " #"); i >= 0 {
+			s = s[:i]
+		}
 		s = strings.TrimSpace(s)
 		if len(s) >= 2 && (s[0] == '"' || s[0] == '\'') && s[len(s)-1] == s[0] {
-			return s[1 : len(s)-1]
+			s = s[1 : len(s)-1]
 		}
 		return s
+	}
+	split := func(s string) {
+		for _, it := range strings.Split(s, ",") {
+			if it = clean(it); it != "" {
+				items = append(items, it)
+			}
+		}
 	}
 	lines := strings.Split(string(fm), "\n")
 	for i, line := range lines {
@@ -274,66 +286,81 @@ func ExtractFrontmatterList(fm []byte, key string) (items []string, ok bool) {
 		if !found {
 			continue
 		}
-		if rest = strings.TrimSpace(rest); strings.HasPrefix(rest, "[") {
-			for _, it := range strings.Split(strings.Trim(rest, "[]"), ",") {
-				if it = unquote(it); it != "" {
-					items = append(items, it)
-				}
+		rest = clean(rest)
+		switch {
+		case strings.HasPrefix(rest, "["):
+			flow := rest
+			for j := i + 1; !strings.Contains(flow, "]") && j < len(lines); j++ {
+				flow += "," + clean(lines[j])
 			}
+			flow, _, _ = strings.Cut(strings.TrimPrefix(flow, "["), "]")
+			split(flow)
+			return items, true
+		case rest != "":
+			split(rest)
 			return items, true
 		}
 		for _, next := range lines[i+1:] {
 			t := strings.TrimSpace(next)
-			item, isItem := strings.CutPrefix(t, "- ")
-			if !isItem || next == t {
+			if t == "" || strings.HasPrefix(t, "#") {
+				continue
+			}
+			item, isItem := strings.CutPrefix(t, "-")
+			if !isItem {
 				break
 			}
-			items = append(items, unquote(item))
+			if item = clean(item); item != "" {
+				items = append(items, item)
+			}
 		}
-		return items, true
+		return items, len(items) > 0
 	}
 	return nil, false
 }
 
 // openCodeToolKeys maps each OpenCode permission key nav-pilot controls to the
-// Copilot tool names (and aliases) that grant it. A Copilot agent's tools: is
-// an allowlist, so a key none of its entries grants is denied. OpenCode keys
-// left out are not Copilot's to decide: question, skill, lsp, doom_loop,
-// external_directory. task is left out on purpose: OpenCode's local worker
-// is a task, and denying it would take local dispatch from a persona that has
-// it today. MCP tools are left out because OpenCode names them after the
-// user's own server key, which the agent file cannot know.
+// Copilot tool names (and aliases, case-insensitive) that grant it. A Copilot
+// agent's tools: is an allowlist, so a key none of its entries grants is
+// denied. OpenCode keys left out are not decided here:
+//   - question, skill, lsp, doom_loop, external_directory: Copilot's tools:
+//     has no say over them.
+//   - task: OpenCode's local worker is a task, and denying it would take local
+//     dispatch from a persona that has it today. OpenCode already denies task
+//     inside a subagent's session.
+//   - websearch: no shipped agent lists it, so denying it would take web search
+//     from every Nav agent at once.
+//   - MCP tools: OpenCode names them after the user's own server key, which
+//     the agent file cannot know.
 var openCodeToolKeys = []struct {
 	key   string
 	grant []string
 }{
 	{"bash", []string{"execute", "shell", "bash", "powershell"}},
-	{"read", []string{"read", "view"}},
-	{"list", []string{"read", "view"}},
-	{"edit", []string{"edit", "write", "create"}},
+	{"read", []string{"read", "view", "notebookread"}},
+	{"edit", []string{"edit", "write", "create", "multiedit", "notebookedit"}},
 	{"grep", []string{"grep", "search"}},
 	{"glob", []string{"glob", "search"}},
-	{"webfetch", []string{"web_fetch", "fetch", "web"}},
-	{"websearch", []string{"web_search", "web"}},
-	{"todowrite", []string{"todo"}},
+	{"webfetch", []string{"web_fetch", "webfetch", "fetch", "web"}},
+	{"todowrite", []string{"todo", "todowrite"}},
 }
 
 // OpenCodeToolPermission is the permission block for a Copilot agent's tools:
 // list, as frontmatter lines, or nil when it restricts nothing OpenCode has.
-// A shell entry with a command pattern ("shell(git:*)") allows that command
-// and denies the rest.
+// "*" is every tool, as in Copilot. A shell entry with a command pattern
+// ("shell(git:*)") allows that command, with any arguments, and denies other
+// shell commands.
 func OpenCodeToolPermission(tools []string) []byte {
 	granted := map[string]bool{}
 	var bashPatterns []string
 	for _, t := range tools {
 		t = strings.ToLower(strings.TrimSpace(t))
+		if t == "*" {
+			return nil
+		}
 		name, arg, hasArg := strings.Cut(strings.TrimSuffix(t, ")"), "(")
 		if hasArg && slices.Contains(openCodeToolKeys[0].grant, name) {
-			cmd := strings.TrimSpace(strings.TrimSuffix(arg, ":*"))
-			bashPatterns = append(bashPatterns, cmd)
-			if strings.HasSuffix(arg, ":*") {
-				bashPatterns = append(bashPatterns, cmd+" *")
-			}
+			// OpenCode reads a trailing " *" as "and any arguments, or none".
+			bashPatterns = append(bashPatterns, strings.TrimSpace(strings.TrimSuffix(arg, ":*"))+" *")
 			continue
 		}
 		granted[t] = true
