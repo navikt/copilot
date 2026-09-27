@@ -329,7 +329,7 @@ jobs:
 
           The nav-pilot docs page reads the manifest at run time and already shows the change. This PR only refreshes the fallback copy the page renders when that fetch fails or the manifest does not validate.
 
-          While here, check the page: a new model needs a Norwegian description in \`LOCAL_MODEL_TEXT\` in \`apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx\` (until then it shows the English role with a note), and a changed number can leave the prose on that page or in \`docs/README.nav-pilot.md\` behind.
+          While here, check the page: a new model needs a Norwegian description in \`LOCAL_MODEL_TEXT\` in \`apps/my-copilot/src/components/nav-pilot/local-model-tables.tsx\` (until then it shows the English role with a note), and a changed number can leave the prose on /nav-pilot/referanse, /nav-pilot/forklaring/lokal-modell or in \`docs/README.nav-pilot.md\` behind.
 
           Push corrections straight onto this branch. The daily check builds on what is here rather than replacing it.
 

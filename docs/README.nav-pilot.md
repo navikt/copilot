@@ -325,7 +325,7 @@ med andre som trenger den.
 
 ### Sikkerhetsnivå, strict og logging
 
-Står på [ki-utvikling.nav.no/nav-pilot/docs](https://ki-utvikling.nav.no/nav-pilot/docs): hva `sandbox.preset = strict` låser, hvorfor
+Står på [ki-utvikling.nav.no/nav-pilot/forklaring/sandkassen](https://ki-utvikling.nav.no/nav-pilot/forklaring/sandkassen): hva `sandbox.preset = strict` låser, hvorfor
 presetet skal settes via `nav-pilot config` og ikke for hånd, når strict ikke anbefales på Linux,
 og hva `proxy.log_level` faktisk logger.
 
@@ -542,7 +542,7 @@ men de er mye tregere. 8-bit løste litt flere oppgaver enn standard i siste må
 mange ganger så lang tid.
 
 Kontekst, svarlengde, minnekrav, vekter og minste nav-pilot-versjon for hver modell står i
-[tabellen på ki-utvikling.nav.no](https://ki-utvikling.nav.no/nav-pilot/docs#lokal-modeller).
+[tabellen på ki-utvikling.nav.no](https://ki-utvikling.nav.no/nav-pilot/referanse#lokale-modeller).
 Den hentes fra [modellmanifestet](https://github.com/navikt/mlx-workspace/blob/main/manifest/models.json),
 det samme nav-pilot leser, så tallene står ikke her. Målingene bak står i
 [MODELS.md](https://github.com/navikt/mlx-workspace/blob/main/MODELS.md).
@@ -702,7 +702,7 @@ Manifestet sier for hver modell hvilke oppgavetyper hovedagenten kan sende til d
 standardmodellen er det bare mekaniske endringer over flere filer, sendt fra en skyagent. Svar og
 forklaringer om kode, endringer i én fil, nye filer og feilsøking blir i skyen. Qwen 3.8-modellene
 har ingen godkjent oppgavetype ennå. Den gjeldende lista står i
-[tabellen på ki-utvikling.nav.no](https://ki-utvikling.nav.no/nav-pilot/docs#lokal-hva-den-klarer).
+[tabellen på ki-utvikling.nav.no](https://ki-utvikling.nav.no/nav-pilot/forklaring/lokal-modell#malte-grenser).
 
 Tiden varierer: fra omtrent som skyen på små endringer til rundt fire ganger så lenge på en omdøping. På den største mekaniske endringen vi målte var den raskere enn skyen.
 
@@ -885,30 +885,30 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 <!-- config-keys:start -->
 | Nøkkel | CLI-flagg | Verdier | Beskrivelse |
 | --- | --- | --- | --- |
-| `version` | — | 1 | Skjemaversjon. Mangler den, leses filen som versjon 1, og nav-pilot sier fra med én linje. |
-| `client` | --client | copilot · opencode · pi (standard: copilot) | Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen. Mangler cplt, spør nav-pilot i terminalen om copilot eller opencode skal starte uten sandkasse (standard nei). Uten terminal, for eksempel i CI, starter de bare med --no-sandbox. |
-| `source` | --source | owner/name eller en absolutt sti (standard: navikt/copilot) | Hvor agentpakken hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source --save-source; nav-pilot config unset source går tilbake til standarden. |
+| `version` | — | 1 | Skjemaversjon. Mangler den, leses fila som versjon 1, og nav-pilot sier fra med én linje. |
+| `client` | --client | copilot · opencode · pi (standard: copilot) | Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen når cplt finnes. Mangler cplt, spør nav-pilot i terminalen om copilot eller opencode skal starte uten sandkasse (standard nei). Uten terminal, for eksempel i CI, starter de bare med --no-sandbox. |
+| `source` | --source | owner/name eller en absolutt sti (standard: navikt/copilot) | Hvor agentpakka hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source --save-source; nav-pilot config unset source går tilbake til standarden. |
 | `model` | --model | modell-id, f.eks. claude-opus-4.8 | Modell å bruke. En Copilot-id som claude-opus-4.8 virker for copilot og opencode (opencode kjører den som github-copilot/&lt;id&gt;); opencode tar også provider/model. nav-pilot config explain model lister id-ene. |
-| `mode` | --mode | default · plan · autopilot (standard: default) | Modus for Copilot-agenten. plan tilsvarer opencode --agent plan; autopilot er kun Copilot. |
+| `mode` | --mode | default · plan · autopilot (standard: default) | Modus for Copilot-agenten. plan tilsvarer opencode --agent plan; autopilot er bare Copilot. |
 | `reasoning_effort` | --effort | none · low · medium · high · xhigh · max | Resonneringsinnsats. Copilot bruker --effort, opencode bruker --variant. |
-| `context_tier` | --context | default · long_context | Kontekstnivå. Kun Copilot, og nav-pilot advarer om feltet er satt for opencode. |
+| `context_tier` | --context | default · long_context | Kontekstnivå. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode. |
 | `allow_all_tools` | --allow-all-tools / --no-allow-all-tools | true · false (standard: false) | La agenten kjøre alle verktøy uten å spørre først. |
-| `ask_user` | --ask-user / --no-ask-user | true · false (standard: true) | La agenten stoppe og spørre deg. Kun Copilot, og nav-pilot advarer om feltet er satt for opencode. |
-| `auto_launch` | --auto-launch / --no-auto-launch | true · false (standard: true) | Start kodeagenten etter synk eller installasjon. Med false skriver nav-pilot bare ut kommandoen. |
+| `ask_user` | --ask-user / --no-ask-user | true · false (standard: true) | La agenten stoppe og spørre deg. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode. |
+| `auto_launch` | --auto-launch / --no-auto-launch | true · false (standard: true) | Start klienten etter sync eller installasjon. Med false skriver nav-pilot bare ut kommandoen. |
 | `auto_update` | — | true · false (standard: false) | Oppgrader nav-pilot automatisk når en ny versjon er ute, uten å spørre. Feiler oppgraderingen, kjører kommandoen på versjonen du har, og neste forsøk kommer etter 24 timer. |
 | `surveys` | — | true · false (standard: true) | Spør av og til, etter en økt, om du vil svare på en kort brukerundersøkelse (høyst tre ganger per undersøkelse). Med false spør nav-pilot aldri. DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false slår det også av. |
 | `log_level` | --log-level | none · error · warning · info · debug · all · default | Loggnivå for Copilot CLI. |
 | `otel_log_level` | --otel-log-level | none · error · warning · warn · info · debug · verbose · all (standard: none) | Loggnivå for OpenTelemetry i Copilot CLI (OTEL_LOG_LEVEL). En OTEL_LOG_LEVEL i skallet vinner, og config show merker den env. |
-| `local_enabled` | — | true · false (standard: false) | Send avgrensede oppgaver til en lokal modell (alfa). Settes av alpha local init, nullstilles av alpha local off. Så lenge den er false finnes ingen lokale modeller i nav-pilot. |
-| `local_autostart` | — | true · false (standard: false) | La en vanlig nav-pilot starte den lokale serveren når den trengs og ingen kjører. Av som standard: å starte en 21 GB prosess uten å bli bedt om det er ikke greit. |
+| `local_enabled` | — | true · false (standard: false) | Send avgrensede oppgaver til en lokal modell (alfa). Settes av alpha local init, nullstilles av alpha local off. Så lenge den er false, ser nav-pilot ingen lokale modeller. |
+| `local_autostart` | — | true · false (standard: false) | La en vanlig nav-pilot starte den lokale serveren når den trengs og ingen kjører. Av som standard: en prosess på 21 GB skal ikke starte uten at du har bedt om det. |
 | `local_loop_guard` | — | et heltall (standard: 8) | Hvor mange identiske verktøykall på rad som avslutter en lokal tur, uansett hva de returnerer. Gir kallene samme resultat hver gang, holder det med halvparten (minst 2). |
-| `local_model` | — | modell-id fra manifestet | Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Enklest satt med nav-pilot alpha local use &lt;key&gt;. |
+| `local_model` | — | modell-id fra manifestet | Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Sett den med nav-pilot alpha local use &lt;key&gt;. |
 | `local_endpoint` | — | en http(s)-URL | Din egen OpenAI-kompatible server (Ollama, llama-server), f.eks. http://127.0.0.1:11434/v1 (alfa, uten støtte, ikke målt). Da laster nav-pilot ikke ned og starter ingenting. Bare localhost og private IP-adresser. Sjekk den med nav-pilot alpha local doctor. |
 | `local_endpoint_model` | — | modell-id på serveren | Modell-id-en local_endpoint skal bruke, f.eks. qwen3.6:35b. Påkrevd sammen med local_endpoint. |
-| `local_dispatch` | --local-dispatch | off · conservative · balanced · aggressive (standard: balanced) | Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer, ti redigeringer eller en skriptet løkke. Med aggressive slipper den gjennom først når filen er sendt til den lokale modellen, og det samme gjelder nye filer. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for. |
+| `local_dispatch` | --local-dispatch | off · conservative · balanced · aggressive (standard: balanced) | Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer, ti redigeringer eller en skriptet løkke. Med aggressive slipper den gjennom først når fila er sendt til den lokale modellen, og det samme gjelder nye filer. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for. |
 | `hook_loop_guard` | — | true · false (standard: true) | Samme løkkeregel i alle Copilot CLI-økter, også i skyen: en postToolUse-hook i ~/.copilot/hooks/ sier fra til modellen når den står fast. false fjerner hooken ved neste oppstart. |
 | `hook_redact_secrets` | — | true · false (standard: true) | Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-økter. |
-| `hook_redact_fnr` | — | true · false (standard: true) | Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. Bare elleve sifre der datoen og begge kontrollsifrene stemmer blir maskert. |
+| `hook_redact_fnr` | — | true · false (standard: true) | Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. nav-pilot maskerer bare elleve sifre der datoen og begge kontrollsifrene stemmer. |
 | `hook_injection_note` | — | true · false (standard: true) | Sett en merknad foran verktøyresultater som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører), så modellen behandler dem som data. Stopper ingenting. |
 | `copilot_auth_mode` | — | auto · env_only · gh_only (standard: auto) | Hvilken innlogging som når cplt for Copilot. auto begrenser ingenting; env_only krever et token i GH_TOKEN, GITHUB_TOKEN eller COPILOT_GITHUB_TOKEN; gh_only fjerner dem. |
 <!-- config-keys:end -->

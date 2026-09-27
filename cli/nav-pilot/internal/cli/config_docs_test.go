@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-// The key tables on the docs page and in docs/README.nav-pilot.md are made
+// The key tables on /nav-pilot/referanse and in docs/README.nav-pilot.md are made
 // from configKeyDefs: which keys exist, their flags, allowed values and
 // defaults. Only the Norwegian prose is written by hand, below. When this test
 // fails, run
@@ -23,36 +23,36 @@ import (
 var updateConfigDocs = flag.Bool("update-config-docs", false, "rewrite the config key tables in the docs")
 
 var (
-	configDocsPage   = filepath.Join("..", "..", "..", "..", "apps", "my-copilot", "src", "app", "(nb)", "nav-pilot", "docs", "page.tsx")
+	configDocsPage   = filepath.Join("..", "..", "..", "..", "apps", "my-copilot", "src", "app", "(nb)", "nav-pilot", "referanse", "data.ts")
 	configDocsReadme = filepath.Join("..", "..", "..", "..", "docs", "README.nav-pilot.md")
 )
 
 // configKeyDocNB is each user-facing key's description on the Norwegian docs.
 var configKeyDocNB = map[string]string{
-	"version":              "Skjemaversjon. Mangler den, leses filen som versjon 1, og nav-pilot sier fra med én linje.",
-	"client":               "Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen. Mangler cplt, spør nav-pilot i terminalen om copilot eller opencode skal starte uten sandkasse (standard nei). Uten terminal, for eksempel i CI, starter de bare med --no-sandbox.",
-	"source":               "Hvor agentpakken hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source --save-source; nav-pilot config unset source går tilbake til standarden.",
+	"version":              "Skjemaversjon. Mangler den, leses fila som versjon 1, og nav-pilot sier fra med én linje.",
+	"client":               "Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen når cplt finnes. Mangler cplt, spør nav-pilot i terminalen om copilot eller opencode skal starte uten sandkasse (standard nei). Uten terminal, for eksempel i CI, starter de bare med --no-sandbox.",
+	"source":               "Hvor agentpakka hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source --save-source; nav-pilot config unset source går tilbake til standarden.",
 	"model":                "Modell å bruke. En Copilot-id som claude-opus-4.8 virker for copilot og opencode (opencode kjører den som github-copilot/<id>); opencode tar også provider/model. nav-pilot config explain model lister id-ene.",
-	"mode":                 "Modus for Copilot-agenten. plan tilsvarer opencode --agent plan; autopilot er kun Copilot.",
+	"mode":                 "Modus for Copilot-agenten. plan tilsvarer opencode --agent plan; autopilot er bare Copilot.",
 	"reasoning_effort":     "Resonneringsinnsats. Copilot bruker --effort, opencode bruker --variant.",
-	"context_tier":         "Kontekstnivå. Kun Copilot, og nav-pilot advarer om feltet er satt for opencode.",
+	"context_tier":         "Kontekstnivå. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode.",
 	"allow_all_tools":      "La agenten kjøre alle verktøy uten å spørre først.",
-	"ask_user":             "La agenten stoppe og spørre deg. Kun Copilot, og nav-pilot advarer om feltet er satt for opencode.",
-	"auto_launch":          "Start kodeagenten etter synk eller installasjon. Med false skriver nav-pilot bare ut kommandoen.",
+	"ask_user":             "La agenten stoppe og spørre deg. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode.",
+	"auto_launch":          "Start klienten etter sync eller installasjon. Med false skriver nav-pilot bare ut kommandoen.",
 	"auto_update":          "Oppgrader nav-pilot automatisk når en ny versjon er ute, uten å spørre. Feiler oppgraderingen, kjører kommandoen på versjonen du har, og neste forsøk kommer etter 24 timer.",
 	"surveys":              "Spør av og til, etter en økt, om du vil svare på en kort brukerundersøkelse (høyst tre ganger per undersøkelse). Med false spør nav-pilot aldri. DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false slår det også av.",
 	"log_level":            "Loggnivå for Copilot CLI.",
 	"otel_log_level":       "Loggnivå for OpenTelemetry i Copilot CLI (OTEL_LOG_LEVEL). En OTEL_LOG_LEVEL i skallet vinner, og config show merker den env.",
-	"local_enabled":        "Send avgrensede oppgaver til en lokal modell (alfa). Settes av alpha local init, nullstilles av alpha local off. Så lenge den er false finnes ingen lokale modeller i nav-pilot.",
-	"local_autostart":      "La en vanlig nav-pilot starte den lokale serveren når den trengs og ingen kjører. Av som standard: å starte en 21 GB prosess uten å bli bedt om det er ikke greit.",
+	"local_enabled":        "Send avgrensede oppgaver til en lokal modell (alfa). Settes av alpha local init, nullstilles av alpha local off. Så lenge den er false, ser nav-pilot ingen lokale modeller.",
+	"local_autostart":      "La en vanlig nav-pilot starte den lokale serveren når den trengs og ingen kjører. Av som standard: en prosess på 21 GB skal ikke starte uten at du har bedt om det.",
 	"local_loop_guard":     "Hvor mange identiske verktøykall på rad som avslutter en lokal tur, uansett hva de returnerer. Gir kallene samme resultat hver gang, holder det med halvparten (minst 2).",
-	"local_model":          "Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Enklest satt med nav-pilot alpha local use <key>.",
+	"local_model":          "Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Sett den med nav-pilot alpha local use <key>.",
 	"local_endpoint":       "Din egen OpenAI-kompatible server (Ollama, llama-server), f.eks. http://127.0.0.1:11434/v1 (alfa, uten støtte, ikke målt). Da laster nav-pilot ikke ned og starter ingenting. Bare localhost og private IP-adresser. Sjekk den med nav-pilot alpha local doctor.",
 	"local_endpoint_model": "Modell-id-en local_endpoint skal bruke, f.eks. qwen3.6:35b. Påkrevd sammen med local_endpoint.",
-	"local_dispatch":       "Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer, ti redigeringer eller en skriptet løkke. Med aggressive slipper den gjennom først når filen er sendt til den lokale modellen, og det samme gjelder nye filer. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for.",
+	"local_dispatch":       "Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer, ti redigeringer eller en skriptet løkke. Med aggressive slipper den gjennom først når fila er sendt til den lokale modellen, og det samme gjelder nye filer. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for.",
 	"hook_loop_guard":      "Samme løkkeregel i alle Copilot CLI-økter, også i skyen: en postToolUse-hook i ~/.copilot/hooks/ sier fra til modellen når den står fast. false fjerner hooken ved neste oppstart.",
 	"hook_redact_secrets":  "Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-økter.",
-	"hook_redact_fnr":      "Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. Bare elleve sifre der datoen og begge kontrollsifrene stemmer blir maskert.",
+	"hook_redact_fnr":      "Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. nav-pilot maskerer bare elleve sifre der datoen og begge kontrollsifrene stemmer.",
 	"hook_injection_note":  "Sett en merknad foran verktøyresultater som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører), så modellen behandler dem som data. Stopper ingenting.",
 	"copilot_auth_mode":    "Hvilken innlogging som når cplt for Copilot. auto begrenser ingenting; env_only krever et token i GH_TOKEN, GITHUB_TOKEN eller COPILOT_GITHUB_TOKEN; gh_only fjerner dem.",
 }

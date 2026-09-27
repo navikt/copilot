@@ -12,7 +12,7 @@ export function slugify(text: string): string {
 }
 
 export function LinkableHeading({ children, ...props }: HeadingProps) {
-  const id = typeof children === "string" ? slugify(children) : undefined;
+  const id = props.id ?? (typeof children === "string" ? slugify(children) : undefined);
   const [copied, setCopied] = useState(false);
 
   const handleClick = (e: React.MouseEvent) => {

@@ -607,3 +607,29 @@ pre.text-sm {
     color: var(--ax-text-neutral-subtle);
   }
 }
+
+/* Two-column reference tables: on a phone, the description goes under the
+   command instead of beside it. The roles on the cells keep the table
+   semantics that display: block would drop. */
+@media (max-width: 767px) {
+  .table-stack thead {
+    position: absolute;
+    clip: rect(0 0 0 0);
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  .table-stack tbody,
+  .table-stack tr,
+  .table-stack td {
+    display: block;
+  }
+  .table-stack td {
+    border: 0;
+    padding-block: var(--ax-space-2);
+  }
+  .table-stack tr {
+    border-bottom: 1px solid var(--ax-border-neutral-subtle);
+    padding-block: var(--ax-space-12);
+  }
+}

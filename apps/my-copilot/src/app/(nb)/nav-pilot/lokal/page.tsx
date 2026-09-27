@@ -195,7 +195,7 @@ export default async function LokalModell() {
                   Hva du får
                 </LinkableHeading>
                 <HGrid columns={{ xs: 1, md: 3 }} gap="space-16">
-                  <Card title="Utsending til bakkemodellen">
+                  <Card title="Utsending til den lokale modellen">
                     Hovedagenten bestemmer og sender mekaniske oppgaver til underagenten{" "}
                     <code className={code}>local-worker</code> på maskinen din. Den delen av jobben bruker ingen
                     AI-credits. Hovedagenten gjør det fortsatt. Utsending krever opencode som klient, og nav-pilot
@@ -212,8 +212,8 @@ export default async function LokalModell() {
                   </Card>
                   <Card title="Innholdet blir hos deg">
                     Spørsmålet og grunnlaget du gir decide, forlater ikke maskinen, eller serveren du selv har pekt
-                    nav-pilot på. Ved utsending ser hovedagenten i skyen oppgaven den selv skrev, og bakkemodellens
-                    korte svar. nav-pilots telemetri teller hendelser, ikke innhold, og{" "}
+                    nav-pilot på. Ved utsending ser hovedagenten i skyen oppgaven den selv skrev, og det korte svaret
+                    fra den lokale modellen. nav-pilots telemetri teller hendelser, ikke innhold, og{" "}
                     <code className={code}>DO_NOT_TRACK=1</code> skrur av både den og målingene nav-pilot slår på i
                     Copilot og opencode.
                   </Card>
@@ -251,23 +251,23 @@ export default async function LokalModell() {
                 <BodyLong textColor="subtle">
                   Vil du at hovedagenten skal sende oppgaver til modellen, bytter du klient med{" "}
                   <code className={code}>nav-pilot config set client opencode</code>. Detaljene står i dokumentasjonen:{" "}
-                  <NextLink href="/nav-pilot/docs#lokal-kom-i-gang" className={linkClass}>
+                  <NextLink href="/nav-pilot/guider/lokal" className={linkClass}>
                     oppsett
                   </NextLink>
                   ,{" "}
-                  <NextLink href="/nav-pilot/docs#lokal-modeller" className={linkClass}>
+                  <NextLink href="/nav-pilot/referanse#lokale-modeller" className={linkClass}>
                     modellene du kan velge
                   </NextLink>
                   ,{" "}
-                  <NextLink href="/nav-pilot/docs#lokal-egen-server" className={linkClass}>
+                  <NextLink href="/nav-pilot/guider/lokal#egen-server" className={linkClass}>
                     egen server
                   </NextLink>
                   ,{" "}
-                  <NextLink href="/nav-pilot/docs#lokal-decide-oppskrifter" className={linkClass}>
+                  <NextLink href="/nav-pilot/guider/lokal#decide-oppskrifter" className={linkClass}>
                     oppskrifter for decide
                   </NextLink>{" "}
                   og{" "}
-                  <NextLink href="/nav-pilot/docs#lokal-feilsoking" className={linkClass}>
+                  <NextLink href="/nav-pilot/guider/feilsoking#lokal" className={linkClass}>
                     når noe henger
                   </NextLink>
                   .
@@ -288,8 +288,8 @@ export default async function LokalModell() {
                   virker bare i opencode, fordi Copilot CLI ikke har noen underagent.
                 </BodyLong>
                 <BodyLong textColor="subtle">
-                  Nivåene kom fordi instruksen alene ikke virket. I testene våre sendte Sonnet 5 arbeid til
-                  bakkemodellen i 1 av 29 kjøringer. Sonnet 4.6 gjorde det i 23 av 24 i august. På{" "}
+                  Nivåene kom fordi instruksen alene ikke virket. I testene våre sendte Sonnet 5 arbeid til den lokale
+                  modellen i 1 av 29 kjøringer. Sonnet 4.6 gjorde det i 23 av 24 i august. På{" "}
                   <code className={code}>balanced</code> og <code className={code}>aggressive</code> stopper nav-pilot
                   derfor hovedagenten når den gjør en stor mekanisk endring selv, for eksempel når den redigerer en
                   femte fil i samme tur, og ber den sende resten til <code className={code}>local-worker</code>.
@@ -324,7 +324,7 @@ export default async function LokalModell() {
                   som da den gjorde oppgaven selv, og tok nesten tre ganger så lang tid. Går stoppet i veien for deg,
                   velg <code className={code}>conservative</code>: da vurderer hovedagenten selv, og nav-pilot stopper
                   ingenting. Svarer ikke den lokale serveren, stopper nav-pilot heller ingenting. Reglene står i{" "}
-                  <NextLink href="/nav-pilot/docs#lokal-utsending" className={linkClass}>
+                  <NextLink href="/nav-pilot/guider/lokal#utsending" className={linkClass}>
                     dokumentasjonen
                   </NextLink>
                   .
@@ -482,15 +482,15 @@ export default async function LokalModell() {
                     <NextLink href="/nyheter/lokale-modeller-i-nav-pilot" className={linkClass}>
                       Nav-pilot lander på bakken
                     </NextLink>{" "}
-                    (nyhetssak om bakkemodellen)
+                    (nyhetssak om lokale modeller)
                   </li>
                   <li>
-                    <NextLink href="/nav-pilot/docs#lokal-modell" className={linkClass}>
-                      Dokumentasjonen for bakkemodellen
+                    <NextLink href="/nav-pilot/guider/lokal" className={linkClass}>
+                      Guiden for lokal modell
                     </NextLink>
                   </li>
                   <li>
-                    <NextLink href="/nav-pilot/docs#personvern" className={linkClass}>
+                    <NextLink href="/nav-pilot/forklaring/personvern" className={linkClass}>
                       Personvern og telemetri
                     </NextLink>
                   </li>

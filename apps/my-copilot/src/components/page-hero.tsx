@@ -7,6 +7,8 @@ import { NAV_ITEMS } from "@/lib/nav-items";
 import { NavPill } from "./navigation/nav-pill";
 
 interface PageHeroProps {
+  /** Group name shown above the title, as on aksel.nav.no. */
+  label?: string;
   title: string;
   description: string;
   actions?: ReactNode;
@@ -18,7 +20,7 @@ interface PageHeroBaseProps extends Omit<PageHeroProps, "pathname"> {
   pathname: string;
 }
 
-export function PageHeroBase({ title, description, actions, badge, pathname }: PageHeroBaseProps) {
+export function PageHeroBase({ label, title, description, actions, badge, pathname }: PageHeroBaseProps) {
   return (
     <section className="hero-gradient-subtle text-white">
       <Box
@@ -29,6 +31,7 @@ export function PageHeroBase({ title, description, actions, badge, pathname }: P
         <VStack gap="space-12">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             <VStack gap="space-4">
+              {label && <BodyShort className="opacity-80">{label}</BodyShort>}
               <div className="flex items-center gap-3">
                 <Heading size="large" level="1">
                   {title}

@@ -302,7 +302,7 @@ export function StepResult({ os, workflow, onPrev }: { os: OS; workflow: Workflo
           <BodyShort textColor="subtle" size="small">
             Oppskriften installerer i dette repoet. Vil du heller ha agenter og skills på tvers av alle repoer, bytt ut{" "}
             <code>install</code>-linja med <code>nav-pilot install --user --all</code>. Den tar ikke med prompts.{" "}
-            <Link href="/nav-pilot/docs#hvor-installere" className="text-blue-600">
+            <Link href="/nav-pilot/guider/installere-og-oppgradere#velg-installasjonssted" className="text-blue-600">
               Hvor skal artefaktene installeres?
             </Link>
           </BodyShort>
