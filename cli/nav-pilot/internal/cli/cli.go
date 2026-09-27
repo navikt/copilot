@@ -142,13 +142,14 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
   --no-sandbox            Start copilot without cplt when cplt is missing, without asking
   --sync                  Sync all scopes without asking, then launch (opt-in; nav-pilot -- … never syncs)
   -- <client-flags>       Launch now with these flags, passed to the client unchanged: no menu, no
-                          prompt, no sync, with or without a terminal (nav-pilot -- -p "…").
-                          Needs an install and cplt (or --no-sandbox); exits 2 if nothing is installed
+                          nav-pilot prompt, no sync, with or without a terminal (nav-pilot -- -p "…").
+                          Needs an install and cplt (or --no-sandbox); exits 2 if nothing is installed.
+                          In a terminal cplt still shows its own sandbox confirmation
 
 Exit Codes:
   0   Success
   1   Error / Updates available (sync)
-  2   Sync failed
+  2   Sync failed, or a launch with -- found nothing installed
   3   Frozen install refused (no declaration, no usable pin, another revision, or a partial install)
 
 Run nav-pilot help <command> for a command's own flags (install, sync, uninstall, rollback, list, config, models, upgrade).
@@ -514,7 +515,8 @@ func run(args []string) error {
 		if len(launchArgs) > 0 {
 			// Flags for a launch, and nothing that can run one: printing the
 			// usage page and exiting 0 read as if the launch had happened.
-			try := "nav-pilot " + strings.Join(launchArgs, " ") + ` -- -p "…"`
+			// A bare trailing -- is in launchArgs too; the hint adds its own.
+			try := "nav-pilot " + strings.Join(slices.DeleteFunc(slices.Clone(launchArgs), func(a string) bool { return a == "--" }), " ") + ` -- -p "…"`
 			fmt.Fprintf(os.Stderr, "Not launching: no terminal. Run it in a terminal, or without one: %s\n", bold(try))
 			return &exitCode{code: ExitError}
 		}

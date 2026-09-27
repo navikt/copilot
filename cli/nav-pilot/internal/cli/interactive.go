@@ -56,7 +56,9 @@ var isInteractive = func() bool {
 	return providerpkg.IsTerminal(os.Stdin) && providerpkg.IsTerminal(os.Stdout)
 }
 
-// forceNonInteractive can be set in tests to prevent huh from blocking.
+// forceNonInteractive makes isInteractive answer false. Tests set it to keep
+// huh from blocking, and run() sets it for an explicit launch (client args
+// after --), which must ask nothing even in a terminal.
 var forceNonInteractive bool
 
 // navTheme returns a huh theme with radio-button-style indicators (● / blank)

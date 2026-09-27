@@ -2,6 +2,8 @@
 # those args unchanged (after its own --agent), with or without a terminal. No
 # menu, no prompt, no sync: a benchmark or CI run must not rewrite ~/.copilot.
 # --sync stays opt-in. What would need a yes fails with the flag to pass.
+# opencode here: a copilot launch still writes nav-pilot's built-in hooks to
+# ~/.copilot/hooks, as every copilot launch does.
 
 fake-bin cplt opencode
 
@@ -41,6 +43,11 @@ grep '^--\nrun\n--agent\ngrillmester\n-p\nreview this PR\n---' $WORK/fake/cplt.l
 grep 'lokal endring' $HOME/.copilot/agents/grillmester.agent.md
 exec /usr/bin/find $HOME/.copilot -type f
 cmp stdout $WORK/before.txt
+
+# A bare trailing -- is nothing to run: the hint does not repeat it.
+exits 1 /bin/sh -c 'nav-pilot --client opencode -- </dev/null'
+stderr 'nav-pilot --client opencode -- -p "…"$'
+! stderr '-- --'
 
 # The safety refusals still hold: not from $HOME without --project-dir, and
 # not unsandboxed without --no-sandbox.

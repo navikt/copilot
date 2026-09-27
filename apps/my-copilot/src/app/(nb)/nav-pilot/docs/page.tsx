@@ -250,7 +250,7 @@ const CLI_COMMANDS = [
   {
     command: 'nav-pilot -- -p "…"',
     description:
-      "Start klienten med argumentene etter -- uten meny, spørsmål eller synk, med eller uten terminal (CI, skript). Legg til --sync for å synke først",
+      "Start klienten med argumentene etter -- uten meny, spørsmål fra nav-pilot eller synk, med eller uten terminal (CI, skript). Legg til --sync for å synke først. I en terminal viser cplt fortsatt sin egen bekreftelse",
   },
   {
     command: "nav-pilot install nav-pilot",
