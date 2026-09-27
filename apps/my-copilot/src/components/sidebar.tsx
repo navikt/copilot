@@ -45,7 +45,7 @@ function RecentUpdates() {
             return (
               <NextLink
                 key={`${item.type}-${item.id}`}
-                href={`/verktoy?type=${item.type}&item=mcp-${item.id}`}
+                href={`/verktoy?type=${item.type}&item=${item.id}`}
                 className="no-underline hover:underline"
               >
                 <VStack gap="space-2">
@@ -85,7 +85,7 @@ function RecentUpdates() {
           return (
             <NextLink
               key={`${item.type}-${item.id}-${date}-${commitMessage}`}
-              href={`/verktoy?type=${item.type}&item=mcp-${item.id}`}
+              href={`/verktoy?type=${item.type}&item=${item.id}`}
               className="no-underline hover:underline"
             >
               <VStack gap="space-2">
