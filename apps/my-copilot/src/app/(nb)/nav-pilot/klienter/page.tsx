@@ -162,12 +162,14 @@ export default function Klienter() {
               {CLIENTS.map((k) => (
                 <TableRow role="row" key={k.name}>
                   <TableDataCell role="cell">{c(k.name)}</TableDataCell>
-                  <TableDataCell role="cell">
+                  <TableDataCell role="cell" data-label="Status">
                     <Tag size="small" variant={k.tag.variant}>
                       {k.tag.text}
                     </Tag>
                   </TableDataCell>
-                  <TableDataCell role="cell">{k.desc}</TableDataCell>
+                  <TableDataCell role="cell" data-label="Hva du får">
+                    {k.desc}
+                  </TableDataCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -348,8 +350,8 @@ export default function Klienter() {
           du ikke får en versjon utenfor det testede området midt i en økt. I tillegg setter nav-pilot{" "}
           {c('"share": "disabled"')} i {c("~/.config/opencode/opencode.json")} når fila ikke sier noe om deling, så det
           gjelder også når du starter opencode selv. Det skjer når nav-pilot starter en agentpakke i Tier 1 og i
-          oppsettet, ikke med Tier 2, som ikke rører {c("opencode.json")}. Står det {c('"auto"')} der, får du
-          en advarsel.
+          oppsettet, ikke med Tier 2, som ikke rører {c("opencode.json")}. Står det {c('"auto"')} der, får du en
+          advarsel.
         </BodyLong>
         <LinkableHeading id="utsending" size="small" level="3">
           Lokal utsending
