@@ -45,6 +45,7 @@ jobs:
       my-copilot: ${{ steps.filter.outputs.my-copilot }}
       nav-pilot: ${{ steps.filter.outputs.nav-pilot }}
       docs: ${{ steps.filter.outputs.docs }}
+      link-guard: ${{ steps.filter.outputs.link-guard }}
     steps:
       # Full history so paths-filter can diff merge_group base..head with git.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -93,11 +94,6 @@ jobs:
               - 'instructions/**'
               - 'prompts/**'
               - 'skills/**'
-              # Files src/link-inventory.test.ts scans for links to the site.
-              - '**/*.md'
-              - 'cli/**/*.go'
-              - 'scripts/**'
-              - '.github/ISSUE_TEMPLATE/**'
               - '.github/workflows/my-copilot.yaml'
               - '.github/workflows/mise-build-deploy-nais.yaml'
               - '.github/workflows/ci.yaml'
@@ -122,6 +118,15 @@ jobs:
               - 'README.md'
               - 'scripts/generate-docs/**'
               - '.github/workflows/docs.yaml'
+              - '.github/workflows/ci.yaml'
+            # Files apps/my-copilot/src/link-inventory.test.ts scans for links
+            # to ki-utvikling.nav.no.
+            link-guard:
+              - 'apps/my-copilot/**'
+              - '**/*.md'
+              - 'cli/**/*.go'
+              - 'scripts/**'
+              - '.github/ISSUE_TEMPLATE/**'
               - '.github/workflows/ci.yaml'
 
   # ── mise-based app checks ──────────────────────────────────────────────────
@@ -284,6 +289,33 @@ jobs:
       - run: mise run lint
       - run: mise run check
 
+  # ── links to ki-utvikling.nav.no ───────────────────────────────────────────
+  # Runs only the link inventory test, also when a README, doc, CLI string or
+  # script changes. No build, no deploy.
+
+  link-guard:
+    name: link-guard
+    needs: changes
+    if: needs.changes.outputs.link-guard == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/my-copilot
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+        with:
+          experimental: true
+      - run: mise run install
+      - run: mise exec -- pnpm vitest run src/link-inventory.test.ts
+
   # ── nav-pilot installer CLI ────────────────────────────────────────────────
   # Mirrors nav-pilot-ci.yaml's build-and-test, shellcheck and bats jobs
   # (including the coverage floor). The e2e installer matrix stays in
@@ -405,6 +437,7 @@ jobs:
       - my-copilot
       - nav-pilot
       - docs
+      - link-guard
       - gitleaks
     if: always()
     runs-on: ubuntu-latest
