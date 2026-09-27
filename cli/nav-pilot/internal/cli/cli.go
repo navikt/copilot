@@ -139,7 +139,7 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
   --no-auto-launch        Install or sync, but don't start the agent (--auto-launch to turn on)
   --project-dir <dir>     Directory the agent may read and write (default: current directory, not
                           the enclosing git root; the root's instructions stay readable)
-  --no-sandbox            Start copilot without cplt when cplt is missing, without asking
+  --no-sandbox            Start copilot or opencode without cplt when cplt is missing, without asking
   --sync                  Sync all scopes without asking, then launch (opt-in; nav-pilot -- … never syncs)
   -- <client-flags>       Launch now with these flags, passed to the client unchanged: no menu, no
                           nav-pilot prompt, no sync, with or without a terminal (nav-pilot -- -p "…").

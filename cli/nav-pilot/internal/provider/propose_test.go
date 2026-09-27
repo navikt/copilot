@@ -291,6 +291,7 @@ func TestI5NoUnaccountedCpltLaunchPath(t *testing.T) {
 		"runStagedProbe":          "runtime_gate.go — a bounded --version probe, no session",
 		"isCplt":                  "copilot_launch.go — a --version probe, no session",
 		"printCopilotDiagnostics": "copilot_launch.go — diagnostics, no session",
+		"launchUnsandboxed":       "cplt.go — runs opencode without cplt (--no-sandbox, cplt missing); there is no cplt to carry a waiver",
 	}
 
 	for _, name := range processSpawners(t, ".") {

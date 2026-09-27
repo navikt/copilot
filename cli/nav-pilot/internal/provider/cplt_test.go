@@ -31,11 +31,13 @@ func TestLaunchViaCplt_CpltNotFound(t *testing.T) {
 	}
 }
 
-func TestLaunchOpenCode_RequiresCplt(t *testing.T) {
-	// Make opencode resolvable but cplt absent: a temp dir on PATH containing
-	// only an executable named "opencode".
+// Without cplt, LaunchOpenCode runs opencode itself, as LaunchCopilotResolved
+// runs a plain copilot (#1028). Whether it may is the cli's question, asked
+// before this runs (confirmUnsandboxed, --no-sandbox).
+func TestLaunchOpenCodeWithoutCpltRunsOpenCode(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "opencode"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	marker := filepath.Join(dir, "ran")
+	if err := os.WriteFile(filepath.Join(dir, "opencode"), []byte("#!/bin/sh\necho \"$@\" > "+marker+"\n"), 0o755); err != nil {
 		t.Fatalf("writing fake opencode: %v", err)
 	}
 	t.Setenv("PATH", dir)
@@ -46,12 +48,12 @@ func TestLaunchOpenCode_RequiresCplt(t *testing.T) {
 	// ~/.config/opencode (#565).
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	err := LaunchOpenCode(domain.ResolvedConfig{Client: "opencode", Mode: "default"})
-	if err == nil {
-		t.Fatal("LaunchOpenCode must return an error when cplt is not on PATH")
+	if err := LaunchOpenCode(domain.ResolvedConfig{Client: "opencode", Mode: "default"}); err != nil {
+		t.Fatalf("LaunchOpenCode without cplt: %v", err)
 	}
-	if !strings.Contains(err.Error(), "cplt") {
-		t.Errorf("expected cplt-not-found error, got: %v", err)
+	got, err := os.ReadFile(marker)
+	if err != nil || !strings.Contains(string(got), "--agent") {
+		t.Fatalf("opencode was not run with its arguments: %q, %v", got, err)
 	}
 }
 

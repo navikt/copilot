@@ -1039,9 +1039,10 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	launchEnv, cpltFlags = applyOpenCodeHooks(resolved, launchEnv, cpltFlags)
 
 	return launchViaCplt(cpltLaunch{
-		agent:     "opencode",
-		agentArgs: openCodeAgentArgs(resolved),
-		cpltArgs:  cpltFlags,
+		agent:         "opencode",
+		unsandboxedOK: true,
+		agentArgs:     openCodeAgentArgs(resolved),
+		cpltArgs:      cpltFlags,
 		// EnsureOpenCodeNavContext above wrote into this directory, so ask it
 		// for skills after the materialization rather than before it.
 		skillsDir:     materializedSkillsDir(openCodeNavContextDir()),

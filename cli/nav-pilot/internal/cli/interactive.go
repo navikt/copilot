@@ -1172,6 +1172,10 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 
 	sandboxed := true
 	cmdName := resolved.Client // opencode and pi are launched under their own name
+	if resolved.Client == "opencode" {
+		_, name := findCopilotCLI()
+		sandboxed = name == "cplt"
+	}
 	if resolved.Client == "copilot" {
 		_, name := findCopilotCLI()
 		sandboxed = name == "cplt"
