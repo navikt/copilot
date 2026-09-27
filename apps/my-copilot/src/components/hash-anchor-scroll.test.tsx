@@ -58,11 +58,23 @@ describe("HashAnchorScroll", () => {
     expect(nav.replace).toHaveBeenCalledWith("/nav-pilot/lokal#nytt-anker");
   });
 
-  it("sends an anchor moved within the page to its new place", () => {
+  it("moves to a new anchor on the same page and scrolls to it", async () => {
     nav.pathname = "/nav-pilot/lokal";
     window.location.hash = "#gammelt-anker";
+    // Browsers fire no hashchange on replaceState; happy-dom does, so check
+    // that the component fires it itself.
+    const dispatch = vi.spyOn(window, "dispatchEvent");
     render(<HashAnchorScroll />);
-    expect(nav.replace).toHaveBeenCalledWith("/nav-pilot/lokal#nytt-anker");
+    expect(nav.replace).not.toHaveBeenCalled();
+    expect(window.location.hash).toBe("#nytt-anker");
+    expect(dispatch.mock.calls.some(([e]) => e.type === "hashchange")).toBe(true);
+    dispatch.mockRestore();
+    await act(async () => {
+      const target = document.createElement("div");
+      target.id = "nytt-anker";
+      document.body.appendChild(target);
+    });
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
   });
 
   it("leaves the same anchor alone on another page", async () => {

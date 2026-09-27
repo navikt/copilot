@@ -402,7 +402,10 @@ describe("link inventory", () => {
       const [p, a] = k.split("#");
       return !Object.entries(inventory).some(([ip, e]) => landingPath(ip) === p && a in e.anchors);
     });
-    expect(unknown).toEqual([]);
+    expect(
+      unknown,
+      "Key each entry on the path the browser lands on after next.config.ts redirects, with an anchor the inventory lists"
+    ).toEqual([]);
   });
 
   // HashAnchorScroll redirects a legacy anchor before its element can appear,

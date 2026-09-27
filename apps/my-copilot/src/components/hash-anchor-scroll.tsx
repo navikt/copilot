@@ -49,7 +49,16 @@ export function HashAnchorScroll() {
         // checks), so there is nothing to wait for.
         const moved = LEGACY_ANCHORS[`${pathname}#${id}`];
         if (moved) {
-          router.replace(moved);
+          if (moved.split("#")[0] === pathname) {
+            // Same page: router.replace would not re-run this effect, and
+            // replaceState fires no hashchange. Fire it for Tabs, and try
+            // again here, since our own listener may not be added yet.
+            window.history.replaceState(null, "", moved);
+            window.dispatchEvent(new HashChangeEvent("hashchange"));
+            tryScroll();
+          } else {
+            router.replace(moved);
+          }
           return;
         }
         if (!observer) {
