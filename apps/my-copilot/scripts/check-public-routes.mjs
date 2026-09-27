@@ -5,33 +5,19 @@
 //
 // The private routes below are deliberate. Add a route there when it should
 // require a login, not to silence this check.
-import { readFileSync } from "node:fs";
 import { globSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { autoLoginIgnorePaths as allowed, matches } from "./auto-login-ignore-paths.mjs";
 
 const appDir = dirname(dirname(fileURLToPath(import.meta.url)));
-const PRIVATE_ROUTES = ["/abonnement", "/kostnad", "/overview", "/usage"];
+const PRIVATE_ROUTES = ["/abonnement", "/kostnad"];
 
 function routeFor(pageFile) {
   const rel = relative(join(appDir, "src", "app"), dirname(pageFile));
   const segments = rel.split(sep).filter((s) => s && !(s.startsWith("(") && s.endsWith(")")));
   return "/" + segments.join("/");
 }
-
-function matches(route, pattern) {
-  if (pattern === route) return true;
-  if (pattern.endsWith("/**")) return route.startsWith(pattern.slice(0, -2));
-  return false;
-}
-
-const yaml = readFileSync(join(appDir, ".nais", "app.yaml"), "utf-8");
-const block = yaml.match(/autoLoginIgnorePaths:\n((?:\s*(?:#.*|- .*)\n)+)/);
-if (!block) {
-  console.error("could not find autoLoginIgnorePaths in .nais/app.yaml");
-  process.exit(1);
-}
-const allowed = [...block[1].matchAll(/^\s*- (\S+)/gm)].map((m) => m[1]);
 
 const pages = globSync("src/app/**/page.tsx", { cwd: appDir })
   .map((p) => join(appDir, p))

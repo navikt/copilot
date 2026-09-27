@@ -33,6 +33,7 @@ Pages and redirect routes served by Next.js that contain no sensitive data:
 - `/install/*`, route handlers that redirect VS Code install badges to `vscode:` URLs
 - `/personvern`, privacy statement
 - `/tilgjengelighet`, accessibility statement
+- `/best-practices`, `/practice`, `/customizations`, `/usage`, `/stats`, `/overview` and `/cost`, old paths that answer with a permanent redirect only. Four of them point at `/statistikk` and `/kostnad`, which are Zone 2 and still require a login.
 
 Wonderwall lists these under `autoLoginIgnorePaths`, and the Next.js middleware lets them through.
 
