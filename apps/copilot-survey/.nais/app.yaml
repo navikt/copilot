@@ -41,6 +41,8 @@ spec:
     application:
       enabled: true
       tenant: {{azure_tenant}}
+      # Every Nav user may get an OBO token for this app via my-copilot.
+      allowAllUsers: true
   gcp:
     sqlInstances:
       - type: POSTGRES_17

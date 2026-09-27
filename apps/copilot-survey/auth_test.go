@@ -62,6 +62,7 @@ func TestAuthBranches(t *testing.T) {
 		{"copilot-cli without the header", cliToken, "", caller{}, errBadHeader},
 		{"copilot-cli with a malformed login", cliToken, "inv@lid", caller{}, errBadHeader},
 		{"user token with the header", webToken, "someone-else", caller{}, errBadHeader},
+		{"user token with a blank header", webToken, "  ", caller{}, errBadHeader},
 		{"user token from copilot-cli's azp", cliUserToken, "", caller{}, errForbidden},
 		{"app token from another app", otherApp, "hans", caller{}, errForbidden},
 		{"app token from my-copilot", webAppToken, "hans", caller{}, errForbidden},

@@ -92,6 +92,7 @@ func (a *authenticator) resolve(ctx context.Context, token, onBehalfOf string) (
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&c); err != nil {
 		return nil, fmt.Errorf("decoding introspection response: %w", err)
 	}
+	headerSent := onBehalfOf != ""
 	onBehalfOf = strings.TrimSpace(onBehalfOf)
 	switch {
 	case !c.Active:
@@ -105,7 +106,7 @@ func (a *authenticator) resolve(ctx context.Context, token, onBehalfOf string) (
 		}
 		return &caller{login: onBehalfOf}, nil
 	case c.NAVident != "" && c.Email != "" && c.Idtyp != "app":
-		if onBehalfOf != "" {
+		if headerSent {
 			return nil, errBadHeader
 		}
 		if a.webID == "" || c.Azp != a.webID {
@@ -131,10 +132,11 @@ func authMiddleware(a *authenticator, next http.HandlerFunc) http.HandlerFunc {
 		switch {
 		case err == nil:
 			next(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, c)))
-		case errors.Is(err, errUnauthorized), errors.Is(err, errBadHeader):
+		// 401 for every refusal of the calling app: 403 is kept for "no Nav
+		// identity", which is about the person, so clients can tell the two
+		// apart.
+		case errors.Is(err, errUnauthorized), errors.Is(err, errBadHeader), errors.Is(err, errForbidden):
 			writeError(w, http.StatusUnauthorized, err.Error())
-		case errors.Is(err, errForbidden):
-			writeError(w, http.StatusForbidden, err.Error())
 		default:
 			slog.Warn("token validation failed upstream", "error", err)
 			writeError(w, http.StatusBadGateway, "could not validate token")

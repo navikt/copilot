@@ -25,7 +25,7 @@ only.
 | Method | Path | Auth | Description |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/surveys/active` | none | Open surveys from [`surveys/`](surveys/README.md) |
-| `POST` | `/api/v1/surveys/{id}/responses` | see above | Submit answers: 201, 409 already answered, 400 invalid, 403 no Nav identity, 404 not open, 503 not taking answers |
+| `POST` | `/api/v1/surveys/{id}/responses` | see above | Submit answers: 201, 409 already answered, 400 invalid, 401 caller refused, 403 no Nav identity, 404 not open, 503 not taking answers |
 | `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus (`survey_submissions_total{survey,status}`) |
 
 No OpenTelemetry, no auto-instrumentation, no body logging, no retry that
@@ -117,6 +117,11 @@ Residual risks, for the privacy review:
 
 - Small segments: a rare combination of context values narrows who answered.
   Exports must suppress or merge any segment with fewer than 5 respondents.
+- A compromised copilot-cli can submit one answer as any navikt member per
+  open survey, which also locks that member out (409). It is the same trust
+  copilot-api places in copilot-cli for usage reads. There is no rate limit
+  per login; `survey_submissions_total` is the signal to alert on. See the
+  accepted risk in `SECURITY.md`.
 - Colluding insiders: k assumes the other 9 in a batch are real respondents.
   One account answers once per survey, but a group of 9 insiders answering
   together could pin the 10th.
