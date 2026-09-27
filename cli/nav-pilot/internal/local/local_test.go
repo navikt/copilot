@@ -1,6 +1,7 @@
 package local
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -721,5 +722,17 @@ func TestMinNavPilotWithheldSecondDefaultIsRefused(t *testing.T) {
 		`{"key":"big","name":"Big","model":"mlx-community/Big-8bit","backend":"mlx-lm","default":true,"params":{},"min_nav_pilot":"bad"}`))
 	if err == nil || !strings.Contains(err.Error(), "default model is withheld") {
 		t.Errorf("Parse error = %v, want the withheld default named", err)
+	}
+}
+
+// TestWorkerAgentFileMatchesTheAgent: the built-in worker is a copy of the
+// navikt/copilot agent, and must not drift from it.
+func TestWorkerAgentFileMatchesTheAgent(t *testing.T) {
+	want, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "agents", WorkerAgent+".agent.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(WorkerAgentFile, want) {
+		t.Error("internal/local/worker-agent.md differs from agents/local-worker.agent.md; copy it over")
 	}
 }

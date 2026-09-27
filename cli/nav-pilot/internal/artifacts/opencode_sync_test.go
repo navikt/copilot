@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 )
 
 func TestValidateOpenCodeStatePath(t *testing.T) {
@@ -571,5 +572,50 @@ func TestSyncOpenCodeArtifacts_ConflictSurvivesASecondSync(t *testing.T) {
 	}
 	if len(conflicts) == 0 {
 		t.Error("tredje synk meldte ingen konflikt, så brukeren får ingen beskjed om at fila fortsatt avviker")
+	}
+}
+
+// TestLocalWorkerShipsUnderAPakkeWithoutOne: with dispatch on, a pakke that
+// has no local-worker (nais/pilot) still gets nav-pilot's own, with its
+// description, so opencode does not list the worker as manual-only. A pakke
+// that ships its own keeps it, and turning local off prunes the built-in one.
+func TestLocalWorkerShipsUnderAPakkeWithoutOne(t *testing.T) {
+	sourceDir := t.TempDir()
+	mustWrite(t, filepath.Join(sourceDir, "agents", "auth.agent.md"),
+		"---\nname: auth\ndescription: Authentication expert\n---\n\nYou handle auth.\n")
+	outputDir := t.TempDir()
+	worker := filepath.Join(outputDir, "agents", local.WorkerAgent+".md")
+	sync := func() {
+		t.Helper()
+		if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "v1", "abc", ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	local.SetEnabled(true)
+	t.Cleanup(func() { local.SetEnabled(false) })
+	sync()
+	got, err := os.ReadFile(worker)
+	if err != nil {
+		t.Fatalf("no local-worker under a pakke without one: %v", err)
+	}
+	for _, want := range []string{"Runs scoped tasks on a local model", "mode: subagent", "# Local worker"} {
+		if !strings.Contains(string(got), want) {
+			t.Errorf("materialized local-worker lacks %q:\n%s", want, got)
+		}
+	}
+
+	mustWrite(t, filepath.Join(sourceDir, "agents", local.WorkerAgent+".agent.md"),
+		"---\nname: "+local.WorkerAgent+"\ndescription: The pakke's own worker\n---\n\nPakke body.\n")
+	sync()
+	if got, _ := os.ReadFile(worker); !strings.Contains(string(got), "Pakke body.") {
+		t.Errorf("the built-in worker replaced the pakke's own:\n%s", got)
+	}
+	os.Remove(filepath.Join(sourceDir, "agents", local.WorkerAgent+".agent.md"))
+
+	local.SetEnabled(false)
+	sync()
+	if _, err := os.Stat(worker); !os.IsNotExist(err) {
+		t.Errorf("local-worker still materialized with dispatch off: %v", err)
 	}
 }

@@ -715,6 +715,16 @@ var enabled bool
 // while [Enabled] is false.
 const WorkerAgent = "local-worker"
 
+// WorkerAgentFile is navikt/copilot's agents/local-worker.agent.md, built in
+// so a launch with dispatch on can offer the worker under a pakke that does
+// not ship it. Without a file of its own, opencode turns the model binding
+// into an agent with no description and lists it to the main agent as "should
+// only be called manually by the user", beside a policy that says to send it
+// work. TestWorkerAgentFileMatchesTheAgent keeps the copy in step.
+//
+//go:embed worker-agent.md
+var WorkerAgentFile []byte
+
 // SetEnabled turns local dispatch on or off for this process. nav-pilot sets it
 // once at startup from the persisted config, and only true when local is both
 // installed ([Installed]) and enabled by the developer.
