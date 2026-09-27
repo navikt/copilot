@@ -38,11 +38,11 @@ const EXIT_CODES = [
   },
   {
     code: "2",
-    when: "sync feilet, også når GitHubs release-API ikke svarer (pinnen i repoet blir stående). install uten terminal og uten --yes, --all eller --frozen: den skriver ingenting og sier hva den ville ha skrevet.",
+    when: "sync feilet, også når GitHubs release-API ikke svarer (låsen i repoet blir stående). install uten terminal og uten --yes, --all eller --frozen: den skriver ingenting og sier hva den ville ha skrevet.",
   },
   {
     code: "3",
-    when: "install --frozen installerte ikke det .nav-pilot/agentpakke.lock.json peker på: ingen lås, ingen pinnet versjon, en annen versjon eller en delvis installasjon.",
+    when: "install --frozen installerte ikke det .nav-pilot/agentpakke.lock.json peker på: ingen lås, ingen låst versjon, en annen versjon eller en delvis installasjon.",
   },
   {
     code: "klientens",
@@ -54,7 +54,7 @@ const SECURITY_LEVELS = [
   { setting: "gh_guard", standard: "på", strict: "på" },
   { setting: "git_guard", standard: "advarer", strict: "blokkerer" },
   { setting: "proxy.forced (tvungen proxy)", standard: "av", strict: "på" },
-  { setting: "proxy.default_allowlist", standard: "av", strict: "på: bare cplt sin liste og proxy.allowed_domains" },
+  { setting: "proxy.default_allowlist", standard: "av", strict: "på: bare cplts egen liste og proxy.allowed_domains" },
 ];
 
 const LOCAL_COMMANDS = `nav-pilot alpha local init      # laster ned modellen, setter opp miljøet og starter serveren
@@ -64,7 +64,7 @@ nav-pilot alpha local status    # kjører den? svarer den? hvilken modell? hva h
 nav-pilot alpha local models    # modellene som tilbys, og hvilken som er i bruk
 nav-pilot alpha local use <key> # velg modellen serveren laster
 nav-pilot alpha local ask -p "..."  # still ett spørsmål rett til modellen
-nav-pilot alpha decide "..." --options ja,nei --evidence fil  # typet avgjørelse
+nav-pilot alpha decide "..." --options ja,nei --evidence fil  # avgjørelse med faste alternativer
 nav-pilot alpha local stop
 nav-pilot alpha local restart   # stop og start i ett
 nav-pilot alpha local on        # skru på igjen etter off
@@ -105,12 +105,14 @@ const CLIENTS = [
 
 const nb = (n: number) => n.toLocaleString("nb-NO");
 
-function HeaderRow({ cells }: { cells: string[] }) {
+// With stack, the roles keep the table semantics that the .table-stack CSS
+// (display: block on a phone) would otherwise drop.
+function HeaderRow({ cells, stack }: { cells: string[]; stack?: boolean }) {
   return (
-    <TableHeader>
-      <TableRow>
+    <TableHeader role={stack ? "rowgroup" : undefined}>
+      <TableRow role={stack ? "row" : undefined}>
         {cells.map((c) => (
-          <TableHeaderCell key={c} scope="col">
+          <TableHeaderCell key={c} scope="col" role={stack ? "columnheader" : undefined}>
             {c}
           </TableHeaderCell>
         ))}
@@ -139,7 +141,7 @@ function LocalModels({ models }: { models: LocalModel[] }) {
       </BodyLong>
       <LocalModelsTable models={models} />
       <BodyShort size="small" textColor="subtle">
-        Står det en versjon under «Krever nav-pilot», skjuler eldre nav-pilot modellen. Peker{" "}
+        Står det en versjon under «Krever nav-pilot», skjuler eldre versjoner av nav-pilot modellen. Peker{" "}
         <code className={code}>local_model</code> på den, faller nav-pilot tilbake til standardmodellen, og{" "}
         <code className={code}>init</code>, <code className={code}>start</code> og <code className={code}>status</code>{" "}
         sier hvilken versjon du trenger. Oppdater med <code className={code}>nav-pilot upgrade</code>.
@@ -158,8 +160,8 @@ export default function Referanse() {
   return (
     <DocPage
       label="Referanse"
-      title="Kommandoer og konfig"
-      description="Alt nav-pilot kan stilles inn med, på én side. Bruk søk i siden (Ctrl+F)."
+      title="Kommandoer, konfig og tabeller"
+      description="Kommandoer, konfignøkler og tabeller på én side. Søk på siden med Ctrl+F."
       toc={TOC}
       wide
     >
@@ -175,15 +177,15 @@ export default function Referanse() {
             ). Med <code className={code}>--repo</code> eller <code className={code}>--user</code> svarer du på forhånd.
           </BodyLong>
           <div className="overflow-x-auto">
-            <Table size="small">
-              <HeaderRow cells={["Kommando", "Hva den gjør"]} />
-              <TableBody>
+            <Table size="small" className="table-stack" role="table">
+              <HeaderRow stack cells={["Kommando", "Hva den gjør"]} />
+              <TableBody role="rowgroup">
                 {CLI_COMMANDS.map((c) => (
-                  <TableRow key={c.command}>
-                    <TableDataCell>
-                      <code className={`${code} whitespace-nowrap`}>{c.command}</code>
+                  <TableRow role="row" key={c.command}>
+                    <TableDataCell role="cell">
+                      <code className={code}>{c.command}</code>
                     </TableDataCell>
-                    <TableDataCell>{c.description}</TableDataCell>
+                    <TableDataCell role="cell">{c.description}</TableDataCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -203,23 +205,23 @@ export default function Referanse() {
             egne koder, som står i <code className={code}>--help</code>.
           </BodyLong>
           <div className="overflow-x-auto">
-            <Table size="small">
-              <HeaderRow cells={["Kode", "Når"]} />
-              <TableBody>
+            <Table size="small" className="table-stack" role="table">
+              <HeaderRow stack cells={["Kode", "Når"]} />
+              <TableBody role="rowgroup">
                 {EXIT_CODES.map((e) => (
-                  <TableRow key={e.code}>
-                    <TableDataCell>
+                  <TableRow role="row" key={e.code}>
+                    <TableDataCell role="cell">
                       <code className={code}>{e.code}</code>
                     </TableDataCell>
-                    <TableDataCell>{e.when}</TableDataCell>
+                    <TableDataCell role="cell">{e.when}</TableDataCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
           <BodyShort size="small" textColor="subtle">
-            <code className={code}>sync --json</code> gir ett dokument med én oppføring per omfang. Et omfang som
-            feilet, har feltet <code className={code}>error</code>.
+            <code className={code}>sync --json</code> gir ett dokument med én oppføring per installasjonssted. Et sted
+            som feilet, har feltet <code className={code}>error</code>.
           </BodyShort>
         </VStack>
       </section>
@@ -239,7 +241,7 @@ export default function Referanse() {
             .
           </BodyLong>
           <div className="overflow-x-auto">
-            <Table size="small">
+            <Table size="small" style={{ minWidth: "40rem" }}>
               <HeaderRow cells={["Nøkkel", "Flagg", "Verdier", "Hva den gjør"]} />
               <TableBody>
                 {CONFIG_KEYS.map((k) => (
@@ -266,7 +268,7 @@ export default function Referanse() {
             Sikkerhetsnivå i cplt
           </LinkableHeading>
           <BodyLong>
-            <code className={code}>sandbox.preset</code> i cplt. Sett det med{" "}
+            Nivået er <code className={code}>sandbox.preset</code> i cplt. Sett det med{" "}
             <code className={code}>nav-pilot config</code>, raden «cplt security posture», så kommer Nav-hostene med.
             Hvorfor står i{" "}
             <NextLink href="/nav-pilot/forklaring/sandkassen#sikkerhetsniva" className={linkClass}>
@@ -314,23 +316,23 @@ export default function Referanse() {
             .
           </BodyLong>
           <div className="overflow-x-auto">
-            <Table size="small">
-              <HeaderRow cells={["Variabel", "Virkning"]} />
-              <TableBody>
-                <TableRow>
-                  <TableDataCell>
+            <Table size="small" className="table-stack" role="table">
+              <HeaderRow stack cells={["Variabel", "Virkning"]} />
+              <TableBody role="rowgroup">
+                <TableRow role="row">
+                  <TableDataCell role="cell">
                     <code className={code}>DO_NOT_TRACK=1</code>
                   </TableDataCell>
-                  <TableDataCell>
+                  <TableDataCell role="cell">
                     Slår av målingene i nav-pilot, i Copilot og opencode når nav-pilot starter dem, og i andre verktøy
                     som følger konvensjonen.
                   </TableDataCell>
                 </TableRow>
-                <TableRow>
-                  <TableDataCell>
+                <TableRow role="row">
+                  <TableDataCell role="cell">
                     <code className={code}>NAV_PILOT_TELEMETRY_ENABLED=false</code>
                   </TableDataCell>
-                  <TableDataCell>Slår av målingene i nav-pilot.</TableDataCell>
+                  <TableDataCell role="cell">Slår av målingene i nav-pilot.</TableDataCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -392,7 +394,7 @@ export default function Referanse() {
             Støttede klienter
           </LinkableHeading>
           <div className="overflow-x-auto">
-            <Table size="small">
+            <Table size="small" style={{ minWidth: "36rem" }}>
               <HeaderRow cells={["Klient", "Status", "Hva du får"]} />
               <TableBody>
                 {CLIENTS.map((c) => (
@@ -409,9 +411,9 @@ export default function Referanse() {
           </div>
           <Box background="info-soft" borderRadius="8" padding="space-16">
             <BodyShort size="small">
-              For <code className={code}>copilot</code> henter nav-pilot ikke GitHub-tokenet selv. Med gh-vakta i cplt
-              på henter cplt det fra <code className={code}>GH_TOKEN</code>, <code className={code}>GITHUB_TOKEN</code>,{" "}
-              <code className={code}>COPILOT_GITHUB_TOKEN</code> eller <code className={code}>gh auth token</code>.{" "}
+              For <code className={code}>copilot</code> henter nav-pilot ikke GitHub-tokenet selv. Er gh-vakta i cplt
+              på, henter cplt det fra <code className={code}>GH_TOKEN</code>, <code className={code}>GITHUB_TOKEN</code>
+              , <code className={code}>COPILOT_GITHUB_TOKEN</code> eller <code className={code}>gh auth token</code>.{" "}
               <code className={code}>copilot_auth_mode</code> bestemmer hvilke kilder som slipper gjennom:{" "}
               <code className={code}>env_only</code> stopper oppstarten uten token i miljøet, og{" "}
               <code className={code}>gh_only</code> fjerner token-variablene.

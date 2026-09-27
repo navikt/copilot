@@ -4,6 +4,7 @@ import NextLink from "next/link";
 import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
+import { EXPLANATION_PAGES } from "@/components/nav-pilot/doc-pages";
 import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
@@ -25,6 +26,7 @@ export default function Personvern() {
       title="Personvern og telemetri"
       description="nav-pilot teller hendelser, ikke innhold. Prompter, kode, filinnhold og filnavn er aldri med."
       toc={TOC}
+      siblings={{ pages: EXPLANATION_PAGES, current: "/nav-pilot/forklaring/personvern" }}
     >
       <section>
         <VStack gap="space-16">

@@ -348,7 +348,8 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/arkitektur/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/page.tsx",
-      "apps/my-copilot/src/app/sitemap.ts"
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
     ],
     "anchors": {
       "agentpakka": ["apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/arkitektur/page.tsx"],
@@ -362,7 +363,8 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/lokal-modell/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/page.tsx",
-      "apps/my-copilot/src/app/sitemap.ts"
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
     ],
     "anchors": {
       "malte-grenser": [
@@ -382,7 +384,8 @@
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx",
-      "apps/my-copilot/src/app/sitemap.ts"
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
     ],
     "anchors": {
       "brukerundersokelser": ["apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx"],
@@ -395,7 +398,8 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/planlegging/page.tsx",
-      "apps/my-copilot/src/app/sitemap.ts"
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
     ],
     "anchors": {
       "demo-i-praksis": ["apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/planlegging/page.tsx"],
@@ -412,6 +416,7 @@
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/sandkassen/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
       "docs/README.nav-pilot.md"
     ],
     "anchors": {
@@ -439,7 +444,8 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/feilsoking/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/page.tsx",
-      "apps/my-copilot/src/app/sitemap.ts"
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
     ],
     "anchors": {
       "blokkeringer": ["apps/my-copilot/src/app/(nb)/nav-pilot/guider/feilsoking/page.tsx"],
@@ -454,7 +460,8 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/installere-og-oppgradere/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/page.tsx",
-      "apps/my-copilot/src/app/sitemap.ts"
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
     ],
     "anchors": {
       "avinstallere": ["apps/my-copilot/src/app/(nb)/nav-pilot/guider/installere-og-oppgradere/page.tsx"],
@@ -476,7 +483,8 @@
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/lokal/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
-      "apps/my-copilot/src/app/sitemap.ts"
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
     ],
     "anchors": {
       "autostart": ["apps/my-copilot/src/app/(nb)/nav-pilot/guider/lokal/page.tsx"],
@@ -504,6 +512,7 @@
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/synkronisere/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
       "docs/README.sync.md"
     ],
     "anchors": {
@@ -521,7 +530,8 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/tilpasse/page.tsx",
-      "apps/my-copilot/src/app/sitemap.ts"
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
     ],
     "anchors": {
       "endre-innstillinger": [

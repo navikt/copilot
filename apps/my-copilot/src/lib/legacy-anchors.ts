@@ -5,7 +5,8 @@
 // redirect in next.config.ts. The test does not follow a redirect() inside a
 // page. Write ø and å as-is, not percent-encoded. HashAnchorScroll sends the
 // reader on to the target. src/link-inventory.test.ts checks that every
-// target exists and that no key is a real id on its page.
+// target exists and that no key is a real id on its page. A value must be a
+// real id on its page, never another key. The link guard rejects chains.
 export const LEGACY_ANCHORS: Record<string, string> = {
   // /nav-pilot/docs was split into guides, reference and explanation pages
   // (docs/nav-pilot-dokumentasjon-forslag.md §1.4). next.config.ts sends the

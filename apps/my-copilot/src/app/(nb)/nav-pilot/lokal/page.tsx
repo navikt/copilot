@@ -195,7 +195,7 @@ export default async function LokalModell() {
                   Hva du får
                 </LinkableHeading>
                 <HGrid columns={{ xs: 1, md: 3 }} gap="space-16">
-                  <Card title="Utsending til bakkemodellen">
+                  <Card title="Utsending til den lokale modellen">
                     Hovedagenten bestemmer og sender mekaniske oppgaver til underagenten{" "}
                     <code className={code}>local-worker</code> på maskinen din. Den delen av jobben bruker ingen
                     AI-credits. Hovedagenten gjør det fortsatt. Utsending krever opencode som klient, og nav-pilot
@@ -212,8 +212,8 @@ export default async function LokalModell() {
                   </Card>
                   <Card title="Innholdet blir hos deg">
                     Spørsmålet og grunnlaget du gir decide, forlater ikke maskinen, eller serveren du selv har pekt
-                    nav-pilot på. Ved utsending ser hovedagenten i skyen oppgaven den selv skrev, og bakkemodellens
-                    korte svar. nav-pilots telemetri teller hendelser, ikke innhold, og{" "}
+                    nav-pilot på. Ved utsending ser hovedagenten i skyen oppgaven den selv skrev, og det korte svaret
+                    fra den lokale modellen. nav-pilots telemetri teller hendelser, ikke innhold, og{" "}
                     <code className={code}>DO_NOT_TRACK=1</code> skrur av både den og målingene nav-pilot slår på i
                     Copilot og opencode.
                   </Card>
@@ -288,8 +288,8 @@ export default async function LokalModell() {
                   virker bare i opencode, fordi Copilot CLI ikke har noen underagent.
                 </BodyLong>
                 <BodyLong textColor="subtle">
-                  Nivåene kom fordi instruksen alene ikke virket. I testene våre sendte Sonnet 5 arbeid til
-                  bakkemodellen i 1 av 29 kjøringer. Sonnet 4.6 gjorde det i 23 av 24 i august. På{" "}
+                  Nivåene kom fordi instruksen alene ikke virket. I testene våre sendte Sonnet 5 arbeid til den lokale
+                  modellen i 1 av 29 kjøringer. Sonnet 4.6 gjorde det i 23 av 24 i august. På{" "}
                   <code className={code}>balanced</code> og <code className={code}>aggressive</code> stopper nav-pilot
                   derfor hovedagenten når den gjør en stor mekanisk endring selv, for eksempel når den redigerer en
                   femte fil i samme tur, og ber den sende resten til <code className={code}>local-worker</code>.
@@ -482,11 +482,11 @@ export default async function LokalModell() {
                     <NextLink href="/nyheter/lokale-modeller-i-nav-pilot" className={linkClass}>
                       Nav-pilot lander på bakken
                     </NextLink>{" "}
-                    (nyhetssak om bakkemodellen)
+                    (nyhetssak om lokale modeller)
                   </li>
                   <li>
                     <NextLink href="/nav-pilot/guider/lokal" className={linkClass}>
-                      Dokumentasjonen for bakkemodellen
+                      Guiden for lokal modell
                     </NextLink>
                   </li>
                   <li>

@@ -124,7 +124,7 @@ Begge Qwen 3.8-modellene kan velges med `nav-pilot alpha local use`. Ingen av de
 
 8-bit krever nav-pilot 2026.09.24-110317 eller nyere. Eldre versjoner kjenner ikke steglengden og kan gå tom for minne nær 48k. Manifestet sier nå hvilken nav-pilot hver modell krever, og en eldre nav-pilot skjuler modellen. Peker `local_model` på den, faller nav-pilot tilbake til standardmodellen og sier hvilken versjon du trenger.
 
-Tabellen over modellene på [ki-utvikling.nav.no/nav-pilot/docs](https://ki-utvikling.nav.no/nav-pilot/referanse#lokale-modeller) er nå generert fra manifestet, så kontekst, minnekrav og minste versjon følger det nav-pilot selv leser.
+Tabellen over modellene på [ki-utvikling.nav.no/nav-pilot/referanse](https://ki-utvikling.nav.no/nav-pilot/referanse#lokale-modeller) er nå generert fra manifestet, så kontekst, minnekrav og minste versjon følger det nav-pilot selv leser.
 
 Svarer ikke GitHub når du starter en agentpakke som `nais/pilot`, bruker nav-pilot nå manifestet fra forrige vellykkede oppstart og skriver en advarsel. Før feilet hver oppstart, også økter med lokal modell der ingenting annet trenger nett.
 

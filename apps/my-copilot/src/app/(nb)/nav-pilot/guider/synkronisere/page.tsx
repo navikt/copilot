@@ -4,6 +4,7 @@ import NextLink from "next/link";
 import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
+import { GUIDE_PAGES } from "@/components/nav-pilot/doc-pages";
 import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ const TOC: TocItem[] = [
   { id: "automatisk-sync", label: "Automatisk sync" },
   { id: "lokal-sync", label: "Lokal sync" },
   { id: "hvordan-nav-pilot-finner-filer", label: "Hvordan nav-pilot finner filer" },
-  { id: "tilpasse-sync", label: "Tilpasse synkroniseringen" },
+  { id: "tilpasse-sync", label: "Tilpasse sync" },
   { id: "faq", label: "Spørsmål og svar" },
 ];
 
@@ -39,7 +40,7 @@ const FAQ = [
   },
   {
     q: "Hva skjer med en fil jeg har endret?",
-    a: "Oppdateringen tar kildens versjon, lagrer din kopi som <fil>.orig ved siden av og sier fra. I CI står fila under «Changed» i pull requesten, merket med at den har lokale endringer. Du kan gå gjennom, flette det du vil ha eller lukke pull requesten. Workflowen tvinger aldri gjennom noe.",
+    a: "Oppdateringen tar kildens versjon, lagrer kopien din som <fil>.orig ved siden av og sier fra. I CI står fila under «Changed» i pull requesten, merket med at den har lokale endringer. Du kan gå gjennom, flette det du vil ha eller lukke pull requesten. Workflowen tvinger aldri gjennom noe.",
   },
   {
     q: "Hva skjer når kilden slutter å levere en fil?",
@@ -62,6 +63,7 @@ export default function Synkronisere() {
       title="Synkronisere"
       description="Agentpakka i navikt/copilot endres jevnlig. Hold repoet ditt oppdatert med en ukentlig pull request eller med nav-pilot sync."
       toc={TOC}
+      siblings={{ pages: GUIDE_PAGES, current: "/nav-pilot/guider/synkronisere" }}
     >
       <section>
         <VStack gap="space-16">
@@ -128,7 +130,7 @@ nav-pilot sync --json     # resultatet som JSON`}
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="tilpasse-sync" size="medium" level="2">
-            Tilpasse synkroniseringen
+            Tilpasse sync
           </LinkableHeading>
           <BodyLong>
             Vil du fjerne filer for et rammeverk du ikke bruker, for eksempel instruksjonene for Next.js i et

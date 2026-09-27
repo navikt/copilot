@@ -4,12 +4,13 @@ import NextLink from "next/link";
 import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell } from "@/components/aksel-table";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
+import { EXPLANATION_PAGES } from "@/components/nav-pilot/doc-pages";
 import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
   title: "Arkitektur — nav-pilot",
   description:
-    "Hvorfor nav-pilot finnes, hva den vet som Copilot ikke vet, hvordan agentpakka er satt sammen, og prinsippene den er bygget på.",
+    "Hvorfor nav-pilot finnes, hva det vet som Copilot ikke vet, hvordan agentpakka er satt sammen, og prinsippene det er bygget på.",
 };
 
 const TOC: TocItem[] = [
@@ -49,7 +50,7 @@ const LAYERS = [
   },
   {
     label: "Skills",
-    desc: "Byggeklosser for intervju, plan, gjennomgang og feilsøking. Du bruker dem via @nav-pilot eller alene.",
+    desc: "Byggeklosser for intervju, plan, gjennomgang og feilsøking. Du bruker dem gjennom @nav-pilot eller alene.",
   },
 ];
 
@@ -68,6 +69,7 @@ export default function Arkitektur() {
       title="Arkitektur"
       description="nav-pilot installerer markdown-filer og starter klienten. Modellen er Copilot sin. Kunnskapen er Nav sin."
       toc={TOC}
+      siblings={{ pages: EXPLANATION_PAGES, current: "/nav-pilot/forklaring/arkitektur" }}
     >
       <section>
         <VStack gap="space-16">

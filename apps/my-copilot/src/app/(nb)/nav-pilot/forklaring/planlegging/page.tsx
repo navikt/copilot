@@ -4,6 +4,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
 import { PipelineFlow } from "@/components/pipeline-flow";
+import { EXPLANATION_PAGES } from "@/components/nav-pilot/doc-pages";
 import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
@@ -45,7 +46,7 @@ const PLANNING_SKILLS = [
   },
   {
     name: "$nav-plan",
-    purpose: "Arkitekturbeslutningstrær → konkret Nais-manifest, CI/CD og prosjektstruktur",
+    purpose: "Går fra beslutningstrær til Nais-manifest, CI/CD og prosjektstruktur",
     details: [
       "Auth-beslutningstre — fra caller-type til Nais-konfigurasjon",
       "Kommunikasjonstre — REST, Kafka, SSE",
@@ -56,7 +57,7 @@ const PLANNING_SKILLS = [
   },
   {
     name: "$nav-architecture-review",
-    purpose: "Flerperspektiv-review → Architecture Decision Record (ADR)",
+    purpose: "Gjennomgår fra tre perspektiver og skriver en ADR",
     details: [
       "Arkitektur — passer dette i Navs arkitektur? Enklere alternativer?",
       "Sikkerhet — data, auth, tilgang, PII",
@@ -86,6 +87,7 @@ export default function Planlegging() {
       title="Planlegging"
       description="nav-pilot foreslår, du godkjenner. Slik er planleggingen bygget opp, og hvorfor."
       toc={TOC}
+      siblings={{ pages: EXPLANATION_PAGES, current: "/nav-pilot/forklaring/planlegging" }}
     >
       <section>
         <VStack gap="space-16">

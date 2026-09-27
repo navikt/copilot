@@ -6,6 +6,7 @@ import { AltInstall } from "@/components/alt-install";
 import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
+import { GUIDE_PAGES } from "@/components/nav-pilot/doc-pages";
 import type { TocItem } from "@/components/table-of-contents";
 import { NAV_PILOT_BREW_UPGRADE } from "@/lib/install-commands";
 
@@ -49,13 +50,10 @@ export default function InstallereOgOppgradere() {
       title="Installere og oppgradere"
       description="Har du ikke installert nav-pilot ennå, start med Kom i gang. Her står det du trenger etterpå."
       toc={TOC}
+      siblings={{ pages: GUIDE_PAGES, current: "/nav-pilot/guider/installere-og-oppgradere" }}
     >
       <BodyLong>
-        Første installasjon står i{" "}
-        <NextLink href="/kom-i-gang" className={linkClass}>
-          Kom i gang
-        </NextLink>
-        . Alle kommandoene og flaggene står i{" "}
+        Alle kommandoene og flaggene står i{" "}
         <NextLink href="/nav-pilot/referanse#kommandoer" className={linkClass}>
           referansen
         </NextLink>
@@ -175,8 +173,8 @@ cplt --project-dir . -- --agent nav-pilot --prompt "Jeg trenger en ny tjeneste s
           <BodyLong>Runneren trenger nav-pilot. Bruk installasjonsskriptet eller apt:</BodyLong>
           <AltInstall />
           <BodyLong>
-            <code className={code}>--frozen</code> spør aldri og flytter aldri låsen. Avslutter den med kode 3, ble ikke
-            låsen fulgt: fila mangler, den peker ikke på en versjon, en annen versjon kom inn, eller bare en del ble
+            <code className={code}>--frozen</code> spør aldri og flytter aldri låsen. Kode 3 betyr at låsen ikke ble
+            fulgt: fila mangler, den peker ikke på en versjon, en annen versjon kom inn, eller bare en del ble
             installert. Kode 1 betyr at noe annet feilet, for eksempel at kilden ikke svarte.
           </BodyLong>
           <CodeBlock compact>
@@ -255,7 +253,8 @@ sudo apt update && sudo apt upgrade nav-pilot  # Debian og Ubuntu`}
           <BodyShort size="small" textColor="subtle">
             Vektene til de lokale modellene ligger i <code className={code}>~/.cache/huggingface</code>, eller der{" "}
             <code className={code}>HF_HOME</code> peker. <code className={code}>purge</code> tar dem, så kjør den før du
-            fjerner nav-pilot. cplt kan du beholde. Den fjernes med <code className={code}>brew uninstall cplt</code>.
+            fjerner nav-pilot. cplt kan du beholde. Vil du fjerne den også:{" "}
+            <code className={code}>brew uninstall cplt</code>.
           </BodyShort>
         </VStack>
       </section>

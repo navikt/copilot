@@ -92,7 +92,9 @@ export function HashAnchorScroll() {
         }
         window.requestAnimationFrame(() => {
           if (cancelled) return;
-          currentTarget.scrollIntoView({ block: "start" });
+          // Look the element up again: hydration or a Suspense reveal can
+          // replace the node between the timer and this frame.
+          document.getElementById(id)?.scrollIntoView({ block: "start" });
         });
         observer?.disconnect();
         clearTimers();

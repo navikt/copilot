@@ -134,7 +134,7 @@ description = "Fetch the models.dev github-copilot catalog and regenerate the pi
 run = "node scripts/sync-copilot-models.mjs"
 
 [tasks."local-models:check"]
-description = "Check if the local-model table on the docs page matches the mlx-workspace manifest"
+description = "Check if the fallback local-model table (referanse, forklaring/lokal-modell) matches the mlx-workspace manifest"
 run = "node scripts/sync-local-models.mjs --check"
 
 [tasks."local-models:test"]
@@ -142,7 +142,7 @@ description = "Test the local-model manifest validation and the page loader"
 run = "pnpm --dir apps/my-copilot exec vitest run src/lib/local-models"
 
 [tasks."local-models:sync"]
-description = "Fetch the mlx-workspace model manifest and regenerate the docs page's local-model table"
+description = "Fetch the mlx-workspace model manifest and regenerate the fallback local-model table"
 run = "node scripts/sync-local-models.mjs"
 
 # ─── nav-pilot installer ─────────────────────────────────────────────────────

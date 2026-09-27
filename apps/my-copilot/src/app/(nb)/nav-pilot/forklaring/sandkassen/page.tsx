@@ -4,6 +4,7 @@ import NextLink from "next/link";
 import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
+import { EXPLANATION_PAGES } from "@/components/nav-pilot/doc-pages";
 import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
@@ -26,6 +27,7 @@ export default function Sandkassen() {
       title="Sandkassen"
       description="nav-pilot starter klienten i cplt, sandkassen for kodeagenter. Her er hvorfor, og hva sikkerhetsnivåene gjør."
       toc={TOC}
+      siblings={{ pages: EXPLANATION_PAGES, current: "/nav-pilot/forklaring/sandkassen" }}
     >
       <section>
         <VStack gap="space-16">
@@ -101,7 +103,7 @@ export default function Sandkassen() {
               hvorfor.
             </BodyLong>
           </Box>
-          <BodyLong>Sett det derfor via nav-pilot:</BodyLong>
+          <BodyLong>Sett det derfor med nav-pilot:</BodyLong>
           <CodeBlock compact>{"nav-pilot config     # velg raden «cplt security posture»"}</CodeBlock>
           <BodyLong>
             nav-pilot skriver host-lista til <code className={code}>~/.nav-pilot/cplt-allowed-domains.txt</code>, peker{" "}
@@ -117,7 +119,7 @@ export default function Sandkassen() {
             <code className={code}>opencode.ai</code> og <code className={code}>models.dev</code>.
           </BodyLong>
           <BodyLong>
-            Den lokale modellen går via en løkkevakt på <code className={code}>127.0.0.1</code>. cplt blokkerer
+            Den lokale modellen går gjennom en løkkevakt på <code className={code}>127.0.0.1</code>. cplt blokkerer
             localhost som standard, så nav-pilot sender porten med som{" "}
             <code className={code}>--allow-localhost &lt;port&gt;</code> ved hver oppstart. Det er én port, ikke
             bryteren for hele maskinen, som <code className={code}>proxy.forced</code> overstyrer. Én port slipper

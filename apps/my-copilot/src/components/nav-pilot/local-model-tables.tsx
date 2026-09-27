@@ -12,9 +12,9 @@ const LOCAL_MODEL_TEXT: Record<string, string> = {
   "qwen3.6-35b-a3b-optiq":
     "Rask og forutsigbar, og svarer på sekunder. Det eneste hovedagenten kan sende hit uten forbehold, er en mekanisk endring over flere filer.",
   "qwen3.8-27b-optiq-4bit":
-    "Mye tregere enn standard. Bruker 8 bit på de mest følsomme lagene og 4 bit på resten. I siste måling nådde ingen oppgaver tidsgrensen, noe den vanlige 4-bitversjonen den erstatter gjorde.",
+    "Mye tregere enn standardmodellen. Bruker 8 bit på de mest følsomme lagene og 4 bit på resten. I siste måling nådde ingen oppgaver tidsgrensen. Det gjorde den vanlige 4-bit-versjonen den erstatter.",
   "qwen3.8-27b-8bit-mlx":
-    "Den tregeste. Løste litt flere oppgaver enn standard i siste måling, men bruker mange ganger så lang tid. Leser lange prompter i små steg for å bruke mindre minne, og det steget kjenner bare nyere nav-pilot til.",
+    "Den tregeste. Løste litt flere oppgaver enn standardmodellen i siste måling, men bruker mange ganger så lang tid. Leser lange prompter i små steg for å bruke mindre minne, og det steget kjenner bare nyere nav-pilot til.",
 };
 
 const TASK_CLASS_LABEL: Record<string, string> = {
@@ -31,7 +31,7 @@ const modelName = (m: LocalModel) => m.model.split("/").pop();
 
 function trustedClasses(m: LocalModel) {
   return Object.entries(m.classes).flatMap(([id, c]) => [
-    ...(c.delegate === "trusted" ? [`${classLabel(id)} (sendt fra en skyagent)`] : []),
+    ...(c.delegate === "trusted" ? [`${classLabel(id)} (sendt fra hovedagenten i skyen)`] : []),
     ...(c.local === "trusted" ? [`${classLabel(id)} (hele økten lokalt)`] : []),
   ]);
 }
@@ -55,7 +55,7 @@ function LocalModelText({ m }: { m: LocalModel }) {
 export function LocalModelsTable({ models }: { models: LocalModel[] }) {
   return (
     <div className="overflow-x-auto">
-      <Table size="small" className="w-full">
+      <Table size="small" style={{ minWidth: "40rem" }}>
         <TableHeader>
           <TableRow>
             <TableHeaderCell scope="col">Modell</TableHeaderCell>
@@ -99,7 +99,7 @@ export function LocalModelsTable({ models }: { models: LocalModel[] }) {
 export function TrustedClassesTable({ models }: { models: LocalModel[] }) {
   return (
     <div className="overflow-x-auto">
-      <Table size="small" className="w-full">
+      <Table size="small" style={{ minWidth: "40rem" }}>
         <TableHeader>
           <TableRow>
             <TableHeaderCell scope="col">Modell</TableHeaderCell>

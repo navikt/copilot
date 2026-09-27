@@ -4,6 +4,7 @@ import NextLink from "next/link";
 import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
+import { GUIDE_PAGES } from "@/components/nav-pilot/doc-pages";
 import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 const TOC: TocItem[] = [
   { id: "endre-innstillinger", label: "Endre innstillinger" },
   { id: "team-egne-instruksjoner", label: "Teamets egne instruksjoner" },
-  { id: "prosjektkontekst-med-nav-pilot-init", label: "Prosjektkontekst med init" },
+  { id: "prosjektkontekst-med-nav-pilot-init", label: "Prosjektkontekst med nav-pilot init" },
   { id: "overstyre-installerte-filer", label: "Overstyre installerte filer" },
   { id: "ignorere-enkeltkomponenter", label: "Ignorere enkeltkomponenter" },
   { id: "hooks", label: "Slå hooks av og på" },
@@ -48,6 +49,7 @@ export default function Tilpasse() {
       title="Tilpasse"
       description="Repoet ditt trenger ofte egne regler og egen kontekst. Slik legger du dem til uten å miste oppdateringene fra nav-pilot."
       toc={TOC}
+      siblings={{ pages: GUIDE_PAGES, current: "/nav-pilot/guider/tilpasse" }}
     >
       <section>
         <VStack gap="space-16">
@@ -104,9 +106,9 @@ nav-pilot config init            # lag fila med alle valg kommentert ut`}
             Prosjektkontekst med nav-pilot init
           </LinkableHeading>
           <BodyLong>
-            <code className={code}>nav-pilot init</code> lager tre filer med TODO-er, fylt ut ut fra stacken den finner.
-            Teamet fyller inn resten. nav-pilot lager filene én gang og rører dem ikke etterpå. Filer som finnes fra
-            før, blir stående.
+            <code className={code}>nav-pilot init</code> lager tre filer med TODO-er, forhåndsutfylt etter stacken den
+            finner. Teamet fyller inn resten. nav-pilot lager filene én gang og rører dem ikke etterpå. Filer som finnes
+            fra før, blir stående.
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot init
@@ -137,7 +139,7 @@ nav-pilot config init            # lag fila med alle valg kommentert ut`}
           <BodyShort size="small" textColor="subtle">
             Mer om hva sync gjør med filene, står i{" "}
             <NextLink href="/nav-pilot/guider/synkronisere#tilpasse-sync" className={linkClass}>
-              Tilpasse synkroniseringen
+              Tilpasse sync
             </NextLink>
             .
           </BodyShort>
@@ -208,12 +210,13 @@ nav-pilot config set hook_redact_fnr true    # på igjen`}
             bare det nav-pilot har skrevet, så dine egne hooks blir stående.
           </BodyLong>
           <BodyLong>
-            Portene slipper kallet gjennom når Python svikter: mangler <code className={code}>python3</code>, feiler
-            skriptet, eller svarer det ikke innen ett sekund før fristen. Hver port har et unntak:{" "}
-            <code className={code}>POLL_OK=1</code> foran kommandoen for polling-porten, og en kommentar med{" "}
-            <code className={code}>ARIA_OK</code> og begrunnelsen ved rollen for ARIA-porten. ARIA-porten ber bare
-            modellen spørre deg og nevner ikke merket. Merket er et spor du legger igjen etter at du har sagt ja. Det er
-            ingen lås, for en modell kan skrive det selv.
+            To av dem er porter som kan stoppe et verktøykall: polling-porten og ARIA-porten. Portene slipper kallet
+            gjennom når Python svikter: <code className={code}>python3</code> mangler, skriptet feiler, eller det svarer
+            ikke innen fristen på ett sekund. Hver port har et unntak: <code className={code}>POLL_OK=1</code> foran
+            kommandoen for polling-porten, og en kommentar med <code className={code}>ARIA_OK</code> og begrunnelsen ved
+            siden av <code className={code}>role</code>-attributtet for ARIA-porten. ARIA-porten ber bare modellen
+            spørre deg og nevner ikke merket. Merket er et spor du legger igjen etter at du har sagt ja. Det er ingen
+            lås, for en modell kan skrive det selv.
           </BodyLong>
         </VStack>
       </section>

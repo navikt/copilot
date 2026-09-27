@@ -229,7 +229,7 @@ nav-pilot alpha local restart                       # hvis serveren kjører en a
 - Exit-koden er 0 når sannsynligheten for `--expect` er lik eller høyere enn terskelen, 1 når den er lavere og 2 når noe feilet. Håndter 2 for seg, ellers stopper skriptet ditt hver gang serveren er nede.
 - `decide` er i alfa, så flagg og format kan endre seg.
 
-Hjelpeteksten får du med `nav-pilot alpha decide --help`, og dokumentasjonen ligger under [Typede avgjørelser](/nav-pilot/guider/lokal#decide-oppskrifter) på nav-pilot-siden.
+Hjelpeteksten får du med `nav-pilot alpha decide --help`, og oppskriftene står i [Oppskrifter for alpha decide](/nav-pilot/guider/lokal#decide-oppskrifter).
 
 **Kilder:**
 

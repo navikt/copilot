@@ -4,12 +4,12 @@ import NextLink from "next/link";
 import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
+import { GUIDE_PAGES } from "@/components/nav-pilot/doc-pages";
 import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
   title: "Feilsøking — nav-pilot",
-  description:
-    "Sjekk maskinen med nav-pilot doctor, se hva cplt blokkerer, og få en lokal modell som henger, i gang igjen.",
+  description: "Sjekk maskinen med nav-pilot doctor, se hva cplt blokkerer, og få liv i en lokal modell som henger.",
 };
 
 const TOC: TocItem[] = [
@@ -25,6 +25,7 @@ export default function Feilsoking() {
       title="Feilsøking"
       description="Start med nav-pilot doctor. Den finner det meste og sier hva du skal gjøre."
       toc={TOC}
+      siblings={{ pages: GUIDE_PAGES, current: "/nav-pilot/guider/feilsoking" }}
     >
       <section>
         <VStack gap="space-16">
@@ -38,7 +39,7 @@ nav-pilot alpha local doctor  # bare egen server (local_endpoint)`}
           </CodeBlock>
           <BodyLong>
             <code className={code}>doctor</code> sjekker konfigfila, det som er installert i{" "}
-            <code className={code}>~/.copilot</code> og i repoet, hooks, klientene (copilot, opencode og pi), cplt,
+            <code className={code}>~/.copilot</code> og i repoet, hooks, klientene (Copilot CLI, opencode og pi), cplt,
             modellvalgene, sandkassen og git. Hvert problem kommer med kommandoen som løser det. Den endrer ingenting,
             og avslutter med kode 0 også når den finner noe, så les linjene med «Solution».
           </BodyLong>
@@ -50,7 +51,7 @@ nav-pilot alpha local doctor  # bare egen server (local_endpoint)`}
           </BodyLong>
           <BodyLong>
             Finner du en feil, meld den med <code className={code}>nav-pilot feedback</code>. Den åpner et issue i
-            navikt/copilot med versjon og systeminformasjon fylt inn. Ingenting sendes før du sender inn issuet.
+            navikt/copilot med versjon og systeminformasjon fylt inn. Ingenting går ut før du sender inn issuet.
           </BodyLong>
         </VStack>
       </section>
@@ -63,13 +64,13 @@ nav-pilot alpha local doctor  # bare egen server (local_endpoint)`}
           <BodyLong>
             <code className={code}>proxy.log_level</code> bestemmer hva proxyen i cplt skriver til stderr. Standard er{" "}
             <code className={code}>none</code>, men cplt hever den selv til <code className={code}>blocked</code> når en
-            host-liste er aktiv. Setter du sikkerhetsnivået via nav-pilot, skriver den alltid en host-liste, så på
+            host-liste er aktiv. Setter du sikkerhetsnivået med nav-pilot, skriver den alltid en host-liste, så på
             strict ser du blokkeringene uten å gjøre noe.
           </BodyLong>
           <BodyLong>
             Kjører du <code className={code}>standard</code> uten egen{" "}
-            <code className={code}>proxy.allowed_domains</code>, tier proxyen om alle blokkeringer: treff i cplt sin
-            egen blokkliste, stengte porter, hoster som peker til private eller link-local IP-adresser, og oppslag som
+            <code className={code}>proxy.allowed_domains</code>, tier proxyen om alle blokkeringer: treff i cplts egen
+            blokkliste, stengte porter, hoster som peker til private eller link-local IP-adresser, og oppslag som
             feiler. Vil du se dem, sett nivået selv:
           </BodyLong>
           <CodeBlock compact>{`cplt config set proxy.log_level blocked`}</CodeBlock>

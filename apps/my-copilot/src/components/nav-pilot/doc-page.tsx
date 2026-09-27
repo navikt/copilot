@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { PageHero } from "@/components/page-hero";
 import { TableOfContents, type TocItem } from "@/components/table-of-contents";
+import type { DocLink } from "./doc-pages";
 
 // The frame of a nav-pilot documentation page: a label line with the group
 // ("Guider", "Referanse", "Forklaring"), the title, and the table of contents
@@ -14,6 +15,7 @@ export function DocPage({
   description,
   toc,
   wide,
+  siblings,
   children,
 }: {
   label?: string;
@@ -22,6 +24,8 @@ export function DocPage({
   toc?: TocItem[];
   /** Let the content use the full width, for pages with wide tables. */
   wide?: boolean;
+  /** The other pages in the group, listed at the bottom until the section menu exists. */
+  siblings?: { pages: DocLink[]; current: string };
   children: ReactNode;
 }) {
   return (
@@ -34,7 +38,19 @@ export function DocPage({
         >
           <div className="flex gap-12">
             <div className={`min-w-0 flex-1 ${wide ? "" : "max-w-3xl"}`}>
-              <VStack gap={{ xs: "space-32", md: "space-40" }}>{children}</VStack>
+              <VStack gap={{ xs: "space-32", md: "space-40" }}>
+                {children}
+                {siblings && (
+                  <nav aria-label="Sider i denne delen">
+                    <VStack gap="space-16">
+                      <Heading size="medium" level="2">
+                        Sider i denne delen
+                      </Heading>
+                      <PageLinks pages={siblings.pages.filter((p) => p.href !== siblings.current)} level="3" />
+                    </VStack>
+                  </nav>
+                )}
+              </VStack>
             </div>
             {toc && (
               <aside className="hidden xl:block w-56 shrink-0">
@@ -63,14 +79,14 @@ export function Bullets({ children }: { children: ReactNode }) {
 
 // The pages in a group, for the overview pages /nav-pilot/guider and
 // /nav-pilot/forklaring.
-export function PageLinks({ pages }: { pages: { href: string; title: string; desc: string }[] }) {
+export function PageLinks({ pages, level = "2" }: { pages: DocLink[]; level?: "2" | "3" }) {
   return (
     <VStack as="ul" gap="space-16">
       {pages.map((p) => (
         <li key={p.href}>
           <Box borderWidth="1" borderColor="neutral-subtle" borderRadius="8" padding="space-16">
             <VStack gap="space-4">
-              <Heading size="small" level="2">
+              <Heading size="small" level={level}>
                 <NextLink href={p.href} className={linkClass}>
                   {p.title}
                 </NextLink>

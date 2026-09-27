@@ -5,6 +5,7 @@ import NextLink from "next/link";
 import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
+import { GUIDE_PAGES } from "@/components/nav-pilot/doc-pages";
 import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
@@ -18,7 +19,7 @@ const TOC: TocItem[] = [
   { id: "bytte-modell", label: "Bytte modell i skyen" },
   { id: "bytte-lokal-modell", label: "Bytte lokal modell" },
   { id: "egen-server", label: "Bruke egen server" },
-  { id: "decide-oppskrifter", label: "Oppskrifter for decide" },
+  { id: "decide-oppskrifter", label: "Oppskrifter for alpha decide" },
 ];
 
 // Recipes for alpha decide. String.raw keeps the shell's \n and \ intact.
@@ -78,13 +79,14 @@ export default function LokalGuide() {
     <DocPage
       label="Guider"
       title="Lokal modell"
-      description="Oppskrifter for deg som har satt opp en lokal modell. Er du ikke der ennå, start med introduksjonen."
+      description="Oppskrifter for deg som har satt opp en lokal modell. Er du ikke der ennå, start med oppsettet."
       toc={TOC}
+      siblings={{ pages: GUIDE_PAGES, current: "/nav-pilot/guider/lokal" }}
     >
       <BodyLong>
         Oppsettet står i{" "}
         <NextLink href="/nav-pilot/lokal" className={linkClass}>
-          Lokal modell på Mac
+          Lokal modell og decide
         </NextLink>
         . Den lokale modellen er alfa og av som standard.
       </BodyLong>
@@ -112,14 +114,14 @@ nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> fo
               <code className={code}>nav-pilot alpha local off</code>.
             </li>
             <li>
-              <code className={code}>conservative</code>: bare store mekaniske endringer (10 filer eller 20 kallsteder
-              og mer), og hovedagenten vurderer selv om det er verdt det.
+              <code className={code}>conservative</code>: bare store mekaniske endringer (minst 10 filer eller 20
+              kallsteder), og hovedagenten vurderer selv om det er verdt det.
             </li>
             <li>
-              <code className={code}>balanced</code> (standard): mekaniske endringer på 5 filer eller 10 kallsteder og
-              mer. Redigerer hovedagenten selv en femte fil i samme tur, stopper nav-pilot redigeringen én gang og ber
-              om at resten sendes til <code className={code}>local-worker</code>. Trenger endringen en vurdering per
-              fil, går samme redigering gjennom andre gang.
+              <code className={code}>balanced</code> (standard): mekaniske endringer på minst 5 filer eller 10
+              kallsteder. Redigerer hovedagenten selv en femte fil i samme tur, stopper nav-pilot redigeringen én gang
+              og ber om at resten sendes til <code className={code}>local-worker</code>. Trenger endringen en vurdering
+              per fil, går samme redigering gjennom andre gang.
             </li>
             <li>
               <code className={code}>aggressive</code>: en stoppet fil slipper gjennom først når den er sendt til{" "}
@@ -146,7 +148,7 @@ nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> fo
           </LinkableHeading>
           <BodyLong>
             <code className={code}>nav-pilot models</code> viser modellene klienten kan bruke, med den du har valgt
-            merket <code className={code}>*</code>. Lista er nav-pilot sin. Hva du faktisk får bruke, avhenger også av
+            merket <code className={code}>*</code>. Lista er nav-pilots egen. Hva du faktisk får bruke, avhenger også av
             Copilot-abonnementet ditt.
           </BodyLong>
           <CodeBlock compact>
@@ -181,7 +183,8 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
               tabellen over lokale modeller
             </NextLink>
             . Lista oppdateres når du kjører <code className={code}>init</code> eller{" "}
-            <code className={code}>start</code>, ikke ved hver kommando.
+            <code className={code}>start</code>, ikke ved hver kommando. Første oppstart laster modellen inn i minnet.
+            Ti målte oppstarter på seks maskiner lå alle under 50 sekunder, seks av dem under ti.
           </BodyLong>
           <BodyLong>
             <code className={code}>status</code> viser hvilken modell som er valgt, og om den er valgt med{" "}
@@ -249,14 +252,15 @@ nav-pilot alpha local doctor   # verktøykall, logprobs, kontekst og tid til fø
             Vi anbefaler Qwen3.6-35B-A3B i dynamisk 4-bit (unsloth UD-Q4_K_XL). Det er den GGUF-varianten som ligger
             nærmest modellen vi har målt på Mac, men tallene våre gjelder ikke for den. Modell-id-en er det serveren
             lister på <code className={code}>/v1/models</code>, og <code className={code}>doctor</code> viser dem.
-            Hovedagenten får den eldre, generelle instruksen, og nav-pilot stopper ingenting.
+            Hovedagenten får den generelle instruksen om utsending, ikke den som er tilpasset modellen, og nav-pilot
+            stopper ingen redigeringer.
           </BodyLong>
           <Box background="warning-soft" padding="space-16" borderRadius="8">
             <VStack gap="space-8">
               <Label size="small">Ollama kutter lange prompter uten å si fra</Label>
               <BodyShort size="small">
                 På maskiner med under 24 GB grafikkminne gir Ollama modellen 4 096 tokens kontekst, og det kan ikke
-                endres via <code className={code}>/v1</code>. En økt i Copilot starter med rundt 22 000 tokens, så
+                endres over <code className={code}>/v1</code>. En økt i Copilot starter med rundt 22 000 tokens, så
                 resten blir borte. Start Ollama med <code className={code}>OLLAMA_CONTEXT_LENGTH=65536</code>, eller lag
                 en egen modell med en Modelfile som har <code className={code}>PARAMETER num_ctx 65536</code>.{" "}
                 <code className={code}>doctor</code> sender rundt 30 000 tokens og feiler hvis serveren kutter.
@@ -278,11 +282,11 @@ nav-pilot alpha local doctor   # verktøykall, logprobs, kontekst og tid til fø
           </LinkableHeading>
           <BodyLong>
             <code className={code}>nav-pilot alpha decide</code> stiller den lokale modellen ett flervalgsspørsmål og
-            svarer med en sannsynlighet for hvert alternativ. Et varmt svar tar under ett sekund, og spørsmålet forlater
-            ikke maskinen. Bruk den til vurderinger en regel ikke klarer: om en commit-melding følger Conventional
-            Commits, avgjør et regulært uttrykk, men om den forklarer hvorfor, må en modell vurdere. Med{" "}
-            <code className={code}>--threshold</code> og <code className={code}>--expect</code> blir svaret kode 0 eller
-            1. Serveren må kjøre, for <code className={code}>decide</code> starter den ikke selv.
+            svarer med en sannsynlighet for hvert alternativ. Når serveren er varm, tar et svar under ett sekund, og
+            spørsmålet forlater ikke maskinen. Bruk den til vurderinger en regel ikke klarer: om en commit-melding
+            følger Conventional Commits, avgjør et regulært uttrykk, men om den forklarer hvorfor, må en modell vurdere.
+            Med <code className={code}>--threshold</code> og <code className={code}>--expect</code> blir svaret kode 0
+            eller 1. Serveren må kjøre, for <code className={code}>decide</code> starter den ikke selv.
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot alpha decide \\
@@ -357,7 +361,7 @@ nav-pilot alpha local doctor   # verktøykall, logprobs, kontekst og tid til fø
 
           <Label size="small">Mål ditt eget spørsmål</Label>
           <BodyLong>
-            Lag en JSONL-fil med eksempler fra ditt eget repo der du vet svaret, ett per linje, og omtrent like mange av
+            Lag en JSONL-fil med eksempler fra repoet ditt der du vet svaret, ett per linje, og omtrent like mange av
             hvert svar. <code className={code}>--eval</code> viser treffsikkerhet, en forvekslingsmatrise, snittet av
             sannsynligheten for riktige og gale svar, og svartid. Er modellen like sikker når den tar feil som når den
             har rett, hjelper ingen terskel, og spørsmålet bør ikke inn i en hook.
@@ -404,8 +408,8 @@ nav-pilot alpha local doctor   # verktøykall, logprobs, kontekst og tid til fø
             }
           />
           <BodyLong>
-            Den flagget ingen av de 24 beskrivelsene som forklarer hvorfor, men fant bare 3 av 12 der grunnen var tatt
-            ut. Et «no» er verdt å se på. Et «yes» betyr lite.
+            Den slapp gjennom alle de 24 beskrivelsene som forklarer hvorfor, men fant bare 3 av 12 der grunnen var
+            fjernet. Et «no» er verdt å se på. Et «yes» betyr lite.
           </BodyLong>
           <CodeBlock compact>{DECIDE_PR_DESCRIPTION}</CodeBlock>
 

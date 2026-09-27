@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
 import { TrustedClassesTable } from "@/components/nav-pilot/local-model-tables";
+import { EXPLANATION_PAGES } from "@/components/nav-pilot/doc-pages";
 import type { TocItem } from "@/components/table-of-contents";
 import { FALLBACK_TABLE, getLocalModels } from "@/lib/local-models";
 
@@ -31,11 +32,12 @@ export default function LokalModellForklaring() {
       title="Lokal modell"
       description="Hovedagenten blir i skyen og bestemmer. Den lokale modellen utfører det den er målt og godkjent for."
       toc={TOC}
+      siblings={{ pages: EXPLANATION_PAGES, current: "/nav-pilot/forklaring/lokal-modell" }}
     >
       <BodyLong>
         Oppsettet står i{" "}
         <NextLink href="/nav-pilot/lokal" className={linkClass}>
-          Lokal modell på Mac
+          Lokal modell og decide
         </NextLink>
         , og innstillingene i{" "}
         <NextLink href="/nav-pilot/guider/lokal" className={linkClass}>
@@ -75,7 +77,10 @@ export default function LokalModellForklaring() {
               <code className={code}>aggressive</code> slår derfor ikke inn.
             </li>
             <li>Qwen 3.8-modellene er ikke godkjent for noe. Med dem stopper nav-pilot ingenting på noe nivå.</li>
-            <li>En modell på egen server er ikke målt. Den får den eldre, generelle instruksen og ikke noe stopp.</li>
+            <li>
+              En modell på egen server er ikke målt. Den får den generelle instruksen om utsending, ikke den som er
+              tilpasset modellen, og nav-pilot stopper ingen redigeringer.
+            </li>
           </Bullets>
           <BodyLong>
             nav-pilot stopper heller ingenting når den lokale serveren ikke tar imot tilkoblinger, eller i
@@ -120,7 +125,7 @@ export default function LokalModellForklaring() {
             store mekaniske endringer kan den være raskere enn skyen. Kjør <code className={code}>stop</code> når du
             ikke bruker den, for den holder rundt 21 GB minne så lenge den er oppe. Tallene per oppgave står på{" "}
             <NextLink href="/nav-pilot/lokal#malt" className={linkClass}>
-              Lokal modell på Mac
+              Lokal modell og decide
             </NextLink>
             .
           </BodyLong>

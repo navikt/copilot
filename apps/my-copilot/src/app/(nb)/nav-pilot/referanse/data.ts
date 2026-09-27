@@ -12,19 +12,19 @@ export const CONFIG_KEYS = [
     key: "version",
     flag: "—",
     values: "1",
-    desc: "Skjemaversjon. Mangler den, leses filen som versjon 1, og nav-pilot sier fra med én linje.",
+    desc: "Skjemaversjon. Mangler den, leses fila som versjon 1, og nav-pilot sier fra med én linje.",
   },
   {
     key: "client",
     flag: "--client",
     values: "copilot · opencode · pi (standard: copilot)",
-    desc: "Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen. Mangler cplt, spør nav-pilot i terminalen om copilot eller opencode skal starte uten sandkasse (standard nei). Uten terminal, for eksempel i CI, starter de bare med --no-sandbox.",
+    desc: "Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen når cplt finnes. Mangler cplt, spør nav-pilot i terminalen om copilot eller opencode skal starte uten sandkasse (standard nei). Uten terminal, for eksempel i CI, starter de bare med --no-sandbox.",
   },
   {
     key: "source",
     flag: "--source",
     values: "owner/name eller en absolutt sti (standard: navikt/copilot)",
-    desc: "Hvor agentpakken hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source --save-source; nav-pilot config unset source går tilbake til standarden.",
+    desc: "Hvor agentpakka hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source --save-source; nav-pilot config unset source går tilbake til standarden.",
   },
   {
     key: "model",
@@ -36,7 +36,7 @@ export const CONFIG_KEYS = [
     key: "mode",
     flag: "--mode",
     values: "default · plan · autopilot (standard: default)",
-    desc: "Modus for Copilot-agenten. plan tilsvarer opencode --agent plan; autopilot er kun Copilot.",
+    desc: "Modus for Copilot-agenten. plan tilsvarer opencode --agent plan; autopilot er bare Copilot.",
   },
   {
     key: "reasoning_effort",
@@ -48,7 +48,7 @@ export const CONFIG_KEYS = [
     key: "context_tier",
     flag: "--context",
     values: "default · long_context",
-    desc: "Kontekstnivå. Kun Copilot, og nav-pilot advarer om feltet er satt for opencode.",
+    desc: "Kontekstnivå. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode.",
   },
   {
     key: "allow_all_tools",
@@ -60,13 +60,13 @@ export const CONFIG_KEYS = [
     key: "ask_user",
     flag: "--ask-user / --no-ask-user",
     values: "true · false (standard: true)",
-    desc: "La agenten stoppe og spørre deg. Kun Copilot, og nav-pilot advarer om feltet er satt for opencode.",
+    desc: "La agenten stoppe og spørre deg. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode.",
   },
   {
     key: "auto_launch",
     flag: "--auto-launch / --no-auto-launch",
     values: "true · false (standard: true)",
-    desc: "Start kodeagenten etter synk eller installasjon. Med false skriver nav-pilot bare ut kommandoen.",
+    desc: "Start klienten etter sync eller installasjon. Med false skriver nav-pilot bare ut kommandoen.",
   },
   {
     key: "auto_update",
@@ -96,13 +96,13 @@ export const CONFIG_KEYS = [
     key: "local_enabled",
     flag: "—",
     values: "true · false (standard: false)",
-    desc: "Send avgrensede oppgaver til en lokal modell (alfa). Settes av alpha local init, nullstilles av alpha local off. Så lenge den er false finnes ingen lokale modeller i nav-pilot.",
+    desc: "Send avgrensede oppgaver til en lokal modell (alfa). Settes av alpha local init, nullstilles av alpha local off. Så lenge den er false, ser nav-pilot ingen lokale modeller.",
   },
   {
     key: "local_autostart",
     flag: "—",
     values: "true · false (standard: false)",
-    desc: "La en vanlig nav-pilot starte den lokale serveren når den trengs og ingen kjører. Av som standard: å starte en 21 GB prosess uten å bli bedt om det er ikke greit.",
+    desc: "La en vanlig nav-pilot starte den lokale serveren når den trengs og ingen kjører. Av som standard: en prosess på 21 GB skal ikke starte uten at du har bedt om det.",
   },
   {
     key: "local_loop_guard",
@@ -114,7 +114,7 @@ export const CONFIG_KEYS = [
     key: "local_model",
     flag: "—",
     values: "modell-id fra manifestet",
-    desc: "Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Enklest satt med nav-pilot alpha local use <key>.",
+    desc: "Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Sett den med nav-pilot alpha local use <key>.",
   },
   {
     key: "local_endpoint",
@@ -132,7 +132,7 @@ export const CONFIG_KEYS = [
     key: "local_dispatch",
     flag: "--local-dispatch",
     values: "off · conservative · balanced · aggressive (standard: balanced)",
-    desc: "Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer, ti redigeringer eller en skriptet løkke. Med aggressive slipper den gjennom først når filen er sendt til den lokale modellen, og det samme gjelder nye filer. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for.",
+    desc: "Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer, ti redigeringer eller en skriptet løkke. Med aggressive slipper den gjennom først når fila er sendt til den lokale modellen, og det samme gjelder nye filer. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for.",
   },
   {
     key: "hook_loop_guard",
@@ -150,7 +150,7 @@ export const CONFIG_KEYS = [
     key: "hook_redact_fnr",
     flag: "—",
     values: "true · false (standard: true)",
-    desc: "Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. Bare elleve sifre der datoen og begge kontrollsifrene stemmer blir maskert.",
+    desc: "Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. nav-pilot maskerer bare elleve sifre der datoen og begge kontrollsifrene stemmer.",
   },
   {
     key: "hook_injection_note",
@@ -172,7 +172,7 @@ export const CLI_COMMANDS = [
   {
     command: 'nav-pilot -- -p "…"',
     description:
-      "Start klienten med argumentene etter -- uten meny, spørsmål fra nav-pilot eller synk, med eller uten terminal (CI, skript). Legg til --sync for å synke først. I en terminal viser cplt fortsatt sin egen bekreftelse",
+      "Start klienten med argumentene etter -- uten meny, spørsmål fra nav-pilot eller sync, med eller uten terminal (CI, skript). Legg til --sync for å synkronisere først. I en terminal viser cplt fortsatt sin egen bekreftelse",
   },
   {
     command: "nav-pilot install nav-pilot",
@@ -186,8 +186,8 @@ export const CLI_COMMANDS = [
   { command: "nav-pilot install --force nav-pilot", description: "Overskriv lokalt endrede filer" },
   { command: "nav-pilot list", description: "Vis agentpakka og enkeltkomponenter" },
   { command: "nav-pilot list --installed", description: "Vis installerte filer og integritet" },
-  { command: "nav-pilot doctor", description: "Kjør helsesjekk av systemet og miljøet" },
-  { command: "nav-pilot install <name>", description: "Installer enkeltkomponent (agent, skill, etc.)" },
+  { command: "nav-pilot doctor", description: "Sjekk konfig, installasjon, hooks, klienter, cplt og git" },
+  { command: "nav-pilot install <name>", description: "Installer én komponent (agent, skill osv.)" },
   {
     command: "nav-pilot install <name> --type <type>",
     description: "Installer med eksplisitt type (agent, skill, instruction, prompt)",
@@ -206,27 +206,30 @@ export const CLI_COMMANDS = [
   },
   { command: "nav-pilot rollback", description: "Flytt agentpakka i ~/.copilot tilbake til forrige versjon" },
   { command: "nav-pilot init", description: "Lag AGENTS.md og Copilot-instruksjoner med TODO-er i repoet" },
-  { command: "nav-pilot sync", description: "Sjekk om oppdateringer finnes (exit 1 hvis ja)" },
+  { command: "nav-pilot sync", description: "Sjekk om oppdateringer finnes (kode 1 hvis ja)" },
   { command: "nav-pilot sync --apply", description: "Oppdater filer direkte" },
-  { command: "nav-pilot sync --json", description: "Maskinlesbar JSON-output" },
+  { command: "nav-pilot sync --json", description: "Resultatet som JSON" },
   {
     command: "<command> --json",
     description:
       "JSON på stdout for install, list, sync, export, rollback, validate, ignore, models, usage, version og config (show, path, get, validate). doctor, uninstall og upgrade har ikke JSON",
   },
-  { command: "nav-pilot models", description: "Modellene klienten kan bruke, med den du har valgt markert" },
+  { command: "nav-pilot models", description: "Modellene klienten kan bruke, med den du har valgt merket" },
   {
     command: "nav-pilot models claude",
-    description: "Filtrer listen: bare modellene med «claude» i id-en eller navnet",
+    description: "Filtrer lista: bare modellene med «claude» i id-en eller navnet",
   },
-  { command: "nav-pilot models --client opencode", description: "Vis listen for en annen klient" },
-  { command: "nav-pilot env", description: "Skriv shell-eksport for Copilot CLI-integrasjon" },
+  { command: "nav-pilot models --client opencode", description: "Vis lista for en annen klient" },
+  { command: "nav-pilot env", description: "Skriv miljøvariablene for Copilot CLI, til eval i skallprofilen" },
   { command: "nav-pilot upgrade", description: "Oppdater nav-pilot CLI til nyeste versjon" },
   {
     command: "nav-pilot upgrade --dry-run",
-    description: "Bare sjekk: vis gjeldende → nyeste versjon. Exit 1 når en oppdatering finnes, 0 når du er à jour",
+    description: "Bare sjekk: vis gjeldende → nyeste versjon. Kode 1 når en oppdatering finnes, 0 når du har nyeste",
   },
-  { command: "nav-pilot feedback", description: "Rapporter feil. Åpner GitHub issue med diagnostikk" },
+  {
+    command: "nav-pilot feedback",
+    description: "Meld en feil. Åpner et issue i navikt/copilot med versjon og systeminformasjon",
+  },
   { command: "nav-pilot feedback --feature", description: "Foreslå ny funksjon" },
   {
     command: "nav-pilot survey",
@@ -236,22 +239,25 @@ export const CLI_COMMANDS = [
     command: "nav-pilot export opencode",
     description: "Skriv agentpakka til .opencode/ i repoet, i formatet til opencode. Trengs ikke for å bruke opencode",
   },
-  { command: "nav-pilot export opencode --user", description: "Eksporter til ~/.config/opencode/ (globalt)" },
+  {
+    command: "nav-pilot export opencode --user",
+    description: "Skriv til ~/.config/opencode/ i stedet, for alle repoer",
+  },
   { command: "nav-pilot config", description: "Interaktiv innstillingsside i terminalen" },
   { command: "nav-pilot config init", description: "Opprett ~/.nav-pilot/config.toml med alle valg kommentert ut" },
-  { command: "nav-pilot config setup", description: "Interaktiv konfigurasjonsveileder (klient, modell, modus)" },
-  { command: "nav-pilot config show", description: "Vis effektiv konfigurasjon (fil + standardverdier)" },
-  { command: "nav-pilot config get <key>", description: "Hent én konfigurasjonsverdi" },
-  { command: "nav-pilot config set <key> <value>", description: "Sett én konfigurasjonsverdi" },
-  { command: "nav-pilot config validate", description: "Valider konfigurasjonsfilen" },
+  { command: "nav-pilot config setup", description: "Veiviser for klient, modell og modus" },
+  { command: "nav-pilot config show", description: "Vis gjeldende konfig: fila pluss standardverdiene" },
+  { command: "nav-pilot config get <key>", description: "Hent én verdi" },
+  { command: "nav-pilot config set <key> <value>", description: "Sett én verdi" },
+  { command: "nav-pilot config validate", description: "Sjekk konfigfila" },
   { command: "nav-pilot export opencode --dry-run", description: "Forhåndsvis hva som eksporteres" },
-  { command: "nav-pilot version", description: "Vis versjonsinformasjon" },
+  { command: "nav-pilot version", description: "Vis versjonen" },
   {
     command: "nav-pilot alpha local <command>",
     description: "Lokal modell (alfa): init, start, status, models, use, restart, stop, ask, on, off, purge",
   },
   {
     command: 'nav-pilot alpha decide "<spørsmål>" --options a,b',
-    description: "Typet avgjørelse fra den lokale modellen (alfa). Se --help",
+    description: "Avgjørelse med faste alternativer fra den lokale modellen (alfa). Se --help",
   },
 ];
