@@ -1,11 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 func TestHealthHandler(t *testing.T) {
@@ -231,5 +237,47 @@ func TestAPIRoutesRequireAuth(t *testing.T) {
 				t.Errorf("Expected problem type containing 'unauthorized', got %q", problem.Type)
 			}
 		})
+	}
+}
+
+// The SAML lookup's path ends in the caller's Nav e-mail. Neither the request
+// log nor a trace may carry it.
+func TestSAMLPathNeverLoggedOrTraced(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	email := "ola.nordmann@nav.no"
+	config := &Config{LoggedEndpoints: map[string]bool{"/api/v1/": true}}
+	h := loggingMiddleware(config, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	for _, p := range []string{"/api/v1/copilot/saml/" + email, "/api/v1/copilot/SAML/" + email, "/api/v1/ȺȺȺȺȺȺȺȺȺȺ/saml/" + email} {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.URL.Path = p
+		h.ServeHTTP(httptest.NewRecorder(), req)
+		if tracePath(req) {
+			t.Errorf("%s would be traced", p)
+		}
+	}
+	if strings.Contains(buf.String(), email) || !strings.Contains(buf.String(), "/saml/{identity}") {
+		t.Fatalf("log should carry the redacted path only, got %s", buf.String())
+	}
+	if !tracePath(httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/metrics", nil)) {
+		t.Error("ordinary routes must still be traced")
+	}
+}
+
+// The wiring main.go uses: the SAML lookup yields no span, an ordinary
+// route does.
+func TestTraceAPISkipsSAMLLookup(t *testing.T) {
+	exp := tracetest.NewInMemoryExporter()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exp))
+	h := traceAPI(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), otelhttp.WithTracerProvider(tp))
+	for _, p := range []string{"/api/v1/copilot/saml/ola.nordmann@nav.no", "/api/v1/copilot/usage/metrics"} {
+		h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, p, nil))
+	}
+	spans := exp.GetSpans()
+	if len(spans) != 1 || spans[0].Name != "GET /api/v1/copilot/usage/metrics" {
+		t.Fatalf("spans = %v, want only the usage route", spans)
 	}
 }

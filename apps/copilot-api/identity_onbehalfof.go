@@ -94,7 +94,7 @@ func (o *OnBehalfOfIdentityResolver) Resolve(ctx context.Context, user *User, r 
 		"github_username", logSafe(username),
 		"intermediary_azp", azp,
 		"method", logSafe(r.Method),
-		"path", logSafe(r.URL.Path),
+		"path", logSafe(redactPath(r.URL.Path)),
 	)
 
 	return &ResolvedIdentity{GitHubUsername: username, Source: "on-behalf-of"}, nil

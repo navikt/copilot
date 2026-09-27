@@ -159,12 +159,8 @@ func main() {
 	))
 
 	// Protected API endpoints — wrapped with OTel tracing
-	mux.Handle("/api/v1/", otelhttp.NewHandler(
+	mux.Handle("/api/v1/", traceAPI(
 		loggingMiddleware(config, authMiddleware(identityMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers, identityChain)))),
-		"api",
-		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
-			return r.Method + " " + r.URL.Path
-		}),
 	))
 
 	slog.Info("Server listening", "port", config.Port)
@@ -218,4 +214,15 @@ func registerDevRoutes(mux *http.ServeMux, config *Config, rawBQClient *BigQuery
 	}
 	slog.Warn("Registering unauthenticated /dev/query endpoint (local development only)")
 	mux.HandleFunc("/dev/query", rawBQClient.devQueryHandler)
+}
+
+// traceAPI wraps the /api/v1/ handler in otelhttp, except the SAML lookup,
+// whose path is the caller's e-mail (see tracePath).
+func traceAPI(h http.Handler, opts ...otelhttp.Option) http.Handler {
+	return otelhttp.NewHandler(h, "api", append([]otelhttp.Option{
+		otelhttp.WithFilter(tracePath),
+		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+			return r.Method + " " + r.URL.Path
+		}),
+	}, opts...)...)
 }

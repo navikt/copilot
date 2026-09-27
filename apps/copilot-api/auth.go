@@ -400,7 +400,7 @@ func makeAuthMiddleware(config *Config) func(http.Handler) http.Handler {
 
 			user, err := validator.validate(token)
 			if err != nil {
-				slog.Warn("Token validation failed", "error", err, "path", r.URL.Path)
+				slog.Warn("Token validation failed", "error", logSafe(err.Error()), "path", logSafe(redactPath(r.URL.Path)))
 				respondError(w, "unauthorized", "Invalid or expired token", http.StatusUnauthorized)
 				return
 			}

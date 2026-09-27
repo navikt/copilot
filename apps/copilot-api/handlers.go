@@ -224,6 +224,23 @@ func respondJSON(w http.ResponseWriter, data interface{}, status int) {
 	}
 }
 
+// redactPath replaces everything after /saml/ in
+// GET /api/v1/copilot/saml/{identity}, which is the caller's Nav e-mail, so a
+// request log never names who was active when. Case-insensitive, so
+// /SAML/<e-mail> (a 404, but logged first) is caught too.
+func redactPath(p string) string {
+	// Slice the lowered string: ToLower can change a rune's byte length.
+	low := strings.ToLower(p)
+	if i := strings.Index(low, "/saml/"); i >= 0 {
+		return low[:i] + "/saml/{identity}"
+	}
+	return p
+}
+
+// tracePath reports whether a request may be traced. The SAML lookup never
+// is, since otelhttp records the full path on the span.
+func tracePath(r *http.Request) bool { return redactPath(r.URL.Path) == r.URL.Path }
+
 // loggingMiddleware logs HTTP requests
 func loggingMiddleware(config *Config, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -238,7 +255,7 @@ func loggingMiddleware(config *Config, next http.Handler) http.Handler {
 		if shouldLog {
 			args := []any{
 				"method", r.Method,
-				"path", r.URL.Path,
+				"path", redactPath(r.URL.Path),
 				"remote_addr", r.RemoteAddr,
 			}
 			if sc := trace.SpanFromContext(r.Context()).SpanContext(); sc.IsValid() {
