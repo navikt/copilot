@@ -1236,3 +1236,28 @@ func fakeCopilotOnlyOnPath(t *testing.T) string {
 	t.Setenv("PATH", dir)
 	return marker
 }
+
+// TestStagedLaunchCountsAsSession: the survey prompt follows a session that
+// ran, and a Tier 2 staged launch is one, though it returns handled before the
+// legacy launch that also records it.
+func TestStagedLaunchCountsAsSession(t *testing.T) {
+	forceInteractive(t)
+	scope := pinEnv(t)
+	installPin(t, scope, tier2PinSource(t, "sha-one"))
+	failingResolveSource(t)
+
+	origLaunchers := stagedLaunchers
+	t.Cleanup(func() { stagedLaunchers = origLaunchers; sessionClient = "" })
+	stagedLaunchers = map[string]func(ResolvedConfig, providerpkg.StagedLaunch) error{
+		"copilot": func(ResolvedConfig, providerpkg.StagedLaunch) error { return nil },
+	}
+	sessionClient = ""
+
+	handled, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
+	if !handled || err != nil {
+		t.Fatalf("tryPakkeLaunch = (%v, %v), want a staged launch", handled, err)
+	}
+	if sessionClient != "copilot" {
+		t.Fatalf("sessionClient = %q after a staged launch, want copilot", sessionClient)
+	}
+}
