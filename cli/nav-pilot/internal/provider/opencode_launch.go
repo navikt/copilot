@@ -667,27 +667,31 @@ const describeFully = "Describe the change fully when you send it: which file, w
 // sendTrusted replaces describeFully when the manifest has measured what the
 // worker is trusted with. It carries no "do it yourself if you doubt it": that
 // clause, with a threshold of "a change you can make in two", made Sonnet 5
-// keep everything (0 of 7 probe samples dispatched). It does keep small jobs:
-// once told to send even one-step jobs, Sonnet 5 sent one 9-file rename of six,
-// at the same cost and three times the time of the one sed it would have run
-// (mlx-workspace pending-tasks §8.8). The credits are in jobs that take the
-// cloud model many steps, such as a field threaded by hand through dozens of
-// call sites (26 and 38 steps in the same probe), so that is what it is told to
-// send. The measured scope is the send and keep lines around it.
-const sendTrusted = "Send these to `local-worker` when the job is large, meaning it would take you many steps: that is where it saves credits. Do small jobs yourself: one you would finish in one or two steps costs as many credits sent as done, and takes longer. Give it the files, exactly what to change or answer, and how to check it, such as a command that verifies the change. When it answers, check the result.\n"
+// keep everything (0 of 7 probe samples dispatched). It sets no size either;
+// the class lines after it do, where a size means something.
+const sendTrusted = "Send these to `local-worker` instead of doing them yourself: they are what it was measured to do reliably. Give it the files, exactly what to change or answer, and how to check it, such as a command that verifies the change. When it answers, check the result.\n"
 
-// splitMulti is added when mechanical multi-file edits are trusted. The sizes
-// come from the quality frontier (mlx-workspace reports/2026-09-25-quality-
-// frontier and 2026-09-26-64gb-tier): finding the call sites on its own, the
-// shipped worker is trusted only at 1–2 call sites and falls below the bar
-// from 5–8 on. Directed by a cloud agent, the class verified in 35 of 35
-// hybrid runs, which is the manifest's delegate verdict, and a scripted split
-// into one session per call-site file passed 11 to 13 of 16 at 5–317 call sites
-// across four workers. So large jobs go out one file at a time with every place
-// named. A rename one search-and-replace finishes stays with the main agent at
-// any size: that is the 9-file case that cost the same and took three times as
-// long when sent.
-const splitMulti = "A mechanical change is large when it touches 3 or more files or 5 or more call sites and a single search-and-replace cannot make it, for example a parameter that each call site passes a different value. Split it into one task per file and send them one at a time: name the file, list each place in it that changes and exactly what it becomes, and give the command that verifies it. It is reliable when told each place to change, and less so when left to find them. Run the verify command yourself once every file is done.\n"
+// splitMulti is added when mechanical multi-file edits are trusted, and is
+// where the credits are (mlx-workspace pending-tasks §8.8). Once told to send
+// even one-step jobs, Sonnet 5 sent one 9-file rename of six: the same cost as
+// the one sed it would have run, and two to three times the time (one sample).
+// Threading a field through every construction site took it 26 and 38 steps
+// by hand. August's routing measurement saved credits only where the cloud
+// would have taken about 5 steps or more. So small jobs and anything one
+// search-and-replace finishes stay with the main agent, and large ones go out.
+//
+// The per-file split is a way to keep each task inside what the worker does
+// unaided, not a measured win. From the quality frontier (reports/2026-09-25-
+// quality-frontier, 2026-09-26-64gb-tier): finding the call sites itself, the
+// shipped worker is trusted at 1–2 call sites, not yet trusted at 3–8, and below
+// the bar from 9–16 on. The class's delegate verdict rests on 35 of 35 hybrid
+// runs directed by a cloud agent (August, Sonnet 4.6). A scripted split into one
+// session per call-site file passed 11 to 13 of 16 at 5–317 call sites across
+// four workers, which did not beat undirected runs. The worker's own agent
+// file tells it to refuse a task needing more than a few files, and a build
+// fails until the last call site is done, so each file gets a grep and the
+// build runs once at the end.
+const splitMulti = "Send a mechanical change when a single search-and-replace cannot make it and it touches 5 or more files or 10 or more call sites, for example a parameter whose value at each call site follows a stated rule. Do smaller ones yourself, and any change one search-and-replace makes, however many files it touches: sending those costs as many credits and takes longer. Split a large change into one task per file and send them one after another: name the file, list each place in it that changes and exactly what it becomes, and give a check for that file, such as a grep for the new text. Build and run the tests yourself once every file is done.\n"
 
 // sendPhrase and keepPhrase are nav-pilot's words for each task class in
 // [local.TaskClasses], as something to send to the worker and as something to
@@ -697,7 +701,7 @@ var (
 		"read-qa":               "lookups and questions about the code",
 		"edit-single":           "a fully specified edit to one file, such as a comment or a log line",
 		"edit-multi-mechanical": "large mechanical changes that follow one pattern across many files or call sites, such as a parameter threaded through its call sites",
-		"create-file":           "new files, tests included, such as a set of repetitive tests written from a spec",
+		"create-file":           "a new file, tests included",
 		"debug":                 "finding and fixing the cause of a failing test",
 	}
 	keepPhrase = map[string]string{
@@ -735,7 +739,7 @@ func writeDispatchClasses(b *strings.Builder, c *local.Capabilities) {
 		b.WriteString(keepPhrase[class])
 		b.WriteString("; ")
 	}
-	b.WriteString("changes needing a judgement per file; tasks needing many rounds; changes where a wrong edit is expensive.\n\n")
+	b.WriteString("changes needing a judgement per file; a task it would need several exchanges with you to finish; changes where a wrong edit is expensive.\n\n")
 }
 
 // EnsureOpenCodeLocalPolicy provisions the dispatch policy beside the worker
