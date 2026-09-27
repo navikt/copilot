@@ -1,0 +1,70 @@
+# opencode.json is the developer's file, and nav-pilot writes two things into
+# it on every opencode launch. Session sharing stays off: `share` is set to
+# "disabled" when the file doesn't say, also in a file that already exists,
+# and a file that asks for "auto" gets a warning. OTel is only switched on for
+# developers who haven't opted out: with DO_NOT_TRACK=1 (the harness default)
+# the launch writes no experimental.openTelemetry and passes the client no
+# OTel environment.
+
+fake-bin cplt opencode
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot config set source $WORK/plattform
+exec nav-pilot install plattform --user --yes
+
+# No opencode.json yet: created with sharing off and no OTel.
+! exists $HOME/.config/opencode/opencode.json
+exec /bin/sh -c 'nav-pilot --client opencode -- run -p hei </dev/null'
+grep '"share": "disabled"' $HOME/.config/opencode/opencode.json
+! grep 'openTelemetry' $HOME/.config/opencode/opencode.json
+grep 'HOME=' $WORK/fake/cplt.env
+! grep 'OTEL_|OPENCODE_CLIENT|nav\.pilot' $WORK/fake/cplt.env
+
+# An existing file without `share`: sharing is turned off, the rest is kept.
+cp $WORK/existing.json $HOME/.config/opencode/opencode.json
+exec /bin/sh -c 'nav-pilot --client opencode -- run -p hei </dev/null'
+grep '"share": "disabled"' $HOME/.config/opencode/opencode.json
+grep '"theme": "dark"' $HOME/.config/opencode/opencode.json
+grep '"someOtherFlag": true' $HOME/.config/opencode/opencode.json
+! grep 'openTelemetry' $HOME/.config/opencode/opencode.json
+! stderr 'share'
+
+# A file that asks for automatic sharing keeps its choice, with a warning.
+cp $WORK/auto.json $HOME/.config/opencode/opencode.json
+exec /bin/sh -c 'nav-pilot --client opencode -- run -p hei </dev/null'
+grep '"share": "auto"' $HOME/.config/opencode/opencode.json
+stderr 'share.*auto'
+
+# NAV_PILOT_TELEMETRY_ENABLED=false alone is the same opt-out.
+env DO_NOT_TRACK=
+rm $HOME/.config/opencode/opencode.json
+exec /bin/sh -c 'nav-pilot --client opencode -- run -p hei </dev/null'
+! grep 'openTelemetry' $HOME/.config/opencode/opencode.json
+
+-- fake/cplt.sh --
+export -p > "$WORK/fake/cplt.env"
+-- existing.json --
+{
+  "theme": "dark",
+  "experimental": {
+    "someOtherFlag": true
+  }
+}
+-- auto.json --
+{
+  "share": "auto"
+}
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

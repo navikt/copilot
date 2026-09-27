@@ -188,13 +188,16 @@ Log-level-oversettelse (`openCodeLogLevel`): `debug`/`all` → `DEBUG`, `info` �
 `INFO`, `warning` → `WARN`, `error` → `ERROR`; `none`/`default`/unset utelater
 flagget (opencode bruker sin egen standard). opencode aksepterer bare store bokstaver.
 
-### OpenCode OTel
+### OpenCode OTel og deling
 
-Når et OTel-endepunkt er konfigurert (via `OTEL_EXPORTER_OTLP_ENDPOINT` eller `NAV_PILOT_COPILOT_OTEL_ENDPOINT`), gjør nav-pilot:
-1. Kaller `ensureOpenCodeOTelConfig()` for å sette `experimental.openTelemetry = true` i `~/.config/opencode/opencode.json`
-2. Injiserer `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES` og `OPENCODE_CLIENT=nav-pilot` i opencodes miljø — men ingenting av det hvis telemetri er slått av (`DO_NOT_TRACK=1` eller `NAV_PILOT_TELEMETRY_ENABLED=false`)
+Ved hver opencode-oppstart kaller nav-pilot `EnsureOpenCodeConfig()`, som slår sammen to nøkler inn i `~/.config/opencode/opencode.json` og lar resten av fila være:
 
-OTel-konfigurasjonssammenslåingen er dyp (beholder eksisterende `experimental.*`-nøkler) og idempotent.
+1. `share` settes til `"disabled"` når fila ikke sier noe om deling, også i en fil som fantes fra før. opencodes egen standard er `"manual"`, der `/share` laster opp økta til opencode.ai. Står det `"manual"` eller `"auto"`, beholdes valget. For `"auto"`, som laster opp alle økter, advarer nav-pilot på stderr.
+2. `experimental.openTelemetry = true` settes bare når telemetri er på. Med `DO_NOT_TRACK=1` eller `NAV_PILOT_TELEMETRY_ENABLED=false` skrives ingenting. En verdi som alt står i fila, blir stående, men uten endepunktet nav-pilot ellers setter i miljøet, har opencode ingen steder å sende målingene.
+
+I tillegg injiserer nav-pilot `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES` og `OPENCODE_CLIENT=nav-pilot` i opencodes miljø, med samme unntak når telemetri er slått av.
+
+Sammenslåingen er dyp (beholder eksisterende `experimental.*`-nøkler), idempotent og skriver atomisk. Er `opencode.json` en symlenke, skrives fila den peker på.
 
 ### OpenCode livssyklus — Nav-kontekst
 

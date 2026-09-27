@@ -196,14 +196,15 @@ func TestOpenCodeLogLevel(t *testing.T) {
 	}
 }
 
-func TestEnsureOpenCodeOTelConfig(t *testing.T) {
+func TestEnsureOpenCodeConfig(t *testing.T) {
+	telemetryOn(t)
 	t.Run("creates file with defaults when absent", func(t *testing.T) {
 		dir := t.TempDir()
 		configFile := filepath.Join(dir, "opencode.json")
 		ConfigPathOverride = configFile
 		defer func() { ConfigPathOverride = "" }()
 
-		if err := EnsureOpenCodeOTelConfig(); err != nil {
+		if err := EnsureOpenCodeConfig(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -221,6 +222,9 @@ func TestEnsureOpenCodeOTelConfig(t *testing.T) {
 		}
 		if cfg["autoupdate"] != "notify" {
 			t.Errorf("expected autoupdate=notify, got %v", cfg["autoupdate"])
+		}
+		if cfg["share"] != "disabled" {
+			t.Errorf("expected share=disabled, got %v", cfg["share"])
 		}
 	})
 
@@ -240,7 +244,7 @@ func TestEnsureOpenCodeOTelConfig(t *testing.T) {
 		data, _ := json.MarshalIndent(existing, "", "  ")
 		_ = os.WriteFile(configFile, data, 0o600)
 
-		if err := EnsureOpenCodeOTelConfig(); err != nil {
+		if err := EnsureOpenCodeConfig(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -264,7 +268,89 @@ func TestEnsureOpenCodeOTelConfig(t *testing.T) {
 		if exp["openTelemetry"] != true {
 			t.Errorf("openTelemetry not set: %v", exp)
 		}
+		if cfg["share"] != "disabled" {
+			t.Errorf("share not disabled in an existing file: %v", cfg["share"])
+		}
 	})
+
+	t.Run("an explicit share value is kept", func(t *testing.T) {
+		configFile := filepath.Join(t.TempDir(), "opencode.json")
+		ConfigPathOverride = configFile
+		defer func() { ConfigPathOverride = "" }()
+		_ = os.WriteFile(configFile, []byte(`{"share": "manual"}`), 0o600)
+
+		if err := EnsureOpenCodeConfig(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		data, _ := os.ReadFile(configFile)
+		var cfg map[string]any
+		_ = json.Unmarshal(data, &cfg)
+		if cfg["share"] != "manual" {
+			t.Errorf("share overwritten: %v", cfg["share"])
+		}
+	})
+
+	t.Run("opted out: an existing openTelemetry is left alone, nothing written", func(t *testing.T) {
+		t.Setenv("DO_NOT_TRACK", "1")
+		configFile := filepath.Join(t.TempDir(), "opencode.json")
+		ConfigPathOverride = configFile
+		defer func() { ConfigPathOverride = "" }()
+		seed := `{"share": "disabled", "experimental": {"openTelemetry": true}}`
+		_ = os.WriteFile(configFile, []byte(seed), 0o600)
+
+		if err := EnsureOpenCodeConfig(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if after, _ := os.ReadFile(configFile); string(after) != seed {
+			t.Errorf("file rewritten: %s", after)
+		}
+	})
+
+	t.Run("a symlinked config stays a symlink", func(t *testing.T) {
+		dir := t.TempDir()
+		target := filepath.Join(dir, "dotfiles.json")
+		_ = os.WriteFile(target, []byte(`{"theme": "dark"}`), 0o600)
+		link := filepath.Join(dir, "opencode.json")
+		if err := os.Symlink(target, link); err != nil {
+			t.Fatal(err)
+		}
+		ConfigPathOverride = link
+		defer func() { ConfigPathOverride = "" }()
+
+		if err := EnsureOpenCodeConfig(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+			t.Fatalf("symlink replaced: %v", err)
+		}
+		data, _ := os.ReadFile(target)
+		if !strings.Contains(string(data), `"share": "disabled"`) || !strings.Contains(string(data), `"theme": "dark"`) {
+			t.Errorf("target not merged: %s", data)
+		}
+	})
+
+	for _, optOut := range []struct{ key, value string }{
+		{"DO_NOT_TRACK", "1"},
+		{"NAV_PILOT_TELEMETRY_ENABLED", "false"},
+	} {
+		t.Run("opted out with "+optOut.key+": no openTelemetry", func(t *testing.T) {
+			t.Setenv(optOut.key, optOut.value)
+			configFile := filepath.Join(t.TempDir(), "opencode.json")
+			ConfigPathOverride = configFile
+			defer func() { ConfigPathOverride = "" }()
+
+			if err := EnsureOpenCodeConfig(); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			data, _ := os.ReadFile(configFile)
+			if strings.Contains(string(data), "openTelemetry") {
+				t.Errorf("openTelemetry written for an opted-out user:\n%s", data)
+			}
+			if !strings.Contains(string(data), `"share": "disabled"`) {
+				t.Errorf("share not disabled:\n%s", data)
+			}
+		})
+	}
 
 	t.Run("idempotent — second call produces identical output", func(t *testing.T) {
 		dir := t.TempDir()
@@ -272,12 +358,12 @@ func TestEnsureOpenCodeOTelConfig(t *testing.T) {
 		ConfigPathOverride = configFile
 		defer func() { ConfigPathOverride = "" }()
 
-		if err := EnsureOpenCodeOTelConfig(); err != nil {
+		if err := EnsureOpenCodeConfig(); err != nil {
 			t.Fatalf("first call failed: %v", err)
 		}
 		first, _ := os.ReadFile(configFile)
 
-		if err := EnsureOpenCodeOTelConfig(); err != nil {
+		if err := EnsureOpenCodeConfig(); err != nil {
 			t.Fatalf("second call failed: %v", err)
 		}
 		second, _ := os.ReadFile(configFile)
@@ -295,7 +381,7 @@ func TestEnsureOpenCodeOTelConfig(t *testing.T) {
 
 		_ = os.WriteFile(configFile, []byte("{not valid json"), 0o600)
 
-		if err := EnsureOpenCodeOTelConfig(); err == nil {
+		if err := EnsureOpenCodeConfig(); err == nil {
 			t.Error("expected error on invalid JSON, got nil")
 		}
 	})
@@ -601,12 +687,12 @@ func TestLaunchPi_ForwardsExtraArgs(t *testing.T) {
 	}
 }
 
-// TestEnsureOpenCodeOTelConfigNonObject covers configs that parse as valid JSON
+// TestEnsureOpenCodeConfigNonObject covers configs that parse as valid JSON
 // but are not objects. `null` is the dangerous one: json.Unmarshal into a
 // map[string]any accepts it, leaves the map nil, and the write into
 // cfg["experimental"] then panics. Arrays, strings and numbers already fail the
 // unmarshal; they are here so the whole class stays covered.
-func TestEnsureOpenCodeOTelConfigNonObject(t *testing.T) {
+func TestEnsureOpenCodeConfigNonObject(t *testing.T) {
 	for _, content := range []string{"null", "[1, 2, 3]", `"a string"`, "42", "true"} {
 		t.Run(content, func(t *testing.T) {
 			configFile := filepath.Join(t.TempDir(), "opencode.json")
@@ -617,7 +703,7 @@ func TestEnsureOpenCodeOTelConfigNonObject(t *testing.T) {
 				t.Fatalf("seeding config: %v", err)
 			}
 
-			err := EnsureOpenCodeOTelConfig()
+			err := EnsureOpenCodeConfig()
 			if err == nil {
 				t.Fatal("expected an error for a non-object config, got nil")
 			}

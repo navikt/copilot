@@ -53,7 +53,7 @@ import (
 //
 // G2: nothing on this path writes to the user's shared client configuration.
 // The staged opencode launch deliberately skips EnsureOpenCodeNavContext and
-// EnsureOpenCodeOTelConfig — both write into ~/.config/opencode — and never
+// EnsureOpenCodeConfig — both write into ~/.config/opencode — and never
 // edits the payload either, whose bytes are digest-bound. OTel still travels as
 // environment variables, which is not config mutation.
 
