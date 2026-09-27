@@ -670,7 +670,7 @@ const describeFully = "Describe the change fully when you send it: which file, w
 // both read as "keep it", and it dispatched 0 of 7 probe samples under them
 // against Sonnet 4.6's 23 of 24 under a text without them. The measured scope
 // is the send and keep lines around it.
-const sendTrusted = "Send these to `local-worker` instead of making them yourself, even when you could make them in one or two steps: they are what it was measured to do reliably, and its tokens are free. Give it the files, the exact change and a command that verifies it. When it answers, check the result: run that command or read the diff.\n"
+const sendTrusted = "Send these to `local-worker` instead of doing them yourself, even when you could do them in one or two steps: they are what it was measured to do reliably. Give it the files, exactly what to change or answer, and how to check it, such as a command that verifies the change. When it answers, check the result.\n"
 
 // sendPhrase and keepPhrase are nav-pilot's words for each task class in
 // [local.TaskClasses], as something to send to the worker and as something to

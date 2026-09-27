@@ -285,7 +285,15 @@ func SyncOpenCodeArtifacts(client, sourceDir, scopeDir, outputDir, sourceVersion
 	for _, entry := range withLocalWorker(withScopeExtras(agentEntries(sourceDir, layout), scopeDir, source.KindAgent)) {
 		relPath := "agents/" + entry.Name + ".md"
 		dstPath := filepath.Join(outputDir, "agents", entry.Name+".md")
-		if isConflict(relPath, dstPath, false) {
+		conflict := isConflict(relPath, dstPath, false)
+		if _, tracked := stateHashes[relPath]; entry.Data != nil && !tracked {
+			// The built-in worker lands where no pakke put one, so a file already
+			// there is the developer's own, likely written by hand for this gap.
+			if _, statErr := os.Stat(dstPath); statErr == nil {
+				conflict = true
+			}
+		}
+		if conflict {
 			h, _ := source.RawArtifactHash(dstPath, false)
 			files = append(files, domain.InstalledFile{Path: relPath, Hash: h, Status: domain.FileStatusConflict})
 			conflicts = append(conflicts, relPath)

@@ -577,19 +577,22 @@ func TestSyncOpenCodeArtifacts_ConflictSurvivesASecondSync(t *testing.T) {
 
 // TestLocalWorkerShipsUnderAPakkeWithoutOne: with dispatch on, a pakke that
 // has no local-worker (nais/pilot) still gets nav-pilot's own, with its
-// description, so opencode does not list the worker as manual-only. A pakke
-// that ships its own keeps it, and turning local off prunes the built-in one.
+// description, so opencode does not list the worker as manual-only. Turning
+// local off prunes it, a pakke that ships its own keeps it, and a copy the
+// developer wrote by hand before nav-pilot shipped one is left alone.
 func TestLocalWorkerShipsUnderAPakkeWithoutOne(t *testing.T) {
 	sourceDir := t.TempDir()
 	mustWrite(t, filepath.Join(sourceDir, "agents", "auth.agent.md"),
 		"---\nname: auth\ndescription: Authentication expert\n---\n\nYou handle auth.\n")
 	outputDir := t.TempDir()
 	worker := filepath.Join(outputDir, "agents", local.WorkerAgent+".md")
-	sync := func() {
+	sync := func() []string {
 		t.Helper()
-		if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "v1", "abc", ""); err != nil {
+		_, _, _, _, conflicts, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "v1", "abc", "")
+		if err != nil {
 			t.Fatal(err)
 		}
+		return conflicts
 	}
 
 	local.SetEnabled(true)
@@ -605,17 +608,28 @@ func TestLocalWorkerShipsUnderAPakkeWithoutOne(t *testing.T) {
 		}
 	}
 
-	mustWrite(t, filepath.Join(sourceDir, "agents", local.WorkerAgent+".agent.md"),
-		"---\nname: "+local.WorkerAgent+"\ndescription: The pakke's own worker\n---\n\nPakke body.\n")
+	local.SetEnabled(false)
+	sync()
+	if _, err := os.Stat(worker); !os.IsNotExist(err) {
+		t.Errorf("the built-in local-worker survived turning dispatch off: %v", err)
+	}
+
+	local.SetEnabled(true)
+	own := filepath.Join(sourceDir, "agents", local.WorkerAgent+".agent.md")
+	mustWrite(t, own, "---\nname: "+local.WorkerAgent+"\ndescription: The pakke's own worker\n---\n\nPakke body.\n")
 	sync()
 	if got, _ := os.ReadFile(worker); !strings.Contains(string(got), "Pakke body.") {
 		t.Errorf("the built-in worker replaced the pakke's own:\n%s", got)
 	}
-	os.Remove(filepath.Join(sourceDir, "agents", local.WorkerAgent+".agent.md"))
 
-	local.SetEnabled(false)
-	sync()
-	if _, err := os.Stat(worker); !os.IsNotExist(err) {
-		t.Errorf("local-worker still materialized with dispatch off: %v", err)
+	fresh := t.TempDir()
+	os.Remove(own)
+	mustWrite(t, filepath.Join(fresh, "agents", local.WorkerAgent+".md"), "---\ndescription: mine\n---\n\nHand-written.\n")
+	outputDir, worker = fresh, filepath.Join(fresh, "agents", local.WorkerAgent+".md")
+	if c := sync(); !slices.Contains(c, "agents/"+local.WorkerAgent+".md") {
+		t.Errorf("a hand-written local-worker was not reported as a conflict: %v", c)
+	}
+	if got, _ := os.ReadFile(worker); !strings.Contains(string(got), "Hand-written.") {
+		t.Errorf("the built-in worker overwrote a hand-written one:\n%s", got)
 	}
 }

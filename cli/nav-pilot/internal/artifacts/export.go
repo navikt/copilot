@@ -326,7 +326,9 @@ func agentEntries(sourceDir string, layout *agentpakke.Layout) []source.Resolved
 // dispatch is on and neither the pakke nor the scope has one. A pakke without
 // it (nais/pilot has none) otherwise leaves opencode with only the model
 // binding, which it lists as a manual-only agent, so the main agent never
-// dispatches. A pakke's or a scope's own worker always wins.
+// dispatches. A pakke's or a scope's own worker always wins. Only the launch
+// sync uses it: `export opencode` writes a repo's .opencode/, which teammates
+// without a local model read too.
 func withLocalWorker(entries []source.Resolved) []source.Resolved {
 	if !local.Enabled() || slices.ContainsFunc(entries, func(e source.Resolved) bool { return e.Name == local.WorkerAgent }) {
 		return entries
@@ -348,7 +350,7 @@ func readEntry(e source.Resolved) ([]byte, error) {
 }
 
 func exportAgents(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layout, dryRun bool) (int, error) {
-	agents := withLocalWorker(withScopeExtras(agentEntries(sourceDir, layout), scopeDir, source.KindAgent))
+	agents := withScopeExtras(agentEntries(sourceDir, layout), scopeDir, source.KindAgent)
 	// The roster comes from the manifest being exported, not from the active
 	// pakke: export runs without a launch, so the global still holds the
 	// built-in default and every foreign persona was demoted to a subagent
@@ -365,7 +367,7 @@ func exportAgents(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layo
 	for _, entry := range agents {
 		dstPath := filepath.Join(outputDir, "agents", entry.Name+".md")
 
-		data, err := readEntry(entry)
+		data, err := os.ReadFile(entry.AbsPath)
 		if err != nil {
 			return count, fmt.Errorf("reading agent %s: %w", entry.Name, err)
 		}
