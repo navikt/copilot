@@ -94,7 +94,9 @@ function resolvePath(pathname: string, hops = 0): { file: string } | { error: st
   const redirect = redirects.find((r) => r.source === pathname);
   if (redirect) {
     if (!redirect.permanent && !TEMPORARY_REDIRECTS.has(pathname)) {
-      return { error: `redirect ${pathname} → ${redirect.destination} is not permanent` };
+      return {
+        error: `redirect ${pathname} → ${redirect.destination} is not permanent; set permanent: true in next.config.ts or add it to TEMPORARY_REDIRECTS`,
+      };
     }
     if (hops > 5) return { error: `redirect loop at ${pathname}` };
     return resolvePath(redirect.destination.split("#")[0], hops + 1);
@@ -386,7 +388,9 @@ describe("link inventory", () => {
         );
         const target = resolvePath(targetPath);
         if ("error" in target || !anchorsOn(target.file).has(targetAnchor)) {
-          broken.push(`${p}#${anchor} → ${targetPath}#${targetAnchor} (linked from ${sources.join(", ")})`);
+          broken.push(
+            `${p}#${anchor} → ${targetPath}#${targetAnchor}: anchor not found; add a redirect in next.config.ts or an entry in src/lib/legacy-anchors.ts (linked from ${sources.join(", ")})`
+          );
         }
       }
     }
