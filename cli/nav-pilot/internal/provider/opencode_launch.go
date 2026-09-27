@@ -56,13 +56,8 @@ func openCodeConfigDir() string {
 	return filepath.Join(home, ".config", "opencode")
 }
 
-// openCodeNavContextDir returns the directory for Nav context materialization:
-// opencode's user config directory, so Nav context is available across all
-// repos. It is openCodeConfigDir, XDG_CONFIG_HOME included: materialized under
-// ~/.config/opencode while opencode reads $XDG_CONFIG_HOME/opencode, the persona,
-// skills and agents (local-worker among them) were written where the session
-// never looks, and cplt, which grants only the directory opencode reads, denied
-// it the other one.
+// openCodeNavContextDir is where Nav context is materialized: opencode's config
+// dir (openCodeConfigDir), where the session reads it and cplt grants it.
 // Honors NavContextDirOverride (test seam).
 func openCodeNavContextDir() string {
 	if NavContextDirOverride != "" {
