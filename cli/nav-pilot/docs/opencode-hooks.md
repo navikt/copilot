@@ -42,7 +42,7 @@ Two kinds of tool text reach the model without `tool.execute.after`:
 - the error message of a tool that threw;
 - the partial output of a call the user interrupted, which OpenCode keeps in `metadata.output` and sends on the next turn.
 
-The plugin also implements `experimental.chat.messages.transform`, which OpenCode runs over the whole history before every model call and before compaction. It redacts both kinds of text there, fail-closed like the rest, and keeps each answer so a text is checked once per session. This was verified against opencode 1.18.32: a `read` of a missing file whose path held a GitHub token reached the model with the token masked. The hook is marked experimental in OpenCode, so a release that drops it reopens these two gaps; the version range check (#1027) is where that gets caught.
+The plugin also implements `experimental.chat.messages.transform`, which OpenCode runs over the whole history before every model call and before compaction. It redacts both kinds of text there, fail-closed like the rest, and keeps each answer so a text is checked once per session. A session resumed from a plain `opencode` run keeps the completed outputs it had then; only what nav-pilot's launch saw was redacted. This was verified against opencode 1.18.32: a `read` of a missing file whose path held a GitHub token reached the model with the token masked. The hook is marked experimental in OpenCode, so a release that drops it reopens these two gaps; the version range check (#1027) is where that gets caught.
 
 ## Subagents
 
