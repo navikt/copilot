@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/huh"
@@ -60,15 +61,24 @@ type surveyDef struct {
 	Questions []surveyQuestion `json:"questions"`
 }
 
+// surveyQuestion is the part of copilot-cli's question format nav-pilot
+// renders (apps/copilot-cli/surveys/README.md); the analysis fields are not
+// needed here.
 type surveyQuestion struct {
-	ID       string   `json:"id"`
-	Type     string   `json:"type"` // scale, choice or text
-	Text     string   `json:"text"`
-	Required bool     `json:"required,omitempty"`
-	Min      int      `json:"min,omitempty"`
-	Max      int      `json:"max,omitempty"`
-	Options  []string `json:"options,omitempty"`
-	MaxLen   int      `json:"max_length,omitempty"`
+	ID         string   `json:"id"`
+	Type       string   `json:"type"` // scale, choice, multi or text
+	Text       string   `json:"text"`
+	Required   bool     `json:"required,omitempty"`
+	Min        int      `json:"min,omitempty"`
+	Max        int      `json:"max,omitempty"`
+	Labels     []string `json:"labels,omitempty"`
+	Options    []string `json:"options,omitempty"`
+	MaxChoices int      `json:"max_choices,omitempty"`
+	MaxLen     int      `json:"max_length,omitempty"`
+	SkipIf     *struct {
+		Question string `json:"question"`
+		Answer   string `json:"answer"`
+	} `json:"skip_if,omitempty"`
 }
 
 func (s surveyDef) openOn(now time.Time) bool {
@@ -113,7 +123,8 @@ type surveyContext struct {
 // knowing what is sent.
 const surveyCollected = "Sent: your answers, nav-pilot version, OS and CPU type, which client you use, and whether local models are on.\n" +
 	"Not sent: your name, GitHub user, device id, code or anything from your sessions.\n" +
-	"You sign in with GitHub so each person answers once; copilot-cli stores only a per-survey hash of the account."
+	"Your GitHub sign-in is used only to stop a second answer; your answers are stored with nothing that links them to you,\n" +
+	"so they cannot be changed or withdrawn afterwards."
 
 func surveyStatePath() (string, error) {
 	dir, err := telemetrypkg.GetConfigDir()
@@ -206,7 +217,7 @@ func maybeSurvey(client string) {
 	for i := range st.Active {
 		d := st.Active[i]
 		rec := st.Surveys[d.ID]
-		if d.openOn(now) && (rec == nil || (rec.Done == "" && rec.Asks < surveyMaxAsks && !now.Before(rec.NextAsk))) {
+		if d.openOn(now) && d.renderable() && (rec == nil || (rec.Done == "" && rec.Asks < surveyMaxAsks && !now.Before(rec.NextAsk))) {
 			s = &d
 			break
 		}
@@ -278,10 +289,25 @@ func askSurvey(s surveyDef, ask int) string {
 	return choice
 }
 
-// runSurveyForm asks the questions, one per screen. false means the form was
-// left before the end.
+// runSurveyForm asks the questions, one per screen, skipping those whose
+// skip_if matches an earlier answer. false means the form was left before the
+// end.
 func runSurveyForm(s surveyDef) (map[string]any, bool) {
 	picks := make([]string, len(s.Questions))
+	multis := make([][]string, len(s.Questions))
+	answered := func(id string) []string {
+		i := slices.IndexFunc(s.Questions, func(q surveyQuestion) bool { return q.ID == id })
+		if i < 0 {
+			return nil
+		}
+		if s.Questions[i].Type == "multi" {
+			return multis[i]
+		}
+		return []string{picks[i]}
+	}
+	skipped := func(q surveyQuestion) bool {
+		return q.SkipIf != nil && slices.Contains(answered(q.SkipIf.Question), q.SkipIf.Answer)
+	}
 	var groups []*huh.Group
 	for i, q := range s.Questions {
 		var field huh.Field
@@ -290,7 +316,11 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 			var opts []huh.Option[string]
 			if q.Type == "scale" {
 				for n := q.Min; n <= q.Max; n++ {
-					opts = append(opts, huh.NewOption(strconv.Itoa(n), strconv.Itoa(n)))
+					label := strconv.Itoa(n)
+					if len(q.Labels) == q.Max-q.Min+1 {
+						label += "  " + q.Labels[n-q.Min]
+					}
+					opts = append(opts, huh.NewOption(label, strconv.Itoa(n)))
 				}
 			} else {
 				for _, o := range q.Options {
@@ -301,6 +331,22 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 				opts = append(opts, huh.NewOption("Skip", ""))
 			}
 			field = huh.NewSelect[string]().Title(q.Text).Options(opts...).Value(&picks[i])
+		case "multi":
+			ms := huh.NewMultiSelect[string]().Title(q.Text).Options(huh.NewOptions(q.Options...)...).Value(&multis[i])
+			desc := "Space to pick, enter when done."
+			if q.MaxChoices > 0 {
+				ms = ms.Limit(q.MaxChoices)
+				desc = fmt.Sprintf("Pick up to %d. %s", q.MaxChoices, desc)
+			}
+			if q.Required {
+				ms = ms.Validate(func(v []string) error {
+					if len(v) == 0 {
+						return errors.New("pick at least one")
+					}
+					return nil
+				})
+			}
+			field = ms.Description(desc)
 		case "text":
 			in := huh.NewText().Title(q.Text).CharLimit(q.MaxLen).Value(&picks[i])
 			if q.Required {
@@ -314,10 +360,12 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 				in = in.Description("Optional. Leave empty to skip.")
 			}
 			field = in
-		default:
-			continue // a type this version doesn't know: leave it unanswered
 		}
-		groups = append(groups, huh.NewGroup(escHelpField{field}))
+		g := huh.NewGroup(escHelpField{field})
+		if q.SkipIf != nil {
+			g = g.WithHideFunc(func() bool { return skipped(q) })
+		}
+		groups = append(groups, g)
 	}
 	if huh.NewForm(groups...).WithShowHelp(true).WithTheme(navTheme()).Run() != nil {
 		return nil, false
@@ -326,15 +374,27 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 	for i, q := range s.Questions {
 		v := picks[i]
 		switch {
+		case skipped(q):
+		case q.Type == "multi":
+			if len(multis[i]) > 0 {
+				answers[q.ID] = multis[i]
+			}
 		case v == "":
 		case q.Type == "scale":
 			n, _ := strconv.Atoi(v)
 			answers[q.ID] = n
 		default:
-			answers[q.ID] = v
+			answers[q.ID] = strings.TrimSpace(v)
 		}
 	}
 	return answers, len(answers) > 0
+}
+
+// renderable reports whether this version can show every question.
+func (s surveyDef) renderable() bool {
+	return !slices.ContainsFunc(s.Questions, func(q surveyQuestion) bool {
+		return !slices.Contains([]string{"scale", "choice", "multi", "text"}, q.Type)
+	})
 }
 
 func surveyContextNow(r ResolvedConfig) surveyContext {
@@ -406,7 +466,7 @@ func sendAnswered(base string, st surveyState, id string) surveyState {
 		fmt.Println(dim("  You have already answered this survey, so these answers were not sent. Thank you!"))
 	case status == http.StatusUnauthorized && surveyToken() == "":
 		fmt.Println(yellow("  ⚠ ") + "Answers saved. Log in with " + bold("nav-pilot auth login") + " and they are sent after your next session.")
-	case status == http.StatusUnauthorized || status == http.StatusForbidden:
+	case status == http.StatusUnauthorized:
 		fmt.Println(yellow("  ⚠ ") + "copilot-cli did not accept your GitHub sign-in. Answers saved; run " + bold("nav-pilot auth login") + " and they are sent after your next session.")
 	case status >= 400 && status < 500:
 		rec.Pending = nil
@@ -426,7 +486,7 @@ func deliverPending(base string, st surveyState) {
 			continue
 		}
 		status, _ := postSurvey(base, id, rec.Pending, false)
-		if status == http.StatusCreated || status == http.StatusConflict || (status >= 400 && status < 500 && status != http.StatusUnauthorized && status != http.StatusForbidden && status != http.StatusTooManyRequests) {
+		if status == http.StatusCreated || status == http.StatusConflict || (status >= 400 && status < 500 && status != http.StatusUnauthorized && status != http.StatusTooManyRequests) {
 			rec.Pending = nil
 			changed = true
 		}

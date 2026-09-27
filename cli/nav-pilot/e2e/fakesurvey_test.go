@@ -16,9 +16,13 @@ import (
 )
 
 // fakeSurveyDefs is one open survey: a required scale and an optional text.
+// fakeSurveyDefs is one open survey: a labelled scale, a multi, a text that
+// is skipped when the multi includes copilot, and an optional text.
 const fakeSurveyDefs = `{"surveys":[{"id":"e2e-2026","title":"E2E survey","starts":"2020-01-01","ends":"2099-12-31","questions":[
-{"id":"useful","type":"scale","text":"How useful is nav-pilot?","min":1,"max":5,"required":true},
-{"id":"comment","type":"text","text":"Anything else?","max_length":50}]}]}`
+{"id":"useful","version":1,"type":"scale","text":"How useful is nav-pilot?","min":1,"max":5,"labels":["Helt uenig","Uenig","Nøytral","Enig","Helt enig"],"required":true},
+{"id":"clients","version":1,"type":"multi","text":"Which clients do you use?","options":["copilot","opencode","pi"],"max_choices":2},
+{"id":"why","version":1,"type":"text","text":"Why not copilot?","max_length":50,"skip_if":{"question":"clients","answer":"copilot"}},
+{"id":"comment","version":1,"type":"text","text":"Anything else?","max_length":50}]}]}`
 
 // fake-survey serves copilot-cli's survey endpoints on 127.0.0.1 and points
 // nav-pilot at it (NAV_PILOT_COPILOT_CLI_URL). Every POST is described on one
@@ -30,10 +34,13 @@ func cmdFakeSurvey(ts *testscript.TestScript, neg bool, args []string) {
 	if neg || len(args) != 0 {
 		ts.Fatalf("usage: fake-survey")
 	}
+	// Read here, not in the handler: the script's env is not safe to read
+	// from the server's goroutines.
+	work, home := ts.Getenv("WORK"), ts.Getenv("HOME")
 	var mu sync.Mutex
 	answered := map[string]bool{}
 	appendLine := func(name, line string) {
-		f, err := os.OpenFile(filepath.Join(ts.Getenv("WORK"), name), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		f, err := os.OpenFile(filepath.Join(work, name), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 		if err == nil {
 			fmt.Fprintln(f, line)
 			_ = f.Close()
@@ -54,7 +61,7 @@ func cmdFakeSurvey(ts *testscript.TestScript, neg bool, args []string) {
 			_ = json.Unmarshal(body, &top)
 			_ = json.Unmarshal(top["context"], &ctx)
 			leak := "no"
-			if id, err := os.ReadFile(ts.Getenv("HOME") + "/device-id"); err == nil && strings.Contains(string(body), strings.TrimSpace(string(id))) {
+			if id, err := os.ReadFile(filepath.Join(home, "device-id")); err == nil && strings.Contains(string(body), strings.TrimSpace(string(id))) {
 				leak = "yes"
 			}
 			status := http.StatusCreated
