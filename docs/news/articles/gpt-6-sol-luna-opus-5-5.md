@@ -65,7 +65,7 @@ Fem kjøringer per testarm i Copilot CLI er en liten blokkeringsskjerm, ikke dok
 - [Claude Opus 5.5](https://www.anthropic.com/claude-opus-5-5) (Anthropic, 22. september 2026)
 - [Claude Opus 5.5 model overview](https://platform.claude.com/docs/en/models/opus-5-5/overview) (Anthropic, 22. september 2026)
 - [Models and pricing for GitHub Copilot](https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing) (GitHub Docs, lest 22. september 2026)
-- [Navs modellvalg og blokkeringsskjerm](../../modellvalg.md#blokkeringsskjerm-for-gpt-6-og-opus-55) (målt 23. september 2026)
+- [Navs modellvalg og blokkeringsskjerm](https://github.com/navikt/copilot/blob/main/docs/modellvalg.md#blokkeringsskjerm-for-gpt-6-og-opus-55) (målt 23. september 2026)
 - [GPT-6 Sol and Luna](https://news.ycombinator.com/item?id=49805509) (Hacker News, lest 22. september 2026)
 - [Claude Opus 5.5](https://news.ycombinator.com/item?id=49803892) (Hacker News, lest 22. september 2026)
 - [GPT-6 Sol: bruker gikk tilbake til GPT-5.6 Sol](https://news.ycombinator.com/item?id=49811448) (Hacker News, lest 23. september 2026)

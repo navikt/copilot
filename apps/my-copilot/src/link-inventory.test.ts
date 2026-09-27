@@ -385,4 +385,13 @@ describe("link inventory", () => {
     const missing = [...new Set(missingFromInventory(found).map((f) => `${key(f)} (${f.source})`))];
     expect(missing, "Run `pnpm link-inventory:update` and commit src/lib/link-inventory.json").toEqual([]);
   });
+
+  // A news article renders at /nyheter/<slug>, so a repo-relative link like
+  // ../../README.md resolves against that URL in the browser and breaks.
+  it("news articles have no relative links", () => {
+    const relative = glob(SCAN.markdown).flatMap((file) =>
+      [...fs.readFileSync(file, "utf-8").matchAll(/\]\((\.\.?\/[^)\s]*)\)/g)].map((m) => `${m[1]} (${rel(file)})`)
+    );
+    expect(relative, "Link to the site page (/…) or a full GitHub URL instead").toEqual([]);
+  });
 });

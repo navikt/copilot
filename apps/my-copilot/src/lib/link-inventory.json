@@ -182,7 +182,10 @@
       "ressurser": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
       "sandkasse": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
       "skript-i-en-skill": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
-      "stabile-releases": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "stabile-releases": [
+        "apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx",
+        "docs/news/articles/stabile-agentpakker.md"
+      ],
       "struktur": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
       "ta-delene-du-trenger": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
       "uten-agent": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
