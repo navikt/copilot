@@ -26,6 +26,8 @@ exits 1 nav-pilot config validate
 stdout 'is not on this machine or a private network'
 exits 2 nav-pilot alpha decide 'Is this a bug fix?' --options yes,no
 stderr 'Local dispatch is off this run'
+stderr 'local_endpoint is set but unusable'
+stderr 'nav-pilot config unset local_endpoint'
 ! stdout .
 
 -- public.toml --

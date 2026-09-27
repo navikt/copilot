@@ -33,6 +33,9 @@ func cmdLocalAsk(args []string) error {
 		return err
 	}
 
+	if err := endpointNotApplied(); err != nil {
+		return err
+	}
 	served, ok, err := local.ServedModel()
 	if err != nil {
 		return err

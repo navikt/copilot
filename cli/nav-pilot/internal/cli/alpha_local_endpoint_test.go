@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -128,5 +129,23 @@ func TestApplyEndpointConfigFailsClosed(t *testing.T) {
 	}
 	if _, err := writeConfigKey("local_endpoint", "http://8.8.8.8/v1"); err == nil {
 		t.Error("config set accepted a public endpoint")
+	}
+}
+
+// With local_endpoint set but dispatch off, decide must not fall back to a
+// managed server that is still recorded: it refuses before asking anything.
+func TestDecideDoesNotFallBackFromAnEndpoint(t *testing.T) {
+	localTestHome(t)
+	setEndpointConfig(t, "http://127.0.0.1:1")
+	applyLocalConfig()
+	orig := decideServer
+	decideServer = func(context.Context) (string, string, func(), error) {
+		t.Fatal("decide asked a server while local_endpoint was set but off")
+		return "", "", nil, nil
+	}
+	t.Cleanup(func() { decideServer = orig })
+	_, err := decide(context.Background(), "q", []string{"yes", "no"}, "", false)
+	if err == nil || !strings.Contains(err.Error(), "local dispatch is off") {
+		t.Fatalf("decide = %v", err)
 	}
 }

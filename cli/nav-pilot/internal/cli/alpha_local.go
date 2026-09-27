@@ -740,8 +740,12 @@ func cmdLocalRestart() error {
 }
 
 func cmdLocalStop() error {
+	// A managed server started before the switch to local_endpoint can still
+	// be running; stop stops it rather than leaving 20 GB resident unseen.
 	if endpointMode("stop") {
-		return nil
+		if _, ok, _ := local.LoadState(); !ok {
+			return nil
+		}
 	}
 	st, ok, err := local.LoadState()
 	if err != nil {
@@ -1082,7 +1086,7 @@ func applyEndpointConfig(r ResolvedConfig) {
 	if err != nil {
 		if r.LocalEnabled {
 			fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), wrapIndent(
-				"Local dispatch is off this run: "+err.Error()+". Check it: "+bold("nav-pilot config validate"), "  ", 76))
+				"Local dispatch is off this run: "+err.Error()+". "+endpointFix, "  ", 76))
 		}
 		return
 	}
@@ -1093,6 +1097,29 @@ func applyEndpointConfig(r ResolvedConfig) {
 	local.SetActive(local.EndpointManifest(r.LocalEndpointModel))
 	local.SetSelectedModel(r.LocalEndpointModel)
 	local.SetEnabled(true)
+}
+
+// endpointFix is the way out of an unusable local_endpoint.
+var endpointFix = "Fix it: " + bold("nav-pilot config set local_endpoint http://127.0.0.1:11434/v1") +
+	" (this machine or a private IP), or go back to the managed server: " + bold("nav-pilot config unset local_endpoint")
+
+// endpointNotApplied says why this run does not use a local_endpoint that is
+// set: it is unusable, or dispatch is off. Direct requests (decide, ask) check
+// it first, so a server recorded from before the switch never answers in the
+// endpoint's place. nil when local_endpoint is unset or in use.
+func endpointNotApplied() error {
+	_, _, set, err := configuredEndpoint()
+	switch {
+	case !set:
+		return nil
+	case err != nil:
+		return fmt.Errorf("local_endpoint is set but unusable: %v. %s", err, endpointFix)
+	}
+	if base, _ := local.Endpoint(); base == "" {
+		return fmt.Errorf("%w: local_endpoint is set, but local dispatch is off. Check the server and turn it on: %s",
+			local.ErrNoServerRecorded, bold("nav-pilot alpha local init"))
+	}
+	return nil
 }
 
 // endpointFromConfig validates local_endpoint and local_endpoint_model and

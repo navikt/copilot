@@ -232,6 +232,14 @@ func cmdDecide(args []string) (err error) {
 		ev.Result = decideResult(err)
 		ev.Model = decideModelLabel(ev.Model)
 		ev.Backend = local.Backend()
+		if _, _, set, _ := configuredEndpoint(); set {
+			// Set but not applied: still the endpoint's call, and its model
+			// is not the manifest default decideModelLabel falls back to.
+			ev.Backend = local.BackendEndpoint
+			if ev.Model != "" {
+				ev.Model = "custom"
+			}
+		}
 		telemetry.RecordDecide(ev)
 	}()
 
@@ -394,9 +402,6 @@ func truncateEvidence(s string) string {
 }
 
 func explainDecideError(err error, timeout time.Duration) error {
-	if _, _, set, _ := configuredEndpoint(); set && errors.Is(err, local.ErrNoServerRecorded) {
-		return fmt.Errorf("%w: local_endpoint is set, but local dispatch is off. Check the server and turn it on: %s", local.ErrNoServerRecorded, bold("nav-pilot alpha local init"))
-	}
 	if errors.Is(err, local.ErrNoServerRecorded) {
 		return fmt.Errorf("%w\n\n  %s", err, wrapIndent("decide does not start one itself: a cold start takes 5-10 s and loads the model onto the GPU, which a hook must not do behind your back.", "  ", 76))
 	}
@@ -441,6 +446,9 @@ func decidePrompt(question string, options []string, evidence string, hasEvidenc
 // off them: temperature 0, thinking off, max_tokens 1.
 func decide(ctx context.Context, question string, options []string, evidence string, hasEvidence bool) (decision, error) {
 	started := time.Now()
+	if err := endpointNotApplied(); err != nil {
+		return decision{}, err
+	}
 	base, model, release, err := decideServer(ctx)
 	if err != nil {
 		return decision{}, err

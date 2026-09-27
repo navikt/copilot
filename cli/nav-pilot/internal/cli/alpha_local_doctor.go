@@ -161,7 +161,8 @@ func checkModels(ctx context.Context, base, model string) doctorCheck {
 	}
 	if !slices.Contains(ids, model) {
 		c.Level, c.Detail = levelWarn, fmt.Sprintf("answers, but does not list %s (it lists: %s)", model, strings.Join(ids, ", "))
-		c.Fix = "Set one it lists: nav-pilot config set local_endpoint_model <id>. On Ollama, pull it first: ollama pull " + model
+		c.Fix = "Set one it lists: nav-pilot config set local_endpoint_model <id>. On Ollama you can also pull it: ollama pull " + model +
+			". llama-server answers with the model it loaded whatever the name, so there this is harmless"
 		return c
 	}
 	c.Level, c.Detail = levelPass, "answers and lists "+model
@@ -253,6 +254,8 @@ func checkTools(ctx context.Context, base, model string) doctorCheck {
 		c.Level, c.Detail, c.Fix = levelFail, err.Error(), fixTools
 	case len(a.Choices[0].Message.ToolCalls) > 0 && a.Choices[0].Message.ToolCalls[0].Function.Name == "record_answer":
 		c.Level, c.Detail = levelPass, "a parsed tool_calls entry came back"
+	case len(a.Choices[0].Message.ToolCalls) > 0:
+		c.Level, c.Detail, c.Fix = levelFail, "a tool call came back, but not to the one tool offered", fixTools
 	case strings.Contains(a.Choices[0].Message.Content, "record_answer"):
 		c.Level, c.Detail, c.Fix = levelFail, "the call came back as text, not as a parsed tool_calls entry", fixTools
 	default:
@@ -374,6 +377,10 @@ func endpointStatus() error {
 		fmt.Printf("  Server       %s %s\n", red("not answering"), dim(c.Detail))
 	} else {
 		fmt.Printf("  Server       %s\n", green("answering"))
+	}
+	if st, ok, _ := local.LoadState(); ok && local.Attach(st).Status().Health != local.HealthCrashed {
+		fmt.Printf("  Managed      %s the mlx server nav-pilot started is still running (pid %d). Stop it: %s\n",
+			yellow("⚠"), st.PID, bold("nav-pilot alpha local stop"))
 	}
 	fmt.Printf("\n  Full check: %s\n\n", bold("nav-pilot alpha local doctor"))
 	return nil
