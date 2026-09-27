@@ -509,9 +509,9 @@ func TestLocalDispatchPolicyFromCapabilities(t *testing.T) {
 	}}
 	got := LocalDispatchPolicy(policyModel(c), 3, 5)
 
-	send := "Send it: mechanical changes that follow one pattern across several files, such as a rename or a field threaded through its call sites. It pays off when you would otherwise need several steps; a change you can make in two is cheaper to make yourself.\n"
+	send := "Send it: mechanical changes that follow one pattern across several files, such as a rename or a field threaded through its call sites.\n"
 	keep := "Do not send it: questions about the code and explanations of it; comments, log lines and other single-file edits; new files, tests included; debugging; changes needing a judgement per file; tasks needing many rounds; changes where a wrong edit is expensive.\n"
-	for _, want := range []string{send, describeFully, keep,
+	for _, want := range []string{send, sendTrusted, keep,
 		" 3 identical calls in a row that got the same result back",
 		" 5 identical calls whatever they return",
 		"It often says no and changes nothing."} {
@@ -519,7 +519,9 @@ func TestLocalDispatchPolicyFromCapabilities(t *testing.T) {
 			t.Errorf("the generated policy lacks %q:\n%s", want, got)
 		}
 	}
-	for _, gone := range []string{"lookups in the code", "a single test file"} {
+	for _, gone := range []string{"lookups in the code", "a single test file",
+		// The threshold and the doubt clauses kept Sonnet 5 from ever dispatching.
+		"cheaper to make yourself", "if you doubt", "judge this correctly"} {
 		if strings.Contains(got, gone) {
 			t.Errorf("the generated policy still sends %q, which no verdict trusts:\n%s", gone, got)
 		}
@@ -542,7 +544,7 @@ func TestLocalDispatchPolicyIgnoresWhatItDoesNotKnow(t *testing.T) {
 	if !strings.Contains(got, "Send it nothing for now") {
 		t.Errorf("an unknown class or verdict was treated as trusted:\n%s", got)
 	}
-	if strings.Contains(got, "refactor-large") || strings.Contains(got, describeFully) {
+	if strings.Contains(got, "refactor-large") || strings.Contains(got, sendTrusted) {
 		t.Errorf("the policy names an unknown class or tells the agent how to send work:\n%s", got)
 	}
 	if !strings.Contains(got, "questions about the code and explanations of it") || !strings.Contains(got, "; debugging;") {
