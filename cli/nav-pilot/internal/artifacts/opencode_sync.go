@@ -120,7 +120,8 @@ func withScopeExtras(entries []source.Resolved, scopeDir string, kind *source.Ar
 var hookWarningSaid sync.Map
 
 // InstalledHookNames lists the hooks nav-pilot installed, user and repo
-// scope, which an opencode launch runs through the hooks bridge. The cli
+// scope (the repo of the working directory, as repoScopeDir uses), which an
+// opencode launch runs through the hooks bridge. The cli
 // package sets it, since the scopes are its business.
 var InstalledHookNames func() []string
 
@@ -238,17 +239,24 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 	// in silence: a user would otherwise believe the gate came along.
 	// ValidateOpenCodeStatePath keeps refusing hooks/ regardless, so nothing
 	// can slip in through state either.
-	var skipped []string
+	var skipped, installed []string
+	if client == "opencode" && InstalledHookNames != nil {
+		installed = InstalledHookNames()
+	}
 	for _, h := range resolver.List(source.KindHook) {
-		if client != "opencode" || InstalledHookNames == nil || !slices.Contains(InstalledHookNames(), h.Name) {
+		if client != "opencode" || !slices.Contains(installed, h.Name) {
 			skipped = append(skipped, h.Name)
 		}
 	}
 	// stderr, not stdout: this function also runs under `nav-pilot sync
 	// --json`, and a source with hooks prepended this line to the JSON
 	// document. Once per client per run: a launch materializes again.
-	if _, said := hookWarningSaid.Load(client); len(skipped) > 0 && !said {
-		hookWarningSaid.Store(client, true)
+	if len(skipped) > 0 {
+		if _, said := hookWarningSaid.LoadOrStore(client, true); said {
+			skipped = nil
+		}
+	}
+	if len(skipped) > 0 {
 		if client == "opencode" {
 			fmt.Fprintf(os.Stderr, "  %s %d hook(s) the source ships are not installed, so they do not run: %s. Run nav-pilot install to add them.\n",
 				domain.Yellow("⚠"), len(skipped), strings.Join(skipped, ", "))
