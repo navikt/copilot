@@ -127,6 +127,8 @@ spec:
       value: "{{mcp_registry_public_url}}"
     - name: COPILOT_API_URL
       value: "http://copilot-api"
+    - name: COPILOT_CLI_URL
+      value: "http://copilot-cli"
   liveness:
     path: "/health"
     port: 3000

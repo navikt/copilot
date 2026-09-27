@@ -340,6 +340,13 @@
       "utsending": ["apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"]
     }
   },
+  "/nav-pilot/undersokelse": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/undersokelse/page.tsx"
+    ],
+    "anchors": {}
+  },
   "/nyheter": {
     "sources": ["apps/my-copilot/next.config.ts"],
     "anchors": {}

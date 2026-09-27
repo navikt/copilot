@@ -235,7 +235,7 @@ type techContext struct {
 	LocalModels bool   `json:"local_models"`
 }
 
-var versionPattern = regexp.MustCompile(`^(dev|v?(\d{1,4}\.\d{1,4})\.\d{1,4}(-[0-9A-Za-z.-]{1,40})?)$`)
+var versionPattern = regexp.MustCompile(`^(dev|web|v?(\d{1,4}\.\d{1,4})\.\d{1,4}(-[0-9A-Za-z.-]{1,40})?)$`)
 
 // validate checks the context and coarsens it: only the first two parts of
 // the version are kept (2026.09 of 2026.09.24-120000-abc1234), so a row does

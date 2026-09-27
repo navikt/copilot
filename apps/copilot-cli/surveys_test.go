@@ -252,7 +252,7 @@ func TestShippedSurveys(t *testing.T) {
 }
 
 func TestContextKeepsOnlyCoarseVersion(t *testing.T) {
-	for in, want := range map[string]string{"2026.09.24-120000-abc1234": "2026.09", "v1.2.3": "1.2", "dev": "dev"} {
+	for in, want := range map[string]string{"2026.09.24-120000-abc1234": "2026.09", "v1.2.3": "1.2", "dev": "dev", "web": "web"} {
 		c := techContext{Version: in, OS: "linux", Client: "pi"}
 		if err := c.validate(); err != nil || c.Version != want {
 			t.Errorf("%s: got %q, %v; want %q", in, c.Version, err, want)
