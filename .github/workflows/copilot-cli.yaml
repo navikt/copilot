@@ -1,0 +1,38 @@
+name: copilot-cli build-deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/copilot-cli/**'
+      - '.github/workflows/copilot-cli.yaml'
+      - '.github/workflows/mise-build-deploy-nais.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/copilot-cli/**'
+      - '.github/workflows/copilot-cli.yaml'
+      - '.github/workflows/mise-build-deploy-nais.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/mise-build-deploy-nais.yaml
+    with:
+      working-directory: apps/copilot-cli
+      mise-setup-tasks: '["install"]'
+      mise-tasks: '["lint", "check"]'
+      deploys-to-nais: true
+      deploy-pr-to-dev: true
+      nais-team: copilot
+      # dev-gcp only for now; prod-gcp is added back after Phase 1 end-to-end
+      # validation in dev (see issue #337 revised phases).
+      nais-clusters: '["dev-gcp"]'

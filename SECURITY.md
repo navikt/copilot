@@ -114,6 +114,8 @@ accessPolicy:
     rules:
       - application: my-copilot    # ONLY my-copilot can reach copilot-api
         namespace: copilot
+      - application: copilot-cli   # CLI gateway for nav-pilot (see below)
+        namespace: copilot
   outbound:
     external:
       - host: api.github.com               # GitHub REST + GraphQL API
@@ -121,6 +123,53 @@ accessPolicy:
       - host: storage.googleapis.com        # BigQuery storage API
       - host: login.microsoftonline.com     # Azure AD JWKS endpoint
 ```
+
+### copilot-cli (`apps/copilot-cli/.nais/app.yaml`)
+
+New service (see [issue #337](https://github.com/navikt/copilot/issues/337)) that
+lets `nav-pilot` fetch personal Copilot usage data from the terminal, without
+routing through the my-copilot web BFF.
+
+```
+nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)──▶ copilot-api
+```
+
+1. The developer's GitHub token (from `nav-pilot auth login`, device flow) is
+   sent to copilot-cli as a Bearer token — copilot-cli never issues or stores
+   GitHub credentials itself.
+2. copilot-cli checks with the nav-pilot GitHub App's own credentials that the
+   token was issued to that app (`POST /applications/{client_id}/token`), so a
+   token another app holds for the same user cannot be replayed, then checks
+   `navikt` org membership via `GET /orgs/navikt/members/{user}` (cached 5 min,
+   never past the token's expiry). Fails closed: any GitHub API error rejects
+   the request.
+3. copilot-cli exchanges its own workload identity for an M2M access token via
+   the Texas sidecar (`NAIS_TOKEN_ENDPOINT`), scoped to the copilot-api audience.
+4. copilot-cli calls copilot-api with the M2M token and an
+   `X-On-Behalf-Of: <github-username>` header identifying the verified user.
+
+- A second sign-in path takes Entra ID OBO tokens from my-copilot (in-cluster,
+  for ki-utvikling): Texas introspection, then a user token only (no app-only
+  tokens) from a pre-authorized app. It serves survey submissions; usage stays
+  GitHub-only.
+- Inbound: my-copilot (service discovery), and the `.intern.nav.no` ingress,
+  which requires naisdevice. No CORS: browsers never call it.
+- Outbound: copilot-api (service discovery) + `api.github.com` / `github.com`.
+- Survey answers: a second answer is refused through a per-survey keyed HMAC
+  of the Nav e-mail in a participation table, and the answers go to a
+  separate table with no identifier, written in shuffled batches. The key and
+  the participation rows are deleted when the survey closes. Data model, key
+  lifecycle and residual risks: `apps/copilot-cli/README.md`.
+
+> **Status:** copilot-api trusts `X-On-Behalf-Of` via its Identity Resolver
+> architecture (see `apps/copilot-api/ARCHITECTURE.md`). The
+> `OnBehalfOfIdentityResolver` activates when the calling token's `azp` claim
+> matches copilot-cli's client ID, which copilot-api derives automatically
+> from `AZURE_APP_PRE_AUTHORIZED_APPS` (NAIS injects it from
+> `accessPolicy.inbound.rules` — no manual secret step). Trust is scoped to
+> read-only `GET` requests only, and the header value is format-validated
+> against GitHub's username rules before being accepted. If copilot-cli is not
+> a pre-authorized inbound app the trust path stays disabled (fails closed).
 
 ### my-copilot (`apps/my-copilot/.nais/app.yaml`)
 
