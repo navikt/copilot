@@ -211,7 +211,15 @@ func maybeSurvey(client string) {
 	fetchDue := now.Sub(st.Fetched) >= surveyFetchEvery
 	// Nothing to do: no keychain read. Nothing can be sent without a
 	// sign-in, so no network without one either.
-	if (!hasPending && !fetchDue && nextSurvey(st, now, "calm") == nil) || !canSignIn() {
+	if !hasPending && !fetchDue && nextSurvey(st, now, "calm") == nil {
+		return
+	}
+	if !canSignIn() {
+		// Not again until tomorrow: no keychain read at every session end.
+		if fetchDue {
+			st.Fetched = now
+			writeSurveyState(st)
+		}
 		return
 	}
 	base := copilotCLIURL()
