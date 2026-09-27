@@ -142,7 +142,7 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
   --local-dispatch <lvl>  How hard to push work to the local model (alpha): off, conservative,
                           balanced or aggressive
   --log-level <level>     Copilot CLI log level: none, error, warning, info, debug, all or default
-  --otel-log-level <lvl>  OpenTelemetry diagnostics: none, error, warning, info, debug, verbose or all
+  --otel-log-level <lvl>  OpenTelemetry diagnostics: none, error, warning (or warn), info, debug, verbose or all
   --allow-all-tools       Let the agent run tools without asking (--no-allow-all-tools to turn off)
   --no-ask-user           Don't let the agent stop to ask questions (--ask-user to turn on)
   --no-auto-launch        Install or sync, but don't start the agent (--auto-launch to turn on)
