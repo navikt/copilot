@@ -41,6 +41,8 @@ grep '^--pass-env\nNAV_PILOT_MCP_BLOCKED\n' $WORK/fake/cplt.log
 [exec:node] stdout '^tredjepart_search: denied: nav-pilot: the MCP server tredjepart is not in Nav''s MCP registry'
 [exec:node] stdout '^aksel_find_docs: allowed$'
 [exec:node] stdout '^bash: allowed$'
+[exec:node] stdout '^read_mcp_resource: denied: nav-pilot: the MCP server tredjepart'
+[exec:node] stdout '^list_mcp_resources: allowed$'
 
 exec nav-pilot doctor
 stdout 'MCP servers turned off at launch \(not in Nav''s MCP registry\): egen-lokal, tredjepart'
@@ -84,9 +86,9 @@ if [ -x "$WORK/bin/node" ]; then "$WORK/bin/node" "$WORK/gate.mjs" > "$WORK/gate
 const cfg = JSON.parse(process.env.OPENCODE_CONFIG_CONTENT)
 const mod = await import(cfg.plugin[0])
 const hooks = await mod.NavPilotHooks({ directory: process.cwd(), worktree: process.cwd() })
-for (const tool of ["tredjepart_search", "aksel_find_docs", "bash"]) {
+for (const [tool, args] of [["tredjepart_search", {}], ["aksel_find_docs", {}], ["bash", {}], ["read_mcp_resource", { server: "tredjepart", uri: "x" }], ["list_mcp_resources", {}]]) {
   try {
-    await hooks["tool.execute.before"]({ tool, sessionID: "s", callID: "c" }, { args: {} })
+    await hooks["tool.execute.before"]({ tool, sessionID: "s", callID: "c" }, { args })
     console.log(`${tool}: allowed`)
   } catch (e) {
     console.log(`${tool}: denied: ${e.message}`)
