@@ -61,14 +61,14 @@ func TestIsCplt(t *testing.T) {
 	dir := t.TempDir()
 	fakeCplt := filepath.Join(dir, "fake-cplt")
 	_ = os.WriteFile(fakeCplt, []byte("#!/bin/sh\necho 'cplt version 1.0.43'"), 0o755)
-	if !isCplt(fakeCplt) {
-		t.Error("expected isCplt=true for binary that outputs 'cplt'")
+	if !IsCplt(fakeCplt) {
+		t.Error("expected IsCplt=true for binary that outputs 'cplt'")
 	}
 
 	fakeCopilot := filepath.Join(dir, "fake-copilot")
 	_ = os.WriteFile(fakeCopilot, []byte("#!/bin/sh\necho 'GitHub Copilot CLI 1.0.0'"), 0o755)
-	if isCplt(fakeCopilot) {
-		t.Error("expected isCplt=false for binary that outputs 'GitHub Copilot CLI'")
+	if IsCplt(fakeCopilot) {
+		t.Error("expected IsCplt=false for binary that outputs 'GitHub Copilot CLI'")
 	}
 }
 

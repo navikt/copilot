@@ -93,8 +93,9 @@ func reportBrokenRtkHook() bool {
 // false only when it is missing and the client is copilot: for an opencode
 // or pi user it is optional, like their clients are for a copilot user.
 func reportCopilotCLI() bool {
-	if p, _ := exec.LookPath("copilot"); p != "" {
-		fmt.Printf("      %s Binary found: %s (cplt starts the copilot on PATH)\n", green("✓"), p)
+	// A copilot that is cplt under another name is not the Copilot CLI.
+	if p, _ := exec.LookPath("copilot"); p != "" && !providerpkg.IsCplt(p) {
+		fmt.Printf("      %s Binary found: %s\n", green("✓"), p)
 		return true
 	}
 	cfg, _ := readConfig()
@@ -102,7 +103,7 @@ func reportCopilotCLI() bool {
 		fmt.Printf("      [i] Binary not found on PATH (optional)\n")
 		return true
 	}
-	fmt.Printf("      %s Binary not found on PATH. Your client is copilot, so nav-pilot cannot launch it\n", red("[✗]"))
+	fmt.Printf("      %s Binary not found on PATH, and client is copilot\n", red("[✗]"))
 	fmt.Printf("          %s Install the Copilot CLI: %s\n", red("Solution:"), bold(providerpkg.CopilotInstallCommand))
 	return false
 }
