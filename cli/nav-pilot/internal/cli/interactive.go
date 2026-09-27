@@ -1179,7 +1179,8 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 		}
 	}
 
-	// No terminal, but a prompt after "--": `nav-pilot --sync -- -p "…"` from
+	// No terminal (or an explicit launch, which asks nothing), but a prompt
+	// after "--": `nav-pilot -- -p "…"` or `nav-pilot --sync -- -p "…"` from
 	// CI or a script. That launches, sandboxed, with cplt's --yes standing in
 	// for the confirmation nobody can answer (withCpltConfirmation). Anything
 	// short of that launch is an error: the caller asked for a prompt to run,
