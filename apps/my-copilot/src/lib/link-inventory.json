@@ -205,6 +205,8 @@
       "agentpakke": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
       "arkitektur": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
       "automatisk-sync": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "brukerundersokelser": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
+      "brukerundersøkelser": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
       "bytte-modell": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
       "cli-referanse": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],
       "collections": ["apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx"],

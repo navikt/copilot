@@ -265,7 +265,7 @@ func maybeSurvey(client string) {
 		payload, _ := json.Marshal(surveyPayload{Answers: answers, Context: surveyContextNow(r)})
 		rec.Pending = payload
 		writeSurveyState(st)
-		st = sendAnswered(base, st, s.ID)
+		sendAnswered(base, st, s.ID)
 		return
 	default:
 		if rec.Done == "exhausted" {
@@ -457,7 +457,7 @@ func fetchActiveSurveys(base string) ([]surveyDef, error) {
 }
 
 // sendAnswered delivers the survey's pending answers and says how it went.
-func sendAnswered(base string, st surveyState, id string) surveyState {
+func sendAnswered(base string, st surveyState, id string) {
 	rec := st.Surveys[id]
 	status, err := postSurvey(base, id, rec.Pending, true)
 	switch {
@@ -480,7 +480,6 @@ func sendAnswered(base string, st surveyState, id string) surveyState {
 		fmt.Println(dim("  Could not reach copilot-cli (naisdevice on?). Answers saved; nav-pilot sends them after your next session."))
 	}
 	writeSurveyState(st)
-	return st
 }
 
 // dropStalePending forgets answers to a survey that has closed: they can no

@@ -2163,15 +2163,15 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
             Når vi kjører en brukerundersøkelse, kan nav-pilot spørre om du vil svare, rett etter at en økt er ferdig,
             aldri midt i arbeidet. Du velger svar nå, senere eller aldri. Velger du senere, spør nav-pilot igjen om noen
             dager, høyst tre ganger per undersøkelse. Før første spørsmål står det hva som sendes: svarene dine,
-            nav-pilot-versjon, operativsystem, klient og om lokale modeller er på. Navn, kode, device-ID
-            og innhold fra øktene dine sendes ikke.
+            nav-pilot-versjon, operativsystem, klient og om lokale modeller er på. Navn, kode, device-ID og innhold fra
+            øktene dine sendes ikke.
           </BodyLong>
           <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            Du logger inn med GitHub (<code className="font-mono text-xs">nav-pilot auth login</code>) bare for at
-            hver person skal kunne svare én gang. Svarene lagres uten noe som knytter dem til deg, så de kan ikke
-            endres eller trekkes tilbake etterpå. Du får aldri spørsmålet uten en terminal, i CI, når klientens
-            argumenter står etter <code className="font-mono text-xs">--</code>, eller når målinger er slått av.
-            Slå av undersøkelser alene:
+            Du logger inn med GitHub (<code className="font-mono text-xs">nav-pilot auth login</code>) bare for at hver
+            person skal kunne svare én gang. Svarene lagres uten noe som knytter dem til deg, så de kan ikke endres
+            eller trekkes tilbake etterpå. Du får aldri spørsmålet uten en terminal, i CI, når klientens argumenter står
+            etter <code className="font-mono text-xs">--</code>, eller når målinger er slått av. Slå av undersøkelser
+            alene:
           </BodyLong>
           <CodeBlock compact>{`nav-pilot config set surveys false`}</CodeBlock>
           <BodyLong className="mt-2" size="small" style={{ color: "#64748b" }}>
