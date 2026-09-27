@@ -31,8 +31,9 @@ const securityHeaders = [
 // .nais/*.yaml so old links keep working; this sends them to the new name.
 // Paths that must stay on the host they came in on are left alone:
 // /oauth2 (Wonderwall, which answers before Next anyway), /api, /internal,
-// /health (probes). Next never redirects /_next itself, so assets for pages
-// already open on the old host keep loading.
+// /health (probes use the pod IP and never match; kept for manual checks).
+// Next never redirects /_next itself, so assets for pages already open on the
+// old host keep loading.
 const OLD_HOSTS: Record<string, string> = {
   "min-copilot.intern.nav.no": "ki-utvikling.nav.no",
   "min-copilot.ansatt.nav.no": "ki-utvikling.nav.no",
