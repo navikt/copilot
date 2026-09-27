@@ -1000,6 +1000,7 @@
   "/ordbok": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/ordbok/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ordliste/page.tsx",
       "apps/my-copilot/src/app/(nb)/praksis/sections/resources.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/lib/nav-items.ts"
@@ -1011,7 +1012,9 @@
   },
   "/ordliste": {
     "sources": ["apps/my-copilot/src/app/(nb)/ordliste/page.tsx"],
-    "anchors": {}
+    "anchors": {
+      "ordbok-kategori-filter": ["apps/my-copilot/src/app/(nb)/ordliste/glossary.tsx"]
+    }
   },
   "/overview": {
     "sources": ["apps/my-copilot/next.config.ts", "apps/my-copilot/src/app/(nb)/overview/page.tsx"],
@@ -1238,6 +1241,7 @@
       "apps/my-copilot/src/components/pulse-strip.tsx",
       "apps/my-copilot/src/components/sidebar.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
+      "cli/nav-pilot/internal/provider/opencode_mcp.go",
       "docs/README.agents.md",
       "docs/README.instructions.md",
       "docs/README.mcp.md",

@@ -128,6 +128,8 @@ function pageSources(routeFile: string): string[] {
   return [...new Set([...own, ...own.flatMap(imports)])];
 }
 
+// ponytail: static `from "…"` imports only; dynamic import() and re-exports
+// are not followed. Follow them if an anchor in one goes missing.
 function imports(file: string): string[] {
   return [...fs.readFileSync(file, "utf-8").matchAll(/from\s+"(@\/components\/[^"]+|\.\.?\/[^"]+)"/g)].flatMap((m) => {
     const base = m[1].startsWith("@/")
@@ -177,7 +179,7 @@ function definedAnchors(routeFile: string, headingsOnly = false): Map<string, st
 const SITE_URL = /https?:\/\/(?:ki-utvikling\.nav\.no|min-copilot\.ansatt\.nav\.no)(\/[^\s"'`)<>\]]*)?/g;
 // Relative links in code the site renders.
 const CODE_LINK =
-  /(?:\b(?:href|link|to)|Href)\s*[=:]\s*\{?\s*["'`](\/[^"'`\s]*)["'`]|\b(?:redirect|push|replace)\(\s*["'`](\/[^"'`\s]*)["'`]/g;
+  /(?:\b(?:href|link|to)|Href)\s*[=:]\s*\{?\s*["'`](\/[^"'`\s]*)["'`]|\b(?:redirect|permanentRedirect|push|replace)\(\s*["'`](\/[^"'`\s]*)["'`]/g;
 const MARKDOWN_LINK = /\]\((\/[^)\s]*)\)|^\[[^\]]+\]:\s*(\/\S+)/gm;
 
 // Where site links can hide. Relative links only count in files the site
@@ -351,6 +353,8 @@ describe("link inventory", () => {
     }
     const stats = resolvePath("/statistikk");
     if ("file" in stats) expect(definedAnchors(stats.file).has("modellkostnad-historikk")).toBe(true); // in a component
+    const ordliste = resolvePath("/ordliste");
+    if ("file" in ordliste) expect(definedAnchors(ordliste.file, true).has("ordbok-kategori-filter")).toBe(false); // a form field
   });
 
   it("has a slug check for every dynamic route", () => {
