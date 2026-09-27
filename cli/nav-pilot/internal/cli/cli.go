@@ -70,7 +70,8 @@ func isKnownCommand(arg string) bool {
 	switch arg {
 	case "install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor",
 		"uninstall", "upgrade", "update", "config", "validate", "env", "feedback",
-		"models", "alpha", "version", "--version", "-v", "-h", "--help", "help":
+		"models", "alpha", "auth", "usage",
+		"version", "--version", "-v", "-h", "--help", "help":
 		return true
 	default:
 		return false
@@ -109,6 +110,8 @@ Commands:
   alpha local <cmd>       Run a model on this machine (alpha; off until you run 'alpha local init')
   alpha decide "<q>"      Ask the local model a multiple-choice question (alpha; see 'alpha decide --help')
   models [filter]         List the models the client can use, the current one marked
+  auth <login|status|logout>  Authenticate with GitHub for copilot-cli usage lookups
+  usage                   Show your GitHub Copilot usage (requires 'auth login')
   version                 Show version information
 
 Flags:
@@ -125,6 +128,7 @@ Flags:
   --apply                 Apply available updates (sync only)
   --updates <mode>        How a pinned agentpakke handles new stable releases: auto, ask or keep (sync only)
   --json                  Output results as JSON
+  --tmux                  Compact one-line output for a tmux status bar (usage only)
   -F, --feature           Submit a feature request (feedback only)
 
 Launch flags (nav-pilot with no command; each overrides the config key for one run):
@@ -580,7 +584,7 @@ func run(args []string) error {
 		})
 	}
 
-	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled, frozen, yes, saveSource bool
+	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled, frozen, yes, saveSource, tmuxFormat bool
 	var targetDir, ref, sourceRepo, installType, updates string
 	var positional []string
 
@@ -608,6 +612,8 @@ func run(args []string) error {
 			apply = true
 		case "--json":
 			jsonOutput = true
+		case "--tmux":
+			tmuxFormat = true
 		case "--items":
 			listItems = true
 		case "--installed":
@@ -1010,6 +1016,14 @@ func run(args []string) error {
 		return runWithCommandTelemetry(alphaCommand(positional), telemetryMode(), "none", func() error {
 			return cmdAlpha(positional)
 		})
+	case "auth":
+		return runWithCommandTelemetry("auth", telemetryMode(), "none", func() error {
+			return cmdAuth(positional, jsonOutput)
+		})
+	case "usage":
+		return runWithCommandTelemetry("usage", telemetryMode(), "none", func() error {
+			return cmdUsage(jsonOutput, tmuxFormat)
+		})
 	case "version", "--version", "-v":
 		if jsonOutput {
 			return outputJSON(map[string]string{"version": Version, "commit": buildInfo.Commit, "built": buildInfo.BuildDate})
@@ -1048,7 +1062,7 @@ func run(args []string) error {
 		if containsStr(validProviderIDs, command) {
 			return fmt.Errorf("unknown command: %s. Did you mean nav-pilot --client %s?", command, command)
 		}
-		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "models", "alpha", "version", "help"}
+		knownCmds := []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "models", "alpha", "auth", "usage", "version", "help"}
 		if hint := suggest(command, knownCmds); hint != "" {
 			if hint == "update" {
 				hint = "upgrade" // update is the deprecated name

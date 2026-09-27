@@ -19,6 +19,97 @@ func (m *mockBudgetGetter) getGlobalBudget(_ context.Context) (*GlobalBudget, er
 	return m.budget, m.err
 }
 
+// TestRequireOwnershipIntegration exercises the full IdentityMiddleware +
+// requireOwnership path used by handleUserMetrics/handleUserWeeklyTrends/
+// handleUserDailyCredits (Phase 3 of the auth architecture migration — see
+// identity.go, identity_middleware.go). Unit-level coverage of the
+// individual resolvers and requireOwnership itself lives in identity_test.go;
+// this test verifies they compose correctly through the middleware chain.
+func TestRequireOwnershipIntegration(t *testing.T) {
+	newRequest := func(user *User, onBehalfOf string) *http.Request {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/user/hans", nil)
+		if user != nil {
+			req = req.WithContext(context.WithValue(req.Context(), userContextKey, user))
+		}
+		if onBehalfOf != "" {
+			req.Header.Set("X-On-Behalf-Of", onBehalfOf)
+		}
+		return req
+	}
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		if requireOwnership(w, r, "hans") {
+			w.WriteHeader(http.StatusOK)
+		}
+	}
+
+	t.Run("copilot-cli azp with matching X-On-Behalf-Of succeeds", func(t *testing.T) {
+		chain := NewIdentityResolverChain(NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}))
+		mw := IdentityMiddleware(chain, true)
+
+		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(&User{AZP: "copilot-cli-client-id"}, "hans"))
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusOK, rec.Body.String())
+		}
+	})
+
+	t.Run("copilot-cli azp with mismatched X-On-Behalf-Of is denied", func(t *testing.T) {
+		chain := NewIdentityResolverChain(NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}))
+		mw := IdentityMiddleware(chain, true)
+
+		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(&User{AZP: "copilot-cli-client-id"}, "someone-else"))
+
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("status: got %d, want %d", rec.Code, http.StatusForbidden)
+		}
+	})
+
+	t.Run("copilot-cli azp with missing X-On-Behalf-Of is rejected", func(t *testing.T) {
+		chain := NewIdentityResolverChain(NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}))
+		mw := IdentityMiddleware(chain, true)
+
+		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, newRequest(&User{AZP: "copilot-cli-client-id"}, ""))
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("status: got %d, want %d", rec.Code, http.StatusUnauthorized)
+		}
+	})
+
+	t.Run("non-copilot-cli azp falls back to SAML lookup", func(t *testing.T) {
+		chain := NewIdentityResolverChain(
+			NewOnBehalfOfIdentityResolver(map[string]bool{"copilot-cli-client-id": true}),
+			NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "hans"}),
+		)
+		mw := IdentityMiddleware(chain, true)
+
+		req := newRequest(&User{AZP: "my-copilot-client-id", Email: "hans@nav.no"}, "attacker") // header must be ignored
+		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusOK, rec.Body.String())
+		}
+	})
+
+	t.Run("copilot-cli resolver not registered ignores X-On-Behalf-Of entirely", func(t *testing.T) {
+		// Chain has only a SAML resolver wired (equivalent to CopilotCLIClientID being unset).
+		chain := NewIdentityResolverChain(NewSAMLIdentityResolver(&mockGitHubClient{samlUsername: "hans"}))
+		mw := IdentityMiddleware(chain, true)
+
+		req := newRequest(&User{AZP: "copilot-cli-client-id", Email: "hans@nav.no"}, "attacker")
+		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(handler)).ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status: got %d, want %d, body: %s", rec.Code, http.StatusOK, rec.Body.String())
+		}
+	})
+}
+
 func TestResolveBudgetCredits(t *testing.T) {
 	tests := []struct {
 		name         string
