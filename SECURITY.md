@@ -56,7 +56,7 @@ Pages and API routes that show organization-level Copilot data:
 - `/abonnement`, seat management (GitHub API, **mutating**)
 - `/api/copilot`, seat management API route
 
-Wonderwall lists these paths under `autoLoginIgnorePaths` too, so the sidecar does not redirect them; the comment in that config says auth is handled in the application layer. `apps/my-copilot/src/proxy.ts` redirects unauthenticated page requests to `/oauth2/login` and answers the private API routes with 401, and the protected pages call `getUser()`, which redirects to the login endpoint when the `Authorization` header carries no valid token.
+Wonderwall lists these paths under `autoLoginIgnorePaths` too, so the sidecar does not redirect them; the comment in that config says auth is handled in the application layer. `apps/my-copilot/src/proxy.ts` sends the bearer token to Texas for introspection. When the token is missing or inactive, or Texas does not answer, it redirects page requests to `/oauth2/login` and answers the private API routes with 401. The protected pages also call `getUser()`, which introspects the token again and redirects to the login endpoint when it is not valid.
 
 ### Zone 3: backend API (OBO token required)
 
@@ -88,7 +88,7 @@ copilot-api validates the Azure AD JWT (signature, issuer, audience, expiry) and
 
 ### Key design decisions
 
-- **Wonderwall sets the Authorization header.** With `autoLogin: true` it injects the bearer token on every request to the app. The Next.js middleware only checks that the header is present, for routing. It does not validate it.
+- **Wonderwall sets the Authorization header, but does not strip one the client sent.** On the Zone 2 paths, which are in `autoLoginIgnorePaths`, a request without a session reaches the app with whatever `Authorization` header the client set. The header is therefore never trusted on presence alone: `proxy.ts` and `getUser()` both validate the token with Texas introspection, so a private request costs two introspection calls to the local sidecar.
 - **Texas handles token exchange.** Next.js never sees client secrets. The OBO exchange goes through `NAIS_TOKEN_EXCHANGE_ENDPOINT`.
 - **Azure AD OBO, NOT TokenX.** TokenX is for ID-porten, which is citizen-facing with BankID. This system uses Azure AD/Entra ID for Nav employees.
 - **azp validation is fail-closed.** If `AZURE_APP_PRE_AUTHORIZED_APPS` is empty or missing, copilot-api rejects ALL requests. No silent bypass.
