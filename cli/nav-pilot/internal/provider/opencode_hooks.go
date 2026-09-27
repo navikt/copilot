@@ -147,9 +147,9 @@ func writeHooksBridgePlugin() (string, error) {
 }
 
 // withOpenCodeConfigContent merges add into OPENCODE_CONFIG_CONTENT. A value
-// the user set is kept and added to; a list (plugin) is appended to. One the
-// user set that is not a JSON object is replaced, with a warning, because
-// what nav-pilot puts there is policy it does not skip.
+// the user set is kept and added to; a list (plugin) is appended to. A value
+// that is not a JSON object is replaced, with a warning, because what
+// nav-pilot puts there is policy it does not skip.
 func withOpenCodeConfigContent(env []string, add map[string]any) []string {
 	cfg := map[string]any{}
 	for _, e := range env {

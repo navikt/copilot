@@ -44,6 +44,7 @@ stdout '^after bash: .*\[REDACTED:github-token\].*\[REDACTED:fnr\]'
 ! stdout 'ghp_0123'
 ! stdout '15078545620'
 stdout '^after mcp: .*\[REDACTED:github-token\]'
+stdout '^after mcp split: .*hello.*\[REDACTED:github-token\].*\|$'
 # A subagent's session is redacted too.
 stdout '^after child: .*\[REDACTED:github-token\]'
 # Output with nothing in it is left alone.
@@ -99,6 +100,10 @@ const before = async (label, command) => {
 }
 await after("bash", "bash", { title: "", output: secret, metadata: {} })
 await after("mcp", "github_get_file", { content: [{ type: "text", text: secret }] })
+// Two items: one pass over both, the rewrite in the first.
+const split = { content: [{ type: "text", text: "hello" }, { type: "text", text: secret }] }
+await hooks["tool.execute.after"]({ tool: "github_get_file", sessionID: "ses_parent", callID: "m2", args: {} }, split)
+console.log(`after mcp split: ${one(split.content.map((c) => c.text).join("|"))}`)
 await after("child", "bash", { title: "", output: secret, metadata: {} }, "ses_child")
 await after("clean", "bash", { title: "", output: "hello", metadata: {} })
 await before("forbidden", "echo forbidden")

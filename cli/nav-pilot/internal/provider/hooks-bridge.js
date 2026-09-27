@@ -135,7 +135,7 @@ export const NavPilotHooks = async ({ directory, worktree }) => {
         answer = null
       }
       const rewrite = answer?.modifiedResult?.textResultForLlm
-      const ok = answer !== null && typeof answer === "object" && !answer.error
+      const ok = answer !== null && typeof answer === "object" && !Array.isArray(answer) && !answer.error
       if (!ok || (answer.modifiedResult && typeof rewrite !== "string")) {
         if (h.failClosed) return WITHHELD.replace("%s", answer?.error ? String(answer.error) : `${h.name} did not answer`)
         continue
@@ -184,10 +184,15 @@ export const NavPilotHooks = async ({ directory, worktree }) => {
     },
     "tool.execute.after": async (input, output) => {
       if (!post.length) return
-      for (const [text, put] of texts(output)) {
-        const next = await postHooks(input.sessionID, input.tool, input.args, text)
-        if (next !== text) put(next)
-      }
+      // Once per tool call, as Copilot sends one result: an MCP result's text
+      // items are joined, so the loop guard counts the call once. A rewrite
+      // goes into the first item and empties the rest.
+      const items = texts(output)
+      if (!items.length) return
+      const text = items.map(([t]) => t).join("\n\n")
+      const next = await postHooks(input.sessionID, input.tool, input.args, text)
+      if (next === text) return
+      items.forEach(([, put], i) => put(i === 0 ? next : ""))
     },
     // The last hop before every model call (and compaction). Two kinds of tool
     // text reach the model without tool.execute.after: a tool that threw (its
