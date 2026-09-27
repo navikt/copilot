@@ -229,11 +229,12 @@ sudo apt update && sudo apt upgrade nav-pilot  # Debian og Ubuntu`}
                 Homebrew sier «already installed», men versjonen er gammel
               </Heading>
               <BodyShort size="small">
-                Tap-cachen er ikke oppdatert. Kjør <code className={code}>brew update</code> først. Får du feil om
-                tilgang:
+                Tap-cachen er ikke oppdatert. Kjør <code className={code}>brew update</code> først, og så{" "}
+                <code className={code}>brew upgrade navikt/tap/nav-pilot</code>. Feiler{" "}
+                <code className={code}>brew update</code> med tilgangsfeil, kjør{" "}
+                <code className={code}>brew doctor</code>. Den sier hvilke mapper som har feil eier, og hvordan du
+                retter dem.
               </BodyShort>
-              <CodeBlock compact>{`sudo chown -R $(whoami) /opt/homebrew
-brew update && brew upgrade navikt/tap/nav-pilot`}</CodeBlock>
             </VStack>
           </Box>
         </VStack>

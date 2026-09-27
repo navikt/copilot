@@ -430,7 +430,11 @@ export default function Referanse() {
               <code className={code}>~/.config/opencode/.nav-pilot-state.json</code> holder rede på hvilke filer og
               hvilken versjon som er installert.
             </li>
-            <li>Uten en valgt modell starter opencode med GPT-6 Sol. Velger du modell selv, gjelder den.</li>
+            <li>
+              Velger du ikke modell selv, bruker nav-pilot standarden agentpakka oppgir. For agentpakka nav-pilot er det
+              GPT-6 Sol. Oppgir pakka ingen, velger opencode. Hvilke modeller du får bruke, avhenger også av
+              Copilot-abonnementet ditt.
+            </li>
             <li>nav-pilot setter opp OpenTelemetry for opencode.</li>
             <li>
               Maskeringen av hemmeligheter og fødselsnumre, løkkevakta og hookene du har installert, kjører også i
