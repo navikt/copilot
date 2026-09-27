@@ -7,7 +7,7 @@ interface ErrorStateProps {
 
 export default function ErrorState({ title = "Copilot Statistikk", message }: ErrorStateProps) {
   return (
-    <main className="max-w-7xl">
+    <main id="hovedinnhold" tabIndex={-1} className="max-w-7xl">
       <Box paddingBlock="space-12" paddingInline="space-8">
         <VStack gap="space-12">
           <Heading size="xlarge" level="1">

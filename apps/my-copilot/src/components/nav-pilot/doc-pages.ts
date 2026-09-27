@@ -1,6 +1,5 @@
-// The pages in each group, for the overview pages and for the block
-// «Sider i denne delen» at the bottom of each page. The section menu (§6.4 in
-// docs/nav-pilot-dokumentasjon-forslag.md) replaces the block.
+// The pages in each group, for the overview pages /nav-pilot/guider and
+// /nav-pilot/forklaring and for the section menu (SECTION in lib/nav-items.ts).
 export type DocLink = { href: string; title: string; desc: string };
 
 export const GUIDE_PAGES: DocLink[] = [
@@ -28,19 +27,6 @@ export const GUIDE_PAGES: DocLink[] = [
     href: "/nav-pilot/guider/feilsoking",
     title: "Feilsøking",
     desc: "Sjekk maskinen med doctor, se hva cplt blokkerer, og få liv i en lokal modell som henger.",
-  },
-];
-
-export const REFERENCE_PAGES: DocLink[] = [
-  {
-    href: "/nav-pilot/referanse",
-    title: "Kommandoer, konfig og tabeller",
-    desc: "Kommandoene, avslutningskodene, konfignøklene, sikkerhetsnivåene, telemetrien, de lokale modellene og filene nav-pilot installerer.",
-  },
-  {
-    href: "/nav-pilot/klienter",
-    title: "Klienter",
-    desc: "Hva Copilot CLI, opencode og pi kan, Navs MCP-register i opencode, og hva som mangler.",
   },
 ];
 

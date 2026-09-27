@@ -638,3 +638,111 @@ pre.text-sm {
     color: var(--ax-text-neutral-subtle);
   }
 }
+
+/* Site menu: header, section menu and the mobile panel (§6.3–§6.6 in docs/nav-pilot-dokumentasjon-forslag.md) */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+}
+.skip-link:focus {
+  left: var(--ax-space-16);
+  top: var(--ax-space-8);
+  z-index: 100;
+  padding: var(--ax-space-8) var(--ax-space-16);
+  background: var(--ax-bg-default);
+  color: var(--ax-text-neutral);
+  border-radius: var(--ax-radius-4);
+}
+/* The skip link's target. It takes focus from the link, but is not a control. */
+main#hovedinnhold:focus {
+  outline: none;
+}
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.wordmark-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: #fff;
+}
+.wordmark-tagline {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+.top-link {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding-block: var(--ax-space-8);
+  font-size: 0.9375rem;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.top-link:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+.top-link[aria-current] {
+  color: #fff;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.5rem;
+}
+.section-link {
+  display: flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: var(--ax-space-8) var(--ax-space-12);
+  border-radius: var(--ax-radius-4);
+  color: var(--ax-text-neutral);
+  text-decoration: none;
+  text-align: left;
+  cursor: pointer;
+}
+button.section-link {
+  font-weight: 600;
+}
+.section-link:hover {
+  background: var(--ax-bg-neutral-moderate);
+}
+/* One active style in the section menu and on both levels of the panel: bold on a neutral background, as Aksel's. */
+.section-link[aria-current="page"],
+.panel-item[aria-current] {
+  background: var(--ax-bg-neutral-moderate);
+  color: var(--ax-text-neutral);
+  font-weight: 700;
+}
+.section-title {
+  display: block;
+  padding: var(--ax-space-12);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  font-size: 1.125rem;
+  color: var(--ax-text-neutral);
+  text-decoration: none;
+}
+.section-title:hover {
+  text-decoration: underline;
+}
+.panel-item {
+  display: flex;
+  align-items: center;
+  gap: var(--ax-space-8);
+  min-height: 2.75rem;
+  padding: var(--ax-space-12);
+  color: var(--ax-text-neutral);
+  text-decoration: none;
+  font-weight: 600;
+  border-radius: var(--ax-radius-4);
+  cursor: pointer;
+}
+.page-kicker {
+  color: var(--ax-text-brand-blue-subtle);
+}

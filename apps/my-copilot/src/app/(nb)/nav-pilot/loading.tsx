@@ -2,7 +2,7 @@ import { Box, VStack, HGrid, Skeleton } from "@navikt/ds-react";
 
 export default function Loading() {
   return (
-    <main>
+    <main id="hovedinnhold" tabIndex={-1}>
       {/* Hero skeleton */}
       <section
         style={{

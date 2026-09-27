@@ -10,7 +10,8 @@ const meta = {
     layout: "fullscreen",
     docs: {
       description: {
-        component: "Hero-seksjon med tittel, beskrivelse, handlingsknapper og hovednavigasjon.",
+        component:
+          "Hero-seksjon med tittel, beskrivelse, handlingsknapper og lenkene i «Sider i denne delen» på /praksis.",
       },
     },
   },

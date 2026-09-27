@@ -11,9 +11,10 @@ interface NavCardProps {
   title: string;
   description: string;
   external?: boolean;
+  prefetch?: boolean;
 }
 
-export function NavCard({ href, icon, title, description, external = false }: NavCardProps) {
+export function NavCard({ href, icon, title, description, external = false, prefetch }: NavCardProps) {
   const linkProps = external ? { target: "_blank", rel: "noopener noreferrer" } : {};
 
   return (
@@ -21,7 +22,7 @@ export function NavCard({ href, icon, title, description, external = false }: Na
       <LinkCardIcon>{icon}</LinkCardIcon>
       <LinkCardTitle>
         <LinkCardAnchor asChild>
-          <NextLink href={href} {...linkProps}>
+          <NextLink href={href} prefetch={prefetch} {...linkProps}>
             {title}
           </NextLink>
         </LinkCardAnchor>

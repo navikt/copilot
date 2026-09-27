@@ -71,7 +71,7 @@ export default function PriserPage() {
   }).filter((g) => g.models.length > 0);
 
   return (
-    <main>
+    <main id="hovedinnhold" tabIndex={-1}>
       <PageHero
         title="Modellpriser"
         description="Pris per million tokens for alle modeller i GitHub Copilot. 1 AI Credit = $0.01."

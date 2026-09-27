@@ -32,7 +32,7 @@ import {
 } from "@/components/tech-logos";
 
 export const metadata: Metadata = {
-  title: "nav-pilot — Copilot i Nav",
+  title: { absolute: "nav-pilot — Copilot i Nav" },
   description:
     "nav-pilot gir GitHub Copilot Navs institusjonelle kunnskap, fra Nais-manifester til TokenX, rett i editoren din.",
   openGraph: {
@@ -160,7 +160,7 @@ async function getStarCount(): Promise<number | null> {
 export default async function NavPilotPage() {
   const stars = await getStarCount();
   return (
-    <main>
+    <main id="hovedinnhold" tabIndex={-1}>
       <HeroSection stars={stars} />
       <UseCasesSection />
       <PakkeSection />

@@ -31,6 +31,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/nav-pilot/forklaring/personvern`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/forklaring/arkitektur`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/cplt`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE_URL}/innsikt`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/priser`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/personvern`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${BASE_URL}/tilgjengelighet`, changeFrequency: "yearly", priority: 0.3 },

@@ -15,7 +15,7 @@ export default function EnglishNewsIndex() {
   const items = getNewsItems({ lang: "en" }).filter((item) => item.type === "article");
 
   return (
-    <main>
+    <main id="hovedinnhold" tabIndex={-1}>
       <div className="max-w-3xl mx-auto">
         <Box
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
@@ -29,8 +29,8 @@ export default function EnglishNewsIndex() {
               <BodyLong>
                 Nav builds and runs public welfare systems, and these are notes from doing that with AI coding tools.
                 Most of what we publish is in Norwegian.{" "}
-                <NextLink href="/" hrefLang="nb" lang="nb">
-                  Oh-My-Nav
+                <NextLink href="/" hrefLang="nb">
+                  The Norwegian front page
                 </NextLink>{" "}
                 has the rest.
               </BodyLong>

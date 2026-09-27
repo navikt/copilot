@@ -1,9 +1,7 @@
 import { Box, VStack, BodyShort, HStack } from "@navikt/ds-react";
 import {
   ArrowRightIcon,
-  PadlockLockedIcon,
   WrenchIcon,
-  ArrowUndoIcon,
   RocketIcon,
   BranchingIcon,
   FileTextIcon,
@@ -13,7 +11,6 @@ import {
 import NextLink from "next/link";
 import { getAllCustomizations } from "@/lib/customizations";
 import { getRecentlyUpdatedCustomizations } from "@/lib/recent-updates";
-import { NAV_ITEMS } from "@/lib/nav-items";
 import { WeeklyTip } from "./weekly-tip";
 import type { CustomizationType } from "@/lib/customization-types";
 
@@ -114,46 +111,6 @@ function RecentUpdates() {
   );
 }
 
-function QuickNav() {
-  const links = NAV_ITEMS.slice(0, 6);
-
-  return (
-    <VStack gap="space-8">
-      <HStack gap="space-4" align="center">
-        <ArrowUndoIcon aria-hidden fontSize="1rem" className="text-text-subtle" />
-        <BodyShort size="small" weight="semibold" className="uppercase tracking-wide text-text-subtle">
-          Gå videre
-        </BodyShort>
-      </HStack>
-      <nav aria-label="Hurtignavigasjon">
-        <VStack gap="space-4" asChild>
-          <ul className="list-none">
-            {links.map(({ href, icon: Icon, label, requiresAuth }) => (
-              <li key={href}>
-                <NextLink
-                  href={href}
-                  prefetch={requiresAuth ? false : undefined}
-                  className="no-underline text-sm hover:underline flex items-center gap-2"
-                >
-                  <Icon aria-hidden fontSize="1rem" className="text-text-subtle shrink-0" />
-                  {label}
-                  {requiresAuth && (
-                    <PadlockLockedIcon
-                      aria-label="Krever innlogging"
-                      fontSize="0.75rem"
-                      className="text-text-subtle opacity-60"
-                    />
-                  )}
-                </NextLink>
-              </li>
-            ))}
-          </ul>
-        </VStack>
-      </nav>
-    </VStack>
-  );
-}
-
 export function Sidebar() {
   return (
     <aside aria-label="Redaksjonelt innhold" className="hidden lg:block">
@@ -162,8 +119,6 @@ export function Sidebar() {
           <WeeklyTip />
           <hr className="border-gray-200" />
           <RecentUpdates />
-          <hr className="border-gray-200" />
-          <QuickNav />
         </VStack>
       </div>
     </aside>

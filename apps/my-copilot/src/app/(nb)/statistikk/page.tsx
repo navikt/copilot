@@ -928,7 +928,7 @@ export default async function Usage() {
   }
 
   return (
-    <main>
+    <main id="hovedinnhold" tabIndex={-1}>
       <UsageHeader />
       <div className="max-w-7xl mx-auto">
         <Box

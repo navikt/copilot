@@ -1,17 +1,16 @@
 import Faro from "@/components/faro";
 import { FooterMessage } from "@/components/footer-message";
 import { HashAnchorScroll } from "@/components/hash-anchor-scroll";
-import NavBudgetBar from "@/components/nav-budget-bar";
+import { SiteHeader, type HeaderLabels } from "@/components/navigation/site-nav";
 import { getUser } from "@/lib/auth";
 import { BodyShort, Box, HStack, Link, Theme } from "@navikt/ds-react";
 import { Inter } from "next/font/google";
-import NextLink from "next/link";
 import { Suspense } from "react";
 
-export interface ShellLabels {
-  subscription: string;
-  subscriptionHref: string;
-  signIn: string;
+export interface ShellLabels extends Omit<HeaderLabels, "lang"> {
+  glossary: string;
+  otherLang: string;
+  otherLangHref: string;
   privacy: string;
   privacyHref: string;
   // Set when the target page is in another language than the shell, so the
@@ -50,32 +49,10 @@ export async function SiteShell({
               paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
               className="max-w-7xl mx-auto"
             >
-              <HStack justify="space-between" align="center">
-                <NextLink
-                  href="/"
-                  className="text-white/90 text-sm font-medium no-underline hover:text-white transition-colors"
-                >
-                  Oh-My-Nav
-                </NextLink>
-                {user ? (
-                  <HStack gap="space-16" align="center">
-                    <NextLink
-                      href={labels.subscriptionHref}
-                      className="text-white/70 text-sm no-underline hover:text-white transition-colors"
-                    >
-                      {labels.subscription}
-                    </NextLink>
-                    <NavBudgetBar />
-                    <BodyShort size="small" style={{ color: "rgba(255, 255, 255, 0.7)" }}>
-                      {user.firstName} {user.lastName}
-                    </BodyShort>
-                  </HStack>
-                ) : (
-                  <Link href="/oauth2/login" data-color="neutral" className="text-sm" underline={false}>
-                    {labels.signIn}
-                  </Link>
-                )}
-              </HStack>
+              <SiteHeader
+                labels={{ ...labels, lang }}
+                userName={user ? `${user.firstName} ${user.lastName}` : undefined}
+              />
             </Box>
           </header>
         </Theme>
@@ -99,8 +76,19 @@ export async function SiteShell({
               ) : (
                 <FooterMessage />
               )}
-              <HStack gap="space-16" asChild>
+              <HStack gap="space-16" wrap asChild>
                 <BodyShort size="small" as="div">
+                  <Link href="/ordbok" hrefLang={lang === "en" ? "nb" : undefined} data-color="neutral">
+                    {labels.glossary}
+                  </Link>
+                  <Link
+                    href={labels.otherLangHref}
+                    hrefLang={lang === "nb" ? "en" : "nb"}
+                    lang={lang === "nb" ? "en" : "nb"}
+                    data-color="neutral"
+                  >
+                    {labels.otherLang}
+                  </Link>
                   <Link href={labels.privacyHref} hrefLang={labels.privacyHrefLang} data-color="neutral">
                     {labels.privacy}
                   </Link>

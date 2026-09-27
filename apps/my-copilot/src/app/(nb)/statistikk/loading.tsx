@@ -2,7 +2,7 @@ import { Heading, Box, HGrid, Skeleton } from "@navikt/ds-react";
 
 export default function Loading() {
   return (
-    <main className="p-6 mx-4 max-w-7xl">
+    <main id="hovedinnhold" tabIndex={-1} className="p-6 mx-4 max-w-7xl">
       <section>
         <Heading size="xlarge" level="1" className="mb-2">
           Copilot Statistikk

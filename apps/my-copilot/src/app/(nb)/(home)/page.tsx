@@ -6,12 +6,10 @@ import { HomeSearch } from "@/components/home-search";
 import { HighlightCards } from "@/components/pulse-strip";
 import { HomeShortsFeed } from "@/components/video/home-shorts-feed";
 import { Sidebar, SidebarCompact } from "@/components/sidebar";
-import { NAV_ITEMS } from "@/lib/nav-items";
 import { Greeting } from "@/components/greeting";
 import { getUser } from "@/lib/auth";
 import { getPublicVideoFeed } from "@/lib/public-videos";
 import { NavCard } from "@/components/navigation/nav-card";
-import { NavPill } from "@/components/navigation/nav-pill";
 
 export default async function Home() {
   const [user, videos] = await Promise.all([getUser(false), getPublicVideoFeed(5)]);
@@ -24,7 +22,7 @@ export default async function Home() {
   );
 
   return (
-    <main>
+    <main id="hovedinnhold" tabIndex={-1}>
       <section className="hero-gradient text-white">
         <Box
           paddingBlock={{ xs: "space-32", md: "space-40" }}
@@ -42,17 +40,6 @@ export default async function Home() {
               </BodyShort>
             </VStack>
             <HomeSearch />
-            <div className="flex flex-wrap gap-2 hero-animate-d2">
-              {NAV_ITEMS.map(({ href, icon: Icon, label, requiresAuth }) => (
-                <NavPill
-                  key={href}
-                  href={href}
-                  icon={<Icon aria-hidden fontSize="1rem" />}
-                  label={label}
-                  locked={requiresAuth}
-                />
-              ))}
-            </div>
           </VStack>
         </Box>
       </section>
