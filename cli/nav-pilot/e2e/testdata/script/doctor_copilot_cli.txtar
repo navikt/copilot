@@ -7,7 +7,7 @@
 fake-bin opencode
 
 exec nav-pilot doctor
-stdout '• copilot\n +\[✗\] Binary not found on PATH, and client is copilot'
+stdout '• copilot\n +\[✗\] Binary not found on PATH\n +Solution: Install the Copilot CLI'
 stdout 'Solution: Install the Copilot CLI: curl -fsSL https://gh\.io/copilot-install \| bash'
 ! stderr .
 
@@ -29,7 +29,7 @@ exec nav-pilot install plattform --source $WORK/plattform --repo --yes
 # Neither copilot nor cplt: the refusal names both installs, copilot first.
 # It used to name only cplt, which then stops with "Copilot not found in PATH".
 exits 1 nav-pilot --sync --source $WORK/plattform -- -p 'hello'
-stderr 'Not launching: copilot is not installed\. Install the Copilot CLI: curl -fsSL https://gh\.io/copilot-install \| bash, and cplt, which runs it in a sandbox: brew install navikt/tap/cplt'
+stderr 'Not launching: neither copilot nor cplt is installed\.\n  Install the Copilot CLI: curl -fsSL https://gh\.io/copilot-install \| bash\n  Install cplt \(the sandbox\): brew install navikt/tap/cplt \(or sudo apt install cplt\)\n'
 ! stdout 'Not launching'
 
 # In a terminal it warns with the same two commands and exits 0.
@@ -37,7 +37,7 @@ stderr 'Not launching: copilot is not installed\. Install the Copilot CLI: curl 
 exec nav-pilot config set rtk_prompted_client copilot
 exits 0 pty-run -- nav-pilot --sync --source $WORK/plattform
 stdout 'Neither copilot nor cplt is installed, so nothing was launched'
-stdout 'Install the Copilot CLI: curl -fsSL https://gh\.io/copilot-install \| bash, and cplt'
+stdout 'Install the Copilot CLI: curl -fsSL https://gh\.io/copilot-install \| bash\r?\n  Install cplt \(the sandbox\): brew install navikt/tap/cplt'
 
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}

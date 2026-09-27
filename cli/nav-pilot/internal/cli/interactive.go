@@ -1217,7 +1217,7 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 	switch decision {
 	case launchSkipUnavailable:
 		if resolved.Client == "copilot" {
-			fmt.Fprintf(os.Stderr, "%s Neither copilot nor cplt is installed, so nothing was launched. %s\n", yellow("⚠"), copilotInstallHint())
+			fmt.Fprintf(os.Stderr, "%s Neither copilot nor cplt is installed, so nothing was launched.\n%s\n", yellow("⚠"), copilotInstallHint())
 			return nil
 		}
 		if missingCommand(resolved.Client, resolved.Client) == "cplt" {
@@ -1263,9 +1263,10 @@ var clientInstallCommand = map[string]string{
 }
 
 // copilotInstallHint names both installs a copilot launch needs when neither
-// is there. cplt does not bring copilot: it starts the copilot on PATH.
+// is there, one indented line each so each command pastes on its own. cplt
+// does not bring copilot: it starts the copilot on PATH.
 func copilotInstallHint() string {
-	return fmt.Sprintf("Install the Copilot CLI: %s, and cplt, which runs it in a sandbox: %s",
+	return fmt.Sprintf("  Install the Copilot CLI: %s\n  Install cplt (the sandbox): %s",
 		bold(providerpkg.CopilotInstallCommand), bold(cpltInstallHint))
 }
 
@@ -1326,7 +1327,7 @@ func headlessRefusal(decision launchDecision, p Provider, missing, start string)
 	switch decision {
 	case launchSkipUnavailable:
 		if p.ID() == "copilot" {
-			fmt.Fprintf(os.Stderr, "Not launching: copilot is not installed. %s\n", copilotInstallHint())
+			fmt.Fprintf(os.Stderr, "Not launching: neither copilot nor cplt is installed.\n%s\n", copilotInstallHint())
 			break
 		}
 		install := cpltInstallHint

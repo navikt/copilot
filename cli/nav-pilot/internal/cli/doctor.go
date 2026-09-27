@@ -103,7 +103,7 @@ func reportCopilotCLI() bool {
 		fmt.Printf("      [i] Binary not found on PATH (optional)\n")
 		return true
 	}
-	fmt.Printf("      %s Binary not found on PATH, and client is copilot\n", red("[✗]"))
+	fmt.Printf("      %s Binary not found on PATH\n", red("[✗]"))
 	fmt.Printf("          %s Install the Copilot CLI: %s\n", red("Solution:"), bold(providerpkg.CopilotInstallCommand))
 	return false
 }
@@ -222,8 +222,8 @@ func cmdDoctor() error {
 		hasErrors = true
 	}
 
-	// copilot (cplt)
-	fmt.Printf("    • copilot (cplt)\n")
+	// cplt
+	fmt.Printf("    • cplt (sandbox)\n")
 	cpltPath, _ := exec.LookPath("cplt")
 	if cpltPath == "" {
 		hasErrors = true
