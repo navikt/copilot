@@ -2219,10 +2219,10 @@ function LocalModelSection({ models }: { models: LocalModel[] }) {
             Kom i gang
           </LinkableHeading>
           <BodyShort size="small" textColor="subtle">
-            <code className="font-mono text-xs">init</code> starter serveren til slutt, så du trenger ikke kjøre{" "}
-            <code className="font-mono text-xs">start</code> etterpå. Den trenger du etter en omstart av maskinen.
-            Første oppstart laster modellen inn i minnet. Ti målte oppstarter på seks maskiner lå alle under 50
-            sekunder, seks av dem under ti.
+            <code className="font-mono text-xs">init</code> starter også serveren, så{" "}
+            <code className="font-mono text-xs">start</code> trenger du først etter en omstart av maskinen. Første
+            oppstart laster modellen inn i minnet. Ti målte oppstarter på seks maskiner lå alle under 50 sekunder, seks
+            av dem under ti.
           </BodyShort>
           <BodyShort size="small" textColor="subtle">
             <code className="font-mono text-xs">init</code> viser hva den skal laste ned, og om den trenger{" "}
@@ -2867,7 +2867,7 @@ function CliReferenceSection() {
               </div>
               <BodyLong size="small" style={{ color: "#64748b" }}>
                 Kommandoen installerer også <code className="font-mono text-xs">cplt</code>, som kjører agenten i en
-                sandkasse. Sandboxing er et krav på Nav-utstyr.
+                sandkasse. Det er et krav på Nav-utstyr.
               </BodyLong>
             </VStack>
           </div>
