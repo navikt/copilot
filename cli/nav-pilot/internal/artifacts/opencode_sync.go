@@ -222,25 +222,16 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 		return skills, commands, agents, instructions, conflicts, err
 	}
 
-	// Hooks are not exported, and the message says why without claiming more
-	// than we know.
-	//
-	// It used to say OpenCode has no tool-deny mechanism. That is false, and was
-	// measured false (#709): a plugin's `tool.execute.before` hook aborts the
-	// call when it throws, the message reaches the model, and a probe ran the
-	// unmodified Python gate through it. `~/.config/opencode/plugins/rtk.ts`
-	// already uses that same hook to rewrite commands, so the shape was in front
-	// of us the whole time.
-	//
-	// What is missing is the plumbing, not the capability: a plugin has to be
-	// registered under `plugin` in the user's own opencode.json, and whether
-	// nav-pilot writes client configuration is #500's open question.
-	//
-	// Said out loud rather than skipped in silence: a user who installed an
-	// enforcement gate and then exported to opencode would otherwise believe it
-	// came along. ValidateOpenCodeStatePath keeps refusing hooks/ regardless, so
-	// nothing can slip in through state either.
-	if skipped := resolver.List(source.KindHook); len(skipped) > 0 {
+	// Hooks are not materialized: they are code, and they run from where
+	// `nav-pilot install` put them. For opencode that is enough. A launch hands
+	// the installed gates, agentpakke hooks included, to the hooks bridge
+	// (provider/hooks-bridge.js, #1025, #709), which runs them from
+	// tool.execute.before the way Copilot CLI does. pi has no bridge, so there
+	// the gap is said out loud rather than skipped in silence: a user who
+	// installed an enforcement gate would otherwise believe it came along.
+	// ValidateOpenCodeStatePath keeps refusing hooks/ regardless, so nothing
+	// can slip in through state either.
+	if skipped := resolver.List(source.KindHook); len(skipped) > 0 && client != "opencode" {
 		names := make([]string, len(skipped))
 		for i, h := range skipped {
 			names[i] = h.Name
@@ -251,7 +242,7 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 		// Once per client per run: a sync visits opencode and pi, and a launch
 		// materializes again, and each said it anew — naming OpenCode for pi.
 		if _, said := hookWarningSaid.LoadOrStore(client, true); !said {
-			fmt.Fprintf(os.Stderr, "  %s %d hook(s) not installed for %s: %s. nav-pilot installs hooks for copilot only; see navikt/copilot#709.\n",
+			fmt.Fprintf(os.Stderr, "  %s %d hook(s) not installed for %s: %s. nav-pilot runs hooks for copilot and opencode only; see navikt/copilot#709.\n",
 				domain.Yellow("⚠"), len(names), client, strings.Join(names, ", "))
 		}
 	}
