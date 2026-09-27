@@ -2184,16 +2184,16 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
             spørsmål, eller når surveys er false. Uten terminal lister kommandoen bare de åpne undersøkelsene. Har du
             svart før, sier den fra.
           </BodyLong>
+          <BodyLong className="mt-2" style={{ color: "#475569" }}>
+            Du kan også svare i nettleseren, på{" "}
+            <a href="/nav-pilot/undersokelse" className="text-blue-600 hover:underline">
+              undersøkelsessiden
+            </a>
+            . Den bruker Nav-innloggingen din. Hver person kan svare én gang, i terminalen eller på nettsiden.
+          </BodyLong>
           <BodyLong className="mt-2" size="small" style={{ color: "#64748b" }}>
             <code className="font-mono text-xs">DO_NOT_TRACK=1</code> og{" "}
             <code className="font-mono text-xs">NAV_PILOT_TELEMETRY_ENABLED=false</code> slår dem også av.
-          </BodyLong>
-          <BodyLong className="mt-2" style={{ color: "#475569" }}>
-            Du kan også svare i nettleseren:{" "}
-            <a href="/nav-pilot/undersokelse" className="text-blue-600 hover:underline">
-              brukerundersøkelsen på ki-utvikling
-            </a>
-            . Der logger du inn med Nav-kontoen din, og hver person kan svare én gang, enten i terminalen eller her.
           </BodyLong>
         </div>
       </VStack>

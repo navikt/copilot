@@ -7,7 +7,7 @@ import { getActiveSurveys } from "@/lib/survey";
 import { SurveyForm } from "./survey-form";
 
 export const metadata: Metadata = {
-  title: "Brukerundersøkelse — nav-pilot",
+  title: "Brukerundersøkelse",
   description: "Svar på en åpen brukerundersøkelse om Copilot og nav-pilot i Nav.",
   robots: { index: false },
 };

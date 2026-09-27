@@ -90,21 +90,21 @@ export function SurveyForm({ survey }: { survey: Survey }) {
         {survey.intro && <BodyLong>{survey.intro}</BodyLong>}
         <GuidePanel poster={false}>
           <BodyLong spacing>
-            Svaret er anonymt. Vi lagrer svarene dine, og at svaret kom fra nettsiden. Vi lagrer ikke navn, e-post eller
-            noe annet som knytter svaret til deg.
+            Svarene er anonyme. Vi lagrer svarene dine og at de kom fra nettsiden, men ikke navn, e-post eller noe annet
+            som knytter dem til deg.
           </BodyLong>
           <BodyLong spacing>
-            Innloggingen brukes bare til å hindre at noen svarer to ganger. Fordi ingenting knytter svaret til deg, kan
-            svaret ikke endres eller trekkes tilbake etterpå.
+            Vi bruker innloggingen bare til å hindre at noen svarer to ganger. Siden ingenting knytter svarene til deg,
+            kan de ikke endres eller trekkes tilbake etterpå.
           </BodyLong>
-          <BodyLong>Skriv ikke noe i fritekstfeltet som kan identifisere deg eller andre.</BodyLong>
+          <BodyLong>Ikke skriv noe i fritekstfeltet som kan identifisere deg eller andre.</BodyLong>
         </GuidePanel>
 
         {Object.keys(errors).length > 0 && (
           <ErrorSummary ref={summaryRef} heading="Svar på disse spørsmålene før du sender">
             {Object.entries(errors).map(([id, message]) => (
               <ErrorSummary.Item key={id} href={`#q-${id}`}>
-                {message}
+                {`${survey.questions.find((q) => q.id === id)?.text ?? id}: ${message}`}
               </ErrorSummary.Item>
             ))}
           </ErrorSummary>
@@ -116,12 +116,12 @@ export function SurveyForm({ survey }: { survey: Survey }) {
 
         {result?.status === "invalid" && (
           <Alert variant="error" ref={resultRef} tabIndex={-1}>
-            Svaret ble ikke godtatt{result.message ? `: ${result.message}` : ""}.
+            Svaret ble ikke godtatt.{result.message ? ` Serveren sa: «${result.message}»` : ""}
           </Alert>
         )}
         {result?.status === "no-identity" && (
           <Alert variant="error" ref={resultRef} tabIndex={-1}>
-            Vi fant ikke Nav-identiteten din, så svaret ble ikke sendt.
+            Vi fant ingen Nav-identitet på innloggingen din, så svaret ble ikke sendt.
           </Alert>
         )}
         {result?.status === "error" && (
@@ -216,7 +216,7 @@ function Question({
         <Textarea
           id={`q-${q.id}`}
           label={legend}
-          description="Skriv ikke noe som kan identifisere deg eller andre."
+          description="Ikke skriv noe som kan identifisere deg eller andre."
           error={error}
           maxLength={q.max_length}
           value={typeof value === "string" ? value : ""}
