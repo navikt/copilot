@@ -1928,7 +1928,8 @@ function KlienterOgKonfigurasjonSection() {
                 title: "Samme hooks og verktøyregler",
                 desc: (
                   <>
-                    Maskering av hemmeligheter og fødselsnumre, løkkevakten og hookene du har installert kjører også i OpenCode. Feiler maskeringen, holder nav-pilot verktøyresultatet tilbake. En agents{" "}
+                    Maskering av hemmeligheter og fødselsnumre, løkkevakten og hookene du har installert kjører også i
+                    OpenCode. Feiler maskeringen, holder nav-pilot verktøyresultatet tilbake. En agents{" "}
                     <code className="font-mono text-xs">tools:</code>-liste blir tillatelser i OpenCode.
                   </>
                 ),
@@ -1939,7 +1940,8 @@ function KlienterOgKonfigurasjonSection() {
                 title: "Navs regler ved oppstart",
                 desc: (
                   <>
-                    Deling til opencode.ai er av, og oppdateringer kommer som varsel. nav-pilot slår av MCP-servere som ikke står i Navs MCP-register for økten, som i Copilot. Se{" "}
+                    Deling til opencode.ai er av, og oppdateringer kommer som varsel. nav-pilot slår av MCP-servere som
+                    ikke står i Navs MCP-register for økten, som i Copilot. Se{" "}
                     <NextLink href="/verktoy" className="text-blue-600 hover:underline">
                       Verktøy
                     </NextLink>{" "}
