@@ -23,8 +23,10 @@ quota; the Entra path goes to the local Texas sidecar and is not limited.
 copilot-cli logs neither tokens nor identities; copilot-api logs the GitHub
 login of each usage request it serves on someone's behalf (audit).
 
-**GitHub App prerequisites.** Device flow enabled; organization permission
-*Members: read*; installed on `navikt`. Without the installation, org
+**GitHub App prerequisites.** Device flow enabled; organization permissions
+*Members: read* and whatever lets it read the org's SAML identities (the
+permission copilot-api's App uses for `externalIdentities`; verify in dev);
+installed on `navikt`. Without the installation, org
 membership answers 302 for everyone and every sign-in gets 403. User token
 expiry: nav-pilot stores no refresh token yet, so either turn expiry off on
 the App or add refresh before rollout.
@@ -49,46 +51,78 @@ login and trusts `X-On-Behalf-Of` only from copilot-cli, only on GETs.
 Definitions: [`surveys/`](surveys/README.md), one file per survey, validated
 at start and in CI.
 
-A submission is `{"answers": {…}, "context": {…}}`, both strictly validated,
-unknown fields refused, body at most 32 KiB. One table:
+**Goal: refuse a second answer without storing anything that links an answer
+to a person, not even pseudonymously.**
 
-| Column | Content |
+A submission is `{"answers": {…}, "context": {…}}`, strictly validated,
+unknown fields refused, body at most 32 KiB. Then:
+
+1. The respondent's Nav e-mail is found: from the Entra token
+   (`preferred_username`), or for a GitHub sign-in from the member's SAML SSO
+   identity in navikt (`externalIdentities … samlIdentity.nameId`, read with
+   the nav-pilot GitHub App's installation token). A GitHub account with no
+   SAML identity gets 403 and is told to answer on ki-utvikling. The e-mail is
+   used in memory for step 2 only: never stored, logged or cached.
+2. `survey_participation` gets `(survey_id, HMAC-SHA256(survey key, lowercased
+   e-mail))`. Its primary key refuses a second answer (409), from nav-pilot
+   and the web alike.
+3. The answers are queued and written to `survey_answers` in shuffled batches
+   of 10, in one transaction per batch.
+
+Two tables, nothing shared but the survey id:
+
+| Table | Columns |
 | --- | --- |
-| `survey_id` | the survey (one wave of a series) |
-| `respondent_hash` | while the survey is open: HMAC-SHA256(`SURVEY_HASH_KEY`, survey id, issuer, issuer id), for dedup. The day after it closes: replaced with a random value |
-| `answers` | `{question id: value}`: a number for a scale, the option text for a choice, a list for a multi, trimmed text |
-| `context` | nav-pilot version (year.month or major.minor only), OS, arch, client, local models on/off: enums only |
-| `closes_on`, `delete_after` | the day after the survey ends; that + 180 days |
+| `survey_participation` | `survey_id`, `participant_hash`, `closes_on` |
+| `survey_answers` | `survey_id`, `answers` (`{question id: value}`), `question_versions` (`{question id: version}`), `context` (nav-pilot version as year.month, OS, arch, client, local models on/off), `delete_after` |
 
-Primary key `(survey_id, respondent_hash)` is the dedup: a second answer gets
-409. Not stored: the GitHub login or id, the Entra oid or NAVident, e-mail, IP,
-`device_id`, submission time.
+No row id, no timestamp, no request id, no IP, no login, oid, NAVident,
+e-mail or token in either. Because nothing links an answer to its
+participation row, **an answer cannot be changed or withdrawn** after it is
+sent; nav-pilot and the web say so before sending.
 
-**Pseudonymous while open, unlinkable after.** Whoever holds
-`SURVEY_HASH_KEY` and a list of navikt GitHub ids or Entra oids can recompute
-a hash, so while a survey is open its rows are pseudonymous to the team, not
-anonymous. The hash differs per survey (no joining across surveys or waves),
-and the day after the survey closes it is replaced with a random value, after
-which no key links a row to anyone. Rows are deleted at `delete_after`.
+**Per-survey key lifecycle.** Each survey has its own random key,
+`SURVEY_KEY_<ID>` (id upper-cased, `-` as `_`; `openssl rand -base64 32`),
+in the Nais secret `copilot-cli`, namespace `copilot`, created by the team
+before the survey opens. Who can read it: members of the `copilot` Nais team
+(namespace secret access). It is never in the database or the image. The day
+after the survey closes, copilot-cli deletes that survey's participation rows,
+and the team deletes its key from the secret. From then on no key exists to
+recompute a hash, and no table holds one.
+
+**Pseudonymous while open.** Until the key and the participation rows are
+deleted, someone with both the key and database access can test whether a
+given e-mail answered (HMAC of a guessed e-mail; Nav e-mails are guessable).
+They still cannot tell *which* answers are that person's. After close-out the
+retained data is meant to be anonymous: no identifier, no key.
+
+**Timing and order.** Answers reach the database only in shuffled batches of
+10 (or fewer at shutdown and in the daily flush), so row order and commit time
+place an answer among at least the participants since the previous batch, not
+next to one participation row. A crash loses the answers still queued (at
+most 9) while their participation stays recorded.
 
 Residual risks, for the privacy review:
 
-- Small cohorts: a rare combination of context values (say windows, arm64,
-  opencode, local models on) narrows who answered; version is coarsened for
-  this reason. Report only groups of at least 5.
-- The ingress access log has the time and source address of each
-  `POST /api/v1/surveys/…`; row order in Postgres follows insertion. Neither
-  holds the identity, but together with other logs they narrow it. Keep
-  ingress log retention short.
-- Cloud SQL backups keep rows (and open-survey hashes) for the backup
-  retention period past `delete_after`.
-- The same person answering once from nav-pilot and once from the web counts
-  twice (different issuers).
+- Small segments: a rare combination of context values narrows who answered.
+  Exports must suppress or merge any segment with fewer than 5 respondents.
+- Ingress access logs hold the time and source address of each
+  `POST /api/v1/surveys/…`. copilot-cli itself logs no identity, hash or
+  answer on this path, but the Nais ingress log is outside its control: ask
+  the platform team to drop or sample access logs for this path, or keep their
+  retention short.
+- Cloud SQL backups and WAL keep deleted participation rows (and batch commit
+  times) for the backup retention period.
+- Upgrade path, if the separation of the two tables is judged not convincing:
+  blind-signed one-time tokens (Privacy Pass style), so the server never sees
+  who spends a token.
 
-Export for analysis:
-`SELECT survey_id, answers, context FROM survey_responses WHERE survey_id = $1`,
-one JSON row per respondent, keyed by question id; join the question
-`version`, `construct` and `reverse` from the definition file in git.
+**Pre-launch gate:** a DPIA / personvernombud check. With this design the
+retained data should be anonymous; the privacy officer should confirm that.
+
+Export for analysis: `SELECT answers, question_versions, context FROM
+survey_answers WHERE survey_id = $1`, one JSON row per respondent keyed by
+question id; `construct` and `reverse` come from the definition file.
 
 ## Configuration
 
@@ -98,13 +132,17 @@ in each cluster:
 
 | Key | Purpose | How to make it |
 | --- | --- | --- |
-| `GITHUB_CLIENT_ID` | the nav-pilot GitHub App's client id | from the GitHub App settings page |
-| `GITHUB_CLIENT_SECRET` | lets this service check that a token was issued to that app | GitHub App → *Generate a new client secret* |
-| `SURVEY_HASH_KEY` | keys the respondent hash | `openssl rand -base64 32` |
+| `GITHUB_CLIENT_ID` | the nav-pilot GitHub App's client id | the App's settings page |
+| `GITHUB_CLIENT_SECRET` | checks that a token was issued to that App | App → *Generate a new client secret* |
+| `GITHUB_APP_ID` | the App's id, for its installation token | the App's settings page |
+| `GITHUB_APP_PRIVATE_KEY` | signs the App's JWT (PEM) | App → *Generate a private key* |
+| `GITHUB_APP_INSTALLATION_ID` | the App's installation on navikt | the installation's URL |
+| `SURVEY_KEY_<ID>` | one per survey, see above | `openssl rand -base64 32`; delete at close |
 
-Missing GitHub credentials turn the GitHub path off (503), a missing hash key
-or database turns survey submissions off (503). Rotating `SURVEY_HASH_KEY`
-during an open survey lets people answer it again.
+Missing GitHub credentials turn the GitHub path off (503). A survey without
+its key, or no database, takes no answers (503). Without the App's
+installation credentials, GitHub sign-ins cannot answer (503); the web still
+can.
 
 | Variable | Description | Default |
 | --- | --- | --- |

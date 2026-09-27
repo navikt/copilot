@@ -155,9 +155,11 @@ nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)�
 - Inbound: my-copilot (service discovery), and the `.intern.nav.no` ingress,
   which requires naisdevice. No CORS: browsers never call it.
 - Outbound: copilot-api (service discovery) + `api.github.com` / `github.com`.
-- Survey answers go to a Postgres table keyed by a per-survey HMAC of the
-  caller's identity, never the identity itself. Data model and retention:
-  `apps/copilot-cli/README.md`.
+- Survey answers: a second answer is refused through a per-survey keyed HMAC
+  of the Nav e-mail in a participation table, and the answers go to a
+  separate table with no identifier, written in shuffled batches. The key and
+  the participation rows are deleted when the survey closes. Data model, key
+  lifecycle and residual risks: `apps/copilot-cli/README.md`.
 
 > **Status:** copilot-api trusts `X-On-Behalf-Of` via its Identity Resolver
 > architecture (see `apps/copilot-api/ARCHITECTURE.md`). The
