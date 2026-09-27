@@ -52,10 +52,12 @@ _`decide` is the right-hand side. The answer is the probability of each option, 
 
 ## Requirements and install
 
-- A Mac with Apple Silicon. On Linux you can point nav-pilot at a server you run yourself, such as Ollama or llama-server, instead (alpha, not measured; see [the docs](https://ki-utvikling.nav.no/nav-pilot/docs#lokal-egen-server), in Norwegian).
+- A Mac with Apple Silicon.
 - 48 GB of memory. The model uses about 21 GB while the server runs.
 - About 26 GB of free disk: 25 GB of weights and about 1 GB for a Python environment.
 - `sudo`, to raise the macOS wired-memory limit.
+
+These apply to the model nav-pilot sets up itself. On Linux you can point nav-pilot at a server you run yourself instead, such as Ollama or llama-server (alpha, not measured). nav-pilot then downloads nothing and needs no `sudo`. See [the docs](https://ki-utvikling.nav.no/nav-pilot/docs#lokal-egen-server), in Norwegian.
 
 ```bash
 brew install navikt/tap/nav-pilot

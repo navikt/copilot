@@ -59,10 +59,12 @@ Hooken kjører hver gang du committer. Den sender meldingen og diffen til den lo
 
 ### Dette trenger du
 
-- En Mac med Apple Silicon. På Linux kan du i stedet bruke en server du kjører selv, som Ollama eller llama-server (alfa, ikke målt). Se [egen lokal server](/nav-pilot/docs#lokal-egen-server).
+- En Mac med Apple Silicon.
 - 48 GB minne. Modellen bruker rundt 21 GB mens serveren kjører.
 - Rundt 26 GB ledig diskplass: 25 GB til vektene og rundt 1 GB til et Python-miljø.
 - Passordet ditt. `init` bruker `sudo` for å heve en minnegrense i macOS.
+
+Dette gjelder modellen nav-pilot setter opp selv. På Linux kan du i stedet bruke en server du kjører selv, som Ollama eller llama-server (alfa, ikke målt). Da laster nav-pilot ikke ned noe og trenger ikke `sudo`. Se [egen lokal server](/nav-pilot/docs#lokal-egen-server).
 
 ### 1. Installer eller oppdater nav-pilot
 
