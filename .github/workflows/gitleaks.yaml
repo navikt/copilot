@@ -5,9 +5,10 @@ name: gitleaks
 # fordi actionen krever en betalt GITLEAKS_LICENSE for organisasjoner.
 # Falske positiver håndteres i .gitleaks.toml (plukkes opp automatisk).
 #
-# På pull requests og i merge-køen kjøres samme skann av gitleaks-jobben i
-# ci.yaml (gated av required-sjekken `ci-ok`). Denne workflowen dekker
-# push til main (inkl. direkte push utenom køen).
+# På pull requests og i merge-køen skanner gitleaks-jobben i ci.yaml bare
+# commitene endringen legger til (gated av required-sjekken `ci-ok`). Denne
+# workflowen skanner hele historikken ved push til main (inkl. direkte push
+# utenom køen).
 
 on:
   push:
@@ -41,5 +42,8 @@ jobs:
           echo "${GITLEAKS_SHA256}  ${RUNNER_TEMP}/gitleaks.tar.gz" | sha256sum -c -
           tar -xzf "${RUNNER_TEMP}/gitleaks.tar.gz" -C "${RUNNER_TEMP}" gitleaks
 
+      # HEAD, ikke gitleaks' standard --all: fetchen har med alle brancher, og en
+      # fixture på en annen branch er ikke en lekkasje på main. -m tar med
+      # diffen i merge-commits.
       - name: Scan full git history
-        run: '"${RUNNER_TEMP}/gitleaks" git --redact --verbose --exit-code 1 .'
+        run: '"${RUNNER_TEMP}/gitleaks" git --redact --verbose --exit-code 1 --log-opts="-m HEAD" .'
