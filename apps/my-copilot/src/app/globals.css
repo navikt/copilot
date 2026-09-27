@@ -743,6 +743,22 @@ button.section-link {
   border-radius: var(--ax-radius-4);
   cursor: pointer;
 }
+.section-nav {
+  padding-block: var(--ax-space-24);
+  padding-left: var(--ax-space-28);
+}
+.section-sub {
+  margin-left: var(--ax-space-12);
+}
+.panel-gap {
+  margin-top: var(--ax-space-16);
+}
+/* WCAG 2.5.8: at least 24 px tall. */
+.hero-sibling-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ax-space-24);
+}
 .page-kicker {
   color: var(--ax-text-brand-blue-subtle);
 }

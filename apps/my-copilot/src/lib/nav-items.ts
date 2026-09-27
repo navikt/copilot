@@ -40,15 +40,15 @@ export const inSection = (pathname: string) =>
 
 const fromDocs = (pages: DocLink[]): NavLink[] => pages.map((p) => ({ href: p.href, label: p.title }));
 
-// ponytail: /nav-pilot/lokal/egen-server, /nav-pilot/lokal/decide (#1081) and
-// /nav-pilot/klienter (#1082) are left out until their pages are on main.
+// ponytail: /nav-pilot/lokal/egen-server and /nav-pilot/lokal/decide (#1081) are
+// left out until their pages are on main.
 export const SECTION: NavGroup[] = [
   { label: "Oversikt", href: "/nav-pilot" },
   {
     label: "Kom i gang",
     items: [
       { label: "Copilot og nav-pilot", href: "/kom-i-gang" },
-      { label: "Lokal modell på Mac", href: "/nav-pilot/lokal" },
+      { label: "Lokal modell og decide", href: "/nav-pilot/lokal" },
     ],
   },
   { label: "Guider", overview: "/nav-pilot/guider", items: fromDocs(GUIDE_PAGES) },
@@ -59,7 +59,13 @@ export const SECTION: NavGroup[] = [
       { label: "Agentpakker", href: "/nav-pilot/agentpakker" },
     ],
   },
-  { label: "Referanse", items: [{ label: "Kommandoer og konfig", href: "/nav-pilot/referanse" }] },
+  {
+    label: "Referanse",
+    items: [
+      { label: "Kommandoer og konfig", href: "/nav-pilot/referanse" },
+      { label: "Klienter", href: "/nav-pilot/klienter" },
+    ],
+  },
   { label: "Forklaring", overview: "/nav-pilot/forklaring", items: fromDocs(EXPLANATION_PAGES) },
   { label: "Sandkassen (cplt)", href: "/cplt" },
 ];

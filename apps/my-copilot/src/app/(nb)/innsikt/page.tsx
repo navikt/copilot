@@ -6,7 +6,7 @@ import { PageHero } from "@/components/page-hero";
 
 export const metadata: Metadata = {
   title: "Innsikt",
-  description: "Tall om Copilot-lisensen i Nav: bruk, adopsjon, kostnad og modellpriser.",
+  description: "Tall om Copilot i Nav: bruk, adopsjon, kostnad og modellpriser.",
 };
 
 // LinkCard hides the icon from screen readers, so the description says «Krever innlogging» too.
@@ -17,10 +17,7 @@ const lock = <PadlockLockedIcon aria-hidden fontSize="1.75rem" />;
 export default function Innsikt() {
   return (
     <main id="hovedinnhold" tabIndex={-1}>
-      <PageHero
-        title="Innsikt"
-        description="Tall om Copilot-lisensen i Nav: bruk, adopsjon, kostnad og modellpriser."
-      />
+      <PageHero title="Innsikt" description="Tall om Copilot i Nav: bruk, adopsjon, kostnad og modellpriser." />
       <Box
         paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
         paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}

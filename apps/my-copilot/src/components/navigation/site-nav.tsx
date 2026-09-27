@@ -88,6 +88,7 @@ export function SiteHeader({ labels, userName }: { labels: HeaderLabels; userNam
 function MobileMenu({ labels, userName }: { labels: HeaderLabels; userName?: string }) {
   const pathname = usePathname();
   const active = activeTop(pathname);
+  const hrefLang = labels.lang === "en" ? "nb" : undefined;
   const [open, setOpen] = useState(false);
   const [level2, setLevel2] = useState(false);
   const [swapped, setSwapped] = useState(false);
@@ -144,7 +145,7 @@ function MobileMenu({ labels, userName }: { labels: HeaderLabels; userName?: str
                     <li key={l.href} className="flex border-b border-[var(--ax-border-neutral-subtle)]">
                       <NextLink
                         href={l.href}
-                        hrefLang={labels.lang === "en" ? "nb" : undefined}
+                        hrefLang={hrefLang}
                         aria-current={current(pathname, active, l.href)}
                         className="panel-item flex-1"
                       >
@@ -164,13 +165,13 @@ function MobileMenu({ labels, userName }: { labels: HeaderLabels; userName?: str
                     </li>
                   ))}
                   {userName && (
-                    <li className="mt-4">
-                      <NextLink href={labels.subscriptionHref} className="panel-item">
+                    <li className="panel-gap">
+                      <NextLink href={labels.subscriptionHref} hrefLang={hrefLang} className="panel-item">
                         {labels.subscription}
                       </NextLink>
                     </li>
                   )}
-                  <li className={userName ? undefined : "mt-4"}>
+                  <li className={userName ? undefined : "panel-gap"}>
                     {userName ? (
                       <span className="panel-item" style={{ fontWeight: 400 }}>
                         {userName}
@@ -196,6 +197,12 @@ function SectionMenu() {
   const pathname = usePathname();
   const currentGroup = sectionGroup(pathname)?.label;
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  const [shownFor, setShownFor] = useState(pathname);
+  if (shownFor !== pathname) {
+    // The route changed: forget what was opened or closed, so the current group opens.
+    setShownFor(pathname);
+    setToggled({});
+  }
   const isOpen = (label: string) => toggled[label] ?? label === currentGroup;
   const idBase = useId();
 
@@ -225,7 +232,7 @@ function SectionMenu() {
                   className={isOpen(grp.label) ? "rotate-180 transition-transform" : "transition-transform"}
                 />
               </button>
-              <ul id={`${idBase}-${n}`} hidden={!isOpen(grp.label)} className="list-none ml-3">
+              <ul id={`${idBase}-${n}`} hidden={!isOpen(grp.label)} className="list-none section-sub">
                 {grp.items.map((i) => (
                   <li key={i.href}>{link(i.href, i.label)}</li>
                 ))}
@@ -250,7 +257,7 @@ const SectionTitle = () => (
 export function SectionLayout({ children }: { children: ReactNode }) {
   return (
     <div className="max-w-7xl mx-auto lg:flex">
-      <nav aria-label="nav-pilot" className="hidden lg:block w-60 shrink-0 py-6 pl-7">
+      <nav aria-label="nav-pilot" className="hidden lg:block w-60 shrink-0 section-nav">
         <div className="sticky top-4">
           <SectionTitle />
           <SectionMenu />

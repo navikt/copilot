@@ -30,7 +30,9 @@ interface PageHeroBaseProps extends Omit<PageHeroProps, "pathname"> {
 export function PageHeroBase({ label, title, description, actions, badge, pathname }: PageHeroBaseProps) {
   // Under the nav-pilot umbrella the pages are read, not sold: light background and a label line (§6.7).
   const section = inSection(pathname);
-  const kicker = label ?? (section ? sectionGroup(pathname)?.label : undefined);
+  const group = section ? sectionGroup(pathname)?.label : undefined;
+  // No label line that repeats the title.
+  const kicker = label ?? (group !== title ? group : undefined);
   return (
     <section className={section ? undefined : "hero-gradient-subtle text-white"}>
       <Box
@@ -58,14 +60,14 @@ export function PageHeroBase({ label, title, description, actions, badge, pathna
             {actions && <div className="shrink-0">{actions}</div>}
           </div>
           {PRAKSIS_PAGES.some((l) => l.href === pathname) && (
-            <nav aria-label="Sider i denne delen" className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <nav aria-label="Sider i denne delen" className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
               <span className="opacity-80">Sider i denne delen:</span>
               {PRAKSIS_PAGES.map((l) => (
                 <NextLink
                   key={l.href}
                   href={l.href}
                   aria-current={l.href === pathname ? "page" : undefined}
-                  className="text-white underline underline-offset-4 aria-[current=page]:font-semibold aria-[current=page]:no-underline"
+                  className="hero-sibling-link text-white underline underline-offset-4 aria-[current=page]:font-semibold aria-[current=page]:no-underline"
                 >
                   {l.label}
                 </NextLink>

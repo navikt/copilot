@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Personvern",
-  description: "Slik behandler nav-pilot (ki-utvikling.nav.no) personopplysningene dine.",
+  description: "Slik behandler nettstedet ki-utvikling.nav.no (nav-pilot) personopplysningene dine.",
 };
 
 export default function PersonvernPage() {
