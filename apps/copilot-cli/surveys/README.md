@@ -11,6 +11,7 @@ fit the format below; unknown fields are refused too.
   "id": "q4-2026",
   "series": "utviklerundersokelsen",
   "title": "Shown as the survey's name",
+  "active": false,
   "intro": "Optional, shown before the first question",
   "starts": "2026-10-01",
   "ends": "2026-11-30",
@@ -54,7 +55,8 @@ level: answers are not linked to a person across waves (see
   gateway).
 - DPIA / personvernombud has signed off.
 - Only then: `SURVEY_KEY_<ID>` (`openssl rand -base64 32`) is added to the
-  `copilot-cli` secret. Without it the survey takes no answers.
+  `copilot-cli` secret, and a pull request sets `"active": true`. Without
+  both the survey takes no answers.
 - No copilot-cli deploys while it is open (a restart drops queued answers).
 
 ## When it closes
@@ -66,6 +68,10 @@ the secret the same day; copilot-cli warns at start while it is still there.
 ## Fields
 
 - `id`, `series`, question ids: lowercase letters, digits and `-`.
+- `active`: false (or left out) until the survey is to go live. A survey is
+  served and takes answers only when `active` is true *and* today is within
+  `starts`–`ends`. Setting it true is its own pull request, approved by the
+  survey owner, after the checklist below.
 - `starts`, `ends`: first and last day it takes answers (UTC).
 - `scale`: whole numbers from `min` to `max` (at most 11 steps). `labels`, if
   given, names every step. Stored as the number.

@@ -12,13 +12,13 @@ import (
 	"time"
 )
 
-const testSurveys = `[{"id":"q4-2026","title":"Q4","starts":"2026-10-01","ends":"2026-11-30","questions":[
+const testSurveys = `[{"id":"q4-2026","title":"Q4","active":true,"starts":"2026-10-01","ends":"2026-11-30","questions":[
  {"id":"overall","version":1,"type":"scale","text":"How useful?","min":1,"max":5,"required":true},
  {"id":"client","version":1,"type":"choice","text":"Which client?","options":["copilot","opencode"]},
  {"id":"tools","version":1,"type":"multi","text":"Which tools?","options":["a","b","c"],"max_choices":2},
  {"id":"why","version":1,"type":"choice","text":"Why not copilot?","options":["habit","other"],"skip_if":{"question":"client","answer":"copilot"}},
  {"id":"comment","version":1,"type":"text","text":"Anything else?","max_length":20}]},
- {"id":"old","title":"Old","starts":"2025-01-01","ends":"2025-01-31","questions":[{"id":"a","version":1,"type":"scale","text":"?","min":1,"max":3}]}]`
+ {"id":"old","title":"Old","active":true,"starts":"2025-01-01","ends":"2025-01-31","questions":[{"id":"a","version":1,"type":"scale","text":"?","min":1,"max":3}]}]`
 
 // fakeStore is the two tables: participation by hash, answers with nothing.
 type fakeStore struct {
@@ -162,6 +162,19 @@ func TestSubmitValidation(t *testing.T) {
 	}
 	if len(store.answers) != 0 || len(store.participants) != 0 {
 		t.Fatalf("an invalid submission was stored")
+	}
+}
+
+func TestInactiveSurveyIsNotServed(t *testing.T) {
+	defs, _ := loadSurveys([]byte(strings.Replace(testSurveys, `"active":true,`, "", 1)))
+	api := &surveyAPI{surveys: defs, now: func() time.Time { return time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC) }}
+	a, _ := testAuthenticator(t)
+	h := makeRouter(a, nil, api)
+	if rec := do(h, "GET", "/api/v1/surveys/active", "", ""); strings.Contains(rec.Body.String(), "q4-2026") {
+		t.Fatalf("inactive survey served: %s", rec.Body)
+	}
+	if rec := do(h, "POST", "/api/v1/surveys/q4-2026/responses", "good-token", `{}`); rec.Code != 404 {
+		t.Fatalf("inactive survey took a submission: %d", rec.Code)
 	}
 }
 

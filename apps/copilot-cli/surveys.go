@@ -40,9 +40,12 @@ type survey struct {
 	ID string `json:"id"`
 	// Series groups the waves of one survey over time (e.g.
 	// utviklerundersokelsen); each wave is its own id.
-	Series    string     `json:"series,omitempty"`
-	Title     string     `json:"title"`
-	Intro     string     `json:"intro,omitempty"`
+	Series string `json:"series,omitempty"`
+	Title  string `json:"title"`
+	Intro  string `json:"intro,omitempty"`
+	// Active must be set, in its own reviewed pull request, before a survey
+	// is served or takes answers: a definition merges inactive.
+	Active    bool       `json:"active,omitempty"`
 	Starts    string     `json:"starts"` // YYYY-MM-DD, first day open (UTC)
 	Ends      string     `json:"ends"`   // YYYY-MM-DD, last day open (UTC)
 	Questions []question `json:"questions"`
@@ -200,7 +203,7 @@ func hasDuplicates(xs []string) bool {
 
 func (s survey) activeOn(now time.Time) bool {
 	day := now.UTC().Format(time.DateOnly)
-	return s.Starts <= day && day <= s.Ends
+	return s.Active && s.Starts <= day && day <= s.Ends
 }
 
 // closesOn is the first day the survey no longer takes answers.
