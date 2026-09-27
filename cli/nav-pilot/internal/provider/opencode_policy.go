@@ -3,6 +3,7 @@ package provider
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
@@ -33,7 +34,7 @@ func applyOpenCodePolicy(env []string) []string {
 // it is inside [OpenCodeTestedRange]. err is set when the version could not
 // be read.
 func OpenCodeVersionStatus() (version string, tested bool, err error) {
-	out, err := runStagedProbe(clientProbeTimeout, "opencode", "--version")
+	out, err := runStagedProbe(5*time.Second, "opencode", "--version")
 	if err != nil {
 		return "", false, err
 	}

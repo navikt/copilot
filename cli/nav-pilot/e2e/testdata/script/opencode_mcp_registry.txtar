@@ -6,6 +6,8 @@
 # registry that does not answer changes nothing, with a warning, and so does a
 # policy that allows every server.
 
+mkdir bin
+[exec:node] exec node -e 'require("fs").symlinkSync(process.execPath, "bin/node")'
 fake-bin cplt opencode gh
 env PATH=$PATH${:}/bin${:}/usr/bin
 fake-mcp-registry registry.json
@@ -34,8 +36,25 @@ stdout '"egen-lokal":\{"enabled":false\}'
 ! stdout '"av"'
 cmp $HOME/.config/opencode/opencode.json $WORK/user.json
 
+grep '^--pass-env\nNAV_PILOT_MCP_BLOCKED\n' $WORK/fake/cplt.log
+[exec:node] exec cat $WORK/gate.out
+[exec:node] stdout '^tredjepart_search: denied: nav-pilot: the MCP server tredjepart is not in Nav''s MCP registry'
+[exec:node] stdout '^aksel_find_docs: allowed$'
+[exec:node] stdout '^bash: allowed$'
+
 exec nav-pilot doctor
 stdout 'MCP servers turned off at launch \(not in Nav''s MCP registry\): egen-lokal, tredjepart'
+
+# With every hook off, the session policy still reaches opencode.
+exec nav-pilot config set hook_loop_guard false
+exec nav-pilot config set hook_redact_secrets false
+exec nav-pilot config set hook_redact_fnr false
+exec nav-pilot config set hook_injection_note false
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+grep '^--pass-env\nOPENCODE_CONFIG_CONTENT\n' $WORK/fake/cplt.log
+exec cat $WORK/env.out
+stdout '"share":"disabled"'
+stdout '"tredjepart":\{"enabled":false\}'
 
 # A policy that allows every server: nothing is turned off.
 env POLICY=allow_all
@@ -59,6 +78,20 @@ if [ "$1 $2" = "api /copilot/mcp_registry" ]; then
 fi
 -- fake/cplt.sh --
 env | grep '^OPENCODE_CONFIG_CONTENT=' > "$WORK/env.out"
+# Play opencode: call the plugin's gate for a blocked, a listed and a built-in tool.
+if [ -x "$WORK/bin/node" ]; then "$WORK/bin/node" "$WORK/gate.mjs" > "$WORK/gate.out" 2>&1; fi
+-- gate.mjs --
+const cfg = JSON.parse(process.env.OPENCODE_CONFIG_CONTENT)
+const mod = await import(cfg.plugin[0])
+const hooks = await mod.NavPilotHooks({ directory: process.cwd(), worktree: process.cwd() })
+for (const tool of ["tredjepart_search", "aksel_find_docs", "bash"]) {
+  try {
+    await hooks["tool.execute.before"]({ tool, sessionID: "s", callID: "c" }, { args: {} })
+    console.log(`${tool}: allowed`)
+  } catch (e) {
+    console.log(`${tool}: denied: ${e.message}`)
+  }
+}
 -- registry.json --
 {"servers":[
   {"server":{"name":"io.github.navikt/aksel-mcp","remotes":[{"type":"streamable-http","url":"https://aksel-mcp.nav.no/mcp"}]}},

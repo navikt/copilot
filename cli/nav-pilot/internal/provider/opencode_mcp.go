@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
 // The MCP registry policy, applied to OpenCode (#1027).
@@ -42,6 +44,14 @@ import (
 const MCPRegistryHelpURL = "https://ki-utvikling.nav.no/verktoy (approved servers); to add one: https://github.com/navikt/copilot/blob/main/apps/mcp-registry/README.md#adding-servers"
 
 const mcpPolicyTimeout = 5 * time.Second
+
+var envPlaceholder = regexp.MustCompile(`\{env:([^}]+)\}`)
+
+// MCPBlockedEnv carries the servers the policy turned off, and the others,
+// as {"blocked": [...], "listed": [...]}, to the hooks bridge, which refuses
+// the blocked servers' tools: enabled=false is only how the session
+// starts, and OpenCode's /mcp dialog can connect a server anyway.
+const MCPBlockedEnv = "NAV_PILOT_MCP_BLOCKED"
 
 // mcpServer is one server in the user's OpenCode config.
 type mcpServer struct {
@@ -86,10 +96,14 @@ var fetchMCPPolicy = func() (registry string, err error) {
 	})
 	for _, r := range resp.Registries {
 		if r.URL != "" {
-			if r.Access != "registry_only" {
+			switch r.Access {
+			case "registry_only":
+				return r.URL, nil
+			case "", "allow_all":
 				return "", nil
+			default:
+				return "", fmt.Errorf("the MCP policy has registry_access %q, which nav-pilot does not know", r.Access)
 			}
-			return r.URL, nil
 		}
 	}
 	return "", nil
@@ -98,14 +112,20 @@ var fetchMCPPolicy = func() (registry string, err error) {
 // fetchMCPRegistry lists a registry's servers (MCP Registry v0.1).
 var fetchMCPRegistry = func(base string) (mcpRegistry, error) {
 	reg := mcpRegistry{URL: base, Remotes: map[string]bool{}, Packages: map[string]bool{}}
-	client := &http.Client{Timeout: mcpPolicyTimeout}
+	ctx, cancel := context.WithTimeout(context.Background(), mcpPolicyTimeout)
+	defer cancel()
+	client := &http.Client{}
 	cursor := ""
 	for range 20 {
 		u := strings.TrimSuffix(base, "/") + "/v0.1/servers?limit=100"
 		if cursor != "" {
 			u += "&cursor=" + url.QueryEscape(cursor)
 		}
-		res, err := client.Get(u)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+		if err != nil {
+			return reg, err
+		}
+		res, err := client.Do(req)
 		if err != nil {
 			return reg, err
 		}
@@ -158,8 +178,14 @@ func normalizeMCPURL(s string) string {
 
 // listed reports whether the registry lists the server.
 func (r mcpRegistry) listed(s mcpServer) bool {
-	if s.URL != "" {
+	switch s.Type {
+	case "remote":
 		return r.Remotes[normalizeMCPURL(s.URL)]
+	case "local":
+	default:
+		// OpenCode knows these two. Anything else is not a server the
+		// registry can be said to list.
+		return false
 	}
 	for _, arg := range s.Command {
 		arg = strings.ToLower(arg)
@@ -206,9 +232,11 @@ func openCodeMCPServers(projectDir string, env []string) map[string]mcpServer {
 			projectDir, _ = os.Getwd()
 		}
 		projectDir, _ = filepath.Abs(projectDir)
+		// Outside a git repo OpenCode's worktree is "/", and it walks all
+		// the way up.
 		root := source.FindGitRoot(projectDir)
 		if root == "" {
-			root = projectDir
+			root = "/"
 		}
 		var dirs []string
 		for d := projectDir; ; d = filepath.Dir(d) {
@@ -223,6 +251,10 @@ func openCodeMCPServers(projectDir string, env []string) map[string]mcpServer {
 			read(filepath.Join(d, ".opencode"), "opencode.json", "opencode.jsonc")
 		}
 	}
+	// OpenCode reads ~/.opencode as a config directory as well.
+	if home, err := os.UserHomeDir(); err == nil {
+		read(filepath.Join(home, ".opencode"), "opencode.json", "opencode.jsonc")
+	}
 	if d := getenv("OPENCODE_CONFIG_DIR"); d != "" {
 		read(d, "opencode.json", "opencode.jsonc")
 	}
@@ -235,7 +267,16 @@ func openCodeMCPServers(projectDir string, env []string) map[string]mcpServer {
 		var cfg struct {
 			MCP map[string]json.RawMessage `json:"mcp"`
 		}
+		// {env:VAR} is replaced as raw text before OpenCode parses, so it is
+		// here too: a URL behind a variable must be matched by its value, and
+		// an unquoted placeholder must not make the document unreadable.
+		doc = envPlaceholder.ReplaceAllFunc(doc, func(m []byte) []byte {
+			return []byte(getenv(string(envPlaceholder.FindSubmatch(m)[1])))
+		})
 		if json.Unmarshal(stripJSONC(doc), &cfg) != nil {
+			if bytes.Contains(doc, []byte(`"mcp"`)) {
+				fmt.Fprintf(os.Stderr, "%s An OpenCode config with MCP servers could not be read, so they were not checked against Nav's MCP registry.\n", domain.Yellow("⚠"))
+			}
 			continue
 		}
 		for name, raw := range cfg.MCP {
@@ -277,6 +318,14 @@ func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
 	}
 	fmt.Fprintf(os.Stderr, "%s Turned off MCP server(s) Nav's MCP registry does not list: %s. See %s\n",
 		domain.Yellow("⚠"), strings.Join(off, ", "), MCPRegistryHelpURL)
+	var listed []string
+	for name := range servers {
+		if !slices.Contains(off, name) {
+			listed = append(listed, name)
+		}
+	}
+	blocked, _ := json.Marshal(map[string][]string{"blocked": off, "listed": listed})
+	env, _ = telemetry.SetEnvValue(env, MCPBlockedEnv, string(blocked))
 	return withOpenCodeConfigContent(env, map[string]any{"mcp": mcp})
 }
 

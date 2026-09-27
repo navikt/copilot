@@ -16,12 +16,15 @@ func TestMCPRegistryListed(t *testing.T) {
 		s    mcpServer
 		want bool
 	}{
-		{mcpServer{URL: "https://AKSEL-mcp.nav.no/mcp/"}, true},
-		{mcpServer{URL: "https://evil.example/mcp"}, false},
-		{mcpServer{Command: []string{"npx", "-y", "@playwright/mcp@latest"}}, true},
-		{mcpServer{Command: []string{"npx", "@playwright/mcp"}}, true},
-		{mcpServer{Command: []string{"npx", "@playwright/mcp-evil"}}, false},
-		{mcpServer{Command: []string{"./my-server"}}, false},
+		{mcpServer{Type: "remote", URL: "https://AKSEL-mcp.nav.no/mcp/"}, true},
+		// A local server with a listed URL beside its command is still local.
+		{mcpServer{Type: "local", URL: "https://aksel-mcp.nav.no/mcp", Command: []string{"node", "evil.js"}}, false},
+		{mcpServer{URL: "https://aksel-mcp.nav.no/mcp"}, false},
+		{mcpServer{Type: "remote", URL: "https://evil.example/mcp"}, false},
+		{mcpServer{Type: "local", Command: []string{"npx", "-y", "@playwright/mcp@latest"}}, true},
+		{mcpServer{Type: "local", Command: []string{"npx", "@playwright/mcp"}}, true},
+		{mcpServer{Type: "local", Command: []string{"npx", "@playwright/mcp-evil"}}, false},
+		{mcpServer{Type: "local", Command: []string{"./my-server"}}, false},
 	} {
 		if got := reg.listed(tt.s); got != tt.want {
 			t.Errorf("listed(%+v) = %v, want %v", tt.s, got, tt.want)
@@ -30,6 +33,7 @@ func TestMCPRegistryListed(t *testing.T) {
 }
 
 func TestOpenCodeMCPServersMergesJSONC(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	global := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "opencode")
 	os.MkdirAll(global, 0o700)
@@ -40,13 +44,19 @@ func TestOpenCodeMCPServersMergesJSONC(t *testing.T) {
 	proj := t.TempDir()
 	os.Mkdir(filepath.Join(proj, ".git"), 0o700)
 	os.WriteFile(filepath.Join(proj, "opencode.json"), []byte(`{"mcp": {"b": {"enabled": false}, "c": {"type": "remote", "url": "https://c"}}}`), 0o600)
-	got := openCodeMCPServers(proj, []string{`OPENCODE_CONFIG_CONTENT={"mcp":{"d":{"type":"remote","url":"https://d"}}}`})
-	if len(got) != 4 || got["a"].URL != "https://a/mcp" || got["b"].Enabled == nil || *got["b"].Enabled || got["b"].Command[0] != "x" || got["d"].URL == "" {
+	os.MkdirAll(filepath.Join(proj, ".opencode"), 0o700)
+	os.WriteFile(filepath.Join(proj, ".opencode", "opencode.json"), []byte(`{"mcp": {"e": {"type": "remote", "url": "{env:E_URL}"}}}`), 0o600)
+	got := openCodeMCPServers(proj, []string{`OPENCODE_CONFIG_CONTENT={"mcp":{"d":{"type":"remote","url":"https://d"}}}`, "E_URL=https://e/mcp"})
+	if got["e"].URL != "https://e/mcp" {
+		t.Fatalf("{env:} not substituted: %+v", got["e"])
+	}
+	if len(got) != 5 || got["a"].URL != "https://a/mcp" || got["b"].Enabled == nil || *got["b"].Enabled || got["b"].Command[0] != "x" || got["d"].URL == "" {
 		t.Fatalf("servers = %+v", got)
 	}
 }
 
 func TestApplyOpenCodeMCPPolicy(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	proj := t.TempDir()
 	os.Mkdir(filepath.Join(proj, ".git"), 0o700)
@@ -58,6 +68,9 @@ func TestApplyOpenCodeMCPPolicy(t *testing.T) {
 		return mcpRegistry{Remotes: map[string]bool{"https://ok/mcp": true}, Packages: map[string]bool{}}, nil
 	}
 	env := applyOpenCodeMCPPolicy([]string{`OPENCODE_CONFIG_CONTENT={"share":"disabled"}`}, proj)
+	if !strings.Contains(strings.Join(env, "\n"), `NAV_PILOT_MCP_BLOCKED={"blocked":["bad"],"listed":["ok"]}`) {
+		t.Fatalf("blocked list not handed to the bridge: %v", env)
+	}
 	if !strings.Contains(env[0], `"bad":{"enabled":false}`) || strings.Contains(env[0], `"ok"`) || !strings.Contains(env[0], `"share":"disabled"`) {
 		t.Fatalf("env = %v", env)
 	}
