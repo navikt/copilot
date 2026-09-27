@@ -76,10 +76,10 @@ func (o *OnBehalfOfIdentityResolver) Resolve(ctx context.Context, user *User, r 
 		azp = user.AZP
 	}
 	slog.InfoContext(ctx, "resolved identity via trusted intermediary (X-On-Behalf-Of)",
-		"github_username", username,
+		"github_username", logSafe(username),
 		"intermediary_azp", azp,
-		"method", r.Method,
-		"path", r.URL.Path,
+		"method", logSafe(r.Method),
+		"path", logSafe(r.URL.Path),
 	)
 
 	return &ResolvedIdentity{GitHubUsername: username, Source: "on-behalf-of"}, nil

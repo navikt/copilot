@@ -112,11 +112,17 @@ func requireOwnership(w http.ResponseWriter, r *http.Request, requestedUsername 
 	}
 	if !strings.EqualFold(identity.GitHubUsername, requestedUsername) {
 		slog.Warn("Per-user read denied: identity mismatch",
-			"requested_username", requestedUsername,
+			"requested_username", logSafe(requestedUsername),
 			"resolved_source", identity.Source,
 		)
 		respondError(w, "forbidden", "You can only view your own usage data", http.StatusForbidden)
 		return false
 	}
 	return true
+}
+
+// logSafe strips line breaks from a request-derived value before it is
+// logged, so it cannot forge a log line.
+func logSafe(s string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(s, "\n", ""), "\r", "")
 }
