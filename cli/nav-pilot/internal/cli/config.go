@@ -248,6 +248,10 @@ func validateConfigProblems(cfg *Config) []string {
 		problems = append(problems, fmt.Sprintf("otel_log_level %q is not valid (allowed: %s)",
 			*cfg.OtelLogLevel, strings.Join(validOtelLogLevels, ", ")))
 	}
+	if cfg.LocalDispatch != nil && !containsStr(validLocalDispatch, *cfg.LocalDispatch) {
+		problems = append(problems, fmt.Sprintf("local_dispatch %q is not valid (allowed: %s)",
+			*cfg.LocalDispatch, strings.Join(validLocalDispatch, ", ")))
+	}
 	if cfg.CopilotAuthMode != nil && !containsStr(validCopilotAuthModes, *cfg.CopilotAuthMode) {
 		problems = append(problems, fmt.Sprintf("copilot_auth_mode %q is not valid (allowed: %s)",
 			*cfg.CopilotAuthMode, strings.Join(validCopilotAuthModes, ", ")))
@@ -490,6 +494,7 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		AskUser:           true,
 		AutoLaunch:        true,
 		OtelLogLevel:      "none",
+		LocalDispatch:     "balanced",
 		CopilotAuthMode:   "auto",
 		HookLoopGuard:     true,
 		HookRedactSecrets: true,
@@ -559,6 +564,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		if file.LocalEndpointModel != nil {
 			r.LocalEndpointModel = strings.TrimSpace(*file.LocalEndpointModel)
 		}
+		if file.LocalDispatch != nil && containsStr(validLocalDispatch, *file.LocalDispatch) {
+			r.LocalDispatch = *file.LocalDispatch
+		}
 		if file.CopilotAuthMode != nil {
 			r.CopilotAuthMode = *file.CopilotAuthMode
 		}
@@ -615,6 +623,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	}
 	if cli.OtelLogLevel != "" {
 		r.OtelLogLevel = cli.OtelLogLevel
+	}
+	if cli.LocalDispatch != "" {
+		r.LocalDispatch = cli.LocalDispatch
 	}
 	r.ProjectDir = cli.ProjectDir
 	r.NoSandbox = cli.NoSandbox

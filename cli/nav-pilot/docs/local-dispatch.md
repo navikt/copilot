@@ -1,0 +1,350 @@
+# Local dispatch: how hard to push work to the local worker
+
+Status: design, implemented in part (see [What ships first](#what-ships-first)).
+
+## Problem
+
+A developer who has turned local inference on expects mechanical work to go to
+the local model. Today that depends on whether the cloud orchestrator reads the
+dispatch policy and chooses to follow it. Whether it does depends on the model:
+
+- In August, Sonnet 4.6 dispatched 23 of 24 hybrid samples under the older policy text.
+- In September, Sonnet 5 dispatched 1 of 23 across four probes, even after #996 and #997
+  (navikt/mlx-workspace pending-tasks §8.8, transcripts in
+  `mlx-workspace/.bench-logs/dispatch-probe*`). It scripts the edits itself, one `sed` per
+  file even when each site gets a different value. It quotes the persona's Trivial tier as
+  its reason, and it calls jobs over the threshold "small".
+
+Prose alone is not a reliable control, and its effect moves with every model
+release. This matters more as the tiers go up: a 64 GB or 128 GB machine runs a
+worker trusted with more classes, and a user who has paid for that hardware
+should not depend on the orchestrator's mood.
+
+## Where dispatch exists at all
+
+Only opencode has a cloud orchestrator with a local worker in one session
+(`startLocalDispatch`, `opencode_launch.go`). Copilot CLI points the whole session
+at one provider (`COPILOT_PROVIDER_BASE_URL`), so a Copilot session is either all
+local or all cloud and there is nothing to dispatch to. pi has no worker either.
+Everything below applies to opencode hybrid sessions. The setting is accepted
+for every client and does nothing where there is no worker.
+
+## The setting
+
+```toml
+local_dispatch = "balanced"   # off | conservative | balanced | aggressive
+```
+
+Per run: `nav-pilot --local-dispatch aggressive`. The flag wins over the file.
+The default is `balanced`. The key only matters once `local_enabled` is true,
+which is what `alpha local init` sets. `off` means "worker not offered": it does
+not turn local inference off (that is `alpha local off`), because a local session
+model still works. It stops offering the worker to a cloud orchestrator.
+
+Neither enforced level lowers the sizes. The August routing measurement saved
+credits only where the cloud would have needed about 5 steps or more, and #997
+measured a one-step dispatch at the same credits and 2–3× the time. What
+enforcement adds is that the sizes hold.
+
+| | off | conservative | balanced (default) | aggressive |
+|---|---|---|---|---|
+| Worker offered to a cloud orchestrator | no | yes | yes | yes |
+| Classes sent | none | manifest-trusted | manifest-trusted | manifest-trusted |
+| `edit-multi-mechanical` size to send | none | ≥ 10 files or ≥ 20 call sites | ≥ 5 files or ≥ 10 call sites (#997) | same as balanced |
+| "If you doubt it, do it yourself" | n/a | yes | no | no |
+| Persona tiers vs policy | n/a | the orchestrator's judgement wins | the policy wins, and the text says the tiers do not decide who writes files | same as balanced |
+| Gate: multi-file rule (`edit-multi-mechanical` trusted) | no | no | checkpoint: 1 refusal per turn, a retry passes | dispatch-first: 2 refusals per turn, the file passes once sent |
+| Gate: create-file rule (`create-file` trusted) | no | no | no | yes |
+
+Rules that hold at every level:
+
+- **Only trusted classes.** A class the manifest does not mark `trusted` in delegate mode is
+  never named as work to send, and the gate never denies on its account. The level changes
+  how hard nav-pilot pushes, never what it considers safe to push.
+- **Byte-stable prompt.** The policy stays a pure function of (model, level, loop-guard
+  thresholds), so the prompt cache holds within a session.
+- **A single search-and-replace stays with the orchestrator** at every level. #997 measured
+  that dispatching one costs the same credits and takes 2–3× longer.
+
+### Why the default enforces
+
+The first draft kept `balanced` prose-only and put the gate at `aggressive`
+alone, to be promoted after measurement. Probe 5 settled it. With a policy
+that said in so many words to send new test files, Sonnet 5 dispatched 0 of 6
+create-file samples. Across probes 1–5 it dispatched 1 of 29. In 4 of those 6
+samples it never mentioned the worker, and in the other 2 it cited the
+persona's Compressed tier. A prose-only default does nothing on the model most
+developers run, so `balanced`, the default for everyone who has turned local
+inference on, enforces the rule the evidence supports: the multi-file split,
+at the sizes #997 measured.
+
+It does so as a **checkpoint**. The gate cannot tell an ordinary five-file
+feature (implementation, test, wiring, docs, config) from a mechanical change,
+and the false-positive cell is not measured yet. So at `balanced` the first
+refusal in a turn asks for the rest to go to the worker and says that the same
+edit again goes through, and that is the only refusal the turn gets. `aggressive`
+is the hard form: dispatch first, two refusals per turn. `aggressive` adds new files. `conservative` is the
+prose-only level, for a model that dispatches too eagerly (Sonnet 4.6 sent 23
+of 24).
+
+## Mechanisms, most reliable first
+
+### (b) Enforcement: a pre-tool gate (balanced and aggressive)
+
+**Client capability, checked rather than assumed.**
+
+- *opencode*: a plugin's `tool.execute.before` hook runs before every tool call. Throwing
+  from it aborts the call, and the error text reaches the model as the tool result. This
+  was measured in #709 (`opencode_sync.go`), and `~/.config/opencode/plugins/rtk.ts` uses
+  the same hook. opencode loads every `*.js`/`*.ts` in `~/.config/opencode/plugins/`
+  (`config/plugin.ts`, glob `{plugin,plugins}/*.{ts,js}`). **`--pure` disables all external
+  plugins** (`plugin/index.ts`: `flags.pure ? [] : …`), so a `--pure` run has no gate.
+  nav-pilot warns at launch when it sees `--pure` on a launch it would gate.
+- *Copilot CLI*: preToolUse exists and fails closed, and its deny reason is shown to the
+  model. It is not needed: a Copilot session has no worker.
+
+**Shape.** Two pieces, following the rtk precedent:
+
+1. **The plugin**, `~/.config/opencode/plugins/nav-pilot-dispatch-gate.js`. It is a thin
+   shim with no logic. It records each session's agent and turn from `chat.message`,
+   and takes the agent from `chat.params` only when `chat.message` has not named one.
+   Compaction runs its own agent through `chat.params` on the same session. On
+   `tool.execute.before` it POSTs `{session, turn, agent, tool, path, create, command,
+   subagent, prompt}` to the
+   URL in `NAV_PILOT_DISPATCH_GATE`, with a 2 s timeout, and throws the returned `deny`
+   text, if there is one. It does nothing when:
+   - the variable is unset, which covers opencode run outside nav-pilot, cloud-only
+     launches, `conservative` and `off`;
+   - the session is not top-level (`client.session.get` shows a `parentID`, or the lookup
+     fails). A refusal inside a subagent's session fails that whole `task`, and the
+     worker's own edits must never pass the gate;
+   - the session's agent is unknown or is `local-worker`;
+   - anything fails (fail open).
+
+   No file contents leave opencode: `path` is `filePath`, `command` is the bash command,
+   and `prompt` only for a `task` to `local-worker`.
+2. **The decision**, a route on the session's loop guard (`/nav-pilot/dispatch-gate`). The
+   guard is the nav-pilot launch process: it lives exactly as long as the session, already
+   listens on a port cplt allows, and knows where the server is. State is in memory and gone when the session ends. There are no
+   files, no sandboxed paths, no binary to find on `PATH` (bench runs a pinned binary off
+   `PATH`), and no process spawned per tool call.
+
+**Rules** (at `balanced` and `aggressive`, only in the top-level session).
+State is **per turn**: the plugin numbers each user message it sees for a
+non-worker agent (`chat.message`), and the guard resets a session's counters
+when the number changes. Per session would let three unrelated edits over a
+morning use up the budget before the big job arrives.
+
+- *Counted files*: `edit` and `write` on a `filePath` that exists (the plugin makes a
+  relative path absolute against the session's directory; a path the guard cannot stat
+  is allowed), and a bash segment
+  (split on `;`, `&&`, `||`, `|` and newlines) that runs `sed -i`/`perl -i` on one literal
+  file. Files are keyed by name, so `src/A.kt` in a `sed` and the absolute path in an
+  `edit` count once.
+- *Scripted edits*: a bash command that runs `sed -i`/`perl -i` inside a `for`, `while` or
+  `until` loop, or on a file that is itself computed (`"$f"`). A computed value on one
+  literal file (`sed -i "s/v/$NEW/" package.json`) is one counted edit. Probe 4 did a 12-call-site job in one such call:
+  `grep -rl … | while read f; do sed -i … "$f"; done`. A literal
+  `sed -i 's/a/b/' f1 f2`, or `grep -rl … | xargs sed -i 's/a/b/'`, is one
+  search-and-replace. The policy keeps that with the
+  orchestrator, so it is not counted.
+- *Deny* (multi-file rule, only when `edit-multi-mechanical` is trusted): the edit that would make the
+  orchestrator's **5th distinct file** this turn, the **10th** counted edit call this turn
+  once at least two files are involved (ten edits of one file is fixing a test), or any
+  scripted edit.
+- *Deny* (create-file rule, `aggressive` only, and only when `create-file` is trusted):
+  a `write`, or an `edit` with an empty `oldString`, of a path that does not exist yet,
+  which means a new file,
+  tests included. Probe 5 is the reason. Without `create-file` trusted, a new file is
+  neither denied nor counted.
+- *Dispatch first*: a denied file passes once its name has appeared in a `task` prompt to
+  `local-worker` this turn. A scripted edit passes once any `task` has gone to
+  `local-worker` this turn. If the worker fails or refuses, the policy's own fallback
+  ("take the task yourself") works, because the file has already been sent. A plain retry
+  does not pass. That would turn the gate into a nudge that Sonnet 5 argues past.
+- *Checkpoint* (`balanced`): the same edit again passes, and 1 refusal per turn is the
+  budget.
+- *Budget* (`aggressive`): at most 2 denies per turn. After that the gate stays quiet until the next
+  turn. A misfire costs two tool calls at most.
+- *Fail open*: the plugin gets no answer within 2 s, the local server's port does not
+  accept a TCP connection (a dial with a 200 ms timeout, and no `ps`/`lsof` on this path),
+  or the request is malformed. Every one of these allows the call.
+- The route is matched before the guard's proxy fallthrough. It takes neither the
+  completion lock nor the server lock, and it never logs a body: `command` can hold a
+  token and `prompt` holds code.
+
+**The deny text**:
+
+> nav-pilot (local_dispatch): this is a mechanical change across several
+> files. Send it to `local-worker` first: one task per file, naming each place that
+> changes and exactly what it becomes, with a check such as a grep. Once a file has been
+> sent to `local-worker`, your own edits to it pass, so you can fix or finish what it
+> returns.
+
+**Failure modes, and what covers each:**
+
+| Failure | Covered by |
+|---|---|
+| False positive on a small edit needing judgement | 5-file / 10-call threshold; 2-deny budget per turn |
+| Worker down | TCP dial to the server fails, so the call is allowed; a dispatch that fails still exempts the file |
+| Worker wedged (port open, no answer) | the file passes once sent; the budget caps the cost |
+| Orchestrator retries the denied call | the retry is denied again until the budget runs out (2 per turn), then it passes |
+| Orchestrator works around the gate with other shell writes, or with `apply_patch` (the edit tool of models on `usePatch`) | not covered; visible as a low dispatch rate with few denies (telemetry) |
+| Worker wedged, or another process on the port | `tcpUp` sees an open port, so the gate still denies; the budget caps the cost |
+| Cloud session with no local server | no guard, so no `NAV_PILOT_DISPATCH_GATE`, and the plugin is inert |
+| opencode run without nav-pilot | the variable is unset, so the plugin is inert |
+| `--pure` | plugins are off, so there is no gate; nav-pilot warns at launch |
+| Loop guard interaction | none: the cloud orchestrator's calls do not pass the local guard, and the gate cannot deny the same call twice |
+
+### (a) Policy and persona text per level
+
+`LocalDispatchPolicy(m, level, …)`. The policy text and the gate take their rules from
+one function, `local.DispatchGateRules`, so the text never describes a rule the gate
+does not run.
+
+- `conservative` puts back the "describe fully, and if you doubt it can do the task, do it
+  yourself" clause that #996 took out. It raises the split threshold to 10 files or 20
+  call sites, and adds that the orchestrator's own tier and judgement decide.
+- `balanced` is #997's text plus one paragraph. The paragraph says that nav-pilot
+  enforces the split in every tier, that the persona's Trivial and Compressed tiers
+  decide phase behaviour and not who writes files, and that the refusal is a checkpoint
+  a retry passes.
+- `aggressive` says instead that a refused file passes only once it has been sent.
+  It adds the create-file sentence when `create-file` is trusted.
+- `off`: no policy file, and the worker is neither bound nor materialized.
+
+The persona (`agents/nav-pilot.agent.md`) is a synced static file shared by every
+level. It already says the policy's send and keep lines apply in every tier, and
+Sonnet 5 quoted the tier anyway. Stripping the tier language from the persona when
+dispatch is on would mean transforming a synced agent file per level. It is deferred:
+the gate does not depend on the model reading the persona correctly.
+
+### (c) Structural: local-first
+
+The local model runs the session and consults the cloud model for planning or
+review, for example through `alpha decide` or a cloud subagent. The pieces exist:
+a local session model, and `alpha decide`.
+
+Not now. At the 48 GB tier the quality frontier trusts the worker unaided with
+only 1–2 call sites. A local primary would be doing the orchestration that it
+measures worst at. Revisit it when a tier's model is trusted in `local` mode
+(`capabilities.classes.*.local`) for the classes that make up most sessions.
+That verdict is already in the manifest, so the switch can be data-driven.
+
+## Telemetry
+
+Recorded at exit by the launch process, like `nav_pilot_local_dispatches`. Enums only.
+
+- `nav_pilot_local_dispatches` gets a `dispatch_level` attribute
+  (`off|conservative|balanced|aggressive`). This gives the dispatch rate per level.
+- `nav_pilot_local_gate_total{outcome}` counts gate decisions, with `outcome` one of
+  `deny_files`, `deny_scripted`, `deny_create` and `dispatched_after_deny`. The last is a `task` to
+  `local-worker` after a deny in the same turn. Recording `allow` would be one data point
+  per tool call and tell us nothing.
+
+What to read from them: `dispatched_after_deny` close to the number of denies
+means the gate works. Denies that run out the budget mean the orchestrator
+disagrees, so look at the pass rate. A low dispatch rate with few denies means
+the orchestrator is working around the gate, for example with a Python heredoc.
+The alpha cohort will give fewer than 10 sessions per level for months, so the
+bench carries the evidence and fleet telemetry only confirms it.
+
+## Measurement plan
+
+bench-hybrid (mlx-workspace), for each level:
+
+- Cells: `bench/targets/isoppfolgingstilfelle-large.json`, rungs 4–6 (thread-arg, 12–60
+  call sites), plus probe 5's create-file cells.
+- Arms: `control` (dispatch off), and `hybrid` at `conservative`, `balanced` and
+  `aggressive`, passed as `--local-dispatch <level>` before `--`.
+- **The bench must not pass `--pure`**, or the gate never loads. Instead, isolate each run
+  with `XDG_CONFIG_HOME` pointed at a bench-only directory. opencode and nav-pilot's
+  `openCodeConfigDir` both honour it. That keeps the developer's own plugins, such as
+  rtk, out of every arm. bench-hybrid hardcodes `~/.config/opencode` (`OPENCODE_CFG`,
+  `POLICY_FILE`) and has to follow.
+- A false-positive cell: a 3–4 file change that needs a judgement per file. The feared
+  failure must be measured, not assumed away.
+- Probe 5's create-file cells exercise the create-file rule at `aggressive` only with a
+  manifest that trusts `create-file` (`NAV_PILOT_BENCH_MANIFEST`). No shipped manifest
+  does yet.
+- Record per sample: dispatches (task calls to `local-worker`), gate denies, dispatches after a deny,
+  pass/fail, cloud cost, wall time.
+- Decision rule: keep enforcement at `balanced` if its pass rate is no lower than
+  control, on the large rungs and on the false-positive cell, and its cloud cost is at
+  or below control on at least two of the three large rungs, with at least 5 samples per
+  cell. Otherwise drop `balanced` back to prose and keep the gate at `aggressive`. Fewer
+  samples make it a probe, and the report says so.
+
+## Tiering
+
+Higher tiers carry stronger workers with more trusted classes. The gate keys off
+the trusted classes, so it covers new ones as the manifest trusts them, without
+a release, as long as nav-pilot has a rule for that class.
+`edit-multi-mechanical` (at `balanced`) and `create-file` (at `aggressive`) have
+one. `edit-single`, `read-qa` and `debug` get no rule, because a
+single edit or a lookup cannot be told apart from the orchestrator's own reasoning
+steps.
+
+The default could rise with the model. A manifest field
+`recommended_dispatch: "aggressive"` on an entry would set the default when the
+user has not chosen one. It is not built yet: there is one trusted model, and a
+manifest that can raise pressure on a stranger's orchestrator deserves its own
+review. It is also capped by what the binary knows. An unknown value falls back
+to `balanced`.
+
+## What ships first
+
+- The `local_dispatch` key, the `--local-dispatch` flag and the four levels.
+- Per-level policy text.
+- The gate at `balanced` (multi-file rule) and `aggressive` (plus the create-file rule):
+  the plugin shim, the guard route, and the rules above. The plugin file is written
+  whenever a worker is set up and does nothing without `NAV_PILOT_DISPATCH_GATE`. Only
+  `alpha local off` removes it, so a launch can never delete it while another session
+  is loading it.
+- Telemetry: the level attribute and the gate counter.
+- Not yet: `recommended_dispatch`, stripping the persona's tier language, and
+  local-first.
+
+## Review record
+
+A Fable adversarial review of the first draft changed these points:
+
+- The gate is per turn, not per session.
+- It catches scripted loops (`while read f; do sed -i … "$f"`), the form probe 4
+  actually used.
+- It is dispatch-first rather than retry-passes.
+- `aggressive` keeps balanced's sizes (5 files or 10 call sites), not 3.
+- There is no ownership probe on the decision path.
+- The bench is isolated with `XDG_CONFIG_HOME` rather than `--pure`, and gets a
+  false-positive cell.
+- The create-file rule is deferred.
+
+Probe 5 then changed the default: see [Why the default enforces](#why-the-default-enforces).
+Dispatch-first, rather than a retry that passes, remains a product choice made here
+with the stronger control, and the 2-deny budget per turn bounds what it costs.
+
+A second Fable review, of the code, changed these points:
+
+- The plugin gates top-level sessions only.
+- `chat.params` no longer overwrites the agent.
+- A new file is not a mechanical edit.
+- A `$` on one literal file is a counted edit, not a scripted one.
+- Files are keyed by name.
+- Backslash escapes in double quotes and perl's `-M`/`-I` are handled.
+- `off` no longer binds the worker for a local session.
+- A launch never removes the plugin.
+
+A third pass, on the revision, changed these:
+
+- `balanced` became a checkpoint rather than dispatch-first.
+- The 10-edit rule now needs two files.
+- The plugin keeps only a definite top-level answer.
+- Relative paths are resolved in the plugin, and a failed stat allows the call.
+- The create rule needs a real create (a `write`, or an `edit` with an empty
+  `oldString`).
+- A background task's synthetic message no longer starts a new turn.
+
+The review also suggested cutting `conservative`, since on Sonnet 5 it and `balanced`
+both come out near zero. It stays, because the user asked for a graded setting and
+`conservative` is the level for a model that dispatches too eagerly (Sonnet 4.6 sent
+23 of 24).

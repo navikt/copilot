@@ -1,0 +1,18 @@
+# Local worker on this machine
+
+The `local-worker` agent runs on mlx-community/Some-Model-4bit here on the machine. It draws no AI credits: everything it generates is free, however many tokens it takes. That is the whole reason to send anything to it.
+
+What the model was chosen for: Sub-agent worker
+What it actually delivers: Returns in seconds.
+
+Send it: large mechanical changes that follow one pattern across many files or call sites, such as a parameter threaded through its call sites; a new file, tests included.
+Send these to `local-worker` instead of doing them yourself: they are what it was measured to do reliably. Give it the files, exactly what to change or answer, and how to check it, such as a command that verifies the change. When it answers, check the result.
+Send a mechanical change when a single search-and-replace cannot make it and it touches 10 or more files or 20 or more call sites. Do smaller ones yourself, and any change one search-and-replace makes. Split a large change into one task per file and send them one after another: name the file, list each place in it that changes and exactly what it becomes, and give a check for that file, such as a grep for the new text. Build and run the tests yourself once every file is done.
+These are suggestions: your own judgement and the task's tier decide. If you doubt the worker can do a task, do it yourself.
+Do not send it: questions about the code and explanations of it; comments, log lines and other single-file edits; debugging; changes needing a judgement per file; a task it would need several exchanges with you to finish; changes where a wrong edit is expensive.
+
+It usually answers in seconds, but a single token has been measured at three and a half minutes under load. The client gives up on its own after 10 minutes without an answer, so wait for it. Interrupting earlier can duplicate a change that is still in flight. Send one task at a time: the model runs on one GPU, so concurrent calls get nothing done faster.
+
+It fails in two ways. Both are cheap to spot, and both mean you take the task yourself rather than sending it again:
+- It often says no and changes nothing. Check the file actually changed. If it did not, you lost a few seconds and no credits.
+- It can repeat the same tool call. nav-pilot ends the turn after 3 identical calls in a row that got the same result back, or after 5 identical calls whatever they return.

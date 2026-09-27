@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"github.com/rogpeppe/go-internal/testscript"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 )
 
 // update rewrites the expected files in a script (the `-- stdout.golden --`
@@ -155,8 +157,10 @@ func cmdExits(ts *testscript.TestScript, neg bool, args []string) {
 // else, so a real client on the developer's PATH can never start. Each fake
 // appends its arguments, one per line and then "---", to $WORK/fake/NAME.log.
 // A trailing --version prints a version; anything else exits 0 without doing
-// anything. A client left out of NAME is missing, which is how a journey tests
-// a machine without cplt.
+// anything, after sourcing $WORK/fake/NAME.sh if a journey wrote one: that is
+// how a journey plays a client's part while the launch that started it runs.
+// A client left out of NAME is missing, which is how a journey tests a machine
+// without cplt.
 func cmdFakeBin(ts *testscript.TestScript, neg bool, args []string) {
 	if neg || len(args) == 0 {
 		ts.Fatalf("usage: fake-bin NAME...")
@@ -170,6 +174,7 @@ func cmdFakeBin(ts *testscript.TestScript, neg bool, args []string) {
 		}
 		script := "#!/bin/sh\n" +
 			"printf '%s\\n' \"$@\" --- >> '" + filepath.Join(dir, name+".log") + "'\n" +
+			"[ -f '" + filepath.Join(dir, name+".sh") + "' ] && . '" + filepath.Join(dir, name+".sh") + "'\n" +
 			"for a in \"$@\"; do last=$a; done\n" +
 			"[ \"$last\" = --version ] && echo '" + version + "'\n" +
 			"exit 0\n"
@@ -206,6 +211,7 @@ func cmdValidJSON(ts *testscript.TestScript, neg bool, args []string) {
 
 // fake-mlx [MODEL] starts a fake mlx-lm server in its own process and records
 // it in $HOME/.nav-pilot/local/server.json the way `alpha local start` would,
+// beside an environment stamp that says it is provisioned,
 // so status, use and decide treat it as nav-pilot's running server. It exports
 // FAKE_MLX_URL. MODEL defaults to the manifest's default model.
 func cmdFakeMLX(ts *testscript.TestScript, neg bool, args []string) {
@@ -242,6 +248,11 @@ func cmdFakeMLX(ts *testscript.TestScript, neg bool, args []string) {
 	dir := filepath.Join(ts.Getenv("HOME"), ".nav-pilot", "local")
 	ts.Check(os.MkdirAll(dir, 0o755))
 	ts.Check(os.WriteFile(filepath.Join(dir, "server.json"), state, 0o644))
+	// And the environment it runs from, as provisioned: a launch with local
+	// enabled asks for both.
+	lm, mlx := local.Pins()
+	stamp, _ := json.Marshal(map[string]string{"mlx_lm": lm, "mlx": mlx})
+	ts.Check(os.WriteFile(filepath.Join(dir, "env.json"), stamp, 0o644))
 	ts.Setenv("FAKE_MLX_URL", fmt.Sprintf("http://127.0.0.1:%d", port))
 }
 

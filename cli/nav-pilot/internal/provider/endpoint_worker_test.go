@@ -28,7 +28,7 @@ func TestLocalWorkerOnAnEndpoint(t *testing.T) {
 	if err != nil || m.Model != "qwen3.6:35b" {
 		t.Fatalf("localWorker = %+v, %v", m, err)
 	}
-	policy := LocalDispatchPolicy(m, 4, 8)
+	policy := LocalDispatchPolicy(m, local.DispatchBalanced, 4, 8)
 	if !strings.Contains(policy, "Unsupported and unmeasured") || !strings.Contains(policy, "Send it: lookups in the code") {
 		t.Errorf("policy for an endpoint model:\n%s", policy)
 	}

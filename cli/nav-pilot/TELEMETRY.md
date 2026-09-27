@@ -28,6 +28,8 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_decide_p_choice` | Histogram | Sannsynligheten modellen ga alternativet den valgte | `model` |
 | `nav_pilot_hook_loop_guard_total` | Counter | Løkkevakten slo til | `rule=same_result\|cycle\|backstop`, `session=local\|cloud` |
 | `nav_pilot_hook_redact_total` | Counter | Antall maskeringer i verktøyresultater | `kind=secret\|fnr\|injection_note` |
+| `nav_pilot_local_dispatches` | Histogram | Oppgaver en økt sendte til den lokale modellen, målt når økten slutter | `client`, `model`, `dispatch_level=off\|conservative\|balanced\|aggressive`, `saw_traffic` |
+| `nav_pilot_local_gate_total` | Counter | Hva utsendingsvakten gjorde i en økt med `local_dispatch` `balanced` eller `aggressive` | `outcome=deny_files\|deny_scripted\|deny_create\|dispatched_after_deny` |
 
 **Merk om `alpha decide` og hookene:**
 - Spørsmålet, alternativene, evidensen og valget sendes aldri, bare antall og

@@ -162,6 +162,7 @@ const DOC_SECTIONS: TocItem[] = [
     children: [
       { id: "lokal-kom-i-gang", label: "Kom i gang" },
       { id: "lokal-egen-server", label: "Egen lokal server" },
+      { id: "lokal-utsending", label: "Hvor mye som sendes" },
       { id: "lokal-hva-den-klarer", label: "Hva den klarer" },
       { id: "lokal-decide", label: "Typede avgjørelser" },
       { id: "lokal-decide-oppskrifter", label: "Oppskrifter for decide" },
@@ -1720,6 +1721,12 @@ const CONFIG_KEYS = [
     desc: "Modell-id-en local_endpoint skal bruke, f.eks. qwen3.6:35b. Påkrevd sammen med local_endpoint.",
   },
   {
+    key: "local_dispatch",
+    flag: "--local-dispatch",
+    values: "off · conservative · balanced · aggressive (standard: balanced)",
+    desc: "Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer. Med aggressive slipper den gjennom først når filen er sendt til den lokale modellen, og det samme gjelder nye filer.",
+  },
+  {
     key: "hook_loop_guard",
     flag: "—",
     values: "true · false (standard: true)",
@@ -2415,6 +2422,56 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             </a>
             ). Vil du ha utsending nå, bytt med{" "}
             <code className="font-mono text-xs">nav-pilot config set client opencode</code>.
+          </BodyLong>
+        </VStack>
+
+        <VStack id="lokal-utsending" gap="space-12">
+          <LinkableHeading size="small" level="3">
+            Hvor mye som sendes
+          </LinkableHeading>
+          <BodyLong size="small" textColor="subtle">
+            Du bestemmer selv hvor mye hovedagenten skal sende til{" "}
+            <code className="font-mono text-xs">local-worker</code>, med{" "}
+            <code className="font-mono text-xs">nav-pilot config set local_dispatch &lt;nivå&gt;</code>, eller med{" "}
+            <code className="font-mono text-xs">--local-dispatch &lt;nivå&gt;</code> for én økt.
+          </BodyLong>
+          <ul
+            className="list-disc text-sm"
+            style={{
+              color: "#475569",
+              paddingInlineStart: "var(--ax-space-20)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--ax-space-8)",
+            }}
+          >
+            <li>
+              <code className="font-mono text-xs">off</code>: hovedagenten får ingen lokal underagent. Vil du slå av alt
+              lokalt, bruk <code className="font-mono text-xs">nav-pilot alpha local off</code>.
+            </li>
+            <li>
+              <code className="font-mono text-xs">conservative</code>: bare store mekaniske endringer (10 filer eller 20
+              kallsteder og mer), og hovedagenten vurderer selv om det er verdt det.
+            </li>
+            <li>
+              <code className="font-mono text-xs">balanced</code> (standard): mekaniske endringer på 5 filer eller 10
+              kallsteder og mer, og nav-pilot passer på. Redigerer hovedagenten selv en femte fil i samme tur, stopper
+              nav-pilot redigeringen én gang og ber om at resten sendes til{" "}
+              <code className="font-mono text-xs">local-worker</code>. Trenger endringen en vurdering per fil, går samme
+              redigering gjennom andre gang.
+            </li>
+            <li>
+              <code className="font-mono text-xs">aggressive</code>: en stoppet fil slipper gjennom først når den er
+              sendt til <code className="font-mono text-xs">local-worker</code>. Nye filer, også tester, går også dit
+              først, når modellen er godkjent for nye filer.
+            </li>
+          </ul>
+          <BodyLong size="small" textColor="subtle">
+            Uansett nivå sendes bare oppgavetyper modellen er godkjent for. Standardnivået passer på fordi nyere
+            skymodeller følger instruksen dårlig: Sonnet 5 sendte 1 av 29 oppgaver i testene våre, mens Sonnet 4.6
+            sendte 23 av 24. nav-pilot stopper ingenting når porten til den lokale serveren ikke tar imot tilkoblinger,
+            eller i underagentenes egne økter. Stoppet ligger i en opencode-plugin, så det virker ikke hvis du starter
+            opencode med <code className="font-mono text-xs">--pure</code>.
           </BodyLong>
         </VStack>
 

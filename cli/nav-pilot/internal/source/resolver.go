@@ -347,7 +347,7 @@ func (r *SourceResolver) List(kind *ArtifactKind) []Resolved {
 	}
 	var results []Resolved
 	for _, name := range names {
-		if kind == KindAgent && name == local.WorkerAgent && !local.Enabled() {
+		if kind == KindAgent && name == local.WorkerAgent && !local.WorkerOffered() {
 			continue
 		}
 		if art, ok := r.Get(kind, name); ok {

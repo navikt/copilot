@@ -94,7 +94,7 @@ var knownFlags = []string{
 // the client. Suggestions for a typo there come from these.
 var launchFlags = []string{
 	"--client", "--source", "--project-dir", "--persona", "--model", "--mode",
-	"--effort", "--context", "--payload-context", "--log-level", "--otel-log-level",
+	"--effort", "--context", "--payload-context", "--log-level", "--otel-log-level", "--local-dispatch",
 	"--allow-all-tools", "--no-allow-all-tools", "--ask-user", "--no-ask-user",
 	"--auto-launch", "--no-auto-launch", "--no-sandbox", "--sync",
 	"--version", "-v", "--help", "-h",
@@ -103,7 +103,7 @@ var launchFlags = []string{
 // valueFlags take a value, so --flag=value can be split into --flag value.
 var valueFlags = []string{
 	"--client", "--source", "--project-dir", "--persona", "--model", "--mode",
-	"--effort", "--context", "--payload-context", "--log-level", "--otel-log-level",
+	"--effort", "--context", "--payload-context", "--log-level", "--otel-log-level", "--local-dispatch",
 	"--target", "--ref", "--type", "--updates",
 }
 

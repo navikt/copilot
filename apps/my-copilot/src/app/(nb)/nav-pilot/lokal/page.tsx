@@ -220,7 +220,11 @@ export default async function LokalModell() {
                 <CodeBlock compact>{KOM_I_GANG}</CodeBlock>
                 <BodyLong textColor="subtle">
                   Vil du at hovedagenten skal sende oppgaver til modellen, bytter du klient med{" "}
-                  <code className={code}>nav-pilot config set client opencode</code>. Detaljene står i dokumentasjonen:{" "}
+                  <code className={code}>nav-pilot config set client opencode</code>. Hvor mye den sender, styrer du med{" "}
+                  <NextLink href="/nav-pilot/docs#lokal-utsending" className={linkClass}>
+                    <code className={code}>local_dispatch</code>
+                  </NextLink>
+                  . Detaljene står i dokumentasjonen:{" "}
                   <NextLink href="/nav-pilot/docs#lokal-kom-i-gang" className={linkClass}>
                     oppsett
                   </NextLink>

@@ -636,6 +636,38 @@ utsending nå, bytt klient:
 nav-pilot config set client opencode
 ```
 
+### Hvor mye som sendes til den lokale modellen
+
+Du bestemmer selv hvor mye hovedagenten i skyen skal sende til `local-worker`:
+
+```bash
+nav-pilot config set local_dispatch aggressive       # fast
+nav-pilot --local-dispatch aggressive -- run "…"     # bare denne økten
+```
+
+| Nivå | Hva det betyr |
+| --- | --- |
+| `off` | Hovedagenten får ingen lokal underagent. En økt som selv kjører på den lokale modellen, virker som før. Vil du slå av alt lokalt, bruk `nav-pilot alpha local off`. |
+| `conservative` | Hovedagenten sender bare store mekaniske endringer (10 filer eller 20 kallsteder og mer), og vurderer selv om det er verdt det. nav-pilot stopper ingenting. |
+| `balanced` | Standard. Hovedagenten sender mekaniske endringer på 5 filer eller 10 kallsteder og mer, og nav-pilot passer på. Redigerer hovedagenten selv en femte fil i samme tur, gjør en tiende redigering fordelt på flere filer, eller skripter én endring per fil i en løkke, stopper nav-pilot redigeringen én gang og ber om at resten sendes til `local-worker`. Trenger endringen en vurdering per fil, går samme redigering gjennom andre gang. |
+| `aggressive` | Hardere enn `balanced`: en stoppet fil slipper gjennom først når den er sendt til `local-worker`, og nav-pilot stopper høyst to redigeringer per tur. Nye filer, også tester, går også til `local-worker` først, når manifestet har godkjent modellen for nye filer. |
+
+Uansett nivå sendes bare oppgavetyper som manifestet har målt at modellen klarer. Nivået endrer
+hvor hardt nav-pilot presser på, aldri hva som regnes som trygt å sende.
+
+Grunnen til at standardnivået passer på: nyere skymodeller følger instruksen dårlig. Sonnet 5
+sendte 1 av 29 oppgaver i testene våre, også når instruksen sa rett ut at nye testfiler skulle
+sendes. Sonnet 4.6 sendte 23 av 24 med omtrent samme tekst.
+
+nav-pilot stopper aldri noe når det ikke finnes en lokal modell å sende til. Det gjelder hvis
+serveren ikke kjørte da økten startet, og hvis porten til serveren slutter å ta imot tilkoblinger
+midt i økten. Det gjelder også i en økt som kjører helt på den lokale modellen, i underagentenes
+egne økter, og hvis nav-pilot ikke svarer innen to sekunder. En ny melding fra deg starter
+tellingen på nytt. Stoppet skjer i en opencode-plugin
+(`~/.config/opencode/plugins/nav-pilot-dispatch-gate.js`). Den fjernes av
+`nav-pilot alpha local off`. Starter du opencode med `--pure`, lastes ingen plugins, og nav-pilot
+sier fra om det.
+
 ### Hva den er god og dårlig til
 
 Målt i et kontrollert testoppsett, på én maskin, og nesten alt på ett Ktor-repo. På den ene Spring-appen vi målte kostet lokal utsending mer enn å la være. Den utfører en avgjørelse godt og tar en
@@ -847,6 +879,7 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | `local_model` | — | modell-id fra manifestet | Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Enklest satt med nav-pilot alpha local use &lt;key&gt;. |
 | `local_endpoint` | — | en http(s)-URL | Din egen OpenAI-kompatible server (Ollama, llama-server), f.eks. http://127.0.0.1:11434/v1 (alfa, uten støtte, ikke målt). Da laster nav-pilot ikke ned og starter ingenting. Bare localhost og private IP-adresser. Sjekk den med nav-pilot alpha local doctor. |
 | `local_endpoint_model` | — | modell-id på serveren | Modell-id-en local_endpoint skal bruke, f.eks. qwen3.6:35b. Påkrevd sammen med local_endpoint. |
+| `local_dispatch` | --local-dispatch | off · conservative · balanced · aggressive (standard: balanced) | Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer. Med aggressive slipper den gjennom først når filen er sendt til den lokale modellen, og det samme gjelder nye filer. |
 | `hook_loop_guard` | — | true · false (standard: true) | Samme løkkeregel i alle Copilot CLI-økter, også i skyen: en postToolUse-hook i ~/.copilot/hooks/ sier fra til modellen når den står fast. false fjerner hooken ved neste oppstart. |
 | `hook_redact_secrets` | — | true · false (standard: true) | Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-økter. |
 | `hook_redact_fnr` | — | true · false (standard: true) | Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. Bare elleve sifre der datoen og begge kontrollsifrene stemmer blir maskert. |

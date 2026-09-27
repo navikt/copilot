@@ -47,6 +47,7 @@ var (
 	validContextTiers     = domain.ValidContextTiers
 	validLogLevels        = domain.ValidLogLevels
 	validOtelLogLevels    = domain.ValidOtelLogLevels
+	validLocalDispatch    = domain.ValidLocalDispatch
 	validCopilotAuthModes = domain.ValidCopilotAuthModes
 
 	ScopeRepo = domain.ScopeRepo

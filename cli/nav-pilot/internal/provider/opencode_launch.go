@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -414,7 +415,14 @@ func EnsureOpenCodeLocalProvider(m local.Model, guardURL string) error {
 			},
 		}
 		cfg["provider"] = providers
-		bindLocalWorker(cfg, m)
+		// The worker only where it is offered: at local_dispatch = off a
+		// binding with no agent file is a description-less agent opencode
+		// lists anyway.
+		if local.WorkerOffered() {
+			bindLocalWorker(cfg, m)
+		} else {
+			unbindLocalWorker(cfg)
+		}
 		return true
 	})
 }
@@ -612,6 +620,25 @@ func localPolicyPath() string {
 	return filepath.Join(filepath.Dir(openCodeConfigPath()), localPolicyFileName)
 }
 
+// dispatchGatePlugin is the opencode plugin behind the dispatch gate at
+// local_dispatch = balanced and aggressive (local/gate.go,
+// docs/local-dispatch.md). opencode loads every
+// .js in its plugins directory, so the file is the whole registration.
+//
+// It is written with the policy at every level and does nothing unless the
+// launch sets NAV_PILOT_DISPATCH_GATE: one file, written idempotently, and
+// removed only by `alpha local off` ([RemoveDispatchGatePlugin]).
+//
+//go:embed dispatch-gate.js
+var dispatchGatePlugin []byte
+
+// DispatchGateEnv carries the gate's address to the plugin.
+const DispatchGateEnv = "NAV_PILOT_DISPATCH_GATE"
+
+func dispatchGatePluginPath() string {
+	return filepath.Join(filepath.Dir(openCodeConfigPath()), "plugins", "nav-pilot-dispatch-gate.js")
+}
+
 // LocalDispatchPolicy is what the main agent is told about the local worker:
 // that it exists, what it is good at, and how it fails.
 //
@@ -633,7 +660,11 @@ func localPolicyPath() string {
 // A pure function of its inputs, which is the point: opencode reads the file
 // into the system prompt, and the 99.3–99.5% prompt-cache reuse a local session
 // depends on holds only while that prefix is byte-identical from turn to turn.
-func LocalDispatchPolicy(m local.Model, sameResult, loopGuard int) string {
+//
+// level is local_dispatch. balanced is the text every release before the
+// setting shipped, byte for byte; the others differ only where the manifest
+// has trusted something to send (docs/local-dispatch.md).
+func LocalDispatchPolicy(m local.Model, level string, sameResult, loopGuard int) string {
 	var b strings.Builder
 	b.WriteString("# Local worker on this machine\n\n")
 	fmt.Fprintf(&b, "The `local-worker` agent runs on %s here on the machine. It draws no AI credits: everything it generates is free, however many tokens it takes. That is the whole reason to send anything to it.\n\n", m.Model)
@@ -653,7 +684,7 @@ func LocalDispatchPolicy(m local.Model, sameResult, loopGuard int) string {
 		b.WriteString(describeFully)
 		b.WriteString("Do not send it: changes needing a judgement per file, tasks needing many rounds, changes where a wrong edit is expensive.\n\n")
 	} else {
-		writeDispatchClasses(&b, m.Capabilities)
+		writeDispatchClasses(&b, m.Capabilities, level)
 	}
 	fmt.Fprintf(&b, "It usually answers in seconds, but a single token has been measured at three and a half minutes under load. The client gives up on its own after %d minutes without an answer, so wait for it. Interrupting earlier can duplicate a change that is still in flight. Send one task at a time: the model runs on one GPU, so concurrent calls get nothing done faster.\n\n", max(1, chunkTimeoutMS(m)/60000))
 	b.WriteString("It fails in two ways. Both are cheap to spot, and both mean you take the task yourself rather than sending it again:\n")
@@ -693,6 +724,42 @@ const sendTrusted = "Send these to `local-worker` instead of doing them yourself
 // build runs once at the end.
 const splitMulti = "Send a mechanical change when a single search-and-replace cannot make it and it touches 5 or more files or 10 or more call sites, for example a parameter whose value at each call site follows a stated rule. Do smaller ones yourself, and any change one search-and-replace makes, however many files it touches: sending those costs as many credits and takes longer. Split a large change into one task per file and send them one after another: name the file, list each place in it that changes and exactly what it becomes, and give a check for that file, such as a grep for the new text. Build and run the tests yourself once every file is done.\n"
 
+// splitMultiConservative is splitMulti at twice the size, for a developer
+// who wants the worker used only where the saving is large.
+const splitMultiConservative = "Send a mechanical change when a single search-and-replace cannot make it and it touches 10 or more files or 20 or more call sites. Do smaller ones yourself, and any change one search-and-replace makes. Split a large change into one task per file and send them one after another: name the file, list each place in it that changes and exactly what it becomes, and give a check for that file, such as a grep for the new text. Build and run the tests yourself once every file is done.\n"
+
+// conservativeJudgement puts back the clause #996 took out, on purpose: at
+// conservative the orchestrator's own judgement and tier decide. It is what a
+// model that dispatches too eagerly needs (Sonnet 4.6 sent 23 of 24).
+const conservativeJudgement = "These are suggestions: your own judgement and the task's tier decide. If you doubt the worker can do a task, do it yourself.\n"
+
+// enforcedText tells the orchestrator about the gate before it meets it, so
+// the first refusal is expected rather than a surprise to route around
+// (local.GateDenyText and GateCreateText are what the refusals say). It
+// names the persona's tiers because that is what Sonnet 5 quoted each time
+// it kept work the policy said to send (mlx-workspace §8.8, probes 1-5).
+func enforcedText(r local.GateRules) string {
+	if !r.Any() {
+		return ""
+	}
+	t := "nav-pilot enforces this in every tier: the persona's Trivial and Compressed tiers decide how you move through the phases, not who writes the files."
+	if r.Multi {
+		t += " When a mechanical change has you edit a 5th file yourself in one turn, make a 10th edit across files, or script per-file edits in a shell loop, the edit is refused"
+		if r.Checkpoint {
+			t += " once: send the rest to `local-worker`, or, if the change needs a judgement per file, make the same edit again and it goes through."
+		} else {
+			t += " until you have sent that file to `local-worker`."
+		}
+	}
+	if r.Create {
+		t += " A new file you would write yourself, tests included, is refused until you have sent it to `local-worker`."
+	}
+	if !r.Checkpoint {
+		t += " Once a file has been sent, your own edits to it pass, so you can fix or finish what the worker returns, or do it yourself if it fails."
+	}
+	return t + "\n"
+}
+
 // sendPhrase and keepPhrase are nav-pilot's words for each task class in
 // [local.TaskClasses], as something to send to the worker and as something to
 // keep. The manifest only says which list a class goes in.
@@ -716,7 +783,7 @@ var (
 // writeDispatchClasses writes the send and keep lines from the manifest's
 // verdicts: only classes measured as trusted in delegate mode are named as
 // work for the worker, and every other known class is named as work to keep.
-func writeDispatchClasses(b *strings.Builder, c *local.Capabilities) {
+func writeDispatchClasses(b *strings.Builder, c *local.Capabilities, level string) {
 	send, keep := c.DelegateTrusted()
 	if len(send) == 0 {
 		b.WriteString("Send it nothing for now: no kind of task has yet passed the measurements for this model, so do the work yourself.\n")
@@ -730,8 +797,17 @@ func writeDispatchClasses(b *strings.Builder, c *local.Capabilities) {
 		}
 		b.WriteString(".\n")
 		b.WriteString(sendTrusted)
-		if slices.Contains(send, "edit-multi-mechanical") {
-			b.WriteString(splitMulti)
+		multi := slices.Contains(send, "edit-multi-mechanical")
+		if level == local.DispatchConservative {
+			if multi {
+				b.WriteString(splitMultiConservative)
+			}
+			b.WriteString(conservativeJudgement)
+		} else {
+			if multi {
+				b.WriteString(splitMulti)
+			}
+			b.WriteString(enforcedText(local.DispatchGateRules(level, c)))
 		}
 	}
 	b.WriteString("Do not send it: ")
@@ -777,8 +853,14 @@ func EnsureOpenCodeLocalPolicy(m local.Model) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("creating opencode config dir: %w", err)
 	}
-	if err := os.WriteFile(path, []byte(LocalDispatchPolicy(m, local.SameResultRepeat(), local.LoopGuardRepeat())), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(LocalDispatchPolicy(m, local.DispatchLevel(), local.SameResultRepeat(), local.LoopGuardRepeat())), 0o600); err != nil {
 		return fmt.Errorf("writing the local dispatch policy: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dispatchGatePluginPath()), 0o700); err != nil {
+		return fmt.Errorf("creating opencode's plugins dir: %w", err)
+	}
+	if err := os.WriteFile(dispatchGatePluginPath(), dispatchGatePlugin, 0o600); err != nil {
+		return fmt.Errorf("writing the dispatch gate plugin: %w", err)
 	}
 	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
 		bound := bindLocalWorker(cfg, m)
@@ -824,6 +906,17 @@ func RemoveOpenCodeLocalPolicy() error {
 	}
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("removing the local dispatch policy: %w", err)
+	}
+	return nil
+}
+
+// RemoveDispatchGatePlugin takes the gate plugin out, for `alpha local off`
+// only. A launch never removes it: the file does nothing without the
+// variable a gated launch sets, and a launch that removed it could do so
+// between another session's write and opencode's plugin scan.
+func RemoveDispatchGatePlugin() error {
+	if err := os.Remove(dispatchGatePluginPath()); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("removing the dispatch gate plugin: %w", err)
 	}
 	return nil
 }
@@ -881,7 +974,10 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 			// the worker lookup: the guard proves it is that server's, and a
 			// session that outlived a restart should report what it talked to.
 			model, _, _ := local.ServedModel()
-			telemetryRecorder.RecordLocalSession("opencode", local.TelemetryModel(model), local.Backend(), guard.Completions(), guard.SawTraffic())
+			telemetryRecorder.RecordLocalSession("opencode", local.TelemetryModel(model), local.Backend(), local.DispatchLevel(), guard.Completions(), guard.SawTraffic())
+			for outcome, n := range guard.GateCounts() {
+				telemetryRecorder.RecordLocalGate(outcome, n)
+			}
 		}()
 		// The provider block names this session's guard port, and the port dies
 		// with the session. Left behind, it points opencode at a number the
@@ -897,6 +993,12 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		}()
 		fmt.Fprintf(os.Stderr, "%s Local dispatch: nav-pilot ends a turn after %d identical tool calls in a row with the same result, or %d whatever they return.\n",
 			domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
+		if url := guard.GateURL(); url != "" {
+			launchEnv, _ = telemetry.SetEnvValue(launchEnv, DispatchGateEnv, url)
+			if slices.Contains(resolved.ExtraArgs, "--pure") {
+				fmt.Fprintf(os.Stderr, "%s local_dispatch = %s is not enforced with --pure: opencode loads no plugins then, and the gate is a plugin.\n", domain.Yellow("⚠"), local.DispatchLevel())
+			}
+		}
 	}
 
 	suffix := ""
@@ -909,6 +1011,11 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	var cpltFlags []string
 	if guard != nil {
 		cpltFlags = withCpltAllowLocalhost(nil, guard.Port())
+		// cplt passes only the environment it is told to, and the plugin
+		// finds the gate by this variable.
+		if guard.GateURL() != "" {
+			cpltFlags = append(cpltFlags, "--pass-env", DispatchGateEnv)
+		}
 	}
 
 	return launchViaCplt(cpltLaunch{
@@ -992,7 +1099,27 @@ func localWorker() (local.Model, error) {
 }
 
 func startOpenCodeLocalDispatch(resolved domain.ResolvedConfig) (*local.Guard, error) {
+	gateRoot = resolved.ProjectDir
 	return startLocalDispatch(openCodeSessionModelForLocalDispatch(resolved.Model))
+}
+
+// gateRoot is the project directory the dispatch gate may stat under: the
+// launch's --project-dir, or the working directory when that is empty, which
+// is what cplt hands opencode either way.
+var gateRoot string
+
+func dispatchGateRoot() string {
+	root := gateRoot
+	if root == "" {
+		root, _ = os.Getwd()
+	}
+	if abs, err := filepath.Abs(root); err == nil {
+		root = abs
+	}
+	if real, err := filepath.EvalSymlinks(root); err == nil {
+		return real
+	}
+	return root
 }
 
 // startLocalDispatch sets local dispatch up for one session: the opencode
@@ -1057,6 +1184,19 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 			"%s runs on this machine, but local inference is off for this install.\n\n  Turn it on:\n\n    %s",
 			domain.Bold(sessionModel), domain.Bold("nav-pilot alpha local init"))
 	}
+	if local.DispatchLevel() == local.DispatchOff && local.Enabled() && !local.IsLocal(sessionModel) {
+		// local_dispatch = off: local inference stays on for a local session
+		// model, and a cloud orchestrator is not offered the worker. The
+		// binding goes too, so no worker is left pointing at a port nothing
+		// guards.
+		if err := RemoveOpenCodeLocalPolicy(); err != nil {
+			fmt.Fprintf(os.Stderr, "%s Warning: could not remove the local dispatch policy from opencode: %v\n", domain.Yellow("⚠"), err)
+		}
+		if err := RemoveOpenCodeLocalProvider(); err != nil {
+			fmt.Fprintf(os.Stderr, "%s Warning: could not remove the local provider from opencode's config: %v\n", domain.Yellow("⚠"), err)
+		}
+		return nil, nil
+	}
 	worker, err := localWorker()
 	if err != nil {
 		if local.IsLocal(sessionModel) {
@@ -1113,8 +1253,22 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 	if err := EnsureOpenCodeLocalProvider(worker, guard.URL()); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Warning: could not register the local model with opencode: %v\n", domain.Yellow("⚠"), err)
 	}
-	if err := EnsureOpenCodeLocalPolicy(worker); err != nil {
+	if !local.WorkerOffered() {
+		// local_dispatch = off with a session on the local model: the
+		// session runs, and it is offered no worker.
+		if err := RemoveOpenCodeLocalPolicy(); err != nil {
+			fmt.Fprintf(os.Stderr, "%s Warning: could not remove the local dispatch policy from opencode: %v\n", domain.Yellow("⚠"), err)
+		}
+	} else if err := EnsureOpenCodeLocalPolicy(worker); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Warning: could not provision the local dispatch policy for opencode: %v\n", domain.Yellow("⚠"), err)
+	}
+	// The gate only for a cloud orchestrator, and only for a class it has a
+	// rule for: a local session has no one to dispatch to, and the manifest
+	// decides what is safe to push.
+	if !local.IsLocal(sessionModel) {
+		rules := local.DispatchGateRules(local.DispatchLevel(), worker.Capabilities)
+		rules.Root = dispatchGateRoot()
+		guard.EnableDispatchGate(rules)
 	}
 	return guard, nil
 }

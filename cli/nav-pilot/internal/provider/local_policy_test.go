@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -39,7 +40,7 @@ func aLocalModel(t *testing.T) local.Model {
 // turn. "The local model" and "a few calls" would carry neither.
 func TestLocalDispatchPolicyNamesTheModelAndTheThreshold(t *testing.T) {
 	m := aLocalModel(t)
-	got := LocalDispatchPolicy(m, 3, 5)
+	got := LocalDispatchPolicy(m, local.DispatchBalanced, 3, 5)
 
 	if !strings.Contains(got, m.Model) {
 		t.Errorf("the dispatch policy does not name the model %q:\n%s", m.Model, got)
@@ -71,9 +72,9 @@ func TestLocalDispatchPolicyNamesTheModelAndTheThreshold(t *testing.T) {
 // in here would cost a full prefill on every tool call of every turn.
 func TestLocalDispatchPolicyIsByteIdenticalAcrossGenerations(t *testing.T) {
 	m := aLocalModel(t)
-	first := LocalDispatchPolicy(m, 4, 8)
+	first := LocalDispatchPolicy(m, local.DispatchBalanced, 4, 8)
 	for i := range 20 {
-		if got := LocalDispatchPolicy(m, 4, 8); got != first {
+		if got := LocalDispatchPolicy(m, local.DispatchBalanced, 4, 8); got != first {
 			t.Fatalf("generation %d of the dispatch policy differs from the first:\n%s\n---\n%s", i, first, got)
 		}
 	}
@@ -358,7 +359,7 @@ func TestTurningLocalOffUnregistersTheDispatchPolicy(t *testing.T) {
 // duplicate an edit that is still in flight.
 func TestDispatchPolicyTimingMatchesTheConfiguredTimeout(t *testing.T) {
 	m := aLocalModel(t)
-	got := LocalDispatchPolicy(m, 3, 5)
+	got := LocalDispatchPolicy(m, local.DispatchBalanced, 3, 5)
 	want := fmt.Sprintf("%d minutes", chunkTimeoutMS(m)/60000)
 	if !strings.Contains(got, want) {
 		t.Errorf("the dispatch policy does not name the configured timeout (%q):\n%s", want, got)
@@ -491,7 +492,7 @@ func TestLocalDispatchPolicyWithoutCapabilitiesIsUnchanged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := LocalDispatchPolicy(policyModel(nil), 3, 5); got != string(want) {
+	if got := LocalDispatchPolicy(policyModel(nil), local.DispatchBalanced, 3, 5); got != string(want) {
 		t.Errorf("the no-capabilities policy moved:\n%s\n--- want ---\n%s", got, want)
 	}
 }
@@ -507,7 +508,7 @@ func TestLocalDispatchPolicyFromCapabilities(t *testing.T) {
 		"create-file":           {Delegate: local.VerdictCloud, Local: local.VerdictCloud},
 		"debug":                 {Delegate: local.VerdictCloud, Local: local.VerdictCloud},
 	}}
-	got := LocalDispatchPolicy(policyModel(c), 3, 5)
+	got := LocalDispatchPolicy(policyModel(c), local.DispatchBalanced, 3, 5)
 
 	// "Large" and no rename: Sonnet 5 read "several files" as a floor it then
 	// argued 2 files were under, and a rename is one sed that costs the same
@@ -536,7 +537,7 @@ func TestLocalDispatchPolicyFromCapabilities(t *testing.T) {
 			t.Errorf("the generated policy still sends %q, which no verdict trusts:\n%s", gone, got)
 		}
 	}
-	if got != LocalDispatchPolicy(policyModel(c), 3, 5) {
+	if got != LocalDispatchPolicy(policyModel(c), local.DispatchBalanced, 3, 5) {
 		t.Error("the generated policy is not byte-stable across calls")
 	}
 }
@@ -550,7 +551,7 @@ func TestLocalDispatchPolicyIgnoresWhatItDoesNotKnow(t *testing.T) {
 		"read-qa":        {Delegate: "trusted-soon"},
 		"debug":          {Delegate: "TRUSTED"},
 	}}
-	got := LocalDispatchPolicy(policyModel(c), 3, 5)
+	got := LocalDispatchPolicy(policyModel(c), local.DispatchBalanced, 3, 5)
 	if !strings.Contains(got, "Send it nothing for now") {
 		t.Errorf("an unknown class or verdict was treated as trusted:\n%s", got)
 	}
@@ -571,7 +572,7 @@ func TestLocalDispatchPolicySplitsOnlyTrustedMultiFileEdits(t *testing.T) {
 		"edit-single":           {Delegate: local.VerdictTrusted},
 		"edit-multi-mechanical": {Delegate: local.VerdictNotYet},
 	}}
-	got := LocalDispatchPolicy(policyModel(c), 3, 5)
+	got := LocalDispatchPolicy(policyModel(c), local.DispatchBalanced, 3, 5)
 	if !strings.Contains(got, "Send it: a fully specified edit to one file, such as a comment or a log line.\n") || !strings.Contains(got, sendTrusted) {
 		t.Errorf("a trusted edit-single is not sent:\n%s", got)
 	}
@@ -589,7 +590,7 @@ func TestLocalDispatchPolicyWithCapabilitiesGolden(t *testing.T) {
 	c := &local.Capabilities{Classes: map[string]local.ClassVerdict{
 		"edit-multi-mechanical": {Delegate: local.VerdictTrusted},
 	}}
-	got := LocalDispatchPolicy(policyModel(c), 3, 5)
+	got := LocalDispatchPolicy(policyModel(c), local.DispatchBalanced, 3, 5)
 	path := filepath.Join("testdata", "dispatch_policy_edit_multi_trusted.golden")
 	if os.Getenv("UPDATE_GOLDEN") == "1" {
 		if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
@@ -602,5 +603,177 @@ func TestLocalDispatchPolicyWithCapabilitiesGolden(t *testing.T) {
 	}
 	if got != string(want) {
 		t.Errorf("the capabilities policy moved:\n%s\n--- want ---\n%s", got, want)
+	}
+}
+
+// TestLocalDispatchPolicyPerLevel pins what local_dispatch changes in the
+// text. balanced and aggressive keep the sizes and describe the gate that
+// enforces them, and say the persona's tiers do not decide who writes files;
+// aggressive also describes the create-file rule when that class is trusted.
+// conservative doubles the sizes and hands the decision to the orchestrator.
+// No level mentions a rule for a class the manifest does not trust.
+func TestLocalDispatchPolicyPerLevel(t *testing.T) {
+	both := policyModel(&local.Capabilities{Classes: map[string]local.ClassVerdict{
+		"edit-multi-mechanical": {Delegate: local.VerdictTrusted},
+		"create-file":           {Delegate: local.VerdictTrusted},
+	}})
+	for _, level := range []string{local.DispatchConservative, local.DispatchBalanced, local.DispatchAggressive} {
+		got := LocalDispatchPolicy(both, level, 3, 5)
+		path := filepath.Join("testdata", "dispatch_policy_"+level+".golden")
+		if os.Getenv("UPDATE_GOLDEN") == "1" {
+			if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		want, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != string(want) {
+			t.Errorf("the %s policy moved:\n%s\n--- want ---\n%s", level, got, want)
+		}
+	}
+
+	balanced := LocalDispatchPolicy(both, local.DispatchBalanced, 3, 5)
+	aggressive := LocalDispatchPolicy(both, local.DispatchAggressive, 3, 5)
+	for level, text := range map[string]string{"balanced": balanced, "aggressive": aggressive} {
+		if !strings.Contains(text, splitMulti) {
+			t.Errorf("%s does not carry the 5-file / 10-call-site sizes", level)
+		}
+		if !strings.Contains(text, "nav-pilot enforces this in every tier") || !strings.Contains(text, "Trivial and Compressed tiers") {
+			t.Errorf("%s must say the gate enforces the split in every tier", level)
+		}
+	}
+	if strings.Contains(balanced, "A new file you would write yourself") {
+		t.Error("balanced describes the create-file rule, which only aggressive runs")
+	}
+	if !strings.Contains(aggressive, "A new file you would write yourself") {
+		t.Error("aggressive with create-file trusted does not describe the create-file rule")
+	}
+	conservative := LocalDispatchPolicy(both, local.DispatchConservative, 3, 5)
+	if strings.Contains(conservative, "enforces") || strings.Contains(conservative, splitMulti) || !strings.Contains(conservative, "10 or more files") {
+		t.Error("conservative must send only at 10 files or 20 call sites, unenforced")
+	}
+	if !strings.Contains(conservative, "If you doubt the worker can do a task, do it yourself") {
+		t.Error("conservative must leave the decision with the orchestrator")
+	}
+
+	single := policyModel(&local.Capabilities{Classes: map[string]local.ClassVerdict{
+		"edit-single": {Delegate: local.VerdictTrusted},
+	}})
+	for _, level := range []string{local.DispatchBalanced, local.DispatchAggressive} {
+		if got := LocalDispatchPolicy(single, level, 3, 5); strings.Contains(got, "enforces") {
+			t.Errorf("%s mentions the gate with no class it has a rule for trusted", level)
+		}
+	}
+	if LocalDispatchPolicy(policyModel(nil), local.DispatchAggressive, 3, 5) != LocalDispatchPolicy(policyModel(nil), local.DispatchBalanced, 3, 5) {
+		t.Error("a manifest without capabilities must get the same text at every level")
+	}
+}
+
+// withDispatch sets local_dispatch for one test, and a manifest whose model is
+// trusted with mechanical multi-file edits, which is what the gate enforces.
+func withDispatch(t *testing.T, level string) {
+	t.Helper()
+	local.SetDispatchLevel(level)
+	t.Cleanup(func() { local.SetDispatchLevel(local.DispatchBalanced) })
+	orig := local.Active()
+	m := *orig
+	m.Models = slices.Clone(orig.Models)
+	for i := range m.Models {
+		m.Models[i].Capabilities = &local.Capabilities{Classes: map[string]local.ClassVerdict{
+			"edit-multi-mechanical": {Delegate: local.VerdictTrusted},
+		}}
+	}
+	local.SetActive(&m)
+	t.Cleanup(func() { local.SetActive(orig) })
+}
+
+// TestDispatchGatePerLevel: the gate and its plugin per level. The plugin
+// file is written with the policy at every level (it is inert without the
+// variable), and balanced and aggressive turn the gate on for a cloud session.
+func TestDispatchGatePerLevel(t *testing.T) {
+	for _, tc := range []struct {
+		level string
+		gate  bool
+	}{
+		{local.DispatchConservative, false},
+		{local.DispatchBalanced, true},
+		{local.DispatchAggressive, true},
+	} {
+		t.Run(tc.level, func(t *testing.T) {
+			withOpenCodeConfig(t)
+			withLocalEnabled(t)
+			withDispatch(t, tc.level)
+			m := withOwnServer(t)
+
+			guard, err := startLocalDispatch("github-copilot/claude-sonnet-5")
+			if err != nil || guard == nil {
+				t.Fatalf("startLocalDispatch: %v, %v", guard, err)
+			}
+			defer guard.Close()
+			if got := guard.GateURL() != ""; got != tc.gate {
+				t.Errorf("gate on = %v at %s, want %v", got, tc.level, tc.gate)
+			}
+			if _, err := os.Stat(dispatchGatePluginPath()); err != nil {
+				t.Errorf("the gate plugin was not written at %s: %v", tc.level, err)
+			}
+
+			// A local session has no one to dispatch to: never a gate.
+			local2, err := startLocalDispatch(m.Model)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer local2.Close()
+			if local2.GateURL() != "" {
+				t.Error("the gate is on for a session running on the local model itself")
+			}
+		})
+	}
+}
+
+// TestDispatchOffOffersNoWorker: off takes the policy, the plugin and the
+// binding out for a cloud session, and starts no guard.
+func TestDispatchOffOffersNoWorker(t *testing.T) {
+	withOpenCodeConfig(t)
+	withLocalEnabled(t)
+	withDispatch(t, local.DispatchBalanced)
+	m := withOwnServer(t)
+	if g, err := startLocalDispatch("github-copilot/claude-sonnet-5"); err != nil || g == nil {
+		t.Fatalf("setup: %v %v", g, err)
+	} else {
+		g.Close()
+	}
+
+	local.SetDispatchLevel(local.DispatchOff)
+	guard, err := startLocalDispatch("github-copilot/claude-sonnet-5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if guard != nil {
+		guard.Close()
+		t.Error("a guard was started at local_dispatch = off")
+	}
+	if _, err := os.Stat(localPolicyPath()); !os.IsNotExist(err) {
+		t.Error("the dispatch policy survived local_dispatch = off")
+	}
+	if workerModel(t) != "" {
+		t.Errorf("the worker is still bound to %q at local_dispatch = off", workerModel(t))
+	}
+	if local.WorkerOffered() {
+		t.Error("WorkerOffered at local_dispatch = off")
+	}
+	// A session on the local model itself still runs, and is offered no
+	// worker: no policy, no binding.
+	g, err := startLocalDispatch(m.Model)
+	if err != nil || g == nil {
+		t.Fatalf("a local session was refused at local_dispatch = off: %v", err)
+	}
+	g.Close()
+	if _, err := os.Stat(localPolicyPath()); !os.IsNotExist(err) {
+		t.Error("a local session at local_dispatch = off got the dispatch policy")
+	}
+	if workerModel(t) != "" {
+		t.Errorf("a local session at local_dispatch = off bound the worker to %q", workerModel(t))
 	}
 }
