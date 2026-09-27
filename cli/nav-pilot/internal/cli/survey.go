@@ -123,10 +123,12 @@ type surveyContext struct {
 
 // surveyCollected is shown before any question, so nobody answers without
 // knowing what is sent.
-const surveyCollected = "Dette sendes: svarene dine, nav-pilot-versjon, operativsystem, hvilken klient du bruker og om lokale modeller er på.\n" +
+const surveyCollected = "Dette sendes: svarene dine, nav-pilot-versjon, operativsystem, hvilken klient du\n" +
+	"bruker og om lokale modeller er på.\n" +
 	"Dette sendes ikke: navn, GitHub-bruker, enhets-ID, kode eller noe fra øktene dine.\n" +
-	"GitHub-innloggingen brukes bare til å hindre at noen svarer to ganger. Ingenting som lagres, knytter svaret til deg,\n" +
-	"så svaret kan ikke endres eller trekkes tilbake etterpå."
+	"GitHub-innloggingen brukes bare til å hindre at noen svarer to ganger. Svarene\n" +
+	"lagres uten noe som knytter dem til deg, så de kan ikke endres eller trekkes\n" +
+	"tilbake etterpå."
 
 func surveyStatePath() (string, error) {
 	dir, err := telemetrypkg.GetConfigDir()
@@ -249,7 +251,7 @@ func maybeSurvey(client string) {
 		return
 	default:
 		if rec.Done == "exhausted" {
-			fmt.Println(dim("  Det var siste gang nav-pilot spør om denne undersøkelsen. Du kan fortsatt svare med nav-pilot survey."))
+			fmt.Println(dim("  Dette var siste gang nav-pilot spurte om denne undersøkelsen. Du kan fortsatt svare med nav-pilot survey."))
 		} else {
 			fmt.Println(dim("  nav-pilot spør igjen om noen dager."))
 		}
@@ -337,7 +339,7 @@ func maybeSurveyHint(client string) {
 		return
 	}
 	countAsk(st, s.ID, now)
-	fmt.Fprintf(os.Stderr, "%s Brukerundersøkelse: %s (%d spørsmål). Svar når det passer deg, med %s\n\n", dim("ℹ"), s.Title, len(s.Questions), bold("nav-pilot survey"))
+	fmt.Fprintf(os.Stderr, "%s Brukerundersøkelse: %s (%d spørsmål). Svar når det passer deg: %s\n\n", dim("ℹ"), s.Title, len(s.Questions), bold("nav-pilot survey"))
 }
 
 // cmdSurvey is nav-pilot survey: lists the open surveys, and in a terminal
@@ -482,7 +484,7 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 			field = huh.NewSelect[string]().Title(q.Text).Options(opts...).Value(&picks[i])
 		case "multi":
 			ms := huh.NewMultiSelect[string]().Title(q.Text).Options(huh.NewOptions(q.Options...)...).Value(&multis[i])
-			desc := "Mellomrom velger, Enter når du er ferdig."
+			desc := "Mellomrom for å velge, Enter når du er ferdig."
 			if q.MaxChoices > 0 {
 				ms = ms.Limit(q.MaxChoices)
 				desc = fmt.Sprintf("Velg opptil %d. %s", q.MaxChoices, desc)

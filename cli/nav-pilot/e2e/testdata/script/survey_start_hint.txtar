@@ -30,7 +30,7 @@ exec pty-run -- nav-pilot
 ! stdout 'Brukerundersøkelse'
 
 exec pty-run -- nav-pilot
-stdout -count=1 'Brukerundersøkelse: E2E survey \(4 spørsmål\)\. Svar når det passer deg, med nav-pilot survey'
+stdout -count=1 'Brukerundersøkelse: E2E survey \(4 spørsmål\)\. Svar når det passer deg: nav-pilot survey'
 
 # Not headless, not in CI.
 exec pty-run -- nav-pilot -- -p hei

@@ -28,7 +28,7 @@ stdout 'nav-pilot spør igjen om noen dager'
 exec pty-run -wait 'spurt 2 av 3' -send '\x1b' -- nav-pilot
 stdout 'nav-pilot spør igjen om noen dager'
 exec pty-run -wait 'spurt 3 av 3' -send '\r' -- nav-pilot
-stdout 'Det var siste gang nav-pilot spør om denne undersøkelsen'
+stdout 'Dette var siste gang nav-pilot spurte om denne undersøkelsen'
 exec pty-run -- nav-pilot
 ! stdout 'Brukerundersøkelse'
 ! exists $WORK/survey-posts.log
