@@ -40,7 +40,8 @@ func TestDecideAndHookAttributesAreEnums(t *testing.T) {
 	const model = "mlx-community/Some-Model-4bit"
 	const leak = "Is this commit message about /Users/x/secret.txt? ghp_abc"
 	for _, e := range []DecideEvent{
-		{Result: "decided", Model: model, Evidence: true, EvidenceBytes: 500, Options: 2, Caller: "tty", Answered: true, MS: 300, PChoice: 0.93},
+		{Result: "decided", Model: "custom", Backend: "endpoint", Evidence: true, EvidenceBytes: 500, Options: 2, Caller: "tty"},
+		{Result: "decided", Model: model, Backend: leak, Evidence: true, EvidenceBytes: 500, Options: 2, Caller: "tty", Answered: true, MS: 300, PChoice: 0.93},
 		{Result: "below_threshold", Model: model, Evidence: true, EvidenceBytes: 40 << 10, Options: 26, ThresholdUsed: true, Caller: "hook", Answered: true, MS: 900, PChoice: 0.6},
 		{Result: "no_server", Options: 3, Caller: "script"},
 		{Result: "timeout", Model: model, Options: 7, Caller: "script"},
@@ -59,6 +60,7 @@ func TestDecideAndHookAttributesAreEnums(t *testing.T) {
 	allowed := map[string]map[string]bool{
 		"result":            set("decided", "below_threshold", "no_server", "timeout", "error", "unknown"),
 		"model":             set(model, "custom", "unset"),
+		"backend":           set("mlx", "endpoint", "unknown"),
 		"evidence":          set("yes", "no"),
 		"options":           set("2", "3-4", "5-11", "12+"),
 		"threshold_used":    set("yes", "no"),

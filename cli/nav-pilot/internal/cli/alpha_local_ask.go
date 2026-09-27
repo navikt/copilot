@@ -33,7 +33,7 @@ func cmdLocalAsk(args []string) error {
 		return err
 	}
 
-	st, ok, err := local.LoadState()
+	served, ok, err := local.ServedModel()
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func cmdLocalAsk(args []string) error {
 		return fmt.Errorf("no local server is running. Start it: nav-pilot alpha local start")
 	}
 
-	fmt.Printf("\n  %s %s\n\n", dim("asking"), bold(st.Model))
+	fmt.Printf("\n  %s %s\n\n", dim("asking"), bold(served))
 	started := time.Now()
 	answer, in, out, err := local.Ask(context.Background(), prompt)
 	if err != nil {

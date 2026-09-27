@@ -56,8 +56,14 @@ type Config struct {
 	// means the manifest's default. It is separate from Model because Model is
 	// the session model: a developer running a cloud main agent with a local
 	// worker has to be able to name both.
-	LocalModel      *string `toml:"local_model"`
-	CopilotAuthMode *string `toml:"copilot_auth_mode"`
+	LocalModel *string `toml:"local_model"`
+	// LocalEndpoint is an OpenAI-compatible server the developer runs
+	// themselves (Ollama, llama-server). Set, nav-pilot provisions and starts
+	// nothing and sends local completions there instead; see local/endpoint.go.
+	// LocalEndpointModel is the model id to ask it for.
+	LocalEndpoint      *string `toml:"local_endpoint"`
+	LocalEndpointModel *string `toml:"local_endpoint_model"`
+	CopilotAuthMode    *string `toml:"copilot_auth_mode"`
 	// HookLoopGuard turns the loop-guard hook on and off: the postToolUse hook
 	// nav-pilot writes to ~/.copilot/hooks/ so the local guard's loop rule
 	// also covers cloud sessions. Unset means on.
@@ -84,31 +90,33 @@ type ResolvedConfig struct {
 	PayloadContext string
 	// Persona is the agent a Tier 1 launch starts, when the user selects one
 	// other than the agentpakke's first declared primary (--persona).
-	Persona           string
-	Model             string // empty = use agent default
-	Mode              string
-	ReasoningEffort   string // empty = unset
-	ContextTier       string // empty = unset
-	AllowAllTools     bool
-	AskUser           bool
-	AutoLaunch        bool     // launch the coding agent automatically after install/sync
-	LogLevel          string   // empty = unset
-	OtelLogLevel      string   // always set; defaults to "none"
-	RtkPromptedClient string   // comma-separated list of clients where the RTK setup was prompted
-	RtkPromptedAt     string   // RFC3339 timestamp of when the user was last prompted
-	AutoUpdate        bool     // true to bypass upgrade prompt
-	LocalEnabled      bool     // local inference opt-in (alpha)
-	LocalAutostart    bool     // start the local server on demand at launch
-	LocalLoopGuard    int      // identical consecutive tool calls that end a local turn; 0 = built-in default
-	LocalModel        string   // local model id to serve; empty = the manifest default
-	CopilotAuthMode   string   // auto | env_only | gh_only
-	HookLoopGuard     bool     // the loop-guard postToolUse hook for every Copilot CLI session
-	HookRedactSecrets bool     // mask secrets in tool results
-	HookRedactFNR     bool     // mask fødselsnummer, D- and H-nummer in tool results
-	HookInjectionNote bool     // flag instruction-like text in tool results
-	ProjectDir        string   // --project-dir: the directory cplt may read and write; empty = the working directory
-	NoSandbox         bool     // --no-sandbox: launch copilot without cplt when cplt is missing, without asking
-	ExtraArgs         []string // pass-through arguments for the client
+	Persona            string
+	Model              string // empty = use agent default
+	Mode               string
+	ReasoningEffort    string // empty = unset
+	ContextTier        string // empty = unset
+	AllowAllTools      bool
+	AskUser            bool
+	AutoLaunch         bool     // launch the coding agent automatically after install/sync
+	LogLevel           string   // empty = unset
+	OtelLogLevel       string   // always set; defaults to "none"
+	RtkPromptedClient  string   // comma-separated list of clients where the RTK setup was prompted
+	RtkPromptedAt      string   // RFC3339 timestamp of when the user was last prompted
+	AutoUpdate         bool     // true to bypass upgrade prompt
+	LocalEnabled       bool     // local inference opt-in (alpha)
+	LocalAutostart     bool     // start the local server on demand at launch
+	LocalLoopGuard     int      // identical consecutive tool calls that end a local turn; 0 = built-in default
+	LocalModel         string   // local model id to serve; empty = the manifest default
+	LocalEndpoint      string   // own OpenAI-compatible server; empty = the managed mlx-lm server
+	LocalEndpointModel string   // model id to ask LocalEndpoint for
+	CopilotAuthMode    string   // auto | env_only | gh_only
+	HookLoopGuard      bool     // the loop-guard postToolUse hook for every Copilot CLI session
+	HookRedactSecrets  bool     // mask secrets in tool results
+	HookRedactFNR      bool     // mask fødselsnummer, D- and H-nummer in tool results
+	HookInjectionNote  bool     // flag instruction-like text in tool results
+	ProjectDir         string   // --project-dir: the directory cplt may read and write; empty = the working directory
+	NoSandbox          bool     // --no-sandbox: launch copilot without cplt when cplt is missing, without asking
+	ExtraArgs          []string // pass-through arguments for the client
 }
 
 // CLIOverrides holds optional CLI flag values. Empty string means "not provided via CLI".
@@ -217,8 +225,9 @@ func IsKnownCopilotModel(id string) bool {
 
 // ModelValuePattern restricts model identifiers to a sane character set that
 // covers Copilot ids (e.g. "claude-opus-4.8", "gpt-5.5") and opencode
-// provider/model ids (e.g. "anthropic/claude-3-5-sonnet").
-var ModelValuePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]*$`)
+// provider/model ids (e.g. "anthropic/claude-3-5-sonnet"), and Ollama tags
+// (e.g. "qwen3.6:35b") for local_endpoint_model.
+var ModelValuePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/:-]*$`)
 
 // ValidateModelValue applies strong format validation to a model identifier.
 // The model catalog is dynamic (Copilot validates server-side), so this checks
@@ -233,7 +242,7 @@ func ValidateModelValue(model string) error {
 		return errors.New("model must not be empty (omit the key to use the agent default)")
 	}
 	if !ModelValuePattern.MatchString(model) {
-		return fmt.Errorf("model %q is not a valid identifier (allowed characters: letters, digits, '.', '_', '-', '/')", model)
+		return fmt.Errorf("model %q is not a valid identifier (allowed characters: letters, digits, '.', '_', '-', '/', ':')", model)
 	}
 	return nil
 }

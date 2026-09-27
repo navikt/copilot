@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -100,11 +101,12 @@ func TestScripts(t *testing.T) {
 			return os.MkdirAll(home, 0o755)
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
-			"exits":     cmdExits,
-			"validjson": cmdValidJSON,
-			"fake-mlx":  cmdFakeMLX,
-			"fake-bin":  cmdFakeBin,
-			"fake-gh":   cmdFakeGH,
+			"exits":         cmdExits,
+			"validjson":     cmdValidJSON,
+			"fake-mlx":      cmdFakeMLX,
+			"fake-bin":      cmdFakeBin,
+			"fake-gh":       cmdFakeGH,
+			"fake-endpoint": cmdFakeEndpoint,
 		},
 	})
 }
@@ -269,4 +271,99 @@ func serveFakeMLX() {
 			"usage": map[string]any{"prompt_tokens": 50, "completion_tokens": 1},
 		})
 	}))
+}
+
+// fake-endpoint [-no-logprobs] [-no-tools] [-ctx N] [-models a,b] starts an
+// OpenAI-compatible server in the test process, the kind a developer runs
+// themselves for local_endpoint (Ollama, llama-server), and exports
+// FAKE_ENDPOINT_URL (with /v1). By default it lists qwen3.6:35b, answers a
+// tool call with a parsed tool_calls entry, returns 11 top_logprobs with most
+// of the mass on "A", and keeps every prompt token. -ctx N cuts the reported
+// prompt to N tokens, the way Ollama's small default num_ctx does. Every
+// request path goes to $WORK/fake/endpoint.log.
+func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
+	if neg {
+		ts.Fatalf("usage: fake-endpoint [-no-logprobs] [-no-tools] [-ctx N] [-models a,b]")
+	}
+	logprobs, tools, ctxTokens, models := true, true, 0, []string{"qwen3.6:35b"}
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "-no-logprobs":
+			logprobs = false
+		case "-no-tools":
+			tools = false
+		case "-ctx":
+			i++
+			n, err := strconv.Atoi(args[i])
+			ts.Check(err)
+			ctxTokens = n
+		case "-models":
+			i++
+			models = strings.Split(args[i], ",")
+		default:
+			ts.Fatalf("fake-endpoint: unknown flag %s", args[i])
+		}
+	}
+	dir := ts.MkAbs("fake")
+	ts.Check(os.MkdirAll(dir, 0o755))
+	logPath := filepath.Join(dir, "endpoint.log")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
+			fmt.Fprintln(f, r.Method, r.URL.Path)
+			f.Close()
+		}
+		switch r.URL.Path {
+		case "/v1/models":
+			var data []any
+			for _, m := range models {
+				data = append(data, map[string]any{"id": m, "object": "model"})
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"object": "list", "data": data})
+			return
+		case "/v1/chat/completions":
+		default:
+			http.NotFound(w, r)
+			return
+		}
+		var req struct {
+			Messages []struct {
+				Content string `json:"content"`
+			} `json:"messages"`
+			Tools []any `json:"tools"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		chars := 0
+		for _, m := range req.Messages {
+			chars += len(m.Content)
+		}
+		prompt := chars / 4
+		if ctxTokens > 0 && prompt > ctxTokens {
+			prompt = ctxTokens
+		}
+		msg := map[string]any{"role": "assistant", "content": "A"}
+		if len(req.Tools) > 0 {
+			if tools {
+				msg = map[string]any{"role": "assistant", "content": "", "tool_calls": []any{map[string]any{
+					"id": "call_1", "type": "function",
+					"function": map[string]any{"name": "record_answer", "arguments": `{"answer":"ok"}`},
+				}}}
+			} else {
+				msg = map[string]any{"role": "assistant", "content": `<tool_call>{"name": "record_answer"}</tool_call>`}
+			}
+		}
+		choice := map[string]any{"index": 0, "message": msg, "finish_reason": "stop"}
+		if logprobs {
+			top := []map[string]any{{"token": "A", "logprob": -0.1}, {"token": "B", "logprob": -2.4}}
+			for _, t := range []string{"C", "D", "E", "F", "G", "H", "I", "J", "K"} {
+				top = append(top, map[string]any{"token": " " + strings.ToLower(t), "logprob": -9.0})
+			}
+			choice["logprobs"] = map[string]any{"content": []any{map[string]any{"token": "A", "logprob": -0.1, "top_logprobs": top}}}
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"choices": []any{choice},
+			"usage":   map[string]any{"prompt_tokens": prompt, "completion_tokens": 1},
+		})
+	}))
+	ts.Defer(srv.Close)
+	ts.Setenv("FAKE_ENDPOINT_URL", srv.URL+"/v1")
 }

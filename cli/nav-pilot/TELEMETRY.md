@@ -23,7 +23,7 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_staleness_check_total` | Counter | Antall ferskhetssjekker per resultat | `component=collection`, `scope=user`, `result=stale` |
 | `nav_pilot_up_to_date` | Gauge | Om komponent er tilstrekkelig oppdatert (1/0) | `component=cli`, `scope=none` |
 | `nav_pilot_version_skew_days` | Histogram | Dager mellom installert og siste tilgjengelig versjon | `component=collection`, `scope=repo` |
-| `nav_pilot_decide_result_total` | Counter | Utfall av `alpha decide` | `result=decided\|below_threshold\|no_server\|timeout\|error`, `model`, `evidence=yes\|no`, `options=2\|3-4\|5-11\|12+`, `threshold_used=yes\|no`, `caller=tty\|hook\|script` |
+| `nav_pilot_decide_result_total` | Counter | Utfall av `alpha decide` | `result=decided\|below_threshold\|no_server\|timeout\|error`, `model`, `backend=mlx\|endpoint`, `evidence=yes\|no`, `options=2\|3-4\|5-11\|12+`, `threshold_used=yes\|no`, `caller=tty\|hook\|script` |
 | `nav_pilot_decide_latency_ms` | Histogram | Tid for et besvart `alpha decide`-kall, inkludert venting på serveren | `model`, `evidence_size=none\|<1k\|1-8k\|8-32k\|32k+` |
 | `nav_pilot_decide_p_choice` | Histogram | Sannsynligheten modellen ga alternativet den valgte | `model` |
 | `nav_pilot_hook_loop_guard_total` | Counter | Løkkevakten slo til | `rule=same_result\|cycle\|backstop`, `session=local\|cloud` |
@@ -33,6 +33,10 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 - Spørsmålet, alternativene, evidensen og valget sendes aldri, bare antall og
   størrelse i bøtter. `model` er en modell-id fra lokal-manifestet, `custom` for
   alt annet, eller `unset`.
+- `backend=endpoint` betyr at svaret kom fra en server brukeren kjører selv
+  (`local_endpoint`: Ollama, llama-server). Modell-id-en der er skrevet inn av
+  brukeren og sendes derfor alltid som `custom`; `backend=mlx` er serveren
+  nav-pilot starter.
 - `caller=hook` betyr at git kjørte kallet (`GIT_INDEX_FILE` eller
   `GIT_EXEC_PATH` er satt); `tty` at stdin og stdout er en terminal; ellers `script`.
 - `--eval` teller som kommandoen `alpha decide eval` og gir ingen `decide_*`-punkter.
@@ -48,7 +52,7 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 - `launch` når nav-pilot forsøker å starte `cplt`/`copilot`
 - `alpha decide`, `alpha decide eval` og `alpha local <kommando>` (før: bare `alpha` for alle).
   Kommandoene er `init`, `start`, `stop`, `restart`, `status`, `models`, `use`, `on`, `off`,
-  `ask` og `purge`; en ukjent underkommando telles som `alpha`
+  `ask`, `purge` og `doctor`; en ukjent underkommando telles som `alpha`
 
 **Merk om `nav_pilot_install_present`:**
 - `collection` er en bøtte, ikke navnet på en samling: `pakke` (scopet sporer en

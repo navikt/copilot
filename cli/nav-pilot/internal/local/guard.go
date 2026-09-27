@@ -111,6 +111,9 @@ var OnLoopGuard = func(rule string) {}
 // the same reason [GuardPort] is: it is written into a client configuration
 // file by one command and read by another process entirely.
 func ServerURL() string {
+	if endpointURL != "" {
+		return endpointURL
+	}
 	st, ok, err := LoadState()
 	if err != nil || !ok {
 		// No recorded server. Callers reach this only when they are about to
@@ -295,6 +298,7 @@ func StartGuard(target string, m Model) (*Guard, error) {
 	// single token can take minutes. Buffering would turn that budget into a
 	// dropped connection mid-generation.
 	proxy.FlushInterval = -1
+	proxy.Transport = serverTransport
 
 	// The parent of every request context this guard serves. net/http derives a
 	// connection context from BaseContext and the request context from that, so
@@ -508,7 +512,7 @@ func guardHandler(g *Guard, proxy http.Handler, target string) http.Handler {
 		// mid-session records a new port while this keeps sending to the old one:
 		// the check would pass for a server nothing here is talking to. Compare
 		// them, so the proof covers the address actually in use.
-		if target != "" {
+		if target != "" && endpointURL == "" {
 			if st, ok, err := LoadState(); err == nil && ok {
 				if now := fmt.Sprintf("http://127.0.0.1:%d", st.ServerPort()); now != target {
 					writeGuardError(w, "nav-pilot did not forward this request: the local server was restarted on "+

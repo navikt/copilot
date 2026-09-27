@@ -161,6 +161,7 @@ const DOC_SECTIONS: TocItem[] = [
     label: "Bakkemodellen (alfa)",
     children: [
       { id: "lokal-kom-i-gang", label: "Kom i gang" },
+      { id: "lokal-egen-server", label: "Egen lokal server" },
       { id: "lokal-hva-den-klarer", label: "Hva den klarer" },
       { id: "lokal-decide", label: "Typede avgjørelser" },
       { id: "lokal-decide-oppskrifter", label: "Oppskrifter for decide" },
@@ -1707,6 +1708,18 @@ const CONFIG_KEYS = [
     desc: "Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Enklest satt med nav-pilot alpha local use <key>.",
   },
   {
+    key: "local_endpoint",
+    flag: "—",
+    values: "en http(s)-URL",
+    desc: "Din egen OpenAI-kompatible server (Ollama, llama-server), f.eks. http://127.0.0.1:11434/v1 (alfa, uten støtte, ikke målt). Da laster nav-pilot ikke ned og starter ingenting. Bare localhost og private IP-adresser. Sjekk den med nav-pilot alpha local doctor.",
+  },
+  {
+    key: "local_endpoint_model",
+    flag: "—",
+    values: "modell-id på serveren",
+    desc: "Modell-id-en local_endpoint skal bruke, f.eks. qwen3.6:35b. Påkrevd sammen med local_endpoint.",
+  },
+  {
     key: "hook_loop_guard",
     flag: "—",
     values: "true · false (standard: true)",
@@ -2402,6 +2415,66 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             </a>
             ). Vil du ha utsending nå, bytt med{" "}
             <code className="font-mono text-xs">nav-pilot config set client opencode</code>.
+          </BodyLong>
+        </VStack>
+
+        <VStack id="lokal-egen-server" gap="space-12">
+          <LinkableHeading size="small" level="3">
+            Egen lokal server (Linux, Ollama, llama-server){" "}
+            <Tag variant="warning" size="small">
+              alfa, ikke målt
+            </Tag>
+          </LinkableHeading>
+          <BodyLong size="small" textColor="subtle">
+            Har du Linux, eller vil du heller bruke Ollama, llama-server eller LM Studio på Macen, kan du peke nav-pilot
+            på en server du kjører selv. Da laster nav-pilot ikke ned noe og starter ingenting. Løkkevakten, utsendingen
+            til bakkemodellen og <code className="font-mono text-xs">alpha decide</code> går til serveren din. Vi har
+            ikke målt noen modell på denne veien. nav-pilot merker derfor modellen som ikke målt, og hovedagenten får
+            ingen godkjente oppgavetyper å gå etter.
+          </BodyLong>
+          <BodyLong size="small" textColor="subtle">
+            Koden din sendes til serveren, så nav-pilot godtar bare localhost og private IP-adresser (for eksempel
+            127.0.0.1 og 192.168.x.x). En offentlig adresse blir avvist.
+          </BodyLong>
+          <CodeBlock compact>
+            {`# Ollama
+OLLAMA_CONTEXT_LENGTH=65536 ollama serve
+ollama pull qwen3.6:35b
+nav-pilot config set local_endpoint http://127.0.0.1:11434/v1
+nav-pilot config set local_endpoint_model qwen3.6:35b
+
+# llama-server (llama.cpp); legg til --n-cpu-moe 999 på en GPU med 8 GB
+llama-server --jinja -c 65536 --port 8080 -hf unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL
+nav-pilot config set local_endpoint http://127.0.0.1:8080/v1
+nav-pilot config set local_endpoint_model unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL
+
+nav-pilot alpha local init     # sjekker serveren og skrur på utsending
+nav-pilot alpha local doctor   # verktøykall, logprobs, kontekst og tid til første token`}
+          </CodeBlock>
+          <BodyLong size="small" textColor="subtle">
+            Vi anbefaler Qwen3.6-35B-A3B i dynamisk 4-bit (unsloth UD-Q4_K_XL). Det er GGUF-varianten som ligger nærmest
+            optiq-modellen vi har målt på Mac, men det er ikke de samme bitene, så tallene våre gjelder ikke.
+            Modell-id-en er det serveren lister på <code className="font-mono text-xs">/v1/models</code>;{" "}
+            <code className="font-mono text-xs">doctor</code> viser dem.
+          </BodyLong>
+          <Box padding="space-16" borderRadius="8" style={{ background: "#fffbeb" }}>
+            <Label size="small" spacing>
+              Ollama kutter lange prompter uten å si fra
+            </Label>
+            <BodyLong size="small" textColor="subtle">
+              Ollama gir modellen 4 096 tokens kontekst på maskiner med under 24 GB grafikkminne, og det kan ikke endres
+              via <code className="font-mono text-xs">/v1</code>. En Copilot-økt starter med rundt 22 000 tokens, så
+              resten blir borte. Start Ollama med <code className="font-mono text-xs">OLLAMA_CONTEXT_LENGTH=65536</code>
+              , eller lag en egen modell med en Modelfile som har{" "}
+              <code className="font-mono text-xs">PARAMETER num_ctx 65536</code>.{" "}
+              <code className="font-mono text-xs">doctor</code> sender rundt 30 000 tokens og feiler hvis serveren
+              kutter.
+            </BodyLong>
+          </Box>
+          <BodyLong size="small" textColor="subtle">
+            <code className="font-mono text-xs">alpha decide</code> trenger logprobs. Ollama fra v0.12.11, llama-server
+            og vLLM gir dem, LM Studio sitt chat-endepunkt gjør det ikke. Uten logprobs sier{" "}
+            <code className="font-mono text-xs">decide</code> fra med en gang, mens utsendingen virker som før.
           </BodyLong>
         </VStack>
 

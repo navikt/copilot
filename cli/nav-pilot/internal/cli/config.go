@@ -243,6 +243,7 @@ func validateConfigProblems(cfg *Config) []string {
 		problems = append(problems, fmt.Sprintf(
 			"local_loop_guard must be at least 2 (got %d) — one tool call is not a loop", *cfg.LocalLoopGuard))
 	}
+	problems = append(problems, endpointProblems(cfg)...)
 	if cfg.OtelLogLevel != nil && !containsStr(validOtelLogLevels, *cfg.OtelLogLevel) {
 		problems = append(problems, fmt.Sprintf("otel_log_level %q is not valid (allowed: %s)",
 			*cfg.OtelLogLevel, strings.Join(validOtelLogLevels, ", ")))
@@ -250,6 +251,37 @@ func validateConfigProblems(cfg *Config) []string {
 	if cfg.CopilotAuthMode != nil && !containsStr(validCopilotAuthModes, *cfg.CopilotAuthMode) {
 		problems = append(problems, fmt.Sprintf("copilot_auth_mode %q is not valid (allowed: %s)",
 			*cfg.CopilotAuthMode, strings.Join(validCopilotAuthModes, ", ")))
+	}
+	return problems
+}
+
+// endpointProblems checks local_endpoint and local_endpoint_model: an address
+// nav-pilot may send code to, and a model to ask it for. One without the other
+// is refused, since neither means anything alone.
+func endpointProblems(cfg *Config) []string {
+	endpoint, model := "", ""
+	if cfg.LocalEndpoint != nil {
+		endpoint = strings.TrimSpace(*cfg.LocalEndpoint)
+	}
+	if cfg.LocalEndpointModel != nil {
+		model = strings.TrimSpace(*cfg.LocalEndpointModel)
+	}
+	var problems []string
+	if endpoint != "" {
+		if _, err := local.ValidateEndpoint(endpoint); err != nil {
+			problems = append(problems, err.Error())
+		}
+	}
+	if model != "" {
+		if err := validateModelValue(model); err != nil {
+			problems = append(problems, "local_endpoint_model: "+err.Error())
+		}
+	}
+	switch {
+	case endpoint != "" && model == "":
+		problems = append(problems, "local_endpoint is set but local_endpoint_model is not: nav-pilot config set local_endpoint_model <model id>")
+	case endpoint == "" && model != "":
+		problems = append(problems, "local_endpoint_model is set but local_endpoint is not: nav-pilot config set local_endpoint http://127.0.0.1:11434/v1")
 	}
 	return problems
 }
@@ -520,6 +552,12 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		}
 		if file.LocalModel != nil {
 			r.LocalModel = strings.TrimSpace(*file.LocalModel)
+		}
+		if file.LocalEndpoint != nil {
+			r.LocalEndpoint = strings.TrimSpace(*file.LocalEndpoint)
+		}
+		if file.LocalEndpointModel != nil {
+			r.LocalEndpointModel = strings.TrimSpace(*file.LocalEndpointModel)
 		}
 		if file.CopilotAuthMode != nil {
 			r.CopilotAuthMode = *file.CopilotAuthMode

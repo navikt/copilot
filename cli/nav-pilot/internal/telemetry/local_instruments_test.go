@@ -42,7 +42,7 @@ func TestRecorderEmitsEveryLocalInstrument(t *testing.T) {
 	// be optimised away by a future "do not record empty sessions" change.
 	// Zero dispatches with traffic: the client saw the worker and declined,
 	// which is the case the attribute exists to distinguish.
-	tel.RecordLocalSession("opencode", "some/model", 0, true)
+	tel.RecordLocalSession("opencode", "some/model", "mlx", 0, true)
 	// Both outcomes, because the failing one is the reason the attribute
 	// exists: recorded only on success, this histogram cannot see the starts
 	// that hung, and its slow tail is missing by construction.

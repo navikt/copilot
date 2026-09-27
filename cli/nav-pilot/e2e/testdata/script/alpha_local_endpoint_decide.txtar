@@ -1,0 +1,45 @@
+# Your own server (local_endpoint): init checks it and turns dispatch on
+# without provisioning anything, and decide answers from it. No platform,
+# memory, weights or process-ownership check runs on this path, so it works
+# on Linux as well as a Mac.
+
+fake-endpoint
+exec nav-pilot config set local_endpoint $FAKE_ENDPOINT_URL
+exec nav-pilot config set local_endpoint_model qwen3.6:35b
+
+exec nav-pilot alpha local init
+stdout 'local_endpoint is set: nav-pilot downloads nothing and starts nothing'
+stdout 'PASS  server +answers and lists qwen3\.6:35b'
+stdout 'PASS  tool calls +a parsed tool_calls entry came back'
+stdout 'PASS  logprobs +11 top_logprobs came back'
+stdout 'PASS  context '
+stdout 'Local dispatch is on, to qwen3\.6:35b'
+stdout 'alpha decide answers from it'
+! stdout 'wired'
+! stderr 'Apple Silicon|sysctl|lsof|wired'
+exec nav-pilot config get local_enabled
+stdout true
+
+# Nothing provisioned, downloaded or started.
+! exists home/.nav-pilot/local/venv
+! exists home/.nav-pilot/local/bin/uv
+! exists home/.nav-pilot/local/server.json
+! exists home/.cache/huggingface
+
+exec nav-pilot alpha decide 'Is this a bug fix?' --options yes,no --evidence msg.txt
+validjson stdout
+stdout '"choice":"yes"'
+stdout '"model":"qwen3.6:35b"'
+! stderr .
+
+# start, stop and restart have nothing to do.
+exec nav-pilot alpha local start
+stdout 'does not start a server: http://127\.0\.0\.1:[0-9]+ serves qwen3\.6:35b'
+! exists home/.nav-pilot/local/server.json
+
+exec nav-pilot alpha local status
+stdout 'Model +qwen3\.6:35b \(unsupported, unmeasured\)'
+stdout 'Server +answering'
+
+-- msg.txt --
+fix: stop sync from deleting composed agents

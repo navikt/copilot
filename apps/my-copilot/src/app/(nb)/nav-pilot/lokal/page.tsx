@@ -346,7 +346,10 @@ export default async function LokalModell() {
                   style={{ color: "var(--ax-text-neutral-subtle)", paddingInlineStart: "var(--ax-space-20)" }}
                 >
                   <li>Maskiner med 64 GB: vi måler modeller som bare får plass der.</li>
-                  <li>Linux: vi undersøker om llama.cpp, eller et endepunkt du drifter selv, kan ta over for MLX.</li>
+                  <li>
+                    Linux: du kan allerede peke nav-pilot på din egen Ollama- eller llama-server (alfa, ikke målt, se
+                    dokumentasjonen under «Egen lokal server»). Vi har ennå ikke målt noen modell der.
+                  </li>
                   <li>
                     decide som tjeneste: vi vurderer å kjøre decide på en server for dem som ikke har en passende Mac.
                     Da forlater grunnlaget maskinen din.

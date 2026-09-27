@@ -1,0 +1,35 @@
+# local_endpoint takes only this machine and private networks: code, diffs
+# and tool results go there. A public host is refused when it is set, and a
+# config file edited by hand past that check leaves local dispatch off.
+
+exits 1 nav-pilot config set local_endpoint http://8.8.8.8:11434/v1
+stderr 'is not on this machine or a private network'
+stderr 'accepts only localhost and loopback or private IP addresses'
+! exists home/config.toml
+
+exits 1 nav-pilot config set local_endpoint https://api.example.com/v1
+stderr 'is not on this machine or a private network'
+
+# The cloud metadata address is link-local, not private.
+exits 1 nav-pilot config set local_endpoint http://169.254.169.254/v1
+stderr 'is not on this machine or a private network'
+
+exits 1 nav-pilot config set local_endpoint ftp://127.0.0.1/v1
+stderr 'is not an http\(s\) URL'
+
+# Private addresses are fine.
+exec nav-pilot config set local_endpoint http://192.168.1.20:8080/v1
+
+# Edited by hand: validate names it, and decide does not send anything.
+cp public.toml home/config.toml
+exits 1 nav-pilot config validate
+stdout 'is not on this machine or a private network'
+exits 2 nav-pilot alpha decide 'Is this a bug fix?' --options yes,no
+stderr 'Local dispatch is off this run'
+! stdout .
+
+-- public.toml --
+version = 1
+local_enabled = true
+local_endpoint = "http://8.8.8.8:11434/v1"
+local_endpoint_model = "qwen3.6:35b"

@@ -268,7 +268,7 @@ func TestEveryInstrumentCarriesDeviceID(t *testing.T) {
 	tel.RecordVersionSkewDays("cli", "repo", 9)
 	tel.RecordLaunchError("opencode", "client_not_found")
 	tel.RecordRtkSetup("opencode", "yes", "success")
-	tel.RecordLocalSession("opencode", "some/model", 0, true)
+	tel.RecordLocalSession("opencode", "some/model", "mlx", 0, true)
 	tel.RecordLocalReadySeconds("some/model", "ready", 4)
 	tel.RecordConfig("opencode", "repo", "custom", "high", "large", "info", false, true)
 

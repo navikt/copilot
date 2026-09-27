@@ -343,7 +343,7 @@ func TestDecideTelemetry(t *testing.T) {
 	}
 	got := rec.events[0]
 	want := telemetrypkg.DecideEvent{
-		Result: "below_threshold", Model: "custom", Evidence: true, EvidenceBytes: 7, Options: 3,
+		Result: "below_threshold", Model: "custom", Backend: "mlx", Evidence: true, EvidenceBytes: 7, Options: 3,
 		ThresholdUsed: true, Caller: "script", Answered: true, MS: got.MS, PChoice: 0.875,
 	}
 	if got != want {
