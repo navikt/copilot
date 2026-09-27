@@ -16,7 +16,7 @@ En samling Copilot-tilpasninger for Nav-økosystemet:
 - **🔌 [MCP-servere](docs/README.mcp.md)** — Nav-godkjente MCP-servere fra registeret
 <!-- END GENERATED COUNTS -->
 
-Alle tilpasninger finnes på **[verktøysida](https://min-copilot.ansatt.nav.no/verktoy)** med søk, filtrering og installeringshjelp.
+Alle tilpasninger finnes på **[verktøysida](https://ki-utvikling.nav.no/verktoy)** med søk, filtrering og installeringshjelp.
 
 ### Innhold
 
@@ -64,7 +64,7 @@ Arkivet oppdateres hver time fra den nyeste releasen, så en release du nettopp 
 
 ## Kom i gang
 
-Enkleste vei er **[min-copilot.ansatt.nav.no/verktoy](https://min-copilot.ansatt.nav.no/verktoy)**. Finn det du trenger og følg installeringsstega. MCP-servere har ferdige `code --add-mcp`-kommandoer du kan kopiere rett inn i terminalen.
+Enkleste vei er **[ki-utvikling.nav.no/verktoy](https://ki-utvikling.nav.no/verktoy)**. Finn det du trenger og følg installeringsstega. MCP-servere har ferdige `code --add-mcp`-kommandoer du kan kopiere rett inn i terminalen.
 
 Vil du lese deg opp først, har hver type sin egen doc i tabellen under.
 
@@ -90,7 +90,7 @@ Monorepoet inneholder seks applikasjoner. cplt bor i sitt eget repo.
 
 Kernel-level sandbox for AI-agenter. Sandboxer AI-kodingsagenter med OS-primitiver (macOS Seatbelt, Linux Landlock + seccomp-BPF) og blokkerer filsystemtilgang, nettverkstrafikk og credential-exfiltration.
 
-**Repo:** [navikt/cplt](https://github.com/navikt/cplt) · **Docs:** [min-copilot.ansatt.nav.no/cplt](https://min-copilot.ansatt.nav.no/cplt)
+**Repo:** [navikt/cplt](https://github.com/navikt/cplt) · **Docs:** [ki-utvikling.nav.no/cplt](https://ki-utvikling.nav.no/cplt)
 
 ```bash
 # macOS
@@ -120,9 +120,9 @@ WSL2 arver Windows-PATH. Mangler et verktøy i Ubuntu, plukker terminalen Window
 
 ### My Copilot
 
-Selvbetjeningsportalen. Administrer Copilot-abonnement, se bruksstatistikk og utforsk tilpasninger fra verktøykatalogen. Har også offentlige sider for [cplt](https://min-copilot.ansatt.nav.no/cplt), [nav-pilot](https://min-copilot.ansatt.nav.no/nav-pilot) og [kom i gang](https://min-copilot.ansatt.nav.no/kom-i-gang).
+Selvbetjeningsportalen. Administrer Copilot-abonnement, se bruksstatistikk og utforsk tilpasninger fra verktøykatalogen. Har også offentlige sider for [cplt](https://ki-utvikling.nav.no/cplt), [nav-pilot](https://ki-utvikling.nav.no/nav-pilot) og [kom i gang](https://ki-utvikling.nav.no/kom-i-gang).
 
-**URL:** [min-copilot.ansatt.nav.no](https://min-copilot.ansatt.nav.no)
+**URL:** [ki-utvikling.nav.no](https://ki-utvikling.nav.no)
 
 ### Copilot API
 

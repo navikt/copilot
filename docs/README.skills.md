@@ -2,7 +2,7 @@
 
 Skills er selvstendige mapper med instruksjoner og referansedata som gir Copilot spesialisert Nav-kunnskap.
 
-📖 **Utforsk og installer:** [min-copilot.ansatt.nav.no/verktoy](https://min-copilot.ansatt.nav.no/verktoy)
+📖 **Utforsk og installer:** [ki-utvikling.nav.no/verktoy](https://ki-utvikling.nav.no/verktoy)
 
 ### Installer
 

@@ -386,6 +386,16 @@ describe("link inventory", () => {
     expect(missing, "Run `pnpm link-inventory:update` and commit src/lib/link-inventory.json").toEqual([]);
   });
 
+  // min-copilot.ansatt.nav.no only answers on naisdevice. Dated news articles
+  // keep the domain they were written with.
+  it("links use ki-utvikling.nav.no, not the old domain", () => {
+    const old = [...new Set(SCAN.absolute.flatMap(glob))]
+      .filter((file) => !rel(file).startsWith("docs/news/articles/"))
+      .filter((file) => fs.readFileSync(file, "utf-8").includes("min-copilot.ansatt.nav.no"))
+      .map(rel);
+    expect(old, "Replace min-copilot.ansatt.nav.no with ki-utvikling.nav.no").toEqual([]);
+  });
+
   // A news article renders at /nyheter/<slug>, so a repo-relative link like
   // ../../README.md resolves against that URL in the browser and breaks.
   it("news articles have no relative links", () => {

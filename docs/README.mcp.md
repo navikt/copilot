@@ -2,7 +2,7 @@
 
 Nav-godkjente MCP-servere som utvider Copilot med eksterne verktøy.
 
-📖 **Utforsk og installer:** [min-copilot.ansatt.nav.no/verktoy](https://min-copilot.ansatt.nav.no/verktoy)
+📖 **Utforsk og installer:** [ki-utvikling.nav.no/verktoy](https://ki-utvikling.nav.no/verktoy)
 
 ## Tilgjengelige MCP-servere
 
