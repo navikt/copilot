@@ -88,7 +88,7 @@ func Run(m *testing.M) int {
 	if p := diff(before, snapshot(realHome)); p != "" {
 		fmt.Fprintf(os.Stderr, "testhome: a test in this package, or another process, wrote %s\n"+
 			"in the real home between %s and %s.\n"+
-			"If it was a test, isolate it with isolatedConfig(t), or set both HOME and NAV_PILOT_CONFIG.\n"+
+			"If it was a test, give it its own HOME and NAV_PILOT_CONFIG (in package cli: isolatedConfig(t)).\n"+
 			"If a real nav-pilot ran at the same time, rerun, or set NAV_PILOT_TESTHOME_GUARD=0.\n",
 			p, start.Format(time.TimeOnly), time.Now().Format(time.TimeOnly))
 		return 1
