@@ -43,6 +43,7 @@ stderr 'share.*auto'
 
 # NAV_PILOT_TELEMETRY_ENABLED=false alone is the same opt-out.
 env DO_NOT_TRACK=
+env NAV_PILOT_TELEMETRY_ENABLED=false
 rm $HOME/.config/opencode/opencode.json
 exec /bin/sh -c 'nav-pilot --client opencode -- run -p hei </dev/null'
 ! grep 'openTelemetry' $HOME/.config/opencode/opencode.json

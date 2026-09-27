@@ -292,7 +292,7 @@ func TestWriteSetupConfig_OpenCode_BootstrapsOTelAndContext(t *testing.T) {
 	}
 	// Simulate the opencode bootstrap block from runConfigSetup.
 	if err := providerpkg.EnsureOpenCodeConfig(); err != nil {
-		t.Fatalf("ensureOpenCodeOTelConfig: %v", err)
+		t.Fatalf("EnsureOpenCodeConfig: %v", err)
 	}
 	summary, err := providerpkg.EnsureOpenCodeNavContext("", "")
 	if err != nil {
