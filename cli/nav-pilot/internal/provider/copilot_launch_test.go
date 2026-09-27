@@ -61,14 +61,14 @@ func TestIsCplt(t *testing.T) {
 	dir := t.TempDir()
 	fakeCplt := filepath.Join(dir, "fake-cplt")
 	_ = os.WriteFile(fakeCplt, []byte("#!/bin/sh\necho 'cplt version 1.0.43'"), 0o755)
-	if !isCplt(fakeCplt) {
-		t.Error("expected isCplt=true for binary that outputs 'cplt'")
+	if !IsCplt(fakeCplt) {
+		t.Error("expected IsCplt=true for binary that outputs 'cplt'")
 	}
 
 	fakeCopilot := filepath.Join(dir, "fake-copilot")
 	_ = os.WriteFile(fakeCopilot, []byte("#!/bin/sh\necho 'GitHub Copilot CLI 1.0.0'"), 0o755)
-	if isCplt(fakeCopilot) {
-		t.Error("expected isCplt=false for binary that outputs 'GitHub Copilot CLI'")
+	if IsCplt(fakeCopilot) {
+		t.Error("expected IsCplt=false for binary that outputs 'GitHub Copilot CLI'")
 	}
 }
 
@@ -322,5 +322,16 @@ func TestApplyCopilotAuthMode_WindowsCaseInsensitivity(t *testing.T) {
 	}
 	if len(kept) != 2 {
 		t.Fatalf("unix gh_only must leave gh_token alone, got %v", kept)
+	}
+}
+
+// Neither cplt nor copilot on PATH: the error names what is missing and the
+// command that installs it (#1051). It used to be "copilot cli not found".
+func TestLaunchCopilotResolved_NoCLINamesTheInstallCommand(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("PATH", t.TempDir())
+	err := LaunchCopilotResolved(domain.ResolvedConfig{Client: "copilot", AskUser: true, OtelLogLevel: "none"})
+	if err == nil || !strings.Contains(err.Error(), "not on PATH") || !strings.Contains(err.Error(), CopilotInstallCommand) {
+		t.Fatalf("want the missing binary and %q, got %v", CopilotInstallCommand, err)
 	}
 }

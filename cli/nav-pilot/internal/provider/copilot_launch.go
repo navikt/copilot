@@ -21,6 +21,10 @@ import (
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
+// CopilotInstallCommand installs the Copilot CLI. The same command as the
+// setup guide on the site (interactive-setup-wizard.tsx).
+const CopilotInstallCommand = "curl -fsSL https://gh.io/copilot-install | bash"
+
 // FindCopilotCLI returns the path to cplt or copilot CLI.
 // Prefers cplt (unambiguous GitHub Copilot CLI).
 // If the "copilot" binary is actually cplt (aliased), it's treated as cplt.
@@ -29,7 +33,7 @@ func FindCopilotCLI() (path, name string) {
 		return p, "cplt"
 	}
 	if p, err := exec.LookPath("copilot"); err == nil {
-		if isCplt(p) {
+		if IsCplt(p) {
 			return p, "cplt"
 		}
 		return p, "copilot"
@@ -37,11 +41,11 @@ func FindCopilotCLI() (path, name string) {
 	return "", ""
 }
 
-// isCplt checks if a binary is actually cplt (Copilot Sandbox) by inspecting
+// IsCplt checks if a binary is actually cplt (Copilot Sandbox) by inspecting
 // its version output. Returns true if the binary identifies as cplt/sandbox.
 // The answer comes from cachedVersion, so a launch asks a plain copilot for
 // its version once, however many times FindCopilotCLI runs.
-func isCplt(binPath string) bool {
+func IsCplt(binPath string) bool {
 	out, err := cachedVersion(binPath, 2*time.Second)
 	s := strings.ToLower(out)
 	return err == nil && (strings.Contains(s, "cplt") || strings.Contains(s, "copilot-sandbox"))
@@ -59,7 +63,7 @@ var versionCache sync.Map
 // spawn a plain copilot eight times for it, at about a second each.
 //
 // timeout bounds the first ask: 2s where the answer only tells a disguised
-// cplt apart (isCplt), clientProbeTimeout where the launch waits on it.
+// cplt apart (IsCplt), clientProbeTimeout where the launch waits on it.
 func cachedVersion(bin string, timeout time.Duration) (string, error) {
 	if v, ok := versionCache.Load(bin); ok {
 		a := v.(versionAnswer)
@@ -222,7 +226,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	cliPath, cliName := FindCopilotCLI()
 	if cliPath == "" {
 		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
-		return fmt.Errorf("copilot cli not found")
+		return fmt.Errorf("the Copilot CLI (copilot) is not on PATH. Install it: %s", domain.Bold(CopilotInstallCommand))
 	}
 	if cliName == "cplt" {
 		PrintCpltSandboxHint()
