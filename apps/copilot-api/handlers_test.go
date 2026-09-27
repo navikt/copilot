@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -231,5 +233,32 @@ func TestAPIRoutesRequireAuth(t *testing.T) {
 				t.Errorf("Expected problem type containing 'unauthorized', got %q", problem.Type)
 			}
 		})
+	}
+}
+
+// The SAML lookup's path ends in the caller's Nav e-mail: neither the request
+// log nor a trace may carry it.
+func TestSAMLPathNeverLoggedOrTraced(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	email := "ola.nordmann" + "@nav.no"
+	config := &Config{LoggedEndpoints: map[string]bool{"/api/v1/": true, "//api/": true}}
+	h := loggingMiddleware(config, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	for _, p := range []string{"/api/v1/copilot/saml/" + email, "//api/v1/copilot/saml/" + email} {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.URL.Path = p
+		h.ServeHTTP(httptest.NewRecorder(), req)
+		if tracePath(req) {
+			t.Errorf("%s would be traced", p)
+		}
+	}
+	if strings.Contains(buf.String(), email) || !strings.Contains(buf.String(), "/saml/{identity}") {
+		t.Fatalf("log should carry the redacted path only, got %s", buf.String())
+	}
+	if !tracePath(httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/metrics", nil)) {
+		t.Error("ordinary routes must still be traced")
 	}
 }
