@@ -435,6 +435,7 @@ func TestOpenCodeNavContextDir_Override(t *testing.T) {
 }
 
 func TestOpenCodeNavContextDir_DefaultSuffix(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", "")
 	old := NavContextDirOverride
 	NavContextDirOverride = ""
 	defer func() { NavContextDirOverride = old }()
@@ -460,6 +461,7 @@ func TestOpenCodeConfigPath_EmptyHome_ReturnsAbsolute(t *testing.T) {
 }
 
 func TestOpenCodeNavContextDir_EmptyHome_ReturnsAbsolute(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", "")
 	old := NavContextDirOverride
 	NavContextDirOverride = ""
 	defer func() { NavContextDirOverride = old }()

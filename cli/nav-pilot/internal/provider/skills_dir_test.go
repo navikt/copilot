@@ -290,3 +290,23 @@ func TestLaunchCopilotResolvedDropsInheritedSkillsDir(t *testing.T) {
 		t.Errorf("cplt saw %s=%q, want it unset", SkillsDirEnv, got)
 	}
 }
+
+// TestOpenCodeNavContextDirFollowsXDG: Nav context goes where opencode reads its
+// config, the same directory as opencode.json. Under ~/.config/opencode while
+// XDG_CONFIG_HOME points elsewhere, the session had no persona, skills or
+// local-worker, and cplt denied it the directory they were in.
+func TestOpenCodeNavContextDirFollowsXDG(t *testing.T) {
+	home := isolateHome(t)
+	xdg := filepath.Join(home, "elsewhere")
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	if got, want := openCodeNavContextDir(), filepath.Join(xdg, "opencode"); got != want {
+		t.Errorf("openCodeNavContextDir() = %q, want %q", got, want)
+	}
+	if got, want := filepath.Dir(openCodeConfigPath()), openCodeNavContextDir(); got != want {
+		t.Errorf("opencode.json in %q, Nav context in %q", got, want)
+	}
+	t.Setenv("XDG_CONFIG_HOME", "")
+	if got, want := openCodeNavContextDir(), filepath.Join(home, ".config", "opencode"); got != want {
+		t.Errorf("without XDG_CONFIG_HOME: %q, want %q", got, want)
+	}
+}
