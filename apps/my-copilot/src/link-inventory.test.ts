@@ -162,7 +162,7 @@ function definedAnchors(routeFile: string): Map<string, string> {
 const SITE_URL = /https?:\/\/(?:ki-utvikling\.nav\.no|min-copilot\.ansatt\.nav\.no)(\/[^\s"'`)<>\]]*)?/g;
 // Relative links in code the site renders.
 const CODE_LINK =
-  /(?:[hH]ref|link|to)\s*[=:]\s*\{?\s*["'`](\/[^"'`\s]*)["'`]|(?:redirect|push|replace)\(\s*["'`](\/[^"'`\s]*)["'`]/g;
+  /(?:\b(?:href|link|to)|Href)\s*[=:]\s*\{?\s*["'`](\/[^"'`\s]*)["'`]|\b(?:redirect|push|replace)\(\s*["'`](\/[^"'`\s]*)["'`]/g;
 const MARKDOWN_LINK = /\]\((\/[^)\s]*)\)|^\[[^\]]+\]:\s*(\/\S+)/gm;
 
 // Where site links can hide. Relative links only count in files the site
