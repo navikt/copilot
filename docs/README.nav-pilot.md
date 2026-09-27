@@ -427,7 +427,7 @@ du har endret dem selv: nav-pilot sletter bare det den selv har skrevet og som f
 er uendret. En fil du har redigert blir stående, og forblir sporet, slik at neste sync i
 repoet den kom fra melder konflikt framfor å overskrive den. `nav-pilot sync` uten `--apply`
 skriver ingenting her. Den lister hva som ville blitt fjernet under scopet `opencode`, også i
-`--json`.
+`--json`, men ikke endret innhold. Det skriver `--apply` og neste oppstart.
 
 #### `export opencode` vs. automatisk materialisering
 

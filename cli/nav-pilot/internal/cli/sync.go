@@ -511,6 +511,15 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		}
 	}
 
+	// A source that ships nothing at all is a broken source, not one that
+	// retired everything: a wrong --ref, an empty branch, a layout pointing at
+	// empty directories. Reading it as "deleted upstream" would remove every
+	// file this scope has, in CI without anyone asked.
+	if len(deletedPaths) > 0 && shipsNothing(resolver) {
+		return fmt.Errorf("%s ships no agents, skills, instructions, prompts or hooks at %s, so sync would remove all %d of this scope's files.\nNothing was changed. Check the source and --ref; to remove everything on purpose, run %s",
+			sourceLabelFor(src), shortSHA(src.SHA), len(deletedPaths), bold("nav-pilot uninstall"))
+	}
+
 	// Mark missing files as ignored in state
 	if len(ignoredPaths) > 0 {
 		if err := markFilesIgnored(scope, ignoredPaths); err != nil {
@@ -1891,18 +1900,34 @@ func warnReplacedLocalEdits(scope *InstallScope, relPath string, saved []string)
 }
 
 // warnRemovedLocalEdits is warnReplacedLocalEdits for an artifact the source
-// dropped: there is no new version, only the saved copy.
+// dropped: there is no new version, only the saved copy. A directory is named
+// once: every file in it was saved.
 func warnRemovedLocalEdits(scope *InstallScope, relPath string, saved []string) {
 	label := relPath
 	if kind, name := artifactOfPath(relPath); kind != nil {
 		label = kind.Name + " " + name
 	}
-	shown := make([]string, len(saved))
-	for i, p := range saved {
-		shown[i] = scopePath(scope, p)
+	where := "your copy is saved as " + strings.Join(func() []string {
+		shown := make([]string, len(saved))
+		for i, p := range saved {
+			shown[i] = scopePath(scope, p)
+		}
+		return shown
+	}(), ", ")
+	if strings.HasSuffix(relPath, "/") {
+		where = "your copy is saved as *.orig in " + scopePath(scope, filepath.Join(scope.RootDir, relPath))
 	}
-	fmt.Fprintf(os.Stderr, "%s %s: the source removed it, and it had local changes; your copy is saved as %s\n",
-		yellow("⚠"), label, strings.Join(shown, ", "))
+	fmt.Fprintf(os.Stderr, "%s %s: the source removed it, and it had local changes; %s\n", yellow("⚠"), label, where)
+}
+
+// shipsNothing reports whether a source resolves no artifact of any kind.
+func shipsNothing(resolver *SourceResolver) bool {
+	for _, kind := range AllKinds {
+		if len(resolver.List(kind)) > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // artifactOfPath names the kind and artifact a scope-relative path belongs

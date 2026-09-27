@@ -401,6 +401,12 @@ func (openCodeProvider) SyncContext(ref, sourceRepo string, apply, jsonOutput, h
 		for _, p := range report.Kept {
 			fmt.Printf("  %s %s %s\n", domain.Dim("⊘"), p, domain.Dim("(deleted in source, changed here: kept)"))
 		}
+		if !apply {
+			// The mirror of the repo's own .github/ is compared with the repo as
+			// it is now; what the repo scope is about to remove goes here too
+			// on --apply, but is not listed yet.
+			fmt.Printf("  %s\n", domain.Dim("(skills and agents mirrored from this repo's .github/ follow the repo scope; they are not listed here)"))
+		}
 		switch {
 		case !apply && len(report.Removed) > 0:
 			fmt.Printf("%s Opencode scope has %d file(s) to remove. Run %s to apply.\n", domain.Yellow("⚠"), len(report.Removed), domain.Bold("nav-pilot sync --apply"))

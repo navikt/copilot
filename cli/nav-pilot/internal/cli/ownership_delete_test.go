@@ -43,8 +43,9 @@ func deletionScope(t *testing.T) (string, *InstallScope, string) {
 		},
 	})
 
-	// The source ships nothing, so both paths are "deleted upstream".
-	os.MkdirAll(filepath.Join(sourceDir, "agents"), 0o755)
+	// The source ships neither, so both paths are "deleted upstream". It
+	// ships something else: a source that ships nothing is refused.
+	mustWrite(t, filepath.Join(sourceDir, "agents", "other.agent.md"), "# Other\n")
 
 	orig := resolveSourceForSync
 	t.Cleanup(func() { resolveSourceForSync = orig })
@@ -269,5 +270,25 @@ func TestSyncSavesAHashlessEntryBeforeRemoving(t *testing.T) {
 	}
 	if got, readErr := os.ReadFile(filepath.Join(dir, ".github", "agents", "kept.agent.md.orig")); readErr != nil || string(got) != "# Kept\n" {
 		t.Errorf("the hashless entry's copy was not saved as .orig: %q, %v", got, readErr)
+	}
+}
+
+// TestSyncRefusesASourceThatShipsNothing: an empty source is a broken one, and
+// reading it as "everything was deleted upstream" would empty the scope.
+func TestSyncRefusesASourceThatShipsNothing(t *testing.T) {
+	dir, scope, sourceDir := deletionScope(t)
+	if err := os.RemoveAll(filepath.Join(sourceDir, "agents")); err != nil {
+		t.Fatal(err)
+	}
+
+	var err error
+	out := captureStdoutFor(t, func() { err = cmdSync(scope, "", "", true, false) })
+	if err == nil || !strings.Contains(err.Error(), "ships no agents") {
+		t.Fatalf("sync --apply against an empty source: err = %v\n%s", err, out)
+	}
+	for _, name := range []string{"kept.agent.md", "gone.agent.md"} {
+		if _, statErr := os.Stat(filepath.Join(dir, ".github", "agents", name)); statErr != nil {
+			t.Errorf("%s was removed: %v", name, statErr)
+		}
 	}
 }

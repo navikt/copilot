@@ -216,6 +216,23 @@ func RemoveAllButOrig(dir string) error {
 	return nil
 }
 
+// onlyOrig reports whether dir holds no files other than saved [OrigSuffix]
+// copies.
+func onlyOrig(dir string) bool {
+	only := true
+	_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if skip, err := origEntry(dir, path, d, err); skip || err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			only = false
+			return fs.SkipAll
+		}
+		return nil
+	})
+	return only
+}
+
 // origEntry is the WalkDir step both walks share: skip is true for a saved
 // [OrigSuffix] file or directory under root, which is the user's and not part
 // of the artifact.
@@ -335,8 +352,16 @@ type Conflict struct {
 
 // CheckConflict detects if the target differs from the source artifact.
 // Returns nil if no conflict (file absent or hashes match).
+//
+// A directory holding nothing but saved [OrigSuffix] copies counts as absent:
+// it is what sync leaves when it removes an edited skill the source dropped,
+// and treating it as a team's own skill kept the skill out for good if the
+// source shipped it again. Installing into it keeps the saved copies.
 func CheckConflict(targetPath, sourcePath string, isDir bool) (*Conflict, error) {
 	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		return nil, nil
+	}
+	if isDir && onlyOrig(targetPath) {
 		return nil, nil
 	}
 	currentHash, err := ComparableArtifactHash(targetPath, isDir)

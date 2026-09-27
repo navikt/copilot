@@ -112,7 +112,11 @@ Sync only removes files nav-pilot installed and records in the state file. A fil
 
 A hook the source removes goes as a whole: the script, its entry in `.github/hooks/copilot-hooks.json` (repo) or its `~/.copilot/hooks/<name>.json` (user), and its record in the state file. If the script or its entry changed here, the hook stays, because removing it would turn off a gate someone chose to keep. Sync warns on stderr that it is still active and names the file, and `--json` lists it under `kept`, not under `deletions`.
 
-opencode's copy in `~/.config/opencode` (or `$XDG_CONFIG_HOME/opencode`) follows the same list. `nav-pilot sync` names what it would remove there under the scope `opencode`, and `--apply` removes it. A file there that changed since nav-pilot wrote it stays and is listed under `kept`: that directory also holds the skills and agents of the repo you last launched from, so a file missing from the new set is not always one the source dropped.
+opencode's copy in `~/.config/opencode` follows the same list. `nav-pilot sync` names what it would remove there under the scope `opencode`, and `--apply` removes it. A check lists removals only, not content changes; those are written by `--apply` and by the next launch. That directory also mirrors the skills and agents of the repo you run from, and a check compares them with the repo as it is, so a skill the repo scope is about to remove goes from opencode on `--apply` without being listed first. A file there that changed since nav-pilot wrote it stays and is listed under `kept`, since a file missing from the new set is not always one the source dropped. In the `opencode` entry, `kept` means that; in a Copilot scope it names an edited hook.
+
+A source that ships no artifacts at all is refused rather than read as "everything was removed": sync stops with exit 2 and changes nothing.
+
+State written by older nav-pilot versions may record a file without a hash, or a file that was there before install as differing from what nav-pilot installed. Sync cannot tell those from an edit, so it saves them as `.orig` too before removing them.
 
 The same rule governs `nav-pilot uninstall`: it removes the files nav-pilot installed and still owns, leaves the ones that differ, and says how many. `nav-pilot uninstall --force` removes those too.
 

@@ -420,16 +420,28 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 				}
 				continue
 			}
-			if present {
-				report.Removed = append(report.Removed, f.Path)
-			}
 			if dryRun {
+				if present {
+					report.Removed = append(report.Removed, f.Path)
+				}
 				continue
 			}
+			var rmErr error
 			if strings.HasSuffix(f.Path, "/") {
-				os.RemoveAll(dst)
+				rmErr = os.RemoveAll(dst)
 			} else {
-				os.Remove(dst)
+				rmErr = os.Remove(dst)
+			}
+			if rmErr != nil && !os.IsNotExist(rmErr) {
+				// Still there, so still tracked: dropping the entry would leave
+				// an orphan the next launch overwrites without a word.
+				fmt.Fprintf(os.Stderr, "%s could not remove %s: %v\n", domain.Yellow("⚠"), dst, rmErr)
+				files = append(files, f)
+				report.Kept = append(report.Kept, f.Path)
+				continue
+			}
+			if present {
+				report.Removed = append(report.Removed, f.Path)
 			}
 		}
 	}
