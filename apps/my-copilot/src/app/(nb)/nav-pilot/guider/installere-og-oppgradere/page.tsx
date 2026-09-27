@@ -111,7 +111,7 @@ nav-pilot install --force nav-pilot              # overskriv filer du har endret
           <CodeBlock compact>{`eval "$(nav-pilot env)"`}</CodeBlock>
           <BodyShort size="small" textColor="subtle">
             opencode får Nav-konteksten på en annen måte, se{" "}
-            <NextLink href="/nav-pilot/referanse#opencode" className={linkClass}>
+            <NextLink href="/nav-pilot/klienter#opencode" className={linkClass}>
               opencode
             </NextLink>
             .

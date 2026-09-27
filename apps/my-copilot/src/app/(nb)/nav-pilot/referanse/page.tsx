@@ -1,12 +1,13 @@
-import { BodyLong, BodyShort, Box, Tag, VStack } from "@navikt/ds-react";
+import { BodyLong, BodyShort, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { Suspense } from "react";
-import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell } from "@/components/aksel-table";
+import { Table, TableBody, TableRow, TableDataCell } from "@/components/aksel-table";
 import { CodeBlock } from "@/components/code-block";
 import { FileExplorer } from "@/components/file-explorer";
 import { LinkableHeading } from "@/components/linkable-heading";
-import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
+import { Bullets, DocPage, HeaderRow, code, linkClass } from "@/components/nav-pilot/doc-page";
+import { REFERENCE_PAGES } from "@/components/nav-pilot/doc-pages";
 import { LocalModelsTable } from "@/components/nav-pilot/local-model-tables";
 import type { TocItem } from "@/components/table-of-contents";
 import { FALLBACK_TABLE, MANIFEST_URL, getLocalModels, type LocalModel } from "@/lib/local-models";
@@ -26,7 +27,6 @@ const TOC: TocItem[] = [
   { id: "telemetri", label: "Telemetri" },
   { id: "lokale-modeller", label: "Lokale modeller" },
   { id: "filstruktur", label: "Filstruktur" },
-  { id: "klienter", label: "Klienter" },
   { id: "lenker", label: "Lenker" },
 ];
 
@@ -73,53 +73,7 @@ nav-pilot alpha local purge     # viser hva som fjernes og hvor mye; --yes slett
 nav-pilot alpha local setup     # egen server: finner den, foreslår modell og sjekker den
 nav-pilot alpha local doctor    # egen server: sjekker verktøykall, logprobs, kontekst og tid til første token`;
 
-const CLIENTS = [
-  {
-    name: "copilot",
-    status: (
-      <Tag size="small" variant="info">
-        Standard
-      </Tag>
-    ),
-    desc: "GitHub Copilot CLI i cplt-sandkassen. Agentpakka virker også i VS Code, JetBrains og på github.com.",
-  },
-  {
-    name: "opencode",
-    status: (
-      <Tag size="small" variant="success">
-        Full støtte
-      </Tag>
-    ),
-    desc: "nav-pilot legger Nav-konteksten i ~/.config/opencode/ og holder den oppdatert.",
-  },
-  {
-    name: "pi",
-    status: (
-      <Tag size="small" variant="warning">
-        Eksperimentell
-      </Tag>
-    ),
-    desc: "pi i cplt-sandkassen, med skills, agenter og AGENTS.md lagt inn ved oppstart. Krever både pi og cplt.",
-  },
-];
-
 const nb = (n: number) => n.toLocaleString("nb-NO");
-
-// With stack, the roles keep the table semantics that the .table-stack CSS
-// (display: block on a phone) would otherwise drop.
-function HeaderRow({ cells, stack }: { cells: string[]; stack?: boolean }) {
-  return (
-    <TableHeader role={stack ? "rowgroup" : undefined}>
-      <TableRow role={stack ? "row" : undefined}>
-        {cells.map((c) => (
-          <TableHeaderCell key={c} scope="col" role={stack ? "columnheader" : undefined}>
-            {c}
-          </TableHeaderCell>
-        ))}
-      </TableRow>
-    </TableHeader>
-  );
-}
 
 async function LiveLocalModels() {
   const { models } = await getLocalModels();
@@ -164,6 +118,7 @@ export default function Referanse() {
       description="Kommandoer, konfignøkler og tabeller på én side. Søk på siden med Ctrl+F."
       toc={TOC}
       wide
+      siblings={{ pages: REFERENCE_PAGES, current: "/nav-pilot/referanse" }}
     >
       <section>
         <VStack gap="space-16">
@@ -383,88 +338,6 @@ export default function Referanse() {
 
       <section>
         <VStack gap="space-16">
-          <LinkableHeading id="klienter" size="medium" level="2">
-            Klienter
-          </LinkableHeading>
-          <BodyLong>
-            Velg klient med <code className={code}>--client</code> eller med <code className={code}>client</code> i
-            konfigfila: <code className={code}>nav-pilot config set client opencode</code>.
-          </BodyLong>
-          <LinkableHeading id="stotte-klienter" size="small" level="3">
-            Støttede klienter
-          </LinkableHeading>
-          <div className="overflow-x-auto">
-            <Table size="small" style={{ minWidth: "36rem" }}>
-              <HeaderRow cells={["Klient", "Status", "Hva du får"]} />
-              <TableBody>
-                {CLIENTS.map((c) => (
-                  <TableRow key={c.name}>
-                    <TableDataCell>
-                      <code className={code}>{c.name}</code>
-                    </TableDataCell>
-                    <TableDataCell>{c.status}</TableDataCell>
-                    <TableDataCell>{c.desc}</TableDataCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <Box background="info-soft" borderRadius="8" padding="space-16">
-            <BodyShort size="small">
-              For <code className={code}>copilot</code> henter nav-pilot ikke GitHub-tokenet selv. Er gh-vakta i cplt
-              på, henter cplt det fra <code className={code}>GH_TOKEN</code>, <code className={code}>GITHUB_TOKEN</code>
-              , <code className={code}>COPILOT_GITHUB_TOKEN</code> eller <code className={code}>gh auth token</code>.{" "}
-              <code className={code}>copilot_auth_mode</code> bestemmer hvilke kilder som slipper gjennom:{" "}
-              <code className={code}>env_only</code> stopper oppstarten uten token i miljøet, og{" "}
-              <code className={code}>gh_only</code> fjerner token-variablene.
-            </BodyShort>
-          </Box>
-          <LinkableHeading id="opencode" size="small" level="3">
-            opencode
-          </LinkableHeading>
-          <BodyLong>
-            Med <code className={code}>--client opencode</code> legger nav-pilot AGENTS.md, skills, kommandoer og
-            agenter i <code className={code}>~/.config/opencode/</code> og oppdaterer dem ved hver oppstart.
-          </BodyLong>
-          <Bullets>
-            <li>
-              Endrer du en av filene selv, overskriver ikke nav-pilot den.{" "}
-              <code className={code}>~/.config/opencode/.nav-pilot-state.json</code> holder rede på hvilke filer og
-              hvilken versjon som er installert.
-            </li>
-            <li>
-              Velger du ikke modell selv, bruker nav-pilot standarden agentpakka oppgir. For agentpakka nav-pilot er det
-              GPT-6 Sol. Oppgir pakka ingen, velger opencode. Hvilke modeller du får bruke, avhenger også av
-              Copilot-abonnementet ditt.
-            </li>
-            <li>nav-pilot setter opp OpenTelemetry for opencode.</li>
-            <li>
-              Maskeringen av hemmeligheter og fødselsnumre, løkkevakta og hookene du har installert, kjører også i
-              opencode. Feiler maskeringen, holder nav-pilot verktøyresultatet tilbake.{" "}
-              <code className={code}>tools:</code>
-              -lista til en agent blir tillatelser i opencode.
-            </li>
-            <li>
-              Deling til opencode.ai er av, og oppdateringer kommer som varsel. MCP-servere som ikke står i Navs
-              MCP-register, slår nav-pilot av for økten, som i Copilot. Godkjente servere står i{" "}
-              <NextLink href="/verktoy" className={linkClass}>
-                verktøykatalogen
-              </NextLink>
-              . <code className={code}>nav-pilot doctor</code> viser hvilke servere som slås av, og om versjonen av
-              opencode er testet.
-            </li>
-          </Bullets>
-          <BodyShort size="small" textColor="subtle">
-            <code className={code}>mode = autopilot</code>, <code className={code}>context_tier</code> og{" "}
-            <code className={code}>ask_user</code> gjelder bare Copilot. Har du satt dem og bruker opencode, skriver
-            nav-pilot én advarsel. <code className={code}>nav-pilot export opencode</code> skriver agentpakka til{" "}
-            <code className={code}>.opencode/</code> i repoet, men trengs ikke for å bruke opencode.
-          </BodyShort>
-        </VStack>
-      </section>
-
-      <section>
-        <VStack gap="space-16">
           <LinkableHeading id="lenker" size="medium" level="2">
             Lenker
           </LinkableHeading>
@@ -486,6 +359,12 @@ export default function Referanse() {
                 Forklaring
               </NextLink>
               : hvorfor nav-pilot virker som det gjør
+            </li>
+            <li>
+              <NextLink href="/nav-pilot/klienter" className={linkClass}>
+                Klienter
+              </NextLink>
+              : Copilot CLI, opencode og pi, og hva hver av dem kan
             </li>
             <li>
               <NextLink href="/nav-pilot/agentpakker" className={linkClass}>

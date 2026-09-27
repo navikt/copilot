@@ -179,7 +179,10 @@
       "distribuer": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
       "hva-det-er": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
       "hva-som-komponerer": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
-      "hvilken-tier": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
+      "hvilken-tier": [
+        "apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"
+      ],
       "kjorbar-kode": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
       "klientoppforinga": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
       "kollisjoner": ["apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"],
@@ -415,6 +418,7 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/sandkassen/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
       "docs/README.nav-pilot.md"
@@ -503,6 +507,7 @@
       ],
       "utsending": [
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/lokal/page.tsx",
+        "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"
       ]
     }
@@ -549,11 +554,39 @@
       "team-egne-instruksjoner": ["apps/my-copilot/src/app/(nb)/nav-pilot/guider/tilpasse/page.tsx"]
     }
   },
+  "/nav-pilot/klienter": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
+      "docs/CLIENT-SUPPORT-MATRIX.md",
+      "docs/README.nav-pilot.md"
+    ],
+    "anchors": {
+      "copilot-cli": ["apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"],
+      "deling-og-oppdatering": ["apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"],
+      "kjente-hull": ["apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"],
+      "legg-til-server": ["apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"],
+      "mcp-register": ["apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"],
+      "opencode": [
+        "apps/my-copilot/src/app/(nb)/nav-pilot/guider/installere-og-oppgradere/page.tsx",
+        "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"
+      ],
+      "paritet": ["apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"],
+      "pi": ["apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"],
+      "stotte-klienter": ["apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"],
+      "testet-versjon": ["apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"],
+      "uten-cplt": ["apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"],
+      "utsending": ["apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"]
+    }
+  },
   "/nav-pilot/lokal": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/lokal-modell/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/lokal/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts"
@@ -582,7 +615,8 @@
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx",
-      "apps/my-copilot/src/app/sitemap.ts"
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
     ],
     "anchors": {
       "avslutningskoder": [
@@ -1516,6 +1550,7 @@
     "sources": [
       "README.md",
       "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx",
       "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",

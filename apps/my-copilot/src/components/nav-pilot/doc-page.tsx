@@ -1,6 +1,7 @@
 import { BodyShort, Box, Heading, VStack } from "@navikt/ds-react";
 import NextLink from "next/link";
 import type { ReactNode } from "react";
+import { TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { BackToTop } from "@/components/back-to-top";
 import { PageHero } from "@/components/page-hero";
 import { TableOfContents, type TocItem } from "@/components/table-of-contents";
@@ -97,6 +98,23 @@ export function PageLinks({ pages, level = "2" }: { pages: DocLink[]; level?: "2
         </li>
       ))}
     </VStack>
+  );
+}
+
+// A table's header row. With stack, the roles keep the table semantics that
+// the .table-stack CSS (display: block on a phone) would otherwise drop; the
+// rows and cells of such a table need role="row" and role="cell" too.
+export function HeaderRow({ cells, stack }: { cells: string[]; stack?: boolean }) {
+  return (
+    <TableHeader role={stack ? "rowgroup" : undefined}>
+      <TableRow role={stack ? "row" : undefined}>
+        {cells.map((c) => (
+          <TableHeaderCell key={c} scope="col" role={stack ? "columnheader" : undefined}>
+            {c}
+          </TableHeaderCell>
+        ))}
+      </TableRow>
+    </TableHeader>
   );
 }
 
