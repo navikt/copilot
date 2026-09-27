@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useLayoutEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { LEGACY_ANCHORS } from "@/lib/legacy-anchors";
 
 export function HashAnchorScroll() {
   const pathname = usePathname();
+  const router = useRouter();
   const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
   useIsomorphicLayoutEffect(() => {
@@ -43,6 +45,22 @@ export function HashAnchorScroll() {
 
       const target = document.getElementById(id);
       if (!target) {
+        // A moved anchor never exists on its old page (link-inventory.test.ts
+        // checks), so there is nothing to wait for.
+        const moved = LEGACY_ANCHORS[`${pathname}#${id}`];
+        if (moved) {
+          if (moved.split("#")[0] === pathname) {
+            // Same page: router.replace would not re-run this effect, and
+            // replaceState fires no hashchange. Fire it for Tabs, and try
+            // again here, since our own listener may not be added yet.
+            window.history.replaceState(null, "", moved);
+            window.dispatchEvent(new HashChangeEvent("hashchange"));
+            tryScroll();
+          } else {
+            router.replace(moved);
+          }
+          return;
+        }
         if (!observer) {
           observer = new MutationObserver(() => {
             if (settleTimer) {
@@ -95,7 +113,7 @@ export function HashAnchorScroll() {
       clearTimers();
       window.removeEventListener("hashchange", onHashChange);
     };
-  }, [pathname]);
+  }, [pathname, router]);
 
   return null;
 }

@@ -163,7 +163,7 @@ pnpm test
 pnpm link-inventory:update
 ```
 
-It only adds entries. When a page moves, add a permanent redirect in `next.config.ts`. When an anchor moves, add it to `src/lib/legacy-anchors.ts`. Never delete an inventory entry.
+The command only adds entries. When a page moves, add a permanent redirect in `next.config.ts`. When an anchor moves, add it to `src/lib/legacy-anchors.ts`. Never delete an inventory entry.
 
 ### Deployment
 

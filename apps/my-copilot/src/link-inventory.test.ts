@@ -94,7 +94,9 @@ function resolvePath(pathname: string, hops = 0): { file: string } | { error: st
   const redirect = redirects.find((r) => r.source === pathname);
   if (redirect) {
     if (!redirect.permanent && !TEMPORARY_REDIRECTS.has(pathname)) {
-      return { error: `redirect ${pathname} → ${redirect.destination} is not permanent` };
+      return {
+        error: `redirect ${pathname} → ${redirect.destination} is not permanent; set permanent: true in next.config.ts or add it to TEMPORARY_REDIRECTS`,
+      };
     }
     if (hops > 5) return { error: `redirect loop at ${pathname}` };
     return resolvePath(redirect.destination.split("#")[0], hops + 1);
@@ -106,6 +108,13 @@ function resolvePath(pathname: string, hops = 0): { file: string } | { error: st
   const publicFile = path.join(APP_ROOT, "public", decodeURIComponent(pathname));
   if (pathname !== "/" && fs.existsSync(publicFile) && fs.statSync(publicFile).isFile()) return { file: publicFile };
   return { error: `no route, public file or redirect for ${pathname}` };
+}
+
+// The path the browser shows after following redirects. LEGACY_ANCHORS is
+// keyed by it, since that is what HashAnchorScroll sees.
+function landingPath(pathname: string, hops = 0): string {
+  const redirect = redirects.find((r) => r.source === pathname);
+  return redirect && hops <= 5 ? landingPath(redirect.destination.split("#")[0], hops + 1) : pathname;
 }
 
 // ── anchors ──────────────────────────────────────────────────────────────────
@@ -374,10 +383,14 @@ describe("link inventory", () => {
     const broken: string[] = [];
     for (const [p, entry] of Object.entries(inventory)) {
       for (const [anchor, sources] of Object.entries(entry.anchors)) {
-        const [targetPath, targetAnchor] = (LEGACY_ANCHORS[`${p}#${anchor}`] ?? `${p}#${anchor}`).split("#");
+        const [targetPath, targetAnchor] = (LEGACY_ANCHORS[`${landingPath(p)}#${anchor}`] ?? `${p}#${anchor}`).split(
+          "#"
+        );
         const target = resolvePath(targetPath);
         if ("error" in target || !anchorsOn(target.file).has(targetAnchor)) {
-          broken.push(`${p}#${anchor} → ${targetPath}#${targetAnchor} (linked from ${sources.join(", ")})`);
+          broken.push(
+            `${p}#${anchor} → ${targetPath}#${targetAnchor}: anchor not found; add a redirect in next.config.ts or an entry in src/lib/legacy-anchors.ts (linked from ${sources.join(", ")})`
+          );
         }
       }
     }
@@ -387,9 +400,23 @@ describe("link inventory", () => {
   it("every legacy anchor is in the inventory", () => {
     const unknown = Object.keys(LEGACY_ANCHORS).filter((k) => {
       const [p, a] = k.split("#");
-      return !inventory[p] || !(a in inventory[p].anchors);
+      return !Object.entries(inventory).some(([ip, e]) => landingPath(ip) === p && a in e.anchors);
     });
-    expect(unknown).toEqual([]);
+    expect(
+      unknown,
+      "Key each entry on the path the browser lands on after next.config.ts redirects, with an anchor the inventory lists"
+    ).toEqual([]);
+  });
+
+  // HashAnchorScroll redirects a legacy anchor before its element can appear,
+  // so a key must never be a real id on its page.
+  it("no legacy anchor is a real id on its page", () => {
+    const clashes = Object.keys(LEGACY_ANCHORS).filter((k) => {
+      const [p, a] = k.split("#");
+      const target = resolvePath(p);
+      return "file" in target && definedAnchors(target.file).has(a);
+    });
+    expect(clashes).toEqual([]);
   });
 
   it("every route, anchor and site link in the repo is in the inventory", () => {
