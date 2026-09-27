@@ -70,15 +70,7 @@ func isKnownCommand(arg string) bool {
 	if _, ok := commandAliases[arg]; ok {
 		return true
 	}
-	switch arg {
-	case "install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor",
-		"uninstall", "upgrade", "update", "config", "validate", "env", "feedback",
-		"models", "alpha", "auth", "usage",
-		"version", "--version", "-v", "-h", "--help", "help":
-		return true
-	default:
-		return false
-	}
+	return slices.Contains(dispatchedCommands, arg) || slices.Contains([]string{"--version", "-v", "-h", "--help"}, arg)
 }
 
 // usage prints the top-level help: to stdout when it was asked for, to stderr

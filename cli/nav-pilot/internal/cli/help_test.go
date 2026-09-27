@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"os"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -67,6 +70,47 @@ func TestWantsHelp(t *testing.T) {
 	} {
 		if got := wantsHelp(c.args); got != c.want {
 			t.Errorf("wantsHelp(%q) = %v, want %v", c.args, got, c.want)
+		}
+	}
+}
+
+// switchCases returns the string cases of the one-tab-indented switch that
+// starts at marker in file, up to its default.
+func switchCases(t *testing.T, file, marker string) []string {
+	t.Helper()
+	src, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, block, ok := strings.Cut(string(src), marker)
+	block, _, ok2 := strings.Cut(block, "\n\tdefault:")
+	if !ok || !ok2 {
+		t.Fatalf("cannot find %q in %s; update this test's markers", marker, file)
+	}
+	var names []string
+	for _, line := range regexp.MustCompile(`(?m)^\tcase (.+):$`).FindAllStringSubmatch(block, -1) {
+		for _, q := range regexp.MustCompile(`"([^"]*)"`).FindAllStringSubmatch(line[1], -1) {
+			names = append(names, q[1])
+		}
+	}
+	if len(names) < 5 {
+		t.Fatalf("found only %d cases after %q in %s; the parse is broken", len(names), marker, file)
+	}
+	return names
+}
+
+// The lists the help test walks are the ones dispatch uses: a command added
+// to a dispatch switch and not to the list fails here, so it cannot skip
+// the help test.
+func TestDispatchListsMatchTheSwitches(t *testing.T) {
+	for _, name := range switchCases(t, "cli.go", "\tswitch command {\n") {
+		if !strings.HasPrefix(name, "-") && !slices.Contains(dispatchedCommands, name) {
+			t.Errorf("run dispatches %q, which is not in dispatchedCommands", name)
+		}
+	}
+	for _, name := range switchCases(t, "alpha_local.go", "\tswitch sub {\n") {
+		if name != "" && name != "help" && !slices.Contains(localCommands, name) {
+			t.Errorf("cmdAlpha dispatches alpha local %q, which is not in localCommands", name)
 		}
 	}
 }
