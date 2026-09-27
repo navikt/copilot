@@ -28,7 +28,7 @@ grep '^hello\n---' $WORK/fake/opencode.log
 grep '^--agent\ngrillmester\n' $WORK/fake/opencode.log
 exec cat $WORK/env.out
 stdout '^NAV_PILOT_OPENCODE_HOOKS=\{"post"'
-stdout '^OPENCODE_CONFIG_CONTENT=\{"plugin"'
+stdout '^OPENCODE_CONFIG_CONTENT=.*"plugin":.*"share":"disabled"'
 stdout '^PWD=.*/repo$'
 ! stderr 'where the cplt sandbox may not let the session start it'
 
