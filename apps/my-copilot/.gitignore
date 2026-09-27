@@ -45,3 +45,6 @@ debug-storybook.log*
 *.tsbuildinfo
 next-env.d.ts
 /video-packages/
+
+# site search index, written by scripts/build-search-index.ts
+/public/search-index.json
