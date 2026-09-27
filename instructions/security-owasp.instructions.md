@@ -1,5 +1,5 @@
 ---
-description: "Hvor OWASP Top 10:2025-mønstrene for Kotlin, Go, Java og TypeScript ligger: injeksjon, tilgangskontroll, autentisering, kryptografi og skanning."
+description: "Hvor OWASP Top 10:2025-mønstrene for Kotlin, Go, Java og TypeScript ligger: tilgangskontroll, feilkonfigurasjon, forsyningskjede, kryptografi, injeksjon, logging og feilhåndtering."
 applyTo: "**/*.{kt,go,java,ts,tsx}"
 ---
 

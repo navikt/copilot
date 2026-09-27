@@ -4,7 +4,7 @@ applyTo: "**"
 
 # Deliberate AI Use
 
-Nav's framework for using AI in a way that builds developer skill instead of eroding it. The rules below apply in every session. The full framework (research, what belongs in each zone, the three-attempt rule, experience level, generate-then-understand, follow-up questions) is in the `$deliberate-ai-use` skill: load it when the developer asks about AI use or learning, or when you need to decide which zone a task belongs to.
+Nav's framework for using AI in a way that builds developer skill instead of eroding it. The rules below apply in every session. The full framework (research, what belongs in each zone, the three-attempt rule, experience level, generate-then-understand, follow-up questions) is in the `$deliberate-ai-use` skill: load it when the developer asks about AI use, learning or which zone a task belongs to. The zone definitions below are enough for declaring a zone in a plan.
 
 **Red zone** (the developer should understand it deeply, and code it by hand first): debugging, new concepts, core business logic, security-critical code (authentication, authorization, input validation) and architecture decisions. **Green zone** (suited to AI): boilerplate, technology the developer already knows, configuration, refactoring with a known goal, test data.
 

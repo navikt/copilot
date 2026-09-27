@@ -220,7 +220,7 @@
         "vulnerability"
       ],
       "filePath": "agents/security-champion.agent.md",
-      "contentHash": "f7c85c203663cafe991bdebc901049b796748c333566663a2b1146be31152942",
+      "contentHash": "09850437ed89c7bbf32a1994ba3975bd747ef115f7337286f28d3c74cd6f09f2",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Azure AD integration",
@@ -260,7 +260,7 @@
       "displayName": "Bevisst AI-bruk",
       "description": "Regler for bevisst AI-bruk som alltid gjelder: forklar valg, merk rød sone, spør før full delegering. Hele rammeverket ligger i deliberate-ai-use-skillen",
       "filePath": "instructions/deliberate-ai-use.instructions.md",
-      "contentHash": "d1778eef7a30e495eb74e406108a656cab3de7191c7fc621362f2d6533c6aa71",
+      "contentHash": "5e2d7a2f23285de8b92728b7fa076f0360a951c2fb5cbfcc1f1f7c0f8cd1a56e",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/deliberate-ai-use.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/deliberate-ai-use.instructions.md"
     },
@@ -387,7 +387,7 @@
         "vulnerability"
       ],
       "filePath": "instructions/security-core.instructions.md",
-      "contentHash": "b9d985d8e100730d43bd5cd5d3745ece4614a4813dd90fe45039e18de11103f4",
+      "contentHash": "5f9b18a450d64fe7ae03db3baa4d5022ea4823acb95cb65ef91e7f4a43150669",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/security-core.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/security-core.instructions.md"
     },
@@ -403,7 +403,7 @@
         "vulnerability"
       ],
       "filePath": "instructions/security-owasp.instructions.md",
-      "contentHash": "4586623a96a019c299e46e6f56921f76243bf17853233b95e2286904238f3dd5",
+      "contentHash": "9c38727100051bf5eb523b1cd20c078df61c82f0fd685230b3309a322a51bdb0",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/security-owasp.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/security-owasp.instructions.md"
     },
