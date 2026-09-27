@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   Alert,
   BodyLong,
@@ -23,7 +23,10 @@ function missing(q: SurveyQuestion, answers: Answers): string | undefined {
   if (q.type === "multi" && Array.isArray(a) && q.max_choices && a.length > q.max_choices) {
     return `Velg høyst ${q.max_choices}.`;
   }
-  const empty = a === undefined || a === "" || (Array.isArray(a) && a.length === 0);
+  if (q.type === "text" && typeof a === "string" && q.max_length && [...a.trim()].length > q.max_length) {
+    return `Skriv høyst ${q.max_length} tegn.`;
+  }
+  const empty = a === undefined || (typeof a === "string" && a.trim() === "") || (Array.isArray(a) && a.length === 0);
   if (q.required && empty) return "Svar på dette spørsmålet.";
   return undefined;
 }
@@ -35,6 +38,10 @@ export function SurveyForm({ survey }: { survey: Survey }) {
   const [pending, startTransition] = useTransition();
   const summaryRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (result) resultRef.current?.focus();
+  }, [result]);
 
   const visible = survey.questions.filter((q) => !isSkipped(q, answers));
   const set = (id: string, value: Answers[string] | undefined) =>
@@ -63,9 +70,13 @@ export function SurveyForm({ survey }: { survey: Survey }) {
       if (typeof a === "string" && a.trim() === "") continue;
       if (a !== undefined) toSend[q.id] = typeof a === "string" ? a.trim() : a;
     }
+    if (Object.keys(toSend).length === 0) {
+      setErrors({ [visible[0].id]: "Svar på minst ett spørsmål." });
+      requestAnimationFrame(() => summaryRef.current?.focus());
+      return;
+    }
     startTransition(async () => {
       setResult(await sendSurvey(survey.id, toSend));
-      requestAnimationFrame(() => resultRef.current?.focus());
     });
   }
 
@@ -116,12 +127,17 @@ export function SurveyForm({ survey }: { survey: Survey }) {
 
         {result?.status === "invalid" && (
           <Alert variant="error" ref={resultRef} tabIndex={-1}>
-            Svaret ble ikke godtatt.{result.message ? ` Serveren sa: «${result.message}»` : ""}
+            Svaret ble ikke godtatt. Last inn siden på nytt og prøv igjen.
           </Alert>
         )}
         {result?.status === "no-identity" && (
           <Alert variant="error" ref={resultRef} tabIndex={-1}>
             Vi fant ingen Nav-identitet på innloggingen din, så svaret ble ikke sendt.
+          </Alert>
+        )}
+        {result?.status === "closed" && (
+          <Alert variant="warning" ref={resultRef} tabIndex={-1}>
+            Undersøkelsen er stengt, så svaret ble ikke sendt.
           </Alert>
         )}
         {result?.status === "error" && (

@@ -17,6 +17,7 @@ describe("submitAnswers", () => {
     [201, { status: "recorded" }],
     [409, { status: "duplicate" }],
     [403, { status: "no-identity" }],
+    [404, { status: "closed" }],
     [503, { status: "error" }],
   ])("maps %i", async (code, want) => {
     const fetch = vi.fn().mockResolvedValue(new Response("{}", { status: code }));

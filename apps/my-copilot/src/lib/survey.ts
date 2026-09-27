@@ -38,6 +38,7 @@ export type SubmitResult =
   | { status: "duplicate" }
   | { status: "invalid"; message: string }
   | { status: "no-identity" }
+  | { status: "closed" }
   | { status: "error" };
 
 const KNOWN_TYPES = ["scale", "choice", "multi", "text"];
@@ -88,9 +89,14 @@ export async function submitAnswers(userToken: string, surveyId: string, answers
     case 409:
       return { status: "duplicate" };
     case 400: {
+      // The form checks what copilot-cli checks, so this should not happen.
+      // Log the reason; the page shows a plain message.
       const body = (await res.json().catch(() => ({}))) as { error?: string };
+      console.error(`survey ${surveyId}: answers refused: ${body.error ?? ""}`);
       return { status: "invalid", message: body.error ?? "" };
     }
+    case 404:
+      return { status: "closed" };
     case 403:
       return { status: "no-identity" };
     default:
