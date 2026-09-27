@@ -8,8 +8,6 @@ metadata:
 spec:
   image: {{image}}
   port: 8080
-  # Exactly one: the survey queue and its dedup live in the pod's memory
-  # (store.go). More replicas would let one person answer twice.
   replicas:
     min: {{replicas_min}}
     max: {{replicas_max}}
@@ -44,20 +42,8 @@ spec:
     application:
       enabled: true
       tenant: {{azure_tenant}}
-  gcp:
-    sqlInstances:
-      - type: POSTGRES_17
-        tier: {{db_tier}}
-        # Query insights would keep query samples next to their times; the
-        # survey tables must not have that side channel.
-        insights:
-          enabled: false
-        databases:
-          - name: copilot-cli
-            envVarPrefix: DB
   # The nav-pilot GitHub App's GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET,
-  # and one SURVEY_KEY_<ID> per open survey. Created by hand in the Nais
-  # console; see README.
+  # nothing else. Created by hand in the Nais console; see README.
   envFrom:
     - secret: copilot-cli
   env:
@@ -71,6 +57,8 @@ spec:
     outbound:
       rules:
         - application: copilot-api
+          namespace: {{namespace}}
+        - application: copilot-survey
           namespace: {{namespace}}
       external:
         - host: api.github.com

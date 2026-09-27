@@ -156,16 +156,17 @@ nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)�
 - Inbound: the `.intern.nav.no` ingress, which requires naisdevice. No CORS:
   browsers never call it.
 - Secrets: the nav-pilot GitHub App's client id and secret (for the token
-  check), `SURVEY_KEY_<ID>` per open survey, and the Postgres credentials
-  NAIS injects. No GitHub App private key.
-- Outbound: copilot-api (service discovery) + `api.github.com` / `github.com`.
-- Survey answers: a second answer is refused through a per-survey keyed HMAC
-  of the Nav e-mail in a participation table, and the answers go to a
-  separate table with no identifier, written in shuffled batches. The key and
-  the participation rows are deleted when the survey closes. Data model, key
-  lifecycle and residual risks: `apps/copilot-cli/README.md`. Submissions
-  answer 503 for now: copilot-cli has no way to find a GitHub user's Nav
-  e-mail without a GitHub App key, and it must not hold one.
+  check), nothing else. No GitHub App private key, no survey key, no database.
+- Outbound: copilot-api and copilot-survey (service discovery) +
+  `api.github.com` / `github.com`.
+- Survey answers go to copilot-survey with the M2M token and
+  `X-On-Behalf-Of`. copilot-survey has no ingress, holds the survey keys and
+  the database, and asks copilot-api for a login's Nav e-mail. A second
+  answer is refused through a per-survey keyed HMAC of the e-mail in a
+  participation table, and the answers go to a separate table with no
+  identifier, written in shuffled batches. The key and the participation rows
+  are deleted when the survey closes. Data model, key lifecycle and residual
+  risks: `apps/copilot-survey/README.md`.
 
 > **Status:** copilot-api trusts `X-On-Behalf-Of` via its Identity Resolver
 > architecture (see `apps/copilot-api/ARCHITECTURE.md`). The

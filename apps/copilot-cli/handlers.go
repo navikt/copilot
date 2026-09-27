@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"net/url"
 )
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -24,12 +25,13 @@ func readyHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("OK"))
 }
 
-// makeRouter wires the health endpoints, the survey definitions (public) and
-// the signed-in /api/v1/* routes.
+// makeRouter wires the health endpoints and the /api/v1/* routes nav-pilot
+// calls. Their shapes never change: shipped binaries depend on them. Usage
+// goes to copilot-api, surveys to copilot-survey.
 //
 // No CORS headers are set, on purpose: browsers never call this service, so
 // a cross-origin browser request is refused by the browser itself.
-func makeRouter(auth *authenticator, proxy *copilotAPIProxy, surveys *surveyAPI) http.Handler {
+func makeRouter(auth *authenticator, api, surveys *upstream) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", healthHandler)
@@ -44,11 +46,15 @@ func makeRouter(auth *authenticator, proxy *copilotAPIProxy, surveys *surveyAPI)
 			writeError(w, http.StatusInternalServerError, "missing authenticated user in context")
 			return
 		}
-		proxy.forward(usagePath(user.Login))(w, r)
+		api.forward(w, r, usagePath(user.Login))
 	}))
 
-	mux.HandleFunc("GET /api/v1/surveys/active", surveys.active)
-	mux.HandleFunc("POST /api/v1/surveys/{id}/responses", authMiddleware(auth, surveys.submit))
+	mux.HandleFunc("GET /api/v1/surveys/active", func(w http.ResponseWriter, r *http.Request) {
+		surveys.forward(w, r, "/api/v1/surveys/active")
+	})
+	mux.HandleFunc("POST /api/v1/surveys/{id}/responses", authMiddleware(auth, func(w http.ResponseWriter, r *http.Request) {
+		surveys.forward(w, r, "/api/v1/surveys/"+url.PathEscape(r.PathValue("id"))+"/responses")
+	}))
 
 	return mux
 }

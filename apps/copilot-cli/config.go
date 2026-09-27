@@ -1,10 +1,10 @@
 // Package main implements copilot-cli, a NAIS-hosted gateway for nav-pilot.
-// It signs callers in with a GitHub token (navikt org members only), forwards
-// usage requests to copilot-api, and serves user surveys.
+// It signs callers in with a GitHub token (navikt org members only) and
+// forwards usage requests to copilot-api and survey requests to
+// copilot-survey.
 package main
 
 import (
-	"encoding/base64"
 	"log/slog"
 	"os"
 	"strings"
@@ -37,9 +37,10 @@ type Config struct {
 	GitHubClientID     string
 	GitHubClientSecret string
 
-	// DatabaseURL turns on survey submissions; each survey also needs its
-	// own key, SURVEY_KEY_<ID> (see surveyKeys).
-	DatabaseURL string
+	// CopilotSurveyURL and CopilotSurveyAudience reach copilot-survey the
+	// same way.
+	CopilotSurveyURL      string
+	CopilotSurveyAudience string
 
 	// OrgMembershipCacheTTL controls how long a verified org membership is
 	// cached, keyed by a SHA-256 hash of the caller's GitHub token, to avoid
@@ -56,48 +57,25 @@ func loadConfig() *Config {
 		LogLevel:              parseLogLevel(getEnv("LOG_LEVEL", "INFO")),
 		GitHubOrg:             getEnv("GITHUB_ORG", "navikt"),
 		CopilotAPIURL:         getEnv("COPILOT_API_URL", "http://copilot-api"),
-		CopilotAPIAudience:    getEnv("COPILOT_API_AUDIENCE", audienceForCluster(cluster)),
+		CopilotAPIAudience:    getEnv("COPILOT_API_AUDIENCE", audienceForCluster(cluster, "copilot-api")),
+		CopilotSurveyURL:      getEnv("COPILOT_SURVEY_URL", "http://copilot-survey"),
+		CopilotSurveyAudience: getEnv("COPILOT_SURVEY_AUDIENCE", audienceForCluster(cluster, "copilot-survey")),
 		NaisTokenEndpoint:     os.Getenv("NAIS_TOKEN_ENDPOINT"),
 		OrgMembershipCacheTTL: 5 * time.Minute,
 
 		GitHubClientID:     os.Getenv("GITHUB_CLIENT_ID"),
 		GitHubClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
-		DatabaseURL:        os.Getenv("DB_URL"),
 	}
 }
 
-// audienceForCluster derives the default Entra ID audience for the
-// copilot-api backend, following the api://<cluster>.<namespace>.<app>/.default
+// audienceForCluster derives the default Entra ID audience for an app in the
+// copilot namespace, following the api://<cluster>.<namespace>.<app>/.default
 // convention used across this monorepo.
-func audienceForCluster(cluster string) string {
+func audienceForCluster(cluster, app string) string {
 	if cluster == "" || cluster == "local" {
 		return ""
 	}
-	return "api://" + cluster + ".copilot.copilot-api/.default"
-}
-
-// surveyKeys reads each survey's secret key from SURVEY_KEY_<ID> (the id
-// upper-cased, - as _), base64 of at least 32 bytes. A survey with a missing
-// or short key takes no answers.
-//
-// A key still present after its survey closed is logged as a warning: it
-// should have been deleted (see README, key lifecycle).
-func surveyKeys(surveys []survey, now time.Time) map[string][]byte {
-	keys := map[string][]byte{}
-	for _, s := range surveys {
-		name := "SURVEY_KEY_" + strings.ToUpper(strings.ReplaceAll(s.ID, "-", "_"))
-		if !now.Before(s.closesOn()) {
-			if os.Getenv(name) != "" {
-				slog.Warn("survey key still present after the survey closed: delete it from the copilot-cli secret", "key", name)
-			}
-			continue
-		}
-		key, err := base64.StdEncoding.DecodeString(strings.TrimSpace(os.Getenv(name)))
-		if err == nil && len(key) >= 32 {
-			keys[s.ID] = key
-		}
-	}
-	return keys
+	return "api://" + cluster + ".copilot." + app + "/.default"
 }
 
 func getEnv(key, defaultValue string) string {

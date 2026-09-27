@@ -6,8 +6,8 @@ holds neither.
 
 `copilot-cli` is the second caller: a gateway that lets `nav-pilot` reach the same
 backend from a terminal. It holds the nav-pilot GitHub App's client id and secret,
-for checking a user's token, plus the survey keys and database. It holds no GitHub App
-private key.
+for checking a user's token, and nothing else. Survey answers go on to `copilot-survey`,
+which holds the survey keys and database and has no ingress.
 
 This document covers the shape of the system and the reasoning behind it. The endpoint
 list, the full config table and the error-type catalogue live in

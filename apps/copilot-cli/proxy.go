@@ -9,75 +9,76 @@ import (
 	"time"
 )
 
-// copilotAPIProxy forwards authenticated CLI requests to copilot-api,
-// exchanging copilot-cli's workload identity for an M2M token and
-// identifying the calling developer via X-On-Behalf-Of. copilot-api trusts
-// this header only when the M2M token's azp matches a trusted client ID
-// (see OnBehalfOfIdentityResolver in apps/copilot-api/identity_onbehalfof.go
-// and requireOwnership in apps/copilot-api/identity_middleware.go).
-type copilotAPIProxy struct {
+// upstream forwards CLI requests to a service in the cluster (copilot-api,
+// copilot-survey) with copilot-cli's own M2M token for that service and, for
+// a signed-in caller, the verified GitHub login in X-On-Behalf-Of. Each
+// downstream decides which of its routes honour the header (see
+// OnBehalfOfIdentityResolver in apps/copilot-api and auth.go in
+// apps/copilot-survey).
+//
+// Method, request body and Content-Type go through; status, Content-Type,
+// Cache-Control and body come back as they are. No retry: a retry would
+// have to buffer the body, and survey bodies must not linger anywhere.
+type upstream struct {
+	name       string
 	httpClient *http.Client
 	baseURL    string
 	texas      *texasClient
 }
 
-func newCopilotAPIProxy(baseURL string, texas *texasClient) *copilotAPIProxy {
-	return &copilotAPIProxy{
+func newUpstream(name, baseURL string, texas *texasClient) *upstream {
+	return &upstream{
+		name:       name,
 		httpClient: &http.Client{Timeout: 10 * time.Second},
 		baseURL:    strings.TrimSuffix(baseURL, "/"),
 		texas:      texas,
 	}
 }
 
-// forward proxies the incoming request to the given copilot-api path
-// (e.g. "/api/v1/copilot/usage/user/{username}") on behalf of the
-// authenticated user found in the request context.
-func (p *copilotAPIProxy) forward(upstreamPath string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user, ok := userFromContext(r.Context())
-		if !ok {
-			writeError(w, http.StatusUnauthorized, "missing authenticated user")
-			return
-		}
-
-		token, err := p.texas.token(r.Context())
-		if err != nil {
-			slog.Error("failed to mint M2M token for copilot-api", "error", err)
+// forward proxies r to path on the upstream. A request with no signed-in
+// user (the public survey definitions) goes without a token or header.
+func (p *upstream) forward(w http.ResponseWriter, r *http.Request, path string) {
+	req, err := http.NewRequestWithContext(r.Context(), r.Method, p.baseURL+path, http.MaxBytesReader(w, r.Body, 64<<10))
+	if err != nil {
+		slog.Error("failed to build upstream request", "upstream", p.name, "error", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	if ct := r.Header.Get("Content-Type"); ct != "" {
+		req.Header.Set("Content-Type", ct)
+	}
+	if user, ok := userFromContext(r.Context()); ok {
+		token, tokenErr := p.texas.token(r.Context())
+		if tokenErr != nil {
+			slog.Error("failed to mint M2M token", "upstream", p.name, "error", tokenErr)
 			writeError(w, http.StatusBadGateway, "upstream authentication unavailable")
-			return
-		}
-
-		upstreamURL := p.baseURL + upstreamPath
-		req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, upstreamURL, nil)
-		if err != nil {
-			slog.Error("failed to build copilot-api request", "error", err)
-			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
 		req.Header.Set("Authorization", "Bearer "+token)
 		req.Header.Set("X-On-Behalf-Of", user.Login)
+	}
 
-		resp, err := p.httpClient.Do(req)
-		if err != nil {
-			slog.Error("copilot-api request failed", "error", err)
-			writeError(w, http.StatusBadGateway, "copilot-api unavailable")
-			return
-		}
-		defer resp.Body.Close()
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		slog.Error("upstream request failed", "upstream", p.name, "error_type", fmt.Sprintf("%T", err))
+		writeError(w, http.StatusBadGateway, p.name+" unavailable")
+		return
+	}
+	defer resp.Body.Close()
 
-		contentType := resp.Header.Get("Content-Type")
-		if contentType == "" {
-			contentType = "application/json"
-		}
-		w.Header().Set("Content-Type", contentType)
-		w.WriteHeader(resp.StatusCode)
-		if _, err := io.Copy(w, resp.Body); err != nil {
-			slog.Warn("failed to stream copilot-api response", "error", err)
-			// Best-effort drain so the underlying connection can still be
-			// reused by the transport's connection pool even though the
-			// client-facing copy failed partway through.
-			_, _ = io.Copy(io.Discard, resp.Body)
-		}
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/json"
+	}
+	w.Header().Set("Content-Type", contentType)
+	if cc := resp.Header.Get("Cache-Control"); cc != "" {
+		w.Header().Set("Cache-Control", cc)
+	}
+	w.WriteHeader(resp.StatusCode)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		slog.Warn("failed to stream upstream response", "upstream", p.name, "error", err)
+		// Best-effort drain so the connection can be reused.
+		_, _ = io.Copy(io.Discard, resp.Body)
 	}
 }
 
