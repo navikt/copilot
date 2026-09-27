@@ -59,7 +59,7 @@ Hooken kjører hver gang du committer. Den sender meldingen og diffen til den lo
 
 ### Dette trenger du
 
-- En Mac med Apple Silicon. `alpha local` kjører ikke på andre maskiner.
+- En Mac med Apple Silicon. På Linux kan du i stedet bruke en server du kjører selv, som Ollama eller llama-server (alfa, ikke målt). Se [egen lokal server](/nav-pilot/docs#lokal-egen-server).
 - 48 GB minne. Modellen bruker rundt 21 GB mens serveren kjører.
 - Rundt 26 GB ledig diskplass: 25 GB til vektene og rundt 1 GB til et Python-miljø.
 - Passordet ditt. `init` bruker `sudo` for å heve en minnegrense i macOS.

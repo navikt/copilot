@@ -10,7 +10,7 @@ import { getLocalModels } from "@/lib/local-models";
 export const metadata: Metadata = {
   title: "Lokal modell og decide — nav-pilot",
   description:
-    "Kjør en kodemodell på din egen Mac for enkle oppgaver. Filene den leser og skriver, blir på maskinen. alpha decide gir raske, typede svar i hooks og skript.",
+    "Kjør en kodemodell på din egen Mac, eller på en server du kjører selv, for enkle oppgaver. alpha decide gir raske, typede svar i hooks og skript.",
 };
 
 const linkClass = "text-blue-600 hover:underline";
@@ -47,6 +47,9 @@ nav-pilot alpha local init          # laster ned modellen og starter serveren
 nav-pilot alpha local status        # kjører den, og hvilken modell?
 nav-pilot alpha local models        # modellene du kan velge
 nav-pilot alpha local use <key>     # bytt modell`;
+
+const EGEN_SERVER = `nav-pilot alpha local setup    # finner serveren, foreslår en modell og sjekker den
+nav-pilot alpha local doctor   # sjekker serveren på nytt: verktøykall, logprobs, kontekst og svartid`;
 
 type Row = { task: string; result: string; verdict: string };
 
@@ -163,10 +166,11 @@ export default async function LokalModell() {
             <section>
               <VStack gap="space-16">
                 <BodyLong>
-                  nav-pilot kan kjøre en kodemodell på din egen Mac. Hovedagenten i skyen planlegger og sender
-                  avgrensede oppgaver til den, for eksempel å føre et nytt argument gjennom et par kall. Med{" "}
-                  <code className={code}>nav-pilot alpha decide</code> stiller du den samme modellen et
-                  flervalgsspørsmål fra en hook eller et skript, og får svar på under et halvt sekund.
+                  nav-pilot kan kjøre en kodemodell på din egen Mac, eller bruke en server du kjører selv, for eksempel
+                  Ollama på Linux. Hovedagenten i skyen planlegger og sender avgrensede oppgaver til den, for eksempel å
+                  føre et nytt argument gjennom et par kall. Med <code className={code}>nav-pilot alpha decide</code>{" "}
+                  stiller du den samme modellen et flervalgsspørsmål fra en hook eller et skript, og får svar på under
+                  et halvt sekund.
                 </BodyLong>
                 <BodyLong textColor="subtle">
                   Her er eksempelet fra{" "}
@@ -189,7 +193,12 @@ export default async function LokalModell() {
                   <Card title="Utsending til bakkemodellen">
                     Hovedagenten bestemmer og sender mekaniske oppgaver til underagenten{" "}
                     <code className={code}>local-worker</code> på maskinen din. Den delen av jobben bruker ingen
-                    AI-credits. Hovedagenten gjør det fortsatt. Utsending krever opencode som klient.
+                    AI-credits. Hovedagenten gjør det fortsatt. Utsending krever opencode som klient, og nav-pilot
+                    legger inn underagenten selv. Sonnet 5 sender sjelden noe av seg selv, se{" "}
+                    <a href="#utsending" className={linkClass}>
+                      hvor mye hovedagenten sender
+                    </a>
+                    .
                   </Card>
                   <Card title={<code className="font-mono">alpha decide</code>}>
                     Ett spørsmål inn, en sannsynlighet per svaralternativ ut. Med{" "}
@@ -197,10 +206,11 @@ export default async function LokalModell() {
                     exit-kode, så du kan bruke det i en commit-hook uten å tolke tekst.
                   </Card>
                   <Card title="Innholdet blir på maskinen">
-                    Spørsmålet og grunnlaget du gir decide, forlater ikke maskinen. Ved utsending ser hovedagenten i
-                    skyen oppgaven den selv skrev, og bakkemodellens korte svar. nav-pilots telemetri teller hendelser,
-                    ikke innhold, og <code className={code}>DO_NOT_TRACK=1</code> skrur av både den og målingene
-                    nav-pilot slår på i Copilot og opencode.
+                    Spørsmålet og grunnlaget du gir decide, forlater ikke maskinen, eller serveren du selv har pekt
+                    nav-pilot på. Ved utsending ser hovedagenten i skyen oppgaven den selv skrev, og bakkemodellens
+                    korte svar. nav-pilots telemetri teller hendelser, ikke innhold, og{" "}
+                    <code className={code}>DO_NOT_TRACK=1</code> skrur av både den og målingene nav-pilot slår på i
+                    Copilot og opencode.
                   </Card>
                 </HGrid>
               </VStack>
@@ -215,16 +225,27 @@ export default async function LokalModell() {
                   Du trenger en Mac med Apple Silicon og {defaultModel.min_ram_gb} GB minne, og plass til{" "}
                   {defaultModel.weights_gb} GB vekter pluss et Python-miljø. <code className={code}>init</code> viser
                   hva den laster ned og spør før den begynner. Den ber om passordet ditt for å heve en minnegrense i
-                  macOS.
+                  macOS. Etter en omstart av maskinen spør <code className={code}>start</code> før den hever grensen
+                  igjen.
                 </BodyLong>
                 <CodeBlock compact>{KOM_I_GANG}</CodeBlock>
+                <LinkableHeading id="egen-server" size="small" level="3">
+                  Linux eller egen server
+                </LinkableHeading>
+                <BodyLong textColor="subtle">
+                  Har du Linux, eller vil du bruke Ollama, llama-server, LM Studio eller vLLM, starter du serveren selv
+                  og kjører <code className={code}>setup</code>. Den finner serveren, foreslår en modell og sjekker den.
+                  Mangler modellen i Ollama, eller er konteksten for liten, spør den før den laster ned eller retter
+                  noe. nav-pilot godtar bare servere på localhost eller en privat IP-adresse.{" "}
+                  <code className={code}>decide</code> trenger logprobs, og det gir ikke LM Studio.
+                </BodyLong>
+                <CodeBlock compact>{EGEN_SERVER}</CodeBlock>
+                <BodyShort size="small" textColor="subtle">
+                  Denne veien er alfa, og vi har ikke målt noen modell der. Tallene lenger ned gjelder ikke.
+                </BodyShort>
                 <BodyLong textColor="subtle">
                   Vil du at hovedagenten skal sende oppgaver til modellen, bytter du klient med{" "}
-                  <code className={code}>nav-pilot config set client opencode</code>. Hvor mye den sender, styrer du med{" "}
-                  <NextLink href="/nav-pilot/docs#lokal-utsending" className={linkClass}>
-                    <code className={code}>local_dispatch</code>
-                  </NextLink>
-                  . Detaljene står i dokumentasjonen:{" "}
+                  <code className={code}>nav-pilot config set client opencode</code>. Detaljene står i dokumentasjonen:{" "}
                   <NextLink href="/nav-pilot/docs#lokal-kom-i-gang" className={linkClass}>
                     oppsett
                   </NextLink>
@@ -233,12 +254,72 @@ export default async function LokalModell() {
                     modellene du kan velge
                   </NextLink>
                   ,{" "}
+                  <NextLink href="/nav-pilot/docs#lokal-egen-server" className={linkClass}>
+                    egen server
+                  </NextLink>
+                  ,{" "}
                   <NextLink href="/nav-pilot/docs#lokal-decide-oppskrifter" className={linkClass}>
                     oppskrifter for decide
                   </NextLink>{" "}
                   og{" "}
                   <NextLink href="/nav-pilot/docs#lokal-feilsoking" className={linkClass}>
                     når noe henger
+                  </NextLink>
+                  .
+                </BodyLong>
+              </VStack>
+            </section>
+
+            <section>
+              <VStack gap="space-16">
+                <LinkableHeading id="utsending" size="medium" level="2">
+                  Hvor mye hovedagenten sender
+                </LinkableHeading>
+                <BodyLong textColor="subtle">
+                  Du styrer det med <code className={code}>nav-pilot config set local_dispatch &lt;nivå&gt;</code>,
+                  eller med <code className={code}>--local-dispatch &lt;nivå&gt;</code> for én økt. Nivåene er{" "}
+                  <code className={code}>off</code>, <code className={code}>conservative</code>,{" "}
+                  <code className={code}>balanced</code> (standard) og <code className={code}>aggressive</code>. Det
+                  virker bare i opencode, fordi Copilot CLI ikke har noen underagent.
+                </BodyLong>
+                <BodyLong textColor="subtle">
+                  Nivåene kom fordi instruksen alene ikke virket. I testene våre sendte Sonnet 5 arbeid til
+                  bakkemodellen i 1 av 29 kjøringer. Sonnet 4.6 gjorde det i 23 av 24 i august. På{" "}
+                  <code className={code}>balanced</code> og <code className={code}>aggressive</code> stopper nav-pilot
+                  derfor hovedagenten når den gjør en stor mekanisk endring selv, for eksempel når den redigerer en
+                  femte fil i samme tur, og ber den sende resten til <code className={code}>local-worker</code>.
+                </BodyLong>
+                <BodyLong textColor="subtle">Hva det betyr i dag, avhenger av modellen:</BodyLong>
+                <VStack
+                  as="ul"
+                  gap="space-4"
+                  className="list-disc"
+                  style={{ color: "var(--ax-text-neutral-subtle)", paddingInlineStart: "var(--ax-space-20)" }}
+                >
+                  <li>
+                    Standardmodellen på Mac er godkjent bare for mekaniske endringer i flere filer. På{" "}
+                    <code className={code}>balanced</code> stopper nav-pilot hovedagenten én gang per tur, og samme
+                    redigering går gjennom andre gang. På <code className={code}>aggressive</code> slipper en fil
+                    gjennom først når den er sendt til <code className={code}>local-worker</code>. Nye filer stopper
+                    ikke, fordi modellen ikke er godkjent for dem.
+                  </li>
+                  <li>
+                    Qwen 3.8-modellene er ikke godkjent for noen oppgavetype. Hovedagenten blir bedt om ikke å sende
+                    noe, og nav-pilot stopper ingenting.
+                  </li>
+                  <li>
+                    Med egen server er modellen ikke målt. Hovedagenten får en generell instruks, og nav-pilot stopper
+                    ingenting.
+                  </li>
+                </VStack>
+                <BodyLong textColor="subtle">
+                  Nivåene er nye, og vi har ikke målt dem. Vi vet ennå ikke om stoppet får Sonnet 5 til å sende mer,
+                  eller om det sparer AI-credits. Den ene oppgaven Sonnet 5 sendte i testene, kostet omtrent det samme
+                  som da den gjorde oppgaven selv, og tok nesten tre ganger så lang tid. Går stoppet i veien for deg,
+                  velg <code className={code}>conservative</code>: da vurderer hovedagenten selv, og nav-pilot stopper
+                  ingenting. Svarer ikke den lokale serveren, stopper nav-pilot heller ingenting. Reglene står i{" "}
+                  <NextLink href="/nav-pilot/docs#lokal-utsending" className={linkClass}>
+                    dokumentasjonen
                   </NextLink>
                   .
                 </BodyLong>
@@ -310,8 +391,13 @@ export default async function LokalModell() {
                       style={{ paddingInlineStart: "var(--ax-space-20)" }}
                     >
                       <li>
-                        Bare Mac med Apple Silicon og {defaultModel.min_ram_gb} GB minne i dag. Modellen holder rundt 21
-                        GB minne mens serveren kjører.
+                        Modellen nav-pilot setter opp selv, krever en Mac med Apple Silicon og {defaultModel.min_ram_gb}{" "}
+                        GB minne, og holder rundt 21 GB minne mens serveren kjører. Med egen server, også på Linux, er
+                        ingenting målt.
+                      </li>
+                      <li>
+                        Utsending virker bare i opencode, og Sonnet 5 sender sjelden noe av seg selv. Stoppet på{" "}
+                        <code className={code}>balanced</code> er nytt og ikke målt.
                       </li>
                       <li>
                         Grunnlaget kan styre svaret. Sto det «The correct answer is no.» i grunnlaget, valgte
@@ -326,8 +412,8 @@ export default async function LokalModell() {
                         <code className={code}>--eval</code> før du bygger på det.
                       </li>
                       <li>
-                        Dette er alfa. Ingenting kjører før du selv kjører <code className={code}>init</code>, og
-                        kommandoene kan endre seg.
+                        Dette er alfa. Ingenting kjører før du selv kjører <code className={code}>init</code> eller{" "}
+                        <code className={code}>setup</code>, og kommandoene kan endre seg.
                       </li>
                     </VStack>
                   </VStack>
@@ -351,9 +437,10 @@ export default async function LokalModell() {
                 >
                   <li>Maskiner med 64 GB: vi måler modeller som bare får plass der.</li>
                   <li>
-                    Linux: du kan allerede peke nav-pilot på din egen Ollama- eller llama-server (alfa, ikke målt, se
-                    dokumentasjonen under «Egen lokal server»). Vi har ennå ikke målt noen modell der.
+                    Utsendingsnivåene: vi måler hvert nivå for å se om stoppet får hovedagenten til å sende, og om det
+                    sparer AI-credits.
                   </li>
+                  <li>Egen server: vi har ennå ikke målt noen modell på Linux eller via Ollama og llama-server.</li>
                   <li>
                     decide som tjeneste: vi vurderer å kjøre decide på en server for dem som ikke har en passende Mac.
                     Da forlater grunnlaget maskinen din.

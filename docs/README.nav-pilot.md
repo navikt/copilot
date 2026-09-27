@@ -446,6 +446,7 @@ nav-pilot upgrade
 nav-pilot models            # modellene klienten kan bruke, med den du har valgt markert
 nav-pilot models claude     # bare modellene med «claude» i navnet
 nav-pilot feedback
+nav-pilot -- -p "…"         # start klienten med argumentene etter --, uten spørsmål fra nav-pilot og uten synk
 ```
 
 `nav-pilot models --client opencode` viser listen for en annen klient. `--json` gir
@@ -477,6 +478,7 @@ kjører på versjonen du har, og neste forsøk kommer etter 24 timer. Slå det a
 
 `nav-pilot alpha local` kjører en modell på din egen maskin. Den trekker ingen AI-credits.
 Krever en Mac med Apple Silicon og 48 GB minne, og rundt 26 GB ledig disk. `init` gjør resten, inkludert å heve macOS-minnegrensen med `sudo`.
+Har du Linux, kan du bruke en server du kjører selv, se [Egen lokal server](#egen-lokal-server-linux-ollama-llama-server).
 
 ```bash
 nav-pilot alpha local init      # gjør alt: miljø, vekter, minnegrense, og starter serveren
@@ -490,6 +492,8 @@ nav-pilot alpha local restart   # stopp og start på modellen local_model peker 
 nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
 nav-pilot alpha local purge     # fjern miljøet og valgt modell, viser hva og hvor mye først
+nav-pilot alpha local setup     # egen server: finner den, foreslår modell og sjekker den
+nav-pilot alpha local doctor    # egen server: sjekker verktøykall, logprobs, kontekst og svartid
 ```
 
 ### Bytte modell
@@ -618,7 +622,8 @@ Studio sitt chat-endepunkt gjør det ikke. Uten logprobs sier `decide` fra med e
 
 **Under opencode** blir modellen en underagent (`local-worker`) som hovedagenten i skyen
 kan sende avgrensede oppgaver til. Hovedagenten bestemmer fortsatt alt. Den sender videre
-det som er mekanisk og spesifisert, og gjør resten selv.
+det som er mekanisk og spesifisert, og gjør resten selv. nav-pilot legger inn `local-worker`
+selv når agentpakken din ikke har den. Har pakken eller repoet ditt en egen, brukes den.
 
 **Under Copilot CLI finnes ingen slik underagent i dag.** Copilot CLI er standardklienten i
 nav-pilot, så dette gjelder deg med mindre du har byttet. Der er valget hele økten på den lokale
@@ -655,9 +660,19 @@ nav-pilot --local-dispatch aggressive -- run "…"     # bare denne økten
 Uansett nivå sendes bare oppgavetyper som manifestet har målt at modellen klarer. Nivået endrer
 hvor hardt nav-pilot presser på, aldri hva som regnes som trygt å sende.
 
+Instruksen ber hovedagenten dele en stor endring i én oppgave per fil, med en sjekk for hver
+fil, og selv bygge og kjøre testene til slutt. En endring som ett søk-og-erstatt klarer, skal den
+gjøre selv.
+
 Grunnen til at standardnivået passer på: nyere skymodeller følger instruksen dårlig. Sonnet 5
-sendte 1 av 29 oppgaver i testene våre, også når instruksen sa rett ut at nye testfiler skulle
-sendes. Sonnet 4.6 sendte 23 av 24 med omtrent samme tekst.
+sendte arbeid til bakkemodellen i 1 av 29 testkjøringer, også når instruksen sa rett ut at nye
+testfiler skulle sendes. Sonnet 4.6 gjorde det i 23 av 24 med omtrent samme tekst.
+
+Hva nivåene gjør i dag, avhenger av modellen. Standardmodellen på Mac er godkjent bare for
+mekaniske endringer i flere filer, så regelen om nye filer på `aggressive` slår ikke inn.
+Qwen 3.8-modellene er ikke godkjent for noe, og en modell på egen server er ikke målt. Med dem
+stopper nav-pilot ingenting på noe nivå. Nivåene er nye, og vi har ikke målt om stoppet får
+hovedagenten til å sende mer, eller om det sparer AI-credits.
 
 nav-pilot stopper aldri noe når det ikke finnes en lokal modell å sende til. Det gjelder hvis
 serveren ikke kjørte da økten startet, og hvis porten til serveren slutter å ta imot tilkoblinger
@@ -879,7 +894,7 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | `local_model` | — | modell-id fra manifestet | Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Enklest satt med nav-pilot alpha local use &lt;key&gt;. |
 | `local_endpoint` | — | en http(s)-URL | Din egen OpenAI-kompatible server (Ollama, llama-server), f.eks. http://127.0.0.1:11434/v1 (alfa, uten støtte, ikke målt). Da laster nav-pilot ikke ned og starter ingenting. Bare localhost og private IP-adresser. Sjekk den med nav-pilot alpha local doctor. |
 | `local_endpoint_model` | — | modell-id på serveren | Modell-id-en local_endpoint skal bruke, f.eks. qwen3.6:35b. Påkrevd sammen med local_endpoint. |
-| `local_dispatch` | --local-dispatch | off · conservative · balanced · aggressive (standard: balanced) | Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer. Med aggressive slipper den gjennom først når filen er sendt til den lokale modellen, og det samme gjelder nye filer. |
+| `local_dispatch` | --local-dispatch | off · conservative · balanced · aggressive (standard: balanced) | Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer. Med aggressive slipper den gjennom først når filen er sendt til den lokale modellen, og det samme gjelder nye filer. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for. |
 | `hook_loop_guard` | — | true · false (standard: true) | Samme løkkeregel i alle Copilot CLI-økter, også i skyen: en postToolUse-hook i ~/.copilot/hooks/ sier fra til modellen når den står fast. false fjerner hooken ved neste oppstart. |
 | `hook_redact_secrets` | — | true · false (standard: true) | Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-økter. |
 | `hook_redact_fnr` | — | true · false (standard: true) | Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. Bare elleve sifre der datoen og begge kontrollsifrene stemmer blir maskert. |

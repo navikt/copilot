@@ -1724,7 +1724,7 @@ const CONFIG_KEYS = [
     key: "local_dispatch",
     flag: "--local-dispatch",
     values: "off · conservative · balanced · aggressive (standard: balanced)",
-    desc: "Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer. Med aggressive slipper den gjennom først når filen er sendt til den lokale modellen, og det samme gjelder nye filer.",
+    desc: "Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer. Med aggressive slipper den gjennom først når filen er sendt til den lokale modellen, og det samme gjelder nye filer. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for.",
   },
   {
     key: "hook_loop_guard",
@@ -2198,7 +2198,11 @@ function LocalModelSection({ models }: { models: LocalModel[] }) {
             Dette er alfa, og av som standard. Ingenting endres før du kjører{" "}
             <code className="font-mono text-xs">init</code> selv. Du trenger en Mac med Apple Silicon og{" "}
             {defaultModel.min_ram_gb} GB minne, og ledig disk til {defaultModel.weights_gb} GB vekter pluss
-            Python-miljøet. Intel-Macer blir avvist, fordi MLX bare finnes for M-brikkene.
+            Python-miljøet. Intel-Macer blir avvist, fordi MLX bare finnes for M-brikkene. Har du Linux, kan du bruke{" "}
+            <a href="#lokal-egen-server" style={{ textDecoration: "underline" }}>
+              en server du kjører selv
+            </a>
+            .
           </BodyLong>
           <BodyLong textColor="subtle">
             Hva du får og hva den klarer, med målte tall, står på{" "}
@@ -2235,7 +2239,9 @@ nav-pilot alpha local stop
 nav-pilot alpha local restart   # stop og start i ett
 nav-pilot alpha local on        # skru på igjen etter off
 nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
-nav-pilot alpha local purge     # viser hva som fjernes og hvor mye; --yes sletter, --all tar alle modellene`}
+nav-pilot alpha local purge     # viser hva som fjernes og hvor mye; --yes sletter, --all tar alle modellene
+nav-pilot alpha local setup     # egen server: finner den, foreslår modell og sjekker den
+nav-pilot alpha local doctor    # egen server: sjekker verktøykall, logprobs, kontekst og svartid`}
           </CodeBlock>
           <VStack id="lokal-modeller" gap="space-12">
             <LinkableHeading size="small" level="3">
@@ -2408,7 +2414,8 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             Utsending til en lokal underagent krever <strong>opencode</strong>. Der blir bakkemodellen en underagent som
             heter <code className="font-mono text-xs">local-worker</code>, og som hovedagenten i skyen sender avgrensede
             oppgaver til. Hovedagenten bestemmer fortsatt alt, og gjør selv det den vurderer at bakkemodellen ikke
-            klarer.
+            klarer. nav-pilot legger inn <code className="font-mono text-xs">local-worker</code> selv når agentpakken
+            din ikke har den. Har pakken eller repoet ditt en egen, brukes den.
           </BodyLong>
           <BodyLong size="small" textColor="subtle">
             Under <strong>Copilot CLI</strong> finnes ingen slik underagent i dag. Copilot CLI er standardklienten, så
@@ -2467,11 +2474,22 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             </li>
           </ul>
           <BodyLong size="small" textColor="subtle">
+            Instruksen ber hovedagenten dele en stor endring i én oppgave per fil, med en sjekk for hver fil, og selv
+            bygge og kjøre testene til slutt. En endring som ett søk-og-erstatt klarer, skal den gjøre selv.
+          </BodyLong>
+          <BodyLong size="small" textColor="subtle">
             Uansett nivå sendes bare oppgavetyper modellen er godkjent for. Standardnivået passer på fordi nyere
-            skymodeller følger instruksen dårlig: Sonnet 5 sendte 1 av 29 oppgaver i testene våre, mens Sonnet 4.6
-            sendte 23 av 24. nav-pilot stopper ingenting når porten til den lokale serveren ikke tar imot tilkoblinger,
-            eller i underagentenes egne økter. Stoppet ligger i en opencode-plugin, så det virker ikke hvis du starter
-            opencode med <code className="font-mono text-xs">--pure</code>.
+            skymodeller følger instruksen dårlig: Sonnet 5 sendte arbeid til bakkemodellen i 1 av 29 testkjøringer, mens
+            Sonnet 4.6 gjorde det i 23 av 24. nav-pilot stopper ingenting når porten til den lokale serveren ikke tar
+            imot tilkoblinger, eller i underagentenes egne økter. Stoppet ligger i en opencode-plugin, så det virker
+            ikke hvis du starter opencode med <code className="font-mono text-xs">--pure</code>.
+          </BodyLong>
+          <BodyLong size="small" textColor="subtle">
+            Hva nivåene gjør i dag, avhenger av modellen. Standardmodellen på Mac er godkjent bare for mekaniske
+            endringer i flere filer, så regelen om nye filer på <code className="font-mono text-xs">aggressive</code>{" "}
+            slår ikke inn. Qwen 3.8-modellene er ikke godkjent for noe, og en modell på egen server er ikke målt. Med
+            dem stopper nav-pilot ingenting på noe nivå. Nivåene er nye, og vi har ikke målt om stoppet får hovedagenten
+            til å sende mer, eller om det sparer AI-credits.
           </BodyLong>
         </VStack>
 
