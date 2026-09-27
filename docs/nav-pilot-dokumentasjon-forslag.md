@@ -1,12 +1,12 @@
 # Forslag: nav-pilot som paraply for ki-utvikling.nav.no
 
-**Status: delvis vedtatt.** V1–V5 ble vedtatt 27.09.2026. Samme kveld kom en ny retning: nav-pilot er paraplyen for alt som handler om Copilot i Nav, og ingen lenker skal brytes. Det endrer tolkningen av V3 og gir fem nye valg (V6–V10) som ikke er tatt. Se [§0](#0-vedtak-og-valg). Arbeidet deles i små PR-er, ett emne om gangen ([§7](#7-plan-for-gjennomføring)).
+**Status: vedtatt.** V1–V5 ble vedtatt 27.09.2026. Samme kveld kom en ny retning: nav-pilot er paraplyen for alt som handler om Copilot i Nav, og ingen lenker skal brytes. V6–V10 ble vedtatt etter at skjermbildene var vist. Se [§0](#0-vedtak-og-valg). Arbeidet deles i små PR-er, ett emne om gangen ([§7](#7-plan-for-gjennomføring)).
 
 Hva som er lest på hvilken commit:
 
 - Nettsiden (`apps/my-copilot`), README-ene og Go-koden: `9fbd3089` (`main`, 27.09.2026). Kommandoene ble kjørt mot en binær bygget fra `356c41a4` med tom `HOME`. Linjenumrene er sjekket på nytt på `9fbd3089`.
 - Klientfunnene i §4 bygger på notater tatt på `d24cac46`.
-- Menyprototypene ligger på de lokale grenene `proto/menu` (A, B og C, bygger på `d24cac46`, de gamle gruppene) og `proto/menu-d` (D og D2, bygger på `main`, paraplyen), og du velger mellom dem etter å ha sett skjermbildene ([§6.3](#63-toppfeltet)).
+- Menyprototypene ligger på de lokale grenene `proto/menu` (A, B og C, bygger på `d24cac46`, de gamle gruppene) og `proto/menu-d` (D og D2, bygger på `main`, paraplyen). D ble valgt ([§6.3](#63-toppfeltet)).
 - Aksel-mønstrene i §6 er lest i kildekoden til aksel.nav.no, navikt/aksel på `3f5153d` [39]–[45]. Andre utviklerportaler er lest på nett 27.09.2026 [60]–[73].
 
 ## 0. Vedtak og valg
@@ -18,6 +18,13 @@ Hva som er lest på hvilken commit:
 - **V3:** En vanlig `<nav>` i toppfeltet for hele nettstedet, hamburgermeny på mobil, og en seksjonsmeny for nav-pilot. Nedtrekkene bygges som disclosure, det vil si en knapp som viser og skjuler en liste med lenker ([§6.6](#66-tilgjengelighet)). Eierne av de andre sidene får se skjermbildene i meny-PR-en, og den flettes ikke inn før de har svart.
 - **V4:** Valget av standardklient hører til #1022. Klientsiden viser paritetsstatusen derfra.
 - **V5:** pi blir værende, merket «eksperimentell», med en liste over det som mangler.
+- **V6:** D. Fem flate lenker i toppfeltet, uten nedtrekk.
+- **V7:** G1. Kom i gang · nav-pilot · Tilpasning · Praksis og regler · Innsikt.
+- **V8:** Seksjonsmenyen dekker hele paraplyen, med én felles layout i en rutegruppe.
+- **V9:** `/kom-i-gang` er den eneste introduksjonen. Vi lager ikke `/nav-pilot/kom-i-gang`.
+- **V10:** Toppfeltet viser «nav-pilot» med «Copilot i Nav» under. Personvernerklæringen og tilgjengelighetserklæringen oppdateres til det nye navnet i samme serie med PR-er.
+
+Tidligere vedtak om V3 (disclosure-nedtrekk og at meny-PR-en venter på svar fra eierne) er erstattet av V6: brukeren har sett skjermbildene. Eierne av de andre sidene får skjermbildene og et varsel i meny-PR-en, med omtrent én arbeidsdag før den flettes inn.
 
 ### Hva som er endret, og hvorfor
 
@@ -35,7 +42,7 @@ V1, V2, V4 og V5 står som før. Fra V3 beholder vi den vanlige `<nav>`, hamburg
 
 | #   | Valg                        | Anbefaling                                                                                                                  | Alternativ                                                                                                                                          |
 | --- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| V6  | Toppmenyen                  | D: fem flate lenker, som Aksel ([§6.3](#63-toppfeltet)). Du velger etter skjermbildene                                      | D2: flate lenker for Kom i gang, nav-pilot og Tilpasning, og nedtrekk (disclosure) for Praksis og regler og Innsikt, nær V3                         |
+| V6  | Toppmenyen                  | D: fem flate lenker, som Aksel ([§6.3](#63-toppfeltet)). **Vedtatt**                                                        | D2: flate lenker for Kom i gang, nav-pilot og Tilpasning, og nedtrekk (disclosure) for Praksis og regler og Innsikt, nær V3                         |
 | V7  | Gruppene i toppmenyen       | G1: Kom i gang · nav-pilot · Tilpasning · Praksis og regler · Innsikt ([§6.2](#62-grupper))                                 | G2: Kom i gang · nav-pilot · Praksis og regler · Innsikt, med Tilpasning inne i nav-pilot. G3: dagens V3 (Kom i gang · Verktøy · Praksis · Innsikt) |
 | V8  | Hvor seksjonsmenyen gjelder | S1: hele paraplyen (Kom i gang, nav-pilot, Tilpasning) med én felles layout i en rutegruppe ([§6.4](#64-seksjonsmenyen))    | S2: hele nettstedet. S3: bare `/nav-pilot/*`, som i V3                                                                                              |
 | V9  | Kom i gang                  | `/kom-i-gang` blir introduksjonen for både Copilot og nav-pilot. Vi lager ikke `/nav-pilot/kom-i-gang` ([§1.3](#13-url-er)) | Ny side `/nav-pilot/kom-i-gang` i tillegg, slik V1-tabellen hadde                                                                                   |
@@ -491,7 +498,7 @@ Klikk fra en vilkårlig side til målet, på desktop. «I dag» gjelder de 13 si
 
 D og D2 koster like mange klikk. Forskjellen er hvor lenkene står: i D på en side du lander på, i D2 i en liste som åpner seg i toppfeltet. D2 er nærmere det eierne av Praksis, Retningslinjer, Statistikk og Adopsjon fikk love å se i V3.
 
-**Anbefaling: D.** Aksel har ingen nedtrekk i toppfeltet [39]. «Sider i denne delen» på `/praksis` gir Retningslinjer den lenken den ellers ville mistet. D2 trenger rundt 110 linjer egen kode for fokus, peker og Escape, uten noe mønster fra Aksel bak seg, og nedtrekkene må få engelske tekster på `/en`. Du velger likevel etter å ha sett skjermbildene. Prototypen ligger på den lokale grenen `proto/menu-d` (bygger på `main`, ikke pushet).
+**Vedtatt: D.** Aksel har ingen nedtrekk i toppfeltet [39]. «Sider i denne delen» på `/praksis` gir Retningslinjer den lenken den ellers ville mistet. D2 trenger rundt 110 linjer egen kode for fokus, peker og Escape, uten noe mønster fra Aksel bak seg, og nedtrekkene må få engelske tekster på `/en`. Prototypen ligger på den lokale grenen `proto/menu-d` (bygger på `main`, ikke pushet).
 
 | Variant D                                                                                                  |                                                                                                          |
 | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
