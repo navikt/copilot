@@ -461,7 +461,7 @@ func TestStagedSpecDoesNotFallBackToClientRoster(t *testing.T) {
 // TestStagedOpenCodeLeavesSharedConfigAlone is the G2 no-regression pin: the
 // staged opencode path must not read-modify-write the user's shared
 // ~/.config/opencode/opencode.json the way LaunchOpenCode does via
-// EnsureOpenCodeOTelConfig / EnsureOpenCodeNavContext.
+// EnsureOpenCodeConfig / EnsureOpenCodeNavContext.
 func TestStagedOpenCodeLeavesSharedConfigAlone(t *testing.T) {
 	SetActivePakke(stagedFixturePakke())
 	t.Cleanup(func() { SetActivePakke(nil) })

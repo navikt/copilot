@@ -310,9 +310,21 @@ func openCodeLogLevel(level string) string {
 	}
 }
 
-// EnsureOpenCodeOTelConfig reads ~/.config/opencode/opencode.json (or creates it),
-// sets experimental.openTelemetry=true without clobbering other keys, and writes back.
-func EnsureOpenCodeOTelConfig() error {
+// EnsureOpenCodeConfig reads ~/.config/opencode/opencode.json (or creates it)
+// and sets the two keys nav-pilot owns there, without clobbering the rest:
+//
+//   - share is set to "disabled" when the file doesn't say. OpenCode's own
+//     default, "manual", lets /share upload a session to opencode.ai, so a
+//     file that predates nav-pilot needs this as much as a new one. A file
+//     that says "manual" or "auto" keeps its choice, and "auto", which uploads
+//     every session, gets a warning.
+//   - experimental.openTelemetry is set to true, but only for developers who
+//     haven't opted out of telemetry, the same gate as the OTel env
+//     (DO_NOT_TRACK, NAV_PILOT_TELEMETRY_ENABLED=false). An opted-out launch
+//     leaves an existing value alone: it may be the developer's own, and
+//     without the endpoint nav-pilot would have injected, opencode has
+//     nowhere to export to.
+func EnsureOpenCodeConfig() error {
 	path := openCodeConfigPath()
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -320,6 +332,7 @@ func EnsureOpenCodeOTelConfig() error {
 	}
 
 	var cfg map[string]any
+	changed := false
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -329,9 +342,9 @@ func EnsureOpenCodeOTelConfig() error {
 		cfg = map[string]any{
 			"$schema":    "https://opencode.ai/config.json",
 			"autoupdate": "notify",
-			"share":      "disabled",
 			"logLevel":   "INFO",
 		}
+		changed = true
 	} else {
 		if err := json.Unmarshal(data, &cfg); err != nil {
 			return fmt.Errorf("opencode config is not valid JSON (%s): %w", path, err)
@@ -345,28 +358,34 @@ func EnsureOpenCodeOTelConfig() error {
 		}
 	}
 
-	experimental, _ := cfg["experimental"].(map[string]any)
-	if experimental == nil {
-		experimental = make(map[string]any)
+	switch share, ok := cfg["share"]; {
+	case !ok:
+		cfg["share"] = "disabled"
+		changed = true
+	case share == "auto":
+		fmt.Fprintf(os.Stderr, "%s %s has \"share\": \"auto\": opencode uploads every session to opencode.ai. Set it to \"disabled\" to keep sessions on this machine.\n", domain.Yellow("⚠"), path)
 	}
-	if v, ok := experimental["openTelemetry"]; ok && v == true {
+
+	if telemetry.TelemetryEnabled() && telemetry.CopilotOTelEndpointConfigured(os.Environ()) {
+		experimental, _ := cfg["experimental"].(map[string]any)
+		if experimental == nil {
+			experimental = make(map[string]any)
+		}
+		if experimental["openTelemetry"] != true {
+			experimental["openTelemetry"] = true
+			cfg["experimental"] = experimental
+			changed = true
+		}
+	}
+
+	if !changed {
 		return nil
 	}
-	experimental["openTelemetry"] = true
-	cfg["experimental"] = experimental
-
 	out, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshalling opencode config: %w", err)
 	}
-	out = append(out, '\n')
-	if err := os.WriteFile(path, out, 0o600); err != nil {
-		return fmt.Errorf("writing opencode config: %w", err)
-	}
-	if err := os.Chmod(path, 0o600); err != nil {
-		return fmt.Errorf("setting opencode config permissions: %w", err)
-	}
-	return nil
+	return writeConfigAtomically(path, append(out, '\n'))
 }
 
 // LocalProviderID is the opencode provider id the local server is registered
@@ -379,7 +398,7 @@ const LocalProviderID = "mlx"
 //
 // It is a config write rather than an environment variable because opencode
 // picks its backend from the provider block and has no base-URL variable to
-// override. It merges, like EnsureOpenCodeOTelConfig above and for the same
+// override. It merges, like EnsureOpenCodeConfig above and for the same
 // reason: the file is the developer's, not nav-pilot's.
 //
 // The three limits are the manifest's, not this package's. They were measured:
@@ -543,6 +562,9 @@ func mutateOpenCodeConfig(mutate func(cfg map[string]any) bool) error {
 		if err := json.Unmarshal(data, &cfg); err != nil {
 			return fmt.Errorf("opencode config is not valid JSON (%s): %w", path, err)
 		}
+		if cfg == nil { // the literal `null`; see EnsureOpenCodeConfig
+			return fmt.Errorf("opencode config is not a JSON object (%s): remove or fix the file", path)
+		}
 	case !os.IsNotExist(err):
 		return fmt.Errorf("reading opencode config: %w", err)
 	}
@@ -567,7 +589,13 @@ func mutateOpenCodeConfig(mutate func(cfg map[string]any) bool) error {
 // nav-pilot owns a few keys in and the developer owns the rest of, which
 // opencode then refuses to parse and nav-pilot's own merge refuses to touch.
 // Same directory because a rename is only atomic within a filesystem.
+//
+// A symlinked opencode.json (a dotfiles repo) is resolved first, so the rename
+// replaces the file it points at rather than the link.
 func writeConfigAtomically(path string, data []byte) error {
+	if real, err := filepath.EvalSymlinks(path); err == nil {
+		path = real
+	}
 	tmp, err := os.CreateTemp(filepath.Dir(path), ".opencode.json.*")
 	if err != nil {
 		return fmt.Errorf("creating temporary opencode config: %w", err)
@@ -936,10 +964,8 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	}
 
 	env := os.Environ()
-	if telemetry.CopilotOTelEndpointConfigured(env) {
-		if err := EnsureOpenCodeOTelConfig(); err != nil {
-			fmt.Fprintf(os.Stderr, "%s Warning: could not configure opencode OTel: %v\n", domain.Yellow("⚠"), err)
-		}
+	if err := EnsureOpenCodeConfig(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Warning: could not update opencode.json: %v\n", domain.Yellow("⚠"), err)
 	}
 
 	// Materialize from the source this launch resolved, not from whatever the

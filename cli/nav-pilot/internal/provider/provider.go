@@ -328,8 +328,8 @@ func (openCodeProvider) UnsupportedConfigWarnings(r domain.ResolvedConfig) []str
 }
 
 func (openCodeProvider) Bootstrap(r domain.ResolvedConfig) (string, error) {
-	if err := EnsureOpenCodeOTelConfig(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Could not configure opencode OTel: %v\n", domain.Yellow("⚠"), err)
+	if err := EnsureOpenCodeConfig(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Could not update opencode.json: %v\n", domain.Yellow("⚠"), err)
 	}
 	summary, err := EnsureOpenCodeNavContext("", r.Source)
 	if err != nil {
