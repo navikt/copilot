@@ -33,7 +33,7 @@ func TestSurveyOfflineAnswersAreDeliveredLater(t *testing.T) {
 	defer srv.Close()
 
 	st := surveyState{Surveys: map[string]*surveyRecord{"s1": {Done: "answered", Pending: []byte(`{"answers":{"a":1}}`)}}}
-	st = sendAnswered(srv.URL, st, "s1")
+	sendAnswered(srv.URL, st, "s1")
 	if posts.Load() != 3 {
 		t.Fatalf("posts = %d, want 3 tries while the user waits", posts.Load())
 	}
@@ -46,7 +46,6 @@ func TestSurveyOfflineAnswersAreDeliveredLater(t *testing.T) {
 	if p := readSurveyState().Surveys["s1"].Pending; len(p) != 0 {
 		t.Fatalf("pending after delivery: %s", p)
 	}
-	_ = st
 }
 
 func TestSurveyVersionShape(t *testing.T) {

@@ -15,7 +15,6 @@ import (
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
-// fakeSurveyDefs is one open survey: a required scale and an optional text.
 // fakeSurveyDefs is one open survey: a labelled scale, a multi, a choice that
 // is skipped when the multi includes copilot, and an optional text.
 const fakeSurveyDefs = `{"surveys":[{"id":"e2e-2026","title":"E2E survey","starts":"2020-01-01","ends":"2099-12-31","questions":[

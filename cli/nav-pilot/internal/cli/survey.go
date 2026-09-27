@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
 	"strconv"
@@ -157,9 +158,15 @@ func writeSurveyState(st surveyState) {
 	if err != nil {
 		return
 	}
-	tmp := path + ".tmp"
-	if os.WriteFile(tmp, data, 0o600) == nil {
-		_ = os.Rename(tmp, path)
+	// A temp file of its own: two nav-pilots ending at once must not write
+	// into one temp file and rename a half-written state into place.
+	f, err := os.CreateTemp(filepath.Dir(path), "surveys-*.json")
+	if err != nil {
+		return
+	}
+	_, werr := f.Write(data)
+	if cerr := f.Close(); werr != nil || cerr != nil || os.Rename(f.Name(), path) != nil {
+		_ = os.Remove(f.Name())
 	}
 }
 
@@ -196,10 +203,15 @@ func maybeSurvey(client string) {
 	if !surveysAllowed(r) {
 		return
 	}
+	// Nothing can be sent without a sign-in, so no network either.
+	if !canSignIn() {
+		return
+	}
 	st := readSurveyState()
 	base := copilotCLIURL()
 	now := time.Now()
 
+	dropStalePending(st, now)
 	deliverPending(base, st)
 
 	if now.Sub(st.Fetched) >= surveyFetchEvery {
@@ -221,7 +233,7 @@ func maybeSurvey(client string) {
 			break
 		}
 	}
-	if s == nil || !canSignIn() {
+	if s == nil {
 		return
 	}
 	rec := st.Surveys[s.ID]
@@ -350,7 +362,7 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 			in := huh.NewText().Title(q.Text).CharLimit(q.MaxLen).Value(&picks[i])
 			if q.Required {
 				in = in.Validate(func(v string) error {
-					if len(bytes.TrimSpace([]byte(v))) == 0 {
+					if strings.TrimSpace(v) == "" {
 						return errors.New("an answer is needed")
 					}
 					return nil
@@ -373,7 +385,7 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 	}
 	answers := map[string]any{}
 	for i, q := range s.Questions {
-		v := picks[i]
+		v := strings.TrimSpace(picks[i])
 		switch {
 		case skipped(q):
 		case q.Type == "multi":
@@ -385,7 +397,7 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 			n, _ := strconv.Atoi(v)
 			answers[q.ID] = n
 		default:
-			answers[q.ID] = strings.TrimSpace(v)
+			answers[q.ID] = v
 		}
 	}
 	return answers, len(answers) > 0
@@ -413,19 +425,12 @@ func surveyContextNow(r ResolvedConfig) surveyContext {
 	return c
 }
 
-// versionShape is a release version (2026.09.24-120000-abc1234): anything
-// else, a local build's "dev" or a hand-set string, is sent as dev.
-func versionShape(v string) bool {
-	if len(v) == 0 || len(v) > 40 || v[0] < '0' || v[0] > '9' {
-		return false
-	}
-	for _, r := range v {
-		if !(r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r == '.' || r == '-') {
-			return false
-		}
-	}
-	return true
-}
+// versionShape is a version copilot-cli accepts (its versionPattern), such
+// as a release's 2026.09.24-120000-abc1234. Anything else, a local build's
+// "dev" or a hand-set string, is sent as dev rather than refused.
+var versionShapePattern = regexp.MustCompile(`^v?\d{1,4}\.\d{1,4}\.\d{1,4}(-[0-9A-Za-z.-]{1,40})?$`)
+
+func versionShape(v string) bool { return versionShapePattern.MatchString(v) }
 
 func fetchActiveSurveys(base string) ([]surveyDef, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -469,11 +474,32 @@ func sendAnswered(base string, st surveyState, id string) surveyState {
 	case status >= 400 && status < 500:
 		rec.Pending = nil
 		fmt.Println(yellow("  ⚠ ") + "copilot-cli refused the answers" + surveyErrDetail(err) + ". Sorry, they were not saved.")
+	case status >= 500 || status == http.StatusTooManyRequests:
+		fmt.Println(dim("  copilot-cli could not take the answers now" + surveyErrDetail(err) + ". Answers saved; nav-pilot sends them after your next session."))
 	default:
 		fmt.Println(dim("  Could not reach copilot-cli (naisdevice on?). Answers saved; nav-pilot sends them after your next session."))
 	}
 	writeSurveyState(st)
 	return st
+}
+
+// dropStalePending forgets answers to a survey that has closed: they can no
+// longer be sent, and the free text should not sit on disk.
+func dropStalePending(st surveyState, now time.Time) {
+	changed := false
+	for id, rec := range st.Surveys {
+		if len(rec.Pending) == 0 {
+			continue
+		}
+		open := slices.ContainsFunc(st.Active, func(d surveyDef) bool { return d.ID == id && d.openOn(now) })
+		if !open {
+			rec.Pending = nil
+			changed = true
+		}
+	}
+	if changed {
+		writeSurveyState(st)
+	}
 }
 
 // deliverPending quietly retries answers an earlier session could not send.
@@ -517,6 +543,7 @@ func postSurvey(base, id string, payload []byte, interactive bool) (int, error) 
 		tries = 3
 	}
 	var lastErr error
+	var lastStatus int
 	for i := range tries {
 		if i > 0 {
 			time.Sleep(time.Duration(i) * time.Second)
@@ -525,9 +552,9 @@ func postSurvey(base, id string, payload []byte, interactive bool) (int, error) 
 		if status != 0 && status != http.StatusTooManyRequests && status < 500 {
 			return status, err
 		}
-		lastErr = err
+		lastStatus, lastErr = status, err
 	}
-	return 0, lastErr
+	return lastStatus, lastErr
 }
 
 func postSurveyOnce(base, id string, payload []byte, token string) (int, error) {

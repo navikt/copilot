@@ -528,10 +528,12 @@ func run(args []string) error {
 				return cmdInteractive(cliOverrides)
 			})
 			// The session is over: the one calm moment to ask about a
-			// survey. Not after nav-pilot itself failed or was cancelled; a
-			// client's own exit code is still a session that ended.
-			if _, clientExit := errors.AsType[*exec.ExitError](err); err == nil || clientExit {
-				maybeSurvey(cliOverrides.Client)
+			// survey. Only after a client really ran (not after Esc at a
+			// menu, a declined launch or auto_launch = false), and not after
+			// nav-pilot itself failed; a client's own exit code is still a
+			// session that ended.
+			if _, clientExit := errors.AsType[*exec.ExitError](err); sessionClient != "" && (err == nil || clientExit) {
+				maybeSurvey(sessionClient)
 			}
 			return err
 		}

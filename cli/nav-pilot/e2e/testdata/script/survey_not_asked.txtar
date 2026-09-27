@@ -1,6 +1,7 @@
 # Never a survey prompt without someone at a terminal who has not said no:
 # not in CI, not on a launch with client args after --, not with
-# surveys = false or DO_NOT_TRACK, and not without a way to sign in.
+# surveys = false or DO_NOT_TRACK, not when no session ran, and not without
+# a way to sign in.
 
 [!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
 
@@ -49,6 +50,13 @@ env NAV_PILOT_TELEMETRY_ENABLED=false
 exec pty-run -- nav-pilot
 ! stdout 'User survey'
 env NAV_PILOT_TELEMETRY_ENABLED=true
+
+# No session: auto_launch = false prints the command and starts nothing.
+exec nav-pilot config set auto_launch false
+exec pty-run -- nav-pilot
+stdout 'auto_launch = false'
+! stdout 'User survey'
+exec nav-pilot config unset auto_launch
 
 # Not signed in, and no GitHub App to sign in with.
 env NAV_PILOT_E2E_GITHUB_TOKEN=
