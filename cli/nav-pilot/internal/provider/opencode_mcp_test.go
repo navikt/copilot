@@ -25,6 +25,10 @@ func TestMCPRegistryListed(t *testing.T) {
 		{mcpServer{Type: "local", Command: []string{"npx", "@playwright/mcp"}}, true},
 		{mcpServer{Type: "local", Command: []string{"npx", "@playwright/mcp-evil"}}, false},
 		{mcpServer{Type: "local", Command: []string{"./my-server"}}, false},
+		// The package has to be what runs, not an argument to something else.
+		{mcpServer{Type: "local", Command: []string{"node", "evil.js", "@playwright/mcp"}}, false},
+		{mcpServer{Type: "local", Command: []string{"pnpm", "dlx", "@playwright/mcp"}}, true},
+		{mcpServer{Type: "local", Command: []string{"npx", "--package", "@playwright/mcp", "mcp"}}, true},
 	} {
 		if got := reg.listed(tt.s); got != tt.want {
 			t.Errorf("listed(%+v) = %v, want %v", tt.s, got, tt.want)

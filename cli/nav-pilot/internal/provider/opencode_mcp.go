@@ -160,6 +160,11 @@ var fetchMCPRegistry = func(base string) (mcpRegistry, error) {
 			}
 		}
 		if cursor = page.Metadata.NextCursor; cursor == "" {
+			if len(reg.Remotes)+len(reg.Packages) == 0 {
+				// An empty list is not an answer: a registry that lists nothing
+				// would turn every server off.
+				return reg, fmt.Errorf("%s lists no servers", u)
+			}
 			return reg, nil
 		}
 	}
@@ -187,17 +192,58 @@ func (r mcpRegistry) listed(s mcpServer) bool {
 		// registry can be said to list.
 		return false
 	}
-	for _, arg := range s.Command {
-		arg = strings.ToLower(arg)
-		if r.Packages[arg] {
-			return true
-		}
-		// A pinned version: @playwright/mcp@latest, mcp-server@1.2.
-		if i := strings.LastIndex(arg, "@"); i > 0 && r.Packages[arg[:i]] {
-			return true
-		}
+	pkg := localPackage(s.Command)
+	if pkg == "" {
+		return false
+	}
+	if r.Packages[pkg] {
+		return true
+	}
+	// A pinned version: @playwright/mcp@latest, mcp-server@1.2.
+	if i := strings.LastIndex(pkg, "@"); i > 0 && r.Packages[pkg[:i]] {
+		return true
 	}
 	return false
+}
+
+// localPackage is the package a local server's command runs: the first
+// non-flag argument of a package runner (npx, bunx, uvx, pnpm dlx, yarn dlx,
+// pipx run), or the command itself. Only that position counts, so a package
+// name passed to some other program as data does not make it that package.
+func localPackage(command []string) string {
+	if len(command) == 0 {
+		return ""
+	}
+	exe := strings.ToLower(filepath.Base(command[0]))
+	rest := command[1:]
+	switch exe {
+	case "npx", "bunx", "uvx":
+	case "pnpm", "yarn", "pipx":
+		want := "dlx"
+		if exe == "pipx" {
+			want = "run"
+		}
+		if len(rest) == 0 || rest[0] != want {
+			return ""
+		}
+		rest = rest[1:]
+	default:
+		return exe
+	}
+	for k := 0; k < len(rest); k++ {
+		a := rest[k]
+		if !strings.HasPrefix(a, "-") {
+			return strings.ToLower(a)
+		}
+		// npx --package <name> / -p <name> names the package outright.
+		if (a == "-p" || a == "--package") && k+1 < len(rest) {
+			return strings.ToLower(rest[k+1])
+		}
+		if v, ok := strings.CutPrefix(a, "--package="); ok {
+			return strings.ToLower(v)
+		}
+	}
+	return ""
 }
 
 // openCodeMCPServers reads the MCP servers the user's OpenCode config
@@ -351,6 +397,8 @@ func unlistedMCPServers(servers map[string]mcpServer, names []string) ([]string,
 
 // OpenCodeMCPReport is doctor's view: each enabled server and whether the
 // org's registry lists it. err says why nothing could be checked.
+//
+// With no registry_only policy, nothing is reported: no registry was asked.
 func OpenCodeMCPReport(projectDir string) (listed, unlisted []string, err error) {
 	servers := openCodeMCPServers(projectDir, os.Environ())
 	var names []string
@@ -362,6 +410,10 @@ func OpenCodeMCPReport(projectDir string) (listed, unlisted []string, err error)
 	sort.Strings(names)
 	if len(names) == 0 {
 		return nil, nil, nil
+	}
+	registry, err := fetchMCPPolicy()
+	if err != nil || registry == "" {
+		return nil, nil, err
 	}
 	off, err := unlistedMCPServers(servers, names)
 	if err != nil {
