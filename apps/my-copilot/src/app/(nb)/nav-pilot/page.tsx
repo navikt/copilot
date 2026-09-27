@@ -3,6 +3,7 @@ import React from "react";
 import { Box, VStack, HGrid, Heading, CopyButton } from "@navikt/ds-react";
 import NextLink from "next/link";
 import { InteractiveSetupWizard } from "@/components/nav-pilot/interactive-setup-wizard";
+import { NAV_PILOT_APT_INSTALL, NAV_PILOT_BREW_INSTALL } from "@/lib/install-commands";
 import {
   BranchingIcon,
   CheckmarkCircleIcon,
@@ -50,14 +51,8 @@ export const metadata: Metadata = {
 
 /* ---------- Data ---------- */
 
-const QUICKSTART_COMMAND = "brew install navikt/tap/nav-pilot && nav-pilot";
-const QUICKSTART_APT = [
-  "curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \\",
-  "  | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null",
-  'echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \\',
-  "  | sudo tee /etc/apt/sources.list.d/navikt.list",
-  "sudo apt update && sudo apt install nav-pilot cplt",
-].join("\n");
+const QUICKSTART_COMMAND = `${NAV_PILOT_BREW_INSTALL} && nav-pilot`;
+const QUICKSTART_APT = NAV_PILOT_APT_INSTALL;
 
 const PAKKE = {
   title: "nav-pilot",

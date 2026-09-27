@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Box, VStack, HStack, Heading, BodyShort, Button, Link, Stepper, Label, Detail } from "@navikt/ds-react";
 import { MonitorIcon, LaptopIcon, TerminalIcon, ChevronRightIcon, ChevronLeftIcon } from "@navikt/aksel-icons";
 import { CodeBlock } from "@/components/code-block";
+import { NAV_PILOT_BREW_INSTALL } from "@/lib/install-commands";
 
 // ============================================================================
 // Types
@@ -68,7 +69,7 @@ export function generateSetupScript(os: OS, workflow: Workflow) {
   if (isMac) {
     blocks.push({
       title: "# 2. Installer Nav-verktøy",
-      commands: ["brew install navikt/tap/nav-pilot navikt/tap/cplt"],
+      commands: [NAV_PILOT_BREW_INSTALL],
     });
   } else {
     blocks.push({

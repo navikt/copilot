@@ -3,7 +3,7 @@ set -euo pipefail
 
 # nav-pilot installer — installs the nav-pilot CLI.
 #
-# On macOS: uses Homebrew (brew install navikt/tap/nav-pilot) when available.
+# On macOS: uses Homebrew (brew install navikt/tap/nav-pilot navikt/tap/cplt) when available.
 # On Linux / CI: downloads the latest release binary from GitHub.
 #
 # Usage:
@@ -80,7 +80,7 @@ if [[ "$OS" == "darwin" && "$NO_BREW" == false && -z "$VERSION" && -z "$INSTALL_
   echo "  nav-pilot install nav-pilot       # Install the agentpakke"
   echo "  nav-pilot install --dry-run nav-pilot  # Preview first"
   echo ""
-  echo "Upgrade later with: brew upgrade nav-pilot"
+  echo "Upgrade later with: brew upgrade navikt/tap/nav-pilot"
   exit 0
 fi
 
@@ -91,7 +91,7 @@ fi
 # this script could be replaced before the binary checks run.
 #
 # For the strongest supply chain security, install via Homebrew:
-#   brew install navikt/tap/nav-pilot
+#   brew install navikt/tap/nav-pilot navikt/tap/cplt
 #
 # On Linux/CI, download and inspect the script before running:
 #   curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh -o install.sh
@@ -254,7 +254,7 @@ else
   echo "  ⚠ WARNING: GitHub CLI (gh) not found — skipping provenance verification!"
   echo "  This means the binary's build origin cannot be confirmed."
   echo "  Install gh for full supply chain security: https://cli.github.com"
-  echo "  Or install via Homebrew for a verified install: brew install navikt/tap/nav-pilot"
+  echo "  Or install via Homebrew for a verified install: brew install navikt/tap/nav-pilot navikt/tap/cplt"
   echo ""
 fi
 

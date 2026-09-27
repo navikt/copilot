@@ -5,6 +5,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell
 import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { PageHero } from "@/components/page-hero";
+import { NAV_PILOT_BREW_INSTALL, NAV_PILOT_BREW_UPGRADE } from "@/lib/install-commands";
 import { getLocalModels } from "@/lib/local-models";
 
 export const metadata: Metadata = {
@@ -41,9 +42,13 @@ const DECIDE_EXAMPLE = `$ nav-pilot alpha decide \\
 
   mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit · 424 ms · evidence: true`;
 
-const KOM_I_GANG = `brew install navikt/tap/nav-pilot   # første gang
-brew upgrade navikt/tap/nav-pilot   # har du den fra før
+const KOM_I_GANG = `# første gang
+${NAV_PILOT_BREW_INSTALL}
+# har du den fra før
+${NAV_PILOT_BREW_UPGRADE}
+
 nav-pilot alpha local init          # laster ned modellen og starter serveren
+nav-pilot alpha local start         # etter omstart av maskinen
 nav-pilot alpha local status        # kjører den, og hvilken modell?
 nav-pilot alpha local models        # modellene du kan velge
 nav-pilot alpha local use <key>     # bytt modell`;

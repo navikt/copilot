@@ -214,7 +214,7 @@ jobs:
               "### Installation" \
               "" \
               '```bash' \
-              "brew install navikt/tap/nav-pilot" \
+              "brew install navikt/tap/nav-pilot navikt/tap/cplt" \
               '```' \
               "" \
               "Or with mise, or apt on Debian/Ubuntu:" \
