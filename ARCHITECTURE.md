@@ -58,10 +58,10 @@ copilot-cli (Go gateway, naisdevice-gated ingress)
 copilot-api
 ```
 
-An M2M token carries no user claims, so the
-resolved GitHub username travels in an explicit `X-On-Behalf-Of` header, which
-`copilot-api` trusts only for GET requests from a pre-authorized `azp`. That trust path
-and its limits are set out in [SECURITY.md](./SECURITY.md).
+An M2M token carries no user claims, so the resolved GitHub username travels in an
+explicit `X-On-Behalf-Of` header, which `copilot-api` trusts only for GET requests
+from a pre-authorized `azp`. That trust path and its limits are set out in
+[SECURITY.md](./SECURITY.md).
 
 ## Token validation
 

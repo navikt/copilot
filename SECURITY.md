@@ -251,7 +251,7 @@ When `NAIS_CLUSTER_NAME` is unset (local development):
 - Forward raw upstream error messages to clients, return a generic message instead
 - Skip input validation on external boundaries
 - Bypass `azp` validation on any backend API request, even for "internal" services
-- Give my-copilot, or any app other than copilot-api, a GitHub App private key or installation token (copilot-cli holds only the nav-pilot App's client id and secret, which check a user token and grant nothing on the org)
+- Give my-copilot, or any app other than copilot-api, a GitHub App private key or installation token. copilot-cli holds only the nav-pilot App's client id and secret, which check a user token and grant nothing on the org.
 
 ---
 

@@ -58,7 +58,7 @@ unknown fields refused, body at most 32 KiB. Then:
    SAML identity gets 403 and is told to answer on ki-utvikling. The e-mail
    is used in memory for step 2 only and never stored or logged. On the web
    it will come from the Entra `preferred_username`; the two strings must be
-   the same address for one person, or that person can answer twice: check
+   the same address for one person, or that person can answer twice. Check
    with a real user in dev that they agree before launch.
 2. The dedup hash is `HMAC-SHA256(survey key, lowercased e-mail)`. A hash
    already written or queued gets 409, from nav-pilot and the web alike.
