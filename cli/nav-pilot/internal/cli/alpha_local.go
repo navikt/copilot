@@ -68,9 +68,13 @@ hosted one. Off until you run init, and invisible everywhere until then.
             sessions or tasks to the local model. Downloads nothing
   off       Stop dispatching: sessions go to the hosted model; the weights stay on disk
   purge     Remove the environment and the chosen model's weights, after showing what and how big (--yes deletes, --all: every model's)
+  setup     Use a server you run yourself (Ollama, llama-server, LM Studio): finds it, picks a model,
+            fixes Ollama's context, checks it and saves it. Asks first; without a terminal:
+            --pull, --fix-context, --yes (save), --endpoint <url>, --model <id>
   doctor    Check your own server (local_endpoint): tool calls, logprobs, context, time to first token
 
 Your own server instead (Linux, Ollama, llama-server; unsupported, unmeasured):
+  nav-pilot alpha local setup                       guided: finds a running server and sets it up
   nav-pilot config set local_endpoint http://127.0.0.1:11434/v1
   nav-pilot config set local_endpoint_model qwen3.6:35b
   nav-pilot alpha local init                        checks it and turns it on; downloads nothing
@@ -129,6 +133,8 @@ func cmdAlpha(args []string) error {
 		return cmdLocalPurge(args[1:])
 	case "doctor":
 		return cmdLocalDoctor()
+	case "setup":
+		return cmdLocalSetup(args[2:])
 	case "":
 		alphaUsage(os.Stderr)
 		return nil
@@ -136,7 +142,7 @@ func cmdAlpha(args []string) error {
 		alphaUsage(os.Stdout)
 		return nil
 	default:
-		if hint := suggest(sub, []string{"init", "start", "restart", "stop", "status", "models", "use", "ask", "on", "off", "purge", "doctor"}); hint != "" {
+		if hint := suggest(sub, []string{"init", "start", "restart", "stop", "status", "models", "use", "ask", "on", "off", "purge", "doctor", "setup"}); hint != "" {
 			return fmt.Errorf("unknown command: nav-pilot alpha local %s. Did you mean %s?", sub, hint)
 		}
 		return fmt.Errorf("unknown command: nav-pilot alpha local %s. Usage: %s", sub, bold("nav-pilot alpha help"))

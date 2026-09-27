@@ -1,0 +1,25 @@
+# Ollama's default context cuts a Copilot session's prompt. setup spots it
+# with doctor and, with consent, makes a copy of the model with a 64k context
+# (no download), checks that and saves it.
+
+fake-endpoint -export OLLAMA -ctx 4096
+env NAV_PILOT_SETUP_CANDIDATES=ollama=$OLLAMA_ADDR
+
+exits 1 nav-pilot alpha local setup --yes
+stdout 'FAIL  context +about 30k tokens went in and 4096 were'
+stdout 'nav-pilot can make qwen3\.6-35b-navpilot, a copy of qwen3\.6:35b with a 65536-token context'
+stdout 'ollama create qwen3\.6-35b-navpilot -f Modelfile'
+stdout 'OLLAMA_CONTEXT_LENGTH=65536 ollama serve'
+stdout 'Not created\. Pass --fix-context'
+stderr 'nothing was saved\. Fix the FAIL lines above, then run nav-pilot alpha local setup --fix-context --yes'
+! grep 'POST /api/create' fake/ollama.log
+! exists home/config.toml
+
+exec nav-pilot alpha local setup --fix-context --yes
+stdout 'Created qwen3\.6-35b-navpilot'
+stdout 'Checking qwen3\.6-35b-navpilot again'
+stdout 'PASS  context'
+stdout 'Saved\. Local dispatch is on, to qwen3\.6-35b-navpilot'
+grep 'POST /api/create' fake/ollama.log
+exec nav-pilot config get local_endpoint_model
+stdout '^qwen3\.6-35b-navpilot$'

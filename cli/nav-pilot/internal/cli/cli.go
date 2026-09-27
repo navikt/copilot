@@ -580,7 +580,8 @@ func run(args []string) error {
 	// question that happens to begin with a dash. Everything after `ask` goes
 	// through untouched, the same courtesy `--` gives the launch clients.
 	// `alpha decide` likewise: a question, and flags of its own.
-	if command == "alpha" && ((len(rest) >= 2 && rest[0] == "local" && rest[1] == "ask") || (len(rest) >= 1 && rest[0] == "decide")) {
+	// `alpha local setup` parses its own flags too (--endpoint, --model, --pull).
+	if command == "alpha" && ((len(rest) >= 2 && rest[0] == "local" && (rest[1] == "ask" || rest[1] == "setup")) || (len(rest) >= 1 && rest[0] == "decide")) {
 		return runWithCommandTelemetry(alphaCommand(rest), telemetryMode(), "none", func() error {
 			return cmdAlpha(rest)
 		})

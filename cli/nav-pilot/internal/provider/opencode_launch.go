@@ -1040,6 +1040,10 @@ func EchoCloudOnlyNotice() {
 	}
 	fmt.Fprintf(os.Stderr, "\n%s That session ran entirely in the cloud: local dispatch is on, but no server was running.\n",
 		domain.Yellow("⚠"))
+	if base, _ := local.Endpoint(); base != "" {
+		fmt.Fprintf(os.Stderr, "  Start your server at %s, then check it: %s\n", base, domain.Bold("nav-pilot alpha local doctor"))
+		return
+	}
 	fmt.Fprintf(os.Stderr, "  Start one:              %s\n", domain.Bold("nav-pilot alpha local start"))
 	fmt.Fprintf(os.Stderr, "  Or start it on demand:  %s\n", domain.Bold("nav-pilot config set local_autostart true"))
 }
@@ -1073,8 +1077,12 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 			fmt.Fprintf(os.Stderr, "\n%s Local dispatch is on, but no server is running: this session runs entirely in the cloud.\n",
 				domain.Yellow("⚠"))
 			fmt.Fprintf(os.Stderr, "  %v\n\n", err)
-			fmt.Fprintf(os.Stderr, "  Start one:              %s\n", domain.Bold("nav-pilot alpha local start"))
-			fmt.Fprintf(os.Stderr, "  Or start it on demand:  %s\n\n", domain.Bold("nav-pilot config set local_autostart true"))
+			// An endpoint is the developer's own server: the error says how to
+			// start it, and nav-pilot's start and autostart do not apply.
+			if base, _ := local.Endpoint(); base == "" {
+				fmt.Fprintf(os.Stderr, "  Start one:              %s\n", domain.Bold("nav-pilot alpha local start"))
+				fmt.Fprintf(os.Stderr, "  Or start it on demand:  %s\n\n", domain.Bold("nav-pilot config set local_autostart true"))
+			}
 		} else {
 			fmt.Fprintf(os.Stderr, "%s No local worker this session — %v\n", domain.Yellow("⚠"), err)
 		}

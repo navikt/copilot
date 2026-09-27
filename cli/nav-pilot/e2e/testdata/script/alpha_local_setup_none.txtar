@@ -1,0 +1,15 @@
+# Nothing running: setup says how to start Ollama or llama-server, with the
+# exact commands, starts nothing itself and saves nothing.
+
+env NAV_PILOT_SETUP_CANDIDATES=ollama=127.0.0.1:9,llama-server=127.0.0.1:9
+exits 1 nav-pilot alpha local setup
+stdout 'No local server is running'
+stdout 'OLLAMA_CONTEXT_LENGTH=65536 ollama serve'
+stdout 'llama-server --jinja -c 65536 --port 8080 -hf unsloth/Qwen3\.6-35B-A3B-GGUF:UD-Q4_K_XL'
+stdout '--n-cpu-moe 999'
+! exists home/config.toml
+
+# Detection is loopback only.
+env NAV_PILOT_SETUP_CANDIDATES=ollama=192.168.1.20:11434
+exits 1 nav-pilot alpha local setup
+stderr 'is not kind=127\.0\.0\.1:port'

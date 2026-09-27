@@ -1,0 +1,45 @@
+# setup finds the servers already running here, recommends the model nearest
+# nav-pilot's own, checks it with doctor and saves it only after a yes. Without
+# a terminal, --yes is that yes.
+
+fake-endpoint -export OLLAMA -models llama3:8b,qwen3.6:35b
+fake-endpoint -export LLAMA -llama -models gemma-3-4b,/home/me/models/Qwen3.8-27B-Q4_K_M.gguf
+env NAV_PILOT_SETUP_CANDIDATES=ollama=$OLLAMA_ADDR,llama-server=$LLAMA_ADDR,vllm=127.0.0.1:9
+
+exits 2 nav-pilot alpha local setup
+stdout '✓ Ollama +127\.0\.0\.1:[0-9]+  llama3:8b, qwen3\.6:35b'
+stdout '✓ llama-server +127\.0\.0\.1:[0-9]+  gemma-3-4b, /home/me/models/Qwen3\.8-27B-Q4_K_M\.gguf'
+stdout '/home/me/models/Qwen3\.8-27B-Q4_K_M\.gguf on llama-server cannot be used as a model id\. Start it with a name: --alias'
+stdout '· vLLM +127\.0\.0\.1:9 not answering'
+stdout 'Recommended  qwen3\.6:35b on Ollama: Qwen3\.6-35B-A3B'
+stderr 'without a terminal to ask, setup checks and saves only with --yes: nav-pilot alpha local setup --model qwen3\.6:35b --yes'
+! stdout 'PASS'
+! exists home/config.toml
+
+# Detection sent a model-list request and nothing else to the server it did
+# not pick.
+! grep 'POST' fake/llama.log
+grep 'GET /v1/models' fake/llama.log
+! grep 'POST' fake/ollama.log
+
+exec nav-pilot alpha local setup --yes
+stdout 'PASS  context'
+stdout 'Saved\. Local dispatch is on, to qwen3\.6:35b on Ollama'
+stdout 'alpha decide answers from it'
+stdout 'start it again with ollama serve'
+exec nav-pilot config get local_endpoint
+stdout '^'$OLLAMA'$'
+exec nav-pilot config get local_endpoint_model
+stdout '^qwen3\.6:35b$'
+exec nav-pilot config get local_enabled
+stdout true
+
+# --endpoint names one server; llama-server is told apart from Ollama by
+# /api/version, not by its port.
+exits 2 nav-pilot alpha local setup --endpoint $LLAMA
+stdout 'Using  gemma-3-4b on llama-server'
+stderr 'nav-pilot alpha local setup --endpoint http://127\.0\.0\.1:[0-9]+/v1 --model gemma-3-4b --yes'
+
+# And decide works on what was saved.
+exec nav-pilot alpha decide 'Is this a bug fix?' --options yes,no
+stdout '"choice":"yes"'

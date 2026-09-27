@@ -578,6 +578,13 @@ hovedagenten får ingen godkjente oppgavetyper å gå etter.
 Koden din sendes til serveren, så `local_endpoint` godtar bare localhost og private
 IP-adresser. En offentlig adresse blir avvist.
 
+Enklest er `nav-pilot alpha local setup`. Den finner servere som allerede kjører på
+maskinen (Ollama, llama-server, LM Studio, vLLM), foreslår modellen som ligger nærmest
+vår egen, og sjekker den. Mangler modellen i Ollama, eller er konteksten for liten,
+tilbyr den å hente modellen eller lage en kopi med 64k kontekst. Den spør før den
+laster ned eller lagrer noe, og starter aldri en server selv. Uten terminal gjør den
+det bare med `--pull`, `--fix-context` og `--yes`. For hånd:
+
 ```bash
 # Ollama
 OLLAMA_CONTEXT_LENGTH=65536 ollama serve

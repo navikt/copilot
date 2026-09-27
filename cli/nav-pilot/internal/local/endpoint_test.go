@@ -45,15 +45,18 @@ func TestValidateEndpoint(t *testing.T) {
 	}
 }
 
-// The dial-time check is what holds when the config-time one cannot: a
-// redirect from an allowed server to a public one is refused before any
-// connection is made.
+// A redirect is not followed, and the dial-time check refuses a public
+// address whatever the config said.
 func TestServerClientRefusesPublicAddresses(t *testing.T) {
 	srv := httptest.NewServer(http.RedirectHandler("http://8.8.8.8/v1/models", http.StatusFound))
 	defer srv.Close()
-	_, err := ServerClient.Get(srv.URL)
-	if err == nil || !strings.Contains(err.Error(), "refused to connect to 8.8.8.8:80") {
-		t.Fatalf("redirect to a public address: err = %v, want a refusal", err)
+	resp, err := ServerClient.Get(srv.URL)
+	if err != nil || resp.StatusCode != http.StatusFound {
+		t.Fatalf("redirect: %v, %v; want the 302 itself, not followed", resp, err)
+	}
+	resp.Body.Close()
+	if _, err := ServerClient.Get("http://8.8.8.8:1/"); err == nil || !strings.Contains(err.Error(), "refused to connect to 8.8.8.8:1") {
+		t.Fatalf("public address: err = %v, want a refusal", err)
 	}
 	if err := checkDial("tcp", "127.0.0.1:1", nil); err != nil {
 		t.Errorf("loopback refused: %v", err)
