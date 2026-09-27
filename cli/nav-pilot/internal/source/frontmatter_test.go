@@ -370,6 +370,7 @@ func TestExtractFrontmatterList(t *testing.T) {
 		{"comma string", "tools: read, edit\n", []string{"read", "edit"}, false},
 		{"empty flow", "tools: []\n", nil, false},
 		{"null", "tools:\nmodel: x\n", nil, true},
+		{"block scalar", "tools: |\n  read\n", nil, true},
 		{"absent", "model: x\n", nil, true},
 		{"nested key is not the key", "x:\n  tools:\n    - read\n", nil, true},
 	}

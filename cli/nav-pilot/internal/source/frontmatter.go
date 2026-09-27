@@ -296,6 +296,8 @@ func ExtractFrontmatterList(fm []byte, key string) (items []string, ok bool) {
 			flow, _, _ = strings.Cut(strings.TrimPrefix(flow, "["), "]")
 			split(flow)
 			return items, true
+		case strings.HasPrefix(rest, "|") || strings.HasPrefix(rest, ">"):
+			return nil, false // a block scalar is text, not a list
 		case rest != "":
 			split(rest)
 			return items, true
