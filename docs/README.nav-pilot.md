@@ -884,7 +884,7 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | Nøkkel | CLI-flagg | Verdier | Beskrivelse |
 | --- | --- | --- | --- |
 | `version` | — | 1 | Skjemaversjon. Mangler den, leses filen som versjon 1, og nav-pilot sier fra med én linje. |
-| `client` | --client | copilot · opencode · pi (standard: copilot) | Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen. |
+| `client` | --client | copilot · opencode · pi (standard: copilot) | Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen. Mangler cplt, spør copilot og opencode i terminalen om de skal starte uten sandkasse (standard nei). Uten terminal, for eksempel i CI, starter de bare med --no-sandbox. |
 | `source` | --source | owner/name eller en absolutt sti (standard: navikt/copilot) | Hvor agentpakken hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source --save-source; nav-pilot config unset source går tilbake til standarden. |
 | `model` | --model | modell-id, f.eks. claude-opus-4.8 | Modell å bruke. En Copilot-id som claude-opus-4.8 virker for copilot og opencode (opencode kjører den som github-copilot/&lt;id&gt;); opencode tar også provider/model. nav-pilot config explain model lister id-ene. |
 | `mode` | --mode | default · plan · autopilot (standard: default) | Modus for Copilot-agenten. plan tilsvarer opencode --agent plan; autopilot er kun Copilot. |

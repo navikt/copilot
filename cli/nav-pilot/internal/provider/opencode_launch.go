@@ -952,7 +952,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	// cplt the launch dies before the TUI if OpenCode has to create it itself
 	// (#565).
 	if err := ensureOpenCodeRuntimeGitignore(); err != nil {
-		return fmt.Errorf("preparing opencode's config directory for the sandbox: %w", err)
+		return fmt.Errorf("preparing opencode's config directory: %w", err)
 	}
 
 	env := os.Environ()

@@ -1621,7 +1621,7 @@ const CONFIG_KEYS = [
     key: "client",
     flag: "--client",
     values: "copilot · opencode · pi (standard: copilot)",
-    desc: "Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen. Mangler cplt, starter copilot og opencode uten sandkasse bare med --no-sandbox, for eksempel i CI.",
+    desc: "Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen. Mangler cplt, spør copilot og opencode i terminalen om de skal starte uten sandkasse (standard nei). Uten terminal, for eksempel i CI, starter de bare med --no-sandbox.",
   },
   {
     key: "source",

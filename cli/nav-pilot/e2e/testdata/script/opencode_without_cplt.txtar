@@ -40,6 +40,14 @@ env PATH=$PATH${:}/bin${:}/usr/bin
 exec nav-pilot --client opencode --model claude-opus-4.8 --no-sandbox -- run hello
 grep '^--agent\nopencode\n' $WORK/fake/cplt.log
 
+# In a terminal it asks, and the answer defaults to no.
+[!pty] stop 'no pseudo-terminal here (/dev/ptmx will not open)'
+rm $WORK/fake/cplt
+exec nav-pilot config set client opencode
+exec nav-pilot config set rtk_prompted_client opencode
+exits 0 pty-run -wait 'Launch opencode without the sandbox' -send '\r' -- nav-pilot
+stdout 'Not launched\.'
+
 -- fake/opencode.sh --
 { env | grep -E '^(NAV_PILOT_OPENCODE_HOOKS|OPENCODE_CONFIG_CONTENT)='; echo "PWD=$(pwd)"; } > "$WORK/env.out"
 -- plattform/.nav-pilot/agentpakke.json --
