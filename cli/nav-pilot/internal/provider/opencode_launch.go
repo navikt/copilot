@@ -880,11 +880,8 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 			// The model from the recorded server rather than threaded down from
 			// the worker lookup: the guard proves it is that server's, and a
 			// session that outlived a restart should report what it talked to.
-			model := ""
-			if st, ok, err := local.LoadState(); err == nil && ok {
-				model = st.Model
-			}
-			telemetryRecorder.RecordLocalSession("opencode", model, guard.Completions(), guard.SawTraffic())
+			model, _, _ := local.ServedModel()
+			telemetryRecorder.RecordLocalSession("opencode", local.TelemetryModel(model), local.Backend(), guard.Completions(), guard.SawTraffic())
 		}()
 		// The provider block names this session's guard port, and the port dies
 		// with the session. Left behind, it points opencode at a number the
@@ -977,11 +974,11 @@ func localWorker() (local.Model, error) {
 	if err := ensureOwnServer(); err != nil {
 		return local.Model{}, err
 	}
-	st, _, err := local.LoadState()
+	served, _, err := local.ServedModel()
 	if err != nil {
 		return local.Model{}, err
 	}
-	m, found := local.Lookup(st.Model)
+	m, found := local.Lookup(served)
 	if !found {
 		// EnsureOwnServer proved the process. The manifest is what carries the
 		// limits the provider block declares and the prose the dispatch policy
@@ -989,7 +986,7 @@ func localWorker() (local.Model, error) {
 		// honestly to a main agent.
 		return local.Model{}, fmt.Errorf(
 			"the running local server serves %q, which this nav-pilot's model manifest does not name.\n\n  Start it again:\n\n    %s\n    %s",
-			st.Model, domain.Bold("nav-pilot alpha local stop"), domain.Bold("nav-pilot alpha local start"))
+			served, domain.Bold("nav-pilot alpha local stop"), domain.Bold("nav-pilot alpha local start"))
 	}
 	return m, nil
 }

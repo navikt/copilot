@@ -63,7 +63,7 @@ func Ask(ctx context.Context, prompt string) (answer string, in, out int64, err 
 	// report a failure that did not happen. The context is the caller's to
 	// cancel.
 	started := time.Now()
-	resp, err := (&http.Client{}).Do(req)
+	resp, err := ServerClient.Do(req)
 	if err != nil {
 		return "", 0, 0, fmt.Errorf("the local server did not answer: %w", err)
 	}
@@ -129,6 +129,17 @@ func Ask(ctx context.Context, prompt string) (answer string, in, out int64, err 
 // wait behind one. The lock wait honours ctx, which is how a caller's timeout
 // covers a session holding the server.
 func Acquire(ctx context.Context) (url, model string, release func(), err error) {
+	if endpointURL != "" {
+		release, err = lockServer(ctx)
+		if err != nil {
+			return "", "", nil, fmt.Errorf("the local server is busy with another session: %w", err)
+		}
+		if err := probeEndpoint(); err != nil {
+			release()
+			return "", "", nil, err
+		}
+		return endpointURL, endpointModel, release, nil
+	}
 	_, ok, err := LoadState()
 	if err != nil {
 		return "", "", nil, err

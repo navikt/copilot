@@ -177,6 +177,24 @@ var configKeyDefs = []configKeyDef{
 		group:       "Local models (alpha)",
 	},
 	{
+		name:        "local_endpoint",
+		kind:        keyKindString,
+		description: "Your own OpenAI-compatible server (Ollama, llama-server), e.g. http://127.0.0.1:11434/v1 (alpha, unsupported, unmeasured). Set, nav-pilot downloads and starts nothing and sends local work there. Only localhost and private IP addresses. Check it with `nav-pilot alpha local doctor`.",
+		allowed:     nil,
+		defaultVal:  "",
+		flag:        "",
+		group:       "Local models (alpha)",
+	},
+	{
+		name:        "local_endpoint_model",
+		kind:        keyKindString,
+		description: "The model id to ask local_endpoint for, e.g. qwen3.6:35b. Required with local_endpoint.",
+		allowed:     nil,
+		defaultVal:  "",
+		flag:        "",
+		group:       "Local models (alpha)",
+	},
+	{
 		name:        "hook_loop_guard",
 		kind:        keyKindBool,
 		description: "Warn the model when it repeats one tool call, in every Copilot CLI session and not only local ones. nav-pilot writes a postToolUse hook to ~/.copilot/hooks/ at launch that applies the local_loop_guard rule; false removes it at the next launch.",
@@ -388,6 +406,15 @@ version = 1
 # model key picks that, and the two are set independently.
 # Default: unset
 # local_model = "mlx-community/Qwen3.8-27B-4bit"
+
+# Your own OpenAI-compatible server instead of the managed one: Ollama,
+# llama-server, LM Studio or vLLM (alpha, unsupported, unmeasured). nav-pilot
+# then downloads and starts nothing. Only localhost and private IP addresses,
+# since code and tool results are sent there. local_endpoint_model is the model
+# id to ask it for. Check both with: nav-pilot alpha local doctor
+# Default: unset
+# local_endpoint = "http://127.0.0.1:11434/v1"
+# local_endpoint_model = "qwen3.6:35b"
 
 # Warn the model when it repeats one tool call, in every Copilot CLI session
 # and not only local ones. At launch nav-pilot writes a postToolUse hook to
@@ -719,6 +746,10 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return strconv.Itoa(localLoopGuard(r))
 	case "local_model":
 		return r.LocalModel
+	case "local_endpoint":
+		return r.LocalEndpoint
+	case "local_endpoint_model":
+		return r.LocalEndpointModel
 	case "hook_loop_guard":
 		return strconv.FormatBool(r.HookLoopGuard)
 	case "hook_redact_secrets":
@@ -884,7 +915,12 @@ func validateKeyValue(kd *configKeyDef, value string) error {
 	// embedded single-model copy until local is enabled and installed, so a
 	// membership check would reject the very id the docs tell people to set.
 	// `alpha local init` and `start` fetch the real manifest and are the gate.
-	if kd.name == "model" || kd.name == "local_model" {
+	if kd.name == "local_endpoint" {
+		if _, err := local.ValidateEndpoint(value); err != nil {
+			return err
+		}
+	}
+	if kd.name == "model" || kd.name == "local_model" || kd.name == "local_endpoint_model" {
 		if err := validateModelValue(value); err != nil {
 			return err
 		}

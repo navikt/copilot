@@ -231,6 +231,15 @@ func cmdDecide(args []string) (err error) {
 	defer func() {
 		ev.Result = decideResult(err)
 		ev.Model = decideModelLabel(ev.Model)
+		ev.Backend = local.Backend()
+		if _, _, set, _ := configuredEndpoint(); set {
+			// Set but not applied: still the endpoint's call, and its model
+			// is not the manifest default decideModelLabel falls back to.
+			ev.Backend = local.BackendEndpoint
+			if ev.Model != "" {
+				ev.Model = "custom"
+			}
+		}
 		telemetry.RecordDecide(ev)
 	}()
 
@@ -332,12 +341,12 @@ func decideResult(err error) string {
 func decideModelLabel(id string) string {
 	if id == "" {
 		if m, ok := local.Chosen(local.Active()); ok {
-			return m.Model
+			return local.TelemetryModel(m.Model)
 		}
 		return ""
 	}
 	if _, ok := local.Lookup(id); ok {
-		return id
+		return local.TelemetryModel(id)
 	}
 	return "custom"
 }
@@ -437,13 +446,16 @@ func decidePrompt(question string, options []string, evidence string, hasEvidenc
 // off them: temperature 0, thinking off, max_tokens 1.
 func decide(ctx context.Context, question string, options []string, evidence string, hasEvidence bool) (decision, error) {
 	started := time.Now()
+	if err := endpointNotApplied(); err != nil {
+		return decision{}, err
+	}
 	base, model, release, err := decideServer(ctx)
 	if err != nil {
 		return decision{}, err
 	}
 	defer release()
 
-	body, _ := json.Marshal(map[string]any{
+	request := map[string]any{
 		"model":                model,
 		"messages":             []map[string]string{{"role": "user", "content": decidePrompt(question, options, evidence, hasEvidence)}},
 		"max_tokens":           1,
@@ -452,13 +464,19 @@ func decide(ctx context.Context, question string, options []string, evidence str
 		"top_logprobs":         decideTopLogprobs,
 		"stream":               false,
 		"chat_template_kwargs": map[string]any{"enable_thinking": false},
-	})
+	}
+	if local.Backend() == local.BackendEndpoint {
+		// Ollama ignores chat_template_kwargs and turns thinking off for this
+		// instead. Only for an endpoint: mlx-lm is measured without it.
+		request["reasoning_effort"] = "none"
+	}
+	body, _ := json.Marshal(request)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/v1/chat/completions", bytes.NewReader(body))
 	if err != nil {
 		return decision{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := local.ServerClient.Do(req)
 	if err != nil {
 		return decision{}, fmt.Errorf("the local server did not answer: %w", err)
 	}
@@ -489,8 +507,13 @@ func decide(ctx context.Context, question string, options []string, evidence str
 	if err := json.Unmarshal(raw, &parsed); err != nil {
 		return decision{}, fmt.Errorf("could not read the answer as JSON: %w", err)
 	}
-	if len(parsed.Choices) == 0 || len(parsed.Choices[0].Logprobs.Content) == 0 {
-		return decision{}, fmt.Errorf("the local server returned no logprobs; it may be too old to support them")
+	if len(parsed.Choices) == 0 || len(parsed.Choices[0].Logprobs.Content) == 0 || len(parsed.Choices[0].Logprobs.Content[0].TopLogprobs) == 0 {
+		if b, _ := local.Endpoint(); b != "" {
+			return decision{}, fmt.Errorf("your own server (local_endpoint %s, model %s) returned no logprobs, and decide reads its answer from them. "+
+				"Ollama returns them from v0.12.11, llama-server and vLLM do, LM Studio's chat endpoint does not. Check it: %s",
+				b, model, bold("nav-pilot alpha local doctor"))
+		}
+		return decision{}, fmt.Errorf("the local mlx-lm server returned no logprobs; it may be too old to support them")
 	}
 	local.RecordCompletion(parsed.Usage.PromptTokens, parsed.Usage.CompletionTokens, time.Since(started).Seconds())
 

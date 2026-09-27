@@ -53,7 +53,7 @@ type Recorder interface {
 	RecordClientAvailable(client string, available bool)
 	RecordLaunchError(client, errorType string)
 	RecordRtkSetup(client, choice, result string)
-	RecordLocalSession(client, model string, dispatches int64, sawTraffic bool)
+	RecordLocalSession(client, model, backend string, dispatches int64, sawTraffic bool)
 	RecordLocalReadySeconds(model, outcome string, seconds int64)
 	RecordDecide(e DecideEvent)
 	RecordHookLoopGuard(rule, session string)
@@ -64,7 +64,7 @@ type Recorder interface {
 type NoopRecorder struct{}
 
 func (NoopRecorder) RecordCommand(string, string, string, string, string, time.Duration) {}
-func (NoopRecorder) RecordLocalSession(string, string, int64, bool)                      {}
+func (NoopRecorder) RecordLocalSession(string, string, string, int64, bool)              {}
 func (NoopRecorder) RecordLocalReadySeconds(string, string, int64)                       {}
 func (NoopRecorder) RecordInstallItems(string, string, int64)                            {}
 func (NoopRecorder) RecordSyncUpdates(string, string, int64)                             {}
@@ -431,7 +431,9 @@ func (t *otelTelemetry) RecordConfig(client, configMode, model, reasoningEffort,
 // The model id is sent whole rather than collapsed to "custom" as the config gauge
 // does. During the alpha we would rather know which local model a developer is on
 // than protect a cardinality budget of at most a handful of manifest entries.
-func (t *otelTelemetry) RecordLocalSession(client, model string, dispatches int64, sawTraffic bool) {
+// backend is mlx or endpoint; an endpoint's model id is typed by the developer,
+// so the caller passes "custom" for it (local.TelemetryModel).
+func (t *otelTelemetry) RecordLocalSession(client, model, backend string, dispatches int64, sawTraffic bool) {
 	t.localDispatches.Record(context.Background(), dispatches, metric.WithAttributes(
 		attribute.String("client", orUnset(client)),
 		// Whether the client sent this guard anything at all. Zero dispatches
@@ -440,6 +442,7 @@ func (t *otelTelemetry) RecordLocalSession(client, model string, dispatches int6
 		// metric so a single query can separate them.
 		attribute.Bool("saw_traffic", sawTraffic),
 		attribute.String("model", orUnset(model)),
+		attribute.String("backend", oneOf(backend, "mlx", "endpoint")),
 		attribute.String("version", t.version),
 		attribute.String("device_id", t.device),
 	))
@@ -646,6 +649,7 @@ func (t *otelTelemetry) RecordRtkSetup(client, choice, result string) {
 type DecideEvent struct {
 	Result        string // decided, below_threshold, no_server, timeout, error
 	Model         string
+	Backend       string // mlx or endpoint (local_endpoint)
 	Evidence      bool
 	EvidenceBytes int
 	Options       int
@@ -713,6 +717,7 @@ func (t *otelTelemetry) RecordDecide(e DecideEvent) {
 	t.decideResultTotal.Add(ctx, 1, metric.WithAttributes(
 		attribute.String("result", oneOf(e.Result, "decided", "below_threshold", "no_server", "timeout", "error")),
 		attribute.String("model", model),
+		attribute.String("backend", oneOf(e.Backend, "mlx", "endpoint")),
 		attribute.String("evidence", yesNo(e.Evidence)),
 		attribute.String("options", optionsBucket(e.Options)),
 		attribute.String("threshold_used", yesNo(e.ThresholdUsed)),
@@ -781,7 +786,7 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		// and each local command are their own series instead of one "alpha".
 		"alpha decide", "alpha decide eval",
 		"alpha local init", "alpha local start", "alpha local stop", "alpha local restart", "alpha local status", "alpha local models", "alpha local use",
-		"alpha local on", "alpha local off", "alpha local ask", "alpha local purge",
+		"alpha local on", "alpha local off", "alpha local ask", "alpha local purge", "alpha local doctor",
 		"init", "export", "uninstall", "config", "validate", "env", "feedback", "models", "ignore", "add",
 		// A dry-run sync builds mode as "<mode>_dry_run"; unlisted, both spellings
 		// fell back to "non_interactive", so the dry-run distinction the code

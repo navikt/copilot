@@ -1,0 +1,21 @@
+# A server without logprobs (LM Studio's chat endpoint, an old Ollama): init
+# still turns dispatch on, with a warning, and decide fails fast with a message
+# that names your own server rather than mlx-lm.
+
+fake-endpoint -no-logprobs
+exec nav-pilot config set local_endpoint $FAKE_ENDPOINT_URL
+exec nav-pilot config set local_endpoint_model qwen3.6:35b
+
+exec nav-pilot alpha local init
+stdout 'WARN  logprobs +none came back, so alpha decide is unavailable'
+stdout 'alpha decide does not: see logprobs above'
+stdout 'Local dispatch is on'
+
+exits -within 5s 2 nav-pilot alpha decide 'Is this a bug fix?' --options yes,no --evidence msg.txt
+! stdout .
+stderr 'your own server \(local_endpoint http://127\.0\.0\.1:[0-9]+, model qwen3\.6:35b\) returned no logprobs'
+stderr 'nav-pilot alpha local doctor'
+! stderr 'mlx'
+
+-- msg.txt --
+fix: stop sync from deleting composed agents

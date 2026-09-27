@@ -1,0 +1,45 @@
+# doctor on your own server: each check is PASS, WARN or FAIL with the exact
+# fix, and the exit code is 1 when anything failed.
+
+# Everything works.
+fake-endpoint
+exec nav-pilot config set local_endpoint $FAKE_ENDPOINT_URL
+exec nav-pilot config set local_endpoint_model qwen3.6:35b
+exec nav-pilot alpha local doctor
+stdout 'PASS  server '
+stdout 'PASS  tool calls '
+stdout 'PASS  logprobs '
+stdout 'PASS  context +[0-9]+ prompt tokens kept, nothing cut'
+stdout 'PASS  TTFT +[0-9.]+ s for about 30k tokens'
+! stdout 'WARN|FAIL|Fix:'
+
+# Ollama's small num_ctx and a model without a tool-call parser: FAIL, with
+# the fix for each, and the model it does not list is a WARN.
+fake-endpoint -ctx 4096 -no-tools -models qwen3.6:35b-hf
+exec nav-pilot config set local_endpoint $FAKE_ENDPOINT_URL
+exits 1 nav-pilot alpha local doctor
+stdout 'WARN  server +answers, but does not list qwen3\.6:35b \(it lists:\n +qwen3\.6:35b-hf\)'
+stdout 'FAIL  tool calls +the call came back as text, not as a parsed tool_calls entry'
+stdout 'Fix: Ollama: use a library model'
+stdout 'FAIL  context +about 30k tokens went in and 4096 were'
+stdout 'OLLAMA_CONTEXT_LENGTH=65536 ollama serve'
+stdout 'PARAMETER num_ctx'
+
+# init refuses to turn dispatch on over a FAIL.
+exits 1 nav-pilot alpha local init
+stderr 'local dispatch was not turned on'
+exec nav-pilot config get local_enabled
+stdout false
+
+# Nothing listening.
+exec nav-pilot config set local_endpoint http://127.0.0.1:9/v1
+exits 1 nav-pilot alpha local doctor
+stdout 'FAIL  server +no answer'
+stdout 'Fix: Start your server'
+stdout 'SKIP  tool calls'
+
+# No endpoint at all.
+exec nav-pilot config unset local_endpoint
+exec nav-pilot config unset local_endpoint_model
+exits 1 nav-pilot alpha local doctor
+stderr 'local_endpoint is not set'

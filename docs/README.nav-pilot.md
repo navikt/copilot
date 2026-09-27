@@ -566,6 +566,47 @@ Av som standard, med vilje: å starte en 21 GB prosess uten å bli bedt om det e
 Ingenting av dette skjer med mindre du kjører `init` selv. Gjør du ikke det, er nav-pilot
 uendret.
 
+### Egen lokal server (Linux, Ollama, llama-server)
+
+Alfa, og ikke målt. Har du Linux, eller vil du heller bruke Ollama, llama-server eller
+LM Studio på Macen, kan du peke nav-pilot på en server du kjører selv. Da laster
+nav-pilot ikke ned noe og starter ingenting: ingen Python-miljø, ingen vekter, ingen
+`sudo`. Løkkevakten, utsendingen og `alpha decide` går til serveren din. Vi har ikke
+målt noen modell på denne veien, så nav-pilot merker modellen som ikke målt, og
+hovedagenten får ingen godkjente oppgavetyper å gå etter.
+
+Koden din sendes til serveren, så `local_endpoint` godtar bare localhost og private
+IP-adresser. En offentlig adresse blir avvist.
+
+```bash
+# Ollama
+OLLAMA_CONTEXT_LENGTH=65536 ollama serve
+ollama pull qwen3.6:35b
+nav-pilot config set local_endpoint http://127.0.0.1:11434/v1
+nav-pilot config set local_endpoint_model qwen3.6:35b
+
+# llama-server (llama.cpp); legg til --n-cpu-moe 999 på en GPU med 8 GB
+llama-server --jinja -c 65536 --port 8080 -hf unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL
+nav-pilot config set local_endpoint http://127.0.0.1:8080/v1
+nav-pilot config set local_endpoint_model unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL
+
+nav-pilot alpha local init     # sjekker serveren og skrur på utsending
+nav-pilot alpha local doctor   # verktøykall, logprobs, kontekst og tid til første token
+```
+
+Vi anbefaler Qwen3.6-35B-A3B i dynamisk 4-bit (unsloth UD-Q4_K_XL), GGUF-varianten
+som ligger nærmest optiq-modellen vi har målt på Mac. Det er ikke de samme bitene, så
+tallene våre gjelder ikke.
+
+**Ollama kutter lange prompter uten å si fra.** Under 24 GB grafikkminne gir Ollama
+modellen 4 096 tokens kontekst, og det kan ikke endres via `/v1`. En Copilot-økt
+starter med rundt 22 000 tokens. Start Ollama med `OLLAMA_CONTEXT_LENGTH=65536`, eller
+lag en egen modell med en Modelfile som har `PARAMETER num_ctx 65536` (`ollama create`).
+`doctor` sender rundt 30 000 tokens og feiler hvis serveren kutter.
+
+`alpha decide` trenger logprobs. Ollama fra v0.12.11, llama-server og vLLM gir dem, LM
+Studio sitt chat-endepunkt gjør det ikke. Uten logprobs sier `decide` fra med en gang.
+
 ### Utsending til en lokal underagent krever opencode
 
 **Under opencode** blir modellen en underagent (`local-worker`) som hovedagenten i skyen
@@ -797,6 +838,8 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | `local_autostart` | — | true · false (standard: false) | La en vanlig nav-pilot starte den lokale serveren når den trengs og ingen kjører. Av som standard: å starte en 21 GB prosess uten å bli bedt om det er ikke greit. |
 | `local_loop_guard` | — | et heltall (standard: 8) | Hvor mange identiske verktøykall på rad som avslutter en lokal tur, uansett hva de returnerer. Gir kallene samme resultat hver gang, holder det med halvparten (minst 2). |
 | `local_model` | — | modell-id fra manifestet | Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Enklest satt med nav-pilot alpha local use &lt;key&gt;. |
+| `local_endpoint` | — | en http(s)-URL | Din egen OpenAI-kompatible server (Ollama, llama-server), f.eks. http://127.0.0.1:11434/v1 (alfa, uten støtte, ikke målt). Da laster nav-pilot ikke ned og starter ingenting. Bare localhost og private IP-adresser. Sjekk den med nav-pilot alpha local doctor. |
+| `local_endpoint_model` | — | modell-id på serveren | Modell-id-en local_endpoint skal bruke, f.eks. qwen3.6:35b. Påkrevd sammen med local_endpoint. |
 | `hook_loop_guard` | — | true · false (standard: true) | Samme løkkeregel i alle Copilot CLI-økter, også i skyen: en postToolUse-hook i ~/.copilot/hooks/ sier fra til modellen når den står fast. false fjerner hooken ved neste oppstart. |
 | `hook_redact_secrets` | — | true · false (standard: true) | Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-økter. |
 | `hook_redact_fnr` | — | true · false (standard: true) | Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. Bare elleve sifre der datoen og begge kontrollsifrene stemmer blir maskert. |

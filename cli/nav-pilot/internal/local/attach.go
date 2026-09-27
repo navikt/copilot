@@ -229,6 +229,9 @@ type ServerGoneError struct {
 func (e *ServerGoneError) Error() string { return e.err.Error() }
 
 func EnsureOwnServer() error {
+	if endpointURL != "" {
+		return probeEndpoint()
+	}
 	st, ok, err := LoadState()
 	if err != nil {
 		return err

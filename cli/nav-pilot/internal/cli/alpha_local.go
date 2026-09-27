@@ -68,6 +68,12 @@ hosted one. Off until you run init, and invisible everywhere until then.
             sessions or tasks to the local model. Downloads nothing
   off       Stop dispatching: sessions go to the hosted model; the weights stay on disk
   purge     Remove the environment and the chosen model's weights, after showing what and how big (--yes deletes, --all: every model's)
+  doctor    Check your own server (local_endpoint): tool calls, logprobs, context, time to first token
+
+Your own server instead (Linux, Ollama, llama-server; unsupported, unmeasured):
+  nav-pilot config set local_endpoint http://127.0.0.1:11434/v1
+  nav-pilot config set local_endpoint_model qwen3.6:35b
+  nav-pilot alpha local init                        checks it and turns it on; downloads nothing
 
 Switching model:
   nav-pilot alpha local models                      what is offered, and which is in use
@@ -121,6 +127,8 @@ func cmdAlpha(args []string) error {
 		return cmdLocalAsk(args[2:])
 	case "purge":
 		return cmdLocalPurge(args[1:])
+	case "doctor":
+		return cmdLocalDoctor()
 	case "":
 		alphaUsage(os.Stderr)
 		return nil
@@ -128,7 +136,7 @@ func cmdAlpha(args []string) error {
 		alphaUsage(os.Stdout)
 		return nil
 	default:
-		if hint := suggest(sub, []string{"init", "start", "restart", "stop", "status", "models", "use", "ask", "on", "off", "purge"}); hint != "" {
+		if hint := suggest(sub, []string{"init", "start", "restart", "stop", "status", "models", "use", "ask", "on", "off", "purge", "doctor"}); hint != "" {
 			return fmt.Errorf("unknown command: nav-pilot alpha local %s. Did you mean %s?", sub, hint)
 		}
 		return fmt.Errorf("unknown command: nav-pilot alpha local %s. Usage: %s", sub, bold("nav-pilot alpha help"))
@@ -252,6 +260,9 @@ func localSelection(m *local.Manifest) (entry local.Model, configured, why strin
 func cmdLocalInit(args []string) error {
 	ctx := context.Background()
 	yes := slices.Contains(args, "--yes")
+	if _, _, set, _ := configuredEndpoint(); set {
+		return endpointInit()
+	}
 	m, err := activeManifest()
 	if err != nil {
 		return err
@@ -506,6 +517,9 @@ func cmdLocalStart() error {
 	// of resident memory holding a port, with no state file written yet, so
 	// `stop` and `status` both reported nothing recorded. Cancelling here makes
 	// Start return, and the cleanup below was already there waiting for it.
+	if endpointMode("start") {
+		return nil
+	}
 	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopSignals()
 	if !local.Installed() {
@@ -712,6 +726,9 @@ func raiseWiredForStart(ctx context.Context, model local.Model, wired *local.Wir
 // already up, and there was no single command for it: stop, then start, with
 // nothing to say the second half failed.
 func cmdLocalRestart() error {
+	if endpointMode("restart") {
+		return nil
+	}
 	if _, running, err := local.LoadState(); err == nil && running {
 		if err := cmdLocalStop(); err != nil {
 			return err
@@ -723,6 +740,13 @@ func cmdLocalRestart() error {
 }
 
 func cmdLocalStop() error {
+	// A managed server started before the switch to local_endpoint can still
+	// be running; stop stops it rather than leaving 20 GB resident unseen.
+	if endpointMode("stop") {
+		if _, ok, _ := local.LoadState(); !ok {
+			return nil
+		}
+	}
 	st, ok, err := local.LoadState()
 	if err != nil {
 		return err
@@ -747,6 +771,9 @@ func cmdLocalStop() error {
 func cmdLocalStatus() error {
 	if err := benchManifestErr(); err != nil {
 		return err
+	}
+	if _, _, set, _ := configuredEndpoint(); set {
+		return endpointStatus()
 	}
 	ctx := context.Background()
 	fmt.Printf("%s  %s\n\n", bold("nav-pilot alpha local status"), dim("(alpha, unsupported)"))
@@ -916,6 +943,16 @@ func healthMeaning(h local.Health) string {
 // re-enable. Reprovisioning is a no-op on a machine that already has everything,
 // so this was only ever a naming problem, and the fix is the name.
 func cmdLocalOn() error {
+	if _, _, set, err := configuredEndpoint(); set {
+		if err != nil {
+			return err
+		}
+		if _, err := writeConfigKey("local_enabled", "true"); err != nil {
+			return err
+		}
+		fmt.Printf("%s Local dispatch is on, to local_endpoint. Check it: %s\n", green("✓"), bold("nav-pilot alpha local doctor"))
+		return nil
+	}
 	if !local.Installed() {
 		return fmt.Errorf("local inference is not provisioned on this machine. Set it up: %s",
 			bold("nav-pilot alpha local init"))
@@ -1010,6 +1047,10 @@ func applyLocalConfig() {
 	}
 	r := resolve(cfg, CLIOverrides{})
 	local.SetLoopGuardRepeat(localLoopGuard(r))
+	if r.LocalEndpoint != "" {
+		applyEndpointConfig(r)
+		return
+	}
 	if !r.LocalEnabled || !local.Installed() {
 		// Said out loud, because the two halves come apart on their own: the
 		// stamp pins exact mlx and mlx-lm versions, so a nav-pilot upgrade that
@@ -1034,6 +1075,100 @@ func applyLocalConfig() {
 	if cfg.LocalModel != nil {
 		local.SetSelectedModel(strings.TrimSpace(*cfg.LocalModel))
 	}
+}
+
+// applyEndpointConfig is applyLocalConfig for local_endpoint: the developer's
+// own server, so no environment has to be on disk and no manifest applies. An
+// endpoint that fails validation leaves local dispatch off, which is the
+// closed side: the config file can be edited by hand past `config set`.
+func applyEndpointConfig(r ResolvedConfig) {
+	base, err := endpointFromConfig(r)
+	if err != nil {
+		if r.LocalEnabled {
+			fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), wrapIndent(
+				"Local dispatch is off this run: "+err.Error()+". "+endpointFix, "  ", 76))
+		}
+		return
+	}
+	if !r.LocalEnabled {
+		return
+	}
+	local.SetEndpoint(base, r.LocalEndpointModel)
+	local.SetActive(local.EndpointManifest(r.LocalEndpointModel))
+	local.SetSelectedModel(r.LocalEndpointModel)
+	local.SetEnabled(true)
+}
+
+// endpointFix is the way out of an unusable local_endpoint.
+var endpointFix = "Fix it: " + bold("nav-pilot config set local_endpoint http://127.0.0.1:11434/v1") +
+	" (this machine or a private IP), or go back to the managed server: " + bold("nav-pilot config unset local_endpoint")
+
+// endpointNotApplied says why this run does not use a local_endpoint that is
+// set: it is unusable, or dispatch is off. Direct requests (decide, ask) check
+// it first, so a server recorded from before the switch never answers in the
+// endpoint's place. nil when local_endpoint is unset or in use.
+func endpointNotApplied() error {
+	_, _, set, err := configuredEndpoint()
+	switch {
+	case !set:
+		return nil
+	case err != nil:
+		return fmt.Errorf("local_endpoint is set but unusable: %v. %s", err, endpointFix)
+	}
+	if base, _ := local.Endpoint(); base == "" {
+		return fmt.Errorf("%w: local_endpoint is set, but local dispatch is off. Check the server and turn it on: %s",
+			local.ErrNoServerRecorded, bold("nav-pilot alpha local init"))
+	}
+	return nil
+}
+
+// endpointFromConfig validates local_endpoint and local_endpoint_model and
+// returns the endpoint's base URL.
+func endpointFromConfig(r ResolvedConfig) (string, error) {
+	base, err := local.ValidateEndpoint(r.LocalEndpoint)
+	if err != nil {
+		return "", err
+	}
+	if r.LocalEndpointModel == "" {
+		return "", fmt.Errorf("local_endpoint is set but local_endpoint_model is not. Set it: %s", bold("nav-pilot config set local_endpoint_model <model id>"))
+	}
+	if err := validateModelValue(r.LocalEndpointModel); err != nil {
+		return "", fmt.Errorf("local_endpoint_model: %w", err)
+	}
+	return base, nil
+}
+
+// configuredEndpoint reads local_endpoint from the config file whether or not
+// dispatch is on: init, doctor and status act on it before it is. set is false
+// when the key is absent; err is set when it is present and unusable.
+func configuredEndpoint() (base, model string, set bool, err error) {
+	cfg, err := readConfig()
+	if err != nil {
+		return "", "", false, err
+	}
+	r := resolve(cfg, CLIOverrides{})
+	if r.LocalEndpoint == "" {
+		return "", "", false, nil
+	}
+	base, err = endpointFromConfig(r)
+	return base, r.LocalEndpointModel, true, err
+}
+
+// endpointMode reports whether local_endpoint is set, and when it is, says
+// what the managed-server command (start, stop, restart) would have done.
+func endpointMode(command string) bool {
+	base, model, set, err := configuredEndpoint()
+	if !set {
+		return false
+	}
+	if err != nil {
+		fmt.Printf("%s local_endpoint is set, so nav-pilot does not %s a server, and it is not usable: %v\n", yellow("⚠"), command, err)
+		return true
+	}
+	fmt.Printf("%s local_endpoint is set, so nav-pilot does not %s a server: %s serves %s and is yours to run.\n",
+		dim("ℹ"), command, base, bold(model))
+	fmt.Printf("  Check it: %s\n", bold("nav-pilot alpha local doctor"))
+	return true
 }
 
 // activateCachedManifest installs the cached manifest as the active one. A
