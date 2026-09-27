@@ -26,18 +26,18 @@ exec nav-pilot config set rtk_prompted_client copilot
 
 # No terminal: no survey, and copilot-cli is not even asked.
 exec nav-pilot -- -p hei
-! stdout 'User survey'
+! stdout 'Brukerundersøkelse'
 ! exists $WORK/survey-gets.log
 
 # Terminal: the session ends, then the question, with what is sent. Enter
 # alone means later; answering takes a step up.
-exec pty-run -wait 'User survey: E2E survey \(4 questions, asked 1 of 3\)' -send '\x1b[A\r' -wait '4  Enig' -send '\x1b[B\x1b[B\x1b[B\r' -wait 'Pick up to 2' -send ' \r' -wait 'Anything else' -send 'works fine\r' -- nav-pilot
-stdout 'Sent: your answers, nav-pilot version, OS, which client you use'
-stdout 'Not sent: your name, GitHub user, device id, code or anything from your sessions'
-stdout 'cannot be changed or withdrawn afterwards'
-stdout 'Write nothing that identifies you or anyone else'
+exec pty-run -wait 'Brukerundersøkelse: E2E survey \(4 spørsmål, spurt 1 av 3 ganger\)' -send '\x1b[A\r' -wait '4  Enig' -send '\x1b[B\x1b[B\x1b[B\r' -wait 'Velg opptil 2' -send ' \r' -wait 'Anything else' -send 'works fine\r' -- nav-pilot
+stdout 'Dette sendes: svarene dine, nav-pilot-versjon, operativsystem'
+stdout 'Dette sendes ikke: navn, GitHub-bruker, enhets-ID, kode eller noe fra øktene dine'
+stdout 'kan ikke endres eller trekkes tilbake etterpå'
+stdout 'Skriv ikke noe som kan identifisere deg eller andre'
 ! stdout 'Why not copilot'
-stdout 'Thank you! Your answers were sent'
+stdout 'Takk! Svaret ditt er sendt'
 grep -count=1 '^POST 201 bearer=true keys=answers,context context=client,local_models,os,version device_id_leak=no ' $WORK/survey-posts.log
 grep '"answers":\{"clients":\["copilot"\],"comment":"works fine","useful":4\}' $WORK/survey-posts.log
 grep '"client":"copilot","local_models":false' $WORK/survey-posts.log
@@ -45,12 +45,12 @@ grep '"client":"copilot","local_models":false' $WORK/survey-posts.log
 
 # Answered: never asked again.
 exec pty-run -- nav-pilot
-! stdout 'User survey'
+! stdout 'Brukerundersøkelse'
 
 # The same person again, from a fresh machine state: copilot-cli says 409.
 rm $HOME/surveys.json
-exec pty-run -wait 'User survey' -send '\x1b[A\r' -wait 'How useful' -send '\r' -wait 'Pick up to 2' -send '\x1b[B \r' -wait 'Why not copilot' -send '\x1b[A\x1b[A\r' -wait 'Anything else' -send '\r' -- nav-pilot
-stdout 'You have already answered this survey, so these answers were not sent'
+exec pty-run -wait 'Brukerundersøkelse' -send '\x1b[A\r' -wait 'How useful' -send '\r' -wait 'Velg opptil 2' -send '\x1b[B \r' -wait 'Why not copilot' -send '\x1b[A\x1b[A\r' -wait 'Anything else' -send '\r' -- nav-pilot
+stdout 'Du har allerede svart på denne undersøkelsen, så dette svaret ble ikke sendt'
 grep -count=1 '^POST 409 .*"clients":\["opencode"\].*"why":"habit"' $WORK/survey-posts.log
 
 -- home/device-id --

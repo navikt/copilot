@@ -23,23 +23,23 @@ exec nav-pilot config set rtk_prompted_client copilot
 # The wait between asks, shortened for the journey.
 env NAV_PILOT_E2E_SURVEY_GAP=0s
 
-exec pty-run -wait 'asked 1 of 3' -send '\r' -- nav-pilot
-stdout 'nav-pilot will ask again in a few days'
-exec pty-run -wait 'asked 2 of 3' -send '\x1b' -- nav-pilot
-stdout 'nav-pilot will ask again in a few days'
-exec pty-run -wait 'asked 3 of 3' -send '\r' -- nav-pilot
-stdout 'That was the last time nav-pilot asks about this survey'
+exec pty-run -wait 'spurt 1 av 3' -send '\r' -- nav-pilot
+stdout 'nav-pilot spør igjen om noen dager'
+exec pty-run -wait 'spurt 2 av 3' -send '\x1b' -- nav-pilot
+stdout 'nav-pilot spør igjen om noen dager'
+exec pty-run -wait 'spurt 3 av 3' -send '\r' -- nav-pilot
+stdout 'Det var siste gang nav-pilot spør om denne undersøkelsen'
 exec pty-run -- nav-pilot
-! stdout 'User survey'
+! stdout 'Brukerundersøkelse'
 ! exists $WORK/survey-posts.log
 
 # A fresh start, and never.
 rm $HOME/surveys.json
-exec pty-run -wait 'asked 1 of 3' -send '\x1b[B\r' -- nav-pilot
-stdout 'won.t ask about this survey again'
+exec pty-run -wait 'spurt 1 av 3' -send '\x1b[B\r' -- nav-pilot
+stdout 'spør ikke om denne undersøkelsen igjen'
 stdout 'nav-pilot config set surveys false'
 exec pty-run -- nav-pilot
-! stdout 'User survey'
+! stdout 'Brukerundersøkelse'
 ! exists $WORK/survey-posts.log
 
 -- plattform/.nav-pilot/agentpakke.json --
