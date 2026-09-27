@@ -910,7 +910,7 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | `copilot_auth_mode` | — | auto · env_only · gh_only (standard: auto) | Hvilken innlogging som når cplt for Copilot. auto begrenser ingenting; env_only krever et token i GH_TOKEN, GITHUB_TOKEN eller COPILOT_GITHUB_TOKEN; gh_only fjerner dem. |
 <!-- config-keys:end -->
 
-Mangler cplt, spør nav-pilot før den starter `copilot` uten sandbox. Uten terminal nekter den,
+Mangler cplt, spør nav-pilot før den starter `copilot` eller `opencode` uten sandbox. Uten terminal nekter den,
 med mindre du sender `--no-sandbox`. Installer cplt med `brew install navikt/tap/cplt` eller
 `sudo apt install cplt`.
 
