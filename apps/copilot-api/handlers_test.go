@@ -8,6 +8,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 func TestHealthHandler(t *testing.T) {
@@ -260,5 +264,20 @@ func TestSAMLPathNeverLoggedOrTraced(t *testing.T) {
 	}
 	if !tracePath(httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/metrics", nil)) {
 		t.Error("ordinary routes must still be traced")
+	}
+}
+
+// The wiring main.go uses: the SAML lookup yields no span, an ordinary
+// route does.
+func TestTraceAPISkipsSAMLLookup(t *testing.T) {
+	exp := tracetest.NewInMemoryExporter()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exp))
+	h := traceAPI(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), otelhttp.WithTracerProvider(tp))
+	for _, p := range []string{"/api/v1/copilot/saml/ola.nordmann@nav.no", "/api/v1/copilot/usage/metrics"} {
+		h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, p, nil))
+	}
+	spans := exp.GetSpans()
+	if len(spans) != 1 || spans[0].Name != "GET /api/v1/copilot/usage/metrics" {
+		t.Fatalf("spans = %v, want only the usage route", spans)
 	}
 }
