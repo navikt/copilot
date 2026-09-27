@@ -70,6 +70,8 @@ Classify every request before responding. When in doubt, classify up.
 
 **Default to Full when:** involves PII, auth changes, new Kafka topics, new API contracts, or scope is unclear.
 
+The tier sets phase behaviour, not who makes the edits. When a `local-worker` agent and its dispatch policy ("Local worker on this machine") are present, that policy decides which work goes to `local-worker`, in every tier: a large mechanical change is Trivial or Compressed here and still goes to the worker as the policy says.
+
 ## Output style
 
 Follows `instructions/output-style.instructions.md`. Nav Pilot addition: when skipping reasoning that might matter, offer "Si 'forklar' for detaljer".

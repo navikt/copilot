@@ -509,9 +509,15 @@ func TestLocalDispatchPolicyFromCapabilities(t *testing.T) {
 	}}
 	got := LocalDispatchPolicy(policyModel(c), 3, 5)
 
-	send := "Send it: mechanical changes that follow one pattern across several files, such as a rename or a field threaded through its call sites.\n"
+	// "Large" and no rename: Sonnet 5 read "several files" as a floor it then
+	// argued 2 files were under, and a rename is one sed that costs the same
+	// sent (pending-tasks §8.8, dispatch probe 2).
+	send := "Send it: large mechanical changes that follow one pattern across many files or call sites, such as a parameter threaded through its call sites.\n"
 	keep := "Do not send it: questions about the code and explanations of it; comments, log lines and other single-file edits; new files, tests included; debugging; changes needing a judgement per file; tasks needing many rounds; changes where a wrong edit is expensive.\n"
-	for _, want := range []string{send, sendTrusted, keep,
+	// splitMulti is there because edit-multi-mechanical is trusted: the worker
+	// is reliable when told each place, so large jobs go out one file at a time.
+	for _, want := range []string{send, sendTrusted, splitMulti, keep,
+		"3 or more files or 5 or more call sites", "one task per file",
 		" 3 identical calls in a row that got the same result back",
 		" 5 identical calls whatever they return",
 		"It often says no and changes nothing."} {
@@ -521,7 +527,9 @@ func TestLocalDispatchPolicyFromCapabilities(t *testing.T) {
 	}
 	for _, gone := range []string{"lookups in the code", "a single test file",
 		// The threshold and the doubt clauses kept Sonnet 5 from ever dispatching.
-		"cheaper to make yourself", "if you doubt", "judge this correctly"} {
+		"cheaper to make yourself", "if you doubt", "judge this correctly",
+		// Sending one-step jobs cost the same credits and three times the time.
+		"even when you could do them in one or two steps"} {
 		if strings.Contains(got, gone) {
 			t.Errorf("the generated policy still sends %q, which no verdict trusts:\n%s", gone, got)
 		}
@@ -544,10 +552,28 @@ func TestLocalDispatchPolicyIgnoresWhatItDoesNotKnow(t *testing.T) {
 	if !strings.Contains(got, "Send it nothing for now") {
 		t.Errorf("an unknown class or verdict was treated as trusted:\n%s", got)
 	}
-	if strings.Contains(got, "refactor-large") || strings.Contains(got, sendTrusted) {
+	if strings.Contains(got, "refactor-large") || strings.Contains(got, sendTrusted) || strings.Contains(got, splitMulti) {
 		t.Errorf("the policy names an unknown class or tells the agent how to send work:\n%s", got)
 	}
 	if !strings.Contains(got, "questions about the code and explanations of it") || !strings.Contains(got, "; debugging;") {
 		t.Errorf("classes with unknown verdicts are not kept on the cloud:\n%s", got)
+	}
+}
+
+// TestLocalDispatchPolicySplitsOnlyTrustedMultiFileEdits: the per-file split
+// and its call-site counts describe mechanical multi-file edits. A worker
+// trusted with something else must not be told to take those, so the line is
+// there only when that class is trusted.
+func TestLocalDispatchPolicySplitsOnlyTrustedMultiFileEdits(t *testing.T) {
+	c := &local.Capabilities{Classes: map[string]local.ClassVerdict{
+		"create-file":           {Delegate: local.VerdictTrusted},
+		"edit-multi-mechanical": {Delegate: local.VerdictNotYet},
+	}}
+	got := LocalDispatchPolicy(policyModel(c), 3, 5)
+	if !strings.Contains(got, "Send it: new files, tests included, such as a set of repetitive tests written from a spec.\n") || !strings.Contains(got, sendTrusted) {
+		t.Errorf("a trusted create-file is not sent as a large job:\n%s", got)
+	}
+	if strings.Contains(got, splitMulti) || strings.Contains(got, "call sites") {
+		t.Errorf("the policy sends multi-file edits no verdict trusts:\n%s", got)
 	}
 }
