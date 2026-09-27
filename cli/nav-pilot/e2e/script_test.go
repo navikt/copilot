@@ -22,6 +22,7 @@ import (
 	"github.com/rogpeppe/go-internal/testscript"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // update rewrites the expected files in a script (the `-- stdout.golden --`
@@ -46,7 +47,7 @@ func TestMain(m *testing.M) {
 	if filepath.Base(os.Args[0]) == ptyRunName {
 		os.Exit(ptyRun(os.Args[1:]))
 	}
-	os.Exit(m.Run())
+	os.Exit(testhome.Run(m))
 }
 
 // TestScripts runs every journey in testdata/script against the real binary.

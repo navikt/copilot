@@ -416,13 +416,11 @@ func TestRunStagedProbeTimeoutIsReal(t *testing.T) {
 	}
 }
 
-// TestRealCopilotProbe runs the actual probe against the installed cplt. It is
-// the check every stub in this file is blind to: a probe vector that cannot
-// work on a real machine. Skipped where cplt is not installed (CI), which is
-// why TestCopilotProbeVector pins the argv separately.
+// TestRealCopilotProbe is opt-in: cplt can download Copilot into the user's
+// cache, so ordinary unit tests must not run this probe.
 func TestRealCopilotProbe(t *testing.T) {
-	if testing.Short() {
-		t.Skip("spawns the real cplt")
+	if os.Getenv("NAV_PILOT_REAL_COPILOT_PROBE") != "1" {
+		t.Skip("set NAV_PILOT_REAL_COPILOT_PROBE=1 to run the integration probe")
 	}
 	if _, err := stagedCpltPath(); err != nil {
 		t.Skip("cplt is not installed")

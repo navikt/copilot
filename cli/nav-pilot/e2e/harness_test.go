@@ -24,6 +24,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 var (
@@ -48,6 +50,9 @@ func binary(t *testing.T) string {
 		cmd := exec.Command("go", "build", "-o", binPath,
 			"-ldflags", "-X github.com/navikt/copilot/cli/nav-pilot/internal/cli.e2eSeams=1", ".")
 		cmd.Dir = ".."
+		// The developer's own HOME, so go finds its build and module caches
+		// instead of filling the test home (TestMain redirected HOME).
+		cmd.Env = testhome.OriginalEnv()
 		if out, err := cmd.CombinedOutput(); err != nil {
 			buildErr = err
 			buildOut = string(out)

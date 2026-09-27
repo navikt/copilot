@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // #830: a test in this package installed an agentpakke and, three calls down,
@@ -51,7 +53,7 @@ func TestMain(m *testing.M) {
 	// don't — take httpClient.Transport, the way assessStaleness does.
 	http.DefaultTransport = vakt
 	httpClient.Transport = vakt
-	os.Exit(m.Run())
+	os.Exit(testhome.Run(m))
 }
 
 // medNett opts one test back onto the real network. Only a test whose whole

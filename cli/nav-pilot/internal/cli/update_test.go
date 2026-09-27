@@ -150,6 +150,8 @@ func localReleaseAPI(t *testing.T) {
 }
 
 func TestRun_UpdateCommand(t *testing.T) {
+	// run() writes the update-check cache under HOME (#1063).
+	isolatedRun(t)
 	// Set version to a known value to trigger "up to date" path
 	// (avoids actually downloading a binary in tests)
 	origVersion := Version

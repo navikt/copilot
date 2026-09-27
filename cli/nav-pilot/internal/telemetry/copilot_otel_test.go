@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -333,6 +334,9 @@ func TestEncodeResourceAttrValue(t *testing.T) {
 // most likely to hit that are the ones who set DO_NOT_TRACK on purpose.
 func telemetryOn(t *testing.T) {
 	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(home, ".nav-pilot", "config.toml"))
 	t.Setenv("DO_NOT_TRACK", "")
 	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
 }
