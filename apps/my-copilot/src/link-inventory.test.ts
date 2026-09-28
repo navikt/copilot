@@ -18,7 +18,7 @@ import path from "node:path";
 import nextConfig from "../next.config";
 import sitemap from "@/app/sitemap";
 import { allGuides } from "@/app/(nb)/praksis/data";
-import { slugify } from "@/components/linkable-heading";
+import { sourceHeadings } from "@/lib/page-headings";
 import { INSTALL_TYPES } from "@/lib/install-redirect";
 import { LEGACY_ANCHORS } from "@/lib/legacy-anchors";
 import { getArticle, getLinkTarget } from "@/lib/news";
@@ -170,17 +170,8 @@ function definedAnchors(routeFile: string, headingsOnly = false): Map<string, st
       const tag = src.slice(src.lastIndexOf("<", m.index) + 1).match(/^[\w.]+/)?.[0] ?? "";
       if (!headingsOnly || tag === "LinkableHeading") ids.set(m[1], rel(file));
     }
-    for (const m of src.matchAll(/<LinkableHeading((?:[^>"]|"[^"]*")*)>([^<{]+)<\/LinkableHeading>/g)) {
-      if (!/\bid=/.test(m[1]))
-        ids.set(
-          slugify(
-            m[2]
-              .trim()
-              .split(/\s*\n\s*/)
-              .join(" ")
-          ),
-          rel(file)
-        );
+    for (const h of sourceHeadings(src)) {
+      if (h.tag === "LinkableHeading" && h.id) ids.set(h.id, rel(file));
     }
     for (const m of src.matchAll(/hashIds:\s*\[([^\]]*)\]/g)) {
       for (const id of m[1].matchAll(/"([^"]+)"/g)) ids.set(id[1], rel(file));
