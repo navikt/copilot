@@ -62,8 +62,12 @@ func TestActionCheckOutcomes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeDecideServer(t, tt.answer)
+			last := fakeDecideServer(t, tt.answer)
 			out, log, spool := runActionHook(t, localOn, riskyPayload)
+			prompt, _ := json.Marshal(last())
+			if !strings.Contains(string(prompt), "kubectl delete deployment app") || strings.Contains(string(prompt), "ghp_0123") {
+				t.Errorf("the server should see the command, redacted: %s", prompt)
+			}
 			if out != "{}" {
 				t.Errorf("answer %s, want {} (allow)", out)
 			}

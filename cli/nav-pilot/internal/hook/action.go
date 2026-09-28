@@ -39,11 +39,20 @@ func ShellCommand(tool string, args json.RawMessage) (command, description strin
 var (
 	segmentSep = regexp.MustCompile("&&|\\|\\||[;|&\n\"'`()]|\\$\\(")
 	sqlClient  = regexp.MustCompile(`(?i)\b(psql|mysql|mariadb|sqlite3|sqlcmd)\b`)
-	sqlDrop    = regexp.MustCompile(`(?i)\b(drop\s+(table|database|schema)|truncate\s+table)\b`)
+	sqlDrop    = regexp.MustCompile(`(?i)\b(drop\s+[a-z]+|truncate)\b`)
 )
 
-// wrappers run the command after them; their own flags are skipped.
-var wrappers = map[string]bool{"sudo": true, "env": true, "time": true, "nohup": true, "exec": true, "command": true, "xargs": true}
+// wrappers run the command after them; their own flags are skipped, and the
+// value of each flag listed here with it (sudo -u root rm: rm, not root).
+var wrappers = map[string][]string{
+	"sudo":    {"-u", "-g", "-h", "-p", "-C", "-D", "-r", "-t", "-U", "-T"},
+	"env":     {"-u", "-C", "-S", "-P"},
+	"time":    {"-f", "-o"},
+	"nohup":   nil,
+	"exec":    {"-a"},
+	"command": nil,
+	"xargs":   {"-n", "-I", "-L", "-P", "-s", "-d", "-E", "-a"},
+}
 
 var mutating = map[string][]string{
 	"kubectl":   {"delete", "apply", "create", "replace", "patch", "edit", "scale", "autoscale", "drain", "cordon", "uncordon", "taint", "set", "label", "annotate", "rollout"},
@@ -76,11 +85,15 @@ func riskySegment(w []string) string {
 			w = w[1:]
 			continue
 		}
-		if !wrappers[w[0]] {
+		valued, ok := wrappers[w[0]]
+		if !ok {
 			break
 		}
 		w = w[1:]
 		for len(w) > 0 && strings.HasPrefix(w[0], "-") {
+			if slices.Contains(valued, w[0]) && len(w) > 1 {
+				w = w[1:]
+			}
 			w = w[1:]
 		}
 	}

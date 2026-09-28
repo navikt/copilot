@@ -70,7 +70,7 @@ type actionVerdict struct {
 	MS      int64
 }
 
-// runActionCheck asks every question concurrently under one server lock and
+// runActionCheck asks every question in turn under one server lock and
 // returns when all are answered or the budget is spent, whichever is first.
 // It never starts a server. A server that is not running, a lock another
 // session holds past the budget, or ~/.nav-pilot being out of reach (cplt
@@ -96,20 +96,21 @@ func runActionCheck(evidence string) actionVerdict {
 			return
 		}
 		defer release()
-		var wg sync.WaitGroup
+		// One at a time: mlx-lm hangs on concurrent prompts of different
+		// lengths (local.TestGuardSerialisesCompletions).
 		for _, q := range actionQuestions {
-			wg.Go(func() {
-				d, err := decideAt(ctx, time.Now(), base, model, q.question, q.options, evidence, true)
-				mu.Lock()
-				defer mu.Unlock()
-				if err != nil {
-					failed = errors.Join(failed, err)
-					return
-				}
+			d, err := decideAt(ctx, time.Now(), base, model, q.question, q.options, evidence, true)
+			mu.Lock()
+			if err != nil {
+				failed = errors.Join(failed, err)
+			} else {
 				p[q.key] = d.P[q.options[1]]
-			})
+			}
+			mu.Unlock()
+			if err != nil {
+				return
+			}
 		}
-		wg.Wait()
 	}()
 	// Some of the waiting (the server's own checks) does not watch ctx.
 	select {
@@ -166,7 +167,12 @@ func actionCheck(r ResolvedConfig, p hook.Payload) {
 		}
 	}
 	if v.Outcome == "" {
-		v = runActionCheck(actionEvidence(command, description, p.Cwd))
+		// Redacted as the log is: the server is local, but a secret on a
+		// command line has no business in a prompt.
+		opts := hook.RedactOptions{Secrets: true, FNR: true}
+		cmdR, _ := hook.Redact(command, opts)
+		descR, _ := hook.Redact(description, opts)
+		v = runActionCheck(actionEvidence(cmdR, descR, p.Cwd))
 	}
 	spoolHookEvents(p.SessionID, "action_check "+v.Outcome+" "+category)
 	logActionCheck(p.SessionID, category, command, v)
