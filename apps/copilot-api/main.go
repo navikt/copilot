@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -230,13 +231,30 @@ func registerDevRoutes(mux *http.ServeMux, config *Config, rawBQClient *BigQuery
 	mux.HandleFunc("/dev/query", rawBQClient.devQueryHandler)
 }
 
-// traceAPI wraps the /api/v1/ handler in otelhttp, except the SAML lookup,
-// whose path is the caller's e-mail (see tracePath).
+// traceAPI wraps the /api/v1/ handler in otelhttp, except the SAML lookup
+// (see tracePath). otelhttp names the span after the path and records it as
+// url.path, so it sees the redacted path, and the handler gets the real one.
 func traceAPI(h http.Handler, opts ...otelhttp.Option) http.Handler {
-	return otelhttp.NewHandler(h, "api", append([]otelhttp.Option{
+	type realURL struct{}
+	traced := otelhttp.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if u, ok := r.Context().Value(realURL{}).(*url.URL); ok {
+			r = r.WithContext(r.Context())
+			r.URL = u
+		}
+		h.ServeHTTP(w, r)
+	}), "api", append([]otelhttp.Option{
 		otelhttp.WithFilter(tracePath),
 		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 			return r.Method + " " + r.URL.Path
 		}),
 	}, opts...)...)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if p := redactPath(r.URL.Path); p != r.URL.Path {
+			redacted := *r.URL
+			redacted.Path, redacted.RawPath = p, ""
+			r = r.WithContext(context.WithValue(r.Context(), realURL{}, r.URL))
+			r.URL = &redacted
+		}
+		traced.ServeHTTP(w, r)
+	})
 }

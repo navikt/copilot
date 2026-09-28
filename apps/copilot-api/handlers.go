@@ -224,22 +224,33 @@ func respondJSON(w http.ResponseWriter, data interface{}, status int) {
 	}
 }
 
-// redactPath replaces everything after /saml/ in
-// GET /api/v1/copilot/saml/{identity}, which is the caller's Nav e-mail, so a
-// request log never names who was active when. Case-insensitive, so
-// /SAML/<e-mail> (a 404, but logged first) is caught too.
+// redactPath replaces the path segments that name a person, so a request log
+// or a span never says who was active when: everything after /saml/ (the
+// caller's Nav e-mail), and the GitHub username in /usage/user/{username}
+// and /seats/{username}. Case-insensitive, so /SAML/<e-mail> (a 404, but
+// logged first) is caught too.
 func redactPath(p string) string {
 	// Slice the lowered string: ToLower can change a rune's byte length.
 	low := strings.ToLower(p)
 	if i := strings.Index(low, "/saml/"); i >= 0 {
 		return low[:i] + "/saml/{identity}"
 	}
+	for _, m := range []string{"/usage/user/", "/seats/"} {
+		if i := strings.Index(low, m); i >= 0 {
+			// TrimLeft: %2F before the name decodes to a leading slash.
+			_, tail, _ := strings.Cut(strings.TrimLeft(low[i+len(m):], "/"), "/")
+			if tail != "" {
+				tail = "/" + tail
+			}
+			return low[:i] + m + "{username}" + tail
+		}
+	}
 	return p
 }
 
 // tracePath reports whether a request may be traced. The SAML lookup never
-// is, since otelhttp records the full path on the span.
-func tracePath(r *http.Request) bool { return redactPath(r.URL.Path) == r.URL.Path }
+// is: its route is internal to copilot-survey and has no use for a span.
+func tracePath(r *http.Request) bool { return !strings.Contains(strings.ToLower(r.URL.Path), "/saml/") }
 
 // loggingMiddleware logs HTTP requests
 func loggingMiddleware(config *Config, next http.Handler) http.Handler {
