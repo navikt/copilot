@@ -806,7 +806,7 @@ func (t *otelTelemetry) RecordHookRedact(kind string, count int64) {
 }
 
 // RecordHookActionCheck counts one action check: flagged (the model found the
-// command risky), passed, or skipped (timeout, no_server, sandbox, error), with the
+// command risky), passed, or skipped (timeout, no_server, error), with the
 // classifier's category of the command.
 func (t *otelTelemetry) RecordHookActionCheck(outcome, category string) {
 	if t.hookActionCheck == nil {
