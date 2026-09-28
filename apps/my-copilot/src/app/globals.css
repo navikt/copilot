@@ -801,23 +801,3 @@ button.section-link {
   font-size: 0.875rem;
   color: var(--ax-text-neutral-subtle);
 }
-/* The front-page search: a button that looks like a search field and opens the dialog */
-.home-search {
-  display: flex;
-  align-items: center;
-  gap: var(--ax-space-8);
-  width: 100%;
-  min-height: 3rem;
-  padding-inline: var(--ax-space-12);
-  border: 1px solid var(--ax-border-neutral);
-  border-radius: var(--ax-radius-4);
-  background: var(--ax-bg-default);
-  color: var(--ax-text-neutral-subtle);
-  font-size: 1rem;
-  text-align: left;
-  cursor: pointer;
-}
-.home-search:hover {
-  border-color: #fff;
-  box-shadow: 0 0 0 1px #fff;
-}

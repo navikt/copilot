@@ -2,7 +2,6 @@ import { getNewsItems } from "@/lib/news";
 import { Box, VStack, Heading, HGrid, BodyShort } from "@navikt/ds-react";
 import { ExternalLinkIcon, PlayIcon, BookIcon } from "@navikt/aksel-icons";
 import { NewsFeed } from "@/components/news-feed";
-import { HomeSearch } from "@/components/home-search";
 import { HighlightCards } from "@/components/pulse-strip";
 import { HomeShortsFeed } from "@/components/video/home-shorts-feed";
 import { Sidebar, SidebarCompact } from "@/components/sidebar";
@@ -29,17 +28,14 @@ export default async function Home() {
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
           className="max-w-7xl mx-auto"
         >
-          <VStack gap="space-16">
-            <VStack gap="space-8">
-              <Heading size="xlarge" level="1" className="hero-title hero-animate">
-                Copilot i Nav
-              </Heading>
-              <BodyShort className="max-w-md opacity-70 hero-animate-d1">
-                {user && <Greeting />}
-                Nyheter, beste praksis og verktøy for AI-drevet utvikling i Nav.
-              </BodyShort>
-            </VStack>
-            <HomeSearch />
+          <VStack gap="space-8">
+            <Heading size="xlarge" level="1" className="hero-title hero-animate">
+              Copilot i Nav
+            </Heading>
+            <BodyShort className="max-w-md opacity-70 hero-animate-d1">
+              {user && <Greeting />}
+              Nyheter, beste praksis og verktøy for AI-drevet utvikling i Nav.
+            </BodyShort>
           </VStack>
         </Box>
       </section>
