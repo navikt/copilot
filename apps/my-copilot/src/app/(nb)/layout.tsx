@@ -4,10 +4,11 @@ import "../globals.css";
 
 const description = "Nyheter, beste praksis og verktøy for KI-drevet utvikling i Nav.";
 
+// The site is «KI-utvikling i Nav» (the home page H1); nav-pilot is one part of it (#1192).
 export const metadata: Metadata = {
   title: {
-    template: "%s — nav-pilot",
-    default: "nav-pilot",
+    template: "%s — KI-utvikling i Nav",
+    default: "KI-utvikling i Nav",
   },
   description,
   // Without metadataBase, Next resolves og:image against http://localhost:3000
@@ -17,9 +18,9 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "nb_NO",
-    siteName: "nav-pilot",
-    title: "nav-pilot",
-    description,
+    siteName: "KI-utvikling i Nav",
+    // No title or description here: Next fills og:title and og:description
+    // from each page's own, so a shared link previews as that page.
   },
 };
 

@@ -1,7 +1,12 @@
 import { Box } from "@navikt/ds-react";
+import type { Metadata } from "next";
 import { PageHero } from "@/components/page-hero";
 import { categories } from "./data";
 import { PraksisHub } from "@/components/nav-pilot/praksis-hub";
+
+export const metadata: Metadata = {
+  title: "God praksis og guider",
+};
 
 export default async function BestPractices() {
   const clientCategories = categories.map((cat) => ({

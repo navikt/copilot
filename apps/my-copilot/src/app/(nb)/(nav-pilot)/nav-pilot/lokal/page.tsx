@@ -63,9 +63,9 @@ export default async function LokalIntro() {
         <BodyLong>
           Hovedagenten i skyen planlegger og bestemmer. Mekaniske oppgaver, som å føre et nytt argument gjennom mange
           filer, sender den til <code className={code}>local-worker</code>, en underagent som kjører på Macen din og
-          ikke bruker AI-credits. Med <code className={code}>nav-pilot alpha decide</code> stiller du den samme modellen
-          et flervalgsspørsmål fra en hook eller et skript. Spørsmålet og grunnlaget forlater ikke maskinen. Ved
-          utsending ser hovedagenten i skyen oppgaven den selv skrev, og det korte svaret fra den lokale modellen.
+          ikke bruker AI-kreditter. Med <code className={code}>nav-pilot alpha decide</code> stiller du den samme
+          modellen et flervalgsspørsmål fra en hook eller et skript. Spørsmålet og grunnlaget forlater ikke maskinen.
+          Ved utsending ser hovedagenten i skyen oppgaven den selv skrev, og det korte svaret fra den lokale modellen.
         </BodyLong>
       </div>
 
@@ -162,8 +162,8 @@ export default async function LokalIntro() {
           <BodyLong>
             Vil du at den lokale modellen skal gjøre mest mulig, kan du velge <code className={code}>aggressive</code>{" "}
             med <code className={code}>nav-pilot config set local_dispatch aggressive</code>. Da sender hovedagenten
-            mest, men det sparer ikke skykreditter. I målingen 28. september 2026 (probe 6) sendte hovedagenten arbeid i
-            6 av 8 kjøringer med mange kallsteder eller nye testfiler. Det kostet 1,2–1,6 ganger så mye i skykreditter
+            mest, men det sparer ikke AI-kreditter. I målingen 28. september 2026 (probe 6) sendte hovedagenten arbeid i
+            6 av 8 kjøringer med mange kallsteder eller nye testfiler. Det kostet 1,2–1,6 ganger så mye i AI-kreditter
             og tok 2–3,6 ganger så lang tid som når skymodellen gjorde alt selv. Kvaliteten var lavere på nye testfiler:
             én testfil fra den lokale modellen var grønn uten å fange feilen den skulle fange. Bruk{" "}
             <code className={code}>aggressive</code> bare til mekaniske endringer over mange filer.{" "}
