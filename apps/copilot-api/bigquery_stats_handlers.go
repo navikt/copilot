@@ -308,8 +308,8 @@ func (h *BigQueryHandlers) handleUsageDistribution(w http.ResponseWriter, r *htt
 	// Seat count comes from the background-collected GitHub metrics, not BigQuery.
 	// Copy the struct to avoid mutating the cached pointer (shared across requests).
 	var seats int64
-	if h.activeSeatsGetter != nil {
-		seats = h.activeSeatsGetter()
+	if h.seatsGetter != nil {
+		seats = h.seatsGetter()
 	}
 
 	result := *distribution

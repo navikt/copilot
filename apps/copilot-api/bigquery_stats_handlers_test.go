@@ -226,7 +226,7 @@ func TestHandleUsageDistributionDoesNotMutateCachedResponse(t *testing.T) {
 	}
 	mock := &mockBigQueryClient{usageDistribution: shared}
 	h := newBigQueryHandlers(mock)
-	h.setActiveSeatsGetter(func() int64 { return 42 })
+	h.setSeatsGetter(func() int64 { return 42 })
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/distribution", nil)
 	rec := httptest.NewRecorder()
@@ -297,5 +297,27 @@ func TestIsValidYearMonth(t *testing.T) {
 				t.Errorf("isValidYearMonth(%q) = %v, want %v", tc.month, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestSuppressSmallBuckets(t *testing.T) {
+	buckets := []UsageHistogramBucket{
+		{Bucket: "0%", NumUsers: 0},
+		{Bucket: "1-9%", NumUsers: 1},
+		{Bucket: "10-24%", NumUsers: minUsersForDistribution - 1},
+		{Bucket: "25-49%", NumUsers: minUsersForDistribution},
+	}
+	suppressSmallBuckets(buckets)
+
+	want := []UsageHistogramBucket{
+		{Bucket: "0%", NumUsers: 0},
+		{Bucket: "1-9%", NumUsers: 0, Suppressed: true},
+		{Bucket: "10-24%", NumUsers: 0, Suppressed: true},
+		{Bucket: "25-49%", NumUsers: minUsersForDistribution},
+	}
+	for i := range want {
+		if buckets[i] != want[i] {
+			t.Errorf("bucket %d = %+v, want %+v", i, buckets[i], want[i])
+		}
 	}
 }
