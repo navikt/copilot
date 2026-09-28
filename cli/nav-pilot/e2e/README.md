@@ -91,3 +91,44 @@ round there after the review.
 Treat what comes back as hypotheses to check with a person or a new journey,
 not as a verdict. Don't commit the review as expected output. Put it in the
 PR description.
+
+Step 2 is a script: `go test ./e2e -run TestScripts/<name> -v | python3
+e2e/persona_transcripts.py` prints the stripped transcripts as Markdown.
+
+## Persona review in CI
+
+[`nav-pilot-persona-review.yaml`](../../../.github/workflows/nav-pilot-persona-review.yaml)
+does the steps above in GitHub Actions and posts the result:
+
+- **On a PR:** add the `persona-review` label. It runs the journeys whose
+  `.txtar` the PR adds, changes or renames (every `alpha_` journey if none) and posts
+  one comment, which it edits on each push. Without the label it doesn't run.
+  PRs from forks are skipped.
+- **Weekly, Monday morning:** it runs every `alpha_` journey and replaces the
+  body of the open issue "Weekly nav-pilot persona run" (label `dx-uat`),
+  creating it if none is open. If a journey fails, the run fails and comments
+  on the issue. Close the issue to start a fresh one next week. Run it by hand
+  from the Actions tab (workflow_dispatch).
+
+The journeys run against the fake servers, as in `go test`. No real model,
+network or credential is involved.
+
+### Turning on the LLM review
+
+Off by default: the comment and the issue carry the transcripts, and a person
+reviews them with [UX_RUBRIC.md](UX_RUBRIC.md). The comment and issue hold
+whole journeys up to 45,000 characters; every transcript is in the run's
+`persona-transcripts` artifact, linked from the report.
+
+The LLM step gives the rubric and the transcripts (up to 100,000 characters)
+to [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli-in-actions)
+with the workflow's own `GITHUB_TOKEN`, so it needs no secret. Each run costs
+Copilot premium requests, billed to the organization. To turn it on:
+
+1. Get approval for that cost.
+2. Add `copilot-requests: write` to the job's `permissions` in the workflow.
+3. Set the repository variable `PERSONA_REVIEW_LLM` to `true`.
+
+If the call fails, the run continues and posts the transcripts without a
+review. (GitHub Models, the other token-only route, was retired on
+2026-07-30.)
