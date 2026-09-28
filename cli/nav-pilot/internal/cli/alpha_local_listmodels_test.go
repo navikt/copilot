@@ -19,10 +19,28 @@ func TestListModelsData(t *testing.T) {
 		`{"data":[{"id":"a"}]}`:                 false,
 	} {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(body)) }))
-		_, err := listModels(context.Background(), srv.URL, 2*time.Second)
+		_, _, err := listModels(context.Background(), srv.URL, 2*time.Second)
 		srv.Close()
 		if (err == nil) != ok {
 			t.Errorf("%s: err = %v, want ok = %v", body, err, ok)
+		}
+	}
+}
+
+// mlx_lm.server is built on Python's http.server, and its Server header says
+// so. Seen as llama-server before (#1102).
+func TestListModelsTellsMLXLM(t *testing.T) {
+	for server, want := range map[string]bool{"BaseHTTP/0.6 Python/3.12.13": true, "llama.cpp": false, "": false} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			if server != "" {
+				w.Header().Set("Server", server)
+			}
+			_, _ = w.Write([]byte(`{"object":"list","data":[{"id":"a"}]}`))
+		}))
+		_, mlxLM, err := listModels(context.Background(), srv.URL, 2*time.Second)
+		srv.Close()
+		if err != nil || mlxLM != want {
+			t.Errorf("Server %q: mlxLM = %v, %v; want %v", server, mlxLM, err, want)
 		}
 	}
 }

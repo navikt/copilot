@@ -35,7 +35,7 @@ import (
 
 // setupCandidate is a place a local server usually listens, by default port.
 type setupCandidate struct {
-	Kind string // ollama, llama-server, lmstudio, vllm
+	Kind string // ollama, llama-server, lmstudio, vllm, mlx-lm
 	Addr string // host:port, loopback only
 }
 
@@ -47,7 +47,7 @@ var defaultSetupCandidates = []setupCandidate{
 	{"vllm", "127.0.0.1:8000"},
 }
 
-var kindName = map[string]string{"ollama": "Ollama", "llama-server": "llama-server", "lmstudio": "LM Studio", "vllm": "vLLM"}
+var kindName = map[string]string{"ollama": "Ollama", "llama-server": "llama-server", "lmstudio": "LM Studio", "vllm": "vLLM", "mlx-lm": "mlx_lm.server"}
 
 // setupCandidates is where detection looks. NAV_PILOT_SETUP_CANDIDATES
 // (kind=host:port,...) replaces the list, for tests and for a server on a
@@ -63,7 +63,7 @@ func setupCandidates() ([]setupCandidate, error) {
 		host, _, err := net.SplitHostPort(addr)
 		ip := net.ParseIP(host)
 		if !ok || kindName[kind] == "" || err != nil || ip == nil || !ip.IsLoopback() {
-			return nil, fmt.Errorf("NAV_PILOT_SETUP_CANDIDATES: %q is not kind=127.0.0.1:port (kinds: ollama, llama-server, lmstudio, vllm)", part)
+			return nil, fmt.Errorf("NAV_PILOT_SETUP_CANDIDATES: %q is not kind=127.0.0.1:port (kinds: ollama, llama-server, lmstudio, vllm, mlx-lm)", part)
 		}
 		out = append(out, setupCandidate{kind, addr})
 	}
@@ -89,8 +89,11 @@ func detectServers(ctx context.Context, cands []setupCandidate) []foundServer {
 		go func() {
 			defer wg.Done()
 			base := "http://" + c.Addr
-			ids, err := listModels(ctx, base, 2*time.Second)
+			ids, mlxLM, err := listModels(ctx, base, 2*time.Second)
 			if err == nil {
+				if mlxLM {
+					c.Kind = "mlx-lm"
+				}
 				found[i] = &foundServer{c, base, ids}
 			}
 		}()
@@ -105,16 +108,20 @@ func detectServers(ctx context.Context, cands []setupCandidate) []foundServer {
 	return out
 }
 
-func listModels(ctx context.Context, base string, timeout time.Duration) ([]string, error) {
+// listModels also says whether the server is mlx_lm.server, told by the
+// Server header of Python's http.server, which it is built on.
+// ponytail: any Python http.server with an OpenAI model list counts as
+// mlx-lm; check more than the header if another one turns up.
+func listModels(ctx context.Context, base string, timeout time.Duration) ([]string, bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/v1/models", nil)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	resp, err := local.ServerClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer resp.Body.Close()
 	var list struct {
@@ -130,13 +137,13 @@ func listModels(ctx context.Context, base string, timeout time.Duration) ([]stri
 	// non-array data is not.
 	if resp.StatusCode != http.StatusOK || json.Unmarshal(raw, &list) != nil || list.Object != "list" ||
 		len(list.Data) == 0 || json.Unmarshal(list.Data, &data) != nil {
-		return nil, errors.New("not an OpenAI model list")
+		return nil, false, errors.New("not an OpenAI model list")
 	}
 	var ids []string
 	for _, m := range data {
 		ids = append(ids, m.ID)
 	}
-	return ids, nil
+	return ids, strings.HasPrefix(resp.Header.Get("Server"), "BaseHTTP/"), nil
 }
 
 // knownGood maps model names to the models nav-pilot's own manifest runs,
@@ -161,11 +168,14 @@ const (
 )
 
 // modelRank scores a model id: 0 unknown, higher is better. A copy setup made
-// with a raised context ranks above the model it was made from, known or not.
+// with a raised context ranks above the model it was made from, known or not,
+// and so does the exact build in nav-pilot's MLX manifest: mlx_lm.server lists
+// every MLX model in the Hugging Face cache, and the plain 4-bit build of the
+// same model is the one the manifest turned down.
 func modelRank(id string) (int, string) {
 	l := strings.ToLower(id)
 	copied := 0
-	if strings.HasSuffix(l, "-navpilot") || strings.HasSuffix(l, "-navpilot:latest") {
+	if _, ok := local.Lookup(id); ok || strings.HasSuffix(l, "-navpilot") || strings.HasSuffix(l, "-navpilot:latest") {
 		copied = 1
 	}
 	for i, k := range knownGood {
@@ -302,6 +312,10 @@ func cmdLocalSetup(args []string) error {
 		return err
 	}
 	fmt.Printf("\n  Using  %s on %s %s\n\n", bold(choice.Model), kindName[choice.Server.Kind], dim(choice.Server.Base+"/v1"))
+	if choice.Server.Kind == "mlx-lm" && len(choice.Server.Models) > 1 {
+		fmt.Printf("  %s mlx_lm.server lists every MLX model in the Hugging Face cache and loads the one a request names. Sessions will run %s, which need not be the model the server was started with, and the first request loads it. Another one: %s\n\n",
+			yellow("⚠"), choice.Model, bold("nav-pilot alpha local setup --model <id>"))
+	}
 	// Refused before the checks, not after: the context probe can take
 	// minutes on a CPU, and a script would otherwise wait through it twice.
 	if !f.yes && !isInteractive() {
@@ -362,13 +376,16 @@ func findServers(ctx context.Context, f setupFlags) ([]foundServer, error) {
 		if err != nil {
 			return nil, err
 		}
-		ids, err := listModels(ctx, base, 5*time.Second)
+		ids, mlxLM, err := listModels(ctx, base, 5*time.Second)
 		if err != nil {
 			return nil, fmt.Errorf("%s does not answer with a model list (%v). Start the server, then run setup again", base+"/v1", err)
 		}
 		// Only Ollama answers /api/version; the others behave alike here.
 		kind := "llama-server"
-		if isOllama(ctx, base) {
+		switch {
+		case mlxLM:
+			kind = "mlx-lm"
+		case isOllama(ctx, base):
 			kind = "ollama"
 		}
 		return []foundServer{{setupCandidate{kind, strings.TrimPrefix(strings.TrimPrefix(base, "http://"), "https://")}, base, ids}}, nil
@@ -382,14 +399,14 @@ func findServers(ctx context.Context, f setupFlags) ([]foundServer, error) {
 	for _, c := range cands {
 		i := slices.IndexFunc(servers, func(s foundServer) bool { return s.Addr == c.Addr })
 		if i < 0 {
-			fmt.Printf("    %s %-12s %s\n", dim("·"), kindName[c.Kind], dim(c.Addr+" not answering"))
+			fmt.Printf("    %s %-13s %s\n", dim("·"), kindName[c.Kind], dim(c.Addr+" not answering"))
 			continue
 		}
 		models := strings.Join(servers[i].Models, ", ")
 		if models == "" {
 			models = "no models"
 		}
-		fmt.Printf("    %s %-12s %s  %s\n", green("✓"), kindName[c.Kind], c.Addr, models)
+		fmt.Printf("    %s %-13s %s  %s\n", green("✓"), kindName[servers[i].Kind], c.Addr, models)
 	}
 	return servers, nil
 }

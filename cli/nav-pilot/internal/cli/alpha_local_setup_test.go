@@ -1,6 +1,10 @@
 package cli
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
+)
 
 func TestModelRankPrefersNavPilotsOwnModel(t *testing.T) {
 	servers := []foundServer{
@@ -18,6 +22,19 @@ func TestModelRankPrefersNavPilotsOwnModel(t *testing.T) {
 		if r, _ := modelRank(id); r != want {
 			t.Errorf("modelRank(%s) = %d, want %d", id, r, want)
 		}
+	}
+}
+
+// mlx_lm.server lists every MLX model in the Hugging Face cache. The exact
+// build in nav-pilot's manifest must win over the plain 4-bit one listed
+// first, which the manifest turned down (#1102).
+func TestModelRankPrefersTheManifestBuild(t *testing.T) {
+	local.SetActive(nil) // the embedded manifest, whatever an earlier test installed
+	servers := []foundServer{{setupCandidate{"mlx-lm", "127.0.0.1:8080"}, "http://127.0.0.1:8080", []string{
+		"mlx-community/Qwen3.6-35B-A3B-4bit", "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+	}}}
+	if got := choices(servers)[0].Model; got != "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit" {
+		t.Errorf("first choice = %s, want the OptiQ build from the manifest", got)
 	}
 }
 
