@@ -90,7 +90,7 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     copilot: "Ikke aktuelt",
     opencode: `Ja, ${OPENCODE_RANGE}`,
     pi: "Nei",
-    note: <>Utenfor området får du en advarsel ved oppstart og i {c("nav-pilot doctor")}.</>,
+    note: <>Utenfor dette området får du en advarsel ved oppstart og i {c("nav-pilot doctor")}.</>,
   },
   {
     what: "Deling slått av, oppdateringer som varsel",
@@ -203,12 +203,11 @@ export default function Klienter() {
           Hva hver klient kan
         </LinkableHeading>
         <BodyLong>
-          Tabellen viser sluttstatus for paritetsarbeidet i{" "}
+          Tabellen viser sluttstatus per 28. september 2026 for paritetsarbeidet i{" "}
           <a href={`${GH}/issues/1022`} className={linkClass}>
             #1022
           </a>
-          , som skulle gjøre opencode like trygg som Copilot CLI, per 28. september 2026. Det som gjenstår i opencode,
-          står under{" "}
+          , som skulle gjøre opencode like trygg som Copilot CLI. Det som gjenstår i opencode, står under{" "}
           <a href="#kjente-hull" className={linkClass}>
             Kjente hull i opencode
           </a>
