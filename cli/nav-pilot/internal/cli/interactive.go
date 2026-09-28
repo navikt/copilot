@@ -287,6 +287,7 @@ func firstRunSetup(flagSource string) error {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Config setup failed: %v\n", yellow("⚠"), err)
 	}
+	recordEffectiveClient()
 	return nil
 }
 

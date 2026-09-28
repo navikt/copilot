@@ -526,6 +526,7 @@ func run(args []string) error {
 	if len(args) < 1 {
 		if isInteractive() {
 			maybeSurveyHint(cliOverrides.Client)
+			maybeClientNudge(cliOverrides.Client)
 			err := runWithCommandTelemetry("startup", telemetryMode(), "auto", func() error {
 				return cmdInteractive(cliOverrides)
 			})

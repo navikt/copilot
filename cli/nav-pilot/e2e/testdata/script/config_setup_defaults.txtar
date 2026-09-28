@@ -1,5 +1,6 @@
 # The wizard preselects the built-in defaults, auto_update included, and
-# writes only what differs from them. Its client labels are the settings
+# writes only what differs from them, except the client, which it always
+# writes so a later default never moves the user (#1029). Its client labels are the settings
 # page's. Before the model list it says it is asking the account which
 # models it has, and that the probe runs outside the sandbox.
 
@@ -10,7 +11,7 @@ exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode
 stdout 'GitHub Copilot \(default\)'
 stdout 'OpenCode'
 stdout 'Checking which models your account has… \(runs copilot once, outside the cplt sandbox; it stops before any prompt\)'
-! grep 'client =' home/config.toml
+grep 'client = "copilot"' home/config.toml
 ! grep 'mode =' home/config.toml
 ! grep 'auto_update' home/config.toml
 grep 'version = 1' home/config.toml

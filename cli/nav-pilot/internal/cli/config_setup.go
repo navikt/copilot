@@ -52,12 +52,11 @@ func writeSetupConfig(answers setupAnswers) error {
 		}
 	}
 
-	// Only what differs from the built-in default is written, so a default
-	// that changes later reaches this file too.
-	if answers.Client != findKeyDef("client").defaultVal {
-		clientVal, _ := formatTOMLValue(findKeyDef("client"), answers.Client)
-		lines = append(lines, "client = "+clientVal)
-	}
+	// The client is always written: a later change of the built-in default
+	// must not move a user who answered this (#1029). For the rest only what
+	// differs from the default is written, so a later default reaches them.
+	clientVal, _ := formatTOMLValue(findKeyDef("client"), answers.Client)
+	lines = append(lines, "client = "+clientVal)
 	if answers.Mode != findKeyDef("mode").defaultVal {
 		modeVal, _ := formatTOMLValue(findKeyDef("mode"), answers.Mode)
 		lines = append(lines, "mode = "+modeVal)
