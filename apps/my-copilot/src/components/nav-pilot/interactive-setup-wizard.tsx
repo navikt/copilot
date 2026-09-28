@@ -23,9 +23,9 @@ interface SetupCommandBlock {
 const WORKFLOW_COMMANDS: Record<Workflow, string[]> = {
   cli: ["nav-pilot config set client copilot", "nav-pilot"],
   opencode: [
-    "nav-pilot",
-    "# Har du brukt nav-pilot før, beholder du klienten du har. Bytt til opencode med:",
+    "# Har du brukt nav-pilot før, beholder du klienten du har. Bytt til opencode først med:",
     "# nav-pilot config set client opencode",
+    "nav-pilot",
   ],
   editor: [],
 };
