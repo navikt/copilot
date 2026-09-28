@@ -232,7 +232,7 @@ export function StepWorkflow({
     <VStack gap="space-16">
       <VStack gap="space-4" align="center" className="text-center mb-4">
         <Heading size="medium" level="2">
-          Hvordan vil du jobbe med AI?
+          Hvordan vil du jobbe med KI?
         </Heading>
         <BodyShort textColor="subtle">Velg det verktøyet som passer best for oppgaven du skal løse nå.</BodyShort>
       </VStack>

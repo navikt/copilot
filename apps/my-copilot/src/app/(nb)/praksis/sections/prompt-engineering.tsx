@@ -12,7 +12,7 @@ export default function PromptEngineering() {
         </Heading>
         <BodyShort className="text-gray-800 mb-4">
           For å lykkes med Copilot, spesielt på komplekse oppgaver, anbefaler vi å bruke{" "}
-          <strong>WRAP-rammeverket</strong> utviklet av GitHub. Det hjelper deg med å tenke som en "manager" for AI-en i
+          <strong>WRAP-rammeverket</strong> utviklet av GitHub. Det hjelper deg med å tenke som en "manager" for KI-en i
           stedet for bare en kode-skriver:
         </BodyShort>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -46,7 +46,7 @@ export default function PromptEngineering() {
               P - Pair
             </BodyShort>
             <BodyShort className="text-sm text-gray-700">
-              Pair-programmering. Evaluer koden, gi feedback på feil, og ta over styringen når AI-en står fast.
+              Pair-programmering. Evaluer koden, gi feedback på feil, og ta over styringen når KI-en står fast.
             </BodyShort>
           </div>
         </div>

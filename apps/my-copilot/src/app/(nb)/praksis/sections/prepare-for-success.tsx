@@ -53,7 +53,7 @@ export default function PrepareForSuccess() {
               stack, bygg-kommandoer, kodestil og grenser.
             </BodyShort>
             <BodyShort className="text-gray-600 text-xs">
-              Tenk på det som onboarding-dokumentet for en ny utvikler – det er nøyaktig det AI-agenter trenger for å
+              Tenk på det som onboarding-dokumentet for en ny utvikler – det er nøyaktig det KI-agenter trenger for å
               forstå prosjektet ditt.
             </BodyShort>
           </Box>
@@ -515,7 +515,7 @@ Return extracted data as structured JSON:
           </Heading>
         </div>
         <BodyShort className="text-gray-600 text-xs mb-3">
-          Sjekk disse punktene for å gjøre repoet ditt klart for AI-agenter. Tilpasninger + verifikasjon = 14 poeng
+          Sjekk disse punktene for å gjøre repoet ditt klart for KI-agenter. Tilpasninger + verifikasjon = 14 poeng
           totalt.
         </BodyShort>
         <BodyShort weight="semibold" className="text-xs mb-2">

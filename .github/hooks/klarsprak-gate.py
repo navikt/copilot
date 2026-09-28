@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""preToolUse-gate: norsk AI-markør i tekst som publiseres skal nektes.
+"""preToolUse-gate: norsk KI-markør i tekst som publiseres skal nektes.
 
 `skills/klarsprak/SKILL.md` lister markørene, og `forfatter.agent.md` sier det
 samme i persona-form. Personaen leses av modellen; den kan overses. Denne porten
@@ -72,7 +72,7 @@ PUBLISHES = re.compile(
 )
 
 # Markørene. Kilde: «Svulstige ord og uttrykk», «Åpnings- og avslutningsfraser»
-# og «Engelske AI-ord» i skills/klarsprak/SKILL.md.
+# og «Engelske KI-ord» i skills/klarsprak/SKILL.md.
 MARKERS = [
     r"banebrytende",
     r"revolusjonerende",
@@ -107,7 +107,7 @@ MARKERS = [
 MARKER_RE = re.compile("|".join(r"(?<![\wæøå])(?:%s)" % m for m in MARKERS), re.IGNORECASE)
 
 REASON_HEAD = (
-    "Teksten som publiseres her bærer norske AI-markører, og klarspråk-skillen "
+    "Teksten som publiseres her bærer norske KI-markører, og klarspråk-skillen "
     "ber deg fjerne dem før teksten når et menneske. "
     "Funnet: "
 )

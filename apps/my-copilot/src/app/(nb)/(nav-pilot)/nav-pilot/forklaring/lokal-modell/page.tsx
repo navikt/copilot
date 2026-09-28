@@ -9,6 +9,8 @@ import { TrustedClassesTable } from "@/components/nav-pilot/local-model-tables";
 import type { TocItem } from "@/components/table-of-contents";
 import { FALLBACK_TABLE, getLocalModels } from "@/lib/local-models";
 
+// "AI" stays in the AI credit wording: AI credits is GitHub's name for the billing unit. Other Norwegian text says KI.
+
 export const metadata: Metadata = {
   title: "Lokal modell",
   description:

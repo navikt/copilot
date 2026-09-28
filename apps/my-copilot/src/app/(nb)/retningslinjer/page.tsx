@@ -13,13 +13,13 @@ import NextLink from "next/link";
 
 export const metadata: Metadata = {
   title: "Retningslinjer",
-  description: "Regler og rammer for bruk av GitHub Copilot og AI-verktøy i Nav.",
+  description: "Regler og rammer for bruk av GitHub Copilot og KI-verktøy i Nav.",
 };
 
 export default function RetningslinjerPage() {
   return (
     <main id="hovedinnhold" tabIndex={-1}>
-      <PageHero title="Retningslinjer" description="Regler og rammer for bruk av GitHub Copilot og AI-verktøy i Nav." />
+      <PageHero title="Retningslinjer" description="Regler og rammer for bruk av GitHub Copilot og KI-verktøy i Nav." />
       <div className="max-w-7xl mx-auto">
         <Box
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
@@ -107,7 +107,7 @@ export default function RetningslinjerPage() {
                     hvilke data som samles inn i disse versjonene.
                   </ForbiddenItem>
                   <ForbiddenItem title="ChatGPT, Claude Code og lignende">
-                    Frittstående AI-kodeverktøy utenfor GitHub Copilot er ikke tillatt. Du kan bruke Claude- og
+                    Frittstående KI-kodeverktøy utenfor GitHub Copilot er ikke tillatt. Du kan bruke Claude- og
                     GPT-modellene via Copilot.
                   </ForbiddenItem>
                   <ForbiddenItem title="Privat bruk på Nav-lisens">
@@ -118,7 +118,7 @@ export default function RetningslinjerPage() {
                     godkjente servere fra Verktøy-siden.
                   </ForbiddenItem>
                   <ForbiddenItem title="Agenter uten isolasjon">
-                    Å kjøre AI-agenter med ubegrenset tilgang til Nav-utstyr er ikke tillatt. Bruk cplt eller
+                    Å kjøre KI-agenter med ubegrenset tilgang til Nav-utstyr er ikke tillatt. Bruk cplt eller
                     tilsvarende isolasjon, også for personlig agentarbeid på utstyret.
                   </ForbiddenItem>
                 </HGrid>
@@ -129,7 +129,7 @@ export default function RetningslinjerPage() {
             <Section icon={<ShieldLockIcon aria-hidden />} title="Krav: agenter skal kjøre isolert">
               <VStack gap="space-8">
                 <BodyLong>
-                  Når du bruker en AI-agent på Nav-utstyr, skal agenten kjøre i en sandbox eller tilsvarende isolasjon.
+                  Når du bruker en KI-agent på Nav-utstyr, skal agenten kjøre i en sandbox eller tilsvarende isolasjon.
                   Kravet gjelder all agentbruk på utstyret, både Nav-relatert arbeid og personlig agentarbeid.
                 </BodyLong>
                 <BodyLong>
@@ -137,7 +137,7 @@ export default function RetningslinjerPage() {
                   <NextLink href="/cplt" className="text-blue-600 hover:underline">
                     cplt
                   </NextLink>
-                  , Navs egen sandbox for AI-agenter. Velger du en annen løsning, må du selv sette deg inn i og aktivere
+                  , Navs egen sandbox for KI-agenter. Velger du en annen løsning, må du selv sette deg inn i og aktivere
                   isolasjonen agentklienten tilbyr, eller bruke en annen mekanisme (for eksempel VM eller container).
                   Ikke kjør agenter med ubegrenset tilgang til maskinen.
                 </BodyLong>
@@ -183,7 +183,7 @@ export default function RetningslinjerPage() {
               <VStack gap="space-8">
                 <BodyLong>
                   Copilot er et verktøy. Du er ansvarlig for koden som går i produksjon. De samme kravene gjelder
-                  uansett om koden er skrevet av deg, generert av AI, eller hentet fra andre kilder:
+                  uansett om koden er skrevet av deg, generert av KI, eller hentet fra andre kilder:
                 </BodyLong>
                 <ol className="list-decimal list-inside space-y-2">
                   <li>
@@ -211,17 +211,17 @@ export default function RetningslinjerPage() {
               </VStack>
             </Section>
 
-            {/* Bevisst AI-bruk */}
-            <Section icon={<LaptopIcon aria-hidden />} title="Bevisst AI-bruk">
+            {/* Bevisst KI-bruk */}
+            <Section icon={<LaptopIcon aria-hidden />} title="Bevisst KI-bruk">
               <VStack gap="space-8">
                 <BodyLong>
-                  Forskning viser at utviklere som bruker AI bevisst lærer mer enn de som delegerer blindt. Nav
-                  oppfordrer til &laquo;generer-så-forstå&raquo;-mønsteret: la AI generere, men still spørsmål om
+                  Forskning viser at utviklere som bruker KI bevisst lærer mer enn de som delegerer blindt. Nav
+                  oppfordrer til &laquo;generer-så-forstå&raquo;-mønsteret: la KI generere, men still spørsmål om
                   hvorfor, verifiser at du forstår, og tilpass aktivt.
                 </BodyLong>
                 <BodyLong>
                   Vær spesielt bevisst i &laquo;rød sone&raquo;: debugging, nye konsepter, kjernelogikk og
-                  sikkerhetskritisk kode. Her bør du prøve selv først og bruke AI som støtte, ikke omvendt.
+                  sikkerhetskritisk kode. Her bør du prøve selv først og bruke KI som støtte, ikke omvendt.
                 </BodyLong>
               </VStack>
             </Section>
@@ -253,7 +253,7 @@ export default function RetningslinjerPage() {
                     <tr className="border-b">
                       <td className="py-2 pr-4 whitespace-nowrap">2026-08-13</td>
                       <td className="py-2">
-                        Lagt til krav om at AI-agenter skal kjøre isolert (sandbox) på Nav-utstyr, med cplt som anbefalt
+                        Lagt til krav om at KI-agenter skal kjøre isolert (sandbox) på Nav-utstyr, med cplt som anbefalt
                         løsning. Gjelder også personlig agentarbeid.
                       </td>
                     </tr>
@@ -261,7 +261,7 @@ export default function RetningslinjerPage() {
                       <td className="py-2 pr-4 whitespace-nowrap">2026-05-05</td>
                       <td className="py-2">
                         Lagt til retningslinjer for agent mode, coding agent, MCP-servere og BYOK. Fjernet krav om
-                        &laquo;block public code matching&raquo;. Ny seksjon om bevisst AI-bruk.
+                        &laquo;block public code matching&raquo;. Ny seksjon om bevisst KI-bruk.
                       </td>
                     </tr>
                     <tr className="border-b">

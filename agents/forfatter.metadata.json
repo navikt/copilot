@@ -11,7 +11,7 @@
       "scenario": "README for Kotlin/Ktor-app"
     },
     {
-      "prompt": "@forfatter Gå gjennom ADR-en og fjern AI-språk, og skriv beslutningen i aktiv form",
+      "prompt": "@forfatter Gå gjennom ADR-en og fjern KI-språk, og skriv beslutningen i aktiv form",
       "scenario": "Architecture Decision Record"
     },
     {

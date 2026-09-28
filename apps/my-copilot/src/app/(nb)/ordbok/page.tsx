@@ -7,7 +7,7 @@ import { terms } from "../ordliste/terms";
 
 export const metadata: Metadata = {
   title: "Ordbok",
-  description: "Enkle forklaringer på begreper brukt i forbindelse med GitHub Copilot og AI-assistert utvikling.",
+  description: "Enkle forklaringer på begreper brukt i forbindelse med GitHub Copilot og KI-assistert utvikling.",
 };
 
 export default function OrdbokPage() {
@@ -15,7 +15,7 @@ export default function OrdbokPage() {
     <main id="hovedinnhold" tabIndex={-1}>
       <PageHero
         title="Ordbok"
-        description="Enkle forklaringer på begreper brukt i forbindelse med GitHub Copilot og AI-assistert utvikling."
+        description="Enkle forklaringer på begreper brukt i forbindelse med GitHub Copilot og KI-assistert utvikling."
       />
       <Box
         paddingBlock={{ xs: "space-24", md: "space-40" }}

@@ -381,7 +381,7 @@ func processReadmeCounts(root string) int {
 	promptCount := countFiles(filepath.Join(root, "prompts"), "*.prompt.md")
 	skillCount := countPublicSkills(filepath.Join(root, "skills"))
 
-	counts := fmt.Sprintf(`- **🤖 [%d Agenter](docs/README.agents.md)** — Spesialiserte AI-assistenter for Nav-domener
+	counts := fmt.Sprintf(`- **🤖 [%d Agenter](docs/README.agents.md)** — Spesialiserte KI-assistenter for Nav-domener
 - **📋 [%d Instruksjoner](docs/README.instructions.md)** — Kodestandarder som aktiveres automatisk basert på filmønster
 - **⚡ [%d Prompts](docs/README.prompts.md)** — Scaffolding-maler for vanlige Nav-mønstre
 - **🎯 [%d Skills](docs/README.skills.md)** — Produksjonsmønstre fra ekte Nav-repoer

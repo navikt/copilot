@@ -154,7 +154,7 @@ export default function Resources() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Knip for Editors & Agents – Integrasjon med AI-verktøy
+                Knip for Editors & Agents – Integrasjon med KI-verktøy
               </a>
             </li>
           </ul>

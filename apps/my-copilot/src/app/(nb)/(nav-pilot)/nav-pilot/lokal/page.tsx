@@ -8,6 +8,8 @@ import type { TocItem } from "@/components/table-of-contents";
 import { NAV_PILOT_BREW_INSTALL, NAV_PILOT_BREW_UPGRADE } from "@/lib/install-commands";
 import { getLocalModels } from "@/lib/local-models";
 
+// "AI" stays in the AI credit wording: AI credits is GitHub's name for the billing unit. Other Norwegian text says KI.
+
 export const metadata: Metadata = {
   title: "Kom i gang med lokal modell på Mac",
   description:

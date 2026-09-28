@@ -162,7 +162,7 @@ export default function EffectiveCustomizations() {
                 <strong>tools</strong> – liste over tilgjengelige verktøy (f.eks. search, fetch, editFiles)
               </li>
               <li>
-                <strong>model</strong> – valgfri AI-modell (én eller prioritert liste)
+                <strong>model</strong> – valgfri KI-modell (én eller prioritert liste)
               </li>
               <li>
                 <strong>handoffs</strong> – sekvensielle workflows mellom agenter

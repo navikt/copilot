@@ -1,6 +1,6 @@
 {
-  "displayName": "Bevisst AI-bruk",
-  "description": "Regler for bevisst AI-bruk som alltid gjelder: forklar valg, merk rød sone, spør før full delegering. Hele rammeverket ligger i deliberate-ai-use-skillen",
+  "displayName": "Bevisst KI-bruk",
+  "description": "Regler for bevisst KI-bruk som alltid gjelder: forklar valg, merk rød sone, spør før full delegering. Hele rammeverket ligger i deliberate-ai-use-skillen",
   "domain": "general",
   "tags": ["ai", "skill-preservation", "learning", "practices"],
   "examples": [

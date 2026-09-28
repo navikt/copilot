@@ -20,6 +20,8 @@ import { formatNumber } from "@/lib/format";
 import type { UserMetricsSummary, DailyCredits } from "@/lib/types";
 import dynamic from "next/dynamic";
 
+// "AI" stays in the AI credit wording: AI credits is GitHub's name for the billing unit. Other Norwegian text says KI.
+
 const DailyCreditsChart = dynamic(() => import("@/components/charts/DailyCreditsChart"), { ssr: false });
 
 interface BudgetData {
@@ -400,7 +402,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
           <Box padding="space-8" borderRadius="8" className="border">
             <VStack gap="space-4">
               <Heading size="medium" level="3">
-                AI-forbruksgrense
+                AI-kredittgrense
               </Heading>
               {loading ? (
                 <VStack gap="space-4" role="status">
@@ -592,7 +594,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                     Modeller brukt (30 dager)
                   </Heading>
                   <Detail className="text-gray-600">
-                    AI-modeller rangert etter antall interaksjoner (chat + kodeforslag)
+                    KI-modeller rangert etter antall interaksjoner (chat + kodeforslag)
                   </Detail>
                 </VStack>
                 {loading ? (

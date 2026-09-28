@@ -127,7 +127,7 @@ export default function Troubleshooting() {
                     kontekster gjennom organisasjonens "AI Credits" i et forrykende tempo.
                   </li>
                   <li>
-                    <strong>Tapt resonneringsevne:</strong> Når AI-modellen drukner i tusenvis av irrelevante filer,
+                    <strong>Tapt resonneringsevne:</strong> Når KI-modellen drukner i tusenvis av irrelevante filer,
                     "glemmer" den instruksene og gir mye dårligere og tregere svar (og reservert minne for
                     chain-of-thought fylles opp).
                   </li>

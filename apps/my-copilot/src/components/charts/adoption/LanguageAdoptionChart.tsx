@@ -35,7 +35,7 @@ const LanguageAdoptionChart: React.FC<LanguageAdoptionChartProps> = ({ data, max
         <Heading size="small" level="4">
           Adopsjon etter programmeringsspråk
         </Heading>
-        <div className="text-center text-gray-500">Ingen språk har AI-tilpasninger ennå</div>
+        <div className="text-center text-gray-500">Ingen språk har KI-tilpasninger ennå</div>
       </Box>
     );
   }

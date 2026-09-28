@@ -50,7 +50,7 @@ const ToolComparisonChart: React.FC<ToolComparisonChartProps> = ({ data }) => {
   return (
     <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
       <Heading size="small" level="4" spacing>
-        AI-verktøy i bruk
+        KI-verktøy i bruk
       </Heading>
       <div style={{ height }}>
         <Bar data={chartData} options={commonHorizontalBarOptions} />

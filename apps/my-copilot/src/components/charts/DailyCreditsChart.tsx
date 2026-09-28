@@ -7,6 +7,8 @@ import { chartColors, getBackgroundColor } from "@/lib/chart-utils";
 import { formatNumber } from "@/lib/format";
 import type { DailyCredits } from "@/lib/types";
 
+// "AI" stays in the AI credit wording: AI credits is GitHub's name for the billing unit. Other Norwegian text says KI.
+
 interface DailyCreditsChartProps {
   data: DailyCredits[];
 }

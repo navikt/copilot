@@ -214,7 +214,7 @@ rtk go test ./...     # Verifiser endringer`}</pre>
             </Box>
             <Box background="default" padding="space-12" borderRadius="4">
               <BodyShort weight="semibold" className="text-sm mb-2">
-                Din rolle som AI-orkestrator
+                Din rolle som KI-orkestrator
               </BodyShort>
               <ul className="space-y-2 text-xs text-gray-600">
                 <li className="flex gap-2">

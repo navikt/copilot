@@ -30,11 +30,11 @@ export default async function Home() {
         >
           <VStack gap="space-8">
             <Heading size="xlarge" level="1" className="hero-title hero-animate">
-              Copilot i Nav
+              KI-utvikling i Nav
             </Heading>
             <BodyShort className="max-w-md opacity-70 hero-animate-d1">
               {user && <Greeting />}
-              Nyheter, beste praksis og verktøy for AI-drevet utvikling i Nav.
+              Nyheter, beste praksis og verktøy for KI-drevet utvikling i Nav.
             </BodyShort>
           </VStack>
         </Box>
@@ -87,7 +87,7 @@ export default async function Home() {
                   href="/praksis"
                   icon={<BookIcon aria-hidden fontSize="1.75rem" />}
                   title="God praksis"
-                  description="Mønstre og tips for effektiv AI-bruk"
+                  description="Mønstre og tips for effektiv KI-bruk"
                 />
                 <NavCard
                   href="https://docs.github.com/en/copilot"

@@ -1,6 +1,6 @@
 ---
 name: klarsprak
-description: "Redigér og kvalitetssikre norsk tekst: klarspråk, fjerning av AI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding. Bruk denne skillen hver gang du skriver, redigerer eller språkvasker norsk tekst — README-er, ADR-er, UI-tekst, blogginnlegg, dokumentasjon, e-poster, commit-meldinger og PR-beskrivelser — også når brukeren ikke sier «klarspråk» eksplisitt, men bare ber om hjelp med norsk tekst."
+description: "Redigér og kvalitetssikre norsk tekst: klarspråk, fjerning av KI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding. Bruk denne skillen hver gang du skriver, redigerer eller språkvasker norsk tekst — README-er, ADR-er, UI-tekst, blogginnlegg, dokumentasjon, e-poster, commit-meldinger og PR-beskrivelser — også når brukeren ikke sier «klarspråk» eksplisitt, men bare ber om hjelp med norsk tekst."
 license: "MIT"
 ---
 
@@ -13,7 +13,7 @@ Språkloven pålegger offentlige organer å bruke klart, korrekt språk tilpassa
 ## Arbeidsflyt
 
 1. Les hele teksten først.
-2. Skann etter mønstrene under: AI-markører, substantivsyke, anglisismer, feiloversatte fagtermer, nynorsk/svensk-innblanding, dårlig struktur.
+2. Skann etter mønstrene under: KI-markører, substantivsyke, anglisismer, feiloversatte fagtermer, nynorsk/svensk-innblanding, dårlig struktur.
 3. Skriv om. Bevar meningen og faglig innhold: endre bare språk, form og struktur.
 4. Selvrevisjon: «Hva avslører at dette er KI-generert?» Fiks det som gjenstår.
 5. Tilpass til teksttypen (ADR, README, UI-tekst, blogg).
@@ -66,7 +66,7 @@ Bruk verb, ikke substantiv laget av verb. Typisk mønster: -ing + av.
 - Kulepunkter for lister, ikke lange komma-oppramsinger
 - Bare første ord og egennavn med stor bokstav i overskrifter (ikke engelsk stil)
 
-## AI-markører
+## KI-markører
 
 Erstatt eller fjern mønstre som avslører KI-generert tekst.
 
@@ -74,7 +74,7 @@ Listene under er på norsk, men markørene er de samme på engelsk. Skann engels
 
 ### Svulstige ord og uttrykk
 
-| AI-markør | Gjør i stedet |
+| KI-markør | Gjør i stedet |
 |-----------|---------------|
 | «banebrytende», «revolusjonerende», «innovativ» | Bruk konkrete beskrivelser |
 | «representerer et betydelig skritt fremover» | Si hva det faktisk gjør |
@@ -108,12 +108,12 @@ Kutt disse — start med poenget:
 - «det finnes flere aspekter ved dette» — nevn aspektene eller kutt setninga
 - «fremtiden ser lys ut», «resultatene taler for seg selv» — klisjeer; si konkrete planer eller fakta
 
-### Retoriske AI-mønstre
+### Retoriske KI-mønstre
 
 - **«Ikke bare X, men også Y»** — skriv om til to setninger eller velg det viktigste.
 - **«Det handler ikke om X, men om Y»** — falsk kontrast. Si bare Y.
-- **«I en tid der...» + avsluttende perspektiv** — det mest kjente AI-mønsteret. Kutt hele innramminga.
-- **Tredeling (trikolon)** — tre substantiv eller leddsetninger i serie («mennesker, teknologi og samhandling»). Ikke tving ideer inn i tregrupper — bruk det naturlige antallet. Én tredeling er OK, flere i samme tekst er et tydelig AI-tegn.
+- **«I en tid der...» + avsluttende perspektiv** — det mest kjente KI-mønsteret. Kutt hele innramminga.
+- **Tredeling (trikolon)** — tre substantiv eller leddsetninger i serie («mennesker, teknologi og samhandling»). Ikke tving ideer inn i tregrupper — bruk det naturlige antallet. Én tredeling er OK, flere i samme tekst er et tydelig KI-tegn.
 - **Falske spenn** — «fra X til Y» der X og Y ikke ligger på en meningsfull skala («fra frontend til bedriftskultur»). List temaene direkte.
 - **Synonymveksling** — hovedperson, protagonist, sentral skikkelse i samme avsnitt. Velg ett ord og gjenta det.
 - **Vage kilder** — «eksperter mener», «rapporter antyder», «flere har pekt på». Navngi kilden eller stryk påstanden.
@@ -125,7 +125,7 @@ Kutt disse — start med poenget:
 
 - Fjern oppsummeringssetninger som bare gjentar det du nettopp skrev
 - Ikke tving balanse når ett alternativ er bedre («begge har sine fordeler»)
-- Varier grammatisk struktur i kulepunkter — identisk form er et AI-tegn
+- Varier grammatisk struktur i kulepunkter — identisk form er et KI-tegn
 - Ikke gjenta et poeng med andre ord rett etterpå
 - Dropp «Derfor er X så viktig»-setninger som rettferdiggjør forrige setning uten å tilføre noe
 - **Perfekt mal-struktur** — krok → kontekst → helt → resultat → det store bildet → konklusjon. Følger teksten dette slavisk, bryt det opp. Start med nyheten.
@@ -137,7 +137,7 @@ Kutt disse — start med poenget:
 - «I lys av dette», «Når det gjelder» → gå rett på sak
 - «Furthermore», «Moreover», «Additionally» → aldri i norsk tekst
 
-### Engelske AI-ord som siver inn i norsk
+### Engelske KI-ord som siver inn i norsk
 
 Skann etter de norske formene i venstre kolonne. De er langt vanligere i KI-generert norsk enn i vanlig norsk.
 
@@ -159,7 +159,7 @@ Abstrakte metafor-substantiv: «substrat», «vektor», «paradigme», «nordstj
 ## Tegnsetting og formatering
 
 - Ikke bruk tankestrek (—) i prosa. Bruk kolon, komma, parentes eller en ny setning.
-- Overskrifter slutter aldri med kolon. Ellers er kolon greit før liste eller eksempel, ikke som setningslim midt i setninger. Kolon i hvert eneste kulepunkt er et AI-tegn.
+- Overskrifter slutter aldri med kolon. Ellers er kolon greit før liste eller eksempel, ikke som setningslim midt i setninger. Kolon i hvert eneste kulepunkt er et KI-tegn.
 - Ikke bruk semikolon unaturlig ofte.
 - Dropp utropstegn i teknisk tekst.
 - Ikke fet skrift på hvert egennavn eller forkortelse.

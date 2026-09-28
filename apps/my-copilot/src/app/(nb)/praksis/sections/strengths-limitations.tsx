@@ -16,7 +16,7 @@ export default function StrengthsLimitations() {
         </Heading>
         <BodyShort className="text-gray-800">
           En av de største misforståelsene rundt GitHub Copilot Business/Enterprise er at Microsoft bruker koden din til
-          å trene opp sine offentlige AI-modeller. <strong>Dette stemmer ikke.</strong> Din kode, dine prompts, og din
+          å trene opp sine offentlige KI-modeller. <strong>Dette stemmer ikke.</strong> Din kode, dine prompts, og din
           chat-historikk blir verken brukt som treningsdata eller delt utenfor organisasjonen. Dataene sendes kryptert
           til modellen for å generere svar, og kastes deretter.
         </BodyShort>
@@ -131,7 +131,7 @@ export default function StrengthsLimitations() {
               <div>
                 <BodyShort weight="semibold">Garantert sikker eller korrekt kode</BodyShort>
                 <BodyShort className="text-gray-600 text-sm">
-                  Du må alltid gjennomgå og teste – AI kan og vil gjøre feil
+                  Du må alltid gjennomgå og teste – KI kan og vil gjøre feil
                 </BodyShort>
               </div>
             </li>

@@ -1,5 +1,5 @@
 {
-  "description": "Redigér og kvalitetssikre norsk tekst: klarspråk, AI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding",
+  "description": "Redigér og kvalitetssikre norsk tekst: klarspråk, KI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding",
   "domain": "general",
   "tags": ["norwegian", "klarspråk", "ai-markers", "anglicisms", "text-quality", "spraakvask"],
   "examples": [
@@ -8,8 +8,8 @@
       "prompt": "Språkvask denne README-en etter klarspråk"
     },
     {
-      "scenario": "Fjerne AI-markører",
-      "prompt": "Fjern AI-markørene fra denne teksten"
+      "scenario": "Fjerne KI-markører",
+      "prompt": "Fjern KI-markørene fra denne teksten"
     },
     {
       "scenario": "Kvalitetssikre en ADR",

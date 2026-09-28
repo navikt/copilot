@@ -23,7 +23,7 @@ import { getUser } from "@/lib/auth";
 // Static header component
 function AdoptionHeader() {
   return (
-    <PageHero title="Adopsjon" description="AI-tilpasninger på tvers av navikt-repoer. Data fra ukentlig skanning." />
+    <PageHero title="Adopsjon" description="KI-tilpasninger på tvers av navikt-repoer. Data fra ukentlig skanning." />
   );
 }
 

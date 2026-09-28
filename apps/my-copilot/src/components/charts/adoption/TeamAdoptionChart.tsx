@@ -38,7 +38,7 @@ const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 
         <Heading size="small" level="4">
           Team med flest tilpasninger
         </Heading>
-        <div className="text-center text-gray-500">Ingen team har AI-tilpasninger ennå</div>
+        <div className="text-center text-gray-500">Ingen team har KI-tilpasninger ennå</div>
       </Box>
     );
   }
