@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 const messages = [
   "Bygget med GitHub Copilot",
-  "Skrevet av mennesker, assistert av AI",
+  "Skrevet av mennesker, assistert av KI",
   "Koden bak denne siden er åpen kildekode",
   "Laget med ☕ og Copilot",
   "Kontinuerlig forbedret, én PR om gangen",

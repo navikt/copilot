@@ -67,7 +67,7 @@ export const categories: Category[] = [
       },
       {
         id: "styrker-og-farer",
-        title: "Forstå styrkene og fellene ved AI",
+        title: "Forstå styrkene og fellene ved KI",
         description: "Forstå begrensninger, og lær om personvern og .copilotignore.",
         keywords: ["sikkerhet", "begrensninger", "personvern", "pii", "copilotignore", "trening"],
         iconName: "ShieldLockIcon",

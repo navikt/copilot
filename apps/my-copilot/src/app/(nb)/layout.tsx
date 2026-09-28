@@ -2,7 +2,7 @@ import { SiteShell, type ShellLabels } from "@/components/site-shell";
 import type { Metadata } from "next";
 import "../globals.css";
 
-const description = "Nyheter, beste praksis og verktøy for AI-drevet utvikling i Nav.";
+const description = "Nyheter, beste praksis og verktøy for KI-drevet utvikling i Nav.";
 
 export const metadata: Metadata = {
   title: {

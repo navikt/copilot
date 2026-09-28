@@ -489,13 +489,13 @@ async function DashboardTabContent({ usage, token }: { usage: EnterpriseMetrics[
               value={formatMinutes(dailySummary.pr_avg_minutes_to_review)}
               label="Tid til første PR-review"
               helpTitle="Tid til første PR-review"
-              helpText="Median tid fra en pull request opprettes til den får sin første review, snittet over AI-adopsjonsfaser og vektet på antall merget PR-er. Kun merget PR-er. Kilde: v_daily_summary (usage-API, fra 2026-07-07)."
+              helpText="Median tid fra en pull request opprettes til den får sin første review, snittet over KI-adopsjonsfaser og vektet på antall merget PR-er. Kun merget PR-er. Kilde: v_daily_summary (usage-API, fra 2026-07-07)."
             />
             <MetricCard
               value={dailySummary.pr_avg_review_cycles != null ? dailySummary.pr_avg_review_cycles.toFixed(1) : "–"}
               label="Review-runder per PR"
               helpTitle="Review-runder per PR"
-              helpText="Median antall review-innsendinger en pull request får før den merges, snittet over AI-adopsjonsfaser og vektet på antall merget PR-er. Kilde: v_daily_summary (usage-API, fra 2026-07-07)."
+              helpText="Median antall review-innsendinger en pull request får før den merges, snittet over KI-adopsjonsfaser og vektet på antall merget PR-er. Kilde: v_daily_summary (usage-API, fra 2026-07-07)."
             />
           </HGrid>
         </div>
@@ -540,7 +540,7 @@ async function DashboardTabContent({ usage, token }: { usage: EnterpriseMetrics[
               </LinkableHeading>
               <HelpText title="Genereringsmodus" placement="top">
                 Fordeling mellom kode generert av brukeren (forslag, inline chat) og kode generert autonomt av agenten.
-                Høyere agent-andel betyr mer autonomt AI-arbeid.
+                Høyere agent-andel betyr mer autonomt KI-arbeid.
               </HelpText>
             </div>
             <HGrid columns={{ xs: 1, sm: 3 }} gap="space-16">
@@ -579,18 +579,19 @@ async function DashboardTabContent({ usage, token }: { usage: EnterpriseMetrics[
         <Box background="neutral-soft" padding="space-24" borderRadius="12">
           <VStack gap="space-16">
             <div className="flex items-center gap-2">
-              <LinkableHeading size="small" level="3">
-                AI-adopsjonsfaser
+              {/* The id keeps the published #ai-adopsjonsfaser link after AI became KI. */}
+              <LinkableHeading id="ai-adopsjonsfaser" size="small" level="3">
+                KI-adopsjonsfaser
               </LinkableHeading>
               <HelpText title="Om adopsjonsfasene" placement="top">
-                GitHub klassifiserer brukere i faser basert på AI-aktivitet de siste 28 dagene. Grafen viser utviklingen
+                GitHub klassifiserer brukere i faser basert på KI-aktivitet de siste 28 dagene. Grafen viser utviklingen
                 over tid.
               </HelpText>
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm md:grid-cols-4">
               <div>
                 <dt className="font-medium text-gray-600">Fase 0</dt>
-                <dd>Ingen AI-bruk siste 28 dager</dd>
+                <dd>Ingen KI-bruk siste 28 dager</dd>
               </div>
               <div>
                 <dt className="font-medium text-gray-600">Fase 1</dt>
@@ -598,11 +599,11 @@ async function DashboardTabContent({ usage, token }: { usage: EnterpriseMetrics[
               </div>
               <div>
                 <dt className="font-medium text-gray-600">Fase 2</dt>
-                <dd>Bruker AI-agent i ett verktøy (f.eks. bare Chat)</dd>
+                <dd>Bruker KI-agent i ett verktøy (f.eks. bare Chat)</dd>
               </div>
               <div>
                 <dt className="font-medium text-gray-600">Fase 3</dt>
-                <dd>Bruker AI-agent i flere verktøy (f.eks. Chat + CLI)</dd>
+                <dd>Bruker KI-agent i flere verktøy (f.eks. Chat + CLI)</dd>
               </div>
             </dl>
             <AdoptionCohortsChart data={adoptionCohorts} />
@@ -881,8 +882,9 @@ function DetailsTabContent({ usage }: { usage: EnterpriseMetrics[] }) {
       {modelUsageMetrics && modelUsageMetrics.length > 0 && (
         <Box id="ai-modeller-i-bruk" background="neutral-soft" padding="space-24" borderRadius="12">
           <VStack gap="space-16">
-            <LinkableHeading size="small" level="3">
-              AI-modeller i bruk
+            {/* The id keeps the published #ai-modeller-i-bruk link after AI became KI. */}
+            <LinkableHeading id="ai-modeller-i-bruk" size="small" level="3">
+              KI-modeller i bruk
             </LinkableHeading>
             <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
               <div className="overflow-hidden">

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-27T16:12:54.940Z",
+  "generatedAt": "2026-09-28T10:04:18.648Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -161,13 +161,13 @@
     {
       "id": "forfatter",
       "name": "forfatter",
-      "description": "Norsk teknisk redaktør, tekstforfatter eller innholdsdesigner: klarspråk, AI-markører, anglisismer, fagtermer, mikrotekst.",
+      "description": "Norsk teknisk redaktør, tekstforfatter eller innholdsdesigner: klarspråk, KI-markører, anglisismer, fagtermer, mikrotekst.",
       "type": "agent",
       "domain": "general",
       "filePath": ".github/agents/forfatter.agent.md",
       "repoPath": "agents/forfatter.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/forfatter.agent.md",
-      "contentHash": "7647c85972f59fa7dec3e968131e540d3584a24718476e4fd00f62185d95c863",
+      "contentHash": "8c7d52efa4360002f733c6d220f0b99fafa3ceaacd85fee266ad197566596629",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fforfatter.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fforfatter.agent.md",
       "tools": ["read", "edit", "grep", "glob", "todo", "github/get_file_contents", "github/search_code"],
@@ -183,7 +183,7 @@
           "scenario": "README for Kotlin/Ktor-app"
         },
         {
-          "prompt": "@forfatter Gå gjennom ADR-en og fjern AI-språk, og skriv beslutningen i aktiv form",
+          "prompt": "@forfatter Gå gjennom ADR-en og fjern KI-språk, og skriv beslutningen i aktiv form",
           "scenario": "Architecture Decision Record"
         },
         {
@@ -515,8 +515,8 @@
     },
     {
       "id": "deliberate-ai-use",
-      "name": "Bevisst AI-bruk",
-      "description": "Regler for bevisst AI-bruk som alltid gjelder: forklar valg, merk rød sone, spør før full delegering. Hele rammeverket ligger i deliberate-ai-use-skillen",
+      "name": "Bevisst KI-bruk",
+      "description": "Regler for bevisst KI-bruk som alltid gjelder: forklar valg, merk rød sone, spør før full delegering. Hele rammeverket ligger i deliberate-ai-use-skillen",
       "type": "instruction",
       "domain": "general",
       "filePath": ".github/instructions/deliberate-ai-use.instructions.md",
@@ -630,7 +630,7 @@
       "filePath": ".github/instructions/norwegian-text.instructions.md",
       "repoPath": "instructions/norwegian-text.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/norwegian-text.instructions.md",
-      "contentHash": "acc8fd7c93f48b8562ec581569b26908d0bb61e05f1847b44ee1616a62abdea4",
+      "contentHash": "25ee167a83661c645a6a2732d64c02468a2df6091e31a1a04dacdcc4803c44ee",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fnorwegian-text.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fnorwegian-text.instructions.md",
       "applyTo": "**/*.md",
@@ -640,7 +640,7 @@
     {
       "id": "output-style",
       "name": "Output Style",
-      "description": "Felles skriveregler for output: lengde, tetthet, tegnsetting og presedens over bevisst AI-bruk. Ordlistene over AI-markører ligger i klarsprak-skillen.",
+      "description": "Felles skriveregler for output: lengde, tetthet, tegnsetting og presedens over bevisst KI-bruk. Ordlistene over KI-markører ligger i klarsprak-skillen.",
       "type": "instruction",
       "domain": "general",
       "filePath": ".github/instructions/output-style.instructions.md",
@@ -652,7 +652,7 @@
       "applyTo": "**",
       "tags": ["writing", "output", "ai-markers", "terse", "style"],
       "examples": [
-        "Skriv kortere svar uten fyllord og AI-markører",
+        "Skriv kortere svar uten fyllord og KI-markører",
         "Når skal arkitekturvalg forklares og når skal svaret bare komme"
       ]
     },
@@ -1056,20 +1056,20 @@
     {
       "id": "deliberate-ai-use",
       "name": "deliberate-ai-use",
-      "description": "Bevisst AI-bruk i Nav: grønn og rød sone, tre-forsøks-regelen, erfaringsnivå og generer-så-forstå, med forskningen bak. Bruk når utvikleren spør om AI bør gjøre en oppgave, vil lære, eller når en oppgave skal plasseres i grønn eller rød sone.",
+      "description": "Bevisst KI-bruk i Nav: grønn og rød sone, tre-forsøks-regelen, erfaringsnivå og generer-så-forstå, med forskningen bak. Bruk når utvikleren spør om KI bør gjøre en oppgave, vil lære, eller når en oppgave skal plasseres i grønn eller rød sone.",
       "type": "skill",
       "domain": "general",
       "filePath": "skills/deliberate-ai-use/SKILL.md",
       "repoPath": "skills/deliberate-ai-use/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/deliberate-ai-use/SKILL.md",
-      "contentHash": "5a2a6c24a50c9802033f9907860d91b85a956320e643fdac76ca68e688fa46b5",
+      "contentHash": "4927691141f3a7f49a11215fea8905c6b956f0a1a5a79a6b77e60aec965e9759",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["ai", "skill-preservation", "learning", "practices"],
       "examples": [
         {
-          "scenario": "Vurder om en oppgave passer for AI",
-          "prompt": "Bør jeg la AI skrive denne tilstandsmaskinen, eller kode den selv?"
+          "scenario": "Vurder om en oppgave passer for KI",
+          "prompt": "Bør jeg la KI skrive denne tilstandsmaskinen, eller kode den selv?"
         },
         {
           "scenario": "Lær mens du genererer",
@@ -1171,13 +1171,13 @@
     {
       "id": "klarsprak",
       "name": "klarsprak",
-      "description": "Redigér og kvalitetssikre norsk tekst: klarspråk, fjerning av AI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding. Bruk denne skillen hver gang du skriver, redigerer eller språkvasker norsk tekst — README-er, ADR-er, UI-tekst, blogginnlegg, dokumentasjon, e-poster, commit-meldinger og PR-beskrivelser — også når brukeren ikke sier «klarspråk» eksplisitt, men bare ber om hjelp med norsk tekst.",
+      "description": "Redigér og kvalitetssikre norsk tekst: klarspråk, fjerning av KI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding. Bruk denne skillen hver gang du skriver, redigerer eller språkvasker norsk tekst — README-er, ADR-er, UI-tekst, blogginnlegg, dokumentasjon, e-poster, commit-meldinger og PR-beskrivelser — også når brukeren ikke sier «klarspråk» eksplisitt, men bare ber om hjelp med norsk tekst.",
       "type": "skill",
       "domain": "general",
       "filePath": "skills/klarsprak/SKILL.md",
       "repoPath": "skills/klarsprak/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/klarsprak/SKILL.md",
-      "contentHash": "d6ed75d1e08c4867d2d09fbd68f4e87c117f4a40ce708d76122357707b68c0c7",
+      "contentHash": "71d2ad63c5c2b62da281a87abe982c4c6cacc5bdacff0f0c713c57039c6db562",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["norwegian", "klarspråk", "ai-markers", "anglicisms", "text-quality", "spraakvask"],
@@ -1187,8 +1187,8 @@
           "prompt": "Språkvask denne README-en etter klarspråk"
         },
         {
-          "scenario": "Fjerne AI-markører",
-          "prompt": "Fjern AI-markørene fra denne teksten"
+          "scenario": "Fjerne KI-markører",
+          "prompt": "Fjern KI-markørene fra denne teksten"
         },
         {
           "scenario": "Kvalitetssikre en ADR",

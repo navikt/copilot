@@ -52,7 +52,7 @@ export default function ToolsAndModes() {
                 2. Copilot Chat (Cmd+I eller sidepanel)
               </BodyShort>
               <BodyShort className="text-gray-600 text-xs">
-                Assisterende AI. Du kan stille spørsmål om koden din, be om forklaringer, eller generere nye funksjoner.
+                Assisterende KI. Du kan stille spørsmål om koden din, be om forklaringer, eller generere nye funksjoner.
                 Vær obs på at den ikke alltid forstår hele prosjektet uten at du eksplisitt nevner filene.
               </BodyShort>
             </div>
@@ -61,7 +61,7 @@ export default function ToolsAndModes() {
                 3. Copilot Edits / Agent Mode (Cmd+Shift+I)
               </BodyShort>
               <BodyShort className="text-gray-600 text-xs">
-                Autonom AI. Dette er den nye "agent-modusen". Du gir et stort mål ("Bytt ut alle fetch-kall med axios"),
+                Autonom KI. Dette er den nye "agent-modusen". Du gir et stort mål ("Bytt ut alle fetch-kall med axios"),
                 og Copilot åpner flere filer, endrer dem, og ber deg godkjenne diff-en til slutt.
               </BodyShort>
             </div>

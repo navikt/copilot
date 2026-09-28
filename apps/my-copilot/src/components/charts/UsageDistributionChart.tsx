@@ -8,6 +8,8 @@ import { formatNumber } from "@/lib/format";
 import type { UsageDistribution } from "@/lib/types";
 import type { TooltipItem } from "chart.js";
 
+// "AI" stays in the AI credit wording: AI credits is GitHub's name for the billing unit. Other Norwegian text says KI.
+
 interface UsageDistributionChartProps {
   distribution: UsageDistribution | null;
   /** Current logged-in user's total credits consumed this month, if known. */
@@ -137,7 +139,7 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
       <BodyShort size="small" className="text-gray-600" style={{ marginBottom: "var(--a-spacing-8)" }}>
         {adoptionPct !== null
           ? `${formatNumber(totalUsers)} av ${formatNumber(totalSeats)} lisenser i bruk (${adoptionPct} % adopsjon).`
-          : `${formatNumber(totalUsers)} brukere hadde AI-aktivitet denne måneden.`}{" "}
+          : `${formatNumber(totalUsers)} brukere hadde KI-aktivitet denne måneden.`}{" "}
         Budsjett: ${formatNumber(budgetUsd)}/måned ({formatNumber(distribution.budget_credits)} kreditter). Ingen
         enkeltbrukere vises.
         {currentUserBucket && (

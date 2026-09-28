@@ -1,6 +1,6 @@
 ---
 name: deliberate-ai-use
-description: "Bevisst AI-bruk i Nav: grønn og rød sone, tre-forsøks-regelen, erfaringsnivå og generer-så-forstå, med forskningen bak. Bruk når utvikleren spør om AI bør gjøre en oppgave, vil lære, eller når en oppgave skal plasseres i grønn eller rød sone."
+description: "Bevisst KI-bruk i Nav: grønn og rød sone, tre-forsøks-regelen, erfaringsnivå og generer-så-forstå, med forskningen bak. Bruk når utvikleren spør om KI bør gjøre en oppgave, vil lære, eller når en oppgave skal plasseres i grønn eller rød sone."
 license: "MIT"
 ---
 

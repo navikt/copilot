@@ -17,7 +17,7 @@ const meta = {
   },
   args: {
     title: "Copilot i Nav",
-    description: "Nyheter, beste praksis og verktøy for AI-drevet utvikling i Nav.",
+    description: "Nyheter, beste praksis og verktøy for KI-drevet utvikling i Nav.",
     pathname: "/praksis",
     actions: <Button size="small">Kom i gang</Button>,
     badge: <span className="rounded-full bg-white/15 px-3 py-1 text-sm">Beta</span>,

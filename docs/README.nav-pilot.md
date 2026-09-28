@@ -1,6 +1,6 @@
 # 🧭 nav-pilot
 
-nav-pilot er et CLI-verktøy og en AI-agent for Nav-utvikling med GitHub Copilot, opencode og pi (eksperimentell).
+nav-pilot er et CLI-verktøy og en KI-agent for Nav-utvikling med GitHub Copilot, opencode og pi (eksperimentell).
 
 📖 **Online docs (primær):** https://ki-utvikling.nav.no/nav-pilot  
 📝 **Endringslogg:** [docs/nav-pilot-changelog.md](nav-pilot-changelog.md)
@@ -311,7 +311,7 @@ repo-spesifikke, og er stedet for det som bare gjelder ett repo.
 
 ## Sandboxing og isolasjon er påkrevd
 
-Når du bruker en AI-agent på Nav-utstyr, skal agenten kjøre i en sandbox eller tilsvarende
+Når du bruker en KI-agent på Nav-utstyr, skal agenten kjøre i en sandbox eller tilsvarende
 isolasjon. Kravet gjelder både Nav-relatert og personlig agentarbeid.
 
 [`cplt`](https://github.com/navikt/cplt) er den anbefalte og enkleste måten å oppfylle

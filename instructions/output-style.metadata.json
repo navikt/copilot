@@ -1,10 +1,10 @@
 {
   "displayName": "Output Style",
-  "description": "Felles skriveregler for output: lengde, tetthet, tegnsetting og presedens over bevisst AI-bruk. Ordlistene over AI-markører ligger i klarsprak-skillen.",
+  "description": "Felles skriveregler for output: lengde, tetthet, tegnsetting og presedens over bevisst KI-bruk. Ordlistene over KI-markører ligger i klarsprak-skillen.",
   "domain": "general",
   "tags": ["writing", "output", "ai-markers", "terse", "style"],
   "examples": [
-    "Skriv kortere svar uten fyllord og AI-markører",
+    "Skriv kortere svar uten fyllord og KI-markører",
     "Når skal arkitekturvalg forklares og når skal svaret bare komme"
   ]
 }

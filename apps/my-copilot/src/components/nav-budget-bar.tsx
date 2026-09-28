@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+// "AI" stays in the AI credit wording: AI credits is GitHub's name for the billing unit. Other Norwegian text says KI.
+
 interface BudgetData {
   budgetAmount: number;
   consumedAmount: number | null;

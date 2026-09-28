@@ -241,7 +241,7 @@ export default function Agentpakker() {
                       Hva det er
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
-                      En agentpakke er et git-repo med AI-artefakter og en fil som beskriver dem. Ingenting skal
+                      En agentpakke er et git-repo med KI-artefakter og en fil som beskriver dem. Ingenting skal
                       registreres eller godkjennes. Et repo med et gyldig manifest er en agentpakke, og den som vil ha
                       den, peker på repoet med <code className="font-mono text-xs">--source</code>.
                     </BodyLong>

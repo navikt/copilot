@@ -9,7 +9,7 @@ Agenter, instruksjoner, skills og MCP-servere som gjør GitHub Copilot smartere 
 En samling Copilot-tilpasninger for Nav-økosystemet:
 
 <!-- BEGIN GENERATED COUNTS -->
-- **🤖 [10 Agenter](docs/README.agents.md)** — Spesialiserte AI-assistenter for Nav-domener
+- **🤖 [10 Agenter](docs/README.agents.md)** — Spesialiserte KI-assistenter for Nav-domener
 - **📋 [16 Instruksjoner](docs/README.instructions.md)** — Kodestandarder som aktiveres automatisk basert på filmønster
 - **⚡ [7 Prompts](docs/README.prompts.md)** — Scaffolding-maler for vanlige Nav-mønstre
 - **🎯 [33 Skills](docs/README.skills.md)** — Produksjonsmønstre fra ekte Nav-repoer
@@ -33,7 +33,7 @@ Alle tilpasninger finnes på **[verktøysida](https://ki-utvikling.nav.no/verkto
 
 ### 🧭 nav-pilot (nytt)
 
-**[nav-pilot](docs/README.nav-pilot.md)** er både et CLI-verktøy og en AI-agent. CLI-et klargjør repoet ditt med riktige agenter, skills og instruksjoner, og setter opp en optimalisert integrasjon med token-optimalisering. Agenten `@nav-pilot` tar deg gjennom fire faser i Copilot Chat: Intervju, Plan, Review og Lever.
+**[nav-pilot](docs/README.nav-pilot.md)** er både et CLI-verktøy og en KI-agent. CLI-et klargjør repoet ditt med riktige agenter, skills og instruksjoner, og setter opp en optimalisert integrasjon med token-optimalisering. Agenten `@nav-pilot` tar deg gjennom fire faser i Copilot Chat: Intervju, Plan, Review og Lever.
 
 ```bash
 # Installer nav-pilot og cplt (macOS)
@@ -72,14 +72,14 @@ Vil du lese deg opp først, har hver type sin egen doc i tabellen under.
 
 | Type                | Beskrivelse                                                                                                                 | Dokumentasjon                                      |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| 🤖 **Agenter**       | Spesialiserte AI-assistenter for Nav-domener, kalles med `@agent-name` i Copilot Chat. VS Code, JetBrains, GitHub.com og Copilot CLI | **[Agenter →](docs/README.agents.md)**             |
+| 🤖 **Agenter**       | Spesialiserte KI-assistenter for Nav-domener, kalles med `@agent-name` i Copilot Chat. VS Code, JetBrains, GitHub.com og Copilot CLI | **[Agenter →](docs/README.agents.md)**             |
 | 📋 **Instruksjoner** | Kodestandarder som aktiveres automatisk basert på filmønster (`*.kt`, `*.tsx`, `*.sql`). Alle editorer                       | **[Instruksjoner →](docs/README.instructions.md)** |
 | ⚡ **Prompts**       | Scaffolding-maler tilgjengelig via `/prompt-name` i Copilot Chat. VS Code, JetBrains og Visual Studio                        | **[Prompts →](docs/README.prompts.md)**            |
 | 🎯 **Skills**        | Produksjonsmønstre med innebygde maler og referanser. VS Code, Copilot CLI og GitHub.com, JetBrains i preview. `security-owasp` dekker OWASP Top 10:2025 for Kotlin, Go, Java og Node.js | **[Skills →](docs/README.skills.md)**              |
 | 🔌 **MCP-servere**   | Nav-godkjente servere fra [MCP-registeret](https://mcp-registry.nav.no). VS Code, JetBrains, Visual Studio, GitHub.com og Copilot CLI | **[MCP-servere →](docs/README.mcp.md)**            |
 | 🔄 **Sync**          | Hold tilpasninger oppdatert automatisk, som Dependabot                                                                      | **[Sync →](docs/README.sync.md)**                  |
 | 🧳 **Agentpakke**    | Teamets eget innholdsrepo med manifest, installeres med `nav-pilot install --source`                                        | **[Agentpakke →](docs/README.agentpakke.md)**      |
-| 🧭 **nav-pilot**     | CLI-verktøy og AI-agent som installerer og bruker Nav-tilpasninger i Copilot Chat                                           | **[nav-pilot →](docs/README.nav-pilot.md)**        |
+| 🧭 **nav-pilot**     | CLI-verktøy og KI-agent som installerer og bruker Nav-tilpasninger i Copilot Chat                                           | **[nav-pilot →](docs/README.nav-pilot.md)**        |
 | 🧪 **Testing**       | Strukturelle og E2E-tester for nav-pilot                                                                                    | **[Testing →](docs/README.testing.md)**            |
 
 ## 🛠️ Applikasjoner
@@ -88,7 +88,7 @@ Monorepoet inneholder seks applikasjoner. cplt bor i sitt eget repo.
 
 ### cplt
 
-Kernel-level sandbox for AI-agenter. Sandboxer AI-kodingsagenter med OS-primitiver (macOS Seatbelt, Linux Landlock + seccomp-BPF) og blokkerer filsystemtilgang, nettverkstrafikk og credential-exfiltration.
+Kernel-level sandbox for KI-agenter. Sandboxer kodingsagenter med OS-primitiver (macOS Seatbelt, Linux Landlock + seccomp-BPF) og blokkerer filsystemtilgang, nettverkstrafikk og credential-exfiltration.
 
 **Repo:** [navikt/cplt](https://github.com/navikt/cplt) · **Docs:** [ki-utvikling.nav.no/cplt](https://ki-utvikling.nav.no/cplt)
 

@@ -17,7 +17,7 @@ export const terms: Term[] = [
   {
     term: "Agent",
     definition:
-      "En AI-drevet assistent som kan utføre flertrinnsoppgaver autonomt – planlegge, bruke verktøy og ta beslutninger for å nå et mål uten at du trenger å styre hvert steg.",
+      "En KI-drevet assistent som kan utføre flertrinnsoppgaver autonomt – planlegge, bruke verktøy og ta beslutninger for å nå et mål uten at du trenger å styre hvert steg.",
   },
   {
     term: "Agentisk KI",
@@ -32,13 +32,13 @@ export const terms: Term[] = [
   {
     term: "Agent mode",
     definition:
-      "Copilots modus der AI-en jobber autonomt i editoren. Agenten kan redigere filer, kjøre kommandoer og bruke verktøy for å løse oppgaver i flere steg.",
+      "Copilots modus der KI-en jobber autonomt i editoren. Agenten kan redigere filer, kjøre kommandoer og bruke verktøy for å løse oppgaver i flere steg.",
     link: { href: "/praksis/guide/orkestrere-agenter", label: "Mønstre for agent mode" },
   },
   {
     term: "Agent harness",
     definition:
-      "Kjøretidsmiljøet som kjører en AI-agent – for eksempel Copilot CLI eller OpenCode. Harnessen styrer hvilke verktøy agenten har tilgang til og hvordan den samhandler med operativsystemet.",
+      "Kjøretidsmiljøet som kjører en KI-agent – for eksempel Copilot CLI eller OpenCode. Harnessen styrer hvilke verktøy agenten har tilgang til og hvordan den samhandler med operativsystemet.",
   },
   {
     term: "Allowlist (MCP)",
@@ -54,7 +54,7 @@ export const terms: Term[] = [
   {
     term: "AGENTS.md",
     definition:
-      "En konfigurasjonsfil i roten av et repository som gir AI-agenter kontekst om prosjektet – struktur, byggkommandoer, konvensjoner og grenser for hva agenten kan gjøre.",
+      "En konfigurasjonsfil i roten av et repository som gir KI-agenter kontekst om prosjektet – struktur, byggkommandoer, konvensjoner og grenser for hva agenten kan gjøre.",
     link: { href: "/praksis/guide/skreddersy-med-skills-og-rules", label: "Skriv effektive tilpasninger" },
   },
   {
@@ -92,7 +92,7 @@ export const terms: Term[] = [
   {
     term: "Copilot code review",
     definition:
-      "AI-genererte gjennomgangskommentarer på pull requests. Copilot analyserer endringene og foreslår forbedringer, på samme måte som en menneskelig reviewer.",
+      "KI-genererte gjennomgangskommentarer på pull requests. Copilot analyserer endringene og foreslår forbedringer, på samme måte som en menneskelig reviewer.",
     link: { href: "https://docs.github.com/en/copilot/concepts/agents/code-review", label: "GitHub Docs" },
   },
   {
@@ -115,12 +115,12 @@ export const terms: Term[] = [
   {
     term: "Copilot Workspace",
     definition:
-      "GitHubs agentdrevne utviklingsmiljø der du kan gå fra en GitHub issue til ferdig pull request med AI-hjelp.",
+      "GitHubs agentdrevne utviklingsmiljø der du kan gå fra en GitHub issue til ferdig pull request med KI-hjelp.",
   },
   {
     term: "Context exclusion",
     definition:
-      "Regler som ekskluderer bestemte filer fra konteksten som sendes til AI-modellen. I Nav bruker vi dette til å holde .env-filer og andre hemmeligheter unna inference context. Kan settes per repo eller globalt på org-nivå.",
+      "Regler som ekskluderer bestemte filer fra konteksten som sendes til KI-modellen. I Nav bruker vi dette til å holde .env-filer og andre hemmeligheter unna inference context. Kan settes per repo eller globalt på org-nivå.",
   },
   {
     term: "Custom agents",
@@ -141,7 +141,7 @@ export const terms: Term[] = [
   {
     term: "Hallusinasjon",
     definition:
-      "Når en AI-modell genererer informasjon som virker troverdig, men er feil eller oppdiktet. Copilot kan hallusinere API-navn, funksjoner eller biblioteker som ikke finnes.",
+      "Når en KI-modell genererer informasjon som virker troverdig, men er feil eller oppdiktet. Copilot kan hallusinere API-navn, funksjoner eller biblioteker som ikke finnes.",
     link: { href: "/praksis/guide/skrive-og-kjore-tester", label: "Verifisering" },
   },
   {
@@ -169,34 +169,34 @@ export const terms: Term[] = [
   {
     term: "Knowledge cutoff",
     definition:
-      "Datoen for den siste treningsdataen en AI-modell er basert på. Hendelser og teknologier etter denne datoen er ukjente for modellen.",
+      "Datoen for den siste treningsdataen en KI-modell er basert på. Hendelser og teknologier etter denne datoen er ukjente for modellen.",
   },
   {
     term: "Kontekstvindu",
     definition:
-      "Mengden tekst (målt i tokens) en AI-modell kan ta inn og huske på én gang. Innhold utenfor kontekstvinduet er ikke tilgjengelig for modellen i en gitt forespørsel.",
+      "Mengden tekst (målt i tokens) en KI-modell kan ta inn og huske på én gang. Innhold utenfor kontekstvinduet er ikke tilgjengelig for modellen i en gitt forespørsel.",
     link: { href: "/praksis/guide/forberede-prosjektet", label: "Forbered for suksess" },
   },
   {
     term: "Inference context",
     definition:
-      "Dataene som sendes til AI-modellen i en forespørsel – kode, filer, instruksjoner og samtalehistorikk. Innholdet kastes etter at svaret er generert og brukes ikke til trening.",
+      "Dataene som sendes til KI-modellen i en forespørsel – kode, filer, instruksjoner og samtalehistorikk. Innholdet kastes etter at svaret er generert og brukes ikke til trening.",
   },
   {
     term: "MCP (Model Context Protocol)",
     definition:
-      "En åpen standard for å koble AI-modeller til eksterne verktøy og datakilder. MCP-servere kan sende kode og kontekst til eksterne tjenester, og krever derfor godkjenning via org policy i Nav.",
+      "En åpen standard for å koble KI-modeller til eksterne verktøy og datakilder. MCP-servere kan sende kode og kontekst til eksterne tjenester, og krever derfor godkjenning via org policy i Nav.",
     link: { href: "/verktoy?type=mcp", label: "Se MCP-servere" },
   },
   {
     term: "Model provider",
     definition:
-      "Tjenesten som kjører AI-modellen – for eksempel OpenAI, Anthropic eller Google. GitHub Copilot API fungerer som gateway og ruter forespørsler til riktig provider. Navs databehandleravtale er med GitHub, ikke direkte med providerne.",
+      "Tjenesten som kjører KI-modellen – for eksempel OpenAI, Anthropic eller Google. GitHub Copilot API fungerer som gateway og ruter forespørsler til riktig provider. Navs databehandleravtale er med GitHub, ikke direkte med providerne.",
   },
   {
     term: "Modell",
     definition:
-      "AI-systemet som genererer svarene, for eksempel GPT-4o eller Claude Sonnet. Ulike modeller har ulike styrker, kontekststørrelser og kostnader.",
+      "KI-systemet som genererer svarene, for eksempel GPT-4o eller Claude Sonnet. Ulike modeller har ulike styrker, kontekststørrelser og kostnader.",
   },
   {
     term: "Next Edit Suggestions (NES)",
@@ -217,13 +217,13 @@ export const terms: Term[] = [
   {
     term: "Premium requests",
     definition:
-      "Forespørsler til mer avanserte AI-modeller (for eksempel o3 eller Claude Opus) som trekker fra en separat kvote i Copilot-abonnementet.",
+      "Forespørsler til mer avanserte KI-modeller (for eksempel o3 eller Claude Opus) som trekker fra en separat kvote i Copilot-abonnementet.",
     link: { href: "/kostnad", label: "Se kostnad" },
   },
   {
     term: "Prompt",
     definition:
-      "Instruksjonen, spørsmålet eller konteksten du gir til AI-modellen. Tydelig kontekst og presise instruksjoner gir bedre svar.",
+      "Instruksjonen, spørsmålet eller konteksten du gir til KI-modellen. Tydelig kontekst og presise instruksjoner gir bedre svar.",
     link: { href: "/praksis/guide/skrive-presise-prompts", label: "Prompt engineering" },
   },
   {
@@ -239,7 +239,7 @@ export const terms: Term[] = [
   {
     term: "Sandbox (cplt)",
     definition:
-      "Kernel-nivå isolasjon som begrenser hva en AI-agent kan gjøre på utviklermaskinen. cplt blokkerer tilgang til hemmeligheter, nøkler og .env-filer, og kontrollerer nettverkstrafikk. Operativsystemet håndhever reglene – det avhenger ikke av tillit til agenten.",
+      "Kernel-nivå isolasjon som begrenser hva en KI-agent kan gjøre på utviklermaskinen. cplt blokkerer tilgang til hemmeligheter, nøkler og .env-filer, og kontrollerer nettverkstrafikk. Operativsystemet håndhever reglene – det avhenger ikke av tillit til agenten.",
     link: { href: "/cplt", label: "Om cplt" },
   },
   {
@@ -256,7 +256,7 @@ export const terms: Term[] = [
   {
     term: "Token",
     definition:
-      "Den grunnleggende enheten AI-modeller bruker for å behandle tekst. Et token tilsvarer omtrent 3–4 tegn på norsk. Både input (din tekst) og output (Copilots svar) telles i tokens.",
+      "Den grunnleggende enheten KI-modeller bruker for å behandle tekst. Et token tilsvarer omtrent 3–4 tegn på norsk. Både input (din tekst) og output (Copilots svar) telles i tokens.",
   },
   {
     term: "Tool calling",
@@ -271,6 +271,6 @@ export const terms: Term[] = [
   {
     term: "Prompt injection",
     definition:
-      "Et angrep der ondsinnet tekst i kode, dokumenter eller input manipulerer AI-agenten til å utføre handlinger den ikke skal. Risikoen øker med verktøytilgang – en agent med skrivetilgang kan gjøre mer skade enn en som bare svarer.",
+      "Et angrep der ondsinnet tekst i kode, dokumenter eller input manipulerer KI-agenten til å utføre handlinger den ikke skal. Risikoen øker med verktøytilgang – en agent med skrivetilgang kan gjøre mer skade enn en som bare svarer.",
   },
 ];

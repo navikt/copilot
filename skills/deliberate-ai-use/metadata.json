@@ -1,11 +1,11 @@
 {
-  "description": "Bevisst AI-bruk i Nav: grønn og rød sone, tre-forsøks-regelen, erfaringsnivå og generer-så-forstå, med forskningen bak",
+  "description": "Bevisst KI-bruk i Nav: grønn og rød sone, tre-forsøks-regelen, erfaringsnivå og generer-så-forstå, med forskningen bak",
   "domain": "general",
   "tags": ["ai", "skill-preservation", "learning", "practices"],
   "examples": [
     {
-      "scenario": "Vurder om en oppgave passer for AI",
-      "prompt": "Bør jeg la AI skrive denne tilstandsmaskinen, eller kode den selv?"
+      "scenario": "Vurder om en oppgave passer for KI",
+      "prompt": "Bør jeg la KI skrive denne tilstandsmaskinen, eller kode den selv?"
     },
     {
       "scenario": "Lær mens du genererer",

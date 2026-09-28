@@ -7,14 +7,14 @@ import { commonLineOptions, getBackgroundColor, chartWrapperClass, NO_DATA_MESSA
 
 // Phase colors: muted gray → blue → purple → green
 const phaseColors = [
-  "rgba(156, 163, 175, 1)", // Phase 0 — Ingen AI-bruk (gray)
+  "rgba(156, 163, 175, 1)", // Phase 0 — Ingen KI-bruk (gray)
   "rgba(59, 130, 246, 1)", // Phase 1 — Kodeforslag (blue)
   "rgba(139, 92, 246, 1)", // Phase 2 — Én agent-flate (purple)
   "rgba(16, 185, 129, 1)", // Phase 3 — Flere agent-flater (green)
 ];
 
 const phaseLabels = [
-  "Fase 0: Ingen AI-bruk",
+  "Fase 0: Ingen KI-bruk",
   "Fase 1: Kodeforslag",
   "Fase 2: Én agentflate",
   "Fase 3: Flere agentflater",
@@ -189,7 +189,7 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
       ...commonLineOptions.plugins,
       title: {
         display: true,
-        text: useWeekly ? "AI-adopsjon – ukesgjennomsnitt" : "AI-adopsjon – daglig fordeling",
+        text: useWeekly ? "KI-adopsjon – ukesgjennomsnitt" : "KI-adopsjon – daglig fordeling",
         font: { size: 14, weight: "bold" as const },
         padding: { bottom: 16 },
       },
