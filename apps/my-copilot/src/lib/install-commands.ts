@@ -3,6 +3,8 @@ import type { Agent, AnyCustomization, CustomizationType } from "./customization
 // The nav-pilot and cplt install commands, shared by every page that shows them
 // so the landing page, docs, lokal and the setup wizard can't drift apart.
 export const NAV_PILOT_BREW_INSTALL = "brew install navikt/tap/nav-pilot navikt/tap/cplt";
+export const NAV_PILOT_QUICKSTART = `${NAV_PILOT_BREW_INSTALL} && nav-pilot`;
+export const CPLT_BREW_INSTALL = "brew install navikt/tap/cplt";
 export const NAV_PILOT_BREW_UPGRADE = "brew upgrade navikt/tap/nav-pilot";
 export const NAV_PILOT_INSTALL_SCRIPT =
   "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash";
@@ -29,6 +31,19 @@ function aptInstall(packages: string, installScript: string): string {
 
 export const NAV_PILOT_APT_INSTALL = aptInstall("nav-pilot cplt", NAV_PILOT_INSTALL_SCRIPT);
 export const CPLT_APT_INSTALL = aptInstall("cplt", CPLT_INSTALL_SCRIPT);
+
+export type InstallOs = "mac" | "linux" | "windows";
+
+// Maps navigator.userAgentData.platform or navigator.userAgent to the install view.
+// Anything we can't place (Android, BSD) gets macOS, the most common case.
+export function installOsFromPlatform(platform: string): InstallOs {
+  const p = platform.toLowerCase();
+  if (p.includes("mac")) return "mac";
+  if (p.includes("win")) return "windows";
+  if (p.includes("cros") || p.includes("chrome os")) return "linux"; // ChromeOS's Linux container is Debian
+  if (p.includes("linux") && !p.includes("android")) return "linux";
+  return "mac";
+}
 
 export const INSTALL_DIRS: Record<Exclude<CustomizationType, "mcp">, string> = {
   agent: ".github/agents",
