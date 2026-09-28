@@ -143,12 +143,12 @@ func cleanNews(items []newsItem) []newsItem {
 	return out
 }
 
-// nextNews is the first cli item in the feed (newest first) that is recent
-// and not shown before.
+// nextNews is the first cli item in the feed (newest first) that is recent,
+// not dated in the future, and not shown before.
 func nextNews(st newsState, now time.Time) *newsItem {
 	for i, it := range st.Items {
 		d, err := time.Parse(time.DateOnly, it.Date)
-		if it.CLI && err == nil && now.Sub(d) <= newsMaxAge && !slices.Contains(st.Seen, it.URL) {
+		if age := now.Sub(d); it.CLI && err == nil && age >= 0 && age <= newsMaxAge && !slices.Contains(st.Seen, it.URL) {
 			return &st.Items[i]
 		}
 	}

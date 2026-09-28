@@ -32,6 +32,6 @@ tags:
 
 ## `cli: true`
 
-Sett `cli: true` bare på saker som er skrevet for dem som bruker nav-pilot. Hver slik sak vises én gang til hver nav-pilot-bruker, som en linje etter en økt, i 30 dager etter `date`. Alle nav-pilot-brukere ser den, så bruk flagget sjelden.
+Sett `cli: true` bare på saker som er skrevet for dem som bruker nav-pilot. Hver slik sak vises én gang til hver nav-pilot-bruker, som en linje etter en økt, fra `date` og 30 dager framover. En sak med dato fram i tid vises ikke før den dagen. Alle nav-pilot-brukere ser den, så bruk flagget sjelden.
 
 nav-pilot leser de 20 nyeste norske sakene fra [`/news.json`](https://ki-utvikling.nav.no/news.json) og viser bare sakene med `cli: true`. Linja vises ikke uten terminal, i CI, etter Ctrl-C, når nav-pilot allerede har vist noe annet etter økta (en spørreundersøkelse eller et tips), med `news = false` eller når telemetri er slått av. `nav-pilot news` lister de ti nyeste sakene, med eller uten flagget, og regner dem som vist.
