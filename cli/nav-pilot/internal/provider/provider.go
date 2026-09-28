@@ -470,10 +470,10 @@ func (piProvider) Bootstrap(r domain.ResolvedConfig) (string, error) {
 // (internal/cli/sync.go), so a pakke merely declaring pi must not make an
 // ordinary `nav-pilot sync` create ~/.nav-pilot/pi. The state file is what
 // Bootstrap or a launch writes, so its absence means pi was never launched.
+// That is the whole gate: the active pakke is set by launches only, so a
+// plain sync would otherwise skip pi's scope every time, as opencode's does
+// not.
 func (piProvider) SyncContext(ref, sourceRepo string, apply, jsonOutput, hasPrevOutput bool) ProviderSyncResult {
-	if !piDeclaresTier1() {
-		return ProviderSyncResult{}
-	}
 	outputDir := piNavContextDir()
 	state, _ := artifacts.ReadOpenCodeState(outputDir)
 	if state == nil {
@@ -529,6 +529,8 @@ func (piProvider) SyncContext(ref, sourceRepo string, apply, jsonOutput, hasPrev
 			fmt.Printf("%s Pi scope has %d file(s) to remove. Run %s to apply.\n", domain.Yellow("⚠"), len(report.Removed), domain.Bold("nav-pilot sync --apply"))
 		case !apply:
 			fmt.Printf("%s Pi scope checked; %s refreshes it.\n", domain.Dim("→"), domain.Bold("nav-pilot sync --apply"))
+		case len(report.Conflicts) > 0:
+			fmt.Printf("%s Pi scope synced (%d conflict(s)).\n", domain.Yellow("⚠"), len(report.Conflicts))
 		default:
 			fmt.Printf("%s Pi scope synced.\n", domain.Green("✓"))
 		}
