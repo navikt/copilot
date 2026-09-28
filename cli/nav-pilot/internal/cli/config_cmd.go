@@ -45,7 +45,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "client",
 		kind:        keyKindString,
-		description: "Coding-agent CLI to launch (copilot, opencode, pi). The default is opencode on a new install, and copilot when opencode is not installed. A config.toml without client means copilot, so an upgrade never switches your client. The first run in a terminal writes it in.",
+		description: "Coding-agent CLI to launch (copilot, opencode, pi). The default is opencode on a new install run in a terminal, and copilot without a terminal (CI) or when opencode is not installed. A config.toml without client means copilot, so an upgrade never switches your client. The first run in a terminal writes it in.",
 		allowed:     validProviderIDs,
 		defaultVal:  "opencode",
 		flag:        "--client",
@@ -337,7 +337,7 @@ version = 1
 
 # Coding-agent CLI nav-pilot launches.
 # Allowed: copilot, opencode, pi. Without a client line this file means copilot.
-# client = "opencode"
+client = "copilot"
 
 # Agentpakke content source: a GitHub repo (owner/name) or an absolute path to a
 # local checkout. Set by "nav-pilot install --source <repo>" after a successful
@@ -615,7 +615,10 @@ func cmdConfigInit() error {
 		return fmt.Errorf("checking config path: %w", err)
 	}
 
-	if err := writeConfigFile(path, []byte(configInitTemplate), nil); err != nil {
+	// The client this machine runs now, written out (#1022): the file
+	// without it would mean copilot.
+	tmpl := strings.Replace(configInitTemplate, `client = "copilot"`, "client = "+tomlString(defaultClient(nil)), 1)
+	if err := writeConfigFile(path, []byte(tmpl), nil); err != nil {
 		return err
 	}
 

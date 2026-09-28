@@ -237,7 +237,9 @@ func editTopLevelKey(content, key, tomlVal, replaces string) (string, error) {
 
 // updateConfigKey sets (or, with tomlVal "", removes) one top-level key in the
 // config file through editTopLevelKey and writeConfigFile. A missing file is
-// created with version = 1.
+// created with version = 1 and, unless key is client, the client this machine
+// runs now: a file without client means copilot (defaultClient), so creating
+// one must not switch a new install away from opencode.
 func updateConfigKey(key, tomlVal string) error {
 	path := configPath()
 	data, err := os.ReadFile(path)
@@ -248,6 +250,9 @@ func updateConfigKey(key, tomlVal string) error {
 		}
 		if key != "version" {
 			data = []byte("version = 1\n")
+			if key != "client" {
+				data = fmt.Appendf(data, "client = %s\n", tomlString(defaultClient(nil)))
+			}
 		}
 	case err != nil:
 		return fmt.Errorf("reading config: %w", err)

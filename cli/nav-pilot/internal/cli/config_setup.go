@@ -117,14 +117,16 @@ func runConfigSetup(flagSource string) error {
 		Mode:       findKeyDef("mode").defaultVal,
 		AutoUpdate: findKeyDef("auto_update").defaultVal,
 	}
+	opencodeLabel := clientLabel["opencode"] + " (default)"
 	if existing, err := readConfig(); err == nil && existing != nil {
 		answers.Client = cfgClient(existing)
+		opencodeLabel = clientLabel["opencode"]
 	}
 
 	err := huh.NewSelect[string]().
 		Title("Which coding agent?").
 		Options(
-			huh.NewOption(clientLabel["opencode"]+" (default)", "opencode"),
+			huh.NewOption(opencodeLabel, "opencode"),
 			huh.NewOption(clientLabel["copilot"], "copilot"),
 			huh.NewOption(clientLabel["pi"], "pi"),
 		).
@@ -254,11 +256,13 @@ func opencodeForSetup() (string, error) {
 			Negative("Use GitHub Copilot instead").
 			Value(&install).
 			WithTheme(navTheme()).
-			Run(); err != nil {
+			Run(); errors.Is(err, huh.ErrUserAborted) {
 			return "", err
+		} else if err != nil {
+			install = false // a prompt that could not run is no answer
 		}
 		if install {
-			cmd := exec.Command("brew", strings.Fields(opencodeBrewInstall)[1:]...)
+			cmd := exec.Command("brew", "install", "anomalyco/tap/opencode")
 			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 			err := cmd.Run()
 			if err == nil && opencodeInstalled() {

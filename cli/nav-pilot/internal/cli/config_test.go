@@ -436,8 +436,8 @@ func withOpencode(t *testing.T, installed bool) {
 	t.Cleanup(func() { providerFor = orig })
 }
 
-// TestDefaultClient: opencode only on a new install that has it (#1022);
-// everyone else keeps copilot.
+// TestDefaultClient: opencode only on a new install, in a terminal, that has
+// it (#1022); everyone else keeps copilot.
 func TestDefaultClient(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
@@ -452,6 +452,9 @@ func TestDefaultClient(t *testing.T) {
 		{"client recorded, config gone", nil, true, true, "copilot"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			orig := isInteractive
+			isInteractive = func() bool { return true }
+			t.Cleanup(func() { isInteractive = orig })
 			dir := t.TempDir()
 			t.Setenv("HOME", dir)
 			t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, ".nav-pilot", "config.toml"))
@@ -469,6 +472,12 @@ func TestDefaultClient(t *testing.T) {
 			}
 			if got := resolve(tc.file, CLIOverrides{Client: "pi"}).Client; got != "pi" {
 				t.Errorf("--client pi resolved to %q", got)
+			}
+			// Headless or CI: copilot, since a machine without config.toml
+			// may be an existing user who never had one.
+			isInteractive = func() bool { return false }
+			if got := resolve(tc.file, CLIOverrides{}).Client; got != "copilot" {
+				t.Errorf("headless resolve().Client = %q, want copilot", got)
 			}
 		})
 	}

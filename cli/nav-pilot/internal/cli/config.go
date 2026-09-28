@@ -13,7 +13,6 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
-	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
 // validateModelForClient validates a model identifier by delegating to the
@@ -341,8 +340,11 @@ func cfgClient(cfg *Config) string {
 // the default they had, so an upgrade moves nobody (#1029): a config.toml
 // without a client line means copilot. A new install without opencode on
 // PATH gets copilot too, so the default is never a client that is missing.
+//
+// Only in a terminal: a headless or CI run with no config.toml cannot be told
+// from an existing user who never had one, so it keeps copilot.
 func defaultClient(file *Config) string {
-	if newInstall(file) && opencodeInstalled() {
+	if newInstall(file) && isInteractive() && opencodeInstalled() {
 		return "opencode"
 	}
 	return "copilot"
@@ -354,11 +356,9 @@ func newInstall(file *Config) bool {
 	if file != nil {
 		return false
 	}
-	dir, err := telemetrypkg.GetConfigDir()
-	if err != nil {
-		return false
-	}
-	_, err = os.Stat(filepath.Join(dir, "seen-client-recorded"))
+	// The marker sits beside config.toml (telemetry.GetConfigDir), read
+	// here without GetConfigDir's MkdirAll: resolve runs in every hook.
+	_, err := os.Stat(filepath.Join(filepath.Dir(configPath()), "seen-client-recorded"))
 	return errors.Is(err, os.ErrNotExist)
 }
 
@@ -484,12 +484,6 @@ func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), w)
 	}
 	resolved := resolve(file, cli)
-	if cli.Client == "" && resolved.Client == "copilot" && newInstall(file) {
-		// No wizard ran (no terminal) and opencode is missing: say which
-		// client this is, since the documented default is opencode.
-		fmt.Fprintf(os.Stderr, "%s opencode is not installed, so nav-pilot starts Copilot CLI. Install opencode (%s), or keep Copilot CLI and hide this line: %s\n",
-			dim("ℹ"), opencodeInstallCommand(), bold("nav-pilot config set client copilot"))
-	}
 	telemetry.RecordConfig(
 		resolved.Client,
 		resolved.Mode,

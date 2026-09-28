@@ -2,19 +2,20 @@
 # names the install command. Missing is an error only when the client is
 # copilot. A launch without it says the same (#1051).
 
-# fake-bin replaces PATH, so neither copilot nor cplt is on it. With
-# opencode there and no config.toml, the client is opencode (#1022).
+# fake-bin replaces PATH, so neither copilot nor cplt is on it. Naming
+# opencode only gives it something to install into.
 fake-bin opencode
 
-exec nav-pilot doctor
-stdout '• copilot\n +\[i\] Binary not found on PATH \(optional\)'
-! stdout 'copilot-install'
-
-exec nav-pilot config set client copilot
 exec nav-pilot doctor
 stdout '• copilot\n +\[✗\] Binary not found on PATH\n +Solution: Install the Copilot CLI'
 stdout 'Solution: Install the Copilot CLI: curl -fsSL https://gh\.io/copilot-install \| bash'
 ! stderr .
+
+exec nav-pilot config set client opencode
+exec nav-pilot doctor
+stdout '• copilot\n +\[i\] Binary not found on PATH \(optional\)'
+! stdout 'copilot-install'
+exec nav-pilot config set client copilot
 
 mkdir plattform/skills repo
 cd plattform

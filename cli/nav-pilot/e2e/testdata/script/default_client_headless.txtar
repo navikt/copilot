@@ -1,10 +1,11 @@
-# #1022: with no config.toml a headless or CI run is a new install. It starts
-# opencode when opencode is on PATH. Without it, it starts Copilot CLI and
-# says so in one line on stderr, never a launch of a client that is missing.
-# A config.toml without a client line, what an existing user has, means
-# copilot whatever is installed.
+# #1022: opencode is the default on a new install, in a terminal. A headless
+# or CI run with no config.toml cannot be told from an existing user who never
+# had one, so it keeps starting Copilot CLI, opencode installed or not. A
+# config.toml without a client line, what an existing user has, means copilot.
+# A command that creates config.toml writes the client this machine runs now,
+# so creating the file never switches a client.
 
-fake-bin cplt copilot
+fake-bin cplt copilot opencode
 
 mkdir plattform/skills repo
 cd plattform
@@ -16,28 +17,28 @@ exec git init -q .
 exec nav-pilot install plattform --source $WORK/plattform --user --yes
 ! exists $HOME/config.toml
 
-# No opencode: Copilot CLI, and the line that says why.
+# Headless, no config.toml, opencode installed: Copilot CLI, and nothing said.
 exec nav-pilot --source $WORK/plattform -- -p hei
-stderr 'opencode is not installed, so nav-pilot starts Copilot CLI\. Install opencode \(curl -fsSL https://opencode\.ai/install \| bash\), or keep Copilot CLI and hide this line: nav-pilot config set client copilot'
+! stderr 'opencode'
 grep '^--agent\ncopilot\n' $WORK/fake/cplt.log
 ! exists $HOME/config.toml
 
-# opencode installed: opencode, no line.
-cp $WORK/fake/copilot $WORK/fake/opencode
-rm $WORK/fake/cplt.log
-exec nav-pilot --source $WORK/plattform -- run hei
-! stderr 'opencode is not installed'
-grep '^--agent\nopencode\n' $WORK/fake/cplt.log
-
 # An existing user's config.toml without client: copilot, even with opencode there.
 exec nav-pilot config set source $WORK/plattform
+grep '^client = "copilot"' $HOME/config.toml
+exec nav-pilot config unset client
 ! grep '^client' $HOME/config.toml
 rm $WORK/fake/cplt.log
 exec nav-pilot -- -p hei
-! stderr 'opencode is not installed'
 grep '^--agent\ncopilot\n' $WORK/fake/cplt.log
 exec nav-pilot config get client
 stdout '^copilot$'
+
+# In a terminal on a new install, creating config.toml writes opencode.
+[!pty] stop 'no pseudo-terminal here (/dev/ptmx will not open)'
+rm $HOME/config.toml
+exec pty-run -- nav-pilot config set source $WORK/plattform
+grep '^client = "opencode"' $HOME/config.toml
 
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
