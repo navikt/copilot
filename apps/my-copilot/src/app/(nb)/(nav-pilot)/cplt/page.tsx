@@ -2,7 +2,7 @@ import { BodyLong, BodyShort, Box, HStack, Heading, Tag, VStack } from "@navikt/
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import type { ReactNode } from "react";
-import { Table, TableBody, TableDataCell, TableRow } from "@/components/aksel-table";
+import { Table, TableBody, TableDataCell, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { CodeBlock } from "@/components/code-block";
 import { CpltConfigExplorer } from "@/components/cplt-config-explorer";
 import { LinkableHeading } from "@/components/linkable-heading";
@@ -363,7 +363,9 @@ function SecurityTableSection() {
           <TableBody role="rowgroup">
             {SECURITY_TABLE.map((row) => (
               <TableRow role="row" key={row.resource}>
-                <TableDataCell role="cell">{withFootnoteMarkers(row.resource)}</TableDataCell>
+                <TableHeaderCell scope="row" role="rowheader">
+                  {withFootnoteMarkers(row.resource)}
+                </TableHeaderCell>
                 <TableDataCell role="cell" data-label={SECURITY_COLS[1]}>
                   <StatusTag status={row.without} />
                 </TableDataCell>
@@ -424,9 +426,9 @@ function GuardsSection() {
             <TableBody role="rowgroup">
               {GH_GUARD_LEVELS.map((row) => (
                 <TableRow role="row" key={row.level}>
-                  <TableDataCell role="cell">
-                    <strong>{row.level}</strong>
-                  </TableDataCell>
+                  <TableHeaderCell scope="row" role="rowheader">
+                    {row.level}
+                  </TableHeaderCell>
                   <TableDataCell role="cell" data-label="Eksempler">
                     {c(row.examples)}
                   </TableDataCell>
