@@ -404,6 +404,10 @@
 /* Fix: Aksel DS resets styles on typography components, overriding Tailwind utilities.
    Use higher specificity with !important to let Tailwind margin, color, and font-size work. */
 :is(.aksel-heading, .aksel-body-short, .aksel-body-long, .aksel-label) {
+  /* A centred subtitle sat at the left edge on /cplt (#1195). */
+  &.mx-auto {
+    margin-inline: auto !important;
+  }
   &.mb-1 {
     margin-bottom: calc(var(--spacing) * 1) !important;
   }

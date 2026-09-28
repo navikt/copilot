@@ -45,7 +45,6 @@ const labels: ShellLabels = {
   accessibility: "Tilgjengelighet",
   accessibilityHref: "/tilgjengelighet",
   accessibilityHrefLang: undefined,
-  footerLang: undefined,
 };
 
 export default function NorwegianLayout({ children }: Readonly<{ children: React.ReactNode }>) {
