@@ -322,8 +322,9 @@ det er to tall som kan bli uenige.
 > Dashboardet for lokal inferens, [`dashboards/nav-pilot-local.json`](../../dashboards/nav-pilot-local.json),
 > lages av `scripts/build-local-dashboard.py`. Endre skriptet, ikke JSON-fila. CI kjører
 > `scripts/build-local-dashboard.py --check` og feiler hvis fila ikke stemmer med skriptet.
-> Begge dashboardene importeres i Grafana for hånd. Automatisk opplasting krever en
-> service-konto-token for Grafana som hemmelighet i repoet, og det er ikke bestemt (#1018).
+> Automatisk opplasting til Grafana er parkert: det krever et servicekonto-token for Grafana
+> som hemmelighet i repoet, og den som eier Grafana-mappa må avgjøre det. Til det er avgjort,
+> importeres begge dashboardene for hånd (#1206).
 
 ### Alarmer (foreslåtte)
 

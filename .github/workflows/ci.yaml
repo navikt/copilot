@@ -424,8 +424,9 @@ jobs:
           cd cli/nav-pilot && staticcheck ./...
       - name: Persona transcripts selftest
         run: python3 cli/nav-pilot/e2e/persona_transcripts.py --selftest
-      # nav-pilot-local.json is generated; a hand edit, or a change to the
-      # house style it copies from nav-pilot-cli.json, must be regenerated.
+      # nav-pilot-local.json is generated: a hand edit, or a change to the
+      # house style it copies from nav-pilot-cli.json, means nav-pilot-local.json
+      # must be regenerated.
       - name: Local dashboard is generated
         run: python3 scripts/build-local-dashboard.py --check
       - name: ShellCheck
