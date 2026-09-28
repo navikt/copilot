@@ -10,6 +10,7 @@ const TEXT = {
   nb: {
     label: "Velg operativsystem",
     copy: "Kopier kommandoen",
+    copied: "Kopiert!",
     apt: "Bruk apt-arkivet (Debian/Ubuntu)",
     aptNote:
       "Apt-arkivet oppdaterer seg selv. Det bygges hver time fra nyeste versjon, så en helt fersk versjon kan ta opptil en time før den kan installeres. Feiler nedlastingen, stopper kommandoen og viser installasjonsskriptet i stedet.",
@@ -17,6 +18,7 @@ const TEXT = {
   en: {
     label: "Choose your operating system",
     copy: "Copy the command",
+    copied: "Copied!",
     apt: "Use the apt archive (Debian/Ubuntu)",
     aptNote:
       "The archive updates itself and is rebuilt hourly from the latest release, so a release cut minutes ago can take up to an hour to become installable. If the download fails, the command stops and prints the install script instead.",
@@ -51,7 +53,7 @@ function detectOs(): InstallOs {
   return readStoredOs() ?? installOsFromPlatform(nav.userAgentData?.platform || nav.userAgent);
 }
 
-function Command({ command, copyTitle }: { command: string; copyTitle: string }) {
+function Command({ command, copyTitle, copied }: { command: string; copyTitle: string; copied: string }) {
   return (
     <div
       className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 rounded-lg text-left"
@@ -75,7 +77,7 @@ function Command({ command, copyTitle }: { command: string; copyTitle: string })
       >
         {command}
       </pre>
-      <CopyButton copyText={command} title={copyTitle} size="small" />
+      <CopyButton copyText={command} title={copyTitle} activeText={copied} size="small" />
     </div>
   );
 }
@@ -119,12 +121,12 @@ export function InstallPicker({ lang, mac, linux, apt, windowsNote }: InstallPic
           </BodyShort>
         )}
 
-        <Command command={os === "mac" ? mac : linux} copyTitle={t.copy} />
+        <Command command={os === "mac" ? mac : linux} copyTitle={t.copy} copied={t.copied} />
 
         {os !== "mac" && (
           <ReadMore header={t.apt} size="small">
             <div className="flex flex-col gap-2">
-              <Command command={apt} copyTitle={t.copy} />
+              <Command command={apt} copyTitle={t.copy} copied={t.copied} />
               <p style={{ fontSize: "0.75rem", lineHeight: 1.6, color: "rgba(255,255,255,0.6)" }}>{t.aptNote}</p>
             </div>
           </ReadMore>

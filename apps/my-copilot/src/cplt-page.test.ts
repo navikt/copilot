@@ -11,4 +11,13 @@ describe("/cplt", () => {
     expect(src).toMatch(/<main[^>]*\blang="en"/);
     expect(src).not.toMatch(/<main[^>]*\blang="nb"/);
   });
+
+  // Aksel's CopyButton defaults to Norwegian («Kopier», «Kopiert!»); on this
+  // English page every one names its labels.
+  it("gives every copy button English labels", () => {
+    const src = fs.readFileSync(PAGE, "utf-8");
+    const buttons = src.match(/<CopyButton\b[^>]*>/g) ?? [];
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const b of buttons) expect(b).toMatch(/title="Copy"[\s\S]*activeText="Copied!"/);
+  });
 });
