@@ -106,6 +106,11 @@ func fakeCpltArgs(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	// cplt runs the Copilot CLI on PATH, and nav-pilot hands off only when
+	// there is one (#1064).
+	if err := os.WriteFile(filepath.Join(dir, "copilot"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("PATH", dir)
 	return out
 }
@@ -305,5 +310,29 @@ func TestFirstTime(t *testing.T) {
 	}
 	if !FirstTime("y") {
 		t.Error("another name has its own marker")
+	}
+}
+
+// cplt runs the Copilot CLI on PATH. A copilot that is cplt itself (the
+// alias install) does not count; a real one further down PATH does (#1064).
+func TestCopilotBesideCplt(t *testing.T) {
+	first, second := t.TempDir(), t.TempDir()
+	cplt := filepath.Join(first, "cplt")
+	if err := os.WriteFile(cplt, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(cplt, filepath.Join(first, "copilot")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", first)
+	if CopilotBesideCplt(cplt) {
+		t.Error("the alias counted as the Copilot CLI")
+	}
+	if err := os.WriteFile(filepath.Join(second, "copilot"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", first+string(os.PathListSeparator)+second)
+	if !CopilotBesideCplt(cplt) {
+		t.Error("the real copilot after the alias was not found")
 	}
 }

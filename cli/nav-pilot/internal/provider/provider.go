@@ -212,7 +212,7 @@ func (copilotProvider) DisplayName() string {
 
 func (copilotProvider) Available() bool {
 	path, name := FindCopilotCLI()
-	return path != "" && (name == "copilot" || CopilotOnPath())
+	return name == "copilot" || (name == "cplt" && CopilotBesideCplt(path))
 }
 
 func (copilotProvider) Launch(r domain.ResolvedConfig) error { return LaunchCopilotResolved(r) }

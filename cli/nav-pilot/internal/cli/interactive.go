@@ -1223,7 +1223,7 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 	switch decision {
 	case launchSkipUnavailable:
 		if resolved.Client == "copilot" {
-			if _, err := exec.LookPath("cplt"); err == nil {
+			if _, name := providerpkg.FindCopilotCLI(); name == "cplt" {
 				fmt.Fprintf(os.Stderr, "%s Nothing was launched: %s\n", yellow("⚠"), providerpkg.CopilotMissingBehindCplt())
 				return nil
 			}
@@ -1337,7 +1337,7 @@ func headlessRefusal(decision launchDecision, p Provider, missing, start string)
 	switch decision {
 	case launchSkipUnavailable:
 		if p.ID() == "copilot" {
-			if _, err := exec.LookPath("cplt"); err == nil {
+			if _, name := providerpkg.FindCopilotCLI(); name == "cplt" {
 				fmt.Fprintf(os.Stderr, "Not launching: %s\n", providerpkg.CopilotMissingBehindCplt())
 				break
 			}

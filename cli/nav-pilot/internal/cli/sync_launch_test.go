@@ -10,9 +10,6 @@ import (
 	"testing"
 )
 
-// stubClient puts a fake client binary named name on an otherwise empty PATH.
-// The stub records that it ran by creating a marker file, which is how these
-// tests tell "launched" from "not launched".
 // plainCopilot puts a copilot in dir that only answers --version: cplt starts
 // the copilot on PATH, and nav-pilot does not hand off to cplt without one
 // (#1064).
@@ -24,6 +21,9 @@ func plainCopilot(t *testing.T, dir string) {
 	}
 }
 
+// stubClient puts a fake client binary named name on an otherwise empty PATH.
+// The stub records that it ran by creating a marker file, which is how these
+// tests tell "launched" from "not launched".
 func stubClient(t *testing.T, name string) (markerPath string) {
 	t.Helper()
 	binDir := t.TempDir()

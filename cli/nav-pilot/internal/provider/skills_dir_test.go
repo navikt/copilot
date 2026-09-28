@@ -233,6 +233,11 @@ func fakeCplt(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	// cplt runs the Copilot CLI on PATH, and nav-pilot hands off only when
+	// there is one (#1064).
+	if err := os.WriteFile(filepath.Join(dir, "copilot"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("PATH", dir)
 	return out
 }
