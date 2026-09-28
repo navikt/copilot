@@ -53,6 +53,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
+      # A conflict resolved by hand can leave a marker line behind, as a
+      # diff3 "|||||||" line once did in the changelog. Every tracked text file.
+      - name: No merge conflict markers
+        run: |
+          if git grep -nIE '^(<<<<<<< |\|\|\|\|\|\|\| |=======$|>>>>>>> )'; then
+            echo "::error::merge conflict markers left in the lines above"
+            exit 1
+          fi
       # v4.0.1+ is required for native merge_group support (v3 has none).
       # Each filter mirrors the component workflow's own on.pull_request.paths,
       # plus this workflow file so editing the gate re-tests everything.
