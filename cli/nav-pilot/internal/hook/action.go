@@ -102,6 +102,9 @@ func riskySegment(w []string) string {
 	}
 	name, args := path.Base(w[0]), w[1:]
 	words := nonFlags(args)
+	if dryRun(args) || (name == "gcloud" && len(words) > 0 && words[0] == "config") {
+		return ""
+	}
 	switch name {
 	case "kubectl":
 		if i := slices.Index(words, "rollout"); i >= 0 && i+1 < len(words) && (words[i+1] == "status" || words[i+1] == "history") {
@@ -180,4 +183,15 @@ func nonFlags(args []string) []string {
 		}
 	}
 	return out
+}
+
+// dryRun is true for --dry-run and --dry-run=<mode>, except kubectl's
+// --dry-run=none, which runs for real.
+func dryRun(args []string) bool {
+	for _, a := range args {
+		if a == "--dry-run" || (strings.HasPrefix(a, "--dry-run=") && a != "--dry-run=none") {
+			return true
+		}
+	}
+	return false
 }

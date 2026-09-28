@@ -188,9 +188,9 @@ nav-pilot ignore instruction nextjs-aksel --user`}
               modellen, så den leser dem som data.
             </li>
             <li>
-              <code className={code}>hook_action_check</code>: spør den lokale modellen før en risikabel skallkommando,
-              for eksempel <code className={code}>kubectl delete</code> eller <code className={code}>rm -rf</code>, om
-              kommandoen gir mening, og lagrer svaret. Den stopper ingenting, og KI-agenten ser ikke svaret. Virker bare
+              <code className={code}>hook_action_check</code>: spør den lokale modellen om en risikabel skallkommando,
+              for eksempel <code className={code}>kubectl delete</code> eller <code className={code}>rm -rf</code>, gir
+              mening før den kjører, og lagrer svaret. Den stopper ingenting, og KI-agenten ser ikke svaret. Virker bare
               med lokal modell. Slå den av med <code className={code}>off</code>.
             </li>
           </Bullets>

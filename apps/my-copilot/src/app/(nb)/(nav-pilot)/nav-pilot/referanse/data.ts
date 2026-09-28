@@ -168,7 +168,7 @@ export const CONFIG_KEYS = [
     key: "hook_action_check",
     flag: "—",
     values: "off · log (standard: log)",
-    desc: "Spør den lokale decide-modellen før en risikabel skallkommando kjører (endringer med kubectl, nais, gcloud og helm, terraform apply, rm -r, git push --force og lignende) om den står i forhold til problemet, om den er destruktiv, og om formålet agenten oppga, støtter den. Med log lagres svaret i telemetri og en lokal logg, og kommandoen kjører alltid. off slår den av. Virker bare med lokal modell (local_enabled) og en server som kjører. Den starter aldri en server selv.",
+    desc: "Spør den lokale decide-modellen før en risikabel skallkommando kjører (endringer med kubectl, nais, gcloud og helm, terraform apply, rm -r, git push --force og lignende) om den står i forhold til formålet, om den er destruktiv, og om formålet agenten oppga støtter den. Med log lagres svaret i telemetri og en lokal logg, og kommandoen kjører alltid. off slår den av. Virker bare med lokal modell (local_enabled) og en server som kjører. Den starter aldri en server selv.",
   },
   {
     key: "copilot_auth_mode",
