@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/hook"
-	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 const riskyPayload = `{"sessionId":"s1","cwd":"/w","toolName":"bash","toolArgs":{"command":"kubectl delete deployment app -n team --token=ghp_0123456789abcdefghijklmnopqrstuvwxyz","description":"Restart the app"}}`
@@ -41,6 +41,17 @@ func runActionHook(t *testing.T, config, payload string) (out, log, spool string
 
 const localOn = "version = 1\nlocal_enabled = true\n"
 
+// actionServer hands the hook the server the test's decideServer returns, as
+// a launch does (providerpkg.ActionCheckServerEnv).
+func actionServer(t *testing.T) {
+	t.Helper()
+	base, model, _, err := decideServer(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(providerpkg.ActionCheckServerEnv, base+" "+model)
+}
+
 func TestActionCheckOutcomes(t *testing.T) {
 	answerB := func(p float64) func(string) []fakeTok {
 		return func(string) []fakeTok { return []fakeTok{{"A", 1 - p}, {"B", p}} }
@@ -63,6 +74,7 @@ func TestActionCheckOutcomes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			last := fakeDecideServer(t, tt.answer)
+			actionServer(t)
 			out, log, spool := runActionHook(t, localOn, riskyPayload)
 			prompt, _ := json.Marshal(last())
 			if !strings.Contains(string(prompt), "kubectl delete deployment app") || strings.Contains(string(prompt), "ghp_0123") {
@@ -95,9 +107,7 @@ func TestActionCheckTimeoutAllows(t *testing.T) {
 		}
 	}))
 	t.Cleanup(srv.Close)
-	orig := decideServer
-	decideServer = func(context.Context) (string, string, func(), error) { return srv.URL, "fake", func() {}, nil }
-	t.Cleanup(func() { decideServer = orig })
+	t.Setenv(providerpkg.ActionCheckServerEnv, srv.URL+" fake")
 
 	started := time.Now()
 	out, _, spool := runActionHook(t, localOn, riskyPayload)
@@ -109,32 +119,47 @@ func TestActionCheckTimeoutAllows(t *testing.T) {
 	}
 }
 
-// A server that cannot be found fast, too: the lock or the server's checks
-// hanging past the budget without watching ctx.
-func TestActionCheckStuckServerAllows(t *testing.T) {
-	localTestHome(t)
-	orig := decideServer
-	decideServer = func(context.Context) (string, string, func(), error) {
-		time.Sleep(3 * actionCheckBudget)
-		return "", "", nil, context.DeadlineExceeded
-	}
-	t.Cleanup(func() { decideServer = orig })
-	out, _, spool := runActionHook(t, localOn, riskyPayload)
-	if out != "{}" || strings.TrimSpace(spool) != "action_check skipped_timeout kubectl" {
-		t.Errorf("stuck lookup: %s, spooled %q", out, spool)
+// No server handed over, one that is gone, or one the hook must not send a
+// command to: a skip, and nothing asked.
+func TestActionCheckNoServerAllows(t *testing.T) {
+	closed := httptest.NewServer(http.NotFoundHandler())
+	closed.Close()
+	for _, env := range []string{"", closed.URL + " fake", "https://example.com fake", closed.URL} {
+		t.Run(env, func(t *testing.T) {
+			localTestHome(t)
+			t.Setenv(providerpkg.ActionCheckServerEnv, env)
+			out, _, spool := runActionHook(t, localOn, riskyPayload)
+			if out != "{}" || strings.TrimSpace(spool) != "action_check skipped_no_server kubectl" {
+				t.Errorf("%q: %s, spooled %q", env, out, spool)
+			}
+		})
 	}
 }
 
-func TestActionCheckNoServerAllows(t *testing.T) {
-	localTestHome(t)
-	orig := decideServer
-	decideServer = func(context.Context) (string, string, func(), error) {
-		return "", "", nil, local.ErrNoServerRecorded
+// Inside cplt the hook cannot read ~/.nav-pilot: the server comes from the
+// launch, and the check runs all the same (#1165).
+func TestActionCheckWithoutNavPilotDir(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads a mode-000 directory")
 	}
-	t.Cleanup(func() { decideServer = orig })
-	out, _, spool := runActionHook(t, localOn, riskyPayload)
-	if out != "{}" || strings.TrimSpace(spool) != "action_check skipped_no_server kubectl" {
-		t.Errorf("no server: %s, spooled %q", out, spool)
+	fakeDecideServer(t, func(string) []fakeTok { return []fakeTok{{"A", 0.9}, {"B", 0.1}} })
+	actionServer(t)
+	dir := filepath.Dir(os.Getenv("NAV_PILOT_CONFIG"))
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(os.Getenv("NAV_PILOT_CONFIG"), []byte(localOn), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+	var b bytes.Buffer
+	runHookCommand([]string{"action-check", "local_enabled=true"}, strings.NewReader(riskyPayload), &b)
+	spool, _ := os.ReadFile(filepath.Join(hookStateDir(), "s1", "nav-pilot-hook-events"))
+	if strings.TrimSpace(b.String()) != "{}" || strings.TrimSpace(string(spool)) != "action_check passed kubectl" {
+		t.Errorf("sandboxed: %s, spooled %q", b.String(), spool)
 	}
 }
 
@@ -150,6 +175,7 @@ func TestActionCheckAsksNothing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			asked := false
 			fakeDecideServer(t, func(string) []fakeTok { asked = true; return []fakeTok{{"B", 1}} })
+			actionServer(t)
 			out, log, spool := runActionHook(t, tt.config, tt.payload)
 			if out != "{}" || asked || log != "" || spool != "" {
 				t.Errorf("out %s, asked %v, log %q, spool %q", out, asked, log, spool)

@@ -1,0 +1,59 @@
+# The action check inside cplt (#1165). cplt denies ~/.nav-pilot to everything
+# it sandboxes, the hook included, so the launch looks the local server up and
+# hands it over in NAV_PILOT_ACTION_CHECK_SERVER: passed through the sandbox,
+# with the server's port let through. The hook then asks the server without
+# reading a file of nav-pilot's.
+
+[root] skip 'root reads a mode-000 file'
+
+fake-endpoint
+exec nav-pilot config set local_endpoint $FAKE_ENDPOINT_URL
+exec nav-pilot config set local_endpoint_model qwen3.6:35b
+exec nav-pilot config set local_enabled true
+exec nav-pilot config set client copilot
+
+fake-bin cplt copilot
+mkdir plattform/skills proj
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd $WORK/proj
+exec nav-pilot --sync --source $WORK/plattform -- -p 'hello'
+grep '^--pass-env\nNAV_PILOT_ACTION_CHECK_SERVER\n' $WORK/fake/cplt.log
+grep '^--allow-localhost\n[0-9]+\n' $WORK/fake/cplt.log
+exists $HOME/.copilot/hooks/nav-pilot-action-check.json
+
+# In the sandbox: the config and ~/.nav-pilot out of reach, the server from the
+# launch. The hook allows the call and logs the model's verdict.
+cd $WORK
+mkdir $HOME/.nav-pilot
+chmod 000 $HOME/config.toml
+chmod 000 $HOME/.nav-pilot
+env NAV_PILOT_ACTION_CHECK_SERVER=$FAKE_ENDPOINT_URL' qwen3.6:35b'
+stdin payload.json
+exec nav-pilot hook action-check local_enabled=true
+stdout '^\{\}$'
+grep '"outcome":"(passed|flagged)"' $HOME/.copilot/session-state/s1/nav-pilot-action-check.jsonl
+! grep 'ghp_0123' $HOME/.copilot/session-state/s1/nav-pilot-action-check.jsonl
+
+# Without the variable (a launch that found no server): a skip, still allowed.
+env NAV_PILOT_ACTION_CHECK_SERVER=
+stdin payload.json
+exec nav-pilot hook action-check local_enabled=true
+stdout '^\{\}$'
+grep '"outcome":"skipped_no_server"' $HOME/.copilot/session-state/s1/nav-pilot-action-check.jsonl
+
+chmod 600 $HOME/config.toml
+chmod 700 $HOME/.nav-pilot
+
+-- payload.json --
+{"sessionId":"s1","cwd":"/w","toolName":"bash","toolArgs":{"command":"kubectl delete deployment app -n team --token=ghp_0123456789abcdefghijklmnopqrstuvwxyz","description":"Restart the app"}}
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

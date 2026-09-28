@@ -139,7 +139,8 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	for _, d := range b.ReadDirs {
 		cpltArgs = append(cpltArgs, "--allow-read", d)
 	}
-	return env, cpltArgs
+	env, checkFlags := withActionCheckServer(r, env)
+	return env, append(cpltArgs, checkFlags...)
 }
 
 // writeHooksBridgePlugin writes the plugin, only when it differs, so two

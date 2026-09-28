@@ -813,7 +813,7 @@ func (t *otelTelemetry) RecordHookActionCheck(outcome, category string) {
 		return
 	}
 	t.hookActionCheck.Add(context.Background(), 1, metric.WithAttributes(
-		attribute.String("outcome", oneOf(outcome, "flagged", "passed", "skipped_timeout", "skipped_no_server", "skipped_sandbox", "skipped_error")),
+		attribute.String("outcome", oneOf(outcome, "flagged", "passed", "skipped_timeout", "skipped_no_server", "skipped_error")),
 		attribute.String("category", oneOf(category, "kubectl", "nais", "gcloud", "helm", "terraform", "rm", "git", "disk", "sql")),
 		attribute.String("version", t.version),
 		attribute.String("device_id", t.device),

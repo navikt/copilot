@@ -289,6 +289,12 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 			return err
 		}
 	}
+	env, checkFlags := withActionCheckServer(resolved, env)
+	if i := slices.Index(args, "--"); cliName == "cplt" && i >= 0 {
+		// Before the separator, as insertCpltPassEnv does: after it they
+		// would reach copilot.
+		args = slices.Insert(slices.Clone(args), i, checkFlags...)
+	}
 	if cliName == "cplt" && guard != nil {
 		// The prompt path for a local session is a 127.0.0.1 hop to the guard,
 		// which cplt blocks by default. Name the port so it survives — and so

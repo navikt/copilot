@@ -58,7 +58,7 @@ func TestDecideAndHookAttributesAreEnums(t *testing.T) {
 	for _, k := range []string{"secret", "fnr", "injection_note", leak} {
 		tel.RecordHookRedact(k, 2)
 	}
-	for _, o := range []string{"flagged", "passed", "skipped_timeout", "skipped_no_server", "skipped_sandbox", "skipped_error", leak} {
+	for _, o := range []string{"flagged", "passed", "skipped_timeout", "skipped_no_server", "skipped_error", leak} {
 		tel.RecordHookActionCheck(o, "kubectl")
 		tel.RecordHookActionCheck(o, leak)
 	}
@@ -75,7 +75,7 @@ func TestDecideAndHookAttributesAreEnums(t *testing.T) {
 		"rule":              set("same_result", "cycle", "backstop", "unknown"),
 		"session":           set("local", "cloud", "unknown"),
 		"kind":              set("secret", "fnr", "injection_note", "unknown"),
-		"outcome":           set("flagged", "passed", "skipped_timeout", "skipped_no_server", "skipped_sandbox", "skipped_error", "unknown"),
+		"outcome":           set("flagged", "passed", "skipped_timeout", "skipped_no_server", "skipped_error", "unknown"),
 		"category":          set("kubectl", "nais", "gcloud", "helm", "terraform", "rm", "git", "disk", "sql", "unknown"),
 		"version":           set("test"),
 		"device_id":         set("device-under-test"),
