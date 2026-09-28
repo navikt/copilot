@@ -5,13 +5,16 @@
 //
 // It decides nothing. It asks the nav-pilot process that started this session
 // and throws the refusal it gets back, which opencode hands to the model as the
-// tool's result. Anything that goes wrong lets the call through.
+// tool's result. After local-worker returns, it appends what the answer says to
+// the worker's result, and adds the reminder it may get back when the
+// orchestrator writes text. Anything that goes wrong lets the call through.
 import { isAbsolute, join } from "node:path"
 
 export const NavPilotDispatchGate = async ({ client, directory }) => {
   const url = process.env.NAV_PILOT_DISPATCH_GATE
   if (!url) return {}
   const agents = new Map()
+  const models = new Map()
   const turns = new Map()
   const topLevel = new Map()
   // Only the session the developer talks to. A refusal inside a subagent's
@@ -27,6 +30,23 @@ export const NavPilotDispatchGate = async ({ client, directory }) => {
     }
     return topLevel.get(id) ?? false
   }
+  const ask = async (body) => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(2000),
+    })
+    return res.ok ? ((await res.json()) ?? {}) : {}
+  }
+  // The orchestrator's session, or undefined for any other.
+  const orchestrator = async (id) => {
+    const agent = agents.get(id)
+    if (!agent || agent === "local-worker") return undefined
+    if (!(await isTopLevel(id))) return undefined
+    return agent
+  }
+  const str = (v) => (typeof v === "string" ? v : "")
   return {
     // One user message is one turn: the gate counts per turn.
     "chat.message": async (input, output) => {
@@ -34,6 +54,7 @@ export const NavPilotDispatchGate = async ({ client, directory }) => {
       const parts = output?.parts ?? []
       if (parts.length && parts.every((p) => p?.synthetic)) return
       if (input?.agent) agents.set(input.sessionID, input.agent)
+      if (input?.model) models.set(input.sessionID, { model: input.model, variant: input.variant })
       turns.set(input.sessionID, (turns.get(input.sessionID) ?? 0) + 1)
     },
     // Only when chat.message did not name the agent: compaction runs its own
@@ -42,11 +63,10 @@ export const NavPilotDispatchGate = async ({ client, directory }) => {
       if (input?.agent && !agents.has(input.sessionID)) agents.set(input.sessionID, input.agent)
     },
     "tool.execute.before": async (input, output) => {
-      const agent = agents.get(input.sessionID)
-      if (!agent || agent === "local-worker") return
-      if (!(await isTopLevel(input.sessionID))) return
+      const agent = await orchestrator(input.sessionID)
+      if (!agent) return
       const args = output?.args ?? {}
-      const str = (v) => (typeof v === "string" ? v : "")
+      const replaceAll = input.tool === "edit" && args.replaceAll === true
       const toWorker = input.tool === "task" && args.subagent_type === "local-worker"
       const body = {
         session: input.sessionID,
@@ -58,20 +78,49 @@ export const NavPilotDispatchGate = async ({ client, directory }) => {
         command: input.tool === "bash" ? str(args.command) : "",
         subagent: input.tool === "task" ? str(args.subagent_type) : "",
         prompt: toWorker ? str(args.prompt) : "",
+        replaceAll,
+        old: replaceAll ? str(args.oldString) : "",
       }
       let deny = ""
       try {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(body),
-          signal: AbortSignal.timeout(2000),
-        })
-        if (res.ok) deny = (await res.json())?.deny ?? ""
+        deny = (await ask(body)).deny ?? ""
       } catch {
         return
       }
       if (typeof deny === "string" && deny) throw new Error(deny)
+    },
+    // The worker has returned: the orchestrator reads what to check before it
+    // accepts the work, in the task's own result.
+    "tool.execute.after": async (input, output) => {
+      // A background task returns at once with a placeholder; its result
+      // arrives later as a message, which this does not check.
+      if (input.tool !== "task" || input.args?.subagent_type !== "local-worker" || input.args?.background === true || !output) return
+      try {
+        const agent = await orchestrator(input.sessionID)
+        if (!agent) return
+        const turn = turns.get(input.sessionID) ?? 0
+        const text = (await ask({ session: input.sessionID, turn, agent, tool: "task", subagent: "local-worker", phase: "after" })).append
+        if (typeof text === "string" && text) output.output = `${str(output.output)}\n\n${text}`
+      } catch {}
+    },
+    // The orchestrator has written text. If the worker's work is still
+    // unchecked, nav-pilot answers with a reminder once per turn, added as a
+    // message the running session picks up before it ends. Synthetic, so it
+    // does not start a turn. Same agent and model, or opencode would switch.
+    "experimental.text.complete": async (input) => {
+      try {
+        const agent = await orchestrator(input.sessionID)
+        const m = models.get(input.sessionID)
+        if (!agent || !m) return
+        const turn = turns.get(input.sessionID) ?? 0
+        const text = (await ask({ session: input.sessionID, turn, agent, phase: "text" })).nudge
+        if (typeof text !== "string" || !text) return
+        await client.session.prompt({
+          path: { id: input.sessionID },
+          body: { agent, model: m.model, variant: m.variant, noReply: true, parts: [{ type: "text", text, synthetic: true }] },
+          signal: AbortSignal.timeout(2000),
+        })
+      } catch {}
     },
   }
 }

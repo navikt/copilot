@@ -110,7 +110,7 @@ of 24).
    and takes the agent from `chat.params` only when `chat.message` has not named one.
    Compaction runs its own agent through `chat.params` on the same session. On
    `tool.execute.before` it POSTs `{session, turn, agent, tool, path, create, command,
-   subagent, prompt}` to the
+   subagent, prompt, replaceAll, old}` to the
    URL in `NAV_PILOT_DISPATCH_GATE`, with a 2 s timeout, and throws the returned `deny`
    text, if there is one. It does nothing when:
    - the variable is unset, which covers opencode run outside nav-pilot, cloud-only
@@ -122,7 +122,8 @@ of 24).
    - anything fails (fail open).
 
    No file contents leave opencode: `path` is `filePath`, `command` is the bash command,
-   and `prompt` only for a `task` to `local-worker`.
+   `prompt` only for a `task` to `local-worker`, and `old` only for an `edit` with
+   `replaceAll`, so the guard can count its matches. The route never logs a body.
 2. **The decision**, a route on the session's loop guard (`/nav-pilot/dispatch-gate`). The
    guard is the nav-pilot launch process: it lives exactly as long as the session, already
    listens on a port cplt allows, and knows where the server is. State is in memory and gone when the session ends. There are no
@@ -148,10 +149,18 @@ morning use up the budget before the big job arrives.
   `sed -i 's/a/b/' f1 f2`, or `grep -rl … | xargs sed -i 's/a/b/'`, is one
   search-and-replace. The policy keeps that with the
   orchestrator, so it is not counted.
+- *Call sites*: an `edit` or a counted `sed`/`perl` segment adds its call sites to the
+  turn's count. An ordinary `edit` is 1. An `edit` with `replaceAll` counts the matches of
+  its `oldString` in the file, and a `sed -i`/`perl -pi` with one address-free `s` command
+  counts its pattern's matches: every match with `/g`, at most one per line without. The guard reads the file before the edit runs, only under the project root and
+  after resolving links. A BRE is turned into RE2; a pattern RE2 cannot compile, several
+  commands, an address, a computed value or a file that is not a regular file each count as 1. Probe 6's cell r6 is the reason: 60
+  call sites in 3 files, done as two edits and one `sed … /g` on the test file, never
+  reached 5 files or 10 calls.
 - *Deny* (multi-file rule, only when `edit-multi-mechanical` is trusted): the edit that would make the
-  orchestrator's **5th distinct file** this turn, the **10th** counted edit call this turn
-  once at least two files are involved (ten edits of one file is fixing a test), or any
-  scripted edit.
+  orchestrator's **5th distinct file** this turn, the edit that brings the turn to **10
+  call sites** once at least two files are involved (ten edits of one file is fixing a
+  test), or any scripted edit.
 - *Deny* (create-file rule, `aggressive` only, and only when `create-file` is trusted):
   a `write`, or an `edit` with an empty `oldString`, of a path that does not exist yet,
   which means a new file,
@@ -173,6 +182,30 @@ morning use up the budget before the big job arrives.
   completion lock nor the server lock, and it never logs a body: `command` can hold a
   token and `prompt` holds code.
 
+**Checking the worker's result** (at `balanced` and `aggressive`, wherever the gate runs).
+Probe 6 found the failures that matter in what the orchestrator accepted, not in whether
+it dispatched: a grep passed a broken definition, and a new test that was green caught
+nothing. So:
+
+- On `tool.execute.after` for a `task` to `local-worker`, the plugin asks the route with
+  `phase: "after"` and appends the answer to the task's result: build, run the tests that
+  cover the change, and, for a new test, break the code it tests on purpose to see it fail.
+  The orchestrator reads it at the moment it decides.
+- The route marks the turn unverified. A bash segment that builds or runs tests (Gradle,
+  Maven, `go test`, `npm test`, `tsc`, `pytest` and the like, `local.Verifies`) clears it.
+- On `experimental.text.complete` for the orchestrator, the plugin asks with
+  `phase: "text"`. While the turn is unverified the route answers once per turn with a
+  reminder, and the plugin adds it with `client.session.prompt({noReply: true})` as a
+  synthetic part, with the session's agent and model. opencode's loop reads a user message
+  newer than the last assistant message as more work, so the session answers it before it
+  goes idle. This was checked against opencode 1.18.32 in `opencode run`, which exits on
+  idle. The reminder is worded for the case where the orchestrator is about to build,
+  because text before a tool call triggers it too.
+- The mutation check for new tests is policy text only. nav-pilot cannot tell whether a
+  test was run against broken code.
+- Everything fails open: no answer, no model recorded for the session, or an error means
+  no text and no reminder.
+
 **The deny text**:
 
 > nav-pilot (local_dispatch): this is a mechanical change across several
@@ -185,7 +218,9 @@ morning use up the budget before the big job arrives.
 
 | Failure | Covered by |
 |---|---|
-| False positive on a small edit needing judgement | 5-file / 10-call threshold; 2-deny budget per turn |
+| False positive on a small edit needing judgement | 5-file / 10-site threshold; 2-deny budget per turn |
+| A large search-and-replace in one file, then small edits in two others in the same turn | refused: the site count cannot tell it from r6 done in another order. Known and accepted; the budget bounds it to 1 refusal (balanced) or 2 (aggressive) |
+| The worker runs as a background task (opencode's experimental background subagents) | its result arrives later as a message, so no checks are appended and no reminder is sent |
 | Worker down | TCP dial to the server fails, so the call is allowed; a dispatch that fails still exempts the file |
 | Worker wedged (port open, no answer) | the file passes once sent; the budget caps the cost |
 | Orchestrator retries the denied call | the retry is denied again until the budget runs out (2 per turn), then it passes |
@@ -238,8 +273,10 @@ Recorded at exit by the launch process, like `nav_pilot_local_dispatches`. Enums
 - `nav_pilot_local_dispatches` gets a `dispatch_level` attribute
   (`off|conservative|balanced|aggressive`). This gives the dispatch rate per level.
 - `nav_pilot_local_gate_total{outcome}` counts gate decisions, with `outcome` one of
-  `deny_files`, `deny_scripted`, `deny_create` and `dispatched_after_deny`. The last is a `task` to
-  `local-worker` after a deny in the same turn. Recording `allow` would be one data point
+  `deny_files`, `deny_sites`, `deny_scripted`, `deny_create`, `dispatched_after_deny` and
+  `verify_nudge`. `deny_sites` is a deny from the call-site count alone. `dispatched_after_deny`
+  is a `task` to `local-worker` after a deny in the same turn. `verify_nudge` is a reminder
+  sent because no build or test ran after the worker returned. Recording `allow` would be one data point
   per tool call and tell us nothing.
 
 What to read from them: `dispatched_after_deny` close to the number of denies
@@ -343,6 +380,15 @@ A third pass, on the revision, changed these:
 - The create rule needs a real create (a `write`, or an `edit` with an empty
   `oldString`).
 - A background task's synthetic message no longer starts a new turn.
+
+Probe 6 (mlx-workspace §8.8, 2026-09-28) measured the levels. `aggressive`
+dispatched on 6 of 8 valid samples on the large and create-file cells (`balanced`: 2 of 6),
+with no false positive on the small cell. But 1 of the 6 dispatched samples failed, one hit
+the 20-minute cap, and it cost 1.2–1.6× the control's cloud credits and took 2–3.6× its
+time. `balanced` stays the default, and `aggressive` is documented as an opt-in for
+mechanical multi-file edits. The gate's two gaps were fixed here: the call-site count (r6 was never gated) and the check of the
+worker's result. Both apply at `balanced` too, where the checkpoint bounds a misfire to
+one refusal per turn.
 
 The review also suggested cutting `conservative`, since on Sonnet 5 it and `balanced`
 both come out near zero. It stays, because the user asked for a graded setting and

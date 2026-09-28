@@ -1,0 +1,132 @@
+# local_dispatch counts call sites, and checks the worker's result (probe 6,
+# mlx-workspace §8.8). The fake cplt plays opencode's plugin through a
+# journey like probe 6's cell r6: two edits of two files, then one sed with
+# /g over a third file with 12 call sites. The sed is refused at aggressive,
+# and refused once at balanced. A small job, one sed over 3 call sites and
+# two more edits, passes at both. When local-worker returns, the gate answers
+# with the checks to append to its result, and text before a build gets one
+# reminder. A build after the return means no reminder.
+
+[!exec:/usr/sbin/lsof] skip 'needs /usr/sbin/lsof for the server ownership check (macOS)'
+[!exec:/usr/bin/curl] skip 'needs curl to play the plugin'
+
+fake-bin cplt opencode
+env PATH=$PATH${:}/bin${:}/usr/bin
+fake-mlx
+
+mkdir plattform/skills
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot config set source $WORK/plattform
+exec nav-pilot install plattform --user --yes
+exec nav-pilot config set local_enabled true
+
+# aggressive: the sed over 12 call sites in a third file is refused.
+exec nav-pilot config set local_dispatch aggressive
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+exec cat $WORK/gate.out
+stdout '^big: \{"deny":"nav-pilot \(local_dispatch\): this is a mechanical change across several files'
+stdout -count=2 '^big-edit: \{\}$'
+stdout -count=4 '^small: \{\}$'
+stdout '^after: \{"append":"nav-pilot \(local_dispatch\): before you accept this, build the project and run the tests'
+stdout '^text: \{"nudge":"nav-pilot \(local_dispatch\): no build or test command has run since'
+stdout '^text-again: \{\}$'
+stdout '^build: \{\}$'
+stdout '^text-built: \{\}$'
+grep 'reach 10 call sites across files' $HOME/.config/opencode/nav-pilot-local-dispatch.md
+grep 'a grep is not a check' $HOME/.config/opencode/nav-pilot-local-dispatch.md
+grep 'reminds you once if you answer before any build or test command has run' $HOME/.config/opencode/nav-pilot-local-dispatch.md
+
+# balanced: the same sed is refused once, as a checkpoint, and the retry
+# passes. The small job passes.
+exec nav-pilot config set local_dispatch balanced
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+exec cat $WORK/gate.out
+stdout '^big: \{"deny":"nav-pilot \(local_dispatch\): this looks like a mechanical change across several files'
+stdout '^big-retry: \{\}$'
+stdout -count=4 '^small: \{\}$'
+
+-- fake/cplt.sh --
+# Play opencode's gate plugin. Turn 1: probe 6's r6. Turn 2: a small job.
+# Turn 3: a worker returns, then text. Turn 4: a worker returns, a build, text.
+if [ -z "$NAV_PILOT_DISPATCH_GATE" ]; then
+  echo 'no gate' > "$WORK/gate.out"
+  exit 0
+fi
+: > "$WORK/gate.out"
+post() {
+  printf '%s: ' "$1" >> "$WORK/gate.out"
+  curl -s -d "$2" "$NAV_PILOT_DISPATCH_GATE" >> "$WORK/gate.out"
+  echo >> "$WORK/gate.out"
+}
+R="$WORK/repo"
+s='"session":"s","agent":"build"'
+post big-edit "{$s,\"turn\":1,\"tool\":\"edit\",\"path\":\"$R/src/Def.kt\"}"
+post big-edit "{$s,\"turn\":1,\"tool\":\"edit\",\"path\":\"$R/src/Service.kt\"}"
+sed="cd $R && sed -i '' 's/\\\\.foo()/.foo(\\\"BitTest\\\")/g' src/BitTest.kt"
+post big "{$s,\"turn\":1,\"tool\":\"bash\",\"command\":\"$sed\"}"
+post big-retry "{$s,\"turn\":1,\"tool\":\"bash\",\"command\":\"$sed\"}"
+small="cd $R && sed -i '' 's/foo()/foo(\\\"Repo\\\")/g' src/Repo.kt"
+post small "{$s,\"turn\":2,\"tool\":\"edit\",\"path\":\"$R/src/Repo.kt\"}"
+post small "{$s,\"turn\":2,\"tool\":\"bash\",\"command\":\"$small\"}"
+post small "{$s,\"turn\":2,\"tool\":\"edit\",\"path\":\"$R/src/Def.kt\"}"
+post small "{$s,\"turn\":2,\"tool\":\"edit\",\"path\":\"$R/src/Service.kt\"}"
+post after "{$s,\"turn\":3,\"tool\":\"task\",\"subagent\":\"local-worker\",\"phase\":\"after\"}"
+post grep "{$s,\"turn\":3,\"tool\":\"bash\",\"command\":\"grep -rn foo src\"}"
+post text "{$s,\"turn\":3,\"phase\":\"text\"}"
+post text-again "{$s,\"turn\":3,\"phase\":\"text\"}"
+post after-4 "{$s,\"turn\":4,\"tool\":\"task\",\"subagent\":\"local-worker\",\"phase\":\"after\"}"
+post build "{$s,\"turn\":4,\"tool\":\"bash\",\"command\":\"./gradlew compileKotlin\"}"
+post text-built "{$s,\"turn\":4,\"phase\":\"text\"}"
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- home/.nav-pilot/local-models.json --
+{
+  "schema_version": 1,
+  "channel": "alpha",
+  "models": [
+    {
+      "key": "qwen3.6-35b-a3b-optiq",
+      "name": "Qwen 3.6 35B A3B OptiQ 4bit",
+      "model": "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "backend": "mlx-lm",
+      "default": true,
+      "weights_gb": 25,
+      "min_ram_gb": 8,
+      "wired_limit_gb": 4,
+      "params": {"MLX_OPENCODE_CONTEXT": "65536"},
+      "capabilities": {"classes": {"edit-multi-mechanical": {"delegate": "trusted", "local": "not-yet"}, "create-file": {"delegate": "trusted", "local": "not-yet"}}}
+    }
+  ]
+}
+-- repo/src/Def.kt --
+fun X.foo() = 1
+-- repo/src/Service.kt --
+val a = x.foo()
+-- repo/src/Repo.kt --
+val a = x.foo()
+val b = x.foo()
+val c = x.foo()
+-- repo/src/BitTest.kt --
+    x.foo()
+    x.foo()
+    x.foo()
+    x.foo()
+    x.foo()
+    x.foo()
+    x.foo()
+    x.foo()
+    x.foo()
+    x.foo()
+    x.foo()
+    x.foo()
