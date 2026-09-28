@@ -15,11 +15,6 @@ import { SEARCH_INDEX_URL, searchEntries, type SearchEntry } from "@/lib/site-se
 // is a select widget: the choice stays in the field, and an option is one
 // line of text.
 
-const OPEN_EVENT = "site-search:open";
-
-/** Opens the search dialog in the header. For the search field on the front page. */
-export const openSiteSearch = () => window.dispatchEvent(new Event(OPEN_EVENT));
-
 let indexRequest: Promise<SearchEntry[]> | undefined;
 const loadIndex = () =>
   (indexRequest ??= fetch(SEARCH_INDEX_URL)
@@ -54,7 +49,7 @@ export function SiteSearch({ label }: { label: string }) {
   const term = query.trim();
   const found = Array.isArray(index) ? searchEntries(index, term) : [];
   // The catalogue has its own search over agents, skills and instructions.
-  // The last hit hands the term over to it, as the front-page field used to.
+  // The last hit hands the term over to it.
   const hits: SearchEntry[] =
     Array.isArray(index) && term
       ? [
@@ -87,23 +82,17 @@ export function SiteSearch({ label }: { label: string }) {
     e.preventDefault();
     onOpenChange(true);
   });
-  const onOpenEvent = useEffectEvent(() => onOpenChange(true));
   useEffect(() => {
     const key = (e: KeyboardEvent) => onKey(e);
-    const openEvent = () => onOpenEvent();
     window.addEventListener("keydown", key);
-    window.addEventListener(OPEN_EVENT, openEvent);
-    return () => {
-      window.removeEventListener("keydown", key);
-      window.removeEventListener(OPEN_EVENT, openEvent);
-    };
+    return () => window.removeEventListener("keydown", key);
   }, []);
 
   useEffect(() => {
     document.getElementById(optionId(active))?.scrollIntoView({ block: "nearest" });
   });
 
-  // Back to what opened the dialog: this button, or the field on the front page.
+  // Back to what had focus when the dialog opened: this button, or where the shortcut was pressed.
   const returnFocus = () => {
     const el = opener.current;
     return el instanceof HTMLElement && el !== document.body && el.isConnected
