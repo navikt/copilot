@@ -1,0 +1,40 @@
+# After a session, one line about a new article for nav-pilot users, once:
+# the next session is quiet, and an article not marked cli never shows.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+env NAV_PILOT_TELEMETRY_ENABLED=true
+env DO_NOT_TRACK=
+env NAV_PILOT_TELEMETRY_ENDPOINT=http://127.0.0.1:9/v1/metrics
+fake-news
+fake-bin cplt copilot
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+exec nav-pilot config set rtk_prompted_client copilot
+
+exec pty-run -- nav-pilot
+stdout -count=1 'Nytt fra ki-utvikling: E2E-nyhet for nav-pilot https://ki-utvikling.nav.no/nyheter/e2e-cli'
+! stdout 'noe annet'
+
+exec pty-run -- nav-pilot
+! stdout 'Nytt fra ki-utvikling'
+! stdout 'noe annet'
+
+# Fetched once: the second session read the cache.
+grep -count=1 GET $WORK/news-gets.log
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

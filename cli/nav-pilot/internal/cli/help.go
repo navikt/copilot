@@ -155,6 +155,19 @@ can answer once.
 Flags:
   --json                  List the open surveys as JSON
 `,
+	"news": `Usage: nav-pilot news [--json]
+
+List the latest news from ki-utvikling.nav.no: date, title and link.
+
+After a session, nav-pilot shows one line about a new article written for
+nav-pilot users, once per article, and not in a session where it asked about
+a survey or showed another tip. It follows the survey rules: a terminal only, never in CI or on a
+launch with client args after --. Turn the line off with
+nav-pilot config set news false; this command works either way.
+
+Flags:
+  --json                  List the news as JSON
+`,
 	"upgrade": `Usage: nav-pilot upgrade [flags]
 
 Replace this nav-pilot with the latest release, after checking its SHA-256

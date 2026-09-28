@@ -1,4 +1,4 @@
-import { CATEGORY_CONFIG, isExternalExcerptFresh, selectNewsItems, type NewsCategory } from "./news";
+import { buildNewsFeed, CATEGORY_CONFIG, isExternalExcerptFresh, selectNewsItems, type NewsCategory } from "./news";
 import type { NewsItem } from "./news-types";
 
 describe("CATEGORY_CONFIG", () => {
@@ -223,5 +223,40 @@ describe("CATEGORY_CONFIG", () => {
     expect(configKeys).toContain("praksis");
     expect(configKeys).toContain("oppsummering");
     expect(configKeys).toHaveLength(5);
+  });
+});
+
+describe("buildNewsFeed", () => {
+  it("lists the newest items by date, with the page URL and the cli flag", () => {
+    const base = {
+      lang: "nb" as const,
+      draft: false,
+      category: "nav-pilot" as const,
+      tags: [],
+      type: "article" as const,
+    };
+    const feed = buildNewsFeed([
+      { ...base, slug: "eldre", title: "Eldre", date: "2026-09-01", excerpt: "e", featured: true },
+      { ...base, slug: "nyere", title: "Nyere", date: "2026-09-20", excerpt: "n", cli: true },
+    ]);
+    expect(feed.items).toEqual([
+      { title: "Nyere", date: "2026-09-20", url: "https://ki-utvikling.nav.no/nyheter/nyere", summary: "n", cli: true },
+      {
+        title: "Eldre",
+        date: "2026-09-01",
+        url: "https://ki-utvikling.nav.no/nyheter/eldre",
+        summary: "e",
+        cli: false,
+      },
+    ]);
+  });
+
+  it("builds from the articles: at most 20, each with a link nav-pilot can print", () => {
+    const { items } = buildNewsFeed();
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.length).toBeLessThanOrEqual(20);
+    expect(items.every((i) => i.title && /^https:\/\/ki-utvikling\.nav\.no\/nyheter\/[a-z0-9-]+$/.test(i.url))).toBe(
+      true
+    );
   });
 });

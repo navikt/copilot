@@ -131,6 +131,14 @@ var configKeyDefs = []configKeyDef{
 		flag:        "",
 	},
 	{
+		name:        "news",
+		kind:        keyKindBool,
+		description: "After a session, show one line about a new nav-pilot article on ki-utvikling.nav.no, once per article. Set to false to never show it; nav-pilot news still lists them. DO_NOT_TRACK and NAV_PILOT_TELEMETRY_ENABLED=false turn it off too.",
+		allowed:     nil,
+		defaultVal:  "true",
+		flag:        "",
+	},
+	{
 		name:        "log_level",
 		kind:        keyKindString,
 		description: "Log level for Copilot CLI output.",
@@ -390,6 +398,11 @@ version = 1
 # survey (at most three times per survey). false never asks.
 # Default: true
 # surveys = true
+
+# After a session, show one line about a new nav-pilot article on
+# ki-utvikling.nav.no, once per article. false never shows it.
+# Default: true
+# news = true
 
 # Log level for Copilot CLI output.
 # Allowed: none, error, warning, info, debug, all, default — Default: unset
@@ -766,6 +779,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return strconv.FormatBool(r.AutoUpdate)
 	case "surveys":
 		return strconv.FormatBool(r.Surveys)
+	case "news":
+		return strconv.FormatBool(r.News)
 	case "log_level":
 		return r.LogLevel
 	case "otel_log_level":

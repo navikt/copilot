@@ -3,6 +3,7 @@ title: "Når du ikke trenger en agent, bare et svar"
 date: 2026-09-25
 author: starefossen
 category: nav-pilot
+cli: true
 excerpt: "En agentøkt resonnerer i mange steg før den svarer. Med nav-pilot alpha decide stiller du i stedet den lokale modellen et flervalgsspørsmål og får raskt en sannsynlighet for hvert svaralternativ. Ingenting forlater maskinen."
 tags:
   - nav-pilot

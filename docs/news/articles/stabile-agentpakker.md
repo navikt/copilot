@@ -3,6 +3,7 @@ title: "Agentpakker følger stabile releases"
 date: 2026-09-24
 author: starefossen
 category: nav-pilot
+cli: true
 excerpt: "nav-pilot samler standardoppsettet i én agentpakke og lar pakker publisere stabile releases med kontrollerte oppdateringer."
 tags:
   - nav-pilot

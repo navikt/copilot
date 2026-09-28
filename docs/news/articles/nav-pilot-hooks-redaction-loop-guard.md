@@ -3,6 +3,7 @@ title: "Nav-pilot varsler tool-looper og maskerer sensitive tool-resultater"
 date: 2026-09-24
 author: starefossen
 category: nav-pilot
+cli: true
 excerpt: "To hooks for Copilot CLI varsler gjentatte tool-kall og maskerer utvalgte secrets og fødselsnumre i tool-resultater. De feiler åpent."
 tags:
   - nav-pilot

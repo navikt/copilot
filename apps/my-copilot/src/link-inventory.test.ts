@@ -106,6 +106,8 @@ function resolvePath(pathname: string, hops = 0): { file: string } | { error: st
   const route = matchRoute(pathname);
   if (route) return { file: route.file };
   if (pathname === "/sitemap.xml") return { file: path.join(APP_DIR, "sitemap.ts") };
+  // Written into public/ at build time (scripts/build-search-index.ts), so not there in CI.
+  if (pathname === "/news.json") return { file: path.join(APP_ROOT, "scripts", "build-search-index.ts") };
   const publicFile = path.join(APP_ROOT, "public", decodeURIComponent(pathname));
   if (pathname !== "/" && fs.existsSync(publicFile) && fs.statSync(publicFile).isFile()) return { file: publicFile };
   return { error: `no route, public file or redirect for ${pathname}` };

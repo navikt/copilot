@@ -16,7 +16,8 @@
       "apps/my-copilot/src/app/global-not-found.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/navigation/site-nav.tsx",
-      "apps/my-copilot/src/components/site-shell.tsx"
+      "apps/my-copilot/src/components/site-shell.tsx",
+      "apps/my-copilot/src/lib/news.ts"
     ],
     "anchors": {}
   },
@@ -546,6 +547,7 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx"
       ],
+      "nyheter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx"],
       "sla-av": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx"
@@ -1089,13 +1091,21 @@
   },
   "/nav-pilot/undersokelse": {
     "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/undersokelse/page.tsx"
     ],
     "anchors": {}
   },
+  "/news.json": {
+    "sources": ["cli/nav-pilot/internal/cli/news.go"],
+    "anchors": {}
+  },
   "/nyheter": {
-    "sources": ["apps/my-copilot/next.config.ts"],
+    "sources": [
+      "apps/my-copilot/next.config.ts",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx"
+    ],
     "anchors": {}
   },
   "/nyheter/add-images-agent-sessions": {

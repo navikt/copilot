@@ -136,6 +136,7 @@ function parseNewsFile(fileName: string): NewsItem {
     date: toDateOnly(data.date),
     draft: data.draft === true,
     featured: data.featured === true,
+    cli: data.cli === true,
     category: parseCategory(data.category, slug),
     excerpt: data.excerpt ?? "",
     tags: data.tags ?? [],
@@ -156,6 +157,35 @@ export function getNewsItems(options: GetNewsItemsOptions = {}): NewsItem[] {
     files.map(parseNewsFile).filter((item) => !item.draft),
     options
   );
+}
+
+export const SITE_URL = "https://ki-utvikling.nav.no";
+const NEWS_FEED_SIZE = 20;
+
+export interface NewsFeedItem {
+  title: string;
+  date: string;
+  url: string;
+  summary: string;
+  cli: boolean;
+}
+
+// The feed nav-pilot reads (public/news.json, #1024): the newest Norwegian
+// items by date, featured or not. Link items get their page URL too, which
+// sends the reader on to the source.
+export function buildNewsFeed(items: NewsItem[] = getNewsItems()): { items: NewsFeedItem[] } {
+  return {
+    items: [...items]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, NEWS_FEED_SIZE)
+      .map((i) => ({
+        title: i.title,
+        date: i.date,
+        url: `${SITE_URL}/nyheter/${i.slug}`,
+        summary: i.excerpt,
+        cli: i.cli === true,
+      })),
+  };
 }
 
 // The language is checked here rather than at each call site: a route that

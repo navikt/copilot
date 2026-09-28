@@ -158,13 +158,19 @@ func writeSurveyState(st surveyState) {
 	if err != nil {
 		return
 	}
-	data, err := json.MarshalIndent(st, "", "  ")
+	writeStateFile(path, st)
+}
+
+// writeStateFile writes v as JSON to path, best effort: a state file that
+// could not be written only means nav-pilot may say something again.
+func writeStateFile(path string, v any) {
+	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return
 	}
 	// A temp file of its own: two nav-pilots ending at once must not write
 	// into one temp file and rename a half-written state into place.
-	f, err := os.CreateTemp(filepath.Dir(path), "surveys-*.json")
+	f, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+"-*")
 	if err != nil {
 		return
 	}
@@ -176,7 +182,13 @@ func writeSurveyState(st surveyState) {
 
 // surveysAllowed is every gate that does not need the network.
 func surveysAllowed(r ResolvedConfig) bool {
-	return r.Surveys && isInteractive() && telemetrypkg.TelemetryEnabled()
+	return r.Surveys && nudgesAllowed()
+}
+
+// nudgesAllowed is what the survey prompt and the news line both need:
+// someone at a terminal, not CI, and telemetry not opted out.
+func nudgesAllowed() bool {
+	return isInteractive() && telemetrypkg.TelemetryEnabled()
 }
 
 // surveyToken is the GitHub token from `nav-pilot auth login`, or "" when

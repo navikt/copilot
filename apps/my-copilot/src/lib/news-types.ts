@@ -9,6 +9,8 @@ export interface NewsItem {
   date: string;
   draft: boolean;
   featured?: boolean;
+  // cli: true brings the item up in nav-pilot after a session (#1024).
+  cli?: boolean;
   category: NewsCategory;
   excerpt: string;
   tags: string[];

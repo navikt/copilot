@@ -494,6 +494,7 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		AskUser:           true,
 		AutoLaunch:        true,
 		Surveys:           true,
+		News:              true,
 		OtelLogLevel:      "none",
 		LocalDispatch:     "balanced",
 		CopilotAuthMode:   "auto",
@@ -537,6 +538,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		}
 		if file.Surveys != nil {
 			r.Surveys = *file.Surveys
+		}
+		if file.News != nil {
+			r.News = *file.News
 		}
 		if file.LogLevel != nil {
 			r.LogLevel = *file.LogLevel
