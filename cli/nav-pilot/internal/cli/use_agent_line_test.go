@@ -10,6 +10,10 @@ import (
 // only for copilot (#1194).
 func TestUseAgentLineNamesTheConfiguredClient(t *testing.T) {
 	path := isolatedConfig(t)
+	// With no client configured the answer depends on isInteractive(): in a
+	// terminal with opencode installed it would offer that instead.
+	forceNonInteractive = true
+	t.Cleanup(func() { forceNonInteractive = false })
 	if got := useAgentLine("nav-pilot"); !strings.Contains(got, "Copilot Chat") {
 		t.Errorf("no config (copilot): %q", got)
 	}
