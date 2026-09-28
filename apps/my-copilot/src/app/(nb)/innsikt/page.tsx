@@ -41,7 +41,7 @@ export default function Innsikt() {
                 prefetch={false}
                 icon={lock}
                 title="Adopsjon"
-                description="AI-tilpasninger på tvers av navikt-repoer. Krever innlogging."
+                description="AI-tilpasninger i navikt-repoene. Krever innlogging."
               />
               <NavCard
                 href="/kostnad"
