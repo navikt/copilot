@@ -318,6 +318,13 @@ det er to tall som kan bli uenige.
 > (`or vector(0)`, `clamp_min(...)`-vakter). Eksakte Prometheus-serienavn (suffiks som
 > `_bucket`/`_sum`/`_count`, evt. enhetssuffiks, og `target_info` for ressursattributter)
 > bør verifiseres mot den faktiske datakilden og justeres ved behov.
+>
+> Dashboardet for lokal inferens, [`dashboards/nav-pilot-local.json`](../../dashboards/nav-pilot-local.json),
+> lages av `scripts/build-local-dashboard.py`. Endre skriptet, ikke JSON-fila. CI kjører
+> `scripts/build-local-dashboard.py --check` og feiler hvis fila ikke stemmer med skriptet.
+> Automatisk opplasting til Grafana er parkert: det krever et servicekonto-token for Grafana
+> som hemmelighet i repoet, og den som eier Grafana-mappa må avgjøre det. Til det er avgjort,
+> importeres begge dashboardene for hånd (#1206).
 
 ### Alarmer (foreslåtte)
 

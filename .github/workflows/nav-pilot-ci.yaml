@@ -16,6 +16,8 @@ on:
       - 'hooks/**'
       - '.github/hooks/**'
       - '.github/workflows/nav-pilot-ci.yaml'
+      - 'dashboards/nav-pilot-*.json'
+      - 'scripts/build-local-dashboard.py'
   pull_request:
     branches: [main]
     paths:
@@ -31,6 +33,8 @@ on:
       - 'hooks/**'
       - '.github/hooks/**'
       - '.github/workflows/nav-pilot-ci.yaml'
+      - 'dashboards/nav-pilot-*.json'
+      - 'scripts/build-local-dashboard.py'
   workflow_dispatch:
 
 concurrency:
@@ -97,6 +101,9 @@ jobs:
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
           cd cli/nav-pilot && staticcheck ./...
+
+      - name: Local dashboard is generated
+        run: python3 scripts/build-local-dashboard.py --check
 
   shellcheck:
     name: Lint shell scripts
