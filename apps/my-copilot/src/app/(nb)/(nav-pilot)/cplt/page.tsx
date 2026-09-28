@@ -307,7 +307,7 @@ function InstallSection({ stars }: { stars: number | null }) {
         mac={INSTALL_COMMAND}
         linux={CPLT_INSTALL_SCRIPT}
         apt={CPLT_APT_INSTALL}
-        windowsNote="cplt har ingen sandkasse på Windows. Installer den i Linux-distroen din under WSL2, der kjernen håndhever sandkassen."
+        windowsNote="cplt har ingen sandkasse på Windows. Installer den i Linux-distribusjonen din under WSL2, der kjernen håndhever sandkassen."
       />
       <BodyLong>
         Apt-arkivet for Debian og Ubuntu bygges på nytt hver time fra siste versjon. Kom en versjon for noen minutter
