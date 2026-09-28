@@ -712,7 +712,8 @@ Veiviseren (`nav-pilot config setup`) viser en modellvelger tilpasset valgt klie
 
 nav-pilot skal starte klienten uten å vente på nettet. Målet er under 150 ms før klienten
 starter, under 200 ms fra økten slutter til du har terminalen tilbake, og under 50 ms for
-`--version` og `--help`, også når nettet ikke svarer.
+`--version` og `--help`, også når nettet ikke svarer. Unntaket er en agentpakke fra et annet
+team (`source` i konfigurasjonen): den hentes ved oppstart, i opptil 15 sekunder.
 
 Det som trenger nett, skjer i bakgrunnen eller leses fra en kopi på maskinen:
 

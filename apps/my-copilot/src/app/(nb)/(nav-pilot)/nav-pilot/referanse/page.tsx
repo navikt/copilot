@@ -333,19 +333,23 @@ export default function Referanse() {
           <Bullets>
             <li>
               Versjonssjekken spør GitHub høyst én gang i døgnet, i bakgrunnen. Svaret ligger i{" "}
-              <code className={code}>~/.nav-pilot/cache.json</code>, og neste kommando sier fra hvis det finnes en ny versjon.
+              <code className={code}>~/.nav-pilot/cache.json</code>, og neste kommando sier fra hvis det finnes en ny
+              versjon.
             </li>
-            <li>Undersøkelser og nyheter hentes mens økten kjører. Nyhetslinja etter en økt kommer høyst én gang om dagen.</li>
             <li>
-              En oppstart som ikke trenger noe fra deg, skriver ingenting. Det som er nytt, sier nav-pilot én gang, og en
-              advarsel kommer på nytt først når noe endrer seg. <code className={code}>nav-pilot --verbose</code> viser
-              hva oppstarten gjør: sandkassemappe, klient, agent og modell.
+              Undersøkelser og nyheter hentes mens økten kjører. Nyhetslinja etter en økt kommer høyst én gang om dagen.
+            </li>
+            <li>
+              En oppstart som ikke trenger noe fra deg, skriver ingenting. Det som er nytt, sier nav-pilot én gang, og
+              en advarsel kommer på nytt først når noe endrer seg. <code className={code}>nav-pilot --verbose</code>{" "}
+              viser hva oppstarten gjør: sandkassemappe, klient, agent og modell.
             </li>
           </Bullets>
           <BodyLong>
-            Målet er under 150 ms før klienten starter, under 200 ms fra økten slutter til du har terminalen tilbake,
-            og under 50 ms for <code className={code}>--version</code> og <code className={code}>--help</code>, også
-            når nettet ikke svarer.
+            Målet er under 150 ms før klienten starter, under 200 ms fra økten slutter til du har terminalen tilbake, og
+            under 50 ms for <code className={code}>--version</code> og <code className={code}>--help</code>, også når
+            nettet ikke svarer. Unntaket er en agentpakke fra et annet team (<code className={code}>source</code> i
+            konfigurasjonen): den hentes ved oppstart, i opptil 15 sekunder.
           </BodyLong>
         </VStack>
       </section>

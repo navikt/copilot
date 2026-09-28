@@ -1121,6 +1121,10 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx"
+      ],
+      "ytelse": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx",
+        "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx"
       ]
     }
   },
