@@ -92,26 +92,54 @@ function CustomizationBreakdownCard() {
   );
 }
 
+// A stat as text, not a heading: the numbers sit before the page's H2s (#1193).
+function Stat({ children }: { children: React.ReactNode }) {
+  return (
+    <Heading as="p" size="medium">
+      {children}
+    </Heading>
+  );
+}
+
+// Without a login or data there are no numbers to show. The cards used to show
+// made-up fallbacks (57/45/30 %), which read as real figures (#1193).
+function NoData({ loggedIn }: { loggedIn: boolean }) {
+  return (
+    <BodyShort size="small" className="text-text-subtle">
+      {loggedIn ? "Fant ingen tall akkurat nå." : "Logg inn for å se tallene."}
+    </BodyShort>
+  );
+}
+
 async function UsageCard() {
   const token = await getUserToken();
   const { usage, error } = token ? await getCopilotUsageMetrics(token) : { usage: null, error: "Not authenticated" };
-
   const metrics = !error && usage?.length ? getAggregatedMetrics(usage) : null;
-  const total = metrics?.monthlyActiveUsers || 1;
+
+  if (!metrics?.monthlyActiveUsers || !metrics.dailyActiveUsers) {
+    return (
+      <HighlightCard href="/statistikk" prefetch={false} title="Bruksmønster">
+        <NoData loggedIn={!!token} />
+      </HighlightCard>
+    );
+  }
+
+  // Chat and agent have monthly counts, CLI only a daily one, so each share
+  // uses the base of its own period. One person can count in all three.
   const items = [
     {
       label: "Chat",
-      pct: metrics ? Math.round((metrics.monthlyActiveChatUsers / total) * 100) : 57,
+      pct: Math.round((metrics.monthlyActiveChatUsers / metrics.monthlyActiveUsers) * 100),
       color: "bg-blue-500",
     },
     {
       label: "Agent",
-      pct: metrics ? Math.round((metrics.monthlyActiveAgentUsers / total) * 100) : 45,
+      pct: Math.round((metrics.monthlyActiveAgentUsers / metrics.monthlyActiveUsers) * 100),
       color: "bg-violet-500",
     },
     {
       label: "CLI",
-      pct: metrics ? Math.round((metrics.dailyActiveCLIUsers / total) * 100) : 30,
+      pct: Math.round((metrics.dailyActiveCLIUsers / metrics.dailyActiveUsers) * 100),
       color: "bg-amber-500",
     },
   ];
@@ -121,9 +149,7 @@ async function UsageCard() {
       <HStack gap="space-4" className="w-full" justify="space-between">
         {items.map((item) => (
           <VStack key={item.label} align="center" gap="space-2" className="flex-1">
-            <Heading size="medium" level="3">
-              {item.pct} %
-            </Heading>
+            <Stat>{item.pct} %</Stat>
             <HStack gap="space-4" align="center">
               <span className={`inline-block w-2 h-2 rounded-full ${item.color}`} />
               <BodyShort size="small" className="text-text-subtle">
@@ -133,6 +159,10 @@ async function UsageCard() {
           </VStack>
         ))}
       </HStack>
+      <BodyShort size="small" className="text-text-subtle">
+        Andel av månedens aktive brukere som brukte chat og agent, og av dagens som brukte CLI. Én bruker kan telle
+        flere steder.
+      </BodyShort>
     </HighlightCard>
   );
 }
@@ -147,29 +177,33 @@ async function StatsCard() {
       ];
 
   const metrics = !usageError && usage?.length ? getAggregatedMetrics(usage) : null;
-  const acceptanceRate = metrics?.overallAcceptanceRate ?? 30;
+  const acceptanceRate = metrics?.overallAcceptanceRate;
 
   const summary = !adoptionError && adoptionData?.summary ? adoptionData.summary : null;
   const adoptionRate =
     summary && summary.active_repos_with_recent_commits > 0
       ? Math.round((summary.repos_with_any_customization / summary.active_repos_with_recent_commits) * 100)
-      : 15;
+      : undefined;
+
+  if (acceptanceRate === undefined && adoptionRate === undefined) {
+    return (
+      <HighlightCard compact href="/statistikk" prefetch={false} title="Nøkkeltall">
+        <NoData loggedIn={!!token} />
+      </HighlightCard>
+    );
+  }
 
   return (
     <HighlightCard compact href="/statistikk" prefetch={false} title="Nøkkeltall">
       <div className="grid grid-cols-2 gap-4">
         <div className="min-w-0">
-          <Heading size="medium" level="3">
-            {acceptanceRate} %
-          </Heading>
+          <Stat>{acceptanceRate === undefined ? "–" : `${acceptanceRate} %`}</Stat>
           <BodyShort size="small" className="text-text-subtle">
             akseptrate for kodeforslag
           </BodyShort>
         </div>
         <div className="min-w-0">
-          <Heading size="medium" level="3">
-            {adoptionRate} %
-          </Heading>
+          <Stat>{adoptionRate === undefined ? "–" : `${adoptionRate} %`}</Stat>
           <BodyShort size="small" className="text-text-subtle">
             av repoer har tilpasninger
           </BodyShort>
