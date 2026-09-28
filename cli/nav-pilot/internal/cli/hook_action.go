@@ -83,22 +83,22 @@ type actionVerdict struct {
 // lock file is out of reach and the check goes on without it; a managed
 // server this nav-pilot started serves one request at a time itself (#1169).
 // A server busy with another session costs the budget, and a check that does
-// not fit in it is a skip.
-// lockServer is the machine-wide server lock. A var so tests can hold it.
-var lockServer = local.LockServer
-
+// not fit in it is a skip. The lock is polled once a second, so inside the
+// 500 ms budget a held lock gets one try and the check is a timeout.
 func runActionCheck(base, model, evidence string) actionVerdict {
 	started := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), actionCheckBudget)
 	defer cancel()
 
+	// Read once, here: the goroutine below can outlive this call.
+	lock := lockServer
 	var mu sync.Mutex
 	p := map[string]float64{}
 	var failed error
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		release, err := lockServer(ctx)
+		release, err := lock(ctx)
 		switch {
 		case err == nil:
 			defer release()
@@ -215,3 +215,6 @@ func logActionCheck(sessionID, category, command string, v actionVerdict) {
 		_ = hook.LogAction(hookStateDir(), sessionID, string(line))
 	}
 }
+
+// lockServer is the machine-wide server lock. A var so tests can hold it.
+var lockServer = local.LockServer
