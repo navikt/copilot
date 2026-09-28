@@ -305,13 +305,10 @@ func cmdLocalSetup(args []string) error {
 	// Refused before the checks, not after: the context probe can take
 	// minutes on a CPU, and a script would otherwise wait through it twice.
 	if !f.yes && !isInteractive() {
-		again := "nav-pilot alpha local setup --model " + choice.Model + " --yes"
-		if f.endpoint != "" {
-			again = "nav-pilot alpha local setup --endpoint " + choice.Server.Base + "/v1 --model " + choice.Model + " --yes"
-		}
+		again := setupCommand(f, choice.Server.Base, choice.Model) + " --yes"
 		if choice.Rank == 0 && choice.Server.Kind == "ollama" {
 			return &exitCode{code: 2, err: fmt.Errorf("without a terminal to ask, setup checks and saves only with --yes. With the recommended model: %s. With %s anyway: %s",
-				bold("nav-pilot alpha local setup --pull --yes"), choice.Model, bold(again))}
+				bold(setupCommand(f, choice.Server.Base, "")+" --pull --yes"), choice.Model, bold(again))}
 		}
 		return &exitCode{code: 2, err: fmt.Errorf("without a terminal to ask, setup checks and saves only with --yes: %s", bold(again))}
 	}
@@ -506,9 +503,7 @@ func offerPull(ctx context.Context, s foundServer, flag bool, withPull string) (
 	fmt.Printf("\n  %s Ollama has no model nav-pilot knows. Recommended: %s (%s), about %d GB:\n    %s\n",
 		yellow("⚠"), bold(ollamaRecommended), knownGood[0].Why, ollamaRecommendedGB, bold(cmd))
 	if !confirm(fmt.Sprintf("Download %s now (about %d GB)?", ollamaRecommended, ollamaRecommendedGB), flag, false) {
-		if !isInteractive() {
-			fmt.Printf("  Not downloaded. Run it yourself, or have setup run it: %s\n", bold(withPull))
-		}
+		fmt.Printf("  Not downloaded. Run it yourself, or have setup run it: %s\n", bold(withPull))
 		return false, nil
 	}
 	fmt.Printf("%s Pulling %s…\n", dim("→"), ollamaRecommended)

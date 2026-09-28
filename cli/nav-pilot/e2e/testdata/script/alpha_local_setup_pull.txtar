@@ -14,6 +14,10 @@ stderr 'With the recommended model: nav-pilot alpha local setup --pull --yes\. W
 ! grep 'POST /api/pull' fake/ollama.log
 ! exists home/config.toml
 
+# With --endpoint, both suggested commands keep it (#1190).
+exits 2 nav-pilot alpha local setup --endpoint http://$OLLAMA_ADDR/v1
+stderr 'With the recommended model: nav-pilot alpha local setup --endpoint http://127\.0\.0\.1:[0-9]+/v1 --pull --yes\. With llama3:8b anyway: nav-pilot alpha local setup --endpoint http://127\.0\.0\.1:[0-9]+/v1 --model llama3:8b --yes'
+
 # --pull alone would download and then refuse to save: refused up front.
 exits 2 nav-pilot alpha local setup --pull
 stderr '--pull and --fix-context go with --yes'

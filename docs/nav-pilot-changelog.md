@@ -6,10 +6,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### alpha local setup: riktige hint
 
-- **Hintene tar med flaggene dine**: Kjørte du setup med `--endpoint` eller `--model`, tar kommandoen den foreslår til slutt, dem med. Uten `--endpoint` leter setup etter servere på nytt og kan finne en annen.
+- **Hintene tar med flaggene dine**: Kjørte du setup med `--endpoint` eller `--model`, står de også i kommandoen setup foreslår til slutt. Uten `--endpoint` leter setup etter servere på nytt og kan finne en annen.
 - **Ett råd for en tom Ollama**: Uten terminal kom rådet om å hente modellen to ganger. Nå kommer det én gang, med kommandoen som lar setup hente den (`--pull --yes`).
 - **Nei er ikke Ctrl-C**: Svarer du nei på «Save anyway and turn local dispatch on?», skriver setup «Not saved.» og avslutter med 1, ikke 130.
-- **Er klienten opencode**, er hintet etter lagring bare `nav-pilot` (#1190).
+- **Er klienten opencode**, foreslår setup bare `nav-pilot` etter lagring, ikke `nav-pilot --client opencode` (#1190).
 
 ### Den lokale serveren tar én forespørsel om gangen
 
