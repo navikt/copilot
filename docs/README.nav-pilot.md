@@ -419,7 +419,8 @@ oppstart:
 1. Løser opp Nav-kildeartifaktene (skills, agenter, prompts, instruksjoner). En kilde på GitHub
    leses fra kopien i `~/.nav-pilot/sources/`, så oppstarten venter ikke på nettet. nav-pilot
    henter en ny kopi mens økten kjører, høyst én gang i timen, og neste oppstart bruker den.
-   Bare den første oppstarten venter på nedlastingen, i opptil 60 sekunder.
+   Bare den første oppstarten venter på nedlastingen, i opptil 30 sekunder. Mislykkes den, venter ikke de neste oppstartene:
+   den neste timen starter de uten agentpakka og henter den i bakgrunnen.
 2. Skriver dem til OpenCode-konfigurasjonsmappen (f.eks. `~/.config/opencode/` eller via `XDG_CONFIG_HOME`) som `AGENTS.md`, `skills/`, `commands/`, `agents/` og `instructions/`
 3. Holder dem synkronisert med versjonskontroll (konflikt-deteksjon, ferskhetssjekk)
 

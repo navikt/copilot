@@ -16,7 +16,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 ### opencode og pi starter uten å vente på GitHub
 
 - **Kopi i stedet for nedlasting ved hver oppstart**: Med opencode eller pi lastet nav-pilot ned agentpakka fra GitHub før hver økt, vanligvis 3,5 sekunder, opptil 10. Uten nett ventet oppstarten til git ga opp. Nå bruker nav-pilot kopien i `~/.nav-pilot/sources/` og henter en ny mens økten kjører, høyst én gang i timen. Endringer i agentpakka kommer med ved neste oppstart.
-- **Bare den første oppstarten venter**: Finnes ingen kopi, laster nav-pilot ned som før, men gir opp etter 60 sekunder.
+- **Bare den første oppstarten venter**: Finnes ingen kopi, laster nav-pilot ned som før, men gir opp etter 30 sekunder. Mislykkes den, venter ikke de neste oppstartene: den neste timen starter de uten agentpakka og henter den i bakgrunnen.
 
 ### Raskere tilbake til terminalen etter en økt
 

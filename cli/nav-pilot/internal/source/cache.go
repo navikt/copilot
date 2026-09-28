@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,7 +22,10 @@ const (
 	launchRefreshEvery = time.Hour
 	// firstFetchTimeout bounds the one fetch a launch waits on: the first for
 	// a source, when there is nothing cached to start from.
-	firstFetchTimeout = 60 * time.Second
+	firstFetchTimeout = 30 * time.Second
+	// refreshTimeout bounds a background fetch, well inside the age at which
+	// its lock counts as left over.
+	refreshTimeout = 5 * time.Minute
 )
 
 type cacheMeta struct {
@@ -33,7 +37,9 @@ type cacheMeta struct {
 // source is read from the checkout an earlier launch fetched, so the launch
 // does not wait on github.com, and refresh fetches the next checkout while the
 // session runs: the launch after gets it. Only the first launch of a source
-// waits on the network, for at most firstFetchTimeout.
+// waits on the network, for at most firstFetchTimeout; when that fails (no
+// network), the launches in the hour after do not wait again but go without
+// and fetch in the background.
 //
 // refresh is never nil. Run it in the background and cancel its context when
 // the session ends; a fetch cut short leaves the cache as it was.
@@ -50,6 +56,13 @@ func ResolveForLaunch(sourceRepo, cliVersion string) (src *Source, refresh func(
 			}
 			return s, nil
 		}
+		failed := filepath.Join(dir, ".first-fetch-failed")
+		if info, err := os.Stat(failed); err == nil && time.Since(info.ModTime()) < launchRefreshEvery {
+			refresh = func(ctx context.Context) { _ = fetchIntoCache(ctx, dir, repo) }
+			why, _ := os.ReadFile(failed)
+			return nil, fmt.Errorf("no copy of %s here yet: fetching it failed %s (%s). nav-pilot tries again while this session runs",
+				cacheLabel(repo), minutesAgo(time.Since(info.ModTime())), strings.TrimSpace(string(why)))
+		}
 		if FetchTimeout == 0 || FetchTimeout > firstFetchTimeout {
 			defer func(d time.Duration) { FetchTimeout = d }(FetchTimeout)
 			FetchTimeout = firstFetchTimeout
@@ -62,12 +75,30 @@ func ResolveForLaunch(sourceRepo, cliVersion string) (src *Source, refresh func(
 		}
 		s, err := CloneRemoteFn(ref, repo)
 		if err != nil {
+			_ = os.WriteFile(failed, []byte(err.Error()), 0o600)
 			return nil, err
 		}
+		os.Remove(failed)
 		keepInCache(dir, s)
 		return s, nil
 	})
 	return src, refresh, err
+}
+
+// minutesAgo says how long ago, in words a message can carry.
+func minutesAgo(d time.Duration) string {
+	if m := int(d.Minutes()); m >= 1 {
+		return fmt.Sprintf("%d minute(s) ago", m)
+	}
+	return "just now"
+}
+
+// cacheLabel is the repo as a message names it.
+func cacheLabel(repo string) string {
+	if repo == "" {
+		return DefaultRepo
+	}
+	return repo
 }
 
 // cacheKey is the directory name for a source repo: owner/name with the slash
@@ -137,6 +168,8 @@ func fetchIntoCache(ctx context.Context, dir, repo string) error {
 	}
 	lf.Close()
 	defer os.Remove(lock)
+	ctx, cancel := context.WithTimeout(ctx, refreshTimeout)
+	defer cancel()
 	tmp, err := os.MkdirTemp(dir, ".fetch-")
 	if err != nil {
 		return err
@@ -160,6 +193,7 @@ func fetchIntoCache(ctx context.Context, dir, repo string) error {
 		return err
 	}
 	writeCacheMeta(dir, cacheMeta{SHA: sha, FetchedAt: time.Now()})
+	os.Remove(filepath.Join(dir, ".first-fetch-failed"))
 	keep := map[string]bool{sha: true, "meta.json": true}
 	if prev != nil {
 		keep[prev.SHA] = true
