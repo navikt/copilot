@@ -7,6 +7,8 @@ import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
 
+// "AI" stays in the AI credit wording: AI credits is GitHub's name for the billing unit. Other Norwegian text says KI.
+
 export const metadata: Metadata = {
   title: "Lokal modell",
   description:
@@ -123,10 +125,10 @@ nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> fo
             20 uten, og tiden per godkjent fil gikk ned fra 618 til 322 sekunder, selv om hvert forsøk tok lengre tid.
           </BodyLong>
           <BodyLong>
-            <code className={code}>aggressive</code> sender mest, men sparer ikke skykreditter. I målingen 28. september
+            <code className={code}>aggressive</code> sender mest, men sparer ikke AI-kreditter. I målingen 28. september
             2026 (probe 6) sendte hovedagenten arbeid i 6 av 8 kjøringer med mange kallsteder eller nye testfiler, mot 2
             av 6 med <code className={code}>balanced</code>. På disse oppgavene kostet{" "}
-            <code className={code}>aggressive</code> 1,2–1,6 ganger så mye i skykreditter og tok 2–3,6 ganger så lang
+            <code className={code}>aggressive</code> 1,2–1,6 ganger så mye i AI-kreditter og tok 2–3,6 ganger så lang
             tid som når skymodellen gjorde alt selv. Kvaliteten var lavere på nye testfiler: én testfil fra den lokale
             modellen var grønn uten å fange feilen den skulle fange, og én kjøring traff 20-minuttersgrensen. Velg{" "}
             <code className={code}>aggressive</code> bare hvis du vil bruke den lokale modellen mest mulig, og bare til

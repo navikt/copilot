@@ -186,7 +186,7 @@ export default function LokalModellForklaring() {
           <BodyLong>
             nav-pilot stopper heller ingenting når den lokale serveren ikke tar imot tilkoblinger, eller i
             underagentenes egne økter. Nivåene er nye. Vi har ikke målt om stoppet får hovedagenten til å sende mer,
-            eller om det sparer AI-credits.
+            eller om det sparer AI-kreditter.
           </BodyLong>
         </VStack>
       </section>
@@ -307,7 +307,7 @@ export default function LokalModellForklaring() {
             </li>
             <li>
               Vi måler hvert utsendingsnivå for å se om stoppet får hovedagenten til å sende, og om det sparer
-              AI-credits.
+              AI-kreditter.
             </li>
             <li>Vi har ennå ikke målt noen modell på egen server, verken på Linux eller med Ollama og llama-server.</li>
             <li>
