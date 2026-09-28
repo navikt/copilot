@@ -55,6 +55,7 @@ const (
 	fixTools       = "Ollama: use a library model such as qwen3.6:35b (ollama pull qwen3.6:35b); a hf.co/... pull has no tool-call parser. llama-server: start it with --jinja"
 	fixLogprobs    = "Ollama returns logprobs from v0.12.11 (ollama --version); llama-server and vLLM return them; LM Studio's chat endpoint does not. Without them alpha decide refuses this server; the local worker still works"
 	fixContext     = "Ollama: start it with OLLAMA_CONTEXT_LENGTH=65536 ollama serve, or make a model with a Modelfile holding FROM <model> and PARAMETER num_ctx 65536 (ollama create <name> -f Modelfile) and set local_endpoint_model to <name>. llama-server: -c 65536. LM Studio: raise the context length when you load the model"
+	fixServerGone  = "Start the server again with a context that fits in memory. Ollama: OLLAMA_CONTEXT_LENGTH=16384 ollama serve. llama-server: -c 16384. On Linux, dmesg or the cgroup's memory.events shows whether the OOM killer stopped it. A context under 30k tokens fails this check; run nav-pilot alpha local setup again, and it offers to save it anyway"
 	fixSlow        = "A Copilot session's first turn is about 22k tokens. A GPU with the whole model in memory, or llama-server with --n-cpu-moe on a small GPU, prefills faster; opencode's local worker and alpha decide send far less"
 )
 
@@ -314,6 +315,13 @@ func checkContext(ctx context.Context, base, model string) (doctorCheck, doctorC
 	})
 	took := time.Since(started)
 	switch {
+	case err != nil && checkModels(ctx, base, model).Fix == fixStartServer:
+		// It answered the checks before this one: a server that stops
+		// answering while it loads a long context most likely ran out of
+		// memory, and a larger context would only make that worse.
+		c.Level, c.Detail, c.Fix = levelFail, "the server stopped answering during the 30k-token prompt, most likely out of memory: "+err.Error(), fixServerGone
+		t.Level, t.Detail = levelSkip, "the context probe failed"
+		return c, t
 	case err != nil:
 		c.Level, c.Detail, c.Fix = levelFail, "a 30k-token prompt failed: "+err.Error(), fixContext
 		t.Level, t.Detail = levelSkip, "the context probe failed"

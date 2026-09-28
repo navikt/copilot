@@ -297,8 +297,9 @@ func cmdLocalSetup(args []string) error {
 	}
 
 	checks := runDoctor(ctx, choice.Server.Base, choice.Model)
+	base, fixed := choice.Model, ""
 	if choice.Server.Kind == "ollama" && failed(checks, "context") {
-		fixed, err := fixOllamaContext(ctx, choice, f.fixContext)
+		fixed, err = fixOllamaContext(ctx, choice, f.fixContext)
 		if err != nil {
 			return err
 		}
@@ -308,10 +309,28 @@ func cmdLocalSetup(args []string) error {
 			checks = runDoctor(ctx, choice.Server.Base, choice.Model)
 		}
 	}
-	if slices.ContainsFunc(checks, func(c doctorCheck) bool { return c.Level == levelFail }) {
+	fails := slices.DeleteFunc(slices.Clone(checks), func(c doctorCheck) bool { return c.Level != levelFail })
+	serverGone := slices.ContainsFunc(fails, func(c doctorCheck) bool { return c.Fix == fixServerGone })
+	if len(fails) > 0 {
 		again := "nav-pilot alpha local setup"
-		if choice.Server.Kind == "ollama" && failed(checks, "context") {
+		if choice.Server.Kind == "ollama" && failed(checks, "context") && !serverGone {
 			again += " --fix-context --yes"
+		}
+		// The copy's own num_ctx overrides OLLAMA_CONTEXT_LENGTH, and setup
+		// would pick the copy again: it has to go.
+		if serverGone && fixed != "" {
+			fmt.Printf("  %s %s keeps its %d-token context whatever Ollama is started with. Remove it: %s\n\n", yellow("⚠"), fixed, contextTokens, bold("ollama rm "+fixed))
+			again += " --model " + base
+		}
+		// A context that only cuts long prompts still serves short ones, and
+		// on a small machine no larger context fits: offer to save it as is.
+		if len(fails) == 1 && fails[0].Name == "context" && !serverGone {
+			fmt.Printf("  %s Only the context check failed. Short prompts work with this context. A Copilot or opencode session starts at about 22k tokens, and the server cuts or refuses what does not fit.\n\n", yellow("⚠"))
+			if isInteractive() {
+				return saveEndpoint(choice, checks, false)
+			}
+			return &exitCode{code: 1, err: fmt.Errorf("nothing was saved. Fix the FAIL lines above, then run %s. Or save with this context anyway: %s",
+				bold(again), bold(fmt.Sprintf("nav-pilot config set local_endpoint %s/v1 && nav-pilot config set local_endpoint_model %s && nav-pilot config set local_enabled true", choice.Server.Base, choice.Model)))}
 		}
 		return &exitCode{code: 1, err: fmt.Errorf("nothing was saved. Fix the FAIL lines above, then run %s", bold(again))}
 	}
@@ -551,7 +570,12 @@ func failed(checks []doctorCheck, name string) bool {
 func saveEndpoint(c setupChoice, checks []doctorCheck, yes bool) error {
 	endpoint := c.Server.Base + "/v1"
 	fmt.Printf("  Save to %s:\n    local_endpoint       = %s\n    local_endpoint_model = %s\n    local_enabled        = true\n", configPath(), endpoint, c.Model)
-	if !confirm("Save and turn local dispatch on?", yes, true) {
+	short := failed(checks, "context")
+	title := "Save and turn local dispatch on?"
+	if short {
+		title = "Save anyway and turn local dispatch on?"
+	}
+	if !confirm(title, yes, !short) {
 		return cancelledError{nothingWritten: true}
 	}
 	for _, kv := range [][2]string{{"local_endpoint", endpoint}, {"local_endpoint_model", c.Model}, {"local_enabled", "true"}} {
@@ -561,6 +585,9 @@ func saveEndpoint(c setupChoice, checks []doctorCheck, yes bool) error {
 	}
 	fmt.Printf("\n%s Saved. Local dispatch is on, to %s on %s.\n", green("✓"), bold(c.Model), kindName[c.Server.Kind])
 	fmt.Printf("  %s Launch with a local worker: %s\n", dim("→"), bold("nav-pilot --client opencode"))
+	if short {
+		fmt.Printf("  %s Long prompts get cut: see context above\n", yellow("⚠"))
+	}
 	if slices.ContainsFunc(checks, func(d doctorCheck) bool { return d.Name == "logprobs" && d.Level != levelPass }) {
 		fmt.Printf("  %s alpha decide will refuse this server: see logprobs above\n", yellow("⚠"))
 	} else {

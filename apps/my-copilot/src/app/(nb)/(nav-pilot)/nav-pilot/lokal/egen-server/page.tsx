@@ -115,6 +115,17 @@ export default function EgenServer() {
             Skal den også hente modellen eller lage kopien, legg til <code className={code}>--pull</code> eller{" "}
             <code className={code}>--fix-context</code>.
           </BodyLong>
+          <BodyLong>
+            På en maskin med lite minne får du ikke plass til 30 000 tokens kontekst, og da feiler kontekstsjekken
+            uansett. Er det den eneste sjekken som feiler, spør <code className={code}>setup</code> om du vil lagre
+            likevel. Korte prompter virker, men i en Copilot- eller opencode-økt kutter eller avviser serveren det som
+            ikke får plass. Uten terminal lagrer den ikke, heller ikke med <code className={code}>--yes</code>, men
+            viser kommandoene som gjør det.
+          </BodyLong>
+          <BodyLong>
+            Slutter serveren å svare midt i kontekstsjekken, er den trolig tom for minne. Da foreslår{" "}
+            <code className={code}>setup</code> en mindre kontekst, ikke en større.
+          </BodyLong>
           <BodyLong>Vil du heller sette det for hånd:</BodyLong>
           <CodeBlock compact>{BY_HAND}</CodeBlock>
           <BodyShort size="small" textColor="subtle">
