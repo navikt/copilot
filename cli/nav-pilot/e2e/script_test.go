@@ -289,7 +289,7 @@ func serveFakeMLX() {
 	}))
 }
 
-// fake-endpoint [-no-logprobs] [-no-tools] [-ctx N] [-oom-ctx N] [-models a,b] [-export VAR] [-llama] starts an
+// fake-endpoint [-no-logprobs] [-no-tools] [-ctx N] [-oom-ctx N] [-nomem-ctx N] [-models a,b] [-export VAR] [-llama] starts an
 // OpenAI-compatible server in the test process, the kind a developer runs
 // themselves for local_endpoint (Ollama, llama-server), and exports
 // FAKE_ENDPOINT_URL (with /v1). By default it lists qwen3.6:35b, answers a
@@ -305,13 +305,15 @@ func serveFakeMLX() {
 // names the variable instead of FAKE_ENDPOINT_URL, and VAR_ADDR gets host:port.
 // -oom-ctx N plays a server that runs out of memory: a prompt that keeps
 // more than N tokens kills it, and it closes every connection
-// from then on, the way an OOM-killed Ollama stops answering.
+// from then on, the way an OOM-killed Ollama stops answering. -nomem-ctx N
+// answers such a prompt with Ollama's 500 "model requires more system
+// memory" instead, and stays up.
 func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 	if neg {
 		ts.Fatalf("usage: fake-endpoint [-no-logprobs] [-no-tools] [-ctx N] [-models a,b]")
 	}
 	logprobs, tools, ctxTokens, models, export := true, true, 0, []string{"qwen3.6:35b"}, "FAKE_ENDPOINT_URL"
-	ollama, oomCtx, dead := true, 0, false
+	ollama, oomCtx, noMemCtx, dead := true, 0, 0, false
 	var mu sync.Mutex
 	modelCtx := map[string]int{}
 	for i := 0; i < len(args); i++ {
@@ -325,6 +327,11 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 			n, err := strconv.Atoi(args[i])
 			ts.Check(err)
 			ctxTokens = n
+		case "-nomem-ctx":
+			i++
+			n, err := strconv.Atoi(args[i])
+			ts.Check(err)
+			noMemCtx = n
 		case "-oom-ctx":
 			i++
 			n, err := strconv.Atoi(args[i])
@@ -430,6 +437,11 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 		}
 		if limit > 0 && prompt > limit {
 			prompt = limit
+		}
+		if noMemCtx > 0 && prompt > noMemCtx {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = io.WriteString(w, `{"error":{"message":"model requires more system memory (9.8 GiB) than is available (5.1 GiB)"}}`)
+			return
 		}
 		if oomCtx > 0 && prompt > oomCtx {
 			die()

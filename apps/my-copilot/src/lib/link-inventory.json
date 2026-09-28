@@ -836,6 +836,7 @@
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
       "apps/my-copilot/src/lib/nav-items.ts",
+      "cli/nav-pilot/internal/cli/client_nudge.go",
       "docs/CLIENT-SUPPORT-MATRIX.md",
       "docs/README.nav-pilot.md"
     ],
@@ -1004,6 +1005,10 @@
       "forste-okt": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx"],
       "init": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx"],
       "klient": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx"],
+      "lite-minne": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx",
+        "cli/nav-pilot/internal/cli/alpha_local_doctor.go"
+      ],
       "setup": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx"],
       "start-serveren": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx"]
     }

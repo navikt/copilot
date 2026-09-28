@@ -298,7 +298,7 @@ func cmdLocalSetup(args []string) error {
 
 	checks := runDoctor(ctx, choice.Server.Base, choice.Model)
 	base, fixed := choice.Model, ""
-	if choice.Server.Kind == "ollama" && failed(checks, "context") {
+	if choice.Server.Kind == "ollama" && failed(checks, "context") && !outOfMemory(checks) {
 		fixed, err = fixOllamaContext(ctx, choice, f.fixContext)
 		if err != nil {
 			return err
@@ -310,21 +310,21 @@ func cmdLocalSetup(args []string) error {
 		}
 	}
 	fails := slices.DeleteFunc(slices.Clone(checks), func(c doctorCheck) bool { return c.Level != levelFail })
-	serverGone := slices.ContainsFunc(fails, func(c doctorCheck) bool { return c.Fix == fixServerGone })
+	noMemory := outOfMemory(checks)
 	if len(fails) > 0 {
 		again := "nav-pilot alpha local setup"
-		if choice.Server.Kind == "ollama" && failed(checks, "context") && !serverGone {
+		if choice.Server.Kind == "ollama" && failed(checks, "context") && !noMemory {
 			again += " --fix-context --yes"
 		}
 		// The copy's own num_ctx overrides OLLAMA_CONTEXT_LENGTH, and setup
 		// would pick the copy again: it has to go.
-		if serverGone && fixed != "" {
+		if noMemory && fixed != "" {
 			fmt.Printf("  %s %s keeps its %d-token context whatever Ollama is started with. Remove it: %s\n\n", yellow("⚠"), fixed, contextTokens, bold("ollama rm "+fixed))
 			again += " --model " + base
 		}
 		// A context that only cuts long prompts still serves short ones, and
 		// on a small machine no larger context fits: offer to save it as is.
-		if len(fails) == 1 && fails[0].Name == "context" && !serverGone {
+		if len(fails) == 1 && fails[0].Name == "context" && !noMemory {
 			fmt.Printf("  %s Only the context check failed. Short prompts work with this context. A Copilot or opencode session starts at about 22k tokens, and the server cuts or refuses what does not fit.\n\n", yellow("⚠"))
 			if isInteractive() {
 				return saveEndpoint(choice, checks, false)
@@ -559,6 +559,13 @@ func ollamaStream(ctx context.Context, url string, body map[string]any) error {
 		return err
 	}
 	return errors.New("the server stopped before it said success")
+}
+
+// outOfMemory is whether the context check failed for lack of memory: the
+// server said so, or went away during the probe. A larger context, or saving
+// this one as it is, would not help.
+func outOfMemory(checks []doctorCheck) bool {
+	return slices.ContainsFunc(checks, func(c doctorCheck) bool { return c.Fix == fixServerGone || c.Fix == fixSmallMemory })
 }
 
 func failed(checks []doctorCheck, name string) bool {
