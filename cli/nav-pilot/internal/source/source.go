@@ -183,6 +183,13 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 			return nil, err
 		}
 		src.Version = cliVersion
+		// navikt/copilot named outright is the default source: a
+		// nav-pilot/<version> release tag is that version, as below. Without
+		// this a scope synced to the latest release kept the binary's version
+		// and was offered the same sync on every launch.
+		if v := strings.TrimPrefix(ref, "nav-pilot/"); v != ref && strings.EqualFold(sourceRepo, DefaultRepo) {
+			src.Version = v
+		}
 		src.Repo = sourceRepo
 		return src, nil
 	}

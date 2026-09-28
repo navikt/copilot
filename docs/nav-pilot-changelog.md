@@ -39,6 +39,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Nei er ikke Ctrl-C**: Svarer du nei på «Save anyway and turn local dispatch on?», skriver setup «Not saved.» og avslutter med 1, ikke 130.
 - **Er klienten opencode**, foreslår setup bare `nav-pilot` etter lagring, ikke `nav-pilot --client opencode` (#1190).
 
+### Synk-spørsmålet kommer ikke tilbake etter en synk
+
+- **Riktig versjon etter synk**: Står `source = "navikt/copilot"` i konfigurasjonen, lagret synken versjonen til nav-pilot-programmet i stedet for versjonen den hentet. Var programmet eldre enn siste utgivelse, spurte nav-pilot om å synke ved hver oppstart og hentet agentpakka på nytt hver gang. Nå lagres versjonen synken hentet, og spørsmålet kommer først når det finnes en nyere.
+
 ### Den lokale serveren tar én forespørsel om gangen
 
 - **Køen ligger i serveren**: mlx-lm henger seg opp på samtidige forespørsler av ulik lengde. Til nå var det bare en låsefil i `~/.nav-pilot` som hindret det, og en hook inne i cplt når ikke den fila. Nå tar serveren som nav-pilot starter, én forespørsel om gangen, uansett hvilken klient som spør.
