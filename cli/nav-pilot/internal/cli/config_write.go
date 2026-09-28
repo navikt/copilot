@@ -250,9 +250,9 @@ func updateConfigKey(key, tomlVal string) error {
 		}
 		if key != "version" {
 			data = []byte("version = 1\n")
-			if key != "client" {
-				data = fmt.Appendf(data, "client = %s\n", tomlString(defaultClient(nil)))
-			}
+		}
+		if key != "client" {
+			data = fmt.Appendf(data, "client = %s\n", tomlString(defaultClient(nil)))
 		}
 	case err != nil:
 		return fmt.Errorf("reading config: %w", err)

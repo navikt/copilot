@@ -39,6 +39,10 @@ stdout '^copilot$'
 rm $HOME/config.toml
 exec pty-run -- nav-pilot config set source $WORK/plattform
 grep '^client = "opencode"' $HOME/config.toml
+rm $HOME/config.toml
+exec pty-run -- nav-pilot config set version 1
+grep '^client = "opencode"' $HOME/config.toml
+grep '^version = 1' $HOME/config.toml
 
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
