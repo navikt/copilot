@@ -282,16 +282,79 @@ func TestCmdAuthLoginNotOrgMember(t *testing.T) {
 
 func TestCmdAuthLoginPlaceholderClientID(t *testing.T) {
 	keyring.MockInit()
-	// An empty override resolves to the placeholder default, which means no
-	// GitHub App is provisioned — login must fail fast before any network call.
-	t.Setenv("NAV_PILOT_GITHUB_CLIENT_ID", "")
+	// An override still set to the old placeholder names no GitHub App, so
+	// login must fail fast before any network call.
+	t.Setenv("NAV_PILOT_GITHUB_CLIENT_ID", navPilotGitHubClientIDPlaceholder)
 
 	err := cmdAuthLogin()
 	if err == nil {
-		t.Fatal("expected error when client ID is the placeholder default")
+		t.Fatal("expected error when client ID is the placeholder")
 	}
 	if !strings.Contains(err.Error(), "NAV_PILOT_GITHUB_CLIENT_ID") {
 		t.Errorf("error should mention the env var to set, got: %v", err)
+	}
+}
+
+func TestHasGitHubApp(t *testing.T) {
+	for env, want := range map[string]bool{"": true, "  ": true, navPilotGitHubClientIDPlaceholder: false, " Iv1.other ": true} {
+		t.Setenv("NAV_PILOT_GITHUB_CLIENT_ID", env)
+		if got := hasGitHubApp(); got != want {
+			t.Errorf("NAV_PILOT_GITHUB_CLIENT_ID=%q: hasGitHubApp() = %v, want %v", env, got, want)
+		}
+	}
+	t.Setenv("NAV_PILOT_GITHUB_CLIENT_ID", " Iv1.other ")
+	if got := navPilotGitHubClientID(); got != "Iv1.other" {
+		t.Errorf("override not trimmed: %q", got)
+	}
+}
+
+// TestCmdAuthLoginDefaultClientID proves the placeholder is gone: with no
+// override, login runs the device flow with the bundled App's client ID.
+func TestCmdAuthLoginDefaultClientID(t *testing.T) {
+	keyring.MockInit()
+	t.Setenv("NAV_PILOT_GITHUB_CLIENT_ID", "")
+
+	if navPilotGitHubClientIDDefault == navPilotGitHubClientIDPlaceholder || !hasGitHubApp() {
+		t.Fatalf("default client ID %q is still a placeholder", navPilotGitHubClientIDDefault)
+	}
+
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/user" {
+			_, _ = w.Write([]byte(`{"login":"starefossen"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer githubServer.Close()
+
+	var gotClientID string
+	oauthServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/login/device/code":
+			gotClientID = r.FormValue("client_id")
+			_, _ = w.Write([]byte(`{"device_code":"dc","user_code":"ABCD-1234","verification_uri":"https://github.com/login/device","expires_in":900,"interval":0}`))
+		case "/login/oauth/access_token":
+			_, _ = w.Write([]byte(`{"access_token":"ghu_abc","token_type":"bearer"}`))
+		}
+	}))
+	defer oauthServer.Close()
+
+	origDeviceURL, origTokenURL := deviceCodeURL, accessTokenURL
+	origGitHubAPI := githubAPIBaseURL
+	setTestURLs(oauthServer.URL+"/login/device/code", oauthServer.URL+"/login/oauth/access_token")
+	githubAPIBaseURL = githubServer.URL
+	defer func() {
+		setTestURLs(origDeviceURL, origTokenURL)
+		githubAPIBaseURL = origGitHubAPI
+	}()
+
+	if err := cmdAuthLogin(); err != nil {
+		t.Fatalf("cmdAuthLogin with the default client ID: %v", err)
+	}
+	if gotClientID != navPilotGitHubClientIDDefault {
+		t.Errorf("device flow sent client_id %q, want %q", gotClientID, navPilotGitHubClientIDDefault)
 	}
 }
 

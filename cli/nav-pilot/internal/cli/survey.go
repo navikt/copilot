@@ -208,7 +208,7 @@ func surveyToken() string {
 // canSignIn reports whether answers could be sent: a stored token, or a
 // GitHub App to log in with.
 func canSignIn() bool {
-	return surveyToken() != "" || navPilotGitHubClientID() != navPilotGitHubClientIDDefault
+	return surveyToken() != "" || hasGitHubApp()
 }
 
 // maybeSurvey runs at the calm moment after an interactive session. It never
@@ -678,7 +678,7 @@ func deliverPending(base string, st surveyState) {
 func postSurvey(base, id string, payload []byte, interactive bool) (int, error) {
 	token := surveyToken()
 	if token == "" {
-		if !interactive || navPilotGitHubClientID() == navPilotGitHubClientIDDefault {
+		if !interactive || !hasGitHubApp() {
 			return http.StatusUnauthorized, nil
 		}
 		fmt.Println(dim("  Logg inn med GitHub én gang for å sende svaret."))

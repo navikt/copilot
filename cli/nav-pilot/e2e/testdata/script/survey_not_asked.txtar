@@ -60,9 +60,11 @@ exec nav-pilot config unset auto_launch
 
 # Not signed in, and no GitHub App to sign in with.
 env NAV_PILOT_E2E_GITHUB_TOKEN=
+env NAV_PILOT_GITHUB_CLIENT_ID=Iv1.nav-pilot-devflow
 exec pty-run -- nav-pilot
 ! stdout 'Brukerundersøkelse'
 env NAV_PILOT_E2E_GITHUB_TOKEN=gho_e2e
+env NAV_PILOT_GITHUB_CLIENT_ID=
 
 ! exists $WORK/survey-posts.log
 ! exists $HOME/surveys.json.tmp
