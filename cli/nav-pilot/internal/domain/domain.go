@@ -84,6 +84,10 @@ type Config struct {
 	HookRedactSecrets *bool `toml:"hook_redact_secrets"`
 	HookRedactFNR     *bool `toml:"hook_redact_fnr"`
 	HookInjectionNote *bool `toml:"hook_injection_note"`
+	// HookActionCheck is the action check, a preToolUse hook that asks the
+	// local decide model about risky shell commands: off or log. Unset means
+	// log. It never blocks.
+	HookActionCheck *string `toml:"hook_action_check"`
 }
 
 // ResolvedConfig holds the final configuration after applying precedence:
@@ -127,6 +131,7 @@ type ResolvedConfig struct {
 	HookRedactSecrets  bool     // mask secrets in tool results
 	HookRedactFNR      bool     // mask fødselsnummer, D- and H-nummer in tool results
 	HookInjectionNote  bool     // flag instruction-like text in tool results
+	HookActionCheck    string   // off | log; always set
 	ProjectDir         string   // --project-dir: the directory cplt may read and write; empty = the working directory
 	NoSandbox          bool     // --no-sandbox: launch copilot or opencode without cplt when cplt is missing, without asking
 	ExtraArgs          []string // pass-through arguments for the client
@@ -168,6 +173,7 @@ var (
 	ValidOtelLogLevels    = []string{"none", "error", "warning", "warn", "info", "debug", "verbose", "all"}
 	ValidCopilotAuthModes = []string{"auto", "env_only", "gh_only"}
 	ValidLocalDispatch    = []string{"off", "conservative", "balanced", "aggressive"}
+	ValidHookActionCheck  = []string{"off", "log"}
 )
 
 // ModelChoice pairs a model id (the --model value) with a human-readable label.

@@ -255,6 +255,15 @@ var configKeyDefs = []configKeyDef{
 		group:       "Hooks",
 	},
 	{
+		name:        "hook_action_check",
+		kind:        keyKindString,
+		description: "Ask the local decide model, before a risky shell command runs (kubectl, nais, gcloud and helm changes, terraform apply, rm -r, git push --force and the like), whether it is proportional, destructive and backed by its stated purpose. log records the answer in telemetry and a local log and always lets the command run; off turns it off. Only with a local model (local_enabled) and a running server; it never starts one.",
+		allowed:     validHookActionCheck,
+		defaultVal:  "log",
+		flag:        "",
+		group:       "Hooks",
+	},
+	{
 		name:        "rtk_prompted_client",
 		kind:        keyKindString,
 		description: "Comma-separated list of clients where the RTK setup was prompted.",
@@ -482,6 +491,13 @@ client = "copilot"
 # ("ignore previous instructions", role markers). Flags; never blocks.
 # Default: true
 # hook_injection_note = true
+
+# Before a risky shell command (kubectl, nais, gcloud and helm changes,
+# terraform apply, rm -r, git push --force, ...) ask the local decide model
+# whether it makes sense, and log the answer. Never blocks. Only with a local
+# model and a running server (~/.copilot/hooks/nav-pilot-action-check.json).
+# Allowed: off, log — Default: log
+# hook_action_check = "log"
 
 # Internal flag to track which client the user was last prompted to set up rtk for.
 # Default: unset
@@ -810,6 +826,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return strconv.FormatBool(r.HookRedactFNR)
 	case "hook_injection_note":
 		return strconv.FormatBool(r.HookInjectionNote)
+	case "hook_action_check":
+		return r.HookActionCheck
 	case "rtk_prompted_client":
 		return r.RtkPromptedClient
 	case "rtk_prompted_at":

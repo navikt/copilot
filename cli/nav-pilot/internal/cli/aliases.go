@@ -49,6 +49,7 @@ var (
 	validOtelLogLevels    = domain.ValidOtelLogLevels
 	validLocalDispatch    = domain.ValidLocalDispatch
 	validCopilotAuthModes = domain.ValidCopilotAuthModes
+	validHookActionCheck  = domain.ValidHookActionCheck
 
 	ScopeRepo = domain.ScopeRepo
 	ScopeUser = domain.ScopeUser

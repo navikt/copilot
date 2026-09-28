@@ -454,7 +454,12 @@ func decide(ctx context.Context, question string, options []string, evidence str
 		return decision{}, err
 	}
 	defer release()
+	return decideAt(ctx, started, base, model, question, options, evidence, hasEvidence)
+}
 
+// decideAt is decide against a server the caller already holds, for a caller
+// that asks several questions under one lock (the action check).
+func decideAt(ctx context.Context, started time.Time, base, model, question string, options []string, evidence string, hasEvidence bool) (decision, error) {
 	request := map[string]any{
 		"model":                model,
 		"messages":             []map[string]string{{"role": "user", "content": decidePrompt(question, options, evidence, hasEvidence)}},

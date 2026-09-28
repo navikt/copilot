@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -42,16 +43,28 @@ type builtinHook struct {
 	arg     string // `nav-pilot hook <arg>`
 	keys    []string
 	enabled func(ResolvedConfig) bool
+	// pre runs the hook before the tool call (preToolUse), on shell calls
+	// only; the others run after every call.
+	pre bool
 }
 
 var builtinHooks = []builtinHook{
 	{name: "nav-pilot-loop-guard", arg: "loop-guard", keys: []string{"hook_loop_guard", "local_loop_guard"},
 		enabled: func(r ResolvedConfig) bool { return r.HookLoopGuard }},
+	// Only with a local model: without one it would start a process on
+	// every shell call to find it has nothing to ask. Its setting rides as
+	// local_enabled alone; the hook file exists only while it is not off.
+	{name: "nav-pilot-action-check", arg: "action-check", keys: []string{"local_enabled"}, pre: true,
+		enabled: func(r ResolvedConfig) bool { return r.HookActionCheck != "off" && r.LocalEnabled }},
 	{name: "nav-pilot-redact-tool-output", arg: "redact", keys: []string{"hook_redact_secrets", "hook_redact_fnr", "hook_injection_note"},
 		enabled: func(r ResolvedConfig) bool {
 			return r.HookRedactSecrets || r.HookRedactFNR || r.HookInjectionNote
 		}},
 }
+
+// shellMatcher is the shell tools, as the hook artifacts' matcher lists them,
+// plus PowerShell.
+const shellMatcher = "bash|shell|execute|powershell"
 
 // runHookCommand runs one built-in hook and always exits 0 with a JSON answer.
 // Every failure — an unreadable payload, a broken config, a panic — prints
@@ -148,6 +161,10 @@ func runHookCommand(args []string, stdin io.Reader, stdout io.Writer) {
 			}
 		}
 		spoolHookEvents(p.SessionID, lines...)
+	case "action-check":
+		// preToolUse: out stays "{}", which lets the call through, whatever
+		// the check finds or fails at.
+		actionCheck(r, p)
 	}
 }
 
@@ -206,6 +223,8 @@ func recordHookEvent(f []string) {
 	switch {
 	case len(f) == 2 && f[0] == "loop_guard":
 		telemetry.RecordHookLoopGuard(f[1], "cloud")
+	case len(f) == 3 && f[0] == "action_check":
+		telemetry.RecordHookActionCheck(f[1], f[2])
 	case len(f) == 3 && f[0] == "redact":
 		if n, err := strconv.ParseInt(f[2], 10, 64); err == nil && n > 0 && n < 1<<20 {
 			telemetry.RecordHookRedact(f[1], n)
@@ -310,6 +329,11 @@ func syncBuiltinHooks(r ResolvedConfig) {
 			Timeout: 5,
 			Event:   source.HookEventPostToolUse,
 		}
+		if h.pre {
+			// Copilot denies the call when a preToolUse hook times out; the
+			// check keeps to half a second of the 5 (actionCheckBudget).
+			entry.Event, entry.Matcher = "", shellMatcher
+		}
 		_, statErr := os.Stat(path)
 		if err := source.WriteUserHook(dir, entry); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not write the %s hook: %v\n", yellow("⚠"), h.name,
@@ -330,9 +354,10 @@ func announceBuiltinHooks(dir string, added []string) {
 	}
 	what := map[string]string{
 		"nav-pilot-loop-guard":         "tells the agent when it repeats the same tool call. Off: nav-pilot config set hook_loop_guard false",
+		"nav-pilot-action-check":       "before a risky shell command, asks the local model whether it makes sense and logs the answer. Never blocks. Off: nav-pilot config set hook_action_check off",
 		"nav-pilot-redact-tool-output": "masks secrets and fødselsnumre in tool output before the model reads it. Off: nav-pilot config set hook_redact_secrets false (and hook_redact_fnr, hook_injection_note)",
 	}
-	fmt.Fprintf(os.Stderr, "%s nav-pilot added Copilot hooks to %s. They run after every tool call:\n", dim("ℹ"), dir)
+	fmt.Fprintf(os.Stderr, "%s nav-pilot added Copilot hooks to %s. They run around tool calls:\n", dim("ℹ"), dir)
 	for _, name := range added {
 		fmt.Fprintf(os.Stderr, "  %s %s\n", bold(name), what[name])
 	}
@@ -383,6 +408,16 @@ func openCodeHookBridge(r ResolvedConfig) providerpkg.HookBridge {
 		for _, k := range h.keys {
 			argv = append(argv, k+"="+resolvedFieldStr(r, k))
 		}
+		if h.pre {
+			// The bridge runs a pre hook as a shell command, as it runs the
+			// gates. It answers "{}" whatever happens, so it cannot deny.
+			quoted := make([]string, len(argv))
+			for i, a := range argv {
+				quoted[i] = shellQuote(a)
+			}
+			b.Pre = append(b.Pre, providerpkg.BridgeHook{Name: h.name, Command: strings.Join(quoted, " "), Matcher: shellMatcher, Timeout: 5})
+			continue
+		}
 		// Redaction fails closed: the output is withheld if it cannot be
 		// checked. The loop guard fails open, as under Copilot.
 		redact := h.arg == "redact"
@@ -396,7 +431,12 @@ func openCodeHookBridge(r ResolvedConfig) providerpkg.HookBridge {
 		files, _ := filepath.Glob(filepath.Join(dir, "*.json"))
 		n := len(b.Pre)
 		for _, f := range files {
-			b.Pre = append(b.Pre, bridgeHooks(source.PreToolUseHooks(f))...)
+			for _, e := range bridgeHooks(source.PreToolUseHooks(f)) {
+				// A built-in's Copilot entry: added above, or off.
+				if !slices.ContainsFunc(builtinHooks, func(h builtinHook) bool { return h.name == e.Name }) {
+					b.Pre = append(b.Pre, e)
+				}
+			}
 		}
 		if len(b.Pre) > n {
 			b.ReadDirs = append(b.ReadDirs, dir)

@@ -252,6 +252,10 @@ func validateConfigProblems(cfg *Config) []string {
 		problems = append(problems, fmt.Sprintf("local_dispatch %q is not valid (allowed: %s)",
 			*cfg.LocalDispatch, strings.Join(validLocalDispatch, ", ")))
 	}
+	if cfg.HookActionCheck != nil && !containsStr(validHookActionCheck, *cfg.HookActionCheck) {
+		problems = append(problems, fmt.Sprintf("hook_action_check %q is not valid (allowed: %s)",
+			*cfg.HookActionCheck, strings.Join(validHookActionCheck, ", ")))
+	}
 	if cfg.CopilotAuthMode != nil && !containsStr(validCopilotAuthModes, *cfg.CopilotAuthMode) {
 		problems = append(problems, fmt.Sprintf("copilot_auth_mode %q is not valid (allowed: %s)",
 			*cfg.CopilotAuthMode, strings.Join(validCopilotAuthModes, ", ")))
@@ -540,6 +544,7 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		HookRedactSecrets: true,
 		HookRedactFNR:     true,
 		HookInjectionNote: true,
+		HookActionCheck:   "log",
 	}
 
 	// Apply file values.
@@ -627,6 +632,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		}
 		if file.HookInjectionNote != nil {
 			r.HookInjectionNote = *file.HookInjectionNote
+		}
+		if file.HookActionCheck != nil && containsStr(validHookActionCheck, *file.HookActionCheck) {
+			r.HookActionCheck = *file.HookActionCheck
 		}
 	}
 

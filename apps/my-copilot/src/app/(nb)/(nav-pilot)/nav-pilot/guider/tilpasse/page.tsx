@@ -169,7 +169,7 @@ nav-pilot ignore instruction nextjs-aksel --user`}
           </LinkableHeading>
           <BodyLong>
             nav-pilot legger egne hooks i <code className={code}>~/.copilot/hooks/</code>, og de kjører i alle økter med
-            Copilot CLI. Fire nøkler slår dem av og på, og alle er på som standard:
+            Copilot CLI. Fem nøkler slår dem av og på, og alle er på som standard:
           </BodyLong>
           <Bullets>
             <li>
@@ -186,6 +186,12 @@ nav-pilot ignore instruction nextjs-aksel --user`}
             <li>
               <code className={code}>hook_injection_note</code>: merker verktøyresultater som ser ut som instrukser til
               modellen, så den leser dem som data.
+            </li>
+            <li>
+              <code className={code}>hook_action_check</code>: spør den lokale modellen om en risikabel skallkommando,
+              for eksempel <code className={code}>kubectl delete</code> eller <code className={code}>rm -rf</code>, gir
+              mening før den kjører, og lagrer svaret. Den stopper ingenting, og KI-agenten ser ikke svaret. Virker bare
+              med lokal modell. Slå den av med <code className={code}>off</code>.
             </li>
           </Bullets>
           <CodeBlock compact>

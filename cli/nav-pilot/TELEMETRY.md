@@ -28,6 +28,7 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_decide_p_choice` | Histogram | Sannsynligheten modellen ga alternativet den valgte | `model` |
 | `nav_pilot_hook_loop_guard_total` | Counter | Løkkevakten slo til | `rule=same_result\|cycle\|backstop`, `session=local\|cloud` |
 | `nav_pilot_hook_redact_total` | Counter | Antall maskeringer i verktøyresultater | `kind=secret\|fnr\|injection_note` |
+| `nav_pilot_hook_action_check_total` | Counter | Handlingssjekken spurte den lokale modellen om en risikabel skallkommando | `outcome=flagged\|passed\|skipped_timeout\|skipped_no_server\|skipped_sandbox\|skipped_error`, `category=kubectl\|nais\|gcloud\|helm\|terraform\|rm\|git\|disk\|sql` |
 | `nav_pilot_local_dispatches` | Histogram | Oppgaver en økt sendte til den lokale modellen, målt når økten slutter | `client`, `model`, `dispatch_level=off\|conservative\|balanced\|aggressive`, `saw_traffic` |
 | `nav_pilot_local_gate_total` | Counter | Hva utsendingsvakten gjorde i en økt med `local_dispatch` `balanced` eller `aggressive` | `outcome=deny_files\|deny_sites\|deny_scripted\|deny_create\|dispatched_after_deny\|verify_nudge\|create_retry\|create_retry_passed\|create_retry_failed` |
 
@@ -48,6 +49,13 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
   og nav-pilot sender dem når en Copilot-økt startet med nav-pilot avslutter.
   `session=local` kommer fra løkkevakten foran den lokale modellen, og telles også
   ved avslutning.
+- Handlingssjekken sender aldri kommandoen, bare utfallet og kategorien fra
+  klassifiseringen. `flagged` betyr at modellen ga et risikabelt svar med
+  sannsynlighet over 0,7 på minst ett av de tre spørsmålene, `passed` at den
+  svarte på alle tre uten det. `skipped_*` er en sjekk som ikke ble gjort:
+  fristen på 500 ms gikk ut, ingen lokal server kjørte, sandkassen stengte
+  `~/.nav-pilot` ute, eller en annen feil. Kommandoen, maskert og forkortet til
+  200 tegn, og svarene ligger bare lokalt, i `<økt>/nav-pilot-action-check.jsonl`.
 
 `command`-dimensjonen inkluderer også livssyklus-eventer:
 - `startup` når brukeren kjører `nav-pilot` uten args (interaktiv flyt)
