@@ -159,9 +159,9 @@ export default function Klienter() {
           beholder klienten du har.
         </BodyLong>
         <BodyLong>
-          Bruker du Copilot CLI med lokale modeller på, viser nav-pilot én gang et tips om opencode: bare opencode lar
-          en skymodell sende oppgaver til en lokal modell. Tipset kommer aldri i samme økt som en brukerundersøkelse, og{" "}
-          {c("nav-pilot config set surveys false")} slår det av.
+          Bruker du Copilot CLI med lokale modeller på og har opencode installert, viser nav-pilot én gang et tips om
+          opencode: bare opencode lar en skymodell sende oppgaver til en lokal modell. Tipset kommer aldri i samme økt
+          som en brukerundersøkelse, og {c("nav-pilot config set surveys false")} slår det av.
         </BodyLong>
         <div className="overflow-x-auto">
           <Table size="small" className="table-stack" role="table">
