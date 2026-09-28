@@ -64,7 +64,10 @@ level: answers are not linked to a person across waves (see
 
 The day after `ends`, copilot-survey writes the last answers and deletes the
 survey's participation rows. The survey owner deletes `SURVEY_KEY_<ID>` from
-the secret the same day; copilot-survey warns at start while it is still there.
+the secret the same day, then restarts the pod
+(`kubectl rollout restart deployment/copilot-survey -n copilot`): the running
+pod read its keys at start and still holds the deleted one. copilot-survey
+warns at start while the key is still in the secret.
 
 ## Fields
 
