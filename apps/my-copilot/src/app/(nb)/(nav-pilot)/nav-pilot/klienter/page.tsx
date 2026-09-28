@@ -361,7 +361,7 @@ export default function Klienter() {
           <li>
             Oppstarten venter ikke på GitHub. nav-pilot bruker kopien av agentpakka i {c("~/.nav-pilot/sources/")} og
             henter en ny mens økten kjører, høyst én gang i timen. Endringer i agentpakka kommer derfor med ved neste
-            oppstart. Bare første oppstart venter på nedlastingen, i opptil 60 sekunder.
+            oppstart. Bare den første oppstarten venter på nedlastingen, i opptil 60 sekunder.
           </li>
           <li>
             Velger du ikke modell selv, bruker nav-pilot standarden agentpakka oppgir. For agentpakka nav-pilot er det

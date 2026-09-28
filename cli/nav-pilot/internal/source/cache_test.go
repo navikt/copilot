@@ -28,9 +28,22 @@ func TestResolveForLaunchCachesAndRefreshes(t *testing.T) {
 	CacheDir = t.TempDir()
 	t.Cleanup(func() { CacheDir = "" })
 
+	// The first clone is made inside the cache, so moving it there is a
+	// rename on one filesystem even when /tmp is a tmpfs.
+	orig := CloneRemoteFn
+	t.Cleanup(func() { CloneRemoteFn = orig })
+	CloneRemoteFn = func(ref, repo string) (*Source, error) {
+		if want := filepath.Join(CacheDir, cacheKey("navikt/x")); cloneTempParent != want {
+			t.Errorf("first clone made in %q, want %q", cloneTempParent, want)
+		}
+		return cloneRemote(ref, repo)
+	}
 	src, refresh, err := ResolveForLaunch("navikt/x", "v1")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if cloneTempParent != "" {
+		t.Errorf("clone temp parent left at %q", cloneTempParent)
 	}
 	if src.SHA != first || src.TempDir != "" || !strings.HasPrefix(src.Dir, CacheDir) {
 		t.Fatalf("first launch: got %+v, want sha %s cached under %s", src, first, CacheDir)
@@ -38,8 +51,6 @@ func TestResolveForLaunchCachesAndRefreshes(t *testing.T) {
 	refresh(context.Background()) // fresh: nothing to do
 
 	// Cached: the network is not asked.
-	orig := CloneRemoteFn
-	t.Cleanup(func() { CloneRemoteFn = orig })
 	CloneRemoteFn = func(string, string) (*Source, error) { return nil, errors.New("offline") }
 	second := commit("two")
 	src, refresh, err = ResolveForLaunch("navikt/x", "v1")

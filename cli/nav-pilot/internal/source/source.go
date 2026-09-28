@@ -146,6 +146,15 @@ func shorthandFor(v string) string {
 // source to fall back on, so being offline costs seconds rather than a minute.
 var FetchTimeout time.Duration
 
+// cloneTempParent and cloneTempPattern are where cloneRemote makes its
+// checkout: the system temp directory, unless [ResolveForLaunch] asks for its
+// cache directory, so the checkout can be renamed into the cache without
+// crossing filesystems (a tmpfs /tmp).
+var (
+	cloneTempParent  = ""
+	cloneTempPattern = "nav-pilot-*"
+)
+
 // CloneRemoteFn is overridable in tests.
 var CloneRemoteFn = cloneRemote
 
@@ -306,7 +315,7 @@ func stderrIsTerminal() bool {
 }
 
 func cloneRemote(ref, sourceRepo string) (*Source, error) {
-	tmpDir, err := os.MkdirTemp("", "nav-pilot-*")
+	tmpDir, err := os.MkdirTemp(cloneTempParent, cloneTempPattern)
 	if err != nil {
 		return nil, fmt.Errorf("creating temp dir: %w", err)
 	}

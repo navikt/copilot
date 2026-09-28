@@ -54,6 +54,12 @@ func ResolveForLaunch(sourceRepo, cliVersion string) (src *Source, refresh func(
 			defer func(d time.Duration) { FetchTimeout = d }(FetchTimeout)
 			FetchTimeout = firstFetchTimeout
 		}
+		// Clone inside the cache directory, dot-named so pruneCache spares
+		// it, so the move into the cache is a rename on one filesystem.
+		if os.MkdirAll(dir, 0o755) == nil {
+			defer func(p, pat string) { cloneTempParent, cloneTempPattern = p, pat }(cloneTempParent, cloneTempPattern)
+			cloneTempParent, cloneTempPattern = dir, ".fetch-*"
+		}
 		s, err := CloneRemoteFn(ref, repo)
 		if err != nil {
 			return nil, err
@@ -91,8 +97,9 @@ func cachedCheckout(dir string) (*Source, time.Time, bool) {
 }
 
 // keepInCache moves a fresh clone into the cache and points s at it. When the
-// move fails (the temp directory on another filesystem), s stays the
-// temporary clone and nothing is cached: the next launch fetches again.
+// move fails, s stays the temporary clone and nothing is cached: the next
+// launch fetches again. A checkout of the same commit already there (another
+// launch got there first) is left alone, since that launch may be reading it.
 func keepInCache(dir string, s *Source) {
 	if s.TempDir == "" || s.SHA == "" || s.SHA == "unknown" {
 		return
@@ -101,10 +108,10 @@ func keepInCache(dir string, s *Source) {
 		return
 	}
 	co := filepath.Join(dir, s.SHA)
-	_ = os.RemoveAll(co)
-	if os.Rename(s.TempDir, co) != nil {
+	if _, err := os.Stat(co); err != nil && os.Rename(s.TempDir, co) != nil {
 		return
 	}
+	s.Cleanup()
 	s.Dir, s.TempDir = co, ""
 	writeCacheMeta(dir, cacheMeta{SHA: s.SHA, FetchedAt: time.Now()})
 }
