@@ -1,6 +1,5 @@
 mcp_registry_url: http://mcp-registry
 mcp_registry_public_url: https://mcp-registry.ekstern.dev.nav.no
-# copilot-survey runs in dev-gcp only. Add this to prod-gcp.yaml once #1094 deploys it there.
 copilot_survey_url: http://copilot-survey
 ingresses:
   - "https://ki-utvikling.ekstern.dev.nav.no"

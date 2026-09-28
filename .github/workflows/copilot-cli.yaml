@@ -33,6 +33,4 @@ jobs:
       deploys-to-nais: true
       deploy-pr-to-dev: true
       nais-team: copilot
-      # dev-gcp only for now; prod-gcp is added back after Phase 1 end-to-end
-      # validation in dev (see issue #337 revised phases).
-      nais-clusters: '["dev-gcp"]'
+      nais-clusters: '["dev-gcp", "prod-gcp"]'

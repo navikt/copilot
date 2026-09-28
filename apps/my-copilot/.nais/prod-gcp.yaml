@@ -1,5 +1,6 @@
 mcp_registry_url: http://mcp-registry
 mcp_registry_public_url: https://mcp-registry.nav.no
+copilot_survey_url: http://copilot-survey
 ingresses:
   - "https://ki-utvikling.nav.no"
   - "https://min-copilot.intern.nav.no"
