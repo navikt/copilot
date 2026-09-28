@@ -107,7 +107,7 @@ export function generateSetupScript(os: OS, workflow: Workflow) {
   const codeString = blocks.map((b) => [b.title, ...b.commands].filter(Boolean).join("\n")).join("\n\n");
 
   return {
-    title: "Kopier denne oppskriften i terminalen",
+    title: "Lim inn oppskriften i terminalen",
     steps: ["Oppskriften under installerer alt du trenger og setter opp Nav-kontekst for repoet ditt automatisk."],
     code: codeString,
   };
@@ -164,7 +164,7 @@ export function StepAccess({ onNext }: { onNext: () => void }) {
         Alle utviklere i navikt-organisasjonen kan gi seg selv tilgang til GitHub Copilot Business helt gratis.
       </BodyShort>
       <Link href="/abonnement" target="_blank" className="text-blue-600 mb-4">
-        Sjekk /abonnement siden
+        Gå til abonnementssiden (krever innlogging)
       </Link>
       <Button onClick={onNext} icon={<ChevronRightIcon aria-hidden />} iconPosition="right" size="medium">
         Ja, jeg har tilgang
@@ -264,8 +264,8 @@ export function StepWorkflow({
             onNext();
           }}
           icon={<LaptopIcon aria-hidden />}
-          title="I Editoren (VS Code / IntelliJ)"
-          description="Sanntids kodeforslag og chat i editoren. Perfekt for små endringer og generering av enkel funksjoner."
+          title="I editoren (VS Code / IntelliJ)"
+          description="Sanntids kodeforslag og chat i editoren. Perfekt for små endringer og generering av enkle funksjoner."
         />
       </VStack>
       <HStack justify="center" marginBlock="space-16">
@@ -313,7 +313,7 @@ export function StepResult({ os, workflow, onPrev }: { os: OS; workflow: Workflo
           Tilbake
         </Button>
         <Button as="a" href="/praksis" variant="secondary">
-          Gå til God Praksis →
+          Gå til god praksis →
         </Button>
       </HStack>
     </VStack>

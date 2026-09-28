@@ -255,7 +255,7 @@ function HeroSection({ stars }: { stars: number | null }) {
                   <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#28c840" }} />
                 </div>
                 <span className="font-mono ml-2" style={{ color: "#6b7280", fontSize: "0.75rem" }}>
-                  Generic Copilot
+                  Vanlig Copilot
                 </span>
               </div>
               <pre
@@ -1050,7 +1050,7 @@ function FooterTagline() {
               fontStyle: "italic",
             }}
           >
-            Ingen hallusinasjoner, bare Nais.
+            Mindre gjetting, mer Nais.
           </p>
           <div className="flex flex-wrap gap-6 justify-center" style={{ fontSize: "0.875rem" }}>
             <NextLink

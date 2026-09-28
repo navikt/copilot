@@ -55,7 +55,7 @@ export function TrustBoundaryDiagram() {
           Agent harness
         </text>
         <text x="155" y="121" textAnchor="middle" fill="#94a3b8" fontSize="9">
-          Copilot CLI eller OpenCode
+          Copilot CLI eller opencode
         </text>
 
         {/* Skills */}

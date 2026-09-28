@@ -154,7 +154,7 @@ export default function Klienter() {
     <DocPage
       label="Referanse"
       title="Klienter"
-      description="Hva Copilot CLI, opencode og pi kan når nav-pilot starter dem, og hva som mangler. Søk på siden med Ctrl+F."
+      description="Hva Copilot CLI, opencode og pi kan når nav-pilot starter dem, og hva som mangler. Søk på siden med Ctrl+F (Cmd+F på Mac)."
       toc={TOC}
       wide
     >

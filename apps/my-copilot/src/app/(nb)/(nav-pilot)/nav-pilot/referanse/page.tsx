@@ -114,7 +114,7 @@ export default function Referanse() {
     <DocPage
       label="Referanse"
       title="Kommandoer, konfig og tabeller"
-      description="Kommandoer, konfignøkler og tabeller på én side. Søk på siden med Ctrl+F."
+      description="Kommandoer, konfignøkler og tabeller på én side. Søk på siden med Ctrl+F (Cmd+F på Mac)."
       toc={TOC}
       wide
     >
