@@ -249,7 +249,7 @@ export default function ToolsAndModes() {
         </Box>
         <BodyShort className="text-gray-600 text-sm mb-5">
           Alle brukere får et personlig budsjett med <strong>AI Credits</strong> hver måned. Ulike modeller har ulik
-          kostnad i form av AI Credits. Du kan velge fritt mellom de ulike AI-leverandørene GitHub Copilot støtter.
+          kostnad i form av AI Credits. Du kan velge fritt mellom de ulike KI-leverandørene GitHub Copilot støtter.
         </BodyShort>
         <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-12">
           <div>
