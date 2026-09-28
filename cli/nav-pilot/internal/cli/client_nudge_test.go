@@ -31,9 +31,14 @@ func readFile(t *testing.T, path string) string {
 func TestRecordEffectiveClient(t *testing.T) {
 	t.Run("no config file", func(t *testing.T) {
 		path := clientTestHome(t, true)
+		// The wizard writes the file, client included; a skipped wizard
+		// must come back next run, so nothing is created here.
 		recordEffectiveClient()
-		if got := readFile(t, path); got != "version = 1\nclient = \"copilot\"\n" {
-			t.Fatalf("config = %q", got)
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("config created: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(filepath.Dir(path), "seen-client-recorded")); !os.IsNotExist(err) {
+			t.Fatal("marker set with no file")
 		}
 	})
 
@@ -86,6 +91,9 @@ func TestClientNudge(t *testing.T) {
 	setup := func(t *testing.T, cfg string) {
 		t.Helper()
 		path := clientTestHome(t, true)
+		orig := providerFor
+		providerFor = func(string) (Provider, error) { return failingProvider{}, nil }
+		t.Cleanup(func() { providerFor = orig })
 		t.Setenv("DO_NOT_TRACK", "")
 		t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "true")
 		if err := os.WriteFile(path, []byte("version = 1\n"+cfg), 0o600); err != nil {
@@ -146,6 +154,14 @@ func TestClientNudge(t *testing.T) {
 	t.Run("not without a terminal", func(t *testing.T) {
 		setup(t, "local_enabled = true\n")
 		isInteractive = func() bool { return false }
+		if out := nudge(""); out != "" {
+			t.Fatalf("nudge = %q", out)
+		}
+	})
+
+	t.Run("not without opencode installed", func(t *testing.T) {
+		setup(t, "local_enabled = true\n")
+		providerFor = func(string) (Provider, error) { return failingProvider{unavailable: true}, nil }
 		if out := nudge(""); out != "" {
 			t.Fatalf("nudge = %q", out)
 		}

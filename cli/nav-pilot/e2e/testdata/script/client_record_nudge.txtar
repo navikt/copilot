@@ -1,0 +1,51 @@
+# #1029: the first session in a terminal writes the client the user runs into
+# a config that names none, so a later change of the default moves nobody.
+# A Copilot CLI user with local models on and opencode installed gets one
+# line, once, offering opencode. Neither happens headless or in CI.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+env NAV_PILOT_TELEMETRY_ENABLED=true
+env DO_NOT_TRACK=
+env NAV_PILOT_TELEMETRY_ENDPOINT=http://127.0.0.1:9/v1/metrics
+fake-bin cplt copilot opencode
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+exec nav-pilot config set rtk_prompted_client copilot
+exec nav-pilot config set local_enabled true
+! grep '^client =' $WORK/home/config.toml
+
+# Headless and CI: no line, nothing written.
+exec pty-run -- nav-pilot -- -p hei
+! stdout 'config set client opencode'
+env CI=true
+exec pty-run -- nav-pilot
+! stdout 'config set client opencode'
+env CI=
+! grep '^client =' $WORK/home/config.toml
+
+# The first session in a terminal: the tip, and the client recorded.
+exec pty-run -- nav-pilot
+stdout -count=1 'Bytt klient: nav-pilot config set client opencode\. Se https://ki-utvikling\.nav\.no/nav-pilot/klienter'
+grep '^client = "copilot"' $WORK/home/config.toml
+grep 'local_enabled = true' $WORK/home/config.toml
+
+# Once.
+exec pty-run -- nav-pilot
+! stdout 'config set client opencode'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
