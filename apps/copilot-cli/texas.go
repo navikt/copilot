@@ -12,7 +12,8 @@ import (
 
 // texasClient exchanges copilot-cli's own workload identity for an M2M
 // access token via the Texas sidecar's client_credentials endpoint
-// (NAIS_TOKEN_ENDPOINT), scoped to the copilot-api audience.
+// (NAIS_TOKEN_ENDPOINT), scoped to one audience (copilot-api or
+// copilot-survey).
 //
 // See: https://doc.nais.io/auth/explanations/#texas
 type texasClient struct {

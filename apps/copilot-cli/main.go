@@ -29,10 +29,8 @@ func main() {
 	)
 
 	if config.NaisTokenEndpoint == "" {
-		slog.Warn("NAIS_TOKEN_ENDPOINT not configured — M2M proxy calls to copilot-api will fail (expected in local dev)")
+		slog.Warn("NAIS_TOKEN_ENDPOINT not configured — M2M calls to copilot-api and copilot-survey will fail (expected in local dev)")
 	}
-
-	ctx := context.Background()
 
 	auth := &authenticator{
 		github: newGitHubClient(config.GitHubClientID, config.GitHubClientSecret),
@@ -42,32 +40,12 @@ func main() {
 	}
 	slog.Info("GitHub sign-in", "configured", auth.github.configured())
 
-	texas := newTexasClient(config.NaisTokenEndpoint, config.CopilotAPIAudience)
-	proxy := newCopilotAPIProxy(config.CopilotAPIURL, texas)
-
-	defs, err := loadSurveyDir(surveyFiles)
-	if err != nil {
-		slog.Error("Invalid survey definitions", "error", err)
-		os.Exit(1)
-	}
-	// No emailFor: the Nav e-mail lookup for a GitHub login is not in this
-	// service, so submissions answer 503 until copilot-survey takes them.
-	surveys := &surveyAPI{surveys: defs, keys: surveyKeys(defs, time.Now()), now: time.Now}
-	var store *surveyStore
-	if config.DatabaseURL != "" {
-		if store, err = openSurveyStore(ctx, config.DatabaseURL); err != nil {
-			slog.Error("Survey storage unavailable", "error", err)
-			os.Exit(1)
-		}
-		surveys.store = store.submit
-		go store.purgeExpired(ctx, time.Now)
-	}
-	slog.Info("Survey submissions", "storage", store != nil,
-		"surveys", len(defs), "surveys_with_key", len(surveys.keys))
+	api := newUpstream("copilot-api", config.CopilotAPIURL, newTexasClient(config.NaisTokenEndpoint, config.CopilotAPIAudience))
+	surveys := newUpstream("copilot-survey", config.CopilotSurveyURL, newTexasClient(config.NaisTokenEndpoint, config.CopilotSurveyAudience))
 
 	server := &http.Server{
 		Addr:              ":" + config.Port,
-		Handler:           makeRouter(auth, proxy, surveys),
+		Handler:           makeRouter(auth, api, surveys),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -92,13 +70,6 @@ func main() {
 
 	if err := server.Shutdown(ctx); err != nil {
 		slog.Error("Server shutdown error", "error", err)
-	}
-	if store != nil {
-		// Writing a batch smaller than k would let its answers be linked to
-		// the few participants in it; losing them is the lesser harm.
-		if n := store.dropped(); n > 0 {
-			slog.Warn("survey: queued submissions dropped at shutdown; their senders can answer again", "count", n)
-		}
 	}
 	slog.Info("Server stopped")
 }

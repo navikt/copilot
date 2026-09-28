@@ -23,7 +23,7 @@ import (
 var updateConfigDocs = flag.Bool("update-config-docs", false, "rewrite the config key tables in the docs")
 
 var (
-	configDocsPage   = filepath.Join("..", "..", "..", "..", "apps", "my-copilot", "src", "app", "(nb)", "nav-pilot", "referanse", "data.ts")
+	configDocsPage   = filepath.Join("..", "..", "..", "..", "apps", "my-copilot", "src", "app", "(nb)", "(nav-pilot)", "nav-pilot", "referanse", "data.ts")
 	configDocsReadme = filepath.Join("..", "..", "..", "..", "docs", "README.nav-pilot.md")
 )
 

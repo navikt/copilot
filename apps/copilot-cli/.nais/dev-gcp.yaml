@@ -12,4 +12,3 @@ azure_tenant: nav.no
 github_org: navikt
 copilot_api_url: http://copilot-api
 log_level: DEBUG
-db_tier: db-f1-micro

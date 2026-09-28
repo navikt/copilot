@@ -6,8 +6,8 @@ holds neither.
 
 `copilot-cli` is the second caller: a gateway that lets `nav-pilot` reach the same
 backend from a terminal. It holds the nav-pilot GitHub App's client id and secret,
-for checking a user's token, plus the survey keys and database. It holds no GitHub App
-private key.
+for checking a user's token, and nothing else. Survey answers go on to `copilot-survey`,
+which holds the survey keys and database and has no ingress.
 
 This document covers the shape of the system and the reasoning behind it. The endpoint
 list, the full config table and the error-type catalogue live in
@@ -53,15 +53,15 @@ nav-pilot
   ▼
 copilot-cli (Go gateway, naisdevice-gated ingress)
   │  validates the token against GitHub and checks navikt org membership
-  │  asks Texas for an M2M token minted for the copilot-api audience
-  ▼
-copilot-api
+  │  asks Texas for an M2M token minted for the audience of the service it calls
+  ├──▶ copilot-api      (usage)
+  └──▶ copilot-survey   (survey routes; no ingress)
 ```
 
 An M2M token carries no user claims, so the resolved GitHub username travels in an
 explicit `X-On-Behalf-Of` header, which `copilot-api` trusts only for GET requests
-from a pre-authorized `azp`. That trust path and its limits are set out in
-[SECURITY.md](./SECURITY.md).
+from a pre-authorized `azp`, and `copilot-survey` only on the answer route. That trust
+path and its limits are set out in [SECURITY.md](./SECURITY.md).
 
 ## Token validation
 
