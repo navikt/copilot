@@ -32,6 +32,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **Riktig navn**: `nav-pilot alpha local setup` kalte `mlx_lm.server` på port 8080 for llama-server. Nå kjenner den igjen serveren på `Server`-headeren.
 - **Riktig modell**: `mlx_lm.server` lister alle MLX-modellene i Hugging Face-cachen og laster den en forespørsel ber om. setup foretrakk den første Qwen3.6-35B-modellen i lista, som kunne være det vanlige 4-bit-bygget. Nå kommer bygget fra nav-pilots egen modelliste først (OptiQ), og setup sier fra om at modellen kan være en annen enn den serveren ble startet med (#1102).
+### opencode spørres om versjonen én gang
+
+- **Svaret lagres**: Før hver opencode-økt kjørte nav-pilot `opencode --version`, som tar et kvart sekund. Nå lagres svaret i `~/.nav-pilot/client-versions.json`, og nav-pilot spør igjen først når programfila er byttet ut, for eksempel etter en oppgradering. Det samme gjelder `copilot --version`, som nav-pilot bruker for å se om copilot egentlig er cplt.
+
 ### alpha local setup: riktige hint
 
 - **Hintene tar med flaggene dine**: Kjørte du setup med `--endpoint` eller `--model`, står de også i kommandoen setup foreslår til slutt. Uten `--endpoint` leter setup etter servere på nytt og kan finne en annen.
