@@ -1,6 +1,8 @@
 package local
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,13 +19,14 @@ import (
 )
 
 // fakeMLXServer stands in for mlx_lm.server: a ThreadingHTTPServer whose POST
-// sleeps for the milliseconds in its body and counts how many ran at once. GET
-// /peak reports that count.
+// sleeps for the milliseconds in its body (none for a JSON one, like a probe) and counts how many ran at once and
+// in all. GET /peak reports both: "<peak> <ran>".
 const fakeMLXServer = `import sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 _mu = threading.Lock()
 _now = [0]
 _peak = [0]
+_ran = [0]
 class APIHandler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -34,16 +37,18 @@ class APIHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
     def do_POST(self):
-        ms = int(self.rfile.read(int(self.headers["Content-Length"])) or 0)
+        body = self.rfile.read(int(self.headers["Content-Length"]))
+        ms = int(body) if body.isdigit() else 0
         with _mu:
             _now[0] += 1
+            _ran[0] += 1
             _peak[0] = max(_peak[0], _now[0])
         time.sleep(ms / 1000)
         with _mu:
             _now[0] -= 1
-        self._reply("{}")
+        self._reply('{"usage": {"completion_tokens": 1}}')
     def do_GET(self):
-        self._reply(str(_peak[0]))
+        self._reply("%d %d" % (_peak[0], _ran[0]))
 def main():
     port = int(sys.argv[sys.argv.index("--port") + 1])
     ThreadingHTTPServer(("127.0.0.1", port), APIHandler).serve_forever()
@@ -102,14 +107,18 @@ func post(t testing.TB, base string, ms int) (int, string, http.Header) {
 	return resp.StatusCode, string(b), resp.Header
 }
 
-func peak(t *testing.T, base string) string {
+// peak returns the most POSTs that ran at once and how many ran in all.
+func peak(t *testing.T, base string) (int, int) {
 	resp, err := http.Get(base + "/peak")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
-	b, _ := io.ReadAll(resp.Body)
-	return string(b)
+	var p, ran int
+	if _, err := fmt.Fscan(resp.Body, &p, &ran); err != nil {
+		t.Fatal(err)
+	}
+	return p, ran
 }
 
 func setQueue(t *testing.T, depth int, wait time.Duration) {
@@ -136,13 +145,13 @@ func TestServerQueueServesOneAtATime(t *testing.T) {
 	}
 	time.Sleep(100 * time.Millisecond)
 	started := time.Now()
-	_ = peak(t, base)
+	_, _ = peak(t, base)
 	if d := time.Since(started); d > 200*time.Millisecond {
 		t.Errorf("a GET took %v behind the queued POSTs; health checks must not queue", d)
 	}
 	wg.Wait()
-	if got := peak(t, base); got != "1" {
-		t.Errorf("peak concurrent POSTs = %s, want 1", got)
+	if p, ran := peak(t, base); p != 1 || ran != 10 {
+		t.Errorf("peak concurrent POSTs = %d of %d, want 1 of 10", p, ran)
 	}
 }
 
@@ -156,7 +165,7 @@ func TestServerQueueWithoutTheBootstrapOverlaps(t *testing.T) {
 		go func() { defer wg.Done(); post(t, base, 200) }()
 	}
 	wg.Wait()
-	if got := peak(t, base); got == "1" {
+	if p, _ := peak(t, base); p == 1 {
 		t.Error("the bare fake served four POSTs one at a time; it cannot show the queue working")
 	}
 }
@@ -225,5 +234,57 @@ func BenchmarkServerQueueOverhead(b *testing.B) {
 				}
 			}
 		})
+	}
+}
+
+// TestServerQueueProbeDoesNotWait: a health probe behind a long answer is told
+// busy at once, not queued until it times out and reads as hung.
+func TestServerQueueProbeDoesNotWait(t *testing.T) {
+	setQueue(t, 4, time.Minute)
+	base := startFakeMLX(t, true)
+	ctx := context.Background()
+
+	if _, err := probeCompletion(ctx, base, "m"); err != nil {
+		t.Fatalf("probe on an idle server = %v, want an answer", err)
+	}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() { defer wg.Done(); post(t, base, 1500) }()
+	defer wg.Wait()
+	time.Sleep(200 * time.Millisecond)
+
+	started := time.Now()
+	if _, err := probeCompletion(ctx, base, "m"); !errors.Is(err, errServerBusy) {
+		t.Errorf("probe behind a long answer = %v, want errServerBusy", err)
+	}
+	if d := time.Since(started); d > 500*time.Millisecond {
+		t.Errorf("the probe took %v; it must not queue", d)
+	}
+}
+
+// TestServerQueueDropsAClientThatLeft: a client that gives up while waiting
+// frees its place in the queue and is never generated for.
+func TestServerQueueDropsAClientThatLeft(t *testing.T) {
+	setQueue(t, 1, time.Minute)
+	base := startFakeMLX(t, true)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() { defer wg.Done(); post(t, base, 1500) }()
+	time.Sleep(200 * time.Millisecond)
+
+	impatient := &http.Client{Timeout: 200 * time.Millisecond}
+	if resp, err := impatient.Post(base+"/v1/chat/completions", "application/json", strings.NewReader("0")); err == nil {
+		resp.Body.Close()
+		t.Fatalf("the impatient client got %s; it should have timed out waiting", resp.Status)
+	}
+	time.Sleep(600 * time.Millisecond) // the queue notices within a poll
+
+	if code, body, _ := post(t, base, 0); code != http.StatusOK {
+		t.Errorf("POST after the waiter left = %d %s, want 200: its place should be free", code, body)
+	}
+	wg.Wait()
+	if _, ran := peak(t, base); ran != 2 {
+		t.Errorf("POSTs run = %d, want 2: the one that left must not be generated for", ran)
 	}
 }

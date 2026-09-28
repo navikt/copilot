@@ -750,6 +750,10 @@ const (
 	// HealthCrashed: the process is gone. Restart.
 	HealthCrashed Health = "crashed"
 
+	// HealthBusy: the process is alive and answering another request. The
+	// probe does not queue behind it, so this is all it can say.
+	HealthBusy Health = "busy"
+
 	// HealthHung: the process is alive and accepting connections but did not
 	// answer within healthTimeout. Restart — it will not recover.
 	HealthHung Health = "hung"
@@ -860,6 +864,11 @@ func (p *execProc) Wait() exitInfo {
 // generation thread while the process stays alive — the hung state below — so
 // a health check that sends the same bytes every time is a health check that
 // can cause the failure it is looking for.
+// errServerBusy is [probeCompletion] finding the server answering another
+// request. [serverBootstrap] answers a probe that at once instead of queueing
+// it, so a long answer does not make a healthy server look hung.
+var errServerBusy = errors.New("the local server is answering another request")
+
 var probeCompletion = func(ctx context.Context, baseURL, model string) (int, error) {
 	body, err := json.Marshal(map[string]any{
 		"model":      model,
@@ -875,6 +884,7 @@ var probeCompletion = func(ctx context.Context, baseURL, model string) (int, err
 		return 0, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Nav-Pilot-Probe", "1")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return 0, err
@@ -883,6 +893,9 @@ var probeCompletion = func(ctx context.Context, baseURL, model string) (int, err
 	data, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return 0, err
+	}
+	if resp.StatusCode == http.StatusServiceUnavailable && strings.Contains(string(data), `"server_busy"`) {
+		return 0, errServerBusy
 	}
 	if resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("POST /v1/chat/completions: %s: %s", resp.Status, strings.TrimSpace(string(data)))
@@ -1066,7 +1079,9 @@ const threadDiedMarker = "nav-pilot: pid %d: the server's thread "
 // prompts of different lengths make that batching raise and leave the server
 // hung (see TestGuardSerialisesCompletions). The guard's lock file only covers
 // clients that can reach ~/.nav-pilot; a sandboxed hook cannot. A lock in the
-// server covers every client, and GETs (health, models) are never queued.
+// server covers every client. GETs are never queued, a health probe (header
+// X-Nav-Pilot-Probe) is answered 503 busy rather than queued, and a client that
+// disconnects while waiting gives up its place and is not generated for.
 // ponytail: threading.Lock is not FIFO, so a waiter can be overtaken; add a
 // ticket queue if anyone ever starves in practice.
 //
@@ -1083,32 +1098,55 @@ def _die(a):
     os._exit(70)
 threading.excepthook = _die
 sys.argv[0] = "mlx_lm.server"
-import json
+import io, json, select, socket, time
 import mlx_lm.server as _server
-_admit = threading.BoundedSemaphore(_QUEUE + 1)
+_admit = threading.BoundedSemaphore(_QUEUE)
 _turn = threading.Lock()
 _post = _server.APIHandler.do_POST
 def _busy(h, why):
     body = json.dumps({"error": {"message": "nav-pilot: the local model server is busy: %s. Try again in a moment." % why, "type": "server_busy", "code": 503}}).encode()
     h.close_connection = True
-    h.send_response(503)
-    h.send_header("Content-Type", "application/json")
-    h.send_header("Content-Length", str(len(body)))
-    h.send_header("Retry-After", "5")
-    h.end_headers()
-    h.wfile.write(body)
-def _one_at_a_time(self):
-    if not _admit.acquire(blocking=False):
-        return _busy(self, "%d requests are already waiting" % _QUEUE)
     try:
-        if not _turn.acquire(timeout=_WAIT):
-            return _busy(self, "waited %g s for the request ahead of this one" % _WAIT)
+        h.send_response(503)
+        h.send_header("Content-Type", "application/json")
+        h.send_header("Content-Length", str(len(body)))
+        h.send_header("Retry-After", "5")
+        h.end_headers()
+        h.wfile.write(body)
+    except OSError:
+        pass
+def _gone(h):
+    # The body is already read and the server speaks HTTP/1.0, so anything
+    # readable on the socket now is the client closing it.
+    try:
+        return bool(select.select([h.connection], [], [], 0)[0]) and h.connection.recv(1, socket.MSG_PEEK) == b""
+    except OSError:
+        return True
+def _one_at_a_time(self):
+    n = int(self.headers.get("Content-Length") or 0)
+    self.rfile = io.BufferedReader(io.BytesIO(self.rfile.read(n)))
+    if self.headers.get("X-Nav-Pilot-Probe"):
+        # A health probe never waits: a server answering someone else is
+        # alive, and a probe stuck behind a long answer would read as hung.
+        if not _turn.acquire(blocking=False):
+            return _busy(self, "answering another request")
+    else:
+        if not _admit.acquire(blocking=False):
+            return _busy(self, "%d requests are already waiting" % _QUEUE)
         try:
-            _post(self)
+            deadline = time.monotonic() + _WAIT
+            while not _turn.acquire(timeout=0.25):
+                if _gone(self):
+                    return
+                if time.monotonic() >= deadline:
+                    return _busy(self, "waited %g s for the request ahead of this one" % _WAIT)
         finally:
-            _turn.release()
+            _admit.release()
+    try:
+        if not _gone(self):
+            _post(self)
     finally:
-        _admit.release()
+        _turn.release()
 _server.APIHandler.do_POST = _one_at_a_time
 sys.exit(_server.main())
 `
@@ -1244,6 +1282,8 @@ func (s *Server) waitReady(ctx context.Context, model string) error {
 		cancel()
 		switch {
 		case err != nil:
+			// errServerBusy too: a request that arrived during loading holds
+			// the server, so busy does not prove the weights are in.
 			last = err
 		case tokens > 0:
 			// An answer proves something is on the port, not that it is ours.
@@ -1306,6 +1346,8 @@ func (s *Server) Health(ctx context.Context) Health {
 		return HealthCrashed
 	}
 	switch {
+	case errors.Is(err, errServerBusy):
+		return HealthBusy
 	case err != nil && timedOut && !wasReady && time.Since(started) < readyTimeout:
 		// A cold start, not a hang. mlx-lm binds the port before it maps the
 		// weights, so a probe sent while it is loading is accepted and then

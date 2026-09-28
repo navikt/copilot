@@ -6,8 +6,9 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Den lokale serveren tar én forespørsel om gangen
 
-- **Køen ligger i serveren**: mlx-lm henger seg opp på samtidige forespørsler av ulik lengde. Til nå var det bare en låsefil i `~/.nav-pilot` som hindret det, og den når ikke en hook inne i cplt. Nå slipper serveren nav-pilot starter, gjennom én POST om gangen, for alle klienter. Helsesjekker og `/v1/models` står aldri i kø.
-- **Kø med grenser**: Opptil åtte forespørsler venter i inntil ti minutter hver. Er køen full, eller ventetiden ute, svarer serveren `503` med `Retry-After` og en melding om at den er opptatt.
+- **Køen ligger i serveren**: mlx-lm henger seg opp på samtidige forespørsler av ulik lengde. Til nå var det bare en låsefil i `~/.nav-pilot` som hindret det, og den når ikke en hook inne i cplt. Nå slipper serveren nav-pilot starter, gjennom én POST om gangen, for alle klienter.
+- **Kø med grenser**: Opptil åtte forespørsler venter i inntil ti minutter hver. Er køen full, eller ventetiden ute, svarer serveren `503` med `Retry-After` og en melding om at den er opptatt. En klient som gir opp mens den venter, mister plassen sin, og serveren genererer ikke svar til den.
+- **`nav-pilot alpha local status` venter ikke i køen**: Svarer serveren noen andre, står det `busy` i stedet for `hung`.
 - **Kjører serveren fra før oppdateringen**, får den køen først etter `nav-pilot alpha local restart` (#1169).
 
 ### opencode er standardklient for nye installasjoner
