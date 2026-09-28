@@ -1,5 +1,5 @@
 ---
-title: "Nav-pilot lander på bakken"
+title: "nav-pilot lander på bakken"
 date: 2026-08-30
 featured: true
 author: starefossen
@@ -88,12 +88,12 @@ I disse laboppgavene hang besparelsen sammen med hvor mange steg skymodellen bru
 
 ![Jo flere steg skymodellen trenger alene, jo mer sparer du på å sende arbeidet til den lokale modellen. 19 steg sparer 61 prosent, 13 steg sparer 47 prosent, 5 steg sparer 20 prosent, og på 2 steg koster utsendingen 79 prosent mer enn den sparer.](/images/nav-pilot-step-count.svg)
 
-| Skymodellen alene | Med lokal modell    |
-| ----------------- | ------------------- |
-| 19 steg           | sparer 61 %         |
-| 13 steg           | sparer 47 %         |
-| 5 steg            | sparer 20 %         |
-| 2 steg            | **koster 79 % mer** |
+| Skymodellen alene | Med den lokale modellen |
+| ----------------- | ----------------------- |
+| 19 steg           | sparer 61 %             |
+| 13 steg           | sparer 47 %             |
+| 5 steg            | sparer 20 %             |
+| 2 steg            | **koster 79 % mer**     |
 
 I oppgaven der skymodellen brukte to steg, økte lokal delegering credit-forbruket. I de tre oppgavene med flere steg gikk forbruket ned.
 
