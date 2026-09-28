@@ -116,7 +116,7 @@ async function UsageCard() {
   const { usage, error } = token ? await getCopilotUsageMetrics(token) : { usage: null, error: "Not authenticated" };
   const metrics = !error && usage?.length ? getAggregatedMetrics(usage) : null;
 
-  if (!metrics?.monthlyActiveUsers || !metrics.dailyActiveUsers) {
+  if (!metrics?.monthlyActiveUsers) {
     return (
       <HighlightCard href="/statistikk" prefetch={false} title="Bruksmønster">
         <NoData loggedIn={!!token} />
@@ -139,7 +139,10 @@ async function UsageCard() {
     },
     {
       label: "CLI",
-      pct: Math.round((metrics.dailyActiveCLIUsers / metrics.dailyActiveUsers) * 100),
+      // A day with no active users has no CLI share; show a dash, not the whole card as empty.
+      pct: metrics.dailyActiveUsers
+        ? Math.round((metrics.dailyActiveCLIUsers / metrics.dailyActiveUsers) * 100)
+        : undefined,
       color: "bg-amber-500",
     },
   ];
@@ -149,7 +152,7 @@ async function UsageCard() {
       <HStack gap="space-4" className="w-full" justify="space-between">
         {items.map((item) => (
           <VStack key={item.label} align="center" gap="space-2" className="flex-1">
-            <Stat>{item.pct} %</Stat>
+            <Stat>{item.pct === undefined ? "–" : `${item.pct} %`}</Stat>
             <HStack gap="space-4" align="center">
               <span className={`inline-block w-2 h-2 rounded-full ${item.color}`} />
               <BodyShort size="small" className="text-text-subtle">
