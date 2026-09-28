@@ -48,13 +48,35 @@ func TestOpenCodeConfigWithComments(t *testing.T) {
 		t.Errorf("OPENCODE_CONFIG_CONTENT = %v", env)
 	}
 
+	// A write that adds and removes still hands the session the addition.
+	openCodeLaunchConfig = map[string]any{}
+	stale := `{
+  // mine
+  "agent": {"local-worker": {"model": "mlx/old"}},
+}
+`
+	if err := os.WriteFile(ConfigPathOverride, []byte(stale), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := mutateOpenCodeConfig(func(cfg map[string]any) bool {
+		delete(cfg, "agent")
+		cfg["provider"] = map[string]any{"mlx": map[string]any{"options": map[string]any{"baseURL": "http://127.0.0.1:9/v1"}}}
+		return true
+	})
+	if err == nil || !strings.Contains(err.Error(), "agent") {
+		t.Fatalf("add+remove on a commented file = %v, want an error naming agent", err)
+	}
+	if _, ok := openCodeLaunchConfig["provider"]; !ok {
+		t.Fatalf("the addition was lost with the removal: %v", openCodeLaunchConfig)
+	}
+
 	// Removing something the commented file holds cannot go through the
 	// session, so it says what to remove.
 	withPolicy := strings.Replace(commented, `"/mine.md",`, `"/mine.md", "`+localPolicyPath()+`"`, 1)
 	if err := os.WriteFile(ConfigPathOverride, []byte(withPolicy), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	err := RemoveOpenCodeLocalPolicy()
+	err = RemoveOpenCodeLocalPolicy()
 	if err == nil || !strings.Contains(err.Error(), "has comments") || !strings.Contains(err.Error(), localPolicyPath()) {
 		t.Fatalf("RemoveOpenCodeLocalPolicy on a commented file = %v", err)
 	}

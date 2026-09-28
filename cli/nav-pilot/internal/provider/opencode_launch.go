@@ -600,22 +600,26 @@ func writeOpenCodeConfig(path string, data []byte, cfg map[string]any, commented
 	var before map[string]any
 	_ = json.Unmarshal(stripJSONC(data), &before)
 	add, removed := configDelta(before, cfg, "")
-	if len(removed) > 0 {
-		return fmt.Errorf("%s has comments, so nav-pilot does not rewrite it. Remove %s from it yourself", path, strings.Join(removed, ", "))
-	}
+	// Additions first: a write that also removes still hands the session
+	// what it adds, such as a new guard port.
 	if add, ok := add.(map[string]any); ok && len(add) > 0 {
 		if len(openCodeLaunchConfig) == 0 {
-			fmt.Fprintf(os.Stderr, "%s %s has comments, so nav-pilot leaves it as it is and gives its settings to this session only.\n", domain.Dim("ℹ"), path)
+			fmt.Fprintf(os.Stderr, "%s %s has comments or trailing commas, so nav-pilot leaves it alone; the settings it would have written apply only to sessions nav-pilot starts.\n", domain.Dim("ℹ"), path)
 		}
 		for k, v := range add {
 			openCodeLaunchConfig[k] = mergeJSON(openCodeLaunchConfig[k], v)
 		}
 	}
+	if len(removed) > 0 {
+		return fmt.Errorf("%s has comments or trailing commas, so nav-pilot does not rewrite it; remove %s by hand", path, strings.Join(removed, ", "))
+	}
 	return nil
 }
 
-// configDelta is what after adds to before: new keys, changed values, and the
-// new items of a list (OpenCode appends lists from OPENCODE_CONFIG_CONTENT).
+// configDelta is what after adds to before: new keys and changed values.
+// OpenCode merges OPENCODE_CONFIG_CONTENT over the file key by key and
+// replaces lists, except "instructions", which it unions: for that one the
+// delta is the new entries, and an entry after no longer has is removed.
 // removed names what after no longer has.
 func configDelta(before, after any, at string) (add any, removed []string) {
 	name := func(k string) string {
@@ -650,6 +654,12 @@ func configDelta(before, after any, at string) (add any, removed []string) {
 		return out, removed
 	case []any:
 		b, _ := before.([]any)
+		if at != "instructions" {
+			if reflect.DeepEqual(before, after) {
+				return nil, nil
+			}
+			return a, nil
+		}
 		var out []any
 		for _, v := range a {
 			if !slices.ContainsFunc(b, func(x any) bool { return reflect.DeepEqual(x, v) }) {
