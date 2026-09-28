@@ -14,6 +14,8 @@ describe("search index", () => {
       context: "Lokal modell",
     });
     expect(index.some((e) => e.href === "/nyheter/lokale-modeller-i-nav-pilot")).toBe(true);
+    // No date in the context, or «2026» would find every news item.
+    expect(index.filter((e) => e.href.startsWith("/nyheter/")).every((e) => e.context === "Nyhet")).toBe(true);
   });
 
   // src/link-inventory.test.ts checks that every inventoried path and anchor resolves.

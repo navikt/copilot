@@ -3,7 +3,6 @@ import path from "node:path";
 import { slugify } from "@/components/linkable-heading";
 import inventory from "@/lib/link-inventory.json";
 import { SECTION } from "@/lib/nav-items";
-import { formatDate } from "@/lib/format";
 import { getNewsItems } from "@/lib/news";
 import type { SearchEntry } from "@/lib/site-search";
 
@@ -39,9 +38,11 @@ function headingLabels(dir: string): Map<string, string> {
     for (const m of src.matchAll(/<(LinkableHeading|Heading|h[1-6])\b((?:[^>"]|"[^"]*")*)>([\s\S]*?)<\/\1>/g)) {
       const children = m[3].replace(/\{" "\}/g, " ");
       if (children.includes("{")) continue;
+      // Our own source, shown as text: split on tags, then drop any stray < or >.
       const text = children
-        .replace(/<[^>]*>/g, "")
-        .replace(/[<>]/g, "") // a stray < or > left by a partial tag
+        .split(/<[^>]*>/)
+        .join("")
+        .replace(/[<>]/g, "")
         .replace(/\s+/g, " ")
         .trim();
       const id = m[2].match(/\bid="([^"]+)"/)?.[1] ?? (m[1] === "LinkableHeading" ? slugify(text) : undefined);
@@ -70,7 +71,7 @@ export function buildSearchIndex(): SearchEntry[] {
 
   const news = getNewsItems({ lang: "nb" })
     .filter((n) => n.title && `/nyheter/${n.slug}` in paths)
-    .map((n) => ({ href: `/nyheter/${n.slug}`, title: n.title, context: `Nyhet, ${formatDate(n.date)}` }));
+    .map((n) => ({ href: `/nyheter/${n.slug}`, title: n.title, context: "Nyhet" }));
 
   return [...pages, ...headings, ...news];
 }

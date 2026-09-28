@@ -1,7 +1,7 @@
 "use client";
 
 import { MagnifyingGlassIcon } from "@navikt/aksel-icons";
-import { BodyShort, Button, Dialog, Search, Theme } from "@navikt/ds-react";
+import { BodyShort, Button, Dialog, Search, Theme, VStack } from "@navikt/ds-react";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore } from "react";
@@ -179,28 +179,30 @@ export function SiteSearch({ label }: { label: string }) {
             />
           </Dialog.Header>
           <Dialog.Body>
-            <BodyShort role="status" size="small" className="mb-1 text-[var(--ax-text-neutral-subtle)]">
-              {status}
-            </BodyShort>
-            <ul role="listbox" id={`${id}-list`} aria-label="Treff" className="list-none">
-              {hits.map((h, i) => (
-                <li key={h.href} role="none">
-                  <NextLink
-                    id={optionId(i)}
-                    role="option"
-                    aria-selected={i === active}
-                    tabIndex={-1}
-                    href={h.href}
-                    onClick={() => setOpen(false)}
-                    onMouseMove={() => setActive(i)}
-                    className="search-hit"
-                  >
-                    <span className="search-hit-title">{h.title}</span>
-                    <span className="search-hit-context">{h.context}</span>
-                  </NextLink>
-                </li>
-              ))}
-            </ul>
+            <VStack gap="space-4">
+              <BodyShort role="status" size="small" textColor="subtle">
+                {status}
+              </BodyShort>
+              <ul role="listbox" id={`${id}-list`} aria-label="Treff" className="list-none">
+                {hits.map((h, i) => (
+                  <li key={h.href} role="none">
+                    <NextLink
+                      id={optionId(i)}
+                      role="option"
+                      aria-selected={i === active}
+                      tabIndex={-1}
+                      href={h.href}
+                      onClick={() => setOpen(false)}
+                      onMouseMove={() => setActive(i)}
+                      className="search-hit"
+                    >
+                      <span className="search-hit-title">{h.title}</span>
+                      <span className="search-hit-context">{h.context}</span>
+                    </NextLink>
+                  </li>
+                ))}
+              </ul>
+            </VStack>
           </Dialog.Body>
         </Dialog.Popup>
       </Theme>
