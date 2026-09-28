@@ -18,6 +18,9 @@ describe("/cplt", () => {
     const src = fs.readFileSync(PAGE, "utf-8");
     const buttons = src.match(/<CopyButton\b[^>]*>/g) ?? [];
     expect(buttons.length).toBeGreaterThan(0);
-    for (const b of buttons) expect(b).toMatch(/title="Copy"[\s\S]*activeText="Copied!"/);
+    for (const b of buttons) {
+      expect(b).toMatch(/title="Copy"/);
+      expect(b).toMatch(/activeText="Copied!"/);
+    }
   });
 });
