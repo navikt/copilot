@@ -35,7 +35,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **Sjekken går i bakgrunnen**: Én gang i døgnet spurte nav-pilot GitHub om en nyere versjon før kommandoen kjørte, et halvt sekund på godt nett og opptil fem sekunder uten nett. Nå svarer nav-pilot fra forrige sjekk og spør GitHub i bakgrunnen. Finnes en nyere versjon, sier nav-pilot fra ved neste kommando.
 - **`--version` og `--help` svarer med en gang**: De sender ikke lenger telemetri, så de venter ikke på nettet.
-- **Andre korte kommandoer venter høyst 300 ms**: `nav-pilot config get`, `list` og de andre kommandoene ventet opptil ett sekund på å sende telemetrien når de var ferdige. Svarte ikke nettet, tok `config get` et helt sekund, hver gang et skript eller shell-prompten kjørte den. Nå venter nav-pilot høyst 300 ms (#1234).
+- **Andre korte kommandoer venter høyst 300 ms**: `nav-pilot config get`, `list` og de fleste andre kommandoene ventet opptil ett sekund på å sende telemetrien når de var ferdige. Svarte ikke nettet, tok `config get` et helt sekund, hver gang et skript eller ledeteksten kjørte den. Nå venter nav-pilot høyst 300 ms (#1234).
 
 ### Sandkasse-spørsmålet venter på cplt
 
