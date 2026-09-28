@@ -339,5 +339,18 @@ func TestPiProvider_ContextLifecycle(t *testing.T) {
 		if res := p.SyncContext("", sourceDir, true, true, false); !res.Managed || res.Err != nil {
 			t.Errorf("SyncContext() = %+v, want managed with no error", res)
 		}
+
+		// A launch over existing state records freshness; the first did not,
+		// having nothing installed to judge (#1153).
+		rec := &staleRecorder{}
+		orig := telemetryRecorder
+		t.Cleanup(func() { telemetryRecorder = orig })
+		SetTelemetry(rec)
+		if _, err := p.Bootstrap(domain.ResolvedConfig{}); err != nil {
+			t.Fatalf("second Bootstrap() error: %v", err)
+		}
+		if len(rec.checks) != 1 || rec.checks[0] != "pi/pi" {
+			t.Errorf("freshness checks at launch = %v, want [pi/pi]", rec.checks)
+		}
 	})
 }

@@ -12,6 +12,10 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
+// piScopeName is the scope label pi's freshness telemetry carries, as
+// [artifacts.OpenCodeScopeName] is opencode's.
+const piScopeName = "pi"
+
 // PiNavContextDirOverride redirects the pi context directory in tests.
 var PiNavContextDirOverride string
 
@@ -43,11 +47,10 @@ func EnsurePiNavContext(ref, sourceRepo string) (string, error) {
 	// order the opencode path uses. Resolving with neither picks the built-in
 	// default, so a user whose config pointed at their own pakke got stock
 	// nav-pilot materialized for pi.
+	prev, _ := artifacts.ReadOpenCodeState(outputDir)
 	sRepo := sourceRepo
-	if sRepo == "" {
-		if prev, _ := artifacts.ReadOpenCodeState(outputDir); prev != nil && prev.SourceRepo != "" {
-			sRepo = prev.SourceRepo
-		}
+	if sRepo == "" && prev != nil && prev.SourceRepo != "" {
+		sRepo = prev.SourceRepo
 	}
 
 	src, err := source.ResolveSource(ref, sRepo, cliVersion)
@@ -55,6 +58,10 @@ func EnsurePiNavContext(ref, sourceRepo string) (string, error) {
 		return "", fmt.Errorf("resolving source: %w", err)
 	}
 	defer src.Cleanup()
+
+	if prev != nil {
+		recordFreshness("pi", piScopeName, assessStaleness(prev.Version))
+	}
 
 	// The syncing variant, not MaterializeOpenCode: it writes the state file
 	// that ContextStatus and `nav-pilot status` read, so pi's context is a
