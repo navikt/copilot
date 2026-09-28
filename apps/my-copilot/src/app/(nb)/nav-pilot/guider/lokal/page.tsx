@@ -257,13 +257,15 @@ nav-pilot alpha local doctor   # verktøykall, logprobs, kontekst og tid til fø
           </BodyLong>
           <Box background="warning-soft" padding="space-16" borderRadius="8">
             <VStack gap="space-8">
-              <Label size="small">Ollama kutter lange prompter uten å si fra</Label>
+              <Label size="small">Ollama kan gi modellen for lite kontekst</Label>
               <BodyShort size="small">
                 På maskiner med under 24 GB grafikkminne gir Ollama modellen 4 096 tokens kontekst, og det kan ikke
-                endres over <code className={code}>/v1</code>. En økt i Copilot starter med rundt 22 000 tokens, så
-                resten blir borte. Start Ollama med <code className={code}>OLLAMA_CONTEXT_LENGTH=65536</code>, eller lag
-                en egen modell med en Modelfile som har <code className={code}>PARAMETER num_ctx 65536</code>.{" "}
-                <code className={code}>doctor</code> sender rundt 30 000 tokens og feiler hvis serveren kutter.
+                endres over <code className={code}>/v1</code>. Med mer minne velger Ollama større kontekst selv (262 144
+                tokens på en Mac med 128 GB). En økt i Copilot starter med rundt 22 000 tokens. Eldre Ollama kutter
+                resten uten å si fra; Ollama 0.34 avviser prompten med en feil. Start Ollama med{" "}
+                <code className={code}>OLLAMA_CONTEXT_LENGTH=65536</code>, eller lag en egen modell med en Modelfile som
+                har <code className={code}>PARAMETER num_ctx 65536</code>. <code className={code}>doctor</code> sender
+                rundt 30 000 tokens og feiler hvis serveren kutter eller avviser dem.
               </BodyShort>
             </VStack>
           </Box>

@@ -19,7 +19,18 @@ exec nav-pilot alpha local setup --fix-context --yes
 stdout 'Created qwen3\.6-35b-navpilot'
 stdout 'Checking qwen3\.6-35b-navpilot again'
 stdout 'PASS  context'
+! stdout 'does not list'
 stdout 'Saved\. Local dispatch is on, to qwen3\.6-35b-navpilot'
 grep 'POST /api/create' fake/ollama.log
 exec nav-pilot config get local_endpoint_model
 stdout '^qwen3\.6-35b-navpilot$'
+
+# Ollama lists the copy as qwen3.6-35b-navpilot:latest; the saved name is the same model.
+exec nav-pilot alpha local doctor
+stdout 'PASS  server +answers and lists qwen3\.6-35b-navpilot'
+! stdout 'WARN'
+
+# setup --model with the untagged name finds the listed name:latest.
+exec nav-pilot alpha local setup --model qwen3.6-35b-navpilot --yes
+stdout 'Using +qwen3\.6-35b-navpilot:latest'
+stdout 'Saved\.'

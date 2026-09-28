@@ -1,0 +1,20 @@
+# A fresh Ollama with nothing pulled answers /v1/models with "data": null.
+# It is still a server: setup finds it and offers the pull, rather than
+# saying nothing is running.
+
+fake-endpoint -export OLLAMA -models ''
+env NAV_PILOT_SETUP_CANDIDATES=ollama=$OLLAMA_ADDR
+
+exits 1 nav-pilot alpha local setup
+stdout 'Ollama +127\.0\.0\.1:[0-9]+ +no models'
+! stdout 'No local server is running'
+stdout 'Ollama has no model nav-pilot knows\. Recommended: qwen3\.6:35b'
+stdout 'Not downloaded\. Run it yourself, or pass --pull'
+stdout 'lists no model nav-pilot can use'
+! grep 'POST /api/pull' fake/ollama.log
+! exists home/config.toml
+
+exec nav-pilot alpha local setup --pull --yes
+stdout 'Pulled qwen3\.6:35b'
+stdout 'Saved\. Local dispatch is on, to qwen3\.6:35b'
+grep 'POST /api/pull' fake/ollama.log

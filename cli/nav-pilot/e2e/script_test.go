@@ -297,7 +297,9 @@ func serveFakeMLX() {
 // prompt to N tokens, the way Ollama's small default num_ctx does. Every
 // request path goes to $WORK/fake/endpoint.log. Like Ollama, it answers
 // POST /api/pull (the model is listed afterwards) and /api/create with a
-// "from" and "parameters.num_ctx" (the copy keeps that many tokens). -export
+// "from" and "parameters.num_ctx" (the copy keeps that many tokens, and is
+// listed as name:latest, as Ollama lists it). -models with an empty value lists none, and
+// answers "data": null the way an Ollama with nothing pulled does. -export
 // -llama makes it llama-server rather than Ollama (no /api/version). -export
 // names the variable instead of FAKE_ENDPOINT_URL, and VAR_ADDR gets host:port.
 func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
@@ -363,7 +365,12 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 				} `json:"parameters"`
 			}
 			_ = json.NewDecoder(r.Body).Decode(&req)
-			models = append(models, req.Model)
+			// Ollama lists an untagged name as name:latest.
+			listed := req.Model
+			if !strings.Contains(listed, ":") {
+				listed += ":latest"
+			}
+			models = append(models, listed)
 			if req.Parameters.NumCtx > 0 {
 				modelCtx[req.Model] = req.Parameters.NumCtx
 			}
@@ -399,7 +406,7 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 		}
 		prompt := chars / 4
 		limit := ctxTokens
-		if n, ok := modelCtx[req.Model]; ok {
+		if n, ok := modelCtx[strings.TrimSuffix(req.Model, ":latest")]; ok { // Ollama answers to x and x:latest alike
 			limit = n
 		}
 		if limit > 0 && prompt > limit {
