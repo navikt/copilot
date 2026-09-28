@@ -393,10 +393,8 @@ func cmdSurvey(jsonOutput bool) error {
 		st.Active, st.Fetched = active, now
 		writeSurveyState(st)
 	} else if len(st.Active) == 0 && !noSurveyService(err) {
-		var httpErr surveyHTTPError
-		if errors.As(err, &httpErr) {
-			return fmt.Errorf("copilot-cli svarte ikke som forventet, så nav-pilot fant ingen åpne undersøkelser: %w", err)
-		}
+		// Any HTTP status is caught by noSurveyService above; what is left is
+		// a transport failure (no route, DNS, connection refused).
 		return fmt.Errorf("fikk ikke kontakt med copilot-cli for å finne åpne undersøkelser (er naisdevice på?): %w", err)
 	}
 	var open []surveyDef
@@ -625,13 +623,15 @@ type surveyHTTPError struct {
 }
 
 // noSurveyService is a fetch that means "no survey to answer" rather than a
-// fault to report: a 404, which is what Nav's ingress answers where the
-// gateway is not deployed, or no answer within the timeout. nav-pilot survey
-// then says there is nothing open, as for an empty list.
+// fault to report: any non-2xx from copilot-cli (a 404, what Nav's ingress
+// answers where the gateway is not deployed; a 5xx, copilot-cli up but
+// copilot-survey not; or anything else it might answer), or no answer within
+// the timeout. nav-pilot survey then says there is nothing open, as for an
+// empty list.
 func noSurveyService(err error) bool {
 	var httpErr surveyHTTPError
 	var netErr net.Error
-	return (errors.As(err, &httpErr) && httpErr.code == http.StatusNotFound) ||
+	return errors.As(err, &httpErr) ||
 		errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout())
 }
 

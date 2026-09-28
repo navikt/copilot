@@ -119,3 +119,19 @@ func TestFetchActiveSurveysSeparatesHTTPErrorFromUnreachable(t *testing.T) {
 		t.Error("unreachable gateway returned no error")
 	}
 }
+
+// A 502 or 503 (copilot-cli up but copilot-survey not, e.g. a missing
+// secret) must be treated the same as a 404: nothing to report, no open
+// surveys, not an error shown to the user.
+func TestNoSurveyServiceCoversAny5xx(t *testing.T) {
+	for _, status := range []int{http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusInternalServerError} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(status)
+		}))
+		_, err := fetchActiveSurveys(srv.URL)
+		srv.Close()
+		if !noSurveyService(err) {
+			t.Errorf("noSurveyService(%v) on status %d = false, want true", err, status)
+		}
+	}
+}

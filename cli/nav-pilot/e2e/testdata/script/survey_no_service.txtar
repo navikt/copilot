@@ -1,5 +1,6 @@
 # nav-pilot survey with nothing to answer: no active survey, the gateway
-# answering 404 (Nav's ingress where copilot-cli is not deployed), or no answer
+# answering 404 (Nav's ingress where copilot-cli is not deployed), a 5xx
+# (copilot-cli up but copilot-survey not, e.g. a missing secret), or no answer
 # within the timeout. Each says there is nothing open and exits 0 (#1179).
 
 env NAV_PILOT_E2E_GITHUB_TOKEN=gho_e2e
@@ -11,6 +12,16 @@ exec nav-pilot survey --json
 stdout '^\[\]$'
 
 fake-survey -404
+exec nav-pilot survey
+stdout '^Ingen åpne undersøkelser akkurat nå\.$'
+! stderr .
+
+fake-survey -502
+exec nav-pilot survey
+stdout '^Ingen åpne undersøkelser akkurat nå\.$'
+! stderr .
+
+fake-survey -503
 exec nav-pilot survey
 stdout '^Ingen åpne undersøkelser akkurat nå\.$'
 ! stderr .
