@@ -402,6 +402,7 @@ func LaunchOpenCodeStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 	spec.env = applyOpenCodePolicy(spec.env)
 	warnUntestedOpenCode()
 	spec.env = applyOpenCodeMCPPolicy(spec.env, r.ProjectDir)
+	spec.env = applyOpenCodeOwnDirs(spec.env, r.ProjectDir)
 	spec.env, spec.cpltArgs = applyOpenCodeHooks(r, spec.env, spec.cpltArgs)
 	for _, msg := range OpenCodeUnsupportedConfigWarnings(r) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), msg)

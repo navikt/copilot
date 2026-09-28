@@ -253,6 +253,31 @@ func localPackage(command []string) string {
 // later definition of a name is merged over an earlier one. A file that does
 // not parse is skipped; OpenCode would refuse it anyway.
 func openCodeMCPServers(projectDir string, env []string) map[string]mcpServer {
+	servers := map[string]mcpServer{}
+	for _, doc := range openCodeConfigDocs(projectDir, env) {
+		var cfg struct {
+			MCP map[string]json.RawMessage `json:"mcp"`
+		}
+		if json.Unmarshal(stripJSONC(doc), &cfg) != nil {
+			if bytes.Contains(doc, []byte(`"mcp"`)) {
+				fmt.Fprintf(os.Stderr, "%s nav-pilot could not read an OpenCode config with MCP servers, so those servers were not checked against Nav's MCP registry; they run as configured.\n", domain.Yellow("⚠"))
+			}
+			continue
+		}
+		for name, raw := range cfg.MCP {
+			s := servers[name]
+			if json.Unmarshal(raw, &s) == nil {
+				servers[name] = s
+			}
+		}
+	}
+	return servers
+}
+
+// openCodeConfigDocs is the user's OpenCode config documents for this launch,
+// in OpenCode's merge order (see openCodeMCPServers), with {env:VAR} already
+// replaced. Comments are left in; parse with stripJSONC.
+func openCodeConfigDocs(projectDir string, env []string) [][]byte {
 	getenv := func(k string) string {
 		for _, e := range env {
 			if v, ok := strings.CutPrefix(e, k+"="); ok {
@@ -307,32 +332,15 @@ func openCodeMCPServers(projectDir string, env []string) map[string]mcpServer {
 	if c := getenv(openCodeConfigContentEnv); c != "" {
 		docs = append(docs, []byte(c))
 	}
-
-	servers := map[string]mcpServer{}
-	for _, doc := range docs {
-		var cfg struct {
-			MCP map[string]json.RawMessage `json:"mcp"`
-		}
-		// {env:VAR} is replaced as raw text before OpenCode parses, so it is
-		// here too: a URL behind a variable must be matched by its value, and
-		// an unquoted placeholder must not make the document unreadable.
-		doc = envPlaceholder.ReplaceAllFunc(doc, func(m []byte) []byte {
+	// {env:VAR} is replaced as raw text before OpenCode parses, so it is
+	// here too: a URL behind a variable must be matched by its value, and
+	// an unquoted placeholder must not make the document unreadable.
+	for i, doc := range docs {
+		docs[i] = envPlaceholder.ReplaceAllFunc(doc, func(m []byte) []byte {
 			return []byte(getenv(string(envPlaceholder.FindSubmatch(m)[1])))
 		})
-		if json.Unmarshal(stripJSONC(doc), &cfg) != nil {
-			if bytes.Contains(doc, []byte(`"mcp"`)) {
-				fmt.Fprintf(os.Stderr, "%s nav-pilot could not read an OpenCode config with MCP servers, so those servers were not checked against Nav's MCP registry; they run as configured.\n", domain.Yellow("⚠"))
-			}
-			continue
-		}
-		for name, raw := range cfg.MCP {
-			s := servers[name]
-			if json.Unmarshal(raw, &s) == nil {
-				servers[name] = s
-			}
-		}
 	}
-	return servers
+	return docs
 }
 
 // applyOpenCodeMCPPolicy turns off, for this launch, every enabled MCP server

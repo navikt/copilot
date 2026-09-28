@@ -361,6 +361,13 @@ export default function Klienter() {
           oppsettet, ikke med Tier 2, som ikke rører {c("opencode.json")}. Står det {c('"auto"')} der, får du en
           advarsel.
         </BodyLong>
+        <BodyLong>
+          Instruksjonene, agentene og skillene nav-pilot installerer, ligger i {c("~/.config/opencode/")}, utenfor
+          prosjektet. Økter nav-pilot starter, får lese dem uten å spørre om {c("external_directory")}, men ikke endre
+          dem: det er jobben til {c("nav-pilot sync")}. Uten dette må opencode spørre når modellen åpner en av dem, og{" "}
+          {c("opencode run")} svarer nei og avslutter økten. For andre kataloger utenfor prosjektet gjelder det du har
+          satt selv. Har du avslått {c("external_directory")} helt, med {c('"deny"')}, legger nav-pilot ikke til noe.
+        </BodyLong>
         <LinkableHeading id="utsending" size="small" level="3">
           Lokal utsending
         </LinkableHeading>
