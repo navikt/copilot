@@ -359,7 +359,9 @@ export default function Klienter() {
           {c('"share": "disabled"')} i {c("~/.config/opencode/opencode.json")} når fila ikke sier noe om deling, så det
           gjelder også når du starter opencode selv. Det skjer når nav-pilot starter en agentpakke i Tier 1 og i
           oppsettet, ikke med Tier 2, som ikke rører {c("opencode.json")}. Står det {c('"auto"')} der, får du en
-          advarsel.
+          advarsel. Har {c("opencode.json")} kommentarer, lar nav-pilot fila være, siden kommentarene ville forsvunnet
+          ved omskriving. Innstillingene nav-pilot trenger, gjelder da bare øktene nav-pilot starter. Må noe ut av fila,
+          for eksempel ved {c("nav-pilot alpha local off")}, sier nav-pilot hva du må fjerne selv.
         </BodyLong>
         <BodyLong>
           Instruksjonene, agentene og skillene nav-pilot installerer, ligger i {c("~/.config/opencode/")}, utenfor

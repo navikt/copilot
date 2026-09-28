@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -317,7 +318,7 @@ func EnsureOpenCodeConfig() error {
 	}
 
 	var cfg map[string]any
-	changed := false
+	changed, commented := false, false
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -331,8 +332,8 @@ func EnsureOpenCodeConfig() error {
 		}
 		changed = true
 	} else {
-		if err := json.Unmarshal(data, &cfg); err != nil {
-			return fmt.Errorf("opencode config is not valid JSON (%s): %w", path, err)
+		if cfg, commented, err = parseOpenCodeConfig(path, data); err != nil {
+			return err
 		}
 		// A file holding the literal `null` parses without error and leaves cfg
 		// nil, and assigning into a nil map panics. Erroring for the same reason
@@ -366,11 +367,7 @@ func EnsureOpenCodeConfig() error {
 	if !changed {
 		return nil
 	}
-	out, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshalling opencode config: %w", err)
-	}
-	return writeConfigAtomically(path, append(out, '\n'))
+	return writeOpenCodeConfig(path, data, cfg, commented)
 }
 
 // LocalProviderID is the opencode provider id the local server is registered
@@ -541,11 +538,12 @@ func RemoveOpenCodeLocalProvider() error {
 func mutateOpenCodeConfig(mutate func(cfg map[string]any) bool) error {
 	path := openCodeConfigPath()
 	cfg := map[string]any{"$schema": "https://opencode.ai/config.json"}
+	commented := false
 	data, err := os.ReadFile(path)
 	switch {
 	case err == nil:
-		if err := json.Unmarshal(data, &cfg); err != nil {
-			return fmt.Errorf("opencode config is not valid JSON (%s): %w", path, err)
+		if cfg, commented, err = parseOpenCodeConfig(path, data); err != nil {
+			return err
 		}
 		if cfg == nil { // the literal `null`; see EnsureOpenCodeConfig
 			return fmt.Errorf("opencode config is not a JSON object (%s): remove or fix the file", path)
@@ -559,11 +557,123 @@ func mutateOpenCodeConfig(mutate func(cfg map[string]any) bool) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("creating opencode config dir: %w", err)
 	}
-	out, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshalling opencode config: %w", err)
+	return writeOpenCodeConfig(path, data, cfg, commented)
+}
+
+// openCodeLaunchConfig is what a writer left out of an opencode.json with
+// comments (#1071). LaunchOpenCode hands it to this session in
+// OPENCODE_CONFIG_CONTENT, which OpenCode merges over the file.
+var openCodeLaunchConfig = map[string]any{}
+
+// parseOpenCodeConfig parses opencode's config the way OpenCode does, with
+// comments and trailing commas allowed. commented is whether it had them.
+func parseOpenCodeConfig(path string, data []byte) (cfg map[string]any, commented bool, err error) {
+	if json.Unmarshal(data, &cfg) == nil {
+		return cfg, false, nil
 	}
-	return writeConfigAtomically(path, append(out, '\n'))
+	cfg = nil
+	if err := json.Unmarshal(stripJSONC(data), &cfg); err != nil {
+		return nil, false, fmt.Errorf("opencode config is not valid JSON or JSONC (%s): %w", path, err)
+	}
+	return cfg, true, nil
+}
+
+// writeOpenCodeConfig writes cfg over the file that held data, unless the file
+// has comments: re-marshalling would drop them. Then what cfg adds goes to
+// openCodeLaunchConfig for this session, and what it removes is an error that
+// names it, since a launch can add to the config but not take away.
+func writeOpenCodeConfig(path string, data []byte, cfg map[string]any, commented bool) error {
+	if !commented {
+		out, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshalling opencode config: %w", err)
+		}
+		return writeConfigAtomically(path, append(out, '\n'))
+	}
+	var before map[string]any
+	_ = json.Unmarshal(stripJSONC(data), &before)
+	add, removed := configDelta(before, cfg, "")
+	// Additions first: a write that also removes still hands the session
+	// what it adds, such as a new guard port.
+	if add, ok := add.(map[string]any); ok && len(add) > 0 {
+		if len(openCodeLaunchConfig) == 0 {
+			fmt.Fprintf(os.Stderr, "%s %s has comments or trailing commas, so nav-pilot leaves it alone; the settings it would have written apply only to sessions nav-pilot starts.\n", domain.Dim("ℹ"), path)
+		}
+		for k, v := range add {
+			openCodeLaunchConfig[k] = mergeJSON(openCodeLaunchConfig[k], v)
+		}
+	}
+	if len(removed) > 0 {
+		return fmt.Errorf("%s has comments or trailing commas, so nav-pilot does not rewrite it; remove %s by hand", path, strings.Join(removed, ", "))
+	}
+	return nil
+}
+
+// configDelta is what after adds to before: new keys and changed values.
+// OpenCode merges OPENCODE_CONFIG_CONTENT over the file key by key and
+// replaces lists, except "instructions", which it unions: for that one the
+// delta is the new entries, and an entry after no longer has is removed.
+// removed names what after no longer has.
+func configDelta(before, after any, at string) (add any, removed []string) {
+	name := func(k string) string {
+		if at == "" {
+			return k
+		}
+		return at + "." + k
+	}
+	switch a := after.(type) {
+	case map[string]any:
+		b, ok := before.(map[string]any)
+		if !ok {
+			return a, nil
+		}
+		out := map[string]any{}
+		for k, v := range a {
+			if d, r := configDelta(b[k], v, name(k)); d != nil {
+				out[k] = d
+				removed = append(removed, r...)
+			} else {
+				removed = append(removed, r...)
+			}
+		}
+		for k := range b {
+			if _, ok := a[k]; !ok {
+				removed = append(removed, name(k))
+			}
+		}
+		if len(out) == 0 {
+			return nil, removed
+		}
+		return out, removed
+	case []any:
+		b, _ := before.([]any)
+		if at != "instructions" {
+			if reflect.DeepEqual(before, after) {
+				return nil, nil
+			}
+			return a, nil
+		}
+		var out []any
+		for _, v := range a {
+			if !slices.ContainsFunc(b, func(x any) bool { return reflect.DeepEqual(x, v) }) {
+				out = append(out, v)
+			}
+		}
+		for _, v := range b {
+			if !slices.ContainsFunc(a, func(x any) bool { return reflect.DeepEqual(x, v) }) {
+				removed = append(removed, at+" entry "+fmt.Sprint(v))
+			}
+		}
+		if len(out) == 0 {
+			return nil, removed
+		}
+		return out, removed
+	default:
+		if reflect.DeepEqual(before, after) {
+			return nil, nil
+		}
+		return after, nil
+	}
 }
 
 // writeConfigAtomically replaces the developer's config in one step: a
@@ -1023,6 +1133,10 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 				fmt.Fprintf(os.Stderr, "%s local_dispatch = %s is not enforced with --pure: opencode loads no plugins then, and the gate is a plugin.\n", domain.Yellow("⚠"), local.DispatchLevel())
 			}
 		}
+	}
+
+	if len(openCodeLaunchConfig) > 0 {
+		launchEnv = withOpenCodeConfigContent(launchEnv, openCodeLaunchConfig)
 	}
 
 	suffix := ""
