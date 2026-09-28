@@ -289,7 +289,7 @@ func serveFakeMLX() {
 	}))
 }
 
-// fake-endpoint [-no-logprobs] [-no-tools] [-ctx N] [-models a,b] [-export VAR] [-llama] starts an
+// fake-endpoint [-no-logprobs] [-no-tools] [-ctx N] [-oom-ctx N] [-models a,b] [-export VAR] [-llama] starts an
 // OpenAI-compatible server in the test process, the kind a developer runs
 // themselves for local_endpoint (Ollama, llama-server), and exports
 // FAKE_ENDPOINT_URL (with /v1). By default it lists qwen3.6:35b, answers a
@@ -303,12 +303,15 @@ func serveFakeMLX() {
 // answers "data": null the way an Ollama with nothing pulled does. -export
 // -llama makes it llama-server rather than Ollama (no /api/version). -export
 // names the variable instead of FAKE_ENDPOINT_URL, and VAR_ADDR gets host:port.
+// -oom-ctx N plays a server that runs out of memory: a chat with a model
+// whose context is over N tokens kills it, and it closes every connection
+// from then on, the way an OOM-killed Ollama stops answering.
 func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 	if neg {
 		ts.Fatalf("usage: fake-endpoint [-no-logprobs] [-no-tools] [-ctx N] [-models a,b]")
 	}
 	logprobs, tools, ctxTokens, models, export := true, true, 0, []string{"qwen3.6:35b"}, "FAKE_ENDPOINT_URL"
-	ollama := true
+	ollama, oomCtx, dead := true, 0, false
 	var mu sync.Mutex
 	modelCtx := map[string]int{}
 	for i := 0; i < len(args); i++ {
@@ -322,6 +325,11 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 			n, err := strconv.Atoi(args[i])
 			ts.Check(err)
 			ctxTokens = n
+		case "-oom-ctx":
+			i++
+			n, err := strconv.Atoi(args[i])
+			ts.Check(err)
+			oomCtx = n
 		case "-models":
 			i++
 			models = nil
@@ -350,6 +358,16 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 		}
 		mu.Lock()
 		defer mu.Unlock()
+		die := func() {
+			dead = true
+			if conn, _, err := http.NewResponseController(w).Hijack(); err == nil {
+				conn.Close()
+			}
+		}
+		if dead {
+			die()
+			return
+		}
 		switch r.URL.Path {
 		case "/api/version":
 			if ollama {
@@ -409,6 +427,10 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 		limit := ctxTokens
 		if n, ok := modelCtx[strings.TrimSuffix(req.Model, ":latest")]; ok { // Ollama answers to x and x:latest alike
 			limit = n
+		}
+		if oomCtx > 0 && limit > oomCtx {
+			die()
+			return
 		}
 		if limit > 0 && prompt > limit {
 			prompt = limit

@@ -12,6 +12,8 @@ stdout 'ollama create qwen3\.6-35b-navpilot -f Modelfile'
 stdout 'OLLAMA_CONTEXT_LENGTH=65536 ollama serve'
 stdout 'Not created\. Pass --fix-context'
 stderr 'nothing was saved\. Fix the FAIL lines above, then run nav-pilot alpha local setup --fix-context --yes'
+stdout 'Only the context check failed'
+stderr 'To save it with this context anyway: nav-pilot config set local_endpoint http://127\.0\.0\.1:\d+/v1 && nav-pilot config set local_endpoint_model qwen3\.6:35b'
 ! grep 'POST /api/create' fake/ollama.log
 ! exists home/config.toml
 

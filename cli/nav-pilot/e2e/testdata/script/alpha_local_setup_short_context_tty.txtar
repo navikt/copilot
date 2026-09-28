@@ -1,0 +1,14 @@
+# On a machine too small for a 30k context, setup offers to save the endpoint
+# anyway, with a warning that long prompts get cut (#1126). The answer
+# defaults to no.
+
+[!pty] skip 'needs a pseudo-terminal'
+fake-endpoint -export OLLAMA -ctx 4096
+env NAV_PILOT_SETUP_CANDIDATES=ollama=$OLLAMA_ADDR
+
+exec pty-run -wait 'Create qwen3.6-35b-navpilot now' -send '\r' -wait 'Save anyway, with long prompts cut' -send 'y' -- nav-pilot alpha local setup
+stdout 'Only the context check failed'
+stdout 'Saved\. Local dispatch is on, to qwen3\.6:35b'
+stdout 'Long prompts get cut'
+exec nav-pilot config get local_endpoint_model
+stdout '^qwen3\.6:35b$'
