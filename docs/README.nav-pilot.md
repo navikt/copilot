@@ -27,6 +27,10 @@ mise use -g 'github:navikt/copilot[exe=nav-pilot,version_prefix=nav-pilot/]@2026
 # Uten arkivet: .deb-en er også et releaseartefakt
 sudo apt install ./nav-pilot_2026.09.12-225921-bb3fbb6_$(dpkg --print-architecture).deb
 
+# I CI, en Dockerfile eller et skript: samme blokk, men med
+#   sudo apt-get install -y nav-pilot cplt
+# Uten terminal kan ikke apt spørre om du vil fortsette, og avbryter.
+
 # Linux / CI: last ned og inspiser skriptet manuelt
 curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh -o install.sh
 cat install.sh   # Se gjennom skriptet før kjøring

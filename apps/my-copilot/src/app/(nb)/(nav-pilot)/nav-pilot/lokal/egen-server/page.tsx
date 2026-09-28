@@ -77,6 +77,13 @@ export default function EgenServer() {
             forgrunnen og opptar terminalen. Start serveren i en egen terminal, og kjør resten av stegene i en annen.
           </BodyLong>
           <BodyLong>
+            Stopper <code className={code}>llama-server</code> fra llama.cpp-releasen for Ubuntu med{" "}
+            <code className={code}>libgomp.so.1: cannot open shared object file</code>, mangler maskinen OpenMP. Det
+            skjer gjerne i containere, minimale serverimager og WSL. Installer det med{" "}
+            <code className={code}>sudo apt install libgomp1</code>, eller{" "}
+            <code className={code}>sudo apt-get install -y libgomp1</code> i et skript.
+          </BodyLong>
+          <BodyLong>
             Vi anbefaler Qwen3.6-35B-A3B i dynamisk 4-bit (unsloth UD-Q4_K_XL). Det er den GGUF-varianten som ligger
             nærmest modellen vi har målt på Mac. <code className={code}>setup</code> ser også etter LM Studio og vLLM,
             men dem har vi ikke prøvd.
