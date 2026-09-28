@@ -237,7 +237,8 @@ func redactPath(p string) string {
 	}
 	for _, m := range []string{"/usage/user/", "/seats/"} {
 		if i := strings.Index(low, m); i >= 0 {
-			_, tail, _ := strings.Cut(low[i+len(m):], "/")
+			// TrimLeft: %2F before the name decodes to a leading slash.
+			_, tail, _ := strings.Cut(strings.TrimLeft(low[i+len(m):], "/"), "/")
 			if tail != "" {
 				tail = "/" + tail
 			}

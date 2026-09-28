@@ -304,6 +304,7 @@ func TestUsernamePathsRedacted(t *testing.T) {
 		"/api/v1/copilot/usage/user/Kari-Nordmann/weekly":        "GET /api/v1/copilot/usage/user/{username}/weekly",
 		"/api/v1/copilot/usage/user/Kari-Nordmann/daily-credits": "GET /api/v1/copilot/usage/user/{username}/daily-credits",
 		"/api/v1/copilot/seats/Kari-Nordmann":                    "GET /api/v1/copilot/seats/{username}",
+		"/api/v1/copilot/seats//Kari-Nordmann":                   "GET /api/v1/copilot/seats/{username}",
 	}
 	for p := range paths {
 		h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, p, nil))
