@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -41,6 +42,13 @@ func piNavContextDir() string {
 // EnsurePiNavContext materializes the active agentpakke for pi and returns a
 // one-line summary, mirroring [EnsureOpenCodeNavContext].
 func EnsurePiNavContext(ref, sourceRepo string) (string, error) {
+	summary, _, err := ensurePiNavContext(ref, sourceRepo, false)
+	return summary, err
+}
+
+// ensurePiNavContext is [EnsurePiNavContext] with the background fetch that
+// keeps the cached source current, as [ensureOpenCodeNavContext].
+func ensurePiNavContext(ref, sourceRepo string, launch bool) (string, func(context.Context), error) {
 	outputDir := piNavContextDir()
 
 	// The caller's source wins, then whatever the last sync recorded: the same
@@ -53,9 +61,9 @@ func EnsurePiNavContext(ref, sourceRepo string) (string, error) {
 		sRepo = prev.SourceRepo
 	}
 
-	src, err := source.ResolveSource(ref, sRepo, cliVersion)
+	src, refresh, err := resolveForLaunch(ref, sRepo, launch)
 	if err != nil {
-		return "", fmt.Errorf("resolving source: %w", err)
+		return "", refresh, fmt.Errorf("resolving source: %w", err)
 	}
 	defer src.Cleanup()
 
@@ -69,12 +77,12 @@ func EnsurePiNavContext(ref, sourceRepo string) (string, error) {
 	skills, _, agents, instructions, conflicts, err := artifacts.SyncOpenCodeArtifacts("pi",
 		src.Dir, "", outputDir, src.Version, src.SHA, src.Repo)
 	if err != nil {
-		return "", err
+		return "", refresh, err
 	}
 	for _, c := range conflicts {
 		fmt.Fprintf(os.Stderr, "%s pi context: %s was modified locally and was left alone\n", domain.Yellow("⚠"), c)
 	}
-	return fmt.Sprintf("%d skill(s), %d agent(s), %d instruction section(s)", skills, agents, instructions), nil
+	return fmt.Sprintf("%d skill(s), %d agent(s), %d instruction section(s)", skills, agents, instructions), refresh, nil
 }
 
 // piSkillArgs returns pi's flags for the materialized artifacts.
@@ -177,7 +185,9 @@ func LaunchPi(resolved domain.ResolvedConfig) error {
 	// resolved config too (#813), but it only runs from `config setup`, and a
 	// launch must not depend on having been through the wizard.
 	if piDeclaresTier1() {
-		if _, err := EnsurePiNavContext("", resolved.Source); err != nil {
+		_, refresh, err := ensurePiNavContext("", resolved.Source, true)
+		defer refreshInBackground(refresh)()
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not materialize the agentpakke for pi: %v\n", domain.Yellow("⚠"), err)
 		}
 	}

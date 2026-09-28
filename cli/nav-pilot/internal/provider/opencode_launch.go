@@ -172,6 +172,15 @@ func repoScopeDir() string {
 // stock nav-pilot materialized on a machine with no opencode state (#813).
 // Same order as [EnsurePiNavContext].
 func EnsureOpenCodeNavContext(ref, sourceRepo string) (string, error) {
+	summary, _, err := ensureOpenCodeNavContext(ref, sourceRepo, false)
+	return summary, err
+}
+
+// ensureOpenCodeNavContext is [EnsureOpenCodeNavContext]. For a launch it
+// reads the cached source and also returns the background fetch that keeps
+// it current (see [resolveForLaunch]); otherwise (config setup) it resolves
+// the source as before.
+func ensureOpenCodeNavContext(ref, sourceRepo string, launch bool) (string, func(context.Context), error) {
 	outputDir := openCodeNavContextDir()
 	prevState, _ := artifacts.ReadOpenCodeState(outputDir)
 
@@ -180,9 +189,9 @@ func EnsureOpenCodeNavContext(ref, sourceRepo string) (string, error) {
 		sRepo = prevState.SourceRepo
 	}
 
-	src, err := source.ResolveSource(ref, sRepo, cliVersion)
+	src, refresh, err := resolveForLaunch(ref, sRepo, launch)
 	if err != nil {
-		return "", fmt.Errorf("resolving source: %w", err)
+		return "", refresh, fmt.Errorf("resolving source: %w", err)
 	}
 	defer src.Cleanup()
 
@@ -193,7 +202,7 @@ func EnsureOpenCodeNavContext(ref, sourceRepo string) (string, error) {
 
 	skills, commands, agents, instrCount, conflicts, err := artifacts.SyncOpenCodeArtifacts("opencode", src.Dir, repoScopeDir(), outputDir, src.Version, src.SHA, src.Repo)
 	if err != nil {
-		return "", err
+		return "", refresh, err
 	}
 
 	for _, c := range conflicts {
@@ -202,9 +211,29 @@ func EnsureOpenCodeNavContext(ref, sourceRepo string) (string, error) {
 
 	summary := artifacts.ExportSummary(skills, commands, agents, instrCount)
 	if summary == "nothing to export" {
-		return "", nil
+		return "", refresh, nil
 	}
-	return summary, nil
+	return summary, refresh, nil
+}
+
+// resolveForLaunch resolves the source a launch materializes: a remote one
+// from the cached checkout ([source.ResolveForLaunch]). Anything named by ref,
+// and anything that is not a launch, resolves as before. refresh is never nil.
+func resolveForLaunch(ref, sourceRepo string, launch bool) (*source.Source, func(context.Context), error) {
+	if ref != "" || !launch {
+		src, err := source.ResolveSource(ref, sourceRepo, cliVersion)
+		return src, func(context.Context) {}, err
+	}
+	return source.ResolveForLaunch(sourceRepo, cliVersion)
+}
+
+// refreshInBackground runs refresh while the session does, and returns the
+// function that stops it: the session is over, and a fetch not done by then
+// is tried again by the next launch.
+func refreshInBackground(refresh func(context.Context)) (stop func()) {
+	ctx, cancel := context.WithCancel(context.Background())
+	go refresh(ctx)
+	return cancel
 }
 
 // OpenCodeArgs builds the CLI arguments for launching opencode non-interactively.
@@ -1074,7 +1103,8 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 
 	// Materialize from the source this launch resolved, not from whatever the
 	// last sync happened to record (#813).
-	navSummary, ctxErr := EnsureOpenCodeNavContext("", resolved.Source)
+	navSummary, refresh, ctxErr := ensureOpenCodeNavContext("", resolved.Source, true)
+	defer refreshInBackground(refresh)()
 	if ctxErr != nil {
 		fmt.Fprintf(os.Stderr, "%s Warning: could not materialize Nav context for opencode: %v\n", domain.Yellow("⚠"), ctxErr)
 	}

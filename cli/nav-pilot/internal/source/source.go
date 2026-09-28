@@ -146,6 +146,15 @@ func shorthandFor(v string) string {
 // source to fall back on, so being offline costs seconds rather than a minute.
 var FetchTimeout time.Duration
 
+// cloneTempParent and cloneTempPattern are where cloneRemote makes its
+// checkout: the system temp directory, unless [ResolveForLaunch] asks for its
+// cache directory, so the checkout can be renamed into the cache without
+// crossing filesystems (a tmpfs /tmp).
+var (
+	cloneTempParent  = ""
+	cloneTempPattern = "nav-pilot-*"
+)
+
 // CloneRemoteFn is overridable in tests.
 var CloneRemoteFn = cloneRemote
 
@@ -170,6 +179,11 @@ func (s *Source) Cleanup() {
 //  2. Local repo (walk up from CWD to git root — dev mode)
 //  3. Clone HEAD of main (always gets latest content)
 func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
+	return resolveSource(ref, sourceRepo, cliVersion, CloneRemoteFn)
+}
+
+// resolveSource is ResolveSource with the remote fetch passed in.
+func resolveSource(ref, sourceRepo, cliVersion string, clone func(ref, sourceRepo string) (*Source, error)) (*Source, error) {
 	// If a custom source repo is specified, always clone remote
 	if sourceRepo != "" {
 		if filepath.IsAbs(sourceRepo) {
@@ -178,7 +192,7 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 				return &Source{Dir: sourceRepo, SHA: sha, Version: cliVersion, Repo: sourceRepo}, nil
 			}
 		}
-		src, err := CloneRemoteFn(ref, sourceRepo)
+		src, err := clone(ref, sourceRepo)
 		if err != nil {
 			return nil, err
 		}
@@ -195,7 +209,7 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 	}
 
 	if ref != "" {
-		src, err := CloneRemoteFn(ref, "")
+		src, err := clone(ref, "")
 		if err != nil {
 			return nil, err
 		}
@@ -221,7 +235,7 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 	}
 
 	// Always clone HEAD of main to get the latest content regardless of binary version
-	src, err := CloneRemoteFn("", "")
+	src, err := clone("", "")
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +315,7 @@ func stderrIsTerminal() bool {
 }
 
 func cloneRemote(ref, sourceRepo string) (*Source, error) {
-	tmpDir, err := os.MkdirTemp("", "nav-pilot-*")
+	tmpDir, err := os.MkdirTemp(cloneTempParent, cloneTempPattern)
 	if err != nil {
 		return nil, fmt.Errorf("creating temp dir: %w", err)
 	}

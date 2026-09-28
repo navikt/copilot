@@ -19,6 +19,7 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
@@ -1162,6 +1163,11 @@ func Main(info BuildInfo) {
 	// Before any provider is consulted: the model picker and every launch path
 	// ask local.IsLocal, and it must already know whether local dispatch is on.
 	applyLocalConfig()
+	// A launch reads a remote source from the checkout the last launch
+	// fetched, and fetches the next one while the session runs.
+	if d := stateMarker("sources"); d != "" {
+		source.CacheDir = d
+	}
 	providerpkg.FetchLatestVersion = func() (string, string, error) {
 		// In front of every command, at most once a day: a GitHub that is slow
 		// to answer must not hold up the command for long.
