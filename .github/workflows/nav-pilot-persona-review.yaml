@@ -1,0 +1,173 @@
+# Persona review of nav-pilot's e2e transcripts (UAT steps 4 and 5, #1017).
+#
+# Runs the testscript journeys in cli/nav-pilot/e2e (real binary, fake
+# servers, no network), strips the assertions with persona_transcripts.py and
+# posts what a user would see:
+#
+#   - on a pull request labelled `persona-review`: one comment, edited on each
+#     push. Journeys: the .txtar files the PR changes, else every alpha_ one.
+#   - every Monday: one open issue labelled `dx-uat`, whose body is replaced
+#     with the latest run. A failing journey also comments there and fails the
+#     run.
+#
+# The LLM review (UX_RUBRIC.md as prompt, GitHub Models via GITHUB_TOKEN) is
+# off until the repository variable PERSONA_REVIEW_LLM is `true`. See
+# cli/nav-pilot/e2e/README.md for what turning it on needs.
+
+name: nav-pilot persona review
+
+on:
+  pull_request:
+    branches: [main]
+    types: [labeled, synchronize, reopened]
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    # Fork PRs get a read-only token and could not comment anyway.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'persona-review') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'persona-review') &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      models: read
+    steps:
+      # No credentials in .git/config: the tests run the PR's code.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # ratchet:actions/setup-go@v7.0.0
+        with:
+          go-version-file: cli/nav-pilot/go.mod
+          cache: true
+
+      - name: Pick journeys
+        id: pick
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          names=""
+          if [ -n "$BASE" ]; then
+            names=$(git diff --name-only --diff-filter=AM "$BASE"...HEAD -- 'cli/nav-pilot/e2e/testdata/script/*.txtar' \
+              | xargs -r -n1 basename | sed 's/\.txtar$//' | paste -sd'|')
+          fi
+          if [ -n "$names" ]; then run="TestScripts/($names)\$"; else run="TestScripts/alpha_"; fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "Journeys: $run"
+
+      - name: Run journeys
+        id: run
+        env:
+          RUN: ${{ steps.pick.outputs.run }}
+        run: |
+          cd cli/nav-pilot
+          set +e
+          go test ./e2e -run "$RUN" -v -count=1 > "$RUNNER_TEMP/e2e.log" 2>&1
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          set -e
+          cat "$RUNNER_TEMP/e2e.log"
+          python3 e2e/persona_transcripts.py < "$RUNNER_TEMP/e2e.log" > "$RUNNER_TEMP/transcripts.md"
+          # shellcheck disable=SC2016 # the backticks are Markdown
+          sed -nE 's/^[[:space:]]*--- FAIL: TestScripts\/([^ ]+).*/- `\1`/p' "$RUNNER_TEMP/e2e.log" > "$RUNNER_TEMP/failed.md"
+
+      # Off by default: see "Turning on the LLM review" in cli/nav-pilot/e2e/README.md.
+      - name: LLM persona review
+        if: vars.PERSONA_REVIEW_LLM == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODEL: ${{ vars.PERSONA_REVIEW_MODEL || 'openai/gpt-4.1' }}
+        run: |
+          # ponytail: transcripts cut at 24000 chars to stay under the model's
+          # input limit; split into one call per journey if that loses findings.
+          jq -n --arg model "$MODEL" \
+                --rawfile rubric cli/nav-pilot/e2e/UX_RUBRIC.md \
+                --arg t "$(head -c 24000 "$RUNNER_TEMP/transcripts.md")" \
+                '{model: $model, messages: [{role: "system", content: $rubric}, {role: "user", content: $t}]}' \
+            | curl -sSf https://models.github.ai/inference/chat/completions \
+                -H "Authorization: Bearer $GH_TOKEN" -H 'Content-Type: application/json' -d @- \
+            | jq -r '.choices[0].message.content' > "$RUNNER_TEMP/review.md"
+
+      - name: Write report
+        env:
+          STATUS: ${{ steps.run.outputs.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          JOURNEYS: ${{ steps.pick.outputs.run }}
+        run: |
+          r="$RUNNER_TEMP/report.md"
+          {
+            echo "## nav-pilot persona review"
+            echo
+            echo "Journeys \`$JOURNEYS\` at $(git rev-parse --short HEAD). [Run]($RUN_URL)."
+            echo
+            if [ "$STATUS" != 0 ]; then
+              echo "**The e2e journeys failed.** Failing:"
+              echo
+              cat "$RUNNER_TEMP/failed.md"
+              echo
+            fi
+            if [ -s "$RUNNER_TEMP/review.md" ]; then
+              echo "### LLM review (hypotheses, not a verdict)"
+              echo
+              cat "$RUNNER_TEMP/review.md"
+            else
+              echo "No LLM review: the step is off (PERSONA_REVIEW_LLM) or failed. Review the transcripts below with [UX_RUBRIC.md]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/main/cli/nav-pilot/e2e/UX_RUBRIC.md)."
+            fi
+            echo
+            echo "<details><summary>Transcripts</summary>"
+            echo
+            # ponytail: a comment or issue body holds 65536 chars; the run log has the rest.
+            head -c 55000 "$RUNNER_TEMP/transcripts.md"
+            echo
+            echo "</details>"
+          } > "$r"
+          cat "$r" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on the PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        # ponytail: --edit-last edits github-actions' latest comment on the PR,
+        # which is this one while no other workflow comments as that bot.
+        run: gh pr comment "$PR" -R "$GITHUB_REPOSITORY" --edit-last --create-if-none --body-file "$RUNNER_TEMP/report.md"
+
+      - name: Update the tracking issue
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATUS: ${{ steps.run.outputs.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: Weekly nav-pilot persona run
+        run: |
+          n=$(gh issue list -R "$GITHUB_REPOSITORY" --label dx-uat --state open --search "\"$TITLE\" in:title" --json number,title \
+            --jq "map(select(.title == \"$TITLE\"))[0].number // empty")
+          if [ -z "$n" ]; then
+            gh issue create -R "$GITHUB_REPOSITORY" --title "$TITLE" --label dx-uat --body-file "$RUNNER_TEMP/report.md"
+          else
+            gh issue edit "$n" -R "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/report.md"
+            if [ "$STATUS" != 0 ]; then
+              gh issue comment "$n" -R "$GITHUB_REPOSITORY" --body "The e2e journeys failed on $(date -u +%F): $RUN_URL"
+            fi
+          fi
+
+      - name: Fail if a journey failed
+        if: steps.run.outputs.status != '0'
+        run: exit 1

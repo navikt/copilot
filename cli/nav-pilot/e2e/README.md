@@ -91,3 +91,40 @@ round there after the review.
 Treat what comes back as hypotheses to check with a person or a new journey,
 not as a verdict. Don't commit the review as expected output. Put it in the
 PR description.
+
+Step 2 is a script: `go test ./e2e -run TestScripts/<name> -v | python3
+e2e/persona_transcripts.py` prints the stripped transcripts as Markdown.
+
+## Persona review in CI
+
+[`nav-pilot-persona-review.yaml`](../../../.github/workflows/nav-pilot-persona-review.yaml)
+does the steps above in GitHub Actions and posts the result:
+
+- **On a PR:** add the `persona-review` label. It runs the journeys whose
+  `.txtar` the PR adds or changes (every `alpha_` journey if none) and posts
+  one comment, which it edits on each push. Without the label it doesn't run.
+  PRs from forks are skipped.
+- **Weekly, Monday morning:** it runs every `alpha_` journey and replaces the
+  body of the open issue "Weekly nav-pilot persona run" (label `dx-uat`),
+  creating it if none is open. If a journey fails, the run fails and comments
+  on the issue. Close the issue to start a fresh one next week. Run it by hand
+  from the Actions tab (workflow_dispatch).
+
+The journeys run against the fake servers, as in `go test`. No real model,
+network or credential is involved.
+
+### Turning on the LLM review
+
+Off by default: the comment and the issue carry the transcripts, and a person
+reviews them with [UX_RUBRIC.md](UX_RUBRIC.md). The LLM step sends the rubric
+and the transcripts (cut at 24,000 characters) to
+[GitHub Models](https://docs.github.com/en/github-models) with the workflow's
+own `GITHUB_TOKEN` (`models: read`), so it needs no secret. To turn it on:
+
+1. Check that GitHub Models is enabled for the navikt organization and that
+   its use (free quota, or paid if the organization has opted in) is approved.
+2. Set the repository variable `PERSONA_REVIEW_LLM` to `true`. Optionally set
+   `PERSONA_REVIEW_MODEL` (default `openai/gpt-4.1`).
+
+If the call fails, the run continues and posts the transcripts without a
+review.
