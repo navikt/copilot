@@ -60,9 +60,9 @@ const tokenRefreshMargin = 5 * time.Minute
 // override. If saving fails after a refresh, GitHub has already retired the
 // old pair: this run uses the new token, and the next one asks for a login.
 //
-// ponytail: two processes refreshing at once both spend the same refresh
-// token, and GitHub rotates it, so the slower one keeps the old token and
-// asks for a login. Add a lock file if that shows up.
+// Two processes refreshing at once spend the same refresh token, and GitHub
+// rotates it, so the slower one is refused. It then reads the keychain again
+// and takes the pair the faster one saved.
 func currentToken(ctx context.Context) (storedToken, error) {
 	t, err := loadToken()
 	if err != nil || t.RefreshToken == "" || t.ExpiresAt.IsZero() || time.Until(t.ExpiresAt) > tokenRefreshMargin {
@@ -74,6 +74,9 @@ func currentToken(ctx context.Context) (storedToken, error) {
 	r, err := refreshAccessToken(ctx, navPilotGitHubClientID(), t.RefreshToken)
 	if err != nil {
 		debugLog("token refresh failed: %v", err)
+		if again, lerr := loadToken(); lerr == nil && again.RefreshToken != t.RefreshToken {
+			return again, nil
+		}
 		return t, nil
 	}
 	t.setFrom(r, time.Now())

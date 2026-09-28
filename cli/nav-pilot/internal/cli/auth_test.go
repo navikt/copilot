@@ -444,6 +444,18 @@ func TestCurrentTokenRefreshes(t *testing.T) {
 		t.Fatalf("a refused refresh changed the stored token: %+v", saved)
 	}
 
+	// Another process refreshed first: the refused one takes the saved pair.
+	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = saveToken(storedToken{AccessToken: "ghu_other", ExpiresAt: time.Now().Add(8 * time.Hour), RefreshToken: "ghr_other"})
+		_, _ = w.Write([]byte(`{"error":"bad_refresh_token"}`))
+	})
+	if err := saveToken(stale); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := currentToken(context.Background()); got.AccessToken != "ghu_other" {
+		t.Fatalf("after losing a refresh race: %+v", got)
+	}
+
 	// An expired refresh token is not sent.
 	form = nil
 	stale.RefreshExpiresAt = time.Now().Add(-time.Minute)

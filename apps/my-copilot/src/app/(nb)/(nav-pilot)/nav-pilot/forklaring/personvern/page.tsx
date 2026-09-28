@@ -105,8 +105,8 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
           <BodyLong>
             Tokenet fra innloggingen kan ha en utløpstid. For GitHub-apper er den åtte timer, og da får nav-pilot også
             et refresh-token som varer i seks måneder. Begge ligger i nøkkelringen på maskinen, og nav-pilot henter et
-            nytt token selv når det gamle har gått ut eller snart gjør det. Du må logge inn på nytt først når
-            refresh-tokenet har gått ut.
+            nytt token selv når det gamle har gått ut eller snart gjør det. Vanligvis må du logge inn på nytt først når
+            refresh-tokenet har gått ut, eller hvis GitHub trekker det tilbake.
           </BodyLong>
           <BodyLong>
             Noen undersøkelser nevner nav-pilot i stedet med én linje når en økt starter. Du kan alltid svare selv med{" "}
