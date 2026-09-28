@@ -1159,6 +1159,8 @@ func Main(info BuildInfo) {
 	buildInfo = info
 	providerpkg.SetVersion(info.Version)
 	agentpakke.SetVersion(info.Version)
+	// Client versions are asked once per installed binary, not per launch.
+	providerpkg.VersionCacheFile = stateMarker("client-versions.json")
 	// Before any provider is consulted: the model picker and every launch path
 	// ask local.IsLocal, and it must already know whether local dispatch is on.
 	applyLocalConfig()
