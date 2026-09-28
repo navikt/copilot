@@ -4,6 +4,13 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-28
 
+### alpha local setup: riktige hint
+
+- **Hintene tar med flaggene dine**: Kjørte du setup med `--endpoint` eller `--model`, står de også i kommandoen setup foreslår til slutt. Uten `--endpoint` leter setup etter servere på nytt og kan finne en annen.
+- **Ett råd for en tom Ollama**: Uten terminal kom rådet om å hente modellen to ganger. Nå kommer det én gang, med kommandoen som lar setup hente den (`--pull --yes`).
+- **Nei er ikke Ctrl-C**: Svarer du nei på «Save anyway and turn local dispatch on?», skriver setup «Not saved.» og avslutter med 1, ikke 130.
+- **Er klienten opencode**, foreslår setup bare `nav-pilot` etter lagring, ikke `nav-pilot --client opencode` (#1190).
+
 ### Den lokale serveren tar én forespørsel om gangen
 
 - **Køen ligger i serveren**: mlx-lm henger seg opp på samtidige forespørsler av ulik lengde. Til nå var det bare en låsefil i `~/.nav-pilot` som hindret det, og en hook inne i cplt når ikke den fila. Nå tar serveren som nav-pilot starter, én forespørsel om gangen, uansett hvilken klient som spør.

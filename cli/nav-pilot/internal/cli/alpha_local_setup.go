@@ -241,14 +241,34 @@ func parseSetupFlags(args []string) (setupFlags, error) {
 // stands for yes. def is the answer Enter gives: no for anything that
 // downloads or creates.
 func confirm(title string, flag, def bool) bool {
+	ok, _ := confirmOrAbort(title, flag, def)
+	return ok
+}
+
+// confirmOrAbort is confirm that also says when the answer was Ctrl-C rather
+// than no, for a caller that exits differently on each.
+func confirmOrAbort(title string, flag, def bool) (bool, error) {
 	if flag || !isInteractive() {
-		return flag
+		return flag, nil
 	}
 	ok := def
 	if err := huh.NewConfirm().Title(title).Value(&ok).WithTheme(navTheme()).Run(); err != nil {
-		return false
+		return false, err
 	}
-	return ok
+	return ok, nil
+}
+
+// setupCommand is setup run again with the flags this run was given: without
+// --endpoint it goes back to detection, which can find a different server.
+func setupCommand(f setupFlags, base, model string) string {
+	cmd := "nav-pilot alpha local setup"
+	if f.endpoint != "" {
+		cmd += " --endpoint " + base + "/v1"
+	}
+	if model != "" {
+		cmd += " --model " + model
+	}
+	return cmd
 }
 
 func cmdLocalSetup(args []string) error {
@@ -285,13 +305,10 @@ func cmdLocalSetup(args []string) error {
 	// Refused before the checks, not after: the context probe can take
 	// minutes on a CPU, and a script would otherwise wait through it twice.
 	if !f.yes && !isInteractive() {
-		again := "nav-pilot alpha local setup --model " + choice.Model + " --yes"
-		if f.endpoint != "" {
-			again = "nav-pilot alpha local setup --endpoint " + choice.Server.Base + "/v1 --model " + choice.Model + " --yes"
-		}
+		again := setupCommand(f, choice.Server.Base, choice.Model) + " --yes"
 		if choice.Rank == 0 && choice.Server.Kind == "ollama" {
 			return &exitCode{code: 2, err: fmt.Errorf("without a terminal to ask, setup checks and saves only with --yes. With the recommended model: %s. With %s anyway: %s",
-				bold("nav-pilot alpha local setup --pull --yes"), choice.Model, bold(again))}
+				bold(setupCommand(f, choice.Server.Base, "")+" --pull --yes"), choice.Model, bold(again))}
 		}
 		return &exitCode{code: 2, err: fmt.Errorf("without a terminal to ask, setup checks and saves only with --yes: %s", bold(again))}
 	}
@@ -312,16 +329,17 @@ func cmdLocalSetup(args []string) error {
 	fails := slices.DeleteFunc(slices.Clone(checks), func(c doctorCheck) bool { return c.Level != levelFail })
 	noMemory := outOfMemory(checks)
 	if len(fails) > 0 {
-		again := "nav-pilot alpha local setup"
+		model, extra := f.model, ""
 		if choice.Server.Kind == "ollama" && failed(checks, "context") && !noMemory {
-			again += " --fix-context --yes"
+			extra = " --fix-context --yes"
 		}
 		// The copy's own num_ctx overrides OLLAMA_CONTEXT_LENGTH, and setup
 		// would pick the copy again: it has to go.
 		if noMemory && fixed != "" {
 			fmt.Printf("  %s %s keeps its %d-token context whatever Ollama is started with. Remove it: %s\n\n", yellow("⚠"), fixed, contextTokens, bold("ollama rm "+fixed))
-			again += " --model " + base
+			model = base
 		}
+		again := setupCommand(f, choice.Server.Base, model) + extra
 		// A context that only cuts long prompts still serves short ones, and
 		// on a small machine no larger context fits: offer to save it as is.
 		if len(fails) == 1 && fails[0].Name == "context" && !noMemory {
@@ -421,9 +439,11 @@ func pickChoice(ctx context.Context, servers []foundServer, f setupFlags) (setup
 		}
 		return setupChoice{}, fmt.Errorf("no server here lists %s. Pick one of: %s", f.model, choiceList(all))
 	}
+	offered := false
 	if len(all) == 0 || all[0].Rank == 0 {
 		if i := slices.IndexFunc(servers, func(s foundServer) bool { return s.Kind == "ollama" }); i >= 0 {
-			pulled, err := offerPull(ctx, servers[i], f.pull)
+			offered = true
+			pulled, err := offerPull(ctx, servers[i], f.pull, setupCommand(f, servers[i].Base, "")+" --pull --yes")
 			if err != nil {
 				return setupChoice{}, err
 			}
@@ -437,6 +457,10 @@ func pickChoice(ctx context.Context, servers []foundServer, f setupFlags) (setup
 		if len(all) > 0 {
 			fmt.Printf("  %s Continuing with %s, which nav-pilot knows nothing about.\n", yellow("⚠"), bold(all[0].Model))
 		}
+	}
+	if len(all) == 0 && offered {
+		// The pull offer above already said what to run.
+		return setupChoice{}, &exitCode{code: 1}
 	}
 	if len(all) == 0 {
 		fmt.Printf("\n  The server here lists no model nav-pilot can use. Load or pull one (on Ollama: %s), then run %s again.\n\n",
@@ -474,14 +498,12 @@ func choiceList(all []setupChoice) string {
 
 // offerPull offers to pull the recommended model through Ollama's own API,
 // which is what `ollama pull` does, showing the size first.
-func offerPull(ctx context.Context, s foundServer, flag bool) (bool, error) {
+func offerPull(ctx context.Context, s foundServer, flag bool, withPull string) (bool, error) {
 	cmd := "ollama pull " + ollamaRecommended
 	fmt.Printf("\n  %s Ollama has no model nav-pilot knows. Recommended: %s (%s), about %d GB:\n    %s\n",
 		yellow("⚠"), bold(ollamaRecommended), knownGood[0].Why, ollamaRecommendedGB, bold(cmd))
 	if !confirm(fmt.Sprintf("Download %s now (about %d GB)?", ollamaRecommended, ollamaRecommendedGB), flag, false) {
-		if !isInteractive() {
-			fmt.Printf("  %s\n", dim("Not downloaded. Run it yourself, or pass --pull to have setup run it."))
-		}
+		fmt.Printf("  Not downloaded. Run it yourself, or have setup run it: %s\n", bold(withPull))
 		return false, nil
 	}
 	fmt.Printf("%s Pulling %s…\n", dim("→"), ollamaRecommended)
@@ -582,8 +604,14 @@ func saveEndpoint(c setupChoice, checks []doctorCheck, yes bool) error {
 	if short {
 		title = "Save anyway and turn local dispatch on?"
 	}
-	if !confirm(title, yes, !short) {
+	ok, err := confirmOrAbort(title, yes, !short)
+	if err != nil {
 		return cancelledError{nothingWritten: true}
+	}
+	if !ok {
+		// A no is an answer, not an interrupt: 1, not Ctrl-C's 130.
+		fmt.Println("  Not saved.")
+		return &exitCode{code: 1}
 	}
 	for _, kv := range [][2]string{{"local_endpoint", endpoint}, {"local_endpoint_model", c.Model}, {"local_enabled", "true"}} {
 		if _, err := writeConfigKey(kv[0], kv[1]); err != nil {
@@ -591,7 +619,11 @@ func saveEndpoint(c setupChoice, checks []doctorCheck, yes bool) error {
 		}
 	}
 	fmt.Printf("\n%s Saved. Local dispatch is on, to %s on %s.\n", green("✓"), bold(c.Model), kindName[c.Server.Kind])
-	fmt.Printf("  %s Launch with a local worker: %s\n", dim("→"), bold("nav-pilot --client opencode"))
+	launch := "nav-pilot --client opencode"
+	if cfg, err := readConfig(); err == nil && cfg != nil && cfgClient(cfg) == "opencode" {
+		launch = "nav-pilot"
+	}
+	fmt.Printf("  %s Launch with a local worker: %s\n", dim("→"), bold(launch))
 	if short {
 		fmt.Printf("  %s Long prompts get cut: see context above\n", yellow("⚠"))
 	}

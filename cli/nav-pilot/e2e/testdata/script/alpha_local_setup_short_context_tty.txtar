@@ -6,6 +6,12 @@
 fake-endpoint -export OLLAMA -ctx 4096
 env NAV_PILOT_SETUP_CANDIDATES=ollama=$OLLAMA_ADDR
 
+# No is an answer, not Ctrl-C: exit 1, not 130 (#1190).
+exits 1 pty-run -wait 'Create qwen3.6-35b-navpilot now' -send '\r' -wait 'Save anyway and turn' -send 'n' -- nav-pilot alpha local setup
+stdout 'Not saved\.'
+! stdout 'Cancelled'
+! exists home/config.toml
+
 exec pty-run -wait 'Create qwen3.6-35b-navpilot now' -send '\r' -wait 'Save anyway and turn' -send 'y' -- nav-pilot alpha local setup
 stdout 'Only the context check failed'
 stdout 'Saved\. Local dispatch is on, to qwen3\.6:35b'

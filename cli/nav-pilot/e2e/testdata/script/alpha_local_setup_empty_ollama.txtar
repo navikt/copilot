@@ -9,12 +9,20 @@ exits 1 nav-pilot alpha local setup
 stdout 'Ollama +127\.0\.0\.1:[0-9]+ +no models'
 ! stdout 'No local server is running'
 stdout 'Ollama has no model nav-pilot knows\. Recommended: qwen3\.6:35b'
-stdout 'Not downloaded\. Run it yourself, or pass --pull'
-stdout 'lists no model nav-pilot can use'
+stdout 'Not downloaded\. Run it yourself, or have setup run it: nav-pilot alpha local setup --pull --yes'
+# Said once: no second paragraph with the same advice (#1190).
+! stdout 'lists no model nav-pilot can use'
 ! grep 'POST /api/pull' fake/ollama.log
 ! exists home/config.toml
 
+# With --endpoint, the hint keeps it, or the rerun would go back to detection.
+exits 1 nav-pilot alpha local setup --endpoint http://$OLLAMA_ADDR/v1
+stdout 'have setup run it: nav-pilot alpha local setup --endpoint http://127\.0\.0\.1:[0-9]+/v1 --pull --yes'
+
+# With client = "opencode", the launch hint is plain nav-pilot (#1190).
+exec nav-pilot config set client opencode
 exec nav-pilot alpha local setup --pull --yes
 stdout 'Pulled qwen3\.6:35b'
 stdout 'Saved\. Local dispatch is on, to qwen3\.6:35b'
+stdout 'Launch with a local worker: nav-pilot\n'
 grep 'POST /api/pull' fake/ollama.log

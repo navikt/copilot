@@ -29,3 +29,9 @@ stdout 'ollama rm qwen3\.6-35b-navpilot'
 stderr 'then run nav-pilot alpha local setup --model qwen3\.6:35b'
 ! stderr '--fix-context'
 ! exists home/config.toml
+
+# With --endpoint, the rerun hint keeps it, or the rerun would go back to
+# detection and could find another server (#1190).
+fake-endpoint -export OLLAMA -ctx 4096 -nomem-ctx 16384
+exits 1 nav-pilot alpha local setup --endpoint http://$OLLAMA_ADDR/v1 --fix-context --yes
+stderr 'then run nav-pilot alpha local setup --endpoint http://127\.0\.0\.1:[0-9]+/v1 --model qwen3\.6:35b'
