@@ -68,6 +68,10 @@ export default async function LokalIntro() {
           Ved utsending ser hovedagenten i skyen oppgaven den selv skrev, og det korte svaret fra den lokale modellen.
         </BodyLong>
       </div>
+      <BodyLong>
+        Alfa betyr at kommandoene ligger under <code className={code}>nav-pilot alpha</code> og kan endre seg uten
+        varsel. Resten av nav-pilot er beta.
+      </BodyLong>
 
       <section>
         <VStack gap="space-16">
