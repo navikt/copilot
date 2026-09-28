@@ -54,14 +54,24 @@ function detectOs(): InstallOs {
 function Command({ command, copyTitle }: { command: string; copyTitle: string }) {
   return (
     <div
-      className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 rounded-lg pl-4 pr-2 py-1.5 text-left"
-      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+      className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 rounded-lg text-left"
+      style={{
+        padding: "var(--ax-space-6) var(--ax-space-8) var(--ax-space-6) var(--ax-space-16)",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
     >
       {/* minmax(0,1fr) keeps the long line from widening the page; it scrolls in the box. tabIndex lets keyboard users scroll it. */}
       <pre
         tabIndex={0}
-        className="font-mono overflow-x-auto m-0 py-1.5"
-        style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.75)", whiteSpace: "pre" }}
+        className="font-mono overflow-x-auto"
+        style={{
+          margin: 0,
+          paddingBlock: "var(--ax-space-6)",
+          fontSize: "0.8rem",
+          color: "rgba(255,255,255,0.75)",
+          whiteSpace: "pre",
+        }}
       >
         {command}
       </pre>
