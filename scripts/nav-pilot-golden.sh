@@ -142,10 +142,12 @@
 #   and repeat count, because a size baseline means nothing without them, and
 #   because nobody should mistake it for a threshold something must meet.
 #
-#   --save-baseline also writes <date>-<label>-results.psv beside it: the raw
-#   per-run, per-assertion rows. Commit both. Sizes alone cannot be audited, and
-#   every retraction in #583 was possible only because a --keep directory
-#   happened to survive in $TMPDIR (recommendation 3; #585 did it by hand).
+#   --save-baseline also writes <date>-<label>-results.psv and
+#   <date>-<label>-attempts.psv beside it. The former records raw assertions;
+#   the latter records every CLI exit, timeout and tracking gap. Commit both.
+#   Sizes alone cannot be audited, and every retraction in #583 was possible
+#   only because a --keep directory happened to survive in $TMPDIR
+#   (recommendation 3; #585 did it by hand).
 #
 #   When $HOME/.copilot/session-store.db is readable, it also writes
 #   <date>-<label>-usage.psv. This contains exact per-call model, token, cache,
@@ -178,7 +180,7 @@
 #                    spends two: an interview and its answers)
 #     code-review    2 calls per pass (cr1, cr2 and cr3 share one)
 #     accessibility  4 calls per pass (uu1 and uu2 share one)
-#   --repeat N multiplies that: nav-pilot at --repeat 5 is ~35 calls.
+#   --repeat N multiplies that: nav-pilot at --repeat 5 is 30 calls.
 #
 # USAGE
 #   ./scripts/nav-pilot-golden.sh                 # run all tests
@@ -842,16 +844,19 @@ ws_written_files() {
 
 # Per-run rows, one file each, aggregated after the last run:
 #   RESULTS_FILE  id|run|status|assertion|detail      (one row per test per run)
-#   MEASURES      slug|bytes|lines|words|elapsed_ms   (one row per transcript)
+#   MEASURES      slug|bytes|lines|words|elapsed_ms   (one row per usable transcript)
+#   ATTEMPTS      slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
 #   USAGE_FILE    exact assistant_usage_events rows   (zero or more per prompt)
 # Files rather than arrays because the aggregation reads them repeatedly, and
 # because bash 3.2 (stock macOS) makes an empty array an unbound-variable error
 # under `set -u`, while an empty file just reads as nothing.
 RESULTS_FILE="$WORKDIR/results.psv"
 MEASURES="$WORKDIR/measures.psv"
+ATTEMPTS="$WORKDIR/attempts.psv"
 USAGE_FILE="$WORKDIR/usage.psv"
 : >"$RESULTS_FILE"
 : >"$MEASURES"
+: >"$ATTEMPTS"
 : >"$USAGE_FILE"
 
 pass_count=0
@@ -897,6 +902,8 @@ now_ms() {
 # at all.
 MIN_TRANSCRIPT_BYTES=40
 LAST_PROMPT_DETAIL=""
+LAST_PROMPT_FAILURE=""
+USAGE_COMPLETE="$USAGE_TRACKING"
 
 # Sessions this pass has already opened, as a space-padded list of ids. It is
 # what tells run_prompt whether a given --session-id is turn one of a
@@ -908,8 +915,9 @@ SESSIONS_SEEN=" "
 
 run_prompt() {
   # run_prompt <slug> <prompt> [session-id] → writes transcript to $(tx <slug>)
-  # Returns 0 if the transcript is usable, 1 if it is missing/too short to
-  # assert against. Callers MUST branch on this — see record_error.
+  # Returns 0 if the transcript is usable, 1 otherwise. Callers MUST branch on
+  # this — see record_error. A timeout or CLI failure is a failed benchmark
+  # attempt, while a too-short successful response is not evaluable.
   #
   # SESSION-ID (optional) makes a prompt part of a multi-turn conversation. The
   # first call carrying a given id opens the session; every later call carrying
@@ -922,6 +930,8 @@ run_prompt() {
   # underneath the conversation would leave the client describing a workspace
   # that no longer exists. Turn one of a session reseeds like any other prompt.
   local slug="$1" prompt="$2" session="${3:-}" out
+  LAST_PROMPT_DETAIL=""
+  LAST_PROMPT_FAILURE=""
   out="$(tx "$slug")"
   local -a args=(-p "$prompt" --agent "$AGENT_NAME" --allow-all-tools --no-color --log-level none)
   [[ -n "$MODEL" ]] && args+=(--model "$MODEL")
@@ -954,6 +964,7 @@ run_prompt() {
   if $USAGE_TRACKING && [[ -n "$session" ]]; then
     if ! usage_cursor="$(python3 "$USAGE_HELPER" cursor "$USAGE_DB")"; then
       USAGE_TRACKING=false
+      USAGE_COMPLETE=false
       USAGE_UNAVAILABLE="could not read assistant_usage_events before $slug"
       echo "${YELLOW}⚠ usage tracking disabled: $USAGE_UNAVAILABLE${RESET}" >&2
     fi
@@ -977,6 +988,7 @@ run_prompt() {
       --session "$session" --after "$usage_cursor" --slug "$slug" --run "$RUN" \
       >>"$USAGE_FILE"; then
       USAGE_TRACKING=false
+      USAGE_COMPLETE=false
       USAGE_UNAVAILABLE="could not export assistant_usage_events after $slug"
       echo "${YELLOW}⚠ usage tracking disabled: $USAGE_UNAVAILABLE${RESET}" >&2
     fi
@@ -984,17 +996,36 @@ run_prompt() {
   # Taken unconditionally, including after a dead call: an agent that wrote and
   # then timed out still wrote, and the no-auto-fix assertions want to say so.
   ws_fingerprint >"$FP_AFTER"
+  local size=0
+  [[ -f "$out" ]] && size="$(wc -c <"$out" | tr -d ' ')"
+  local outcome="pass" detail=""
   if [[ $rc -eq 124 ]]; then
-    echo "${YELLOW}⚠ $slug: timed out after ${TIMEOUT_SECS}s (raise NAV_PILOT_GOLDEN_TIMEOUT)${RESET}" >&2
+    outcome="timeout"
+    detail="timed out after ${TIMEOUT_SECS}s"
+  elif [[ $rc -ne 0 ]]; then
+    outcome="cli_failure"
+    detail="CLI exited $rc"
+  elif [[ "$size" -lt "$MIN_TRANSCRIPT_BYTES" ]]; then
+    outcome="short_transcript"
+    detail="transcript was ${size}B (<${MIN_TRANSCRIPT_BYTES}B)"
+  fi
+  printf '%s|%s|%s|%s|%s|%s|%s|%s\n' \
+    "$slug" "$RUN" "$rc" "$outcome" "$size" "$elapsed_ms" "$USAGE_COMPLETE" "$detail" >>"$ATTEMPTS"
+
+  if [[ "$outcome" == "timeout" ]]; then
+    echo "${YELLOW}⚠ $slug: $detail (raise NAV_PILOT_GOLDEN_TIMEOUT)${RESET}" >&2
   fi
   $VERBOSE && { echo "${DIM}--- $slug ---${RESET}"; cat "$out"; echo "${DIM}--- end ---${RESET}"; }
 
-  local size=0
-  [[ -f "$out" ]] && size="$(wc -c <"$out" | tr -d ' ')"
+  if [[ "$outcome" == "timeout" || "$outcome" == "cli_failure" ]]; then
+    LAST_PROMPT_DETAIL="$detail"
+    LAST_PROMPT_FAILURE="$outcome"
+    return 1
+  fi
   if [[ "$size" -lt "$MIN_TRANSCRIPT_BYTES" ]]; then
     echo "${YELLOW}⚠ $slug: CLI exited $rc with ${size}B of output (need ≥${MIN_TRANSCRIPT_BYTES}B)${RESET}" >&2
     head -c 300 "${out%.txt}.err" >&2; echo >&2
-    LAST_PROMPT_DETAIL="CLI exited $rc, transcript was ${size}B (<${MIN_TRANSCRIPT_BYTES}B) — nothing to assert against"
+    LAST_PROMPT_DETAIL="$detail — nothing to assert against"
     return 1
   fi
 
@@ -1029,6 +1060,10 @@ record_error() {
   # both pass and fail on purpose: reporting green here is the failure mode that
   # gets the whole harness ignored.
   local id="$1" desc="$2" detail="${3:-}"
+  if [[ -n "$LAST_PROMPT_FAILURE" ]]; then
+    record "$id" "$desc" 1 "$detail"
+    return
+  fi
   echo "  ${YELLOW}⚠${RESET} ${BOLD}$id${RESET} $(run_tag)$desc ${YELLOW}(not evaluated)${RESET}"
   [[ -n "$detail" ]] && echo "      ${DIM}$detail${RESET}"
   printf '%s|%s|error|%s|%s\n' "$id" "$RUN" "$desc" "$detail" >>"$RESULTS_FILE"
@@ -1460,6 +1495,7 @@ run_pass_nav_pilot() {
     T2="$(tx t2)"
     if ! run_prompt t2 "ny tjeneste som leser fnr fra ID-porten"; then
       if selected 2; then record_error 2 "$DESC2" "$LAST_PROMPT_DETAIL"; fi
+      if selected 2b; then record_error 2b "$DESC2B" "$LAST_PROMPT_DETAIL"; fi
       if selected 3; then record_error 3 "$DESC3" "$LAST_PROMPT_DETAIL"; fi
     else
       if selected 2; then
@@ -2147,14 +2183,12 @@ for id in $(uniq_field "$RESULTS_FILE" 1); do
   # --repeat 1: a test that did not run has proven nothing, and a CLI timing
   # out four times in five must not report a green suite off the fifth.
   #
-  # Soft checks (2b, cr3, cr4) are collapsed the same way but kept out of every
-  # count that feeds the exit code. They have no pass/fail/error rows at all,
-  # so without this branch a soft test would land in the `np -eq 0` arm below
-  # and report the suite as "not evaluated", which is the one thing a soft
-  # check must never do.
+  # A soft assertion never fails the suite, but a dead attempt is still not
+  # evaluated. Count it even when another repeat produced a soft result.
   if [[ "$nsp" -gt 0 || "$nsf" -gt 0 ]]; then
     if [[ "$nsf" -gt 0 ]]; then status="soft-fail"; else status="soft-pass"; fi
     soft_count=$((soft_count + 1))
+    [[ "$ne" -gt 0 ]] && error_count=$((error_count + 1))
     np="$nsp"; nf="$nsf"
   elif [[ "$nf" -gt 0 ]]; then
     status="fail"; fail_count=$((fail_count + 1))
@@ -2194,7 +2228,7 @@ if [[ "$REPEAT" -gt 1 && -s "$AGG_TESTS" ]]; then
       *)         mark="${YELLOW}⚠${RESET}" ;;
     esac
     case "$status" in
-      soft-*) echo "  $mark ${BOLD}$id${RESET} $desc ${DIM}(soft: $np/$REPEAT met, $nf not met, never moves the exit code)${RESET}" ;;
+      soft-*) echo "  $mark ${BOLD}$id${RESET} $desc ${DIM}(soft: $np/$REPEAT met, $nf not met, $ne not evaluated; soft outcomes never move the exit code)${RESET}" ;;
       *)      echo "  $mark ${BOLD}$id${RESET} $desc ${DIM}($np/$REPEAT passed, $nf failed, $ne not evaluated)${RESET}" ;;
     esac
     [[ "$status" != "pass" && "$status" != "soft-pass" && -n "$detail" ]] && echo "      ${DIM}$detail${RESET}"
@@ -2308,6 +2342,25 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     cat "$RESULTS_FILE"
   } >"$RESULTS_BASELINE"
   echo "${DIM}per-run assertion outcomes written to $RESULTS_BASELINE${RESET}"
+
+  ATTEMPTS_BASELINE="${SAVE_BASELINE%.txt}-attempts.psv"
+  {
+    echo "# golden-prompt PER-RUN ATTEMPTS"
+    echo "# agent:        $AGENT"
+    echo "# date:         $(date -u +%Y-%m-%d)"
+    echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    echo "# model:        ${MODEL:-CLI default}"
+    echo "# client:       $CLI_NAME"
+    echo "# clientVersion: $CLI_VERSION"
+    echo "# effort:       ${EFFORT:-CLI default}"
+    echo "# context:      ${CONTEXT_TIER:-CLI default}"
+    echo "# usage_complete: $USAGE_COMPLETE"
+    [[ -n "$USAGE_UNAVAILABLE" ]] && echo "# usage_detail: $USAGE_UNAVAILABLE"
+    echo "#"
+    echo "# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail"
+    cat "$ATTEMPTS"
+  } >"$ATTEMPTS_BASELINE"
+  echo "${DIM}per-run attempts written to $ATTEMPTS_BASELINE${RESET}"
 
   if [[ -s "$USAGE_FILE" ]]; then
     USAGE_BASELINE="${SAVE_BASELINE%.txt}-usage.psv"
