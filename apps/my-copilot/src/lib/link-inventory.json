@@ -1103,13 +1103,14 @@
     "anchors": {}
   },
   "/news.json": {
-    "sources": ["cli/nav-pilot/internal/cli/news.go"],
+    "sources": ["cli/nav-pilot/internal/cli/news.go", "docs/news/README.md"],
     "anchors": {}
   },
   "/nyheter": {
     "sources": [
       "apps/my-copilot/next.config.ts",
-      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx"
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
+      "docs/news/README.md"
     ],
     "anchors": {}
   },

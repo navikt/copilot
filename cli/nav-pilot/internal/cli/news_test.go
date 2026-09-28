@@ -26,6 +26,7 @@ func TestNewsCleanDropsWhatIsUnsafeToPrint(t *testing.T) {
 func TestNewsNextIsNewestUnseenRecentCLIItem(t *testing.T) {
 	now := time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC)
 	st := newsState{Items: []newsItem{
+		{Title: "scheduled", Date: "2026-10-01", URL: "u9", CLI: true},
 		{Title: "not cli", Date: "2026-09-27", URL: "u0"},
 		{Title: "seen", Date: "2026-09-26", URL: "u1", CLI: true},
 		{Title: "this", Date: "2026-09-25", URL: "u2", CLI: true},
