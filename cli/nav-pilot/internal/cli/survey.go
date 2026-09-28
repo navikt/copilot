@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/charmbracelet/huh"
@@ -230,12 +231,17 @@ func prepareSurvey(client string) {
 	hasPending := slices.ContainsFunc(slices.Collect(maps.Values(st.Surveys)), func(r *surveyRecord) bool { return len(r.Pending) > 0 })
 	fetchDue := now.Sub(st.Fetched) >= surveyFetchEvery
 	// Nothing to do: no keychain read.
-	if !hasPending && !fetchDue {
+	if !hasPending && !fetchDue && nextSurvey(st, now, "calm") == nil {
 		return
 	}
 	// Nothing can be sent without a sign-in, so no network without one.
-	// Checked every session end, so a new sign-in is noticed at once.
+	// Checked every session, so a new sign-in is noticed at once. Here and
+	// not in promptSurvey: renewing the token can take the network.
 	if !canSignIn() {
+		return
+	}
+	surveySignedIn.Store(true)
+	if !hasPending && !fetchDue {
 		return
 	}
 	base := copilotCLIURL()
@@ -254,6 +260,9 @@ func prepareSurvey(client string) {
 	}
 }
 
+// surveySignedIn is prepareSurvey's answer to canSignIn, for promptSurvey.
+var surveySignedIn atomic.Bool
+
 // promptSurvey asks about the next open survey at the calm moment after an
 // interactive session, from what prepareSurvey fetched. It reads only the
 // state file, and never fails: a survey must not change how nav-pilot exits.
@@ -266,7 +275,7 @@ func promptSurvey(client string) {
 	st := readSurveyState()
 	now := time.Now()
 	s := nextSurvey(st, now, "calm")
-	if s == nil || !canSignIn() || !claimSessionPrompt() {
+	if s == nil || !surveySignedIn.Load() || !claimSessionPrompt() {
 		return
 	}
 	base := copilotCLIURL()
