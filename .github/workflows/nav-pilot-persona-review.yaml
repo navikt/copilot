@@ -24,10 +24,6 @@ on:
     - cron: '17 6 * * 1'
   workflow_dispatch:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
 
@@ -39,6 +35,11 @@ jobs:
       (contains(github.event.pull_request.labels.*.name, 'persona-review') &&
        (github.event.action != 'labeled' || github.event.label.name == 'persona-review') &&
        github.event.pull_request.head.repo.full_name == github.repository)
+    # On the job, not the workflow: a run skipped by the `if` above (another
+    # label added) must not cancel the one doing the review.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
