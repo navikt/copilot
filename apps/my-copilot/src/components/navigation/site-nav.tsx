@@ -96,7 +96,7 @@ const initials = (name: string) => {
 // Tab (§6 in docs/nav-pilot-dokumentasjon-forslag.md).
 function UserMenu({ labels, userName }: { labels: HeaderLabels; userName: string }) {
   const hrefLang = labels.lang === "en" ? "nb" : undefined;
-  const pct = useBudgetPct();
+  const pct = useBudgetPct(true);
   const [open, setOpen] = useState(false);
   const [button, setButton] = useState<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -164,7 +164,7 @@ function MobileMenu({ labels, userName }: { labels: HeaderLabels; userName?: str
   const pathname = usePathname();
   const active = activeTop(pathname);
   const hrefLang = labels.lang === "en" ? "nb" : undefined;
-  const pct = useBudgetPct();
+  const pct = useBudgetPct(!!userName);
   const [open, setOpen] = useState(false);
   const [level2, setLevel2] = useState(false);
   const [swapped, setSwapped] = useState(false);

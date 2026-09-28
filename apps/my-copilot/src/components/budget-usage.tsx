@@ -23,11 +23,11 @@ const loadPct = () =>
     .catch(() => null));
 
 /** The share of this month's AI credit limit used, 0–100, or null when unknown. */
-export function useBudgetPct() {
+export function useBudgetPct(signedIn: boolean) {
   const [pct, setPct] = useState<number | null>(null);
   useEffect(() => {
-    loadPct().then(setPct);
-  }, []);
+    if (signedIn) loadPct().then(setPct);
+  }, [signedIn]);
   return pct;
 }
 
