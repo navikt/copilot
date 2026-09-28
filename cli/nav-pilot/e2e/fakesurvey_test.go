@@ -30,7 +30,9 @@ const fakeSurveyDefs = `{"surveys":[{"id":"e2e-2026","title":"E2E survey","start
 // the device id in $HOME/device-id. The first POST per token gets 201, the
 // next 409, like the real dedup. $WORK/survey-gets.log counts the GETs.
 // -empty lists no survey, -404 answers the list with 404 (the ingress where
-// the gateway is not deployed), and -hang never answers it.
+// the gateway is not deployed), -502 and -503 answer it with those statuses
+// (copilot-cli up but copilot-survey not, e.g. a missing secret), and -hang
+// never answers it.
 func cmdFakeSurvey(ts *testscript.TestScript, neg bool, args []string) {
 	defs := fakeSurveyDefs
 	status, hang := http.StatusOK, false
@@ -42,10 +44,14 @@ func cmdFakeSurvey(ts *testscript.TestScript, neg bool, args []string) {
 			defs = `{"surveys":[]}`
 		case "-404":
 			status = http.StatusNotFound
+		case "-502":
+			status = http.StatusBadGateway
+		case "-503":
+			status = http.StatusServiceUnavailable
 		case "-hang":
 			hang = true
 		default:
-			ts.Fatalf("usage: fake-survey [-nudge-start] [-empty] [-404] [-hang]")
+			ts.Fatalf("usage: fake-survey [-nudge-start] [-empty] [-404] [-502] [-503] [-hang]")
 		}
 	}
 	if neg {
