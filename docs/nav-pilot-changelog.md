@@ -9,6 +9,11 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Installasjonsskriptet tilbys**: Uten Homebrew lagret oppsettet Copilot CLI når du valgte opencode, selv om heller ikke Copilot CLI var installert. Nå tilbyr nav-pilot å kjøre opencodes eget installasjonsskript (`curl -fsSL https://opencode.ai/install | bash`), og bruker opencode i samme kjøring når du sier ja.
 - **Begge klientene nevnes**: Sier du nei, og ingen av klientene er installert, viser oppsettet installasjonskommandoen for begge. Det gjør også meldingen «nothing was launched» (#1184).
 
+### opencode og pi starter uten å vente på GitHub
+
+- **Kopi i stedet for nedlasting ved hver oppstart**: Med opencode eller pi lastet nav-pilot ned agentpakka fra GitHub før hver økt, vanligvis 3,5 sekunder, opptil 10. Uten nett ventet oppstarten til git ga opp. Nå bruker nav-pilot kopien i `~/.nav-pilot/sources/` og henter en ny mens økten kjører, høyst én gang i timen. Endringer i agentpakka kommer med ved neste oppstart.
+- **Bare den første oppstarten venter**: Finnes ingen kopi, laster nav-pilot ned som før, men gir opp etter 60 sekunder.
+
 ### Raskere tilbake til terminalen etter en økt
 
 - **Undersøkelser og nyheter hentes mens økten kjører**: Etter en økt hentet nav-pilot åpne undersøkelser og nyheter, én etter én, før du fikk terminalen tilbake. Nå hentes de i bakgrunnen mens økten kjører, og spørsmålet eller nyhetslinja kommer som før når økten er slutt. Er økten kortere enn hentingen, kommer de ved neste økt i stedet.
