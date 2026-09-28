@@ -78,10 +78,10 @@ func isKnownCommand(arg string) bool {
 // usage prints the top-level help: to stdout when it was asked for, to stderr
 // when it stands in for an answer the invocation did not get.
 func usage(w io.Writer) {
-	fmt.Fprintf(w, `nav-pilot — Nav's Copilot toolkit
+	fmt.Fprintf(w, `nav-pilot — Nav's toolkit for coding agents
 
-CLI tool that installs agents, skills, and instructions for GitHub Copilot.
-Once installed, use @nav-pilot in Copilot Chat to plan and build Nav apps.
+CLI tool that installs agents, skills, and instructions for Copilot CLI,
+opencode and pi, and starts them in the cplt sandbox to plan and build Nav apps.
 
 Usage:
   nav-pilot <command> [flags]
@@ -164,7 +164,7 @@ Exit Codes:
 Run nav-pilot help <command> (or nav-pilot <command> --help) for a command's own flags.
 
 Get started:
-  nav-pilot                              # Interactive: install, upgrade, or launch Copilot
+  nav-pilot                              # Interactive: install, upgrade, or launch your coding agent
   nav-pilot list                         # See the agentpakke and its items
   nav-pilot install nav-pilot            # Install everything to .github/
   nav-pilot install --user --all         # Install everything to ~/.copilot (all repos)
@@ -177,7 +177,7 @@ Get started:
   nav-pilot validate --source navikt/x   # Check an agentpakke repo against the contract
   nav-pilot install nav-pilot --frozen --force    # CI: install exactly the pinned revision, or fail
 
-After installing, use @nav-pilot in GitHub Copilot Chat.
+After installing, run nav-pilot to start a session, or use @nav-pilot in GitHub Copilot Chat.
 `)
 }
 

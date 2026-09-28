@@ -337,7 +337,7 @@ func checkContext(ctx context.Context, base, model string) (doctorCheck, doctorC
 		c.Level, c.Detail = levelWarn, "the server reported no prompt token count, so a cut prompt cannot be ruled out"
 		c.Fix = fixContext
 	case a.Usage.PromptTokens < doctorContextMin:
-		c.Level, c.Detail = levelFail, fmt.Sprintf("about 30k tokens went in and %d were kept: the server cuts prompts to its context window, which breaks a Copilot session without saying so", a.Usage.PromptTokens)
+		c.Level, c.Detail = levelFail, fmt.Sprintf("about 30k tokens went in and %d were kept: the server cuts prompts to its context window, which breaks an agent session without saying so", a.Usage.PromptTokens)
 		c.Fix = fixContext
 	default:
 		c.Level, c.Detail = levelPass, fmt.Sprintf("%d prompt tokens kept, nothing cut", a.Usage.PromptTokens)

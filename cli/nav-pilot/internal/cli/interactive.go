@@ -443,7 +443,7 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 // interactiveFreshInstall handles the case where no install exists and we're in a git repo.
 // Prompts for scope first, then collection (repo) or installs everything (user).
 func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
-	fmt.Println(bold("nav-pilot") + dim(" — Nav's Copilot toolkit"))
+	fmt.Println(bold("nav-pilot") + dim(" — Nav's toolkit for coding agents"))
 	fmt.Println()
 	// Scope first, then source: the repo's declaration is one rung of the
 	// source ladder, and it is only readable once we know which scope (and so
@@ -480,7 +480,7 @@ func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
 // interactiveUserOnlyInstall handles fresh install when not in a git repo.
 // Skips the scope picker and goes straight to user-home install.
 func interactiveUserOnlyInstall(resolved ResolvedConfig) error {
-	fmt.Println(bold("nav-pilot") + dim(" — Nav's Copilot toolkit"))
+	fmt.Println(bold("nav-pilot") + dim(" — Nav's toolkit for coding agents"))
 	fmt.Println()
 	fmt.Println(dim("Not in a git repository — installing to user home."))
 	fmt.Fprintln(os.Stderr, dim("Resolving source..."))
