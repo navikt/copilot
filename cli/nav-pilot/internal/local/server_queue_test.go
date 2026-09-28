@@ -186,7 +186,7 @@ func TestServerQueueFullAnswers503(t *testing.T) {
 
 	started := time.Now()
 	code, body, hdr := post(t, base, 0)
-	if code != http.StatusServiceUnavailable || !strings.Contains(body, "1 requests are already waiting") {
+	if code != http.StatusServiceUnavailable || !strings.Contains(body, "the queue is full (1 waiting)") {
 		t.Errorf("POST on a full queue = %d %s, want 503 naming the full queue", code, body)
 	}
 	if hdr.Get("Retry-After") == "" {
@@ -254,11 +254,16 @@ func TestServerQueueProbeDoesNotWait(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	started := time.Now()
-	if _, err := probeCompletion(ctx, base, "m"); !errors.Is(err, errServerBusy) {
-		t.Errorf("probe behind a long answer = %v, want errServerBusy", err)
+	var busy serverBusyError
+	if _, err := probeCompletion(ctx, base, "m"); !errors.As(err, &busy) {
+		t.Errorf("probe behind a long answer = %v, want serverBusyError", err)
 	}
 	if d := time.Since(started); d > 500*time.Millisecond {
 		t.Errorf("the probe took %v; it must not queue", d)
+	}
+	// How long the request ahead has run, which is how Health tells a stuck one.
+	if busy.For < 150*time.Millisecond || busy.For > time.Second {
+		t.Errorf("busy for %v, want about the 200ms the long request has run", busy.For)
 	}
 }
 

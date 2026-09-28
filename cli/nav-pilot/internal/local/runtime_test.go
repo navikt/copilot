@@ -886,6 +886,24 @@ func TestHealth(t *testing.T) {
 			want:  HealthHung,
 		},
 		{
+			// Answering someone else: the probe is told at once, not queued
+			// behind it into a 30-second timeout.
+			name:  "busy with another request",
+			start: true,
+			ready: true,
+			probe: func(context.Context) (int, error) { return 0, serverBusyError{time.Minute} },
+			want:  HealthBusy,
+		},
+		{
+			// Busy past the wait bound is stuck: no answer takes that long, and
+			// "busy" in green would hide the hang this check exists for.
+			name:  "busy for longer than the queue's wait bound",
+			start: true,
+			ready: true,
+			probe: func(context.Context) (int, error) { return 0, serverBusyError{serverQueueWait + time.Second} },
+			want:  HealthHung,
+		},
+		{
 			name:    "the process is gone",
 			start:   true,
 			ready:   true,

@@ -751,7 +751,8 @@ const (
 	HealthCrashed Health = "crashed"
 
 	// HealthBusy: the process is alive and answering another request. The
-	// probe does not queue behind it, so this is all it can say.
+	// probe does not queue behind it. Busy for longer than serverQueueWait
+	// is HealthHung: no waiter would be served, and no answer takes that long.
 	HealthBusy Health = "busy"
 
 	// HealthHung: the process is alive and accepting connections but did not
@@ -864,10 +865,15 @@ func (p *execProc) Wait() exitInfo {
 // generation thread while the process stays alive — the hung state below — so
 // a health check that sends the same bytes every time is a health check that
 // can cause the failure it is looking for.
-// errServerBusy is [probeCompletion] finding the server answering another
-// request. [serverBootstrap] answers a probe that at once instead of queueing
-// it, so a long answer does not make a healthy server look hung.
-var errServerBusy = errors.New("the local server is answering another request")
+// serverBusyError is [probeCompletion] finding the server answering another
+// request, and for how long. [serverBootstrap] answers a probe that at once
+// instead of queueing it, so a long answer does not make a healthy server look
+// hung. For is how [Server.Health] still tells a stuck one.
+type serverBusyError struct{ For time.Duration }
+
+func (e serverBusyError) Error() string {
+	return fmt.Sprintf("the local server has been answering another request for %s", e.For.Round(time.Second))
+}
 
 var probeCompletion = func(ctx context.Context, baseURL, model string) (int, error) {
 	body, err := json.Marshal(map[string]any{
@@ -894,8 +900,16 @@ var probeCompletion = func(ctx context.Context, baseURL, model string) (int, err
 	if err != nil {
 		return 0, err
 	}
-	if resp.StatusCode == http.StatusServiceUnavailable && strings.Contains(string(data), `"server_busy"`) {
-		return 0, errServerBusy
+	if resp.StatusCode == http.StatusServiceUnavailable {
+		var busy struct {
+			Error struct {
+				Type    string  `json:"type"`
+				BusyFor float64 `json:"busy_for"`
+			} `json:"error"`
+		}
+		if json.Unmarshal(data, &busy) == nil && busy.Error.Type == "server_busy" {
+			return 0, serverBusyError{time.Duration(busy.Error.BusyFor * float64(time.Second))}
+		}
 	}
 	if resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("POST /v1/chat/completions: %s: %s", resp.Status, strings.TrimSpace(string(data)))
@@ -1102,9 +1116,10 @@ import io, json, select, socket, time
 import mlx_lm.server as _server
 _admit = threading.BoundedSemaphore(_QUEUE)
 _turn = threading.Lock()
+_since = [0.0]
 _post = _server.APIHandler.do_POST
 def _busy(h, why):
-    body = json.dumps({"error": {"message": "nav-pilot: the local model server is busy: %s. Try again in a moment." % why, "type": "server_busy", "code": 503}}).encode()
+    body = json.dumps({"error": {"message": "nav-pilot: the local model server is busy: %s. Try again in a moment." % why, "type": "server_busy", "code": 503, "busy_for": time.monotonic() - _since[0]}}).encode()
     h.close_connection = True
     try:
         h.send_response(503)
@@ -1120,7 +1135,7 @@ def _gone(h):
     # readable on the socket now is the client closing it.
     try:
         return bool(select.select([h.connection], [], [], 0)[0]) and h.connection.recv(1, socket.MSG_PEEK) == b""
-    except OSError:
+    except (OSError, ValueError):
         return True
 def _one_at_a_time(self):
     n = int(self.headers.get("Content-Length") or 0)
@@ -1132,7 +1147,7 @@ def _one_at_a_time(self):
             return _busy(self, "answering another request")
     else:
         if not _admit.acquire(blocking=False):
-            return _busy(self, "%d requests are already waiting" % _QUEUE)
+            return _busy(self, "the queue is full (%d waiting)" % _QUEUE)
         try:
             deadline = time.monotonic() + _WAIT
             while not _turn.acquire(timeout=0.25):
@@ -1142,6 +1157,7 @@ def _one_at_a_time(self):
                     return _busy(self, "waited %g s for the request ahead of this one" % _WAIT)
         finally:
             _admit.release()
+    _since[0] = time.monotonic()
     try:
         if not _gone(self):
             _post(self)
@@ -1282,7 +1298,7 @@ func (s *Server) waitReady(ctx context.Context, model string) error {
 		cancel()
 		switch {
 		case err != nil:
-			// errServerBusy too: a request that arrived during loading holds
+			// Busy too: a request that arrived during loading holds
 			// the server, so busy does not prove the weights are in.
 			last = err
 		case tokens > 0:
@@ -1339,6 +1355,7 @@ func (s *Server) Health(ctx context.Context) Health {
 	timedOut := probeCtx.Err() != nil
 	cancel()
 
+	var busy serverBusyError
 	// Re-check the exit first: a process that died mid-probe is crashed, not
 	// hung, and the probe failing is a consequence of that, not evidence of
 	// anything else.
@@ -1346,7 +1363,9 @@ func (s *Server) Health(ctx context.Context) Health {
 		return HealthCrashed
 	}
 	switch {
-	case errors.Is(err, errServerBusy):
+	case errors.As(err, &busy) && busy.For > serverQueueWait:
+		return HealthHung
+	case errors.As(err, &busy):
 		return HealthBusy
 	case err != nil && timedOut && !wasReady && time.Since(started) < readyTimeout:
 		// A cold start, not a hang. mlx-lm binds the port before it maps the
