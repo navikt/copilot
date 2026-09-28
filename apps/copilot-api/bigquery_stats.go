@@ -868,15 +868,34 @@ const minUsersForDistribution = 5
 
 // UsageHistogramBucket is one bucket of the credits histogram: how many
 // users fall in a given usage range. No individual users are identifiable.
+// A bucket with 1 to minUsersForDistribution-1 users is sent as Suppressed
+// with NumUsers 0, so the exact small count never leaves the API.
 type UsageHistogramBucket struct {
-	Bucket   string `bigquery:"bucket" json:"bucket"`
-	NumUsers int64  `bigquery:"num_users" json:"num_users"`
+	Bucket     string `bigquery:"bucket" json:"bucket"`
+	NumUsers   int64  `bigquery:"num_users" json:"num_users"`
+	Suppressed bool   `bigquery:"-" json:"suppressed,omitempty"`
+}
+
+// suppressSmallBuckets hides bucket counts below minUsersForDistribution.
+// Empty buckets stay 0: knowing nobody is in a range identifies no one.
+func suppressSmallBuckets(buckets []UsageHistogramBucket) {
+	for i := range buckets {
+		if n := buckets[i].NumUsers; n > 0 && n < minUsersForDistribution {
+			buckets[i].NumUsers = 0
+			buckets[i].Suppressed = true
+		}
+	}
 }
 
 // UsageDistribution is a privacy-preserving, aggregate-only view of how
 // Copilot usage is spread across all users in a given month: percentiles
 // (deciles) per metric plus a credits histogram. It never contains
 // per-user identifiers.
+//
+// NumUsers counts every login with a user_metrics row in Month, including
+// people whose seat was removed during the month. TotalLicensedSeats is
+// today's seat count from GitHub billing. They are different populations on
+// different dates, so NumUsers/TotalLicensedSeats is not an adoption rate.
 type UsageDistribution struct {
 	Month               string                 `json:"month"`
 	NumUsers            int64                  `json:"num_users"`
@@ -1003,6 +1022,7 @@ func (bq *BigQueryClient) getUsageDistributionData(ctx context.Context, metricsR
 	}
 
 	row := rows[0]
+	suppressSmallBuckets(row.Histogram)
 	return &UsageDistribution{
 		CreditsDeciles:      row.Deciles.CreditsDeciles,
 		InteractionsDeciles: row.Deciles.InteractionsDeciles,

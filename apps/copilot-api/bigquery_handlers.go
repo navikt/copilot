@@ -8,20 +8,20 @@ import (
 
 // BigQueryHandlers wraps handlers that use BigQuery
 type BigQueryHandlers struct {
-	bqClient          BigQueryQuerier
-	budgetClient      globalBudgetGetter
-	activeSeatsGetter func() int64
+	bqClient     BigQueryQuerier
+	budgetClient globalBudgetGetter
+	seatsGetter  func() int64
 }
 
 func newBigQueryHandlers(bqClient BigQueryQuerier) *BigQueryHandlers {
 	return &BigQueryHandlers{
 		bqClient: bqClient,
 		// Defaults to the real MetricsCollector singleton; tests can override
-		// this via setActiveSeatsGetter to avoid depending on global state.
-		activeSeatsGetter: func() int64 {
+		// this via setSeatsGetter to avoid depending on global state.
+		seatsGetter: func() int64 {
 			metricsCollector.mu.RLock()
 			defer metricsCollector.mu.RUnlock()
-			return metricsCollector.githubSeatsActive
+			return metricsCollector.githubSeatsTotal
 		},
 	}
 }
@@ -33,11 +33,11 @@ func (h *BigQueryHandlers) setBudgetClient(budgetClient globalBudgetGetter) {
 	h.budgetClient = budgetClient
 }
 
-// setActiveSeatsGetter overrides how handleUsageDistribution resolves the
-// current active GitHub Copilot seat count. Primarily used by tests to avoid
+// setSeatsGetter overrides how handleUsageDistribution resolves the
+// current GitHub Copilot seat count. Primarily used by tests to avoid
 // depending on the metricsCollector global singleton.
-func (h *BigQueryHandlers) setActiveSeatsGetter(getter func() int64) {
-	h.activeSeatsGetter = getter
+func (h *BigQueryHandlers) setSeatsGetter(getter func() int64) {
+	h.seatsGetter = getter
 }
 
 func requireMethod(w http.ResponseWriter, r *http.Request, method string) bool {

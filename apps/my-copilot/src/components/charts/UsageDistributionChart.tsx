@@ -5,8 +5,8 @@ import { Bar } from "react-chartjs-2";
 import { BodyShort, Heading } from "@navikt/ds-react";
 import { chartColors, getBackgroundColor } from "@/lib/chart-utils";
 import { formatNumber } from "@/lib/format";
-import type { UsageDistribution } from "@/lib/types";
-import type { TooltipItem } from "chart.js";
+import type { UsageDistribution, UsageHistogramBucket } from "@/lib/types";
+import type { Chart, Plugin, TooltipItem } from "chart.js";
 
 // "AI" stays in the AI credit wording: AI credits is GitHub's name for the billing unit. Other Norwegian text says KI.
 
@@ -41,6 +41,28 @@ function bucketForCredits(credits: number, budget: number): string {
   return "100%+";
 }
 
+// Same threshold as copilot-api's minUsersForDistribution, which suppresses
+// bucket counts from 1 to 4.
+const MIN_USERS = 5;
+
+export function countText(b: UsageHistogramBucket): string {
+  return b.suppressed ? `<${MIN_USERS}` : formatNumber(b.num_users);
+}
+
+function monthName(month: string): string {
+  const date = new Date(`${month}-01T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return month;
+  return new Intl.DateTimeFormat("nb-NO", { month: "long", year: "numeric", timeZone: "UTC" }).format(date);
+}
+
+// num_users counts everyone with activity in the month, including people whose
+// seat was removed during it; total_licensed_seats is today's seat count. The
+// two can't be reconciled, so show both with honest labels and no ratio.
+export function populationText(d: UsageDistribution): string {
+  const users = `${formatNumber(d.num_users)} brukere med Copilot-aktivitet i ${monthName(d.month)}`;
+  return d.total_licensed_seats > 0 ? `${users} · ${formatNumber(d.total_licensed_seats)} lisenser nå.` : `${users}.`;
+}
+
 const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distribution, currentUserCredits }) => {
   if (!distribution || distribution.num_users === 0) {
     return <BodyShort className="text-gray-500">Ingen fordelingsdata tilgjengelig ennå.</BodyShort>;
@@ -55,13 +77,14 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
     );
   }
 
-  const buckets = distribution.credits_histogram.map((b) => b.bucket);
+  const histogram = distribution.credits_histogram;
+  const buckets = histogram.map((b) => b.bucket);
   const labels = buckets.map((b) => BUCKET_LABELS[b] ?? b);
-  const counts = distribution.credits_histogram.map((b) => b.num_users);
+  // Empty buckets draw no bar (null). Suppressed buckets get a token value so
+  // minBarLength gives them a visible stub; labels carry the real text.
+  const barValues = histogram.map((b) => (b.suppressed ? 1 : b.num_users || null));
   const totalUsers = distribution.num_users;
-  const totalSeats = distribution.total_licensed_seats;
   const budgetUsd = distribution.budget_credits * 0.01;
-  const adoptionPct = totalSeats > 0 ? Math.round((totalUsers / totalSeats) * 100) : null;
 
   const currentUserBucket =
     currentUserCredits != null ? bucketForCredits(currentUserCredits, distribution.budget_credits) : null;
@@ -72,7 +95,8 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
     datasets: [
       {
         label: "Antall brukere",
-        data: counts,
+        data: barValues,
+        minBarLength: 6,
         backgroundColor: buckets.map((_, i) =>
           i === currentUserBucketIndex
             ? getBackgroundColor(chartColors[1], 0.7)
@@ -89,12 +113,46 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
     ],
   };
 
+  // Count above every bar, so nobody has to hover, and «Du er her» above the
+  // user's own bar even when it is only a stub.
+  const barLabels: Plugin<"bar"> = {
+    id: "barLabels",
+    afterDatasetsDraw(chart: Chart<"bar">) {
+      const { ctx, scales } = chart;
+      const bars = chart.getDatasetMeta(0).data;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      histogram.forEach((b, i) => {
+        const mine = i === currentUserBucketIndex;
+        ctx.fillStyle = mine ? "#065F46" : "#374151";
+        ctx.font = `${mine ? "bold " : ""}12px sans-serif`;
+        // Keep «Du er her» inside the canvas when the last column is narrow.
+        const x = Math.min(scales.x.getPixelForValue(i), chart.width - ctx.measureText("Du er her").width / 2 - 2);
+        const y = (barValues[i] == null ? scales.y.getPixelForValue(0) : bars[i].y) - 4;
+        ctx.fillText(countText(b), x, y);
+        if (mine) ctx.fillText("Du er her", x, y - 15);
+      });
+      ctx.restore();
+    },
+  };
+
+  const summary = histogram
+    .map(
+      (b, i) =>
+        `${labels[i]}: ${b.suppressed ? `færre enn ${MIN_USERS}` : formatNumber(b.num_users)}${i === currentUserBucketIndex ? " (du er her)" : ""}`
+    )
+    .join(", ");
+
   const options = {
     responsive: true,
     // false: let the aspect-* CSS class on the wrapping div control the
     // canvas size — Chart.js's own aspectRatio handling (used when this is
     // true) ignores the container's CSS and defaults to a 2:1 ratio.
     maintainAspectRatio: false,
+    // Hovering anywhere in a column shows its tooltip, also for tiny bars.
+    interaction: { mode: "index", intersect: false },
+    layout: { padding: { top: 36, right: 8 } },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -103,10 +161,11 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
         cornerRadius: 6,
         callbacks: {
           label: (ctx: TooltipItem<"bar">) => {
-            const value = ctx.parsed.y as number;
-            const pct = ((value / totalUsers) * 100).toFixed(0);
+            const b = histogram[ctx.dataIndex];
             const you = ctx.dataIndex === currentUserBucketIndex ? ", deg inkludert" : "";
-            return ` ${formatNumber(value)} brukere (${pct} %)${you}`;
+            if (b.suppressed) return ` Færre enn ${MIN_USERS} brukere${you}`;
+            const pct = ((b.num_users / totalUsers) * 100).toFixed(0);
+            return ` ${formatNumber(b.num_users)} brukere (${pct} %)${you}`;
           },
         },
       },
@@ -134,14 +193,12 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
   return (
     <div>
       <Heading size="small" level="4" spacing>
-        Fordeling av AI-kredittbruk — {distribution.month}
+        Fordeling av AI-kredittbruk, {monthName(distribution.month)}
       </Heading>
       <BodyShort size="small" className="text-gray-600" style={{ marginBottom: "var(--a-spacing-8)" }}>
-        {adoptionPct !== null
-          ? `${formatNumber(totalUsers)} av ${formatNumber(totalSeats)} lisenser i bruk (${adoptionPct} % adopsjon).`
-          : `${formatNumber(totalUsers)} brukere hadde KI-aktivitet denne måneden.`}{" "}
-        Budsjett: ${formatNumber(budgetUsd)}/måned ({formatNumber(distribution.budget_credits)} kreditter). Ingen
-        enkeltbrukere vises.
+        {populationText(distribution)} Budsjett: ${formatNumber(budgetUsd)}/måned (
+        {formatNumber(distribution.budget_credits)} kreditter). Grafen viser bare antall brukere per intervall, og
+        intervaller med færre enn {MIN_USERS} brukere vises som «&lt;{MIN_USERS}». Bare du ser hvor du selv ligger.
         {currentUserBucket && (
           <>
             {" "}
@@ -149,10 +206,13 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
           </>
         )}
       </BodyShort>
-      <div className="aspect-[12/1]">
+      <div className="h-64">
         <Bar
           data={chartData as Parameters<typeof Bar>[0]["data"]}
           options={options as Parameters<typeof Bar>[0]["options"]}
+          plugins={[barLabels]}
+          role="img"
+          aria-label={`Antall brukere per andel av AI-kredittbudsjettet brukt: ${summary}.`}
         />
       </div>
     </div>

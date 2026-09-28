@@ -461,6 +461,8 @@ export interface DailySummary {
 export interface UsageHistogramBucket {
   bucket: string;
   num_users: number;
+  /** 1-4 users: the API sends num_users 0 and hides the exact count. */
+  suppressed?: boolean;
 }
 
 export interface UsageDistribution {
