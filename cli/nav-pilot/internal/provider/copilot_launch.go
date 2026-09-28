@@ -41,6 +41,21 @@ func FindCopilotCLI() (path, name string) {
 	return "", ""
 }
 
+// CopilotOnPath reports whether the Copilot CLI itself is on PATH, not a
+// cplt installed under its name. cplt does not bring copilot: it starts the
+// copilot on PATH, and without one it stops with its own install hint
+// (#1064).
+func CopilotOnPath() bool {
+	p, err := exec.LookPath("copilot")
+	return err == nil && !IsCplt(p)
+}
+
+// CopilotMissingBehindCplt is the refusal when cplt is there and copilot
+// is not.
+func CopilotMissingBehindCplt() string {
+	return "copilot is not installed, and cplt starts the copilot on PATH. Install it: " + domain.Bold(CopilotInstallCommand)
+}
+
 // IsCplt checks if a binary is actually cplt (Copilot Sandbox) by inspecting
 // its version output. Returns true if the binary identifies as cplt/sandbox.
 // The answer comes from cachedVersion, so a launch asks a plain copilot for
@@ -229,6 +244,10 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		return fmt.Errorf("the Copilot CLI (copilot) is not on PATH. Install it: %s", domain.Bold(CopilotInstallCommand))
 	}
 	if cliName == "cplt" {
+		if !CopilotOnPath() {
+			telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
+			return errors.New(CopilotMissingBehindCplt())
+		}
 		PrintCpltSandboxHint()
 	}
 	env := CopilotEnv(resolved.OtelLogLevel)

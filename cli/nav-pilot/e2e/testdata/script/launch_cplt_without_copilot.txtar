@@ -1,0 +1,28 @@
+# cplt starts the copilot on PATH and does not bring one. With cplt and no
+# copilot, nav-pilot refuses before handing off, with the same install
+# command as everywhere else, instead of letting cplt stop with its own
+# (#1064).
+
+fake-bin cplt
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+
+exits 1 nav-pilot --sync --source $WORK/plattform -- -p 'review this PR'
+stderr 'Not launching: copilot is not installed, and cplt starts the copilot on PATH\. Install it: curl -fsSL https://gh\.io/copilot-install \| bash'
+! exists $WORK/fake/cplt.log
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

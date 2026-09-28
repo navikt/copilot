@@ -36,7 +36,7 @@ fake-bin copilot
 exits 1 nav-pilot --sync --source $WORK/plattform -- -p 'review this PR'
 stderr 'Not launching: no terminal, and without cplt copilot would run unsandboxed'
 stderr 'Install cplt: brew install navikt/tap/cplt'
-! exists $WORK/fake/copilot.log
+! grep '^-p' $WORK/fake/copilot.log
 
 # pi only runs inside cplt: with pi and no cplt, the refusal names cplt.
 fake-bin pi

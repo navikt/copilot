@@ -13,6 +13,17 @@ import (
 // stubClient puts a fake client binary named name on an otherwise empty PATH.
 // The stub records that it ran by creating a marker file, which is how these
 // tests tell "launched" from "not launched".
+// plainCopilot puts a copilot in dir that only answers --version: cplt starts
+// the copilot on PATH, and nav-pilot does not hand off to cplt without one
+// (#1064).
+func plainCopilot(t *testing.T, dir string) {
+	t.Helper()
+	script := "#!/bin/sh\n[ \"$1\" = --version ] && echo 'GitHub Copilot CLI 1.0.40'\nexit 0\n"
+	if err := os.WriteFile(filepath.Join(dir, "copilot"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func stubClient(t *testing.T, name string) (markerPath string) {
 	t.Helper()
 	binDir := t.TempDir()
@@ -27,6 +38,9 @@ func stubClient(t *testing.T, name string) (markerPath string) {
 	script := "#!/bin/sh\n[ \"$1\" = --version ] && exit 0\n: > \"" + markerPath + "\"\n"
 	if err := os.WriteFile(filepath.Join(binDir, name), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
+	}
+	if name == "cplt" {
+		plainCopilot(t, binDir)
 	}
 	// PATH holds only the stub dir, so no real client (cplt included) can be
 	// found or started by accident.
@@ -173,6 +187,7 @@ func TestProjectDirFlagReachesCplt(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(binDir, "cplt"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	plainCopilot(t, binDir)
 	t.Setenv("PATH", binDir)
 
 	root := t.TempDir()
