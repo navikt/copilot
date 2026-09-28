@@ -23,6 +23,7 @@ describe("activeTop", () => {
 it("finds the section-menu group of a page", () => {
   expect(inSection("/nav-pilot")).toBe(true);
   expect(inSection("/praksis")).toBe(false);
+  expect(inSection("/cplt")).toBe(false);
   expect(sectionGroup("/verktoy")?.label).toBe("Tilpasning");
   expect(sectionGroup("/kom-i-gang")?.label).toBe("Kom i gang");
   expect(sectionGroup("/nav-pilot/lokal/decide")?.label).toBe("Kom i gang");

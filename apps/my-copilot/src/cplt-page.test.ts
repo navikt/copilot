@@ -2,8 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 // /cplt is the external landing page for the cplt open-source project. It lives
-// under the (nb) route group but stays in English (see AGENTS.md).
-const PAGE = path.resolve(__dirname, "app/(nb)/(nav-pilot)/cplt/page.tsx");
+// under the English (en) route group, with no nav-pilot section menu, and stays
+// in English (see AGENTS.md).
+const PAGE = path.resolve(__dirname, "app/(en)/cplt/page.tsx");
 // The configuration explorer renders on the page too.
 const EXPLORER = path.resolve(__dirname, "components/cplt-config-explorer.tsx");
 

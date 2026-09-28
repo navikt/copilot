@@ -36,7 +36,7 @@ export function activeTop(pathname: string): string | undefined {
 
 /** Pages under the nav-pilot umbrella, which have the section menu. */
 export const inSection = (pathname: string) =>
-  ["/kom-i-gang", "/verktoy", "/cplt", "/nav-pilot"].some((h) => under(pathname, h));
+  ["/kom-i-gang", "/verktoy", "/nav-pilot"].some((h) => under(pathname, h));
 
 const fromDocs = (pages: DocLink[]): NavLink[] => pages.map((p) => ({ href: p.href, label: p.title }));
 
