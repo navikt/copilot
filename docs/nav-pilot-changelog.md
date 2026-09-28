@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-28
 
+### En test passer på at nav-pilot holder seg rask
+
+- **Tidsbudsjett i CI**: `TestLaunchBudget` starter nav-pilot med falske klienter og et nett som aldri svarer, og feiler hvis nav-pilot bruker over tre ganger budsjettet: 150 ms før klienten starter, 200 ms fra økten slutter til terminalen er tilbake, og 50 ms for `--version` og `--help`. Før denne runden brukte `--version` og økt-slutten ett sekund hver på et slikt nett.
+
 ### opencode uten Homebrew
 
 - **Installasjonsskriptet tilbys**: Uten Homebrew lagret oppsettet Copilot CLI når du valgte opencode, selv om heller ikke Copilot CLI var installert. Nå tilbyr nav-pilot å kjøre opencodes eget installasjonsskript (`curl -fsSL https://opencode.ai/install | bash`), og bruker opencode i samme kjøring når du sier ja.
