@@ -10,7 +10,7 @@
 #     with the latest run. A failing journey also comments there and fails the
 #     run.
 #
-# The LLM review (UX_RUBRIC.md as prompt, GitHub Models via GITHUB_TOKEN) is
+# The LLM review (UX_RUBRIC.md as prompt, Copilot CLI via GITHUB_TOKEN) is
 # off until the repository variable PERSONA_REVIEW_LLM is `true`. See
 # cli/nav-pilot/e2e/README.md for what turning it on needs.
 
@@ -35,23 +35,25 @@ jobs:
       (contains(github.event.pull_request.labels.*.name, 'persona-review') &&
        (github.event.action != 'labeled' || github.event.label.name == 'persona-review') &&
        github.event.pull_request.head.repo.full_name == github.repository)
-    # On the job, not the workflow: a run skipped by the `if` above (another
-    # label added) must not cancel the one doing the review.
+    # No cancelling: a run skipped by the `if` above (another label added at
+    # the same time) could cancel the one doing the review. A newer push
+    # replaces a pending run and waits for the running one.
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
       pull-requests: write
       issues: write
-      models: read
+      # The LLM step also needs `copilot-requests: write` here (see README).
     steps:
       # No credentials in .git/config: the tests run the PR's code.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          fetch-depth: 0
+          # The PR merge commit and its first parent (main).
+          fetch-depth: 2
           persist-credentials: false
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # ratchet:actions/setup-go@v7.0.0
@@ -61,15 +63,14 @@ jobs:
 
       - name: Pick journeys
         id: pick
-        env:
-          BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           names=""
-          if [ -n "$BASE" ]; then
-            names=$(git diff --name-only --diff-filter=AM "$BASE"...HEAD -- 'cli/nav-pilot/e2e/testdata/script/*.txtar' \
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            # HEAD is the merge commit, so HEAD^1..HEAD is exactly the PR's change.
+            names=$(git diff --name-only --diff-filter=AMR HEAD^1 HEAD -- 'cli/nav-pilot/e2e/testdata/script/*.txtar' \
               | xargs -r -n1 basename | sed 's/\.txtar$//' | paste -sd'|')
           fi
-          if [ -n "$names" ]; then run="TestScripts/($names)\$"; else run="TestScripts/alpha_"; fi
+          if [ -n "$names" ]; then run="TestScripts/^($names)\$"; else run="TestScripts/^alpha_"; fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
           echo "Journeys: $run"
 
@@ -88,23 +89,28 @@ jobs:
           # shellcheck disable=SC2016 # the backticks are Markdown
           sed -nE 's/^[[:space:]]*--- FAIL: TestScripts\/([^ ]+).*/- `\1`/p' "$RUNNER_TEMP/e2e.log" > "$RUNNER_TEMP/failed.md"
 
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        id: artifact
+        with:
+          name: persona-transcripts
+          path: ${{ runner.temp }}/transcripts.md
+
       # Off by default: see "Turning on the LLM review" in cli/nav-pilot/e2e/README.md.
       - name: LLM persona review
         if: vars.PERSONA_REVIEW_LLM == 'true'
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ github.token }}
-          MODEL: ${{ vars.PERSONA_REVIEW_MODEL || 'openai/gpt-4.1' }}
+          COPILOT_GITHUB_TOKEN: ${{ github.token }}
         run: |
-          # ponytail: transcripts cut at 24000 chars to stay under the model's
-          # input limit; split into one call per journey if that loses findings.
-          jq -n --arg model "$MODEL" \
-                --rawfile rubric cli/nav-pilot/e2e/UX_RUBRIC.md \
-                --arg t "$(head -c 24000 "$RUNNER_TEMP/transcripts.md")" \
-                '{model: $model, messages: [{role: "system", content: $rubric}, {role: "user", content: $t}]}' \
-            | curl -sSf https://models.github.ai/inference/chat/completions \
-                -H "Authorization: Bearer $GH_TOKEN" -H 'Content-Type: application/json' -d @- \
-            | jq -r '.choices[0].message.content' > "$RUNNER_TEMP/review.md"
+          npm install -g @github/copilot
+          # ponytail: one argument holds 128 KiB on Linux, so the transcripts
+          # stop at 100000 characters. Pass them as a file if they outgrow that.
+          prompt="$(cat cli/nav-pilot/e2e/UX_RUBRIC.md)
+
+          # Transcripts
+
+          $(python3 cli/nav-pilot/e2e/persona_transcripts.py --max 100000 < "$RUNNER_TEMP/e2e.log")"
+          copilot -p "$prompt" -s > "$RUNNER_TEMP/review.md"
 
       - name: Write report
         env:
@@ -112,12 +118,13 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOURNEYS: ${{ steps.pick.outputs.run }}
           SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          ARTIFACT_URL: ${{ steps.artifact.outputs.artifact-url }}
         run: |
           r="$RUNNER_TEMP/report.md"
           {
             echo "## nav-pilot persona review"
             echo
-            echo "Journeys \`$JOURNEYS\` at ${SHA:0:8}. [Run]($RUN_URL)."
+            echo "Journeys \`$JOURNEYS\` at ${SHA:0:8}. [Run]($RUN_URL), [all transcripts]($ARTIFACT_URL)."
             echo
             if [ "$STATUS" != 0 ]; then
               echo "**The e2e journeys failed.** Failing:"
@@ -135,12 +142,9 @@ jobs:
             echo
             echo "<details><summary>Transcripts</summary>"
             echo
-            # ponytail: a comment or issue body holds 65536 chars, and the LLM review
-            # needs room; the run log has the rest.
-            head -c 45000 "$RUNNER_TEMP/transcripts.md"
-            if [ "$(wc -c < "$RUNNER_TEMP/transcripts.md")" -gt 45000 ]; then
-              printf '\n```\n\nCut here. The run log has every transcript.\n'
-            fi
+            # A comment or issue body holds 65536 characters and the LLM review
+            # needs room.
+            python3 cli/nav-pilot/e2e/persona_transcripts.py --max 45000 < "$RUNNER_TEMP/e2e.log"
             echo
             echo "</details>"
           } > "$r"
@@ -163,7 +167,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           TITLE: Weekly nav-pilot persona run
         run: |
-          n=$(gh issue list -R "$GITHUB_REPOSITORY" --label dx-uat --state open --search "\"$TITLE\" in:title" --json number,title \
+          n=$(gh issue list -R "$GITHUB_REPOSITORY" --label dx-uat --state open --limit 500 --json number,title \
             --jq "map(select(.title == \"$TITLE\"))[0].number // empty")
           if [ -z "$n" ]; then
             gh issue create -R "$GITHUB_REPOSITORY" --title "$TITLE" --label dx-uat --body-file "$RUNNER_TEMP/report.md"

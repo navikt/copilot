@@ -101,7 +101,7 @@ e2e/persona_transcripts.py` prints the stripped transcripts as Markdown.
 does the steps above in GitHub Actions and posts the result:
 
 - **On a PR:** add the `persona-review` label. It runs the journeys whose
-  `.txtar` the PR adds or changes (every `alpha_` journey if none) and posts
+  `.txtar` the PR adds, changes or renames (every `alpha_` journey if none) and posts
   one comment, which it edits on each push. Without the label it doesn't run.
   PRs from forks are skipped.
 - **Weekly, Monday morning:** it runs every `alpha_` journey and replaces the
@@ -116,15 +116,19 @@ network or credential is involved.
 ### Turning on the LLM review
 
 Off by default: the comment and the issue carry the transcripts, and a person
-reviews them with [UX_RUBRIC.md](UX_RUBRIC.md). The LLM step sends the rubric
-and the transcripts (cut at 24,000 characters) to
-[GitHub Models](https://docs.github.com/en/github-models) with the workflow's
-own `GITHUB_TOKEN` (`models: read`), so it needs no secret. To turn it on:
+reviews them with [UX_RUBRIC.md](UX_RUBRIC.md). The comment and issue hold
+whole journeys up to 45,000 characters; every transcript is in the run's
+`persona-transcripts` artifact, linked from the report.
 
-1. Check that GitHub Models is enabled for the navikt organization and that
-   its use (free quota, or paid if the organization has opted in) is approved.
-2. Set the repository variable `PERSONA_REVIEW_LLM` to `true`. Optionally set
-   `PERSONA_REVIEW_MODEL` (default `openai/gpt-4.1`).
+The LLM step gives the rubric and the transcripts (up to 100,000 characters)
+to [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli-in-actions)
+with the workflow's own `GITHUB_TOKEN`, so it needs no secret. Each run costs
+Copilot premium requests, billed to the organization. To turn it on:
+
+1. Get approval for that cost.
+2. Add `copilot-requests: write` to the job's `permissions` in the workflow.
+3. Set the repository variable `PERSONA_REVIEW_LLM` to `true`.
 
 If the call fails, the run continues and posts the transcripts without a
-review.
+review. (GitHub Models, the other token-only route, was retired on
+2026-07-30.)

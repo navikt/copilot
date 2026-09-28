@@ -7,14 +7,16 @@ script's # comments and the environment header are dropped, as the "Reviewing
 a transcript with the UX rubric" section of e2e/README.md asks: they tell the
 reviewer what to expect.
 
-    go test ./e2e -run 'TestScripts/alpha_' -v | python3 e2e/persona_transcripts.py
+    go test ./e2e -run 'TestScripts/alpha_' -v | python3 e2e/persona_transcripts.py [--max CHARS]
     python3 e2e/persona_transcripts.py --selftest
 """
 
 import re
 import sys
 
-NAME = re.compile(r"^=== NAME\s+TestScripts/(\S+)$")
+# go test -v prints "=== NAME" before a test's log only when another test
+# printed last; a lone or first journey follows its "=== RUN"/"=== CONT".
+NAME = re.compile(r"^=== (?:RUN|CONT|NAME)\s+TestScripts/(\S+)$")
 # testscript's own checks on output and files. Everything else a script runs
 # (exec, exits, pty-run, ttyin, fake-*, cp, mkdir) is something the user did
 # or the setup they did it in, so it stays.
@@ -56,15 +58,25 @@ def transcripts(log):
     return out
 
 
-def markdown(ts):
-    parts = []
-    for name, body in ts:
-        parts.append(f"### {name}\n\n```text\n" + "\n".join(body).strip("\n") + "\n```\n")
+def markdown(ts, max_chars=None):
+    """Whole journeys only: stops before the one that would pass max_chars."""
+    parts, size = [], 0
+    for i, (name, body) in enumerate(ts):
+        part = f"### {name}\n\n```text\n" + "\n".join(body).strip("\n") + "\n```\n"
+        if max_chars and size + len(part) > max_chars:
+            parts.append(f"{len(ts) - i} more journeys left out for length.\n")
+            break
+        parts.append(part)
+        size += len(part) + 1
     return "\n".join(parts)
 
 
 SAMPLE = """=== RUN   TestScripts
-=== NAME  TestScripts/alpha_decide_errors
+=== RUN   TestScripts/alpha_decide_errors
+=== PAUSE TestScripts/alpha_decide_errors
+=== RUN   TestScripts/alpha_help
+=== PAUSE TestScripts/alpha_help
+=== CONT  TestScripts/alpha_decide_errors
     testscript.go:609: WORK=$WORK
         HOME=$WORK/home
         NO_COLOR=1
@@ -115,11 +127,17 @@ def selftest():
     md = markdown(ts)
     assert md.startswith("### alpha_decide_errors\n\n```text\n> exits 2"), md
     assert transcripts("") == []
+    cut = markdown(ts, max_chars=len(markdown(ts[:1])) + 5)
+    assert cut.startswith("### alpha_decide_errors") and "alpha_help" not in cut, cut
+    assert cut.endswith("1 more journeys left out for length.\n"), cut
     print("persona_transcripts: selftest ok")
 
 
 if __name__ == "__main__":
-    if sys.argv[1:] == ["--selftest"]:
+    args = sys.argv[1:]
+    if args == ["--selftest"]:
         selftest()
+    elif not args or (args[0] == "--max" and len(args) == 2):
+        sys.stdout.write(markdown(transcripts(sys.stdin.read()), int(args[1]) if args else None))
     else:
-        sys.stdout.write(markdown(transcripts(sys.stdin.read())))
+        sys.exit("usage: persona_transcripts.py [--max CHARS] < go-test.log | --selftest")
