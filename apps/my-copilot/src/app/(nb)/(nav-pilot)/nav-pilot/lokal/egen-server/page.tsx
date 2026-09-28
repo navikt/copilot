@@ -31,6 +31,15 @@ const LLAMA_SERVER = `# egen terminal: blir stående så lenge serveren kjører
 # legg til --n-cpu-moe 999 på en GPU med 8 GB eller mindre
 llama-server --jinja -c 65536 --port 8080 -hf unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL`;
 
+const SMALL_MEMORY = `# Ollama
+OLLAMA_CONTEXT_LENGTH=16384 ollama serve
+
+# llama-server: ekspertene i vanlig minne (MoE-modeller)
+llama-server --jinja -c 16384 --n-cpu-moe 999 --port 8080 -hf unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL
+
+# llama-server: bare 20 lag på grafikkortet (tette modeller)
+llama-server --jinja -c 16384 -ngl 20 --port 8080 -m modell.gguf`;
+
 const BY_HAND = `# Ollama
 nav-pilot config set local_endpoint http://127.0.0.1:11434/v1
 nav-pilot config set local_endpoint_model qwen3.6:35b
@@ -94,6 +103,21 @@ export default function EgenServer() {
               </BodyShort>
             </VStack>
           </Box>
+          <LinkableHeading id="lite-minne" size="small" level="3">
+            Lite minne
+          </LinkableHeading>
+          <BodyLong>
+            65 536 tokens kontekst får ikke plass på et grafikkort med 8 GB eller mindre, sammen med modellen. Bruk en
+            kontekst som får plass, for eksempel 16 384, og la en del av modellen ligge i vanlig minne:
+          </BodyLong>
+          <CodeBlock compact>{SMALL_MEMORY}</CodeBlock>
+          <BodyLong>
+            Ollama fordeler lagene mellom grafikkortet og vanlig minne selv.{" "}
+            <code className={code}>--n-cpu-moe 999</code> holder ekspertene i en MoE-modell som Qwen3.6-35B-A3B i vanlig
+            minne. Med en tett modell bruker du <code className={code}>-ngl</code> i stedet. Med under 30 000 tokens
+            feiler kontekstsjekken i <code className={code}>doctor</code>, men <code className={code}>setup</code>{" "}
+            tilbyr å lagre likevel. Korte prompter virker da, men en Copilot- eller opencode-økt får ikke plass.
+          </BodyLong>
         </VStack>
       </section>
 

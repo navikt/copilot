@@ -54,8 +54,10 @@ const (
 	fixStartServer = "Start your server (ollama serve, or llama-server --jinja -c 65536 -m <model.gguf>), check local_endpoint with nav-pilot config get local_endpoint, then run nav-pilot alpha local doctor again"
 	fixTools       = "Ollama: use a library model such as qwen3.6:35b (ollama pull qwen3.6:35b); a hf.co/... pull has no tool-call parser. llama-server: start it with --jinja"
 	fixLogprobs    = "Ollama returns logprobs from v0.12.11 (ollama --version); llama-server and vLLM return them; LM Studio's chat endpoint does not. Without them alpha decide refuses this server; the local worker still works"
-	fixContext     = "Ollama: start it with OLLAMA_CONTEXT_LENGTH=65536 ollama serve, or make a model with a Modelfile holding FROM <model> and PARAMETER num_ctx 65536 (ollama create <name> -f Modelfile) and set local_endpoint_model to <name>. llama-server: -c 65536. LM Studio: raise the context length when you load the model"
-	fixServerGone  = "Start the server again with a context that fits in memory. Ollama: OLLAMA_CONTEXT_LENGTH=16384 ollama serve. llama-server: -c 16384. On Linux, dmesg or the cgroup's memory.events shows whether the OOM killer stopped it. A context under 30k tokens fails this check; run nav-pilot alpha local setup again, and it offers to save it anyway"
+	fixContext     = "Ollama: start it with OLLAMA_CONTEXT_LENGTH=65536 ollama serve, or make a model with a Modelfile holding FROM <model> and PARAMETER num_ctx 65536 (ollama create <name> -f Modelfile) and set local_endpoint_model to <name>. llama-server: -c 65536. LM Studio: raise the context length when you load the model. A GPU with 8 GB or less may not fit 65536: " + smallMemoryURL
+	fixSmallMemory = "Use a context that fits in memory, such as 16384 on a GPU with 8 GB or less, and keep part of the model in RAM. Ollama: OLLAMA_CONTEXT_LENGTH=16384 ollama serve; it splits the layers between GPU and RAM itself. llama-server: -c 16384, with --n-cpu-moe 999 for a MoE model such as Qwen3.6-35B-A3B, or -ngl <n> to put only n layers on the GPU. A context under 30k tokens fails this check; nav-pilot alpha local setup offers to save it anyway. More: " + smallMemoryURL
+	fixServerGone  = "Start the server again. " + fixSmallMemory + ". On Linux, dmesg or the cgroup's memory.events shows whether the OOM killer stopped it"
+	smallMemoryURL = "https://ki-utvikling.nav.no/nav-pilot/lokal/egen-server#lite-minne"
 	fixSlow        = "A Copilot session's first turn is about 22k tokens. A GPU with the whole model in memory, or llama-server with --n-cpu-moe on a small GPU, prefills faster; opencode's local worker and alpha decide send far less"
 )
 
@@ -324,6 +326,11 @@ func checkContext(ctx context.Context, base, model string) (doctorCheck, doctorC
 		return c, t
 	case err != nil:
 		c.Level, c.Detail, c.Fix = levelFail, "a 30k-token prompt failed: "+err.Error(), fixContext
+		// Ollama: "model requires more system memory"; llama.cpp: "failed
+		// to allocate", "out of memory". A larger context is not the fix.
+		if low := strings.ToLower(err.Error()); strings.Contains(low, "memory") || strings.Contains(low, "alloc") {
+			c.Fix = fixSmallMemory
+		}
 		t.Level, t.Detail = levelSkip, "the context probe failed"
 		return c, t
 	case a.Usage.PromptTokens == 0:
