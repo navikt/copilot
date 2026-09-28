@@ -19,7 +19,8 @@ describe("generateSetupScript", () => {
       expect(result.code).toContain("curl -fsSL https://gh.io/copilot-install | bash");
       expect(result.code).not.toContain("npm install");
       expect(result.code).toContain("nav-pilot install nav-pilot");
-      expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"');
+      // Homebrew puts nav-pilot and cplt on PATH; only copilot lands in ~/.local/bin (#1041).
+      expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"   # Copilot CLI-skriptet legger copilot hit');
       expect(result.code).not.toContain("which -a");
       expect(result.code).not.toContain("opencode");
     });
@@ -31,7 +32,7 @@ describe("generateSetupScript", () => {
       expect(result.code).toContain("nav-pilot config set client opencode");
       expect(result.code).toContain("nav-pilot --client opencode");
       expect(result.code).toContain("nav-pilot install nav-pilot");
-      expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"');
+      expect(result.code).not.toContain("export PATH");
       expect(result.code).not.toContain("@github/copilot");
       expect(result.code).not.toContain("npm install");
     });

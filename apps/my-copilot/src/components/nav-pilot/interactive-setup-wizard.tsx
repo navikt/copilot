@@ -86,10 +86,19 @@ export function generateSetupScript(os: OS, workflow: Workflow) {
     });
   }
 
-  blocks.push({
-    title: "# 2b. Gjør de nyinstallerte verktøyene tilgjengelige i dette skallet",
-    commands: ['export PATH="$HOME/.local/bin:$PATH"   # installasjonsskriptet legger binæren hit'],
-  });
+  // On a Mac, Homebrew puts nav-pilot and cplt on PATH. Only the Copilot CLI
+  // script still installs to ~/.local/bin there.
+  if (!isMac) {
+    blocks.push({
+      title: "# 2b. Gjør de nyinstallerte verktøyene tilgjengelige i dette skallet",
+      commands: ['export PATH="$HOME/.local/bin:$PATH"   # installasjonsskriptet legger binæren hit'],
+    });
+  } else if (workflow === "cli") {
+    blocks.push({
+      title: "# 2b. Gjør copilot tilgjengelig i dette skallet",
+      commands: ['export PATH="$HOME/.local/bin:$PATH"   # Copilot CLI-skriptet legger copilot hit'],
+    });
+  }
 
   blocks.push({
     title: "# 3. Sett opp for ditt prosjekt",
