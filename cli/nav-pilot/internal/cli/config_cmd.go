@@ -212,7 +212,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "local_dispatch",
 		kind:        keyKindString,
-		description: "How hard nav-pilot pushes a cloud orchestrator to send work to the local worker (opencode): off, conservative, balanced or aggressive. balanced refuses the orchestrator's own edit once when a mechanical change reaches a 5th file (the same edit again passes); aggressive refuses it until the file has been sent to the worker, and does the same for new files.",
+		description: "How hard nav-pilot pushes a cloud orchestrator to send work to the local worker (opencode): off, conservative, balanced or aggressive. balanced refuses the orchestrator's own edit once when a mechanical change reaches a 5th file (the same edit again passes); aggressive refuses it until the file has been sent to the worker, and does the same for new files. The alpha local setup commands write aggressive into a config that has never had local inference; an existing setup keeps balanced.",
 		allowed:     validLocalDispatch,
 		defaultVal:  "balanced",
 		flag:        "--local-dispatch",
@@ -464,7 +464,8 @@ client = "copilot"
 # large changes, the orchestrator decides. balanced: nav-pilot refuses the
 # orchestrator's own edit once when a mechanical change reaches a 5th file;
 # the same edit again passes. aggressive: refused until the file is sent to
-# the worker, and new files too.
+# the worker, and new files too. alpha local init, setup and on write
+# aggressive into a config that has never had local inference.
 # Allowed: off, conservative, balanced, aggressive — Default: balanced
 # local_dispatch = "balanced"
 

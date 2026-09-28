@@ -438,7 +438,7 @@ func endpointInit() error {
 	if slices.ContainsFunc(checks, func(c doctorCheck) bool { return c.Level == levelFail }) {
 		return &exitCode{code: 1, err: fmt.Errorf("local dispatch was not turned on. Fix the FAIL lines above, then run %s again", bold("nav-pilot alpha local init"))}
 	}
-	if _, err := writeConfigKey("local_enabled", "true"); err != nil {
+	if err := enableLocal(); err != nil {
 		return err
 	}
 	fmt.Printf("%s Local dispatch is on, to %s.\n", green("✓"), bold(model))

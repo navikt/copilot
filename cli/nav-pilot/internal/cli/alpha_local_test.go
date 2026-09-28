@@ -959,3 +959,45 @@ func TestActivateCachedManifestHasNoFallbackForABenchFile(t *testing.T) {
 		t.Errorf("stderr = %q, want the refusal named", out)
 	}
 }
+
+// TestEnableLocalDispatchDefault: a new local setup gets local_dispatch =
+// aggressive; a config that already had local inference keeps what it has,
+// so an upgrade moves nobody off balanced (re-probe 7).
+func TestEnableLocalDispatchDefault(t *testing.T) {
+	for _, tc := range []struct {
+		name, orig, want string
+	}{
+		{"no file", "", "aggressive"},
+		{"file without local keys", "model = \"x\"\n", "aggressive"},
+		{"existing setup on the built-in default", "local_enabled = true\n", "balanced"},
+		{"on after off", "local_enabled = false\n", "balanced"},
+		{"explicit choice", "local_dispatch = \"conservative\"\n", "conservative"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			home := localTestHome(t)
+			if tc.orig != "" {
+				path := filepath.Join(home, ".nav-pilot", "config.toml")
+				if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte(tc.orig), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := enableLocal(); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := readConfig()
+			if err != nil {
+				t.Fatal(err)
+			}
+			r := resolve(cfg, CLIOverrides{})
+			if !r.LocalEnabled || r.LocalDispatch != tc.want {
+				t.Fatalf("local_enabled = %v, local_dispatch = %q, want true, %q", r.LocalEnabled, r.LocalDispatch, tc.want)
+			}
+			if tc.want == "balanced" && cfg.LocalDispatch != nil {
+				t.Fatalf("local_dispatch written into an existing setup: %q", *cfg.LocalDispatch)
+			}
+		})
+	}
+}

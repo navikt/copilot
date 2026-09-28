@@ -166,10 +166,11 @@ export default function LokalModellForklaring() {
           <BodyLong>
             I opencode fikk hovedagenten først bare en instruks om hva den burde sende. Det holdt ikke. Nyere modeller i
             skyen følger instruksen dårlig: Sonnet 5 sendte arbeid til den lokale modellen i 1 av 29 testkjøringer, mens
-            Sonnet 4.6 gjorde det i 23 av 24. Derfor stopper nav-pilot hovedagenten på nivået{" "}
-            <code className={code}>balanced</code> når den gjør en stor mekanisk endring selv, og ber den sende resten.
-            Instruksen ber hovedagenten dele en stor endring i én oppgave per fil med en sjekk for hver, og bygge og
-            kjøre testene selv til slutt. En endring ett søk-og-erstatt klarer, skal den gjøre selv.
+            Sonnet 4.6 gjorde det i 23 av 24. Derfor stopper nav-pilot hovedagenten på nivåene{" "}
+            <code className={code}>balanced</code> og <code className={code}>aggressive</code> når den gjør en stor
+            mekanisk endring selv, og ber den sende resten. Instruksen ber hovedagenten dele en stor endring i én
+            oppgave per fil med en sjekk for hver, og bygge og kjøre testene selv til slutt. En endring ett
+            søk-og-erstatt klarer, skal den gjøre selv.
           </BodyLong>
           <BodyLong>nav-pilot stopper bare det manifestet har godkjent modellen for. I dag betyr det:</BodyLong>
           <Bullets>
