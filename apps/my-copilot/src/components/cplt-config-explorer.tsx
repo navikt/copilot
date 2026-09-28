@@ -1,17 +1,18 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { CopyButton } from "@navikt/ds-react";
+import { CopyButton, Tag, VStack } from "@navikt/ds-react";
 import type { CpltConfigKey } from "@/lib/cplt-config";
 
 type ConfigItem = CpltConfigKey & { example: string };
 
-const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
-  bool: { bg: "#dbeafe", text: "#1e40af" },
-  string: { bg: "#fef3c7", text: "#92400e" },
-  "string[]": { bg: "#ede9fe", text: "#5b21b6" },
-  "integer[]": { bg: "#fce7f3", text: "#9d174d" },
-  integer: { bg: "#fce7f3", text: "#9d174d" },
+// Aksel tag colours per value type, so they follow dark mode.
+const TYPE_VARIANTS: Record<string, "info" | "warning" | "alt1" | "alt3"> = {
+  bool: "info",
+  string: "warning",
+  "string[]": "alt1",
+  "integer[]": "alt3",
+  integer: "alt3",
 };
 
 const CODE_SIZE = "0.75rem";
@@ -45,9 +46,9 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
   }, [search, items]);
 
   return (
-    <div>
+    <VStack gap="space-12">
       {/* Search + filter */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3">
         <input
           type="text"
           placeholder="Søk i innstillingene…"
@@ -66,7 +67,7 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
       </div>
 
       {/* Results count */}
-      <p style={{ color: "var(--ax-text-neutral-subtle)", fontSize: CODE_SIZE, margin: "0 0 0.75rem" }}>
+      <p style={{ color: "var(--ax-text-neutral-subtle)", fontSize: CODE_SIZE, margin: 0 }}>
         {filtered.length} {filtered.length === 1 ? "innstilling" : "innstillinger"}
       </p>
 
@@ -79,7 +80,6 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
         style={{ maxHeight: "32rem", overflowY: "auto", paddingRight: "0.5rem" }}
       >
         {filtered.map((item) => {
-          const typeColor = TYPE_COLORS[item.type] || { bg: "#f1f5f9", text: "#475569" };
           return (
             <div
               key={item.key}
@@ -91,33 +91,17 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
               }}
             >
               {/* Header row */}
-              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+              <div className="flex flex-wrap items-center gap-2" style={{ marginBottom: "var(--ax-space-6)" }}>
                 <code className="font-mono font-bold" style={{ color: "var(--ax-text-neutral)", fontSize: "0.875rem" }}>
                   {item.key}
                 </code>
-                <span
-                  className="rounded-full font-medium"
-                  style={{
-                    padding: "0.125rem 0.5rem",
-                    fontSize: CODE_SIZE,
-                    background: typeColor.bg,
-                    color: typeColor.text,
-                  }}
-                >
+                <Tag size="xsmall" variant={TYPE_VARIANTS[item.type] ?? "neutral"}>
                   {item.type}
-                </span>
+                </Tag>
                 {item.dangerous && (
-                  <span
-                    className="rounded-full font-medium"
-                    style={{
-                      padding: "0.125rem 0.5rem",
-                      fontSize: CODE_SIZE,
-                      background: "#fef2f2",
-                      color: "#b91c1c",
-                    }}
-                  >
+                  <Tag size="xsmall" variant="error">
                     ⚠ farlig
-                  </span>
+                  </Tag>
                 )}
                 <span
                   className="font-mono"
@@ -132,7 +116,7 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
                 style={{
                   color: "var(--ax-text-neutral-subtle)",
                   fontSize: "0.875rem",
-                  margin: "0 0 0.75rem",
+                  margin: "0 0 var(--ax-space-12)",
                   lineHeight: 1.5,
                 }}
               >
@@ -157,11 +141,14 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
         })}
 
         {filtered.length === 0 && (
-          <p className="text-center py-8" style={{ color: "var(--ax-text-neutral-subtle)", fontSize: "0.875rem" }}>
+          <p
+            className="text-center"
+            style={{ paddingBlock: "var(--ax-space-32)", color: "var(--ax-text-neutral-subtle)", fontSize: "0.875rem" }}
+          >
             Ingen innstillinger passer til søket.
           </p>
         )}
       </div>
-    </div>
+    </VStack>
   );
 }

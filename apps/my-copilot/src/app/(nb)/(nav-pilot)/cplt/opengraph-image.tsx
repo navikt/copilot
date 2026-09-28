@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "cplt: Sandbox for AI coding agents";
+export const alt = "Sandkassen cplt: holder KI-agenten unna hemmelighetene dine";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -39,7 +39,7 @@ export default function Image() {
           marginBottom: "20px",
         }}
       >
-        Sandbox for AI coding agents
+        Sandkasse for KI-agenter
       </div>
       <div
         style={{
@@ -49,7 +49,7 @@ export default function Image() {
           maxWidth: "800px",
         }}
       >
-        Kernel-level isolation · macOS &amp; Linux · Network proxy · Credential protection
+        Isolasjon i kjernen · macOS og Linux · Nettverksproxy · Beskytter hemmeligheter
       </div>
       <div
         style={{

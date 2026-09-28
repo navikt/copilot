@@ -28,7 +28,7 @@ const TOC: TocItem[] = [
   { id: "sikkerhetsgrense", label: "Hva agenten får tilgang til" },
   { id: "vakter", label: "Vakter for gh og git" },
   { id: "felles-konfig", label: "Felles konfig i repoet" },
-  { id: "slik-virker-det", label: "Kom i gang" },
+  { id: "slik-virker-det", label: "Slik virker det" },
   { id: "nettverk", label: "Nettverksproxy" },
   { id: "cplt-init", label: "Finn oppsettet automatisk" },
   { id: "innstillinger", label: "Alle innstillinger" },
@@ -136,6 +136,7 @@ const STEPS = [
   {
     title: "Start agenten",
     command: 'cplt -- -p "fix the tests"',
+    lang: "en",
     description: "Agenten jobber som vanlig, men kan ikke lese hemmelighetene dine.",
   },
 ];
@@ -455,7 +456,9 @@ function GuardsSection() {
 
       <Sub title="Dette ser agenten">
         <BodyLong>Når en vakt stopper en kommando, får agenten denne meldingen:</BodyLong>
-        <CodeBlock compact>{GUARD_OUTPUT}</CodeBlock>
+        <div lang="en">
+          <CodeBlock compact>{GUARD_OUTPUT}</CodeBlock>
+        </div>
       </Sub>
 
       <Sub title="Slå av vaktene">
@@ -515,14 +518,16 @@ function HowItWorksSection() {
   return (
     <Section>
       <LinkableHeading id="slik-virker-det" size="medium" level="2">
-        Kom i gang
+        Slik virker det
       </LinkableHeading>
       <BodyLong>Tre steg, så kjører agenten i sandkassen.</BodyLong>
       <VStack as="ol" gap="space-16">
         {STEPS.map((step, i) => (
           <li key={step.title}>
             <Sub title={`${i + 1}. ${step.title}`}>
-              <CodeBlock compact>{step.command}</CodeBlock>
+              <div lang={"lang" in step ? step.lang : undefined}>
+                <CodeBlock compact>{step.command}</CodeBlock>
+              </div>
               <BodyLong>{step.description}</BodyLong>
             </Sub>
           </li>
@@ -537,7 +542,9 @@ function HowItWorksSection() {
         <BodyLong>
           Kjør {c("cplt --shell-install")}, så kjører {c("copilot")} alltid i sandkassen.
         </BodyLong>
-        <CodeBlock compact>{SHELL_INSTALL_OUTPUT}</CodeBlock>
+        <div lang="en">
+          <CodeBlock compact>{SHELL_INSTALL_OUTPUT}</CodeBlock>
+        </div>
       </Sub>
     </Section>
   );
@@ -766,7 +773,9 @@ function InitSection() {
         {c("cplt init")} leter i prosjektet etter byggefiler, rammeverk og mønstre, og lager riktig {c(".cplt.toml")}{" "}
         for deg.
       </BodyLong>
-      <CodeBlock compact>{INIT_OUTPUT}</CodeBlock>
+      <div lang="en">
+        <CodeBlock compact>{INIT_OUTPUT}</CodeBlock>
+      </div>
 
       <Sub title="15 økosystemer">
         <BodyLong>
