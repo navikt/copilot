@@ -227,9 +227,15 @@ func withCpltProjectDir(args []string, explicit string) ([]string, error) {
 
 // printSandboxScope prints the sandbox's write scope, and the repository
 // instructions it may read outside it, on stderr.
+//
+// The plain case, the directory the user is in, is what they expect and is
+// said only with --verbose. A subfolder of a repository is not: the sandbox
+// writes there, and reads the repository's instructions from its root.
 func printSandboxScope(dir, root string, reads []string) {
 	if len(reads) == 0 {
-		fmt.Fprintf(os.Stderr, "%s Sandbox: %s\n", domain.Dim("ℹ"), dir)
+		if Verbose {
+			fmt.Fprintf(os.Stderr, "%s Sandbox: %s\n", domain.Dim("ℹ"), dir)
+		}
 		return
 	}
 	names := make([]string, len(reads))
@@ -259,8 +265,10 @@ func launchViaCplt(spec cpltLaunch) error {
 		return err
 	}
 
-	fmt.Printf("Launching %s via %s%s...\n\n",
-		domain.Bold(spec.displayName), domain.Bold("cplt sandbox"), spec.messageSuffix)
+	if Verbose {
+		fmt.Printf("Launching %s via %s%s...\n\n",
+			domain.Bold(spec.displayName), domain.Bold("cplt sandbox"), spec.messageSuffix)
+	}
 
 	cmd := exec.Command(cliPath, args...)
 	cmd.Stdin = os.Stdin

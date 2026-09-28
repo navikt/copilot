@@ -87,3 +87,35 @@ func TestNewsLineOnceAndNeverSlow(t *testing.T) {
 		t.Fatalf("maybeNews took %s with a slow feed, want about %s", d, newsLineTimeout)
 	}
 }
+
+// A backlog of articles is one news line a day, not one after every session.
+func TestNewsLineAtMostOnceADay(t *testing.T) {
+	t.Setenv("NAV_PILOT_CONFIG", t.TempDir()+"/config.toml")
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "true")
+	t.Setenv("DO_NOT_TRACK", "")
+	prev := isInteractive
+	isInteractive = func() bool { return true }
+	t.Cleanup(func() { isInteractive = prev; sessionPrompted = false })
+	today := time.Now().Format(time.DateOnly)
+	writeNewsState(newsState{Fetched: time.Now(), Items: []newsItem{
+		{Title: "a", Date: today, URL: "https://ki-utvikling.nav.no/nyheter/a", CLI: true},
+		{Title: "b", Date: today, URL: "https://ki-utvikling.nav.no/nyheter/b", CLI: true},
+	}})
+	session := func() int {
+		sessionPrompted = false
+		showNews("copilot")
+		return len(readNewsState().Seen)
+	}
+	if n := session(); n != 1 {
+		t.Fatalf("first session showed %d items, want 1", n)
+	}
+	if n := session(); n != 1 {
+		t.Fatalf("second session the same day showed another item (%d seen)", n)
+	}
+	st := readNewsState()
+	st.Shown = time.Now().Add(-newsShowEvery)
+	writeNewsState(st)
+	if n := session(); n != 2 {
+		t.Fatalf("a day later: %d seen, want the second item", n)
+	}
+}

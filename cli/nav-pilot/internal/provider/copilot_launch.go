@@ -309,7 +309,9 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	if banner == "" {
 		banner = PrimaryAgent("copilot")
 	}
-	fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(banner))
+	if Verbose {
+		fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(banner))
+	}
 
 	// cplt resolves the Copilot token itself; copilot_auth_mode only constrains
 	// which source it may use, and can refuse the launch outright.

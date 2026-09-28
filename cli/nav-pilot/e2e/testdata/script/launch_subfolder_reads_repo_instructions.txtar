@@ -27,10 +27,13 @@ stderr -count=1 'Sandbox:'
 grep '^--project-dir\n.*/repo/app\n--allow-read\n.*/repo/\.github\n--allow-read\n.*/repo/\.nav-pilot\n--allow-read\n.*/repo/AGENTS\.md\n' $WORK/fake/cplt.log
 grep '^-p\nreview this\n---' $WORK/fake/cplt.log
 
-# From the repository root there is nothing outside the sandbox to grant.
+# From the repository root there is nothing outside the sandbox to grant,
+# and nothing to say about it unless asked (--verbose).
 cd ..
 rm $WORK/fake/cplt.log
 exec nav-pilot --sync --source $WORK/plattform -- -p 'review this'
+! stderr 'Sandbox:'
+exec nav-pilot --verbose --sync --source $WORK/plattform -- -p 'review this'
 stderr '^ℹ Sandbox: .*/repo$'
 ! grep 'allow-read' $WORK/fake/cplt.log
 

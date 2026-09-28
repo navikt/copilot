@@ -708,6 +708,24 @@ Veiviseren (`nav-pilot config setup`) viser en modellvelger tilpasset valgt klie
 (`DEBUG`/`INFO`/`WARN`/`ERROR`). Felt uten opencode-ekvivalent (`mode = autopilot`,
 `context_tier`, `ask_user = false`) gir en ⚠-advarsel ved oppstart.
 
+## Ytelse
+
+nav-pilot skal starte klienten uten å vente på nettet. Målet er under 150 ms før klienten
+starter, under 200 ms fra økten slutter til du har terminalen tilbake, og under 50 ms for
+`--version` og `--help`, også når nettet ikke svarer.
+
+Det som trenger nett, skjer i bakgrunnen eller leses fra en kopi på maskinen:
+
+| Hva | Hvor | Hvor ofte |
+| --- | --- | --- |
+| Versjonssjekken | `~/.nav-pilot/cache.json` | Høyst én gang i døgnet, i bakgrunnen. Neste kommando sier fra hvis det finnes en ny versjon |
+| Undersøkelser og nyheter | `~/.nav-pilot/surveys.json`, `news.json` | Hentes mens økten kjører. Nyhetslinja høyst én gang i døgnet |
+
+En oppstart som ikke trenger noe fra deg, skriver ingenting. Det som er nytt, sier nav-pilot
+én gang. En advarsel kommer igjen først når noe har endret seg (merkene ligger i
+`~/.nav-pilot/seen-*`). `nav-pilot --verbose` viser hva oppstarten gjør: sandkassemappe,
+klient, agent og modell.
+
 ## For bidragsytere
 
 - Agent: `.github/agents/nav-pilot.agent.md`

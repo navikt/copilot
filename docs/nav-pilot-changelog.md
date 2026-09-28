@@ -50,6 +50,13 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **`nav-pilot alpha local status` venter ikke i køen**: Svarer serveren noen andre, står det `busy` i stedet for `hung`. Har den jobbet med samme forespørsel i mer enn ti minutter, står det `hung`.
 - **Kjører serveren fra før oppdateringen**, får den køen først etter `nav-pilot alpha local restart` (#1169).
 
+### En oppstart uten noe å si, sier ingenting
+
+- **Stille oppstart**: nav-pilot skrev fem–seks linjer før hver økt: velkomstlinja, «Launching …» to ganger, sandkassemappa og modellen. Nå skriver en oppstart som ikke trenger noe fra deg, ingenting. `nav-pilot --verbose` viser linjene igjen.
+- **Bare når noe endrer seg**: Modellen for økten, advarselen om en opencode-versjon utenfor det som er testet, og lista over hooks som ikke er installert, kommer når de endrer seg, ikke ved hver oppstart.
+- **Nyhetslinja høyst én gang i døgnet**: Hadde du flere uleste nyheter, kom én etter hver økt. Nå kommer neste nyhet tidligst dagen etter.
+- **Velkomstlinja kommer bare sammen med et spørsmål**: Den står over «Sync now?», ikke før hver økt.
+
 ### opencode er standardklient for nye installasjoner
 
 - **Ny installasjon, ny standard**: På en maskin uten `~/.nav-pilot/config.toml` er opencode valgt i oppsettet første gang du kjører nav-pilot. Mangler opencode, og du har Homebrew, tilbyr nav-pilot å installere den (`brew install anomalyco/tap/opencode`). Uten Homebrew, eller om du sier nei, lagrer oppsettet Copilot CLI og sier hvordan du bytter senere. Oppsettet lagrer aldri en klient som ikke kan starte.

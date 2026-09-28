@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
@@ -107,7 +108,10 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 	// relies on. It is the manifest pinned with the payloads, so persona, model
 	// and the compatibility gate all read the revision that is about to run.
 	providerpkg.SetActivePakke(pakke)
-	fmt.Println(dim(fmt.Sprintf("Using agentpakke %s@%s (%s payload).", pakke.Name, rev.SHA, context)))
+	// Once per pinned revision, or with --verbose: the pin changes rarely.
+	if using := fmt.Sprintf("Using agentpakke %s@%s (%s payload).", pakke.Name, rev.SHA, context); artifacts.SeenChanged("staged-pakke-"+resolved.Client, using) || providerpkg.Verbose {
+		fmt.Println(dim(using))
+	}
 
 	launch, ok := stagedLaunchers[resolved.Client]
 	if !ok {
@@ -829,7 +833,10 @@ func printModelNotice(resolved ResolvedConfig) {
 	if !isInteractive() {
 		return
 	}
-	if notice := providerpkg.ResolvedModelNotice(resolved.Client, resolved); notice != "" {
+	// Once per model and origin, or with --verbose: the model is said when
+	// it changes, not before every session.
+	if notice := providerpkg.ResolvedModelNotice(resolved.Client, resolved); notice != "" &&
+		(providerpkg.SeenChanged("session-model-"+resolved.Client, notice) || providerpkg.Verbose) {
 		fmt.Fprintln(os.Stderr, dim(notice))
 	}
 }

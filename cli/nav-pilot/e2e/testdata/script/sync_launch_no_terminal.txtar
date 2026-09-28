@@ -17,7 +17,7 @@ exec nav-pilot install plattform --source $WORK/plattform --repo --yes
 # The prompt runs, sandboxed, without a confirmation nobody can answer.
 exec nav-pilot --sync --source $WORK/plattform -- -p 'review this PR'
 stdout 'Repo scope synced'
-stdout 'Launching Copilot Sandbox \(cplt\)'
+! stdout 'Launching'
 grep '^--yes\n' $WORK/fake/cplt.log
 grep '^-p\nreview this PR\n---' $WORK/fake/cplt.log
 # The pin check reads .nav-pilot/agentpakke.lock.json under an absolute root.

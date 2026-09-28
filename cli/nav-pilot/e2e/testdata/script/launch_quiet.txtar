@@ -1,0 +1,55 @@
+# A launch that needs nothing from the user says nothing (#1113 follow-up):
+# the first launch explains what is new once, the second prints nothing at
+# all before the client starts or after it ends. --verbose says what the
+# launch does. New output on this path has to earn its place here.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+fake-bin cplt copilot
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+exec nav-pilot config set rtk_prompted_client copilot
+
+# First launch: what nav-pilot set up, once.
+exec pty-run -- nav-pilot
+stdout 'nav-pilot added Copilot hooks'
+stdout 'Launching via cplt \(Copilot Sandbox\)'
+stdout 'Session model: '
+grep '^--agent\ncopilot\n' $WORK/fake/cplt.log
+
+# Second launch: nothing to act on, so nothing at all. The terminal still
+# sees nav-pilot ask for its background colour and cursor position (answered
+# by the terminal, never shown), so the check is for text, not for bytes.
+rm $WORK/fake/cplt.log
+exec pty-run -- nav-pilot
+! stdout '[[:alpha:]][[:alpha:]]'
+grep '^--agent\ncopilot\n' $WORK/fake/cplt.log
+
+# Headless, the same.
+exec nav-pilot -- -p hei
+cmp stdout $WORK/empty.txt
+cmp stderr $WORK/empty.txt
+
+# --verbose says what the launch does.
+exec pty-run -- nav-pilot --verbose
+stdout 'nav-pilot  repo: plattform'
+stdout 'Sandbox: .*/repo'
+stdout 'Launching Copilot Sandbox \(cplt\) with agent nav-pilot'
+stdout 'Session model: '
+
+-- empty.txt --
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
