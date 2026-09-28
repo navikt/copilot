@@ -215,8 +215,12 @@ accepts it for one write.
   refused.
 - Detection: `survey_submissions_total{survey,status}` on copilot-survey and
   `copilot_api_saml_name_id_requests_total{status}` on copilot-api count
-  answers and e-mail lookups, with no identity. No alert exists yet; add one
-  on a burst of either before the first survey opens.
+  answers and e-mail lookups, with no identity. Each service alerts when its
+  counter grows by more than 20 in 5 minutes: `CopilotSurveySubmissionBurst`
+  on copilot-survey and `CopilotApiSamlNameIdBurst` on copilot-api, both
+  severity warning, defined in each app's `.nais/app.yaml`. Normal traffic is
+  at most a few answers a minute, so a survey launch can trip them; anything
+  else needs a look.
 
 Owner: the survey owner. Revisit if copilot-cli gets an ingress without
 naisdevice, a route that skips the GitHub token check, or a second write

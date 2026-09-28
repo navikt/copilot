@@ -120,9 +120,9 @@ Residual risks, for the privacy review:
 - A compromised copilot-cli can submit one answer as any navikt member per
   open survey, which also locks that member out (409). It is the same trust
   copilot-api places in copilot-cli for usage reads. There is no rate limit
-  per login. Instead the `CopilotSurveySubmissionBurst` alert in
-  `.nais/app.yaml` fires when `survey_submissions_total` grows by more than
-  20 in 5 minutes. See the accepted risk in `SECURITY.md`.
+  per login; the `CopilotSurveySubmissionBurst` alert in `.nais/app.yaml`
+  fires when `survey_submissions_total` grows by more than 20 in 5 minutes,
+  all surveys and statuses summed. See the accepted risk in `SECURITY.md`.
 - Colluding insiders: k assumes the other 9 in a batch are real respondents.
   One account answers once per survey, but a group of 9 insiders answering
   together could pin the 10th.
