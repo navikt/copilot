@@ -78,4 +78,4 @@ Vi trenger særlig deg som har Linux på x86_64, med eller uten NVIDIA-kort.
 - [Guided local endpoint setup](https://github.com/navikt/copilot/pull/1000) (navikt/copilot, 27. september 2026)
 - [Setup finds an empty Ollama, doctor accepts name:latest](https://github.com/navikt/copilot/pull/1100) (navikt/copilot, 28. september 2026)
 - [nav-pilot's own-endpoint path on real servers](https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-28-local-endpoint-validation/report.md) (navikt/mlx-workspace, 28. september 2026)
-- [Linux smoke test of nav-pilot's local endpoint path](https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-27-linux-smoke/report.md) (navikt/mlx-workspace)
+- [Linux smoke test of nav-pilot's local endpoint path](https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-27-linux-smoke/report.md) (navikt/mlx-workspace, 27. september 2026)
