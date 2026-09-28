@@ -4,13 +4,31 @@ import type { Agent, AnyCustomization, CustomizationType } from "./customization
 // so the landing page, docs, lokal and the setup wizard can't drift apart.
 export const NAV_PILOT_BREW_INSTALL = "brew install navikt/tap/nav-pilot navikt/tap/cplt";
 export const NAV_PILOT_BREW_UPGRADE = "brew upgrade navikt/tap/nav-pilot";
-export const NAV_PILOT_APT_INSTALL = [
-  "curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \\",
-  "  | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null",
-  'echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \\',
-  "  | sudo tee /etc/apt/sources.list.d/navikt.list",
-  "sudo apt update && sudo apt install nav-pilot cplt",
-].join("\n");
+export const NAV_PILOT_INSTALL_SCRIPT =
+  "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash";
+export const CPLT_INSTALL_SCRIPT = "curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash";
+
+const APT_KEYRING = "/usr/share/keyrings/navikt-archive-keyring.gpg";
+const APT_KEYRING_TMP = "/tmp/navikt-archive-keyring.gpg";
+
+// One && chain: each step runs only if the one before it worked. A blocked download
+// used to leave a 0-byte keyring and end in "Unable to locate package" (#1099); now the
+// chain stops and the || branch points at the install script. No `set -e`, because the
+// block is pasted into the user's interactive shell.
+function aptInstall(packages: string, installScript: string): string {
+  return [
+    `curl -fsSL -o ${APT_KEYRING_TMP} https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \\`,
+    `  && test -s ${APT_KEYRING_TMP} \\`,
+    `  && sudo install -m 644 ${APT_KEYRING_TMP} ${APT_KEYRING} \\`,
+    `  && echo "deb [signed-by=${APT_KEYRING}] https://navikt.github.io/apt stable main" \\`,
+    `    | sudo tee /etc/apt/sources.list.d/navikt.list >/dev/null \\`,
+    `  && sudo apt update && sudo apt install ${packages} \\`,
+    `  || echo "Installasjonen fra apt-arkivet feilet. Sjekk at https://navikt.github.io/apt svarer, eller bruk installasjonsskriptet: ${installScript}" >&2`,
+  ].join("\n");
+}
+
+export const NAV_PILOT_APT_INSTALL = aptInstall("nav-pilot cplt", NAV_PILOT_INSTALL_SCRIPT);
+export const CPLT_APT_INSTALL = aptInstall("cplt", CPLT_INSTALL_SCRIPT);
 
 export const INSTALL_DIRS: Record<Exclude<CustomizationType, "mcp">, string> = {
   agent: ".github/agents",

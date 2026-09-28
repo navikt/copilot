@@ -3,6 +3,7 @@ import { Box, VStack, HGrid, Heading, CopyButton, BodyShort, BodyLong, Theme } f
 import NextLink from "next/link";
 import { CpltConfigExplorer } from "@/components/cplt-config-explorer";
 import { fetchCpltConfigKeys } from "@/lib/cplt-config";
+import { CPLT_APT_INSTALL, CPLT_INSTALL_SCRIPT } from "@/lib/install-commands";
 import {
   ShieldLockIcon,
   TerminalIcon,
@@ -53,15 +54,6 @@ const TERMINAL_MUTED = "#a5acb6";
 /* ---------- Data ---------- */
 
 const INSTALL_COMMAND = "brew install navikt/tap/cplt";
-const INSTALL_APT = [
-  "curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \\",
-  "  | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null",
-  'echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \\',
-  "  | sudo tee /etc/apt/sources.list.d/navikt.list",
-  "sudo apt update && sudo apt install cplt",
-].join("\n");
-const INSTALL_SCRIPT = "curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash";
-
 const ARTICLE_HREF = "/en/news/sandbox-confines-the-process-not-the-token";
 
 const SECURITY_TABLE = [
@@ -316,9 +308,9 @@ function HeroSection({ stars }: { stars: number | null }) {
                   className="font-mono"
                   style={{ fontSize: CODE_SIZE, color: "var(--ax-text-neutral-subtle)", whiteSpace: "pre" }}
                 >
-                  {INSTALL_APT}
+                  {CPLT_APT_INSTALL}
                 </pre>
-                <CopyButton copyText={INSTALL_APT} size="small" />
+                <CopyButton copyText={CPLT_APT_INSTALL} size="small" />
               </Box>
               <BodyShort size="small" style={{ color: ACCENT, textAlign: "center" }}>
                 macOS (Apple Seatbelt) · Linux (Landlock + seccomp-BPF) · Windows: WSL2 only
@@ -334,8 +326,8 @@ function HeroSection({ stars }: { stars: number | null }) {
                 </a>{" "}
                 on Debian and Ubuntu. The archive is rebuilt hourly from the newest release, so a release cut minutes
                 ago can take up to an hour to become installable. It is a plain apt repository mirroring our releases,
-                not a distribution package with a maintainer. On any other distribution, and in CI, use{" "}
-                <code className="font-mono break-all">{INSTALL_SCRIPT}</code>.
+                not a distribution package with a maintainer. On any other distribution, in CI, or when a proxy blocks
+                the archive, use <code className="font-mono break-all">{CPLT_INSTALL_SCRIPT}</code>.
               </BodyLong>
               <BodyLong
                 size="small"

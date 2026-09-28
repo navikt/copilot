@@ -51,14 +51,16 @@ nav-pilot install nav-pilot
 På Linux (Debian, Ubuntu) er [apt-arkivet](https://navikt.github.io/apt/) anbefalt vei. Det gir deg både nav-pilot og cplt:
 
 ```bash
-curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \
-  | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null
-echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \
-  | sudo tee /etc/apt/sources.list.d/navikt.list
-sudo apt update && sudo apt install nav-pilot cplt
+curl -fsSL -o /tmp/navikt-archive-keyring.gpg https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \
+  && test -s /tmp/navikt-archive-keyring.gpg \
+  && sudo install -m 644 /tmp/navikt-archive-keyring.gpg /usr/share/keyrings/navikt-archive-keyring.gpg \
+  && echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \
+    | sudo tee /etc/apt/sources.list.d/navikt.list >/dev/null \
+  && sudo apt update && sudo apt install nav-pilot cplt \
+  || echo "Installasjonen fra apt-arkivet feilet. Sjekk at https://navikt.github.io/apt svarer, eller bruk installasjonsskriptet: curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash" >&2
 ```
 
-Arkivet oppdateres hver time fra den nyeste releasen, så en release du nettopp kuttet kan bruke opptil en time på å bli installerbar. Er du ikke på et Debian-derivat, eller står du i CI, bruk [installasjonsskriptet](docs/README.nav-pilot.md#kom-i-gang).
+Arkivet oppdateres hver time fra den nyeste releasen, så en release du nettopp kuttet kan bruke opptil en time på å bli installerbar. Er du ikke på et Debian-derivat, står du i CI, eller stenger en proxy for `navikt.github.io`, bruk [installasjonsskriptet](docs/README.nav-pilot.md#kom-i-gang). Feiler en av stegene, stopper snutten og viser hvor du finner skriptet.
 
 **[Les mer →](docs/README.nav-pilot.md)**
 
@@ -97,14 +99,16 @@ Kernel-level sandbox for AI-agenter. Sandboxer AI-kodingsagenter med OS-primitiv
 brew install navikt/tap/cplt
 
 # Linux (Debian, Ubuntu), fra apt-arkivet
-curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \
-  | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null
-echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \
-  | sudo tee /etc/apt/sources.list.d/navikt.list
-sudo apt update && sudo apt install cplt
+curl -fsSL -o /tmp/navikt-archive-keyring.gpg https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \
+  && test -s /tmp/navikt-archive-keyring.gpg \
+  && sudo install -m 644 /tmp/navikt-archive-keyring.gpg /usr/share/keyrings/navikt-archive-keyring.gpg \
+  && echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \
+    | sudo tee /etc/apt/sources.list.d/navikt.list >/dev/null \
+  && sudo apt update && sudo apt install cplt \
+  || echo "Installasjonen fra apt-arkivet feilet. Sjekk at https://navikt.github.io/apt svarer, eller bruk installasjonsskriptet: curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash" >&2
 ```
 
-Er du ikke på et Debian-derivat, eller står du i CI, bruk `curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash`.
+Er du ikke på et Debian-derivat, står du i CI, eller stenger en proxy for `navikt.github.io`, bruk `curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash`.
 
 **Windows (WSL2):** kjør alt inne i Ubuntu, ikke i PowerShell. cplt tar du fra apt-arkivet over. Copilot CLI har ingen apt-pakke og må hentes med skriptet sitt:
 

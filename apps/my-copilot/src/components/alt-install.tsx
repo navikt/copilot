@@ -3,10 +3,7 @@
 import { useState } from "react";
 import { CopyButton } from "@navikt/ds-react";
 import { CodeBlock } from "@/components/code-block";
-import { NAV_PILOT_APT_INSTALL } from "@/lib/install-commands";
-
-const INSTALL_SCRIPT_COMMAND =
-  "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash";
+import { NAV_PILOT_APT_INSTALL, NAV_PILOT_INSTALL_SCRIPT } from "@/lib/install-commands";
 
 const INSTALL_SAFE_COMMAND =
   "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh -o install.sh\ncat install.sh   # Inspect before running!\nbash install.sh";
@@ -47,9 +44,9 @@ export function AltInstall() {
           </div>
 
           <div style={{ fontSize: "0.75rem", color: "#334155", margin: "1rem 0 0.375rem" }}>
-            <strong>Andre distroer og CI:</strong> bruk installasjonsskriptet.
+            <strong>Andre distroer, CI eller proxy som stenger apt-arkivet:</strong> bruk installasjonsskriptet.
           </div>
-          <CodeBlock compact>{INSTALL_SCRIPT_COMMAND}</CodeBlock>
+          <CodeBlock compact>{NAV_PILOT_INSTALL_SCRIPT}</CodeBlock>
           <div
             style={{
               marginTop: "0.5rem",

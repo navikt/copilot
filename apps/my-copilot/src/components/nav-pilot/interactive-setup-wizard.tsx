@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Box, VStack, HStack, Heading, BodyShort, Button, Link, Stepper, Label, Detail } from "@navikt/ds-react";
 import { MonitorIcon, LaptopIcon, TerminalIcon, ChevronRightIcon, ChevronLeftIcon } from "@navikt/aksel-icons";
 import { CodeBlock } from "@/components/code-block";
-import { NAV_PILOT_BREW_INSTALL } from "@/lib/install-commands";
+import { NAV_PILOT_APT_INSTALL, NAV_PILOT_BREW_INSTALL, NAV_PILOT_INSTALL_SCRIPT } from "@/lib/install-commands";
 
 // ============================================================================
 // Types
@@ -76,13 +76,12 @@ export function generateSetupScript(os: OS, workflow: Workflow) {
       title: "# 2. Installer nav-pilot og cplt",
       commands: [
         "if command -v apt-get >/dev/null; then   # Debian, Ubuntu: apt-arkivet",
-        "  curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \\\n    | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null",
-        '  echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \\\n    | sudo tee /etc/apt/sources.list.d/navikt.list',
-        "  sudo apt update && sudo apt install nav-pilot cplt",
+        ...NAV_PILOT_APT_INSTALL.split("\n").map((line) => `  ${line}`),
         "else   # andre distroer: installasjonsskriptet",
-        "  curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash",
+        `  ${NAV_PILOT_INSTALL_SCRIPT}`,
         "fi",
         "# Arkivet oppdateres hver time, så en helt fersk release kan mangle en liten stund.",
+        "# Stenger en proxy for navikt.github.io, virker installasjonsskriptet også på Debian og Ubuntu.",
       ],
     });
   }
