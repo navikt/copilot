@@ -183,6 +183,45 @@ nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)�
 > GitHub's username rules before being accepted. If copilot-cli is not
 > a pre-authorized inbound app the trust path stays disabled (fails closed).
 
+#### Accepted risk: copilot-cli asserts who answered a survey
+
+copilot-cli also forwards survey answers to copilot-survey, with an M2M token
+for that service and the same `X-On-Behalf-Of` header (#1089, #1090).
+copilot-survey cannot check the login itself: it trusts copilot-cli, as
+copilot-api does for usage reads. #337 accepted that trust for reads; this
+accepts it for one write.
+
+- What a compromised copilot-cli can do: submit one answer per navikt member
+  per open survey, under that member's real dedup hash, so the member gets
+  409 when they answer themselves. Learn from the status whether a login has
+  answered (409), has not (201, and is now blocked) or has no Nav identity
+  (403). Read every answer nav-pilot sends through it, with the login, before
+  copilot-survey hashes it. Pad a batch with answers it knows, which together
+  with database access pins the one real answer left in it (the "1 of k" in
+  `apps/copilot-survey/README.md`).
+- What it cannot do: read stored answers, change or delete one, answer twice
+  for anyone, or look up an e-mail. copilot-api's name-id route takes
+  copilot-survey's token only, and copilot-survey never returns the e-mail.
+- Blast radius: every navikt member, one answer per open survey. Forged
+  answers are indistinguishable from real ones once stored, so a detected
+  burst means discarding that survey, not removing rows, and a blocked member
+  has no way to answer. Nothing outside surveys.
+- Why it is accepted: the M2M token only exists inside the copilot-cli pod,
+  and a signed per-request token would not help against a compromised pod.
+- Limits in code: copilot-survey honours the header only on an app token
+  (`idtyp=app` or the `access_as_application` role, no NAVident or e-mail)
+  whose `azp` is copilot-cli, only on `POST /api/v1/surveys/{id}/responses`,
+  and only with a well-formed GitHub login. A user token with the header is
+  refused.
+- Detection: `survey_submissions_total{survey,status}` on copilot-survey and
+  `copilot_api_saml_name_id_requests_total{status}` on copilot-api count
+  answers and e-mail lookups, with no identity. No alert exists yet; add one
+  on a burst of either before the first survey opens.
+
+Owner: the survey owner. Revisit if copilot-cli gets an ingress without
+naisdevice, a route that skips the GitHub token check, or a second write
+route.
+
 ### my-copilot (`apps/my-copilot/.nais/app.yaml`)
 
 Inbound is public via ingress, and Wonderwall enforces auth on the protected routes. Outbound goes to copilot-api through Nais service discovery.
