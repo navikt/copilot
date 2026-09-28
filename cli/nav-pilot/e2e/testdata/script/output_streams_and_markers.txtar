@@ -3,6 +3,10 @@
 # header is the count it ends on. Check and apply use the same markers. The
 # sandbox proposal note is printed once per run, not once per scope.
 
+# The proposal note is about cplt's settings, so it needs cplt on PATH (#1189):
+# the fake one, or the journey would depend on the machine running it.
+fake-bin cplt copilot
+
 mkdir plattform/skills forbruker
 cd plattform
 exec git init -q .
