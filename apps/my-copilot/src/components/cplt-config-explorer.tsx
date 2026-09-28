@@ -144,15 +144,15 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
                 className="rounded-md flex items-center gap-2"
                 style={{ background: "#1e1e1e", padding: "0.4rem 0.75rem" }}
               >
+                {/* Wraps instead of scrolling, so the 60-odd examples add no tab stops (#1195). */}
                 <code
-                  tabIndex={0}
-                  className="font-mono whitespace-nowrap overflow-x-auto flex-1 min-w-0"
+                  className="font-mono whitespace-pre-wrap break-all flex-1 min-w-0"
                   style={{ fontSize: CODE_SIZE, color: "#d4d4d4" }}
                 >
                   {item.example}
                 </code>
                 <CopyButton
-                  title="Copy"
+                  title={`Copy the ${item.key} example`}
                   activeText="Copied!"
                   copyText={item.example}
                   size="small"

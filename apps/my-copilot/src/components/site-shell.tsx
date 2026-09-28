@@ -19,8 +19,6 @@ export interface ShellLabels extends Omit<HeaderLabels, "lang"> {
   accessibility: string;
   accessibilityHref: string;
   accessibilityHrefLang?: string;
-  // The footer message is Norwegian whatever the shell language is.
-  footerLang?: string;
 }
 
 const inter = Inter({ subsets: ["latin"] });
@@ -69,13 +67,7 @@ export async function SiteShell({
             className="max-w-7xl mx-auto"
           >
             <footer>
-              {labels.footerLang ? (
-                <span lang={labels.footerLang}>
-                  <FooterMessage />
-                </span>
-              ) : (
-                <FooterMessage />
-              )}
+              <FooterMessage lang={lang} />
               <HStack gap="space-16" wrap asChild>
                 <BodyShort size="small" as="div">
                   <Link href="/ordbok" hrefLang={lang === "en" ? "nb" : undefined} data-color="neutral">

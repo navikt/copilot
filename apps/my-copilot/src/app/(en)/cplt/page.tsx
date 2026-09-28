@@ -689,7 +689,7 @@ function ProxySection() {
                   cplt config set proxy.forced true
                 </code>
                 <CopyButton
-                  title="Copy"
+                  title="Copy the proxy.forced command"
                   activeText="Copied!"
                   copyText="cplt config set proxy.forced true"
                   size="small"
@@ -717,7 +717,7 @@ function ProxySection() {
                   cplt config set proxy.upstream &quot;http://proxy.example.com:8080&quot;
                 </code>
                 <CopyButton
-                  title="Copy"
+                  title="Copy the proxy.upstream command"
                   activeText="Copied!"
                   copyText='cplt config set proxy.upstream "http://proxy.example.com:8080"'
                   size="small"
@@ -864,7 +864,7 @@ function GuardsSection() {
                     Opt out for a single run
                   </span>
                   <CopyButton
-                    title="Copy"
+                    title="Copy the command that turns both guards off"
                     activeText="Copied!"
                     copyText="cplt --no-gh-guard --no-git-guard"
                     size="small"
@@ -873,6 +873,8 @@ function GuardsSection() {
                 </div>
                 <pre
                   tabIndex={0}
+                  role="region"
+                  aria-label="The command that turns both guards off"
                   className="p-4 font-mono leading-relaxed overflow-x-auto"
                   style={{ margin: 0, fontSize: CODE_SIZE, color: TERMINAL_FG, background: TERMINAL_BG }}
                 >
@@ -893,6 +895,8 @@ function GuardsSection() {
                 </div>
                 <pre
                   tabIndex={0}
+                  role="region"
+                  aria-label="What the agent sees"
                   className="p-4 font-mono leading-relaxed overflow-x-auto"
                   style={{ margin: 0, fontSize: CODE_SIZE, color: TERMINAL_FG, background: TERMINAL_BG }}
                 >
@@ -952,7 +956,7 @@ function TeamConfigSection() {
                   .cplt.toml
                 </span>
                 <CopyButton
-                  title="Copy"
+                  title="Copy the .cplt.toml example"
                   activeText="Copied!"
                   copyText={`[deny]\nenv = ["VAULT_TOKEN", "NPM_TOKEN"]\n\n[propose]\nallow_localhost_any = true\n\n[propose.allow]\nports = [5432]\nlocalhost = [3000]`}
                   size="small"
@@ -961,6 +965,8 @@ function TeamConfigSection() {
               </div>
               <pre
                 tabIndex={0}
+                role="region"
+                aria-label=".cplt.toml example"
                 className="p-4 font-mono leading-relaxed overflow-x-auto"
                 style={{ margin: 0, fontSize: CODE_SIZE, color: TERMINAL_FG, background: TERMINAL_BG }}
               >
@@ -1129,6 +1135,8 @@ function InitSection() {
                 </div>
                 <pre
                   tabIndex={0}
+                  role="region"
+                  aria-label="cplt init output"
                   className="p-4 font-mono leading-relaxed overflow-x-auto"
                   style={{ margin: 0, fontSize: CODE_SIZE, color: TERMINAL_FG, background: "#0d1117" }}
                 >
@@ -1346,13 +1354,15 @@ function HowItWorksSection() {
                     >
                       <code
                         tabIndex={0}
+                        role="region"
+                        aria-label={`${step.title}: command`}
                         className="font-mono whitespace-nowrap flex-1 min-w-0 overflow-x-auto"
                         style={{ fontSize: CODE_SIZE, color: TERMINAL_FG }}
                       >
                         {step.command}
                       </code>
                       <CopyButton
-                        title="Copy"
+                        title={`Copy ${step.command}`}
                         activeText="Copied!"
                         copyText={step.command}
                         size="small"
@@ -1403,7 +1413,7 @@ function HowItWorksSection() {
                   $ cplt --shell-install
                 </span>
                 <CopyButton
-                  title="Copy"
+                  title="Copy the shell-install command"
                   activeText="Copied!"
                   copyText="cplt --shell-install"
                   size="small"
@@ -1412,6 +1422,8 @@ function HowItWorksSection() {
               </div>
               <pre
                 tabIndex={0}
+                role="region"
+                aria-label="cplt --shell-install output"
                 className="p-4 font-mono leading-relaxed overflow-x-auto"
                 style={{ margin: 0, fontSize: CODE_SIZE, color: TERMINAL_FG, background: TERMINAL_BG }}
               >
@@ -1459,7 +1471,8 @@ function PolicySection() {
           <BodyShort size="small" style={{ marginTop: "0.75rem" }}>
             <NextLink href="/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr" lang="nb" hrefLang="nb" className="underline">
               Sandboxing er påkrevd på Nav-utstyr
-            </NextLink>
+            </NextLink>{" "}
+            (Norwegian)
           </BodyShort>
         </div>
       </Box>
