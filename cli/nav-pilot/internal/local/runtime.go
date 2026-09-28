@@ -1062,6 +1062,14 @@ const threadDiedMarker = "nav-pilot: pid %d: the server's thread "
 // attach, cannot tell a hang from a long request, and still leaves the session
 // that was running hanging; the hook fires the moment the thread dies.
 //
+// It also serves POSTs one at a time. mlx-lm batches concurrent requests, and
+// prompts of different lengths make that batching raise and leave the server
+// hung (see TestGuardSerialisesCompletions). The guard's lock file only covers
+// clients that can reach ~/.nav-pilot; a sandboxed hook cannot. A lock in the
+// server covers every client, and GETs (health, models) are never queued.
+// ponytail: threading.Lock is not FIFO, so a waiter can be overtaken; add a
+// ticket queue if anyone ever starves in practice.
+//
 // Run as `python -c` rather than through the mlx_lm.server entry-point script
 // so no file has to be written next to the venv. Arguments follow the code, so
 // sys.argv is ["-c", flags...]; argv[0] is renamed for argparse's usage line
@@ -1075,15 +1083,60 @@ def _die(a):
     os._exit(70)
 threading.excepthook = _die
 sys.argv[0] = "mlx_lm.server"
-from mlx_lm.server import main
-sys.exit(main())
+import json
+import mlx_lm.server as _server
+_admit = threading.BoundedSemaphore(_QUEUE + 1)
+_turn = threading.Lock()
+_post = _server.APIHandler.do_POST
+def _busy(h, why):
+    body = json.dumps({"error": {"message": "nav-pilot: the local model server is busy: %s. Try again in a moment." % why, "type": "server_busy", "code": 503}}).encode()
+    h.close_connection = True
+    h.send_response(503)
+    h.send_header("Content-Type", "application/json")
+    h.send_header("Content-Length", str(len(body)))
+    h.send_header("Retry-After", "5")
+    h.end_headers()
+    h.wfile.write(body)
+def _one_at_a_time(self):
+    if not _admit.acquire(blocking=False):
+        return _busy(self, "%d requests are already waiting" % _QUEUE)
+    try:
+        if not _turn.acquire(timeout=_WAIT):
+            return _busy(self, "waited %g s for the request ahead of this one" % _WAIT)
+        try:
+            _post(self)
+        finally:
+            _turn.release()
+    finally:
+        _admit.release()
+_server.APIHandler.do_POST = _one_at_a_time
+sys.exit(_server.main())
 `
+
+// serverQueueDepth and serverQueueWait bound the queue [serverBootstrap] puts
+// in front of generation: this many POSTs may wait behind the one running, each
+// for at most this long, before the server answers 503. Vars so tests can make
+// them small.
+//
+// Ten minutes because one local answer at a large context legitimately takes
+// minutes, and a waiting client would rather be served late than refused. Eight
+// waiters is more than the sessions one Mac runs at once; beyond it a client is
+// told at once instead of hanging.
+var (
+	serverQueueDepth = 8
+	serverQueueWait  = 10 * time.Minute
+)
+
+// serverScript is [serverBootstrap] with the queue bounds it reads.
+func serverScript() string {
+	return fmt.Sprintf("_QUEUE, _WAIT = %d, %g\n", serverQueueDepth, serverQueueWait.Seconds()) + serverBootstrap
+}
 
 // serverCommand is the program and arguments that launch the server for model
 // on port.
 func serverCommand(model Model, port int) (string, []string) {
 	args := []string{
-		"-c", serverBootstrap,
+		"-c", serverScript(),
 		"--model", model.Model,
 		"--host", "127.0.0.1",
 		"--port", strconv.Itoa(port),

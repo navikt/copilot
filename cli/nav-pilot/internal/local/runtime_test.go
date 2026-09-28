@@ -1454,7 +1454,7 @@ func TestServerCommandRunsTheBootstrapWithTheSameFlags(t *testing.T) {
 	if name != venvBin("python") {
 		t.Errorf("serverCommand program = %q, want the venv python %q", name, venvBin("python"))
 	}
-	want := []string{"-c", serverBootstrap, "--model", "org/m", "--host", "127.0.0.1", "--port", "8123", "--temp", "0.6"}
+	want := []string{"-c", serverScript(), "--model", "org/m", "--host", "127.0.0.1", "--port", "8123", "--temp", "0.6"}
 	if !slices.Equal(args, want) {
 		t.Errorf("serverCommand args =\n  %q\nwant\n  %q", args, want)
 	}
@@ -1479,7 +1479,9 @@ func TestADeadGenerationThreadEndsTheServer(t *testing.T) {
 		"def main():\n" +
 		"    print('argv', sys.argv, flush=True)\n" +
 		"    threading.Thread(target=lambda: 1 / 0).start()\n" +
-		"    time.sleep(30)\n"
+		"    time.sleep(30)\n" +
+		"class APIHandler:\n" +
+		"    def do_POST(self): pass\n"
 	for name, body := range map[string]string{"__init__.py": "", "server.py": fake} {
 		if err := os.WriteFile(filepath.Join(pkg, name), []byte(body), 0o644); err != nil {
 			t.Fatal(err)

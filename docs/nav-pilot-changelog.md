@@ -4,6 +4,12 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-28
 
+### Den lokale serveren tar én forespørsel om gangen
+
+- **Køen ligger i serveren**: mlx-lm henger seg opp på samtidige forespørsler av ulik lengde. Til nå var det bare en låsefil i `~/.nav-pilot` som hindret det, og den når ikke en hook inne i cplt. Nå slipper serveren nav-pilot starter, gjennom én POST om gangen, for alle klienter. Helsesjekker og `/v1/models` står aldri i kø.
+- **Kø med grenser**: Opptil åtte forespørsler venter i inntil ti minutter hver. Er køen full, eller ventetiden ute, svarer serveren `503` med `Retry-After` og en melding om at den er opptatt.
+- **Kjører serveren fra før oppdateringen**, får den køen først etter `nav-pilot alpha local restart` (#1169).
+
 ### opencode er standardklient for nye installasjoner
 
 - **Ny installasjon, ny standard**: På en maskin uten `~/.nav-pilot/config.toml` er opencode valgt i oppsettet første gang du kjører nav-pilot. Mangler opencode, og du har Homebrew, tilbyr nav-pilot å installere den (`brew install anomalyco/tap/opencode`). Uten Homebrew, eller om du sier nei, lagrer oppsettet Copilot CLI og sier hvordan du bytter senere. Oppsettet lagrer aldri en klient som ikke kan starte.

@@ -4,6 +4,7 @@ package local
 
 import (
 	"context"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -50,6 +51,13 @@ func TestEnsureEnvAgainstTheRealToolchain(t *testing.T) {
 	// safe to re-run, and a developer who runs it again should not pay for it.
 	if err := EnsureEnv(ctx); err != nil {
 		t.Fatalf("EnsureEnv is not idempotent against a real environment: %v", err)
+	}
+
+	// serverBootstrap wraps mlx_lm.server.APIHandler.do_POST to queue requests.
+	// A pin bump that renames either would stop every local server at start.
+	out, err := exec.CommandContext(ctx, venvBin("python"), "-c", "import mlx_lm.server as s; s.APIHandler.do_POST").CombinedOutput()
+	if err != nil {
+		t.Fatalf("the pinned mlx-lm lacks mlx_lm.server.APIHandler.do_POST, which serverBootstrap wraps: %v\n%s", err, out)
 	}
 }
 
