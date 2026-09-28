@@ -722,7 +722,7 @@ svarer:
 | Fra du kjører `nav-pilot` til klienten starter | Under 150 ms |
 | Fra økten slutter til du har terminalen tilbake | Under 200 ms |
 | `--version` og `--help` | Under 50 ms. De sender ikke telemetri |
-| Kommandoer som ikke trenger nettet, som `config get` | Venter høyst 300 ms på å sende telemetrien |
+| Kommandoer som ikke trenger nettet, som `config get` | Venter høyst 300 ms på versjonssjekken, aldri på telemetrien |
 
 Det som trenger nett, skjer i bakgrunnen eller leses fra en kopi på maskinen. Alle filene ligger
 i `~/.nav-pilot/`:
@@ -733,6 +733,7 @@ i `~/.nav-pilot/`:
 | Agentpakka | `sources/` | En kopi per kilde: navikt/copilot (for opencode og pi) og en agentpakke fra et annet team (`source` i konfigurasjonen). En ny kopi hentes mens økten kjører, høyst én gang i timen |
 | Klientversjonen | `client-versions.json` | Svaret fra `copilot --version` og `opencode --version`. Spørres på nytt når klienten er oppdatert eller installert på nytt |
 | Undersøkelser og nyheter | `surveys.json`, `news.json` | Hentes mens økten kjører. Nyhetslinja høyst én gang i døgnet |
+| Telemetrien | `telemetry-spool/` | Skrives når en kommando avslutter, og sendes av neste nav-pilot, i bakgrunnen. Slettes når den er sendt, etter sju dager, eller når du slår av telemetrien |
 
 Unntaket er den første nedlastingen av en agentpakke. Finnes ingen kopi i `sources/`, venter
 oppstarten på nedlastingen, høyst 30 sekunder. Mislykkes den, venter ikke oppstartene den neste
@@ -747,8 +748,9 @@ klient, agent og modell.
 
 Testen `TestLaunchBudget` (`cli/nav-pilot/e2e/budget_test.go`) passer på målene i CI. Den
 starter nav-pilot med falske klienter, med telemetrien på og et nett som tar imot forbindelser
-uten å svare. Den feiler når medianen av fem kjøringer er mer enn tre ganger målet. Så mye
-tregere blir det bare når noe venter på nettet.
+uten å svare. Den feiler når medianen av seks kjøringer er mer enn tre ganger målet. Så mye
+tregere blir det bare når noe venter på nettet. Hver kjøring gjøres også med telemetrien av, og
+med telemetrien på skal den ikke ta mer enn 40 ms lenger.
 
 ## For bidragsytere
 

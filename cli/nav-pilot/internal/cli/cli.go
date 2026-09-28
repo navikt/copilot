@@ -18,8 +18,8 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
-	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 

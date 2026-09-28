@@ -337,8 +337,8 @@ export default function Referanse() {
               ikke telemetri.
             </li>
             <li>
-              Kommandoer som ikke trenger nettet, som <code className={code}>config get</code>, venter høyst 300 ms på å
-              sende telemetrien.
+              Kommandoer som ikke trenger nettet, som <code className={code}>config get</code>, venter høyst 300 ms på
+              versjonssjekken, aldri på telemetrien.
             </li>
           </Bullets>
           <BodyLong>
@@ -364,6 +364,11 @@ export default function Referanse() {
               <code className={code}>surveys.json</code> og <code className={code}>news.json</code>: undersøkelser og
               nyheter hentes mens økten kjører. Nyhetslinja etter en økt kommer høyst én gang i døgnet.
             </li>
+            <li>
+              <code className={code}>telemetry-spool/</code>: telemetrien skrives hit når en kommando avslutter, og
+              neste nav-pilot sender den i bakgrunnen. Den slettes når den er sendt, etter sju dager, eller når du slår
+              av telemetrien.
+            </li>
           </Bullets>
           <BodyLong>
             Unntaket er den første nedlastingen av en agentpakke. Finnes ingen kopi i{" "}
@@ -380,8 +385,9 @@ export default function Referanse() {
           <BodyLong>
             Testen <code className={code}>TestLaunchBudget</code> passer på målene i CI. Den starter nav-pilot med
             falske klienter, med telemetrien på og et nett som tar imot forbindelser uten å svare. Den feiler når
-            medianen av fem kjøringer er mer enn tre ganger målet. Så mye tregere blir det bare når noe venter på
-            nettet.
+            medianen av seks kjøringer er mer enn tre ganger målet. Så mye tregere blir det bare når noe venter på
+            nettet. Hver kjøring gjøres også med telemetrien av, og med telemetrien på skal den ikke ta mer enn 40 ms
+            lenger.
           </BodyLong>
         </VStack>
       </section>
