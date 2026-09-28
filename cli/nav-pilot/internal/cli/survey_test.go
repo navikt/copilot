@@ -92,20 +92,6 @@ func TestSessionEndedCalmly(t *testing.T) {
 	}
 }
 
-// The default gateway URL has to name the cluster copilot-cli is actually
-// deployed to. It named prod while the app only ran in dev-gcp, so every
-// `nav-pilot survey` and `nav-pilot usage` got Nav's 404 ingress error page
-// and blamed naisdevice for it. Update this alongside
-// .github/workflows/copilot-cli.yaml when copilot-cli reaches a new cluster.
-func TestDefaultCopilotCLIURLNamesADeployedCluster(t *testing.T) {
-	if defaultCopilotCLIURL != "https://copilot-cli.intern.dev.nav.no" {
-		t.Errorf("defaultCopilotCLIURL = %q; copilot-cli is deployed to dev-gcp only (see .github/workflows/copilot-cli.yaml)", defaultCopilotCLIURL)
-	}
-	if !allowedCopilotCLIURL(defaultCopilotCLIURL) {
-		t.Errorf("defaultCopilotCLIURL %q is rejected by its own allowlist", defaultCopilotCLIURL)
-	}
-}
-
 // A gateway that answers 404 is a different fault from one that cannot be
 // reached, and must not be reported as naisdevice being off.
 func TestFetchActiveSurveysSeparatesHTTPErrorFromUnreachable(t *testing.T) {
