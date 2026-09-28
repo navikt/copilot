@@ -5,15 +5,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
 	"sync/atomic"
 )
 
-// samlNameIDRequests counts calls to the name-id route by status. Volume and
-// status carry no personal data and are the one tripwire on a route that
-// otherwise leaves no record: a burst means copilot-survey is enumerating.
+const samlNameIDPath = "/internal/v1/saml/name-id"
+
+// samlNameIDRequests counts the handler's outcomes on the name-id route by
+// status: calls that passed the token check and the method match. 401 and
+// 405 are answered before the handler and are not counted. Volume and status
+// carry no personal data and are the one tripwire on a route that otherwise
+// leaves no record: a burst of 200/404 means copilot-survey is enumerating.
 var samlNameIDRequests = map[int]*atomic.Int64{
 	http.StatusOK: {}, http.StatusBadRequest: {}, http.StatusForbidden: {},
 	http.StatusNotFound: {}, http.StatusServiceUnavailable: {},
@@ -22,7 +27,7 @@ var samlNameIDRequests = map[int]*atomic.Int64{
 // samlNameIDMetrics is the counter in Prometheus text format.
 func samlNameIDMetrics() string {
 	var b strings.Builder
-	b.WriteString("\n# HELP copilot_api_saml_name_id_requests_total Calls to POST /internal/v1/saml/name-id by status\n")
+	b.WriteString("\n# HELP copilot_api_saml_name_id_requests_total Authenticated calls to POST /internal/v1/saml/name-id by handler status\n")
 	b.WriteString("# TYPE copilot_api_saml_name_id_requests_total counter\n")
 	for _, status := range []int{200, 400, 403, 404, 503} {
 		fmt.Fprintf(&b, "copilot_api_saml_name_id_requests_total{status=\"%d\"} %d\n", status, samlNameIDRequests[status].Load())
@@ -37,7 +42,7 @@ func registerInternalRoutes(mux *http.ServeMux, auth func(http.Handler) http.Han
 	if surveyClientID != "" {
 		slog.Info("copilot-survey trusted for POST /internal/v1/saml/name-id", "client_id", surveyClientID)
 	}
-	mux.Handle("POST /internal/v1/saml/name-id", auth(samlNameIDHandler(surveyClientID, lookup)))
+	mux.Handle("POST "+samlNameIDPath, auth(samlNameIDHandler(surveyClientID, lookup)))
 }
 
 // samlNameIDHandler serves POST /internal/v1/saml/name-id. It takes a GitHub
@@ -75,7 +80,7 @@ func samlNameIDHandler(surveyClientID string, lookup func(context.Context, strin
 		}
 		dec := json.NewDecoder(limited)
 		dec.DisallowUnknownFields()
-		if err := dec.Decode(&body); err != nil || !isValidGitHubUsername(body.Login) {
+		if err := dec.Decode(&body); err != nil || !isValidGitHubUsername(body.Login) || !errors.Is(dec.Decode(&struct{}{}), io.EOF) {
 			respondError(w, "invalid_parameter", `The body must be {"login": "<GitHub login>"}`, http.StatusBadRequest)
 			return
 		}

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -141,10 +142,16 @@ func decodeStrict(raw []byte, v any) error {
 	if err := dec.Decode(v); err != nil {
 		return err
 	}
-	if dec.More() {
+	if !atEOF(dec) {
 		return errors.New("trailing data")
 	}
 	return nil
+}
+
+// atEOF reports whether nothing but whitespace follows the value dec read.
+// dec.More() is no such check: it is false before a stray ] or }.
+func atEOF(dec *json.Decoder) bool {
+	return errors.Is(dec.Decode(&struct{}{}), io.EOF)
 }
 
 func validateSurveys(surveys []survey) error {
@@ -177,7 +184,8 @@ func validateSurveys(surveys []survey) error {
 				(!q.Reverse || q.Type == "scale") && (q.MaxChoices == 0 || q.Type == "multi")
 			if q.SkipIf != nil {
 				j := slices.IndexFunc(s.Questions[:i], func(p question) bool { return p.ID == q.SkipIf.Question })
-				ok = ok && j >= 0 && slices.Contains(s.Questions[j].Options, q.SkipIf.Answer) && !q.Required
+				ok = ok && j >= 0 && (s.Questions[j].Type == "choice" || s.Questions[j].Type == "multi") &&
+					slices.Contains(s.Questions[j].Options, q.SkipIf.Answer) && !q.Required
 			}
 			switch q.Type {
 			case "scale":
@@ -404,7 +412,7 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 	var sub submission
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 32<<10))
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&sub); err != nil || dec.More() {
+	if err := dec.Decode(&sub); err != nil || !atEOF(dec) {
 		writeError(w, http.StatusBadRequest, "body is not a valid submission")
 		return
 	}

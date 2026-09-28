@@ -166,6 +166,7 @@ func main() {
 	// copilot-survey looks up a nav-pilot user's Nav e-mail here. Not under
 	// /api/v1/, so no identity chain, request log or trace (see
 	// samlNameIDHandler). Off unless copilot-survey is pre-authorized.
+	// authMiddleware refuses copilot-survey's tokens on every other path.
 	copilotSurveyClientID, err := trustedClientIDForApp(config.PreAuthorizedApps, "copilot-survey")
 	if err != nil {
 		slog.Warn("Could not parse AZURE_APP_PRE_AUTHORIZED_APPS — SAML name-id route disabled", "error", err)

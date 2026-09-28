@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -47,6 +48,8 @@ func TestSAMLNameIDHandler(t *testing.T) {
 		{"no user", "survey-id", nil, lookup, `{"login":"hans"}`, 403},
 		{"malformed login", "survey-id", survey, lookup, `{"login":"inv@lid"}`, 400},
 		{"unknown field", "survey-id", survey, lookup, `{"login":"hans","x":1}`, 400},
+		{"trailing garbage", "survey-id", survey, lookup, `{"login":"hans"} garbage`, 400},
+		{"two objects", "survey-id", survey, lookup, `{"login":"hans"}{"login":"hans"}`, 400},
 		{"oversized body", "survey-id", survey, lookup, `{"login":"hans"` + strings.Repeat(" ", 1100) + `}`, 400},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -149,5 +152,94 @@ func TestGetSamlNameIDByLogin(t *testing.T) {
 				t.Fatalf("got %q, %v", got, err)
 			}
 		})
+	}
+}
+
+// copilot-survey's tokens pass only on the name-id route; Nais inbound access
+// is pod-wide. Nothing on that route logs the caller's identity.
+func TestBearerAuthSurveyScope(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	users := map[string]*User{
+		"survey": {AZP: "survey-id", Idtyp: "app"},
+		"user":   {AZP: "survey-id", NAVident: "Z999999"},
+		"other":  {AZP: "my-copilot-id", NAVident: "Z123456"},
+		// A second pre-authorized app named copilot-survey is fenced too.
+		"survey2": {AZP: "survey-id-2", Idtyp: "app"},
+	}
+	validate := func(tok string) (*User, error) { return users[tok], nil }
+	h := bearerAuth(validate, []string{"survey-id", "survey-id-2"})(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {}))
+	for _, tc := range []struct {
+		token, path string
+		want        int
+	}{
+		{"survey", samlNameIDPath, 200},
+		{"survey", "/api/v1/copilot/usage/metrics", 403},
+		{"survey", "/api/v1/budget", 403},
+		{"survey2", "/api/v1/budget", 403},
+		{"user", samlNameIDPath, 200},
+		{"other", "/api/v1/copilot/usage/metrics", 200},
+	} {
+		req := httptest.NewRequest(http.MethodPost, tc.path, nil)
+		req.Header.Set("Authorization", "Bearer "+tc.token)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != tc.want {
+			t.Errorf("%s on %s = %d, want %d", tc.token, tc.path, rec.Code, tc.want)
+		}
+	}
+	if strings.Contains(buf.String(), "Z999999") {
+		t.Fatalf("an identity on the name-id route reached the log: %s", buf.String())
+	}
+	if !strings.Contains(buf.String(), "Z123456") {
+		t.Fatalf("other routes should still log at debug: %s", buf.String())
+	}
+}
+
+// The survey fence fails closed: an ambiguous name yields every match.
+func TestClientIDsForApp(t *testing.T) {
+	for _, tc := range []struct {
+		raw  string
+		want []string
+	}{
+		{"", nil},
+		{`[{"name":"dev-gcp:copilot:my-copilot","clientId":"a"}]`, nil},
+		{`[{"name":"dev-gcp:copilot:copilot-survey","clientId":"a"}]`, []string{"a"}},
+		{`[{"name":"dev-gcp:copilot:copilot-survey","clientId":"a"},{"name":"dev-gcp:other:copilot-survey","clientId":"b"}]`, []string{"a", "b"}},
+	} {
+		got, err := clientIDsForApp(tc.raw, "copilot-survey")
+		if err != nil || !slices.Equal(got, tc.want) {
+			t.Errorf("clientIDsForApp(%s) = %v, %v, want %v", tc.raw, got, err, tc.want)
+		}
+	}
+}
+
+// A copilot-survey token through the real mux: only POST on the exact
+// name-id path reaches a handler.
+func TestSurveyTokenThroughMux(t *testing.T) {
+	validate := func(string) (*User, error) { return &User{AZP: "survey-id", Idtyp: "app"}, nil }
+	auth := bearerAuth(validate, []string{"survey-id"})
+	mux := http.NewServeMux()
+	mux.Handle("/api/v1/", auth(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})))
+	registerInternalRoutes(mux, auth, "survey-id", nil)
+	for _, tc := range []struct {
+		method, path string
+		want         int
+	}{
+		{http.MethodPost, samlNameIDPath, 503}, // reached the handler; GitHub not configured
+		{http.MethodGet, samlNameIDPath, 405},
+		{http.MethodPost, samlNameIDPath + "/", 404},
+		{http.MethodGet, "/api/v1/x", 403},
+	} {
+		req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(`{"login":"hans"}`))
+		req.Header.Set("Authorization", "Bearer t")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != tc.want {
+			t.Errorf("%s %s = %d, want %d", tc.method, tc.path, rec.Code, tc.want)
+		}
 	}
 }

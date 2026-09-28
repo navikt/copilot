@@ -80,8 +80,12 @@ in the Nais secret `copilot-survey`, namespace `copilot`, created by the team
 before the survey opens. Who can read it: members of the `copilot` Nais team
 (namespace secret access). It is never in the database or the image. The day
 after the survey closes, copilot-survey deletes that survey's participation rows,
-and the team deletes its key from the secret. From then on no key exists to
-recompute a hash, and no table holds one.
+and the team deletes its key from the secret. The running pod read its keys
+at start and still holds the deleted one, so the team then restarts it
+(`kubectl rollout restart deployment/copilot-survey -n copilot`), after the
+close-out has written the last batch. A pod that starts after the survey
+closed loads no key for it. From then on no key exists to recompute a hash,
+and no table holds one.
 
 **Pseudonymous while open.** Until the key and the participation rows are
 deleted, anyone who holds both the key and database access (members of the
