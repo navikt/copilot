@@ -5,12 +5,14 @@ import path from "node:path";
 // under the English (en) route group, with no nav-pilot section menu, and stays
 // in English (see AGENTS.md).
 const PAGE = path.resolve(__dirname, "app/(en)/cplt/page.tsx");
+// The WSL2 guide it links to for Windows.
+const WINDOWS = path.resolve(__dirname, "app/(en)/cplt/windows/page.tsx");
 // The configuration explorer renders on the page too.
 const EXPLORER = path.resolve(__dirname, "components/cplt-config-explorer.tsx");
 
 describe("/cplt", () => {
-  it('keeps lang="en" on <main> and never lang="nb"', () => {
-    const src = fs.readFileSync(PAGE, "utf-8");
+  it.each([PAGE, WINDOWS])('keeps lang="en" on <main> and never lang="nb" in %s', (page) => {
+    const src = fs.readFileSync(page, "utf-8");
     expect(src).toMatch(/<main[^>]*\blang="en"/);
     expect(src).not.toMatch(/<main[^>]*\blang="nb"/);
   });

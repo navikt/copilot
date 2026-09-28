@@ -296,7 +296,9 @@ function HeroSection({ stars }: { stars: number | null }) {
               <BodyShort size="small" style={{ color: ACCENT, textAlign: "center" }}>
                 <span className="whitespace-nowrap">macOS (Apple Seatbelt)</span> ·{" "}
                 <span className="whitespace-nowrap">Linux (Landlock + seccomp-BPF)</span> ·{" "}
-                <span className="whitespace-nowrap">Windows: WSL2 only</span>
+                <NextLink href="/cplt/windows" className="whitespace-nowrap underline" style={{ color: ACCENT }}>
+                  Windows: WSL2 only
+                </NextLink>
               </BodyShort>
             </div>
           </VStack>

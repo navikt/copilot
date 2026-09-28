@@ -53,7 +53,7 @@ function detectOs(): InstallOs {
   return readStoredOs() ?? installOsFromPlatform(nav.userAgentData?.platform || nav.userAgent);
 }
 
-function Command({ command, copyTitle, copied }: { command: string; copyTitle: string; copied: string }) {
+export function Command({ command, copyTitle, copied }: { command: string; copyTitle: string; copied: string }) {
   return (
     <div
       className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 rounded-lg text-left"
