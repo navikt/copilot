@@ -194,14 +194,27 @@ func ExportOpenCode(scope *domain.InstallScope, ref, sourceRepo, cliVersion stri
 }
 
 // OpenCodeOutputDir returns the base output directory for OpenCode export.
-// For user scope: ~/.config/opencode/ (OpenCode's native global path)
+// For user scope: OpenCodeConfigDir, OpenCode's global config dir (#1034).
 // For repo scope: <targetDir>/.opencode/
 func OpenCodeOutputDir(scope *domain.InstallScope) string {
 	if scope.IsUser() {
-		home, _ := os.UserHomeDir()
-		return filepath.Join(home, ".config", "opencode")
+		return OpenCodeConfigDir()
 	}
 	return filepath.Join(scope.RootDir, ".opencode")
+}
+
+// OpenCodeConfigDir is where OpenCode reads its global config:
+// $XDG_CONFIG_HOME/opencode when that is an absolute path, as OpenCode
+// resolves it, and ~/.config/opencode otherwise.
+func OpenCodeConfigDir() string {
+	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" && filepath.IsAbs(x) {
+		return filepath.Join(x, "opencode")
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return filepath.Join(os.TempDir(), "nav-pilot", ".config", "opencode")
+	}
+	return filepath.Join(home, ".config", "opencode")
 }
 
 func ExportSummary(skills, commands, agents, instructions int) string {
