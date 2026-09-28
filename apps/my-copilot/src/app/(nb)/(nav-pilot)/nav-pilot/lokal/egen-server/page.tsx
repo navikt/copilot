@@ -77,9 +77,9 @@ export default function EgenServer() {
             forgrunnen og opptar terminalen. Start serveren i en egen terminal, og kjør resten av stegene i en annen.
           </BodyLong>
           <BodyLong>
-            Starter ikke <code className={code}>llama-server</code> fra llama.cpp-releasen for Ubuntu, og feilen er{" "}
-            <code className={code}>libgomp.so.1: cannot open shared object file</code>, mangler maskinen
-            OpenMP-biblioteket. Det er vanlig i containere, minimale serverimager og WSL. Installer det med{" "}
+            Hvis <code className={code}>llama-server</code> fra llama.cpp-releasen for Ubuntu ikke starter og feilen er{" "}
+            <code className={code}>libgomp.so.1: cannot open shared object file</code>, mangler OpenMP-biblioteket. Det
+            mangler ofte i containere, minimale serverimager og WSL. Installer det med{" "}
             <code className={code}>sudo apt install libgomp1</code>, eller{" "}
             <code className={code}>sudo apt-get install -y libgomp1</code> i et skript.
           </BodyLong>
