@@ -44,7 +44,7 @@ export function AltInstall() {
           </div>
 
           <div style={{ fontSize: "0.75rem", color: "#334155", margin: "1rem 0 0.375rem" }}>
-            <strong>Andre distroer, CI eller proxy som stenger apt-arkivet:</strong> bruk installasjonsskriptet.
+            <strong>Andre distroer, CI eller sperret apt-arkiv:</strong> bruk installasjonsskriptet.
           </div>
           <CodeBlock compact>{NAV_PILOT_INSTALL_SCRIPT}</CodeBlock>
           <div

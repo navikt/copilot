@@ -81,7 +81,7 @@ export function generateSetupScript(os: OS, workflow: Workflow) {
         `  ${NAV_PILOT_INSTALL_SCRIPT}`,
         "fi",
         "# Arkivet oppdateres hver time, så en helt fersk release kan mangle en liten stund.",
-        "# Stenger en proxy for navikt.github.io, virker installasjonsskriptet også på Debian og Ubuntu.",
+        "# Stenger proxyen for navikt.github.io, kan du bruke installasjonsskriptet på Debian og Ubuntu også.",
       ],
     });
   }

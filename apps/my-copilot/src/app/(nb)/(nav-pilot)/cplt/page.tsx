@@ -306,7 +306,7 @@ function HeroSection({ stars }: { stars: number | null }) {
               >
                 <pre
                   className="font-mono"
-                  style={{ fontSize: CODE_SIZE, color: "var(--ax-text-neutral-subtle)", whiteSpace: "pre" }}
+                  style={{ fontSize: CODE_SIZE, color: "var(--ax-text-neutral-subtle)", whiteSpace: "pre-wrap" }}
                 >
                   {CPLT_APT_INSTALL}
                 </pre>

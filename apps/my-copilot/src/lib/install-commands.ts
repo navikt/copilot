@@ -23,7 +23,7 @@ function aptInstall(packages: string, installScript: string): string {
     `  && echo "deb [signed-by=${APT_KEYRING}] https://navikt.github.io/apt stable main" \\`,
     `    | sudo tee /etc/apt/sources.list.d/navikt.list >/dev/null \\`,
     `  && sudo apt update && sudo apt install ${packages} \\`,
-    `  || echo "Installasjonen fra apt-arkivet feilet. Sjekk at https://navikt.github.io/apt svarer, eller bruk installasjonsskriptet: ${installScript}" >&2`,
+    `  || echo "Klarte ikke å installere fra apt-arkivet. Sjekk at du når https://navikt.github.io/apt, eller bruk installasjonsskriptet: ${installScript}" >&2`,
   ].join("\n");
 }
 
