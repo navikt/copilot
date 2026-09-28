@@ -36,6 +36,8 @@ const labels: ShellLabels = {
   otherLangHref: "/",
   subscription: "Copilot subscription",
   subscriptionHref: "/abonnement",
+  userMenu: "User menu",
+  budgetUsed: "{pct}% of this month's AI credits used",
   signIn: "Sign in",
   privacy: "Privacy (Norwegian)",
   privacyHref: "/personvern",

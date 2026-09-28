@@ -1,11 +1,11 @@
 "use client";
 
 import { ArrowLeftIcon, ChevronDownIcon, ChevronRightIcon, MenuHamburgerIcon } from "@navikt/aksel-icons";
-import { Button, Dialog, Theme } from "@navikt/ds-react";
+import { BodyShort, Button, Dialog, Link, Popover, Theme, VStack } from "@navikt/ds-react";
 import NextLink from "next/link";
 import { usePathname } from "next/navigation";
-import { useId, useState, type MouseEvent, type ReactNode } from "react";
-import NavBudgetBar from "@/components/nav-budget-bar";
+import { useId, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { BudgetUsage, budgetHigh, budgetText, useBudgetPct } from "@/components/budget-usage";
 import { SiteSearch } from "@/components/navigation/site-search";
 import { SECTION, TOP_LINKS, activeTop, inSection, sectionGroup } from "@/lib/nav-items";
 
@@ -24,6 +24,9 @@ export interface HeaderLabels {
   back: string;
   showSection: string;
   search: string;
+  userMenu: string;
+  /** With a {pct} placeholder. */
+  budgetUsed: string;
 }
 
 // As Aksel's header links: "page" on the page itself, "true" anywhere else in the group.
@@ -68,13 +71,7 @@ export function SiteHeader({ labels, userName }: { labels: HeaderLabels; userNam
         </div>
         <div className="hidden lg:flex items-center gap-4 text-sm">
           {userName ? (
-            <>
-              <NextLink href={labels.subscriptionHref} hrefLang={hrefLang} className="top-link">
-                {labels.subscription}
-              </NextLink>
-              <NavBudgetBar />
-              <span className="text-white/70 whitespace-nowrap">{userName}</span>
-            </>
+            <UserMenu labels={labels} userName={userName} />
           ) : (
             <a href="/oauth2/login" className="top-link">
               {labels.signIn}
@@ -89,12 +86,85 @@ export function SiteHeader({ labels, userName }: { labels: HeaderLabels; userNam
   );
 }
 
+const initials = (name: string) => {
+  const words = name.split(/\s+/).filter(Boolean);
+  return (words[0]?.[0] ?? "") + (words.length > 1 ? words[words.length - 1][0] : "");
+};
+
+// From 1024 px: the name (initials below 1280 px) opens a disclosure panel with
+// the name, the AI credit usage and the subscription link. A disclosure, not Aksel ActionMenu: role="menu" traps
+// Tab (§6 in docs/nav-pilot-dokumentasjon-forslag.md).
+function UserMenu({ labels, userName }: { labels: HeaderLabels; userName: string }) {
+  const hrefLang = labels.lang === "en" ? "nb" : undefined;
+  const pct = useBudgetPct(true);
+  const [open, setOpen] = useState(false);
+  const [button, setButton] = useState<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const panelId = useId();
+  const high = budgetHigh(pct);
+
+  const close = () => {
+    setOpen(false);
+    // Esc from inside the panel: back to the button. Tab out: leave focus where it went.
+    if (panelRef.current?.contains(document.activeElement)) button?.focus();
+  };
+
+  return (
+    <>
+      <button
+        ref={setButton}
+        type="button"
+        className="user-button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-label={`${userName}, ${labels.userMenu}${high ? `. ${budgetText(labels.budgetUsed, pct)}` : ""}`}
+        onClick={() => setOpen(!open)}
+      >
+        <span className="user-initials grid xl:hidden" aria-hidden>
+          {initials(userName)}
+        </span>
+        <span className="user-name hidden xl:block" aria-hidden>
+          {userName}
+        </span>
+        {high && <span className="user-dot" data-level={pct >= 90 ? "high" : "warn"} aria-hidden />}
+        <ChevronDownIcon aria-hidden fontSize="1.25rem" className={open ? "rotate-180" : undefined} />
+      </button>
+      <Theme theme="light" asChild>
+        <Popover
+          ref={panelRef}
+          id={panelId}
+          open={open}
+          onClose={close}
+          anchorEl={button}
+          placement="bottom-end"
+          lang={labels.lang}
+        >
+          <Popover.Content className="user-panel">
+            <VStack gap="space-12">
+              <BodyShort weight="semibold" className="break-words">
+                {userName}
+              </BodyShort>
+              <BudgetUsage pct={pct} text={labels.budgetUsed} />
+              <BodyShort>
+                <Link as={NextLink} href={labels.subscriptionHref} hrefLang={hrefLang} onClick={() => setOpen(false)}>
+                  {labels.subscription}
+                </Link>
+              </BodyShort>
+            </VStack>
+          </Popover.Content>
+        </Popover>
+      </Theme>
+    </>
+  );
+}
+
 // Below 1024 px: an Aksel Dialog from the right with two levels, the five
 // groups and the section menu, as on aksel.nav.no.
 function MobileMenu({ labels, userName }: { labels: HeaderLabels; userName?: string }) {
   const pathname = usePathname();
   const active = activeTop(pathname);
   const hrefLang = labels.lang === "en" ? "nb" : undefined;
+  const pct = useBudgetPct(!!userName);
   const [open, setOpen] = useState(false);
   const [level2, setLevel2] = useState(false);
   const [swapped, setSwapped] = useState(false);
@@ -170,24 +240,23 @@ function MobileMenu({ labels, userName }: { labels: HeaderLabels; userName?: str
                       )}
                     </li>
                   ))}
-                  {userName && (
+                  {userName ? (
                     <li className="panel-gap">
+                      <VStack gap="space-12" padding="space-12">
+                        <BodyShort>{userName}</BodyShort>
+                        <BudgetUsage pct={pct} text={labels.budgetUsed} />
+                      </VStack>
                       <NextLink href={labels.subscriptionHref} hrefLang={hrefLang} className="panel-item">
                         {labels.subscription}
                       </NextLink>
                     </li>
-                  )}
-                  <li className={userName ? undefined : "panel-gap"}>
-                    {userName ? (
-                      <span className="panel-item" style={{ fontWeight: 400 }}>
-                        {userName}
-                      </span>
-                    ) : (
+                  ) : (
+                    <li className="panel-gap">
                       <a href="/oauth2/login" className="panel-item">
                         {labels.signIn}
                       </a>
-                    )}
-                  </li>
+                    </li>
+                  )}
                 </ul>
               </nav>
             )}
