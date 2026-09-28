@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### setup kjenner igjen mlx_lm.server
 
-- **Riktig navn**: `nav-pilot alpha local setup` kalte `mlx_lm.server` på port 8080 for llama-server. Nå kjenner den den igjen på `Server`-headeren.
+- **Riktig navn**: `nav-pilot alpha local setup` kalte `mlx_lm.server` på port 8080 for llama-server. Nå kjenner den igjen serveren på `Server`-headeren.
 - **Riktig modell**: `mlx_lm.server` lister alle MLX-modellene i Hugging Face-cachen og laster den en forespørsel ber om. setup foretrakk den første Qwen3.6-35B-modellen i lista, som kunne være det vanlige 4-bit-bygget. Nå kommer bygget fra nav-pilots egen modelliste først (OptiQ), og setup sier fra om at modellen kan være en annen enn den serveren ble startet med (#1102).
 
 ### alpha local setup: riktige hint

@@ -50,3 +50,16 @@ func TestModelRankIgnoresAnEndpointManifest(t *testing.T) {
 		t.Errorf("rank OptiQ = %d, the endpoint's model = %d; want OptiQ above it", optiq, plain)
 	}
 }
+
+func TestSetupCandidatesAreLoopbackOnly(t *testing.T) {
+	t.Setenv("NAV_PILOT_SETUP_CANDIDATES", "ollama=127.0.0.1:1,vllm=[::1]:2")
+	if c, err := setupCandidates(); err != nil || len(c) != 2 {
+		t.Fatalf("setupCandidates = %v, %v", c, err)
+	}
+	for _, bad := range []string{"ollama=10.0.0.1:11434", "ollama=localhost:11434", "nope=127.0.0.1:1", "ollama"} {
+		t.Setenv("NAV_PILOT_SETUP_CANDIDATES", bad)
+		if _, err := setupCandidates(); err == nil {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+}

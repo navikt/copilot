@@ -160,7 +160,7 @@ export default function EgenServer() {
             <code className={code}>mlx_lm.server</code> lister alle MLX-modellene i Hugging Face-cachen, ikke bare den
             du startet den med, og laster den modellen en forespørsel ber om. <code className={code}>setup</code>{" "}
             foreslår da samme bygg som nav-pilot selv kjører, og sier fra om at det kan være en annen modell enn den du
-            startet serveren med. Vil du ha en bestemt, bruk <code className={code}>--model</code>.
+            startet serveren med. Vil du ha en bestemt modell, bruk <code className={code}>--model</code>.
           </BodyLong>
           <BodyLong>
             Slutter serveren å svare midt i kontekstsjekken, er den trolig tom for minne. Da foreslår{" "}

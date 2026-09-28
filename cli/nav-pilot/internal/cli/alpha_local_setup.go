@@ -325,7 +325,7 @@ func cmdLocalSetup(args []string) error {
 		if f.endpoint != "" {
 			other = "nav-pilot alpha local setup --endpoint " + choice.Server.Base + "/v1 --model <id>"
 		}
-		fmt.Printf("  %s mlx_lm.server lists every MLX model in the Hugging Face cache and loads the one a request names. Sessions will run %s, which need not be the model the server was started with, and the first request loads it. Another one: %s\n\n",
+		fmt.Printf("  %s mlx_lm.server lists every MLX model in the Hugging Face cache and loads the one a request names. Sessions will run %s, which need not be the model the server was started with, and the first request loads it. To pick another: %s\n\n",
 			yellow("⚠"), choice.Model, bold(other))
 	}
 	// Refused before the checks, not after: the context probe can take
