@@ -80,13 +80,15 @@ func runActionCheck(evidence string) actionVerdict {
 	ctx, cancel := context.WithTimeout(context.Background(), actionCheckBudget)
 	defer cancel()
 
+	// Read once, here: the goroutine below can outlive this call.
+	acquire := decideServer
 	var mu sync.Mutex
 	p := map[string]float64{}
 	var failed error
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		base, model, release, err := decideServer(ctx)
+		base, model, release, err := acquire(ctx)
 		if err != nil {
 			mu.Lock()
 			failed = err
