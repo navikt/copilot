@@ -81,6 +81,13 @@ export default async function LokalIntro() {
             på {m.weights_gb} GB og omtrent 1 GB til Python-miljøet.
           </BodyLong>
           <BodyLong>
+            Har Macen 64 GB minne eller mer, kan du etter oppsettet bytte til en større utgave av standardmodellen. Se{" "}
+            <NextLink href="/nav-pilot/guider/lokal#modell-64-gb" className={linkClass}>
+              Større modell for Macer med 64 GB
+            </NextLink>
+            . Hovedagenten sender den ingen oppgaver ennå.
+          </BodyLong>
+          <BodyLong>
             Har du Linux, en Intel-Mac eller mindre minne, gå til{" "}
             <NextLink href="/nav-pilot/lokal/egen-server" className={linkClass}>
               Kom i gang med egen server

@@ -298,7 +298,13 @@ export default function LokalModellForklaring() {
           </LinkableHeading>
           <BodyLong>Dette jobber vi med nå. Det er planer, ikke løfter, og noe av det kan bli lagt bort.</BodyLong>
           <Bullets>
-            <li>Vi måler modeller som bare får plass på maskiner med 64 GB.</li>
+            <li>
+              Vi måler hva hovedagenten kan sende til{" "}
+              <NextLink href="/nav-pilot/guider/lokal#modell-64-gb" className={linkClass}>
+                modellen for Macer med 64 GB
+              </NextLink>
+              , og hvor mye minne den bruker med prompter over 49 000 tokens.
+            </li>
             <li>
               Vi måler hvert utsendingsnivå for å se om stoppet får hovedagenten til å sende, og om det sparer
               AI-credits.

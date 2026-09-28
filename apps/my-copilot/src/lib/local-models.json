@@ -55,11 +55,11 @@
       "classes": {
         "read-qa": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "not-yet"
         },
         "edit-single": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "not-yet"
         },
         "edit-multi-mechanical": {
           "delegate": "cloud",
@@ -97,6 +97,43 @@
         "edit-single": {
           "delegate": "cloud",
           "local": "not-yet"
+        },
+        "edit-multi-mechanical": {
+          "delegate": "cloud",
+          "local": "cloud"
+        },
+        "create-file": {
+          "delegate": "cloud",
+          "local": "cloud"
+        },
+        "debug": {
+          "delegate": "cloud",
+          "local": "cloud"
+        }
+      }
+    },
+    {
+      "id": "qwen3.6-35b-a3b-8bit",
+      "name": "Qwen 3.6 35B A3B 8bit, 64 GB machines, 48 GB wired",
+      "model": "mlx-community/Qwen3.6-35B-A3B-8bit",
+      "default": false,
+      "role": "Opt-in for 64 GB machines, the default's model at 8-bit",
+      "weights_gb": 38,
+      "min_ram_gb": 64,
+      "min_nav_pilot": null,
+      "context": 65536,
+      "output": 16384,
+      "temperature": 0.6,
+      "top_p": 0.95,
+      "prefill_step": null,
+      "classes": {
+        "read-qa": {
+          "delegate": "cloud",
+          "local": "cloud"
+        },
+        "edit-single": {
+          "delegate": "cloud",
+          "local": "cloud"
         },
         "edit-multi-mechanical": {
           "delegate": "cloud",
