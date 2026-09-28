@@ -1,8 +1,11 @@
 package provider
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
@@ -28,6 +31,61 @@ const OpenCodeTestedRange = ">=1.18.20,<1.19"
 
 func applyOpenCodePolicy(env []string) []string {
 	return withOpenCodeConfigContent(env, openCodePolicy)
+}
+
+// applyOpenCodeOwnDirs lets the session read the instructions, agents and
+// skills nav-pilot installs in opencode's config directory, and in a staged
+// launch's OPENCODE_CONFIG_DIR, without an external_directory request. Those
+// directories are outside the project, a model that opens a file there gets
+// asked, and `opencode run` rejects the request and ends the session (#1120).
+// Everything else outside the project still asks.
+//
+// OPENCODE_CONFIG_CONTENT is merged over the user's config, and an object
+// replaces a plain string there, so the user's own external_directory string
+// goes first as "*". When the user already allows or denies every directory,
+// or sets the whole permission block as one string, this adds nothing: an
+// object would change what they chose.
+func applyOpenCodeOwnDirs(env []string, projectDir string) []string {
+	var whole, ext string
+	for _, doc := range openCodeConfigDocs(projectDir, env) {
+		var cfg struct {
+			Permission json.RawMessage `json:"permission"`
+		}
+		if json.Unmarshal(stripJSONC(doc), &cfg) != nil || cfg.Permission == nil {
+			continue
+		}
+		if json.Unmarshal(cfg.Permission, &whole) == nil {
+			ext = ""
+			continue
+		}
+		whole = ""
+		var p struct {
+			ExternalDirectory json.RawMessage `json:"external_directory"`
+		}
+		if json.Unmarshal(cfg.Permission, &p) == nil && p.ExternalDirectory != nil {
+			ext = ""
+			_ = json.Unmarshal(p.ExternalDirectory, &ext)
+		}
+	}
+	if whole != "" || ext == "allow" || ext == "deny" {
+		return env
+	}
+	rules := map[string]any{}
+	if ext != "" {
+		rules["*"] = ext // "*" sorts before any absolute path, so it comes first
+	}
+	dirs := []string{openCodeConfigDir()}
+	for _, e := range env {
+		if d, ok := strings.CutPrefix(e, "OPENCODE_CONFIG_DIR="); ok && d != "" {
+			dirs = append(dirs, d)
+		}
+	}
+	for _, d := range dirs {
+		for _, sub := range []string{"instructions", "agents", "skills"} {
+			rules[filepath.ToSlash(filepath.Join(d, sub))+"/*"] = "allow"
+		}
+	}
+	return withOpenCodeConfigContent(env, map[string]any{"permission": map[string]any{"external_directory": rules}})
 }
 
 // OpenCodeVersionStatus reports the installed opencode's version and whether

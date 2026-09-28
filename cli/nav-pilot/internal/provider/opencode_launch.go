@@ -983,6 +983,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	launchEnv, _ := telemetry.ApplyOpenCodeOTelEnv(env, cliVersion)
 	launchEnv = applyOpenCodePolicy(launchEnv)
 	launchEnv = applyOpenCodeMCPPolicy(launchEnv, resolved.ProjectDir)
+	launchEnv = applyOpenCodeOwnDirs(launchEnv, resolved.ProjectDir)
 	warnUntestedOpenCode()
 
 	// Local dispatch, whether or not this session's own model is local: a cloud
