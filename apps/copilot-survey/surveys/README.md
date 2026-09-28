@@ -54,7 +54,10 @@ level: answers are not linked to a person across waves (see
 - The ingress access log has been checked for what it records of
   `POST /api/v1/surveys/…` (source address per device, or per naisdevice
   gateway).
-- DPIA / personvernombud has signed off.
+- DPIA / personvernombud has signed off, including the residual risks in
+  [the data model](../README.md#surveys-data-model-and-retention). One of
+  them: a batch is written at exactly 10 answers, so write timing places an
+  answer in a batch window for anyone with ingress log and database access.
 - Only then: `SURVEY_KEY_<ID>` (`openssl rand -base64 32`) is added to the
   `copilot-survey` secret, and a pull request sets `"active": true`. Without
   both the survey takes no answers.
