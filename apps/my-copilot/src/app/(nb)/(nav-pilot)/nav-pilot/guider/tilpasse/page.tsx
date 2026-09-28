@@ -208,13 +208,13 @@ nav-pilot config set hook_redact_fnr true    # på igjen`}
             bare det nav-pilot har skrevet, så dine egne hooks blir stående.
           </BodyLong>
           <BodyLong>
-            To av dem er porter som kan stoppe et verktøykall: polling-porten og ARIA-porten. Portene slipper kallet
-            gjennom når Python svikter: <code className={code}>python3</code> mangler, skriptet feiler, eller det svarer
-            ikke innen fristen på ett sekund. Hver port har et unntak: <code className={code}>POLL_OK=1</code> foran
-            kommandoen for polling-porten, og en kommentar med <code className={code}>ARIA_OK</code> og begrunnelsen ved
-            siden av <code className={code}>role</code>-attributtet for ARIA-porten. ARIA-porten ber bare modellen
-            spørre deg og nevner ikke merket. Merket er et spor du legger igjen etter at du har sagt ja. Det er ingen
-            lås, for en modell kan skrive det selv.
+            To av hookene i agentpakka er porter som kan stoppe et verktøykall: polling-porten og ARIA-porten. Portene
+            slipper kallet gjennom når Python svikter: <code className={code}>python3</code> mangler, skriptet feiler,
+            eller det svarer ikke innen fristen på ett sekund. Hver port har et unntak:{" "}
+            <code className={code}>POLL_OK=1</code> foran kommandoen for polling-porten, og en kommentar med{" "}
+            <code className={code}>ARIA_OK</code> og begrunnelsen ved siden av <code className={code}>role</code>
+            -attributtet for ARIA-porten. ARIA-porten ber bare modellen spørre deg og nevner ikke merket. Merket er et
+            spor du legger igjen etter at du har sagt ja. Det er ingen lås, for en modell kan skrive det selv.
           </BodyLong>
         </VStack>
       </section>

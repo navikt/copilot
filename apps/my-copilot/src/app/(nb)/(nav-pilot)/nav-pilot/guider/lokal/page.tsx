@@ -1,4 +1,4 @@
-import { BodyLong, BodyShort, Box, HStack, Label, Tag, VStack } from "@navikt/ds-react";
+import { BodyLong, BodyShort, HStack, Label, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import NextLink from "next/link";
@@ -10,41 +10,17 @@ import type { TocItem } from "@/components/table-of-contents";
 export const metadata: Metadata = {
   title: "Lokal modell",
   description:
-    "Bestem hvor mye hovedagenten sender til den lokale modellen, bytt modell i skyen og lokalt, bruk en server du kjører selv, og bruk alpha decide i hooks og skript.",
+    "Bestem hvor mye hovedagenten sender til den lokale modellen, bytt modell i skyen og lokalt, og bruk alpha decide i hooks og skript.",
 };
 
 const TOC: TocItem[] = [
   { id: "utsending", label: "Styr utsendingen" },
   { id: "bytte-modell", label: "Bytte modell i skyen" },
   { id: "bytte-lokal-modell", label: "Bytte lokal modell" },
-  { id: "egen-server", label: "Bruke egen server" },
   { id: "decide-oppskrifter", label: "Oppskrifter for alpha decide" },
 ];
 
 // Recipes for alpha decide. String.raw keeps the shell's \n and \ intact.
-
-const COMMIT_EXPLAINS_WHY_HOOK = String.raw`#!/bin/sh
-# Advarer når meldingen bare beskriver det diffen viser. Stopper aldri commiten.
-command -v nav-pilot >/dev/null 2>&1 || exit 0
-
-{
-  printf 'Commit message:\n-----\n'
-  grep -v '^#' "$1"
-  printf -- '-----\n\nDiff:\n-----\n'
-  git diff --cached | head -c 7500
-  printf -- '\n-----\n'
-} | nav-pilot alpha decide \
-  "Does the commit message explain why the change was made, beyond describing what the diff already shows?" \
-  --options yes,no --evidence - --threshold 0.7 --expect no \
-  --timeout 3s >/dev/null 2>&1
-
-if [ $? -eq 0 ]; then
-  echo "commit-msg: meldingen ser ut til å si hva som endret seg, men ikke hvorfor." >&2
-fi
-exit 0`;
-
-const DECIDE_EVAL_CASES = String.raw`{"question":"Does the commit message explain why ...?","options":["yes","no"],"evidence":"Commit message:\nfix: bump timeout to 30s\n\nDiff:\n...","expect":"no"}
-{"question":"Does the commit message explain why ...?","options":["yes","no"],"evidence":"Commit message:\nfix: bump timeout to 30s\n\nThe batch job takes 20s on large tenants.\n\nDiff:\n...","expect":"yes"}`;
 
 const DECIDE_PR_DESCRIPTION = String.raw`gh pr view N --json title,body \
     -q '"Pull request title: " + .title + "\n-----\n"
@@ -84,7 +60,11 @@ export default function LokalGuide() {
       <BodyLong>
         Oppsettet står i{" "}
         <NextLink href="/nav-pilot/lokal" className={linkClass}>
-          Lokal modell og decide
+          Kom i gang med lokal modell på Mac
+        </NextLink>{" "}
+        og{" "}
+        <NextLink href="/nav-pilot/lokal/egen-server" className={linkClass}>
+          Kom i gang med egen server
         </NextLink>
         . Den lokale modellen er alfa og av som standard.
       </BodyLong>
@@ -98,8 +78,8 @@ export default function LokalGuide() {
             Utsending krever opencode som klient. Der blir den lokale modellen en underagent som heter{" "}
             <code className={code}>local-worker</code>, og hovedagenten i skyen sender avgrensede oppgaver dit.
             nav-pilot legger inn <code className={code}>local-worker</code> selv hvis agentpakka ikke har den. Har pakka
-            eller repoet en egen, brukes den. Copilot CLI har ingen slik underagent, så der kjører hele økten enten
-            lokalt eller i skyen.
+            eller repoet en egen, bruker nav-pilot den. Copilot CLI har ingen slik underagent, så der kjører hele økten
+            enten lokalt eller i skyen.
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot config get client               # hvilken klient du kjører
@@ -128,9 +108,9 @@ nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> fo
             </li>
           </Bullets>
           <BodyLong>
-            Uansett nivå sendes bare oppgavetyper modellen er godkjent for. Stoppet ligger i en plugin for opencode, så
-            det virker ikke hvis du starter opencode med <code className={code}>--pure</code>. Hvorfor nivåene finnes,
-            og hva de gjør med hver modell, står i{" "}
+            Uansett nivå sender hovedagenten bare oppgavetyper modellen er godkjent for. Stoppet ligger i en plugin for
+            opencode, så det virker ikke hvis du starter opencode med <code className={code}>--pure</code>. Hvorfor
+            nivåene finnes, og hva de gjør med hver modell, står i{" "}
             <NextLink href="/nav-pilot/forklaring/lokal-modell#utsending" className={linkClass}>
               Hvorfor utsendingen er begrenset
             </NextLink>
@@ -182,7 +162,7 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             </NextLink>
             . Lista oppdateres når du kjører <code className={code}>init</code> eller{" "}
             <code className={code}>start</code>, ikke ved hver kommando. Første oppstart laster modellen inn i minnet.
-            Ti målte oppstarter på seks maskiner lå alle under 50 sekunder, seks av dem under ti.
+            Vi målte ti oppstarter på seks maskiner. Alle tok under 50 sekunder, og seks av dem under 10.
           </BodyLong>
           <BodyLong>
             <code className={code}>status</code> viser hvilken modell som er valgt, og om den er valgt med{" "}
@@ -206,72 +186,6 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             minne. En automatisk start ber aldri om passord. Er minnegrensen i macOS for lav, skriver den kommandoen du
             må kjøre i stedet.
           </BodyLong>
-        </VStack>
-      </section>
-
-      <section>
-        <VStack gap="space-16">
-          <LinkableHeading id="egen-server" size="medium" level="2">
-            Bruke egen server{" "}
-            <Tag variant="warning" size="small">
-              alfa, ikke målt
-            </Tag>
-          </LinkableHeading>
-          <BodyLong>
-            Har du Linux, eller vil du bruke Ollama, llama-server eller LM Studio på Macen, kan nav-pilot bruke en
-            server du kjører selv. Da laster nav-pilot ikke ned noe og starter ingenting. Løkkevakta, utsendingen og{" "}
-            <code className={code}>alpha decide</code> går til serveren din. Koden din sendes dit, så nav-pilot godtar
-            bare localhost og private IP-adresser, som 127.0.0.1 og 192.168.x.x.
-          </BodyLong>
-          <BodyLong>
-            Enklest er <code className={code}>nav-pilot alpha local setup</code>. Den finner servere som kjører på
-            maskinen (Ollama, llama-server, LM Studio, vLLM), foreslår modellen som ligger nærmest vår egen og sjekker
-            den. Mangler modellen i Ollama, eller er konteksten for liten, tilbyr den å hente modellen eller lage en
-            kopi med 64k kontekst. Den spør først, og starter aldri en server selv. Uten terminal trenger den{" "}
-            <code className={code}>--pull</code>, <code className={code}>--fix-context</code> og{" "}
-            <code className={code}>--yes</code>. For hånd:
-          </BodyLong>
-          <CodeBlock compact>
-            {`# Ollama
-OLLAMA_CONTEXT_LENGTH=65536 ollama serve
-ollama pull qwen3.6:35b
-nav-pilot config set local_endpoint http://127.0.0.1:11434/v1
-nav-pilot config set local_endpoint_model qwen3.6:35b
-
-# llama-server (llama.cpp); legg til --n-cpu-moe 999 på en GPU med 8 GB
-llama-server --jinja -c 65536 --port 8080 -hf unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL
-nav-pilot config set local_endpoint http://127.0.0.1:8080/v1
-nav-pilot config set local_endpoint_model unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL
-
-nav-pilot alpha local init     # sjekker serveren og skrur på utsending
-nav-pilot alpha local doctor   # verktøykall, logprobs, kontekst og tid til første token`}
-          </CodeBlock>
-          <BodyLong>
-            Vi anbefaler Qwen3.6-35B-A3B i dynamisk 4-bit (unsloth UD-Q4_K_XL). Det er den GGUF-varianten som ligger
-            nærmest modellen vi har målt på Mac, men tallene våre gjelder ikke for den. Modell-id-en er det serveren
-            lister på <code className={code}>/v1/models</code>, og <code className={code}>doctor</code> viser dem.
-            Hovedagenten får den generelle instruksen om utsending, ikke den som er tilpasset modellen, og nav-pilot
-            stopper ingen redigeringer.
-          </BodyLong>
-          <Box background="warning-soft" padding="space-16" borderRadius="8">
-            <VStack gap="space-8">
-              <Label size="small">Ollama kan gi modellen for lite kontekst</Label>
-              <BodyShort size="small">
-                På maskiner med under 24 GB grafikkminne gir Ollama modellen 4 096 tokens kontekst, og det kan ikke
-                endres over <code className={code}>/v1</code>. Med mer minne velger Ollama større kontekst selv (262 144
-                tokens på en Mac med 128 GB). En økt i Copilot starter med rundt 22 000 tokens. Eldre Ollama kutter
-                resten uten å si fra; Ollama 0.34 avviser prompten med en feil. Start Ollama med{" "}
-                <code className={code}>OLLAMA_CONTEXT_LENGTH=65536</code>, eller lag en egen modell med en Modelfile som
-                har <code className={code}>PARAMETER num_ctx 65536</code>. <code className={code}>doctor</code> sender
-                rundt 30 000 tokens og feiler hvis serveren kutter eller avviser dem.
-              </BodyShort>
-            </VStack>
-          </Box>
-          <BodyShort size="small" textColor="subtle">
-            <code className={code}>alpha decide</code> trenger logprobs. Ollama fra v0.12.11, llama-server og vLLM gir
-            dem, LM Studio gjør det ikke. Uten logprobs sier <code className={code}>decide</code> fra med en gang, mens
-            utsendingen virker som før.
-          </BodyShort>
         </VStack>
       </section>
 
@@ -329,35 +243,13 @@ nav-pilot alpha local doctor   # verktøykall, logprobs, kontekst og tid til fø
             }
           />
           <BodyLong>
-            Lagre skriptet som <code className={code}>scripts/commit-explains-why.sh</code>. Det advarer når meldingen
-            bare sier hva diffen viser, og slipper alltid commiten gjennom. Uten nav-pilot på maskinen gjør det
-            ingenting.
+            En commit-msg-hook som advarer når meldingen bare sier hva diffen viser. Skriptet og hvordan du kobler det
+            til git, pre-commit eller Lefthook, står i{" "}
+            <NextLink href="/nav-pilot/lokal/decide" className={linkClass}>
+              Din første decide-hook
+            </NextLink>
+            .
           </BodyLong>
-          <CodeBlock compact>{COMMIT_EXPLAINS_WHY_HOOK}</CodeBlock>
-          <CodeBlock compact>{`chmod +x scripts/commit-explains-why.sh`}</CodeBlock>
-          <BodyLong>
-            Med <code className={code}>pre-commit</code> legger du det inn som en lokal hook:
-          </BodyLong>
-          <CodeBlock compact filename=".pre-commit-config.yaml">
-            {`repos:
-  - repo: local
-    hooks:
-      - id: commit-explains-why
-        name: commit-meldingen forklarer hvorfor
-        entry: scripts/commit-explains-why.sh
-        language: script
-        stages: [commit-msg]`}
-          </CodeBlock>
-          <CodeBlock compact>{`pre-commit install --hook-type commit-msg`}</CodeBlock>
-          <BodyLong>
-            Med Lefthook er <code className={code}>{"{1}"}</code> fila git lagrer meldingen i:
-          </BodyLong>
-          <CodeBlock compact filename="lefthook.yml">
-            {`commit-msg:
-  commands:
-    explains-why:
-      run: scripts/commit-explains-why.sh {1}`}
-          </CodeBlock>
 
           <Label size="small">Mål ditt eget spørsmål</Label>
           <BodyLong>
@@ -366,9 +258,13 @@ nav-pilot alpha local doctor   # verktøykall, logprobs, kontekst og tid til fø
             sannsynligheten for riktige og gale svar, og svartid. Er modellen like sikker når den tar feil som når den
             har rett, hjelper ingen terskel, og spørsmålet bør ikke inn i en hook.
           </BodyLong>
-          <CodeBlock compact filename="cases.jsonl">
-            {DECIDE_EVAL_CASES}
-          </CodeBlock>
+          <BodyShort size="small" textColor="subtle">
+            Et eksempel på fila står i{" "}
+            <NextLink href="/nav-pilot/lokal/decide#mal-sporsmalet" className={linkClass}>
+              Din første decide-hook
+            </NextLink>
+            .
+          </BodyShort>
           <CodeBlock compact>{`nav-pilot alpha decide --eval cases.jsonl`}</CodeBlock>
 
           <Label size="small">Tekst andre har skrevet</Label>

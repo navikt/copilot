@@ -1034,7 +1034,7 @@ function GetStartedSection() {
               style={{ border: "1px solid #d1d5db", color: "#374151", fontSize: "0.875rem" }}
             >
               <NextLink href="/nav-pilot/lokal" className="no-underline transition-colors">
-                Lokal modell og decide →
+                Lokal modell på Mac →
               </NextLink>
             </Box>
             <NextLink

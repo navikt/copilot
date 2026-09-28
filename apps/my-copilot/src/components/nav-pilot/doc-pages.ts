@@ -21,7 +21,7 @@ export const GUIDE_PAGES: DocLink[] = [
   {
     href: "/nav-pilot/guider/lokal",
     title: "Lokal modell",
-    desc: "Styr utsendingen, bytt modell, bruk egen server, og bruk alpha decide i hooks og skript.",
+    desc: "Styr utsendingen, bytt modell og bruk alpha decide i hooks og skript.",
   },
   {
     href: "/nav-pilot/guider/feilsoking",

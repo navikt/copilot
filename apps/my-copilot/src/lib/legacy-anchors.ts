@@ -55,12 +55,12 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/referanse#konfigurasjon": "/nav-pilot/guider/tilpasse#endre-innstillinger",
   "/nav-pilot/referanse#konfigurasjonsnøkler": "/nav-pilot/referanse#konfignokler",
   "/nav-pilot/referanse#logging-av-blokkeringer": "/nav-pilot/guider/feilsoking#blokkeringer",
-  "/nav-pilot/referanse#lokal-decide": "/nav-pilot/guider/lokal#decide-oppskrifter",
+  "/nav-pilot/referanse#lokal-decide": "/nav-pilot/lokal/decide#start-serveren",
   "/nav-pilot/referanse#lokal-decide-oppskrifter": "/nav-pilot/guider/lokal#decide-oppskrifter",
-  "/nav-pilot/referanse#lokal-egen-server": "/nav-pilot/guider/lokal#egen-server",
+  "/nav-pilot/referanse#lokal-egen-server": "/nav-pilot/lokal/egen-server#start-serveren",
   "/nav-pilot/referanse#lokal-feilsoking": "/nav-pilot/guider/feilsoking#lokal",
   "/nav-pilot/referanse#lokal-hva-den-klarer": "/nav-pilot/forklaring/lokal-modell#malte-grenser",
-  "/nav-pilot/referanse#lokal-kom-i-gang": "/nav-pilot/lokal#kom-i-gang",
+  "/nav-pilot/referanse#lokal-kom-i-gang": "/nav-pilot/lokal#installer",
   "/nav-pilot/referanse#lokal-modell": "/nav-pilot/lokal#hva-du-far",
   "/nav-pilot/referanse#lokal-modeller": "/nav-pilot/referanse#lokale-modeller",
   "/nav-pilot/referanse#lokal-sync": "/nav-pilot/guider/synkronisere#lokal-sync",
@@ -90,4 +90,16 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/referanse#tilpasning": "/nav-pilot/guider/tilpasse#team-egne-instruksjoner",
   "/nav-pilot/referanse#tilpasse-sync": "/nav-pilot/guider/synkronisere#tilpasse-sync",
   "/nav-pilot/referanse#vanlige-oppgaver": "/nav-pilot/guider/installere-og-oppgradere#vanlige-oppgaver",
+
+  // /nav-pilot/lokal became the introduction for Mac (§3). #kom-i-gang and
+  // #hva-du-far still exist there as wrappers, and #lenker is at the bottom.
+  "/nav-pilot/lokal#egen-server": "/nav-pilot/lokal/egen-server#start-serveren",
+  "/nav-pilot/lokal#hva-kommer": "/nav-pilot/forklaring/lokal-modell#hva-kommer",
+  "/nav-pilot/lokal#malt": "/nav-pilot/forklaring/lokal-modell#malte-grenser",
+  "/nav-pilot/lokal#malt-decide": "/nav-pilot/forklaring/lokal-modell#malt-decide",
+  "/nav-pilot/lokal#malt-utsending": "/nav-pilot/forklaring/lokal-modell#malt-utsending",
+  "/nav-pilot/lokal#utsending": "/nav-pilot/forklaring/lokal-modell#utsending",
+
+  // Own server got its own introduction.
+  "/nav-pilot/guider/lokal#egen-server": "/nav-pilot/lokal/egen-server#start-serveren",
 };
