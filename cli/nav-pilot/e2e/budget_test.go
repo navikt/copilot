@@ -119,20 +119,34 @@ func TestLaunchBudget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"cplt", "copilot", "opencode"} {
+	// copilot is a copy, not a link: nav-pilot refuses a copilot that is
+	// the same file as cplt (a disguised cplt).
+	for _, name := range []string{"cplt", "opencode"} {
 		if err := os.Symlink(self, filepath.Join(fake, name)); err != nil {
 			t.Fatal(err)
 		}
 	}
+	selfBytes, err := os.ReadFile(self)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(fake, "copilot"), selfBytes, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// git only, not its directory: nothing else from the machine (gh, a real
+	// copilot or opencode) may take part.
 	git, err := exec.LookPath("git")
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(git, filepath.Join(fake, "git")); err != nil {
 		t.Fatal(err)
 	}
 	hole := blackhole(t)
 	clientLog := filepath.Join(e.root, "client.log")
 
 	environ := append(os.Environ(),
-		"PATH="+fake+string(os.PathListSeparator)+filepath.Dir(bin)+string(os.PathListSeparator)+filepath.Dir(git),
+		"PATH="+fake+string(os.PathListSeparator)+filepath.Dir(bin),
 		"NO_COLOR=1",
 		budgetClientLog+"="+clientLog,
 		// The fake client is this test binary: under -race it would sleep a
@@ -156,6 +170,9 @@ func TestLaunchBudget(t *testing.T) {
 	run := func(args ...string) (total time.Duration, launch, exit time.Duration) {
 		t.Helper()
 		os.Remove(clientLog)
+		// The release check is due on every timed run, so it is measured
+		// too (it backs off an hour after a failure otherwise).
+		os.Remove(filepath.Join(e.home, "cache.json"))
 		cmd := exec.Command(bin, args...)
 		cmd.Dir = repo
 		cmd.Env = environ
@@ -167,6 +184,9 @@ func TestLaunchBudget(t *testing.T) {
 		}
 		if b, err := os.ReadFile(clientLog); err == nil {
 			lines := strings.Fields(string(b))
+			if len(lines) == 0 {
+				t.Fatalf("nav-pilot %v: the client wrote no start time", args)
+			}
 			ns, _ := strconv.ParseInt(lines[len(lines)-1], 10, 64)
 			started := time.Unix(0, ns)
 			return end.Sub(start), started.Sub(start), end.Sub(started)
