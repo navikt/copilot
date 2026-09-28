@@ -120,7 +120,7 @@ Flags:
   -t, --target <dir>      Target repository (default: current directory)
   -r, --ref <ref>         Git branch or tag to install from
   -s, --source <repo>     Source repository or absolute path (repo scope default: .nav-pilot/agentpakke.lock.json in this repo, else the config's source key, else navikt/copilot; --user never reads a declaration)
-  -u, --user              Install to ~/.copilot — works across all repos (agents, skills & instructions only)
+  -u, --user              Install to user scope — works across all repos (agents, skills & instructions only)
   --repo                  Install to this repository's .github/ (opposite of --user; skips the scope question)
   --type <type>           Artifact type for install (agent, skill, instruction, prompt)
   --all                   Install everything to --user or --repo without prompting
@@ -169,7 +169,7 @@ Get started:
   nav-pilot                              # Interactive: install, upgrade, or launch your coding agent
   nav-pilot list                         # See the agentpakke and its items
   nav-pilot install nav-pilot            # Install everything to .github/
-  nav-pilot install --user --all         # Install everything to ~/.copilot (all repos)
+  nav-pilot install --user --all         # Install everything for every repo (user scope)
   nav-pilot install security-champion    # Install a single agent
   nav-pilot install nav-pilot --repo     # Install to this repo without being asked
   nav-pilot sync                         # Check for updates
