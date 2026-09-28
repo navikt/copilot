@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -166,9 +167,11 @@ func TestBearerAuthSurveyScope(t *testing.T) {
 		"survey": {AZP: "survey-id", Idtyp: "app"},
 		"user":   {AZP: "survey-id", NAVident: "Z999999"},
 		"other":  {AZP: "my-copilot-id", NAVident: "Z123456"},
+		// A second pre-authorized app named copilot-survey is fenced too.
+		"survey2": {AZP: "survey-id-2", Idtyp: "app"},
 	}
 	validate := func(tok string) (*User, error) { return users[tok], nil }
-	h := bearerAuth(validate, "survey-id")(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {}))
+	h := bearerAuth(validate, []string{"survey-id", "survey-id-2"})(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {}))
 	for _, tc := range []struct {
 		token, path string
 		want        int
@@ -176,6 +179,7 @@ func TestBearerAuthSurveyScope(t *testing.T) {
 		{"survey", samlNameIDPath, 200},
 		{"survey", "/api/v1/copilot/usage/metrics", 403},
 		{"survey", "/api/v1/budget", 403},
+		{"survey2", "/api/v1/budget", 403},
 		{"user", samlNameIDPath, 200},
 		{"other", "/api/v1/copilot/usage/metrics", 200},
 	} {
@@ -192,5 +196,50 @@ func TestBearerAuthSurveyScope(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), "Z123456") {
 		t.Fatalf("other routes should still log at debug: %s", buf.String())
+	}
+}
+
+// The survey fence fails closed: an ambiguous name yields every match.
+func TestClientIDsForApp(t *testing.T) {
+	for _, tc := range []struct {
+		raw  string
+		want []string
+	}{
+		{"", nil},
+		{`[{"name":"dev-gcp:copilot:my-copilot","clientId":"a"}]`, nil},
+		{`[{"name":"dev-gcp:copilot:copilot-survey","clientId":"a"}]`, []string{"a"}},
+		{`[{"name":"dev-gcp:copilot:copilot-survey","clientId":"a"},{"name":"dev-gcp:other:copilot-survey","clientId":"b"}]`, []string{"a", "b"}},
+	} {
+		got, err := clientIDsForApp(tc.raw, "copilot-survey")
+		if err != nil || !slices.Equal(got, tc.want) {
+			t.Errorf("clientIDsForApp(%s) = %v, %v, want %v", tc.raw, got, err, tc.want)
+		}
+	}
+}
+
+// A copilot-survey token through the real mux: only POST on the exact
+// name-id path reaches a handler.
+func TestSurveyTokenThroughMux(t *testing.T) {
+	validate := func(string) (*User, error) { return &User{AZP: "survey-id", Idtyp: "app"}, nil }
+	auth := bearerAuth(validate, []string{"survey-id"})
+	mux := http.NewServeMux()
+	mux.Handle("/api/v1/", auth(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})))
+	registerInternalRoutes(mux, auth, "survey-id", nil)
+	for _, tc := range []struct {
+		method, path string
+		want         int
+	}{
+		{http.MethodPost, samlNameIDPath, 503}, // reached the handler; GitHub not configured
+		{http.MethodGet, samlNameIDPath, 405},
+		{http.MethodPost, samlNameIDPath + "/", 404},
+		{http.MethodGet, "/api/v1/x", 403},
+	} {
+		req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(`{"login":"hans"}`))
+		req.Header.Set("Authorization", "Bearer t")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != tc.want {
+			t.Errorf("%s %s = %d, want %d", tc.method, tc.path, rec.Code, tc.want)
+		}
 	}
 }

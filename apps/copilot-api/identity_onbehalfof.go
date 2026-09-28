@@ -114,24 +114,9 @@ func (o *OnBehalfOfIdentityResolver) Resolve(ctx context.Context, user *User, r 
 // appName yields ("", nil) with a warning logged — granting X-On-Behalf-Of
 // trust to the wrong client must never happen by accident.
 func trustedClientIDForApp(preAuthorizedApps, appName string) (string, error) {
-	if strings.TrimSpace(preAuthorizedApps) == "" {
-		return "", nil
-	}
-
-	var apps []struct {
-		Name     string `json:"name"`
-		ClientID string `json:"clientId"`
-	}
-	if err := json.Unmarshal([]byte(preAuthorizedApps), &apps); err != nil {
-		return "", fmt.Errorf("parsing AZURE_APP_PRE_AUTHORIZED_APPS: %w", err)
-	}
-
-	var matches []string
-	for _, app := range apps {
-		segments := strings.Split(app.Name, ":")
-		if segments[len(segments)-1] == appName && app.ClientID != "" {
-			matches = append(matches, app.ClientID)
-		}
+	matches, err := clientIDsForApp(preAuthorizedApps, appName)
+	if err != nil {
+		return "", err
 	}
 
 	switch len(matches) {
@@ -144,4 +129,30 @@ func trustedClientIDForApp(preAuthorizedApps, appName string) (string, error) {
 			"app", appName, "match_count", len(matches))
 		return "", nil
 	}
+}
+
+// clientIDsForApp returns the client id of every pre-authorized app named
+// appName (see trustedClientIDForApp). For fencing, not trusting: an
+// ambiguous name yields every match.
+func clientIDsForApp(preAuthorizedApps, appName string) ([]string, error) {
+	if strings.TrimSpace(preAuthorizedApps) == "" {
+		return nil, nil
+	}
+
+	var apps []struct {
+		Name     string `json:"name"`
+		ClientID string `json:"clientId"`
+	}
+	if err := json.Unmarshal([]byte(preAuthorizedApps), &apps); err != nil {
+		return nil, fmt.Errorf("parsing AZURE_APP_PRE_AUTHORIZED_APPS: %w", err)
+	}
+
+	var matches []string
+	for _, app := range apps {
+		segments := strings.Split(app.Name, ":")
+		if segments[len(segments)-1] == appName && app.ClientID != "" {
+			matches = append(matches, app.ClientID)
+		}
+	}
+	return matches, nil
 }
