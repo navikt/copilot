@@ -84,3 +84,26 @@ func TestApplyOpenCodeMCPPolicy(t *testing.T) {
 		t.Fatalf("no policy changed env: %v", env)
 	}
 }
+
+// doctor asks GitHub for the MCP policy once (#1072).
+func TestOpenCodeMCPReportAsksForThePolicyOnce(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	proj := t.TempDir()
+	os.Mkdir(filepath.Join(proj, ".git"), 0o700)
+	os.WriteFile(filepath.Join(proj, "opencode.json"), []byte(`{"mcp": {"ok": {"type": "remote", "url": "https://ok/mcp"}}}`), 0o600)
+	origPolicy, origReg := fetchMCPPolicy, fetchMCPRegistry
+	t.Cleanup(func() { fetchMCPPolicy, fetchMCPRegistry = origPolicy, origReg })
+	calls := 0
+	fetchMCPPolicy = func() (string, error) { calls++; return "https://registry/", nil }
+	fetchMCPRegistry = func(string) (mcpRegistry, error) {
+		return mcpRegistry{Remotes: map[string]bool{"https://ok/mcp": true}, Packages: map[string]bool{}}, nil
+	}
+	listed, unlisted, err := OpenCodeMCPReport(proj)
+	if err != nil || len(listed) != 1 || len(unlisted) != 0 {
+		t.Fatalf("report = %v %v %v", listed, unlisted, err)
+	}
+	if calls != 1 {
+		t.Fatalf("the MCP policy was fetched %d times, want 1", calls)
+	}
+}
