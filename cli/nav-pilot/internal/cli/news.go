@@ -162,7 +162,7 @@ func nextNews(st newsState, now time.Time) *newsItem {
 	return nil
 }
 
-// maybeNews is the news line after a session. Like maybeSurvey it never
+// maybeNews is the news line after a session. Like the survey prompt it never
 // fails: news must not change how nav-pilot exits.
 func maybeNews(client string) {
 	prepareNews(client, newsLineTimeout)

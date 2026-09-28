@@ -215,14 +215,7 @@ func canSignIn() bool {
 	return hasGitHubApp() || surveyToken() != ""
 }
 
-// maybeSurvey runs at the calm moment after an interactive session. It never
-// returns an error: a survey must not change how nav-pilot exits.
-func maybeSurvey(client string) {
-	prepareSurvey(client)
-	promptSurvey(client)
-}
-
-// prepareSurvey is the network half of maybeSurvey: it sends answers an
+// prepareSurvey is the network half of the survey prompt after a session: it sends answers an
 // earlier session could not, and fetches the open surveys once a day. It
 // prints nothing, so a launch runs it while the session has the terminal
 // (startNudgePrep) and the prompt afterwards does not wait on the network.
@@ -261,8 +254,9 @@ func prepareSurvey(client string) {
 	}
 }
 
-// promptSurvey asks about the next open survey, from what prepareSurvey
-// fetched. It reads only the state file.
+// promptSurvey asks about the next open survey at the calm moment after an
+// interactive session, from what prepareSurvey fetched. It reads only the
+// state file, and never fails: a survey must not change how nav-pilot exits.
 func promptSurvey(client string) {
 	cfg, _ := readConfig()
 	r := resolve(cfg, CLIOverrides{Client: client})
