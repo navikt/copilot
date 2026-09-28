@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { slugify } from "@/components/linkable-heading";
+import { sourceHeadings } from "@/lib/page-headings";
 import inventory from "@/lib/link-inventory.json";
 import { SECTION } from "@/lib/nav-items";
 import { getNewsItems } from "@/lib/news";
@@ -26,8 +26,8 @@ const pageDirs = new Map(
 
 // Heading text by id, from the files next to page.tsx. The labels in a
 // TableOfContents win, since someone wrote them to be read out of context.
-// ponytail: regex over the source, not a render. A heading whose text is an
-// expression ({name}) gets no label and is left out of the index.
+// A heading whose text is an expression ({name}) gets no label and is left out
+// of the index.
 function headingLabels(dir: string): Map<string, string> {
   const labels = new Map<string, string>();
   const sources = fs
@@ -35,19 +35,7 @@ function headingLabels(dir: string): Map<string, string> {
     .filter((f) => /\.tsx?$/.test(f) && !/\.(test|stories)\.tsx?$/.test(f))
     .map((f) => fs.readFileSync(path.join(dir, f), "utf-8"));
   for (const src of sources) {
-    for (const m of src.matchAll(/<(LinkableHeading|Heading|h[1-6])\b((?:[^>"]|"[^"]*")*)>([\s\S]*?)<\/\1>/g)) {
-      const children = m[3].replace(/\{" "\}/g, " ");
-      if (children.includes("{")) continue;
-      // Our own source, shown as text: split on tags, then drop any stray < or >.
-      const text = children
-        .split(/<[^>]*>/)
-        .join("")
-        .replace(/[<>]/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
-      const id = m[2].match(/\bid="([^"]+)"/)?.[1] ?? (m[1] === "LinkableHeading" ? slugify(text) : undefined);
-      if (id && text) labels.set(id, text);
-    }
+    for (const h of sourceHeadings(src)) if (h.id && h.text) labels.set(h.id, h.text);
     for (const m of src.matchAll(/\{\s*id:\s*"([^"]+)",\s*label:\s*"([^"]+)"/g)) labels.set(m[1], m[2]);
   }
   return labels;
