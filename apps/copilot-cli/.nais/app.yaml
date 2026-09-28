@@ -8,6 +8,8 @@ metadata:
 spec:
   image: {{image}}
   port: 8080
+  # One pod: the GitHub cache-miss limiter (main.go) lives in memory, so a
+  # second pod would double the rate against GitHub's 5,000/hour quota.
   replicas:
     min: {{replicas_min}}
     max: {{replicas_max}}

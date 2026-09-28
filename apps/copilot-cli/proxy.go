@@ -29,10 +29,14 @@ type upstream struct {
 
 func newUpstream(name, baseURL string, texas *texasClient) *upstream {
 	return &upstream{
-		name:       name,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
-		baseURL:    strings.TrimSuffix(baseURL, "/"),
-		texas:      texas,
+		name: name,
+		// No redirects: a 30x comes back as it is, never a second request.
+		httpClient: &http.Client{
+			Timeout:       10 * time.Second,
+			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		},
+		baseURL: strings.TrimSuffix(baseURL, "/"),
+		texas:   texas,
 	}
 }
 
@@ -81,11 +85,9 @@ func (p *upstream) forward(w http.ResponseWriter, r *http.Request, path string) 
 		return
 	}
 
-	contentType := resp.Header.Get("Content-Type")
-	if contentType == "" {
-		contentType = "application/json"
+	if ct := resp.Header.Get("Content-Type"); ct != "" {
+		w.Header().Set("Content-Type", ct)
 	}
-	w.Header().Set("Content-Type", contentType)
 	if cc := resp.Header.Get("Cache-Control"); cc != "" {
 		w.Header().Set("Cache-Control", cc)
 	}

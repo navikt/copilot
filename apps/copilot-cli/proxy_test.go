@@ -135,3 +135,26 @@ func TestForwardErrorMapping(t *testing.T) {
 		}
 	}
 }
+
+// A downstream redirect comes back as it is (no second request), and a
+// missing Content-Type stays missing.
+func TestForwardPassesRedirectAsIs(t *testing.T) {
+	a, _ := testAuthenticator(t)
+	followed := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/elsewhere" {
+			followed = true
+		}
+		w.Header().Set("Location", "/elsewhere")
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer srv.Close()
+	texas := newTexasClient(srv.URL+"/token", "api://x")
+	h := makeRouter(a, newUpstream("copilot-api", srv.URL, texas), newUpstream("copilot-survey", srv.URL, texas))
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest("GET", "/api/v1/surveys/active", nil))
+	if rec.Code != http.StatusFound || followed || rec.Header().Get("Content-Type") != "" {
+		t.Fatalf("got %d, followed=%v, Content-Type %q; want 302, no follow, none", rec.Code, followed, rec.Header().Get("Content-Type"))
+	}
+}

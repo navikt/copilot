@@ -53,14 +53,14 @@ nav-pilot
   ▼
 copilot-cli (Go gateway, naisdevice-gated ingress)
   │  validates the token against GitHub and checks navikt org membership
-  │  asks Texas for an M2M token minted for the copilot-api audience
-  ▼
-copilot-api
+  │  asks Texas for an M2M token minted for the audience of the service it calls
+  ├──▶ copilot-api      (usage)
+  └──▶ copilot-survey   (survey routes; no ingress)
 ```
 
 An M2M token carries no user claims, so the resolved GitHub username travels in an
 explicit `X-On-Behalf-Of` header, which `copilot-api` trusts only for GET requests
-from a pre-authorized `azp`. That trust path and its limits are set out in
+from a pre-authorized `azp`, and `copilot-survey` only on the answer route. That trust path and its limits are set out in
 [SECURITY.md](./SECURITY.md).
 
 ## Token validation

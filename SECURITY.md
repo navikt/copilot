@@ -134,6 +134,7 @@ routing through the my-copilot web BFF.
 
 ```
 nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)──▶ copilot-api
+                                          └──(M2M token via Texas)──▶ copilot-survey (survey routes)
 ```
 
 1. The developer's GitHub token (from `nav-pilot auth login`, device flow) is
@@ -146,13 +147,14 @@ nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)�
    never past the token's expiry). Fails closed: any GitHub API error rejects
    the request.
 3. copilot-cli exchanges its own workload identity for an M2M access token via
-   the Texas sidecar (`NAIS_TOKEN_ENDPOINT`), scoped to the copilot-api audience.
-4. copilot-cli calls copilot-api with the M2M token and an
+   the Texas sidecar (`NAIS_TOKEN_ENDPOINT`), scoped to the audience of the
+   service it calls: copilot-api, or copilot-survey for the survey routes.
+4. copilot-cli calls that service with the M2M token and an
    `X-On-Behalf-Of: <github-username>` header identifying the verified user.
 
 - GitHub is the only sign-in path. No app in the cluster calls copilot-cli:
   `accessPolicy.inbound` is empty, and `azure.application` is on only for the
-  M2M token to copilot-api.
+  M2M tokens to copilot-api and copilot-survey.
 - Inbound: the `.intern.nav.no` ingress, which requires naisdevice. No CORS:
   browsers never call it.
 - Secrets: the nav-pilot GitHub App's client id and secret (for the token
