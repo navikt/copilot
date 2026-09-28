@@ -198,7 +198,9 @@ func surveyToken() string {
 	if e2eSeams == "1" {
 		return os.Getenv("NAV_PILOT_E2E_GITHUB_TOKEN")
 	}
-	t, err := loadToken()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	t, err := currentToken(ctx)
 	if err != nil || t.expired() {
 		return ""
 	}

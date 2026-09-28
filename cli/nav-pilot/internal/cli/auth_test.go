@@ -385,3 +385,55 @@ func TestRunDeviceFlowDefaultInterval(t *testing.T) {
 		t.Fatalf("unexpected token: %+v", token)
 	}
 }
+
+// An App user token lasts 8 hours. Near expiry, currentToken trades the
+// refresh token for a new pair and saves it, with no client secret (#1118).
+func TestCurrentTokenRefreshes(t *testing.T) {
+	keyring.MockInit()
+	var form map[string]string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		form = map[string]string{}
+		for k := range r.PostForm {
+			form[k] = r.PostForm.Get(k)
+		}
+		_, _ = w.Write([]byte(`{"access_token":"ghu_new","token_type":"bearer","expires_in":28800,"refresh_token":"ghr_new","refresh_token_expires_in":15897600}`))
+	}))
+	defer server.Close()
+	origDeviceURL, origTokenURL := deviceCodeURL, accessTokenURL
+	setTestURLs(server.URL, server.URL)
+	defer setTestURLs(origDeviceURL, origTokenURL)
+
+	// Far from expiry: no request.
+	fresh := storedToken{AccessToken: "ghu_old", Login: "kari", ExpiresAt: time.Now().Add(time.Hour), RefreshToken: "ghr_old"}
+	if err := saveToken(fresh); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := currentToken(context.Background()); got.AccessToken != "ghu_old" || form != nil {
+		t.Fatalf("refreshed a token an hour from expiry: %+v, form %v", got, form)
+	}
+
+	fresh.ExpiresAt = time.Now().Add(time.Minute)
+	if err := saveToken(fresh); err != nil {
+		t.Fatal(err)
+	}
+	got, err := currentToken(context.Background())
+	if err != nil || got.AccessToken != "ghu_new" || got.RefreshToken != "ghr_new" || got.Login != "kari" || got.expired() {
+		t.Fatalf("currentToken = %+v, %v", got, err)
+	}
+	if form["grant_type"] != "refresh_token" || form["refresh_token"] != "ghr_old" || form["client_id"] == "" || form["client_secret"] != "" {
+		t.Fatalf("refresh request form = %v", form)
+	}
+	if saved, _ := loadToken(); saved.AccessToken != "ghu_new" || time.Until(saved.RefreshExpiresAt) < 24*time.Hour {
+		t.Fatalf("saved = %+v", saved)
+	}
+
+	// A token without a refresh token (expiration off) is left alone.
+	form = nil
+	if err := saveToken(storedToken{AccessToken: "gho_x", ExpiresAt: time.Now().Add(time.Minute)}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := currentToken(context.Background()); got.AccessToken != "gho_x" || form != nil {
+		t.Fatalf("got %+v, form %v", got, form)
+	}
+}

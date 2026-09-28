@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,6 +31,53 @@ type storedToken struct {
 	// ExpiresAt is zero when the token does not expire (GitHub's classic
 	// device-flow tokens for GitHub Apps without expiration enabled).
 	ExpiresAt time.Time `json:"expires_at,omitempty"`
+	// RefreshToken renews an expiring token without a new login (#1118).
+	// Empty when the token does not expire.
+	RefreshToken     string    `json:"refresh_token,omitempty"`
+	RefreshExpiresAt time.Time `json:"refresh_expires_at,omitempty"`
+}
+
+// setFrom takes the token fields from GitHub's answer, obtained at now.
+func (t *storedToken) setFrom(r *accessTokenResponse, now time.Time) {
+	t.AccessToken, t.TokenType, t.Scope, t.ObtainedAt = r.AccessToken, r.TokenType, r.Scope, now
+	t.ExpiresAt, t.RefreshToken, t.RefreshExpiresAt = time.Time{}, r.RefreshToken, time.Time{}
+	if r.ExpiresIn > 0 {
+		t.ExpiresAt = now.Add(time.Duration(r.ExpiresIn) * time.Second)
+	}
+	if r.RefreshTokenExpiresIn > 0 {
+		t.RefreshExpiresAt = now.Add(time.Duration(r.RefreshTokenExpiresIn) * time.Second)
+	}
+}
+
+// tokenRefreshMargin is how close to expiry a stored token gets renewed.
+const tokenRefreshMargin = 5 * time.Minute
+
+// currentToken is loadToken, with an access token that expires within
+// tokenRefreshMargin renewed through its refresh token and saved. When the
+// refresh fails the stored token comes back as it was, and callers still
+// check expired().
+//
+// ponytail: two processes refreshing at once both spend the same refresh
+// token, and GitHub rotates it, so the slower one keeps the old token and
+// asks for a login. Add a lock file if that shows up.
+func currentToken(ctx context.Context) (storedToken, error) {
+	t, err := loadToken()
+	if err != nil || t.RefreshToken == "" || t.ExpiresAt.IsZero() || time.Until(t.ExpiresAt) > tokenRefreshMargin {
+		return t, err
+	}
+	if !t.RefreshExpiresAt.IsZero() && time.Now().After(t.RefreshExpiresAt) {
+		return t, nil
+	}
+	r, err := refreshAccessToken(ctx, navPilotGitHubClientID(), t.RefreshToken)
+	if err != nil {
+		debugLog("token refresh failed: %v", err)
+		return t, nil
+	}
+	t.setFrom(r, time.Now())
+	if err := saveToken(t); err != nil {
+		debugLog("saving the refreshed token: %v", err)
+	}
+	return t, nil
 }
 
 // expired reports whether the token is known to have expired. Returns false

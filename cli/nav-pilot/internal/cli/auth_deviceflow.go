@@ -84,12 +84,17 @@ type deviceCodeResponse struct {
 // only populated when the GitHub App has "token expiration" enabled; classic
 // OAuth Apps and Apps without expiration enabled omit it, meaning the token
 // does not expire (ExpiresIn stays 0).
+//
+// With expiration on (GitHub's default for Apps), the token lasts 8 hours and
+// comes with a refresh_token that lasts 6 months (#1118).
 type accessTokenResponse struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	Scope       string `json:"scope"`
-	ExpiresIn   int    `json:"expires_in"`
-	Error       string `json:"error"`
+	AccessToken           string `json:"access_token"`
+	TokenType             string `json:"token_type"`
+	Scope                 string `json:"scope"`
+	ExpiresIn             int    `json:"expires_in"`
+	RefreshToken          string `json:"refresh_token"`
+	RefreshTokenExpiresIn int    `json:"refresh_token_expires_in"`
+	Error                 string `json:"error"`
 }
 
 // requestDeviceCode starts the GitHub device flow, returning the code the
@@ -141,11 +146,56 @@ func requestDeviceCode(ctx context.Context, clientID, scope string) (*deviceCode
 // errDeviceCodeExpired as sentinel errors the caller should distinguish from
 // hard failures; any other error indicates a transport or protocol failure.
 func pollAccessToken(ctx context.Context, clientID, deviceCode string) (*accessTokenResponse, error) {
-	form := url.Values{
+	result, err := postTokenForm(ctx, url.Values{
 		"client_id":   {clientID},
 		"device_code": {deviceCode},
 		"grant_type":  {"urn:ietf:params:oauth:grant-type:device_code"},
+	})
+	if err != nil {
+		return nil, err
 	}
+	switch result.Error {
+	case "":
+		if result.AccessToken == "" {
+			return nil, fmt.Errorf("token poll response missing access_token")
+		}
+		return result, nil
+	case "authorization_pending":
+		return nil, errAuthorizationPending
+	case "slow_down":
+		return nil, errSlowDown
+	case "access_denied":
+		return nil, errAccessDenied
+	case "expired_token":
+		return nil, errDeviceCodeExpired
+	default:
+		return nil, fmt.Errorf("device flow error: %s", result.Error)
+	}
+}
+
+// refreshAccessToken trades a refresh token for a new access token and a new
+// refresh token. A token from the device flow needs no client secret.
+func refreshAccessToken(ctx context.Context, clientID, refreshToken string) (*accessTokenResponse, error) {
+	result, err := postTokenForm(ctx, url.Values{
+		"client_id":     {clientID},
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {refreshToken},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.Error != "" {
+		return nil, fmt.Errorf("token refresh error: %s", result.Error)
+	}
+	if result.AccessToken == "" {
+		return nil, fmt.Errorf("token refresh response missing access_token")
+	}
+	return result, nil
+}
+
+// postTokenForm posts form to GitHub's token endpoint and decodes the answer,
+// error field and all.
+func postTokenForm(ctx context.Context, form url.Values) (*accessTokenResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, accessTokenURL, strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("building token poll request: %w", err)
@@ -171,24 +221,7 @@ func pollAccessToken(ctx context.Context, clientID, deviceCode string) (*accessT
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("decoding token poll response: %w", err)
 	}
-
-	switch result.Error {
-	case "":
-		if result.AccessToken == "" {
-			return nil, fmt.Errorf("token poll response missing access_token")
-		}
-		return &result, nil
-	case "authorization_pending":
-		return nil, errAuthorizationPending
-	case "slow_down":
-		return nil, errSlowDown
-	case "access_denied":
-		return nil, errAccessDenied
-	case "expired_token":
-		return nil, errDeviceCodeExpired
-	default:
-		return nil, fmt.Errorf("device flow error: %s", result.Error)
-	}
+	return &result, nil
 }
 
 // runDeviceFlow drives the full GitHub device authorization flow: request a

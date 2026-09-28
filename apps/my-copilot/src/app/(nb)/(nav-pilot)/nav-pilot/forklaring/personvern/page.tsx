@@ -103,6 +103,11 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
           </BodyLong>
           <CodeBlock compact>{`nav-pilot config set surveys false`}</CodeBlock>
           <BodyLong>
+            Innloggingen gir en GitHub-nøkkel som varer i åtte timer, og en fornyingsnøkkel som varer i seks måneder.
+            Begge ligger i nøkkelringen på maskinen. Når nøkkelen nærmer seg utløp, henter nav-pilot en ny selv, så du
+            logger inn på nytt bare hvis du ikke har brukt nav-pilot på et halvt år.
+          </BodyLong>
+          <BodyLong>
             Noen undersøkelser nevner nav-pilot i stedet med én linje når en økt starter. Du kan alltid svare selv med{" "}
             <code className={code}>nav-pilot survey</code>, også etter at du har svart aldri, etter tre spørsmål, eller
             når surveys er false. Uten terminal lister kommandoen bare de åpne undersøkelsene. Har du svart før, sier
