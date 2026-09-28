@@ -32,17 +32,18 @@ stderr 'Not launching: no terminal\. To run a prompt, pass it after --: nav-pilo
 ! exists $WORK/fake/cplt.log
 
 # Without cplt, copilot would run unsandboxed with nobody watching: refused.
+# fake-bin writes under the current directory, here $WORK/repo/fake.
 fake-bin copilot
 exits 1 nav-pilot --sync --source $WORK/plattform -- -p 'review this PR'
 stderr 'Not launching: no terminal, and without cplt copilot would run unsandboxed'
 stderr 'Install cplt: brew install navikt/tap/cplt'
-! exists $WORK/fake/copilot.log
+! grep '^-p' $WORK/repo/fake/copilot.log
 
 # pi only runs inside cplt: with pi and no cplt, the refusal names cplt.
 fake-bin pi
 exits 1 nav-pilot --sync --source $WORK/plattform --client pi -- -p 'review this PR'
 stderr 'Not launching: cplt is not installed\. Install it: brew install navikt/tap/cplt'
-! exists $WORK/fake/pi.log
+! exists $WORK/repo/fake/pi.log
 
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
