@@ -56,6 +56,9 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
 - Start with the smallest safe change and keep diffs task-focused.
 - Reuse existing patterns before adding new abstractions.
 - In `my-copilot`, use Aksel spacing tokens, not Tailwind `p-*/m-*` utilities.
+- `/cplt` in `my-copilot` is the external landing page for the cplt open-source
+  project: keep it in English (`lang="en"`) and keep its dark design. Don't
+  translate it or restyle it to the ki-utvikling/Aksel look; fix bugs only.
 - Do not commit secrets.
 - Do not push unless explicitly asked.
 

@@ -1,24 +1,46 @@
 import { Box, VStack, Skeleton } from "@navikt/ds-react";
 
-// Same frame as DocPage, while the page fetches the star count and the config keys.
 export default function Loading() {
   return (
     <main id="hovedinnhold" tabIndex={-1}>
-      <Box
-        paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
-        paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
-        className="max-w-7xl mx-auto"
-      >
-        <VStack gap="space-24" className="max-w-3xl">
-          <VStack gap="space-8">
-            <Skeleton variant="text" width="40%" height={48} />
-            <Skeleton variant="text" width="80%" height={20} />
+      {/* Hero skeleton */}
+      <section style={{ background: "var(--cplt-ground)" }}>
+        <Box
+          paddingBlock={{ xs: "space-24", md: "space-40" }}
+          paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
+          className="max-w-7xl mx-auto"
+        >
+          <VStack gap={{ xs: "space-20", md: "space-32" }} className="items-center">
+            <VStack gap="space-12" className="items-center w-full">
+              <Skeleton variant="text" width="50%" height={48} />
+              <Skeleton variant="text" width="70%" height={20} />
+              <Skeleton variant="rounded" width={140} height={32} />
+            </VStack>
+            <Skeleton variant="rounded" width="100%" height={300} className="max-w-4xl" />
+            <VStack gap="space-8" className="items-center">
+              <Skeleton variant="rounded" width={320} height={40} />
+              <Skeleton variant="text" width={260} height={16} />
+            </VStack>
           </VStack>
-          <Skeleton variant="text" width="30%" height={28} />
-          <Skeleton variant="rounded" width="100%" height={300} />
-          <Skeleton variant="rounded" width="100%" height={40} />
-        </VStack>
-      </Box>
+        </Box>
+      </section>
+
+      {/* Security table skeleton */}
+      <section style={{ background: "var(--ax-bg-neutral-soft)" }}>
+        <Box
+          paddingBlock={{ xs: "space-24", md: "space-40" }}
+          paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
+          className="max-w-5xl mx-auto"
+        >
+          <VStack gap="space-24" className="items-center">
+            <VStack gap="space-8" className="items-center w-full">
+              <Skeleton variant="text" width="30%" height={28} />
+              <Skeleton variant="text" width="50%" height={16} />
+            </VStack>
+            <Skeleton variant="rounded" width="100%" height={350} />
+          </VStack>
+        </Box>
+      </section>
     </main>
   );
 }
