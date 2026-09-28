@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"os"
 	"os/exec"
 	"slices"
 	"strings"
@@ -63,7 +64,7 @@ func runWithCommandTelemetry(command, mode, scope string, fn func() error) error
 			telemetry.RecordCommand(command, mode, scope, "error", "panic", time.Since(start))
 
 			// Flush telemetry before we crash
-			flushTelemetry(telemetry, telemetryFlushBudget)
+			flushTelemetry(telemetry, flushBudget(os.Args[1:]))
 
 			panic(r)
 		}
