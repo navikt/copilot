@@ -468,8 +468,9 @@ func TestGateSitesStayInTheProject(t *testing.T) {
 	g := testGate(t, true, multi)
 	g.decide(edit(1, "src/F1.kt"))
 	g.decide(edit(1, "src/F2.kt"))
-	if deny, _ := g.decide(bash(1, "cd "+outside+` && sed -i 's/foo/bar/g' Big.kt`)); deny != "" {
-		t.Fatal("the gate counted the sites of a file outside the project")
+	// A temp dir outside the project is refused on its own (deny_tmp), not counted.
+	if _, outcome := g.decide(bash(1, "cd "+outside+` && sed -i 's/foo/bar/g' Big.kt`)); outcome != "deny_tmp" {
+		t.Fatalf("the gate counted the sites of a file outside the project: %q", outcome)
 	}
 	if err := os.Symlink(filepath.Join(outside, "Big.kt"), "src/Link.kt"); err != nil {
 		t.Fatal(err)
@@ -594,5 +595,39 @@ func TestGateGivesACreatedFileOneRetry(t *testing.T) {
 	g.decide(bash(3, "npm test"))
 	if key, _ := g.verify(GateRequest{Session: "s", Turn: 3, Agent: "nav-pilot", Tool: "bash", Command: "npm test", Exit: exit(1), Phase: "after"}); key != "" {
 		t.Errorf("an edit-only return got a retry offer: %q", key)
+	}
+}
+
+// Re-probe 7 (#1237): a backup or draft in /tmp asks for external_directory,
+// and `opencode run` ends the session on it. The gate refuses it instead, at
+// any budget, and leaves the project, the worker and relative paths alone.
+func TestGateRefusesTempOutsideTheProject(t *testing.T) {
+	g := testGate(t, true, GateRules{Create: true})
+	for _, r := range []GateRequest{
+		bash(1, "cp src/main/kotlin/DateUtil.kt /tmp/DateUtil.kt.bak"),
+		bash(1, "mkdir -p /tmp/navpilot_tests"),
+		bash(1, "./gradlew test > /tmp/out.txt 2>&1"),
+		bash(1, "cd /tmp && ls"),
+		bash(1, "go test -coverprofile=/private/tmp/c.out ./..."),
+		{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "write", Path: "/tmp/FooTest.kt", Create: true},
+		{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "edit", Path: filepath.Join(os.TempDir(), "x", "Foo.kt")},
+	} {
+		if deny, outcome := g.decide(r); deny != GateTmpText || outcome != "deny_tmp" {
+			t.Errorf("%s %q%s was not refused: %q", r.Tool, r.Command, r.Path, outcome)
+		}
+	}
+	for _, r := range []GateRequest{
+		bash(1, "cp src/Foo.kt src/Foo.kt.bak"),
+		bash(1, "cp "+abs("src/Foo.kt")+" "+abs("build/Foo.kt.bak")),
+		bash(1, "./gradlew test"),
+		edit(1, "src/Foo.kt"),
+		{Session: "w", Turn: 1, Agent: WorkerAgent, Tool: "bash", Command: "mkdir -p /tmp/x"},
+	} {
+		if deny, _ := g.decide(r); deny != "" {
+			t.Errorf("%s %q%s was refused", r.Tool, r.Command, r.Path)
+		}
+	}
+	if n := g.snapshot()["deny_tmp"]; n != 7 {
+		t.Errorf("deny_tmp = %d, want 7", n)
 	}
 }

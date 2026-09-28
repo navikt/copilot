@@ -42,6 +42,16 @@ grep 'nav-pilot enforces this in every tier' $HOME/.config/opencode/nav-pilot-lo
 grep 'A new file you would write yourself' $HOME/.config/opencode/nav-pilot-local-dispatch.md
 ! stderr 'not enforced with --pure'
 
+# A backup in /tmp for the break-and-undo check (#1237): refused by the gate,
+# so a headless session goes on instead of ending on opencode's rejected
+# external_directory request. A copy inside the project passes.
+env TMP_BACKUP=1
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+exec cat $WORK/gate.out
+stdout -count=1 '"deny":"nav-pilot \(local_dispatch\): this path is outside the project'
+stdout -count=5 '^\{\}$'
+env TMP_BACKUP=
+
 # --pure turns opencode's plugins off, the gate with them: said on stderr.
 exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- --pure run x </dev/null'
 stderr 'local_dispatch = aggressive is not enforced with --pure'
@@ -104,6 +114,12 @@ else
   done
   curl -s -d "{\"session\":\"s\",\"turn\":1,\"agent\":\"build\",\"tool\":\"write\",\"create\":true,\"path\":\"$WORK/repo/src/FooTest.kt\"}" "$NAV_PILOT_DISPATCH_GATE" >> "$WORK/gate.out"
   echo >> "$WORK/gate.out"
+  if [ -n "$TMP_BACKUP" ]; then
+    curl -s -d "{\"session\":\"s\",\"turn\":1,\"agent\":\"build\",\"tool\":\"bash\",\"command\":\"cp src/F1.kt /tmp/F1.kt.bak\"}" "$NAV_PILOT_DISPATCH_GATE" >> "$WORK/gate.out"
+    echo >> "$WORK/gate.out"
+    curl -s -d "{\"session\":\"s\",\"turn\":1,\"agent\":\"build\",\"tool\":\"bash\",\"command\":\"cp src/F1.kt src/F1.kt.bak\"}" "$NAV_PILOT_DISPATCH_GATE" >> "$WORK/gate.out"
+    echo >> "$WORK/gate.out"
+  fi
 fi
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
