@@ -139,6 +139,8 @@ The `OnBehalfOfIdentityResolver` validates the `X-On-Behalf-Of` header against G
 ```
 /health, /ready, /metrics  ← public (no auth)
 /public/v1/*               ← public (no auth, video feeds)
+/internal/v1/saml/name-id  ← app token from copilot-survey only; no identity
+                             middleware, request log or trace
 /api/v1/*                  ← protected:
   ├── Auth middleware (JWT validation)
   ├── Identity middleware (global, required=false)

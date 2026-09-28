@@ -92,6 +92,9 @@ spec:
           namespace: copilot
         - application: copilot-cli
           namespace: copilot
+        # Only for POST /internal/v1/saml/name-id (see internal_handlers.go).
+        - application: copilot-survey
+          namespace: copilot
     outbound:
       external:
         - host: api.github.com
