@@ -1,0 +1,15 @@
+{
+  "id": "dev-e2e-test",
+  "series": "dev-e2e-test",
+  "title": "Testundersøkelse (dev, e2e) – ikke ekte",
+  "active": false,
+  "nudge": "off",
+  "intro": "Bare for ende-til-ende-test i dev. Svarene brukes ikke.",
+  "starts": "2026-09-28",
+  "ends": "2026-12-31",
+  "questions": [
+    {"id": "fungerer", "version": 1, "type": "scale", "text": "Test: velg et tall.", "min": 1, "max": 5, "required": true},
+    {"id": "kanal", "version": 1, "type": "choice", "text": "Test: hvor svarer du fra?", "options": ["nav-pilot", "nettskjema"]},
+    {"id": "kommentar", "version": 1, "type": "text", "text": "Test: skriv noe, eller la det stå tomt.", "max_length": 200}
+  ]
+}

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -247,6 +248,29 @@ func TestSurveyKeysOnlyForOpenSurveys(t *testing.T) {
 func TestShippedSurveys(t *testing.T) {
 	if _, err := loadSurveyDir(surveyFiles); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestActivateInDevOnly: SURVEY_ACTIVE_IDS opens a survey in dev-gcp and
+// nowhere else, and the shipped dummy is inactive on its own.
+func TestActivateInDevOnly(t *testing.T) {
+	defs, err := loadSurveyDir(surveyFiles)
+	if err != nil {
+		t.Fatal(err)
+	}
+	i := slices.IndexFunc(defs, func(s survey) bool { return s.ID == "dev-e2e-test" })
+	if i < 0 || defs[i].Active {
+		t.Fatal("dev-e2e-test must ship, inactive")
+	}
+	for _, cluster := range []string{"prod-gcp", "local", ""} {
+		activateInDev(defs, cluster, "dev-e2e-test")
+		if defs[i].Active {
+			t.Fatalf("activated in %q", cluster)
+		}
+	}
+	activateInDev(defs, "dev-gcp", " dev-e2e-test ,nope")
+	if !defs[i].Active {
+		t.Fatal("not activated in dev-gcp")
 	}
 }
 

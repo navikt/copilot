@@ -95,3 +95,24 @@ warns at start while the key is still in the secret.
 - `skip_if`: skip this (optional) question when an earlier `choice` answer is,
   or `multi` answer includes, `answer`.
 - `required`: must be answered unless skipped.
+
+## End-to-end test in dev
+
+`dev-e2e-test.json` is a dummy that ships inactive. In dev-gcp only,
+`survey_active_ids: dev-e2e-test` in `.nais/dev-gcp.yaml` sets
+`SURVEY_ACTIVE_IDS`, which opens it; copilot-survey ignores the variable in
+any other cluster, so it can never open a survey in prod. It also needs
+`SURVEY_KEY_DEV_E2E_TEST` in the dev `copilot-survey` secret.
+
+- Test: `NAV_PILOT_COPILOT_CLI_URL=https://copilot-cli.intern.dev.nav.no nav-pilot survey`,
+  then the form on ki-utvikling.ekstern.dev.nav.no/nav-pilot/undersokelse.
+  The second answer from the same person, on either, gets 409.
+- Nothing reaches the database until the tenth answer: one tester's answer
+  stays queued in memory. `survey_submissions_total{survey="dev-e2e-test"}`
+  counts it, and the next restart logs it as dropped.
+- Close it: remove `survey_active_ids` from `.nais/dev-gcp.yaml`.
+- Reset: restart the pod (`kubectl rollout restart deployment/copilot-survey -n copilot`
+  in dev-gcp) to drop queued answers. To let the same people answer again
+  after a batch was written, replace `SURVEY_KEY_DEV_E2E_TEST` with a new key
+  and restart; old participation rows then match no one. Written rows go by
+  themselves: participation the day after `ends`, answers 180 days later.
