@@ -19,7 +19,10 @@ stdout 'Not downloaded\. Run it yourself, or have setup run it: nav-pilot alpha 
 exits 1 nav-pilot alpha local setup --endpoint http://$OLLAMA_ADDR/v1
 stdout 'have setup run it: nav-pilot alpha local setup --endpoint http://127\.0\.0\.1:[0-9]+/v1 --pull --yes'
 
+# With client = "opencode", the launch hint is plain nav-pilot (#1190).
+exec nav-pilot config set client opencode
 exec nav-pilot alpha local setup --pull --yes
 stdout 'Pulled qwen3\.6:35b'
 stdout 'Saved\. Local dispatch is on, to qwen3\.6:35b'
+stdout 'Launch with a local worker: nav-pilot\n'
 grep 'POST /api/pull' fake/ollama.log
