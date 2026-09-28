@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/huh"
+
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 // setupAnswers holds the answers collected by the first-run config wizard.
@@ -239,45 +242,77 @@ func runConfigSetup(flagSource string) error {
 }
 
 // opencodeForSetup settles a wizard answer of opencode on a machine without
-// it: Homebrew installs it when the user says yes, and otherwise the wizard
-// saves copilot and says how to switch later. It never saves a client that
-// cannot start. Only Homebrew is run for the user; the install script is
-// named, not piped into a shell on their behalf.
+// it: when the user says yes, Homebrew installs it, or without Homebrew
+// opencode's own install script does. Otherwise the wizard saves copilot and
+// says how to switch later, naming both clients when neither is installed. It
+// never saves a client that cannot start. Nothing is run without the yes.
 func opencodeForSetup() (string, error) {
 	if opencodeInstalled() {
 		return "opencode", nil
 	}
-	if _, err := exec.LookPath("brew"); err == nil {
-		install := true
-		if err := huh.NewConfirm().
-			Title("opencode is not installed. Install it now?").
-			Description("Runs " + opencodeBrewInstall + ".").
-			Affirmative("Install").
-			Negative("Use GitHub Copilot instead").
-			Value(&install).
-			WithTheme(navTheme()).
-			Run(); errors.Is(err, huh.ErrUserAborted) {
-			return "", err
-		} else if err != nil {
-			install = false // a prompt that could not run is no answer
+	_, brewErr := exec.LookPath("brew")
+	withBrew := brewErr == nil
+	desc := "Runs " + opencodeBrewInstall + "."
+	if !withBrew {
+		desc = "Runs " + opencodeScriptInstall + ", opencode's own installer. It puts opencode in ~/.opencode/bin and adds that to PATH in your shell's config."
+	}
+	install := true
+	if err := huh.NewConfirm().
+		Title("opencode is not installed. Install it now?").
+		Description(desc).
+		Affirmative("Install").
+		Negative("Use GitHub Copilot instead").
+		Value(&install).
+		WithTheme(navTheme()).
+		Run(); errors.Is(err, huh.ErrUserAborted) {
+		return "", err
+	} else if err != nil {
+		install = false // a prompt that could not run is no answer
+	}
+	if install {
+		used, cmd := opencodeBrewInstall, exec.Command("brew", "install", "anomalyco/tap/opencode")
+		if !withBrew {
+			used, cmd = opencodeScriptInstall, exec.Command(bashPath(), "-c", opencodeScriptInstall)
 		}
-		if install {
-			cmd := exec.Command("brew", "install", "anomalyco/tap/opencode")
-			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-			err := cmd.Run()
-			if err == nil && opencodeInstalled() {
-				fmt.Printf("  %s opencode installed\n", green("✓"))
-				return "opencode", nil
+		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+		err := cmd.Run()
+		if err == nil && !withBrew {
+			// The script adds its directory to PATH in the shell's config,
+			// which this process never reads.
+			if home, herr := os.UserHomeDir(); herr == nil {
+				os.Setenv("PATH", filepath.Join(home, ".opencode", "bin")+string(os.PathListSeparator)+os.Getenv("PATH"))
 			}
-			if err == nil {
-				err = errors.New("opencode is still not on PATH")
-			}
-			fmt.Fprintf(os.Stderr, "%s %s: %v\n", yellow("⚠"), opencodeBrewInstall, err)
 		}
+		if err == nil && opencodeInstalled() {
+			fmt.Printf("  %s opencode installed\n", green("✓"))
+			return "opencode", nil
+		}
+		if err == nil {
+			err = errors.New("opencode is still not on PATH")
+		}
+		fmt.Fprintf(os.Stderr, "%s %s: %v\n", yellow("⚠"), used, err)
+	}
+	if p, err := providerFor("copilot"); err == nil && !p.Available() {
+		fmt.Printf("  Neither opencode nor GitHub Copilot is installed. nav-pilot saves GitHub Copilot for now. Install one of them:\n    opencode: %s, then %s\n    GitHub Copilot CLI: %s\n",
+			opencodeInstallCommand(), bold("nav-pilot config set client opencode"), providerpkg.CopilotInstallCommand)
+		return "copilot", nil
 	}
 	fmt.Printf("  opencode is not installed, so nav-pilot will use GitHub Copilot. To switch later, install opencode (%s), then run %s\n",
 		opencodeInstallCommand(), bold("nav-pilot config set client opencode"))
 	return "copilot", nil
+}
+
+// opencodeScriptInstall is opencode's own installer, for a machine without
+// Homebrew.
+const opencodeScriptInstall = "curl -fsSL https://opencode.ai/install | bash"
+
+// bashPath is bash from PATH, else /bin/bash: the opencode installer needs
+// bash, not sh.
+func bashPath() string {
+	if p, err := exec.LookPath("bash"); err == nil {
+		return p
+	}
+	return "/bin/bash"
 }
 
 // opencodeBrewInstall is opencode's recommended Homebrew install.
@@ -289,7 +324,7 @@ func opencodeInstallCommand() string {
 	if _, err := exec.LookPath("brew"); err == nil {
 		return opencodeBrewInstall
 	}
-	return "curl -fsSL https://opencode.ai/install | bash"
+	return opencodeScriptInstall
 }
 
 // setupSkipped is how the wizard ends when a prompt returns err. Ctrl-C ends

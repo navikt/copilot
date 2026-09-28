@@ -1257,6 +1257,9 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 				return nil
 			}
 			fmt.Fprintf(os.Stderr, "%s Neither copilot nor cplt is installed, so nothing was launched.\n%s\n", yellow("⚠"), copilotInstallHint())
+			if !opencodeInstalled() {
+				fmt.Fprintf(os.Stderr, "  Or use opencode: %s, then %s\n", bold(opencodeInstallCommand()), bold("nav-pilot config set client opencode"))
+			}
 			return nil
 		}
 		if missingCommand(resolved.Client, resolved.Client) == "cplt" {

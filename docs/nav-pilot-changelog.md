@@ -4,6 +4,11 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-28
 
+### opencode uten Homebrew
+
+- **Installasjonsskriptet tilbys**: Uten Homebrew lagret oppsettet Copilot CLI når du valgte opencode, selv om heller ikke Copilot CLI var installert. Nå tilbyr nav-pilot å kjøre opencodes eget installasjonsskript (`curl -fsSL https://opencode.ai/install | bash`), og bruker opencode i samme kjøring når du sier ja.
+- **Begge klientene nevnes**: Sier du nei, og ingen av klientene er installert, viser oppsettet installasjonskommandoen for begge. Det gjør også meldingen «nothing was launched» (#1184).
+
 ### Raskere tilbake til terminalen etter en økt
 
 - **Undersøkelser og nyheter hentes mens økten kjører**: Etter en økt hentet nav-pilot åpne undersøkelser og nyheter, én etter én, før du fikk terminalen tilbake. Nå hentes de i bakgrunnen mens økten kjører, og spørsmålet eller nyhetslinja kommer som før når økten er slutt. Er økten kortere enn hentingen, kommer de ved neste økt i stedet.
@@ -18,7 +23,6 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **Riktig navn**: `nav-pilot alpha local setup` kalte `mlx_lm.server` på port 8080 for llama-server. Nå kjenner den igjen serveren på `Server`-headeren.
 - **Riktig modell**: `mlx_lm.server` lister alle MLX-modellene i Hugging Face-cachen og laster den en forespørsel ber om. setup foretrakk den første Qwen3.6-35B-modellen i lista, som kunne være det vanlige 4-bit-bygget. Nå kommer bygget fra nav-pilots egen modelliste først (OptiQ), og setup sier fra om at modellen kan være en annen enn den serveren ble startet med (#1102).
-
 ### alpha local setup: riktige hint
 
 - **Hintene tar med flaggene dine**: Kjørte du setup med `--endpoint` eller `--model`, står de også i kommandoen setup foreslår til slutt. Uten `--endpoint` leter setup etter servere på nytt og kan finne en annen.
