@@ -58,7 +58,7 @@ Vi trenger særlig deg som har Linux på x86_64, med eller uten NVIDIA-kort. Kj�
 - [nav-pilot's own-endpoint path on real servers](https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-28-local-endpoint-validation/report.md) (navikt/mlx-workspace, 28. september 2026)
 - [Bring your own local endpoint (Ollama, llama-server)](https://github.com/navikt/copilot/pull/998) (navikt/copilot, 27. september 2026)
 - [Guided local endpoint setup](https://github.com/navikt/copilot/pull/1000) (navikt/copilot, 27. september 2026)
-- [CPU context probe runs past setup's limit](https://github.com/navikt/copilot/issues/1222) (navikt/copilot, 28. september 2026)
+- [The 30k context probe takes over 10 minutes on a CPU-only machine](https://github.com/navikt/copilot/issues/1222) (navikt/copilot, 28. september 2026)
 - [Setup saves a short context on request, and names an OOM](https://github.com/navikt/copilot/pull/1130) (navikt/copilot, 28. september 2026)
 - [apt-get -y for scripted installs, libgomp1 for llama-server](https://github.com/navikt/copilot/pull/1134) (navikt/copilot, 28. september 2026)
 - [Doctor advises a context that fits on small GPUs](https://github.com/navikt/copilot/pull/1139) (navikt/copilot, 28. september 2026)
