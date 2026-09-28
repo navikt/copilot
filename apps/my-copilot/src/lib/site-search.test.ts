@@ -44,6 +44,12 @@ describe("searchEntries", () => {
     expect(searchEntries(index, "linux").map((e) => e.href)).toContain("/nav-pilot/lokal/egen-server");
   });
 
+  // /cplt's description is a constant; the first quoted description: further
+  // down its page is body text and must not be indexed.
+  it("only takes a description from the metadata object", () => {
+    expect(index.find((e) => e.href === "/cplt")?.text).toBeUndefined();
+  });
+
   it("ranks a text match below title and context matches", () => {
     const hits = searchEntries([{ ...entry("x"), text: "sync" }, entry("Sync"), entry("y", "sync")], "sync");
     expect(hits.map((e) => e.title)).toEqual(["Sync", "y", "x"]);

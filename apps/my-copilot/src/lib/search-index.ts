@@ -43,11 +43,14 @@ function headingLabels(dir: string): Map<string, string> {
 }
 
 // The page's meta description, so «ollama» finds the page that mentions it (#1185).
-// ponytail: regex over page.tsx, so a description built from an expression is
-// missed. Render the metadata if pages start doing that.
+// Only a string literal inside the metadata object counts; the object ends at
+// the first "};" at the start of a line.
+// ponytail: regex over page.tsx, so a description built from an expression
+// (/cplt) is skipped. Render the metadata if more pages start doing that.
 function pageDescription(dir: string): string | undefined {
   const src = fs.readFileSync(path.join(dir, "page.tsx"), "utf-8");
-  return src.match(/export const metadata\b[\s\S]*?\bdescription:\s*"([^"]+)"/)?.[1];
+  const metadata = src.match(/export const metadata\b[\s\S]*?\n\};/)?.[0];
+  return metadata?.match(/\bdescription:\s*"([^"]+)"/)?.[1];
 }
 
 export function buildSearchIndex(): SearchEntry[] {
