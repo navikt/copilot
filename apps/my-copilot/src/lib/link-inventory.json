@@ -1660,6 +1660,10 @@
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
     "anchors": {}
   },
+  "/nyheter/nav-pilot-opencode-standard": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
   "/nyheter/nye-modeller-juli-2026": {
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
     "anchors": {}
