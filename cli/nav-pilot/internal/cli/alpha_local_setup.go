@@ -325,7 +325,7 @@ func cmdLocalSetup(args []string) error {
 		// A context that only cuts long prompts still serves short ones, and
 		// on a small machine no larger context fits: offer to save it as is.
 		if len(fails) == 1 && fails[0].Name == "context" && !serverGone {
-			fmt.Printf("  %s Only the context check failed. With this context, alpha decide works: it sends a few hundred tokens. A Copilot or opencode session starts at about 22k tokens, and the server cuts or refuses what does not fit.\n\n", yellow("⚠"))
+			fmt.Printf("  %s Only the context check failed. Short prompts work with this context. A Copilot or opencode session starts at about 22k tokens, and the server cuts or refuses what does not fit.\n\n", yellow("⚠"))
 			if isInteractive() {
 				return saveEndpoint(choice, checks, false)
 			}
