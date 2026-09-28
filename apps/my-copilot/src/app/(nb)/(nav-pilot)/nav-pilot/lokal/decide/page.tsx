@@ -67,7 +67,7 @@ export default function DecideHook() {
         <NextLink href="/nav-pilot/lokal/egen-server" className={linkClass}>
           egen server
         </NextLink>
-        . Spørsmålet, meldingen og diffen forlater ikke maskinen.
+        . Spørsmålet, meldingen og diffen går bare til den lokale modellen, ikke til skyen.
       </BodyLong>
 
       <section>
@@ -97,7 +97,7 @@ nav-pilot alpha local status`}</CodeBlock>
           </CodeBlock>
           <CodeBlock compact>{`chmod +x scripts/commit-explains-why.sh`}</CodeBlock>
           <BodyLong>
-            Skriptet sender meldingen og de første 7 500 tegnene av diffen til modellen. Er sannsynligheten for «no»
+            Skriptet sender meldingen og de første 7 500 bytene av diffen til modellen. Er sannsynligheten for «no»
             minst 0,7, skriver det en advarsel. Det avslutter alltid med 0, så commiten går gjennom uansett. Uten
             nav-pilot på maskinen gjør det ingenting.
           </BodyLong>
