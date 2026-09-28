@@ -733,18 +733,16 @@ function ComparisonSection() {
             </p>
           </div>
 
-          {/* High-contrast comparison table - responsive wrapper */}
-          <div className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          {/* Three columns from sm; below that each row stacks as a card, so the nav-pilot
+              column is never off screen and nothing needs to scroll (#1191). */}
+          <div className="w-full">
             <div
-              className="rounded-xl overflow-hidden min-w-max sm:min-w-0"
+              className="rounded-xl overflow-hidden"
               style={{ border: "1px solid #1e293b", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
             >
               {/* Dark header */}
-              <div className="grid gap-0" style={{ gridTemplateColumns: "1fr 1fr 2fr", background: "#0f172a" }}>
-                <div
-                  className="px-6 py-4 flex items-center justify-center"
-                  style={{ borderRight: "1px solid rgba(255,255,255,0.1)" }}
-                >
+              <div className="hidden sm:grid grid-cols-[1fr_1fr_2fr] gap-0" style={{ background: "#0f172a" }}>
+                <div className="px-6 py-4 flex items-center justify-center sm:border-r border-white/10">
                   <p
                     className="font-semibold uppercase tracking-wider"
                     style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem", margin: 0, letterSpacing: "0.08em" }}
@@ -752,10 +750,7 @@ function ComparisonSection() {
                     Område
                   </p>
                 </div>
-                <div
-                  className="px-6 py-4 flex items-center justify-center"
-                  style={{ borderRight: "1px solid rgba(255,255,255,0.1)" }}
-                >
+                <div className="px-6 py-4 flex items-center justify-center sm:border-r border-white/10">
                   <p
                     className="font-semibold"
                     style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.8125rem", margin: 0 }}
@@ -774,32 +769,24 @@ function ComparisonSection() {
               {COMPARISONS.map((row, i) => (
                 <div
                   key={row.feature}
-                  className="grid gap-0"
-                  style={{
-                    gridTemplateColumns: "1fr 1fr 2fr",
-                    borderTop: "1px solid #e2e8f0",
-                  }}
+                  className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_2fr] gap-0"
+                  style={{ borderTop: i === 0 ? undefined : "1px solid #e2e8f0" }}
                 >
                   <div
-                    className="px-6 py-4 flex items-center justify-center"
-                    style={{
-                      borderRight: "1px solid #e2e8f0",
-                      background: i % 2 === 0 ? "#f8fafc" : "white",
-                    }}
+                    className="px-6 py-4 flex items-center justify-center sm:border-r border-[#e2e8f0]"
+                    style={{ background: i % 2 === 0 ? "#f8fafc" : "white" }}
                   >
                     <p className="font-semibold" style={{ color: "#1e293b", fontSize: "0.875rem", margin: 0 }}>
                       {row.feature}
                     </p>
                   </div>
                   <div
-                    className="px-6 py-4 flex items-center justify-center gap-2"
-                    style={{
-                      borderRight: "1px solid #e2e8f0",
-                      background: i % 2 === 0 ? "#fef2f2" : "#fff5f5",
-                    }}
+                    className="px-6 py-4 flex items-center justify-center gap-2 sm:border-r border-[#e2e8f0]"
+                    style={{ background: i % 2 === 0 ? "#fef2f2" : "#fff5f5" }}
                   >
                     <XMarkOctagonIcon fontSize="0.875rem" style={{ color: "#ef4444", flexShrink: 0 }} aria-hidden />
                     <p style={{ color: "#64748b", fontSize: "0.8125rem", margin: 0, fontStyle: "italic" }}>
+                      <span className="sm:sr-only not-italic font-semibold">Vanlig Copilot: </span>
                       {row.generic}
                     </p>
                   </div>
@@ -811,6 +798,7 @@ function ComparisonSection() {
                   >
                     <CheckmarkCircleIcon fontSize="0.875rem" style={{ color: "#22c55e", flexShrink: 0 }} aria-hidden />
                     <p style={{ color: "#1e293b", fontSize: "0.8125rem", margin: 0, fontWeight: 600 }}>
+                      <span className="sm:sr-only">nav-pilot: </span>
                       {row.navPilot}
                     </p>
                   </div>
