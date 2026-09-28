@@ -7,8 +7,9 @@ import { getNewsItems } from "@/lib/news";
 import type { SearchEntry } from "@/lib/site-search";
 
 // Builds the search index from what already exists: the umbrella pages and
-// their titles from the section menu, the anchors from link-inventory.json
-// (so every hit is a link the link guard checks), and the news titles.
+// their titles from the section menu, each page's meta description, the
+// anchors from link-inventory.json (so every hit is a link the link guard
+// checks), and the news titles.
 // Run by scripts/build-search-index.ts.
 
 // Run from the app directory, as news.ts assumes too.
@@ -41,12 +42,26 @@ function headingLabels(dir: string): Map<string, string> {
   return labels;
 }
 
+// The page's meta description, so «ollama» finds the page that mentions it (#1185).
+// ponytail: regex over page.tsx, so a description built from an expression is
+// missed. Render the metadata if pages start doing that.
+function pageDescription(dir: string): string | undefined {
+  const src = fs.readFileSync(path.join(dir, "page.tsx"), "utf-8");
+  return src.match(/export const metadata\b[\s\S]*?\bdescription:\s*"([^"]+)"/)?.[1];
+}
+
 export function buildSearchIndex(): SearchEntry[] {
   const pages: SearchEntry[] = SECTION.flatMap((g) => [
     ...(g.href ? [{ href: g.href, title: g.label, context: "nav-pilot" }] : []),
     ...(g.overview ? [{ href: g.overview, title: g.label, context: "nav-pilot" }] : []),
     ...(g.items ?? []).map((i) => ({ href: i.href, title: i.label, context: g.label })),
-  ]).filter((p) => p.href in paths);
+  ])
+    .filter((p) => p.href in paths)
+    .map((p) => {
+      const dir = pageDirs.get(p.href);
+      const text = dir && pageDescription(dir);
+      return text ? { ...p, text } : p;
+    });
 
   const headings = pages.flatMap((p) => {
     const dir = pageDirs.get(p.href);

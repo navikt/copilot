@@ -7,7 +7,9 @@ const paths: Record<string, { anchors: Record<string, string[]> }> = inventory;
 
 describe("search index", () => {
   it("has the umbrella pages, their headings and the news", () => {
-    expect(index).toContainEqual({ href: "/nav-pilot/lokal", title: "Lokal modell på Mac", context: "Kom i gang" });
+    expect(index).toContainEqual(
+      expect.objectContaining({ href: "/nav-pilot/lokal", title: "Lokal modell på Mac", context: "Kom i gang" })
+    );
     expect(index).toContainEqual({
       href: "/nav-pilot/guider/lokal#bytte-lokal-modell",
       title: "Bytte lokal modell",
@@ -34,6 +36,17 @@ describe("searchEntries", () => {
   it("finds pages in the real index", () => {
     expect(searchEntries(index, "lokal modell")[0].title.toLowerCase()).toContain("lokal modell");
     expect(searchEntries(index, "lokal modell").map((e) => e.href)).toContain("/nav-pilot/lokal");
+  });
+
+  // #1185: the words are in egen-server's description, not in any title.
+  it("finds a page by its description", () => {
+    expect(searchEntries(index, "ollama")[0]?.href).toBe("/nav-pilot/lokal/egen-server");
+    expect(searchEntries(index, "linux").map((e) => e.href)).toContain("/nav-pilot/lokal/egen-server");
+  });
+
+  it("ranks a text match below title and context matches", () => {
+    const hits = searchEntries([{ ...entry("x"), text: "sync" }, entry("Sync"), entry("y", "sync")], "sync");
+    expect(hits.map((e) => e.title)).toEqual(["Sync", "y", "x"]);
   });
 
   it("ignores case and diacritics", () => {
