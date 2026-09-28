@@ -29,3 +29,8 @@ stdout '^qwen3\.6-35b-navpilot$'
 exec nav-pilot alpha local doctor
 stdout 'PASS  server +answers and lists qwen3\.6-35b-navpilot'
 ! stdout 'WARN'
+
+# setup --model with the untagged name finds the listed name:latest.
+exec nav-pilot alpha local setup --model qwen3.6-35b-navpilot --yes
+stdout 'Using +qwen3\.6-35b-navpilot:latest'
+stdout 'Saved\.'

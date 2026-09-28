@@ -406,7 +406,7 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 		}
 		prompt := chars / 4
 		limit := ctxTokens
-		if n, ok := modelCtx[req.Model]; ok {
+		if n, ok := modelCtx[strings.TrimSuffix(req.Model, ":latest")]; ok { // Ollama answers to x and x:latest alike
 			limit = n
 		}
 		if limit > 0 && prompt > limit {

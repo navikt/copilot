@@ -132,8 +132,9 @@ func levelColour(l checkLevel) string {
 
 // sameModel is whether a listed id names the model. Ollama lists name:latest
 // for a model pulled or created without a tag, and answers to either name.
+// Only that direction: another server that lists x may not answer to x:latest.
 func sameModel(listed, model string) bool {
-	return listed == model || listed == model+":latest" || model == listed+":latest"
+	return listed == model || listed == model+":latest"
 }
 
 func checkModels(ctx context.Context, base, model string) doctorCheck {

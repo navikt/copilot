@@ -623,10 +623,10 @@ som ligger nærmest optiq-modellen vi har målt på Mac. Det er ikke de samme bi
 tallene våre gjelder ikke.
 
 **Ollama kan gi modellen for lite kontekst.** Under 24 GB grafikkminne gir Ollama
-modellen 4 096 tokens kontekst, og det kan ikke endres via `/v1`. En Copilot-økt
-starter med rundt 22 000 tokens. Eldre Ollama kutter resten uten å si fra, Ollama 0.34
-avviser prompten med en feil. Med mer minne velger Ollama større kontekst selv (262 144
-tokens på en Mac med 128 GB). Start Ollama med `OLLAMA_CONTEXT_LENGTH=65536`, eller
+modellen 4 096 tokens kontekst, og det kan ikke endres via `/v1`. Med mer minne velger
+Ollama større kontekst selv (262 144 tokens på en Mac med 128 GB). En Copilot-økt
+starter med rundt 22 000 tokens. Eldre Ollama kutter resten uten å si fra; Ollama 0.34
+avviser prompten med en feil. Start Ollama med `OLLAMA_CONTEXT_LENGTH=65536`, eller
 lag en egen modell med en Modelfile som har `PARAMETER num_ctx 65536` (`ollama create`).
 `doctor` sender rundt 30 000 tokens og feiler hvis serveren kutter eller avviser dem.
 
