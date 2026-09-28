@@ -45,9 +45,9 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "client",
 		kind:        keyKindString,
-		description: "Coding-agent CLI to launch (copilot, opencode, pi). The first run in a terminal writes the client you run into config.toml when the file names none, so a later change of the default does not switch your client.",
+		description: "Coding-agent CLI to launch (copilot, opencode, pi). The default is opencode on a new install, and copilot when opencode is not installed. A config.toml without client means copilot, so an upgrade never switches your client; the first run in a terminal writes it in.",
 		allowed:     validProviderIDs,
-		defaultVal:  "copilot",
+		defaultVal:  "opencode",
 		flag:        "--client",
 	},
 	{
@@ -336,8 +336,8 @@ const configInitTemplate = `# nav-pilot configuration
 version = 1
 
 # Coding-agent CLI nav-pilot launches.
-# Allowed: copilot, opencode, pi — Default: copilot
-# client = "copilot"
+# Allowed: copilot, opencode, pi. Without a client line this file means copilot.
+# client = "opencode"
 
 # Agentpakke content source: a GitHub repo (owner/name) or an absolute path to a
 # local checkout. Set by "nav-pilot install --source <repo>" after a successful

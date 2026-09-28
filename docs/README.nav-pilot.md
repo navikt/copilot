@@ -59,6 +59,11 @@ nav-pilot
 nav-pilot install nav-pilot
 ```
 
+Første gang du kjører `nav-pilot`, spør den hvilken klient du vil bruke. opencode er valgt.
+Mangler opencode, tilbyr nav-pilot å installere den med Homebrew
+(`brew install anomalyco/tap/opencode`). Uten Homebrew, eller om du sier nei, bruker nav-pilot
+Copilot CLI og sier hvordan du bytter senere. Se [Klienter](#klienter).
+
 `install` spør hvor den skal installere. Svaret er ikke gitt: repoet deler oppsettet med
 teamet, `--user` følger deg over alle repoer uten å sjekke inn noe. Se
 [Hvor skal artefaktene installeres?](#hvor-skal-artefaktene-installeres) før du velger.
@@ -345,10 +350,14 @@ deg. Svarer ikke GitHub, hopper den bare over versjonssjekken.
 nav-pilot støtter tre klienter (`client`-feltet i konfig). Hva hver av dem kan, og hva som mangler, står på
 [ki-utvikling.nav.no/nav-pilot/klienter](https://ki-utvikling.nav.no/nav-pilot/klienter).
 
+En ny installasjon får opencode som standard. Har du brukt nav-pilot før, beholder du Copilot CLI:
+en `config.toml` uten `client` betyr `copilot`. Copilot CLI er fortsatt fullt støttet
+(`nav-pilot config set client copilot`).
+
 | Klient                  | Binær                 | Nav-kontekst                                                  | Standard modell |
 | ----------------------- | --------------------- | ------------------------------------------------------------- | --------------- |
-| `copilot` (standard)    | `cplt` / `copilot`    | `.github/`, eller `~/.copilot/` med `--user`                  | GPT-6 Sol       |
-| `opencode`              | `opencode` (+ `cplt`) | `~/.config/opencode/`, oppdateres ved hver oppstart           | GPT-6 Sol       |
+| `copilot`               | `cplt` / `copilot`    | `.github/`, eller `~/.copilot/` med `--user`                  | GPT-6 Sol       |
+| `opencode` (standard)   | `opencode` (+ `cplt`) | `~/.config/opencode/`, oppdateres ved hver oppstart           | GPT-6 Sol       |
 | `pi` _(eksperimentell)_ | `cplt` + `pi`         | Materialiseres i `~/.nav-pilot/pi` og gis til pi ved oppstart | GPT-6 Sol       |
 
 En modell du velger med config eller `--model`, vinner over agentpakkas standard.
@@ -601,7 +610,7 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | Nøkkel | CLI-flagg | Verdier | Beskrivelse |
 | --- | --- | --- | --- |
 | `version` | — | 1 | Skjemaversjon. Mangler den, leses fila som versjon 1, og nav-pilot sier fra med én linje. |
-| `client` | --client | copilot · opencode · pi (standard: copilot) | Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen når cplt finnes. Mangler cplt, spør nav-pilot i terminalen om copilot eller opencode skal starte uten sandkasse (standard nei). Uten terminal, for eksempel i CI, starter de bare med --no-sandbox. Første gang nav-pilot kjører i en terminal og fila mangler client, skriver den inn klienten du bruker. Endres standarden senere, beholder du klienten din. |
+| `client` | --client | copilot · opencode · pi (standard: opencode) | Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen når cplt finnes. Mangler cplt, spør nav-pilot i terminalen om copilot eller opencode skal starte uten sandkasse (standard nei). Uten terminal, for eksempel i CI, starter de bare med --no-sandbox. Standard er opencode på en ny installasjon, og copilot når opencode ikke er installert. En config.toml uten client betyr copilot, så du beholder klienten din når du oppgraderer. Første gang nav-pilot kjører i en terminal, skriver den client inn i fila. |
 | `source` | --source | owner/name eller en absolutt sti (standard: navikt/copilot) | Hvor agentpakka hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source --save-source; nav-pilot config unset source går tilbake til standarden. |
 | `model` | --model | modell-id, f.eks. claude-opus-4.8 | Modell å bruke. En Copilot-id som claude-opus-4.8 virker for copilot og opencode (opencode kjører den som github-copilot/&lt;id&gt;); opencode tar også provider/model. nav-pilot config explain model lister id-ene. |
 | `mode` | --mode | default · plan · autopilot (standard: default) | Modus for Copilot-agenten. plan tilsvarer opencode --agent plan; autopilot er bare Copilot. |

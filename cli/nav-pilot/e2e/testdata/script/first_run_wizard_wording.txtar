@@ -5,6 +5,10 @@
 
 [!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
 
+# No opencode and no Homebrew: Enter on the preselected opencode saves
+# copilot, so the rest of the wizard is the copilot one.
+fake-bin cplt copilot
+
 exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'Model' -send '\x03' -- nav-pilot
 stdout 'leave it unset for the agentpakke.s default \(the agent.s own if it names none\)'
 stdout 'Unset \(agentpakke default\)'

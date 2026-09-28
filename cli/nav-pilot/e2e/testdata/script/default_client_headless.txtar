@@ -1,0 +1,49 @@
+# #1022: with no config.toml a headless or CI run is a new install. It starts
+# opencode when opencode is on PATH. Without it, it starts Copilot CLI and
+# says so in one line on stderr, never a launch of a client that is missing.
+# A config.toml without a client line, what an existing user has, means
+# copilot whatever is installed.
+
+fake-bin cplt copilot
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --user --yes
+! exists $HOME/config.toml
+
+# No opencode: Copilot CLI, and the line that says why.
+exec nav-pilot --source $WORK/plattform -- -p hei
+stderr 'opencode is not installed, so nav-pilot starts Copilot CLI\. Install opencode \(curl -fsSL https://opencode\.ai/install \| bash\), or keep Copilot CLI and hide this line: nav-pilot config set client copilot'
+grep '^--agent\ncopilot\n' $WORK/fake/cplt.log
+! exists $HOME/config.toml
+
+# opencode installed: opencode, no line.
+cp $WORK/fake/copilot $WORK/fake/opencode
+rm $WORK/fake/cplt.log
+exec nav-pilot --source $WORK/plattform -- run hei
+! stderr 'opencode is not installed'
+grep '^--agent\nopencode\n' $WORK/fake/cplt.log
+
+# An existing user's config.toml without client: copilot, even with opencode there.
+exec nav-pilot config set source $WORK/plattform
+! grep '^client' $HOME/config.toml
+rm $WORK/fake/cplt.log
+exec nav-pilot -- -p hei
+! stderr 'opencode is not installed'
+grep '^--agent\ncopilot\n' $WORK/fake/cplt.log
+exec nav-pilot config get client
+stdout '^copilot$'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

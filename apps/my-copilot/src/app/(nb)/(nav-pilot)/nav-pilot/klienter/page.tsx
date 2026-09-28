@@ -31,14 +31,14 @@ const c = (s: string) => <code className={code}>{s}</code>;
 
 const CLIENTS = [
   {
-    name: "copilot",
-    tag: { text: "Standard", variant: "info" as const },
-    desc: "GitHub Copilot CLI, i sandkassen cplt når den er installert. Agentpakka virker også i VS Code, JetBrains og på github.com.",
+    name: "opencode",
+    tag: { text: "Standard for nye installasjoner", variant: "info" as const },
+    desc: "opencode med Copilot-abonnementet ditt. Den eneste klienten der hovedagenten kan kjøre i skyen og sende jobber til en lokal modell.",
   },
   {
-    name: "opencode",
+    name: "copilot",
     tag: { text: "Støttet", variant: "success" as const },
-    desc: "opencode med Copilot-abonnementet ditt. Den eneste klienten der hovedagenten kan kjøre i skyen og sende jobber til en lokal modell.",
+    desc: "GitHub Copilot CLI, i sandkassen cplt når den er installert. Agentpakka virker også i VS Code, JetBrains og på github.com.",
   },
   {
     name: "pi",
@@ -163,13 +163,21 @@ export default function Klienter() {
           Klientene
         </LinkableHeading>
         <BodyLong>
-          En klient er programmet nav-pilot starter. Standard er Copilot CLI. Velg klient for én økt med{" "}
-          {c("--client opencode")}, eller for godt med {c("nav-pilot config set client opencode")}.
+          En klient er programmet nav-pilot starter. På en ny installasjon er standarden opencode. Velg klient for én
+          økt med {c("--client copilot")}, eller for godt med {c("nav-pilot config set client copilot")}. Copilot CLI er
+          fortsatt fullt støttet.
         </BodyLong>
         <BodyLong>
-          Klienten du bruker, står i {c("~/.nav-pilot/config.toml")}. Mangler linja, skriver nav-pilot den inn første
-          gang du starter en økt i en terminal. Endrer vi standarden senere, gjelder det bare nye installasjoner. Du
-          beholder klienten du har.
+          Klienten du bruker, står i {c("~/.nav-pilot/config.toml")}. Har du brukt nav-pilot før, beholder du Copilot
+          CLI: en {c("config.toml")} uten {c("client")} betyr copilot, og nav-pilot skriver linja inn første gang du
+          starter en økt i en terminal.
+        </BodyLong>
+        <BodyLong>
+          Første gang du kjører nav-pilot, spør den hvilken klient du vil ha, med opencode valgt. Mangler opencode, og
+          du har Homebrew, tilbyr nav-pilot å installere den med {c("brew install anomalyco/tap/opencode")}. Ellers,
+          eller om du sier nei, bruker nav-pilot Copilot CLI og forteller hvordan du bytter senere. I CI og uten
+          terminal starter nav-pilot opencode når den er installert, og ellers Copilot CLI med én linje på stderr om
+          hvorfor. Vil du være sikker på klienten i CI, bruk {c("--client")}.
         </BodyLong>
         <BodyLong>
           Bruker du Copilot CLI med lokale modeller på og har opencode installert, viser nav-pilot én gang et tips om

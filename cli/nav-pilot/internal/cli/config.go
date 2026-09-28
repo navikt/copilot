@@ -13,6 +13,7 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
+	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
 // validateModelForClient validates a model identifier by delegating to the
@@ -314,6 +315,10 @@ func launchConfig(file *Config, cli CLIOverrides) *Config {
 	if cli.Client != "" {
 		eff.Client = &cli.Client
 	}
+	if eff.Client == nil && file == nil {
+		c := defaultClient(nil)
+		eff.Client = &c
+	}
 	if cli.Model != "" {
 		eff.Model = &cli.Model
 	}
@@ -325,9 +330,42 @@ const versionMissingAdvice = "version is missing, so nav-pilot reads the file as
 
 func cfgClient(cfg *Config) string {
 	if cfg == nil || cfg.Client == nil {
-		return "copilot"
+		return defaultClient(cfg)
 	}
 	return *cfg.Client
+}
+
+// defaultClient is the client when neither --client nor config.toml names
+// one (#1022). A new install, a machine with no config.toml and no recorded
+// client, gets opencode. Anyone who has run nav-pilot before gets copilot,
+// the default they had, so an upgrade moves nobody (#1029): a config.toml
+// without a client line means copilot. A new install without opencode on
+// PATH gets copilot too, so the default is never a client that is missing.
+func defaultClient(file *Config) string {
+	if newInstall(file) && opencodeInstalled() {
+		return "opencode"
+	}
+	return "copilot"
+}
+
+// newInstall reports whether this machine has neither a config.toml nor the
+// marker recordEffectiveClient leaves.
+func newInstall(file *Config) bool {
+	if file != nil {
+		return false
+	}
+	dir, err := telemetrypkg.GetConfigDir()
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(filepath.Join(dir, "seen-client-recorded"))
+	return errors.Is(err, os.ErrNotExist)
+}
+
+// opencodeInstalled reports whether opencode is on PATH.
+func opencodeInstalled() bool {
+	p, err := providerFor("opencode")
+	return err == nil && p.Available()
 }
 
 // modelAdvice is everything nav-pilot says about a model id for a client:
@@ -446,6 +484,12 @@ func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), w)
 	}
 	resolved := resolve(file, cli)
+	if cli.Client == "" && resolved.Client == "copilot" && newInstall(file) {
+		// No wizard ran (no terminal) and opencode is missing: say which
+		// client this is, since the documented default is opencode.
+		fmt.Fprintf(os.Stderr, "%s opencode is not installed, so nav-pilot starts Copilot CLI. Install opencode (%s), or keep Copilot CLI and hide this line: %s\n",
+			dim("ℹ"), opencodeInstallCommand(), bold("nav-pilot config set client copilot"))
+	}
 	telemetry.RecordConfig(
 		resolved.Client,
 		resolved.Mode,
@@ -489,7 +533,7 @@ func configFixHint() string {
 // Precedence: CLI flag > file value > built-in default.
 func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	r := ResolvedConfig{
-		Client:            "copilot",
+		Client:            defaultClient(file),
 		Mode:              "default",
 		AskUser:           true,
 		AutoLaunch:        true,

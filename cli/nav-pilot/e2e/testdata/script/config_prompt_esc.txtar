@@ -6,6 +6,7 @@
 
 [!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
 
+fake-bin cplt copilot
 exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait '(?s)Other… \(type a model id\).*esc cancel' -send '\x1b' -- nav-pilot config setup
 stdout 'esc cancel'
 stdout 'Cancelled\. Nothing was written\.'

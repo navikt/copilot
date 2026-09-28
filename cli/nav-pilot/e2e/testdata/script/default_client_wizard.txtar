@@ -1,0 +1,42 @@
+# #1022: the first-run wizard preselects opencode on a new install. With
+# opencode on PATH, Enter saves it. Without it, Homebrew offers to install it
+# (yes installs, no saves copilot), and without Homebrew the wizard saves
+# copilot and says how to switch. It never saves a client that cannot start.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+# opencode installed.
+fake-bin cplt copilot opencode
+exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\x03' -- nav-pilot config setup
+stdout 'OpenCode \(default\)'
+! stdout 'opencode is not installed'
+
+exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'rtk|Saved' -send '\x03' -- nav-pilot config setup
+grep '^client = "opencode"' home/config.toml
+
+# No opencode, no Homebrew: copilot, and how to switch later.
+rm home/config.toml
+rm $WORK/fake/opencode
+fake-bin cplt copilot
+exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'rtk' -send '\x03' -- nav-pilot config setup
+stdout 'opencode is not installed, so nav-pilot will use GitHub Copilot\. To switch later, install opencode \(curl -fsSL https://opencode\.ai/install \| bash\), then run nav-pilot config set client opencode'
+grep '^client = "copilot"' home/config.toml
+
+# No opencode, Homebrew there, the offer declined: copilot.
+rm home/config.toml
+fake-bin cplt copilot brew
+exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Install it now' -send '\x1b[C\r' -wait 'Conversation mode' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'rtk' -send '\x03' -- nav-pilot config setup
+stdout 'Runs brew install anomalyco/tap/opencode'
+! exists $WORK/fake/brew.log
+grep '^client = "copilot"' home/config.toml
+
+# Accepted: brew installs opencode, and the wizard saves it.
+rm home/config.toml
+cp brew.sh $WORK/fake/brew.sh
+exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Install it now' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'rtk|Saved' -send '\x03' -- nav-pilot config setup
+grep '^install\nanomalyco/tap/opencode\n---' $WORK/fake/brew.log
+stdout 'opencode installed'
+grep '^client = "opencode"' home/config.toml
+
+-- brew.sh --
+/bin/cp "$WORK/fake/copilot" "$WORK/fake/opencode"

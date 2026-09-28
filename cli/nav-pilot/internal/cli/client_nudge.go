@@ -58,8 +58,9 @@ func recordEffectiveClient() {
 	_, hasClient := raw["client"]
 	_, hasAgent := raw["agent"]
 	if !hasClient && !hasAgent {
-		// No client key: the effective client is the built-in default.
-		if updateConfigKey("client", tomlString(findKeyDef("client").defaultVal)) != nil {
+		// No client key in an existing file has always meant copilot, whatever
+		// the default for new installs is (defaultClient).
+		if updateConfigKey("client", tomlString("copilot")) != nil {
 			return // try again next run
 		}
 	}

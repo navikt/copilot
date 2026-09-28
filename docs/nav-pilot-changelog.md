@@ -2,6 +2,15 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-09-28
+
+### opencode er standardklient for nye installasjoner
+
+- **Ny installasjon, ny standard**: På en maskin uten `~/.nav-pilot/config.toml` er opencode valgt i oppsettet første gang du kjører nav-pilot. Mangler opencode, og du har Homebrew, tilbyr nav-pilot å installere den (`brew install anomalyco/tap/opencode`). Uten Homebrew, eller om du sier nei, lagrer oppsettet Copilot CLI og sier hvordan du bytter senere. Oppsettet lagrer aldri en klient som ikke kan starte.
+- **Har du brukt nav-pilot før, beholder du klienten**: En `config.toml` uten `client` betyr `copilot`, uansett hva som er installert. Første økt i en terminal skriver linja inn (#1113).
+- **CI og uten terminal**: Uten `config.toml` starter nav-pilot opencode når den er installert, og ellers Copilot CLI, med én linje på stderr om hvorfor. Bruk `--client` for å låse klienten i CI.
+- **Copilot CLI er fortsatt fullt støttet**: `nav-pilot config set client copilot`. Hva hver klient kan, står på [ki-utvikling.nav.no/nav-pilot/klienter](https://ki-utvikling.nav.no/nav-pilot/klienter).
+
 ## 2026-09-27
 
 ### sync fjerner det kilden har sluttet å levere, og opencode finner instruksjonene
