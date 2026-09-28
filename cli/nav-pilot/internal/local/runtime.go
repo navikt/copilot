@@ -750,6 +750,11 @@ const (
 	// HealthCrashed: the process is gone. Restart.
 	HealthCrashed Health = "crashed"
 
+	// HealthBusy: the process is alive and answering another request. The
+	// probe does not queue behind it. Busy for longer than serverQueueWait
+	// is HealthHung: no waiter would be served, and no answer takes that long.
+	HealthBusy Health = "busy"
+
 	// HealthHung: the process is alive and accepting connections but did not
 	// answer within healthTimeout. Restart — it will not recover.
 	HealthHung Health = "hung"
@@ -860,6 +865,16 @@ func (p *execProc) Wait() exitInfo {
 // generation thread while the process stays alive — the hung state below — so
 // a health check that sends the same bytes every time is a health check that
 // can cause the failure it is looking for.
+// serverBusyError is [probeCompletion] finding the server answering another
+// request, and for how long. [serverBootstrap] answers a probe that at once
+// instead of queueing it, so a long answer does not make a healthy server look
+// hung. For is how [Server.Health] still tells a stuck one.
+type serverBusyError struct{ For time.Duration }
+
+func (e serverBusyError) Error() string {
+	return fmt.Sprintf("the local server has been answering another request for %s", e.For.Round(time.Second))
+}
+
 var probeCompletion = func(ctx context.Context, baseURL, model string) (int, error) {
 	body, err := json.Marshal(map[string]any{
 		"model":      model,
@@ -875,6 +890,7 @@ var probeCompletion = func(ctx context.Context, baseURL, model string) (int, err
 		return 0, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Nav-Pilot-Probe", "1")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return 0, err
@@ -883,6 +899,17 @@ var probeCompletion = func(ctx context.Context, baseURL, model string) (int, err
 	data, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return 0, err
+	}
+	if resp.StatusCode == http.StatusServiceUnavailable {
+		var busy struct {
+			Error struct {
+				Type    string  `json:"type"`
+				BusyFor float64 `json:"busy_for"`
+			} `json:"error"`
+		}
+		if json.Unmarshal(data, &busy) == nil && busy.Error.Type == "server_busy" {
+			return 0, serverBusyError{time.Duration(busy.Error.BusyFor * float64(time.Second))}
+		}
 	}
 	if resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("POST /v1/chat/completions: %s: %s", resp.Status, strings.TrimSpace(string(data)))
@@ -1062,6 +1089,16 @@ const threadDiedMarker = "nav-pilot: pid %d: the server's thread "
 // attach, cannot tell a hang from a long request, and still leaves the session
 // that was running hanging; the hook fires the moment the thread dies.
 //
+// It also serves POSTs one at a time. mlx-lm batches concurrent requests, and
+// prompts of different lengths make that batching raise and leave the server
+// hung (see TestGuardSerialisesCompletions). The guard's lock file only covers
+// clients that can reach ~/.nav-pilot; a sandboxed hook cannot. A lock in the
+// server covers every client. GETs are never queued, a health probe (header
+// X-Nav-Pilot-Probe) is answered 503 busy rather than queued, and a client that
+// disconnects while waiting gives up its place and is not generated for.
+// ponytail: threading.Lock is not FIFO, so a waiter can be overtaken; add a
+// ticket queue if anyone ever starves in practice.
+//
 // Run as `python -c` rather than through the mlx_lm.server entry-point script
 // so no file has to be written next to the venv. Arguments follow the code, so
 // sys.argv is ["-c", flags...]; argv[0] is renamed for argparse's usage line
@@ -1075,15 +1112,85 @@ def _die(a):
     os._exit(70)
 threading.excepthook = _die
 sys.argv[0] = "mlx_lm.server"
-from mlx_lm.server import main
-sys.exit(main())
+import io, json, select, socket, time
+import mlx_lm.server as _server
+_admit = threading.BoundedSemaphore(_QUEUE)
+_turn = threading.Lock()
+_since = [0.0]
+_post = _server.APIHandler.do_POST
+def _busy(h, why):
+    body = json.dumps({"error": {"message": "nav-pilot: the local model server is busy: %s. Try again in a moment." % why, "type": "server_busy", "code": 503, "busy_for": time.monotonic() - _since[0]}}).encode()
+    h.close_connection = True
+    try:
+        h.send_response(503)
+        h.send_header("Content-Type", "application/json")
+        h.send_header("Content-Length", str(len(body)))
+        h.send_header("Retry-After", "5")
+        h.end_headers()
+        h.wfile.write(body)
+    except OSError:
+        pass
+def _gone(h):
+    # The body is already read and the server speaks HTTP/1.0, so anything
+    # readable on the socket now is the client closing it.
+    try:
+        return bool(select.select([h.connection], [], [], 0)[0]) and h.connection.recv(1, socket.MSG_PEEK) == b""
+    except (OSError, ValueError):
+        return True
+def _one_at_a_time(self):
+    n = int(self.headers.get("Content-Length") or 0)
+    self.rfile = io.BufferedReader(io.BytesIO(self.rfile.read(n)))
+    if self.headers.get("X-Nav-Pilot-Probe"):
+        # A health probe never waits: a server answering someone else is
+        # alive, and a probe stuck behind a long answer would read as hung.
+        if not _turn.acquire(blocking=False):
+            return _busy(self, "answering another request")
+    else:
+        if not _admit.acquire(blocking=False):
+            return _busy(self, "the queue is full (%d waiting)" % _QUEUE)
+        try:
+            deadline = time.monotonic() + _WAIT
+            while not _turn.acquire(timeout=0.25):
+                if _gone(self):
+                    return
+                if time.monotonic() >= deadline:
+                    return _busy(self, "waited %g s for the request ahead of this one" % _WAIT)
+        finally:
+            _admit.release()
+    _since[0] = time.monotonic()
+    try:
+        if not _gone(self):
+            _post(self)
+    finally:
+        _turn.release()
+_server.APIHandler.do_POST = _one_at_a_time
+sys.exit(_server.main())
 `
+
+// serverQueueDepth and serverQueueWait bound the queue [serverBootstrap] puts
+// in front of generation: this many POSTs may wait behind the one running, each
+// for at most this long, before the server answers 503. Vars so tests can make
+// them small.
+//
+// Ten minutes because one local answer at a large context legitimately takes
+// minutes, and a waiting client would rather be served late than refused. Eight
+// waiters is more than the sessions one Mac runs at once; beyond it a client is
+// told at once instead of hanging.
+var (
+	serverQueueDepth = 8
+	serverQueueWait  = 10 * time.Minute
+)
+
+// serverScript is [serverBootstrap] with the queue bounds it reads.
+func serverScript() string {
+	return fmt.Sprintf("_QUEUE, _WAIT = %d, %g\n", serverQueueDepth, serverQueueWait.Seconds()) + serverBootstrap
+}
 
 // serverCommand is the program and arguments that launch the server for model
 // on port.
 func serverCommand(model Model, port int) (string, []string) {
 	args := []string{
-		"-c", serverBootstrap,
+		"-c", serverScript(),
 		"--model", model.Model,
 		"--host", "127.0.0.1",
 		"--port", strconv.Itoa(port),
@@ -1191,6 +1298,8 @@ func (s *Server) waitReady(ctx context.Context, model string) error {
 		cancel()
 		switch {
 		case err != nil:
+			// Busy too: a request that arrived during loading holds
+			// the server, so busy does not prove the weights are in.
 			last = err
 		case tokens > 0:
 			// An answer proves something is on the port, not that it is ours.
@@ -1246,6 +1355,7 @@ func (s *Server) Health(ctx context.Context) Health {
 	timedOut := probeCtx.Err() != nil
 	cancel()
 
+	var busy serverBusyError
 	// Re-check the exit first: a process that died mid-probe is crashed, not
 	// hung, and the probe failing is a consequence of that, not evidence of
 	// anything else.
@@ -1253,6 +1363,10 @@ func (s *Server) Health(ctx context.Context) Health {
 		return HealthCrashed
 	}
 	switch {
+	case errors.As(err, &busy) && busy.For > serverQueueWait:
+		return HealthHung
+	case errors.As(err, &busy):
+		return HealthBusy
 	case err != nil && timedOut && !wasReady && time.Since(started) < readyTimeout:
 		// A cold start, not a hang. mlx-lm binds the port before it maps the
 		// weights, so a probe sent while it is loading is accepted and then

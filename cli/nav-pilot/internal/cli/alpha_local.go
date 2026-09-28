@@ -919,7 +919,7 @@ func enabledLabel(on bool) string {
 
 func healthColour(h local.Health) string {
 	switch h {
-	case local.HealthReady:
+	case local.HealthReady, local.HealthBusy:
 		return green(string(h))
 	case local.HealthCrashed, local.HealthHung:
 		return red(string(h))
@@ -928,7 +928,7 @@ func healthColour(h local.Health) string {
 	}
 }
 
-// healthMeaning says what to do, because the five states differ in exactly that
+// healthMeaning says what to do, because the six states differ in exactly that
 // and a colour does not carry it.
 func healthMeaning(h local.Health) string {
 	switch h {
@@ -938,6 +938,8 @@ func healthMeaning(h local.Health) string {
 		return "alive, still mapping weights; the port opens before the model is loaded"
 	case local.HealthReady:
 		return "answered a real completion"
+	case local.HealthBusy:
+		return "answering another request; requests are served one at a time"
 	case local.HealthCrashed:
 		// The log path belongs here and not in a footnote: this is the one
 		// state where the developer has nothing else to go on, and a crash

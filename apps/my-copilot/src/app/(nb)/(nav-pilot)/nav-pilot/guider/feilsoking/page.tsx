@@ -102,9 +102,10 @@ nav-pilot alpha local doctor  # bare egen server (local_endpoint)`}
 # står det hung: nav-pilot alpha local restart`}
           </CodeBlock>
           <BodyLong>
-            nav-pilot slipper gjennom én forespørsel om gangen, så flere oppgaver står i kø i stedet for å kjøre
-            samtidig. Serveren tar imot samtidige forespørsler og henger seg opp på dem, så ikke kall den direkte utenom
-            nav-pilot.
+            mlx-lm henger seg opp på samtidige forespørsler, så serveren nav-pilot starter, tar én om gangen. Opptil
+            åtte venter i kø i inntil ti minutter hver. Er køen full, eller ventetiden ute, svarer serveren 503 og sier
+            at den er opptatt. Vent litt og prøv igjen. Startet serveren før du oppdaterte nav-pilot, har den ikke køen:
+            kjør <code className={code}>nav-pilot alpha local restart</code>.
           </BodyLong>
           <BodyLong>
             nav-pilot avslutter en tur hvis modellen gjør det samme verktøykallet fire ganger på rad og får samme
