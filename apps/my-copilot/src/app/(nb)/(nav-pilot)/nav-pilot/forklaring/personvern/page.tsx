@@ -16,6 +16,7 @@ const TOC: TocItem[] = [
   { id: "lokal-modell", label: "Lokal modell" },
   { id: "sla-av", label: "Slå av målingene" },
   { id: "brukerundersokelser", label: "Brukerundersøkelser" },
+  { id: "nyheter", label: "Nyheter i terminalen" },
 ];
 
 export default function Personvern() {
@@ -115,6 +116,34 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
             </NextLink>{" "}
             i nettleseren. Der bruker du Nav-innloggingen din, ikke GitHub-innloggingen. Hver person kan svare én gang,
             enten i terminalen eller i nettleseren.
+          </BodyLong>
+        </VStack>
+      </section>
+
+      <section>
+        <VStack gap="space-16">
+          <LinkableHeading id="nyheter" size="medium" level="2">
+            Nyheter i terminalen
+          </LinkableHeading>
+          <BodyLong>
+            Når en økt er ferdig, kan nav-pilot vise én linje om en ny sak på{" "}
+            <NextLink href="/nyheter" className={linkClass}>
+              nyhetssiden
+            </NextLink>
+            , med tittel og lenke. Det gjelder bare saker skrevet for nav-pilot-brukere og som er under 30 dager gamle,
+            og hver sak vises én gang. nav-pilot henter nyhetene som en offentlig fil fra ki-utvikling.nav.no, høyst
+            hver sjette time, og sender ingenting tilbake. Svarer ikke nettstedet innen et halvt sekund, henter
+            nav-pilot ingenting den gangen.
+          </BodyLong>
+          <BodyLong>
+            Linjen følger de samme reglene som undersøkelsene: ikke uten terminal, ikke i CI, ikke når klientens
+            argumenter står etter <code className={code}>--</code>, ikke etter Ctrl-C og ikke når målinger er slått av.
+            Har nav-pilot spurt om en undersøkelse i samme økt, venter nyheten til neste gang. Vil du slå av bare
+            nyhetene, ikke målingene:
+          </BodyLong>
+          <CodeBlock compact>{`nav-pilot config set news false`}</CodeBlock>
+          <BodyLong>
+            <code className={code}>nav-pilot news</code> lister de nyeste sakene, også når linjen er slått av.
           </BodyLong>
         </VStack>
       </section>

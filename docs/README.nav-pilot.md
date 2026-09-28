@@ -457,6 +457,7 @@ nav-pilot models            # modellene klienten kan bruke, med den du har valgt
 nav-pilot models claude     # bare modellene med «claude» i navnet
 nav-pilot feedback
 nav-pilot survey            # svar på en åpen brukerundersøkelse
+nav-pilot news              # de nyeste sakene fra ki-utvikling.nav.no
 nav-pilot -- -p "…"         # start klienten med argumentene etter --, uten spørsmål fra nav-pilot og uten synk
 nav-pilot --client opencode -- run "…"   # det samme i opencode, som bruker run i stedet for -p
 ```
@@ -604,6 +605,7 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | `auto_launch` | --auto-launch / --no-auto-launch | true · false (standard: true) | Start klienten etter sync eller installasjon. Med false skriver nav-pilot bare ut kommandoen. |
 | `auto_update` | — | true · false (standard: false) | Oppgrader nav-pilot automatisk når en ny versjon er ute, uten å spørre. Feiler oppgraderingen, kjører kommandoen på versjonen du har, og neste forsøk kommer etter 24 timer. |
 | `surveys` | — | true · false (standard: true) | Spør av og til, etter en økt, om du vil svare på en kort brukerundersøkelse (høyst tre ganger per undersøkelse). Med false spør nav-pilot aldri, og viser heller ikke engangstipset om opencode. DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false slår det også av. |
+| `news` | — | true · false (standard: true) | Etter en økt viser nav-pilot én linje når det er kommet en ny nav-pilot-sak på ki-utvikling.nav.no, én gang per sak. Med false viser nav-pilot den aldri, men nav-pilot news lister sakene fortsatt. DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false slår den også av. |
 | `log_level` | --log-level | none · error · warning · info · debug · all · default | Loggnivå for Copilot CLI. |
 | `otel_log_level` | --otel-log-level | none · error · warning · warn · info · debug · verbose · all (standard: none) | Loggnivå for OpenTelemetry i Copilot CLI (OTEL_LOG_LEVEL). En OTEL_LOG_LEVEL i skallet vinner, og config show merker den env. |
 | `local_enabled` | — | true · false (standard: false) | Send avgrensede oppgaver til en lokal modell (alfa). Settes av alpha local init, nullstilles av alpha local off. Så lenge den er false, ser nav-pilot ingen lokale modeller. |

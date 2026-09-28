@@ -29,8 +29,13 @@ env NAV_PILOT_E2E_SURVEY_GAP=0s
 exec pty-run -- nav-pilot
 ! stdout 'Brukerundersøkelse'
 
+# A fresh news feed with an unseen item: still no news line in a session
+# that started with the survey line (one nudge per session).
+rm $HOME/news.json
+fake-news
 exec pty-run -- nav-pilot
 stdout -count=1 'Brukerundersøkelse: E2E survey \(4 spørsmål\)\. Svar når det passer deg: nav-pilot survey'
+! stdout 'Nytt fra ki-utvikling'
 
 # Not headless, not in CI.
 exec pty-run -- nav-pilot -- -p hei

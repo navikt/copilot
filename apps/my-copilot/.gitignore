@@ -48,3 +48,5 @@ next-env.d.ts
 
 # site search index, written by scripts/build-search-index.ts
 /public/search-index.json
+# nav-pilot news feed, written by the same script
+/public/news.json

@@ -81,6 +81,12 @@ export const CONFIG_KEYS = [
     desc: "Spør av og til, etter en økt, om du vil svare på en kort brukerundersøkelse (høyst tre ganger per undersøkelse). Med false spør nav-pilot aldri, og viser heller ikke engangstipset om opencode. DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false slår det også av.",
   },
   {
+    key: "news",
+    flag: "—",
+    values: "true · false (standard: true)",
+    desc: "Etter en økt viser nav-pilot én linje når det er kommet en ny nav-pilot-sak på ki-utvikling.nav.no, én gang per sak. Med false viser nav-pilot den aldri, men nav-pilot news lister sakene fortsatt. DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false slår den også av.",
+  },
+  {
     key: "log_level",
     flag: "--log-level",
     values: "none · error · warning · info · debug · all · default",
@@ -236,6 +242,7 @@ export const CLI_COMMANDS = [
     command: "nav-pilot survey",
     description: "Svar på en åpen brukerundersøkelse, også når nav-pilot ikke spør selv",
   },
+  { command: "nav-pilot news", description: "Vis de nyeste sakene fra ki-utvikling.nav.no, med lenke" },
   {
     command: "nav-pilot export opencode",
     description: "Skriv agentpakka til .opencode/ i repoet, i formatet til opencode. Trengs ikke for å bruke opencode",

@@ -1,0 +1,77 @@
+# Never a news line without someone at a terminal who has not said no: not in
+# CI, not on a launch with client args after --, not without a terminal, not
+# with news = false or DO_NOT_TRACK, and not when the feed is out of reach,
+# which must not delay or fail the session either.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+env NAV_PILOT_TELEMETRY_ENABLED=true
+env DO_NOT_TRACK=
+env NAV_PILOT_TELEMETRY_ENDPOINT=http://127.0.0.1:9/v1/metrics
+fake-news
+fake-bin cplt copilot
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+exec nav-pilot config set rtk_prompted_client copilot
+
+# CI, even in a terminal.
+env CI=true
+exec pty-run -- nav-pilot
+! stdout 'Nytt fra ki-utvikling'
+env CI=
+
+# Headless: client args after --, even in a terminal.
+exec pty-run -- nav-pilot -- -p hei
+! stdout 'Nytt fra ki-utvikling'
+
+# No terminal.
+exec nav-pilot
+! stdout 'Nytt fra ki-utvikling'
+! stderr 'Nytt fra ki-utvikling'
+
+# news = false.
+exec nav-pilot config set news false
+exec pty-run -- nav-pilot
+! stdout 'Nytt fra ki-utvikling'
+exec nav-pilot config unset news
+
+# DO_NOT_TRACK and NAV_PILOT_TELEMETRY_ENABLED=false.
+env DO_NOT_TRACK=1
+exec pty-run -- nav-pilot
+! stdout 'Nytt fra ki-utvikling'
+env DO_NOT_TRACK=
+env NAV_PILOT_TELEMETRY_ENABLED=false
+exec pty-run -- nav-pilot
+! stdout 'Nytt fra ki-utvikling'
+env NAV_PILOT_TELEMETRY_ENABLED=true
+
+# None of the above asked the feed.
+! exists $WORK/news-gets.log
+
+# Out of reach: the session ends as usual, with no line.
+env NAV_PILOT_NEWS_URL=http://127.0.0.1:9/news.json
+exec pty-run -- nav-pilot
+! stdout 'Nytt fra ki-utvikling'
+! stdout 'ignored'
+
+# And with nothing holding it back, it shows: the journey above proves something.
+rm $HOME/news.json
+fake-news
+exec pty-run -- nav-pilot
+stdout 'Nytt fra ki-utvikling: E2E-nyhet for nav-pilot'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

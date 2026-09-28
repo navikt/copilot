@@ -1,0 +1,58 @@
+# nav-pilot news lists the feed, with or without a terminal, and with the
+# line turned off: it was asked for. What it lists is not brought up again
+# after a session. Out of reach, it falls back on what it fetched before, and
+# says so; with nothing fetched before, it fails and says why.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+env NAV_PILOT_TELEMETRY_ENABLED=true
+env DO_NOT_TRACK=
+env NAV_PILOT_TELEMETRY_ENDPOINT=http://127.0.0.1:9/v1/metrics
+fake-news
+fake-bin cplt copilot
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+exec nav-pilot config set rtk_prompted_client copilot
+
+exec nav-pilot config set news false
+exec nav-pilot news
+stdout 'E2E-nyhet for nav-pilot'
+stdout 'https://ki-utvikling.nav.no/nyheter/e2e-cli'
+stdout 'E2E-nyhet om noe annet'
+
+exec nav-pilot news --json
+validjson stdout
+stdout '"url": "https://ki-utvikling.nav.no/nyheter/e2e-cli"'
+stdout '"cli": true'
+exec nav-pilot config unset news
+
+# Listed, so not brought up after a session.
+exec pty-run -- nav-pilot
+! stdout 'Nytt fra ki-utvikling'
+
+# Out of reach: what nav-pilot fetched before, and a warning.
+env NAV_PILOT_NEWS_URL=http://127.0.0.1:9/news.json
+exec nav-pilot news
+stdout 'E2E-nyhet for nav-pilot'
+stderr 'Fikk ikke hentet nyhetene fra ki-utvikling.nav.no'
+
+# Nothing fetched before: an error.
+rm $HOME/news.json
+! exec nav-pilot news
+stderr 'fikk ikke hentet nyhetene fra ki-utvikling.nav.no'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

@@ -64,7 +64,7 @@ var commandAliases = map[string]string{
 }
 
 // dispatchedCommands is every command name run dispatches.
-var dispatchedCommands = []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "survey", "models", "alpha", "auth", "usage", "version", "help"}
+var dispatchedCommands = []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "survey", "news", "models", "alpha", "auth", "usage", "version", "help"}
 
 func isKnownCommand(arg string) bool {
 	if _, ok := commandAliases[arg]; ok {
@@ -103,6 +103,7 @@ Commands:
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
   feedback                Report a bug or request a feature
   survey                  Answer an open user survey (lists them with --json or without a terminal)
+  news                    List the latest news from ki-utvikling.nav.no
   alpha local <cmd>       Run a model on this machine (alpha; off until you run 'alpha local init')
   alpha decide "<q>"      Ask the local model a multiple-choice question (alpha; see 'alpha decide --help')
   models [filter]         List the models the client can use, the current one marked
@@ -534,9 +535,11 @@ func run(args []string) error {
 			// survey. Only after a client really ran (not after Esc at a
 			// menu, a declined launch or auto_launch = false), and not after
 			// nav-pilot itself failed; a client's own exit code is still a
-			// session that ended.
+			// session that ended. News only when nothing else came up in
+			// this run (claimSessionPrompt).
 			if sessionEndedCalmly(err) {
 				maybeSurvey(sessionClient)
+				maybeNews(sessionClient)
 			}
 			return err
 		}
@@ -1024,6 +1027,10 @@ func run(args []string) error {
 	case "survey":
 		return runWithCommandTelemetry("survey", telemetryMode(), "none", func() error {
 			return cmdSurvey(jsonOutput)
+		})
+	case "news":
+		return runWithCommandTelemetry("news", telemetryMode(), "none", func() error {
+			return cmdNews(jsonOutput)
 		})
 	case "feedback":
 		return runWithCommandTelemetry("feedback", telemetryMode(), "none", func() error {
