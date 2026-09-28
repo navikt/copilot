@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -1210,19 +1209,26 @@ func Main(info BuildInfo) {
 	}
 
 	recordHookEvents()
-	// The version check a command started in the background gets the same
-	// moment as the telemetry export, side by side.
-	// --version and --help do not wait for it: the next command reads it.
-	budget := flushBudget()
-	var wg sync.WaitGroup
+	// Telemetry goes to the spool and does not wait for the network. The
+	// version check a command started in the background gets a short moment
+	// to finish; --version and --help do not wait for it: the next command
+	// reads it.
+	flushTelemetry(telemetry)
 	if !quick {
-		wg.Go(func() { artifacts.WaitForRefresh(budget) })
+		artifacts.WaitForRefresh(refreshBudget())
 	}
-	wg.Go(func() { flushTelemetry(telemetry, budget) })
-	wg.Wait()
 	if exitCode != 0 {
 		os.Exit(exitCode)
 	}
+}
+
+// refreshBudget is how long the exit waits for the version check: shortest
+// after a session, when the user is waiting for the shell.
+func refreshBudget() time.Duration {
+	if sessionClient != "" {
+		return 150 * time.Millisecond
+	}
+	return 300 * time.Millisecond
 }
 
 // isQuickCommand reports whether the command line only asks for the version
