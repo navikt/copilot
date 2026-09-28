@@ -309,9 +309,18 @@ func TestPiProvider_ContextLifecycle(t *testing.T) {
 			return &source.Source{Dir: sourceDir, SHA: "test"}, nil
 		}
 
+		// Recorded from here: the first launch has no state to judge (#1153).
+		rec := &staleRecorder{}
+		orig := telemetryRecorder
+		t.Cleanup(func() { telemetryRecorder = orig })
+		SetTelemetry(rec)
+
 		summary, err := p.Bootstrap(domain.ResolvedConfig{})
 		if err != nil {
 			t.Fatalf("Bootstrap() error: %v", err)
+		}
+		if len(rec.checks) != 0 {
+			t.Errorf("freshness checks at the first launch = %v, want none", rec.checks)
 		}
 		if want := "1 skill(s), 1 agent(s)"; !strings.Contains(summary, want) {
 			t.Errorf("Bootstrap() summary = %q, want it to count %q", summary, want)
@@ -338,6 +347,16 @@ func TestPiProvider_ContextLifecycle(t *testing.T) {
 		// With state on disk the scope is now part of the sync loop.
 		if res := p.SyncContext("", sourceDir, true, true, false); !res.Managed || res.Err != nil {
 			t.Errorf("SyncContext() = %+v, want managed with no error", res)
+		}
+
+		// The sync over existing state recorded once; a launch over it records
+		// again (#1153).
+		rec.checks = nil
+		if _, err := p.Bootstrap(domain.ResolvedConfig{}); err != nil {
+			t.Fatalf("second Bootstrap() error: %v", err)
+		}
+		if len(rec.checks) != 1 || rec.checks[0] != "pi/pi" {
+			t.Errorf("freshness checks at launch = %v, want [pi/pi]", rec.checks)
 		}
 	})
 }

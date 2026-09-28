@@ -479,6 +479,7 @@ func (piProvider) SyncContext(ref, sourceRepo string, apply, jsonOutput, hasPrev
 	if state == nil {
 		return ProviderSyncResult{}
 	}
+	recordFreshness("pi", piScopeName, assessStaleness(state.Version))
 	// jsonOutput is honoured the way the opencode provider honours it: nothing
 	// this path prints may land on stdout while a JSON document is being
 	// written there.

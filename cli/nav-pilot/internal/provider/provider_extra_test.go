@@ -204,3 +204,38 @@ func TestPiProvider_Available(t *testing.T) {
 	var p Provider = piProvider{}
 	_ = p.Available()
 }
+
+// staleRecorder records the freshness checks, and nothing else.
+type staleRecorder struct {
+	telemetry.NoopRecorder
+	checks []string
+}
+
+func (r *staleRecorder) RecordStalenessCheck(component, scope, result string) {
+	r.checks = append(r.checks, component+"/"+scope)
+}
+
+// pi records freshness in sync, as opencode does, so a stale pi scope shows in
+// the dashboards (#1153).
+func TestPiProvider_SyncContext_RecordsFreshness(t *testing.T) {
+	dir := t.TempDir()
+	PiNavContextDirOverride = dir
+	t.Cleanup(func() { PiNavContextDirOverride = "" })
+	if err := artifacts.WriteOpenCodeState(dir, &domain.StateFile{Collection: "pi-export", Version: "2026.01.01", Scope: artifacts.OpenCodeScopeName}); err != nil {
+		t.Fatal(err)
+	}
+	origClone := source.CloneRemoteFn
+	t.Cleanup(func() { source.CloneRemoteFn = origClone })
+	source.CloneRemoteFn = func(ref, sourceRepo string) (*source.Source, error) {
+		return nil, fmt.Errorf("network unavailable")
+	}
+	rec := &staleRecorder{}
+	orig := telemetryRecorder
+	t.Cleanup(func() { telemetryRecorder = orig })
+	SetTelemetry(rec)
+
+	piProvider{}.SyncContext("", "", true, true, false)
+	if len(rec.checks) != 1 || rec.checks[0] != "pi/pi" {
+		t.Errorf("freshness checks = %v, want [pi/pi]", rec.checks)
+	}
+}
