@@ -215,12 +215,12 @@ nav-pilot alpha local use qwen3.6-35b-a3b-8bit
 nav-pilot alpha local init      # laster ned vektene og starter`}
           </CodeBlock>
           <BodyLong>
-            Modellen trenger at minnegrensen i macOS er 48 GB. <code className={code}>init</code> og{" "}
+            Modellen krever en minnegrense på 48 GB i macOS. <code className={code}>init</code> og{" "}
             <code className={code}>start</code> spør før de hever den. Den har 64k kontekst og 16k svar.
           </BodyLong>
           <BodyLong>
             Dette målte vi 27. september 2026 (
-            <a href={`${REPORTS}/reports/2026-09-26-64gb-tier/night-64-4.md`} className={linkClass}>
+            <a href={`${REPORTS}/reports/2026-09-26-64gb-tier/night-64-4.md#review-2026-09-28`} className={linkClass}>
               måling 64-4
             </a>
             ):
@@ -228,9 +228,9 @@ nav-pilot alpha local init      # laster ned vektene og starter`}
           <Bullets>
             <li>Den løste oppgaven i 12 av 12 Copilot-økter.</li>
             <li>
-              Med decide svarte den like godt som standardmodellen på oppskriftene: 184 av 218 riktige mot 182, og 91 av
-              96 mot 89 på om en commit-melding forklarer hvorfor. På testene av svakheter fikk den 806 av 974 mot 827,
-              mest fordi den oftere bommet når grunnlaget prøvde å styre svaret, eller var langt.
+              Med decide svarte den like godt som standardmodellen på oppskriftene: 184 av 218 riktige mot 182. På
+              spørsmålet om en commit-melding forklarer hvorfor, fikk den 91 av 96 mot 89. På testene av svakheter fikk
+              den 806 av 974 mot 827. Forskjellen kom mest når grunnlaget prøvde å styre svaret, eller var langt.
             </li>
             <li>
               Minnebruken var på det meste 46,18 GB, med en prompt på 49 000 tokens. Grensen er 48 GB. Minnet tok ikke
@@ -238,18 +238,19 @@ nav-pilot alpha local init      # laster ned vektene og starter`}
             </li>
           </Bullets>
           <BodyLong>
-            Prompter over 49 000 tokens har vi ikke målt, selv om modellen tillater 64k. Rapporten anslår at den da
-            bruker rundt 50 GB, altså over grensen. Det skal{" "}
+            Prompter over 49 000 tokens har vi ikke målt, selv om modellen tillater 64k. Rapporten anslår rundt 50 GB
+            ved 64 000 tokens, altså over grensen.{" "}
             <a href={`${REPORTS}/reports/2026-09-26-64gb-tier/plan-64-6.md`} className={linkClass}>
-              måling 64-6
+              Måling 64-6
             </a>{" "}
-            finne ut.
+            skal måle det.
           </BodyLong>
           <BodyLong>
-            Hovedagenten sender ingenting til denne modellen ennå. Til måling 64-6 er kjørt, står alle oppgavetyper som{" "}
-            <code className={code}>cloud</code> i manifestet. Da får <code className={code}>local-worker</code> ingen
-            oppgaver, uansett hvilket utsendingsnivå du har valgt. Foreløpig kan du bruke modellen til decide og prøve
-            den selv.
+            Hovedagenten sender ingenting til denne modellen ennå. Alle oppgavetyper står som{" "}
+            <code className={code}>cloud</code> i manifestet, så <code className={code}>local-worker</code> får ingen
+            oppgaver, uansett hvilket utsendingsnivå du har valgt. Måling 64-6 skal gi tallene som kan endre det.
+            Foreløpig kan du bruke modellen til <code className={code}>alpha decide</code>, eller prøve den i en økt
+            selv.
           </BodyLong>
           <LinkableHeading id="autostart" size="small" level="3">
             Start serveren automatisk
