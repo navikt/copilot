@@ -1,0 +1,52 @@
+# `nav-pilot sync` without --apply is a check: for pi's scope it writes
+# nothing and lists what --apply would remove, as the opencode scope does
+# (#1043).
+
+fake-bin cplt pi
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+
+# A pi launch materializes the pakke for pi.
+exec nav-pilot --sync --source $WORK/plattform --client pi -- -p x
+exists $HOME/.nav-pilot/pi/agents/fjernes.md
+
+# The source drops an agent.
+cd $WORK/plattform
+rm agents/fjernes.agent.md
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qam fjern
+cd $WORK/repo
+exec /usr/bin/find $HOME/.nav-pilot/pi -type f -newer $HOME/.nav-pilot/pi/agents/fjernes.md
+cp stdout $WORK/newer-before.txt
+
+exits 1 nav-pilot sync --source $WORK/plattform
+stdout 'agents/fjernes\.md \(deleted in source; will be removed\)'
+stdout 'Pi scope has 1 file\(s\) to remove\. Run nav-pilot sync --apply to apply\.'
+exists $HOME/.nav-pilot/pi/agents/fjernes.md
+exec /usr/bin/find $HOME/.nav-pilot/pi -type f -newer $HOME/.nav-pilot/pi/agents/fjernes.md
+cmp stdout $WORK/newer-before.txt
+
+exec nav-pilot sync --apply --source $WORK/plattform
+stdout 'Pi scope synced'
+! exists $HOME/.nav-pilot/pi/agents/fjernes.md
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"pi":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/agents/fjernes.agent.md --
+---
+name: fjernes
+description: skal bort
+---
+bort
