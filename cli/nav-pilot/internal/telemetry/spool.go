@@ -127,17 +127,27 @@ func sendSpool(dir, endpoint string, client *http.Client) {
 	if err != nil {
 		return
 	}
-	for i, e := range entries {
+	pb := 0
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".pb") {
+			pb++
+		}
+	}
+	for _, e := range entries {
 		p := filepath.Join(dir, e.Name())
 		info, err := e.Info()
 		if err != nil {
 			continue
 		}
-		if time.Since(info.ModTime()) > spoolMaxAge || (strings.HasSuffix(e.Name(), ".pb") && len(entries)-i > spoolMaxFiles) {
+		isPB := strings.HasSuffix(e.Name(), ".pb")
+		if time.Since(info.ModTime()) > spoolMaxAge || (isPB && pb > spoolMaxFiles) {
 			os.Remove(p)
+			if isPB {
+				pb--
+			}
 			continue
 		}
-		if !strings.HasSuffix(e.Name(), ".pb") {
+		if !isPB {
 			continue
 		}
 		body, err := os.ReadFile(p)
@@ -148,6 +158,8 @@ func sendSpool(dir, endpoint string, client *http.Client) {
 		if err != nil {
 			return
 		}
+		// ponytail: body only, no headers, so OTEL_EXPORTER_OTLP_HEADERS or
+		// _COMPRESSION would not be repeated; nav-pilot sets neither.
 		req.Header.Set("Content-Type", "application/x-protobuf")
 		resp, err := client.Do(req)
 		if err != nil {

@@ -53,6 +53,8 @@ func navRepoFromDir(dir string) string {
 		}
 		if config, err := os.ReadFile(filepath.Join(gitDir, "config")); err == nil {
 			return parseNavRepo(originURL(string(config)))
+		} else if _, serr := os.Stat(gitDir); serr == nil {
+			return "" // a .git without a config: never the parent's remote
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {

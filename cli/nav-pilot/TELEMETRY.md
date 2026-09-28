@@ -126,14 +126,14 @@ Klassifisering prioriterer:
 - `device_id` = Stabil, deterministisk identifikator per maskin
   - Genereres fra: hostname + CLI-installasjonssti + MAC-adresse (SHA256)
   - Lagret lokalt i `~/.nav-pilot/device-id` (persistent)
+  - Samme maskin = alltid samme ID (reproducible)
+  - **Inneholder INGEN persondata** (kun hardware/path)
 
 **Usendte metrikker:**
 - Den siste sendingen fra en kommando legges i `~/.nav-pilot/telemetry-spool/`, og neste nav-pilot sender den i bakgrunnen
 - Filene inneholder de samme metrikkene som ellers ville blitt sendt, og ikke noe mer
 - Filer eldre enn sju dager slettes usendt, og det ligger aldri mer enn 50 filer der
 - Slår du av telemetrien, slettes mappa ved neste kjøring, og ingenting i den sendes
-  - Samme maskin = alltid samme ID (reproducible)
-  - **Inneholder INGEN persondata** (kun hardware/path)
 
 **Dataoppbevaring:**
 - Oppbevaringstid styres av backend (Prometheus/OTLP-collector), ikke av CLI-en.
