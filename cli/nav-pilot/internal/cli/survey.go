@@ -64,8 +64,8 @@ type surveyDef struct {
 	Questions []surveyQuestion `json:"questions"`
 }
 
-// surveyQuestion is the part of copilot-cli's question format nav-pilot
-// renders (apps/copilot-cli/surveys/README.md); the analysis fields are not
+// surveyQuestion is the part of copilot-survey's question format nav-pilot
+// renders (apps/copilot-survey/surveys/README.md); the analysis fields are not
 // needed here.
 type surveyQuestion struct {
 	ID         string   `json:"id"`

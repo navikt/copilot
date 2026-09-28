@@ -41,13 +41,12 @@ gets a new path (`/api/v2/…`).
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/usage` | GitHub | copilot-api `GET /api/v1/copilot/usage/user/{login}` |
 | `GET` | `/api/v1/surveys/active` | none | copilot-survey, same path |
-| `POST` | `/api/v1/surveys/{id}/responses` | GitHub | copilot-survey, same path: 201, 409 already answered, 400 invalid, 403 no Nav identity, 404 not open, 413 body over 32 KiB, 503 not taking answers, 502 copilot-survey unreachable or refused the gateway |
+| `POST` | `/api/v1/surveys/{id}/responses` | GitHub | copilot-survey, same path: 201, 409 already answered, 400 invalid, 403 no Nav identity, 404 not open, 400 or 413 body over 32 KiB, 503 not taking answers, 502 copilot-survey unreachable or refused the gateway |
 | `GET` | `/health`, `/ready`, `/metrics` | none | — (probes and Prometheus) |
 
-Status, body, `Content-Type` and `Cache-Control` come back unchanged (a
-redirect is returned, not followed; a missing `Content-Type` stays missing); an
-unreachable service gives 502, and so does a 401 from it, since that is
-about copilot-cli's own token and not the caller's. No retry, so no request body is buffered.
+Status, body, `Content-Type` and `Cache-Control` come back unchanged. A redirect is
+returned, not followed. An unreachable service gives 502, and so does a 401 from it:
+that is about copilot-cli's own token, not the caller's. No retry, so no request body is buffered.
 Survey data model, key lifecycle and residual risks: [copilot-survey's README](../copilot-survey/README.md).
 
 ## Configuration
