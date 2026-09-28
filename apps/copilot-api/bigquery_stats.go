@@ -869,7 +869,10 @@ const minUsersForDistribution = 5
 // UsageHistogramBucket is one bucket of the credits histogram: how many
 // users fall in a given usage range. No individual users are identifiable.
 // A bucket with 1 to minUsersForDistribution-1 users is sent as Suppressed
-// with NumUsers 0, so the exact small count never leaves the API.
+// with NumUsers 0, so the exact small count is not shown. A reader can still
+// recover a single suppressed bucket by subtracting the others from
+// UsageDistribution.NumUsers; the count names no one, and a user's own bucket
+// is only computed in the browser from their own credits.
 type UsageHistogramBucket struct {
 	Bucket     string `bigquery:"bucket" json:"bucket"`
 	NumUsers   int64  `bigquery:"num_users" json:"num_users"`

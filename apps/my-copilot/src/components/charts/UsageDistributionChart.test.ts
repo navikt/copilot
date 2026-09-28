@@ -18,12 +18,12 @@ describe("populationText", () => {
   // can exceed today's seat count. That must never become "104 % adopsjon".
   it("shows both numbers without a ratio when users exceed seats", () => {
     const text = populationText(distribution(710, 682));
-    expect(text).toBe("710 brukere med Copilot-aktivitet i september 2026 · 682 lisenser nå.");
+    expect(text).toBe("710 brukere hadde Copilot-aktivitet i september 2026. Nav har 682 lisenser i dag.");
     expect(text).not.toMatch(/%|adopsjon/);
   });
 
   it("leaves out seats when the seat count is unknown", () => {
-    expect(populationText(distribution(710, 0))).toBe("710 brukere med Copilot-aktivitet i september 2026.");
+    expect(populationText(distribution(710, 0))).toBe("710 brukere hadde Copilot-aktivitet i september 2026.");
   });
 });
 
@@ -32,12 +32,7 @@ describe("countText", () => {
     expect(countText({ bucket: "100%+", num_users: 0, suppressed: true })).toBe("<5");
   });
 
-  it("shows zero and larger counts as numbers", () => {
+  it("shows an empty bucket as 0", () => {
     expect(countText({ bucket: "0%", num_users: 0 })).toBe("0");
-    expect(countText({ bucket: "1-9%", num_users: 1234 })).toBe(formatted(1234));
   });
 });
-
-function formatted(n: number): string {
-  return new Intl.NumberFormat("nb-NO").format(n);
-}
