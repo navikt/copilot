@@ -51,6 +51,7 @@
   "/cplt": {
     "sources": [
       "README.md",
+      "apps/my-copilot/src/app/(en)/cplt/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
       "apps/my-copilot/src/app/(nb)/cplt/page.tsx",
@@ -1682,6 +1683,7 @@
   },
   "/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr": {
     "sources": [
+      "apps/my-copilot/src/app/(en)/cplt/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
       "apps/my-copilot/src/app/(nb)/cplt/page.tsx",

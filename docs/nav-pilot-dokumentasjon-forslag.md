@@ -32,7 +32,7 @@ Tidligere vedtak om V3 (disclosure-nedtrekk og at meny-PR-en venter på svar fra
 Brukerne ser nav-pilot som paraplyen for alt Copilot-relatert i Nav, og det er riktig. V3 hadde nav-pilot som ett av tre menypunkter under «Verktøy», ved siden av cplt og verktøykatalogen. Det er motsatt av hvordan brukerne tenker. Derfor:
 
 1. **Gruppene i V3 byttes ut.** nav-pilot blir inngangen. Kom i gang, verktøykatalogen, agentpakkene og cplt ligger under eller ved siden av den ([§1.1](#11-hva-paraplyen-dekker)).
-2. **Seksjonsmenyen dekker hele paraplyen**, ikke bare `/nav-pilot/*`. `/kom-i-gang`, `/verktoy` og `/cplt` får samme seksjonsmeny som nav-pilot-sidene.
+2. **Seksjonsmenyen dekker hele paraplyen**, ikke bare `/nav-pilot/*`. `/kom-i-gang`, `/verktoy` og `/cplt` får samme seksjonsmeny som nav-pilot-sidene. (Senere endret: `/cplt` er flyttet ut av rutegruppen til den engelske layouten uten seksjonsmeny, fordi den er landingssiden for cplt som åpen kildekode, #1164.)
 3. **Ingen URL-er utenfor `/nav-pilot/docs` flyttes.** Hierarkiet vises med meny, seksjonsmeny og en linje over sidetittelen med navnet på gruppen. Aksel gjør det samme: `/komponenter`, `/grunnleggende` og `/monster-maler` ligger på toppnivå, men menyen viser dem som «Designsystemet» [40][42].
 4. **Ny regel: lenker brytes aldri** ([§2](#2-lenker-brytes-aldri)). Det er et krav til hver PR, ikke et valg.
 5. **Aksel er forbildet for navigasjonen.**

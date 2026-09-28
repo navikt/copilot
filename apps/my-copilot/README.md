@@ -163,7 +163,7 @@ The command only adds entries. When a page moves, add a permanent redirect in `n
 
 ### The /cplt page
 
-`/cplt` is the landing page for the cplt open-source project, for readers outside Nav. It stays in English and keeps its own dark design, although it sits under the Norwegian `(nb)` route group. Don't translate it or give it the Aksel look of the documentation pages; fix bugs only. `src/cplt-page.test.ts` fails if the page loses `lang="en"`.
+`/cplt` is the landing page for the cplt open-source project, for readers outside Nav. It stays in English and keeps its own dark design. It sits under the English `(en)` route group (`src/app/(en)/cplt/`), so it gets the English site header and footer and no nav-pilot section menu; the menu still links to it as «Sandkassen (cplt)». Don't translate it or give it the Aksel look of the documentation pages; fix bugs only. `src/cplt-page.test.ts` fails if the page loses `lang="en"`.
 
 ### Deployment
 
