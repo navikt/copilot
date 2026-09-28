@@ -348,8 +348,10 @@ export default function Referanse() {
           <BodyLong>
             Målet er under 150 ms før klienten starter, under 200 ms fra økten slutter til du har terminalen tilbake, og
             under 50 ms for <code className={code}>--version</code> og <code className={code}>--help</code>, også når
-            nettet ikke svarer. Unntaket er en agentpakke fra et annet team (<code className={code}>source</code> i
-            konfigurasjonen): den hentes ved oppstart, i opptil 15 sekunder.
+            nettet ikke svarer. Unntaket er nedlastingen av agentpakka. En agentpakke fra et annet team (
+            <code className={code}>source</code> i konfigurasjonen) hentes ved oppstart: har nav-pilot en kopi av
+            manifestet fra før, venter oppstarten høyst 15 sekunder; første gang venter den til nedlastingen er ferdig
+            eller git gir opp. opencode og pi venter dessuten på den første nedlastingen av agentpakka (se «opencode»).
           </BodyLong>
         </VStack>
       </section>

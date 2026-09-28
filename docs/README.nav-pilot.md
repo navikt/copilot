@@ -712,8 +712,11 @@ Veiviseren (`nav-pilot config setup`) viser en modellvelger tilpasset valgt klie
 
 nav-pilot skal starte klienten uten å vente på nettet. Målet er under 150 ms før klienten
 starter, under 200 ms fra økten slutter til du har terminalen tilbake, og under 50 ms for
-`--version` og `--help`, også når nettet ikke svarer. Unntaket er en agentpakke fra et annet
-team (`source` i konfigurasjonen): den hentes ved oppstart, i opptil 15 sekunder.
+`--version` og `--help`, også når nettet ikke svarer. Unntaket er nedlastingen av agentpakka. En agentpakke fra et
+annet team (`source` i konfigurasjonen) hentes ved oppstart: har nav-pilot en kopi av manifestet
+fra før, venter oppstarten høyst 15 sekunder; første gang venter den til nedlastingen er ferdig
+eller git gir opp. opencode og pi venter dessuten på den første nedlastingen av agentpakka (se
+«opencode»).
 
 Det som trenger nett, skjer i bakgrunnen eller leses fra en kopi på maskinen:
 
