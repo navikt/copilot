@@ -56,7 +56,7 @@ func ResolveForLaunch(sourceRepo, cliVersion string) (src *Source, refresh func(
 		}
 		// Clone inside the cache directory, dot-named so pruneCache spares
 		// it, so the move into the cache is a rename on one filesystem.
-		if os.MkdirAll(dir, 0o755) == nil {
+		if os.MkdirAll(dir, 0o700) == nil {
 			defer func(p, pat string) { cloneTempParent, cloneTempPattern = p, pat }(cloneTempParent, cloneTempPattern)
 			cloneTempParent, cloneTempPattern = dir, ".fetch-*"
 		}
@@ -104,7 +104,7 @@ func keepInCache(dir string, s *Source) {
 	if s.TempDir == "" || s.SHA == "" || s.SHA == "unknown" {
 		return
 	}
-	if os.MkdirAll(dir, 0o755) != nil {
+	if os.MkdirAll(dir, 0o700) != nil {
 		return
 	}
 	co := filepath.Join(dir, s.SHA)
@@ -120,9 +120,23 @@ func keepInCache(dir string, s *Source) {
 // cached checkout. The previous checkout stays until the one after, so a launch
 // reading it while this runs is not left with a directory that went away.
 func fetchIntoCache(ctx context.Context, dir, repo string) error {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	// Private: the source may be a private repository.
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
+	// One refresh at a time, so two sessions cannot each move the cache on
+	// and prune the checkout a third launch is reading. A lock older than
+	// the longest fetch is left over from a killed process.
+	lock := filepath.Join(dir, ".refresh.lock")
+	if info, err := os.Stat(lock); err == nil && time.Since(info.ModTime()) > 10*time.Minute {
+		os.Remove(lock)
+	}
+	lf, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return nil
+	}
+	lf.Close()
+	defer os.Remove(lock)
 	tmp, err := os.MkdirTemp(dir, ".fetch-")
 	if err != nil {
 		return err

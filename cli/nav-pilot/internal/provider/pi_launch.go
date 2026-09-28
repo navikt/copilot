@@ -42,13 +42,13 @@ func piNavContextDir() string {
 // EnsurePiNavContext materializes the active agentpakke for pi and returns a
 // one-line summary, mirroring [EnsureOpenCodeNavContext].
 func EnsurePiNavContext(ref, sourceRepo string) (string, error) {
-	summary, _, err := ensurePiNavContext(ref, sourceRepo)
+	summary, _, err := ensurePiNavContext(ref, sourceRepo, false)
 	return summary, err
 }
 
 // ensurePiNavContext is [EnsurePiNavContext] with the background fetch that
 // keeps the cached source current, as [ensureOpenCodeNavContext].
-func ensurePiNavContext(ref, sourceRepo string) (string, func(context.Context), error) {
+func ensurePiNavContext(ref, sourceRepo string, launch bool) (string, func(context.Context), error) {
 	outputDir := piNavContextDir()
 
 	// The caller's source wins, then whatever the last sync recorded: the same
@@ -61,7 +61,7 @@ func ensurePiNavContext(ref, sourceRepo string) (string, func(context.Context), 
 		sRepo = prev.SourceRepo
 	}
 
-	src, refresh, err := resolveForLaunch(ref, sRepo)
+	src, refresh, err := resolveForLaunch(ref, sRepo, launch)
 	if err != nil {
 		return "", refresh, fmt.Errorf("resolving source: %w", err)
 	}
@@ -185,7 +185,7 @@ func LaunchPi(resolved domain.ResolvedConfig) error {
 	// resolved config too (#813), but it only runs from `config setup`, and a
 	// launch must not depend on having been through the wizard.
 	if piDeclaresTier1() {
-		_, refresh, err := ensurePiNavContext("", resolved.Source)
+		_, refresh, err := ensurePiNavContext("", resolved.Source, true)
 		defer refreshInBackground(refresh)()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s Could not materialize the agentpakke for pi: %v\n", domain.Yellow("⚠"), err)

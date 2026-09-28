@@ -83,9 +83,24 @@ func TestResolveForLaunchCachesAndRefreshes(t *testing.T) {
 		t.Fatalf("previous checkout removed: %v", err)
 	}
 
-	// A cancelled refresh leaves the cache as it was.
+	// A refresh already running elsewhere (its lock is fresh): this one
+	// leaves the cache alone.
+	if err := os.WriteFile(filepath.Join(dir, ".refresh.lock"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
 	writeCacheMeta(dir, cacheMeta{SHA: second, FetchedAt: time.Now().Add(-2 * launchRefreshEvery)})
 	commit("three")
+	_, refresh, _ = ResolveForLaunch("navikt/x", "v1")
+	refresh(context.Background())
+	if src, _, _ := ResolveForLaunch("navikt/x", "v1"); src.SHA != second {
+		t.Fatalf("refreshed while another refresh held the lock: %s", src.SHA)
+	}
+	os.Remove(filepath.Join(dir, ".refresh.lock"))
+	if info, err := os.Stat(dir); err != nil || info.Mode().Perm() != 0o700 {
+		t.Errorf("cache dir mode %v, want 0700 (a private source is checked out there)", info.Mode().Perm())
+	}
+
+	// A cancelled refresh leaves the cache as it was.
 	_, refresh, _ = ResolveForLaunch("navikt/x", "v1")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
