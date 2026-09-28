@@ -1027,7 +1027,8 @@
       "apps/my-copilot/src/lib/nav-items.ts",
       "docs/README.nav-pilot.md",
       "docs/news/articles/alpha-decide.md",
-      "docs/news/articles/nav-pilot-alpha-decide.md"
+      "docs/news/articles/nav-pilot-alpha-decide.md",
+      "docs/news/articles/nav-pilot-lokal-linux-egen-server.md"
     ],
     "anchors": {
       "doctor": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx"],
@@ -1037,7 +1038,8 @@
       "klient": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx"],
       "lite-minne": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx",
-        "cli/nav-pilot/internal/cli/alpha_local_doctor.go"
+        "cli/nav-pilot/internal/cli/alpha_local_doctor.go",
+        "docs/news/articles/nav-pilot-lokal-linux-egen-server.md"
       ],
       "setup": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx"],
       "start-serveren": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx"]
@@ -1656,6 +1658,10 @@
     "anchors": {}
   },
   "/nyheter/nav-pilot-hooks-redaction-loop-guard": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/nav-pilot-lokal-linux-egen-server": {
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
     "anchors": {}
   },
