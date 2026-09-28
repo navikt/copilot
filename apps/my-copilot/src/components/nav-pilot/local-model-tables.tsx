@@ -15,6 +15,8 @@ const LOCAL_MODEL_TEXT: Record<string, string> = {
     "Mye tregere enn standardmodellen. Bruker 8 bit på de mest følsomme lagene og 4 bit på resten. I siste måling nådde ingen oppgaver tidsgrensen. Det gjorde den vanlige 4-bit-versjonen den erstatter.",
   "qwen3.8-27b-8bit-mlx":
     "Den tregeste. Løste litt flere oppgaver enn standardmodellen i siste måling, men bruker mange ganger så lang tid. Leser lange prompter i små steg for å bruke mindre minne, og det steget kjenner bare nyere nav-pilot til.",
+  "qwen3.6-35b-a3b-8bit":
+    "Standardmodellen i 8 bit, for Macer med 64 GB minne eller mer. Du må velge den selv. Ingen oppgavetyper er godkjent for den ennå, så hovedagenten sender den ingenting.",
 };
 
 const TASK_CLASS_LABEL: Record<string, string> = {

@@ -20,6 +20,8 @@ const TOC: TocItem[] = [
   { id: "decide-oppskrifter", label: "Oppskrifter for alpha decide" },
 ];
 
+const REPORTS = "https://github.com/navikt/mlx-workspace/blob/main";
+
 // Recipes for alpha decide. String.raw keeps the shell's \n and \ intact.
 
 const DECIDE_PR_DESCRIPTION = String.raw`gh pr view N --json title,body \
@@ -198,6 +200,56 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
             <code className={code}>purge</code> fjerner Python-miljøet, den valgte modellen og modeller manifestet har
             erstattet. <code className={code}>purge --all</code> fjerner alle. Ingenting slettes før du legger til{" "}
             <code className={code}>--yes</code>.
+          </BodyLong>
+          <LinkableHeading id="modell-64-gb" size="small" level="3">
+            Større modell for Macer med 64 GB
+          </LinkableHeading>
+          <BodyLong>
+            Har Macen 64 GB minne eller mer, kan du velge <code className={code}>qwen3.6-35b-a3b-8bit</code>. Det er
+            standardmodellen i 8 bit i stedet for 4 bit, og vektene tar 38 GB. Den blir aldri standard, så du må velge
+            den selv:
+          </BodyLong>
+          <CodeBlock compact>
+            {`nav-pilot alpha local models    # på mindre maskiner står det «needs 64 GB RAM»
+nav-pilot alpha local use qwen3.6-35b-a3b-8bit
+nav-pilot alpha local init      # laster ned vektene og starter`}
+          </CodeBlock>
+          <BodyLong>
+            Modellen trenger at minnegrensen i macOS er 48 GB. <code className={code}>init</code> og{" "}
+            <code className={code}>start</code> spør før de hever den. Den har 64k kontekst og 16k svar.
+          </BodyLong>
+          <BodyLong>
+            Dette målte vi 27. september 2026 (
+            <a href={`${REPORTS}/reports/2026-09-26-64gb-tier/night-64-4.md`} className={linkClass}>
+              måling 64-4
+            </a>
+            ):
+          </BodyLong>
+          <Bullets>
+            <li>Den løste oppgaven i 12 av 12 Copilot-økter.</li>
+            <li>
+              Med decide svarte den like godt som standardmodellen på oppskriftene: 184 av 218 riktige mot 182, og 91 av
+              96 mot 89 på om en commit-melding forklarer hvorfor. På testene av svakheter fikk den 806 av 974 mot 827,
+              mest fordi den oftere bommet når grunnlaget prøvde å styre svaret, eller var langt.
+            </li>
+            <li>
+              Minnebruken var på det meste 46,18 GB, med en prompt på 49 000 tokens. Grensen er 48 GB. Minnet tok ikke
+              slutt.
+            </li>
+          </Bullets>
+          <BodyLong>
+            Prompter over 49 000 tokens har vi ikke målt, selv om modellen tillater 64k. Rapporten anslår at den da
+            bruker rundt 50 GB, altså over grensen. Det skal{" "}
+            <a href={`${REPORTS}/reports/2026-09-26-64gb-tier/plan-64-6.md`} className={linkClass}>
+              måling 64-6
+            </a>{" "}
+            finne ut.
+          </BodyLong>
+          <BodyLong>
+            Hovedagenten sender ingenting til denne modellen ennå. Til måling 64-6 er kjørt, står alle oppgavetyper som{" "}
+            <code className={code}>cloud</code> i manifestet. Da får <code className={code}>local-worker</code> ingen
+            oppgaver, uansett hvilket utsendingsnivå du har valgt. Foreløpig kan du bruke modellen til decide og prøve
+            den selv.
           </BodyLong>
           <LinkableHeading id="autostart" size="small" level="3">
             Start serveren automatisk
