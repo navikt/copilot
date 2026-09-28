@@ -102,4 +102,7 @@ export const LEGACY_ANCHORS: Record<string, string> = {
 
   // Own server got its own introduction.
   "/nav-pilot/guider/lokal#egen-server": "/nav-pilot/lokal/egen-server#start-serveren",
+
+  // /cplt was translated to Norwegian (#1096).
+  "/cplt#security-boundary": "/cplt#sikkerhetsgrense",
 };
