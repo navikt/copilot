@@ -9,7 +9,7 @@ import { Bullets, DocPage, HeaderRow, code, linkClass } from "@/components/nav-p
 import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
-  title: "Klienter — nav-pilot",
+  title: "Klienter",
   description:
     "Copilot CLI, opencode og pi: hva hver klient kan, hvordan nav-pilot håndhever Navs MCP-register i opencode, og hva som mangler.",
 };
