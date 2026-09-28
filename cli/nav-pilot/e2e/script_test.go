@@ -303,8 +303,8 @@ func serveFakeMLX() {
 // answers "data": null the way an Ollama with nothing pulled does. -export
 // -llama makes it llama-server rather than Ollama (no /api/version). -export
 // names the variable instead of FAKE_ENDPOINT_URL, and VAR_ADDR gets host:port.
-// -oom-ctx N plays a server that runs out of memory: a chat with a model
-// whose context is over N tokens kills it, and it closes every connection
+// -oom-ctx N plays a server that runs out of memory: a prompt that keeps
+// more than N tokens kills it, and it closes every connection
 // from then on, the way an OOM-killed Ollama stops answering.
 func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 	if neg {
@@ -428,12 +428,12 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 		if n, ok := modelCtx[strings.TrimSuffix(req.Model, ":latest")]; ok { // Ollama answers to x and x:latest alike
 			limit = n
 		}
-		if oomCtx > 0 && limit > oomCtx {
-			die()
-			return
-		}
 		if limit > 0 && prompt > limit {
 			prompt = limit
+		}
+		if oomCtx > 0 && prompt > oomCtx {
+			die()
+			return
 		}
 		msg := map[string]any{"role": "assistant", "content": "A"}
 		if len(req.Tools) > 0 {

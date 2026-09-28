@@ -2,15 +2,18 @@
 # probe. setup says the server went away, most likely out of memory, and
 # suggests a smaller context, not the larger one that caused it (#1127).
 
-fake-endpoint -export OLLAMA -ctx 4096 -oom-ctx 32768
+fake-endpoint -export OLLAMA -ctx 4096 -oom-ctx 16384
 env NAV_PILOT_SETUP_CANDIDATES=ollama=$OLLAMA_ADDR
 
 exits 1 nav-pilot alpha local setup --fix-context --yes
 stdout 'Created qwen3\.6-35b-navpilot'
 stdout 'FAIL  context +the server stopped answering during the 30k-token'
 stdout 'most likely out of memory'
+stdout 'PASS  tool calls'
+stdout 'qwen3\.6-35b-navpilot keeps its 65536-token context'
+stdout 'ollama rm qwen3\.6-35b-navpilot'
 stdout 'OLLAMA_CONTEXT_LENGTH=16384'
 ! stdout 'Only the context check failed'
-stderr 'nothing was saved\. Fix the FAIL lines above, then run nav-pilot alpha local setup'
+stderr 'nothing was saved\. Fix the FAIL lines above, then run nav-pilot alpha local setup --model qwen3\.6:35b'
 ! stderr '--fix-context'
 ! exists home/config.toml

@@ -6,7 +6,7 @@
 fake-endpoint -export OLLAMA -ctx 4096
 env NAV_PILOT_SETUP_CANDIDATES=ollama=$OLLAMA_ADDR
 
-exec pty-run -wait 'Create qwen3.6-35b-navpilot now' -send '\r' -wait 'Save anyway, with long prompts cut' -send 'y' -- nav-pilot alpha local setup
+exec pty-run -wait 'Create qwen3.6-35b-navpilot now' -send '\r' -wait 'Save anyway and turn' -send 'y' -- nav-pilot alpha local setup
 stdout 'Only the context check failed'
 stdout 'Saved\. Local dispatch is on, to qwen3\.6:35b'
 stdout 'Long prompts get cut'

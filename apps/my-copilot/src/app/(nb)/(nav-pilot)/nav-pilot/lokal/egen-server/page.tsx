@@ -118,8 +118,9 @@ export default function EgenServer() {
           <BodyLong>
             På en maskin med lite minne får du ikke plass til 30 000 tokens kontekst, og da feiler kontekstsjekken
             uansett. Er det den eneste sjekken som feiler, spør <code className={code}>setup</code> om du vil lagre
-            likevel. <code className={code}>alpha decide</code> sender korte prompter og virker, men en Copilot- eller
-            opencode-økt blir kuttet. Uten terminal lagrer den ikke, men viser kommandoene som gjør det.
+            likevel. <code className={code}>alpha decide</code> sender korte prompter og virker, men i en Copilot- eller
+            opencode-økt kutter serveren det som ikke får plass. Uten terminal lagrer den ikke, heller ikke med{" "}
+            <code className={code}>--yes</code>, men viser kommandoene som gjør det.
           </BodyLong>
           <BodyLong>
             Slutter serveren å svare midt i kontekstsjekken, er den trolig tom for minne. Da foreslår{" "}

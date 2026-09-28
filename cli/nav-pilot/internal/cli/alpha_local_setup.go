@@ -297,8 +297,9 @@ func cmdLocalSetup(args []string) error {
 	}
 
 	checks := runDoctor(ctx, choice.Server.Base, choice.Model)
+	base, fixed := choice.Model, ""
 	if choice.Server.Kind == "ollama" && failed(checks, "context") {
-		fixed, err := fixOllamaContext(ctx, choice, f.fixContext)
+		fixed, err = fixOllamaContext(ctx, choice, f.fixContext)
 		if err != nil {
 			return err
 		}
@@ -315,14 +316,20 @@ func cmdLocalSetup(args []string) error {
 		if choice.Server.Kind == "ollama" && failed(checks, "context") && !serverGone {
 			again += " --fix-context --yes"
 		}
+		// The copy's own num_ctx overrides OLLAMA_CONTEXT_LENGTH, and setup
+		// would pick the copy again: it has to go.
+		if serverGone && fixed != "" {
+			fmt.Printf("  %s %s keeps its %d-token context whatever Ollama is started with. Remove it: %s\n\n", yellow("⚠"), fixed, contextTokens, bold("ollama rm "+fixed))
+			again += " --model " + base
+		}
 		// A context that only cuts long prompts still serves short ones, and
 		// on a small machine no larger context fits: offer to save it as is.
 		if len(fails) == 1 && fails[0].Name == "context" && !serverGone {
-			fmt.Printf("  %s Only the context check failed. With this context, alpha decide works: it sends a few hundred tokens. A Copilot or opencode session starts at about 22k tokens, and the server cuts what does not fit without saying so.\n\n", yellow("⚠"))
+			fmt.Printf("  %s Only the context check failed. With this context, alpha decide works: it sends a few hundred tokens. A Copilot or opencode session starts at about 22k tokens, and the server cuts or refuses what does not fit.\n\n", yellow("⚠"))
 			if isInteractive() {
 				return saveEndpoint(choice, checks, false)
 			}
-			return &exitCode{code: 1, err: fmt.Errorf("nothing was saved. Fix the FAIL lines above, then run %s. To save it with this context anyway: %s",
+			return &exitCode{code: 1, err: fmt.Errorf("nothing was saved. Fix the FAIL lines above, then run %s. Or save with this context anyway: %s",
 				bold(again), bold(fmt.Sprintf("nav-pilot config set local_endpoint %s/v1 && nav-pilot config set local_endpoint_model %s && nav-pilot config set local_enabled true", choice.Server.Base, choice.Model)))}
 		}
 		return &exitCode{code: 1, err: fmt.Errorf("nothing was saved. Fix the FAIL lines above, then run %s", bold(again))}
@@ -566,7 +573,7 @@ func saveEndpoint(c setupChoice, checks []doctorCheck, yes bool) error {
 	short := failed(checks, "context")
 	title := "Save and turn local dispatch on?"
 	if short {
-		title = "Save anyway, with long prompts cut, and turn local dispatch on?"
+		title = "Save anyway and turn local dispatch on?"
 	}
 	if !confirm(title, yes, !short) {
 		return cancelledError{nothingWritten: true}
