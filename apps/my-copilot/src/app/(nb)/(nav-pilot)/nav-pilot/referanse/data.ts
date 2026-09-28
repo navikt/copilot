@@ -138,7 +138,7 @@ export const CONFIG_KEYS = [
     key: "local_dispatch",
     flag: "--local-dispatch",
     values: "off · conservative · balanced · aggressive (standard: balanced)",
-    desc: "Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer, ti kallsteder eller en skriptet løkke. Et søk-og-erstatt teller hvert sted det endrer. Med aggressive slipper redigeringen gjennom først når fila er sendt til den lokale modellen, og det samme gjelder nye filer. Med aggressive sender hovedagenten mest, men det kostet mer skykreditter og tok lengre tid i målingene. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for.",
+    desc: "Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer, ti kallsteder eller en skriptet løkke. Et søk-og-erstatt teller hvert sted det endrer. Med aggressive slipper redigeringen gjennom først når fila er sendt til den lokale modellen, og det samme gjelder nye filer. Med aggressive sender hovedagenten mest, men det kostet flere AI-kreditter og tok lengre tid i målingene. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for.",
   },
   {
     key: "hook_loop_guard",
