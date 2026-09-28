@@ -130,8 +130,9 @@ maintainer decision. This change leaves `balanced` as it is.
 Three more samples were invalid: the orchestrator made a `/tmp` backup for the
 break-and-undo check in the verify text, the backup was auto-rejected, and the
 session ended. In one of them the production code was left broken. That is
-navikt/copilot#1237, and it has to land before or with this default. Without it,
-a headless create-file dispatch at `aggressive` can end with the code broken.
+navikt/copilot#1237, fixed before this default shipped: the verify text now keeps the
+undo inside the project, and the gate refuses a `/tmp` path (`deny_tmp`), so the
+session goes on. See "Checking the worker's result" below.
 
 ## Mechanisms, most reliable first
 
