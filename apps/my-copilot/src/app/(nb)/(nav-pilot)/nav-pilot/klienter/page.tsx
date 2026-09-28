@@ -363,10 +363,10 @@ export default function Klienter() {
         </BodyLong>
         <BodyLong>
           Instruksjonene, agentene og skillene nav-pilot installerer, ligger i {c("~/.config/opencode/")}, utenfor
-          prosjektet. Hver økt nav-pilot starter, får lese dem uten å spørre om {c("external_directory")}. Uten det spør
-          opencode hver gang modellen åpner en av dem, og {c("opencode run")} avviser spørsmålet og avslutter økten.
-          Andre kataloger utenfor prosjektet spør som før. Har du satt {c("external_directory")} til {c('"allow"')}{" "}
-          eller {c('"deny"')}, endrer nav-pilot ingenting.
+          prosjektet. Økter nav-pilot starter, får lese dem uten å spørre om {c("external_directory")}. Uten det må
+          opencode spørre hver gang modellen åpner en av dem, og {c("opencode run")} svarer nei og avslutter økten. For
+          andre kataloger utenfor prosjektet spør opencode som før. Har du satt {c("external_directory")} til{" "}
+          {c('"allow"')} eller {c('"deny"')}, endrer nav-pilot ingenting.
         </BodyLong>
         <LinkableHeading id="utsending" size="small" level="3">
           Lokal utsending

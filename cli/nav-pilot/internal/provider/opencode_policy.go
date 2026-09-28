@@ -36,7 +36,7 @@ func applyOpenCodePolicy(env []string) []string {
 // applyOpenCodeOwnDirs lets the session read the instructions, agents and
 // skills nav-pilot installs in opencode's config directory, and in a staged
 // launch's OPENCODE_CONFIG_DIR, without an external_directory request. Those
-// directories are outside the project, a model that opens a file there gets
+// directories are outside the project, so a model that opens a file there gets
 // asked, and `opencode run` rejects the request and ends the session (#1120).
 // Everything else outside the project still asks.
 //
