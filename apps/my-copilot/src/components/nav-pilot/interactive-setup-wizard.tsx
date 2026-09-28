@@ -5,13 +5,13 @@ import { useState, useEffect } from "react";
 import { Box, VStack, HStack, Heading, BodyShort, Button, Link, Stepper, Label, Detail } from "@navikt/ds-react";
 import { MonitorIcon, LaptopIcon, TerminalIcon, ChevronRightIcon, ChevronLeftIcon } from "@navikt/aksel-icons";
 import { CodeBlock } from "@/components/code-block";
-import { NAV_PILOT_APT_INSTALL, NAV_PILOT_BREW_INSTALL, NAV_PILOT_INSTALL_SCRIPT } from "@/lib/install-commands";
+import { type InstallOs, NAV_PILOT_INSTALL, OPENCODE_INSTALL } from "@/lib/install-commands";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type OS = "mac" | "linux" | "windows";
+export type OS = InstallOs;
 export type Workflow = "editor" | "cli" | "opencode";
 
 interface SetupCommandBlock {
@@ -19,9 +19,14 @@ interface SetupCommandBlock {
   commands: string[];
 }
 
+// A new install starts opencode, so only Copilot CLI needs a config line.
 const WORKFLOW_COMMANDS: Record<Workflow, string[]> = {
   cli: ["nav-pilot config set client copilot", "nav-pilot"],
-  opencode: ["nav-pilot config set client opencode", "nav-pilot --client opencode"],
+  opencode: [
+    "# Har du brukt nav-pilot før, beholder du klienten du har. Vil du bytte til opencode, kjør først:",
+    "# nav-pilot config set client opencode",
+    "nav-pilot",
+  ],
   editor: [],
 };
 
@@ -55,40 +60,20 @@ export function generateSetupScript(os: OS, workflow: Workflow) {
     });
   }
 
-  const isMac = os === "mac";
-
   if (workflow === "cli") {
     blocks.push({
       title: "# 1. Installer Copilot CLI",
       commands: ["curl -fsSL https://gh.io/copilot-install | bash"],
     });
   } else if (workflow === "opencode") {
-    blocks.push({ title: "# 1. Installer opencode", commands: ["curl -fsSL https://opencode.ai/install | bash"] });
+    blocks.push({ title: "# 1. Installer opencode", commands: [OPENCODE_INSTALL[os]] });
   }
 
-  if (isMac) {
-    blocks.push({
-      title: "# 2. Installer nav-pilot og cplt",
-      commands: [NAV_PILOT_BREW_INSTALL],
-    });
-  } else {
-    blocks.push({
-      title: "# 2. Installer nav-pilot og cplt",
-      commands: [
-        "if command -v apt-get >/dev/null; then   # Debian, Ubuntu: apt-arkivet",
-        ...NAV_PILOT_APT_INSTALL.split("\n").map((line) => `  ${line}`),
-        "else   # andre distroer: installasjonsskriptet",
-        `  ${NAV_PILOT_INSTALL_SCRIPT}`,
-        "fi",
-        "# Arkivet oppdateres hver time, så en helt fersk release kan mangle en liten stund.",
-        "# Stenger proxyen for navikt.github.io, kan du bruke installasjonsskriptet på Debian og Ubuntu også.",
-      ],
-    });
-  }
+  blocks.push({ title: "# 2. Installer nav-pilot og cplt", commands: [NAV_PILOT_INSTALL[os]] });
 
   // On a Mac, Homebrew puts nav-pilot and cplt on PATH. Only the Copilot CLI
   // script still installs to ~/.local/bin there.
-  if (!isMac) {
+  if (os !== "mac") {
     blocks.push({
       title: "# 2b. Gjør de nyinstallerte verktøyene tilgjengelige i dette skallet",
       commands: ['export PATH="$HOME/.local/bin:$PATH"   # installasjonsskriptet legger binæren hit'],

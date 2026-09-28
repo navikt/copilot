@@ -41,6 +41,22 @@ export const CPLT_APT_INSTALL = aptInstall(
 
 export type InstallOs = "mac" | "linux" | "windows";
 
+// One command per OS, the one the /nav-pilot hero shows; windows means WSL.
+// The Kom i gang wizard reads the same map, so the two can't disagree (#1187).
+export const NAV_PILOT_INSTALL: Record<InstallOs, string> = {
+  mac: NAV_PILOT_BREW_INSTALL,
+  linux: NAV_PILOT_INSTALL_SCRIPT,
+  windows: NAV_PILOT_INSTALL_SCRIPT,
+};
+
+// The same sources nav-pilot's first-run wizard offers (opencodeInstallCommand
+// in cli/nav-pilot/internal/cli/config_setup.go).
+export const OPENCODE_INSTALL: Record<InstallOs, string> = {
+  mac: "brew install anomalyco/tap/opencode",
+  linux: "curl -fsSL https://opencode.ai/install | bash",
+  windows: "curl -fsSL https://opencode.ai/install | bash",
+};
+
 // Maps navigator.userAgentData.platform or navigator.userAgent to the install view.
 // Anything we can't place (Android, BSD) gets macOS, the most common case.
 export function installOsFromPlatform(platform: string): InstallOs {
