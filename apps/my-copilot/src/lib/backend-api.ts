@@ -84,7 +84,7 @@ async function exchangeToken(userToken: string): Promise<string> {
     return pendingExchange.promise;
   }
 
-  const promise = doExchangeToken(userToken);
+  const promise = doExchangeToken(userToken, getCopilotApiAudience());
   pendingExchange = { token: userToken, promise };
 
   try {
@@ -97,7 +97,7 @@ async function exchangeToken(userToken: string): Promise<string> {
   }
 }
 
-async function doExchangeToken(userToken: string): Promise<string> {
+async function doExchangeToken(userToken: string, target: string): Promise<string> {
   const endpoint = process.env.NAIS_TOKEN_EXCHANGE_ENDPOINT;
   if (!endpoint) {
     throw new Error("NAIS_TOKEN_EXCHANGE_ENDPOINT not configured");
@@ -110,7 +110,7 @@ async function doExchangeToken(userToken: string): Promise<string> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         identity_provider: "entra_id",
-        target: getCopilotApiAudience(),
+        target,
         user_token: userToken,
       }),
     },
@@ -158,5 +158,18 @@ async function backendRequest<T>(path: string, userToken: string, options: Reque
   return response.json() as Promise<T>;
 }
 
+/**
+ * Exchange the user token for an OBO token to another app in the copilot
+ * namespace (e.g. copilot-survey). No in-flight deduplication: callers make one
+ * call per request.
+ */
+function exchangeTokenFor(userToken: string, app: string): Promise<string> {
+  const cluster = process.env.NAIS_CLUSTER_NAME;
+  if (!cluster) {
+    throw new Error("NAIS_CLUSTER_NAME not configured — cannot determine the audience");
+  }
+  return doExchangeToken(userToken, `api://${cluster}.copilot.${app}/.default`);
+}
+
 // Export main functions
-export { exchangeToken, backendRequest };
+export { exchangeToken, exchangeTokenFor, backendRequest, fetchWithTimeout, isLocalDev };

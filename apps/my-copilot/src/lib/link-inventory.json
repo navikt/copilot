@@ -1087,6 +1087,13 @@
       ]
     }
   },
+  "/nav-pilot/undersokelse": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/undersokelse/page.tsx"
+    ],
+    "anchors": {}
+  },
   "/nyheter": {
     "sources": ["apps/my-copilot/next.config.ts"],
     "anchors": {}
