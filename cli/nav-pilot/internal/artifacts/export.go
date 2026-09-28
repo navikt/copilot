@@ -204,8 +204,9 @@ func OpenCodeOutputDir(scope *domain.InstallScope) string {
 }
 
 // OpenCodeConfigDir is where OpenCode reads its global config:
-// $XDG_CONFIG_HOME/opencode when that is an absolute path, as OpenCode
-// resolves it, and ~/.config/opencode otherwise.
+// $XDG_CONFIG_HOME/opencode when that is an absolute path, and
+// ~/.config/opencode otherwise. The XDG spec says to ignore a relative
+// value; OpenCode itself would take it relative to its working directory.
 func OpenCodeConfigDir() string {
 	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" && filepath.IsAbs(x) {
 		return filepath.Join(x, "opencode")
