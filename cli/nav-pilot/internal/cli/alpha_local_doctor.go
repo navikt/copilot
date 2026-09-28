@@ -102,12 +102,13 @@ func runDoctor(ctx context.Context, base, model string) []doctorCheck {
 			fmt.Printf("        %s %s\n", dim("Fix:"), wrapIndent(c.Fix, "             ", 72))
 		}
 	}
-	// skipAfter reports the checks after c as skipped when c found the
-	// server not answering: a request to a dead server says nothing about
-	// its template or its context.
+	// skipAfter reports the checks after c as skipped when the server check
+	// failed or c found the server gone: a request to a server that is not
+	// there, or not an OpenAI server, says nothing about its template or
+	// its context.
 	skipAfter := func(c doctorCheck, rest ...string) bool {
 		report(c)
-		if c.Level != levelFail || (c.Fix != fixStartServer && c.Fix != fixServerGone) {
+		if c.Level != levelFail || (c.Name != "server" && c.Fix != fixServerGone) {
 			return false
 		}
 		for _, name := range rest {
