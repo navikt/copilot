@@ -22,7 +22,7 @@ nav-pilot starter nå opencode på nye installasjoner. Har du brukt nav-pilot f�
 ## Hvorfor opencode
 
 - **Åpen kildekode.** Vi kan lese koden og melde feil der de hører hjemme.
-- **Passer med resten.** opencode virker med mange modeller og leverandører, og med agentpakkene, hooks og Navs MCP-register i nav-pilot. Maskering av hemmeligheter og fødselsnumre og løkkevakten gjelder i opencode som i Copilot CLI.
+- **Passer med resten.** opencode virker med mange modeller og leverandører, og med agentpakkene, hooks og Navs MCP-register i nav-pilot. Når nav-pilot starter opencode, gjelder maskering av hemmeligheter og fødselsnumre og løkkevakten som i Copilot CLI. Med `--pure` kjører ingen hooks.
 - **Lokale modeller.** Bare i opencode kan hovedagenten kjøre på en skymodell og sende avgrensede jobber til en lokal modell på maskinen din (`local-worker`). I Copilot CLI kjører en økt enten helt lokalt eller helt i skyen. Stoppet som griper inn når hovedagenten redigerer for mye selv (`local_dispatch` på `balanced` og `aggressive`), finnes også bare i opencode.
 
 Hva hver klient kan, og hva som fortsatt mangler i opencode, står på [Klienter](/nav-pilot/klienter).
