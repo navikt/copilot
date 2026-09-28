@@ -23,7 +23,7 @@ interface SetupCommandBlock {
 const WORKFLOW_COMMANDS: Record<Workflow, string[]> = {
   cli: ["nav-pilot config set client copilot", "nav-pilot"],
   opencode: [
-    "# Har du brukt nav-pilot før, beholder du klienten du har. Bytt til opencode først med:",
+    "# Har du brukt nav-pilot før, beholder du klienten du har. Vil du bytte til opencode, kjør først:",
     "# nav-pilot config set client opencode",
     "nav-pilot",
   ],
@@ -73,7 +73,7 @@ export function generateSetupScript(os: OS, workflow: Workflow) {
 
   // On a Mac, Homebrew puts nav-pilot and cplt on PATH. Only the Copilot CLI
   // script still installs to ~/.local/bin there.
-  if (!isMac) {
+  if (os !== "mac") {
     blocks.push({
       title: "# 2b. Gjør de nyinstallerte verktøyene tilgjengelige i dette skallet",
       commands: ['export PATH="$HOME/.local/bin:$PATH"   # installasjonsskriptet legger binæren hit'],
