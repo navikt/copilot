@@ -1209,26 +1209,14 @@ func Main(info BuildInfo) {
 	}
 
 	recordHookEvents()
-	// Telemetry goes to the spool and does not wait for the network. The
-	// version check a command started in the background gets a short moment
-	// to finish; --version and --help do not wait for it: the next command
-	// reads it.
+	// Telemetry goes to the spool and does not wait for the network. Nor does
+	// the exit wait for the version check a command started in the
+	// background: one that has not answered by now is dropped, and a later
+	// command, or a session, which runs long enough, asks again.
 	flushTelemetry(telemetry)
-	if !quick {
-		artifacts.WaitForRefresh(refreshBudget())
-	}
 	if exitCode != 0 {
 		os.Exit(exitCode)
 	}
-}
-
-// refreshBudget is how long the exit waits for the version check: shortest
-// after a session, when the user is waiting for the shell.
-func refreshBudget() time.Duration {
-	if sessionClient != "" {
-		return 150 * time.Millisecond
-	}
-	return 300 * time.Millisecond
 }
 
 // isQuickCommand reports whether the command line only asks for the version

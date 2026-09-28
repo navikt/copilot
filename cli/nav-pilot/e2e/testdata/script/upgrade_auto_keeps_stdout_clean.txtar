@@ -4,9 +4,9 @@
 
 fake-gh
 
-# The release check runs in the background: the first command only asks,
-# the next one acts on the answer. Not --version: it does not wait for it.
-exec nav-pilot config get client
+# The release check runs in the background and no command waits for it, so
+# the answer an earlier command got is in the cache (checked "in the future":
+# not due again while the test runs).
 
 exec nav-pilot models --json
 validjson stdout
@@ -19,3 +19,5 @@ stderr 'Re-executing'
 
 -- home/config.toml --
 auto_update = true
+-- home/cache.json --
+{"last_checked":"2099-01-01T00:00:00Z","latest_version":"2026.09.24-120000-bbbbbbb"}
