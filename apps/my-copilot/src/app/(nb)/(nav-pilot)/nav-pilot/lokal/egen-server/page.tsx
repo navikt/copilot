@@ -115,9 +115,11 @@ export default function EgenServer() {
             Ollama fordeler selv lagene mellom grafikkortet og vanlig minne.{" "}
             <code className={code}>--n-cpu-moe 999</code> holder ekspertene i en MoE-modell som Qwen3.6-35B-A3B i vanlig
             minne. Med en tett modell velger du antall lag på grafikkortet med <code className={code}>-ngl</code> i
-            stedet. Med under 30 000 tokens feiler kontekstsjekken i <code className={code}>doctor</code>, men{" "}
-            <code className={code}>setup</code> tilbyr å lagre likevel. Korte prompter virker da, men en Copilot- eller
-            opencode-økt får ikke plass.
+            stedet. Start serveren på nytt med den mindre konteksten før du kjører <code className={code}>setup</code>{" "}
+            igjen. Med under 30 000 tokens feiler kontekstsjekken, fordi prompten kuttes, men da tilbyr{" "}
+            <code className={code}>setup</code> å lagre likevel. Korte prompter virker, men en Copilot- eller
+            opencode-økt får ikke plass. Går serveren tom for minne under sjekken, lagrer{" "}
+            <code className={code}>setup</code> ingenting.
           </BodyLong>
         </VStack>
       </section>
