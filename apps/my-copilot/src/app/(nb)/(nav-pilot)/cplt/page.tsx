@@ -48,7 +48,7 @@ type StatusKey = "allowed" | "exposed" | "blocked" | "filtered";
 const SECURITY_TABLE: { resource: string; without: StatusKey; with: StatusKey }[] = [
   { resource: "Prosjektmappa (lese og skrive)", without: "allowed", with: "allowed" },
   { resource: "Hemmeligheter (.env*, .pem, .key, SSH-nøkler)", without: "exposed", with: "blocked" },
-  { resource: "Skylegitimasjon (~/.aws, ~/.azure)", without: "exposed", with: "blocked" },
+  { resource: "Skynøkler (~/.aws, ~/.azure)", without: "exposed", with: "blocked" },
   { resource: "Mapper for byggeverktøy (~/.m2, ~/.gradle, ~/.cargo)", without: "allowed", with: "allowed" },
   {
     resource: "Innloggingsfiler for verktøy (~/.m2/settings.xml, ~/.gradle/gradle.properties)",
@@ -57,19 +57,19 @@ const SECURITY_TABLE: { resource: string; without: StatusKey; with: StatusKey }[
   },
   { resource: "Git-hooks‡, kjøring fra /tmp, SSH-agenten", without: "exposed", with: "blocked" },
   { resource: "Utgående nettverk (HTTPS)", without: "exposed", with: "filtered" },
-  { resource: "Private IP-adresser, og localhost på macOS†", without: "exposed", with: "blocked" },
+  { resource: "Private IP-adresser (og localhost på macOS†)", without: "exposed", with: "blocked" },
   {
     resource: "Destruktive git- og gh-kommandoer (push til standardgrenen, force push, merge, sletting)",
     without: "exposed",
     with: "blocked",
   },
-  { resource: "Copilot-innlogging og hurtigbuffer for verktøy (bare lesing)", without: "allowed", with: "allowed" },
+  { resource: "Copilot-innlogging og cache for verktøy (bare lesing)", without: "allowed", with: "allowed" },
 ];
 
 /* The footnote text below the table, repeated as abbr titles so the qualifier is
    available where the marker sits rather than a dozen rows further down. */
 const FOOTNOTES: Record<string, string> = {
-  "*": "Går gjennom en CONNECT-proxy. Telemetri og domener som ikke står på tillatlista, blir stoppet.",
+  "*": "Går gjennom en CONNECT-proxy. Proxyen stopper telemetri og domener som ikke står på tillatlista.",
   "†": "På Linux blir ikke localhost stoppet, og UDP er ikke begrenset, med mindre proxy.forced er på.",
   "‡": "Git-hooks er skrivebeskyttet på macOS. På Linux kan .git/hooks endres hvis ikke bubblewrap er installert.",
 };
@@ -126,7 +126,7 @@ const STEPS = [
     title: "Installer",
     command: INSTALL_COMMAND,
     description:
-      "Homebrew på macOS, arkivet for apt på Debian og Ubuntu (også i WSL2), installasjonsskriptet på alt annet.",
+      "Homebrew på macOS, apt-arkivet på Debian og Ubuntu (også i WSL2), installasjonsskriptet på alt annet.",
   },
   {
     title: "Sett opp",
@@ -268,8 +268,8 @@ function InstallSection({ stars }: { stars: number | null }) {
         Installer cplt
       </LinkableHeading>
       <BodyLong>
-        Agenten jobber i prosjektet ditt som vanlig, men får ikke lese hemmeligheter, SSH-nøkler eller skylegitimasjon.
-        Det er operativsystemet som stopper den, ikke agenten selv.
+        Agenten jobber i prosjektet ditt som vanlig, men får ikke lese hemmeligheter, SSH-nøkler eller skynøkler. Det er
+        operativsystemet som stopper den, ikke agenten selv.
       </BodyLong>
       <BodyShort>
         <NextLink href={ARTICLE_HREF} hrefLang="en" className={linkClass}>
@@ -309,8 +309,8 @@ function InstallSection({ stars }: { stars: number | null }) {
         windowsNote="cplt har ingen sandkasse på Windows. Installer den i Linux-distroen din under WSL2, der kjernen håndhever sandkassen."
       />
       <BodyLong>
-        Arkivet bygges på nytt hver time fra siste versjon. En versjon som kom for noen minutter siden, kan derfor ta
-        opptil en time før du kan installere den. Arkivet er et vanlig apt-repo som speiler versjonene våre, ikke en
+        Arkivet bygges på nytt hver time fra siste versjon. Kom en versjon for noen minutter siden, kan det derfor ta
+        opptil en time før du får installert den. Arkivet er et vanlig apt-repo som speiler versjonene våre, ikke en
         pakke i distribusjonen med egen vedlikeholder. På andre distribusjoner, i CI eller når en proxy stopper arkivet,
         bruker du <code className={`${code} break-all`}>{CPLT_INSTALL_SCRIPT}</code>.
       </BodyLong>
@@ -355,7 +355,7 @@ function SecurityTableSection() {
       <LinkableHeading id="sikkerhetsgrense" size="medium" level="2">
         Hva agenten får tilgang til
       </LinkableHeading>
-      <BodyLong>Hva agenten kan og ikke kan nå. Kjernen håndhever grensene.</BodyLong>
+      <BodyLong>Hva agenten kommer til, og hva som er stengt. Kjernen håndhever grensene.</BodyLong>
       <div className="overflow-x-auto">
         <Table size="small" className="table-stack" role="table" aria-labelledby="sikkerhetsgrense">
           <HeaderRow stack cells={SECURITY_COLS} />
@@ -384,11 +384,11 @@ function SecurityTableSection() {
       </BodyShort>
       <BodyLong>
         Kjernen håndhever grensene for filsystemet og systemkallene: Apple Seatbelt på macOS, Landlock og seccomp-BPF på
-        Linux. Er {c("bwrap")} installert, isolerer bubblewrap i tillegg med egne navnerom. Vaktene for git og gh virker
-        på en annen måte: med egne programmer først i PATH og et kommandofilter som ikke fanger alt.
+        Linux. Er {c("bwrap")} installert, isolerer bubblewrap i tillegg med egne namespaces. Vaktene for git og gh
+        virker på en annen måte: med egne programmer først i PATH og et kommandofilter som ikke fanger alt.
       </BodyLong>
       <BodyLong>
-        Bubblewrap er ikke en grense for nettverket. Sandkassen deler nettverket med maskinen med vilje, slik at proxyen
+        Bubblewrap er ikke en grense for nettverket. Sandkassen deler med vilje nettverket med maskinen, slik at proxyen
         virker. Rotfilsystemet monteres skrivebeskyttet, og Landlock styrer tilgangen. Kjente begrensninger står i{" "}
         <a href={`${GH}/blob/main/SECURITY.md`} className={linkClass}>
           SECURITY.md
@@ -409,7 +409,7 @@ function GuardsSection() {
       </LinkableHeading>
       <BodyLong>
         Vaktene stopper GitHub- og git-operasjoner som ikke kan angres. Agenten kan committe og lage grener, men ikke
-        pushe til main eller flette pull requests.
+        pushe til main eller merge pull requests.
       </BodyLong>
 
       <Sub title="gh-vakten har tre nivåer">
@@ -461,7 +461,7 @@ function GuardsSection() {
       <Sub title="Slå av vaktene">
         <BodyLong>
           Begge vaktene er på som standard. Slå dem av for én kjøring med {c("--no-gh-guard")} eller{" "}
-          {c("--no-git-guard")}. Vil du se hva de ville stoppet før de håndhever, setter du {c("mode: audit")}.
+          {c("--no-git-guard")}. Vil du bare se hva de ville stoppet, setter du {c("mode: audit")}.
         </BodyLong>
         <CodeBlock compact>{"cplt --no-gh-guard --no-git-guard"}</CodeBlock>
       </Sub>
@@ -493,7 +493,7 @@ function TeamConfigSection() {
       <Sub title="[propose] må godkjennes">
         <BodyLong>
           {c("[propose]")} ber om flere tillatelser. Hver utvikler godkjenner med {c("cplt trust accept --all")}.
-          Godkjenningen gjelder innholdet, så enhver endring i blokka gjør den ugyldig.
+          Godkjenningen gjelder innholdet, så en endring i blokka gjør den ugyldig.
         </BodyLong>
       </Sub>
 
@@ -632,7 +632,7 @@ function ProxyDiagram() {
       </text>
       <rect x="243" y="178" width="180" height="24" rx="4" fill="var(--ax-bg-neutral-moderate)" />
       <text x="333" y="194" textAnchor="middle" fill={T_SUBTLE} fontSize="11">
-        Vern mot DNS rebinding
+        Vern mot DNS-rebinding
       </text>
 
       <rect x="258" y="208" width="150" height="30" rx="6" fill="var(--ax-bg-warning-soft)" stroke={T_WARNING} />
@@ -720,7 +720,7 @@ function ProxySection() {
       <BodyLong className="md:hidden">
         Trafikk fra agenten ({c("curl")}, {c("fetch")}, {c("git")}) går til CONNECT-proxyen på{" "}
         {c("localhost:ephemeral")} inne i sandkassen. Proxyen bruker blokklista og tillatlista, et filter for private
-        IP-adresser og vern mot DNS rebinding, og skriver en logg. Tillatt trafikk når internett: github.com, npm, PyPI,
+        IP-adresser og vern mot DNS-rebinding, og skriver en logg. Tillatt trafikk når internett: github.com, npm, PyPI,
         api.openai.com og alt som står på tillatlista eller ikke står på blokklista. Annen trafikk forkastes:
         webhook.site, ngrok.io, pastebin.com, 169.254.x.x, 10.x.x.x og tunneltjenester. {c("proxy.blocked_domains")} har
         47 domener og lastes på nytt hvert 5. sekund. {c("proxy.allowed_domains")} er streng og stenger ved feil.
@@ -730,8 +730,8 @@ function ProxySection() {
         <BodyLong>
           Som standard slipper kjernen gjennom trafikk direkte på {c(":443")}. En rå socket eller en {c("HTTPS_PROXY")}{" "}
           som ikke er satt, kan derfor gå utenom proxyen. {c("proxy.forced")} lukker den veien: proxyen blir
-          obligatorisk, og kjernen slipper bare trafikk ut til porten til proxyen. Starter ikke proxyen, starter ikke
-          agenten heller.
+          obligatorisk, og kjernen slipper bare trafikk ut til proxyporten. Starter ikke proxyen, starter ikke agenten
+          heller.
         </BodyLong>
         <BodyLong>
           macOS låser trafikken helt til {c("localhost:<proxy_port>")}. Linux fjerner regelen for {c(":443")}, men
@@ -746,7 +746,7 @@ function ProxySection() {
           Er du bak en proxy på jobben? {c("proxy.upstream")} sender CONNECT-tunnelene videre gjennom den, så du slipper
           å slå av proxyen i cplt. cplt filtrerer domener, logger og sjekker porter <em>før</em> tunnelen sendes videre.
           Et mål som er stoppet, når derfor aldri den andre proxyen. Brukernavn og passord i adressen (basic auth)
-          støttes, men bare med http.
+          støttes, men bare over http, ikke https.
         </BodyLong>
         <CodeBlock compact>{'cplt config set proxy.upstream "http://proxy.example.com:8080"'}</CodeBlock>
       </Sub>

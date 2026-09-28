@@ -50,7 +50,7 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <input
           type="text"
-          placeholder="Søk i innstillingene …"
+          placeholder="Søk i innstillingene…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Søk i innstillingene"
@@ -158,7 +158,7 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
 
         {filtered.length === 0 && (
           <p className="text-center py-8" style={{ color: "var(--ax-text-neutral-subtle)", fontSize: "0.875rem" }}>
-            Ingen innstillinger passer med søket.
+            Ingen innstillinger passer til søket.
           </p>
         )}
       </div>
