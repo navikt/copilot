@@ -50,7 +50,12 @@ func TestFlushTelemetryIsBounded(t *testing.T) {
 	if took := time.Since(start); took > time.Second {
 		t.Fatalf("flush took %s with a 50ms budget", took)
 	}
-	if telemetryFlushBudget > 300*time.Millisecond {
-		t.Fatalf("telemetryFlushBudget = %s, want at most 300ms", telemetryFlushBudget)
+	for _, args := range [][]string{{"alpha", "decide", "q"}, {"alpha", "local", "ask", "q"}} {
+		if got := flushBudget(args); got != telemetryQuickFlushBudget {
+			t.Errorf("flushBudget(%v) = %s, want %s", args, got, telemetryQuickFlushBudget)
+		}
+	}
+	if got := flushBudget([]string{"sync"}); got != telemetryFlushBudget {
+		t.Errorf("flushBudget(sync) = %s", got)
 	}
 }

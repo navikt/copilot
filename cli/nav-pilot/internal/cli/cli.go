@@ -1189,7 +1189,7 @@ func Main(info BuildInfo) {
 	}
 
 	recordHookEvents()
-	flushTelemetry(telemetry, telemetryFlushBudget)
+	flushTelemetry(telemetry, flushBudget(os.Args[1:]))
 	if exitCode != 0 {
 		os.Exit(exitCode)
 	}

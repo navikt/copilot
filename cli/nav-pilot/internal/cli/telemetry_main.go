@@ -17,15 +17,30 @@ func telemetryMode() string {
 	return "non_interactive"
 }
 
-// telemetryFlushBudget is the most exit waits for the last export. A command
-// like alpha decide answers in milliseconds and runs in hooks and loops, and
-// an unreachable host made each call wait seconds (#1101). A dropped sample
-// is cheaper. A long session exports every 10 s over a warm connection, so
-// its last export fits too.
-const telemetryFlushBudget = 300 * time.Millisecond
+// The longest exit waits for the last export (#1101). A cold export (DNS,
+// TLS, one round trip) takes 150-400 ms, so most commands get a second.
+// alpha decide and alpha local ask run in hooks, scripts and loops, where an
+// unreachable host made every call wait seconds: they get 300 ms, and a
+// dropped sample is cheaper than a slow hook.
+const (
+	telemetryFlushBudget      = time.Second
+	telemetryQuickFlushBudget = 300 * time.Millisecond
+)
 
-// flushTelemetry exports what is left, and returns after budget whatever the
-// exporter does: it does not always stop when its context ends.
+// flushBudget is the budget for a command line (os.Args[1:]).
+func flushBudget(args []string) time.Duration {
+	if len(args) > 0 && args[0] == "alpha" {
+		if c := alphaCommand(args[1:]); c == "alpha decide" || c == "alpha local ask" {
+			return telemetryQuickFlushBudget
+		}
+	}
+	return telemetryFlushBudget
+}
+
+// flushTelemetry exports what is left and returns after budget in any case.
+// The SDK honours the context on its own, except that Shutdown waits out a
+// periodic export already in flight (up to the reader's 2 s timeout), and a
+// firewall that holds connect() can keep it past the deadline too.
 func flushTelemetry(t telemetryRecorder, budget time.Duration) {
 	ctx, cancel := context.WithTimeout(context.Background(), budget)
 	defer cancel()
