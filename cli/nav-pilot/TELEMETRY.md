@@ -480,7 +480,7 @@ Planlagt: Q4 2026. Da blir telemetri gjort obligatorisk (eller stilt av). Pilot-
 - **Eksport**: OpenTelemetry (OTLP/HTTP) til NAV sin Prometheus/Grafana-stack
 - **Sendefrekvens**: Hver 10. sekund (batch)
 - **Timeout**: 2 sekunder per batch
-- **Ved avslutning**: nav-pilot venter høyst ett sekund på den siste eksporten, og høyst 300 ms etter `alpha decide` og `alpha local ask`. Svarer ikke mottakeren, går den tapt, og kommandoen avsluttes likevel.
+- **Ved avslutning**: nav-pilot venter høyst 300 ms på den siste eksporten, og høyst 150 ms etter en økt. `--version` og `--help` sender ingenting. Svarer ikke mottakeren, går eksporten tapt, og kommandoen avsluttes likevel.
 - **Språk**: Go 1.21+
 - **Avhengigheter**: `go.opentelemetry.io/otel/*` (se `go.mod`)
 

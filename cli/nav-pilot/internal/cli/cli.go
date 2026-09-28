@@ -1213,7 +1213,7 @@ func Main(info BuildInfo) {
 	// The version check a command started in the background gets the same
 	// moment as the telemetry export, side by side.
 	// --version and --help do not wait for it: the next command reads it.
-	budget := flushBudget(os.Args[1:])
+	budget := flushBudget()
 	var wg sync.WaitGroup
 	if !quick {
 		wg.Go(func() { artifacts.WaitForRefresh(budget) })

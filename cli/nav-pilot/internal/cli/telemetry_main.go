@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net"
-	"os"
 	"os/exec"
 	"slices"
 	"strings"
@@ -18,30 +17,25 @@ func telemetryMode() string {
 	return "non_interactive"
 }
 
-// The longest exit waits for the last export (#1101). A cold export (DNS,
-// TLS, one round trip) takes 150-400 ms, so most commands get a second.
-// alpha decide and alpha local ask run in hooks, scripts and loops, where an
-// unreachable host made every call wait seconds: they get 300 ms, and a
-// dropped sample is cheaper than a slow hook.
+// The exit waits for the last export (#1101), but not for long. A cold
+// export (DNS, TLS, one round trip) takes 150-400 ms. It used to get a second,
+// and on a network that does not answer, `nav-pilot config get` took a second
+// each time it ran from a script or a shell prompt (#1234). Every command now
+// gets 300 ms, as alpha decide and alpha local ask already had: a dropped
+// sample is cheaper than a slow command.
 //
 // After a session the budget is shortest: the periodic reader exported every
 // ten seconds while the session ran, so what is left is one export over a
 // connection already open, and the user is waiting for the shell.
 const (
-	telemetryFlushBudget        = time.Second
-	telemetryQuickFlushBudget   = 300 * time.Millisecond
+	telemetryFlushBudget        = 300 * time.Millisecond
 	telemetrySessionFlushBudget = 150 * time.Millisecond
 )
 
-// flushBudget is the budget for a command line (os.Args[1:]).
-func flushBudget(args []string) time.Duration {
+// flushBudget is how long the exit waits for the last export.
+func flushBudget() time.Duration {
 	if sessionClient != "" {
 		return telemetrySessionFlushBudget
-	}
-	if len(args) > 0 && args[0] == "alpha" {
-		if c := alphaCommand(args[1:]); c == "alpha decide" || c == "alpha local ask" {
-			return telemetryQuickFlushBudget
-		}
 	}
 	return telemetryFlushBudget
 }
@@ -72,7 +66,7 @@ func runWithCommandTelemetry(command, mode, scope string, fn func() error) error
 			telemetry.RecordCommand(command, mode, scope, "error", "panic", time.Since(start))
 
 			// Flush telemetry before we crash
-			flushTelemetry(telemetry, flushBudget(os.Args[1:]))
+			flushTelemetry(telemetry, flushBudget())
 
 			panic(r)
 		}
