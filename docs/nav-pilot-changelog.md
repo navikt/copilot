@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Versjonssjekken venter ikke lenger på GitHub
 
-- **Sjekken går i bakgrunnen**: Én gang i døgnet spurte nav-pilot GitHub om en nyere versjon før kommandoen kjørte, et halvt sekund på godt nett og opptil fem sekunder uten. Nå svarer nav-pilot fra forrige sjekk og spør GitHub i bakgrunnen. Finnes en nyere versjon, sier nav-pilot fra ved neste kommando.
+- **Sjekken går i bakgrunnen**: Én gang i døgnet spurte nav-pilot GitHub om en nyere versjon før kommandoen kjørte, et halvt sekund på godt nett og opptil fem sekunder uten nett. Nå svarer nav-pilot fra forrige sjekk og spør GitHub i bakgrunnen. Finnes en nyere versjon, sier nav-pilot fra ved neste kommando.
 - **`--version` og `--help` svarer med en gang**: De sender ikke lenger telemetri, så de venter ikke på nettet.
 
 ### setup kjenner igjen mlx_lm.server

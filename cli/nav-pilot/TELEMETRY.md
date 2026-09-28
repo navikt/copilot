@@ -60,8 +60,11 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 `nav-pilot --version` og `nav-pilot --help` (også `version` og `help`) sender ingenting: de
 svarer uten å sette opp telemetri.
 
-`nav_pilot_staleness_check_total` med `result=cooldown` betyr at svaret kom fra hurtiglageret.
-Sjekken mot GitHub går i bakgrunnen, høyst én gang i døgnet, og neste kommando leser svaret.
+`nav_pilot_staleness_check_total` med `result=cooldown` betyr at svaret kom fra forrige sjekk
+(`cache.json`). Sjekken mot GitHub går i bakgrunnen, høyst én gang i døgnet, og neste kommando
+leser svaret. `result=lookup_failed`, `stale` og `up_to_date` telles derfor ikke lenger:
+sjekken i bakgrunnen rapporterer ikke utfallet. `nav_pilot_up_to_date` og
+`nav_pilot_version_skew_days` kommer fortsatt, regnet ut fra forrige sjekk.
 
 `command`-dimensjonen inkluderer også livssyklus-eventer:
 - `startup` når brukeren kjører `nav-pilot` uten args (interaktiv flyt)

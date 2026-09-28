@@ -1,6 +1,7 @@
 package artifacts
 
 import (
+	"sync"
 	"testing"
 	"time"
 )
@@ -10,6 +11,7 @@ import (
 func TestAssessStalenessCachedDoesNotWait(t *testing.T) {
 	CacheHome = t.TempDir()
 	t.Cleanup(func() { CacheHome = "" })
+	refreshOnce = sync.Once{} // -count=2 runs this in one process
 
 	release := make(chan struct{})
 	fetch := func() (string, string, error) {

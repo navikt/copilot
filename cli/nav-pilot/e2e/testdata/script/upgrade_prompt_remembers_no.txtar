@@ -6,8 +6,8 @@
 fake-gh
 
 # The release check runs in the background: the first command only asks,
-# the next one acts on the answer.
-exec nav-pilot version
+# the next one acts on the answer. Not --version: it does not wait for it.
+exec nav-pilot config get client
 
 exits 130 pty-run -wait 'Upgrade now' -send '\x03' -- nav-pilot version
 ! stdout 'nav-pilot 2026.09.01'

@@ -1196,9 +1196,12 @@ func Main(info BuildInfo) {
 	recordHookEvents()
 	// The version check a command started in the background gets the same
 	// moment as the telemetry export, side by side.
+	// --version and --help do not wait for it: the next command reads it.
 	budget := flushBudget(os.Args[1:])
 	var wg sync.WaitGroup
-	wg.Go(func() { artifacts.WaitForRefresh(budget) })
+	if !quick {
+		wg.Go(func() { artifacts.WaitForRefresh(budget) })
+	}
 	wg.Go(func() { flushTelemetry(telemetry, budget) })
 	wg.Wait()
 	if exitCode != 0 {
