@@ -22,7 +22,7 @@ func TestCachedVersionPersists(t *testing.T) {
 	}
 	write("1.18.25")
 	VersionCacheFile = filepath.Join(dir, "client-versions.json")
-	t.Cleanup(func() { VersionCacheFile = "" })
+	t.Cleanup(func() { VersionCacheFile = ""; versionCache.Delete(bin) })
 	asked := func() int {
 		b, _ := os.ReadFile(count)
 		return len(b) / 2
@@ -42,11 +42,19 @@ func TestCachedVersionPersists(t *testing.T) {
 	if got := ask(); got != "1.18.25" || asked() != 1 {
 		t.Fatalf("second run: %q, asked %d times, want the cached answer", got, asked())
 	}
+	// Overwritten in place with the same size and mtime (cp -p): asked
+	// again, because the status-change time moved.
+	fi, _ := os.Stat(bin)
+	write("1.18.26")
+	_ = os.Chtimes(bin, fi.ModTime(), fi.ModTime())
+	if got := ask(); got != "1.18.26" || asked() != 2 {
+		t.Fatalf("after an overwrite in place: %q, asked %d times", got, asked())
+	}
 	// An upgrade replaces the binary: asked again.
 	write("1.18.30")
 	future := time.Now().Add(time.Minute)
 	_ = os.Chtimes(bin, future, future)
-	if got := ask(); got != "1.18.30" || asked() != 2 {
+	if got := ask(); got != "1.18.30" || asked() != 3 {
 		t.Fatalf("after an upgrade: %q, asked %d times", got, asked())
 	}
 }

@@ -12,8 +12,8 @@ import (
 // VersionCacheFile, when set, keeps the answers to `<client> --version`
 // across runs, so a launch does not ask again: opencode takes a quarter of a
 // second to say its version, on every launch. An answer is keyed by the
-// binary's resolved path, size and modification time, so an upgrade or a
-// reinstall asks again. The CLI sets it; empty (unit tests), every process
+// binary's resolved path, size, modification time, inode and status-change
+// time, so an upgrade, a reinstall or an overwrite in place asks again. The CLI sets it; empty (unit tests), every process
 // asks.
 var VersionCacheFile string
 
@@ -34,7 +34,7 @@ func binaryKey(bin string) string {
 	if err != nil || !fi.Mode().IsRegular() {
 		return ""
 	}
-	return fmt.Sprintf("%s|%d|%d", p, fi.Size(), fi.ModTime().UnixNano())
+	return fmt.Sprintf("%s|%d|%d|%s", p, fi.Size(), fi.ModTime().UnixNano(), fileChange(fi))
 }
 
 func readVersionCacheFile() map[string]string {
