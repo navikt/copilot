@@ -143,6 +143,15 @@ Residual risks, for the privacy review:
   copilot-survey log an identity, hash or answer on this path, but the Nais
   ingress log is outside our control. Ask the platform team to drop or sample
   access logs for this path, or keep their retention short.
+- Batch timing: the tenth submission's request writes the batch (or the
+  next submission's, after a failed write). That request is slower than the
+  other nine, and the commit follows within milliseconds, so someone with both
+  database access (the `copilot` Nais team) and the ingress access log can
+  tell who closed batch N and when each batch was written. That places an
+  answer in one batch window, never below the 10 of its batch, which is what
+  k = 10 already concedes. Accepted (#1107): closing it would need a jittered
+  or random-size flush, which holds more answers in memory and loses them all
+  on a restart.
 - Cloud SQL backups and WAL keep deleted participation rows (and batch commit
   times) for the backup retention period (7 backups by default).
 - Upgrade path, if the separation of the two tables is judged not convincing:
