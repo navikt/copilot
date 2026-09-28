@@ -14,25 +14,38 @@ import (
 	"time"
 )
 
-// navPilotGitHubClientID is the public GitHub OAuth App client ID used for
-// device flow authentication. This is not a secret — device flow client IDs
-// are safe to embed in distributed binaries (see GitHub's device flow docs).
-// The App must have "Device Flow" enabled in its settings.
+// navPilotGitHubClientIDDefault is the public client ID of the GitHub App
+// "Nav Copilot (nav-pilot)" (App ID 5105952), used for device flow
+// authentication. It is not a secret: device flow needs no client secret, and
+// client IDs are safe to embed in distributed binaries (see GitHub's device
+// flow docs). The App has "Device Flow" enabled in its settings.
 //
-// Overridable via NAV_PILOT_GITHUB_CLIENT_ID so the PoC can be pointed at a
-// real OAuth App without rebuilding nav-pilot (the constant below is a
-// placeholder until a production client ID is provisioned).
-const navPilotGitHubClientIDDefault = "Iv1.nav-pilot-devflow"
+// Overridable via NAV_PILOT_GITHUB_CLIENT_ID, to point nav-pilot at another
+// App without rebuilding it.
+const navPilotGitHubClientIDDefault = "Iv23lipLVaf9muvHhIXC"
+
+// navPilotGitHubClientIDPlaceholder is the client ID nav-pilot shipped with
+// before the App existed. An override still set to it does not name an App.
+const navPilotGitHubClientIDPlaceholder = "Iv1.nav-pilot-devflow"
 
 func navPilotGitHubClientID() string {
-	if v := os.Getenv("NAV_PILOT_GITHUB_CLIENT_ID"); v != "" {
+	if v := strings.TrimSpace(os.Getenv("NAV_PILOT_GITHUB_CLIENT_ID")); v != "" {
 		return v
 	}
 	return navPilotGitHubClientIDDefault
 }
 
-// navPilotGitHubScopes are the minimum scopes needed to validate identity
-// (read:user) and navikt org membership (read:org) for copilot-cli.
+// hasGitHubApp reports whether there is a GitHub App to log in with: an
+// override still set to the old placeholder does not name one.
+func hasGitHubApp() bool {
+	return navPilotGitHubClientID() != navPilotGitHubClientIDPlaceholder
+}
+
+// navPilotGitHubScopes is sent with the device code request, but GitHub
+// ignores it for a GitHub App: the user token gets the permissions set on the
+// App itself. It only matters for an OAuth App named by
+// NAV_PILOT_GITHUB_CLIENT_ID, where read:user and read:org are the minimum to
+// check identity and navikt org membership.
 const navPilotGitHubScopes = "read:user read:org"
 
 // deviceCodeURL and accessTokenURL are GitHub's device flow endpoints,

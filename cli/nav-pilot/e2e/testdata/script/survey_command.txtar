@@ -45,6 +45,7 @@ stdout 'Du har allerede svart på denne undersøkelsen'
 
 # No sign-in, and no GitHub App to sign in with.
 env NAV_PILOT_E2E_GITHUB_TOKEN=
+env NAV_PILOT_GITHUB_CLIENT_ID=Iv1.nav-pilot-devflow
 ! exec pty-run -- nav-pilot survey
 stdout 'du må logge inn med GitHub for å svare'
 
