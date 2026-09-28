@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -279,5 +280,52 @@ func TestTraceAPISkipsSAMLLookup(t *testing.T) {
 	spans := exp.GetSpans()
 	if len(spans) != 1 || spans[0].Name != "GET /api/v1/copilot/usage/metrics" {
 		t.Fatalf("spans = %v, want only the usage route", spans)
+	}
+}
+
+// The per-user routes end in a GitHub username. The request log and the span
+// carry {username}; the handler still gets the real path (#1085).
+func TestUsernamePathsRedacted(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	exp := tracetest.NewInMemoryExporter()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exp))
+	config := &Config{LoggedEndpoints: map[string]bool{"/api/v1/": true}}
+	var got []string
+	h := traceAPI(loggingMiddleware(config, http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		got = append(got, r.URL.Path)
+	})), otelhttp.WithTracerProvider(tp))
+
+	paths := map[string]string{
+		"/api/v1/copilot/usage/user/Kari-Nordmann":               "GET /api/v1/copilot/usage/user/{username}",
+		"/api/v1/copilot/usage/user/Kari-Nordmann/weekly":        "GET /api/v1/copilot/usage/user/{username}/weekly",
+		"/api/v1/copilot/usage/user/Kari-Nordmann/daily-credits": "GET /api/v1/copilot/usage/user/{username}/daily-credits",
+		"/api/v1/copilot/seats/Kari-Nordmann":                    "GET /api/v1/copilot/seats/{username}",
+	}
+	for p := range paths {
+		h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, p, nil))
+	}
+	if strings.Contains(strings.ToLower(buf.String()), "kari-nordmann") || !strings.Contains(buf.String(), "{username}") {
+		t.Fatalf("log should carry the redacted paths only, got %s", buf.String())
+	}
+	names := map[string]bool{}
+	for _, s := range exp.GetSpans() {
+		names[s.Name] = true
+		for _, a := range s.Attributes {
+			if strings.Contains(strings.ToLower(a.Value.Emit()), "kari-nordmann") {
+				t.Errorf("span %s attribute %s = %s", s.Name, a.Key, a.Value.Emit())
+			}
+		}
+	}
+	for p, want := range paths {
+		if !names[want] {
+			t.Errorf("no span %q for %s; spans: %v", want, p, names)
+		}
+		if !slices.Contains(got, p) {
+			t.Errorf("handler did not get the real path %s; got %v", p, got)
+		}
 	}
 }
