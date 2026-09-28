@@ -27,7 +27,9 @@ stdout '"autoupdate":"notify"'
 grep '"share": "manual"' $HOME/.config/opencode/opencode.json
 ! stderr 'outside the tested range'
 
+# A new opencode is a new binary: the version nav-pilot keeps is for the old one.
 env OC_VERSION=1.19.0
+exec touch $WORK/fake/opencode
 exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
 stderr 'opencode 1\.19\.0 is outside the tested range \(>=1\.18\.20,<1\.19\)'
 exec cat $WORK/env.out
@@ -36,6 +38,7 @@ stdout '"share":"disabled"'
 exec nav-pilot doctor
 stdout 'Version 1\.19\.0 is outside the tested range'
 env OC_VERSION=1.18.32
+exec touch $WORK/fake/opencode
 exec nav-pilot doctor
 stdout 'Version 1\.18\.32 is inside the tested range'
 

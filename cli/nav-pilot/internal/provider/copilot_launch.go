@@ -98,8 +98,16 @@ func cachedVersion(bin string, timeout time.Duration) (string, error) {
 		a := v.(versionAnswer)
 		return a.out, a.err
 	}
+	key := binaryKey(bin)
+	if out, ok := readVersionCache(key); ok {
+		versionCache.Store(bin, versionAnswer{out, nil})
+		return out, nil
+	}
 	out, err := runStagedProbe(timeout, bin, "--version")
 	versionCache.Store(bin, versionAnswer{out, err})
+	if err == nil {
+		writeVersionCache(key, out)
+	}
 	return out, err
 }
 
