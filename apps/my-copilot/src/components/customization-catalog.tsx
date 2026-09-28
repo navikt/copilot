@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Box, Button, Search, HGrid, HStack, VStack, BodyShort, Chips, UNSAFE_Combobox } from "@navikt/ds-react";
 import type { CustomizationType, Domain } from "@/lib/customization-types";
 import { TYPE_LABELS } from "@/lib/customization-types";
+import { findByItemKey, itemKey } from "@/lib/item-key";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { CustomizationCard } from "./customization-card";
 import { DetailDrawer } from "./detail-drawer";
@@ -46,7 +47,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
   );
   const [selectedItem, setSelectedItem] = useState<EnrichedCustomization | null>(() => {
     if (initialItem) {
-      return items.find((i) => i.id === initialItem) ?? null;
+      return findByItemKey(items, initialItem) ?? null;
     }
     return null;
   });
@@ -62,7 +63,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
     if (selectedTypes.length > 0) params.set("type", selectedTypes.join(","));
     if (selectedDomain) params.set("domain", selectedDomain);
     if (search) params.set("q", search);
-    if (selectedItem) params.set("item", selectedItem.id);
+    if (selectedItem) params.set("item", itemKey(selectedItem));
     const qs = params.toString();
     router.replace(qs ? `?${qs}` : "/verktoy", { scroll: false });
   }, [selectedTypes, selectedDomain, search, selectedItem, router]);
@@ -168,7 +169,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
 
       <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
         {filtered.map((item) => (
-          <CustomizationCard key={`${item.type}-${item.id}`} item={item} onClick={() => setSelectedItem(item)} />
+          <CustomizationCard key={itemKey(item)} item={item} onClick={() => setSelectedItem(item)} />
         ))}
       </HGrid>
 
