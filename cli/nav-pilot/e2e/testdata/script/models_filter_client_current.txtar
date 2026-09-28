@@ -2,6 +2,7 @@
 # --client for another client's list (as a models flag or before the command),
 # and its own help. No note about local entries when there are none.
 
+fake-bin cplt copilot
 exec nav-pilot config set model claude-opus-5
 exec nav-pilot models
 stdout '\* claude-opus-5 .*\(current\)'

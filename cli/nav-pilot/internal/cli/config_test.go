@@ -428,7 +428,63 @@ mode = "default"
 
 // ─── resolve (precedence matrix) ─────────────────────────────────────────────
 
+// withOpencode makes opencode installed or not for the test.
+func withOpencode(t *testing.T, installed bool) {
+	t.Helper()
+	orig := providerFor
+	providerFor = func(string) (Provider, error) { return failingProvider{unavailable: !installed}, nil }
+	t.Cleanup(func() { providerFor = orig })
+}
+
+// TestDefaultClient: opencode only on a new install, in a terminal, that has
+// it (#1022); everyone else keeps copilot.
+func TestDefaultClient(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		file      *Config
+		recorded  bool
+		installed bool
+		want      string
+	}{
+		{"new install with opencode", nil, false, true, "opencode"},
+		{"new install without opencode", nil, false, false, "copilot"},
+		{"config without client", &Config{Version: 1}, false, true, "copilot"},
+		{"client recorded, config gone", nil, true, true, "copilot"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			orig := isInteractive
+			isInteractive = func() bool { return true }
+			t.Cleanup(func() { isInteractive = orig })
+			dir := t.TempDir()
+			t.Setenv("HOME", dir)
+			t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, ".nav-pilot", "config.toml"))
+			if tc.recorded {
+				if err := os.MkdirAll(filepath.Join(dir, ".nav-pilot"), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, ".nav-pilot", "seen-client-recorded"), nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			withOpencode(t, tc.installed)
+			if got := resolve(tc.file, CLIOverrides{}).Client; got != tc.want {
+				t.Errorf("resolve().Client = %q, want %q", got, tc.want)
+			}
+			if got := resolve(tc.file, CLIOverrides{Client: "pi"}).Client; got != "pi" {
+				t.Errorf("--client pi resolved to %q", got)
+			}
+			// Headless or CI: copilot, since a machine without config.toml
+			// may be an existing user who never had one.
+			isInteractive = func() bool { return false }
+			if got := resolve(tc.file, CLIOverrides{}).Client; got != "copilot" {
+				t.Errorf("headless resolve().Client = %q, want copilot", got)
+			}
+		})
+	}
+}
+
 func TestResolve_Defaults(t *testing.T) {
+	withOpencode(t, false)
 	r := resolve(nil, CLIOverrides{})
 	if r.Client != "copilot" {
 		t.Errorf("Client = %q, want copilot", r.Client)
@@ -1258,6 +1314,7 @@ func TestValidateConfigProblems_OpenCodeValidModel(t *testing.T) {
 // ─── loadConfigForLaunch ─────────────────────────────────────────────────────
 
 func TestLoadConfigForLaunch_NoFile(t *testing.T) {
+	withOpencode(t, false)
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "missing.toml"))
 	resolved, err := loadConfigForLaunch(CLIOverrides{})
 	if err != nil {

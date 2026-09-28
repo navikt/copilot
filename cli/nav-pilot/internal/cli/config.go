@@ -314,6 +314,10 @@ func launchConfig(file *Config, cli CLIOverrides) *Config {
 	if cli.Client != "" {
 		eff.Client = &cli.Client
 	}
+	if eff.Client == nil && file == nil {
+		c := defaultClient(nil)
+		eff.Client = &c
+	}
 	if cli.Model != "" {
 		eff.Model = &cli.Model
 	}
@@ -325,9 +329,43 @@ const versionMissingAdvice = "version is missing, so nav-pilot reads the file as
 
 func cfgClient(cfg *Config) string {
 	if cfg == nil || cfg.Client == nil {
-		return "copilot"
+		return defaultClient(cfg)
 	}
 	return *cfg.Client
+}
+
+// defaultClient is the client when neither --client nor config.toml names
+// one (#1022). A new install, a machine with no config.toml and no recorded
+// client, gets opencode. Anyone who has run nav-pilot before gets copilot,
+// the default they had, so an upgrade moves nobody (#1029): a config.toml
+// without a client line means copilot. A new install without opencode on
+// PATH gets copilot too, so the default is never a client that is missing.
+//
+// Only in a terminal: a headless or CI run with no config.toml cannot be told
+// from an existing user who never had one, so it keeps copilot.
+func defaultClient(file *Config) string {
+	if newInstall(file) && isInteractive() && opencodeInstalled() {
+		return "opencode"
+	}
+	return "copilot"
+}
+
+// newInstall reports whether this machine has neither a config.toml nor the
+// marker recordEffectiveClient leaves.
+func newInstall(file *Config) bool {
+	if file != nil {
+		return false
+	}
+	// The marker sits beside config.toml (telemetry.GetConfigDir), read
+	// here without GetConfigDir's MkdirAll: resolve runs in every hook.
+	_, err := os.Stat(filepath.Join(filepath.Dir(configPath()), "seen-client-recorded"))
+	return errors.Is(err, os.ErrNotExist)
+}
+
+// opencodeInstalled reports whether opencode is on PATH.
+func opencodeInstalled() bool {
+	p, err := providerFor("opencode")
+	return err == nil && p.Available()
 }
 
 // modelAdvice is everything nav-pilot says about a model id for a client:
@@ -489,7 +527,7 @@ func configFixHint() string {
 // Precedence: CLI flag > file value > built-in default.
 func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	r := ResolvedConfig{
-		Client:            "copilot",
+		Client:            defaultClient(file),
 		Mode:              "default",
 		AskUser:           true,
 		AutoLaunch:        true,

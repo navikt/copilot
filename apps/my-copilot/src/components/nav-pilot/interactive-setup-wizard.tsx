@@ -20,7 +20,7 @@ interface SetupCommandBlock {
 }
 
 const WORKFLOW_COMMANDS: Record<Workflow, string[]> = {
-  cli: ["nav-pilot"],
+  cli: ["nav-pilot config set client copilot", "nav-pilot"],
   opencode: ["nav-pilot config set client opencode", "nav-pilot --client opencode"],
   editor: [],
 };
@@ -238,24 +238,24 @@ export function StepWorkflow({
       </VStack>
       <VStack gap="space-12" className="max-w-xl mx-auto w-full">
         <ChoiceCard
-          selected={workflow === "cli"}
-          onClick={() => {
-            setWorkflow("cli");
-            onNext();
-          }}
-          icon={<TerminalIcon aria-hidden />}
-          title="GitHub Copilot CLI (Anbefalt)"
-          description="GitHubs offisielle kodingsagent i terminalen. En kraftig autonom agent for store kodeendringer, refaktorering og terminalarbeid."
-        />
-        <ChoiceCard
           selected={workflow === "opencode"}
           onClick={() => {
             setWorkflow("opencode");
             onNext();
           }}
           icon={<MonitorIcon aria-hidden />}
-          title="opencode"
-          description="Åpen kildekode-alternativ. Fullverdig autonom agent med et TUI-grensesnitt for de som foretrekker det fremfor GitHubs CLI."
+          title="opencode (standard)"
+          description="Kodeagent i terminalen med åpen kildekode, koblet til Copilot-abonnementet ditt. Den eneste klienten der en skymodell kan sende jobber til en lokal modell."
+        />
+        <ChoiceCard
+          selected={workflow === "cli"}
+          onClick={() => {
+            setWorkflow("cli");
+            onNext();
+          }}
+          icon={<TerminalIcon aria-hidden />}
+          title="GitHub Copilot CLI"
+          description="GitHubs egen kodeagent i terminalen. Fullt støttet, med autopilot og utvidelser som opencode ikke har."
         />
         <ChoiceCard
           selected={workflow === "editor"}
@@ -329,7 +329,7 @@ export function InteractiveSetupWizard() {
   const [hasDetected, setHasDetected] = useState(false);
 
   const [os, setOs] = useState<OS>("mac");
-  const [workflow, setWorkflow] = useState<Workflow>("cli");
+  const [workflow, setWorkflow] = useState<Workflow>("opencode");
 
   useEffect(() => {
     const platform = (navigator.userAgent || navigator.platform)?.toLowerCase() || "";

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -108,18 +109,25 @@ func runConfigSetup(flagSource string) error {
 	fmt.Println(dim("  Set your preferences — change anytime with 'nav-pilot config set'."))
 	fmt.Println()
 
-	// Preselected answers are the built-in defaults.
+	// Preselected answers are the built-in defaults, except the client of
+	// a config this run replaces (config setup --force): an existing user
+	// keeps theirs unless they pick another (#1022).
 	answers := setupAnswers{
 		Client:     findKeyDef("client").defaultVal,
 		Mode:       findKeyDef("mode").defaultVal,
 		AutoUpdate: findKeyDef("auto_update").defaultVal,
 	}
+	opencodeLabel := clientLabel["opencode"] + " (default)"
+	if existing, err := readConfig(); err == nil && existing != nil {
+		answers.Client = cfgClient(existing)
+		opencodeLabel = clientLabel["opencode"]
+	}
 
 	err := huh.NewSelect[string]().
 		Title("Which coding agent?").
 		Options(
-			huh.NewOption(clientLabel["copilot"]+" (default)", "copilot"),
-			huh.NewOption(clientLabel["opencode"], "opencode"),
+			huh.NewOption(opencodeLabel, "opencode"),
+			huh.NewOption(clientLabel["copilot"], "copilot"),
 			huh.NewOption(clientLabel["pi"], "pi"),
 		).
 		Value(&answers.Client).
@@ -127,6 +135,11 @@ func runConfigSetup(flagSource string) error {
 		Run()
 	if err != nil {
 		return setupSkipped(err)
+	}
+	if answers.Client == "opencode" {
+		if answers.Client, err = opencodeForSetup(); err != nil {
+			return setupSkipped(err)
+		}
 	}
 
 	err = huh.NewSelect[string]().
@@ -223,6 +236,60 @@ func runConfigSetup(flagSource string) error {
 	fmt.Println()
 
 	return nil
+}
+
+// opencodeForSetup settles a wizard answer of opencode on a machine without
+// it: Homebrew installs it when the user says yes, and otherwise the wizard
+// saves copilot and says how to switch later. It never saves a client that
+// cannot start. Only Homebrew is run for the user; the install script is
+// named, not piped into a shell on their behalf.
+func opencodeForSetup() (string, error) {
+	if opencodeInstalled() {
+		return "opencode", nil
+	}
+	if _, err := exec.LookPath("brew"); err == nil {
+		install := true
+		if err := huh.NewConfirm().
+			Title("opencode is not installed. Install it now?").
+			Description("Runs " + opencodeBrewInstall + ".").
+			Affirmative("Install").
+			Negative("Use GitHub Copilot instead").
+			Value(&install).
+			WithTheme(navTheme()).
+			Run(); errors.Is(err, huh.ErrUserAborted) {
+			return "", err
+		} else if err != nil {
+			install = false // a prompt that could not run is no answer
+		}
+		if install {
+			cmd := exec.Command("brew", "install", "anomalyco/tap/opencode")
+			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+			err := cmd.Run()
+			if err == nil && opencodeInstalled() {
+				fmt.Printf("  %s opencode installed\n", green("✓"))
+				return "opencode", nil
+			}
+			if err == nil {
+				err = errors.New("opencode is still not on PATH")
+			}
+			fmt.Fprintf(os.Stderr, "%s %s: %v\n", yellow("⚠"), opencodeBrewInstall, err)
+		}
+	}
+	fmt.Printf("  opencode is not installed, so nav-pilot will use GitHub Copilot. To switch later, install opencode (%s), then run %s\n",
+		opencodeInstallCommand(), bold("nav-pilot config set client opencode"))
+	return "copilot", nil
+}
+
+// opencodeBrewInstall is opencode's recommended Homebrew install.
+const opencodeBrewInstall = "brew install anomalyco/tap/opencode"
+
+// opencodeInstallCommand is how to install opencode on this machine:
+// Homebrew when it is there, otherwise opencode's install script.
+func opencodeInstallCommand() string {
+	if _, err := exec.LookPath("brew"); err == nil {
+		return opencodeBrewInstall
+	}
+	return "curl -fsSL https://opencode.ai/install | bash"
 }
 
 // setupSkipped is how the wizard ends when a prompt returns err. Ctrl-C ends

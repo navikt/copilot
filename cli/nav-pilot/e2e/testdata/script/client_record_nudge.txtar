@@ -20,6 +20,9 @@ exec git init -q .
 exec nav-pilot install plattform --source $WORK/plattform --repo --yes
 exec nav-pilot config set rtk_prompted_client copilot
 exec nav-pilot config set local_enabled true
+# config set writes the client it creates the file with; an existing user's
+# file from before has none.
+exec nav-pilot config unset client
 ! grep '^client =' $WORK/home/config.toml
 
 # Headless and CI: no line, nothing written.
