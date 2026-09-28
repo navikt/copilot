@@ -14,6 +14,7 @@ export function DocPage({
   label,
   title,
   description,
+  badge,
   toc,
   wide,
   children,
@@ -21,6 +22,7 @@ export function DocPage({
   label?: string;
   title: string;
   description: string;
+  badge?: ReactNode;
   toc?: TocItem[];
   /** Let the content use the full width, for pages with wide tables. */
   wide?: boolean;
@@ -28,7 +30,7 @@ export function DocPage({
 }) {
   return (
     <main id="hovedinnhold" tabIndex={-1}>
-      <PageHero label={label} title={title} description={description} />
+      <PageHero label={label} title={title} description={description} badge={badge} />
       <div className="max-w-7xl mx-auto">
         <Box
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}

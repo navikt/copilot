@@ -40,15 +40,15 @@ export const inSection = (pathname: string) =>
 
 const fromDocs = (pages: DocLink[]): NavLink[] => pages.map((p) => ({ href: p.href, label: p.title }));
 
-// ponytail: /nav-pilot/lokal/egen-server and /nav-pilot/lokal/decide (#1081) are
-// left out until their pages are on main.
 export const SECTION: NavGroup[] = [
   { label: "Oversikt", href: "/nav-pilot" },
   {
     label: "Kom i gang",
     items: [
       { label: "Copilot og nav-pilot", href: "/kom-i-gang" },
-      { label: "Lokal modell og decide", href: "/nav-pilot/lokal" },
+      { label: "Lokal modell på Mac", href: "/nav-pilot/lokal" },
+      { label: "Egen server", href: "/nav-pilot/lokal/egen-server" },
+      { label: "Din første decide-hook", href: "/nav-pilot/lokal/decide" },
     ],
   },
   { label: "Guider", overview: "/nav-pilot/guider", items: fromDocs(GUIDE_PAGES) },

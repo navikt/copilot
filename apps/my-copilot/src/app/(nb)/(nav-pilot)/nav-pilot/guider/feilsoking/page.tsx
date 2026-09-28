@@ -126,6 +126,22 @@ nav-pilot alpha local doctor  # bare egen server (local_endpoint)`}
             Si fra med <code className={code}>nav-pilot feedback</code> om noe henger, om en endring kompilerer men er
             feil, eller om ventetiden ikke er verdt det. Dårlige erfaringer er like nyttige som gode.
           </BodyLong>
+          <LinkableHeading id="lokal-start" size="small" level="3">
+            Serveren vil ikke starte etter en omstart
+          </LinkableHeading>
+          <BodyLong>
+            Minnegrensen i macOS nullstilles når maskinen starter på nytt. <code className={code}>start</code> spør da
+            om å heve den med sudo, og trenger passordet ditt. Svarer du nei, eller kjører den uten terminal, som ved
+            automatisk start, stopper den og skriver kommandoen du må kjøre selv:
+          </BodyLong>
+          <CodeBlock compact>
+            {`sudo sysctl -w iogpu.wired_limit_mb=<MB>   # tallet står i feilmeldingen
+nav-pilot alpha local start`}
+          </CodeBlock>
+          <BodyLong>
+            Sier <code className={code}>start</code> at vektene ikke finnes på maskinen, kjør{" "}
+            <code className={code}>nav-pilot alpha local init</code>. Den laster dem ned og starter serveren.
+          </BodyLong>
         </VStack>
       </section>
     </DocPage>

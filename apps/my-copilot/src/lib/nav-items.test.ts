@@ -8,6 +8,7 @@ describe("activeTop", () => {
     ["/nav-pilot/docs", "/nav-pilot"],
     ["/cplt", "/nav-pilot"],
     ["/nav-pilot/lokal", "/kom-i-gang"],
+    ["/nav-pilot/lokal/egen-server", "/kom-i-gang"],
     ["/nav-pilot/agentpakker", "/verktoy"],
     ["/verktoy", "/verktoy"],
     ["/retningslinjer", "/praksis"],
@@ -24,6 +25,7 @@ it("finds the section-menu group of a page", () => {
   expect(inSection("/praksis")).toBe(false);
   expect(sectionGroup("/verktoy")?.label).toBe("Tilpasning");
   expect(sectionGroup("/kom-i-gang")?.label).toBe("Kom i gang");
+  expect(sectionGroup("/nav-pilot/lokal/decide")?.label).toBe("Kom i gang");
   expect(sectionGroup("/nav-pilot/guider")?.label).toBe("Guider");
   expect(sectionGroup("/nav-pilot/forklaring/sandkassen")?.label).toBe("Forklaring");
   expect(sectionGroup("/nav-pilot")).toBeUndefined();

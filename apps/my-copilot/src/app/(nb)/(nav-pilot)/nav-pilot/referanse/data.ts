@@ -224,7 +224,8 @@ export const CLI_COMMANDS = [
   { command: "nav-pilot upgrade", description: "Oppdater nav-pilot CLI til nyeste versjon" },
   {
     command: "nav-pilot upgrade --dry-run",
-    description: "Bare sjekk: vis gjeldende → nyeste versjon. Kode 1 når en oppdatering finnes, 0 når du har nyeste",
+    description:
+      "Bare sjekk: vis gjeldende → nyeste versjon. Kode 1 når en oppdatering finnes, 0 når du har den nyeste",
   },
   {
     command: "nav-pilot feedback",
