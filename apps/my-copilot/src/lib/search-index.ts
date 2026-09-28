@@ -40,6 +40,7 @@ function headingLabels(dir: string): Map<string, string> {
       if (children.includes("{")) continue;
       const text = children
         .replace(/<[^>]*>/g, "")
+        .replace(/[<>]/g, "") // a stray < or > left by a partial tag
         .replace(/\s+/g, " ")
         .trim();
       const id = m[2].match(/\bid="([^"]+)"/)?.[1] ?? (m[1] === "LinkableHeading" ? slugify(text) : undefined);
