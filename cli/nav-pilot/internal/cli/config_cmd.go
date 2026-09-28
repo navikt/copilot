@@ -45,7 +45,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "client",
 		kind:        keyKindString,
-		description: "Coding-agent CLI to launch (copilot, opencode, pi). The default is opencode on a new install, and copilot when opencode is not installed. A config.toml without client means copilot, so an upgrade never switches your client; the first run in a terminal writes it in.",
+		description: "Coding-agent CLI to launch (copilot, opencode, pi). The default is opencode on a new install, and copilot when opencode is not installed. A config.toml without client means copilot, so an upgrade never switches your client. The first run in a terminal writes it in.",
 		allowed:     validProviderIDs,
 		defaultVal:  "opencode",
 		flag:        "--client",

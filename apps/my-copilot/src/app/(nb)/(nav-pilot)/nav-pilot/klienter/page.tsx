@@ -168,16 +168,16 @@ export default function Klienter() {
           fortsatt fullt støttet.
         </BodyLong>
         <BodyLong>
-          Klienten du bruker, står i {c("~/.nav-pilot/config.toml")}. Har du brukt nav-pilot før, beholder du Copilot
-          CLI: en {c("config.toml")} uten {c("client")} betyr copilot, og nav-pilot skriver linja inn første gang du
+          Klienten du bruker, står i {c("~/.nav-pilot/config.toml")}. Har du brukt nav-pilot før, beholder du klienten
+          du har: en {c("config.toml")} uten {c("client")} betyr copilot, og nav-pilot skriver linja inn første gang du
           starter en økt i en terminal.
         </BodyLong>
         <BodyLong>
           Første gang du kjører nav-pilot, spør den hvilken klient du vil ha, med opencode valgt. Mangler opencode, og
-          du har Homebrew, tilbyr nav-pilot å installere den med {c("brew install anomalyco/tap/opencode")}. Ellers,
-          eller om du sier nei, bruker nav-pilot Copilot CLI og forteller hvordan du bytter senere. I CI og uten
-          terminal starter nav-pilot opencode når den er installert, og ellers Copilot CLI med én linje på stderr om
-          hvorfor. Vil du være sikker på klienten i CI, bruk {c("--client")}.
+          du har Homebrew, tilbyr nav-pilot å installere den med {c("brew install anomalyco/tap/opencode")}. Uten
+          Homebrew, eller om du sier nei, bruker nav-pilot Copilot CLI og forteller hvordan du bytter senere. I CI og
+          uten terminal starter nav-pilot opencode når den er installert, og ellers Copilot CLI med én linje på stderr
+          om hvorfor. Vil du være sikker på klienten i CI, bruk {c("--client")}.
         </BodyLong>
         <BodyLong>
           Bruker du Copilot CLI med lokale modeller på og har opencode installert, viser nav-pilot én gang et tips om

@@ -45,7 +45,7 @@ cd /path/to/your/repo
 nav-pilot install nav-pilot
 
 # Start en økt. En ny installasjon bruker opencode, og nav-pilot tilbyr å installere
-# den første gang. Vil du heller ha Copilot CLI: nav-pilot config set client copilot
+# den med Homebrew første gang. Vil du heller ha Copilot CLI: nav-pilot config set client copilot
 nav-pilot
 
 # Bruk i Copilot

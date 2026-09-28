@@ -350,7 +350,7 @@ deg. Svarer ikke GitHub, hopper den bare over versjonssjekken.
 nav-pilot støtter tre klienter (`client`-feltet i konfig). Hva hver av dem kan, og hva som mangler, står på
 [ki-utvikling.nav.no/nav-pilot/klienter](https://ki-utvikling.nav.no/nav-pilot/klienter).
 
-En ny installasjon får opencode som standard. Har du brukt nav-pilot før, beholder du Copilot CLI:
+En ny installasjon får opencode som standard. Har du brukt nav-pilot før, beholder du klienten du har:
 en `config.toml` uten `client` betyr `copilot`. Copilot CLI er fortsatt fullt støttet
 (`nav-pilot config set client copilot`).
 
