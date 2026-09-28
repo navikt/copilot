@@ -25,6 +25,7 @@ func TestRiskyCommand(t *testing.T) {
 		{"kubectl apply --dry-run=client -f app.yaml", ""},
 		{"kubectl apply --dry-run=none -f app.yaml", "kubectl"},
 		{"helm upgrade --dry-run foo ./chart", ""},
+		{"rm -rf x -- --dry-run", "rm"},
 		{"helm upgrade --install foo ./chart", "helm"},
 		{"helm template ./chart", ""},
 		{"terraform apply -auto-approve", "terraform"},

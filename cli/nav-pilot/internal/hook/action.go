@@ -189,6 +189,9 @@ func nonFlags(args []string) []string {
 // --dry-run=none, which runs for real.
 func dryRun(args []string) bool {
 	for _, a := range args {
+		if a == "--" { // after --, "--dry-run" is an operand: rm -rf x -- --dry-run
+			return false
+		}
 		if a == "--dry-run" || (strings.HasPrefix(a, "--dry-run=") && a != "--dry-run=none") {
 			return true
 		}
