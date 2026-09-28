@@ -36,8 +36,13 @@ local_dispatch = "balanced"   # off | conservative | balanced | aggressive
 ```
 
 Per run: `nav-pilot --local-dispatch aggressive`. The flag wins over the file.
-The default is `balanced`. The key only matters once `local_enabled` is true,
-which is what `alpha local init` sets. `off` means "worker not offered": it does
+The key only matters once `local_enabled` is true, which is what `alpha local init`,
+`alpha local setup` and `alpha local on` set. A config that has never had
+`local_enabled` or `local_dispatch` is a new local setup, and those commands write
+`local_dispatch = "aggressive"` into it. Every other config keeps what it has. An
+existing setup with no `local_dispatch` key stays on the built-in default,
+`balanced`. So does a config that turns local inference back on after
+`alpha local off`. `off` means "worker not offered": it does
 not turn local inference off (that is `alpha local off`), because a local session
 model still works. It stops offering the worker to a cloud orchestrator.
 
@@ -46,7 +51,7 @@ credits only where the cloud would have needed about 5 steps or more, and #997
 measured a one-step dispatch at the same credits and 2–3× the time. What
 enforcement adds is that the sizes hold.
 
-| | off | conservative | balanced (default) | aggressive |
+| | off | conservative | balanced (built-in default) | aggressive (new setups) |
 |---|---|---|---|---|
 | Worker offered to a cloud orchestrator | no | yes | yes | yes |
 | Classes sent | none | manifest-trusted | manifest-trusted | manifest-trusted |
@@ -75,7 +80,7 @@ that said in so many words to send new test files, Sonnet 5 dispatched 0 of 6
 create-file samples. Across probes 1–5 it dispatched 1 of 29. In 4 of those 6
 samples it never mentioned the worker, and in the other 2 it cited the
 persona's Compressed tier. A prose-only default does nothing on the model most
-developers run, so `balanced`, the default for everyone who has turned local
+developers run, so `balanced`, the built-in default for everyone who has turned local
 inference on, enforces the rule the evidence supports: the multi-file split,
 at the sizes #997 measured.
 
@@ -87,6 +92,47 @@ edit again goes through, and that is the only refusal the turn gets. `aggressive
 is the hard form: dispatch first, two refusals per turn. `aggressive` adds new files. `conservative` is the
 prose-only level, for a model that dispatches too eagerly (Sonnet 4.6 sent 23
 of 24).
+
+### Why new setups get aggressive
+
+Dispatch re-probe 7 (mlx-workspace §8.8, binary 2bcca023 with #1114, Sonnet 5 as
+orchestrator) measured both enforced levels after probe 6's fixes:
+
+- `aggressive` dispatched in 17 of 17 valid samples on the large and create-file
+  cells, and all 17 passed verification. Counted by dispatched attempts it is 17
+  of 19: the other 2 are sessions the harness ended on a rejected `/tmp` write
+  (below). The pass is the orchestrator's, not the worker's alone: on create-file
+  the orchestrator redid 15 of the 27 worker tasks. That includes r6 (60 call sites in 3
+  files), which probe 6 never sent. The small cell had no false positive (0 of 5).
+  Cloud cost was 0.83–2.10× the cloud-only control, below it on one create-file
+  cell only, and wall time 2.7–3.6×.
+- `balanced` dispatched in 2 of 20. That is the checkpoint working as designed:
+  one refusal, and the same edit again passes.
+
+Probe 6 kept `balanced` because `aggressive` failed on quality (5 of 6 dispatched
+samples passed). On valid samples that line now holds, so a developer who turns local inference on
+gets the level that sends work. The price is wall time and, on most cells, cloud
+credits; quality held.
+
+Nobody who already has local inference is moved. An upgrade must not change how
+an existing session behaves, so the built-in default in code stays `balanced`.
+Only the setup commands write `aggressive`, and only into a config that has never
+had local inference configured (`enableLocal`, `alpha_local.go`). Same rule as the
+recorded `client` key: a new default reaches new installs only.
+
+`balanced` itself does not pass the measurement plan's decision rule on these
+numbers. Its cost was 1.58× control on r4 and 1.61× on r6, which by that rule
+drops `balanced` back to prose. But those controls come from probes 4–6, run on
+other days, and `balanced`'s extra cost is refusals, not delegation. The finding
+is to re-run the controls before acting, and what to do with `balanced` is a
+maintainer decision. This change leaves `balanced` as it is.
+
+Three more samples were invalid: the orchestrator made a `/tmp` backup for the
+break-and-undo check in the verify text, the backup was auto-rejected, and the
+session ended. In one of them the production code was left broken. That is
+navikt/copilot#1237, fixed before this default shipped: the verify text now keeps the
+undo inside the project, and the gate refuses a `/tmp` path (`deny_tmp`), so the
+session goes on. See "Checking the worker's result" below.
 
 ## Mechanisms, most reliable first
 
@@ -408,7 +454,7 @@ Probe 6 (mlx-workspace §8.8, 2026-09-28) measured the levels. `aggressive`
 dispatched on 6 of 8 valid samples on the large and create-file cells (`balanced`: 2 of 6),
 with no false positive on the small cell. But 1 of the 6 dispatched samples failed, one hit
 the 20-minute cap, and it cost 1.2–1.6× the control's cloud credits and took 2–3.6× its
-time. `balanced` stays the default, and `aggressive` is documented as an opt-in for
+time. `balanced` stays the default (superseded by re-probe 7, below), and `aggressive` is documented as an opt-in for
 mechanical multi-file edits. The gate's two gaps were fixed here: the call-site count (r6 was never gated) and the check of the
 worker's result. Both apply at `balanced` too, where the checkpoint bounds a misfire to
 one refusal per turn.
@@ -417,3 +463,7 @@ The review also suggested cutting `conservative`, since on Sonnet 5 it and `bala
 both come out near zero. It stays, because the user asked for a graded setting and
 `conservative` is the level for a model that dispatches too eagerly (Sonnet 4.6 sent
 23 of 24).
+
+Re-probe 7 (see "Why new setups get aggressive") found the quality line holding at
+`aggressive`: 17 of 17 dispatched and verified. New local setups now get
+`aggressive`; existing ones keep `balanced`.

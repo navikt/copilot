@@ -50,7 +50,7 @@ var configKeyDocNB = map[string]string{
 	"local_model":          "Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Sett den med nav-pilot alpha local use <key>.",
 	"local_endpoint":       "Din egen OpenAI-kompatible server (Ollama, llama-server), f.eks. http://127.0.0.1:11434/v1 (alfa, uten støtte, ikke målt). Da laster nav-pilot ikke ned og starter ingenting. Bare localhost og private IP-adresser. Sjekk den med nav-pilot alpha local doctor.",
 	"local_endpoint_model": "Modell-id-en local_endpoint skal bruke, f.eks. qwen3.6:35b. Påkrevd sammen med local_endpoint.",
-	"local_dispatch":       "Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer, ti kallsteder eller en skriptet løkke. Et søk-og-erstatt teller hvert sted det endrer. Med aggressive slipper redigeringen gjennom først når fila er sendt til den lokale modellen, og det samme gjelder nye filer. Med aggressive sender hovedagenten mest, men det kostet flere AI-kreditter og tok lengre tid i målingene. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for.",
+	"local_dispatch":       "Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer, ti kallsteder eller en skriptet løkke. Et søk-og-erstatt teller hvert sted det endrer. Med aggressive slipper redigeringen gjennom først når fila er sendt til den lokale modellen, og det samme gjelder nye filer. Med aggressive sender hovedagenten mest, men det kostet flere AI-kreditter og tok lengre tid i målingene. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for. Slår du på lokal modell for første gang med nav-pilot alpha local init, setup eller on, skriver nav-pilot aggressive i konfigurasjonen. Har du brukt lokal modell før, beholder du balanced.",
 	"hook_loop_guard":      "Samme løkkeregel i alle Copilot CLI-økter, også i skyen: en postToolUse-hook i ~/.copilot/hooks/ sier fra til modellen når den står fast. false fjerner hooken ved neste oppstart.",
 	"hook_redact_secrets":  "Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-økter.",
 	"hook_redact_fnr":      "Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. nav-pilot maskerer bare elleve sifre der datoen og begge kontrollsifrene stemmer.",
@@ -66,6 +66,11 @@ var configKeyValuesNB = map[string]string{
 	"local_model":          "modell-id fra manifestet",
 	"local_endpoint":       "en http(s)-URL",
 	"local_endpoint_model": "modell-id på serveren",
+}
+
+// configKeyNewSetupNB is a default that setup writes for new users only.
+var configKeyNewSetupNB = map[string]string{
+	"local_dispatch": ", aggressive for nye lokale oppsett",
 }
 
 type configKeyDocRow struct{ key, flag, values, desc string }
@@ -92,7 +97,7 @@ func configKeyDocRows(t *testing.T) []configKeyDocRow {
 			t.Fatalf("config key %s has no values text", name)
 		}
 		if kd.defaultVal != "" && name != "version" {
-			values += " (standard: " + kd.defaultVal + ")"
+			values += " (standard: " + kd.defaultVal + configKeyNewSetupNB[name] + ")"
 		}
 		flag := kd.flag
 		if flag == "" {

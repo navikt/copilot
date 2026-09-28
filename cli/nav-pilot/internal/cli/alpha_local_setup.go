@@ -374,7 +374,7 @@ func cmdLocalSetup(args []string) error {
 				return saveEndpoint(choice, checks, false)
 			}
 			return &exitCode{code: 1, err: fmt.Errorf("nothing was saved. Fix the FAIL lines above, then run %s. Or save with this context anyway: %s",
-				bold(again), bold(fmt.Sprintf("nav-pilot config set local_endpoint %s/v1 && nav-pilot config set local_endpoint_model %s && nav-pilot config set local_enabled true", choice.Server.Base, choice.Model)))}
+				bold(again), bold(fmt.Sprintf("nav-pilot config set local_endpoint %s/v1 && nav-pilot config set local_endpoint_model %s && nav-pilot alpha local on", choice.Server.Base, choice.Model)))}
 		}
 		return &exitCode{code: 1, err: fmt.Errorf("nothing was saved. Fix the FAIL lines above, then run %s", bold(again))}
 	}
@@ -623,11 +623,14 @@ func failed(checks []doctorCheck, name string) bool {
 	return slices.ContainsFunc(checks, func(c doctorCheck) bool { return c.Name == name && c.Level == levelFail })
 }
 
-// saveEndpoint writes the three keys through the normal config path, after a
+// saveEndpoint writes the keys through the normal config path, after a
 // yes, and says what now works.
 func saveEndpoint(c setupChoice, checks []doctorCheck, yes bool) error {
 	endpoint := c.Server.Base + "/v1"
 	fmt.Printf("  Save to %s:\n    local_endpoint       = %s\n    local_endpoint_model = %s\n    local_enabled        = true\n", configPath(), endpoint, c.Model)
+	if newLocalSetup() {
+		fmt.Println("    local_dispatch       = aggressive")
+	}
 	short := failed(checks, "context")
 	title := "Save and turn local dispatch on?"
 	if short {
@@ -642,10 +645,13 @@ func saveEndpoint(c setupChoice, checks []doctorCheck, yes bool) error {
 		fmt.Println("  Not saved.")
 		return &exitCode{code: 1}
 	}
-	for _, kv := range [][2]string{{"local_endpoint", endpoint}, {"local_endpoint_model", c.Model}, {"local_enabled", "true"}} {
+	for _, kv := range [][2]string{{"local_endpoint", endpoint}, {"local_endpoint_model", c.Model}} {
 		if _, err := writeConfigKey(kv[0], kv[1]); err != nil {
 			return err
 		}
+	}
+	if err := enableLocal(); err != nil {
+		return err
 	}
 	fmt.Printf("\n%s Saved. Local dispatch is on, to %s on %s.\n", green("✓"), bold(c.Model), kindName[c.Server.Kind])
 	launch := "nav-pilot --client opencode"

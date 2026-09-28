@@ -100,16 +100,16 @@ nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> fo
               kallsteder), og hovedagenten vurderer selv om det er verdt det.
             </li>
             <li>
-              <code className={code}>balanced</code> (standard): mekaniske endringer på minst 5 filer eller 10
-              kallsteder. Redigerer hovedagenten selv en femte fil eller et tiende kallsted i samme tur, stopper
-              nav-pilot redigeringen én gang og ber om at resten sendes til <code className={code}>local-worker</code>.
-              Et søk-og-erstatt teller hvert sted det endrer. Trenger endringen en vurdering per fil, går samme
-              redigering gjennom andre gang.
+              <code className={code}>balanced</code> (standard for deg som brukte lokal modell fra før): mekaniske
+              endringer på minst 5 filer eller 10 kallsteder. Redigerer hovedagenten selv en femte fil eller et tiende
+              kallsted i samme tur, stopper nav-pilot redigeringen én gang og ber om at resten sendes til{" "}
+              <code className={code}>local-worker</code>. Et søk-og-erstatt teller hvert sted det endrer. Trenger
+              endringen en vurdering per fil, går samme redigering gjennom andre gang.
             </li>
             <li>
-              <code className={code}>aggressive</code> (ikke standard, må velges): en stoppet fil slipper gjennom først
-              når den er sendt til <code className={code}>local-worker</code>. Nye filer, også tester, går dit først når
-              modellen er godkjent for nye filer.
+              <code className={code}>aggressive</code> (standard når du slår på lokal modell for første gang): en
+              stoppet fil slipper gjennom først når den er sendt til <code className={code}>local-worker</code>. Nye
+              filer, også tester, går dit først når modellen er godkjent for nye filer.
             </li>
           </Bullets>
           <BodyLong>
@@ -125,14 +125,13 @@ nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> fo
             20 uten, og tiden per godkjent fil gikk ned fra 618 til 322 sekunder, selv om hvert forsøk tok lengre tid.
           </BodyLong>
           <BodyLong>
-            <code className={code}>aggressive</code> sender mest, men sparer ikke AI-kreditter. I målingen 28. september
-            2026 (probe 6) sendte hovedagenten arbeid i 6 av 8 kjøringer med mange kallsteder eller nye testfiler, mot 2
-            av 6 med <code className={code}>balanced</code>. På disse oppgavene kostet{" "}
-            <code className={code}>aggressive</code> 1,2–1,6 ganger så mye i AI-kreditter og tok 2–3,6 ganger så lang
-            tid som når skymodellen gjorde alt selv. Kvaliteten var lavere på nye testfiler: én testfil fra den lokale
-            modellen var grønn uten å fange feilen den skulle fange, og én kjøring traff 20-minuttersgrensen. Velg{" "}
-            <code className={code}>aggressive</code> bare hvis du vil bruke den lokale modellen mest mulig, og bare til
-            mekaniske endringer over mange filer.
+            <code className={code}>aggressive</code> sender mest, men sparer ikke AI-kreditter. I målingen fra september
+            2026 (re-probe 7, Sonnet 5 som hovedagent) sendte hovedagenten arbeid i alle 17 gyldige kjøringer med mange
+            kallsteder eller nye filer, mot 2 av 20 med <code className={code}>balanced</code>, og alle 17 besto bygg og
+            tester. Var endringen liten, sendte den ingenting (0 av 5). Det kostet 0,83–2,1 ganger så mye i AI-kreditter
+            og tok 2,7–3,6 ganger så lang tid som når skymodellen gjorde alt selv. Hovedagenten gjorde likevel om 15 av
+            27 oppgaver med nye filer selv. To kjøringer til ble avbrutt før de var ferdige, og i én av dem ble koden
+            liggende i stykker.
           </BodyLong>
           <BodyLong>
             Uansett nivå sender hovedagenten bare oppgavetyper modellen er godkjent for. Stoppet ligger i en plugin for
