@@ -312,13 +312,14 @@ func serveFakeMLX() {
 // more than N tokens kills it, and it closes every connection
 // from then on, the way an OOM-killed Ollama stops answering. -nomem-ctx N
 // answers such a prompt with Ollama's 500 "model requires more system
-// memory" instead, and stays up.
+// memory" instead, and stays up. -prefill-rate N reads N prompt tokens a
+// second, the way a CPU-only machine does.
 func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 	if neg {
 		ts.Fatalf("usage: fake-endpoint [-no-logprobs] [-no-tools] [-ctx N] [-models a,b]")
 	}
 	logprobs, tools, ctxTokens, models, export := true, true, 0, []string{"qwen3.6:35b"}, "FAKE_ENDPOINT_URL"
-	ollama, oomCtx, noMemCtx, dead := true, 0, 0, false
+	ollama, oomCtx, noMemCtx, dead, prefillRate := true, 0, 0, false, 0
 	var mu sync.Mutex
 	modelCtx := map[string]int{}
 	for i := 0; i < len(args); i++ {
@@ -337,6 +338,11 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 			n, err := strconv.Atoi(args[i])
 			ts.Check(err)
 			noMemCtx = n
+		case "-prefill-rate":
+			i++
+			n, err := strconv.Atoi(args[i])
+			ts.Check(err)
+			prefillRate = n
 		case "-oom-ctx":
 			i++
 			n, err := strconv.Atoi(args[i])
@@ -451,6 +457,9 @@ func cmdFakeEndpoint(ts *testscript.TestScript, neg bool, args []string) {
 		if oomCtx > 0 && prompt > oomCtx {
 			die()
 			return
+		}
+		if prefillRate > 0 {
+			time.Sleep(time.Duration(prompt) * time.Second / time.Duration(prefillRate))
 		}
 		msg := map[string]any{"role": "assistant", "content": "A"}
 		if len(req.Tools) > 0 {

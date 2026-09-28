@@ -67,4 +67,20 @@ stdout 'Fix: Start the server again; on Linux, dmesg'
 stdout 'SKIP  logprobs +the server did not answer'
 stdout 'SKIP  context +the server did not answer'
 stdout 'SKIP  TTFT '
-! stderr 'Sending about 30k tokens'
+! stderr 'about 30k tokens'
+
+# A CPU-only machine: a short prompt shows the 30k-token probe would take
+# minutes, so it is skipped with a warning, not failed after 10 (#1222).
+fake-endpoint -llama -prefill-rate 300
+exec nav-pilot config set local_endpoint $FAKE_ENDPOINT_URL
+exec nav-pilot alpha local doctor
+stdout 'SKIP  context +too slow to test 30k tokens on this machine'
+stdout 'WARN  TTFT +at least [0-9]+ (seconds|minutes) for about 30k'
+! stdout 'FAIL'
+
+# setup saves it, and says the context window was not checked.
+exec nav-pilot config unset local_endpoint
+exec nav-pilot alpha local setup --endpoint $FAKE_ENDPOINT_URL --yes
+stdout 'SKIP  context +too slow'
+stdout 'Saved\.'
+stdout 'The context window was not checked'
