@@ -17,7 +17,7 @@ const APT_KEYRING_TMP = "/tmp/navikt-archive-keyring.gpg";
 // used to leave a 0-byte keyring and end in "Unable to locate package" (#1099); now the
 // chain stops and the || branch points at the install script. No `set -e`, because the
 // block is pasted into the user's interactive shell.
-function aptInstall(packages: string, installScript: string): string {
+function aptInstall(packages: string, failed: string): string {
   return [
     `curl -fsSL -o ${APT_KEYRING_TMP} https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \\`,
     `  && test -s ${APT_KEYRING_TMP} \\`,
@@ -25,12 +25,19 @@ function aptInstall(packages: string, installScript: string): string {
     `  && echo "deb [signed-by=${APT_KEYRING}] https://navikt.github.io/apt stable main" \\`,
     `    | sudo tee /etc/apt/sources.list.d/navikt.list >/dev/null \\`,
     `  && sudo apt update && sudo apt install ${packages} \\`,
-    `  || echo "Klarte ikke å installere fra apt-arkivet. Sjekk at du når https://navikt.github.io/apt, eller bruk installasjonsskriptet: ${installScript}" >&2`,
+    `  || echo "${failed}" >&2`,
   ].join("\n");
 }
 
-export const NAV_PILOT_APT_INSTALL = aptInstall("nav-pilot cplt", NAV_PILOT_INSTALL_SCRIPT);
-export const CPLT_APT_INSTALL = aptInstall("cplt", CPLT_INSTALL_SCRIPT);
+export const NAV_PILOT_APT_INSTALL = aptInstall(
+  "nav-pilot cplt",
+  `Klarte ikke å installere fra apt-arkivet. Sjekk at du når https://navikt.github.io/apt, eller bruk installasjonsskriptet: ${NAV_PILOT_INSTALL_SCRIPT}`
+);
+// In English: only the English /cplt pages show it.
+export const CPLT_APT_INSTALL = aptInstall(
+  "cplt",
+  `Could not install from the apt archive. Check that you can reach https://navikt.github.io/apt, or use the install script: ${CPLT_INSTALL_SCRIPT}`
+);
 
 export type InstallOs = "mac" | "linux" | "windows";
 

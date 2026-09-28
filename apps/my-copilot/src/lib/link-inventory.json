@@ -52,6 +52,7 @@
     "sources": [
       "README.md",
       "apps/my-copilot/src/app/(en)/cplt/page.tsx",
+      "apps/my-copilot/src/app/(en)/cplt/windows/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
       "apps/my-copilot/src/app/(nb)/cplt/page.tsx",
@@ -79,6 +80,14 @@
       "slik-virker-det": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx"],
       "vakter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx"]
     }
+  },
+  "/cplt/windows": {
+    "sources": [
+      "apps/my-copilot/src/app/(en)/cplt/page.tsx",
+      "apps/my-copilot/src/app/(en)/cplt/windows/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts"
+    ],
+    "anchors": {}
   },
   "/customizations": {
     "sources": ["apps/my-copilot/next.config.ts"],
