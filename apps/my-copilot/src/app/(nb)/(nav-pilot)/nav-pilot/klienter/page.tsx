@@ -155,13 +155,13 @@ export default function Klienter() {
         </BodyLong>
         <BodyLong>
           Klienten du bruker, står i {c("~/.nav-pilot/config.toml")}. Mangler linja, skriver nav-pilot den inn første
-          gang du starter den i en terminal. Endrer vi standarden senere, gjelder det bare nye installasjoner, og du
+          gang du starter en økt i en terminal. Endrer vi standarden senere, gjelder det bare nye installasjoner. Du
           beholder klienten du har.
         </BodyLong>
         <BodyLong>
-          Bruker du Copilot CLI med lokale modeller på, viser nav-pilot én gang en linje om opencode, fordi bare
-          opencode kan la en skymodell sende oppgaver til en lokal modell. Linja kommer aldri i samme økt som en
-          brukerundersøkelse, og {c("nav-pilot config set surveys false")} slår den av.
+          Bruker du Copilot CLI med lokale modeller på, viser nav-pilot én gang et tips om opencode: bare opencode lar
+          en skymodell sende oppgaver til en lokal modell. Tipset kommer aldri i samme økt som en brukerundersøkelse, og{" "}
+          {c("nav-pilot config set surveys false")} slår det av.
         </BodyLong>
         <div className="overflow-x-auto">
           <Table size="small" className="table-stack" role="table">

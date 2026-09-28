@@ -45,7 +45,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "client",
 		kind:        keyKindString,
-		description: "Coding-agent CLI to launch (copilot, opencode, pi). The first run in a terminal writes the client you run into config.toml when the file names none, so a later change of the default does not move you.",
+		description: "Coding-agent CLI to launch (copilot, opencode, pi). The first run in a terminal writes the client you run into config.toml when the file names none, so a later change of the default does not switch your client.",
 		allowed:     validProviderIDs,
 		defaultVal:  "copilot",
 		flag:        "--client",
