@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,10 +61,10 @@ func ResolveForLaunchWithin(sourceRepo, cliVersion string, maxAge time.Duration)
 		}
 		dir := filepath.Join(CacheDir, cacheKey(repo))
 		if s, fetched, ok := cachedCheckout(dir); ok {
-			if maxAge > 0 && time.Since(fetched) >= maxAge {
-				return refetch(dir, repo, fetched)
+			if maxAge > 0 && !fresh(fetched, maxAge) {
+				return refetch(dir, repo, fetched, maxAge)
 			}
-			if time.Since(fetched) >= launchRefreshEvery {
+			if !fresh(fetched, launchRefreshEvery) {
 				refresh = func(ctx context.Context) { _ = fetchIntoCache(ctx, dir, repo) }
 			}
 			return s, nil
@@ -96,28 +98,42 @@ func ResolveForLaunchWithin(sourceRepo, cliVersion string, maxAge time.Duration)
 	return src, refresh, err
 }
 
-// refetch fetches a new checkout into the cache and waits for it. Another
-// launch already fetching holds the lock, and then the checkout there is used:
-// the next launch gets the new one.
-func refetch(dir, repo string, fetched time.Time) (*Source, error) {
+// refetch fetches a new checkout into the cache and waits for it. When another
+// process holds the refresh lock, it waits for that fetch instead. Either way
+// a checkout still older than maxAge afterwards is an error, never the old copy.
+func refetch(dir, repo string, fetched time.Time, maxAge time.Duration) (*Source, error) {
 	timeout := firstFetchTimeout
 	if FetchTimeout > 0 && FetchTimeout < timeout {
 		timeout = FetchTimeout
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	if err := fetchIntoCache(ctx, dir, repo); err != nil {
-		if ctx.Err() != nil {
-			err = fmt.Errorf("no answer in %s", timeout)
+	stale := fmt.Errorf("the copy of %s is from %s, and no newer one came in %s",
+		cacheLabel(repo), fetched.Local().Format("2006-01-02 15:04"), timeout)
+	for {
+		if err := fetchIntoCache(ctx, dir, repo); err != nil {
+			if ctx.Err() != nil {
+				return nil, stale
+			}
+			return nil, fmt.Errorf("the copy of %s is from %s, and fetching a new one failed: %w",
+				cacheLabel(repo), fetched.Local().Format("2006-01-02 15:04"), err)
 		}
-		return nil, fmt.Errorf("the copy of %s is from %s, and fetching a new one failed: %w",
-			cacheLabel(repo), fetched.Local().Format("2006-01-02 15:04"), err)
+		if s, at, ok := cachedCheckout(dir); ok && fresh(at, maxAge) {
+			return s, nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil, stale
+		case <-time.After(250 * time.Millisecond):
+		}
 	}
-	s, _, ok := cachedCheckout(dir)
-	if !ok {
-		return nil, fmt.Errorf("fetching %s left no checkout in %s", cacheLabel(repo), dir)
-	}
-	return s, nil
+}
+
+// fresh reports whether a copy fetched at is younger than maxAge. A time in
+// the future (the clock was set back) is not fresh.
+func fresh(at time.Time, maxAge time.Duration) bool {
+	age := time.Since(at)
+	return age >= 0 && age < maxAge
 }
 
 // minutesAgo says how long ago, in words a message can carry.
@@ -198,8 +214,11 @@ func fetchIntoCache(ctx context.Context, dir, repo string) error {
 		os.Remove(lock)
 	}
 	lf, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if errors.Is(err, fs.ErrExist) {
+		return nil // another process is fetching
+	}
 	if err != nil {
-		return nil
+		return err
 	}
 	lf.Close()
 	defer os.Remove(lock)

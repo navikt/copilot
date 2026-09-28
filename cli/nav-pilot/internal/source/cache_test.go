@@ -223,8 +223,28 @@ func TestResolveForLaunchWithinMaxAge(t *testing.T) {
 		t.Fatalf("cache past maxAge: %+v, %v; want %s", src, err, second)
 	}
 
-	// Older and offline: an error, not the old copy.
+	// Older, and another process holds the refresh lock but brings in
+	// nothing: an error once the wait is over, not the old copy.
+	if err := os.WriteFile(filepath.Join(dir, ".refresh.lock"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
 	writeCacheMeta(dir, cacheMeta{SHA: second, FetchedAt: time.Now().Add(-2 * maxAge)})
+	defer func(d time.Duration) { FetchTimeout = d }(FetchTimeout)
+	FetchTimeout = 600 * time.Millisecond
+	if src, _, err := ResolveForLaunchWithin("navikt/x", "v1", maxAge); err == nil {
+		t.Fatalf("cache past maxAge, lock held: got %+v, want an error", src)
+	}
+	os.Remove(filepath.Join(dir, ".refresh.lock"))
+
+	// A copy dated in the future (the clock was set back) is not fresh.
+	third := commit("three")
+	writeCacheMeta(dir, cacheMeta{SHA: second, FetchedAt: time.Now().Add(maxAge)})
+	if src, _, err := ResolveForLaunchWithin("navikt/x", "v1", maxAge); err != nil || src.SHA != third {
+		t.Fatalf("cache dated in the future: %+v, %v; want %s", src, err, third)
+	}
+
+	// Older and offline: an error, not the old copy.
+	writeCacheMeta(dir, cacheMeta{SHA: third, FetchedAt: time.Now().Add(-2 * maxAge)})
 	RemoteURLFn = func(string) string { return "file://" + filepath.Join(repo, "gone") }
 	if src, _, err := ResolveForLaunchWithin("navikt/x", "v1", maxAge); err == nil {
 		t.Fatalf("cache past maxAge, offline: got %+v, want an error", src)
