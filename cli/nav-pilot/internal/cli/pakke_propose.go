@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"slices"
 	"sort"
 	"strings"
@@ -94,10 +93,11 @@ var askProposalConsent = func(title, description string, approve *bool) error {
 		Run()
 }
 
-// cpltInstalled reports cplt on PATH. A var so tests can have it.
+// cpltInstalled reports cplt on PATH, also as a copilot that is cplt, the way
+// the launch resolves it. A var so tests can have it.
 var cpltInstalled = func() bool {
-	_, err := exec.LookPath("cplt")
-	return err == nil
+	_, name := providerpkg.FindCopilotCLI()
+	return name == "cplt"
 }
 
 // noteProposalConsent asks about the sandbox configuration a source's
