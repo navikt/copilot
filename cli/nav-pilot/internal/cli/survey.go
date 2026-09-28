@@ -237,7 +237,7 @@ func maybeSurvey(client string) {
 	}
 
 	s := nextSurvey(st, now, "calm")
-	if s == nil {
+	if s == nil || !claimSessionPrompt() {
 		return
 	}
 	rec := countAsk(st, s.ID, now)
@@ -335,7 +335,7 @@ func maybeSurveyHint(client string) {
 	// The keychain only when there is something to show: reading it can
 	// start a subprocess or an unlock dialog.
 	s := nextSurvey(st, now, "start")
-	if s == nil || !canSignIn() {
+	if s == nil || sessionPrompted || !canSignIn() || !claimSessionPrompt() {
 		return
 	}
 	countAsk(st, s.ID, now)

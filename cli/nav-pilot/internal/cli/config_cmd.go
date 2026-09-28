@@ -45,7 +45,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "client",
 		kind:        keyKindString,
-		description: "Coding-agent CLI to launch (copilot, opencode, pi).",
+		description: "Coding-agent CLI to launch (copilot, opencode, pi). The first run in a terminal writes the client you run into config.toml when the file names none, so a later change of the default does not switch your client.",
 		allowed:     validProviderIDs,
 		defaultVal:  "copilot",
 		flag:        "--client",
@@ -125,7 +125,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "surveys",
 		kind:        keyKindBool,
-		description: "Now and then, after a session, ask whether you want to answer a short user survey (at most three times per survey). Set to false to never be asked. DO_NOT_TRACK and NAV_PILOT_TELEMETRY_ENABLED=false turn it off too.",
+		description: "Now and then, after a session, ask whether you want to answer a short user survey (at most three times per survey). Set to false to never be asked; that also turns off the one-time tip about opencode. DO_NOT_TRACK and NAV_PILOT_TELEMETRY_ENABLED=false turn it off too.",
 		allowed:     nil,
 		defaultVal:  "true",
 		flag:        "",
