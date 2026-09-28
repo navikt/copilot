@@ -17,9 +17,16 @@ import (
 
 // defaultCopilotCLIURL is the naisdevice-only ingress for the copilot-cli
 // gateway (see apps/copilot-cli). Overridable via the NAV_PILOT_COPILOT_CLI_URL
-// environment variable for testing against a different environment (e.g.
-// dev-gcp).
-const defaultCopilotCLIURL = "https://copilot-cli.intern.nav.no"
+// environment variable for testing against a different environment.
+//
+// This points at dev-gcp because that is the only cluster copilot-cli is
+// deployed to (.github/workflows/copilot-cli.yaml pins nais-clusters to
+// dev-gcp, and copilot-survey has no prod-gcp manifest at all). The prod
+// ingress https://copilot-cli.intern.nav.no does not resolve to the app, so
+// pointing here meant every usage and survey call got Nav's 404 error page.
+// Switch to prod once copilot-cli and copilot-survey are deployed there
+// (issue #337).
+const defaultCopilotCLIURL = "https://copilot-cli.intern.dev.nav.no"
 
 // usageResponse mirrors copilot-api's UserMetricsSummary JSON shape
 // (see apps/copilot-api/bigquery_stats.go), which is what copilot-cli's

@@ -369,6 +369,10 @@ func cmdSurvey(jsonOutput bool) error {
 		st.Active, st.Fetched = active, now
 		writeSurveyState(st)
 	} else if len(st.Active) == 0 {
+		var httpErr surveyHTTPError
+		if errors.As(err, &httpErr) {
+			return fmt.Errorf("copilot-cli svarte ikke som forventet, så nav-pilot fant ingen åpne undersøkelser: %w\nSett NAV_PILOT_COPILOT_CLI_URL hvis du skal mot et annet miljø", err)
+		}
 		return fmt.Errorf("fikk ikke kontakt med copilot-cli for å finne åpne undersøkelser (er naisdevice på?): %w", err)
 	}
 	var open []surveyDef
@@ -587,6 +591,20 @@ var versionShapePattern = regexp.MustCompile(`^v?\d{1,4}\.\d{1,4}\.\d{1,4}(-[0-9
 
 func versionShape(v string) bool { return versionShapePattern.MatchString(v) }
 
+// surveyHTTPError is copilot-cli answering with something other than 200.
+// That is a different fault from not reaching it at all — most often the
+// gateway is not deployed in the environment the URL points at, which Nav's
+// ingress answers with a 404 error page — so it must not be reported as
+// "naisdevice is off".
+type surveyHTTPError struct {
+	base   string
+	status string
+}
+
+func (e surveyHTTPError) Error() string {
+	return fmt.Sprintf("%s svarte %s på /api/v1/surveys/active", e.base, e.status)
+}
+
 func fetchActiveSurveys(base string) ([]surveyDef, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -600,7 +618,7 @@ func fetchActiveSurveys(base string) ([]surveyDef, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("surveys: %s", resp.Status)
+		return nil, surveyHTTPError{base: base, status: resp.Status}
 	}
 	var body struct {
 		Surveys []surveyDef `json:"surveys"`
