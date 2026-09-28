@@ -18,16 +18,16 @@ export const metadata: Metadata = {
 };
 
 const README_WSL = "https://github.com/navikt/cplt#windows-wsl2";
+const NVM = "https://github.com/nvm-sh/nvm#installing-and-updating";
 const PTY_DOCS = "https://github.com/navikt/cplt/blob/main/docs/known-impacts.md#terminal-devices-and-allocating-a-pty";
 const WSL_ISSUE = "https://github.com/navikt/cplt/issues/189";
 
 const POWERSHELL = `wsl --install    # WSL2 and Ubuntu, then reboot
 wsl --update     # a current Microsoft kernel, for the full Landlock ABI`;
 
-const TOOLS = `# Node 22 or newer. Ubuntu 26.04 ships it; on 24.04 (Node 18) use nvm or fnm instead.
-sudo apt update && sudo apt install -y nodejs npm
+const NODE_APT = `sudo apt update && sudo apt install -y nodejs npm`;
 
-# GitHub CLI, and log in
+const TOOLS = `# GitHub CLI, and log in
 sudo apt install -y gh
 gh auth login
 
@@ -111,6 +111,14 @@ export default function CpltWindowsPage() {
               <Step id="inside" title="2. Everything else inside the distribution">
                 <BodyLong size="small" style={muted}>
                   Open Ubuntu from Windows Terminal, or run <code>wsl</code>, and install the tools there.
+                </BodyLong>
+                <BodyLong size="small" style={muted}>
+                  Copilot CLI needs Node 22 or newer. On Ubuntu 26.04, apt has it:
+                </BodyLong>
+                <Command command={NODE_APT} {...COPY} />
+                <BodyLong size="small" style={muted}>
+                  Ubuntu 24.04 ships Node 18, which is too old. Install Node 22 with{" "}
+                  <ExternalLink href={NVM}>nvm</ExternalLink> instead, then go on:
                 </BodyLong>
                 <Command command={TOOLS} {...COPY} />
                 <BodyLong size="small" style={muted}>
