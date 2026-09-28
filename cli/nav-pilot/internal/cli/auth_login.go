@@ -18,7 +18,7 @@ const navPilotGitHubOrg = "navikt"
 // the OS keychain (macOS Keychain / Windows Credential Manager / Linux
 // libsecret via go-keyring).
 func cmdAuthLogin() error {
-	// An override set to the old placeholder names no App. Starting the
+	// An override set to the old placeholder does not name an App. Starting the
 	// device flow with it just yields a raw GitHub 4xx, so fail fast with an
 	// actionable message instead.
 	if !hasGitHubApp() {

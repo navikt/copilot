@@ -282,7 +282,7 @@ func TestCmdAuthLoginNotOrgMember(t *testing.T) {
 
 func TestCmdAuthLoginPlaceholderClientID(t *testing.T) {
 	keyring.MockInit()
-	// An override still set to the old placeholder names no GitHub App, so
+	// An override still set to the old placeholder does not name a GitHub App, so
 	// login must fail fast before any network call.
 	t.Setenv("NAV_PILOT_GITHUB_CLIENT_ID", navPilotGitHubClientIDPlaceholder)
 

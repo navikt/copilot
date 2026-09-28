@@ -25,7 +25,7 @@ import (
 const navPilotGitHubClientIDDefault = "Iv23lipLVaf9muvHhIXC"
 
 // navPilotGitHubClientIDPlaceholder is the client ID nav-pilot shipped with
-// before the App existed. An override still set to it names no App.
+// before the App existed. An override still set to it does not name an App.
 const navPilotGitHubClientIDPlaceholder = "Iv1.nav-pilot-devflow"
 
 func navPilotGitHubClientID() string {
@@ -36,7 +36,7 @@ func navPilotGitHubClientID() string {
 }
 
 // hasGitHubApp reports whether there is a GitHub App to log in with: an
-// override still set to the old placeholder names none.
+// override still set to the old placeholder does not name one.
 func hasGitHubApp() bool {
 	return navPilotGitHubClientID() != navPilotGitHubClientIDPlaceholder
 }
