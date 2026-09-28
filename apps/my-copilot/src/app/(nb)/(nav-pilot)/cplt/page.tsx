@@ -310,10 +310,10 @@ function InstallSection({ stars }: { stars: number | null }) {
         windowsNote="cplt har ingen sandkasse på Windows. Installer den i Linux-distroen din under WSL2, der kjernen håndhever sandkassen."
       />
       <BodyLong>
-        Arkivet bygges på nytt hver time fra siste versjon. Kom en versjon for noen minutter siden, kan det derfor ta
-        opptil en time før du får installert den. Arkivet er et vanlig apt-repo som speiler versjonene våre, ikke en
-        pakke i distribusjonen med egen vedlikeholder. På andre distribusjoner, i CI eller når en proxy stopper arkivet,
-        bruker du <code className={`${code} break-all`}>{CPLT_INSTALL_SCRIPT}</code>.
+        Apt-arkivet for Debian og Ubuntu bygges på nytt hver time fra siste versjon. Kom en versjon for noen minutter
+        siden, kan det derfor ta opptil en time før du får installert den. Arkivet er et vanlig apt-repo som speiler
+        versjonene våre, ikke en pakke i distribusjonen med egen vedlikeholder. På andre distribusjoner, i CI eller når
+        en proxy stopper arkivet, bruker du <code className={`${code} break-all`}>{CPLT_INSTALL_SCRIPT}</code>.
       </BodyLong>
       <BodyLong>
         cplt virker på macOS (Apple Seatbelt) og Linux (Landlock og seccomp-BPF), og på Windows bare i WSL2.
