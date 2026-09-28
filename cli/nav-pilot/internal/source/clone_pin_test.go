@@ -197,3 +197,26 @@ func TestFetchTimeoutAbortsAHangingFetch(t *testing.T) {
 		t.Errorf("the error must say the fetch timed out, got: %v", err)
 	}
 }
+
+// A release tag of navikt/copilot is that release's version, also when the
+// source names navikt/copilot outright: otherwise a scope synced to the
+// latest release kept the binary's version and was offered the sync again on
+// every launch. Another repository's tags say nothing about nav-pilot.
+func TestResolveSourceReleaseTagVersion(t *testing.T) {
+	orig := CloneRemoteFn
+	t.Cleanup(func() { CloneRemoteFn = orig })
+	CloneRemoteFn = func(string, string) (*Source, error) { return &Source{Dir: t.TempDir()}, nil }
+	for repo, want := range map[string]string{
+		"navikt/copilot": "2026.09.28-170943-7ff8068",
+		"navikt/Copilot": "2026.09.28-170943-7ff8068",
+		"navikt/annen":   "2026.09.20-120000",
+	} {
+		src, err := ResolveSource("nav-pilot/2026.09.28-170943-7ff8068", repo, "2026.09.20-120000")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if src.Version != want {
+			t.Errorf("%s: version %q, want %q", repo, src.Version, want)
+		}
+	}
+}
