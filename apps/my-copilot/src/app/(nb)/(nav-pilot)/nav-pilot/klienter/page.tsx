@@ -359,6 +359,11 @@ export default function Klienter() {
             {c("~/.config/opencode/.nav-pilot-state.json")} holder rede på hva som er installert.
           </li>
           <li>
+            Oppstarten venter ikke på GitHub. nav-pilot bruker kopien av agentpakka i {c("~/.nav-pilot/sources/")} og
+            henter en ny mens økten kjører, høyst én gang i timen. Endringer i agentpakka kommer derfor med ved neste
+            oppstart. Bare første oppstart venter på nedlastingen, i opptil 60 sekunder.
+          </li>
+          <li>
             Velger du ikke modell selv, bruker nav-pilot standarden agentpakka oppgir. For agentpakka nav-pilot er det
             GPT-6 Sol. Oppgir pakka ingen, velger opencode. En Copilot-id uten prefiks får {c("github-copilot/")} foran.
           </li>

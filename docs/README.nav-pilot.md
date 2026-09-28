@@ -416,7 +416,10 @@ doctor` anbefaler, skaffer `cplt` tokenet: den bruker `GH_TOKEN`,
 Med `--client opencode` (eller `client = "opencode"` i konfig) gjør nav-pilot dette ved hver
 oppstart:
 
-1. Løser opp Nav-kildeartifaktene (skills, agenter, prompts, instruksjoner)
+1. Løser opp Nav-kildeartifaktene (skills, agenter, prompts, instruksjoner). En kilde på GitHub
+   leses fra kopien i `~/.nav-pilot/sources/`, så oppstarten venter ikke på nettet. nav-pilot
+   henter en ny kopi mens økten kjører, høyst én gang i timen, og neste oppstart bruker den.
+   Bare første oppstart venter på nedlastingen, i opptil 60 sekunder.
 2. Skriver dem til OpenCode-konfigurasjonsmappen (f.eks. `~/.config/opencode/` eller via `XDG_CONFIG_HOME`) som `AGENTS.md`, `skills/`, `commands/`, `agents/` og `instructions/`
 3. Holder dem synkronisert med versjonskontroll (konflikt-deteksjon, ferskhetssjekk)
 
