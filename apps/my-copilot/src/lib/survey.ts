@@ -7,8 +7,6 @@
  */
 import { exchangeTokenFor, fetchWithTimeout, isLocalDev } from "@/lib/backend-api";
 
-const COPILOT_SURVEY_URL = process.env.COPILOT_SURVEY_URL || "http://copilot-survey";
-
 export type SurveyQuestion = {
   id: string;
   type: "scale" | "choice" | "multi" | "text";
@@ -43,20 +41,24 @@ export type SubmitResult =
 
 const KNOWN_TYPES = ["scale", "choice", "multi", "text"];
 
-/** The open surveys this page can show; [] when copilot-survey has none or is out of reach. */
-export async function getActiveSurveys(): Promise<Survey[]> {
+export type ActiveSurveys = { status: "ok"; surveys: Survey[] } | { status: "error" };
+
+/**
+ * The open surveys this page can show. No COPILOT_SURVEY_URL (a cluster without
+ * copilot-survey) means no open survey; an unreachable or failing copilot-survey
+ * is an error, so the page does not claim the survey has closed.
+ */
+export async function getActiveSurveys(): Promise<ActiveSurveys> {
+  const url = process.env.COPILOT_SURVEY_URL;
+  if (!url) return { status: "ok", surveys: [] };
   try {
-    const res = await fetchWithTimeout(
-      `${COPILOT_SURVEY_URL}/api/v1/surveys/active`,
-      { cache: "no-store" },
-      5000,
-      "timeout"
-    );
-    if (!res.ok) return [];
+    const res = await fetchWithTimeout(`${url}/api/v1/surveys/active`, { cache: "no-store" }, 5000, "timeout");
+    if (!res.ok) return { status: "error" };
     const body = (await res.json()) as { surveys?: Survey[] };
-    return (body.surveys ?? []).filter((s) => s.questions.every((q) => KNOWN_TYPES.includes(q.type)));
+    const surveys = (body.surveys ?? []).filter((s) => s.questions.every((q) => KNOWN_TYPES.includes(q.type)));
+    return { status: "ok", surveys };
   } catch {
-    return [];
+    return { status: "error" };
   }
 }
 
@@ -68,12 +70,14 @@ export function isSkipped(q: SurveyQuestion, answers: Answers): boolean {
 }
 
 export async function submitAnswers(userToken: string, surveyId: string, answers: Answers): Promise<SubmitResult> {
+  const url = process.env.COPILOT_SURVEY_URL;
+  if (!url) return { status: "error" };
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (!isLocalDev) {
     headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
   }
   const res = await fetchWithTimeout(
-    `${COPILOT_SURVEY_URL}/api/v1/surveys/${encodeURIComponent(surveyId)}/responses`,
+    `${url}/api/v1/surveys/${encodeURIComponent(surveyId)}/responses`,
     {
       method: "POST",
       headers,

@@ -1,5 +1,10 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { isSkipped, submitAnswers, type SurveyQuestion } from "./survey";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getActiveSurveys, isSkipped, submitAnswers, type SurveyQuestion } from "./survey";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
 
 describe("isSkipped", () => {
   const q: SurveyQuestion = { id: "why", type: "text", text: "?", skip_if: { question: "tools", answer: "none" } };
@@ -11,8 +16,27 @@ describe("isSkipped", () => {
   });
 });
 
+describe("getActiveSurveys", () => {
+  it("shows no survey where copilot-survey is not configured", async () => {
+    vi.stubEnv("COPILOT_SURVEY_URL", "");
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    expect(await getActiveSurveys()).toEqual({ status: "ok", surveys: [] });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("keeps a failing copilot-survey apart from an empty list", async () => {
+    vi.stubEnv("COPILOT_SURVEY_URL", "http://copilot-survey");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 503 })));
+    expect(await getActiveSurveys()).toEqual({ status: "error" });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+    expect(await getActiveSurveys()).toEqual({ status: "error" });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response('{"surveys":[]}', { status: 200 })));
+    expect(await getActiveSurveys()).toEqual({ status: "ok", surveys: [] });
+  });
+});
+
 describe("submitAnswers", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  beforeEach(() => vi.stubEnv("COPILOT_SURVEY_URL", "http://copilot-survey"));
   it.each([
     [201, { status: "recorded" }],
     [409, { status: "duplicate" }],

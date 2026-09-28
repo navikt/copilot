@@ -1,5 +1,7 @@
 mcp_registry_url: http://mcp-registry
 mcp_registry_public_url: https://mcp-registry.ekstern.dev.nav.no
+# copilot-survey runs in dev-gcp only; prod-gcp gets it with #1094.
+copilot_survey_url: http://copilot-survey
 ingresses:
   - "https://ki-utvikling.ekstern.dev.nav.no"
   - "https://min-copilot.intern.dev.nav.no"

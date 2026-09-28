@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import NextLink from "next/link";
-import { Box, BodyLong, Heading, Link, VStack } from "@navikt/ds-react";
+import { Alert, Box, BodyLong, Heading, Link, VStack } from "@navikt/ds-react";
+import { Bullets } from "@/components/nav-pilot/doc-page";
 import { PageHero } from "@/components/page-hero";
 import { getUser } from "@/lib/auth";
 import { getActiveSurveys } from "@/lib/survey";
@@ -14,7 +15,8 @@ export const metadata: Metadata = {
 
 export default async function SurveyPage({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
   await getUser();
-  const surveys = await getActiveSurveys();
+  const active = await getActiveSurveys();
+  const surveys = active.status === "ok" ? active.surveys : [];
   const { id } = await searchParams;
   const survey = surveys.length === 1 ? surveys[0] : surveys.find((s) => s.id === id);
 
@@ -26,7 +28,10 @@ export default async function SurveyPage({ searchParams }: { searchParams: Promi
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32" }}
         >
-          {surveys.length === 0 && (
+          {active.status === "error" && (
+            <Alert variant="error">Undersøkelsene kan ikke hentes akkurat nå. Last inn siden på nytt om litt.</Alert>
+          )}
+          {active.status === "ok" && surveys.length === 0 && (
             <VStack gap="space-8">
               <Heading size="medium" level="2">
                 Ingen åpen undersøkelse akkurat nå
@@ -42,7 +47,7 @@ export default async function SurveyPage({ searchParams }: { searchParams: Promi
               <Heading size="medium" level="2">
                 Velg undersøkelse
               </Heading>
-              <ul className="list-disc pl-6">
+              <Bullets>
                 {surveys.map((s) => (
                   <li key={s.id}>
                     <Link as={NextLink} href={`/nav-pilot/undersokelse?id=${encodeURIComponent(s.id)}`}>
@@ -50,7 +55,7 @@ export default async function SurveyPage({ searchParams }: { searchParams: Promi
                     </Link>
                   </li>
                 ))}
-              </ul>
+              </Bullets>
             </VStack>
           )}
           {survey && <SurveyForm survey={survey} />}
