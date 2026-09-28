@@ -29,8 +29,8 @@ export function sourceHeadings(src: string): SourceHeading[] {
             .replace(/\s+/g, " ")
             .trim() || undefined;
       // The component slugs a single string child, and only without an id prop.
-      const slug = tag === "LinkableHeading" && text && !/\bid=/.test(attrs) && !/[<{]/.test(children);
-      const id = attrs.match(/\bid="([^"]+)"/)?.[1] ?? (slug ? slugify(text) : undefined);
+      const slug = tag === "LinkableHeading" && text && !/(?<![\w-])id=/.test(attrs) && !/[<{]/.test(children);
+      const id = attrs.match(/(?<![\w-])id="([^"]+)"/)?.[1] ?? (slug ? slugify(text) : undefined);
       return { tag, id, text };
     }
   );

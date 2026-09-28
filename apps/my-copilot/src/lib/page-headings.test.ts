@@ -13,7 +13,8 @@ describe("sourceHeadings", () => {
       <h2>{title}</h2>
       <LinkableHeading id={dynamicId}>Uten slug</LinkableHeading>
       <LinkableHeading size="small" />
-      <LinkableHeading size="small">Etter tom</LinkableHeading>`;
+      <LinkableHeading size="small">Etter tom</LinkableHeading>
+      <LinkableHeading data-id="x">Med data-id</LinkableHeading>`;
     expect(sourceHeadings(src)).toEqual([
       { tag: "LinkableHeading", id: "start", text: "1. Start serveren" },
       { tag: "LinkableHeading", id: "din-plassering-i-nav", text: "Din plassering i Nav" },
@@ -23,6 +24,7 @@ describe("sourceHeadings", () => {
       { tag: "h2", id: undefined, text: undefined },
       { tag: "LinkableHeading", id: undefined, text: "Uten slug" },
       { tag: "LinkableHeading", id: "etter-tom", text: "Etter tom" },
+      { tag: "LinkableHeading", id: "med-data-id", text: "Med data-id" },
     ]);
   });
 });
