@@ -49,13 +49,13 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     title: "Verktøykatalog",
     description: "Agenter, instruksjoner, skills og MCP-servere som gjør GitHub Copilot smartere for Navs stack.",
     openGraph: {
-      title: "Verktøy — Copilot-tilpasninger for Nav",
+      title: "Verktøykatalog",
       description: "Agenter, instruksjoner, skills og MCP-servere som gjør GitHub Copilot smartere for Navs stack.",
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
-      title: "Verktøy — Copilot-tilpasninger for Nav",
+      title: "Verktøykatalog",
       description: "Agenter, instruksjoner, skills og MCP-servere som gjør GitHub Copilot smartere for Navs stack.",
     },
   };

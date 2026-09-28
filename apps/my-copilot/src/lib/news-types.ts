@@ -26,7 +26,7 @@ export const CATEGORY_CONFIG: Record<
 > = {
   copilot: { label: "Copilot", variant: "info" },
   nav: { label: "Nav", variant: "success" },
-  "nav-pilot": { label: "Nav-pilot", variant: "info" },
+  "nav-pilot": { label: "nav-pilot", variant: "info" },
   praksis: { label: "Praksis", variant: "warning" },
   oppsummering: { label: "Oppsummering", variant: "neutral" },
 };
