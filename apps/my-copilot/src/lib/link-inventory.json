@@ -836,6 +836,7 @@
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
       "apps/my-copilot/src/lib/nav-items.ts",
+      "cli/nav-pilot/internal/cli/client_nudge.go",
       "docs/CLIENT-SUPPORT-MATRIX.md",
       "docs/README.nav-pilot.md"
     ],
@@ -1098,13 +1099,14 @@
     "anchors": {}
   },
   "/news.json": {
-    "sources": ["cli/nav-pilot/internal/cli/news.go"],
+    "sources": ["cli/nav-pilot/internal/cli/news.go", "docs/news/README.md"],
     "anchors": {}
   },
   "/nyheter": {
     "sources": [
       "apps/my-copilot/next.config.ts",
-      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx"
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
+      "docs/news/README.md"
     ],
     "anchors": {}
   },
