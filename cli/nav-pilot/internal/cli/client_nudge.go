@@ -87,6 +87,6 @@ func maybeClientNudge(client string) {
 	if !providerpkg.FirstTime("opencode-nudge") || !claimSessionPrompt() {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "%s Du har lokale modeller på, men bare opencode lar en skymodell sende oppgaver til en lokal modell. Bytt klient: %s. Se https://ki-utvikling.nav.no/nav-pilot/klienter\n\n",
-		dim("ℹ"), bold("nav-pilot config set client opencode"))
+	fmt.Fprintf(os.Stderr, "%s Du har lokale modeller på, men bare opencode lar en skymodell sende oppgaver til en lokal modell. Bytt klient: %s. Se %s\n\n",
+		dim("ℹ"), bold("nav-pilot config set client opencode"), "https://ki-utvikling.nav.no/nav-pilot/klienter")
 }
