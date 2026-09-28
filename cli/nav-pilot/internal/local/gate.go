@@ -217,7 +217,9 @@ type dispatchGate struct {
 	rules    GateRules
 	sessions map[string]*gateTurn
 	// workerCreated: worker sessions that created a file, until the task
-	// that ran them returns. ponytail: a task that fails or runs in the
+	// that ran them returns. Reported before the write runs: a write that
+	// then fails still counts. ponytail: files the worker creates with a
+	// shell command are not seen; add a post-tool report if that matters. ponytail: a task that fails or runs in the
 	// background never returns here, so its entry stays; one bool per worker
 	// session.
 	workerCreated map[string]bool
