@@ -46,21 +46,21 @@ export default function EgenServer() {
       title="Kom i gang med egen server"
       description="Har du Linux, eller vil du bruke Ollama eller llama-server på Macen, kan nav-pilot bruke en server du kjører selv. Da laster nav-pilot ikke ned noe, starter ingenting og trenger ikke sudo."
       badge={
-        <Tag variant="warning" size="small">
-          alfa, ikke målt
+        <Tag variant="warning" size="small" className="uppercase tracking-wide">
+          Alfa, ikke målt
         </Tag>
       }
       toc={TOC}
     >
       <BodyLong>
-        Utsendingen, løkkevakta og <code className={code}>alpha decide</code> går til serveren din. Koden din sendes
+        Utsendingen, løkkevakten og <code className={code}>alpha decide</code> går til serveren din. Koden din sendes
         dit, så nav-pilot godtar bare localhost og private IP-adresser, som 127.0.0.1 og 192.168.x.x. nav-pilot regner
         modellen på serveren din som ikke målt. Vi har prøvd veien på én Mac med Ollama, llama-server og mlx_lm.server,
         men tallene i{" "}
         <NextLink href="/nav-pilot/forklaring/lokal-modell#malte-grenser" className={linkClass}>
           målte grenser
         </NextLink>{" "}
-        gjelder ikke.
+        gjelder ikke. Selve <code className={code}>ollama pull</code> fikk vi ikke kjørt, fordi registeret var blokkert.
       </BodyLong>
 
       <section>
@@ -74,7 +74,7 @@ export default function EgenServer() {
           <CodeBlock compact>{LLAMA_SERVER}</CodeBlock>
           <BodyLong>
             Både <code className={code}>ollama serve</code> og <code className={code}>llama-server</code> kjører i
-            forgrunnen og holder terminalen. Start serveren i en egen terminal, og kjør resten av stegene i en annen.
+            forgrunnen og opptar terminalen. Start serveren i en egen terminal, og kjør resten av stegene i en annen.
           </BodyLong>
           <BodyLong>
             Vi anbefaler Qwen3.6-35B-A3B i dynamisk 4-bit (unsloth UD-Q4_K_XL). Det er den GGUF-varianten som ligger

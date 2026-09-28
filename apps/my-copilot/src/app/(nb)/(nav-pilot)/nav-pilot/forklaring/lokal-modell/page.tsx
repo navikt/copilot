@@ -74,7 +74,7 @@ const DECIDE_ROWS: Row[] = [
   {
     task: "Forklarer commit-meldingen hvorfor?",
     result:
-      "89 av 96 (93 %). Ved terskel 0,7 fanget den 40 av 48 meldinger uten hvorfor, og flagget ingen av de 24 commitene som forklarte hvorfor (spurt på engelsk og norsk). Så få tilfeller gir opptil 14 % feilflagg",
+      "89 av 96 (93 %). Ved terskel 0,7 fanget den 40 av 48 meldinger uten hvorfor, og flagget ingen av de 24 commitene som forklarte hvorfor (spurt på engelsk og norsk). Med bare 24 slike commiter kan andelen feilflagg likevel være opptil 14 %",
     verdict: "Varsler i commit-hooken, stopper aldri",
   },
   {

@@ -20,7 +20,7 @@ const TOC: TocItem[] = [
   { id: "sett-opp-modellen", label: "3. Sett opp modellen" },
   { id: "forste-okt", label: "4. Første økt" },
   { id: "forste-decide", label: "5. Første decide" },
-  { id: "videre", label: "6. Hvor du går videre" },
+  { id: "videre", label: "6. Veien videre" },
 ];
 
 const CHECK_MACHINE = `uname -m                                            # arm64
@@ -38,7 +38,8 @@ cd ~/kode/mitt-repo
 nav-pilot`;
 
 const FIRST_DECIDE = `echo "Legg til retry i klienten" | nav-pilot alpha decide \\
-  "Forklarer commit-meldingen hvorfor endringen ble gjort?" --options yes,no --evidence -`;
+  "Does the commit message explain why the change was made, beyond describing what the diff already shows?" \\
+  --options yes,no --evidence -`;
 
 export default async function LokalIntro() {
   const { models } = await getLocalModels();
@@ -75,7 +76,7 @@ export default async function LokalIntro() {
           <BodyLong>
             Du trenger Apple Silicon (<code className={code}>arm64</code>), minst {m.min_ram_gb} GB minne og omtrent{" "}
             {m.weights_gb + 1} GB ledig disk. Det er det <code className={code}>init</code> anslår å laste ned: vektene
-            på {m.weights_gb} GB og omtrent 1 GB Python-miljø.
+            på {m.weights_gb} GB og omtrent 1 GB til Python-miljøet.
           </BodyLong>
           <BodyLong>
             Har du Linux, en Intel-Mac eller mindre minne, gå til{" "}
@@ -97,11 +98,11 @@ export default async function LokalIntro() {
           </div>
           <CodeBlock compact>{INSTALL}</CodeBlock>
           <BodyLong>
-            Hopp over steget hvis du har gjort{" "}
+            Har du allerede gjort{" "}
             <NextLink href="/kom-i-gang" className={linkClass}>
               Kom i gang
             </NextLink>
-            .
+            , hopp over dette steget.
           </BodyLong>
         </VStack>
       </section>
@@ -149,9 +150,8 @@ export default async function LokalIntro() {
           </BodyLong>
           <BodyLong>
             Etterpå viser <code className={code}>nav-pilot alpha local status</code> at serveren fortsatt kjører, og
-            linja <code className={code}>Log</code> peker på loggen der kallene står. Kjører ikke serveren når du
-            starter, sier nav-pilot fra før økten at den kommer til å gå helt i skyen, og gjentar etter økten at den
-            gjorde det.
+            linja <code className={code}>Log</code> viser hvor serverloggen ligger. Kjører ikke serveren når du starter,
+            sier nav-pilot fra før økten at den kommer til å gå helt i skyen, og gjentar etter økten at den gjorde det.
           </BodyLong>
         </VStack>
       </section>
@@ -176,7 +176,7 @@ export default async function LokalIntro() {
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="videre" size="medium" level="2">
-            6. Hvor du går videre
+            6. Veien videre
           </LinkableHeading>
           <Bullets>
             <li>

@@ -121,7 +121,9 @@ nav-pilot alpha local status`}</CodeBlock>
             <code className={code}>core.hooksPath</code> er det <code className={code}>.git/hooks</code>, og hooken
             gjelder bare denne klonen. Har du satt <code className={code}>core.hooksPath</code> globalt, havner lenken i
             den felles mappa, og hooken kjører i alle repoer som bruker den. Sjekk med{" "}
-            <code className={code}>git config --show-origin core.hooksPath</code> før du lenker.
+            <code className={code}>git config --show-origin core.hooksPath</code> før du lenker. Finnes det en{" "}
+            <code className={code}>commit-msg</code>-hook fra før, feiler <code className={code}>ln -s</code>, og du må
+            slå de to sammen.
           </BodyLong>
           <LinkableHeading id="pre-commit" size="small" level="3">
             Med pre-commit
