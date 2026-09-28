@@ -298,7 +298,7 @@ func serveFakeMLX() {
 // request path goes to $WORK/fake/endpoint.log. Like Ollama, it answers
 // POST /api/pull (the model is listed afterwards) and /api/create with a
 // "from" and "parameters.num_ctx" (the copy keeps that many tokens, and is
-// listed as name:latest, as Ollama lists it). -models ” lists none, and
+// listed as name:latest, as Ollama lists it). -models with an empty value lists none, and
 // answers "data": null the way an Ollama with nothing pulled does. -export
 // -llama makes it llama-server rather than Ollama (no /api/version). -export
 // names the variable instead of FAKE_ENDPOINT_URL, and VAR_ADDR gets host:port.

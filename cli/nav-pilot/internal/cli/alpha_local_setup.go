@@ -118,19 +118,22 @@ func listModels(ctx context.Context, base string, timeout time.Duration) ([]stri
 	}
 	defer resp.Body.Close()
 	var list struct {
-		Object string `json:"object"`
-		Data   []struct {
-			ID string `json:"id"`
-		} `json:"data"`
+		Object string          `json:"object"`
+		Data   json.RawMessage `json:"data"`
+	}
+	var data []struct {
+		ID string `json:"id"`
 	}
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	// Ollama with nothing pulled answers "data": null. That is still a
-	// server, and the one setup should offer the pull on.
-	if resp.StatusCode != http.StatusOK || json.Unmarshal(raw, &list) != nil || list.Object != "list" {
+	// server, and the one setup should offer the pull on; a missing or
+	// non-array data is not.
+	if resp.StatusCode != http.StatusOK || json.Unmarshal(raw, &list) != nil || list.Object != "list" ||
+		len(list.Data) == 0 || json.Unmarshal(list.Data, &data) != nil {
 		return nil, errors.New("not an OpenAI model list")
 	}
 	var ids []string
-	for _, m := range list.Data {
+	for _, m := range data {
 		ids = append(ids, m.ID)
 	}
 	return ids, nil
