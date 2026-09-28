@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-28
 
+### `alpha local doctor` sier fra når serveren har stoppet
+
+- **Ikke lenger «start den med --jinja» når serveren er borte**: Stoppet serveren på den første forespørselen, for eksempel fordi den gikk tom for minne, sa doctor at verktøykall manglet og at llama-server måtte startes med `--jinja`. Nå sjekker doctor om serveren fortsatt svarer. Gjør den ikke det, står det at serveren sluttet å svare, med tips om `dmesg` eller cgroupens `memory.events` på Linux. Doctor hopper over de neste sjekkene i stedet for å la dem feile på `connection refused` (#1223).
+
 ### opencode uten Homebrew
 
 - **Installasjonsskriptet tilbys**: Uten Homebrew lagret oppsettet Copilot CLI når du valgte opencode, selv om heller ikke Copilot CLI var installert. Nå tilbyr nav-pilot å kjøre opencodes eget installasjonsskript (`curl -fsSL https://opencode.ai/install | bash`), og bruker opencode i samme kjøring når du sier ja.

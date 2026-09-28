@@ -102,17 +102,26 @@ func runDoctor(ctx context.Context, base, model string) []doctorCheck {
 			fmt.Printf("        %s %s\n", dim("Fix:"), wrapIndent(c.Fix, "             ", 72))
 		}
 	}
-	reachable := checkModels(ctx, base, model)
-	report(reachable)
-	if reachable.Level == levelFail {
-		for _, name := range []string{"tool calls", "logprobs", "context", "TTFT"} {
+	// skipAfter reports the checks after c as skipped when the server check
+	// failed or c found the server gone: a request to a server that is not
+	// there, or not an OpenAI server, says nothing about its template or
+	// its context.
+	skipAfter := func(c doctorCheck, rest ...string) bool {
+		report(c)
+		if c.Level != levelFail || (c.Name != "server" && c.Fix != fixServerGone) {
+			return false
+		}
+		for _, name := range rest {
 			report(doctorCheck{Name: name, Level: levelSkip, Detail: "the server did not answer"})
 		}
 		fmt.Println()
+		return true
+	}
+	if skipAfter(checkModels(ctx, base, model), "tool calls", "logprobs", "context", "TTFT") ||
+		skipAfter(checkTools(ctx, base, model), "logprobs", "context", "TTFT") ||
+		skipAfter(checkLogprobs(ctx, base, model), "context", "TTFT") {
 		return checks
 	}
-	report(checkTools(ctx, base, model))
-	report(checkLogprobs(ctx, base, model))
 	fmt.Fprintf(os.Stderr, "  %s\n", dim("→ Sending about 30k tokens to measure the context window and the time to first token. On a CPU this takes minutes."))
 	ctxCheck, ttft := checkContext(ctx, base, model)
 	report(ctxCheck)
@@ -238,6 +247,13 @@ func chat(ctx context.Context, base, model, probe string, body map[string]any) (
 	return a, nil
 }
 
+// serverGone is whether a request failed because the server stopped
+// answering: it listed its models before the request and no longer does, the
+// way an OOM-killed or crashed server looks (connection refused, or EOF).
+func serverGone(ctx context.Context, base, model string, err error) bool {
+	return err != nil && checkModels(ctx, base, model).Fix == fixStartServer
+}
+
 func firstLineOf(b []byte) string {
 	s, _, _ := strings.Cut(string(b), "\n")
 	if len(s) > 200 {
@@ -261,6 +277,8 @@ func checkTools(ctx context.Context, base, model string) doctorCheck {
 		}}},
 	})
 	switch {
+	case serverGone(ctx, base, model, err):
+		c.Level, c.Detail, c.Fix = levelFail, "the server stopped answering during a short request: "+err.Error(), fixServerGone
 	case err != nil:
 		c.Level, c.Detail, c.Fix = levelFail, err.Error(), fixTools
 	case len(a.Choices[0].Message.ToolCalls) > 0 && a.Choices[0].Message.ToolCalls[0].Function.Name == "record_answer":
@@ -288,6 +306,8 @@ func checkLogprobs(ctx context.Context, base, model string) doctorCheck {
 		n = len(a.Choices[0].Logprobs.Content[0].TopLogprobs)
 	}
 	switch {
+	case serverGone(ctx, base, model, err):
+		c.Level, c.Detail, c.Fix = levelFail, "the server stopped answering during a short request: "+err.Error(), fixServerGone
 	case err != nil:
 		c.Level, c.Detail, c.Fix = levelWarn, "alpha decide is unavailable: "+err.Error(), fixLogprobs
 	case n == 0:
@@ -317,7 +337,7 @@ func checkContext(ctx context.Context, base, model string) (doctorCheck, doctorC
 	})
 	took := time.Since(started)
 	switch {
-	case err != nil && checkModels(ctx, base, model).Fix == fixStartServer:
+	case serverGone(ctx, base, model, err):
 		// It answered the checks before this one: a server that stops
 		// answering while it loads a long context most likely ran out of
 		// memory, and a larger context would only make that worse.
