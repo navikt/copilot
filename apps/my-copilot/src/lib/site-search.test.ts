@@ -7,7 +7,7 @@ const paths: Record<string, { anchors: Record<string, string[]> }> = inventory;
 
 describe("search index", () => {
   it("has the umbrella pages, their headings and the news", () => {
-    expect(index).toContainEqual({ href: "/nav-pilot/lokal", title: "Lokal modell og decide", context: "Kom i gang" });
+    expect(index).toContainEqual({ href: "/nav-pilot/lokal", title: "Lokal modell på Mac", context: "Kom i gang" });
     expect(index).toContainEqual({
       href: "/nav-pilot/guider/lokal#bytte-lokal-modell",
       title: "Bytte lokal modell",
