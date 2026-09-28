@@ -101,3 +101,27 @@ spec:
         - host: bigquery.googleapis.com
         - host: storage.googleapis.com
         - host: login.microsoftonline.com
+---
+# Burst alert for the accepted risk in SECURITY.md: every survey answer from
+# nav-pilot makes copilot-survey look up one e-mail here. Normal traffic is at
+# most a few a minute, so more than 20 in 5 minutes is worth a look.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: copilot-api-alerts
+  namespace: copilot
+  labels:
+    team: copilot
+spec:
+  groups:
+    - name: copilot-api
+      rules:
+        - alert: CopilotApiSamlNameIdBurst
+          expr: sum(increase(copilot_api_saml_name_id_requests_total{app="copilot-api"}[5m])) > 20
+          labels:
+            namespace: copilot
+            severity: warning
+          annotations:
+            summary: More than 20 SAML name-id lookups in copilot-api in 5 minutes
+            consequence: Something is resolving many GitHub logins to e-mails. In dev-gcp that is copilot-survey, and copilot-cli may be answering surveys on behalf of members. In prod-gcp nothing should call this route yet.
+            action: Compare with survey_submissions_total on copilot-survey and check copilot-cli's logs for the same window (see SECURITY.md).

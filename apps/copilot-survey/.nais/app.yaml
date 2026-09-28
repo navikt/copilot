@@ -76,3 +76,27 @@ spec:
         # Only POST /internal/v1/saml/name-id.
         - application: copilot-api
           namespace: {{namespace}}
+---
+# Burst alert for the accepted risk in SECURITY.md: a compromised copilot-cli
+# could answer for many members at once. Normal traffic is at most a few
+# answers a minute, so more than 20 in 5 minutes is worth a look.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: copilot-survey-alerts
+  namespace: {{namespace}}
+  labels:
+    team: {{team}}
+spec:
+  groups:
+    - name: copilot-survey
+      rules:
+        - alert: CopilotSurveySubmissionBurst
+          expr: sum(increase(survey_submissions_total{app="copilot-survey"}[5m])) > 20
+          labels:
+            namespace: {{namespace}}
+            severity: warning
+          annotations:
+            summary: More than 20 survey submissions to copilot-survey in 5 minutes
+            consequence: Many answers or answer attempts in a short window. If they are stored (status 201), copilot-cli may be answering for members who did not, and forged answers cannot be told apart once stored. A burst of 409 or 503 is more likely a copilot-cli retry loop.
+            action: Check copilot-cli's logs and deploys for the same window. If the burst is not explained by a survey launch, close the survey and discard its answers (see SECURITY.md).
