@@ -1,5 +1,5 @@
 ---
-title: "Nav-pilot lander på bakken"
+title: "nav-pilot lander på bakken"
 date: 2026-08-30
 featured: true
 author: starefossen
@@ -15,9 +15,9 @@ tags:
 
 Med `nav-pilot alpha local` kan du kjøre en modell fra Qwen-familien på din egen maskin. Vi prøver lokal delegering for å redusere credit-forbruket, men labmålingene viser at det ikke lønner seg på alle oppgaver.
 
-Vi kaller den bakkemodellen. Hovedagenten blir i skya og bestemmer, bakkemodellen utfører. I logger og konfigurasjon heter den `local-worker`.
+Hovedagenten blir i skya og bestemmer, den lokale modellen utfører. I logger og konfigurasjon heter den `local-worker`.
 
-Den arbeidsdelingen krever opencode som klient. Bare der blir bakkemodellen en underagent hovedagenten kan sende avgrensede oppgaver til. Under Copilot CLI, som er standardklienten i nav-pilot, finnes ingen slik underagent: klienten setter modelleverandøren som en miljøvariabel for hele prosessen, så én leverandør betjener hele økten. Valget der er hele økten på den lokale modellen eller ingenting lokalt. Vi har verifisert det mot Copilot CLI 1.0.83-3. Vil du ha utsending, bytt med `nav-pilot config set client opencode`. Runtimen under Copilot CLI kan ha flere leverandører i én økt, men Copilot CLI lar ikke en agent velge sin egen ennå, og det er ikke dokumentert. Vi tester om det kan tas i bruk ([github/copilot-cli#4703](https://github.com/github/copilot-cli/issues/4703)).
+Den arbeidsdelingen krever opencode som klient. Bare der blir den lokale modellen en underagent hovedagenten kan sende avgrensede oppgaver til. Under Copilot CLI, som er standardklienten i nav-pilot, finnes ingen slik underagent: klienten setter modelleverandøren som en miljøvariabel for hele prosessen, så én leverandør betjener hele økten. Valget der er hele økten på den lokale modellen eller ingenting lokalt. Vi har verifisert det mot Copilot CLI 1.0.83-3. Vil du ha utsending, bytt med `nav-pilot config set client opencode`. Runtimen under Copilot CLI kan ha flere leverandører i én økt, men Copilot CLI lar ikke en agent velge sin egen ennå, og det er ikke dokumentert. Vi tester om det kan tas i bruk ([github/copilot-cli#4703](https://github.com/github/copilot-cli/issues/4703)).
 
 ```
 nav-pilot alpha local init
@@ -27,13 +27,13 @@ Det er hele oppsettet. Krever Mac med Apple Silicon og 48 GB minne. Modellen tar
 
 ## Hva det er
 
-Bakkemodellen får oppgaver der beslutningen allerede er tatt: rename av et symbol på tvers av filer, eller et nytt felt som skal gjennom en mapper og alle call sites.
+Den lokale modellen får oppgaver der beslutningen allerede er tatt: rename av et symbol på tvers av filer, eller et nytt felt som skal gjennom en mapper og alle call sites.
 
 Vi har også kjørt den alene, uten hovedagent over seg. Den klarte en rename av 46 references i 10 filer i begge forsøkene, og prosjektet kompilerte alle gangene.
 
 ## Hva det ikke er
 
-Bakkemodellen skal gjennomføre beslutninger hovedagenten allerede har tatt. For standardmodellen er bare `edit-multi-mechanical` merket `trusted` for delegering. Spørsmål, enkel filredigering, nye filer og debugging skal bli i skyen. Qwen 3.8-profilene har ingen delegeringsklasser merket `trusted`.
+Den lokale modellen skal gjennomføre beslutninger hovedagenten allerede har tatt. For standardmodellen er bare `edit-multi-mechanical` merket `trusted` for delegering. Spørsmål, enkel filredigering, nye filer og debugging skal bli i skyen. Qwen 3.8-profilene har ingen delegeringsklasser merket `trusted`.
 
 Dette styrer instruksjonene til hovedagenten, ikke hva den lokale modellen teknisk kan gjøre.
 
@@ -86,14 +86,14 @@ I Spring-repoet snudde det: 16 credits mot 9. Der ble det dyrere å kjøre lokal
 
 I disse laboppgavene hang besparelsen sammen med hvor mange steg skymodellen brukte alene. Målingene viser ikke at kodebasen er uten betydning.
 
-![Jo flere steg skymodellen trenger alene, jo mer sparer du på å sende arbeidet til bakkemodellen. 19 steg sparer 61 prosent, 13 steg sparer 47 prosent, 5 steg sparer 20 prosent, og på 2 steg koster utsendingen 79 prosent mer enn den sparer.](/images/nav-pilot-step-count.svg)
+![Jo flere steg skymodellen trenger alene, jo mer sparer du på å sende arbeidet til den lokale modellen. 19 steg sparer 61 prosent, 13 steg sparer 47 prosent, 5 steg sparer 20 prosent, og på 2 steg koster utsendingen 79 prosent mer enn den sparer.](/images/nav-pilot-step-count.svg)
 
-| Skymodellen alene | Med bakkemodellen   |
-| ----------------- | ------------------- |
-| 19 steg           | sparer 61 %         |
-| 13 steg           | sparer 47 %         |
-| 5 steg            | sparer 20 %         |
-| 2 steg            | **koster 79 % mer** |
+| Skymodellen alene | Med den lokale modellen |
+| ----------------- | ----------------------- |
+| 19 steg           | sparer 61 %             |
+| 13 steg           | sparer 47 %             |
+| 5 steg            | sparer 20 %             |
+| 2 steg            | **koster 79 % mer**     |
 
 I oppgaven der skymodellen brukte to steg, økte lokal delegering credit-forbruket. I de tre oppgavene med flere steg gikk forbruket ned.
 
@@ -136,7 +136,7 @@ Svarer ikke GitHub når du starter en agentpakke som `nais/pilot`, bruker nav-pi
 
 «Ikke verdt bryet» er et like nyttig svar som det motsatte, og bedre å få nå enn om et år.
 
-Så lenge dette er alfa, måler vi tettere enn i resten av nav-pilot: hvor mange oppgaver hver økt sender til bakkemodellen, hvilken modell som kjører, oppstartstid og når serveren henger. Vi samler aldri inn koden din eller det du skriver. `DO_NOT_TRACK=1` skrur alt av.
+Så lenge dette er alfa, måler vi tettere enn i resten av nav-pilot: hvor mange oppgaver hver økt sender til den lokale modellen, hvilken modell som kjører, oppstartstid og når serveren henger. Vi samler aldri inn koden din eller det du skriver. `DO_NOT_TRACK=1` skrur alt av.
 
 ## Bli med
 

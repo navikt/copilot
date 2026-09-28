@@ -83,7 +83,7 @@ med `--repo`, `--user` eller `--target <mappe>` for å hoppe over spørsmålet.
 | Personlig (`--user`) | `~/.copilot/`                                 | Følger deg på tvers av alle repoer, ingenting sjekkes inn   |
 | Hub-repo             | ett repo med `.github/` pluss egne artefakter | Ett sted å vedlikeholde teamets egne skills                 |
 
-De utelukker ikke hverandre. `nav-pilot sync` uten scope-flagg synker alle scope som har en
+De utelukker ikke hverandre. `nav-pilot sync` uten scope-flagg oppdaterer alle scope som har en
 tilstandsfil, og de spores hver for seg.
 
 ### Hvilken form bør du velge?
@@ -217,9 +217,9 @@ må den skrive svaret og avslutte med 0, slik nav-pilots egne porter gjør.
 
 Hver port har et unntak for når den tar feil:
 
-| Port             | Unntak                                                                                          |
-| ---------------- | ----------------------------------------------------------------------------------------------- |
-| `gh-poll-gate`   | `POLL_OK=1` foran kommandoen                                                                    |
+| Port             | Unntak                                                                                             |
+| ---------------- | -------------------------------------------------------------------------------------------------- |
+| `gh-poll-gate`   | `POLL_OK=1` foran kommandoen                                                                       |
 | `ask-first-aria` | En kommentar med `ARIA_OK` og begrunnelsen like ved hver ny rolle, etter at utvikleren har sagt ja |
 
 Begrunnelsen `gh-poll-gate` gir modellen, nevner `POLL_OK=1`: polling er noen ganger riktig,
@@ -241,9 +241,9 @@ når modellen kjører i skyen og også når du starter `copilot` direkte. `nav-p
 viser dem sammen med de andre. Første gang nav-pilot skriver dem, sier den fra på stderr
 hva hver av dem gjør og hvordan du slår den av.
 
-| Hook      | Fil                         | Hva den gjør                                                                                                                                                                                                                              | Slå av                                       |
-| --------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| Løkkevakt | `nav-pilot-loop-guard.json` | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, en syklus på to eller tre kall med de samme resultatene 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring. | `nav-pilot config set hook_loop_guard false` |
+| Hook      | Fil                                 | Hva den gjør                                                                                                                                                                                                                                                                                                                         | Slå av                                                                          |
+| --------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Løkkevakt | `nav-pilot-loop-guard.json`         | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, en syklus på to eller tre kall med de samme resultatene 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring.                   | `nav-pilot config set hook_loop_guard false`                                    |
 | Maskering | `nav-pilot-redact-tool-output.json` | Maskerer hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er og verdien i `password=`/`api_key=`) og fødselsnummer, D-nummer og H-nummer i verktøyresultatet før modellen leser det. Setter en merknad foran et resultat som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører). | `hook_redact_secrets`, `hook_redact_fnr` og `hook_injection_note`, hver for seg |
 
 En hook etter verktøykallet (`postToolUse`) kan ikke avslutte en tur. Den kan bare endre
@@ -397,6 +397,7 @@ oppstart:
    Instruksjoner med `applyTo: "**"` står i `AGENTS.md`. De andre ligger i `instructions/`, og
    `AGENTS.md` lister dem med mønster, full sti og beskrivelse, så modellen leser en fil når
    mønsteret passer. Stien er absolutt fordi mappa leses fra alle repoer.
+
 4. Starter opencode i cplt-sandboxen med Nav-agenten (`cplt --agent opencode -- --agent nav-pilot --model …`)
 
 Den materialiserte `nav-pilot`-agenten er en **primær** opencode-agent, så den dukker opp i
@@ -458,12 +459,12 @@ Til ditt **personlige** oppsett trenger du ikke `export` i det hele tatt.
 nav-pilot list --installed
 nav-pilot sync
 nav-pilot upgrade
-nav-pilot models            # modellene klienten kan bruke, med den du har valgt markert
+nav-pilot models            # modellene klienten kan bruke, og hvilken du har valgt
 nav-pilot models claude     # bare modellene med «claude» i navnet
 nav-pilot feedback
 nav-pilot survey            # svar på en åpen brukerundersøkelse
 nav-pilot news              # de nyeste sakene fra ki-utvikling.nav.no
-nav-pilot -- -p "…"         # start klienten med argumentene etter --, uten spørsmål fra nav-pilot og uten synk
+nav-pilot -- -p "…"         # start klienten med argumentene etter --, uten spørsmål fra nav-pilot og uten sync
 nav-pilot --client opencode -- run "…"   # det samme i opencode, som bruker run i stedet for -p
 ```
 
@@ -595,6 +596,7 @@ Forrige versjon av filen ligger i `config.toml.bak`.
 Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra koden
 (`configKeyDefs`); `nav-pilot config explain` viser det samme i terminalen.
 
+<!-- prettier-ignore-start -->
 <!-- config-keys:start -->
 | Nøkkel | CLI-flagg | Verdier | Beskrivelse |
 | --- | --- | --- | --- |
@@ -626,6 +628,7 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | `hook_injection_note` | — | true · false (standard: true) | Sett en merknad foran verktøyresultater som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører), så modellen behandler dem som data. Stopper ingenting. |
 | `copilot_auth_mode` | — | auto · env_only · gh_only (standard: auto) | Hvilken innlogging som når cplt for Copilot. auto begrenser ingenting; env_only krever et token i GH_TOKEN, GITHUB_TOKEN eller COPILOT_GITHUB_TOKEN; gh_only fjerner dem. |
 <!-- config-keys:end -->
+<!-- prettier-ignore-end -->
 
 Mangler cplt, spør nav-pilot før den starter `copilot` eller `opencode` uten sandbox. Uten terminal nekter den,
 med mindre du sender `--no-sandbox`. Installer cplt med `brew install navikt/tap/cplt` eller
@@ -648,7 +651,7 @@ og velger hvilken kontekst som stages ved launch. Den har ingen config-nøkkel, 
 `defaultContext` i pakkas manifest. Den er ikke det samme som `--context`, som fortsatt er
 Copilots long-context-nivå. Se [README.agentpakke.md](README.agentpakke.md).
 
-Etter synk eller installasjon starter nav-pilot kodeagenten automatisk. Sett
+Etter sync eller installasjon starter nav-pilot klienten automatisk. Sett
 `auto_launch = false` (eller bruk `--no-auto-launch`) hvis du heller vil starte den selv.
 Da skriver nav-pilot bare ut kommandoen du kan kjøre.
 
