@@ -8,7 +8,8 @@ export async function sendSurvey(surveyId: string, answers: Answers): Promise<Su
   if (!token) return { status: "error" };
   try {
     return await submitAnswers(token, surveyId, answers);
-  } catch {
+  } catch (err) {
+    console.error("survey submit failed", err instanceof Error ? err.message : String(err));
     return { status: "error" };
   }
 }

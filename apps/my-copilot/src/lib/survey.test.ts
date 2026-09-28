@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getActiveSurveys, isSkipped, submitAnswers, type SurveyQuestion } from "./survey";
+import { getActiveSurveys, isSkipped, scaleSteps, submitAnswers, type SurveyQuestion } from "./survey";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -13,6 +13,13 @@ describe("isSkipped", () => {
     expect(isSkipped(q, { tools: ["a", "none"] })).toBe(true);
     expect(isSkipped(q, { tools: ["a"] })).toBe(false);
     expect(isSkipped({ ...q, skip_if: undefined }, { tools: "none" })).toBe(false);
+  });
+});
+
+describe("scaleSteps", () => {
+  it("starts at 0 when copilot-survey leaves out min", () => {
+    expect(scaleSteps({ id: "s", type: "scale", text: "?", max: 3 })).toEqual([0, 1, 2, 3]);
+    expect(scaleSteps({ id: "s", type: "scale", text: "?", min: 1, max: 3 })).toEqual([1, 2, 3]);
   });
 });
 
@@ -53,7 +60,7 @@ describe("submitAnswers", () => {
       context: { version: "web", os: "other", client: "web", local_models: false },
     });
   });
-  it("passes on the reason for a 400", async () => {
+  it("maps 400 to invalid", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response('{"error":"no answers"}', { status: 400 })));
     expect(await submitAnswers("token", "q4-2026", {})).toEqual({ status: "invalid" });
   });

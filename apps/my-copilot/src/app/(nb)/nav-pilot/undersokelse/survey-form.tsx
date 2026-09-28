@@ -15,13 +15,13 @@ import {
   Textarea,
   VStack,
 } from "@navikt/ds-react";
-import { isSkipped, type Answers, type Survey, type SubmitResult, type SurveyQuestion } from "@/lib/survey";
+import { isSkipped, scaleSteps, type Answers, type Survey, type SubmitResult, type SurveyQuestion } from "@/lib/survey";
 import { sendSurvey } from "./actions";
 
 function missing(q: SurveyQuestion, answers: Answers): string | undefined {
   const a = answers[q.id];
   if (q.type === "multi" && Array.isArray(a) && q.max_choices && a.length > q.max_choices) {
-    return `Velg høyst ${q.max_choices}.`;
+    return `Du kan velge opptil ${q.max_choices}.`;
   }
   if (q.type === "text" && typeof a === "string" && q.max_length && [...a.trim()].length > q.max_length) {
     return `Skriv høyst ${q.max_length} tegn.`;
@@ -86,7 +86,7 @@ export function SurveyForm({ survey }: { survey: Survey }) {
         {result.status === "recorded" ? (
           <Alert variant="success">Takk! Svaret ditt er sendt.</Alert>
         ) : (
-          <Alert variant="info">Du har allerede svart på denne undersøkelsen, så dette svaret ble ikke sendt.</Alert>
+          <Alert variant="info">Du har allerede svart på denne undersøkelsen. Dette svaret ble ikke lagret.</Alert>
         )}
       </div>
     );
@@ -101,18 +101,17 @@ export function SurveyForm({ survey }: { survey: Survey }) {
         {survey.intro && <BodyLong>{survey.intro}</BodyLong>}
         <GuidePanel poster={false}>
           <BodyLong spacing>
-            Svarene er anonyme. Vi lagrer svarene dine og at de kom fra nettsiden, men ikke navn, e-post eller noe annet
-            som knytter dem til deg.
+            Svarene er anonyme. Vi lagrer svarene og at de kom fra nettsiden, ikke navn, e-post eller noe annet som
+            knytter dem til deg.
           </BodyLong>
-          <BodyLong spacing>
+          <BodyLong>
             Vi bruker innloggingen bare til å hindre at noen svarer to ganger. Siden ingenting knytter svarene til deg,
             kan de ikke endres eller trekkes tilbake etterpå.
           </BodyLong>
-          <BodyLong>Ikke skriv noe i fritekstfeltet som kan identifisere deg eller andre.</BodyLong>
         </GuidePanel>
 
         {Object.keys(errors).length > 0 && (
-          <ErrorSummary ref={summaryRef} heading="Svar på disse spørsmålene før du sender">
+          <ErrorSummary ref={summaryRef} heading="Rett dette før du sender svaret">
             {Object.entries(errors).map(([id, message]) => (
               <ErrorSummary.Item key={id} href={`#q-${id}`}>
                 {`${survey.questions.find((q) => q.id === id)?.text ?? id}: ${message}`}
@@ -132,7 +131,7 @@ export function SurveyForm({ survey }: { survey: Survey }) {
         )}
         {result?.status === "no-identity" && (
           <Alert variant="error" ref={resultRef} tabIndex={-1}>
-            Vi fant ingen Nav-identitet på innloggingen din, så svaret ble ikke sendt.
+            Vi fant ingen Nav-identitet i innloggingen din, så svaret ble ikke sendt.
           </Alert>
         )}
         {result?.status === "closed" && (
@@ -170,11 +169,11 @@ function Question({
   const legend = q.required ? q.text : `${q.text} (valgfritt)`;
   switch (q.type) {
     case "scale": {
-      const steps: number[] = [];
-      for (let n = q.min ?? 1; n <= (q.max ?? 5); n++) steps.push(n);
+      const steps = scaleSteps(q);
       return (
         <RadioGroup
           id={`q-${q.id}`}
+          tabIndex={-1}
           legend={legend}
           error={error}
           value={typeof value === "number" ? String(value) : ""}
@@ -192,6 +191,7 @@ function Question({
       return (
         <RadioGroup
           id={`q-${q.id}`}
+          tabIndex={-1}
           legend={legend}
           error={error}
           value={typeof value === "string" ? value : ""}
@@ -208,6 +208,7 @@ function Question({
       return (
         <CheckboxGroup
           id={`q-${q.id}`}
+          tabIndex={-1}
           legend={legend}
           description={
             /\(velg /i.test(q.text)

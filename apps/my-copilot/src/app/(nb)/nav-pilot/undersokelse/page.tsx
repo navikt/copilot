@@ -9,7 +9,7 @@ import { SurveyForm } from "./survey-form";
 
 export const metadata: Metadata = {
   title: "Brukerundersøkelse",
-  description: "Svar på en åpen brukerundersøkelse om Copilot og nav-pilot i Nav.",
+  description: "Svar på en åpen undersøkelse om Copilot og nav-pilot i Nav.",
   robots: { index: false },
 };
 
@@ -29,7 +29,7 @@ export default async function SurveyPage({ searchParams }: { searchParams: Promi
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32" }}
         >
           {active.status === "error" && (
-            <Alert variant="error">Undersøkelsene kan ikke hentes akkurat nå. Last inn siden på nytt om litt.</Alert>
+            <Alert variant="error">Vi fikk ikke hentet undersøkelsene. Last inn siden på nytt om litt.</Alert>
           )}
           {active.status === "ok" && surveys.length === 0 && (
             <VStack gap="space-8">
@@ -37,7 +37,7 @@ export default async function SurveyPage({ searchParams }: { searchParams: Promi
                 Ingen åpen undersøkelse akkurat nå
               </Heading>
               <BodyLong>
-                Når vi kjører en undersøkelse, kan du svare her eller i terminalen med{" "}
+                Når en undersøkelse er åpen, kan du svare her eller i terminalen med{" "}
                 <code className="font-mono text-sm">nav-pilot survey</code>.
               </BodyLong>
             </VStack>

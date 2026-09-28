@@ -109,11 +109,12 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
             <code className={code}>NAV_PILOT_TELEMETRY_ENABLED=false</code> slår dem også av.
           </BodyLong>
           <BodyLong>
-            Du kan også svare i nettleseren, på{" "}
+            Du kan også svare på{" "}
             <NextLink href="/nav-pilot/undersokelse" className={linkClass}>
               undersøkelsessiden
-            </NextLink>
-            . Den bruker Nav-innloggingen din. Hver person kan svare én gang, i terminalen eller på nettsiden.
+            </NextLink>{" "}
+            i nettleseren. Der bruker du Nav-innloggingen din, ikke GitHub-innloggingen. Hver person kan svare én gang,
+            enten i terminalen eller i nettleseren.
           </BodyLong>
         </VStack>
       </section>

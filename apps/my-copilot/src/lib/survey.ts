@@ -62,6 +62,13 @@ export async function getActiveSurveys(): Promise<ActiveSurveys> {
   }
 }
 
+/** The values of a scale question. copilot-survey leaves out min 0, as the terminal survey reads it. */
+export function scaleSteps(q: SurveyQuestion): number[] {
+  const steps: number[] = [];
+  for (let n = q.min ?? 0; n <= (q.max ?? 5); n++) steps.push(n);
+  return steps;
+}
+
 /** Whether question q is skipped by an earlier answer (skip_if). */
 export function isSkipped(q: SurveyQuestion, answers: Answers): boolean {
   if (!q.skip_if) return false;
