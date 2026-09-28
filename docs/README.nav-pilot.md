@@ -19,6 +19,9 @@ curl -fsSL -o /tmp/navikt-archive-keyring.gpg https://navikt.github.io/apt/keyri
     | sudo tee /etc/apt/sources.list.d/navikt.list >/dev/null \
   && sudo apt update && sudo apt install nav-pilot cplt \
   || echo "Klarte ikke å installere fra apt-arkivet. Sjekk at du når https://navikt.github.io/apt, eller bruk installasjonsskriptet: curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash" >&2
+# I CI, i en Dockerfile eller i et skript: blokken over, men med
+#   sudo apt-get install -y nav-pilot cplt
+# Uten terminal får apt ikke svar på om du vil fortsette, og avbryter.
 
 # mise: samme binærer fra GitHub-releasen, med attestering verifisert
 mise use -g 'github:navikt/cplt'
@@ -26,10 +29,6 @@ mise use -g 'github:navikt/copilot[exe=nav-pilot,version_prefix=nav-pilot/]@2026
 
 # Uten arkivet: .deb-en er også et releaseartefakt
 sudo apt install ./nav-pilot_2026.09.12-225921-bb3fbb6_$(dpkg --print-architecture).deb
-
-# I CI, en Dockerfile eller et skript: samme blokk, men med
-#   sudo apt-get install -y nav-pilot cplt
-# Uten terminal kan ikke apt spørre om du vil fortsette, og avbryter.
 
 # Linux / CI: last ned og inspiser skriptet manuelt
 curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh -o install.sh
