@@ -4,7 +4,7 @@ import { Box, VStack, HGrid, Heading } from "@navikt/ds-react";
 import NextLink from "next/link";
 import { InteractiveSetupWizard } from "@/components/nav-pilot/interactive-setup-wizard";
 import { InstallPicker } from "@/components/install-picker";
-import { NAV_PILOT_APT_INSTALL, NAV_PILOT_INSTALL_SCRIPT, NAV_PILOT_QUICKSTART } from "@/lib/install-commands";
+import { NAV_PILOT_APT_INSTALL, NAV_PILOT_INSTALL, NAV_PILOT_QUICKSTART } from "@/lib/install-commands";
 import {
   BranchingIcon,
   CheckmarkCircleIcon,
@@ -331,7 +331,7 @@ logger.info("Vedtak",    `}
             <InstallPicker
               lang="nb"
               mac={NAV_PILOT_QUICKSTART}
-              linux={NAV_PILOT_INSTALL_SCRIPT}
+              linux={NAV_PILOT_INSTALL.linux}
               apt={NAV_PILOT_APT_INSTALL}
               windowsNote="Kjør kommandoen i Linux-distroen din under WSL2."
             />

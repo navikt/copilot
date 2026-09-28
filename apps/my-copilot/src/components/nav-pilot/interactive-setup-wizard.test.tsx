@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { NAV_PILOT_INSTALL_SCRIPT } from "@/lib/install-commands";
 import { generateSetupScript, type OS } from "./interactive-setup-wizard";
 
 describe("generateSetupScript", () => {
@@ -28,9 +29,11 @@ describe("generateSetupScript", () => {
     it("generates correct OpenCode script", () => {
       const result = generateSetupScript(os, "opencode");
       expect(result.code).toContain("brew install navikt/tap/nav-pilot navikt/tap/cplt");
-      expect(result.code).toContain("curl -fsSL https://opencode.ai/install | bash");
-      expect(result.code).toContain("nav-pilot config set client opencode");
-      expect(result.code).toContain("nav-pilot --client opencode");
+      expect(result.code).toContain("brew install anomalyco/tap/opencode");
+      expect(result.code).not.toContain("opencode.ai/install");
+      // A new install already starts opencode (#1187).
+      expect(result.code).toContain("# nav-pilot config set client opencode");
+      expect(result.code).not.toContain("--client opencode");
       expect(result.code).toContain("nav-pilot install nav-pilot");
       expect(result.code).not.toContain("export PATH");
       expect(result.code).not.toContain("@github/copilot");
@@ -45,17 +48,8 @@ describe("generateSetupScript", () => {
       const result = generateSetupScript(os, "cli");
       expect(result.code).toContain("curl -fsSL https://gh.io/copilot-install | bash");
       expect(result.code).not.toContain("npm install");
-      expect(result.code).toContain(
-        'echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main"'
-      );
-      expect(result.code).toContain("sudo apt update && sudo apt install nav-pilot cplt");
-      expect(result.code).toContain("if command -v apt-get >/dev/null; then");
-      expect(result.code).toContain("curl -fsSL -o /tmp/navikt-archive-keyring.gpg");
-      expect(result.code).toContain("Klarte ikke å installere fra apt-arkivet");
-      expect(result.code).not.toContain("| sudo tee /usr/share/keyrings");
-      expect(result.code).toContain(
-        "  curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
-      );
+      expect(result.code).toContain(NAV_PILOT_INSTALL_SCRIPT);
+      expect(result.code).not.toContain("apt");
       expect(result.code).toContain("nav-pilot install nav-pilot");
       expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"');
       expect(result.code).not.toContain("which -a");
@@ -65,18 +59,9 @@ describe("generateSetupScript", () => {
       const result = generateSetupScript(os, "opencode");
       expect(result.code).toContain("curl -fsSL https://opencode.ai/install | bash");
       expect(result.code).not.toContain("npm install -g opencode");
-      expect(result.code).toContain(
-        'echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main"'
-      );
-      expect(result.code).toContain("sudo apt update && sudo apt install nav-pilot cplt");
-      expect(result.code).toContain("if command -v apt-get >/dev/null; then");
-      expect(result.code).toContain("curl -fsSL -o /tmp/navikt-archive-keyring.gpg");
-      expect(result.code).toContain("Klarte ikke å installere fra apt-arkivet");
-      expect(result.code).not.toContain("| sudo tee /usr/share/keyrings");
-      expect(result.code).toContain(
-        "  curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
-      );
-      expect(result.code).toContain("nav-pilot config set client opencode");
+      expect(result.code).toContain(NAV_PILOT_INSTALL_SCRIPT);
+      expect(result.code).not.toContain("apt");
+      expect(result.code).toContain("# nav-pilot config set client opencode");
       expect(result.code).toContain("nav-pilot install nav-pilot");
       expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"');
     });
@@ -91,17 +76,8 @@ describe("generateSetupScript", () => {
       expect(result.code).toContain("curl -fsSL https://gh.io/copilot-install | bash");
       expect(result.code).not.toContain("npm install");
       expect(result.code).toContain("which -a copilot cplt nav-pilot");
-      expect(result.code).toContain(
-        'echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main"'
-      );
-      expect(result.code).toContain("sudo apt update && sudo apt install nav-pilot cplt");
-      expect(result.code).toContain("if command -v apt-get >/dev/null; then");
-      expect(result.code).toContain("curl -fsSL -o /tmp/navikt-archive-keyring.gpg");
-      expect(result.code).toContain("Klarte ikke å installere fra apt-arkivet");
-      expect(result.code).not.toContain("| sudo tee /usr/share/keyrings");
-      expect(result.code).toContain(
-        "  curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
-      );
+      expect(result.code).toContain(NAV_PILOT_INSTALL_SCRIPT);
+      expect(result.code).not.toContain("apt");
       expect(result.code).toContain("nav-pilot install nav-pilot");
       expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"');
     });
@@ -110,7 +86,7 @@ describe("generateSetupScript", () => {
       const result = generateSetupScript(os, "opencode");
       expect(result.code).toContain("WSL2-terminalen");
       expect(result.code).toContain("curl -fsSL https://opencode.ai/install | bash");
-      expect(result.code).toContain("nav-pilot config set client opencode");
+      expect(result.code).toContain("# nav-pilot config set client opencode");
       expect(result.code).toContain("nav-pilot install nav-pilot");
       expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"');
       expect(result.code).toContain("which -a opencode cplt nav-pilot");
