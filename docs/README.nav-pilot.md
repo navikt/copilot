@@ -622,11 +622,13 @@ Vi anbefaler Qwen3.6-35B-A3B i dynamisk 4-bit (unsloth UD-Q4_K_XL), GGUF-variant
 som ligger nærmest optiq-modellen vi har målt på Mac. Det er ikke de samme bitene, så
 tallene våre gjelder ikke.
 
-**Ollama kutter lange prompter uten å si fra.** Under 24 GB grafikkminne gir Ollama
+**Ollama kan gi modellen for lite kontekst.** Under 24 GB grafikkminne gir Ollama
 modellen 4 096 tokens kontekst, og det kan ikke endres via `/v1`. En Copilot-økt
-starter med rundt 22 000 tokens. Start Ollama med `OLLAMA_CONTEXT_LENGTH=65536`, eller
+starter med rundt 22 000 tokens. Eldre Ollama kutter resten uten å si fra, Ollama 0.34
+avviser prompten med en feil. Med mer minne velger Ollama større kontekst selv (262 144
+tokens på en Mac med 128 GB). Start Ollama med `OLLAMA_CONTEXT_LENGTH=65536`, eller
 lag en egen modell med en Modelfile som har `PARAMETER num_ctx 65536` (`ollama create`).
-`doctor` sender rundt 30 000 tokens og feiler hvis serveren kutter.
+`doctor` sender rundt 30 000 tokens og feiler hvis serveren kutter eller avviser dem.
 
 `alpha decide` trenger logprobs. Ollama fra v0.12.11, llama-server og vLLM gir dem, LM
 Studio sitt chat-endepunkt gjør det ikke. Uten logprobs sier `decide` fra med en gang.

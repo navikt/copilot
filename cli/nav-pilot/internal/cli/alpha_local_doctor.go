@@ -130,6 +130,12 @@ func levelColour(l checkLevel) string {
 	return dim(string(l))
 }
 
+// sameModel is whether a listed id names the model. Ollama lists name:latest
+// for a model pulled or created without a tag, and answers to either name.
+func sameModel(listed, model string) bool {
+	return listed == model || listed == model+":latest" || model == listed+":latest"
+}
+
 func checkModels(ctx context.Context, base, model string) doctorCheck {
 	c := doctorCheck{Name: "server"}
 	ctx, cancel := context.WithTimeout(ctx, doctorTimeout["models"])
@@ -160,7 +166,7 @@ func checkModels(ctx context.Context, base, model string) doctorCheck {
 	for _, m := range list.Data {
 		ids = append(ids, m.ID)
 	}
-	if !slices.Contains(ids, model) {
+	if !slices.ContainsFunc(ids, func(id string) bool { return sameModel(id, model) }) {
 		c.Level, c.Detail = levelWarn, fmt.Sprintf("answers, but does not list %s (it lists: %s)", model, strings.Join(ids, ", "))
 		c.Fix = "Set one it lists: nav-pilot config set local_endpoint_model <id>. On Ollama you can also pull it: ollama pull " + model +
 			". llama-server answers with the model it loaded whatever the name, so there this is harmless"

@@ -119,16 +119,18 @@ func listModels(ctx context.Context, base string, timeout time.Duration) ([]stri
 	defer resp.Body.Close()
 	var list struct {
 		Object string `json:"object"`
-		Data   *[]struct {
+		Data   []struct {
 			ID string `json:"id"`
 		} `json:"data"`
 	}
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode != http.StatusOK || json.Unmarshal(raw, &list) != nil || list.Object != "list" || list.Data == nil {
+	// Ollama with nothing pulled answers "data": null. That is still a
+	// server, and the one setup should offer the pull on.
+	if resp.StatusCode != http.StatusOK || json.Unmarshal(raw, &list) != nil || list.Object != "list" {
 		return nil, errors.New("not an OpenAI model list")
 	}
 	var ids []string
-	for _, m := range *list.Data {
+	for _, m := range list.Data {
 		ids = append(ids, m.ID)
 	}
 	return ids, nil
@@ -391,7 +393,7 @@ func pickChoice(ctx context.Context, servers []foundServer, f setupFlags) (setup
 	all := choices(servers)
 	if f.model != "" {
 		for _, c := range all {
-			if c.Model == f.model {
+			if sameModel(c.Model, f.model) {
 				return c, nil
 			}
 		}
