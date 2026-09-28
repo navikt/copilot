@@ -10,6 +10,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
 // Policy nav-pilot enforces on every OpenCode session it launches (#1027,
@@ -36,43 +37,41 @@ func applyOpenCodePolicy(env []string) []string {
 // applyOpenCodeOwnDirs lets the session read the instructions, agents and
 // skills nav-pilot installs in opencode's config directory, and in a staged
 // launch's OPENCODE_CONFIG_DIR, without an external_directory request. Those
-// directories are outside the project, so a model that opens a file there gets
-// asked, and `opencode run` rejects the request and ends the session (#1120).
-// Everything else outside the project still asks.
+// directories are outside the project, so a model that opens a file there
+// gets asked, and `opencode run` rejects the request and ends the session
+// (#1120). Everything else outside the project still asks.
+//
+// external_directory "allow" would also let the edit tools write there, and
+// a file written to agents/ or instructions/ reaches every later session. So
+// edits to the same directories are denied: nav-pilot's sync owns them.
+// OpenCode matches an edit by the path relative to the worktree (the git
+// root, or "/" outside a repo), so the deny rule is written that way.
 //
 // OPENCODE_CONFIG_CONTENT is merged over the user's config, and an object
-// replaces a plain string there, so the user's own external_directory string
-// goes first as "*". When the user already allows or denies every directory,
-// or sets the whole permission block as one string, this adds nothing: an
-// object would change what they chose.
+// replaces a plain string there, so the user's own string for either
+// permission goes first as "*". A user who denies external_directory
+// wholesale gets nothing added.
 func applyOpenCodeOwnDirs(env []string, projectDir string) []string {
-	var whole, ext string
-	for _, doc := range openCodeConfigDocs(projectDir, env) {
-		var cfg struct {
-			Permission json.RawMessage `json:"permission"`
-		}
-		if json.Unmarshal(stripJSONC(doc), &cfg) != nil || cfg.Permission == nil {
-			continue
-		}
-		if json.Unmarshal(cfg.Permission, &whole) == nil {
-			ext = ""
-			continue
-		}
-		whole = ""
-		var p struct {
-			ExternalDirectory json.RawMessage `json:"external_directory"`
-		}
-		if json.Unmarshal(cfg.Permission, &p) == nil && p.ExternalDirectory != nil {
-			ext = ""
-			_ = json.Unmarshal(p.ExternalDirectory, &ext)
-		}
-	}
-	if whole != "" || ext == "allow" || ext == "deny" {
+	docs := openCodeConfigDocs(projectDir, env)
+	ext, denied := userPermission(docs, "external_directory")
+	if denied {
 		return env
 	}
-	rules := map[string]any{}
+	edit, _ := userPermission(docs, "edit")
+	extRules, editRules := map[string]any{}, map[string]any{}
+	// "*" sorts before any path, so it comes first, and the last match wins.
 	if ext != "" {
-		rules["*"] = ext // "*" sorts before any absolute path, so it comes first
+		extRules["*"] = ext
+	}
+	if edit != "" {
+		editRules["*"] = edit
+	}
+	if projectDir == "" {
+		projectDir, _ = os.Getwd()
+	}
+	worktree := source.FindGitRoot(projectDir)
+	if worktree == "" {
+		worktree = "/"
 	}
 	dirs := []string{openCodeConfigDir()}
 	for _, e := range env {
@@ -82,10 +81,61 @@ func applyOpenCodeOwnDirs(env []string, projectDir string) []string {
 	}
 	for _, d := range dirs {
 		for _, sub := range []string{"instructions", "agents", "skills"} {
-			rules[filepath.ToSlash(filepath.Join(d, sub))+"/*"] = "allow"
+			p := filepath.ToSlash(filepath.Join(d, sub))
+			extRules[p+"/*"] = "allow"
+			if rel, err := filepath.Rel(worktree, filepath.Join(d, sub)); err == nil {
+				editRules[filepath.ToSlash(rel)+"/*"] = "deny"
+			}
 		}
 	}
-	return withOpenCodeConfigContent(env, map[string]any{"permission": map[string]any{"external_directory": rules}})
+	return withOpenCodeConfigContent(env, map[string]any{"permission": map[string]any{
+		"external_directory": extRules,
+		"edit":               editRules,
+	}})
+}
+
+// userPermission reads permission.<key> across the user's OpenCode configs in
+// merge order. str is the last plain-string value for it, which our object
+// would otherwise replace; a later object form clears it. deny is whether any
+// file denies it wholesale: "deny" as its string, "*": "deny" in its object,
+// or the whole permission block denying.
+func userPermission(docs [][]byte, key string) (str string, deny bool) {
+	isDeny := func(raw json.RawMessage) bool {
+		var s string
+		return json.Unmarshal(raw, &s) == nil && s == "deny"
+	}
+	for _, doc := range docs {
+		var cfg struct {
+			Permission json.RawMessage `json:"permission"`
+		}
+		if json.Unmarshal(stripJSONC(doc), &cfg) != nil || cfg.Permission == nil {
+			continue
+		}
+		// A string block is {"*": value} to OpenCode, per file.
+		if isDeny(cfg.Permission) {
+			deny = true
+		}
+		var block map[string]json.RawMessage
+		if json.Unmarshal(cfg.Permission, &block) != nil {
+			continue
+		}
+		if isDeny(block["*"]) {
+			deny = true
+		}
+		v, ok := block[key]
+		if !ok {
+			continue
+		}
+		var s string
+		var obj map[string]json.RawMessage
+		switch {
+		case json.Unmarshal(v, &s) == nil:
+			str, deny = s, deny || s == "deny"
+		case json.Unmarshal(v, &obj) == nil:
+			str, deny = "", deny || isDeny(obj["*"])
+		}
+	}
+	return str, deny
 }
 
 // OpenCodeVersionStatus reports the installed opencode's version and whether
