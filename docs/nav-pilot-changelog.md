@@ -23,6 +23,11 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Sjekken går i bakgrunnen**: Én gang i døgnet spurte nav-pilot GitHub om en nyere versjon før kommandoen kjørte, et halvt sekund på godt nett og opptil fem sekunder uten nett. Nå svarer nav-pilot fra forrige sjekk og spør GitHub i bakgrunnen. Finnes en nyere versjon, sier nav-pilot fra ved neste kommando.
 - **`--version` og `--help` svarer med en gang**: De sender ikke lenger telemetri, så de venter ikke på nettet.
 
+### Sandkasse-spørsmålet venter på cplt
+
+- **Ikke spurt før cplt finnes**: Første gang du kjørte nav-pilot, kom spørsmålet om å løfte cplts DNS-rebinding-vern før cplt var installert. Nå spør nav-pilot først ved neste `install` eller `sync --apply` etter at cplt er på plass.
+- **Et nei er et valg**: `nav-pilot doctor` viser et avslag som informasjon, med kommandoene som løfter vernet for hånd, ikke som en advarsel ved hver kjøring (#1189).
+
 ### setup kjenner igjen mlx_lm.server
 
 - **Riktig navn**: `nav-pilot alpha local setup` kalte `mlx_lm.server` på port 8080 for llama-server. Nå kjenner den igjen serveren på `Server`-headeren.

@@ -733,8 +733,13 @@ export default function Agentpakker() {
                     <CodeBlock compact>{AVSLAG}</CodeBlock>
                     <BodyLong textColor="subtle">
                       Uten terminal, og med <code className="font-mono text-xs">--json</code>, godkjennes ingenting og
-                      noteres ingenting. <code className="font-mono text-xs">nav-pilot uninstall</code> sletter svaret.
-                      Et ja blir <code className="font-mono text-xs">--allow-private-domain &lt;host&gt;</code> og{" "}
+                      noteres ingenting. Er cplt ikke installert ennå, spør ikke nav-pilot. Spørsmålet kommer ved neste{" "}
+                      <code className="font-mono text-xs">install</code> eller{" "}
+                      <code className="font-mono text-xs">sync --apply</code> når cplt er på plass. Etter et nei viser{" "}
+                      <code className="font-mono text-xs">nav-pilot doctor</code> avslaget som informasjon, med
+                      kommandoene over, ikke som en advarsel.{" "}
+                      <code className="font-mono text-xs">nav-pilot uninstall</code> sletter svaret. Et ja blir{" "}
+                      <code className="font-mono text-xs">--allow-private-domain &lt;host&gt;</code> og{" "}
                       <code className="font-mono text-xs">--allow-read &lt;absolutt sti&gt;</code> på
                       cplt-kommandolinja, for launcher fra scopet som svarte, og skrives ut ved hver launch. nav-pilot
                       rører ikke cplt-konfigurasjonen. Unntaket løfter bare DNS-rebinding-vernet for de navnene:

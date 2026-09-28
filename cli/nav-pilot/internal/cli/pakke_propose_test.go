@@ -61,6 +61,10 @@ func consentEnv(t *testing.T) *InstallScope {
 	previous := isInteractive
 	isInteractive = func() bool { return true }
 	t.Cleanup(func() { isInteractive = previous })
+	// And cplt, the sandbox the question is about.
+	previousCplt := cpltInstalled
+	cpltInstalled = func() bool { return true }
+	t.Cleanup(func() { cpltInstalled = previousCplt })
 	scope, err := ScopeUser()
 	if err != nil {
 		t.Fatalf("user scope: %v", err)
@@ -773,5 +777,35 @@ func TestDoctorNamesTheWaiverWhenItIsNotApproved(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("doctor row does not mention %q:\n%s", want, got)
 		}
+	}
+}
+
+// Without cplt, as on a first run, the question about its DNS-rebinding guard
+// is not asked, and nothing is recorded, so it comes once cplt is there (#1189).
+func TestNoCpltNoQuestion(t *testing.T) {
+	scope := consentEnv(t)
+	cpltInstalled = func() bool { return false }
+	asked := answering(t, true)
+	noteProposalConsent(scope, proposeSource(t, `"cloud.nais.io"`, ""), false, false)
+	if *asked != 0 || recordFor(t, scope) != nil {
+		t.Errorf("asked %d time(s), record %v; want no question and no record without cplt", *asked, recordFor(t, scope))
+	}
+}
+
+// A decline is a decision: doctor says so with the way back, not a warning on
+// every run (#1189).
+func TestDoctorReportsADeclineAsInfo(t *testing.T) {
+	scope := consentEnv(t)
+	answering(t, false)
+	src := proposeSource(t, `"cloud.nais.io"`, "")
+	noteProposalConsent(scope, src, false, false)
+	var b strings.Builder
+	reportSandboxWaiver(&b, src.Pakke)
+	out := b.String()
+	if !strings.Contains(out, "declined. To allow it:") || strings.Contains(out, "not approved") {
+		t.Errorf("doctor after a decline:\n%s", out)
+	}
+	if !strings.Contains(out, "cplt config set proxy.allow_private_domains cloud.nais.io") {
+		t.Errorf("doctor after a decline does not give the way back:\n%s", out)
 	}
 }

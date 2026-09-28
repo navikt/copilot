@@ -93,6 +93,13 @@ var askProposalConsent = func(title, description string, approve *bool) error {
 		Run()
 }
 
+// cpltInstalled reports cplt on PATH, also as a copilot that is cplt, the way
+// the launch resolves it. A var so tests can have it.
+var cpltInstalled = func() bool {
+	_, name := providerpkg.FindCopilotCLI()
+	return name == "cplt"
+}
+
 // noteProposalConsent asks about the sandbox configuration a source's
 // agentpakke proposes, and records the answer for this scope.
 //
@@ -143,6 +150,13 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 		// Answered already, for exactly this block. An approval needs no
 		// second look, and a decline must not be asked again — that is what
 		// recording it is for.
+		return
+	}
+
+	// No cplt yet, as on a first run: a question about a sandbox that is not
+	// installed is one nobody can weigh. Nothing is recorded, so the next
+	// install or sync with --apply asks once cplt is there (#1189).
+	if !cpltInstalled() {
 		return
 	}
 
@@ -454,10 +468,20 @@ func reportSandboxWaiver(w io.Writer, pakke *agentpakke.Manifest) {
 		return
 	}
 	record, err := artifacts.ApprovedProposal(pakke.Name, proposal.Hash())
+	declined := false
+	if err == nil && record == nil {
+		declined, err = artifacts.DeclinedProposal(pakke.Name, proposal.Hash())
+	}
 	switch {
 	case err != nil:
 		fmt.Fprintf(w, "      %s Could not read whether the %s sandbox waiver is approved: %v\n",
 			yellow("⚠"), bold(safe(pakke.Name, 64)), err)
+	case record == nil && declined:
+		// A decision, not a fault: said once, quietly, with the way back.
+		fmt.Fprintf(w, "      %s Sandbox waiver for %d host(s) declined. To allow it:\n", dim("ℹ"), len(hosts))
+		for _, command := range cpltSetupCommands(hosts, proposal.AllowRead()) {
+			fmt.Fprintf(w, "          %s\n", bold(command))
+		}
 	case record == nil:
 		fmt.Fprintf(w, "      %s Sandbox waiver for %d host(s) is not approved\n", yellow("⚠"), len(hosts))
 		fmt.Fprintf(w, "          %s %s\n", dim("Hosts:"), strings.Join(hosts, ", "))

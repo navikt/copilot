@@ -297,6 +297,19 @@ func RemoveProposalConsentsIn(scope *domain.InstallScope) (int, error) {
 // trusted is the launch gate's question, not this lookup's — see
 // [ProposalConsent.CpltStamp].
 func ApprovedProposal(pakke, hash string) (*ProposalConsent, error) {
+	return proposalAnswer(pakke, hash, true)
+}
+
+// DeclinedProposal reports a recorded decline of exactly this revision, in a
+// scope a launch reads from, so doctor can tell a decision from no answer.
+func DeclinedProposal(pakke, hash string) (bool, error) {
+	rec, err := proposalAnswer(pakke, hash, false)
+	return rec != nil, err
+}
+
+// proposalAnswer is the record for this pakke and revision with the given
+// answer, held by a scope the launch reads from.
+func proposalAnswer(pakke, hash string, approved bool) (*ProposalConsent, error) {
 	if pakke == "" || hash == "" {
 		return nil, nil
 	}
@@ -314,7 +327,7 @@ func ApprovedProposal(pakke, hash string) (*ProposalConsent, error) {
 		}
 	}
 	for _, rec := range records {
-		if rec.Pakke != pakke || rec.Hash != hash || !rec.Approved || !roots[rec.Root] {
+		if rec.Pakke != pakke || rec.Hash != hash || rec.Approved != approved || !roots[rec.Root] {
 			continue
 		}
 		return &rec, nil
