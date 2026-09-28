@@ -1116,7 +1116,7 @@ import io, json, select, socket, time
 import mlx_lm.server as _server
 _admit = threading.BoundedSemaphore(_QUEUE)
 _turn = threading.Lock()
-_since = [0.0]
+_since = [time.monotonic()]
 _post = _server.APIHandler.do_POST
 def _busy(h, why):
     body = json.dumps({"error": {"message": "nav-pilot: the local model server is busy: %s. Try again in a moment." % why, "type": "server_busy", "code": 503, "busy_for": time.monotonic() - _since[0]}}).encode()
@@ -1145,6 +1145,7 @@ def _one_at_a_time(self):
         # alive, and a probe stuck behind a long answer would read as hung.
         if not _turn.acquire(blocking=False):
             return _busy(self, "answering another request")
+        _since[0] = time.monotonic()
     else:
         if not _admit.acquire(blocking=False):
             return _busy(self, "the queue is full (%d waiting)" % _QUEUE)
@@ -1155,9 +1156,9 @@ def _one_at_a_time(self):
                     return
                 if time.monotonic() >= deadline:
                     return _busy(self, "waited %g s for the request ahead of this one" % _WAIT)
+            _since[0] = time.monotonic()
         finally:
             _admit.release()
-    _since[0] = time.monotonic()
     try:
         if not _gone(self):
             _post(self)
