@@ -173,11 +173,13 @@ export default function Klienter() {
           starter en økt i en terminal.
         </BodyLong>
         <BodyLong>
-          Første gang du kjører nav-pilot, spør den hvilken klient du vil ha, med opencode valgt. Mangler opencode, og
-          du har Homebrew, tilbyr nav-pilot å installere den med {c("brew install anomalyco/tap/opencode")}. Uten
-          Homebrew, eller om du sier nei, bruker nav-pilot Copilot CLI og forteller hvordan du bytter senere. I CI og
-          uten terminal starter nav-pilot Copilot CLI når {c("config.toml")} mangler, siden den ikke kan se om du har
-          brukt nav-pilot før. Vil du ha opencode i CI, bruk {c("--client opencode")}.
+          Første gang du kjører nav-pilot, spør den hvilken klient du vil ha, med opencode valgt. Mangler opencode,
+          tilbyr nav-pilot å installere den: med {c("brew install anomalyco/tap/opencode")} hvis du har Homebrew, ellers
+          med opencodes eget installasjonsskript, {c("curl -fsSL https://opencode.ai/install | bash")}. Sier du nei,
+          bruker nav-pilot Copilot CLI og forteller hvordan du bytter senere. Mangler Copilot CLI også, viser den
+          installasjonskommandoen for begge. I CI og uten terminal starter nav-pilot Copilot CLI når {c("config.toml")}{" "}
+          mangler, siden den ikke kan se om du har brukt nav-pilot før. Vil du ha opencode i CI, bruk{" "}
+          {c("--client opencode")}.
         </BodyLong>
         <BodyLong>
           Bruker du Copilot CLI med lokale modeller på og har opencode installert, viser nav-pilot én gang et tips om
