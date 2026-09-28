@@ -473,7 +473,7 @@ Toppfeltet er likt i begge variantene:
 
 - Først «Hopp til innhold» (§6.6). Så ordmerket (§6.7), som lenker til `/`.
 - `<nav aria-label="Hovedmeny">` med de fem gruppene i en `<ul>`.
-- Til høyre: Copilot-abonnement, budsjettlinja og navnet når du er logget inn, ellers «Logg inn».
+- Til høyre: navnet (initialer under 1280 px) når du er logget inn. Det åpner et panel med navnet, bruken av AI-kreditter og «Copilot-abonnement». Ellers «Logg inn».
 - Toppfeltet får samme bredde som innholdet (`max-w-7xl`). Aksel `InternalHeader` passer ikke, fordi den går fra kant til kant og ser ut som et fagsystem (prototype B).
 - Aktiv gruppe får `aria-current="true"`, som hos Aksel [40]. «nav-pilot» er aktiv på alle sider i paraplyen som ikke hører til Kom i gang eller Tilpasning.
 

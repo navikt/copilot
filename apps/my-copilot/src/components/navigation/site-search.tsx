@@ -119,9 +119,10 @@ export function SiteSearch({ label }: { label: string }) {
           variant="tertiary-neutral"
           icon={<MagnifyingGlassIcon aria-hidden />}
           aria-keyshortcuts="Meta+K Control+K /"
+          className="whitespace-nowrap"
         >
           {label}
-          <kbd aria-hidden className="search-kbd hidden lg:inline-block">
+          <kbd aria-hidden className="search-kbd hidden xl:inline-block">
             {hint}
           </kbd>
         </Button>

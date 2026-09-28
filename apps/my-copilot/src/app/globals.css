@@ -105,32 +105,6 @@
   }
 }
 
-/* Budget bar shake — triggered when token usage exceeds 90 % */
-@keyframes budget-shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  20% {
-    transform: translateX(-3px);
-  }
-  40% {
-    transform: translateX(3px);
-  }
-  60% {
-    transform: translateX(-2px);
-  }
-  80% {
-    transform: translateX(2px);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .budget-bar-critical {
-    animation: budget-shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
-  }
-}
-
 /* Featured news card — clean elevation, no decorative border */
 .featured-card {
   background: #f5f7fa;
@@ -684,6 +658,54 @@ button.section-link {
   color: var(--ax-text-brand-blue-subtle);
 }
 
+/* The user menu in the header: name from 1280 px, initials below, and a dot at 80 % of the AI credits */
+.user-button {
+  display: flex;
+  align-items: center;
+  gap: var(--ax-space-6);
+  min-height: 2.75rem;
+  padding-inline: var(--ax-space-8);
+  border-radius: var(--ax-radius-8);
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+}
+.user-button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+.user-button:focus-visible {
+  outline: 3px solid var(--ax-border-focus);
+  outline-offset: 2px;
+}
+.user-name {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* display comes from Tailwind (grid xl:hidden): unlayered CSS here would beat the utilities */
+.user-initials {
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.user-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  /* The light Aksel warning-500 and danger-500, as the bar in the panel. The tokens resolve to darker values in the dark header. */
+  background: #e75e01;
+}
+.user-dot[data-level="high"] {
+  background: #ec526e;
+}
+.user-panel {
+  width: 18rem;
+}
+
 /* Site search (V11): the shortcut hint on the header button, and the hits in the dialog */
 .search-kbd {
   margin-left: var(--ax-space-8);
@@ -692,6 +714,7 @@ button.section-link {
   border-radius: var(--ax-radius-4);
   font-family: inherit;
   font-size: 0.75rem;
+  white-space: nowrap;
   opacity: 0.7;
 }
 .site-search .aksel-dialog__body {
