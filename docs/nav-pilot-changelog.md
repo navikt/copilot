@@ -22,6 +22,11 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Kopi i stedet for nedlasting ved hver oppstart**: Med opencode eller pi lastet nav-pilot ned agentpakka fra GitHub før hver økt, vanligvis 3,5 sekunder, opptil 10. Uten nett ventet oppstarten til git ga opp. Nå bruker nav-pilot kopien i `~/.nav-pilot/sources/` og henter en ny mens økten kjører, høyst én gang i timen. Endringer i agentpakka kommer med ved neste oppstart.
 - **Bare den første oppstarten venter**: Finnes ingen kopi, laster nav-pilot ned som før, men gir opp etter 30 sekunder. Mislykkes den, venter ikke de neste oppstartene: den neste timen starter de uten agentpakka og henter den i bakgrunnen.
 
+### Agentpakka fra teamet ditt lastes ikke ned ved hver oppstart
+
+- **Kopi i stedet for nedlasting**: Med en agentpakke fra et annet team (`source` i konfigurasjonen) lastet nav-pilot ned agentpakka før hver økt, 2,5 sekunder på godt nett og 16 sekunder uten svar. Nå bruker oppstarten kopien i `~/.nav-pilot/sources/`, som opencode og pi allerede gjør, og henter en ny mens økten kjører, høyst én gang i timen.
+- **Høyst ett døgn gammel**: Manifestet i agentpakka bestemmer hvordan økten starter, så kopien brukes i høyst ett døgn. Er den eldre, venter oppstarten på en ny som før (#1235).
+
 ### Raskere tilbake til terminalen etter en økt
 
 - **Undersøkelser og nyheter hentes mens økten kjører**: Etter en økt hentet nav-pilot åpne undersøkelser og nyheter, én etter én, før du fikk terminalen tilbake. Nå hentes de i bakgrunnen mens økten kjører, og spørsmålet eller nyhetslinja kommer som før når økten er slutt. Er økten kortere enn hentingen, kommer de ved neste økt i stedet.

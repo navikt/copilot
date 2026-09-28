@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -1259,5 +1260,46 @@ func TestStagedLaunchCountsAsSession(t *testing.T) {
 	}
 	if sessionClient != "copilot" {
 		t.Fatalf("sessionClient = %q after a staged launch, want copilot", sessionClient)
+	}
+}
+
+// A launch with a remote team source reads the checkout in the sources cache
+// and does not fetch (#1235).
+func TestTier1LaunchReadsCachedCheckout(t *testing.T) {
+	isolatedConfig(t)
+	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
+	source.CacheDir = t.TempDir()
+	t.Cleanup(func() { source.CacheDir = "" })
+	orig := source.CloneRemoteFn
+	t.Cleanup(func() { source.CloneRemoteFn = orig })
+	source.CloneRemoteFn = func(ref, repo string) (*Source, error) {
+		t.Fatalf("launch fetched %s with a cached checkout", repo)
+		return nil, nil
+	}
+
+	dir := filepath.Join(source.CacheDir, "navikt__team")
+	co := filepath.Join(dir, "abc123")
+	for path, body := range map[string]string{
+		".nav-pilot/agentpakke.json":  `{"contractVersion":"1","name":"team","description":"team","layout":{"agents":"agents"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}`,
+		"agents/grillmester.agent.md": "---\nname: grillmester\ndescription: team\n---\nteam\n",
+	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(co, path)), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(co, path), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	meta := fmt.Sprintf(`{"sha":"abc123","fetchedAt":%q}`, time.Now().Format(time.RFC3339))
+	if err := os.WriteFile(filepath.Join(dir, "meta.json"), []byte(meta), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	rev, handled, err := resolveAndPin(ResolvedConfig{Source: "navikt/team", Client: "copilot"})
+	if rev != nil || handled || err != nil {
+		t.Fatalf("resolveAndPin = %v, %v, %v; want the legacy path without error", rev, handled, err)
+	}
+	if got := providerpkg.PrimaryAgent("copilot"); got != "grillmester" {
+		t.Errorf("PrimaryAgent(copilot) = %q, want the cached pakke's grillmester", got)
 	}
 }

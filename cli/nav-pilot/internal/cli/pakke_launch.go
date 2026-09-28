@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -267,12 +268,19 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 	// With a cached manifest to fall back on, the fetch gets a short deadline:
 	// an unreachable github.com otherwise holds the launch for git's 75 s
 	// connect timeout before the fallback below can answer.
+	//
+	// A remote source is read from the checkout in ~/.nav-pilot/sources that
+	// an earlier launch fetched, and the next one is fetched while the session
+	// runs (#1235). The manifest decides the tier and the refusals above, so
+	// the copy has an age limit: older than sourceMaxAge, the launch waits for
+	// a new one as it did for every launch before.
 	cached, hasCache := readSourceCache(resolved.Source)
 	if hasCache {
 		defer func(d time.Duration) { source.FetchTimeout = d }(source.FetchTimeout)
 		source.FetchTimeout = cachedFetchTimeout
 	}
-	src, err := resolveSource("", resolved.Source)
+	src, refresh, err := resolveForLaunch(resolved.Source)
+	refreshSourceDuringSession(refresh)
 	if err != nil {
 		if errors.Is(err, errUnusableManifest) {
 			return nil, true, err
@@ -358,7 +366,9 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 		tier = src.Pakke.Tier(resolved.Client)
 	}
 	rememberTier(resolved.Source, resolved.Client, tier)
-	if tier == agentpakke.TierLayout {
+	// Once per revision: the checkout a launch reads now is usually the one
+	// the last launch read, and rewriting would date an old copy today.
+	if tier == agentpakke.TierLayout && (!hasCache || cached.SHA != src.SHA) {
 		writeSourceCache(resolved.Source, src)
 	}
 	// --persona is only meaningful for a Tier 1 launch, where the client entry
@@ -867,6 +877,40 @@ func installedLayoutSource(sourceRepo string) bool {
 		}
 	}
 	return false
+}
+
+// sourceMaxAge is how old the cached checkout of a source may be before a
+// launch waits for a new one instead of fetching it in the background.
+const sourceMaxAge = 24 * time.Hour
+
+// resolveForLaunch is resolveSource for a launch: a remote source comes from
+// the cached checkout ([source.ResolveForLaunchWithin]). refresh is never nil.
+// Without a cache directory (unit tests) it is resolveSource.
+var resolveForLaunch = func(sourceRepo string) (src *Source, refresh func(context.Context), err error) {
+	refresh = func(context.Context) {}
+	if source.CacheDir == "" {
+		src, err = resolveSource("", sourceRepo)
+		return src, refresh, err
+	}
+	effective, err := sourceRepoFor(sourceRepo)
+	if err != nil {
+		return nil, refresh, err
+	}
+	src, refresh, err = source.ResolveForLaunchWithin(effective, Version, sourceMaxAge)
+	if err != nil {
+		return nil, refresh, err
+	}
+	return src, refresh, attachPakkeOrCleanup(src)
+}
+
+// stopSourceRefresh ends the fetch resolveAndPin started; the launch calls it
+// when the session is over. A fetch cut short leaves the cache as it was.
+var stopSourceRefresh = func() {}
+
+func refreshSourceDuringSession(refresh func(context.Context)) {
+	ctx, cancel := context.WithCancel(context.Background())
+	go refresh(ctx)
+	stopSourceRefresh = cancel
 }
 
 // cachedFetchTimeout is how long a launch waits on the fetch when it has a

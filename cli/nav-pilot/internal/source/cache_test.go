@@ -184,3 +184,69 @@ func TestResolveForLaunchOfflineMarker(t *testing.T) {
 		t.Errorf("the failure marker outlived a successful first fetch: %v", err)
 	}
 }
+
+// Past maxAge the launch does not start from the cached checkout: it waits for
+// a new one, and a failed fetch is an error rather than the old copy.
+func TestResolveForLaunchWithinMaxAge(t *testing.T) {
+	repo := t.TempDir()
+	gitRun(t, repo, "init", "--quiet", "-b", "main", ".")
+	commit := func(text string) string {
+		if err := os.WriteFile(filepath.Join(repo, "marker.txt"), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		gitRun(t, repo, "add", "-A")
+		gitRun(t, repo, "commit", "--quiet", "-m", text)
+		return gitRun(t, repo, "rev-parse", "HEAD")
+	}
+	first := commit("one")
+	localRemote(t, repo)
+	CacheDir = t.TempDir()
+	t.Cleanup(func() { CacheDir = "" })
+	const maxAge = 24 * time.Hour
+
+	if src, _, err := ResolveForLaunchWithin("navikt/x", "v1", maxAge); err != nil || src.SHA != first {
+		t.Fatalf("first launch: %+v, %v", src, err)
+	}
+	second := commit("two")
+	dir := filepath.Join(CacheDir, cacheKey("navikt/x"))
+
+	// Younger than maxAge: the cached checkout, no wait.
+	writeCacheMeta(dir, cacheMeta{SHA: first, FetchedAt: time.Now().Add(-maxAge / 2)})
+	if src, _, err := ResolveForLaunchWithin("navikt/x", "v1", maxAge); err != nil || src.SHA != first {
+		t.Fatalf("cache inside maxAge: %+v, %v; want %s", src, err, first)
+	}
+
+	// Older: the launch fetches the next commit and starts from it.
+	writeCacheMeta(dir, cacheMeta{SHA: first, FetchedAt: time.Now().Add(-2 * maxAge)})
+	src, _, err := ResolveForLaunchWithin("navikt/x", "v1", maxAge)
+	if err != nil || src.SHA != second {
+		t.Fatalf("cache past maxAge: %+v, %v; want %s", src, err, second)
+	}
+
+	// Older, and another process holds the refresh lock but brings in
+	// nothing: an error once the wait is over, not the old copy.
+	if err := os.WriteFile(filepath.Join(dir, ".refresh.lock"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	writeCacheMeta(dir, cacheMeta{SHA: second, FetchedAt: time.Now().Add(-2 * maxAge)})
+	defer func(d time.Duration) { FetchTimeout = d }(FetchTimeout)
+	FetchTimeout = 600 * time.Millisecond
+	if src, _, err := ResolveForLaunchWithin("navikt/x", "v1", maxAge); err == nil {
+		t.Fatalf("cache past maxAge, lock held: got %+v, want an error", src)
+	}
+	os.Remove(filepath.Join(dir, ".refresh.lock"))
+
+	// A copy dated in the future (the clock was set back) is not fresh.
+	third := commit("three")
+	writeCacheMeta(dir, cacheMeta{SHA: second, FetchedAt: time.Now().Add(maxAge)})
+	if src, _, err := ResolveForLaunchWithin("navikt/x", "v1", maxAge); err != nil || src.SHA != third {
+		t.Fatalf("cache dated in the future: %+v, %v; want %s", src, err, third)
+	}
+
+	// Older and offline: an error, not the old copy.
+	writeCacheMeta(dir, cacheMeta{SHA: third, FetchedAt: time.Now().Add(-2 * maxAge)})
+	RemoteURLFn = func(string) string { return "file://" + filepath.Join(repo, "gone") }
+	if src, _, err := ResolveForLaunchWithin("navikt/x", "v1", maxAge); err == nil {
+		t.Fatalf("cache past maxAge, offline: got %+v, want an error", src)
+	}
+}
