@@ -23,19 +23,33 @@ const fakeSurveyDefs = `{"surveys":[{"id":"e2e-2026","title":"E2E survey","start
 {"id":"why","version":1,"type":"choice","text":"Why not copilot?","options":["habit","other"],"skip_if":{"question":"clients","answer":"copilot"}},
 {"id":"comment","version":1,"type":"text","text":"Anything else?","max_length":50}]}]}`
 
-// fake-survey [-nudge-start] serves copilot-cli's survey endpoints on 127.0.0.1 and points
+// fake-survey [-nudge-start] [-empty] [-404] [-hang] serves copilot-cli's survey endpoints on 127.0.0.1 and points
 // nav-pilot at it (NAV_PILOT_COPILOT_CLI_URL). Every POST is described on one
 // line of $WORK/survey-posts.log: the status it got, whether it carried a
 // bearer token, its top-level and context keys, and whether the body holds
 // the device id in $HOME/device-id. The first POST per token gets 201, the
 // next 409, like the real dedup. $WORK/survey-gets.log counts the GETs.
+// -empty lists no survey, -404 answers the list with 404 (the ingress where
+// the gateway is not deployed), and -hang never answers it.
 func cmdFakeSurvey(ts *testscript.TestScript, neg bool, args []string) {
-	if neg || len(args) > 1 || (len(args) == 1 && args[0] != "-nudge-start") {
-		ts.Fatalf("usage: fake-survey [-nudge-start]")
-	}
 	defs := fakeSurveyDefs
-	if len(args) == 1 {
-		defs = strings.Replace(defs, `"title":"E2E survey",`, `"title":"E2E survey","nudge":"start",`, 1)
+	status, hang := http.StatusOK, false
+	for _, a := range args {
+		switch a {
+		case "-nudge-start":
+			defs = strings.Replace(defs, `"title":"E2E survey",`, `"title":"E2E survey","nudge":"start",`, 1)
+		case "-empty":
+			defs = `{"surveys":[]}`
+		case "-404":
+			status = http.StatusNotFound
+		case "-hang":
+			hang = true
+		default:
+			ts.Fatalf("usage: fake-survey [-nudge-start] [-empty] [-404] [-hang]")
+		}
+	}
+	if neg {
+		ts.Fatalf("usage: fake-survey [-nudge-start] [-empty] [-404] [-hang]")
 	}
 	// Read here, not in the handler: the script's env is not safe to read
 	// from the server's goroutines.
@@ -55,7 +69,16 @@ func cmdFakeSurvey(ts *testscript.TestScript, neg bool, args []string) {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/surveys/active":
 			appendLine("survey-gets.log", "GET")
-			fmt.Fprint(w, defs)
+			switch {
+			case hang:
+				mu.Unlock()
+				<-r.Context().Done() // until the client gives up
+				mu.Lock()
+			case status != http.StatusOK:
+				w.WriteHeader(status)
+			default:
+				fmt.Fprint(w, defs)
+			}
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/surveys/e2e-2026/responses":
 			body, _ := io.ReadAll(r.Body)
 			token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")

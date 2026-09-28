@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -368,7 +369,11 @@ func cmdSurvey(jsonOutput bool) error {
 	if active, err := fetchActiveSurveys(base); err == nil {
 		st.Active, st.Fetched = active, now
 		writeSurveyState(st)
-	} else if len(st.Active) == 0 {
+	} else if len(st.Active) == 0 && !noSurveyService(err) {
+		var httpErr surveyHTTPError
+		if errors.As(err, &httpErr) {
+			return fmt.Errorf("copilot-cli svarte ikke som forventet, så nav-pilot fant ingen åpne undersøkelser: %w", err)
+		}
 		return fmt.Errorf("fikk ikke kontakt med copilot-cli for å finne åpne undersøkelser (er naisdevice på?): %w", err)
 	}
 	var open []surveyDef
@@ -587,6 +592,30 @@ var versionShapePattern = regexp.MustCompile(`^v?\d{1,4}\.\d{1,4}\.\d{1,4}(-[0-9
 
 func versionShape(v string) bool { return versionShapePattern.MatchString(v) }
 
+// surveyHTTPError is copilot-cli answering with something other than 200.
+// That is a different fault from not reaching it at all, so it must not be
+// reported as "naisdevice is off".
+type surveyHTTPError struct {
+	base   string
+	status string
+	code   int
+}
+
+// noSurveyService is a fetch that means "no survey to answer" rather than a
+// fault to report: a 404, which is what Nav's ingress answers where the
+// gateway is not deployed, or no answer within the timeout. nav-pilot survey
+// then says there is nothing open, as for an empty list.
+func noSurveyService(err error) bool {
+	var httpErr surveyHTTPError
+	var netErr net.Error
+	return (errors.As(err, &httpErr) && httpErr.code == http.StatusNotFound) ||
+		errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout())
+}
+
+func (e surveyHTTPError) Error() string {
+	return fmt.Sprintf("%s svarte %s på /api/v1/surveys/active", e.base, e.status)
+}
+
 func fetchActiveSurveys(base string) ([]surveyDef, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -600,7 +629,7 @@ func fetchActiveSurveys(base string) ([]surveyDef, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("surveys: %s", resp.Status)
+		return nil, surveyHTTPError{base: base, status: resp.Status, code: resp.StatusCode}
 	}
 	var body struct {
 		Surveys []surveyDef `json:"surveys"`
