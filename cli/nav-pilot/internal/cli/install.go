@@ -742,12 +742,12 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	agent := installedPrimaryAgent(src)
 	if scope.IsUser() {
 		fmt.Println(dim("Agents and skills are now available across all your repos."))
-		fmt.Println(dim(fmt.Sprintf("Use @%s in Copilot Chat, or start it in the sandbox with nav-pilot (or cplt -- --agent %s)", agent, agent)))
+		fmt.Println(dim(useAgentLine(agent)))
 	} else {
 		fmt.Println(dim("Next steps:"))
 		fmt.Println(dim("  1. Review the installed files in .github/"))
-		fmt.Println(dim("  2. Commit and push to enable Copilot customization"))
-		fmt.Println(dim(fmt.Sprintf("  3. Use @%s in Copilot to start planning", agent)))
+		fmt.Println(dim("  2. Commit and push, so the team gets them too"))
+		fmt.Println(dim("  3. " + useAgentLine(agent)))
 	}
 	printMCPServerNotice(src)
 
@@ -1353,7 +1353,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	}
 	fmt.Println(dim(fmt.Sprintf("Agents and skills are now available %s.", reach)))
 	agent := installedPrimaryAgent(src)
-	fmt.Println(dim(fmt.Sprintf("Use @%s in Copilot Chat, or start it in the sandbox with nav-pilot (or cplt -- --agent %s)", agent, agent)))
+	fmt.Println(dim(useAgentLine(agent)))
 
 	if len(manifest.Instructions) > 0 && scope.IsUser() {
 		fmt.Println()
@@ -2235,4 +2235,15 @@ func scopeItemCount(scope *InstallScope, manifest *Manifest) int {
 		}
 	}
 	return n
+}
+
+// useAgentLine is the next step after an install, for the client the config
+// names: Copilot has Copilot Chat as well, the others only the launch.
+func useAgentLine(agent string) string {
+	cfg, _ := readConfig()
+	client := cfgClient(cfg) // no config: the default a new install launches
+	if client == "copilot" {
+		return fmt.Sprintf("Use @%s in Copilot Chat, or start it in the sandbox with nav-pilot (or cplt -- --agent %s)", agent, agent)
+	}
+	return fmt.Sprintf("Start %s with the %s agent in the sandbox: nav-pilot", clientLabel[client], agent)
 }

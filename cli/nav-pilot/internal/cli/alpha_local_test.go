@@ -826,7 +826,7 @@ func TestAlphaHelpFlagsPrintAlphaUsage(t *testing.T) {
 	}
 	for _, args := range [][]string{{"help"}, {"--help"}} {
 		out, errOut := captureRun(t, func() { _ = run(args) })
-		if !strings.Contains(out, "Nav's Copilot toolkit") || errOut != "" {
+		if !strings.Contains(out, "Nav's toolkit for coding agents") || errOut != "" {
 			t.Errorf("%v: want the usage on stdout only, got stderr %q", args, errOut)
 		}
 	}

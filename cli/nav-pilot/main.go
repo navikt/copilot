@@ -1,4 +1,4 @@
-// nav-pilot manages Nav's Copilot toolkit — agents, skills, instructions, and prompts.
+// nav-pilot manages Nav's toolkit for coding agents — agents, skills, instructions, and prompts.
 // It installs curated collections or individual items from navikt/copilot
 // and tracks installed state for safe updates, sync, and uninstall.
 //
