@@ -5,6 +5,7 @@ import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
+import { NAV_PILOT_APT_INSTALL, NAV_PILOT_BREW_INSTALL, NAV_PILOT_INSTALL_SCRIPT } from "@/lib/install-commands";
 
 export const metadata: Metadata = {
   title: "Kom i gang med egen server",
@@ -13,12 +14,13 @@ export const metadata: Metadata = {
 };
 
 const TOC: TocItem[] = [
-  { id: "start-serveren", label: "1. Start serveren" },
-  { id: "setup", label: "2. Koble til med setup" },
-  { id: "init", label: "3. Slå den på med init" },
-  { id: "doctor", label: "4. Sjekk den med doctor" },
-  { id: "klient", label: "5. Bytt til opencode" },
-  { id: "forste-okt", label: "6. Første økt" },
+  { id: "installer", label: "1. Installer nav-pilot" },
+  { id: "start-serveren", label: "2. Start serveren" },
+  { id: "setup", label: "3. Koble til med setup" },
+  { id: "init", label: "4. Slå den på med init" },
+  { id: "doctor", label: "5. Sjekk den med doctor" },
+  { id: "klient", label: "6. Bytt til opencode" },
+  { id: "forste-okt", label: "7. Første økt" },
 ];
 
 const OLLAMA = `# terminal 1: blir stående så lenge serveren kjører
@@ -74,8 +76,29 @@ export default function EgenServer() {
 
       <section>
         <VStack gap="space-16">
+          <LinkableHeading id="installer" size="medium" level="2">
+            1. Installer nav-pilot
+          </LinkableHeading>
+          <Label size="small">Linux og WSL</Label>
+          <CodeBlock compact>{NAV_PILOT_INSTALL_SCRIPT}</CodeBlock>
+          <Label size="small">Debian og Ubuntu, fra apt-arkivet</Label>
+          <CodeBlock compact>{NAV_PILOT_APT_INSTALL}</CodeBlock>
+          <Label size="small">Mac</Label>
+          <CodeBlock compact>{NAV_PILOT_BREW_INSTALL}</CodeBlock>
+          <BodyLong>
+            Du får både nav-pilot og cplt. Har du nav-pilot fra før, eller vil du oppgradere, se{" "}
+            <NextLink href="/nav-pilot/guider/installere-og-oppgradere" className={linkClass}>
+              Installere og oppgradere
+            </NextLink>
+            .
+          </BodyLong>
+        </VStack>
+      </section>
+
+      <section>
+        <VStack gap="space-16">
           <LinkableHeading id="start-serveren" size="medium" level="2">
-            1. Start serveren
+            2. Start serveren
           </LinkableHeading>
           <Label size="small">Ollama</Label>
           <CodeBlock compact>{OLLAMA}</CodeBlock>
@@ -134,7 +157,7 @@ export default function EgenServer() {
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="setup" size="medium" level="2">
-            2. Koble til med setup
+            3. Koble til med setup
           </LinkableHeading>
           <CodeBlock compact>{`nav-pilot alpha local setup`}</CodeBlock>
           <BodyLong>
@@ -173,7 +196,7 @@ export default function EgenServer() {
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="init" size="medium" level="2">
-            3. Slå den på med init
+            4. Slå den på med init
           </LinkableHeading>
           <CodeBlock compact>{`nav-pilot alpha local init`}</CodeBlock>
           <BodyLong>
@@ -188,7 +211,7 @@ export default function EgenServer() {
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="doctor" size="medium" level="2">
-            4. Sjekk den med doctor
+            5. Sjekk den med doctor
           </LinkableHeading>
           <CodeBlock compact>{`nav-pilot alpha local doctor`}</CodeBlock>
           <BodyLong>
@@ -207,7 +230,7 @@ export default function EgenServer() {
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="klient" size="medium" level="2">
-            5. Bytt til opencode
+            6. Bytt til opencode
           </LinkableHeading>
           <CodeBlock compact>{`nav-pilot config set client opencode`}</CodeBlock>
           <BodyLong>
@@ -220,7 +243,7 @@ export default function EgenServer() {
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="forste-okt" size="medium" level="2">
-            6. Første økt
+            7. Første økt
           </LinkableHeading>
           <CodeBlock compact>{`cd ~/kode/mitt-repo
 nav-pilot`}</CodeBlock>
