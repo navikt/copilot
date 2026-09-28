@@ -44,6 +44,14 @@ type cacheMeta struct {
 // refresh is never nil. Run it in the background and cancel its context when
 // the session ends; a fetch cut short leaves the cache as it was.
 func ResolveForLaunch(sourceRepo, cliVersion string) (src *Source, refresh func(context.Context), err error) {
+	return ResolveForLaunchWithin(sourceRepo, cliVersion, 0)
+}
+
+// ResolveForLaunchWithin is [ResolveForLaunch] with a limit on the cached
+// checkout's age: past maxAge the launch fetches a new one and waits for it
+// (for at most FetchTimeout, when set), and a failed fetch is an error, as
+// it is for [ResolveSource]. Zero means no limit.
+func ResolveForLaunchWithin(sourceRepo, cliVersion string, maxAge time.Duration) (src *Source, refresh func(context.Context), err error) {
 	refresh = func(context.Context) {}
 	src, err = resolveSource("", sourceRepo, cliVersion, func(ref, repo string) (*Source, error) {
 		if CacheDir == "" {
@@ -51,6 +59,9 @@ func ResolveForLaunch(sourceRepo, cliVersion string) (src *Source, refresh func(
 		}
 		dir := filepath.Join(CacheDir, cacheKey(repo))
 		if s, fetched, ok := cachedCheckout(dir); ok {
+			if maxAge > 0 && time.Since(fetched) >= maxAge {
+				return refetch(dir, repo, fetched)
+			}
 			if time.Since(fetched) >= launchRefreshEvery {
 				refresh = func(ctx context.Context) { _ = fetchIntoCache(ctx, dir, repo) }
 			}
@@ -83,6 +94,30 @@ func ResolveForLaunch(sourceRepo, cliVersion string) (src *Source, refresh func(
 		return s, nil
 	})
 	return src, refresh, err
+}
+
+// refetch fetches a new checkout into the cache and waits for it. Another
+// launch already fetching holds the lock, and then the checkout there is used:
+// the next launch gets the new one.
+func refetch(dir, repo string, fetched time.Time) (*Source, error) {
+	timeout := firstFetchTimeout
+	if FetchTimeout > 0 && FetchTimeout < timeout {
+		timeout = FetchTimeout
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	if err := fetchIntoCache(ctx, dir, repo); err != nil {
+		if ctx.Err() != nil {
+			err = fmt.Errorf("no answer in %s", timeout)
+		}
+		return nil, fmt.Errorf("the copy of %s is from %s, and fetching a new one failed: %w",
+			cacheLabel(repo), fetched.Local().Format("2006-01-02 15:04"), err)
+	}
+	s, _, ok := cachedCheckout(dir)
+	if !ok {
+		return nil, fmt.Errorf("fetching %s left no checkout in %s", cacheLabel(repo), dir)
+	}
+	return s, nil
 }
 
 // minutesAgo says how long ago, in words a message can carry.

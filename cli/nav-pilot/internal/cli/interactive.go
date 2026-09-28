@@ -1016,6 +1016,7 @@ func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error
 		return fmt.Errorf("preparing RTK integration: %w", err)
 	}
 	syncBuiltinHooks(resolved)
+	defer func() { stopSourceRefresh() }()
 	handled, err := tryPakkeLaunch(resolved)
 	if err != nil {
 		return err
