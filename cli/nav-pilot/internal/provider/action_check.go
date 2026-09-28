@@ -10,7 +10,9 @@ import (
 )
 
 // ActionCheckServerEnv hands the action check (`nav-pilot hook action-check`)
-// the local model server to ask: "<base URL> <model id>". The hook runs inside
+// the local model server to ask: "<base URL> <model id>", with " endpoint"
+// after them for the developer's own server (local_endpoint), which decide asks
+// differently (reasoning_effort "none"). The hook runs inside
 // cplt, which denies ~/.nav-pilot, so it cannot look the server up itself
 // (#1165). The launch looks it up outside the sandbox and passes it here.
 const ActionCheckServerEnv = "NAV_PILOT_ACTION_CHECK_SERVER"
@@ -24,32 +26,36 @@ const ActionCheckServerEnv = "NAV_PILOT_ACTION_CHECK_SERVER"
 // and leaves its port to another local process would get the check's prompts
 // (a command and its stated purpose) until the session ends. Re-prove per call
 // if the hook ever gets a way to do that from inside the sandbox.
-func actionCheckServer(r domain.ResolvedConfig) (base, model string) {
+func actionCheckServer(r domain.ResolvedConfig) (base, model string, endpoint bool) {
 	if r.HookActionCheck == "off" || !r.LocalEnabled {
-		return "", ""
+		return "", "", false
 	}
 	if base, model = local.Endpoint(); base != "" {
-		return base, model
+		return base, model, true
 	}
 	if local.EnsureOwnServer() != nil {
-		return "", ""
+		return "", "", false
 	}
 	st, ok, err := local.LoadState()
 	if err != nil || !ok {
-		return "", ""
+		return "", "", false
 	}
-	return local.ServerURL(), st.Model
+	return local.ServerURL(), st.Model, false
 }
 
 // withActionCheckServer sets ActionCheckServerEnv for the session and returns
 // the cplt flags that let it and the server's port through the sandbox: none
 // when there is no server, and no port for a server not on loopback.
 func withActionCheckServer(r domain.ResolvedConfig, env []string) ([]string, []string) {
-	base, model := actionCheckServer(r)
+	base, model, endpoint := actionCheckServer(r)
 	if base == "" {
 		return env, nil
 	}
-	env, _ = telemetry.SetEnvValue(env, ActionCheckServerEnv, base+" "+model)
+	value := base + " " + model
+	if endpoint {
+		value += " endpoint"
+	}
+	env, _ = telemetry.SetEnvValue(env, ActionCheckServerEnv, value)
 	flags := []string{"--pass-env", ActionCheckServerEnv}
 	if u, err := url.Parse(base); err == nil {
 		if ip := net.ParseIP(u.Hostname()); (ip != nil && ip.IsLoopback()) || u.Hostname() == "localhost" {

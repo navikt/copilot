@@ -21,8 +21,8 @@ func TestWithActionCheckServer(t *testing.T) {
 		env            string
 		flags          []string
 	}{
-		{"loopback", "http://127.0.0.1:8081", on, "http://127.0.0.1:8081 m", []string{"--pass-env", ActionCheckServerEnv, "--allow-localhost", "8081"}},
-		{"private address", "http://10.0.0.5:8081", on, "http://10.0.0.5:8081 m", []string{"--pass-env", ActionCheckServerEnv}},
+		{"loopback", "http://127.0.0.1:8081", on, "http://127.0.0.1:8081 m endpoint", []string{"--pass-env", ActionCheckServerEnv, "--allow-localhost", "8081"}},
+		{"private address", "http://10.0.0.5:8081", on, "http://10.0.0.5:8081 m endpoint", []string{"--pass-env", ActionCheckServerEnv}},
 		{"check off", "http://127.0.0.1:8081", domain.ResolvedConfig{LocalEnabled: true, HookActionCheck: "off"}, "", nil},
 		{"no local model", "http://127.0.0.1:8081", domain.ResolvedConfig{HookActionCheck: "log"}, "", nil},
 		{"no server running", "", on, "", nil},

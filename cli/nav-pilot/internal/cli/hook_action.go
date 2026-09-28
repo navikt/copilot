@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"maps"
 	"os"
 	"strings"
@@ -76,11 +77,16 @@ type actionVerdict struct {
 // returns when all are answered or the budget is spent, whichever is first.
 // It never starts a server, and reads nothing under ~/.nav-pilot: cplt denies
 // that inside the sandbox, so the launch hands over the server instead
-// (providerpkg.ActionCheckServerEnv, #1165). No lock either, for the same
-// reason, and none is needed: the managed server serves one request at a time
-// itself (#1169), so the check's prompt waits its turn there. A server busy
-// with another session costs the budget, and a check that does not fit in it
-// is a skip; the server drops a waiter that has given up.
+// (providerpkg.ActionCheckServerEnv, #1165). Outside cplt it takes the server
+// lock first, as decide does: a server started by an older nav-pilot, or the
+// developer's own (local_endpoint), has no queue of its own. Inside cplt the
+// lock file is out of reach and the check goes on without it; a managed
+// server this nav-pilot started serves one request at a time itself (#1169).
+// A server busy with another session costs the budget, and a check that does
+// not fit in it is a skip.
+// lockServer is the machine-wide server lock. A var so tests can hold it.
+var lockServer = local.LockServer
+
 func runActionCheck(base, model, evidence string) actionVerdict {
 	started := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), actionCheckBudget)
@@ -92,6 +98,16 @@ func runActionCheck(base, model, evidence string) actionVerdict {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
+		release, err := lockServer(ctx)
+		switch {
+		case err == nil:
+			defer release()
+		case !errors.Is(err, fs.ErrPermission):
+			mu.Lock()
+			failed = err
+			mu.Unlock()
+			return
+		}
 		// One at a time: mlx-lm hangs on concurrent prompts of different
 		// lengths (local.TestGuardSerialisesCompletions).
 		for _, q := range actionQuestions {
@@ -155,8 +171,18 @@ func actionCheck(r ResolvedConfig, p hook.Payload) {
 	// the variable cannot send a command anywhere but loopback or a private
 	// address.
 	v := actionVerdict{Outcome: "skipped_no_server"}
-	server, model, _ := strings.Cut(os.Getenv(providerpkg.ActionCheckServerEnv), " ")
+	fields := strings.Fields(os.Getenv(providerpkg.ActionCheckServerEnv))
+	var server, model string
+	if len(fields) >= 2 {
+		server, model = fields[0], fields[1]
+	}
 	if base, err := local.ValidateEndpoint(server); server != "" && err == nil && model != "" {
+		if len(fields) == 3 && fields[2] == "endpoint" {
+			// decide asks the developer's own server with thinking off
+			// (reasoning_effort "none"); without this an Ollama thinking model
+			// answers <think> first and every question reads as unanswered.
+			local.SetEndpoint(base, model)
+		}
 		// Redacted as the log is: the server is local, but a secret on a
 		// command line has no business in a prompt.
 		opts := hook.RedactOptions{Secrets: true, FNR: true}

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/hook"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
@@ -279,5 +280,33 @@ func TestActionCheckCaseSet(t *testing.T) {
 	}
 	if len(perCase) < 40 || classes["risky"] < 15 || classes["harmless"] < 15 {
 		t.Errorf("%d cases, classes %v: want at least 40, and both classes", len(perCase), classes)
+	}
+}
+
+// Outside cplt the check queues on the server lock, as decide does: a server
+// from an older nav-pilot, or the developer's own, has no queue. Held past the
+// budget, it is a timeout, and nothing is asked.
+func TestActionCheckTakesTheServerLock(t *testing.T) {
+	last := fakeDecideServer(t, func(string) []fakeTok { return []fakeTok{{"A", 0.9}, {"B", 0.1}} })
+	actionServer(t)
+	orig := lockServer
+	lockServer = func(ctx context.Context) (func(), error) { <-ctx.Done(); return nil, ctx.Err() }
+	t.Cleanup(func() { lockServer = orig })
+	out, _, spool := runActionHook(t, localOn, riskyPayload)
+	if out != "{}" || strings.TrimSpace(spool) != "action_check skipped_timeout kubectl" || last() != nil {
+		t.Errorf("lock held: %s, spooled %q, asked %v", out, spool, last())
+	}
+}
+
+// The developer's own server is asked with thinking off, as alpha decide asks
+// it; the launch marks it with " endpoint".
+func TestActionCheckAsksAnEndpointWithThinkingOff(t *testing.T) {
+	t.Cleanup(func() { local.SetEndpoint("", "") })
+	last := fakeDecideServer(t, func(string) []fakeTok { return []fakeTok{{"A", 0.9}, {"B", 0.1}} })
+	actionServer(t)
+	t.Setenv(providerpkg.ActionCheckServerEnv, os.Getenv(providerpkg.ActionCheckServerEnv)+" endpoint")
+	runActionHook(t, localOn, riskyPayload)
+	if got := last()["reasoning_effort"]; got != "none" {
+		t.Errorf("reasoning_effort = %v, want none for an endpoint", got)
 	}
 }

@@ -273,8 +273,8 @@ for sent, hopper den over. Den starter aldri en server. Svarene ligger i
 forkortet. Sjekken er der for å måle hvor godt modellen skiller risikable kommandoer fra
 ufarlige, ikke for å stoppe noe.
 
-I cplt-sandkassen når ikke hooken `~/.nav-pilot/`, der nav-pilot noterer hvilken server som
-kjører. Derfor slår nav-pilot opp serveren når du starter den, og gir hooken adressen og
+nav-pilot noterer i `~/.nav-pilot/` hvilken server som kjører, og den mappa når ikke hooken
+i sandkassen. Derfor slår nav-pilot opp serveren ved oppstart og gir hooken adressen og
 modellen i miljøvariabelen `NAV_PILOT_ACTION_CHECK_SERVER`. cplt slipper gjennom variabelen
 og porten til serveren, ikke mer. Starter du serveren etter nav-pilot, hopper sjekken over
 til neste gang du starter nav-pilot.
