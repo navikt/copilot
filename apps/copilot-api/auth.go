@@ -390,6 +390,19 @@ func makeAuthMiddleware(config *Config) func(http.Handler) http.Handler {
 	}
 	authMiddlewareReady.Store(true)
 
+	surveyClientID, err := trustedClientIDForApp(config.PreAuthorizedApps, "copilot-survey")
+	if err != nil {
+		slog.Warn("Could not parse AZURE_APP_PRE_AUTHORIZED_APPS for copilot-survey", "error", err)
+	}
+	return bearerAuth(validator.validate, surveyClientID)
+}
+
+// bearerAuth validates the bearer token and puts its user in the context.
+//
+// copilot-survey is pre-authorized for POST /internal/v1/saml/name-id only,
+// but Nais inbound access is pod-wide, so its tokens are refused (403) on
+// every other path. The name-id route also logs no identity.
+func bearerAuth(validate func(string) (*User, error), surveyClientID string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token, err := extractBearerToken(r)
@@ -398,14 +411,20 @@ func makeAuthMiddleware(config *Config) func(http.Handler) http.Handler {
 				return
 			}
 
-			user, err := validator.validate(token)
+			user, err := validate(token)
 			if err != nil {
 				slog.Warn("Token validation failed", "error", logSafe(err.Error()), "path", logSafe(redactPath(r.URL.Path)))
 				respondError(w, "unauthorized", "Invalid or expired token", http.StatusUnauthorized)
 				return
 			}
 
-			slog.Debug("User authenticated", "navident", user.NAVident)
+			if r.URL.Path != samlNameIDPath {
+				if surveyClientID != "" && user.AZP == surveyClientID {
+					respondError(w, "forbidden", "copilot-survey may only call POST "+samlNameIDPath, http.StatusForbidden)
+					return
+				}
+				slog.Debug("User authenticated", "navident", user.NAVident)
+			}
 
 			ctx := context.WithValue(r.Context(), userContextKey, user)
 			next.ServeHTTP(w, r.WithContext(ctx))

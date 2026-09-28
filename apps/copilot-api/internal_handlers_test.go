@@ -47,6 +47,8 @@ func TestSAMLNameIDHandler(t *testing.T) {
 		{"no user", "survey-id", nil, lookup, `{"login":"hans"}`, 403},
 		{"malformed login", "survey-id", survey, lookup, `{"login":"inv@lid"}`, 400},
 		{"unknown field", "survey-id", survey, lookup, `{"login":"hans","x":1}`, 400},
+		{"trailing garbage", "survey-id", survey, lookup, `{"login":"hans"} garbage`, 400},
+		{"two objects", "survey-id", survey, lookup, `{"login":"hans"}{"login":"hans"}`, 400},
 		{"oversized body", "survey-id", survey, lookup, `{"login":"hans"` + strings.Repeat(" ", 1100) + `}`, 400},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -149,5 +151,46 @@ func TestGetSamlNameIDByLogin(t *testing.T) {
 				t.Fatalf("got %q, %v", got, err)
 			}
 		})
+	}
+}
+
+// copilot-survey's tokens pass only on the name-id route; Nais inbound access
+// is pod-wide. Nothing on that route logs the caller's identity.
+func TestBearerAuthSurveyScope(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	users := map[string]*User{
+		"survey": {AZP: "survey-id", Idtyp: "app"},
+		"user":   {AZP: "survey-id", NAVident: "Z999999"},
+		"other":  {AZP: "my-copilot-id", NAVident: "Z123456"},
+	}
+	validate := func(tok string) (*User, error) { return users[tok], nil }
+	h := bearerAuth(validate, "survey-id")(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {}))
+	for _, tc := range []struct {
+		token, path string
+		want        int
+	}{
+		{"survey", samlNameIDPath, 200},
+		{"survey", "/api/v1/copilot/usage/metrics", 403},
+		{"survey", "/api/v1/budget", 403},
+		{"user", samlNameIDPath, 200},
+		{"other", "/api/v1/copilot/usage/metrics", 200},
+	} {
+		req := httptest.NewRequest(http.MethodPost, tc.path, nil)
+		req.Header.Set("Authorization", "Bearer "+tc.token)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != tc.want {
+			t.Errorf("%s on %s = %d, want %d", tc.token, tc.path, rec.Code, tc.want)
+		}
+	}
+	if strings.Contains(buf.String(), "Z999999") {
+		t.Fatalf("an identity on the name-id route reached the log: %s", buf.String())
+	}
+	if !strings.Contains(buf.String(), "Z123456") {
+		t.Fatalf("other routes should still log at debug: %s", buf.String())
 	}
 }
