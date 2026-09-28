@@ -272,7 +272,7 @@ as install (nav-pilot help install).
 	"auth": `Usage: nav-pilot auth <login|status|logout> [--json]
 
 Sign in with GitHub so nav-pilot usage can look up your Copilot usage, and so
-you can answer surveys with nav-pilot survey.
+nav-pilot survey can send your answers.
 
 Subcommands:
   login                   Sign in with the GitHub device flow; the token goes in the OS keychain

@@ -81,7 +81,7 @@ func usage(w io.Writer) {
 	fmt.Fprintf(w, `nav-pilot — Nav's toolkit for coding agents
 
 CLI tool that installs agents, skills, and instructions for Copilot CLI,
-opencode and pi, and starts them in the cplt sandbox to plan and build Nav apps.
+OpenCode and pi, and starts them in the cplt sandbox to plan and build Nav apps.
 
 Usage:
   nav-pilot <command> [flags]

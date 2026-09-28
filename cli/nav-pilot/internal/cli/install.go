@@ -2240,10 +2240,8 @@ func scopeItemCount(scope *InstallScope, manifest *Manifest) int {
 // useAgentLine is the next step after an install, for the client the config
 // names: Copilot has Copilot Chat as well, the others only the launch.
 func useAgentLine(agent string) string {
-	client := "copilot"
-	if cfg, err := readConfig(); err == nil && cfg != nil {
-		client = cfgClient(cfg)
-	}
+	cfg, _ := readConfig()
+	client := cfgClient(cfg) // no config: the default a new install launches
 	if client == "copilot" {
 		return fmt.Sprintf("Use @%s in Copilot Chat, or start it in the sandbox with nav-pilot (or cplt -- --agent %s)", agent, agent)
 	}
