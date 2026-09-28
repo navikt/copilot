@@ -37,4 +37,6 @@ func cmdFakeNews(ts *testscript.TestScript, neg bool, args []string) {
 	}))
 	ts.Defer(srv.Close)
 	ts.Setenv("NAV_PILOT_NEWS_URL", srv.URL+"/news.json")
+	// The fake clients exit at once; a real session outlasts the fetch.
+	ts.Setenv("NAV_PILOT_E2E_NUDGE_WAIT", "10s")
 }

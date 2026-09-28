@@ -638,6 +638,12 @@ func (t *otelTelemetry) Shutdown(ctx context.Context) error {
 	return t.provider.Shutdown(ctx)
 }
 
+// ForceFlush exports what is recorded so far. A launch calls it as the
+// session starts, so the export when it ends has a connection already open.
+func (t *otelTelemetry) ForceFlush(ctx context.Context) error {
+	return t.provider.ForceFlush(ctx)
+}
+
 // RecordLaunchError records a client launch failure with a normalized error type.
 // client: "copilot", "opencode", "pi"
 // errorType: "client_not_found", "launch_failed", "unknown"

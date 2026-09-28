@@ -109,6 +109,8 @@ func cmdFakeSurvey(ts *testscript.TestScript, neg bool, args []string) {
 	}))
 	ts.Defer(srv.Close)
 	ts.Setenv("NAV_PILOT_COPILOT_CLI_URL", srv.URL)
+	// The fake clients exit at once; a real session outlasts the fetch.
+	ts.Setenv("NAV_PILOT_E2E_NUDGE_WAIT", "10s")
 }
 
 func sortedKeys[V any](m map[string]V) string {

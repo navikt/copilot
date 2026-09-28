@@ -4,6 +4,11 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-28
 
+### Raskere tilbake til skallet etter en økt
+
+- **Undersøkelser og nyheter hentes mens økten kjører**: Etter en økt hentet nav-pilot åpne undersøkelser og nyhetslista, én etter én, før du fikk skallet tilbake. Nå hentes de i bakgrunnen mens økten kjører, og spørsmålet eller nyhetslinja kommer som før når den er slutt.
+- **Telemetrien venter høyst 150 ms etter en økt**: Metrikkene sendes hvert tiende sekund mens økten kjører, og siste sending går over en forbindelse som allerede er åpen. Før ventet nav-pilot opptil ett sekund, lenger på et tregt nett.
+
 ### Versjonssjekken venter ikke lenger på GitHub
 
 - **Sjekken går i bakgrunnen**: Én gang i døgnet spurte nav-pilot GitHub om en nyere versjon før kommandoen kjørte, et halvt sekund på godt nett og opptil fem sekunder uten nett. Nå svarer nav-pilot fra forrige sjekk og spør GitHub i bakgrunnen. Finnes en nyere versjon, sier nav-pilot fra ved neste kommando.

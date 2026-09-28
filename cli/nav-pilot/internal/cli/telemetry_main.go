@@ -23,13 +23,21 @@ func telemetryMode() string {
 // alpha decide and alpha local ask run in hooks, scripts and loops, where an
 // unreachable host made every call wait seconds: they get 300 ms, and a
 // dropped sample is cheaper than a slow hook.
+//
+// After a session the budget is shortest: the periodic reader exported every
+// ten seconds while the session ran, so what is left is one export over a
+// connection already open, and the user is waiting for the shell.
 const (
-	telemetryFlushBudget      = time.Second
-	telemetryQuickFlushBudget = 300 * time.Millisecond
+	telemetryFlushBudget        = time.Second
+	telemetryQuickFlushBudget   = 300 * time.Millisecond
+	telemetrySessionFlushBudget = 150 * time.Millisecond
 )
 
 // flushBudget is the budget for a command line (os.Args[1:]).
 func flushBudget(args []string) time.Duration {
+	if sessionClient != "" {
+		return telemetrySessionFlushBudget
+	}
 	if len(args) > 0 && args[0] == "alpha" {
 		if c := alphaCommand(args[1:]); c == "alpha decide" || c == "alpha local ask" {
 			return telemetryQuickFlushBudget

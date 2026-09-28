@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -33,6 +34,12 @@ const (
 	newsFeedDefault = "https://ki-utvikling.nav.no/news.json"
 	newsFetchEvery  = 6 * time.Hour
 	newsLineTimeout = 500 * time.Millisecond
+	// newsPrepTimeout is the fetch's timeout while a session runs: nobody
+	// waits on it there.
+	newsPrepTimeout = 2 * time.Second
+	// nudgePrepWait is how long the end of a session waits for the
+	// background fetches before it goes without them.
+	nudgePrepWait = 50 * time.Millisecond
 	// newsMaxAge keeps a new install from bringing up an old article.
 	newsMaxAge = 30 * 24 * time.Hour
 	// newsSeenMax bounds the seen list; the feed holds far fewer.
@@ -158,28 +165,80 @@ func nextNews(st newsState, now time.Time) *newsItem {
 // maybeNews is the news line after a session. Like maybeSurvey it never
 // fails: news must not change how nav-pilot exits.
 func maybeNews(client string) {
+	prepareNews(client, newsLineTimeout)
+	showNews(client)
+}
+
+// newsAllowed is whether a session may end with the news line.
+func newsAllowed(client string) bool {
 	cfg, _ := readConfig()
-	if !resolve(cfg, CLIOverrides{Client: client}).News || !nudgesAllowed() || sessionPrompted {
+	return resolve(cfg, CLIOverrides{Client: client}).News && nudgesAllowed()
+}
+
+// prepareNews fetches the feed when a fetch is due. It prints nothing, so a
+// launch runs it while the session has the terminal (startNudgePrep).
+func prepareNews(client string, timeout time.Duration) {
+	if !newsAllowed(client) {
 		return
 	}
 	st := readNewsState()
 	now := time.Now()
-	changed := false
-	if now.Sub(st.Fetched) >= newsFetchEvery {
-		// Out of reach (offline, slow): keep the items fetched before, and
-		// do not try again before the next fetch is due.
-		if items, err := fetchNews(newsLineTimeout); err == nil {
-			st.Items = items
-		}
-		st.Fetched, changed = now, true
+	if now.Sub(st.Fetched) < newsFetchEvery {
+		return
 	}
-	if it := nextNews(st, now); it != nil && claimSessionPrompt() {
+	// Out of reach (offline, slow): keep the items fetched before, and do
+	// not try again before the next fetch is due.
+	if items, err := fetchNews(timeout); err == nil {
+		st.Items = items
+	}
+	st.Fetched = now
+	writeNewsState(st)
+}
+
+// showNews prints the next unseen item, from what prepareNews fetched.
+func showNews(client string) {
+	if !newsAllowed(client) || sessionPrompted {
+		return
+	}
+	st := readNewsState()
+	if it := nextNews(st, time.Now()); it != nil && claimSessionPrompt() {
 		st.Seen = append(st.Seen, it.URL)
-		changed = true
 		fmt.Fprintf(os.Stderr, "%s Nytt fra ki-utvikling: %s %s\n", dim("ℹ"), it.Title, it.URL)
-	}
-	if changed {
 		writeNewsState(st)
+	}
+}
+
+// nudgeWait is nudgePrepWait, or in the e2e build NAV_PILOT_E2E_NUDGE_WAIT:
+// the fake clients there exit before any fetch could finish.
+func nudgeWait() time.Duration {
+	if e2eSeams == "1" {
+		if d, err := time.ParseDuration(os.Getenv("NAV_PILOT_E2E_NUDGE_WAIT")); err == nil {
+			return d
+		}
+	}
+	return nudgePrepWait
+}
+
+// startNudgePrep runs the network half of the survey prompt and the news
+// line in the background, while the session runs, so neither holds up the
+// return to the shell. ready reports whether that work is done: a session
+// shorter than the fetch skips both, and the next session shows them.
+func startNudgePrep(client string) (ready func() bool) {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		var wg sync.WaitGroup
+		wg.Go(func() { prepareSurvey(client) })
+		wg.Go(func() { prepareNews(client, newsPrepTimeout) })
+		wg.Wait()
+	}()
+	return func() bool {
+		select {
+		case <-done:
+			return true
+		case <-time.After(nudgeWait()):
+			return false
+		}
 	}
 }
 

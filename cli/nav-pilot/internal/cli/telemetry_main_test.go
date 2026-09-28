@@ -45,6 +45,8 @@ func (blockingTelemetry) Shutdown(context.Context) error { select {} }
 
 // Exit must not wait on an unreachable telemetry host (#1101).
 func TestFlushTelemetryIsBounded(t *testing.T) {
+	defer func(c string) { sessionClient = c }(sessionClient)
+	sessionClient = ""
 	start := time.Now()
 	flushTelemetry(blockingTelemetry{}, 50*time.Millisecond)
 	if took := time.Since(start); took > time.Second {
@@ -57,5 +59,10 @@ func TestFlushTelemetryIsBounded(t *testing.T) {
 	}
 	if got := flushBudget([]string{"sync"}); got != telemetryFlushBudget {
 		t.Errorf("flushBudget(sync) = %s", got)
+	}
+	// After a session the user waits for the shell.
+	sessionClient = "copilot"
+	if got := flushBudget(nil); got != telemetrySessionFlushBudget {
+		t.Errorf("flushBudget after a session = %s, want %s", got, telemetrySessionFlushBudget)
 	}
 }
