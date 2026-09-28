@@ -42,6 +42,10 @@ export function AltInstall() {
             en time på å bli installerbar. Det er et vanlig apt-arkiv som speiler releasene våre, ikke en distropakke
             med egen vedlikeholder.
           </div>
+          <div style={{ marginTop: "0.375rem", fontSize: "0.7rem", color: "#64748b", lineHeight: "1.5" }}>
+            I CI, i en Dockerfile eller i et skript uten terminal: bytt ut <code>sudo apt install</code> med{" "}
+            <code>sudo apt-get install -y</code>. Uten terminal får apt ikke svar på om du vil fortsette, og avbryter.
+          </div>
 
           <div style={{ fontSize: "0.75rem", color: "#334155", margin: "1rem 0 0.375rem" }}>
             <strong>Andre distroer, CI eller sperret apt-arkiv:</strong> bruk installasjonsskriptet.
