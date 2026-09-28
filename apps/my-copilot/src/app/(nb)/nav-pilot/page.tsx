@@ -4,6 +4,8 @@ import { Box, VStack, HGrid, Heading } from "@navikt/ds-react";
 import NextLink from "next/link";
 import { InteractiveSetupWizard } from "@/components/nav-pilot/interactive-setup-wizard";
 import { InstallPicker } from "@/components/install-picker";
+import { getAllCustomizations } from "@/lib/customizations";
+import type { CustomizationType } from "@/lib/customization-types";
 import { NAV_PILOT_APT_INSTALL, NAV_PILOT_INSTALL, NAV_PILOT_QUICKSTART } from "@/lib/install-commands";
 import {
   BranchingIcon,
@@ -52,33 +54,31 @@ export const metadata: Metadata = {
 
 /* ---------- Data ---------- */
 
+// Counts and agent names come from the manifest the CLI installs from, as on
+// the home page, so the two pages can't disagree (#1193).
+const CUSTOMIZATIONS = getAllCustomizations();
+const ofType = (type: CustomizationType) => CUSTOMIZATIONS.filter((c) => c.type === type);
+
 const PAKKE = {
   title: "nav-pilot",
   description:
     "Nav-innholdet for Kotlin og Spring, Next.js og Aksel, Nais, Kafka og sikkerhet, i én pakke. Velg bort det du ikke trenger i velgeren.",
   counts: [
-    { label: "agenter", value: 11, color: "#60a5fa" },
-    { label: "skills", value: 33, color: "#a78bfa" },
-    { label: "instruksjoner", value: 17, color: "#34d399" },
-    { label: "prompts", value: 7, color: "#fbbf24" },
+    { label: "agenter", value: ofType("agent").length, color: "#60a5fa" },
+    { label: "skills", value: ofType("skill").length, color: "#a78bfa" },
+    { label: "instruksjoner", value: ofType("instruction").length, color: "#34d399" },
+    { label: "prompts", value: ofType("prompt").length, color: "#fbbf24" },
   ],
   highlights: ["Kotlin og Spring", "Next.js og Aksel", "Nais og sikkerhet"],
   Icon: BranchingIcon,
   logos: [KotlinLogo, NextjsLogo, ReactLogo, TypeScriptLogo, PostgreSQLLogo, KafkaLogo, KubernetesLogo, GoLogo],
   contents: {
-    agents: [
-      "accessibility",
-      "aksel",
-      "code-review",
-      "forfatter",
-      "kafka",
-      "local-worker",
-      "nav-pilot",
-      "nav-pilot-opus",
-      "research",
-      "rust",
-      "security-champion",
-    ],
+    agents: ofType("agent").map((a) =>
+      a.filePath
+        .split("/")
+        .pop()!
+        .replace(/\.agent\.md$/, "")
+    ),
     skills: [
       "aksel-builder",
       "api-design",
