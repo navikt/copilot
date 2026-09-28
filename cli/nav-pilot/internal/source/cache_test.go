@@ -128,7 +128,7 @@ func TestResolveForLaunchOfflineWaitsOnce(t *testing.T) {
 		t.Fatalf("first launch: err %v, %d clones", err, clones)
 	}
 	_, refresh, err := ResolveForLaunch("navikt/x", "v1")
-	if err == nil || clones != 1 || !strings.Contains(err.Error(), "fetches it again while this session runs") {
+	if err == nil || clones != 1 || !strings.Contains(err.Error(), "tries again while this session runs") {
 		t.Fatalf("second launch: err %v, %d clones; want no wait and a background fetch", err, clones)
 	}
 
@@ -144,5 +144,43 @@ func TestResolveForLaunchOfflineWaitsOnce(t *testing.T) {
 	refresh(context.Background())
 	if src, _, err := ResolveForLaunch("navikt/x", "v1"); err != nil || src.SHA != gitRun(t, repo, "rev-parse", "HEAD") {
 		t.Fatalf("after the background fetch: %+v, %v", src, err)
+	}
+	dir := filepath.Join(CacheDir, cacheKey("navikt/x"))
+	if _, err := os.Stat(filepath.Join(dir, ".first-fetch-failed")); !os.IsNotExist(err) {
+		t.Errorf("the failure marker outlived a successful refresh: %v", err)
+	}
+}
+
+// A failure more than an hour old is tried again at launch; the reason is
+// kept in the message; a successful first fetch clears the marker.
+func TestResolveForLaunchOfflineMarker(t *testing.T) {
+	CacheDir = t.TempDir()
+	t.Cleanup(func() { CacheDir = "" })
+	orig := CloneRemoteFn
+	t.Cleanup(func() { CloneRemoteFn = orig })
+	clones := 0
+	CloneRemoteFn = func(string, string) (*Source, error) {
+		clones++
+		return nil, errors.New("authentication failed")
+	}
+	ResolveForLaunch("navikt/y", "v1")
+	if _, _, err := ResolveForLaunch("navikt/y", "v1"); err == nil || !strings.Contains(err.Error(), "authentication failed") {
+		t.Fatalf("the reason is lost: %v", err)
+	}
+	failed := filepath.Join(CacheDir, cacheKey("navikt/y"), ".first-fetch-failed")
+	old := time.Now().Add(-61 * time.Minute)
+	if err := os.Chtimes(failed, old, old); err != nil {
+		t.Fatal(err)
+	}
+	repo := t.TempDir()
+	gitRun(t, repo, "init", "--quiet", "-b", "main", ".")
+	gitRun(t, repo, "commit", "--quiet", "--allow-empty", "-m", "one")
+	localRemote(t, repo)
+	CloneRemoteFn = func(ref, r string) (*Source, error) { clones++; return cloneRemote(ref, r) }
+	if _, _, err := ResolveForLaunch("navikt/y", "v1"); err != nil || clones != 2 {
+		t.Fatalf("an hour on: err %v, %d clones; want a fresh try", err, clones)
+	}
+	if _, err := os.Stat(failed); !os.IsNotExist(err) {
+		t.Errorf("the failure marker outlived a successful first fetch: %v", err)
 	}
 }

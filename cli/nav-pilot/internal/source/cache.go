@@ -59,8 +59,9 @@ func ResolveForLaunch(sourceRepo, cliVersion string) (src *Source, refresh func(
 		failed := filepath.Join(dir, ".first-fetch-failed")
 		if info, err := os.Stat(failed); err == nil && time.Since(info.ModTime()) < launchRefreshEvery {
 			refresh = func(ctx context.Context) { _ = fetchIntoCache(ctx, dir, repo) }
-			return nil, fmt.Errorf("no copy of %s here yet, and fetching it failed %s ago; nav-pilot fetches it again while this session runs",
-				cacheLabel(repo), time.Since(info.ModTime()).Round(time.Minute))
+			why, _ := os.ReadFile(failed)
+			return nil, fmt.Errorf("no copy of %s here yet: fetching it failed %s (%s). nav-pilot tries again while this session runs",
+				cacheLabel(repo), minutesAgo(time.Since(info.ModTime())), strings.TrimSpace(string(why)))
 		}
 		if FetchTimeout == 0 || FetchTimeout > firstFetchTimeout {
 			defer func(d time.Duration) { FetchTimeout = d }(FetchTimeout)
@@ -74,7 +75,7 @@ func ResolveForLaunch(sourceRepo, cliVersion string) (src *Source, refresh func(
 		}
 		s, err := CloneRemoteFn(ref, repo)
 		if err != nil {
-			_ = os.WriteFile(failed, nil, 0o600)
+			_ = os.WriteFile(failed, []byte(err.Error()), 0o600)
 			return nil, err
 		}
 		os.Remove(failed)
@@ -82,6 +83,14 @@ func ResolveForLaunch(sourceRepo, cliVersion string) (src *Source, refresh func(
 		return s, nil
 	})
 	return src, refresh, err
+}
+
+// minutesAgo says how long ago, in words a message can carry.
+func minutesAgo(d time.Duration) string {
+	if m := int(d.Minutes()); m >= 1 {
+		return fmt.Sprintf("%d minute(s) ago", m)
+	}
+	return "just now"
 }
 
 // cacheLabel is the repo as a message names it.
