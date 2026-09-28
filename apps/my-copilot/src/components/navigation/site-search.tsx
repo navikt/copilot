@@ -119,7 +119,7 @@ export function SiteSearch({ label }: { label: string }) {
         : term
           ? found.length
             ? `${found.length} treff`
-            : "Ingen treff. Enter søker i verktøykatalogen."
+            : "Ingen treff. Trykk Enter for å søke i verktøykatalogen."
           : "Søk i sidene om nav-pilot og i nyhetene.";
 
   return (

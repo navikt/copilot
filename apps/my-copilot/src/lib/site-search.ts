@@ -8,7 +8,7 @@ export type SearchEntry = { href: string; title: string; context: string };
 export const SEARCH_INDEX_URL = "/search-index.json";
 
 /** Lower case without diacritics, so «malte» finds «Målte». Æ and ø have none and stay. */
-export const fold = (s: string) =>
+const fold = (s: string) =>
   s
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -18,7 +18,7 @@ export const fold = (s: string) =>
  * Entries where every word in the query is in the title or the context.
  * The title starting with the query ranks first, then the title containing it,
  * then the title containing every word. Ties keep the index order: pages,
- * headings, then news with the newest first.
+ * headings, then news in the order the news page lists them.
  */
 export function searchEntries(entries: SearchEntry[], query: string): SearchEntry[] {
   const q = fold(query).trim().replace(/\s+/g, " ");

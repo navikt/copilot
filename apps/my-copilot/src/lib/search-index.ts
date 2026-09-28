@@ -3,6 +3,7 @@ import path from "node:path";
 import { slugify } from "@/components/linkable-heading";
 import inventory from "@/lib/link-inventory.json";
 import { SECTION } from "@/lib/nav-items";
+import { formatDate } from "@/lib/format";
 import { getNewsItems } from "@/lib/news";
 import type { SearchEntry } from "@/lib/site-search";
 
@@ -69,7 +70,7 @@ export function buildSearchIndex(): SearchEntry[] {
 
   const news = getNewsItems({ lang: "nb" })
     .filter((n) => n.title && `/nyheter/${n.slug}` in paths)
-    .map((n) => ({ href: `/nyheter/${n.slug}`, title: n.title, context: `Nyhet, ${n.date}` }));
+    .map((n) => ({ href: `/nyheter/${n.slug}`, title: n.title, context: `Nyhet, ${formatDate(n.date)}` }));
 
   return [...pages, ...headings, ...news];
 }
