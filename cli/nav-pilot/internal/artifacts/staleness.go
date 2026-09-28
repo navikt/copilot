@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -123,18 +124,86 @@ func AssessStaleness(installedVersion string, fetchFn func() (string, string, er
 	}
 
 	cache := ReadCache()
-	if cache != nil && cache.LastChecked != "" {
-		if t, err := time.Parse(time.RFC3339, cache.LastChecked); err == nil {
-			if cache.LastFailed != "" {
-				if time.Since(t) < 1*time.Hour {
-					return AssessFromLatest(installedVersion, cache.LatestVersion, "cooldown")
-				}
-			} else if time.Since(t) < checkInterval {
-				return AssessFromLatest(installedVersion, cache.LatestVersion, "cooldown")
-			}
-		}
+	if !refreshDue(cache) {
+		return AssessFromLatest(installedVersion, cache.LatestVersion, "cooldown")
 	}
+	latest, ok := refreshCache(cache, fetchFn)
+	if !ok {
+		return StalenessAssessment{Result: "lookup_failed"}
+	}
+	return AssessFromLatest(installedVersion, latest, "")
+}
 
+// AssessStalenessCached is AssessStaleness without the wait: it answers from
+// the cache, and when a check is due it runs it in the background, once per
+// process, for the next command to read. [WaitForRefresh] lets the process
+// give that check a moment before it exits.
+func AssessStalenessCached(installedVersion string, fetchFn func() (string, string, error)) StalenessAssessment {
+	if !RefreshInBackground {
+		return AssessStaleness(installedVersion, fetchFn)
+	}
+	if installedVersion == "" || installedVersion == "dev" {
+		return StalenessAssessment{Result: "dev"}
+	}
+	cache := ReadCache()
+	if refreshDue(cache) {
+		refreshOnce.Do(func() {
+			refreshing.Add(1)
+			go func() {
+				defer refreshing.Done()
+				refreshCache(cache, fetchFn)
+			}()
+		})
+	}
+	latest := ""
+	if cache != nil {
+		latest = cache.LatestVersion
+	}
+	return AssessFromLatest(installedVersion, latest, "cooldown")
+}
+
+var (
+	refreshOnce sync.Once
+	refreshing  sync.WaitGroup
+
+	// RefreshInBackground is false in test packages that swap the globals the
+	// fetch reads: a check still running after the test would race with the
+	// next one. AssessStalenessCached is then AssessStaleness.
+	RefreshInBackground = true
+)
+
+// WaitForRefresh waits up to d for a check AssessStalenessCached started.
+func WaitForRefresh(d time.Duration) {
+	done := make(chan struct{})
+	go func() {
+		refreshing.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(d):
+	}
+}
+
+// refreshDue reports whether the cache is old enough to check again: a day
+// after a check, an hour after a failed one.
+func refreshDue(cache *StalenessCache) bool {
+	if cache == nil || cache.LastChecked == "" {
+		return true
+	}
+	t, err := time.Parse(time.RFC3339, cache.LastChecked)
+	if err != nil {
+		return true
+	}
+	if cache.LastFailed != "" {
+		return time.Since(t) >= time.Hour
+	}
+	return time.Since(t) >= checkInterval
+}
+
+// refreshCache asks for the latest version and records the answer, or the
+// failure with the version known before.
+func refreshCache(cache *StalenessCache, fetchFn func() (string, string, error)) (string, bool) {
 	latest, _, err := fetchFn()
 	if err != nil {
 		var prevLatest string
@@ -146,15 +215,13 @@ func AssessStaleness(installedVersion string, fetchFn func() (string, string, er
 			LatestVersion: prevLatest,
 			LastFailed:    time.Now().UTC().Format(time.RFC3339),
 		})
-		return StalenessAssessment{Result: "lookup_failed"}
+		return "", false
 	}
-
 	WriteCache(&StalenessCache{
 		LastChecked:   time.Now().UTC().Format(time.RFC3339),
 		LatestVersion: latest,
 	})
-
-	return AssessFromLatest(installedVersion, latest, "")
+	return latest, true
 }
 
 func AssessFromLatest(installedVersion, latestVersion, fallbackResult string) StalenessAssessment {

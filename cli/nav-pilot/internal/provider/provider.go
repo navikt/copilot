@@ -607,7 +607,7 @@ func assessStaleness(installedVersion string) artifacts.StalenessAssessment {
 			return "", "", fmt.Errorf("no fetch function")
 		}
 	}
-	return artifacts.AssessStaleness(installedVersion, fetchFn)
+	return artifacts.AssessStalenessCached(installedVersion, fetchFn)
 }
 
 func recordFreshness(component, scope string, a artifacts.StalenessAssessment) {
