@@ -812,14 +812,14 @@ func (t *otelTelemetry) RecordHookRedact(kind string, count int64) {
 }
 
 // RecordHookActionCheck counts one action check: flagged (the model found the
-// command risky), passed, or skipped (timeout, no_server, sandbox, error), with the
+// command risky), passed, or skipped (timeout, no_server, error), with the
 // classifier's category of the command.
 func (t *otelTelemetry) RecordHookActionCheck(outcome, category string) {
 	if t.hookActionCheck == nil {
 		return
 	}
 	t.hookActionCheck.Add(context.Background(), 1, metric.WithAttributes(
-		attribute.String("outcome", oneOf(outcome, "flagged", "passed", "skipped_timeout", "skipped_no_server", "skipped_sandbox", "skipped_error")),
+		attribute.String("outcome", oneOf(outcome, "flagged", "passed", "skipped_timeout", "skipped_no_server", "skipped_error")),
 		attribute.String("category", oneOf(category, "kubectl", "nais", "gcloud", "helm", "terraform", "rm", "git", "disk", "sql")),
 		attribute.String("version", t.version),
 		attribute.String("device_id", t.device),

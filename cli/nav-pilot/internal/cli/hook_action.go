@@ -7,13 +7,16 @@ import (
 	"errors"
 	"io/fs"
 	"maps"
+	"os"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 	"unicode/utf8"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/hook"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 // The action check (#1161): before a risky shell command runs, ask the local
@@ -26,7 +29,7 @@ import (
 // Copilot, so the check has a budget of its own far inside it, and anything
 // that does not fit in the budget is dropped, not waited for.
 
-// actionCheckBudget is the whole check: the server lock and every question.
+// actionCheckBudget is the whole check: every question, asked at once.
 // The issue's latency budget; a warm decide answers well inside it, and
 // Copilot's 5 s timeoutSec is ten times as long.
 const actionCheckBudget = 500 * time.Millisecond
@@ -70,32 +73,41 @@ type actionVerdict struct {
 	MS      int64
 }
 
-// runActionCheck asks every question in turn under one server lock and
+// runActionCheck asks the server at base every question in turn and
 // returns when all are answered or the budget is spent, whichever is first.
-// It never starts a server. A server that is not running, a lock another
-// session holds past the budget, or ~/.nav-pilot being out of reach (cplt
-// denies it inside the sandbox) all come back as a skip.
-func runActionCheck(evidence string) actionVerdict {
+// It never starts a server, and reads nothing under ~/.nav-pilot: cplt denies
+// that inside the sandbox, so the launch hands over the server instead
+// (providerpkg.ActionCheckServerEnv, #1165). Outside cplt it takes the server
+// lock first, as decide does: a server started by an older nav-pilot, or the
+// developer's own (local_endpoint), has no queue of its own. Inside cplt the
+// lock file is out of reach and the check goes on without it; a managed
+// server this nav-pilot started serves one request at a time itself (#1169).
+// A server busy with another session costs the budget, and a check that does
+// not fit in it is a skip. The lock is polled once a second, so inside the
+// 500 ms budget a held lock gets one try and the check is a timeout.
+func runActionCheck(base, model, evidence string) actionVerdict {
 	started := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), actionCheckBudget)
 	defer cancel()
 
 	// Read once, here: the goroutine below can outlive this call.
-	acquire := decideServer
+	lock := lockServer
 	var mu sync.Mutex
 	p := map[string]float64{}
 	var failed error
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		base, model, release, err := acquire(ctx)
-		if err != nil {
+		release, err := lock(ctx)
+		switch {
+		case err == nil:
+			defer release()
+		case !errors.Is(err, fs.ErrPermission):
 			mu.Lock()
 			failed = err
 			mu.Unlock()
 			return
 		}
-		defer release()
 		// One at a time: mlx-lm hangs on concurrent prompts of different
 		// lengths (local.TestGuardSerialisesCompletions).
 		for _, q := range actionQuestions {
@@ -130,10 +142,8 @@ func runActionCheck(evidence string) actionVerdict {
 	switch {
 	case len(p) == len(actionQuestions):
 		v.Outcome = "passed"
-	case errors.Is(failed, local.ErrNoServerRecorded) || errors.Is(failed, local.ErrEndpointDown):
+	case errors.Is(failed, syscall.ECONNREFUSED):
 		v.Outcome = "skipped_no_server"
-	case errors.Is(failed, fs.ErrPermission):
-		v.Outcome = "skipped_sandbox"
 	case ctx.Err() != nil || errors.Is(failed, context.DeadlineExceeded):
 		v.Outcome = "skipped_timeout"
 	default:
@@ -157,22 +167,28 @@ func actionCheck(r ResolvedConfig, p hook.Payload) {
 	if category == "" {
 		return
 	}
-	// Main dispatches the hook before applyLocalConfig; decide needs the
-	// endpoint, when one is configured, and nothing else from it.
-	var v actionVerdict
-	if r.LocalEndpoint != "" {
-		applyEndpointConfig(r)
-		if base, _ := local.Endpoint(); base == "" {
-			v.Outcome = "skipped_no_server"
-		}
+	// The server the launch found, if any. Checked like local_endpoint, so
+	// the variable cannot send a command anywhere but loopback or a private
+	// address.
+	v := actionVerdict{Outcome: "skipped_no_server"}
+	fields := strings.Fields(os.Getenv(providerpkg.ActionCheckServerEnv))
+	var server, model string
+	if len(fields) >= 2 {
+		server, model = fields[0], fields[1]
 	}
-	if v.Outcome == "" {
+	if base, err := local.ValidateEndpoint(server); server != "" && err == nil && model != "" {
+		if len(fields) == 3 && fields[2] == "endpoint" {
+			// decide asks the developer's own server with thinking off
+			// (reasoning_effort "none"); without this an Ollama thinking model
+			// answers <think> first and every question reads as unanswered.
+			local.SetEndpoint(base, model)
+		}
 		// Redacted as the log is: the server is local, but a secret on a
 		// command line has no business in a prompt.
 		opts := hook.RedactOptions{Secrets: true, FNR: true}
 		cmdR, _ := hook.Redact(command, opts)
 		descR, _ := hook.Redact(description, opts)
-		v = runActionCheck(actionEvidence(cmdR, descR, p.Cwd))
+		v = runActionCheck(base, model, actionEvidence(cmdR, descR, p.Cwd))
 	}
 	spoolHookEvents(p.SessionID, "action_check "+v.Outcome+" "+category)
 	logActionCheck(p.SessionID, category, command, v)
@@ -199,3 +215,6 @@ func logActionCheck(sessionID, category, command string, v actionVerdict) {
 		_ = hook.LogAction(hookStateDir(), sessionID, string(line))
 	}
 }
+
+// lockServer is the machine-wide server lock. A var so tests can hold it.
+var lockServer = local.LockServer

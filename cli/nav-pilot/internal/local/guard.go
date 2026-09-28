@@ -897,6 +897,10 @@ func writeGuardError(w http.ResponseWriter, msg, code string) {
 	})
 }
 
+// LockServer is [lockServer] for a caller that talks to the server without
+// going through [Acquire]: the action check, which is handed its server.
+func LockServer(ctx context.Context) (func(), error) { return lockServer(ctx) }
+
 // lockServer takes the machine-wide lock on the local server, waiting until it is
 // free or the request is abandoned. The returned function releases it.
 //

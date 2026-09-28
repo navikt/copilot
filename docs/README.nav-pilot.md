@@ -271,8 +271,13 @@ sekund og svarer alltid at kallet kan gå. Kjører ingen lokal server, eller kom
 for sent, hopper den over. Den starter aldri en server. Svarene ligger i
 `~/.copilot/session-state/<økt-id>/nav-pilot-action-check.jsonl`, med kommandoen maskert og
 forkortet. Sjekken er der for å måle hvor godt modellen skiller risikable kommandoer fra
-ufarlige, ikke for å stoppe noe. Inne i cplt-sandkassen når den ikke den lokale serveren,
-og hopper over.
+ufarlige, ikke for å stoppe noe.
+
+nav-pilot noterer i `~/.nav-pilot/` hvilken server som kjører, og den mappa når ikke hooken
+i sandkassen. Derfor slår nav-pilot opp serveren ved oppstart og gir hooken adressen og
+modellen i miljøvariabelen `NAV_PILOT_ACTION_CHECK_SERVER`. cplt slipper gjennom variabelen
+og porten til serveren, ikke mer. Starter du serveren etter nav-pilot, hopper sjekken over
+til neste gang du starter nav-pilot.
 
 I sandkassen til cplt får hookene verken lese eller skrive `~/.nav-pilot/`. Der bruker de
 innstillingene nav-pilot skrev inn i hook-kommandoen ved siste oppstart. En endring med
