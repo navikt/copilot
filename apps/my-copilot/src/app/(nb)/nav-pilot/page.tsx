@@ -901,7 +901,7 @@ function TestimonialsSection() {
           <HGrid columns={{ xs: 1, md: 3 }} gap="space-16">
             {TESTIMONIALS.map((t) => (
               <div
-                key={t.team}
+                key={t.quote}
                 className="rounded-xl flex flex-col h-full"
                 style={{
                   background: "white",
