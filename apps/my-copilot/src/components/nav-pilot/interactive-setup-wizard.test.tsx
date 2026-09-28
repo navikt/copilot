@@ -49,6 +49,9 @@ describe("generateSetupScript", () => {
       );
       expect(result.code).toContain("sudo apt update && sudo apt install nav-pilot cplt");
       expect(result.code).toContain("if command -v apt-get >/dev/null; then");
+      expect(result.code).toContain("curl -fsSL -o /tmp/navikt-archive-keyring.gpg");
+      expect(result.code).toContain("Klarte ikke å installere fra apt-arkivet");
+      expect(result.code).not.toContain("| sudo tee /usr/share/keyrings");
       expect(result.code).toContain(
         "  curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
       );
@@ -66,6 +69,9 @@ describe("generateSetupScript", () => {
       );
       expect(result.code).toContain("sudo apt update && sudo apt install nav-pilot cplt");
       expect(result.code).toContain("if command -v apt-get >/dev/null; then");
+      expect(result.code).toContain("curl -fsSL -o /tmp/navikt-archive-keyring.gpg");
+      expect(result.code).toContain("Klarte ikke å installere fra apt-arkivet");
+      expect(result.code).not.toContain("| sudo tee /usr/share/keyrings");
       expect(result.code).toContain(
         "  curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
       );
@@ -89,6 +95,9 @@ describe("generateSetupScript", () => {
       );
       expect(result.code).toContain("sudo apt update && sudo apt install nav-pilot cplt");
       expect(result.code).toContain("if command -v apt-get >/dev/null; then");
+      expect(result.code).toContain("curl -fsSL -o /tmp/navikt-archive-keyring.gpg");
+      expect(result.code).toContain("Klarte ikke å installere fra apt-arkivet");
+      expect(result.code).not.toContain("| sudo tee /usr/share/keyrings");
       expect(result.code).toContain(
         "  curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash"
       );

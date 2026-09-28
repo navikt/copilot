@@ -365,7 +365,8 @@ logger.info("Vedtak",    `}
               style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}
             >
               Homebrew på macOS, apt-arkivet på Debian og Ubuntu. Arkivet bygges hver time fra den nyeste releasen, så
-              en helt fersk release kan bruke opptil en time på å bli installerbar. Andre distroer og CI:{" "}
+              en helt fersk release kan bruke opptil en time på å bli installerbar. Andre distroer, CI eller sperret
+              apt-arkiv:{" "}
               <NextLink
                 href="/nav-pilot/guider/installere-og-oppgradere#installere-i-ci"
                 style={{ color: "rgba(255,255,255,0.75)" }}

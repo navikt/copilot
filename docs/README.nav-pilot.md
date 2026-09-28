@@ -12,11 +12,13 @@ nav-pilot er et CLI-verktøy og en AI-agent for Nav-utvikling med GitHub Copilot
 brew install navikt/tap/nav-pilot navikt/tap/cplt
 
 # Anbefalt på Linux (Debian, Ubuntu): apt-arkivet
-curl -fsSL https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \
-  | sudo tee /usr/share/keyrings/navikt-archive-keyring.gpg >/dev/null
-echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \
-  | sudo tee /etc/apt/sources.list.d/navikt.list
-sudo apt update && sudo apt install nav-pilot cplt
+curl -fsSL -o /tmp/navikt-archive-keyring.gpg https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \
+  && test -s /tmp/navikt-archive-keyring.gpg \
+  && sudo install -m 644 /tmp/navikt-archive-keyring.gpg /usr/share/keyrings/navikt-archive-keyring.gpg \
+  && echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \
+    | sudo tee /etc/apt/sources.list.d/navikt.list >/dev/null \
+  && sudo apt update && sudo apt install nav-pilot cplt \
+  || echo "Klarte ikke å installere fra apt-arkivet. Sjekk at du når https://navikt.github.io/apt, eller bruk installasjonsskriptet: curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash" >&2
 
 # mise: samme binærer fra GitHub-releasen, med attestering verifisert
 mise use -g 'github:navikt/cplt'
