@@ -56,8 +56,9 @@ level: answers are not linked to a person across waves (see
   gateway).
 - DPIA / personvernombud has signed off, including the residual risks in
   [the data model](../README.md#surveys-data-model-and-retention). One of
-  them: a batch is written at exactly 10 answers, so write timing places an
-  answer in a batch window for anyone with ingress log and database access.
+  them: a batch is written at the tenth answer (or the next one after a
+  failed write), so write timing places an answer in a batch window for
+  anyone with ingress log and database access.
 - Only then: `SURVEY_KEY_<ID>` (`openssl rand -base64 32`) is added to the
   `copilot-survey` secret, and a pull request sets `"active": true`. Without
   both the survey takes no answers.
