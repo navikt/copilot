@@ -50,6 +50,29 @@ EOF
   chmod +x "$SHIM/copilot"
 }
 
+make_mixed_shim() {
+  local exit_code="$1"
+  cat >"$SHIM/copilot" <<EOF
+#!/bin/bash
+if [[ "\$1" == "--version" ]]; then echo "GitHub Copilot CLI 1.0.83."; exit 0; fi
+if [[ ! -f "$SHIM/preflight-complete" ]]; then
+  touch "$SHIM/preflight-complete"
+  echo "OK"
+elif [[ "\$2" == *"ny tjeneste"* ]]; then
+  if [[ ! -f "$SHIM/first-run-complete" ]]; then
+    touch "$SHIM/first-run-complete"
+    echo "A long enough answer to evaluate, without any blind-spot audit count."
+  else
+    echo "This transcript is long enough to prove a soft result cannot mask a failed repeat."
+    exit $exit_code
+  fi
+else
+  echo "Use TokenX to retain the user's context when calling the second service."
+fi
+EOF
+  chmod +x "$SHIM/copilot"
+}
+
 run_preflight() {
   PATH="$SHIM:/usr/bin:/bin" run /bin/bash "$SCRIPT" --only 2 --repeat 1
 }
@@ -132,4 +155,65 @@ EOF
   grep -q '^2b|1|soft-fail|' "$SHIM/baseline-results.psv"
   grep -q '^2b|2|error|' "$SHIM/baseline-results.psv"
   grep -q '^t2|2|0|short_transcript|' "$SHIM/baseline-attempts.psv"
+}
+
+@test "a soft result cannot hide a CLI failure beside a passing hard assertion" {
+  make_mixed_shim 42
+  PATH="$SHIM:/usr/bin:/bin" run /bin/bash "$SCRIPT" --only 2b,5 --repeat 2 --save-baseline "$SHIM/baseline.txt"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"1 failed"* ]]
+  [[ "$output" == *"soft: 0 met, 1 not met"* ]]
+  grep -q '^2b|2|fail|' "$SHIM/baseline-results.psv"
+  grep -q '^5|2|pass|' "$SHIM/baseline-results.psv"
+}
+
+@test "a soft result cannot hide a timeout beside a passing hard assertion" {
+  make_mixed_shim 124
+  PATH="$SHIM:/usr/bin:/bin" run /bin/bash "$SCRIPT" --only 2b,5 --repeat 2
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"timed out after"* ]]
+  [[ "$output" == *"1 failed"* ]]
+}
+
+@test "hard failure takes precedence over soft and unevaluated repeats" {
+  cat >"$SHIM/copilot" <<EOF
+#!/bin/bash
+if [[ "\$1" == "--version" ]]; then echo "GitHub Copilot CLI 1.0.83."; exit 0; fi
+if [[ ! -f "$SHIM/preflight-complete" ]]; then
+  touch "$SHIM/preflight-complete"
+  echo "OK"
+elif [[ ! -f "$SHIM/first-run-complete" ]]; then
+  touch "$SHIM/first-run-complete"
+  echo "A long enough answer to evaluate, without any blind-spot audit count."
+elif [[ ! -f "$SHIM/second-run-complete" ]]; then
+  touch "$SHIM/second-run-complete"
+  echo "This transcript is long enough to prove a hard failure was not caused by length."
+  exit 42
+else
+  echo "x"
+fi
+EOF
+  chmod +x "$SHIM/copilot"
+  PATH="$SHIM:/usr/bin:/bin" run /bin/bash "$SCRIPT" --only 2b --repeat 3 --save-baseline "$SHIM/baseline.txt"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"0/3 passed, 1 failed, 1 not evaluated; soft: 0 met, 1 not met"* ]]
+  grep -q '^2b|1|soft-fail|' "$SHIM/baseline-results.psv"
+  grep -q '^2b|2|fail|' "$SHIM/baseline-results.psv"
+  grep -q '^2b|3|error|' "$SHIM/baseline-results.psv"
+}
+
+@test "missing uuidgen after a failed prompt is not misclassified as a CLI failure" {
+  make_prompt_failure_shim 42
+  cat >"$SHIM/uuidgen" <<'EOF'
+#!/bin/bash
+exit 1
+EOF
+  chmod +x "$SHIM/uuidgen"
+  PATH="$SHIM:/usr/bin:/bin" run /bin/bash "$SCRIPT" --only 2,4 --save-baseline "$SHIM/baseline.txt"
+
+  [ "$status" -eq 1 ]
+  grep -q '^4|1|error|' "$SHIM/baseline-results.psv"
 }

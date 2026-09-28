@@ -1606,6 +1606,7 @@ run_pass_nav_pilot() {
     # slim container rather than a likely path, which is exactly the kind that
     # goes unnoticed. Cheaper to refuse than to spend the calls and wonder.
     if [[ -z "$S4" ]]; then
+      LAST_PROMPT_FAILURE=""
       record_error 4 "$DESC4" \
         "could not generate a session id (is uuidgen on PATH?). Test 4 is two turns of one conversation, and without an id they would be two unlinked calls, so the run is refused before it bills for them."
     elif ! run_prompt t4a "ny tjeneste som leser fnr fra ID-porten" "$S4"; then
@@ -2185,13 +2186,13 @@ for id in $(uniq_field "$RESULTS_FILE" 1); do
   #
   # A soft assertion never fails the suite, but a dead attempt is still not
   # evaluated. Count it even when another repeat produced a soft result.
-  if [[ "$nsp" -gt 0 || "$nsf" -gt 0 ]]; then
+  if [[ "$nf" -gt 0 ]]; then
+    status="fail"; fail_count=$((fail_count + 1))
+  elif [[ "$nsp" -gt 0 || "$nsf" -gt 0 ]]; then
     if [[ "$nsf" -gt 0 ]]; then status="soft-fail"; else status="soft-pass"; fi
     soft_count=$((soft_count + 1))
     [[ "$ne" -gt 0 ]] && error_count=$((error_count + 1))
     np="$nsp"; nf="$nsf"
-  elif [[ "$nf" -gt 0 ]]; then
-    status="fail"; fail_count=$((fail_count + 1))
   elif [[ "$ne" -gt 0 || "$np" -eq 0 ]]; then
     status="error"; error_count=$((error_count + 1))
   else
@@ -2220,6 +2221,12 @@ if [[ "$REPEAT" -gt 1 && -s "$AGG_TESTS" ]]; then
   # detail last: `read` puts every remaining field, pipes and all, in the last
   # variable, so a detail containing a pipe survives intact.
   while IFS='|' read -r id status np nf ne desc detail; do
+    soft_detail=""
+    if [[ "$status" == "fail" ]]; then
+      nsp="$(grep -c "^$id|[0-9]*|soft-pass|" "$RESULTS_FILE")"
+      nsf="$(grep -c "^$id|[0-9]*|soft-fail|" "$RESULTS_FILE")"
+      [[ $((nsp + nsf)) -gt 0 ]] && soft_detail="; soft: $nsp met, $nsf not met"
+    fi
     case "$status" in
       pass)      mark="${GREEN}✓${RESET}" ;;
       fail)      mark="${RED}✗${RESET}" ;;
@@ -2229,7 +2236,7 @@ if [[ "$REPEAT" -gt 1 && -s "$AGG_TESTS" ]]; then
     esac
     case "$status" in
       soft-*) echo "  $mark ${BOLD}$id${RESET} $desc ${DIM}(soft: $np/$REPEAT met, $nf not met, $ne not evaluated; soft outcomes never move the exit code)${RESET}" ;;
-      *)      echo "  $mark ${BOLD}$id${RESET} $desc ${DIM}($np/$REPEAT passed, $nf failed, $ne not evaluated)${RESET}" ;;
+      *)      echo "  $mark ${BOLD}$id${RESET} $desc ${DIM}($np/$REPEAT passed, $nf failed, $ne not evaluated$soft_detail)${RESET}" ;;
     esac
     [[ "$status" != "pass" && "$status" != "soft-pass" && -n "$detail" ]] && echo "      ${DIM}$detail${RESET}"
   done <"$AGG_TESTS"
