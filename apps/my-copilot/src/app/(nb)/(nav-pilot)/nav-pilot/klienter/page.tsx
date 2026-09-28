@@ -47,8 +47,9 @@ const CLIENTS = [
   },
 ];
 
-// From the parity status in navikt/copilot#1022 (comment 5858353821), with pi
-// added from pi_launch.go. Keep in step with #1022.
+// The final parity status of navikt/copilot#1022 (posted on #1037), as of
+// 2026-09-28 after #1038, #1039, #1057, #1061, #1062, #1113, #1114 and #1136,
+// with pi added from pi_launch.go.
 const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; note?: ReactNode }[] = [
   {
     what: "Maskering av hemmeligheter og fødselsnumre",
@@ -61,7 +62,8 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
       </>
     ),
   },
-  { what: "Løkkevakt", copilot: "Ja", opencode: "Ja", pi: "Nei" },
+  { what: "Merknad om instruksjoner i verktøyresultater (prompt-injeksjon)", copilot: "Ja", opencode: "Ja", pi: "Nei" },
+  { what: "Løkkevakt i skyøkter", copilot: "Ja", opencode: "Ja", pi: "Nei" },
   {
     what: "Gates du har installert, også agentpakke-hooks",
     copilot: "Ja",
@@ -84,6 +86,13 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     note: "nav-pilot slår av servere utenfor registeret og avviser verktøyene deres.",
   },
   {
+    what: "Testet klientversjon",
+    copilot: "Ikke aktuelt",
+    opencode: `Ja, ${OPENCODE_RANGE}`,
+    pi: "Nei",
+    note: <>Utenfor dette området får du en advarsel ved oppstart og i {c("nav-pilot doctor")}.</>,
+  },
+  {
     what: "Deling slått av, oppdateringer som varsel",
     copilot: "Ikke aktuelt",
     opencode: "Ja, i hver økt",
@@ -96,6 +105,7 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     pi: "Nei",
     note: "Tier 2 krever fortsatt cplt.",
   },
+  { what: "Installasjon i WSL2 på Windows", copilot: "Ja", opencode: "Ja", pi: "Nei" },
   {
     what: <>Skyorkestrator med {c("local-worker")}</>,
     copilot: "Nei",
@@ -108,6 +118,9 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     copilot: "Nei",
     opencode: "Ja",
     pi: "Nei",
+    note: (
+      <>Teller kallsteder, ikke bare filer, og ber hovedagenten bygge og teste etter en jobb fra {c("local-worker")}.</>
+    ),
   },
   { what: <>Egen server ({c("local_endpoint")})</>, copilot: "Ja, hele økten", opencode: "Ja", pi: "Nei" },
   {
@@ -190,11 +203,15 @@ export default function Klienter() {
           Hva hver klient kan
         </LinkableHeading>
         <BodyLong>
-          Tabellen viser status fra paritetsarbeidet i{" "}
+          Tabellen viser sluttstatus per 28. september 2026 for paritetsarbeidet i{" "}
           <a href={`${GH}/issues/1022`} className={linkClass}>
             #1022
           </a>
-          , som skal gjøre opencode like trygg som Copilot CLI.
+          , som skulle gjøre opencode like trygg som Copilot CLI. Det som gjenstår i opencode, står under{" "}
+          <a href="#kjente-hull" className={linkClass}>
+            Kjente hull i opencode
+          </a>
+          .
         </BodyLong>
         <div className="overflow-x-auto">
           <Table size="small" className="table-stack" role="table">
