@@ -1189,9 +1189,7 @@ func Main(info BuildInfo) {
 	}
 
 	recordHookEvents()
-	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
-	defer cancel()
-	_ = telemetry.Shutdown(ctx)
+	flushTelemetry(telemetry, flushBudget(os.Args[1:]))
 	if exitCode != 0 {
 		os.Exit(exitCode)
 	}

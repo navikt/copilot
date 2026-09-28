@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"os"
 	"os/exec"
 	"slices"
 	"strings"
@@ -17,6 +18,44 @@ func telemetryMode() string {
 	return "non_interactive"
 }
 
+// The longest exit waits for the last export (#1101). A cold export (DNS,
+// TLS, one round trip) takes 150-400 ms, so most commands get a second.
+// alpha decide and alpha local ask run in hooks, scripts and loops, where an
+// unreachable host made every call wait seconds: they get 300 ms, and a
+// dropped sample is cheaper than a slow hook.
+const (
+	telemetryFlushBudget      = time.Second
+	telemetryQuickFlushBudget = 300 * time.Millisecond
+)
+
+// flushBudget is the budget for a command line (os.Args[1:]).
+func flushBudget(args []string) time.Duration {
+	if len(args) > 0 && args[0] == "alpha" {
+		if c := alphaCommand(args[1:]); c == "alpha decide" || c == "alpha local ask" {
+			return telemetryQuickFlushBudget
+		}
+	}
+	return telemetryFlushBudget
+}
+
+// flushTelemetry exports what is left and returns after budget in any case.
+// The SDK honours the context on its own, except that Shutdown waits out a
+// periodic export already in flight (up to the reader's 2 s timeout), and a
+// firewall that holds connect() can keep it past the deadline too.
+func flushTelemetry(t telemetryRecorder, budget time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), budget)
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		_ = t.Shutdown(ctx)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+	}
+}
+
 func runWithCommandTelemetry(command, mode, scope string, fn func() error) error {
 	start := time.Now()
 
@@ -25,9 +64,7 @@ func runWithCommandTelemetry(command, mode, scope string, fn func() error) error
 			telemetry.RecordCommand(command, mode, scope, "error", "panic", time.Since(start))
 
 			// Flush telemetry before we crash
-			ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
-			defer cancel()
-			_ = telemetry.Shutdown(ctx)
+			flushTelemetry(telemetry, flushBudget(os.Args[1:]))
 
 			panic(r)
 		}
