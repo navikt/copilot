@@ -999,7 +999,7 @@ run_prompt() {
   local size=0
   [[ -f "$out" ]] && size="$(wc -c <"$out" | tr -d ' ')"
   local outcome="pass" detail=""
-  if [[ $rc -eq 124 ]]; then
+  if [[ -n "$TIMEOUT_BIN" && $rc -eq 124 ]]; then
     outcome="timeout"
     detail="timed out after ${TIMEOUT_SECS}s"
   elif [[ $rc -ne 0 ]]; then

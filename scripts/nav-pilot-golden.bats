@@ -73,6 +73,15 @@ EOF
   chmod +x "$SHIM/copilot"
 }
 
+make_timeout_shim() {
+  cat >"$SHIM/timeout" <<'EOF'
+#!/bin/bash
+shift
+"$@"
+EOF
+  chmod +x "$SHIM/timeout"
+}
+
 run_preflight() {
   PATH="$SHIM:/usr/bin:/bin" run /bin/bash "$SCRIPT" --only 2 --repeat 1
 }
@@ -117,6 +126,7 @@ Resume     copilot --resume=f313d1ee-401a-49a3-8434-6ebc7e35b464'
 
 @test "timeout is recorded as a failed attempt even with a long transcript" {
   make_prompt_failure_shim 124
+  make_timeout_shim
   PATH="$SHIM:/usr/bin:/bin" run /bin/bash "$SCRIPT" --only 2 --save-baseline "$SHIM/baseline.txt"
 
   [ "$status" -eq 1 ]
@@ -170,11 +180,30 @@ EOF
 
 @test "a soft result cannot hide a timeout beside a passing hard assertion" {
   make_mixed_shim 124
+  make_timeout_shim
   PATH="$SHIM:/usr/bin:/bin" run /bin/bash "$SCRIPT" --only 2b,5 --repeat 2
 
   [ "$status" -eq 1 ]
   [[ "$output" == *"timed out after"* ]]
   [[ "$output" == *"1 failed"* ]]
+}
+
+@test "exit 124 without timeout wrapper is a CLI failure" {
+  make_prompt_failure_shim 124
+  cat >"$SHIM/no-timeout.bash" <<'EOF'
+command() {
+  if [[ "$1" == "-v" && ( "$2" == "timeout" || "$2" == "gtimeout" ) ]]; then
+    return 1
+  fi
+  builtin command "$@"
+}
+EOF
+  BASH_ENV="$SHIM/no-timeout.bash" PATH="$SHIM:/usr/bin:/bin" \
+    run /bin/bash "$SCRIPT" --only 2 --save-baseline "$SHIM/baseline.txt"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"timed out after"* ]]
+  grep -q '^t2|1|124|cli_failure|' "$SHIM/baseline-attempts.psv"
 }
 
 @test "hard failure takes precedence over soft and unevaluated repeats" {
