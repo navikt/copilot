@@ -55,6 +55,7 @@ var configKeyDocNB = map[string]string{
 	"hook_redact_secrets":  "Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-økter.",
 	"hook_redact_fnr":      "Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. nav-pilot maskerer bare elleve sifre der datoen og begge kontrollsifrene stemmer.",
 	"hook_injection_note":  "Sett en merknad foran verktøyresultater som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører), så modellen behandler dem som data. Stopper ingenting.",
+	"hook_action_check":    "Spør den lokale decide-modellen før en risikabel skallkommando kjører (endringer med kubectl, nais, gcloud og helm, terraform apply, rm -r, git push --force og lignende) om den står i forhold til problemet, om den er destruktiv, og om formålet agenten oppga, støtter den. Med log lagres svaret i telemetri og en lokal logg, og kommandoen kjører alltid. off slår den av. Virker bare med lokal modell (local_enabled) og en server som kjører. Den starter aldri en server selv.",
 	"copilot_auth_mode":    "Hvilken innlogging som når cplt for Copilot. auto begrenser ingenting; env_only krever et token i GH_TOKEN, GITHUB_TOKEN eller COPILOT_GITHUB_TOKEN; gh_only fjerner dem.",
 }
 

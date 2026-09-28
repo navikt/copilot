@@ -59,6 +59,7 @@ type Recorder interface {
 	RecordDecide(e DecideEvent)
 	RecordHookLoopGuard(rule, session string)
 	RecordHookRedact(kind string, count int64)
+	RecordHookActionCheck(outcome, category string)
 	Shutdown(ctx context.Context) error
 }
 
@@ -84,6 +85,7 @@ func (NoopRecorder) RecordRtkSetup(string, string, string) {}
 func (NoopRecorder) RecordDecide(DecideEvent)              {}
 func (NoopRecorder) RecordHookLoopGuard(string, string)    {}
 func (NoopRecorder) RecordHookRedact(string, int64)        {}
+func (NoopRecorder) RecordHookActionCheck(string, string)  {}
 func (NoopRecorder) Shutdown(context.Context) error        { return nil }
 
 type otelTelemetry struct {
@@ -111,6 +113,7 @@ type otelTelemetry struct {
 	decidePChoice      metric.Float64Histogram
 	hookLoopGuardTotal metric.Int64Counter
 	hookRedactTotal    metric.Int64Counter
+	hookActionCheck    metric.Int64Counter
 	localGateTotal     metric.Int64Counter
 
 	version          string
@@ -283,6 +286,11 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create hook redact counter: %w", err)
 	}
+	hookActionCheck, err := meter.Int64Counter("nav_pilot_hook_action_check_total",
+		metric.WithDescription("Action checks the preToolUse hook ran on a risky shell command, by outcome and command category. Never the command."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create hook action check counter: %w", err)
+	}
 
 	localGateTotal, err := meter.Int64Counter("nav_pilot_local_gate_total",
 		metric.WithDescription("Dispatch gate decisions at local_dispatch = balanced or aggressive, by outcome: deny_files, deny_sites, deny_scripted, deny_create, dispatched_after_deny, verify_nudge, create_retry, create_retry_passed, create_retry_failed."))
@@ -315,6 +323,7 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 		decidePChoice:      decidePChoice,
 		hookLoopGuardTotal: hookLoopGuardTotal,
 		hookRedactTotal:    hookRedactTotal,
+		hookActionCheck:    hookActionCheck,
 		version:            version,
 		device:             device,
 		executionContext:   execCtx,
@@ -790,6 +799,22 @@ func (t *otelTelemetry) RecordHookRedact(kind string, count int64) {
 	}
 	t.hookRedactTotal.Add(context.Background(), count, metric.WithAttributes(
 		attribute.String("kind", oneOf(kind, "secret", "fnr", "injection_note")),
+		attribute.String("version", t.version),
+		attribute.String("device_id", t.device),
+		attribute.String("execution_context", t.executionContext),
+	))
+}
+
+// RecordHookActionCheck counts one action check: flagged (the model found the
+// command risky), passed, or skipped (timeout, no_server, sandbox, error), with the
+// classifier's category of the command.
+func (t *otelTelemetry) RecordHookActionCheck(outcome, category string) {
+	if t.hookActionCheck == nil {
+		return
+	}
+	t.hookActionCheck.Add(context.Background(), 1, metric.WithAttributes(
+		attribute.String("outcome", oneOf(outcome, "flagged", "passed", "skipped_timeout", "skipped_no_server", "skipped_sandbox", "skipped_error")),
+		attribute.String("category", oneOf(category, "kubectl", "nais", "gcloud", "helm", "terraform", "rm", "git", "disk", "sql")),
 		attribute.String("version", t.version),
 		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),

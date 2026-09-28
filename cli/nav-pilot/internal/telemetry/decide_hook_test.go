@@ -36,6 +36,8 @@ func TestDecideAndHookAttributesAreEnums(t *testing.T) {
 	must(err)
 	tel.hookRedactTotal, err = meter.Int64Counter("nav_pilot_hook_redact_total")
 	must(err)
+	tel.hookActionCheck, err = meter.Int64Counter("nav_pilot_hook_action_check_total")
+	must(err)
 
 	const model = "mlx-community/Some-Model-4bit"
 	const leak = "Is this commit message about /Users/x/secret.txt? ghp_abc"
@@ -56,6 +58,10 @@ func TestDecideAndHookAttributesAreEnums(t *testing.T) {
 	for _, k := range []string{"secret", "fnr", "injection_note", leak} {
 		tel.RecordHookRedact(k, 2)
 	}
+	for _, o := range []string{"flagged", "passed", "skipped_timeout", "skipped_no_server", "skipped_sandbox", "skipped_error", leak} {
+		tel.RecordHookActionCheck(o, "kubectl")
+		tel.RecordHookActionCheck(o, leak)
+	}
 
 	allowed := map[string]map[string]bool{
 		"result":            set("decided", "below_threshold", "no_server", "timeout", "error", "unknown"),
@@ -69,6 +75,8 @@ func TestDecideAndHookAttributesAreEnums(t *testing.T) {
 		"rule":              set("same_result", "cycle", "backstop", "unknown"),
 		"session":           set("local", "cloud", "unknown"),
 		"kind":              set("secret", "fnr", "injection_note", "unknown"),
+		"outcome":           set("flagged", "passed", "skipped_timeout", "skipped_no_server", "skipped_sandbox", "skipped_error", "unknown"),
+		"category":          set("kubectl", "nais", "gcloud", "helm", "terraform", "rm", "git", "disk", "sql", "unknown"),
 		"version":           set("test"),
 		"device_id":         set("device-under-test"),
 		"execution_context": set("organic"),
@@ -95,7 +103,7 @@ func TestDecideAndHookAttributesAreEnums(t *testing.T) {
 		}
 	}
 	for _, want := range []string{"nav_pilot_decide_result_total", "nav_pilot_decide_latency_ms", "nav_pilot_decide_p_choice",
-		"nav_pilot_hook_loop_guard_total", "nav_pilot_hook_redact_total"} {
+		"nav_pilot_hook_loop_guard_total", "nav_pilot_hook_redact_total", "nav_pilot_hook_action_check_total"} {
 		if !seen[want] {
 			t.Errorf("never emitted %s", want)
 		}

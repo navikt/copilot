@@ -40,9 +40,12 @@ type Payload struct {
 	ResultType string
 	Result     string
 	HasResult  bool
+	// Cwd is the session's working directory, which both dialects send.
+	Cwd string
 }
 
 type wirePayload struct {
+	Cwd        string          `json:"cwd"`
 	SessionID  string          `json:"sessionId"`
 	ToolName   string          `json:"toolName"`
 	ToolArgs   json.RawMessage `json:"toolArgs"`
@@ -66,7 +69,7 @@ func ParsePayload(b []byte) (Payload, error) {
 	if err := json.Unmarshal(b, &w); err != nil {
 		return Payload{}, err
 	}
-	p := Payload{SessionID: w.SessionID, ToolName: w.ToolName, ToolArgs: w.ToolArgs}
+	p := Payload{SessionID: w.SessionID, ToolName: w.ToolName, ToolArgs: w.ToolArgs, Cwd: w.Cwd}
 	if p.SessionID == "" {
 		p.SessionID = w.SessionIDSnake
 	}

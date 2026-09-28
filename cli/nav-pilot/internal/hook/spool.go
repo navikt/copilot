@@ -24,6 +24,19 @@ const spoolName = "nav-pilot-hook-events"
 // Spool appends lines to the session's spool file. Nothing to spool, or no
 // session id, is a no-op.
 func Spool(root, sessionID string, lines []string) error {
+	return appendSession(root, sessionID, spoolName, lines)
+}
+
+// ActionLogName is the action check's local log in the session's directory:
+// one JSON line per check, for the developer to read, never sent anywhere.
+const ActionLogName = "nav-pilot-action-check.jsonl"
+
+// LogAction appends one line to the session's action check log.
+func LogAction(root, sessionID, line string) error {
+	return appendSession(root, sessionID, ActionLogName, []string{line})
+}
+
+func appendSession(root, sessionID, name string, lines []string) error {
 	id := unsafeID.ReplaceAllString(sessionID, "")
 	if id == "" || len(lines) == 0 {
 		return nil
@@ -32,7 +45,7 @@ func Spool(root, sessionID string, lines []string) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(filepath.Join(dir, spoolName), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(filepath.Join(dir, name), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
