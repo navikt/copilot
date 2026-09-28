@@ -27,6 +27,16 @@ describe("InstallPicker", () => {
     expect(screen.getByRole("button", { name: "Bruk apt-arkivet (Debian/Ubuntu)" })).toBeInTheDocument();
   });
 
+  it("speaks English with lang en", async () => {
+    setPlatform("Linux");
+    render(<InstallPicker {...props} lang="en" />);
+    expect(screen.getByRole("button", { name: "Use the apt archive (Debian/Ubuntu)" })).toBeInTheDocument();
+    const copy = screen.getAllByRole("button", { name: "Copy the command" })[0];
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn(async () => {}) } });
+    fireEvent.click(copy);
+    expect(await screen.findByRole("button", { name: "Copied!" })).toBeInTheDocument();
+  });
+
   it("uses the stored choice over detection", () => {
     setPlatform("Linux");
     localStorage.setItem("install-os", "mac");

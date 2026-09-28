@@ -145,12 +145,20 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
                 style={{ background: "#1e1e1e", padding: "0.4rem 0.75rem" }}
               >
                 <code
-                  className="font-mono whitespace-nowrap overflow-x-auto flex-1"
+                  tabIndex={0}
+                  className="font-mono whitespace-nowrap overflow-x-auto flex-1 min-w-0"
                   style={{ fontSize: CODE_SIZE, color: "#d4d4d4" }}
                 >
                   {item.example}
                 </code>
-                <CopyButton copyText={item.example} size="small" style={{ color: "white" }} />
+                <CopyButton
+                  title="Copy"
+                  activeText="Copied!"
+                  copyText={item.example}
+                  size="small"
+                  className="shrink-0"
+                  style={{ color: "white" }}
+                />
               </div>
             </div>
           );

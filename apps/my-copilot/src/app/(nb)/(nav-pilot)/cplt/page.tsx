@@ -294,7 +294,9 @@ function HeroSection({ stars }: { stars: number | null }) {
                 windowsNote="cplt has no Windows sandbox. Install it inside your WSL2 Linux distribution, where the sandbox is kernel-enforced."
               />
               <BodyShort size="small" style={{ color: ACCENT, textAlign: "center" }}>
-                macOS (Apple Seatbelt) · Linux (Landlock + seccomp-BPF) · Windows: WSL2 only
+                <span className="whitespace-nowrap">macOS (Apple Seatbelt)</span> ·{" "}
+                <span className="whitespace-nowrap">Linux (Landlock + seccomp-BPF)</span> ·{" "}
+                <span className="whitespace-nowrap">Windows: WSL2 only</span>
               </BodyShort>
             </div>
           </VStack>
@@ -684,7 +686,12 @@ function ProxySection() {
                 >
                   cplt config set proxy.forced true
                 </code>
-                <CopyButton copyText="cplt config set proxy.forced true" size="small" />
+                <CopyButton
+                  title="Copy"
+                  activeText="Copied!"
+                  copyText="cplt config set proxy.forced true"
+                  size="small"
+                />
               </div>
             </div>
 
@@ -707,7 +714,12 @@ function ProxySection() {
                 >
                   cplt config set proxy.upstream &quot;http://proxy.example.com:8080&quot;
                 </code>
-                <CopyButton copyText='cplt config set proxy.upstream "http://proxy.example.com:8080"' size="small" />
+                <CopyButton
+                  title="Copy"
+                  activeText="Copied!"
+                  copyText='cplt config set proxy.upstream "http://proxy.example.com:8080"'
+                  size="small"
+                />
               </div>
             </div>
           </HGrid>
@@ -849,9 +861,16 @@ function GuardsSection() {
                   <span className="font-mono" style={{ color: TERMINAL_MUTED, fontSize: CODE_SIZE }}>
                     Opt out for a single run
                   </span>
-                  <CopyButton copyText="cplt --no-gh-guard --no-git-guard" size="small" style={{ color: "white" }} />
+                  <CopyButton
+                    title="Copy"
+                    activeText="Copied!"
+                    copyText="cplt --no-gh-guard --no-git-guard"
+                    size="small"
+                    style={{ color: "white" }}
+                  />
                 </div>
                 <pre
+                  tabIndex={0}
                   className="p-4 font-mono leading-relaxed overflow-x-auto"
                   style={{ margin: 0, fontSize: CODE_SIZE, color: TERMINAL_FG, background: TERMINAL_BG }}
                 >
@@ -871,6 +890,7 @@ function GuardsSection() {
                   </span>
                 </div>
                 <pre
+                  tabIndex={0}
                   className="p-4 font-mono leading-relaxed overflow-x-auto"
                   style={{ margin: 0, fontSize: CODE_SIZE, color: TERMINAL_FG, background: TERMINAL_BG }}
                 >
@@ -930,12 +950,15 @@ function TeamConfigSection() {
                   .cplt.toml
                 </span>
                 <CopyButton
+                  title="Copy"
+                  activeText="Copied!"
                   copyText={`[deny]\nenv = ["VAULT_TOKEN", "NPM_TOKEN"]\n\n[propose]\nallow_localhost_any = true\n\n[propose.allow]\nports = [5432]\nlocalhost = [3000]`}
                   size="small"
                   style={{ color: "white" }}
                 />
               </div>
               <pre
+                tabIndex={0}
                 className="p-4 font-mono leading-relaxed overflow-x-auto"
                 style={{ margin: 0, fontSize: CODE_SIZE, color: TERMINAL_FG, background: TERMINAL_BG }}
               >
@@ -1103,6 +1126,7 @@ function InitSection() {
                   </span>
                 </div>
                 <pre
+                  tabIndex={0}
                   className="p-4 font-mono leading-relaxed overflow-x-auto"
                   style={{ margin: 0, fontSize: CODE_SIZE, color: TERMINAL_FG, background: "#0d1117" }}
                 >
@@ -1315,16 +1339,24 @@ function HowItWorksSection() {
                       {step.title}
                     </Heading>
                     <div
-                      className="rounded-lg w-full overflow-x-auto flex items-center gap-2 mt-3"
+                      className="rounded-lg w-full flex items-center gap-2 mt-3"
                       style={{ background: TERMINAL_BG, padding: "0.5rem 0.75rem" }}
                     >
                       <code
-                        className="font-mono whitespace-nowrap flex-1"
+                        tabIndex={0}
+                        className="font-mono whitespace-nowrap flex-1 min-w-0 overflow-x-auto"
                         style={{ fontSize: CODE_SIZE, color: TERMINAL_FG }}
                       >
                         {step.command}
                       </code>
-                      <CopyButton copyText={step.command} size="small" style={{ color: "white" }} />
+                      <CopyButton
+                        title="Copy"
+                        activeText="Copied!"
+                        copyText={step.command}
+                        size="small"
+                        className="shrink-0"
+                        style={{ color: "white" }}
+                      />
                     </div>
                     <BodyLong
                       size="small"
@@ -1368,9 +1400,16 @@ function HowItWorksSection() {
                 <span className="font-mono" style={{ color: TERMINAL_MUTED, fontSize: CODE_SIZE }}>
                   $ cplt --shell-install
                 </span>
-                <CopyButton copyText="cplt --shell-install" size="small" style={{ color: "white" }} />
+                <CopyButton
+                  title="Copy"
+                  activeText="Copied!"
+                  copyText="cplt --shell-install"
+                  size="small"
+                  style={{ color: "white" }}
+                />
               </div>
               <pre
+                tabIndex={0}
                 className="p-4 font-mono leading-relaxed overflow-x-auto"
                 style={{ margin: 0, fontSize: CODE_SIZE, color: TERMINAL_FG, background: TERMINAL_BG }}
               >
