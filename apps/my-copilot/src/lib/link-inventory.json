@@ -66,7 +66,17 @@
       "docs/news/articles/sandboxing-er-pakrevd-pa-nav-utstyr.md"
     ],
     "anchors": {
-      "security-boundary": ["apps/my-copilot/src/app/(nb)/cplt/page.tsx"]
+      "apen-kildekode": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx"],
+      "cplt-init": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx"],
+      "felles-konfig": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx"],
+      "innstillinger": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx"],
+      "installer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx"],
+      "krav-i-nav": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx"],
+      "nettverk": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx"],
+      "security-boundary": ["apps/my-copilot/src/app/(nb)/cplt/page.tsx"],
+      "sikkerhetsgrense": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx"],
+      "slik-virker-det": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx"],
+      "vakter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx"]
     }
   },
   "/customizations": {
@@ -669,6 +679,7 @@
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/installere-og-oppgradere/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/installere-og-oppgradere/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nav-pilot/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
     ],
