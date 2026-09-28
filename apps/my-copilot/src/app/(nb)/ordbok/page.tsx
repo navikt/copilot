@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function OrdbokPage() {
   return (
-    <main>
+    <main id="hovedinnhold" tabIndex={-1}>
       <PageHero
         title="Ordbok"
         description="Enkle forklaringer på begreper brukt i forbindelse med GitHub Copilot og AI-assistert utvikling."

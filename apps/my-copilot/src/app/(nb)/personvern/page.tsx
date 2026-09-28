@@ -3,12 +3,12 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Personvern",
-  description: "Slik behandler Oh-My-Nav personopplysningene dine.",
+  description: "Slik behandler nettstedet ki-utvikling.nav.no (nav-pilot) personopplysningene dine.",
 };
 
 export default function PersonvernPage() {
   return (
-    <main className="max-w-3xl mx-auto">
+    <main id="hovedinnhold" tabIndex={-1} className="max-w-3xl mx-auto">
       <Box paddingBlock={{ xs: "space-16", md: "space-24" }} paddingInline={{ xs: "space-16", md: "space-40" }}>
         <VStack gap="space-16">
           <Heading size="xlarge" level="1">

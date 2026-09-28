@@ -6,16 +6,16 @@ const description = "News, practice and tooling for AI-assisted development at N
 
 export const metadata: Metadata = {
   title: {
-    template: "%s — Oh-My-Nav",
-    default: "Oh-My-Nav",
+    template: "%s — nav-pilot",
+    default: "nav-pilot",
   },
   description,
   metadataBase: new URL("https://ki-utvikling.nav.no"),
   openGraph: {
     type: "website",
     locale: "en_GB",
-    siteName: "Oh-My-Nav",
-    title: "Oh-My-Nav",
+    siteName: "nav-pilot",
+    title: "nav-pilot",
     description,
   },
 };
@@ -24,7 +24,16 @@ export const metadata: Metadata = {
 // declare lang="en", and the two legal pages stay Norwegian, marked with
 // hreflang so a screen reader and a search engine both know what they get.
 const labels: ShellLabels = {
-  subscription: "Subscription",
+  tagline: "Copilot at Nav",
+  mainMenu: "Main menu",
+  skip: "Skip to content",
+  menu: "Menu",
+  back: "Back",
+  showSection: "Show the nav-pilot menu",
+  glossary: "Glossary (Norwegian)",
+  otherLang: "Norsk",
+  otherLangHref: "/",
+  subscription: "Copilot subscription",
   subscriptionHref: "/abonnement",
   signIn: "Sign in",
   privacy: "Privacy (Norwegian)",

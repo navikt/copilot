@@ -7,7 +7,7 @@ import { Heading, Skeleton } from "@navikt/ds-react";
 
 export default function Loading() {
   return (
-    <main className="p-4 mx-4">
+    <main id="hovedinnhold" tabIndex={-1} className="p-4 mx-4">
       <section className="mb-8">
         <Heading size="xlarge" level="1" className="mb-4">
           GitHub Copilot

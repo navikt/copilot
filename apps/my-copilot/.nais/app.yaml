@@ -81,6 +81,7 @@ spec:
       - /kalkulator/**
       - /priser
       - /priser/**
+      - /innsikt
       # Old paths with a permanent redirect in next.config.ts. Listed so the
       # redirect answers before Wonderwall does; the private targets
       # (/statistikk, /kostnad) still require a login in src/proxy.ts.

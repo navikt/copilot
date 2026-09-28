@@ -17,7 +17,7 @@ export default async function BestPractices() {
   }));
 
   return (
-    <main>
+    <main id="hovedinnhold" tabIndex={-1}>
       <PageHero
         title="God praksis og guider"
         description="Lær å bruke GitHub Copilot effektivt og trygt. Finn oppskriften på din utfordring."

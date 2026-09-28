@@ -14,7 +14,7 @@ export default function NotFound() {
   return (
     <html lang="nb">
       <body>
-        <main className="flex flex-col items-center justify-center min-h-[60vh]">
+        <main id="hovedinnhold" tabIndex={-1} className="flex flex-col items-center justify-center min-h-[60vh]">
           <Box paddingBlock="space-24" paddingInline="space-16">
             <VStack gap="space-16" align="center">
               <VStack gap="space-8" align="center">

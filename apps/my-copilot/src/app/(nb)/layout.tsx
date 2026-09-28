@@ -6,8 +6,8 @@ const description = "Nyheter, beste praksis og verktøy for AI-drevet utvikling 
 
 export const metadata: Metadata = {
   title: {
-    template: "%s — Oh-My-Nav",
-    default: "Oh-My-Nav",
+    template: "%s — nav-pilot",
+    default: "nav-pilot",
   },
   description,
   // Without metadataBase, Next resolves og:image against http://localhost:3000
@@ -17,14 +17,23 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "nb_NO",
-    siteName: "Oh-My-Nav",
-    title: "Oh-My-Nav",
+    siteName: "nav-pilot",
+    title: "nav-pilot",
     description,
   },
 };
 
 const labels: ShellLabels = {
-  subscription: "Abonnement",
+  tagline: "Copilot i Nav",
+  mainMenu: "Hovedmeny",
+  skip: "Hopp til innhold",
+  menu: "Meny",
+  back: "Tilbake",
+  showSection: "Vis menyen for nav-pilot",
+  glossary: "Ordbok",
+  otherLang: "English",
+  otherLangHref: "/en/news",
+  subscription: "Copilot-abonnement",
   subscriptionHref: "/abonnement",
   signIn: "Logg inn",
   privacy: "Personvern",

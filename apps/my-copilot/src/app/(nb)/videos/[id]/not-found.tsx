@@ -3,7 +3,7 @@ import { Heading, Box } from "@navikt/ds-react";
 
 export default function NotFound() {
   return (
-    <main className="min-h-screen bg-black text-white flex items-center justify-center">
+    <main id="hovedinnhold" tabIndex={-1} className="min-h-screen bg-black text-white flex items-center justify-center">
       <Box as="div" paddingBlock="space-24" className="text-center">
         <Box paddingBlock="space-8">
           <Heading level="1" size="xlarge">

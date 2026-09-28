@@ -58,7 +58,7 @@ export function ArticleView({
   const categoryConfig = CATEGORY_CONFIG[article.category] ?? { label: article.category, variant: "info" as const };
 
   return (
-    <main>
+    <main id="hovedinnhold" tabIndex={-1}>
       <div className="max-w-3xl mx-auto">
         <Box
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}

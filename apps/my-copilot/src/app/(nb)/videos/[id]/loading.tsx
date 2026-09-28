@@ -2,7 +2,7 @@ import { Skeleton, Box } from "@navikt/ds-react";
 
 export default function Loading() {
   return (
-    <main className="min-h-screen bg-black">
+    <main id="hovedinnhold" tabIndex={-1} className="min-h-screen bg-black">
       {/* Nav bar skeleton */}
       <Box
         paddingBlock="space-12"

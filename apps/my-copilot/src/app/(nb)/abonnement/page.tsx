@@ -12,7 +12,7 @@ export default async function AbonnementPage() {
   const user = await getUser();
 
   return (
-    <main>
+    <main id="hovedinnhold" tabIndex={-1}>
       <PageHero title="Abonnement" description="Administrer ditt GitHub Copilot-abonnement." />
       <div className="max-w-7xl mx-auto">
         <Box

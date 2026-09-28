@@ -5,14 +5,14 @@ import { SurveyCharts } from "./survey-charts";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Utviklerundersøkelsen 2026: Slik bruker Nav AI-kodeverktøy | Min Copilot",
+  title: "Utviklerundersøkelsen 2026: Slik bruker Nav AI-kodeverktøy",
   description:
     "163 utviklere svarte på undersøkelsen om AI-kodeverktøy. 73 % er fornøyde, men 59 % er bekymret for at AI kan svekke dyp forståelse.",
 };
 
 export default function SurveyArticlePage() {
   return (
-    <main>
+    <main id="hovedinnhold" tabIndex={-1}>
       <div className="max-w-3xl" style={{ marginInline: "auto" }}>
         <Box
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}

@@ -3,12 +3,12 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Tilgjengelighetserklæring",
-  description: "Tilgjengelighetserklæring for Oh-My-Nav (ki-utvikling.nav.no).",
+  description: "Tilgjengelighetserklæring for nav-pilot (ki-utvikling.nav.no).",
 };
 
 export default function TilgjengelighetPage() {
   return (
-    <main className="max-w-3xl mx-auto">
+    <main id="hovedinnhold" tabIndex={-1} className="max-w-3xl mx-auto">
       <Box paddingBlock={{ xs: "space-16", md: "space-24" }} paddingInline={{ xs: "space-16", md: "space-40" }}>
         <VStack gap="space-16">
           <Heading size="xlarge" level="1">
@@ -17,7 +17,7 @@ export default function TilgjengelighetPage() {
 
           <VStack gap="space-8">
             <BodyLong>
-              Denne erklæringen gjelder nettstedet <strong>ki-utvikling.nav.no</strong> (Oh-My-Nav), som er eid av Nav
+              Denne erklæringen gjelder nettstedet <strong>ki-utvikling.nav.no</strong> (nav-pilot), som er eid av Nav
               (Arbeids- og velferdsetaten).
             </BodyLong>
             <BodyLong>

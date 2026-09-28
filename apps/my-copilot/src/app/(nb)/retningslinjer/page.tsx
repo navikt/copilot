@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 
 export default function RetningslinjerPage() {
   return (
-    <main>
+    <main id="hovedinnhold" tabIndex={-1}>
       <PageHero title="Retningslinjer" description="Regler og rammer for bruk av GitHub Copilot og AI-verktøy i Nav." />
       <div className="max-w-7xl mx-auto">
         <Box
