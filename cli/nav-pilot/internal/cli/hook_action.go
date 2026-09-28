@@ -77,12 +77,10 @@ type actionVerdict struct {
 // It never starts a server, and reads nothing under ~/.nav-pilot: cplt denies
 // that inside the sandbox, so the launch hands over the server instead
 // (providerpkg.ActionCheckServerEnv, #1165). No lock either, for the same
-// reason: a server busy with another session costs the budget, and a check
-// that does not fit in it is a skip.
-//
-// ponytail: without the lock the check's one prompt can meet another
-// session's at the server, which mlx-lm may not survive (see below). Route
-// the check through a sandbox-reachable lock if that shows up in practice.
+// reason, and none is needed: the managed server serves one request at a time
+// itself (#1169), so the check's prompt waits its turn there. A server busy
+// with another session costs the budget, and a check that does not fit in it
+// is a skip; the server drops a waiter that has given up.
 func runActionCheck(base, model, evidence string) actionVerdict {
 	started := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), actionCheckBudget)
