@@ -327,31 +327,60 @@ export default function Referanse() {
             Ytelse
           </LinkableHeading>
           <BodyLong>
-            nav-pilot skal starte klienten uten å vente på nettet. Det som trenger nett, skjer i bakgrunnen eller leses
-            fra en kopi på maskinen:
+            nav-pilot skal starte klienten uten å vente på nettet. Målene gjelder også når nettet ikke svarer:
           </BodyLong>
           <Bullets>
+            <li>Under 150 ms fra du kjører nav-pilot til klienten starter.</li>
+            <li>Under 200 ms fra økten slutter til du har terminalen tilbake.</li>
             <li>
-              Versjonssjekken spør GitHub høyst én gang i døgnet, i bakgrunnen. Svaret ligger i{" "}
-              <code className={code}>~/.nav-pilot/cache.json</code>, og neste kommando sier fra hvis det finnes en ny
-              versjon.
+              Under 50 ms for <code className={code}>--version</code> og <code className={code}>--help</code>. De sender
+              ikke telemetri.
             </li>
             <li>
-              Undersøkelser og nyheter hentes mens økten kjører. Nyhetslinja etter en økt kommer høyst én gang om dagen.
-            </li>
-            <li>
-              En oppstart som ikke trenger noe fra deg, skriver ingenting. Det som er nytt, sier nav-pilot én gang, og
-              en advarsel kommer på nytt først når noe endrer seg. <code className={code}>nav-pilot --verbose</code>{" "}
-              viser hva oppstarten gjør: sandkassemappe, klient, agent og modell.
+              Andre korte kommandoer, som <code className={code}>config get</code> og <code className={code}>list</code>
+              , venter høyst 300 ms på å sende telemetrien.
             </li>
           </Bullets>
           <BodyLong>
-            Målet er under 150 ms før klienten starter, under 200 ms fra økten slutter til du har terminalen tilbake, og
-            under 50 ms for <code className={code}>--version</code> og <code className={code}>--help</code>, også når
-            nettet ikke svarer. Unntaket er nedlastingen av agentpakka. En agentpakke fra et annet team (
-            <code className={code}>source</code> i konfigurasjonen) hentes ved oppstart: har nav-pilot en kopi av
-            manifestet fra før, venter oppstarten høyst 15 sekunder; første gang venter den til nedlastingen er ferdig
-            eller git gir opp. opencode og pi venter dessuten på den første nedlastingen av agentpakka (se «opencode»).
+            Det som trenger nett, skjer i bakgrunnen eller leses fra en kopi på maskinen. Alle filene ligger i{" "}
+            <code className={code}>~/.nav-pilot/</code>:
+          </BodyLong>
+          <Bullets>
+            <li>
+              <code className={code}>cache.json</code>: versjonssjekken spør GitHub høyst én gang i døgnet, i
+              bakgrunnen. Neste kommando sier fra hvis det finnes en ny versjon.
+            </li>
+            <li>
+              <code className={code}>sources/</code>: en kopi av agentpakka per kilde, både navikt/copilot og en
+              agentpakke fra et annet team (<code className={code}>source</code> i konfigurasjonen). En ny kopi hentes
+              mens økten kjører, høyst én gang i timen.
+            </li>
+            <li>
+              <code className={code}>client-versions.json</code>: svaret fra{" "}
+              <code className={code}>copilot --version</code> og <code className={code}>opencode --version</code>.
+              nav-pilot spør på nytt når klienten er oppdatert eller installert på nytt.
+            </li>
+            <li>
+              <code className={code}>surveys.json</code> og <code className={code}>news.json</code>: undersøkelser og
+              nyheter hentes mens økten kjører. Nyhetslinja etter en økt kommer høyst én gang i døgnet.
+            </li>
+          </Bullets>
+          <BodyLong>
+            Unntaket er den første nedlastingen av en agentpakke. Finnes ingen kopi i{" "}
+            <code className={code}>sources/</code>, venter oppstarten på nedlastingen, høyst 30 sekunder. Mislykkes den,
+            venter ikke oppstartene den neste timen: de starter uten agentpakka og prøver igjen i bakgrunnen. En kopi av
+            en agentpakke fra et annet team brukes i høyst ett døgn, fordi manifestet bestemmer hvordan økten starter.
+            Er kopien eldre, venter oppstarten på en ny, høyst 30 sekunder.
+          </BodyLong>
+          <BodyLong>
+            En oppstart som ikke trenger noe fra deg, skriver ingenting. Det som er nytt, sier nav-pilot én gang, og en
+            advarsel kommer på nytt først når noe endrer seg. <code className={code}>nav-pilot --verbose</code> viser
+            hva oppstarten gjør: sandkassemappe, klient, agent og modell.
+          </BodyLong>
+          <BodyLong>
+            Testen <code className={code}>TestLaunchBudget</code> passer på målene i CI. Den starter nav-pilot med
+            falske klienter, med telemetrien på og et nett som tar imot forbindelser uten å svare. Den feiler når
+            medianen av fem kjøringer er mer enn tre ganger målet, for det er slik en ventetid på nettet ser ut.
           </BodyLong>
         </VStack>
       </section>

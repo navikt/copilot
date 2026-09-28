@@ -714,25 +714,41 @@ Veiviseren (`nav-pilot config setup`) viser en modellvelger tilpasset valgt klie
 
 ## Ytelse
 
-nav-pilot skal starte klienten uten å vente på nettet. Målet er under 150 ms før klienten
-starter, under 200 ms fra økten slutter til du har terminalen tilbake, og under 50 ms for
-`--version` og `--help`, også når nettet ikke svarer. Unntaket er nedlastingen av agentpakka. En agentpakke fra et
-annet team (`source` i konfigurasjonen) hentes ved oppstart: har nav-pilot en kopi av manifestet
-fra før, venter oppstarten høyst 15 sekunder; første gang venter den til nedlastingen er ferdig
-eller git gir opp. opencode og pi venter dessuten på den første nedlastingen av agentpakka (se
-«opencode»).
+nav-pilot skal starte klienten uten å vente på nettet. Målene gjelder også når nettet ikke
+svarer:
 
-Det som trenger nett, skjer i bakgrunnen eller leses fra en kopi på maskinen:
+| Hva | Mål |
+| --- | --- |
+| Fra du kjører `nav-pilot` til klienten starter | Under 150 ms |
+| Fra økten slutter til du har terminalen tilbake | Under 200 ms |
+| `--version` og `--help` | Under 50 ms. De sender ikke telemetri |
+| Andre korte kommandoer, som `config get` og `list` | Venter høyst 300 ms på å sende telemetrien |
 
-| Hva | Hvor | Hvor ofte |
+Det som trenger nett, skjer i bakgrunnen eller leses fra en kopi på maskinen. Alle filene ligger
+i `~/.nav-pilot/`:
+
+| Hva | Fil | Hvor ofte |
 | --- | --- | --- |
-| Versjonssjekken | `~/.nav-pilot/cache.json` | Høyst én gang i døgnet, i bakgrunnen. Neste kommando sier fra hvis det finnes en ny versjon |
-| Undersøkelser og nyheter | `~/.nav-pilot/surveys.json`, `news.json` | Hentes mens økten kjører. Nyhetslinja høyst én gang i døgnet |
+| Versjonssjekken | `cache.json` | Høyst én gang i døgnet, i bakgrunnen. Neste kommando sier fra hvis det finnes en ny versjon |
+| Agentpakka | `sources/` | En kopi per kilde, både navikt/copilot og en agentpakke fra et annet team (`source` i konfigurasjonen). En ny kopi hentes mens økten kjører, høyst én gang i timen |
+| Klientversjonen | `client-versions.json` | Svaret fra `copilot --version` og `opencode --version`. Spørres på nytt når klienten er oppdatert eller installert på nytt |
+| Undersøkelser og nyheter | `surveys.json`, `news.json` | Hentes mens økten kjører. Nyhetslinja høyst én gang i døgnet |
+
+Unntaket er den første nedlastingen av en agentpakke. Finnes ingen kopi i `sources/`, venter
+oppstarten på nedlastingen, høyst 30 sekunder. Mislykkes den, venter ikke oppstartene den neste
+timen: de starter uten agentpakka og prøver igjen i bakgrunnen. En kopi av en agentpakke fra et
+annet team brukes i høyst ett døgn, fordi manifestet bestemmer hvordan økten starter. Er kopien
+eldre, venter oppstarten på en ny, høyst 30 sekunder.
 
 En oppstart som ikke trenger noe fra deg, skriver ingenting. Det som er nytt, sier nav-pilot
 én gang. En advarsel kommer igjen først når noe har endret seg (merkene ligger i
 `~/.nav-pilot/seen-*`). `nav-pilot --verbose` viser hva oppstarten gjør: sandkassemappe,
 klient, agent og modell.
+
+Testen `TestLaunchBudget` (`cli/nav-pilot/e2e/budget_test.go`) passer på målene i CI. Den
+starter nav-pilot med falske klienter, med telemetrien på og et nett som tar imot forbindelser
+uten å svare. Den feiler når medianen av fem kjøringer er mer enn tre ganger målet, for det er
+slik en ventetid på nettet ser ut.
 
 ## For bidragsytere
 
