@@ -746,8 +746,8 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	} else {
 		fmt.Println(dim("Next steps:"))
 		fmt.Println(dim("  1. Review the installed files in .github/"))
-		fmt.Println(dim("  2. Commit and push to enable Copilot customization"))
-		fmt.Println(dim(fmt.Sprintf("  3. Use @%s in Copilot to start planning", agent)))
+		fmt.Println(dim("  2. Commit and push, so the team gets them too"))
+		fmt.Println(dim("  3. " + useAgentLine(agent)))
 	}
 	printMCPServerNotice(src)
 
