@@ -1,18 +1,17 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { CopyButton, Tag, VStack } from "@navikt/ds-react";
+import { CopyButton } from "@navikt/ds-react";
 import type { CpltConfigKey } from "@/lib/cplt-config";
 
 type ConfigItem = CpltConfigKey & { example: string };
 
-// Aksel tag colours per value type, so they follow dark mode.
-const TYPE_VARIANTS: Record<string, "info" | "warning" | "alt1" | "alt3"> = {
-  bool: "info",
-  string: "warning",
-  "string[]": "alt1",
-  "integer[]": "alt3",
-  integer: "alt3",
+const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
+  bool: { bg: "#dbeafe", text: "#1e40af" },
+  string: { bg: "#fef3c7", text: "#92400e" },
+  "string[]": { bg: "#ede9fe", text: "#5b21b6" },
+  "integer[]": { bg: "#fce7f3", text: "#9d174d" },
+  integer: { bg: "#fce7f3", text: "#9d174d" },
 };
 
 const CODE_SIZE = "0.75rem";
@@ -46,15 +45,15 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
   }, [search, items]);
 
   return (
-    <VStack gap="space-12">
+    <div>
       {/* Search + filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <input
           type="text"
-          placeholder="Søk i innstillingene…"
+          placeholder="Search config keys…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          aria-label="Søk i innstillingene"
+          aria-label="Search config keys"
           className="rounded-lg font-mono flex-1"
           style={{
             padding: "0.625rem 1rem",
@@ -67,19 +66,20 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
       </div>
 
       {/* Results count */}
-      <p style={{ color: "var(--ax-text-neutral-subtle)", fontSize: CODE_SIZE, margin: 0 }}>
-        {filtered.length} {filtered.length === 1 ? "innstilling" : "innstillinger"}
+      <p style={{ color: "var(--ax-text-neutral-subtle)", fontSize: CODE_SIZE, margin: "0 0 0.75rem" }}>
+        {filtered.length} {filtered.length === 1 ? "option" : "options"}
       </p>
 
-      {/* Config list. Capped so the reference does not swallow the page. */}
+      {/* Config list. Capped so the reference does not swallow the landing page. */}
       <div
         className="flex flex-col gap-3"
         role="region"
-        aria-label="Innstillinger for cplt"
+        aria-label="Configuration options"
         tabIndex={0}
         style={{ maxHeight: "32rem", overflowY: "auto", paddingRight: "0.5rem" }}
       >
         {filtered.map((item) => {
+          const typeColor = TYPE_COLORS[item.type] || { bg: "#f1f5f9", text: "#475569" };
           return (
             <div
               key={item.key}
@@ -91,23 +91,39 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
               }}
             >
               {/* Header row */}
-              <div className="flex flex-wrap items-center gap-2" style={{ marginBottom: "var(--ax-space-6)" }}>
-                <code className="font-mono font-bold" style={{ color: "var(--ax-text-neutral)", fontSize: "0.875rem" }}>
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                <code className="font-mono font-bold" style={{ color: "var(--cplt-accent-ink)", fontSize: "0.875rem" }}>
                   {item.key}
                 </code>
-                <Tag size="xsmall" variant={TYPE_VARIANTS[item.type] ?? "neutral"}>
+                <span
+                  className="rounded-full font-medium"
+                  style={{
+                    padding: "0.125rem 0.5rem",
+                    fontSize: CODE_SIZE,
+                    background: typeColor.bg,
+                    color: typeColor.text,
+                  }}
+                >
                   {item.type}
-                </Tag>
+                </span>
                 {item.dangerous && (
-                  <Tag size="xsmall" variant="error">
-                    ⚠ farlig
-                  </Tag>
+                  <span
+                    className="rounded-full font-medium"
+                    style={{
+                      padding: "0.125rem 0.5rem",
+                      fontSize: CODE_SIZE,
+                      background: "#fef2f2",
+                      color: "#b91c1c",
+                    }}
+                  >
+                    ⚠ dangerous
+                  </span>
                 )}
                 <span
                   className="font-mono"
                   style={{ color: "var(--ax-text-neutral-subtle)", fontSize: CODE_SIZE, marginLeft: "auto" }}
                 >
-                  standard: {item.default || '""'}
+                  default: {item.default || '""'}
                 </span>
               </div>
 
@@ -116,7 +132,7 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
                 style={{
                   color: "var(--ax-text-neutral-subtle)",
                   fontSize: "0.875rem",
-                  margin: "0 0 var(--ax-space-12)",
+                  margin: "0 0 0.75rem",
                   lineHeight: 1.5,
                 }}
               >
@@ -126,29 +142,26 @@ export function CpltConfigExplorer({ configKeys }: { configKeys: CpltConfigKey[]
               {/* Example */}
               <div
                 className="rounded-md flex items-center gap-2"
-                style={{ background: "var(--ax-bg-neutral-soft)", padding: "0.4rem 0.75rem" }}
+                style={{ background: "#1e1e1e", padding: "0.4rem 0.75rem" }}
               >
                 <code
                   className="font-mono whitespace-nowrap overflow-x-auto flex-1"
-                  style={{ fontSize: CODE_SIZE, color: "var(--ax-text-neutral)" }}
+                  style={{ fontSize: CODE_SIZE, color: "#d4d4d4" }}
                 >
                   {item.example}
                 </code>
-                <CopyButton copyText={item.example} size="small" />
+                <CopyButton copyText={item.example} size="small" style={{ color: "white" }} />
               </div>
             </div>
           );
         })}
 
         {filtered.length === 0 && (
-          <p
-            className="text-center"
-            style={{ paddingBlock: "var(--ax-space-32)", color: "var(--ax-text-neutral-subtle)", fontSize: "0.875rem" }}
-          >
-            Ingen innstillinger passer til søket.
+          <p className="text-center py-8" style={{ color: "var(--ax-text-neutral-subtle)", fontSize: "0.875rem" }}>
+            No config options match your search.
           </p>
         )}
       </div>
-    </VStack>
+    </div>
   );
 }

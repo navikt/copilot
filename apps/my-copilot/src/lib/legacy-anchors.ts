@@ -103,6 +103,15 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   // Own server got its own introduction.
   "/nav-pilot/guider/lokal#egen-server": "/nav-pilot/lokal/egen-server#start-serveren",
 
-  // /cplt was translated to Norwegian (#1096).
-  "/cplt#security-boundary": "/cplt#sikkerhetsgrense",
+  // /cplt was Norwegian for a while (#1144) and is English again: it is the
+  // landing page for the cplt open-source project.
+  "/cplt#apen-kildekode": "/cplt#open-source",
+  "/cplt#felles-konfig": "/cplt#team-config",
+  "/cplt#innstillinger": "/cplt#configuration",
+  "/cplt#installer": "/cplt#install",
+  "/cplt#krav-i-nav": "/cplt#nav-policy",
+  "/cplt#nettverk": "/cplt#network-proxy",
+  "/cplt#sikkerhetsgrense": "/cplt#security-boundary",
+  "/cplt#slik-virker-det": "/cplt#how-it-works",
+  "/cplt#vakter": "/cplt#guards",
 };

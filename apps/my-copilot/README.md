@@ -161,6 +161,10 @@ pnpm link-inventory:update
 
 The command only adds entries. When a page moves, add a permanent redirect in `next.config.ts`. When an anchor moves, add it to `src/lib/legacy-anchors.ts`. Never delete an inventory entry.
 
+### The /cplt page
+
+`/cplt` is the landing page for the cplt open-source project, for readers outside Nav. It stays in English and keeps its own dark design, although it sits under the Norwegian `(nb)` route group. Don't translate it or give it the Aksel look of the documentation pages; fix bugs only. `src/cplt-page.test.ts` fails if the page loses `lang="en"`.
+
 ### Deployment
 
 This project uses GitHub Actions for CI/CD. The workflow is defined in `.github/workflows/build-deploy.yaml`. The application is deployed to the Nais platform.
