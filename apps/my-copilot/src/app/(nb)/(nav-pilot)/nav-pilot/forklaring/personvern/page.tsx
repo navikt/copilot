@@ -108,6 +108,13 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
             den fra. <code className={code}>DO_NOT_TRACK=1</code> og{" "}
             <code className={code}>NAV_PILOT_TELEMETRY_ENABLED=false</code> slår dem også av.
           </BodyLong>
+          <BodyLong>
+            Du kan også svare i nettleseren, på{" "}
+            <NextLink href="/nav-pilot/undersokelse" className={linkClass}>
+              undersøkelsessiden
+            </NextLink>
+            . Den bruker Nav-innloggingen din. Hver person kan svare én gang, i terminalen eller på nettsiden.
+          </BodyLong>
         </VStack>
       </section>
     </DocPage>
