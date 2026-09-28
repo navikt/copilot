@@ -111,12 +111,13 @@ jobs:
           STATUS: ${{ steps.run.outputs.status }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOURNEYS: ${{ steps.pick.outputs.run }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           r="$RUNNER_TEMP/report.md"
           {
             echo "## nav-pilot persona review"
             echo
-            echo "Journeys \`$JOURNEYS\` at $(git rev-parse --short HEAD). [Run]($RUN_URL)."
+            echo "Journeys \`$JOURNEYS\` at ${SHA:0:8}. [Run]($RUN_URL)."
             echo
             if [ "$STATUS" != 0 ]; then
               echo "**The e2e journeys failed.** Failing:"
@@ -134,8 +135,12 @@ jobs:
             echo
             echo "<details><summary>Transcripts</summary>"
             echo
-            # ponytail: a comment or issue body holds 65536 chars; the run log has the rest.
-            head -c 55000 "$RUNNER_TEMP/transcripts.md"
+            # ponytail: a comment or issue body holds 65536 chars, and the LLM review
+            # needs room; the run log has the rest.
+            head -c 45000 "$RUNNER_TEMP/transcripts.md"
+            if [ "$(wc -c < "$RUNNER_TEMP/transcripts.md")" -gt 45000 ]; then
+              printf '\n```\n\nCut here. The run log has every transcript.\n'
+            fi
             echo
             echo "</details>"
           } > "$r"
