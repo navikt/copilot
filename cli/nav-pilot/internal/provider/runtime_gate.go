@@ -140,7 +140,8 @@ var probeCpltVersion = func() (string, error) {
 //     project on purpose, a version probe is scoped to nothing on purpose.
 var probeClientVersion = func(client string) (string, error) {
 	if client == "opencode" {
-		return runStagedProbe(clientProbeTimeout, "opencode", "--version")
+		// Cached: the launch asks again for the tested range (#1072).
+		return cachedVersion("opencode", clientProbeTimeout)
 	}
 	path, err := stagedCpltPath()
 	if err != nil {

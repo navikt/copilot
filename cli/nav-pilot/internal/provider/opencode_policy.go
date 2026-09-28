@@ -142,7 +142,7 @@ func userPermission(docs [][]byte, key string) (str string, deny bool) {
 // it is inside [OpenCodeTestedRange]. err is set when the version could not
 // be read.
 func OpenCodeVersionStatus() (version string, tested bool, err error) {
-	out, err := runStagedProbe(5*time.Second, "opencode", "--version")
+	out, err := cachedVersion("opencode", 5*time.Second)
 	if err != nil {
 		return "", false, err
 	}

@@ -557,11 +557,12 @@ func TestLaunchProbeFollowsTheSelectedBinary(t *testing.T) {
 		var name string
 		var args []string
 		orig := runStagedProbe
+		versionCache.Clear()
 		runStagedProbe = func(_ time.Duration, n string, a ...string) (string, error) {
 			name, args = n, a
 			return "", nil
 		}
-		t.Cleanup(func() { runStagedProbe = orig })
+		t.Cleanup(func() { runStagedProbe = orig; versionCache.Clear() })
 		return &name, &args
 	}
 
@@ -808,5 +809,29 @@ func TestCpltUpgradeHintFollowsTheOwner(t *testing.T) {
 				t.Errorf("error %q does not say %q", err, tt.want)
 			}
 		})
+	}
+}
+
+// A launch asks opencode for its version once, for the pakke's range and the
+// tested range alike (#1072).
+func TestOpenCodeVersionProbedOnce(t *testing.T) {
+	calls := 0
+	orig := runStagedProbe
+	versionCache.Clear()
+	runStagedProbe = func(_ time.Duration, n string, _ ...string) (string, error) {
+		if n == "opencode" {
+			calls++
+		}
+		return "opencode 1.18.30\n", nil
+	}
+	t.Cleanup(func() { runStagedProbe = orig; versionCache.Clear() })
+	if _, err := probeClientVersion("opencode"); err != nil {
+		t.Fatal(err)
+	}
+	if v, _, err := OpenCodeVersionStatus(); err != nil || v != "1.18.30" {
+		t.Fatalf("OpenCodeVersionStatus = %q, %v", v, err)
+	}
+	if calls != 1 {
+		t.Fatalf("opencode --version ran %d times, want 1", calls)
 	}
 }

@@ -390,6 +390,11 @@ func unlistedMCPServers(servers map[string]mcpServer, names []string) ([]string,
 	if err != nil || registry == "" {
 		return nil, err
 	}
+	return unlistedIn(registry, servers, names)
+}
+
+// unlistedIn is unlistedMCPServers against a registry already looked up.
+func unlistedIn(registry string, servers map[string]mcpServer, names []string) ([]string, error) {
 	reg, err := fetchMCPRegistry(registry)
 	if err != nil {
 		return nil, fmt.Errorf("%s did not answer: %w", registry, err)
@@ -423,7 +428,8 @@ func OpenCodeMCPReport(projectDir string) (listed, unlisted []string, err error)
 	if err != nil || registry == "" {
 		return nil, nil, err
 	}
-	off, err := unlistedMCPServers(servers, names)
+	// The policy once: doctor used to ask GitHub for it twice (#1072).
+	off, err := unlistedIn(registry, servers, names)
 	if err != nil {
 		return nil, nil, err
 	}
