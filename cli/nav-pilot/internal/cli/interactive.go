@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -1044,13 +1046,40 @@ func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error
 		return err
 	}
 	printModelNotice(resolved)
-	sessionClient = resolved.Client
+	beginSession(resolved.Client)
 	return p.Launch(resolved)
 }
 
 // sessionClient is the client a coding session was started with in this
 // process, "" when none was: the survey prompt follows only a real session.
 var sessionClient string
+
+// armNudges is set by the interactive launch, the one path that ends with the
+// survey prompt and the news line; nudgesReady is set once such a session
+// starts (see startNudgePrep).
+var (
+	armNudges   bool
+	nudgesReady func() bool
+)
+
+// beginSession records that a coding session is starting with client, and
+// starts the survey and news fetches it ends with.
+func beginSession(client string) {
+	sessionClient = client
+	// Export what the launch recorded while the session starts: the export
+	// at its end then goes over an open connection, and fits the short
+	// budget the user waits on (telemetrySessionFlushBudget).
+	if f, ok := telemetry.(interface{ ForceFlush(context.Context) error }); ok {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			_ = f.ForceFlush(ctx)
+		}()
+	}
+	if armNudges && nudgesReady == nil {
+		nudgesReady = startNudgePrep(client)
+	}
+}
 
 // cpltInstallHint is how to get the sandbox.
 const cpltInstallHint = "brew install navikt/tap/cplt (or sudo apt install cplt)"

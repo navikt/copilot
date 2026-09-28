@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/zalando/go-keyring"
@@ -79,9 +80,21 @@ func copilotCLIURL() string {
 		if allowedCopilotCLIURL(v) {
 			return strings.TrimSuffix(v, "/")
 		}
-		fmt.Fprintf(os.Stderr, "%s NAV_PILOT_COPILOT_CLI_URL ignored: only https://….nav.no or a loopback address\n", yellow("⚠"))
+		warnIgnoredURL("NAV_PILOT_COPILOT_CLI_URL")
 	}
 	return defaultCopilotCLIURL
+}
+
+// warnedURLs holds the variables warnIgnoredURL has warned about.
+var warnedURLs sync.Map
+
+// warnIgnoredURL says once per process that an URL override was ignored:
+// startNudgePrep reads the URLs before the session, so the fetches that run
+// during it have nothing left to say on the client's terminal.
+func warnIgnoredURL(name string) {
+	if _, done := warnedURLs.LoadOrStore(name, true); !done {
+		fmt.Fprintf(os.Stderr, "%s %s ignored: only https://….nav.no or a loopback address\n", yellow("⚠"), name)
+	}
 }
 
 func allowedCopilotCLIURL(raw string) bool {

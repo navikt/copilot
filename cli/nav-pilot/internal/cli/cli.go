@@ -309,6 +309,7 @@ func startupUpdateCheck() (stop bool, err error) {
 func run(args []string) error {
 	// Per run, not per process: a second run() in one process prints it again.
 	notedProposals = map[string]bool{}
+	armNudges, nudgesReady = false, nil
 
 	// --client=opencode reads as --client opencode. alpha keeps its own
 	// parsing: decide and ask take free text.
@@ -530,6 +531,7 @@ func run(args []string) error {
 		if isInteractive() {
 			maybeSurveyHint(cliOverrides.Client)
 			maybeClientNudge(cliOverrides.Client)
+			armNudges = true
 			err := runWithCommandTelemetry("startup", telemetryMode(), "auto", func() error {
 				return cmdInteractive(cliOverrides)
 			})
@@ -539,9 +541,9 @@ func run(args []string) error {
 			// nav-pilot itself failed; a client's own exit code is still a
 			// session that ended. News only when nothing else came up in
 			// this run (claimSessionPrompt).
-			if sessionEndedCalmly(err) {
-				maybeSurvey(sessionClient)
-				maybeNews(sessionClient)
+			if sessionEndedCalmly(err) && nudgesReady != nil && nudgesReady() {
+				promptSurvey(sessionClient)
+				showNews(sessionClient)
 			}
 			return err
 		}

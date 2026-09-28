@@ -117,7 +117,7 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 	// After the handover gate: the notice announces a session that is about to
 	// start, and this is the last point that can still refuse to start one.
 	printModelNotice(resolved)
-	sessionClient = resolved.Client
+	beginSession(resolved.Client)
 	return true, launch(resolved, providerpkg.StagedLaunch{Dir: dir, PakkeName: pakke.Name, Context: context})
 }
 
