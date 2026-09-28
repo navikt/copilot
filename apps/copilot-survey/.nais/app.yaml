@@ -92,7 +92,7 @@ spec:
     - name: copilot-survey
       rules:
         - alert: CopilotSurveySubmissionBurst
-          expr: sum(increase(survey_submissions_total{namespace="{{namespace}}"}[5m])) > 20
+          expr: sum(increase(survey_submissions_total{app="copilot-survey"}[5m])) > 20
           labels:
             namespace: {{namespace}}
             severity: warning

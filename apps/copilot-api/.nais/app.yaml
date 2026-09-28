@@ -117,7 +117,7 @@ spec:
     - name: copilot-api
       rules:
         - alert: CopilotApiSamlNameIdBurst
-          expr: sum(increase(copilot_api_saml_name_id_requests_total{namespace="copilot"}[5m])) > 20
+          expr: sum(increase(copilot_api_saml_name_id_requests_total{app="copilot-api"}[5m])) > 20
           labels:
             namespace: copilot
             severity: warning
