@@ -152,10 +152,9 @@ morning use up the budget before the big job arrives.
 - *Call sites*: an `edit` or a counted `sed`/`perl` segment adds its call sites to the
   turn's count. An ordinary `edit` is 1. An `edit` with `replaceAll` counts the matches of
   its `oldString` in the file, and a `sed -i`/`perl -pi` with one address-free `s` command
-  counts the matches of its pattern, per line, all of them with `/g` and one per line
-  without. The guard reads the file before the edit runs, only under the project root and
+  counts its pattern's matches: every match with `/g`, at most one per line without. The guard reads the file before the edit runs, only under the project root and
   after resolving links. A BRE is turned into RE2; a pattern RE2 cannot compile, several
-  commands, an address or a computed value count 1. Probe 6's cell r6 is the reason: 60
+  commands, an address, a computed value or a file that is not a regular file each count as 1. Probe 6's cell r6 is the reason: 60
   call sites in 3 files, done as two edits and one `sed … /g` on the test file, never
   reached 5 files or 10 calls.
 - *Deny* (multi-file rule, only when `edit-multi-mechanical` is trusted): the edit that would make the
@@ -220,6 +219,8 @@ nothing. So:
 | Failure | Covered by |
 |---|---|
 | False positive on a small edit needing judgement | 5-file / 10-site threshold; 2-deny budget per turn |
+| A large search-and-replace in one file, then small edits in two others in the same turn | refused: the site count cannot tell it from r6 done in another order. Known and accepted; the budget bounds it to 1 refusal (balanced) or 2 (aggressive) |
+| The worker runs as a background task (opencode's experimental background subagents) | its result arrives later as a message, so no checks are appended and no reminder is sent |
 | Worker down | TCP dial to the server fails, so the call is allowed; a dispatch that fails still exempts the file |
 | Worker wedged (port open, no answer) | the file passes once sent; the budget caps the cost |
 | Orchestrator retries the denied call | the retry is denied again until the budget runs out (2 per turn), then it passes |
@@ -381,11 +382,11 @@ A third pass, on the revision, changed these:
 - A background task's synthetic message no longer starts a new turn.
 
 Probe 6 (mlx-workspace §8.8, 2026-09-28) measured the levels. `aggressive`
-dispatched on 6 of 8 valid samples on the large and create-file cells, with no false
-positive on the small cell, but 1 of 6 dispatched samples failed and one timed out, and it
-cost 1.2–1.6× the control's cloud credits and took 2–3.6× its time. `balanced` stays the
-default, and `aggressive` is documented as an opt-in for mechanical multi-file edits. Its
-two gaps were fixed here: the call-site count (r6 was never gated) and the check of the
+dispatched on 6 of 8 valid samples on the large and create-file cells (`balanced`: 2 of 6),
+with no false positive on the small cell. But 1 of the 6 dispatched samples failed, one hit
+the 20-minute cap, and it cost 1.2–1.6× the control's cloud credits and took 2–3.6× its
+time. `balanced` stays the default, and `aggressive` is documented as an opt-in for
+mechanical multi-file edits. The gate's two gaps were fixed here: the call-site count (r6 was never gated) and the check of the
 worker's result. Both apply at `balanced` too, where the checkpoint bounds a misfire to
 one refusal per turn.
 

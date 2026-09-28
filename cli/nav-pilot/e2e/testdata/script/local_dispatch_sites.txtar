@@ -39,7 +39,7 @@ stdout '^build: \{\}$'
 stdout '^text-built: \{\}$'
 grep 'reach 10 call sites across files' $HOME/.config/opencode/nav-pilot-local-dispatch.md
 grep 'a grep is not a check' $HOME/.config/opencode/nav-pilot-local-dispatch.md
-grep 'reminds you once if you answer before a build or test command has run' $HOME/.config/opencode/nav-pilot-local-dispatch.md
+grep 'reminds you once if you answer before any build or test command has run' $HOME/.config/opencode/nav-pilot-local-dispatch.md
 
 # balanced: the same sed is refused once, as a checkpoint, and the retry
 # passes. The small job passes.

@@ -92,7 +92,9 @@ export const NavPilotDispatchGate = async ({ client, directory }) => {
     // The worker has returned: the orchestrator reads what to check before it
     // accepts the work, in the task's own result.
     "tool.execute.after": async (input, output) => {
-      if (input.tool !== "task" || input.args?.subagent_type !== "local-worker" || !output) return
+      // A background task returns at once with a placeholder; its result
+      // arrives later as a message, which this does not check.
+      if (input.tool !== "task" || input.args?.subagent_type !== "local-worker" || input.args?.background === true || !output) return
       try {
         const agent = await orchestrator(input.sessionID)
         if (!agent) return
@@ -116,6 +118,7 @@ export const NavPilotDispatchGate = async ({ client, directory }) => {
         await client.session.prompt({
           path: { id: input.sessionID },
           body: { agent, model: m.model, variant: m.variant, noReply: true, parts: [{ type: "text", text, synthetic: true }] },
+          signal: AbortSignal.timeout(2000),
         })
       } catch {}
     },

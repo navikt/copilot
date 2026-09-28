@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -386,7 +387,7 @@ func TestGateCountsTheSitesOfAReplacement(t *testing.T) {
 		writeCalls(t, "src/BitTest.kt", 58)
 		g.decide(edit(1, "src/F1.kt"))
 		g.decide(edit(1, "src/F2.kt"))
-		sed := bash(1, "cd "+root+` && sed -i '' 's/\.foo()/.foo("BitTest")/g' src/BitTest.kt`)
+		sed := bash(1, `cd src && sed -i '' 's/\.foo()/.foo("BitTest")/g' BitTest.kt`)
 		deny, outcome := g.decide(sed)
 		if deny == "" || outcome != "deny_sites" {
 			t.Fatalf("checkpoint %v: 58 call sites in a 3rd file got %q", rules.Checkpoint, outcome)
@@ -419,6 +420,28 @@ func TestGateSmallReplacementPasses(t *testing.T) {
 		if deny, outcome := g.decide(r); deny != "" {
 			t.Fatalf("%s %s%s was denied (%s)", r.Tool, r.Path, r.Command, outcome)
 		}
+	}
+}
+
+func TestGateSitesAbsoluteCd(t *testing.T) {
+	g := testGate(t, true, multi)
+	writeCalls(t, "src/BitTest.kt", 12)
+	g.decide(edit(1, "src/F1.kt"))
+	g.decide(edit(1, "src/F2.kt"))
+	if _, outcome := g.decide(bash(1, "cd "+root+` && sed -E -i '' 's/\.foo\(\)/.foo("B")/g' src/BitTest.kt`)); outcome != "deny_sites" {
+		t.Fatalf("an ERE sed after an absolute cd got %q", outcome)
+	}
+}
+
+func TestGateSitesSkipsAFifo(t *testing.T) {
+	g := testGate(t, true, multi)
+	if err := syscall.Mkfifo("src/Pipe.kt", 0o644); err != nil {
+		t.Skip(err)
+	}
+	g.decide(edit(1, "src/F1.kt"))
+	g.decide(edit(1, "src/F2.kt"))
+	if deny, _ := g.decide(bash(1, `sed -i 's/foo/bar/g' src/Pipe.kt`)); deny != "" {
+		t.Fatal("a FIFO was counted")
 	}
 }
 

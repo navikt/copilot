@@ -99,7 +99,7 @@ const GateCreateText = "nav-pilot (local_dispatch = aggressive): new files go to
 // orchestrator reads it at the moment it decides whether to accept the work.
 // Probe 6 (mlx-workspace §8.8): a grep passed a broken definition, and a new
 // test file that was green but caught nothing was accepted.
-const GateVerifyText = "nav-pilot (local_dispatch): before you accept this, build the project and run the tests that cover the change. " +
+const GateVerifyText = "nav-pilot (local_dispatch): before you accept this, build the project and run the tests that cover the change, once every file you sent is done. " +
 	"A grep is not a check. If `local-worker` wrote a test, show that it can fail: break the code it tests on purpose, " +
 	"for example make the function return a constant, run the test, see it fail, and undo the break."
 
@@ -272,7 +272,9 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 		}
 		e := shellEdit{file: r.Path}
 		if r.Tool == "edit" && r.ReplaceAll && r.Old != "" {
-			e.re, e.global = regexp.MustCompile(regexp.QuoteMeta(r.Old)), true
+			if re, err := regexp.Compile(regexp.QuoteMeta(r.Old)); err == nil {
+				e.re, e.global = re, true
+			}
 		}
 		edits = []shellEdit{e}
 	case "bash":
@@ -498,7 +500,7 @@ func ShellEdits(cmd string) (scripted bool, files []string) {
 // pattern when the gate could read it, and global its /g flag.
 type shellEdit struct {
 	file   string
-	dir    string // the directory a relative file is in, from a cd before it
+	dir    string // the directory a relative file is in, from a cd before it; relative to the root unless absolute
 	re     *regexp.Regexp
 	global bool
 }
@@ -515,11 +517,10 @@ func (e shellEdit) sites(root string) int {
 	}
 	path := e.file
 	if !filepath.IsAbs(path) {
-		dir := e.dir
-		if dir == "" {
-			dir = root
+		path = filepath.Join(root, e.dir, path)
+		if filepath.IsAbs(e.dir) {
+			path = filepath.Join(e.dir, e.file)
 		}
-		path = filepath.Join(dir, path)
 	}
 	// Resolved first, so a link cannot lead the read out of the project.
 	if real, err := filepath.EvalSymlinks(path); err == nil {
@@ -527,6 +528,10 @@ func (e shellEdit) sites(root string) int {
 	}
 	clean, ok := under(root, path)
 	if !ok {
+		return 1
+	}
+	// A regular file only: a FIFO would block the read, and the gate's lock.
+	if fi, err := os.Stat(clean); err != nil || !fi.Mode().IsRegular() {
 		return 1
 	}
 	f, err := os.Open(clean)
@@ -566,13 +571,14 @@ func shellEdits(cmd string) (scripted bool, edits []shellEdit) {
 		case "done":
 			loop = max(0, loop-1)
 		case "cd":
-			// Where a relative file is, for counting its sites.
+			// Where a relative file is, for counting its sites: relative to
+			// the project root unless a cd made it absolute.
 			switch {
 			case len(toks) != 2 || seg.dynamic:
 				dir = ""
 			case filepath.IsAbs(toks[1]):
 				dir = toks[1]
-			case dir != "":
+			default:
 				dir = filepath.Join(dir, toks[1])
 			}
 		}

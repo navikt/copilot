@@ -783,7 +783,7 @@ func enforcedText(r local.GateRules) string {
 	if !r.Checkpoint {
 		t += " Once a file has been sent, your own edits to it pass, so you can fix or finish what the worker returns, or do it yourself if it fails."
 	}
-	t += " When `local-worker` returns, nav-pilot adds the checks to its answer, and reminds you once if you answer before a build or test command has run."
+	t += " When `local-worker` returns, nav-pilot appends these checks to its answer and reminds you once if you answer before any build or test command has run."
 	return t + "\n"
 }
 
