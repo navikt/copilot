@@ -13,28 +13,25 @@ export interface SourceHeading {
 // The link guard and the search index both read them, so they read them the
 // same way (#1098).
 // ponytail: regex over the source, not a render. An attribute holding a ">"
-// cuts the match short.
+// cuts the match short; a self-closing heading is skipped.
 export function sourceHeadings(src: string): SourceHeading[] {
-  return [...src.matchAll(/<(LinkableHeading|Heading|h[1-6])\b((?:[^>"]|"[^"]*")*)>([\s\S]*?)<\/\1>/g)].map((m) => {
-    const [, tag, attrs, children] = m;
-    const spaced = children.replace(/\{" "\}/g, " ");
-    // Our own source, shown as text: split on tags, then drop any stray < or >.
-    const text = spaced.includes("{")
-      ? undefined
-      : spaced
-          .split(/<[^>]*>/)
-          .join("")
-          .replace(/[<>]/g, "")
-          .replace(/\s+/g, " ")
-          .trim() || undefined;
-    // JSX joins the lines of a text child with one space.
-    const plain = /^[^<{]+$/.test(children)
-      ? children
-          .trim()
-          .split(/\s*\n\s*/)
-          .join(" ")
-      : undefined;
-    const id = attrs.match(/\bid="([^"]+)"/)?.[1] ?? (tag === "LinkableHeading" && plain ? slugify(plain) : undefined);
-    return { tag, id, text };
-  });
+  return [...src.matchAll(/<(LinkableHeading|Heading|h[1-6])\b((?:[^>"]|"[^"]*")*)(?<!\/)>([\s\S]*?)<\/\1>/g)].map(
+    (m) => {
+      const [, tag, attrs, children] = m;
+      const spaced = children.replace(/\{" "\}/g, " ");
+      // Our own source, shown as text: split on tags, then drop any stray < or >.
+      const text = spaced.includes("{")
+        ? undefined
+        : spaced
+            .split(/<[^>]*>/)
+            .join("")
+            .replace(/[<>]/g, "")
+            .replace(/\s+/g, " ")
+            .trim() || undefined;
+      // The component slugs a single string child, and only without an id prop.
+      const slug = tag === "LinkableHeading" && text && !/\bid=/.test(attrs) && !/[<{]/.test(children);
+      const id = attrs.match(/\bid="([^"]+)"/)?.[1] ?? (slug ? slugify(text) : undefined);
+      return { tag, id, text };
+    }
+  );
 }
