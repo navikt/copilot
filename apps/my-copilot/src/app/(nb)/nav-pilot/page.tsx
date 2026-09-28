@@ -335,6 +335,13 @@ logger.info("Vedtak",    `}
               apt={NAV_PILOT_APT_INSTALL}
               windowsNote="Kjør kommandoen i Linux-distroen din under WSL2."
             />
+            <p className="text-center" style={{ fontSize: "0.8125rem", color: "rgba(255,255,255,0.7)" }}>
+              Nye installasjoner bruker opencode. Har du nav-pilot fra før, beholder du klienten du har.{" "}
+              <NextLink href="/nav-pilot/klienter" style={{ color: "rgba(255,255,255,0.85)" }}>
+                Les om klientene
+              </NextLink>
+              .
+            </p>
             <p className="text-center" style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.55)" }}>
               CI, oppgradering og manuell installasjon står i{" "}
               <NextLink href="/nav-pilot/guider/installere-og-oppgradere" style={{ color: "rgba(255,255,255,0.75)" }}>
