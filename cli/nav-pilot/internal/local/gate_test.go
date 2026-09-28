@@ -202,6 +202,12 @@ func TestGateRoute(t *testing.T) {
 	if got := post(fmt.Sprintf(`{"session":"s","turn":1,"agent":"nav-pilot","tool":"write","path":%q}`, abs("F5.kt"))); !strings.Contains(got, `"deny"`) {
 		t.Errorf("the 5th file was answered %q", got)
 	}
+	if got := post(`{"session":"s","turn":1,"agent":"nav-pilot","tool":"task","subagent":"local-worker","phase":"after"}`); !strings.Contains(got, `"append"`) {
+		t.Errorf("the worker's return was answered %q", got)
+	}
+	if got := post(`{"session":"s","turn":1,"agent":"nav-pilot","phase":"text"}`); !strings.Contains(got, `"nudge"`) {
+		t.Errorf("text after the worker's return was answered %q", got)
+	}
 }
 
 func TestGateOnlyCountsFilesThatExist(t *testing.T) {
@@ -320,5 +326,196 @@ func TestGateStatsOnlyUnderTheProject(t *testing.T) {
 	}
 	if _, ok := under("", "/proj/A.kt"); ok {
 		t.Error("no root must stat nothing")
+	}
+}
+
+func TestSubstitution(t *testing.T) {
+	for _, tc := range []struct {
+		script string
+		ere    bool
+		line   string
+		n      int // matches in line; -1 for no pattern
+		global bool
+	}{
+		// Probe 6, r6: BRE, where ( ) are literal.
+		{`s/\.generate()/.generate("T")/g`, false, `a.generate() + b.generate()`, 2, true},
+		{`s/foo()/foo("A")/`, false, `foo() foo()`, 2, false},
+		{`s/foo\(bar\)/x/g`, false, `foobar`, 1, true},
+		{`s|a/b|c|g`, false, `a/b a/b`, 2, true},
+		{`s/a\/b/c/g`, false, `a/b`, 1, true},
+		{`s/\<id\>/key/g`, false, `id idx id`, 2, true},
+		// ERE and perl: ( ) group.
+		{`s/foo(\(\))/x/g`, true, `foo()`, 1, true},
+		{`s/toP\(\)/toP("R")/g`, true, `toP() toP()`, 2, true},
+		// Not a plain substitution: no count.
+		{`55s/a/b/`, false, ``, -1, false},
+		{`s/a/b/g; s/c/d/g`, false, ``, -1, false},
+		{`s/(a)\1/b/`, true, ``, -1, false},
+		{`y/abc/xyz/`, false, ``, -1, false},
+	} {
+		re, global := substitution(tc.script, tc.ere)
+		if tc.n < 0 {
+			if re != nil {
+				t.Errorf("substitution(%q) = %v, want none", tc.script, re)
+			}
+			continue
+		}
+		if re == nil || global != tc.global || len(re.FindAllStringIndex(tc.line, -1)) != tc.n {
+			t.Errorf("substitution(%q) = %v, %v on %q; want %d matches, global %v", tc.script, re, global, tc.line, tc.n, tc.global)
+		}
+	}
+}
+
+// writeCalls writes a file of n lines that each call x.foo().
+func writeCalls(t *testing.T, path string, n int) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(strings.Repeat("    x.foo()\n", n)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func bash(turn int, cmd string) GateRequest {
+	return GateRequest{Session: "s", Turn: turn, Agent: "nav-pilot", Tool: "bash", Command: cmd}
+}
+
+// Probe 6, cell r6: 60 call sites in 3 files, as the orchestrator did it
+// there. Two edits of two files, then one sed with /g over the test file.
+func TestGateCountsTheSitesOfAReplacement(t *testing.T) {
+	for _, rules := range []GateRules{multi, {Multi: true, Checkpoint: true}} {
+		g := testGate(t, true, rules)
+		writeCalls(t, "src/BitTest.kt", 58)
+		g.decide(edit(1, "src/F1.kt"))
+		g.decide(edit(1, "src/F2.kt"))
+		sed := bash(1, "cd "+root+` && sed -i '' 's/\.foo()/.foo("BitTest")/g' src/BitTest.kt`)
+		deny, outcome := g.decide(sed)
+		if deny == "" || outcome != "deny_sites" {
+			t.Fatalf("checkpoint %v: 58 call sites in a 3rd file got %q", rules.Checkpoint, outcome)
+		}
+		if rules.Checkpoint {
+			if deny, _ := g.decide(sed); deny != "" {
+				t.Fatal("the retry at a checkpoint was denied")
+			}
+			continue
+		}
+		g.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "task", Subagent: WorkerAgent, Prompt: "In src/BitTest.kt …"})
+		if deny, _ := g.decide(sed); deny != "" {
+			t.Fatal("the sed on a file sent to the worker was denied")
+		}
+	}
+}
+
+// Probe 6's small cell: 6 call sites in 3 files, under every size. The same
+// kind of sed must not trip the site rule.
+func TestGateSmallReplacementPasses(t *testing.T) {
+	g := testGate(t, true, multi)
+	writeCalls(t, "src/Repo.kt", 4)
+	for _, r := range []GateRequest{
+		edit(1, "src/Repo.kt"),
+		bash(1, `sed -i '' 's/foo()/foo("Repo")/g' src/Repo.kt`),
+		edit(1, "src/F1.kt"),
+		edit(1, "src/F2.kt"),
+		bash(1, `perl -pi -e 's/foo\(\)/foo("F3")/g' src/F3.kt`),
+	} {
+		if deny, outcome := g.decide(r); deny != "" {
+			t.Fatalf("%s %s%s was denied (%s)", r.Tool, r.Path, r.Command, outcome)
+		}
+	}
+}
+
+func TestGateCountsAReplaceAllEdit(t *testing.T) {
+	g := testGate(t, true, multi)
+	writeCalls(t, "src/Big.kt", 12)
+	g.decide(edit(1, "src/F1.kt"))
+	g.decide(edit(1, "src/F2.kt"))
+	one := edit(1, "src/Big.kt")
+	one.Old = "x.foo()"
+	if deny, _ := g.decide(one); deny != "" {
+		t.Fatal("an edit of one match was counted as all of them")
+	}
+	all := edit(1, "src/Big.kt")
+	all.Old, all.ReplaceAll = "x.foo()", true
+	if deny, outcome := g.decide(all); outcome != "deny_sites" {
+		t.Fatalf("a replaceAll edit of 12 matches got %q %q", deny, outcome)
+	}
+}
+
+func TestGateSitesStayInTheProject(t *testing.T) {
+	outside := t.TempDir()
+	writeCalls(t, filepath.Join(outside, "Big.kt"), 50)
+	g := testGate(t, true, multi)
+	g.decide(edit(1, "src/F1.kt"))
+	g.decide(edit(1, "src/F2.kt"))
+	if deny, _ := g.decide(bash(1, "cd "+outside+` && sed -i 's/foo/bar/g' Big.kt`)); deny != "" {
+		t.Fatal("the gate counted the sites of a file outside the project")
+	}
+	if err := os.Symlink(filepath.Join(outside, "Big.kt"), "src/Link.kt"); err != nil {
+		t.Fatal(err)
+	}
+	if deny, _ := g.decide(bash(1, `sed -i 's/foo/bar/g' src/Link.kt`)); deny != "" {
+		t.Fatal("the gate followed a link out of the project")
+	}
+}
+
+func TestVerifies(t *testing.T) {
+	for cmd, want := range map[string]bool{
+		`cd /p && ./gradlew compileKotlin compileTestKotlin -q 2>&1 | tail -60`: true,
+		`JAVA_HOME=/jdk ./gradlew test --tests 'FooTest'`:                       true,
+		`timeout 300 mvn -q test`:                                               true,
+		`go test ./...`:                                                         true,
+		`npm run typecheck`:                                                     true,
+		`pnpm test`:                                                             true,
+		`npx tsc --noEmit`:                                                      true,
+		`uv run pytest -q`:                                                      true,
+		`cargo check`:                                                           true,
+		`grep -rn "foo(" src`:                                                   false,
+		`git diff --stat`:                                                       false,
+		`echo "run the gradle build"`:                                           false,
+		`go doc fmt`:                                                            false,
+		`npm install`:                                                           false,
+	} {
+		if got := Verifies(cmd); got != want {
+			t.Errorf("Verifies(%q) = %v, want %v", cmd, got, want)
+		}
+	}
+}
+
+func TestGateVerifiesTheWorkersResult(t *testing.T) {
+	g := testGate(t, true, multi)
+	text := GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Phase: "text"}
+	if key, _ := g.verify(text); key != "" {
+		t.Fatal("a reminder before anything was sent to the worker")
+	}
+	returned := GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "task", Subagent: WorkerAgent, Phase: "after"}
+	if key, got := g.verify(returned); key != "append" || got != GateVerifyText {
+		t.Fatalf("the worker's return got %q %q", key, got)
+	}
+	// A grep is not a check.
+	g.decide(bash(1, `grep -rn "foo(" src`))
+	if key, got := g.verify(text); key != "nudge" || got != GateNudgeText {
+		t.Fatalf("text after an unchecked return got %q", key)
+	}
+	if key, _ := g.verify(text); key != "" {
+		t.Fatal("the reminder came twice in one turn")
+	}
+	if n := g.snapshot()["verify_nudge"]; n != 1 {
+		t.Errorf("verify_nudge = %d, want 1", n)
+	}
+	// A build after the return settles it, for the next return too.
+	g.verify(GateRequest{Session: "s", Turn: 2, Agent: "nav-pilot", Tool: "task", Subagent: WorkerAgent, Phase: "after"})
+	g.decide(bash(2, "./gradlew build"))
+	if key, _ := g.verify(GateRequest{Session: "s", Turn: 2, Agent: "nav-pilot", Phase: "text"}); key != "" {
+		t.Fatal("a reminder after the build had run")
+	}
+	// The worker's own session and a task to another agent are not its business.
+	for _, r := range []GateRequest{
+		{Session: "s", Turn: 3, Agent: WorkerAgent, Tool: "task", Subagent: WorkerAgent, Phase: "after"},
+		{Session: "s", Turn: 3, Agent: "nav-pilot", Tool: "task", Subagent: "explore", Phase: "after"},
+	} {
+		if key, _ := g.verify(r); key != "" {
+			t.Errorf("%+v answered %q", r, key)
+		}
+	}
+	if key, _ := g.verify(GateRequest{Session: "s", Turn: 3, Agent: "nav-pilot", Phase: "text"}); key != "" {
+		t.Error("a reminder with nothing returned from the worker")
 	}
 }

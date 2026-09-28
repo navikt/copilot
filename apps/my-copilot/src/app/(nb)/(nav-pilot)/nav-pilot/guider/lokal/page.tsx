@@ -97,16 +97,33 @@ nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> fo
             </li>
             <li>
               <code className={code}>balanced</code> (standard): mekaniske endringer på minst 5 filer eller 10
-              kallsteder. Redigerer hovedagenten selv en femte fil i samme tur, stopper nav-pilot redigeringen én gang
-              og ber om at resten sendes til <code className={code}>local-worker</code>. Trenger endringen en vurdering
-              per fil, går samme redigering gjennom andre gang.
+              kallsteder. Redigerer hovedagenten selv en femte fil eller når ti kallsteder i samme tur, stopper
+              nav-pilot redigeringen én gang og ber om at resten sendes til <code className={code}>local-worker</code>.
+              Et søk-og-erstatt teller hvert sted det endrer. Trenger endringen en vurdering per fil, går samme
+              redigering gjennom andre gang.
             </li>
             <li>
-              <code className={code}>aggressive</code>: en stoppet fil slipper gjennom først når den er sendt til{" "}
-              <code className={code}>local-worker</code>. Nye filer, også tester, går dit først når modellen er godkjent
-              for nye filer.
+              <code className={code}>aggressive</code> (valgfritt): en stoppet fil slipper gjennom først når den er
+              sendt til <code className={code}>local-worker</code>. Nye filer, også tester, går dit først når modellen
+              er godkjent for nye filer.
             </li>
           </Bullets>
+          <BodyLong>
+            Når <code className={code}>local-worker</code> er ferdig, legger nav-pilot til i svaret at hovedagenten skal
+            bygge prosjektet og kjøre testene før den godtar endringen. Har den lokale modellen skrevet en test, skal
+            hovedagenten vise at testen kan feile. Skriver hovedagenten svaret sitt før noe bygg eller testkjøring,
+            minner nav-pilot den på det én gang.
+          </BodyLong>
+          <BodyLong>
+            <code className={code}>aggressive</code> sender mest, men sparer ikke skykreditter. I målingen 28. september
+            2026 (probe 6) sendte hovedagenten arbeid i 6 av 8 kjøringer med mange kallsteder eller nye testfiler, mot 2
+            av 6 med <code className={code}>balanced</code>. På disse oppgavene kostet{" "}
+            <code className={code}>aggressive</code> 1,2–1,6 ganger så mye i skykreditter og tok 2–3,6 ganger så lang
+            tid som når skymodellen gjorde alt selv. Kvaliteten var lavere på nye testfiler: én testfil fra den lokale
+            modellen besto uten å fange feilen den skulle fange, og én kjøring ble stoppet etter 20 minutter. Velg{" "}
+            <code className={code}>aggressive</code> bare hvis du vil bruke den lokale modellen mest mulig, og bare til
+            mekaniske endringer over mange filer.
+          </BodyLong>
           <BodyLong>
             Uansett nivå sender hovedagenten bare oppgavetyper modellen er godkjent for. Stoppet ligger i en plugin for
             opencode, så det virker ikke hvis du starter opencode med <code className={code}>--pure</code>. Hvorfor

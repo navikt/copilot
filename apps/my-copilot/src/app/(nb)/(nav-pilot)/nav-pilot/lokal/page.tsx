@@ -146,7 +146,19 @@ export default async function LokalIntro() {
             Be om en mekanisk endring over flere filer, for eksempel «legg til parameteren{" "}
             <code className={code}>ctx</code> i alle kall til <code className={code}>hentBruker</code>». Med
             standardnivået <code className={code}>balanced</code> stopper nav-pilot hovedagenten én gang når den
-            redigerer en femte fil selv, og ber den sende resten til <code className={code}>local-worker</code>.
+            redigerer en femte fil selv eller når ti kallsteder, og ber den sende resten til{" "}
+            <code className={code}>local-worker</code>. Når <code className={code}>local-worker</code> er ferdig, ber
+            nav-pilot hovedagenten bygge prosjektet og kjøre testene før den godtar endringen.
+          </BodyLong>
+          <BodyLong>
+            Vil du at den lokale modellen skal gjøre mest mulig, kan du velge <code className={code}>aggressive</code>{" "}
+            med <code className={code}>nav-pilot config set local_dispatch aggressive</code>. Da sender hovedagenten
+            mest, men det sparer ikke skykreditter. I målingen 28. september 2026 (probe 6) sendte hovedagenten arbeid i
+            6 av 8 kjøringer med mange kallsteder eller nye testfiler. Det kostet 1,2–1,6 ganger så mye i skykreditter
+            og tok 2–3,6 ganger så lang tid som når skymodellen gjorde alt selv. Kvaliteten var lavere på nye testfiler:
+            én testfil fra den lokale modellen besto uten å fange feilen den skulle fange. Bruk{" "}
+            <code className={code}>aggressive</code> bare til mekaniske endringer over mange filer.{" "}
+            <code className={code}>balanced</code> er fortsatt standard.
           </BodyLong>
           <BodyLong>
             Etterpå viser <code className={code}>nav-pilot alpha local status</code> at serveren fortsatt kjører, og

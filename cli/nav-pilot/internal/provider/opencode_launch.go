@@ -720,7 +720,13 @@ const describeFully = "Describe the change fully when you send it: which file, w
 // clause, with a threshold of "a change you can make in two", made Sonnet 5
 // keep everything (0 of 7 probe samples dispatched). It sets no size either;
 // the class lines after it do, where a size means something.
-const sendTrusted = "Send these to `local-worker` instead of doing them yourself: they are what it was measured to do reliably. Give it the files, exactly what to change or answer, and how to check it, such as a command that verifies the change. When it answers, check the result.\n"
+//
+// The check after it answers is spelled out because a lighter one failed in
+// probe 6 (mlx-workspace §8.8): a grep passed a broken definition, and a new
+// test that was green caught nothing. Where the gate runs, it repeats this in
+// the worker's result (local.GateVerifyText).
+const sendTrusted = "Send these to `local-worker` instead of doing them yourself: they are what it was measured to do reliably. Give it the files, exactly what to change or answer, and how to check it, such as a command that verifies the change. " +
+	"When it answers, build the project and run the tests that cover the change before you accept it; a grep is not a check. If it wrote a test, also show that the test can fail: break the code it tests on purpose, run the test, and undo the break.\n"
 
 // splitMulti is added when mechanical multi-file edits are trusted, and is
 // where the credits are (mlx-workspace pending-tasks §8.8). Once told to send
@@ -764,7 +770,7 @@ func enforcedText(r local.GateRules) string {
 	}
 	t := "nav-pilot enforces this in every tier: the persona's Trivial and Compressed tiers decide how you move through the phases, not who writes the files."
 	if r.Multi {
-		t += " When a mechanical change has you edit a 5th file yourself in one turn, make a 10th edit across files, or script per-file edits in a shell loop, the edit is refused"
+		t += " When a mechanical change has you edit a 5th file yourself in one turn, reach 10 call sites across files (a search-and-replace counts every place it changes), or script per-file edits in a shell loop, the edit is refused"
 		if r.Checkpoint {
 			t += " once: send the rest to `local-worker`, or, if the change needs a judgement per file, make the same edit again and it goes through."
 		} else {
@@ -777,6 +783,7 @@ func enforcedText(r local.GateRules) string {
 	if !r.Checkpoint {
 		t += " Once a file has been sent, your own edits to it pass, so you can fix or finish what the worker returns, or do it yourself if it fails."
 	}
+	t += " When `local-worker` returns, nav-pilot adds the checks to its answer, and reminds you once if you answer before a build or test command has run."
 	return t + "\n"
 }
 

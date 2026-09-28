@@ -95,8 +95,25 @@ const GateCreateText = "nav-pilot (local_dispatch = aggressive): new files go to
 	"Send it a task naming the file, what it must contain and how to check it, such as the test command. " +
 	"Once a file has been sent to `local-worker`, your own edits to it pass, so you can fix or finish what it returns."
 
+// GateVerifyText is appended to what `local-worker` returns, so the
+// orchestrator reads it at the moment it decides whether to accept the work.
+// Probe 6 (mlx-workspace §8.8): a grep passed a broken definition, and a new
+// test file that was green but caught nothing was accepted.
+const GateVerifyText = "nav-pilot (local_dispatch): before you accept this, build the project and run the tests that cover the change. " +
+	"A grep is not a check. If `local-worker` wrote a test, show that it can fail: break the code it tests on purpose, " +
+	"for example make the function return a constant, run the test, see it fail, and undo the break."
+
+// GateNudgeText is added once per turn as a message when the orchestrator
+// writes text after `local-worker` returned and no build or test command has
+// run since. Worded for the case where it is about to run one.
+const GateNudgeText = "nav-pilot (local_dispatch): no build or test command has run since `local-worker` returned. " +
+	"Unless you are about to run one, build the project and run the tests that cover the change before you answer, " +
+	"and fix or redo what fails."
+
 // GateRequest is what the plugin sends for one tool call. No file contents:
 // the path, the shell command, and a task's prompt when it goes to the worker.
+// The one exception is an edit's oldString when it replaces every match,
+// which the gate counts in the file.
 type GateRequest struct {
 	Session  string `json:"session"`
 	Turn     int    `json:"turn"`
@@ -110,24 +127,32 @@ type GateRequest struct {
 	// empty oldString). An edit of a path that is not there is a mistake
 	// opencode reports itself.
 	Create bool `json:"create"`
+	// ReplaceAll and Old: an edit that replaces every match of Old.
+	ReplaceAll bool   `json:"replaceAll"`
+	Old        string `json:"old"`
+	// Phase is "" before a tool call, "after" once a task to the worker has
+	// returned, and "text" when the orchestrator has written text.
+	Phase string `json:"phase"`
 }
 
 type gateTurn struct {
 	turn       int
 	files      map[string]bool
-	calls      int
+	sites      int // call sites edited: 1 per edit, the matches of a replacement
 	denies     int
 	refused    map[string]bool // files refused this turn, for a checkpoint retry
 	dispatched bool
 	sent       []string // prompts sent to the worker this turn
+	unverified bool     // the worker returned, and no build or test has run since
+	nudged     bool
 }
 
 // GateRules says which rules a session's gate runs. Each needs its class
 // trusted in delegate mode: the gate never denies on an untrusted class's
 // account.
 type GateRules struct {
-	// Multi: the edit that reaches a 5th file or a 10th edit in a turn, and
-	// scripted per-file shell edits (edit-multi-mechanical).
+	// Multi: the edit that reaches a 5th file or a 10th call site in a turn,
+	// and scripted per-file shell edits (edit-multi-mechanical).
 	Multi bool
 	// Create: a file the orchestrator would create itself (create-file).
 	Create bool
@@ -211,13 +236,9 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	st := g.sessions[r.Session]
-	if st == nil || st.turn != r.Turn {
-		st = &gateTurn{turn: r.Turn, files: map[string]bool{}, refused: map[string]bool{}}
-		g.sessions[r.Session] = st
-	}
+	st := g.turn(r)
 
-	var files []string
+	var edits []shellEdit
 	scripted := false
 	switch r.Tool {
 	case "task":
@@ -249,9 +270,16 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 			g.counts["deny_create"]++
 			return GateCreateText, "deny_create"
 		}
-		files = []string{r.Path}
+		e := shellEdit{file: r.Path}
+		if r.Tool == "edit" && r.ReplaceAll && r.Old != "" {
+			e.re, e.global = regexp.MustCompile(regexp.QuoteMeta(r.Old)), true
+		}
+		edits = []shellEdit{e}
 	case "bash":
-		scripted, files = ShellEdits(r.Command)
+		if st.unverified && Verifies(r.Command) {
+			st.unverified = false
+		}
+		scripted, edits = shellEdits(r.Command)
 	default:
 		return "", ""
 	}
@@ -273,9 +301,11 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 	// twice. Two different files with one name count once, which errs
 	// toward allowing.
 	var counted []string
-	for _, f := range files {
-		if !st.exempt(f) {
-			counted = append(counted, filepath.Base(f))
+	sites := 0
+	for _, e := range edits {
+		if !st.exempt(e.file) {
+			counted = append(counted, filepath.Base(e.file))
+			sites += e.sites(g.rules.Root)
 		}
 	}
 	if len(counted) == 0 {
@@ -287,20 +317,61 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 			newFiles++
 		}
 	}
-	// The call count needs several files: ten edits of one file is someone
-	// fixing a test, not a mechanical change across files.
-	over := (newFiles > 0 && len(st.files)+newFiles >= gateFiles) || (len(st.files) >= 2 && st.calls+1 >= gateCalls)
-	if over && !passesAll(st, counted, g.rules) && st.denies < g.rules.budget() && g.serverUp() {
+	// The site count needs two files already: ten edits of one file is
+	// someone fixing a test, not a mechanical change across files. A
+	// replacement counts each place it changes, so a job of 60 call sites in
+	// 3 files (probe 6, r6: two edits, then one sed with /g) reaches it too.
+	byFiles := newFiles > 0 && len(st.files)+newFiles >= gateFiles
+	bySites := len(st.files) >= 2 && st.sites+sites >= gateCalls
+	if (byFiles || bySites) && !passesAll(st, counted, g.rules) && st.denies < g.rules.budget() && g.serverUp() {
 		for _, f := range counted {
 			st.refused[f] = true
 		}
 		st.denies++
-		g.counts["deny_files"]++
-		return g.denyText(), "deny_files"
+		outcome := "deny_files"
+		if !byFiles {
+			outcome = "deny_sites"
+		}
+		g.counts[outcome]++
+		return g.denyText(), outcome
 	}
-	st.calls++
+	st.sites += sites
 	for _, f := range counted {
 		st.files[f] = true
+	}
+	return "", ""
+}
+
+// turn returns the session's state for this turn, fresh when the turn has
+// changed. The caller holds g.mu.
+func (g *dispatchGate) turn(r GateRequest) *gateTurn {
+	st := g.sessions[r.Session]
+	if st == nil || st.turn != r.Turn {
+		st = &gateTurn{turn: r.Turn, files: map[string]bool{}, refused: map[string]bool{}}
+		g.sessions[r.Session] = st
+	}
+	return st
+}
+
+// verify answers the plugin's calls after the fact: the text to append to
+// what the worker returned ("after"), and, once per turn, the reminder to
+// send when the orchestrator writes text while the worker's work is
+// unverified ("text"). The key is the JSON field the plugin reads.
+func (g *dispatchGate) verify(r GateRequest) (key, text string) {
+	if r.Session == "" || r.Agent == "" || r.Agent == WorkerAgent {
+		return "", ""
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	st := g.turn(r)
+	switch {
+	case r.Phase == "after" && r.Tool == "task" && r.Subagent == WorkerAgent:
+		st.unverified = true
+		return "append", GateVerifyText
+	case r.Phase == "text" && st.unverified && !st.nudged:
+		st.nudged = true
+		g.counts["verify_nudge"]++
+		return "nudge", GateNudgeText
 	}
 	return "", ""
 }
@@ -375,12 +446,17 @@ func (g *dispatchGate) serve(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("{}"))
 		return
 	}
-	deny, _ := g.decide(req)
-	if deny == "" {
+	key, text := "deny", ""
+	if req.Phase == "" {
+		text, _ = g.decide(req)
+	} else {
+		key, text = g.verify(req)
+	}
+	if text == "" {
 		_, _ = w.Write([]byte("{}"))
 		return
 	}
-	_ = json.NewEncoder(w).Encode(map[string]string{"deny": deny})
+	_ = json.NewEncoder(w).Encode(map[string]string{key: text})
 }
 
 // snapshot returns the gate's outcomes so far, for the exit-time telemetry.
@@ -411,7 +487,71 @@ var (
 // ponytail: a lexer, not a shell parser. Heredocs, python -c and cat > file
 // are not seen; telemetry shows them as few denies with few dispatches.
 func ShellEdits(cmd string) (scripted bool, files []string) {
+	scripted, edits := shellEdits(cmd)
+	for _, e := range edits {
+		files = append(files, e.file)
+	}
+	return scripted, files
+}
+
+// shellEdit is one in-place edit of one file. re is its substitution's
+// pattern when the gate could read it, and global its /g flag.
+type shellEdit struct {
+	file   string
+	dir    string // the directory a relative file is in, from a cd before it
+	re     *regexp.Regexp
+	global bool
+}
+
+// sites is the number of places the edit changes: the matches of its
+// pattern in the file, per line as sed and perl -p work, and 1 when the gate
+// cannot tell. Only a file under root is read.
+//
+// ponytail: the file is read before the edit runs, once per edit call. A
+// pattern RE2 cannot compile (a backreference, a lookaround) counts 1.
+func (e shellEdit) sites(root string) int {
+	if e.re == nil {
+		return 1
+	}
+	path := e.file
+	if !filepath.IsAbs(path) {
+		dir := e.dir
+		if dir == "" {
+			dir = root
+		}
+		path = filepath.Join(dir, path)
+	}
+	// Resolved first, so a link cannot lead the read out of the project.
+	if real, err := filepath.EvalSymlinks(path); err == nil {
+		path = real
+	}
+	clean, ok := under(root, path)
+	if !ok {
+		return 1
+	}
+	f, err := os.Open(clean)
+	if err != nil {
+		return 1
+	}
+	defer f.Close()
+	b, err := io.ReadAll(io.LimitReader(f, 4<<20))
+	if err != nil {
+		return 1
+	}
+	n := 0
+	for _, line := range strings.Split(string(b), "\n") {
+		if e.global {
+			n += len(e.re.FindAllStringIndex(line, -1))
+		} else if e.re.MatchString(line) {
+			n++
+		}
+	}
+	return max(1, n)
+}
+
+func shellEdits(cmd string) (scripted bool, edits []shellEdit) {
 	loop := 0
+	dir := ""
 	for _, seg := range splitSegments(cmd) {
 		toks := shellWords(seg.text)
 		for len(toks) > 0 && (toks[0] == "do" || toks[0] == "then" || toks[0] == "{" || toks[0] == "(") {
@@ -425,6 +565,16 @@ func ShellEdits(cmd string) (scripted bool, files []string) {
 			loop++
 		case "done":
 			loop = max(0, loop-1)
+		case "cd":
+			// Where a relative file is, for counting its sites.
+			switch {
+			case len(toks) != 2 || seg.dynamic:
+				dir = ""
+			case filepath.IsAbs(toks[1]):
+				dir = toks[1]
+			case dir != "":
+				dir = filepath.Join(dir, toks[1])
+			}
 		}
 		at := -1
 		for j, t := range toks {
@@ -436,12 +586,13 @@ func ShellEdits(cmd string) (scripted bool, files []string) {
 		if at < 0 {
 			continue
 		}
-		var fs []string
-		var inPlace bool
+		var fs, scripts []string
+		var inPlace, ere bool
 		if filepath.Base(toks[at]) == "perl" {
-			fs, inPlace = perlFiles(toks[at+1:])
+			fs, scripts, inPlace = perlFiles(toks[at+1:])
+			ere = true
 		} else {
-			fs, inPlace = sedFiles(toks[at+1:])
+			fs, scripts, inPlace, ere = sedFiles(toks[at+1:])
 		}
 		if !inPlace {
 			continue
@@ -459,48 +610,140 @@ func ShellEdits(cmd string) (scripted bool, files []string) {
 			}
 		}
 		if !indirect && len(fs) == 1 {
-			files = append(files, fs[0])
+			e := shellEdit{file: fs[0], dir: dir}
+			// One substitution only, and none with a computed value, whose
+			// pattern may hold the value.
+			if len(scripts) == 1 && !seg.dynamic {
+				e.re, e.global = substitution(scripts[0], ere)
+			}
+			edits = append(edits, e)
 		}
 	}
-	return false, files
+	return false, edits
 }
 
-// sedFiles returns the files of an in-place sed, and false when it is not
-// in place.
-func sedFiles(args []string) ([]string, bool) {
-	inPlace, script := false, false
-	var files []string
+// substitution reads an s command with no address (s/pat/repl/flags, any
+// delimiter) and returns its pattern as RE2, and whether it has the g flag.
+// nil when it is anything else or does not compile.
+func substitution(script string, ere bool) (*regexp.Regexp, bool) {
+	script = strings.TrimSpace(script)
+	if len(script) < 4 || script[0] != 's' {
+		return nil, false
+	}
+	delim := script[1]
+	if delim == '\\' || delim == '\n' || delim == ' ' {
+		return nil, false
+	}
+	var parts []string
+	var cur strings.Builder
+	for i := 2; i < len(script); i++ {
+		c := script[i]
+		switch {
+		case c == '\\' && i+1 < len(script) && script[i+1] == delim:
+			cur.WriteString(regexp.QuoteMeta(string(delim)))
+			i++
+		case c == '\\' && i+1 < len(script):
+			cur.WriteByte(c)
+			cur.WriteByte(script[i+1])
+			i++
+		case c == delim:
+			parts = append(parts, cur.String())
+			cur.Reset()
+		default:
+			cur.WriteByte(c)
+		}
+	}
+	if len(parts) != 2 || strings.ContainsAny(cur.String(), ";}\n") {
+		return nil, false
+	}
+	pat := parts[0]
+	if !ere {
+		pat = breToRE2(pat)
+	}
+	pat = strings.NewReplacer(`\<`, `\b`, `\>`, `\b`).Replace(pat)
+	re, err := regexp.Compile(pat)
+	if err != nil {
+		return nil, false
+	}
+	return re, strings.Contains(cur.String(), "g")
+}
+
+// breToRE2 turns a POSIX basic regex into RE2: in a BRE, ( ) { } + ? | are
+// literal, and escaped they are operators (+ ? | as GNU extensions).
+func breToRE2(p string) string {
+	var b strings.Builder
+	for i := 0; i < len(p); i++ {
+		c := p[i]
+		switch {
+		case c == '\\' && i+1 < len(p) && strings.IndexByte("(){}+?|", p[i+1]) >= 0:
+			b.WriteByte(p[i+1])
+			i++
+		case c == '\\' && i+1 < len(p):
+			b.WriteByte(c)
+			b.WriteByte(p[i+1])
+			i++
+		case strings.IndexByte("(){}+?|", c) >= 0:
+			b.WriteByte('\\')
+			b.WriteByte(c)
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
+}
+
+// sedFiles returns the files and scripts of an in-place sed, whether it is
+// in place, and whether its regexes are extended (-E, -r).
+func sedFiles(args []string) (files, scripts []string, inPlace, ere bool) {
+	script := false
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
 		case a == "--in-place" || strings.HasPrefix(a, "--in-place="):
 			inPlace = true
+		case a == "--regexp-extended":
+			ere = true
 		case a == "-i":
 			inPlace = true
 			// BSD sed: -i takes the backup suffix as the next word, '' for none.
 			if i+1 < len(args) && args[i+1] == "" {
 				i++
 			}
-		case a == "-e" || a == "-f" || a == "--expression" || a == "--file":
+		case a == "-e" || a == "--expression":
 			script = true
+			if i+1 < len(args) {
+				scripts = append(scripts, args[i+1])
+			}
+			i++
+		case a == "-f" || a == "--file":
+			script = true
+			scripts = append(scripts, "") // unreadable here
 			i++
 		case strings.HasPrefix(a, "-") && len(a) > 1:
 			if sedInline.MatchString(a) {
 				inPlace = true
 			}
+			// What follows an i is the backup suffix (-i.orig), not flags.
+			flags := a[1:]
+			if k := strings.IndexByte(flags, 'i'); k >= 0 {
+				flags = flags[:k]
+			}
+			if !strings.HasPrefix(a, "--") && strings.ContainsAny(flags, "Er") {
+				ere = true
+			}
 		case !script:
 			script = true
+			scripts = append(scripts, a)
 		default:
 			files = append(files, a)
 		}
 	}
-	return files, inPlace
+	return files, scripts, inPlace, ere
 }
 
-// perlFiles returns the files of an in-place perl (-i, -pi, -pie, -i.bak).
-func perlFiles(args []string) ([]string, bool) {
-	inPlace := false
-	var files []string
+// perlFiles returns the files and scripts of an in-place perl (-i, -pi,
+// -pie, -i.bak), and whether it is in place.
+func perlFiles(args []string) (files, scripts []string, inPlace bool) {
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
@@ -512,13 +755,67 @@ func perlFiles(args []string) ([]string, bool) {
 				inPlace = true
 			}
 			if strings.HasSuffix(flags, "e") || strings.HasSuffix(flags, "E") {
+				if i+1 < len(args) {
+					scripts = append(scripts, args[i+1])
+				}
 				i++ // the script
 			}
 		default:
 			files = append(files, a)
 		}
 	}
-	return files, inPlace
+	return files, scripts, inPlace
+}
+
+// Verifies reports whether a bash command builds the project or runs its
+// tests: a segment that runs a build tool or test runner.
+//
+// ponytail: a list of the common tools, not every build system. One missing
+// here costs one reminder too many (verify_nudge), never a refusal.
+func Verifies(cmd string) bool {
+	for _, seg := range splitSegments(cmd) {
+		toks := shellWords(seg.text)
+		for len(toks) > 0 && (strings.Contains(toks[0], "=") || slices.Contains([]string{"do", "then", "{", "(", "time", "env", "command", "nice"}, toks[0])) {
+			toks = toks[1:]
+		}
+		if len(toks) > 1 && toks[0] == "timeout" {
+			toks = toks[2:]
+		}
+		if len(toks) == 0 {
+			continue
+		}
+		arg := func(i int) string {
+			if i < len(toks) {
+				return toks[i]
+			}
+			return ""
+		}
+		switch filepath.Base(toks[0]) {
+		case "gradle", "gradlew", "mvn", "mvnw", "tsc", "pytest", "jest", "vitest", "make", "sbt", "bazel", "bazelisk":
+			return true
+		case "go", "cargo", "dotnet", "swift", "deno", "mix":
+			if slices.Contains([]string{"test", "build", "vet", "check"}, arg(1)) {
+				return true
+			}
+		case "npm", "pnpm", "yarn", "bun":
+			s := arg(1)
+			if s == "run" || s == "run-script" {
+				s = arg(2)
+			}
+			if strings.Contains(s, "test") || strings.Contains(s, "build") || strings.Contains(s, "check") || s == "tsc" {
+				return true
+			}
+		case "npx", "pnpx", "bunx":
+			if slices.Contains([]string{"tsc", "jest", "vitest", "playwright"}, arg(1)) {
+				return true
+			}
+		case "python", "python3", "uv", "poetry":
+			if slices.Contains(toks, "pytest") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // segment is one simple command. dynamic: it holds a $ or a backtick outside

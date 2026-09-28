@@ -285,7 +285,7 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	}
 
 	localGateTotal, err := meter.Int64Counter("nav_pilot_local_gate_total",
-		metric.WithDescription("Dispatch gate decisions at local_dispatch = balanced or aggressive, by outcome: deny_files, deny_scripted, deny_create, dispatched_after_deny."))
+		metric.WithDescription("Dispatch gate decisions at local_dispatch = balanced or aggressive, by outcome: deny_files, deny_sites, deny_scripted, deny_create, dispatched_after_deny, verify_nudge."))
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create local gate counter: %w", err)
 	}
@@ -775,7 +775,7 @@ func (t *otelTelemetry) RecordLocalGate(outcome string, count int64) {
 		return
 	}
 	t.localGateTotal.Add(context.Background(), count, metric.WithAttributes(
-		attribute.String("outcome", oneOf(outcome, "deny_files", "deny_scripted", "deny_create", "dispatched_after_deny")),
+		attribute.String("outcome", oneOf(outcome, "deny_files", "deny_sites", "deny_scripted", "deny_create", "dispatched_after_deny", "verify_nudge")),
 		attribute.String("version", t.version),
 		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),
