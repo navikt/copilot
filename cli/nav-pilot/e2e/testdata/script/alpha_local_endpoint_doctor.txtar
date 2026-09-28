@@ -55,3 +55,16 @@ stdout 'Fix: Use a context that fits in memory'
 stdout '--n-cpu-moe'
 stdout 'ki-utvikling\.nav\.no/nav-pilot/lokal/egen-server#lite-minne'
 ! stdout 'OLLAMA_CONTEXT_LENGTH=65536'
+
+# A server that dies on the first chat request: the server stopped
+# answering, not a missing --jinja, and nothing more is sent to it (#1223).
+fake-endpoint -llama -oom-ctx 1
+exec nav-pilot config set local_endpoint $FAKE_ENDPOINT_URL
+exits 1 nav-pilot alpha local doctor
+stdout 'FAIL  tool calls +the server stopped answering during a short request'
+stdout 'Fix: Start the server again; on Linux, dmesg'
+! stdout '--jinja'
+stdout 'SKIP  logprobs +the server did not answer'
+stdout 'SKIP  context +the server did not answer'
+stdout 'SKIP  TTFT '
+! stderr 'Sending about 30k tokens'
