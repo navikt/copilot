@@ -140,6 +140,7 @@ func TestSubmitValidation(t *testing.T) {
 	for name, body := range map[string]string{
 		"not json":           `{`,
 		"trailing data":      `{"answers":{"overall":3},` + goodCtx + `}{}`,
+		"stray delimiter":    `{"answers":{"overall":3},` + goodCtx + `}]`,
 		"unknown top field":  `{"answers":{"overall":3},"device_id":"abc",` + goodCtx + `}`,
 		"unknown ctx field":  `{"answers":{"overall":3},"context":{"version":"1.0.0","os":"darwin","client":"copilot","cwd":"/x"}}`,
 		"missing required":   `{"answers":{"client":"copilot"},` + goodCtx + `}`,
@@ -219,6 +220,8 @@ func TestLoadSurveysRejectsBadDefinitions(t *testing.T) {
 		"no version":    `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","type":"scale","text":"?","min":1,"max":5}]}]`,
 		"labels count":  `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5,"labels":["a","b"]}]}]`,
 		"skip_if later": `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":{"question":"r","answer":"x"}},{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"]}]}]`,
+		"skip_if scale": `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"scale","text":"?","min":1,"max":5,"options":["x"]},{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":{"question":"r","answer":"x"}}]}]`,
+		"stray ]":       `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]]`,
 		"bad nudge":     `[{"id":"a","title":"t","nudge":"loud","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
 		"two texts":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?","max_length":5},{"id":"r","version":1,"type":"text","text":"?","max_length":5}]}]`,
 		"id with slash": `[{"id":"a/b","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
