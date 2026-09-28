@@ -505,6 +505,7 @@ func TestOpenCodeOutputDir(t *testing.T) {
 	})
 
 	t.Run("user scope", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", "")
 		home, err := os.UserHomeDir()
 		if err != nil {
 			t.Skip("cannot determine home dir")
@@ -517,6 +518,23 @@ func TestOpenCodeOutputDir(t *testing.T) {
 		want := filepath.Join(home, ".config", "opencode")
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	// The launch path honours XDG_CONFIG_HOME; export must write where it reads (#1034).
+	t.Run("user scope with XDG_CONFIG_HOME", func(t *testing.T) {
+		xdg := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", xdg)
+		scope, err := domain.ScopeUser()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := OpenCodeOutputDir(scope), filepath.Join(xdg, "opencode"); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+		t.Setenv("XDG_CONFIG_HOME", "relative/dir")
+		if got := OpenCodeOutputDir(scope); strings.HasPrefix(got, "relative") {
+			t.Errorf("a relative XDG_CONFIG_HOME was used: %q", got)
 		}
 	})
 }

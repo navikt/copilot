@@ -46,14 +46,7 @@ func openCodeConfigPath() string {
 // went to a file opencode never reads: local inference silently did nothing, and
 // `off` cleaned a file that was never dirty.
 func openCodeConfigDir() string {
-	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" && filepath.IsAbs(x) {
-		return filepath.Join(x, "opencode")
-	}
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		return filepath.Join(os.TempDir(), "nav-pilot", ".config", "opencode")
-	}
-	return filepath.Join(home, ".config", "opencode")
+	return artifacts.OpenCodeConfigDir()
 }
 
 // openCodeNavContextDir is where Nav context is materialized: opencode's config

@@ -249,7 +249,7 @@ export const CLI_COMMANDS = [
   },
   {
     command: "nav-pilot export opencode --user",
-    description: "Skriv til ~/.config/opencode/ i stedet, for alle repoer",
+    description: "Skriv til ~/.config/opencode/ (eller $XDG_CONFIG_HOME/opencode/) i stedet, for alle repoer",
   },
   { command: "nav-pilot config", description: "Interaktiv innstillingsside i terminalen" },
   { command: "nav-pilot config init", description: "Opprett ~/.nav-pilot/config.toml med alle valg kommentert ut" },
