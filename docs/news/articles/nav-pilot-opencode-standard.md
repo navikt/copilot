@@ -30,7 +30,7 @@ Hva hver klient kan, og hva som fortsatt mangler i opencode, står på [Klienter
 
 ## Ny installasjon
 
-Første gang du kjører `nav-pilot`, spør den hvilken klient du vil bruke, og opencode er valgt. Mangler opencode, tilbyr nav-pilot å installere den med Homebrew. Uten Homebrew, eller om du sier nei, bruker nav-pilot Copilot CLI og forteller hvordan du bytter senere. nav-pilot lagrer aldri en klient som ikke kan starte.
+Første gang du kjører `nav-pilot`, spør den hvilken klient du vil bruke, og opencode er valgt. Mangler opencode, og du har Homebrew, tilbyr nav-pilot å installere den. Uten Homebrew, eller om du sier nei, bruker nav-pilot Copilot CLI og forteller hvordan du bytter senere. nav-pilot lagrer aldri en klient som ikke kan starte.
 
 ## Har du brukt nav-pilot før
 
@@ -43,4 +43,4 @@ nav-pilot config set client opencode # for godt
 
 ## I CI
 
-Uten `config.toml` starter nav-pilot opencode når den er installert, og ellers Copilot CLI, med én linje på stderr om hvorfor. Vil du være sikker på klienten, bruk `--client copilot` eller `--client opencode`.
+I CI endres ingenting. Uten `config.toml` starter nav-pilot fortsatt Copilot CLI, siden den ikke kan se om du har brukt nav-pilot før. Vil du ha opencode i CI, bruk `--client opencode`.
