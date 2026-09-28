@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -42,6 +43,10 @@ const fakeMLXEnv = "NAV_PILOT_E2E_FAKE_MLX"
 func TestMain(m *testing.M) {
 	if os.Getenv(fakeMLXEnv) == "1" {
 		serveFakeMLX()
+		return
+	}
+	if os.Getenv(budgetClientLog) != "" && slices.Contains([]string{"cplt", "copilot", "opencode"}, filepath.Base(os.Args[0])) {
+		runBudgetClient()
 		return
 	}
 	if filepath.Base(os.Args[0]) == ptyRunName {
