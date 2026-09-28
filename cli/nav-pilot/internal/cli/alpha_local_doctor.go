@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"slices"
@@ -48,6 +49,13 @@ const (
 	doctorFillerRepeats  = 3000 // about 30k tokens
 	doctorContextMin     = 26000
 	doctorSlowTTFT       = 60 * time.Second
+	// doctorWarmupRepeats is the short prompt that times the prefill
+	// before the long one: about 1k tokens.
+	doctorWarmupRepeats = 100
+	// doctorMaxProbe is the longest the 30k-token probe may be expected
+	// to take. Beyond it the probe is skipped, not failed: a CPU-only
+	// machine can take over 10 minutes for a context that fits (#1222).
+	doctorMaxProbe = 90 * time.Second
 )
 
 const (
@@ -68,6 +76,7 @@ var doctorTimeout = map[string]time.Duration{
 	"models":   5 * time.Second,
 	"tools":    2 * time.Minute,
 	"logprobs": time.Minute,
+	"prefill":  time.Minute,
 	"context":  10 * time.Minute,
 }
 
@@ -122,7 +131,7 @@ func runDoctor(ctx context.Context, base, model string) []doctorCheck {
 		skipAfter(checkLogprobs(ctx, base, model), "context", "TTFT") {
 		return checks
 	}
-	fmt.Fprintf(os.Stderr, "  %s\n", dim("→ Sending about 30k tokens to measure the context window and the time to first token. On a CPU this takes minutes."))
+	fmt.Fprintf(os.Stderr, "  %s\n", dim("→ Timing a short prompt, then sending about 30k tokens to measure the context window and the time to first token, unless that would take over 90 seconds."))
 	ctxCheck, ttft := checkContext(ctx, base, model)
 	report(ctxCheck)
 	report(ttft)
@@ -231,7 +240,7 @@ func chat(ctx context.Context, base, model, probe string, body map[string]any) (
 	resp, err := local.ServerClient.Do(req)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return chatAnswer{}, fmt.Errorf("no answer within %s", doctorTimeout[probe])
+			return chatAnswer{}, fmt.Errorf("no answer within %s: %w", doctorTimeout[probe], context.DeadlineExceeded)
 		}
 		return chatAnswer{}, err
 	}
@@ -324,17 +333,38 @@ func checkLogprobs(ctx context.Context, base, model string) doctorCheck {
 // server with a small window cuts the prompt and reports what it kept.
 // Ollama's default is as low as 4k and /v1 cannot raise it. The same request
 // measures the time to first token, since with max_tokens 1 the wait is the
-// prefill. A nonce first, so a warm prefix cache cannot answer for it.
+// prefill. A short prompt first times the prefill, and when the long one
+// would take too long it is skipped.
 func checkContext(ctx context.Context, base, model string) (doctorCheck, doctorCheck) {
 	c := doctorCheck{Name: "context"}
 	t := doctorCheck{Name: "TTFT"}
-	prompt := fmt.Sprintf("Run %d. ", time.Now().UnixNano()) + strings.Repeat(doctorFillerSentence, doctorFillerRepeats) +
-		"\nAnswer with the single word ok."
+	// A warm-up that times out is too slow; any other warm-up failure is
+	// left to the long probe below, which says why.
+	// ponytail: a linear estimate; prefill slows as the prompt grows, so a
+	// machine just under the limit can still take a few minutes.
+	const skipFix = "Check that the server's context holds at least 65536 tokens (llama-server: -c 65536; Ollama: OLLAMA_CONTEXT_LENGTH=65536 ollama serve). On this machine, opencode's local worker and alpha decide send far less than a Copilot session"
+	rate, _, err := fillerPrompt(ctx, base, model, "prefill", doctorWarmupRepeats)
+	if errors.Is(err, context.DeadlineExceeded) {
+		c.Level, c.Fix = levelSkip, skipFix
+		c.Detail = fmt.Sprintf("too slow to test 30k tokens on this machine: the server did not finish about 1k tokens within %s. The context window was not checked", doctorTimeout["prefill"])
+		t.Level, t.Detail, t.Fix = levelWarn, "over 25 minutes for about 30k tokens, estimated from a short prompt", fixSlow
+		return c, t
+	}
+	if err == nil && rate > 0 {
+		if est := time.Duration(30000 / rate * float64(time.Second)); est > doctorMaxProbe {
+			about := fmt.Sprintf("%.0f minutes", math.Ceil(est.Minutes()))
+			if est < 2*time.Minute {
+				about = fmt.Sprintf("%.0f seconds", est.Seconds())
+			}
+			c.Level = levelSkip
+			c.Detail = fmt.Sprintf("too slow to test 30k tokens on this machine: the server read %.0f tokens a second, so the probe would take at least %s. The context window was not checked", rate, about)
+			c.Fix = skipFix
+			t.Level, t.Detail, t.Fix = levelWarn, "at least "+about+" for about 30k tokens, estimated from a short prompt", fixSlow
+			return c, t
+		}
+	}
 	started := time.Now()
-	a, err := chat(ctx, base, model, "context", map[string]any{
-		"max_tokens": 1,
-		"messages":   []map[string]string{{"role": "user", "content": prompt}},
-	})
+	_, a, err := fillerPrompt(ctx, base, model, "context", doctorFillerRepeats)
 	took := time.Since(started)
 	switch {
 	case serverGone(ctx, base, model, err):
@@ -368,6 +398,27 @@ func checkContext(ctx context.Context, base, model string) (doctorCheck, doctorC
 		t.Level, t.Fix = levelWarn, fixSlow
 	}
 	return c, t
+}
+
+// fillerPrompt sends n filler sentences with max_tokens 1, so the wait is
+// the prefill, and returns the prompt tokens read per second. A nonce first,
+// so a warm prefix cache cannot answer for it.
+func fillerPrompt(ctx context.Context, base, model, probe string, n int) (float64, chatAnswer, error) {
+	prompt := fmt.Sprintf("Run %d. ", time.Now().UnixNano()) + strings.Repeat(doctorFillerSentence, n) +
+		"\nAnswer with the single word ok."
+	started := time.Now()
+	a, err := chat(ctx, base, model, probe, map[string]any{
+		"max_tokens": 1,
+		"messages":   []map[string]string{{"role": "user", "content": prompt}},
+	})
+	if err != nil {
+		return 0, a, err
+	}
+	tokens := a.Usage.PromptTokens
+	if tokens == 0 {
+		tokens = len(prompt) / 4
+	}
+	return float64(tokens) / time.Since(started).Seconds(), a, nil
 }
 
 // ─── init and status for local_endpoint ─────────────────────────────────────

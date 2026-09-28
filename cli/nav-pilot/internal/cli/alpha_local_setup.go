@@ -656,6 +656,9 @@ func saveEndpoint(c setupChoice, checks []doctorCheck, yes bool) error {
 	if short {
 		fmt.Printf("  %s Long prompts get cut: see context above\n", yellow("⚠"))
 	}
+	if slices.ContainsFunc(checks, func(d doctorCheck) bool { return d.Name == "context" && d.Level == levelSkip }) {
+		fmt.Printf("  %s The context window was not checked: see context above\n", yellow("⚠"))
+	}
 	if slices.ContainsFunc(checks, func(d doctorCheck) bool { return d.Name == "logprobs" && d.Level != levelPass }) {
 		fmt.Printf("  %s alpha decide will refuse this server: see logprobs above\n", yellow("⚠"))
 	} else {

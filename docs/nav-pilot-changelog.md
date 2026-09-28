@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-28
 
+### Kontekstsjekken venter ikke i ti minutter på en treg maskin
+
+- **Kort prøve først**: `alpha local doctor` og `alpha local setup` sender nå en kort tekst før kontekstsjekken og måler hvor fort serveren leser den. Ser det ut til at de rundt 30 000 tokenene vil ta mer enn halvannet minutt, hopper doctor over sjekken med «too slow to test 30k tokens on this machine» og et råd om hva du kan sjekke selv, i stedet for å feile etter ti minutter. Kontekstvinduet er da ikke sjekket, og det står i meldingen (#1222).
+
 ### `alpha local doctor` sier fra når serveren har stoppet
 
 - **Ikke lenger «start den med --jinja» når serveren er borte**: Stoppet serveren på den første forespørselen, for eksempel fordi den gikk tom for minne, sa doctor at verktøykall manglet og at llama-server måtte startes med `--jinja`. Nå sjekker doctor om serveren fortsatt svarer. Gjør den ikke det, står det at serveren sluttet å svare, med tips om `dmesg` eller cgroupens `memory.events` på Linux. Doctor hopper over de neste sjekkene i stedet for å la dem feile på `connection refused` (#1223).
