@@ -96,7 +96,7 @@ func newsFeedURL() string {
 		if allowedCopilotCLIURL(v) {
 			return v
 		}
-		fmt.Fprintf(os.Stderr, "%s NAV_PILOT_NEWS_URL ignored: only https://….nav.no or a loopback address\n", yellow("⚠"))
+		warnIgnoredURL("NAV_PILOT_NEWS_URL")
 	}
 	return newsFeedDefault
 }
@@ -224,6 +224,9 @@ func nudgeWait() time.Duration {
 // return to the shell. ready reports whether that work is done: a session
 // shorter than the fetch skips both, and the next session shows them.
 func startNudgePrep(client string) (ready func() bool) {
+	// Any warning about an ignored URL, now, before the client has the terminal.
+	copilotCLIURL()
+	newsFeedURL()
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
