@@ -10,7 +10,7 @@ title: "Tittelen på saken"
 date: 2026-09-25
 author: github-brukernavn
 category: nav-pilot
-excerpt: "Én til to setninger som står i lista og i nav-pilot."
+excerpt: "Én til to setninger som står i lista."
 tags:
   - nav-pilot
 ---
@@ -20,7 +20,7 @@ tags:
 | ---------- | ------- | ----------------------------------------------------------------------------------------------------------- |
 | `title`    | ja      | Overskriften.                                                                                               |
 | `date`     | ja      | Publiseringsdato, `ÅÅÅÅ-MM-DD`. Lista sorteres på den.                                                      |
-| `excerpt`  | ja      | Ingressen i lista, og teksten nav-pilot viser.                                                              |
+| `excerpt`  | ja      | Ingressen i lista. Kommer med i `news.json` som `summary`, men nav-pilot viser bare tittel og lenke.        |
 | `category` | nei     | `copilot`, `nav`, `nav-pilot`, `praksis` eller `oppsummering`. Ukjent eller manglende verdi blir `copilot`. |
 | `tags`     | nei     | Emneord.                                                                                                    |
 | `author`   | nei     | GitHub-brukernavnet til forfatteren.                                                                        |
@@ -32,6 +32,6 @@ tags:
 
 ## `cli: true`
 
-Sett `cli: true` bare på saker som er skrevet for dem som bruker nav-pilot. Hver slik sak vises én gang til hver nav-pilot-bruker, som en linje etter en økt, i 30 dager etter `date`. Det er mange som ser den, så bruk flagget sjelden.
+Sett `cli: true` bare på saker som er skrevet for dem som bruker nav-pilot. Hver slik sak vises én gang til hver nav-pilot-bruker, som en linje etter en økt, i 30 dager etter `date`. Alle nav-pilot-brukere ser den, så bruk flagget sjelden.
 
-nav-pilot leser de 20 nyeste norske sakene fra [`/news.json`](https://ki-utvikling.nav.no/news.json) og viser bare dem med `cli: true`. Linja kommer ikke uten terminal, i CI, med `news = false` eller når telemetri er slått av. `nav-pilot news` lister de ti nyeste sakene, med eller uten flagget.
+nav-pilot leser de 20 nyeste norske sakene fra [`/news.json`](https://ki-utvikling.nav.no/news.json) og viser bare sakene med `cli: true`. Linja vises ikke uten terminal, i CI, etter Ctrl-C, når nav-pilot allerede har vist noe annet etter økta (en spørreundersøkelse eller et tips), med `news = false` eller når telemetri er slått av. `nav-pilot news` lister de ti nyeste sakene, med eller uten flagget, og regner dem som vist.
