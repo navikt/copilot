@@ -281,11 +281,12 @@ Hemmeligheter håndteres med fnox + macOS Keychain, ingen `.env`-filer. Hver app
 
 | Service | Apper | Hemmeligheter |
 |---|---|---|
-| `copilot-portal` | my-copilot | GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID |
+| `copilot-portal` | my-copilot | ingen: my-copilot henter alt gjennom copilot-api |
+| `copilot-api` | copilot-api | GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID, GITHUB_APP_ORG_INSTALLATION_ID, GITHUB_BILLING_TOKEN |
 | `copilot-jobs` | copilot-adoption, copilot-metrics, mcp-onboarding | GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID, SLACK_WEBHOOK_URL |
 
 ```bash
-cd apps/my-copilot
+cd apps/copilot-api
 fnox set GITHUB_APP_ID              # Ber om verdi, lagrer i Keychain
 fnox set GITHUB_APP_PRIVATE_KEY
 fnox set GITHUB_APP_INSTALLATION_ID
