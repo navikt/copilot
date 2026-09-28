@@ -38,6 +38,7 @@ spec:
       - /favicon.ico
       - /robots.txt
       - /sitemap.xml
+      - /search-index.json
       # OAuth endpoints (handled by Wonderwall sidecar)
       - /oauth2/**
       # All page routes — auth is handled in the application layer.

@@ -762,3 +762,62 @@ button.section-link {
 .page-kicker {
   color: var(--ax-text-brand-blue-subtle);
 }
+
+/* Site search (V11): the shortcut hint on the header button, and the hits in the dialog */
+.search-kbd {
+  margin-left: var(--ax-space-8);
+  padding: 0 var(--ax-space-4);
+  border: 1px solid currentColor;
+  border-radius: var(--ax-radius-4);
+  font-family: inherit;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+.site-search .aksel-dialog__body {
+  min-height: 12rem;
+}
+/* The field sits in the header under the title, so it stays put while the hits scroll */
+.site-search .aksel-dialog__header .aksel-search {
+  margin-top: var(--ax-space-16);
+}
+.search-hit {
+  display: flex;
+  flex-direction: column;
+  min-height: 2.75rem;
+  padding: var(--ax-space-8) var(--ax-space-12);
+  border-radius: var(--ax-radius-4);
+  color: var(--ax-text-neutral);
+  text-decoration: none;
+}
+.search-hit[aria-selected="true"] {
+  background: var(--ax-bg-neutral-moderate);
+  outline: 2px solid var(--ax-border-focus);
+  outline-offset: -2px;
+}
+.search-hit-title {
+  font-weight: 600;
+}
+.search-hit-context {
+  font-size: 0.875rem;
+  color: var(--ax-text-neutral-subtle);
+}
+/* The front-page search: a button that looks like a search field and opens the dialog */
+.home-search {
+  display: flex;
+  align-items: center;
+  gap: var(--ax-space-8);
+  width: 100%;
+  min-height: 3rem;
+  padding-inline: var(--ax-space-12);
+  border: 1px solid var(--ax-border-neutral);
+  border-radius: var(--ax-radius-4);
+  background: var(--ax-bg-default);
+  color: var(--ax-text-neutral-subtle);
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+}
+.home-search:hover {
+  border-color: #fff;
+  box-shadow: 0 0 0 1px #fff;
+}

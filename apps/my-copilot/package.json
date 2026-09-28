@@ -4,8 +4,8 @@
   "type": "module",
   "packageManager": "pnpm@11.5.1",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build --experimental-build-mode compile",
+    "dev": "tsx scripts/build-search-index.ts && next dev",
+    "build": "tsx scripts/build-search-index.ts && next build --experimental-build-mode compile",
     "start": "node .next/standalone/server.js",
     "check": "eslint . --fix && node scripts/check-public-routes.mjs && tsc --noEmit && prettier --check . && NODE_OPTIONS='--experimental-require-module' knip && vitest run",
     "lint": "eslint .",
