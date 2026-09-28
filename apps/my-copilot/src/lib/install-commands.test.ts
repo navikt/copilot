@@ -12,6 +12,7 @@ import {
   INSTALL_DIRS,
   CLIENT_SUPPORT,
   CLIENT_LABELS,
+  installOsFromPlatform,
 } from "./install-commands";
 
 const base = {
@@ -612,5 +613,22 @@ describe("resolveAgentReferenceUrls", () => {
     };
     const urls = resolveAgentReferenceUrls(agentWithUnknownRef, allItems);
     expect(urls).toEqual(["https://raw.githubusercontent.com/navikt/copilot/main/.github/agents/auth.agent.md"]);
+  });
+});
+
+describe("installOsFromPlatform", () => {
+  it.each([
+    ["macOS", "mac"],
+    ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36", "mac"],
+    ["Linux", "linux"],
+    ["Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36", "linux"],
+    ["Windows", "windows"],
+    ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", "windows"],
+    ["Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36", "mac"],
+    ["Chrome OS", "linux"],
+    ["Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36", "linux"],
+    ["", "mac"],
+  ])("%s -> %s", (platform, os) => {
+    expect(installOsFromPlatform(platform)).toBe(os);
   });
 });

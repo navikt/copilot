@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import React from "react";
-import { Box, VStack, HGrid, Heading, CopyButton } from "@navikt/ds-react";
+import { Box, VStack, HGrid, Heading } from "@navikt/ds-react";
 import NextLink from "next/link";
 import { InteractiveSetupWizard } from "@/components/nav-pilot/interactive-setup-wizard";
-import { NAV_PILOT_APT_INSTALL, NAV_PILOT_BREW_INSTALL } from "@/lib/install-commands";
+import { InstallPicker } from "@/components/install-picker";
+import { NAV_PILOT_APT_INSTALL, NAV_PILOT_INSTALL_SCRIPT, NAV_PILOT_QUICKSTART } from "@/lib/install-commands";
 import {
   BranchingIcon,
   CheckmarkCircleIcon,
@@ -50,9 +51,6 @@ export const metadata: Metadata = {
 };
 
 /* ---------- Data ---------- */
-
-const QUICKSTART_COMMAND = `${NAV_PILOT_BREW_INSTALL} && nav-pilot`;
-const QUICKSTART_APT = NAV_PILOT_APT_INSTALL;
 
 const PAKKE = {
   title: "nav-pilot",
@@ -330,48 +328,17 @@ logger.info("Vedtak",    `}
                 Dokumentasjon →
               </NextLink>
             </div>
-            <div
-              className="rounded-lg px-4 py-2.5 flex items-center gap-3 max-w-full overflow-x-auto"
-              style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}
-            >
-              <code className="font-mono" style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.7)" }}>
-                {QUICKSTART_COMMAND}
-              </code>
-              <CopyButton copyText={QUICKSTART_COMMAND} size="xsmall" style={{ color: "white" }} />
-            </div>
-            <Box
-              paddingBlock="space-8"
-              paddingInline="space-16"
-              borderRadius="8"
-              className="flex items-start gap-3 max-w-full overflow-x-auto text-left"
-              style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}
-            >
-              <pre
-                className="font-mono"
-                style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.7)", whiteSpace: "pre" }}
-              >
-                {QUICKSTART_APT}
-              </pre>
-              <CopyButton copyText={QUICKSTART_APT} size="xsmall" style={{ color: "white" }} />
-            </Box>
-            <p
-              className="max-w-xl text-center"
-              style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}
-            >
-              Homebrew på macOS, apt-arkivet på Debian og Ubuntu. Arkivet bygges hver time fra den nyeste releasen, så
-              en helt fersk release kan bruke opptil en time på å bli installerbar. Andre distroer, CI eller sperret
-              apt-arkiv:{" "}
-              <NextLink
-                href="/nav-pilot/guider/installere-og-oppgradere#installere-i-ci"
-                style={{ color: "rgba(255,255,255,0.75)" }}
-              >
-                installasjonsskriptet
+            <InstallPicker
+              lang="nb"
+              mac={NAV_PILOT_QUICKSTART}
+              linux={NAV_PILOT_INSTALL_SCRIPT}
+              apt={NAV_PILOT_APT_INSTALL}
+              windowsNote="Kjør kommandoen i Linux-distroen din under WSL2."
+            />
+            <p className="text-center" style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.55)" }}>
+              CI, oppgradering og manuell installasjon står i{" "}
+              <NextLink href="/nav-pilot/guider/installere-og-oppgradere" style={{ color: "rgba(255,255,255,0.75)" }}>
+                installasjonsguiden
               </NextLink>
               .
             </p>

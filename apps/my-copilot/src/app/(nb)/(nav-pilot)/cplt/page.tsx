@@ -3,7 +3,8 @@ import { Box, VStack, HGrid, Heading, CopyButton, BodyShort, BodyLong, Theme } f
 import NextLink from "next/link";
 import { CpltConfigExplorer } from "@/components/cplt-config-explorer";
 import { fetchCpltConfigKeys } from "@/lib/cplt-config";
-import { CPLT_APT_INSTALL, CPLT_INSTALL_SCRIPT } from "@/lib/install-commands";
+import { InstallPicker } from "@/components/install-picker";
+import { CPLT_APT_INSTALL, CPLT_BREW_INSTALL, CPLT_INSTALL_SCRIPT } from "@/lib/install-commands";
 import {
   ShieldLockIcon,
   TerminalIcon,
@@ -53,7 +54,7 @@ const TERMINAL_MUTED = "#a5acb6";
 
 /* ---------- Data ---------- */
 
-const INSTALL_COMMAND = "brew install navikt/tap/cplt";
+const INSTALL_COMMAND = CPLT_BREW_INSTALL;
 const ARTICLE_HREF = "/en/news/sandbox-confines-the-process-not-the-token";
 
 const SECURITY_TABLE = [
@@ -282,62 +283,16 @@ function HeroSection({ stars }: { stars: number | null }) {
 
             {/* Install CTA */}
             <div className="flex flex-col items-center gap-4">
-              <div
-                className="rounded-lg px-4 py-2.5 flex items-center gap-3 max-w-full overflow-x-auto"
-                style={{
-                  background: "rgba(255, 255, 255, 0.04)",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                }}
-              >
-                <code className="font-mono" style={{ fontSize: CODE_SIZE, color: "var(--ax-text-neutral-subtle)" }}>
-                  {INSTALL_COMMAND}
-                </code>
-                <CopyButton copyText={INSTALL_COMMAND} size="small" />
-              </div>
-              <Box
-                paddingBlock="space-8"
-                paddingInline="space-16"
-                borderRadius="8"
-                className="flex items-start gap-3 max-w-full overflow-x-auto text-left"
-                style={{
-                  background: "rgba(255, 255, 255, 0.04)",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                }}
-              >
-                <pre
-                  className="font-mono"
-                  style={{ fontSize: CODE_SIZE, color: "var(--ax-text-neutral-subtle)", whiteSpace: "pre-wrap" }}
-                >
-                  {CPLT_APT_INSTALL}
-                </pre>
-                <CopyButton copyText={CPLT_APT_INSTALL} size="small" />
-              </Box>
+              <InstallPicker
+                lang="en"
+                mac={INSTALL_COMMAND}
+                linux={CPLT_INSTALL_SCRIPT}
+                apt={CPLT_APT_INSTALL}
+                windowsNote="cplt has no Windows sandbox. Install it inside your WSL2 Linux distribution, where the sandbox is kernel-enforced."
+              />
               <BodyShort size="small" style={{ color: ACCENT, textAlign: "center" }}>
                 macOS (Apple Seatbelt) · Linux (Landlock + seccomp-BPF) · Windows: WSL2 only
               </BodyShort>
-              <BodyLong
-                size="small"
-                className="max-w-xl"
-                style={{ color: "var(--ax-text-neutral-subtle)", textAlign: "center" }}
-              >
-                Homebrew on macOS, the{" "}
-                <a href="https://navikt.github.io/apt/" style={{ color: ACCENT }}>
-                  apt archive
-                </a>{" "}
-                on Debian and Ubuntu. The archive is rebuilt hourly from the newest release, so a release cut minutes
-                ago can take up to an hour to become installable. It is a plain apt repository mirroring our releases,
-                not a distribution package with a maintainer. On any other distribution, in CI, or when a proxy blocks
-                the archive, use <code className="font-mono break-all">{CPLT_INSTALL_SCRIPT}</code>.
-              </BodyLong>
-              <BodyLong
-                size="small"
-                className="max-w-xl"
-                style={{ color: "var(--ax-text-neutral-subtle)", textAlign: "center" }}
-              >
-                cplt has no Windows sandbox backend. On WSL2 it is an ordinary Linux install and the sandbox is
-                kernel-enforced, so install it inside your Linux distribution: the apt archive on Ubuntu or Debian, the
-                install script on anything else.
-              </BodyLong>
             </div>
           </VStack>
         </Box>
