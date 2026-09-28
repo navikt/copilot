@@ -93,7 +93,8 @@ func (g *dispatchGate) denyText() string {
 // file itself.
 const GateCreateText = "nav-pilot (local_dispatch = aggressive): new files go to `local-worker` first. " +
 	"Send it a task naming the file, what it must contain and how to check it, such as the test command. " +
-	"Once a file has been sent to `local-worker`, your own edits to it pass, so you can fix or finish what it returns."
+	"Once a file has been sent to `local-worker`, your own edits to it pass, so you can fix or finish what it returns. " +
+	"Keep any draft inside the project, not in /tmp."
 
 // GateVerifyText is appended to what `local-worker` returns, so the
 // orchestrator reads it at the moment it decides whether to accept the work.
@@ -101,7 +102,16 @@ const GateCreateText = "nav-pilot (local_dispatch = aggressive): new files go to
 // test file that was green but caught nothing was accepted.
 const GateVerifyText = "nav-pilot (local_dispatch): before you accept this, build the project and run the tests that cover the change, once every file you sent is done. " +
 	"A grep is not a check. If `local-worker` wrote a test, show that it can fail: break the code it tests on purpose, " +
-	"for example make the function return a constant, run the test, see it fail, and undo the break."
+	"for example make the function return a constant, run the test, see it fail, and undo the break. " +
+	"Undo it by reversing your own edit. Do not copy files to /tmp or anywhere else outside the project."
+
+// GateTmpText is what the orchestrator reads when a tool call would touch a
+// temp directory outside the project. opencode asks for external_directory
+// there, and `opencode run` rejects the request and ends the session, which
+// in re-probe 7 left a deliberate break in production code (#1237). A refusal
+// from the gate is a tool result instead: the session goes on.
+const GateTmpText = "nav-pilot (local_dispatch): this path is outside the project, and opencode would end a headless session here. " +
+	"Keep backups and drafts inside the project. To undo a change, reverse your own edit."
 
 // GateNudgeText is added once per turn as a message when the orchestrator
 // writes text after `local-worker` returned and no build or test command has
@@ -265,6 +275,10 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	st := g.turn(r)
+	if g.outsideTemp(r) {
+		g.counts["deny_tmp"]++
+		return GateTmpText, "deny_tmp"
+	}
 
 	var edits []shellEdit
 	scripted := false
@@ -373,6 +387,45 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 		st.files[f] = true
 	}
 	return "", ""
+}
+
+// outsideTemp: an edit, a write or a shell command names a path in a temp
+// directory that is not under the project. ponytail: a path built at run time
+// ($TMPDIR, mktemp) is not seen; add those if a probe shows them.
+func (g *dispatchGate) outsideTemp(r GateRequest) bool {
+	var paths []string
+	switch r.Tool {
+	case "edit", "write":
+		paths = []string{r.Path}
+	case "bash":
+		for _, seg := range splitSegments(r.Command) {
+			for _, t := range shellWords(seg.text) {
+				// A redirect (>/tmp/x, 2>>/tmp/x) or a flag's value (--out=/tmp/x).
+				t = strings.TrimLeft(t, "0123456789<>&")
+				if i := strings.IndexByte(t, '='); i > 0 && !strings.HasPrefix(t, "/") {
+					t = t[i+1:]
+				}
+				paths = append(paths, t)
+			}
+		}
+	}
+	for _, p := range paths {
+		if !filepath.IsAbs(p) {
+			continue
+		}
+		if _, in := under(g.rules.Root, p); in || filepath.Clean(p) == filepath.Clean(g.rules.Root) {
+			continue
+		}
+		for _, tmp := range []string{"/tmp", "/private/tmp", os.TempDir()} {
+			if p == filepath.Clean(tmp) {
+				return true
+			}
+			if _, in := under(tmp, p); in {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // turn returns the session's state for this turn, fresh when the turn has

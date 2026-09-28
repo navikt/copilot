@@ -59,7 +59,8 @@ enforcement adds is that the sizes hold.
 Rules that hold at every level:
 
 - **Only trusted classes.** A class the manifest does not mark `trusted` in delegate mode is
-  never named as work to send, and the gate never denies on its account. The level changes
+  never named as work to send, and the gate never denies on its account (the one exception,
+  `deny_tmp`, is about a path, not a class). The level changes
   how hard nav-pilot pushes, never what it considers safe to push.
 - **Byte-stable prompt.** The policy stays a pure function of (model, level, loop-guard
   thresholds), so the prompt cache holds within a session.
@@ -212,6 +213,17 @@ nothing. So:
   goes idle. This was checked against opencode 1.18.32 in `opencode run`, which exits on
   idle. The reminder is worded for the case where the orchestrator is about to build,
   because text before a tool call triggers it too.
+- Temp directories outside the project (#1237). Re-probe 7 found the orchestrator backing
+  up a file to `/tmp` before the deliberate break, and once staging drafts in
+  `/tmp/navpilot_tests`. opencode asks for `external_directory` there, `opencode run`
+  rejects the request, and the session ends: in one sample before the break was undone,
+  which left production code broken. The verify text now says to undo the break by
+  reversing the edit and never to copy outside the project, and the create-file refusal
+  says to keep drafts in the project. The gate also refuses the orchestrator's own edit,
+  write or shell command that names a path in `/tmp`, `/private/tmp` or `os.TempDir()`
+  outside the project, at every budget, as outcome `deny_tmp`. A refusal is a tool
+  result, so the session goes on. A path built at run time (`$TMPDIR`, `mktemp`) is not
+  seen. In an interactive session this replaces opencode's prompt for those paths.
 - The mutation check for new tests is policy text only. nav-pilot cannot tell whether a
   test was run against broken code.
 - Everything fails open: no answer, no model recorded for the session, or an error means
@@ -284,7 +296,7 @@ Recorded at exit by the launch process, like `nav_pilot_local_dispatches`. Enums
 - `nav_pilot_local_dispatches` gets a `dispatch_level` attribute
   (`off|conservative|balanced|aggressive`). This gives the dispatch rate per level.
 - `nav_pilot_local_gate_total{outcome}` counts gate decisions, with `outcome` one of
-  `deny_files`, `deny_sites`, `deny_scripted`, `deny_create`, `dispatched_after_deny`,
+  `deny_files`, `deny_sites`, `deny_scripted`, `deny_create`, `deny_tmp`, `dispatched_after_deny`,
   `verify_nudge`, `create_retry`, `create_retry_passed` and `create_retry_failed`. `deny_sites` is a deny from the call-site count alone. `dispatched_after_deny`
   is a `task` to `local-worker` after a deny in the same turn. `verify_nudge` is a reminder
   sent because no build or test ran after the worker returned. Recording `allow` would be one data point

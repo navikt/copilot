@@ -858,7 +858,7 @@ const describeFully = "Describe the change fully when you send it: which file, w
 // test that was green caught nothing. Where the gate runs, it repeats this in
 // the worker's result (local.GateVerifyText).
 const sendTrusted = "Send these to `local-worker` instead of doing them yourself: they are what it was measured to do reliably. Give it the files, exactly what to change or answer, and how to check it, such as a command that verifies the change. " +
-	"When it answers, build the project and run the tests that cover the change before you accept it; a grep is not a check. If it wrote a test, also show that the test can fail: break the code it tests on purpose, run the test, and undo the break.\n"
+	"When it answers, build the project and run the tests that cover the change before you accept it; a grep is not a check. If it wrote a test, also show that the test can fail: break the code it tests on purpose, run the test, and undo the break by reversing your edit. Keep backups and drafts inside the project, never in /tmp.\n"
 
 // splitMulti is added when mechanical multi-file edits are trusted, and is
 // where the credits are (mlx-workspace pending-tasks §8.8). Once told to send
