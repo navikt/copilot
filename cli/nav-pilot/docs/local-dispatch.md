@@ -193,6 +193,15 @@ nothing. So:
   The orchestrator reads it at the moment it decides.
 - The route marks the turn unverified. A bash segment that builds or runs tests (Gradle,
   Maven, `go test`, `npm test`, `tsc`, `pytest` and the like, `local.Verifies`) clears it.
+- One retry for a new file (mlx-workspace #126, bench-frontier's `retry2`: on create-file
+  15/20 verified against 5/20, 322 s against 618 s per verified result). The plugin reports
+  the worker's own new files (`phase: "worker"`, from its session) and the worker's session
+  on the task's return (`output.metadata.sessionId`). When the worker created a file, the
+  first build or test after the return is the check. On its `tool.execute.after` the
+  plugin sends the exit code (`output.metadata.exit`). A failure appends: send it back to
+  `local-worker` once, in the same task, with the output and «The change is not done yet.
+  Fix it. Change nothing else.» A second failure appends: fix it yourself. Two attempts is
+  the bound. Outcomes: `create_retry`, `create_retry_passed`, `create_retry_failed`.
 - On `experimental.text.complete` for the orchestrator, the plugin asks with
   `phase: "text"`. While the turn is unverified the route answers once per turn with a
   reminder, and the plugin adds it with `client.session.prompt({noReply: true})` as a
@@ -273,8 +282,8 @@ Recorded at exit by the launch process, like `nav_pilot_local_dispatches`. Enums
 - `nav_pilot_local_dispatches` gets a `dispatch_level` attribute
   (`off|conservative|balanced|aggressive`). This gives the dispatch rate per level.
 - `nav_pilot_local_gate_total{outcome}` counts gate decisions, with `outcome` one of
-  `deny_files`, `deny_sites`, `deny_scripted`, `deny_create`, `dispatched_after_deny` and
-  `verify_nudge`. `deny_sites` is a deny from the call-site count alone. `dispatched_after_deny`
+  `deny_files`, `deny_sites`, `deny_scripted`, `deny_create`, `dispatched_after_deny`,
+  `verify_nudge`, `create_retry`, `create_retry_passed` and `create_retry_failed`. `deny_sites` is a deny from the call-site count alone. `dispatched_after_deny`
   is a `task` to `local-worker` after a deny in the same turn. `verify_nudge` is a reminder
   sent because no build or test ran after the worker returned. Recording `allow` would be one data point
   per tool call and tell us nothing.

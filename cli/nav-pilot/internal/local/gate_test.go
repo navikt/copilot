@@ -542,3 +542,57 @@ func TestGateVerifiesTheWorkersResult(t *testing.T) {
 		t.Error("a reminder with nothing returned from the worker")
 	}
 }
+
+// A check that fails after the worker created a file sends it back to the
+// worker once, with the check's output; a second failure is the
+// orchestrator's to fix (mlx-workspace #126, bench-frontier's retry2).
+func TestGateGivesACreatedFileOneRetry(t *testing.T) {
+	g := testGate(t, true, multi)
+	exit := func(n int) *int { return &n }
+	created := filepath.Join(root, "src", "NewThing.kt")
+	// The worker creates a file in its own session.
+	g.verify(GateRequest{Session: "w1", Agent: WorkerAgent, Tool: "write", Create: true, Path: created, Phase: "worker"})
+	g.verify(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "task", Subagent: WorkerAgent, Worker: "w1", Phase: "after"})
+	g.decide(bash(1, "./gradlew test"))
+	failed := GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "bash", Command: "./gradlew test", Exit: exit(1), Phase: "after"}
+	if key, got := g.verify(failed); key != "append" || got != GateRetryText {
+		t.Fatalf("first failure got %q %q", key, got)
+	}
+	// The retry: the same task again, and the same check.
+	g.verify(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "task", Subagent: WorkerAgent, Worker: "w1", Phase: "after"})
+	g.decide(bash(1, "./gradlew test"))
+	if key, got := g.verify(failed); key != "append" || got != GateRetryDoneText {
+		t.Fatalf("failure after the retry got %q %q", key, got)
+	}
+	// Bounded: no third attempt is offered.
+	g.verify(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "task", Subagent: WorkerAgent, Phase: "after"})
+	g.decide(bash(1, "./gradlew test"))
+	if _, got := g.verify(failed); got == GateRetryText {
+		t.Fatal("a second retry was offered")
+	}
+	c := g.snapshot()
+	if c["create_retry"] != 1 || c["create_retry_failed"] != 2 {
+		t.Errorf("counts = %v", c)
+	}
+
+	// Next turn: the retry passes.
+	g.verify(GateRequest{Session: "w2", Agent: WorkerAgent, Tool: "write", Create: true, Path: created, Phase: "worker"})
+	g.verify(GateRequest{Session: "s", Turn: 2, Agent: "nav-pilot", Tool: "task", Subagent: WorkerAgent, Worker: "w2", Phase: "after"})
+	g.decide(bash(2, "npm test"))
+	g.verify(GateRequest{Session: "s", Turn: 2, Agent: "nav-pilot", Tool: "bash", Command: "npm test", Exit: exit(1), Phase: "after"})
+	g.verify(GateRequest{Session: "s", Turn: 2, Agent: "nav-pilot", Tool: "task", Subagent: WorkerAgent, Worker: "w2", Phase: "after"})
+	g.decide(bash(2, "npm test"))
+	if key, _ := g.verify(GateRequest{Session: "s", Turn: 2, Agent: "nav-pilot", Tool: "bash", Command: "npm test", Exit: exit(0), Phase: "after"}); key != "" {
+		t.Errorf("a passing check got %q", key)
+	}
+	if n := g.snapshot()["create_retry_passed"]; n != 1 {
+		t.Errorf("create_retry_passed = %d, want 1", n)
+	}
+
+	// A worker that only edited gets no retry offer: that is not create-file.
+	g.verify(GateRequest{Session: "s", Turn: 3, Agent: "nav-pilot", Tool: "task", Subagent: WorkerAgent, Worker: "w3", Phase: "after"})
+	g.decide(bash(3, "npm test"))
+	if key, _ := g.verify(GateRequest{Session: "s", Turn: 3, Agent: "nav-pilot", Tool: "bash", Command: "npm test", Exit: exit(1), Phase: "after"}); key != "" {
+		t.Errorf("an edit-only return got a retry offer: %q", key)
+	}
+}

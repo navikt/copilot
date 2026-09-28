@@ -63,9 +63,19 @@ export const NavPilotDispatchGate = async ({ client, directory }) => {
       if (input?.agent && !agents.has(input.sessionID)) agents.set(input.sessionID, input.agent)
     },
     "tool.execute.before": async (input, output) => {
-      const agent = await orchestrator(input.sessionID)
-      if (!agent) return
       const args = output?.args ?? {}
+      const agent = await orchestrator(input.sessionID)
+      if (!agent) {
+        // The worker's new files: a check that fails after it returns goes
+        // back to it once. Never a refusal here.
+        if (agents.get(input.sessionID) === "local-worker" && (input.tool === "write" || (input.tool === "edit" && args.oldString === ""))) {
+          const path = str(args.filePath)
+          try {
+            await ask({ session: input.sessionID, agent: "local-worker", tool: input.tool, create: true, path: isAbsolute(path) ? path : join(directory ?? "", path), phase: "worker" })
+          } catch {}
+        }
+        return
+      }
       const replaceAll = input.tool === "edit" && args.replaceAll === true
       const toWorker = input.tool === "task" && args.subagent_type === "local-worker"
       const body = {
@@ -91,15 +101,23 @@ export const NavPilotDispatchGate = async ({ client, directory }) => {
     },
     // The worker has returned: the orchestrator reads what to check before it
     // accepts the work, in the task's own result.
+    // A build or test that ran after it: whether it failed, so the worker
+    // can get its one retry.
     "tool.execute.after": async (input, output) => {
+      if (!output) return
       // A background task returns at once with a placeholder; its result
       // arrives later as a message, which this does not check.
-      if (input.tool !== "task" || input.args?.subagent_type !== "local-worker" || input.args?.background === true || !output) return
+      const toWorker = input.tool === "task" && input.args?.subagent_type === "local-worker" && input.args?.background !== true
+      if (!toWorker && input.tool !== "bash") return
       try {
         const agent = await orchestrator(input.sessionID)
         if (!agent) return
         const turn = turns.get(input.sessionID) ?? 0
-        const text = (await ask({ session: input.sessionID, turn, agent, tool: "task", subagent: "local-worker", phase: "after" })).append
+        const exit = output.metadata?.exit
+        const body = toWorker
+          ? { session: input.sessionID, turn, agent, tool: "task", subagent: "local-worker", worker: str(output.metadata?.sessionId), phase: "after" }
+          : { session: input.sessionID, turn, agent, tool: "bash", command: str(input.args?.command), exit: typeof exit === "number" ? exit : null, phase: "after" }
+        const text = (await ask(body)).append
         if (typeof text === "string" && text) output.output = `${str(output.output)}\n\n${text}`
       } catch {}
     },
