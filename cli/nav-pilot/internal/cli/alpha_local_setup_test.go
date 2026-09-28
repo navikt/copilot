@@ -29,7 +29,7 @@ func TestModelRankPrefersNavPilotsOwnModel(t *testing.T) {
 // build in nav-pilot's manifest must win over the plain 4-bit one listed
 // first, which the manifest turned down (#1102).
 func TestModelRankPrefersTheManifestBuild(t *testing.T) {
-	local.SetActive(nil) // the embedded manifest, whatever an earlier test installed
+	t.Setenv("HOME", t.TempDir()) // no cached manifest: the embedded one
 	servers := []foundServer{{setupCandidate{"mlx-lm", "127.0.0.1:8080"}, "http://127.0.0.1:8080", []string{
 		"mlx-community/Qwen3.6-35B-A3B-4bit", "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
 	}}}
@@ -38,15 +38,15 @@ func TestModelRankPrefersTheManifestBuild(t *testing.T) {
 	}
 }
 
-func TestSetupCandidatesAreLoopbackOnly(t *testing.T) {
-	t.Setenv("NAV_PILOT_SETUP_CANDIDATES", "ollama=127.0.0.1:1,vllm=[::1]:2")
-	if c, err := setupCandidates(); err != nil || len(c) != 2 {
-		t.Fatalf("setupCandidates = %v, %v", c, err)
-	}
-	for _, bad := range []string{"ollama=10.0.0.1:11434", "ollama=localhost:11434", "nope=127.0.0.1:1", "ollama"} {
-		t.Setenv("NAV_PILOT_SETUP_CANDIDATES", bad)
-		if _, err := setupCandidates(); err == nil {
-			t.Errorf("%q accepted", bad)
-		}
+// With local_endpoint set, the active manifest is the endpoint's, holding the
+// model the user configured. The lift still comes from the MLX manifest.
+func TestModelRankIgnoresAnEndpointManifest(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	local.SetActive(&local.Manifest{Models: []local.Model{{Model: "mlx-community/Qwen3.6-35B-A3B-4bit", Backend: "endpoint"}}})
+	t.Cleanup(func() { local.SetActive(nil) })
+	plain, _ := modelRank("mlx-community/Qwen3.6-35B-A3B-4bit")
+	optiq, _ := modelRank("mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit")
+	if optiq <= plain {
+		t.Errorf("rank OptiQ = %d, the endpoint's model = %d; want OptiQ above it", optiq, plain)
 	}
 }

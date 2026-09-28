@@ -175,7 +175,7 @@ const (
 func modelRank(id string) (int, string) {
 	l := strings.ToLower(id)
 	copied := 0
-	if _, ok := local.Lookup(id); ok || strings.HasSuffix(l, "-navpilot") || strings.HasSuffix(l, "-navpilot:latest") {
+	if inMLXManifest(id) || strings.HasSuffix(l, "-navpilot") || strings.HasSuffix(l, "-navpilot:latest") {
 		copied = 1
 	}
 	for i, k := range knownGood {
@@ -184,6 +184,14 @@ func modelRank(id string) (int, string) {
 		}
 	}
 	return copied, ""
+}
+
+// inMLXManifest reports an exact id from nav-pilot's MLX manifest. Read from
+// the cache (or the embedded copy), not local.Active: with local_endpoint set,
+// Active is the endpoint's own manifest, naming the user's configured model.
+func inMLXManifest(id string) bool {
+	m, _, _ := local.Cached()
+	return m != nil && slices.ContainsFunc(m.Models, func(e local.Model) bool { return e.Model == id })
 }
 
 // setupChoice is one server and one of its models.
@@ -313,8 +321,12 @@ func cmdLocalSetup(args []string) error {
 	}
 	fmt.Printf("\n  Using  %s on %s %s\n\n", bold(choice.Model), kindName[choice.Server.Kind], dim(choice.Server.Base+"/v1"))
 	if choice.Server.Kind == "mlx-lm" && len(choice.Server.Models) > 1 {
+		other := "nav-pilot alpha local setup --model <id>"
+		if f.endpoint != "" {
+			other = "nav-pilot alpha local setup --endpoint " + choice.Server.Base + "/v1 --model <id>"
+		}
 		fmt.Printf("  %s mlx_lm.server lists every MLX model in the Hugging Face cache and loads the one a request names. Sessions will run %s, which need not be the model the server was started with, and the first request loads it. Another one: %s\n\n",
-			yellow("⚠"), choice.Model, bold("nav-pilot alpha local setup --model <id>"))
+			yellow("⚠"), choice.Model, bold(other))
 	}
 	// Refused before the checks, not after: the context probe can take
 	// minutes on a CPU, and a script would otherwise wait through it twice.
