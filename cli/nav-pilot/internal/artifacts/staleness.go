@@ -139,6 +139,9 @@ func AssessStaleness(installedVersion string, fetchFn func() (string, string, er
 // process, for the next command to read. [WaitForRefresh] lets the process
 // give that check a moment before it exits.
 func AssessStalenessCached(installedVersion string, fetchFn func() (string, string, error)) StalenessAssessment {
+	if !RefreshInBackground {
+		return AssessStaleness(installedVersion, fetchFn)
+	}
 	if installedVersion == "" || installedVersion == "dev" {
 		return StalenessAssessment{Result: "dev"}
 	}
@@ -162,6 +165,11 @@ func AssessStalenessCached(installedVersion string, fetchFn func() (string, stri
 var (
 	refreshOnce sync.Once
 	refreshing  sync.WaitGroup
+
+	// RefreshInBackground is false in test packages that swap the globals the
+	// fetch reads: a check still running after the test would race with the
+	// next one. AssessStalenessCached is then AssessStaleness.
+	RefreshInBackground = true
 )
 
 // WaitForRefresh waits up to d for a check AssessStalenessCached started.

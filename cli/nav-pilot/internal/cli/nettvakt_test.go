@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
@@ -53,6 +54,8 @@ func TestMain(m *testing.M) {
 	// don't — take httpClient.Transport, the way assessStaleness does.
 	http.DefaultTransport = vakt
 	httpClient.Transport = vakt
+	// Release checks in the foreground: tests swap releasesAPI and httpClient.
+	artifacts.RefreshInBackground = false
 	os.Exit(testhome.Run(m))
 }
 
