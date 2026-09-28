@@ -96,7 +96,9 @@ func TestResolveForLaunchCachesAndRefreshes(t *testing.T) {
 		t.Fatalf("refreshed while another refresh held the lock: %s", src.SHA)
 	}
 	os.Remove(filepath.Join(dir, ".refresh.lock"))
-	if info, err := os.Stat(dir); err != nil || info.Mode().Perm() != 0o700 {
+	if info, err := os.Stat(dir); err != nil {
+		t.Error(err)
+	} else if info.Mode().Perm() != 0o700 {
 		t.Errorf("cache dir mode %v, want 0700 (a private source is checked out there)", info.Mode().Perm())
 	}
 
@@ -107,5 +109,40 @@ func TestResolveForLaunchCachesAndRefreshes(t *testing.T) {
 	refresh(ctx)
 	if src, _, _ := ResolveForLaunch("navikt/x", "v1"); src.SHA != second {
 		t.Fatalf("cancelled refresh changed the cache: %s", src.SHA)
+	}
+}
+
+// Offline, the first launch of a source waits for the fetch once; the
+// launches in the hour after go without, and fetch in the background.
+func TestResolveForLaunchOfflineWaitsOnce(t *testing.T) {
+	CacheDir = t.TempDir()
+	t.Cleanup(func() { CacheDir = "" })
+	orig := CloneRemoteFn
+	t.Cleanup(func() { CloneRemoteFn = orig })
+	clones := 0
+	CloneRemoteFn = func(string, string) (*Source, error) {
+		clones++
+		return nil, errors.New("unreachable")
+	}
+	if _, _, err := ResolveForLaunch("navikt/x", "v1"); err == nil || clones != 1 {
+		t.Fatalf("first launch: err %v, %d clones", err, clones)
+	}
+	_, refresh, err := ResolveForLaunch("navikt/x", "v1")
+	if err == nil || clones != 1 || !strings.Contains(err.Error(), "fetches it again while this session runs") {
+		t.Fatalf("second launch: err %v, %d clones; want no wait and a background fetch", err, clones)
+	}
+
+	// The background fetch lands the checkout for the launch after.
+	repo := t.TempDir()
+	gitRun(t, repo, "init", "--quiet", "-b", "main", ".")
+	if err := os.WriteFile(filepath.Join(repo, "marker.txt"), []byte("one"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitRun(t, repo, "add", "-A")
+	gitRun(t, repo, "commit", "--quiet", "-m", "one")
+	localRemote(t, repo)
+	refresh(context.Background())
+	if src, _, err := ResolveForLaunch("navikt/x", "v1"); err != nil || src.SHA != gitRun(t, repo, "rev-parse", "HEAD") {
+		t.Fatalf("after the background fetch: %+v, %v", src, err)
 	}
 }
