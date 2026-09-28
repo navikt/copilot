@@ -10,12 +10,14 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/charmbracelet/huh"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
@@ -1166,22 +1168,25 @@ func Main(info BuildInfo) {
 		return fetchLatestVersion(ctx)
 	}
 
-	rtkStatus := "false"
-	if isRtkInstalled() {
-		rtkStatus = "true"
+	// --version and --help answer at once: no telemetry to set up and send.
+	quick := isQuickCommand(os.Args[1:])
+	if !quick {
+		rtkStatus := "false"
+		if isRtkInstalled() {
+			rtkStatus = "true"
+		}
+		tel, err := initTelemetry(context.Background(), info.Version, rtkStatus)
+		if err != nil {
+			debugLog("telemetry disabled: %v", err)
+		}
+		telemetry = tel
+		providerpkg.SetTelemetry(tel)
+		for _, p := range allProviders() {
+			telemetry.RecordClientAvailable(p.ID(), p.Available())
+		}
 	}
-	tel, err := initTelemetry(context.Background(), info.Version, rtkStatus)
-	if err != nil {
-		debugLog("telemetry disabled: %v", err)
-	}
-	telemetry = tel
-	providerpkg.SetTelemetry(tel)
-	local.OnLoopGuard = countLocalTrip
-	for _, p := range allProviders() {
-		telemetry.RecordClientAvailable(p.ID(), p.Available())
-	}
-
 	maybeTelemetryNotice()
+	local.OnLoopGuard = countLocalTrip
 
 	exitCode := 0
 	if err := run(os.Args[1:]); err != nil {
@@ -1189,10 +1194,22 @@ func Main(info BuildInfo) {
 	}
 
 	recordHookEvents()
-	flushTelemetry(telemetry, flushBudget(os.Args[1:]))
+	// The version check a command started in the background gets the same
+	// moment as the telemetry export, side by side.
+	budget := flushBudget(os.Args[1:])
+	var wg sync.WaitGroup
+	wg.Go(func() { artifacts.WaitForRefresh(budget) })
+	wg.Go(func() { flushTelemetry(telemetry, budget) })
+	wg.Wait()
 	if exitCode != 0 {
 		os.Exit(exitCode)
 	}
+}
+
+// isQuickCommand reports whether the command line only asks for the version
+// or the help text.
+func isQuickCommand(args []string) bool {
+	return len(args) > 0 && slices.Contains([]string{"--version", "-v", "version", "--help", "-h", "help"}, args[0])
 }
 
 // maybeTelemetryNotice says once per machine, the first time there is someone

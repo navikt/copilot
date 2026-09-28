@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"net/http"
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
@@ -238,16 +237,14 @@ var (
 var (
 	assessStaleness = func(installedVersion string) artifacts.StalenessAssessment {
 		fetchFn := func() (string, string, error) {
-			// The shorter timeout is the only thing this needs of its own:
-			// building a second transport here duplicated httpClient's and
-			// put an unguarded way onto the network next to it (#830).
-			client := &http.Client{Timeout: 5 * time.Second, Transport: httpClient.Transport}
-			origClient := httpClient
-			httpClient = client
-			defer func() { httpClient = origClient }()
-			return fetchLatestVersion(context.Background())
+			// The shorter timeout is the only thing this needs of its own,
+			// and a context gives it without touching httpClient: the check
+			// runs in the background (#830 is why there is one transport).
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			return fetchLatestVersion(ctx)
 		}
-		return artifacts.AssessStaleness(installedVersion, fetchFn)
+		return artifacts.AssessStalenessCached(installedVersion, fetchFn)
 	}
 )
 
