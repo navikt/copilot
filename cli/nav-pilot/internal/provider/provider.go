@@ -470,11 +470,13 @@ func (piProvider) Bootstrap(r domain.ResolvedConfig) (string, error) {
 // (internal/cli/sync.go), so a pakke merely declaring pi must not make an
 // ordinary `nav-pilot sync` create ~/.nav-pilot/pi. The state file is what
 // Bootstrap or a launch writes, so its absence means pi was never launched.
-func (piProvider) SyncContext(ref, sourceRepo string, _, jsonOutput, hasPrevOutput bool) ProviderSyncResult {
+func (piProvider) SyncContext(ref, sourceRepo string, apply, jsonOutput, hasPrevOutput bool) ProviderSyncResult {
 	if !piDeclaresTier1() {
 		return ProviderSyncResult{}
 	}
-	if state, _ := artifacts.ReadOpenCodeState(piNavContextDir()); state == nil {
+	outputDir := piNavContextDir()
+	state, _ := artifacts.ReadOpenCodeState(outputDir)
+	if state == nil {
 		return ProviderSyncResult{}
 	}
 	// jsonOutput is honoured the way the opencode provider honours it: nothing
@@ -486,16 +488,50 @@ func (piProvider) SyncContext(ref, sourceRepo string, _, jsonOutput, hasPrevOutp
 		}
 		fmt.Printf("%s Syncing %s scope...\n", domain.Dim("→"), domain.Bold("pi"))
 	}
-	if _, err := EnsurePiNavContext(ref, sourceRepo); err != nil {
+	// A check writes nothing and lists what --apply would remove, as the
+	// opencode scope does (#1032, #1043).
+	if sourceRepo == "" {
+		sourceRepo = state.SourceRepo
+	}
+	src, err := source.ResolveSourceForSync(ref, sourceRepo, cliVersion)
+	if err != nil {
 		if !jsonOutput {
-			fmt.Printf("%s Pi scope sync failed.\n", domain.Yellow("⚠"))
+			fmt.Printf("%s Pi scope sync failed: could not resolve source: %v\n", domain.Yellow("⚠"), err)
+		}
+		return ProviderSyncResult{Managed: true, Err: err}
+	}
+	defer src.Cleanup()
+	report, err := artifacts.SyncOpenCodeArtifactsReport("pi", src.Dir, "", outputDir, src.Version, src.SHA, src.Repo, !apply)
+	if err != nil {
+		if !jsonOutput {
+			fmt.Printf("%s Pi scope sync failed: %v\n", domain.Yellow("⚠"), err)
 		}
 		return ProviderSyncResult{Managed: true, Err: err}
 	}
 	if !jsonOutput {
-		fmt.Printf("%s Pi scope synced.\n", domain.Green("✓"))
+		for _, c := range report.Conflicts {
+			fmt.Printf("  %s %s (conflict — not overwritten)\n", domain.Yellow("⊘"), c)
+		}
+		for _, p := range report.Removed {
+			label := "(deleted)"
+			if !apply {
+				label = "(deleted in source; will be removed)"
+			}
+			fmt.Printf("  %s %s %s\n", domain.Red("-"), p, domain.Dim(label))
+		}
+		for _, p := range report.Kept {
+			fmt.Printf("  %s %s %s\n", domain.Dim("⊘"), p, domain.Dim("(deleted in source, changed here: kept)"))
+		}
+		switch {
+		case !apply && len(report.Removed) > 0:
+			fmt.Printf("%s Pi scope has %d file(s) to remove. Run %s to apply.\n", domain.Yellow("⚠"), len(report.Removed), domain.Bold("nav-pilot sync --apply"))
+		case !apply:
+			fmt.Printf("%s Pi scope checked; %s refreshes it.\n", domain.Dim("→"), domain.Bold("nav-pilot sync --apply"))
+		default:
+			fmt.Printf("%s Pi scope synced.\n", domain.Green("✓"))
+		}
 	}
-	return ProviderSyncResult{Managed: true}
+	return ProviderSyncResult{Managed: true, Removed: report.Removed, Kept: report.Kept}
 }
 
 // ContextStatus reports pi's materialized context. Nil when nothing has been
