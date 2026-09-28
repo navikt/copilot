@@ -25,6 +25,7 @@ const TOC: TocItem[] = [
   { id: "sikkerhetsniva", label: "Sikkerhetsnivå i cplt" },
   { id: "telemetri", label: "Telemetri" },
   { id: "lokale-modeller", label: "Lokale modeller" },
+  { id: "ytelse", label: "Ytelse" },
   { id: "filstruktur", label: "Filstruktur" },
   { id: "lenker", label: "Lenker" },
 ];
@@ -317,6 +318,41 @@ export default function Referanse() {
             </NextLink>
             .
           </BodyShort>
+        </VStack>
+      </section>
+
+      <section>
+        <VStack gap="space-16">
+          <LinkableHeading id="ytelse" size="medium" level="2">
+            Ytelse
+          </LinkableHeading>
+          <BodyLong>
+            nav-pilot skal starte klienten uten å vente på nettet. Det som trenger nett, skjer i bakgrunnen eller leses
+            fra en kopi på maskinen:
+          </BodyLong>
+          <Bullets>
+            <li>
+              Versjonssjekken spør GitHub høyst én gang i døgnet, i bakgrunnen. Svaret ligger i{" "}
+              <code className={code}>~/.nav-pilot/cache.json</code>, og neste kommando sier fra hvis det finnes en ny
+              versjon.
+            </li>
+            <li>
+              Undersøkelser og nyheter hentes mens økten kjører. Nyhetslinja etter en økt kommer høyst én gang om dagen.
+            </li>
+            <li>
+              En oppstart som ikke trenger noe fra deg, skriver ingenting. Det som er nytt, sier nav-pilot én gang, og
+              en advarsel kommer på nytt først når noe endrer seg. <code className={code}>nav-pilot --verbose</code>{" "}
+              viser hva oppstarten gjør: sandkassemappe, klient, agent og modell.
+            </li>
+          </Bullets>
+          <BodyLong>
+            Målet er under 150 ms før klienten starter, under 200 ms fra økten slutter til du har terminalen tilbake, og
+            under 50 ms for <code className={code}>--version</code> og <code className={code}>--help</code>, også når
+            nettet ikke svarer. Unntaket er nedlastingen av agentpakka. En agentpakke fra et annet team (
+            <code className={code}>source</code> i konfigurasjonen) hentes ved oppstart: har nav-pilot en kopi av
+            manifestet fra før, venter oppstarten høyst 15 sekunder; første gang venter den til nedlastingen er ferdig
+            eller git gir opp. opencode og pi venter dessuten på den første nedlastingen av agentpakka (se «opencode»).
+          </BodyLong>
         </VStack>
       </section>
 

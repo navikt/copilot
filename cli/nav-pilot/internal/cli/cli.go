@@ -150,6 +150,7 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
   --project-dir <dir>     Directory the agent may read and write (default: current directory, not
                           the enclosing git root; the root's instructions stay readable)
   --no-sandbox            When cplt is missing, start copilot or opencode without it, and without asking
+  --verbose               Say what the launch does: sandbox directory, client, agent and model
   --sync                  Sync all scopes without asking, then launch (opt-in; nav-pilot -- … never syncs)
   -- <client-flags>       Launch now with these flags, passed to the client unchanged: no menu, no
                           nav-pilot prompt, no sync, with or without a terminal (nav-pilot -- -p "…").
@@ -311,6 +312,7 @@ func run(args []string) error {
 	// Per run, not per process: a second run() in one process prints it again.
 	notedProposals = map[string]bool{}
 	armNudges, nudgesReady = false, nil
+	providerpkg.Verbose, artifacts.LaunchNotices = false, false
 
 	// --client=opencode reads as --client opencode. alpha keeps its own
 	// parsing: decide and ask take free text.
@@ -455,6 +457,8 @@ func run(args []string) error {
 				cliOverrides.AskUser = &f
 			case "--no-sandbox":
 				cliOverrides.NoSandbox = true
+			case "--verbose":
+				providerpkg.Verbose = true
 			case "--auto-launch":
 				t := true
 				cliOverrides.AutoLaunch = &t
@@ -468,6 +472,8 @@ func run(args []string) error {
 				cleanArgs = append(cleanArgs, args[i])
 			}
 		}
+		// A launch, not a command behind launch flags (nav-pilot --verbose sync).
+		artifacts.LaunchNotices = len(cleanArgs) == 0 || cleanArgs[0] == "--sync" || !isKnownCommand(cleanArgs[0])
 		// A launch flag in front of `config` used to vanish: nav-pilot
 		// --model x config get model printed the file's model, not x.
 		if len(cleanArgs) > 0 && cleanArgs[0] == "config" {

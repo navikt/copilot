@@ -40,6 +40,8 @@ const (
 	// nudgePrepWait is how long the end of a session waits for the
 	// background fetches before it goes without them.
 	nudgePrepWait = 50 * time.Millisecond
+	// newsShowEvery is how often a session may end with a news line.
+	newsShowEvery = 20 * time.Hour
 	// newsMaxAge keeps a new install from bringing up an old article.
 	newsMaxAge = 30 * 24 * time.Hour
 	// newsSeenMax bounds the seen list; the feed holds far fewer.
@@ -60,6 +62,9 @@ type newsState struct {
 	Fetched time.Time  `json:"fetched"`
 	Items   []newsItem `json:"items"`
 	Seen    []string   `json:"seen"`
+	// Shown is when the last news line was shown: at most one a day, so a
+	// backlog of articles is not one line after every session.
+	Shown time.Time `json:"shown,omitzero"`
 }
 
 func newsStatePath() (string, error) {
@@ -201,8 +206,12 @@ func showNews(client string) {
 		return
 	}
 	st := readNewsState()
-	if it := nextNews(st, time.Now()); it != nil && claimSessionPrompt() {
-		st.Seen = append(st.Seen, it.URL)
+	now := time.Now()
+	if now.Sub(st.Shown) < newsShowEvery {
+		return
+	}
+	if it := nextNews(st, now); it != nil && claimSessionPrompt() {
+		st.Seen, st.Shown = append(st.Seen, it.URL), now
 		fmt.Fprintf(os.Stderr, "%s Nytt fra ki-utvikling: %s %s\n", dim("ℹ"), it.Title, it.URL)
 		writeNewsState(st)
 	}

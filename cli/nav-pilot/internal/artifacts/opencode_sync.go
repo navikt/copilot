@@ -251,8 +251,10 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 	// stderr, not stdout: this function also runs under `nav-pilot sync
 	// --json`, and a source with hooks prepended this line to the JSON
 	// document. Once per client per run: a launch materializes again.
+	// And once per set of missing hooks, not on every launch: the next line
+	// comes when the set changes.
 	if len(skipped) > 0 {
-		if _, said := hookWarningSaid.LoadOrStore(client, true); said {
+		if _, said := hookWarningSaid.LoadOrStore(client, true); said || (LaunchNotices && !SeenChanged("hooks-not-installed-"+client, strings.Join(skipped, ","))) {
 			skipped = nil
 		}
 	}

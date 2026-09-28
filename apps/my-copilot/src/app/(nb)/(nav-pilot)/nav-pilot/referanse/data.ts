@@ -182,6 +182,10 @@ export const CLI_COMMANDS = [
   { command: "nav-pilot", description: "Interaktivt: installer, oppgrader eller start Copilot-sandkassen (cplt)" },
   { command: "nav-pilot --client opencode", description: "Start opencode med Nav-konteksten på plass" },
   {
+    command: "nav-pilot --verbose",
+    description: "Start som vanlig og vis hva oppstarten gjør: sandkassemappe, klient, agent og modell",
+  },
+  {
     command: 'nav-pilot -- -p "…"',
     description:
       "Start klienten med argumentene etter -- uten meny, spørsmål fra nav-pilot eller sync, med eller uten terminal (CI, skript). Legg til --sync for å synkronisere først. I en terminal viser cplt fortsatt sin egen bekreftelse",

@@ -373,7 +373,12 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 		}
 		scopeParts = append(scopeParts, fmt.Sprintf("user: %s", label))
 	}
-	fmt.Printf("%s  %s\n", bold("🧭 nav-pilot"), dim(strings.Join(scopeParts, "  ·  ")))
+	// The scopes are said when there is a question about them, or with
+	// --verbose: a launch with nothing to ask says nothing.
+	greeting := fmt.Sprintf("%s  %s\n", bold("🧭 nav-pilot"), dim(strings.Join(scopeParts, "  ·  ")))
+	if providerpkg.Verbose {
+		fmt.Print(greeting)
+	}
 
 	var stale []staleScope
 	var allAgents []string
@@ -393,6 +398,9 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 	allAgents = uniqueStrings(allAgents)
 
 	if len(stale) > 0 {
+		if !providerpkg.Verbose {
+			fmt.Print(greeting)
+		}
 		for _, s := range stale {
 			if versionNewer(s.latest, s.state.Version) {
 				fmt.Printf("%s Update available for %s (%s): %s → %s\n",
@@ -1248,7 +1256,11 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 		return nil
 	}
 
-	fmt.Println()
+	// A line apart from what came before, for what follows: nothing does on a
+	// plain launch.
+	if providerpkg.Verbose || decision != launchGo {
+		fmt.Println()
+	}
 	switch decision {
 	case launchSkipUnavailable:
 		if resolved.Client == "copilot" {
@@ -1279,7 +1291,9 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 	// launchClientConfirming.
 	warnUnsandboxed := decision == launchWarnUnsandboxed
 
-	fmt.Printf("%s Launching %s...\n", dim("→"), p.DisplayName())
+	if providerpkg.Verbose {
+		fmt.Printf("%s Launching %s...\n", dim("→"), p.DisplayName())
+	}
 	if err := runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
 		return launchClientConfirming(resolved, warnUnsandboxed)
 	}); err != nil {

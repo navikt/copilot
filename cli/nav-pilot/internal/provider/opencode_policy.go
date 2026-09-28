@@ -163,7 +163,7 @@ func OpenCodeVersionStatus() (version string, tested bool, err error) {
 // the parts that could break fail in the safe direction (redaction withholds).
 func warnUntestedOpenCode() {
 	v, tested, err := OpenCodeVersionStatus()
-	if err != nil || tested {
+	if err != nil || tested || !SeenChanged("opencode-untested", v+" "+OpenCodeTestedRange) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "%s opencode %s is outside the tested range (%s). Hooks, the dispatch gate and the session policy may not apply as described. See %s.\n",

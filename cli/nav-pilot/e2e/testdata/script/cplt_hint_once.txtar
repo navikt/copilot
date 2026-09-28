@@ -17,11 +17,9 @@ exec nav-pilot config set rtk_prompted_client copilot
 
 exec pty-run -- nav-pilot
 stdout 'Launching via cplt \(Copilot Sandbox\)'
-stdout 'Sandbox: .*/repo'
 
 exec pty-run -- nav-pilot
 ! stdout 'Launching via cplt \(Copilot Sandbox\)'
-stdout 'Sandbox: .*/repo'
 
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}

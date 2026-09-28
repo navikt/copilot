@@ -96,7 +96,7 @@ var launchFlags = []string{
 	"--client", "--source", "--project-dir", "--persona", "--model", "--mode",
 	"--effort", "--context", "--payload-context", "--log-level", "--otel-log-level", "--local-dispatch",
 	"--allow-all-tools", "--no-allow-all-tools", "--ask-user", "--no-ask-user",
-	"--auto-launch", "--no-auto-launch", "--no-sandbox", "--sync",
+	"--auto-launch", "--no-auto-launch", "--no-sandbox", "--sync", "--verbose",
 	"--version", "-v", "--help", "-h",
 }
 
