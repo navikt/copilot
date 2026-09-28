@@ -110,7 +110,7 @@ const GateVerifyText = "nav-pilot (local_dispatch): before you accept this, buil
 // there, and `opencode run` rejects the request and ends the session, which
 // in re-probe 7 left a deliberate break in production code (#1237). A refusal
 // from the gate is a tool result instead: the session goes on.
-const GateTmpText = "nav-pilot (local_dispatch): this path is outside the project, and a session without a user to ask would end here. " +
+const GateTmpText = "nav-pilot (local_dispatch): this path is outside the project, and opencode would end a headless session here. " +
 	"Keep backups and drafts inside the project. To undo a change, reverse your own edit."
 
 // GateNudgeText is added once per turn as a message when the orchestrator
@@ -413,7 +413,7 @@ func (g *dispatchGate) outsideTemp(r GateRequest) bool {
 		if !filepath.IsAbs(p) {
 			continue
 		}
-		if _, in := under(g.rules.Root, p); in {
+		if _, in := under(g.rules.Root, p); in || filepath.Clean(p) == filepath.Clean(g.rules.Root) {
 			continue
 		}
 		for _, tmp := range []string{"/tmp", "/private/tmp", os.TempDir()} {

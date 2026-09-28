@@ -620,6 +620,7 @@ func TestGateRefusesTempOutsideTheProject(t *testing.T) {
 		bash(1, "cp src/Foo.kt src/Foo.kt.bak"),
 		bash(1, "cp "+abs("src/Foo.kt")+" "+abs("build/Foo.kt.bak")),
 		bash(1, "./gradlew test"),
+		bash(1, "cd "+root+" && ./gradlew test"),
 		edit(1, "src/Foo.kt"),
 		{Session: "w", Turn: 1, Agent: WorkerAgent, Tool: "bash", Command: "mkdir -p /tmp/x"},
 	} {

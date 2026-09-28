@@ -59,7 +59,8 @@ enforcement adds is that the sizes hold.
 Rules that hold at every level:
 
 - **Only trusted classes.** A class the manifest does not mark `trusted` in delegate mode is
-  never named as work to send, and the gate never denies on its account. The level changes
+  never named as work to send, and the gate never denies on its account (the one exception,
+  `deny_tmp`, is about a path, not a class). The level changes
   how hard nav-pilot pushes, never what it considers safe to push.
 - **Byte-stable prompt.** The policy stays a pure function of (model, level, loop-guard
   thresholds), so the prompt cache holds within a session.
