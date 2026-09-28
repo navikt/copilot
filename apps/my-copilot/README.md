@@ -52,7 +52,6 @@ See [`docs/VIDEO_HUD_ARCHITECTURE.md`](./docs/VIDEO_HUD_ARCHITECTURE.md#4-video-
 
 - Node.js (version 22 or higher)
 - pnpm (version 7 or higher)
-- A GitHub App with the necessary permissions
 - Azure AD application for authentication
 
 ### Getting Started
@@ -73,9 +72,6 @@ pnpm install --frozen-lockfile
 Create a `.env.local` file in the root directory and add the required environment variables:
 
 ```env
-GITHUB_APP_ID=your_github_app_id
-GITHUB_APP_PRIVATE_KEY=your_github_app_private_key
-GITHUB_APP_INSTALLATION_ID=your_github_app_installation_id
 AZURE_APP_CLIENT_ID=your_azure_app_client_id
 AZURE_OPENID_CONFIG_JWKS_URI=your_azure_openid_config_jwks_uri
 AZURE_OPENID_CONFIG_ISSUER=your_azure_openid_config_issuer
@@ -175,10 +171,6 @@ All environment variables are documented below, organized by integration:
 
 | Variable                        | Required | Default                                        | Description                                 |
 | ------------------------------- | -------- | ---------------------------------------------- | ------------------------------------------- |
-| **GitHub App**                  |          |                                                |                                             |
-| `GITHUB_APP_ID`                 | Yes      | —                                              | GitHub App ID for API access                |
-| `GITHUB_APP_PRIVATE_KEY`        | Yes      | —                                              | GitHub App private key (PEM format)         |
-| `GITHUB_APP_INSTALLATION_ID`    | Yes      | —                                              | GitHub App installation ID for the org      |
 | **Azure AD** (provided by NAIS) |          |                                                |                                             |
 | `AZURE_APP_CLIENT_ID`           | Yes      | —                                              | Azure AD application client ID              |
 | `AZURE_OPENID_CONFIG_JWKS_URI`  | Yes      | —                                              | Azure AD JWKS endpoint for JWT validation   |
