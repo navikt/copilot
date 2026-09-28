@@ -48,7 +48,7 @@ export default async function LokalIntro() {
     <DocPage
       label="Introduksjon"
       title="Kom i gang med lokal modell på Mac"
-      description="Du installerer nav-pilot, laster ned en kodemodell og kjører en første økt der hovedagenten i skyen sender en oppgave til modellen på Macen din. Det tar omtrent 30 minutter, mest nedlasting."
+      description={`Du installerer nav-pilot, laster ned en kodemodell og kjører en første økt der hovedagenten i skyen sender en oppgave til modellen på Macen din. Nedlastingen er på omtrent ${m.weights_gb + 1} GB. Hvor lang tid den tar, har vi ikke målt på en ny Mac.`}
       badge={
         <Tag variant="warning" size="small" className="uppercase tracking-wide">
           Alfa
@@ -114,8 +114,12 @@ export default async function LokalIntro() {
           <CodeBlock compact>{SET_UP}</CodeBlock>
           <BodyLong>
             <code className={code}>init</code> viser modellen, hva den krever, hva den laster ned og hvor den henter det
-            fra. Så spør den før den starter. Den ber om passordet ditt én gang for å heve minnegrensen i macOS. Når den
-            er ferdig, kjører serveren.
+            fra. Så spør den før den starter. Er minnegrensen i macOS for lav, ber den om passordet ditt én gang for å
+            heve den. Når den er ferdig, kjører serveren.
+          </BodyLong>
+          <BodyLong>
+            Vi har ikke testet <code className={code}>brew install</code> og <code className={code}>init</code> på en
+            Mac uten modellen fra før.
           </BodyLong>
           <BodyLong>
             <code className={code}>status</code> skal vise linjene <code className={code}>Model</code>,{" "}
@@ -140,8 +144,8 @@ export default async function LokalIntro() {
           <BodyLong>
             Be om en mekanisk endring over flere filer, for eksempel «legg til parameteren{" "}
             <code className={code}>ctx</code> i alle kall til <code className={code}>hentBruker</code>». Med
-            standardnivået <code className={code}>balanced</code> stopper nav-pilot hovedagenten når den redigerer en
-            femte fil selv, og ber den sende resten til <code className={code}>local-worker</code>.
+            standardnivået <code className={code}>balanced</code> stopper nav-pilot hovedagenten én gang når den
+            redigerer en femte fil selv, og ber den sende resten til <code className={code}>local-worker</code>.
           </BodyLong>
           <BodyLong>
             Etterpå viser <code className={code}>nav-pilot alpha local status</code> at serveren fortsatt kjører, og
@@ -159,7 +163,8 @@ export default async function LokalIntro() {
           </LinkableHeading>
           <CodeBlock compact>{FIRST_DECIDE}</CodeBlock>
           <BodyLong>
-            Du får en sannsynlighet per svar, vanligvis på under et halvt sekund når serveren er varm. Neste steg er{" "}
+            Du får en sannsynlighet per svar. Når serveren er varm, bruker modellen vanligvis under et halvt sekund.
+            Neste steg er{" "}
             <NextLink href="/nav-pilot/lokal/decide" className={linkClass}>
               Din første decide-hook
             </NextLink>
