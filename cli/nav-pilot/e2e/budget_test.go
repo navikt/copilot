@@ -20,7 +20,9 @@ import (
 const budgetClientLog = "NAV_PILOT_E2E_BUDGET_CLIENT_LOG"
 
 // Budgets for nav-pilot's own time: what a user waits for before the
-// client starts, after it exits, and for --version and --help. The network is
+// client starts, after it exits, for --version and --help, and for a short
+// command that does not need the network (config get, list): those send
+// telemetry at exit, and wait at most 300 ms for it. The network is
 // a blackhole (every connection accepted, never answered): what a bad VPN or a
 // firewall that drops packets looks like. None of these paths may wait on it.
 //
@@ -32,6 +34,7 @@ var budgets = map[string]time.Duration{
 	"help":    50 * time.Millisecond,
 	"launch":  150 * time.Millisecond,
 	"exit":    200 * time.Millisecond,
+	"command": 300 * time.Millisecond,
 }
 
 const (
@@ -219,6 +222,8 @@ func TestLaunchBudget(t *testing.T) {
 	}{
 		{"version", []string{"--version"}},
 		{"help", []string{"--help"}},
+		{"command", []string{"config", "get", "client"}},
+		{"command", []string{"list"}},
 	} {
 		var d []time.Duration
 		for range budgetRuns {

@@ -52,17 +52,12 @@ func TestFlushTelemetryIsBounded(t *testing.T) {
 	if took := time.Since(start); took > time.Second {
 		t.Fatalf("flush took %s with a 50ms budget", took)
 	}
-	for _, args := range [][]string{{"alpha", "decide", "q"}, {"alpha", "local", "ask", "q"}} {
-		if got := flushBudget(args); got != telemetryQuickFlushBudget {
-			t.Errorf("flushBudget(%v) = %s, want %s", args, got, telemetryQuickFlushBudget)
-		}
-	}
-	if got := flushBudget([]string{"sync"}); got != telemetryFlushBudget {
-		t.Errorf("flushBudget(sync) = %s", got)
+	if got := flushBudget(); got != telemetryFlushBudget {
+		t.Errorf("flushBudget = %s, want %s", got, telemetryFlushBudget)
 	}
 	// After a session the user waits for the shell.
 	sessionClient = "copilot"
-	if got := flushBudget(nil); got != telemetrySessionFlushBudget {
+	if got := flushBudget(); got != telemetrySessionFlushBudget {
 		t.Errorf("flushBudget after a session = %s, want %s", got, telemetrySessionFlushBudget)
 	}
 }
