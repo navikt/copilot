@@ -25,7 +25,7 @@ cd $WORK/repo
 exec /usr/bin/find $HOME/.nav-pilot/pi -type f -newer $HOME/.nav-pilot/pi/agents/fjernes.md
 cp stdout $WORK/newer-before.txt
 
-! exec nav-pilot sync --source $WORK/plattform
+exits 1 nav-pilot sync --source $WORK/plattform
 stdout 'agents/fjernes\.md \(deleted in source; will be removed\)'
 stdout 'Pi scope has 1 file\(s\) to remove\. Run nav-pilot sync --apply to apply\.'
 exists $HOME/.nav-pilot/pi/agents/fjernes.md

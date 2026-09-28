@@ -496,7 +496,8 @@ func (piProvider) SyncContext(ref, sourceRepo string, apply, jsonOutput, hasPrev
 	src, err := source.ResolveSourceForSync(ref, sourceRepo, cliVersion)
 	if err != nil {
 		if !jsonOutput {
-			fmt.Printf("%s Pi scope sync failed: could not resolve source: %v\n", domain.Yellow("⚠"), err)
+			fmt.Fprintf(os.Stderr, "%s Pi sync failed: could not resolve source: %v\n", domain.Yellow("⚠"), err)
+			fmt.Printf("%s Pi scope sync failed.\n", domain.Yellow("⚠"))
 		}
 		return ProviderSyncResult{Managed: true, Err: err}
 	}
@@ -504,7 +505,8 @@ func (piProvider) SyncContext(ref, sourceRepo string, apply, jsonOutput, hasPrev
 	report, err := artifacts.SyncOpenCodeArtifactsReport("pi", src.Dir, "", outputDir, src.Version, src.SHA, src.Repo, !apply)
 	if err != nil {
 		if !jsonOutput {
-			fmt.Printf("%s Pi scope sync failed: %v\n", domain.Yellow("⚠"), err)
+			fmt.Fprintf(os.Stderr, "%s Pi sync error: %v\n", domain.Yellow("⚠"), err)
+			fmt.Printf("%s Pi scope sync failed.\n", domain.Yellow("⚠"))
 		}
 		return ProviderSyncResult{Managed: true, Err: err}
 	}
