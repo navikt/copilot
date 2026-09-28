@@ -198,7 +198,9 @@ func surveyToken() string {
 	if e2eSeams == "1" {
 		return os.Getenv("NAV_PILOT_E2E_GITHUB_TOKEN")
 	}
-	t, err := loadToken()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	t, err := currentToken(ctx)
 	if err != nil || t.expired() {
 		return ""
 	}
@@ -206,9 +208,10 @@ func surveyToken() string {
 }
 
 // canSignIn reports whether answers could be sent: a stored token, or a
-// GitHub App to log in with.
+// GitHub App to log in with. The App first: it runs at launch, and
+// surveyToken may renew the token over the network.
 func canSignIn() bool {
-	return surveyToken() != "" || hasGitHubApp()
+	return hasGitHubApp() || surveyToken() != ""
 }
 
 // maybeSurvey runs at the calm moment after an interactive session. It never

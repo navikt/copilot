@@ -14,7 +14,10 @@ import (
 // re-validating the stored token against GitHub (not just checking presence)
 // so a revoked/expired token is reported accurately rather than optimistically.
 func cmdAuthStatus(jsonOutput bool) error {
-	token, err := loadToken()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	token, err := currentToken(ctx)
 	if err != nil {
 		if errors.Is(err, keyring.ErrNotFound) {
 			if jsonOutput {
@@ -33,9 +36,6 @@ func cmdAuthStatus(jsonOutput bool) error {
 		fmt.Printf("  %s Token expired on %s. Run %s to re-authenticate.\n", yellow("⚠"), token.ExpiresAt.Format("2006-01-02 15:04"), bold("nav-pilot auth login"))
 		return nil
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 
 	user, err := fetchGitHubUser(ctx, token.AccessToken)
 	if err != nil {

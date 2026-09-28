@@ -102,7 +102,10 @@ func allowedCopilotCLIURL(raw string) bool {
 // cmdUsage fetches the developer's GitHub Copilot usage summary from
 // copilot-cli and renders it to the terminal.
 func cmdUsage(jsonOutput bool, tmuxFormat bool) error {
-	token, err := loadToken()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	token, err := currentToken(ctx)
 	if err != nil {
 		if errors.Is(err, keyring.ErrNotFound) {
 			return fmt.Errorf("not logged in — run 'nav-pilot auth login' first")
@@ -112,9 +115,6 @@ func cmdUsage(jsonOutput bool, tmuxFormat bool) error {
 	if token.expired() {
 		return fmt.Errorf("token expired on %s — run 'nav-pilot auth login' to re-authenticate", token.ExpiresAt.Format("2006-01-02 15:04"))
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
 
 	usage, err := fetchUsage(ctx, copilotCLIURL(), token.AccessToken)
 	if err != nil {

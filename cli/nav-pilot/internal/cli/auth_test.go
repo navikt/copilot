@@ -385,3 +385,93 @@ func TestRunDeviceFlowDefaultInterval(t *testing.T) {
 		t.Fatalf("unexpected token: %+v", token)
 	}
 }
+
+// An App user token lasts 8 hours. Near expiry, currentToken trades the
+// refresh token for a new pair and saves it, with no client secret (#1118).
+func TestCurrentTokenRefreshes(t *testing.T) {
+	keyring.MockInit()
+	var form map[string]string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		form = map[string]string{}
+		for k := range r.PostForm {
+			form[k] = r.PostForm.Get(k)
+		}
+		_, _ = w.Write([]byte(`{"access_token":"ghu_new","token_type":"bearer","expires_in":28800,"refresh_token":"ghr_new","refresh_token_expires_in":15897600}`))
+	}))
+	defer server.Close()
+	origDeviceURL, origTokenURL := deviceCodeURL, accessTokenURL
+	setTestURLs(server.URL, server.URL)
+	defer setTestURLs(origDeviceURL, origTokenURL)
+
+	// Far from expiry: no request.
+	fresh := storedToken{AccessToken: "ghu_old", Login: "kari", ExpiresAt: time.Now().Add(time.Hour), RefreshToken: "ghr_old"}
+	if err := saveToken(fresh); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := currentToken(context.Background()); got.AccessToken != "ghu_old" || form != nil {
+		t.Fatalf("refreshed a token an hour from expiry: %+v, form %v", got, form)
+	}
+
+	fresh.ExpiresAt = time.Now().Add(time.Minute)
+	if err := saveToken(fresh); err != nil {
+		t.Fatal(err)
+	}
+	got, err := currentToken(context.Background())
+	if err != nil || got.AccessToken != "ghu_new" || got.RefreshToken != "ghr_new" || got.Login != "kari" || got.expired() {
+		t.Fatalf("currentToken = %+v, %v", got, err)
+	}
+	if form["grant_type"] != "refresh_token" || form["refresh_token"] != "ghr_old" || form["client_id"] == "" || form["client_secret"] != "" {
+		t.Fatalf("refresh request form = %v", form)
+	}
+	if saved, _ := loadToken(); saved.AccessToken != "ghu_new" || time.Until(saved.RefreshExpiresAt) < 24*time.Hour {
+		t.Fatalf("saved = %+v", saved)
+	}
+
+	// A refused refresh keeps the stored token as it was.
+	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		form = map[string]string{"called": "yes"}
+		_, _ = w.Write([]byte(`{"error":"bad_refresh_token"}`))
+	})
+	stale := storedToken{AccessToken: "ghu_stale", ExpiresAt: time.Now().Add(-time.Hour), RefreshToken: "ghr_stale"}
+	if err := saveToken(stale); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := currentToken(context.Background()); err != nil || got.AccessToken != "ghu_stale" || !got.expired() || form["called"] != "yes" {
+		t.Fatalf("after a refused refresh: %+v, %v, form %v", got, err, form)
+	}
+	if saved, _ := loadToken(); saved.RefreshToken != "ghr_stale" {
+		t.Fatalf("a refused refresh changed the stored token: %+v", saved)
+	}
+
+	// Another process refreshed first: the refused one takes the saved pair.
+	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = saveToken(storedToken{AccessToken: "ghu_other", ExpiresAt: time.Now().Add(8 * time.Hour), RefreshToken: "ghr_other"})
+		_, _ = w.Write([]byte(`{"error":"bad_refresh_token"}`))
+	})
+	if err := saveToken(stale); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := currentToken(context.Background()); got.AccessToken != "ghu_other" {
+		t.Fatalf("after losing a refresh race: %+v", got)
+	}
+
+	// An expired refresh token is not sent.
+	form = nil
+	stale.RefreshExpiresAt = time.Now().Add(-time.Minute)
+	if err := saveToken(stale); err != nil {
+		t.Fatal(err)
+	}
+	if _, _ = currentToken(context.Background()); form != nil {
+		t.Fatalf("sent an expired refresh token: %v", form)
+	}
+
+	// A token without a refresh token (expiration off) is left alone.
+	form = nil
+	if err := saveToken(storedToken{AccessToken: "gho_x", ExpiresAt: time.Now().Add(time.Minute)}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := currentToken(context.Background()); got.AccessToken != "gho_x" || form != nil {
+		t.Fatalf("got %+v, form %v", got, form)
+	}
+}
