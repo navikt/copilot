@@ -4,6 +4,11 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-28
 
+### Ingen kommando venter på telemetrien
+
+- **Sendes neste gang, i bakgrunnen**: Før ventet nav-pilot opptil 300 ms på å sende telemetrien når en kommando var ferdig, og 150 ms etter en økt. Nå skrives den siste sendingen til `~/.nav-pilot/telemetry-spool/`, og neste nav-pilot sender den i bakgrunnen. Ingen kommando, oppstart eller avslutning venter på den.
+- **Samme data, og bare det**: Fila inneholder det som ellers ville blitt sendt. Den slettes når den er sendt, eller etter sju dager. Med `DO_NOT_TRACK` eller `NAV_PILOT_TELEMETRY_ENABLED=false` skrives ingenting, og det som ligger der fra før, slettes.
+
 ### Kontekstsjekken venter ikke i ti minutter på en treg maskin
 
 - **Kort prøve først**: `alpha local doctor` og `alpha local setup` sender nå en kort tekst før kontekstsjekken og måler hvor fort serveren leser den. Ser det ut til at de rundt 30 000 tokenene vil ta mer enn halvannet minutt, hopper doctor over sjekken med «too slow to test 30k tokens on this machine» og et råd om hva du kan sjekke selv, i stedet for å feile etter ti minutter. Kontekstvinduet er da ikke sjekket, og det står i meldingen (#1222).

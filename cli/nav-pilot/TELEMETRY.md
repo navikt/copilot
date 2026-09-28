@@ -129,6 +129,12 @@ Klassifisering prioriterer:
   - Samme maskin = alltid samme ID (reproducible)
   - **Inneholder INGEN persondata** (kun hardware/path)
 
+**Usendte metrikker:**
+- Den siste sendingen fra en kommando legges i `~/.nav-pilot/telemetry-spool/`, og neste nav-pilot sender den i bakgrunnen
+- Filene inneholder de samme metrikkene som ellers ville blitt sendt, og ikke noe mer
+- Filer eldre enn sju dager slettes usendt, og det ligger aldri mer enn 50 filer der
+- Slår du av telemetrien, slettes mappa ved neste kjøring, og ingenting i den sendes
+
 **Dataoppbevaring:**
 - Oppbevaringstid styres av backend (Prometheus/OTLP-collector), ikke av CLI-en.
 - nav-pilot sender ikke en klientstyrt retention-innstilling.
@@ -387,6 +393,7 @@ export NAV_PILOT_TELEMETRY_ENABLED=0
 
 **Effekt av deaktivering:**
 - Ingen data sendes til collector
+- Metrikker som ligger usendt i `~/.nav-pilot/telemetry-spool/`, slettes
 - nav-pilot kjører identisk ellers
 - Ingen overhead eller ytelsestap
 
@@ -480,7 +487,7 @@ Planlagt: Q4 2026. Da blir telemetri gjort obligatorisk (eller stilt av). Pilot-
 - **Eksport**: OpenTelemetry (OTLP/HTTP) til NAV sin Prometheus/Grafana-stack
 - **Sendefrekvens**: Hver 10. sekund (batch)
 - **Timeout**: 2 sekunder per batch
-- **Ved avslutning**: nav-pilot venter høyst 300 ms på den siste eksporten, og høyst 150 ms etter en økt. `--version` og `--help` sender ingenting. Svarer ikke mottakeren, går eksporten tapt, og kommandoen avsluttes likevel.
+- **Ved avslutning**: nav-pilot venter ikke på nettet. Den siste eksporten skrives til `~/.nav-pilot/telemetry-spool/`, og neste nav-pilot sender den i bakgrunnen uten at noen kommando venter på det. Rekker den det ikke før kommandoen er ferdig, blir fila liggende til neste gang. `--version` og `--help` sender ingenting.
 - **Språk**: Go 1.21+
 - **Avhengigheter**: `go.opentelemetry.io/otel/*` (se `go.mod`)
 

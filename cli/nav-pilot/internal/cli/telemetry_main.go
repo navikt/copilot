@@ -17,45 +17,11 @@ func telemetryMode() string {
 	return "non_interactive"
 }
 
-// The exit waits for the last export (#1101), but not for long. A cold
-// export (DNS, TLS, one round trip) takes 150-400 ms. It used to get a second,
-// and on a network that does not answer, `nav-pilot config get` took a second
-// each time it ran from a script or a shell prompt (#1234). Every command now
-// gets 300 ms, as alpha decide and alpha local ask already had: a dropped
-// sample is cheaper than a slow command.
-//
-// After a session the budget is shortest: the periodic reader exported every
-// ten seconds while the session ran, so what is left is one export over a
-// connection already open, and the user is waiting for the shell.
-const (
-	telemetryFlushBudget        = 300 * time.Millisecond
-	telemetrySessionFlushBudget = 150 * time.Millisecond
-)
-
-// flushBudget is how long the exit waits for the last export.
-func flushBudget() time.Duration {
-	if sessionClient != "" {
-		return telemetrySessionFlushBudget
-	}
-	return telemetryFlushBudget
-}
-
-// flushTelemetry exports what is left and returns after budget in any case.
-// The SDK honours the context on its own, except that Shutdown waits out a
-// periodic export already in flight (up to the reader's 2 s timeout), and a
-// firewall that holds connect() can keep it past the deadline too.
-func flushTelemetry(t telemetryRecorder, budget time.Duration) {
-	ctx, cancel := context.WithTimeout(context.Background(), budget)
-	defer cancel()
-	done := make(chan struct{})
-	go func() {
-		_ = t.Shutdown(ctx)
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-ctx.Done():
-	}
+// flushTelemetry ends telemetry. It writes the last export to a spool file
+// and never waits for the network: the next nav-pilot sends the file in the
+// background (see telemetry/spool.go).
+func flushTelemetry(t telemetryRecorder) {
+	_ = t.Shutdown(context.Background())
 }
 
 func runWithCommandTelemetry(command, mode, scope string, fn func() error) error {
@@ -66,7 +32,7 @@ func runWithCommandTelemetry(command, mode, scope string, fn func() error) error
 			telemetry.RecordCommand(command, mode, scope, "error", "panic", time.Since(start))
 
 			// Flush telemetry before we crash
-			flushTelemetry(telemetry, flushBudget())
+			flushTelemetry(telemetry)
 
 			panic(r)
 		}

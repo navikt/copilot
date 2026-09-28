@@ -3,6 +3,7 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -90,6 +91,7 @@ func (NoopRecorder) Shutdown(context.Context) error        { return nil }
 
 type otelTelemetry struct {
 	provider *sdkmetric.MeterProvider
+	spool    *spoolTransport
 
 	commandDurationMS  metric.Int64Histogram
 	commandErrorTotal  metric.Int64Counter
@@ -129,6 +131,10 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	configureOTelDiagnostics()
 
 	if !TelemetryEnabled() {
+		// Turned off: what an earlier run left unsent is not sent either.
+		if d := spoolDir(); d != "" {
+			os.RemoveAll(d)
+		}
 		return NoopRecorder{}, nil
 	}
 
@@ -153,8 +159,16 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 		endpoint = defaultTelemetryEndpoint
 	}
 
+	dir := spoolDir()
+	spool := newSpoolTransport(&http.Transport{Proxy: http.ProxyFromEnvironment}, dir)
+	client := &http.Client{Transport: spool, Timeout: 10 * time.Second}
+	if dir != "" {
+		go sendSpool(dir, endpoint, &http.Client{Transport: spool.next, Timeout: 10 * time.Second})
+	}
+
 	opts := []otlpmetrichttp.Option{
 		otlpmetrichttp.WithTemporalitySelector(temporalityFor),
+		otlpmetrichttp.WithHTTPClient(client),
 	}
 	if endpoint != "" {
 		opts = append(opts, otlpmetrichttp.WithEndpointURL(endpoint))
@@ -300,6 +314,7 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 
 	tel := &otelTelemetry{
 		provider:           provider,
+		spool:              spool,
 		localGateTotal:     localGateTotal,
 		commandDurationMS:  commandDurationMS,
 		commandErrorTotal:  commandErrorTotal,
@@ -634,7 +649,12 @@ func (t *otelTelemetry) RecordVersionSkewDays(component, scope string, days int6
 	))
 }
 
+// Shutdown writes the last export to the spool; it does not touch the
+// network, and ends an export in flight.
 func (t *otelTelemetry) Shutdown(ctx context.Context) error {
+	if t.spool != nil {
+		t.spool.exit()
+	}
 	return t.provider.Shutdown(ctx)
 }
 

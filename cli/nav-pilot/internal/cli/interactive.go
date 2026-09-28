@@ -1075,9 +1075,8 @@ var (
 // starts the survey and news fetches it ends with.
 func beginSession(client string) {
 	sessionClient = client
-	// Export what the launch recorded while the session starts: the export
-	// at its end then goes over an open connection, and fits the short
-	// budget the user waits on (telemetrySessionFlushBudget).
+	// Send what the launch recorded while the session starts, not ten
+	// seconds into it.
 	if f, ok := telemetry.(interface{ ForceFlush(context.Context) error }); ok {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

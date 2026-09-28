@@ -98,6 +98,20 @@ func TestNavRepoFromDir(t *testing.T) {
 		}
 	})
 
+	t.Run("subdirectory and .git file resolve", func(t *testing.T) {
+		dir := initGitRepo(t, "git@github.com:navikt/foo.git")
+		sub := filepath.Join(dir, "a", "b")
+		os.MkdirAll(sub, 0o755)
+		if got := navRepoFromDir(sub); got != "navikt/foo" {
+			t.Fatalf("navRepoFromDir(sub) = %q, want navikt/foo", got)
+		}
+		wt := t.TempDir()
+		os.WriteFile(filepath.Join(wt, ".git"), []byte("gitdir: "+filepath.Join(dir, ".git")+"\n"), 0o644)
+		if got := navRepoFromDir(wt); got != "navikt/foo" {
+			t.Fatalf("navRepoFromDir(.git file) = %q, want navikt/foo", got)
+		}
+	})
+
 	t.Run("not a git repo yields empty", func(t *testing.T) {
 		if got := navRepoFromDir(t.TempDir()); got != "" {
 			t.Fatalf("navRepoFromDir() = %q, want empty", got)

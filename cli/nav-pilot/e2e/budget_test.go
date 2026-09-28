@@ -22,14 +22,19 @@ const budgetClientLog = "NAV_PILOT_E2E_BUDGET_CLIENT_LOG"
 // Budgets for nav-pilot's own time: what a user waits for before the
 // client starts, after it exits, for --version and --help, and for a short
 // command that, with a local source, does not need the network (config get,
-// list): those send telemetry at exit, and wait at most 300 ms for it. The
-// network is
-// a blackhole (every connection accepted, never answered): what a bad VPN or a
-// firewall that drops packets looks like. None of these paths may wait on it.
+// list): those wait at most 300 ms for the daily version check. The network
+// is a blackhole (every connection accepted, never answered): what a bad VPN
+// or a firewall that drops packets looks like. None of these paths may wait
+// on it.
 //
 // The test fails at budgetMargin times the budget, on the median of
 // budgetRuns: CI runners are slower and noisier than a laptop, and a real
 // regression here is a network wait of a second or more, not 20 ms.
+//
+// Telemetry may not cost anything at all. Every case also runs twice with
+// the version check done for the day, so that its wait does not hide one:
+// once with telemetry on (its collector in the blackhole), and once with it
+// off. The two must match within telemetryNoise.
 var budgets = map[string]time.Duration{
 	"version": 50 * time.Millisecond,
 	"help":    50 * time.Millisecond,
@@ -39,8 +44,19 @@ var budgets = map[string]time.Duration{
 }
 
 const (
-	budgetMargin = 3
-	budgetRuns   = 5
+	budgetMargin   = 3
+	budgetRuns     = 6
+	telemetryNoise = 40 * time.Millisecond
+)
+
+// mode is how a timed run is set up.
+type mode int
+
+const (
+	budgetMode   mode = iota // telemetry on, version check due
+	telemetryOn              // telemetry on, version check done for the day
+	telemetryOff             // telemetry off, version check done for the day
+	modes
 )
 
 // runBudgetClient is the fake client's whole program.
@@ -168,18 +184,30 @@ func TestLaunchBudget(t *testing.T) {
 	for k, v := range e.commandEnv() {
 		environ = append(environ, k+"="+v)
 	}
+	// The same with telemetry off: the baseline telemetry is held to.
+	environOff := append(slices.Clone(environ), "NAV_PILOT_TELEMETRY_ENABLED=false")
 
 	// run times one invocation: the whole of it, and the moment the client
 	// started (zero when none did).
-	run := func(args ...string) (total time.Duration, launch, exit time.Duration) {
+	// The release check is due on every run in budget mode, so it is
+	// measured too (it backs off an hour after a failure otherwise).
+	checked := fmt.Sprintf(`{"last_checked":%q,"latest_version":"2026.09.01-120000-aaaaaaa"}`, time.Now().UTC().Format(time.RFC3339))
+	run := func(m mode, args ...string) (total time.Duration, launch, exit time.Duration) {
 		t.Helper()
 		os.Remove(clientLog)
-		// The release check is due on every timed run, so it is measured
-		// too (it backs off an hour after a failure otherwise).
-		os.Remove(filepath.Join(e.home, "cache.json"))
+		cache := filepath.Join(e.home, "cache.json")
 		cmd := exec.Command(bin, args...)
 		cmd.Dir = repo
 		cmd.Env = environ
+		switch m {
+		case budgetMode:
+			os.Remove(cache)
+		case telemetryOn:
+			os.WriteFile(cache, []byte(checked), 0o644)
+		case telemetryOff:
+			os.WriteFile(cache, []byte(checked), 0o644)
+			cmd.Env = environOff
+		}
 		start := time.Now()
 		out, err := cmd.CombinedOutput()
 		end := time.Now()
@@ -201,21 +229,38 @@ func TestLaunchBudget(t *testing.T) {
 		slices.Sort(d)
 		return d[len(d)/2]
 	}
-	check := func(name string, got time.Duration) {
+	check := func(name string, d [modes][]time.Duration) {
 		t.Helper()
 		budget := budgets[name]
-		t.Logf("%-8s median %4d ms (budget %d ms)", name, got.Milliseconds(), budget.Milliseconds())
+		got, on, off := median(d[budgetMode]), median(d[telemetryOn]), median(d[telemetryOff])
+		t.Logf("%-8s median %4d ms (budget %d ms); version check done: telemetry on %4d ms, off %4d ms", name, got.Milliseconds(), budget.Milliseconds(), on.Milliseconds(), off.Milliseconds())
 		if got > budget*budgetMargin {
 			t.Errorf("%s took %s (median of %d), budget %s: over %dx the budget. Something on this path waits on the network or does too much before the client starts; see docs/README.nav-pilot.md, «Ytelse»",
 				name, got, budgetRuns, budget, budgetMargin)
 		}
+		if on > off+telemetryNoise {
+			t.Errorf("%s took %s with telemetry on and %s with it off: something waits for telemetry. It may not; see internal/telemetry/spool.go",
+				name, on, off)
+		}
+	}
+
+	// The run right after one in budget mode is the slower one, whatever it
+	// is (it pays for what that run left behind), so telemetry on and off
+	// take turns being it.
+	order := func(i int) []mode {
+		if i%2 == 0 {
+			return []mode{budgetMode, telemetryOn, telemetryOff}
+		}
+		return []mode{budgetMode, telemetryOff, telemetryOn}
 	}
 
 	// One untimed run of each: the first run of a new binary pays for the
 	// OS's first look at it, and the first launch writes its one-time notices.
-	run("--version")
-	run("--", "-p", "hei")
-	run("--client", "opencode", "--", "run", "hei")
+	for m := range modes {
+		run(m, "--version")
+		run(m, "--", "-p", "hei")
+		run(m, "--client", "opencode", "--", "run", "hei")
+	}
 
 	for _, c := range []struct {
 		name string
@@ -226,28 +271,32 @@ func TestLaunchBudget(t *testing.T) {
 		{"command", []string{"config", "get", "client"}},
 		{"command", []string{"list"}},
 	} {
-		var d []time.Duration
-		for range budgetRuns {
-			total, _, _ := run(c.args...)
-			d = append(d, total)
+		var d [modes][]time.Duration
+		for i := range budgetRuns {
+			for _, m := range order(i) {
+				total, _, _ := run(m, c.args...)
+				d[m] = append(d[m], total)
+			}
 		}
-		check(c.name, median(d))
+		check(c.name, d)
 	}
 
 	for _, client := range [][]string{
 		{"--", "-p", "hei"},
 		{"--client", "opencode", "--", "run", "hei"},
 	} {
-		var launches, exits []time.Duration
-		for range budgetRuns {
-			_, launch, exit := run(client...)
-			if launch == 0 {
-				t.Fatalf("nav-pilot %v started no client", client)
+		var launches, exits [modes][]time.Duration
+		for i := range budgetRuns {
+			for _, m := range order(i) {
+				_, launch, exit := run(m, client...)
+				if launch == 0 {
+					t.Fatalf("nav-pilot %v started no client", client)
+				}
+				launches[m], exits[m] = append(launches[m], launch), append(exits[m], exit)
 			}
-			launches, exits = append(launches, launch), append(exits, exit)
 		}
 		t.Logf("nav-pilot %v:", client)
-		check("launch", median(launches))
-		check("exit", median(exits))
+		check("launch", launches)
+		check("exit", exits)
 	}
 }
