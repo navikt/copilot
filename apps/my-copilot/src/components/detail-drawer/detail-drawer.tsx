@@ -3,6 +3,7 @@
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
 import { XMarkIcon, ExternalLinkIcon } from "@navikt/aksel-icons";
 import { Box, BodyShort, Heading, Tag, HStack, VStack } from "@navikt/ds-react";
+import { itemKey } from "@/lib/item-key";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { DOMAIN_CONFIGS, TYPE_LABELS } from "@/lib/customization-types";
 import { Contributors } from "../contributors";
@@ -101,7 +102,7 @@ export function DetailDrawer({ item, allItems, open, onClose, onNavigate }: Deta
                       </VStack>
                     )}
 
-                    {item.type !== "mcp" && <Contributors key={item.id} itemId={item.id} />}
+                    {item.type !== "mcp" && <Contributors key={itemKey(item)} itemId={itemKey(item)} />}
 
                     {item.type === "mcp" ? (
                       <McpDetails item={item} />

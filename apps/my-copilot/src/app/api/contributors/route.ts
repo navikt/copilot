@@ -1,6 +1,7 @@
 import { getUser, getUserToken } from "@/lib/auth";
 import { getFileContributors } from "@/lib/cached-github";
 import { getAllCustomizations } from "@/lib/customizations";
+import { findByItemKey } from "@/lib/item-key";
 import type { Skill } from "@/lib/customization-types";
 import { NextResponse } from "next/server";
 
@@ -13,7 +14,7 @@ const REPO = "copilot";
  */
 function resolveFilePaths(itemId: string): string[] | null {
   const items = getAllCustomizations();
-  const item = items.find((i) => i.id === itemId);
+  const item = findByItemKey(items, itemId);
   if (!item) return null;
 
   // repoPath, not filePath: git knows where the file lives here, not where it

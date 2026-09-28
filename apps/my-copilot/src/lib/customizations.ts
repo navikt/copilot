@@ -1,12 +1,13 @@
 import type { AnyCustomization, Domain } from "./customization-types";
 import manifest from "./copilot-manifest.json";
+import { findByItemKey } from "./item-key";
 
 export function getAllCustomizations(): AnyCustomization[] {
   return manifest.items as AnyCustomization[];
 }
 
-export function getCustomizationById(id: string): AnyCustomization | undefined {
-  return (manifest.items as AnyCustomization[]).find((item) => item.id === id);
+export function getCustomizationById(key: string): AnyCustomization | undefined {
+  return findByItemKey(manifest.items as AnyCustomization[], key);
 }
 
 /**
