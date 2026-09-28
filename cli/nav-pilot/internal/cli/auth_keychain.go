@@ -37,7 +37,7 @@ type storedToken struct {
 	RefreshExpiresAt time.Time `json:"refresh_expires_at,omitempty"`
 }
 
-// setFrom takes the token fields from GitHub's answer, obtained at now.
+// setFrom takes the token fields from GitHub's answer, received at now.
 func (t *storedToken) setFrom(r *accessTokenResponse, now time.Time) {
 	t.AccessToken, t.TokenType, t.Scope, t.ObtainedAt = r.AccessToken, r.TokenType, r.Scope, now
 	t.ExpiresAt, t.RefreshToken, t.RefreshExpiresAt = time.Time{}, r.RefreshToken, time.Time{}
@@ -55,7 +55,10 @@ const tokenRefreshMargin = 5 * time.Minute
 // currentToken is loadToken, with an access token that expires within
 // tokenRefreshMargin renewed through its refresh token and saved. When the
 // refresh fails the stored token comes back as it was, and callers still
-// check expired().
+// check expired(). The refresh uses the client ID in effect now, so a token
+// from a NAV_PILOT_GITHUB_CLIENT_ID override renews only with the same
+// override. If saving fails after a refresh, GitHub has already retired the
+// old pair: this run uses the new token, and the next one asks for a login.
 //
 // ponytail: two processes refreshing at once both spend the same refresh
 // token, and GitHub rotates it, so the slower one keeps the old token and

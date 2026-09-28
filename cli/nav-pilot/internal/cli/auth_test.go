@@ -428,6 +428,32 @@ func TestCurrentTokenRefreshes(t *testing.T) {
 		t.Fatalf("saved = %+v", saved)
 	}
 
+	// A refused refresh keeps the stored token as it was.
+	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		form = map[string]string{"called": "yes"}
+		_, _ = w.Write([]byte(`{"error":"bad_refresh_token"}`))
+	})
+	stale := storedToken{AccessToken: "ghu_stale", ExpiresAt: time.Now().Add(-time.Hour), RefreshToken: "ghr_stale"}
+	if err := saveToken(stale); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := currentToken(context.Background()); err != nil || got.AccessToken != "ghu_stale" || !got.expired() || form["called"] != "yes" {
+		t.Fatalf("after a refused refresh: %+v, %v, form %v", got, err, form)
+	}
+	if saved, _ := loadToken(); saved.RefreshToken != "ghr_stale" {
+		t.Fatalf("a refused refresh changed the stored token: %+v", saved)
+	}
+
+	// An expired refresh token is not sent.
+	form = nil
+	stale.RefreshExpiresAt = time.Now().Add(-time.Minute)
+	if err := saveToken(stale); err != nil {
+		t.Fatal(err)
+	}
+	if _, _ = currentToken(context.Background()); form != nil {
+		t.Fatalf("sent an expired refresh token: %v", form)
+	}
+
 	// A token without a refresh token (expiration off) is left alone.
 	form = nil
 	if err := saveToken(storedToken{AccessToken: "gho_x", ExpiresAt: time.Now().Add(time.Minute)}); err != nil {

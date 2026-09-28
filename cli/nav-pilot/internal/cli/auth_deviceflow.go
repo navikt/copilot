@@ -198,28 +198,28 @@ func refreshAccessToken(ctx context.Context, clientID, refreshToken string) (*ac
 func postTokenForm(ctx context.Context, form url.Values) (*accessTokenResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, accessTokenURL, strings.NewReader(form.Encode()))
 	if err != nil {
-		return nil, fmt.Errorf("building token poll request: %w", err)
+		return nil, fmt.Errorf("building token request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("polling for access token: %w", err)
+		return nil, fmt.Errorf("requesting access token: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("reading token poll response: %w", err)
+		return nil, fmt.Errorf("reading token response: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("token poll failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("token request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var result accessTokenResponse
 	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("decoding token poll response: %w", err)
+		return nil, fmt.Errorf("decoding token response: %w", err)
 	}
 	return &result, nil
 }

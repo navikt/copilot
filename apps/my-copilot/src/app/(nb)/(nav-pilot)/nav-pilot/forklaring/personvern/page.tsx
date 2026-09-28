@@ -103,10 +103,10 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
           </BodyLong>
           <CodeBlock compact>{`nav-pilot config set surveys false`}</CodeBlock>
           <BodyLong>
-            Nøkkelen fra innloggingen kan ha en utløpstid, og for GitHub-apper er den åtte timer. Da får nav-pilot også
-            en fornyingsnøkkel som varer i seks måneder. Begge ligger i nøkkelringen på maskinen, og nav-pilot henter en
-            ny nøkkel selv når den gamle har gått ut eller snart gjør det. Du må logge inn på nytt først når
-            fornyingsnøkkelen har gått ut.
+            Tokenet fra innloggingen kan ha en utløpstid. For GitHub-apper er den åtte timer, og da får nav-pilot også
+            et refresh-token som varer i seks måneder. Begge ligger i nøkkelringen på maskinen, og nav-pilot henter et
+            nytt token selv når det gamle har gått ut eller snart gjør det. Du må logge inn på nytt først når
+            refresh-tokenet har gått ut.
           </BodyLong>
           <BodyLong>
             Noen undersøkelser nevner nav-pilot i stedet med én linje når en økt starter. Du kan alltid svare selv med{" "}
