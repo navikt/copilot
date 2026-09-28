@@ -1,4 +1,5 @@
 import { Box, VStack, BodyShort, HStack } from "@navikt/ds-react";
+import { itemKey } from "@/lib/item-key";
 import {
   ArrowRightIcon,
   WrenchIcon,
@@ -42,7 +43,7 @@ function RecentUpdates() {
             return (
               <NextLink
                 key={`${item.type}-${item.id}`}
-                href={`/verktoy?type=${item.type}&item=${item.id}`}
+                href={`/verktoy?type=${item.type}&item=${encodeURIComponent(itemKey(item))}`}
                 className="no-underline hover:underline"
               >
                 <VStack gap="space-2">
@@ -82,7 +83,7 @@ function RecentUpdates() {
           return (
             <NextLink
               key={`${item.type}-${item.id}-${date}-${commitMessage}`}
-              href={`/verktoy?type=${item.type}&item=${item.id}`}
+              href={`/verktoy?type=${item.type}&item=${encodeURIComponent(itemKey(item))}`}
               className="no-underline hover:underline"
             >
               <VStack gap="space-2">

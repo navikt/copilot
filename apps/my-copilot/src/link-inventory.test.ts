@@ -13,6 +13,7 @@
 //
 // After adding a page, anchor or link, run `pnpm link-inventory:update`. It
 // only adds entries. Never delete one: add a redirect or a legacy anchor.
+import { findByItemKey } from "@/lib/item-key";
 import fs from "node:fs";
 import path from "node:path";
 import nextConfig from "../next.config";
@@ -468,12 +469,13 @@ describe("link inventory", () => {
   // /verktoy?item=<id> opens one customization. An unknown id shows the
   // catalog with nothing open, so the link looks fine and is not.
   it("every /verktoy?item= link names an item that exists", () => {
-    const ids = new Set([
-      ...manifest.items.map((i) => i.id),
-      ...mcpAllowlist.servers.map((s) => `mcp-${s.name}`), // as in src/lib/mcp-registry.ts
-    ]);
+    const items = [
+      ...manifest.items.map((i) => ({ type: i.type, id: i.id })),
+      ...mcpAllowlist.servers.map((s) => ({ type: "mcp", id: `mcp-${s.name}` })), // as in src/lib/mcp-registry.ts
+    ];
+    // "<type>:<id>" or, from older links, a bare id (#1036).
     const unknown = found
-      .filter((f) => f.path === "/verktoy" && f.item !== undefined && !ids.has(f.item))
+      .filter((f) => f.path === "/verktoy" && f.item !== undefined && !findByItemKey(items, f.item))
       .map((f) => `${f.item} (${f.source})`);
     expect([...new Set(unknown)]).toEqual([]);
   });
