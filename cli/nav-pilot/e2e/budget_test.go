@@ -22,31 +22,31 @@ const budgetClientLog = "NAV_PILOT_E2E_BUDGET_CLIENT_LOG"
 // Budgets for nav-pilot's own time: what a user waits for before the
 // client starts, after it exits, for --version and --help, and for a short
 // command that, with a local source, does not need the network (config get,
-// list): those wait at most 300 ms for the daily version check. The network
-// is a blackhole (every connection accepted, never answered): what a bad VPN
-// or a firewall that drops packets looks like. None of these paths may wait
-// on it.
+// list). The network is a blackhole (every connection accepted, never
+// answered): what a bad VPN or a firewall that drops packets looks like. None
+// of these paths may wait on it.
 //
 // The test fails at budgetMargin times the budget, on the median of
 // budgetRuns: CI runners are slower and noisier than a laptop, and a real
 // regression here is a network wait of a second or more, not 20 ms.
 //
-// Telemetry may not cost anything at all. Every case also runs twice with
-// the version check done for the day, so that its wait does not hide one:
-// once with telemetry on (its collector in the blackhole), and once with it
-// off. The two must match within telemetryNoise.
+// Neither telemetry nor the daily version check may cost anything at all.
+// Every case runs three ways: with the version check due (its endpoint in the
+// blackhole), and twice with it done for the day, once with telemetry on (its
+// collector in the blackhole) and once with it off. The version check due
+// must match it done, and telemetry on must match it off, within noise.
 var budgets = map[string]time.Duration{
 	"version": 50 * time.Millisecond,
 	"help":    50 * time.Millisecond,
 	"launch":  150 * time.Millisecond,
 	"exit":    200 * time.Millisecond,
-	"command": 300 * time.Millisecond,
+	"command": 100 * time.Millisecond,
 }
 
 const (
-	budgetMargin   = 3
-	budgetRuns     = 6
-	telemetryNoise = 40 * time.Millisecond
+	budgetMargin = 3
+	budgetRuns   = 6
+	noise        = 40 * time.Millisecond
 )
 
 // mode is how a timed run is set up.
@@ -238,7 +238,11 @@ func TestLaunchBudget(t *testing.T) {
 			t.Errorf("%s took %s (median of %d), budget %s: over %dx the budget. Something on this path waits on the network or does too much before the client starts; see docs/README.nav-pilot.md, «Ytelse»",
 				name, got, budgetRuns, budget, budgetMargin)
 		}
-		if on > off+telemetryNoise {
+		if got > on+noise {
+			t.Errorf("%s took %s with the version check due and %s with it done: something waits for the version check. It may not; see artifacts.AssessStalenessCached",
+				name, got, on)
+		}
+		if on > off+noise {
 			t.Errorf("%s took %s with telemetry on and %s with it off: something waits for telemetry. It may not; see internal/telemetry/spool.go",
 				name, on, off)
 		}

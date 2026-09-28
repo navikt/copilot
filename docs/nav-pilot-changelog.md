@@ -4,6 +4,11 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-28
 
+### Ingen kommando venter på versjonssjekken
+
+- **Svaret brukes neste gang**: Før ventet nav-pilot opptil 300 ms på versjonssjekken når en kommando var ferdig, og 150 ms etter en økt. Nå leser nav-pilot svaret fra forrige sjekk i `~/.nav-pilot/cache.json` og spør GitHub i bakgrunnen, høyst én gang i døgnet. Avslutningen venter ikke på svaret. Kommer det ikke før kommandoen er ferdig, spør en senere kommando eller økt igjen.
+- **Samme varsel som før**: Finnes det en ny versjon, sier nav-pilot fra på hver kommando til du oppgraderer, som før. Svaret kommer når en kommando varer lenge nok til at GitHub rekker å svare, som en økt, `sync` eller `install`. Kjører du bare korte kommandoer som `config get`, kan det ta lenger tid før du får beskjed.
+
 ### Ingen kommando venter på telemetrien
 
 - **Sendes neste gang, i bakgrunnen**: Før ventet nav-pilot opptil 300 ms på å sende telemetrien når en kommando var ferdig, og 150 ms etter en økt. Nå skrives den siste sendingen til `~/.nav-pilot/telemetry-spool/`, og neste nav-pilot sender den i bakgrunnen. Ingen kommando, oppstart eller avslutning venter på den.

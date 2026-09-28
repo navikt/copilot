@@ -136,8 +136,8 @@ func AssessStaleness(installedVersion string, fetchFn func() (string, string, er
 
 // AssessStalenessCached is AssessStaleness without the wait: it answers from
 // the cache, and when a check is due it runs it in the background, once per
-// process, for the next command to read. [WaitForRefresh] lets the process
-// give that check a moment before it exits.
+// process, for the next command to read. The process does not wait for it at
+// exit.
 func AssessStalenessCached(installedVersion string, fetchFn func() (string, string, error)) StalenessAssessment {
 	if !RefreshInBackground {
 		return AssessStaleness(installedVersion, fetchFn)
