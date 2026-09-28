@@ -115,7 +115,7 @@ const GateNudgeText = "nav-pilot (local_dispatch): no build or test command has 
 // is the lever bench-frontier measures as retry2: on create-file it took
 // verified results from 5/20 to 15/20, at 322 s against 618 s per verified
 // result (mlx-workspace #126).
-const GateRetryText = "nav-pilot (local_dispatch): this check failed after `local-worker` created a file. Send it back to `local-worker` once, in the same task (task_id): the failing output above, and «The change is not done yet. Fix it. Change nothing else.» If the check fails again, fix it yourself."
+const GateRetryText = "nav-pilot (local_dispatch): this check failed after `local-worker` created a file. Send it back to `local-worker` once, in the same task (pass its task_id), with the failing output above and the words: The change is not done yet. Fix it. Change nothing else. If the check fails again, fix it yourself."
 
 // GateRetryDoneText is appended when the check fails again after that one
 // retry: two attempts is the bound.
@@ -164,6 +164,7 @@ type gateTurn struct {
 	created    bool   // the worker created a file this turn
 	checking   string // the build or test that runs since the worker returned
 	retried    bool   // the worker has had its one retry this turn
+	settled    bool   // the retry's check has run and been counted
 }
 
 // GateRules says which rules a session's gate runs. Each needs its class
@@ -216,7 +217,9 @@ type dispatchGate struct {
 	rules    GateRules
 	sessions map[string]*gateTurn
 	// workerCreated: worker sessions that created a file, until the task
-	// that ran them returns.
+	// that ran them returns. ponytail: a task that fails or runs in the
+	// background never returns here, so its entry stays; one bool per worker
+	// session.
 	workerCreated map[string]bool
 	// serverUp is the liveness check, asked only before a deny. A var in the
 	// struct so a test can take the server down.
@@ -408,17 +411,24 @@ func (g *dispatchGate) verify(r GateRequest) (key, text string) {
 			delete(g.workerCreated, r.Worker)
 		}
 		return "append", GateVerifyText
-	case r.Phase == "after" && r.Tool == "bash" && st.checking != "" && r.Command == st.checking && r.Exit != nil:
+	case r.Phase == "after" && r.Tool == "bash" && st.checking != "" && r.Command == st.checking:
+		// Cleared on any return of the check, so a timed-out one (no exit
+		// code) does not hang over a later run of the same command.
 		st.checking = ""
+		if r.Exit == nil || st.settled {
+			break
+		}
 		switch {
 		case *r.Exit != 0 && !st.retried:
 			st.retried = true
 			g.counts["create_retry"]++
 			return "append", GateRetryText
 		case *r.Exit != 0:
+			st.settled = true
 			g.counts["create_retry_failed"]++
 			return "append", GateRetryDoneText
 		case st.retried:
+			st.settled = true
 			g.counts["create_retry_passed"]++
 		}
 	case r.Phase == "text" && st.unverified && !st.nudged:

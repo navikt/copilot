@@ -571,7 +571,7 @@ func TestGateGivesACreatedFileOneRetry(t *testing.T) {
 		t.Fatal("a second retry was offered")
 	}
 	c := g.snapshot()
-	if c["create_retry"] != 1 || c["create_retry_failed"] != 2 {
+	if c["create_retry"] != 1 || c["create_retry_failed"] != 1 {
 		t.Errorf("counts = %v", c)
 	}
 

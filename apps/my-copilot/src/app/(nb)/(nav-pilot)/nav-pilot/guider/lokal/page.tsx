@@ -115,10 +115,10 @@ nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> fo
             nav-pilot den på det én gang.
           </BodyLong>
           <BodyLong>
-            Har <code className={code}>local-worker</code> laget en ny fil og byggingen eller testene feiler, ber
-            nav-pilot hovedagenten sende feilen tilbake til <code className={code}>local-worker</code> én gang. Feiler
-            det igjen, retter hovedagenten selv. Med ett nytt forsøk ble 15 av 20 nye filer godkjent i målingene, mot 5
-            av 20 uten, og hver godkjent fil tok kortere tid.
+            Har <code className={code}>local-worker</code> laget en ny fil og bygget eller testene feiler, ber nav-pilot
+            hovedagenten sende feilen tilbake til <code className={code}>local-worker</code> én gang. Feiler det igjen,
+            retter hovedagenten feilen selv. Med ett nytt forsøk ble 15 av 20 nye filer godkjent i målingene, mot 5 av
+            20 uten, og tiden per godkjent fil gikk ned fra 618 til 322 sekunder, selv om hvert forsøk tok lengre tid.
           </BodyLong>
           <BodyLong>
             <code className={code}>aggressive</code> sender mest, men sparer ikke skykreditter. I målingen 28. september

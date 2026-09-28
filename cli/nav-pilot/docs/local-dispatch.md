@@ -118,7 +118,9 @@ of 24).
    - the session is not top-level (`client.session.get` shows a `parentID`, or the lookup
      fails). A refusal inside a subagent's session fails that whole `task`, and the
      worker's own edits must never pass the gate;
-   - the session's agent is unknown or is `local-worker`;
+   - the session's agent is unknown or is `local-worker`. The one exception, never a
+     refusal: a file the worker creates is reported (`phase: "worker"`) for the retry
+     below;
    - anything fails (fail open).
 
    No file contents leave opencode: `path` is `filePath`, `command` is the bash command,
