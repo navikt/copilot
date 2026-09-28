@@ -367,14 +367,17 @@ func buildStagedCopilotSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch
 		agentArgs = append(agentArgs, "--model", model)
 	}
 	agentArgs = append(agentArgs, r.ExtraArgs...)
+	// The user's Copilot hooks run in a pakke session too, the action check
+	// among them.
+	env, checkFlags := withActionCheckServer(r, copilotEnv(r.OtelLogLevel, pakkeAcceptsUserContext("copilot")))
 
 	return cpltLaunch{
 		agent:         "copilot",
 		noAudit:       true,
-		cpltArgs:      []string{"--allow-read", s.Dir},
+		cpltArgs:      append([]string{"--allow-read", s.Dir}, checkFlags...),
 		skillsDir:     materializedSkillsDir(s.Dir),
 		agentArgs:     agentArgs,
-		env:           copilotEnv(r.OtelLogLevel, pakkeAcceptsUserContext("copilot")),
+		env:           env,
 		displayName:   CLIDisplayName("cplt"),
 		messageSuffix: s.suffix(),
 		projectDir:    r.ProjectDir,
