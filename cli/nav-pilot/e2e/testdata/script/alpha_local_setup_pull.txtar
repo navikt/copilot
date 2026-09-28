@@ -8,7 +8,7 @@ exits 2 nav-pilot alpha local setup
 stdout 'Ollama has no model nav-pilot knows\. Recommended: qwen3\.6:35b'
 stdout 'about 23 GB'
 stdout 'ollama pull qwen3\.6:35b'
-stdout 'Not downloaded\. Run it yourself, or pass --pull'
+stdout 'Not downloaded\. Run it yourself, or have setup run it: nav-pilot alpha local setup --pull --yes'
 stdout 'Continuing with llama3:8b, which nav-pilot knows nothing about'
 stderr 'With the recommended model: nav-pilot alpha local setup --pull --yes\. With llama3:8b anyway: nav-pilot alpha local setup --model llama3:8b --yes'
 ! grep 'POST /api/pull' fake/ollama.log
