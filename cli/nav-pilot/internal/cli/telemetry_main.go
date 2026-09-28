@@ -17,6 +17,29 @@ func telemetryMode() string {
 	return "non_interactive"
 }
 
+// telemetryFlushBudget is the most exit waits for the last export. A command
+// like alpha decide answers in milliseconds and runs in hooks and loops, and
+// an unreachable host made each call wait seconds (#1101). A dropped sample
+// is cheaper. A long session exports every 10 s over a warm connection, so
+// its last export fits too.
+const telemetryFlushBudget = 300 * time.Millisecond
+
+// flushTelemetry exports what is left, and returns after budget whatever the
+// exporter does: it does not always stop when its context ends.
+func flushTelemetry(t telemetryRecorder, budget time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), budget)
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		_ = t.Shutdown(ctx)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+	}
+}
+
 func runWithCommandTelemetry(command, mode, scope string, fn func() error) error {
 	start := time.Now()
 
@@ -25,9 +48,7 @@ func runWithCommandTelemetry(command, mode, scope string, fn func() error) error
 			telemetry.RecordCommand(command, mode, scope, "error", "panic", time.Since(start))
 
 			// Flush telemetry before we crash
-			ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
-			defer cancel()
-			_ = telemetry.Shutdown(ctx)
+			flushTelemetry(telemetry, telemetryFlushBudget)
 
 			panic(r)
 		}

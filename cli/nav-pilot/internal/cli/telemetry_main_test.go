@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"os/exec"
 	"testing"
+	"time"
 )
 
 type mockNetError struct{}
@@ -32,5 +34,23 @@ func TestClassifyError(t *testing.T) {
 		if got := classifyError(tt.err); got != tt.want {
 			t.Errorf("classifyError(%v) = %q, want %q", tt.err, got, tt.want)
 		}
+	}
+}
+
+// blockingTelemetry is an exporter stuck on an unreachable host that ignores
+// its context.
+type blockingTelemetry struct{ noopTelemetry }
+
+func (blockingTelemetry) Shutdown(context.Context) error { select {} }
+
+// Exit must not wait on an unreachable telemetry host (#1101).
+func TestFlushTelemetryIsBounded(t *testing.T) {
+	start := time.Now()
+	flushTelemetry(blockingTelemetry{}, 50*time.Millisecond)
+	if took := time.Since(start); took > time.Second {
+		t.Fatalf("flush took %s with a 50ms budget", took)
+	}
+	if telemetryFlushBudget > 300*time.Millisecond {
+		t.Fatalf("telemetryFlushBudget = %s, want at most 300ms", telemetryFlushBudget)
 	}
 }
