@@ -867,7 +867,8 @@
       "cli/nav-pilot/internal/cli/client_nudge.go",
       "docs/CLIENT-SUPPORT-MATRIX.md",
       "docs/README.nav-pilot.md",
-      "docs/nav-pilot-changelog.md"
+      "docs/nav-pilot-changelog.md",
+      "docs/news/articles/nav-pilot-opencode-standard.md"
     ],
     "anchors": {
       "copilot-cli": [
