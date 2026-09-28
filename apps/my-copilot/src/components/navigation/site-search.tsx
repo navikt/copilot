@@ -49,7 +49,7 @@ export function SiteSearch({ label }: { label: string }) {
   const term = query.trim();
   const found = Array.isArray(index) ? searchEntries(index, term) : [];
   // The catalogue has its own search over agents, skills and instructions.
-  // The last hit hands the term over to it, as the front-page field used to.
+  // The last hit hands the term over to it.
   const hits: SearchEntry[] =
     Array.isArray(index) && term
       ? [
@@ -85,9 +85,7 @@ export function SiteSearch({ label }: { label: string }) {
   useEffect(() => {
     const key = (e: KeyboardEvent) => onKey(e);
     window.addEventListener("keydown", key);
-    return () => {
-      window.removeEventListener("keydown", key);
-    };
+    return () => window.removeEventListener("keydown", key);
   }, []);
 
   useEffect(() => {
