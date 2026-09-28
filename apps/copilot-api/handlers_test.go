@@ -316,8 +316,8 @@ func TestUsernamePathsRedacted(t *testing.T) {
 	for _, s := range exp.GetSpans() {
 		names[s.Name] = true
 		for _, a := range s.Attributes {
-			if strings.Contains(strings.ToLower(a.Value.Emit()), "kari-nordmann") {
-				t.Errorf("span %s attribute %s = %s", s.Name, a.Key, a.Value.Emit())
+			if strings.Contains(strings.ToLower(a.Value.String()), "kari-nordmann") {
+				t.Errorf("span %s attribute %s = %s", s.Name, a.Key, a.Value.String())
 			}
 		}
 	}
