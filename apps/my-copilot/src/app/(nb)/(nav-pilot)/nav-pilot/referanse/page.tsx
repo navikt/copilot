@@ -337,8 +337,8 @@ export default function Referanse() {
               ikke telemetri.
             </li>
             <li>
-              Andre korte kommandoer, som <code className={code}>config get</code> og <code className={code}>list</code>
-              , venter høyst 300 ms på å sende telemetrien.
+              Kommandoer som ikke trenger nettet, som <code className={code}>config get</code>, venter høyst 300 ms på å
+              sende telemetrien.
             </li>
           </Bullets>
           <BodyLong>
@@ -351,9 +351,9 @@ export default function Referanse() {
               bakgrunnen. Neste kommando sier fra hvis det finnes en ny versjon.
             </li>
             <li>
-              <code className={code}>sources/</code>: en kopi av agentpakka per kilde, både navikt/copilot og en
-              agentpakke fra et annet team (<code className={code}>source</code> i konfigurasjonen). En ny kopi hentes
-              mens økten kjører, høyst én gang i timen.
+              <code className={code}>sources/</code>: en kopi av agentpakka per kilde: navikt/copilot (for opencode og
+              pi) og en agentpakke fra et annet team (<code className={code}>source</code> i konfigurasjonen). En ny
+              kopi hentes mens økten kjører, høyst én gang i timen.
             </li>
             <li>
               <code className={code}>client-versions.json</code>: svaret fra{" "}
@@ -368,9 +368,9 @@ export default function Referanse() {
           <BodyLong>
             Unntaket er den første nedlastingen av en agentpakke. Finnes ingen kopi i{" "}
             <code className={code}>sources/</code>, venter oppstarten på nedlastingen, høyst 30 sekunder. Mislykkes den,
-            venter ikke oppstartene den neste timen: de starter uten agentpakka og prøver igjen i bakgrunnen. En kopi av
-            en agentpakke fra et annet team brukes i høyst ett døgn, fordi manifestet bestemmer hvordan økten starter.
-            Er kopien eldre, venter oppstarten på en ny, høyst 30 sekunder.
+            venter ikke oppstartene den neste timen på nettet, men prøver igjen i bakgrunnen. En kopi av en agentpakke
+            fra et annet team brukes i høyst ett døgn, fordi manifestet bestemmer hvordan økten starter. Er kopien
+            eldre, venter oppstarten på en ny: høyst 15 sekunder når nav-pilot har manifestet fra før, ellers 30.
           </BodyLong>
           <BodyLong>
             En oppstart som ikke trenger noe fra deg, skriver ingenting. Det som er nytt, sier nav-pilot én gang, og en
@@ -380,7 +380,8 @@ export default function Referanse() {
           <BodyLong>
             Testen <code className={code}>TestLaunchBudget</code> passer på målene i CI. Den starter nav-pilot med
             falske klienter, med telemetrien på og et nett som tar imot forbindelser uten å svare. Den feiler når
-            medianen av fem kjøringer er mer enn tre ganger målet, for det er slik en ventetid på nettet ser ut.
+            medianen av fem kjøringer er mer enn tre ganger målet. Så mye tregere blir det bare når noe venter på
+            nettet.
           </BodyLong>
         </VStack>
       </section>
