@@ -17,3 +17,15 @@ stdout 'OLLAMA_CONTEXT_LENGTH=16384'
 stderr 'nothing was saved\. Fix the FAIL lines above, then run nav-pilot alpha local setup --model qwen3\.6:35b'
 ! stderr '--fix-context'
 ! exists home/config.toml
+
+# The same with a server that stays up and says it lacks the memory (#1125).
+fake-endpoint -export OLLAMA -ctx 4096 -nomem-ctx 16384
+env NAV_PILOT_SETUP_CANDIDATES=ollama=$OLLAMA_ADDR
+exits 1 nav-pilot alpha local setup --fix-context --yes
+stdout 'Created qwen3\.6-35b-navpilot'
+stdout 'Fix: Use a context that fits in memory'
+stdout 'ollama rm qwen3\.6-35b-navpilot'
+! stdout 'Only the context check failed'
+stderr 'then run nav-pilot alpha local setup --model qwen3\.6:35b'
+! stderr '--fix-context'
+! exists home/config.toml

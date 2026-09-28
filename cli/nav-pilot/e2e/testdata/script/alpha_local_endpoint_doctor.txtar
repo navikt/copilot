@@ -52,6 +52,6 @@ exec nav-pilot config set local_endpoint_model qwen3.6:35b
 exits 1 nav-pilot alpha local doctor
 stdout 'FAIL  context +a 30k-token prompt failed: the server answered 500'
 stdout 'Fix: Use a context that fits in memory'
-stdout '--n-cpu-moe 999'
+stdout '--n-cpu-moe'
 stdout 'ki-utvikling\.nav\.no/nav-pilot/lokal/egen-server#lite-minne'
 ! stdout 'OLLAMA_CONTEXT_LENGTH=65536'

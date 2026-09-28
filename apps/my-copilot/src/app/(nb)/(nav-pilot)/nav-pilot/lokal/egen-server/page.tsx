@@ -107,16 +107,17 @@ export default function EgenServer() {
             Lite minne
           </LinkableHeading>
           <BodyLong>
-            65 536 tokens kontekst får ikke plass på et grafikkort med 8 GB eller mindre, sammen med modellen. Bruk en
-            kontekst som får plass, for eksempel 16 384, og la en del av modellen ligge i vanlig minne:
+            Modellen og en kontekst på 65 536 tokens får ikke plass sammen på et grafikkort med 8 GB eller mindre. Bruk
+            en kontekst som får plass, for eksempel 16 384, og la en del av modellen ligge i vanlig minne:
           </BodyLong>
           <CodeBlock compact>{SMALL_MEMORY}</CodeBlock>
           <BodyLong>
-            Ollama fordeler lagene mellom grafikkortet og vanlig minne selv.{" "}
+            Ollama fordeler selv lagene mellom grafikkortet og vanlig minne.{" "}
             <code className={code}>--n-cpu-moe 999</code> holder ekspertene i en MoE-modell som Qwen3.6-35B-A3B i vanlig
-            minne. Med en tett modell bruker du <code className={code}>-ngl</code> i stedet. Med under 30 000 tokens
-            feiler kontekstsjekken i <code className={code}>doctor</code>, men <code className={code}>setup</code>{" "}
-            tilbyr å lagre likevel. Korte prompter virker da, men en Copilot- eller opencode-økt får ikke plass.
+            minne. Med en tett modell velger du antall lag på grafikkortet med <code className={code}>-ngl</code> i
+            stedet. Med under 30 000 tokens feiler kontekstsjekken i <code className={code}>doctor</code>, men{" "}
+            <code className={code}>setup</code> tilbyr å lagre likevel. Korte prompter virker da, men en Copilot- eller
+            opencode-økt får ikke plass.
           </BodyLong>
         </VStack>
       </section>
