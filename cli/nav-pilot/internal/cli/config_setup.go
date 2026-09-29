@@ -246,6 +246,23 @@ func runConfigSetup(flagSource string) error {
 		if choice.Preset != cpltStrictPreset {
 			keptAllowlist = cpltConfigGet(cpltPath, "proxy.allowed_domains")
 		}
+		// nav-pilot's own list from strict may go with it; the default is
+		// to keep it, since it is the user's config.
+		if drop := leavingStrictAllowlist(cur.Preset, choice.Preset, keptAllowlist); drop != nil {
+			remove := false
+			if err := huh.NewConfirm().
+				Title("Remove the network allowlist nav-pilot set up for strict?").
+				Description("Without it, cplt's standard rules decide which hosts are reachable. " + keptAllowlist + " stays on disk.").
+				Value(&remove).
+				WithTheme(navTheme()).
+				Run(); err != nil {
+				return setupSkipped(err)
+			}
+			if remove {
+				changes = append(changes, *drop)
+				keptAllowlist = ""
+			}
+		}
 		for _, ch := range changes {
 			if ch.Key != "sandbox.preset" || ch.To != cpltStrictPreset {
 				continue

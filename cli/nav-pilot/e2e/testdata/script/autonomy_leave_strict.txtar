@@ -1,0 +1,38 @@
+# #1351: leaving strict with nav-pilot's own allowlist asks whether to drop
+# it. Yes unsets the key, and only after the new preset is written; No (the
+# default) leaves it alone.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+fake-bin cplt copilot
+cp cplt.sh $WORK/fake/cplt.sh
+
+# Yes: the preset goes to standard first, then the allowlist is unset.
+cp strict.txt $WORK/fake/preset
+exits 0 pty-run -wait 'Which coding agent' -send '\x1b[B\r' -wait 'Conversation mode' -send '\r' -wait 'Autonomous in the sandbox' -send '\x1b[A\x1b[A\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Remove the network allowlist' -send 'y' -wait 'Save these settings' -send '\r' -- nav-pilot config setup
+stdout 'cplt proxy.allowed_domains removed'
+grep 'config\nset\nsandbox.preset\nstandard\n---\n(.*\n)*config\nset\nproxy.allowed_domains\n--unset\n--global\n---' $WORK/fake/cplt.log
+! grep 'proxy.allowed_domains\n--unset(.*\n)*sandbox.preset\nstandard' $WORK/fake/cplt.log
+
+# No (Enter): the preset changes, the allowlist stays and the summary says so.
+cp strict.txt $WORK/fake/preset
+rm $WORK/fake/cplt.log
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'Autonomous in the sandbox' -send '\x1b[A\x1b[A\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Remove the network allowlist' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup --force
+stdout 'proxy.allowed_domains stays set'
+grep 'config\nset\nsandbox.preset\nstandard\n---' $WORK/fake/cplt.log
+! grep 'unset' $WORK/fake/cplt.log
+
+-- cplt.sh --
+# A cplt on strict with nav-pilot's allowlist. config get reads back the
+# preset config set wrote, which is how nav-pilot checks the switch.
+if [ "$1 $2 $3" = "config set sandbox.preset" ]; then echo "$4" > "$WORK/fake/preset"; fi
+if [ "$1 $2" = "config get" ]; then
+  case "$3" in
+    sandbox.preset) read p < "$WORK/fake/preset"; echo "$p" ;;
+    git_guard.protect_default_branch_only) echo true; echo '[cplt] (default, not set in config file)' >&2 ;;
+    proxy.allowed_domains) echo "$WORK/home/cplt-allowed-domains.txt" ;;
+  esac
+  exit 0
+fi
+-- strict.txt --
+strict
