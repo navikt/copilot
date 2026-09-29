@@ -47,9 +47,9 @@ const STACKS: Stack[] = [
     anchor: "self-attach",
   },
   {
-    stack: "Next.js dev-server",
-    symptom: "connect EPERM 127.0.0.1:3000",
-    toml: "localhost = [3000]",
+    stack: "Next.js dev-server med Turbopack",
+    symptom: "node process exited before we could connect to it",
+    toml: "allow_localhost_any = true",
     anchor: "localhost",
   },
   {
@@ -61,7 +61,7 @@ const STACKS: Stack[] = [
 ];
 
 const EKSEMPEL = `[propose]
-allow_localhost_any = true   # Gradle-daemonen og httptest bruker tilfeldige porter
+allow_localhost_any = true   # Gradle-daemonen, httptest og Turbopack bruker tilfeldige porter
 allow_jvm_attach = true      # MockK
 
 [propose.allow]
@@ -177,8 +177,9 @@ cplt init --write --merge                     # legger til nye funn, fjerner ing
           <BodyLong>En Kotlin-app med Gradle, MockK og PostgreSQL i Docker Compose får denne fila:</BodyLong>
           <CodeBlock filename=".cplt.toml">{EKSEMPEL}</CodeBlock>
           <BodyLong>
-            Go-tester med <code className={code}>httptest</code> og Gradle-daemonen lytter på en tilfeldig port, så én
-            port er ikke nok. Next.js og databasen har faste porter, og da holder det å åpne dem.
+            Go-tester med <code className={code}>httptest</code>, Gradle-daemonen og Turbopacks arbeidsprosesser lytter
+            på tilfeldige porter, så én port er ikke nok. Med bare port 3000 åpen starter Next.js, men første side
+            feiler. Databasen har fast port, og da holder det å åpne den.
           </BodyLong>
           <Box background="warning-soft" borderRadius="8" padding="space-16">
             <BodyLong>
