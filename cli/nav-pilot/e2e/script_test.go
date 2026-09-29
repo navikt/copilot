@@ -52,7 +52,10 @@ func TestMain(m *testing.M) {
 	if filepath.Base(os.Args[0]) == ptyRunName {
 		os.Exit(ptyRun(os.Args[1:]))
 	}
-	os.Exit(testhome.Run(m))
+	code := testhome.Run(m)
+	// The built binary is ~27 MB; left behind, a day of runs fills $TMPDIR.
+	os.RemoveAll(binDir)
+	os.Exit(code)
 }
 
 // TestScripts runs every journey in testdata/script against the real binary.
@@ -61,6 +64,10 @@ func TestMain(m *testing.M) {
 // lays down. See README.md for how to add one.
 func TestScripts(t *testing.T) {
 	bin := binary(t)
+	// testscript removes its go-test-script* parent only after the last
+	// script has run, so -run or -failfast leaves it behind. Put it under a
+	// directory the test removes.
+	t.Setenv("GOTMPDIR", t.TempDir())
 	testscript.Run(t, testscript.Params{
 		Dir:                 "testdata/script",
 		UpdateScripts:       *update,
