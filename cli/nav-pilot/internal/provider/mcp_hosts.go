@@ -27,8 +27,8 @@ import (
 // Which servers count is the launched client's user MCP config:
 // ~/.copilot/mcp-config.json for Copilot, the user's own OpenCode files for
 // OpenCode, never a project's. Which hosts they get is
-// the registry's answer only. A server is matched by identity — its registry
-// name, or for OpenCode a URL the registry lists — and the hosts are taken
+// the registry's answer only. A server is matched by identity (its registry
+// name, or for OpenCode a URL the registry lists), and the hosts are taken
 // from the registry's remotes, never from a URL in the config. The agent can
 // write those config files, so a config URL would be a host the agent picks.
 //
@@ -136,7 +136,7 @@ func configuredMCPServers() (copilot []string, openCode map[string]mcpServer) {
 }
 
 // matchMCPHosts is the registry's hosts for the configured servers. Pure: the
-// security property — a config URL is never a host — is tested here.
+// security property, that a config URL is never a host, is tested here.
 func matchMCPHosts(reg mcpRegistry, copilot []string, openCode map[string]mcpServer) MCPHosts {
 	type remote struct{ name, url string }
 	byURL := map[string]remote{} // normalized registry remote -> registry's name and URL
@@ -561,7 +561,7 @@ func mcpGrant(say, privateOnly bool) []MCPHost {
 	rec, err := readMCPRecord()
 	if err != nil {
 		if say {
-			fmt.Fprintf(os.Stderr, "%s MCP servers: no registry hosts are granted — %v\n", domain.Yellow("⚠"), err)
+			fmt.Fprintf(os.Stderr, "%s MCP servers: no registry hosts are granted: %v\n", domain.Yellow("⚠"), err)
 		}
 		return nil
 	}
@@ -570,7 +570,7 @@ func mcpGrant(say, privateOnly bool) []MCPHost {
 	}
 	if reason := untrustworthyRecord(rec); reason != "" {
 		if say {
-			fmt.Fprintf(os.Stderr, "%s MCP servers: the approved registry hosts are not applied — %s.\n", domain.Yellow("⚠"), reason)
+			fmt.Fprintf(os.Stderr, "%s MCP servers: the approved registry hosts are not applied: %s.\n", domain.Yellow("⚠"), reason)
 		}
 		return nil
 	}

@@ -86,7 +86,7 @@ func TestMCPHostsComeFromTheRegistryNotTheConfig(t *testing.T) {
 }
 
 // OpenCode names are the user's own, so a remote matches by a URL the
-// registry lists — and the host is still the registry's spelling.
+// registry lists, and the host is still the registry's spelling.
 func TestOpenCodeMCPMatchesByRegistryURL(t *testing.T) {
 	off := false
 	got := matchMCPHosts(testRegistry(), nil, map[string]mcpServer{

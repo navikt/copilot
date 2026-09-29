@@ -14,7 +14,7 @@ import (
 )
 
 // The launch screen for the hosts the user's MCP servers need under cplt
-// (provider/mcp_hosts.go). The verdict — what is pending, what is granted —
+// (provider/mcp_hosts.go). The verdict (what is pending, what is granted)
 // lives in the provider; this file only words the question, through the same
 // askProposalConsent and consent store the agentpakke proposal uses.
 //
@@ -120,7 +120,7 @@ func askMCPHosts(st providerpkg.MCPHostState) {
 		return // Ctrl-C is not an answer.
 	}
 	if err := recordMCPHosts(hosts, approve); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Could not record the answer about MCP hosts: %v — you will be asked again.\n", yellow("⚠"), err)
+		fmt.Fprintf(os.Stderr, "%s Could not record the answer about MCP hosts: %v. You will be asked again.\n", yellow("⚠"), err)
 		return
 	}
 	for _, s := range servers {
@@ -162,7 +162,7 @@ func mcpHostsTitle(servers []string) string {
 }
 
 // mcpHostsDescription lists each server with its hosts, why each is there and
-// what allowing it does, and — for a set answered before — what changed.
+// what allowing it does, and, for a set answered before, what changed.
 // Server names come from the user's config and hosts from the registry, so
 // both are printed through safe().
 func mcpHostsDescription(servers []string, by map[string][]providerpkg.MCPHost, st providerpkg.MCPHostState) string {
