@@ -217,6 +217,30 @@ func hasDuplicates(xs []string) bool {
 	return false
 }
 
+// activateInDev opens the surveys named in ids (SURVEY_ACTIVE_IDS,
+// comma-separated) whatever their "active" says, for an end-to-end test of a
+// dummy survey such as dev-e2e-test. Only in dev-gcp: anywhere else a survey
+// opens only through its own reviewed "active": true.
+func activateInDev(defs []survey, cluster, ids string) {
+	if ids == "" {
+		return
+	}
+	if cluster != "dev-gcp" {
+		slog.Warn("SURVEY_ACTIVE_IDS is ignored outside dev-gcp", "cluster", cluster)
+		return
+	}
+	for _, id := range strings.Split(ids, ",") {
+		id = strings.TrimSpace(id)
+		i := slices.IndexFunc(defs, func(s survey) bool { return s.ID == id })
+		if i < 0 {
+			slog.Warn("SURVEY_ACTIVE_IDS names no survey", "id", id)
+			continue
+		}
+		defs[i].Active = true
+		slog.Info("survey activated for dev", "survey", id)
+	}
+}
+
 func (s survey) activeOn(now time.Time) bool {
 	day := now.UTC().Format(time.DateOnly)
 	return s.Active && s.Starts <= day && day <= s.Ends

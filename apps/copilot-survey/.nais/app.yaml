@@ -64,6 +64,12 @@ spec:
       value: http://copilot-api
     - name: LOG_LEVEL
       value: "{{log_level}}"
+    # dev-gcp only: opens listed surveys for an end-to-end test (surveys/README.md).
+    # The service ignores it anywhere else.
+  {{#if survey_active_ids}}
+    - name: SURVEY_ACTIVE_IDS
+      value: "{{survey_active_ids}}"
+  {{/if}}
   accessPolicy:
     inbound:
       rules:
