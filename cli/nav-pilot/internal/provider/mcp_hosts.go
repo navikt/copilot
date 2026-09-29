@@ -236,7 +236,7 @@ var currentMCPHosts = sync.OnceValues(resolveMCPHosts)
 // refresh that grows the set asks at the next launch.
 const mcpRegistryTTL = 24 * time.Hour
 
-var errMCPRegistryNotRead = errors.New("Nav's MCP registry has not been read yet")
+var errMCPRegistryNotRead = errors.New("the MCP registry has not been read yet")
 
 // mcpRegistryCache keeps the whole answer, every field of mcpRegistry, so
 // anything that reads the registry can read the cache instead.
