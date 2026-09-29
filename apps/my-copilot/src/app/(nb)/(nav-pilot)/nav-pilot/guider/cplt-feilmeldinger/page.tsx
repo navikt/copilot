@@ -56,6 +56,8 @@ export default function CpltFeilmeldinger() {
 brew upgrade navikt/tap/cplt
 cplt --version`}
           </CodeBlock>
+          <BodyLong>Har du installert cplt med apt på Debian eller Ubuntu:</BodyLong>
+          <CodeBlock compact>{`sudo apt update && sudo apt upgrade cplt`}</CodeBlock>
           <BodyLong>Finner du ikke feilen under, spør cplt selv:</BodyLong>
           <CodeBlock compact>
             {`cplt check                               # virker sandkassen?
@@ -233,7 +235,9 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             <li>
               <code className={code}>~/.npmrc</code>, <code className={code}>~/.gradle/gradle.properties</code> eller{" "}
               <code className={code}>~/.m2/settings.xml</code>: filene har tokens og er stengt med vilje.{" "}
-              <code className={code}>cplt config set allow.read ~/.npmrc</code> gir agenten tokenene i fila.
+              <code className={code}>cplt config set allow.read ~/.npmrc</code> gir agenten tokenene i fila. På Linux er
+              bare <code className={code}>~/.npmrc</code> stengt. De to andre filene ligger i mapper agenten har tilgang
+              til, og der kan agenten lese og skrive dem.
             </li>
             <li>
               <code className={code}>~/Library/Preferences/pnpm</code>: se{" "}
@@ -280,9 +284,9 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             EPERM: operation not permitted, open …/Library/Preferences/pnpm/config.yaml
           </LinkableHeading>
           <BodyLong>
-            Gjelder macOS. cplt gir pnpm tilgang til feil mappe for konfigfila. Rettingen er slått sammen (
-            <Pr n={616} />
-            ), men kommer først i neste versjon. Til da gir du lesetilgang til fila:
+            Gjelder macOS. cplt gir pnpm tilgang til feil mappe for konfigfila. Dette er rettet i cplt{" "}
+            <code className={code}>2026.09.29-113343-7a9ef00</code> (<Pr n={616} />
+            ). Har du en eldre versjon, gir du lesetilgang til fila:
           </BodyLong>
           <CodeBlock compact>{`cplt config set allow.read ~/Library/Preferences/pnpm/config.yaml`}</CodeBlock>
           <BodyLong>
@@ -295,9 +299,11 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
           <BodyLong>
             Gjelder macOS. En pakke du installerer, for eksempel <code className={code}>thread-stream@4.2.0</code>, har
             en <code className={code}>.claude</code>-mappe. cplt stenger slike filer overalt i prosjektet, også i{" "}
-            <code className={code}>node_modules</code>, og ingen innstilling åpner dem. Rettingen er ikke ferdig (
+            <code className={code}>node_modules</code>, og ingen innstilling åpner dem. Fra cplt{" "}
+            <code className={code}>2026.09.29-113343-7a9ef00</code> gjelder dette ikke lenger i{" "}
+            <code className={code}>node_modules</code> (
             <Pr n={627} />
-            ). Installer utenfor cplt, og start agenten etterpå:
+            ). Har du en eldre versjon, installerer du utenfor cplt og starter agenten etterpå:
           </BodyLong>
           <CodeBlock compact>{`pnpm install`}</CodeBlock>
 
@@ -317,8 +323,8 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             fatal: cannot hash .env.local
           </LinkableHeading>
           <BodyLong>
-            Fila er sporet i git og endret. cplt stenger lesing av <code className={code}>.env</code>-filer, så{" "}
-            <code className={code}>git diff</code>, <code className={code}>git add</code> og{" "}
+            Gjelder macOS. Fila er sporet i git og endret. cplt stenger lesing av <code className={code}>.env</code>
+            -filer, så <code className={code}>git diff</code>, <code className={code}>git add</code> og{" "}
             <code className={code}>git commit -a</code> stopper. En fil med hemmeligheter hører ikke hjemme i git. Slutt
             å spore den:
           </BodyLong>
@@ -331,10 +337,10 @@ echo ".env.local" >> .gitignore`}
             Operation not permitted på .env-filer
           </LinkableHeading>
           <BodyLong>
-            cplt stenger både lesing og skriving av <code className={code}>.env</code> og{" "}
-            <code className={code}>.env.*</code>, og av filer som heter <code className={code}>.pem</code>,{" "}
-            <code className={code}>.key</code> og lignende. Next.js og dotenv får tomme variabler, og tester som skriver
-            slike filer, feiler. Åpne dem hvis prosjektet trenger det:
+            Gjelder macOS. På Linux kan agenten lese og skrive disse filene. cplt stenger både lesing og skriving av{" "}
+            <code className={code}>.env</code> og <code className={code}>.env.*</code>, og av filer som heter{" "}
+            <code className={code}>.pem</code>, <code className={code}>.key</code> og lignende. Next.js og dotenv får
+            tomme variabler, og tester som skriver slike filer, feiler. Åpne dem hvis prosjektet trenger det:
           </BodyLong>
           <CodeBlock compact>
             {`cplt config set sandbox.allow_env_files true   # alltid
@@ -406,9 +412,9 @@ cplt --allow-env-files                          # bare denne økten`}
             Operation not permitted når JVM-en starter
           </LinkableHeading>
           <BodyLong>
-            Noen JVM-biblioteker lastes fra systemets temp-mappe før cplt har flyttet den. Bruk dette bare når feilen
-            kommer mens JVM-en starter, ikke senere i bygget. Programmer i <code className={code}>/tmp</code> kan da
-            kjøres, så cplt krever <code className={code}>--force</code>:
+            Gjelder macOS. Noen JVM-biblioteker lastes fra systemets temp-mappe før cplt har flyttet den. Bruk dette
+            bare når feilen kommer mens JVM-en starter, ikke senere i bygget. Programmer i{" "}
+            <code className={code}>/tmp</code> kan da kjøres, så cplt krever <code className={code}>--force</code>:
           </BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_tmp_exec true --force`}</CodeBlock>
 
@@ -416,10 +422,11 @@ cplt --allow-env-files                          # bare denne økten`}
             Could not self-attach to current VM using external process
           </LinkableHeading>
           <BodyLong>
-            MockK, Mockito og ByteBuddy kobler seg til JVM-en mens testene kjører, og det trenger en socket cplt
-            stenger. Åpne den:
+            Gjelder macOS. MockK, Mockito og ByteBuddy kobler seg til JVM-en mens testene kjører, og det trenger en
+            socket cplt stenger. Åpne den:
           </BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_jvm_attach true`}</CodeBlock>
+          <BodyLong>På Linux stenger ikke cplt denne socketen, så der skyldes feilen noe annet.</BodyLong>
 
           <LinkableHeading id="foojay" size="small" level="3">
             Unable to download toolchain
@@ -582,10 +589,9 @@ gh auth setup-git`}
           </BodyLong>
           <CodeBlock compact>{`go build -buildvcs=false`}</CodeBlock>
           <BodyLong>
-            <code className={code}>GOFLAGS</code> fra skallet ditt slipper ikke inn i sandkassen. Rettingen er slått
-            sammen, men kommer først i neste versjon (
-            <Pr n={624} />
-            ). Hvordan du setter det for hele repoet med mise, står i{" "}
+            <code className={code}>GOFLAGS</code> fra skallet ditt slipper inn i sandkassen fra cplt{" "}
+            <code className={code}>2026.09.29-113343-7a9ef00</code> (<Pr n={624} />
+            ). I eldre versjoner blir den filtrert bort. Hvordan du setter det for hele repoet med mise, står i{" "}
             <NextLink href="/nav-pilot/guider/worktrees#go-bygg" className={linkClass}>
               worktree-guiden
             </NextLink>
