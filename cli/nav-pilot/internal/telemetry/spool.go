@@ -169,11 +169,12 @@ func (s *spoolTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		// or cut short by exit: it failed, and its counts go with the next
 		// export, which at exit is the spool.
 		if sent && s.exiting.Err() == nil && len(s.unsent) < unsentMax {
-			kept := req.Clone(context.Background())
-			// http.Client sets Cancel for its Timeout on a transport it does
-			// not know; closed, it would end every resend made from kept.
-			kept.Cancel = nil //nolint:staticcheck // Cancel is deprecated, but set
-			s.unsent = append(s.unsent, kept)
+			// A new request, not a Clone: http.Client sets the old Cancel
+			// channel for its Timeout on a transport it does not know, and a
+			// clone would carry it into every resend.
+			kept, _ := http.NewRequestWithContext(context.Background(), req.Method, req.URL.String(), nil)
+			kept.Header = req.Header.Clone()
+			s.unsent = append(s.unsent, withBody(kept, bodyOf(req)))
 			return accepted(req), nil
 		}
 		return nil, err
