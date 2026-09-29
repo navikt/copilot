@@ -196,3 +196,20 @@ EOF
   # rtk must never be auto-installed from an unpinned upstream branch
   [[ "$output" != *"refs/heads/master/install.sh"* ]]
 }
+
+# A directory on PATH is found even when PATH is larger than a pipe buffer.
+# With `echo "$PATH" | tr | grep -q` under pipefail, grep exits on the first
+# line and the writers die of SIGPIPE, so the match read as a miss and the
+# installer fell through to ~/.local/bin, which is not on PATH here (#1318).
+@test "picks ~/bin from a long PATH" {
+  export HOME="${TMP_DIR}/home"
+  mkdir -p "${HOME}/bin"
+  local pad
+  pad=$(printf ':/nonexistent/pad-%05d' $(seq 1 5000))
+  export PATH="${HOME}/bin:${PATH}${pad}"
+
+  run bash "$SCRIPT"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Installed nav-pilot to ${HOME}/bin/nav-pilot"* ]]
+}

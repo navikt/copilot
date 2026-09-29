@@ -150,7 +150,9 @@ find_install_dir() {
 
   # Prefer directories already on PATH, in order of preference
   for dir in "$HOME/.local/bin" "$HOME/bin" "/usr/local/bin"; do
-    if echo "$PATH" | tr ':' '\n' | grep -qx "$dir"; then
+    # A here-string, not `echo | grep -q`: under pipefail the writer can die
+    # of SIGPIPE when grep exits on the match, and the match reads as a miss.
+    if grep -qxF -- "$dir" <<<"${PATH//:/$'\n'}"; then
       if [[ -w "$dir" ]] || [[ ! -d "$dir" && -w "$(dirname "$dir")" ]]; then
         INSTALL_DIR="$dir"
         return
@@ -229,7 +231,7 @@ if command -v gh &>/dev/null; then
     echo "  ✓ Provenance verified (SLSA)"
   else
     ERR_MSG=$(cat "$VERIFY_ERR")
-    if echo "$ERR_MSG" | grep -Eiq "auth|token|login|credential|sign in"; then
+    if grep -Eiq "auth|token|login|credential|sign in" <<<"$ERR_MSG"; then
       echo ""
       echo "  ⚠ WARNING: GitHub CLI (gh) is not authenticated — skipping provenance verification!"
       echo "  Error from gh: $(echo "$ERR_MSG" | tr '\n' ' ')"
