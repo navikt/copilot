@@ -15,11 +15,11 @@ import (
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
-// fakeSurveyDefs is one open survey: a labelled scale, a multi, a choice that
+// fakeSurveyDefs is one open survey: a labelled scale, a multi with other, a choice that
 // is skipped when the multi includes copilot, and an optional text.
 const fakeSurveyDefs = `{"surveys":[{"id":"e2e-2026","title":"E2E survey","starts":"2020-01-01","ends":"2099-12-31","questions":[
 {"id":"useful","version":1,"type":"scale","text":"How useful is nav-pilot?","min":1,"max":5,"labels":["Helt uenig","Uenig","Nøytral","Enig","Helt enig"],"required":true},
-{"id":"clients","version":1,"type":"multi","text":"Which clients do you use?","options":["copilot","opencode","pi"],"max_choices":2},
+{"id":"clients","version":1,"type":"multi","text":"Which clients do you use?","options":["copilot","opencode","pi"],"max_choices":2,"other":"Annet","max_length":30},
 {"id":"why","version":1,"type":"choice","text":"Why not copilot?","options":["habit","other"],"skip_if":{"question":"clients","answer":"copilot"}},
 {"id":"comment","version":1,"type":"text","text":"Anything else?","max_length":50}]}]}`
 

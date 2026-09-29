@@ -79,6 +79,7 @@ type surveyQuestion struct {
 	Labels     []string `json:"labels,omitempty"`
 	Options    []string `json:"options,omitempty"`
 	MaxChoices int      `json:"max_choices,omitempty"`
+	Other      string   `json:"other,omitempty"` // one more option, with a short free text sent as <id>.other
 	MaxLen     int      `json:"max_length,omitempty"`
 	SkipIf     *struct {
 		Question string `json:"question"`
@@ -487,6 +488,7 @@ func askSurvey(s surveyDef, ask int) string {
 func runSurveyForm(s surveyDef) (map[string]any, bool) {
 	picks := make([]string, len(s.Questions))
 	multis := make([][]string, len(s.Questions))
+	others := make([]string, len(s.Questions))
 	answered := func(id string) []string {
 		i := slices.IndexFunc(s.Questions, func(q surveyQuestion) bool { return q.ID == id })
 		if i < 0 {
@@ -522,7 +524,7 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 					opts = append(opts, huh.NewOption(label, strconv.Itoa(n)))
 				}
 			} else {
-				for _, o := range q.Options {
+				for _, o := range q.options() {
 					opts = append(opts, huh.NewOption(o, o))
 				}
 			}
@@ -535,7 +537,7 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 			}
 			field = sel
 		case "multi":
-			ms := huh.NewMultiSelect[string]().Title(q.Text).Options(huh.NewOptions(q.Options...)...).Value(&multis[i])
+			ms := huh.NewMultiSelect[string]().Title(q.Text).Options(huh.NewOptions(q.options()...)...).Value(&multis[i])
 			desc := "Mellomrom for å velge, Enter når du er ferdig."
 			if q.MaxChoices > 0 {
 				ms = ms.Limit(q.MaxChoices)
@@ -560,7 +562,7 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 					return nil
 				})
 			}
-			desc := "Skriv ikke noe som kan identifisere deg eller andre."
+			desc := surveyNoIdentify
 			if !q.Required {
 				desc += " Valgfritt: la feltet stå tomt for å hoppe over."
 			}
@@ -571,6 +573,13 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 			g = g.WithHideFunc(func() bool { return skipped(q) })
 		}
 		groups = append(groups, g)
+		if q.Other != "" {
+			in := huh.NewInput().Title(q.Other + ": skriv gjerne hva du tenker på").CharLimit(q.MaxLen).Value(&others[i]).
+				Description(surveyNoIdentify + " Valgfritt: la feltet stå tomt for å hoppe over.")
+			groups = append(groups, huh.NewGroup(escHelpField{in}).WithHideFunc(func() bool {
+				return skipped(q) || !slices.Contains(answered(q.ID), q.Other)
+			}))
+		}
 	}
 	if huh.NewForm(groups...).WithShowHelp(true).WithTheme(navTheme()).Run() != nil {
 		return nil, false
@@ -578,6 +587,9 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 	answers := map[string]any{}
 	for i, q := range s.Questions {
 		v := strings.TrimSpace(picks[i])
+		if t := strings.TrimSpace(others[i]); t != "" && !skipped(q) && slices.Contains(answered(q.ID), q.Other) {
+			answers[q.ID+".other"] = t
+		}
 		switch {
 		case skipped(q):
 		case q.Type == "multi":
@@ -595,6 +607,9 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 	return answers, len(answers) > 0
 }
 
+// surveyNoIdentify goes with every free-text field.
+const surveyNoIdentify = "Skriv ikke noe som kan identifisere deg eller andre."
+
 // surveyUnpicked is the entry a required scale or choice question starts on,
 // so Enter alone records nothing.
 const surveyUnpicked = "(ikke valgt)"
@@ -604,6 +619,14 @@ func requirePick(v string) error {
 		return errors.New("velg et svar med piltastene")
 	}
 	return nil
+}
+
+// options is what a choice or multi question offers: its options, then other.
+func (q surveyQuestion) options() []string {
+	if q.Other == "" {
+		return q.Options
+	}
+	return append(slices.Clip(q.Options), q.Other)
 }
 
 // renderable reports whether this version can show every question.

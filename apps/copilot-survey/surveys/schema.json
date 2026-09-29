@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/navikt/copilot/main/apps/copilot-survey/surveys/schema.json",
-  "schema_version": 1,
+  "schema_version": 2,
   "title": "copilot-survey survey definition",
   "description": "One survey, as a file in apps/copilot-survey/surveys/ and as an item of GET /api/v1/surveys/active. schema_version goes up on every change to the format. New fields are optional, so a client built against an older version keeps working: it ignores fields it does not know, and skips a survey with a question type it does not know. copilot-survey also checks what a schema cannot express (unique question ids, skip_if pointing at an earlier question, starts <= ends, at most one text question); see surveys/README.md.",
   "type": "object",
@@ -16,7 +16,7 @@
     "nudge": { "enum": ["calm", "start", "off"], "description": "When nav-pilot brings the survey up unasked. Left out means calm." },
     "starts": { "$ref": "#/$defs/date", "description": "First day open (UTC)." },
     "ends": { "$ref": "#/$defs/date", "description": "Last day open (UTC)." },
-    "questions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/question" } }
+    "questions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/question" }, "contains": { "required": ["other"] }, "minContains": 0, "maxContains": 3, "$comment": "At most 3 questions with other." }
   },
   "$defs": {
     "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" },
@@ -38,7 +38,8 @@
         "labels": { "type": "array", "items": { "type": "string" }, "description": "scale: one label per step, min to max." },
         "options": { "type": "array", "minItems": 2, "uniqueItems": true, "items": { "type": "string", "minLength": 1 }, "description": "choice, multi. Stored as the option text." },
         "max_choices": { "type": "integer", "minimum": 0, "description": "multi: at most this many; 0 or left out means any." },
-        "max_length": { "type": "integer", "minimum": 1, "maximum": 2000, "description": "text: in characters." },
+        "other": { "type": "string", "minLength": 1, "description": "choice, multi: the label of one more option that takes a short free text. Choosing it stores the label as the answer, like an option; the text is sent and stored under <id>.other. Needs max_length (at most 200). Not one of options." },
+        "max_length": { "type": "integer", "minimum": 1, "maximum": 2000, "description": "text, and the free text of other: in characters." },
         "skip_if": {
           "type": "object",
           "description": "Skip this optional question when an earlier choice answer is, or multi answer includes, answer.",
@@ -50,19 +51,27 @@
       "allOf": [
         {
           "if": { "properties": { "type": { "const": "scale" } } },
-          "then": { "required": ["max"], "not": { "anyOf": [{ "required": ["options"] }, { "required": ["max_choices"] }, { "required": ["max_length"] }] } }
+          "then": { "required": ["max"], "not": { "anyOf": [{ "required": ["options"] }, { "required": ["max_choices"] }, { "required": ["max_length"] }, { "required": ["other"] }] } }
         },
         {
           "if": { "properties": { "type": { "const": "choice" } } },
-          "then": { "required": ["options"], "not": { "anyOf": [{ "required": ["min"] }, { "required": ["max"] }, { "required": ["labels"] }, { "required": ["reverse"] }, { "required": ["max_choices"] }, { "required": ["max_length"] }] } }
+          "then": { "required": ["options"], "not": { "anyOf": [{ "required": ["min"] }, { "required": ["max"] }, { "required": ["labels"] }, { "required": ["reverse"] }, { "required": ["max_choices"] }] } }
         },
         {
           "if": { "properties": { "type": { "const": "multi" } } },
-          "then": { "required": ["options"], "not": { "anyOf": [{ "required": ["min"] }, { "required": ["max"] }, { "required": ["labels"] }, { "required": ["reverse"] }, { "required": ["max_length"] }] } }
+          "then": { "required": ["options"], "not": { "anyOf": [{ "required": ["min"] }, { "required": ["max"] }, { "required": ["labels"] }, { "required": ["reverse"] }] } }
         },
         {
           "if": { "properties": { "type": { "const": "text" } } },
-          "then": { "required": ["max_length"], "not": { "anyOf": [{ "required": ["min"] }, { "required": ["max"] }, { "required": ["labels"] }, { "required": ["reverse"] }, { "required": ["options"] }, { "required": ["max_choices"] }] } }
+          "then": { "required": ["max_length"], "not": { "anyOf": [{ "required": ["min"] }, { "required": ["max"] }, { "required": ["labels"] }, { "required": ["reverse"] }, { "required": ["options"] }, { "required": ["max_choices"] }, { "required": ["other"] }] } }
+        },
+        {
+          "if": { "properties": { "type": { "enum": ["choice", "multi"] } } },
+          "then": {
+            "if": { "required": ["other"] },
+            "then": { "required": ["max_length"], "properties": { "max_length": { "maximum": 200 } } },
+            "else": { "not": { "required": ["max_length"] } }
+          }
         },
         {
           "if": { "required": ["skip_if"] },

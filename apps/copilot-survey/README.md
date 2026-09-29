@@ -67,7 +67,7 @@ Two tables, nothing shared but the survey id:
 | Table | Columns |
 | --- | --- |
 | `survey_participation` | `survey_id`, `participant_hash`, `closes_on` |
-| `survey_answers` | `survey_id`, `answers` (`{question id: value}`), `question_versions` (`{question id: version}`), `context` (nav-pilot version as year.month, OS, client, local models on/off), `delete_after` |
+| `survey_answers` | `survey_id`, `answers` (`{question id: value}`, and `{question id}.other` for the text of an «other» option), `question_versions` (`{question id: version}`), `context` (nav-pilot version as year.month, OS, client, local models on/off), `delete_after` |
 
 No row id, no timestamp, no request id, no IP, no login, oid, NAVident,
 e-mail or token in either. Because nothing links an answer to its
@@ -131,10 +131,14 @@ Residual risks, for the privacy review:
 - Colluding insiders: k assumes the other 9 in a batch are real respondents.
   One account answers once per survey, but a group of 9 insiders answering
   together could pin the 10th.
-- Free text: the one answer that can name its author ("as the only Rust dev
-  on team X"). A survey has at most one text question, nav-pilot asks people
-  not to write anything that identifies anyone, and text should go through a
-  redaction pass before analysis.
+- Free text: the answers that can name their author ("as the only Rust dev
+  on team X"): a `text` question (at most one per survey) and the short text
+  of an «other» option (at most 200 characters each, at most three per
+  survey). They are stored in the same row as the rest of that person's
+  answers, so one identifying text identifies the whole row. nav-pilot and
+  the web ask people not to write anything that identifies anyone, and all
+  free text should go through a redaction pass before analysis and never be
+  quoted next to its segment values.
 - Whether the ingress sees each naisdevice as its own address (in the access
   log) or only the naisdevice gateway's: not verified; check in dev.
 - Cloud SQL query insights are off for this instance; keep them off, and keep

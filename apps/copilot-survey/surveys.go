@@ -76,7 +76,10 @@ type question struct {
 	Labels     []string `json:"labels,omitempty"`
 	Options    []string `json:"options,omitempty"`     // choice, multi
 	MaxChoices int      `json:"max_choices,omitempty"` // multi: at most this many, 0 = any
-	MaxLen     int      `json:"max_length,omitempty"`  // text, in characters
+	// Other adds one more option to a choice or multi, with this label,
+	// that takes a short free text: its answer is stored under id + ".other".
+	Other  string `json:"other,omitempty"`
+	MaxLen int    `json:"max_length,omitempty"` // text, and other's free text, in characters
 	// SkipIf skips this question when an earlier choice or multi question's
 	// answer is, or includes, the given option.
 	SkipIf *skipRule `json:"skip_if,omitempty"`
@@ -180,8 +183,12 @@ func validateSurveys(surveys []survey) error {
 		if s.Series != "" && !idPattern.MatchString(s.Series) {
 			return fmt.Errorf("survey %s: bad series %q", s.ID, s.Series)
 		}
-		// One free-text question at most: it is the one answer that batching
-		// and segment suppression cannot keep from naming its author.
+		// Free text is what batching and segment suppression cannot keep from
+		// naming its author: one text question at most, and at most
+		// maxOthers short "other" texts.
+		if len(slices.DeleteFunc(slices.Clone(s.Questions), func(q question) bool { return q.Other == "" })) > maxOthers {
+			return fmt.Errorf("survey %s: at most %d other options", s.ID, maxOthers)
+		}
 		if texts := slices.IndexFunc(s.Questions, func(q question) bool { return q.Type == "text" }); texts >= 0 &&
 			slices.ContainsFunc(s.Questions[texts+1:], func(q question) bool { return q.Type == "text" }) {
 			return fmt.Errorf("survey %s: at most one text question", s.ID)
@@ -189,7 +196,8 @@ func validateSurveys(surveys []survey) error {
 		qseen := map[string]bool{}
 		for i, q := range s.Questions {
 			ok := idPattern.MatchString(q.ID) && !qseen[q.ID] && q.Text != "" && q.Version >= 1 &&
-				(!q.Reverse || q.Type == "scale") && (q.MaxChoices == 0 || q.Type == "multi")
+				(!q.Reverse || q.Type == "scale") && (q.MaxChoices == 0 || q.Type == "multi") &&
+				(q.Other == "" || q.Type == "choice" || q.Type == "multi")
 			if q.SkipIf != nil {
 				j := slices.IndexFunc(s.Questions[:i], func(p question) bool { return p.ID == q.SkipIf.Question })
 				ok = ok && j >= 0 && (s.Questions[j].Type == "choice" || s.Questions[j].Type == "multi") &&
@@ -199,7 +207,14 @@ func validateSurveys(surveys []survey) error {
 			case "scale":
 				ok = ok && q.Min < q.Max && q.Max-q.Min <= 10 && (q.Labels == nil || len(q.Labels) == q.Max-q.Min+1)
 			case "choice", "multi":
-				ok = ok && len(q.Options) >= 2 && !hasDuplicates(q.Options) && q.MaxChoices >= 0 && q.MaxChoices <= len(q.Options)
+				ok = ok && len(q.Options) >= 2 && !hasDuplicates(q.Options) && q.MaxChoices >= 0 && q.MaxChoices <= len(q.options())
+				// Other's text is kept short: it is free text like a text
+				// question's, and can name its author the same way.
+				if q.Other != "" {
+					ok = ok && !slices.Contains(q.Options, q.Other) && q.MaxLen > 0 && q.MaxLen <= maxOtherLen
+				} else {
+					ok = ok && q.MaxLen == 0
+				}
 			case "text":
 				ok = ok && q.MaxLen > 0 && q.MaxLen <= 2000
 			default:
@@ -212,6 +227,24 @@ func validateSurveys(surveys []survey) error {
 		}
 	}
 	return nil
+}
+
+// maxOtherLen caps the free text of an "other" option, and maxOthers how many
+// a survey may have.
+const (
+	maxOtherLen = 200
+	maxOthers   = 3
+)
+
+// otherKey is where the free text of q's other option is sent and stored.
+func otherKey(id string) string { return id + ".other" }
+
+// options is what a choice or multi answer may be: the options, and other.
+func (q question) options() []string {
+	if q.Other == "" {
+		return q.Options
+	}
+	return append(slices.Clip(q.Options), q.Other)
 }
 
 func hasDuplicates(xs []string) bool {
@@ -303,19 +336,24 @@ func (c *techContext) validate() error {
 func validateAnswers(s survey, raw map[string]json.RawMessage) (map[string]any, error) {
 	out := map[string]any{}
 	for id := range raw {
-		if !slices.ContainsFunc(s.Questions, func(q question) bool { return q.ID == id }) {
+		if !slices.ContainsFunc(s.Questions, func(q question) bool { return q.ID == id || (q.Other != "" && otherKey(q.ID) == id) }) {
 			return nil, fmt.Errorf("unknown question %q", id)
 		}
 	}
 	for _, q := range s.Questions {
 		v, ok := raw[q.ID]
+		other, hasOther := raw[otherKey(q.ID)]
+		hasOther = hasOther && q.Other != "" && string(other) != "null"
 		if q.SkipIf.skipped(out) {
-			if ok && string(v) != "null" {
+			if (ok && string(v) != "null") || hasOther {
 				return nil, fmt.Errorf("question %q is skipped for this answer to %q", q.ID, q.SkipIf.Question)
 			}
 			continue
 		}
 		if !ok || string(v) == "null" {
+			if hasOther {
+				return nil, fmt.Errorf("%q needs %q answered with %q", otherKey(q.ID), q.ID, q.Other)
+			}
 			if q.Required {
 				return nil, fmt.Errorf("question %q is required", q.ID)
 			}
@@ -330,7 +368,7 @@ func validateAnswers(s survey, raw map[string]json.RawMessage) (map[string]any, 
 			out[q.ID] = n
 		case "choice":
 			var o string
-			if json.Unmarshal(v, &o) != nil || !slices.Contains(q.Options, o) {
+			if json.Unmarshal(v, &o) != nil || !slices.Contains(q.options(), o) {
 				return nil, fmt.Errorf("question %q takes one of its options", q.ID)
 			}
 			out[q.ID] = o
@@ -338,18 +376,14 @@ func validateAnswers(s survey, raw map[string]json.RawMessage) (map[string]any, 
 			var picked []string
 			if json.Unmarshal(v, &picked) != nil || len(picked) == 0 || hasDuplicates(picked) ||
 				(q.MaxChoices > 0 && len(picked) > q.MaxChoices) ||
-				slices.ContainsFunc(picked, func(p string) bool { return !slices.Contains(q.Options, p) }) {
+				slices.ContainsFunc(picked, func(p string) bool { return !slices.Contains(q.options(), p) }) {
 				return nil, fmt.Errorf("question %q takes one or more of its options (at most max_choices)", q.ID)
 			}
 			out[q.ID] = picked
 		case "text":
-			var t string
-			if json.Unmarshal(v, &t) != nil || !utf8.ValidString(t) {
-				return nil, fmt.Errorf("question %q takes text", q.ID)
-			}
-			t = strings.TrimSpace(t)
-			if utf8.RuneCountInString(t) > q.MaxLen {
-				return nil, fmt.Errorf("question %q takes at most %d characters", q.ID, q.MaxLen)
+			t, err := freeText(q.ID, v, q.MaxLen)
+			if err != nil {
+				return nil, err
 			}
 			if t == "" {
 				if q.Required {
@@ -359,11 +393,41 @@ func validateAnswers(s survey, raw map[string]json.RawMessage) (map[string]any, 
 			}
 			out[q.ID] = t
 		}
+		if hasOther {
+			chosen := out[q.ID] == q.Other
+			if picked, isList := out[q.ID].([]string); isList {
+				chosen = slices.Contains(picked, q.Other)
+			}
+			if !chosen {
+				return nil, fmt.Errorf("%q needs %q answered with %q", otherKey(q.ID), q.ID, q.Other)
+			}
+			t, err := freeText(otherKey(q.ID), other, q.MaxLen)
+			if err != nil {
+				return nil, err
+			}
+			if t != "" {
+				out[otherKey(q.ID)] = t
+			}
+		}
 	}
 	if len(out) == 0 {
 		return nil, errors.New("no answers")
 	}
 	return out, nil
+}
+
+// freeText checks a free-text answer and trims it; "" means not answered.
+func freeText(id string, v json.RawMessage, maxLen int) (string, error) {
+	// Checked on the raw bytes: Unmarshal would replace invalid UTF-8.
+	var t string
+	if !utf8.Valid(v) || json.Unmarshal(v, &t) != nil {
+		return "", fmt.Errorf("%q takes text", id)
+	}
+	t = strings.TrimSpace(t)
+	if utf8.RuneCountInString(t) > maxLen {
+		return "", fmt.Errorf("%q takes at most %d characters", id, maxLen)
+	}
+	return t, nil
 }
 
 // participantHash is the only thing that stops a second answer:
