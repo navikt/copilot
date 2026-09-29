@@ -26,6 +26,7 @@ var KnownCopilotModels = []ModelChoice{
 	{ID: "claude-opus-5.5", Label: "Claude Opus 5.5"},
 	{ID: "claude-sonnet-4.6", Label: "Claude Sonnet 4.6"},
 	{ID: "claude-sonnet-5", Label: "Claude Sonnet 5"},
+	{ID: "claude-sonnet-5.5", Label: "Claude Sonnet 5.5"},
 	{ID: "gemini-3.5-flash", Label: "Gemini 3.5 Flash"},
 	{ID: "gemini-3.6-flash", Label: "Gemini 3.6 Flash"},
 	{ID: "gemini-3.7-flash", Label: "Gemini 3.7 Flash"},
