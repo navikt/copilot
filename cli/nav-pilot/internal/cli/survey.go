@@ -505,7 +505,14 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 		var field huh.Field
 		switch q.Type {
 		case "scale", "choice":
+			// No answer is preselected (#1251): the cursor starts on the
+			// entry whose value is "", as picks[i] is. For a required
+			// question that is a placeholder Enter cannot pick, for an
+			// optional one "Hopp over".
 			var opts []huh.Option[string]
+			if q.Required {
+				opts = append(opts, huh.NewOption(surveyUnpicked, ""))
+			}
 			if q.Type == "scale" {
 				for n := q.Min; n <= q.Max; n++ {
 					label := strconv.Itoa(n)
@@ -522,7 +529,11 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 			if !q.Required {
 				opts = append(opts, huh.NewOption("Hopp over", ""))
 			}
-			field = huh.NewSelect[string]().Title(q.Text).Options(opts...).Value(&picks[i])
+			sel := huh.NewSelect[string]().Title(q.Text).Options(opts...).Value(&picks[i])
+			if q.Required {
+				sel = sel.Validate(requirePick)
+			}
+			field = sel
 		case "multi":
 			ms := huh.NewMultiSelect[string]().Title(q.Text).Options(huh.NewOptions(q.Options...)...).Value(&multis[i])
 			desc := "Mellomrom for å velge, Enter når du er ferdig."
@@ -582,6 +593,17 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 		}
 	}
 	return answers, len(answers) > 0
+}
+
+// surveyUnpicked is the entry a required scale or choice question starts on,
+// so Enter alone records nothing.
+const surveyUnpicked = "(ikke valgt)"
+
+func requirePick(v string) error {
+	if v == "" {
+		return errors.New("velg et svar med piltastene")
+	}
+	return nil
 }
 
 // renderable reports whether this version can show every question.

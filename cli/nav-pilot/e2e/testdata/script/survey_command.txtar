@@ -34,13 +34,13 @@ stdout '"id": "e2e-2026"'
 # Opted out of the automatic prompts, and "never" said before: still works.
 exec nav-pilot config set surveys false
 env DO_NOT_TRACK=1
-exec pty-run -wait 'How useful is nav-pilot' -send '\r' -wait 'Velg opptil 2' -send ' \r' -wait 'Anything else' -send '\r' -- nav-pilot survey
+exec pty-run -wait 'How useful is nav-pilot' -send '\x1b[B\r' -wait 'Velg opptil 2' -send ' \r' -wait 'Anything else' -send '\r' -- nav-pilot survey
 stdout 'Dette sendes: svarene dine'
 stdout 'Takk! Svaret ditt er sendt'
 grep -count=1 '^POST 201 ' $WORK/survey-posts.log
 
 # Again: copilot-cli refuses the second answer.
-exec pty-run -wait 'How useful is nav-pilot' -send '\r' -wait 'Velg opptil 2' -send ' \r' -wait 'Anything else' -send '\r' -- nav-pilot survey
+exec pty-run -wait 'How useful is nav-pilot' -send '\x1b[B\r' -wait 'Velg opptil 2' -send ' \r' -wait 'Anything else' -send '\r' -- nav-pilot survey
 stdout 'Du har allerede svart på denne undersøkelsen'
 
 # No sign-in, and no GitHub App to sign in with.
