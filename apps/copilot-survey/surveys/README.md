@@ -73,6 +73,12 @@ level: answers are not linked to a person across waves (see
   people answer it. Same `id` and
   `version` in two waves means the results compare; a higher `version` means
   they do not, and the pull request says why.
+- Once a survey has opened (`active` and `starts` reached), its `id` and
+  `questions` are frozen; CI (`check-frozen-surveys.sh`) refuses a change.
+  A version bump does not help mid-wave: an answer is stored with the
+  server's versions, not the ones the respondent saw, and nav-pilot caches
+  definitions for up to a day. A change waits for the next wave. `title`,
+  `intro`, `nudge`, `active` and `ends` may still change.
 - A question that is dropped is simply absent; its `id` is never reused for
   something else.
 - `construct` names what a question measures (for analysis) and `reverse`

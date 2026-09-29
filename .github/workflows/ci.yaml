@@ -249,6 +249,13 @@ jobs:
         working-directory: apps/copilot-survey
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0 # check-frozen-surveys.sh diffs against the base
+      - name: Opened surveys keep their questions
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: ./check-frozen-surveys.sh "$BASE"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
         with:
           path: |
