@@ -48,26 +48,41 @@ func TestReportCopilotCLI(t *testing.T) {
 	}
 }
 
-// A repo without .cplt.toml gets pointed at `cplt init`, which only previews.
-// One with the file does not.
-func TestReportCpltProjectConfigSuggestsInit(t *testing.T) {
-	dir := t.TempDir()
-	t.Chdir(dir)
+// Doctor reads .cplt.toml presence from `cplt config show`, which finds it at
+// the repo root from any subdirectory. It suggests `cplt init` only inside a
+// repo that has none.
+func TestReportCpltProjectConfig(t *testing.T) {
+	const withRepoConfig = "[cplt] ── Repo Config (.cplt.toml) ────\n[cplt]  Path:   /repo/.cplt.toml\n"
+	for _, c := range []struct {
+		name, cfgOut string
+		gitRepo      bool
+		want, reject string
+	}{
+		{"subdirectory of a repo with .cplt.toml", withRepoConfig, true, "rules are trusted", "cplt init"},
+		{"repo without .cplt.toml", "", true, "cplt init", "trusted"},
+		{"not a repo", "", false, "Not in a git repository", "cplt init"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if c.gitRepo {
+				if err := os.Mkdir(filepath.Join(dir, ".git"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				dir = filepath.Join(dir, "sub")
+				if err := os.Mkdir(dir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			t.Chdir(dir)
 
-	out := captureStdout(func() {
-		if reportCpltProjectConfig("", nil) {
-			t.Error("a repo without .cplt.toml is not a problem")
-		}
-	})
-	if !strings.Contains(out, "cplt init") {
-		t.Errorf("no .cplt.toml, but no cplt init hint:\n%s", out)
-	}
-
-	if err := os.WriteFile(filepath.Join(dir, ".cplt.toml"), nil, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	out = captureStdout(func() { reportCpltProjectConfig("", nil) })
-	if strings.Contains(out, "cplt init") {
-		t.Errorf(".cplt.toml exists, but still suggests cplt init:\n%s", out)
+			out := captureStdout(func() {
+				if reportCpltProjectConfig(c.cfgOut, nil) {
+					t.Error("reported a problem")
+				}
+			})
+			if !strings.Contains(out, c.want) || strings.Contains(out, c.reject) {
+				t.Errorf("want %q and no %q in:\n%s", c.want, c.reject, out)
+			}
+		})
 	}
 }

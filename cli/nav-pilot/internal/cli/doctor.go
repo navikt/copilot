@@ -12,6 +12,7 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
 // reportScopeConflicts names the files a plain sync leaves alone.
@@ -526,12 +527,18 @@ func reportCpltProjectConfig(cfgOut string, cfgErr error) bool {
 		fmt.Printf("        %s Run %s in this directory to check for pending sandbox rules.\n", yellow("Solution:"), bold("cplt trust"))
 		return true
 	}
-	if _, err := os.Stat(".cplt.toml"); err == nil {
+	// cplt prints this header only for a .cplt.toml committed at the repo
+	// root, wherever in the repo it is run. A file check in the working
+	// directory would miss it from a subdirectory.
+	switch {
+	case strings.Contains(cfgOut, "Repo Config (.cplt.toml)"):
 		fmt.Printf("    %s .cplt.toml rules are trusted\n", green("✓"))
-	} else {
-		fmt.Printf("    • No .cplt.toml found in current directory\n")
+	case source.FindGitRoot(".") == "":
+		fmt.Printf("    • Not in a git repository\n")
+	default:
+		fmt.Printf("    • No committed .cplt.toml in this repository\n")
 		// cplt init only prints a preview; --write is the user's call.
-		fmt.Printf("        %s Run %s to preview the rules cplt suggests for this repo's tooling.\n", dim("Tip:"), bold("cplt init"))
+		fmt.Printf("        %s Run %s in the repository root to preview the rules cplt suggests for its tooling.\n", dim("Tip:"), bold("cplt init"))
 	}
 	return false
 }
