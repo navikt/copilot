@@ -153,6 +153,9 @@ func TestMCPConsentByHostSet(t *testing.T) {
 	if st := mcpHostState(set("a.example", "b.example", "c.example"), nil, declined); st.Pending != nil || st.Grant != nil {
 		t.Errorf("declined set: pending=%v grant=%v, want no question and no grant", st.Pending, st.Grant)
 	}
+	if st := mcpHostState(set("a.example", "b.example"), nil, declined); st.Pending != nil || st.Grant != nil {
+		t.Errorf("shrunk declined set: pending=%v grant=%v, want no question and no grant", st.Pending, st.Grant)
+	}
 	if st := mcpHostState(set("a.example", "d.example"), nil, declined); st.Pending == nil {
 		t.Errorf("a changed set after a decline was not asked about")
 	}

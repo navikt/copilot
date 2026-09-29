@@ -347,8 +347,8 @@ type MCPHostState struct {
 	// still names, or every approved host when the registry did not answer.
 	Grant []MCPHost
 	// Pending is the set to ask about, nil when there is no question: the
-	// current set has a host outside the approval and is not a set already
-	// declined.
+	// current set has a host outside the approval and is not inside a set
+	// already declined.
 	Pending []MCPHost
 	// Previous is the set the recorded answer was about, for the diff.
 	Previous []MCPHost
@@ -393,7 +393,11 @@ func mcpHostState(cur MCPHosts, fetchErr error, rec *artifacts.ProposalConsent) 
 		g.Servers = h.Servers
 		st.Grant = append(st.Grant, g)
 	}
-	declined := rec != nil && !rec.Approved && rec.Hash == cur.Hash()
+	// A decline is a ceiling too: a set inside a declined one is declined,
+	// or dropping one server would ask again on every launch.
+	declined := rec != nil && !rec.Approved && !slices.ContainsFunc(cur.Hosts, func(h MCPHost) bool {
+		return !slices.ContainsFunc(st.Previous, func(p MCPHost) bool { return p.Host == h.Host })
+	})
 	if outside && !declined {
 		st.Pending = cur.Hosts
 	}
