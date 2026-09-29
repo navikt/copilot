@@ -313,6 +313,7 @@
       ],
       "sandkasse": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"
       ],
       "skript-i-en-skill": [

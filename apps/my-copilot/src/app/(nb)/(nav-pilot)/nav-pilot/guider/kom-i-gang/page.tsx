@@ -79,15 +79,15 @@ export default function KomIGang() {
           </BodyLong>
           <CodeBlock compact>{`gh auth login`}</CodeBlock>
           <BodyLong>
-            <strong>OpenCode eller pi på Mac:</strong> gh legger tokenet i nøkkelringen til macOS, og den slipper ikke
-            cplt disse klientene til. Da feiler push og pull requests i sandkassen. Logg inn slik at gh lagrer tokenet i
-            sin egen fil i stedet:
+            <strong>OpenCode eller pi på Mac:</strong> gh legger tokenet i nøkkelringen til macOS, og cplt slipper ikke
+            disse klientene til nøkkelringen. Da feiler push og pull requests i sandkassen. Logg inn slik at gh lagrer
+            tokenet i sin egen fil i stedet:
           </BodyLong>
           <CodeBlock compact>{`gh auth login --insecure-storage`}</CodeBlock>
           <BodyLong>
             <strong>Kloner du med SSH</strong> (<code className={code}>git@github.com:…</code>)? cplt stenger{" "}
             <code className={code}>~/.ssh</code>, så push over SSH feiler i sandkassen. Få git til å bruke HTTPS mot
-            GitHub:
+            GitHub. Kjør dette utenfor cplt, siden git-vakta stopper endringer i remote-oppsettet:
           </BodyLong>
           <CodeBlock compact>{SSH_TO_HTTPS}</CodeBlock>
         </VStack>
@@ -127,12 +127,25 @@ nav-pilot`}</CodeBlock>
             kjøre hvis push eller pull requests ikke vil virke.
           </BodyLong>
           <BodyLong>
-            Så spør nav-pilot hvor agentpakka skal ligge (<strong>Where to install?</strong>): i repoet, som hele teamet
-            får, eller i hjemmekatalogen, bare for deg.{" "}
+            Kjenner cplt igjen verktøyene i repoet, kommer spørsmålet om <code className={code}>.cplt.toml</code> nå, se{" "}
+            <a href="#forste-repo" className={linkClass}>
+              Første gang i et repo
+            </a>
+            . Så spør nav-pilot hvor agentpakka skal ligge (<strong>Where to install?</strong>): i repoet, som hele
+            teamet får, eller i hjemmekatalogen, bare for deg.{" "}
             <NextLink href="/nav-pilot/guider/installere-og-oppgradere#velg-installasjonssted" className={linkClass}>
               Installere og oppgradere
             </NextLink>{" "}
-            forklarer forskjellen. Deretter starter klienten i sandkassen.
+            forklarer forskjellen.
+          </BodyLong>
+          <BodyLong>
+            Ber agentpakka om et unntak i sandkassen, spør nav-pilot før den installerer (
+            <strong>agentpakke nav-pilot asks for more than the sandbox gives it. Allow it?</strong>). Nav-pakka ber om
+            å nå Grafana-verktøyene Mimir, Loki og Tempo. Enter svarer Decline, og da virker alt annet i pakka.{" "}
+            <NextLink href="/nav-pilot/agentpakker#sandkasse" className={linkClass}>
+              Agentpakker
+            </NextLink>{" "}
+            forklarer unntakene. Deretter starter klienten i sandkassen.
           </BodyLong>
         </VStack>
       </section>
@@ -179,17 +192,20 @@ cplt trust accept`}</CodeBlock>
               merging av pull requests (<code className={code}>gh pr merge</code>)
             </li>
             <li>push til standardgrenen, for eksempel main, og force push</li>
-            <li>skriving utenfor prosjektkatalogen, og lesing av SSH-nøkler, skynøkler og andre hemmeligheter</li>
+            <li>
+              skriving utenfor prosjektkatalogen, og lesing av SSH-nøkler, nøkler til skytjenester og andre
+              hemmeligheter
+            </li>
           </Bullets>
           <BodyLong>
-            I tillegg er agenten nav-pilot bedt om å spørre deg før den sletter grener eller filer utenfor oppgaven,
+            I tillegg ber nav-pilot agenten om å spørre deg før den sletter grener eller filer utenfor oppgaven,
             deployer, endrer CI eller tilganger, legger til avhengigheter, og når kravene er uklare. Det er en instruks,
             ikke en sperre. Det er cplt som sperrer.
           </BodyLong>
           <BodyLong>
-            Starter du uten cplt, med <code className={code}>--no-sandbox</code>, sender nav-pilot ingen flagg som lar
-            agenten jobbe uten å spørre. Da spør Copilot CLI før hver handling, og OpenCode følger sine egne
-            tillatelser.
+            Kjører klienten uten cplt, for eksempel med <code className={code}>--no-sandbox</code> der cplt ikke er
+            installert, sender nav-pilot ingen flagg som lar agenten jobbe uten å spørre. Da spør Copilot CLI før hver
+            handling, og OpenCode følger sine egne tillatelser.
           </BodyLong>
         </VStack>
       </section>
