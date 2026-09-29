@@ -2105,7 +2105,8 @@ func mcpServerNotice(src *Source) []string {
 		lines = append(lines, "  "+name)
 	}
 	return append(lines,
-		"nav-pilot does not configure MCP. Enable them in your client: "+agentpakke.MCPRegistryURL)
+		"Enable them: nav-pilot mcp enable "+strings.Join(src.Pakke.MCPServers, " "),
+		"They come from Nav's MCP registry: "+agentpakke.MCPRegistryURL)
 }
 
 // printMCPServerNotice prints [mcpServerNotice] after an install, or nothing.

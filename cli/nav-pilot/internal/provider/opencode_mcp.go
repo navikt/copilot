@@ -71,6 +71,9 @@ type mcpRegistry struct {
 	// for it (io.github.navikt/github-mcp). The only source of the hosts an
 	// MCP server may reach under cplt (mcp_hosts.go).
 	Servers map[string][]string
+	// Entries is every listed server in full, in the registry's order, for
+	// nav-pilot mcp (mcp_servers.go).
+	Entries []MCPServerEntry
 }
 
 // fetchMCPPolicy and fetchMCPRegistry are asked once per process: an OpenCode
@@ -173,11 +176,15 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 		}
 		var page struct {
 			Servers []struct {
-				Server struct {
-					Name     string                        `json:"name"`
-					Remotes  []struct{ URL string }        `json:"remotes"`
-					Packages []struct{ Identifier string } `json:"packages"`
-				} `json:"server"`
+				Server MCPServerEntry `json:"server"`
+				Meta   struct {
+					Official struct {
+						Status string `json:"status"`
+					} `json:"io.modelcontextprotocol.registry/official"`
+					Nav struct {
+						Setup []MCPSetupStep `json:"setupInstructions"`
+					} `json:"io.github.navikt/registry"`
+				} `json:"_meta"`
 			} `json:"servers"`
 			Metadata struct {
 				NextCursor string `json:"nextCursor"`
@@ -187,6 +194,12 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 			return reg, fmt.Errorf("reading %s: %w", u, err)
 		}
 		for _, s := range page.Servers {
+			e := s.Server
+			if st := s.Meta.Official.Status; st != "" {
+				e.Status = st
+			}
+			e.Setup = s.Meta.Nav.Setup
+			reg.Entries = append(reg.Entries, e)
 			for _, r := range s.Server.Remotes {
 				reg.Remotes[normalizeMCPURL(r.URL)] = true
 				if s.Server.Name != "" {

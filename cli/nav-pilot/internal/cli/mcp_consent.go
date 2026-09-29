@@ -60,6 +60,15 @@ func mcpHostsMode() string {
 	return *cfg.MCPHosts
 }
 
+// mcpConfigScope sets whose MCP servers count, and whether mcp_hosts is off,
+// as a plain launch would. For writers of the allowlist file outside a launch:
+// unset, an OpenCode user's section would be computed for Copilot.
+func mcpConfigScope() {
+	cfg, _ := readConfig()
+	providerpkg.MCPClient = resolve(cfg, CLIOverrides{}).Client
+	providerpkg.MCPHostsOff = mcpHostsMode() == "off"
+}
+
 // noteMCPHostConsent asks about MCP registry hosts outside the recorded
 // approval, once per host set, and keeps nav-pilot's allowlist file in step.
 // Best effort: every failure path grants nothing new.
@@ -168,11 +177,14 @@ func mcpHostNames(hosts []providerpkg.MCPHost) []string {
 	return out
 }
 
+// mcpHostsTitle does not say the sandbox blocks the hosts: under the standard
+// preset a public host is reachable already, and only strict or a private
+// address blocks it.
 func mcpHostsTitle(servers []string) string {
 	if len(servers) == 1 {
-		return fmt.Sprintf("MCP server %s needs hosts the sandbox blocks. Allow?", safe(servers[0], 64))
+		return fmt.Sprintf("MCP server %s connects to these hosts. Allow them in the sandbox?", safe(servers[0], 64))
 	}
-	return fmt.Sprintf("%d MCP servers need hosts the sandbox blocks. Allow them all?", len(servers))
+	return fmt.Sprintf("%d MCP servers connect to these hosts. Allow them all in the sandbox?", len(servers))
 }
 
 // mcpHostsDescription lists each server with its hosts, why each is there and

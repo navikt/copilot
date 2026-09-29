@@ -866,6 +866,7 @@ func cpltConfigGet(cliPath, key string) string {
 // unlisted hosts are unreachable. In that case the file is still written and
 // the path returned, and the caller tells the user to include it.
 func seedCpltAllowlist(cliPath string) (path string, adopted bool, err error) {
+	mcpConfigScope()
 	path, err = writeNavAllowedDomains()
 	if err != nil {
 		return "", false, err
