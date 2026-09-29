@@ -122,22 +122,14 @@ nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> fo
           <BodyLong>
             Har <code className={code}>local-worker</code> laget en ny fil og bygget eller testene feiler, ber nav-pilot
             hovedagenten sende feilen tilbake til <code className={code}>local-worker</code> én gang. Feiler det igjen,
-            retter hovedagenten feilen selv. Med ett nytt forsøk ble 15 av 20 nye filer godkjent i målingene, mot 5 av
-            20 uten, og tiden per godkjent fil gikk ned fra 618 til 322 sekunder, selv om hvert forsøk tok lengre tid.
+            retter hovedagenten feilen selv.
           </BodyLong>
           <BodyLong>
-            <code className={code}>aggressive</code> sender mest, men sparer ikke AI-kreditter. I målingen fra september
-            2026 (re-probe 7, Sonnet 5 som hovedagent) sendte hovedagenten arbeid i alle 17 gyldige kjøringer med mange
-            kallsteder eller nye filer, mot 2 av 20 med <code className={code}>balanced</code>, og alle 17 besto bygg og
-            tester. Var endringen liten, sendte den ingenting (0 av 5). Det kostet 0,83–2,1 ganger så mye i AI-kreditter
-            og tok 2,7–3,6 ganger så lang tid som når skymodellen gjorde alt selv. Hovedagenten gjorde likevel om 15 av
-            27 oppgaver med nye filer selv. To kjøringer til ble avbrutt før de var ferdige, og i én av dem ble koden
-            liggende i stykker.
-          </BodyLong>
-          <BodyLong>
-            Uansett nivå sender hovedagenten bare oppgavetyper modellen er godkjent for. Stoppet ligger i en plugin for
-            opencode, så det virker ikke hvis du starter opencode med <code className={code}>--pure</code>. Hvorfor
-            nivåene finnes, og hva de gjør med hver modell, står i{" "}
+            <code className={code}>aggressive</code> sender mest, men koster mer AI-kreditter og tid enn å la
+            skymodellen gjøre alt selv. Uansett nivå sender hovedagenten bare oppgavetyper modellen er godkjent for.
+            Stoppet ligger i en plugin for opencode, så det virker ikke hvis du starter opencode med{" "}
+            <code className={code}>--pure</code>. Hvorfor nivåene finnes, hva de gjør med hver modell og hva målingene
+            viser, står i{" "}
             <NextLink href="/nav-pilot/forklaring/lokal-modell#utsending" className={linkClass}>
               Hvorfor utsendingen er begrenset
             </NextLink>
@@ -153,8 +145,8 @@ nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> fo
           </LinkableHeading>
           <BodyLong>
             <code className={code}>nav-pilot models</code> viser modellene klienten kan bruke, med den du har valgt
-            merket <code className={code}>*</code>. Lista er nav-pilots egen. Hva du faktisk får bruke, avhenger også av
-            Copilot-abonnementet ditt.
+            merket <code className={code}>*</code>. Hva du faktisk får bruke, avhenger også av Copilot-abonnementet
+            ditt.
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot models                      # alle, for klienten din
@@ -188,8 +180,8 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
               tabellen over lokale modeller
             </NextLink>
             . Lista oppdateres når du kjører <code className={code}>init</code> eller{" "}
-            <code className={code}>start</code>, ikke ved hver kommando. Første oppstart laster modellen inn i minnet.
-            Vi målte ti oppstarter på seks maskiner. Alle tok under 50 sekunder, og seks av dem under 10.
+            <code className={code}>start</code>. Første oppstart laster modellen inn i minnet, i målingene våre under 50
+            sekunder på alle seks maskinene.
           </BodyLong>
           <BodyLong>
             <code className={code}>status</code> viser hvilken modell som er valgt, og om den er valgt med{" "}
