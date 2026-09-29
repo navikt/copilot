@@ -760,6 +760,10 @@ button.section-link {
   outline: 3px solid var(--ax-border-focus);
   outline-offset: 2px;
 }
+.setup-wizard-steps:focus-visible {
+  outline: 3px solid var(--ax-border-focus);
+  outline-offset: 2px;
+}
 .user-name {
   max-width: 10rem;
   overflow: hidden;

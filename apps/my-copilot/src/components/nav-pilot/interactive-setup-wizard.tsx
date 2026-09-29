@@ -354,7 +354,12 @@ export function InteractiveSetupWizard() {
       <VStack gap="space-24">
         {/* The 4 labeled steps don't fit 360 px even after the box's own padding shrinks
             (#1293): scroll internally rather than push the page width. */}
-        <div className="overflow-x-auto">
+        <div
+          className="overflow-x-auto setup-wizard-steps"
+          tabIndex={0}
+          role="region"
+          aria-label="Steg i oppsettet"
+        >
           <Stepper activeStep={activeStep} onStepChange={setActiveStep} orientation="horizontal" interactive={false}>
             <Stepper.Step href="#" completed={activeStep > 1}>
               Tilgang
