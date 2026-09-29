@@ -97,6 +97,9 @@ func TestOpenCodeMCPMatchesByRegistryURL(t *testing.T) {
 	if names := got.Names(); !slices.Equal(names, []string{"mcp.figma.com"}) {
 		t.Errorf("hosts = %v, want mcp.figma.com only", names)
 	}
+	if len(got.Hosts) == 1 && !slices.Equal(got.Hosts[0].Servers, []string{"com.figma/figma-mcp"}) {
+		t.Errorf("servers = %v, want the registry's name, not the config's", got.Hosts[0].Servers)
+	}
 }
 
 func approvedMCP(t *testing.T, hosts []MCPHost) *artifacts.ProposalConsent {

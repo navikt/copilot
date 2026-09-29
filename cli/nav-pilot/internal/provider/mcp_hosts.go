@@ -133,10 +133,11 @@ func configuredMCPServers() (copilot []string, openCode map[string]mcpServer) {
 // matchMCPHosts is the registry's hosts for the configured servers. Pure: the
 // security property — a config URL is never a host — is tested here.
 func matchMCPHosts(reg mcpRegistry, copilot []string, openCode map[string]mcpServer) MCPHosts {
-	byURL := map[string]string{} // normalized registry remote -> registry's URL
-	for _, urls := range reg.Servers {
+	type remote struct{ name, url string }
+	byURL := map[string]remote{} // normalized registry remote -> registry's name and URL
+	for name, urls := range reg.Servers {
 		for _, u := range urls {
-			byURL[normalizeMCPURL(u)] = u
+			byURL[normalizeMCPURL(u)] = remote{name, u}
 		}
 	}
 	hosts := map[string][]string{}
@@ -183,10 +184,11 @@ func matchMCPHosts(reg mcpRegistry, copilot []string, openCode map[string]mcpSer
 			continue
 		}
 		if s.Type == "remote" {
-			// The registry's spelling of the URL, not the config's: they
-			// match once normalized, and only the registry's is trusted.
-			if u, ok := byURL[normalizeMCPURL(s.URL)]; ok {
-				add(name, u)
+			// The registry's URL and name, not the config's: they match
+			// once normalized, only the registry's URL is trusted, and the
+			// consent screen says "(Nav's MCP registry)" after the name.
+			if r, ok := byURL[normalizeMCPURL(s.URL)]; ok {
+				add(r.name, r.url)
 			}
 		}
 	}
