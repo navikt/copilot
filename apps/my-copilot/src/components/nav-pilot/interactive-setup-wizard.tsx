@@ -348,22 +348,26 @@ export function InteractiveSetupWizard() {
       borderRadius="12"
       borderWidth="1"
       borderColor="neutral-subtle"
-      padding="space-24"
+      padding={{ xs: "space-16", sm: "space-20", md: "space-24" }}
       className="shadow-sm"
     >
       <VStack gap="space-24">
-        <Stepper activeStep={activeStep} onStepChange={setActiveStep} orientation="horizontal" interactive={false}>
-          <Stepper.Step href="#" completed={activeStep > 1}>
-            Tilgang
-          </Stepper.Step>
-          <Stepper.Step href="#" completed={activeStep > 2}>
-            OS
-          </Stepper.Step>
-          <Stepper.Step href="#" completed={activeStep > 3}>
-            Arbeidsflyt
-          </Stepper.Step>
-          <Stepper.Step href="#">Ferdig</Stepper.Step>
-        </Stepper>
+        {/* The 4 labeled steps don't fit 360 px even after the box's own padding shrinks
+            (#1293): scroll internally rather than push the page width. */}
+        <div className="overflow-x-auto setup-wizard-steps" tabIndex={0} role="region" aria-label="Steg i oppsettet">
+          <Stepper activeStep={activeStep} onStepChange={setActiveStep} orientation="horizontal" interactive={false}>
+            <Stepper.Step href="#" completed={activeStep > 1}>
+              Tilgang
+            </Stepper.Step>
+            <Stepper.Step href="#" completed={activeStep > 2}>
+              OS
+            </Stepper.Step>
+            <Stepper.Step href="#" completed={activeStep > 3}>
+              Arbeidsflyt
+            </Stepper.Step>
+            <Stepper.Step href="#">Ferdig</Stepper.Step>
+          </Stepper>
+        </div>
 
         <Box paddingBlock="space-16">
           {activeStep === 1 && <StepAccess onNext={nextStep} />}

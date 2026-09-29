@@ -119,9 +119,15 @@ export function SiteSearch({ label }: { label: string }) {
           variant="tertiary-neutral"
           icon={<MagnifyingGlassIcon aria-hidden />}
           aria-keyshortcuts="Meta+K Control+K /"
+          aria-label={label}
           className="whitespace-nowrap"
         >
-          {label}
+          {/* Icon-only below 640 px: the label text is what pushes «Meny»/«Menu» past 360 px (#1293).
+              `hidden` (not Tailwind's sr-only/not-sr-only pair, which Aksel's own .sr-only class
+              overrides) plus aria-label above keeps the accessible name stable either way. */}
+          <span aria-hidden className="hidden sm:inline">
+            {label}
+          </span>
           <kbd aria-hidden className="search-kbd hidden xl:inline-block">
             {hint}
           </kbd>
