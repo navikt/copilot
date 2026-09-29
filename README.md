@@ -122,7 +122,7 @@ export PATH="$HOME/.local/bin:$PATH"              # skriptet installerer hit
 which -a copilot cplt   # ingen treff skal starte med /mnt/c
 ```
 
-Bruker du opencode som klient, installer den på samme måte inne i Ubuntu (`curl -fsSL https://opencode.ai/install | bash`) og sjekk `which -a opencode`.
+Bruker du opencode som klient, installer den på samme måte inne i Ubuntu (`curl -fsSL https://opencode.ai/install | bash -s -- --version 1.18.32`) og sjekk `which -a opencode`.
 
 WSL2 arver Windows-PATH. Mangler et verktøy i Ubuntu, plukker terminalen Windows-varianten i stedet, og den kjører via interop som en Windows-prosess — den installerer til Windows-siden og ser ikke Linux-filsystemet slik du forventer. Vanligste fella: `apt install nodejs` gir `node` i Ubuntu, men ikke `npm`, så `npm install -g` havner i Windows-prefixet og henter win32-pakken. Symptomet er `no platform package found` fra `copilot --version`. Jobb også fra Linux-filsystemet (`~/git/...`), ikke `/mnt/c/...` — 9p-I/O er tregt.
 

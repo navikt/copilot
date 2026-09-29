@@ -62,7 +62,7 @@ nav-pilot install nav-pilot
 Første gang du kjører `nav-pilot`, spør den hvilken klient du vil bruke. opencode er valgt.
 Mangler opencode, tilbyr nav-pilot å installere den: med Homebrew
 (`brew install anomalyco/tap/opencode`) hvis du har det, ellers med opencodes eget
-installasjonsskript (`curl -fsSL https://opencode.ai/install | bash`). Sier du nei, bruker
+installasjonsskript (`curl -fsSL https://opencode.ai/install | bash -s -- --version 1.18.32`). Sier du nei, bruker
 nav-pilot Copilot CLI og sier hvordan du bytter senere. Mangler Copilot CLI også, viser den
 installasjonskommandoen for begge. Se [Klienter](#klienter).
 
