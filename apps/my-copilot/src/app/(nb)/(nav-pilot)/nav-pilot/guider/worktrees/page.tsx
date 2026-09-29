@@ -9,13 +9,13 @@ import type { TocItem } from "@/components/table-of-contents";
 export const metadata: Metadata = {
   title: "Worktrees med nav-pilot og cplt",
   description:
-    "Start nav-pilot i en git worktree, la agenten lage worktrees til underagenter, og bruk worktrees fra et bare repo.",
+    "Start nav-pilot i et git-worktree, la agenten lage worktrees til underagenter, og bruk worktrees fra et bare repo.",
 };
 
 const TOC: TocItem[] = [
   { id: "hvorfor", label: "Hvorfor worktrees" },
   { id: "forutsetninger", label: "Før du starter" },
-  { id: "starte-i-worktree", label: "Starte i en worktree" },
+  { id: "starte-i-worktree", label: "Starte i et worktree" },
   { id: "underagenter", label: "Worktrees til underagenter" },
   { id: "bare-repo", label: "Bare repo og .git et annet sted" },
   { id: "begrensninger", label: "Begrensninger og sikkerhet" },
@@ -31,6 +31,7 @@ export default function Worktrees() {
   return (
     <DocPage
       label="Guider"
+      upgrade
       title="Worktrees med nav-pilot og cplt"
       description="Med git worktree har du flere grener sjekket ut samtidig, hver i sin mappe. Slik bruker du det i sandkassen."
       toc={TOC}
@@ -41,18 +42,18 @@ export default function Worktrees() {
             Hvorfor worktrees
           </LinkableHeading>
           <BodyLong>
-            En worktree er en ekstra utsjekking av samme repo, på en annen gren og i en annen mappe. Du kan la agenten
+            Et worktree er en ekstra utsjekking av samme repo, på en annen gren og i en annen mappe. Du kan la agenten
             jobbe på én gren mens du selv jobber på en annen, eller la flere underagenter jobbe parallelt uten å skrive
             over hverandres filer. Objekter, refs og konfig ligger i én felles git-mappe, den{" "}
-            <code className={code}>git rev-parse --git-common-dir</code> viser. Hver worktree har i stedet for en{" "}
+            <code className={code}>git rev-parse --git-common-dir</code> viser. Hvert worktree har i stedet for en{" "}
             <code className={code}>.git</code>-mappe en <code className={code}>.git</code>-fil som peker til sin egen
             admin-mappe under <code className={code}>&lt;felles&gt;/worktrees/&lt;navn&gt;</code>.
           </BodyLong>
           <BodyLong>Det er tre måter å bruke worktrees på med nav-pilot og cplt:</BodyLong>
           <Bullets>
-            <li>Du starter nav-pilot i en worktree du har laget selv.</li>
+            <li>Du starter nav-pilot i et worktree du har laget selv.</li>
             <li>Agenten lager worktrees til underagenter mens den jobber.</li>
-            <li>Du jobber i en worktree fra et bare repo, eller med .git et annet sted.</li>
+            <li>Du jobber i et worktree fra et bare repo, eller med .git et annet sted.</li>
           </Bullets>
           <BodyLong>
             Den første og den tredje virker uten oppsett. Den andre må du slå på, og den virker bare på macOS.
@@ -66,26 +67,19 @@ export default function Worktrees() {
             Før du starter
           </LinkableHeading>
           <BodyLong>
-            Worktrees til underagenter krever cplt <code className={code}>2026.09.24-164900-53d4462</code> eller nyere,
-            på macOS. Sjekk versjonen:
+            Worktrees til underagenter krever cplt fra 24. september 2026 eller nyere, på macOS. Oppgrader først, og
+            sjekk versjonen:
           </BodyLong>
           <CodeBlock compact>{`cplt --version`}</CodeBlock>
-          <BodyLong>
-            cplt er en egen pakke. <code className={code}>brew upgrade navikt/tap/nav-pilot</code> oppgraderer bare
-            nav-pilot, og <code className={code}>nav-pilot upgrade</code> foreslår bare å oppgradere cplt når nav-pilot
-            også er utdatert. Oppgrader cplt selv:
-          </BodyLong>
-          <CodeBlock compact>{`brew update
-brew upgrade navikt/tap/cplt`}</CodeBlock>
         </VStack>
       </section>
 
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="starte-i-worktree" size="medium" level="2">
-            Starte i en worktree
+            Starte i et worktree
           </LinkableHeading>
-          <BodyLong>Lag worktreen utenfor sandkassen, og start nav-pilot i den:</BodyLong>
+          <BodyLong>Lag worktreet utenfor sandkassen, og start nav-pilot i det:</BodyLong>
           <CodeBlock compact>
             {`cd ~/src/min-app
 git worktree add ../min-app-ny-gren -b ny-gren
@@ -93,12 +87,12 @@ cd ../min-app-ny-gren
 nav-pilot`}
           </CodeBlock>
           <BodyLong>
-            nav-pilot gir cplt worktreen som prosjektkatalog. cplt finner den felles git-mappa, her{" "}
+            nav-pilot gir cplt worktreet som prosjektkatalog. cplt finner den felles git-mappa, her{" "}
             <code className={code}>.git</code>-mappa i hovedutsjekkingen, og gir agenten tilgang til den, så{" "}
             <code className={code}>git status</code>, <code className={code}>git commit</code> og resten virker. På
             macOS er hooks og <code className={code}>config</code> i den felles git-mappa og{" "}
-            <code className={code}>config.worktree</code> for hver worktree fortsatt stengt for skriving. Agenten kan
-            ikke skrive i selve hovedutsjekkingen, bare i worktreen.
+            <code className={code}>config.worktree</code> for hvert worktree fortsatt stengt for skriving. Agenten kan
+            ikke skrive i selve hovedutsjekkingen, bare i worktreet.
           </BodyLong>
           <BodyLong>
             Den felles git-mappa må ligge under hjemmekatalogen din. Ligger den et annet sted, for eksempel under{" "}
@@ -106,7 +100,7 @@ nav-pilot`}
           </BodyLong>
           <BodyLong>
             Godkjenningen av repoets <code className={code}>.cplt.toml</code> gjelder hele repoet, ikke én utsjekking.
-            Har du godkjent den i hovedutsjekkingen, spør ikke cplt på nytt i worktreen, med mindre grenen har endret
+            Har du godkjent den i hovedutsjekkingen, spør ikke cplt på nytt i worktreet, med mindre grenen har endret
             forslaget.
           </BodyLong>
         </VStack>
@@ -157,8 +151,8 @@ git branch -d <gren>`}
             Bare repo og .git et annet sted
           </LinkableHeading>
           <BodyLong>
-            Noen holder repoet som et bare repo, uten arbeidskatalog, og har hver gren som en worktree ved siden av.
-            Andre har git-mappa et annet sted enn koden. Begge deler virker på samme måte som når du starter i en
+            Noen holder repoet som et bare repo, uten arbeidskatalog, og har hver gren som et worktree ved siden av.
+            Andre har git-mappa et annet sted enn koden. Begge deler virker på samme måte som når du starter i et
             worktree: cplt følger <code className={code}>.git</code>-fila til den felles git-mappa og gir agenten
             tilgang dit.
           </BodyLong>
@@ -175,9 +169,9 @@ nav-pilot`}
           </BodyLong>
           <BodyLong>
             Bruker du worktrees til underagenter i tillegg, kan ikke repoet bruke{" "}
-            <code className={code}>worktree.useRelativePaths</code>. cplt nekter å starte når en worktree i repoet har
+            <code className={code}>worktree.useRelativePaths</code>. cplt nekter å starte når et worktree i repoet har
             relative stier, også worktrees utenfor worktree-mappa. Slå av innstillingen, og skriv om stiene i worktreene
-            som allerede finnes. Kjør det utenfor cplt, med stien til hver worktree som har relative stier:
+            som allerede finnes. Kjør det utenfor cplt, med stien til hvert worktree som har relative stier:
           </BodyLong>
           <CodeBlock compact>{`git config --unset worktree.useRelativePaths
 git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
@@ -202,14 +196,14 @@ git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
             </li>
             <li>
               <strong>Samme beskyttelse som i prosjektet.</strong> Hooks og <code className={code}>config</code> i den
-              felles git-mappa, <code className={code}>config.worktree</code> for hver worktree,{" "}
+              felles git-mappa, <code className={code}>config.worktree</code> for hvert worktree,{" "}
               <code className={code}>.cplt.toml</code>, <code className={code}>.github/hooks</code> og de andre
-              beskyttede filene er stengt for skriving i hver worktree.
+              beskyttede filene er stengt for skriving i hvert worktree.
             </li>
             <li>
               <strong>cplt sjekker mappa ved hver oppstart og ved slutten av økten.</strong> Finner den en{" "}
               <code className={code}>.git</code> eller et bare repo der git ikke selv ville lagt det, eller en symlenke
-              som peker ut av worktreen, nekter den å starte og sier hvilke mapper du ikke skal kjøre git i.
+              som peker ut av worktreet, nekter den å starte og sier hvilke mapper du ikke skal kjøre git i.
             </li>
             <li>
               <strong>Endringsrapporten dekker ikke worktrees.</strong> Rapporten cplt skriver etter økten, viser bare
@@ -240,10 +234,8 @@ git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
             unknown config key &apos;sandbox.allow_git_worktrees&apos;
           </LinkableHeading>
           <BodyLong>
-            cplt er for gammel. Oppgrader med <code className={code}>brew update</code> og{" "}
-            <code className={code}>brew upgrade navikt/tap/cplt</code>, og sjekk at{" "}
-            <code className={code}>cplt --version</code> viser <code className={code}>2026.09.24-164900-53d4462</code>{" "}
-            eller nyere.
+            cplt er for gammel. Oppgrader, og sjekk med <code className={code}>cplt --version</code> at versjonen er fra
+            24. september 2026 eller nyere.
           </BodyLong>
           <LinkableHeading id="git-feiler" size="small" level="3">
             git feiler i sandkassen, men virker utenfor
@@ -259,7 +251,7 @@ git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
             cplt vil ikke starte etter git worktree remove
           </LinkableHeading>
           <BodyLong>
-            <code className={code}>git worktree remove</code> feiler inne i sandkassen og etterlater en halvveis slettet
+            <code className={code}>git worktree remove</code> feiler inne i sandkassen og etterlater et halvveis slettet
             worktree. Slett mappa og rydd opp utenfor cplt:
           </BodyLong>
           <CodeBlock compact>
@@ -275,11 +267,11 @@ git worktree prune`}
           </BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.worktree_walk_max_dirs 300000`}</CodeBlock>
           <LinkableHeading id="go-bygg" size="small" level="3">
-            Go-bygg feiler med exit status 128 i en worktree
+            Go-bygg feiler med exit status 128 i et worktree
           </LinkableHeading>
           <BodyLong>
             Go leter oppover etter en <code className={code}>.git</code>-mappe for å stemple bygget med
-            versjonsinformasjon. I en worktree er <code className={code}>.git</code> en fil, så Go går forbi den og kan
+            versjonsinformasjon. I et worktree er <code className={code}>.git</code> en fil, så Go går forbi den og kan
             finne en annen <code className={code}>.git</code>-mappe høyere opp, for eksempel i hjemmekatalogen din hvis
             den er et git-repo. Den har ikke agenten tilgang til, og bygget feiler med{" "}
             <code className={code}>error obtaining VCS status: exit status 128</code>. Slå av stemplingen:

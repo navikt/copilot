@@ -45,6 +45,7 @@ export default function Tilpasse() {
   return (
     <DocPage
       label="Guider"
+      upgrade
       title="Tilpasse"
       description="Repoet ditt trenger ofte egne regler og egen kontekst. Slik legger du dem til uten å miste oppdateringene fra nav-pilot."
       toc={TOC}

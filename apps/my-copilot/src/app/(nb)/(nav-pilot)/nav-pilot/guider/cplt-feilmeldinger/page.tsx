@@ -38,6 +38,7 @@ export default function CpltFeilmeldinger() {
   return (
     <DocPage
       label="Guider"
+      upgrade
       title="Feil i sandkassen"
       description="Slå opp på feilmeldingen du ser. Hver oppføring sier hva som skjer, og hvilken kommando som løser det."
       toc={TOC}
@@ -47,17 +48,7 @@ export default function CpltFeilmeldinger() {
           <LinkableHeading id="start-her" size="medium" level="2">
             Start her
           </LinkableHeading>
-          <BodyLong>
-            Mange feil er rettet i nyere cplt. cplt er en egen pakke, og{" "}
-            <code className={code}>brew upgrade navikt/tap/nav-pilot</code> oppgraderer den ikke. Oppgrader cplt først:
-          </BodyLong>
-          <CodeBlock compact>
-            {`brew update
-brew upgrade navikt/tap/cplt
-cplt --version`}
-          </CodeBlock>
-          <BodyLong>Har du installert cplt med apt på Debian eller Ubuntu:</BodyLong>
-          <CodeBlock compact>{`sudo apt update && sudo apt upgrade cplt`}</CodeBlock>
+          <BodyLong>Mange feil er rettet i nyere cplt, så oppgrader først.</BodyLong>
           <BodyLong>Finner du ikke feilen under, spør cplt selv:</BodyLong>
           <CodeBlock compact>
             {`cplt check                               # virker sandkassen?
@@ -69,8 +60,7 @@ cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?`}
           <BodyLong>
             Svarene fra <code className={code}>cplt check</code> har en linje som begynner med{" "}
             <code className={code}>Reason:</code>, og ofte en med <code className={code}>Fix:</code>. Kommandoene på
-            denne siden er testet med cplt <code className={code}>2026.09.29-105335-ce50857</code> på macOS. Flere
-            detaljer står i{" "}
+            denne siden er testet med cplt fra 29. september 2026 på macOS. Flere detaljer står i{" "}
             <a href={KNOWN_IMPACTS} className={linkClass}>
               known-impacts.md
             </a>{" "}
@@ -135,11 +125,11 @@ cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?`}
           </LinkableHeading>
           <BodyLong>
             Du har en egen host-liste i <code className={code}>proxy.allowed_domains</code>, uten{" "}
-            <code className={code}>proxy.default_allowlist</code>. I cplt eldre enn{" "}
-            <code className={code}>2026.09.29-095137-e745d3a</code> stengte den lista Copilot ute fra sine egne hoster,
-            så innloggingen og modellkallene feilet. <code className={code}>cplt check</code> viste{" "}
-            <code className={code}>reach githubcopilot.com BLOCKED</code>. Oppgrader cplt. Fra den versjonen er agentens
-            egne hoster alltid med. Kan du ikke oppgradere nå, slå på cplts innebygde liste:
+            <code className={code}>proxy.default_allowlist</code>. I cplt fra før 29. september 2026 stengte den lista
+            Copilot ute fra sine egne hoster, så innloggingen og modellkallene feilet.{" "}
+            <code className={code}>cplt check</code> viste <code className={code}>reach githubcopilot.com BLOCKED</code>
+            . Oppgrader cplt. Fra den versjonen er agentens egne hoster alltid med. Kan du ikke oppgradere nå, slå på
+            cplts innebygde liste:
           </BodyLong>
           <CodeBlock compact>{`cplt config set proxy.default_allowlist true`}</CodeBlock>
 
@@ -183,10 +173,10 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             Sandbox is NOT ENFORCING
           </LinkableHeading>
           <BodyLong>
-            I cplt eldre enn <code className={code}>2026.09.29-095137-e745d3a</code> sa{" "}
-            <code className={code}>cplt check</code> dette også når sandkassen virket, men blokkerte noe den skulle
-            slippe gjennom. Oppgrader og kjør <code className={code}>cplt check</code> på nytt. Står det fortsatt NOT
-            ENFORCING, slapp sandkassen gjennom noe den skulle stoppe. Meld det i{" "}
+            I cplt fra før 29. september 2026 sa <code className={code}>cplt check</code> dette også når sandkassen
+            virket, men blokkerte noe den skulle slippe gjennom. Oppgrader og kjør{" "}
+            <code className={code}>cplt check</code> på nytt. Står det fortsatt NOT ENFORCING, slapp sandkassen gjennom
+            noe den skulle stoppe. Meld det i{" "}
             <a href="https://github.com/navikt/cplt/issues" className={linkClass}>
               navikt/cplt
             </a>
@@ -284,8 +274,8 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             EPERM: operation not permitted, open …/Library/Preferences/pnpm/config.yaml
           </LinkableHeading>
           <BodyLong>
-            Gjelder macOS. cplt gir pnpm tilgang til feil mappe for konfigfila. Dette er rettet i cplt{" "}
-            <code className={code}>2026.09.29-113343-7a9ef00</code> (<Pr n={616} />
+            Gjelder macOS. cplt gir pnpm tilgang til feil mappe for konfigfila. Dette er rettet i cplt fra 29. september
+            2026 (<Pr n={616} />
             ). Har du en eldre versjon, gir du lesetilgang til fila:
           </BodyLong>
           <CodeBlock compact>{`cplt config set allow.read ~/Library/Preferences/pnpm/config.yaml`}</CodeBlock>
@@ -294,16 +284,13 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
           </BodyLong>
 
           <LinkableHeading id="pnpm-claude" size="small" level="3">
-            ERR_PNPM_EPERM … .claude/settings.local.json
+            ERR_PNPM_EPERM i node_modules
           </LinkableHeading>
           <BodyLong>
-            Gjelder macOS. En pakke du installerer, for eksempel <code className={code}>thread-stream@4.2.0</code>, har
-            en <code className={code}>.claude</code>-mappe. cplt stenger slike filer overalt i prosjektet, også i{" "}
-            <code className={code}>node_modules</code>, og ingen innstilling åpner dem. Fra cplt{" "}
-            <code className={code}>2026.09.29-113343-7a9ef00</code> gjelder dette ikke lenger i{" "}
-            <code className={code}>node_modules</code> (
-            <Pr n={627} />
-            ). Har du en eldre versjon, installerer du utenfor cplt og starter agenten etterpå:
+            Gjelder macOS og cplt fra før 29. september 2026 (<Pr n={627} />
+            ). Noen pakker har en konfigmappe for KI-verktøy, og cplt stengte slike filer også i{" "}
+            <code className={code}>node_modules</code>. Oppgrader cplt, eller installer utenfor cplt og start agenten
+            etterpå:
           </BodyLong>
           <CodeBlock compact>{`pnpm install`}</CodeBlock>
 
@@ -627,13 +614,13 @@ gh auth setup-git`}
             error obtaining VCS status: exit status 128
           </LinkableHeading>
           <BodyLong>
-            Go-bygg i en git worktree kan finne en annen <code className={code}>.git</code>-mappe lenger opp, som
+            Go-bygg i et git-worktree kan finne en annen <code className={code}>.git</code>-mappe lenger opp, som
             agenten ikke har tilgang til. Slå av versjonsstemplingen:
           </BodyLong>
           <CodeBlock compact>{`go build -buildvcs=false`}</CodeBlock>
           <BodyLong>
-            <code className={code}>GOFLAGS</code> fra skallet ditt slipper inn i sandkassen fra cplt{" "}
-            <code className={code}>2026.09.29-113343-7a9ef00</code> (<Pr n={624} />
+            <code className={code}>GOFLAGS</code> fra skallet ditt slipper inn i sandkassen fra cplt fra 29. september
+            2026 (<Pr n={624} />
             ). I eldre versjoner blir den filtrert bort. Hvordan du setter det for hele repoet med mise, står i{" "}
             <NextLink href="/nav-pilot/guider/worktrees#go-bygg" className={linkClass}>
               worktree-guiden

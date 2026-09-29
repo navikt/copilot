@@ -276,8 +276,8 @@ export default function Agentpakker() {
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
                       Det billigste steget er å installere en pakke noen alt vedlikeholder. nav-pilot finner ikke pakker
-                      for deg: <code className={code}>install</code> krever at du kjenner reponavnet, og
-                      det finnes ingen kommando som lister pakker (
+                      for deg: <code className={code}>install</code> krever at du kjenner reponavnet, og det finnes
+                      ingen kommando som lister pakker (
                       <a href="https://github.com/navikt/copilot/issues/819" className={linkClass}>
                         #819
                       </a>
@@ -292,14 +292,13 @@ export default function Agentpakker() {
                       <a href="https://github.com/navikt/copilot/issues/842" className={linkClass}>
                         #842
                       </a>
-                      ): en pull request som rører schemaet,{" "}
-                      <code className={code}>internal/agentpakke</code> eller{" "}
+                      ): en pull request som rører schemaet, <code className={code}>internal/agentpakke</code> eller{" "}
                       <code className={code}>validate</code>, bygger nav-pilot fra branchen og kjører{" "}
-                      <code className={code}>validate</code> mot hver av dem. Slutter en pakke å følge
-                      kontrakten, feiler bygget vårt. Derfor står det ikke flere her: hver pakke på lista koster noe å
-                      holde. Lista er en referanse for deg som skriver en pakke, ikke en anbefaling om hva du bør
-                      installere. Vil du ta i bruk en annen pakke enn{" "}
-                      <code className={code}>nav-pilot</code>, spør du teamet som eier den først.
+                      <code className={code}>validate</code> mot hver av dem. Slutter en pakke å følge kontrakten,
+                      feiler bygget vårt. Derfor står det ikke flere her: hver pakke på lista koster noe å holde. Lista
+                      er en referanse for deg som skriver en pakke, ikke en anbefaling om hva du bør installere. Vil du
+                      ta i bruk en annen pakke enn <code className={code}>nav-pilot</code>, spør du teamet som eier den
+                      først.
                     </BodyLong>
                     <VStack gap="space-16">
                       {PAKKER.map((p) => (
@@ -326,22 +325,21 @@ export default function Agentpakker() {
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
                       Installerer du i et repo, skriver <code className={code}>install</code>{" "}
-                      <code className={code}>.nav-pilot/agentpakke.lock.json</code> med kilden og
-                      revisjonen. Bruker-scope har ingen erklæring, for{" "}
-                      <code className={code}>~/.copilot</code> er ikke et repo: der ligger revisjonen i din
-                      egen tilstandsfil, og gjelder bare deg. Commit erklæringa: da installerer hele teamet fra samme
-                      revisjon, og <code className={code}>nav-pilot sync --apply</code> flytter pinnen som
-                      én linje diff i en pull request.
+                      <code className={code}>.nav-pilot/agentpakke.lock.json</code> med kilden og revisjonen.
+                      Bruker-scope har ingen erklæring, for <code className={code}>~/.copilot</code> er ikke et repo:
+                      der ligger revisjonen i din egen tilstandsfil, og gjelder bare deg. Commit erklæringa: da
+                      installerer hele teamet fra samme revisjon, og{" "}
+                      <code className={code}>nav-pilot sync --apply</code> flytter pinnen som én linje diff i en pull
+                      request.
                     </BodyLong>
                     <BodyLong textColor="subtle">
-                      I CI bruker du <code className={code}>--frozen</code>: den installerer nøyaktig det
-                      erklæringa sier, eller lar være. Den spør aldri og flytter aldri pinnen. Exit{" "}
-                      <code className={code}>0</code>: alt gikk inn, og det som ligger der er den pinnede
-                      revisjonen. Exit <code className={code}>1</code>: installasjonen feilet. Exit{" "}
-                      <code className={code}>3</code>: installasjonen gikk, men pinnen i erklæringa ble
-                      ikke fulgt: ingen erklæring, ingen brukbar pinne, en annen revisjon enn den erklærte, en Tier
-                      2-pakke, eller en delvis install. En CI-jobb kan dermed skille «pinnen er ikke det repoet sier»
-                      fra «installasjonen røk».
+                      I CI bruker du <code className={code}>--frozen</code>: den installerer nøyaktig det erklæringa
+                      sier, eller lar være. Den spør aldri og flytter aldri pinnen. Exit <code className={code}>0</code>
+                      : alt gikk inn, og det som ligger der er den pinnede revisjonen. Exit{" "}
+                      <code className={code}>1</code>: installasjonen feilet. Exit <code className={code}>3</code>:
+                      installasjonen gikk, men pinnen i erklæringa ble ikke fulgt: ingen erklæring, ingen brukbar pinne,
+                      en annen revisjon enn den erklærte, en Tier 2-pakke, eller en delvis install. En CI-jobb kan
+                      dermed skille «pinnen er ikke det repoet sier» fra «installasjonen røk».
                     </BodyLong>
                     <CodeBlock>{FROZEN}</CodeBlock>
                   </VStack>
@@ -354,9 +352,9 @@ export default function Agentpakker() {
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
                       Vil du ha fire av tolv agenter fra en plattformpakke, skal du slippe å forke den.{" "}
-                      <code className={code}>items</code> i erklæringa parer navn med artefakttype. Uten
-                      feltet installeres alt pakka har. Feltet skriver du selv: nav-pilot fyller det aldri ut. Hadde den
-                      ført opp alle tolv, ville hver ny agent oppstrøms blitt en merge-konflikt hos hver konsument.
+                      <code className={code}>items</code> i erklæringa parer navn med artefakttype. Uten feltet
+                      installeres alt pakka har. Feltet skriver du selv: nav-pilot fyller det aldri ut. Hadde den ført
+                      opp alle tolv, ville hver ny agent oppstrøms blitt en merge-konflikt hos hver konsument.
                     </BodyLong>
                     <CodeBlock filename=".nav-pilot/agentpakke.lock.json">{ITEMS}</CodeBlock>
                     <BodyLong textColor="subtle">
@@ -364,11 +362,11 @@ export default function Agentpakker() {
                       fire uten beskjed.
                     </BodyLong>
                     <BodyLong textColor="subtle">
-                      <code className={code}>items</code> virker bare mot Tier 1. En Tier 1-pakke er filer
-                      som kan velges hver for seg. En Tier 2-pakke er payload-trær bundet til en digest, der revisjonen
-                      er enheten, ikke fila. <code className={code}>items</code> mot en Tier 2-pakke
-                      nektes, ikke ignoreres, og feilmeldinga ber deg fjerne blokka eller be pakka publisere en
-                      payload-kontekst med akkurat det teamet trenger.
+                      <code className={code}>items</code> virker bare mot Tier 1. En Tier 1-pakke er filer som kan
+                      velges hver for seg. En Tier 2-pakke er payload-trær bundet til en digest, der revisjonen er
+                      enheten, ikke fila. <code className={code}>items</code> mot en Tier 2-pakke nektes, ikke
+                      ignoreres, og feilmeldinga ber deg fjerne blokka eller be pakka publisere en payload-kontekst med
+                      akkurat det teamet trenger.
                     </BodyLong>
                   </VStack>
                 </section>
@@ -382,15 +380,14 @@ export default function Agentpakker() {
                       Vil du bygge på Nav-pakka i navikt/copilot uten å vedlikeholde en kopi av den, committer du den
                       samme erklæringa i ditt eget pakkerepo. Repoet ditt har da både et manifest og en erklæring, og
                       den som installerer pakka di får begge pakkenes innhold. Erklæringa løses på nytt ved hver{" "}
-                      <code className={code}>install</code> og{" "}
-                      <code className={code}>sync</code>.
+                      <code className={code}>install</code> og <code className={code}>sync</code>.
                     </BodyLong>
                     <CodeBlock filename=".nav-pilot/agentpakke.lock.json">{GJENBRUK}</CodeBlock>
                     <BodyLong textColor="subtle">
                       <code className={code}>sha</code> er påkrevd for en kilde på formen{" "}
-                      <code className={code}>owner/repo</code>. Uten den ville gjenbruken hentet det main
-                      tilfeldigvis holdt, og to installasjoner en uke fra hverandre fått ulikt innhold. Installasjonen
-                      sier hva den gjenbrukte:
+                      <code className={code}>owner/repo</code>. Uten den ville gjenbruken hentet det main tilfeldigvis
+                      holdt, og to installasjoner en uke fra hverandre fått ulikt innhold. Installasjonen sier hva den
+                      gjenbrukte:
                     </BodyLong>
                     <CodeBlock>{KOMPONERT_UT}</CodeBlock>
                     <BodyLong textColor="subtle">
@@ -405,9 +402,9 @@ export default function Agentpakker() {
                       <BodyLong textColor="subtle">
                         Har begge pakkene en agent med samme navn, installeres din. Det er samme regel som{" "}
                         <code className={code}>overrides</code> i{" "}
-                        <code className={code}>.github/copilot-sync.json</code>: det teamet eier selv, eier
-                        de. Å skygge et artefakt er den vanlige måten å endre én ting i en pakke du ellers tar som den
-                        er. Det er ikke en feil, og nav-pilot varsler ikke.
+                        <code className={code}>.github/copilot-sync.json</code>: det teamet eier selv, eier de. Å skygge
+                        et artefakt er den vanlige måten å endre én ting i en pakke du ellers tar som den er. Det er
+                        ikke en feil, og nav-pilot varsler ikke.
                       </BodyLong>
                     </VStack>
 
@@ -417,17 +414,16 @@ export default function Agentpakker() {
                       </LinkableHeading>
                       <BodyLong textColor="subtle">
                         Alle installasjonsveiene tar med det gjenbrukte innholdet:{" "}
-                        <code className={code}>install &lt;navn&gt;</code>,{" "}
-                        <code className={code}>install --all</code>, den interaktive plukkeren,{" "}
+                        <code className={code}>install &lt;navn&gt;</code>, <code className={code}>install --all</code>,
+                        den interaktive plukkeren,{" "}
                         <code className={code}>install &lt;navn&gt; --type &lt;type&gt;</code> og{" "}
-                        <code className={code}>sync</code>, og{" "}
-                        <code className={code}>list</code> viser det (
+                        <code className={code}>sync</code>, og <code className={code}>list</code> viser det (
                         <a href="https://github.com/navikt/copilot/pull/866" className={linkClass}>
                           #866
                         </a>
                         ). En konsument kan navngi et arvet artefakt i <code className={code}>items</code>.{" "}
-                        <code className={code}>validate</code> komponerer med vilje ikke: den sjekker hva
-                        repoet ditt selv sender, så en base kan ikke gjøre en pakke gyldig som ikke er det.
+                        <code className={code}>validate</code> komponerer med vilje ikke: den sjekker hva repoet ditt
+                        selv sender, så en base kan ikke gjøre en pakke gyldig som ikke er det.
                       </BodyLong>
                     </VStack>
                   </VStack>
@@ -439,18 +435,18 @@ export default function Agentpakker() {
                       4. Lag din egen
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
-                      Skygging og <code className={code}>items</code> dekker de fleste grunnene folk har
-                      til å forke en pakke. Lag din egen når innholdet ikke finnes noe sted.
+                      Skygging og <code className={code}>items</code> dekker de fleste grunnene folk har til å forke en
+                      pakke. Lag din egen når innholdet ikke finnes noe sted.
                     </BodyLong>
 
                     <LinkableHeading id="struktur" size="small" level="3">
                       Struktur
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
-                      Katalognavnene velger du selv. <code className={code}>layout</code> i manifestet
-                      peker på dem: heter katalogen <code className={code}>innhold/agenter</code> hos deg,
-                      skriver du det der. Filnavnene inne i katalogene er låst, se artefakttypene under. Hver agentfil
-                      åpner med YAML-frontmatter som minst har <code className={code}>name</code> og{" "}
+                      Katalognavnene velger du selv. <code className={code}>layout</code> i manifestet peker på dem:
+                      heter katalogen <code className={code}>innhold/agenter</code> hos deg, skriver du det der.
+                      Filnavnene inne i katalogene er låst, se artefakttypene under. Hver agentfil åpner med
+                      YAML-frontmatter som minst har <code className={code}>name</code> og{" "}
                       <code className={code}>description</code>.
                     </BodyLong>
                     <CodeBlock>{STRUKTUR}</CodeBlock>
@@ -488,8 +484,8 @@ export default function Agentpakker() {
                       <BodyLong textColor="subtle">
                         Hooks og extensions er ikke tekst en modell leser. En hook kjører ved verktøykall, en extension
                         lastes av klienten. Den som installerer pakka di kjører koden din på maskinen sin, så si i
-                        pakkas <code className={code}>description</code> hva den gjør. Installasjonen må
-                        skje utenfor cplt: inne i sandkassen nekter cplt å skrive hooks, extensions og skills, og{" "}
+                        pakkas <code className={code}>description</code> hva den gjør. Installasjonen må skje utenfor
+                        cplt: inne i sandkassen nekter cplt å skrive hooks, extensions og skills, og{" "}
                         <code className={code}>install</code> stopper med en feil som sier det.
                       </BodyLong>
                     </VStack>
@@ -500,13 +496,13 @@ export default function Agentpakker() {
                       </LinkableHeading>
                       <BodyLong textColor="subtle">
                         Sender skillen din med et skript, kopieres det med resten av katalogen — men katalogen havner
-                        ulike steder per klient: <code className={code}>~/.copilot/skills/</code> for
-                        copilot, <code className={code}>skills/</code> under konfigurasjonskatalogen for
-                        opencode, <code className={code}>~/.nav-pilot/pi/skills</code> for pi, og{" "}
-                        <code className={code}>skills/</code> i payloadtreet for Tier 2. Skriver du én av
-                        stiene i teksten, er skillen feil på de andre. nav-pilot eksporterer derfor{" "}
-                        <code className={code}>NAV_PILOT_SKILLS_DIR</code> ved hver launch, med roten
-                        skillene faktisk ble lagt i for den klienten, og sender den gjennom sandboxen. Skriv{" "}
+                        ulike steder per klient: <code className={code}>~/.copilot/skills/</code> for copilot,{" "}
+                        <code className={code}>skills/</code> under konfigurasjonskatalogen for opencode,{" "}
+                        <code className={code}>~/.nav-pilot/pi/skills</code> for pi, og{" "}
+                        <code className={code}>skills/</code> i payloadtreet for Tier 2. Skriver du én av stiene i
+                        teksten, er skillen feil på de andre. nav-pilot eksporterer derfor{" "}
+                        <code className={code}>NAV_PILOT_SKILLS_DIR</code> ved hver launch, med roten skillene faktisk
+                        ble lagt i for den klienten, og sender den gjennom sandboxen. Skriv{" "}
                         <code className={code}>
                           bash &quot;$NAV_PILOT_SKILLS_DIR/&lt;skill&gt;/&lt;skript&gt;&quot;
                         </code>{" "}
@@ -519,23 +515,20 @@ export default function Agentpakker() {
                       Manifestet
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
-                      Minste form som validerer. <code className={code}>layout</code> navngir katalogene
-                      pakka faktisk har, minst én av dem. <code className={code}>primaryAgents</code> er de
-                      agentene brukeren kan starte klienten som. Resten er underagenter andre kaller. Første navn
-                      startes som standard, og{" "}
-                      <code className={code}>nav-pilot --persona &lt;navn&gt;</code> velger et annet av
-                      dem. Hvert navn må ha en agentfil i <code className={code}>layout.agents</code>,
-                      ellers avviser <code className={code}>validate</code> og{" "}
-                      <code className={code}>install</code> manifestet.
+                      Minste form som validerer. <code className={code}>layout</code> navngir katalogene pakka faktisk
+                      har, minst én av dem. <code className={code}>primaryAgents</code> er de agentene brukeren kan
+                      starte klienten som. Resten er underagenter andre kaller. Første navn startes som standard, og{" "}
+                      <code className={code}>nav-pilot --persona &lt;navn&gt;</code> velger et annet av dem. Hvert navn
+                      må ha en agentfil i <code className={code}>layout.agents</code>, ellers avviser{" "}
+                      <code className={code}>validate</code> og <code className={code}>install</code> manifestet.
                     </BodyLong>
                     <CodeBlock filename=".nav-pilot/agentpakke.json">{MANIFEST}</CodeBlock>
                     <BodyLong textColor="subtle">
-                      <code className={code}>owner</code> er attribusjon, ikke tilgangsstyring: kilden til
-                      en installasjon er repoet manifestet ble klonet fra.{" "}
-                      <code className={code}>policies.opencodePermissions</code>,{" "}
-                      <code className={code}>profiles</code> og{" "}
-                      <code className={code}>provenance</code> står i skjemaet, men gjør ingenting ennå:
-                      stiene sti-sjekkes, og nav-pilot leser dem ikke. Vent med dem.
+                      <code className={code}>owner</code> er attribusjon, ikke tilgangsstyring: kilden til en
+                      installasjon er repoet manifestet ble klonet fra.{" "}
+                      <code className={code}>policies.opencodePermissions</code>, <code className={code}>profiles</code>{" "}
+                      og <code className={code}>provenance</code> står i skjemaet, men gjør ingenting ennå: stiene
+                      sti-sjekkes, og nav-pilot leser dem ikke. Vent med dem.
                     </BodyLong>
 
                     <LinkableHeading id="klientoppforinga" size="small" level="3">
@@ -543,19 +536,18 @@ export default function Agentpakker() {
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
                       Klientnøklene i dag er <code className={code}>copilot</code>,{" "}
-                      <code className={code}>opencode</code> og{" "}
-                      <code className={code}>pi</code>. En nav-pilot som ikke kjenner en nøkkel, hopper
-                      over den i stedet for å avvise manifestet. En ny klient senere ugyldiggjør derfor ingen pakke som
-                      alt er ute.
+                      <code className={code}>opencode</code> og <code className={code}>pi</code>. En nav-pilot som ikke
+                      kjenner en nøkkel, hopper over den i stedet for å avvise manifestet. En ny klient senere
+                      ugyldiggjør derfor ingen pakke som alt er ute.
                     </BodyLong>
                     <CodeBlock filename=".nav-pilot/agentpakke.json">{KLIENTER}</CodeBlock>
                     <BodyLong textColor="subtle">
                       Tier utledes av formen og deklareres ikke. En klientoppføring uten{" "}
-                      <code className={code}>payloads</code> er Tier 1: nav-pilot legger inn filene selv
-                      fra stiene i <code className={code}>layout</code>, som da må finnes. En oppføring med{" "}
-                      <code className={code}>payloads</code> er Tier 2: nav-pilot verifiserer og stager
-                      ferdigbygde trær mot en digest, og pinner dem per bruker. En pakke kan blande de to per klient.
-                      Sida her beskriver Tier 1. Hvordan du bygger payload-trær for Tier 2, står i{" "}
+                      <code className={code}>payloads</code> er Tier 1: nav-pilot legger inn filene selv fra stiene i{" "}
+                      <code className={code}>layout</code>, som da må finnes. En oppføring med{" "}
+                      <code className={code}>payloads</code> er Tier 2: nav-pilot verifiserer og stager ferdigbygde trær
+                      mot en digest, og pinner dem per bruker. En pakke kan blande de to per klient. Sida her beskriver
+                      Tier 1. Hvordan du bygger payload-trær for Tier 2, står i{" "}
                       <a
                         href="https://github.com/navikt/copilot/blob/main/docs/README.agentpakke.md"
                         className={linkClass}
@@ -565,11 +557,11 @@ export default function Agentpakker() {
                       .
                     </BodyLong>
                     <BodyLong textColor="subtle">
-                      <code className={code}>compatibility</code> er et versjonsområde for klienten, ikke
-                      en versjon: kommaseparerte komparatorer over semver, som{" "}
+                      <code className={code}>compatibility</code> er et versjonsområde for klienten, ikke en versjon:
+                      kommaseparerte komparatorer over semver, som{" "}
                       <code className={code}>&quot;&gt;=1.18.20,&lt;2&quot;</code>.{" "}
-                      <code className={code}>&quot;1.18.20&quot;</code> alene har ingen operator og
-                      avvises. Området håndheves før hver launch i begge tier (
+                      <code className={code}>&quot;1.18.20&quot;</code> alene har ingen operator og avvises. Området
+                      håndheves før hver launch i begge tier (
                       <a href="https://github.com/navikt/copilot/pull/815" className={linkClass}>
                         #815
                       </a>
@@ -583,8 +575,8 @@ export default function Agentpakker() {
                     <BodyLong textColor="subtle">
                       Velg Tier 1 om du ikke har en grunn til noe annet. Innholdet er filer, de havner i repoet eller
                       profilen og er synlige i en diff, konsumenter kan plukke enkeltdeler med{" "}
-                      <code className={code}>items</code>, og du vedlikeholder ingen byggekjede: nav-pilot
-                      legger inn filene fra <code className={code}>layout</code>.
+                      <code className={code}>items</code>, og du vedlikeholder ingen byggekjede: nav-pilot legger inn
+                      filene fra <code className={code}>layout</code>.
                     </BodyLong>
                     <BodyLong textColor="subtle">
                       Velg Tier 2 når pakka di er et ferdig bygget oppsett som skal leveres som én enhet, og ikke
@@ -603,15 +595,13 @@ export default function Agentpakker() {
                     <BodyLong textColor="subtle">
                       <code className={code}>defaultModel</code> er per klient. Den literale verdien{" "}
                       <code className={code}>&quot;inherit&quot;</code> sender ingen{" "}
-                      <code className={code}>--model</code>. En konkret modell-id sendes med. En modell
-                      brukeren har pinnet selv, vinner over begge.{" "}
-                      <code className={code}>minNavPilotVersion</code> ligger på pakkenivå, skrives på
-                      nav-pilots releaseformat (<code className={code}>YYYY.MM.DD-HHMMSS</code>, eventuelt
-                      med build-sha) og blokkerer eldre binærer med en melding som sier hva de skal gjøre. Et annet
-                      format avvises framfor å ignoreres: nav-pilot kan ikke sammenligne det, og å godta det ville slått
-                      av akkurat den gaten manifestet ba om. Et utviklingsbygg (
-                      <code className={code}>dev</code>) er unntatt gaten, så lokalt arbeid på pakka
-                      stopper ikke.
+                      <code className={code}>--model</code>. En konkret modell-id sendes med. En modell brukeren har
+                      pinnet selv, vinner over begge. <code className={code}>minNavPilotVersion</code> ligger på
+                      pakkenivå, skrives på nav-pilots releaseformat (<code className={code}>YYYY.MM.DD-HHMMSS</code>,
+                      eventuelt med build-sha) og blokkerer eldre binærer med en melding som sier hva de skal gjøre. Et
+                      annet format avvises framfor å ignoreres: nav-pilot kan ikke sammenligne det, og å godta det ville
+                      slått av akkurat den gaten manifestet ba om. Et utviklingsbygg (<code className={code}>dev</code>)
+                      er unntatt gaten, så lokalt arbeid på pakka stopper ikke.
                     </BodyLong>
                     <BodyLong textColor="subtle">
                       <strong>Kjørbar kode når ikke alle klientene.</strong> opencode og pi hopper over hooks, med en
@@ -628,14 +618,13 @@ export default function Agentpakker() {
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
                       Deler dere bare skills eller instruksjoner, utelater dere{" "}
-                      <code className={code}>primaryAgents</code> og{" "}
-                      <code className={code}>agents</code> i{" "}
-                      <code className={code}>layout</code>. Dere trenger ikke finne på en persona. Pakka
-                      validerer, installeres og synkes som vanlig, men den kan ikke starte klienten: det finnes ingen
-                      agent å gi den, og launch stopper med pakkas navn i meldinga. Start klienten selv, eller pek
-                      nav-pilot på en pakke som deklarerer en agent. To pakker i samme scope er ingen utvei: et scope
-                      installeres fra én kilde, og nav-pilot nekter å blande innhold fra to agentpakker i én
-                      installasjon. Vil du ha den andre pakka i stedet, bytter du kilde for scopet.
+                      <code className={code}>primaryAgents</code> og <code className={code}>agents</code> i{" "}
+                      <code className={code}>layout</code>. Dere trenger ikke finne på en persona. Pakka validerer,
+                      installeres og synkes som vanlig, men den kan ikke starte klienten: det finnes ingen agent å gi
+                      den, og launch stopper med pakkas navn i meldinga. Start klienten selv, eller pek nav-pilot på en
+                      pakke som deklarerer en agent. To pakker i samme scope er ingen utvei: et scope installeres fra én
+                      kilde, og nav-pilot nekter å blande innhold fra to agentpakker i én installasjon. Vil du ha den
+                      andre pakka i stedet, bytter du kilde for scopet.
                     </BodyLong>
                     <CodeBlock filename=".nav-pilot/agentpakke.json">{MANIFEST_UTEN_AGENT}</CodeBlock>
 
@@ -656,14 +645,14 @@ export default function Agentpakker() {
                     <BodyLong textColor="subtle">
                       Navnene skrives på registerets egen omvendt-DNS-form,{" "}
                       <code className={code}>&lt;namespace&gt;/&lt;navn&gt;</code>, som{" "}
-                      <code className={code}>io.github.navikt/github-mcp</code>. Et navn uten den formen
-                      avvises av schemaet før registeret spørres i det hele tatt.
+                      <code className={code}>io.github.navikt/github-mcp</code>. Et navn uten den formen avvises av
+                      schemaet før registeret spørres i det hele tatt.
                     </BodyLong>
                     <BodyLong textColor="subtle">
-                      <code className={code}>install</code> navngir serverne pakka trenger og peker på
-                      registeret. Det er alt: nav-pilot skriver ingen MCP-konfigurasjon, og brukeren slår på serveren
-                      selv i klienten. Feltet ligger på pakkenivå, siden det er klientens eget oppsett som avgjør om en
-                      server er tilgjengelig.
+                      <code className={code}>install</code> navngir serverne pakka trenger og peker på registeret. Det
+                      er alt: nav-pilot skriver ingen MCP-konfigurasjon, og brukeren slår på serveren selv i klienten.
+                      Feltet ligger på pakkenivå, siden det er klientens eget oppsett som avgjør om en server er
+                      tilgjengelig.
                     </BodyLong>
 
                     <LinkableHeading id="sandkasse" size="small" level="3">
@@ -671,102 +660,89 @@ export default function Agentpakker() {
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
                       Trenger en skill noe av sandkassa cplt setter rundt klienten, sier pakka det i{" "}
-                      <code className={code}>policies.propose</code>, i stedet for å la brukeren møte
-                      feilen midt i arbeidet. Nais-pakka spør Mimir, Loki og Tempo under{" "}
-                      <code className={code}>nav.cloud.nais.io</code>. Navnene slår opp til private
-                      adresser over naisdevice, og cplt avviser dem (
-                      <code className={code}>403 Private target blocked by cplt</code>) til brukeren har
-                      gitt et unntak. Pakka navngir hver host. Et suffiks som{" "}
-                      <code className={code}>cloud.nais.io</code> ville gitt unntak for alle hoster under
-                      alle organisasjoner på Nais, også dem skillen aldri spør. Et forslag konfigurerer ingenting av seg
+                      <code className={code}>policies.propose</code>, i stedet for å la brukeren møte feilen midt i
+                      arbeidet. Nais-pakka spør Mimir, Loki og Tempo under{" "}
+                      <code className={code}>nav.cloud.nais.io</code>. Navnene slår opp til private adresser over
+                      naisdevice, og cplt avviser dem (<code className={code}>403 Private target blocked by cplt</code>)
+                      til brukeren har gitt et unntak. Pakka navngir hver host. Et suffiks som{" "}
+                      <code className={code}>cloud.nais.io</code> ville gitt unntak for alle hoster under alle
+                      organisasjoner på Nais, også dem skillen aldri spør. Et forslag konfigurerer ingenting av seg
                       selv: det blir et launch-flagg først når brukeren har sagt ja.
                     </BodyLong>
                     <CodeBlock filename=".nav-pilot/agentpakke.json">{PROPOSE}</CodeBlock>
                     <BodyLong textColor="subtle">
-                      I v1 får pakka foreslå to ting:{" "}
-                      <code className={code}>proxy.allow_private_domains</code>, 1 til 32 fulle DNS-navn
-                      uten wildcard, port eller sti, og <code className={code}>allow.read</code>, opptil 8
-                      navngitte filer. <code className={code}>reason</code> er påkrevd, høyst 400 tegn,
-                      uten linjeskift og kontrolltegn, og er alt brukeren har å avgjøre på: skriv hva som ryker uten
+                      I v1 får pakka foreslå to ting: <code className={code}>proxy.allow_private_domains</code>, 1 til
+                      32 fulle DNS-navn uten wildcard, port eller sti, og <code className={code}>allow.read</code>,
+                      opptil 8 navngitte filer. <code className={code}>reason</code> er påkrevd, høyst 400 tegn, uten
+                      linjeskift og kontrolltegn, og er alt brukeren har å avgjøre på: skriv hva som ryker uten
                       unntaket. nav-pilot vasker teksten igjen når den skrives ut, så en pakke kan ikke lage en linje
-                      som ser ut som nav-pilots egen. Skjemaet avviser{" "}
-                      <code className={code}>allow.write</code>,{" "}
-                      <code className={code}>allow.exec</code>,{" "}
-                      <code className={code}>allow.socket</code>,{" "}
-                      <code className={code}>deny</code>, <code className={code}>preset</code>
-                      , <code className={code}>repo_dirs</code>,{" "}
-                      <code className={code}>inherit_env</code>,{" "}
-                      <code className={code}>allowed_domains</code>,{" "}
-                      <code className={code}>blocked_domains</code>,{" "}
-                      <code className={code}>proxy.forced</code>, guardene og hele{" "}
-                      <code className={code}>sandbox</code>. Under{" "}
-                      <code className={code}>proxy</code> validerer ingenting annet enn{" "}
+                      som ser ut som nav-pilots egen. Skjemaet avviser <code className={code}>allow.write</code>,{" "}
+                      <code className={code}>allow.exec</code>, <code className={code}>allow.socket</code>,{" "}
+                      <code className={code}>deny</code>, <code className={code}>preset</code>,{" "}
+                      <code className={code}>repo_dirs</code>, <code className={code}>inherit_env</code>,{" "}
+                      <code className={code}>allowed_domains</code>, <code className={code}>blocked_domains</code>,{" "}
+                      <code className={code}>proxy.forced</code>, guardene og hele <code className={code}>sandbox</code>
+                      . Under <code className={code}>proxy</code> validerer ingenting annet enn{" "}
                       <code className={code}>allow_private_domains</code>. Andre nøkler på toppnivå i{" "}
-                      <code className={code}>cplt</code>-blokka validerer, men nav-pilot navngir dem ved
-                      install og honorerer dem aldri. Andre verktøynøkler enn{" "}
-                      <code className={code}>cplt</code> ignoreres.
+                      <code className={code}>cplt</code>-blokka validerer, men nav-pilot navngir dem ved install og
+                      honorerer dem aldri. Andre verktøynøkler enn <code className={code}>cplt</code> ignoreres.
                     </BodyLong>
                     <BodyLong textColor="subtle">
                       <strong>En lesetilgang navngir én fil, aldri en katalog.</strong> cplt gir én regel per sti,{" "}
-                      <code className={code}>(allow file-read* (subpath &quot;&lt;sti&gt;&quot;))</code> på
-                      macOS og <code className={code}>AccessFs::ReadFile | ReadDir</code> på Linux. Det er
-                      smalere enn domeneunntaket: ingen skriving, ingen port, ingen utgående trafikk. Men{" "}
+                      <code className={code}>(allow file-read* (subpath &quot;&lt;sti&gt;&quot;))</code> på macOS og{" "}
+                      <code className={code}>AccessFs::ReadFile | ReadDir</code> på Linux. Det er smalere enn
+                      domeneunntaket: ingen skriving, ingen port, ingen utgående trafikk. Men{" "}
                       <code className={code}>subpath</code> på en katalog er alt under den, og{" "}
-                      <code className={code}>~/Library/Application Support/naisdevice</code> er ett tegn
-                      unna å dele ut <code className={code}>private.key</code>. Derfor krever skjemaet en
-                      sti som begynner med <code className={code}>~/</code> og ender i et navn med punktum
-                      og filendelse, avviser <code className={code}>nav-pilot validate</code> både{" "}
-                      <code className={code}>..</code> og alt som ligger på eller under cplts{" "}
-                      <code className={code}>DENIED_DOTFILES</code>,{" "}
-                      <code className={code}>DENIED_FILES</code> og{" "}
-                      <code className={code}>DENIED_HOME_SUBPATHS</code>, og stat-er launchen stien og
-                      slipper en katalog. Fila finnes ofte ikke ennå når manifestet valideres, så det siste laget er det
-                      eneste som kan se hva stien faktisk er.
+                      <code className={code}>~/Library/Application Support/naisdevice</code> er ett tegn unna å dele ut{" "}
+                      <code className={code}>private.key</code>. Derfor krever skjemaet en sti som begynner med{" "}
+                      <code className={code}>~/</code> og ender i et navn med punktum og filendelse, avviser{" "}
+                      <code className={code}>nav-pilot validate</code> både <code className={code}>..</code> og alt som
+                      ligger på eller under cplts <code className={code}>DENIED_DOTFILES</code>,{" "}
+                      <code className={code}>DENIED_FILES</code> og <code className={code}>DENIED_HOME_SUBPATHS</code>,
+                      og stat-er launchen stien og slipper en katalog. Fila finnes ofte ikke ennå når manifestet
+                      valideres, så det siste laget er det eneste som kan se hva stien faktisk er.
                     </BodyLong>
                     <BodyLong textColor="subtle">
-                      Stien skrives <code className={code}>~/</code>-relativt, den formen cplt selv
-                      forstår. nav-pilot utvider <code className={code}>~</code> ved launch og sender den
-                      absolutte stien, mens samtykkeposten tar vare på <code className={code}>~/</code>
+                      Stien skrives <code className={code}>~/</code>-relativt, den formen cplt selv forstår. nav-pilot
+                      utvider <code className={code}>~</code> ved launch og sender den absolutte stien, mens
+                      samtykkeposten tar vare på <code className={code}>~/</code>
                       -formen brukeren så. naisdevice legger tilstanden under{" "}
                       <code className={code}>~/Library/Application Support/naisdevice/</code> på macOS og{" "}
-                      <code className={code}>~/.config/naisdevice/</code> på Linux, så pakka navngir begge
-                      og launchen sender bare den som finnes.{" "}
-                      <code className={code}>$XDG_CONFIG_HOME</code> utvides ikke: manifestet har én
-                      utvidelse.
+                      <code className={code}>~/.config/naisdevice/</code> på Linux, så pakka navngir begge og launchen
+                      sender bare den som finnes. <code className={code}>$XDG_CONFIG_HOME</code> utvides ikke:
+                      manifestet har én utvidelse.
                     </BodyLong>
                     <BodyLong textColor="subtle">
                       Brukeren svarer i terminalen ved <code className={code}>install</code>, og ved{" "}
-                      <code className={code}>sync --apply</code> når blokka er endret. Svaret lagres per
-                      scope i <code className={code}>~/.nav-pilot/pakke-consent.json</code>, nøklet på en
-                      hash av hele blokka: endrer du <code className={code}>reason</code> eller legger til
-                      en host, kommer spørsmålet tilbake med det som endret seg. Blokka er ett spørsmål: et domene og en
-                      lesetilgang i samme blokk vises sammen og besvares én gang. Et nei installerer pakka likevel.
-                      Brukeren får vite hva som ryker, og kommandoene som åpner det for hånd:
+                      <code className={code}>sync --apply</code> når blokka er endret. Svaret lagres per scope i{" "}
+                      <code className={code}>~/.nav-pilot/pakke-consent.json</code>, nøklet på en hash av hele blokka:
+                      endrer du <code className={code}>reason</code> eller legger til en host, kommer spørsmålet tilbake
+                      med det som endret seg. Blokka er ett spørsmål: et domene og en lesetilgang i samme blokk vises
+                      sammen og besvares én gang. Et nei installerer pakka likevel. Brukeren får vite hva som ryker, og
+                      kommandoene som åpner det for hånd:
                     </BodyLong>
                     <CodeBlock compact>{AVSLAG}</CodeBlock>
                     <BodyLong textColor="subtle">
-                      Uten terminal, og med <code className={code}>--json</code>, godkjennes ingenting og
-                      noteres ingenting. Er cplt ikke installert ennå, spør ikke nav-pilot. Spørsmålet kommer ved neste{" "}
-                      <code className={code}>install</code> eller{" "}
-                      <code className={code}>sync --apply</code> når cplt er på plass. Etter et nei viser{" "}
-                      <code className={code}>nav-pilot doctor</code> avslaget som informasjon, med
-                      kommandoene over, ikke som en advarsel.{" "}
+                      Uten terminal, og med <code className={code}>--json</code>, godkjennes ingenting og noteres
+                      ingenting. Er cplt ikke installert ennå, spør ikke nav-pilot. Spørsmålet kommer ved neste{" "}
+                      <code className={code}>install</code> eller <code className={code}>sync --apply</code> når cplt er
+                      på plass. Etter et nei viser <code className={code}>nav-pilot doctor</code> avslaget som
+                      informasjon, med kommandoene over, ikke som en advarsel.{" "}
                       <code className={code}>nav-pilot uninstall</code> sletter svaret. Et ja blir{" "}
                       <code className={code}>--allow-private-domain &lt;host&gt;</code> og{" "}
-                      <code className={code}>--allow-read &lt;absolutt sti&gt;</code> på
-                      cplt-kommandolinja, for launcher fra scopet som svarte, og skrives ut ved hver launch. nav-pilot
-                      rører ikke cplt-konfigurasjonen. Unntaket løfter bare DNS-rebinding-vernet for de navnene:
-                      tillatelses- og blokklista gjelder fortsatt, ingen port åpnes, ingenting kjøres.
+                      <code className={code}>--allow-read &lt;absolutt sti&gt;</code> på cplt-kommandolinja, for
+                      launcher fra scopet som svarte, og skrives ut ved hver launch. nav-pilot rører ikke
+                      cplt-konfigurasjonen. Unntaket løfter bare DNS-rebinding-vernet for de navnene: tillatelses- og
+                      blokklista gjelder fortsatt, ingen port åpnes, ingenting kjøres.
                     </BodyLong>
                     <BodyLong textColor="subtle">
                       Sett <code className={code}>minNavPilotVersion</code> til minst{" "}
                       <code className={code}>2026.09.14-131410</code>, og til releasen som innførte{" "}
-                      <code className={code}>allow.read</code> om du bruker den. En eldre nav-pilot
-                      ignorerer blokka som et ukjent felt, og brukeren får feilen uten forklaring. En nav-pilot fra før{" "}
-                      <code className={code}>allow.read</code> gjør noe strengere: skjemaet følger binæren,
-                      så manifestet avvises i sin helhet. Brukeren trenger dessuten cplt{" "}
-                      <code className={code}>2026.09.14-105131</code> eller nyere: under det lagres svaret,
-                      men unntaket anvendes ikke, og launchen sier hvorfor.
+                      <code className={code}>allow.read</code> om du bruker den. En eldre nav-pilot ignorerer blokka som
+                      et ukjent felt, og brukeren får feilen uten forklaring. En nav-pilot fra før{" "}
+                      <code className={code}>allow.read</code> gjør noe strengere: skjemaet følger binæren, så
+                      manifestet avvises i sin helhet. Brukeren trenger dessuten cplt fra 14. september 2026 eller
+                      nyere: under det lagres svaret, men unntaket anvendes ikke, og launchen sier hvorfor.
                     </BodyLong>
 
                     <LinkableHeading id="valider" size="small" level="3">
@@ -782,22 +758,20 @@ export default function Agentpakker() {
                     </BodyLong>
                     <BodyLong textColor="subtle">
                       Kilden må være <code className={code}>owner/repo</code> eller en absolutt sti.{" "}
-                      <code className={code}>--source .</code> avvises av verdisjekken før noe forsøkes
-                      hentet, så bruk <code className={code}>&quot;$PWD&quot;</code>, eller{" "}
-                      <code className={code}>&quot;$GITHUB_WORKSPACE&quot;</code> i CI. Etiketten i
-                      utdataene er kilden du oppga, ikke navnet i manifestet. Skjemaet ligger i{" "}
-                      <code className={code}>cli/nav-pilot/schemas/agentpakke-v1.json</code>, så CI kan
-                      linte manifestet mot det uten nav-pilot.
+                      <code className={code}>--source .</code> avvises av verdisjekken før noe forsøkes hentet, så bruk{" "}
+                      <code className={code}>&quot;$PWD&quot;</code>, eller{" "}
+                      <code className={code}>&quot;$GITHUB_WORKSPACE&quot;</code> i CI. Etiketten i utdataene er kilden
+                      du oppga, ikke navnet i manifestet. Skjemaet ligger i{" "}
+                      <code className={code}>cli/nav-pilot/schemas/agentpakke-v1.json</code>, så CI kan linte manifestet
+                      mot det uten nav-pilot.
                     </BodyLong>
                     <BodyLong textColor="subtle">
-                      Utelater du <code className={code}>--source</code>, velger nav-pilot kilde i denne
-                      rekkefølgen: <code className={code}>--source</code>, så{" "}
-                      <code className={code}>source</code>-nøkkelen i konfigurasjonen din, så{" "}
-                      <code className={code}>navikt/copilot</code>. Lokal autogjenkjenning gjelder bare en
-                      navikt/copilot-checkout, ikke en vanlig agentpakke. Det er derfor en{" "}
-                      <code className={code}>validate</code> uten{" "}
-                      <code className={code}>--source</code> i pakkerepoet ditt validerer Nav-pakka og
-                      melder alt grønt: den så aldri på din.
+                      Utelater du <code className={code}>--source</code>, velger nav-pilot kilde i denne rekkefølgen:{" "}
+                      <code className={code}>--source</code>, så <code className={code}>source</code>-nøkkelen i
+                      konfigurasjonen din, så <code className={code}>navikt/copilot</code>. Lokal autogjenkjenning
+                      gjelder bare en navikt/copilot-checkout, ikke en vanlig agentpakke. Det er derfor en{" "}
+                      <code className={code}>validate</code> uten <code className={code}>--source</code> i pakkerepoet
+                      ditt validerer Nav-pakka og melder alt grønt: den så aldri på din.
                     </BodyLong>
 
                     <LinkableHeading id="distribuer" size="small" level="3">
@@ -806,8 +780,8 @@ export default function Agentpakker() {
                     <CodeBlock>{INSTALL_CMD}</CodeBlock>
                     <BodyLong textColor="subtle">
                       Det er hele distribusjonen. Den som installerer får{" "}
-                      <code className={code}>.nav-pilot/agentpakke.lock.json</code> i sitt eget repo, med
-                      kilden og revisjonen, og committer den. Da installerer hele teamet fra samme revisjon.
+                      <code className={code}>.nav-pilot/agentpakke.lock.json</code> i sitt eget repo, med kilden og
+                      revisjonen, og committer den. Da installerer hele teamet fra samme revisjon.
                     </BodyLong>
                   </VStack>
                 </section>
@@ -824,10 +798,10 @@ export default function Agentpakker() {
                       </LinkableHeading>
                       <BodyLong textColor="subtle">
                         Konsumentene er pinnet til revisjonen de installerte. En endring du pusher, når dem først når{" "}
-                        <code className={code}>nav-pilot sync --apply</code> flytter pinnen hos dem, som én
-                        linje diff i en pull request de leser og godkjenner. En rettelse er derfor ikke ute samme dag. Å
-                        endre <code className={code}>name</code> i manifestet gjør eksisterende
-                        installasjoner til en annen pakke, så det er ikke en omdøping du gjør i forbifarten.
+                        <code className={code}>nav-pilot sync --apply</code> flytter pinnen hos dem, som én linje diff i
+                        en pull request de leser og godkjenner. En rettelse er derfor ikke ute samme dag. Å endre{" "}
+                        <code className={code}>name</code> i manifestet gjør eksisterende installasjoner til en annen
+                        pakke, så det er ikke en omdøping du gjør i forbifarten.
                       </BodyLong>
                     </VStack>
 
@@ -836,37 +810,34 @@ export default function Agentpakker() {
                         Stabile releases
                       </LinkableHeading>
                       <BodyLong textColor="subtle">
-                        Uten releases henter <code className={code}>sync</code> det standardgrenen holder,
-                        så alt du pusher går rett ut til konsumentene. Publiserer du i stedet en GitHub Release med
-                        assetet <code className={code}>agentpakke-release.json</code>, leser{" "}
-                        <code className={code}>install</code> og{" "}
-                        <code className={code}>sync</code> nyeste stabile release, og du kan jobbe videre
-                        på main. Releasen må være publisert, ikke prerelease, og immutable, og taggen må binde
-                        versjonen. Et repo uten slike releases fungerer nøyaktig som før, fra standardgrenen.
+                        Uten releases henter <code className={code}>sync</code> det standardgrenen holder, så alt du
+                        pusher går rett ut til konsumentene. Publiserer du i stedet en GitHub Release med assetet{" "}
+                        <code className={code}>agentpakke-release.json</code>, leser{" "}
+                        <code className={code}>install</code> og <code className={code}>sync</code> nyeste stabile
+                        release, og du kan jobbe videre på main. Releasen må være publisert, ikke prerelease, og
+                        immutable, og taggen må binde versjonen. Et repo uten slike releases fungerer nøyaktig som før,
+                        fra standardgrenen.
                       </BodyLong>
                       <BodyLong textColor="subtle">
                         <strong>Er pakka di Tier 1</strong>, altså en layout av filer, pinner den ingen revisjon: den
                         installerer filer, og abonnementet avgjør bare hvilken revisjon filene leses fra.{" "}
-                        <code className={code}>install</code> og{" "}
-                        <code className={code}>sync</code> uten{" "}
-                        <code className={code}>--ref</code> leser nyeste stabile release i stedet for
-                        standardgrenen, i både bruker- og repo-scope, og{" "}
-                        <code className={code}>sync --apply</code> flytter{" "}
-                        <code className={code}>sha</code> i erklæringa til release-SHA-en. Det finnes ikke
-                        noe nedgraderingsvern her: hvert oppslag tar nyeste stabile release uten å sammenligne med det
-                        som ligger på disk, så en installasjon som står foran releasen, flyttes tilbake til den ved
-                        neste <code className={code}>sync --apply</code>. Diffen vises før{" "}
+                        <code className={code}>install</code> og <code className={code}>sync</code> uten{" "}
+                        <code className={code}>--ref</code> leser nyeste stabile release i stedet for standardgrenen, i
+                        både bruker- og repo-scope, og <code className={code}>sync --apply</code> flytter{" "}
+                        <code className={code}>sha</code> i erklæringa til release-SHA-en. Det finnes ikke noe
+                        nedgraderingsvern her: hvert oppslag tar nyeste stabile release uten å sammenligne med det som
+                        ligger på disk, så en installasjon som står foran releasen, flyttes tilbake til den ved neste{" "}
+                        <code className={code}>sync --apply</code>. Diffen vises før{" "}
                         <code className={code}>--apply</code>, som for enhver annen fil.
                       </BodyLong>
                       <BodyLong textColor="subtle">
                         Tre mekanismer hører sammen med releases, og de virker i dag bare for Tier 2, fordi alle tre er
-                        gatet på at scopet pinner en revisjon:{" "}
-                        <code className={code}>nav-pilot rollback</code> tilbake til forrige revisjon på
-                        maskinen, oppstartsspørsmålet om å ta en ny release, og det varige valget{" "}
-                        <code className={code}>sync --updates auto|ask|keep</code>. En Tier 1-installasjon
-                        fører opp filene den la ned, og faller derfor utenfor gaten: rollback nekter med «your user
-                        scope pins none», og de to andre nås aldri. Lov derfor ikke konsumentene dine et rollback en
-                        Tier 1-pakke ikke gir dem. Gaten utvides ikke (
+                        gatet på at scopet pinner en revisjon: <code className={code}>nav-pilot rollback</code> tilbake
+                        til forrige revisjon på maskinen, oppstartsspørsmålet om å ta en ny release, og det varige
+                        valget <code className={code}>sync --updates auto|ask|keep</code>. En Tier 1-installasjon fører
+                        opp filene den la ned, og faller derfor utenfor gaten: rollback nekter med «your user scope pins
+                        none», og de to andre nås aldri. Lov derfor ikke konsumentene dine et rollback en Tier 1-pakke
+                        ikke gir dem. Gaten utvides ikke (
                         <a href="https://github.com/navikt/copilot/issues/843" className={linkClass}>
                           #843
                         </a>
@@ -877,11 +848,11 @@ export default function Agentpakker() {
                         <strong>Er pakka di Tier 2</strong>, gjelder alle tre. Konsumenten kan rulle tilbake uten nett
                         og uten å vente på deg, den forlatte revisjonen tilbys ikke igjen mens neste release gjør det
                         (lever derfor rettelsen som en ny versjon; en revert av taggen når dem ikke), og et team som har
-                        valgt <code className={code}>keep</code>, blir stående til de selv tar releasen.
-                        Regn ikke med at alle er på nyeste versjon dagen etter. Konsumenter som alt står på
-                        standardgrenen ligger som regel foran din første release, og nedgraderingsvernet tilbyr den ikke
-                        til dem; nav-pilot spør dem én gang ved oppstart om å pinne releasen og følge releases videre,
-                        og navngir begge revisjonene.
+                        valgt <code className={code}>keep</code>, blir stående til de selv tar releasen. Regn ikke med
+                        at alle er på nyeste versjon dagen etter. Konsumenter som alt står på standardgrenen ligger som
+                        regel foran din første release, og nedgraderingsvernet tilbyr den ikke til dem; nav-pilot spør
+                        dem én gang ved oppstart om å pinne releasen og følge releases videre, og navngir begge
+                        revisjonene.
                       </BodyLong>
                       <BodyLong textColor="subtle">
                         Feltene og hele kontrakten står i{" "}
@@ -901,13 +872,12 @@ export default function Agentpakker() {
                       </LinkableHeading>
                       <BodyLong textColor="subtle">
                         Slett aldri et artefakt uten å føre det opp i{" "}
-                        <code className={code}>.nav-pilot/retired-artifacts.json</code>. En kilde hentes
-                        med <code className={code}>--depth 1</code>, så brukeren har ingen historikk å slå
-                        opp i, og en fil som bare forsvinner blir liggende hos alle som installerte den. Generer lista
-                        og commit den: <code className={code}>scripts/generate-retired</code> i
-                        navikt/copilot er en Go-modul på rundt 200 linjer som leser hashene ut av git-loggen, og{" "}
-                        <code className={code}>mise run retired:check</code> verifiserer i CI at lista
-                        stemmer.
+                        <code className={code}>.nav-pilot/retired-artifacts.json</code>. En kilde hentes med{" "}
+                        <code className={code}>--depth 1</code>, så brukeren har ingen historikk å slå opp i, og en fil
+                        som bare forsvinner blir liggende hos alle som installerte den. Generer lista og commit den:{" "}
+                        <code className={code}>scripts/generate-retired</code> i navikt/copilot er en Go-modul på rundt
+                        200 linjer som leser hashene ut av git-loggen, og{" "}
+                        <code className={code}>mise run retired:check</code> verifiserer i CI at lista stemmer.
                       </BodyLong>
                       <BodyLong textColor="subtle">
                         Fila navngir hver pensjonerte sti sammen med innholdshashene pakka en gang publiserte, og det er

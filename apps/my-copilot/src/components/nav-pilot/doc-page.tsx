@@ -6,6 +6,7 @@ import { BackToTop } from "@/components/back-to-top";
 import { PageHero } from "@/components/page-hero";
 import { TableOfContents, type TocItem } from "@/components/table-of-contents";
 import type { DocLink } from "./doc-pages";
+import { UpgradeSnippet } from "./upgrade-snippet";
 
 // The frame of a nav-pilot documentation page: a label line with the group
 // ("Guider", "Referanse", "Forklaring"), the title, and the table of contents
@@ -17,6 +18,7 @@ export function DocPage({
   badge,
   toc,
   wide,
+  upgrade,
   children,
 }: {
   label?: string;
@@ -26,6 +28,8 @@ export function DocPage({
   toc?: TocItem[];
   /** Let the content use the full width, for pages with wide tables. */
   wide?: boolean;
+  /** Show the "Oppgrader først" snippet above the content. */
+  upgrade?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -38,7 +42,10 @@ export function DocPage({
         >
           <div className="flex gap-12">
             <div className={`min-w-0 flex-1 ${wide ? "" : "max-w-3xl"}`}>
-              <VStack gap={{ xs: "space-32", md: "space-40" }}>{children}</VStack>
+              <VStack gap={{ xs: "space-32", md: "space-40" }}>
+                {upgrade && <UpgradeSnippet />}
+                {children}
+              </VStack>
             </div>
             {toc && (
               <aside className="hidden xl:block w-56 shrink-0">

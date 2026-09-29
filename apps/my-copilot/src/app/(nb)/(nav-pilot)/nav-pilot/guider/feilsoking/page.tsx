@@ -23,6 +23,7 @@ export default function Feilsoking() {
   return (
     <DocPage
       label="Guider"
+      upgrade
       title="Feilsøking"
       description="Start med nav-pilot doctor. Den finner det meste og sier hva du skal gjøre."
       toc={TOC}

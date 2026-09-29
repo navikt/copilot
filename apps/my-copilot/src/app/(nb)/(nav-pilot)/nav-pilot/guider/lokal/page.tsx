@@ -57,6 +57,7 @@ export default function LokalGuide() {
   return (
     <DocPage
       label="Guider"
+      upgrade
       title="Lokal modell"
       description="Oppskrifter for deg som har satt opp en lokal modell. Er du ikke der ennå, start med oppsettet."
       toc={TOC}

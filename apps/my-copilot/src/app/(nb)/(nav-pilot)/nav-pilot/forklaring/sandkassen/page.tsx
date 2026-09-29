@@ -72,7 +72,7 @@ export default function Sandkassen() {
             <code className={code}>/</code> avviser cplt, fordi de gir for mye tilgang.
           </BodyLong>
           <BodyLong>
-            Står du i en git worktree, eller vil du at agenten skal lage worktrees til underagenter, se{" "}
+            Står du i et git-worktree, eller vil du at agenten skal lage worktrees til underagenter, se{" "}
             <NextLink href="/nav-pilot/guider/worktrees" className={linkClass}>
               Worktrees med nav-pilot og cplt
             </NextLink>
@@ -135,10 +135,10 @@ export default function Sandkassen() {
           <BodyLong>
             Fila har hele lista, ikke bare Nav-hostene. Med <code className={code}>proxy.allowed_domains</code> slipper
             proxyen bare gjennom hostene i fila og agentens egne hoster. Pakkeregistrene kommer med bare når{" "}
-            <code className={code}>proxy.default_allowlist</code> er på. I cplt eldre enn{" "}
-            <code className={code}>2026.09.29-095137-e745d3a</code> gjaldt det også agentens egne hoster. Og lista til
-            cplt er per agent: bare lista for copilot har GitHub og Copilot, mens den for opencode har{" "}
-            <code className={code}>opencode.ai</code> og <code className={code}>models.dev</code>.
+            <code className={code}>proxy.default_allowlist</code> er på. I cplt fra før 29. september 2026 gjaldt det
+            også agentens egne hoster. Og lista til cplt er per agent: bare lista for copilot har GitHub og Copilot,
+            mens den for opencode har <code className={code}>opencode.ai</code> og{" "}
+            <code className={code}>models.dev</code>.
           </BodyLong>
           <BodyLong>
             Den lokale modellen går gjennom en løkkevakt på <code className={code}>127.0.0.1</code>. cplt blokkerer

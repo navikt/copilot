@@ -46,9 +46,9 @@ function readStoredOs(): InstallOs | null {
   }
 }
 
-const noSubscribe = () => () => {};
+export const noSubscribe = () => () => {};
 
-function detectOs(): InstallOs {
+export function detectOs(): InstallOs {
   const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
   return readStoredOs() ?? installOsFromPlatform(nav.userAgentData?.platform || nav.userAgent);
 }

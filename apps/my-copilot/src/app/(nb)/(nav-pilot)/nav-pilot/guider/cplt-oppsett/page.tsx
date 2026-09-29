@@ -71,6 +71,7 @@ export default function CpltOppsett() {
   return (
     <DocPage
       label="Guider"
+      upgrade
       title="Sett opp cplt i et repo"
       description="Første gang agenten skal jobbe i et repo, trenger sandkassen ofte litt mer enn standard. Legg det i .cplt.toml, så får hele teamet det samme."
       toc={TOC}
@@ -237,7 +238,7 @@ nav-pilot`}
             I sandkassen kan ikke pnpm lenke filer fra det felles lageret i hjemmekatalogen inn i prosjektet. Da lager
             den et eget lager inne i repoet, for eksempel <code className={code}>.pnpm-store/</code> eller{" "}
             <code className={code}>node_modules/.pnpm-store/</code>, og laster ned alle pakkene på nytt i hvert repo og
-            hver worktree. Legg lageret i <code className={code}>.gitignore</code>:
+            hvert worktree. Legg lageret i <code className={code}>.gitignore</code>:
           </BodyLong>
           <CodeBlock compact>{`echo ".pnpm-store/" >> .gitignore`}</CodeBlock>
           <BodyLong>
