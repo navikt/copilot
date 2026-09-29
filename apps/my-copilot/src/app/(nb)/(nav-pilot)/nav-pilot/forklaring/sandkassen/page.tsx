@@ -78,6 +78,13 @@ export default function Sandkassen() {
             </NextLink>
             .
           </BodyLong>
+          <BodyLong>
+            Får du en feilmelding fra sandkassen, slå den opp i{" "}
+            <NextLink href="/nav-pilot/guider/cplt-feilmeldinger" className={linkClass}>
+              Feil i sandkassen
+            </NextLink>
+            .
+          </BodyLong>
         </VStack>
       </section>
 
@@ -89,11 +96,12 @@ export default function Sandkassen() {
           <BodyLong>
             <code className={code}>nav-pilot doctor</code> sjekker sikkerhetsnivået og anbefaler{" "}
             <code className={code}>sandbox.preset = strict</code>. <code className={code}>gh_guard</code> og{" "}
-            <code className={code}>git_guard</code> er på allerede i <code className={code}>standard</code>. Det strict
-            legger til, er nettverket: tvungen proxy, en <code className={code}>git_guard</code> som blokkerer i stedet
-            for å advare, og <code className={code}>proxy.default_allowlist</code>. Den siste er den viktige. Da når
-            agenten bare hostene på lista til cplt og det <code className={code}>proxy.allowed_domains</code> peker på.
-            Alt annet blokkeres. Hele sammenligningen står i{" "}
+            <code className={code}>git_guard</code> er på allerede i <code className={code}>standard</code>. I{" "}
+            <code className={code}>standard</code> stopper <code className={code}>git_guard</code> push til
+            standardgrenen og force push. Strict legger til tvungen proxy, en <code className={code}>git_guard</code>{" "}
+            som stopper all push, og <code className={code}>proxy.default_allowlist</code>. Den siste er den viktige. Da
+            når agenten bare hostene på lista til cplt og det <code className={code}>proxy.allowed_domains</code> peker
+            på. Alt annet blokkeres. Hele sammenligningen står i{" "}
             <NextLink href="/nav-pilot/referanse#sikkerhetsniva" className={linkClass}>
               referansen
             </NextLink>
@@ -118,9 +126,11 @@ export default function Sandkassen() {
             si fra, og nøkler du har satt selv, gjelder fortsatt foran presetet.
           </BodyLong>
           <BodyLong>
-            Fila har hele lista, ikke bare Nav-hostene. <code className={code}>proxy.allowed_domains</code> blokkerer
-            alt utenfor seg selv, uansett hva <code className={code}>proxy.default_allowlist</code> står på. Og lista
-            til cplt er per agent: bare lista for copilot har GitHub og Copilot, mens den for opencode har{" "}
+            Fila har hele lista, ikke bare Nav-hostene. Med <code className={code}>proxy.allowed_domains</code> slipper
+            proxyen bare gjennom hostene i fila og agentens egne hoster. Pakkeregistrene kommer med bare når{" "}
+            <code className={code}>proxy.default_allowlist</code> er på. I cplt eldre enn{" "}
+            <code className={code}>2026.09.29-095137-e745d3a</code> gjaldt det også agentens egne hoster. Og lista til
+            cplt er per agent: bare lista for copilot har GitHub og Copilot, mens den for opencode har{" "}
             <code className={code}>opencode.ai</code> og <code className={code}>models.dev</code>.
           </BodyLong>
           <BodyLong>

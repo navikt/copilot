@@ -52,7 +52,7 @@ const EXIT_CODES = [
 
 const SECURITY_LEVELS = [
   { setting: "gh_guard", standard: "på", strict: "på" },
-  { setting: "git_guard", standard: "advarer", strict: "blokkerer" },
+  { setting: "git_guard", standard: "blokkerer push til standardgrenen og force push", strict: "blokkerer all push" },
   { setting: "proxy.forced (tvungen proxy)", standard: "av", strict: "på" },
   { setting: "proxy.default_allowlist", standard: "av", strict: "på: bare cplts egen liste og proxy.allowed_domains" },
 ];
