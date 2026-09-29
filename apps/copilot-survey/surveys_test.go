@@ -395,7 +395,7 @@ func TestMinCLIVersion(t *testing.T) {
 			t.Errorf("%s: %s", name, rec.Body)
 		}
 	}
-	for _, bad := range []string{"2026.9.29", "v2026.09.29", "2026.09.29-0722", "latest"} {
+	for _, bad := range []string{"2026.9.29", "v2026.09.29", "2026.09.29-0722", "latest", "2026.13.40", "2026.09.29-256199"} {
 		if _, err := loadSurveys([]byte(strings.Replace(testSurveys, `"title":"Q4",`, `"title":"Q4","min_cli_version":"`+bad+`",`, 1))); err == nil {
 			t.Errorf("min_cli_version %q accepted", bad)
 		}

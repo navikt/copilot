@@ -92,6 +92,9 @@ func (p *upstream) forward(w http.ResponseWriter, r *http.Request, path string) 
 	if cc := resp.Header.Get("Cache-Control"); cc != "" {
 		w.Header().Set("Cache-Control", cc)
 	}
+	if v := resp.Header.Get("Vary"); v != "" {
+		w.Header().Set("Vary", v)
+	}
 	w.WriteHeader(resp.StatusCode)
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		slog.Warn("failed to stream upstream response", "upstream", p.name, "error", err)

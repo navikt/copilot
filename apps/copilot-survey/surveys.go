@@ -199,7 +199,7 @@ func validateSurveys(surveys []survey) error {
 		if !slices.Contains([]string{"", "calm", "start", "off"}, s.Nudge) {
 			return fmt.Errorf("survey %s: nudge is calm, start or off", s.ID)
 		}
-		if s.MinCLIVersion != "" && !minCLIVersionPattern.MatchString(s.MinCLIVersion) {
+		if s.MinCLIVersion != "" && !validMinCLIVersion(s.MinCLIVersion) {
 			return fmt.Errorf("survey %s: min_cli_version is YYYY.MM.DD or YYYY.MM.DD-HHMMSS", s.ID)
 		}
 		if s.Series != "" && !idPattern.MatchString(s.Series) {
@@ -560,6 +560,20 @@ var (
 	cliVersionPattern    = regexp.MustCompile(`^v?(\d{1,4})\.(\d{1,2})\.(\d{1,2})(?:-(\d{6}))?(?:[-+ ]|$)`)
 )
 
+// validMinCLIVersion: the shape, and a real date and time of day.
+func validMinCLIVersion(v string) bool {
+	if !minCLIVersionPattern.MatchString(v) {
+		return false
+	}
+	date, clock, _ := strings.Cut(v, "-")
+	_, err := time.Parse("2006.01.02", date)
+	if clock != "" {
+		_, err2 := time.Parse("150405", clock)
+		err = errors.Join(err, err2)
+	}
+	return err == nil
+}
+
 // cliVersion reads a nav-pilot version (2026.09.29-073815-8801b8d) as
 // year, month, day and build time, for comparison. false: not a version.
 func cliVersion(v string) ([]int, bool) {
@@ -623,10 +637,6 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "could not confirm your Nav identity, try again later")
 		return
 	}
-	if who.email == "" && !strings.HasSuffix(normaliseEmail(email), "@nav.no") {
-		unexpectedNameIDs.Inc()
-	}
-
 	versions := map[string]int{}
 	for _, q := range s.answerable() {
 		if _, ok := answers[q.ID]; ok {
@@ -650,6 +660,10 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 	if !fresh {
 		writeError(w, http.StatusConflict, "you have already answered this survey")
 		return
+	}
+	// Counted once per person, on the answer that is kept.
+	if who.email == "" && !strings.HasSuffix(normaliseEmail(email), "@nav.no") {
+		unexpectedNameIDs.Inc()
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

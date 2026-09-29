@@ -168,13 +168,15 @@ func TestSurveyListNamesNavPilot(t *testing.T) {
 	var query, agent string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		query, agent = r.URL.RawQuery, r.UserAgent()
+		w.Header().Set("Vary", "User-Agent")
 	}))
 	t.Cleanup(srv.Close)
 	up := newUpstream("copilot-survey", srv.URL, newTexasClient(srv.URL+"/token", "api://x"))
 	req := httptest.NewRequest("GET", "/api/v1/surveys/active?client=web", nil)
 	req.Header.Set("User-Agent", "nav-pilot/2026.09.29-073815-8801b8d")
-	makeRouter(a, up, up).ServeHTTP(httptest.NewRecorder(), req)
-	if query != "client=nav-pilot" || agent != "nav-pilot/2026.09.29-073815-8801b8d" {
-		t.Fatalf("upstream saw %q %q", query, agent)
+	rec := httptest.NewRecorder()
+	makeRouter(a, up, up).ServeHTTP(rec, req)
+	if query != "client=nav-pilot" || agent != "nav-pilot/2026.09.29-073815-8801b8d" || rec.Header().Get("Vary") != "User-Agent" {
+		t.Fatalf("upstream saw %q %q, Vary %q", query, agent, rec.Header().Get("Vary"))
 	}
 }

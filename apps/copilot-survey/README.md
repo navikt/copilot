@@ -166,7 +166,8 @@ Residual risks, for the privacy review:
   they agree: my-copilot already finds a user's GitHub account by passing
   their `preferred_username` to GitHub's `externalIdentities(userName:)`
   (copilot-api, `SAMLIdentityResolver`). That lookup only finds anyone if
-  the Entra SAML app sends the UPN as `nameId`. Not verified against the
+  the Entra SAML app sends the UPN as `nameId` (or as the SCIM `userName`,
+  if navikt is provisioned through SCIM). Not verified against the
   directory. Where they can still differ: an SSO identity linked before a
   name change (the UPN changes; the stored `nameId` may keep the old
   one), a `nameId` from
