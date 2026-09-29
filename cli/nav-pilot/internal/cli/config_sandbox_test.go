@@ -150,8 +150,15 @@ func fakeCplt(t *testing.T, get map[string]string) string {
 	log := filepath.Join(dir, "config-set.log")
 
 	var cases strings.Builder
+	// The first line is the value, on stdout; the rest (cplt's "(default"
+	// marker) goes to stderr, as the real cplt prints it.
 	for k, v := range get {
-		fmt.Fprintf(&cases, "    %s) printf '%%s\\n' %q ;;\n", k, v)
+		val, note, _ := strings.Cut(v, "\n")
+		fmt.Fprintf(&cases, "    %s) printf '%%b\\n' %q", k, val)
+		if note != "" {
+			fmt.Fprintf(&cases, "; printf '%%b\\n' %q >&2", note)
+		}
+		fmt.Fprintf(&cases, " ;;\n")
 	}
 
 	script := fmt.Sprintf(`#!/bin/sh

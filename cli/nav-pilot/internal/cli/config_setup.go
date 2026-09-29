@@ -128,13 +128,15 @@ func runConfigSetup(flagSource string) error {
 		Client:     findKeyDef("client").defaultVal,
 		Mode:       findKeyDef("mode").defaultVal,
 		AutoUpdate: findKeyDef("auto_update").defaultVal,
-		Autonomy:   findKeyDef("autonomy").defaultVal,
 	}
 	opencodeLabel := clientLabel["opencode"] + " (default)"
-	if existing, err := readConfig(); err == nil && existing != nil {
+	existing, _ := readConfig()
+	if existing != nil {
 		answers.Client = cfgClient(existing)
 		opencodeLabel = clientLabel["opencode"]
 	}
+	// resolve knows a new user from one who ran nav-pilot before.
+	answers.Autonomy = resolve(existing, CLIOverrides{}).Autonomy
 
 	err := huh.NewSelect[string]().
 		Title("Which coding agent?").
@@ -169,25 +171,24 @@ func runConfigSetup(flagSource string) error {
 		return setupSkipped(err)
 	}
 
-	// Only the Copilot CLI reads it; for the others it is not written, so a
-	// later switch to copilot starts conservative rather than unasked sandbox.
-	if answers.Client != "copilot" {
-		answers.Autonomy = ""
-	} else {
-		err = huh.NewSelect[string]().
-			Title("How much should the agent do without asking?").
-			Description("With cplt's standard presets, its guards hold either way: no push to main, no force push, no merge.").
-			Options(
-				huh.NewOption("Work on its own inside the sandbox, ask you when unsure (recommended)", "sandbox"),
-				huh.NewOption("Ask before each command and file change", "conservative"),
-			).
-			Value(&answers.Autonomy).
-			WithTheme(navTheme()).
-			Run()
-		if err != nil {
-			return setupSkipped(err)
-		}
+	// The autonomy preset. Only the Copilot CLI reads autonomy; for the
+	// others it is not written, so a later switch to copilot starts
+	// conservative rather than unasked sandbox. The preselected answer is
+	// what this machine has today, so Enter on a rerun changes nothing.
+	cpltPath, _ := findCplt()
+	cur := cpltGitState{Preset: "standard"}
+	if cpltPath != "" {
+		cur = readCpltGitState(cpltPath)
 	}
+	curChoice := autonomyChoice{Autonomy: answers.Autonomy, Preset: cur.Preset, Push: cur.effectivePush()}
+	if curChoice.Preset == "" {
+		curChoice.Preset = "standard"
+	}
+	choice, err := askAutonomy(answers.Client, currentPreset(answers.Autonomy, answers.Client == "copilot", cur), curChoice)
+	if err != nil {
+		return setupSkipped(err)
+	}
+	answers.Autonomy = choice.Autonomy
 
 	// Model picker: providers with a curated model list get a select widget;
 	// others (pi, unknown future providers) get a free-text input.
@@ -235,6 +236,46 @@ func runConfigSetup(flagSource string) error {
 		return setupSkipped(err)
 	}
 
+	// One screen of what changes; nothing is written without the yes.
+	var changes []cpltChange
+	allowlistPath, host, keptAllowlist := "", "", ""
+	if cpltPath != "" {
+		changes = cpltChanges(cur, choice)
+		// Leaving strict does not drop the allowlist: cplt enforces it under
+		// every preset, so the summary says it stays.
+		if choice.Preset != cpltStrictPreset {
+			keptAllowlist = cpltConfigGet(cpltPath, "proxy.allowed_domains")
+		}
+		for _, ch := range changes {
+			if ch.Key != "sandbox.preset" || ch.To != cpltStrictPreset {
+				continue
+			}
+			if ok, reason := strictPresetSupported(); !ok {
+				return fmt.Errorf("nav-pilot will not set sandbox.preset = strict here: %s. Nothing was written", reason)
+			}
+			fmt.Println(dim("Checking the sandbox…"))
+			allowlistPath, host = cpltAgentHostShutOut(cpltPath, cpltEnforcement())
+		}
+	}
+	save := true
+	if err := huh.NewConfirm().
+		Title("Save these settings?").
+		Description(autonomySummary(choice, changes, cpltPath != "", keptAllowlist)).
+		Affirmative("Save").
+		Negative("Cancel").
+		Value(&save).
+		WithTheme(navTheme()).
+		Run(); err != nil {
+		return setupSkipped(err)
+	}
+	if !save {
+		fmt.Println(dim("  Nothing saved. Run 'nav-pilot config setup' anytime."))
+		return nil
+	}
+	if err := applyCpltChanges(cpltPath, changes, allowlistPath, host); err != nil {
+		return fmt.Errorf("saving cplt config: %w", err)
+	}
+
 	if err := writeSetupConfig(answers); err != nil {
 		return fmt.Errorf("saving config: %w", err)
 	}
@@ -268,6 +309,13 @@ func runConfigSetup(flagSource string) error {
 	fmt.Printf("    %s\n", dim("pass CLI flags per run (e.g. --client opencode)"))
 	fmt.Println()
 
+	// Push and PRs need a gh login the sandbox can read. Setup only: a
+	// launch never probes.
+	st, detail := ghAuthProbe()
+	reportGHAuth(os.Stdout, "", answers.Client, st, detail)
+	if cpltPath != "" {
+		offerCpltInit(cpltPath)
+	}
 	return nil
 }
 
