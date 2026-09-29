@@ -7,6 +7,7 @@ import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, HeaderRow, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
+import { OPENCODE_INSTALL } from "@/lib/install-commands";
 
 export const metadata: Metadata = {
   title: "Klienter",
@@ -175,11 +176,11 @@ export default function Klienter() {
         <BodyLong>
           Første gang du kjører nav-pilot, spør den hvilken klient du vil ha, med opencode valgt. Mangler opencode,
           tilbyr nav-pilot å installere den: med {c("brew install anomalyco/tap/opencode")} hvis du har Homebrew, ellers
-          med opencodes eget installasjonsskript, {c("curl -fsSL https://opencode.ai/install | bash")}. Sier du nei,
-          bruker nav-pilot Copilot CLI og forteller hvordan du bytter senere. Mangler Copilot CLI også, viser den
-          installasjonskommandoen for begge. I CI og uten terminal starter nav-pilot Copilot CLI når {c("config.toml")}{" "}
-          mangler, siden den ikke kan se om du har brukt nav-pilot før. Vil du ha opencode i CI, bruk{" "}
-          {c("--client opencode")}.
+          med opencodes eget installasjonsskript, {c(OPENCODE_INSTALL.linux)}. Det er en versjon vi har testet, og
+          skriptet laster den ned direkte i stedet for å spørre GitHub om siste versjon. Sier du nei, bruker nav-pilot
+          Copilot CLI og forteller hvordan du bytter senere. Mangler Copilot CLI også, viser den installasjonskommandoen
+          for begge. I CI og uten terminal starter nav-pilot Copilot CLI når {c("config.toml")} mangler, siden den ikke
+          kan se om du har brukt nav-pilot før. Vil du ha opencode i CI, bruk {c("--client opencode")}.
         </BodyLong>
         <BodyLong>
           Bruker du Copilot CLI med lokale modeller på og har opencode installert, viser nav-pilot én gang et tips om

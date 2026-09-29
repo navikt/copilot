@@ -30,6 +30,13 @@ var openCodePolicy = map[string]any{"share": "disabled", "autoupdate": "notify"}
 // the new release.
 const OpenCodeTestedRange = ">=1.18.20,<1.19"
 
+// OpenCodeInstallVersion is the release nav-pilot's installer asks for: inside
+// OpenCodeTestedRange, and the one the hooks were verified against. Passing a
+// version makes opencode's install script skip its api.github.com lookup,
+// which fails with "Failed to fetch version information" behind a rate limit
+// or a proxy (#1345). Raise it with the range.
+const OpenCodeInstallVersion = "1.18.32"
+
 func applyOpenCodePolicy(env []string) []string {
 	return withOpenCodeConfigContent(env, openCodePolicy)
 }

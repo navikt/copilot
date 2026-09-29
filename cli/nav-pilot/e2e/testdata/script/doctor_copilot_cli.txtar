@@ -42,7 +42,7 @@ stdout 'Install the Copilot CLI: curl -fsSL https://gh\.io/copilot-install \| ba
 # Without opencode too, it names opencode as the other way in (#1184).
 rm $WORK/fake/opencode
 exits 0 pty-run -- nav-pilot --sync --source $WORK/plattform
-stdout 'Or use opencode: curl -fsSL https://opencode\.ai/install \| bash, then nav-pilot config set client opencode'
+stdout 'Or use opencode: curl -fsSL https://opencode\.ai/install \| bash -s -- --version 1\.18\.32, then nav-pilot config set client opencode'
 
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
