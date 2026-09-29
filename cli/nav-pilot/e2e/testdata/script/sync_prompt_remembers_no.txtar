@@ -14,7 +14,7 @@ exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
 cd ../repo
 exec git init -q .
 exec nav-pilot install plattform --source $WORK/plattform --repo --yes
-exec nav-pilot config set rtk_prompted_client copilot
+exec nav-pilot config set client copilot
 
 # The install claims the default source, one release behind the cache.
 exec /usr/bin/sed -e 's#"source_repo": "[^"]*"#"source_repo": "navikt/copilot"#' -e 's#"version": "[^"]*"#"version": "2026.09.01-120000-aaaaaaa"#' .github/.nav-pilot-state.json

@@ -31,12 +31,10 @@ type Config struct {
 	AskUser         *bool   `toml:"ask_user"`
 	// AutoLaunch controls whether nav-pilot starts the coding agent by itself
 	// after an install/sync. Defaults to true; false means never launch.
-	AutoLaunch        *bool   `toml:"auto_launch"`
-	LogLevel          *string `toml:"log_level"`
-	OtelLogLevel      *string `toml:"otel_log_level"`
-	RtkPromptedClient *string `toml:"rtk_prompted_client"`
-	RtkPromptedAt     *string `toml:"rtk_prompted_at"`
-	AutoUpdate        *bool   `toml:"auto_update"`
+	AutoLaunch   *bool   `toml:"auto_launch"`
+	LogLevel     *string `toml:"log_level"`
+	OtelLogLevel *string `toml:"otel_log_level"`
+	AutoUpdate   *bool   `toml:"auto_update"`
 	// Surveys lets nav-pilot ask, now and then, whether you want to answer a
 	// short user survey. false never asks.
 	Surveys *bool `toml:"surveys"`
@@ -118,8 +116,6 @@ type ResolvedConfig struct {
 	AutoLaunch         bool     // launch the coding agent automatically after install/sync
 	LogLevel           string   // empty = unset
 	OtelLogLevel       string   // always set; defaults to "none"
-	RtkPromptedClient  string   // comma-separated list of clients where the RTK setup was prompted
-	RtkPromptedAt      string   // RFC3339 timestamp of when the user was last prompted
 	AutoUpdate         bool     // true to bypass upgrade prompt
 	Surveys            bool     // false: never ask to answer a survey
 	News               bool     // false: never show a news line after a session

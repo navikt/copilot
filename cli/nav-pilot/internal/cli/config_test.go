@@ -682,6 +682,22 @@ func TestLoadConfigForLaunch_AnyBogusKeyRejected(t *testing.T) {
 	}
 }
 
+// The rtk prompt's bookkeeping keys are gone (#1321), but config files
+// written before that still hold them: they load with no problem reported,
+// whatever the value.
+func TestLoadConfig_RetiredRtkKeysIgnored(t *testing.T) {
+	path := writeTempConfig(t, "version = 1\nclient = \"copilot\"\n"+
+		"rtk_prompted_client = \"copilot,opencode\"\nrtk_prompted_at = 2026-01-02T03:04:05Z\n")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+
+	if _, problems, err := loadConfig(); err != nil || len(problems) > 0 {
+		t.Fatalf("loadConfig() = %v, %v; want no problems", problems, err)
+	}
+	if _, err := loadConfigForLaunch(CLIOverrides{}); err != nil {
+		t.Fatalf("loadConfigForLaunch() error: %v", err)
+	}
+}
+
 func TestCLIClientOverride(t *testing.T) {
 	path := writeTempConfig(t, "version = 1\nclient = \"copilot\"\n")
 	t.Setenv("NAV_PILOT_CONFIG", path)

@@ -11,7 +11,6 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_command_duration_ms` | Histogram | Kjøringstid per kommando (ms). `_count` er også antallet kommandoer kjørt | `command=install`, `mode=interactive`, `scope=repo`, `result=success` |
 | `nav_pilot_command_error_total` | Counter | Antall kommandoer som feilet | `command=sync`, `scope=user` |
 | `nav_pilot_launch_error_total` | Counter | Klient-oppstart som feilet | `client=copilot`, `error_type=launch_failed` |
-| `nav_pilot_rtk_setup_total` | Counter | Resultat av interaktiv RTK-prompt | `client=copilot`, `choice=yes`, `result=success` |
 | `nav_pilot_install_items_total` | Counter | Antall elementer installert | `command=install`, `scope=repo`, `mode=interactive` |
 | `nav_pilot_sync_updates_total` | Counter | Antall oppdateringer funnet ved sync | `command=sync`, `scope=user` |
 | `nav_pilot_sync_conflicts_total` | Counter | Antall konflikter ved sync | `command=sync`, `scope=repo` |

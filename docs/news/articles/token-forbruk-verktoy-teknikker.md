@@ -186,12 +186,9 @@ Andre tips for vedlikeholdere:
 
 > **Oppdatert 2026-08-24:** Denne seksjonen påsto opprinnelig at «RTK rapporterer 60–90 % reduksjon på verktøydata». Det tallet er verktøyets egen selvrapportering, og ingen kontrollert måling bekrefter det. Vi har rettet avsnittet, og nav-pilot anbefaler ikke lenger RTK aktivt.
 
-[RTK](https://github.com/rtk-ai/rtk) er en CLI-proxy som filtrerer og komprimerer kommando-output (testresultater, diff, kubectl) før den når kontekstvinduet.
+> **Oppdatert 2026-09-29:** nav-pilot setter ikke lenger opp RTK. I en testkjøring gjorde RTK-hooken `pnpm exec tsc --version` om til en full typesjekk, så kommandoen svarte «No errors found» i stedet for et versjonsnummer. Agenten kjente ikke igjen svaret og kjørte samme kommando fem til sju ganger. Vi anbefaler ikke RTK-hooken for Copilot CLI eller OpenCode. Har du den fra før, viser `nav-pilot doctor` hvordan du fjerner den.
 
-```bash
-brew install rtk
-rtk init -g --copilot
-```
+[RTK](https://github.com/rtk-ai/rtk) er en CLI-proxy som filtrerer og komprimerer kommando-output (testresultater, diff, kubectl) før den når kontekstvinduet.
 
 **Hva vi vet om effekten:** RTK har en innebygd teller (`rtk gain`) som viser hvor mye verktøyet mener det har spart. Den tellingen er ikke det samme som lavere regning:
 

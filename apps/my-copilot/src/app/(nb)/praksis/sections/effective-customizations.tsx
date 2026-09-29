@@ -388,7 +388,7 @@ export default function EffectiveCustomizations() {
               <li className="flex gap-2">
                 <CheckmarkCircleIcon className="text-green-600 shrink-0 mt-0.5" fontSize="1rem" aria-hidden />
                 <span>
-                  Bygg-verktøy: alltid bruke <code>rtk mise check</code> før commit
+                  Bygg-verktøy: alltid bruke <code>mise check</code> før commit
                 </span>
               </li>
             </ul>

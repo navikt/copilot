@@ -73,24 +73,6 @@ func reportGoneSource(scope *InstallScope, state *StateFile) bool {
 	return true
 }
 
-func reportBrokenRtkHook() bool {
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		return false
-	}
-	hook := filepath.Join(home, ".copilot", "hooks", "rtk-rewrite.json")
-	if st, err := os.Stat(hook); err != nil || !st.Mode().IsRegular() {
-		return false
-	}
-	if rtk, _ := exec.LookPath("rtk"); rtk != "" {
-		return false
-	}
-	fmt.Printf("    %s rtk: hook installed, but binary not found on PATH\n", red("[✗]"))
-	fmt.Printf("        The hook denies every matching Copilot tool call when it cannot start rtk.\n")
-	fmt.Printf("        %s Remove it with %s\n", red("Solution:"), bold("rm -- ~/.copilot/hooks/rtk-rewrite.json"))
-	return true
-}
-
 // reportCopilotCLI says whether the copilot binary is on PATH, and returns
 // false only when it is missing and the client is copilot: for an opencode
 // or pi user it is optional, like their clients are for a copilot user.
@@ -449,20 +431,9 @@ func cmdDoctor() error {
 			fmt.Printf("    %s %s: OK\n", green("✓"), name)
 		}
 	}
-	// checkOptionalDep reports presence without failing the health check. rtk is
-	// optional: nav-pilot works fully without it.
-	checkOptionalDep := func(name string) {
-		if p, _ := exec.LookPath(name); p == "" {
-			fmt.Printf("    %s %s: Not installed (optional)\n", dim("-"), name)
-		} else {
-			fmt.Printf("    %s %s: OK\n", green("✓"), name)
-		}
-	}
 	checkDep("git")
-	if reportBrokenRtkHook() {
+	if reportRtkLeftovers() {
 		hasErrors = true
-	} else {
-		checkOptionalDep("rtk")
 	}
 	fmt.Println()
 

@@ -54,7 +54,6 @@ type Recorder interface {
 	RecordConfig(client, configMode, model, reasoningEffort, contextTier, otelLogLevel string, allowAllTools, askUser bool)
 	RecordClientAvailable(client string, available bool)
 	RecordLaunchError(client, errorType string)
-	RecordRtkSetup(client, choice, result string)
 	RecordLocalSession(client, model, backend, level string, dispatches int64, sawTraffic bool)
 	RecordLocalGate(outcome string, count int64)
 	RecordLocalReadySeconds(model, outcome string, seconds int64)
@@ -81,14 +80,13 @@ func (NoopRecorder) RecordUpToDate(string, string, bool)                        
 func (NoopRecorder) RecordVersionSkewDays(string, string, int64)                         {}
 func (NoopRecorder) RecordConfig(string, string, string, string, string, string, bool, bool) {
 }
-func (NoopRecorder) RecordClientAvailable(string, bool)    {}
-func (NoopRecorder) RecordLaunchError(string, string)      {}
-func (NoopRecorder) RecordRtkSetup(string, string, string) {}
-func (NoopRecorder) RecordDecide(DecideEvent)              {}
-func (NoopRecorder) RecordHookLoopGuard(string, string)    {}
-func (NoopRecorder) RecordHookRedact(string, int64)        {}
-func (NoopRecorder) RecordHookActionCheck(string, string)  {}
-func (NoopRecorder) Shutdown(context.Context) error        { return nil }
+func (NoopRecorder) RecordClientAvailable(string, bool)   {}
+func (NoopRecorder) RecordLaunchError(string, string)     {}
+func (NoopRecorder) RecordDecide(DecideEvent)             {}
+func (NoopRecorder) RecordHookLoopGuard(string, string)   {}
+func (NoopRecorder) RecordHookRedact(string, int64)       {}
+func (NoopRecorder) RecordHookActionCheck(string, string) {}
+func (NoopRecorder) Shutdown(context.Context) error       { return nil }
 
 type otelTelemetry struct {
 	provider  *sdkmetric.MeterProvider
@@ -109,7 +107,6 @@ type otelTelemetry struct {
 	stalenessCheck     metric.Int64Counter
 	upToDate           metric.Int64Gauge
 	versionSkewDays    metric.Int64Histogram
-	rtkSetupTotal      metric.Int64Counter
 	localDispatches    metric.Int64Histogram
 	localReadySeconds  metric.Int64Histogram
 	decideResultTotal  metric.Int64Counter
@@ -277,11 +274,6 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create version skew days histogram: %w", err)
 	}
-	rtkSetupTotal, err := meter.Int64Counter("nav_pilot_rtk_setup_total",
-		metric.WithDescription("Counts the result of the interactive RTK setup prompt."))
-	if err != nil {
-		return NoopRecorder{}, fmt.Errorf("create rtk setup counter: %w", err)
-	}
 
 	localDispatches, err := meter.Int64Histogram("nav_pilot_local_dispatches",
 		metric.WithDescription("Tasks a session handed to the local worker. Zero is a result: it means the orchestrator had a worker and chose not to use it."))
@@ -350,7 +342,6 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 		stalenessCheck:     stalenessCheck,
 		upToDate:           upToDate,
 		versionSkewDays:    versionSkewDays,
-		rtkSetupTotal:      rtkSetupTotal,
 		localDispatches:    localDispatches,
 		localReadySeconds:  localReadySeconds,
 		decideResultTotal:  decideResultTotal,
@@ -703,18 +694,6 @@ func (t *otelTelemetry) RecordLaunchError(client, errorType string) {
 	t.launchErrorTotal.Add(context.Background(), 1, metric.WithAttributes(
 		attribute.String("client", normalizeTelemetryDimension(client, "unknown")),
 		attribute.String("error_type", normalizeTelemetryDimension(errorType, "unknown")),
-		attribute.String("version", t.version),
-		attribute.String("device_id", t.device),
-		attribute.String("execution_context", t.executionContext),
-	))
-}
-
-// RecordRtkSetup records the interactive result for RTK token optimizer setup.
-func (t *otelTelemetry) RecordRtkSetup(client, choice, result string) {
-	t.rtkSetupTotal.Add(context.Background(), 1, metric.WithAttributes(
-		attribute.String("client", normalizeTelemetryDimension(client, "unknown")),
-		attribute.String("choice", normalizeTelemetryDimension(choice, "unknown")),
-		attribute.String("result", normalizeTelemetryDimension(result, "unknown")),
 		attribute.String("version", t.version),
 		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),

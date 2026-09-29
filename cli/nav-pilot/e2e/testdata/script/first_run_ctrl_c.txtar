@@ -10,5 +10,4 @@ stdout 'Cancelled\. Nothing was written\.'
 stdout -count=1 'Cancelled'
 ! stdout 'Setup skipped'
 ! stdout 'Config setup failed'
-! stdout 'Terminal output filter'
 ! exists home/config.toml

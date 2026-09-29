@@ -31,7 +31,7 @@ grep '^-p\nhello\n---' $WORK/fake/copilot.log
 
 # In a terminal it asks, and the answer defaults to no.
 [!pty] stop 'no pseudo-terminal here (/dev/ptmx will not open)'
-exec nav-pilot config set rtk_prompted_client copilot
+exec nav-pilot config set client copilot
 rm $WORK/fake/copilot.log
 exits 0 pty-run -wait 'Launch copilot without the sandbox' -send '\r' -- nav-pilot
 stdout 'cplt \(the sandbox\) is not installed\. Install it: brew install navikt/tap/cplt \(or sudo apt install cplt\)'

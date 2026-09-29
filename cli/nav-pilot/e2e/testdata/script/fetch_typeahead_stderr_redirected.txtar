@@ -21,7 +21,7 @@ exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
 cd $HOME
 exec git config --global url.file://$WORK/plattform.insteadOf https://github.com/navikt/plattform.git
 exec nav-pilot config set source navikt/plattform
-exec nav-pilot config set rtk_prompted_client copilot
+exec nav-pilot config set client copilot
 
 exits 0 pty-run -wait 'slow fetch' -send 'zqx\r' -wait 'checked out' -send '\r' -- /bin/sh -c 'exec nav-pilot 2>$WORK/stderr.log'
 stdout 'Installed\. cd into a project and run nav-pilot'

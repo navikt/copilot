@@ -388,12 +388,5 @@ func cmdConfigSetup(force bool) error {
 	}
 	// No flag source: `config setup` does not persist one, so seeding from a
 	// --source would materialize a pakke the config it just wrote never names.
-	if err := runConfigSetupFn(""); err != nil {
-		return err
-	}
-
-	if resolved, err := loadConfigForLaunch(CLIOverrides{}); err == nil {
-		return maybePromptRtkSetup(resolved)
-	}
-	return nil
+	return runConfigSetupFn("")
 }

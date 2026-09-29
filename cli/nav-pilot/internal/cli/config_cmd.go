@@ -273,24 +273,6 @@ var configKeyDefs = []configKeyDef{
 		group:       "Sandbox",
 	},
 	{
-		name:        "rtk_prompted_client",
-		kind:        keyKindString,
-		description: "Comma-separated list of clients where the RTK setup was prompted.",
-		allowed:     nil,
-		defaultVal:  "",
-		flag:        "",
-		internal:    true,
-	},
-	{
-		name:        "rtk_prompted_at",
-		kind:        keyKindString,
-		description: "Internal flag to track when the user was last prompted to set up rtk (RFC3339 timestamp).",
-		allowed:     nil,
-		defaultVal:  "",
-		flag:        "",
-		internal:    true,
-	},
-	{
 		name:        "copilot_auth_mode",
 		kind:        keyKindString,
 		description: "Which auth source reaches cplt for Copilot. nav-pilot never extracts a token itself. auto constrains nothing; env_only requires GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN to hold a value and aborts the launch if none does; gh_only removes those variables so no env token reaches the sandbox.",
@@ -309,14 +291,11 @@ func findKeyDef(name string) *configKeyDef {
 	return nil
 }
 
-// userKeyNames are the keys a person sets: every key but nav-pilot's own
-// rtk_* bookkeeping.
+// userKeyNames are the keys a person can name on the command line.
 func userKeyNames() []string {
 	var names []string
 	for _, kd := range configKeyDefs {
-		if !strings.HasPrefix(kd.name, "rtk_") {
-			names = append(names, kd.name)
-		}
+		names = append(names, kd.name)
 	}
 	return names
 }
@@ -514,14 +493,6 @@ client = "copilot"
 # Allowed: ask, off — Default: ask
 # mcp_hosts = "ask"
 
-# Internal flag to track which client the user was last prompted to set up rtk for.
-# Default: unset
-# rtk_prompted_client = ""
-
-# Internal flag to track when the user was last prompted to set up rtk (RFC3339 timestamp).
-# Default: unset
-# rtk_prompted_at = ""
-
 # ── cplt auth ──────────────────────────────────────────────────────────────────
 # nav-pilot never extracts a Copilot token itself. With cplt's gh guard on — the
 # default since cplt#335, not only under sandbox.preset = strict — cplt uses an
@@ -619,9 +590,6 @@ func cmdConfig(args []string, force bool, jsonOutput bool) error {
 		key := ""
 		if len(rest) > 0 {
 			var err error
-			if strings.HasPrefix(rest[0], "rtk_") {
-				return fmt.Errorf("unknown key: %q\n\nKnown keys: %s", rest[0], knownKeyNames())
-			}
 			if key, err = userKey(rest[0]); err != nil {
 				return err
 			}
@@ -845,10 +813,6 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return r.HookActionCheck
 	case "mcp_hosts":
 		return r.MCPHosts
-	case "rtk_prompted_client":
-		return r.RtkPromptedClient
-	case "rtk_prompted_at":
-		return r.RtkPromptedAt
 	case "copilot_auth_mode":
 		return r.CopilotAuthMode
 	}

@@ -24,7 +24,7 @@ exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
 cd ../repo
 exec git init -q .
 exec nav-pilot install plattform --source $WORK/plattform --repo --yes
-exec nav-pilot config set rtk_prompted_client copilot
+exec nav-pilot config set client copilot
 
 # No terminal: no survey, and copilot-cli is not even asked.
 exec nav-pilot -- -p hei

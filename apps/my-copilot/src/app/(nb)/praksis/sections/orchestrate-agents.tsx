@@ -204,13 +204,13 @@ export default function OrchestrateAgents() {
               </BodyShort>
               <BodyShort className="text-gray-600 text-xs mb-2">
                 Nav-utviklere er allerede i kjernen av «Terminal-First»-trenden med CLI-verktøy som <code>gh</code>,{" "}
-                <code>nais</code>, <code>mise</code> og <code>rtk</code>. Den naturlige neste steget er å la agenter
-                orkestrere disse verktøyene automatisk.
+                <code>nais</code> og <code>mise</code>. Det naturlige neste steget er å la agenter orkestrere disse
+                verktøyene automatisk.
               </BodyShort>
               <pre className="text-xs font-mono bg-gray-900 text-green-400 p-3 rounded-md">{`# La agenten kjøre standardsjekkene
-rtk mise check        # Typesjekk + lint + test
-rtk gh pr create      # Opprett PR automatisk
-rtk go test ./...     # Verifiser endringer`}</pre>
+mise check        # Typesjekk + lint + test
+gh pr create      # Opprett PR automatisk
+go test ./...     # Verifiser endringer`}</pre>
             </Box>
             <Box background="default" padding="space-12" borderRadius="4">
               <BodyShort weight="semibold" className="text-sm mb-2">

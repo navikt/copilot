@@ -230,10 +230,6 @@ func cmdInteractive(overrides CLIOverrides) error {
 		return cfgErr
 	}
 
-	if err := maybePromptRtkSetup(resolved); err != nil {
-		return err
-	}
-
 	// Check user-scope state (always available regardless of git repo)
 	var userScope *InstallScope
 	var userState *StateFile
@@ -1026,7 +1022,7 @@ func launchClient(resolved ResolvedConfig) error {
 // auto_launch = false is the setting for never launching at all.
 func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error {
 	if err := removeUnusableRtkHook(resolved.Client); err != nil {
-		return fmt.Errorf("preparing RTK integration: %w", err)
+		return fmt.Errorf("removing unusable rtk hook: %w", err)
 	}
 	syncBuiltinHooks(resolved)
 	defer func() { stopSourceRefresh() }()

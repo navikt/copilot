@@ -61,7 +61,6 @@ func newFullTestTelemetry(t *testing.T) (*otelTelemetry, *sdkmetric.ManualReader
 		upToDate:           gauge("nav_pilot_up_to_date"),
 		versionSkewDays:    hist("nav_pilot_version_skew_days"),
 		launchErrorTotal:   counter("nav_pilot_launch_error_total"),
-		rtkSetupTotal:      counter("nav_pilot_rtk_setup_total"),
 		localDispatches:    hist("nav_pilot_local_dispatches"),
 		localReadySeconds:  hist("nav_pilot_local_ready_seconds"),
 		version:            "test",
@@ -268,7 +267,6 @@ func TestEveryInstrumentCarriesDeviceID(t *testing.T) {
 	tel.RecordUpToDate("cli", "repo", true)
 	tel.RecordVersionSkewDays("cli", "repo", 9)
 	tel.RecordLaunchError("opencode", "client_not_found")
-	tel.RecordRtkSetup("opencode", "yes", "success")
 	tel.RecordLocalSession("opencode", "some/model", "mlx", "balanced", 0, true)
 	tel.RecordLocalReadySeconds("some/model", "ready", 4)
 	tel.RecordConfig("opencode", "repo", "custom", "high", "large", "info", false, true)
