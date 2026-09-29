@@ -47,13 +47,13 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
   },
   {
     purpose: "Aksel, tilgjengelighet og norsk tekst",
-    primary: "Claude Sonnet 5",
-    fallbacks: [],
+    primary: "Claude Sonnet 5.5",
+    fallbacks: ["Claude Sonnet 5"],
     usedBy: "@aksel, @accessibility og @forfatter",
   },
   {
     purpose: "Rask Aksel-scaffolding",
-    primary: "Gemini 3.6 Flash",
+    primary: "Gemini 3.8 Flash",
     fallbacks: [],
     usedBy: "aksel-component-prompten",
   },

@@ -19,9 +19,9 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | `@kafka`             | GPT-6 Sol       | Verktøytung kodeagent. Sol er den nye standarden for agentisk koding; GPT-5.3-Codex beholdes som fallback mens vi følger resultatene på Kafka-oppgaver                                                                    |
 | `@research`          | GPT-6 Luna      | Leser og søker uten å skrive kode. Modellen besto ti av ti avgrensede krav og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna. Gjelder bare når agenten startes direkte, ikke når `@nav-pilot` delegerer til den |
 | `@rust`              | GPT-6 Sol       | Verktøytung kodeagent. Sol er den nye standarden for agentisk koding; GPT-5.3-Codex beholdes som fallback mens vi følger resultatene på Rust-oppgaver                                                                     |
-| `@aksel`             | Claude Sonnet 5 | Sterk på komponentstruktur og designsystem-konvensjoner                                                                                                                                                                   |
-| `@accessibility`     | Claude Sonnet 5 | God på WCAG-tolkning og semantisk HTML                                                                                                                                                                                    |
-| `@forfatter`         | Claude Sonnet 5 | Anthropic-modellene er best på norsk klarspråk                                                                                                                                                                            |
+| `@aksel`             | Claude Sonnet 5.5 | Sterk på komponentstruktur og designsystem-konvensjoner. Sonnet 5 beholdes som fallback                                                                                                                                 |
+| `@accessibility`     | Claude Sonnet 5.5 | God på WCAG-tolkning og semantisk HTML. Sonnet 5 beholdes som fallback                                                                                                                                                  |
+| `@forfatter`         | Claude Sonnet 5.5 | Anthropic-modellene er best på norsk klarspråk. Sonnet 5 beholdes som fallback                                                                                                                                          |
 
 ### Prompts
 
@@ -29,7 +29,7 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | ---------------------- | ---------------- | --------------------------------------------------------------------------- |
 | `kafka-topic`          | GPT-6 Luna       | Fast scaffold-prompt. GPT-5.3-Codex beholdes som fallback                   |
 | `nais-manifest`        | GPT-6 Luna       | Fast scaffold-prompt. GPT-5.3-Codex beholdes som fallback                   |
-| `aksel-component`      | Gemini 3.6 Flash | Rask og billig for scaffolding av Aksel-komponenter                         |
+| `aksel-component`      | Gemini 3.8 Flash | Rask og billig for scaffolding av Aksel-komponenter                         |
 | `ktor-endpoint`        | GPT-6 Luna       | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
 | `nextjs-api-route`     | GPT-6 Luna       | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
 | `spring-boot-endpoint` | GPT-6 Luna       | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
@@ -170,7 +170,7 @@ anslag, ikke noe vi har målt**, og forholdet varierer med oppgaven.
   `execute` og `edit`. Opus 5.5 ble senere testet på kodegjennomgang: High
   traff fem av fem, mens Medium oppga feil linjer i to av fem. Etter byttet til
   Opus 5.5 er High anbefalt, linjene må kontrolleres mot diffen og
-  GPT-5.3-Codex er fallback. `@accessibility` beholder Claude Sonnet 5.
+  GPT-5.3-Codex er fallback. `@accessibility` bruker Claude Sonnet 5.5 med Sonnet 5 som fallback.
 - `@forfatter` beholder Anthropic-modellen sin. Jobben er å skille bokmål fra
   nynorsk og luke ut norske AI-markører. Målingen sier ingenting om det, og
   gevinsten er nær null mot en kjent nedside.
@@ -200,7 +200,8 @@ tallene her har et tidsstempel og ikke evig gyldighet.
 | Claude Opus 5         | Powerful    | $5.00    | $25.00   | Dyp resonnering, risikovurdering og sikkerhetskritisk kode med justerbar effort (low/medium/high). Lansert 24. juli 2026                                                                                        |
 | Claude Opus 4.7 / 4.8 | Powerful    | $5.00    | $25.00   | Dyp risikovurdering, sikkerhetskritisk kode, kompleks arkitektur. Opus 4.5 og 4.6 falt ut av GitHubs prisliste 5. sep 2026                                                                                      |
 | Claude Sonnet 4.6     | Versatile   | $3.00    | $15.00   | Daglig koding, norsk tekst, planlegging                                                                                                                                                                         |
-| Claude Sonnet 5       | Versatile   | $2.00    | $10.00   | Samme som Sonnet 4.6. ⚠️ Kampanjen vi noterte gikk ut 31. aug 2026, og standardprisen er ukjent. Se noten under tabellen                                                                                        |
+| Claude Sonnet 5.5     | Versatile   | $2.00    | $10.00   | Aksel, tilgjengelighet og norsk tekst                                                                                                                                                                            |
+| Claude Sonnet 5       | Versatile   | $2.00    | $10.00   | Fallback for Sonnet 5.5. ⚠️ Kampanjen vi noterte gikk ut 31. aug 2026, og standardprisen er ukjent. Se noten under tabellen                                                                                     |
 | Claude Haiku 4.5      | Versatile   | $1.00    | $5.00    | Sjekklister, maler, scaffold-prompts                                                                                                                                                                            |
 | GPT-5.3-Codex         | Powerful    | $1.75    | $14.00   | Kodeforståelse, terminal, infrastruktur                                                                                                                                                                         |
 | GPT-5.6 Luna          | Lightweight | $0.20    | $1.20    | Raske rutineoppgaver, enkel autofullfør. OpenAI plasserer den i nano-sjiktet fra tidligere GPT-5-familier, men med høy reasoning-rating og justerbar effort                                                     |
@@ -210,7 +211,8 @@ tallene her har et tidsstempel og ikke evig gyldighet.
 | GPT-6 Sol             | Powerful    | $2.00    | $10.00   | Daglig agentisk koding med validering i flere steg. Lang kontekst over 272K: $4.00 / $15.00                                                                                                                     |
 | Gemini 2.5 Pro        | Powerful    | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026. Gemini 3.1 Pro, som overtok rollen, falt ut av prislista 5. sep 2026. Google har ingen Powerful-modell igjen hos GitHub. Bruk GPT-6 Sol eller Kimi K3 til research over lang kontekst |
 | Gemini 3.5 Flash      | Lightweight | $1.50    | $9.00    | Rask og billig for enkle oppgaver                                                                                                                                                                               |
-| Gemini 3.6 Flash      | Versatile   | $0.75    | $3.75    | Agentiske workflows med parallell verktøybruk. Kampanjepris t.o.m. 31. des 2026                                                                                                                                 |
+| Gemini 3.8 Flash      | Versatile   | $0.75    | $3.75    | Rask Aksel-scaffolding. Kampanjepris t.o.m. 31. des 2026                                                                                                                                                         |
+| Gemini 3.6 Flash      | Versatile   | $0.75    | $3.75    | Agentiske workflows med parallell verktøybruk, men deaktivert i Nav. Kampanjepris t.o.m. 31. des 2026                                                                                                           |
 | Kimi K2.7 Code        | Versatile   | $0.95    | $4.00    | Rimeligste alternativ for kode-agent-løkker (open-weight)                                                                                                                                                       |
 | Kimi K3               | Powerful    | $3.00    | $15.00   | Rimeligste Powerful-modell på lista (open-weight). Ikke pinnet, ikke målt hos oss                                                                                                                               |
 
@@ -224,7 +226,7 @@ gjelder det:
   standardvinduet og $8.00 / $30.00 over 272K. Det er nøyaktig de tallene vi
   regnet oss fram til fra «50 % off», så anslaget traff. Sol har ingen fotnote
   lenger, og tallene i tabellen over er nå publisert listepris, ikke utregning.
-- **Gemini 3.6 Flash og Gemini 3.7 Flash:** $0.75 input og $3.75 output t.o.m. 31. desember 2026. Standardprisen står ikke i fotnoten. Gemini 3.7 Flash er
+- **Gemini 3.6 Flash, Gemini 3.7 Flash og Gemini 3.8 Flash:** $0.75 input og $3.75 output t.o.m. 31. desember 2026. Standardprisen står ikke i fotnoten. Gemini 3.6 og 3.7 er deaktivert i Nav.
   ikke pinnet noe sted hos oss og står derfor ikke i tabellen over.
 - **Claude Sonnet 5:** notatet vårt sa kampanje t.o.m. 31. august 2026. GitHubs
   pristabell viser fortsatt $2.00 / $10.00 og har ingen fotnote for Sonnet 5, så

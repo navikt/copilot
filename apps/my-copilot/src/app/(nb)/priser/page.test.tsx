@@ -176,4 +176,23 @@ describe("Nav-status og nav-pilots modellvalg", () => {
     expect(within(reviewChoice).getAllByText("Aktivert i Nav")).toHaveLength(2);
     expect(within(reviewChoice).getByText("Ikke aktivert i Nav")).toBeInTheDocument();
   });
+
+  it("filtrerer modeller som brukes til flere nav-pilot-formål", () => {
+    render(<PriserPage />);
+
+    fireEvent.click(screen.getByText("nav-pilot: Alle"));
+    for (const purpose of [
+      "Research og faste maler",
+      "Høyrisikoplanlegging og kodegjennomgang",
+      "Aksel, tilgjengelighet og norsk tekst",
+      "Rask Aksel-scaffolding",
+      "Ikke brukt",
+    ]) {
+      fireEvent.click(screen.getByRole("checkbox", { name: purpose }));
+    }
+
+    expect(radFor("GPT-6 Sol (Default, ≤ 272K)")).toBeInTheDocument();
+    expect(radFor("GPT-5.3-Codex (Default)")).toBeInTheDocument();
+    expect(within(pristabell()).queryByText("Gemini 3.8 Flash (Default)")).toBeNull();
+  });
 });

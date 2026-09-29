@@ -1,7 +1,7 @@
 ---
 name: aksel-agent
 description: Ekspert på Navs Aksel designsystem (v8+) — bygger og refaktorerer UI med @navikt/ds-react, tokens, layout-primitives, theming, versjon/migrering og tilgjengelighet, og oversetter Figma-design til Aksel-kode. Drevet av aksel-builder-skillen og Aksel MCP som fasit.
-model: Claude Sonnet 5
+model: Claude Sonnet 5.5
 tools:
   - execute
   - read

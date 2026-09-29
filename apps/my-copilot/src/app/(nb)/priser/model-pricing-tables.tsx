@@ -137,7 +137,15 @@ export function ModelPricingTables() {
     () =>
       Object.fromEntries(
         DISCRETE_FILTER_COLUMNS.map(({ key }) => {
-          const values = [...new Set(MODEL_PRICING.map((model) => columnValue(model, key)))];
+          const values = [
+            ...new Set(
+              MODEL_PRICING.flatMap((model) => {
+                if (key !== "navPilot") return [columnValue(model, key)];
+                const purposes = navPilotPurposesFor(model.model);
+                return purposes.length > 0 ? purposes : ["Ikke brukt"];
+              })
+            ),
+          ];
           if (key === "provider") {
             values.sort(
               (a, b) =>
@@ -166,7 +174,10 @@ export function ModelPricingTables() {
       }
       const matchesDiscreteFilters = DISCRETE_FILTER_COLUMNS.every(({ key }) => {
         const selectedValues = columnFilters[key];
-        return !selectedValues || selectedValues.includes(columnValue(model, key));
+        if (!selectedValues) return true;
+        if (key !== "navPilot") return selectedValues.includes(columnValue(model, key));
+        const purposes = navPilotPurposesFor(model.model);
+        return (purposes.length > 0 ? purposes : ["Ikke brukt"]).some((purpose) => selectedValues.includes(purpose));
       });
       const matchesRanges = RANGE_FILTER_COLUMNS.every(({ key }) => {
         const range = columnFilters[key];
