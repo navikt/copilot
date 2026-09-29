@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -364,5 +365,48 @@ func TestAcquireSaysPlainlyThatTheServerStopped(t *testing.T) {
 	}
 	if err := EnsureOwnServer(); err == nil || !strings.Contains(err.Error(), "loop guard") {
 		t.Errorf("EnsureOwnServer() lost the launch's reasoning: %v", err)
+	}
+}
+
+// TestProcessStartIgnoresTheLocale runs the real `ps` for this test's own pid
+// under a Norwegian locale: the start time must come back in the C layout, so a
+// record from one terminal matches a check from another (#1277).
+func TestProcessStartIgnoresTheLocale(t *testing.T) {
+	for _, v := range []string{"LANG", "LC_ALL", "LC_TIME"} {
+		t.Setenv(v, "nb_NO.UTF-8")
+	}
+	got := processStart(os.Getpid())
+	if _, err := time.Parse(cLstart, got); err != nil {
+		t.Errorf("processStart() under nb_NO = %q, want the C layout %q: %v", got, cLstart, err)
+	}
+}
+
+// TestIsRecordedAcceptsARecordFromAnOlderLocale keeps a server started before
+// #1277, recorded in the old nav-pilot's locale, attached after the upgrade.
+func TestIsRecordedAcceptsARecordFromAnOlderLocale(t *testing.T) {
+	stubDirs(t)
+	stubAlive(t, func(int) bool { return true })
+	orig := runCommand
+	runCommand = func(_ context.Context, _ string, _, env []string) (string, error) {
+		if slices.Contains(env, "LC_ALL=C") {
+			return "Tue Sep 29 10:45:28 2026\n", nil
+		}
+		return "tir. 29 sep. 10.45.28 2026\n", nil
+	}
+	t.Cleanup(func() { runCommand = orig })
+
+	for _, tc := range []struct {
+		lstart string
+		want   bool
+	}{
+		{"Tue Sep 29 10:45:28 2026", true},
+		{"tir. 29 sep. 10.45.28 2026", true},
+		{"Mon Sep 28 10:45:28 2026", false},
+		{"man. 28 sep. 10.45.28 2026", false},
+		{"", false},
+	} {
+		if got := isRecorded(4242, tc.lstart); got != tc.want {
+			t.Errorf("isRecorded(%q) = %v, want %v", tc.lstart, got, tc.want)
+		}
 	}
 }
