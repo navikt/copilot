@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"testing"
 )
@@ -32,5 +33,31 @@ func TestClassifyError(t *testing.T) {
 		if got := classifyError(tt.err); got != tt.want {
 			t.Errorf("classifyError(%v) = %q, want %q", tt.err, got, tt.want)
 		}
+	}
+}
+
+// The detached sender is not started inside cplt's sandbox, whose audit flags
+// a setsid escapee, nor when telemetry is off.
+func TestTelemetrySenderAllowed(t *testing.T) {
+	t.Setenv("DO_NOT_TRACK", "")
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "true")
+	t.Setenv(cpltSandboxEnvVar, "")
+	os.Unsetenv(cpltSandboxEnvVar)
+	if !telemetrySenderAllowed() {
+		t.Fatal("not allowed with telemetry on, outside the sandbox")
+	}
+	t.Setenv(cpltSandboxEnvVar, "1")
+	if telemetrySenderAllowed() {
+		t.Error("allowed inside cplt's sandbox")
+	}
+	os.Unsetenv(cpltSandboxEnvVar)
+	t.Setenv("DO_NOT_TRACK", "1")
+	if telemetrySenderAllowed() {
+		t.Error("allowed with DO_NOT_TRACK")
+	}
+	t.Setenv("DO_NOT_TRACK", "")
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "false")
+	if telemetrySenderAllowed() {
+		t.Error("allowed with telemetry disabled")
 	}
 }

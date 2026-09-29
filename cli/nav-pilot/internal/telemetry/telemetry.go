@@ -90,8 +90,9 @@ func (NoopRecorder) RecordHookActionCheck(string, string)  {}
 func (NoopRecorder) Shutdown(context.Context) error        { return nil }
 
 type otelTelemetry struct {
-	provider *sdkmetric.MeterProvider
-	spool    *spoolTransport
+	provider  *sdkmetric.MeterProvider
+	spool     *spoolTransport
+	spoolSent <-chan struct{}
 
 	commandDurationMS  metric.Int64Histogram
 	commandErrorTotal  metric.Int64Counter
@@ -127,6 +128,18 @@ type otelTelemetry struct {
 	projectType      string
 }
 
+// telemetryEndpoint is where exports go.
+func telemetryEndpoint() string {
+	endpoint := strings.TrimSpace(os.Getenv("NAV_PILOT_TELEMETRY_ENDPOINT"))
+	if endpoint == "" {
+		endpoint = strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
+	}
+	if endpoint == "" {
+		endpoint = defaultTelemetryEndpoint
+	}
+	return endpoint
+}
+
 func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) (Recorder, error) {
 	configureOTelDiagnostics()
 
@@ -151,20 +164,24 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	execCtx := normalizeTelemetryDimension(executionContext, "unknown")
 	projType := normalizeTelemetryDimension(detectProjectType(), "na")
 
-	endpoint := strings.TrimSpace(os.Getenv("NAV_PILOT_TELEMETRY_ENDPOINT"))
-	if endpoint == "" {
-		endpoint = strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
-	}
-	if endpoint == "" {
-		endpoint = defaultTelemetryEndpoint
-	}
+	endpoint := telemetryEndpoint()
 
 	dir := spoolDir()
 	spool := newSpoolTransport(&http.Transport{Proxy: http.ProxyFromEnvironment}, dir)
 	client := &http.Client{Transport: spool, Timeout: 10 * time.Second}
-	if dir != "" {
-		go sendSpool(dir, endpoint, &http.Client{Transport: spool.next, Timeout: 10 * time.Second})
-	}
+	// What the child of an earlier run did not send. Sent before this run's
+	// own first export (ForceFlush waits for it): the spooled points are
+	// re-stamped to now, and a series cannot take a point older than the one
+	// it already has.
+	spoolSent := make(chan struct{})
+	go func() {
+		defer close(spoolSent)
+		if dir != "" {
+			ctx, cancel := context.WithTimeout(context.Background(), spoolSendTimeout)
+			defer cancel()
+			sendSpoolLocked(ctx, dir, endpoint, &http.Client{Transport: spool.next, Timeout: 10 * time.Second})
+		}
+	}()
 
 	opts := []otlpmetrichttp.Option{
 		otlpmetrichttp.WithTemporalitySelector(temporalityFor),
@@ -315,6 +332,7 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	tel := &otelTelemetry{
 		provider:           provider,
 		spool:              spool,
+		spoolSent:          spoolSent,
 		localGateTotal:     localGateTotal,
 		commandDurationMS:  commandDurationMS,
 		commandErrorTotal:  commandErrorTotal,
@@ -658,9 +676,25 @@ func (t *otelTelemetry) Shutdown(ctx context.Context) error {
 	return t.provider.Shutdown(ctx)
 }
 
+// Spooled reports whether Shutdown left an export in the spool to send.
+func (t *otelTelemetry) Spooled() bool {
+	return t.spool != nil && t.spool.wrote.Load()
+}
+
 // ForceFlush exports what is recorded so far. A launch calls it as the
 // session starts, so the export when it ends has a connection already open.
+// It goes after the spool an earlier run left: the same series re-stamped
+// later than this export would be out of order.
+// ponytail: the periodic export 10 s in does not wait; a spool send that
+// slow is one bounded by spoolSendTimeout, a mutex on the transport if not.
 func (t *otelTelemetry) ForceFlush(ctx context.Context) error {
+	if t.spoolSent != nil {
+		select {
+		case <-t.spoolSent:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 	return t.provider.ForceFlush(ctx)
 }
 

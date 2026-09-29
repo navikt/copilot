@@ -130,7 +130,7 @@ Klassifisering prioriterer:
   - **Inneholder INGEN persondata** (kun hardware/path)
 
 **Usendte metrikker:**
-- Den siste sendingen fra en kommando legges i `~/.nav-pilot/telemetry-spool/`, og neste nav-pilot sender den i bakgrunnen
+- Den siste sendingen fra en kommando legges i `~/.nav-pilot/telemetry-spool/`. Rett etter at kommandoen er ferdig, sender en egen prosess den (se «Ved avslutning» under). Det den ikke rekker, sender neste nav-pilot i bakgrunnen
 - Filene inneholder de samme metrikkene som ellers ville blitt sendt, og ikke noe mer
 - Filer eldre enn sju dager slettes usendt, og det ligger aldri mer enn 50 filer der
 - Slår du av telemetrien, slettes mappa ved neste kjøring, og ingenting i den sendes
@@ -280,10 +280,12 @@ $ nav-pilot list
 
 ### Dashboard-eksempler (Grafana / Prometheus)
 
-> **Viktig — OTel Delta Temporality:** Fra og med v0.x er CLI-en konfigurert med
-> `DeltaTemporality` for tellere. OTel-collectoren konverterer disse til korrekte 
-> kumulative Prometheus-tellere. Bruk standard Prometheus-funksjoner som `increase(<metric>[<range>])` 
-> og `rate()` for grafer. Histogrammer aggregeres med `sum by (le) (increase(<metric>_bucket[<range>]))` før `histogram_quantile`.
+> **Viktig — kumulative tellere:** CLI-en eksporterer alle instrumenter, også tellere,
+> med `CumulativeTemporality` (`temporalityFor` i `internal/telemetry/telemetry.go`).
+> Hver eksport fra en prosess har alt prosessen har målt så langt, og en lang økt eksporterer
+> hvert 10. sekund. Bruk `increase(<metric>[<range>])` og `rate()` for grafer. `sum_over_time`
+> over `_count` teller den samme målingen én gang per eksport, og noen av eksemplene under
+> gjør det fortsatt (#1246). Histogrammer aggregeres med `sum by (le) (increase(<metric>_bucket[<range>]))` før `histogram_quantile`.
 
 **Daglige installs per scope:**
 ```promql
@@ -487,7 +489,9 @@ Planlagt: Q4 2026. Da blir telemetri gjort obligatorisk (eller stilt av). Pilot-
 - **Eksport**: OpenTelemetry (OTLP/HTTP) til NAV sin Prometheus/Grafana-stack
 - **Sendefrekvens**: Hver 10. sekund (batch)
 - **Timeout**: 2 sekunder per batch
-- **Ved avslutning**: nav-pilot venter ikke på nettet. Den siste eksporten skrives til `~/.nav-pilot/telemetry-spool/`, og neste nav-pilot sender den i bakgrunnen uten at noen kommando venter på det. Rekker den det ikke før kommandoen er ferdig, blir fila liggende til neste gang. `--version` og `--help` sender ingenting.
+- **Ved avslutning**: nav-pilot venter ikke på nettet. Den siste eksporten skrives til `~/.nav-pilot/telemetry-spool/`, og nav-pilot starter `nav-pilot __telemetry-send` i en egen sesjon før den avslutter. Denne prosessen sender fila og sletter den, og avslutter så. Den lever i høyst 15 sekunder, og du kan se den i `ps` så lenge. Den har ingen terminal og skriver ingenting. Feiler sendingen, for eksempel bak en brannmur, blir fila liggende, og neste nav-pilot sender den i bakgrunnen. En låsefil (`.send.lock`) hindrer at to prosesser sender de samme filene samtidig. `--version` og `--help` sender ingenting.
+- **Ingen egen prosess**: inne i cplt-sandkassen (cplt reagerer på prosesser som forlater økten med `setsid`) og når telemetrien er slått av. Da venter fila på neste nav-pilot.
+- **Tidsstempel**: En fil som sendes senere, får tidsstempelet til sendetidspunktet. Mimir avviser målinger som er eldre enn vinduet for målinger i feil rekkefølge (30–60 minutter), så en fil fra kvelden før ville ellers gått tapt. Starttidspunktet beholdes.
 - **Språk**: Go 1.21+
 - **Avhengigheter**: `go.opentelemetry.io/otel/*` (se `go.mod`)
 
