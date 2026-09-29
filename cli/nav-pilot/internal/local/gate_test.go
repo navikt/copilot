@@ -634,8 +634,8 @@ func TestGateRefusesTempOutsideTheProject(t *testing.T) {
 }
 
 // TestGateRefusesOtherPathsOutsideTheProject: #1273. /var/tmp and $TMPDIR are
-// temp dirs like /tmp; home is refused for a write, not for a read the build
-// needs.
+// temp dirs like /tmp; home is refused for the commands opencode checks, not
+// for a read the build needs.
 func TestGateRefusesOtherPathsOutsideTheProject(t *testing.T) {
 	g := testGate(t, true, GateRules{Create: true})
 	t.Setenv("HOME", "/home/np-uat")
@@ -657,7 +657,9 @@ func TestGateRefusesOtherPathsOutsideTheProject(t *testing.T) {
 		{bash(1, "./gradlew test >~/out.txt"), true},
 		{bash(1, "cd ~ && ls"), true},
 		{GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "write", Path: "/home/np-uat/Draft.kt", Create: true}, true},
-		{bash(1, "cat ~/.gradle/gradle.properties"), false},
+		{bash(1, "cat ~/.gradle/gradle.properties"), true},
+		{bash(1, "rm ~/F1.bak"), true},
+		{bash(1, "grep org.gradle ~/.gradle/gradle.properties"), false},
 		{bash(1, "JAVA_HOME=~/.sdkman/candidates/java/21 ./gradlew test"), false},
 		{bash(1, "ls /home/np-uat/.m2/repository"), false},
 		{bash(1, "cp ~user/F1.kt src/"), false},

@@ -390,11 +390,12 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 }
 
 // outsideTemp: an edit, a write or a shell command names a path in a temp
-// directory (/tmp, /var/tmp, $TMPDIR) that is not under the project, or writes
-// to one in the home directory: `cp`, `mv`, `mkdir`, `touch`, `tee`, `ln`,
-// `rsync`, `install`, `cd` or a redirect. opencode asks external_directory for
-// both, and a headless session ends there (#1237, #1273). Home is refused only
-// for writes: a build reads the JDK, Gradle and Maven caches from there.
+// directory (/tmp, /var/tmp, $TMPDIR) that is not under the project, or one in
+// the home directory as the target of a redirect or an argument of a command
+// opencode checks (cd, rm, cp, mv, mkdir, touch, chmod, chown, cat, and a few
+// more that write). opencode asks external_directory for those, and a headless
+// session ends there (#1237, #1273). Other commands may read from home: a build
+// reads the JDK and the Gradle and Maven caches there.
 // ponytail: a path built at run time (mktemp, a variable other than $HOME or
 // $TMPDIR) is not seen; add those if a probe shows them.
 func (g *dispatchGate) outsideTemp(r GateRequest) bool {
@@ -441,11 +442,14 @@ func (g *dispatchGate) outsideTemp(r GateRequest) bool {
 	return false
 }
 
-// homeWriters are the commands whose path arguments count as a write for
-// [dispatchGate.outsideTemp]. cd is here because what follows it writes there.
+// homeWriters are the commands whose path arguments count for home in
+// [dispatchGate.outsideTemp]: those opencode asks external_directory for
+// (ShellTool in opencode 1.18), plus tee, ln, rsync and install, which write.
 var homeWriters = map[string]bool{
-	"cp": true, "mv": true, "mkdir": true, "touch": true, "tee": true,
-	"ln": true, "rsync": true, "install": true, "cd": true,
+	"cd": true, "chdir": true, "pushd": true, "popd": true,
+	"rm": true, "cp": true, "mv": true, "mkdir": true, "touch": true,
+	"chmod": true, "chown": true, "cat": true,
+	"tee": true, "ln": true, "rsync": true, "install": true,
 }
 
 // expandShellPath expands what the shell would for a literal ~, $HOME or
