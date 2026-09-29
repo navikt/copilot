@@ -78,8 +78,9 @@ level: answers are not linked to a person across waves (see
   `questions` are frozen; CI (`check-frozen-surveys.sh`) refuses a change.
   A version bump does not help mid-wave: an answer is stored with the
   server's versions, not the ones the respondent saw, and nav-pilot caches
-  definitions for up to a day. A change waits for the next wave. `title`,
-  `intro`, `nudge`, `series`, `active`, `starts` and `ends` may still change.
+  definitions for up to a day. A change waits for the next wave. Every other
+  field (`title`, `intro`, `nudge`, `series`, `min_cli_version`, `active`,
+  `starts`, `ends`) may still change.
 - A question that is dropped is simply absent; its `id` is never reused for
   something else.
 - `construct` names what a question measures (for analysis) and `reverse`

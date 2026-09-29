@@ -4,7 +4,8 @@
 # store the server's question versions, not what the respondent saw, and
 # nav-pilot caches definitions for up to a day, so a question cannot change
 # mid-wave, bumped version or not. Change it in a new wave (a new id).
-# The title, intro, nudge, series, active, starts and ends may still change.
+# Every other field (title, intro, nudge, series, min_cli_version, active,
+# starts, ends) may still change.
 #
 # Usage: check-frozen-surveys.sh <base commit>
 set -euo pipefail
