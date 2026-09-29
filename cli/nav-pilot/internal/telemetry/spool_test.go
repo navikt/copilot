@@ -272,9 +272,17 @@ func TestShutdownGivesClaimBack(t *testing.T) {
 	if _, ok := r.(*otelTelemetry); !ok {
 		t.Fatalf("telemetry off in test: %T", r)
 	}
-	<-arrived
+	// Bounded: a hang here lasts until go test's timeout kills the binary,
+	// and a killed binary leaves its t.TempDir in $TMPDIR.
+	select {
+	case <-arrived:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the earlier spool was never sent")
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
 	start := time.Now()
-	r.Shutdown(t.Context())
+	r.Shutdown(ctx)
 	if took := time.Since(start); took > time.Second {
 		t.Errorf("Shutdown took %s", took)
 	}

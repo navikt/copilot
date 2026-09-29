@@ -30,6 +30,7 @@ import (
 
 var (
 	buildOnce sync.Once
+	binDir    string // removed by TestMain once the run is over
 	binPath   string
 	buildOut  string
 	buildErr  error
@@ -44,6 +45,7 @@ func binary(t *testing.T) string {
 			buildErr = err
 			return
 		}
+		binDir = dir
 		binPath = filepath.Join(dir, "nav-pilot")
 		// The e2e seams let fake-gh stand in for GitHub (see fakegh_test.go).
 		// A release build leaves them off, so its binary never reads them.
