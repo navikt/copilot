@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -44,5 +45,29 @@ func TestReportCopilotCLI(t *testing.T) {
 				t.Errorf("ok = %v (want %v)\n%s", ok, c.ok, out)
 			}
 		})
+	}
+}
+
+// A repo without .cplt.toml gets pointed at `cplt init`, which only previews.
+// One with the file does not.
+func TestReportCpltProjectConfigSuggestsInit(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	out := captureStdout(func() {
+		if reportCpltProjectConfig("", nil) {
+			t.Error("a repo without .cplt.toml is not a problem")
+		}
+	})
+	if !strings.Contains(out, "cplt init") {
+		t.Errorf("no .cplt.toml, but no cplt init hint:\n%s", out)
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, ".cplt.toml"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out = captureStdout(func() { reportCpltProjectConfig("", nil) })
+	if strings.Contains(out, "cplt init") {
+		t.Errorf(".cplt.toml exists, but still suggests cplt init:\n%s", out)
 	}
 }

@@ -388,23 +388,8 @@ func cmdDoctor() error {
 		// Its own deadline: an earlier slow check must not be able to starve
 		// this one into an empty read, which would print a false "trusted".
 		cfgOut, cfgErr := runBoundedCombined(cpltPath, "config", "show")
-		switch {
-		case strings.Contains(string(cfgOut), "pending"):
+		if reportCpltProjectConfig(string(cfgOut), cfgErr) {
 			hasErrors = true
-			fmt.Printf("    %s Pending permissions detected!\n", red("[✗]"))
-			fmt.Printf("        %s Run %s in this directory to approve new sandbox rules.\n", red("Solution:"), bold("cplt trust"))
-		case cfgErr != nil:
-			// Unreadable config is unknown, not trusted: never print a green
-			// tick for rules we failed to look at.
-			hasErrors = true
-			fmt.Printf("    %s Could not read cplt config (%v)\n", yellow("⚠"), cfgErr)
-			fmt.Printf("        %s Run %s in this directory to check for pending sandbox rules.\n", yellow("Solution:"), bold("cplt trust"))
-		default:
-			if _, err := os.Stat(".cplt.toml"); err == nil {
-				fmt.Printf("    %s .cplt.toml rules are trusted\n", green("✓"))
-			} else {
-				fmt.Printf("    • No .cplt.toml found in current directory\n")
-			}
 		}
 
 		// Enforcement, probed rather than inferred. Everything above this line
@@ -523,4 +508,30 @@ func reportCpltVersion(cpltPath, version string) {
 			fmt.Printf("          %s Run %s\n", yellow("Solution:"), upgrade)
 		}
 	}
+}
+
+// reportCpltProjectConfig is doctor's .cplt.toml line, from the output of
+// `cplt config show` run in the current directory. Reports whether it found a
+// problem.
+func reportCpltProjectConfig(cfgOut string, cfgErr error) bool {
+	switch {
+	case strings.Contains(cfgOut, "pending"):
+		fmt.Printf("    %s Pending permissions detected!\n", red("[✗]"))
+		fmt.Printf("        %s Run %s in this directory to approve new sandbox rules.\n", red("Solution:"), bold("cplt trust"))
+		return true
+	case cfgErr != nil:
+		// Unreadable config is unknown, not trusted: never print a green
+		// tick for rules we failed to look at.
+		fmt.Printf("    %s Could not read cplt config (%v)\n", yellow("⚠"), cfgErr)
+		fmt.Printf("        %s Run %s in this directory to check for pending sandbox rules.\n", yellow("Solution:"), bold("cplt trust"))
+		return true
+	}
+	if _, err := os.Stat(".cplt.toml"); err == nil {
+		fmt.Printf("    %s .cplt.toml rules are trusted\n", green("✓"))
+	} else {
+		fmt.Printf("    • No .cplt.toml found in current directory\n")
+		// cplt init only prints a preview; --write is the user's call.
+		fmt.Printf("        %s Run %s to preview the rules cplt suggests for this repo's tooling.\n", dim("Tip:"), bold("cplt init"))
+	}
+	return false
 }
