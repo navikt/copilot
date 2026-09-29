@@ -13,9 +13,20 @@ import {
   Radio,
   RadioGroup,
   Textarea,
+  TextField,
   VStack,
 } from "@navikt/ds-react";
-import { isSkipped, scaleSteps, type Answers, type Survey, type SubmitResult, type SurveyQuestion } from "@/lib/survey";
+import {
+  choseOther,
+  isSkipped,
+  optionsOf,
+  otherKey,
+  scaleSteps,
+  type Answers,
+  type Survey,
+  type SubmitResult,
+  type SurveyQuestion,
+} from "@/lib/survey";
 import { sendSurvey } from "./actions";
 
 function missing(q: SurveyQuestion, answers: Answers): string | undefined {
@@ -25,6 +36,10 @@ function missing(q: SurveyQuestion, answers: Answers): string | undefined {
   }
   if (q.type === "text" && typeof a === "string" && q.max_length && [...a.trim()].length > q.max_length) {
     return `Skriv høyst ${q.max_length} tegn.`;
+  }
+  const other = answers[otherKey(q)];
+  if (choseOther(q, answers) && typeof other === "string" && q.max_length && [...other.trim()].length > q.max_length) {
+    return `Skriv høyst ${q.max_length} tegn om «${q.other}».`;
   }
   const empty = a === undefined || (typeof a === "string" && a.trim() === "") || (Array.isArray(a) && a.length === 0);
   if (q.required && empty) return "Svar på dette spørsmålet.";
@@ -67,6 +82,10 @@ export function SurveyForm({ survey }: { survey: Survey }) {
     const toSend: Answers = {};
     for (const q of visible) {
       const a = answers[q.id];
+      const other = answers[otherKey(q)];
+      if (choseOther(q, answers) && typeof other === "string" && other.trim() !== "") {
+        toSend[otherKey(q)] = other.trim();
+      }
       if (typeof a === "string" && a.trim() === "") continue;
       if (a !== undefined) toSend[q.id] = typeof a === "string" ? a.trim() : a;
     }
@@ -121,7 +140,18 @@ export function SurveyForm({ survey }: { survey: Survey }) {
         )}
 
         {visible.map((q) => (
-          <Question key={q.id} q={q} value={answers[q.id]} error={errors[q.id]} onChange={(v) => set(q.id, v)} />
+          <VStack key={q.id} gap="space-8">
+            <Question q={q} value={answers[q.id]} error={errors[q.id]} onChange={(v) => set(q.id, v)} />
+            {choseOther(q, answers) && (
+              <TextField
+                label={`${q.other}: skriv gjerne hva (valgfritt)`}
+                description="Ikke skriv noe som kan identifisere deg eller andre."
+                maxLength={q.max_length}
+                value={String(answers[otherKey(q)] ?? "")}
+                onChange={(e) => set(otherKey(q), e.target.value)}
+              />
+            )}
+          </VStack>
         ))}
 
         {result?.status === "invalid" && (
@@ -197,7 +227,7 @@ function Question({
           value={typeof value === "string" ? value : ""}
           onChange={(v: string) => onChange(v)}
         >
-          {(q.options ?? []).map((o) => (
+          {optionsOf(q).map((o) => (
             <Radio key={o} value={o}>
               {o}
             </Radio>
@@ -221,7 +251,7 @@ function Question({
           value={Array.isArray(value) ? value : []}
           onChange={(v: string[]) => onChange(v.length > 0 ? v : undefined)}
         >
-          {(q.options ?? []).map((o) => (
+          {optionsOf(q).map((o) => (
             <Checkbox key={o} value={o}>
               {o}
             </Checkbox>

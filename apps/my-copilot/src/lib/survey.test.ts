@@ -1,7 +1,16 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getActiveSurveys, isSkipped, scaleSteps, submitAnswers, type Survey, type SurveyQuestion } from "./survey";
+import {
+  choseOther,
+  getActiveSurveys,
+  isSkipped,
+  optionsOf,
+  scaleSteps,
+  submitAnswers,
+  type Survey,
+  type SurveyQuestion,
+} from "./survey";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -15,6 +24,17 @@ describe("isSkipped", () => {
     expect(isSkipped(q, { tools: ["a", "none"] })).toBe(true);
     expect(isSkipped(q, { tools: ["a"] })).toBe(false);
     expect(isSkipped({ ...q, skip_if: undefined }, { tools: "none" })).toBe(false);
+  });
+});
+
+describe("other", () => {
+  const q: SurveyQuestion = { id: "tools", type: "multi", text: "?", options: ["a", "b"], other: "Annet" };
+  it("comes after the options, and is chosen like one", () => {
+    expect(optionsOf(q)).toEqual(["a", "b", "Annet"]);
+    expect(optionsOf({ ...q, other: undefined })).toEqual(["a", "b"]);
+    expect(choseOther(q, { tools: ["a", "Annet"] })).toBe(true);
+    expect(choseOther(q, { tools: ["a"] })).toBe(false);
+    expect(choseOther({ ...q, type: "choice" }, { tools: "Annet" })).toBe(true);
   });
 });
 
@@ -89,6 +109,7 @@ describe("types follow copilot-survey's schema.json", () => {
     labels: [],
     options: [],
     max_choices: 0,
+    other: "",
     max_length: 0,
     skip_if: { question: "", answer: "" },
   } satisfies Required<SurveyQuestion>;

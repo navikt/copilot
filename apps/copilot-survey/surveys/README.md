@@ -21,6 +21,8 @@ fit the format below; unknown fields are refused too.
      "text": "…", "min": 1, "max": 5,
      "labels": ["Helt uenig", "Uenig", "Nøytral", "Enig", "Helt enig"], "required": true},
     {"id": "erfaring", "version": 1, "type": "choice", "text": "…", "options": ["0–2", "3–5"]},
+    {"id": "verktoy", "version": 1, "type": "multi", "text": "…", "options": ["Copilot", "Cursor"],
+     "other": "Annet", "max_length": 100},
     {"id": "verdi", "version": 1, "type": "multi", "text": "…", "options": ["A", "B", "C"], "max_choices": 3,
      "skip_if": {"question": "verktoy", "answer": "Jeg bruker ikke AI-kodeverktøy"}},
     {"id": "opplevelse", "version": 1, "type": "text", "text": "…", "max_length": 1000}
@@ -48,7 +50,8 @@ nav-pilot's and the web's types name the same fields.
 - To answer, `POST /api/v1/surveys/{id}/responses` with
   `{"answers": {question id: value}, "context": {...}}`: a number for `scale`,
   the option text for `choice`, a list of option texts for `multi`, a string
-  for `text`. Leave out a question that is skipped or not answered. The
+  for `text`. An `other` label counts as an option; its text goes under
+  `"<id>.other"`, and only when the answer includes the label. Leave out a question that is skipped or not answered. The
   caller must be copilot-cli or my-copilot (see [the README](../README.md#callers)).
 
 ## Comparing waves
@@ -113,11 +116,27 @@ warns at start while the key is still in the secret.
   given, names every step. Stored as the number.
 - `choice`: one option. `multi`: one or more, at most `max_choices` if set.
   At least two options, no duplicates. Stored as the option text.
+- `other` (`choice`, `multi`): the label of one more option, shown last, that
+  takes a short free text, such as «Annet: ___». Choosing it stores the label,
+  like any option; the text is optional, sent and stored as `<id>.other`, at
+  most `max_length` characters (1 to 200). It is free text like a `text`
+  answer and treated the same way (see [free text](#free-text)). Not one of
+  `options`, and not a `skip_if` answer.
 - `text`: `max_length` from 1 to 2000 characters. At most one per survey:
-  it is the one answer that can name its author.
+  it is the answer most likely to name its author.
 - `skip_if`: skip this (optional) question when an earlier `choice` answer is,
   or `multi` answer includes, `answer`.
 - `required`: must be answered unless skipped.
+
+## Free text
+
+`text` answers and `other` texts are the answers that can name their author
+(«as the only Rust developer on team X»). Both are trimmed, checked as text
+and capped by `max_length`; nav-pilot and the web ask people not to write
+anything that identifies anyone; and both go through a redaction pass before
+analysis and are never quoted next to their segment values. A survey keeps to
+one `text` question; `other` texts are capped at 200 characters instead,
+since they say what the listed options missed, not how someone feels.
 
 ## End-to-end test in dev
 

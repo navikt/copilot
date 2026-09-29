@@ -17,6 +17,8 @@ export type SurveyQuestion = {
   labels?: string[];
   options?: string[];
   max_choices?: number;
+  /** One more option, after options, that takes a short free text sent as `<id>.other` (otherKey). */
+  other?: string;
   max_length?: number;
   skip_if?: { question: string; answer: string };
 };
@@ -67,6 +69,18 @@ export function scaleSteps(q: SurveyQuestion): number[] {
   const steps: number[] = [];
   for (let n = q.min ?? 0; n <= (q.max ?? 5); n++) steps.push(n);
   return steps;
+}
+
+/** Where the free text of q's other option is sent. */
+export const otherKey = (q: SurveyQuestion) => `${q.id}.other`;
+
+/** The options of a choice or multi question, then its other option. */
+export const optionsOf = (q: SurveyQuestion) => [...(q.options ?? []), ...(q.other ? [q.other] : [])];
+
+/** Whether q is answered with its other option. */
+export function choseOther(q: SurveyQuestion, answers: Answers): boolean {
+  const a = answers[q.id];
+  return !!q.other && (Array.isArray(a) ? a.includes(q.other) : a === q.other);
 }
 
 /** Whether question q is skipped by an earlier answer (skip_if). */
