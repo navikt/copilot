@@ -34,6 +34,8 @@ var (
 	recordMCPHosts     = providerpkg.RecordMCPHosts
 	classifyMCPHosts   = providerpkg.ClassifyMCPHosts
 	reclassifyMCPHosts = providerpkg.ReclassifyMCPHostsInBackground
+	// cpltProtectsNavPilotState probes cplt, only when there is a question.
+	cpltProtectsNavPilotState = providerpkg.CpltProtectsNavPilotState
 )
 
 // mcpHostEffect is the line that says what allowing a host does to the
@@ -109,6 +111,18 @@ func askMCPHosts(st providerpkg.MCPHostState) {
 			for _, s := range servers {
 				fmt.Fprintf(os.Stderr, "%s MCP server %s needs %s in the sandbox; only an interactive launch can allow it.\n",
 					dim("ℹ"), safe(s, 64), strings.Join(mcpHostNames(by[s]), ", "))
+			}
+		}
+		return
+	}
+	if !cpltProtectsNavPilotState() {
+		// An answer recorded now would never be applied, and asking again
+		// at every launch is worse than saying why once per run.
+		if !notedMCPHosts {
+			notedMCPHosts = true
+			for _, s := range servers {
+				fmt.Fprintf(os.Stderr, "%s MCP server %s needs hosts in the sandbox; nav-pilot asks once cplt is new enough to deny writes to ~/.nav-pilot/. Upgrade cplt.\n",
+					dim("ℹ"), safe(s, 64))
 			}
 		}
 		return

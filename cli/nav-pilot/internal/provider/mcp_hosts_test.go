@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // testRegistry is Nav's registry in miniature: a public remote, a private one
@@ -431,5 +432,32 @@ func TestMCPHostTimeoutIsReclassifiedLater(t *testing.T) {
 	rec, _ = readMCPRecord()
 	if !rec.Approved || !slices.Equal(rec.Hosts, []string{"mcp-onboarding.intern.nav.no"}) {
 		t.Errorf("after the retry: approved=%v waiver=%v, want the host private and still approved", rec.Approved, rec.Hosts)
+	}
+}
+
+// An approval recorded under a cplt that did not protect it is never applied,
+// so it is no answer: the launch asks again instead of settling on it.
+func TestUntrustworthyMCPApprovalAsksAgain(t *testing.T) {
+	mcpEnv(t, `{"mcpServers": {"com.figma/figma-mcp": {}}}`, testRegistry(), nil)
+	stubCpltVersion(t, func() (string, error) { return cpltBeforeStateDeny, nil })
+	approvedMCP(t, []MCPHost{{Host: "mcp.figma.com"}})
+	protectingCplt(t) // upgraded since
+	st, err := ReadMCPHostState()
+	if err != nil || st.Pending == nil || st.Grant != nil {
+		t.Errorf("old-cplt approval: pending=%v grant=%v err=%v, want the question again", st.Pending, st.Grant, err)
+	}
+}
+
+// Uninstalling the user scope's pakke removes its answers, not the MCP one.
+func TestUninstallKeepsTheMCPAnswer(t *testing.T) {
+	mcpEnv(t, "", mcpRegistry{}, nil)
+	protectingCplt(t)
+	approvedMCP(t, []MCPHost{{Host: "mcp.figma.com"}})
+	user, _ := domain.ScopeUser()
+	if _, err := artifacts.RemoveProposalConsentsIn(user); err != nil {
+		t.Fatal(err)
+	}
+	if rec, err := readMCPRecord(); err != nil || rec == nil {
+		t.Errorf("MCP answer after uninstall: %v %v", rec, err)
 	}
 }

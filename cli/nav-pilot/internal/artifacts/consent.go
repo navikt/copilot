@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"syscall"
 	"time"
 
@@ -256,7 +257,8 @@ func WriteProposalConsent(rec ProposalConsent) error {
 // file, so a failed state write leaves a record the next `uninstall` sees no
 // state for and would never clean up (#861 review). Uninstalling a scope means
 // nothing installed there keeps a waiver, whatever the state file survived to
-// say.
+// say. A source that is not a pakke (its name has a colon, mcp:registry) is
+// no install's and stays.
 func RemoveProposalConsentsIn(scope *domain.InstallScope) (int, error) {
 	if scope == nil {
 		return 0, nil
@@ -265,7 +267,7 @@ func RemoveProposalConsentsIn(scope *domain.InstallScope) (int, error) {
 	err := withConsent(func(records []ProposalConsent) ([]ProposalConsent, error) {
 		out := records[:0:0]
 		for _, existing := range records {
-			if existing.Scope == scope.Name && existing.Root == scope.RootDir {
+			if existing.Scope == scope.Name && existing.Root == scope.RootDir && !strings.Contains(existing.Pakke, ":") {
 				removed++
 				continue
 			}

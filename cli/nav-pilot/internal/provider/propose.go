@@ -195,6 +195,12 @@ func untrustworthyRecord(record *artifacts.ProposalConsent) string {
 	if !cpltProtectsNavPilotState() {
 		return "this cplt does not deny writes to nav-pilot's state directory, so the approval cannot be trusted"
 	}
+	return recordedUntrustworthy(record)
+}
+
+// recordedUntrustworthy is gates 2 and 3 of [untrustworthyRecord]: what the
+// record says about itself, no cplt probe.
+func recordedUntrustworthy(record *artifacts.ProposalConsent) string {
 	if record.CpltStamp < minCpltStampProtectingNavPilotState {
 		return fmt.Sprintf(
 			"it was recorded under cplt %s, before %s denied writes to nav-pilot's state directory. Run the install or sync again to answer once more",

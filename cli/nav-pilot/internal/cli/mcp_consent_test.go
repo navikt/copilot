@@ -20,9 +20,10 @@ func mcpConsentEnv(t *testing.T, st providerpkg.MCPHostState, interactive bool) 
 	prevRead, prevRec, prevClass, prevNoted, prevRefresh := readMCPHostState, recordMCPHosts, classifyMCPHosts, notedMCPHosts, refreshMCPRegistry
 	readMCPHostState = func() (providerpkg.MCPHostState, error) { return st, nil }
 	refreshMCPRegistry = func() error { return nil }
-	prevReclassify := reclassifyMCPHosts
+	prevReclassify, prevProtects := reclassifyMCPHosts, cpltProtectsNavPilotState
 	reclassifyMCPHosts = func() {}
-	t.Cleanup(func() { reclassifyMCPHosts = prevReclassify })
+	cpltProtectsNavPilotState = func() bool { return true }
+	t.Cleanup(func() { reclassifyMCPHosts, cpltProtectsNavPilotState = prevReclassify, prevProtects })
 	classifyMCPHosts = func(h []providerpkg.MCPHost) []providerpkg.MCPHost { return h }
 	var answers []bool
 	recordMCPHosts = func(_ []providerpkg.MCPHost, approve bool) error {
@@ -115,6 +116,27 @@ func TestSyncMCPAllowlist(t *testing.T) {
 	if !strings.HasPrefix(string(after), string(before)) || !strings.HasSuffix(string(after), mcpAllowlistMarker+"\nmcp.figma.com\n") {
 		t.Errorf("want the old file untouched plus an MCP section:\n%s", after)
 	}
+
+	// A later change rewrites the section only: the bytes above it stay as
+	// they were, and no cplt is asked for its hosts.
+	edited := string(before) + "custom.example\n"
+	if err := os.WriteFile(path, []byte(edited+mcpAllowlistMarker+"\nmcp.figma.com\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	prevHosts := cpltBuiltinDomains
+	cpltBuiltinDomains = func() ([]string, bool) { t.Error("cplt asked for its hosts"); return nil, false }
+	t.Cleanup(func() { cpltBuiltinDomains = prevHosts })
+	mcpAllowlistHosts = func() []string { return []string{"custom.example", "mcp.example.org"} }
+	syncMCPAllowlist()
+	after, _ = os.ReadFile(path)
+	if want := edited + mcpAllowlistMarker + "\nmcp.example.org\n"; string(after) != want {
+		t.Errorf("after an MCP change:\n%s\nwant:\n%s", after, want)
+	}
+	mcpAllowlistHosts = func() []string { return nil }
+	syncMCPAllowlist()
+	if after, _ = os.ReadFile(path); string(after) != edited {
+		t.Errorf("after the MCP hosts went away:\n%s\nwant:\n%s", after, edited)
+	}
 }
 
 // Enter declines: a prompt that is not moved off its default records a No.
@@ -171,5 +193,19 @@ func TestMCPHostsOff(t *testing.T) {
 	reportMCPHosts(&out, "")
 	if strings.Count(out.String(), "\n") != 1 || !strings.Contains(out.String(), "mcp_hosts = off") {
 		t.Errorf("doctor under off:\n%s", out.String())
+	}
+}
+
+// Under a cplt that cannot protect the answer nothing is asked or recorded,
+// and the launch says why once.
+func TestMCPConsentWaitsForAProtectingCplt(t *testing.T) {
+	answers := mcpConsentEnv(t, pendingState(), true)
+	cpltProtectsNavPilotState = func() bool { return false }
+	stderr := captureStderr(func() { noteMCPHostConsent("copilot"); noteMCPHostConsent("copilot") })
+	if len(*answers) != 0 {
+		t.Errorf("recorded %v under a cplt that cannot protect it", *answers)
+	}
+	if n := strings.Count(stderr, "Upgrade cplt"); n != 2 { // one line per server, once per run
+		t.Errorf("stderr:\n%s", stderr)
 	}
 }

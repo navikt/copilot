@@ -461,6 +461,12 @@ func ReadMCPHostState() (MCPHostState, error) {
 	if err != nil {
 		return MCPHostState{Current: cur, FetchErr: fetchErr}, err
 	}
+	// An approval the launch will never apply (recorded under an old cplt,
+	// or outside the directory cplt denies) is no answer: ask again rather
+	// than keep saying yes to nothing.
+	if rec != nil && rec.Approved && recordedUntrustworthy(rec) != "" {
+		rec = nil
+	}
 	return mcpHostState(cur, fetchErr, rec), nil
 }
 
@@ -513,6 +519,10 @@ func privateMCPHosts(hosts []MCPHost) []string {
 // servers: every granted host, private ones included, because under an
 // allowlist cplt checks the list before it checks the address. Nil when
 // nothing is approved or the record cannot be trusted.
+//
+// No cplt probe: the allowlist file sits in the same state directory as the
+// record, so under a cplt that does not deny that directory the file is the
+// session's to write anyway, and the probe would protect nothing.
 func MCPAllowlistHosts() []string {
 	grant := mcpGrant(false, false)
 	return mcpHostNames(grant)
@@ -550,11 +560,10 @@ func mcpGrantServers(grant []MCPHost, hosts []string) []string {
 	return out
 }
 
-// mcpGrant is what a launch may apply. Never the network, and no cplt probe
-// for a user with no approved record, which is almost everyone, nor with
-// privateOnly for a record that waives no private host: a grant that would
-// change nothing needs no trust check.
-func mcpGrant(say, privateOnly bool) []MCPHost {
+// mcpGrant is what a launch may apply. Never the network. flags is the
+// launch flags, the one use that probes cplt, and only for a record that
+// waives a private host: a grant that changes no flag needs no probe.
+func mcpGrant(say, flags bool) []MCPHost {
 	if MCPHostsOff {
 		return nil
 	}
@@ -565,10 +574,14 @@ func mcpGrant(say, privateOnly bool) []MCPHost {
 		}
 		return nil
 	}
-	if rec == nil || !rec.Approved || (privateOnly && len(rec.Hosts) == 0) {
+	if rec == nil || !rec.Approved || (flags && len(rec.Hosts) == 0) {
 		return nil
 	}
-	if reason := untrustworthyRecord(rec); reason != "" {
+	reason := recordedUntrustworthy(rec)
+	if flags {
+		reason = untrustworthyRecord(rec)
+	}
+	if reason != "" {
 		if say {
 			fmt.Fprintf(os.Stderr, "%s MCP servers: the approved registry hosts are not applied: %s.\n", domain.Yellow("⚠"), reason)
 		}
