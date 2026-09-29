@@ -28,6 +28,9 @@ func reportLocalModel(w io.Writer, r ResolvedConfig, managed bool) {
 	case managed:
 		fmt.Fprintf(w, "    • Managed MLX server (local dispatch %s)\n", state)
 		fmt.Fprintf(w, "      Status: %s\n", bold("nav-pilot alpha local status"))
+	case r.LocalEnabled:
+		// On, but the MLX environment is gone or pinned to older versions.
+		fmt.Fprintf(w, "    • Local dispatch is on, but the MLX environment is missing or out of date. Set it up again: %s\n", bold("nav-pilot alpha local init"))
 	default:
 		fmt.Fprintf(w, "    • Not configured (optional, alpha). Set up: %s\n", bold("nav-pilot alpha local setup"))
 		fmt.Fprintf(w, "      %s %s.\n", dim("Note:"), contextWhy)
