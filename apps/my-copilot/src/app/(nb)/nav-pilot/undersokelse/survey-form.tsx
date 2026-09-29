@@ -322,7 +322,8 @@ function Matrix({
                   key={n}
                   id={`${q.id}-step-${n}`}
                   scope="col"
-                  className="px-2 pb-2 text-center align-bottom font-normal"
+                  className="text-center align-bottom font-normal"
+                  style={{ padding: "0 var(--ax-space-8) var(--ax-space-8)" }}
                 >
                   {q.labels?.[i] ?? String(n)}
                 </th>
@@ -332,11 +333,16 @@ function Matrix({
           <tbody>
             {(q.items ?? []).map((it) => (
               <tr key={it.id} className="border-t border-[var(--ax-border-neutral-subtle)]">
-                <th id={`${q.id}-item-${it.id}`} scope="row" className="py-3 pr-4 text-left font-normal">
+                <th
+                  id={`${q.id}-item-${it.id}`}
+                  scope="row"
+                  className="text-left font-normal"
+                  style={{ padding: "var(--ax-space-12) var(--ax-space-16) var(--ax-space-12) 0" }}
+                >
                   {it.text}
                 </th>
                 {steps.map((n) => (
-                  <td key={n} className="px-2 text-center">
+                  <td key={n} className="text-center" style={{ padding: "0 var(--ax-space-8)" }}>
                     <input
                       type="radio"
                       className="size-5 cursor-pointer"
