@@ -414,7 +414,8 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 
 	// Compare each file against source.
 	// Files that are in state but missing on disk are treated as intentionally
-	// deleted — they get marked "ignored" in the state file so future syncs skip them.
+	// deleted: --apply marks them "ignored" in the state file so future syncs
+	// skip them. A check only reports them (#1334).
 	var updates []syncUpdate
 	var deletedPaths []string
 	var keptPaths []string
@@ -520,12 +521,35 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 			sourceLabelFor(src), shortSHA(src.SHA), len(deletedPaths), bold("nav-pilot uninstall"))
 	}
 
-	// Mark missing files as ignored in state
-	if len(ignoredPaths) > 0 {
+	// A check lists missing files and how to restore them. It does not mark
+	// them ignored: it did, --dry-run included, so the file doctor told the
+	// user to restore with sync dropped out of tracking without a word
+	// (#1334). A check leaves the file missing, which keeps doctor pointing
+	// at the install command that restores it.
+	if len(ignoredPaths) > 0 && !apply && !jsonOutput {
+		for _, p := range ignoredPaths {
+			fmt.Printf("  %s %s (missing — --apply stops tracking it)\n", dim("⊘"), p)
+		}
+		if syncState != nil {
+			fmt.Println("  Restore with:")
+			for _, c := range restoreCommands(scope, syncState, ignoredPaths) {
+				fmt.Printf("    %s\n", bold(c))
+			}
+		}
+		fmt.Println()
+	}
+	// --apply marks them ignored: that is where a deletion is confirmed. Only
+	// once nothing can cancel the run, so declining the deletion prompt
+	// leaves state as it was.
+	markMissingIgnored := func() {
+		if len(ignoredPaths) == 0 || !apply {
+			return
+		}
 		if err := markFilesIgnored(scope, ignoredPaths); err != nil {
 			if !jsonOutput {
 				fmt.Fprintf(os.Stderr, "%s Could not update state for deleted files: %v\n", yellow("⚠"), err)
 			}
+			return
 		}
 		if !jsonOutput {
 			for _, p := range ignoredPaths {
@@ -559,7 +583,8 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	// Counts in the summary describe what this source was asked about. A file
 	// from another agentpakke was skipped above without being compared, so
 	// counting it as "up to date" claims a check that never happened.
-	checked := len(files) - len(foreignPaths)
+	// A missing file was not compared either.
+	checked := len(files) - len(foreignPaths) - len(ignoredPaths)
 
 	result := syncResult{
 		UpToDate:           len(updates) == 0 && len(added) == 0 && len(deletedPaths) == 0 && len(syncErrors) == 0 && pinBump == nil && len(retired) == 0,
@@ -626,6 +651,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	}
 
 	if result.UpToDate {
+		markMissingIgnored()
 		fmt.Printf("%s All %d files up to date (source: %s)\n",
 			green("✓"), checked, shortSHA(src.SHA))
 		// Nothing here is a bump the check step could have seen — pendingPinBump
@@ -825,6 +851,8 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	if len(deletedPaths) > 0 {
 		fmt.Printf("%s Removed %d file(s).\n", green("✓"), deleted)
 	}
+
+	markMissingIgnored()
 
 	// Update state with new hashes
 	if err := updateScopedStateHashes(scope, appliedUpdates, src.SHA); err != nil {

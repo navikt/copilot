@@ -1872,11 +1872,7 @@ func reinstallCommand(scope *InstallScope, prior *StateFile) string {
 	case !agentpakke.IsIdentifier(target):
 		target = "<name>"
 	}
-	flag := "--repo"
-	if scope.IsUser() {
-		flag = "--user"
-	}
-	return fmt.Sprintf("nav-pilot install %s --source %s %s", target, prior.SourceRepo, flag)
+	return fmt.Sprintf("nav-pilot install %s --source %s %s", target, prior.SourceRepo, scopeFlag(scope))
 }
 
 // askSwitch puts the switch question to the user. A var so a test can answer

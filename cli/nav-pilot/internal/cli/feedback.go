@@ -78,14 +78,7 @@ func countFileIntegrity(rootDir string, state *StateFile) (ok, modified, missing
 			ignored++
 			continue
 		}
-		path := filepath.Join(rootDir, f.Path)
-		var currentHash string
-		var hashErr error
-		if strings.HasSuffix(f.Path, "/") {
-			currentHash, hashErr = dirHash(path)
-		} else {
-			currentHash, hashErr = fileHash(path)
-		}
+		currentHash, hashErr := installedHash(rootDir, f.Path)
 		if hashErr != nil {
 			missing++
 			continue
@@ -98,6 +91,31 @@ func countFileIntegrity(rootDir string, state *StateFile) (ok, modified, missing
 		}
 	}
 	return
+}
+
+// installedHash is the hash of an installed file or directory as it is on
+// disk now. An error is what countFileIntegrity counts as missing.
+func installedHash(rootDir, relPath string) (string, error) {
+	path := filepath.Join(rootDir, relPath)
+	if strings.HasSuffix(relPath, "/") {
+		return dirHash(path)
+	}
+	return fileHash(path)
+}
+
+// missingPaths are the files countFileIntegrity counts as missing, so a list
+// of them always matches its count.
+func missingPaths(rootDir string, state *StateFile) []string {
+	var out []string
+	for _, f := range state.Files {
+		if f.Status == fileStatusIgnored {
+			continue
+		}
+		if _, err := installedHash(rootDir, f.Path); err != nil {
+			out = append(out, f.Path)
+		}
+	}
+	return out
 }
 
 // shortSHA returns the first 7 characters of a SHA, or the full string if shorter.
