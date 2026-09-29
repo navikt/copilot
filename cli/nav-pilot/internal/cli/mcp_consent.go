@@ -31,8 +31,9 @@ var (
 
 // recordMCPHosts and classifyMCPHosts are vars for the same reason.
 var (
-	recordMCPHosts   = providerpkg.RecordMCPHosts
-	classifyMCPHosts = providerpkg.ClassifyMCPHosts
+	recordMCPHosts     = providerpkg.RecordMCPHosts
+	classifyMCPHosts   = providerpkg.ClassifyMCPHosts
+	reclassifyMCPHosts = providerpkg.ReclassifyMCPHostsInBackground
 )
 
 // mcpHostEffect is the line that says what allowing a host does to the
@@ -76,6 +77,9 @@ func noteMCPHostConsent(client string) {
 		}
 		if st.Pending != nil {
 			askMCPHosts(st)
+		}
+		if len(st.Current.Hosts) > 0 {
+			reclassifyMCPHosts()
 		}
 	}
 	syncMCPAllowlist()

@@ -20,6 +20,9 @@ func mcpConsentEnv(t *testing.T, st providerpkg.MCPHostState, interactive bool) 
 	prevRead, prevRec, prevClass, prevNoted, prevRefresh := readMCPHostState, recordMCPHosts, classifyMCPHosts, notedMCPHosts, refreshMCPRegistry
 	readMCPHostState = func() (providerpkg.MCPHostState, error) { return st, nil }
 	refreshMCPRegistry = func() error { return nil }
+	prevReclassify := reclassifyMCPHosts
+	reclassifyMCPHosts = func() {}
+	t.Cleanup(func() { reclassifyMCPHosts = prevReclassify })
 	classifyMCPHosts = func(h []providerpkg.MCPHost) []providerpkg.MCPHost { return h }
 	var answers []bool
 	recordMCPHosts = func(_ []providerpkg.MCPHost, approve bool) error {

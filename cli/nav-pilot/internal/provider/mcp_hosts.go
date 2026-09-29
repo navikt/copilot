@@ -50,9 +50,14 @@ const MCPConsentSource = "mcp:registry"
 type MCPHost struct {
 	Host    string   `json:"host"`
 	Servers []string `json:"servers"`
-	// Private is a host that resolved to a private address, or did not
-	// resolve, when it was classified: it needs cplt's --allow-private-domain.
+	// Private is a host that resolved to a private address, or does not
+	// exist in DNS, when it was classified: it needs cplt's
+	// --allow-private-domain.
 	Private bool `json:"private,omitempty"`
+	// Unknown is a host whose lookup failed another way, a timeout most
+	// likely. Not private until a later lookup says so: see
+	// [ReclassifyMCPHostsInBackground].
+	Unknown bool `json:"unknown,omitempty"`
 }
 
 // MCPLoopback is a configured server the registry lists on this machine.
@@ -312,7 +317,7 @@ var lookupIPAddr = net.DefaultResolver.LookupIPAddr
 
 // ClassifyMCPHosts marks each host that resolves to a private address.
 //
-// A host that does not resolve counts as private. The intern.nav.no servers
+// A host DNS says does not exist counts as private. The intern.nav.no servers
 // resolve only over naisdevice, so an answer given with naisdevice off would
 // otherwise approve them without the waiver they need. The waiver is exact
 // host, registry-curated and consented, so the cost of a public host marked
@@ -327,7 +332,13 @@ func ClassifyMCPHosts(hosts []MCPHost) []MCPHost {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
 			addrs, err := lookupIPAddr(ctx, out[i].Host)
-			out[i].Private = err != nil || len(addrs) == 0
+			var dnsErr *net.DNSError
+			notFound := errors.As(err, &dnsErr) && dnsErr.IsNotFound
+			// A timeout says nothing about the host, and a classification
+			// is kept with the answer: a slow resolver must not lift the
+			// guard for a public host for good.
+			out[i].Unknown = err != nil && !notFound
+			out[i].Private = notFound || (err == nil && len(addrs) == 0)
 			for _, a := range addrs {
 				if a.IP.IsPrivate() || a.IP.IsLoopback() || a.IP.IsLinkLocalUnicast() {
 					out[i].Private = true
@@ -337,6 +348,41 @@ func ClassifyMCPHosts(hosts []MCPHost) []MCPHost {
 	}
 	wg.Wait()
 	return out
+}
+
+// ReclassifyMCPHostsInBackground looks up again, behind the launch, the
+// approved hosts whose lookup failed when they were answered, and records
+// what it finds under the same approval. Call it after any question, so the
+// answer it rewrites is the latest.
+func ReclassifyMCPHostsInBackground() {
+	rec, err := readMCPRecord()
+	if err != nil || rec == nil || !rec.Approved {
+		return
+	}
+	hosts := recordedMCPHosts(rec)
+	var unknown []MCPHost
+	for _, h := range hosts {
+		if h.Unknown {
+			unknown = append(unknown, h)
+		}
+	}
+	if len(unknown) == 0 {
+		return
+	}
+	mcpRefreshing.Go(func() {
+		changed := false
+		for _, h := range ClassifyMCPHosts(unknown) {
+			if !h.Unknown {
+				i := slices.IndexFunc(hosts, func(o MCPHost) bool { return o.Host == h.Host })
+				hosts[i], changed = h, true
+			}
+		}
+		if changed {
+			// ponytail: read-modify-write without a compare; a second
+			// nav-pilot answering in the same second can lose to this.
+			_ = RecordMCPHosts(hosts, true)
+		}
+	})
 }
 
 // MCPHostState is where the configured servers' hosts stand against the

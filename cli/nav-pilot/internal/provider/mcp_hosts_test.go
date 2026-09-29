@@ -201,7 +201,7 @@ func TestMCPPrivatePublicSplit(t *testing.T) {
 		case "mcp.figma.com":
 			return []net.IPAddr{{IP: net.ParseIP("151.101.1.1")}}, nil
 		}
-		return nil, errors.New("no such host")
+		return nil, &net.DNSError{Err: "no such host", Name: host, IsNotFound: true}
 	}
 	t.Cleanup(func() { lookupIPAddr = prev })
 
@@ -401,5 +401,35 @@ func TestProjectOpenCodeConfigAsksNothing(t *testing.T) {
 	MCPClient = "copilot"
 	if got, _ := resolveMCPHosts(); len(got.Hosts) != 0 {
 		t.Errorf("copilot counted an OpenCode server: %v", got.Names())
+	}
+}
+
+// A lookup that times out is no classification: the host is not private, and
+// a later launch looks it up again behind the session and records what DNS
+// says, under the same approval.
+func TestMCPHostTimeoutIsReclassifiedLater(t *testing.T) {
+	mcpEnv(t, "", mcpRegistry{}, nil)
+	protectingCplt(t)
+	prev := lookupIPAddr
+	t.Cleanup(func() { lookupIPAddr = prev })
+	lookupIPAddr = func(context.Context, string) ([]net.IPAddr, error) {
+		return nil, &net.DNSError{Err: "i/o timeout", IsTimeout: true}
+	}
+	hosts := ClassifyMCPHosts([]MCPHost{{Host: "mcp-onboarding.intern.nav.no"}})
+	if hosts[0].Private || !hosts[0].Unknown {
+		t.Fatalf("timeout classified as %+v, want unknown and not private", hosts[0])
+	}
+	rec := approvedMCP(t, hosts)
+	if len(rec.Hosts) != 0 {
+		t.Errorf("waiver after a timeout = %v, want none", rec.Hosts)
+	}
+	lookupIPAddr = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("10.7.8.200")}}, nil
+	}
+	ReclassifyMCPHostsInBackground()
+	mcpRefreshing.Wait()
+	rec, _ = readMCPRecord()
+	if !rec.Approved || !slices.Equal(rec.Hosts, []string{"mcp-onboarding.intern.nav.no"}) {
+		t.Errorf("after the retry: approved=%v waiver=%v, want the host private and still approved", rec.Approved, rec.Hosts)
 	}
 }
