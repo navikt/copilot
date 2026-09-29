@@ -958,7 +958,7 @@ function TeamConfigSection() {
                 <CopyButton
                   title="Copy the .cplt.toml example"
                   activeText="Copied!"
-                  copyText={`[deny]\nenv = ["VAULT_TOKEN", "NPM_TOKEN"]\n\n[propose]\nallow_localhost_any = true\n\n[propose.allow]\nports = [5432]\nlocalhost = [3000]`}
+                  copyText={`[deny]\nenv = ["VAULT_TOKEN", "NPM_TOKEN"]\n\n[propose]\nallow_localhost_any = true\n\n[propose.allow]\nlocalhost = [3000, 5432]`}
                   size="small"
                   style={{ color: "white" }}
                 />
@@ -991,14 +991,11 @@ function TeamConfigSection() {
                 {"\n\n"}
                 <span style={{ color: "#569cd6" }}>[propose.allow]</span>
                 {"\n"}
-                <span style={{ color: "#9cdcfe" }}>ports</span>
-                <span style={{ color: TERMINAL_FG }}> = [</span>
-                <span style={{ color: "#b5cea8" }}>5432</span>
-                <span style={{ color: TERMINAL_FG }}>]</span>
-                {"\n"}
                 <span style={{ color: "#9cdcfe" }}>localhost</span>
                 <span style={{ color: TERMINAL_FG }}> = [</span>
                 <span style={{ color: "#b5cea8" }}>3000</span>
+                <span style={{ color: TERMINAL_FG }}>, </span>
+                <span style={{ color: "#b5cea8" }}>5432</span>
                 <span style={{ color: TERMINAL_FG }}>]</span>
               </pre>
             </div>
@@ -1176,11 +1173,10 @@ function InitSection() {
                   {"\n\n"}
                   <span style={{ color: "#569cd6" }}>[propose.allow]</span>
                   {"\n"}
-                  {"ports = ["}
-                  <span style={{ color: "#b5cea8" }}>5432</span>
-                  {"]\n"}
                   {"localhost = ["}
                   <span style={{ color: "#b5cea8" }}>8080</span>
+                  {", "}
+                  <span style={{ color: "#b5cea8" }}>5432</span>
                   {"]\n\n"}
                   <span style={{ color: "#fbbf24" }}>⚠ allow_docker</span>
                   {"  Docker detected, grants broad access\n\n"}

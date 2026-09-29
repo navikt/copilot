@@ -121,10 +121,9 @@ export default function Arkitektur() {
           <BodyLong>
             Alt Nav-innholdet er én agentpakke: <code className={code}>nav-pilot</code>.{" "}
             <code className={code}>nav-pilot install nav-pilot</code> gir deg alle agenter, skills, instruksjoner,
-            prompts, hooks og extensions. Det er med vilje alt. Skills lastes når de trengs. De fleste instruksjonene
-            gjelder bare for bestemte filtyper og slår aldri inn i et repo uten dem. Noen få gjelder hver tur:
-            skrivestil, bevisst bruk av KI og sikkerhetskjernen. Bare nav-pilot-agentene er hovedagenter. Vil du ha
-            mindre, velger du bort i velgeren når du installerer, og valgene overlever sync.
+            prompts, hooks og extensions, med vilje. Skills lastes når de trengs, og de fleste instruksjonene gjelder
+            bare bestemte filtyper. Noen få gjelder hver tur: skrivestil, bevisst bruk av KI og sikkerhetskjernen. Vil
+            du ha mindre, velger du bort i velgeren når du installerer, og valgene overlever sync.
           </BodyLong>
           <BodyLong>
             Noen agentpakker, for eksempel <code className={code}>source = nais/pilot</code>, henter nav-pilot

@@ -26,7 +26,12 @@ export const GUIDE_PAGES: DocLink[] = [
   {
     href: "/nav-pilot/guider/worktrees",
     title: "Worktrees",
-    desc: "Start nav-pilot i en git worktree, og la agenten lage worktrees til underagenter i cplt.",
+    desc: "Start nav-pilot i et git-worktree, og la agenten lage worktrees til underagenter i cplt.",
+  },
+  {
+    href: "/nav-pilot/guider/cplt-oppsett",
+    title: "Sett opp cplt i et repo",
+    desc: "Lag .cplt.toml med cplt init, sjekk den inn og godkjenn den. Med det Go, Gradle, Next.js, pnpm, mise og Docker trenger.",
   },
   {
     href: "/nav-pilot/guider/cplt-gradle",

@@ -103,17 +103,15 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
           </BodyLong>
           <CodeBlock compact>{`nav-pilot config set surveys false`}</CodeBlock>
           <BodyLong>
-            Tokenet fra innloggingen kan ha en utløpstid. For GitHub-apper er den åtte timer, og da får nav-pilot også
-            et refresh-token som varer i seks måneder. Begge ligger i nøkkelringen på maskinen, og nav-pilot henter et
-            nytt token selv når det gamle har gått ut eller snart gjør det. Vanligvis må du logge inn på nytt først når
-            refresh-tokenet har gått ut, eller hvis GitHub trekker det tilbake.
+            Tokenet fra innloggingen kan ha en utløpstid, for GitHub-apper åtte timer, og kommer da med et refresh-token
+            som varer i seks måneder. Begge ligger i nøkkelringen på maskinen, og nav-pilot fornyer tokenet selv. Du må
+            logge inn på nytt først når refresh-tokenet har gått ut, eller hvis GitHub trekker det tilbake.
           </BodyLong>
           <BodyLong>
             Noen undersøkelser nevner nav-pilot i stedet med én linje når en økt starter. Du kan alltid svare selv med{" "}
             <code className={code}>nav-pilot survey</code>, også etter at du har svart aldri, etter tre spørsmål, eller
             når surveys er false. Uten terminal lister kommandoen bare de åpne undersøkelsene. Har du svart før, sier
-            den fra. <code className={code}>DO_NOT_TRACK=1</code> og{" "}
-            <code className={code}>NAV_PILOT_TELEMETRY_ENABLED=false</code> slår dem også av.
+            den fra.
           </BodyLong>
           <BodyLong>
             Du kan også svare på{" "}
