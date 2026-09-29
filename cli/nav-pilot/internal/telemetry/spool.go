@@ -148,10 +148,17 @@ func (s *spoolTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		if err != nil {
 			return nil, err
 		}
+		io.Copy(io.Discard, resp.Body) // so the connection is reused
 		resp.Body.Close()
-		// Like the spool: a 4xx other than 429 is not taken on a second try.
 		if resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests {
 			return nil, fmt.Errorf("resending an unanswered export: %s", resp.Status)
+		}
+		// A 4xx other than 429 is not taken on a second try, most likely
+		// points past Mimir's out-of-order window after a sleep. Its counts
+		// are already counted as sent, so the spool re-stamps and sends it
+		// rather than drop it.
+		if resp.StatusCode >= 300 {
+			s.write(bodyOf(s.unsent[0]))
 		}
 		s.unsent = s.unsent[1:]
 	}
@@ -162,7 +169,11 @@ func (s *spoolTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		// or cut short by exit: it failed, and its counts go with the next
 		// export, which at exit is the spool.
 		if sent && s.exiting.Err() == nil && len(s.unsent) < unsentMax {
-			s.unsent = append(s.unsent, req.Clone(context.Background()))
+			kept := req.Clone(context.Background())
+			// http.Client sets Cancel for its Timeout on a transport it does
+			// not know; closed, it would end every resend made from kept.
+			kept.Cancel = nil //nolint:staticcheck // Cancel is deprecated, but set
+			s.unsent = append(s.unsent, kept)
 			return accepted(req), nil
 		}
 		return nil, err

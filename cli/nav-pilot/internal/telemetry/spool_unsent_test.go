@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -141,4 +142,42 @@ func counterValue(t *testing.T, body []byte) (v int64) {
 		}
 	}
 	return v
+}
+
+// A resend the collector refuses for good, most likely points past Mimir's
+// out-of-order window after a sleep, goes to the spool to be re-stamped:
+// its counts were already counted as sent, so dropping it would lose them.
+func TestRefusedResendGoesToSpool(t *testing.T) {
+	dir := t.TempDir()
+	var n atomic.Int32
+	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.ReadAll(r.Body)
+		if n.Add(1) == 1 {
+			<-r.Context().Done()
+			return
+		}
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer collector.Close()
+	client := &http.Client{Transport: newSpoolTransport(http.DefaultTransport, dir)}
+	post := func(body string, timeout time.Duration) {
+		t.Helper()
+		ctx, cancel := context.WithTimeout(t.Context(), timeout)
+		defer cancel()
+		req, _ := http.NewRequestWithContext(ctx, http.MethodPost, collector.URL, bytes.NewReader([]byte(body)))
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("export %q: %v", body, err)
+		}
+		resp.Body.Close()
+	}
+	post("old", 200*time.Millisecond)
+	post("new", 5*time.Second)
+	files, _ := filepath.Glob(filepath.Join(dir, "*.pb"))
+	if len(files) != 1 {
+		t.Fatalf("spool = %v, want the refused resend", files)
+	}
+	if b, _ := os.ReadFile(files[0]); string(b) != "old" {
+		t.Errorf("spool = %q, want the refused resend", b)
+	}
 }
