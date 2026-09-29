@@ -29,6 +29,11 @@ export const GUIDE_PAGES: DocLink[] = [
     desc: "Start nav-pilot i en git worktree, og la agenten lage worktrees til underagenter i cplt.",
   },
   {
+    href: "/nav-pilot/guider/cplt-gradle",
+    title: "Kotlin og Gradle i sandkassen",
+    desc: "Få Gradle-bygg og tester til å virke i cplt: daemon, MockK, GitHub Packages, interne verter og Testcontainers.",
+  },
+  {
     href: "/nav-pilot/guider/cplt-feilmeldinger",
     title: "Feil i sandkassen",
     desc: "Slå opp feilmeldinger fra cplt og verktøy i sandkassen, med kommandoen som løser dem.",

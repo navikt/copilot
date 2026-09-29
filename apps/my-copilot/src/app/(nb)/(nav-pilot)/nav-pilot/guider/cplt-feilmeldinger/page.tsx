@@ -393,6 +393,13 @@ cplt --allow-env-files                          # bare denne økten`}
           <LinkableHeading id="jvm" size="medium" level="2">
             Java, Kotlin og Gradle
           </LinkableHeading>
+          <BodyLong>
+            Oppsettet for Gradle-prosjekter står i{" "}
+            <NextLink href="/nav-pilot/guider/cplt-gradle" className={linkClass}>
+              Kotlin og Gradle i sandkassen
+            </NextLink>
+            .
+          </BodyLong>
 
           <LinkableHeading id="gradle-connect" size="small" level="3">
             ConnectException: Could not connect to server
@@ -441,6 +448,29 @@ cplt --allow-env-files                          # bare denne økten`}
             {`org.gradle.java.installations.auto-download=false
 org.gradle.java.installations.paths=/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home`}
           </CodeBlock>
+          <BodyLong>
+            cplt stenger <code className={code}>~/.gradle/gradle.properties</code>. Legger du innstillingene der, må du
+            åpne fila, se neste oppføring.
+          </BodyLong>
+
+          <LinkableHeading id="gradle-properties" size="small" level="3">
+            Error when loading properties file
+          </LinkableHeading>
+          <BodyLong>
+            Hele meldingen er{" "}
+            <code className={code}>Error when loading properties file=/Users/…/.gradle/gradle.properties</code> med{" "}
+            <code className={code}>(Operation not permitted)</code>. cplt stenger fila fordi den ofte har tokens i seg,
+            og Gradle stopper når den finnes, men ikke kan leses. Det gjelder alle Gradle-bygg i sandkassen. Ta tokenet
+            ut og hent pakkene fra Navs speil, eller gi agenten lesetilgang:
+          </BodyLong>
+          <CodeBlock compact>{`cplt config set allow.read ~/.gradle/gradle.properties`}</CodeBlock>
+          <BodyLong>
+            Da kan agenten lese alle tokenene i fila. Se{" "}
+            <NextLink href="/nav-pilot/guider/cplt-gradle#github-packages" className={linkClass}>
+              Pakker fra GitHub Packages
+            </NextLink>
+            .
+          </BodyLong>
         </VStack>
       </section>
 
