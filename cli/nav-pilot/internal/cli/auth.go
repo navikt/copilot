@@ -5,7 +5,7 @@ import "fmt"
 // cmdAuth dispatches `nav-pilot auth <subcommand>`.
 func cmdAuth(args []string, jsonOutput bool) error {
 	if len(args) == 0 {
-		return fmt.Errorf("auth requires a subcommand.\n\nUsage: nav-pilot auth <subcommand>\n\nSubcommands:\n  login    Authenticate via GitHub device flow, storing the token in the OS keychain\n  status   Show current authentication status\n  logout   Remove the stored token")
+		return fmt.Errorf("auth requires a subcommand.\n\nUsage: nav-pilot auth <subcommand>\n\nSubcommands:\n  login    Authenticate via GitHub device flow, storing the token in the OS keychain\n  status   Show current authentication status\n  logout   Revoke the token at GitHub and remove it from the keychain")
 	}
 
 	switch args[0] {
