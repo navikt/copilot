@@ -11,6 +11,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **`doctor` sier fra om rester**: Finner `nav-pilot doctor` en gammel `~/.copilot/hooks/rtk-rewrite.json` eller opencode-pluginen `plugins/rtk.ts`, varsler den og viser kommandoen som fjerner filen. Den sletter ingenting selv. Har du installert rtk selv, kan du beholde det. Ett unntak: finnes ikke `rtk` på PATH, fjerner oppstarten fortsatt `~/.copilot/hooks/rtk-rewrite.json` og sier fra, fordi hooken da avviser alle verktøykall i Copilot.
 - **Metrikken `nav_pilot_rtk_setup_total` er fjernet.**
 
+### opencode-installasjonen spør ikke GitHub om siste versjon
+
+- **Fast versjon**: Uten Homebrew kjører nav-pilot opencodes installasjonsskript med `--version 1.18.32`, en versjon vi har testet. Uten versjon spør skriptet GitHubs API om siste versjon, og stopper med «Failed to fetch version information» når API-et avviser spørsmålet, for eksempel fordi grensen for antall kall er nådd eller en proxy står i veien. Med versjon laster skriptet ned direkte fra GitHub (#1345).
+
 ### «Sync now?» spør bare én gang i døgnet
 
 - **Nei holder i et døgn**: Svarer du nei på «Sync now?», spør nav-pilot ikke igjen før om 24 timer, som ved «Upgrade now?». Kommer det flere versjoner på en dag, starter nav-pilot uten spørsmål og uten varsel i mellomtiden. `nav-pilot sync --apply` synkroniserer når du vil (#1275).
