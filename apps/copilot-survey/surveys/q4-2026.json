@@ -29,9 +29,10 @@
         "GitHub Copilot Extensions / MCP-servere",
         "Claude Code (Anthropic terminal-agent)",
         "OpenCode (open source terminal-agent)",
-        "Annet",
         "Jeg bruker ikke AI-kodeverktøy"
       ],
+      "other": "Annet",
+      "max_length": 100,
       "required": true
     },
     {
@@ -50,9 +51,10 @@
         "Hjelp med code review",
         "Generere boilerplate / scaffolding",
         "Lære nye språk, rammeverk eller API-er",
-        "Delegere flerstegoppgaver til en autonom agent",
-        "Annet"
+        "Delegere flerstegoppgaver til en autonom agent"
       ],
+      "other": "Annet",
+      "max_length": 100,
       "max_choices": 3,
       "skip_if": {"question": "verktoy", "answer": "Jeg bruker ikke AI-kodeverktøy"}
     },
@@ -150,9 +152,10 @@
         "Færre begrensninger på tilgang til verktøy",
         "Støtte for flere AI-verktøy eller miljøer",
         "Ingenting — jeg er fornøyd med dagens situasjon",
-        "Jeg foretrekker å kode uten AI",
-        "Annet"
+        "Jeg foretrekker å kode uten AI"
       ],
+      "other": "Annet",
+      "max_length": 100,
       "required": true
     },
     {
