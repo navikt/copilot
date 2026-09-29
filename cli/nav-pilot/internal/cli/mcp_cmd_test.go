@@ -331,7 +331,7 @@ func TestMCPCommandIsOffTheHotPath(t *testing.T) {
 					t.Errorf("%s uses %s outside nav-pilot mcp", fset.Position(n.Pos()), n.Sel.Name)
 				}
 			case *ast.Ident:
-				if filepath.Dir(path) == "." && own[n.Name] && !(base == "cli.go" && n.Name == "cmdMCP") {
+				if writers[n.Name] || filepath.Dir(path) == "." && own[n.Name] && !(base == "cli.go" && n.Name == "cmdMCP") {
 					t.Errorf("%s uses %s outside nav-pilot mcp", fset.Position(n.Pos()), n.Name)
 				}
 			}

@@ -783,6 +783,7 @@ func cmdMCPDisable(names []string, clients []string) error {
 // in either client, so a dropped host is asked about again if its server
 // comes back, and brings the allowlist file in step.
 func dropMCPHosts() {
+	mcpConfigScope()
 	if cpltInstalled() {
 		gone, err := narrowMCPApproval()
 		if err != nil {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -139,6 +140,27 @@ func TestSyncMCPAllowlist(t *testing.T) {
 	}
 }
 
+// Outside a launch, the allowlist writers count the configured client's
+// servers: an OpenCode user's MCP section is not computed for Copilot.
+func TestAllowlistWritersUseTheConfiguredClient(t *testing.T) {
+	isolatedConfig(t)
+	if _, err := writeConfigKey("client", "opencode"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { providerpkg.MCPClient, providerpkg.MCPHostsOff = "", false })
+	prev := mcpAllowlistHosts
+	var seen []string
+	mcpAllowlistHosts = func() []string { seen = append(seen, providerpkg.MCPClient); return nil }
+	t.Cleanup(func() { mcpAllowlistHosts = prev })
+
+	_, _, _ = seedCpltAllowlist(filepath.Join(t.TempDir(), "no-cplt"))
+	providerpkg.MCPClient = ""
+	dropMCPHosts() // the file now exists, so it reads the hosts again
+	if len(seen) != 2 || slices.ContainsFunc(seen, func(c string) bool { return c != "opencode" }) {
+		t.Errorf("clients seen = %q, want opencode each time", seen)
+	}
+}
+
 // Enter declines: a prompt that is not moved off its default records a No.
 func TestMCPConsentEnterDeclines(t *testing.T) {
 	answers := mcpConsentEnv(t, pendingState(), true)
@@ -167,7 +189,8 @@ func TestMCPConsentGrownSetShowsTheDiff(t *testing.T) {
 	if !strings.Contains(desc, "Changed since you last answered: + mcp-onboarding.intern.nav.no") {
 		t.Errorf("no diff in:\n%s", desc)
 	}
-	if !strings.Contains(title, "2 MCP servers") {
+	// Not "the sandbox blocks": under standard a public host is reachable.
+	if !strings.Contains(title, "2 MCP servers") || strings.Contains(title, "block") {
 		t.Errorf("title = %q", title)
 	}
 }
