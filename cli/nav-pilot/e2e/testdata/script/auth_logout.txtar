@@ -26,7 +26,12 @@ exits 1 nav-pilot usage
 stderr 'fikk ikke kontakt med copilot-cli \(er naisdevice på, eller blokkerer en brannmur nav-pilot\?\)$'
 ! stderr 'dial tcp|bruksdata'
 
-# usage speaks Norwegian all the way, like the rest of its output.
+# usage speaks Norwegian all the way, the prefix too (#1297), and exits 1.
 env NAV_PILOT_E2E_KEYCHAIN_TOKEN=
-! exec nav-pilot usage
-stderr 'ikke logget inn: kjør .nav-pilot auth login. først'
+exits 1 nav-pilot usage
+stderr '^Feil: ikke logget inn: kjør .nav-pilot auth login. først'
+! stderr 'Error'
+
+# English commands keep the English prefix.
+exits 1 nav-pilot auth nosuch
+stderr '^Error: '
