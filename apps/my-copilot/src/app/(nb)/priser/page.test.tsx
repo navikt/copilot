@@ -43,15 +43,9 @@ describe("prissiden", () => {
     const cacheWriteSort = screen.getByRole("button", { name: /Sorter etter Cache write/ });
     fireEvent.click(cacheWriteSort);
     expect(cacheWriteSort).toHaveAccessibleName("Sorter etter Cache write, stigende");
-    expect(screen.getByRole("columnheader", { name: /Sorter etter Cache write/ })).toHaveAttribute(
-      "aria-sort",
-      "ascending"
-    );
+    expect(screen.getByRole("columnheader", { name: "Cache write" })).toHaveAttribute("aria-sort", "ascending");
     fireEvent.click(cacheWriteSort);
-    expect(screen.getByRole("columnheader", { name: /Sorter etter Cache write/ })).toHaveAttribute(
-      "aria-sort",
-      "descending"
-    );
+    expect(screen.getByRole("columnheader", { name: "Cache write" })).toHaveAttribute("aria-sort", "descending");
   });
 
   it("filtrerer på prisintervall og søk", () => {
