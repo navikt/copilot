@@ -29,6 +29,11 @@ export const GUIDE_PAGES: DocLink[] = [
     desc: "Start nav-pilot i en git worktree, og la agenten lage worktrees til underagenter i cplt.",
   },
   {
+    href: "/nav-pilot/guider/cplt-feilmeldinger",
+    title: "Feil i sandkassen",
+    desc: "Slå opp feilmeldinger fra cplt og verktøy i sandkassen, med kommandoen som løser dem.",
+  },
+  {
     href: "/nav-pilot/guider/feilsoking",
     title: "Feilsøking",
     desc: "Sjekk maskinen med doctor, se hva cplt blokkerer, og få liv i en lokal modell som henger.",

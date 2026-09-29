@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 
 const TOC: TocItem[] = [
   { id: "doctor", label: "Sjekk maskinen" },
+  { id: "cplt-feil", label: "Feil fra cplt" },
   { id: "blokkeringer", label: "Se hva cplt blokkerer" },
   { id: "lokal", label: "Når den lokale modellen henger" },
 ];
@@ -56,6 +57,21 @@ nav-pilot alpha local doctor  # bare egen server (local_endpoint)`}
 
       <section>
         <VStack gap="space-16">
+          <LinkableHeading id="cplt-feil" size="medium" level="2">
+            Feil fra cplt
+          </LinkableHeading>
+          <BodyLong>
+            Stopper sandkassen noe agenten skal gjøre, slå opp feilmeldingen i{" "}
+            <NextLink href="/nav-pilot/guider/cplt-feilmeldinger" className={linkClass}>
+              Feil i sandkassen
+            </NextLink>
+            . Der står årsaken og kommandoen som løser det.
+          </BodyLong>
+        </VStack>
+      </section>
+
+      <section>
+        <VStack gap="space-16">
           <LinkableHeading id="blokkeringer" size="medium" level="2">
             Se hva cplt blokkerer
           </LinkableHeading>
@@ -74,10 +90,9 @@ nav-pilot alpha local doctor  # bare egen server (local_endpoint)`}
           <CodeBlock compact>{`cplt config set proxy.log_level blocked`}</CodeBlock>
           <BodyLong>
             Vil du ha en fil å lese etterpå, bruk <code className={code}>proxy.log_file</code>. Den dekker det proxyen
-            avgjør, ikke det gh- og git-vakta avgjør. <code className={code}>audit.enabled</code> ser ut som det samme,
-            men gir ingen logg i dagens cplt: <code className={code}>cplt config show</code> viser seksjonen{" "}
-            <code className={code}>[audit]</code>, men ingenting bruker den. <code className={code}>sandbox.audit</code>{" "}
-            er noe annet og allerede på. Den viser hvilke filer agenten endret, etter at den er ferdig.
+            avgjør, ikke det gh- og git-vakta avgjør. Seksjonen <code className={code}>[audit]</code> er fjernet, og
+            cplt avviser nå <code className={code}>audit.*</code>-nøkler. <code className={code}>sandbox.audit</code> er
+            noe annet og allerede på. Den viser hvilke filer agenten endret, etter at den er ferdig.
           </BodyLong>
           <BodyLong>
             Nivåene står i{" "}
