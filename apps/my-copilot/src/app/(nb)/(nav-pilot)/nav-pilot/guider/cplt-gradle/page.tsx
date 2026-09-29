@@ -42,8 +42,12 @@ export default function CpltGradle() {
           </LinkableHeading>
           <BodyLong>
             Et vanlig Kotlin-prosjekt trenger to innstillinger. Gradle starter en daemon som snakker med bygget over en
-            tilfeldig port på localhost, og cplt stenger localhost. MockK, Mockito og ByteBuddy kobler seg til JVM-en
-            mens testene kjører, og den socketen stenger cplt på macOS.
+            tilfeldig port på localhost, og cplt stenger localhost (
+            <NextLink href={`${FAQ}#gradle-connect`} className={linkClass}>
+              også med --no-daemon
+            </NextLink>
+            ). MockK, Mockito og ByteBuddy kobler seg til JVM-en mens testene kjører, og den socketen stenger cplt på
+            macOS.
           </BodyLong>
           <CodeBlock compact>
             {`cplt config set sandbox.allow_localhost_any true

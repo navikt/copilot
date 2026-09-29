@@ -380,11 +380,14 @@ cplt --allow-env-files                          # bare denne økten`}
           </BodyLong>
 
           <LinkableHeading id="gradle-connect" size="small" level="3">
-            ConnectException: Could not connect to server
+            Could not connect to the Gradle daemon / ConnectException: Could not connect to server
           </LinkableHeading>
           <BodyLong>
-            Gradle-daemonen og Kotlin-daemonen snakker sammen over tilfeldige porter på localhost, og cplt stenger
-            localhost. Åpne alle portene:
+            Ser du bare <code className={code}>Last 20 lines from daemon log file</code>, som slutter med{" "}
+            <code className={code}>Daemon server started</code>, står feilen lenger opp i utdataene. Gradle-daemonen og
+            Kotlin-daemonen snakker sammen over tilfeldige porter på localhost, og cplt stenger localhost.{" "}
+            <code className={code}>--no-daemon</code> hjelper ikke, for Gradle starter da som regel en daemon for ett
+            enkelt bygg og kobler seg til den over localhost. Åpne alle portene:
           </BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_localhost_any true`}</CodeBlock>
           <BodyLong>
