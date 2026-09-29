@@ -33,7 +33,7 @@ exec nav-pilot -- -p hei
 
 # Terminal: the session ends, then the question, with what is sent. Enter
 # alone means later; answering takes a step up.
-exec pty-run -wait 'Brukerundersøkelse: E2E survey \(4 spørsmål, spurt 1 av 3 ganger\)' -send '\x1b[A\r' -wait '4  Enig' -send '\x1b[B\x1b[B\x1b[B\x1b[B\r' -wait 'Velg opptil 2' -send ' \x1b[B\x1b[B\x1b[B \r' -wait 'Annet: skriv gjerne hva' -send 'Zed\r' -wait 'Anything else' -send 'works fine\r' -- nav-pilot
+exec pty-run -wait 'Brukerundersøkelse: E2E survey \(4 spørsmål, spurt 1 av 3 ganger\)' -send '\x1b[A\r' -wait '4  Enig' -send '\x1b[B\x1b[B\x1b[B\x1b[B\r' -wait 'Velg opptil 2' -send ' \x1b[B\x1b[B\x1b[B \r' -wait 'Annet: skriv gjerne hva du tenker på' -send 'Zed\r' -wait 'Anything else' -send 'works fine\r' -- nav-pilot
 stdout 'Dette sendes: svarene dine, nav-pilot-versjon, operativsystem'
 stdout 'Dette sendes ikke: navn, GitHub-bruker, enhets-ID, kode eller noe fra øktene dine'
 stdout 'kan ikke endres eller trekkes'

@@ -183,8 +183,12 @@ func validateSurveys(surveys []survey) error {
 		if s.Series != "" && !idPattern.MatchString(s.Series) {
 			return fmt.Errorf("survey %s: bad series %q", s.ID, s.Series)
 		}
-		// One free-text question at most: it is the one answer that batching
-		// and segment suppression cannot keep from naming its author.
+		// Free text is what batching and segment suppression cannot keep from
+		// naming its author: one text question at most, and at most
+		// maxOthers short "other" texts.
+		if len(slices.DeleteFunc(slices.Clone(s.Questions), func(q question) bool { return q.Other == "" })) > maxOthers {
+			return fmt.Errorf("survey %s: at most %d other options", s.ID, maxOthers)
+		}
 		if texts := slices.IndexFunc(s.Questions, func(q question) bool { return q.Type == "text" }); texts >= 0 &&
 			slices.ContainsFunc(s.Questions[texts+1:], func(q question) bool { return q.Type == "text" }) {
 			return fmt.Errorf("survey %s: at most one text question", s.ID)
@@ -203,7 +207,7 @@ func validateSurveys(surveys []survey) error {
 			case "scale":
 				ok = ok && q.Min < q.Max && q.Max-q.Min <= 10 && (q.Labels == nil || len(q.Labels) == q.Max-q.Min+1)
 			case "choice", "multi":
-				ok = ok && len(q.Options) >= 2 && !hasDuplicates(q.Options) && q.MaxChoices >= 0 && q.MaxChoices <= len(q.Options)
+				ok = ok && len(q.Options) >= 2 && !hasDuplicates(q.Options) && q.MaxChoices >= 0 && q.MaxChoices <= len(q.options())
 				// Other's text is kept short: it is free text like a text
 				// question's, and can name its author the same way.
 				if q.Other != "" {
@@ -225,8 +229,12 @@ func validateSurveys(surveys []survey) error {
 	return nil
 }
 
-// maxOtherLen caps the free text of an "other" option.
-const maxOtherLen = 200
+// maxOtherLen caps the free text of an "other" option, and maxOthers how many
+// a survey may have.
+const (
+	maxOtherLen = 200
+	maxOthers   = 3
+)
 
 // otherKey is where the free text of q's other option is sent and stored.
 func otherKey(id string) string { return id + ".other" }
@@ -410,8 +418,9 @@ func validateAnswers(s survey, raw map[string]json.RawMessage) (map[string]any, 
 
 // freeText checks a free-text answer and trims it; "" means not answered.
 func freeText(id string, v json.RawMessage, maxLen int) (string, error) {
+	// Checked on the raw bytes: Unmarshal would replace invalid UTF-8.
 	var t string
-	if json.Unmarshal(v, &t) != nil || !utf8.ValidString(t) {
+	if !utf8.Valid(v) || json.Unmarshal(v, &t) != nil {
 		return "", fmt.Errorf("%q takes text", id)
 	}
 	t = strings.TrimSpace(t)

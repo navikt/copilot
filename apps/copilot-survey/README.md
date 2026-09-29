@@ -133,8 +133,8 @@ Residual risks, for the privacy review:
   together could pin the 10th.
 - Free text: the answers that can name their author ("as the only Rust dev
   on team X"): a `text` question (at most one per survey) and the short text
-  of an «other» option (at most 200 characters each, but a survey can have
-  several). They are stored in the same row as the rest of that person's
+  of an «other» option (at most 200 characters each, at most three per
+  survey). They are stored in the same row as the rest of that person's
   answers, so one identifying text identifies the whole row. nav-pilot and
   the web ask people not to write anything that identifies anyone, and all
   free text should go through a redaction pass before analysis and never be

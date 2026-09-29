@@ -562,7 +562,7 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 					return nil
 				})
 			}
-			desc := "Skriv ikke noe som kan identifisere deg eller andre."
+			desc := surveyNoIdentify
 			if !q.Required {
 				desc += " Valgfritt: la feltet stå tomt for å hoppe over."
 			}
@@ -574,8 +574,8 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 		}
 		groups = append(groups, g)
 		if q.Other != "" {
-			in := huh.NewInput().Title(q.Other + ": skriv gjerne hva").CharLimit(q.MaxLen).Value(&others[i]).
-				Description("Valgfritt. Skriv ikke noe som kan identifisere deg eller andre.")
+			in := huh.NewInput().Title(q.Other + ": skriv gjerne hva du tenker på").CharLimit(q.MaxLen).Value(&others[i]).
+				Description(surveyNoIdentify + " Valgfritt: la feltet stå tomt for å hoppe over.")
 			groups = append(groups, huh.NewGroup(escHelpField{in}).WithHideFunc(func() bool {
 				return skipped(q) || !slices.Contains(answered(q.ID), q.Other)
 			}))
@@ -606,6 +606,9 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 	}
 	return answers, len(answers) > 0
 }
+
+// surveyNoIdentify goes with every free-text field.
+const surveyNoIdentify = "Skriv ikke noe som kan identifisere deg eller andre."
 
 // surveyUnpicked is the entry a required scale or choice question starts on,
 // so Enter alone records nothing.

@@ -37,10 +37,6 @@ function missing(q: SurveyQuestion, answers: Answers): string | undefined {
   if (q.type === "text" && typeof a === "string" && q.max_length && [...a.trim()].length > q.max_length) {
     return `Skriv høyst ${q.max_length} tegn.`;
   }
-  const other = answers[otherKey(q)];
-  if (choseOther(q, answers) && typeof other === "string" && q.max_length && [...other.trim()].length > q.max_length) {
-    return `Skriv høyst ${q.max_length} tegn om «${q.other}».`;
-  }
   const empty = a === undefined || (typeof a === "string" && a.trim() === "") || (Array.isArray(a) && a.length === 0);
   if (q.required && empty) return "Svar på dette spørsmålet.";
   return undefined;
@@ -73,6 +69,15 @@ export function SurveyForm({ survey }: { survey: Survey }) {
     for (const q of visible) {
       const m = missing(q, answers);
       if (m) found[q.id] = m;
+      const other = answers[otherKey(q)];
+      if (
+        choseOther(q, answers) &&
+        typeof other === "string" &&
+        q.max_length &&
+        [...other.trim()].length > q.max_length
+      ) {
+        found[otherKey(q)] = `Skriv høyst ${q.max_length} tegn under «${q.other}».`;
+      }
     }
     setErrors(found);
     if (Object.keys(found).length > 0) {
@@ -133,7 +138,7 @@ export function SurveyForm({ survey }: { survey: Survey }) {
           <ErrorSummary ref={summaryRef} heading="Rett dette før du sender svaret">
             {Object.entries(errors).map(([id, message]) => (
               <ErrorSummary.Item key={id} href={`#q-${id}`}>
-                {`${survey.questions.find((q) => q.id === id)?.text ?? id}: ${message}`}
+                {`${survey.questions.find((q) => q.id === id || otherKey(q) === id)?.text ?? id}: ${message}`}
               </ErrorSummary.Item>
             ))}
           </ErrorSummary>
@@ -144,7 +149,9 @@ export function SurveyForm({ survey }: { survey: Survey }) {
             <Question q={q} value={answers[q.id]} error={errors[q.id]} onChange={(v) => set(q.id, v)} />
             {choseOther(q, answers) && (
               <TextField
-                label={`${q.other}: skriv gjerne hva (valgfritt)`}
+                id={`q-${otherKey(q)}`}
+                label={`${q.other}: skriv gjerne hva du tenker på (valgfritt)`}
+                error={errors[otherKey(q)]}
                 description="Ikke skriv noe som kan identifisere deg eller andre."
                 maxLength={q.max_length}
                 value={String(answers[otherKey(q)] ?? "")}

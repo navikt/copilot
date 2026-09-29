@@ -159,6 +159,7 @@ func TestSubmitValidation(t *testing.T) {
 		"other not chosen":   `{"answers":{"overall":3,"editor":["vim"],"editor.other":"Zed"},` + goodCtx + `}`,
 		"other alone":        `{"answers":{"overall":3,"editor.other":"Zed"},` + goodCtx + `}`,
 		"other too long":     `{"answers":{"overall":3,"editor":["Annet"],"editor.other":"` + strings.Repeat("x", 11) + `"},` + goodCtx + `}`,
+		"text not utf-8":     "{\"answers\":{\"overall\":3,\"comment\":\"a\xffb\"}," + goodCtx + "}",
 		"other not text":     `{"answers":{"overall":3,"editor":["Annet"],"editor.other":7},` + goodCtx + `}`,
 		"other not offered":  `{"answers":{"overall":3,"client":"copilot","client.other":"x"},` + goodCtx + `}`,
 		"skipped answered":   `{"answers":{"overall":3,"client":"copilot","why":"habit"},` + goodCtx + `}`,
@@ -235,6 +236,7 @@ func TestLoadSurveysRejectsBadDefinitions(t *testing.T) {
 		"other is option": `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"choice","text":"?","options":["x","Annet"],"other":"Annet","max_length":5}]}]`,
 		"other no limit":  `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet"}]}]`,
 		"other too long":  `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet","max_length":201}]}]`,
+		"four others":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"a","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet","max_length":5},{"id":"b","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet","max_length":5},{"id":"c","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet","max_length":5},{"id":"d","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet","max_length":5}]}]`,
 		"limit no other":  `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"choice","text":"?","options":["x","y"],"max_length":5}]}]`,
 		"id with slash":   `[{"id":"a/b","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
 	} {
@@ -291,5 +293,11 @@ func TestContextKeepsOnlyCoarseVersion(t *testing.T) {
 		if err := c.validate(); err != nil || c.Version != want {
 			t.Errorf("%s: got %q, %v; want %q", in, c.Version, err, want)
 		}
+	}
+}
+
+func TestOtherCountsTowardMaxChoices(t *testing.T) {
+	if _, err := loadSurveys([]byte(`[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"multi","text":"?","options":["x","y"],"max_choices":3,"other":"Annet","max_length":5}]}]`)); err != nil {
+		t.Fatal(err)
 	}
 }
