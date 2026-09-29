@@ -280,18 +280,6 @@ else
   echo "  ⚠ Failed to install cplt"
 fi
 
-# rtk (terminal output filter) is optional and no longer installed automatically.
-#
-# It used to be installed with `curl … rtk/refs/heads/master/install.sh | sh` —
-# an unpinned pipe-to-shell from a moving upstream branch. rtk is in
-# homebrew-core, so users who want it can install a checksum-verified build
-# themselves. It is also no longer promoted: public controlled measurement has
-# not reproduced its advertised token savings.
-# https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/
-echo ""
-echo "→ Optional: rtk (terminal output filter) — install it yourself if you want it:"
-echo "    brew install rtk"
-
 # ─── Verify ──────────────────────────────────────────────────────────────────
 
 if ! command -v "$BINARY" &>/dev/null; then

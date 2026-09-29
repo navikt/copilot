@@ -185,16 +185,14 @@ EOF
   [[ "$output" == *"Got:      badhash"* ]]
 }
 
-@test "installs cplt and only mentions rtk as optional" {
+@test "installs cplt and neither installs nor recommends rtk" {
   run bash "$SCRIPT" --dir "${TMP_DIR}/install-dest"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"Installing cplt (sandbox)"* ]]
   [[ "$output" == *"Installed cplt"* ]]
-  [[ "$output" == *"Optional: rtk (terminal output filter)"* ]]
-  [[ "$output" == *"brew install rtk"* ]]
-  # rtk must never be auto-installed from an unpinned upstream branch
-  [[ "$output" != *"refs/heads/master/install.sh"* ]]
+  # nav-pilot no longer sets up rtk (#1321)
+  [[ "$output" != *" rtk "* ]]
 }
 
 # A directory on PATH is found even when PATH is larger than a pipe buffer.

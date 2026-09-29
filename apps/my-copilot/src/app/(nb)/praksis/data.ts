@@ -150,8 +150,8 @@ export const categories: Category[] = [
       {
         id: "redusere-token-bruk",
         title: "Reduser token-bruk og spar kostnader",
-        description: "Hvordan bruke Copilot effektivt uten å sprenge token-budsjettet med RTK.",
-        keywords: ["kostnadsoptimalisering", "token", "pris", "rtk", "økonomi"],
+        description: "Hvordan bruke Copilot effektivt uten å sprenge token-budsjettet.",
+        keywords: ["kostnadsoptimalisering", "token", "pris", "økonomi"],
         iconName: "BarChartIcon",
         components: [CostOptimization],
       },
