@@ -70,7 +70,7 @@ func cmdAuthStatus(jsonOutput bool) error {
 		return printAuthStatusJSON(status)
 	}
 
-	fmt.Printf("  Bruker:   %s", bold(user.Login))
+	fmt.Printf("  User:     %s", bold(user.Login))
 	if user.Name != "" {
 		fmt.Printf(" (%s)", user.Name)
 	}
@@ -87,21 +87,31 @@ func cmdAuthStatus(jsonOutput bool) error {
 	}
 	fmt.Println(orgLine)
 
-	fmt.Printf("  Token:    logget inn siden %s (%s)\n", token.ObtainedAt.Format("2006-01-02 15:04"), formatSecondsRemaining(token.ExpiresAt))
+	fmt.Printf("  Token:    logged in since %s (%s)\n", token.ObtainedAt.Format("2006-01-02 15:04"), formatSecondsRemaining(token.ExpiresAt))
 	return nil
 }
 
+// githubAppAuthorizations is where a user revokes nav-pilot's access by hand.
+const githubAppAuthorizations = "https://github.com/settings/apps/authorizations"
+
 // cmdAuthLogout revokes the stored token at GitHub through copilot-cli, then
-// removes it from the keychain whatever the revoke's outcome. Idempotent:
-// logging out when already logged out is not an error.
+// removes it from the keychain whatever the revoke's outcome; a failed revoke
+// names the page to revoke it by hand (#1274). Idempotent: logging out when
+// already logged out is not an error.
 func cmdAuthLogout() error {
 	revoked := false
-	if t, err := loadToken(); err == nil && t.AccessToken != "" && !t.expired() {
+	t, err := loadToken()
+	if errors.Is(err, keyring.ErrNotFound) {
+		fmt.Printf("  %s Not logged in, so there was nothing to remove.\n", yellow("○"))
+		return nil
+	}
+	if err == nil && t.AccessToken != "" && !t.expired() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		err := revokeToken(ctx, copilotCLIURL(), t.AccessToken)
 		cancel()
 		if err != nil {
-			fmt.Printf("  %s Could not revoke the token at GitHub: %v. Removing it locally anyway.\n", yellow("⚠"), err)
+			fmt.Printf("  %s Could not revoke the token at GitHub: %v.\n", yellow("⚠"), err)
+			fmt.Printf("  To revoke it yourself, remove nav-pilot under Authorized GitHub Apps: %s\n", githubAppAuthorizations)
 		} else {
 			revoked = true
 		}

@@ -1,0 +1,20 @@
+# auth logout says what it did (#1274): with nothing stored it says so,
+# and a revoke that fails names the page to revoke the token by hand.
+# The e2e build keeps the keychain in memory, never the real one.
+
+exec nav-pilot auth logout
+stdout 'Not logged in, so there was nothing to remove'
+! stdout 'Logged out'
+
+# copilot-cli out of reach: the token goes, and the way to revoke it is named.
+env NAV_PILOT_E2E_KEYCHAIN_TOKEN=gho_e2e
+env NAV_PILOT_COPILOT_CLI_URL=http://127.0.0.1:9
+exec nav-pilot auth logout
+stdout 'Could not revoke the token at GitHub'
+stdout 'remove nav-pilot under Authorized GitHub Apps: https://github.com/settings/apps/authorizations'
+stdout 'Logged out\. Token removed from OS keychain'
+
+# usage speaks Norwegian all the way, like the rest of its output.
+env NAV_PILOT_E2E_KEYCHAIN_TOKEN=
+! exec nav-pilot usage
+stderr 'ikke logget inn: kjør .nav-pilot auth login. først'

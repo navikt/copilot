@@ -135,17 +135,17 @@ func cmdUsage(jsonOutput bool, tmuxFormat bool) error {
 	token, err := currentToken(ctx)
 	if err != nil {
 		if errors.Is(err, keyring.ErrNotFound) {
-			return fmt.Errorf("not logged in — run 'nav-pilot auth login' first")
+			return fmt.Errorf("ikke logget inn: kjør 'nav-pilot auth login' først")
 		}
-		return fmt.Errorf("reading stored token: %w", err)
+		return fmt.Errorf("kunne ikke lese lagret token: %w", err)
 	}
 	if token.expired() {
-		return fmt.Errorf("token expired on %s — run 'nav-pilot auth login' to re-authenticate", token.ExpiresAt.Format("2006-01-02 15:04"))
+		return fmt.Errorf("innloggingen utløp %s: kjør 'nav-pilot auth login' for å logge inn på nytt", token.ExpiresAt.Format("2006-01-02 15:04"))
 	}
 
 	usage, err := fetchUsage(ctx, copilotCLIURL(), token.AccessToken)
 	if err != nil {
-		return fmt.Errorf("fetching usage from copilot-cli: %w", err)
+		return fmt.Errorf("kunne ikke hente bruksdata fra copilot-cli: %w", err)
 	}
 
 	if jsonOutput {
@@ -177,13 +177,13 @@ func fetchUsage(ctx context.Context, baseURL, githubToken string) (*usageRespons
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("calling copilot-cli: %w", err)
+		return nil, fmt.Errorf("fikk ikke kontakt med copilot-cli (er naisdevice på?): %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("reading response: %w", err)
+		return nil, fmt.Errorf("kunne ikke lese svaret: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -192,7 +192,7 @@ func fetchUsage(ctx context.Context, baseURL, githubToken string) (*usageRespons
 
 	var usage usageResponse
 	if err := json.Unmarshal(body, &usage); err != nil {
-		return nil, fmt.Errorf("decoding usage response: %w", err)
+		return nil, fmt.Errorf("kunne ikke tolke svaret: %w", err)
 	}
 	return &usage, nil
 }

@@ -348,6 +348,11 @@ func countAsk(st surveyState, id string, now time.Time) *surveyRecord {
 // answerSurvey runs the questions and sends the answers. false means the
 // form was left before the end, and nothing was sent.
 func answerSurvey(r ResolvedConfig, st surveyState, s surveyDef, base string) bool {
+	// Said before the questions, not after them (#1274).
+	if surveyToken() == "" {
+		fmt.Println(dim("  For å sende svaret må du logge inn med GitHub etter siste spørsmål. Går ikke det, lagres svaret til du har logget inn."))
+		fmt.Println()
+	}
 	answers, ok := runSurveyForm(s)
 	if !ok {
 		fmt.Println(dim("  Ikke sendt."))
@@ -824,7 +829,7 @@ func postSurvey(base, id string, payload []byte, interactive bool) (int, error) 
 			return http.StatusUnauthorized, nil
 		}
 		fmt.Println(dim("  Logg inn med GitHub én gang for å sende svaret."))
-		if err := cmdAuthLogin(); err != nil {
+		if err := authLogin(true); err != nil {
 			return http.StatusUnauthorized, err
 		}
 		if token = surveyToken(); token == "" {

@@ -9,6 +9,13 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Nei holder i et døgn**: Svarer du nei på «Sync now?», spør nav-pilot ikke igjen før om 24 timer, som ved «Upgrade now?». Kommer det flere versjoner på en dag, starter nav-pilot uten spørsmål og uten varsel i mellomtiden. `nav-pilot sync --apply` synkroniserer når du vil (#1275).
 - **Stille nei til rtk**: Takker du nei til rtk ved første oppstart, skriver nav-pilot ikke lenger ut de interne innstillingene den lagrer, eller meldinger om `.bak`-filer (#1275).
 
+### Tydeligere `auth logout`, og ett språk per kommando
+
+- **Ikke logget inn**: `nav-pilot auth logout` sier nå at du ikke var logget inn når det ikke finnes noe token, i stedet for «Token removed» (#1274).
+- **Når tilbakekallingen feiler**: Tokenet fjernes fortsatt fra maskinen, og meldingen viser hvor du trekker tilbake tilgangen selv: fjern nav-pilot under «Authorized GitHub Apps» på https://github.com/settings/apps/authorizations.
+- **Ett språk**: `auth status` er på engelsk som resten av `auth`, `usage` er på norsk hele veien, og innloggingen fra `survey` er på norsk.
+- **Innlogging før spørsmålene**: `survey` sier før første spørsmål at svaret sendes etter en GitHub-innlogging. Går ikke innloggingen, lagres svaret til du har logget inn.
+
 ### Lange økter telles én gang i telemetrien
 
 - **Bare det som er nytt**: En økt sendte alt den hadde målt på nytt hvert 10. sekund, og dashboardene la sammen hver sending. En økt på fem minutter ble talt rundt 30 ganger. Nå sender nav-pilot bare det tellere og histogrammer har fått siden forrige sending, og ikke de som ikke har endret seg. Tallene fra eldre versjoner er fortsatt for høye for lange økter.

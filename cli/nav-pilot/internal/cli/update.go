@@ -19,6 +19,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/zalando/go-keyring"
 )
 
 var (
@@ -577,6 +578,12 @@ var e2eSeams string
 func applyE2ESeams(info *BuildInfo) {
 	if e2eSeams != "1" {
 		return
+	}
+	// An in-memory keychain: a journey never reads or writes the real one.
+	// NAV_PILOT_E2E_KEYCHAIN_TOKEN starts it with a stored token.
+	keyring.MockInit()
+	if tok := os.Getenv("NAV_PILOT_E2E_KEYCHAIN_TOKEN"); tok != "" {
+		_ = saveToken(storedToken{AccessToken: tok})
 	}
 	if gh := os.Getenv("NAV_PILOT_E2E_GITHUB"); gh != "" {
 		releasesAPI = gh + "/repos/navikt/copilot/releases"
