@@ -38,10 +38,13 @@ import (
 // Each file is claimed before it is sent (claim), so no two senders send the
 // same file, even where flock fails. A sender that dies mid-send leaves its
 // .sending file for the age prune: those counts are lost rather than counted
-// twice. What is still counted twice: a send that times out after the
-// collector took it. The failed export's counts go out again with the next
-// one, as a different value at a later time, so no stable timestamp would let
-// Mimir drop the repeat. It takes a response lost after ingestion, which the
+// twice; a run's own send of the spool is ended by exit and gives its claim
+// back, so the child sends the file. Not fixed here: a send that times out
+// after the collector took it counts twice. The failed export's counts go out
+// folded into the next one, a different value at a later time, so Mimir sees
+// no duplicate to drop. Resending a failed live export verbatim would be
+// idempotent; at exit it is folded into the spool and restamped, so not
+// there. It takes a response lost after ingestion, which the
 // 2 s export timeout makes rare; the counts are usage signals, not billing.
 const (
 	spoolMaxAge   = 7 * 24 * time.Hour
