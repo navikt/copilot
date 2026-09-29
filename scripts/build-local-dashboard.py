@@ -79,6 +79,12 @@ def panels():
         (12, "Sesjoner per intervall, per klient", "timeseries",
          "opencode kjører modellen som subagent under en skyagent; Copilot CLI kjører hele økten lokalt.",
          [(f"sum by (client) (sum_over_time(nav_pilot_local_dispatches_count{SEL}[$__interval]))", "{{client}}")]),
+        (13, "Utsendingsvakten, per utfall", "timeseries",
+         "Hva vakten foran den lokale modellen gjorde i økter med local_dispatch balanced eller "
+         "aggressive. deny_* er ting den stoppet; dispatched_after_deny endte likevel med "
+         "utsending; verify_nudge er påminnelsen når den lokale modellen er ferdig og ingen bygging "
+         "eller test har kjørt etterpå; create_retry* er oppfølging etter at den opprettet en ny fil.",
+         [(f"sum by (outcome) (sum_over_time(nav_pilot_local_gate_total{SEL}[$__interval]))", "{{outcome}}")]),
 
         (20, "Tid til klar", "timeseries",
          "p50 og p95 for oppstarter som faktisk kom opp. Filteret outcome=\"ready\" er ikke pynt: "
@@ -128,15 +134,21 @@ def panels():
          "Antall, aldri innhold. secret og fnr er maskerte verdier; injection_note er resultater "
          "som fikk en merknad om at teksten ser ut som instruksjoner.",
          [(f"sum by (kind) (sum_over_time(nav_pilot_hook_redact_total{SEL}[$__interval]))", "{{kind}}")]),
+        (42, "Handlingssjekken, per utfall og kategori", "timeseries",
+         "Om den lokale modellen fikk sjekke en risikabel skallkommando før den kjørte, og hva "
+         "den svarte. flagged er kommandoer modellen fant risikable; skipped_* er sjekker som "
+         "ikke ble gjort (frist, ingen server, eller feil).",
+         [(f"sum by (outcome, category) (sum_over_time(nav_pilot_hook_action_check_total{SEL}[$__interval]))",
+           "{{outcome}} {{category}}")]),
     ]
 
 
 ROWS = [
     ("Adopsjon", [1, 2, 3, 4]),
-    ("Dispatch — brukes workeren?", [10, 11, 12]),
+    ("Dispatch — brukes workeren?", [10, 11, 12, 13]),
     ("Lokal server", [20, 21, 22]),
     ("alpha decide", [30, 31, 32, 33]),
-    ("Hooks", [40, 41]),
+    ("Hooks", [40, 41, 42]),
 ]
 
 
