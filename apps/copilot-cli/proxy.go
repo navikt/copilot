@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -107,4 +110,40 @@ func (p *upstream) forward(w http.ResponseWriter, r *http.Request, path string) 
 // route documented in the PRD (issue #337).
 func usagePath(username string) string {
 	return fmt.Sprintf("/api/v1/copilot/usage/user/%s", username)
+}
+
+// isOrgMember asks copilot-api whether login is an active member of the org,
+// with copilot-cli's M2M token. copilot-api answers with its own GitHub App,
+// so the nav-pilot user token needs no permissions. Anything but a 200 with
+// a boolean "active" is an error, and the caller refuses the sign-in.
+func (p *upstream) isOrgMember(ctx context.Context, login string) (bool, error) {
+	token, err := p.texas.token(ctx)
+	if err != nil {
+		return false, fmt.Errorf("minting M2M token: %w", err)
+	}
+	body, err := json.Marshal(map[string]string{"login": login})
+	if err != nil {
+		return false, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+"/internal/v1/github/org-membership", bytes.NewReader(body))
+	if err != nil {
+		return false, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("calling %s membership: %T", p.name, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("%s membership returned status %d", p.name, resp.StatusCode)
+	}
+	var out struct {
+		Active *bool `json:"active"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<10)).Decode(&out); err != nil || out.Active == nil {
+		return false, fmt.Errorf("%s membership: malformed answer", p.name)
+	}
+	return *out.Active, nil
 }

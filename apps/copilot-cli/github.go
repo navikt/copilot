@@ -15,7 +15,8 @@ import (
 
 const githubAPIBaseURL = "https://api.github.com"
 
-// GitHubClient validates GitHub user tokens and checks org membership.
+// GitHubClient validates GitHub user tokens. Org membership is checked by
+// copilot-api (see upstream.isOrgMember), so the tokens need no permissions.
 //
 // A token is accepted only when GitHub confirms, through this app's own
 // credentials, that it was issued to this app (POST
@@ -144,38 +145,4 @@ func (c *GitHubClient) appTokenRequest(ctx context.Context, method, token string
 		return nil, fmt.Errorf("calling GitHub %s token: %w", method, err)
 	}
 	return resp, nil
-}
-
-// isOrgMember checks whether the given user is a member of org, using the
-// caller's own token. GitHub returns 204 for members and 404 otherwise.
-func (c *GitHubClient) isOrgMember(ctx context.Context, token, org, username string) (bool, error) {
-	u := fmt.Sprintf("%s/orgs/%s/members/%s", c.baseURL, url.PathEscape(org), url.PathEscape(username))
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-	if err != nil {
-		return false, fmt.Errorf("building org membership request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Accept", "application/vnd.github+json")
-
-	// Never follow a redirect. GitHub answers 302 when the requester is not
-	// an org member (or the token cannot read members): either way the
-	// membership is not confirmed.
-	client := *c.httpClient
-	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	resp, err := client.Do(req)
-	if err != nil {
-		return false, fmt.Errorf("calling GitHub org membership: %w", err)
-	}
-	defer resp.Body.Close()
-
-	switch resp.StatusCode {
-	case http.StatusNoContent:
-		return true, nil
-	case http.StatusNotFound, http.StatusFound:
-		return false, nil
-	case http.StatusUnauthorized:
-		return false, errInvalidToken
-	default:
-		return false, fmt.Errorf("GitHub org membership check returned status %d", resp.StatusCode)
-	}
 }

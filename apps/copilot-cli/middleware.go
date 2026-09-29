@@ -36,7 +36,10 @@ type AuthenticatedUser struct {
 type authenticator struct {
 	github *GitHubClient
 	org    string
-	cache  *tokenCache
+	// isMember asks copilot-api whether a login is an active org member
+	// (upstream.isOrgMember). Any error refuses the sign-in.
+	isMember func(ctx context.Context, login string) (bool, error)
+	cache    *tokenCache
 	// limit is the global ceiling on GitHub token checks on a cache miss,
 	// below the app's GitHub quota (5,000/h), so a flood of random tokens
 	// costs a 429 and not the quota. Not per source address: behind
@@ -109,7 +112,7 @@ func (a *authenticator) resolve(ctx context.Context, token string) (*Authenticat
 	user, err := a.github.resolveUser(ctx, token)
 	if err == nil {
 		var member bool
-		member, err = a.github.isOrgMember(ctx, token, a.org, user.Login)
+		member, err = a.isMember(ctx, user.Login)
 		if err == nil && !member {
 			err = errNotOrgMember
 		}
@@ -122,7 +125,10 @@ func (a *authenticator) resolve(ctx context.Context, token string) (*Authenticat
 		// reach GitHub every time.
 		a.cache.set(token, nil, err)
 	}
-	return user, err
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 var (

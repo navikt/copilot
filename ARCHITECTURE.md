@@ -52,7 +52,7 @@ nav-pilot
   │  Bearer <GitHub token>
   ▼
 copilot-cli (Go gateway, naisdevice-gated ingress)
-  │  validates the token against GitHub and checks navikt org membership
+  │  validates the token against GitHub; asks copilot-api whether the login is a navikt member
   │  asks Texas for an M2M token minted for the audience of the service it calls
   ├──▶ copilot-api      (usage)
   └──▶ copilot-survey   (survey routes; no ingress)
