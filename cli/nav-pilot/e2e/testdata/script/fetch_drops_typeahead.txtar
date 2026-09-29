@@ -1,0 +1,37 @@
+# An Enter pressed while nav-pilot fetches its source is dropped, so it does
+# not reach the install question that follows (#1279). The fetch is slowed
+# down so the key lands while the spinner runs.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+fake-bin cplt copilot
+
+mkdir plattform
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+
+cd $HOME
+exec git config --global url.file://$WORK/plattform.insteadOf https://github.com/navikt/plattform.git
+exec git config --global remote.origin.uploadpack 'sleep 2; git-upload-pack'
+exec nav-pilot config set source navikt/plattform
+exec nav-pilot config set rtk_prompted_client copilot
+
+exits 0 pty-run -wait 'Fetching navikt/plattform' -send '\r' -wait 'and 1 hooks to ~/.copilot' -send '\r' -- nav-pilot
+stdout 'Installed\. cd into a project and run nav-pilot'
+! stdout 'Agents \(1 available\)'
+exists $HOME/.copilot/hooks/vakt.py
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/hooks/vakt.hook.json --
+{"matcher": "bash", "timeoutSec": 5}
+-- plattform/hooks/vakt.py --
+print("ok")

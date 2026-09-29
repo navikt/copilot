@@ -369,6 +369,11 @@ func cloneRemote(ref, sourceRepo string) (*Source, error) {
 
 	close(done)
 	<-stopped
+	// Keys pressed while the spinner ran, an Enter above all, would otherwise
+	// reach the prompt that follows and pick or move in it (#1279).
+	if spin {
+		dropTypeahead()
+	}
 	if err != nil {
 		os.RemoveAll(tmpDir)
 		gitErr := strings.TrimSpace(stderr.String())
