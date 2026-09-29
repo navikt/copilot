@@ -81,6 +81,10 @@ func isolatedConfig(t *testing.T) string {
 	// (#779). An isolated test does not reach it: sources are not release-backed
 	// unless the test says otherwise with stubRelease.
 	stubRelease(t, releaseNoMetadata, pakkeRelease{}, nil)
+	// doctor and the wizard ask gh, which may ask GitHub.
+	probe := ghAuthProbe
+	ghAuthProbe = func() (ghAuth, string) { return ghAuthUnknown, "stubbed in tests" }
+	t.Cleanup(func() { ghAuthProbe = probe })
 	return path
 }
 

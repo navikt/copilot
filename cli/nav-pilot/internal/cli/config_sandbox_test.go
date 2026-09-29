@@ -151,7 +151,7 @@ func fakeCplt(t *testing.T, get map[string]string) string {
 
 	var cases strings.Builder
 	for k, v := range get {
-		fmt.Fprintf(&cases, "    %s) printf '%%s\\n' %q ;;\n", k, v)
+		fmt.Fprintf(&cases, "    %s) printf '%%b\\n' %q ;;\n", k, v)
 	}
 
 	script := fmt.Sprintf(`#!/bin/sh

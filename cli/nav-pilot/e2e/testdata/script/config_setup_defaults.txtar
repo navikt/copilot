@@ -8,13 +8,13 @@
 [!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
 
 fake-bin cplt copilot
-exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Install it now' -send '\x1b[C\r' -wait 'Conversation mode' -send '\r' -wait 'without asking' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -- nav-pilot config setup
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Install it now' -send '\x1b[C\r' -wait 'Conversation mode' -send '\r' -wait 'on its own' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup
 stdout 'OpenCode \(default\)'
 stdout 'GitHub Copilot'
 stdout 'opencode is not installed, so nav-pilot will use GitHub Copilot'
 stdout 'Checking which models your account has… \(runs copilot once, outside the cplt sandbox; it stops before any prompt\)'
 grep 'client = "copilot"' home/config.toml
-stdout 'How much should the agent do without asking'
+stdout 'How much should the agent do on its own'
 grep 'autonomy = "sandbox"' home/config.toml
 ! grep 'mode =' home/config.toml
 ! grep 'auto_update' home/config.toml

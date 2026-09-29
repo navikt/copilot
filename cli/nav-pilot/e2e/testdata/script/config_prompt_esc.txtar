@@ -7,7 +7,7 @@
 [!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
 
 fake-bin cplt copilot
-exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Install it now' -send '\x1b[C\r' -wait 'Conversation mode' -send '\r' -wait 'without asking' -send '\r' -wait '(?s)Other… \(type a model id\).*esc cancel' -send '\x1b' -- nav-pilot config setup
+exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Install it now' -send '\x1b[C\r' -wait 'Conversation mode' -send '\r' -wait 'on its own' -send '\r' -wait '(?s)Other… \(type a model id\).*esc cancel' -send '\x1b' -- nav-pilot config setup
 stdout 'esc cancel'
 stdout 'Cancelled\. Nothing was written\.'
 ! exists home/config.toml

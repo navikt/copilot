@@ -402,6 +402,12 @@ func cmdDoctor() error {
 	} else {
 		fmt.Printf("      %s Binary found: %s\n", green("✓"), piPath)
 	}
+
+	// Push and PRs from inside the sandbox need a gh login the client can read.
+	fmt.Printf("    • GitHub sign-in (push and PRs)\n")
+	ghCfg, _ := readConfig()
+	st, detail := ghAuthProbe()
+	reportGHAuth(os.Stdout, "      ", resolve(ghCfg, CLIOverrides{}).Client, st, detail)
 	fmt.Println()
 
 	// 3b. Model pins

@@ -1,0 +1,85 @@
+# #1348: the wizard's autonomy presets. Each writes nav-pilot's autonomy and
+# only the cplt keys that differ from today's; a summary comes first, and
+# Cancel there writes nothing. A rerun preselects the current choice. The gh
+# check runs after the save and names the command to run.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+fake-bin cplt copilot
+cp cplt.sh $WORK/fake/cplt.sh
+
+# 1. Autonomous in the sandbox (Enter): cplt is already on standard, so only
+# nav-pilot's autonomy is written.
+exits 0 pty-run -wait 'Which coding agent' -send '\x1b[B\r' -wait 'Conversation mode' -send '\r' -wait 'on its own' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup
+stdout 'nav-pilot autonomy = sandbox'
+stdout 'cplt: no changes'
+grep 'autonomy = "sandbox"' home/config.toml
+! grep 'config\nset' $WORK/fake/cplt.log
+stdout 'gh is not installed; the agent needs it to open PRs'
+
+# A rerun preselects it: Enter all the way changes nothing.
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'on its own' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup --force
+grep 'autonomy = "sandbox"' home/config.toml
+! grep 'config\nset' $WORK/fake/cplt.log
+
+# 2. Ask before each command.
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'on its own' -send '\x1b[B\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup --force
+grep 'autonomy = "conservative"' home/config.toml
+! grep 'config\nset' $WORK/fake/cplt.log
+
+# An existing user on conservative gets that as the default, not sandbox.
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'on its own' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup --force
+grep 'autonomy = "conservative"' home/config.toml
+
+# Cancel at the summary: neither file changes.
+cp home/config.toml before.toml
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'on its own' -send '\x1b[A\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\x1b[C\r' -- nav-pilot config setup --force
+stdout 'Nothing saved'
+cmp home/config.toml before.toml
+! grep 'config\nset' $WORK/fake/cplt.log
+
+# 3. Locked down: strict, with the Nav hosts seeded first, and said plainly.
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'on its own' -send '\x1b[B\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup --force
+stdout 'cplt sandbox.preset: standard → strict'
+stdout 'The agent cannot push at all'
+grep 'config\nset\nproxy.allowed_domains\n.*\n---\nconfig\nset\nsandbox.preset\nstrict\n---' $WORK/fake/cplt.log
+grep 'autonomy = "conservative"' home/config.toml
+
+# 4. Custom: Copilot works on its own, commits only, standard network.
+rm $WORK/fake/cplt.log
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'on its own' -send '\x1b[B\x1b[B\r' -wait 'ask before each command' -send '\x1b[A\r' -wait 'do with git' -send '\x1b[B\r' -wait 'Network' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup --force
+stdout 'cplt git_guard.protect_default_branch_only: unset → false'
+grep 'config\nset\ngit_guard.protect_default_branch_only\nfalse\n---' $WORK/fake/cplt.log
+! grep 'sandbox.preset\n(standard|strict)' $WORK/fake/cplt.log
+grep 'autonomy = "sandbox"' home/config.toml
+
+# A repo with tooling and no .cplt.toml: the wizard offers cplt init --write
+# and points to cplt trust accept, which it never runs.
+mkdir repo/.git
+cd repo
+rm $WORK/fake/cplt.log
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'on its own' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -wait 'Apply the suggested sandbox rules' -send '\r' -- nav-pilot config setup --force
+stdout 'Detected: JVM \(Gradle\)'
+grep 'init\n--write\n---' $WORK/fake/cplt.log
+! grep 'trust' $WORK/fake/cplt.log
+stdout 'cplt trust accept'
+cd $WORK
+
+# Non-TTY: no prompt, no write.
+rm $WORK/fake/cplt.log
+! exec nav-pilot config setup --force
+stderr 'config setup needs a terminal'
+! exists $WORK/fake/cplt.log
+
+-- cplt.sh --
+# Answers config get like cplt does for keys the file does not set.
+if [ "$1 $2" = "config get" ]; then
+  case "$3" in
+    sandbox.preset) printf 'standard\n[cplt] (default, not set in config file)\n' ;;
+    git_guard.protect_default_branch_only) printf 'true\n[cplt] (default, not set in config file)\n' ;;
+  esac
+  exit 0
+fi
+if [ "$1 $2" = "init -q" ]; then
+  printf '# Generated by `cplt init`. Review before trusting.\n# Detected: JVM (Gradle)\n\n[propose]\nallow_jvm_attach = true\n'
+fi
