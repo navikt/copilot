@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -39,13 +41,16 @@ import (
 // same file, even where flock fails. A sender that dies mid-send leaves its
 // .sending file for the age prune: those counts are lost rather than counted
 // twice; a run's own send of the spool is ended by exit and gives its claim
-// back, so the child sends the file. Not fixed here: a send that times out
-// after the collector took it counts twice. The failed export's counts go out
-// folded into the next one, a different value at a later time, so Mimir sees
-// no duplicate to drop. Resending a failed live export verbatim would be
-// idempotent; at exit it is folded into the spool and restamped, so not
-// there. It takes a response lost after ingestion, which the
-// 2 s export timeout makes rare; the counts are usage signals, not billing.
+// back, so the child sends the file.
+//
+// A live export that was sent but got no answer, a timeout above all, may
+// have been taken anyway. It is kept and sent again unchanged, same points and
+// same timestamps, before the next export, so if the collector did take it,
+// Mimir drops the second copy as a duplicate (spoolTransport.unsent). Not
+// fixed at exit: one still unanswered there goes to the spool and is
+// re-stamped when sent, so a copy the collector took counts twice. It takes a
+// response lost after ingestion right before exit; the counts are usage
+// signals, not billing.
 const (
 	spoolMaxAge   = 7 * 24 * time.Hour
 	spoolMaxFiles = 50
@@ -54,6 +59,11 @@ const (
 	// spoolSendTimeout bounds one sender, the child or the next run's
 	// goroutine, waiting for the lock included.
 	spoolSendTimeout = 15 * time.Second
+
+	// unsentMax bounds the unanswered exports a run keeps to send again.
+	// Beyond it an unanswered export fails as before, and its counts go
+	// with the next one.
+	unsentMax = 5
 )
 
 // spoolDir is where exports wait to be sent; "" when there is no home.
@@ -71,8 +81,14 @@ type spoolTransport struct {
 	next    http.RoundTripper
 	dir     string
 	exiting context.Context
-	exit    context.CancelFunc
+	cancel  context.CancelFunc
 	wrote   atomic.Bool // an export went to the spool
+
+	mu sync.Mutex // one live send at a time, and unsent
+	// unsent holds exports that were sent but not answered, oldest first.
+	// Each goes again as it is before the next export, and to the spool at
+	// exit.
+	unsent []*http.Request
 	// ready, when set, holds live sends back until the spool an earlier run
 	// left has been sent: those points are re-stamped to now, and a series
 	// cannot take a point older than the one it already has.
@@ -81,7 +97,19 @@ type spoolTransport struct {
 
 func newSpoolTransport(next http.RoundTripper, dir string) *spoolTransport {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &spoolTransport{next: next, dir: dir, exiting: ctx, exit: cancel}
+	return &spoolTransport{next: next, dir: dir, exiting: ctx, cancel: cancel}
+}
+
+// exit sends every export from now on to the spool, ends the one in flight,
+// and writes the unanswered ones to the spool.
+func (s *spoolTransport) exit() {
+	s.cancel()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, r := range s.unsent {
+		s.write(bodyOf(r))
+	}
+	s.unsent = nil
 }
 
 func (s *spoolTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -102,18 +130,82 @@ func (s *spoolTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			return nil, req.Context().Err()
 		}
 	}
+	body, err := io.ReadAll(req.Body)
+	req.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	req = withBody(req.Clone(req.Context()), body)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// The unanswered ones first, unchanged, so a copy the collector already
+	// took is a duplicate Mimir drops. While one still fails, this export
+	// fails too, and its counts go with the next one.
+	for len(s.unsent) > 0 {
+		r := withBody(s.unsent[0].Clone(req.Context()), bodyOf(s.unsent[0]))
+		resp, _, err := s.send(r)
+		if err != nil {
+			return nil, err
+		}
+		resp.Body.Close()
+		// Like the spool: a 4xx other than 429 is not taken on a second try.
+		if resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests {
+			return nil, fmt.Errorf("resending an unanswered export: %s", resp.Status)
+		}
+		s.unsent = s.unsent[1:]
+	}
+	resp, sent, err := s.send(req)
+	if err != nil {
+		// Sent and not answered: the collector may have it, so it goes again
+		// as it is instead of being folded into the next export. Not sent,
+		// or cut short by exit: it failed, and its counts go with the next
+		// export, which at exit is the spool.
+		if sent && s.exiting.Err() == nil && len(s.unsent) < unsentMax {
+			s.unsent = append(s.unsent, req.Clone(context.Background()))
+			return accepted(req), nil
+		}
+		return nil, err
+	}
+	return resp, nil
+}
+
+// send is one live send, ended by exit. sent reports whether the request
+// went out in full, so the collector may have it even without an answer.
+func (s *spoolTransport) send(req *http.Request) (resp *http.Response, sent bool, err error) {
 	ctx, cancel := context.WithCancel(req.Context())
 	stop := context.AfterFunc(s.exiting, cancel)
-	resp, err := s.next.RoundTrip(req.WithContext(ctx))
+	var wrote atomic.Bool
+	ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+		WroteRequest: func(i httptrace.WroteRequestInfo) { wrote.Store(i.Err == nil) },
+	})
+	resp, err = s.next.RoundTrip(req.WithContext(ctx))
 	if err != nil {
 		stop()
 		cancel()
-		// Cut short by exit or not, it failed: its counts go with the next
-		// export, which at exit is the spool.
-		return nil, err
+		return nil, wrote.Load(), err
 	}
 	resp.Body = &closeFunc{resp.Body, func() { stop(); cancel() }}
-	return resp, nil
+	return resp, true, nil
+}
+
+// withBody is req reading body, which it can read again (GetBody) for a
+// redirect or a retry.
+func withBody(req *http.Request, body []byte) *http.Request {
+	req.Body = io.NopCloser(bytes.NewReader(body))
+	req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(body)), nil }
+	req.ContentLength = int64(len(body))
+	return req
+}
+
+// bodyOf is the body of a request made by withBody.
+func bodyOf(req *http.Request) []byte {
+	rc, err := req.GetBody()
+	if err != nil {
+		return nil
+	}
+	b, _ := io.ReadAll(rc)
+	return b
 }
 
 // spoolName is where a temporary file lands: time first, so the spool sends
