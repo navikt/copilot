@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -48,6 +49,8 @@ func fakeEmails(_ context.Context, c *caller) (string, error) {
 		return c.email, nil
 	case c.login == "hans":
 		return "hans.test@NAV.no ", nil
+	case c.login == "guest":
+		return "guest@example.com", nil
 	}
 	return "", errNoNavIdentity
 }
@@ -333,5 +336,83 @@ func TestMatrixItemsStoredAsScales(t *testing.T) {
 	s.Questions[i].Required, s.Questions[i].SkipIf = true, nil
 	if _, err := validateAnswers(s, map[string]json.RawMessage{"overall": []byte("3"), "fast": []byte("4")}); err == nil {
 		t.Fatal("required matrix took one item of two")
+	}
+}
+
+// A required matrix with skip_if is required unless skipped: skipped, it
+// takes no item; asked, it takes every item.
+func TestRequiredMatrixSkippedWhole(t *testing.T) {
+	defs, err := loadSurveys([]byte(strings.Replace(testSurveys, `"type":"matrix","text":"How much do you agree?",`, `"type":"matrix","text":"How much do you agree?","required":true,`, 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, tc := range map[string]struct {
+		answers string
+		ok      bool
+	}{
+		"skipped, no items":  {`{"overall":3,"client":"opencode"}`, true},
+		"skipped, one item":  {`{"overall":3,"client":"opencode","fast":4}`, false},
+		"asked, no items":    {`{"overall":3,"client":"copilot"}`, false},
+		"asked, one item":    {`{"overall":3,"client":"copilot","fast":4}`, false},
+		"asked, every item":  {`{"overall":3,"client":"copilot","fast":4,"safe":2}`, true},
+		"unanswered skip_if": {`{"overall":3}`, false},
+	} {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(tc.answers), &raw); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := validateAnswers(defs[0], raw); (err == nil) != tc.ok {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+func TestMinCLIVersion(t *testing.T) {
+	defs, err := loadSurveys([]byte(strings.Replace(testSurveys, `"title":"Q4",`, `"title":"Q4","min_cli_version":"2026.09.29-072249",`, 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := &surveyAPI{surveys: defs, now: func() time.Time { return time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC) }}
+	for name, tc := range map[string]struct {
+		query, ua string
+		served    bool
+	}{
+		"web":                        {"", "node", true},
+		"web, no user agent":         {"", "", true},
+		"nav-pilot, same":            {"?client=nav-pilot", "nav-pilot/2026.09.29-072249-08895fb", true},
+		"nav-pilot, newer":           {"?client=nav-pilot", "nav-pilot/2026.09.29-073815-8801b8d", true},
+		"nav-pilot, next day":        {"?client=nav-pilot", "nav-pilot/2026.09.30", true},
+		"nav-pilot, older":           {"?client=nav-pilot", "nav-pilot/2026.09.29-071203-c69719c", false},
+		"nav-pilot, dev build":       {"?client=nav-pilot", "nav-pilot/dev", false},
+		"nav-pilot, no version sent": {"?client=nav-pilot", "Go-http-client/1.1", false},
+	} {
+		req := httptest.NewRequest("GET", "/api/v1/surveys/active"+tc.query, nil)
+		req.Header.Set("User-Agent", tc.ua)
+		rec := httptest.NewRecorder()
+		a.active(rec, req)
+		var got struct{ Surveys []survey }
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || (len(got.Surveys) == 1) != tc.served {
+			t.Errorf("%s: %s", name, rec.Body)
+		}
+	}
+	for _, bad := range []string{"2026.9.29", "v2026.09.29", "2026.09.29-0722", "latest"} {
+		if _, err := loadSurveys([]byte(strings.Replace(testSurveys, `"title":"Q4",`, `"title":"Q4","min_cli_version":"`+bad+`",`, 1))); err == nil {
+			t.Errorf("min_cli_version %q accepted", bad)
+		}
+	}
+}
+
+// A nav-pilot submission whose nameId is not @nav.no is counted, nothing more.
+func TestUnexpectedNameIDCounted(t *testing.T) {
+	h, _ := testRouter(t)
+	before := testutil.ToFloat64(unexpectedNameIDs)
+	body := `{"answers":{"overall":4},` + goodCtx + `}`
+	for _, token := range []string{"cli:hans", "cli:guest"} {
+		if rec := do(h, "POST", "/api/v1/surveys/q4-2026/responses", token, body); rec.Code != 201 {
+			t.Fatalf("%s: %d %s", token, rec.Code, rec.Body)
+		}
+	}
+	if got := testutil.ToFloat64(unexpectedNameIDs) - before; got != 1 {
+		t.Fatalf("counted %v, want 1", got)
 	}
 }

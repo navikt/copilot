@@ -726,6 +726,9 @@ func fetchActiveSurveys(base string) ([]surveyDef, error) {
 	if err != nil {
 		return nil, err
 	}
+	// copilot-survey leaves out surveys that need a newer nav-pilot
+	// (min_cli_version) by this.
+	req.Header.Set("User-Agent", "nav-pilot/"+Version)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err

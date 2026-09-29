@@ -27,7 +27,7 @@ only.
 | `GET` | `/api/v1/surveys/active` | none | Open surveys from [`surveys/`](surveys/README.md) |
 | `GET` | `/api/v1/surveys/schema` | none | The JSON Schema of a definition, [`surveys/schema.json`](surveys/schema.json) |
 | `POST` | `/api/v1/surveys/{id}/responses` | see above | Submit answers: 201, 409 already answered, 400 invalid, 401 caller refused, 403 no Nav identity, 404 not open, 503 not taking answers |
-| `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus (`survey_submissions_total{survey,status}`) |
+| `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus (`survey_submissions_total{survey,status}`, `survey_cli_nameid_unexpected_domain_total`) |
 
 No OpenTelemetry, no auto-instrumentation, no body logging, no retry that
 buffers a body. Logs carry survey id, status, batch size and error type,
@@ -53,9 +53,9 @@ unknown fields refused, body at most 32 KiB. Then:
    GitHub account with no SAML identity gets 403 and is told to answer on
    ki-utvikling. The e-mail is used in memory for step 2 only and never
    stored, cached or logged. The two strings must be the same address for
-   one person, or that person can answer twice. Check with a real user in
-   dev that `preferred_username` and the SAML `nameId` agree before launch.
-2. The dedup hash is `HMAC-SHA256(survey key, lowercased e-mail)`. A hash
+   one person, or that person can answer twice (see the residual risks).
+2. The dedup hash is `HMAC-SHA256(survey key, e-mail)`, the e-mail trimmed
+   and lowercased first. A hash
    already written or queued gets 409, from nav-pilot and the web alike.
 3. The submission is queued per survey. Every 10 (k) submissions to one
    survey are written together, in one transaction: their 10 hashes to
@@ -159,6 +159,29 @@ Residual risks, for the privacy review:
   on a restart.
 - Cloud SQL backups and WAL keep deleted participation rows (and batch commit
   times) for the backup retention period (7 backups by default).
+- Two identities for one person: the web hashes the Entra
+  `preferred_username` (the UPN), nav-pilot the SAML `nameId` of the navikt
+  SSO identity. Both are trimmed and lowercased; nothing else is folded,
+  because Nav publishes no alias scheme we could rely on. The evidence that
+  they agree: my-copilot already finds a user's GitHub account by passing
+  their `preferred_username` to GitHub's `externalIdentities(userName:)`
+  (copilot-api, `SAMLIdentityResolver`). That lookup only finds anyone if
+  the Entra SAML app sends the UPN as `nameId`. Not verified against the
+  directory. Where they can still differ: an SSO identity linked before a
+  name change (the UPN changes; the stored `nameId` may keep the old
+  one), a `nameId` from
+  another domain or format, and whatever GitHub folds when it matches
+  `userName` (case, at least). Such a person can answer once from nav-pilot
+  and once on the web. `survey_cli_nameid_unexpected_domain_total` counts
+  nav-pilot submissions whose `nameId` is not `@nav.no` (no label, nothing
+  logged); a counter that stays at 0 rules out the second case only. The
+  counter is not an identity, but its increment is timed: with the ingress
+  log, it tells that one submission had such a `nameId`. What would measure
+  the whole risk needs directory access and the owner's approval: an
+  aggregate count, never a list, of navikt SSO identities whose `nameId`
+  differs, ignoring case, from the Entra UPN of the same person. Someone
+  with read access to both runs it once before launch and records only the
+  number.
 - Upgrade path, if the separation of the two tables is judged not convincing:
   blind-signed one-time tokens (Privacy Pass style), so the server never sees
   who spends a token.

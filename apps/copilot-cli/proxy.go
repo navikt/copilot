@@ -52,6 +52,7 @@ func (p *upstream) forward(w http.ResponseWriter, r *http.Request, path string) 
 	if ct := r.Header.Get("Content-Type"); ct != "" {
 		req.Header.Set("Content-Type", ct)
 	}
+	req.Header.Set("User-Agent", r.Header.Get("User-Agent"))
 	if user, ok := userFromContext(r.Context()); ok {
 		token, tokenErr := p.texas.token(r.Context())
 		if tokenErr != nil {

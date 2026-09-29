@@ -28,9 +28,10 @@ func TestSurveyTypesFollowSchema(t *testing.T) {
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		t.Fatal(err)
 	}
-	// Not needed to render or send: the server serves only active surveys,
-	// and the rest is for analysis.
-	ignored := []string{"series", "active", "version", "construct", "reverse"}
+	// Not needed to render or send: the server serves only active surveys
+	// new enough for this build (min_cli_version), and the rest is for
+	// analysis.
+	ignored := []string{"series", "active", "min_cli_version", "version", "construct", "reverse"}
 	items, _ := reflect.TypeFor[surveyQuestion]().FieldByName("Items")
 	for _, c := range []struct {
 		typ   reflect.Type
