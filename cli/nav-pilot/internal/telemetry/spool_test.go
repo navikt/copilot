@@ -197,3 +197,48 @@ func TestSpoolSendsWhenFlockUnsupported(t *testing.T) {
 		t.Errorf("sent %d, want 1", sent)
 	}
 }
+
+// A file another sender has claimed is not sent again, and a claim is given
+// back when the send fails, so the next run still has the file.
+func TestSpoolClaim(t *testing.T) {
+	dir := t.TempDir()
+	mine := filepath.Join(dir, "1-1.pb")
+	theirs := filepath.Join(dir, "2-1.pb")
+	os.WriteFile(mine, []byte("mine"), 0o600)
+	os.WriteFile(theirs, []byte("theirs"), 0o600)
+	if _, ok := claim(theirs); !ok {
+		t.Fatal("claim failed")
+	}
+	if _, ok := claim(theirs); ok {
+		t.Fatal("second claim of the same file succeeded")
+	}
+
+	var got []string
+	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		got = append(got, string(b))
+	}))
+	defer collector.Close()
+	sendSpool(t.Context(), dir, collector.URL, collector.Client())
+	if len(got) != 1 || got[0] != "mine" {
+		t.Errorf("sent %q, want only the unclaimed file", got)
+	}
+	if _, err := os.Stat(theirs + ".sending"); err != nil {
+		t.Errorf("another sender's claim disturbed: %v", err)
+	}
+
+	os.WriteFile(mine, []byte("mine"), 0o600)
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer failing.Close()
+	sendSpool(t.Context(), dir, failing.URL, failing.Client())
+	if _, err := os.Stat(mine); err != nil {
+		t.Errorf("claim not given back after a 503: %v", err)
+	}
+	failing.Close()
+	sendSpool(t.Context(), dir, failing.URL, failing.Client())
+	if _, err := os.Stat(mine); err != nil {
+		t.Errorf("claim not given back after a network error: %v", err)
+	}
+}
