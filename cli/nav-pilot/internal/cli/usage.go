@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -68,6 +69,24 @@ func (u *usageResponse) acceptanceRate() float64 {
 		return 0
 	}
 	return float64(u.TotalAcceptances) / float64(u.TotalGenerations) * 100
+}
+
+// The one line for copilot-cli out of reach, in each command's language
+// (#1300, #1199): naisdevice off, or a firewall blocking this binary.
+var (
+	errUnreachableNB = errors.New("fikk ikke kontakt med copilot-cli (er naisdevice på, eller blokkerer en brannmur nav-pilot?)")
+	errUnreachableEN = errors.New("could not reach copilot-cli (is naisdevice connected, or is a firewall blocking nav-pilot?)")
+)
+
+// unreachable reports whether err from an HTTP call means copilot-cli was not
+// reached: a timeout, or a failed lookup or connection. A TLS or HTTP fault is
+// not, and must not be reported as naisdevice being off.
+func unreachable(err error) bool {
+	var opErr *net.OpError
+	var dnsErr *net.DNSError
+	var netErr net.Error
+	return errors.Is(err, context.DeadlineExceeded) || errors.As(err, &opErr) || errors.As(err, &dnsErr) ||
+		(errors.As(err, &netErr) && netErr.Timeout())
 }
 
 // copilotCLIURL resolves the copilot-cli endpoint. NAV_PILOT_COPILOT_CLI_URL
@@ -144,6 +163,9 @@ func cmdUsage(jsonOutput bool, tmuxFormat bool) error {
 	}
 
 	usage, err := fetchUsage(ctx, copilotCLIURL(), token.AccessToken)
+	if errors.Is(err, errUnreachableNB) {
+		return err
+	}
 	if err != nil {
 		return fmt.Errorf("kunne ikke hente bruksdata fra copilot-cli: %w", err)
 	}
@@ -177,7 +199,10 @@ func fetchUsage(ctx context.Context, baseURL, githubToken string) (*usageRespons
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("fikk ikke kontakt med copilot-cli (er naisdevice på?): %w", err)
+		if unreachable(err) {
+			return nil, errUnreachableNB
+		}
+		return nil, err
 	}
 	defer resp.Body.Close()
 

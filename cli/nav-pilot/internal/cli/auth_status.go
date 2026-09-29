@@ -146,6 +146,9 @@ func revokeToken(ctx context.Context, baseURL, token string) error {
 	req.Header.Set("Authorization", "Bearer "+token)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		if unreachable(err) {
+			return errUnreachableEN
+		}
 		return fmt.Errorf("calling copilot-cli: %w", err)
 	}
 	defer resp.Body.Close()

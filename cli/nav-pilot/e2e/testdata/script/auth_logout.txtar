@@ -10,7 +10,8 @@ stdout 'Not logged in; nothing to remove'
 env NAV_PILOT_E2E_KEYCHAIN_TOKEN=gho_e2e
 env NAV_PILOT_COPILOT_CLI_URL=http://127.0.0.1:9
 exec nav-pilot auth logout
-stdout 'Could not revoke the token at GitHub'
+stdout '^  ⚠ Could not revoke the token at GitHub: could not reach copilot-cli \(is naisdevice connected, or is a firewall blocking nav-pilot\?\)\.$'
+! stdout 'dial tcp'
 stdout 'remove nav-pilot under Authorized GitHub Apps: https://github.com/settings/apps/authorizations'
 stdout 'Logged out\. Token removed from OS keychain'
 
@@ -19,6 +20,11 @@ env NAV_PILOT_GITHUB_CLIENT_ID=Iv1.other
 exec nav-pilot auth logout
 stdout 'Authorized GitHub Apps or Authorized OAuth Apps: https://github.com/settings/applications'
 env NAV_PILOT_GITHUB_CLIENT_ID=
+
+# usage says copilot-cli is out of reach in one Norwegian line (#1300).
+exits 1 nav-pilot usage
+stderr 'fikk ikke kontakt med copilot-cli \(er naisdevice på, eller blokkerer en brannmur nav-pilot\?\)$'
+! stderr 'dial tcp|bruksdata'
 
 # usage speaks Norwegian all the way, like the rest of its output.
 env NAV_PILOT_E2E_KEYCHAIN_TOKEN=
