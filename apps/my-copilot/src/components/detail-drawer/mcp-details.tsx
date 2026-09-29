@@ -36,8 +36,8 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
               </div>
             </div>
             <BodyShort size="small">
-              Kommandoen legger serveren inn i oppsettet for Copilot CLI eller OpenCode, spør om adressene serveren
-              trenger i sandkassen, og sier fra om noe mangler.
+              Kommandoen legger serveren inn i oppsettet for Copilot CLI og OpenCode (de du har installert), spør om
+              adressene serveren trenger i sandkassen, og sier fra om noe mangler.
             </BodyShort>
             <BodyShort size="small">
               Virker ikke serveren? Kjør <code className="text-xs bg-gray-100 rounded px-1">nav-pilot mcp list</code>{" "}
