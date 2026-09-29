@@ -51,7 +51,9 @@ describe("prissiden", () => {
         expect(prices.slice(firstMissingPrice)).toEqual(Array(prices.length - firstMissingPrice).fill("—"));
       }
       fireEvent.click(cacheWriteSort);
-      expect(cacheWriteSort).toHaveAccessibleName(`Sorter etter Cache write, ${direction === "stigende" ? "synkende" : "stigende"}`);
+      expect(cacheWriteSort).toHaveAccessibleName(
+        `Sorter etter Cache write, ${direction === "stigende" ? "synkende" : "stigende"}`
+      );
     }
   });
 

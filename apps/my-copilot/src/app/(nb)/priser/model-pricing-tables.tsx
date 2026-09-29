@@ -26,9 +26,7 @@ type SortDirection = "ascending" | "descending";
 type RangeFilter = { min?: string; max?: string };
 type ColumnFilters = Partial<Record<DiscreteFilterKey, string[]>> & Partial<Record<RangeFilterKey, RangeFilter>>;
 
-const DISCRETE_FILTER_COLUMNS = COLUMNS.filter(({ key }) =>
-  ["provider", "model", "category"].includes(key)
-) as {
+const DISCRETE_FILTER_COLUMNS = COLUMNS.filter(({ key }) => ["provider", "model", "category"].includes(key)) as {
   key: DiscreteFilterKey;
   label: string;
 }[];
@@ -130,11 +128,7 @@ export function ModelPricingTables() {
     () =>
       Object.fromEntries(
         DISCRETE_FILTER_COLUMNS.map(({ key }) => {
-          const values = [
-            ...new Set(
-              NAV_MODELS.map((model) => columnValue(model, key))
-            ),
-          ];
+          const values = [...new Set(NAV_MODELS.map((model) => columnValue(model, key)))];
           if (key === "provider") {
             values.sort(
               (a, b) =>
@@ -153,12 +147,7 @@ export function ModelPricingTables() {
   const models = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("nb-NO");
     const matchingModels = NAV_MODELS.filter((model) => {
-      if (
-        query &&
-        !`${model.model} ${model.provider} ${model.category}`
-          .toLocaleLowerCase("nb-NO")
-          .includes(query)
-      ) {
+      if (query && !`${model.model} ${model.provider} ${model.category}`.toLocaleLowerCase("nb-NO").includes(query)) {
         return false;
       }
       const matchesDiscreteFilters = DISCRETE_FILTER_COLUMNS.every(({ key }) => {
@@ -258,9 +247,7 @@ export function ModelPricingTables() {
         })}
         {RANGE_FILTER_COLUMNS.map(({ key, label }) => {
           const range = columnFilters[key] ?? {};
-          const prices = NAV_MODELS.map((model) => model[key]).filter(
-            (price): price is number => price !== undefined
-          );
+          const prices = NAV_MODELS.map((model) => model[key]).filter((price): price is number => price !== undefined);
           const minimum = Math.min(...prices);
           const maximum = Math.max(...prices);
           const summary = range.min || range.max ? `${range.min || "Min"}–${range.max || "Maks"}` : "Alle";
