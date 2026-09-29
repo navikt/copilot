@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -401,13 +400,10 @@ func cmdSurvey(jsonOutput bool) error {
 	st := readSurveyState()
 	base := copilotCLIURL()
 	now := time.Now()
-	if active, err := fetchActiveSurveys(base); err == nil {
+	active, fetchErr := fetchActiveSurveys(base)
+	if fetchErr == nil {
 		st.Active, st.Fetched = active, now
 		writeSurveyState(st)
-	} else if len(st.Active) == 0 && !noSurveyService(err) {
-		// Any HTTP status is caught by noSurveyService above; what is left is
-		// a transport failure (no route, DNS, connection refused).
-		return fmt.Errorf("fikk ikke kontakt med copilot-cli for å finne åpne undersøkelser (er naisdevice på?): %w", err)
 	}
 	var open []surveyDef
 	for _, d := range st.Active {
@@ -418,6 +414,14 @@ func cmdSurvey(jsonOutput bool) error {
 		default:
 			open = append(open, d)
 		}
+	}
+	// Nothing to show from the last fetch either: say why, rather than that
+	// nothing is open. Any HTTP status means no survey service (#1179).
+	if len(open) == 0 && fetchErr != nil && !noSurveyService(fetchErr) {
+		if unreachable(fetchErr) {
+			return errUnreachableNB
+		}
+		return fmt.Errorf("kunne ikke hente åpne undersøkelser: %w", fetchErr)
 	}
 	if jsonOutput || !isInteractive() {
 		if jsonOutput {
@@ -709,14 +713,12 @@ type surveyHTTPError struct {
 // noSurveyService is a fetch that means "no survey to answer" rather than a
 // fault to report: any non-2xx from copilot-cli (a 404, what Nav's ingress
 // answers where the gateway is not deployed; a 5xx, copilot-cli up but
-// copilot-survey not; or anything else it might answer), or no answer within
-// the timeout. nav-pilot survey then says there is nothing open, as for an
-// empty list.
+// copilot-survey not; or anything else it might answer). nav-pilot survey
+// then says there is nothing open, as for an empty list. A timeout is not
+// one: that is copilot-cli out of reach (#1300).
 func noSurveyService(err error) bool {
 	var httpErr surveyHTTPError
-	var netErr net.Error
-	return errors.As(err, &httpErr) ||
-		errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout())
+	return errors.As(err, &httpErr)
 }
 
 func (e surveyHTTPError) Error() string {
@@ -774,8 +776,10 @@ func sendAnswered(base string, st surveyState, id string) {
 		fmt.Println(yellow("  ⚠ ") + "copilot-cli avviste svaret" + surveyErrDetail(err) + ". Det ble dessverre ikke lagret.")
 	case status >= 500 || status == http.StatusTooManyRequests:
 		fmt.Println(dim("  copilot-cli kunne ikke ta imot svaret nå" + surveyErrDetail(err) + ". Svaret er lagret, og nav-pilot sender det etter neste økt."))
+	case unreachable(err):
+		fmt.Println(dim("  " + capitalize(errUnreachableNB.Error()) + ". Svaret er lagret, og nav-pilot sender det etter neste økt."))
 	default:
-		fmt.Println(dim("  Fikk ikke kontakt med copilot-cli (er naisdevice på?). Svaret er lagret, og nav-pilot sender det etter neste økt."))
+		fmt.Println(dim("  Kunne ikke sende svaret" + surveyErrDetail(err) + ". Svaret er lagret, og nav-pilot sender det etter neste økt."))
 	}
 	writeSurveyState(st)
 }

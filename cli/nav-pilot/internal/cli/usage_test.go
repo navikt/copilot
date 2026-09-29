@@ -314,3 +314,20 @@ func TestAllowedCopilotCLIURL(t *testing.T) {
 		}
 	}
 }
+
+// Only a timeout or a failed connection is copilot-cli out of reach (#1199):
+// a certificate fault answers from the network and needs another fix.
+func TestUnreachableOnlyForNetworkFailures(t *testing.T) {
+	tlsSrv := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer tlsSrv.Close()
+	_, err := http.Get(tlsSrv.URL)
+	if err == nil || unreachable(err) {
+		t.Errorf("unreachable(%v) = true for a TLS fault, want false", err)
+	}
+
+	closed := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	closed.Close()
+	if _, err := http.Get(closed.URL); !unreachable(err) {
+		t.Errorf("unreachable(%v) = false for a closed port, want true", err)
+	}
+}
