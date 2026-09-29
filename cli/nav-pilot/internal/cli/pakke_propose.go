@@ -476,6 +476,14 @@ func reportSandboxWaiver(w io.Writer, pakke *agentpakke.Manifest) {
 	if err == nil && record == nil {
 		declined, err = artifacts.DeclinedProposal(pakke.Name, proposal.Hash())
 	}
+	// The waiver only matters when cplt would refuse these hosts. A user whose
+	// own cplt config already names them, or a parent domain of them, is not
+	// missing anything, and a warning there was false (#1319).
+	if err == nil && (record == nil || providerpkg.WaiverBlockedReason(record) != "") &&
+		privateDomainsCover(cpltPrivateDomains(), hosts) {
+		fmt.Fprintf(w, "      %s cplt config already allows private addresses for %s\n", green("✓"), strings.Join(hosts, ", "))
+		return
+	}
 	switch {
 	case err != nil:
 		fmt.Fprintf(w, "      %s Could not read whether the %s sandbox waiver is approved: %v\n",
@@ -513,4 +521,55 @@ func reportSandboxWaiver(w io.Writer, pakke *agentpakke.Manifest) {
 		}
 		fmt.Fprintf(w, "      %s Sandbox waiver approved for %s\n", green("✓"), strings.Join(hosts, ", "))
 	}
+}
+
+// cpltPrivateDomains returns proxy.allow_private_domains as the installed cplt
+// resolves it for the current directory, or nil when that cannot be read: no
+// cplt, a cplt too old to know the key, or output that is not a list. nil
+// covers nothing, so doctor falls back to the warning. A var so tests do not
+// depend on the cplt on PATH.
+var cpltPrivateDomains = func() []string {
+	cliPath, err := findCplt()
+	if err != nil {
+		return nil
+	}
+	return parseCpltStringList(cpltConfigGet(cliPath, "proxy.allow_private_domains"))
+}
+
+// parseCpltStringList reads the list form `cplt config get` prints, such as
+// "[a.example, b.example]". Quotes are tolerated in case a cplt prints the raw
+// TOML array instead.
+func parseCpltStringList(out string) []string {
+	inner, ok := strings.CutPrefix(strings.TrimSpace(out), "[")
+	if !ok {
+		return nil
+	}
+	inner, ok = strings.CutSuffix(inner, "]")
+	if !ok {
+		return nil
+	}
+	var list []string
+	for _, item := range strings.Split(inner, ",") {
+		if item = strings.Trim(strings.TrimSpace(item), `"'`); item != "" {
+			list = append(list, item)
+		}
+	}
+	return list
+}
+
+// privateDomainsCover reports whether every host matches an entry the way
+// cplt matches allow_private_domains: the entry itself or any subdomain of it
+// (is_domain_match in cplt's proxy.rs).
+func privateDomainsCover(entries, hosts []string) bool {
+	norm := func(s string) string { return strings.TrimSuffix(strings.ToLower(s), ".") }
+	for _, host := range hosts {
+		h := norm(host)
+		if !slices.ContainsFunc(entries, func(e string) bool {
+			e = norm(e)
+			return e != "" && (h == e || strings.HasSuffix(h, "."+e))
+		}) {
+			return false
+		}
+	}
+	return true
 }

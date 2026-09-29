@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -205,13 +206,24 @@ func TestReportNaisStatusFile_StaleIsNotCurrent(t *testing.T) {
 	}
 }
 
-func TestReportNaisStatusFile_WarningIsPassedOn(t *testing.T) {
+// naisdevice writes a constant format disclaimer into the status file's
+// "warning" field. It says nothing about this machine, so doctor must not
+// print it as a warning (#1319).
+func TestReportNaisStatusFile_FormatDisclaimerIsNotAWarning(t *testing.T) {
 	stubNaisStatus(t, naisStatusWithToken("NAV", true), nil)
-	path := writeStatusFile(t, naisAgentStatus{
-		ConnectionState: "Connected", Tenant: "NAV", Warning: "kernel module out of date",
-		UpdatedAt: time.Now(), HeartbeatSeconds: 60,
-	})
-	wantIn(t, renderNaisdevice(t, "/usr/local/bin/nais", path), "kernel module out of date")
+	dir := t.TempDir()
+	path := filepath.Join(dir, "agent-status.json")
+	body := fmt.Sprintf(`{"connectionState":"Connected","tenant":"NAV","updatedAt":%q,"heartbeatSeconds":60,`+
+		`"warning":"best effort, may be missing or stale, format may change, may be removed at any time, do not depend on it"}`,
+		time.Now().Format(time.RFC3339))
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out := renderNaisdevice(t, "/usr/local/bin/nais", path)
+	wantIn(t, out, "Status file is current")
+	if strings.Contains(out, "best effort") {
+		t.Errorf("the status file's format disclaimer was printed:\n%s", out)
+	}
 }
 
 func TestNaisAgentStatusStale(t *testing.T) {

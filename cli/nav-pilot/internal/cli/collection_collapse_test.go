@@ -573,6 +573,48 @@ func TestDoctorReportsGoneSource(t *testing.T) {
 	}
 }
 
+// TestDoctorModifiedFilesAreAWarning: a locally edited file is often the
+// user's own change. doctor names it, offers sync to overwrite it, and does
+// not call it a failure or give the missing-files advice (#1319).
+func TestDoctorModifiedFilesAreAWarning(t *testing.T) {
+	isolatedConfig(t)
+	t.Chdir(t.TempDir())
+	t.Setenv("PATH", t.TempDir()) // no cplt, no opencode: doctor stays offline
+
+	scope, err := ScopeUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	edited := filepath.Join(scope.RootDir, "agents", "edited.agent.md")
+	if err := os.MkdirAll(filepath.Dir(edited), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(edited, []byte("my own change"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	state := &StateFile{
+		Collection: "fullstack",
+		Version:    "dev",
+		Scope:      scope.Name,
+		Files:      []InstalledFile{{Path: "agents/edited.agent.md", Hash: "installed-hash"}},
+	}
+	if err := writeScopedState(scope, state); err != nil {
+		t.Fatal(err)
+	}
+
+	out := stripANSI(captureStdoutFor(t, func() { _ = cmdDoctor() }))
+	for _, want := range []string{"agents/edited.agent.md", "nav-pilot sync --apply", "overwrite"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("doctor does not say %q:\n%s", want, out)
+		}
+	}
+	for _, unwanted := range []string{"[✗] 0 missing files", "restore missing files"} {
+		if strings.Contains(out, unwanted) {
+			t.Errorf("doctor says %q with no file missing:\n%s", unwanted, out)
+		}
+	}
+}
+
 // TestScopeStalenessCountsPendingAdoption: a user who never syncs is never
 // prompted, because staleness only ever meant "a newer release exists". A
 // scope still holding a collection identity has a migration waiting for the

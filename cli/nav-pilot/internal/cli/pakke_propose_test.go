@@ -65,6 +65,11 @@ func consentEnv(t *testing.T) *InstallScope {
 	previousCplt := cpltInstalled
 	cpltInstalled = func() bool { return true }
 	t.Cleanup(func() { cpltInstalled = previousCplt })
+	// With no private domains in the user's own cplt config, whatever cplt is
+	// on PATH.
+	previousDomains := cpltPrivateDomains
+	cpltPrivateDomains = func() []string { return nil }
+	t.Cleanup(func() { cpltPrivateDomains = previousDomains })
 	scope, err := ScopeUser()
 	if err != nil {
 		t.Fatalf("user scope: %v", err)
@@ -784,6 +789,52 @@ func TestDoctorNamesTheWaiverWhenItIsNotApproved(t *testing.T) {
 	for _, line := range strings.Split(got, "\n") {
 		if strings.Contains(line, "cplt config set") && strings.Contains(line, ",") {
 			t.Errorf("doctor prints a comma-joined value, which cplt refuses (#1316): %s", line)
+		}
+	}
+}
+
+// A user whose own cplt config already covers the hosts, by name or through a
+// parent domain, is missing nothing, so doctor does not warn (#1319). A config
+// that covers only some of them still gets the warning.
+func TestDoctorTrustsTheUsersOwnCpltConfigForTheWaiver(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		domains []string
+		warn    bool
+	}{
+		{"parent domain", []string{"intern.nav.no", "nav.cloud.nais.io"}, false},
+		{"every host by name", []string{"loki.nav.cloud.nais.io", "mimir.nav.cloud.nais.io",
+			"tempo.dev-gcp.nav.cloud.nais.io", "tempo.prod-gcp.nav.cloud.nais.io"}, false},
+		{"one host missing", []string{"loki.nav.cloud.nais.io", "mimir.nav.cloud.nais.io"}, true},
+		{"lookalike suffix", []string{"cloud.nais.io.evil", "ud.nais.io"}, true},
+		{"cplt could not say", nil, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			consentEnv(t)
+			cpltPrivateDomains = func() []string { return tt.domains }
+			var out strings.Builder
+			reportSandboxWaiver(&out, agentpakke.Default())
+			got := out.String()
+			if warned := strings.Contains(got, "not approved"); warned != tt.warn {
+				t.Errorf("warned = %v, want %v:\n%s", warned, tt.warn, got)
+			}
+			if !tt.warn && !strings.Contains(got, "cplt config already allows") {
+				t.Errorf("covered hosts are not reported as allowed:\n%s", got)
+			}
+		})
+	}
+}
+
+func TestParseCpltStringList(t *testing.T) {
+	for in, want := range map[string][]string{
+		"[intern.nav.no, nav.cloud.nais.io]": {"intern.nav.no", "nav.cloud.nais.io"},
+		`["a.example", "b.example"]`:         {"a.example", "b.example"},
+		"[]":                                 nil,
+		"":                                   nil,
+		"error: unknown key":                 nil,
+	} {
+		if got := parseCpltStringList(in); !slices.Equal(got, want) {
+			t.Errorf("parseCpltStringList(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

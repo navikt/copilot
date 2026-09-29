@@ -112,7 +112,10 @@ type naisAgentStatus struct {
 	Tenant           string    `json:"tenant"`
 	UpdatedAt        time.Time `json:"updatedAt"`
 	HeartbeatSeconds int       `json:"heartbeatSeconds"`
-	Warning          string    `json:"warning"`
+	// The file's "warning" field is not read. naisdevice writes the same
+	// constant there every time, a disclaimer about the file format aimed at
+	// programs like this one ("best effort, may be missing or stale, ..."), and
+	// printing it made doctor warn on every healthy machine (#1319).
 }
 
 // naisStatusFilePath is where naisdevice keeps it: ~/Library/Application
@@ -262,9 +265,6 @@ func reportNaisStatusFile(w io.Writer, statusPath string) {
 		return
 	}
 
-	if status.Warning != "" {
-		fmt.Fprintf(w, "    %s naisdevice says: %s\n", yellow("⚠"), status.Warning)
-	}
 	if status.Tenant != "" {
 		fmt.Fprintf(w, "    %s Status file is current: %s on %s\n",
 			green("✓"), bold(status.Tenant), status.ConnectionState)

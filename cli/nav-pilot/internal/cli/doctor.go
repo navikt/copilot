@@ -35,6 +35,34 @@ func reportScopeConflicts(scope *InstallScope) {
 	fmt.Printf("          %s %s takes the source's version of these too, and saves yours as <file>.orig.\n", yellow("Solution:"), bold("nav-pilot sync --apply"))
 }
 
+// reportScopeIntegrity checks a scope's files against what nav-pilot
+// installed, and returns true only when files are missing.
+//
+// A modified file is not a fault. It is often a deliberate local edit, so it
+// gets a warning that names the file and does not set hasErrors, like
+// [reportScopeConflicts]. It used to share the missing-files failure, with
+// advice to "restore missing files" when none were missing (#1319).
+func reportScopeIntegrity(scope *InstallScope, state *StateFile) bool {
+	ok, modified, missing, _, modifiedPaths := countFileIntegrity(scope.RootDir, state)
+	if missing == 0 && modified == 0 {
+		fmt.Printf("      %s %d files OK\n", green("✓"), ok)
+		return false
+	}
+	if missing > 0 {
+		fmt.Printf("      %s %d missing files\n", red("[✗]"), missing)
+		fmt.Printf("          %s Run %s to restore missing files.\n", red("Solution:"), bold("nav-pilot sync"))
+	}
+	if modified > 0 {
+		fmt.Printf("      %s %d file(s) changed since nav-pilot installed them\n", yellow("⚠"), modified)
+		for _, p := range modifiedPaths {
+			fmt.Printf("          %s %s\n", dim("~"), p)
+		}
+		fmt.Printf("          %s Keep them if the change is yours, or run %s to overwrite them; your copy is saved as <file>.orig.\n",
+			yellow("Solution:"), bold("nav-pilot sync --apply"))
+	}
+	return missing > 0
+}
+
 // reportScopeIgnoredButInstalled names files marked ignored in state that are
 // nonetheless on disk (#724).
 //
@@ -134,16 +162,8 @@ func cmdDoctor() error {
 	} else {
 		userState, _ = readScopedState(userScope)
 		if userState != nil {
-			ok, modified, missing, _, _ := countFileIntegrity(userScope.RootDir, userState)
-			if missing > 0 || modified > 0 {
-				hasErrors = true
-				fmt.Printf("    • User scope (~/.copilot): %s\n", bold(userState.Collection))
-				fmt.Printf("      %s %d missing files, %d modified\n", red("[✗]"), missing, modified)
-				fmt.Printf("          %s Run %s to restore missing files.\n", red("Solution:"), bold("nav-pilot sync"))
-			} else {
-				fmt.Printf("    • User scope (~/.copilot): %s\n", bold(userState.Collection))
-				fmt.Printf("      %s %d files OK\n", green("✓"), ok)
-			}
+			fmt.Printf("    • User scope (~/.copilot): %s\n", bold(userState.Collection))
+			hasErrors = reportScopeIntegrity(userScope, userState) || hasErrors
 			hasErrors = reportGoneSource(userScope, userState) || hasErrors
 			reportScopeConflicts(userScope)
 			reportScopeIgnoredButInstalled(userScope)
@@ -161,16 +181,8 @@ func cmdDoctor() error {
 		repoScope := ScopeRepo(repoDir)
 		repoState, _ = readScopedState(repoScope)
 		if repoState != nil {
-			ok, modified, missing, _, _ := countFileIntegrity(repoScope.RootDir, repoState)
-			if missing > 0 || modified > 0 {
-				hasErrors = true
-				fmt.Printf("    • Repo scope (.github): %s\n", bold(repoState.Collection))
-				fmt.Printf("      %s %d missing files, %d modified\n", red("[✗]"), missing, modified)
-				fmt.Printf("          %s Run %s to restore missing files.\n", red("Solution:"), bold("nav-pilot sync"))
-			} else {
-				fmt.Printf("    • Repo scope (.github): %s\n", bold(repoState.Collection))
-				fmt.Printf("      %s %d files OK\n", green("✓"), ok)
-			}
+			fmt.Printf("    • Repo scope (.github): %s\n", bold(repoState.Collection))
+			hasErrors = reportScopeIntegrity(repoScope, repoState) || hasErrors
 			hasErrors = reportGoneSource(repoScope, repoState) || hasErrors
 			reportScopeConflicts(repoScope)
 			reportScopeIgnoredButInstalled(repoScope)
