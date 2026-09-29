@@ -101,7 +101,7 @@ func newsFeedURL() string {
 		if allowedCopilotCLIURL(v) {
 			return v
 		}
-		warnIgnoredURL("NAV_PILOT_NEWS_URL")
+		warnIgnoredURL("NAV_PILOT_NEWS_URL", "https://….nav.no or a loopback address")
 	}
 	return newsFeedDefault
 }

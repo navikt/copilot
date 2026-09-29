@@ -277,6 +277,29 @@ func TestCmdUsageLoggedIn(t *testing.T) {
 	}
 }
 
+// The override carries the GitHub token, so only copilot-cli's own hosts
+// and loopback qualify, not any nav.no app.
+func TestAllowedCopilotCLIOverride(t *testing.T) {
+	for raw, want := range map[string]bool{
+		"https://copilot-cli.intern.nav.no":      true,
+		"https://copilot-cli.intern.dev.nav.no/": true,
+		"http://127.0.0.1:8080":                  true,
+		"http://localhost:1234":                  true,
+		"http://[::1]:1234":                      true,
+		"https://nav.no":                         false,
+		"https://other-app.intern.nav.no":        false,
+		"https://copilot-cli.nav.no":             false,
+		"https://copilot-cli.intern.nav.no.evil": false,
+		"http://copilot-cli.intern.nav.no":       false,
+		"https://u:p@copilot-cli.intern.nav.no":  false,
+		"https://127.0.0.1":                      false,
+	} {
+		if allowedCopilotCLIOverride(raw) != want {
+			t.Errorf("%s: got %v", raw, !want)
+		}
+	}
+}
+
 func TestAllowedCopilotCLIURL(t *testing.T) {
 	for raw, want := range map[string]bool{
 		"https://copilot-cli.intern.dev.nav.no": true,

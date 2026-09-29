@@ -71,18 +71,32 @@ func (u *usageResponse) acceptanceRate() float64 {
 }
 
 // copilotCLIURL resolves the copilot-cli endpoint. NAV_PILOT_COPILOT_CLI_URL
-// overrides the default for testing against dev-gcp, but only with an https
-// URL on nav.no, or a loopback one: nav-pilot sends the GitHub token there,
-// and an env var a cloned repo's direnv or mise sets must not be able to send
-// it anywhere else.
+// overrides the default for testing against dev-gcp, but only with one of
+// copilot-cli's own hosts over https, or a loopback URL for tests: nav-pilot
+// sends the GitHub token there, and an env var a cloned repo's direnv or mise
+// sets must not be able to send it to any other nav.no app.
 func copilotCLIURL() string {
 	if v := os.Getenv("NAV_PILOT_COPILOT_CLI_URL"); v != "" {
-		if allowedCopilotCLIURL(v) {
+		if allowedCopilotCLIOverride(v) {
 			return strings.TrimSuffix(v, "/")
 		}
-		warnIgnoredURL("NAV_PILOT_COPILOT_CLI_URL")
+		warnIgnoredURL("NAV_PILOT_COPILOT_CLI_URL", "copilot-cli.intern.nav.no, copilot-cli.intern.dev.nav.no or a loopback address")
 	}
 	return defaultCopilotCLIURL
+}
+
+// allowedCopilotCLIOverride is allowedCopilotCLIURL narrowed to the hosts
+// copilot-cli runs on.
+func allowedCopilotCLIOverride(raw string) bool {
+	if !allowedCopilotCLIURL(raw) {
+		return false
+	}
+	u, _ := url.Parse(raw)
+	switch u.Hostname() {
+	case "copilot-cli.intern.nav.no", "copilot-cli.intern.dev.nav.no":
+		return u.Scheme == "https"
+	}
+	return u.Scheme == "http"
 }
 
 // warnedURLs holds the variables warnIgnoredURL has warned about.
@@ -91,9 +105,9 @@ var warnedURLs sync.Map
 // warnIgnoredURL says once per process that an URL override was ignored:
 // startNudgePrep reads the URLs before the session, so the fetches that run
 // during it have nothing left to say on the client's terminal.
-func warnIgnoredURL(name string) {
+func warnIgnoredURL(name, allowed string) {
 	if _, done := warnedURLs.LoadOrStore(name, true); !done {
-		fmt.Fprintf(os.Stderr, "%s %s ignored: only https://….nav.no or a loopback address\n", yellow("⚠"), name)
+		fmt.Fprintf(os.Stderr, "%s %s ignored: only %s\n", yellow("⚠"), name, allowed)
 	}
 }
 
