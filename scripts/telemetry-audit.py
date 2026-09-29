@@ -121,13 +121,15 @@ def main():
 
     print(f"{len(names)} metrics matching {args.prefix}, over the last {w}\n")
     print("  exports  how many samples reached Mimir (count_over_time).")
-    print("  total    sum_over_time. A real count ONLY for an instrument recorded")
-    print("           once per process, near exit: each sample is then one run's own")
-    print("           value. An instrument set at startup is re-exported every 10s")
-    print("           for the life of the process, and summing those snapshots means")
-    print("           nothing. max/series tells you which you are looking at: a small")
-    print("           max with far more exports than a person could plausibly have")
-    print("           produced is re-export, not volume.")
+    print("  total    sum_over_time. For counters and histograms from versions after")
+    print("           #1246 a real count: each sample is what its process gained since")
+    print("           its last export. Gauges (nav_pilot_info, ...) still go every 10s,")
+    print("           so their total is a count of snapshots, not of anything else.")
+    print("           Older versions re-exported everything every 10s for the life of")
+    print("           the process, so their long sessions are summed once per export.")
+    print("           max/series tells you which you are looking at: a small max with")
+    print("           far more exports than a person could plausibly have produced is")
+    print("           re-export, not volume.")
     print("  max      the largest value any single series reached (max_over_time).\n")
     hdr = f"{'metric':46} {'series':>7} {'exports':>9} {'total':>13} {'max':>7} {'devices':>8}"
     print(hdr)
@@ -135,9 +137,9 @@ def main():
 
     silent, unattributed = [], []
     for name in names:
-        # sum_over_time, not increase(): a process exports its counter and exits,
-        # so increase() has no second sample to difference and returns 0.0 on
-        # every one of these series. Measured against live data, not assumed.
+        # sum_over_time, not increase(): every run on a device writes into the
+        # same series from its own 1, so increase() reads it as flat and returns
+        # 0.0 on every one of these series. Measured against live data.
         series = query(f"sum by (device_id) (sum_over_time({name}[{w}]))")
         exports = total(query(f"sum(count_over_time({name}[{w}]))"))
         peak = query(f"max(max_over_time({name}[{w}]))")

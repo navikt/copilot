@@ -30,11 +30,11 @@ import (
 // drops samples older than its out-of-order window (30-60 min), so a file
 // sent the next morning with its own timestamps would be lost.
 //
-// Every instrument is cumulative (temporalityFor), so the last export of a
-// process holds all it recorded: one file per process, overwritten, is
-// enough, and an export cut short at exit loses nothing. It also makes a file
-// sent twice (two runs at once, or an exit in the middle of a send) harmless:
-// the same points again.
+// An export holds only what changed since the last one that went through
+// (newOnlyExporter), so every export that reaches the spool gets its own
+// file, and one cut short by exit reports failure: the export at exit then
+// carries its counts too. A file sent twice (an exit in the middle of a send)
+// counts twice.
 const (
 	spoolMaxAge   = 7 * 24 * time.Hour
 	spoolMaxFiles = 50
@@ -58,7 +58,7 @@ func spoolDir() string {
 // it writes them to the spool instead, and ends the one in flight.
 type spoolTransport struct {
 	next    http.RoundTripper
-	file    string
+	dir     string
 	exiting context.Context
 	exit    context.CancelFunc
 	wrote   atomic.Bool // an export went to the spool
@@ -70,11 +70,7 @@ type spoolTransport struct {
 
 func newSpoolTransport(next http.RoundTripper, dir string) *spoolTransport {
 	ctx, cancel := context.WithCancel(context.Background())
-	file := ""
-	if dir != "" {
-		file = filepath.Join(dir, fmt.Sprintf("%d-%d.pb", time.Now().UnixNano(), os.Getpid()))
-	}
-	return &spoolTransport{next: next, file: file, exiting: ctx, exit: cancel}
+	return &spoolTransport{next: next, dir: dir, exiting: ctx, exit: cancel}
 }
 
 func (s *spoolTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -101,23 +97,27 @@ func (s *spoolTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		stop()
 		cancel()
-		if s.exiting.Err() != nil {
-			// Cut short by exit. The export at exit, which goes to the
-			// spool, holds everything this one did.
-			return accepted(req), nil
-		}
+		// Cut short by exit or not, it failed: its counts go with the next
+		// export, which at exit is the spool.
 		return nil, err
 	}
 	resp.Body = &closeFunc{resp.Body, func() { stop(); cancel() }}
 	return resp, nil
 }
 
-// write replaces this process's spool file, atomically.
+// spoolName is where a temporary file lands: time first, so the spool sends
+// oldest first, and the temporary file's random suffix, so two exports in the
+// same nanosecond do not replace each other.
+func spoolName(dir, tmp string) string {
+	return filepath.Join(dir, fmt.Sprintf("%d-%d-%s.pb", time.Now().UnixNano(), os.Getpid(), strings.TrimPrefix(filepath.Base(tmp), ".tmp-")))
+}
+
+// write adds body to the spool as a file of its own, atomically.
 func (s *spoolTransport) write(body []byte) {
-	if s.file == "" || len(body) == 0 || len(body) > spoolMaxBytes {
+	if s.dir == "" || len(body) == 0 || len(body) > spoolMaxBytes {
 		return
 	}
-	dir := filepath.Dir(s.file)
+	dir := s.dir
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return
 	}
@@ -126,7 +126,7 @@ func (s *spoolTransport) write(body []byte) {
 		return
 	}
 	_, werr := tmp.Write(body)
-	if cerr := tmp.Close(); werr != nil || cerr != nil || os.Rename(tmp.Name(), s.file) != nil {
+	if cerr := tmp.Close(); werr != nil || cerr != nil || os.Rename(tmp.Name(), spoolName(dir, tmp.Name())) != nil {
 		os.Remove(tmp.Name())
 		return
 	}

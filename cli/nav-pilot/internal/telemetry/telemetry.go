@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -206,7 +207,7 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 		return NoopRecorder{}, fmt.Errorf("create telemetry resource: %w", err)
 	}
 
-	reader := sdkmetric.NewPeriodicReader(exporter,
+	reader := sdkmetric.NewPeriodicReader(&newOnlyExporter{Exporter: exporter},
 		sdkmetric.WithInterval(10*time.Second),
 		sdkmetric.WithTimeout(2*time.Second),
 	)
@@ -990,4 +991,116 @@ func temporalityFor(sdkmetric.InstrumentKind) metricdata.Temporality {
 	// conversion step. So the temporality that was buying nothing was costing
 	// every counter we have.
 	return metricdata.CumulativeTemporality
+}
+
+// newOnlyExporter sends each counter and histogram point as what it gained
+// since the last export that went through, and leaves out the ones that did
+// not change.
+//
+// The points stay marked cumulative (temporalityFor), because that is what
+// reaches Mimir, but the backend cannot count them as cumulative: the series
+// carry no per-process label, so every process on a device writes into the
+// same series, each starting from its own 1, and increase() reads that as
+// flat and returns 0. The dashboards therefore sum_over_time the samples, and
+// that is only right if each sample is new counts. Without this, a launch
+// re-exported everything it recorded at startup every 10 s, and a five-minute
+// session counted its sync about 30 times (#1246).
+//
+// An export that fails is not remembered, so the next one carries its counts.
+// Gauges pass as they are. An export with nothing left is not sent.
+type newOnlyExporter struct {
+	sdkmetric.Exporter
+	mu   sync.Mutex
+	sent map[streamKey]any // last cumulative value that went through
+}
+
+type streamKey struct {
+	name  string
+	attrs attribute.Distinct
+}
+
+func (e *newOnlyExporter) Export(ctx context.Context, rm *metricdata.ResourceMetrics) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.sent == nil {
+		e.sent = map[streamKey]any{}
+	}
+	next := map[streamKey]any{}
+	out := *rm
+	out.ScopeMetrics = nil
+	for _, sm := range rm.ScopeMetrics {
+		ms := sm.Metrics
+		sm.Metrics = nil
+		for _, m := range ms {
+			keep := true
+			switch d := m.Data.(type) {
+			case metricdata.Sum[int64]:
+				m.Data, keep = sumGained(e.sent, next, m.Name, d)
+			case metricdata.Sum[float64]:
+				m.Data, keep = sumGained(e.sent, next, m.Name, d)
+			case metricdata.Histogram[int64]:
+				m.Data, keep = histogramGained(e.sent, next, m.Name, d)
+			case metricdata.Histogram[float64]:
+				m.Data, keep = histogramGained(e.sent, next, m.Name, d)
+			}
+			if keep {
+				sm.Metrics = append(sm.Metrics, m)
+			}
+		}
+		if len(sm.Metrics) > 0 {
+			out.ScopeMetrics = append(out.ScopeMetrics, sm)
+		}
+	}
+	if len(out.ScopeMetrics) == 0 {
+		return nil // nothing new to say
+	}
+	if err := e.Exporter.Export(ctx, &out); err != nil {
+		return err
+	}
+	for k, v := range next {
+		e.sent[k] = v
+	}
+	return nil
+}
+
+func sumGained[N int64 | float64](sent, next map[streamKey]any, name string, d metricdata.Sum[N]) (metricdata.Sum[N], bool) {
+	var pts []metricdata.DataPoint[N]
+	for _, p := range d.DataPoints {
+		k := streamKey{name, p.Attributes.Equivalent()}
+		prev, _ := sent[k].(N)
+		if p.Value == prev {
+			continue
+		}
+		next[k] = p.Value
+		p.Value -= prev
+		pts = append(pts, p)
+	}
+	d.DataPoints = pts
+	return d, len(pts) > 0
+}
+
+func histogramGained[N int64 | float64](sent, next map[streamKey]any, name string, d metricdata.Histogram[N]) (metricdata.Histogram[N], bool) {
+	var pts []metricdata.HistogramDataPoint[N]
+	for _, p := range d.DataPoints {
+		k := streamKey{name, p.Attributes.Equivalent()}
+		prev, seen := sent[k].(metricdata.HistogramDataPoint[N])
+		if seen && p.Count == prev.Count {
+			continue
+		}
+		// The SDK reuses its slices between collections: keep a copy.
+		kept := p
+		kept.BucketCounts = slices.Clone(p.BucketCounts)
+		next[k] = kept
+		if seen && len(prev.BucketCounts) == len(p.BucketCounts) {
+			p.Count -= prev.Count
+			p.Sum -= prev.Sum
+			p.BucketCounts = slices.Clone(p.BucketCounts)
+			for i := range p.BucketCounts {
+				p.BucketCounts[i] -= prev.BucketCounts[i]
+			}
+		}
+		pts = append(pts, p)
+	}
+	d.DataPoints = pts
+	return d, len(pts) > 0
 }

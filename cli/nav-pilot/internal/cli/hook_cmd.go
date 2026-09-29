@@ -184,10 +184,9 @@ var (
 )
 
 // countLocalTrip is local.OnLoopGuard: the guard proxy's trips, kept until
-// exit. The launch process lives for the whole session and its periodic
-// reader re-exports every cumulative counter every 10 s, which the dashboards'
-// sum_over_time would count again each time. Recorded at exit, each lands in
-// the one final export, like nav_pilot_local_dispatches.
+// exit and recorded in the final export, like nav_pilot_local_dispatches.
+// Before #1246 the launch's periodic reader re-exported every counter every
+// 10 s, which the dashboards' sum_over_time counted again each time.
 func countLocalTrip(rule string) {
 	localTripsMu.Lock()
 	localTrips[rule]++

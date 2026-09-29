@@ -18,7 +18,8 @@ import (
 )
 
 // At exit the export goes to the spool without the network, even with one
-// stuck in flight; the next run sends it and removes it.
+// stuck in flight, which fails so its counts go with the export at exit; the
+// next run sends the spool and removes it.
 func TestSpoolRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	stuck := make(chan struct{})
@@ -45,8 +46,8 @@ func TestSpoolRoundTrip(t *testing.T) {
 
 	start := time.Now()
 	s.exit()
-	if err := <-inFlight; err != nil {
-		t.Fatalf("export in flight at exit: %v", err)
+	if err := <-inFlight; err == nil {
+		t.Fatalf("export in flight at exit reported success; its counts would be lost")
 	}
 	resp, err := client.Post(hole.URL, "application/x-protobuf", bytes.NewReader([]byte("last")))
 	if err != nil || resp.StatusCode != 200 {
@@ -55,8 +56,16 @@ func TestSpoolRoundTrip(t *testing.T) {
 	if took := time.Since(start); took > 200*time.Millisecond {
 		t.Errorf("exit took %s", took)
 	}
-	if b, _ := os.ReadFile(s.file); string(b) != "last" {
+	if files, _ := filepath.Glob(filepath.Join(dir, "*.pb")); len(files) != 1 {
+		t.Fatalf("spool = %v, want the export at exit only", files)
+	} else if b, _ := os.ReadFile(files[0]); string(b) != "last" {
 		t.Fatalf("spool = %q, want the export at exit", b)
+	}
+	// Each export holds only what is new, so a second one after exit is a
+	// file of its own, not a replacement.
+	s.write([]byte("later"))
+	if files, _ := filepath.Glob(filepath.Join(dir, "*.pb")); len(files) != 2 {
+		t.Fatalf("spool = %v, want both exports", files)
 	}
 
 	old := filepath.Join(dir, "1-1.pb")
@@ -71,8 +80,8 @@ func TestSpoolRoundTrip(t *testing.T) {
 	}))
 	defer collector.Close()
 	sendSpool(t.Context(), dir, collector.URL, collector.Client())
-	if len(got) != 1 || got[0] != "last" {
-		t.Errorf("sent %q, want only the export at exit", got)
+	if len(got) != 2 || got[0] != "last" || got[1] != "later" {
+		t.Errorf("sent %q, want the two exports after exit, in order", got)
 	}
 	if left, _ := os.ReadDir(dir); len(left) != 0 {
 		t.Errorf("spool not emptied: %v", left)

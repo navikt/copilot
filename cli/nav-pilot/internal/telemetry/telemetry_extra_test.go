@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -306,5 +307,90 @@ func TestEveryInstrumentCarriesDeviceID(t *testing.T) {
 	}
 	if seen == 0 {
 		t.Fatal("collected no data points at all; the test proves nothing")
+	}
+}
+
+type recordingExporter struct {
+	sdkmetric.Exporter
+	fail bool
+	got  []metricdata.ResourceMetrics
+}
+
+func (r *recordingExporter) Export(_ context.Context, rm *metricdata.ResourceMetrics) error {
+	if r.fail {
+		return errors.New("down")
+	}
+	r.got = append(r.got, *rm)
+	return nil
+}
+
+// Each export carries only what was recorded since the last one that went
+// through, so sum_over_time over the samples counts every command once
+// however many times a long session exports (#1246).
+func TestNewOnlyExporter(t *testing.T) {
+	reader := sdkmetric.NewManualReader()
+	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+	meter := provider.Meter("t")
+	c, _ := meter.Int64Counter("c")
+	h, _ := meter.Int64Histogram("h", metric.WithExplicitBucketBoundaries(10))
+	rec := &recordingExporter{}
+	e := &newOnlyExporter{Exporter: rec}
+	export := func() {
+		t.Helper()
+		var rm metricdata.ResourceMetrics
+		if err := reader.Collect(t.Context(), &rm); err != nil {
+			t.Fatal(err)
+		}
+		_ = e.Export(t.Context(), &rm)
+	}
+	// What the backend sums: every counter value and histogram count sent.
+	totals := func() (sum int64, count uint64, buckets []uint64) {
+		buckets = make([]uint64, 2)
+		for _, rm := range rec.got {
+			for _, sm := range rm.ScopeMetrics {
+				for _, m := range sm.Metrics {
+					switch d := m.Data.(type) {
+					case metricdata.Sum[int64]:
+						for _, p := range d.DataPoints {
+							sum += p.Value
+						}
+					case metricdata.Histogram[int64]:
+						for _, p := range d.DataPoints {
+							count += p.Count
+							for i, b := range p.BucketCounts {
+								buckets[i] += b
+							}
+						}
+					}
+				}
+			}
+		}
+		return
+	}
+
+	c.Add(t.Context(), 1)
+	h.Record(t.Context(), 5)
+	export()
+	export() // nothing new: nothing sent
+	export()
+	c.Add(t.Context(), 2)
+	h.Record(t.Context(), 50)
+	rec.fail = true
+	export() // lost on the way: the next export carries it
+	rec.fail = false
+	export()
+	export()
+
+	sum, count, buckets := totals()
+	if sum != 3 || count != 2 || buckets[0] != 1 || buckets[1] != 1 {
+		t.Errorf("backend total: counter %d, histogram count %d buckets %v; want 3, 2, [1 1]", sum, count, buckets)
+	}
+	for i, rm := range rec.got {
+		if n := len(rm.ScopeMetrics[0].Metrics); n != 2 {
+			t.Errorf("export %d has %d metrics, want only the 2 that changed", i, n)
+		}
+	}
+	if len(rec.got) != 2 {
+		t.Errorf("%d exports reached the backend, want 2", len(rec.got))
 	}
 }

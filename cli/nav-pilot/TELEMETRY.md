@@ -280,21 +280,25 @@ $ nav-pilot list
 
 ### Dashboard-eksempler (Grafana / Prometheus)
 
-> **Viktig: kumulative tellere.** CLI-en eksporterer alle instrumenter, også tellere,
-> med `CumulativeTemporality` (`temporalityFor` i `internal/telemetry/telemetry.go`).
-> Hver eksport fra en prosess har alt prosessen har målt så langt, og en lang økt eksporterer
-> hvert 10. sekund. Bruk `increase(<metric>[<range>])` og `rate()` for grafer. `sum_over_time`
-> over `_count` teller den samme målingen én gang per eksport, og noen av eksemplene under
-> gjør det fortsatt (#1246). Histogrammer aggregeres med `sum by (le) (increase(<metric>_bucket[<range>]))` før `histogram_quantile`.
+> **Viktig: bruk `sum_over_time`, ikke `increase()`.** Seriene har ingen etikett per prosess,
+> så alle kjøringer på en maskin skriver til samme serie, og hver starter på sin egen 1.
+> `increase()` ser det som en flat linje og gir 0. Derfor sender CLI-en hvert teller- og
+> histogrampunkt som det som er nytt siden forrige eksport som kom fram, og sender ikke
+> punkter som ikke har endret seg (`newOnlyExporter` i `internal/telemetry/telemetry.go`). Målere (gauges) sendes som før.
+> Da er `sum_over_time` over samplene riktig antall, også for en lang økt som eksporterer
+> hvert 10. sekund. Punktene er fortsatt merket kumulative, fordi det er formen som kommer
+> fram til Mimir. Versjoner før #1246 sendte alt på nytt hver 10. sekund, så lange økter
+> fra dem er talt mange ganger. Histogrammer aggregeres med
+> `sum by (le) (sum_over_time(<metric>_bucket[<range>]))` før `histogram_quantile`.
 
 **Daglige installs per scope:**
 ```promql
-sum by (scope) (increase(nav_pilot_install_items_total[1d]))
+sum by (scope) (sum_over_time(nav_pilot_install_items_total[1d]))
 ```
 
 **Kommando-varighet p95 per kommando:**
 ```promql
-histogram_quantile(0.95, sum by (command, le) (increase(nav_pilot_command_duration_ms_bucket[$__range])))
+histogram_quantile(0.95, sum by (command, le) (sum_over_time(nav_pilot_command_duration_ms_bucket[$__range])))
 ```
 
 **Feiltakt (% feil av alle kommandoer):**
@@ -305,7 +309,7 @@ histogram_quantile(0.95, sum by (command, le) (increase(nav_pilot_command_durati
 
 **Sync-konflikter (totalt) per scope:**
 ```promql
-sum by (scope) (increase(nav_pilot_sync_conflicts_total[$__range]))
+sum by (scope) (sum_over_time(nav_pilot_sync_conflicts_total[$__range]))
 ```
 
 **Antall kommandokjøringer per versjon:**
