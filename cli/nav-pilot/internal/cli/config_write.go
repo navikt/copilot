@@ -252,12 +252,14 @@ func updateConfigKeys(kv ...string) error {
 	var base []byte
 	switch {
 	case errors.Is(err, os.ErrNotExist):
-		if len(kv) == 2 && kv[1] == "" {
-			return nil
-		}
 		keys := map[string]bool{}
 		for i := 0; i < len(kv); i += 2 {
-			keys[kv[i]] = true
+			if kv[i+1] != "" {
+				keys[kv[i]] = true
+			}
+		}
+		if len(keys) == 0 {
+			return nil // only removals, from a file that is not there
 		}
 		if !keys["version"] {
 			data = []byte("version = 1\n")

@@ -4,9 +4,9 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-29
 
-### «Sync now?» spør én gang i døgnet
+### «Sync now?» spør bare én gang i døgnet
 
-- **Nei holder i et døgn**: Svarer du nei på «Sync now?», spør nav-pilot ikke igjen før om 24 timer, som ved «Upgrade now?». Kommer det flere versjoner på en dag, starter nav-pilot uten spørsmål og uten varsel i mellomtiden. `nav-pilot sync` synkroniserer når du vil (#1275).
+- **Nei holder i et døgn**: Svarer du nei på «Sync now?», spør nav-pilot ikke igjen før om 24 timer, som ved «Upgrade now?». Kommer det flere versjoner på en dag, starter nav-pilot uten spørsmål og uten varsel i mellomtiden. `nav-pilot sync --apply` synkroniserer når du vil (#1275).
 - **Stille nei til rtk**: Takker du nei til rtk ved første oppstart, skriver nav-pilot ikke lenger ut de interne innstillingene den lagrer, eller meldinger om `.bak`-filer (#1275).
 
 ### Lange økter telles én gang i telemetrien

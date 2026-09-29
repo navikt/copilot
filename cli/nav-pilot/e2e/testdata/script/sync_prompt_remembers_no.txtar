@@ -23,7 +23,7 @@ cp $WORK/cache.json $HOME/cache.json
 
 exec pty-run -wait 'Sync now' -send '\x1b[B\r' -- nav-pilot
 stdout 'Update available'
-stdout 'Not synced\. Asked again in 24 hours; nav-pilot sync syncs now\.'
+stdout 'Not synced\. Asked again in 24 hours; run nav-pilot sync --apply to do it sooner\.'
 grep '^--agent\n' $WORK/fake/cplt.log
 
 rm $WORK/fake/cplt.log

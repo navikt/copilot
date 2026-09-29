@@ -442,7 +442,7 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 				_ = os.MkdirAll(filepath.Dir(p), 0o755)
 				_ = os.WriteFile(p, []byte(stale[0].latest+"\n"), 0o644)
 			}
-			fmt.Printf("%s\n\n", dim("Not synced. Asked again in 24 hours; nav-pilot sync syncs now."))
+			fmt.Printf("%s\n\n", dim("Not synced. Asked again in 24 hours; run nav-pilot sync --apply to do it sooner."))
 		}
 		if doSync {
 			for _, s := range stale {
