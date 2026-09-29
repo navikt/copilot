@@ -12,7 +12,10 @@ import (
 	"sync/atomic"
 )
 
-const samlNameIDPath = "/internal/v1/saml/name-id"
+const (
+	samlNameIDPath    = "/internal/v1/saml/name-id"
+	orgMembershipPath = "/internal/v1/github/org-membership"
+)
 
 // samlNameIDRequests counts the handler's outcomes on the name-id route by
 // status: calls that passed the token check and the method match. 401 and
@@ -35,14 +38,68 @@ func samlNameIDMetrics() string {
 	return b.String()
 }
 
-// registerInternalRoutes mounts the name-id route on the root mux, behind
-// the token check but outside /api/v1/. Off (403) unless copilot-survey is
-// a pre-authorized app.
-func registerInternalRoutes(mux *http.ServeMux, auth func(http.Handler) http.Handler, surveyClientID string, lookup func(context.Context, string) (string, error)) {
+// registerInternalRoutes mounts the internal routes on the root mux, behind
+// the token check but outside /api/v1/. The name-id route is off (403) unless
+// copilot-survey is a pre-authorized app, the membership route unless
+// copilot-cli is.
+func registerInternalRoutes(mux *http.ServeMux, auth func(http.Handler) http.Handler, surveyClientID string, lookup func(context.Context, string) (string, error), cliClientID string, isMember func(context.Context, string) (bool, error)) {
 	if surveyClientID != "" {
 		slog.Info("copilot-survey trusted for POST /internal/v1/saml/name-id", "client_id", surveyClientID)
 	}
 	mux.Handle("POST "+samlNameIDPath, auth(samlNameIDHandler(surveyClientID, lookup)))
+	mux.Handle("POST "+orgMembershipPath, auth(orgMembershipHandler(cliClientID, isMember)))
+}
+
+// readLogin decodes a body that must be exactly {"login": "<GitHub login>"}.
+func readLogin(r io.Reader) (string, bool) {
+	var body struct {
+		Login string `json:"login"`
+	}
+	dec := json.NewDecoder(r)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&body); err != nil || !isValidGitHubUsername(body.Login) || !errors.Is(dec.Decode(&struct{}{}), io.EOF) {
+		return "", false
+	}
+	return body.Login, true
+}
+
+// orgMembershipHandler serves POST /internal/v1/github/org-membership. It
+// takes a GitHub login in the body and answers {"active": true|false}: is the
+// login an active member of the org, asked with this service's GitHub App.
+// The only caller is copilot-cli, which signs nav-pilot users in with a
+// GitHub App user token that has no permissions and so cannot read
+// membership itself.
+//
+// Only an app token whose azp is copilot-cli's client id gets an answer;
+// every other valid token gets 403, including every user token. Like the
+// name-id route it is outside /api/v1/: no identity chain, no request log,
+// and the login stays out of the path and the log.
+func orgMembershipHandler(cliClientID string, isMember func(context.Context, string) (bool, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := getUserFromContext(r.Context())
+		if !ok || cliClientID == "" || !user.isAppToken() || user.AZP != cliClientID {
+			respondError(w, "forbidden", "Only copilot-cli may call this route", http.StatusForbidden)
+			return
+		}
+		if isMember == nil {
+			respondError(w, "service_unavailable", "GitHub is not configured for this environment", http.StatusServiceUnavailable)
+			return
+		}
+		login, ok := readLogin(http.MaxBytesReader(w, r.Body, 1<<10))
+		if !ok {
+			respondError(w, "invalid_parameter", `The body must be {"login": "<GitHub login>"}`, http.StatusBadRequest)
+			return
+		}
+		active, err := isMember(r.Context(), login)
+		if err != nil {
+			// The check's errors carry status codes, never the login.
+			slog.Error("org membership check failed", "error", err)
+			respondError(w, "github_error", "Could not check org membership", http.StatusServiceUnavailable)
+			return
+		}
+		noCacheControl(w)
+		respondJSON(w, map[string]bool{"active": active}, http.StatusOK)
+	}
 }
 
 // samlNameIDHandler serves POST /internal/v1/saml/name-id. It takes a GitHub
@@ -75,16 +132,12 @@ func samlNameIDHandler(surveyClientID string, lookup func(context.Context, strin
 			respondError(w, "service_unavailable", "GitHub is not configured for this environment", http.StatusServiceUnavailable)
 			return
 		}
-		var body struct {
-			Login string `json:"login"`
-		}
-		dec := json.NewDecoder(limited)
-		dec.DisallowUnknownFields()
-		if err := dec.Decode(&body); err != nil || !isValidGitHubUsername(body.Login) || !errors.Is(dec.Decode(&struct{}{}), io.EOF) {
+		login, ok := readLogin(limited)
+		if !ok {
 			respondError(w, "invalid_parameter", `The body must be {"login": "<GitHub login>"}`, http.StatusBadRequest)
 			return
 		}
-		nameID, err := lookup(r.Context(), body.Login)
+		nameID, err := lookup(r.Context(), login)
 		switch {
 		case errors.Is(err, errNoSAMLIdentity):
 			respondError(w, "no_saml_identity", "No SAML identity is linked to this GitHub account", http.StatusNotFound)
