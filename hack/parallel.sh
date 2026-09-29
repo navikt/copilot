@@ -5,9 +5,25 @@
 # the names of failed sections to $failed.
 failed=()
 _logs=$(mktemp -d)
-trap 'rm -rf "$_logs"' EXIT
 _names=()
 _pids=()
+
+# Each section gets a process group of its own (set -m), so an interrupted run
+# can stop a section whole: the go test, linter or build under it included.
+# Without this, background jobs of a script ignore Ctrl-C and ran on after
+# mise had stopped.
+set -m
+_stop_sections() {
+  local p
+  for p in "${_pids[@]}"; do
+    kill -TERM -- "-$p" 2>/dev/null
+  done
+  wait 2>/dev/null
+  rm -rf "$_logs"
+}
+trap _stop_sections EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 section() {
   local name=$1
