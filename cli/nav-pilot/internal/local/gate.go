@@ -390,39 +390,101 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 }
 
 // outsideTemp: an edit, a write or a shell command names a path in a temp
-// directory that is not under the project. ponytail: a path built at run time
-// ($TMPDIR, mktemp) is not seen; add those if a probe shows them.
+// directory (/tmp, /var/tmp, $TMPDIR) that is not under the project, or writes
+// to one in the home directory: `cp`, `mv`, `mkdir`, `touch`, `tee`, `ln`,
+// `rsync`, `install`, `cd` or a redirect. opencode asks external_directory for
+// both, and a headless session ends there (#1237, #1273). Home is refused only
+// for writes: a build reads the JDK, Gradle and Maven caches from there.
+// ponytail: a path built at run time (mktemp, a variable other than $HOME or
+// $TMPDIR) is not seen; add those if a probe shows them.
 func (g *dispatchGate) outsideTemp(r GateRequest) bool {
-	var paths []string
+	type named struct {
+		path  string
+		write bool
+	}
+	var paths []named
 	switch r.Tool {
 	case "edit", "write":
-		paths = []string{r.Path}
+		paths = []named{{r.Path, true}}
 	case "bash":
 		for _, seg := range splitSegments(r.Command) {
-			for _, t := range shellWords(seg.text) {
-				// A redirect (>/tmp/x, 2>>/tmp/x) or a flag's value (--out=/tmp/x).
+			words := shellWords(seg.text)
+			writer := len(words) > 0 && homeWriters[filepath.Base(words[0])]
+			redirect := false
+			for _, t := range words {
+				// A redirect (>/tmp/x, 2>>/tmp/x, > ~/x) or a flag's value (--out=/tmp/x).
+				op := strings.TrimLeft(t, "0123456789&")
+				into := redirect || strings.HasPrefix(op, ">")
 				t = strings.TrimLeft(t, "0123456789<>&")
+				redirect = t == "" && strings.HasPrefix(op, ">")
 				if i := strings.IndexByte(t, '='); i > 0 && !strings.HasPrefix(t, "/") {
 					t = t[i+1:]
 				}
-				paths = append(paths, t)
+				paths = append(paths, named{expandShellPath(t), writer || into})
 			}
 		}
 	}
+	project := resolvedForms(g.rules.Root)
+	temps := resolvedForms("/tmp", "/private/tmp", "/var/tmp", "/private/var/tmp", os.TempDir())
+	var home []string
+	if h, err := os.UserHomeDir(); err == nil && h != "/" {
+		home = resolvedForms(h)
+	}
 	for _, p := range paths {
-		if !filepath.IsAbs(p) {
+		if !filepath.IsAbs(p.path) || within(project, p.path) {
 			continue
 		}
-		if _, in := under(g.rules.Root, p); in || filepath.Clean(p) == filepath.Clean(g.rules.Root) {
+		if within(temps, p.path) || p.write && within(home, p.path) {
+			return true
+		}
+	}
+	return false
+}
+
+// homeWriters are the commands whose path arguments count as a write for
+// [dispatchGate.outsideTemp]. cd is here because what follows it writes there.
+var homeWriters = map[string]bool{
+	"cp": true, "mv": true, "mkdir": true, "touch": true, "tee": true,
+	"ln": true, "rsync": true, "install": true, "cd": true,
+}
+
+// expandShellPath expands what the shell would for a literal ~, $HOME or
+// $TMPDIR at the start of a word, and leaves anything else alone.
+func expandShellPath(w string) string {
+	home, _ := os.UserHomeDir()
+	for _, v := range []struct{ prefix, dir string }{
+		{"~", home}, {"$HOME", home}, {"${HOME}", home},
+		{"$TMPDIR", os.TempDir()}, {"${TMPDIR}", os.TempDir()},
+	} {
+		if rest, ok := strings.CutPrefix(w, v.prefix); ok && v.dir != "" && (rest == "" || rest[0] == '/') {
+			return filepath.Join(v.dir, rest)
+		}
+	}
+	return w
+}
+
+// resolvedForms is each dir as given and with symlinks resolved: on macOS
+// /var/tmp is /private/var/tmp and $TMPDIR is under /private/var/folders, and a
+// command can name either.
+func resolvedForms(dirs ...string) []string {
+	var out []string
+	for _, d := range dirs {
+		if d == "" {
 			continue
 		}
-		for _, tmp := range []string{"/tmp", "/private/tmp", os.TempDir()} {
-			if p == filepath.Clean(tmp) {
-				return true
-			}
-			if _, in := under(tmp, p); in {
-				return true
-			}
+		out = append(out, filepath.Clean(d))
+		if r, err := filepath.EvalSymlinks(d); err == nil {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// within reports whether path is one of dirs or under one.
+func within(dirs []string, path string) bool {
+	for _, d := range dirs {
+		if _, in := under(d, path); in || filepath.Clean(path) == d {
+			return true
 		}
 	}
 	return false

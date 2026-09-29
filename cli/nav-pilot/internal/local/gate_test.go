@@ -632,3 +632,63 @@ func TestGateRefusesTempOutsideTheProject(t *testing.T) {
 		t.Errorf("deny_tmp = %d, want 7", n)
 	}
 }
+
+// TestGateRefusesOtherPathsOutsideTheProject: #1273. /var/tmp and $TMPDIR are
+// temp dirs like /tmp; home is refused for a write, not for a read the build
+// needs.
+func TestGateRefusesOtherPathsOutsideTheProject(t *testing.T) {
+	g := testGate(t, true, GateRules{Create: true})
+	t.Setenv("HOME", "/home/np-uat")
+	t.Setenv("TMPDIR", "/scratch/np-uat-tmp")
+	for _, tc := range []struct {
+		req  GateRequest
+		deny bool
+	}{
+		{bash(1, "cp src/F1.kt /var/tmp/F1.bak"), true},
+		{bash(1, "cp src/F1.kt /private/var/tmp/F1.bak"), true},
+		{bash(1, "cp src/F1.kt $TMPDIR/F1.bak"), true},
+		{bash(1, "cp src/F1.kt ${TMPDIR}/F1.bak"), true},
+		{bash(1, "cp src/F1.kt /scratch/np-uat-tmp/F1.bak"), true},
+		{bash(1, "cat $TMPDIR/out.txt"), true},
+		{bash(1, "cp src/F1.kt ~/F1.bak"), true},
+		{bash(1, "cp src/F1.kt $HOME/F1.bak"), true},
+		{bash(1, "mkdir -p ~/navpilot_tests"), true},
+		{bash(1, "./gradlew test > ~/out.txt"), true},
+		{bash(1, "./gradlew test >~/out.txt"), true},
+		{bash(1, "cd ~ && ls"), true},
+		{GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "write", Path: "/home/np-uat/Draft.kt", Create: true}, true},
+		{bash(1, "cat ~/.gradle/gradle.properties"), false},
+		{bash(1, "JAVA_HOME=~/.sdkman/candidates/java/21 ./gradlew test"), false},
+		{bash(1, "ls /home/np-uat/.m2/repository"), false},
+		{bash(1, "cp ~user/F1.kt src/"), false},
+		{bash(1, "cp src/F1.kt src/F1.bak"), false},
+		{GateRequest{Session: "w", Turn: 1, Agent: WorkerAgent, Tool: "bash", Command: "cp a ~/b"}, false},
+	} {
+		deny, _ := g.decide(tc.req)
+		if got := deny == GateTmpText; got != tc.deny {
+			t.Errorf("%s %q%s: refused = %v, want %v", tc.req.Tool, tc.req.Command, tc.req.Path, got, tc.deny)
+		}
+	}
+}
+
+// TestResolvedFormsFollowsSymlinks: a $TMPDIR behind a symlink, as on macOS
+// (/var/folders -> /private/var/folders), is recognised in either form.
+func TestResolvedFormsFollowsSymlinks(t *testing.T) {
+	real, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "tmp")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	forms := resolvedForms(link)
+	for _, p := range []string{filepath.Join(link, "F1.bak"), filepath.Join(real, "F1.bak"), real} {
+		if !within(forms, p) {
+			t.Errorf("within(%v, %q) = false, want true", forms, p)
+		}
+	}
+	if within(forms, "/elsewhere/F1.bak") {
+		t.Errorf("within(%v, /elsewhere/F1.bak) = true", forms)
+	}
+}
