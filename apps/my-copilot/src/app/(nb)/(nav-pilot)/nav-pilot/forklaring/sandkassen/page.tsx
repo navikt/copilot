@@ -43,9 +43,9 @@ export default function Sandkassen() {
                 <NextLink href="/cplt" className={linkClass}>
                   cplt
                 </NextLink>
-                . Det er det enkleste. Velger du noe annet, må du selv finne ut hvordan klienten isolerer agenten, og
-                slå det på. Holder ikke det, må du isolere på en annen måte, for eksempel med en VM eller en container.
-                Ikke kjør agenter med full tilgang til maskinen.
+                . Det er det enkleste. Velger du noe annet, må du selv slå på isolasjonen i klienten, eller isolere på
+                en annen måte, for eksempel med en VM eller en container. Ikke kjør agenter med full tilgang til
+                maskinen.
               </BodyLong>
               <BodyLong>
                 <NextLink href="/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr" className={linkClass}>
@@ -72,21 +72,15 @@ export default function Sandkassen() {
             <code className={code}>/</code> avviser cplt, fordi de gir for mye tilgang.
           </BodyLong>
           <BodyLong>
-            Står du i et git-worktree, eller vil du at agenten skal lage worktrees til underagenter, se{" "}
-            <NextLink href="/nav-pilot/guider/worktrees" className={linkClass}>
-              Worktrees med nav-pilot og cplt
-            </NextLink>
-            .
-          </BodyLong>
-          <BodyLong>
             Trenger repoet mer enn standard, for eksempel localhost til Gradle eller en database, se{" "}
             <NextLink href="/nav-pilot/guider/cplt-oppsett" className={linkClass}>
               Sett opp cplt i et repo
             </NextLink>
-            .
-          </BodyLong>
-          <BodyLong>
-            Får du en feilmelding fra sandkassen, slå den opp i{" "}
+            . Står du i et git-worktree, se{" "}
+            <NextLink href="/nav-pilot/guider/worktrees" className={linkClass}>
+              Worktrees med nav-pilot og cplt
+            </NextLink>
+            . Feilmeldinger fra sandkassen slår du opp i{" "}
             <NextLink href="/nav-pilot/guider/cplt-feilmeldinger" className={linkClass}>
               Feil i sandkassen
             </NextLink>
@@ -101,14 +95,14 @@ export default function Sandkassen() {
             Sikkerhetsnivå i cplt
           </LinkableHeading>
           <BodyLong>
-            <code className={code}>nav-pilot doctor</code> sjekker sikkerhetsnivået og anbefaler{" "}
-            <code className={code}>sandbox.preset = strict</code>. <code className={code}>gh_guard</code> og{" "}
-            <code className={code}>git_guard</code> er på allerede i <code className={code}>standard</code>. I{" "}
-            <code className={code}>standard</code> stopper <code className={code}>git_guard</code> push til
-            standardgrenen og force push. Strict legger til tvungen proxy, en <code className={code}>git_guard</code>{" "}
-            som stopper all push, og <code className={code}>proxy.default_allowlist</code>. Den siste er den viktige. Da
-            når agenten bare hostene på lista til cplt og det <code className={code}>proxy.allowed_domains</code> peker
-            på. Alt annet blokkeres. Hele sammenligningen står i{" "}
+            <code className={code}>nav-pilot doctor</code> anbefaler{" "}
+            <code className={code}>sandbox.preset = strict</code>. I <code className={code}>standard</code> er{" "}
+            <code className={code}>gh_guard</code> og <code className={code}>git_guard</code> på, og{" "}
+            <code className={code}>git_guard</code> stopper push til standardgrenen og force push. Strict legger til
+            tvungen proxy, en <code className={code}>git_guard</code> som stopper all push, og{" "}
+            <code className={code}>proxy.default_allowlist</code>. Den siste er den viktige: da når agenten bare hostene
+            på lista til cplt og det <code className={code}>proxy.allowed_domains</code> peker på. Hele sammenligningen
+            står i{" "}
             <NextLink href="/nav-pilot/referanse#sikkerhetsniva" className={linkClass}>
               referansen
             </NextLink>
@@ -127,41 +121,35 @@ export default function Sandkassen() {
           <CodeBlock compact>{"nav-pilot config     # velg raden «cplt security posture»"}</CodeBlock>
           <BodyLong>
             nav-pilot skriver host-lista til <code className={code}>~/.nav-pilot/cplt-allowed-domains.txt</code>, peker{" "}
-            <code className={code}>proxy.allowed_domains</code> dit, og setter presetet til slutt. Da blir låsen aldri
+            <code className={code}>proxy.allowed_domains</code> dit, og setter presetet til slutt, så låsen aldri blir
             aktiv uten hostene. Har du en egen <code className={code}>proxy.allowed_domains</code>, lar nav-pilot den
-            være og sier at du må legge til hostene selv. Konfigen til cplt er din, så nav-pilot endrer den aldri uten å
-            si fra, og nøkler du har satt selv, gjelder fortsatt foran presetet.
+            være og sier at du må legge til hostene selv. Nøkler du har satt selv, gjelder foran presetet.
           </BodyLong>
           <BodyLong>
             Fila har hele lista, ikke bare Nav-hostene. Med <code className={code}>proxy.allowed_domains</code> slipper
-            proxyen bare gjennom hostene i fila og agentens egne hoster. Pakkeregistrene kommer med bare når{" "}
-            <code className={code}>proxy.default_allowlist</code> er på. I cplt fra før 29. september 2026 gjaldt det
-            også agentens egne hoster. Og lista til cplt er per agent: bare lista for copilot har GitHub og Copilot,
-            mens den for opencode har <code className={code}>opencode.ai</code> og{" "}
+            proxyen gjennom hostene i fila og agentens egne hoster, og pakkeregistrene bare når{" "}
+            <code className={code}>proxy.default_allowlist</code> er på. Lista til cplt er per agent: lista for copilot
+            har GitHub og Copilot, den for opencode har <code className={code}>opencode.ai</code> og{" "}
             <code className={code}>models.dev</code>.
           </BodyLong>
           <BodyLong>
             Den lokale modellen går gjennom en løkkevakt på <code className={code}>127.0.0.1</code>. cplt blokkerer
             localhost som standard, så nav-pilot sender porten med som{" "}
-            <code className={code}>--allow-localhost &lt;port&gt;</code> ved hver oppstart. Det er én port, ikke
-            bryteren for hele maskinen, som <code className={code}>proxy.forced</code> overstyrer. Én port slipper
-            gjennom tvungen proxy på både macOS og Linux, så strict og lokal modell går fint sammen.
+            <code className={code}>--allow-localhost &lt;port&gt;</code> ved hver oppstart. Én port slipper gjennom
+            tvungen proxy på både macOS og Linux, så strict og lokal modell går sammen.
           </BodyLong>
           <LinkableHeading id="nar-strict-ikke-anbefales" size="small" level="3">
             Når strict ikke anbefales
           </LinkableHeading>
           <BodyLong>
             På Linux krever <code className={code}>proxy.forced</code> at kjernen kan begrense nettverket med Landlock:
-            ABI v4, altså kjerne 6.7 eller nyere med Landlock slått på. Under det starter ikke cplt i det hele tatt. En
-            anbefaling som stopper hver økt på maskinen, er verre enn problemet den løser, så{" "}
-            <code className={code}>nav-pilot doctor</code> og innstillingssiden anbefaler ikke strict der, og sier
-            hvorfor.
+            ABI v4, altså kjerne 6.7 eller nyere med Landlock slått på. Under det starter ikke cplt. Derfor anbefaler
+            verken <code className={code}>nav-pilot doctor</code> eller innstillingssiden strict der, og sier hvorfor.
           </BodyLong>
           <BodyLong>
-            nav-pilot spør kjernen direkte, med samme systemkall som cplt, i stedet for å lese{" "}
-            <code className={code}>uname</code>. Landlock kan være kompilert bort eller slått av ved oppstart, og da
-            ville en sjekk av versjonsnummeret sagt «går fint» rett før cplt nekter å starte. macOS har ingen slik
-            grense. Der gjør Seatbelt samme jobben.
+            nav-pilot spør kjernen med samme systemkall som cplt, ikke <code className={code}>uname</code>. Landlock kan
+            være kompilert bort eller slått av ved oppstart, og da ville versjonsnummeret sagt «går fint» rett før cplt
+            nektet å starte. macOS har ingen slik grense. Der gjør Seatbelt jobben.
           </BodyLong>
         </VStack>
       </section>
