@@ -21,7 +21,7 @@
     }
   ],
   "cursorSync": "Crosshair",
-  "description": "Lokal inferens i nav-pilot alpha: hvem bruker den, hva sender de dit, og kommer serveren opp. Alle spørringer bruker sum_over_time, ikke increase() — en nav-pilot-prosess eksporterer én gang og avslutter, så increase() har ingen andre sample å regne differanse fra og gir 0.",
+  "description": "Lokal inferens i nav-pilot alpha: hvem bruker den, hva sender de dit, og kommer serveren opp. Alle spørringer bruker sum_over_time, ikke increase(): alle kjøringer på en maskin deler serie og starter på sin egen 1, så increase() gir 0. Hvert sample er det som er nytt siden prosessens forrige eksport, så summen teller hver kjøring én gang.",
   "editable": true,
   "elements": {
     "panel-1": {

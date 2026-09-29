@@ -9,17 +9,16 @@ lifted from `nav-pilot-cli.json` at build time so the two cannot drift.
 
 Two rules are baked in, both bought with a wrong PR:
 
-  sum_over_time, never increase(). A nav-pilot process exports its counters
-  once and exits, so increase() has no second sample to difference and returns
-  0.0 on every one of these series. Verified against live data: increase()
+  sum_over_time, never increase(). The series carry no per-process label, so
+  every run on a device writes into the same series from its own 1, and
+  increase() reads that as flat: 0.0. Verified against live data: increase()
   totalled 0.0 across five series where sum_over_time totalled 58.
 
-  histogram_quantile over sum_over_time of _bucket is correct *here*, and only
-  because these instruments are recorded once per process at exit. Each export
-  is one run's own cumulative buckets, so summing them across the window gives
-  a valid aggregate histogram. It would be wrong for an instrument recorded at
-  startup, which the 10-second PeriodicReader re-exports for the life of the
-  process — nav_pilot_version_skew_days is the example not to copy.
+  sum_over_time is a count because every sample is what its process gained
+  since its last export that went through (newOnlyExporter, #1246), so the
+  same for histogram_quantile over sum_over_time of _bucket. Before #1246 a
+  process re-exported everything every 10 s, and only instruments recorded at
+  exit, like these, were counted once.
 
   scripts/build-local-dashboard.py            # write the dashboard
   scripts/build-local-dashboard.py --check    # fail if it is out of date
@@ -206,9 +205,9 @@ def build():
         "cursorSync": house.get("cursorSync", "Off"),
         "description": (
             "Lokal inferens i nav-pilot alpha: hvem bruker den, hva sender de dit, og kommer "
-            "serveren opp. Alle spørringer bruker sum_over_time, ikke increase() — en nav-pilot-"
-            "prosess eksporterer én gang og avslutter, så increase() har ingen andre sample å "
-            "regne differanse fra og gir 0."),
+            "serveren opp. Alle spørringer bruker sum_over_time, ikke increase(): alle kjøringer på "
+            "en maskin deler serie og starter på sin egen 1, så increase() gir 0. Hvert sample er "
+            "det som er nytt siden prosessens forrige eksport, så summen teller hver kjøring én gang."),
         "editable": True,
         "elements": elements,
         "layout": {"kind": "RowsLayout", "spec": {"rows": rows}},

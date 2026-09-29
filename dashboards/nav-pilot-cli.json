@@ -55,7 +55,7 @@
             "transformations": []
           }
         },
-        "description": "Antall kommandokjøringer per intervall. nav_pilot_* er delta-tellere fra efemere CLI-prosesser, så rate()/increase() gir 0 — sum_over_time() summerer hver kjøring korrekt.",
+        "description": "Antall kommandokjøringer per intervall. Hvert sample er det som er nytt siden forrige eksport fra prosessen, og alle kjøringer på en maskin deler serie, så rate()/increase() gir 0. sum_over_time() teller hver kjøring én gang. Lange økter fra versjoner før #1246 er talt én gang per eksport (hvert 10. sekund).",
         "id": 10,
         "links": [],
         "title": "Kommandokjøringer per intervall",

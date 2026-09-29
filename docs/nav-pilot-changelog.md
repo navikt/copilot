@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-29
 
+### Lange økter telles én gang i telemetrien
+
+- **Bare det som er nytt**: En økt sendte alt den hadde målt på nytt hvert 10. sekund, og dashboardene la sammen hver sending. En økt på fem minutter ble talt rundt 30 ganger. Nå sender nav-pilot bare det som er nytt siden forrige sending, og ingenting når ingenting er endret. Tallene fra eldre versjoner er fortsatt for høye for lange økter.
+
 ### Telemetrien sendes rett etter at kommandoen er ferdig
 
 - **Egen prosess etter avslutning**: Før lå den siste telemetrien i `~/.nav-pilot/telemetry-spool/` til neste gang du kjørte nav-pilot. Mimir avviser målinger som er eldre enn en halvtime til en time, så den siste kommandoen før en pause forsvant. Nå starter nav-pilot en egen prosess, `nav-pilot __telemetry-send`, som sender fila rett etter at kommandoen er ferdig. Fila sendes med sendetidspunktet som tidsstempel, så den ikke avvises. Prosessen lever i høyst 15 sekunder, og kommandoen venter ikke på den.
