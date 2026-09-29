@@ -11,7 +11,7 @@ set -euo pipefail
 base=${1:?usage: $0 <base commit>}
 today=$(date -u +%F)
 fail=0
-for f in $(git diff --name-only "$base" HEAD -- ':(top)apps/copilot-survey/surveys/*.json'); do
+for f in $(git diff --no-renames --name-only "$base" HEAD -- ':(top)apps/copilot-survey/surveys/*.json'); do
   old=$(git show "$base:$f" 2>/dev/null) || continue # new file
   jq -e --arg today "$today" '.active == true and .starts <= $today' <<<"$old" >/dev/null || continue
   new=$(git show "HEAD:$f" 2>/dev/null || echo '{}')
