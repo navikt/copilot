@@ -5,8 +5,8 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/priser",
 }));
 
-function pristabell() {
-  return screen.getByRole("table");
+function pristabell(): HTMLTableElement {
+  return screen.getByRole("table") as HTMLTableElement;
 }
 
 function radFor(navn: string) {
