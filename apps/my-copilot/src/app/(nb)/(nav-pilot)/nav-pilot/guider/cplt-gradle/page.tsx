@@ -42,7 +42,7 @@ export default function CpltGradle() {
           <BodyLong>
             Et vanlig Kotlin-prosjekt trenger to innstillinger. Gradle starter en daemon som snakker med bygget over en
             tilfeldig port på localhost, og cplt stenger localhost. MockK, Mockito og ByteBuddy kobler seg til JVM-en
-            mens testene kjører, og det stenger cplt også på macOS.
+            mens testene kjører, og den socketen stenger cplt på macOS.
           </BodyLong>
           <CodeBlock compact>
             {`cplt config set sandbox.allow_localhost_any true
@@ -50,8 +50,14 @@ cplt config set sandbox.allow_jvm_attach true`}
           </CodeBlock>
           <BodyLong>
             Med <code className={code}>allow_localhost_any</code> når agenten alle tjenester som lytter på localhost,
-            også en lokal database. Trenger du det bare for ett prosjekt, legg innstillingene i repoet i stedet. Da
-            gjelder de for alle på teamet som godkjenner dem:
+            også en lokal database. På Linux koster den mer: kjernen der kan ikke skille localhost fra andre verter, så
+            cplt slår av portfiltreringen for utgående TCP helt, og bare proxyen begrenser hvor agenten kan koble seg
+            til. <code className={code}>allow_jvm_attach</code> åpner bare socketene{" "}
+            <code className={code}>/tmp/.java_pid&lt;PID&gt;</code>, ingen andre.
+          </BodyLong>
+          <BodyLong>
+            Trenger du innstillingene bare for ett prosjekt, legg dem i repoet i stedet. Da gjelder de for alle på
+            teamet som godkjenner dem:
           </BodyLong>
           <CodeBlock compact>
             {`cplt config set --repo sandbox.allow_localhost_any true
@@ -66,7 +72,8 @@ cplt trust accept --all`}
           </BodyLong>
           <BodyLong>
             <code className={code}>cplt init</code> finner Gradle-bygget og foreslår{" "}
-            <code className={code}>allow_jvm_attach</code> når testene bruker MockK. Den foreslår ikke{" "}
+            <code className={code}>allow_jvm_attach</code>, og viser at{" "}
+            <code className={code}>~/.gradle/gradle.properties</code> kan trenge lesetilgang. Den foreslår ikke{" "}
             <code className={code}>allow_localhost_any</code>, så den må du legge til selv. Uten den stopper bygget med{" "}
             <code className={code}>Could not connect to the Gradle daemon.</code>
           </BodyLong>
@@ -83,7 +90,7 @@ cplt trust accept --all`}
             Wrapperen og en liste over tillatte verter
           </LinkableHeading>
           <BodyLong>
-            I standardoppsettet begrenser ikke cplt hvilke verter bygget kan nå. Da laster{" "}
+            I standardoppsettet stopper cplt bare kjente skadelige verter og verter med private adresser. Da laster{" "}
             <code className={code}>./gradlew</code> ned Gradle og avhengigheter som vanlig.
           </BodyLong>
           <BodyLong>
@@ -159,9 +166,10 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
             Token i ~/.gradle/gradle.properties
           </LinkableHeading>
           <BodyLong>
-            <code className={code}>maven.pkg.github.com</code> krever token. cplt stenger{" "}
-            <code className={code}>~/.gradle/gradle.properties</code> fordi fila ofte har tokens i seg. Finnes fila, og
-            du ikke har åpnet den, stopper hvert eneste Gradle-bygg i sandkassen med{" "}
+            <code className={code}>maven.pkg.github.com</code> krever token. På macOS stenger cplt{" "}
+            <code className={code}>~/.gradle/gradle.properties</code> fordi fila ofte har tokens i seg. På Linux kan
+            agenten lese fila uansett. Finnes fila på macOS, og du ikke har åpnet den, stopper hvert eneste Gradle-bygg
+            i sandkassen med{" "}
             <NextLink href={`${FAQ}#gradle-properties`} className={linkClass}>
               Error when loading properties file
             </NextLink>
@@ -182,9 +190,12 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
             <code className={code}>read:packages</code> og ingenting mer begrenser skaden hvis det kommer på avveie.
           </BodyLong>
           <BodyLong>
-            Leser bygget tokenet fra <code className={code}>GITHUB_TOKEN</code>, får det ikke noe token i sandkassen.
-            cplt fjerner den variabelen fra miljøet til agenten.{" "}
-            <code className={code}>cplt --pass-env GITHUB_TOKEN</code> sender den med, men da har agenten tokenet ditt.
+            Leser bygget tokenet fra <code className={code}>GITHUB_TOKEN</code>, kommer det an på agenten. Copilot får{" "}
+            <code className={code}>GITHUB_TOKEN</code>, <code className={code}>GH_TOKEN</code> og{" "}
+            <code className={code}>COPILOT_GITHUB_TOKEN</code> slik de står i skallet ditt, fordi Copilot trenger et
+            GitHub-token. OpenCode og de andre agentene får dem ikke, og det gjør heller ikke{" "}
+            <code className={code}>cplt exec</code>. Der sender <code className={code}>--pass-env GITHUB_TOKEN</code>{" "}
+            den med, men da har agenten tokenet ditt.
           </BodyLong>
           <BodyLong>
             Under en liste over tillatte verter når Copilot <code className={code}>maven.pkg.github.com</code>, fordi
@@ -235,8 +246,10 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
           </LinkableHeading>
           <BodyLong>
             Med <code className={code}>jvmToolchain(…)</code> og foojay-pluginen laster Gradle ned JDK-en prosjektet ber
-            om, til <code className={code}>~/.gradle/jdks</code>. I sandkassen kan agenten kjøre JDK-ene som ligger der,
-            men ikke skrive nye dit. En JDK som mangler, kan derfor ikke lastes ned inne i cplt.
+            om, til <code className={code}>~/.gradle/jdks</code>. På macOS kan agenten kjøre JDK-ene som ligger der, men
+            ikke skrive nye dit, så en JDK som mangler, kan ikke lastes ned inne i cplt. På Linux er mappa skrivbar.
+            Under en liste over tillatte verter må <code className={code}>api.foojay.io</code> og vertene JDK-en hentes
+            fra, stå på lista. For Temurin er det de samme som for wrapperen.
           </BodyLong>
           <BodyLong>
             Kjør bygget én gang utenfor cplt, så ligger JDK-en klar. Etterpå kan du se hvilke JDK-er Gradle finner:
@@ -279,7 +292,8 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             </li>
             <li>
               <strong>Gi agenten Docker.</strong> Da virker Testcontainers, også med colima. Agenten kan da gjøre alt
-              Docker kan. Bruk det bare i et repo du stoler på, og helst bare for én økt.
+              Docker kan, og lese <code className={code}>~/.docker</code> med registerinnloggingene dine. Bruk det bare
+              i et repo du stoler på, og helst bare for én økt.
             </li>
           </Bullets>
           <BodyLong>En database på port 5432, startet utenfor cplt:</BodyLong>
@@ -292,6 +306,11 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             {`cplt --allow-docker
 cplt config set sandbox.allow_docker true --force`}
           </CodeBlock>
+          <BodyLong>
+            Med colima må <code className={code}>TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock</code> være
+            satt, som utenfor cplt. cplt sender <code className={code}>DOCKER_HOST</code> og{" "}
+            <code className={code}>TESTCONTAINERS_*</code> videre til agenten.
+          </BodyLong>
         </VStack>
       </section>
 
@@ -319,8 +338,8 @@ cplt exec -- ./gradlew build`}
             (engelsk).
           </BodyLong>
           <BodyLong>
-            Kommandoene på denne siden er testet med cplt <code className={code}>2026.09.29-105335-ce50857</code> på
-            macOS, med et lite Kotlin-prosjekt, Gradle 9.8.0 og colima.
+            Kommandoene på denne siden er testet med cplt <code className={code}>2026.09.29-113343-7a9ef00</code> på
+            macOS, med et lite Kotlin-prosjekt, Gradle 9.7.0 og 9.8.0 og colima.
           </BodyLong>
         </VStack>
       </section>
