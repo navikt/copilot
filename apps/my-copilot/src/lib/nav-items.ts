@@ -67,14 +67,7 @@ export const SECTION: NavGroup[] = [
     ],
   },
   { label: "Forklaring", overview: "/nav-pilot/forklaring", items: fromDocs(EXPLANATION_PAGES) },
-  {
-    // href, not overview: /cplt keeps no section menu of its own (AGENTS.md), so
-    // sectionGroup("/cplt") must stay undefined. items still put the Windows
-    // guide in the search index the same way every other page gets there.
-    label: "Sandkassen (cplt)",
-    href: "/cplt",
-    items: [{ label: "cplt on Windows (WSL2)", href: "/cplt/windows" }],
-  },
+  { label: "Sandkassen (cplt)", href: "/cplt" },
 ];
 
 /** The section-menu group that holds this page. It starts open, and names the label line above the title. */

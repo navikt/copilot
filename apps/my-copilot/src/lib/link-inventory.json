@@ -86,7 +86,7 @@
       "apps/my-copilot/src/app/(en)/cplt/page.tsx",
       "apps/my-copilot/src/app/(en)/cplt/windows/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
-      "apps/my-copilot/src/lib/nav-items.ts"
+      "apps/my-copilot/src/lib/search-index.ts"
     ],
     "anchors": {}
   },
