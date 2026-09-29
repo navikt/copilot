@@ -49,7 +49,7 @@ func TestMCPConsentAsksAndRecords(t *testing.T) {
 	askProposalConsent = func(_, d string, approve *bool) error { desc, *approve = d, true; return nil }
 	t.Cleanup(func() { askProposalConsent = prev })
 
-	noteMCPHostConsent()
+	noteMCPHostConsent("copilot")
 	for _, want := range []string{"mcp-onboarding.intern.nav.no", "io.github.navikt/mcp-onboarding", "mcp.figma.com", "com.figma/figma-mcp", "private address"} {
 		if !strings.Contains(desc, want) {
 			t.Errorf("the question does not show %q:\n%s", want, desc)
@@ -67,7 +67,7 @@ func TestMCPConsentNonInteractiveGrantsNothing(t *testing.T) {
 	askProposalConsent = func(string, string, *bool) error { t.Error("asked without a terminal"); return nil }
 	t.Cleanup(func() { askProposalConsent = prev })
 
-	stderr := captureStderr(func() { noteMCPHostConsent(); noteMCPHostConsent() })
+	stderr := captureStderr(func() { noteMCPHostConsent("copilot"); noteMCPHostConsent("copilot") })
 	if len(*answers) != 0 {
 		t.Errorf("recorded %v without a terminal", *answers)
 	}
@@ -121,7 +121,7 @@ func TestMCPConsentEnterDeclines(t *testing.T) {
 	askProposalConsent = func(string, string, *bool) error { return nil }
 	t.Cleanup(func() { askProposalConsent = prev })
 
-	noteMCPHostConsent()
+	noteMCPHostConsent("copilot")
 	if len(*answers) != 1 || (*answers)[0] {
 		t.Errorf("recorded %v, want one decline", *answers)
 	}
@@ -138,7 +138,7 @@ func TestMCPConsentGrownSetShowsTheDiff(t *testing.T) {
 	askProposalConsent = func(tt, d string, _ *bool) error { title, desc = tt, d; return nil }
 	t.Cleanup(func() { askProposalConsent = prev })
 
-	noteMCPHostConsent()
+	noteMCPHostConsent("copilot")
 	if !strings.Contains(desc, "Changed since you last answered: + mcp-onboarding.intern.nav.no") {
 		t.Errorf("no diff in:\n%s", desc)
 	}
@@ -160,7 +160,7 @@ func TestMCPHostsOff(t *testing.T) {
 	askProposalConsent = func(string, string, *bool) error { t.Error("asked under mcp_hosts = off"); return nil }
 	t.Cleanup(func() { askProposalConsent = prev; providerpkg.MCPHostsOff = false })
 
-	noteMCPHostConsent()
+	noteMCPHostConsent("copilot")
 	if len(*answers) != 0 || !providerpkg.MCPHostsOff {
 		t.Errorf("off: recorded %v, provider off = %v", *answers, providerpkg.MCPHostsOff)
 	}

@@ -291,8 +291,19 @@ func localPackage(command []string) string {
 // later definition of a name is merged over an earlier one. A file that does
 // not parse is skipped; OpenCode would refuse it anyway.
 func openCodeMCPServers(projectDir string, env []string) map[string]mcpServer {
+	return openCodeMCPServersIn(openCodeConfigDocs(projectDir, env, false))
+}
+
+// openCodeUserMCPServers is the servers in the user's own OpenCode config:
+// the global files and ~/.opencode, never a project's or an environment
+// variable's, which a repository can set.
+func openCodeUserMCPServers() map[string]mcpServer {
+	return openCodeMCPServersIn(openCodeConfigDocs("", os.Environ(), true))
+}
+
+func openCodeMCPServersIn(docs [][]byte) map[string]mcpServer {
 	servers := map[string]mcpServer{}
-	for _, doc := range openCodeConfigDocs(projectDir, env) {
+	for _, doc := range docs {
 		var cfg struct {
 			MCP map[string]json.RawMessage `json:"mcp"`
 		}
@@ -314,8 +325,9 @@ func openCodeMCPServers(projectDir string, env []string) map[string]mcpServer {
 
 // openCodeConfigDocs is the user's OpenCode config documents for this launch,
 // in OpenCode's merge order (see openCodeMCPServers), with {env:VAR} already
-// replaced. Comments are left in; parse with stripJSONC.
-func openCodeConfigDocs(projectDir string, env []string) [][]byte {
+// replaced. Comments are left in; parse with stripJSONC. userOnly is the
+// user's own files alone.
+func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte {
 	getenv := func(k string) string {
 		for _, e := range env {
 			if v, ok := strings.CutPrefix(e, k+"="); ok {
@@ -333,6 +345,12 @@ func openCodeConfigDocs(projectDir string, env []string) [][]byte {
 		}
 	}
 	read(openCodeConfigDir(), "config.json", "opencode.json", "opencode.jsonc")
+	if userOnly {
+		if home, err := os.UserHomeDir(); err == nil {
+			read(filepath.Join(home, ".opencode"), "opencode.json", "opencode.jsonc")
+		}
+		return expandOpenCodeEnv(docs, getenv)
+	}
 	if f := getenv("OPENCODE_CONFIG"); f != "" {
 		read(filepath.Dir(f), filepath.Base(f))
 	}
@@ -370,9 +388,13 @@ func openCodeConfigDocs(projectDir string, env []string) [][]byte {
 	if c := getenv(openCodeConfigContentEnv); c != "" {
 		docs = append(docs, []byte(c))
 	}
-	// {env:VAR} is replaced as raw text before OpenCode parses, so it is
-	// here too: a URL behind a variable must be matched by its value, and
-	// an unquoted placeholder must not make the document unreadable.
+	return expandOpenCodeEnv(docs, getenv)
+}
+
+// expandOpenCodeEnv replaces {env:VAR} as raw text, as OpenCode does before
+// it parses: a URL behind a variable must be matched by its value, and an
+// unquoted placeholder must not make the document unreadable.
+func expandOpenCodeEnv(docs [][]byte, getenv func(string) string) [][]byte {
 	for i, doc := range docs {
 		docs[i] = envPlaceholder.ReplaceAllFunc(doc, func(m []byte) []byte {
 			return []byte(getenv(string(envPlaceholder.FindSubmatch(m)[1])))

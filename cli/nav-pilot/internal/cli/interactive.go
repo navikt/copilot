@@ -1032,7 +1032,7 @@ func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error
 	defer func() { stopSourceRefresh() }()
 	// Before the launch vector is built: the flags derive from the record
 	// this may write (provider/mcp_hosts.go).
-	noteMCPHostConsent()
+	noteMCPHostConsent(resolved.Client)
 	handled, err := tryPakkeLaunch(resolved)
 	if err != nil {
 		return err

@@ -24,8 +24,9 @@ import (
 
 // The hosts the user's MCP servers need under cplt, from Nav's MCP registry.
 //
-// Which servers count is the user's MCP config: ~/.copilot/mcp-config.json and
-// the OpenCode config opencode_mcp.go already reads. Which hosts they get is
+// Which servers count is the launched client's user MCP config:
+// ~/.copilot/mcp-config.json for Copilot, the user's own OpenCode files for
+// OpenCode, never a project's. Which hosts they get is
 // the registry's answer only. A server is matched by identity — its registry
 // name, or for OpenCode a URL the registry lists — and the hosts are taken
 // from the registry's remotes, never from a URL in the config. The agent can
@@ -114,6 +115,21 @@ func copilotMCPServerNames() []string {
 	return names
 }
 
+// MCPClient is the client a launch runs, set by the cli: only that client's
+// servers count. Empty is copilot.
+var MCPClient string
+
+// configuredMCPServers is the servers the user configured for [MCPClient], in
+// the user's own config only. A project's opencode.json is the repository's
+// say, not the user's: counted, a cloned repository would put a host of its
+// choosing on the consent screen, and one Yes grants it to every launch.
+func configuredMCPServers() (copilot []string, openCode map[string]mcpServer) {
+	if MCPClient == "opencode" {
+		return nil, openCodeUserMCPServers()
+	}
+	return copilotMCPServerNames(), nil
+}
+
 // matchMCPHosts is the registry's hosts for the configured servers. Pure: the
 // security property — a config URL is never a host — is tested here.
 func matchMCPHosts(reg mcpRegistry, copilot []string, openCode map[string]mcpServer) MCPHosts {
@@ -189,8 +205,7 @@ func matchMCPHosts(reg mcpRegistry, copilot []string, openCode map[string]mcpSer
 // background for the next launch, and no cache counts as a registry that did
 // not answer, so the approved set stays and nothing is asked.
 func resolveMCPHosts() (MCPHosts, error) {
-	copilot := copilotMCPServerNames()
-	openCode := openCodeMCPServers("", os.Environ())
+	copilot, openCode := configuredMCPServers()
 	if len(copilot)+len(openCode) == 0 {
 		return MCPHosts{}, nil
 	}
@@ -281,7 +296,7 @@ var (
 // RefreshMCPRegistryIfDue is the background read done in the foreground, for
 // doctor: nothing when no server is configured or the cache is fresh.
 func RefreshMCPRegistryIfDue() error {
-	if len(copilotMCPServerNames())+len(openCodeMCPServers("", os.Environ())) == 0 {
+	if copilot, openCode := configuredMCPServers(); len(copilot)+len(openCode) == 0 {
 		return nil
 	}
 	if c, ok := readMCPRegistryCache(); ok && time.Since(c.At) <= mcpRegistryTTL {

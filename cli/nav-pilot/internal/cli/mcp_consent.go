@@ -60,7 +60,8 @@ func mcpHostsMode() string {
 // noteMCPHostConsent asks about MCP registry hosts outside the recorded
 // approval, once per host set, and keeps nav-pilot's allowlist file in step.
 // Best effort: every failure path grants nothing new.
-func noteMCPHostConsent() {
+func noteMCPHostConsent(client string) {
+	providerpkg.MCPClient = client
 	providerpkg.MCPHostsOff = mcpHostsMode() == "off"
 	// Without cplt there is no sandbox to open, and no reason to ask the
 	// registry anything.
@@ -205,6 +206,8 @@ func reportMCPHosts(w io.Writer, cpltPath string) {
 		fmt.Fprintf(w, "      %s\n", dim("ℹ MCP hosts are off (mcp_hosts = off)"))
 		return
 	}
+	cfg, _ := readConfig()
+	providerpkg.MCPClient = resolve(cfg, CLIOverrides{}).Client
 	// Doctor reads the registry when the launch's cache of it is due, so the
 	// launch never has to.
 	refreshErr := refreshMCPRegistry()

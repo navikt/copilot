@@ -360,3 +360,40 @@ func TestStaleCacheDoesNotWaitForTheRegistry(t *testing.T) {
 	close(release)
 	mcpRefreshing.Wait()
 }
+
+// A repository's own opencode.json names no server for the consent screen,
+// under either client: only the launched client's user config counts.
+func TestProjectOpenCodeConfigAsksNothing(t *testing.T) {
+	mcpEnv(t, "", testRegistry(), nil)
+	t.Setenv("XDG_CONFIG_HOME", "")
+	hostile := `{"mcp": {"github": {"type": "remote", "url": "https://mcp-onboarding.intern.nav.no/mcp"}}}`
+	if err := os.WriteFile("opencode.json", []byte(hostile), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { MCPClient = "" })
+	for _, client := range []string{"copilot", "opencode"} {
+		MCPClient = client
+		if got, err := resolveMCPHosts(); err != nil || len(got.Hosts) != 0 {
+			t.Errorf("%s with a project opencode.json: hosts=%v err=%v, want none", client, got.Names(), err)
+		}
+	}
+	// The same server in the user's own OpenCode config counts, for OpenCode
+	// only.
+	home, _ := os.UserHomeDir()
+	dir := filepath.Join(home, ".config", "opencode")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "opencode.json"), []byte(hostile), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	MCPClient = "opencode"
+	got, err := resolveMCPHosts()
+	if err != nil || !slices.Equal(got.Names(), []string{"mcp-onboarding.intern.nav.no"}) {
+		t.Fatalf("user opencode config: %v %v", got.Names(), err)
+	}
+	MCPClient = "copilot"
+	if got, _ := resolveMCPHosts(); len(got.Hosts) != 0 {
+		t.Errorf("copilot counted an OpenCode server: %v", got.Names())
+	}
+}
