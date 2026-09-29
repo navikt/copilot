@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -54,19 +55,39 @@ type cpltGitState struct {
 
 // readCpltGitState asks cplt for the two keys. `cplt config get` prints the
 // default, not the preset's baseline, for a key the file does not set, and
-// marks it with a "(default" line; that is how an unset key is told apart.
+// marks it with a "(default" line on stderr; that is how an unset key is told
+// apart.
 func readCpltGitState(cliPath string) cpltGitState {
 	var s cpltGitState
-	if out, err := runBounded(cliPath, "config", "get", "sandbox.preset"); err == nil {
-		s.Preset = cpltPresetFromConfigGet(string(out))
+	if out, _, err := cpltConfigGetDefault(cliPath, "sandbox.preset"); err == nil {
+		s.Preset = cpltPresetFromConfigGet(out)
 	}
-	if out, err := runBounded(cliPath, "config", "get", "git_guard.protect_default_branch_only"); err == nil {
-		first, rest, _ := strings.Cut(string(out), "\n")
-		if v, perr := strconv.ParseBool(strings.TrimSpace(first)); perr == nil && !strings.Contains(rest, "(default") {
+	if out, isDefault, err := cpltConfigGetDefault(cliPath, "git_guard.protect_default_branch_only"); err == nil && !isDefault {
+		if v, perr := strconv.ParseBool(out); perr == nil {
 			s.Protect = &v
 		}
 	}
 	return s
+}
+
+// cpltConfigGetDefault reads one key: the value is the first line of stdout,
+// and cplt says "(default, not set in config file)" on stderr when the file
+// does not set it. Both streams are searched for the marker, stdout only for
+// the value, so a warning on stderr can never pose as the value.
+func cpltConfigGetDefault(cliPath, key string) (val string, isDefault bool, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), cpltCommandTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, cliPath, "config", "get", key)
+	cmd.WaitDelay = time.Second
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return "", false, err
+	}
+	first, _, _ := strings.Cut(string(out), "\n")
+	isDefault = bytes.Contains(out, []byte("(default")) || bytes.Contains(stderr.Bytes(), []byte("(default"))
+	return strings.TrimSpace(first), isDefault, nil
 }
 
 // effectivePush is whether cplt lets the agent push a feature branch: the
@@ -101,6 +122,9 @@ func currentPreset(autonomy string, copilot bool, s cpltGitState) string {
 	return presetCustom
 }
 
+// guardedPreset is true for the cplt presets whose git and gh guards are on.
+func guardedPreset(p string) bool { return p == "standard" || p == cpltStrictPreset }
+
 // cpltChange is one `cplt config set` the wizard makes.
 type cpltChange struct{ Key, From, To string }
 
@@ -112,7 +136,7 @@ func cpltChanges(s cpltGitState, c autonomyChoice) []cpltChange {
 		out = append(out, cpltChange{"sandbox.preset", s.Preset, c.Preset})
 	}
 	// The guard only has a meaning under the two presets that turn it on.
-	if c.Preset != "standard" && c.Preset != cpltStrictPreset {
+	if !guardedPreset(c.Preset) {
 		return out
 	}
 	after := cpltGitState{Preset: c.Preset, Protect: s.Protect}
@@ -135,12 +159,20 @@ func askAutonomy(client string, def string, cur autonomyChoice) (autonomyChoice,
 		huh.NewOption("Autonomous in the sandbox (recommended): commits, pushes branches, opens PRs", presetSandbox),
 	}
 	locked := "Locked down: no pushes at all, network limited to an allowlist"
-	desc := "cplt blocks merging and pushing to main in every option. The agent asks you when unsure."
+	desc := "cplt blocks merging and pushing to main under each preset here. The agent asks you when unsure."
+	if !guardedPreset(cur.Preset) {
+		desc = "cplt blocks merging and pushing to main under each preset here. Custom can keep your cplt preset " +
+			cur.Preset + ", which blocks neither. The agent asks you when unsure."
+	}
 	if copilot {
 		opts = append(opts, huh.NewOption("Ask before each command: same git rules, but Copilot asks first", presetAsk))
 		locked = "Locked down: asks first, no pushes at all, network limited to an allowlist"
 	} else {
-		desc += " " + clientLabel[client] + " keeps its own permission settings."
+		desc += " " + clientLabel[client] + " keeps its own permission settings"
+		if client == "opencode" {
+			desc += " (the permission key in opencode.json)"
+		}
+		desc += "."
 	}
 	opts = append(opts,
 		huh.NewOption(locked, presetLocked),
@@ -177,6 +209,29 @@ func askAutonomy(client string, def string, cur autonomyChoice) (autonomyChoice,
 		Run(); err != nil {
 		return autonomyChoice{}, err
 	}
+	netOpts := []huh.Option[string]{
+		huh.NewOption("Standard: GitHub, Nav and package hosts reachable", "standard"),
+		huh.NewOption("Allowlist only (cplt strict)", cpltStrictPreset),
+	}
+	if !guardedPreset(c.Preset) {
+		netOpts = append(netOpts, huh.NewOption("Keep cplt preset "+c.Preset, c.Preset))
+	}
+	if err := huh.NewSelect[string]().
+		Title("Network").
+		Options(netOpts...).
+		Value(&c.Preset).
+		WithTheme(navTheme()).
+		Run(); err != nil {
+		return autonomyChoice{}, err
+	}
+	// Under permissive and full-trust cplt's git guard is off: there is
+	// nothing for the git answer to set.
+	if !guardedPreset(c.Preset) {
+		return c, nil
+	}
+	if !guardedPreset(cur.Preset) {
+		c.Push = true // coming from no guard at all: start from standard's baseline
+	}
 	if err := huh.NewSelect[bool]().
 		Title("What may the agent do with git?").
 		Options(
@@ -188,26 +243,13 @@ func askAutonomy(client string, def string, cur autonomyChoice) (autonomyChoice,
 		Run(); err != nil {
 		return autonomyChoice{}, err
 	}
-	netOpts := []huh.Option[string]{
-		huh.NewOption("Standard: GitHub, Nav and package hosts reachable", "standard"),
-		huh.NewOption("Allowlist only (cplt strict)", cpltStrictPreset),
-	}
-	if c.Preset != "standard" && c.Preset != cpltStrictPreset {
-		netOpts = append(netOpts, huh.NewOption("Keep cplt preset "+c.Preset, c.Preset))
-	}
-	if err := huh.NewSelect[string]().
-		Title("Network").
-		Options(netOpts...).
-		Value(&c.Preset).
-		WithTheme(navTheme()).
-		Run(); err != nil {
-		return autonomyChoice{}, err
-	}
 	return c, nil
 }
 
 // autonomySummary is the one screen shown before anything is written.
-func autonomySummary(c autonomyChoice, changes []cpltChange, cpltFound bool) string {
+// allowlist is the proxy.allowed_domains that stays set under a preset other
+// than strict, or "".
+func autonomySummary(c autonomyChoice, changes []cpltChange, cpltFound bool, allowlist string) string {
 	var b strings.Builder
 	if c.Autonomy != "" {
 		fmt.Fprintf(&b, "nav-pilot autonomy = %s\n", c.Autonomy)
@@ -228,8 +270,17 @@ func autonomySummary(c autonomyChoice, changes []cpltChange, cpltFound bool) str
 	if cpltFound && len(changes) == 0 {
 		b.WriteString("cplt: no changes\n")
 	}
-	if !c.Push {
+	switch {
+	case cpltFound && !guardedPreset(c.Preset):
+		fmt.Fprintf(&b, "cplt preset %s: its git and gh guards are off, so nothing is blocked, not even pushing to main or merging.\n", c.Preset)
+	case !c.Push:
 		b.WriteString("The agent cannot push at all: you push.\n")
+	}
+	if allowlist != "" {
+		fmt.Fprintf(&b, "cplt proxy.allowed_domains stays set: only the hosts in %s are reachable.\n", allowlist)
+		if allowlist == navAllowedDomainsPath() {
+			b.WriteString("  That is nav-pilot's list from strict. To reach every host, delete the allowed_domains line in the file `cplt config path` prints.\n")
+		}
 	}
 	fmt.Fprintf(&b, "Your other answers go to %s.", configPath())
 	return b.String()
@@ -327,11 +378,26 @@ func reportGHAuth(w io.Writer, indent, client string, st ghAuth, detail string) 
 		fmt.Fprintf(w, "%s%s gh is not signed in to github.com (or its token no longer works), so the agent cannot push or open PRs. Run %s\n", indent, yellow("⚠"), bold(login))
 	case st == ghAuthKeyring && keychainBlocked(client):
 		fmt.Fprintf(w, "%s%s gh keeps its token in the macOS Keychain, which cplt does not let %s read: push and PRs fail in the sandbox. Run %s\n", indent, yellow("⚠"), clientLabel[client], bold(login))
+	case (st == ghAuthOK || st == ghAuthKeyring) && originUsesSSH():
+		fmt.Fprintf(w, "%s%s gh is signed in to github.com: the agent can open PRs. This repo's origin uses SSH, which cplt blocks, so pushes fail. Run %s\n", indent, yellow("⚠"),
+			bold(`git config --global url."https://github.com/".insteadOf "git@github.com:"`))
 	case st == ghAuthOK || st == ghAuthKeyring:
 		fmt.Fprintf(w, "%s%s gh is signed in to github.com: the agent can push branches and open PRs\n", indent, green("✓"))
 	default:
 		fmt.Fprintf(w, "%s%s Could not check the gh sign-in (%s). Run %s to see it.\n", indent, dim("-"), detail, bold("gh auth status"))
 	}
+}
+
+// originUsesSSH is whether the current repo's origin is an SSH remote. cplt
+// denies ~/.ssh and SSH_AUTH_SOCK, so a push over it fails in the sandbox
+// whatever gh says. Setup and doctor only. A var so tests need no repo.
+var originUsesSSH = func() bool {
+	out, err := runBounded("git", "remote", "get-url", "origin")
+	if err != nil {
+		return false
+	}
+	u := strings.TrimSpace(string(out))
+	return strings.Contains(u, "ssh://") || (!strings.Contains(u, "://") && strings.Contains(u, "@"))
 }
 
 // ─── the repo's suggested sandbox rules ──────────────────────────────────────

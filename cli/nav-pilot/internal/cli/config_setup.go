@@ -238,9 +238,14 @@ func runConfigSetup(flagSource string) error {
 
 	// One screen of what changes; nothing is written without the yes.
 	var changes []cpltChange
-	allowlistPath, host := "", ""
+	allowlistPath, host, keptAllowlist := "", "", ""
 	if cpltPath != "" {
 		changes = cpltChanges(cur, choice)
+		// Leaving strict does not drop the allowlist: cplt enforces it under
+		// every preset, so the summary says it stays.
+		if choice.Preset != cpltStrictPreset {
+			keptAllowlist = cpltConfigGet(cpltPath, "proxy.allowed_domains")
+		}
 		for _, ch := range changes {
 			if ch.Key != "sandbox.preset" || ch.To != cpltStrictPreset {
 				continue
@@ -255,7 +260,7 @@ func runConfigSetup(flagSource string) error {
 	save := true
 	if err := huh.NewConfirm().
 		Title("Save these settings?").
-		Description(autonomySummary(choice, changes, cpltPath != "")).
+		Description(autonomySummary(choice, changes, cpltPath != "", keptAllowlist)).
 		Affirmative("Save").
 		Negative("Cancel").
 		Value(&save).

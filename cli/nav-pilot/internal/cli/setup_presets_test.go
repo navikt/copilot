@@ -160,6 +160,7 @@ func TestGHAuthFrom(t *testing.T) {
 }
 
 func TestReportGHAuth(t *testing.T) {
+	stubSSH(t, false)
 	out := func(client string, st ghAuth) string {
 		var b bytes.Buffer
 		reportGHAuth(&b, "", client, st, "timeout")
@@ -194,5 +195,41 @@ func TestProtectKeyWithoutDefaultMarkerIsExplicit(t *testing.T) {
 	cliPath, _ := findCplt()
 	if s := readCpltGitState(cliPath); s.Protect == nil || *s.Protect {
 		t.Errorf("state = %+v, want an explicit false", s)
+	}
+}
+
+func stubSSH(t *testing.T, ssh bool) {
+	t.Helper()
+	orig := originUsesSSH
+	originUsesSSH = func() bool { return ssh }
+	t.Cleanup(func() { originUsesSSH = orig })
+}
+
+// gh covers HTTPS pushes only; over an SSH origin the line must not promise
+// a push, and must name the insteadOf rewrite.
+func TestReportGHAuthSSHOrigin(t *testing.T) {
+	stubSSH(t, true)
+	var b bytes.Buffer
+	reportGHAuth(&b, "", "copilot", ghAuthOK, "")
+	if s := b.String(); strings.Contains(s, "push branches") || !strings.Contains(s, "insteadOf") {
+		t.Errorf("SSH origin: %q", s)
+	}
+}
+
+// Under permissive the guards are off: the summary says so and does not
+// claim the agent cannot push.
+func TestSummaryPermissiveAndKeptAllowlist(t *testing.T) {
+	isolatedConfig(t)
+	s := autonomySummary(autonomyChoice{Autonomy: "sandbox", Preset: "permissive"}, nil, true, "")
+	if !strings.Contains(s, "guards are off") || strings.Contains(s, "cannot push") {
+		t.Errorf("permissive summary: %q", s)
+	}
+	s = autonomySummary(presetChoices[presetSandbox], nil, true, navAllowedDomainsPath())
+	if !strings.Contains(s, "allowed_domains stays set") || !strings.Contains(s, "nav-pilot's list") {
+		t.Errorf("kept nav-pilot allowlist: %q", s)
+	}
+	s = autonomySummary(presetChoices[presetSandbox], nil, true, "/home/me/hosts.txt")
+	if !strings.Contains(s, "stays set") || strings.Contains(s, "nav-pilot's list") {
+		t.Errorf("kept user allowlist: %q", s)
 	}
 }
