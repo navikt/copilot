@@ -396,6 +396,12 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 		allAgents = append(allAgents, installedAgents(userState)...)
 	}
 	allAgents = uniqueStrings(allAgents)
+	// A No holds the question off for a day, as the upgrade prompt does:
+	// with several releases a day, "not now" asked again on every launch
+	// (#1275). The launch says nothing meanwhile.
+	if markedWithin(syncDeclinedPath(), 24*time.Hour, time.Now()) {
+		stale = nil
+	}
 
 	if len(stale) > 0 {
 		if !providerpkg.Verbose {
@@ -430,6 +436,13 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 		doSync, abort := syncPromptOutcome(err, choice)
 		if abort {
 			return nil
+		}
+		if err == nil && !doSync {
+			if p := syncDeclinedPath(); p != "" {
+				_ = os.MkdirAll(filepath.Dir(p), 0o755)
+				_ = os.WriteFile(p, []byte(stale[0].latest+"\n"), 0o644)
+			}
+			fmt.Printf("%s\n\n", dim("Not synced. Asked again in 24 hours; nav-pilot sync syncs now."))
 		}
 		if doSync {
 			for _, s := range stale {
