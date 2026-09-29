@@ -96,7 +96,7 @@ func TestSpoolRemovedWhenOff(t *testing.T) {
 
 // A spooled export is sent with its points at the time of sending, or Mimir
 // drops it as out of order; a sender that holds the lock keeps others off
-// until the lock is stale.
+// until the holder closes its descriptor.
 func TestSpoolRestampAndLock(t *testing.T) {
 	dir := t.TempDir()
 	hourAgo := uint64(time.Now().Add(-time.Hour).UnixNano())
@@ -150,5 +150,41 @@ func TestSpoolRestampAndLock(t *testing.T) {
 	}
 	if left, _ := filepath.Glob(filepath.Join(dir, "*.pb")); len(left) != 0 {
 		t.Errorf("spool left behind: %v", left)
+	}
+}
+
+// The age prune leaves the lock file alone, however old it is.
+func TestSpoolPruneKeepsLock(t *testing.T) {
+	dir := t.TempDir()
+	lock := filepath.Join(dir, ".send.lock")
+	os.WriteFile(lock, nil, 0o600)
+	week := time.Now().Add(-8 * 24 * time.Hour)
+	os.Chtimes(lock, week, week)
+	sendSpool(t.Context(), dir, "http://127.0.0.1:0", http.DefaultClient)
+	if _, err := os.Stat(lock); err != nil {
+		t.Errorf("lock file pruned: %v", err)
+	}
+}
+
+// A filesystem where flock fails outright sends at once, unlocked, instead
+// of waiting out the context as if the lock were held.
+func TestSpoolSendsWhenFlockUnsupported(t *testing.T) {
+	orig := flock
+	flock = func(int, int) error { return syscall.ENOLCK }
+	defer func() { flock = orig }()
+
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "1-1.pb"), []byte("x"), 0o600)
+	sent := 0
+	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { sent++ }))
+	defer collector.Close()
+
+	start := time.Now()
+	sendSpoolLocked(t.Context(), dir, collector.URL, collector.Client())
+	if took := time.Since(start); took > time.Second {
+		t.Errorf("took %s, want no wait", took)
+	}
+	if sent != 1 {
+		t.Errorf("sent %d, want 1", sent)
 	}
 }

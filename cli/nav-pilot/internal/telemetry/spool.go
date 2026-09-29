@@ -3,6 +3,7 @@ package telemetry
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -171,13 +172,24 @@ func SendSpool() {
 // The lock is flock(2) on .send.lock, held by the kernel for the open file:
 // a sender that exits or is killed mid-send releases it, so there is no
 // stale lock to detect and no takeover to race.
+// flock is syscall.Flock, a variable so a test can fail it the way NFS does.
+var flock = syscall.Flock
+
 func sendSpoolLocked(ctx context.Context, dir, endpoint string, client *http.Client) {
 	f, err := os.OpenFile(filepath.Join(dir, ".send.lock"), os.O_CREATE|os.O_RDONLY, 0o600)
 	if err != nil {
 		return // no spool directory: nothing to send
 	}
 	defer f.Close()
-	for syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB) != nil {
+	for {
+		err := flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+		// Only a lock someone holds is worth waiting for. Any other error
+		// (ENOLCK on NFS without lockd, EOPNOTSUPP on some SMB and FUSE
+		// mounts) means no lock can be had here at all: send without it
+		// rather than wait out ctx on every run.
+		if err == nil || !(errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.EINTR)) {
+			break
+		}
 		select {
 		case <-ctx.Done():
 			return
@@ -203,6 +215,11 @@ func sendSpool(ctx context.Context, dir, endpoint string, client *http.Client) {
 		}
 	}
 	for _, e := range entries {
+		// The lock file's mtime never moves (flock and O_CREATE leave it),
+		// so the age prune would take it from under a holder.
+		if e.Name() == ".send.lock" {
+			continue
+		}
 		p := filepath.Join(dir, e.Name())
 		info, err := e.Info()
 		if err != nil {
