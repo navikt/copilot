@@ -173,9 +173,10 @@ func cmdConfigStrictPreset() error {
 	}
 
 	desc := cpltStrictConsequence
-	if path, missing := cpltAllowlistMissingAgentHosts(cliPath, cpltSandboxPreset()); len(missing) > 0 {
+	path, host := cpltAgentHostShutOut(cliPath, cpltEnforcement())
+	if host != "" {
 		desc += fmt.Sprintf("\n\n%s shuts out %s, so this also sets proxy.default_allowlist = true. That opens cplt's built-in hosts, package registries included.",
-			path, strings.Join(missing, ", "))
+			path, host)
 	}
 	var ok bool
 	if err := huh.NewConfirm().
@@ -191,17 +192,21 @@ func cmdConfigStrictPreset() error {
 		return nil
 	}
 
-	return applyStrictPreset(cliPath)
+	return applyStrictPreset(cliPath, path, host)
 }
 
 // applyStrictPreset is everything cmdConfigStrictPreset does once the user has
 // said yes. Split out so the seed-then-set order — the part that matters — is
 // testable against a real cplt on PATH, without a terminal.
-func applyStrictPreset(cliPath string) error {
-	// After the yes, never before: an allowlist that shuts out the agent's own
-	// hosts breaks Copilot under any preset, but cplt config is the user's.
-	if err := repairCpltAgentHosts(cliPath, cpltSandboxPreset()); err != nil {
-		return err
+//
+// host is the agent host the user's allowlist file (path) shuts out, as the
+// battery found before the prompt, or "". Repaired here, after the yes, never
+// before: cplt config is the user's.
+func applyStrictPreset(cliPath, path, host string) error {
+	if host != "" {
+		if err := repairCpltAgentHosts(cliPath, path, host); err != nil {
+			return err
+		}
 	}
 	path, adopted, err := seedCpltAllowlist(cliPath)
 	if err != nil {
@@ -251,11 +256,49 @@ type cpltCheckReport struct {
 	// OverBlocked counts probes that should get through but were blocked.
 	// From navikt/cplt#604 on, cplt reports enforcing with this above zero.
 	OverBlocked int `json:"over_blocked"`
-	// Items are the graded probes. Only expected and decision are read.
+	// Items are the graded probes.
 	Items []struct {
+		Category string `json:"category"`
+		Target   string `json:"target"`
 		Expected string `json:"expected"`
 		Decision string `json:"decision"`
 	} `json:"items"`
+}
+
+// agentHostBlocked returns the host of the battery's agent-host probe when
+// cplt blocked it, else "". That probe is the battery's only network item
+// expected to get through: `reach <the agent's first default host>`.
+func (r *cpltCheckReport) agentHostBlocked() string {
+	if r == nil {
+		return ""
+	}
+	for _, it := range r.Items {
+		if it.Category == "network" && it.Expected == "allowed" && it.Decision == "blocked" {
+			host, _, _ := strings.Cut(it.Target, ":")
+			return host
+		}
+	}
+	return ""
+}
+
+// unverified reports a verdict that failed only because probes could not run:
+// some protections were verified, and every failing probe is inconclusive.
+// That is "could not verify", not "NOT enforcing".
+func (r *cpltCheckReport) unverified() bool {
+	if r.Enforcing || r.Verified == 0 {
+		return false
+	}
+	failed := false
+	for _, it := range r.Items {
+		if it.Expected == "" || it.Expected == it.Decision {
+			continue
+		}
+		if it.Decision != "inconclusive" {
+			return false
+		}
+		failed = true
+	}
+	return failed
 }
 
 // tooStrict reports a verdict that failed only because the sandbox blocked
@@ -605,114 +648,37 @@ func seedCpltAllowlist(cliPath string) (path string, adopted bool, err error) {
 	return path, true, nil
 }
 
-// cpltAgentHostsAlwaysAllowedFrom is the first cplt release that lets the
-// agent's own hosts through under any allowlist (navikt/cplt#605). Empty while
-// no release has it, which makes every released cplt count as older.
-// TODO: set to the first release containing navikt/cplt#605.
-const cpltAgentHostsAlwaysAllowedFrom = ""
-
-// cpltBlocksAgentHosts reports whether the installed cplt predates #605 and so
-// can shut out the agent's hosts. A dev build or an unreadable version counts
-// as new: no warning beats a false one.
-func cpltBlocksAgentHosts(cliPath string) bool {
-	out, err := runBounded(cliPath, "--version")
-	if err != nil {
-		return false
+// cpltAgentHostShutOut returns the user's allowlist file and the agent host
+// cplt blocks, or "" and "" when there is nothing to warn about.
+//
+// cplt blocks every host outside a non-empty proxy.allowed_domains, and before
+// navikt/cplt#605 it added the agent's own hosts only while
+// proxy.default_allowlist was on. A hand-written file without github.com then
+// locks Copilot out of its own /login. Rather than re-derive that from the file
+// and the cplt version, this reads the battery's own probe of the agent's
+// first host: blocked there is the fact, on every cplt version.
+func cpltAgentHostShutOut(cliPath string, r *cpltCheckReport) (path, host string) {
+	host = r.agentHostBlocked()
+	if host == "" {
+		return "", ""
 	}
-	installed := parseCpltVersion(string(out))
-	if !versionParseable(installed) {
-		return false
+	// Without an allowlist the block has another cause, and
+	// default_allowlist would not lift it.
+	if path = cpltConfigGet(cliPath, "proxy.allowed_domains"); path == "" {
+		return "", ""
 	}
-	return cpltAgentHostsAlwaysAllowedFrom == "" || versionNewer(cpltAgentHostsAlwaysAllowedFrom, installed)
+	return path, host
 }
 
-// cpltAgentHosts are the hosts Copilot needs for its own login and models.
-var cpltAgentHosts = []string{"github.com", "api.github.com", "githubcopilot.com", "copilot-proxy.githubusercontent.com"}
-
-// cpltAllowlistMissingAgentHosts returns the allowlist file and the agent hosts
-// it shuts out, or "" and nil when there is nothing to warn about.
-//
-// cplt blocks every host outside a non-empty proxy.allowed_domains, and adds
-// its built-in agent hosts only while proxy.default_allowlist is on. So a
-// hand-written file without github.com, under a preset that leaves that key
-// off, locks Copilot out of its own /login and makes `cplt check` fail. From
-// navikt/cplt#605 on, cplt lets the agent hosts through anyway, so this only
-// looks further on an older cplt.
-//
-// `cplt config get` prints the raw default for an unset key, not the preset's
-// value, so an unset default_allowlist under strict counts as on.
-func cpltAllowlistMissingAgentHosts(cliPath, preset string) (string, []string) {
-	path := cpltConfigGet(cliPath, "proxy.allowed_domains")
-	if path == "" {
-		return "", nil
-	}
-	if !cpltBlocksAgentHosts(cliPath) {
-		return "", nil
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	// cplt prints the value on stdout and the "not set" note on stderr.
-	var stderr strings.Builder
-	cmd := exec.CommandContext(ctx, cliPath, "config", "get", "proxy.default_allowlist")
-	cmd.Stderr = &stderr
-	out, _ := cmd.Output()
-	val, _, _ := strings.Cut(string(out), "\n")
-	unset := strings.Contains(stderr.String(), "not set in config file")
-	if strings.TrimSpace(val) == "true" || (unset && preset == "strict") {
-		return "", nil
-	}
-
-	file := path
-	if rest, ok := strings.CutPrefix(file, "~/"); ok {
-		home, _ := os.UserHomeDir()
-		file = filepath.Join(home, rest)
-	}
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return "", nil // cplt reports an unreadable file itself
-	}
-	// Same parsing as cplt's proxy_domains.rs parse_lines, same
-	// exact-or-subdomain match.
-	var listed []string
-	for _, l := range strings.Split(string(data), "\n") {
-		l = strings.TrimRight(strings.ToLower(strings.TrimSpace(l)), ".")
-		if l != "" && !strings.HasPrefix(l, "#") {
-			listed = append(listed, l)
-		}
-	}
-	var missing []string
-	for _, h := range cpltAgentHosts {
-		covered := false
-		for _, e := range listed {
-			if h == e || strings.HasSuffix(h, "."+e) {
-				covered = true
-				break
-			}
-		}
-		if !covered {
-			missing = append(missing, h)
-		}
-	}
-	if len(missing) == 0 {
-		return "", nil
-	}
-	return path, missing
-}
-
-// repairCpltAgentHosts turns on proxy.default_allowlist when the user's own
-// allowlist shuts out the agent's hosts. That adds cplt's built-in list, which
-// holds the agent's hosts and the package registries too; the user's file is
-// not touched. Rewriting the file instead would mean editing something the
-// user owns. Called only after the user has said yes.
-func repairCpltAgentHosts(cliPath, preset string) error {
-	path, missing := cpltAllowlistMissingAgentHosts(cliPath, preset)
-	if len(missing) == 0 {
-		return nil
-	}
+// repairCpltAgentHosts turns on proxy.default_allowlist, which adds cplt's
+// built-in list: the agent's hosts and the package registries too. The user's
+// file is not touched; rewriting it would mean editing something the user
+// owns. Called only after the user has said yes.
+func repairCpltAgentHosts(cliPath, path, host string) error {
 	if err := cpltConfigSet(cliPath, "proxy.default_allowlist", "true"); err != nil {
 		return err
 	}
 	fmt.Printf("%s cplt proxy.default_allowlist = true: %s shut out %s. This also lets the package registries through.\n",
-		domain.Green("✓"), path, strings.Join(missing, ", "))
+		domain.Green("✓"), path, host)
 	return nil
 }

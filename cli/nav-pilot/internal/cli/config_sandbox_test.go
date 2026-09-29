@@ -146,23 +146,9 @@ func fakeCplt(t *testing.T, get map[string]string) string {
 	dir := t.TempDir()
 	log := filepath.Join(dir, "config-set.log")
 
-	// A value may carry cplt's "(default, not set in config file)" note on a
-	// second line. Real cplt prints that note on stderr, so the fake does too.
 	var cases strings.Builder
 	for k, v := range get {
-		if k == "--version" {
-			continue
-		}
-		val, note, _ := strings.Cut(v, `\n`)
-		fmt.Fprintf(&cases, "    %s) printf '%%b\\n' %q", k, val)
-		if note != "" {
-			fmt.Fprintf(&cases, "; printf '%%s\\n' %q >&2", note)
-		}
-		fmt.Fprint(&cases, " ;;\n")
-	}
-	version := get["--version"]
-	if version == "" {
-		version = "cplt 2026.09.01-120000-abcdef0"
+		fmt.Fprintf(&cases, "    %s) printf '%%s\\n' %q ;;\n", k, v)
 	}
 
 	script := fmt.Sprintf(`#!/bin/sh
@@ -172,10 +158,9 @@ case "$1 $2" in
     case "$3" in
 %s      *) exit 1 ;;
     esac ;;
-  "--version ") echo %q ;;
   *) exit 1 ;;
 esac
-`, log, cases.String(), version)
+`, log, cases.String())
 
 	bin := filepath.Join(dir, "cplt")
 	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
@@ -214,7 +199,7 @@ func TestStrictPresetSeedsAllowlistIntoCpltConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := applyStrictPreset(cliPath); err != nil {
+	if err := applyStrictPreset(cliPath, "", ""); err != nil {
 		t.Fatalf("applyStrictPreset: %v", err)
 	}
 
@@ -256,7 +241,7 @@ func TestStrictPresetSeedsBeforeSettingThePreset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := applyStrictPreset(cliPath); err != nil {
+	if err := applyStrictPreset(cliPath, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(log)
@@ -283,7 +268,7 @@ func TestStrictPresetLeavesAUserAllowlistAlone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := applyStrictPreset(cliPath); err != nil {
+	if err := applyStrictPreset(cliPath, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if got := configSets(t, log)["proxy.allowed_domains"]; got != "" {
@@ -582,63 +567,82 @@ func TestCpltCheckTooStrict(t *testing.T) {
 	}
 }
 
-// The incident: a hand-written ~/.config/cplt/allowed-domains.txt with Nav
-// hosts only, preset standard, default_allowlist unset. cplt blocks github.com
-// and Copilot cannot log in. doctor has to name that state.
-func TestAllowlistMissingAgentHosts(t *testing.T) {
-	isolatedConfig(t)
-	home, _ := os.UserHomeDir()
-	const unset = `false\n[cplt] (default, not set in config file)`
-	write := func(content string) {
-		t.Helper()
-		dir := filepath.Join(home, ".config", "cplt")
-		if err := os.MkdirAll(dir, 0o700); err != nil {
-			t.Fatal(err)
+// The incident: a hand-written allowlist with Nav hosts only, on a cplt that
+// blocks the agent's hosts under it. The battery's agent-host probe says so on
+// every cplt version; doctor and the posture step read that probe, and only
+// warn when an allowlist is set.
+func TestAgentHostShutOut(t *testing.T) {
+	report := func(items ...string) *cpltCheckReport {
+		r := parseCpltCheckReport([]byte(`{"enforcing":false,"verified":3,"battery":true,"items":[` + strings.Join(items, ",") + `]}`))
+		if r == nil {
+			t.Fatal("report did not parse")
 		}
-		if err := os.WriteFile(filepath.Join(dir, "allowed-domains.txt"), []byte(content), 0o600); err != nil {
-			t.Fatal(err)
-		}
+		return r
 	}
-	const navOnly = "# mine\ngithub-package-registry-mirror.gc.nav.no\n"
-	const withAgent = "GitHub.com..\ngithubcopilot.com\ncopilot-proxy.githubusercontent.com\n"
+	reach := func(dec string) string {
+		return fmt.Sprintf(`{"name":"reach githubcopilot.com","category":"network","target":"githubcopilot.com:443","expected":"allowed","decision":%q}`, dec)
+	}
+	const ssrf = `{"name":"reach metadata IP (SSRF)","category":"network","target":"169.254.169.254:443","expected":"blocked","decision":"blocked"}`
+	const home = `{"name":"write $HOME (root)","category":"filesystem","target":"/Users/dev","expected":"allowed","decision":"blocked"}`
+	const allowlist = "~/.config/cplt/allowed-domains.txt"
 
 	tests := []struct {
-		name        string
-		file        string
-		allowed     string
-		defaultList string
-		preset      string
-		want        []string
+		name     string
+		report   *cpltCheckReport
+		allowed  string
+		wantHost string
 	}{
-		{"the incident", navOnly, "~/.config/cplt/allowed-domains.txt", unset, "standard", cpltAgentHosts},
-		{"explicitly off", navOnly, "~/.config/cplt/allowed-domains.txt", "false", "standard", cpltAgentHosts},
-		{"agent hosts listed", withAgent, "~/.config/cplt/allowed-domains.txt", unset, "standard", nil},
-		{"only one missing", "github.com\ngithubcopilot.com\n", "~/.config/cplt/allowed-domains.txt", unset, "standard", []string{"copilot-proxy.githubusercontent.com"}},
-		{"default_allowlist on", navOnly, "~/.config/cplt/allowed-domains.txt", "true", "standard", nil},
-		{"strict turns it on", navOnly, "~/.config/cplt/allowed-domains.txt", unset, "strict", nil},
-		{"strict, but the user turned it off", navOnly, "~/.config/cplt/allowed-domains.txt", "false", "strict", cpltAgentHosts},
-		{"no allowlist", navOnly, "", unset, "standard", nil},
-		{"file missing", navOnly, "~/.config/cplt/nope.txt", unset, "standard", nil},
-		{"dev build counts as new", navOnly, "~/.config/cplt/allowed-domains.txt", unset, "standard", nil},
+		{"the incident", report(reach("blocked"), ssrf), allowlist, "githubcopilot.com"},
+		{"agent host allowed", report(reach("allowed"), ssrf), allowlist, ""},
+		{"inconclusive is not blocked", report(reach("inconclusive")), allowlist, ""},
+		{"another over-block is not the agent host", report(home, ssrf), allowlist, ""},
+		{"blocked without an allowlist", report(reach("blocked")), "", ""},
+		{"no report", nil, allowlist, ""},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			write(tc.file)
-			get := map[string]string{"proxy.allowed_domains": tc.allowed, "proxy.default_allowlist": tc.defaultList}
-			if tc.name == "dev build counts as new" {
-				get["--version"] = "cplt dev"
-			}
-			fakeCplt(t, get)
+			isolatedConfig(t)
+			fakeCplt(t, map[string]string{"proxy.allowed_domains": tc.allowed})
 			cliPath, err := findCplt()
 			if err != nil {
 				t.Fatal(err)
 			}
-			path, got := cpltAllowlistMissingAgentHosts(cliPath, tc.preset)
-			if !slices.Equal(got, tc.want) {
-				t.Errorf("missing = %v, want %v", got, tc.want)
+			path, host := cpltAgentHostShutOut(cliPath, tc.report)
+			if host != tc.wantHost {
+				t.Errorf("host = %q, want %q", host, tc.wantHost)
 			}
-			if len(tc.want) > 0 && path != tc.allowed {
+			if tc.wantHost != "" && path != tc.allowed {
 				t.Errorf("path = %q, want %q", path, tc.allowed)
+			}
+		})
+	}
+}
+
+// Only probes that could not run, beside verified protections: "could not
+// verify", not "NOT enforcing". A real leak or over-block is not that.
+func TestCpltCheckUnverified(t *testing.T) {
+	item := func(exp, dec string) string {
+		return fmt.Sprintf(`{"expected":%q,"decision":%q}`, exp, dec)
+	}
+	report := func(enforcing bool, verified int, items ...string) string {
+		return fmt.Sprintf(`{"enforcing":%v,"verified":%d,"battery":true,"items":[%s]}`,
+			enforcing, verified, strings.Join(items, ","))
+	}
+	for _, tc := range []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"staging probe inconclusive", report(false, 5, item("blocked", "blocked"), item("blocked", "inconclusive")), true},
+		{"inconclusive and a leak", report(false, 4, item("blocked", "allowed"), item("blocked", "inconclusive")), false},
+		{"inconclusive and an over-block", report(false, 4, item("allowed", "blocked"), item("blocked", "inconclusive")), false},
+		{"nothing verified", report(false, 0, item("blocked", "inconclusive")), false},
+		{"enforcing", report(true, 3, item("blocked", "blocked")), false},
+		{"ungraded inconclusive only", report(false, 3, `{"decision":"inconclusive"}`), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := parseCpltCheckReport([]byte(tc.in)).unverified(); got != tc.want {
+				t.Errorf("unverified() = %v, want %v", got, tc.want)
 			}
 		})
 	}
@@ -648,36 +652,23 @@ func TestAllowlistMissingAgentHosts(t *testing.T) {
 // leave it as it was. And it must not write anything when there is nothing
 // to repair. Goes through applyStrictPreset, the code behind the yes.
 func TestPostureRepairsAnAllowlistWithoutAgentHosts(t *testing.T) {
-	isolatedConfig(t)
-	home, _ := os.UserHomeDir()
-	dir := filepath.Join(home, ".config", "cplt")
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "allowed-domains.txt"), []byte("aksel.nav.no\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
 	for _, tc := range []struct {
-		defaultList string
-		want        string
+		host, want string
 	}{
-		{`false\n[cplt] (default, not set in config file)`, "true"},
-		{"true", ""},
+		{"githubcopilot.com", "true"},
+		{"", ""},
 	} {
-		log := fakeCplt(t, map[string]string{
-			"proxy.allowed_domains":   "~/.config/cplt/allowed-domains.txt",
-			"proxy.default_allowlist": tc.defaultList,
-		})
+		isolatedConfig(t)
+		log := fakeCplt(t, map[string]string{"proxy.allowed_domains": "~/.config/cplt/allowed-domains.txt"})
 		cliPath, err := findCplt()
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := applyStrictPreset(cliPath); err != nil {
+		if err := applyStrictPreset(cliPath, "~/.config/cplt/allowed-domains.txt", tc.host); err != nil {
 			t.Fatal(err)
 		}
 		if got := configSets(t, log)["proxy.default_allowlist"]; got != tc.want {
-			t.Errorf("default_allowlist %q: set to %q, want %q", tc.defaultList, got, tc.want)
+			t.Errorf("host %q: default_allowlist set to %q, want %q", tc.host, got, tc.want)
 		}
 	}
 }
