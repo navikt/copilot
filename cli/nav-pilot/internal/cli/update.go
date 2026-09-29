@@ -78,7 +78,12 @@ func cmdUpgrade(command string, args []string) error {
 		if check {
 			return checkUpdate()
 		}
-		_, err := doUpdate(os.Stdout)
+		updated, err := doUpdate(os.Stdout)
+		if updated {
+			// Here, not in doUpdate: the auto-update in front of another
+			// command goes through doUpdate too, and must stay quiet.
+			reportCpltUpgrade(os.Stdout)
+		}
 		return err
 	})
 }
@@ -92,6 +97,7 @@ func checkUpdate() error {
 	}
 	if !versionNewer(latest, Version) {
 		fmt.Printf("✓ nav-pilot is up to date (%s)\n", Version)
+		reportCpltUpgrade(os.Stdout)
 		return nil
 	}
 	how := "nav-pilot upgrade"
@@ -136,6 +142,7 @@ func doUpdate(w io.Writer) (updated bool, err error) {
 		// old. When it fails, the package manager's command is the answer.
 		if latest, _, err := latestRelease(); err == nil && !versionNewer(latest, Version) {
 			fmt.Fprintf(w, "✓ nav-pilot is up to date (%s)\n", Version)
+			reportCpltUpgrade(w)
 			return false, nil
 		}
 		// Print first, then check cplt: the cplt lookup can take seconds, and
@@ -159,6 +166,7 @@ func doUpdate(w io.Writer) (updated bool, err error) {
 
 	if !versionNewer(latest, current) {
 		fmt.Fprintf(w, "✓ nav-pilot is up to date (%s)\n", current)
+		reportCpltUpgrade(w)
 		return false, nil
 	}
 
@@ -437,6 +445,30 @@ func cpltVersionSkew() cpltSkew {
 	}
 	latest, lerr := latestCpltVersion()
 	return classifyCpltSkew(parseCpltVersion(string(out)), latest, lerr)
+}
+
+// reportCpltUpgrade tells `nav-pilot upgrade` whether cplt needs upgrading
+// too, whether or not nav-pilot did: a current nav-pilot on an old cplt writes
+// config keys that cplt rejects. Same verdict as doctor's reportCpltVersion.
+// It prints the command and never runs it, as for nav-pilot itself. No cplt
+// says nothing: doctor covers a missing cplt.
+func reportCpltUpgrade(w io.Writer) {
+	cliPath, err := findCplt()
+	if err != nil {
+		return
+	}
+	out, _ := runBounded(cliPath, "--version")
+	installed := parseCpltVersion(string(out))
+	latest, lerr := latestCpltVersion()
+	switch classifyCpltSkew(installed, latest, lerr) {
+	case cpltVersionBehind:
+		fmt.Fprintf(w, "cplt %s is out of date (latest: %s). Run %s\n", installed, latest,
+			bold(domain.PkgOwner(cliPath).Pick("brew upgrade navikt/tap/cplt", "sudo apt upgrade cplt")))
+	case cpltVersionCurrent:
+		fmt.Fprintf(w, "✓ cplt is up to date (%s)\n", installed)
+	default:
+		fmt.Fprintf(w, "Could not check for a newer cplt release (%s)\n", cpltSkewUnknownReason(installed, latest, lerr))
+	}
 }
 
 // cpltBehind reports whether the installed cplt is older than the latest cplt
