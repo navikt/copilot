@@ -65,7 +65,7 @@ type survey struct {
 type question struct {
 	ID        string `json:"id"`
 	Version   int    `json:"version"`
-	Type      string `json:"type"` // scale, choice, multi or text
+	Type      string `json:"type"` // scale, choice, multi, text or matrix
 	Text      string `json:"text"`
 	Required  bool   `json:"required,omitempty"`
 	Construct string `json:"construct,omitempty"` // what it measures, e.g. space-satisfaction
@@ -83,6 +83,19 @@ type question struct {
 	// SkipIf skips this question when an earlier choice or multi question's
 	// answer is, or includes, the given option.
 	SkipIf *skipRule `json:"skip_if,omitempty"`
+	// Items are a matrix's statements, all on its scale (min, max, labels).
+	// Each is answered, versioned and stored as if it were a scale question
+	// of its own, so an item compares with a separate scale question of the
+	// same id and version.
+	Items []matrixItem `json:"items,omitempty"`
+}
+
+type matrixItem struct {
+	ID        string `json:"id"`
+	Version   int    `json:"version"`
+	Text      string `json:"text"`
+	Construct string `json:"construct,omitempty"`
+	Reverse   bool   `json:"reverse,omitempty"`
 }
 
 type skipRule struct {
@@ -196,6 +209,7 @@ func validateSurveys(surveys []survey) error {
 		qseen := map[string]bool{}
 		for i, q := range s.Questions {
 			ok := idPattern.MatchString(q.ID) && !qseen[q.ID] && q.Text != "" && q.Version >= 1 &&
+				(q.Items == nil || q.Type == "matrix") &&
 				(!q.Reverse || q.Type == "scale") && (q.MaxChoices == 0 || q.Type == "multi") &&
 				(q.Other == "" || q.Type == "choice" || q.Type == "multi")
 			if q.SkipIf != nil {
@@ -203,9 +217,19 @@ func validateSurveys(surveys []survey) error {
 				ok = ok && j >= 0 && (s.Questions[j].Type == "choice" || s.Questions[j].Type == "multi") &&
 					slices.Contains(s.Questions[j].Options, q.SkipIf.Answer) && !q.Required
 			}
+			qseen[q.ID] = true
 			switch q.Type {
 			case "scale":
 				ok = ok && q.Min < q.Max && q.Max-q.Min <= 10 && (q.Labels == nil || len(q.Labels) == q.Max-q.Min+1)
+			case "matrix":
+				ok = ok && q.Min < q.Max && q.Max-q.Min <= 10 && (q.Labels == nil || len(q.Labels) == q.Max-q.Min+1) &&
+					!q.Reverse && q.Options == nil && q.Other == "" && q.MaxLen == 0 && len(q.Items) >= 2
+				// Item ids share the question ids' namespace: that is where
+				// their answers are stored.
+				for _, it := range q.Items {
+					ok = ok && idPattern.MatchString(it.ID) && !qseen[it.ID] && it.Text != "" && it.Version >= 1
+					qseen[it.ID] = true
+				}
 			case "choice", "multi":
 				ok = ok && len(q.Options) >= 2 && !hasDuplicates(q.Options) && q.MaxChoices >= 0 && q.MaxChoices <= len(q.options())
 				// Other's text is kept short: it is free text like a text
@@ -223,7 +247,6 @@ func validateSurveys(surveys []survey) error {
 			if !ok {
 				return fmt.Errorf("survey %s: bad question %q", s.ID, q.ID)
 			}
-			qseen[q.ID] = true
 		}
 	}
 	return nil
@@ -335,12 +358,13 @@ func (c *techContext) validate() error {
 // in canonical form. Unknown question ids are refused.
 func validateAnswers(s survey, raw map[string]json.RawMessage) (map[string]any, error) {
 	out := map[string]any{}
+	questions := s.answerable()
 	for id := range raw {
-		if !slices.ContainsFunc(s.Questions, func(q question) bool { return q.ID == id || (q.Other != "" && otherKey(q.ID) == id) }) {
+		if !slices.ContainsFunc(questions, func(q question) bool { return q.ID == id || (q.Other != "" && otherKey(q.ID) == id) }) {
 			return nil, fmt.Errorf("unknown question %q", id)
 		}
 	}
-	for _, q := range s.Questions {
+	for _, q := range questions {
 		v, ok := raw[q.ID]
 		other, hasOther := raw[otherKey(q.ID)]
 		hasOther = hasOther && q.Other != "" && string(other) != "null"
@@ -414,6 +438,26 @@ func validateAnswers(s survey, raw map[string]json.RawMessage) (map[string]any, 
 		return nil, errors.New("no answers")
 	}
 	return out, nil
+}
+
+// answerable is the questions as they are answered and stored: each matrix
+// item becomes a scale question of its own, with the matrix's scale,
+// required and skip_if.
+func (s survey) answerable() []question {
+	var qs []question
+	for _, q := range s.Questions {
+		if q.Type != "matrix" {
+			qs = append(qs, q)
+			continue
+		}
+		for _, it := range q.Items {
+			item := q
+			item.Type, item.Items = "scale", nil
+			item.ID, item.Version, item.Text, item.Construct, item.Reverse = it.ID, it.Version, it.Text, it.Construct, it.Reverse
+			qs = append(qs, item)
+		}
+	}
+	return qs
 }
 
 // freeText checks a free-text answer and trims it; "" means not answered.
@@ -542,7 +586,7 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	versions := map[string]int{}
-	for _, q := range s.Questions {
+	for _, q := range s.answerable() {
 		if _, ok := answers[q.ID]; ok {
 			versions[q.ID] = q.Version
 		}

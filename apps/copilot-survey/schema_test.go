@@ -75,6 +75,7 @@ func TestSchemaMatchesStructs(t *testing.T) {
 		Properties map[string]any
 		Defs       struct {
 			Question struct{ Properties map[string]any } `json:"question"`
+			Item     struct{ Properties map[string]any } `json:"item"`
 		} `json:"$defs"`
 	}
 	raw, _ := fs.ReadFile(surveyFiles, schemaFile)
@@ -87,6 +88,7 @@ func TestSchemaMatchesStructs(t *testing.T) {
 	}{
 		{reflect.TypeFor[survey](), doc.Properties},
 		{reflect.TypeFor[question](), doc.Defs.Question.Properties},
+		{reflect.TypeFor[matrixItem](), doc.Defs.Item.Properties},
 	} {
 		var tags []string
 		for f := range c.typ.Fields() {

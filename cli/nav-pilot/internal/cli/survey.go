@@ -71,7 +71,7 @@ type surveyDef struct {
 // needed here.
 type surveyQuestion struct {
 	ID         string   `json:"id"`
-	Type       string   `json:"type"` // scale, choice, multi or text
+	Type       string   `json:"type"` // scale, choice, multi, text or matrix
 	Text       string   `json:"text"`
 	Required   bool     `json:"required,omitempty"`
 	Min        int      `json:"min,omitempty"`
@@ -85,6 +85,12 @@ type surveyQuestion struct {
 		Question string `json:"question"`
 		Answer   string `json:"answer"`
 	} `json:"skip_if,omitempty"`
+	// Items are a matrix's statements on its scale, asked one per screen and
+	// sent as scale answers under their own ids.
+	Items []struct {
+		ID   string `json:"id"`
+		Text string `json:"text"`
+	} `json:"items,omitempty"`
 }
 
 func (s surveyDef) openOn(now time.Time) bool {
@@ -379,7 +385,7 @@ func maybeSurveyHint(client string) {
 		return
 	}
 	countAsk(st, s.ID, now)
-	fmt.Fprintf(os.Stderr, "%s Brukerundersøkelse: %s (%d spørsmål). Svar når det passer deg: %s\n\n", dim("ℹ"), s.Title, len(s.Questions), bold("nav-pilot survey"))
+	fmt.Fprintf(os.Stderr, "%s Brukerundersøkelse: %s (%d spørsmål). Svar når det passer deg: %s\n\n", dim("ℹ"), s.Title, s.count(), bold("nav-pilot survey"))
 }
 
 // cmdSurvey is nav-pilot survey: lists the open surveys, and in a terminal
@@ -412,7 +418,7 @@ func cmdSurvey(jsonOutput bool) error {
 		if jsonOutput {
 			list := []map[string]any{}
 			for _, d := range open {
-				list = append(list, map[string]any{"id": d.ID, "title": d.Title, "ends": d.Ends, "questions": len(d.Questions)})
+				list = append(list, map[string]any{"id": d.ID, "title": d.Title, "ends": d.Ends, "questions": d.count()})
 			}
 			return outputJSON(list)
 		}
@@ -421,7 +427,7 @@ func cmdSurvey(jsonOutput bool) error {
 			return nil
 		}
 		for _, d := range open {
-			fmt.Printf("%s  %s (%d spørsmål, åpen til %s)\n", d.ID, d.Title, len(d.Questions), d.Ends)
+			fmt.Printf("%s  %s (%d spørsmål, åpen til %s)\n", d.ID, d.Title, d.count(), d.Ends)
 		}
 		fmt.Println(dim("Kjør nav-pilot survey i en terminal for å svare."))
 		return nil
@@ -446,7 +452,7 @@ func cmdSurvey(jsonOutput bool) error {
 		}
 		s = open[slices.IndexFunc(open, func(d surveyDef) bool { return d.ID == id })]
 	}
-	fmt.Printf("\n%s (%d spørsmål)\n", bold(s.Title), len(s.Questions))
+	fmt.Printf("\n%s (%d spørsmål)\n", bold(s.Title), s.count())
 	if s.Intro != "" {
 		fmt.Println(s.Intro)
 	}
@@ -468,7 +474,7 @@ func askSurvey(s surveyDef, ask int) string {
 	}
 	choice := "later"
 	err := runField(huh.NewSelect[string]().
-		Title(fmt.Sprintf("Brukerundersøkelse: %s (%d spørsmål, spurt %d av %d ganger)", s.Title, len(s.Questions), ask, surveyMaxAsks)).
+		Title(fmt.Sprintf("Brukerundersøkelse: %s (%d spørsmål, spurt %d av %d ganger)", s.Title, s.count(), ask, surveyMaxAsks)).
 		Description(desc).
 		Options(
 			huh.NewOption("Svar nå", "now"),
@@ -489,6 +495,7 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 	picks := make([]string, len(s.Questions))
 	multis := make([][]string, len(s.Questions))
 	others := make([]string, len(s.Questions))
+	grid := make([][]string, len(s.Questions))
 	answered := func(id string) []string {
 		i := slices.IndexFunc(s.Questions, func(q surveyQuestion) bool { return q.ID == id })
 		if i < 0 {
@@ -506,36 +513,18 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 	for i, q := range s.Questions {
 		var field huh.Field
 		switch q.Type {
+		case "matrix":
+			grid[i] = make([]string, len(q.Items))
+			for j, it := range q.Items {
+				g := huh.NewGroup(escHelpField{surveySelect(q, fmt.Sprintf("%s (%d av %d)", q.Text, j+1, len(q.Items)), &grid[i][j]).Title(it.Text)})
+				if q.SkipIf != nil {
+					g = g.WithHideFunc(func() bool { return skipped(q) })
+				}
+				groups = append(groups, g)
+			}
+			continue
 		case "scale", "choice":
-			// No answer is preselected (#1251): the cursor starts on the
-			// entry whose value is "", as picks[i] is. For a required
-			// question that is a placeholder Enter cannot pick, for an
-			// optional one "Hopp over".
-			var opts []huh.Option[string]
-			if q.Required {
-				opts = append(opts, huh.NewOption(surveyUnpicked, ""))
-			}
-			if q.Type == "scale" {
-				for n := q.Min; n <= q.Max; n++ {
-					label := strconv.Itoa(n)
-					if len(q.Labels) == q.Max-q.Min+1 {
-						label += "  " + q.Labels[n-q.Min]
-					}
-					opts = append(opts, huh.NewOption(label, strconv.Itoa(n)))
-				}
-			} else {
-				for _, o := range q.options() {
-					opts = append(opts, huh.NewOption(o, o))
-				}
-			}
-			if !q.Required {
-				opts = append(opts, huh.NewOption("Hopp over", ""))
-			}
-			sel := huh.NewSelect[string]().Title(q.Text).Options(opts...).Value(&picks[i])
-			if q.Required {
-				sel = sel.Validate(requirePick)
-			}
-			field = sel
+			field = surveySelect(q, "", &picks[i]).Title(q.Text)
 		case "multi":
 			ms := huh.NewMultiSelect[string]().Title(q.Text).Options(huh.NewOptions(q.options()...)...).Value(&multis[i])
 			desc := "Mellomrom for å velge, Enter når du er ferdig."
@@ -587,6 +576,11 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 	answers := map[string]any{}
 	for i, q := range s.Questions {
 		v := strings.TrimSpace(picks[i])
+		for j, it := range q.Items {
+			if n, err := strconv.Atoi(grid[i][j]); err == nil && !skipped(q) {
+				answers[it.ID] = n
+			}
+		}
 		if t := strings.TrimSpace(others[i]); t != "" && !skipped(q) && slices.Contains(answered(q.ID), q.Other) {
 			answers[q.ID+".other"] = t
 		}
@@ -596,7 +590,7 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 			if len(multis[i]) > 0 {
 				answers[q.ID] = multis[i]
 			}
-		case v == "":
+		case v == "" || q.Type == "matrix":
 		case q.Type == "scale":
 			n, _ := strconv.Atoi(v)
 			answers[q.ID] = n
@@ -609,6 +603,47 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 
 // surveyNoIdentify goes with every free-text field.
 const surveyNoIdentify = "Skriv ikke noe som kan identifisere deg eller andre."
+
+// surveySelect is a scale, matrix item or choice as a list to pick one from.
+// No answer is preselected (#1251): the cursor starts on the entry whose
+// value is "", as *value is. For a required question that is a placeholder
+// Enter cannot pick, for an optional one "Hopp over".
+func surveySelect(q surveyQuestion, desc string, value *string) *huh.Select[string] {
+	var opts []huh.Option[string]
+	if q.Required {
+		opts = append(opts, huh.NewOption(surveyUnpicked, ""))
+	}
+	if q.Type == "choice" {
+		for _, o := range q.options() {
+			opts = append(opts, huh.NewOption(o, o))
+		}
+	} else {
+		for n := q.Min; n <= q.Max; n++ {
+			label := strconv.Itoa(n)
+			if len(q.Labels) == q.Max-q.Min+1 {
+				label += "  " + q.Labels[n-q.Min]
+			}
+			opts = append(opts, huh.NewOption(label, strconv.Itoa(n)))
+		}
+	}
+	if !q.Required {
+		opts = append(opts, huh.NewOption("Hopp over", ""))
+	}
+	sel := huh.NewSelect[string]().Description(desc).Options(opts...).Value(value)
+	if q.Required {
+		sel = sel.Validate(requirePick)
+	}
+	return sel
+}
+
+// count is how many answers the survey asks for: a matrix counts its items.
+func (s surveyDef) count() int {
+	n := 0
+	for _, q := range s.Questions {
+		n += max(1, len(q.Items))
+	}
+	return n
+}
 
 // surveyUnpicked is the entry a required scale or choice question starts on,
 // so Enter alone records nothing.
@@ -632,7 +667,7 @@ func (q surveyQuestion) options() []string {
 // renderable reports whether this version can show every question.
 func (s surveyDef) renderable() bool {
 	return !slices.ContainsFunc(s.Questions, func(q surveyQuestion) bool {
-		return !slices.Contains([]string{"scale", "choice", "multi", "text"}, q.Type)
+		return !slices.Contains([]string{"scale", "choice", "multi", "text", "matrix"}, q.Type)
 	})
 }
 

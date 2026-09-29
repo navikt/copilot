@@ -22,6 +22,7 @@ func TestSurveyTypesFollowSchema(t *testing.T) {
 		Properties map[string]any
 		Defs       struct {
 			Question struct{ Properties map[string]any } `json:"question"`
+			Item     struct{ Properties map[string]any } `json:"item"`
 		} `json:"$defs"`
 	}
 	if err := json.Unmarshal(raw, &doc); err != nil {
@@ -30,12 +31,14 @@ func TestSurveyTypesFollowSchema(t *testing.T) {
 	// Not needed to render or send: the server serves only active surveys,
 	// and the rest is for analysis.
 	ignored := []string{"series", "active", "version", "construct", "reverse"}
+	items, _ := reflect.TypeFor[surveyQuestion]().FieldByName("Items")
 	for _, c := range []struct {
 		typ   reflect.Type
 		props map[string]any
 	}{
 		{reflect.TypeFor[surveyDef](), doc.Properties},
 		{reflect.TypeFor[surveyQuestion](), doc.Defs.Question.Properties},
+		{items.Type.Elem(), doc.Defs.Item.Properties},
 	} {
 		var tags []string
 		for f := range c.typ.Fields() {

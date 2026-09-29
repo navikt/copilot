@@ -91,7 +91,7 @@ describe("submitAnswers", () => {
 describe("types follow copilot-survey's schema.json", () => {
   const schema = JSON.parse(
     readFileSync(path.resolve(__dirname, "../../../copilot-survey/surveys/schema.json"), "utf8")
-  ) as { properties: object; $defs: { question: { properties: object } } };
+  ) as { properties: object; $defs: { question: { properties: object }; item: { properties: object } } };
   // Not needed to render or send: copilot-survey serves only open surveys, and the rest is for analysis.
   const ignored = ["series", "active", "nudge", "starts", "version", "construct", "reverse"];
   const fields = (props: object) =>
@@ -112,11 +112,14 @@ describe("types follow copilot-survey's schema.json", () => {
     other: "",
     max_length: 0,
     skip_if: { question: "", answer: "" },
+    items: [],
   } satisfies Required<SurveyQuestion>;
+  const item = { id: "", text: "" } satisfies Required<NonNullable<SurveyQuestion["items"]>[number]>;
   const survey = { id: "", title: "", intro: "", ends: "", questions: [] } satisfies Required<Survey>;
 
   it("reads every field the web needs, and none the schema lacks", () => {
     expect(Object.keys(question).sort()).toEqual(fields(schema.$defs.question.properties));
     expect(Object.keys(survey).sort()).toEqual(fields(schema.properties));
+    expect(Object.keys(item).sort()).toEqual(fields(schema.$defs.item.properties));
   });
 });

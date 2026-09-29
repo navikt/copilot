@@ -67,7 +67,7 @@ Two tables, nothing shared but the survey id:
 | Table | Columns |
 | --- | --- |
 | `survey_participation` | `survey_id`, `participant_hash`, `closes_on` |
-| `survey_answers` | `survey_id`, `answers` (`{question id: value}`, and `{question id}.other` for the text of an «other» option), `question_versions` (`{question id: version}`), `context` (nav-pilot version as year.month, OS, client, local models on/off), `delete_after` |
+| `survey_answers` | `survey_id`, `answers` (`{question id: value}`, a matrix item under its own id like a scale question, and `{question id}.other` for the text of an «other» option), `question_versions` (`{question id: version}`), `context` (nav-pilot version as year.month, OS, client, local models on/off), `delete_after` |
 
 No row id, no timestamp, no request id, no IP, no login, oid, NAVident,
 e-mail or token in either. Because nothing links an answer to its

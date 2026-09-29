@@ -1,0 +1,19 @@
+# A matrix is asked one item per screen, on its scale, with no answer
+# preselected, and each item is sent as a scale answer under its own id.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+env NAV_PILOT_TELEMETRY_ENABLED=true
+env DO_NOT_TRACK=
+env NAV_PILOT_TELEMETRY_ENDPOINT=http://127.0.0.1:9/v1/metrics
+env NAV_PILOT_E2E_GITHUB_TOKEN=gho_e2e
+fake-survey -matrix
+
+# Items count as questions.
+exec nav-pilot survey
+stdout '^e2e-2026  E2E survey \(5 spørsmål, åpen til 2099-12-31\)$'
+
+exec pty-run -wait 'How much do you agree\? \(1 av 2\)' -send '\r' -wait 'velg et svar med piltastene' -send '\x1b[B\x1b[B\x1b[B\r' -wait 'How much do you agree\? \(2 av 2\)' -send '\x1b[B\r' -wait 'Velg opptil 2' -send ' \r' -wait 'Anything else' -send '\r' -- nav-pilot survey
+stdout 'It is fast'
+stdout 'Takk! Svaret ditt er sendt'
+grep -count=1 '^POST 201 .*"answers":\{"clients":\["copilot"\],"fast":1,"useful":3\}' $WORK/survey-posts.log
