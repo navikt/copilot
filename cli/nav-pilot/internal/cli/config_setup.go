@@ -160,7 +160,7 @@ func runConfigSetup(flagSource string) error {
 		Options(
 			huh.NewOption("default", "default"),
 			huh.NewOption("plan — think before acting", "plan"),
-			huh.NewOption("autopilot — no confirmations, and the agent cannot ask you", "autopilot"),
+			huh.NewOption("autopilot: no confirmations, and the agent cannot ask you", "autopilot"),
 		).
 		Value(&answers.Mode).
 		WithTheme(navTheme()).
@@ -176,7 +176,7 @@ func runConfigSetup(flagSource string) error {
 	} else {
 		err = huh.NewSelect[string]().
 			Title("How much should the agent do without asking?").
-			Description("cplt's guards hold either way: no push to main, no force push, no merge.").
+			Description("With cplt's standard presets, its guards hold either way: no push to main, no force push, no merge.").
 			Options(
 				huh.NewOption("Work on its own inside the sandbox, ask you when unsure (recommended)", "sandbox"),
 				huh.NewOption("Ask before each command and file change", "conservative"),

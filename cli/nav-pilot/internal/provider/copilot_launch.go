@@ -238,7 +238,7 @@ func autopilotNote(resolved domain.ResolvedConfig) string {
 	if resolved.Mode != "autopilot" && !slices.Contains(resolved.ExtraArgs, "--autopilot") {
 		return ""
 	}
-	return "Autopilot: the agent cannot ask you questions in this mode, and works on until it is done."
+	return "Autopilot: the agent cannot ask you questions in this mode, and keeps working until the task is done."
 }
 
 // copilotResolvedFlags returns the copilot CLI flags that follow the persona
