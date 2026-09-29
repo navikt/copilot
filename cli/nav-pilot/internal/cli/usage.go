@@ -80,7 +80,7 @@ func copilotCLIURL() string {
 		if allowedCopilotCLIOverride(v) {
 			return strings.TrimSuffix(v, "/")
 		}
-		warnIgnoredURL("NAV_PILOT_COPILOT_CLI_URL", "copilot-cli.intern.nav.no, copilot-cli.intern.dev.nav.no or a loopback address")
+		warnIgnoredURL("NAV_PILOT_COPILOT_CLI_URL", "https://copilot-cli.intern.nav.no, https://copilot-cli.intern.dev.nav.no or http on a loopback address")
 	}
 	return defaultCopilotCLIURL
 }

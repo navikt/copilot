@@ -94,8 +94,9 @@ func writeNewsState(st newsState) {
 	}
 }
 
-// newsFeedURL is the feed, or NAV_PILOT_NEWS_URL under the same rule as
-// NAV_PILOT_COPILOT_CLI_URL: https on nav.no, or loopback.
+// newsFeedURL is the feed, or NAV_PILOT_NEWS_URL if it is https on nav.no or
+// loopback. Wider than NAV_PILOT_COPILOT_CLI_URL's rule on purpose: no token
+// goes to the feed. Never reuse this rule for a URL that gets one.
 func newsFeedURL() string {
 	if v := os.Getenv("NAV_PILOT_NEWS_URL"); v != "" {
 		if allowedCopilotCLIURL(v) {
