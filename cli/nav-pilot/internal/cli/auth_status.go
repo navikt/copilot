@@ -49,8 +49,6 @@ func cmdAuthStatus(jsonOutput bool) error {
 		return nil
 	}
 
-	member, memberErr := checkOrgMembership(ctx, token.AccessToken, navPilotGitHubOrg, user.Login)
-
 	status := authStatus{
 		LoggedIn:   true,
 		Login:      user.Login,
@@ -58,14 +56,6 @@ func cmdAuthStatus(jsonOutput bool) error {
 		ObtainedAt: token.ObtainedAt,
 		ExpiresAt:  token.ExpiresAt,
 	}
-	if memberErr != nil {
-		// Membership is unknown (not false): leave OrgMember nil and surface
-		// the failure via OrgCheckError instead.
-		status.OrgCheckError = memberErr.Error()
-	} else {
-		status.OrgMember = &member
-	}
-
 	if jsonOutput {
 		return printAuthStatusJSON(status)
 	}
@@ -75,17 +65,6 @@ func cmdAuthStatus(jsonOutput bool) error {
 		fmt.Printf(" (%s)", user.Name)
 	}
 	fmt.Println()
-
-	orgLine := fmt.Sprintf("  Org:      %s ", navPilotGitHubOrg)
-	switch {
-	case memberErr != nil:
-		orgLine += fmt.Sprintf("%s (could not verify: %v)", yellow("?"), memberErr)
-	case member:
-		orgLine += green("✓")
-	default:
-		orgLine += red("✗ not a member")
-	}
-	fmt.Println(orgLine)
 
 	fmt.Printf("  Token:    logged in since %s (%s)\n", token.ObtainedAt.Format("2006-01-02 15:04"), formatSecondsRemaining(token.ExpiresAt))
 	return nil
@@ -162,15 +141,10 @@ func revokeToken(ctx context.Context, baseURL, token string) error {
 }
 
 type authStatus struct {
-	LoggedIn bool   `json:"logged_in"`
-	Login    string `json:"login,omitempty"`
-	Name     string `json:"name,omitempty"`
-	// OrgMember is a pointer so JSON output distinguishes an explicit false
-	// (not a member) from nil/omitted (membership check failed — see
-	// OrgCheckError).
-	OrgMember     *bool     `json:"org_member,omitempty"`
-	OrgCheckError string    `json:"org_check_error,omitempty"`
-	ObtainedAt    time.Time `json:"obtained_at,omitzero"`
+	LoggedIn   bool      `json:"logged_in"`
+	Login      string    `json:"login,omitempty"`
+	Name       string    `json:"name,omitempty"`
+	ObtainedAt time.Time `json:"obtained_at,omitzero"`
 	// ExpiresAt is omitted when the token does not expire (zero value).
 	ExpiresAt time.Time `json:"expires_at,omitzero"`
 	Error     string    `json:"error,omitempty"`

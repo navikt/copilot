@@ -4,16 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"time"
 )
-
-// navPilotGitHubOrg is the org membership nav-pilot verifies after login,
-// mirroring copilot-cli's own org check (both must agree since copilot-cli
-// re-verifies server-side on every request — this is purely a fast local
-// sanity check so the developer finds out immediately, not on first `usage`
-// call).
-const navPilotGitHubOrg = "navikt"
 
 // cmdAuthLogin runs the GitHub device flow and stores the resulting token in
 // the OS keychain (macOS Keychain / Windows Credential Manager / Linux
@@ -55,13 +47,6 @@ func authLogin(nb bool) error {
 	user, err := fetchGitHubUser(ctx, token.AccessToken)
 	if err != nil {
 		return fmt.Errorf("login succeeded but could not verify identity: %w", err)
-	}
-
-	member, err := checkOrgMembership(ctx, token.AccessToken, navPilotGitHubOrg, user.Login)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s "+say("Could not verify %s org membership: %v", "Fikk ikke sjekket om du er medlem av %s: %v")+"\n", yellow("⚠"), navPilotGitHubOrg, err)
-	} else if !member {
-		fmt.Fprintf(os.Stderr, "%s "+say("You are not a member of the %s GitHub organization — copilot-cli will reject requests until you are.", "Du er ikke medlem av GitHub-organisasjonen %s, og copilot-cli avviser forespørslene dine til du blir det.")+"\n", yellow("⚠"), navPilotGitHubOrg)
 	}
 
 	stored := storedToken{Login: user.Login}
