@@ -1035,13 +1035,13 @@ func run(args []string) error {
 	case "env":
 		return runWithCommandTelemetry("env", telemetryMode(), "none", cmdEnv)
 	case "survey":
-		return runWithCommandTelemetry("survey", telemetryMode(), "none", func() error {
+		return norwegian(runWithCommandTelemetry("survey", telemetryMode(), "none", func() error {
 			return cmdSurvey(jsonOutput)
-		})
+		}))
 	case "news":
-		return runWithCommandTelemetry("news", telemetryMode(), "none", func() error {
+		return norwegian(runWithCommandTelemetry("news", telemetryMode(), "none", func() error {
 			return cmdNews(jsonOutput)
-		})
+		}))
 	case "feedback":
 		return runWithCommandTelemetry("feedback", telemetryMode(), "none", func() error {
 			return cmdFeedback(targetDir, featureRequest)
@@ -1055,9 +1055,9 @@ func run(args []string) error {
 			return cmdAuth(positional, jsonOutput)
 		})
 	case "usage":
-		return runWithCommandTelemetry("usage", telemetryMode(), "none", func() error {
+		return norwegian(runWithCommandTelemetry("usage", telemetryMode(), "none", func() error {
 			return cmdUsage(jsonOutput, tmuxFormat)
-		})
+		}))
 	case "version", "--version", "-v":
 		if jsonOutput {
 			return outputJSON(map[string]string{"version": Version, "commit": buildInfo.Commit, "built": buildInfo.BuildDate})
@@ -1266,10 +1266,14 @@ func exitCodeFor(err error) int {
 		fmt.Fprintln(os.Stderr, dim(cancelled.Error()))
 		return 130
 	}
+	prefix := "Error:"
+	if errors.As(err, new(norwegianError)) {
+		prefix = "Feil:"
+	}
 	var ec *exitCode
 	if errors.As(err, &ec) {
 		if ec.err != nil {
-			fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), ec.err)
+			fmt.Fprintf(os.Stderr, "\n%s %v\n", red(prefix), ec.err)
 		}
 		return ec.code
 	}
@@ -1277,8 +1281,21 @@ func exitCodeFor(err error) int {
 		fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Frozen:"), err)
 		return ExitFrozen
 	}
-	fmt.Fprintf(os.Stderr, "\n%s %v\n", red("Error:"), err)
+	fmt.Fprintf(os.Stderr, "\n%s %v\n", red(prefix), err)
 	return ExitError
+}
+
+// norwegianError marks an error from a command that speaks Norwegian (usage,
+// survey, news), so exitCodeFor prefixes it «Feil:», not "Error:" (#1297).
+type norwegianError struct{ error }
+
+func (e norwegianError) Unwrap() error { return e.error }
+
+func norwegian(err error) error {
+	if err == nil {
+		return nil
+	}
+	return norwegianError{err}
 }
 
 // nothingInstalled reports whether neither the user scope nor this
