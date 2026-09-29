@@ -284,7 +284,7 @@ $ nav-pilot list
 > så alle kjøringer på en maskin skriver til samme serie, og hver starter på sin egen 1.
 > `increase()` ser det som en flat linje og gir 0. Derfor sender CLI-en hvert teller- og
 > histogrampunkt som det som er nytt siden forrige eksport som kom fram, og sender ikke
-> punkter som ikke har endret seg (`newOnlyExporter` i `internal/telemetry/telemetry.go`).
+> punkter som ikke har endret seg (`newOnlyExporter` i `internal/telemetry/telemetry.go`). Målere (gauges) sendes som før.
 > Da er `sum_over_time` over samplene riktig antall, også for en lang økt som eksporterer
 > hvert 10. sekund. Punktene er fortsatt merket kumulative, fordi det er formen som kommer
 > fram til Mimir. Versjoner før #1246 sendte alt på nytt hver 10. sekund, så lange økter

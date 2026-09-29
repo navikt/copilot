@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Lange økter telles én gang i telemetrien
 
-- **Bare det som er nytt**: En økt sendte alt den hadde målt på nytt hvert 10. sekund, og dashboardene la sammen hver sending. En økt på fem minutter ble talt rundt 30 ganger. Nå sender nav-pilot bare det som er nytt siden forrige sending, og ingenting når ingenting er endret. Tallene fra eldre versjoner er fortsatt for høye for lange økter.
+- **Bare det som er nytt**: En økt sendte alt den hadde målt på nytt hvert 10. sekund, og dashboardene la sammen hver sending. En økt på fem minutter ble talt rundt 30 ganger. Nå sender nav-pilot bare det tellere og histogrammer har fått siden forrige sending, og ikke de som ikke har endret seg. Tallene fra eldre versjoner er fortsatt for høye for lange økter.
 
 ### Telemetrien sendes rett etter at kommandoen er ferdig
 

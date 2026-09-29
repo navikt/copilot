@@ -83,3 +83,4 @@ NEXT-STEPS.md
 # Developer-local editor/agent config (not portable across contributors)
 .claude/settings.local.json
 .mcp.json
+__pycache__/

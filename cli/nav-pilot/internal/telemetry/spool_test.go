@@ -61,6 +61,12 @@ func TestSpoolRoundTrip(t *testing.T) {
 	} else if b, _ := os.ReadFile(files[0]); string(b) != "last" {
 		t.Fatalf("spool = %q, want the export at exit", b)
 	}
+	// Each export holds only what is new, so a second one after exit is a
+	// file of its own, not a replacement.
+	s.write([]byte("later"))
+	if files, _ := filepath.Glob(filepath.Join(dir, "*.pb")); len(files) != 2 {
+		t.Fatalf("spool = %v, want both exports", files)
+	}
 
 	old := filepath.Join(dir, "1-1.pb")
 	os.WriteFile(old, []byte("old"), 0o600)
@@ -74,8 +80,8 @@ func TestSpoolRoundTrip(t *testing.T) {
 	}))
 	defer collector.Close()
 	sendSpool(t.Context(), dir, collector.URL, collector.Client())
-	if len(got) != 1 || got[0] != "last" {
-		t.Errorf("sent %q, want only the export at exit", got)
+	if len(got) != 2 || got[0] != "last" || got[1] != "later" {
+		t.Errorf("sent %q, want the two exports after exit, in order", got)
 	}
 	if left, _ := os.ReadDir(dir); len(left) != 0 {
 		t.Errorf("spool not emptied: %v", left)
