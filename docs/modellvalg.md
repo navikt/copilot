@@ -240,7 +240,7 @@ gjelder det:
   har ingen fotnote på Luna-raden. Ingen av Luna-pinningene har altså en
   utløpsdato.
 
-Se [prissiden](/priser) for fullstendig og oppdatert pristabell.
+Se [prissiden](/priser) for oppdaterte priser på modellene Nav har aktivert.
 
 ## Grunnlaget for Sol-byttet (august 2026)
 

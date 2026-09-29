@@ -1,5 +1,3 @@
-export const NAV_MODEL_POLICY_LAST_UPDATED = "2026-09-29";
-
 const NAV_DISABLED_MODELS = new Set([
   "Claude Haiku 4.5",
   "GPT-5 mini",
