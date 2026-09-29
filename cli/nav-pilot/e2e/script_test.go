@@ -245,7 +245,9 @@ func cmdFakeMLX(ts *testscript.TestScript, neg bool, args []string) {
 	if _, err := fmt.Fscan(out, &port); err != nil {
 		ts.Fatalf("fake mlx-lm did not report a port: %v", err)
 	}
-	lstart, err := exec.Command("ps", "-o", "lstart=", "-p", strconv.Itoa(cmd.Process.Pid)).Output()
+	ps := exec.Command("ps", "-o", "lstart=", "-p", strconv.Itoa(cmd.Process.Pid))
+	ps.Env = append(os.Environ(), "LC_ALL=C")
+	lstart, err := ps.Output()
 	ts.Check(err)
 	state, _ := json.Marshal(map[string]any{
 		"pid":     cmd.Process.Pid,

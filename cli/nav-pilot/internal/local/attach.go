@@ -172,13 +172,22 @@ var alive = func(pid int) bool {
 // read. `ps` for the same reason [ResidentMemoryMB] shells out: the
 // alternative on macOS is proc_pidinfo through cgo, for one string. A func var
 // so tests can retire a pid without a process.
+//
+// LC_ALL=C because `ps` prints lstart in the caller's locale ("tir. 29 sep.
+// 10.45.28 2026" under nb_NO), and two terminals can run under different
+// locales: a record from one must match when the other checks it (#1277).
 var processStart = func(pid int) string {
+	return psLstart(pid, append(os.Environ(), "LC_ALL=C"))
+}
+
+// psLstart runs `ps -o lstart=` for pid with env, nil for the caller's own.
+func psLstart(pid int, env []string) string {
 	if pid <= 0 {
 		return ""
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
-	out, err := runCommand(ctx, "ps", []string{"-o", "lstart=", "-p", strconv.Itoa(pid)}, nil)
+	out, err := runCommand(ctx, "ps", []string{"-o", "lstart=", "-p", strconv.Itoa(pid)}, env)
 	if err != nil {
 		return ""
 	}
@@ -187,13 +196,29 @@ var processStart = func(pid int) string {
 	return strings.Join(strings.Fields(out), " ")
 }
 
+// cLstart is the layout of lstart under LC_ALL=C.
+const cLstart = "Mon Jan _2 15:04:05 2006"
+
 // isRecorded reports whether pid is still the process whose start time was
 // recorded. An empty start time on either side is a mismatch, not a pass: this
 // proves identity, and "cannot tell" is not proof — a record written before
 // nav-pilot recorded start times is exactly the record that may predate a
 // reboot.
+//
+// A record that is not in the C layout was written before #1277, in whatever
+// locale that nav-pilot ran under. It is compared the old way, in this
+// process's locale, so a server started before the upgrade is not orphaned.
 func isRecorded(pid int, lstart string) bool {
-	return lstart != "" && alive(pid) && processStart(pid) == lstart
+	if lstart == "" || !alive(pid) {
+		return false
+	}
+	if processStart(pid) == lstart {
+		return true
+	}
+	if _, err := time.Parse(cLstart, lstart); err == nil {
+		return false
+	}
+	return psLstart(pid, nil) == lstart
 }
 
 // EnsureOwnServer proves the server the guard forwards to is the one nav-pilot
