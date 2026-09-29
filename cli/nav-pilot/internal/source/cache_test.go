@@ -229,9 +229,13 @@ func TestResolveForLaunchWithinMaxAge(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeCacheMeta(dir, cacheMeta{SHA: second, FetchedAt: time.Now().Add(-2 * maxAge)})
-	defer func(d time.Duration) { FetchTimeout = d }(FetchTimeout)
+	// The short wait is for this case only: a later case that fetches for
+	// real must not race git against it (#1335).
+	t.Cleanup(func() { FetchTimeout = 0 })
 	FetchTimeout = 600 * time.Millisecond
-	if src, _, err := ResolveForLaunchWithin("navikt/x", "v1", maxAge); err == nil {
+	src, _, err = ResolveForLaunchWithin("navikt/x", "v1", maxAge)
+	FetchTimeout = 0
+	if err == nil {
 		t.Fatalf("cache past maxAge, lock held: got %+v, want an error", src)
 	}
 	os.Remove(filepath.Join(dir, ".refresh.lock"))
