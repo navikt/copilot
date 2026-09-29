@@ -7,4 +7,3 @@ memory_request: 64Mi
 azure_tenant: nav.no
 log_level: DEBUG
 db_tier: db-f1-micro
-survey_active_ids: dev-e2e-test
