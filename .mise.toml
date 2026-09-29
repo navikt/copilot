@@ -166,20 +166,38 @@ LDFLAGS="-X main.version=dev -X main.commit=$(git rev-parse --short HEAD) -X mai
 
 [tasks."nav-pilot:test"]
 description = "Run nav-pilot installer tests"
-run = "(cd cli/nav-pilot && go test -race ./...)"
+# TestLaunchBudget times nav-pilot, so it runs alone and without -race
+# (nav-pilot:budget), as in CI. Under -race beside the other packages it times
+# the machine instead and fails.
+run = "(cd cli/nav-pilot && go test -race -skip TestLaunchBudget ./...)"
 
+[tasks."nav-pilot:budget"]
+description = "Run nav-pilot's launch-time budget test alone, without -race (as CI does)"
+run = "(cd cli/nav-pilot && go test ./e2e -run TestLaunchBudget -count=1)"
+
+# The Go half and the script half share nothing, so mise runs them side by side.
 [tasks."nav-pilot:check"]
-description = "Run all nav-pilot checks (mirrors CI: build, test, vet, staticcheck, shellcheck, bats)"
+description = "Run all nav-pilot checks (mirrors CI: build, test, vet, staticcheck, shellcheck, bats); the launch budget is nav-pilot:budget"
+depends = ["nav-pilot:check:go", "nav-pilot:check:scripts"]
+
+[tasks."nav-pilot:check:go"]
+description = "nav-pilot build, test, vet, staticcheck"
+dir = "cli/nav-pilot"
 run = """
-echo "  build..."   && cd cli/nav-pilot && go build -o /dev/null . && \
-echo "  test..."    && go test -race ./... && \
-echo "  vet..."     && go vet ./... && \
-echo "  staticcheck..." && go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./... && \
-cd ../.. && \
-echo "  benchmark usage..." && python3 scripts/copilot-usage.py --selftest && \
-echo "  shellcheck..." && shellcheck scripts/install.sh skills/*/*.sh && \
-echo "  bats..." && bats scripts/install.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats && \
-echo "  ✅ nav-pilot checks passed"
+set -e
+go build -o /dev/null .
+go test -race -skip TestLaunchBudget ./... # see nav-pilot:test
+go vet ./...
+go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...
+"""
+
+[tasks."nav-pilot:check:scripts"]
+description = "nav-pilot usage selftest, shellcheck, bats"
+run = """
+set -e
+python3 scripts/copilot-usage.py --selftest
+shellcheck scripts/install.sh skills/*/*.sh
+bats scripts/install.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats
 """
 
 [tasks."nav-pilot:install"]
@@ -197,7 +215,7 @@ echo "✓ Installed nav-pilot to $DEST/nav-pilot"
 description = "Run nav-pilot tests with coverage and print summary (cleans up cover.out)"
 run = """
 cd cli/nav-pilot && \
-go test -race -coverpkg=./... -coverprofile=cover.out ./... && \
+go test -race -skip TestLaunchBudget -coverpkg=./... -coverprofile=cover.out ./... && \
 echo "" && \
 go tool cover -func=cover.out && \
 echo "" && \

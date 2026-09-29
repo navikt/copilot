@@ -1,23 +1,12 @@
 #!/usr/bin/env bash
-failed=()
+# shellcheck source=hack/parallel.sh
+source "$(dirname "$0")/parallel.sh"
 
 for app in $APPS; do
-  echo "📦 $app:"
-  if (cd "apps/$app" && mise run build); then
-    echo ""
-  else
-    failed+=("$app")
-    echo ""
-  fi
+  section "$app" mise -C "apps/$app" run build
 done
-
-echo "🧭 nav-pilot:"
-if mise run nav-pilot:build; then
-  echo ""
-else
-  failed+=("nav-pilot")
-  echo ""
-fi
+section nav-pilot mise run nav-pilot:build
+wait_sections
 
 if [[ ${#failed[@]} -gt 0 ]]; then
   echo "❌ Build failed for: ${failed[*]}"

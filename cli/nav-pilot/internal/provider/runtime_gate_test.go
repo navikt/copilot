@@ -12,6 +12,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // stubProbes replaces both staged version probes for the duration of a test, so
@@ -373,7 +374,7 @@ func TestCopilotProbeVector(t *testing.T) {
 func fakeCpltOnPath(t *testing.T) {
 	t.Helper()
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "cplt"), "#!/bin/sh\nexit 0\n"); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -619,8 +620,7 @@ func TestLaunchProbeFollowsTheSelectedBinary(t *testing.T) {
 func fakeCopilotOnPath(t *testing.T) {
 	t.Helper()
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "copilot"),
-		[]byte("#!/bin/sh\necho 'GitHub Copilot CLI 1.0.81-14.'\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "copilot"), "#!/bin/sh\necho 'GitHub Copilot CLI 1.0.81-14.'\n"); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir)
@@ -633,7 +633,7 @@ func brokenClient(t *testing.T, name string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), name)
 	script := "#!/bin/sh\necho 'Error: Unexpected server error. Check server logs for details.' >&2\nexit 1\n"
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+	if err := testhome.WriteExec(path, script); err != nil {
 		t.Fatal(err)
 	}
 	return path
@@ -740,7 +740,7 @@ func TestRunStagedProbeReportsAFileThatCannotBecomeAProcess(t *testing.T) {
 func TestRunStagedProbeSeparatesAMissingInterpreterFromAMissingClient(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "opencode")
-	if err := os.WriteFile(path, []byte("#!"+filepath.Join(dir, "no-such-interpreter")+"\necho 1.18.20\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(path, "#!"+filepath.Join(dir, "no-such-interpreter")+"\necho 1.18.20\n"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -766,7 +766,7 @@ func TestRunStagedProbeReportsAnUncollectedProbeAsSuch(t *testing.T) {
 	// Exits 0 immediately; the backgrounded grandchild keeps stdout open well
 	// past stagedProbeWaitDelay.
 	script := "#!/bin/sh\n( sleep 30 ) &\nexit 0\n"
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+	if err := testhome.WriteExec(path, script); err != nil {
 		t.Fatal(err)
 	}
 

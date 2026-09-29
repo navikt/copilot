@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 func TestLaunchViaCplt_CpltNotFound(t *testing.T) {
@@ -37,7 +38,7 @@ func TestLaunchViaCplt_CpltNotFound(t *testing.T) {
 func TestLaunchOpenCodeWithoutCpltRunsOpenCode(t *testing.T) {
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "ran")
-	if err := os.WriteFile(filepath.Join(dir, "opencode"), []byte("#!/bin/sh\necho \"$@\" > "+marker+"\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "opencode"), "#!/bin/sh\necho \"$@\" > "+marker+"\n"); err != nil {
 		t.Fatalf("writing fake opencode: %v", err)
 	}
 	t.Setenv("PATH", dir)
@@ -103,12 +104,12 @@ func fakeCpltArgs(t *testing.T) string {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "args.txt")
 	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + out + "\n"
-	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte(script), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "cplt"), script); err != nil {
 		t.Fatal(err)
 	}
 	// cplt runs the Copilot CLI on PATH, and nav-pilot hands off only when
 	// there is one (#1064).
-	if err := os.WriteFile(filepath.Join(dir, "copilot"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "copilot"), "#!/bin/sh\nexit 0\n"); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir)
@@ -318,7 +319,7 @@ func TestFirstTime(t *testing.T) {
 func TestCopilotBesideCplt(t *testing.T) {
 	first, second := t.TempDir(), t.TempDir()
 	cplt := filepath.Join(first, "cplt")
-	if err := os.WriteFile(cplt, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(cplt, "#!/bin/sh\nexit 0\n"); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(cplt, filepath.Join(first, "copilot")); err != nil {
@@ -328,7 +329,7 @@ func TestCopilotBesideCplt(t *testing.T) {
 	if CopilotBesideCplt(cplt) {
 		t.Error("the alias counted as the Copilot CLI")
 	}
-	if err := os.WriteFile(filepath.Join(second, "copilot"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(second, "copilot"), "#!/bin/sh\nexit 0\n"); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", first+string(os.PathListSeparator)+second)

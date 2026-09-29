@@ -23,7 +23,7 @@ assert_exit_code() {
 
 assert_output_contains() {
   local pattern=$1 output=$2 name=$3
-  if echo "$output" | grep -q "$pattern"; then
+  if grep -q "$pattern" <<< "$output"; then
     pass=$(( pass + 1 ))
     printf '  ✅ %s\n' "$name"
   else
@@ -34,7 +34,7 @@ assert_output_contains() {
 
 assert_output_not_contains() {
   local pattern=$1 output=$2 name=$3
-  if ! echo "$output" | grep -q "$pattern"; then
+  if ! grep -q "$pattern" <<< "$output"; then
     pass=$(( pass + 1 ))
     printf '  ✅ %s\n' "$name"
   else

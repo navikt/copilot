@@ -211,3 +211,24 @@ func Python3(t testing.TB) string {
 	t.Skip("no working python3: none on PATH runs, and `mise which python3` found none")
 	return ""
 }
+
+// WriteExec writes an executable script for a test to run, already past the
+// slow first exec. On macOS the first exec of a new file waits for a security
+// check (XProtect or an endpoint agent; which one was not pinned down, the
+// laptop measured runs CrowdStrike Falcon). The checks queue: 40 new scripts
+// started at once took 2.1s median and up to 4.1s to start, against about
+// 0.13s one at a time, and under a full parallel test run that went past the
+// 2s deadlines nav-pilot puts on version probes and cplt calls. So the file is
+// first written as a script that does nothing and run once, then overwritten
+// in place with the real one. The check is not repeated for the rewritten
+// file (the same 40 then started in about 0.12s), and the real script never
+// runs outside the test. hack/probes/first-exec.go measures this.
+func WriteExec(path, script string) error {
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		return err
+	}
+	if err := exec.Command(path).Run(); err != nil {
+		return fmt.Errorf("warming %s: %w", path, err)
+	}
+	return os.WriteFile(path, []byte(script), 0o755)
+}

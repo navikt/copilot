@@ -14,6 +14,7 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // A Tier 2 agentpakke: payload-bearing client entries, no layout. Shaped like
@@ -1231,7 +1232,7 @@ func fakeCopilotOnlyOnPath(t *testing.T) string {
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "launched")
 	script := "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'GitHub Copilot CLI 1.0.81-14.'; exit 0; fi\necho \"$@\" > " + marker + "\n"
-	if err := os.WriteFile(filepath.Join(dir, "copilot"), []byte(script), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "copilot"), script); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir)

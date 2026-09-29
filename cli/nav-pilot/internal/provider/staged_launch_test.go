@@ -11,6 +11,7 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // stagedFixturePakke mirrors the shape of grillmester's manifest as the
@@ -346,7 +347,7 @@ func TestStagedCopilotRequiresCplt(t *testing.T) {
 	// A PATH with a plain `copilot` that is not cplt: the legacy path would
 	// launch it, the staged path must refuse.
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "copilot"), []byte("#!/bin/sh\necho copilot 1.2.3\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "copilot"), "#!/bin/sh\necho copilot 1.2.3\n"); err != nil {
 		t.Fatalf("writing fake copilot: %v", err)
 	}
 	t.Setenv("PATH", dir)
@@ -381,8 +382,7 @@ func TestStagedCopilotHonorsRestrictiveAuthMode(t *testing.T) {
 
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "cplt-launched")
-	if err := os.WriteFile(filepath.Join(dir, "cplt"),
-		[]byte("#!/bin/sh\necho launched > \""+marker+"\"\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "cplt"), "#!/bin/sh\necho launched > \""+marker+"\"\n"); err != nil {
 		t.Fatalf("writing fake cplt: %v", err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -483,7 +483,7 @@ func TestStagedOpenCodeLeavesSharedConfigAlone(t *testing.T) {
 	// no cplt gets it past its own lookup — which is where the legacy path does
 	// its config work — and stops it at launchViaCplt instead.
 	binDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(binDir, "opencode"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(binDir, "opencode"), "#!/bin/sh\nexit 0\n"); err != nil {
 		t.Fatalf("writing fake opencode: %v", err)
 	}
 	// The pre-seed of <config dir>/.gitignore must not land in the real

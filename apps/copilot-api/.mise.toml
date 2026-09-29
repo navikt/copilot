@@ -41,7 +41,7 @@ run = "go test ./..."
 
 [tasks.lint]
 description = "Run linters (golangci-lint)"
-run = "golangci-lint run ./..."
+run = "golangci-lint run --allow-parallel-runners ./..."
 
 [tasks."lint:fix"]
 description = "Run linters and auto-fix issues"

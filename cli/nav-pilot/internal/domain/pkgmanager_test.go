@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // fakeDpkgQuery puts a dpkg-query with a fixed exit code on PATH.
@@ -12,7 +14,7 @@ func fakeDpkgQuery(t *testing.T, exit int) {
 	t.Helper()
 	dir := t.TempDir()
 	script := filepath.Join(dir, "dpkg-query")
-	if err := os.WriteFile(script, []byte(fmt.Sprintf("#!/bin/sh\nexit %d\n", exit)), 0o755); err != nil {
+	if err := testhome.WriteExec(script, fmt.Sprintf("#!/bin/sh\nexit %d\n", exit)); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir)
@@ -62,7 +64,7 @@ func TestPkgOwner(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		if err := testhome.WriteExec(path, "#!/bin/sh\n"); err != nil {
 			t.Fatal(err)
 		}
 		return path

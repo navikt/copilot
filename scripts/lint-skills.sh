@@ -183,18 +183,18 @@ lint_skill() {
   if [[ "$name" == *review* ]]; then
     local last_section
     last_section=$(echo "$body" | grep '^## ' | tail -1)
-    if ! echo "$body" | grep -q '^## Review contract$'; then
+    if ! grep -q '^## Review contract$' <<< "$body"; then
       fail "[$name] Review skill has no \"## Review contract\" section — a review that can pass by saying nothing is not a review."
     elif [[ "$last_section" != "## Review contract" ]]; then
       fail "[$name] \"## Review contract\" must be the last section — the verdict ends the review, nothing follows it."
     else
       local missing=""
       for verdict in BLOCK CONCERNS CLEAN; do
-        echo "$body" | grep -qw "$verdict" || missing="$missing $verdict"
+        grep -qw "$verdict" <<< "$body" || missing="$missing $verdict"
       done
       if [[ -n "$missing" ]]; then
         fail "[$name] Review contract never defines$missing — the verdict must be one of BLOCK, CONCERNS, CLEAN."
-      elif ! echo "$body" | grep -qi 'at least one finding'; then
+      elif ! grep -qi 'at least one finding' <<< "$body"; then
         fail "[$name] Review contract has a verdict but nothing forces a finding — say that each axis produces at least one finding, or states what it inspected."
       else
         ok "review contract ends in a verdict"

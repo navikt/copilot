@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // foreign is an entry a user wrote by hand: no nav-pilot marker, and a field
@@ -315,7 +317,7 @@ func TestFolderTrusted(t *testing.T) {
 func TestLoadHookMeta(t *testing.T) {
 	dir := t.TempDir()
 	script := filepath.Join(dir, "port.py")
-	if err := os.WriteFile(script, []byte("#\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(script, "#\n"); err != nil {
 		t.Fatal(err)
 	}
 

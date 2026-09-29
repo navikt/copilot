@@ -1,0 +1,31 @@
+diff --git a/cli/nav-pilot/e2e/script_test.go b/cli/nav-pilot/e2e/script_test.go
+index e55a4c3e..eb721831 100644
+--- a/cli/nav-pilot/e2e/script_test.go
++++ b/cli/nav-pilot/e2e/script_test.go
+@@ -89,6 +89,7 @@ func TestScripts(t *testing.T) {
+ 			e.Setenv("NAV_PILOT_CONFIG", filepath.Join(home, "config.toml"))
+ 			e.Setenv("HF_HOME", filepath.Join(home, ".cache", "huggingface"))
+ 			e.Setenv("NO_COLOR", "1")
++			e.Setenv("NP_PROBE_LOG", os.Getenv("NP_PROBE_LOG"))
+ 			e.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "false")
+ 			e.Setenv("DO_NOT_TRACK", "1")
+ 			// Bench-only overrides (internal/local/bench.go): a developer's
+diff --git a/cli/nav-pilot/internal/provider/runtime_gate.go b/cli/nav-pilot/internal/provider/runtime_gate.go
+index 927168ae..0603c1e2 100644
+--- a/cli/nav-pilot/internal/provider/runtime_gate.go
++++ b/cli/nav-pilot/internal/provider/runtime_gate.go
+@@ -225,7 +225,14 @@ var runStagedProbe = func(timeout time.Duration, name string, args ...string) (s
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+ 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+ 	cmd.WaitDelay = stagedProbeWaitDelay
++	t0 := time.Now()
+ 	out, err := cmd.Output()
++	if lp := os.Getenv("NP_PROBE_LOG"); lp != "" {
++		if f, e := os.OpenFile(lp, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); e == nil {
++			fmt.Fprintf(f, "%s %s %v %v\n", name, timeout, time.Since(t0), err)
++			f.Close()
++		}
++	}
+ 	if err != nil && ctx.Err() == nil {
+ 		// cmd.Path, not name: it is the path exec actually tried, and the only
+ 		// thing that can tell an absent client from a broken one.

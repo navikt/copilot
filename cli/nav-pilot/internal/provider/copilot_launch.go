@@ -81,8 +81,9 @@ func IsCplt(binPath string) bool {
 }
 
 type versionAnswer struct {
-	out string
-	err error
+	out     string
+	err     error
+	timeout time.Duration // the budget it was asked with
 }
 
 var versionCache sync.Map
@@ -92,19 +93,23 @@ var versionCache sync.Map
 // spawn a plain copilot eight times for it, at about a second each.
 //
 // timeout bounds the first ask: 2s where the answer only tells a disguised
-// cplt apart (IsCplt), clientProbeTimeout where the launch waits on it.
+// cplt apart (IsCplt), clientProbeTimeout where the launch waits on it. A
+// failure is kept only for callers with the same budget or less: IsCplt runs
+// first, and its 2s timeout used to come back to the launch gate, which gives
+// the same binary 30s, as a fatal "still running after 2s".
 func cachedVersion(bin string, timeout time.Duration) (string, error) {
 	if v, ok := versionCache.Load(bin); ok {
-		a := v.(versionAnswer)
-		return a.out, a.err
+		if a := v.(versionAnswer); a.err == nil || a.timeout >= timeout {
+			return a.out, a.err
+		}
 	}
 	key := binaryKey(bin)
 	if out, ok := readVersionCache(key); ok {
-		versionCache.Store(bin, versionAnswer{out, nil})
+		versionCache.Store(bin, versionAnswer{out, nil, timeout})
 		return out, nil
 	}
 	out, err := runStagedProbe(timeout, bin, "--version")
-	versionCache.Store(bin, versionAnswer{out, err})
+	versionCache.Store(bin, versionAnswer{out, err, timeout})
 	if err == nil {
 		writeVersionCache(key, out)
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // hookSource lays out a source checkout that ships one hook: the script plus
@@ -21,7 +22,7 @@ func hookSource(t *testing.T) string {
 	if err := os.MkdirAll(hooks, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(hooks, "klarsprak-gate.py"), []byte("#!/usr/bin/env python3\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(hooks, "klarsprak-gate.py"), "#!/usr/bin/env python3\n"); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(hooks, "klarsprak-gate"+source.HookMetaSuffix),

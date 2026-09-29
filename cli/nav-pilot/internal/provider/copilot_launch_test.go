@@ -9,6 +9,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 func TestFindCopilotCLI(t *testing.T) {
@@ -60,13 +61,17 @@ func TestCopilotAgentArgs(t *testing.T) {
 func TestIsCplt(t *testing.T) {
 	dir := t.TempDir()
 	fakeCplt := filepath.Join(dir, "fake-cplt")
-	_ = os.WriteFile(fakeCplt, []byte("#!/bin/sh\necho 'cplt version 1.0.43'"), 0o755)
+	if err := testhome.WriteExec(fakeCplt, "#!/bin/sh\necho 'cplt version 1.0.43'"); err != nil {
+		t.Fatal(err)
+	}
 	if !IsCplt(fakeCplt) {
 		t.Error("expected IsCplt=true for binary that outputs 'cplt'")
 	}
 
 	fakeCopilot := filepath.Join(dir, "fake-copilot")
-	_ = os.WriteFile(fakeCopilot, []byte("#!/bin/sh\necho 'GitHub Copilot CLI 1.0.0'"), 0o755)
+	if err := testhome.WriteExec(fakeCopilot, "#!/bin/sh\necho 'GitHub Copilot CLI 1.0.0'"); err != nil {
+		t.Fatal(err)
+	}
 	if IsCplt(fakeCopilot) {
 		t.Error("expected IsCplt=false for binary that outputs 'GitHub Copilot CLI'")
 	}
@@ -227,7 +232,7 @@ func TestLaunchCopilotResolved_EnvOnlyWithoutToken_DoesNotLaunchCplt(t *testing.
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "cplt-launched")
 	fakeCplt := filepath.Join(dir, "cplt")
-	if err := os.WriteFile(fakeCplt, []byte("#!/bin/sh\necho launched > \"$NAV_PILOT_LAUNCH_MARKER\"\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(fakeCplt, "#!/bin/sh\necho launched > \"$NAV_PILOT_LAUNCH_MARKER\"\n"); err != nil {
 		t.Fatalf("write fake cplt: %v", err)
 	}
 

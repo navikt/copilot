@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // A client's version is asked once, then read from the cache until the
@@ -16,7 +18,7 @@ func TestCachedVersionPersists(t *testing.T) {
 	bin := filepath.Join(dir, "fakeclient")
 	write := func(version string) {
 		script := "#!/bin/sh\necho x >> " + count + "\necho " + version + "\n"
-		if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		if err := testhome.WriteExec(bin, script); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -56,5 +58,36 @@ func TestCachedVersionPersists(t *testing.T) {
 	_ = os.Chtimes(bin, future, future)
 	if got := ask(); got != "1.18.30" || asked() != 3 {
 		t.Fatalf("after an upgrade: %q, asked %d times", got, asked())
+	}
+}
+
+// A probe stopped by a short deadline does not answer a caller that allows
+// more: IsCplt asks with 2s, and the launch gate, asking the same binary with
+// 30s, used to get IsCplt's timeout back as its own fatal error.
+func TestCachedVersionRetriesATimeoutWithMoreTime(t *testing.T) {
+	dir := t.TempDir()
+	count := filepath.Join(dir, "count")
+	bin := filepath.Join(dir, "slowclient")
+	script := "#!/bin/sh\necho x >> " + count + "\nsleep 0.5\necho 1.0.40\n"
+	if err := testhome.WriteExec(bin, script); err != nil {
+		t.Fatal(err)
+	}
+	VersionCacheFile = filepath.Join(dir, "client-versions.json")
+	t.Cleanup(func() { VersionCacheFile = ""; versionCache.Delete(bin) })
+	asked := func() int {
+		b, _ := os.ReadFile(count)
+		return len(b) / 2
+	}
+
+	if _, err := cachedVersion(bin, 100*time.Millisecond); err == nil {
+		t.Fatal("a 0.5s probe finished inside 100ms")
+	}
+	n := asked()
+	if _, err := cachedVersion(bin, 100*time.Millisecond); err == nil || asked() != n {
+		t.Fatalf("same budget: err %v, asked %d times, want the cached timeout and no new ask", err, asked()-n)
+	}
+	out, err := cachedVersion(bin, 30*time.Second)
+	if err != nil || strings.TrimSpace(out) != "1.0.40" {
+		t.Fatalf("longer budget: %q, %v; want the version, asked again", out, err)
 	}
 }

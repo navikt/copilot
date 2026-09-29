@@ -187,7 +187,7 @@ func cmdFakeBin(ts *testscript.TestScript, neg bool, args []string) {
 			"for a in \"$@\"; do last=$a; done\n" +
 			"[ \"$last\" = --version ] && echo '" + version + "'\n" +
 			"exit 0\n"
-		ts.Check(os.WriteFile(filepath.Join(dir, name), []byte(script), 0o755))
+		ts.Check(testhome.WriteExec(filepath.Join(dir, name), script))
 	}
 	git, err := exec.LookPath("git")
 	ts.Check(err)
