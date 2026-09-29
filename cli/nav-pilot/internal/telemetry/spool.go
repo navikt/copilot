@@ -105,6 +105,13 @@ func (s *spoolTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
+// spoolName is where a temporary file lands: time first, so the spool sends
+// oldest first, and the temporary file's random suffix, so two exports in the
+// same nanosecond do not replace each other.
+func spoolName(dir, tmp string) string {
+	return filepath.Join(dir, fmt.Sprintf("%d-%d-%s.pb", time.Now().UnixNano(), os.Getpid(), strings.TrimPrefix(filepath.Base(tmp), ".tmp-")))
+}
+
 // write adds body to the spool as a file of its own, atomically.
 func (s *spoolTransport) write(body []byte) {
 	if s.dir == "" || len(body) == 0 || len(body) > spoolMaxBytes {
@@ -119,7 +126,7 @@ func (s *spoolTransport) write(body []byte) {
 		return
 	}
 	_, werr := tmp.Write(body)
-	if cerr := tmp.Close(); werr != nil || cerr != nil || os.Rename(tmp.Name(), filepath.Join(dir, fmt.Sprintf("%d-%d.pb", time.Now().UnixNano(), os.Getpid()))) != nil {
+	if cerr := tmp.Close(); werr != nil || cerr != nil || os.Rename(tmp.Name(), spoolName(dir, tmp.Name())) != nil {
 		os.Remove(tmp.Name())
 		return
 	}

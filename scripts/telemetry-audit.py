@@ -121,8 +121,10 @@ def main():
 
     print(f"{len(names)} metrics matching {args.prefix}, over the last {w}\n")
     print("  exports  how many samples reached Mimir (count_over_time).")
-    print("  total    sum_over_time. A real count from versions after #1246, where")
-    print("           each sample is what its process gained since its last export.")
+    print("  total    sum_over_time. For counters and histograms from versions after")
+    print("           #1246 a real count: each sample is what its process gained since")
+    print("           its last export. Gauges (nav_pilot_info, ...) still go every 10s,")
+    print("           so their total is a count of snapshots, not of anything else.")
     print("           Older versions re-exported everything every 10s for the life of")
     print("           the process, so their long sessions are summed once per export.")
     print("           max/series tells you which you are looking at: a small max with")
