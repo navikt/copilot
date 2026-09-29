@@ -3,15 +3,14 @@ package telemetry
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	colmetricpb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
@@ -41,10 +40,8 @@ const (
 	spoolMaxBytes = 1 << 20 // one export is a few kB
 
 	// spoolSendTimeout bounds one sender, the child or the next run's
-	// goroutine; spoolLockStale is when its lock counts as left by a sender
-	// that died.
+	// goroutine, waiting for the lock included.
 	spoolSendTimeout = 15 * time.Second
-	spoolLockStale   = 60 * time.Second
 )
 
 // spoolDir is where exports wait to be sent; "" when there is no home.
@@ -64,6 +61,10 @@ type spoolTransport struct {
 	exiting context.Context
 	exit    context.CancelFunc
 	wrote   atomic.Bool // an export went to the spool
+	// ready, when set, holds live sends back until the spool an earlier run
+	// left has been sent: those points are re-stamped to now, and a series
+	// cannot take a point older than the one it already has.
+	ready <-chan struct{}
 }
 
 func newSpoolTransport(next http.RoundTripper, dir string) *spoolTransport {
@@ -83,6 +84,15 @@ func (s *spoolTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			s.write(body)
 		}
 		return accepted(req), nil
+	}
+	if s.ready != nil {
+		select {
+		case <-s.ready:
+		case <-s.exiting.Done():
+			return s.RoundTrip(req) // exit came first: to the spool
+		case <-req.Context().Done():
+			return nil, req.Context().Err()
+		}
 	}
 	ctx, cancel := context.WithCancel(req.Context())
 	stop := context.AfterFunc(s.exiting, cancel)
@@ -154,24 +164,27 @@ func SendSpool() {
 }
 
 // sendSpoolLocked is sendSpool under the spool's lock, so the child and the
-// next run do not send the same files at once. It does nothing while another
-// sender holds the lock, unless that lock is older than spoolLockStale.
+// next run do not send the same files at once. It waits for a sender that
+// holds the lock, within ctx, and then reads the directory afresh: a file
+// written while the other one sent is not missed.
+//
+// The lock is flock(2) on .send.lock, held by the kernel for the open file:
+// a sender that exits or is killed mid-send releases it, so there is no
+// stale lock to detect and no takeover to race.
 func sendSpoolLocked(ctx context.Context, dir, endpoint string, client *http.Client) {
-	lock := filepath.Join(dir, ".send.lock")
-	for range 2 {
-		f, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-		if err == nil {
-			f.Close()
-			defer os.Remove(lock)
-			sendSpool(ctx, dir, endpoint, client)
-			return
-		}
-		info, serr := os.Stat(lock)
-		if !errors.Is(err, fs.ErrExist) || serr != nil || time.Since(info.ModTime()) < spoolLockStale {
-			return
-		}
-		os.Remove(lock)
+	f, err := os.OpenFile(filepath.Join(dir, ".send.lock"), os.O_CREATE|os.O_RDONLY, 0o600)
+	if err != nil {
+		return // no spool directory: nothing to send
 	}
+	defer f.Close()
+	for syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB) != nil {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+	sendSpool(ctx, dir, endpoint, client)
 }
 
 // sendSpool sends what earlier runs left in dir, oldest first, and removes

@@ -36,7 +36,8 @@ func flushTelemetry(t telemetryRecorder) {
 // telemetrySenderAllowed reports whether exit may start the detached sender.
 // Where it may not, the spool waits for the next run.
 //   - Inside cplt's sandbox: cplt's audit flags a process that escapes the
-//     session with setsid.
+//     session with setsid. Other agent sandboxes are not detected; there the
+//     child at worst fails to reach the network and the file waits.
 //   - In the e2e build, unless a test asks for it: the budget test and the
 //     journeys would leave senders running into their temp homes.
 //   - Opted out: nothing was spooled then anyway (flushTelemetry checks), so

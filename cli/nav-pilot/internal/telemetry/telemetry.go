@@ -90,9 +90,8 @@ func (NoopRecorder) RecordHookActionCheck(string, string)  {}
 func (NoopRecorder) Shutdown(context.Context) error        { return nil }
 
 type otelTelemetry struct {
-	provider  *sdkmetric.MeterProvider
-	spool     *spoolTransport
-	spoolSent <-chan struct{}
+	provider *sdkmetric.MeterProvider
+	spool    *spoolTransport
 
 	commandDurationMS  metric.Int64Histogram
 	commandErrorTotal  metric.Int64Counter
@@ -169,11 +168,10 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	dir := spoolDir()
 	spool := newSpoolTransport(&http.Transport{Proxy: http.ProxyFromEnvironment}, dir)
 	client := &http.Client{Transport: spool, Timeout: 10 * time.Second}
-	// What the child of an earlier run did not send. Sent before this run's
-	// own first export (ForceFlush waits for it): the spooled points are
-	// re-stamped to now, and a series cannot take a point older than the one
-	// it already has.
+	// What the child of an earlier run did not send. Sent before any export
+	// of this run's own (spoolTransport.ready).
 	spoolSent := make(chan struct{})
+	spool.ready = spoolSent
 	go func() {
 		defer close(spoolSent)
 		if dir != "" {
@@ -332,7 +330,6 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	tel := &otelTelemetry{
 		provider:           provider,
 		spool:              spool,
-		spoolSent:          spoolSent,
 		localGateTotal:     localGateTotal,
 		commandDurationMS:  commandDurationMS,
 		commandErrorTotal:  commandErrorTotal,
@@ -683,18 +680,7 @@ func (t *otelTelemetry) Spooled() bool {
 
 // ForceFlush exports what is recorded so far. A launch calls it as the
 // session starts, so the export when it ends has a connection already open.
-// It goes after the spool an earlier run left: the same series re-stamped
-// later than this export would be out of order.
-// ponytail: the periodic export 10 s in does not wait; a spool send that
-// slow is one bounded by spoolSendTimeout, a mutex on the transport if not.
 func (t *otelTelemetry) ForceFlush(ctx context.Context) error {
-	if t.spoolSent != nil {
-		select {
-		case <-t.spoolSent:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
 	return t.provider.ForceFlush(ctx)
 }
 

@@ -2,11 +2,13 @@ package telemetry
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -118,18 +120,25 @@ func TestSpoolRestampAndLock(t *testing.T) {
 	}))
 	defer collector.Close()
 
-	lock := filepath.Join(dir, ".send.lock")
-	os.WriteFile(lock, nil, 0o600)
-	sendSpoolLocked(t.Context(), dir, collector.URL, collector.Client())
+	held, err := os.OpenFile(filepath.Join(dir, ".send.lock"), os.O_CREATE|os.O_RDONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Flock(int(held.Fd()), syscall.LOCK_EX); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
+	sendSpoolLocked(ctx, dir, collector.URL, collector.Client())
+	cancel()
 	if len(got) != 0 {
 		t.Fatalf("sent while another sender held the lock")
 	}
-	stale := time.Now().Add(-2 * spoolLockStale)
-	os.Chtimes(lock, stale, stale)
+	// The holder exits (its descriptor closes): the waiting sender goes on.
+	time.AfterFunc(200*time.Millisecond, func() { held.Close() })
 	before := uint64(time.Now().UnixNano())
 	sendSpoolLocked(t.Context(), dir, collector.URL, collector.Client())
 	if len(got) != 1 {
-		t.Fatalf("sent %d, want 1 once the lock was stale", len(got))
+		t.Fatalf("sent %d, want 1 once the lock was released", len(got))
 	}
 	var req colmetricpb.ExportMetricsServiceRequest
 	if err := proto.Unmarshal(got[0], &req); err != nil {
@@ -139,7 +148,7 @@ func TestSpoolRestampAndLock(t *testing.T) {
 	if p.TimeUnixNano < before || p.StartTimeUnixNano != hourAgo || p.GetAsInt() != 3 {
 		t.Errorf("point = %v, want time re-stamped to now and the rest kept", p)
 	}
-	if left, _ := os.ReadDir(dir); len(left) != 0 {
-		t.Errorf("spool or lock left behind: %v", left)
+	if left, _ := filepath.Glob(filepath.Join(dir, "*.pb")); len(left) != 0 {
+		t.Errorf("spool left behind: %v", left)
 	}
 }

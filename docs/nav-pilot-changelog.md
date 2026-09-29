@@ -6,8 +6,8 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Telemetrien sendes rett etter at kommandoen er ferdig
 
-- **Egen prosess etter avslutning**: Før lå den siste telemetrien i `~/.nav-pilot/telemetry-spool/` til neste gang du kjørte nav-pilot. Mimir avviser målinger som er eldre enn en halvtime til en time, så den siste kommandoen før en pause forsvant. Nå starter nav-pilot en egen prosess, `nav-pilot __telemetry-send`, som sender fila rett etter at kommandoen er ferdig. Den lever i høyst 15 sekunder, og kommandoen venter ikke på den.
-- **Neste gang som reserve**: Får ikke prosessen sendt, for eksempel bak en brannmur, sender neste nav-pilot fila som før, nå med sendetidspunktet som tidsstempel, så den ikke avvises. Inne i cplt-sandkassen og med telemetrien slått av startes ingen egen prosess.
+- **Egen prosess etter avslutning**: Før lå den siste telemetrien i `~/.nav-pilot/telemetry-spool/` til neste gang du kjørte nav-pilot. Mimir avviser målinger som er eldre enn en halvtime til en time, så den siste kommandoen før en pause forsvant. Nå starter nav-pilot en egen prosess, `nav-pilot __telemetry-send`, som sender fila rett etter at kommandoen er ferdig. Fila sendes med sendetidspunktet som tidsstempel, så den ikke avvises. Prosessen lever i høyst 15 sekunder, og kommandoen venter ikke på den.
+- **Neste gang som reserve**: Får ikke prosessen sendt, for eksempel bak en brannmur, sender neste nav-pilot fila som før, også den med sendetidspunktet som tidsstempel. Inne i cplt-sandkassen og med telemetrien slått av startes ingen egen prosess.
 
 ## 2026-09-28
 

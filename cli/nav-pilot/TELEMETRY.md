@@ -280,7 +280,7 @@ $ nav-pilot list
 
 ### Dashboard-eksempler (Grafana / Prometheus)
 
-> **Viktig — kumulative tellere:** CLI-en eksporterer alle instrumenter, også tellere,
+> **Viktig: kumulative tellere.** CLI-en eksporterer alle instrumenter, også tellere,
 > med `CumulativeTemporality` (`temporalityFor` i `internal/telemetry/telemetry.go`).
 > Hver eksport fra en prosess har alt prosessen har målt så langt, og en lang økt eksporterer
 > hvert 10. sekund. Bruk `increase(<metric>[<range>])` og `rate()` for grafer. `sum_over_time`
@@ -489,7 +489,7 @@ Planlagt: Q4 2026. Da blir telemetri gjort obligatorisk (eller stilt av). Pilot-
 - **Eksport**: OpenTelemetry (OTLP/HTTP) til NAV sin Prometheus/Grafana-stack
 - **Sendefrekvens**: Hver 10. sekund (batch)
 - **Timeout**: 2 sekunder per batch
-- **Ved avslutning**: nav-pilot venter ikke på nettet. Den siste eksporten skrives til `~/.nav-pilot/telemetry-spool/`, og nav-pilot starter `nav-pilot __telemetry-send` i en egen sesjon før den avslutter. Denne prosessen sender fila og sletter den, og avslutter så. Den lever i høyst 15 sekunder, og du kan se den i `ps` så lenge. Den har ingen terminal og skriver ingenting. Feiler sendingen, for eksempel bak en brannmur, blir fila liggende, og neste nav-pilot sender den i bakgrunnen. En låsefil (`.send.lock`) hindrer at to prosesser sender de samme filene samtidig. `--version` og `--help` sender ingenting.
+- **Ved avslutning**: nav-pilot venter ikke på nettet. Den siste eksporten skrives til `~/.nav-pilot/telemetry-spool/`, og nav-pilot starter `nav-pilot __telemetry-send` i en egen sesjon før den avslutter. Denne prosessen sender fila og sletter den, og avslutter så. Den lever i høyst 15 sekunder, og du kan se den i `ps` så lenge. Den har ingen terminal og skriver ingenting. Feiler sendingen, for eksempel bak en brannmur, blir fila liggende, og neste nav-pilot sender den i bakgrunnen. En lås på `.send.lock` hindrer at to prosesser sender de samme filene samtidig. Låsen slippes når prosessen avslutter. `--version` og `--help` sender ingenting.
 - **Ingen egen prosess**: inne i cplt-sandkassen (cplt reagerer på prosesser som forlater økten med `setsid`) og når telemetrien er slått av. Da venter fila på neste nav-pilot.
 - **Tidsstempel**: En fil som sendes senere, får tidsstempelet til sendetidspunktet. Mimir avviser målinger som er eldre enn vinduet for målinger i feil rekkefølge (30–60 minutter), så en fil fra kvelden før ville ellers gått tapt. Starttidspunktet beholdes.
 - **Språk**: Go 1.21+
