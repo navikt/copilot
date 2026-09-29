@@ -7,8 +7,8 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 ### nav-pilot setter ikke lenger opp rtk
 
 - **Ingen rtk-spørsmål**: nav-pilot spør ikke lenger om å installere rtk ved første oppstart, og installerer det ikke. rtk-hooken skrev om kommandoer før de kjørte, så de ga et annet svar enn agenten ventet. I en testkjøring gjentok agenten samme kommando fem til sju ganger før nav-pilot stoppet den (#1321).
-- **Gamle innstillinger virker**: `rtk_prompted_client` og `rtk_prompted_at` i en eksisterende `config.toml` blir oversett uten feil eller varsel.
-- **`doctor` sier fra om rester**: Finner `nav-pilot doctor` `~/.copilot/hooks/rtk-rewrite.json` eller opencode-pluginen `plugins/rtk.ts`, varsler den og viser kommandoen som fjerner filen. Den sletter ingenting selv. Har du installert rtk selv, kan du beholde det.
+- **Gamle innstillinger gir ingen feil**: `rtk_prompted_client` og `rtk_prompted_at` i en eksisterende `config.toml` blir oversett, uten feil eller varsel.
+- **`doctor` sier fra om rester**: Finner `nav-pilot doctor` en gammel `~/.copilot/hooks/rtk-rewrite.json` eller opencode-pluginen `plugins/rtk.ts`, varsler den og viser kommandoen som fjerner filen. Den sletter ingenting selv. Har du installert rtk selv, kan du beholde det. Ett unntak: finnes ikke `rtk` på PATH, fjerner oppstarten fortsatt `~/.copilot/hooks/rtk-rewrite.json` og sier fra, fordi hooken da avviser alle verktøykall i Copilot.
 - **Metrikken `nav_pilot_rtk_setup_total` er fjernet.**
 
 ### «Sync now?» spør bare én gang i døgnet

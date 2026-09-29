@@ -33,6 +33,9 @@ func TestReportRtkLeftovers(t *testing.T) {
 			dontWant: []string{"opencode.json"}},
 		{name: "opencode plugin listed in opencode.json", installPlugin: true, listPlugin: true,
 			want: []string{pluginRm, `delete its entry from "plugin" in ~/.config/opencode/opencode.json`}},
+		{name: "opencode.json lists a plugin that is gone", listPlugin: true,
+			want:     []string{"~/.config/opencode/opencode.json still lists plugins/rtk.ts, which is gone", `Delete its entry from "plugin"`},
+			dontWant: []string{"rm --"}},
 	}
 
 	write := func(t *testing.T, path, content string) {
@@ -119,11 +122,22 @@ func TestRemoveUnusableRtkHook(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err := removeUnusableRtkHook("copilot"); err != nil {
+		var err error
+		errOut := captureStderrFor(t, func() { err = removeUnusableRtkHook("copilot") })
+		if err != nil {
 			t.Fatal(err)
 		}
 		if _, err := os.Stat(hook); !os.IsNotExist(err) {
 			t.Fatalf("hook still exists after cleanup: %v", err)
+		}
+		// A trimmed PATH can hide an rtk the user installed: say what went.
+		want := "Removed ~/.copilot/hooks/rtk-rewrite.json: rtk is not on PATH and the hook would deny every Copilot tool call."
+		if !strings.Contains(errOut, want) {
+			t.Errorf("stderr = %q, want it to contain %q", errOut, want)
+		}
+		// Nothing left to remove: nothing to say.
+		if again := captureStderrFor(t, func() { err = removeUnusableRtkHook("copilot") }); err != nil || again != "" {
+			t.Errorf("second run: err %v, stderr %q; want neither", err, again)
 		}
 	})
 

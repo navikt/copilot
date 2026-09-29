@@ -25,8 +25,9 @@ func rtkCopilotHook(home string) string {
 }
 
 // removeUnusableRtkHook removes the Copilot rtk hook when the rtk binary is
-// gone. That hook denies every matching tool call when it cannot start rtk, so
-// it is broken, not a choice (#915).
+// not on PATH. That hook denies every matching tool call when it cannot start
+// rtk (#915). It says so on stderr: a PATH trimmed by an IDE can hide an rtk
+// someone installed themselves.
 func removeUnusableRtkHook(client string) error {
 	if client != "copilot" || isRtkInstalled() {
 		return nil
@@ -36,9 +37,14 @@ func removeUnusableRtkHook(client string) error {
 		return fmt.Errorf("could not determine home directory: %w", err)
 	}
 	hook := rtkCopilotHook(home)
-	if err := os.Remove(hook); err != nil && !os.IsNotExist(err) {
+	err = os.Remove(hook)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
 		return fmt.Errorf("could not remove unusable hook %s: %w", hook, err)
 	}
+	fmt.Fprintf(os.Stderr, "Removed ~/.copilot/hooks/rtk-rewrite.json: rtk is not on PATH and the hook would deny every Copilot tool call.\n")
 	return nil
 }
 
@@ -77,15 +83,23 @@ func reportRtkLeftovers() bool {
 	}
 
 	dir := artifacts.OpenCodeConfigDir()
-	if plugin := filepath.Join(dir, "plugins", "rtk.ts"); exists(plugin) {
+	plugin := filepath.Join(dir, "plugins", "rtk.ts")
+	cfg := filepath.Join(dir, "opencode.json")
+	data, _ := os.ReadFile(cfg)
+	listed := bytes.Contains(data, []byte("plugins/rtk.ts"))
+	switch {
+	case exists(plugin):
 		found = true
 		fmt.Printf("    %s rtk: opencode plugin found (%s)\n", yellow("⚠"), tilde(plugin))
 		fmt.Printf("        nav-pilot no longer sets up rtk. The plugin rewrites commands before they run and can change what they return.\n")
 		fmt.Printf("        %s If you did not install rtk yourself, remove it with %s\n", yellow("Solution:"), bold("rm -- "+tilde(plugin)))
-		cfg := filepath.Join(dir, "opencode.json")
-		if data, err := os.ReadFile(cfg); err == nil && bytes.Contains(data, []byte("plugins/rtk.ts")) {
+		if listed {
 			fmt.Printf("        and delete its entry from \"plugin\" in %s.\n", tilde(cfg))
 		}
+	case listed:
+		found = true
+		fmt.Printf("    %s rtk: %s still lists plugins/rtk.ts, which is gone\n", yellow("⚠"), tilde(cfg))
+		fmt.Printf("        %s Delete its entry from \"plugin\" in %s.\n", yellow("Solution:"), tilde(cfg))
 	}
 	return found
 }
