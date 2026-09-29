@@ -1,6 +1,7 @@
 package artifacts
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -728,7 +729,13 @@ func MaterializeOpenCode(sourceDir, outputDir string) (skills, commands, agents,
 	return skills, commands, agents, instructions, nil
 }
 
+// writeFile leaves a file that already holds data alone: every opencode
+// launch syncs the whole source, and rewriting what did not change is most of
+// that sync's time.
 func writeFile(path string, data []byte) error {
+	if have, err := os.ReadFile(path); err == nil && bytes.Equal(have, data) {
+		return nil
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}

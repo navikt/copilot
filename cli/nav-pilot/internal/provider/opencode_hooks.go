@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -199,7 +200,12 @@ func withOpenCodeConfigContent(env []string, add map[string]any) []string {
 // needless warning or a missing one, never a launch.
 func underCpltExecRoot(dir string) bool {
 	home, _ := os.UserHomeDir()
-	roots := []string{"/opt/homebrew", "/usr/local", "/usr/bin", "/bin", "/usr/sbin", "/nix", "/home/linuxbrew/.linuxbrew"}
+	roots := []string{"/opt/homebrew", "/usr/local", "/usr/bin", "/bin", "/usr/sbin", "/nix"}
+	// Only on Linux: on macOS /home is an autofs mount, and resolving a path
+	// under it asks automountd, which can take seconds (#1276).
+	if runtime.GOOS == "linux" {
+		roots = append(roots, "/home/linuxbrew/.linuxbrew")
+	}
 	for _, r := range []string{".local/bin", "go/bin", ".cargo/bin", ".mise", ".bun", ".local/share/mise"} {
 		roots = append(roots, filepath.Join(home, r))
 	}
