@@ -348,6 +348,22 @@
   border-radius: var(--ax-radius-2);
   word-break: break-word;
 }
+/* Inline code in nav-pilot docs prose (the `code` class from doc-page.tsx). */
+.inline-code {
+  font-family:
+    ui-monospace, "Menlo", "Monaco", "Cascadia Mono", "Segoe UI Mono", "Roboto Mono", "Oxygen Mono", "Ubuntu Monospace",
+    "Source Code Pro", "Fira Mono", "Droid Sans Mono", "Courier New", monospace;
+  font-size: 0.9em;
+  color: var(--ax-text-neutral);
+  background-color: var(--ax-bg-neutral-soft);
+  box-shadow: inset 0 0 0 1px var(--ax-border-neutral-subtleA);
+  padding: 0.1em 0.35em;
+  border-radius: var(--ax-radius-4);
+  word-break: break-word;
+}
+a .inline-code {
+  color: inherit;
+}
 .prose pre {
   margin-bottom: 1rem;
   padding: var(--ax-space-8);

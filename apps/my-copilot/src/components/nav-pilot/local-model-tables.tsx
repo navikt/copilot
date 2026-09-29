@@ -1,6 +1,7 @@
 import { VStack } from "@navikt/ds-react";
 import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell } from "@/components/aksel-table";
 import type { LocalModel } from "@/lib/local-models";
+import { code } from "@/components/nav-pilot/doc-page";
 
 // The local-model tables on /nav-pilot/referanse and
 // /nav-pilot/forklaring/lokal-modell. The rows come from the manifest in
@@ -72,7 +73,7 @@ export function LocalModelsTable({ models }: { models: LocalModel[] }) {
             <TableRow key={m.id}>
               <TableDataCell>
                 <VStack gap="space-2">
-                  <code className="font-mono text-xs">{modelName(m)}</code>
+                  <code className={code}>{modelName(m)}</code>
                   <div className="text-xs" style={{ color: "var(--ax-text-neutral-subtle)" }}>
                     {m.default ? "standard" : "valgfri"}
                   </div>
@@ -85,7 +86,7 @@ export function LocalModelsTable({ models }: { models: LocalModel[] }) {
                 {m.min_ram_gb} GB, vektene tar {m.weights_gb} GB
               </TableDataCell>
               <TableDataCell>
-                {m.min_nav_pilot ? <code className="font-mono text-xs">≥ {m.min_nav_pilot}</code> : "alle versjoner"}
+                {m.min_nav_pilot ? <code className={code}>≥ {m.min_nav_pilot}</code> : "alle versjoner"}
               </TableDataCell>
               <TableDataCell>
                 <LocalModelText m={m} />
@@ -115,7 +116,7 @@ export function TrustedClassesTable({ models }: { models: LocalModel[] }) {
             return (
               <TableRow key={m.id}>
                 <TableDataCell>
-                  <code className="font-mono text-xs">{modelName(m)}</code>
+                  <code className={code}>{modelName(m)}</code>
                 </TableDataCell>
                 <TableDataCell>{trusted.length ? trusted.join(", ") : "ingen oppgavetyper ennå"}</TableDataCell>
                 <TableDataCell>{cloudClasses(m).join(", ")}</TableDataCell>

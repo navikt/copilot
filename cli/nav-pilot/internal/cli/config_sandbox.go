@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -27,13 +28,64 @@ func findCplt() (string, error) {
 	return cliPath, nil
 }
 
-// cpltConfigSet writes one cplt config key.
-func cpltConfigSet(cliPath, key, val string) error {
-	out, err := exec.Command(cliPath, "config", "set", key, val).CombinedOutput()
+// cpltConfigSet writes one cplt config key. flags go after the value, such as
+// the --force cplt requires before it turns on a key that weakens the sandbox.
+func cpltConfigSet(cliPath, key, val string, flags ...string) error {
+	args := append([]string{"config", "set", key, val}, flags...)
+	out, err := exec.Command(cliPath, args...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to set %s: %v\n%s", key, err, string(out))
 	}
 	return nil
+}
+
+// sandboxToggle is one boolean cplt key the sandbox wizard offers. risk is set
+// for the keys cplt itself marks dangerous and refuses to turn on without
+// --force; the wizard shows it and asks before passing --force.
+type sandboxToggle struct {
+	key, label, risk string
+}
+
+var sandboxToggles = []sandboxToggle{
+	{"sandbox.allow_localhost_any", "Allow any localhost port (dev servers, Gradle daemon, httptest)", ""},
+	{"sandbox.allow_jvm_attach", "Allow JVM attach (MockK, Mockito inline, ByteBuddy)", ""},
+	{"sandbox.allow_build_credentials", "Allow reading ~/.npmrc, ~/.gradle/gradle.properties, ~/.m2/settings.xml",
+		"exposes every registry token in those files, not only the one the project needs"},
+	{"sandbox.allow_docker", "Allow Docker (Colima/OrbStack)",
+		"container mounts bypass the sandbox"},
+	{"sandbox.allow_browser", "Allow browser access",
+		"lets the agent launch any application outside the sandbox"},
+	{"sandbox.allow_tmp_exec", "Allow executing /tmp binaries",
+		"lets the agent run binaries it dropped in /tmp"},
+}
+
+// currentSandboxToggles reads each toggle from cplt. A key cplt gives no
+// true/false answer for (an older cplt that lacks it) is left out, so the
+// wizard neither offers nor writes it.
+func currentSandboxToggles(cliPath string) map[string]bool {
+	cur := map[string]bool{}
+	for _, t := range sandboxToggles {
+		switch cpltConfigGet(cliPath, t.key) {
+		case "true":
+			cur[t.key] = true
+		case "false":
+			cur[t.key] = false
+		}
+	}
+	return cur
+}
+
+// sandboxChanges is what the wizard writes: only keys whose chosen value
+// differs from the current one. Keys the user left alone are never touched,
+// so a value set earlier, or by hand, survives a run of the wizard.
+func sandboxChanges(cur map[string]bool, chosen []string) map[string]bool {
+	out := map[string]bool{}
+	for key, was := range cur {
+		if now := slices.Contains(chosen, key); now != was {
+			out[key] = now
+		}
+	}
+	return out
 }
 
 // cmdConfigSandbox runs an interactive wizard to configure the cplt sandbox profile.
@@ -43,39 +95,81 @@ func cmdConfigSandbox() error {
 		return err
 	}
 
+	cur := currentSandboxToggles(cliPath)
+	if len(cur) == 0 {
+		return fmt.Errorf("could not read the current cplt settings; run %s to see them", bold("cplt config show"))
+	}
+	var opts []huh.Option[string]
 	var choices []string
+	for _, t := range sandboxToggles {
+		if on, ok := cur[t.key]; ok {
+			opts = append(opts, huh.NewOption(t.label, t.key).Selected(on))
+			if on {
+				choices = append(choices, t.key)
+			}
+		}
+	}
+
 	err = huh.NewMultiSelect[string]().
 		Title("Configure cplt sandbox relaxations").
-		Description("Select which restrictions to lift for agents running under cplt.").
-		Options(
-			huh.NewOption("Allow Docker (Colima/OrbStack)", "sandbox.allow_docker"),
-			huh.NewOption("Allow any localhost port", "sandbox.allow_localhost_any"),
-			huh.NewOption("Allow browser access", "sandbox.allow_browser"),
-			huh.NewOption("Allow executing /tmp binaries", "sandbox.allow_tmp_exec"),
-		).
+		Description("Current settings are selected. Only what you change is written.").
+		Options(opts...).
 		Value(&choices).
 		WithTheme(navTheme()).
 		Run()
-
 	if err != nil {
 		return fmt.Errorf("prompt cancelled: %w", err)
 	}
 
-	keys := []string{"sandbox.allow_docker", "sandbox.allow_localhost_any", "sandbox.allow_browser", "sandbox.allow_tmp_exec"}
-	for _, key := range keys {
-		val := "false"
-		for _, c := range choices {
-			if c == key {
-				val = "true"
-				break
-			}
+	changes := sandboxChanges(cur, choices)
+	var risks []string
+	for _, t := range sandboxToggles {
+		if changes[t.key] && t.risk != "" {
+			risks = append(risks, fmt.Sprintf("%s: %s", t.key, t.risk))
 		}
-		if err := cpltConfigSet(cliPath, key, val); err != nil {
-			return err
+	}
+	if len(risks) > 0 {
+		var ok bool
+		if err := huh.NewConfirm().
+			Title("These weaken the sandbox. Turn them on?").
+			Description(strings.Join(risks, "\n")).
+			Value(&ok).
+			WithTheme(navTheme()).
+			Run(); err != nil {
+			return fmt.Errorf("prompt cancelled: %w", err)
+		}
+		if !ok {
+			fmt.Println(dim("cplt sandbox configuration unchanged."))
+			return nil
 		}
 	}
 
-	fmt.Printf("%s Successfully updated cplt sandbox configuration\n", domain.Green("✓"))
+	return applySandboxChanges(cliPath, changes)
+}
+
+// applySandboxChanges writes what sandboxChanges returned. Split from the
+// wizard so the writes are testable against a cplt on PATH without a terminal.
+// The caller has already asked about every risky key, so --force is passed
+// for those that are turned on.
+func applySandboxChanges(cliPath string, changes map[string]bool) error {
+	if len(changes) == 0 {
+		fmt.Println(dim("Nothing changed."))
+		return nil
+	}
+	for _, t := range sandboxToggles {
+		on, ok := changes[t.key]
+		if !ok {
+			continue
+		}
+		var flags []string
+		if on && t.risk != "" {
+			flags = []string{"--force"}
+		}
+		if err := cpltConfigSet(cliPath, t.key, strconv.FormatBool(on), flags...); err != nil {
+			return err
+		}
+		fmt.Printf("%s cplt %s = %t\n", domain.Green("✓"), t.key, on)
+	}
 	return nil
 }
 

@@ -38,6 +38,7 @@ export default function CpltFeilmeldinger() {
   return (
     <DocPage
       label="Guider"
+      upgrade
       title="Feil i sandkassen"
       description="Slå opp på feilmeldingen du ser. Hver oppføring sier hva som skjer, og hvilken kommando som løser det."
       toc={TOC}
@@ -47,17 +48,6 @@ export default function CpltFeilmeldinger() {
           <LinkableHeading id="start-her" size="medium" level="2">
             Start her
           </LinkableHeading>
-          <BodyLong>
-            Mange feil er rettet i nyere cplt. cplt er en egen pakke, og{" "}
-            <code className={code}>brew upgrade navikt/tap/nav-pilot</code> oppgraderer den ikke. Oppgrader cplt først:
-          </BodyLong>
-          <CodeBlock compact>
-            {`brew update
-brew upgrade navikt/tap/cplt
-cplt --version`}
-          </CodeBlock>
-          <BodyLong>Har du installert cplt med apt på Debian eller Ubuntu:</BodyLong>
-          <CodeBlock compact>{`sudo apt update && sudo apt upgrade cplt`}</CodeBlock>
           <BodyLong>Finner du ikke feilen under, spør cplt selv:</BodyLong>
           <CodeBlock compact>
             {`cplt check                               # virker sandkassen?
@@ -69,8 +59,7 @@ cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?`}
           <BodyLong>
             Svarene fra <code className={code}>cplt check</code> har en linje som begynner med{" "}
             <code className={code}>Reason:</code>, og ofte en med <code className={code}>Fix:</code>. Kommandoene på
-            denne siden er testet med cplt <code className={code}>2026.09.29-105335-ce50857</code> på macOS. Flere
-            detaljer står i{" "}
+            denne siden er testet med cplt fra 29. september 2026 på macOS. Flere detaljer står i{" "}
             <a href={KNOWN_IMPACTS} className={linkClass}>
               known-impacts.md
             </a>{" "}
@@ -89,22 +78,18 @@ cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?`}
             unknown config key
           </LinkableHeading>
           <BodyLong>
-            cplt kjenner ikke nøkkelen. Dokumentasjonen følger nyeste cplt, så som regel er din cplt for gammel.
-            Oppgrader som vist i{" "}
-            <a href="#start-her" className={linkClass}>
-              Start her
-            </a>
-            . Meldingen lister de gyldige nøklene. Står nøkkelen der, er den skrevet feil.
+            cplt kjenner ikke nøkkelen. Meldingen lister de gyldige. Står nøkkelen der, er den skrevet feil. Står den
+            ikke der, er din cplt eldre enn dokumentasjonen. Oppgrader.
           </BodyLong>
 
           <LinkableHeading id="does-not-understand" size="small" level="3">
             .cplt.toml uses a key this version of cplt does not understand
           </LinkableHeading>
           <BodyLong>
-            Repoets <code className={code}>.cplt.toml</code> er skrevet for en nyere cplt, og din cplt hopper over
+            Repoets <code className={code}>.cplt.toml</code> er skrevet for en nyere cplt enn din, som hopper over
             nøkkelen. Står den under <code className={code}>[deny]</code>, blir en begrensning repoet ber om, ikke
-            brukt. Oppgrader cplt. Får du <code className={code}>unknown key &apos;…&apos; in [seksjon]</code> om din
-            egen konfig, sjekk fila:
+            brukt. Oppgrader cplt. Gjelder meldingen din egen konfig (
+            <code className={code}>unknown key &apos;…&apos; in [seksjon]</code>), sjekk fila:
           </BodyLong>
           <CodeBlock compact>{`cplt config validate`}</CodeBlock>
 
@@ -134,14 +119,11 @@ cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?`}
             Sign-in failed: request failed: error sending request for url (https://github.com/login/oauth/access_token)
           </LinkableHeading>
           <BodyLong>
-            Du har en egen host-liste i <code className={code}>proxy.allowed_domains</code>, uten{" "}
-            <code className={code}>proxy.default_allowlist</code>. I cplt eldre enn{" "}
-            <code className={code}>2026.09.29-095137-e745d3a</code> stengte den lista Copilot ute fra sine egne hoster,
-            så innloggingen og modellkallene feilet. <code className={code}>cplt check</code> viste{" "}
-            <code className={code}>reach githubcopilot.com BLOCKED</code>. Oppgrader cplt. Fra den versjonen er agentens
-            egne hoster alltid med. Kan du ikke oppgradere nå, slå på cplts innebygde liste:
+            Rettet i cplt fra 29. september 2026. En egen host-liste i{" "}
+            <code className={code}>proxy.allowed_domains</code> stengte Copilot ute fra sine egne hoster, og{" "}
+            <code className={code}>cplt check</code> viste <code className={code}>reach githubcopilot.com BLOCKED</code>
+            . Oppgrader cplt. Agentens egne hoster er nå alltid med.
           </BodyLong>
-          <CodeBlock compact>{`cplt config set proxy.default_allowlist true`}</CodeBlock>
 
           <LinkableHeading id="blocked-allowlist" size="small" level="3">
             BLOCKED-ALLOWLIST
@@ -183,14 +165,12 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             Sandbox is NOT ENFORCING
           </LinkableHeading>
           <BodyLong>
-            I cplt eldre enn <code className={code}>2026.09.29-095137-e745d3a</code> sa{" "}
-            <code className={code}>cplt check</code> dette også når sandkassen virket, men blokkerte noe den skulle
-            slippe gjennom. Oppgrader og kjør <code className={code}>cplt check</code> på nytt. Står det fortsatt NOT
-            ENFORCING, slapp sandkassen gjennom noe den skulle stoppe. Meld det i{" "}
+            Sandkassen slapp gjennom noe den skulle stoppe. Meld det i{" "}
             <a href="https://github.com/navikt/cplt/issues" className={linkClass}>
               navikt/cplt
             </a>
-            .
+            . I cplt fra før 29. september 2026 kom meldingen også når sandkassen blokkerte noe den skulle slippe
+            gjennom. Oppgrader og kjør <code className={code}>cplt check</code> på nytt før du melder.
           </BodyLong>
 
           <LinkableHeading id="policy-too-strict" size="small" level="3">
@@ -216,6 +196,13 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             Verktøy som bruker tilfeldige porter, som Next.js, Vite, esbuild og Gradle, trenger alle portene:
           </BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_localhost_any true`}</CodeBlock>
+          <BodyLong>
+            Gjelder det hele teamet, legg det i repoet, se{" "}
+            <NextLink href="/nav-pilot/guider/cplt-oppsett#stakker" className={linkClass}>
+              Det stakken din trenger
+            </NextLink>
+            .
+          </BodyLong>
         </VStack>
       </section>
 
@@ -234,10 +221,11 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
           <Bullets>
             <li>
               <code className={code}>~/.npmrc</code>, <code className={code}>~/.gradle/gradle.properties</code> eller{" "}
-              <code className={code}>~/.m2/settings.xml</code>: filene har tokens og er stengt med vilje.{" "}
-              <code className={code}>cplt config set allow.read ~/.npmrc</code> gir agenten tokenene i fila. På Linux er
-              bare <code className={code}>~/.npmrc</code> stengt. De to andre filene ligger i mapper agenten har tilgang
-              til, og der kan agenten lese og skrive dem.
+              <code className={code}>~/.m2/settings.xml</code>: filene har tokens og er stengt med vilje. Se{" "}
+              <NextLink href="/nav-pilot/guider/cplt-oppsett#github-packages" className={linkClass}>
+                Pakker fra GitHub Packages
+              </NextLink>
+              .
             </li>
             <li>
               <code className={code}>~/Library/Preferences/pnpm</code>: se{" "}
@@ -284,28 +272,18 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             EPERM: operation not permitted, open …/Library/Preferences/pnpm/config.yaml
           </LinkableHeading>
           <BodyLong>
-            Gjelder macOS. cplt gir pnpm tilgang til feil mappe for konfigfila. Dette er rettet i cplt{" "}
-            <code className={code}>2026.09.29-113343-7a9ef00</code> (<Pr n={616} />
-            ). Har du en eldre versjon, gir du lesetilgang til fila:
-          </BodyLong>
-          <CodeBlock compact>{`cplt config set allow.read ~/Library/Preferences/pnpm/config.yaml`}</CodeBlock>
-          <BodyLong>
-            Gi ikke tilgang til hele mappa. Der ligger <code className={code}>auth.ini</code> med tokenene til pnpm.
+            Rettet i cplt fra 29. september 2026 (<Pr n={616} />
+            ). Oppgrader cplt.
           </BodyLong>
 
           <LinkableHeading id="pnpm-claude" size="small" level="3">
-            ERR_PNPM_EPERM … .claude/settings.local.json
+            ERR_PNPM_EPERM i node_modules
           </LinkableHeading>
           <BodyLong>
-            Gjelder macOS. En pakke du installerer, for eksempel <code className={code}>thread-stream@4.2.0</code>, har
-            en <code className={code}>.claude</code>-mappe. cplt stenger slike filer overalt i prosjektet, også i{" "}
-            <code className={code}>node_modules</code>, og ingen innstilling åpner dem. Fra cplt{" "}
-            <code className={code}>2026.09.29-113343-7a9ef00</code> gjelder dette ikke lenger i{" "}
-            <code className={code}>node_modules</code> (
-            <Pr n={627} />
-            ). Har du en eldre versjon, installerer du utenfor cplt og starter agenten etterpå:
+            Rettet i cplt fra 29. september 2026 (<Pr n={627} />
+            ): cplt stengte konfigmapper for KI-verktøy også inne i <code className={code}>node_modules</code>.
+            Oppgrader cplt.
           </BodyLong>
-          <CodeBlock compact>{`pnpm install`}</CodeBlock>
 
           <LinkableHeading id="yarnrc" size="small" level="3">
             EPERM: operation not permitted, open …/.yarnrc
@@ -323,7 +301,7 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             fatal: cannot hash .env.local
           </LinkableHeading>
           <BodyLong>
-            Gjelder macOS. Fila er sporet i git og endret. cplt stenger lesing av <code className={code}>.env</code>
+            Gjelder macOS. Fila er sporet i git og endret, og cplt stenger lesing av <code className={code}>.env</code>
             -filer, så <code className={code}>git diff</code>, <code className={code}>git add</code> og{" "}
             <code className={code}>git commit -a</code> stopper. En fil med hemmeligheter hører ikke hjemme i git. Slutt
             å spore den:
@@ -472,18 +450,13 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
             Hele meldingen er{" "}
             <code className={code}>Error when loading properties file=/Users/…/.gradle/gradle.properties</code> med{" "}
             <code className={code}>(Operation not permitted)</code>. Gjelder macOS. cplt stenger fila fordi den ofte har
-            tokens i seg, og Gradle stopper når den finnes, men ikke kan leses. Det gjelder alle Gradle-bygg i
-            sandkassen. På Linux kan agenten lese fila uansett. Ta tokenet ut og hent pakkene fra Navs speil, eller gi
-            agenten lesetilgang:
+            tokens i seg, og Gradle stopper når fila finnes, men ikke kan leses. Ta tokenet ut og hent pakkene fra{" "}
+            <NextLink href="/nav-pilot/guider/cplt-gradle#speilet" className={linkClass}>
+              Navs speil
+            </NextLink>
+            , eller gi agenten lesetilgang til fila og alle tokenene i den:
           </BodyLong>
           <CodeBlock compact>{`cplt config set allow.read ~/.gradle/gradle.properties`}</CodeBlock>
-          <BodyLong>
-            Da kan agenten lese alle tokenene i fila. Se{" "}
-            <NextLink href="/nav-pilot/guider/cplt-gradle#github-packages" className={linkClass}>
-              Pakker fra GitHub Packages
-            </NextLink>
-            .
-          </BodyLong>
         </VStack>
       </section>
 
@@ -627,14 +600,13 @@ gh auth setup-git`}
             error obtaining VCS status: exit status 128
           </LinkableHeading>
           <BodyLong>
-            Go-bygg i en git worktree kan finne en annen <code className={code}>.git</code>-mappe lenger opp, som
+            Go-bygg i et git-worktree kan finne en annen <code className={code}>.git</code>-mappe lenger opp, som
             agenten ikke har tilgang til. Slå av versjonsstemplingen:
           </BodyLong>
           <CodeBlock compact>{`go build -buildvcs=false`}</CodeBlock>
           <BodyLong>
-            <code className={code}>GOFLAGS</code> fra skallet ditt slipper inn i sandkassen fra cplt{" "}
-            <code className={code}>2026.09.29-113343-7a9ef00</code> (<Pr n={624} />
-            ). I eldre versjoner blir den filtrert bort. Hvordan du setter det for hele repoet med mise, står i{" "}
+            <code className={code}>GOFLAGS</code> fra skallet ditt slipper inn i sandkassen. Hvordan du setter det for
+            hele repoet med mise, står i{" "}
             <NextLink href="/nav-pilot/guider/worktrees#go-bygg" className={linkClass}>
               worktree-guiden
             </NextLink>

@@ -186,8 +186,21 @@ export default function LokalModellForklaring() {
           </Bullets>
           <BodyLong>
             nav-pilot stopper heller ingenting når den lokale serveren ikke tar imot tilkoblinger, eller i
-            underagentenes egne økter. Nivåene er nye. Vi har ikke målt om stoppet får hovedagenten til å sende mer,
-            eller om det sparer AI-kreditter.
+            underagentenes egne økter.
+          </BodyLong>
+          <BodyLong>
+            Stoppet får hovedagenten til å sende, men sparer ikke AI-kreditter. I målingen fra september 2026 (re-probe
+            7, Sonnet 5 som hovedagent) sendte hovedagenten arbeid i alle 17 gyldige kjøringer med mange kallsteder
+            eller nye filer på <code className={code}>aggressive</code>, mot 2 av 20 på{" "}
+            <code className={code}>balanced</code>, og alle 17 besto bygg og tester. Var endringen liten, sendte den
+            ingenting (0 av 5). Det kostet 0,83–2,1 ganger så mye i AI-kreditter og tok 2,7–3,6 ganger så lang tid som
+            når skymodellen gjorde alt selv. Hovedagenten gjorde likevel om 15 av 27 oppgaver med nye filer selv. To
+            kjøringer til ble avbrutt før de var ferdige, og i én av dem ble koden liggende i stykker.
+          </BodyLong>
+          <BodyLong>
+            Et nytt forsøk lønner seg for nye filer. Når hovedagenten sender bygge- eller testfeilen tilbake til{" "}
+            <code className={code}>local-worker</code> én gang, ble 15 av 20 nye filer godkjent, mot 5 av 20 uten, og
+            tiden per godkjent fil gikk ned fra 618 til 322 sekunder, selv om hvert forsøk tok lengre tid.
           </BodyLong>
         </VStack>
       </section>
@@ -307,8 +320,11 @@ export default function LokalModellForklaring() {
               , og hvor mye minne den bruker med prompter over 49 000 tokens.
             </li>
             <li>
-              Vi måler hvert utsendingsnivå for å se om stoppet får hovedagenten til å sende, og om det sparer
-              AI-kreditter.
+              Vi måler utsendingsnivåene videre, på flere modeller og oppgaver enn den ene målingen under{" "}
+              <a href="#utsending" className={linkClass}>
+                Hvorfor utsendingen er begrenset
+              </a>
+              .
             </li>
             <li>Vi har ennå ikke målt noen modell på egen server, verken på Linux eller med Ollama og llama-server.</li>
             <li>

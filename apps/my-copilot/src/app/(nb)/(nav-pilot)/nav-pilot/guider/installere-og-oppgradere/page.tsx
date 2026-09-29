@@ -198,17 +198,15 @@ nav-pilot list --installed --json | jq .`}
           <LinkableHeading id="oppgradere" size="medium" level="2">
             Oppgradere
           </LinkableHeading>
-          <BodyLong>nav-pilot sjekker ved oppstart om det finnes en nyere versjon. Oppgrader med én av disse:</BodyLong>
-          <CodeBlock compact>
-            {`nav-pilot upgrade                            # selvoppdatering
-${NAV_PILOT_BREW_UPGRADE}   # Homebrew
-sudo apt update && sudo apt upgrade nav-pilot  # Debian og Ubuntu`}
-          </CodeBlock>
           <BodyLong>
-            cplt er en egen pakke, og kommandoene over oppgraderer bare nav-pilot. Oppgrader cplt med{" "}
-            <code className={code}>brew upgrade navikt/tap/cplt</code> eller{" "}
-            <code className={code}>sudo apt upgrade cplt</code>.
+            nav-pilot sjekker ved oppstart om det finnes en nyere versjon. cplt er en egen pakke, så oppgrader begge,
+            med samme metode som du installerte:
           </BodyLong>
+          <CodeBlock compact>
+            {`brew update && ${NAV_PILOT_BREW_UPGRADE} navikt/tap/cplt   # Homebrew
+sudo apt update && sudo apt upgrade nav-pilot cplt                  # Debian og Ubuntu
+nav-pilot upgrade && cplt update                                    # installert med skript`}
+          </CodeBlock>
           <BodyLong>
             <code className={code}>nav-pilot upgrade</code> spør ikke, og installerer alltid nyeste versjon. Har du
             installert med Homebrew eller apt, lar den binæren være og skriver kommandoen som virker.{" "}

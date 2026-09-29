@@ -30,6 +30,7 @@ export default function CpltGradle() {
   return (
     <DocPage
       label="Guider"
+      upgrade
       title="Kotlin og Gradle i sandkassen"
       description="Det du trenger for at Gradle-bygg og tester skal virke når agenten kjører i cplt."
       toc={TOC}
@@ -55,10 +56,7 @@ cplt config set sandbox.allow_jvm_attach true`}
             til. <code className={code}>allow_jvm_attach</code> åpner bare socketene{" "}
             <code className={code}>/tmp/.java_pid&lt;PID&gt;</code>, ingen andre.
           </BodyLong>
-          <BodyLong>
-            Trenger du innstillingene bare for ett prosjekt, legg dem i repoet i stedet. Da gjelder de for alle på
-            teamet som godkjenner dem:
-          </BodyLong>
+          <BodyLong>Gjelder det ett prosjekt, legg innstillingene i repoet, så får hele teamet dem:</BodyLong>
           <CodeBlock compact>
             {`cplt config set --repo sandbox.allow_localhost_any true
 cplt config set --repo sandbox.allow_jvm_attach true
@@ -66,20 +64,13 @@ git add .cplt.toml && git commit -m "chore: cplt-oppsett for Gradle"
 cplt trust accept --all`}
           </CodeBlock>
           <BodyLong>
-            Innstillingene havner under <code className={code}>[propose]</code> i{" "}
-            <code className={code}>.cplt.toml</code>. cplt bruker bare fila slik den er i siste commit, så den må være
-            committet før <code className={code}>cplt trust accept</code> virker. Hver utvikler godkjenner selv.
-          </BodyLong>
-          <BodyLong>
-            <code className={code}>cplt init</code> finner Gradle-bygget og foreslår{" "}
-            <code className={code}>allow_jvm_attach</code>, og viser at{" "}
-            <code className={code}>~/.gradle/gradle.properties</code> kan trenge lesetilgang. Den foreslår ikke{" "}
-            <code className={code}>allow_localhost_any</code>, så den må du legge til selv. Uten den stopper bygget med{" "}
-            <code className={code}>Could not connect to the Gradle daemon.</code>
-          </BodyLong>
-          <BodyLong>
-            Bruker du Linux, trenger du ikke <code className={code}>allow_jvm_attach</code>. cplt stenger ikke den
-            socketen der.
+            Hvordan <code className={code}>.cplt.toml</code> og godkjenningen virker, står i{" "}
+            <NextLink href="/nav-pilot/guider/cplt-oppsett#forste-gang" className={linkClass}>
+              Sett opp cplt i et repo
+            </NextLink>
+            . <code className={code}>cplt init</code> foreslår <code className={code}>allow_jvm_attach</code> for et
+            Gradle-bygg, men ikke <code className={code}>allow_localhost_any</code>. På Linux trenger du ikke{" "}
+            <code className={code}>allow_jvm_attach</code>, for der stenger ikke cplt socketen.
           </BodyLong>
         </VStack>
       </section>
@@ -140,8 +131,8 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
             Pakker fra GitHub Packages
           </LinkableHeading>
           <BodyLong>
-            Mange navikt-biblioteker ligger i GitHub Packages. Det er to måter å hente dem på, og speilet er det
-            enkleste i sandkassen.
+            Mange navikt-biblioteker ligger i GitHub Packages. Speilet er den enkleste måten å hente dem på i
+            sandkassen.
           </BodyLong>
 
           <LinkableHeading id="speilet" size="small" level="3">
@@ -167,27 +158,22 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
           </LinkableHeading>
           <BodyLong>
             <code className={code}>maven.pkg.github.com</code> krever token. På macOS stenger cplt{" "}
-            <code className={code}>~/.gradle/gradle.properties</code> fordi fila ofte har tokens i seg. På Linux kan
-            agenten lese fila uansett. Finnes fila på macOS, og du ikke har åpnet den, stopper hvert eneste Gradle-bygg
-            i sandkassen med{" "}
+            <code className={code}>~/.gradle/gradle.properties</code> fordi fila ofte har tokens i seg, og finnes fila,
+            stopper hvert Gradle-bygg i sandkassen med{" "}
             <NextLink href={`${FAQ}#gradle-properties`} className={linkClass}>
               Error when loading properties file
             </NextLink>
-            .
-          </BodyLong>
-          <BodyLong>
-            Du har tre valg. Det tryggeste er å flytte det du trenger over til speilet og ta tokenet ut av fila. Ellers
-            kan du gi agenten lesetilgang til fila:
+            . Det tryggeste er å flytte det du trenger over til speilet og ta tokenet ut av fila. Ellers gir du agenten
+            lesetilgang til fila, og dermed alle tokenene i den:
           </BodyLong>
           <CodeBlock compact>{`cplt config set allow.read ~/.gradle/gradle.properties`}</CodeBlock>
           <BodyLong>
             Trenger du også <code className={code}>~/.npmrc</code> og <code className={code}>~/.m2/settings.xml</code>,
-            åpner denne alle tre på én gang:
-          </BodyLong>
-          <CodeBlock compact>{`cplt config set sandbox.allow_build_credentials true --force`}</CodeBlock>
-          <BodyLong>
-            Begge deler gir agenten alle tokenene i filene, ikke bare det prosjektet bruker. Et token med{" "}
-            <code className={code}>read:packages</code> og ingenting mer begrenser skaden hvis det kommer på avveie.
+            se{" "}
+            <NextLink href="/nav-pilot/guider/cplt-oppsett#github-packages" className={linkClass}>
+              Pakker fra GitHub Packages
+            </NextLink>{" "}
+            i oppsettguiden.
           </BodyLong>
           <BodyLong>
             Leser bygget tokenet fra <code className={code}>GITHUB_TOKEN</code>, kommer det an på agenten. Copilot får{" "}
@@ -276,11 +262,13 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             Testcontainers og Docker
           </LinkableHeading>
           <BodyLong>
-            cplt stenger Docker. Den som kan styre Docker, kan starte en container som monterer hele hjemmemappa di, og
-            kommer da forbi alt sandkassen beskytter. Tilgang til Docker er i praksis det samme som root på maskinen.
-            Testcontainers feiler derfor i cplt uten videre.
+            cplt stenger Docker, fordi tilgang til Docker i praksis er root på maskinen (se{" "}
+            <NextLink href="/nav-pilot/guider/cplt-oppsett#docker" className={linkClass}>
+              Docker
+            </NextLink>{" "}
+            i oppsettguiden). Testcontainers feiler derfor i cplt uten videre. Du har tre muligheter, fra tryggest til
+            minst trygg:
           </BodyLong>
-          <BodyLong>Du har tre muligheter, fra tryggest til minst trygg:</BodyLong>
           <Bullets>
             <li>
               <strong>Kjør testene som trenger containere, utenfor cplt.</strong> La agenten kjøre resten.
@@ -326,20 +314,23 @@ cplt exec -- ./gradlew build`}
           </CodeBlock>
           <BodyLong>
             Linjer med <code className={code}>[proxy]</code> og <code className={code}>BLOCKED</code> viser hvilken vert
-            som ble stoppet og hvorfor. Feilmeldingene fra Gradle og JVM står i{" "}
+            som ble stoppet og hvorfor. Blokkeringer av filer og localhost står ikke der, se{" "}
+            <NextLink href="/nav-pilot/guider/feilsoking#kjernen" className={linkClass}>
+              Filer, programmer og localhost
+            </NextLink>
+            . Feilmeldingene fra Gradle og JVM står i{" "}
             <NextLink href={`${FAQ}#jvm`} className={linkClass}>
               Feil i sandkassen
             </NextLink>
-            , blant annet feil når JVM-en starter, og ktlint eller detekt som ikke får kontakt med Gradle. Mer om
-            hvorfor står i{" "}
+            . Mer om hvorfor står i{" "}
             <a href={KNOWN_IMPACTS} className={linkClass}>
               known-impacts.md
             </a>{" "}
             (engelsk).
           </BodyLong>
           <BodyLong>
-            Kommandoene på denne siden er testet med cplt <code className={code}>2026.09.29-113343-7a9ef00</code> på
-            macOS, med et lite Kotlin-prosjekt, Gradle 9.7.0 og 9.8.0 og colima.
+            Kommandoene på denne siden er testet med cplt fra 29. september 2026 på macOS, med et lite Kotlin-prosjekt,
+            Gradle 9.7.0 og 9.8.0 og colima.
           </BodyLong>
         </VStack>
       </section>

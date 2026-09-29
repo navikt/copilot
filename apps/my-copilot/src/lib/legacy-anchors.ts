@@ -103,6 +103,11 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   // Own server got its own introduction.
   "/nav-pilot/guider/lokal#egen-server": "/nav-pilot/lokal/egen-server#start-serveren",
 
+  // The worktree guide assumes an up-to-date cplt: the version check and its
+  // "unknown config key" entry went. The generic entry covers the latter.
+  "/nav-pilot/guider/worktrees#forutsetninger": "/nav-pilot/guider/worktrees#hvorfor",
+  "/nav-pilot/guider/worktrees#unknown-config-key": "/nav-pilot/guider/cplt-feilmeldinger#unknown-config-key",
+
   // /cplt was Norwegian for a while (#1144) and is English again: it is the
   // landing page for the cplt open-source project.
   "/cplt#apen-kildekode": "/cplt#open-source",

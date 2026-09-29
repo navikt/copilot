@@ -59,6 +59,7 @@ export default function Synkronisere() {
   return (
     <DocPage
       label="Guider"
+      upgrade
       title="Synkronisere"
       description="Agentpakka i navikt/copilot endres jevnlig. Hold repoet ditt oppdatert med en ukentlig pull request eller med nav-pilot sync."
       toc={TOC}

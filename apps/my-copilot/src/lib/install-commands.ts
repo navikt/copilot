@@ -41,6 +41,24 @@ export const CPLT_APT_INSTALL = aptInstall(
 
 export type InstallOs = "mac" | "linux" | "windows";
 
+// Upgrade nav-pilot, cplt and the clients, by how they were installed. brew and
+// apt own their binaries, so nav-pilot upgrade and cplt update only print the
+// package manager's command there; the self-updaters are for script installs.
+// Copilot CLI and opencode update themselves whichever way nav-pilot installed them.
+const CLIENT_UPGRADE = `copilot update    # Copilot CLI
+opencode upgrade  # hvis du bruker opencode`;
+export type UpgradeMethod = "brew" | "apt" | "script";
+export const UPGRADE_COMMANDS: Record<UpgradeMethod, string> = {
+  brew: `brew update
+brew upgrade navikt/tap/nav-pilot navikt/tap/cplt
+${CLIENT_UPGRADE}`,
+  apt: `sudo apt update && sudo apt upgrade nav-pilot cplt
+${CLIENT_UPGRADE}`,
+  script: `nav-pilot upgrade
+cplt update
+${CLIENT_UPGRADE}`,
+};
+
 // One command per OS, the one the /nav-pilot hero shows; windows means WSL.
 // The Kom i gang wizard reads the same map, so the two can't disagree (#1187).
 export const NAV_PILOT_INSTALL: Record<InstallOs, string> = {
