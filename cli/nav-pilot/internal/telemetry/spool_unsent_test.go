@@ -181,3 +181,28 @@ func TestRefusedResendGoesToSpool(t *testing.T) {
 		t.Errorf("spool = %q, want the refused resend", b)
 	}
 }
+
+// A 2xx whose body stalls is still taken: the export succeeds, so its counts
+// are not folded into the next one.
+func TestStalledAnswerBodyIsTaken(t *testing.T) {
+	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.ReadAll(r.Body)
+		w.Header().Set("Content-Length", "10")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		<-r.Context().Done()
+	}))
+	defer collector.Close()
+	client := &http.Client{Transport: newSpoolTransport(http.DefaultTransport, t.TempDir())}
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, collector.URL, bytes.NewReader([]byte("x")))
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.ReadAll(resp.Body); err != nil {
+		t.Errorf("reading the answer failed (%v): the export would fail and fold", err)
+	}
+	resp.Body.Close()
+}

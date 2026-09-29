@@ -148,7 +148,6 @@ func (s *spoolTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		if err != nil {
 			return nil, err
 		}
-		io.Copy(io.Discard, resp.Body) // so the connection is reused
 		resp.Body.Close()
 		if resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests {
 			return nil, fmt.Errorf("resending an unanswered export: %s", resp.Status)
@@ -191,13 +190,22 @@ func (s *spoolTransport) send(req *http.Request) (resp *http.Response, sent bool
 	ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
 		WroteRequest: func(i httptrace.WroteRequestInfo) { wrote.Store(i.Err == nil) },
 	})
+	defer stop()
+	defer cancel()
 	resp, err = s.next.RoundTrip(req.WithContext(ctx))
 	if err != nil {
-		stop()
-		cancel()
 		return nil, wrote.Load(), err
 	}
-	resp.Body = &closeFunc{resp.Body, func() { stop(); cancel() }}
+	// The answer is read here, within the same deadline: a body that stalls
+	// after a 2xx would otherwise fail the export in the exporter, and fold
+	// counts the collector took into the next export. A 2xx is taken, body
+	// or not; any other answer that breaks off counts as no answer.
+	b, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil && resp.StatusCode/100 != 2 {
+		return nil, true, err
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(b))
 	return resp, true, nil
 }
 
@@ -254,16 +262,6 @@ func accepted(req *http.Request) *http.Response {
 		Proto: "HTTP/1.1", ProtoMajor: 1, ProtoMinor: 1,
 		Header: http.Header{}, Body: http.NoBody, Request: req,
 	}
-}
-
-type closeFunc struct {
-	io.ReadCloser
-	done func()
-}
-
-func (c *closeFunc) Close() error {
-	c.done()
-	return c.ReadCloser.Close()
 }
 
 // SendSpool is `nav-pilot __telemetry-send`: it sends the spool once, within
