@@ -49,6 +49,8 @@ func makeRouter(auth *authenticator, api, surveys *upstream) http.Handler {
 		api.forward(w, r, usagePath(user.Login))
 	}))
 
+	mux.HandleFunc("POST /api/v1/auth/revoke", revokeHandler(auth))
+
 	for _, path := range []string{"/api/v1/surveys/active", "/api/v1/surveys/schema"} {
 		mux.HandleFunc("GET "+path, func(w http.ResponseWriter, r *http.Request) { surveys.forward(w, r, path) })
 	}

@@ -37,12 +37,61 @@ type authenticator struct {
 	github *GitHubClient
 	org    string
 	cache  *tokenCache
-	// limit caps GitHub token checks on a cache miss below the app's GitHub
-	// quota (5,000/h), so a flood of random tokens costs a 429 and not the
-	// quota. Global, not per client: behind naisdevice many users share a
-	// source address. A flood can make sign-in slow for others, never let
-	// anyone in.
+	// limit is the global ceiling on GitHub token checks on a cache miss,
+	// below the app's GitHub quota (5,000/h), so a flood of random tokens
+	// costs a 429 and not the quota. Not per source address: behind
+	// naisdevice many users share one. A flood can make sign-in slow for
+	// others, never let anyone in.
 	limit *rate.Limiter
+
+	// perToken gives each token its own small bucket in front of limit, so
+	// one client retrying or firing requests in parallel with the same token
+	// cannot drain the global bucket for everyone. A token gets an entry only
+	// once limit admitted it, so random tokens cannot grow the map faster
+	// than the global rate.
+	mu       sync.Mutex
+	perToken map[string]*tokenBucket
+}
+
+type tokenBucket struct {
+	lim  *rate.Limiter
+	seen time.Time
+}
+
+const (
+	perTokenEvery = 10 * time.Second
+	perTokenBurst = 3
+	// perTokenIdle is well past a full refill (burst × every), so dropping
+	// an idle bucket loses nothing.
+	perTokenIdle = time.Minute
+)
+
+// allow spends one GitHub check for the token hashed to key: first from its
+// own bucket, then from the global one.
+func (a *authenticator) allow(key string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	now := time.Now()
+	b, ok := a.perToken[key]
+	if ok {
+		b.seen = now
+		return b.lim.AllowN(now, 1) && a.limit.AllowN(now, 1)
+	}
+	if !a.limit.AllowN(now, 1) {
+		return false
+	}
+	if a.perToken == nil {
+		a.perToken = make(map[string]*tokenBucket)
+	}
+	for k, old := range a.perToken {
+		if now.Sub(old.seen) > perTokenIdle {
+			delete(a.perToken, k)
+		}
+	}
+	b = &tokenBucket{lim: rate.NewLimiter(rate.Every(perTokenEvery), perTokenBurst), seen: now}
+	b.lim.AllowN(now, 1)
+	a.perToken[key] = b
+	return true
 }
 
 func (a *authenticator) resolve(ctx context.Context, token string) (*AuthenticatedUser, error) {
@@ -52,7 +101,7 @@ func (a *authenticator) resolve(ctx context.Context, token string) (*Authenticat
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	if !a.limit.Allow() {
+	if !a.allow(hashToken(token)) {
 		return nil, errRateLimited
 	}
 	user, err := a.github.resolveUser(ctx, token)
@@ -126,7 +175,22 @@ func (c *tokenCache) set(token string, user *AuthenticatedUser, err error) {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.entries[hashToken(token)] = cacheEntry{user: user, err: err, expiresAt: expires}
+	key := hashToken(token)
+	// A token GitHub called invalid never turns valid again, so a success
+	// from a check that started earlier must not replace the refusal (say,
+	// one that raced a revoke).
+	if old, ok := c.entries[key]; ok && err == nil && errors.Is(old.err, errInvalidToken) && time.Now().Before(old.expiresAt) {
+		return
+	}
+	c.entries[key] = cacheEntry{user: user, err: err, expiresAt: expires}
+}
+
+// revoked refuses token from the cache for as long as a success could have
+// been cached, so a revoked token stops working here at once.
+func (c *tokenCache) revoked(token string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries[hashToken(token)] = cacheEntry{err: errInvalidToken, expiresAt: time.Now().Add(c.ttl)}
 }
 
 // hashToken derives a cache key from a token without retaining the token.
@@ -169,6 +233,41 @@ func authMiddleware(a *authenticator, next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		next(w, r.WithContext(context.WithValue(r.Context(), requestUserContextKey, user)))
+	}
+}
+
+// revokeHandler revokes the caller's own token (nav-pilot auth logout). It
+// takes no body: the token revoked is the bearer token presented, so a caller
+// can only revoke a token it holds. No org check, so someone who has left the
+// organisation can still sign out.
+func revokeHandler(a *authenticator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token, err := bearerToken(r)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, err.Error())
+			return
+		}
+		if !a.allow(hashToken(token)) {
+			w.Header().Set("Retry-After", "5")
+			writeError(w, http.StatusTooManyRequests, errRateLimited.Error())
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		err = a.github.revoke(ctx, token)
+		switch {
+		case err == nil:
+			a.cache.revoked(token)
+			w.WriteHeader(http.StatusNoContent)
+		case errors.Is(err, errInvalidToken):
+			a.cache.revoked(token)
+			writeError(w, http.StatusUnauthorized, err.Error())
+		case errors.Is(err, errIssuerOffline):
+			writeError(w, http.StatusServiceUnavailable, err.Error())
+		default:
+			slog.Warn("token revoke failed upstream", "error", err)
+			writeError(w, http.StatusBadGateway, "could not revoke token")
+		}
 	}
 }
 
