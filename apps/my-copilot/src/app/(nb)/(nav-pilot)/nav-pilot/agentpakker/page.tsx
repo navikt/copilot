@@ -175,8 +175,15 @@ const PROPOSE = `{
   "policies": {
     "propose": {
       "cplt": {
-        "reason": "The nais-observability skill queries Mimir, Loki and Tempo at *.cloud.nais.io, which resolve to private IP addresses over naisdevice and are blocked without this waiver. The preToolUse gate reads naisdevice's agent-status.json to tell whether you are connected.",
-        "proxy": { "allow_private_domains": ["cloud.nais.io"] },
+        "reason": "The nais-observability skill queries Mimir, Loki and Tempo. These hosts resolve to private IP addresses over naisdevice and are blocked without this waiver. The preToolUse gate reads naisdevice's agent-status.json to tell whether you are connected.",
+        "proxy": {
+          "allow_private_domains": [
+            "mimir.nav.cloud.nais.io",
+            "loki.nav.cloud.nais.io",
+            "tempo.dev-gcp.nav.cloud.nais.io",
+            "tempo.prod-gcp.nav.cloud.nais.io"
+          ]
+        },
         "allow": {
           "read": [
             "~/Library/Application Support/naisdevice/agent-status.json",
@@ -189,7 +196,10 @@ const PROPOSE = `{
   "minNavPilotVersion": "2026.09.14-131410"
 }`;
 
-const AVSLAG = `cplt config set proxy.allow_private_domains cloud.nais.io
+const AVSLAG = `cplt config set proxy.allow_private_domains mimir.nav.cloud.nais.io
+cplt config set proxy.allow_private_domains loki.nav.cloud.nais.io
+cplt config set proxy.allow_private_domains tempo.dev-gcp.nav.cloud.nais.io
+cplt config set proxy.allow_private_domains tempo.prod-gcp.nav.cloud.nais.io
 cplt config set allow.read "~/Library/Application Support/naisdevice/agent-status.json"`;
 
 const VALIDER_CMD = `nav-pilot validate --source "$PWD"`;
@@ -661,12 +671,14 @@ export default function Agentpakker() {
                     <BodyLong textColor="subtle">
                       Trenger en skill noe av sandkassa cplt setter rundt klienten, sier pakka det i{" "}
                       <code className="font-mono text-xs">policies.propose</code>, i stedet for å la brukeren møte
-                      feilen midt i arbeidet. Nais-pakka spør Mimir, Loki og Tempo på{" "}
-                      <code className="font-mono text-xs">*.cloud.nais.io</code>. Navnene slår opp til private adresser
-                      over naisdevice, og cplt avviser dem (
+                      feilen midt i arbeidet. Nais-pakka spør Mimir, Loki og Tempo under{" "}
+                      <code className="font-mono text-xs">nav.cloud.nais.io</code>. Navnene slår opp til private
+                      adresser over naisdevice, og cplt avviser dem (
                       <code className="font-mono text-xs">403 Private target blocked by cplt</code>) til brukeren har
-                      gitt et unntak. Et forslag konfigurerer ingenting av seg selv: det blir et launch-flagg først når
-                      brukeren har sagt ja.
+                      gitt et unntak. Pakka navngir hver host. Et suffiks som{" "}
+                      <code className="font-mono text-xs">cloud.nais.io</code> ville gitt unntak for alle hoster under
+                      alle organisasjoner på Nais, også dem skillen aldri spør. Et forslag konfigurerer ingenting av seg
+                      selv: det blir et launch-flagg først når brukeren har sagt ja.
                     </BodyLong>
                     <CodeBlock filename=".nav-pilot/agentpakke.json">{PROPOSE}</CodeBlock>
                     <BodyLong textColor="subtle">

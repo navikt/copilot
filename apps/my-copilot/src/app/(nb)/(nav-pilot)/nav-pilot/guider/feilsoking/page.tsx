@@ -15,6 +15,7 @@ const TOC: TocItem[] = [
   { id: "doctor", label: "Sjekk maskinen" },
   { id: "cplt-feil", label: "Feil fra cplt" },
   { id: "blokkeringer", label: "Se hva cplt blokkerer" },
+  { id: "kjernen", label: "Filer, programmer og localhost" },
   { id: "lokal", label: "Når den lokale modellen henger" },
 ];
 
@@ -65,7 +66,11 @@ nav-pilot alpha local doctor  # bare egen server (local_endpoint)`}
             <NextLink href="/nav-pilot/guider/cplt-feilmeldinger" className={linkClass}>
               Feil i sandkassen
             </NextLink>
-            . Der står årsaken og kommandoen som løser det.
+            . Der står årsaken og kommandoen som løser det. Setter du opp et nytt repo, se{" "}
+            <NextLink href="/nav-pilot/guider/cplt-oppsett" className={linkClass}>
+              Sett opp cplt i et repo
+            </NextLink>
+            .
           </BodyLong>
         </VStack>
       </section>
@@ -75,6 +80,14 @@ nav-pilot alpha local doctor  # bare egen server (local_endpoint)`}
           <LinkableHeading id="blokkeringer" size="medium" level="2">
             Se hva cplt blokkerer
           </LinkableHeading>
+          <BodyLong>
+            cplt stopper ting på to steder. Proxyen stopper nettverkskall til hoster på internett. Kjernen stopper
+            filer, programmer og localhost. Proxyloggen under viser bare det første. For det andre, se{" "}
+            <a href="#kjernen" className={linkClass}>
+              Filer, programmer og localhost
+            </a>
+            .
+          </BodyLong>
           <BodyLong>
             <code className={code}>proxy.log_level</code> bestemmer hva proxyen i cplt skriver til stderr. Standard er{" "}
             <code className={code}>none</code>, men cplt hever den selv til <code className={code}>blocked</code> når en
@@ -100,6 +113,49 @@ nav-pilot alpha local doctor  # bare egen server (local_endpoint)`}
               referansen
             </NextLink>
             .
+          </BodyLong>
+          <LinkableHeading id="kjernen" size="small" level="3">
+            Filer, programmer og localhost
+          </LinkableHeading>
+          <BodyLong>
+            Stopper kjernen noe, ser du det bare i verktøyet som feilet:{" "}
+            <code className={code}>Operation not permitted</code>, <code className={code}>EPERM</code> eller{" "}
+            <code className={code}>connect EPERM 127.0.0.1:…</code>. Proxyloggen er tom. Spør cplt om det som feilet.
+            Svarene sier om noe er tillatt eller stoppet, hvorfor, og hva som åpner det:
+          </BodyLong>
+          <CodeBlock compact>
+            {`cplt check path ~/.gradle/gradle.properties   # får agenten lese fila?
+cplt check path --write ~/.cache/verktøy       # får agenten skrive der?
+cplt check net repo.adeo.no                    # slipper proxyen gjennom hosten?
+cplt check exec docker                         # får agenten kjøre programmet?`}
+          </CodeBlock>
+          <BodyLong>
+            <code className={code}>cplt check exec</code> sjekker om programmet får starte, ikke hvilke filer det leser
+            etterpå. For localhost gjelder <code className={code}>allow.localhost</code>, ikke{" "}
+            <code className={code}>--allow-port</code>, selv om <code className={code}>cplt check net</code> foreslår
+            det. Se{" "}
+            <NextLink href="/nav-pilot/guider/cplt-oppsett#stakker" className={linkClass}>
+              Det stakken din trenger
+            </NextLink>
+            .
+          </BodyLong>
+          <BodyLong>
+            På macOS kan du se alt kjernen stopper mens agenten jobber. Starter du cplt selv, bruk{" "}
+            <code className={code}>--show-denials</code>. Linjene kommer i samme terminal som agenten:
+          </BodyLong>
+          <CodeBlock compact>{`cplt --show-denials`}</CodeBlock>
+          <BodyLong>
+            Starter du agenten med nav-pilot, kjør det samme filteret i en annen terminal mens agenten jobber:
+          </BodyLong>
+          <CodeBlock compact>
+            {`log stream --style compact --info \
+  --predicate 'eventMessage CONTAINS "Sandbox" AND eventMessage CONTAINS "deny"'`}
+          </CodeBlock>
+          <BodyLong>
+            En linje ser slik ut:{" "}
+            <code className={code}>Sandbox: cat(85111) deny(1) file-read-data /Users/deg/.npmrc</code>. Loggen tar med
+            andre programmer på maskinen også, så se etter navnet på programmet som feilet. På Linux finnes ikke denne
+            loggen, fordi Landlock ikke logger det den stopper.
           </BodyLong>
         </VStack>
       </section>

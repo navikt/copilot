@@ -79,6 +79,13 @@ export default function Sandkassen() {
             .
           </BodyLong>
           <BodyLong>
+            Trenger repoet mer enn standard, for eksempel localhost til Gradle eller en database, se{" "}
+            <NextLink href="/nav-pilot/guider/cplt-oppsett" className={linkClass}>
+              Sett opp cplt i et repo
+            </NextLink>
+            .
+          </BodyLong>
+          <BodyLong>
             Får du en feilmelding fra sandkassen, slå den opp i{" "}
             <NextLink href="/nav-pilot/guider/cplt-feilmeldinger" className={linkClass}>
               Feil i sandkassen
