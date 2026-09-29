@@ -1,75 +1,24 @@
 #!/usr/bin/env bash
-# Run checks for all apps. Tracks failures per section so one broken app
-# doesn't block the rest.
-failed=()
+# Run checks for all apps side by side. Tracks failures per section so one
+# broken app doesn't block the rest.
+# shellcheck source=hack/parallel.sh
+source "$(dirname "$0")/parallel.sh"
 
 for app in $APPS; do
-  echo "📦 $app:"
-  if (cd "apps/$app" && mise run check); then
-    echo ""
-  else
-    failed+=("$app")
-    echo ""
-  fi
+  section "$app" mise -C "apps/$app" run check
 done
+section retired mise run retired:check
+section docs mise run docs:check
+section skills mise run skills:lint -- -q
+section hooks mise run hooks:test
+section pricing mise run pricing:test ::: pricing:check
+section models mise run models:test ::: models:check
+section nav-pilot mise run nav-pilot:check
+wait_sections
 
-echo "🗑  retired:"
-if mise run retired:check; then
-  echo ""
-else
-  failed+=("retired")
-  echo ""
-fi
-
-echo "📄 docs:"
-if mise run docs:check; then
-  echo ""
-else
-  failed+=("docs")
-  echo ""
-fi
-
-echo "🔧 skills:"
-if mise run skills:lint -- -q; then
-  echo ""
-else
-  failed+=("skills")
-  echo ""
-fi
-
-
-
-echo "🪝 hooks:"
-if mise run hooks:test; then
-  echo ""
-else
-  failed+=("hooks")
-  echo ""
-fi
-
-echo "💰 pricing:"
-if mise run pricing:test && mise run pricing:check; then
-  echo ""
-else
-  failed+=("pricing")
-  echo ""
-fi
-
-echo "🧭 models:"
-if mise run models:test && mise run models:check; then
-  echo ""
-else
-  failed+=("models")
-  echo ""
-fi
-
-echo "🧭 nav-pilot:"
-if mise run nav-pilot:check; then
-  echo ""
-else
-  failed+=("nav-pilot")
-  echo ""
-fi
+# A timing test: it runs alone, after everything else has finished, as in CI.
+section nav-pilot-budget mise run nav-pilot:budget
+wait_sections
 
 if [[ ${#failed[@]} -gt 0 ]]; then
   echo "❌ Checks failed for: ${failed[*]}"
