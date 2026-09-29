@@ -260,7 +260,7 @@ func usageHTTPError(status int, body []byte) error {
 	case http.StatusUnauthorized:
 		return fmt.Errorf("ugyldig eller utløpt GitHub-token — kjør 'nav-pilot auth login' for å logge inn på nytt")
 	case http.StatusForbidden:
-		return fmt.Errorf("tilgang nektet — GitHub-brukeren din er sannsynligvis ikke medlem av navikt-organisasjonen")
+		return fmt.Errorf("tilgang nektet: GitHub-brukeren din er trolig ikke medlem av navikt-organisasjonen")
 	case http.StatusNotFound:
 		return fmt.Errorf("ingen bruksdata er registrert ennå — dette er normalt første gang du bruker Copilot, prøv igjen senere")
 	default:
