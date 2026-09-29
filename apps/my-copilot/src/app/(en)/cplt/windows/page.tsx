@@ -77,7 +77,7 @@ export default function CpltWindowsPage() {
           <Box
             paddingBlock={{ xs: "space-24", md: "space-40" }}
             paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
-            className="max-w-3xl mx-auto"
+            className="max-w-3xl mx-auto [&_code]:[overflow-wrap:anywhere]"
           >
             <VStack gap={{ xs: "space-24", md: "space-32" }}>
               <VStack gap="space-12">
