@@ -1160,6 +1160,10 @@ func Main(info BuildInfo) {
 		runHookCommand(os.Args[2:], os.Stdin, os.Stdout)
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == telemetrySendCommand {
+		telemetrypkg.SendSpool()
+		return
+	}
 	applyE2ESeams(&info)
 	Version = info.Version
 	buildInfo = info

@@ -9,13 +9,25 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
+	"syscall"
 	"time"
+
+	colmetricpb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
+	metricpb "go.opentelemetry.io/proto/otlp/metrics/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 // No command waits for telemetry. At exit the last export is written to a
-// file in ~/.nav-pilot/telemetry-spool instead of sent, and the next nav-pilot
-// sends it from a goroutine that exit does not wait for. A file that is not
-// sent in time stays for the run after that.
+// file in ~/.nav-pilot/telemetry-spool instead of sent. A detached child,
+// `nav-pilot __telemetry-send`, sends it right after exit (cli's
+// spawnTelemetrySender), and the next nav-pilot sends whatever is left from a
+// goroutine that exit does not wait for. A file that is not sent in time
+// stays for the run after that.
+//
+// A file is sent with its points re-stamped to the time of sending: Mimir
+// drops samples older than its out-of-order window (30-60 min), so a file
+// sent the next morning with its own timestamps would be lost.
 //
 // Every instrument is cumulative (temporalityFor), so the last export of a
 // process holds all it recorded: one file per process, overwritten, is
@@ -26,6 +38,10 @@ const (
 	spoolMaxAge   = 7 * 24 * time.Hour
 	spoolMaxFiles = 50
 	spoolMaxBytes = 1 << 20 // one export is a few kB
+
+	// spoolSendTimeout bounds one sender, the child or the next run's
+	// goroutine, waiting for the lock included.
+	spoolSendTimeout = 15 * time.Second
 )
 
 // spoolDir is where exports wait to be sent; "" when there is no home.
@@ -44,6 +60,11 @@ type spoolTransport struct {
 	file    string
 	exiting context.Context
 	exit    context.CancelFunc
+	wrote   atomic.Bool // an export went to the spool
+	// ready, when set, holds live sends back until the spool an earlier run
+	// left has been sent: those points are re-stamped to now, and a series
+	// cannot take a point older than the one it already has.
+	ready <-chan struct{}
 }
 
 func newSpoolTransport(next http.RoundTripper, dir string) *spoolTransport {
@@ -63,6 +84,15 @@ func (s *spoolTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			s.write(body)
 		}
 		return accepted(req), nil
+	}
+	if s.ready != nil {
+		select {
+		case <-s.ready:
+		case <-s.exiting.Done():
+			return s.RoundTrip(req) // exit came first: to the spool
+		case <-req.Context().Done():
+			return nil, req.Context().Err()
+		}
 	}
 	ctx, cancel := context.WithCancel(req.Context())
 	stop := context.AfterFunc(s.exiting, cancel)
@@ -97,7 +127,9 @@ func (s *spoolTransport) write(body []byte) {
 	_, werr := tmp.Write(body)
 	if cerr := tmp.Close(); werr != nil || cerr != nil || os.Rename(tmp.Name(), s.file) != nil {
 		os.Remove(tmp.Name())
+		return
 	}
+	s.wrote.Store(true)
 }
 
 func accepted(req *http.Request) *http.Response {
@@ -118,11 +150,48 @@ func (c *closeFunc) Close() error {
 	return c.ReadCloser.Close()
 }
 
+// SendSpool is `nav-pilot __telemetry-send`: it sends the spool once, within
+// spoolSendTimeout, and returns. What it cannot send stays for the next run.
+func SendSpool() {
+	if !TelemetryEnabled() {
+		return
+	}
+	if dir := spoolDir(); dir != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), spoolSendTimeout)
+		defer cancel()
+		sendSpoolLocked(ctx, dir, telemetryEndpoint(), &http.Client{Transport: &http.Transport{Proxy: http.ProxyFromEnvironment}})
+	}
+}
+
+// sendSpoolLocked is sendSpool under the spool's lock, so the child and the
+// next run do not send the same files at once. It waits for a sender that
+// holds the lock, within ctx, and then reads the directory afresh: a file
+// written while the other one sent is not missed.
+//
+// The lock is flock(2) on .send.lock, held by the kernel for the open file:
+// a sender that exits or is killed mid-send releases it, so there is no
+// stale lock to detect and no takeover to race.
+func sendSpoolLocked(ctx context.Context, dir, endpoint string, client *http.Client) {
+	f, err := os.OpenFile(filepath.Join(dir, ".send.lock"), os.O_CREATE|os.O_RDONLY, 0o600)
+	if err != nil {
+		return // no spool directory: nothing to send
+	}
+	defer f.Close()
+	for syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB) != nil {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+	sendSpool(ctx, dir, endpoint, client)
+}
+
 // sendSpool sends what earlier runs left in dir, oldest first, and removes
 // each file the collector took. It stops at the first network error: the
 // rest waits for the next run. Files past spoolMaxAge, and the oldest beyond
 // spoolMaxFiles, are removed unsent.
-func sendSpool(dir, endpoint string, client *http.Client) {
+func sendSpool(ctx context.Context, dir, endpoint string, client *http.Client) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return
@@ -154,7 +223,8 @@ func sendSpool(dir, endpoint string, client *http.Client) {
 		if err != nil {
 			continue
 		}
-		req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
+		body = restamp(body, uint64(time.Now().UnixNano()))
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 		if err != nil {
 			return
 		}
@@ -171,4 +241,47 @@ func sendSpool(dir, endpoint string, client *http.Client) {
 			os.Remove(p)
 		}
 	}
+}
+
+// restamp sets every point in an OTLP metrics export to now. The start times
+// stay, so a cumulative series still reads from where its process began. A
+// body that does not parse is sent as it is.
+func restamp(body []byte, now uint64) []byte {
+	var req colmetricpb.ExportMetricsServiceRequest
+	if proto.Unmarshal(body, &req) != nil {
+		return body
+	}
+	for _, rm := range req.ResourceMetrics {
+		for _, sm := range rm.ScopeMetrics {
+			for _, m := range sm.Metrics {
+				switch d := m.Data.(type) {
+				case *metricpb.Metric_Sum:
+					for _, p := range d.Sum.DataPoints {
+						p.TimeUnixNano = now
+					}
+				case *metricpb.Metric_Gauge:
+					for _, p := range d.Gauge.DataPoints {
+						p.TimeUnixNano = now
+					}
+				case *metricpb.Metric_Histogram:
+					for _, p := range d.Histogram.DataPoints {
+						p.TimeUnixNano = now
+					}
+				case *metricpb.Metric_ExponentialHistogram:
+					for _, p := range d.ExponentialHistogram.DataPoints {
+						p.TimeUnixNano = now
+					}
+				case *metricpb.Metric_Summary:
+					for _, p := range d.Summary.DataPoints {
+						p.TimeUnixNano = now
+					}
+				}
+			}
+		}
+	}
+	out, err := proto.Marshal(&req)
+	if err != nil {
+		return body
+	}
+	return out
 }

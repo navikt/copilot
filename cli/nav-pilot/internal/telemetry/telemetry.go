@@ -127,6 +127,18 @@ type otelTelemetry struct {
 	projectType      string
 }
 
+// telemetryEndpoint is where exports go.
+func telemetryEndpoint() string {
+	endpoint := strings.TrimSpace(os.Getenv("NAV_PILOT_TELEMETRY_ENDPOINT"))
+	if endpoint == "" {
+		endpoint = strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
+	}
+	if endpoint == "" {
+		endpoint = defaultTelemetryEndpoint
+	}
+	return endpoint
+}
+
 func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) (Recorder, error) {
 	configureOTelDiagnostics()
 
@@ -151,20 +163,23 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	execCtx := normalizeTelemetryDimension(executionContext, "unknown")
 	projType := normalizeTelemetryDimension(detectProjectType(), "na")
 
-	endpoint := strings.TrimSpace(os.Getenv("NAV_PILOT_TELEMETRY_ENDPOINT"))
-	if endpoint == "" {
-		endpoint = strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
-	}
-	if endpoint == "" {
-		endpoint = defaultTelemetryEndpoint
-	}
+	endpoint := telemetryEndpoint()
 
 	dir := spoolDir()
 	spool := newSpoolTransport(&http.Transport{Proxy: http.ProxyFromEnvironment}, dir)
 	client := &http.Client{Transport: spool, Timeout: 10 * time.Second}
-	if dir != "" {
-		go sendSpool(dir, endpoint, &http.Client{Transport: spool.next, Timeout: 10 * time.Second})
-	}
+	// What the child of an earlier run did not send. Sent before any export
+	// of this run's own (spoolTransport.ready).
+	spoolSent := make(chan struct{})
+	spool.ready = spoolSent
+	go func() {
+		defer close(spoolSent)
+		if dir != "" {
+			ctx, cancel := context.WithTimeout(context.Background(), spoolSendTimeout)
+			defer cancel()
+			sendSpoolLocked(ctx, dir, endpoint, &http.Client{Transport: spool.next, Timeout: 10 * time.Second})
+		}
+	}()
 
 	opts := []otlpmetrichttp.Option{
 		otlpmetrichttp.WithTemporalitySelector(temporalityFor),
@@ -656,6 +671,11 @@ func (t *otelTelemetry) Shutdown(ctx context.Context) error {
 		t.spool.exit()
 	}
 	return t.provider.Shutdown(ctx)
+}
+
+// Spooled reports whether Shutdown left an export in the spool to send.
+func (t *otelTelemetry) Spooled() bool {
+	return t.spool != nil && t.spool.wrote.Load()
 }
 
 // ForceFlush exports what is recorded so far. A launch calls it as the

@@ -2,13 +2,19 @@ package telemetry
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
+
+	colmetricpb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
+	metricpb "go.opentelemetry.io/proto/otlp/metrics/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 // At exit the export goes to the spool without the network, even with one
@@ -64,7 +70,7 @@ func TestSpoolRoundTrip(t *testing.T) {
 		got = append(got, string(b))
 	}))
 	defer collector.Close()
-	sendSpool(dir, collector.URL, collector.Client())
+	sendSpool(t.Context(), dir, collector.URL, collector.Client())
 	if len(got) != 1 || got[0] != "last" {
 		t.Errorf("sent %q, want only the export at exit", got)
 	}
@@ -85,5 +91,64 @@ func TestSpoolRemovedWhenOff(t *testing.T) {
 	}
 	if _, err := os.Stat(d); !os.IsNotExist(err) {
 		t.Errorf("spool still there with DO_NOT_TRACK: %v", err)
+	}
+}
+
+// A spooled export is sent with its points at the time of sending, or Mimir
+// drops it as out of order; a sender that holds the lock keeps others off
+// until the lock is stale.
+func TestSpoolRestampAndLock(t *testing.T) {
+	dir := t.TempDir()
+	hourAgo := uint64(time.Now().Add(-time.Hour).UnixNano())
+	body, err := proto.Marshal(&colmetricpb.ExportMetricsServiceRequest{ResourceMetrics: []*metricpb.ResourceMetrics{{
+		ScopeMetrics: []*metricpb.ScopeMetrics{{Metrics: []*metricpb.Metric{{
+			Name: "c",
+			Data: &metricpb.Metric_Sum{Sum: &metricpb.Sum{DataPoints: []*metricpb.NumberDataPoint{{
+				StartTimeUnixNano: hourAgo, TimeUnixNano: hourAgo, Value: &metricpb.NumberDataPoint_AsInt{AsInt: 3},
+			}}}},
+		}}}},
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(dir, "1-1.pb"), body, 0o600)
+
+	var got [][]byte
+	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		got = append(got, b)
+	}))
+	defer collector.Close()
+
+	held, err := os.OpenFile(filepath.Join(dir, ".send.lock"), os.O_CREATE|os.O_RDONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Flock(int(held.Fd()), syscall.LOCK_EX); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
+	sendSpoolLocked(ctx, dir, collector.URL, collector.Client())
+	cancel()
+	if len(got) != 0 {
+		t.Fatalf("sent while another sender held the lock")
+	}
+	// The holder exits (its descriptor closes): the waiting sender goes on.
+	time.AfterFunc(200*time.Millisecond, func() { held.Close() })
+	before := uint64(time.Now().UnixNano())
+	sendSpoolLocked(t.Context(), dir, collector.URL, collector.Client())
+	if len(got) != 1 {
+		t.Fatalf("sent %d, want 1 once the lock was released", len(got))
+	}
+	var req colmetricpb.ExportMetricsServiceRequest
+	if err := proto.Unmarshal(got[0], &req); err != nil {
+		t.Fatal(err)
+	}
+	p := req.ResourceMetrics[0].ScopeMetrics[0].Metrics[0].GetSum().DataPoints[0]
+	if p.TimeUnixNano < before || p.StartTimeUnixNano != hourAgo || p.GetAsInt() != 3 {
+		t.Errorf("point = %v, want time re-stamped to now and the rest kept", p)
+	}
+	if left, _ := filepath.Glob(filepath.Join(dir, "*.pb")); len(left) != 0 {
+		t.Errorf("spool left behind: %v", left)
 	}
 }

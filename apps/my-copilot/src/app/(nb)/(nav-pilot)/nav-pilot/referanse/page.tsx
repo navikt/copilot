@@ -365,9 +365,9 @@ export default function Referanse() {
               nyheter hentes mens økten kjører. Nyhetslinja etter en økt kommer høyst én gang i døgnet.
             </li>
             <li>
-              <code className={code}>telemetry-spool/</code>: telemetrien skrives hit når en kommando avslutter, og
-              neste nav-pilot sender den i bakgrunnen. Den slettes når den er sendt, etter sju dager, eller når du slår
-              av telemetrien.
+              <code className={code}>telemetry-spool/</code>: telemetrien skrives hit når en kommando avslutter. En egen
+              prosess sender den rett etterpå, og det den ikke rekker, sender neste nav-pilot. Den slettes når den er
+              sendt, etter sju dager, eller når du slår av telemetrien.
             </li>
           </Bullets>
           <BodyLong>

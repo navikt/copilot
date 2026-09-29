@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"net"
+	"os"
 	"os/exec"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -17,11 +19,56 @@ func telemetryMode() string {
 	return "non_interactive"
 }
 
+// telemetrySendCommand is the hidden command the detached sender runs.
+const telemetrySendCommand = "__telemetry-send"
+
 // flushTelemetry ends telemetry. It writes the last export to a spool file
-// and never waits for the network: the next nav-pilot sends the file in the
-// background (see telemetry/spool.go).
+// and never waits for the network: a detached child sends the file right
+// after exit, and the next nav-pilot sends whatever the child did not (see
+// telemetry/spool.go).
 func flushTelemetry(t telemetryRecorder) {
 	_ = t.Shutdown(context.Background())
+	if s, ok := t.(interface{ Spooled() bool }); ok && s.Spooled() && telemetrySenderAllowed() {
+		spawnTelemetrySender()
+	}
+}
+
+// telemetrySenderAllowed reports whether exit may start the detached sender.
+// Where it may not, the spool waits for the next run.
+//   - Inside cplt's sandbox: cplt's audit flags a process that escapes the
+//     session with setsid. Other agent sandboxes are not detected; there the
+//     child at worst fails to reach the network and the file waits.
+//   - In the e2e build, unless a test asks for it: the budget test and the
+//     journeys would leave senders running into their temp homes.
+//   - Opted out: nothing was spooled then anyway (flushTelemetry checks), so
+//     this is the belt to that.
+//
+// Native Windows is not here because nav-pilot is not built for it (the
+// setsid below, like provider's syscall.Kill, does not compile there); WSL is
+// Linux.
+func telemetrySenderAllowed() bool {
+	if insideCpltSandbox() || !telemetryEnabled() {
+		return false
+	}
+	return e2eSeams != "1" || os.Getenv("NAV_PILOT_E2E_TELEMETRY_CHILD") == "1"
+}
+
+// spawnTelemetrySender starts `nav-pilot __telemetry-send` in a session of its
+// own and does not wait for it. Its stdin, stdout and stderr are the null
+// device (os/exec's default for nil): a child holding the parent's pipes
+// would make `$(nav-pilot ...)`, and every test reading the output, wait for
+// it. It inherits the environment, so the endpoint, proxies and opt-out are
+// the parent's.
+func spawnTelemetrySender() {
+	exe, err := os.Executable()
+	if err != nil {
+		return
+	}
+	cmd := exec.Command(exe, telemetrySendCommand)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if cmd.Start() == nil {
+		_ = cmd.Process.Release()
+	}
 }
 
 func runWithCommandTelemetry(command, mode, scope string, fn func() error) error {
