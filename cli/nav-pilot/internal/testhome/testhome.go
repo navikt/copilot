@@ -62,12 +62,14 @@ func RealHome() string { return realHome }
 
 // Run isolates the home, runs the tests and returns the exit code for os.Exit.
 //
-// What the test log does not see locally: a child process started with the
-// real HOME (only testhome.OriginalEnv gives one), and an os.Remove, Rename,
-// Mkdir or Chtimes into the real home with no open or stat there first. Those
-// still show up in the before-and-after comparison: a warning locally, a
-// failure in CI. NAV_PILOT_TESTHOME_GUARD=0 turns both checks off; the
-// redirection stays on.
+// What the test log does not see: os.Remove and RemoveAll, Mkdir, Symlink,
+// Link, Chtimes, Chmod and Truncate by name, raw syscalls, and all I/O by child
+// processes. That includes a child given the real HOME (testhome.OriginalEnv
+// hands one out), a child with no HOME that falls back to getpwuid (Node,
+// Python, Rust), and the nav-pilot binary the e2e tests run. (os.Rename and
+// MkdirAll are logged: they stat the target first.) Those show up only in the
+// before-and-after comparison: a warning locally, a failure in CI.
+// NAV_PILOT_TESTHOME_GUARD=0 turns both checks off; the redirection stays on.
 func Run(m *testing.M) int {
 	realHome, _ = os.UserHomeDir()
 	start := time.Now()
