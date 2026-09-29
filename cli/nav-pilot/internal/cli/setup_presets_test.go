@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"os"
 	"os/exec"
 	"reflect"
 	"runtime"
@@ -231,5 +232,71 @@ func TestSummaryPermissiveAndKeptAllowlist(t *testing.T) {
 	s = autonomySummary(presetChoices[presetSandbox], nil, true, "/home/me/hosts.txt")
 	if !strings.Contains(s, "stays set") || strings.Contains(s, "nav-pilot's list") {
 		t.Errorf("kept user allowlist: %q", s)
+	}
+}
+
+// Only nav-pilot's own list, and only when leaving strict, is offered for
+// removal; a list the user chose stays.
+func TestLeavingStrictAllowlist(t *testing.T) {
+	isolatedConfig(t)
+	nav := navAllowedDomainsPath()
+	for _, tc := range []struct {
+		from, to, allowlist string
+		want                bool
+	}{
+		{"strict", "standard", nav, true},
+		{"strict", "permissive", nav, true},
+		{"strict", "standard", "/home/me/hosts.txt", false},
+		{"strict", "standard", "", false},
+		{"standard", "standard", nav, false},
+		{"strict", "strict", nav, false},
+	} {
+		got := leavingStrictAllowlist(tc.from, tc.to, tc.allowlist)
+		if (got != nil) != tc.want {
+			t.Errorf("leavingStrictAllowlist(%q, %q, %q) = %v, want offer=%v", tc.from, tc.to, tc.allowlist, got, tc.want)
+		}
+		if got != nil && (got.Key != "proxy.allowed_domains" || got.To != "") {
+			t.Errorf("drop change = %+v", *got)
+		}
+	}
+}
+
+// Through a real process: leaving strict with nav-pilot's list and saying yes
+// unsets the key in the global config. It must never write an empty value,
+// which leaves an allowlist that blocks every host.
+func TestLeavingStrictUnsetsNavAllowlist(t *testing.T) {
+	isolatedConfig(t)
+	log := fakeCplt(t, map[string]string{
+		"sandbox.preset":                        "strict",
+		"git_guard.protect_default_branch_only": "false\n[cplt] (default, not set in config file)",
+		"proxy.allowed_domains":                 navAllowedDomainsPath(),
+	})
+	cliPath, err := findCplt()
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := readCpltGitState(cliPath)
+	choice := presetChoices[presetSandbox]
+	changes := cpltChanges(s, choice)
+	drop := leavingStrictAllowlist(s.Preset, choice.Preset, cpltConfigGet(cliPath, "proxy.allowed_domains"))
+	if drop == nil {
+		t.Fatal("no offer to drop nav-pilot's allowlist")
+	}
+	changes = append(changes, *drop)
+	if sum := autonomySummary(choice, changes, true, ""); !strings.Contains(sum, "proxy.allowed_domains: "+navAllowedDomainsPath()+" → unset") {
+		t.Errorf("summary does not show the removal: %q", sum)
+	}
+	if err := applyCpltChanges(cliPath, changes, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	args, err := os.ReadFile(log + ".args")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(args), "config set proxy.allowed_domains --unset --global\n") {
+		t.Errorf("cplt calls:\n%s\nwant config set proxy.allowed_domains --unset --global", args)
+	}
+	if sets := configSets(t, log); sets["sandbox.preset"] != "standard" || sets["proxy.allowed_domains"] != "--unset" || len(sets) != 2 {
+		t.Errorf("wrote %v, want sandbox.preset = standard and the allowlist unset", sets)
 	}
 }

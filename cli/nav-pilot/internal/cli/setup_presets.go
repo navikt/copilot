@@ -258,11 +258,14 @@ func autonomySummary(c autonomyChoice, changes []cpltChange, cpltFound bool, all
 		b.WriteString("cplt is not installed: its git and network rules are left for later.\n")
 	}
 	for _, ch := range changes {
-		from := ch.From
+		from, to := ch.From, ch.To
 		if from == "" {
 			from = "unset"
 		}
-		fmt.Fprintf(&b, "cplt %s: %s → %s\n", ch.Key, from, ch.To)
+		if to == "" {
+			to = "unset"
+		}
+		fmt.Fprintf(&b, "cplt %s: %s → %s\n", ch.Key, from, to)
 		if ch.Key == "sandbox.preset" && ch.To == cpltStrictPreset {
 			b.WriteString("  also points proxy.allowed_domains at nav-pilot's list of Nav hosts\n")
 		}
@@ -279,20 +282,47 @@ func autonomySummary(c autonomyChoice, changes []cpltChange, cpltFound bool, all
 	if allowlist != "" {
 		fmt.Fprintf(&b, "cplt proxy.allowed_domains stays set: only the hosts in %s are reachable.\n", allowlist)
 		if allowlist == navAllowedDomainsPath() {
-			b.WriteString("  That is nav-pilot's list from strict. To reach every host, delete the allowed_domains line in the file `cplt config path` prints.\n")
+			b.WriteString("  That is nav-pilot's list from strict. To reach every host, run `cplt config set --global --unset proxy.allowed_domains`.\n")
 		}
 	}
 	fmt.Fprintf(&b, "Your other answers go to %s.", configPath())
 	return b.String()
 }
 
-// applyCpltChanges writes the changes. The guard key goes first, so the
+// leavingStrictAllowlist is the change that drops nav-pilot's own allowlist
+// when the user leaves strict, or nil. A list the user chose is theirs: it
+// only gets the summary note.
+func leavingStrictAllowlist(from, to, allowlist string) *cpltChange {
+	if from != cpltStrictPreset || to == cpltStrictPreset || allowlist != navAllowedDomainsPath() {
+		return nil
+	}
+	return &cpltChange{"proxy.allowed_domains", allowlist, ""}
+}
+
+// cpltConfigUnset removes one key from the global cplt config. Setting it to
+// "" instead leaves an empty allowlist that cplt refuses to launch with.
+func cpltConfigUnset(cliPath, key string) error {
+	out, err := exec.Command(cliPath, "config", "set", key, "--unset", "--global").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to unset %s: %v\n%s", key, err, string(out))
+	}
+	return nil
+}
+
+// applyCpltChanges writes the changes. A change to "" removes the key. The guard key goes first, so the
 // strict preset is never armed with a guard that still allows a push it
 // should not; strict itself goes through applyStrictPreset, which seeds the
 // Nav hosts before it sets the preset.
 func applyCpltChanges(cliPath string, changes []cpltChange, allowlistPath, host string) error {
 	for _, ch := range changes {
 		if ch.Key == "sandbox.preset" {
+			continue
+		}
+		if ch.To == "" {
+			if err := cpltConfigUnset(cliPath, ch.Key); err != nil {
+				return err
+			}
+			fmt.Printf("%s cplt %s removed\n", domain.Green("✓"), ch.Key)
 			continue
 		}
 		if err := cpltConfigSet(cliPath, ch.Key, ch.To); err != nil {
