@@ -79,6 +79,8 @@ type mcpRegistry struct {
 var (
 	fetchMCPPolicy   = sync.OnceValues(askMCPPolicy)
 	fetchMCPRegistry = memoMCPRegistry(askMCPRegistry)
+	// mcpHTTPClient is the registry's client, a var so a test can fail on use.
+	mcpHTTPClient = &http.Client{}
 )
 
 func memoMCPRegistry(ask func(string) (mcpRegistry, error)) func(string) (mcpRegistry, error) {
@@ -146,7 +148,7 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 	reg := mcpRegistry{URL: base, Remotes: map[string]bool{}, Packages: map[string]bool{}, Servers: map[string][]string{}}
 	ctx, cancel := context.WithTimeout(context.Background(), mcpPolicyTimeout)
 	defer cancel()
-	client := &http.Client{}
+	client := mcpHTTPClient
 	cursor := ""
 	for range 20 {
 		u := strings.TrimSuffix(base, "/") + "/v0.1/servers?limit=100"

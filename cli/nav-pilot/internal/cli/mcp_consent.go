@@ -22,8 +22,12 @@ import (
 // question is not on it: a pakke's consent is keyed on the install scope,
 // which a launch does not know, so it stays at install and sync.
 
-// readMCPHostState is a var so tests answer it without a registry.
-var readMCPHostState = providerpkg.ReadMCPHostState
+// readMCPHostState and refreshMCPRegistry are vars so tests answer them
+// without a registry.
+var (
+	readMCPHostState   = providerpkg.ReadMCPHostState
+	refreshMCPRegistry = providerpkg.RefreshMCPRegistryIfDue
+)
 
 // recordMCPHosts and classifyMCPHosts are vars for the same reason.
 var (
@@ -201,14 +205,21 @@ func reportMCPHosts(w io.Writer, cpltPath string) {
 		fmt.Fprintf(w, "      %s\n", dim("ℹ MCP hosts are off (mcp_hosts = off)"))
 		return
 	}
+	// Doctor reads the registry when the launch's cache of it is due, so the
+	// launch never has to.
+	refreshErr := refreshMCPRegistry()
 	st, err := readMCPHostState()
 	if err != nil {
 		fmt.Fprintf(w, "      %s Could not read whether MCP hosts are allowed: %v\n", yellow("⚠"), err)
 		return
 	}
-	if st.FetchErr != nil {
+	if refreshErr != nil || st.FetchErr != nil {
+		why := refreshErr
+		if why == nil {
+			why = st.FetchErr
+		}
 		fmt.Fprintf(w, "      %s Nav's MCP registry did not answer (%v); %d allowed MCP host(s) stay in force\n",
-			yellow("⚠"), st.FetchErr, len(st.Grant))
+			yellow("⚠"), why, len(st.Grant))
 	}
 	switch {
 	case st.Pending != nil:

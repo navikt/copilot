@@ -2,12 +2,16 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 )
@@ -48,7 +52,15 @@ func mcpEnv(t *testing.T, copilotConfig string, reg mcpRegistry, regErr error) {
 	fetchMCPPolicy = func() (string, error) { return "https://registry.test", nil }
 	fetchMCPRegistry = func(string) (mcpRegistry, error) { return reg, regErr }
 	currentMCPHosts = resolveMCPHosts // not memoized: each test asks afresh
+	mcpRefreshOnce = sync.Once{}
 	t.Cleanup(func() { fetchMCPPolicy, fetchMCPRegistry, currentMCPHosts = prevPolicy, prevReg, prevCur })
+	t.Cleanup(mcpRefreshing.Wait) // runs first: no read outlives the fakes
+	// The registry's answer as a launch finds it: cached, or never read.
+	if regErr == nil {
+		if err := refreshMCPRegistry(); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 // The security property: the host is the registry's. A config entry that names
@@ -279,4 +291,72 @@ func TestMCPRegistryIsFetchedOncePerProcess(t *testing.T) {
 	if calls != 2 {
 		t.Errorf("fetched %d times, want once per registry", calls)
 	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+// offline makes gh and the registry fail the test if a launch asks them, from
+// here on, through the real fetchers.
+func offline(t *testing.T, transport roundTripFunc) {
+	t.Helper()
+	prev := mcpHTTPClient
+	mcpHTTPClient = &http.Client{Transport: transport}
+	fetchMCPRegistry = memoMCPRegistry(askMCPRegistry)
+	fetchMCPPolicy = func() (string, error) { return "https://registry.test", nil }
+	t.Cleanup(func() { mcpHTTPClient = prev })
+}
+
+// The launch path with a fresh cache asks nothing over the network, in the
+// foreground or behind it, and a grant with no private host probes no cplt.
+func TestLaunchMakesNoNetworkCallWithAFreshCache(t *testing.T) {
+	mcpEnv(t, `{"mcpServers": {"com.figma/figma-mcp": {}, "io.github.navikt/mcp-onboarding": {}}}`, testRegistry(), nil)
+	offline(t, func(r *http.Request) (*http.Response, error) {
+		t.Errorf("the launch asked %s", r.URL)
+		return nil, errors.New("offline")
+	})
+	protectingCplt(t)
+	approvedMCP(t, []MCPHost{{Host: "mcp.figma.com"}, {Host: "mcp-onboarding.intern.nav.no"}})
+	stubCpltVersion(t, func() (string, error) {
+		t.Error("cplt probed for a grant that waives no private host")
+		return cpltWithStateDeny, nil
+	})
+	st, err := ReadMCPHostState()
+	if err != nil || st.FetchErr != nil || st.Pending != nil || len(st.Grant) != 2 {
+		t.Fatalf("state: %+v %v", st, err)
+	}
+	if got := cpltProposalFlags(); len(got) != 0 {
+		t.Errorf("flags = %q", got)
+	}
+	mcpRefreshing.Wait()
+}
+
+// A stale cache answers the launch as it is, and a registry that hangs is
+// read behind it: the launch does not wait.
+func TestStaleCacheDoesNotWaitForTheRegistry(t *testing.T) {
+	mcpEnv(t, `{"mcpServers": {"com.figma/figma-mcp": {}}}`, testRegistry(), nil)
+	c, _ := readMCPRegistryCache()
+	c.At = c.At.Add(-2 * mcpRegistryTTL)
+	data, _ := json.Marshal(c)
+	if err := os.WriteFile(mcpRegistryCachePath(), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	release, asked := make(chan struct{}), make(chan struct{})
+	offline(t, func(r *http.Request) (*http.Response, error) {
+		close(asked)
+		select {
+		case <-release:
+		case <-time.After(2 * time.Second):
+			t.Error("the launch waited for a registry that hangs")
+		}
+		return nil, errors.New("hung up")
+	})
+	st, err := ReadMCPHostState()
+	if err != nil || st.FetchErr != nil || !slices.Equal(st.Current.Names(), []string{"mcp.figma.com"}) {
+		t.Fatalf("state: %+v %v", st, err)
+	}
+	<-asked // the read started, and the launch already has its answer
+	close(release)
+	mcpRefreshing.Wait()
 }

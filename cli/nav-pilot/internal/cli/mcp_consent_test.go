@@ -17,8 +17,9 @@ func mcpConsentEnv(t *testing.T, st providerpkg.MCPHostState, interactive bool) 
 	t.Helper()
 	consentEnv(t)
 	isInteractive = func() bool { return interactive }
-	prevRead, prevRec, prevClass, prevNoted := readMCPHostState, recordMCPHosts, classifyMCPHosts, notedMCPHosts
+	prevRead, prevRec, prevClass, prevNoted, prevRefresh := readMCPHostState, recordMCPHosts, classifyMCPHosts, notedMCPHosts, refreshMCPRegistry
 	readMCPHostState = func() (providerpkg.MCPHostState, error) { return st, nil }
+	refreshMCPRegistry = func() error { return nil }
 	classifyMCPHosts = func(h []providerpkg.MCPHost) []providerpkg.MCPHost { return h }
 	var answers []bool
 	recordMCPHosts = func(_ []providerpkg.MCPHost, approve bool) error {
@@ -27,7 +28,7 @@ func mcpConsentEnv(t *testing.T, st providerpkg.MCPHostState, interactive bool) 
 	}
 	notedMCPHosts = false
 	t.Cleanup(func() {
-		readMCPHostState, recordMCPHosts, classifyMCPHosts, notedMCPHosts = prevRead, prevRec, prevClass, prevNoted
+		readMCPHostState, recordMCPHosts, classifyMCPHosts, notedMCPHosts, refreshMCPRegistry = prevRead, prevRec, prevClass, prevNoted, prevRefresh
 	})
 	return &answers
 }

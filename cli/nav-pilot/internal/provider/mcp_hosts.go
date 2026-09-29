@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -182,14 +183,63 @@ func matchMCPHosts(reg mcpRegistry, copilot []string, openCode map[string]mcpSer
 	return out
 }
 
-// resolveMCPHosts asks the registry about the servers configured for a launch
-// from the working directory. No configured server asks nothing.
+// resolveMCPHosts matches the configured servers against the cached registry
+// answer. No configured server reads nothing more. It never waits on gh or the
+// registry: a cache past [mcpRegistryTTL], or none, starts a read in the
+// background for the next launch, and no cache counts as a registry that did
+// not answer, so the approved set stays and nothing is asked.
 func resolveMCPHosts() (MCPHosts, error) {
 	copilot := copilotMCPServerNames()
 	openCode := openCodeMCPServers("", os.Environ())
 	if len(copilot)+len(openCode) == 0 {
 		return MCPHosts{}, nil
 	}
+	c, ok := readMCPRegistryCache()
+	if !ok || time.Since(c.At) > mcpRegistryTTL {
+		startMCPRegistryRefresh()
+	}
+	if !ok {
+		return MCPHosts{}, errMCPRegistryNotRead
+	}
+	return matchMCPHosts(c.Registry, copilot, openCode), nil
+}
+
+// currentMCPHosts is resolveMCPHosts once per process: the launch pre-flight
+// and the launch flags ask the same question. A var so tests answer it.
+var currentMCPHosts = sync.OnceValues(resolveMCPHosts)
+
+// The registry's answer is cached in nav-pilot's state directory, which cplt
+// denies to the session like the consent record beside it. A day old is
+// fresh enough: a grant is the approved set cut down to the cached one, and a
+// refresh that grows the set asks at the next launch.
+const mcpRegistryTTL = 24 * time.Hour
+
+var errMCPRegistryNotRead = errors.New("Nav's MCP registry has not been read yet")
+
+// mcpRegistryCache keeps the whole answer, every field of mcpRegistry, so
+// anything that reads the registry can read the cache instead.
+type mcpRegistryCache struct {
+	At       time.Time   `json:"at"`
+	Registry mcpRegistry `json:"registry"`
+}
+
+func mcpRegistryCachePath() string {
+	p := artifacts.CacheFilePath()
+	if p == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(p), "mcp-registry.json")
+}
+
+func readMCPRegistryCache() (mcpRegistryCache, bool) {
+	var c mcpRegistryCache
+	data, err := os.ReadFile(mcpRegistryCachePath())
+	return c, err == nil && json.Unmarshal(data, &c) == nil && c.Registry.Servers != nil
+}
+
+// refreshMCPRegistry asks the org policy which registry, asks that registry,
+// and caches the answer. A failure keeps the cache as it was.
+func refreshMCPRegistry() error {
 	// The registry the org policy names, which is the one Copilot enforces.
 	// No policy, or no gh to ask, is Nav's own: the hosts are Nav-curated
 	// either way, and a policy question nobody answered is not a reason to
@@ -200,14 +250,45 @@ func resolveMCPHosts() (MCPHosts, error) {
 	}
 	reg, err := fetchMCPRegistry(registry)
 	if err != nil {
-		return MCPHosts{}, fmt.Errorf("%s did not answer: %w", registry, err)
+		return fmt.Errorf("%s did not answer: %w", registry, err)
 	}
-	return matchMCPHosts(reg, copilot, openCode), nil
+	path := mcpRegistryCachePath()
+	if path == "" {
+		return errors.New("nav-pilot has no state directory to cache the MCP registry in")
+	}
+	data, err := json.Marshal(mcpRegistryCache{At: time.Now(), Registry: reg})
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	return writeConfigAtomically(path, data)
 }
 
-// currentMCPHosts is resolveMCPHosts once per process: the launch pre-flight
-// and the launch flags ask the same question. A var so tests answer it.
-var currentMCPHosts = sync.OnceValues(resolveMCPHosts)
+// startMCPRegistryRefresh reads the registry in the background, once per
+// process. The launch does not wait for it; the process waits for nothing at
+// exit either, so a session shorter than the read leaves it to the next one.
+func startMCPRegistryRefresh() {
+	mcpRefreshOnce.Do(func() { mcpRefreshing.Go(func() { _ = refreshMCPRegistry() }) })
+}
+
+var (
+	mcpRefreshOnce sync.Once
+	mcpRefreshing  sync.WaitGroup
+)
+
+// RefreshMCPRegistryIfDue is the background read done in the foreground, for
+// doctor: nothing when no server is configured or the cache is fresh.
+func RefreshMCPRegistryIfDue() error {
+	if len(copilotMCPServerNames())+len(openCodeMCPServers("", os.Environ())) == 0 {
+		return nil
+	}
+	if c, ok := readMCPRegistryCache(); ok && time.Since(c.At) <= mcpRegistryTTL {
+		return nil
+	}
+	return refreshMCPRegistry()
+}
 
 // lookupIPAddr resolves a host for classification. A var for tests.
 var lookupIPAddr = net.DefaultResolver.LookupIPAddr
@@ -366,14 +447,14 @@ func privateMCPHosts(hosts []MCPHost) []string {
 // allowlist cplt checks the list before it checks the address. Nil when
 // nothing is approved or the record cannot be trusted.
 func MCPAllowlistHosts() []string {
-	grant := mcpGrant(false)
+	grant := mcpGrant(false, false)
 	return mcpHostNames(grant)
 }
 
 // mcpPrivateDomainFlags is the launch's --allow-private-domain flags for the
 // MCP grant, less any host the pakke waiver already carries.
 func mcpPrivateDomainFlags(already []string) []string {
-	grant := mcpGrant(true)
+	grant := mcpGrant(true, true)
 	var hosts []string
 	for _, h := range privateMCPHosts(grant) {
 		if !slices.Contains(already, h) {
@@ -402,9 +483,11 @@ func mcpGrantServers(grant []MCPHost, hosts []string) []string {
 	return out
 }
 
-// mcpGrant is what a launch may apply. Costs nothing — no network, no cplt
-// probe — for a user with no approved record, which is almost everyone.
-func mcpGrant(say bool) []MCPHost {
+// mcpGrant is what a launch may apply. Never the network, and no cplt probe
+// for a user with no approved record, which is almost everyone, nor with
+// privateOnly for a record that waives no private host: a grant that would
+// change nothing needs no trust check.
+func mcpGrant(say, privateOnly bool) []MCPHost {
 	if MCPHostsOff {
 		return nil
 	}
@@ -415,7 +498,7 @@ func mcpGrant(say bool) []MCPHost {
 		}
 		return nil
 	}
-	if rec == nil || !rec.Approved {
+	if rec == nil || !rec.Approved || (privateOnly && len(rec.Hosts) == 0) {
 		return nil
 	}
 	if reason := untrustworthyRecord(rec); reason != "" {
@@ -427,7 +510,7 @@ func mcpGrant(say bool) []MCPHost {
 	cur, fetchErr := currentMCPHosts()
 	st := mcpHostState(cur, fetchErr, rec)
 	if fetchErr != nil && say && len(st.Grant) > 0 {
-		fmt.Fprintf(os.Stderr, "%s Nav's MCP registry did not answer (%v); keeping the %d MCP host(s) approved before.\n",
+		fmt.Fprintf(os.Stderr, "%s MCP servers: %v; keeping the %d MCP host(s) approved before.\n",
 			domain.Yellow("⚠"), fetchErr, len(st.Grant))
 	}
 	return st.Grant
