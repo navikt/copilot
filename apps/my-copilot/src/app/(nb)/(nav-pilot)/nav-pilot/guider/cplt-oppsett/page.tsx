@@ -84,7 +84,7 @@ export default function CpltOppsett() {
           <BodyLong>
             Uten egen konfig slipper cplt agenten til prosjektkatalogen og de offentlige pakkeregistrene. Docker og
             filene med tokenene dine er stengt, og på macOS også localhost. Det repoet trenger i tillegg, skriver teamet
-            i <code className={code}>.cplt.toml</code> i roten av repoet. Da får alle på teamet den samme sandkassen.
+            i <code className={code}>.cplt.toml</code> i roten av repoet.
           </BodyLong>
           <BodyLong>
             Start med å se hva <code className={code}>cplt init</code> foreslår. Uten flagg skriver den ingenting:
@@ -92,9 +92,10 @@ export default function CpltOppsett() {
           <CodeBlock compact>{`cplt init`}</CodeBlock>
           <BodyLong>
             Se over forslaget. Under <code className={code}>[propose]</code> står det som åpner sandkassen. Linjer som
-            er kommentert ut, peker på filer i hjemmekatalogen din. De hører ikke hjemme i repoet, men i din egen
-            konfig, <code className={code}>~/.config/cplt/config.toml</code>. <code className={code}>cplt init</code>{" "}
-            finner ikke alt. For Go foreslår den ingenting, og for Gradle mangler localhost. Sammenlign med{" "}
+            er kommentert ut, peker på filer i hjemmekatalogen din og hører hjemme i din egen konfig,{" "}
+            <code className={code}>~/.config/cplt/config.toml</code>, ikke i repoet.{" "}
+            <code className={code}>cplt init</code> finner ikke alt: for Go foreslår den ingenting, og for Gradle
+            mangler localhost. Sammenlign med{" "}
             <a href="#stakker" className={linkClass}>
               tabellen under
             </a>
@@ -108,10 +109,9 @@ git commit -m "chore: add cplt sandbox config"
 cplt trust accept --all`}
           </CodeBlock>
           <BodyLong>
-            cplt leser bare fila slik den er i siste commit. Før den er sjekket inn, gir den ingen tilganger. Da kan
-            ikke agenten gi seg selv mer midt i en økt. Hver utvikler godkjenner forslaget på sin egen maskin med{" "}
-            <code className={code}>cplt trust accept</code>. <code className={code}>cplt trust show</code> viser hva som
-            er godkjent, og hva som venter.
+            cplt leser fila slik den er i siste commit, så agenten kan ikke gi seg selv mer midt i en økt. Hver utvikler
+            godkjenner forslaget på sin egen maskin med <code className={code}>cplt trust accept</code>.{" "}
+            <code className={code}>cplt trust show</code> viser hva som er godkjent, og hva som venter.
           </BodyLong>
           <BodyLong>
             Har repoet allerede en <code className={code}>.cplt.toml</code>, legg til én nøkkel om gangen, eller ta med
@@ -130,10 +130,10 @@ cplt init --write --merge                     # legger til nye funn, fjerner ing
             Det stakken din trenger
           </LinkableHeading>
           <BodyLong>
-            Tabellen viser feilen du ser i sandkassen på macOS, og hva du skriver i{" "}
-            <code className={code}>.cplt.toml</code>. <code className={code}>localhost</code> står under{" "}
-            <code className={code}>[propose.allow]</code>, de andre nøklene under{" "}
-            <code className={code}>[propose]</code>. Feilmeldingene lenker til forklaringen i Feil i sandkassen.
+            Feilen du ser i sandkassen på macOS, og hva du skriver i <code className={code}>.cplt.toml</code>.{" "}
+            <code className={code}>localhost</code> står under <code className={code}>[propose.allow]</code>, de andre
+            nøklene under <code className={code}>[propose]</code>. Feilmeldingene lenker til oppslaget i Feil i
+            sandkassen.
           </BodyLong>
           <div className="overflow-x-auto">
             <Table size="small">
@@ -184,10 +184,10 @@ cplt init --write --merge                     # legger til nye funn, fjerner ing
             <BodyLong>
               Bruk <code className={code}>localhost</code>, ikke <code className={code}>ports</code>, for tjenester på
               din egen maskin. <code className={code}>ports</code> åpner porten mot alle maskiner på nettet, og på macOS
-              gir den ikke tilgang til localhost. Foreslår <code className={code}>cplt init</code>{" "}
-              <code className={code}>ports</code>, eller <code className={code}>cplt check net</code>{" "}
-              <code className={code}>--allow-port</code>, for en tjeneste på din egen maskin, bruk{" "}
-              <code className={code}>localhost</code> eller <code className={code}>--allow-localhost</code> i stedet.
+              gir den ikke tilgang til localhost. Det gjelder også når <code className={code}>cplt init</code> foreslår{" "}
+              <code className={code}>ports</code> eller <code className={code}>cplt check net</code> foreslår{" "}
+              <code className={code}>--allow-port</code>: bruk <code className={code}>localhost</code> eller{" "}
+              <code className={code}>--allow-localhost</code>.
             </BodyLong>
           </Box>
         </VStack>
@@ -203,7 +203,8 @@ cplt init --write --merge                     # legger til nye funn, fjerner ing
             <code className={code}>~/.npmrc</code>, <code className={code}>~/.gradle/gradle.properties</code> eller{" "}
             <code className={code}>~/.m2/settings.xml</code>. cplt stenger disse filene, så{" "}
             <code className={code}>npm install</code> svarer <code className={code}>401 Unauthorized</code> og Gradle
-            finner ikke pakken.
+            finner ikke pakken. På Linux er bare <code className={code}>~/.npmrc</code> stengt. De to andre ligger i
+            mapper agenten har tilgang til.
           </BodyLong>
           <BodyLong>For npm og pnpm er det enklest å installere utenfor cplt før du starter agenten:</BodyLong>
           <CodeBlock compact>
@@ -215,8 +216,9 @@ nav-pilot`}
           <BodyLong>
             Da kan agenten lese alle tokenene i filene, ikke bare det prosjektet trenger. Derfor krever cplt{" "}
             <code className={code}>--force</code>, og derfor kan ikke nøkkelen stå i{" "}
-            <code className={code}>.cplt.toml</code>. Den gjelder bare din egen maskin. Bruk et token som bare kan lese
-            pakker (<code className={code}>read:packages</code>).
+            <code className={code}>.cplt.toml</code>. Bruk et token som bare kan lese pakker (
+            <code className={code}>read:packages</code>). Trenger du bare én av filene, gi lesetilgang til den, for
+            eksempel <code className={code}>cplt config set allow.read ~/.gradle/gradle.properties</code>.
           </BodyLong>
         </VStack>
       </section>
@@ -229,8 +231,8 @@ nav-pilot`}
           <BodyLong>
             I sandkassen legger pnpm lageret i repoet, i <code className={code}>.pnpm-store/</code> eller{" "}
             <code className={code}>node_modules/.pnpm-store/</code>, og laster ned alle pakkene på nytt i hvert repo og
-            hvert worktree. pnpm prøver å lage en mappe i <code className={code}>$PNPM_HOME</code>, og der får ikke
-            agenten skrive (
+            hvert worktree. Årsaken er at pnpm vil lage en mappe i <code className={code}>$PNPM_HOME</code>, der agenten
+            ikke får skrive (
             <a href="https://github.com/navikt/cplt/issues/637" className={linkClass}>
               cplt#637
             </a>
@@ -278,8 +280,11 @@ cplt config set sandbox.pass_env pnpm_config_store_dir   # send den inn i sandka
           </LinkableHeading>
           <BodyLong>
             Docker er stengt i sandkassen. Den som kan snakke med Docker-daemonen, kan starte en container som monterer
-            hele disken, og da er sandkassen borte. <code className={code}>cplt check exec docker</code> svarer{" "}
-            <code className={code}>BLOCKED</code> og sier det samme.
+            hele disken, og da er sandkassen borte. Det gjelder også Testcontainers, se{" "}
+            <NextLink href="/nav-pilot/guider/cplt-gradle#testcontainers" className={linkClass}>
+              Testcontainers og Docker
+            </NextLink>
+            .
           </BodyLong>
           <BodyLong>
             <code className={code}>cplt init</code> foreslår <code className={code}>allow_docker</code> når repoet har
@@ -299,11 +304,10 @@ cplt config set --repo allow.localhost 5432   # agenten når databasen på local
             Brytere for hele maskinen
           </LinkableHeading>
           <BodyLong>
-            Det som gjelder alle repoene dine, hører hjemme i din egen konfig, ikke i{" "}
-            <code className={code}>.cplt.toml</code>. <code className={code}>nav-pilot config sandbox</code> viser
-            bryterne for hele maskinen, for eksempel localhost og Docker, og skriver valgene til{" "}
-            <code className={code}>~/.config/cplt/config.toml</code>. Det samme gjør{" "}
-            <code className={code}>cplt config set</code>:
+            Det som gjelder alle repoene dine, hører hjemme i din egen konfig,{" "}
+            <code className={code}>~/.config/cplt/config.toml</code>.{" "}
+            <code className={code}>nav-pilot config sandbox</code> viser bryterne for hele maskinen, for eksempel
+            localhost og Docker, og skriver dit. Det samme gjør <code className={code}>cplt config set</code>:
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot config sandbox
