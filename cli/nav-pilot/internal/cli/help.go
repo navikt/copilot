@@ -141,6 +141,34 @@ Flags:
 
 Set the model: nav-pilot config set model <id>
 `,
+	"mcp": `Usage: nav-pilot mcp [list] [--json]
+       nav-pilot mcp enable <name>... [--client copilot|opencode]
+       nav-pilot mcp disable <name>... [--client copilot|opencode]
+
+list shows the servers in Nav's MCP registry, which of them Copilot CLI and
+OpenCode have configured, and first, every problem that keeps a configured
+server from working, each with the command that fixes it: a name the org
+policy blocks, a host or localhost port cplt blocks, a package runner that
+is missing or not allowed to run from its cache, a retired server. It only
+reads; it checks hosts with cplt check net, which makes no connection.
+
+enable writes the registry's entry for each named server into the MCP config
+of each client (~/.copilot/mcp-config.json, OpenCode's opencode.json). The other servers
+and settings in the file stay as they are, and the previous file is kept as
+<file>.bak. Then it asks whether cplt may reach the server's hosts (the same
+question a launch asks) and prints what is still needed. The name is the
+registry's full name or the part after the last slash (figma-mcp).
+
+disable removes each named server from the client configs, and stops
+allowing hosts in the sandbox that no other configured MCP server needs.
+
+Both take one or more names and change only those. Each name succeeds or
+fails on its own; the exit code is 1 if any failed.
+
+Flags:
+  --client <name>         copilot or opencode (default: each of them that is installed)
+  --json                  list as JSON
+`,
 	"survey": `Usage: nav-pilot survey [--json]
 
 Answer an open user survey. In a terminal it opens the survey, or asks which

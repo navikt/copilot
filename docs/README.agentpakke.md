@@ -169,15 +169,16 @@ Dermed er registeret fortsatt det eneste stedet en server kan defineres. Manifes
 
 Bare et svar registeret faktisk gir, feller en dom. En pakke som ikke deklarerer noen server, spør aldri om noe.
 
-`install` navngir serverne pakka trenger, og peker på registeret:
+`install` navngir serverne pakka trenger, og viser kommandoen som slår dem på:
 
 ```
 This agentpakke expects these MCP servers:
   io.github.navikt/github-mcp
-nav-pilot does not configure MCP. Enable them in your client: https://mcp-registry.nav.no
+Enable them: nav-pilot mcp enable io.github.navikt/github-mcp
+They come from Nav's MCP registry: https://mcp-registry.nav.no
 ```
 
-Mer gjør ikke install. nav-pilot skriver ingen MCP-konfigurasjon for noen klient, og å slå på en server er brukerens handling i klientens egen config.
+Mer gjør ikke install. Det er brukeren som slår på en server, med `nav-pilot mcp enable`. Kommandoen skriver serveren inn i klientens MCP-konfigurasjon og tar vare på den gamle fila.
 
 Feltet ligger på pakkenivå, ikke per klient. Om en MCP-server er tilgjengelig, er en egenskap ved klientens eget oppsett, ikke ved pakka.
 

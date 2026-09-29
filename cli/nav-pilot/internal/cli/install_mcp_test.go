@@ -29,7 +29,7 @@ func TestMCPServerNotice(t *testing.T) {
 				Name:       "annet-team",
 				MCPServers: []string{"io.github.navikt/github-mcp", "com.figma/figma-mcp"},
 			}},
-			[]string{"io.github.navikt/github-mcp", "com.figma/figma-mcp", agentpakke.MCPRegistryURL},
+			[]string{"nav-pilot mcp enable io.github.navikt/github-mcp com.figma/figma-mcp", agentpakke.MCPRegistryURL},
 		},
 	}
 	for _, tt := range tests {

@@ -66,7 +66,7 @@ var commandAliases = map[string]string{
 }
 
 // dispatchedCommands is every command name run dispatches.
-var dispatchedCommands = []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "survey", "news", "models", "alpha", "auth", "usage", "version", "help"}
+var dispatchedCommands = []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "survey", "news", "models", "mcp", "alpha", "auth", "usage", "version", "help"}
 
 func isKnownCommand(arg string) bool {
 	if _, ok := commandAliases[arg]; ok {
@@ -109,6 +109,7 @@ Commands:
   alpha local <cmd>       Run a model on this machine (alpha; off until you run 'alpha local init')
   alpha decide "<q>"      Ask the local model a multiple-choice question (alpha; see 'alpha decide --help')
   models [filter]         List the models the client can use, the current one marked
+  mcp [list|enable|disable]  List Nav's MCP servers and what stops yours from working; enable or disable some
   auth <login|status|logout>  Authenticate with GitHub for copilot-cli usage lookups
   usage                   Show your GitHub Copilot usage (requires 'auth login')
   version                 Show version information
@@ -603,6 +604,12 @@ func run(args []string) error {
 	// upgrade and models take their own flags; see cmdUpgrade and cmdModels.
 	if command == "upgrade" || command == "update" {
 		return cmdUpgrade(command, rest)
+	}
+	// mcp parses its own flags (--client is a launch flag elsewhere).
+	if command == "mcp" {
+		return runWithCommandTelemetry("mcp", telemetryMode(), "none", func() error {
+			return cmdMCP(rest)
+		})
 	}
 	if command == "models" {
 		return runWithCommandTelemetry("models", telemetryMode(), "none", func() error {
