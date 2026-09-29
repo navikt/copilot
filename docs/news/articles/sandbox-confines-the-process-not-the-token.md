@@ -10,6 +10,12 @@ tags:
   - coding-agents
 ---
 
+> **Updated 29 September 2026.** We removed the `~/.config/gcloud/application_default_credentials.json`
+> grant from this repository's `.cplt.toml`. The file holds a refresh token
+> for the whole Google account, and the tasks that use it run through fnox,
+> which does not work in the sandbox anyway. The excerpt below is the file as
+> it was when we wrote this piece.
+
 Nav is Norway's labour and welfare administration. We pay out roughly a third
 of the national budget, and around 700 developers with GitHub Copilot licences
 keep that running. In March 2026 we asked about 500 of them how they work with
