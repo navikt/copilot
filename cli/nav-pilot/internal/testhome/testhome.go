@@ -227,6 +227,8 @@ func WriteExec(path, script string) error {
 	if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		return err
 	}
-	_ = exec.Command(path).Run()
+	if err := exec.Command(path).Run(); err != nil {
+		return fmt.Errorf("warming %s: %w", path, err)
+	}
 	return os.WriteFile(path, []byte(script), 0o755)
 }

@@ -61,13 +61,17 @@ func TestCopilotAgentArgs(t *testing.T) {
 func TestIsCplt(t *testing.T) {
 	dir := t.TempDir()
 	fakeCplt := filepath.Join(dir, "fake-cplt")
-	_ = testhome.WriteExec(fakeCplt, "#!/bin/sh\necho 'cplt version 1.0.43'")
+	if err := testhome.WriteExec(fakeCplt, "#!/bin/sh\necho 'cplt version 1.0.43'"); err != nil {
+		t.Fatal(err)
+	}
 	if !IsCplt(fakeCplt) {
 		t.Error("expected IsCplt=true for binary that outputs 'cplt'")
 	}
 
 	fakeCopilot := filepath.Join(dir, "fake-copilot")
-	_ = testhome.WriteExec(fakeCopilot, "#!/bin/sh\necho 'GitHub Copilot CLI 1.0.0'")
+	if err := testhome.WriteExec(fakeCopilot, "#!/bin/sh\necho 'GitHub Copilot CLI 1.0.0'"); err != nil {
+		t.Fatal(err)
+	}
 	if IsCplt(fakeCopilot) {
 		t.Error("expected IsCplt=false for binary that outputs 'GitHub Copilot CLI'")
 	}
