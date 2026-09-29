@@ -1018,6 +1018,8 @@ func temporalityFor(sdkmetric.InstrumentKind) metricdata.Temporality {
 // session counted its sync about 30 times (#1246).
 //
 // An export that fails is not remembered, so the next one carries its counts.
+// One sent but not answered does not fail: spoolTransport sends it again
+// unchanged, so a copy the collector took is not counted twice.
 // Gauges pass as they are. An export with nothing left is not sent.
 type newOnlyExporter struct {
 	sdkmetric.Exporter
