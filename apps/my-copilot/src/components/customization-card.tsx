@@ -100,7 +100,8 @@ export function CustomizationCard({ item, onClick }: CustomizationCardProps) {
                 onClick={(e) => e.stopPropagation()}
               >
                 <DownloadIcon fontSize="1rem" aria-hidden />
-                Installer
+                {/* MCP: nav-pilot is the main way, shown in the drawer; this link is VS Code only. */}
+                {item.type === "mcp" ? "Installer i VS Code" : "Installer"}
               </a>
             )}
             {onClick && (

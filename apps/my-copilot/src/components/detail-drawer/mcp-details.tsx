@@ -4,14 +4,49 @@ import { Accordion, BodyShort, Box, CopyButton, HStack, Heading, Tag, VStack } f
 import { DownloadIcon, ExternalLinkIcon } from "@navikt/aksel-icons";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { normalizeExample } from "@/lib/manifest-types";
-import { transportLabel, getMcpServerConfig, getVsCodeAddMcpCommand, getMcpAddFields } from "@/lib/install-commands";
+import {
+  transportLabel,
+  getMcpServerConfig,
+  getVsCodeAddMcpCommand,
+  getMcpAddFields,
+  NAV_PILOT_MCP_MIN_VERSION,
+} from "@/lib/install-commands";
 import { ToolList, ExclusiveAccordion } from "./shared";
 
 export function McpDetails({ item }: { item: EnrichedCustomization }) {
   if (item.type !== "mcp") return null;
 
+  const enableCommand = `nav-pilot mcp enable ${item.serverId}`;
+
   return (
     <VStack gap="space-16">
+      <VStack gap="space-8">
+        <Heading size="xsmall" level="4">
+          Installering
+        </Heading>
+        <Box background="info-soft" borderRadius="8" padding="space-12">
+          <VStack gap="space-8">
+            <BodyShort size="small">Med nav-pilot ({NAV_PILOT_MCP_MIN_VERSION} eller nyere) kjører du:</BodyShort>
+            <div className="relative">
+              <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
+                {enableCommand}
+              </pre>
+              <div className="absolute top-1 right-1">
+                <CopyButton size="xsmall" copyText={enableCommand} />
+              </div>
+            </div>
+            <BodyShort size="small">
+              Kommandoen legger serveren inn i oppsettet for Copilot CLI og OpenCode (de du har installert), spør om
+              adressene serveren trenger i sandkassen, og sier fra om noe mangler.
+            </BodyShort>
+            <BodyShort size="small">
+              Virker ikke serveren? Kjør <code className="text-xs bg-gray-100 rounded px-1">nav-pilot mcp list</code>{" "}
+              for å se hva som er galt og hvordan du retter det.
+            </BodyShort>
+          </VStack>
+        </Box>
+      </VStack>
+
       {(item.websiteUrl || item.repository) && (
         <VStack gap="space-8">
           <Heading size="xsmall" level="4">
@@ -186,8 +221,11 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
 
       <VStack gap="space-8">
         <Heading size="xsmall" level="4">
-          Installering
+          Manuelt oppsett
         </Heading>
+        <BodyShort size="small" className="text-gray-500">
+          For VS Code og IntelliJ, eller hvis du ikke bruker nav-pilot.
+        </BodyShort>
         <ExclusiveAccordion>
           <Accordion.Item>
             <Accordion.Header>VS Code</Accordion.Header>
