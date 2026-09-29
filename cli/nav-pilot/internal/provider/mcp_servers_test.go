@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -202,6 +203,9 @@ func TestConfiguredMCPServers(t *testing.T) {
 		"pw": {"type": "local", "command": ["npx", "@playwright/mcp@latest"]},
 		"off": {"type": "remote", "url": "https://mcp.svelte.dev/mcp", "enabled": false},
 		"other": {"type": "remote", "url": "https://elsewhere.example/mcp"}}}`)
+	// A project's config is shown, never counted.
+	wd, _ := os.Getwd()
+	writeFile(t, filepath.Join(wd, "opencode.json"), `{"mcp": {"repo-pick": {"type": "remote", "url": "https://mcp.svelte.dev/mcp"}}}`)
 	entries := []MCPServerEntry{figma,
 		{Name: "com.microsoft/playwright-mcp", Packages: []MCPPackage{{RegistryType: "npm", Identifier: "@playwright/mcp"}}},
 		{Name: "dev.svelte/svelte-mcp", Remotes: []MCPRemote{{URL: "https://mcp.svelte.dev/mcp"}}}}
@@ -211,6 +215,9 @@ func TestConfiguredMCPServers(t *testing.T) {
 	}
 	if !c.OpenCode[figma.Name] || !c.OpenCode["com.microsoft/playwright-mcp"] || c.OpenCode["dev.svelte/svelte-mcp"] || strings.Join(c.OpenCodeOther, ",") != "other" {
 		t.Errorf("opencode = %v, other %v", c.OpenCode, c.OpenCodeOther)
+	}
+	if strings.Join(c.OpenCodeProject, ",") != "repo-pick" {
+		t.Errorf("project = %v", c.OpenCodeProject)
 	}
 }
 
@@ -245,5 +252,73 @@ func TestMCPConfigKeyFor(t *testing.T) {
 	// Copilot's policy matches the name only: "figma" is not the registry's.
 	if got := MCPConfigKeyFor(MCPClientCopilot, figma); got != "" {
 		t.Errorf("copilot = %q, want none", got)
+	}
+}
+
+// nav-pilot mcp reads the launch's cache: a fresh one asks nothing, a stale
+// one is read again, and when that fails the old answer is used and said to
+// be old. No cache and no registry is an error.
+func TestMCPRegistryServersUsesTheCache(t *testing.T) {
+	reg := testRegistry()
+	reg.URL = "https://registry.test"
+	reg.Entries = []MCPServerEntry{{Name: "com.figma/figma-mcp", Setup: []MCPSetupStep{{Title: "t"}}}}
+	mcpEnv(t, `{"mcpServers": {"com.figma/figma-mcp": {}}}`, reg, nil)
+	fetchMCPRegistry = func(string) (mcpRegistry, error) {
+		t.Error("a fresh cache asked the registry")
+		return reg, nil
+	}
+	name, entries, stale, err := MCPRegistryServers()
+	if err != nil || stale != nil || name != reg.URL || len(entries) != 1 || len(entries[0].Setup) != 1 {
+		t.Fatalf("fresh: %q %+v %v %v", name, entries, stale, err)
+	}
+
+	c, _ := readMCPRegistryCache()
+	c.At = c.At.Add(-2 * mcpRegistryTTL)
+	data, _ := json.Marshal(c)
+	writeFile(t, mcpRegistryCachePath(), string(data))
+	fetchMCPRegistry = func(string) (mcpRegistry, error) { return mcpRegistry{}, errors.New("timeout") }
+	if _, entries, stale, err = MCPRegistryServers(); err != nil || stale == nil || len(entries) != 1 {
+		t.Errorf("stale, registry down: %+v %v %v", entries, stale, err)
+	}
+
+	reg.Entries = append(reg.Entries, MCPServerEntry{Name: "io.github.navikt/mcp-onboarding"})
+	fetchMCPRegistry = func(string) (mcpRegistry, error) { return reg, nil }
+	if _, entries, stale, err = MCPRegistryServers(); err != nil || stale != nil || len(entries) != 2 {
+		t.Errorf("stale, registry up: %+v %v %v", entries, stale, err)
+	}
+
+	if err := os.Remove(mcpRegistryCachePath()); err != nil {
+		t.Fatal(err)
+	}
+	fetchMCPRegistry = func(string) (mcpRegistry, error) { return mcpRegistry{}, errors.New("timeout") }
+	if _, _, _, err = MCPRegistryServers(); err == nil {
+		t.Error("no cache, registry down: want an error")
+	}
+}
+
+// disable narrows the approval to the hosts either client's servers still
+// need; a host only OpenCode needs stays even when Copilot is the default.
+func TestNarrowMCPApproval(t *testing.T) {
+	mcpEnv(t, `{"mcpServers": {"io.github.navikt/mcp-onboarding": {}}}`, testRegistry(), nil)
+	home, _ := os.UserHomeDir()
+	writeFile(t, filepath.Join(openCodeConfigDir(), "opencode.json"),
+		`{"mcp": {"f": {"type": "remote", "url": "https://mcp.figma.com/mcp"}}}`)
+	approvedMCP(t, []MCPHost{{Host: "mcp.figma.com"}, {Host: "mcp-onboarding.intern.nav.no", Private: true}, {Host: "gone.example"}})
+	gone, err := NarrowMCPApproval()
+	if err != nil || strings.Join(gone, ",") != "gone.example" {
+		t.Fatalf("gone = %v, %v", gone, err)
+	}
+	rec, _ := readMCPRecord()
+	kept := recordedMCPHosts(rec)
+	if !rec.Approved || len(kept) != 2 || !slices.ContainsFunc(kept, func(h MCPHost) bool { return h.Private }) {
+		t.Errorf("kept = %+v", kept)
+	}
+
+	if err := os.Remove(mcpRegistryCachePath()); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(home, ".copilot", "mcp-config.json"), `{"mcpServers": {}}`)
+	if gone, err := NarrowMCPApproval(); err != nil || gone != nil {
+		t.Errorf("no cache: gone = %v, %v; want the approval kept", gone, err)
 	}
 }

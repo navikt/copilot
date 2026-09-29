@@ -32,7 +32,22 @@ var (
 	mcpCpltPath        = func() string { p, _ := findCplt(); return p }
 	mcpCpltConfigGet   = cpltConfigGet
 	mcpLookPath        = exec.LookPath
+	narrowMCPApproval  = providerpkg.NarrowMCPApproval
 )
+
+// mcpLaunchClient is the client a plain nav-pilot launches: whose servers
+// the host state is about, as at launch.
+func mcpLaunchClient() string {
+	cfg, _ := readConfig()
+	return resolve(cfg, CLIOverrides{}).Client
+}
+
+// mcpNoteStale says the registry list is an old answer, and why.
+func mcpNoteStale(stale error) {
+	if stale != nil {
+		fmt.Fprintf(os.Stderr, "%s Nav's MCP registry could not be read again (%v)\n", yellow("⚠"), stale)
+	}
+}
 
 func cmdMCP(args []string) error {
 	var client string
@@ -107,6 +122,9 @@ type mcpHostRow struct {
 	Host    string `json:"host"`
 	Cplt    string `json:"cplt,omitempty"`    // cplt's probe verdict: ALLOWED, BLOCKED-ALLOWLIST, ...
 	Consent string `json:"consent,omitempty"` // allowed, pending, declined (nav-pilot's host consent)
+	// DNS is how the allowed host was classified when it was answered:
+	// private, or unknown when the lookup failed without saying.
+	DNS string `json:"dns,omitempty"`
 }
 
 type mcpServerRow struct {
@@ -119,17 +137,27 @@ type mcpServerRow struct {
 }
 
 type mcpReport struct {
-	Registry string         `json:"registry"`
-	Problems []mcpProblem   `json:"problems"`
-	Servers  []mcpServerRow `json:"servers"`
+	Registry string `json:"registry"`
+	Stale    string `json:"stale,omitempty"`
+	// OpenCodeProject is servers OpenCode loads from a project's config or an
+	// OPENCODE_CONFIG* variable, which nav-pilot does not count.
+	OpenCodeProject []string       `json:"opencode_project,omitempty"`
+	Problems        []mcpProblem   `json:"problems"`
+	Servers         []mcpServerRow `json:"servers"`
 }
 
 func cmdMCPList(jsonOut bool) error {
-	registry, entries, err := mcpRegistryServers()
+	registry, entries, stale, err := mcpRegistryServers()
 	if err != nil {
 		return fmt.Errorf("could not list MCP servers: %w", err)
 	}
-	rep := diagnoseMCP(registry, entries, mcpConfigured(entries), "")
+	providerpkg.MCPClient = mcpLaunchClient()
+	conf := mcpConfigured(entries)
+	rep := diagnoseMCP(registry, entries, conf, "")
+	rep.OpenCodeProject = conf.OpenCodeProject
+	if stale != nil {
+		rep.Stale = stale.Error()
+	}
 	if jsonOut {
 		return outputJSON(rep)
 	}
@@ -143,6 +171,17 @@ func printMCPReport(rep mcpReport) {
 	} else {
 		fmt.Printf("%s\n", bold(fmt.Sprintf("Problems (%d)", len(rep.Problems))))
 		printMCPProblems(rep.Problems)
+	}
+	if rep.Stale != "" {
+		fmt.Printf("%s Nav's MCP registry could not be read again (%s)\n", yellow("⚠"), rep.Stale)
+	}
+	if len(rep.OpenCodeProject) > 0 {
+		names := make([]string, len(rep.OpenCodeProject))
+		for i, n := range rep.OpenCodeProject {
+			names[i] = safe(n, 64)
+		}
+		fmt.Printf("%s OpenCode also loads %s here, from the project's config or OPENCODE_CONFIG*. nav-pilot counts only your own config: it neither checks nor allows hosts for these.\n",
+			dim("ℹ"), strings.Join(names, ", "))
 	}
 	fmt.Printf("\n%s %s\n", bold("Servers in Nav's MCP registry"), dim(rep.Registry))
 	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -264,6 +303,15 @@ func mcpRemoteHost(server, raw, cpltPath, mode string, st providerpkg.MCPHostSta
 	if !loopback {
 		row.Host = host
 		row.Consent = mcpConsentOf(host, st)
+		for _, g := range st.Grant {
+			switch {
+			case g.Host != host:
+			case g.Private:
+				row.DNS = "private"
+			case g.Unknown:
+				row.DNS = "unknown"
+			}
+		}
 	}
 	if cpltPath == "" {
 		return row, nil
@@ -280,6 +328,10 @@ func mcpRemoteHost(server, raw, cpltPath, mode string, st providerpkg.MCPHostSta
 	case verdict == "BLOCKED-PORT" || loopback:
 		p.Problem += " (localhost port " + port + " is closed in the sandbox)"
 		p.Fix = "cplt config set allow.localhost " + port
+		return row, p
+	case row.Consent == "allowed" && row.DNS == "unknown" && verdict == "BLOCKED-PRIVATE-RESOLVED":
+		p.Problem += " (it resolves to a private address, but its DNS lookup failed when you allowed it, so nav-pilot does not waive it yet)"
+		p.Fix = "start nav-pilot where the host resolves (naisdevice on); it looks the host up again, and the launch after applies it"
 		return row, p
 	case row.Consent == "allowed":
 		p.Problem += " until nav-pilot's allowlist is updated"
@@ -550,10 +602,11 @@ func mcpFail(name string, err error) {
 }
 
 func cmdMCPEnable(names []string, clients []string) error {
-	registry, entries, err := mcpRegistryServers()
+	registry, entries, stale, err := mcpRegistryServers()
 	if err != nil {
 		return fmt.Errorf("could not reach Nav's MCP registry, so nothing was changed: %w", err)
 	}
+	mcpNoteStale(stale)
 	failed := 0
 	var enabled []providerpkg.MCPServerEntry
 	for _, name := range names {
@@ -585,7 +638,11 @@ func cmdMCPEnable(names []string, clients []string) error {
 		// The sandbox half: the launch's host consent, one screen for every
 		// server (default No, one line without a terminal, nothing with
 		// mcp_hosts = off).
-		noteMCPHostConsent()
+		client := mcpLaunchClient()
+		if !slices.Contains(clients, client) {
+			client = clients[0]
+		}
+		noteMCPHostConsent(client)
 		conf := mcpConfigured(entries)
 		for _, e := range enabled {
 			mcpEnableFollowUp(registry, entries, conf, e, clients)
@@ -666,7 +723,7 @@ func mcpEnableFollowUp(registry string, entries []providerpkg.MCPServerEntry, co
 
 func cmdMCPDisable(names []string, clients []string) error {
 	var entries []providerpkg.MCPServerEntry
-	var regErr error
+	var regErr, stale error
 	fetched := false
 	failed, removed := 0, 0
 	for _, name := range names {
@@ -677,7 +734,8 @@ func cmdMCPDisable(names []string, clients []string) error {
 			if !slices.Contains(keys, key) {
 				// Not a name in the file: the registry's full name for it.
 				if !fetched {
-					_, entries, regErr = mcpRegistryServers()
+					_, entries, stale, regErr = mcpRegistryServers()
+					mcpNoteStale(stale)
 					fetched = true
 				}
 				e, err := mcpResolve(entries, name)
@@ -721,24 +779,19 @@ func cmdMCPDisable(names []string, clients []string) error {
 	return nil
 }
 
+// dropMCPHosts narrows the host approval to the servers still configured
+// in either client, so a dropped host is asked about again if its server
+// comes back, and brings the allowlist file in step.
 func dropMCPHosts() {
 	if cpltInstalled() {
-		st, err := readMCPHostState()
-		if err == nil && st.FetchErr == nil && st.Record != nil && st.Record.Approved {
-			var gone []string
-			for _, h := range st.Previous {
-				if !slices.ContainsFunc(st.Grant, func(g providerpkg.MCPHost) bool { return g.Host == h.Host }) {
-					gone = append(gone, h.Host)
-				}
-			}
-			if len(gone) > 0 {
-				if err := recordMCPHosts(st.Grant, true); err != nil {
-					fmt.Fprintf(os.Stderr, "%s Could not update the MCP host approval: %v\n", yellow("⚠"), err)
-					return
-				}
-				sort.Strings(gone)
-				fmt.Printf("%s No longer allowed in the sandbox, as no other MCP server needs them: %s\n", green("✓"), strings.Join(gone, ", "))
-			}
+		gone, err := narrowMCPApproval()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s Could not update the MCP host approval: %v\n", yellow("⚠"), err)
+			return
+		}
+		if len(gone) > 0 {
+			sort.Strings(gone)
+			fmt.Printf("%s No longer allowed in the sandbox, as no other MCP server needs them: %s\n", green("✓"), strings.Join(gone, ", "))
 		}
 	}
 	syncMCPAllowlist()

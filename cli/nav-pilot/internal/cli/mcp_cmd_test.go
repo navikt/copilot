@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -11,7 +12,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
@@ -47,10 +47,11 @@ func mcpCmdEnv(t *testing.T, st providerpkg.MCPHostState) *mcpFakes {
 	t.Chdir(t.TempDir())
 	isInteractive = func() bool { return false }
 	f := &mcpFakes{verdicts: map[string]string{}, config: map[string]string{}}
-	prev := []any{mcpRegistryServers, mcpCpltPath, mcpCpltConfigGet, mcpLookPath, mcpProbeRun, readMCPHostState, recordMCPHosts, notedMCPHosts}
-	mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error) {
-		return "https://registry.test", mcpTestEntries(), nil
+	prev := []any{mcpRegistryServers, mcpCpltPath, mcpCpltConfigGet, mcpLookPath, mcpProbeRun, readMCPHostState, recordMCPHosts, notedMCPHosts, narrowMCPApproval}
+	mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error, error) {
+		return "https://registry.test", mcpTestEntries(), nil, nil
 	}
+	narrowMCPApproval = func() ([]string, error) { return nil, nil }
 	mcpCpltPath = func() string { return "/fake/cplt" }
 	mcpCpltConfigGet = func(_, key string) string { return f.config[key] }
 	mcpLookPath = func(string) (string, error) { return "", os.ErrNotExist }
@@ -78,7 +79,8 @@ func mcpCmdEnv(t *testing.T, st providerpkg.MCPHostState) *mcpFakes {
 	mcpClientInstalled = func(c string) bool { return c == "copilot" }
 	t.Cleanup(func() {
 		mcpClientInstalled = prevInstalled
-		mcpRegistryServers = prev[0].(func() (string, []providerpkg.MCPServerEntry, error))
+		mcpRegistryServers = prev[0].(func() (string, []providerpkg.MCPServerEntry, error, error))
+		narrowMCPApproval = prev[8].(func() ([]string, error))
 		mcpCpltPath = prev[1].(func() string)
 		mcpCpltConfigGet = prev[2].(func(string, string) string)
 		mcpLookPath = prev[3].(func(string) (string, error))
@@ -222,16 +224,12 @@ func TestMCPEnable(t *testing.T) {
 	}
 }
 
-// disable removes the server and narrows the host approval to what the
-// servers left still need; a host another server needs stays.
-func TestMCPDisableDropsHostsNoOtherServerNeeds(t *testing.T) {
-	onboarding := providerpkg.MCPHost{Host: "mcp-onboarding.intern.nav.no", Private: true}
-	figmaHost := providerpkg.MCPHost{Host: "mcp.figma.com"}
-	f := mcpCmdEnv(t, providerpkg.MCPHostState{
-		Record:   &artifacts.ProposalConsent{Approved: true},
-		Previous: []providerpkg.MCPHost{figmaHost, onboarding},
-		Grant:    []providerpkg.MCPHost{onboarding}, // figma is no longer configured
-	})
+// disable removes the server, narrows the host approval and names the
+// hosts dropped (which ones is NarrowMCPApproval's, tested in provider).
+func TestMCPDisableNarrowsTheApproval(t *testing.T) {
+	mcpCmdEnv(t, providerpkg.MCPHostState{})
+	narrowed := 0
+	narrowMCPApproval = func() ([]string, error) { narrowed++; return []string{"mcp.figma.com"}, nil }
 	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {"com.figma/figma-mcp": {}, "io.github.navikt/mcp-onboarding": {}}}`)
 	out := captureStdout(func() {
 		if err := cmdMCP([]string{"disable", "figma-mcp"}); err != nil {
@@ -241,25 +239,48 @@ func TestMCPDisableDropsHostsNoOtherServerNeeds(t *testing.T) {
 	if keys := providerpkg.MCPConfigKeys("copilot"); strings.Join(keys, ",") != "io.github.navikt/mcp-onboarding" {
 		t.Errorf("keys = %v", keys)
 	}
-	if len(f.recorded) != 1 || len(f.recorded[0]) != 1 || f.recorded[0][0].Host != onboarding.Host || !f.recorded[0][0].Private {
-		t.Errorf("recorded %v, want only the host still needed", f.recorded)
-	}
-	if !strings.Contains(out, "mcp.figma.com") {
-		t.Errorf("output does not name the dropped host:\n%s", out)
+	if narrowed != 1 || !strings.Contains(out, "mcp.figma.com") {
+		t.Errorf("narrowed %d times; output:\n%s", narrowed, out)
 	}
 }
 
-// A registry that did not answer keeps the approval as it is.
-func TestMCPDisableKeepsHostsWhenTheRegistryIsDown(t *testing.T) {
-	f := mcpCmdEnv(t, providerpkg.MCPHostState{
-		FetchErr: os.ErrDeadlineExceeded,
-		Record:   &artifacts.ProposalConsent{Approved: true},
-		Previous: []providerpkg.MCPHost{{Host: "mcp.figma.com"}},
+// An allowed host whose lookup timed out is not waived as private yet; list
+// says so and how it gets fixed, and the JSON carries the classification.
+func TestMCPListUnknownHost(t *testing.T) {
+	f := mcpCmdEnv(t, providerpkg.MCPHostState{Grant: []providerpkg.MCPHost{{Host: "mcp-onboarding.intern.nav.no", Unknown: true}}})
+	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {"io.github.navikt/mcp-onboarding": {}}}`)
+	f.verdicts["mcp-onboarding.intern.nav.no:443"] = "BLOCKED-PRIVATE-RESOLVED"
+	rep := diagnoseMCP("r", mcpTestEntries(), mcpConfigured(mcpTestEntries()), "io.github.navikt/mcp-onboarding")
+	if len(rep.Servers) != 1 || len(rep.Servers[0].Hosts) != 1 || rep.Servers[0].Hosts[0].DNS != "unknown" {
+		t.Fatalf("servers = %+v", rep.Servers)
+	}
+	if len(rep.Problems) != 1 || !strings.Contains(rep.Problems[0].Problem, "DNS lookup failed") || !strings.Contains(rep.Problems[0].Fix, "naisdevice") {
+		t.Errorf("problems = %+v", rep.Problems)
+	}
+	if slices.ContainsFunc(f.probes, func(p string) bool { return strings.HasPrefix(p, "--allow-private-domain") }) {
+		t.Errorf("an unknown host was probed with the private waiver: %q", f.probes)
+	}
+}
+
+// A stale registry answer is used and said to be old; a project's OpenCode
+// server is mentioned and not counted.
+func TestMCPListStaleAndProjectConfig(t *testing.T) {
+	mcpCmdEnv(t, providerpkg.MCPHostState{})
+	mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error, error) {
+		return "https://registry.test", mcpTestEntries(), errors.New("timeout; showing its answer from 2026-09-01 10:00"), nil
+	}
+	wd, _ := os.Getwd()
+	writeTestFile(t, filepath.Join(wd, "opencode.json"), `{"mcp": {"repo-pick": {"type": "remote", "url": "https://mcp.figma.com/mcp"}}}`)
+	out := captureStdout(func() {
+		if err := cmdMCP([]string{"list"}); err != nil {
+			t.Fatal(err)
+		}
 	})
-	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {"com.figma/figma-mcp": {}}}`)
-	_ = captureStdout(func() { _ = cmdMCP([]string{"disable", "com.figma/figma-mcp"}) })
-	if len(f.recorded) != 0 {
-		t.Errorf("recorded %v with no registry answer", f.recorded)
+	if !strings.Contains(out, "could not be read again (timeout; showing its answer from 2026-09-01 10:00)") || !strings.Contains(out, "OpenCode also loads repo-pick") {
+		t.Errorf("output:\n%s", out)
+	}
+	if c := mcpConfigured(mcpTestEntries()); len(c.OpenCode) != 0 {
+		t.Errorf("the project's server counted as configured: %v", c.OpenCode)
 	}
 }
 
@@ -288,7 +309,7 @@ func TestMCPCommandIsOffTheHotPath(t *testing.T) {
 			}
 		}
 	}
-	writers := map[string]bool{"MCPRegistryServers": true, "SetMCPServer": true, "RemoveMCPServer": true, "MCPConfigKeys": true, "ConfiguredMCPServers": true, "MCPClientEntry": true, "MCPConfigKeyFor": true}
+	writers := map[string]bool{"MCPRegistryServers": true, "SetMCPServer": true, "RemoveMCPServer": true, "MCPConfigKeys": true, "ConfiguredMCPServers": true, "MCPClientEntry": true, "MCPConfigKeyFor": true, "NarrowMCPApproval": true}
 	var files []string
 	for _, dir := range []string{".", "../provider"} {
 		m, _ := filepath.Glob(filepath.Join(dir, "*.go"))

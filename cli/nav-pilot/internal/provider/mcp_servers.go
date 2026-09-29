@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
-	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 )
 
@@ -28,7 +28,7 @@ type MCPServerEntry struct {
 	Packages    []MCPPackage `json:"packages"`
 	// Setup is the registry's setupInstructions (_meta), steps the user
 	// takes once, such as a cplt config key or a browser download.
-	Setup []MCPSetupStep `json:"-"`
+	Setup []MCPSetupStep `json:"setup,omitempty"`
 }
 
 // MCPRemote is a server reached over HTTP.
@@ -92,17 +92,52 @@ func (p MCPPackage) Launch() (runtime string, args []string) {
 }
 
 // MCPRegistryServers is the servers of the registry the org policy names, or
-// Nav's own when there is no policy to ask: the same choice as the launch.
-func MCPRegistryServers() (registry string, servers []MCPServerEntry, err error) {
-	registry, err = fetchMCPPolicy()
-	if err != nil || registry == "" {
-		registry = agentpakke.MCPRegistryURL
+// Nav's own when there is no policy to ask: the same choice as the launch,
+// and the same cache (mcp_hosts.go). A cache past its day, or one without
+// entries, is read again first: nav-pilot mcp is asked for, so it may wait
+// for gh and the registry, each bounded by [mcpPolicyTimeout]. When that
+// read fails, a cache there is still answers, and stale says why it is old.
+func MCPRegistryServers() (registry string, servers []MCPServerEntry, stale, err error) {
+	c, ok := readMCPRegistryCache()
+	if !ok || c.Registry.Entries == nil || time.Since(c.At) > mcpRegistryTTL {
+		if rerr := refreshMCPRegistry(); rerr != nil {
+			if !ok || c.Registry.Entries == nil {
+				return "", nil, nil, rerr
+			}
+			stale = fmt.Errorf("%w; showing its answer from %s", rerr, c.At.Local().Format("2006-01-02 15:04"))
+		} else if c, ok = readMCPRegistryCache(); !ok {
+			return "", nil, nil, errMCPRegistryNotRead
+		}
 	}
-	reg, err := fetchMCPRegistry(registry)
-	if err != nil {
-		return registry, nil, fmt.Errorf("%s did not answer: %w", registry, err)
+	return c.Registry.URL, c.Registry.Entries, stale, nil
+}
+
+// NarrowMCPApproval cuts the recorded MCP host approval down to the hosts the
+// servers in either client's user config still need, by the cached registry
+// answer, and returns the hosts it dropped. Nothing changes without an
+// approval or a cache.
+func NarrowMCPApproval() (gone []string, err error) {
+	rec, err := readMCPRecord()
+	if err != nil || rec == nil || !rec.Approved {
+		return nil, err
 	}
-	return registry, reg.Entries, nil
+	c, ok := readMCPRegistryCache()
+	if !ok {
+		return nil, nil
+	}
+	cur := matchMCPHosts(c.Registry, copilotMCPServerNames(), openCodeUserMCPServers())
+	var keep []MCPHost
+	for _, h := range recordedMCPHosts(rec) {
+		if slices.ContainsFunc(cur.Hosts, func(o MCPHost) bool { return o.Host == h.Host }) {
+			keep = append(keep, h)
+		} else {
+			gone = append(gone, h.Host)
+		}
+	}
+	if len(gone) == 0 {
+		return nil, nil
+	}
+	return gone, RecordMCPHosts(keep, true)
 }
 
 // MCP clients nav-pilot can write a server into.
@@ -433,6 +468,10 @@ type MCPConfigured struct {
 	OpenCode      map[string]bool
 	CopilotOther  []string
 	OpenCodeOther []string
+	// OpenCodeProject is the servers OpenCode loads here from a project's
+	// config or an OPENCODE_CONFIG* variable. Shown, never counted: the
+	// repository chose them, not the user.
+	OpenCodeProject []string
 }
 
 // ConfiguredMCPServers matches the user's client configs against the
@@ -453,7 +492,13 @@ func ConfiguredMCPServers(entries []MCPServerEntry) MCPConfigured {
 			c.CopilotOther = append(c.CopilotOther, k)
 		}
 	}
-	oc := openCodeMCPServers("", os.Environ())
+	oc := openCodeUserMCPServers()
+	for k := range openCodeMCPServers("", os.Environ()) {
+		if _, ok := oc[k]; !ok {
+			c.OpenCodeProject = append(c.OpenCodeProject, k)
+		}
+	}
+	slices.Sort(c.OpenCodeProject)
 	keys := make([]string, 0, len(oc))
 	for k := range oc {
 		keys = append(keys, k)
