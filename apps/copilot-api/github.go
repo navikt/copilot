@@ -783,7 +783,7 @@ func (g *GitHubClient) isActiveOrgMember(ctx context.Context, login string) (boo
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		"https://api.github.com/orgs/"+url.PathEscape(g.org)+"/memberships/"+url.PathEscape(login), nil)
 	if err != nil {
-		return false, err
+		return false, errors.New("building memberships request")
 	}
 	if err := g.setAuthHeaders(req); err != nil {
 		return false, err
@@ -793,7 +793,8 @@ func (g *GitHubClient) isActiveOrgMember(ctx context.Context, login string) (boo
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	resp, err := client.Do(req)
 	if err != nil {
-		return false, err
+		// The *url.Error names the URL, and so the login: keep only its type.
+		return false, fmt.Errorf("calling GitHub memberships: %T", err)
 	}
 	defer resp.Body.Close()
 	var active bool

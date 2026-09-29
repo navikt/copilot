@@ -382,4 +382,9 @@ func TestIsActiveOrgMember(t *testing.T) {
 	if _, err := g.isActiveOrgMember(t.Context(), "down"); err == nil || calls != before+1 {
 		t.Fatal("an error was cached")
 	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := g.isActiveOrgMember(ctx, "secretlogin"); err == nil || strings.Contains(err.Error(), "secretlogin") {
+		t.Fatalf("err = %v, want an error without the login", err)
+	}
 }
