@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BodyShort, Checkbox, CheckboxGroup, HStack, Search, VStack } from "@navikt/ds-react";
+import { BodyShort, Checkbox, CheckboxGroup, HStack, Search, Tag, VStack } from "@navikt/ds-react";
 import { MODEL_PRICING } from "@/lib/model-pricing";
 import type { ModelPrice } from "@/lib/model-pricing";
+import { isNavAllowedModel, navPilotPurposesFor } from "@/lib/model-policy";
 
 const PROVIDER_ORDER = ["OpenAI", "Anthropic", "Google", "GitHub", "Moonshot AI", "Microsoft"] as const;
 
@@ -11,6 +12,8 @@ const COLUMNS = [
   { key: "provider", label: "Leverandør" },
   { key: "model", label: "Modell" },
   { key: "category", label: "Kategori" },
+  { key: "navStatus", label: "Nav-status" },
+  { key: "navPilot", label: "nav-pilot" },
   { key: "input", label: "Input" },
   { key: "cachedInput", label: "Cached" },
   { key: "cacheWrite", label: "Cache write" },
@@ -18,14 +21,16 @@ const COLUMNS = [
 ] as const;
 
 type ColumnKey = (typeof COLUMNS)[number]["key"];
-type DiscreteFilterKey = "provider" | "model" | "category";
+type DiscreteFilterKey = "provider" | "model" | "category" | "navStatus" | "navPilot";
 type RangeFilterKey = "input" | "cachedInput" | "cacheWrite" | "output";
 type SortKey = ColumnKey;
 type SortDirection = "ascending" | "descending";
 type RangeFilter = { min?: string; max?: string };
 type ColumnFilters = Partial<Record<DiscreteFilterKey, string[]>> & Partial<Record<RangeFilterKey, RangeFilter>>;
 
-const DISCRETE_FILTER_COLUMNS = COLUMNS.filter(({ key }) => ["provider", "model", "category"].includes(key)) as {
+const DISCRETE_FILTER_COLUMNS = COLUMNS.filter(({ key }) =>
+  ["provider", "model", "category", "navStatus", "navPilot"].includes(key)
+) as {
   key: DiscreteFilterKey;
   label: string;
 }[];
@@ -57,6 +62,26 @@ function columnValue(model: ModelPrice, key: DiscreteFilterKey): string {
       return model.model;
     case "category":
       return model.category;
+    case "navStatus":
+      return isNavAllowedModel(model.model) ? "Aktivert i Nav" : "Ikke aktivert i Nav";
+    case "navPilot":
+      return navPilotPurposesFor(model.model).join(", ") || "Ikke brukt";
+  }
+}
+
+function sortableValue(model: ModelPrice, key: SortKey): string | number | undefined {
+  switch (key) {
+    case "provider":
+    case "model":
+    case "category":
+    case "navStatus":
+    case "navPilot":
+      return columnValue(model, key);
+    case "input":
+    case "cachedInput":
+    case "cacheWrite":
+    case "output":
+      return model[key];
   }
 }
 
@@ -131,7 +156,12 @@ export function ModelPricingTables() {
   const models = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("nb-NO");
     const matchingModels = MODEL_PRICING.filter((model) => {
-      if (query && !`${model.model} ${model.provider} ${model.category}`.toLocaleLowerCase("nb-NO").includes(query)) {
+      if (
+        query &&
+        !`${model.model} ${model.provider} ${model.category} ${columnValue(model, "navStatus")} ${columnValue(model, "navPilot")}`
+          .toLocaleLowerCase("nb-NO")
+          .includes(query)
+      ) {
         return false;
       }
       const matchesDiscreteFilters = DISCRETE_FILTER_COLUMNS.every(({ key }) => {
@@ -148,8 +178,8 @@ export function ModelPricingTables() {
     });
 
     return [...matchingModels].sort((a, b) => {
-      const aValue = sortKey === "provider" ? a.provider : a[sortKey];
-      const bValue = sortKey === "provider" ? b.provider : b[sortKey];
+      const aValue = sortableValue(a, sortKey);
+      const bValue = sortableValue(b, sortKey);
       if (aValue == null || bValue == null) {
         if (aValue == null && bValue == null) return 0;
         return aValue == null ? 1 : -1;
@@ -387,6 +417,34 @@ export function ModelPricingTables() {
                             >
                               {model.category}
                             </span>
+                          </td>
+                        );
+                      }
+                      if (key === "navStatus") {
+                        const allowed = isNavAllowedModel(model.model);
+                        return (
+                          <td
+                            key={key}
+                            style={{ paddingBlock: "var(--ax-space-12)", paddingInline: "var(--ax-space-16)" }}
+                          >
+                            <Tag size="xsmall" variant="moderate" data-color={allowed ? "success" : "warning"}>
+                              {columnValue(model, key)}
+                            </Tag>
+                          </td>
+                        );
+                      }
+                      if (key === "navPilot") {
+                        return (
+                          <td
+                            key={key}
+                            style={{
+                              color: "#475569",
+                              fontSize: "0.8125rem",
+                              paddingBlock: "var(--ax-space-12)",
+                              paddingInline: "var(--ax-space-16)",
+                            }}
+                          >
+                            {columnValue(model, key)}
                           </td>
                         );
                       }

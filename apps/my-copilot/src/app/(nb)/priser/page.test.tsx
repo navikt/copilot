@@ -129,3 +129,51 @@ describe("cache write-kolonnen", () => {
     expect(within(pristabell()).getAllByRole("row").at(-1)).toHaveTextContent("Kimi K3");
   });
 });
+
+describe("Nav-status og nav-pilots modellvalg", () => {
+  function pristabell() {
+    return screen.getByRole("table");
+  }
+
+  function radFor(navn: string) {
+    return within(pristabell()).getByText(navn).closest("tr")!;
+  }
+
+  it("forklarer hvorfor GitHubs globale prisliste er større enn Navs modellutvalg", () => {
+    render(<PriserPage />);
+
+    expect(screen.getByRole("heading", { name: "Hvorfor tabellen viser flere modeller" })).toBeInTheDocument();
+    expect(within(pristabell()).getByRole("columnheader", { name: /Nav-status/ })).toBeInTheDocument();
+    expect(screen.getByText("Nav-status: Alle")).toBeInTheDocument();
+    expect(screen.getByText("nav-pilot: Alle")).toBeInTheDocument();
+  });
+
+  it("merker og filtrerer modeller etter Navs modellpolicy", () => {
+    render(<PriserPage />);
+
+    expect(within(radFor("GPT-5.4 (Default, ≤ 272K)")).getByText("Aktivert i Nav")).toBeInTheDocument();
+    expect(within(radFor("GPT-6 Sol (Default, ≤ 272K)")).getByText("Ikke aktivert i Nav")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Nav-status: Alle"));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ikke aktivert i Nav" }));
+
+    expect(radFor("GPT-5.4 (Default, ≤ 272K)")).toBeInTheDocument();
+    expect(within(pristabell()).queryByText("GPT-6 Sol (Default, ≤ 272K)")).toBeNull();
+  });
+
+  it("viser hvilket formål nav-pilot foretrekker modellen til", () => {
+    render(<PriserPage />);
+
+    expect(within(radFor("GPT-6 Sol (Default, ≤ 272K)")).getByText("Daglig agentisk koding")).toBeInTheDocument();
+    const reviewChoice = screen
+      .getByRole("heading", {
+        name: "Høyrisikoplanlegging og kodegjennomgang",
+      })
+      .closest("li")!;
+    expect(within(reviewChoice).getByText("@nav-pilot-opus og @code-review")).toBeInTheDocument();
+    expect(within(reviewChoice).getByText("Claude Opus 5.5")).toBeInTheDocument();
+    expect(within(reviewChoice).getByText("Claude Opus 5")).toBeInTheDocument();
+    expect(within(reviewChoice).getAllByText("Ikke aktivert i Nav")).toHaveLength(2);
+    expect(within(reviewChoice).getByText("Aktivert i Nav")).toBeInTheDocument();
+  });
+});

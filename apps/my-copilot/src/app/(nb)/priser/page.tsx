@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { Box, VStack, Heading, BodyShort } from "@navikt/ds-react";
+import { Box, VStack, Heading, BodyShort, Tag } from "@navikt/ds-react";
 import { PRICING_SOURCE_URL, PRICING_LAST_UPDATED } from "@/lib/model-pricing";
+import { isNavAllowedModel, NAV_MODEL_POLICY_LAST_UPDATED, NAV_PILOT_MODEL_CHOICES } from "@/lib/model-policy";
 import { PageHero } from "@/components/page-hero";
 import NextLink from "next/link";
 import { ModelPricingTables } from "./model-pricing-tables";
@@ -22,6 +23,18 @@ export const metadata: Metadata = {
   },
 };
 
+function ModelWithAvailability({ model }: { model: string }) {
+  const allowed = isNavAllowedModel(model);
+  return (
+    <>
+      {model}{" "}
+      <Tag size="xsmall" variant="moderate" data-color={allowed ? "success" : "warning"}>
+        {allowed ? "Aktivert i Nav" : "Ikke aktivert i Nav"}
+      </Tag>
+    </>
+  );
+}
+
 export default function PriserPage() {
   return (
     <main id="hovedinnhold" tabIndex={-1}>
@@ -35,6 +48,82 @@ export default function PriserPage() {
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
           <VStack gap={{ xs: "space-24", md: "space-32" }}>
+            <Box as="section">
+              <VStack gap="space-16">
+                <div>
+                  <Heading size="small" level="2" spacing>
+                    nav-pilots modellvalg
+                  </Heading>
+                  <BodyShort>
+                    nav-pilot velger modell etter oppgaven. Modellpolicyen avgjør om valget faktisk kan brukes i Nav.
+                    Statusen under er kontrollert {NAV_MODEL_POLICY_LAST_UPDATED}.
+                  </BodyShort>
+                </div>
+                <ul
+                  style={{
+                    display: "grid",
+                    gap: "var(--ax-space-12)",
+                    listStyle: "none",
+                    margin: 0,
+                    padding: 0,
+                  }}
+                >
+                  {NAV_PILOT_MODEL_CHOICES.map((choice) => (
+                    <Box
+                      as="li"
+                      key={choice.purpose}
+                      padding="space-16"
+                      background="neutral-soft"
+                      borderColor="neutral-subtle"
+                      borderWidth="1"
+                      borderRadius="8"
+                    >
+                      <VStack gap="space-8">
+                        <Heading size="xsmall" level="3">
+                          {choice.purpose}
+                        </Heading>
+                        <BodyShort size="small">
+                          <strong>Primærvalg:</strong> <ModelWithAvailability model={choice.primary} />
+                        </BodyShort>
+                        {choice.fallbacks.length > 0 && (
+                          <BodyShort size="small">
+                            <strong>Fallback:</strong>{" "}
+                            {choice.fallbacks.map((model, index) => (
+                              <span key={model}>
+                                {index > 0 && ", "}
+                                <ModelWithAvailability model={model} />
+                              </span>
+                            ))}
+                          </BodyShort>
+                        )}
+                        <BodyShort size="small" textColor="subtle">
+                          {choice.usedBy}
+                        </BodyShort>
+                      </VStack>
+                    </Box>
+                  ))}
+                </ul>
+              </VStack>
+            </Box>
+
+            <Box
+              padding={{ xs: "space-16", md: "space-20" }}
+              background="info-soft"
+              borderColor="info"
+              borderWidth="1"
+              borderRadius="12"
+            >
+              <VStack gap="space-8">
+                <Heading size="xsmall" level="2">
+                  Hvorfor tabellen viser flere modeller
+                </Heading>
+                <BodyShort size="small">
+                  GitHubs prisliste inneholder hele Copilot-utvalget. Den sier ikke hvilke modeller Nav har aktivert.
+                  Bruk filtrene «Nav-status» og «nav-pilot» for å skille tilgjengelige modeller fra resten av prislista.
+                </BodyShort>
+              </VStack>
+            </Box>
+
             <ModelPricingTables />
 
             {/* Context section */}
@@ -87,7 +176,8 @@ export default function PriserPage() {
               >
                 GitHub Copilot Models and Pricing
               </NextLink>
-              {" · "}Sist oppdatert: {PRICING_LAST_UPDATED}
+              {" · "}Priser sist oppdatert: {PRICING_LAST_UPDATED}
+              {" · "}Nav-status sist kontrollert: {NAV_MODEL_POLICY_LAST_UPDATED}
             </BodyShort>
           </VStack>
         </Box>
