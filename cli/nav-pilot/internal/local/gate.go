@@ -410,7 +410,8 @@ func (g *dispatchGate) outsideTemp(r GateRequest) bool {
 	case "bash":
 		for _, seg := range splitSegments(r.Command) {
 			words := shellWords(seg.text)
-			writer := len(words) > 0 && homeWriters[filepath.Base(words[0])]
+			cmd := commandWords(words)
+			writer := len(cmd) > 0 && homeWriters[filepath.Base(cmd[0])]
 			redirect := false
 			for _, t := range words {
 				// A redirect (>/tmp/x, 2>>/tmp/x, > ~/x) or a flag's value (--out=/tmp/x).
@@ -955,6 +956,18 @@ func perlFiles(args []string) (files, scripts []string, inPlace bool) {
 	return files, scripts, inPlace
 }
 
+// commandWords drops what comes before the command itself: assignments
+// (FOO=1), keywords and wrappers (do, env, time, timeout 60, …).
+func commandWords(toks []string) []string {
+	for len(toks) > 0 && (strings.Contains(toks[0], "=") || slices.Contains([]string{"do", "then", "{", "(", "time", "env", "command", "nice"}, toks[0])) {
+		toks = toks[1:]
+	}
+	if len(toks) > 1 && toks[0] == "timeout" {
+		toks = toks[2:]
+	}
+	return toks
+}
+
 // Verifies reports whether a bash command builds the project or runs its
 // tests: a segment that runs a build tool or test runner.
 //
@@ -962,13 +975,7 @@ func perlFiles(args []string) (files, scripts []string, inPlace bool) {
 // here costs one reminder too many (verify_nudge), never a refusal.
 func Verifies(cmd string) bool {
 	for _, seg := range splitSegments(cmd) {
-		toks := shellWords(seg.text)
-		for len(toks) > 0 && (strings.Contains(toks[0], "=") || slices.Contains([]string{"do", "then", "{", "(", "time", "env", "command", "nice"}, toks[0])) {
-			toks = toks[1:]
-		}
-		if len(toks) > 1 && toks[0] == "timeout" {
-			toks = toks[2:]
-		}
+		toks := commandWords(shellWords(seg.text))
 		if len(toks) == 0 {
 			continue
 		}

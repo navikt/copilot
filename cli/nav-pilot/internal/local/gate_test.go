@@ -659,6 +659,8 @@ func TestGateRefusesOtherPathsOutsideTheProject(t *testing.T) {
 		{GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "write", Path: "/home/np-uat/Draft.kt", Create: true}, true},
 		{bash(1, "cat ~/.gradle/gradle.properties"), true},
 		{bash(1, "rm ~/F1.bak"), true},
+		{bash(1, "MODE=backup cp src/F1.kt ~/F1.bak"), true},
+		{bash(1, "env LC_ALL=C timeout 5 cp src/F1.kt ~/F1.bak"), true},
 		{bash(1, "grep org.gradle ~/.gradle/gradle.properties"), false},
 		{bash(1, "JAVA_HOME=~/.sdkman/candidates/java/21 ./gradlew test"), false},
 		{bash(1, "ls /home/np-uat/.m2/repository"), false},
