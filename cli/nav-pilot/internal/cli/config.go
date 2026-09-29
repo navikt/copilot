@@ -105,7 +105,9 @@ func readConfigFile() (*Config, []string, error) {
 		return nil, nil, fmt.Errorf("parsing config %s: %w", path, err)
 	}
 	for _, k := range meta.Undecoded() {
-		problems = append(problems, unknownKeyProblem(strings.Join(k, ".")))
+		if key := strings.Join(k, "."); !ignoredConfigKeys[key] {
+			problems = append(problems, unknownKeyProblem(key))
+		}
 	}
 	return &cfg, problems, nil
 }
@@ -505,6 +507,11 @@ func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 	return resolved, nil
 }
 
+// ignoredConfigKeys are retired keys an old config file may still hold. They
+// load without a word and nothing reads them: nav-pilot wrote them itself to
+// remember the rtk setup prompt, which is gone (#1321).
+var ignoredConfigKeys = map[string]bool{"rtk_prompted_client": true, "rtk_prompted_at": true}
+
 // renamedConfigKeys maps a retired config key to the key that replaced it.
 var renamedConfigKeys = map[string]string{"agent": "client"}
 
@@ -595,12 +602,6 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		}
 		if file.OtelLogLevel != nil {
 			r.OtelLogLevel = *file.OtelLogLevel
-		}
-		if file.RtkPromptedClient != nil {
-			r.RtkPromptedClient = *file.RtkPromptedClient
-		}
-		if file.RtkPromptedAt != nil {
-			r.RtkPromptedAt = *file.RtkPromptedAt
 		}
 		if file.LocalAutostart != nil {
 			r.LocalAutostart = *file.LocalAutostart

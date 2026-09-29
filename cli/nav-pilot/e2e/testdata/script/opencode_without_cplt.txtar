@@ -44,7 +44,6 @@ grep '^--agent\nopencode\n' $WORK/fake/cplt.log
 [!pty] stop 'no pseudo-terminal here (/dev/ptmx will not open)'
 rm $WORK/fake/cplt
 exec nav-pilot config set client opencode
-exec nav-pilot config set rtk_prompted_client opencode
 exits 0 pty-run -wait 'Launch opencode without the sandbox' -send '\r' -- nav-pilot
 stdout 'Not launched\.'
 

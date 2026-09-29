@@ -15,7 +15,6 @@ exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
 
 cd $HOME
 exec nav-pilot config set source $WORK/plattform
-exec nav-pilot config set rtk_prompted_client copilot
 
 exits 0 pty-run -wait 'and 1 hooks to ~/.copilot' -send '\r' -- nav-pilot
 stdout 'Install 1 agents, skills & instructions and 1 hooks to ~/.copilot\?'

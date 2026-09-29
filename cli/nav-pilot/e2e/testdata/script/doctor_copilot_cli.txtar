@@ -34,7 +34,7 @@ stderr 'Not launching: neither copilot nor cplt is installed\.\n  Install the Co
 
 # In a terminal it warns with the same two commands and exits 0.
 [!pty] stop 'no pseudo-terminal here (/dev/ptmx will not open)'
-exec nav-pilot config set rtk_prompted_client copilot
+exec nav-pilot config set client copilot
 exits 0 pty-run -- nav-pilot --sync --source $WORK/plattform
 stdout 'Neither copilot nor cplt is installed, so nothing was launched'
 stdout 'Install the Copilot CLI: curl -fsSL https://gh\.io/copilot-install \| bash\r?\n  Install cplt \(the sandbox\): brew install navikt/tap/cplt'

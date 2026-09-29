@@ -230,10 +230,6 @@ func cmdInteractive(overrides CLIOverrides) error {
 		return cfgErr
 	}
 
-	if err := maybePromptRtkSetup(resolved); err != nil {
-		return err
-	}
-
 	// Check user-scope state (always available regardless of git repo)
 	var userScope *InstallScope
 	var userState *StateFile

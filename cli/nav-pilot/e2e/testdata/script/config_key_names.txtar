@@ -1,5 +1,5 @@
 # get and set take a renamed key under its new name and say so, and a typo
-# gets the closest key. The internal rtk_* keys are not offered.
+# gets the closest key. The retired rtk_* keys are not offered.
 
 # No opencode on PATH, so the default before the set is copilot.
 fake-bin copilot
