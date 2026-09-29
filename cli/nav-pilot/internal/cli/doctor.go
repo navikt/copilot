@@ -13,6 +13,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
@@ -430,6 +431,12 @@ func cmdDoctor() error {
 	// and an unanswerable question says so.
 	fmt.Printf("[i] Model pins\n")
 	reportModelPins()
+	fmt.Println()
+
+	// 3c. Local model. Config only; alpha local doctor runs the probes.
+	fmt.Printf("[i] Local model\n")
+	localCfg, _ := readConfig()
+	reportLocalModel(os.Stdout, resolve(localCfg, CLIOverrides{}), local.Installed())
 	fmt.Println()
 
 	// 4. Project Security

@@ -4,6 +4,11 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-29
 
+### Lokal modell: hvorfor konteksten må være så stor
+
+- **Forklaringen står i meldingen**: Når kontekstsjekken i `nav-pilot alpha local doctor` og `setup` feiler, står det nå hvorfor. Systemprompten og verktøyene i en Copilot-økt er rundt 22 000 tokens, og Copilot starter ikke hvis det fyller mer enn 80 prosent av konteksten. Meldingen sier også hva du kan gjøre når det ikke får plass: et grafikkort med mer minne, en maskin med felles minne for prosessor og grafikkort, eller modellene i skyen (#1344).
+- **`doctor` viser lokal modell**: `nav-pilot doctor` har fått en egen del for lokal modell. Den viser om du bruker egen server eller den innebygde MLX-serveren, eller at lokal modell ikke er satt opp.
+
 ### nav-pilot setter ikke lenger opp rtk
 
 - **Ingen rtk-spørsmål**: nav-pilot spør ikke lenger om å installere rtk ved første oppstart, og installerer det ikke. rtk-hooken skrev om kommandoer før de kjørte, så de ga et annet svar enn agenten ventet. I en testkjøring gjentok agenten samme kommando fem til sju ganger før nav-pilot stoppet den (#1321).

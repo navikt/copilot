@@ -151,6 +151,13 @@ export default function EgenServer() {
             opencode-økt får ikke plass. Går serveren tom for minne under sjekken, lagrer{" "}
             <code className={code}>setup</code> ingenting.
           </BodyLong>
+          <BodyLong>
+            Hvorfor så mye kontekst? Systemprompten og verktøyene i en Copilot-økt er rundt 22 000 tokens før du har
+            skrevet noe, og Copilot starter ikke hvis det fyller mer enn 80 prosent av konteksten. Får ikke 30 000
+            tokens plass ved siden av modellen, trenger du et grafikkort med mer minne eller en maskin med felles minne
+            for prosessor og grafikkort (som en Mac med 32 GB eller mer). Ellers kan du bruke modellene i skyen, som
+            ikke krever noe oppsett.
+          </BodyLong>
         </VStack>
       </section>
 
