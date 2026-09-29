@@ -9,21 +9,24 @@ to [copilot-survey](../copilot-survey/README.md). See [#337](https://github.com/
 
 | Caller | Token | Checked by | Identity |
 | --- | --- | --- | --- |
-| nav-pilot (laptop, naisdevice) | GitHub App user token from the device flow | `POST /applications/{client_id}/token` with the app's own credentials: the token must be issued **to this app** (a gh CLI or IDE token is refused), live, then `GET /orgs/navikt/members/{login}` must answer 204 | `github` + numeric user id |
+| nav-pilot (laptop, naisdevice) | GitHub App user token from the device flow | `POST /applications/{client_id}/token` with the app's own credentials: the token must be issued **to this app** (a gh CLI or IDE token is refused), live; then copilot-api must answer that the login from GitHub's answer is an active navikt member (`POST /internal/v1/github/org-membership`, with copilot-cli's M2M token) | `github` + numeric user id |
 
-Every failure is a refusal (fail closed). Outcomes are cached by SHA-256 of
+Every failure is a refusal (fail closed), including copilot-api being down or answering anything but `{"active": true|false}` (502). Outcomes are cached by SHA-256 of
 the token (success 5 minutes, never past the token's expiry; refusal 1
-minute). Cache misses are rate limited per token (burst 3, then one per 10
+minute; copilot-api caches its membership answer 1 more minute). Cache misses are rate limited per token (burst 3, then one per 10
 seconds), so one client cannot drain the shared budget, and under a global
 ceiling (1/s, burst 10) below the app's 5,000/h GitHub quota, so a flood of
 random tokens costs a 429, not the quota. A flood of distinct tokens can
 still slow sign-in for others; it never lets anyone in. copilot-cli logs neither tokens nor identities; copilot-api logs the
 GitHub login of each usage request it serves on someone's behalf (audit).
 
-**GitHub App prerequisites.** Device flow enabled; one permission, the
-organization permission *Members: read*, and no repository or account
-permissions; installed on `navikt`. Without the installation, org membership
-answers 302 for everyone and every sign-in gets 403. User token expiry on:
+**GitHub App prerequisites.** Device flow enabled, and no permissions at all:
+no repository, organization or account permissions. copilot-cli only checks
+that a token was issued to the App (client id and secret); copilot-api checks
+membership with its own GitHub App, which needs *Members: read*. Until
+nav-pilot stops doing it, `nav-pilot auth login` and `auth status` also ask
+GitHub about membership with the user token, as a local hint only; without
+*Members: read* that hint says it could not verify. User token expiry on:
 access tokens last 8 hours, and nav-pilot renews them with the refresh token
 it stores beside them.
 
@@ -78,7 +81,7 @@ still there.
 | Variable | Description | Default |
 | --- | --- | --- |
 | `PORT`, `LOG_LEVEL` | server | `8080`, `INFO` |
-| `GITHUB_ORG` | required org membership | `navikt` |
+| `GITHUB_ORG` | org named in the not-a-member message; copilot-api's `GITHUB_ORG` is the one checked | `navikt` |
 | `COPILOT_API_URL` | internal URL of copilot-api | `http://copilot-api` |
 | `COPILOT_API_AUDIENCE` | Entra scope for the M2M token | from `NAIS_CLUSTER_NAME` |
 | `COPILOT_SURVEY_URL` | internal URL of copilot-survey | `http://copilot-survey` |
