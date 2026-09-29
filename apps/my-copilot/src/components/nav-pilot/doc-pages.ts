@@ -4,6 +4,11 @@ export type DocLink = { href: string; title: string; desc: string };
 
 export const GUIDE_PAGES: DocLink[] = [
   {
+    href: "/nav-pilot/guider/kom-i-gang",
+    title: "Kom i gang på 5 minutter",
+    desc: "Installer, logg inn med gh, start agenten i et repo og velg hvor mye den skal gjøre selv.",
+  },
+  {
     href: "/nav-pilot/guider/installere-og-oppgradere",
     title: "Installere og oppgradere",
     desc: "Velg hvor agentpakka skal ligge, installer i CI, oppgrader og avinstaller.",
