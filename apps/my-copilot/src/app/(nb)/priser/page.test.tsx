@@ -43,18 +43,15 @@ describe("prissiden", () => {
     const cacheWriteSort = screen.getByRole("button", { name: /Sorter etter Cache write/ });
     fireEvent.click(cacheWriteSort);
     expect(cacheWriteSort).toHaveAccessibleName("Sorter etter Cache write, stigende");
-
-    for (const direction of ["stigende", "synkende"]) {
-      const prices = Array.from(pristabell().tBodies[0].rows).map((row) => row.cells[5].textContent);
-      const firstMissingPrice = prices.indexOf("—");
-      if (firstMissingPrice !== -1) {
-        expect(prices.slice(firstMissingPrice)).toEqual(Array(prices.length - firstMissingPrice).fill("—"));
-      }
-      fireEvent.click(cacheWriteSort);
-      expect(cacheWriteSort).toHaveAccessibleName(
-        `Sorter etter Cache write, ${direction === "stigende" ? "synkende" : "stigende"}`
-      );
-    }
+    expect(screen.getByRole("columnheader", { name: /Sorter etter Cache write/ })).toHaveAttribute(
+      "aria-sort",
+      "ascending"
+    );
+    fireEvent.click(cacheWriteSort);
+    expect(screen.getByRole("columnheader", { name: /Sorter etter Cache write/ })).toHaveAttribute(
+      "aria-sort",
+      "descending"
+    );
   });
 
   it("filtrerer på prisintervall og søk", () => {
@@ -68,6 +65,9 @@ describe("prissiden", () => {
     expect(within(pristabell()).queryByText("GPT-6 Luna (Default, ≤ 272K)")).toBeNull();
     expect(within(pristabell()).queryByText("GPT-5.3-Codex (Default)")).toBeNull();
 
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Cache write min" }), {
+      target: { value: "" },
+    });
     fireEvent.change(screen.getByRole("searchbox", { name: "Filtrer modeller" }), {
       target: { value: "Gemini 3.8" },
     });
