@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -50,7 +52,15 @@ func reportScopeIntegrity(scope *InstallScope, state *StateFile) bool {
 	}
 	if missing > 0 {
 		fmt.Printf("      %s %d missing files\n", red("[✗]"), missing)
-		fmt.Printf("          %s Run %s to restore missing files.\n", red("Solution:"), bold("nav-pilot sync"))
+		paths := missingPaths(scope.RootDir, state)
+		for _, p := range paths {
+			fmt.Printf("          %s %s\n", dim("-"), p)
+		}
+		fmt.Printf("          %s Restore them with:\n", red("Solution:"))
+		for _, c := range restoreCommands(scope, state, paths) {
+			fmt.Printf("            %s\n", bold(c))
+		}
+		fmt.Printf("          Deleted on purpose? %s stops tracking them.\n", bold("nav-pilot sync "+scopeFlag(scope)+" --apply"))
 	}
 	if modified > 0 {
 		fmt.Printf("      %s %d file(s) changed since nav-pilot installed them\n", yellow("⚠"), modified)
@@ -61,6 +71,50 @@ func reportScopeIntegrity(scope *InstallScope, state *StateFile) bool {
 			yellow("Solution:"), bold("nav-pilot sync --apply"))
 	}
 	return missing > 0
+}
+
+// restoreCommands names the install command that brings back each of paths,
+// files a scope tracks but no longer has.
+//
+// doctor used to say "run nav-pilot sync", but sync reads a missing file as a
+// deliberate deletion and stops tracking it (#1334). Installing the artifact
+// again is what restores it. A path that names no artifact gets the scope's
+// reinstall command instead.
+func restoreCommands(scope *InstallScope, state *StateFile, paths []string) []string {
+	origin := map[string]string{}
+	for _, f := range state.Files {
+		origin[f.Path] = f.Source
+	}
+	var out []string
+	for _, p := range paths {
+		cmd := "nav-pilot install <name> --type <type> " + scopeFlag(scope)
+		if state.SourceRepo != "" {
+			cmd = reinstallCommand(scope, state)
+		}
+		kind, name := artifactOfPath(p)
+		if kind == KindHook {
+			name, _ = hookOfPath(scope, p)
+		}
+		if kind != nil && name != "" {
+			cmd = fmt.Sprintf("nav-pilot install %s --type %s %s", name, kind.Name, scopeFlag(scope))
+			src := cmp.Or(origin[p], state.SourceRepo)
+			if src != "" && !sameSourceRepo(src, defaultSourceRepo) {
+				cmd += " --source " + src
+			}
+		}
+		if !slices.Contains(out, cmd) {
+			out = append(out, cmd)
+		}
+	}
+	return out
+}
+
+// scopeFlag is the flag that picks a scope on the command line.
+func scopeFlag(scope *InstallScope) string {
+	if scope.IsUser() {
+		return "--user"
+	}
+	return "--repo"
 }
 
 // reportScopeIgnoredButInstalled names files marked ignored in state that are
