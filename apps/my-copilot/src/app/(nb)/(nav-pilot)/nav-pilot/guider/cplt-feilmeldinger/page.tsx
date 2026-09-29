@@ -129,7 +129,7 @@ cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?`}
           </LinkableHeading>
 
           <LinkableHeading id="sign-in-failed" size="small" level="3">
-            Sign-in failed … error sending request … login/oauth/access_token
+            Sign-in failed: request failed: error sending request for url (https://github.com/login/oauth/access_token)
           </LinkableHeading>
           <BodyLong>
             Du har en egen host-liste i <code className={code}>proxy.allowed_domains</code>, uten{" "}
@@ -346,8 +346,11 @@ cplt --allow-env-files                          # bare denne økten`}
             fatal: unable to access ~/.config/git/work: Permission denied
           </LinkableHeading>
           <BodyLong>
-            Gjelder Linux. Git-konfigen din har en <code className={code}>includeIf</code> som peker på en fil cplt ikke
-            gir tilgang til, og git stopper. Gi lesetilgang til fila, ikke hele mappa:
+            Git-konfigen din har en <code className={code}>includeIf</code> som peker på en fil i{" "}
+            <code className={code}>~/.config/git</code>. Der får agenten bare lese <code className={code}>config</code>,{" "}
+            <code className={code}>ignore</code> og <code className={code}>attributes</code>, og git stopper når en
+            include ikke kan leses. På macOS står det <code className={code}>Operation not permitted</code>. Gi
+            lesetilgang til fila, ikke hele mappa:
           </BodyLong>
           <CodeBlock compact>{`cplt config set allow.read ~/.config/git/work`}</CodeBlock>
 
@@ -444,22 +447,26 @@ org.gradle.java.installations.paths=/Library/Java/JavaVirtualMachines/temurin-25
             forbidden-sandbox-reinit
           </LinkableHeading>
           <BodyLong>
-            Playwright kjører nettleseren fra <code className={code}>ms-playwright</code> i cache-mappa, og cplt lar
-            ikke programmer kjøre derfra. Åpne den ene mappa:
+            Chromium prøver å starte sin egen sandkasse, og det går ikke inne i cplt. Playwright MCP slår den på. Selve
+            Playwright-biblioteket kjører uten. Playwright kjører dessuten nettleseren fra{" "}
+            <code className={code}>ms-playwright</code> i cache-mappa, som cplt ikke lar programmer kjøre fra. Da står
+            det <code className={code}>Operation not permitted</code>. Én innstilling løser begge:
           </BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_cache_exec ms-playwright`}</CodeBlock>
           <BodyLong>
-            Mappa blir både skrivbar og kjørbar for agenten. Chromium kan ikke starte sin egen sandkasse inne i cplt, så
-            for Playwright MCP slår cplt den av. cplt er da den eneste sandkassen rundt nettleseren.
+            Mappa blir både skrivbar og kjørbar for agenten, og cplt slår av sandkassen til Chromium for Playwright MCP.
+            cplt er da den eneste sandkassen rundt nettleseren. Starter du Chromium på en annen måte, sett{" "}
+            <code className={code}>--no-sandbox</code> selv.
           </BodyLong>
 
           <LinkableHeading id="cypress" size="small" level="3">
             EPERM (1100)
           </LinkableHeading>
           <BodyLong>
-            <code className={code}>cypress verify</code> stopper fordi Cypress kjører fra cache-mappa og bruker
-            tilfeldige porter på localhost. Åpne cache-mappa for deg selv, og foreslå portene i repoet, slik at alle i
-            teamet får dem:
+            <code className={code}>cypress verify</code> stopper under oppstart fordi Cypress kjører fra cache-mappa og
+            trenger sitt eget område under <code className={code}>~/Library/Application Support/Cypress</code>.
+            Innstillingen <code className={code}>Cypress</code> åpner begge. Testkjøringer trenger i tillegg tilfeldige
+            porter på localhost. Foreslå det i repoet, slik at alle i teamet får det:
           </BodyLong>
           <CodeBlock compact>
             {`cplt config set sandbox.allow_cache_exec Cypress
@@ -497,9 +504,10 @@ gh pr create --head min-gren`}
             BLOCKED by sandbox: &apos;git push&apos; is not allowed in this environment.
           </LinkableHeading>
           <BodyLong>
-            Git-vakta stopper push til standardgrenen (<code className={code}>main</code> eller{" "}
-            <code className={code}>master</code>) og force push. Med <code className={code}>strict</code> stopper den
-            all push. Lag en egen gren og push den:
+            Git-vakta stopper push til standardgrenen og force push. <code className={code}>main</code> og{" "}
+            <code className={code}>master</code> er alltid beskyttet, i tillegg til grenen{" "}
+            <code className={code}>origin</code> peker på. Med <code className={code}>strict</code> stopper vakta all
+            push. Lag en egen gren og push den:
           </BodyLong>
           <CodeBlock compact>{`git push origin HEAD:min-gren`}</CodeBlock>
           <BodyLong>
@@ -514,12 +522,15 @@ gh pr create --head min-gren`}
           </LinkableHeading>
           <BodyLong>
             gh-vakta bruker <code className={code}>origin</code> til å avgjøre hvilket repo agenten får jobbe mot.
-            Derfor stopper git-vakta endringer av remote-adresser overalt i sandkassen, også i test-repoer i en
-            temp-mappe. Vakta blir værende på (
+            Derfor stopper git-vakta <code className={code}>git remote add origin</code>,{" "}
+            <code className={code}>git remote set-url origin</code> og <code className={code}>git config</code> med{" "}
+            <code className={code}>remote.origin.url</code> eller <code className={code}>url.*.insteadOf</code>. Det
+            gjelder overalt i sandkassen, også i test-repoer i en temp-mappe, og det er med vilje (
             <a href="https://github.com/navikt/cplt/issues/622" className={linkClass}>
               cplt#622
             </a>
-            ). Lager testene dine egne repoer, kjør dem uten git-vakta:
+            ). Andre remotes kan du endre. Lager testene dine egne repoer med <code className={code}>origin</code>, kjør
+            dem uten git-vakta:
           </BodyLong>
           <CodeBlock compact>{`cplt --no-git-guard exec -- <kommando>`}</CodeBlock>
           <BodyLong>
@@ -614,8 +625,8 @@ cplt config set gh_guard.inject_token true --force`}
             sandkassen rundt agenten.
           </BodyLong>
           <BodyLong>
-            Henger Copilot rett etter <code className={code}>Starting Copilot in sandbox...</code>, og organisasjonen
-            din styrer Copilot-innstillingene, kan en policy kreve Copilots egen sandkasse. Det kan ikke cplt endre.
+            Henger Copilot rett etter oppstartsmeldingen, og organisasjonen din styrer Copilot-innstillingene, kan en
+            policy kreve Copilots egen sandkasse. Det kan ikke cplt endre.
           </BodyLong>
 
           <LinkableHeading id="tcc" size="small" level="3">
