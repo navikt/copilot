@@ -502,7 +502,7 @@ func reportCpltVersion(cpltPath, version string) {
 	latest, lerr := latestCpltVersion()
 	upgrade := bold(domain.PkgOwner(cpltPath).Pick("brew upgrade navikt/tap/cplt", "sudo apt upgrade cplt"))
 	_, hostsFromCplt := cpltBuiltinDomains()
-	const fallback = "it has no `cplt config hosts`, so nav-pilot uses its own, possibly stale, copy of cplt's host list"
+	const fallback = "`cplt config hosts` gave no usable answer, so nav-pilot uses its own, possibly stale, copy of cplt's host list"
 	switch classifyCpltSkew(installed, latest, lerr) {
 	case cpltVersionBehind:
 		fmt.Printf("      %s cplt %s is out of date (latest: %s)\n", yellow("⚠"), installed, latest)

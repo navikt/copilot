@@ -858,3 +858,17 @@ func TestCpltBuiltinDomainsAsksCpltOnce(t *testing.T) {
 		t.Errorf("cplt spawned %d times for 4 reads, want 2 (copilot + opencode, once)", n)
 	}
 }
+
+// An answer missing a list nav-pilot reads is not a usable answer.
+func TestCpltHostsRejectsAnEmptyAgentHosts(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	script := "#!/bin/sh\necho '{\"agent_hosts\":[],\"default_allowlist\":[\"a.example\"],\"version\":1}'\n"
+	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	if _, fromCplt := cpltBuiltinDomains(); fromCplt {
+		t.Error("accepted an answer with no agent_hosts")
+	}
+}

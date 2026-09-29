@@ -460,7 +460,8 @@ var cpltHostsFor = func(agent string) (*cpltHosts, error) {
 	if err := json.Unmarshal(out, &h); err != nil {
 		return nil, err
 	}
-	if h.Version != 1 || len(h.DefaultAllowlist) == 0 {
+	// Both lists are consumed: an empty one would drop that agent's hosts.
+	if h.Version != 1 || len(h.DefaultAllowlist) == 0 || len(h.AgentHosts) == 0 {
 		return nil, fmt.Errorf("cplt config hosts: unexpected answer (version %d)", h.Version)
 	}
 	return &h, nil
