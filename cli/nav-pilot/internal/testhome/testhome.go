@@ -7,12 +7,20 @@
 // the floor: a test that sets HOME itself must set NAV_PILOT_CONFIG too, or it
 // reads and writes the config Run chose; isolatedConfig(t) does both.
 //
-// Run also guards the real home: it records the files nav-pilot writes there
-// before the tests and fails the run, naming the path, if any of them changed.
+// Run also guards the real home, in two ways. It fails the run if this test
+// binary opened or statted anything in the watched trees under the real home:
+// Go's test log (-test.testlogfile) records every path the process itself
+// touches through package os, so that check cannot be tripped by another
+// process. And it compares the watched trees before and after: a change this
+// binary did not touch is most likely a real nav-pilot, Copilot session or
+// sync running alongside the tests (#1317). Locally that is a warning; in CI,
+// where nothing else writes to the home, it fails the run.
 package testhome
 
 import (
+	"bufio"
 	"context"
+	"flag"
 	"fmt"
 	"io/fs"
 	"os"
@@ -54,12 +62,14 @@ func RealHome() string { return realHome }
 
 // Run isolates the home, runs the tests and returns the exit code for os.Exit.
 //
-// A real nav-pilot running at the same time as the tests (a sync, a launch
-// that writes ~/.config/opencode/.nav-pilot-state.json) trips the guard too:
-// it cannot tell the two writers apart. The message says so and gives the time
-// window. A false alarm costs a rerun, a missed write costs the developer's
-// setup. NAV_PILOT_TESTHOME_GUARD=0 turns the check off for such a run; the
-// redirection stays on.
+// What the test log does not see: os.Remove and RemoveAll, Mkdir, Symlink,
+// Link, Chtimes, Chmod and Truncate by name, raw syscalls, and all I/O by child
+// processes. That includes a child given the real HOME (testhome.OriginalEnv
+// hands one out), a child with no HOME that falls back to getpwuid (Node,
+// Python, Rust), and the nav-pilot binary the e2e tests run. (os.Rename and
+// MkdirAll are logged: they stat the target first.) Those show up only in the
+// before-and-after comparison: a warning locally, a failure in CI.
+// NAV_PILOT_TESTHOME_GUARD=0 turns both checks off; the redirection stays on.
 func Run(m *testing.M) int {
 	realHome, _ = os.UserHomeDir()
 	start := time.Now()
@@ -80,20 +90,91 @@ func Run(m *testing.M) int {
 	os.Setenv("XDG_STATE_HOME", filepath.Join(tmp, ".local", "state"))
 	os.Setenv("NAV_PILOT_CONFIG", filepath.Join(tmp, ".nav-pilot", "config.toml"))
 
+	logFile := testLogFile(tmp)
+	wd, _ := os.Getwd()
 	code := m.Run()
 
 	if os.Getenv("NAV_PILOT_TESTHOME_GUARD") == "0" {
 		return code
 	}
-	if p := diff(before, snapshot(realHome)); p != "" {
-		fmt.Fprintf(os.Stderr, "testhome: a test in this package, or another process, wrote %s\n"+
-			"in the real home between %s and %s.\n"+
-			"If it was a test, give it its own HOME and NAV_PILOT_CONFIG (in package cli: isolatedConfig(t)).\n"+
-			"If a real nav-pilot ran at the same time, rerun, or set NAV_PILOT_TESTHOME_GUARD=0.\n",
-			p, start.Format(time.TimeOnly), time.Now().Format(time.TimeOnly))
+	if p := touched(logFile, realHome, wd); p != "" {
+		fmt.Fprintf(os.Stderr, "testhome: a test in this package opened %s in the real home.\n"+
+			"Give the test its own HOME and NAV_PILOT_CONFIG (in package cli: isolatedConfig(t)).\n", p)
 		return 1
 	}
-	return code
+	p := diff(before, snapshot(realHome))
+	if p == "" {
+		return code
+	}
+	window := fmt.Sprintf("between %s and %s", start.Format(time.TimeOnly), time.Now().Format(time.TimeOnly))
+	if os.Getenv("CI") == "" && logFile != "" {
+		fmt.Fprintf(os.Stderr, "testhome: warning: %s in the real home changed %s.\n"+
+			"This test binary did not open it, so it was most likely another process, such as a real nav-pilot.\n"+
+			"CI fails on it, since nothing else writes to the home there.\n", p, window)
+		return code
+	}
+	fmt.Fprintf(os.Stderr, "testhome: a test in this package, or a process it started, wrote %s\n"+
+		"in the real home %s.\n"+
+		"Give the test its own HOME and NAV_PILOT_CONFIG (in package cli: isolatedConfig(t)).\n",
+		p, window)
+	return 1
+}
+
+// testLogFile makes sure the testing package writes its test log, the list of
+// files this process opens and stats, and returns where. `go test` passes
+// -test.testlogfile itself when the result can be cached; otherwise the log
+// goes to dir. "" when the flag is missing, and the guard falls back to the
+// before-and-after comparison alone.
+func testLogFile(dir string) string {
+	if !flag.Parsed() {
+		flag.Parse()
+	}
+	f := flag.Lookup("test.testlogfile")
+	if f == nil {
+		return ""
+	}
+	if f.Value.String() == "" {
+		if err := f.Value.Set(filepath.Join(dir, "testlog.txt")); err != nil {
+			return ""
+		}
+	}
+	return f.Value.String()
+}
+
+// touched returns a path in a watched tree under home that the test log shows
+// this process opened, statted or entered, or "". The log holds each path as
+// the caller passed it, so it is cleaned, and a relative one is resolved
+// against the directory of the last chdir line, or wd before any.
+func touched(logFile, home, wd string) string {
+	if logFile == "" || home == "" {
+		return ""
+	}
+	f, err := os.Open(logFile)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		op, p, _ := strings.Cut(sc.Text(), " ")
+		if op != "open" && op != "stat" && op != "chdir" {
+			continue
+		}
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(wd, p)
+		}
+		p = filepath.Clean(p)
+		if op == "chdir" {
+			wd = p
+		}
+		for _, rel := range watched {
+			root := filepath.Join(home, rel)
+			if p == root || strings.HasPrefix(p, root+string(filepath.Separator)) {
+				return p
+			}
+		}
+	}
+	return ""
 }
 
 // pinMise keeps mise shims (python3, node, ...) on PATH working once HOME has

@@ -116,7 +116,10 @@ Whenever you run the binary — directly, or through a test that calls `run()`:
 - Every Go test package in `cli/nav-pilot` has a `TestMain` that calls
   `testhome.Run` (`internal/testhome`). It points `HOME`, the XDG directories
   and `NAV_PILOT_CONFIG` at a temporary directory for the whole test binary and
-  fails the run if nav-pilot's files in the real home changed. A new test
+  fails the run if the test binary opened nav-pilot's files in the real home
+  (Go's test log shows it). A change in those files that the binary did not
+  open is a warning locally, since a real nav-pilot may be running, and a
+  failure in CI. A new test
   package needs the same `TestMain`; `TestEveryTestPackageCallsRun`
   fails without it. A test that sets `HOME` itself must also set
   `NAV_PILOT_CONFIG`, or it uses the config `testhome.Run` chose.

@@ -3,6 +3,7 @@ package testhome
 import (
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -60,6 +61,122 @@ func TestGuardSeesAWrite(t *testing.T) {
 	}
 	if diff(before, snapshot(home)) == "" {
 		t.Fatal("a new ~/.copilot/hooks/gate.json went unnoticed")
+	}
+}
+
+// The controls for Run's guard. Each runs this test binary again, with a
+// temporary directory as its real home, and TestGuardChild doing what the
+// case needs: a leak must fail the run, a write from another process must not,
+// except in CI.
+func TestGuardControls(t *testing.T) {
+	cases := []struct {
+		name, mode string
+		env        []string
+		args       []string
+		wantFail   bool
+		wantOut    string
+	}{
+		{"leak fails", "leak", nil, nil, true, "a test in this package opened"},
+		{"leak fails with go test's own test log", "leak", nil, []string{"-test.testlogfile=" + filepath.Join(t.TempDir(), "log")}, true, "a test in this package opened"},
+		{"leak passes with the guard off", "leak", []string{"NAV_PILOT_TESTHOME_GUARD=0"}, nil, false, ""},
+		{"another process's write warns", "wait", nil, nil, false, "testhome: warning:"},
+		{"another process's write fails in CI", "wait", []string{"CI=true"}, nil, true, "or a process it started, wrote"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			home, sync := t.TempDir(), t.TempDir()
+			spool := filepath.Join(home, ".nav-pilot", "telemetry-spool")
+			if err := os.MkdirAll(spool, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command(os.Args[0], append([]string{"-test.run=^TestGuardChild$"}, c.args...)...)
+			for _, kv := range os.Environ() {
+				if k, _, _ := strings.Cut(kv, "="); k != "CI" && k != "NAV_PILOT_TESTHOME_GUARD" {
+					cmd.Env = append(cmd.Env, kv)
+				}
+			}
+			cmd.Env = append(cmd.Env, append(c.env, "HOME="+home, "TESTHOME_CHILD="+c.mode, "TESTHOME_SYNC="+sync)...)
+			var out strings.Builder
+			cmd.Stdout, cmd.Stderr = &out, &out
+			if err := cmd.Start(); err != nil {
+				t.Fatal(err)
+			}
+			if c.mode == "wait" {
+				// This process is the other writer: the child did not open
+				// the spool, this test did, while the child's tests ran.
+				waitFor(t, filepath.Join(sync, "ready"))
+				if err := os.WriteFile(filepath.Join(spool, "1-2-3.pb"), []byte("x"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(sync, "done"), nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			err := cmd.Wait()
+			if failed := err != nil; failed != c.wantFail {
+				t.Fatalf("run failed = %v, want %v; output:\n%s", failed, c.wantFail, out.String())
+			}
+			if !strings.Contains(out.String(), c.wantOut) {
+				t.Fatalf("output lacks %q:\n%s", c.wantOut, out.String())
+			}
+		})
+	}
+}
+
+// TestGuardChild is the test binary's side of TestGuardControls.
+func TestGuardChild(t *testing.T) {
+	switch os.Getenv("TESTHOME_CHILD") {
+	case "":
+		t.Skip("run by TestGuardControls")
+	case "leak":
+		// A leak as it happens: code that got hold of the real home.
+		if err := os.WriteFile(filepath.Join(RealHome(), ".nav-pilot", "cache.json"), []byte("{}"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	case "wait":
+		sync := os.Getenv("TESTHOME_SYNC")
+		if err := os.WriteFile(filepath.Join(sync, "ready"), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		waitFor(t, filepath.Join(sync, "done"))
+	}
+}
+
+func waitFor(t *testing.T, path string) {
+	t.Helper()
+	for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		if _, err := os.Stat(path); err == nil {
+			return
+		}
+	}
+	t.Fatalf("%s did not appear", path)
+}
+
+// The test log holds paths as the caller passed them; touched must see
+// through doubled separators, dot segments and paths relative to a chdir.
+func TestTouchedNormalizesPaths(t *testing.T) {
+	home := "/h"
+	cases := []struct{ name, log, want string }{
+		{"double slash", "open /h//.nav-pilot/x", "/h/.nav-pilot/x"},
+		{"dot segment", "stat /h/.nav-pilot/./x", "/h/.nav-pilot/x"},
+		{"dot-dot segment", "open /h/tmp/../.copilot/hooks/a", "/h/.copilot/hooks/a"},
+		{"relative after chdir", "chdir /h\nopen .nav-pilot/x", "/h/.nav-pilot/x"},
+		{"relative after later chdir", "chdir /elsewhere\nchdir /h/.config\nopen opencode/x", "/h/.config/opencode/x"},
+		{"relative before any chdir", "open ../.nav-pilot/x", "/h/.nav-pilot/x"},
+		{"sibling name", "open /h/.nav-pilot-other/x", ""},
+		{"relative elsewhere", "chdir /tmp\nopen .nav-pilot/x", ""},
+		{"getenv ignored", "getenv /h/.nav-pilot", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			log := filepath.Join(t.TempDir(), "log")
+			if err := os.WriteFile(log, []byte("# test log\n"+c.log+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if got := touched(log, home, "/h/pkg"); got != c.want {
+				t.Fatalf("touched = %q, want %q", got, c.want)
+			}
+		})
 	}
 }
 
