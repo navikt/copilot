@@ -685,6 +685,7 @@
       "git-remote": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "go-vcs": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "gradle-connect": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
+      "gradle-properties": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "includeif": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "jvm": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "jvm-oppstart": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
@@ -712,6 +713,28 @@
       "unknown-config-key": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "versjon": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "yarnrc": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"]
+    }
+  },
+  "/nav-pilot/guider/cplt-gradle": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
+    ],
+    "anchors": {
+      "feil": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
+      "github-packages": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"
+      ],
+      "gradle-properties": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
+      "interne-verter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
+      "jdk": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
+      "oppsett": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
+      "speilet": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
+      "testcontainers": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
+      "tillatelsesliste": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"]
     }
   },
   "/nav-pilot/guider/feilsoking": {

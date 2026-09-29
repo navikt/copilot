@@ -393,6 +393,13 @@ cplt --allow-env-files                          # bare denne økten`}
           <LinkableHeading id="jvm" size="medium" level="2">
             Java, Kotlin og Gradle
           </LinkableHeading>
+          <BodyLong>
+            Oppsettet for Gradle-prosjekter står i{" "}
+            <NextLink href="/nav-pilot/guider/cplt-gradle" className={linkClass}>
+              Kotlin og Gradle i sandkassen
+            </NextLink>
+            .
+          </BodyLong>
 
           <LinkableHeading id="gradle-connect" size="small" level="3">
             ConnectException: Could not connect to server
@@ -433,14 +440,50 @@ cplt --allow-env-files                          # bare denne økten`}
           </LinkableHeading>
           <BodyLong>
             Gradle prøver å laste ned en JDK til <code className={code}>~/.gradle/jdks</code>, og den mappa er
-            skrivebeskyttet i cplt. Feilen ser ut som et nettverksproblem, men det er skrivingen som stoppes. Kjør
-            bygget én gang utenfor cplt, så ligger JDK-en klar. Eller bruk en JDK du har installert, i{" "}
+            skrivebeskyttet i cplt på macOS. Feilen ser ut som et nettverksproblem, men det er skrivingen som stoppes.
+            Kjør bygget én gang utenfor cplt, så ligger JDK-en klar. Eller bruk en JDK du har installert, i{" "}
             <code className={code}>~/.gradle/gradle.properties</code>:
           </BodyLong>
           <CodeBlock compact>
             {`org.gradle.java.installations.auto-download=false
 org.gradle.java.installations.paths=/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home`}
           </CodeBlock>
+          <BodyLong>
+            cplt stenger <code className={code}>~/.gradle/gradle.properties</code>. Legger du innstillingene der, må du
+            åpne fila, se neste oppføring.
+          </BodyLong>
+          <BodyLong>
+            Har du en liste over tillatte verter, stopper cplt også oppslaget mot{" "}
+            <code className={code}>api.foojay.io</code> med <code className={code}>BLOCKED-ALLOWLIST</code> i
+            proxyloggen, og Gradle kan melde det som tidsavbrudd. Legg til verten, og vertene JDK-en hentes fra. For
+            Temurin er det <code className={code}>github.com</code> og{" "}
+            <code className={code}>release-assets.githubusercontent.com</code>, de samme som Gradle-wrapperen bruker:
+          </BodyLong>
+          <CodeBlock compact>
+            {`cplt config set allow.domains api.foojay.io
+cplt config set allow.domains github.com
+cplt config set allow.domains release-assets.githubusercontent.com`}
+          </CodeBlock>
+
+          <LinkableHeading id="gradle-properties" size="small" level="3">
+            Error when loading properties file
+          </LinkableHeading>
+          <BodyLong>
+            Hele meldingen er{" "}
+            <code className={code}>Error when loading properties file=/Users/…/.gradle/gradle.properties</code> med{" "}
+            <code className={code}>(Operation not permitted)</code>. Gjelder macOS. cplt stenger fila fordi den ofte har
+            tokens i seg, og Gradle stopper når den finnes, men ikke kan leses. Det gjelder alle Gradle-bygg i
+            sandkassen. På Linux kan agenten lese fila uansett. Ta tokenet ut og hent pakkene fra Navs speil, eller gi
+            agenten lesetilgang:
+          </BodyLong>
+          <CodeBlock compact>{`cplt config set allow.read ~/.gradle/gradle.properties`}</CodeBlock>
+          <BodyLong>
+            Da kan agenten lese alle tokenene i fila. Se{" "}
+            <NextLink href="/nav-pilot/guider/cplt-gradle#github-packages" className={linkClass}>
+              Pakker fra GitHub Packages
+            </NextLink>
+            .
+          </BodyLong>
         </VStack>
       </section>
 
