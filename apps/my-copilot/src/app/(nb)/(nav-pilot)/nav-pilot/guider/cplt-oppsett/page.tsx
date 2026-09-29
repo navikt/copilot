@@ -227,23 +227,23 @@ nav-pilot`}
             pnpm
           </LinkableHeading>
           <BodyLong>
-            Stopper <code className={code}>pnpm install</code> på{" "}
-            <code className={code}>~/Library/Preferences/pnpm/config.yaml</code>, se{" "}
-            <NextLink href={`${FEIL}#pnpm-config`} className={linkClass}>
-              pnpm-konfig
-            </NextLink>
-            .
-          </BodyLong>
-          <BodyLong>
-            I sandkassen kan ikke pnpm lenke filer fra det felles lageret i hjemmekatalogen inn i prosjektet. Da lager
-            den et eget lager inne i repoet, for eksempel <code className={code}>.pnpm-store/</code> eller{" "}
+            I sandkassen legger pnpm lageret i repoet, i <code className={code}>.pnpm-store/</code> eller{" "}
             <code className={code}>node_modules/.pnpm-store/</code>, og laster ned alle pakkene på nytt i hvert repo og
-            hvert worktree. Legg lageret i <code className={code}>.gitignore</code>:
+            hvert worktree. pnpm prøver å lage en mappe i <code className={code}>$PNPM_HOME</code>, og der får ikke
+            agenten skrive (
+            <a href="https://github.com/navikt/cplt/issues/637" className={linkClass}>
+              cplt#637
+            </a>
+            ). Pek pnpm på det felles lageret, her på macOS:
+          </BodyLong>
+          <CodeBlock compact>
+            {`export pnpm_config_store_dir=$HOME/Library/pnpm/store   # i skallet, for eksempel ~/.zshrc
+cplt config set sandbox.pass_env pnpm_config_store_dir   # send den inn i sandkassen`}
+          </CodeBlock>
+          <BodyLong>
+            Ellers legger du lageret i <code className={code}>.gitignore</code>:
           </BodyLong>
           <CodeBlock compact>{`echo ".pnpm-store/" >> .gitignore`}</CodeBlock>
-          <BodyLong>
-            Kjører du <code className={code}>pnpm install</code> utenfor cplt, bruker pnpm det felles lageret som før.
-          </BodyLong>
           <BodyLong>
             Skript som kjører når en pakke installeres, er slått av i sandkassen. Trenger en pakke dem, installer
             utenfor cplt.

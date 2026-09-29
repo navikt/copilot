@@ -30,6 +30,7 @@ export default function CpltGradle() {
   return (
     <DocPage
       label="Guider"
+      upgrade
       title="Kotlin og Gradle i sandkassen"
       description="Det du trenger for at Gradle-bygg og tester skal virke når agenten kjører i cplt."
       toc={TOC}
@@ -338,8 +339,8 @@ cplt exec -- ./gradlew build`}
             (engelsk).
           </BodyLong>
           <BodyLong>
-            Kommandoene på denne siden er testet med cplt <code className={code}>2026.09.29-113343-7a9ef00</code> på
-            macOS, med et lite Kotlin-prosjekt, Gradle 9.7.0 og 9.8.0 og colima.
+            Kommandoene på denne siden er testet med cplt fra 29. september 2026 på macOS, med et lite Kotlin-prosjekt,
+            Gradle 9.7.0 og 9.8.0 og colima.
           </BodyLong>
         </VStack>
       </section>

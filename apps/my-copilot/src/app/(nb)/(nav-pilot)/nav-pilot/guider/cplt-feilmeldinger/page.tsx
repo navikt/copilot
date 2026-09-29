@@ -274,13 +274,8 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             EPERM: operation not permitted, open …/Library/Preferences/pnpm/config.yaml
           </LinkableHeading>
           <BodyLong>
-            Gjelder macOS. cplt gir pnpm tilgang til feil mappe for konfigfila. Dette er rettet i cplt fra 29. september
-            2026 (<Pr n={616} />
-            ). Har du en eldre versjon, gir du lesetilgang til fila:
-          </BodyLong>
-          <CodeBlock compact>{`cplt config set allow.read ~/Library/Preferences/pnpm/config.yaml`}</CodeBlock>
-          <BodyLong>
-            Gi ikke tilgang til hele mappa. Der ligger <code className={code}>auth.ini</code> med tokenene til pnpm.
+            Gjelder macOS og cplt fra før 29. september 2026 (<Pr n={616} />
+            ). Oppgrader cplt.
           </BodyLong>
 
           <LinkableHeading id="pnpm-claude" size="small" level="3">
