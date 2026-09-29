@@ -166,6 +166,11 @@ func cmdConfigStrictPreset() error {
 	if err != nil {
 		return err
 	}
+	// Repair first, whatever the answer below: an allowlist that shuts out
+	// the agent's own hosts breaks Copilot under any preset.
+	if err := repairCpltAgentHosts(cliPath, cpltSandboxPreset()); err != nil {
+		return err
+	}
 	// The row is selectable even where the recommendation is withheld, so the
 	// refusal is repeated here rather than assumed from the row being hidden.
 	if ok, reason := strictPresetSupported(); !ok {
@@ -182,6 +187,7 @@ func cmdConfigStrictPreset() error {
 		return fmt.Errorf("prompt cancelled: %w", err)
 	}
 	if !ok {
+		fmt.Println(dim("sandbox.preset unchanged."))
 		return nil
 	}
 
@@ -237,6 +243,33 @@ type cpltCheckReport struct {
 	// Battery marks the full enforcement battery. A targeted query
 	// (`cplt check path …`) is not graded and must never be read as a verdict.
 	Battery bool `json:"battery"`
+	// Items are the graded probes. Only expected and decision are read.
+	Items []struct {
+		Expected string `json:"expected"`
+		Decision string `json:"decision"`
+	} `json:"items"`
+}
+
+// tooStrict reports a verdict that failed only because the sandbox blocked
+// something it should allow: every protection held, but a probe that should
+// get through did not. That is an over-tight config, not a leak, and doctor
+// must not call it "NOT enforcing". Newer cplt says so itself; this reads the
+// same thing out of an older cplt's items.
+func (r *cpltCheckReport) tooStrict() bool {
+	if r.Enforcing || r.Verified == 0 {
+		return false
+	}
+	failed := false
+	for _, it := range r.Items {
+		if it.Expected == "" || it.Expected == it.Decision {
+			continue
+		}
+		if it.Expected != "allowed" || it.Decision != "blocked" {
+			return false
+		}
+		failed = true
+	}
+	return failed
 }
 
 // parseCpltCheckReport decodes a battery report, or returns nil for "unknown".
@@ -558,4 +591,86 @@ func seedCpltAllowlist(cliPath string) (path string, adopted bool, err error) {
 		return path, false, err
 	}
 	return path, true, nil
+}
+
+// cpltAgentHosts are the hosts Copilot needs for its own login and models.
+var cpltAgentHosts = []string{"github.com", "api.github.com", "githubcopilot.com", "copilot-proxy.githubusercontent.com"}
+
+// cpltAllowlistMissingAgentHosts returns the allowlist file and the agent hosts
+// it shuts out, or "" and nil when there is nothing to warn about.
+//
+// cplt blocks every host outside a non-empty proxy.allowed_domains, and adds
+// its built-in agent hosts only while proxy.default_allowlist is on. So a
+// hand-written file without github.com, under a preset that leaves that key
+// off, locks Copilot out of its own /login and makes `cplt check` fail. Newer
+// cplt lets the agent hosts through anyway; older cplt does not.
+//
+// `cplt config get` prints the raw default for an unset key, not the preset's
+// value, so an unset default_allowlist under strict counts as on.
+func cpltAllowlistMissingAgentHosts(cliPath, preset string) (string, []string) {
+	path := cpltConfigGet(cliPath, "proxy.allowed_domains")
+	if path == "" {
+		return "", nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	out, _ := exec.CommandContext(ctx, cliPath, "config", "get", "proxy.default_allowlist").Output()
+	val, note, _ := strings.Cut(string(out), "\n")
+	unset := strings.Contains(note, "not set in config file")
+	if strings.TrimSpace(val) == "true" || (unset && preset == "strict") {
+		return "", nil
+	}
+
+	file := path
+	if rest, ok := strings.CutPrefix(file, "~/"); ok {
+		home, _ := os.UserHomeDir()
+		file = filepath.Join(home, rest)
+	}
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return "", nil // cplt reports an unreadable file itself
+	}
+	// Same parsing as cplt's proxy_domains.rs parse_lines, same
+	// exact-or-subdomain match.
+	var listed []string
+	for _, l := range strings.Split(string(data), "\n") {
+		l = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(l)), ".")
+		if l != "" && !strings.HasPrefix(l, "#") {
+			listed = append(listed, l)
+		}
+	}
+	var missing []string
+	for _, h := range cpltAgentHosts {
+		covered := false
+		for _, e := range listed {
+			if h == e || strings.HasSuffix(h, "."+e) {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			missing = append(missing, h)
+		}
+	}
+	if len(missing) == 0 {
+		return "", nil
+	}
+	return path, missing
+}
+
+// repairCpltAgentHosts turns on proxy.default_allowlist when the user's own
+// allowlist shuts out the agent's hosts. That only adds cplt's built-in agent
+// hosts to a list that is already fail-closed; the user's file is not touched.
+// Rewriting the file instead would mean editing something the user owns.
+func repairCpltAgentHosts(cliPath, preset string) error {
+	path, missing := cpltAllowlistMissingAgentHosts(cliPath, preset)
+	if len(missing) == 0 {
+		return nil
+	}
+	if err := cpltConfigSet(cliPath, "proxy.default_allowlist", "true"); err != nil {
+		return err
+	}
+	fmt.Printf("%s cplt proxy.default_allowlist = true: %s shut out %s\n",
+		domain.Green("✓"), path, strings.Join(missing, ", "))
+	return nil
 }

@@ -298,6 +298,16 @@ func cmdDoctor() error {
 			fmt.Printf("      %s Sandbox preset is %s\n", green("✓"), preset)
 		}
 
+		// A user allowlist without the agent's own hosts. Older cplt blocks
+		// them, and Copilot cannot even log in.
+		if path, missing := cpltAllowlistMissingAgentHosts(cpltPath, preset); len(missing) > 0 {
+			hasErrors = true
+			fmt.Printf("      %s proxy.allowed_domains (%s) shuts out Copilot's own hosts: %s\n",
+				yellow("⚠"), path, strings.Join(missing, ", "))
+			fmt.Printf("          %s Run %s, or %s and pick %s.\n", yellow("Solution:"),
+				bold("cplt config set proxy.default_allowlist true"), bold("nav-pilot config"), bold("cplt security posture"))
+		}
+
 		// The waiver the pakke asks for, and whether this scope granted it.
 		// Placed with the allowlist rather than with the pakke sections
 		// because it is the same question from the other side: the allowlist
@@ -418,6 +428,12 @@ func cmdDoctor() error {
 			fmt.Printf("        %s Run %s by hand — this run could not read a verdict, which an older cplt (no such subcommand), a timeout or an interrupted probe all produce.\n", dim("Solution:"), bold("cplt check"))
 		case report.Enforcing:
 			fmt.Printf("    %s Sandbox is enforcing (%d protections verified)\n", green("✓"), report.Verified)
+		case report.tooStrict():
+			// Every protection held; the sandbox blocked something it should
+			// allow. Too strict, not a leak.
+			hasErrors = true
+			fmt.Printf("    %s Sandbox is enforcing but too strict (%d protections verified)\n", yellow("⚠"), report.Verified)
+			fmt.Printf("        %s Run %s — it names what is blocked and the fix.\n", yellow("Solution:"), bold("cplt check"))
 		default:
 			hasErrors = true
 			fmt.Printf("    %s Sandbox is NOT enforcing\n", red("[✗]"))
