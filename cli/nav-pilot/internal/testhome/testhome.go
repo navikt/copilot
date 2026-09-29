@@ -89,12 +89,13 @@ func Run(m *testing.M) int {
 	os.Setenv("NAV_PILOT_CONFIG", filepath.Join(tmp, ".nav-pilot", "config.toml"))
 
 	logFile := testLogFile(tmp)
+	wd, _ := os.Getwd()
 	code := m.Run()
 
 	if os.Getenv("NAV_PILOT_TESTHOME_GUARD") == "0" {
 		return code
 	}
-	if p := touched(logFile, realHome); p != "" {
+	if p := touched(logFile, realHome, wd); p != "" {
 		fmt.Fprintf(os.Stderr, "testhome: a test in this package opened %s in the real home.\n"+
 			"Give the test its own HOME and NAV_PILOT_CONFIG (in package cli: isolatedConfig(t)).\n", p)
 		return 1
@@ -139,8 +140,10 @@ func testLogFile(dir string) string {
 }
 
 // touched returns a path in a watched tree under home that the test log shows
-// this process opened, statted or entered, or "".
-func touched(logFile, home string) string {
+// this process opened, statted or entered, or "". The log holds each path as
+// the caller passed it, so it is cleaned, and a relative one is resolved
+// against the directory of the last chdir line, or wd before any.
+func touched(logFile, home, wd string) string {
 	if logFile == "" || home == "" {
 		return ""
 	}
@@ -154,6 +157,13 @@ func touched(logFile, home string) string {
 		op, p, _ := strings.Cut(sc.Text(), " ")
 		if op != "open" && op != "stat" && op != "chdir" {
 			continue
+		}
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(wd, p)
+		}
+		p = filepath.Clean(p)
+		if op == "chdir" {
+			wd = p
 		}
 		for _, rel := range watched {
 			root := filepath.Join(home, rel)

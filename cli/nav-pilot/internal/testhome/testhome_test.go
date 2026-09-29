@@ -152,6 +152,34 @@ func waitFor(t *testing.T, path string) {
 	t.Fatalf("%s did not appear", path)
 }
 
+// The test log holds paths as the caller passed them; touched must see
+// through doubled separators, dot segments and paths relative to a chdir.
+func TestTouchedNormalizesPaths(t *testing.T) {
+	home := "/h"
+	cases := []struct{ name, log, want string }{
+		{"double slash", "open /h//.nav-pilot/x", "/h/.nav-pilot/x"},
+		{"dot segment", "stat /h/.nav-pilot/./x", "/h/.nav-pilot/x"},
+		{"dot-dot segment", "open /h/tmp/../.copilot/hooks/a", "/h/.copilot/hooks/a"},
+		{"relative after chdir", "chdir /h\nopen .nav-pilot/x", "/h/.nav-pilot/x"},
+		{"relative after later chdir", "chdir /elsewhere\nchdir /h/.config\nopen opencode/x", "/h/.config/opencode/x"},
+		{"relative before any chdir", "open ../.nav-pilot/x", "/h/.nav-pilot/x"},
+		{"sibling name", "open /h/.nav-pilot-other/x", ""},
+		{"relative elsewhere", "chdir /tmp\nopen .nav-pilot/x", ""},
+		{"getenv ignored", "getenv /h/.nav-pilot", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			log := filepath.Join(t.TempDir(), "log")
+			if err := os.WriteFile(log, []byte("# test log\n"+c.log+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if got := touched(log, home, "/h/pkg"); got != c.want {
+				t.Fatalf("touched = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
 // Every test package must call Run from its TestMain, or its tests run
 // against the real home.
 func TestEveryTestPackageCallsRun(t *testing.T) {
