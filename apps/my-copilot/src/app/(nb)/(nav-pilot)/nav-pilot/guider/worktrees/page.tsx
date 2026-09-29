@@ -43,7 +43,10 @@ export default function Worktrees() {
           <BodyLong>
             En worktree er en ekstra utsjekking av samme repo, på en annen gren og i en annen mappe. Du kan la agenten
             jobbe på én gren mens du selv jobber på en annen, eller la flere underagenter jobbe parallelt uten å skrive
-            over hverandres filer. Alle deler den samme <code className={code}>.git</code>-mappa.
+            over hverandres filer. Objekter, refs og konfig ligger i én felles git-mappe, den{" "}
+            <code className={code}>git rev-parse --git-common-dir</code> viser. Hver worktree har i stedet for en{" "}
+            <code className={code}>.git</code>-mappe en <code className={code}>.git</code>-fil som peker til sin egen
+            admin-mappe under <code className={code}>&lt;felles&gt;/worktrees/&lt;navn&gt;</code>.
           </BodyLong>
           <BodyLong>Det er tre måter å bruke worktrees på med nav-pilot og cplt:</BodyLong>
           <Bullets>
@@ -90,16 +93,16 @@ cd ../min-app-ny-gren
 nav-pilot`}
           </CodeBlock>
           <BodyLong>
-            nav-pilot gir cplt worktreen som prosjektkatalog. cplt finner den delte <code className={code}>.git</code>
-            -mappa i hovedutsjekkingen og gir agenten tilgang til den, så <code className={code}>git status</code>,{" "}
-            <code className={code}>git commit</code> og resten virker. På macOS er hooks og konfig i{" "}
-            <code className={code}>.git</code> fortsatt stengt for skriving. Agenten kan ikke skrive i selve
-            hovedutsjekkingen, bare i worktreen.
+            nav-pilot gir cplt worktreen som prosjektkatalog. cplt finner den felles git-mappa, her{" "}
+            <code className={code}>.git</code>-mappa i hovedutsjekkingen, og gir agenten tilgang til den, så{" "}
+            <code className={code}>git status</code>, <code className={code}>git commit</code> og resten virker. På
+            macOS er hooks og <code className={code}>config</code> i den felles git-mappa og{" "}
+            <code className={code}>config.worktree</code> for hver worktree fortsatt stengt for skriving. Agenten kan
+            ikke skrive i selve hovedutsjekkingen, bare i worktreen.
           </BodyLong>
           <BodyLong>
-            Den delte <code className={code}>.git</code>-mappa må ligge under hjemmekatalogen din. Ligger den et annet
-            sted, for eksempel under <code className={code}>/tmp</code>, gir cplt ikke tilgang, og git feiler i
-            sandkassen.
+            Den felles git-mappa må ligge under hjemmekatalogen din. Ligger den et annet sted, for eksempel under{" "}
+            <code className={code}>/tmp</code>, gir cplt ikke tilgang, og git feiler i sandkassen.
           </BodyLong>
           <BodyLong>
             Godkjenningen av repoets <code className={code}>.cplt.toml</code> gjelder hele repoet, ikke én utsjekking.
@@ -155,9 +158,9 @@ git branch -d <gren>`}
           </LinkableHeading>
           <BodyLong>
             Noen holder repoet som et bare repo, uten arbeidskatalog, og har hver gren som en worktree ved siden av.
-            Andre har <code className={code}>.git</code>-mappa et annet sted enn koden. Begge deler virker på samme måte
-            som når du starter i en worktree: cplt følger <code className={code}>.git</code>-fila til den delte mappa og
-            gir agenten tilgang dit.
+            Andre har git-mappa et annet sted enn koden. Begge deler virker på samme måte som når du starter i en
+            worktree: cplt følger <code className={code}>.git</code>-fila til den felles git-mappa og gir agenten
+            tilgang dit.
           </BodyLong>
           <CodeBlock compact>
             {`git clone --bare git@github.com:navikt/min-app.git ~/src/min-app.git
@@ -166,9 +169,9 @@ cd ~/src/min-app-main
 nav-pilot`}
           </CodeBlock>
           <BodyLong>
-            Det samme kravet gjelder: den delte mappa må ligge under hjemmekatalogen din. cplt godtar bare oppsett slik
-            git selv lager dem, så en <code className={code}>.git</code>-fil som er endret for hånd til å peke på et
-            annet repo, gir ingen tilgang.
+            Det samme kravet gjelder: den felles git-mappa må ligge under hjemmekatalogen din. cplt godtar bare oppsett
+            slik git selv lager dem, så en <code className={code}>.git</code>-fil som er endret for hånd til å peke på
+            et annet repo, gir ingen tilgang.
           </BodyLong>
           <BodyLong>
             Bruker du worktrees til underagenter i tillegg, kan ikke repoet bruke{" "}
@@ -196,7 +199,8 @@ nav-pilot`}
               på Linux også.
             </li>
             <li>
-              <strong>Samme beskyttelse som i prosjektet.</strong> Hooks og konfig i <code className={code}>.git</code>,{" "}
+              <strong>Samme beskyttelse som i prosjektet.</strong> Hooks og <code className={code}>config</code> i den
+              felles git-mappa, <code className={code}>config.worktree</code> for hver worktree,{" "}
               <code className={code}>.cplt.toml</code>, <code className={code}>.github/hooks</code> og de andre
               beskyttede filene er stengt for skriving i hver worktree.
             </li>
@@ -243,10 +247,10 @@ nav-pilot`}
             git feiler i sandkassen, men virker utenfor
           </LinkableHeading>
           <BodyLong>
-            Den delte <code className={code}>.git</code>-mappa ligger utenfor hjemmekatalogen, eller stien har et tegn
-            cplt ikke kan bruke: anførselstegn, parentes, semikolon eller omvendt skråstrek. Da får ikke agenten tilgang
-            til den, og cplt sier fra ved oppstart. Flytt repoet inn under hjemmekatalogen, eller gi mappa et navn uten
-            de tegnene.
+            Den felles git-mappa (<code className={code}>git rev-parse --git-common-dir</code>) ligger utenfor
+            hjemmekatalogen, eller stien har et tegn cplt ikke kan bruke: anførselstegn, parentes, semikolon eller
+            omvendt skråstrek. Da får ikke agenten tilgang til den, og cplt sier fra ved oppstart. Flytt repoet inn
+            under hjemmekatalogen, eller gi mappa et navn uten de tegnene.
           </BodyLong>
           <LinkableHeading id="worktree-remove" size="small" level="3">
             cplt vil ikke starte etter git worktree remove
