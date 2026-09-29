@@ -82,7 +82,7 @@ def panels():
         (13, "Utsendingsvakten, per utfall", "timeseries",
          "Hva vakten foran den lokale modellen gjorde i økter med local_dispatch balanced eller "
          "aggressive. deny_* er ting den stoppet; dispatched_after_deny endte likevel med "
-         "utsending; verify_nudge er påminnelsen når lokal-modellen er ferdig og ingen bygging "
+         "utsending; verify_nudge er påminnelsen når den lokale modellen er ferdig og ingen bygging "
          "eller test har kjørt etterpå; create_retry* er oppfølging etter at den opprettet en ny fil.",
          [(f"sum by (outcome) (sum_over_time(nav_pilot_local_gate_total{SEL}[$__interval]))", "{{outcome}}")]),
 
