@@ -104,15 +104,46 @@ func TestCmdAuthDispatch(t *testing.T) {
 }
 
 func TestCmdAuthLogout(t *testing.T) {
+	for _, status := range []int{http.StatusNoContent, http.StatusUnauthorized, http.StatusBadGateway, http.StatusNotFound} {
+		keyring.MockInit()
+		var got string
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost && r.URL.Path == "/api/v1/auth/revoke" {
+				got = r.Header.Get("Authorization")
+			}
+			w.WriteHeader(status)
+		}))
+		t.Setenv("NAV_PILOT_COPILOT_CLI_URL", srv.URL)
+		if err := saveToken(storedToken{AccessToken: "x"}); err != nil {
+			t.Fatalf("saveToken: %v", err)
+		}
+		if err := cmdAuthLogout(); err != nil {
+			t.Fatalf("%d: cmdAuthLogout: %v", status, err)
+		}
+		srv.Close()
+		if got != "Bearer x" {
+			t.Fatalf("%d: revoke sent Authorization %q", status, got)
+		}
+		if _, err := loadToken(); err == nil {
+			t.Fatalf("%d: token not removed", status)
+		}
+	}
+}
+
+// Unreachable copilot-cli: the token is still removed.
+func TestCmdAuthLogoutOffline(t *testing.T) {
 	keyring.MockInit()
+	srv := httptest.NewServer(http.NotFoundHandler())
+	srv.Close()
+	t.Setenv("NAV_PILOT_COPILOT_CLI_URL", srv.URL)
 	if err := saveToken(storedToken{AccessToken: "x"}); err != nil {
-		t.Fatalf("saveToken: %v", err)
+		t.Fatal(err)
 	}
 	if err := cmdAuthLogout(); err != nil {
-		t.Fatalf("cmdAuthLogout: %v", err)
+		t.Fatal(err)
 	}
 	if _, err := loadToken(); err == nil {
-		t.Fatal("expected token to be removed")
+		t.Fatal("token not removed")
 	}
 }
 

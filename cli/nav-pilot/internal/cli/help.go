@@ -277,7 +277,7 @@ nav-pilot survey can send your answers.
 Subcommands:
   login                   Sign in with the GitHub device flow; the token goes in the OS keychain
   status [--json]         Show whether you are signed in, and as whom
-  logout                  Remove the token from the keychain
+  logout                  Revoke the token at GitHub and remove it from the keychain
 `,
 	"usage": `Usage: nav-pilot usage [--json|--tmux]
 
