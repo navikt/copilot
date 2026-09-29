@@ -66,13 +66,17 @@ const (
 // cpltSetupCommands are the commands a user runs to configure the proposal in
 // cplt themselves, for when they decline or have no terminal to be asked in.
 //
+// One command per host: `cplt config set` appends a single value and refuses
+// one with a comma in it ("value contains a comma"), so a joined list is a
+// command that fails (#1316).
+//
 // The read grants keep their "~/" form: `cplt config set` stores the string and
 // expand_tilde resolves it at load, so this is the same path the launch would
 // have passed, spelled the way the manifest spells it.
 func cpltSetupCommands(hosts, reads []string) []string {
 	var out []string
-	if len(hosts) > 0 {
-		out = append(out, "cplt config set proxy.allow_private_domains "+strings.Join(hosts, ","))
+	for _, host := range hosts {
+		out = append(out, "cplt config set proxy.allow_private_domains "+host)
 	}
 	for _, path := range reads {
 		out = append(out, fmt.Sprintf("cplt config set allow.read %q", safe(path, proposalPathWidth)))
