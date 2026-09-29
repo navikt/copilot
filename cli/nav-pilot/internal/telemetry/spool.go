@@ -33,8 +33,19 @@ import (
 // An export holds only what changed since the last one that went through
 // (newOnlyExporter), so every export that reaches the spool gets its own
 // file, and one cut short by exit reports failure: the export at exit then
-// carries its counts too. A file sent twice (an exit in the middle of a send)
-// counts twice.
+// carries its counts too.
+//
+// Each file is claimed before it is sent (claim), so no two senders send the
+// same file, even where flock fails. A sender that dies mid-send leaves its
+// .sending file for the age prune: those counts are lost rather than counted
+// twice; a run's own send of the spool is ended by exit and gives its claim
+// back, so the child sends the file. Not fixed here: a send that times out
+// after the collector took it counts twice. The failed export's counts go out
+// folded into the next one, a different value at a later time, so Mimir sees
+// no duplicate to drop. Resending a failed live export verbatim would be
+// idempotent; at exit it is folded into the spool and restamped, so not
+// there. It takes a response lost after ingestion, which the
+// 2 s export timeout makes rare; the counts are usage signals, not billing.
 const (
 	spoolMaxAge   = 7 * 24 * time.Hour
 	spoolMaxFiles = 50
@@ -236,13 +247,19 @@ func sendSpool(ctx context.Context, dir, endpoint string, client *http.Client) {
 		if !isPB {
 			continue
 		}
-		body, err := os.ReadFile(p)
+		claimed, ok := claim(p)
+		if !ok {
+			continue // another sender has it
+		}
+		body, err := os.ReadFile(claimed)
 		if err != nil {
+			os.Rename(claimed, p)
 			continue
 		}
 		body = restamp(body, uint64(time.Now().UnixNano()))
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 		if err != nil {
+			os.Rename(claimed, p)
 			return
 		}
 		// ponytail: body only, no headers, so OTEL_EXPORTER_OTLP_HEADERS or
@@ -250,14 +267,25 @@ func sendSpool(ctx context.Context, dir, endpoint string, client *http.Client) {
 		req.Header.Set("Content-Type", "application/x-protobuf")
 		resp, err := client.Do(req)
 		if err != nil {
+			os.Rename(claimed, p)
 			return
 		}
 		resp.Body.Close()
 		// A 4xx other than 429 will not be taken on a second try either.
 		if resp.StatusCode < 300 || (resp.StatusCode < 500 && resp.StatusCode != http.StatusTooManyRequests) {
-			os.Remove(p)
+			os.Remove(claimed)
+		} else {
+			os.Rename(claimed, p)
 		}
 	}
+}
+
+// claim renames p to p.sending, which only one sender can do: the other
+// finds p gone. The .sending file no longer ends in .pb, so no sender picks
+// it up again; one left by a sender that died goes with the age prune.
+func claim(p string) (string, bool) {
+	claimed := p + ".sending"
+	return claimed, os.Rename(p, claimed) == nil
 }
 
 // restamp sets every point in an OTLP metrics export to now. The start times

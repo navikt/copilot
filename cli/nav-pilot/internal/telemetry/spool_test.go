@@ -24,6 +24,7 @@ func TestSpoolRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	stuck := make(chan struct{})
 	hole := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.ReadAll(r.Body) // so the server sees the client hang up
 		select {
 		case <-stuck:
 		case <-r.Context().Done():
@@ -195,5 +196,89 @@ func TestSpoolSendsWhenFlockUnsupported(t *testing.T) {
 	}
 	if sent != 1 {
 		t.Errorf("sent %d, want 1", sent)
+	}
+}
+
+// A file another sender has claimed is not sent again, and a claim is given
+// back when the send fails, so the next run still has the file.
+func TestSpoolClaim(t *testing.T) {
+	dir := t.TempDir()
+	mine := filepath.Join(dir, "1-1.pb")
+	theirs := filepath.Join(dir, "2-1.pb")
+	os.WriteFile(mine, []byte("mine"), 0o600)
+	os.WriteFile(theirs, []byte("theirs"), 0o600)
+	if _, ok := claim(theirs); !ok {
+		t.Fatal("claim failed")
+	}
+	if _, ok := claim(theirs); ok {
+		t.Fatal("second claim of the same file succeeded")
+	}
+
+	var got []string
+	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		got = append(got, string(b))
+	}))
+	defer collector.Close()
+	sendSpool(t.Context(), dir, collector.URL, collector.Client())
+	if len(got) != 1 || got[0] != "mine" {
+		t.Errorf("sent %q, want only the unclaimed file", got)
+	}
+	if _, err := os.Stat(theirs + ".sending"); err != nil {
+		t.Errorf("another sender's claim disturbed: %v", err)
+	}
+
+	os.WriteFile(mine, []byte("mine"), 0o600)
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer failing.Close()
+	sendSpool(t.Context(), dir, failing.URL, failing.Client())
+	if _, err := os.Stat(mine); err != nil {
+		t.Errorf("claim not given back after a 503: %v", err)
+	}
+	failing.Close()
+	sendSpool(t.Context(), dir, failing.URL, failing.Client())
+	if _, err := os.Stat(mine); err != nil {
+		t.Errorf("claim not given back after a network error: %v", err)
+	}
+}
+
+// Exit ends the run's own send of an earlier spool and gives its claim back,
+// so the child sends the file instead of it being left claimed, unsent.
+func TestShutdownGivesClaimBack(t *testing.T) {
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "config.toml"))
+	t.Setenv("DO_NOT_TRACK", "")
+	d := spoolDir()
+	os.MkdirAll(d, 0o700)
+	f := filepath.Join(d, "1-1.pb")
+	os.WriteFile(f, []byte("x"), 0o600)
+	arrived := make(chan struct{}, 1)
+	hole := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.ReadAll(r.Body) // so the server sees the client hang up
+		select {
+		case arrived <- struct{}{}:
+		default:
+		}
+		<-r.Context().Done()
+	}))
+	defer hole.Close()
+	t.Setenv("NAV_PILOT_TELEMETRY_ENDPOINT", hole.URL)
+
+	r, err := InitTelemetry(t.Context(), "dev", "false")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := r.(*otelTelemetry); !ok {
+		t.Fatalf("telemetry off in test: %T", r)
+	}
+	<-arrived
+	start := time.Now()
+	r.Shutdown(t.Context())
+	if took := time.Since(start); took > time.Second {
+		t.Errorf("Shutdown took %s", took)
+	}
+	if _, err := os.Stat(f); err != nil {
+		t.Errorf("claim not given back at exit: %v", err)
 	}
 }

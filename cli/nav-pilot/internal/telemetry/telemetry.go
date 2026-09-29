@@ -91,8 +91,9 @@ func (NoopRecorder) RecordHookActionCheck(string, string)  {}
 func (NoopRecorder) Shutdown(context.Context) error        { return nil }
 
 type otelTelemetry struct {
-	provider *sdkmetric.MeterProvider
-	spool    *spoolTransport
+	provider  *sdkmetric.MeterProvider
+	spool     *spoolTransport
+	spoolSent <-chan struct{} // closed when the earlier runs' spool is done
 
 	commandDurationMS  metric.Int64Histogram
 	commandErrorTotal  metric.Int64Counter
@@ -171,12 +172,14 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	client := &http.Client{Transport: spool, Timeout: 10 * time.Second}
 	// What the child of an earlier run did not send. Sent before any export
 	// of this run's own (spoolTransport.ready).
+	// Exit ends it, and Shutdown waits for that, so a file it claimed is
+	// given back for the child instead of left claimed by a dead process.
 	spoolSent := make(chan struct{})
 	spool.ready = spoolSent
 	go func() {
 		defer close(spoolSent)
 		if dir != "" {
-			ctx, cancel := context.WithTimeout(context.Background(), spoolSendTimeout)
+			ctx, cancel := context.WithTimeout(spool.exiting, spoolSendTimeout)
 			defer cancel()
 			sendSpoolLocked(ctx, dir, endpoint, &http.Client{Transport: spool.next, Timeout: 10 * time.Second})
 		}
@@ -331,6 +334,7 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	tel := &otelTelemetry{
 		provider:           provider,
 		spool:              spool,
+		spoolSent:          spoolSent,
 		localGateTotal:     localGateTotal,
 		commandDurationMS:  commandDurationMS,
 		commandErrorTotal:  commandErrorTotal,
@@ -671,7 +675,14 @@ func (t *otelTelemetry) Shutdown(ctx context.Context) error {
 	if t.spool != nil {
 		t.spool.exit()
 	}
-	return t.provider.Shutdown(ctx)
+	err := t.provider.Shutdown(ctx)
+	if t.spoolSent != nil {
+		select { // cancelled by exit, so this is quick
+		case <-t.spoolSent:
+		case <-ctx.Done():
+		}
+	}
+	return err
 }
 
 // Spooled reports whether Shutdown left an export in the spool to send.
