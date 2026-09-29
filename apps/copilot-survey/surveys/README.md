@@ -25,6 +25,10 @@ fit the format below; unknown fields are refused too.
      "options": ["Copilot", "Cursor", "Jeg bruker ikke KI-kodeverktøy"], "other": "Annet", "max_length": 100},
     {"id": "verdi", "version": 1, "type": "multi", "text": "…", "options": ["A", "B", "C"], "max_choices": 3,
      "skip_if": {"question": "verktoy", "answer": "Jeg bruker ikke KI-kodeverktøy"}},
+    {"id": "pastander", "version": 1, "type": "matrix", "text": "Hvor enig er du?", "min": 1, "max": 5,
+     "labels": ["Helt uenig", "Uenig", "Nøytral", "Enig", "Helt enig"], "required": true,
+     "items": [{"id": "eierskap", "version": 1, "text": "…", "construct": "ownership"},
+               {"id": "juss-og-sikkerhet", "version": 1, "text": "…", "reverse": true}]},
     {"id": "opplevelse", "version": 1, "type": "text", "text": "…", "max_length": 1000}
   ]
 }
@@ -53,7 +57,7 @@ nav-pilot's and the web's types name the same fields.
 - To answer, `POST /api/v1/surveys/{id}/responses` with
   `{"answers": {question id: value}, "context": {...}}`: a number for `scale`,
   the option text for `choice`, a list of option texts for `multi`, a string
-  for `text`. An `other` label counts as an option; its text goes under
+  for `text`, and for each `matrix` item a number under the item's id. An `other` label counts as an option; its text goes under
   `"<id>.other"`, and only when the answer includes the label. Leave out a question that is skipped or not answered. The
   caller must be copilot-cli or my-copilot (see [the README](../README.md#callers)).
 
@@ -125,6 +129,18 @@ warns at start while the key is still in the secret.
   most `max_length` characters (1 to 200). At most three per survey. It is free text like a `text`
   answer and treated the same way (see [free text](#free-text)). Not one of
   `options`, and not a `skip_if` answer.
+- `matrix`: two or more `items` (statements) on one scale (`min`, `max`,
+  `labels` as for `scale`), shown as a grid on the web and one statement per
+  screen in nav-pilot. Each item has its own `id`, `version`, `text` and
+  optionally `construct` and `reverse`, and is answered, sent and stored
+  exactly like a `scale` question of that id and version: `{"eierskap": 4}`.
+  So an item compares with a separate scale question of the same id and
+  version, in this wave or another. Item ids share the question ids'
+  namespace. The matrix's own `id` and `version` are not stored; a change to
+  its `text` or scale that could change the answers bumps every item's
+  `version`. `required` means every item; `skip_if` skips them all. Moving
+  items into or out of a grid changes how they are asked; whether that
+  breaks comparability is the survey owner's call, recorded in the PR.
 - `text`: `max_length` from 1 to 2000 characters. At most one per survey:
   it is the answer most likely to name its author.
 - `skip_if`: skip this (optional) question when an earlier `choice` answer is,

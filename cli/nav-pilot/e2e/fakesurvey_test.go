@@ -23,12 +23,13 @@ const fakeSurveyDefs = `{"surveys":[{"id":"e2e-2026","title":"E2E survey","start
 {"id":"why","version":1,"type":"choice","text":"Why not copilot?","options":["habit","other"],"skip_if":{"question":"clients","answer":"copilot"}},
 {"id":"comment","version":1,"type":"text","text":"Anything else?","max_length":50}]}]}`
 
-// fake-survey [-nudge-start] [-empty] [-404] [-hang] serves copilot-cli's survey endpoints on 127.0.0.1 and points
+// fake-survey [-nudge-start] [-matrix] [-empty] [-404] [-hang] serves copilot-cli's survey endpoints on 127.0.0.1 and points
 // nav-pilot at it (NAV_PILOT_COPILOT_CLI_URL). Every POST is described on one
 // line of $WORK/survey-posts.log: the status it got, whether it carried a
 // bearer token, its top-level and context keys, and whether the body holds
 // the device id in $HOME/device-id. The first POST per token gets 201, the
 // next 409, like the real dedup. $WORK/survey-gets.log counts the GETs.
+// -matrix asks the scale as a matrix item next to a second one, fast.
 // -empty lists no survey, -404 answers the list with 404 (the ingress where
 // the gateway is not deployed), -502 and -503 answer it with those statuses
 // (copilot-cli up but copilot-survey not, e.g. a missing secret), and -hang
@@ -40,6 +41,9 @@ func cmdFakeSurvey(ts *testscript.TestScript, neg bool, args []string) {
 		switch a {
 		case "-nudge-start":
 			defs = strings.Replace(defs, `"title":"E2E survey",`, `"title":"E2E survey","nudge":"start",`, 1)
+		case "-matrix":
+			defs = strings.Replace(defs, `{"id":"useful","version":1,"type":"scale","text":"How useful is nav-pilot?",`,
+				`{"id":"grid","version":1,"type":"matrix","text":"How much do you agree?","items":[{"id":"useful","version":1,"text":"How useful is nav-pilot?"},{"id":"fast","version":1,"text":"It is fast."}],`, 1)
 		case "-empty":
 			defs = `{"surveys":[]}`
 		case "-404":
@@ -51,11 +55,11 @@ func cmdFakeSurvey(ts *testscript.TestScript, neg bool, args []string) {
 		case "-hang":
 			hang = true
 		default:
-			ts.Fatalf("usage: fake-survey [-nudge-start] [-empty] [-404] [-502] [-503] [-hang]")
+			ts.Fatalf("usage: fake-survey [-nudge-start] [-matrix] [-empty] [-404] [-502] [-503] [-hang]")
 		}
 	}
 	if neg {
-		ts.Fatalf("usage: fake-survey [-nudge-start] [-empty] [-404] [-hang]")
+		ts.Fatalf("usage: fake-survey [-nudge-start] [-matrix] [-empty] [-404] [-hang]")
 	}
 	// Read here, not in the handler: the script's env is not safe to read
 	// from the server's goroutines.

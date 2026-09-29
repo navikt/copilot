@@ -9,7 +9,7 @@ import { exchangeTokenFor, fetchWithTimeout, isLocalDev } from "@/lib/backend-ap
 
 export type SurveyQuestion = {
   id: string;
-  type: "scale" | "choice" | "multi" | "text";
+  type: "scale" | "choice" | "multi" | "text" | "matrix";
   text: string;
   required?: boolean;
   min?: number;
@@ -21,6 +21,8 @@ export type SurveyQuestion = {
   other?: string;
   max_length?: number;
   skip_if?: { question: string; answer: string };
+  /** matrix: statements on its scale, each answered and sent as a scale answer under its own id. */
+  items?: { id: string; text: string }[];
 };
 
 export type Survey = {
@@ -41,7 +43,7 @@ export type SubmitResult =
   | { status: "closed" }
   | { status: "error" };
 
-const KNOWN_TYPES = ["scale", "choice", "multi", "text"];
+const KNOWN_TYPES = ["scale", "choice", "multi", "text", "matrix"];
 
 export type ActiveSurveys = { status: "ok"; surveys: Survey[] } | { status: "error" };
 
@@ -64,7 +66,7 @@ export async function getActiveSurveys(): Promise<ActiveSurveys> {
   }
 }
 
-/** The values of a scale question. copilot-survey leaves out min 0, as the terminal survey reads it. */
+/** The values of a scale or matrix question. copilot-survey leaves out min 0, as the terminal survey reads it. */
 export function scaleSteps(q: SurveyQuestion): number[] {
   const steps: number[] = [];
   for (let n = q.min ?? 0; n <= (q.max ?? 5); n++) steps.push(n);

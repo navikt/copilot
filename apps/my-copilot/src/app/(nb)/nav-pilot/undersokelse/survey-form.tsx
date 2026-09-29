@@ -8,6 +8,7 @@ import {
   Checkbox,
   CheckboxGroup,
   ErrorSummary,
+  Fieldset,
   GuidePanel,
   Heading,
   Radio,
@@ -30,6 +31,10 @@ import {
 import { sendSurvey } from "./actions";
 
 function missing(q: SurveyQuestion, answers: Answers): string | undefined {
+  if (q.type === "matrix") {
+    const all = (q.items ?? []).every((it) => typeof answers[it.id] === "number");
+    return q.required && !all ? "Svar på alle påstandene." : undefined;
+  }
   const a = answers[q.id];
   if (q.type === "multi" && Array.isArray(a) && q.max_choices && a.length > q.max_choices) {
     return `Du kan velge opptil ${q.max_choices}.`;
@@ -86,6 +91,10 @@ export function SurveyForm({ survey }: { survey: Survey }) {
     }
     const toSend: Answers = {};
     for (const q of visible) {
+      for (const it of q.items ?? []) {
+        const n = answers[it.id];
+        if (typeof n === "number") toSend[it.id] = n;
+      }
       const a = answers[q.id];
       const other = answers[otherKey(q)];
       if (choseOther(q, answers) && typeof other === "string" && other.trim() !== "") {
@@ -146,7 +155,11 @@ export function SurveyForm({ survey }: { survey: Survey }) {
 
         {visible.map((q) => (
           <VStack key={q.id} gap="space-8">
-            <Question q={q} value={answers[q.id]} error={errors[q.id]} onChange={(v) => set(q.id, v)} />
+            {q.type === "matrix" ? (
+              <Matrix q={q} answers={answers} error={errors[q.id]} onChange={(id, n) => set(id, n)} />
+            ) : (
+              <Question q={q} value={answers[q.id]} error={errors[q.id]} onChange={(v) => set(q.id, v)} />
+            )}
             {choseOther(q, answers) && (
               <TextField
                 id={`q-${otherKey(q)}`}
@@ -278,4 +291,74 @@ function Question({
         />
       );
   }
+}
+
+/**
+ * A matrix as a table: one row per statement, one column per scale step, a
+ * radio in each cell named by its row and column headers. It scrolls sideways
+ * when the screen is too narrow.
+ */
+function Matrix({
+  q,
+  answers,
+  error,
+  onChange,
+}: {
+  q: SurveyQuestion;
+  answers: Answers;
+  error?: string;
+  onChange: (itemId: string, n: number) => void;
+}) {
+  const steps = scaleSteps(q);
+  return (
+    <Fieldset id={`q-${q.id}`} tabIndex={-1} legend={q.required ? q.text : `${q.text} (valgfritt)`} error={error}>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              <td />
+              {steps.map((n, i) => (
+                <th
+                  key={n}
+                  id={`${q.id}-step-${n}`}
+                  scope="col"
+                  className="text-center align-bottom font-normal"
+                  style={{ padding: "0 var(--ax-space-8) var(--ax-space-8)" }}
+                >
+                  {q.labels?.[i] ?? String(n)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(q.items ?? []).map((it) => (
+              <tr key={it.id} className="border-t border-[var(--ax-border-neutral-subtle)]">
+                <th
+                  id={`${q.id}-item-${it.id}`}
+                  scope="row"
+                  className="text-left font-normal"
+                  style={{ padding: "var(--ax-space-12) var(--ax-space-16) var(--ax-space-12) 0" }}
+                >
+                  {it.text}
+                </th>
+                {steps.map((n) => (
+                  <td key={n} className="text-center" style={{ padding: "0 var(--ax-space-8)" }}>
+                    <input
+                      type="radio"
+                      className="size-5 cursor-pointer"
+                      name={`q-${it.id}`}
+                      value={n}
+                      checked={answers[it.id] === n}
+                      onChange={() => onChange(it.id, n)}
+                      aria-labelledby={`${q.id}-item-${it.id} ${q.id}-step-${n}`}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Fieldset>
+  );
 }
