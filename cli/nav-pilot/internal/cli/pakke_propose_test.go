@@ -749,11 +749,14 @@ func TestStockProposalPrintsTheByHandCommandWhenNobodyCanBeAsked(t *testing.T) {
 
 	stderr := captureStderr(func() { noteProposalConsent(scope, src, false, false) })
 
-	wantCommand := "cplt config set proxy.allow_private_domains " +
-		"loki.nav.cloud.nais.io,mimir.nav.cloud.nais.io," +
-		"tempo.dev-gcp.nav.cloud.nais.io,tempo.prod-gcp.nav.cloud.nais.io"
-	if !strings.Contains(stderr, wantCommand) {
-		t.Errorf("stderr does not carry the by-hand command %q:\n%s", wantCommand, stderr)
+	// One line per host: cplt refuses a comma-joined value (#1316).
+	for _, host := range []string{
+		"loki.nav.cloud.nais.io", "mimir.nav.cloud.nais.io",
+		"tempo.dev-gcp.nav.cloud.nais.io", "tempo.prod-gcp.nav.cloud.nais.io",
+	} {
+		if wantLine := "cplt config set proxy.allow_private_domains " + host + "\n"; !strings.Contains(stderr, wantLine) {
+			t.Errorf("stderr does not carry the by-hand command %q:\n%s", wantLine, stderr)
+		}
 	}
 	if rec, _ := artifacts.ReadProposalConsent(scope, src.Pakke.Name); rec != nil {
 		t.Errorf("a question nobody was asked was recorded as an answer: %+v", rec)
@@ -776,6 +779,11 @@ func TestDoctorNamesTheWaiverWhenItIsNotApproved(t *testing.T) {
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("doctor row does not mention %q:\n%s", want, got)
+		}
+	}
+	for _, line := range strings.Split(got, "\n") {
+		if strings.Contains(line, "cplt config set") && strings.Contains(line, ",") {
+			t.Errorf("doctor prints a comma-joined value, which cplt refuses (#1316): %s", line)
 		}
 	}
 }
