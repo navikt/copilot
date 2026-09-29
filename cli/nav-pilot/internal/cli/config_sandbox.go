@@ -172,26 +172,42 @@ func cmdConfigStrictPreset() error {
 		return fmt.Errorf("nav-pilot will not set sandbox.preset = strict here: %s", reason)
 	}
 
+	desc := cpltStrictConsequence
+	path, host := cpltAgentHostShutOut(cliPath, cpltEnforcement())
+	if host != "" {
+		desc += fmt.Sprintf("\n\n%s shuts out %s, so this also sets proxy.default_allowlist = true. That opens cplt's built-in hosts, package registries included.",
+			path, host)
+	}
 	var ok bool
 	if err := huh.NewConfirm().
 		Title("Set cplt sandbox.preset = strict?").
-		Description(cpltStrictConsequence).
+		Description(desc).
 		Value(&ok).
 		WithTheme(navTheme()).
 		Run(); err != nil {
 		return fmt.Errorf("prompt cancelled: %w", err)
 	}
 	if !ok {
+		fmt.Println(dim("sandbox.preset unchanged."))
 		return nil
 	}
 
-	return applyStrictPreset(cliPath)
+	return applyStrictPreset(cliPath, path, host)
 }
 
 // applyStrictPreset is everything cmdConfigStrictPreset does once the user has
 // said yes. Split out so the seed-then-set order — the part that matters — is
 // testable against a real cplt on PATH, without a terminal.
-func applyStrictPreset(cliPath string) error {
+//
+// host is the agent host the user's allowlist file (path) shuts out, as the
+// battery found before the prompt, or "". Repaired here, after the yes, never
+// before: cplt config is the user's.
+func applyStrictPreset(cliPath, path, host string) error {
+	if host != "" {
+		if err := repairCpltAgentHosts(cliPath, path, host); err != nil {
+			return err
+		}
+	}
 	path, adopted, err := seedCpltAllowlist(cliPath)
 	if err != nil {
 		return err
@@ -237,6 +253,78 @@ type cpltCheckReport struct {
 	// Battery marks the full enforcement battery. A targeted query
 	// (`cplt check path …`) is not graded and must never be read as a verdict.
 	Battery bool `json:"battery"`
+	// OverBlocked counts probes that should get through but were blocked.
+	// From navikt/cplt#604 on, cplt reports enforcing with this above zero.
+	OverBlocked int `json:"over_blocked"`
+	// Items are the graded probes.
+	Items []struct {
+		Category string `json:"category"`
+		Target   string `json:"target"`
+		Expected string `json:"expected"`
+		Decision string `json:"decision"`
+	} `json:"items"`
+}
+
+// agentHostBlocked returns the host of the battery's agent-host probe when
+// cplt blocked it, else "". That probe is the battery's only network item
+// expected to get through: `reach <the agent's first default host>`.
+func (r *cpltCheckReport) agentHostBlocked() string {
+	if r == nil {
+		return ""
+	}
+	for _, it := range r.Items {
+		if it.Category == "network" && it.Expected == "allowed" && it.Decision == "blocked" {
+			host, _, _ := strings.Cut(it.Target, ":")
+			return host
+		}
+	}
+	return ""
+}
+
+// unverified reports a verdict that failed only because probes could not run:
+// some protections were verified, and every failing probe is inconclusive.
+// That is "could not verify", not "NOT enforcing".
+func (r *cpltCheckReport) unverified() bool {
+	if r.Enforcing || r.Verified == 0 {
+		return false
+	}
+	failed := false
+	for _, it := range r.Items {
+		if it.Expected == "" || it.Expected == it.Decision {
+			continue
+		}
+		if it.Decision != "inconclusive" {
+			return false
+		}
+		failed = true
+	}
+	return failed
+}
+
+// tooStrict reports a verdict that failed only because the sandbox blocked
+// something it should allow: every protection held, but a probe that should
+// get through did not. That is an over-tight config, not a leak, and doctor
+// must not call it "NOT enforcing", nor plain enforcing. Newer cplt says
+// enforcing with over_blocked above zero; an older cplt says not enforcing and
+// this reads the same thing out of its items.
+func (r *cpltCheckReport) tooStrict() bool {
+	if r.Enforcing {
+		return r.OverBlocked > 0
+	}
+	if r.Verified == 0 {
+		return false
+	}
+	failed := false
+	for _, it := range r.Items {
+		if it.Expected == "" || it.Expected == it.Decision {
+			continue
+		}
+		if it.Expected != "allowed" || it.Decision != "blocked" {
+			return false
+		}
+		failed = true
+	}
+	return failed
 }
 
 // parseCpltCheckReport decodes a battery report, or returns nil for "unknown".
@@ -558,4 +646,39 @@ func seedCpltAllowlist(cliPath string) (path string, adopted bool, err error) {
 		return path, false, err
 	}
 	return path, true, nil
+}
+
+// cpltAgentHostShutOut returns the user's allowlist file and the agent host
+// cplt blocks, or "" and "" when there is nothing to warn about.
+//
+// cplt blocks every host outside a non-empty proxy.allowed_domains, and before
+// navikt/cplt#605 it added the agent's own hosts only while
+// proxy.default_allowlist was on. A hand-written file without github.com then
+// locks Copilot out of its own /login. Rather than re-derive that from the file
+// and the cplt version, this reads the battery's own probe of the agent's
+// first host: blocked there is the fact, on every cplt version.
+func cpltAgentHostShutOut(cliPath string, r *cpltCheckReport) (path, host string) {
+	host = r.agentHostBlocked()
+	if host == "" {
+		return "", ""
+	}
+	// Without an allowlist the block has another cause, and
+	// default_allowlist would not lift it.
+	if path = cpltConfigGet(cliPath, "proxy.allowed_domains"); path == "" {
+		return "", ""
+	}
+	return path, host
+}
+
+// repairCpltAgentHosts turns on proxy.default_allowlist, which adds cplt's
+// built-in list: the agent's hosts and the package registries too. The user's
+// file is not touched; rewriting it would mean editing something the user
+// owns. Called only after the user has said yes.
+func repairCpltAgentHosts(cliPath, path, host string) error {
+	if err := cpltConfigSet(cliPath, "proxy.default_allowlist", "true"); err != nil {
+		return err
+	}
+	fmt.Printf("%s cplt proxy.default_allowlist = true: %s shut out %s. This also lets the package registries through.\n",
+		domain.Green("✓"), path, host)
+	return nil
 }

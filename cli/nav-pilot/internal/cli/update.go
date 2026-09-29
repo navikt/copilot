@@ -402,6 +402,26 @@ func classifyCpltSkew(installed, latest string, lookupErr error) cpltSkew {
 	return cpltVersionCurrent
 }
 
+// cpltSkewUnknownReason says in a few words why classifyCpltSkew could not
+// tell, for doctor's "could not check" line.
+func cpltSkewUnknownReason(installed, latest string, lookupErr error) string {
+	var netErr interface{ Timeout() bool }
+	switch {
+	case lookupErr == nil && !versionParseable(installed):
+		return "installed version unknown"
+	case lookupErr == nil:
+		return "latest release unreadable"
+	case errors.Is(lookupErr, context.DeadlineExceeded),
+		errors.As(lookupErr, &netErr) && netErr.Timeout():
+		return "timeout"
+	case strings.Contains(lookupErr.Error(), "rate limit"):
+		return "GitHub API rate limit"
+	case strings.HasPrefix(lookupErr.Error(), "GitHub API returned "):
+		return "HTTP " + strings.TrimPrefix(lookupErr.Error(), "GitHub API returned ")
+	}
+	return lookupErr.Error()
+}
+
 // cpltVersionSkew reads the installed cplt version and compares it to the
 // latest release. Everything uncertain — no cplt, no network, an unparseable
 // version — is cpltVersionUnknown.

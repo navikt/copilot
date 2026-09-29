@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/BurntSushi/toml"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
@@ -223,6 +224,8 @@ func cmdDoctor() error {
 	}
 
 	// cplt
+	// The battery runs once, and only if something reads it.
+	enforcement := sync.OnceValue(cpltEnforcement)
 	fmt.Printf("    • cplt (sandbox)\n")
 	cpltPath, _ := exec.LookPath("cplt")
 	if cpltPath == "" {
@@ -252,7 +255,7 @@ func cmdDoctor() error {
 		case cpltVersionCurrent:
 			fmt.Printf("      %s cplt is up to date\n", green("✓"))
 		default:
-			fmt.Printf("      %s Could not check for a newer cplt release\n", dim("-"))
+			fmt.Printf("      %s Could not check for a newer cplt release (%s)\n", dim("-"), cpltSkewUnknownReason(installed, latest, lerr))
 		}
 
 		// Security posture. A recommendation, not a failure — and an unknown
@@ -296,6 +299,16 @@ func cmdDoctor() error {
 			fmt.Printf("          Setting the preset by hand skips that, and your Nav hosts go dark.\n")
 		default:
 			fmt.Printf("      %s Sandbox preset is %s\n", green("✓"), preset)
+		}
+
+		// A user allowlist the battery shows blocking the agent's own host.
+		// Copilot cannot even log in.
+		if path, host := cpltAgentHostShutOut(cpltPath, enforcement()); host != "" {
+			hasErrors = true
+			fmt.Printf("      %s proxy.allowed_domains (%s) shuts out Copilot's own hosts: cplt blocks %s\n",
+				yellow("⚠"), path, host)
+			fmt.Printf("          %s Run %s, or %s and pick %s.\n", yellow("Solution:"),
+				bold("cplt config set proxy.default_allowlist true"), bold("nav-pilot config"), bold("cplt security posture"))
 		}
 
 		// The waiver the pakke asks for, and whether this scope granted it.
@@ -412,10 +425,20 @@ func cmdDoctor() error {
 		// reads configuration; `cplt check` runs the probes inside the sandbox
 		// the agent would actually get. A repo can be perfectly configured and
 		// still not be enforcing.
-		switch report := cpltEnforcement(); {
+		switch report := enforcement(); {
 		case report == nil:
 			fmt.Printf("    %s Could not verify sandbox enforcement\n", dim("-"))
 			fmt.Printf("        %s Run %s by hand — this run could not read a verdict, which an older cplt (no such subcommand), a timeout or an interrupted probe all produce.\n", dim("Solution:"), bold("cplt check"))
+		case report.tooStrict():
+			// Every protection held; the sandbox blocked something it should
+			// allow. Too strict, not a leak.
+			hasErrors = true
+			fmt.Printf("    %s Sandbox is enforcing but too strict (%d protections verified)\n", yellow("⚠"), report.Verified)
+			fmt.Printf("        %s Run %s — it names what is blocked and the fix.\n", yellow("Solution:"), bold("cplt check"))
+		case report.unverified():
+			// Every probe that ran held; some could not run at all.
+			fmt.Printf("    %s Could not verify every protection (%d verified, the rest inconclusive)\n", dim("-"), report.Verified)
+			fmt.Printf("        %s Run %s — it names each probe that could not run.\n", dim("Solution:"), bold("cplt check"))
 		case report.Enforcing:
 			fmt.Printf("    %s Sandbox is enforcing (%d protections verified)\n", green("✓"), report.Verified)
 		default:
