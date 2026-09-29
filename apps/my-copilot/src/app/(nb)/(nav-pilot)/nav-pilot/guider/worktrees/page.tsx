@@ -102,7 +102,7 @@ nav-pilot`}
           </BodyLong>
           <BodyLong>
             Den felles git-mappa må ligge under hjemmekatalogen din. Ligger den et annet sted, for eksempel under{" "}
-            <code className={code}>/tmp</code>, gir cplt ikke tilgang, og git feiler i sandkassen.
+            <code className={code}>/Users/Shared</code>, gir cplt ikke tilgang, og git feiler i sandkassen.
           </BodyLong>
           <BodyLong>
             Godkjenningen av repoets <code className={code}>.cplt.toml</code> gjelder hele repoet, ikke én utsjekking.
@@ -175,10 +175,12 @@ nav-pilot`}
           </BodyLong>
           <BodyLong>
             Bruker du worktrees til underagenter i tillegg, kan ikke repoet bruke{" "}
-            <code className={code}>worktree.useRelativePaths</code>. cplt nekter å starte når worktree-mappa inneholder
-            worktrees med relative stier. Slå det av der du har satt det:
+            <code className={code}>worktree.useRelativePaths</code>. cplt nekter å starte når en worktree i repoet har
+            relative stier, også worktrees utenfor worktree-mappa. Slå av innstillingen, og skriv om stiene i worktreene
+            som allerede finnes. Kjør det utenfor cplt, med stien til hver worktree som har relative stier:
           </BodyLong>
-          <CodeBlock compact>{`git config --unset worktree.useRelativePaths`}</CodeBlock>
+          <CodeBlock compact>{`git config --unset worktree.useRelativePaths
+git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
         </VStack>
       </section>
 
@@ -249,8 +251,9 @@ nav-pilot`}
           <BodyLong>
             Den felles git-mappa (<code className={code}>git rev-parse --git-common-dir</code>) ligger utenfor
             hjemmekatalogen, eller stien har et tegn cplt ikke kan bruke: anførselstegn, parentes, semikolon eller
-            omvendt skråstrek. Da får ikke agenten tilgang til den, og cplt sier fra ved oppstart. Flytt repoet inn
-            under hjemmekatalogen, eller gi mappa et navn uten de tegnene.
+            omvendt skråstrek. Da får ikke agenten tilgang til den. cplt sier fra ved oppstart når det er tegnene som er
+            problemet, men ikke når mappa ligger utenfor hjemmekatalogen. Flytt repoet inn under hjemmekatalogen, eller
+            gi mappa et navn uten de tegnene.
           </BodyLong>
           <LinkableHeading id="worktree-remove" size="small" level="3">
             cplt vil ikke starte etter git worktree remove
