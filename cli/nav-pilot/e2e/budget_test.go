@@ -127,7 +127,16 @@ func TestLaunchBudget(t *testing.T) {
 	// opencode materializes the configured source; without one it fetches
 	// navikt/copilot the first time, which is a wait on purpose and not what
 	// this measures. TestResolveForLaunchCachesAndRefreshes covers the cache.
-	if out, code := e.run(repo, "config", "set", "source", src); code != 0 {
+	// The source is this repository's own checkout when the test runs in
+	// one: opencode reads the whole source at launch, and a user's is
+	// navikt/copilot (#1276), not the two files of src.
+	launchSrc := src
+	if root, err := filepath.Abs(filepath.Join("..", "..", "..")); err == nil {
+		if _, err := os.Stat(filepath.Join(root, "skills")); err == nil {
+			launchSrc = root
+		}
+	}
+	if out, code := e.run(repo, "config", "set", "source", launchSrc); code != 0 {
 		t.Fatalf("config set source: %d\n%s", code, out)
 	}
 
@@ -285,6 +294,7 @@ func TestLaunchBudget(t *testing.T) {
 		check(c.name, d)
 	}
 
+	var copilotLaunch time.Duration
 	for _, client := range [][]string{
 		{"--", "-p", "hei"},
 		{"--client", "opencode", "--", "run", "hei"},
@@ -302,5 +312,14 @@ func TestLaunchBudget(t *testing.T) {
 		t.Logf("nav-pilot %v:", client)
 		check("launch", launches)
 		check("exit", exits)
+		// The same machine and the same load, so no margin: what opencode
+		// does on top of the Copilot launch must fit in the budget itself.
+		// It once waited seconds on macOS's automounter for /home (#1276).
+		if copilotLaunch == 0 {
+			copilotLaunch = median(launches[telemetryOff])
+		} else if got := median(launches[telemetryOff]); got > copilotLaunch+budgets["launch"] {
+			t.Errorf("an opencode launch took %s and a Copilot launch %s (medians of %d): opencode adds more than the %s launch budget. Something on its path waits (a lookup, a lock, the network) or does too much",
+				got, copilotLaunch, budgetRuns, budgets["launch"])
+		}
 	}
 }
