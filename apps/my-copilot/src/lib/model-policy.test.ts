@@ -9,10 +9,10 @@ describe("Navs modellpolicy", () => {
   });
 
   it("skiller modeller som er aktivert av Nav fra resten av GitHubs prisliste", () => {
-    expect(isNavAllowedModel("GPT-5.4 (Default, ≤ 272K)")).toBe(true);
-    expect(isNavAllowedModel("Claude Fable 5.1")).toBe(true);
-    expect(isNavAllowedModel("GPT-6 Sol (Default, ≤ 272K)")).toBe(false);
-    expect(isNavAllowedModel("Claude Sonnet 5")).toBe(false);
+    expect(isNavAllowedModel("GPT-5.4 (Default, ≤ 272K)")).toBe(false);
+    expect(isNavAllowedModel("Claude Fable 5.1")).toBe(false);
+    expect(isNavAllowedModel("GPT-6 Sol (Default, ≤ 272K)")).toBe(true);
+    expect(isNavAllowedModel("Claude Sonnet 5")).toBe(true);
   });
 });
 

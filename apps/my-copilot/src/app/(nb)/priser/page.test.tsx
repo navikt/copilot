@@ -151,14 +151,14 @@ describe("Nav-status og nav-pilots modellvalg", () => {
   it("merker og filtrerer modeller etter Navs modellpolicy", () => {
     render(<PriserPage />);
 
-    expect(within(radFor("GPT-5.4 (Default, ≤ 272K)")).getByText("Aktivert i Nav")).toBeInTheDocument();
-    expect(within(radFor("GPT-6 Sol (Default, ≤ 272K)")).getByText("Ikke aktivert i Nav")).toBeInTheDocument();
+    expect(within(radFor("GPT-5.4 (Default, ≤ 272K)")).getByText("Ikke aktivert i Nav")).toBeInTheDocument();
+    expect(within(radFor("GPT-6 Sol (Default, ≤ 272K)")).getByText("Aktivert i Nav")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Nav-status: Alle"));
     fireEvent.click(screen.getByRole("checkbox", { name: "Ikke aktivert i Nav" }));
 
-    expect(radFor("GPT-5.4 (Default, ≤ 272K)")).toBeInTheDocument();
-    expect(within(pristabell()).queryByText("GPT-6 Sol (Default, ≤ 272K)")).toBeNull();
+    expect(radFor("GPT-6 Sol (Default, ≤ 272K)")).toBeInTheDocument();
+    expect(within(pristabell()).queryByText("GPT-5.4 (Default, ≤ 272K)")).toBeNull();
   });
 
   it("viser hvilket formål nav-pilot foretrekker modellen til", () => {
@@ -173,7 +173,7 @@ describe("Nav-status og nav-pilots modellvalg", () => {
     expect(within(reviewChoice).getByText("@nav-pilot-opus og @code-review")).toBeInTheDocument();
     expect(within(reviewChoice).getByText("Claude Opus 5.5")).toBeInTheDocument();
     expect(within(reviewChoice).getByText("Claude Opus 5")).toBeInTheDocument();
-    expect(within(reviewChoice).getAllByText("Ikke aktivert i Nav")).toHaveLength(2);
-    expect(within(reviewChoice).getByText("Aktivert i Nav")).toBeInTheDocument();
+    expect(within(reviewChoice).getAllByText("Aktivert i Nav")).toHaveLength(2);
+    expect(within(reviewChoice).getByText("Ikke aktivert i Nav")).toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
 export const NAV_MODEL_POLICY_LAST_UPDATED = "2026-09-29";
 
-const NAV_ALLOWED_MODELS = new Set([
+const NAV_DISABLED_MODELS = new Set([
   "Claude Haiku 4.5",
   "GPT-5 mini",
   "Claude Fable 5",
@@ -64,7 +64,7 @@ export function normalizeModelName(model: string): string {
 }
 
 export function isNavAllowedModel(model: string): boolean {
-  return NAV_ALLOWED_MODELS.has(normalizeModelName(model));
+  return !NAV_DISABLED_MODELS.has(normalizeModelName(model));
 }
 
 export function navPilotPurposesFor(model: string): string[] {
