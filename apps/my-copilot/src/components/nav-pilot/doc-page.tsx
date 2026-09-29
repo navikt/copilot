@@ -105,5 +105,6 @@ export function HeaderRow({ cells, stack }: { cells: string[]; stack?: boolean }
   );
 }
 
-export const code = "font-mono text-sm";
+// Inline code in running text. Styled in globals.css (.inline-code); code blocks use CodeBlock.
+export const code = "inline-code";
 export const linkClass = "text-blue-600 hover:underline";

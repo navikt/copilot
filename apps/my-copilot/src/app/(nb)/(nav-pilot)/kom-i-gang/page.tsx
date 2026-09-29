@@ -4,6 +4,7 @@ import NextLink from "next/link";
 import { LinkableHeading } from "@/components/linkable-heading";
 import type { Metadata } from "next";
 import { InteractiveSetupWizard } from "@/components/nav-pilot/interactive-setup-wizard";
+import { code } from "@/components/nav-pilot/doc-page";
 
 export const metadata: Metadata = {
   title: "Kom i gang",
@@ -28,7 +29,7 @@ export default function KomIGangPage() {
               <BodyLong>
                 nav-pilot er et CLI. Det installerer agenter, skills og instruksjoner fra Nav i repoet ditt, og starter
                 Copilot CLI eller opencode i sandkassen cplt. Agenten{" "}
-                <code className="font-mono text-xs">@nav-pilot</code> bruker kunnskapen til å planlegge apper på Nais.
+                <code className={code}>@nav-pilot</code> bruker kunnskapen til å planlegge apper på Nais.
                 Selve modellen kjører i GitHub Copilot.{" "}
                 <NextLink href="/nav-pilot" className="text-blue-600 hover:underline">
                   Mer om nav-pilot
