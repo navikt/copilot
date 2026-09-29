@@ -164,7 +164,6 @@ func fakeCplt(t *testing.T, get map[string]string) string {
 	script := fmt.Sprintf(`#!/bin/sh
 case "$1 $2" in
   "config set") printf '%%s %%s\n' "$3" "$4" >> %q
-    printf '%%s\n' "$*" >> %q.args
     if [ "$5" = --force ]; then printf '%%s\n' "$3" >> %q.force; fi ;;
   "config get")
     case "$3" in
@@ -172,7 +171,7 @@ case "$1 $2" in
     esac ;;
   *) exit 1 ;;
 esac
-`, log, log, log, cases.String())
+`, log, log, cases.String())
 
 	bin := filepath.Join(dir, "cplt")
 	if err := testhome.WriteExec(bin, script); err != nil {

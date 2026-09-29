@@ -3,12 +3,16 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 func boolp(b bool) *bool { return &b }
@@ -261,42 +265,81 @@ func TestLeavingStrictAllowlist(t *testing.T) {
 	}
 }
 
-// Through a real process: leaving strict with nav-pilot's list and saying yes
-// unsets the key in the global config. It must never write an empty value,
-// which leaves an allowlist that blocks every host.
+// statefulCplt is a cplt whose config get reads back what config set wrote,
+// with the preset on strict and nav-pilot's allowlist set. A set of
+// failKey exits 1. It returns the log of every config set, in order.
+func statefulCplt(t *testing.T, failKey string) string {
+	t.Helper()
+	dir := t.TempDir()
+	for k, v := range map[string]string{"sandbox.preset": "strict", "proxy.allowed_domains": navAllowedDomainsPath()} {
+		if err := os.WriteFile(filepath.Join(dir, k), []byte(v+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	log := filepath.Join(dir, "set.log")
+	script := fmt.Sprintf(`#!/bin/sh
+cd %q
+case "$1 $2" in
+  "config set") printf '%%s\n' "$*" >> set.log
+    [ "$3" = %q ] && exit 1
+    if [ "$4" = --unset ]; then rm -f "$3"; else echo "$4" > "$3"; fi ;;
+  "config get") [ -f "$3" ] && cat "$3" ;;
+  *) exit 1 ;;
+esac
+`, dir, failKey)
+	if err := testhome.WriteExec(filepath.Join(dir, "cplt"), script); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	return log
+}
+
+// Leaving strict with nav-pilot's list and saying yes: the preset is written
+// first, then the key is unset (never set to "", which blocks every host).
 func TestLeavingStrictUnsetsNavAllowlist(t *testing.T) {
 	isolatedConfig(t)
-	log := fakeCplt(t, map[string]string{
-		"sandbox.preset":                        "strict",
-		"git_guard.protect_default_branch_only": "false\n[cplt] (default, not set in config file)",
-		"proxy.allowed_domains":                 navAllowedDomainsPath(),
-	})
+	log := statefulCplt(t, "")
 	cliPath, err := findCplt()
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := readCpltGitState(cliPath)
 	choice := presetChoices[presetSandbox]
-	changes := cpltChanges(s, choice)
-	drop := leavingStrictAllowlist(s.Preset, choice.Preset, cpltConfigGet(cliPath, "proxy.allowed_domains"))
+	drop := leavingStrictAllowlist(cpltConfigGet(cliPath, "sandbox.preset"), choice.Preset, cpltConfigGet(cliPath, "proxy.allowed_domains"))
 	if drop == nil {
 		t.Fatal("no offer to drop nav-pilot's allowlist")
 	}
-	changes = append(changes, *drop)
+	changes := []cpltChange{*drop, {"sandbox.preset", "strict", "standard"}}
 	if sum := autonomySummary(choice, changes, true, ""); !strings.Contains(sum, "proxy.allowed_domains: "+navAllowedDomainsPath()+" → unset") {
 		t.Errorf("summary does not show the removal: %q", sum)
 	}
 	if err := applyCpltChanges(cliPath, changes, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	args, err := os.ReadFile(log + ".args")
+	got, _ := os.ReadFile(log)
+	want := "config set sandbox.preset standard\nconfig set proxy.allowed_domains --unset --global\n"
+	if string(got) != want {
+		t.Errorf("cplt calls:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// If the preset write fails, the allowlist stays and the error says so: the
+// user is still on strict and needs the Nav hosts.
+func TestLeavingStrictKeepsAllowlistWhenPresetFails(t *testing.T) {
+	isolatedConfig(t)
+	log := statefulCplt(t, "sandbox.preset")
+	cliPath, err := findCplt()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(args), "config set proxy.allowed_domains --unset --global\n") {
-		t.Errorf("cplt calls:\n%s\nwant config set proxy.allowed_domains --unset --global", args)
+	changes := []cpltChange{{"proxy.allowed_domains", navAllowedDomainsPath(), ""}, {"sandbox.preset", "strict", "standard"}}
+	err = applyCpltChanges(cliPath, changes, "", "")
+	if err == nil || !strings.Contains(err.Error(), "proxy.allowed_domains is left in place") {
+		t.Errorf("err = %v, want it to say the allowlist is left in place", err)
 	}
-	if sets := configSets(t, log); sets["sandbox.preset"] != "standard" || sets["proxy.allowed_domains"] != "--unset" || len(sets) != 2 {
-		t.Errorf("wrote %v, want sandbox.preset = standard and the allowlist unset", sets)
+	if got, _ := os.ReadFile(log); strings.Contains(string(got), "--unset") {
+		t.Errorf("unset after a failed preset write:\n%s", got)
+	}
+	if got := cpltConfigGet(cliPath, "proxy.allowed_domains"); got != navAllowedDomainsPath() {
+		t.Errorf("allowlist = %q, want it kept", got)
 	}
 }
