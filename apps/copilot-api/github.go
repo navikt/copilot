@@ -32,6 +32,7 @@ type GitHubClient struct {
 	tokenExpiry    time.Time
 	tokenMu        sync.Mutex
 	samlCache      *Cache // email→GitHub username cache
+	memberCache    *Cache // lower-cased login→active org member (bool)
 }
 
 func newGitHubClient(config *Config) (*GitHubClient, error) {
@@ -67,6 +68,7 @@ func newGitHubClient(config *Config) (*GitHubClient, error) {
 		privateKey:     privateKey,
 		installationID: config.GitHubInstallationID,
 		samlCache:      NewCache(10 * time.Minute),
+		memberCache:    NewCache(time.Minute),
 	}, nil
 }
 
@@ -764,4 +766,56 @@ func (g *GitHubClient) getSamlNameIDByLogin(ctx context.Context, login string) (
 		}
 	}
 	return "", errNoSAMLIdentity
+}
+
+// isActiveOrgMember reports whether login is an active member of the org:
+// state "active", so a pending invitation is not enough. It uses the App's
+// installation token (the App needs Members: read), so copilot-cli's user
+// tokens need no permissions. Answers are cached for a minute; errors are
+// not cached.
+func (g *GitHubClient) isActiveOrgMember(ctx context.Context, login string) (bool, error) {
+	key := strings.ToLower(login)
+	if g.memberCache != nil {
+		if v, ok := g.memberCache.Get(key); ok {
+			return v.(bool), nil
+		}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		"https://api.github.com/orgs/"+url.PathEscape(g.org)+"/memberships/"+url.PathEscape(login), nil)
+	if err != nil {
+		return false, errors.New("building memberships request")
+	}
+	if err := g.setAuthHeaders(req); err != nil {
+		return false, err
+	}
+	// Never follow a redirect: only a 200 or a 404 is an answer.
+	client := *g.httpClient
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := client.Do(req)
+	if err != nil {
+		// The *url.Error names the URL, and so the login: keep only its type.
+		return false, fmt.Errorf("calling GitHub memberships: %T", err)
+	}
+	defer resp.Body.Close()
+	var active bool
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var m struct {
+			State string `json:"state"`
+			User  struct {
+				Login string `json:"login"`
+			} `json:"user"`
+		}
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&m); err != nil {
+			return false, errors.New("decode membership response")
+		}
+		active = m.State == "active" && strings.EqualFold(m.User.Login, login)
+	case http.StatusNotFound:
+	default:
+		return false, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
+	}
+	if g.memberCache != nil {
+		g.memberCache.Set(key, active)
+	}
+	return active, nil
 }

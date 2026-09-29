@@ -85,7 +85,7 @@ func TestRegisterInternalRoutes(t *testing.T) {
 			next.ServeHTTP(w, r)
 		})
 	}
-	registerInternalRoutes(mux, auth, "survey-id", nil)
+	registerInternalRoutes(mux, auth, "survey-id", nil, "cli-id", nil)
 	for _, tc := range []struct {
 		method, path string
 		want         int
@@ -224,7 +224,7 @@ func TestSurveyTokenThroughMux(t *testing.T) {
 	auth := bearerAuth(validate, []string{"survey-id"})
 	mux := http.NewServeMux()
 	mux.Handle("/api/v1/", auth(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})))
-	registerInternalRoutes(mux, auth, "survey-id", nil)
+	registerInternalRoutes(mux, auth, "survey-id", nil, "cli-id", nil)
 	for _, tc := range []struct {
 		method, path string
 		want         int
@@ -241,5 +241,150 @@ func TestSurveyTokenThroughMux(t *testing.T) {
 		if rec.Code != tc.want {
 			t.Errorf("%s %s = %d, want %d", tc.method, tc.path, rec.Code, tc.want)
 		}
+	}
+}
+
+func TestOrgMembershipHandler(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	cli := &User{AZP: "cli-id", Idtyp: "app"}
+	check := func(_ context.Context, login string) (bool, error) {
+		switch login {
+		case "hans":
+			return true, nil
+		case "outsider":
+			return false, nil
+		}
+		return false, errors.New("GitHub API returned 502")
+	}
+	for _, tc := range []struct {
+		name     string
+		clientID string
+		user     *User
+		check    func(context.Context, string) (bool, error)
+		body     string
+		want     int
+		wantBody string
+	}{
+		{"member", "cli-id", cli, check, `{"login":"hans"}`, 200, `{"active":true}`},
+		{"not a member", "cli-id", cli, check, `{"login":"outsider"}`, 200, `{"active":false}`},
+		{"GitHub fails", "cli-id", cli, check, `{"login":"broken"}`, 503, ""},
+		{"GitHub not configured", "cli-id", cli, nil, `{"login":"hans"}`, 503, ""},
+		{"copilot-survey", "cli-id", &User{AZP: "survey-id", Idtyp: "app"}, check, `{"login":"hans"}`, 403, ""},
+		{"a user token via copilot-cli", "cli-id", &User{AZP: "cli-id", NAVident: "Z123456", Email: "ola@nav.no"}, check, `{"login":"hans"}`, 403, ""},
+		{"copilot-cli not pre-authorized", "", &User{Idtyp: "app"}, check, `{"login":"hans"}`, 403, ""},
+		{"no user", "cli-id", nil, check, `{"login":"hans"}`, 403, ""},
+		{"malformed login", "cli-id", cli, check, `{"login":"inv@lid"}`, 400, ""},
+		{"unknown field", "cli-id", cli, check, `{"login":"hans","org":"x"}`, 400, ""},
+		{"two objects", "cli-id", cli, check, `{"login":"hans"}{"login":"hans"}`, 400, ""},
+		{"oversized body", "cli-id", cli, check, `{"login":"hans"` + strings.Repeat(" ", 1100) + `}`, 400, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, orgMembershipPath, strings.NewReader(tc.body))
+			if tc.user != nil {
+				req = req.WithContext(context.WithValue(req.Context(), userContextKey, tc.user))
+			}
+			rec := httptest.NewRecorder()
+			orgMembershipHandler(tc.clientID, tc.check)(rec, req)
+			if rec.Code != tc.want {
+				t.Fatalf("status = %d, want %d: %s", rec.Code, tc.want, rec.Body)
+			}
+			if tc.wantBody != "" && strings.TrimSpace(rec.Body.String()) != tc.wantBody {
+				t.Fatalf("body = %s, want %s", rec.Body, tc.wantBody)
+			}
+		})
+	}
+	if strings.Contains(buf.String(), "broken") || strings.Contains(buf.String(), "hans") {
+		t.Fatalf("a login reached the log: %s", buf.String())
+	}
+}
+
+// copilot-survey's token is fenced off the membership route before the
+// handler; copilot-cli's reaches it.
+func TestOrgMembershipThroughMux(t *testing.T) {
+	for _, tc := range []struct {
+		azp  string
+		want int
+	}{{"cli-id", 200}, {"survey-id", 403}, {"my-copilot-id", 403}} {
+		validate := func(string) (*User, error) { return &User{AZP: tc.azp, Idtyp: "app"}, nil }
+		mux := http.NewServeMux()
+		registerInternalRoutes(mux, bearerAuth(validate, []string{"survey-id"}), "survey-id", nil, "cli-id",
+			func(context.Context, string) (bool, error) { return true, nil })
+		req := httptest.NewRequest(http.MethodPost, orgMembershipPath, strings.NewReader(`{"login":"hans"}`))
+		req.Header.Set("Authorization", "Bearer t")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != tc.want {
+			t.Errorf("azp %s: status = %d, want %d", tc.azp, rec.Code, tc.want)
+		}
+	}
+}
+
+func TestIsActiveOrgMember(t *testing.T) {
+	var calls int
+	answers := map[string]struct {
+		status int
+		body   string
+	}{
+		"hans":    {200, `{"state":"active","role":"member","user":{"login":"Hans"}}`},
+		"invited": {200, `{"state":"pending","role":"member","user":{"login":"invited"}}`},
+		"swapped": {200, `{"state":"active","role":"member","user":{"login":"someone"}}`},
+		"gone":    {404, `{"message":"Not Found"}`},
+		"moved":   {302, ``},
+		"down":    {502, ``},
+		"garbage": {200, `not json`},
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		login := strings.TrimPrefix(r.URL.Path, "/orgs/navikt/memberships/")
+		a, ok := answers[login]
+		if !ok || r.Header.Get("Authorization") != "Bearer inst" {
+			w.WriteHeader(http.StatusTeapot)
+			return
+		}
+		if a.status == 302 {
+			w.Header().Set("Location", "/elsewhere")
+		}
+		w.WriteHeader(a.status)
+		_, _ = w.Write([]byte(a.body))
+	}))
+	defer srv.Close()
+	cache := NewCache(time.Minute)
+	defer cache.Stop()
+	g := &GitHubClient{httpClient: &http.Client{Transport: rewrite{srv}}, org: "navikt",
+		token: "inst", tokenExpiry: time.Now().Add(time.Hour), memberCache: cache}
+
+	for _, tc := range []struct {
+		login  string
+		want   bool
+		anyErr bool
+	}{
+		{"hans", true, false},
+		{"invited", false, false},
+		{"swapped", false, false},
+		{"gone", false, false},
+		{"moved", false, true},
+		{"down", false, true},
+		{"garbage", false, true},
+	} {
+		got, err := g.isActiveOrgMember(t.Context(), tc.login)
+		if got != tc.want || (err != nil) != tc.anyErr {
+			t.Errorf("%s: got %v, %v; want %v, err=%v", tc.login, got, err, tc.want, tc.anyErr)
+		}
+	}
+	before := calls
+	if ok, _ := g.isActiveOrgMember(t.Context(), "HANS"); !ok || calls != before {
+		t.Fatalf("cached answer not reused: ok=%v calls=%d->%d", ok, before, calls)
+	}
+	if _, err := g.isActiveOrgMember(t.Context(), "down"); err == nil || calls != before+1 {
+		t.Fatal("an error was cached")
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := g.isActiveOrgMember(ctx, "secretlogin"); err == nil || strings.Contains(err.Error(), "secretlogin") {
+		t.Fatalf("err = %v, want an error without the login", err)
 	}
 }

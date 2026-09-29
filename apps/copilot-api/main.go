@@ -176,7 +176,14 @@ func main() {
 	if githubClient != nil {
 		nameIDLookup = githubClient.getSamlNameIDByLogin
 	}
-	registerInternalRoutes(mux, authMiddleware, copilotSurveyClientID, nameIDLookup)
+	// copilot-cli asks here whether a nav-pilot user is an active navikt
+	// member, so the nav-pilot GitHub App needs no permissions. Off unless
+	// copilot-cli is pre-authorized (the same client id as X-On-Behalf-Of).
+	var memberCheck func(context.Context, string) (bool, error)
+	if githubClient != nil {
+		memberCheck = githubClient.isActiveOrgMember
+	}
+	registerInternalRoutes(mux, authMiddleware, copilotSurveyClientID, nameIDLookup, copilotCLIClientID, memberCheck)
 
 	slog.Info("Server listening", "port", config.Port)
 
