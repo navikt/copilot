@@ -44,6 +44,13 @@ describe("searchEntries", () => {
     expect(searchEntries(index, "linux").map((e) => e.href)).toContain("/nav-pilot/lokal/egen-server");
   });
 
+  // #1280: /cplt/windows has no nav-pilot section menu, so it isn't in SECTION
+  // and reaches the index through EXTRA_PAGES in search-index.ts instead.
+  it("finds /cplt/windows", () => {
+    expect(searchEntries(index, "windows").map((e) => e.href)).toContain("/cplt/windows");
+    expect(searchEntries(index, "wsl").map((e) => e.href)).toContain("/cplt/windows");
+  });
+
   // /cplt's description is a constant; the first quoted description: further
   // down its page is body text and must not be indexed.
   it("only takes a description from the metadata object", () => {
