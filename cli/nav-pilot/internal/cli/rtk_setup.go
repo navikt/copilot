@@ -142,11 +142,11 @@ func savePromptState(cfg ResolvedConfig) {
 	if cfg.RtkPromptedClient != "" {
 		newClients = cfg.RtkPromptedClient + "," + cfg.Client
 	}
-	if setErr := cmdConfigSet("rtk_prompted_client", newClients); setErr != nil {
-		fmt.Fprintf(os.Stderr, "%s Warning: Could not save rtk config: %v\n", yellow("⚠"), setErr)
-	}
-	if setErr := cmdConfigSet("rtk_prompted_at", time.Now().Format(time.RFC3339)); setErr != nil {
-		fmt.Fprintf(os.Stderr, "%s Warning: Could not save rtk timestamp: %v\n", yellow("⚠"), setErr)
+	// Bookkeeping, not a setting the user chose: one silent write, so a
+	// declined rtk prints nothing (#1275).
+	if err := updateConfigKeys("rtk_prompted_client", tomlString(newClients),
+		"rtk_prompted_at", tomlString(time.Now().Format(time.RFC3339))); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Warning: Could not save rtk config: %v\n", yellow("⚠"), err)
 	}
 }
 

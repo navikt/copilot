@@ -1,7 +1,7 @@
 # The first-run wizard says what leaving the model unset does (the
 # agentpakke's default, the agent's own if it names none), the auto-update
 # answer says what "no" means, and the rtk question defaults to no: Enter
-# installs nothing.
+# installs nothing, and saying no prints nothing.
 
 [!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
 
@@ -22,4 +22,7 @@ stdout 'No: say when a new version is out, and ask to upgrade once 7 days behind
 exec nav-pilot config set client copilot
 exits 1 pty-run -wait 'terminal output filter \(rtk\) for copilot' -send '\r' -- nav-pilot
 grep 'rtk_prompted_client = "copilot"' home/config.toml
+grep 'rtk_prompted_at = ' home/config.toml
 ! stdout 'Installing rtk'
+# Declining is silent: no bookkeeping lines, no .bak notice (#1275).
+! stdout 'rtk_prompted|Previous file kept'

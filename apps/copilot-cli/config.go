@@ -18,7 +18,8 @@ type Config struct {
 	Environment string
 	LogLevel    slog.Level
 
-	// GitHubOrg is the org membership required to use the CLI (navikt).
+	// GitHubOrg names the org in the not-a-member message (navikt). The org
+	// checked is copilot-api's own GITHUB_ORG.
 	GitHubOrg string
 
 	// CopilotAPIURL is the internal NAIS service URL for copilot-api.

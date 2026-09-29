@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -17,12 +18,23 @@ const navPilotGitHubOrg = "navikt"
 // cmdAuthLogin runs the GitHub device flow and stores the resulting token in
 // the OS keychain (macOS Keychain / Windows Credential Manager / Linux
 // libsecret via go-keyring).
-func cmdAuthLogin() error {
+func cmdAuthLogin() error { return authLogin(false) }
+
+// authLogin is cmdAuthLogin in English, or in Norwegian (nb) for the survey,
+// whose every other line is Norwegian (#1274).
+func authLogin(nb bool) error {
+	say := func(en, no string) string {
+		if nb {
+			return no
+		}
+		return en
+	}
 	// An override set to the old placeholder does not name an App. Starting the
 	// device flow with it just yields a raw GitHub 4xx, so fail fast with an
 	// actionable message instead.
 	if !hasGitHubApp() {
-		return fmt.Errorf("NAV_PILOT_GITHUB_CLIENT_ID peker ikke på noen GitHub App. Fjern variabelen for å bruke nav-pilots egen, eller sett den til klient-ID-en for en GitHub App med device flow slått på")
+		return errors.New(say("NAV_PILOT_GITHUB_CLIENT_ID does not name a GitHub App. Unset it to use nav-pilot's own, or set it to the client ID of a GitHub App with device flow enabled",
+			"NAV_PILOT_GITHUB_CLIENT_ID peker ikke på noen GitHub App. Fjern variabelen for å bruke nav-pilots egen, eller sett den til klient-ID-en for en GitHub App med device flow slått på"))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
@@ -30,14 +42,14 @@ func cmdAuthLogin() error {
 
 	fmt.Println()
 	token, err := runDeviceFlow(ctx, navPilotGitHubClientID(), navPilotGitHubScopes, func(userCode, verificationURI string) {
-		fmt.Printf("  %s Open %s and enter the code:\n\n", bold("→"), bold(verificationURI))
+		fmt.Printf("  %s "+say("Open %s and enter the code:", "Åpne %s og skriv inn koden:")+"\n\n", bold("→"), bold(verificationURI))
 		fmt.Printf("      ┌─────────────┐\n")
 		fmt.Printf("      │  %s  │\n", bold(userCode))
 		fmt.Printf("      └─────────────┘\n\n")
-		fmt.Println("  Waiting for approval...")
+		fmt.Println(say("  Waiting for approval...", "  Venter på godkjenning …"))
 	})
 	if err != nil {
-		return fmt.Errorf("login failed: %w", err)
+		return fmt.Errorf(say("login failed: %w", "innloggingen mislyktes: %w"), err)
 	}
 
 	user, err := fetchGitHubUser(ctx, token.AccessToken)
@@ -47,9 +59,9 @@ func cmdAuthLogin() error {
 
 	member, err := checkOrgMembership(ctx, token.AccessToken, navPilotGitHubOrg, user.Login)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s Could not verify %s org membership: %v\n", yellow("⚠"), navPilotGitHubOrg, err)
+		fmt.Fprintf(os.Stderr, "%s "+say("Could not verify %s org membership: %v", "Fikk ikke sjekket om du er medlem av %s: %v")+"\n", yellow("⚠"), navPilotGitHubOrg, err)
 	} else if !member {
-		fmt.Fprintf(os.Stderr, "%s You are not a member of the %s GitHub organization — copilot-cli will reject requests until you are.\n", yellow("⚠"), navPilotGitHubOrg)
+		fmt.Fprintf(os.Stderr, "%s "+say("You are not a member of the %s GitHub organization — copilot-cli will reject requests until you are.", "Du er ikke medlem av GitHub-organisasjonen %s, og copilot-cli avviser forespørslene dine til du blir det.")+"\n", yellow("⚠"), navPilotGitHubOrg)
 	}
 
 	stored := storedToken{Login: user.Login}
@@ -59,8 +71,8 @@ func cmdAuthLogin() error {
 	}
 
 	fmt.Println()
-	fmt.Printf("  %s Logged in as %s\n", green("✓"), bold(user.Login))
-	fmt.Println("  Token stored securely in your OS keychain.")
+	fmt.Printf("  %s "+say("Logged in as %s", "Logget inn som %s")+"\n", green("✓"), bold(user.Login))
+	fmt.Println(say("  Token stored securely in your OS keychain.", "  Tokenet er lagret i nøkkelringen på maskinen."))
 	fmt.Println()
 	return nil
 }

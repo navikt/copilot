@@ -32,15 +32,16 @@ func main() {
 		slog.Warn("NAIS_TOKEN_ENDPOINT not configured — M2M calls to copilot-api and copilot-survey will fail (expected in local dev)")
 	}
 
+	api := newUpstream("copilot-api", config.CopilotAPIURL, newTexasClient(config.NaisTokenEndpoint, config.CopilotAPIAudience))
 	auth := &authenticator{
-		github: newGitHubClient(config.GitHubClientID, config.GitHubClientSecret),
-		org:    config.GitHubOrg,
-		cache:  newTokenCache(config.OrgMembershipCacheTTL),
-		limit:  rate.NewLimiter(1, 10),
+		github:   newGitHubClient(config.GitHubClientID, config.GitHubClientSecret),
+		org:      config.GitHubOrg,
+		isMember: api.isOrgMember,
+		cache:    newTokenCache(config.OrgMembershipCacheTTL),
+		limit:    rate.NewLimiter(1, 10),
 	}
 	slog.Info("GitHub sign-in", "configured", auth.github.configured())
 
-	api := newUpstream("copilot-api", config.CopilotAPIURL, newTexasClient(config.NaisTokenEndpoint, config.CopilotAPIAudience))
 	surveys := newUpstream("copilot-survey", config.CopilotSurveyURL, newTexasClient(config.NaisTokenEndpoint, config.CopilotSurveyAudience))
 
 	server := &http.Server{

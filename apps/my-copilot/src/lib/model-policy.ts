@@ -1,24 +1,3 @@
-export const NAV_MODEL_POLICY_LAST_UPDATED = "2026-09-29";
-
-const NAV_DISABLED_MODELS = new Set([
-  "Claude Haiku 4.5",
-  "GPT-5 mini",
-  "Claude Fable 5",
-  "Claude Fable 5.1",
-  "Claude Opus 4.7",
-  "Claude Opus 4.8 (fast mode)",
-  "Claude Opus 5",
-  "Gemini 3.5 Flash",
-  "Gemini 3.6 Flash",
-  "Gemini 3.7 Flash",
-  "GPT-5.4",
-  "GPT-5.4 mini",
-  "GPT-5.5",
-  "Grok 4.5",
-  "Grok 4.6",
-  "Grok 4.7",
-]);
-
 export interface NavPilotModelChoice {
   purpose: string;
   primary: string;
@@ -59,12 +38,33 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
   },
 ];
 
+const NAV_ALLOWED_MODELS = new Set([
+  "GPT-5.3-Codex",
+  "GPT-5.4 nano",
+  "GPT-5.6 Luna",
+  "GPT-5.6 Sol",
+  "GPT-5.6 Terra",
+  "GPT-6 Astra",
+  "GPT-6 Luna",
+  "GPT-6 Sol",
+  "Claude Sonnet 4",
+  "Claude Sonnet 4.6",
+  "Claude Opus 4.8",
+  "Claude Opus 5.5",
+  "Claude Sonnet 5",
+  "Claude Sonnet 5.5",
+  "Gemini 3.8 Flash",
+  "MAI-Code-1.1-Flash",
+  "Kimi K2.7 Code",
+  "Kimi K3",
+]);
+
 export function normalizeModelName(model: string): string {
   return model.replace(/ \((?:Default|Long context)[^)]*\)$/, "").replace(/ \(preview\)$/, "");
 }
 
 export function isNavAllowedModel(model: string): boolean {
-  return !NAV_DISABLED_MODELS.has(normalizeModelName(model));
+  return NAV_ALLOWED_MODELS.has(normalizeModelName(model));
 }
 
 export function navPilotPurposesFor(model: string): string[] {

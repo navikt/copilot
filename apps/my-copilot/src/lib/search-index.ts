@@ -53,12 +53,22 @@ function pageDescription(dir: string): string | undefined {
   return metadata?.match(/\bdescription:\s*"([^"]+)"/)?.[1];
 }
 
+// /cplt/windows isn't in SECTION: it has no nav-pilot section menu of its own
+// (AGENTS.md), and adding it as a SECTION item would put an English sub-link
+// under "Sandkassen (cplt)" in every Norwegian section menu. Listed here
+// instead, in the same shape a SECTION entry takes, so it's indexed like any
+// other page (#1280).
+const EXTRA_PAGES: { href: string; title: string; context: string }[] = [
+  { href: "/cplt/windows", title: "cplt on Windows (WSL2)", context: "Sandkassen (cplt)" },
+];
+
 export function buildSearchIndex(): SearchEntry[] {
   const pages: SearchEntry[] = SECTION.flatMap((g) => [
     ...(g.href ? [{ href: g.href, title: g.label, context: "nav-pilot" }] : []),
     ...(g.overview ? [{ href: g.overview, title: g.label, context: "nav-pilot" }] : []),
     ...(g.items ?? []).map((i) => ({ href: i.href, title: i.label, context: g.label })),
   ])
+    .concat(EXTRA_PAGES)
     .filter((p) => p.href in paths)
     .map((p) => {
       const dir = pageDirs.get(p.href);

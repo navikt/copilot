@@ -199,7 +199,7 @@ func TestStrictPresetSeedsAllowlistIntoCpltConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := applyStrictPreset(cliPath); err != nil {
+	if err := applyStrictPreset(cliPath, "", ""); err != nil {
 		t.Fatalf("applyStrictPreset: %v", err)
 	}
 
@@ -241,7 +241,7 @@ func TestStrictPresetSeedsBeforeSettingThePreset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := applyStrictPreset(cliPath); err != nil {
+	if err := applyStrictPreset(cliPath, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(log)
@@ -268,7 +268,7 @@ func TestStrictPresetLeavesAUserAllowlistAlone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := applyStrictPreset(cliPath); err != nil {
+	if err := applyStrictPreset(cliPath, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if got := configSets(t, log)["proxy.allowed_domains"]; got != "" {
@@ -524,6 +524,151 @@ func TestObservabilityHostsMatchTheProposal(t *testing.T) {
 	for _, host := range proposed {
 		if strings.Count(host, ".") < 4 {
 			t.Errorf("%q is shorter than a full host name, so it waives by suffix", host)
+		}
+	}
+}
+
+// An older cplt says "not enforcing" when the only failures are hosts it
+// should let through. Every protection held, so doctor must say "too strict",
+// not "NOT enforcing". A real leak must still read as one.
+func TestCpltCheckTooStrict(t *testing.T) {
+	item := func(exp, dec string) string {
+		return fmt.Sprintf(`{"expected":%q,"decision":%q}`, exp, dec)
+	}
+	report := func(enforcing bool, verified int, items ...string) string {
+		return fmt.Sprintf(`{"enforcing":%v,"verified":%d,"battery":true,"items":[%s]}`,
+			enforcing, verified, strings.Join(items, ","))
+	}
+	tests := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"agent host over-blocked", report(false, 3, item("blocked", "blocked"), item("allowed", "blocked")), true},
+		{"ungraded items are ignored", report(false, 1, `{"decision":"blocked"}`, item("blocked", "blocked"), item("allowed", "blocked")), true},
+		{"a leak as well", report(false, 2, item("blocked", "allowed"), item("allowed", "blocked")), false},
+		{"inconclusive protection", report(false, 2, item("blocked", "inconclusive"), item("allowed", "blocked")), false},
+		{"nothing verified", report(false, 0, item("allowed", "blocked")), false},
+		{"enforcing", report(true, 3, item("blocked", "blocked")), false},
+		{"newer cplt: enforcing, over-blocked", `{"enforcing":true,"verified":3,"over_blocked":1,"battery":true,"items":[]}`, true},
+		{"newer cplt: enforcing, nothing over-blocked", `{"enforcing":true,"verified":3,"over_blocked":0,"battery":true,"items":[]}`, false},
+		{"real enforcing report", realCpltCheckBattery, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := parseCpltCheckReport([]byte(tc.in))
+			if r == nil {
+				t.Fatal("report did not parse")
+			}
+			if got := r.tooStrict(); got != tc.want {
+				t.Errorf("tooStrict() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// The incident: a hand-written allowlist with Nav hosts only, on a cplt that
+// blocks the agent's hosts under it. The battery's agent-host probe says so on
+// every cplt version; doctor and the posture step read that probe, and only
+// warn when an allowlist is set.
+func TestAgentHostShutOut(t *testing.T) {
+	report := func(items ...string) *cpltCheckReport {
+		r := parseCpltCheckReport([]byte(`{"enforcing":false,"verified":3,"battery":true,"items":[` + strings.Join(items, ",") + `]}`))
+		if r == nil {
+			t.Fatal("report did not parse")
+		}
+		return r
+	}
+	reach := func(dec string) string {
+		return fmt.Sprintf(`{"name":"reach githubcopilot.com","category":"network","target":"githubcopilot.com:443","expected":"allowed","decision":%q}`, dec)
+	}
+	const ssrf = `{"name":"reach metadata IP (SSRF)","category":"network","target":"169.254.169.254:443","expected":"blocked","decision":"blocked"}`
+	const home = `{"name":"write $HOME (root)","category":"filesystem","target":"/Users/dev","expected":"allowed","decision":"blocked"}`
+	const allowlist = "~/.config/cplt/allowed-domains.txt"
+
+	tests := []struct {
+		name     string
+		report   *cpltCheckReport
+		allowed  string
+		wantHost string
+	}{
+		{"the incident", report(reach("blocked"), ssrf), allowlist, "githubcopilot.com"},
+		{"agent host allowed", report(reach("allowed"), ssrf), allowlist, ""},
+		{"inconclusive is not blocked", report(reach("inconclusive")), allowlist, ""},
+		{"another over-block is not the agent host", report(home, ssrf), allowlist, ""},
+		{"blocked without an allowlist", report(reach("blocked")), "", ""},
+		{"no report", nil, allowlist, ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			isolatedConfig(t)
+			fakeCplt(t, map[string]string{"proxy.allowed_domains": tc.allowed})
+			cliPath, err := findCplt()
+			if err != nil {
+				t.Fatal(err)
+			}
+			path, host := cpltAgentHostShutOut(cliPath, tc.report)
+			if host != tc.wantHost {
+				t.Errorf("host = %q, want %q", host, tc.wantHost)
+			}
+			if tc.wantHost != "" && path != tc.allowed {
+				t.Errorf("path = %q, want %q", path, tc.allowed)
+			}
+		})
+	}
+}
+
+// Only probes that could not run, beside verified protections: "could not
+// verify", not "NOT enforcing". A real leak or over-block is not that.
+func TestCpltCheckUnverified(t *testing.T) {
+	item := func(exp, dec string) string {
+		return fmt.Sprintf(`{"expected":%q,"decision":%q}`, exp, dec)
+	}
+	report := func(enforcing bool, verified int, items ...string) string {
+		return fmt.Sprintf(`{"enforcing":%v,"verified":%d,"battery":true,"items":[%s]}`,
+			enforcing, verified, strings.Join(items, ","))
+	}
+	for _, tc := range []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"staging probe inconclusive", report(false, 5, item("blocked", "blocked"), item("blocked", "inconclusive")), true},
+		{"inconclusive and a leak", report(false, 4, item("blocked", "allowed"), item("blocked", "inconclusive")), false},
+		{"inconclusive and an over-block", report(false, 4, item("allowed", "blocked"), item("blocked", "inconclusive")), false},
+		{"nothing verified", report(false, 0, item("blocked", "inconclusive")), false},
+		{"enforcing", report(true, 3, item("blocked", "blocked")), false},
+		{"ungraded inconclusive only", report(false, 3, `{"decision":"inconclusive"}`), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := parseCpltCheckReport([]byte(tc.in)).unverified(); got != tc.want {
+				t.Errorf("unverified() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// Saying yes to the posture step on the incident's config must repair it, not
+// leave it as it was. And it must not write anything when there is nothing
+// to repair. Goes through applyStrictPreset, the code behind the yes.
+func TestPostureRepairsAnAllowlistWithoutAgentHosts(t *testing.T) {
+	for _, tc := range []struct {
+		host, want string
+	}{
+		{"githubcopilot.com", "true"},
+		{"", ""},
+	} {
+		isolatedConfig(t)
+		log := fakeCplt(t, map[string]string{"proxy.allowed_domains": "~/.config/cplt/allowed-domains.txt"})
+		cliPath, err := findCplt()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := applyStrictPreset(cliPath, "~/.config/cplt/allowed-domains.txt", tc.host); err != nil {
+			t.Fatal(err)
+		}
+		if got := configSets(t, log)["proxy.default_allowlist"]; got != tc.want {
+			t.Errorf("host %q: default_allowlist set to %q, want %q", tc.host, got, tc.want)
 		}
 	}
 }

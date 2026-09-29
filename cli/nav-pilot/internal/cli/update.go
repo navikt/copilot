@@ -19,6 +19,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/zalando/go-keyring"
 )
 
 var (
@@ -402,6 +403,26 @@ func classifyCpltSkew(installed, latest string, lookupErr error) cpltSkew {
 	return cpltVersionCurrent
 }
 
+// cpltSkewUnknownReason says in a few words why classifyCpltSkew could not
+// tell, for doctor's "could not check" line.
+func cpltSkewUnknownReason(installed, latest string, lookupErr error) string {
+	var netErr interface{ Timeout() bool }
+	switch {
+	case lookupErr == nil && !versionParseable(installed):
+		return "installed version unknown"
+	case lookupErr == nil:
+		return "latest release unreadable"
+	case errors.Is(lookupErr, context.DeadlineExceeded),
+		errors.As(lookupErr, &netErr) && netErr.Timeout():
+		return "timeout"
+	case strings.Contains(lookupErr.Error(), "rate limit"):
+		return "GitHub API rate limit"
+	case strings.HasPrefix(lookupErr.Error(), "GitHub API returned "):
+		return "HTTP " + strings.TrimPrefix(lookupErr.Error(), "GitHub API returned ")
+	}
+	return lookupErr.Error()
+}
+
 // cpltVersionSkew reads the installed cplt version and compares it to the
 // latest release. Everything uncertain — no cplt, no network, an unparseable
 // version — is cpltVersionUnknown.
@@ -530,6 +551,9 @@ func autoUpdateBackingOff(now time.Time) bool {
 // command made No mean "not this command" rather than "not now".
 func updateDeclinedPath() string { return stateMarker("update-declined") }
 
+// syncDeclinedPath is the marker a No at the startup "Sync now?" leaves.
+func syncDeclinedPath() string { return stateMarker("sync-declined") }
+
 // autoUpdateFailed tells the user the update did not happen and the command
 // runs on the version they have, and remembers the failure for the backoff.
 // Every failure arms it, a network blip included: one lookup a day is the
@@ -554,6 +578,12 @@ var e2eSeams string
 func applyE2ESeams(info *BuildInfo) {
 	if e2eSeams != "1" {
 		return
+	}
+	// An in-memory keychain: a journey never reads or writes the real one.
+	// NAV_PILOT_E2E_KEYCHAIN_TOKEN starts it with a stored token.
+	keyring.MockInit()
+	if tok := os.Getenv("NAV_PILOT_E2E_KEYCHAIN_TOKEN"); tok != "" {
+		_ = saveToken(storedToken{AccessToken: tok})
 	}
 	if gh := os.Getenv("NAV_PILOT_E2E_GITHUB"); gh != "" {
 		releasesAPI = gh + "/repos/navikt/copilot/releases"
