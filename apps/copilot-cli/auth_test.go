@@ -32,6 +32,14 @@ func fakeIssuers(t *testing.T) (*httptest.Server, *atomic.Int32) {
 				AccessToken string `json:"access_token"`
 			}
 			_ = json.NewDecoder(r.Body).Decode(&body)
+			if r.Method == http.MethodDelete {
+				if body.AccessToken == "good-token" {
+					w.WriteHeader(http.StatusNoContent)
+				} else {
+					w.WriteHeader(http.StatusNotFound)
+				}
+				return
+			}
 			switch body.AccessToken {
 			case "good-token":
 				_, _ = w.Write([]byte(`{"app":{"client_id":"` + testClientID + `"},"user":{"login":"hans","id":42}}`))
@@ -134,6 +142,67 @@ func TestAuthenticateRateLimitsCacheMisses(t *testing.T) {
 	}
 	if _, err := a.resolve(t.Context(), "nope"); err != errInvalidToken {
 		t.Fatalf("cached refusal should not spend the limit: %v", err)
+	}
+}
+
+// One token spends at most its own burst, and what is left of the global
+// bucket stays for everyone else. A token the global bucket refused gets no
+// entry, so random tokens cannot grow the map.
+func TestPerTokenLimit(t *testing.T) {
+	a, _ := testAuthenticator(t)
+	a.limit = rate.NewLimiter(0, perTokenBurst+2)
+	for i := range perTokenBurst {
+		if !a.allow("a") {
+			t.Fatalf("a: check %d refused within its burst", i+1)
+		}
+	}
+	if a.allow("a") {
+		t.Fatal("a: allowed past its own burst")
+	}
+	if !a.allow("b") || !a.allow("c") {
+		t.Fatal("others refused while the global bucket had room")
+	}
+	if a.allow("d") {
+		t.Fatal("global ceiling not enforced")
+	}
+	if len(a.perToken) != 3 {
+		t.Fatalf("buckets = %d, want 3 (none for a refused token)", len(a.perToken))
+	}
+}
+
+func TestRevoke(t *testing.T) {
+	a, calls := testAuthenticator(t)
+	h := makeRouter(a, nil, nil).ServeHTTP
+	if _, err := a.resolve(t.Context(), "good-token"); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		header string
+		want   int
+	}{
+		{"", 401},
+		{"Bearer nope", 401},
+		{"Bearer good-token", 204},
+	} {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/revoke", nil)
+		if tc.header != "" {
+			req.Header.Set("Authorization", tc.header)
+		}
+		rec := httptest.NewRecorder()
+		h(rec, req)
+		if rec.Code != tc.want {
+			t.Fatalf("%q: status = %d, want %d (%s)", tc.header, rec.Code, tc.want, rec.Body)
+		}
+	}
+	// The fake GitHub still accepts good-token: the refusal comes from the
+	// cache, and a success from a check that raced the revoke cannot undo it.
+	before := calls.Load()
+	a.cache.set("good-token", &AuthenticatedUser{Login: "hans"}, nil)
+	if _, err := a.resolve(t.Context(), "good-token"); err != errInvalidToken {
+		t.Fatalf("revoked token: %v, want errInvalidToken", err)
+	}
+	if calls.Load() != before {
+		t.Fatal("revoked token reached GitHub")
 	}
 }
 

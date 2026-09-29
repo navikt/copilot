@@ -8,8 +8,11 @@ metadata:
 spec:
   image: {{image}}
   port: 8080
-  # One pod: the GitHub cache-miss limiter (middleware.go) lives in memory, so a
-  # second pod would double the rate against GitHub's 5,000/hour quota.
+  # One pod: the token cache and the GitHub cache-miss limiters (middleware.go)
+  # live in memory. A second pod would double the global rate against GitHub's
+  # 5,000/hour quota and keep serving a revoked token from its own cache for up
+  # to 5 minutes. More pods need a shared store (or the global rate divided by
+  # the pod count, plus a shorter cache TTL).
   replicas:
     min: {{replicas_min}}
     max: {{replicas_max}}

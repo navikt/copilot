@@ -53,22 +53,9 @@ func (c *GitHubClient) resolveUser(ctx context.Context, token string) (*Authenti
 	if !c.configured() {
 		return nil, errIssuerOffline
 	}
-	body, err := json.Marshal(map[string]string{"access_token": token})
+	resp, err := c.appTokenRequest(ctx, http.MethodPost, token)
 	if err != nil {
-		return nil, fmt.Errorf("encoding token check request: %w", err)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		c.baseURL+"/applications/"+url.PathEscape(c.clientID)+"/token", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("building token check request: %w", err)
-	}
-	req.SetBasicAuth(c.clientID, c.clientSecret)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("calling GitHub token check: %w", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -113,6 +100,50 @@ func (c *GitHubClient) resolveUser(ctx context.Context, token string) (*Authenti
 		user.expiresAt = *check.ExpiresAt
 	}
 	return user, nil
+}
+
+// revoke revokes token, which must have been issued to this app: GitHub
+// answers 404 or 422 for any other token, so nothing but our own tokens can
+// be revoked through this.
+func (c *GitHubClient) revoke(ctx context.Context, token string) error {
+	if !c.configured() {
+		return errIssuerOffline
+	}
+	resp, err := c.appTokenRequest(ctx, http.MethodDelete, token)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusNoContent:
+		return nil
+	case http.StatusNotFound, http.StatusUnprocessableEntity:
+		return errInvalidToken
+	default:
+		return fmt.Errorf("GitHub token revoke returned status %d", resp.StatusCode)
+	}
+}
+
+// appTokenRequest calls /applications/{client_id}/token with this app's
+// credentials, about token.
+func (c *GitHubClient) appTokenRequest(ctx context.Context, method, token string) (*http.Response, error) {
+	body, err := json.Marshal(map[string]string{"access_token": token})
+	if err != nil {
+		return nil, fmt.Errorf("encoding token request: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, method,
+		c.baseURL+"/applications/"+url.PathEscape(c.clientID)+"/token", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("building token request: %w", err)
+	}
+	req.SetBasicAuth(c.clientID, c.clientSecret)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("calling GitHub %s token: %w", method, err)
+	}
+	return resp, nil
 }
 
 // isOrgMember checks whether the given user is a member of org, using the
