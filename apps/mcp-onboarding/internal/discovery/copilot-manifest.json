@@ -16,7 +16,7 @@
         "ui"
       ],
       "filePath": "agents/accessibility.agent.md",
-      "contentHash": "4ad090f6791eb8453c661947c5c75fbd446db205faf17c61373d456e60fc5927",
+      "contentHash": "03d2ec6ccc4a2101b95b549546e4b42b610282cd6b370dcc25369b25df72f770",
       "useCases": [
         "Converting Tailwind to Aksel tokens",
         "Responsive layouts"
@@ -38,7 +38,7 @@
         "ui"
       ],
       "filePath": "agents/aksel.agent.md",
-      "contentHash": "eb6688100005e57fbdc7d86a00da2de55b8d14c220f890918266f1e4eec1c681",
+      "contentHash": "700721ce34d631f56ccee054baeb7b30d417bb9397b9676b185c0409e80c61ca",
       "useCases": [
         "Converting Tailwind to Aksel tokens",
         "Responsive layouts"
@@ -75,7 +75,7 @@
       "displayName": "@forfatter",
       "description": "Norsk teknisk redaktør, tekstforfatter eller innholdsdesigner: klarspråk, KI-markører, anglisismer, fagtermer, mikrotekst.",
       "filePath": "agents/forfatter.agent.md",
-      "contentHash": "8c7d52efa4360002f733c6d220f0b99fafa3ceaacd85fee266ad197566596629",
+      "contentHash": "aee2b3b98fa5ec39ad8bf0d79bf227019ed712fac8551a75e169336b6f7e5c2b",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Creating Kafka event consumers",
@@ -469,7 +469,7 @@
         "ui"
       ],
       "filePath": "prompts/aksel-component.prompt.md",
-      "contentHash": "721f879cfd8e89da6bf407d2febbbe98b4f579a6ab49b9c6898bb9c5af37876c",
+      "contentHash": "fa646ea49f00e34ee1ecdda2c2f73876deaf1b8ce01811f6fe8e01afc4951b5d",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/prompts/aksel-component.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/aksel-component.prompt.md"
     },

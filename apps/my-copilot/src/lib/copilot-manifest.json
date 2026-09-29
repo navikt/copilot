@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-28T10:04:18.648Z",
+  "generatedAt": "2026-09-29T08:15:11.839Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -11,7 +11,7 @@
       "filePath": ".github/agents/accessibility.agent.md",
       "repoPath": "agents/accessibility.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/accessibility.agent.md",
-      "contentHash": "4ad090f6791eb8453c661947c5c75fbd446db205faf17c61373d456e60fc5927",
+      "contentHash": "03d2ec6ccc4a2101b95b549546e4b42b610282cd6b370dcc25369b25df72f770",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faccessibility.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faccessibility.agent.md",
       "tools": [
@@ -25,7 +25,7 @@
         "com.figma/figma-mcp/get_design_context",
         "com.figma/figma-mcp/get_screenshot"
       ],
-      "model": ["Claude Sonnet 5"],
+      "model": ["Claude Sonnet 5.5"],
       "tags": ["wcag", "a11y", "universell-utforming", "aksel", "aria"],
       "examples": [
         "Sjekk denne komponenten for tilgjengelighetsfeil",
@@ -44,7 +44,7 @@
       "filePath": ".github/agents/aksel.agent.md",
       "repoPath": "agents/aksel.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/aksel.agent.md",
-      "contentHash": "eb6688100005e57fbdc7d86a00da2de55b8d14c220f890918266f1e4eec1c681",
+      "contentHash": "700721ce34d631f56ccee054baeb7b30d417bb9397b9676b185c0409e80c61ca",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faksel.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faksel.agent.md",
       "tools": [
@@ -75,7 +75,7 @@
         "github/get_latest_release",
         "github/list_releases"
       ],
-      "model": ["Claude Sonnet 5"],
+      "model": ["Claude Sonnet 5.5"],
       "tags": [
         "aksel",
         "design-system",
@@ -167,11 +167,11 @@
       "filePath": ".github/agents/forfatter.agent.md",
       "repoPath": "agents/forfatter.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/forfatter.agent.md",
-      "contentHash": "8c7d52efa4360002f733c6d220f0b99fafa3ceaacd85fee266ad197566596629",
+      "contentHash": "aee2b3b98fa5ec39ad8bf0d79bf227019ed712fac8551a75e169336b6f7e5c2b",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fforfatter.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fforfatter.agent.md",
       "tools": ["read", "edit", "grep", "glob", "todo", "github/get_file_contents", "github/search_code"],
-      "model": ["Claude Sonnet 5"],
+      "model": ["Claude Sonnet 5.5"],
       "tags": ["norsk", "teknisk-skriving", "redigering", "språk", "klarspråk", "ai-markører"],
       "examples": [
         {
@@ -766,11 +766,11 @@
       "filePath": ".github/prompts/aksel-component.prompt.md",
       "repoPath": "prompts/aksel-component.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/aksel-component.prompt.md",
-      "contentHash": "721f879cfd8e89da6bf407d2febbbe98b4f579a6ab49b9c6898bb9c5af37876c",
+      "contentHash": "fa646ea49f00e34ee1ecdda2c2f73876deaf1b8ce01811f6fe8e01afc4951b5d",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Faksel-component.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Faksel-component.prompt.md",
       "invocation": "#aksel-component",
-      "model": ["Gemini 3.6 Flash"],
+      "model": ["Gemini 3.8 Flash"],
       "tags": [
         "aksel",
         "design-system",
