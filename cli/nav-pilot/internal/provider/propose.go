@@ -65,6 +65,20 @@ var cpltProposalFlags = defaultCpltProposalFlags
 // no approval, returns before the version probe runs. Only a launch that has
 // something to apply pays for `cplt --version`.
 func defaultCpltProposalFlags() []string {
+	args := pakkeProposalFlags()
+	// The MCP registry hosts the user approved (mcp_hosts.go): the same flag,
+	// once per host whichever source asked for it.
+	var pakkeHosts []string
+	for i := 0; i+1 < len(args); i += 2 {
+		if args[i] == "--allow-private-domain" {
+			pakkeHosts = append(pakkeHosts, args[i+1])
+		}
+	}
+	return append(args, mcpPrivateDomainFlags(pakkeHosts)...)
+}
+
+// pakkeProposalFlags is the active agentpakke's approved proposal as flags.
+func pakkeProposalFlags() []string {
 	// A waiver applies only to a launch running the manifest that asked for it.
 	// The built-in default stands in for every source that ships no manifest,
 	// and it calls itself "nav-pilot", so without this a user who approved

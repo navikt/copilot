@@ -66,6 +66,10 @@ type mcpRegistry struct {
 	URL      string
 	Remotes  map[string]bool
 	Packages map[string]bool
+	// Servers is each listed server's remote URLs, by the registry's name
+	// for it (io.github.navikt/github-mcp). The only source of the hosts an
+	// MCP server may reach under cplt (mcp_hosts.go).
+	Servers map[string][]string
 }
 
 // fetchMCPPolicy asks GitHub, as the user, which registry the org policy
@@ -111,7 +115,7 @@ var fetchMCPPolicy = func() (registry string, err error) {
 
 // fetchMCPRegistry lists a registry's servers (MCP Registry v0.1).
 var fetchMCPRegistry = func(base string) (mcpRegistry, error) {
-	reg := mcpRegistry{URL: base, Remotes: map[string]bool{}, Packages: map[string]bool{}}
+	reg := mcpRegistry{URL: base, Remotes: map[string]bool{}, Packages: map[string]bool{}, Servers: map[string][]string{}}
 	ctx, cancel := context.WithTimeout(context.Background(), mcpPolicyTimeout)
 	defer cancel()
 	client := &http.Client{}
@@ -140,6 +144,7 @@ var fetchMCPRegistry = func(base string) (mcpRegistry, error) {
 		var page struct {
 			Servers []struct {
 				Server struct {
+					Name     string                        `json:"name"`
 					Remotes  []struct{ URL string }        `json:"remotes"`
 					Packages []struct{ Identifier string } `json:"packages"`
 				} `json:"server"`
@@ -154,6 +159,9 @@ var fetchMCPRegistry = func(base string) (mcpRegistry, error) {
 		for _, s := range page.Servers {
 			for _, r := range s.Server.Remotes {
 				reg.Remotes[normalizeMCPURL(r.URL)] = true
+				if s.Server.Name != "" {
+					reg.Servers[s.Server.Name] = append(reg.Servers[s.Server.Name], r.URL)
+				}
 			}
 			for _, p := range s.Server.Packages {
 				reg.Packages[strings.ToLower(p.Identifier)] = true
