@@ -254,7 +254,13 @@ type MCPHostState struct {
 	// current set has a host outside the approval and is not a set already
 	// declined.
 	Pending []MCPHost
+	// Previous is the set the recorded answer was about, for the diff.
+	Previous []MCPHost
 }
+
+// MCPHostsOff is the user's mcp_hosts = off: nothing is asked and nothing is
+// granted, whatever a record says. Set by the cli before a launch.
+var MCPHostsOff bool
 
 // recordedMCPHosts decodes the host set a record answered about.
 func recordedMCPHosts(rec *artifacts.ProposalConsent) []MCPHost {
@@ -270,7 +276,7 @@ func recordedMCPHosts(rec *artifacts.ProposalConsent) []MCPHost {
 
 // mcpHostState is the verdict. Pure.
 func mcpHostState(cur MCPHosts, fetchErr error, rec *artifacts.ProposalConsent) MCPHostState {
-	st := MCPHostState{Current: cur, FetchErr: fetchErr, Record: rec}
+	st := MCPHostState{Current: cur, FetchErr: fetchErr, Record: rec, Previous: recordedMCPHosts(rec)}
 	var approved []MCPHost
 	if rec != nil && rec.Approved {
 		approved = recordedMCPHosts(rec)
@@ -399,6 +405,9 @@ func mcpGrantServers(grant []MCPHost, hosts []string) []string {
 // mcpGrant is what a launch may apply. Costs nothing — no network, no cplt
 // probe — for a user with no approved record, which is almost everyone.
 func mcpGrant(say bool) []MCPHost {
+	if MCPHostsOff {
+		return nil
+	}
 	rec, err := readMCPRecord()
 	if err != nil {
 		if say {

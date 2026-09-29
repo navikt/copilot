@@ -252,3 +252,31 @@ func TestPakkeAndMCPHostsCombine(t *testing.T) {
 		t.Errorf("both revoked: %q", got)
 	}
 }
+
+// mcp_hosts = off grants nothing, whatever the record says.
+func TestMCPHostsOffGrantsNothing(t *testing.T) {
+	mcpEnv(t, `{"mcpServers": {"com.figma/figma-mcp": {}}}`, mcpRegistry{}, errors.New("offline"))
+	protectingCplt(t)
+	approvedMCP(t, []MCPHost{{Host: "mcp-onboarding.intern.nav.no", Private: true}})
+	MCPHostsOff = true
+	t.Cleanup(func() { MCPHostsOff = false })
+	if got := cpltProposalFlags(); len(got) != 0 {
+		t.Errorf("flags under off = %q", got)
+	}
+	if got := MCPAllowlistHosts(); len(got) != 0 {
+		t.Errorf("allowlist under off = %v", got)
+	}
+}
+
+// An OpenCode launch asks the registry for its policy check and for the MCP
+// hosts; the network is asked once.
+func TestMCPRegistryIsFetchedOncePerProcess(t *testing.T) {
+	calls := 0
+	fetch := memoMCPRegistry(func(string) (mcpRegistry, error) { calls++; return mcpRegistry{}, nil })
+	fetch("https://a")
+	fetch("https://a")
+	fetch("https://b")
+	if calls != 2 {
+		t.Errorf("fetched %d times, want once per registry", calls)
+	}
+}

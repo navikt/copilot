@@ -88,6 +88,10 @@ type Config struct {
 	// local decide model about risky shell commands: off or log. Unset means
 	// log. It never blocks.
 	HookActionCheck *string `toml:"hook_action_check"`
+	// MCPHosts is whether nav-pilot asks to open the sandbox for the hosts
+	// the user's MCP servers need, from Nav's MCP registry: ask or off.
+	// Unset means ask.
+	MCPHosts *string `toml:"mcp_hosts"`
 }
 
 // ResolvedConfig holds the final configuration after applying precedence:
@@ -132,6 +136,7 @@ type ResolvedConfig struct {
 	HookRedactFNR      bool     // mask fødselsnummer, D- and H-nummer in tool results
 	HookInjectionNote  bool     // flag instruction-like text in tool results
 	HookActionCheck    string   // off | log; always set
+	MCPHosts           string   // ask | off; always set
 	ProjectDir         string   // --project-dir: the directory cplt may read and write; empty = the working directory
 	NoSandbox          bool     // --no-sandbox: launch copilot or opencode without cplt when cplt is missing, without asking
 	ExtraArgs          []string // pass-through arguments for the client
@@ -174,6 +179,7 @@ var (
 	ValidCopilotAuthModes = []string{"auto", "env_only", "gh_only"}
 	ValidLocalDispatch    = []string{"off", "conservative", "balanced", "aggressive"}
 	ValidHookActionCheck  = []string{"off", "log"}
+	ValidMCPHosts         = []string{"ask", "off"}
 )
 
 // ModelChoice pairs a model id (the --model value) with a human-readable label.

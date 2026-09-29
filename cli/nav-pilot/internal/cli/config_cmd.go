@@ -264,6 +264,15 @@ var configKeyDefs = []configKeyDef{
 		group:       "Hooks",
 	},
 	{
+		name:        "mcp_hosts",
+		kind:        keyKindString,
+		description: "Whether nav-pilot asks, at launch, to let the hosts your MCP servers need through the cplt sandbox. The hosts come from Nav's MCP registry, never from your MCP config. ask asks once per set of hosts, and Enter declines; off never asks and never allows any.",
+		allowed:     validMCPHosts,
+		defaultVal:  "ask",
+		flag:        "",
+		group:       "Sandbox",
+	},
+	{
 		name:        "rtk_prompted_client",
 		kind:        keyKindString,
 		description: "Comma-separated list of clients where the RTK setup was prompted.",
@@ -499,6 +508,11 @@ client = "copilot"
 # model and a running server (~/.copilot/hooks/nav-pilot-action-check.json).
 # Allowed: off, log — Default: log
 # hook_action_check = "log"
+
+# At launch, ask to let the hosts your MCP servers need through the cplt
+# sandbox. The hosts come from Nav's MCP registry. off never asks or allows.
+# Allowed: ask, off — Default: ask
+# mcp_hosts = "ask"
 
 # Internal flag to track which client the user was last prompted to set up rtk for.
 # Default: unset
@@ -829,6 +843,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return strconv.FormatBool(r.HookInjectionNote)
 	case "hook_action_check":
 		return r.HookActionCheck
+	case "mcp_hosts":
+		return r.MCPHosts
 	case "rtk_prompted_client":
 		return r.RtkPromptedClient
 	case "rtk_prompted_at":

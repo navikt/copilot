@@ -6,17 +6,21 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
-// The launch pre-flight for the hosts the user's MCP servers need under cplt
-// (provider/mcp_hosts.go). Deliberately thin: it asks through the same
-// askProposalConsent the pakke proposal uses and records in the same store.
-// The wording and shape of the question are expected to change; the verdict
-// (what is pending, what is granted) lives in the provider and does not.
+// The launch screen for the hosts the user's MCP servers need under cplt
+// (provider/mcp_hosts.go). The verdict — what is pending, what is granted —
+// lives in the provider; this file only words the question, through the same
+// askProposalConsent and consent store the agentpakke proposal uses.
+//
+// One screen for every pending MCP source, grouped per server. The agentpakke
+// question is not on it: a pakke's consent is keyed on the install scope,
+// which a launch does not know, so it stays at install and sync.
 
 // readMCPHostState is a var so tests answer it without a registry.
 var readMCPHostState = providerpkg.ReadMCPHostState
@@ -27,50 +31,110 @@ var (
 	classifyMCPHosts = providerpkg.ClassifyMCPHosts
 )
 
-// notedMCPHosts is the non-interactive note already printed this run.
+// mcpHostEffect is the line that says what allowing a host does to the
+// sandbox. Placeholder wording until cplt prints its own effect text per key
+// (navikt/cplt#635); replace this function's body with cplt's text then.
+var mcpHostEffect = func(h providerpkg.MCPHost) string {
+	if h.Private {
+		return "private address: lifts cplt's DNS-rebinding guard for this name"
+	}
+	return ""
+}
+
+// notedMCPHosts is the non-interactive notes already printed this run.
 var notedMCPHosts bool
+
+// mcpHostsMode is the user's mcp_hosts: ask unless the config says off.
+func mcpHostsMode() string {
+	cfg, err := readConfig()
+	if err != nil || cfg == nil || cfg.MCPHosts == nil || !containsStr(validMCPHosts, *cfg.MCPHosts) {
+		return "ask"
+	}
+	return *cfg.MCPHosts
+}
 
 // noteMCPHostConsent asks about MCP registry hosts outside the recorded
 // approval, once per host set, and keeps nav-pilot's allowlist file in step.
 // Best effort: every failure path grants nothing new.
 func noteMCPHostConsent() {
+	providerpkg.MCPHostsOff = mcpHostsMode() == "off"
 	// Without cplt there is no sandbox to open, and no reason to ask the
 	// registry anything.
 	if !cpltInstalled() {
 		return
 	}
-	st, err := readMCPHostState()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s MCP servers: could not read the consent record, so nothing was asked: %v\n", yellow("⚠"), err)
-		return
-	}
-	if st.Pending != nil {
-		askMCPHosts(st)
+	if !providerpkg.MCPHostsOff {
+		st, err := readMCPHostState()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s MCP servers: could not read the consent record, so nothing was asked: %v\n", yellow("⚠"), err)
+			return
+		}
+		if st.Pending != nil {
+			askMCPHosts(st)
+		}
 	}
 	syncMCPAllowlist()
 }
 
+// mcpServerHosts groups hosts per server, the unit a person decides on.
+func mcpServerHosts(hosts []providerpkg.MCPHost) (servers []string, by map[string][]providerpkg.MCPHost) {
+	by = map[string][]providerpkg.MCPHost{}
+	for _, h := range hosts {
+		for _, s := range h.Servers {
+			if _, ok := by[s]; !ok {
+				servers = append(servers, s)
+			}
+			by[s] = append(by[s], h)
+		}
+	}
+	sort.Strings(servers)
+	return servers, by
+}
+
 func askMCPHosts(st providerpkg.MCPHostState) {
+	servers, by := mcpServerHosts(st.Pending)
 	if !isInteractive() {
+		// One line per server, once per run, nothing recorded.
 		if !notedMCPHosts {
 			notedMCPHosts = true
-			fmt.Fprintf(os.Stderr, "%s Your MCP servers need %s under cplt; only an interactive nav-pilot launch can approve them.\n",
-				dim("ℹ"), strings.Join(mcpHostNames(st.Pending), ", "))
+			for _, s := range servers {
+				fmt.Fprintf(os.Stderr, "%s MCP server %s needs %s in the sandbox; only an interactive launch can allow it.\n",
+					dim("ℹ"), safe(s, 64), strings.Join(mcpHostNames(by[s]), ", "))
+			}
 		}
 		return
 	}
 	hosts := classifyMCPHosts(st.Pending)
-	approve := false
-	if err := askProposalConsent(mcpHostsTitle(st), mcpHostsDescription(hosts, st), &approve); err != nil {
+	servers, by = mcpServerHosts(hosts)
+	approve := false // Enter declines.
+	if err := askProposalConsent(mcpHostsTitle(servers), mcpHostsDescription(servers, by, st), &approve); err != nil {
 		return // Ctrl-C is not an answer.
 	}
 	if err := recordMCPHosts(hosts, approve); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not record the answer about MCP hosts: %v — you will be asked again.\n", yellow("⚠"), err)
 		return
 	}
-	if !approve {
-		fmt.Fprintf(os.Stderr, "%s Declined. MCP servers that need those hosts will fail under cplt until you approve them.\n", yellow("⚠"))
+	for _, s := range servers {
+		names := mcpHostNames(by[s])
+		if approve {
+			fmt.Printf("%s %s can reach %s from the sandbox.\n", green("✓"), bold(safe(s, 64)), strings.Join(names, ", "))
+			continue
+		}
+		fmt.Fprintf(os.Stderr, "%s Declined. %s will not connect from the sandbox. To allow it later:\n%s\n",
+			yellow("⚠"), bold(safe(s, 64)), indented(mcpManualCommands(by[s])))
 	}
+}
+
+// mcpManualCommands is what a user runs to allow the hosts in cplt by hand.
+func mcpManualCommands(hosts []providerpkg.MCPHost) []string {
+	var out []string
+	for _, h := range hosts {
+		out = append(out, "cplt config set allow.domains "+h.Host)
+		if h.Private {
+			out = append(out, "cplt config set proxy.allow_private_domains "+h.Host)
+		}
+	}
+	return out
 }
 
 func mcpHostNames(hosts []providerpkg.MCPHost) []string {
@@ -81,35 +145,47 @@ func mcpHostNames(hosts []providerpkg.MCPHost) []string {
 	return out
 }
 
-func mcpHostsTitle(st providerpkg.MCPHostState) string {
-	if st.Record != nil {
-		return "Your MCP servers need different hosts from Nav's MCP registry. Allow them in the sandbox?"
+func mcpHostsTitle(servers []string) string {
+	if len(servers) == 1 {
+		return fmt.Sprintf("MCP server %s needs hosts the sandbox blocks. Allow?", safe(servers[0], 64))
 	}
-	return "Your MCP servers need hosts from Nav's MCP registry. Allow them in the sandbox?"
+	return fmt.Sprintf("%d MCP servers need hosts the sandbox blocks. Allow them all?", len(servers))
 }
 
-// mcpHostsDescription lists every host, the servers that need it, and what
-// the grant is. Server names come from the user's own config and hosts from
-// the registry, so both are printed through safe().
-func mcpHostsDescription(hosts []providerpkg.MCPHost, st providerpkg.MCPHostState) string {
-	var approved []string
-	for _, h := range st.Grant {
-		approved = append(approved, h.Host)
-	}
+// mcpHostsDescription lists each server with its hosts, why each is there and
+// what allowing it does, and — for a set answered before — what changed.
+// Server names come from the user's config and hosts from the registry, so
+// both are printed through safe().
+func mcpHostsDescription(servers []string, by map[string][]providerpkg.MCPHost, st providerpkg.MCPHostState) string {
 	var b strings.Builder
-	for _, h := range hosts {
-		mark := "+"
-		if slices.Contains(approved, h.Host) {
-			mark = " "
+	for _, s := range servers {
+		fmt.Fprintf(&b, "%s (Nav's MCP registry)\n", safe(s, 64))
+		for _, h := range by[s] {
+			fmt.Fprintf(&b, "  %s  used by MCP server %s\n", safe(h.Host, 253), safe(s, 64))
+			if effect := mcpHostEffect(h); effect != "" {
+				fmt.Fprintf(&b, "    %s\n", effect)
+			}
 		}
-		fmt.Fprintf(&b, "%s %s  (MCP server %s)", mark, safe(h.Host, 253), safeList(h.Servers))
-		if h.Private {
-			b.WriteString("  private address: cplt's DNS-rebinding guard is lifted for this name")
+	}
+	if st.Record != nil {
+		was, now := mcpHostNames(st.Previous), mcpHostNames(st.Pending)
+		var changes []string
+		for _, h := range now {
+			if !slices.Contains(was, h) {
+				changes = append(changes, "+ "+safe(h, 253))
+			}
 		}
-		b.WriteString("\n")
+		for _, h := range was {
+			if !slices.Contains(now, h) {
+				changes = append(changes, "- "+safe(h, 253))
+			}
+		}
+		if len(changes) > 0 {
+			fmt.Fprintf(&b, "\nChanged since you last answered: %s\n", strings.Join(changes, ", "))
+		}
 	}
 	b.WriteString("\nThe hosts come from the registry's entry for each server, never from your MCP config. " +
-		"They are added to nav-pilot's cplt allowlist file, where one is in use. Nothing else in the sandbox changes.")
+		"No port is opened, no file, nothing runs. The allowlist and blocklist still apply.")
 	if root := source.FindGitRoot("."); root != "" {
 		if _, err := os.Stat(filepath.Join(root, ".cplt.toml")); err == nil {
 			b.WriteString("\nThis repository's .cplt.toml is approved separately, with " + bold("cplt trust") + ".")
@@ -118,43 +194,50 @@ func mcpHostsDescription(hosts []providerpkg.MCPHost, st providerpkg.MCPHostStat
 	return b.String()
 }
 
-// reportMCPHosts is doctor's view of the MCP registry hosts: what is granted,
+// reportMCPHosts is doctor's view of the MCP registry hosts: what is allowed,
 // what waits for an answer, and the loopback servers the user opens by hand.
 func reportMCPHosts(w io.Writer, cpltPath string) {
+	if mcpHostsMode() == "off" {
+		fmt.Fprintf(w, "      %s\n", dim("ℹ MCP hosts are off (mcp_hosts = off)"))
+		return
+	}
 	st, err := readMCPHostState()
 	if err != nil {
-		fmt.Fprintf(w, "      %s Could not read whether MCP registry hosts are approved: %v\n", yellow("⚠"), err)
+		fmt.Fprintf(w, "      %s Could not read whether MCP hosts are allowed: %v\n", yellow("⚠"), err)
 		return
 	}
 	if st.FetchErr != nil {
-		fmt.Fprintf(w, "      %s Nav's MCP registry did not answer (%v); %d approved MCP host(s) stay in force\n",
+		fmt.Fprintf(w, "      %s Nav's MCP registry did not answer (%v); %d allowed MCP host(s) stay in force\n",
 			yellow("⚠"), st.FetchErr, len(st.Grant))
 	}
 	switch {
 	case st.Pending != nil:
-		fmt.Fprintf(w, "      %s MCP servers need %d host(s) you have not approved: %s\n",
-			yellow("⚠"), len(st.Pending), strings.Join(mcpHostNames(st.Pending), ", "))
-		fmt.Fprintf(w, "          %s Launch nav-pilot from a terminal and answer the question.\n", yellow("Solution:"))
+		servers, by := mcpServerHosts(st.Pending)
+		for _, s := range servers {
+			fmt.Fprintf(w, "      %s %s (MCP): %d host(s) not answered. The next nav-pilot launch asks.\n",
+				yellow("⚠"), safe(s, 64), len(by[s]))
+		}
 	case st.Record != nil && !st.Record.Approved && len(st.Current.Hosts) > 0:
-		fmt.Fprintf(w, "      %s MCP registry hosts declined: %s\n", dim("ℹ"), strings.Join(mcpHostNames(st.Current.Hosts), ", "))
+		fmt.Fprintf(w, "      %s\n", dim("ℹ MCP hosts declined: "+strings.Join(mcpHostNames(st.Current.Hosts), ", ")))
 	}
 	if len(st.Grant) > 0 {
 		if reason := providerpkg.WaiverBlockedReason(st.Record); reason != "" {
-			fmt.Fprintf(w, "      %s MCP registry hosts are approved but not applied at launch: %s\n", yellow("⚠"), safe(reason, proposalReasonWidth))
+			fmt.Fprintf(w, "      %s MCP hosts are allowed but not applied at launch: %s\n", yellow("⚠"), safe(reason, proposalReasonWidth))
 		} else {
-			fmt.Fprintf(w, "      %s MCP registry hosts approved: %s\n", green("✓"), strings.Join(mcpHostNames(st.Grant), ", "))
+			fmt.Fprintf(w, "      %s MCP hosts allowed: %s\n", green("✓"), strings.Join(mcpHostNames(st.Grant), ", "))
 		}
 	}
 	if len(st.Current.Loopback) == 0 {
 		return
 	}
-	allowed := cpltConfigGet(cpltPath, "allow.localhost")
+	allowed := strings.FieldsFunc(cpltConfigGet(cpltPath, "allow.localhost"), func(r rune) bool {
+		return r == '[' || r == ']' || r == ',' || r == ' '
+	})
 	for _, l := range st.Current.Loopback {
-		if slices.Contains(strings.FieldsFunc(allowed, func(r rune) bool { return r == '[' || r == ']' || r == ',' || r == ' ' }), l.Port) {
+		if slices.Contains(allowed, l.Port) {
 			continue
 		}
-		fmt.Fprintf(w, "      %s MCP server %s runs on this machine (port %s), and cplt blocks localhost. To allow it:\n",
-			dim("ℹ"), safe(l.Server, 64), l.Port)
-		fmt.Fprintf(w, "          %s\n", bold("cplt config set allow.localhost "+l.Port))
+		fmt.Fprintf(w, "      %s %s (MCP) listens on localhost:%s, which the sandbox blocks. Open: %s\n",
+			dim("ℹ"), safe(l.Server, 64), l.Port, bold("cplt config set allow.localhost "+l.Port))
 	}
 }

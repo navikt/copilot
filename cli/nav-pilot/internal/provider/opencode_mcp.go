@@ -15,6 +15,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
@@ -72,9 +73,36 @@ type mcpRegistry struct {
 	Servers map[string][]string
 }
 
-// fetchMCPPolicy asks GitHub, as the user, which registry the org policy
+// fetchMCPPolicy and fetchMCPRegistry are asked once per process: an OpenCode
+// launch asks both for its policy check and for the MCP hosts (mcp_hosts.go).
+// Vars so tests answer them.
+var (
+	fetchMCPPolicy   = sync.OnceValues(askMCPPolicy)
+	fetchMCPRegistry = memoMCPRegistry(askMCPRegistry)
+)
+
+func memoMCPRegistry(ask func(string) (mcpRegistry, error)) func(string) (mcpRegistry, error) {
+	var mu sync.Mutex
+	type answer struct {
+		reg mcpRegistry
+		err error
+	}
+	seen := map[string]answer{}
+	return func(base string) (mcpRegistry, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if a, ok := seen[base]; ok {
+			return a.reg, a.err
+		}
+		reg, err := ask(base)
+		seen[base] = answer{reg, err}
+		return reg, err
+	}
+}
+
+// askMCPPolicy asks GitHub, as the user, which registry the org policy
 // names. registry is "" when no policy restricts MCP servers.
-var fetchMCPPolicy = func() (registry string, err error) {
+func askMCPPolicy() (registry string, err error) {
 	gh, err := exec.LookPath("gh")
 	if err != nil {
 		return "", fmt.Errorf("gh is not installed")
@@ -113,8 +141,8 @@ var fetchMCPPolicy = func() (registry string, err error) {
 	return "", nil
 }
 
-// fetchMCPRegistry lists a registry's servers (MCP Registry v0.1).
-var fetchMCPRegistry = func(base string) (mcpRegistry, error) {
+// askMCPRegistry lists a registry's servers (MCP Registry v0.1).
+func askMCPRegistry(base string) (mcpRegistry, error) {
 	reg := mcpRegistry{URL: base, Remotes: map[string]bool{}, Packages: map[string]bool{}, Servers: map[string][]string{}}
 	ctx, cancel := context.WithTimeout(context.Background(), mcpPolicyTimeout)
 	defer cancel()

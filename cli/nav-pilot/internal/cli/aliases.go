@@ -49,6 +49,7 @@ var (
 	validLocalDispatch    = domain.ValidLocalDispatch
 	validCopilotAuthModes = domain.ValidCopilotAuthModes
 	validHookActionCheck  = domain.ValidHookActionCheck
+	validMCPHosts         = domain.ValidMCPHosts
 
 	ScopeRepo = domain.ScopeRepo
 	ScopeUser = domain.ScopeUser

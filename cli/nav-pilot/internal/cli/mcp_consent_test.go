@@ -3,9 +3,11 @@ package cli
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
@@ -68,8 +70,8 @@ func TestMCPConsentNonInteractiveGrantsNothing(t *testing.T) {
 	if len(*answers) != 0 {
 		t.Errorf("recorded %v without a terminal", *answers)
 	}
-	if n := strings.Count(stderr, "\n"); n != 1 {
-		t.Errorf("want one line, got %d:\n%s", n, stderr)
+	if n := strings.Count(stderr, "\n"); n != 2 {
+		t.Errorf("want one line per server, once, got %d:\n%s", n, stderr)
 	}
 }
 
@@ -108,5 +110,62 @@ func TestSyncMCPAllowlist(t *testing.T) {
 	after, _ := os.ReadFile(path)
 	if !strings.HasPrefix(string(after), string(before)) || !strings.HasSuffix(string(after), mcpAllowlistMarker+"\nmcp.figma.com\n") {
 		t.Errorf("want the old file untouched plus an MCP section:\n%s", after)
+	}
+}
+
+// Enter declines: a prompt that is not moved off its default records a No.
+func TestMCPConsentEnterDeclines(t *testing.T) {
+	answers := mcpConsentEnv(t, pendingState(), true)
+	prev := askProposalConsent
+	askProposalConsent = func(string, string, *bool) error { return nil }
+	t.Cleanup(func() { askProposalConsent = prev })
+
+	noteMCPHostConsent()
+	if len(*answers) != 1 || (*answers)[0] {
+		t.Errorf("recorded %v, want one decline", *answers)
+	}
+}
+
+// A grown set asks again and shows what was added.
+func TestMCPConsentGrownSetShowsTheDiff(t *testing.T) {
+	st := pendingState()
+	st.Record = &artifacts.ProposalConsent{Approved: true}
+	st.Previous = st.Pending[1:]
+	mcpConsentEnv(t, st, true)
+	var title, desc string
+	prev := askProposalConsent
+	askProposalConsent = func(tt, d string, _ *bool) error { title, desc = tt, d; return nil }
+	t.Cleanup(func() { askProposalConsent = prev })
+
+	noteMCPHostConsent()
+	if !strings.Contains(desc, "Changed since you last answered: + mcp-onboarding.intern.nav.no") {
+		t.Errorf("no diff in:\n%s", desc)
+	}
+	if !strings.Contains(title, "2 MCP servers") {
+		t.Errorf("title = %q", title)
+	}
+}
+
+// mcp_hosts = off: nothing asked, nothing granted, and doctor says so once.
+func TestMCPHostsOff(t *testing.T) {
+	answers := mcpConsentEnv(t, pendingState(), true)
+	if err := os.MkdirAll(filepath.Dir(configPath()), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(configPath(), []byte("version = 1\nmcp_hosts = \"off\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	prev := askProposalConsent
+	askProposalConsent = func(string, string, *bool) error { t.Error("asked under mcp_hosts = off"); return nil }
+	t.Cleanup(func() { askProposalConsent = prev; providerpkg.MCPHostsOff = false })
+
+	noteMCPHostConsent()
+	if len(*answers) != 0 || !providerpkg.MCPHostsOff {
+		t.Errorf("off: recorded %v, provider off = %v", *answers, providerpkg.MCPHostsOff)
+	}
+	var out bytes.Buffer
+	reportMCPHosts(&out, "")
+	if strings.Count(out.String(), "\n") != 1 || !strings.Contains(out.String(), "mcp_hosts = off") {
+		t.Errorf("doctor under off:\n%s", out.String())
 	}
 }
