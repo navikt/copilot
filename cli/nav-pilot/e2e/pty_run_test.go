@@ -28,7 +28,8 @@ const ptyRunName = "pty-run"
 // terminal. Everything it writes is copied to stdout. Each -wait pattern is
 // awaited in turn, and when it has appeared its KEYS are typed (Go escapes,
 // so '\x03' is Ctrl-C). It exits with PROG's code, 128+n for a signal, or 124
-// after 20 seconds.
+// after 60 seconds: a deadline for a hang, generous enough that a loaded
+// machine running slowly does not trip it (#1335).
 func ptyRun(args []string) int {
 	type step struct {
 		wait *regexp.Regexp
@@ -117,7 +118,7 @@ func ptyRun(args []string) int {
 	go func() { waited <- cmd.Wait() }()
 	select {
 	case err = <-waited:
-	case <-time.After(20 * time.Second):
+	case <-time.After(60 * time.Second):
 		_ = cmd.Process.Kill()
 		<-waited
 		fmt.Fprintln(os.Stderr, "pty-run: timed out")
