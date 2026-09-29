@@ -505,5 +505,5 @@ func offerCpltInit(cliPath string) {
 		fmt.Fprintf(os.Stderr, "%s cplt init --write: %v\n", yellow("⚠"), err)
 		return
 	}
-	fmt.Printf("  Review .cplt.toml, then %s and %s to approve its rules.\n", bold("git add .cplt.toml"), bold("cplt trust accept"))
+	fmt.Printf("  Review .cplt.toml, then commit it and approve its rules (cplt only trusts a committed file):\n    %s\n    %s\n", bold(`git add :/.cplt.toml && git commit -m "chore: add cplt sandbox rules" -- :/.cplt.toml`), bold("cplt trust accept"))
 }

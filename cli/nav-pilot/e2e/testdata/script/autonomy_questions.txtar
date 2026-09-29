@@ -80,6 +80,8 @@ exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' 
 stdout 'Detected: JVM \(Gradle\)'
 grep 'init\n--write\n---' $WORK/fake/cplt.log
 ! grep 'trust' $WORK/fake/cplt.log
+stdout 'git add :/.cplt.toml'
+stdout 'git commit -m .* -- :/.cplt.toml'
 stdout 'cplt trust accept'
 cd $WORK
 
