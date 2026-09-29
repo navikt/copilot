@@ -79,7 +79,7 @@ level: answers are not linked to a person across waves (see
   A version bump does not help mid-wave: an answer is stored with the
   server's versions, not the ones the respondent saw, and nav-pilot caches
   definitions for up to a day. A change waits for the next wave. `title`,
-  `intro`, `nudge`, `active` and `ends` may still change.
+  `intro`, `nudge`, `series`, `active`, `starts` and `ends` may still change.
 - A question that is dropped is simply absent; its `id` is never reused for
   something else.
 - `construct` names what a question measures (for analysis) and `reverse`
