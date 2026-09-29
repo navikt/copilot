@@ -103,7 +103,12 @@ func (r *skipRule) skipped(answers map[string]any) bool {
 
 var idPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
 
-// loadSurveyDir reads and checks every surveys/*.json.
+// schemaFile is the JSON Schema of the definition format, for other clients
+// (GET /api/v1/surveys/schema). CI checks every definition against it
+// (TestShippedSurveysMatchSchema); loadSurveyDir checks more than it can say.
+const schemaFile = "surveys/schema.json"
+
+// loadSurveyDir reads and checks every surveys/*.json but the schema.
 func loadSurveyDir(fsys fs.FS) ([]survey, error) {
 	names, err := fs.Glob(fsys, "surveys/*.json")
 	if err != nil {
@@ -111,6 +116,9 @@ func loadSurveyDir(fsys fs.FS) ([]survey, error) {
 	}
 	var surveys []survey
 	for _, name := range names {
+		if name == schemaFile {
+			continue
+		}
 		raw, err := fs.ReadFile(fsys, name)
 		if err != nil {
 			return nil, err
@@ -409,6 +417,14 @@ func (a *surveyAPI) active(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	_ = json.NewEncoder(w).Encode(map[string]any{"surveys": active})
+}
+
+// schema serves surveys/schema.json: public, like the definitions.
+func (a *surveyAPI) schema(w http.ResponseWriter, _ *http.Request) {
+	raw, _ := surveyFiles.ReadFile(schemaFile) // embedded; TestShippedSurveysMatchSchema reads it too
+	w.Header().Set("Content-Type", "application/schema+json")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_, _ = w.Write(raw)
 }
 
 var errNoNavIdentity = errors.New("no Nav identity is linked to this GitHub account")

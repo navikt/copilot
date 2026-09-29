@@ -109,6 +109,7 @@ jobs:
               - '.github/workflows/ci.yaml'
             my-copilot:
               - 'apps/my-copilot/**'
+              - 'apps/copilot-survey/surveys/schema.json'
               - 'docs/news/**/*.md'
               - 'agents/**'
               - 'instructions/**'
@@ -119,6 +120,7 @@ jobs:
               - '.github/workflows/ci.yaml'
             nav-pilot:
               - 'cli/nav-pilot/**'
+              - 'apps/copilot-survey/surveys/schema.json'
               - 'scripts/install.sh'
               - 'scripts/*.bats'
               - '.github/workflows/copilot-customization-sync.yml'

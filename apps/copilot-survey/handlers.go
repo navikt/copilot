@@ -26,7 +26,7 @@ func (s *statusRecorder) WriteHeader(code int) {
 	s.ResponseWriter.WriteHeader(code)
 }
 
-// makeRouter wires the probes, the public definitions and the signed-in
+// makeRouter wires the probes, the public definitions and schema, and the signed-in
 // submit route. No ingress: only copilot-cli and my-copilot reach it
 // (accessPolicy.inbound).
 func makeRouter(auth *authenticator, surveys *surveyAPI) http.Handler {
@@ -37,6 +37,7 @@ func makeRouter(auth *authenticator, surveys *surveyAPI) http.Handler {
 	mux.Handle("GET /metrics", metricsHandler())
 
 	mux.HandleFunc("GET /api/v1/surveys/active", surveys.active)
+	mux.HandleFunc("GET /api/v1/surveys/schema", surveys.schema)
 	submit := authMiddleware(auth, surveys.submit)
 	mux.HandleFunc("POST /api/v1/surveys/{id}/responses", func(w http.ResponseWriter, r *http.Request) {
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}

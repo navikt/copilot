@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'cli/nav-pilot/**'
+      - 'apps/copilot-survey/surveys/schema.json'
       - 'scripts/install.sh'
       - 'scripts/*.bats'
       - '.github/workflows/copilot-customization-sync.yml'
@@ -22,6 +23,7 @@ on:
     branches: [main]
     paths:
       - 'cli/nav-pilot/**'
+      - 'apps/copilot-survey/surveys/schema.json'
       - 'scripts/install.sh'
       - 'scripts/*.bats'
       - '.github/workflows/copilot-customization-sync.yml'

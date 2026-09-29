@@ -28,6 +28,29 @@ fit the format below; unknown fields are refused too.
 }
 ```
 
+## Schema, for other clients
+
+[`schema.json`](schema.json) is the format as a JSON Schema (draft 2020-12),
+served at `GET /api/v1/surveys/schema` on copilot-survey and copilot-cli, no
+sign-in. `GET /api/v1/surveys/active` returns `{"surveys": [...]}`, each item
+a definition that fits it. CI checks every file here against it
+(`TestShippedSurveysMatchSchema`), and checks that copilot-survey's structs,
+nav-pilot's and the web's types name the same fields.
+
+- `schema_version` in the schema goes up on every change to the format.
+- New fields are optional, so a definition or a client that works today keeps
+  working. A client ignores fields it does not know, and skips a survey that
+  has a question `type` it does not know (nav-pilot says it needs an upgrade).
+- copilot-survey checks more than the schema can say: unique question ids,
+  `skip_if` pointing at an earlier `choice` or `multi` question and one of its
+  options, `starts` before `ends`, `labels` one per step, at most one `text`
+  question. A definition that fits the schema can still be refused at start.
+- To answer, `POST /api/v1/surveys/{id}/responses` with
+  `{"answers": {question id: value}, "context": {...}}`: a number for `scale`,
+  the option text for `choice`, a list of option texts for `multi`, a string
+  for `text`. Leave out a question that is skipped or not answered. The
+  caller must be copilot-cli or my-copilot (see [the README](../README.md#callers)).
+
 ## Comparing waves
 
 A survey that repeats (a *series*) is compared wave by wave at the aggregate

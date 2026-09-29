@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'apps/my-copilot/**'
+      - 'apps/copilot-survey/surveys/schema.json'
       - 'docs/news/**/*.md'
       - 'agents/**'
       - 'instructions/**'
@@ -16,6 +17,7 @@ on:
     branches: [main]
     paths:
       - 'apps/my-copilot/**'
+      - 'apps/copilot-survey/surveys/schema.json'
       - 'docs/news/**/*.md'
       - 'agents/**'
       - 'instructions/**'

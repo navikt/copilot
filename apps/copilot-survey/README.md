@@ -25,6 +25,7 @@ only.
 | Method | Path | Auth | Description |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/surveys/active` | none | Open surveys from [`surveys/`](surveys/README.md) |
+| `GET` | `/api/v1/surveys/schema` | none | The JSON Schema of a definition, [`surveys/schema.json`](surveys/schema.json) |
 | `POST` | `/api/v1/surveys/{id}/responses` | see above | Submit answers: 201, 409 already answered, 400 invalid, 401 caller refused, 403 no Nav identity, 404 not open, 503 not taking answers |
 | `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus (`survey_submissions_total{survey,status}`) |
 
