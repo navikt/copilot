@@ -146,9 +146,23 @@ func fakeCplt(t *testing.T, get map[string]string) string {
 	dir := t.TempDir()
 	log := filepath.Join(dir, "config-set.log")
 
+	// A value may carry cplt's "(default, not set in config file)" note on a
+	// second line. Real cplt prints that note on stderr, so the fake does too.
 	var cases strings.Builder
 	for k, v := range get {
-		fmt.Fprintf(&cases, "    %s) printf '%%b\\n' %q ;;\n", k, v)
+		if k == "--version" {
+			continue
+		}
+		val, note, _ := strings.Cut(v, `\n`)
+		fmt.Fprintf(&cases, "    %s) printf '%%b\\n' %q", k, val)
+		if note != "" {
+			fmt.Fprintf(&cases, "; printf '%%s\\n' %q >&2", note)
+		}
+		fmt.Fprint(&cases, " ;;\n")
+	}
+	version := get["--version"]
+	if version == "" {
+		version = "cplt 2026.09.01-120000-abcdef0"
 	}
 
 	script := fmt.Sprintf(`#!/bin/sh
@@ -158,9 +172,10 @@ case "$1 $2" in
     case "$3" in
 %s      *) exit 1 ;;
     esac ;;
+  "--version ") echo %q ;;
   *) exit 1 ;;
 esac
-`, log, cases.String())
+`, log, cases.String(), version)
 
 	bin := filepath.Join(dir, "cplt")
 	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
@@ -550,6 +565,8 @@ func TestCpltCheckTooStrict(t *testing.T) {
 		{"inconclusive protection", report(false, 2, item("blocked", "inconclusive"), item("allowed", "blocked")), false},
 		{"nothing verified", report(false, 0, item("allowed", "blocked")), false},
 		{"enforcing", report(true, 3, item("blocked", "blocked")), false},
+		{"newer cplt: enforcing, over-blocked", `{"enforcing":true,"verified":3,"over_blocked":1,"battery":true,"items":[]}`, true},
+		{"newer cplt: enforcing, nothing over-blocked", `{"enforcing":true,"verified":3,"over_blocked":0,"battery":true,"items":[]}`, false},
 		{"real enforcing report", realCpltCheckBattery, false},
 	}
 	for _, tc := range tests {
@@ -583,7 +600,7 @@ func TestAllowlistMissingAgentHosts(t *testing.T) {
 		}
 	}
 	const navOnly = "# mine\ngithub-package-registry-mirror.gc.nav.no\n"
-	const withAgent = "GitHub.com.\ngithubcopilot.com\ncopilot-proxy.githubusercontent.com\n"
+	const withAgent = "GitHub.com..\ngithubcopilot.com\ncopilot-proxy.githubusercontent.com\n"
 
 	tests := []struct {
 		name        string
@@ -602,11 +619,16 @@ func TestAllowlistMissingAgentHosts(t *testing.T) {
 		{"strict, but the user turned it off", navOnly, "~/.config/cplt/allowed-domains.txt", "false", "strict", cpltAgentHosts},
 		{"no allowlist", navOnly, "", unset, "standard", nil},
 		{"file missing", navOnly, "~/.config/cplt/nope.txt", unset, "standard", nil},
+		{"dev build counts as new", navOnly, "~/.config/cplt/allowed-domains.txt", unset, "standard", nil},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			write(tc.file)
-			fakeCplt(t, map[string]string{"proxy.allowed_domains": tc.allowed, "proxy.default_allowlist": tc.defaultList})
+			get := map[string]string{"proxy.allowed_domains": tc.allowed, "proxy.default_allowlist": tc.defaultList}
+			if tc.name == "dev build counts as new" {
+				get["--version"] = "cplt dev"
+			}
+			fakeCplt(t, get)
 			cliPath, err := findCplt()
 			if err != nil {
 				t.Fatal(err)
@@ -622,9 +644,9 @@ func TestAllowlistMissingAgentHosts(t *testing.T) {
 	}
 }
 
-// Rerunning the posture step on the incident's config must repair it, not
+// Saying yes to the posture step on the incident's config must repair it, not
 // leave it as it was. And it must not write anything when there is nothing
-// to repair.
+// to repair. Goes through applyStrictPreset, the code behind the yes.
 func TestPostureRepairsAnAllowlistWithoutAgentHosts(t *testing.T) {
 	isolatedConfig(t)
 	home, _ := os.UserHomeDir()
@@ -651,7 +673,7 @@ func TestPostureRepairsAnAllowlistWithoutAgentHosts(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := repairCpltAgentHosts(cliPath, "standard"); err != nil {
+		if err := applyStrictPreset(cliPath); err != nil {
 			t.Fatal(err)
 		}
 		if got := configSets(t, log)["proxy.default_allowlist"]; got != tc.want {

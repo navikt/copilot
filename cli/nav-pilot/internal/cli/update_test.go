@@ -350,3 +350,24 @@ func TestLatestReleaseTimesOutInWords(t *testing.T) {
 		t.Fatalf("latestRelease = %v, want a timeout in words", err)
 	}
 }
+
+// doctor's "could not check" line names why, in a few words.
+func TestCpltSkewUnknownReason(t *testing.T) {
+	const v = "2026.09.01-120000-abcdef0"
+	for _, tc := range []struct {
+		installed, latest string
+		err               error
+		want              string
+	}{
+		{"", v, nil, "installed version unknown"},
+		{v, "", nil, "latest release unreadable"},
+		{v, "", context.DeadlineExceeded, "timeout"},
+		{v, "", fmt.Errorf("get: %w", context.DeadlineExceeded), "timeout"},
+		{v, "", errors.New("GitHub's API rate limit for this address is used up until 15:04"), "GitHub API rate limit"},
+		{v, "", errors.New("GitHub API returned 502"), "HTTP 502"},
+	} {
+		if got := cpltSkewUnknownReason(tc.installed, tc.latest, tc.err); got != tc.want {
+			t.Errorf("%v: got %q, want %q", tc.err, got, tc.want)
+		}
+	}
+}

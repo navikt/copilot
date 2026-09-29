@@ -252,7 +252,7 @@ func cmdDoctor() error {
 		case cpltVersionCurrent:
 			fmt.Printf("      %s cplt is up to date\n", green("✓"))
 		default:
-			fmt.Printf("      %s Could not check for a newer cplt release\n", dim("-"))
+			fmt.Printf("      %s Could not check for a newer cplt release (%s)\n", dim("-"), cpltSkewUnknownReason(installed, latest, lerr))
 		}
 
 		// Security posture. A recommendation, not a failure — and an unknown
@@ -426,14 +426,14 @@ func cmdDoctor() error {
 		case report == nil:
 			fmt.Printf("    %s Could not verify sandbox enforcement\n", dim("-"))
 			fmt.Printf("        %s Run %s by hand — this run could not read a verdict, which an older cplt (no such subcommand), a timeout or an interrupted probe all produce.\n", dim("Solution:"), bold("cplt check"))
-		case report.Enforcing:
-			fmt.Printf("    %s Sandbox is enforcing (%d protections verified)\n", green("✓"), report.Verified)
 		case report.tooStrict():
 			// Every protection held; the sandbox blocked something it should
 			// allow. Too strict, not a leak.
 			hasErrors = true
 			fmt.Printf("    %s Sandbox is enforcing but too strict (%d protections verified)\n", yellow("⚠"), report.Verified)
 			fmt.Printf("        %s Run %s — it names what is blocked and the fix.\n", yellow("Solution:"), bold("cplt check"))
+		case report.Enforcing:
+			fmt.Printf("    %s Sandbox is enforcing (%d protections verified)\n", green("✓"), report.Verified)
 		default:
 			hasErrors = true
 			fmt.Printf("    %s Sandbox is NOT enforcing\n", red("[✗]"))
