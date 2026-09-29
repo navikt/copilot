@@ -1,0 +1,43 @@
+# At the startup "Sync now?", No holds for a day, as the upgrade prompt does:
+# with several releases a day, asking on every launch made No mean "not this
+# launch" (#1275). The next launch says nothing and starts the client.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+fake-bin cplt copilot
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+exec nav-pilot config set rtk_prompted_client copilot
+
+# The install claims the default source, one release behind the cache.
+exec /usr/bin/sed -e 's#"source_repo": "[^"]*"#"source_repo": "navikt/copilot"#' -e 's#"version": "[^"]*"#"version": "2026.09.01-120000-aaaaaaa"#' .github/.nav-pilot-state.json
+cp stdout .github/.nav-pilot-state.json
+cp $WORK/cache.json $HOME/cache.json
+
+exec pty-run -wait 'Sync now' -send '\x1b[B\r' -- nav-pilot
+stdout 'Update available'
+stdout 'Not synced\. Asked again in 24 hours; run nav-pilot sync --apply to do it sooner\.'
+grep '^--agent\n' $WORK/fake/cplt.log
+
+rm $WORK/fake/cplt.log
+exec pty-run -- nav-pilot
+! stdout 'Sync now|Update available'
+grep '^--agent\n' $WORK/fake/cplt.log
+
+-- cache.json --
+{"last_checked":"2099-01-01T00:00:00Z","latest_version":"2026.09.24-120000-bbbbbbb"}
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

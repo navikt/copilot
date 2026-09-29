@@ -530,6 +530,9 @@ func autoUpdateBackingOff(now time.Time) bool {
 // command made No mean "not this command" rather than "not now".
 func updateDeclinedPath() string { return stateMarker("update-declined") }
 
+// syncDeclinedPath is the marker a No at the startup "Sync now?" leaves.
+func syncDeclinedPath() string { return stateMarker("sync-declined") }
+
 // autoUpdateFailed tells the user the update did not happen and the command
 // runs on the version they have, and remembers the failure for the backoff.
 // Every failure arms it, a network blip included: one lookup a day is the

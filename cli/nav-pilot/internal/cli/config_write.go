@@ -241,35 +241,49 @@ func editTopLevelKey(content, key, tomlVal, replaces string) (string, error) {
 // runs now: a file without client means copilot (defaultClient), so creating
 // one must not switch a new install away from opencode.
 func updateConfigKey(key, tomlVal string) error {
+	return updateConfigKeys(key, tomlVal)
+}
+
+// updateConfigKeys is updateConfigKey for several key, tomlVal pairs at once:
+// one write, so one config.toml.bak, for keys that change together.
+func updateConfigKeys(kv ...string) error {
 	path := configPath()
 	data, err := os.ReadFile(path)
+	var base []byte
 	switch {
 	case errors.Is(err, os.ErrNotExist):
-		if tomlVal == "" {
-			return nil
+		keys := map[string]bool{}
+		for i := 0; i < len(kv); i += 2 {
+			if kv[i+1] != "" {
+				keys[kv[i]] = true
+			}
 		}
-		if key != "version" {
+		if len(keys) == 0 {
+			return nil // only removals, from a file that is not there
+		}
+		if !keys["version"] {
 			data = []byte("version = 1\n")
 		}
-		if key != "client" {
+		if !keys["client"] {
 			data = fmt.Appendf(data, "client = %s\n", tomlString(defaultClient(nil)))
 		}
 	case err != nil:
 		return fmt.Errorf("reading config: %w", err)
-	}
-	replaces := ""
-	for old, next := range renamedConfigKeys {
-		if next == key {
-			replaces = old
-		}
-	}
-	out, err := editTopLevelKey(string(data), key, tomlVal, replaces)
-	if err != nil {
-		return fmt.Errorf("could not change %s in %s, %w: %v", key, path, errNothingWritten, err)
-	}
-	var base []byte
-	if err == nil {
+	default:
 		base = data
+	}
+	out := string(data)
+	for i := 0; i < len(kv); i += 2 {
+		key, tomlVal := kv[i], kv[i+1]
+		replaces := ""
+		for old, next := range renamedConfigKeys {
+			if next == key {
+				replaces = old
+			}
+		}
+		if out, err = editTopLevelKey(out, key, tomlVal, replaces); err != nil {
+			return fmt.Errorf("could not change %s in %s, %w: %v", key, path, errNothingWritten, err)
+		}
 	}
 	return writeConfigFile(path, []byte(out), base)
 }
