@@ -660,6 +660,7 @@
   "/nav-pilot/guider/feilsoking": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/feilsoking/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
@@ -852,6 +853,27 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/tilpasse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/tilpasse/page.tsx"
       ]
+    }
+  },
+  "/nav-pilot/guider/worktrees": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
+    ],
+    "anchors": {
+      "bart-repo": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
+      "begrensninger": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
+      "feilsoking": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
+      "for-mange-mapper": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
+      "forutsetninger": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
+      "git-feiler": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
+      "hvorfor": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
+      "starte-i-worktree": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
+      "underagenter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
+      "unknown-config-key": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
+      "worktree-remove": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"]
     }
   },
   "/nav-pilot/klienter": {
