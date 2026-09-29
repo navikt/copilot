@@ -50,7 +50,7 @@ gets a new path (`/api/v2/…`).
 | Method | Path | Auth | Forwarded to |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/usage` | GitHub | copilot-api `GET /api/v1/copilot/usage/user/{login}` |
-| `POST` | `/api/v1/auth/revoke` | GitHub token, no org check | GitHub `DELETE /applications/{client_id}/token` for the bearer token: 204, 401 unknown to this app, 429, 502 |
+| `POST` | `/api/v1/auth/revoke` | GitHub token, no org check | GitHub `DELETE /applications/{client_id}/token` for the bearer token: 204, 401 unknown to this app, 429, 502 GitHub failed, 503 sign-in not configured |
 | `GET` | `/api/v1/surveys/active` | none | copilot-survey, same path |
 | `GET` | `/api/v1/surveys/schema` | none | copilot-survey, same path: the JSON Schema of the definitions |
 | `POST` | `/api/v1/surveys/{id}/responses` | GitHub | copilot-survey, same path: 201, 409 already answered, 400 invalid, 403 no Nav identity, 404 not open, 400 or 413 body over 32 KiB, 503 not taking answers, 502 copilot-survey unreachable or refused the gateway |

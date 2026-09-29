@@ -75,7 +75,9 @@ func (a *authenticator) allow(key string) bool {
 	b, ok := a.perToken[key]
 	if ok {
 		b.seen = now
-		return b.lim.AllowN(now, 1) && a.limit.AllowN(now, 1)
+		// Check the global bucket first, so a global refusal does not also
+		// spend the token's own slot.
+		return a.limit.TokensAt(now) >= 1 && b.lim.AllowN(now, 1) && a.limit.AllowN(now, 1)
 	}
 	if !a.limit.AllowN(now, 1) {
 		return false
@@ -176,10 +178,10 @@ func (c *tokenCache) set(token string, user *AuthenticatedUser, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	key := hashToken(token)
-	// A token GitHub called invalid never turns valid again, so a success
-	// from a check that started earlier must not replace the refusal (say,
-	// one that raced a revoke).
-	if old, ok := c.entries[key]; ok && err == nil && errors.Is(old.err, errInvalidToken) && time.Now().Before(old.expiresAt) {
+	// A token GitHub called invalid never turns valid again, so no outcome
+	// from a check that started earlier may replace the refusal (say, one
+	// that raced a revoke).
+	if old, ok := c.entries[key]; ok && errors.Is(old.err, errInvalidToken) && time.Now().Before(old.expiresAt) {
 		return
 	}
 	c.entries[key] = cacheEntry{user: user, err: err, expiresAt: expires}
@@ -215,7 +217,7 @@ func authMiddleware(a *authenticator, next http.HandlerFunc) http.HandlerFunc {
 		switch {
 		case err == nil:
 		case errors.Is(err, errRateLimited):
-			w.Header().Set("Retry-After", "5")
+			w.Header().Set("Retry-After", "10")
 			writeError(w, http.StatusTooManyRequests, err.Error())
 			return
 		case errors.Is(err, errNotOrgMember):
@@ -248,19 +250,20 @@ func revokeHandler(a *authenticator) http.HandlerFunc {
 			return
 		}
 		if !a.allow(hashToken(token)) {
-			w.Header().Set("Retry-After", "5")
+			w.Header().Set("Retry-After", "10")
 			writeError(w, http.StatusTooManyRequests, errRateLimited.Error())
 			return
 		}
+		// Refuse the token here before asking GitHub, so a timeout or 5xx
+		// from GitHub cannot leave a cached success usable.
+		a.cache.revoked(token)
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
 		err = a.github.revoke(ctx, token)
 		switch {
 		case err == nil:
-			a.cache.revoked(token)
 			w.WriteHeader(http.StatusNoContent)
 		case errors.Is(err, errInvalidToken):
-			a.cache.revoked(token)
 			writeError(w, http.StatusUnauthorized, err.Error())
 		case errors.Is(err, errIssuerOffline):
 			writeError(w, http.StatusServiceUnavailable, err.Error())
