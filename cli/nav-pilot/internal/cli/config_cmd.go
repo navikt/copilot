@@ -634,11 +634,19 @@ func cmdConfigInit() error {
 	// The client this machine runs now, written out (#1022): the file
 	// without it would mean copilot.
 	tmpl := strings.Replace(configInitTemplate, `client = "copilot"`, "client = "+tomlString(defaultClient(nil)), 1)
+	// Someone who ran nav-pilot before without a file was on conservative;
+	// writing the file must not move them, and says which it wrote.
+	autonomy := "sandbox"
+	if navPilotUsedBefore() {
+		autonomy = "conservative"
+		tmpl = strings.Replace(tmpl, `autonomy = "sandbox"`, `autonomy = "conservative"`, 1)
+	}
 	if err := writeConfigFile(path, []byte(tmpl), nil); err != nil {
 		return err
 	}
 
 	fmt.Printf("%s Created %s\n", green("✓"), path)
+	fmt.Printf("  autonomy = %s; change it with %s.\n", autonomy, bold("nav-pilot config set autonomy <sandbox|conservative>"))
 	fmt.Printf("  Edit the file or use %s to set individual options.\n", bold("nav-pilot config set"))
 	return nil
 }

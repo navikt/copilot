@@ -23,7 +23,7 @@ type setupAnswers struct {
 	Mode            string
 	ReasoningEffort string // empty = don't write the key
 	AutoUpdate      string // "true" or "false"
-	Autonomy        string // empty = sandbox
+	Autonomy        string // empty = don't write the key (conservative)
 }
 
 // writeSetupConfig writes a new config file from wizard answers.
@@ -68,11 +68,12 @@ func writeSetupConfig(answers setupAnswers) error {
 		lines = append(lines, "mode = "+modeVal)
 	}
 
-	// Always written, like client: a file without it means conservative.
-	if answers.Autonomy == "" {
-		answers.Autonomy = "sandbox"
+	// Written whenever it was asked, like client: a file without it means
+	// conservative. Only the Copilot CLI reads it, so for the others it is
+	// not asked and not written.
+	if answers.Autonomy != "" {
+		lines = append(lines, "autonomy = "+tomlString(answers.Autonomy))
 	}
-	lines = append(lines, "autonomy = "+tomlString(answers.Autonomy))
 
 	if answers.Model != "" {
 		modelVal, _ := formatTOMLValue(findKeyDef("model"), answers.Model)
@@ -168,8 +169,11 @@ func runConfigSetup(flagSource string) error {
 		return setupSkipped(err)
 	}
 
-	// Only the Copilot CLI reads it; the others keep the default written.
-	if answers.Client == "copilot" {
+	// Only the Copilot CLI reads it; for the others it is not written, so a
+	// later switch to copilot starts conservative rather than unasked sandbox.
+	if answers.Client != "copilot" {
+		answers.Autonomy = ""
+	} else {
 		err = huh.NewSelect[string]().
 			Title("How much should the agent do without asking?").
 			Description("cplt's guards hold either way: no push to main, no force push, no merge.").
@@ -421,7 +425,7 @@ func cmdConfigSetup(force bool) error {
 // printAutonomyNudge is the one line a config from before the autonomy key
 // gets: nothing changes for them until they choose.
 func printAutonomyNudge(w io.Writer, cfg *Config, indent string) {
-	if cfg == nil || cfg.Autonomy != nil {
+	if cfg == nil && !navPilotUsedBefore() || cfg != nil && cfg.Autonomy != nil {
 		return
 	}
 	fmt.Fprintf(w, "%s%s The agent can work autonomously inside the sandbox; run %s to choose (or %s).\n",

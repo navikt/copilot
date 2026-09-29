@@ -234,7 +234,8 @@ func unsandboxedAllowAllNote(resolved domain.ResolvedConfig) string {
 
 // autopilotNote is the line a launch in autopilot prints, or "".
 func autopilotNote(resolved domain.ResolvedConfig) string {
-	if resolved.Mode != "autopilot" {
+	// --autopilot after "--" is Copilot's alias for --mode autopilot.
+	if resolved.Mode != "autopilot" && !slices.Contains(resolved.ExtraArgs, "--autopilot") {
 		return ""
 	}
 	return "Autopilot: the agent cannot ask you questions in this mode, and works on until it is done."

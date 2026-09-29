@@ -88,6 +88,9 @@ func TestAutopilotTakesAskUserAway(t *testing.T) {
 	if autopilotNote(domain.ResolvedConfig{Mode: "autopilot"}) == "" {
 		t.Error("autopilot prints no warning")
 	}
+	if autopilotNote(domain.ResolvedConfig{Mode: "default", ExtraArgs: []string{"--autopilot"}}) == "" {
+		t.Error("-- --autopilot prints no warning")
+	}
 	if autopilotNote(domain.ResolvedConfig{Mode: "default"}) != "" {
 		t.Error("default mode prints the autopilot warning")
 	}
@@ -170,5 +173,42 @@ func TestUnsandboxedLaunchGetsNoAllowAll(t *testing.T) {
 	}
 	if !slices.Contains(got, "env=") {
 		t.Errorf("unsandboxed copilot inherited COPILOT_ALLOW_ALL: %q", got)
+	}
+}
+
+// The same holds for opencode, whose --no-sandbox launch goes through
+// launchUnsandboxed: allow_all_tools and every skip-permission spelling after
+// "--" are dropped.
+func TestUnsandboxedOpenCodeGetsNoSkipPermissions(t *testing.T) {
+	isolateHome(t)
+	dir := t.TempDir()
+	out := filepath.Join(dir, "argv.txt")
+	if err := testhome.WriteExec(filepath.Join(dir, "opencode"), "#!/bin/sh\nprintf '%s\\n' \"$@\" > "+out+"\n"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	NavContextDirOverride = t.TempDir()
+	t.Cleanup(func() { NavContextDirOverride = "" })
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	err := LaunchOpenCode(domain.ResolvedConfig{
+		Client: "opencode", Mode: "default", AllowAllTools: true, NoSandbox: true,
+		ExtraArgs: []string{"--auto", "--yolo=true", "--dangerously-skip-permissions"},
+	})
+	if err != nil {
+		t.Fatalf("LaunchOpenCode: %v", err)
+	}
+	raw, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("opencode did not run: %v", err)
+	}
+	got := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	if slices.ContainsFunc(got, func(a string) bool {
+		return strings.HasPrefix(a, "--auto") || strings.HasPrefix(a, "--yolo") || strings.HasPrefix(a, "--dangerously")
+	}) {
+		t.Errorf("unsandboxed opencode got a skip-permission flag: %q", got)
+	}
+	if !slices.Contains(got, "--agent") {
+		t.Errorf("opencode lost its other arguments: %q", got)
 	}
 }
