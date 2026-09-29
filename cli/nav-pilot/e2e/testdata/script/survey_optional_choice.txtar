@@ -1,0 +1,23 @@
+# An optional choice question opens on «(ikke valgt)» at the top, with every
+# option in view below it, not on «Hopp over» with the options scrolled away
+# (#1278). Enter there records nothing, and «Hopp over» stays at the end of
+# the list, one ↑ away.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+env NAV_PILOT_E2E_GITHUB_TOKEN=gho_e2e
+fake-survey
+
+# Enter on the placeholder: the question is skipped, before any key it showed
+# every option.
+exec pty-run -wait 'How useful' -send '\x1b[B\r' -wait 'Velg opptil 2' -send '\x1b[B \r' -wait 'Why not copilot(.|\n)*\(ikke valgt\)(.|\n)*habit(.|\n)*other(.|\n)*Hopp over' -send '\r' -wait 'Anything else' -send '\r' -- nav-pilot survey
+stdout 'Takk! Svaret ditt er sendt'
+grep -count=1 '^POST 201 .*"answers":\{"clients":\["opencode"\],"useful":1\}' $WORK/survey-posts.log
+
+# ↑ wraps to «Hopp over»: skipped too.
+rm $HOME/surveys.json
+exec pty-run -wait 'How useful' -send '\x1b[B\r' -wait 'Velg opptil 2' -send '\x1b[B \r' -wait 'Why not copilot' -send '\x1b[A\r' -wait 'Anything else' -send '\r' -- nav-pilot survey
+grep -count=1 '^POST 409 .*"answers":\{"clients":\["opencode"\],"useful":1\}' $WORK/survey-posts.log
+
+-- home/device-id --
+nav-pilot-0123456789ab

@@ -610,14 +610,13 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 const surveyNoIdentify = "Skriv ikke noe som kan identifisere deg eller andre."
 
 // surveySelect is a scale, matrix item or choice as a list to pick one from.
-// No answer is preselected (#1251): the cursor starts on the entry whose
-// value is "", as *value is. For a required question that is a placeholder
-// Enter cannot pick, for an optional one "Hopp over".
+// No answer is preselected (#1251): the cursor starts on the first entry
+// whose value is "", as *value is, which is the placeholder at the top so
+// every option shows below it (#1278; huh scrolls the cursor to the top of
+// the list). A required question refuses Enter there. An optional one takes
+// it as a skip, and also ends with "Hopp over", one ↑ away.
 func surveySelect(q surveyQuestion, desc string, value *string) *huh.Select[string] {
-	var opts []huh.Option[string]
-	if q.Required {
-		opts = append(opts, huh.NewOption(surveyUnpicked, ""))
-	}
+	opts := []huh.Option[string]{huh.NewOption(surveyUnpicked, "")}
 	if q.Type == "choice" {
 		for _, o := range q.options() {
 			opts = append(opts, huh.NewOption(o, o))
@@ -650,8 +649,8 @@ func (s surveyDef) count() int {
 	return n
 }
 
-// surveyUnpicked is the entry a required scale or choice question starts on,
-// so Enter alone records nothing.
+// surveyUnpicked is the entry a scale or choice question starts on, so Enter
+// alone records nothing.
 const surveyUnpicked = "(ikke valgt)"
 
 func requirePick(v string) error {

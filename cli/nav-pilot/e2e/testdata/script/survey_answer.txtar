@@ -2,9 +2,9 @@
 # an open survey, says what is sent before any question, and sends the
 # answers with the GitHub sign-in. The payload is the answers and four enums:
 # no device id, nothing from the session. A second answer to the same survey
-# is refused by copilot-cli and said so plainly. An optional choice starts on
-# Skip; a required scale starts on no answer, and Enter alone records nothing
-# (#1251). Choosing «Annet» in the multi asks for a short text, sent as
+# is refused by copilot-cli and said so plainly. A scale or choice starts on
+# «(ikke valgt)», and for a required one Enter alone records nothing (#1251,
+# #1278). Choosing «Annet» in the multi asks for a short text, sent as
 # clients.other.
 
 [!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
@@ -51,7 +51,7 @@ exec pty-run -- nav-pilot
 
 # The same person again, from a fresh machine state: copilot-cli says 409.
 rm $HOME/surveys.json
-exec pty-run -wait 'Brukerundersøkelse' -send '\x1b[A\r' -wait 'How useful' -send '\r' -wait 'velg et svar med piltastene' -send '\x1b[B\r' -wait 'Velg opptil 2' -send '\x1b[B \r' -wait 'Why not copilot' -send '\x1b[A\x1b[A\r' -wait 'Anything else' -send '\r' -- nav-pilot
+exec pty-run -wait 'Brukerundersøkelse' -send '\x1b[A\r' -wait 'How useful' -send '\r' -wait 'velg et svar med piltastene' -send '\x1b[B\r' -wait 'Velg opptil 2' -send '\x1b[B \r' -wait 'Why not copilot' -send '\x1b[B\r' -wait 'Anything else' -send '\r' -- nav-pilot
 stdout 'Du har allerede svart på denne undersøkelsen, så dette svaret ble ikke sendt'
 grep -count=1 '^POST 409 .*"clients":\["opencode"\],"useful":1,"why":"habit"' $WORK/survey-posts.log
 
