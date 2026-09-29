@@ -59,76 +59,29 @@
       "skip_if": {"question": "verktoy", "answer": "Jeg bruker ikke AI-kodeverktøy"}
     },
     {
-      "id": "tilfredshet",
+      "id": "pastander",
       "version": 1,
-      "type": "scale",
-      "construct": "space-satisfaction",
-      "text": "Alt i alt er jeg fornøyd med AI-kodeverktøyene vi har tilgang til i Nav.",
+      "type": "matrix",
+      "text": "Hvor enig er du i disse påstandene?",
       "min": 1, "max": 5,
       "labels": ["Helt uenig", "Uenig", "Nøytral", "Enig", "Helt enig"],
-      "required": true
-    },
-    {
-      "id": "kognitiv-belastning",
-      "version": 1,
-      "type": "scale",
-      "construct": "cognitive-load",
-      "text": "AI-kodeverktøy reduserer mental innsats på repetitive oppgaver og boilerplate, slik at jeg kan fokusere på vanskeligere problemer.",
-      "min": 1, "max": 5,
-      "labels": ["Helt uenig", "Uenig", "Nøytral", "Enig", "Helt enig"],
-      "required": true
-    },
-    {
-      "id": "oppgavegjennomforing",
-      "version": 1,
-      "type": "scale",
-      "construct": "task-completion",
-      "text": "AI-kodeverktøy hjelper meg å komme videre når jeg står fast, og fullføre oppgaver raskere enn uten.",
-      "min": 1, "max": 5,
-      "labels": ["Helt uenig", "Uenig", "Nøytral", "Enig", "Helt enig"],
-      "required": true
-    },
-    {
-      "id": "code-review",
-      "version": 1,
-      "type": "scale",
-      "construct": "code-review",
-      "text": "Kode jeg lager med AI-hjelp holder god nok kvalitet til at den ikke skaper ekstra arbeid i code review.",
-      "min": 1, "max": 5,
-      "labels": ["Helt uenig", "Uenig", "Nøytral", "Enig", "Helt enig"],
-      "required": true
-    },
-    {
-      "id": "teknisk-kompetanse",
-      "version": 1,
-      "type": "scale",
-      "construct": "technical-skill",
-      "reverse": true,
-      "text": "Jeg er bekymra for at AI-verktøy kan svekke min egen dype forståelse av koden og teknologiene jeg jobber med.",
-      "min": 1, "max": 5,
-      "labels": ["Helt uenig", "Uenig", "Nøytral", "Enig", "Helt enig"],
-      "required": true
-    },
-    {
-      "id": "eierskap",
-      "version": 1,
-      "type": "scale",
-      "construct": "ownership",
-      "text": "Jeg er trygg på å ta fullt ansvar for kode som er generert eller vesentlig hjulpet av AI.",
-      "min": 1, "max": 5,
-      "labels": ["Helt uenig", "Uenig", "Nøytral", "Enig", "Helt enig"],
-      "required": true
-    },
-    {
-      "id": "juss-og-sikkerhet",
-      "version": 1,
-      "type": "scale",
-      "construct": "legal-security",
-      "reverse": true,
-      "text": "Usikkerhet rundt personvern eller interne sikkerhetsregler hindrer meg i å bruke AI-kodeverktøy fullt ut i det daglige arbeidet.",
-      "min": 1, "max": 5,
-      "labels": ["Helt uenig", "Uenig", "Nøytral", "Enig", "Helt enig"],
-      "required": true
+      "required": true,
+      "items": [
+        {"id": "tilfredshet", "version": 1, "construct": "space-satisfaction",
+         "text": "Alt i alt er jeg fornøyd med AI-kodeverktøyene vi har tilgang til i Nav."},
+        {"id": "kognitiv-belastning", "version": 1, "construct": "cognitive-load",
+         "text": "AI-kodeverktøy reduserer mental innsats på repetitive oppgaver og boilerplate, slik at jeg kan fokusere på vanskeligere problemer."},
+        {"id": "oppgavegjennomforing", "version": 1, "construct": "task-completion",
+         "text": "AI-kodeverktøy hjelper meg å komme videre når jeg står fast, og fullføre oppgaver raskere enn uten."},
+        {"id": "code-review", "version": 1, "construct": "code-review",
+         "text": "Kode jeg lager med AI-hjelp holder god nok kvalitet til at den ikke skaper ekstra arbeid i code review."},
+        {"id": "teknisk-kompetanse", "version": 1, "construct": "technical-skill", "reverse": true,
+         "text": "Jeg er bekymra for at AI-verktøy kan svekke min egen dype forståelse av koden og teknologiene jeg jobber med."},
+        {"id": "eierskap", "version": 1, "construct": "ownership",
+         "text": "Jeg er trygg på å ta fullt ansvar for kode som er generert eller vesentlig hjulpet av AI."},
+        {"id": "juss-og-sikkerhet", "version": 1, "construct": "legal-security", "reverse": true,
+         "text": "Usikkerhet rundt personvern eller interne sikkerhetsregler hindrer meg i å bruke AI-kodeverktøy fullt ut i det daglige arbeidet."}
+      ]
     },
     {
       "id": "agent-tillit",
