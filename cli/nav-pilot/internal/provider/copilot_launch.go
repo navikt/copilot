@@ -192,17 +192,53 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 		args = append(args, "--model", model)
 	}
 	args = append(args, copilotResolvedFlags(resolved)...)
-	if cliName == "cplt" {
-		// Seam two of two for an approved sandbox proposal (#858). This launch
-		// never goes through cpltArgv, so the entries have to be placed here
-		// too — in the cplt-flag slot, before the "--" that hands the rest to
-		// the agent.
-		cpltArgs := append([]string{"--agent", "copilot"}, cpltProposalFlags()...)
-		cpltArgs = append(cpltArgs, "--")
-		cpltArgs = append(cpltArgs, args...)
-		return append(cpltArgs, resolved.ExtraArgs...)
+	if cliName != "cplt" {
+		// Allow-all is only safe with cplt as the boundary. Without it the
+		// flags go, whatever the config or the command line asked for.
+		return withoutAllowAll(append(args, resolved.ExtraArgs...))
 	}
-	return append(args, resolved.ExtraArgs...)
+	// Seam two of two for an approved sandbox proposal (#858). This launch
+	// never goes through cpltArgv, so the entries have to be placed here
+	// too — in the cplt-flag slot, before the "--" that hands the rest to
+	// the agent.
+	cpltArgs := append([]string{"--agent", "copilot"}, cpltProposalFlags()...)
+	cpltArgs = append(cpltArgs, "--")
+	cpltArgs = append(cpltArgs, args...)
+	return append(cpltArgs, resolved.ExtraArgs...)
+}
+
+// copilotAllowAllFlags are the Copilot CLI flags that switch its permission
+// prompts off (copilot --help, 1.0.90).
+var copilotAllowAllFlags = []string{"--allow-all-tools", "--allow-all-paths", "--allow-all-urls", "--allow-all", "--yolo"}
+
+// isAllowAllFlag reports whether arg is one of copilotAllowAllFlags, also in
+// the --flag=value spelling.
+func isAllowAllFlag(arg string) bool {
+	name, _, _ := strings.Cut(arg, "=")
+	return slices.Contains(copilotAllowAllFlags, name)
+}
+
+// withoutAllowAll drops every allow-all flag from args.
+func withoutAllowAll(args []string) []string {
+	return slices.DeleteFunc(args, isAllowAllFlag)
+}
+
+// unsandboxedAllowAllNote is the line an unsandboxed launch prints when the
+// config or the command line asked for allow-all, or "" when nothing did.
+func unsandboxedAllowAllNote(resolved domain.ResolvedConfig) string {
+	if !resolved.AllowAllTools && resolved.Autonomy != "sandbox" && !slices.ContainsFunc(resolved.ExtraArgs, isAllowAllFlag) {
+		return ""
+	}
+	return "Without cplt, Copilot asks before each action: nav-pilot passes no allow-all flags outside the sandbox."
+}
+
+// autopilotNote is the line a launch in autopilot prints, or "".
+func autopilotNote(resolved domain.ResolvedConfig) string {
+	// --autopilot after "--" is Copilot's alias for --mode autopilot.
+	if resolved.Mode != "autopilot" && !slices.Contains(resolved.ExtraArgs, "--autopilot") {
+		return ""
+	}
+	return "Autopilot: the agent cannot ask you questions in this mode, and keeps working until the task is done."
 }
 
 // copilotResolvedFlags returns the copilot CLI flags that follow the persona
@@ -221,10 +257,15 @@ func copilotResolvedFlags(resolved domain.ResolvedConfig) []string {
 	if resolved.ContextTier != "" && resolved.ContextTier != "default" {
 		args = append(args, "--context", resolved.ContextTier)
 	}
-	if resolved.AllowAllTools {
+	if resolved.Autonomy == "sandbox" {
+		// Not --yolo: the same three, spelled out so the argv says what it grants.
+		args = append(args, "--allow-all-tools", "--allow-all-paths", "--allow-all-urls")
+	} else if resolved.AllowAllTools {
 		args = append(args, "--allow-all-tools")
 	}
-	if !resolved.AskUser {
+	// Autopilot answers ask_user itself ("the user is not available"), so
+	// the tool is taken away rather than left to pretend.
+	if !resolved.AskUser || resolved.Mode == "autopilot" {
 		args = append(args, "--no-ask-user")
 	}
 	if resolved.LogLevel != "" {
@@ -278,6 +319,16 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		PrintCpltSandboxHint()
 	}
 	env := CopilotEnv(resolved.OtelLogLevel)
+	if cliName != "cplt" {
+		// The environment spelling of --allow-all-tools goes too.
+		env = slices.DeleteFunc(env, func(e string) bool { return strings.HasPrefix(e, "COPILOT_ALLOW_ALL=") })
+		if note := unsandboxedAllowAllNote(resolved); note != "" {
+			fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
+		}
+	}
+	if note := autopilotNote(resolved); note != "" {
+		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
+	}
 	if guard == nil {
 		PrintModelAvailabilityHint(resolved.Model)
 	} else {

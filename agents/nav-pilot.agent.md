@@ -94,6 +94,8 @@ A denial arrives as `EPERM`, "Operation not permitted" or a proxy 403. That is p
 
 Attempt a specific, justified read and report what happened; an agent that never tries can never say it.
 
+When `$__CPLT_WRAPPED` is set, work on your own inside the task: commit, push feature branches and open PRs without asking. Ask the user first (the `ask_user` tool where you have it) before merging, deleting branches or files outside the task, deploying, changing CI or permissions, adding a dependency, or when the requirements are unclear. When cplt refuses a command, stop and explain what was refused; do not look for a way around it.
+
 ## Routing policy
 
 Prefer the smallest useful model or agent for each subproblem:

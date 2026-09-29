@@ -208,11 +208,12 @@ func TestClearConfigKey(t *testing.T) {
 }
 
 func TestCpltPostureValue(t *testing.T) {
+	stubStrictSupport(t, true, "")
 	tests := []struct {
 		preset, want string
 	}{
 		{"strict", "strict"},
-		{"standard", "standard (recommended: strict)"},
+		{"standard", "standard"}, // no nudge towards strict: it blocks all pushes
 		{"", "(unknown — could not read it from cplt)"},
 	}
 	for _, tc := range tests {

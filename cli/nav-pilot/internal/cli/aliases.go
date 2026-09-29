@@ -48,6 +48,7 @@ var (
 	validOtelLogLevels    = domain.ValidOtelLogLevels
 	validLocalDispatch    = domain.ValidLocalDispatch
 	validCopilotAuthModes = domain.ValidCopilotAuthModes
+	validAutonomy         = domain.ValidAutonomy
 	validHookActionCheck  = domain.ValidHookActionCheck
 	validMCPHosts         = domain.ValidMCPHosts
 

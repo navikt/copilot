@@ -58,6 +58,9 @@ func TestGoldenBuildCopilotArgs(t *testing.T) {
 				"--effort", "high",
 				"--context", "large",
 				"--allow-all-tools",
+				// Changed on purpose: autopilot answers ask_user itself, so
+				// nav-pilot takes the tool away (onboarding/autonomy decision).
+				"--no-ask-user",
 				"--log-level", "debug",
 				"-p", "hei",
 			},
@@ -97,7 +100,7 @@ func TestGoldenBuildCopilotArgs(t *testing.T) {
 				"--mode", "plan",
 				"--effort", "low",
 				"--context", "small",
-				"--allow-all-tools",
+				// Changed on purpose: no allow-all flag without cplt.
 				"--no-ask-user",
 				"--log-level", "error",
 				"--foo",

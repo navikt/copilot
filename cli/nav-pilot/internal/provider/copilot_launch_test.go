@@ -126,10 +126,11 @@ func TestBuildCopilotArgs(t *testing.T) {
 				"--allow-all-tools", "--no-ask-user", "--log-level", "debug"},
 		},
 		{
+			// Without cplt allow_all_tools is not passed on.
 			name:     "copilot with allow-all-tools and no-ask-user",
 			cliName:  "copilot",
 			resolved: domain.ResolvedConfig{Client: "copilot", Mode: "default", AllowAllTools: true, AskUser: false},
-			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6-sol", "--allow-all-tools", "--no-ask-user"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6-sol", "--no-ask-user"},
 		},
 		{
 			name:     "default mode not emitted",

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -330,6 +331,19 @@ func classifyLaunchError(err error) string {
 	return "unknown"
 }
 
+// openCodeAllowAllFlags are the OpenCode flags that auto-approve its
+// permission prompts (opencode 1.18: --auto, and the hidden --yolo and
+// --dangerously-skip-permissions aliases).
+var openCodeAllowAllFlags = []string{"--auto", "--yolo", "--dangerously-skip-permissions"}
+
+// isUnsandboxedDenied reports whether arg switches any client's permission
+// prompts off, also in the --flag=value spelling. pi has no permission prompts
+// and no such flag.
+func isUnsandboxedDenied(arg string) bool {
+	name, _, _ := strings.Cut(arg, "=")
+	return isAllowAllFlag(arg) || slices.Contains(openCodeAllowAllFlags, name)
+}
+
 // launchUnsandboxed runs the agent itself, without cplt, in the project
 // directory: what --no-sandbox means for opencode, as it does for copilot.
 // The environment is the launch's own (hooks, policy and OTel variables
@@ -340,8 +354,14 @@ func launchUnsandboxed(spec cpltLaunch) error {
 		telemetryRecorder.RecordLaunchError(spec.agent, "client_not_found")
 		return fmt.Errorf("%s not found in PATH", spec.agent)
 	}
+	// Allow-all is only safe with cplt as the boundary, for every client:
+	// whatever the config or the command line asked for, the flags go.
+	args := slices.DeleteFunc(slices.Clone(spec.agentArgs), isUnsandboxedDenied)
+	if len(args) != len(spec.agentArgs) {
+		fmt.Fprintf(os.Stderr, "%s Without cplt, %s asks before each action: nav-pilot passes no allow-all flags outside the sandbox.\n", domain.Yellow("⚠"), spec.displayName)
+	}
 	fmt.Printf("Launching %s %s%s...\n\n", domain.Bold(spec.displayName), domain.Yellow("without the sandbox"), spec.messageSuffix)
-	cmd := exec.Command(path, spec.agentArgs...)
+	cmd := exec.Command(path, args...)
 	cmd.Dir = spec.projectDir
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

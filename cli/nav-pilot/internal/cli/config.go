@@ -13,6 +13,7 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
+	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
 // validateModelForClient validates a model identifier by delegating to the
@@ -261,6 +262,10 @@ func validateConfigProblems(cfg *Config) []string {
 	if cfg.MCPHosts != nil && !containsStr(validMCPHosts, *cfg.MCPHosts) {
 		problems = append(problems, fmt.Sprintf("mcp_hosts %q is not valid (allowed: %s)",
 			*cfg.MCPHosts, strings.Join(validMCPHosts, ", ")))
+	}
+	if cfg.Autonomy != nil && !containsStr(validAutonomy, *cfg.Autonomy) {
+		problems = append(problems, fmt.Sprintf("autonomy %q is not valid (allowed: %s)",
+			*cfg.Autonomy, strings.Join(validAutonomy, ", ")))
 	}
 	if cfg.CopilotAuthMode != nil && !containsStr(validCopilotAuthModes, *cfg.CopilotAuthMode) {
 		problems = append(problems, fmt.Sprintf("copilot_auth_mode %q is not valid (allowed: %s)",
@@ -538,6 +543,25 @@ func configFixHint() string {
 	return fmt.Sprintf("Fix %s, then check it with nav-pilot config validate", configPath())
 }
 
+// navPilotUsedBefore reports whether nav-pilot has run on this machine
+// before, config.toml or not: the marker the first cplt launch on a terminal
+// leaves in the config directory (provider.PrintCpltSandboxHint), or a
+// user-scope install's state file. Such a user keeps conservative autonomy
+// until they choose; only a new user starts on sandbox.
+func navPilotUsedBefore() bool {
+	if dir, err := telemetrypkg.GetConfigDir(); err == nil {
+		if _, err := os.Stat(filepath.Join(dir, "seen-cplt-hint")); err == nil {
+			return true
+		}
+	}
+	if scope, err := domain.ScopeUser(); err == nil {
+		if _, err := os.Stat(scope.StatePath()); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // resolve builds a ResolvedConfig from file config and CLI overrides.
 // Precedence: CLI flag > file value > built-in default.
 func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
@@ -559,8 +583,20 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		MCPHosts:          "ask",
 	}
 
+	// No config.toml and no sign of an earlier run is a new user, who gets
+	// the new default. A file without the key, or a machine nav-pilot has run
+	// on without one, is someone from before this existed, who keeps the
+	// prompts they had.
+	r.Autonomy = "conservative"
+	if file == nil && !navPilotUsedBefore() {
+		r.Autonomy = "sandbox"
+	}
+
 	// Apply file values.
 	if file != nil {
+		if file.Autonomy != nil {
+			r.Autonomy = *file.Autonomy
+		}
 		if file.Client != nil {
 			r.Client = *file.Client
 		}

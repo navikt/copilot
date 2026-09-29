@@ -443,5 +443,8 @@ func LaunchCopilotStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 	}
 	PrintCpltSandboxHint()
 	PrintModelAvailabilityHint(r.Model)
+	if note := autopilotNote(r); note != "" {
+		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
+	}
 	return launchViaCplt(spec)
 }

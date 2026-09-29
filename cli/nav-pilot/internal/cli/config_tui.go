@@ -93,7 +93,7 @@ func buildPageRows(entries []configPageEntry, preset string) []pageRow {
 		pageRow{
 			kind:        rowAction,
 			key:         configPagePosture,
-			entry:       configPageEntry{Key: "cplt security posture"},
+			entry:       configPageEntry{Key: "cplt strict preset (blocks all pushes)"},
 			value:       cpltPostureValue(preset),
 			description: "Seeds cplt proxy.allowed_domains with the Nav hosts, then sets sandbox.preset = strict (requires cplt on your PATH). " + cpltStrictConsequence,
 		},
@@ -121,28 +121,21 @@ func formatPageValue(e configPageEntry) string {
 	}
 }
 
-// cpltPostureValue renders the posture row's right column: the current preset,
-// with the recommendation appended when it differs.
+// cpltPostureValue renders the posture row's right column: the current
+// preset, and where strict cannot work, that it cannot.
 func cpltPostureValue(preset string) string {
-	switch {
-	case preset == "":
+	if preset == "" {
 		return "(unknown — could not read it from cplt)"
-	case cpltRecommendStrict(preset):
-		return preset + " (recommended: " + cpltRecommendedPreset + ")"
-	default:
-		// Where strict cannot work, say so whatever the current preset is. On a
-		// preset below strict that means the option is closed rather than
-		// declined; on strict itself it means the machine is already in the
-		// state where cplt refuses to launch, which is the one the user most
-		// needs told.
-		if ok, _ := strictPresetSupported(); !ok {
-			if preset == cpltRecommendedPreset {
-				return preset + " (cplt will not launch: unsupported kernel)"
-			}
-			return preset + " (strict unavailable on this kernel)"
-		}
-		return preset
 	}
+	// On strict itself this is the state where cplt refuses to launch, which
+	// is the one the user most needs told.
+	if ok, _ := strictPresetSupported(); !ok {
+		if preset == cpltStrictPreset {
+			return preset + " (cplt will not launch: unsupported kernel)"
+		}
+		return preset + " (strict unavailable on this kernel)"
+	}
+	return preset
 }
 
 // configPageModel is the bubbletea model for the settings page.

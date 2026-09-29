@@ -267,6 +267,13 @@ func updateConfigKeys(kv ...string) error {
 		if !keys["client"] {
 			data = fmt.Appendf(data, "client = %s\n", tomlString(defaultClient(nil)))
 		}
+		// Same reason as client: a file without autonomy means conservative,
+		// so the first `config set` must not take a new user off the default.
+		// Someone who ran nav-pilot before without a file was on conservative
+		// and stays there.
+		if !keys["autonomy"] && !navPilotUsedBefore() {
+			data = fmt.Appendf(data, "autonomy = %s\n", tomlString("sandbox"))
+		}
 	case err != nil:
 		return fmt.Errorf("reading config: %w", err)
 	default:
