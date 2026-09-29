@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 func TestCpltPresetFromConfigGet(t *testing.T) {
@@ -163,7 +164,7 @@ esac
 `, log, cases.String())
 
 	bin := filepath.Join(dir, "cplt")
-	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+	if err := testhome.WriteExec(bin, script); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))

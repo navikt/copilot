@@ -13,6 +13,8 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 	"io"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 func TestToOpenCodeModel(t *testing.T) {
@@ -601,10 +603,10 @@ func TestLaunchPi_ErrorsWhenPiMissing(t *testing.T) {
 func TestLaunchPi_RoutesThroughCplt(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "argv.txt")
-	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte("#!/bin/sh\nprintf 'cplt %s' \"$*\" > "+out+"\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "cplt"), "#!/bin/sh\nprintf 'cplt %s' \"$*\" > "+out+"\n"); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "pi"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "pi"), "#!/bin/sh\n"); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir)
@@ -650,10 +652,10 @@ func TestLaunchPi_RoutesThroughCplt(t *testing.T) {
 func TestLaunchPi_ForwardsExtraArgs(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "argv.txt")
-	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte("#!/bin/sh\nprintf 'cplt %s' \"$*\" > "+out+"\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "cplt"), "#!/bin/sh\nprintf 'cplt %s' \"$*\" > "+out+"\n"); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "pi"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "pi"), "#!/bin/sh\n"); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir)

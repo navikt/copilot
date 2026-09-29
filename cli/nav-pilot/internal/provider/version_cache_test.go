@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // A client's version is asked once, then read from the cache until the
@@ -16,7 +18,7 @@ func TestCachedVersionPersists(t *testing.T) {
 	bin := filepath.Join(dir, "fakeclient")
 	write := func(version string) {
 		script := "#!/bin/sh\necho x >> " + count + "\necho " + version + "\n"
-		if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		if err := testhome.WriteExec(bin, script); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 func TestReportBrokenRtkHook(t *testing.T) {
@@ -29,7 +31,7 @@ func TestReportBrokenRtkHook(t *testing.T) {
 
 			if tt.installRtk {
 				path := filepath.Join(bin, "rtk")
-				if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+				if err := testhome.WriteExec(path, "#!/bin/sh\nexit 0\n"); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -94,7 +96,7 @@ func TestRemoveUnusableRtkHook(t *testing.T) {
 		t.Setenv("HOME", home)
 		t.Setenv("PATH", bin)
 		rtk := filepath.Join(bin, "rtk")
-		if err := os.WriteFile(rtk, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		if err := testhome.WriteExec(rtk, "#!/bin/sh\nexit 0\n"); err != nil {
 			t.Fatal(err)
 		}
 		hook := filepath.Join(home, ".copilot", "hooks", "rtk-rewrite.json")

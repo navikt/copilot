@@ -1,12 +1,12 @@
 package cli
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // doctor reports the copilot binary, which cplt needs on PATH (#1051). Missing
@@ -33,7 +33,7 @@ func TestReportCopilotCLI(t *testing.T) {
 			}
 			bin := t.TempDir()
 			if c.script != "" {
-				if err := os.WriteFile(filepath.Join(bin, "copilot"), []byte(c.script), 0o755); err != nil {
+				if err := testhome.WriteExec(filepath.Join(bin, "copilot"), c.script); err != nil {
 					t.Fatal(err)
 				}
 			}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // The launch paths NAV_PILOT_SKILLS_DIR has to cover, and the two seams they
@@ -230,12 +231,12 @@ func fakeCplt(t *testing.T) string {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "skillsdir.txt")
 	script := "#!/bin/sh\nprintf '%s' \"${" + SkillsDirEnv + "-UNSET}\" > " + out + "\n"
-	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte(script), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "cplt"), script); err != nil {
 		t.Fatal(err)
 	}
 	// cplt runs the Copilot CLI on PATH, and nav-pilot hands off only when
 	// there is one (#1064).
-	if err := os.WriteFile(filepath.Join(dir, "copilot"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "copilot"), "#!/bin/sh\nexit 0\n"); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir)

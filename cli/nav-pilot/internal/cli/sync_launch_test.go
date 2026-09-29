@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // plainCopilot puts a copilot in dir that only answers --version: cplt starts
@@ -16,7 +18,7 @@ import (
 func plainCopilot(t *testing.T, dir string) {
 	t.Helper()
 	script := "#!/bin/sh\n[ \"$1\" = --version ] && echo 'GitHub Copilot CLI 1.0.40'\nexit 0\n"
-	if err := os.WriteFile(filepath.Join(dir, "copilot"), []byte(script), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "copilot"), script); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -36,7 +38,7 @@ func stubClient(t *testing.T, name string) (markerPath string) {
 	// A --version probe (FindCopilotCLI asks a plain copilot whether it is
 	// cplt) is not a launch.
 	script := "#!/bin/sh\n[ \"$1\" = --version ] && exit 0\n: > \"" + markerPath + "\"\n"
-	if err := os.WriteFile(filepath.Join(binDir, name), []byte(script), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(binDir, name), script); err != nil {
 		t.Fatal(err)
 	}
 	if name == "cplt" {
@@ -82,7 +84,7 @@ func TestSyncFlagHonoursAutoLaunchFalse(t *testing.T) {
 	}
 	marker := stubClient(t, "pi")
 	// pi launches only inside cplt, so without it pi is not available at all.
-	if err := os.WriteFile(filepath.Join(os.Getenv("PATH"), "cplt"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(os.Getenv("PATH"), "cplt"), "#!/bin/sh\n"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -184,7 +186,7 @@ func TestProjectDirFlagReachesCplt(t *testing.T) {
 	binDir := t.TempDir()
 	argsFile := filepath.Join(t.TempDir(), "args")
 	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"" + argsFile + "\"\n"
-	if err := os.WriteFile(filepath.Join(binDir, "cplt"), []byte(script), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(binDir, "cplt"), script); err != nil {
 		t.Fatal(err)
 	}
 	plainCopilot(t, binDir)

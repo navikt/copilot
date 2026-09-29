@@ -16,7 +16,7 @@ func TestHookCommandQuotesThePath(t *testing.T) {
 	// HookCommand runs whichever python3 is on PATH; put a working one first.
 	bin := t.TempDir()
 	wrapper := "#!/bin/sh\nexec '" + testhome.Python3(t) + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(bin, "python3"), []byte(wrapper), 0o755); err != nil {
+	if err := testhome.WriteExec(filepath.Join(bin, "python3"), wrapper); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))

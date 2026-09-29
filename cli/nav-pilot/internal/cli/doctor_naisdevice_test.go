@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 // naisStatusWithToken is the shape `nais device status --output json` answers
@@ -286,7 +288,7 @@ func TestNaisDeviceStatus_BoundedByItsOwnDeadline(t *testing.T) {
 func fakeNais(t *testing.T, body string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "nais")
-	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o700); err != nil {
+	if err := testhome.WriteExec(path, "#!/bin/sh\n"+body+"\n"); err != nil {
 		t.Fatal(err)
 	}
 	return path
