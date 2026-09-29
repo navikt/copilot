@@ -196,3 +196,41 @@ EOF
   # rtk must never be auto-installed from an unpinned upstream branch
   [[ "$output" != *"refs/heads/master/install.sh"* ]]
 }
+
+# A directory on PATH is found even when PATH is larger than a pipe buffer.
+# With `echo "$PATH" | tr | grep -q` under pipefail, grep exits on the first
+# line and the writers die of SIGPIPE, so the match is read as a miss and the
+# installer falls through to ~/.local/bin, which is not on PATH here (#1318).
+@test "picks ~/bin from a long PATH" {
+  export HOME="${TMP_DIR}/home"
+  mkdir -p "${HOME}/bin"
+  local pad
+  pad=$(printf ':/nonexistent/pad-%05d' $(seq 1 5000))
+  export PATH="${HOME}/bin:${PATH}${pad}"
+
+  run bash "$SCRIPT"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Installed nav-pilot to ${HOME}/bin/nav-pilot"* ]]
+}
+
+# The same race on the gh error: an auth failure whose message is larger than
+# a pipe buffer is read as a miss, and the installer reports tampering (#1318).
+@test "treats a long gh auth error as unauthenticated, not as tampering" {
+  cat <<'EOF' > "${MOCK_BIN}/gh"
+#!/bin/bash
+if [[ "$1" == "attestation" ]]; then
+  echo "gh: authentication required" >&2
+  printf 'padding line for the pipe buffer\n%.0s' $(seq 1 4000) >&2
+  exit 1
+fi
+echo "mock gh $*"
+EOF
+  chmod +x "${MOCK_BIN}/gh"
+
+  run bash "$SCRIPT" --dir "${TMP_DIR}/install-dest"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"GitHub CLI (gh) is not authenticated"* ]]
+  [[ "$output" != *"Provenance verification failed"* ]]
+}
