@@ -2,11 +2,13 @@ package cli
 
 import (
 	"fmt"
+	"maps"
 	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -141,6 +143,9 @@ func TestParseCpltCheckReport(t *testing.T) {
 // their actual exec paths — the point being to check the wiring, not a helper's
 // return value.
 //
+// A set passed --force is also recorded, as its key, in the log path plus
+// ".force".
+//
 // Returns the path of the recording log.
 func fakeCplt(t *testing.T, get map[string]string) string {
 	t.Helper()
@@ -155,14 +160,15 @@ func fakeCplt(t *testing.T, get map[string]string) string {
 
 	script := fmt.Sprintf(`#!/bin/sh
 case "$1 $2" in
-  "config set") printf '%%s %%s\n' "$3" "$4" >> %q ;;
+  "config set") printf '%%s %%s\n' "$3" "$4" >> %q
+    if [ "$5" = --force ]; then printf '%%s\n' "$3" >> %q.force; fi ;;
   "config get")
     case "$3" in
 %s      *) exit 1 ;;
     esac ;;
   *) exit 1 ;;
 esac
-`, log, cases.String())
+`, log, log, cases.String())
 
 	bin := filepath.Join(dir, "cplt")
 	if err := testhome.WriteExec(bin, script); err != nil {
@@ -871,5 +877,87 @@ func TestCpltHostsRejectsAnEmptyAgentHosts(t *testing.T) {
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	if _, fromCplt := cpltBuiltinDomains(); fromCplt {
 		t.Error("accepted an answer with no agent_hosts")
+	}
+}
+
+// ─── the sandbox wizard ──────────────────────────────────────────────────────
+
+// allToggles answers `config get` for every wizard key: on for the given ones,
+// off for the rest.
+func allToggles(on ...string) map[string]string {
+	get := map[string]string{}
+	for _, t := range sandboxToggles {
+		get[t.key] = strconv.FormatBool(slices.Contains(on, t.key))
+	}
+	return get
+}
+
+// The wizard used to start with nothing selected and write false to every key
+// the user did not tick, so pressing Enter wiped settings made earlier. Now
+// the current values are pre-selected, and accepting them writes nothing.
+func TestSandboxWizardKeepsCurrentSettings(t *testing.T) {
+	isolatedConfig(t)
+	log := fakeCplt(t, allToggles("sandbox.allow_docker", "sandbox.allow_localhost_any"))
+	cliPath, err := findCplt()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cur := currentSandboxToggles(cliPath)
+	var preselected []string
+	for k, on := range cur {
+		if on {
+			preselected = append(preselected, k)
+		}
+	}
+	if err := applySandboxChanges(cliPath, sandboxChanges(cur, preselected)); err != nil {
+		t.Fatal(err)
+	}
+	if sets := configSets(t, log); len(sets) != 0 {
+		t.Errorf("accepting the current settings wrote %v, want nothing", sets)
+	}
+}
+
+func TestSandboxWizardWritesOnlyWhatChanged(t *testing.T) {
+	isolatedConfig(t)
+	log := fakeCplt(t, allToggles("sandbox.allow_docker"))
+	cliPath, err := findCplt()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cur := currentSandboxToggles(cliPath)
+	chosen := []string{"sandbox.allow_jvm_attach", "sandbox.allow_browser"}
+	if err := applySandboxChanges(cliPath, sandboxChanges(cur, chosen)); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"sandbox.allow_docker":     "false",
+		"sandbox.allow_jvm_attach": "true",
+		"sandbox.allow_browser":    "true",
+	}
+	if got := configSets(t, log); !maps.Equal(got, want) {
+		t.Errorf("wrote %v, want %v", got, want)
+	}
+	// cplt refuses to turn allow_browser on without --force; allow_jvm_attach
+	// needs none, and turning a key off never does.
+	force, _ := os.ReadFile(log + ".force")
+	if got := strings.Fields(string(force)); !slices.Equal(got, []string{"sandbox.allow_browser"}) {
+		t.Errorf("--force passed for %v, want only sandbox.allow_browser", got)
+	}
+}
+
+// A key an older cplt does not know is neither offered nor written.
+func TestSandboxWizardSkipsKeysCpltDoesNotKnow(t *testing.T) {
+	isolatedConfig(t)
+	get := allToggles()
+	delete(get, "sandbox.allow_build_credentials")
+	fakeCplt(t, get)
+	cliPath, err := findCplt()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := currentSandboxToggles(cliPath)["sandbox.allow_build_credentials"]; ok {
+		t.Error("offered sandbox.allow_build_credentials, which this cplt does not know")
 	}
 }
