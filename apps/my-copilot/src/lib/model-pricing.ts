@@ -1,7 +1,7 @@
 /**
  * GitHub Copilot model pricing data.
  * Source: https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing
- * Last updated: 2026-09-23
+ * Last updated: 2026-09-29
  *
  * All prices are per 1 million tokens in USD.
  * 1 AI credit = $0.01 USD.
@@ -299,6 +299,16 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 10,
   },
   {
+    model: "Claude Sonnet 5.5",
+    provider: "Anthropic",
+    category: "Versatile",
+    status: "GA",
+    input: 2,
+    cachedInput: 0.2,
+    cacheWrite: 2.5,
+    output: 10,
+  },
+  {
     model: "Claude Opus 4.8 (fast mode) (preview)",
     provider: "Anthropic",
     category: "Powerful",
@@ -403,4 +413,4 @@ export const MODEL_PRICING: ModelPrice[] = [
 ];
 
 export const PRICING_SOURCE_URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing";
-export const PRICING_LAST_UPDATED = "2026-09-23";
+export const PRICING_LAST_UPDATED = "2026-09-29";
