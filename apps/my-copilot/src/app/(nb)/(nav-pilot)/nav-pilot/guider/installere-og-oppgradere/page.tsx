@@ -205,6 +205,11 @@ ${NAV_PILOT_BREW_UPGRADE}   # Homebrew
 sudo apt update && sudo apt upgrade nav-pilot  # Debian og Ubuntu`}
           </CodeBlock>
           <BodyLong>
+            cplt er en egen pakke, og kommandoene over oppgraderer bare nav-pilot. Oppgrader cplt med{" "}
+            <code className={code}>brew upgrade navikt/tap/cplt</code> eller{" "}
+            <code className={code}>sudo apt upgrade cplt</code>.
+          </BodyLong>
+          <BodyLong>
             <code className={code}>nav-pilot upgrade</code> spør ikke, og installerer alltid nyeste versjon. Har du
             installert med Homebrew eller apt, lar den binæren være og skriver kommandoen som virker.{" "}
             <code className={code}>--dry-run</code> sjekker bare. Vil du ha en bestemt versjon, bruk pakkebehandleren

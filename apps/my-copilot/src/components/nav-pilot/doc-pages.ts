@@ -24,6 +24,11 @@ export const GUIDE_PAGES: DocLink[] = [
     desc: "Styr utsendingen, bytt modell og bruk alpha decide i hooks og skript.",
   },
   {
+    href: "/nav-pilot/guider/worktrees",
+    title: "Worktrees",
+    desc: "Start nav-pilot i en git worktree, og la agenten lage worktrees til underagenter i cplt.",
+  },
+  {
     href: "/nav-pilot/guider/feilsoking",
     title: "Feilsøking",
     desc: "Sjekk maskinen med doctor, se hva cplt blokkerer, og få liv i en lokal modell som henger.",

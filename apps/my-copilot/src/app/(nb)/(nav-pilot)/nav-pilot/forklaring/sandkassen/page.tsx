@@ -71,6 +71,13 @@ export default function Sandkassen() {
             eller kjør <code className={code}>nav-pilot --project-dir &lt;katalog&gt;</code>. Hjemmekatalogen og{" "}
             <code className={code}>/</code> avviser cplt, fordi de gir for mye tilgang.
           </BodyLong>
+          <BodyLong>
+            Står du i en git worktree, eller vil du at agenten skal lage worktrees til underagenter, se{" "}
+            <NextLink href="/nav-pilot/guider/worktrees" className={linkClass}>
+              Worktrees med nav-pilot og cplt
+            </NextLink>
+            .
+          </BodyLong>
         </VStack>
       </section>
 
