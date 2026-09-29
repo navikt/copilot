@@ -92,7 +92,7 @@ func cmdAuthStatus(jsonOutput bool) error {
 }
 
 // cmdAuthLogout revokes the stored token at GitHub through copilot-cli, then
-// removes it from the keychain whatever the revoke's outcome. Idempotent —
+// removes it from the keychain whatever the revoke's outcome. Idempotent:
 // logging out when already logged out is not an error.
 func cmdAuthLogout() error {
 	revoked := false
@@ -118,8 +118,8 @@ func cmdAuthLogout() error {
 }
 
 // revokeToken asks copilot-cli to revoke token at GitHub, which only the
-// App's client secret can do. 401 means GitHub no longer knows the token:
-// nothing left to revoke.
+// App's client secret can do. Only 204 proves the revoke: 401 also covers a
+// still-valid token of another App (a NAV_PILOT_GITHUB_CLIENT_ID override).
 func revokeToken(ctx context.Context, baseURL, token string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimSuffix(baseURL, "/")+"/api/v1/auth/revoke", nil)
 	if err != nil {
@@ -132,8 +132,10 @@ func revokeToken(ctx context.Context, baseURL, token string) error {
 	}
 	defer resp.Body.Close()
 	switch resp.StatusCode {
-	case http.StatusNoContent, http.StatusUnauthorized:
+	case http.StatusNoContent:
 		return nil
+	case http.StatusUnauthorized:
+		return errors.New("copilot-cli does not know the token (already revoked or expired, or issued to another App)")
 	}
 	return fmt.Errorf("copilot-cli answered %s", resp.Status)
 }
