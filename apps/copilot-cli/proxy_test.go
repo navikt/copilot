@@ -49,6 +49,8 @@ func TestRoutesForward(t *testing.T) {
 			seen{"GET", "/api/v1/copilot/usage/user/hans", "Bearer m2m", "hans", "", ""}},
 		{"survey definitions, public", "GET", "/api/v1/surveys/active", "", "", 200,
 			seen{"GET", "/api/v1/surveys/active", "", "", "", ""}},
+		{"survey schema, public", "GET", "/api/v1/surveys/schema", "", "", 200,
+			seen{"GET", "/api/v1/surveys/schema", "", "", "", ""}},
 		{"survey answer", "POST", "/api/v1/surveys/q4-2026/responses", "good-token", `{"answers":{}}`, 201,
 			seen{"POST", "/api/v1/surveys/q4-2026/responses", "Bearer m2m", "hans", "application/json", `{"answers":{}}`}},
 	} {

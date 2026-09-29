@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getActiveSurveys, isSkipped, scaleSteps, submitAnswers, type SurveyQuestion } from "./survey";
+import { getActiveSurveys, isSkipped, scaleSteps, submitAnswers, type Survey, type SurveyQuestion } from "./survey";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -63,5 +65,37 @@ describe("submitAnswers", () => {
   it("maps 400 to invalid", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response('{"error":"no answers"}', { status: 400 })));
     expect(await submitAnswers("token", "q4-2026", {})).toEqual({ status: "invalid" });
+  });
+});
+
+describe("types follow copilot-survey's schema.json", () => {
+  const schema = JSON.parse(
+    readFileSync(path.resolve(__dirname, "../../../copilot-survey/surveys/schema.json"), "utf8")
+  ) as { properties: object; $defs: { question: { properties: object } } };
+  // Not needed to render or send: copilot-survey serves only open surveys, and the rest is for analysis.
+  const ignored = ["series", "active", "nudge", "starts", "version", "construct", "reverse"];
+  const fields = (props: object) =>
+    Object.keys(props)
+      .filter((k) => !ignored.includes(k))
+      .sort();
+  // Every field of the types, and only those: satisfies fails the type check otherwise.
+  const question = {
+    id: "",
+    type: "scale",
+    text: "",
+    required: false,
+    min: 0,
+    max: 0,
+    labels: [],
+    options: [],
+    max_choices: 0,
+    max_length: 0,
+    skip_if: { question: "", answer: "" },
+  } satisfies Required<SurveyQuestion>;
+  const survey = { id: "", title: "", intro: "", ends: "", questions: [] } satisfies Required<Survey>;
+
+  it("reads every field the web needs, and none the schema lacks", () => {
+    expect(Object.keys(question).sort()).toEqual(fields(schema.$defs.question.properties));
+    expect(Object.keys(survey).sort()).toEqual(fields(schema.properties));
   });
 });
