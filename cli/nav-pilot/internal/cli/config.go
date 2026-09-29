@@ -555,7 +555,7 @@ func navPilotUsedBefore() bool {
 		}
 	}
 	if scope, err := domain.ScopeUser(); err == nil {
-		if _, err := os.Stat(filepath.Join(scope.RootDir, scope.StateFile)); err == nil {
+		if _, err := os.Stat(scope.StatePath()); err == nil {
 			return true
 		}
 	}
