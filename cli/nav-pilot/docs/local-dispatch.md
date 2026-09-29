@@ -266,10 +266,17 @@ nothing. So:
   which left production code broken. The verify text now says to undo the break by
   reversing the edit and never to copy outside the project, and the create-file refusal
   says to keep drafts in the project. The gate also refuses the orchestrator's own edit,
-  write or shell command that names a path in `/tmp`, `/private/tmp` or `os.TempDir()`
-  outside the project, at every budget, as outcome `deny_tmp`. A refusal is a tool
-  result, so the session goes on. A path built at run time (`$TMPDIR`, `mktemp`) is not
-  seen. In an interactive session this replaces opencode's prompt for those paths.
+  write or shell command that names a path in `/tmp`, `/var/tmp` or `$TMPDIR`
+  (`os.TempDir()`, in either form when it is behind a symlink) outside the project, at
+  every budget, as outcome `deny_tmp`. A literal `~`, `$HOME` or `$TMPDIR` counts too,
+  although opencode itself skips arguments with a `$`: a backup there is still outside
+  the project. In home, the gate refuses the edit and write tools, a redirect, and the
+  path arguments of the commands opencode checks (`cd`, `pushd`, `popd`, `rm`, `cp`,
+  `mv`, `mkdir`, `touch`, `chmod`, `chown`, `cat`) and of `tee`, `ln`, `rsync` and
+  `install` (#1273). Other commands may read from home, since a build reads the JDK and
+  the Gradle and Maven caches there. A refusal is a tool result, so the session goes on. A path built
+  at run time (`mktemp`, other variables) is not seen. In an interactive session this
+  replaces opencode's prompt for those paths.
 - The mutation check for new tests is policy text only. nav-pilot cannot tell whether a
   test was run against broken code.
 - Everything fails open: no answer, no model recorded for the session, or an error means

@@ -390,39 +390,106 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 }
 
 // outsideTemp: an edit, a write or a shell command names a path in a temp
-// directory that is not under the project. ponytail: a path built at run time
-// ($TMPDIR, mktemp) is not seen; add those if a probe shows them.
+// directory (/tmp, /var/tmp, $TMPDIR) that is not under the project, or one in
+// the home directory as the target of a redirect or an argument of a command
+// opencode checks (cd, rm, cp, mv, mkdir, touch, chmod, chown, cat, and a few
+// more that write). opencode asks external_directory for those, and a headless
+// session ends there (#1237, #1273). Other commands may read from home: a build
+// reads the JDK and the Gradle and Maven caches there.
+// ponytail: a path built at run time (mktemp, a variable other than $HOME or
+// $TMPDIR) is not seen; add those if a probe shows them.
 func (g *dispatchGate) outsideTemp(r GateRequest) bool {
-	var paths []string
+	type named struct {
+		path  string
+		write bool
+	}
+	var paths []named
 	switch r.Tool {
 	case "edit", "write":
-		paths = []string{r.Path}
+		paths = []named{{r.Path, true}}
 	case "bash":
 		for _, seg := range splitSegments(r.Command) {
-			for _, t := range shellWords(seg.text) {
-				// A redirect (>/tmp/x, 2>>/tmp/x) or a flag's value (--out=/tmp/x).
+			words := shellWords(seg.text)
+			cmd := commandWords(words)
+			writer := len(cmd) > 0 && homeWriters[filepath.Base(cmd[0])]
+			redirect := false
+			for _, t := range words {
+				// A redirect (>/tmp/x, 2>>/tmp/x, > ~/x) or a flag's value (--out=/tmp/x).
+				op := strings.TrimLeft(t, "0123456789&")
+				into := redirect || strings.HasPrefix(op, ">")
 				t = strings.TrimLeft(t, "0123456789<>&")
+				redirect = t == "" && strings.HasPrefix(op, ">")
 				if i := strings.IndexByte(t, '='); i > 0 && !strings.HasPrefix(t, "/") {
 					t = t[i+1:]
 				}
-				paths = append(paths, t)
+				paths = append(paths, named{expandShellPath(t), writer || into})
 			}
 		}
 	}
+	project := resolvedForms(g.rules.Root)
+	temps := resolvedForms("/tmp", "/private/tmp", "/var/tmp", "/private/var/tmp", os.TempDir())
+	var home []string
+	if h, err := os.UserHomeDir(); err == nil && h != "/" {
+		home = resolvedForms(h)
+	}
 	for _, p := range paths {
-		if !filepath.IsAbs(p) {
+		if !filepath.IsAbs(p.path) || within(project, p.path) {
 			continue
 		}
-		if _, in := under(g.rules.Root, p); in || filepath.Clean(p) == filepath.Clean(g.rules.Root) {
+		if within(temps, p.path) || p.write && within(home, p.path) {
+			return true
+		}
+	}
+	return false
+}
+
+// homeWriters are the commands whose path arguments count for home in
+// [dispatchGate.outsideTemp]: those opencode asks external_directory for
+// (ShellTool in opencode 1.18), plus tee, ln, rsync and install, which write.
+var homeWriters = map[string]bool{
+	"cd": true, "chdir": true, "pushd": true, "popd": true,
+	"rm": true, "cp": true, "mv": true, "mkdir": true, "touch": true,
+	"chmod": true, "chown": true, "cat": true,
+	"tee": true, "ln": true, "rsync": true, "install": true,
+}
+
+// expandShellPath expands what the shell would for a literal ~, $HOME or
+// $TMPDIR at the start of a word, and leaves anything else alone.
+func expandShellPath(w string) string {
+	home, _ := os.UserHomeDir()
+	for _, v := range []struct{ prefix, dir string }{
+		{"~", home}, {"$HOME", home}, {"${HOME}", home},
+		{"$TMPDIR", os.TempDir()}, {"${TMPDIR}", os.TempDir()},
+	} {
+		if rest, ok := strings.CutPrefix(w, v.prefix); ok && v.dir != "" && (rest == "" || rest[0] == '/') {
+			return filepath.Join(v.dir, rest)
+		}
+	}
+	return w
+}
+
+// resolvedForms is each dir as given and with symlinks resolved: on macOS
+// /var/tmp is /private/var/tmp and $TMPDIR is under /private/var/folders, and a
+// command can name either.
+func resolvedForms(dirs ...string) []string {
+	var out []string
+	for _, d := range dirs {
+		if d == "" {
 			continue
 		}
-		for _, tmp := range []string{"/tmp", "/private/tmp", os.TempDir()} {
-			if p == filepath.Clean(tmp) {
-				return true
-			}
-			if _, in := under(tmp, p); in {
-				return true
-			}
+		out = append(out, filepath.Clean(d))
+		if r, err := filepath.EvalSymlinks(d); err == nil {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// within reports whether path is one of dirs or under one.
+func within(dirs []string, path string) bool {
+	for _, d := range dirs {
+		if _, in := under(d, path); in || filepath.Clean(path) == d {
+			return true
 		}
 	}
 	return false
@@ -889,6 +956,18 @@ func perlFiles(args []string) (files, scripts []string, inPlace bool) {
 	return files, scripts, inPlace
 }
 
+// commandWords drops what comes before the command itself: assignments
+// (FOO=1), keywords and wrappers (do, env, time, timeout 60, …).
+func commandWords(toks []string) []string {
+	for len(toks) > 0 && (strings.Contains(toks[0], "=") || slices.Contains([]string{"do", "then", "{", "(", "time", "env", "command", "nice"}, toks[0])) {
+		toks = toks[1:]
+	}
+	if len(toks) > 1 && toks[0] == "timeout" {
+		toks = toks[2:]
+	}
+	return toks
+}
+
 // Verifies reports whether a bash command builds the project or runs its
 // tests: a segment that runs a build tool or test runner.
 //
@@ -896,13 +975,7 @@ func perlFiles(args []string) (files, scripts []string, inPlace bool) {
 // here costs one reminder too many (verify_nudge), never a refusal.
 func Verifies(cmd string) bool {
 	for _, seg := range splitSegments(cmd) {
-		toks := shellWords(seg.text)
-		for len(toks) > 0 && (strings.Contains(toks[0], "=") || slices.Contains([]string{"do", "then", "{", "(", "time", "env", "command", "nice"}, toks[0])) {
-			toks = toks[1:]
-		}
-		if len(toks) > 1 && toks[0] == "timeout" {
-			toks = toks[2:]
-		}
+		toks := commandWords(shellWords(seg.text))
 		if len(toks) == 0 {
 			continue
 		}
