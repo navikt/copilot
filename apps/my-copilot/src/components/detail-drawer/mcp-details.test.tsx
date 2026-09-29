@@ -57,4 +57,32 @@ describe("McpDetails", () => {
       consoleError.mockRestore();
     }
   });
+
+  it("shows nav-pilot mcp enable with the full registry name before the manual setup", () => {
+    const item: EnrichedCustomization = {
+      id: "mcp-io.github.navikt/github-mcp",
+      name: "github-mcp",
+      description: "GitHub.",
+      type: "mcp",
+      serverId: "io.github.navikt/github-mcp",
+      domain: "general",
+      filePath: "",
+      repoPath: "",
+      rawGitHubUrl: "",
+      installUrl: null,
+      insidersInstallUrl: null,
+      version: "1.0.0",
+      remotes: [{ type: "streamable-http", url: "https://api.githubcopilot.com/mcp/" }],
+      usageCount: 0,
+      usedBy: [],
+    };
+
+    render(<McpDetails item={item} />);
+
+    const primary = screen.getByText("nav-pilot mcp enable io.github.navikt/github-mcp");
+    const manual = screen.getByRole("heading", { name: "Manuelt oppsett" });
+    expect(primary.compareDocumentPosition(manual) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText("nav-pilot mcp list")).toBeInTheDocument();
+    expect(screen.getAllByRole("heading")[0]).toHaveTextContent("Installering");
+  });
 });
