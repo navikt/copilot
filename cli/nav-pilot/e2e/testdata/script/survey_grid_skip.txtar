@@ -1,0 +1,18 @@
+# A required matrix with skip_if is skipped whole: none of its items is
+# shown or sent, and its required check does not stop the form. The list of
+# surveys is fetched with nav-pilot's version as User-Agent, which
+# copilot-survey reads for min_cli_version.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+env NAV_PILOT_TELEMETRY_ENABLED=true
+env DO_NOT_TRACK=
+env NAV_PILOT_TELEMETRY_ENDPOINT=http://127.0.0.1:9/v1/metrics
+env NAV_PILOT_E2E_GITHUB_TOKEN=gho_e2e
+fake-survey -grid-skip
+
+exec pty-run -wait 'How useful is nav-pilot' -send '\x1b[B\x1b[B\x1b[B\r' -wait 'Velg opptil 2' -send ' \r' -wait 'Anything else' -send '\r' -- nav-pilot survey
+! stdout 'It is fast'
+stdout 'Takk! Svaret ditt er sendt'
+grep -count=1 '^POST 201 .*"answers":\{"clients":\["copilot"\],"useful":3\}' $WORK/survey-posts.log
+grep '^GET nav-pilot/' $WORK/survey-gets.log

@@ -52,6 +52,7 @@ func (p *upstream) forward(w http.ResponseWriter, r *http.Request, path string) 
 	if ct := r.Header.Get("Content-Type"); ct != "" {
 		req.Header.Set("Content-Type", ct)
 	}
+	req.Header.Set("User-Agent", r.Header.Get("User-Agent"))
 	if user, ok := userFromContext(r.Context()); ok {
 		token, tokenErr := p.texas.token(r.Context())
 		if tokenErr != nil {
@@ -90,6 +91,9 @@ func (p *upstream) forward(w http.ResponseWriter, r *http.Request, path string) 
 	}
 	if cc := resp.Header.Get("Cache-Control"); cc != "" {
 		w.Header().Set("Cache-Control", cc)
+	}
+	if v := resp.Header.Get("Vary"); v != "" {
+		w.Header().Set("Vary", v)
 	}
 	w.WriteHeader(resp.StatusCode)
 	if _, err := io.Copy(w, resp.Body); err != nil {

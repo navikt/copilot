@@ -43,4 +43,21 @@ describe("SurveyForm matrix", () => {
     expect(await screen.findByText("Takk! Svaret ditt er sendt.")).toBeInTheDocument();
     expect(sendSurvey).toHaveBeenCalledWith("s", { fast: 3, safe: 1 });
   });
+
+  it("skips a required grid whole when an earlier answer says so", async () => {
+    sendSurvey.mockReset().mockResolvedValue({ status: "recorded" });
+    const skipping: Survey = {
+      ...survey,
+      questions: [
+        { id: "verktoy", type: "multi", text: "Hvilke verktøy?", required: true, options: ["Copilot", "Ingen"] },
+        { ...survey.questions[0], skip_if: { question: "verktoy", answer: "Ingen" } },
+      ],
+    };
+    render(<SurveyForm survey={skipping} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ingen" }));
+    expect(screen.queryByRole("group", { name: "Hvor enig er du?" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
+    expect(await screen.findByText("Takk! Svaret ditt er sendt.")).toBeInTheDocument();
+    expect(sendSurvey).toHaveBeenCalledWith("s", { verktoy: ["Ingen"] });
+  });
 });

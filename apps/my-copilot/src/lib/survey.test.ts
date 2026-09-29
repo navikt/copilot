@@ -92,8 +92,8 @@ describe("types follow copilot-survey's schema.json", () => {
   const schema = JSON.parse(
     readFileSync(path.resolve(__dirname, "../../../copilot-survey/surveys/schema.json"), "utf8")
   ) as { properties: object; $defs: { question: { properties: object }; item: { properties: object } } };
-  // Not needed to render or send: copilot-survey serves only open surveys, and the rest is for analysis.
-  const ignored = ["series", "active", "nudge", "starts", "version", "construct", "reverse"];
+  // Not needed to render or send: copilot-survey serves only open surveys, min_cli_version is for nav-pilot, and the rest is for analysis.
+  const ignored = ["series", "active", "nudge", "min_cli_version", "starts", "version", "construct", "reverse"];
   const fields = (props: object) =>
     Object.keys(props)
       .filter((k) => !ignored.includes(k))

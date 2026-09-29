@@ -16,6 +16,15 @@ var submissions = promauto.NewCounterVec(prometheus.CounterOpts{
 	Help: "Survey submissions by survey id and HTTP status.",
 }, []string{"survey", "status"})
 
+// unexpectedNameIDs counts nav-pilot submissions whose SAML nameId is not
+// an @nav.no address. The web hashes the Entra preferred_username, which is
+// @nav.no, so such a nameId would give the same person a second answer. No
+// label and no identity: only how often it happens.
+var unexpectedNameIDs = promauto.NewCounter(prometheus.CounterOpts{
+	Name: "survey_cli_nameid_unexpected_domain_total",
+	Help: "nav-pilot survey submissions whose SAML nameId is not an @nav.no address.",
+})
+
 type statusRecorder struct {
 	http.ResponseWriter
 	status int

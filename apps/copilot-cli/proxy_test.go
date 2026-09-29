@@ -160,3 +160,23 @@ func TestForwardPassesRedirectAsIs(t *testing.T) {
 		t.Fatalf("got %d, followed=%v, Content-Type %q; want 302, no follow, none", rec.Code, followed, rec.Header().Get("Content-Type"))
 	}
 }
+
+// The survey list reaches copilot-survey as nav-pilot's, with its
+// User-Agent, whatever query the caller sent.
+func TestSurveyListNamesNavPilot(t *testing.T) {
+	a, _ := testAuthenticator(t)
+	var query, agent string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query, agent = r.URL.RawQuery, r.UserAgent()
+		w.Header().Set("Vary", "User-Agent")
+	}))
+	t.Cleanup(srv.Close)
+	up := newUpstream("copilot-survey", srv.URL, newTexasClient(srv.URL+"/token", "api://x"))
+	req := httptest.NewRequest("GET", "/api/v1/surveys/active?client=web", nil)
+	req.Header.Set("User-Agent", "nav-pilot/2026.09.29-073815-8801b8d")
+	rec := httptest.NewRecorder()
+	makeRouter(a, up, up).ServeHTTP(rec, req)
+	if query != "client=nav-pilot" || agent != "nav-pilot/2026.09.29-073815-8801b8d" || rec.Header().Get("Vary") != "User-Agent" {
+		t.Fatalf("upstream saw %q %q, Vary %q", query, agent, rec.Header().Get("Vary"))
+	}
+}

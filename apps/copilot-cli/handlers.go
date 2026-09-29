@@ -51,9 +51,14 @@ func makeRouter(auth *authenticator, api, surveys *upstream) http.Handler {
 
 	mux.HandleFunc("POST /api/v1/auth/revoke", revokeHandler(auth))
 
-	for _, path := range []string{"/api/v1/surveys/active", "/api/v1/surveys/schema"} {
-		mux.HandleFunc("GET "+path, func(w http.ResponseWriter, r *http.Request) { surveys.forward(w, r, path) })
-	}
+	// client=nav-pilot, with nav-pilot's User-Agent, lets copilot-survey
+	// leave out surveys that need a newer nav-pilot (min_cli_version).
+	mux.HandleFunc("GET /api/v1/surveys/active", func(w http.ResponseWriter, r *http.Request) {
+		surveys.forward(w, r, "/api/v1/surveys/active?client=nav-pilot")
+	})
+	mux.HandleFunc("GET /api/v1/surveys/schema", func(w http.ResponseWriter, r *http.Request) {
+		surveys.forward(w, r, "/api/v1/surveys/schema")
+	})
 	mux.HandleFunc("POST /api/v1/surveys/{id}/responses", authMiddleware(auth, func(w http.ResponseWriter, r *http.Request) {
 		surveys.forward(w, r, "/api/v1/surveys/"+url.PathEscape(r.PathValue("id"))+"/responses")
 	}))

@@ -13,6 +13,7 @@ fit the format below; unknown fields are refused too.
   "title": "Shown as the survey's name",
   "active": false,
   "nudge": "calm",
+  "min_cli_version": "2026.09.29-072249",
   "intro": "Optional, shown before the first question",
   "starts": "2026-10-01",
   "ends": "2026-11-30",
@@ -149,9 +150,18 @@ warns at start while the key is still in the secret.
   breaks comparability is the survey owner's call, recorded in the PR.
 - `text`: `max_length` from 1 to 2000 characters. At most one per survey:
   it is the answer most likely to name its author.
-- `skip_if`: skip this (optional) question when an earlier `choice` answer is,
-  or `multi` answer includes, `answer`.
-- `required`: must be answered unless skipped.
+- `skip_if`: skip this question when an earlier `choice` answer is, or
+  `multi` answer includes, `answer`. On a `matrix` it skips every item.
+- `required`: must be answered unless skipped. With `skip_if`, a required
+  question is required for those who are asked it and left out for the rest.
+- `min_cli_version`: the oldest nav-pilot release that gets the survey, as
+  its tag's date and time (`2026.09.29` or `2026.09.29-072249`). Set it to the
+  first release that renders every question type and field the survey uses.
+  copilot-survey leaves the survey out of `GET /api/v1/surveys/active` for
+  older nav-pilot builds and for builds that send no version (every build
+  before this field); the web always gets it. nav-pilot keeps the list it
+  fetched for up to a day, so a user who upgrades sees the survey after the
+  next fetch.
 
 ## Free text
 

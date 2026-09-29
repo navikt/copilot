@@ -17,6 +17,7 @@ import (
 	"path"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -51,10 +52,15 @@ type survey struct {
 	// Nudge is where nav-pilot brings the survey up by itself: calm (after
 	// a session ends; the default), start (a one-line hint as a session
 	// starts) or off (only through nav-pilot survey).
-	Nudge     string     `json:"nudge,omitempty"`
-	Starts    string     `json:"starts"` // YYYY-MM-DD, first day open (UTC)
-	Ends      string     `json:"ends"`   // YYYY-MM-DD, last day open (UTC)
-	Questions []question `json:"questions"`
+	Nudge string `json:"nudge,omitempty"`
+	// MinCLIVersion leaves the survey out of the list nav-pilot gets when
+	// its version is older, or unknown (builds before this field send none).
+	// Web clients always get it. YYYY.MM.DD or YYYY.MM.DD-HHMMSS, as in a
+	// nav-pilot release tag.
+	MinCLIVersion string     `json:"min_cli_version,omitempty"`
+	Starts        string     `json:"starts"` // YYYY-MM-DD, first day open (UTC)
+	Ends          string     `json:"ends"`   // YYYY-MM-DD, last day open (UTC)
+	Questions     []question `json:"questions"`
 }
 
 // question is one question. ID and Version are what makes waves comparable:
@@ -193,6 +199,9 @@ func validateSurveys(surveys []survey) error {
 		if !slices.Contains([]string{"", "calm", "start", "off"}, s.Nudge) {
 			return fmt.Errorf("survey %s: nudge is calm, start or off", s.ID)
 		}
+		if s.MinCLIVersion != "" && !validMinCLIVersion(s.MinCLIVersion) {
+			return fmt.Errorf("survey %s: min_cli_version is YYYY.MM.DD or YYYY.MM.DD-HHMMSS", s.ID)
+		}
 		if s.Series != "" && !idPattern.MatchString(s.Series) {
 			return fmt.Errorf("survey %s: bad series %q", s.ID, s.Series)
 		}
@@ -215,7 +224,7 @@ func validateSurveys(surveys []survey) error {
 			if q.SkipIf != nil {
 				j := slices.IndexFunc(s.Questions[:i], func(p question) bool { return p.ID == q.SkipIf.Question })
 				ok = ok && j >= 0 && (s.Questions[j].Type == "choice" || s.Questions[j].Type == "multi") &&
-					slices.Contains(s.Questions[j].Options, q.SkipIf.Answer) && !q.Required
+					slices.Contains(s.Questions[j].Options, q.SkipIf.Answer)
 			}
 			qseen[q.ID] = true
 			switch q.Type {
@@ -515,14 +524,25 @@ type surveyAPI struct {
 	now   func() time.Time
 }
 
-func (a *surveyAPI) active(w http.ResponseWriter, _ *http.Request) {
+func (a *surveyAPI) active(w http.ResponseWriter, r *http.Request) {
+	// copilot-cli adds client=nav-pilot and passes on nav-pilot's
+	// User-Agent; my-copilot adds nothing and gets every open survey.
+	fromCLI := r.URL.Query().Get("client") == "nav-pilot"
+	v, isCLI := strings.CutPrefix(r.UserAgent(), "nav-pilot/")
+	have, known := cliVersion(v)
+	known = known && isCLI
 	active := []survey{}
 	for _, s := range a.surveys {
-		if s.activeOn(a.now()) {
-			active = append(active, s)
+		if !s.activeOn(a.now()) {
+			continue
 		}
+		if floor, _ := cliVersion(s.MinCLIVersion); fromCLI && s.MinCLIVersion != "" && (!known || slices.Compare(have, floor) < 0) {
+			continue
+		}
+		active = append(active, s)
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Vary", "User-Agent")
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	_ = json.NewEncoder(w).Encode(map[string]any{"surveys": active})
 }
@@ -533,6 +553,39 @@ func (a *surveyAPI) schema(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/schema+json")
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	_, _ = w.Write(raw)
+}
+
+var (
+	minCLIVersionPattern = regexp.MustCompile(`^\d{4}\.\d{2}\.\d{2}(-\d{6})?$`)
+	cliVersionPattern    = regexp.MustCompile(`^v?(\d{1,4})\.(\d{1,2})\.(\d{1,2})(?:-(\d{6}))?(?:[-+ ]|$)`)
+)
+
+// validMinCLIVersion: the shape, and a real date and time of day.
+func validMinCLIVersion(v string) bool {
+	if !minCLIVersionPattern.MatchString(v) {
+		return false
+	}
+	date, clock, _ := strings.Cut(v, "-")
+	_, err := time.Parse("2006.01.02", date)
+	if clock != "" {
+		_, err2 := time.Parse("150405", clock)
+		err = errors.Join(err, err2)
+	}
+	return err == nil
+}
+
+// cliVersion reads a nav-pilot version (2026.09.29-073815-8801b8d) as
+// year, month, day and build time, for comparison. false: not a version.
+func cliVersion(v string) ([]int, bool) {
+	m := cliVersionPattern.FindStringSubmatch(v)
+	if m == nil {
+		return nil, false
+	}
+	out := make([]int, 4)
+	for i, p := range m[1:] {
+		out[i], _ = strconv.Atoi(p) // "" for a missing build time reads as 0
+	}
+	return out, true
 }
 
 var errNoNavIdentity = errors.New("no Nav identity is linked to this GitHub account")
@@ -584,7 +637,6 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "could not confirm your Nav identity, try again later")
 		return
 	}
-
 	versions := map[string]int{}
 	for _, q := range s.answerable() {
 		if _, ok := answers[q.ID]; ok {
@@ -608,6 +660,10 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 	if !fresh {
 		writeError(w, http.StatusConflict, "you have already answered this survey")
 		return
+	}
+	// Counted once per person, on the answer that is kept.
+	if who.email == "" && !strings.HasSuffix(normaliseEmail(email), "@nav.no") {
+		unexpectedNameIDs.Inc()
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
