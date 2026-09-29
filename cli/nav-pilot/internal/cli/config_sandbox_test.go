@@ -143,6 +143,7 @@ func TestParseCpltCheckReport(t *testing.T) {
 // Returns the path of the recording log.
 func fakeCplt(t *testing.T, get map[string]string) string {
 	t.Helper()
+	resetCpltBuiltinDomains(t)
 	dir := t.TempDir()
 	log := filepath.Join(dir, "config-set.log")
 
@@ -225,7 +226,7 @@ func TestStrictPresetSeedsAllowlistIntoCpltConfig(t *testing.T) {
 	if !containsStr(got, "collector-internet.nav.cloud.nais.io") {
 		t.Errorf("the telemetry collector is not in the file cplt reads: %v", got)
 	}
-	for _, want := range navAllowedDomains {
+	for _, want := range navAllowedDomains() {
 		if !containsStr(got, want) {
 			t.Errorf("%q missing from the file cplt reads", want)
 		}
@@ -284,7 +285,8 @@ func TestStrictPresetLeavesAUserAllowlistAlone(t *testing.T) {
 // Every entry has to be a bare hostname cplt's exact-or-subdomain matcher can
 // read, and the apex Nais domain would open every tenant at once.
 func TestNavAllowedDomainsAreBareAndSpecific(t *testing.T) {
-	for _, d := range navAllowedDomains {
+	oldCplt(t)
+	for _, d := range navAllowedDomains() {
 		if strings.ContainsAny(d, "*/: ") || strings.HasPrefix(d, ".") {
 			t.Errorf("%q is not a bare hostname; cplt does not read glob or URL syntax", d)
 		}
@@ -308,6 +310,7 @@ func TestNavAllowedDomainsAreBareAndSpecific(t *testing.T) {
 // infrastructure: opencode's is opencode.ai and models.dev, pi's is the package
 // registries alone.
 func TestSeededAllowlistStandsAloneForEveryAgent(t *testing.T) {
+	oldCplt(t)
 	// Model access and auth, without which no agent reaches a model at all.
 	// cplt COPILOT_INFRA_DOMAINS — absent from the opencode and pi lists.
 	// opencode's own infrastructure. cplt OPENCODE_DOMAINS — absent from the
@@ -318,7 +321,7 @@ func TestSeededAllowlistStandsAloneForEveryAgent(t *testing.T) {
 		"opencode.ai", "models.dev",
 		"registry.npmjs.org", "repo.maven.apache.org", "pypi.org",
 	} {
-		if !containsStr(navAllowedDomains, host) {
+		if !containsStr(navAllowedDomains(), host) {
 			t.Errorf("%q missing — the file is a delta, and on its own it locks the agent out", host)
 		}
 	}
@@ -330,11 +333,12 @@ func TestSeededAllowlistStandsAloneForEveryAgent(t *testing.T) {
 // because the URL comes from Nav's org-level Copilot MCP policy, which points
 // at dev today and can change without a nav-pilot release.
 func TestSeededAllowlistReachesTheMCPRegistry(t *testing.T) {
+	oldCplt(t)
 	for _, host := range []string{
 		"mcp-registry.nav.no",
 		"mcp-registry.ekstern.dev.nav.no",
 	} {
-		if !containsStr(navAllowedDomains, host) {
+		if !containsStr(navAllowedDomains(), host) {
 			t.Errorf("%q missing — Copilot CLI hangs at startup when it cannot reach the registry it verifies servers against", host)
 		}
 	}
@@ -343,11 +347,12 @@ func TestSeededAllowlistReachesTheMCPRegistry(t *testing.T) {
 // The host nav-pilot allows and the URL it calls in `validate` and `install`
 // are the same registry, and have to stay the same host.
 func TestMCPRegistryURLHostIsAllowed(t *testing.T) {
+	oldCplt(t)
 	u, err := url.Parse(agentpakke.MCPRegistryURL)
 	if err != nil {
 		t.Fatalf("MCPRegistryURL is not a URL: %v", err)
 	}
-	if !containsStr(navAllowedDomains, u.Hostname()) {
+	if !containsStr(navAllowedDomains(), u.Hostname()) {
 		t.Errorf("nav-pilot calls %s but does not allow %q, so its own registry check fails under strict",
 			agentpakke.MCPRegistryURL, u.Hostname())
 	}
@@ -579,8 +584,15 @@ func TestAgentHostShutOut(t *testing.T) {
 		}
 		return r
 	}
-	reach := func(dec string) string {
-		return fmt.Sprintf(`{"name":"reach githubcopilot.com","category":"network","target":"githubcopilot.com:443","expected":"allowed","decision":%q}`, dec)
+	// Reasons verbatim from `cplt check --json` (cplt 2026.09.28 and 2026.09.29).
+	const byAllowlist = "a fail-closed domain allowlist is active and this host is not in it (agent defaults + your allowed_domains)."
+	const byBlocklist = "the host matches your blocklist file (--blocked-domains) or a blocklist subscription."
+	reach := func(dec string, reason ...string) string {
+		why := byAllowlist
+		if len(reason) > 0 {
+			why = reason[0]
+		}
+		return fmt.Sprintf(`{"name":"reach githubcopilot.com","category":"network","target":"githubcopilot.com:443","expected":"allowed","decision":%q,"reason":%q}`, dec, why)
 	}
 	const ssrf = `{"name":"reach metadata IP (SSRF)","category":"network","target":"169.254.169.254:443","expected":"blocked","decision":"blocked"}`
 	const home = `{"name":"write $HOME (root)","category":"filesystem","target":"/Users/dev","expected":"allowed","decision":"blocked"}`
@@ -594,6 +606,7 @@ func TestAgentHostShutOut(t *testing.T) {
 	}{
 		{"the incident", report(reach("blocked"), ssrf), allowlist, "githubcopilot.com"},
 		{"agent host allowed", report(reach("allowed"), ssrf), allowlist, ""},
+		{"blocklisted, not the allowlist's doing", report(reach("blocked", byBlocklist), ssrf), allowlist, ""},
 		{"inconclusive is not blocked", report(reach("inconclusive")), allowlist, ""},
 		{"another over-block is not the agent host", report(home, ssrf), allowlist, ""},
 		{"blocked without an allowlist", report(reach("blocked")), "", ""},
@@ -670,5 +683,192 @@ func TestPostureRepairsAnAllowlistWithoutAgentHosts(t *testing.T) {
 		if got := configSets(t, log)["proxy.default_allowlist"]; got != tc.want {
 			t.Errorf("host %q: default_allowlist set to %q, want %q", tc.host, got, tc.want)
 		}
+	}
+}
+
+// oldCplt stands in a cplt without `config hosts`, so the list is the fallback
+// whatever cplt the machine running the tests has.
+func oldCplt(t *testing.T) {
+	t.Helper()
+	orig := cpltHostsFor
+	t.Cleanup(func() { cpltHostsFor = orig })
+	cpltHostsFor = func(string) (*cpltHosts, error) { return nil, fmt.Errorf("exit status 2") }
+}
+
+// fakeCpltHosts puts a cplt on PATH that answers `config hosts` the way cplt
+// does from navikt/cplt#608 on, with the JSON verbatim from a real run.
+func fakeCpltHosts(t *testing.T) {
+	t.Helper()
+	resetCpltBuiltinDomains(t)
+	dir := t.TempDir()
+	script := `#!/bin/sh
+[ "$1 $2 $3 $5" = "config hosts --agent --json" ] || exit 2
+case "$4" in
+  copilot) echo '{"agent_hosts":["githubcopilot.com","api.github.com","github.com","copilot-proxy.githubusercontent.com","actions.githubusercontent.com","default.exp2.cds.s9ch.io"],"default_allowlist":["githubcopilot.com","api.github.com","github.com","copilot-proxy.githubusercontent.com","actions.githubusercontent.com","default.exp2.cds.s9ch.io","registry.npmjs.org","registry.yarnpkg.com","repo.maven.apache.org","plugins.gradle.org","plugins-artifacts.gradle.org","crates.io","static.crates.io","pypi.org","files.pythonhosted.org","packages.confluent.io","jitpack.io"],"version":1}' ;;
+  opencode) echo '{"agent_hosts":["opencode.ai","models.dev","githubcopilot.com","api.github.com","github.com","copilot-proxy.githubusercontent.com","actions.githubusercontent.com","default.exp2.cds.s9ch.io"],"default_allowlist":["opencode.ai","models.dev","registry.npmjs.org"],"version":1}' ;;
+  *) exit 2 ;;
+esac
+`
+	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+// nav-pilot asks cplt for its hosts rather than keeping a copy that goes
+// stale (navikt/cplt#608): copilot's default allowlist plus opencode's agent
+// hosts, once each, and Nav's own on top.
+func TestCpltBuiltinDomainsComeFromCplt(t *testing.T) {
+	isolatedConfig(t)
+	fakeCpltHosts(t)
+	got, fromCplt := cpltBuiltinDomains()
+	if !fromCplt {
+		t.Fatal("fromCplt = false against a cplt that answers config hosts")
+	}
+	// jitpack.io is in cplt's list and not in the fallback; opencode.ai
+	// comes only from opencode's agent hosts.
+	for _, want := range []string{"jitpack.io", "plugins-artifacts.gradle.org", "opencode.ai", "models.dev", "githubcopilot.com"} {
+		if !containsStr(got, want) {
+			t.Errorf("%q missing from %v", want, got)
+		}
+	}
+	all := navAllowedDomains()
+	seen := map[string]bool{}
+	for _, d := range all {
+		if seen[d] {
+			t.Errorf("%q listed twice", d)
+		}
+		seen[d] = true
+	}
+	if len(all) != len(got)+len(navOwnDomains) {
+		t.Errorf("navAllowedDomains has %d hosts, want %d builtin + %d Nav", len(all), len(got), len(navOwnDomains))
+	}
+}
+
+// A cplt older than `config hosts` exits non-zero. Existing users on it get
+// the list nav-pilot wrote before, unchanged.
+func TestCpltBuiltinDomainsFallBackOnAnOldCplt(t *testing.T) {
+	isolatedConfig(t)
+	fakeCplt(t, nil) // exits 1 on config hosts, like clap on an unknown subcommand
+	got, fromCplt := cpltBuiltinDomains()
+	if fromCplt {
+		t.Error("fromCplt = true against a cplt without config hosts")
+	}
+	if !slices.Equal(got, cpltHostsFallback) {
+		t.Errorf("got %v, want the fallback", got)
+	}
+}
+
+// A future schema is not read as version 1.
+func TestCpltHostsRejectsAnUnknownVersion(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	script := "#!/bin/sh\necho '{\"agent_hosts\":[\"a.example\"],\"default_allowlist\":[\"a.example\"],\"version\":2}'\n"
+	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	if _, fromCplt := cpltBuiltinDomains(); fromCplt {
+		t.Error("read a version 2 answer as version 1")
+	}
+}
+
+// doctor says when cplt is behind whether or not nav-pilot is, and names a
+// cplt without `config hosts` once, offering the upgrade only when there may
+// be one.
+func TestDoctorReportsCpltVersion(t *testing.T) {
+	const installed = "cplt 2026.09.28-185454-a924b3d"
+	for _, tc := range []struct {
+		name, latest string
+		newCplt      bool
+		want, reject []string
+	}{
+		{"behind, new cplt", "2026.09.29-105335-ce50857", true,
+			[]string{"out of date (latest: 2026.09.29-105335-ce50857)", "brew upgrade navikt/tap/cplt"}, []string{"config hosts"}},
+		{"behind, old cplt", "2026.09.29-105335-ce50857", false,
+			[]string{"out of date", "Note:", "config hosts", "brew upgrade navikt/tap/cplt"}, []string{"may be too old"}},
+		{"current, cplt without config hosts", "2026.09.28-185454-a924b3d", false,
+			[]string{"cplt is up to date", "Note:", "config hosts"}, []string{"Solution"}},
+		{"unknown, old cplt", "", false,
+			[]string{"Could not check", "may be too old", "config hosts", "brew upgrade navikt/tap/cplt"}, []string{"up to date"}},
+		{"current, new cplt", "2026.09.28-185454-a924b3d", true,
+			[]string{"cplt is up to date"}, []string{"config hosts", "Solution"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			isolatedConfig(t)
+			if tc.newCplt {
+				fakeCpltHosts(t)
+			} else {
+				fakeCplt(t, nil)
+			}
+			orig := latestCpltVersion
+			t.Cleanup(func() { latestCpltVersion = orig })
+			latestCpltVersion = func() (string, error) { return tc.latest, nil }
+			out := captureStdout(func() { reportCpltVersion("/usr/local/bin/cplt", installed) })
+			for _, w := range tc.want {
+				if !strings.Contains(out, w) {
+					t.Errorf("missing %q in:\n%s", w, out)
+				}
+			}
+			for _, r := range tc.reject {
+				if strings.Contains(out, r) {
+					t.Errorf("unexpected %q in:\n%s", r, out)
+				}
+			}
+			if n := strings.Count(out, "config hosts"); n > 1 {
+				t.Errorf("fallback named %d times, want once:\n%s", n, out)
+			}
+		})
+	}
+}
+
+// The posture step runs the battery before its prompt; it says so first.
+func TestPostureSaysItIsCheckingTheSandbox(t *testing.T) {
+	src := readSourceFile(t, "config_sandbox.go")
+	check := strings.Index(src, `fmt.Println(dim("Checking the sandbox…"))`)
+	run := strings.Index(src, "cpltAgentHostShutOut(cliPath, cpltEnforcement())")
+	if check < 0 || run < 0 || check > run {
+		t.Error("cmdConfigStrictPreset must print \"Checking the sandbox…\" before it runs cplt check")
+	}
+}
+
+// resetCpltBuiltinDomains forgets the memoised cplt answer, before and after
+// the test, so each test asks the cplt on its own PATH.
+func resetCpltBuiltinDomains(t *testing.T) {
+	t.Helper()
+	cpltBuiltinDomains = memoCpltBuiltinDomains()
+	t.Cleanup(func() { cpltBuiltinDomains = memoCpltBuiltinDomains() })
+}
+
+// doctor and config read the host list several times; cplt is asked once.
+func TestCpltBuiltinDomainsAsksCpltOnce(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	log := filepath.Join(dir, "calls")
+	script := fmt.Sprintf("#!/bin/sh\necho x >> %q\necho '{\"agent_hosts\":[\"a.example\"],\"default_allowlist\":[\"a.example\"],\"version\":1}'\n", log)
+	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	for range 4 {
+		navAllowedDomains()
+	}
+	calls, _ := os.ReadFile(log)
+	if n := strings.Count(string(calls), "x"); n != 2 {
+		t.Errorf("cplt spawned %d times for 4 reads, want 2 (copilot + opencode, once)", n)
+	}
+}
+
+// An answer missing a list nav-pilot reads is not a usable answer.
+func TestCpltHostsRejectsAnEmptyAgentHosts(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	script := "#!/bin/sh\necho '{\"agent_hosts\":[],\"default_allowlist\":[\"a.example\"],\"version\":1}'\n"
+	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	if _, fromCplt := cpltBuiltinDomains(); fromCplt {
+		t.Error("accepted an answer with no agent_hosts")
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -319,7 +320,7 @@ func TestUpdateRefusesToReplaceAPackagedBinary(t *testing.T) {
 
 			var updated bool
 			var err error
-			out := captureStdoutFor(t, func() { updated, err = doUpdate(os.Stdout) })
+			out := captureStdoutFor(t, func() { updated, _, err = doUpdate(os.Stdout) })
 			if err != nil {
 				t.Fatalf("doUpdate = %v", err)
 			}
@@ -369,5 +370,70 @@ func TestCpltSkewUnknownReason(t *testing.T) {
 		if got := cpltSkewUnknownReason(tc.installed, tc.latest, tc.err); got != tc.want {
 			t.Errorf("%v: got %q, want %q", tc.err, got, tc.want)
 		}
+	}
+}
+
+// `nav-pilot upgrade` on a current nav-pilot still checks cplt: a new
+// nav-pilot on an old cplt writes config keys cplt rejects ("unknown config
+// key"). It prints the command, as it does for nav-pilot, and says why when it
+// cannot tell.
+func TestUpgradeChecksCpltWhenNavPilotIsCurrent(t *testing.T) {
+	const current = "2026.09.29-120000-aaaaaaa"
+	for _, tc := range []struct {
+		name    string
+		mgr     domain.PkgManager
+		cplt    bool
+		latest  string
+		lookErr error
+		want    string
+	}{
+		{"homebrew, cplt behind", domain.PkgBrew, true, "2026.09.29-105335-ce50857", nil, "cplt 2026.09.28-185454-a924b3d is out of date (latest: 2026.09.29-105335-ce50857). Run brew upgrade navikt/tap/cplt"},
+		{"direct, cplt behind", domain.PkgNone, true, "2026.09.29-105335-ce50857", nil, "is out of date"},
+		{"homebrew, cplt current", domain.PkgBrew, true, "2026.09.28-185454-a924b3d", nil, "✓ cplt is up to date (2026.09.28-185454-a924b3d)"},
+		{"lookup fails", domain.PkgBrew, true, "", context.DeadlineExceeded, "Could not check for a newer cplt release (timeout)"},
+		{"no cplt", domain.PkgBrew, false, "2026.09.29-105335-ce50857", nil, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			origManager, origAPI, origVersion, origCplt := packageManager, releasesAPI, Version, latestCpltVersion
+			t.Cleanup(func() {
+				packageManager, releasesAPI, Version, latestCpltVersion = origManager, origAPI, origVersion, origCplt
+			})
+			Version = current
+			packageManager = func() domain.PkgManager { return tc.mgr }
+			latestCpltVersion = func() (string, error) { return tc.latest, tc.lookErr }
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s"}]`, current)
+			}))
+			t.Cleanup(srv.Close)
+			releasesAPI = srv.URL
+			bin := t.TempDir()
+			if tc.cplt {
+				if err := os.WriteFile(filepath.Join(bin, "cplt"), []byte("#!/bin/sh\necho 'cplt 2026.09.28-185454-a924b3d'\n"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			t.Setenv("PATH", bin)
+
+			out := captureStdoutFor(t, func() {
+				if err := cmdUpgrade("upgrade", nil); err != nil {
+					t.Fatalf("upgrade = %v", err)
+				}
+			})
+			if !strings.Contains(out, "nav-pilot is up to date") {
+				t.Fatalf("nav-pilot not reported current:\n%s", out)
+			}
+			if tc.want == "" {
+				if strings.Contains(out, "cplt") {
+					t.Errorf("said something about a cplt that is not installed:\n%s", out)
+				}
+			} else if !strings.Contains(out, tc.want) {
+				t.Errorf("missing %q in:\n%s", tc.want, out)
+			}
+			// --dry-run says the same about cplt.
+			dry := captureStdoutFor(t, func() { _ = checkUpdate() })
+			if tc.want != "" && !strings.Contains(dry, tc.want) {
+				t.Errorf("--dry-run missing %q in:\n%s", tc.want, dry)
+			}
+		})
 	}
 }
