@@ -352,8 +352,9 @@ var latestCpltVersion = func() (string, error) {
 }
 
 // cpltCommandTimeout bounds every cplt process spawn. Each spawn gets its own
-// deadline: no check may share a wall clock with an unrelated one.
-const cpltCommandTimeout = 2 * time.Second
+// deadline: no check may share a wall clock with an unrelated one. A var so
+// the tests can give their fake cplt more time on a loaded machine (#1335).
+var cpltCommandTimeout = 2 * time.Second
 
 // runBounded runs a command with its own deadline and returns its stdout.
 func runBounded(name string, args ...string) ([]byte, error) {

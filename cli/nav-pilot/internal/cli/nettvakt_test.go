@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
@@ -56,6 +57,10 @@ func TestMain(m *testing.M) {
 	httpClient.Transport = vakt
 	// Release checks in the foreground: tests swap releasesAPI and httpClient.
 	artifacts.RefreshInBackground = false
+	// A fake cplt is a shell script, and under load its first exec alone
+	// can take longer than the 2 s a real cplt gets (#1335). No test here
+	// relies on that deadline firing.
+	cpltCommandTimeout = 30 * time.Second
 	os.Exit(testhome.Run(m))
 }
 

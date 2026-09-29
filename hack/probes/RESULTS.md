@@ -125,3 +125,55 @@ Load is the 1-minute average, sampled every 5s during each set.
 | branch at 7cd8a917 (with the lint fix) | pass, pass, pass | 94s, 93s, 94s | 11.4 / 17.1 / 23.1 |
 | 0d9c60a3, rebased on main | pass | 107s | 24.9 at start, 26.6 at end |
 | a2993ff5 (interrupt fix) | pass | 87s | 1.8 at start, 8.5 at end |
+
+## Load stress for #1335
+
+Same machine, 2026-09-29. `load-stress.sh TREE OUT 9` runs `mise run check` in a loop in
+TREE and nine copies of each test binary at once, each `-count=20`, so 180 runs
+per test. Load is the 1-minute average, sampled every 30s. The origin/main
+tree is 4329bb8e, the branch is this PR.
+
+| tree | run | load min / median / max | `TestResolveForLaunchWithinMaxAge` | `fetch_typeahead_stderr_redirected` | the three cplt tests |
+|---|---|---|---|---|---|
+| origin/main | 1 | 21.9 / 25.9 / 28.4 | 62 pass, 118 fail | 163 pass, 17 fail | not in the probe yet |
+| branch, first two fixes | 1 | 13.8 / 25.6 / 36.2 | 177 pass, 3 fail | 178 pass, 2 fail | not in the probe yet |
+| origin/main | 2 | 6.2 / 11.8 / 19.9 | 179 pass, 1 fail | 180 pass, 0 fail | 125/180, 98/180, 99/180 pass |
+| branch | 2 | 17.5 / 26.7 / 46.9 | 180 pass, 0 fail | 180 pass, 0 fail | 180/180 each |
+
+The cplt tests are `TestCpltBuiltinDomainsComeFromCplt`,
+`TestDoctorReportsCpltVersion` and `TestUpgradeChecksCpltWhenNavPilotIsCurrent`.
+
+On origin/main every `TestResolveForLaunchWithinMaxAge` failure is the one
+from the issue, `cache dated in the future: ... no newer one came in 600ms`,
+and every script failure is `pty-run: timed out`, exit 124. The cplt tests
+fail on the 2s `cpltCommandTimeout`: the fake cplt did not answer in time, so
+doctor and upgrade reported what they report without cplt.
+
+The five branch failures in run 1 all fell in the first one or two of the 20
+iterations, while nine e2e binaries built nav-pilot at once: the script, about
+4s alone, took 105-128s there. Two were the script at pty-run's 60s, and three
+were `TestResolveForLaunchWithinMaxAge` with a local `git fetch` over the
+product's own 30s budget (`firstFetchTimeout`). From the third iteration on
+there were none. Run 2 had none at a higher peak load.
+
+### Without load
+
+Two controls that do not depend on load. A `git` on PATH that sleeps 0.8s
+before `fetch`:
+
+```
+origin/main: --- FAIL: TestResolveForLaunchWithinMaxAge
+  cache_test.go:243: cache dated in the future: <nil>, the copy of navikt/x is from 2026-09-30 17:50, and no newer one came in 600ms; want 4bf093c...
+branch:      PASS
+```
+
+A git wrapper in the script that sleeps 1s after the checkout, before
+nav-pilot flushes the typed-ahead keys:
+
+```
+origin/main script: pty-run: timed out, exit code 124, want 0 (22.8s)
+branch script:      PASS (9.3s)
+```
+
+With the flush removed from `quietStdin` (`ioctlSetTermios` in place of
+`ioctlSetTermiosFlushIn`), the branch script still fails: `pty-run` times out.

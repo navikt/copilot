@@ -304,12 +304,29 @@ func Python3(t testing.TB) string {
 // in place with the real one. The check is not repeated for the rewritten
 // file (the same 40 then started in about 0.12s), and the real script never
 // runs outside the test. hack/probes/first-exec.go measures this.
+//
+// Both writes happen in a child process. Written from this one, the file is
+// open for writing while another goroutine may fork, and the forked child
+// keeps that descriptor until it execs. An exec of the file meanwhile fails
+// with "text file busy" on Linux, as sync_pi_check_writes_nothing.txtar did
+// in CI (#1335).
 func WriteExec(path, script string) error {
-	if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
+	if err := writeExecFile(path, "#!/bin/sh\n"); err != nil {
 		return err
 	}
 	if err := exec.Command(path).Run(); err != nil {
 		return fmt.Errorf("warming %s: %w", path, err)
 	}
-	return os.WriteFile(path, []byte(script), 0o755)
+	return writeExecFile(path, script)
+}
+
+// writeExecFile writes content to path, mode 0755, from a child sh. `cat >`
+// rewrites an existing file in place, which keeps the warmed first exec.
+func writeExecFile(path, content string) error {
+	cmd := exec.Command("/bin/sh", "-c", `/bin/cat > "$1" && /bin/chmod 755 "$1"`, "sh", path)
+	cmd.Stdin = strings.NewReader(content)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("writing %s: %w: %s", path, err, out)
+	}
+	return nil
 }

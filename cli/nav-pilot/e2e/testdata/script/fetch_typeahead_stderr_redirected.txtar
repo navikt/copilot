@@ -1,7 +1,10 @@
 # With stdin on a terminal and stderr redirected there is no spinner, but keys
-# pressed during the fetch are still dropped and not echoed (#1287). The
-# install question goes to stderr, so the git wrapper announces the fetch and
-# its end on the terminal, and the test answers the question after that.
+# pressed during the fetch are still dropped and not echoed (#1287). The git
+# wrapper announces the fetch on the terminal. stderr goes through a fifo to
+# cat, so it is not a terminal but the install question still shows, and the
+# test answers it only once it is asked. Answering on the end of the checkout
+# instead raced the flush of the typed-ahead keys, which under load swallowed
+# the answer and hung (#1335).
 
 [!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
 
@@ -23,7 +26,7 @@ exec git config --global url.file://$WORK/plattform.insteadOf https://github.com
 exec nav-pilot config set source navikt/plattform
 exec nav-pilot config set client copilot
 
-exits 0 pty-run -wait 'slow fetch' -send 'zqx\r' -wait 'checked out' -send '\r' -- /bin/sh -c 'exec nav-pilot 2>$WORK/stderr.log'
+exits 0 pty-run -wait 'slow fetch' -send 'zqx\r' -wait 'and 1 hooks to ~/.copilot' -send '\r' -- /bin/sh -c '/usr/bin/mkfifo $WORK/err && { /bin/cat $WORK/err & exec nav-pilot 2>$WORK/err; }'
 stdout 'Installed\. cd into a project and run nav-pilot'
 ! stdout zqx
 ! stdout 'Agents \(1 available\)'
@@ -44,6 +47,4 @@ print("ok")
 -- slowgit --
 #!/bin/sh
 [ "$1" = fetch ] && echo "slow fetch" >/dev/tty && /bin/sleep 2
-"$REAL_GIT" "$@" || exit
-[ "$3" = checkout ] && echo "checked out" >/dev/tty
-exit 0
+exec "$REAL_GIT" "$@"
