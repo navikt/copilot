@@ -67,6 +67,7 @@ func repoTarget(t *testing.T) string {
 // fixture needs the two to agree has to set that one again too.
 func isolatedConfig(t *testing.T) string {
 	t.Helper()
+	resetCpltBuiltinDomains(t)
 	t.Setenv("HOME", t.TempDir())
 	// XDG_CONFIG_HOME is honoured on the opencode export path
 	// (provider/opencode_launch.go), so leaving it pointing at the developer's

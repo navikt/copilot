@@ -78,8 +78,8 @@ func cmdUpgrade(command string, args []string) error {
 		if check {
 			return checkUpdate()
 		}
-		updated, err := doUpdate(os.Stdout)
-		if updated {
+		updated, current, err := doUpdate(os.Stdout)
+		if updated || current {
 			// Here, not in doUpdate: the auto-update in front of another
 			// command goes through doUpdate too, and must stay quiet.
 			reportCpltUpgrade(os.Stdout)
@@ -131,19 +131,19 @@ func latestRelease() (ver, tag string, err error) {
 // downloads and installs it. It returns updated=true only if the binary was
 // actually replaced, so callers can distinguish "already up to date" (no-op)
 // from "successfully updated" and avoid re-executing when nothing changed.
+// current is true when nav-pilot was already the latest release.
 //
 // Everything it prints goes to w: stdout for `nav-pilot upgrade`, whose output
 // this is, and stderr for the auto-update in front of another command, whose
 // stdout (a --json document, say) must stay its own.
-func doUpdate(w io.Writer) (updated bool, err error) {
+func doUpdate(w io.Writer) (updated, current bool, err error) {
 	if mgr := packageManager(); mgr.Name != "" {
 		// Up to date says so, rather than sending the user to brew for a
 		// no-op. A fresh lookup, not the startup cache: that can be a day
 		// old. When it fails, the package manager's command is the answer.
 		if latest, _, err := latestRelease(); err == nil && !versionNewer(latest, Version) {
 			fmt.Fprintf(w, "✓ nav-pilot is up to date (%s)\n", Version)
-			reportCpltUpgrade(w)
-			return false, nil
+			return false, true, nil
 		}
 		// Print first, then check cplt: the cplt lookup can take seconds, and
 		// the "managed by Homebrew" line used to be instant.
@@ -155,30 +155,28 @@ func doUpdate(w io.Writer) (updated bool, err error) {
 			upgrade += mgr.Pick(" navikt/tap/cplt", " cplt")
 		}
 		fmt.Fprintf(w, "  %s\n", upgrade)
-		return false, nil
+		return false, false, nil
 	}
 
-	current := Version
 	latest, tag, err := latestRelease()
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
-	if !versionNewer(latest, current) {
-		fmt.Fprintf(w, "✓ nav-pilot is up to date (%s)\n", current)
-		reportCpltUpgrade(w)
-		return false, nil
+	if !versionNewer(latest, Version) {
+		fmt.Fprintf(w, "✓ nav-pilot is up to date (%s)\n", Version)
+		return false, true, nil
 	}
 
-	fmt.Fprintf(w, "Update available: %s → %s\n", current, latest)
+	fmt.Fprintf(w, "Update available: %s → %s\n", Version, latest)
 
 	self, err := os.Executable()
 	if err != nil {
-		return false, fmt.Errorf("cannot determine binary path: %w", err)
+		return false, false, fmt.Errorf("cannot determine binary path: %w", err)
 	}
 	self, err = filepath.EvalSymlinks(self)
 	if err != nil {
-		return false, fmt.Errorf("cannot resolve binary path: %w", err)
+		return false, false, fmt.Errorf("cannot resolve binary path: %w", err)
 	}
 
 	asset := fmt.Sprintf("nav-pilot-%s-%s", runtime.GOOS, runtime.GOARCH)
@@ -188,34 +186,34 @@ func doUpdate(w io.Writer) (updated bool, err error) {
 	fmt.Fprintf(w, "→ Downloading %s...\n", asset)
 	bin, err := httpGet(assetURL)
 	if err != nil {
-		return false, fmt.Errorf("download failed: %w", err)
+		return false, false, fmt.Errorf("download failed: %w", err)
 	}
 
 	if err := verifyChecksum(w, bin, asset, checksumURL); err != nil {
-		return false, err
+		return false, false, err
 	}
 
 	// Atomic replace: write temp file next to binary, then rename
 	dir := filepath.Dir(self)
 	tmp, err := os.CreateTemp(dir, ".nav-pilot-update-*")
 	if err != nil {
-		return false, fmt.Errorf("can't write to %s, where nav-pilot is installed: %w\nnav-pilot is unchanged. Run the upgrade as the user who owns that directory, or reinstall somewhere you can write: bash install.sh --dir ~/.local/bin (see https://github.com/navikt/copilot/blob/main/docs/README.nav-pilot.md#kom-i-gang)", dir, err)
+		return false, false, fmt.Errorf("can't write to %s, where nav-pilot is installed: %w\nnav-pilot is unchanged. Run the upgrade as the user who owns that directory, or reinstall somewhere you can write: bash install.sh --dir ~/.local/bin (see https://github.com/navikt/copilot/blob/main/docs/README.nav-pilot.md#kom-i-gang)", dir, err)
 	}
 	tmpPath := tmp.Name()
 	defer os.Remove(tmpPath)
 
 	if _, err := tmp.Write(bin); err != nil {
 		tmp.Close()
-		return false, fmt.Errorf("write failed: %w", err)
+		return false, false, fmt.Errorf("write failed: %w", err)
 	}
 	tmp.Close()
 
 	if err := os.Chmod(tmpPath, 0o755); err != nil {
-		return false, fmt.Errorf("chmod failed: %w", err)
+		return false, false, fmt.Errorf("chmod failed: %w", err)
 	}
 
 	if err := os.Rename(tmpPath, self); err != nil {
-		return false, fmt.Errorf("replace failed: %w", err)
+		return false, false, fmt.Errorf("replace failed: %w", err)
 	}
 
 	// Invalidate the staleness cache now that we're on the latest version,
@@ -230,7 +228,7 @@ func doUpdate(w io.Writer) (updated bool, err error) {
 		_ = os.Remove(p) // this one worked, so the next auto-update need not wait
 	}
 	fmt.Fprintf(w, "✓ Updated to nav-pilot %s\n", latest)
-	return true, nil
+	return true, false, nil
 }
 
 // packageManager reports which package manager owns the running binary, so

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -150,7 +151,7 @@ func TestExplicitUpdateIgnoresQuietPeriod(t *testing.T) {
 	}
 
 	out := captureStdoutFor(t, func() {
-		if _, err := doUpdate(os.Stdout); err != nil {
+		if _, _, err := doUpdate(os.Stdout); err != nil {
 			t.Fatalf("doUpdate = %v", err)
 		}
 	})
@@ -191,5 +192,41 @@ func TestStartupUpdateNeverAnnouncesWhatAptMustDo(t *testing.T) {
 				t.Errorf("an update that doUpdate will decline was announced. Output:\n%s", out)
 			}
 		})
+	}
+}
+
+// The auto-update in front of another command reaches doUpdate's "up to date"
+// branch whenever the startup cache is stale. It must not check cplt there: that
+// is a cplt spawn, a release lookup of up to 5s and extra lines before the
+// user's own command. Only an explicit `nav-pilot upgrade` reports on cplt.
+func TestAutoUpdateLeavesCpltAlone(t *testing.T) {
+	const current = "2026.09.10-065538-661d4c8"
+	stubStartupUpdate(t, current, "2026.09.12-080624-cfeafb1", true, domain.PkgNone)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s"}]`, current)
+	}))
+	t.Cleanup(srv.Close)
+	origAPI, origCplt := releasesAPI, latestCpltVersion
+	t.Cleanup(func() { releasesAPI, latestCpltVersion = origAPI, origCplt })
+	releasesAPI = srv.URL
+	looked := false
+	latestCpltVersion = func() (string, error) { looked = true; return "2099.01.01-000000-fffffff", nil }
+	bin := t.TempDir()
+	mustWrite(t, filepath.Join(bin, "cplt"), "#!/bin/sh\necho 'cplt 2026.09.28-185454-a924b3d'\n")
+	if err := os.Chmod(filepath.Join(bin, "cplt"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+
+	out := captureStderrFor(t, func() {
+		if stop, err := startupUpdateCheck(); stop || err != nil {
+			t.Errorf("startupUpdateCheck = (%v, %v)", stop, err)
+		}
+	})
+	if !strings.Contains(out, "nav-pilot is up to date") {
+		t.Fatalf("the auto-update did not reach the up-to-date branch:\n%s", out)
+	}
+	if looked || strings.Contains(out, "cplt") {
+		t.Errorf("the auto-update checked cplt (lookup=%v):\n%s", looked, out)
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/charmbracelet/huh"
@@ -469,7 +470,18 @@ var cpltHostsFor = func(agent string) (*cpltHosts, error) {
 // copilot's default allowlist (its infrastructure plus the package registries,
 // which is all pi gets) and opencode's agent hosts. fromCplt is false when the
 // installed cplt could not say, and the list is cpltHostsFallback.
-func cpltBuiltinDomains() (hosts []string, fromCplt bool) {
+//
+// Asked once per process: doctor and config read it several times, each read
+// is two cplt spawns, and every count they print must match the file written.
+// Callers must not modify the slice.
+var cpltBuiltinDomains = memoCpltBuiltinDomains()
+
+// memoCpltBuiltinDomains is separate so tests can start from a fresh answer.
+func memoCpltBuiltinDomains() func() ([]string, bool) {
+	return sync.OnceValues(askCpltBuiltinDomains)
+}
+
+func askCpltBuiltinDomains() (hosts []string, fromCplt bool) {
 	copilot, err := cpltHostsFor("copilot")
 	if err != nil {
 		return cpltHostsFallback, false

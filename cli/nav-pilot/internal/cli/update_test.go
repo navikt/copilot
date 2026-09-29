@@ -320,7 +320,7 @@ func TestUpdateRefusesToReplaceAPackagedBinary(t *testing.T) {
 
 			var updated bool
 			var err error
-			out := captureStdoutFor(t, func() { updated, err = doUpdate(os.Stdout) })
+			out := captureStdoutFor(t, func() { updated, _, err = doUpdate(os.Stdout) })
 			if err != nil {
 				t.Fatalf("doUpdate = %v", err)
 			}
@@ -415,8 +415,8 @@ func TestUpgradeChecksCpltWhenNavPilotIsCurrent(t *testing.T) {
 			t.Setenv("PATH", bin)
 
 			out := captureStdoutFor(t, func() {
-				if _, err := doUpdate(os.Stdout); err != nil {
-					t.Fatalf("doUpdate = %v", err)
+				if err := cmdUpgrade("upgrade", nil); err != nil {
+					t.Fatalf("upgrade = %v", err)
 				}
 			})
 			if !strings.Contains(out, "nav-pilot is up to date") {

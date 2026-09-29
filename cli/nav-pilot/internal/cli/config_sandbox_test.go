@@ -143,6 +143,7 @@ func TestParseCpltCheckReport(t *testing.T) {
 // Returns the path of the recording log.
 func fakeCplt(t *testing.T, get map[string]string) string {
 	t.Helper()
+	resetCpltBuiltinDomains(t)
 	dir := t.TempDir()
 	log := filepath.Join(dir, "config-set.log")
 
@@ -698,6 +699,7 @@ func oldCplt(t *testing.T) {
 // does from navikt/cplt#608 on, with the JSON verbatim from a real run.
 func fakeCpltHosts(t *testing.T) {
 	t.Helper()
+	resetCpltBuiltinDomains(t)
 	dir := t.TempDir()
 	script := `#!/bin/sh
 [ "$1 $2 $3 $5" = "config hosts --agent --json" ] || exit 2
@@ -827,5 +829,32 @@ func TestPostureSaysItIsCheckingTheSandbox(t *testing.T) {
 	run := strings.Index(src, "cpltAgentHostShutOut(cliPath, cpltEnforcement())")
 	if check < 0 || run < 0 || check > run {
 		t.Error("cmdConfigStrictPreset must print \"Checking the sandbox…\" before it runs cplt check")
+	}
+}
+
+// resetCpltBuiltinDomains forgets the memoised cplt answer, before and after
+// the test, so each test asks the cplt on its own PATH.
+func resetCpltBuiltinDomains(t *testing.T) {
+	t.Helper()
+	cpltBuiltinDomains = memoCpltBuiltinDomains()
+	t.Cleanup(func() { cpltBuiltinDomains = memoCpltBuiltinDomains() })
+}
+
+// doctor and config read the host list several times; cplt is asked once.
+func TestCpltBuiltinDomainsAsksCpltOnce(t *testing.T) {
+	isolatedConfig(t)
+	dir := t.TempDir()
+	log := filepath.Join(dir, "calls")
+	script := fmt.Sprintf("#!/bin/sh\necho x >> %q\necho '{\"agent_hosts\":[\"a.example\"],\"default_allowlist\":[\"a.example\"],\"version\":1}'\n", log)
+	if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	for range 4 {
+		navAllowedDomains()
+	}
+	calls, _ := os.ReadFile(log)
+	if n := strings.Count(string(calls), "x"); n != 2 {
+		t.Errorf("cplt spawned %d times for 4 reads, want 2 (copilot + opencode, once)", n)
 	}
 }
