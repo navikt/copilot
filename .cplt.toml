@@ -18,11 +18,16 @@
 # Go tests that use httptest.NewServer (copilot-api: TestJWKSCache and others)
 # listen on a random 127.0.0.1 port and fail with "connect: operation not
 # permitted" without it.
+# Cost: this reaches ANY local listener (databases, local model/MCP servers,
+# Docker if exposed on TCP). On Linux/WSL cplt then drops kernel TCP filtering
+# for all remote hosts and only the HTTP(S) proxy remains (cplt docs/security.md).
+# Still the narrowest option: allow.localhost takes fixed ports only, and the
+# Turbopack worker and httptest ports are random.
 allow_localhost_any = true
 
 # Docker is NOT needed for the normal workflow: root build/check/generate use
 # `go build` and `pnpm`, and CI builds the images. Only the per-app
-# `mise run docker:build` / `mise run ci` call docker; run those outside cplt.
+# `mise run docker:build` / `docker:run` / `mise run ci` call docker; run those outside cplt.
 # Docker-socket access is effectively root on the host, so it stays off:
 # allow_docker = true
 
