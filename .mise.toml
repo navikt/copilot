@@ -25,6 +25,12 @@ bats = "latest"
 [env]
 APPS = "copilot-adoption copilot-api copilot-cli copilot-survey copilot-metrics mcp-onboarding mcp-registry my-copilot"
 APPS_WITH_GENERATE = "mcp-onboarding my-copilot"
+# Skip Go's VCS stamping (vcs.revision in the binary). Nothing here reads it:
+# nav-pilot takes version/commit from -ldflags, and the Dockerfiles and the
+# release workflow do not run through mise. Stamping breaks `go build` in a
+# linked git worktree under cplt (Go ignores the worktree's .git file, walks up
+# to a parent repo and runs git where the sandbox cannot read; navikt/cplt#617).
+GOFLAGS = "-buildvcs=false"
 
 # ─── Local development ───────────────────────────────────────────────────────
 
