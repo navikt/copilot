@@ -171,6 +171,12 @@ export const CONFIG_KEYS = [
     desc: "Spør den lokale decide-modellen før en risikabel skallkommando kjører (endringer med kubectl, nais, gcloud og helm, terraform apply, rm -r, git push --force og lignende) om den står i forhold til formålet, om den er destruktiv, og om formålet agenten oppga støtter den. Med log lagres svaret i telemetri og en lokal logg, og kommandoen kjører alltid. off slår den av. Virker bare med lokal modell (local_enabled) og en server som kjører. Den starter aldri en server selv.",
   },
   {
+    key: "mcp_hosts",
+    flag: "—",
+    values: "ask · off (standard: ask)",
+    desc: "Om nav-pilot ved oppstart spør om å slippe gjennom vertene MCP-tjenerne dine trenger i cplt-sandkassen. Vertene hentes fra Navs MCP-register, aldri fra MCP-oppsettet ditt. ask spør én gang per sett med verter, og Enter avslår. off spør aldri og tillater ingen.",
+  },
+  {
     key: "copilot_auth_mode",
     flag: "—",
     values: "auto · env_only · gh_only (standard: auto)",

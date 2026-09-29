@@ -761,8 +761,24 @@ func writeNavAllowedDomains() (string, error) {
 	b.WriteString("#\n")
 	b.WriteString("# Deleting this file does not fail loudly: cplt keeps serving its built-in\n")
 	b.WriteString("# list and the Nav hosts below simply stop being reachable.\n")
-	for _, d := range navAllowedDomains() {
+	own := navAllowedDomains()
+	for _, d := range own {
 		b.WriteString(d + "\n")
+	}
+	// The hosts the user approved for their MCP servers, taken from Nav's MCP
+	// registry (provider/mcp_hosts.go). A section of its own, below everything
+	// above, so it adds and never replaces.
+	var mcp []string
+	for _, d := range mcpAllowlistHosts() {
+		if !slices.Contains(own, d) {
+			mcp = append(mcp, d)
+		}
+	}
+	if len(mcp) > 0 {
+		b.WriteString(mcpAllowlistMarker + "\n")
+		for _, d := range mcp {
+			b.WriteString(d + "\n")
+		}
 	}
 	tmp, err := os.CreateTemp(dir, ".cplt-allowed-domains-*")
 	if err != nil {
@@ -782,6 +798,49 @@ func writeNavAllowedDomains() (string, error) {
 		return "", fmt.Errorf("writing %s: %w", path, err)
 	}
 	return path, nil
+}
+
+// mcpAllowlistMarker opens the MCP section of nav-pilot's allowlist file.
+const mcpAllowlistMarker = "# MCP servers you configured: hosts from Nav's MCP registry, approved by you."
+
+// mcpAllowlistHosts is a var so tests need no consent record.
+var mcpAllowlistHosts = providerpkg.MCPAllowlistHosts
+
+// syncMCPAllowlist rewrites the MCP section of nav-pilot's allowlist file when
+// it no longer matches what is approved, and nothing above it: those bytes
+// are kept as read, so no cplt is asked for its hosts at launch. Only a file
+// nav-pilot already wrote: without an allowlist the proxy lets public hosts
+// through anyway, and a launch must not start writing files the user never
+// asked for.
+func syncMCPAllowlist() {
+	path := navAllowedDomainsPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	prefix, section, _ := strings.Cut(string(data), mcpAllowlistMarker+"\n")
+	have := strings.Fields(section)
+	want := mcpAllowlistHosts()
+	if len(have)+len(want) == 0 {
+		return
+	}
+	var own []string
+	for _, line := range strings.Split(prefix, "\n") {
+		if line = strings.TrimSpace(line); line != "" && !strings.HasPrefix(line, "#") {
+			own = append(own, line)
+		}
+	}
+	want = slices.DeleteFunc(slices.Clone(want), func(h string) bool { return slices.Contains(own, h) })
+	if slices.Equal(have, want) {
+		return
+	}
+	out := prefix
+	if len(want) > 0 {
+		out += mcpAllowlistMarker + "\n" + strings.Join(want, "\n") + "\n"
+	}
+	if err := writeFileAtomic(path, []byte(out), 0o600); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Could not update %s with the approved MCP hosts: %v\n", domain.Yellow("⚠"), path, err)
+	}
 }
 
 // cpltConfigGet reads one cplt config key. Empty on any failure — callers treat

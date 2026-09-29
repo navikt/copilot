@@ -256,6 +256,10 @@ func validateConfigProblems(cfg *Config) []string {
 		problems = append(problems, fmt.Sprintf("hook_action_check %q is not valid (allowed: %s)",
 			*cfg.HookActionCheck, strings.Join(validHookActionCheck, ", ")))
 	}
+	if cfg.MCPHosts != nil && !containsStr(validMCPHosts, *cfg.MCPHosts) {
+		problems = append(problems, fmt.Sprintf("mcp_hosts %q is not valid (allowed: %s)",
+			*cfg.MCPHosts, strings.Join(validMCPHosts, ", ")))
+	}
 	if cfg.CopilotAuthMode != nil && !containsStr(validCopilotAuthModes, *cfg.CopilotAuthMode) {
 		problems = append(problems, fmt.Sprintf("copilot_auth_mode %q is not valid (allowed: %s)",
 			*cfg.CopilotAuthMode, strings.Join(validCopilotAuthModes, ", ")))
@@ -545,6 +549,7 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		HookRedactFNR:     true,
 		HookInjectionNote: true,
 		HookActionCheck:   "log",
+		MCPHosts:          "ask",
 	}
 
 	// Apply file values.
@@ -635,6 +640,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		}
 		if file.HookActionCheck != nil && containsStr(validHookActionCheck, *file.HookActionCheck) {
 			r.HookActionCheck = *file.HookActionCheck
+		}
+		if file.MCPHosts != nil && containsStr(validMCPHosts, *file.MCPHosts) {
+			r.MCPHosts = *file.MCPHosts
 		}
 	}
 

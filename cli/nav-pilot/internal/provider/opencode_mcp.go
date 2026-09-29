@@ -15,6 +15,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
@@ -66,11 +67,44 @@ type mcpRegistry struct {
 	URL      string
 	Remotes  map[string]bool
 	Packages map[string]bool
+	// Servers is each listed server's remote URLs, by the registry's name
+	// for it (io.github.navikt/github-mcp). The only source of the hosts an
+	// MCP server may reach under cplt (mcp_hosts.go).
+	Servers map[string][]string
 }
 
-// fetchMCPPolicy asks GitHub, as the user, which registry the org policy
+// fetchMCPPolicy and fetchMCPRegistry are asked once per process: an OpenCode
+// launch asks both for its policy check and for the MCP hosts (mcp_hosts.go).
+// Vars so tests answer them.
+var (
+	fetchMCPPolicy   = sync.OnceValues(askMCPPolicy)
+	fetchMCPRegistry = memoMCPRegistry(askMCPRegistry)
+	// mcpHTTPClient is the registry's client, a var so a test can fail on use.
+	mcpHTTPClient = &http.Client{}
+)
+
+func memoMCPRegistry(ask func(string) (mcpRegistry, error)) func(string) (mcpRegistry, error) {
+	var mu sync.Mutex
+	type answer struct {
+		reg mcpRegistry
+		err error
+	}
+	seen := map[string]answer{}
+	return func(base string) (mcpRegistry, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if a, ok := seen[base]; ok {
+			return a.reg, a.err
+		}
+		reg, err := ask(base)
+		seen[base] = answer{reg, err}
+		return reg, err
+	}
+}
+
+// askMCPPolicy asks GitHub, as the user, which registry the org policy
 // names. registry is "" when no policy restricts MCP servers.
-var fetchMCPPolicy = func() (registry string, err error) {
+func askMCPPolicy() (registry string, err error) {
 	gh, err := exec.LookPath("gh")
 	if err != nil {
 		return "", fmt.Errorf("gh is not installed")
@@ -109,12 +143,12 @@ var fetchMCPPolicy = func() (registry string, err error) {
 	return "", nil
 }
 
-// fetchMCPRegistry lists a registry's servers (MCP Registry v0.1).
-var fetchMCPRegistry = func(base string) (mcpRegistry, error) {
-	reg := mcpRegistry{URL: base, Remotes: map[string]bool{}, Packages: map[string]bool{}}
+// askMCPRegistry lists a registry's servers (MCP Registry v0.1).
+func askMCPRegistry(base string) (mcpRegistry, error) {
+	reg := mcpRegistry{URL: base, Remotes: map[string]bool{}, Packages: map[string]bool{}, Servers: map[string][]string{}}
 	ctx, cancel := context.WithTimeout(context.Background(), mcpPolicyTimeout)
 	defer cancel()
-	client := &http.Client{}
+	client := mcpHTTPClient
 	cursor := ""
 	for range 20 {
 		u := strings.TrimSuffix(base, "/") + "/v0.1/servers?limit=100"
@@ -140,6 +174,7 @@ var fetchMCPRegistry = func(base string) (mcpRegistry, error) {
 		var page struct {
 			Servers []struct {
 				Server struct {
+					Name     string                        `json:"name"`
 					Remotes  []struct{ URL string }        `json:"remotes"`
 					Packages []struct{ Identifier string } `json:"packages"`
 				} `json:"server"`
@@ -154,6 +189,9 @@ var fetchMCPRegistry = func(base string) (mcpRegistry, error) {
 		for _, s := range page.Servers {
 			for _, r := range s.Server.Remotes {
 				reg.Remotes[normalizeMCPURL(r.URL)] = true
+				if s.Server.Name != "" {
+					reg.Servers[s.Server.Name] = append(reg.Servers[s.Server.Name], r.URL)
+				}
 			}
 			for _, p := range s.Server.Packages {
 				reg.Packages[strings.ToLower(p.Identifier)] = true
@@ -253,8 +291,19 @@ func localPackage(command []string) string {
 // later definition of a name is merged over an earlier one. A file that does
 // not parse is skipped; OpenCode would refuse it anyway.
 func openCodeMCPServers(projectDir string, env []string) map[string]mcpServer {
+	return openCodeMCPServersIn(openCodeConfigDocs(projectDir, env, false))
+}
+
+// openCodeUserMCPServers is the servers in the user's own OpenCode config:
+// the global files and ~/.opencode, never a project's or an environment
+// variable's, which a repository can set.
+func openCodeUserMCPServers() map[string]mcpServer {
+	return openCodeMCPServersIn(openCodeConfigDocs("", os.Environ(), true))
+}
+
+func openCodeMCPServersIn(docs [][]byte) map[string]mcpServer {
 	servers := map[string]mcpServer{}
-	for _, doc := range openCodeConfigDocs(projectDir, env) {
+	for _, doc := range docs {
 		var cfg struct {
 			MCP map[string]json.RawMessage `json:"mcp"`
 		}
@@ -276,8 +325,9 @@ func openCodeMCPServers(projectDir string, env []string) map[string]mcpServer {
 
 // openCodeConfigDocs is the user's OpenCode config documents for this launch,
 // in OpenCode's merge order (see openCodeMCPServers), with {env:VAR} already
-// replaced. Comments are left in; parse with stripJSONC.
-func openCodeConfigDocs(projectDir string, env []string) [][]byte {
+// replaced. Comments are left in; parse with stripJSONC. userOnly is the
+// user's own files alone.
+func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte {
 	getenv := func(k string) string {
 		for _, e := range env {
 			if v, ok := strings.CutPrefix(e, k+"="); ok {
@@ -295,6 +345,12 @@ func openCodeConfigDocs(projectDir string, env []string) [][]byte {
 		}
 	}
 	read(openCodeConfigDir(), "config.json", "opencode.json", "opencode.jsonc")
+	if userOnly {
+		if home, err := os.UserHomeDir(); err == nil {
+			read(filepath.Join(home, ".opencode"), "opencode.json", "opencode.jsonc")
+		}
+		return expandOpenCodeEnv(docs, getenv)
+	}
 	if f := getenv("OPENCODE_CONFIG"); f != "" {
 		read(filepath.Dir(f), filepath.Base(f))
 	}
@@ -332,9 +388,13 @@ func openCodeConfigDocs(projectDir string, env []string) [][]byte {
 	if c := getenv(openCodeConfigContentEnv); c != "" {
 		docs = append(docs, []byte(c))
 	}
-	// {env:VAR} is replaced as raw text before OpenCode parses, so it is
-	// here too: a URL behind a variable must be matched by its value, and
-	// an unquoted placeholder must not make the document unreadable.
+	return expandOpenCodeEnv(docs, getenv)
+}
+
+// expandOpenCodeEnv replaces {env:VAR} as raw text, as OpenCode does before
+// it parses: a URL behind a variable must be matched by its value, and an
+// unquoted placeholder must not make the document unreadable.
+func expandOpenCodeEnv(docs [][]byte, getenv func(string) string) [][]byte {
 	for i, doc := range docs {
 		docs[i] = envPlaceholder.ReplaceAllFunc(doc, func(m []byte) []byte {
 			return []byte(getenv(string(envPlaceholder.FindSubmatch(m)[1])))

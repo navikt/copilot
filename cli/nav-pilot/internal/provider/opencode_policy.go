@@ -52,7 +52,7 @@ func applyOpenCodePolicy(env []string) []string {
 // permission goes first as "*". A user who denies external_directory
 // wholesale gets nothing added.
 func applyOpenCodeOwnDirs(env []string, projectDir string) []string {
-	docs := openCodeConfigDocs(projectDir, env)
+	docs := openCodeConfigDocs(projectDir, env, false)
 	ext, denied := userPermission(docs, "external_directory")
 	if denied {
 		return env

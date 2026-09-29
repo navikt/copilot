@@ -65,6 +65,20 @@ var cpltProposalFlags = defaultCpltProposalFlags
 // no approval, returns before the version probe runs. Only a launch that has
 // something to apply pays for `cplt --version`.
 func defaultCpltProposalFlags() []string {
+	args := pakkeProposalFlags()
+	// The MCP registry hosts the user approved (mcp_hosts.go): the same flag,
+	// once per host whichever source asked for it.
+	var pakkeHosts []string
+	for i := 0; i+1 < len(args); i += 2 {
+		if args[i] == "--allow-private-domain" {
+			pakkeHosts = append(pakkeHosts, args[i+1])
+		}
+	}
+	return append(args, mcpPrivateDomainFlags(pakkeHosts)...)
+}
+
+// pakkeProposalFlags is the active agentpakke's approved proposal as flags.
+func pakkeProposalFlags() []string {
 	// A waiver applies only to a launch running the manifest that asked for it.
 	// The built-in default stands in for every source that ships no manifest,
 	// and it calls itself "nav-pilot", so without this a user who approved
@@ -181,6 +195,12 @@ func untrustworthyRecord(record *artifacts.ProposalConsent) string {
 	if !cpltProtectsNavPilotState() {
 		return "this cplt does not deny writes to nav-pilot's state directory, so the approval cannot be trusted"
 	}
+	return recordedUntrustworthy(record)
+}
+
+// recordedUntrustworthy is gates 2 and 3 of [untrustworthyRecord]: what the
+// record says about itself, no cplt probe.
+func recordedUntrustworthy(record *artifacts.ProposalConsent) string {
 	if record.CpltStamp < minCpltStampProtectingNavPilotState {
 		return fmt.Sprintf(
 			"it was recorded under cplt %s, before %s denied writes to nav-pilot's state directory. Run the install or sync again to answer once more",
