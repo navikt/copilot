@@ -23,7 +23,7 @@ func quietStdin() (restore func()) {
 		return func() {}
 	}
 	quiet := *orig
-	quiet.Lflag &^= unix.ECHO
+	quiet.Lflag &^= unix.ECHO | unix.ECHONL // ECHONL echoes Enter even without ECHO
 	if unix.IoctlSetTermios(fd, ioctlSetTermios, &quiet) != nil {
 		return func() {}
 	}
