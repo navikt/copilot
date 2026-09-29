@@ -350,7 +350,7 @@ func countAsk(st surveyState, id string, now time.Time) *surveyRecord {
 func answerSurvey(r ResolvedConfig, st surveyState, s surveyDef, base string) bool {
 	// Said before the questions, not after them (#1274).
 	if surveyToken() == "" {
-		fmt.Println(dim("  For å sende svaret må du logge inn med GitHub etter siste spørsmål. Går ikke det, lagres svaret til du har logget inn."))
+		fmt.Println(dim("  Etter siste spørsmål må du logge inn med GitHub for å sende svaret. Får du ikke logget inn, lagres svaret til du har gjort det."))
 		fmt.Println()
 	}
 	answers, ok := runSurveyForm(s)

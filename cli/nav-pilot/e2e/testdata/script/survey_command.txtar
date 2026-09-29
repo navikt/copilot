@@ -47,7 +47,7 @@ stdout 'Du har allerede svart på denne undersøkelsen'
 # fails the answer is kept (#1274). The e2e proxy blocks github.com.
 env NAV_PILOT_E2E_GITHUB_TOKEN=
 exec pty-run -wait 'How useful is nav-pilot' -send '\x1b[B\r' -wait 'Velg opptil 2' -send ' \r' -wait 'Anything else' -send '\r' -- nav-pilot survey
-stdout 'For å sende svaret må du logge inn med GitHub etter siste spørsmål'
+stdout 'Etter siste spørsmål må du logge inn med GitHub for å sende svaret'
 stdout 'Svaret er lagret'
 
 # No sign-in, and no GitHub App to sign in with.

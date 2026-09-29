@@ -94,6 +94,9 @@ func cmdAuthStatus(jsonOutput bool) error {
 // githubAppAuthorizations is where a user revokes nav-pilot's access by hand.
 const githubAppAuthorizations = "https://github.com/settings/apps/authorizations"
 
+// githubAuthorizations lists both GitHub Apps and OAuth Apps.
+const githubAuthorizations = "https://github.com/settings/applications"
+
 // cmdAuthLogout revokes the stored token at GitHub through copilot-cli, then
 // removes it from the keychain whatever the revoke's outcome; a failed revoke
 // names the page to revoke it by hand (#1274). Idempotent: logging out when
@@ -102,7 +105,7 @@ func cmdAuthLogout() error {
 	revoked := false
 	t, err := loadToken()
 	if errors.Is(err, keyring.ErrNotFound) {
-		fmt.Printf("  %s Not logged in, so there was nothing to remove.\n", yellow("○"))
+		fmt.Printf("  %s Not logged in; nothing to remove.\n", yellow("○"))
 		return nil
 	}
 	if err == nil && t.AccessToken != "" && !t.expired() {
@@ -111,7 +114,12 @@ func cmdAuthLogout() error {
 		cancel()
 		if err != nil {
 			fmt.Printf("  %s Could not revoke the token at GitHub: %v.\n", yellow("⚠"), err)
-			fmt.Printf("  To revoke it yourself, remove nav-pilot under Authorized GitHub Apps: %s\n", githubAppAuthorizations)
+			if navPilotGitHubClientID() == navPilotGitHubClientIDDefault {
+				fmt.Printf("  To revoke it yourself, remove nav-pilot under Authorized GitHub Apps: %s\n", githubAppAuthorizations)
+			} else {
+				// An override may name an OAuth App or another App (#1274 review).
+				fmt.Printf("  To revoke it yourself, remove the app NAV_PILOT_GITHUB_CLIENT_ID names under Authorized GitHub Apps or Authorized OAuth Apps: %s\n", githubAuthorizations)
+			}
 		} else {
 			revoked = true
 		}

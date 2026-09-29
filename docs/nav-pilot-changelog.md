@@ -9,12 +9,12 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Nei holder i et døgn**: Svarer du nei på «Sync now?», spør nav-pilot ikke igjen før om 24 timer, som ved «Upgrade now?». Kommer det flere versjoner på en dag, starter nav-pilot uten spørsmål og uten varsel i mellomtiden. `nav-pilot sync --apply` synkroniserer når du vil (#1275).
 - **Stille nei til rtk**: Takker du nei til rtk ved første oppstart, skriver nav-pilot ikke lenger ut de interne innstillingene den lagrer, eller meldinger om `.bak`-filer (#1275).
 
-### Tydeligere `auth logout`, og ett språk per kommando
+### Tydeligere `auth logout` og ett språk per kommando
 
 - **Ikke logget inn**: `nav-pilot auth logout` sier nå at du ikke var logget inn når det ikke finnes noe token, i stedet for «Token removed» (#1274).
-- **Når tilbakekallingen feiler**: Tokenet fjernes fortsatt fra maskinen, og meldingen viser hvor du trekker tilbake tilgangen selv: fjern nav-pilot under «Authorized GitHub Apps» på https://github.com/settings/apps/authorizations.
+- **Når tilbakekallingen mislykkes**: Tokenet fjernes fortsatt fra maskinen, og meldingen sier hvor du kan trekke tilbake tilgangen selv: fjern nav-pilot under «Authorized GitHub Apps» på https://github.com/settings/apps/authorizations. Er `NAV_PILOT_GITHUB_CLIENT_ID` satt, peker meldingen til https://github.com/settings/applications, som viser både GitHub Apps og OAuth Apps.
 - **Ett språk**: `auth status` er på engelsk som resten av `auth`, `usage` er på norsk hele veien, og innloggingen fra `survey` er på norsk.
-- **Innlogging før spørsmålene**: `survey` sier før første spørsmål at svaret sendes etter en GitHub-innlogging. Går ikke innloggingen, lagres svaret til du har logget inn.
+- **Innlogging før spørsmålene**: `survey` sier før første spørsmål at svaret sendes etter en GitHub-innlogging. Får du ikke logget inn, lagres svaret til du har gjort det.
 
 ### Lange økter telles én gang i telemetrien
 
