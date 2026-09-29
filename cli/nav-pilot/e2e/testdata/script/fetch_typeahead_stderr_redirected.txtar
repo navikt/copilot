@@ -1,8 +1,7 @@
-# Keys pressed while nav-pilot fetches its source are dropped, so an Enter
-# does not reach the install question that follows (#1279). They are not
-# echoed either, so the spinner line is cleared instead of left above an
-# echoed newline (#1287). A git wrapper slows the fetch down so the keys land
-# while the spinner runs (PATH holds only the fakes, hence /bin/sleep).
+# With stdin on a terminal and stderr redirected there is no spinner, but keys
+# pressed during the fetch are still dropped and not echoed (#1287). The
+# install question goes to stderr, so the git wrapper announces the fetch and
+# its end on the terminal, and the test answers the question after that.
 
 [!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
 
@@ -24,7 +23,7 @@ exec git config --global url.file://$WORK/plattform.insteadOf https://github.com
 exec nav-pilot config set source navikt/plattform
 exec nav-pilot config set rtk_prompted_client copilot
 
-exits 0 pty-run -wait 'Fetching navikt/plattform' -send 'zqx\r' -wait 'and 1 hooks to ~/.copilot' -send '\r' -- nav-pilot
+exits 0 pty-run -wait 'slow fetch' -send 'zqx\r' -wait 'checked out' -send '\r' -- /bin/sh -c 'exec nav-pilot 2>$WORK/stderr.log'
 stdout 'Installed\. cd into a project and run nav-pilot'
 ! stdout zqx
 ! stdout 'Agents \(1 available\)'
@@ -44,5 +43,7 @@ plattform
 print("ok")
 -- slowgit --
 #!/bin/sh
-[ "$1" = fetch ] && /bin/sleep 2
-exec "$REAL_GIT" "$@"
+[ "$1" = fetch ] && echo "slow fetch" >/dev/tty && /bin/sleep 2
+"$REAL_GIT" "$@" || exit
+[ "$3" = checkout ] && echo "checked out" >/dev/tty
+exit 0

@@ -1,14 +1,9 @@
 package source
 
-import (
-	"os"
+import "golang.org/x/sys/unix"
 
-	"golang.org/x/sys/unix"
+const (
+	ioctlGetTermios        = unix.TIOCGETA
+	ioctlSetTermios        = unix.TIOCSETA
+	ioctlSetTermiosFlushIn = unix.TIOCSETAF // tcsetattr(TCSAFLUSH)
 )
-
-// dropTypeahead discards what was typed on a terminal stdin but not yet read,
-// as tcflush(TCIFLUSH) does: TIOCFLUSH with FREAD (1). On anything but a
-// terminal the ioctl fails and nothing happens.
-func dropTypeahead() {
-	_ = unix.IoctlSetPointerInt(int(os.Stdin.Fd()), unix.TIOCFLUSH, 1)
-}
