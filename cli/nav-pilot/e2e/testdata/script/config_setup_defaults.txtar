@@ -1,19 +1,21 @@
 # The wizard preselects the built-in defaults, auto_update included (the
 # client is opencode, saved as copilot here because opencode is missing), and
-# writes only what differs from them, except the client, which it always
-# writes so a later default never moves the user (#1029). Its client labels are the settings
+# writes only what differs from them, except the client and autonomy, which it
+# always writes so a later default never moves the user (#1029). Its client labels are the settings
 # page's. Before the model list it says it is asking the account which
 # models it has, and that the probe runs outside the sandbox.
 
 [!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
 
 fake-bin cplt copilot
-exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Install it now' -send '\x1b[C\r' -wait 'Conversation mode' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -- nav-pilot config setup
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Install it now' -send '\x1b[C\r' -wait 'Conversation mode' -send '\r' -wait 'without asking' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -- nav-pilot config setup
 stdout 'OpenCode \(default\)'
 stdout 'GitHub Copilot'
 stdout 'opencode is not installed, so nav-pilot will use GitHub Copilot'
 stdout 'Checking which models your account has… \(runs copilot once, outside the cplt sandbox; it stops before any prompt\)'
 grep 'client = "copilot"' home/config.toml
+stdout 'How much should the agent do without asking'
+grep 'autonomy = "sandbox"' home/config.toml
 ! grep 'mode =' home/config.toml
 ! grep 'auto_update' home/config.toml
 grep 'version = 1' home/config.toml

@@ -29,6 +29,11 @@ type Config struct {
 	ContextTier     *string `toml:"context_tier"`
 	AllowAllTools   *bool   `toml:"allow_all_tools"`
 	AskUser         *bool   `toml:"ask_user"`
+	// Autonomy is how much the Copilot CLI may do without asking when it runs
+	// under cplt: sandbox passes Copilot's allow-all flags, conservative keeps
+	// its per-action prompts. Unset in an existing file means conservative, so
+	// nobody's session changes on upgrade; a new config gets sandbox.
+	Autonomy *string `toml:"autonomy"`
 	// AutoLaunch controls whether nav-pilot starts the coding agent by itself
 	// after an install/sync. Defaults to true; false means never launch.
 	AutoLaunch   *bool   `toml:"auto_launch"`
@@ -113,6 +118,7 @@ type ResolvedConfig struct {
 	ContextTier        string // empty = unset
 	AllowAllTools      bool
 	AskUser            bool
+	Autonomy           string   // sandbox | conservative; always set
 	AutoLaunch         bool     // launch the coding agent automatically after install/sync
 	LogLevel           string   // empty = unset
 	OtelLogLevel       string   // always set; defaults to "none"
@@ -173,6 +179,7 @@ var (
 	ValidLogLevels        = []string{"none", "error", "warning", "info", "debug", "all", "default"}
 	ValidOtelLogLevels    = []string{"none", "error", "warning", "warn", "info", "debug", "verbose", "all"}
 	ValidCopilotAuthModes = []string{"auto", "env_only", "gh_only"}
+	ValidAutonomy         = []string{"sandbox", "conservative"}
 	ValidLocalDispatch    = []string{"off", "conservative", "balanced", "aggressive"}
 	ValidHookActionCheck  = []string{"off", "log"}
 	ValidMCPHosts         = []string{"ask", "off"}

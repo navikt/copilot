@@ -36,21 +36,17 @@ func TestCpltPresetFromConfigGet(t *testing.T) {
 	}
 }
 
-func TestCpltRecommendStrict(t *testing.T) {
-	tests := []struct {
-		preset string
-		want   bool
-	}{
-		{"strict", false},
-		{"standard", true},
-		{"permissive", true},
-		{"full-trust", true},
-		{"", false}, // unknown: skip the recommendation rather than guess
-	}
-	for _, tc := range tests {
-		if got := cpltRecommendStrict(tc.preset); got != tc.want {
-			t.Errorf("cpltRecommendStrict(%q) = %v, want %v", tc.preset, got, tc.want)
+// Strict blocks all pushes, so nav-pilot no longer nudges anyone towards it:
+// the settings row shows the preset as it is, and says what strict costs.
+func TestStrictIsNotRecommended(t *testing.T) {
+	stubStrictSupport(t, true, "")
+	for _, preset := range []string{"standard", "permissive", "full-trust", "strict"} {
+		if got := cpltPostureValue(preset); got != preset {
+			t.Errorf("cpltPostureValue(%q) = %q, want the bare preset", preset, got)
 		}
+	}
+	if !strings.Contains(cpltStrictConsequence, "Blocks all pushes") {
+		t.Errorf("the strict description does not lead with what it blocks: %q", cpltStrictConsequence)
 	}
 }
 
@@ -212,8 +208,8 @@ func TestStrictPresetSeedsAllowlistIntoCpltConfig(t *testing.T) {
 	}
 
 	sets := configSets(t, log)
-	if sets["sandbox.preset"] != cpltRecommendedPreset {
-		t.Errorf("sandbox.preset = %q, want %q", sets["sandbox.preset"], cpltRecommendedPreset)
+	if sets["sandbox.preset"] != cpltStrictPreset {
+		t.Errorf("sandbox.preset = %q, want %q", sets["sandbox.preset"], cpltStrictPreset)
 	}
 
 	listPath := sets["proxy.allowed_domains"]
@@ -375,31 +371,6 @@ func stubStrictSupport(t *testing.T, ok bool, reason string) {
 	t.Cleanup(func() { strictPresetSupported = prev })
 }
 
-// On a kernel that cannot enforce forced-proxy egress, cplt refuses to launch
-// under strict. Recommending it there would stop every session on the machine —
-// worse than the problem the recommendation solves — so the nudge is withheld.
-func TestStrictNotRecommendedWhereCpltWouldRefuseToLaunch(t *testing.T) {
-	stubStrictSupport(t, false, "this kernel cannot enforce forced-proxy egress")
-	for _, preset := range []string{"standard", "permissive", "full-trust"} {
-		if cpltRecommendStrict(preset) {
-			t.Errorf("recommended strict from %q on a kernel where cplt refuses to launch", preset)
-		}
-	}
-}
-
-// The gate must not swallow the recommendation everywhere else.
-func TestStrictStillRecommendedWhereItWorks(t *testing.T) {
-	stubStrictSupport(t, true, "")
-	for _, preset := range []string{"standard", "permissive", "full-trust"} {
-		if !cpltRecommendStrict(preset) {
-			t.Errorf("did not recommend strict from %q on a supported kernel", preset)
-		}
-	}
-	if cpltRecommendStrict(cpltRecommendedPreset) {
-		t.Error("recommended strict to someone already on strict")
-	}
-}
-
 // The settings row stays selectable, so the action refuses on its own account
 // rather than trusting that the row was hidden.
 func TestStrictActionRefusesOnAnUnsupportedKernel(t *testing.T) {
@@ -425,8 +396,8 @@ func TestStrictActionRefusesOnAnUnsupportedKernel(t *testing.T) {
 // unsupported state has to surface whatever the current preset is.
 func TestPostureRowFlagsStrictAlreadySetOnAnUnsupportedKernel(t *testing.T) {
 	stubStrictSupport(t, false, "this kernel cannot enforce forced-proxy egress")
-	got := cpltPostureValue(cpltRecommendedPreset)
-	if got == cpltRecommendedPreset {
+	got := cpltPostureValue(cpltStrictPreset)
+	if got == cpltStrictPreset {
 		t.Fatalf("row shows a bare %q on a kernel where cplt will not launch", got)
 	}
 	if !strings.Contains(got, "will not launch") {
@@ -440,10 +411,6 @@ func TestPostureRowNamesTheUnsupportedKernel(t *testing.T) {
 	stubStrictSupport(t, false, "whatever")
 	if got := cpltPostureValue("standard"); !strings.Contains(got, "unavailable") {
 		t.Errorf("posture row hides the gate: %q", got)
-	}
-	stubStrictSupport(t, true, "")
-	if got := cpltPostureValue("standard"); !strings.Contains(got, cpltRecommendedPreset) {
-		t.Errorf("posture row dropped the recommendation where it works: %q", got)
 	}
 }
 

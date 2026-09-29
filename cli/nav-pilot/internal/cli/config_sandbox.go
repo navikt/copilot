@@ -175,27 +175,22 @@ func applySandboxChanges(cliPath string, changes map[string]bool) error {
 
 // ─── security posture (sandbox.preset) ───────────────────────────────────────
 
-// cpltRecommendedPreset is the sandbox preset nav-pilot recommends.
-//
-// What it buys over `standard` is narrower than it used to be. cplt#335 turned
-// gh_guard and git_guard on in `standard` too, so naming those as the reason is
-// now stale advice. What strict still adds is the network: forced-proxy egress,
-// the git guard escalated from warn to block, and `proxy.default_allowlist` —
-// which restricts egress to cplt's built-in host list plus whatever
-// `proxy.allowed_domains` names, and blocks everything else
-// (cplt src/config/types.rs, `Preset::Strict.baseline()`).
-//
-// That last one is why the recommendation is never made on its own: see
-// navAllowedDomains below. Individually set keys still override the preset, so
-// it stays safe to recommend to users who have tuned cplt already.
-const cpltRecommendedPreset = "strict"
+// cpltStrictPreset is the preset the settings page can set for you. It is no
+// longer recommended: strict blocks every git push (protect_default_branch_only
+// is off in it), so an agent cannot push a feature branch and open a PR, which
+// is the workflow nav-pilot is built around. What strict adds over standard is
+// the network: forced-proxy egress and `proxy.default_allowlist`, which blocks
+// everything but cplt's built-in host list plus `proxy.allowed_domains`
+// (cplt src/config/types.rs, `Preset::Strict.baseline()`). Hence
+// navAllowedDomains: setting it without the Nav hosts turns them off.
+const cpltStrictPreset = "strict"
 
-// cpltStrictConsequence is the one-paragraph version of what strict does, used
-// wherever nav-pilot recommends it. It leads with the consequence rather than
-// the feature list, because the feature list is what went stale.
-const cpltStrictConsequence = "Locks egress down: only cplt's built-in host list plus proxy.allowed_domains " +
-	"stay reachable, and the git guard blocks rather than warns. nav-pilot seeds the allowlist " +
-	"with the Nav hosts it and your agents need, or they go dark. Keys you set yourself still win."
+// cpltStrictConsequence is the one-paragraph version of what strict does,
+// leading with what it takes away.
+const cpltStrictConsequence = "Blocks all pushes: the agent cannot push a branch or open a PR from one. " +
+	"It also locks egress down: only cplt's built-in host list plus proxy.allowed_domains " +
+	"stay reachable. nav-pilot seeds the allowlist with the Nav hosts it and your agents need, " +
+	"or they go dark. Keys you set yourself still win."
 
 // cpltPresets are the values cplt accepts for sandbox.preset. Anything else is
 // treated as unknown rather than guessed at.
@@ -232,21 +227,6 @@ var cpltSandboxPreset = func() string {
 	return cpltPresetFromConfigGet(string(out))
 }
 
-// cpltRecommendStrict reports whether nav-pilot should nudge the user towards
-// the strict preset. An unknown preset is left alone, and so is a machine where
-// strict would not work — see strictPresetSupported.
-//
-// The platform gate lives here rather than at the call sites because both the
-// doctor report and the settings page route through this one predicate. A gate
-// added to only one of them is a recommendation nav-pilot still makes.
-func cpltRecommendStrict(preset string) bool {
-	if preset == "" || preset == cpltRecommendedPreset {
-		return false
-	}
-	ok, _ := strictPresetSupported()
-	return ok
-}
-
 // cmdConfigStrictPreset asks for confirmation, seeds the allowlist, and sets
 // sandbox.preset = strict. cplt config is personal: nav-pilot never sets it
 // silently.
@@ -262,8 +242,7 @@ func cmdConfigStrictPreset() error {
 	if err != nil {
 		return err
 	}
-	// The row is selectable even where the recommendation is withheld, so the
-	// refusal is repeated here rather than assumed from the row being hidden.
+	// The row is selectable on every machine, so the refusal is made here.
 	if ok, reason := strictPresetSupported(); !ok {
 		return fmt.Errorf("nav-pilot will not set sandbox.preset = strict here: %s", reason)
 	}
@@ -319,10 +298,10 @@ func applyStrictPreset(cliPath, path, host string) error {
 		fmt.Printf("  Add the hosts in %s to your own file, or strict will block them.\n", path)
 	}
 
-	if err := cpltConfigSet(cliPath, "sandbox.preset", cpltRecommendedPreset); err != nil {
+	if err := cpltConfigSet(cliPath, "sandbox.preset", cpltStrictPreset); err != nil {
 		return err
 	}
-	fmt.Printf("%s cplt sandbox.preset = %s\n", domain.Green("✓"), cpltRecommendedPreset)
+	fmt.Printf("%s cplt sandbox.preset = %s\n", domain.Green("✓"), cpltStrictPreset)
 	return nil
 }
 

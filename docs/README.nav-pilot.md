@@ -400,8 +400,7 @@ En modell du velger med config eller `--model`, vinner over agentpakkas standard
 > `copilot --agent nav-pilot` uten cplt kjører uten sandbox.
 
 > **Auth-detalj (Copilot/cplt):** nav-pilot henter ikke ut GitHub-tokenet selv.
-> Med `cplt`s gh-guard på, som `sandbox.preset = strict` slår på og `nav-pilot
-doctor` anbefaler, skaffer `cplt` tokenet: den bruker `GH_TOKEN`,
+> Med `cplt`s gh-guard på, som den er i `standard` og `strict`, skaffer `cplt` tokenet: den bruker `GH_TOKEN`,
 > `GITHUB_TOKEN` eller `COPILOT_GITHUB_TOKEN` hvis en av dem er satt, ellers
 > `gh auth token` utenfor sandkassen, og leverer det via en 0600-fil som leses
 > én gang. Med gh-guarden av gjør `cplt` ingenting her, og Copilot autentiserer
@@ -639,6 +638,7 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | `context_tier` | --context | default · long_context | Kontekstnivå. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode. |
 | `allow_all_tools` | --allow-all-tools / --no-allow-all-tools | true · false (standard: false) | La agenten kjøre alle verktøy uten å spørre først. |
 | `ask_user` | --ask-user / --no-ask-user | true · false (standard: true) | La agenten stoppe og spørre deg. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode. |
+| `autonomy` | — | sandbox · conservative (standard: sandbox) | Hvor mye Copilot CLI får gjøre uten å spørre når den kjører i cplt. sandbox gir --allow-all-tools --allow-all-paths --allow-all-urls: vaktene i cplt setter grensene, og agenten kan fremdeles spørre deg. Med conservative spør Copilot før hver handling. En ny konfigurasjon får sandbox, og en config.toml uten feltet betyr conservative. Uten cplt sender nav-pilot aldri allow-all-flagg. |
 | `auto_launch` | --auto-launch / --no-auto-launch | true · false (standard: true) | Start klienten etter sync eller installasjon. Med false skriver nav-pilot bare ut kommandoen. |
 | `auto_update` | — | true · false (standard: false) | Oppgrader nav-pilot automatisk når en ny versjon er ute, uten å spørre. Feiler oppgraderingen, kjører kommandoen på versjonen du har, og neste forsøk kommer etter 24 timer. |
 | `surveys` | — | true · false (standard: true) | Spør av og til, etter en økt, om du vil svare på en kort brukerundersøkelse (høyst tre ganger per undersøkelse). Med false spør nav-pilot aldri, og viser heller ikke engangstipset om opencode. DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false slår det også av. |

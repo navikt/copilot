@@ -63,6 +63,12 @@ export const CONFIG_KEYS = [
     desc: "La agenten stoppe og spørre deg. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode.",
   },
   {
+    key: "autonomy",
+    flag: "—",
+    values: "sandbox · conservative (standard: sandbox)",
+    desc: "Hvor mye Copilot CLI får gjøre uten å spørre når den kjører i cplt. sandbox gir --allow-all-tools --allow-all-paths --allow-all-urls: vaktene i cplt setter grensene, og agenten kan fremdeles spørre deg. Med conservative spør Copilot før hver handling. En ny konfigurasjon får sandbox, og en config.toml uten feltet betyr conservative. Uten cplt sender nav-pilot aldri allow-all-flagg.",
+  },
+  {
     key: "auto_launch",
     flag: "--auto-launch / --no-auto-launch",
     values: "true · false (standard: true)",

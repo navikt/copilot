@@ -83,6 +83,9 @@ func cmdUpgrade(command string, args []string) error {
 			// Here, not in doUpdate: the auto-update in front of another
 			// command goes through doUpdate too, and must stay quiet.
 			reportCpltUpgrade(os.Stdout)
+			if cfg, err := readConfig(); err == nil {
+				printAutonomyNudge(os.Stdout, cfg, "")
+			}
 		}
 		return err
 	})

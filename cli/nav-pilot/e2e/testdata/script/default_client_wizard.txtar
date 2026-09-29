@@ -20,7 +20,7 @@ grep '^client = "opencode"' home/config.toml
 rm home/config.toml
 rm $WORK/fake/opencode
 fake-bin cplt copilot
-exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Install it now' -send '\x1b[C\r' -wait 'Conversation mode' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -- nav-pilot config setup
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Install it now' -send '\x1b[C\r' -wait 'Conversation mode' -send '\r' -wait 'without asking' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -- nav-pilot config setup
 stdout 'Runs curl -fsSL https://opencode\.ai/install \| bash -s -- --version 1\.18\.32'
 stdout 'opencode is not installed, so nav-pilot will use GitHub Copilot\. To switch later, install opencode \(curl -fsSL https://opencode\.ai/install \| bash -s -- --version 1\.18\.32\), then run nav-pilot config set client opencode'
 grep '^client = "copilot"' home/config.toml
@@ -29,7 +29,7 @@ grep '^client = "copilot"' home/config.toml
 rm home/config.toml
 rm $WORK/fake/copilot
 rm $WORK/fake/cplt
-exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Install it now' -send '\x1b[C\r' -wait 'Conversation mode' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -- nav-pilot config setup
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Install it now' -send '\x1b[C\r' -wait 'Conversation mode' -send '\r' -wait 'without asking' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -- nav-pilot config setup
 stdout 'Neither opencode nor GitHub Copilot is installed'
 stdout 'opencode: curl -fsSL https://opencode\.ai/install \| bash -s -- --version 1\.18\.32, then nav-pilot config set client opencode'
 stdout 'GitHub Copilot CLI: curl -fsSL https://gh\.io/copilot-install \| bash'
@@ -49,7 +49,7 @@ rm $WORK/fake/bash.sh
 # No opencode, Homebrew there, the offer declined: copilot.
 rm home/config.toml
 fake-bin cplt copilot brew
-exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Install it now' -send '\x1b[C\r' -wait 'Conversation mode' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -- nav-pilot config setup
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Install it now' -send '\x1b[C\r' -wait 'Conversation mode' -send '\r' -wait 'without asking' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -- nav-pilot config setup
 stdout 'Runs brew install anomalyco/tap/opencode'
 ! exists $WORK/fake/brew.log
 grep '^client = "copilot"' home/config.toml

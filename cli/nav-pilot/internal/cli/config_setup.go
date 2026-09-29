@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,6 +23,7 @@ type setupAnswers struct {
 	Mode            string
 	ReasoningEffort string // empty = don't write the key
 	AutoUpdate      string // "true" or "false"
+	Autonomy        string // empty = sandbox
 }
 
 // writeSetupConfig writes a new config file from wizard answers.
@@ -65,6 +67,12 @@ func writeSetupConfig(answers setupAnswers) error {
 		modeVal, _ := formatTOMLValue(findKeyDef("mode"), answers.Mode)
 		lines = append(lines, "mode = "+modeVal)
 	}
+
+	// Always written, like client: a file without it means conservative.
+	if answers.Autonomy == "" {
+		answers.Autonomy = "sandbox"
+	}
+	lines = append(lines, "autonomy = "+tomlString(answers.Autonomy))
 
 	if answers.Model != "" {
 		modelVal, _ := formatTOMLValue(findKeyDef("model"), answers.Model)
@@ -119,6 +127,7 @@ func runConfigSetup(flagSource string) error {
 		Client:     findKeyDef("client").defaultVal,
 		Mode:       findKeyDef("mode").defaultVal,
 		AutoUpdate: findKeyDef("auto_update").defaultVal,
+		Autonomy:   findKeyDef("autonomy").defaultVal,
 	}
 	opencodeLabel := clientLabel["opencode"] + " (default)"
 	if existing, err := readConfig(); err == nil && existing != nil {
@@ -150,13 +159,30 @@ func runConfigSetup(flagSource string) error {
 		Options(
 			huh.NewOption("default", "default"),
 			huh.NewOption("plan — think before acting", "plan"),
-			huh.NewOption("autopilot — no confirmations", "autopilot"),
+			huh.NewOption("autopilot — no confirmations, and the agent cannot ask you", "autopilot"),
 		).
 		Value(&answers.Mode).
 		WithTheme(navTheme()).
 		Run()
 	if err != nil {
 		return setupSkipped(err)
+	}
+
+	// Only the Copilot CLI reads it; the others keep the default written.
+	if answers.Client == "copilot" {
+		err = huh.NewSelect[string]().
+			Title("How much should the agent do without asking?").
+			Description("cplt's guards hold either way: no push to main, no force push, no merge.").
+			Options(
+				huh.NewOption("Work on its own inside the sandbox, ask you when unsure (recommended)", "sandbox"),
+				huh.NewOption("Ask before each command and file change", "conservative"),
+			).
+			Value(&answers.Autonomy).
+			WithTheme(navTheme()).
+			Run()
+		if err != nil {
+			return setupSkipped(err)
+		}
 	}
 
 	// Model picker: providers with a curated model list get a select widget;
@@ -390,4 +416,14 @@ func cmdConfigSetup(force bool) error {
 	// No flag source: `config setup` does not persist one, so seeding from a
 	// --source would materialize a pakke the config it just wrote never names.
 	return runConfigSetupFn("")
+}
+
+// printAutonomyNudge is the one line a config from before the autonomy key
+// gets: nothing changes for them until they choose.
+func printAutonomyNudge(w io.Writer, cfg *Config, indent string) {
+	if cfg == nil || cfg.Autonomy != nil {
+		return
+	}
+	fmt.Fprintf(w, "%s%s The agent can work autonomously inside the sandbox; run %s to choose (or %s).\n",
+		indent, dim("ℹ"), bold("nav-pilot config setup"), bold("nav-pilot config set autonomy sandbox"))
 }

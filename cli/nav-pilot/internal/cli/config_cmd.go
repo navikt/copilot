@@ -107,6 +107,14 @@ var configKeyDefs = []configKeyDef{
 		flag:        "--ask-user / --no-ask-user",
 	},
 	{
+		name:        "autonomy",
+		kind:        keyKindString,
+		description: "How much the Copilot CLI may do without asking, under cplt. sandbox passes --allow-all-tools --allow-all-paths --allow-all-urls: cplt's guards stay the boundary, and the agent can still ask you. conservative keeps Copilot's prompt before each action. A new config gets sandbox; a config.toml without the key means conservative. Without cplt nav-pilot never passes allow-all flags.",
+		allowed:     validAutonomy,
+		defaultVal:  "sandbox",
+		flag:        "",
+	},
+	{
 		name:        "auto_launch",
 		kind:        keyKindBool,
 		description: "Launch the coding agent automatically after install/sync. Set to false to never launch it; nav-pilot prints the command instead.",
@@ -379,6 +387,15 @@ client = "copilot"
 # Default: true
 # Corresponds to nav-pilot flags: --ask-user / --no-ask-user
 # ask_user = true
+
+# How much the Copilot CLI may do without asking, under cplt.
+#   sandbox      : --allow-all-tools --allow-all-paths --allow-all-urls; cplt's
+#                  guards stay the boundary, and the agent can still ask you
+#   conservative : Copilot asks before each action
+# Without cplt nav-pilot never passes allow-all flags. A config.toml without
+# the key means conservative.
+# Allowed: sandbox, conservative — Default: sandbox
+autonomy = "sandbox"
 
 # Launch the coding agent automatically after sync/install. Set to false to
 # never launch it; nav-pilot prints the ready-to-run command instead.
@@ -775,6 +792,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return strconv.FormatBool(r.AllowAllTools)
 	case "ask_user":
 		return strconv.FormatBool(r.AskUser)
+	case "autonomy":
+		return r.Autonomy
 	case "auto_launch":
 		return strconv.FormatBool(r.AutoLaunch)
 	case "auto_update":

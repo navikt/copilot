@@ -262,6 +262,10 @@ func validateConfigProblems(cfg *Config) []string {
 		problems = append(problems, fmt.Sprintf("mcp_hosts %q is not valid (allowed: %s)",
 			*cfg.MCPHosts, strings.Join(validMCPHosts, ", ")))
 	}
+	if cfg.Autonomy != nil && !containsStr(validAutonomy, *cfg.Autonomy) {
+		problems = append(problems, fmt.Sprintf("autonomy %q is not valid (allowed: %s)",
+			*cfg.Autonomy, strings.Join(validAutonomy, ", ")))
+	}
 	if cfg.CopilotAuthMode != nil && !containsStr(validCopilotAuthModes, *cfg.CopilotAuthMode) {
 		problems = append(problems, fmt.Sprintf("copilot_auth_mode %q is not valid (allowed: %s)",
 			*cfg.CopilotAuthMode, strings.Join(validCopilotAuthModes, ", ")))
@@ -559,8 +563,17 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		MCPHosts:          "ask",
 	}
 
+	// No config.toml yet is a new user, who gets the new default. A file
+	// without the key is someone who ran nav-pilot before this existed, who
+	// keeps the prompts they had.
+	r.Autonomy = "sandbox"
+
 	// Apply file values.
 	if file != nil {
+		r.Autonomy = "conservative"
+		if file.Autonomy != nil {
+			r.Autonomy = *file.Autonomy
+		}
 		if file.Client != nil {
 			r.Client = *file.Client
 		}
