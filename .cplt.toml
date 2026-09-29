@@ -7,8 +7,8 @@
 # own ~/.config/cplt/config.toml, not here.
 #
 # What works with no approvals at all: `mise run generate`, `mise run build`,
-# go vet/staticcheck, eslint and tsc. Tests and the dev server need
-# allow_localhost_any below; `pnpm install` has a known gap, see the end.
+# go vet/staticcheck, eslint, tsc and `pnpm install` (cplt 2026.09.29 or
+# newer, see the end). Tests and the dev server need allow_localhost_any below.
 
 [propose]
 # Next.js dev server (apps/my-copilot, `pnpm dev`). Turbopack starts node
@@ -46,9 +46,7 @@ localhost = [3000, 8080]
 # - read ~/.config/gcloud/virtenv/bin: only used by the gcloud CLI, which no
 #   task here runs.
 #
-# Known gaps (need cplt fixes, no safe repo setting exists):
-# - `pnpm install` fails on packages that ship a .claude/ directory
-#   (thread-stream): navikt/cplt#618. Run `pnpm install` outside cplt.
-# - macOS: pnpm cannot read ~/Library/Preferences/pnpm/config.yaml:
-#   navikt/cplt#616. Until then, per user:
-#   cplt config set allow.read "~/Library/Preferences/pnpm/config.yaml"
+# pnpm on older cplt: builds before 2026.09.29-113343 could not run
+# `pnpm install` (navikt/cplt#616 config.yaml, navikt/cplt#618 packages that
+# ship a .claude/ directory). Both are fixed; run `cplt update` or
+# `brew upgrade cplt` instead of adding a grant.
