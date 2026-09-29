@@ -4,11 +4,16 @@
 # store the server's question versions, not what the respondent saw, and
 # nav-pilot caches definitions for up to a day, so a question cannot change
 # mid-wave, bumped version or not. Change it in a new wave (a new id).
-# The title, intro, nudge, active and ends may still change.
+# Every other field (title, intro, nudge, series, min_cli_version, active,
+# starts, ends) may still change.
 #
 # Usage: check-frozen-surveys.sh <base commit>
 set -euo pipefail
 base=${1:?usage: $0 <base commit>}
+if ! git rev-parse --quiet --verify "$base^{commit}" >/dev/null; then
+  echo "::error::base commit $base cannot be resolved; fetch it (fetch-depth: 0) before the check."
+  exit 1
+fi
 today=$(date -u +%F)
 fail=0
 for f in $(git diff --no-renames --name-only "$base" HEAD -- ':(top)apps/copilot-survey/surveys/*.json'); do
