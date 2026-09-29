@@ -776,10 +776,6 @@ button.section-link {
   outline: 3px solid var(--ax-border-focus);
   outline-offset: 2px;
 }
-.setup-wizard-steps:focus-visible {
-  outline: 3px solid var(--ax-border-focus);
-  outline-offset: 2px;
-}
 .user-name {
   max-width: 10rem;
   overflow: hidden;
@@ -807,6 +803,12 @@ button.section-link {
 }
 .user-panel {
   width: 18rem;
+}
+
+/* Setup wizard: the step row scrolls at 360 px (#1293), so it takes focus for keyboard scrolling */
+.setup-wizard-steps:focus-visible {
+  outline: 3px solid var(--ax-border-focus);
+  outline-offset: 2px;
 }
 
 /* Site search (V11): the shortcut hint on the header button, and the hits in the dialog */
