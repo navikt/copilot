@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -173,6 +174,8 @@ func cmdConfigStrictPreset() error {
 	}
 
 	desc := cpltStrictConsequence
+	// The battery takes a few seconds; say so rather than sit silent.
+	fmt.Println(dim("Checking the sandbox…"))
 	path, host := cpltAgentHostShutOut(cliPath, cpltEnforcement())
 	if host != "" {
 		desc += fmt.Sprintf("\n\n%s shuts out %s, so this also sets proxy.default_allowlist = true. That opens cplt's built-in hosts, package registries included.",
@@ -214,7 +217,7 @@ func applyStrictPreset(cliPath, path, host string) error {
 	}
 	if adopted {
 		fmt.Printf("%s cplt proxy.allowed_domains = %s (%d hosts, %d of them Nav's)\n",
-			domain.Green("✓"), path, len(navAllowedDomains), len(navOwnDomains))
+			domain.Green("✓"), path, len(navAllowedDomains()), len(navOwnDomains))
 	} else {
 		fmt.Printf("%s You already have proxy.allowed_domains set, so nav-pilot left it alone.\n",
 			domain.Yellow("⚠"))
@@ -262,18 +265,22 @@ type cpltCheckReport struct {
 		Target   string `json:"target"`
 		Expected string `json:"expected"`
 		Decision string `json:"decision"`
+		Reason   string `json:"reason"`
 	} `json:"items"`
 }
 
 // agentHostBlocked returns the host of the battery's agent-host probe when
-// cplt blocked it, else "". That probe is the battery's only network item
-// expected to get through: `reach <the agent's first default host>`.
+// cplt's allowlist blocked it, else "". That probe is the battery's only
+// network item expected to get through: `reach <the agent's first default
+// host>`. The reason must name the allowlist: a host on a blocklist is blocked
+// too, and blaming allowed_domains for that sends the user to the wrong fix.
 func (r *cpltCheckReport) agentHostBlocked() string {
 	if r == nil {
 		return ""
 	}
 	for _, it := range r.Items {
-		if it.Category == "network" && it.Expected == "allowed" && it.Decision == "blocked" {
+		if it.Category == "network" && it.Expected == "allowed" && it.Decision == "blocked" &&
+			strings.Contains(it.Reason, "allowlist") {
 			host, _, _ := strings.Cut(it.Target, ":")
 			return host
 		}
@@ -423,21 +430,79 @@ var cpltEnforcement = func() *cpltCheckReport {
 // cplt matches each entry exact-or-subdomain and does not read glob syntax, so
 // these are bare hostnames with no leading `*.` — and they are specific hosts
 // rather than `nav.cloud.nais.io`, which would open every Nais tenant at once.
-var navAllowedDomains = append(append([]string{}, cpltBuiltinDomains...), navOwnDomains...)
+func navAllowedDomains() []string {
+	builtin, _ := cpltBuiltinDomains()
+	return append(slices.Clone(builtin), navOwnDomains...)
+}
 
-// cpltBuiltinDomains mirrors cplt's own built-in allowlists for the three
-// agents nav-pilot launches: COPILOT_INFRA_DOMAINS, OPENCODE_DOMAINS and
-// PACKAGE_REGISTRY_DOMAINS in cplt src/agent.rs.
+// cpltHosts is `cplt config hosts --agent <name> --json` (navikt/cplt#608):
+// the agent's effective hosts, built-in plus any cplt detects on this machine.
+type cpltHosts struct {
+	Version          int      `json:"version"`
+	AgentHosts       []string `json:"agent_hosts"`
+	DefaultAllowlist []string `json:"default_allowlist"`
+}
+
+// cpltHostsFor asks the installed cplt for one agent's hosts. An error means a
+// cplt too old for the subcommand (clap exits non-zero), no cplt, or an answer
+// in a shape this build does not know. A var so tests can stub the spawn.
+var cpltHostsFor = func(agent string) (*cpltHosts, error) {
+	cliPath, err := findCplt()
+	if err != nil {
+		return nil, err
+	}
+	out, err := runBounded(cliPath, "config", "hosts", "--agent", agent, "--json")
+	if err != nil {
+		return nil, err
+	}
+	var h cpltHosts
+	if err := json.Unmarshal(out, &h); err != nil {
+		return nil, err
+	}
+	if h.Version != 1 || len(h.DefaultAllowlist) == 0 {
+		return nil, fmt.Errorf("cplt config hosts: unexpected answer (version %d)", h.Version)
+	}
+	return &h, nil
+}
+
+// cpltBuiltinDomains is cplt's own list for the agents nav-pilot launches:
+// copilot's default allowlist (its infrastructure plus the package registries,
+// which is all pi gets) and opencode's agent hosts. fromCplt is false when the
+// installed cplt could not say, and the list is cpltHostsFallback.
+func cpltBuiltinDomains() (hosts []string, fromCplt bool) {
+	copilot, err := cpltHostsFor("copilot")
+	if err != nil {
+		return cpltHostsFallback, false
+	}
+	opencode, err := cpltHostsFor("opencode")
+	if err != nil {
+		return cpltHostsFallback, false
+	}
+	return dedupeHosts(append(slices.Clone(copilot.DefaultAllowlist), opencode.AgentHosts...)), true
+}
+
+// dedupeHosts drops repeats, keeping first-seen order.
+func dedupeHosts(hosts []string) []string {
+	seen := map[string]bool{}
+	out := hosts[:0]
+	for _, h := range hosts {
+		if !seen[h] {
+			seen[h] = true
+			out = append(out, h)
+		}
+	}
+	return out
+}
+
+// cpltHostsFallback is the FALLBACK for a cplt older than `cplt config hosts`.
+// Frozen on purpose: it is what nav-pilot wrote before it could ask cplt, so a
+// user on an old cplt gets exactly the file they got before. Do not update it;
+// upgrading cplt is the fix, and doctor says so.
 //
-// Copied rather than referenced because there is nothing to reference — cplt
-// exposes the list to `cplt --observe-domains` and to its own proxy, not to a
-// config command. A copy can go stale, so the cost of it being wrong is worth
-// stating: a host cplt adds later and nav-pilot does not is one an agent cannot
-// reach under strict, which is a visible failure with a one-line fix here. The
-// reverse — a host cplt drops — leaves an entry that was already reachable.
-// Neither silently weakens anything, because everything here is already in
-// cplt's own default-on list.
-var cpltBuiltinDomains = []string{
+// A stale copy fails visibly, never open: a host cplt added later is one an
+// agent cannot reach under strict, and a host cplt dropped was already
+// reachable.
+var cpltHostsFallback = []string{
 	// Copilot: auth, model access and telemetry.
 	"githubcopilot.com",
 	"api.github.com",
@@ -589,7 +654,7 @@ func writeNavAllowedDomains() (string, error) {
 	b.WriteString("#\n")
 	b.WriteString("# Deleting this file does not fail loudly: cplt keeps serving its built-in\n")
 	b.WriteString("# list and the Nav hosts below simply stop being reachable.\n")
-	for _, d := range navAllowedDomains {
+	for _, d := range navAllowedDomains() {
 		b.WriteString(d + "\n")
 	}
 	tmp, err := os.CreateTemp(dir, ".cplt-allowed-domains-*")

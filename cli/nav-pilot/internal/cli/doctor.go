@@ -242,21 +242,7 @@ func cmdDoctor() error {
 		}
 		fmt.Printf("      %s Binary found: %s (%s)\n", green("✓"), cpltPath, version)
 
-		// Version skew is warn-only: nav-pilot never downloads or upgrades cplt,
-		// and a slow or offline GitHub must not fail the health check. An
-		// unreadable installed version reports unknown, never "up to date".
-		installed := parseCpltVersion(version)
-		latest, lerr := latestCpltVersion()
-		switch classifyCpltSkew(installed, latest, lerr) {
-		case cpltVersionBehind:
-			fmt.Printf("      %s cplt %s is out of date (latest: %s)\n", yellow("⚠"), installed, latest)
-			fmt.Printf("          %s Run %s\n", yellow("Solution:"),
-				bold(domain.PkgOwner(cpltPath).Pick("brew upgrade navikt/tap/cplt", "sudo apt upgrade cplt")))
-		case cpltVersionCurrent:
-			fmt.Printf("      %s cplt is up to date\n", green("✓"))
-		default:
-			fmt.Printf("      %s Could not check for a newer cplt release (%s)\n", dim("-"), cpltSkewUnknownReason(installed, latest, lerr))
-		}
+		reportCpltVersion(cpltPath, version)
 
 		// Security posture. A recommendation, not a failure — and an unknown
 		// preset is skipped rather than guessed at.
@@ -295,7 +281,7 @@ func cmdDoctor() error {
 			fmt.Printf("          %s Run %s and pick %s. It seeds the allowlist with the\n",
 				yellow("Solution:"), bold("nav-pilot config"), bold("cplt security posture"))
 			fmt.Printf("          %d hosts nav-pilot and your agents need (%d of them Nav's), then sets the preset.\n",
-				len(navAllowedDomains), len(navOwnDomains))
+				len(navAllowedDomains()), len(navOwnDomains))
 			fmt.Printf("          Setting the preset by hand skips that, and your Nav hosts go dark.\n")
 		default:
 			fmt.Printf("      %s Sandbox preset is %s\n", green("✓"), preset)
@@ -500,4 +486,41 @@ func cmdDoctor() error {
 	}
 
 	return nil
+}
+
+// reportCpltVersion is doctor's cplt version line: behind the latest release,
+// current, or could not tell — checked whether or not nav-pilot itself is
+// current. Warn-only: nav-pilot never upgrades cplt, and a slow or offline
+// GitHub must not fail the health check. An unreadable installed version
+// reports unknown, never "up to date".
+//
+// A cplt without `config hosts` leaves nav-pilot on its frozen copy of cplt's
+// host list. That is said once, and the upgrade is offered only when there may
+// be one: a current cplt without the subcommand has nothing newer to go to.
+func reportCpltVersion(cpltPath, version string) {
+	installed := parseCpltVersion(version)
+	latest, lerr := latestCpltVersion()
+	upgrade := bold(domain.PkgOwner(cpltPath).Pick("brew upgrade navikt/tap/cplt", "sudo apt upgrade cplt"))
+	_, hostsFromCplt := cpltBuiltinDomains()
+	const fallback = "it has no `cplt config hosts`, so nav-pilot uses its own, possibly stale, copy of cplt's host list"
+	switch classifyCpltSkew(installed, latest, lerr) {
+	case cpltVersionBehind:
+		fmt.Printf("      %s cplt %s is out of date (latest: %s)\n", yellow("⚠"), installed, latest)
+		if !hostsFromCplt {
+			fmt.Printf("          %s %s.\n", dim("Note:"), fallback)
+		}
+		fmt.Printf("          %s Run %s\n", yellow("Solution:"), upgrade)
+	case cpltVersionCurrent:
+		fmt.Printf("      %s cplt is up to date\n", green("✓"))
+		// Current, yet without the subcommand: nothing newer to upgrade to.
+		if !hostsFromCplt {
+			fmt.Printf("          %s %s.\n", dim("Note:"), fallback)
+		}
+	default:
+		fmt.Printf("      %s Could not check for a newer cplt release (%s)\n", dim("-"), cpltSkewUnknownReason(installed, latest, lerr))
+		if !hostsFromCplt {
+			fmt.Printf("      %s cplt may be too old: %s\n", yellow("⚠"), fallback)
+			fmt.Printf("          %s Run %s\n", yellow("Solution:"), upgrade)
+		}
+	}
 }
