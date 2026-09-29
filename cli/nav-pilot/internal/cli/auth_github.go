@@ -54,32 +54,3 @@ func fetchGitHubUser(ctx context.Context, token string) (*githubUserInfo, error)
 	}
 	return &user, nil
 }
-
-// checkOrgMembership reports whether the token's owner is a member of org.
-func checkOrgMembership(ctx context.Context, token, org, username string) (bool, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	url := fmt.Sprintf("%s/orgs/%s/members/%s", githubAPIBaseURL, org, username)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return false, fmt.Errorf("building org membership request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Accept", "application/vnd.github+json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return false, fmt.Errorf("calling GitHub org membership: %w", err)
-	}
-	defer resp.Body.Close()
-
-	switch resp.StatusCode {
-	case http.StatusNoContent:
-		return true, nil
-	case http.StatusNotFound:
-		return false, nil
-	default:
-		return false, fmt.Errorf("org membership check returned status %d", resp.StatusCode)
-	}
-}

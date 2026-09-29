@@ -21,7 +21,7 @@ func TestSaveLoadDeleteToken(t *testing.T) {
 	tok := storedToken{
 		AccessToken: "gho_test123",
 		TokenType:   "bearer",
-		Scope:       "read:user read:org",
+		Scope:       "read:user",
 		Login:       "starefossen",
 		ObtainedAt:  time.Now().Truncate(time.Second),
 	}
@@ -199,7 +199,9 @@ func TestCmdAuthLoginSuccess(t *testing.T) {
 		case "/user":
 			_, _ = w.Write([]byte(`{"login":"starefossen","name":"Hans Kristian"}`))
 		default:
-			w.WriteHeader(http.StatusNoContent) // org membership
+			// The App has no permissions: nothing but /user may be asked.
+			t.Errorf("unexpected GitHub call %s", r.URL.Path)
+			w.WriteHeader(http.StatusForbidden)
 		}
 	}))
 	defer githubServer.Close()
@@ -234,49 +236,6 @@ func TestCmdAuthLoginSuccess(t *testing.T) {
 	}
 	if tok.Login != "starefossen" || tok.AccessToken != "gho_abc" {
 		t.Fatalf("unexpected stored token: %+v", tok)
-	}
-}
-
-func TestCmdAuthLoginNotOrgMember(t *testing.T) {
-	keyring.MockInit()
-	t.Setenv("NAV_PILOT_GITHUB_CLIENT_ID", "Iv1.test-client")
-
-	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		switch r.URL.Path {
-		case "/user":
-			_, _ = w.Write([]byte(`{"login":"outsider","name":""}`))
-		default:
-			w.WriteHeader(http.StatusNotFound) // not an org member
-		}
-	}))
-	defer githubServer.Close()
-
-	oauthServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		switch r.URL.Path {
-		case "/login/device/code":
-			_, _ = w.Write([]byte(`{"device_code":"dc","user_code":"WXYZ-5678","verification_uri":"https://github.com/login/device","expires_in":900,"interval":0}`))
-		case "/login/oauth/access_token":
-			_, _ = w.Write([]byte(`{"access_token":"gho_xyz","token_type":"bearer","scope":"read:user"}`))
-		}
-	}))
-	defer oauthServer.Close()
-
-	origDeviceURL, origTokenURL := deviceCodeURL, accessTokenURL
-	origGitHubAPI := githubAPIBaseURL
-	setTestURLs(oauthServer.URL+"/login/device/code", oauthServer.URL+"/login/oauth/access_token")
-	githubAPIBaseURL = githubServer.URL
-	defer func() {
-		setTestURLs(origDeviceURL, origTokenURL)
-		githubAPIBaseURL = origGitHubAPI
-	}()
-
-	// Login should still succeed (token stored) even though org membership
-	// is denied — copilot-cli will reject requests server-side; this is
-	// just a local warning, not a hard failure.
-	if err := cmdAuthLogin(); err != nil {
-		t.Fatalf("cmdAuthLogin should not fail on non-membership: %v", err)
 	}
 }
 

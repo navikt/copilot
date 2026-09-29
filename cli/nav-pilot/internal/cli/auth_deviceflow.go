@@ -44,9 +44,9 @@ func hasGitHubApp() bool {
 // navPilotGitHubScopes is sent with the device code request, but GitHub
 // ignores it for a GitHub App: the user token gets the permissions set on the
 // App itself. It only matters for an OAuth App named by
-// NAV_PILOT_GITHUB_CLIENT_ID, where read:user and read:org are the minimum to
-// check identity and navikt org membership.
-const navPilotGitHubScopes = "read:user read:org"
+// NAV_PILOT_GITHUB_CLIENT_ID, where read:user is the minimum to check identity.
+// Membership is copilot-cli's job, checked server-side with its own App.
+const navPilotGitHubScopes = "read:user"
 
 // deviceCodeURL and accessTokenURL are GitHub's device flow endpoints,
 // overridable only by tests via setTestURLs to point at an httptest server.

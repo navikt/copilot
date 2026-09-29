@@ -23,10 +23,12 @@ GitHub login of each usage request it serves on someone's behalf (audit).
 **GitHub App prerequisites.** Device flow enabled, and no permissions at all:
 no repository, organization or account permissions. copilot-cli only checks
 that a token was issued to the App (client id and secret); copilot-api checks
-membership with its own GitHub App, which needs *Members: read*. Until
-nav-pilot stops doing it, `nav-pilot auth login` and `auth status` also ask
-GitHub about membership with the user token, as a local hint only; without
-*Members: read* that hint says it could not verify. User token expiry on:
+membership with its own GitHub App, which needs *Members: read*. nav-pilot
+no longer asks GitHub about membership itself. Older releases still do, with
+the user token, as a local hint in `auth login` and `auth status`: once the
+App has no *Members: read*, GitHub may answer them as it would an outsider,
+so a private member can see "not a member" there. It is only a hint; access
+is decided here. User token expiry on:
 access tokens last 8 hours, and nav-pilot renews them with the refresh token
 it stores beside them.
 
