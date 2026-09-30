@@ -5,7 +5,7 @@ import { NAV_PILOT_DEFAULT_MODEL, NAV_PILOT_MODEL_CHOICES } from "@/lib/model-po
 import { ModellerContent } from "./modeller-content";
 
 export const metadata: Metadata = {
-  title: "Modellvalg — Hvilke modeller agentene bruker og hvorfor",
+  title: "Modellvalg: hvilke modeller agentene bruker og hvorfor",
   description:
     "Hvilken modell hver agent og prompt i Nav bruker, hvorfor, hva målingene viser og hva modellene koster.",
 };

@@ -2,7 +2,8 @@
 
 import { Scatter } from "react-chartjs-2";
 import type { TooltipItem } from "chart.js";
-import { chartWrapperClass } from "@/lib/chart-utils";
+// Registers the Chart.js scales and elements the site uses.
+import "@/lib/chart-utils";
 
 export interface ChartPoint {
   model: string;
@@ -45,7 +46,11 @@ export function PassRateChart({ points, models, title }: { points: ChartPoint[];
     });
 
   return (
-    <figure className={chartWrapperClass} aria-label={title}>
+    <figure
+      className="bg-white rounded-lg border border-gray-200"
+      style={{ padding: "var(--ax-space-16)" }}
+      aria-label={title}
+    >
       <div style={{ position: "relative", height: "20rem" }}>
         <Scatter
           aria-label={title}
