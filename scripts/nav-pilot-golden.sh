@@ -302,7 +302,7 @@ fail_preflight() {
 #
 #   planning  nav-pilot    2,3,4,5    the 23 Sept protocol (docs/modellvalg.md)
 #   review    code-review  rv1-rv4    planted defects named, on the right line
-#   norsk     forfatter    no1-no4    bokmål, no KI markers, «KI», length
+#   norsk     forfatter    no1-no4    bokmål, no KI markers, no «AI», length
 #   coding    nav-pilot    ko1-ko6    failing tests fixed, in scope: Go, TS, and
 #                                     a Go fix that spans two files
 #   research  research     re1-re4    bounded read-and-summarise: right lines,
@@ -2074,9 +2074,9 @@ RV_TSX=(
   'tabindex=tabindex@11'
   'ikonknapp=aria-label|tilgjengelig navn|accessible name|ikon|icon@14,15'
 )
-DESC_RV1="Kotlin: all three planted defects named"
+DESC_RV1="Kotlin: all three planted defects named within three lines"
 DESC_RV2="Kotlin: every planted defect cited on its line"
-DESC_RV3="TSX: all four planted defects named"
+DESC_RV3="TSX: all four planted defects named within three lines"
 DESC_RV4="TSX: every planted defect cited on its line"
 
 # record_review <transcript> <found-id> <desc> <line-id> <desc> <spec>...
@@ -2467,7 +2467,7 @@ run_pass_forfatter() {
     case "$id" in
       no1) args=(nynorsk);  desc="both texts are free of nynorsk forms" ;;
       no2) args=(floskler); desc="both texts are free of KI markers" ;;
-      no3) args=(ki);       desc="both texts say «KI», never «AI»" ;;
+      no3) args=(ki);       desc="neither text says «AI»" ;;
       no4) args=(lengde);   desc="both texts are $NORSK_MIN_WORDS-$NORSK_MAX_WORDS words" ;;
     esac
     if [[ -n "$dead" ]]; then

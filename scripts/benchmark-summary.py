@@ -10,9 +10,11 @@ left out: they ran other prompt selections and are not comparable.
   scripts/benchmark-summary.py --check    # fail if summary.json is stale
   scripts/benchmark-summary.py --selftest
 
-A run is refused when its usage rows name any model but the one in its
-header: a frontmatter pin once overrode --model, and every number would have
-been credited to the wrong model.
+A run is refused when its main-agent usage rows (empty agent_id) name any
+model but the one in its header: a frontmatter pin once overrode --model, and
+every number would have been credited to the wrong model. Subagents may run
+on other models; those are listed in subagent_models and still counted in
+credits. A run with no usage rows cannot be checked: model_verified is false.
 
 Credits are exact assistant_usage_events (total_nano_aiu / 1e9) summed per
 run, retries and subagents included. When tracking was incomplete for any
@@ -49,7 +51,7 @@ CHECKS = {
     "rv4": ("rv4", "TSX: riktig linje for hver feil"),
     "no1": ("no1", "Ingen nynorske former"),
     "no2": ("no2", "Ingen KI-floskler"),
-    "no3": ("no3", "Skriver «KI», ikke «AI»"),
+    "no3": ("no3", "Skriver ikke «AI»"),
     "no4": ("no4", "Holder seg innenfor 30–90 ord"),
     "ko1": ("ko1", "Go: testene er grønne etterpå"),
     "ko2": ("ko2", "Go: endrer bare filen med feilen"),
@@ -88,9 +90,9 @@ def summarise_run(txt):
     usage = rows(Path(base + "-usage.psv"))
     model = h["model"]
 
-    ran_models = {r[5] for r in usage}
-    if usage and ran_models != {model}:
-        raise SystemExit(f"{txt.name}: header says {model!r}, usage rows say {sorted(ran_models)}")
+    main_models = {r[5] for r in usage if not r[16]}
+    if usage and main_models != {model}:
+        raise SystemExit(f"{txt.name}: header says {model!r}, main-agent usage rows say {sorted(main_models)}")
 
     checks, order = defaultdict(int), []
     for r in results:
@@ -102,6 +104,7 @@ def summarise_run(txt):
         if rid not in order:
             order.append(rid)
         checks[rid] += status == "pass"
+    order.sort(key=list(CHECKS).index)
 
     per_run = defaultdict(int)
     for r in usage:
@@ -126,6 +129,8 @@ def summarise_run(txt):
         "date": h["date"],
         "suite": h["suite"],
         "model": model,
+        "model_verified": bool(usage),
+        "subagent_models": sorted({r[5] for r in usage if r[16]} - {model}),
         "effort": "default" if h["effort"] == "CLI default" else h["effort"],
         "ran_at": observed.most_common(1)[0][0] if observed else "default",
         "cli_version": (re.search(r"\d+\.\d+\.\d+(-\d+)?", h.get("clientVersion", "")) or [""])[0],
@@ -188,6 +193,11 @@ def selftest():
     assert run_with(ok_usage, complete="false")[0]["credits"] is None
     only_run1 = ok_usage.splitlines(keepends=True)[0]
     assert run_with(only_run1)[0]["credits"] is None
+    # A subagent on another model is listed, and its credits still count.
+    sub = run_with(ok_usage + u.format(run=1, m="gpt-6-luna", e="", nano=1_000_000_000).replace("|stop||", "|stop|sub-1|"))[0]
+    assert sub["subagent_models"] == ["gpt-6-luna"] and sub["credits"]["mean"] == 3.5, sub
+    # No usage rows: nothing verifies the model.
+    assert run_with("")[0]["model_verified"] is False
     # A pin that overrode --model is refused, not credited to the wrong model.
     try:
         run_with(ok_usage.replace("gpt-6-sol", "gpt-5.3-codex", 1))

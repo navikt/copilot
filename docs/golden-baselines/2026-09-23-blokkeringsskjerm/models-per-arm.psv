@@ -1,0 +1,14 @@
+# Which model each 23 Sept arm actually ran: the model column of its
+# assistant_usage_events rows (<arm>-usage.psv, kept in the session that
+# ran the screen). Extracted 2026-09-30 for the correction in docs/modellvalg.md.
+# arm|model|calls
+gpt-5.6-luna-bounded|gpt-5.6-luna|74
+gpt-5.6-sol-core|gpt-5.6-sol|21
+gpt-5.6-sol-core-v2|gpt-5.6-luna|8
+gpt-5.6-sol-core-v2|gpt-5.6-sol|115
+gpt-6-luna-bounded|gpt-6-luna|84
+gpt-6-sol-core|gpt-6-sol|155
+gpt-6-sol-core-v2|gpt-6-sol|147
+opus-5-high-code-review|gpt-5.3-codex|90
+opus-5.5-high-code-review|gpt-5.3-codex|109
+opus-5.5-medium-code-review|gpt-5.3-codex|55

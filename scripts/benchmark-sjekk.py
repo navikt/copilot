@@ -6,7 +6,7 @@ holds and 1 when it does not, with the reason on stdout. `--selftest` runs a
 passing and a failing case for every check: a check that cannot fail proves
 nothing.
 
-  funnet  TX SPEC...        every planted defect is named in the review
+  funnet  TX SPEC...        every planted defect is named within 3 lines of it
   linje   TX SPEC...        every planted defect is named with its line
   nynorsk FILE              no nynorsk forms (list: skills/klarsprak/SKILL.md)
   floskler FILE             no KI markers (list: hooks/klarsprak-gate.py)
@@ -56,6 +56,19 @@ def _gate_markers():
     return re.compile("|".join(r"(?<![\wæøå])(?:%s)" % m for m in kept), re.IGNORECASE)
 
 
+# What `copilot -p` prints besides the answer: a tool header («● Read
+# App.kt», «✗ Read mise.toml», «/ Search (grep)») and its indented detail
+# lines («  │ src/main/kotlin/no/nav/demo/Routes.kt», «  └ 3 lines found»).
+# Read from the 163 kept transcripts of 23 and 30 Sept. A tree in a code block
+# («│   ├── App.kt») starts in column 0 and is kept: that is the answer.
+TOOL_LINE = re.compile(r"^(?:[●✗] |/ \S|  [│└] )")
+
+
+def answer_lines(text):
+    """The transcript without tool output, so a check reads what the agent said."""
+    return [l for l in text.splitlines() if not TOOL_LINE.match(l)]
+
+
 # Numbers that are not line references: WCAG criteria (2.1.1), Tailwind
 # classes (p-4, mx-8), JSX literals (tabIndex={5}), versions.
 NOT_A_LINE = re.compile(r"\d+(\.\d+)+|[A-Za-z]+-\d+|\{\d+\}|\bv\d+")
@@ -64,12 +77,14 @@ LINE_CELL = re.compile(r"^\s*`?(?:L|linje\s*)?(\d+(?:\s*[-–]\s*\d+)?)`?\s*$", 
 
 
 def cited_lines(text):
-    # A table row cites its line in the Line cell. Taking every integer in the
+    # A table row cites its line in a Line cell. Taking every integer in the
     # row would let «tabIndex 5 … linje 11» or a number in the prose pass.
+    # Every number-only cell counts, so an index column («| 3 | … |») beside
+    # the Line column does not hide it.
     if text.lstrip().startswith("|"):
         cells = [m.group(1) for m in map(LINE_CELL.match, text.split("|")) if m]
         if cells:
-            text = cells[0]
+            text = " ".join(cells)
     text = NOT_A_LINE.sub(" ", text)
     lines = set()
     for a, b in RANGE.findall(text):
@@ -87,21 +102,33 @@ def parse_spec(spec):
     return name, re.compile(regex, re.IGNORECASE), {int(n) for n in lines.split(",")}
 
 
+# funnet: the defect is named on a row that cites a line within NEAR of it,
+# so a finding elsewhere that happens to use the word does not count. linje:
+# the row cites the exact line. The gap between them is the off-by-one the
+# 23 Sept screen found. Spec line 0 means the text only has to be named.
+NEAR = 3
+
+
 def review(mode, text, specs):
-    rows = text.splitlines()
+    rows = answer_lines(text)
     missing, wrong = [], []
     for spec in specs:
         name, regex, want = parse_spec(spec)
         hits = [r for r in rows if regex.search(r)]
-        if not hits:
+        if want == {0}:
+            if not hits:
+                missing.append(f"{name} (anywhere)")
+            continue
+        near = [r for r in hits if any(abs(c - w) <= NEAR for c in cited_lines(r) for w in want)]
+        if not near:
             missing.append(name)
-        elif not any(cited_lines(r) & want for r in hits):
-            got = sorted(set().union(*(cited_lines(r) for r in hits)))
-            wrong.append(f"{name} (want {sorted(want)}, cited {got or 'none'})")
+        elif not any(cited_lines(r) & want for r in near):
+            got = sorted(set().union(*(cited_lines(r) for r in near)))
+            wrong.append(f"{name} (want {sorted(want)}, cited {got})")
     if missing:
-        return f"not named: {', '.join(missing)}"
+        return f"not named near its line: {', '.join(missing)}"
     if mode == "linje" and wrong:
-        return f"wrong or missing line: {'; '.join(wrong)}"
+        return f"wrong line: {'; '.join(wrong)}"
     return None
 
 
@@ -109,6 +136,9 @@ def words(text):
     # Counted the way a writer counts, like `wc -w`: «nav-pilot» and
     # `.nav-pilot/config.toml` are one word each, a lone «#» or «-» none.
     return sum(1 for t in text.split() if re.search(W, t))
+
+
+LOCATION = re.compile(r"\.kts?:\d+|linje \d+|line \d+", re.IGNORECASE)
 
 
 def check(cmd, args):
@@ -123,32 +153,33 @@ def check(cmd, args):
         found = sorted({m.group(0).lower() for m in _gate_markers().finditer(text)})
         return f"KI markers: {', '.join(found)}" if found else None
     if cmd == "ki":
-        # The rule is «not AI». Spelling out «kunstig intelligens» keeps it;
-        # the prompt does not name «KI», or this would test obedience instead.
-        if re.search(r"(?<!%s)AI(?!%s)" % (W, W), text):
+        # The house rule is «not AI»; spelling out or abbreviating is free.
+        # Channel names like #ki-utvikling are not prose.
+        if re.search(r"(?<!%s)AI(?!%s)" % (W, W), re.sub(r"#\S+", "", text)):
             return "uses «AI»; Norwegian text says «KI»"
-        if not re.search(r"(?<!%s)KI(?!%s)|kunstig intelligens" % (W, W), text, re.IGNORECASE):
-            return "never names KI, so the choice was not tested"
         return None
     if cmd == "lengde":
         n, lo, hi = words(text), int(args[1]), int(args[2])
         return None if lo <= n <= hi else f"{n} words, want {lo}-{hi}"
     if cmd == "ingen":
         subject, neg = re.compile(args[1], re.I), re.compile(args[2], re.I)
+        answer = "\n".join(answer_lines(text))
         # Per sentence, so «X kalles fra A.kt. Ingen andre kall.» is no «none».
-        sentences = re.split(r"\.\s|[!?\n]|\.$", text)
-        if not any(subject.search(s) and neg.search(s) for s in sentences):
+        sentences = re.split(r"\.\s|[!?\n]|\.$", answer)
+        claims = [x.strip() for x in sentences if subject.search(x) and LOCATION.search(x) and not neg.search(x)]
+        if claims:
+            return f"places a call that does not exist: {claims[0][:80]}"
+        if not any(subject.search(x) and neg.search(x) for x in sentences):
             return "no sentence says there is none"
         real = {p.name for p in Path(args[3]).rglob("*") if p.is_file()}
-        # The answer only: a tool line («✗ Read package.json … does not
-        # exist») may name a missing file, and that is the agent looking.
-        answer = "\n".join(l for l in text.splitlines() if not re.match(r"\s*[●✗│└]", l))
         named = {Path(m).name for m in re.findall(r"[\w./-]+\.(?:kts?|go|tsx?|ya?ml|json)\b", answer)}
         invented = sorted(named - real)
         return f"names files that do not exist: {', '.join(invented)}" if invented else None
     if cmd == "punkter":
-        # List items in the answer. Tool lines start with ●, │ or └, not these.
-        n = len(re.findall(r"^\s*(?:[-*•]|\d+[.)])\s+\S", text, re.MULTILINE))
+        # Top-level list items in the answer; an indented sub-point belongs
+        # to the point above it.
+        answer = "\n".join(answer_lines(text))
+        n = len(re.findall(r"^(?:[-*•]|\d+[.)])\s+\S", answer, re.MULTILINE))
         lo, hi = int(args[1]), int(args[2])
         return None if lo <= n <= hi else f"{n} list items, want {lo}-{hi}"
     raise SystemExit(f"unknown check: {cmd}")
@@ -174,8 +205,8 @@ def selftest():
         ("floskler", "En banebrytende og sømløs endring.", [], False),
         ("ki", "KI-assistenten svarer på norsk.", [], True),
         ("ki", "AI-assistenten svarer på norsk.", [], False),
-        ("ki", "Assistenten svarer på norsk.", [], False),
-        ("ki", "Assistenten bruker kunstig intelligens.", [], True),
+        ("ki", "Assistenten svarer på norsk. Spørsmål går til #ki-utvikling.", [], True),
+        ("ki", "AI-assistenten svarer. Spørsmål går til #ki-utvikling.", [], False),
         ("floskler", "En helhetlig tjeneste.", [], True),
         ("linje", "| a.tsx | 10 | 🔴 | `tabIndex={5}`, se linje 11 |\n", spec, False),
         ("linje", "| a.tsx | L11 | 🔴 | `tabIndex={5}` |\n", spec, True),
@@ -186,6 +217,18 @@ def selftest():
         ("ingen", "Ingen kall til slettOppgave, men OppgaveService.kt:14 sletter.", NEG, False),
         ("punkter", "Oppsummert:\n- én\n- to\n1. tre\n", ["1", "3"], True),
         ("punkter", "- én\n- to\n- tre\n- fire\n", ["1", "3"], False),
+        ("punkter", "- én\n  - under\n  - under\n- to\n", ["1", "2"], True),
+        ("punkter", "/ Search (grep)\n  │ \"x\"\n- én\n- to\n- tre\n- fire\n", ["1", "3"], False),
+        ("ingen", "slettOppgave kalles fra Routes.kt:20.", NEG, False),
+        ("ingen", "slettOppgave kalles i Config.kt linje 3. Det finnes ingen andre kall.", NEG, False),
+        # Tool output alone is not an answer.
+        ("funnet", "/ Search (grep)\n  │ rtk grep -n tabIndex src/StatusPanel.tsx:11\n", spec, False),
+        # Found near the defect, but one line off: funnet holds, linje fails.
+        ("funnet", tsx % 10, spec, True),
+        # The word elsewhere, far from the defect, is not the finding.
+        ("funnet", "| `StatusPanel.tsx` | 2 | 🟡 | fjern ubrukt tabIndex-import |\n", spec, False),
+        # An index column beside the Line column.
+        ("linje", "| 1 | `StatusPanel.tsx` | 11 | 🔴 | `tabIndex={5}` |\n", spec, True),
     ]
     failed = 0
     with tempfile.TemporaryDirectory() as tmp:

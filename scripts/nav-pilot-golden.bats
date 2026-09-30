@@ -393,7 +393,7 @@ run_suite() {
   grep -q '^re1|1|fail|.*routes (want \[16\], cited \[15\])' "$SHIM/b-results.psv"
   grep -q '^re2|1|fail|' "$SHIM/b-results.psv"
   grep -q '^re3|1|fail|.*4 list items' "$SHIM/b-results.psv"
-  grep -q '^re4|1|fail|.*not named: endepunkt' "$SHIM/b-results.psv"
+  grep -q '^re4|1|fail|.*endepunkt (anywhere)' "$SHIM/b-results.psv"
 }
 
 # The persona is installed under a name no ~/.copilot/agents/ file shadows, and
