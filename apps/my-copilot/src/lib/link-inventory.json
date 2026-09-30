@@ -2168,6 +2168,7 @@
   "/priser": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/modeller/modeller-content.tsx",
       "apps/my-copilot/src/app/(nb)/modeller/page.tsx",
       "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx",
       "apps/my-copilot/src/app/(nb)/priser/page.tsx",
