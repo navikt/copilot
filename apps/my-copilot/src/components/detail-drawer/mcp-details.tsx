@@ -113,7 +113,8 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
                 Den slår bare på verktøy som leser eller endrer prosjektet. Vil du også ha{" "}
                 {offByDefault.length === 1 ? "verktøyet" : "verktøyene"} som er av, kjører du kommandoen i en terminal
                 og velger dem, eller legger til <code className="text-xs bg-gray-100 rounded px-1">--tools</code> med
-                navnene.
+                alle verktøyene du vil ha på, skilt med komma:{" "}
+                <code className="text-xs bg-gray-100 rounded px-1">{enableCommand} --tools navn1,navn2</code>.
                 {hostExec.length > 0 && (
                   <>
                     {" "}
