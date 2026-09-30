@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -54,7 +55,7 @@ func TestMCPConsentAsksAndRecords(t *testing.T) {
 	askProposalConsent = func(_, d string, approve *bool) error { desc, *approve = d, true; return nil }
 	t.Cleanup(func() { askProposalConsent = prev })
 
-	noteMCPHostConsent("copilot")
+	noteMCPHostConsent("copilot", false)
 	for _, want := range []string{"mcp-onboarding.intern.nav.no", "io.github.navikt/mcp-onboarding", "mcp.figma.com", "com.figma/figma-mcp", "private address"} {
 		if !strings.Contains(desc, want) {
 			t.Errorf("the question does not show %q:\n%s", want, desc)
@@ -65,6 +66,39 @@ func TestMCPConsentAsksAndRecords(t *testing.T) {
 	}
 }
 
+// A launch never asks again about a set the user declined; `mcp enable` does,
+// and a second decline names every host the server needs, the registry's
+// sandboxHosts too, in the commands to allow it by hand.
+func TestMCPEnableReasksADecline(t *testing.T) {
+	figma := []providerpkg.MCPHost{
+		{Host: "api.figma.com", Servers: []string{"com.figma/figma-mcp"}},
+		{Host: "mcp.figma.com", Servers: []string{"com.figma/figma-mcp"}},
+	}
+	answers := mcpConsentEnv(t, providerpkg.MCPHostState{
+		Current:  providerpkg.MCPHosts{Hosts: figma},
+		Record:   &artifacts.ProposalConsent{Approved: false},
+		Previous: figma,
+	}, true)
+	asked := 0
+	prev := askProposalConsent
+	askProposalConsent = func(string, string, *bool) error { asked++; return nil } // Enter: Decline
+	t.Cleanup(func() { askProposalConsent = prev })
+
+	noteMCPHostConsent("copilot", false)
+	if asked != 0 {
+		t.Fatalf("a launch asked again about a declined set")
+	}
+	stderr := captureStderr(func() { noteMCPHostConsent("copilot", true) })
+	if asked != 1 || len(*answers) != 1 || (*answers)[0] {
+		t.Fatalf("mcp enable: asked %d, recorded %v; want one question, one decline", asked, *answers)
+	}
+	for _, want := range []string{"cplt config set allow.domains mcp.figma.com", "cplt config set allow.domains api.figma.com"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("the decline does not print %q:\n%s", want, stderr)
+		}
+	}
+}
+
 // No terminal: nothing is granted or recorded, and one line says so.
 func TestMCPConsentNonInteractiveGrantsNothing(t *testing.T) {
 	answers := mcpConsentEnv(t, pendingState(), false)
@@ -72,7 +106,7 @@ func TestMCPConsentNonInteractiveGrantsNothing(t *testing.T) {
 	askProposalConsent = func(string, string, *bool) error { t.Error("asked without a terminal"); return nil }
 	t.Cleanup(func() { askProposalConsent = prev })
 
-	stderr := captureStderr(func() { noteMCPHostConsent("copilot"); noteMCPHostConsent("copilot") })
+	stderr := captureStderr(func() { noteMCPHostConsent("copilot", false); noteMCPHostConsent("copilot", false) })
 	if len(*answers) != 0 {
 		t.Errorf("recorded %v without a terminal", *answers)
 	}
@@ -168,7 +202,7 @@ func TestMCPConsentEnterDeclines(t *testing.T) {
 	askProposalConsent = func(string, string, *bool) error { return nil }
 	t.Cleanup(func() { askProposalConsent = prev })
 
-	noteMCPHostConsent("copilot")
+	noteMCPHostConsent("copilot", false)
 	if len(*answers) != 1 || (*answers)[0] {
 		t.Errorf("recorded %v, want one decline", *answers)
 	}
@@ -185,7 +219,7 @@ func TestMCPConsentGrownSetShowsTheDiff(t *testing.T) {
 	askProposalConsent = func(tt, d string, _ *bool) error { title, desc = tt, d; return nil }
 	t.Cleanup(func() { askProposalConsent = prev })
 
-	noteMCPHostConsent("copilot")
+	noteMCPHostConsent("copilot", false)
 	if !strings.Contains(desc, "Changed since you last answered: + mcp-onboarding.intern.nav.no") {
 		t.Errorf("no diff in:\n%s", desc)
 	}
@@ -208,7 +242,7 @@ func TestMCPHostsOff(t *testing.T) {
 	askProposalConsent = func(string, string, *bool) error { t.Error("asked under mcp_hosts = off"); return nil }
 	t.Cleanup(func() { askProposalConsent = prev; providerpkg.MCPHostsOff = false })
 
-	noteMCPHostConsent("copilot")
+	noteMCPHostConsent("copilot", false)
 	if len(*answers) != 0 || !providerpkg.MCPHostsOff {
 		t.Errorf("off: recorded %v, provider off = %v", *answers, providerpkg.MCPHostsOff)
 	}
@@ -224,11 +258,82 @@ func TestMCPHostsOff(t *testing.T) {
 func TestMCPConsentWaitsForAProtectingCplt(t *testing.T) {
 	answers := mcpConsentEnv(t, pendingState(), true)
 	cpltProtectsNavPilotState = func() bool { return false }
-	stderr := captureStderr(func() { noteMCPHostConsent("copilot"); noteMCPHostConsent("copilot") })
+	stderr := captureStderr(func() { noteMCPHostConsent("copilot", false); noteMCPHostConsent("copilot", false) })
 	if len(*answers) != 0 {
 		t.Errorf("recorded %v under a cplt that cannot protect it", *answers)
 	}
 	if n := strings.Count(stderr, "Upgrade cplt"); n != 2 { // one line per server, once per run
 		t.Errorf("stderr:\n%s", stderr)
+	}
+}
+
+// A strict user's file from an older release (#663: no registry hosts) gets
+// the Nav hosts it lacks, appended above the MCP section with every byte it
+// had kept, and without asking cplt. A file at that path nav-pilot did not
+// write (no header) is left alone.
+func TestSyncMCPAllowlistTopsUpNavHosts(t *testing.T) {
+	isolatedConfig(t)
+	prevHosts, prevMCP := cpltBuiltinDomains, mcpAllowlistHosts
+	cpltBuiltinDomains = func() ([]string, bool) { t.Error("cplt asked for its hosts"); return nil, false }
+	mcpAllowlistHosts = func() []string { return []string{"mcp.figma.com"} }
+	t.Cleanup(func() { cpltBuiltinDomains, mcpAllowlistHosts = prevHosts, prevMCP })
+	path := navAllowedDomainsPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	old := navAllowlistHeader + " Edits are overwritten on the next run.\ngithub.com\naksel.nav.no\n"
+	writeTestFile(t, path, old+mcpAllowlistMarker+"\nmcp.figma.com\n")
+	syncMCPAllowlist()
+	got, _ := os.ReadFile(path)
+	above, section, _ := strings.Cut(string(got), mcpAllowlistMarker+"\n")
+	if !strings.HasPrefix(above, old) || section != "mcp.figma.com\n" {
+		t.Fatalf("want the old bytes, the added hosts, then the MCP section:\n%s", got)
+	}
+	for _, d := range navOwnDomains {
+		if n := strings.Count(above, "\n"+d+"\n"); n != 1 {
+			t.Errorf("%s appears %d times above the MCP section, want 1", d, n)
+		}
+	}
+	syncMCPAllowlist()
+	if again, _ := os.ReadFile(path); string(again) != string(got) {
+		t.Errorf("a second sync changed the file:\n%s", again)
+	}
+
+	mine := "# my own list\ngithub.com\n"
+	writeTestFile(t, path, mine)
+	syncMCPAllowlist()
+	if got, _ := os.ReadFile(path); string(got) != mine {
+		t.Errorf("changed a file nav-pilot did not write:\n%s", got)
+	}
+}
+
+// An unreadable consent record still tops up the Nav hosts, which need no
+// consent, and leaves the MCP section exactly as it was: nothing added or
+// removed on a record nav-pilot could not read.
+func TestMCPConsentUnreadableRecordTopsUpNavHosts(t *testing.T) {
+	mcpConsentEnv(t, providerpkg.MCPHostState{}, false)
+	readMCPHostState = func() (providerpkg.MCPHostState, error) { return providerpkg.MCPHostState{}, errors.New("corrupt") }
+	prev := mcpAllowlistHosts
+	mcpAllowlistHosts = func() []string { t.Error("the MCP hosts were read"); return []string{"new.example"} }
+	t.Cleanup(func() { mcpAllowlistHosts = prev })
+	path := navAllowedDomainsPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	old := navAllowlistHeader + "\ngithub.com\n"
+	section := mcpAllowlistMarker + "\nstale.example\nmcp.figma.com\n"
+	writeTestFile(t, path, old+section)
+
+	_ = captureStderr(func() { noteMCPHostConsent("copilot", false) })
+	got, _ := os.ReadFile(path)
+	above, rest, _ := strings.Cut(string(got), mcpAllowlistMarker+"\n")
+	if mcpAllowlistMarker+"\n"+rest != section || !strings.HasPrefix(above, old) {
+		t.Fatalf("want the old bytes, the Nav hosts, then the MCP section unchanged:\n%s", got)
+	}
+	for _, d := range navOwnDomains {
+		if !strings.Contains(above, "\n"+d+"\n") {
+			t.Errorf("%s not topped up", d)
+		}
 	}
 }

@@ -72,7 +72,10 @@ func mcpConfigScope() {
 // noteMCPHostConsent asks about MCP registry hosts outside the recorded
 // approval, once per host set, and keeps nav-pilot's allowlist file in step.
 // Best effort: every failure path grants nothing new.
-func noteMCPHostConsent(client string) {
+//
+// reask is `nav-pilot mcp enable`, an explicit action: a set the user
+// declined earlier is asked about again. A launch never re-asks a decline.
+func noteMCPHostConsent(client string, reask bool) {
 	providerpkg.MCPClient = client
 	providerpkg.MCPHostsOff = mcpHostsMode() == "off"
 	// Without cplt there is no sandbox to open, and no reason to ask the
@@ -84,7 +87,12 @@ func noteMCPHostConsent(client string) {
 		st, err := readMCPHostState()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s MCP servers: could not read the consent record, so nothing was asked: %v\n", yellow("⚠"), err)
+			// The Nav hosts need no consent; the MCP section stays as it is.
+			syncAllowlist(false)
 			return
+		}
+		if st.Pending == nil && reask && st.Record != nil && !st.Record.Approved && len(st.Current.Hosts) > 0 {
+			st.Pending = st.Current.Hosts
 		}
 		if st.Pending != nil {
 			askMCPHosts(st)

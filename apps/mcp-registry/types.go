@@ -97,6 +97,10 @@ type NavRegistryMeta struct {
 	Tags              []string           `json:"tags,omitempty"`
 	Examples          []UsageExample     `json:"examples,omitempty"`
 	SetupInstructions []SetupInstruction `json:"setupInstructions,omitempty"`
+	// SandboxHosts are hosts the server needs besides its remotes, such as
+	// an OAuth endpoint. Bare host names; nav-pilot asks the user before
+	// allowing them in cplt's sandbox.
+	SandboxHosts []string `json:"sandboxHosts,omitempty"`
 }
 
 type ResponseMeta struct {
@@ -132,6 +136,7 @@ type StaticServerData struct {
 	Tags              []string           `json:"tags,omitempty"`
 	Examples          []UsageExample     `json:"examples,omitempty"`
 	SetupInstructions []SetupInstruction `json:"setupInstructions,omitempty"`
+	SandboxHosts      []string           `json:"sandboxHosts,omitempty"`
 	Remotes           []Transport        `json:"remotes,omitempty"`
 	Packages          []Package          `json:"packages,omitempty"`
 }

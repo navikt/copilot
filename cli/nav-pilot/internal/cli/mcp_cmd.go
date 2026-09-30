@@ -230,8 +230,8 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 	targets := map[string][]string{}
 	for _, e := range entries {
 		if (only == "" || e.Name == only) && (conf.Copilot[e.Name] || conf.OpenCode[e.Name]) {
-			for _, r := range e.Remotes {
-				if t, extra, ok := mcpProbeTarget(r.URL, st); ok {
+			for _, u := range mcpEntryURLs(e) {
+				if t, extra, ok := mcpProbeTarget(u, st); ok {
 					targets[t] = extra
 				}
 			}
@@ -256,15 +256,15 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 		if !e.Usable() {
 			add(mcpProblem{Server: e.Name, Problem: "retired in the registry (status " + e.Status + "); the org policy will stop running it", Fix: "nav-pilot mcp disable " + e.Name})
 		}
-		if len(e.Remotes) > 0 {
-			for _, r := range e.Remotes {
-				h, p := mcpRemoteHost(e.Name, r.URL, cpltPath, mode, st, probe)
-				row.Hosts = append(row.Hosts, h)
-				if p != nil {
-					add(*p)
-				}
+		// Remotes and sandboxHosts both: a package server can name hosts too.
+		for _, u := range mcpEntryURLs(e) {
+			h, p := mcpRemoteHost(e.Name, u, cpltPath, mode, st, probe)
+			row.Hosts = append(row.Hosts, h)
+			if p != nil {
+				add(*p)
 			}
-		} else if len(e.Packages) > 0 {
+		}
+		if len(e.Remotes) == 0 && len(e.Packages) > 0 {
 			// ponytail: judged by the recipe enable writes (the first
 			// package); a hand-written launch line of the user's is not.
 			for _, p := range mcpPackageProblems(e, cpltPath) {
@@ -288,6 +288,19 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 		}
 	}
 	return rep
+}
+
+// mcpEntryURLs is a remote server's URLs and its registry sandboxHosts (an
+// OAuth host, say), so every host it needs is probed and gets a fix line.
+func mcpEntryURLs(e providerpkg.MCPServerEntry) []string {
+	var out []string
+	for _, r := range e.Remotes {
+		out = append(out, r.URL)
+	}
+	for _, h := range e.SandboxHosts {
+		out = append(out, "https://"+h)
+	}
+	return out
 }
 
 // mcpRemoteHost probes one remote under cplt and says what to do about a block.
@@ -642,7 +655,7 @@ func cmdMCPEnable(names []string, clients []string) error {
 		if !slices.Contains(clients, client) {
 			client = clients[0]
 		}
-		noteMCPHostConsent(client)
+		noteMCPHostConsent(client, true)
 		conf := mcpConfigured(entries)
 		for _, e := range enabled {
 			mcpEnableFollowUp(registry, entries, conf, e, clients)

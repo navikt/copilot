@@ -79,7 +79,7 @@ func makeServersListHandler(config *Config) http.HandlerFunc {
 }
 
 func navRegistryMeta(server StaticServerData) *NavRegistryMeta {
-	if len(server.Tools) == 0 && len(server.Tags) == 0 && len(server.Examples) == 0 && len(server.SetupInstructions) == 0 {
+	if len(server.Tools) == 0 && len(server.Tags) == 0 && len(server.Examples) == 0 && len(server.SetupInstructions) == 0 && len(server.SandboxHosts) == 0 {
 		return nil
 	}
 	return &NavRegistryMeta{
@@ -87,6 +87,7 @@ func navRegistryMeta(server StaticServerData) *NavRegistryMeta {
 		Tags:              server.Tags,
 		Examples:          server.Examples,
 		SetupInstructions: server.SetupInstructions,
+		SandboxHosts:      server.SandboxHosts,
 	}
 }
 

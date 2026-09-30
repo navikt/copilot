@@ -11,6 +11,7 @@ import (
 )
 
 var serverNameRegex = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9.-]*/[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
+var hostRegex = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$`)
 var tagRegex = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 func validateAllowListFile() error {
@@ -106,6 +107,12 @@ func validateServerEntry(server *StaticServerData, index int, existingNames map[
 	for j, tag := range server.Tags {
 		if !tagRegex.MatchString(tag) {
 			return fmt.Errorf("server[%d].tags[%d]: tag '%s' must be lowercase kebab-case (e.g., 'browser-automation')", index, j, tag)
+		}
+	}
+
+	for j, host := range server.SandboxHosts {
+		if !hostRegex.MatchString(host) {
+			return fmt.Errorf("server[%d].sandboxHosts[%d]: '%s' must be a bare lowercase host name (e.g., 'api.figma.com')", index, j, host)
 		}
 	}
 
