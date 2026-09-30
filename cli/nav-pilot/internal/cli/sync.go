@@ -316,6 +316,21 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	if reusedInSync != nil && !jsonOutput {
 		fmt.Printf("%s %s\n", dim("Reuses:"), dim(fmt.Sprintf("%s@%s", sourceLabelFor(reusedInSync), shortSHA(reusedInSync.SHA))))
 	}
+	// A pin that trails its base is the pakke owner's to move, never sync's
+	// (#1368). stderr under --json, where stdout is the document.
+	if reusedInSync != nil {
+		w := os.Stdout
+		if jsonOutput {
+			w = os.Stderr
+		}
+		baseName := ""
+		if reusedInSync.Pakke != nil {
+			baseName = reusedInSync.Pakke.Name
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), pakkeReleaseTimeout)
+		warnBaseLag(ctx, w, "", scope.Name, sourceLabelFor(src), reusedInSync.Repo, baseName, reusedInSync.SHA)
+		cancel()
+	}
 
 	// A collection-era scope meets its source's manifest here first: rewrite
 	// it onto the pakke identity before the diff, so this sync already runs —

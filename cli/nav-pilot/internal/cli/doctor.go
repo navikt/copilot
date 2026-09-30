@@ -223,6 +223,7 @@ func cmdDoctor() error {
 			fmt.Printf("    • User scope (~/.copilot): %s\n", bold(userState.Collection))
 			hasErrors = reportScopeIntegrity(userScope, userState) || hasErrors
 			hasErrors = reportGoneSource(userScope, userState) || hasErrors
+			reportScopeBaseLag(userScope, userState)
 			reportScopeConflicts(userScope)
 			reportScopeIgnoredButInstalled(userScope)
 		} else {
@@ -242,6 +243,7 @@ func cmdDoctor() error {
 			fmt.Printf("    • Repo scope (.github): %s\n", bold(repoState.Collection))
 			hasErrors = reportScopeIntegrity(repoScope, repoState) || hasErrors
 			hasErrors = reportGoneSource(repoScope, repoState) || hasErrors
+			reportScopeBaseLag(repoScope, repoState)
 			reportScopeConflicts(repoScope)
 			reportScopeIgnoredButInstalled(repoScope)
 		} else {
