@@ -305,6 +305,8 @@ fail_preflight() {
 #   norsk     forfatter    no1-no4    bokmål, no KI markers, «KI», length
 #   coding    nav-pilot    ko1-ko6    failing tests fixed, in scope: Go, TS, and
 #                                     a Go fix that spans two files
+#   research  research     re1-re4    bounded read-and-summarise: right lines,
+#                                     no invented callers, at most three points
 GROUP=""
 if [[ -n "$SUITE" ]]; then
   $AGENT_SET && fail_preflight "--suite and --agent cannot be combined" \
@@ -314,7 +316,8 @@ if [[ -n "$SUITE" ]]; then
     review)   AGENT="code-review"; GROUP="code-review"; ONLY="${ONLY:-rv1,rv2,rv3,rv4}" ;;
     norsk)    AGENT="forfatter";   GROUP="forfatter" ;;
     coding)   AGENT="nav-pilot";   GROUP="coding" ;;
-    *) fail_preflight "unknown --suite '$SUITE'" "Use planning, review, norsk or coding." ;;
+    research) AGENT="research";    GROUP="research" ;;
+    *) fail_preflight "unknown --suite '$SUITE'" "Use planning, review, norsk, coding or research." ;;
   esac
 fi
 GROUP="${GROUP:-$AGENT}"
@@ -338,6 +341,7 @@ case "$GROUP" in
   accessibility) VALID_IDS="uu1 uu2 uu3 uu4 uu5" ;;
   forfatter)     VALID_IDS="no1 no2 no3 no4" ;;
   coding)        VALID_IDS="ko1 ko2 ko3 ko4 ko5 ko6" ;;
+  research)      VALID_IDS="re1 re2 re3 re4" ;;
   *) fail_preflight \
       "no assertion group for agent '$AGENT'" \
       "This harness has prompts and assertions for: nav-pilot, code-review, accessibility, forfatter (and --suite coding). Add a run_pass_<agent> derived from that agent's own file before benchmarking it." ;;
@@ -496,7 +500,34 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$TEMPLATE/.github/agents" "$TEMPLATE/src/main/kotlin/no/nav/demo"
-cp "$PERSONA" "$TEMPLATE/.github/agents/$AGENT_NAME.agent.md"
+# The installed copy differs from the working-tree file in two frontmatter
+# lines, and both are there because the CLI measured something else without
+# them (measured 2026-09-30, Copilot CLI 1.0.90-5, --log-level debug):
+#
+#   name   An agent in ~/.copilot/agents/ shadows a workspace agent with the
+#          same name. `--agent code-review` ran the user's installed copy
+#          (pinned GPT-5.3-Codex) instead of this checkout's file, and every
+#          baseline on a machine with nav-pilot installed measured that copy.
+#          A name no install uses cannot be shadowed.
+#   model  A frontmatter pin beats --model. `--model gpt-6-sol` on a persona
+#          pinned to Claude Opus 5.5 ran Opus. The 23 Sept screen's "Opus 5.5"
+#          code-review arms ran GPT-5.3-Codex, the pin at the time, for this
+#          reason. With --model the pin is dropped; without it the pin stays,
+#          so a run without --model measures the production pin.
+LAUNCH_NAME="golden-$AGENT_NAME"
+awk -v name="$LAUNCH_NAME" -v strip="$([[ -n "$MODEL" ]] && echo 1)" '
+  /^---$/ { fm++ }
+  fm == 1 && /^name:/ { print "name: " name; next }
+  fm == 1 && strip && /^model:/ { next }
+  { print }' "$PERSONA" >"$TEMPLATE/.github/agents/$LAUNCH_NAME.agent.md"
+if [[ -n "$MODEL" ]] && awk '/^---$/ {fm++} fm == 1 && /^model:/ {found = 1} END {exit !found}' \
+    "$TEMPLATE/.github/agents/$LAUNCH_NAME.agent.md"; then
+  fail_preflight "the installed persona still pins a model, so --model $MODEL would be ignored" \
+    "The frontmatter pin beats --model. Check the strip above."
+fi
+[[ -e "$HOME/.copilot/agents/$LAUNCH_NAME.agent.md" ]] && fail_preflight \
+  "$HOME/.copilot/agents/$LAUNCH_NAME.agent.md exists and would shadow the persona under test" \
+  "Remove it; the harness installs the persona under that name."
 
 # Instructions, laid out the way `nav-pilot install --repo` lays them out:
 # .github/instructions/<name>.instructions.md, byte-for-byte from the checkout.
@@ -973,6 +1004,20 @@ if [[ "$GROUP" == "coding" ]]; then
   ! go_tests "$TEMPLATE" || fail_preflight "control: the pristine Go fixture already passes its tests" "Plant the bug again."
   ! ts_tests "$TEMPLATE" || fail_preflight "control: the pristine TS fixture already passes its tests" "Plant the bug again."
   ! go2_tests "$TEMPLATE" || fail_preflight "control: the pristine two-file Go fixture already passes its tests" "Plant the bug again."
+  # The positive control: the known fixes make the tests pass. Without it a
+  # Node too old to strip types, or a broken Go toolchain, fails every run
+  # and reads as the model failing.
+  FIXED="$WORKDIR/fixed"
+  cp -R "$TEMPLATE" "$FIXED"
+  perl -0pi -e 's/(Saturday:\n\t\treturn frist\.AddDate\(0, 0, )1/${1}2/' "$FIXED/frister/frist.go"
+  perl -pi -e 's/\.replace\(\/\[\^a-z0-9\]\+\/g, "-"\);/.replace(\/[^a-z0-9]+\/g, "-").replace(\/^-+|-+\$\/g, "");/' "$FIXED/slug/slug.ts"
+  perl -pi -e 's/Utbetaling\(grunnlag int\) int/Utbetaling(grunnlag, grad int) int/; s/return grunnlag \/ 260$/return grunnlag \/ 260 * grad \/ 100/' "$FIXED/ytelse/utbetaling.go"
+  perl -pi -e 's/grunnlag int\) string/grunnlag, grad int) string/; s/Utbetaling\(grunnlag\)\)/Utbetaling(grunnlag, grad))/' "$FIXED/ytelse/rapport.go"
+  for t in go_tests ts_tests go2_tests; do
+    "$t" "$FIXED" || fail_preflight "control: $t fails even with the known fix applied" \
+      "The toolchain, not the model, would fail this run. Check go and node (22.18+) on PATH."
+  done
+  rm -rf "$FIXED"
 fi
 
 # Fixture identity, for the --compare compatibility check below. The sizes this
@@ -1145,7 +1190,7 @@ run_prompt() {
   LAST_PROMPT_DETAIL=""
   LAST_PROMPT_FAILURE=""
   out="$(tx "$slug")"
-  local -a args=(-p "$prompt" --agent "$AGENT_NAME" --allow-all-tools --no-color --log-level none)
+  local -a args=(-p "$prompt" --agent "$LAUNCH_NAME" --allow-all-tools --no-color --log-level none)
   [[ -n "$MODEL" ]] && args+=(--model "$MODEL")
   [[ -n "$EFFORT" ]] && args+=(--reasoning-effort "$EFFORT")
   [[ -n "$CONTEXT_TIER" ]] && args+=(--context "$CONTEXT_TIER")
@@ -1350,7 +1395,7 @@ selected() {
 
 echo "${BOLD}golden-prompt harness, agent under test: $AGENT${RESET}"
 echo "${DIM}client: $CLI_NAME${CLI_VERSION:+ $CLI_VERSION}${CLI_PATH:+ ($CLI_PATH)}${RESET}"
-echo "${DIM}agent file: $PERSONA (launched as --agent $AGENT_NAME)${RESET}"
+echo "${DIM}agent file: $PERSONA (launched as --agent $LAUNCH_NAME)${RESET}"
 if $USAGE_TRACKING; then
   echo "${DIM}usage: exact rows from $USAGE_DB${RESET}"
 else
@@ -2015,13 +2060,13 @@ RE_CR_DELEGATE='accessibility[-[:space:]]?agent|aksel[-[:space:]]?agent'
 # 13/15, and the two misses are real one-line-up shifts (Tailwind cited at 6,
 # tabIndex at 10), the same failure the screen found for Opus 5.5 Medium.
 RV_KOTLIN=(
-  'sql=injeksjon|injection|parameteri|strenginterpol|strengkonkat|prepared@9'
-  'fnr-logg=(logg|logger|log |info).{0,80}(fnr|fødselsnummer|pii|personopplys|persondata|personinfo)|(fnr|fødselsnummer|pii).{0,80}logg@8'
-  'catch=catch|svelg|swallow|fanger|exception@12,13'
+  'sql=injeksjon|injection|parametr|parameteri|interpol|konkaten|prepared|bindevariab@9'
+  'fnr-logg=(logg|logger|log |info).{0,80}(fnr|fødselsnummer|pii|personopplys|persondata|personinfo)|(fnr|fødselsnummer|pii|personopplys|persondata).{0,80}logg@8'
+  'catch=catch|svelg|swallow|fanger@12,13'
 )
 RV_TSX=(
-  'tailwind=tailwind|p-4|mx-8|spacing@7'
-  'div-klikk=onclick|klikkbar|tastatur|keyboard@8'
+  'tailwind=tailwind|p-4|mx-8|spacing|utility|padding|margin|\bBox\b|HStack@7'
+  'div-klikk=div.{0,60}(onclick|klikk|tastatur|keyboard)|(onclick|klikkbar|tastatur|keyboard).{0,60}div@8'
   'tabindex=tabindex@11'
   'ikonknapp=aria-label|tilgjengelig navn|accessible name|ikon|icon@14,15'
 )
@@ -2487,6 +2532,56 @@ run_pass_coding() {
     ko5 "Go, two files: the tests pass after the run" ko6 "Go, two files: exactly utbetaling.go and rapport.go changed"
 }
 
+# ─── research suite: bounded read-and-summarise (re1-re4) ────────────────────
+# @research reads the Ktor fixture every suite gets and answers three bounded
+# questions. The bounds are the point, as in the August «avgrensede krav»
+# arms: exact lines, an honest «none», and a summary that stays inside its
+# limit. Each check is shown failing in scripts/nav-pilot-golden.bats.
+#
+#   maksAntall   Config.kt:4 defines it; Routes.kt:16 and App.kt:10 use it
+#   slettOppgave exists nowhere in the fixture
+RE_USES=('routes=Routes\.kt@16' 'app=App\.kt@10')
+RE_NONE='ingen|finnes ikke|ikke (brukt|kalt|definert|funnet)|fant ikke|no (calls|callers|usages)|not (called|used|defined|found)|does not exist'
+
+research_check() {
+  # research_check <id> <desc> <slug> <prompt> <check args...>
+  local id="$1" desc="$2" slug="$3" prompt="$4" why ok=0
+  shift 4
+  selected "$id" || return 0
+  if ! run_prompt "$slug" "$prompt"; then
+    record_error "$id" "$desc" "$LAST_PROMPT_DETAIL"
+    return 0
+  fi
+  why="$(python3 "$BENCH_CHECK" "$1" "$(tx "$slug")" "${@:2}")" || ok=1
+  record "$id" "$desc" "$ok" "$why"
+}
+
+run_pass_research() {
+  research_check re1 "every use of maksAntall cited on its line" re-bruk \
+    "Hvor brukes konstanten maksAntall i denne kodebasen? Oppgi fil og linje for hver bruk." \
+    linje "${RE_USES[@]}"
+  research_check re2 "says slettOppgave has no callers and invents no file" re-ingen \
+    "Hvilke steder i koden kaller funksjonen slettOppgave? Oppgi fil og linje." \
+    ingen slettOppgave "$RE_NONE" "$TEMPLATE"
+  # re3 and re4 read one answer; the prompt is only paid for once.
+  if selected re3 || selected re4; then
+    if ! run_prompt re-sammendrag "Oppsummer hva denne tjenesten gjør, i høyst tre kulepunkter."; then
+      selected re3 && record_error re3 "summary keeps to at most three points" "$LAST_PROMPT_DETAIL"
+      selected re4 && record_error re4 "summary names the endpoint and the port" "$LAST_PROMPT_DETAIL"
+    else
+      local why ok
+      if selected re3; then
+        ok=0; why="$(python3 "$BENCH_CHECK" punkter "$(tx re-sammendrag)" 1 3)" || ok=1
+        record re3 "summary keeps to at most three points" "$ok" "$why"
+      fi
+      if selected re4; then
+        ok=0; why="$(python3 "$BENCH_CHECK" funnet "$(tx re-sammendrag)" 'endepunkt=/api/oppgaver@0' 'port=8080@0')" || ok=1
+        record re4 "summary names the endpoint and the port" "$ok" "$why"
+      fi
+    fi
+  fi
+}
+
 run_pass() {
   case "$GROUP" in
     nav-pilot)     run_pass_nav_pilot ;;
@@ -2494,6 +2589,7 @@ run_pass() {
     accessibility) run_pass_accessibility ;;
     forfatter)     run_pass_forfatter ;;
     coding)        run_pass_coding ;;
+    research)      run_pass_research ;;
   esac
 }
 
@@ -2644,6 +2740,8 @@ if [[ -s "$USAGE_FILE" ]]; then
   echo
 fi
 
+SAVE_TO="$SAVE_BASELINE"
+[[ -n "$SAVE_TO" ]] && SAVE_BASELINE="$WORKDIR/baseline.txt"
 if [[ -n "$SAVE_BASELINE" ]]; then
   # The header is the point of the file: a size baseline is only meaningful
   # next to the run conditions that produced it. Anyone reading it must see
@@ -2766,6 +2864,16 @@ if [[ -n "$SAVE_BASELINE" ]]; then
   else
     echo "${YELLOW}exact model usage was not recorded: ${USAGE_UNAVAILABLE:-no usage rows matched the benchmark sessions}${RESET}"
   fi
+  # Into place only now, the PSVs first and the .txt last: benchmark-matrix.py
+  # treats an arm as done when its .txt exists, and a run killed half-way
+  # through writing must leave nothing behind that looks finished.
+  mkdir -p "$(dirname "$SAVE_TO")"
+  for f in "$WORKDIR"/baseline-*.psv "$WORKDIR/baseline.txt"; do
+    [[ -f "$f" ]] || continue
+    suffix="${f#"$WORKDIR/baseline"}"
+    if [[ "$suffix" == ".txt" ]]; then mv "$f" "$SAVE_TO"; else mv "$f" "${SAVE_TO%.txt}$suffix"; fi
+  done
+  echo "${DIM}moved into place beside $SAVE_TO${RESET}"
   echo
 fi
 

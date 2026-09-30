@@ -22,10 +22,12 @@ the suite median across all models. It is an extrapolation, and says which.
 
 import argparse
 import json
+import re
 import statistics
 import subprocess
 import sys
 import tempfile
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -41,7 +43,10 @@ def arms(matrix):
             continue
         if len(fields) != 4 or not fields[3].isdigit():
             sys.exit(f"{matrix}: want `suite model effort n`, got: {line!r}")
-        out.append(dict(zip(("suite", "model", "effort", "n"), fields[:3] + [int(fields[3])])))
+        arm = dict(zip(("suite", "model", "effort", "n"), fields[:3] + [int(fields[3])]))
+        if any(a["suite"] == arm["suite"] and a["model"] == arm["model"] and a["effort"] == arm["effort"] for a in out):
+            sys.exit(f"{matrix}: {arm['suite']} {arm['model']} {arm['effort']} is listed twice; both would save to one file")
+        out.append(arm)
     return out
 
 
@@ -49,8 +54,15 @@ def baseline(outdir, arm):
     return outdir / f"{arm['suite']}-{arm['model']}-{arm['effort']}.txt"
 
 
-def done(path):
-    return path.exists() and path.with_name(path.stem + "-results.psv").exists()
+def done(path, n=None):
+    """Saved and whole: every prompt has an attempt row in every run."""
+    attempts = path.with_name(path.stem + "-attempts.psv")
+    if not (path.exists() and path.with_name(path.stem + "-results.psv").exists() and attempts.exists()):
+        return False
+    rows = [l.split("|") for l in attempts.read_text().splitlines() if l and not l.startswith("#")]
+    runs = n or int(re.search(r"^# repeats:\s*(\d+)", path.read_text(), re.M).group(1))
+    per_prompt = Counter(r[0] for r in rows)
+    return bool(per_prompt) and all(c == runs for c in per_prompt.values())
 
 
 def per_run_credits(runs, arm):
@@ -77,7 +89,7 @@ def run_arm(arm, outdir, logdir):
     with log.open("w") as f:
         rc = subprocess.run(cmd, cwd=REPO, stdout=f, stderr=subprocess.STDOUT).returncode
     # 0 green, 1 an assertion failed, 3 not evaluated: all three are results.
-    ok = rc in (0, 1, 3) and done(baseline(outdir, arm))
+    ok = rc in (0, 1, 3) and done(baseline(outdir, arm), arm["n"])
     print(f"{'done' if ok else 'FAILED'} {baseline(outdir, arm).stem} (exit {rc}, log {log})", flush=True)
     return ok
 
@@ -99,7 +111,7 @@ def main():
         each, how = per_run_credits(runs, arm)
         cost = each * arm["n"] if each is not None else None
         total += cost or 0
-        status = "done" if done(baseline(outdir, arm)) else "pending"
+        status = "done" if done(baseline(outdir, arm), arm["n"]) else "pending"
         est = f"~{cost:.0f} credits ({arm['n']} × {each:.1f}, {how})" if cost is not None else "no estimate"
         print(f"{status:8} {arm['suite']:9} {arm['model']:18} {arm['effort']:8} n={arm['n']:<3} {est}")
     print(f"estimated total ~{total:.0f} credits, pending and done arms alike; an extrapolation, not a quote")
@@ -108,7 +120,7 @@ def main():
 
     outdir.mkdir(parents=True, exist_ok=True)
     logdir = Path(tempfile.mkdtemp(prefix="benchmark-matrix."))
-    pending = [arm for arm in todo if not done(baseline(outdir, arm))]
+    pending = [arm for arm in todo if not done(baseline(outdir, arm), arm["n"])]
     with ThreadPoolExecutor(max_workers=a.jobs) as pool:
         results = list(pool.map(lambda arm: run_arm(arm, outdir, logdir), pending))
     print(f"{sum(results)}/{len(pending)} arms saved to {outdir.relative_to(REPO)}; "

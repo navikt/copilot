@@ -294,6 +294,21 @@ case "$p" in
   *slug/*)
     [[ "$BENCH_MODE" == good ]] && perl -pi -e 's/\.replace\(\/\[\^a-z0-9\]\+\/g, "-"\);/.replace(\/[^a-z0-9]+\/g, "-").replace(\/^-+|-+\$\/g, "");/' slug/slug.ts
     echo "Rettet feilen i slug og kjørte node --test." ;;
+  *maksAntall*)
+    echo "maksAntall er definert i Config.kt linje 4 og brukes to steder:"
+    if [[ "$BENCH_MODE" == good ]]; then
+      echo "- src/main/kotlin/no/nav/demo/Routes.kt:16"; echo "- src/main/kotlin/no/nav/demo/App.kt:10"
+    else
+      echo "- src/main/kotlin/no/nav/demo/Routes.kt:15"; echo "- src/main/kotlin/no/nav/demo/App.kt:10"
+    fi ;;
+  *slettOppgave*)
+    if [[ "$BENCH_MODE" == good ]]; then echo "Det finnes ingen kall til slettOppgave i kodebasen."
+    else echo "slettOppgave kalles fra OppgaveService.kt:22. Ingen andre kall."; fi ;;
+  *Oppsummer*)
+    echo "Tjenesten er en liten Ktor-app:"
+    echo "- Den eksponerer GET /api/oppgaver med en liste oppgaver."
+    echo "- Den kjører på port 8080 på Nais."
+    [[ "$BENCH_MODE" == good ]] || { echo "- Den har helsesjekker."; echo "- Den bruker kotlinx.serialization."; } ;;
   *) echo "unexpected prompt in the benchmark shim: $p"; exit 1 ;;
 esac
 EOF
@@ -357,4 +372,65 @@ run_suite() {
   [ "$status" -eq 1 ]
   grep -q '^ko5|1|pass|' "$SHIM/b-results.psv"
   grep -q '^ko6|1|fail|.*changed: ./ytelse/rapport.go ./ytelse/utbetaling.go ./ytelse/ytelse_test.go' "$SHIM/b-results.psv"
+}
+
+@test "coding: a toolchain that cannot pass even the known fix stops preflight" {
+  make_bench_shim
+  printf '#!/bin/bash\nexit 1\n' >"$SHIM/node"; chmod +x "$SHIM/node"
+  PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite coding --dry-run
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"ts_tests fails even with the known fix applied"* ]]
+}
+
+@test "research: right lines, honest none and three points pass; the slips fail" {
+  run_suite good --suite research
+  [ "$status" -eq 0 ]
+  run_suite bad --suite research
+  [ "$status" -eq 1 ]
+  grep -q '^re1|1|fail|.*routes (want \[16\], cited \[15\])' "$SHIM/b-results.psv"
+  grep -q '^re2|1|fail|' "$SHIM/b-results.psv"
+  grep -q '^re3|1|fail|.*4 list items' "$SHIM/b-results.psv"
+  grep -q '^re4|1|pass|' "$SHIM/b-results.psv"
+}
+
+# The persona is installed under a name no ~/.copilot/agents/ file shadows, and
+# without its model pin when --model is given: a pin beats --model.
+@test "the installed persona cannot be shadowed and drops its pin under --model" {
+  run bash "$SCRIPT" --suite review --model gpt-6-sol --dry-run --keep
+  [ "$status" -eq 0 ]
+  dir="$(sed -n 's/.*transcripts kept in //p' <<<"$output")"
+  f="$dir/template/.github/agents/golden-code-review.agent.md"
+  grep -q '^name: golden-code-review$' "$f"
+  ! grep -q '^model:' "$f"
+  run bash "$SCRIPT" --suite review --dry-run --keep
+  dir2="$(sed -n 's/.*transcripts kept in //p' <<<"$output")"
+  grep -q '^model:' "$dir2/template/.github/agents/golden-code-review.agent.md"
+  rm -rf "$dir" "$dir2"
+}
+
+@test "benchmark-summary selftest: partial usage is null, a pinned model is refused" {
+  run python3 "${BATS_TEST_DIRNAME}/benchmark-summary.py" --selftest
+  [ "$status" -eq 0 ]
+}
+
+@test "matrix: a duplicate arm is refused, a half-written arm is pending" {
+  M="$SHIM/dup.matrix"
+  printf 'review gpt-6-sol low 1\nreview gpt-6-sol low 2\n' >"$M"
+  run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"listed twice"* ]]
+
+  run_suite good --suite review
+  [ "$status" -eq 0 ]
+  M="$SHIM/half.matrix"
+  printf 'review gpt-6-sol low 1\n' >"$M"
+  out="${BATS_TEST_DIRNAME}/../docs/golden-baselines/half"
+  mkdir -p "$out"
+  for f in "$SHIM"/b*; do cp "$f" "$out/review-gpt-6-sol-low${f#"$SHIM/b"}"; done
+  run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
+  [[ "$output" == done* ]]
+  printf 'review gpt-6-sol low 2\n' >"$M"   # saved with n=1: not this arm
+  run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
+  rm -rf "$out"
+  [[ "$output" == pending* ]]
 }
