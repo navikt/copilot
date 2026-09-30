@@ -140,9 +140,9 @@ cplt config set --repo sandbox.allow_lifecycle_scripts true --force   # i .cplt.
             sandkassen.
           </BodyLong>
           <BodyLong>
-            Sperren gjelder også pnpm 11 og nyere og yarn 1. Bruker du cplt eldre enn{" "}
-            <code className={code}>2026.09.30-132931-5b511d2</code>, kjører de prosjektets egne skript. Da må du si fra
-            selv:
+            Sperren gjelder også pnpm 11 og nyere og yarn 1, men ikke yarn 2 og nyere: de kjører prosjektets eget
+            postinstall. Bruker du cplt eldre enn <code className={code}>2026.09.30-132931-5b511d2</code>, kjører de
+            prosjektets egne skript. Da må du si fra selv:
           </BodyLong>
           <CodeBlock compact>
             {`pnpm install --ignore-scripts

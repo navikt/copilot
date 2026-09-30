@@ -245,7 +245,8 @@ cplt config set sandbox.pass_env pnpm_config_store_dir   # send den inn i sandka
           </BodyLong>
           <CodeBlock compact>{`echo ".pnpm-store/" >> .gitignore`}</CodeBlock>
           <BodyLong>
-            Skript som kjører når en pakke installeres, er slått av i sandkassen for npm, pnpm og yarn, se{" "}
+            Skript som kjører når en pakke installeres, er slått av i sandkassen for npm, pnpm og yarn 1 (ikke yarn 2 og
+            nyere), se{" "}
             <NextLink href="/nav-pilot/guider/cplt-node#skript" className={linkClass}>
               Skript som kjører ved installasjon
             </NextLink>
