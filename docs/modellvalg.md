@@ -15,9 +15,9 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | Agent                | Modell          | Begrunnelse                                                                                                                                                                                                               |
 | -------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@nav-pilot`         | GPT-6 Sol       | Agentpakkas standard for Copilot, opencode og pi. GPT-5.6 Sol beholdes som fallback. En brukerpinne overstyrer standarden                                                                                                 |
-| `@nav-pilot-opus`    | Claude Opus 5.5 | Høyrisikoplanlegging og kritisk kodegjennomgang. High effort traff de plantede linjene i fem av fem gjennomganger. Opus 5 beholdes som fallback mens vi måler agenten direkte                                             |
+| `@nav-pilot-opus`    | Claude Opus 5.5 | Høyrisikoplanlegging og kritisk kodegjennomgang. High effort traff de plantede linjene i fem av fem gjennomganger. GPT-6.1 Sol er fallback mens vi måler agenten direkte                                          |
 | `@security-champion` | GPT-6 Sol       | Sikkerhetskritiske vurderinger. Modellen fant personvern, tilgangskontroll og riktig TokenX-mønster i fem av fem kjøringer. Ett fasebrudd i `nav-pilot` følges under utrullingen                                          |
-| `@code-review`       | Claude Opus 5.5 | High effort traff de plantede linjene i fem av fem gjennomganger. Bruk High når klienten støtter effort-valg, og kontroller linjene mot diffen. GPT-5.3-Codex er fallback                                                 |
+| `@code-review`       | Claude Opus 5.5 | High effort traff de plantede linjene i fem av fem gjennomganger. Bruk High når klienten støtter effort-valg, og kontroller linjene mot diffen. GPT-6.1 Sol er fallback, deretter GPT-5.3-Codex                         |
 | `@kafka`             | GPT-6 Sol       | Verktøytung kodeagent. Sol er den nye standarden for agentisk koding; GPT-5.3-Codex beholdes som fallback mens vi følger resultatene på Kafka-oppgaver                                                                    |
 | `@research`          | GPT-6 Luna      | Leser og søker uten å skrive kode. Modellen besto ti av ti avgrensede krav og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna. Gjelder bare når agenten startes direkte, ikke når `@nav-pilot` delegerer til den |
 | `@rust`              | GPT-6 Sol       | Verktøytung kodeagent. Sol er den nye standarden for agentisk koding; GPT-5.3-Codex beholdes som fallback mens vi følger resultatene på Rust-oppgaver                                                                     |
@@ -60,7 +60,7 @@ Råmålingen bruker eksakte `assistant_usage_events`, inkludert retries og subag
 
 Vi tilpasset ikke agentpersonaene eller instruksjonene til de nye modellene før målingen. Bare testoppsettet ble rettet: Det måler nå Fase 2 på riktig tur og bruker faktiske intervjuspørsmål i stedet for en bestemt faseoverskrift. Kandidat og kontroll brukte samme agentfil, men det var den installerte kopien og ikke repoets (se rettelsen over).
 
-`@code-review` ble flyttet til Opus 5.5 med en anbefaling om High effort. Målingen bak flyttingen var ugyldig (se rettelsen over), så pinnen står uten målegrunnlag til Opus 5.5 er målt på nytt. Agent-frontmatter kan ikke håndheve innsatsnivå (effort), så en direkte start kan arve nivået fra sesjonen. Bruk GPT-5.3-Codex som fallback ved regresjoner.
+`@code-review` ble flyttet til Opus 5.5 med en anbefaling om High effort. Målingen bak flyttingen var ugyldig (se rettelsen over), så pinnen står uten målegrunnlag til Opus 5.5 er målt på nytt. Agent-frontmatter kan ikke håndheve innsatsnivå (effort), så en direkte start kan arve nivået fra sesjonen. Bruk GPT-6.1 Sol eller GPT-5.3-Codex som fallback ved regresjoner.
 
 Kafka- og Rust-agentene flyttes til Sol, mens `kafka-topic` og `nais-manifest` flyttes til Luna. Blokkeringsskjermen målte samme oppgaveklasse, men ikke disse fire artefaktene direkte. Dette er derfor en kontrollert utrulling med fallbacks, ikke dokumentasjon på at de nye modellene er bedre på Kafka, Rust eller Nais-manifester.
 
@@ -188,7 +188,7 @@ anslag, ikke noe vi har målt**, og forholdet varierer med oppgaven.
   `execute` og `edit`. Opus 5.5 ble senere testet på kodegjennomgang: High
   traff fem av fem, mens Medium oppga feil linjer i to av fem. Etter byttet til
   Opus 5.5 er High anbefalt, linjene må kontrolleres mot diffen og
-  GPT-5.3-Codex er fallback. `@accessibility` bruker Claude Sonnet 5.5 med Sonnet 5 som fallback.
+  GPT-6.1 Sol er fallback, deretter GPT-5.3-Codex. `@accessibility` bruker Claude Sonnet 5.5 med Sonnet 5 som fallback.
 - `@forfatter` beholder Anthropic-modellen sin. Jobben er å skille bokmål fra
   nynorsk og luke ut norske AI-markører. Målingen sier ingenting om det, og
   gevinsten er nær null mot en kjent nedside.
@@ -370,6 +370,7 @@ Når nye modeller slås på (som nå med Claude Opus 5, GPT-5.6-familien, Kimi K
 - [ ] Test på en reell oppgave av typen agenten brukes til
 - [ ] Oppdater tabell over pinning og begrunnelse i dette dokumentet
 - [ ] Oppdater `model:`-feltet i agent/prompt-filen
+- [ ] Sjekk `NAV_DISABLED_MODELS` i `apps/my-copilot/src/lib/model-policy.ts`. Prissiden viser alle modeller som aktivert, unntatt dem på denne lista. Står modellen der, fjern den. Slår Nav av en modell, legg den til
 
 ## Modell-ID-format
 

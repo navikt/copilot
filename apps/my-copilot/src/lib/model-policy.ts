@@ -29,7 +29,7 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
   {
     purpose: "Høyrisikoplanlegging og kodegjennomgang",
     primary: "Claude Opus 5.5",
-    fallbacks: ["Claude Opus 5", "GPT-5.3-Codex"],
+    fallbacks: ["GPT-6.1 Sol", "GPT-5.3-Codex"],
     reason: "Valgt ut fra leverandørens råd og pris. Vi har ikke målt den på kodegjennomgang ennå.",
   },
   {
@@ -46,25 +46,28 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
   },
 ];
 
-const NAV_ALLOWED_MODELS = new Set([
-  "GPT-5.3-Codex",
-  "GPT-5.4 nano",
-  "GPT-5.6 Luna",
-  "GPT-5.6 Sol",
-  "GPT-5.6 Terra",
-  "GPT-6 Astra",
-  "GPT-6 Luna",
-  "GPT-6 Sol",
+/**
+ * Models Nav has turned off in GitHub Copilot. Every other model counts as
+ * enabled, so a new model shows up on /priser without a code change. Add a model
+ * here when Nav turns it off. Names are without the price-tier suffix, as
+ * normalizeModelName returns them.
+ */
+const NAV_DISABLED_MODELS = new Set([
+  "GPT-5 mini",
+  "GPT-5.4",
+  "GPT-5.4 mini",
+  "GPT-5.5",
+  "Claude Haiku 4.5",
   "Claude Sonnet 4",
   "Claude Sonnet 4.6",
-  "Claude Opus 4.8",
-  "Claude Opus 5.5",
-  "Claude Sonnet 5",
-  "Claude Sonnet 5.5",
-  "Gemini 3.8 Flash",
-  "MAI-Code-1.1-Flash",
-  "Kimi K2.7 Code",
-  "Kimi K3",
+  "Claude Opus 4.7",
+  "Claude Opus 4.8 (fast mode)",
+  "Claude Opus 5",
+  "Claude Fable 5",
+  "Claude Fable 5.1",
+  "Gemini 3.5 Flash",
+  "Gemini 3.6 Flash",
+  "Gemini 3.7 Flash",
 ]);
 
 export function normalizeModelName(model: string): string {
@@ -72,7 +75,7 @@ export function normalizeModelName(model: string): string {
 }
 
 export function isNavAllowedModel(model: string): boolean {
-  return NAV_ALLOWED_MODELS.has(normalizeModelName(model));
+  return !NAV_DISABLED_MODELS.has(normalizeModelName(model));
 }
 
 export function navPilotPurposesFor(model: string): string[] {
