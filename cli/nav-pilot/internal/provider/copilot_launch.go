@@ -670,12 +670,13 @@ func PrintCpltSandboxHint() {
 // until #1348's split, once, that it now runs commands on its own inside cplt.
 // Every cplt launch on a terminal records the notice as seen, so someone who
 // starts on the new default never gets it later; without a terminal it is
-// neither shown nor recorded.
+// neither shown nor recorded. Reading the cplt preset would cost a spawn, so
+// the sentence on what cplt still blocks names the presets it holds for.
 func PrintAutonomyNotice(r domain.ResolvedConfig) {
 	if !IsTerminal(os.Stdin) || !FirstTime("autonomy-notice") || !r.AutonomyNotice {
 		return
 	}
-	fmt.Printf("%s Inside cplt, Copilot now runs commands on its own and asks you when it needs to. cplt still blocks merging, pushing to main and force pushes.\n", domain.Dim("ℹ"))
+	fmt.Printf("%s Inside cplt, Copilot now runs commands on its own and asks you when it needs to. Under the standard and strict cplt presets, cplt still blocks merging pull requests, pushing to main and force pushes.\n", domain.Dim("ℹ"))
 	fmt.Printf("  To have it ask before each command again: %s\n\n", domain.Bold("nav-pilot config set autonomy conservative"))
 }
 

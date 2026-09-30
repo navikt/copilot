@@ -29,7 +29,7 @@ cp $WORK/nokey.toml $WORK/home/config.toml
 rm $WORK/home/seen-autonomy-notice
 rm $WORK/fake/cplt.log
 exec pty-run -- nav-pilot
-stdout 'Inside cplt, Copilot now runs commands on its own and asks you when it needs to. cplt still blocks merging, pushing to main and force pushes.'
+stdout 'Inside cplt, Copilot now runs commands on its own and asks you when it needs to. Under the standard and strict cplt presets, cplt still blocks merging pull requests, pushing to main and force pushes.'
 stdout 'To have it ask before each command again: nav-pilot config set autonomy conservative'
 grep '\-\-allow-all-tools\n--allow-all-paths\n--allow-all-urls' $WORK/fake/cplt.log
 exec pty-run -- nav-pilot
