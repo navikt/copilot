@@ -705,10 +705,9 @@ var navOwnDomains = []string{
 // inside cplt's own so nav-pilot can rewrite it without touching a file the
 // user owns.
 //
-// It is written on exactly one path today — the posture action — so a user who
-// adopts strict keeps whatever list shipped that day. Refreshing it when it is
-// already the configured allowlist is the obvious next step and is not in this
-// change.
+// It is written in full when the user adopts strict. After that a launch only
+// appends the Nav hosts it lacks and keeps the MCP section in step
+// (syncMCPAllowlist), so a list from an older release catches up.
 func navAllowedDomainsPath() string {
 	return filepath.Join(filepath.Dir(configPath()), "cplt-allowed-domains.txt")
 }
@@ -734,7 +733,7 @@ func writeNavAllowedDomains() (string, error) {
 		return "", fmt.Errorf("creating %s: %w", dir, err)
 	}
 	var b strings.Builder
-	b.WriteString("# Written by nav-pilot. Edits are overwritten on the next run.\n")
+	b.WriteString(navAllowlistHeader + " Edits are overwritten on the next run.\n")
 	b.WriteString("# The complete set of hosts nav-pilot and the agents and skills it installs\n")
 	b.WriteString("# need. Read by cplt via proxy.allowed_domains.\n")
 	b.WriteString("#\n")
@@ -779,6 +778,10 @@ func writeNavAllowedDomains() (string, error) {
 	return path, nil
 }
 
+// navAllowlistHeader opens every allowlist file nav-pilot writes: a file at
+// navAllowedDomainsPath without it is not nav-pilot's to change.
+const navAllowlistHeader = "# Written by nav-pilot."
+
 // mcpAllowlistMarker opens the MCP section of nav-pilot's allowlist file.
 const mcpAllowlistMarker = "# MCP servers you configured: hosts from Nav's MCP registry, approved by you."
 
@@ -786,39 +789,50 @@ const mcpAllowlistMarker = "# MCP servers you configured: hosts from Nav's MCP r
 var mcpAllowlistHosts = providerpkg.MCPAllowlistHosts
 
 // syncMCPAllowlist rewrites the MCP section of nav-pilot's allowlist file when
-// it no longer matches what is approved, and nothing above it: those bytes
-// are kept as read, so no cplt is asked for its hosts at launch. Only a file
-// nav-pilot already wrote: without an allowlist the proxy lets public hosts
-// through anyway, and a launch must not start writing files the user never
-// asked for.
+// it no longer matches what is approved. Above it, the bytes are kept as read,
+// so no cplt is asked for its hosts at launch, except that a Nav host added to
+// navOwnDomains since the file was written is appended there: a static list,
+// no spawn and no network. Only a file nav-pilot already wrote, by its path
+// and its header: without an allowlist the proxy lets public hosts through
+// anyway, a launch must not start writing files the user never asked for, and
+// a file the user wrote is theirs.
 func syncMCPAllowlist() {
 	path := navAllowedDomainsPath()
 	data, err := os.ReadFile(path)
-	if err != nil {
+	if err != nil || !strings.HasPrefix(string(data), navAllowlistHeader) {
 		return
 	}
 	prefix, section, _ := strings.Cut(string(data), mcpAllowlistMarker+"\n")
-	have := strings.Fields(section)
-	want := mcpAllowlistHosts()
-	if len(have)+len(want) == 0 {
-		return
-	}
 	var own []string
 	for _, line := range strings.Split(prefix, "\n") {
 		if line = strings.TrimSpace(line); line != "" && !strings.HasPrefix(line, "#") {
 			own = append(own, line)
 		}
 	}
-	want = slices.DeleteFunc(slices.Clone(want), func(h string) bool { return slices.Contains(own, h) })
-	if slices.Equal(have, want) {
+	var missing []string
+	for _, d := range navOwnDomains {
+		if !slices.Contains(own, d) {
+			missing = append(missing, d)
+		}
+	}
+	own = append(own, missing...)
+	have := strings.Fields(section)
+	want := slices.DeleteFunc(slices.Clone(mcpAllowlistHosts()), func(h string) bool { return slices.Contains(own, h) })
+	if len(missing) == 0 && slices.Equal(have, want) {
 		return
 	}
 	out := prefix
+	if len(missing) > 0 {
+		if !strings.HasSuffix(out, "\n") {
+			out += "\n"
+		}
+		out += strings.Join(missing, "\n") + "\n"
+	}
 	if len(want) > 0 {
 		out += mcpAllowlistMarker + "\n" + strings.Join(want, "\n") + "\n"
 	}
 	if err := writeFileAtomic(path, []byte(out), 0o600); err != nil {
-		fmt.Fprintf(os.Stderr, "%s Could not update %s with the approved MCP hosts: %v\n", domain.Yellow("⚠"), path, err)
+		fmt.Fprintf(os.Stderr, "%s Could not update %s with the Nav and MCP hosts: %v\n", domain.Yellow("⚠"), path, err)
 	}
 }
 

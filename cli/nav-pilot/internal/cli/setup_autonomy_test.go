@@ -298,3 +298,60 @@ func TestLeavingStrictKeepsAllowlistWhenPresetFails(t *testing.T) {
 		t.Errorf("allowlist = %q, want it kept", got)
 	}
 }
+
+// The one-time offer to leave strict: asked once, in a terminal with cplt,
+// of a user on strict by nav-pilot's old advice (no allowlist, #452, or
+// nav-pilot's own, #663), never of a user with an allowlist of their own.
+// Yes moves to standard and drops only nav-pilot's allowlist; no runs no cplt.
+func TestOfferLeaveStrict(t *testing.T) {
+	type tc struct {
+		name, allowlist   string // "nav" is nav-pilot's own file
+		interactive, cplt bool
+		answer            bool
+		asked             bool
+		calls             string
+	}
+	for _, c := range []tc{
+		{name: "#663 nav-pilot's allowlist, yes", allowlist: "nav", interactive: true, cplt: true, answer: true, asked: true,
+			calls: "config set sandbox.preset standard\nconfig set proxy.allowed_domains --unset --global\n"},
+		{name: "#452 no allowlist, yes", interactive: true, cplt: true, answer: true, asked: true,
+			calls: "config set sandbox.preset standard\n"},
+		{name: "#452 no allowlist, no", interactive: true, cplt: true, asked: true},
+		{name: "own allowlist", allowlist: "/Users/x/my-hosts.txt", interactive: true, cplt: true},
+		{name: "no terminal", allowlist: "nav", cplt: true},
+		{name: "no cplt", allowlist: "nav", interactive: true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			isolatedConfig(t)
+			log := statefulCplt(t, "")
+			if c.allowlist == "" {
+				_ = os.Remove(filepath.Join(filepath.Dir(log), "proxy.allowed_domains"))
+			}
+			allowlist := c.allowlist
+			if allowlist == "nav" {
+				allowlist = navAllowedDomainsPath()
+			}
+			cfg := "[sandbox]\npreset = \"strict\"\n"
+			if allowlist != "" {
+				cfg += fmt.Sprintf("[proxy]\nallowed_domains = %q\n", allowlist)
+			}
+			cfgPath := filepath.Join(t.TempDir(), "config.toml")
+			writeTestFile(t, cfgPath, cfg)
+			t.Setenv("CPLT_CONFIG", cfgPath)
+			prevI, prevC, prevAsk := isInteractive, cpltInstalled, askLeaveStrict
+			t.Cleanup(func() { isInteractive, cpltInstalled, askLeaveStrict = prevI, prevC, prevAsk })
+			isInteractive = func() bool { return c.interactive }
+			cpltInstalled = func() bool { return c.cplt }
+			asked := 0
+			askLeaveStrict = func(yes *bool) error { asked++; *yes = c.answer; return nil }
+
+			_ = captureStdout(func() { offerLeaveStrict(); offerLeaveStrict() })
+			if want := map[bool]int{true: 1, false: 0}[c.asked]; asked != want {
+				t.Errorf("asked %d times, want %d", asked, want)
+			}
+			if got, _ := os.ReadFile(log); string(got) != c.calls {
+				t.Errorf("cplt calls:\n%s\nwant:\n%s", got, c.calls)
+			}
+		})
+	}
+}

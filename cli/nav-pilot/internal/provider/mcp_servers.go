@@ -29,6 +29,9 @@ type MCPServerEntry struct {
 	// Setup is the registry's setupInstructions (_meta), steps the user
 	// takes once, such as a cplt config key or a browser download.
 	Setup []MCPSetupStep `json:"setup,omitempty"`
+	// SandboxHosts is the registry's sandboxHosts (_meta): hosts the server
+	// needs besides its remotes, such as Figma's OAuth at api.figma.com.
+	SandboxHosts []string `json:"sandboxHosts,omitempty"`
 }
 
 // MCPRemote is a server reached over HTTP.

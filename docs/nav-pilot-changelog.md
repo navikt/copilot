@@ -4,6 +4,13 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-30
 
+### Strict-brukere får MCP-serverne tilbake
+
+- **Nav-vertene fylles på**: Lista over tillatte verter som nav-pilot skrev da du valgte cplts strict-preset, får nå vertene den mangler ved hver oppstart, blant dem Navs MCP-register. Før ble lista aldri oppdatert, og Copilot kom ikke fram til registeret. nav-pilot endrer bare sin egen liste, aldri en du har skrevet selv.
+- **Figma får `api.figma.com`**: Innloggingen til Figma går via `api.figma.com`. MCP-registeret har fått feltet `sandboxHosts` for slike ekstra verter, og nav-pilot spør om dem sammen med serverens egne.
+- **`nav-pilot mcp enable` spør på nytt**: Har du avslått vertene til en MCP-server før, spør `mcp enable` igjen. Oppstarten spør ikke på nytt.
+- **Tilbud om å bytte til standard**: Valgte du strict fordi nav-pilot anbefalte det, spør nav-pilot én gang om du vil bytte til standard. Strict blokkerer all push og noen MCP-servere. Har du din egen liste over tillatte verter, spør nav-pilot ikke.
+
 ### Lokal modell: aggressive er standard
 
 - **Ny standard for `local_dispatch`**: Uten egen verdi bruker nav-pilot nå `aggressive`, også om du brukte lokal modell fra før. `balanced` kostet 1,5–1,6 ganger så mye i AI-kreditter som skymodellen alene, uten at flere oppgaver besto. Tilbake til `balanced`: `nav-pilot config set local_dispatch balanced`.

@@ -221,13 +221,13 @@ func TestConfiguredMCPServers(t *testing.T) {
 	}
 }
 
-// Status and setup steps come from _meta, where the registry serves them.
+// Status, setup steps and sandbox hosts come from _meta, where the registry serves them.
 func TestAskMCPRegistryEntries(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"servers":[{"server":{"name":"com.microsoft/playwright-mcp","description":"d",
 			"packages":[{"registryType":"npm","identifier":"@playwright/mcp","version":"0.0.80"}]},
 			"_meta":{"io.modelcontextprotocol.registry/official":{"status":"deprecated"},
-			"io.github.navikt/registry":{"setupInstructions":[{"title":"t","commands":["cplt config set sandbox.allow_cache_exec ms-playwright"]}]}}}]}`))
+			"io.github.navikt/registry":{"setupInstructions":[{"title":"t","commands":["cplt config set sandbox.allow_cache_exec ms-playwright"]}],"sandboxHosts":["api.example"]}}}]}`))
 	}))
 	defer srv.Close()
 	reg, err := askMCPRegistry(srv.URL)
@@ -235,7 +235,7 @@ func TestAskMCPRegistryEntries(t *testing.T) {
 		t.Fatalf("askMCPRegistry = %+v, %v", reg, err)
 	}
 	e := reg.Entries[0]
-	if e.Status != "deprecated" || e.Usable() || len(e.Setup) != 1 || e.Packages[0].Version != "0.0.80" {
+	if e.Status != "deprecated" || e.Usable() || len(e.Setup) != 1 || e.Packages[0].Version != "0.0.80" || !slices.Equal(e.SandboxHosts, []string{"api.example"}) {
 		t.Errorf("entry = %+v", e)
 	}
 }
