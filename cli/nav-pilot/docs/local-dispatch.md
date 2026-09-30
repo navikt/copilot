@@ -127,9 +127,9 @@ other days, so the finding was to re-run the controls before acting.
 
 ### Balanced against same-day controls
 
-This supersedes the paragraph above. The controls were re-run on 29 September
-([report](https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-28-balanced-controls/results.md)): 5 controls, then 5 `balanced` samples per cell, same binary and
-worker. The pass rate was the same (15 of 15, and 5 of 5 on the false-positive
+This supersedes the two paragraphs above. The controls were re-run on 29 September
+([report](https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-28-balanced-controls/results.md)): 5 controls, then 5 `balanced` samples per cell (r5 stopped at the cost cap
+after 3 controls), same binary and worker. The pass rate was the same (15 of 15, and 5 of 5 on the false-positive
 cell), but cloud cost was 1.57× control on r4 and 1.49× on r6. Every `balanced`
 sample on those two cells cost more than every control sample (exact
 Mann–Whitney, 5 against 5, p = 0.008 each). Two of three large rungs over

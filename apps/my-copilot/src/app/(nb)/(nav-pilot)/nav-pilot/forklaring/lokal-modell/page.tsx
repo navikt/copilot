@@ -201,10 +201,11 @@ export default function LokalModellForklaring() {
             <code className={code}>balanced</code> klarte ikke kravet vi satte på forhånd: like mange beståtte oppgaver
             og ikke dyrere enn skymodellen alene. I en ny måling 29. september med kontrollkjøringer samme kveld besto
             alle oppgavene, men <code className={code}>balanced</code> kostet 1,57 ganger så mye på én stor oppgave og
-            1,49 ganger så mye på en annen. Hver kjøring med <code className={code}>balanced</code> kostet mer enn hver
-            kontrollkjøring (p = 0,008). Derfor er <code className={code}>aggressive</code> standard fra 30. september
-            2026, også for deg som brukte lokal modell fra før. Har du satt <code className={code}>local_dispatch</code>{" "}
-            selv, beholder du verdien din. Tilbake til <code className={code}>balanced</code>:{" "}
+            1,49 ganger så mye på en annen. På de to oppgavene kostet hver kjøring med{" "}
+            <code className={code}>balanced</code> mer enn hver kontrollkjøring (p = 0,008). Derfor er{" "}
+            <code className={code}>aggressive</code> standard fra 30. september 2026, også for deg som brukte lokal
+            modell fra før. Har du satt <code className={code}>local_dispatch</code> selv, beholder du verdien din.
+            Tilbake til <code className={code}>balanced</code>:{" "}
             <code className={code}>nav-pilot config set local_dispatch balanced</code>. Tallene står i{" "}
             <a
               href="https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-28-balanced-controls/results.md"

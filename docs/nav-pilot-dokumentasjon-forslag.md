@@ -258,7 +258,7 @@ Sjekken bygges i en egen PR. Den er et krav for PR-ene med nye sider og for meny
    cd ~/kode/mitt-repo
    nav-pilot
    ```
-   Be om en mekanisk endring over flere filer, for eksempel «legg til parameteren `ctx` i alle kall til `hentBruker`». Med standardnivået `balanced` stopper nav-pilot hovedagenten ved fem filer, og ber den sende jobben til `local-worker`. Etterpå viser `nav-pilot alpha local status` hva modellen har gjort. Kjørte ikke serveren, sier nav-pilot fra både før og etter økten at alt gikk i skyen (`opencode_launch.go:1228-1240`).
+   Be om en mekanisk endring over flere filer, for eksempel «legg til parameteren `ctx` i alle kall til `hentBruker`». Med `balanced` stopper nav-pilot hovedagenten ved fem filer, og ber den sende jobben til `local-worker`. Etterpå viser `nav-pilot alpha local status` hva modellen har gjort. Kjørte ikke serveren, sier nav-pilot fra både før og etter økten at alt gikk i skyen (`opencode_launch.go:1228-1240`).
 5. **Første decide.**
    ```sh
    echo "Legg til retry i klienten" | nav-pilot alpha decide \
