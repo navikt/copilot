@@ -2,6 +2,7 @@ package provider
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -107,5 +108,93 @@ func TestMCPClientEntryGitHubDefaultsToReadonly(t *testing.T) {
 		if b, _ := MCPClientEntry(client, gh, MCPToolChoice{All: true, URL: githubMCPURL}); strings.Contains(string(b), "readonly") {
 			t.Errorf("%s: an explicit full URL was not kept: %s", client, b)
 		}
+	}
+}
+
+// permRules is the permission map of the OpenCode config, in file order.
+func permRules(t *testing.T, home string) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(home, ".config", "opencode", "opencode.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(b, &top); err != nil {
+		t.Fatal(err)
+	}
+	return string(compactJSON(top["permission"]))
+}
+
+// A user's ask stays an ask: nav-pilot's rules come last, and OpenCode
+// takes the last match, so an allow would loosen it.
+func TestSetMCPServerToolsKeepsAsk(t *testing.T) {
+	p := openCodeToolPrefix(intellij.Name)
+	for name, tc := range map[string]struct {
+		perm string
+		c    MCPToolChoice
+		want string
+	}{
+		"every tool asks": {`{"*": "ask"}`, MCPToolChoice{Tools: []string{"read_file"}},
+			`{"*":"ask","` + p + `*":"deny","` + p + `read_file":"ask"}`},
+		"server asks": {`{"` + p + `*": "ask"}`, MCPToolChoice{Tools: []string{"read_file"}},
+			`{"` + p + `*":"deny","` + p + `read_file":"ask"}`},
+		"one tool asks": {`{"` + p + `reformat_file": "ask"}`, MCPToolChoice{Tools: []string{"read_file", "reformat_file"}},
+			`{"` + p + `*":"deny","` + p + `read_file":"allow","` + p + `reformat_file":"ask"}`},
+		"all tools, server asks": {`{"` + p + `*": "ask"}`, MCPToolChoice{All: true},
+			`{"` + p + `*":"ask"}`},
+		"no ask": {`{"bash": "ask"}`, MCPToolChoice{Tools: []string{"read_file"}},
+			`{"bash":"ask","` + p + `*":"deny","` + p + `read_file":"allow"}`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			home := mcpConfigEnv(t)
+			writeFile(t, filepath.Join(home, ".config", "opencode", "opencode.json"),
+				`{"mcp": {"`+intellij.Name+`": {"type": "remote", "url": "http://127.0.0.1:64342/sse"}}, "permission": `+tc.perm+`}`)
+			if _, err := SetMCPServerTools(MCPClientOpenCode, intellij.Name, intellij, tc.c); err != nil {
+				t.Fatal(err)
+			}
+			if got := permRules(t, home); got != tc.want {
+				t.Errorf("permission = %s\nwant       %s", got, tc.want)
+			}
+		})
+	}
+}
+
+// The same choice twice writes once: the backup keeps the file from before
+// the real change.
+func TestSetMCPServerToolsUnchangedIsNoWrite(t *testing.T) {
+	home := mcpConfigEnv(t)
+	path := filepath.Join(home, ".copilot", "mcp-config.json")
+	orig := `{"mcpServers": {"` + intellij.Name + `": {"type": "sse", "url": "http://127.0.0.1:64342/sse", "tools": ["*"]}}}`
+	writeFile(t, path, orig)
+	c := MCPToolChoice{Tools: []string{"read_file"}}
+	for i, want := range []bool{true, false} {
+		ch, err := SetMCPServerTools(MCPClientCopilot, intellij.Name, intellij, c)
+		if err != nil || ch.Changed != want {
+			t.Fatalf("call %d: changed = %v, %v; want %v", i, ch.Changed, err, want)
+		}
+	}
+	if b, _ := os.ReadFile(path + ".bak"); string(b) != orig {
+		t.Errorf("backup = %s", b)
+	}
+}
+
+// disable takes the server's permission rules with it, and only its own:
+// a_b's rules share a's prefix.
+func TestRemoveMCPServerDropsItsRules(t *testing.T) {
+	home := mcpConfigEnv(t)
+	writeFile(t, filepath.Join(home, ".config", "opencode", "opencode.json"),
+		`{"mcp": {"a": {"type": "remote", "url": "https://a.test"}, "a_b": {"type": "remote", "url": "https://ab.test"}},
+		"permission": {"bash": "ask", "a_*": "deny", "a_x": "allow", "a_b_*": "deny", "a_b_y": "allow"}}`)
+	if _, err := RemoveMCPServer(MCPClientOpenCode, "a"); err != nil {
+		t.Fatal(err)
+	}
+	if got := permRules(t, home); got != `{"bash":"ask","a_b_*":"deny","a_b_y":"allow"}` {
+		t.Errorf("permission = %s", got)
+	}
+	if _, err := RemoveMCPServer(MCPClientOpenCode, "a_b"); err != nil {
+		t.Fatal(err)
+	}
+	if got := permRules(t, home); got != `{"bash":"ask"}` {
+		t.Errorf("permission = %s", got)
 	}
 }

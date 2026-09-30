@@ -22,6 +22,7 @@ type mcpToolOpts struct {
 	tools         []string // --tools a,b
 	all           bool     // --all-tools
 	allowHostExec bool     // --allow-host-exec
+	noPick        bool     // the defaults, never the terminal's picker
 }
 
 // explicit is a choice the user made, which may change an existing entry.
@@ -55,6 +56,15 @@ var mcpAsk = func(title string) bool { return confirm(title, false, false) }
 
 // mcpChooseTools is the tools enable turns on for e.
 func mcpChooseTools(e providerpkg.MCPServerEntry, o mcpToolOpts) (providerpkg.MCPToolChoice, error) {
+	if o.noPick {
+		// Every client keeps its entry: the choice is only compared with
+		// it, so nothing here may refuse.
+		c := providerpkg.MCPToolChoice{Tools: e.DefaultTools()}
+		if ro := e.GitHubReadonlyURL(); ro != "" || len(e.Tools) == 0 {
+			c = providerpkg.MCPToolChoice{All: true, URL: ro}
+		}
+		return c, nil
+	}
 	if len(e.Tools) == 0 {
 		// A registry without tool lists (an older answer, say) cannot tell
 		// a safe tool from a risky one.
@@ -88,7 +98,7 @@ func mcpChooseTools(e providerpkg.MCPServerEntry, o mcpToolOpts) (providerpkg.MC
 			}
 		}
 		c.Tools = o.tools
-	case isInteractive():
+	case isInteractive() && !o.noPick:
 		pick, err := mcpPickTools(e)
 		if err != nil {
 			return c, err
@@ -190,7 +200,7 @@ func mcpToolsOf(e providerpkg.MCPServerEntry, client string) (mcpToolsInfo, bool
 	info := mcpToolsInfo{state: st, hostExec: mcpIntersect(st.On, e.HostExecTools())}
 	if st.All && len(e.Tools) == 0 && e.Loopback() {
 		// Every tool of a server on the host, with none of them known.
-		info.hostExec = []string{"all of its tools"}
+		info.hostExec = []string{mcpAllItsTools}
 	}
 	info.fullGH = e.GitHubReadonlyURL() != "" && !providerpkg.IsGitHubReadonlyURL(st.URL)
 	return info, true
@@ -233,9 +243,11 @@ func mcpToolProblems(e providerpkg.MCPServerEntry, client string, i mcpToolsInfo
 		if i.state.All {
 			what = "has every tool on, including " + strings.Join(i.hostExec, ", ")
 		}
-		out = append(out, mcpProblem{Server: e.Name, Client: client,
-			Problem: what + ", which " + mcpRuns(i.hostExec) + " on your machine outside the cplt sandbox",
-			Fix:     mcpNarrowFix(e, client)})
+		problem := what + ", which " + mcpRuns(i.hostExec) + " on your machine outside the cplt sandbox"
+		if slices.Equal(i.hostExec, []string{mcpAllItsTools}) {
+			problem = "has every tool on, and the registry lists none of them, so any of them may run on your machine outside the cplt sandbox"
+		}
+		out = append(out, mcpProblem{Server: e.Name, Client: client, Problem: problem, Fix: mcpNarrowFix(e, client)})
 	}
 	if i.fullGH {
 		out = append(out, mcpProblem{Server: e.Name, Client: client,
@@ -266,20 +278,45 @@ func mcpHostExecOn(e providerpkg.MCPServerEntry, conf providerpkg.MCPConfigured)
 
 // mcpLoopbackWarning is what opening a localhost port means when the server
 // behind it has host-exec tools on: the port is a way out of the sandbox.
-func mcpLoopbackWarning(e providerpkg.MCPServerEntry, port string, hx []string) string {
-	return fmt.Sprintf("opening localhost:%s lets the agent reach %s, which %s on your machine outside the sandbox. Turn %s off first (nav-pilot mcp enable %s --tools <a,b>), then open the port",
-		port, strings.Join(hx, ", "), mcpRuns(hx), mcpIt(hx), e.Name)
+// fix is the command that turns them off.
+func mcpLoopbackWarning(e providerpkg.MCPServerEntry, port string, hx []string, fix string) string {
+	return fmt.Sprintf("opening localhost:%s lets the agent reach %s, which %s on your machine outside the sandbox. Turn %s off first (%s), then open the port",
+		port, strings.Join(hx, ", "), mcpRuns(hx), mcpIt(hx), fix)
 }
 
+// mcpLoopbackFix is the short form of the narrowing command for the
+// warning, which doctor cuts at 600: --tools with a placeholder, and for a
+// server without a tool list, which --tools cannot pick from, the real
+// commands (they are short).
+func mcpLoopbackFix(e providerpkg.MCPServerEntry, clients []string) string {
+	if len(e.Tools) == 0 {
+		return mcpNarrowFixes(e, clients)
+	}
+	return "nav-pilot mcp enable " + e.Name + " --tools <a,b>"
+}
+
+// mcpNarrowFixes is mcpNarrowFix for each client, in one command line.
+func mcpNarrowFixes(e providerpkg.MCPServerEntry, clients []string) string {
+	var fixes []string
+	for _, c := range clients {
+		fixes = append(fixes, mcpNarrowFix(e, c))
+	}
+	return strings.Join(fixes, " && ")
+}
+
+// mcpAllItsTools stands for the tools of a server on the host that lists
+// none: every one of them is on.
+const mcpAllItsTools = "all of its tools"
+
 func mcpRuns(tools []string) string {
-	if len(tools) == 1 {
+	if len(tools) == 1 && tools[0] != mcpAllItsTools {
 		return "runs"
 	}
 	return "run"
 }
 
 func mcpIt(tools []string) string {
-	if len(tools) == 1 {
+	if len(tools) == 1 && tools[0] != mcpAllItsTools {
 		return "it"
 	}
 	return "them"
@@ -300,11 +337,20 @@ func mcpLoopbackNote(server, port string) string {
 	if i < 0 {
 		return ""
 	}
-	hx := mcpHostExecOn(entries[i], providerpkg.ConfiguredMCPServers(entries))
+	e := entries[i]
+	conf := providerpkg.ConfiguredMCPServers(entries)
+	hx := mcpHostExecOn(e, conf)
 	if len(hx) == 0 {
 		return ""
 	}
-	return mcpLoopbackWarning(entries[i], port, hx)
+	on := map[string]bool{providerpkg.MCPClientCopilot: conf.Copilot[e.Name], providerpkg.MCPClientOpenCode: conf.OpenCode[e.Name]}
+	var clients []string
+	for _, c := range []string{providerpkg.MCPClientCopilot, providerpkg.MCPClientOpenCode} {
+		if info, ok := mcpToolsOf(e, c); on[c] && ok && len(info.hostExec) > 0 {
+			clients = append(clients, c)
+		}
+	}
+	return mcpLoopbackWarning(e, port, hx, mcpLoopbackFix(e, clients))
 }
 
 // reportMCPTools is doctor's nudge for a configured server with a tool on

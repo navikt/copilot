@@ -122,8 +122,9 @@ func validateServerEntry(server *StaticServerData, index int, existingNames map[
 		if !slices.Contains(server.Tools, tool) {
 			return fmt.Errorf("server[%d].toolRisk: '%s' is not in the server's tools", index, tool)
 		}
-		if !slices.Contains([]string{"read", "write", "external", "host-exec"}, risk) {
-			return fmt.Errorf("server[%d].toolRisk.%s: '%s' must be read, write, external or host-exec", index, tool, risk)
+		// A read has no entry: toolRisk lists only what does more.
+		if !slices.Contains([]string{"write", "external", "host-exec"}, risk) {
+			return fmt.Errorf("server[%d].toolRisk.%s: '%s' must be write, external or host-exec (a read has no entry)", index, tool, risk)
 		}
 	}
 

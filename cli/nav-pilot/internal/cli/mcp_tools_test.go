@@ -381,7 +381,7 @@ func TestDoctorToolNudges(t *testing.T) {
 	// Every host-exec tool the registry has: still one whole line, which
 	// doctor cuts at 600.
 	hx := []string{"apply_patch", "build_project", "create_new_file", "execute_run_configuration", "execute_sql_query", "execute_terminal_command", "execute_tool"}
-	if w := mcpLoopbackWarning(mcpTestEntries()[2], "64342", hx); len(w) > 600 || strings.Contains(w, "read_file") {
+	if w := mcpLoopbackWarning(mcpTestEntries()[2], "64342", hx, mcpLoopbackFix(mcpTestEntries()[2], []string{"copilot", "opencode"})); len(w) > 600 || strings.Contains(w, "read_file") {
 		t.Errorf("loopback warning is %d long: %q", len(w), w)
 	}
 	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {"com.jetbrains/intellij": {"type": "sse", "url": "http://127.0.0.1:64342/sse", "tools": ["reformat_file"]}}}`)
@@ -420,5 +420,73 @@ func TestMCPEnableExistingEntryNoToolsHint(t *testing.T) {
 	}
 	if strings.Contains(out, "are off") {
 		t.Errorf("hint for a kept entry:\n%s", out)
+	}
+}
+
+// Without a flag an existing entry is kept, so the terminal's picker is not
+// shown: a pick would be thrown away.
+func TestMCPEnableExistingEntrySkipsThePicker(t *testing.T) {
+	mcpCmdEnv(t, providerpkg.MCPHostState{})
+	isInteractive = func() bool { return true }
+	prevPick := mcpPickTools
+	t.Cleanup(func() { mcpPickTools = prevPick })
+	mcpPickTools = func(providerpkg.MCPServerEntry) ([]string, error) {
+		t.Error("picker shown for an entry that is kept")
+		return nil, nil
+	}
+	orig := `{"mcpServers": {"com.jetbrains/intellij": {"type": "sse", "url": "http://127.0.0.1:64342/sse", "tools": ["*"]}}}`
+	writeTestFile(t, copilotMCPPath(), orig)
+	out, err := mcpEnable(t, "intellij", "--client", "copilot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "kept yours") {
+		t.Errorf("out:\n%s", out)
+	}
+	if b, _ := os.ReadFile(copilotMCPPath()); string(b) != orig {
+		t.Errorf("config changed:\n%s", b)
+	}
+}
+
+// A kept entry of a server on the host whose registry lists no tools: enable
+// keeps it rather than refusing (the refusal is for a new entry).
+func TestMCPEnableExistingEntryWithoutToolList(t *testing.T) {
+	mcpCmdEnv(t, providerpkg.MCPHostState{})
+	entries := mcpTestEntries()
+	entries[2].Tools, entries[2].ToolRisk = nil, nil
+	mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error, error) {
+		return "https://registry.test", entries, nil, nil
+	}
+	orig := `{"mcpServers": {"com.jetbrains/intellij": {"type": "sse", "url": "http://127.0.0.1:64342/sse", "tools": ["*"]}}}`
+	writeTestFile(t, copilotMCPPath(), orig)
+	if out, err := mcpEnable(t, "intellij", "--client", "copilot"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if b, _ := os.ReadFile(copilotMCPPath()); string(b) != orig {
+		t.Errorf("config changed:\n%s", b)
+	}
+}
+
+// A server on the host whose registry entry lists no tools: the fix cannot
+// be --tools, and the wording does not claim one tool.
+func TestMCPListLoopbackWithoutToolList(t *testing.T) {
+	f := mcpCmdEnv(t, providerpkg.MCPHostState{})
+	f.verdicts["127.0.0.1:64342"] = "BLOCKED-PORT"
+	entries := mcpTestEntries()
+	entries[2].Tools, entries[2].ToolRisk = nil, nil
+	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {"com.jetbrains/intellij": {"type": "sse", "url": "http://127.0.0.1:64342/sse", "tools": ["*"]}}}`)
+	rep := diagnoseMCP("r", entries, mcpConfigured(entries), "com.jetbrains/intellij")
+	if len(rep.Problems) != 1 {
+		t.Fatalf("problems = %+v", rep.Problems)
+	}
+	p := rep.Problems[0]
+	if strings.Contains(p.Problem+p.Fix, "--tools") || !strings.HasPrefix(p.Fix, "nav-pilot mcp disable com.jetbrains/intellij --client copilot && cplt") ||
+		!strings.Contains(p.Problem, "all of its tools, which run on your machine") || !strings.Contains(p.Problem, "Turn them off first (nav-pilot mcp disable") {
+		t.Errorf("problem = %+v", p)
+	}
+	var i mcpToolsInfo
+	i.state.All, i.hostExec = true, []string{mcpAllItsTools}
+	if got := mcpToolProblems(entries[2], "copilot", i)[0].Problem; strings.Contains(got, "including all of its tools") || strings.Contains(got, "runs") {
+		t.Errorf("nudge = %q", got)
 	}
 }
