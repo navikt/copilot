@@ -339,7 +339,8 @@ func TestOfferLeaveStrict(t *testing.T) {
 			writeTestFile(t, cfgPath, cfg)
 			t.Setenv("CPLT_CONFIG", cfgPath)
 			prevI, prevC, prevAsk := isInteractive, cpltInstalled, askLeaveStrict
-			t.Cleanup(func() { isInteractive, cpltInstalled, askLeaveStrict = prevI, prevC, prevAsk })
+			t.Cleanup(func() { isInteractive, cpltInstalled, askLeaveStrict, sessionPrompted = prevI, prevC, prevAsk, false })
+			sessionPrompted = false
 			isInteractive = func() bool { return c.interactive }
 			cpltInstalled = func() bool { return c.cplt }
 			asked := 0
