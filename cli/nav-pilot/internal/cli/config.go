@@ -573,7 +573,7 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		Surveys:           true,
 		News:              true,
 		OtelLogLevel:      "none",
-		LocalDispatch:     "balanced",
+		LocalDispatch:     "aggressive",
 		CopilotAuthMode:   "auto",
 		HookLoopGuard:     true,
 		HookRedactSecrets: true,

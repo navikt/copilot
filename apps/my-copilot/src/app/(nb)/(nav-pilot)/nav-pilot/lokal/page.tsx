@@ -165,12 +165,10 @@ export default async function LokalIntro() {
           </BodyLong>
           <BodyLong>
             Med <code className={code}>aggressive</code> slipper redigeringen gjennom først når fila er sendt til{" "}
-            <code className={code}>local-worker</code>. Nye filer går også dit. Slår du på lokal modell for første gang
-            med <code className={code}>nav-pilot alpha local init</code>, <code className={code}>setup</code> eller{" "}
-            <code className={code}>on</code>, setter nav-pilot <code className={code}>local_dispatch</code> til{" "}
-            <code className={code}>aggressive</code>. Har du brukt lokal modell før, beholder du{" "}
-            <code className={code}>balanced</code>, og du kan bytte selv med{" "}
-            <code className={code}>nav-pilot config set local_dispatch aggressive</code>.
+            <code className={code}>local-worker</code>. Nye filer går også dit. <code className={code}>aggressive</code>{" "}
+            er standard. Har du satt <code className={code}>local_dispatch</code> selv, beholder du verdien din. Vil du
+            tilbake til <code className={code}>balanced</code>, bruk{" "}
+            <code className={code}>nav-pilot config set local_dispatch balanced</code>.
           </BodyLong>
           <BodyLong>
             I målingen fra september 2026 (re-probe 7, Sonnet 5 som hovedagent) sendte hovedagenten arbeid til den
@@ -179,7 +177,9 @@ export default async function LokalIntro() {
             tok 2,7–3,6 ganger så lang tid som når skymodellen gjorde alt selv. Hovedagenten gjorde likevel om 15 av 27
             oppgaver med nye filer selv. To kjøringer til ble avbrutt før de var ferdige, og i én av dem ble koden
             liggende i stykker. Med <code className={code}>balanced</code> sendte hovedagenten arbeid i 2 av 20
-            kjøringer.
+            kjøringer. En ny måling 29. september viste at <code className={code}>balanced</code> kostet 1,5–1,6 ganger
+            så mye som når skymodellen gjorde alt selv, uten at flere oppgaver besto. Derfor er{" "}
+            <code className={code}>aggressive</code> standard fra 30. september 2026.
           </BodyLong>
           <BodyLong>
             Etterpå viser <code className={code}>nav-pilot alpha local status</code> at serveren fortsatt kjører, og

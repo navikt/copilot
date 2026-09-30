@@ -953,28 +953,11 @@ func healthMeaning(h local.Health) string {
 }
 
 // enableLocal writes local_enabled = true, for every path that turns local
-// inference on. A config that has never had local_enabled or local_dispatch is
-// a new local setup, and gets local_dispatch = "aggressive" written beside it
-// (dispatch re-probe 7). Everyone else keeps what they have: an existing setup
-// with no local_dispatch key stays on the built-in balanced, and `alpha local
-// on` after `off` changes nothing but local_enabled. The same rule as
-// recordEffectiveClient: a new default reaches new installs only.
+// inference on. local_dispatch is left alone: without the key the built-in
+// aggressive applies, and an explicit value wins.
 func enableLocal() error {
-	if newLocalSetup() {
-		if _, err := writeConfigKey("local_dispatch", "aggressive"); err != nil {
-			return err
-		}
-		fmt.Printf("%s local_dispatch = aggressive, for a new local setup. To change it: %s\n", green("✓"), bold("nav-pilot config set local_dispatch balanced"))
-	}
 	_, err := writeConfigKey("local_enabled", "true")
 	return err
-}
-
-// newLocalSetup reports whether the config has never had local inference
-// configured: no local_enabled key and no local_dispatch key.
-func newLocalSetup() bool {
-	cfg, err := readConfig()
-	return err == nil && (cfg == nil || cfg.LocalEnabled == nil && cfg.LocalDispatch == nil)
 }
 
 // ─── off ─────────────────────────────────────────────────────────────────────

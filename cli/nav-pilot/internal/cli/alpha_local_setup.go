@@ -628,9 +628,6 @@ func failed(checks []doctorCheck, name string) bool {
 func saveEndpoint(c setupChoice, checks []doctorCheck, yes bool) error {
 	endpoint := c.Server.Base + "/v1"
 	fmt.Printf("  Save to %s:\n    local_endpoint       = %s\n    local_endpoint_model = %s\n    local_enabled        = true\n", configPath(), endpoint, c.Model)
-	if newLocalSetup() {
-		fmt.Println("    local_dispatch       = aggressive")
-	}
 	short := failed(checks, "context")
 	title := "Save and turn local dispatch on?"
 	if short {

@@ -2,6 +2,12 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-09-30
+
+### Lokal modell: aggressive er standard
+
+- **Ny standard for `local_dispatch`**: Uten egen verdi bruker nav-pilot nå `aggressive`, også om du brukte lokal modell fra før. `balanced` kostet 1,5–1,6 ganger så mye i AI-kreditter som skymodellen alene, uten at flere oppgaver besto. Tilbake til `balanced`: `nav-pilot config set local_dispatch balanced`.
+
 ## 2026-09-29
 
 ### Lokal modell: hvorfor konteksten må være så stor
