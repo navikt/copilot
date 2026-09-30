@@ -180,6 +180,38 @@ func cmdDoctor() error {
 	fmt.Printf("%s\n\n", bold("nav-pilot doctor"))
 	hasErrors := false
 
+	// The slow waits (cplt processes, GitHub) are independent of each other,
+	// so they start now and run while the earlier sections print. Output stays
+	// in the same order: each result is read where it used to be computed.
+	cpltPath, _ := exec.LookPath("cplt")
+	var enforcement func() *cpltCheckReport
+	var latest func() latestCplt
+	var preset func() string
+	var trust func() trustRead
+	var mcpRefresh func() error
+	ghProbe := async(func() ghProbeResult {
+		st, detail := ghAuthProbe()
+		return ghProbeResult{st, detail}
+	})
+	if cpltPath != "" {
+		enforcement = async(cpltEnforcement)
+		latest = async(func() latestCplt {
+			v, err := latestCpltVersion()
+			return latestCplt{v, err}
+		})
+		preset = async(cpltSandboxPreset)
+		trust = async(func() trustRead {
+			t, ok := readCpltTrust(cpltPath, "")
+			return trustRead{t, ok}
+		})
+		go cpltBuiltinDomains()
+		if mcpHostsMode() != "off" {
+			cfg, _ := readConfig()
+			providerpkg.MCPClient = resolve(cfg, CLIOverrides{}).Client
+			mcpRefresh = async(refreshMCPRegistry)
+		}
+	}
+
 	// 1. Configuration
 	// The file every other command reads, NAV_PILOT_CONFIG included.
 	cfgPath := configPath()
@@ -277,10 +309,7 @@ func cmdDoctor() error {
 	}
 
 	// cplt
-	// The battery runs once, and only if something reads it.
-	enforcement := sync.OnceValue(cpltEnforcement)
 	fmt.Printf("    • cplt (sandbox)\n")
-	cpltPath, _ := exec.LookPath("cplt")
 	if cpltPath == "" {
 		hasErrors = true
 		fmt.Printf("      %s Binary not found on PATH\n", red("[✗]"))
@@ -295,12 +324,13 @@ func cmdDoctor() error {
 		}
 		fmt.Printf("      %s Binary found: %s (%s)\n", green("✓"), cpltPath, version)
 
-		reportCpltVersion(cpltPath, version)
+		l := latest()
+		reportCpltVersionWith(cpltPath, version, l.version, l.err)
 
 		// Security posture. No recommendation: standard is the default and
 		// lets the agent push a feature branch; strict blocks all pushes.
 		// What is reported is a preset cplt cannot honour here.
-		preset := cpltSandboxPreset()
+		preset := preset()
 		supported, unsupportedReason := strictPresetSupported()
 		switch {
 		case preset == "":
@@ -333,7 +363,7 @@ func cmdDoctor() error {
 		// decides whether a host may be reached at all, this decides whether
 		// a host that resolves privately may be reached once DNS has answered.
 		reportSandboxWaiver(os.Stdout, agentpakke.Default())
-		reportMCPHosts(os.Stdout, cpltPath)
+		reportMCPHostsWith(os.Stdout, cpltPath, mcpRefresh)
 		reportMCPTools(os.Stdout)
 
 		// The persona is pinned by nav-pilot itself, not by user configuration:
@@ -406,8 +436,8 @@ func cmdDoctor() error {
 	// Push and PRs from inside the sandbox need a gh login the client can read.
 	fmt.Printf("    • GitHub sign-in (push and PRs)\n")
 	ghCfg, _ := readConfig()
-	st, detail := ghAuthProbe()
-	reportGHAuth(os.Stdout, "      ", resolve(ghCfg, CLIOverrides{}).Client, st, detail)
+	gh := ghProbe()
+	reportGHAuth(os.Stdout, "      ", resolve(ghCfg, CLIOverrides{}).Client, gh.st, gh.detail)
 	fmt.Println()
 
 	// 3b. Model pins
@@ -433,8 +463,8 @@ func cmdDoctor() error {
 		// this one into an empty read, which would print a false "trusted".
 		// cplt's own trust verdict (navikt/cplt#644); an older cplt without
 		// `trust show --json` gets the config show read.
-		if t, ok := readCpltTrust(cpltPath, ""); ok {
-			if reportCpltTrust(t) {
+		if tr := trust(); tr.ok {
+			if reportCpltTrust(tr.t) {
 				hasErrors = true
 			}
 		} else {
@@ -524,8 +554,12 @@ func cmdDoctor() error {
 // host list. That is said once, and the upgrade is offered only when there may
 // be one: a current cplt without the subcommand has nothing newer to go to.
 func reportCpltVersion(cpltPath, version string) {
-	installed := parseCpltVersion(version)
 	latest, lerr := latestCpltVersion()
+	reportCpltVersionWith(cpltPath, version, latest, lerr)
+}
+
+func reportCpltVersionWith(cpltPath, version, latest string, lerr error) {
+	installed := parseCpltVersion(version)
 	upgrade := bold(domain.PkgOwner(cpltPath).Pick("brew upgrade navikt/tap/cplt", "sudo apt upgrade cplt"))
 	_, hostsFromCplt := cpltBuiltinDomains()
 	const fallback = "`cplt config hosts` gave no usable answer, so nav-pilot uses its own, possibly stale, copy of cplt's host list"
@@ -589,4 +623,26 @@ func reportNoRepoConfig() bool {
 		fmt.Printf("        %s Run %s in the repository root to preview the rules cplt suggests for its tooling.\n", dim("Tip:"), bold("cplt init"))
 	}
 	return false
+}
+
+type (
+	latestCplt struct {
+		version string
+		err     error
+	}
+	trustRead struct {
+		t  cpltTrust
+		ok bool
+	}
+	ghProbeResult struct {
+		st     ghAuth
+		detail string
+	}
+)
+
+// async starts f now and returns a getter that waits for its result.
+func async[T any](f func() T) func() T {
+	ch := make(chan T, 1)
+	go func() { ch <- f() }()
+	return sync.OnceValue(func() T { return <-ch })
 }
