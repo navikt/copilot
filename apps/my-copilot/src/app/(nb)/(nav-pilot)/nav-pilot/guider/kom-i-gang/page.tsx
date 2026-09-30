@@ -23,9 +23,8 @@ const TOC: TocItem[] = [
   { id: "videre", label: "Videre" },
 ];
 
-// The first nav-pilot release with the autonomy presets (navikt/copilot#1350).
-// The two separate questions (#1348) need the release after that PR.
-const MIN_VERSION = "2026.09.29-221653";
+// The first nav-pilot release with the two autonomy questions (navikt/copilot#1359).
+const MIN_VERSION = "2026.09.30-072123";
 // The first release that offers to remove the strict allowlist (navikt/copilot#1351).
 const LIST_REMOVAL_VERSION = "2026.09.29-223958";
 
@@ -154,7 +153,14 @@ nav-pilot`}</CodeBlock>
             <NextLink href="/nav-pilot/agentpakker#sandkasse" className={linkClass}>
               Agentpakker
             </NextLink>{" "}
-            forklarer unntakene. Deretter starter klienten i sandkassen.
+            forklarer unntakene.
+          </BodyLong>
+          <BodyLong>
+            Har du lagt inn MCP-tjenere fra Navs MCP-register i Copilot CLI eller OpenCode, spør nav-pilot om de får nå
+            vertene sine fra sandkassen (
+            <strong>MCP server … connects to these hosts. Allow them in the sandbox?</strong>
+            ). Enter svarer nei. nav-pilot henter registeret i bakgrunnen, så spørsmålet kan komme først ved neste
+            oppstart. Deretter starter klienten i sandkassen.
           </BodyLong>
         </VStack>
       </section>
@@ -274,8 +280,10 @@ cplt trust accept`}</CodeBlock>
           <BodyLong>Tilbake til at agenten kjører kommandoer selv:</BodyLong>
           <CodeBlock compact>{`nav-pilot config set autonomy sandbox`}</CodeBlock>
           <BodyLong>
-            Nettverket står på cplt-nivået <code className={code}>standard</code>. Vil du begrense det til en liste over
-            tillatte verter (cplt-nivået <code className={code}>strict</code>), får du spørsmålet med:
+            Veiviseren endrer ikke cplt-nivået du har. Har du ikke satt noe, er det{" "}
+            <code className={code}>standard</code>. Vil du bytte nivå, for eksempel til{" "}
+            <code className={code}>strict</code>, der agenten bare når verter på en liste, får du spørsmålet om
+            nettverket med:
           </BodyLong>
           <CodeBlock compact>{`nav-pilot config setup --advanced`}</CodeBlock>
           <Box background="warning-soft" borderRadius="8" padding="space-16">
@@ -331,7 +339,8 @@ cplt trust accept`}</CodeBlock>
               .
             </li>
             <li>
-              Trenger agenten verktøy utenfor klienten, som Playwright? Se{" "}
+              Trenger agenten verktøy utenfor klienten, som Playwright? Legg dem til med{" "}
+              <code className={code}>nav-pilot mcp enable</code>, og se{" "}
               <NextLink href="/nav-pilot/klienter#mcp-register" className={linkClass}>
                 Navs MCP-register
               </NextLink>
