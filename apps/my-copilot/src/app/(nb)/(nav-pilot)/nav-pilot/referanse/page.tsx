@@ -223,8 +223,9 @@ export default function Referanse() {
           </LinkableHeading>
           <BodyLong>
             Nivået er <code className={code}>sandbox.preset</code> i cplt. Sett det med{" "}
-            <code className={code}>nav-pilot config</code>, raden «cplt security posture», så kommer Nav-hostene med.
-            Hvorfor står i{" "}
+            <code className={code}>nav-pilot config setup</code> (Locked down) eller{" "}
+            <code className={code}>nav-pilot config</code>, raden «cplt strict preset (blocks all pushes)», så kommer
+            Nav-hostene med. Hvorfor står i{" "}
             <NextLink href="/nav-pilot/forklaring/sandkassen#sikkerhetsniva" className={linkClass}>
               Sandkassen
             </NextLink>

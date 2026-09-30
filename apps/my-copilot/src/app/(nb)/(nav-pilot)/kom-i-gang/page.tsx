@@ -34,6 +34,12 @@ export default function KomIGangPage() {
                   Mer om nav-pilot
                 </NextLink>
               </BodyLong>
+              <BodyLong>
+                Vil du ha hele gangen, fra innlogging til hva agenten får lov til?{" "}
+                <NextLink href="/nav-pilot/guider/kom-i-gang" className="text-blue-600 hover:underline">
+                  Kom i gang på 5 minutter
+                </NextLink>
+              </BodyLong>
             </VStack>
             <div id="installer">
               <InteractiveSetupWizard />
