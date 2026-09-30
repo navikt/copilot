@@ -1,6 +1,6 @@
 # Modellbenchmark
 
-Her ligger målingene bak [ki-utvikling.nav.no/modeller](https://ki-utvikling.nav.no/modeller). Hver kjøring er rådata fra testoppsettet i `scripts/nav-pilot-golden.sh`, og `summary.json` er sammendraget siden leser. CI feiler hvis `summary.json` ikke stemmer med filene.
+Her ligger målingene bak modellsiden på ki-utvikling.nav.no. Hver kjøring er rådata fra testoppsettet i `scripts/nav-pilot-golden.sh`, og `summary.json` er sammendraget siden leser. CI feiler hvis `summary.json` ikke stemmer med filene.
 
 ## Testpakkene
 

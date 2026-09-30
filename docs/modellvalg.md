@@ -54,7 +54,7 @@ Vi tilpasset ikke agentpersonaene eller instruksjonene til de nye modellene før
 
 Kafka- og Rust-agentene flyttes til Sol, mens `kafka-topic` og `nais-manifest` flyttes til Luna. Blokkeringsskjermen målte samme oppgaveklasse, men ikke disse fire artefaktene direkte. Dette er derfor en kontrollert utrulling med fallbacks, ikke dokumentasjon på at de nye modellene er bedre på Kafka, Rust eller Nais-manifester.
 
-Nye målinger kjøres som suiter i golden-harnesset og vises på [ki-utvikling.nav.no/modeller](https://ki-utvikling.nav.no/modeller). [golden-baselines/README.md](golden-baselines/README.md) forklarer hvordan du kjører en benchmark og legger til en modell.
+Nye målinger kjøres som suiter i golden-harnesset og vises på modellsiden på ki-utvikling.nav.no. [golden-baselines/README.md](golden-baselines/README.md) forklarer hvordan du kjører en benchmark og legger til en modell.
 
 ## Pinner og delegering
 
