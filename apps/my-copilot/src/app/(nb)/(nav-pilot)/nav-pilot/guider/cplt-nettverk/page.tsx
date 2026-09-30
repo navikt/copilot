@@ -38,20 +38,29 @@ export default function CpltNettverk() {
             Slik er nettverket satt opp
           </LinkableHeading>
           <BodyLong>
-            cplt sender trafikken gjennom en proxy. Med standardoppsettet gjelder dette for agenten og alt den starter:
+            cplt setter proxyvariablene for agenten og alt den starter. Med standardoppsettet gjelder dette:
           </BodyLong>
           <Bullets>
-            <li>Alle hoster er tillatt, bortsett fra en innebygd liste med kjente steder å lekke data til.</li>
-            <li>Bare port 443 er åpen.</li>
-            <li>Hoster som peker til en privat IP-adresse, er stengt. Det gjelder mange interne tjenester hos Nav.</li>
             <li>
-              localhost er stengt, se{" "}
+              Trafikk gjennom proxyen når alle hoster, bortsett fra en innebygd liste med kjente steder å lekke data
+              til.
+            </li>
+            <li>Bare port 443 er åpen.</li>
+            <li>
+              Proxyen stenger hoster som peker til en privat IP-adresse. Det gjelder mange interne tjenester hos Nav.
+            </li>
+            <li>
+              macOS: localhost er stengt, se{" "}
               <NextLink href={`${FAQ}#localhost`} className={linkClass}>
                 connect EPERM 127.0.0.1
               </NextLink>
               .
             </li>
           </Bullets>
+          <BodyLong>
+            Proxyen er ikke tvungen. Et program som ignorerer proxyvariablene, kan koble seg direkte til port 443, og da
+            gjelder ikke reglene for hoster. <code className={code}>strict</code> tvinger all trafikk gjennom proxyen.
+          </BodyLong>
           <BodyLong>
             Endringer med <code className={code}>cplt config set</code> gjelder fra neste økt.
           </BodyLong>

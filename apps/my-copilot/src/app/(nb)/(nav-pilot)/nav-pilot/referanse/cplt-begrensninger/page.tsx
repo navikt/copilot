@@ -49,7 +49,8 @@ export default function CpltBegrensninger() {
           >{`cplt config set allow.read ~/.config/gcloud/application_default_credentials.json`}</CodeBlock>
           <Bullets>
             <li>
-              <code className={code}>.env</code>-filer og nøkkelfiler i prosjektet er stengt, se{" "}
+              macOS: <code className={code}>.env</code>-filer og nøkkelfiler i prosjektet er stengt. På Linux er de
+              åpne, se{" "}
               <NextLink href={`${FAQ}#env-filer`} className={linkClass}>
                 Feil i sandkassen
               </NextLink>
@@ -117,7 +118,8 @@ export default function CpltBegrensninger() {
           </LinkableHeading>
           <Bullets>
             <li>Bare port 443 er åpen ut.</li>
-            <li>localhost og hoster med privat IP-adresse er stengt.</li>
+            <li>Proxyen stenger hoster med privat IP-adresse.</li>
+            <li>macOS: localhost er stengt. På Linux når agenten en lokal tjeneste på en åpen port.</li>
             <li>
               Proxyen ser bare trafikk som bruker den. Uten tvungen proxy kan et program koble seg direkte til port 443,
               og da gjelder ingen tillatelsesliste.
