@@ -122,7 +122,7 @@ cplt --pass-env NODE_AUTH_TOKEN                    # bare denne økten`}
           <BodyLong>
             Skript som <code className={code}>postinstall</code> og <code className={code}>prepare</code> kan kjøre hva
             som helst når en pakke installeres, og er en vanlig vei inn for skadelig kode. cplt slår dem av for npm,
-            pnpm og yarn. <code className={code}>npm run build</code>, <code className={code}>npm test</code> og andre
+            pnpm og yarn 1. <code className={code}>npm run build</code>, <code className={code}>npm test</code> og andre
             skript du kjører selv, virker som vanlig.
           </BodyLong>
           <BodyLong>
