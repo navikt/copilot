@@ -102,9 +102,10 @@ cplt --pass-env NODE_AUTH_TOKEN                    # bare denne økten`}
           </LinkableHeading>
           <BodyLong>
             yarn 1 stopper med <code className={code}>EPERM: operation not permitted, open …/.npmrc</code> når{" "}
-            <code className={code}>~/.npmrc</code> finnes, også når prosjektet bare henter offentlige pakker. Da hjelper
-            bare lesetilgang til fila, som for pnpm. Har du en <code className={code}>~/.yarnrc</code>, trenger den det
-            samme, se{" "}
+            <code className={code}>~/.npmrc</code> finnes, også når prosjektet bare henter offentlige pakker. Det
+            hjelper ikke å peke <code className={code}>NPM_CONFIG_USERCONFIG</code> et annet sted, for yarn 1 leter også
+            oppover fra prosjektmappa. Gi lesetilgang til fila, som for pnpm. Har du en{" "}
+            <code className={code}>~/.yarnrc</code>, trenger den det samme, se{" "}
             <NextLink href={`${FAQ}#yarnrc`} className={linkClass}>
               .yarnrc
             </NextLink>
@@ -120,8 +121,8 @@ cplt --pass-env NODE_AUTH_TOKEN                    # bare denne økten`}
           </LinkableHeading>
           <BodyLong>
             Skript som <code className={code}>postinstall</code> og <code className={code}>prepare</code> kan kjøre hva
-            som helst når en pakke installeres, og er en vanlig vei inn for skadelig kode. cplt slår dem av for npm og
-            yarn. <code className={code}>npm run build</code>, <code className={code}>npm test</code> og andre skript du
+            som helst når en pakke installeres, og er en vanlig vei inn for skadelig kode. cplt slår dem av for npm.{" "}
+            <code className={code}>npm run build</code>, <code className={code}>npm test</code> og andre skript du
             kjører selv, virker som vanlig.
           </BodyLong>
           <BodyLong>
@@ -139,11 +140,17 @@ cplt config set --repo sandbox.allow_lifecycle_scripts true --force   # i .cplt.
             sandkassen.
           </BodyLong>
           <BodyLong>
-            pnpm 11 og nyere følger ikke denne innstillingen. pnpm stopper selv skriptene til avhengighetene, og sier{" "}
-            <code className={code}>ERR_PNPM_IGNORED_BUILDS</code> til du godkjenner dem med{" "}
-            <code className={code}>pnpm approve-builds</code>. Skriptene i prosjektets egen{" "}
-            <code className={code}>package.json</code> kjører derimot også i cplt.
+            pnpm 11 og nyere og yarn 1 følger ikke sperren i dag, så prosjektets egne skript i{" "}
+            <code className={code}>package.json</code> kjører også i cplt. pnpm stopper selv skriptene til
+            avhengighetene, og sier <code className={code}>ERR_PNPM_IGNORED_BUILDS</code> til du godkjenner dem med{" "}
+            <code className={code}>pnpm approve-builds</code>. yarn 1 kjører alle skriptene. Vil du stoppe dem, si det
+            til pakkebehandleren selv:
           </BodyLong>
+          <CodeBlock compact>
+            {`pnpm install --ignore-scripts
+yarn install --ignore-scripts`}
+          </CodeBlock>
+          <BodyLong>En rettelse i cplt er på vei, så sperren gjelder pnpm og yarn 1 også.</BodyLong>
         </VStack>
       </section>
 
@@ -304,6 +311,16 @@ cplt config set sandbox.allow_cache_exec Cypress`}
             Installasjoner i prosjektet, som <code className={code}>npm install</code> og{" "}
             <code className={code}>pnpm install</code>, virker som vanlig.
           </BodyLong>
+          <BodyLong>
+            <code className={code}>npx &lt;pakke&gt;</code> for en pakke som ikke ligger i prosjektet, stopper med{" "}
+            <code className={code}>/usr/bin/env: bad interpreter: Operation not permitted</code>, fordi npx legger
+            pakken i <code className={code}>~/.npm/_npx</code>, og der får agenten ikke kjøre noe. Legg pakken i
+            prosjektet først, så virker <code className={code}>npx</code>:
+          </BodyLong>
+          <CodeBlock compact>
+            {`npm install -D semver
+npx semver 1.2.3`}
+          </CodeBlock>
         </VStack>
       </section>
 

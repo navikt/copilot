@@ -245,8 +245,12 @@ cplt config set sandbox.pass_env pnpm_config_store_dir   # send den inn i sandka
           </BodyLong>
           <CodeBlock compact>{`echo ".pnpm-store/" >> .gitignore`}</CodeBlock>
           <BodyLong>
-            Skript som kjører når en pakke installeres, er slått av i sandkassen. Trenger en pakke dem, installer
-            utenfor cplt.
+            Skript som kjører når en pakke installeres, er slått av i sandkassen for npm. pnpm 11 og nyere og yarn 1
+            kjører prosjektets egne skript i cplt inntil videre, se{" "}
+            <NextLink href="/nav-pilot/guider/cplt-node#skript" className={linkClass}>
+              Skript som kjører ved installasjon
+            </NextLink>
+            .
           </BodyLong>
         </VStack>
       </section>
