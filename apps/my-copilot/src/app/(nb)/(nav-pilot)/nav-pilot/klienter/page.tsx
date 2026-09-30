@@ -307,7 +307,12 @@ export default function Klienter() {
           og av med {c("nav-pilot mcp disable <navn>")}. {c("nav-pilot mcp list")} viser hva som hindrer en server i å
           virke, med kommandoen som retter det. Når du starter i cplt, spør nav-pilot om sandkassen skal slippe gjennom
           hostene serverne dine trenger, og spør igjen bare når det kommer nye. Hostene hentes fra registeret, aldri fra
-          MCP-konfigen din, og Enter betyr nei. Med {c("nav-pilot config set mcp_hosts off")} spør den aldri.
+          MCP-konfigen din, og Enter betyr nei. Med {c("nav-pilot config set mcp_hosts off")} spør den aldri. Mer om
+          feilsøking står i{" "}
+          <NextLink href="/nav-pilot/guider/feilsoking#mcp" className={linkClass}>
+            Når en MCP-server ikke virker
+          </NextLink>
+          .
         </BodyLong>
         <LinkableHeading id="legg-til-server" size="small" level="3">
           Få en server inn i registeret

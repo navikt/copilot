@@ -993,7 +993,7 @@ nav-pilot legger **~6 900–8 000 tokens alltid-lastet kontekst** til hver sesjo
 
 To ting er allerede riktige, og bør ikke rotes med:
 
-- **Launch-injeksjon er null.** nav-pilot legger ikke til systemprompt, preamble eller policy-tekst, registrerer ingen MCP-server og installerer ingen hooks. Den setter flagg og env-variabler og exec-er klienten.
+- **Launch-injeksjon er null.** nav-pilot legger ikke til systemprompt, preamble eller policy-tekst, registrerer ingen MCP-server ved oppstart og installerer ingen hooks. MCP-servere legges bare til når du ber om det med `nav-pilot mcp enable`. Den setter flagg og env-variabler og exec-er klienten.
 - **Per-turn-overhead er null.** nav-pilot avslutter inn i `exec`; ingenting re-injiseres per tur.
 - **Progressive disclosure virker.** Skills koster bare header til de invokeres; prompts og ikke-persona-agenter koster ingenting før bruk. `buildLeanAGENTSmd` er grunnen til at OpenCode-siden ligger på 8k og ikke 34k.
 
