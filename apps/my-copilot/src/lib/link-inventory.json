@@ -759,6 +759,27 @@
       "tillatelsesliste": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"]
     }
   },
+  "/nav-pilot/guider/cplt-node": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
+    ],
+    "anchors": {
+      "env-filer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "feil": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "github-packages": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "globale": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "localhost": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "nettleser": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "npm-token": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "pnpm-konfig": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "pnpm-token": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "skript": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "tillatelsesliste": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "yarn": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"]
+    }
+  },
   "/nav-pilot/guider/cplt-oppsett": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",

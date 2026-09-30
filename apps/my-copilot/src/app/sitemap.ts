@@ -27,6 +27,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/nav-pilot/guider/worktrees`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/guider/cplt-oppsett`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/guider/cplt-gradle`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE_URL}/nav-pilot/guider/cplt-node`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/guider/cplt-feilmeldinger`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/guider/feilsoking`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/referanse`, changeFrequency: "monthly", priority: 0.7 },
