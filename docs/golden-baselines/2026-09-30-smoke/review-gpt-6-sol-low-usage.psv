@@ -1,0 +1,28 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        code-review
+# suite:        review
+# date:         2026-09-30
+# revision:     24efd8de
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       1
+# fixture:      2929655385
+# prompts:      rv1,rv2,rv3,rv4
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+cr-kotlin|1|6d9c0b88-b92a-42cf-a1b1-3966065c9377|13390|0|gpt-5.3-codex|low|13259|369|0|0|172|2836925000|6007|3992.145542|tool_calls||
+cr-kotlin|1|6d9c0b88-b92a-42cf-a1b1-3966065c9377|13392|0|gpt-5.3-codex|low|13786|66|12800|0|35|488950000|1466|1333.079708|tool_calls||
+cr-kotlin|1|6d9c0b88-b92a-42cf-a1b1-3966065c9377|13396|0|gpt-5.3-codex|low|13893|66|12800|0|32|507675000|1614|1456.0467919999999|tool_calls||
+cr-kotlin|1|6d9c0b88-b92a-42cf-a1b1-3966065c9377|13397|0|gpt-5.3-codex|low|14188|74|13824|0|33|409220000|1709|1523.12375|tool_calls||
+cr-kotlin|1|6d9c0b88-b92a-42cf-a1b1-3966065c9377|13404|0|gpt-5.3-codex|low|14443|107|13824|0|65|500045000|1848|1683.638542|tool_calls||
+cr-kotlin|1|6d9c0b88-b92a-42cf-a1b1-3966065c9377|13409|0|gpt-5.3-codex|low|14730|614|13824|0|190|1260070000|9544|4286.8306250000005|stop||
+cr-tsx|1|75d836db-c610-48b5-ae93-482e587f6565|13419|0|gpt-5.3-codex|low|13256|257|0|0|201|2679600000|4977|4608.94125|tool_calls||
+cr-tsx|1|75d836db-c610-48b5-ae93-482e587f6565|13421|0|gpt-5.3-codex|low|18897|298|12800|0|139|1708175000|4659|3356.157375|tool_calls||
+cr-tsx|1|75d836db-c610-48b5-ae93-482e587f6565|13423|0|gpt-5.3-codex|low|19555|137|17920|0|45|791525000|2105|1510.5904589999998|tool_calls||
+cr-tsx|1|75d836db-c610-48b5-ae93-482e587f6565|13425|0|gpt-5.3-codex|low|20100|126|18944|0|84|710220000|2148|1975.9389999999999|tool_calls||
+cr-tsx|1|75d836db-c610-48b5-ae93-482e587f6565|13428|0|gpt-5.3-codex|low|20462|769|19968|0|166|1512490000|10366|3558.2635419999997|stop||

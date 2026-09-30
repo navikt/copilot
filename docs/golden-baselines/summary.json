@@ -1,0 +1,171 @@
+{
+  "generated": "2026-09-30",
+  "runs": [
+    {
+      "date": "2026-09-30",
+      "suite": "coding",
+      "model": "gpt-6-sol",
+      "label": "GPT-6 Sol (røyktest)",
+      "effort": "low",
+      "cli_version": "1.0.90-5",
+      "n": 1,
+      "checks": [
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 1
+        },
+        {
+          "id": "ko1",
+          "description": "Go: testene går grønt etterpå",
+          "passed": 1
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 1
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen går grønt etterpå",
+          "passed": 1
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer nøyaktig de to filene",
+          "passed": 1
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene går grønt etterpå",
+          "passed": 1
+        }
+      ],
+      "credits": {
+        "median": 27.945,
+        "mean": 27.945
+      },
+      "wall_seconds": {
+        "median": 93.9
+      },
+      "source": "docs/golden-baselines/2026-09-30-smoke/coding-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "norsk",
+      "model": "gpt-6-sol",
+      "label": "GPT-6 Sol (røyktest)",
+      "effort": "low",
+      "cli_version": "1.0.90-5",
+      "n": 1,
+      "checks": [
+        {
+          "id": "no1",
+          "description": "Ingen nynorske former",
+          "passed": 1
+        },
+        {
+          "id": "no2",
+          "description": "Ingen KI-floskler",
+          "passed": 1
+        },
+        {
+          "id": "no3",
+          "description": "Skriver «KI», ikke «AI»",
+          "passed": 0
+        },
+        {
+          "id": "no4",
+          "description": "Holder lengdegrensen",
+          "passed": 1
+        }
+      ],
+      "credits": {
+        "median": 16.656,
+        "mean": 16.656
+      },
+      "wall_seconds": {
+        "median": 51.5
+      },
+      "source": "docs/golden-baselines/2026-09-30-smoke/norsk-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "planning",
+      "model": "gpt-6-sol",
+      "label": "GPT-6 Sol (røyktest)",
+      "effort": "low",
+      "cli_version": "1.0.90-5",
+      "n": 1,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stopper etter fase 1 med spørsmål til brukeren",
+          "passed": 1
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 1
+        },
+        {
+          "id": "t4",
+          "description": "Fase 2-planen erklærer rød sone",
+          "passed": 1
+        },
+        {
+          "id": "t5",
+          "description": "Anbefaler TokenX for brukerkontekst, ikke client_credentials",
+          "passed": 1
+        }
+      ],
+      "credits": {
+        "median": 31.396,
+        "mean": 31.396
+      },
+      "wall_seconds": {
+        "median": 106.5
+      },
+      "source": "docs/golden-baselines/2026-09-30-smoke/planning-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "review",
+      "model": "gpt-6-sol",
+      "label": "GPT-6 Sol (røyktest)",
+      "effort": "low",
+      "cli_version": "1.0.90-5",
+      "n": 1,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 1
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: oppgir riktig linje for hver feil",
+          "passed": 1
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 1
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: oppgir riktig linje for hver feil",
+          "passed": 1
+        }
+      ],
+      "credits": {
+        "median": 13.405,
+        "mean": 13.405
+      },
+      "wall_seconds": {
+        "median": 86.6
+      },
+      "source": "docs/golden-baselines/2026-09-30-smoke/review-gpt-6-sol-low.txt"
+    }
+  ]
+}

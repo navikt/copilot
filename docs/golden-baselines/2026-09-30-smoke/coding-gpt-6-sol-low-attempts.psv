@@ -1,0 +1,16 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        nav-pilot
+# suite:        coding
+# date:         2026-09-30
+# revision:     24efd8de
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+ko-go|1|0|pass|1636|33879|true|
+ko-ts|1|0|pass|2022|31444|true|
+ko-go2|1|0|pass|1149|28559|true|

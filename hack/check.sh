@@ -13,6 +13,7 @@ section skills mise run skills:lint -- -q
 section hooks mise run hooks:test
 section pricing mise run pricing:test ::: pricing:check
 section models mise run models:test ::: models:check
+section benchmark mise run benchmark:check
 section nav-pilot mise run nav-pilot:check
 wait_sections
 
