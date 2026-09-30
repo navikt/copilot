@@ -307,8 +307,9 @@ export function ModellerContent({
                 ))}
               </ul>
               <BodyLong>
-                Velger du modell selv, gjelder samme regel: Bruk den billigste modellen som løser oppgaven, og velg en
-                sterkere modell når oppgaven er krevende eller feil er dyre.
+                Velger du modell selv: Bruk en sterk modell til planlegging og kodegjennomgang. Til vanlig koding
+                holder det ofte med en mellomsterk modell, avhengig av hvor krevende oppgaven er. Enkle oppgaver, som å
+                kjøre kommandoer eller hente inn informasjon, kan en lett og billig modell gjøre.
               </BodyLong>
             </VStack>
 
