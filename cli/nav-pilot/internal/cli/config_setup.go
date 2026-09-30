@@ -112,15 +112,23 @@ func writeSetupConfig(answers setupAnswers) error {
 
 // mergeSetupAnswers edits the keys whose answer differs from file, the parsed
 // config. The rules are the new file's: client and autonomy are written when
-// asked, the rest is removed when the answer is its default or unset.
+// asked, the rest is removed when the answer is its default or unset. A
+// missing client or autonomy means what a launch resolves it to (copilot and
+// conservative for a config from before them), so Enter keeps such a file too.
 func mergeSetupAnswers(file map[string]any, answers setupAnswers) error {
+	cfg, _ := readConfig()
+	if cfg == nil {
+		cfg = &Config{} // the file parsed, so it is an existing config
+	}
+	eff := resolve(cfg, CLIOverrides{})
+	effective := map[string]string{"client": eff.Client, "autonomy": eff.Autonomy}
 	var kv []string
 	edit := func(key, answer string, always bool) {
-		cur := "" // what the file means today
+		cur := findKeyDef(key).defaultVal // what the file means today
 		if now, set := file[key]; set {
 			cur = fmt.Sprint(now)
-		} else if !always {
-			cur = findKeyDef(key).defaultVal
+		} else if always {
+			cur = effective[key]
 		}
 		if cur == answer {
 			return

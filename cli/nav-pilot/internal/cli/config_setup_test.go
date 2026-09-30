@@ -417,3 +417,41 @@ func TestWriteSetupConfig_OpenCode_BootstrapsOTelAndContext(t *testing.T) {
 		t.Errorf("summary changed: %q → %q", summary, summary2)
 	}
 }
+
+// A config from before client and autonomy existed means copilot and
+// conservative: Enter keeps it byte for byte, and choosing Autonomous adds
+// only the autonomy line.
+func TestConfigSetupRerun_LegacyConfigWithoutClientAutonomy(t *testing.T) {
+	const legacy = "version = 1\nmode = \"plan\"\n"
+	path := filepath.Join(t.TempDir(), "config.toml")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+	if err := os.WriteFile(path, []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	existing, err := readConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := setupPreselect(existing)
+	if err := writeSetupConfig(a); err != nil {
+		t.Fatalf("writeSetupConfig: %v", err)
+	}
+	if data, _ := os.ReadFile(path); string(data) != legacy {
+		t.Errorf("Enter-only rerun changed the file:\n%s", data)
+	}
+	if _, err := os.Stat(path + ".bak"); !os.IsNotExist(err) {
+		t.Error("an unchanged file must not leave a backup")
+	}
+
+	a.Autonomy = "sandbox"
+	if err := writeSetupConfig(a); err != nil {
+		t.Fatalf("writeSetupConfig: %v", err)
+	}
+	data, _ := os.ReadFile(path)
+	if !strings.Contains(string(data), `autonomy = "sandbox"`) || strings.Contains(string(data), "client") {
+		t.Errorf("want only autonomy added:\n%s", data)
+	}
+	if got := strings.Replace(string(data), "autonomy = \"sandbox\"\n", "", 1); got != legacy {
+		t.Errorf("more than the autonomy line changed:\n%s", data)
+	}
+}
