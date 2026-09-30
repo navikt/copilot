@@ -8,7 +8,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **Trygge verktøy som standard**: `nav-pilot mcp enable` slår nå bare på verktøy som leser eller endrer prosjektet. Verktøy som gjør noe i et annet system (oppretter en issue, en PR eller en fil i Figma) og verktøy som kjører på maskinen din utenfor cplt-sandkassen (terminalen i IntelliJ) er av. MCP-registeret merker verktøyene med feltet `toolRisk`.
 - **Velg selv**: I en terminal viser `mcp enable` alle verktøyene med risiko, og du krysser av. `--tools a,b` gir akkurat de verktøyene, `--all-tools` gir alle. Et verktøy som kjører utenfor sandkassen krever et ja, eller `--allow-host-exec` uten terminal.
-- **GitHub leser bare**: GitHub-serveren får det skrivebeskyttede endepunktet `https://api.githubcopilot.com/mcp/readonly`. Velger du et verktøy som skriver til GitHub, får du hele endepunktet. Da kan agenten skrive til GitHub via MCP, forbi cplts kontroll av `gh`.
+- **Bare lesing mot GitHub**: GitHub-serveren får det skrivebeskyttede endepunktet `https://api.githubcopilot.com/mcp/readonly`. Velger du et verktøy som skriver til GitHub, får du hele endepunktet. Da kan agenten skrive til GitHub via MCP, forbi cplts kontroll av `gh`.
 - **Eksisterende oppsett står**: En server du har fra før, endres ikke. Med `--tools` eller `--all-tools` endres bare verktøyene, og den gamle filen blir tatt vare på.
 - **`mcp list` og `doctor` sier fra**: `mcp list` har fått kolonnen TOOLS og merker verktøy som kjører utenfor sandkassen og GitHubs fulle endepunkt, med kommandoen som snevrer inn. `doctor` viser det samme. Rådet om å åpne en localhost-port advarer nå når serveren har slike verktøy på: porten gir agenten en vei ut av sandkassen.
 

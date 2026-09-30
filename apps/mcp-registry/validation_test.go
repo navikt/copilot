@@ -882,7 +882,8 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 			ok  bool
 		}{
 			"classed tool":            {server([]string{"run"}, map[string]string{"run": "host-exec"}, ""), true},
-			"every class":             {server([]string{"a", "b", "c", "d"}, map[string]string{"a": "read", "b": "write", "c": "external", "d": "host-exec"}, ""), true},
+			"every class":             {server([]string{"a", "b", "c", "d"}, map[string]string{"b": "write", "c": "external", "d": "host-exec"}, ""), true},
+			"read has no entry":       {server([]string{"a"}, map[string]string{"a": "read"}, ""), false},
 			"tool not listed":         {server([]string{"run"}, map[string]string{"other": "write"}, ""), false},
 			"unknown class":           {server([]string{"run"}, map[string]string{"run": "dangerous"}, ""), false},
 			"localhost without tools": {server(nil, nil, "http://127.0.0.1:3846/mcp"), false},

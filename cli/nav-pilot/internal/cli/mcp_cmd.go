@@ -340,13 +340,10 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 			if port, ok := strings.CutPrefix(fixOf(p), "cplt config set allow.localhost "); ok && len(row.HostExec) > 0 {
 				// The port is a way out of the sandbox while those tools
 				// are on: narrow first, then open it.
-				p.Problem += "; ⚠ " + mcpLoopbackWarning(e, port, row.HostExec)
 				// Every client that has them, before the port opens.
-				var fixes []string
-				for _, c := range narrowClients {
-					fixes = append(fixes, mcpNarrowFix(e, c))
-				}
-				p.Fix = strings.Join(fixes, " && ") + " && " + p.Fix
+				narrow := mcpNarrowFixes(e, narrowClients)
+				p.Problem += "; ⚠ " + mcpLoopbackWarning(e, port, row.HostExec, narrow)
+				p.Fix = narrow + " && " + p.Fix
 			}
 			if p != nil {
 				add(*p)
@@ -726,7 +723,11 @@ func cmdMCPEnable(names []string, clients []string, topts mcpToolOpts) error {
 			failed++
 			continue
 		}
-		choice, err := mcpChooseTools(e, topts)
+		// No picker when every client already has the server: without a
+		// flag its entry is kept, so a pick would be thrown away.
+		o := topts
+		o.noPick = !topts.explicit() && !slices.ContainsFunc(clients, func(c string) bool { return providerpkg.MCPConfigKeyFor(c, e) == "" })
+		choice, err := mcpChooseTools(e, o)
 		if err != nil {
 			mcpFail(e.Name, err)
 			failed++

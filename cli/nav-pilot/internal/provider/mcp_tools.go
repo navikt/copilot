@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"net"
@@ -139,11 +140,38 @@ func setOpenCodeRules(top *jsonObject, key string, e MCPServerEntry, c MCPToolCh
 			return errors.New(`"permission" is not an object, so nav-pilot cannot add per-tool rules to it`)
 		}
 	}
-	perm.del(openCodeToolPrefix(key) + "*")
+	// An "ask" the user set, for every tool, the server or one tool, stays
+	// an ask: a chosen tool is asked for, not allowed without a question.
+	isAsk := func(k string) bool {
+		var v string
+		return json.Unmarshal(perm.vals[k], &v) == nil && v == "ask"
+	}
+	all := openCodeToolPrefix(key) + "*"
+	serverAsk := isAsk("*") || isAsk(all)
+	asked := map[string]bool{all: isAsk(all)}
+	for _, t := range e.Tools {
+		asked[openCodeToolID(key, t)] = isAsk(openCodeToolID(key, t))
+	}
+	perm.del(all)
 	for _, t := range e.Tools {
 		perm.del(openCodeToolID(key, t))
 	}
-	for _, r := range OpenCodeRules(key, c) {
+	rules := OpenCodeRules(key, c)
+	if c.All {
+		// No deny to write, but the asks stay.
+		if asked[all] {
+			rules = append(rules, [2]string{all, "ask"})
+		}
+		for _, t := range e.Tools {
+			if id := openCodeToolID(key, t); asked[id] {
+				rules = append(rules, [2]string{id, "ask"})
+			}
+		}
+	}
+	for _, r := range rules {
+		if r[1] == "allow" && (serverAsk || asked[r[0]]) {
+			r[1] = "ask"
+		}
 		v, _ := json.Marshal(r[1])
 		perm.set(r[0], v)
 	}
@@ -168,6 +196,7 @@ func SetMCPServerTools(client, key string, e MCPServerEntry, c MCPToolChoice) (M
 		if err != nil {
 			return nil, false, errors.New(key + " is not an object, so nav-pilot left it alone")
 		}
+		before := compactJSON(top.marshal())
 		if c.URL != "" {
 			v, _ := json.Marshal(c.URL)
 			entry.set("url", v)
@@ -181,8 +210,19 @@ func SetMCPServerTools(client, key string, e MCPServerEntry, c MCPToolChoice) (M
 			entry.set("tools", v)
 		}
 		servers.set(key, entry.marshal())
-		return nil, true, nil
+		// Unchanged is no write, so the backup of the last real change
+		// stays. Order counts: OpenCode's rules are read in order.
+		top.set(mcpServersKey(client), servers.marshal())
+		return nil, !bytes.Equal(before, compactJSON(top.marshal())), nil
 	})
+}
+
+func compactJSON(b []byte) []byte {
+	var out bytes.Buffer
+	if json.Compact(&out, b) != nil {
+		return b
+	}
+	return out.Bytes()
 }
 
 func copilotTools(c MCPToolChoice) []string {

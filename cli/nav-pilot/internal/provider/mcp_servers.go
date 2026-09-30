@@ -266,9 +266,43 @@ func SetMCPServer(client, name string, entry json.RawMessage, e MCPServerEntry, 
 // ponytail: OpenCode permission rules for the name stay; they match nothing
 // once the server is gone, and a later enable replaces them.
 func RemoveMCPServer(client, name string) (MCPConfigChange, error) {
-	return editMCPConfig(client, func(_, servers *jsonObject) (json.RawMessage, bool, error) {
-		return nil, servers.del(name), nil
+	return editMCPConfig(client, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
+		if !servers.del(name) {
+			return nil, false, nil
+		}
+		if client == MCPClientOpenCode {
+			dropOpenCodeRules(top, name, servers.keys)
+		}
+		return nil, true, nil
 	})
+}
+
+// dropOpenCodeRules removes the permission rules of a removed server: every
+// key under its tool prefix, except those under the longer prefix of a
+// server still there ("a_b_x" is a_b's when both a and a_b exist).
+func dropOpenCodeRules(top *jsonObject, name string, others []string) {
+	perm, err := parseJSONObject(top.vals["permission"])
+	if err != nil {
+		return
+	}
+	prefix := openCodeToolPrefix(name)
+	for _, k := range slices.Clone(perm.keys) {
+		if !strings.HasPrefix(k, prefix) {
+			continue
+		}
+		if slices.ContainsFunc(others, func(o string) bool {
+			p := openCodeToolPrefix(o)
+			return len(p) > len(prefix) && strings.HasPrefix(k, p)
+		}) {
+			continue
+		}
+		perm.del(k)
+	}
+	if len(perm.keys) == 0 {
+		top.del("permission")
+		return
+	}
+	top.set("permission", perm.marshal())
 }
 
 // MCPConfigKeys is the server names in the client's user config, in order.

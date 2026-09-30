@@ -291,7 +291,7 @@ func reportMCPHosts(w io.Writer, cpltPath string) {
 		}
 		if warn := mcpLoopbackNote(l.Server, l.Port); warn != "" {
 			fmt.Fprintf(w, "      %s %s (MCP) listens on localhost:%s, which the sandbox blocks. Before you open it: %s\n",
-				yellow("⚠"), safe(l.Server, 64), l.Port, safe(warn, 600))
+				yellow("⚠"), safe(l.Server, 64), l.Port, safe(warn, mcpLoopbackNoteWidth))
 			continue
 		}
 		fmt.Fprintf(w, "      %s %s (MCP) listens on localhost:%s, which the sandbox blocks. Open: %s\n",
