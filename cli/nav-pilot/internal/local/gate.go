@@ -39,16 +39,16 @@ const (
 	DispatchAggressive   = "aggressive"
 )
 
-var dispatchLevel = DispatchBalanced
+var dispatchLevel = DispatchAggressive
 
 // SetDispatchLevel records the local_dispatch level for this process. An
-// unknown value leaves balanced: config validation has already said so.
+// unknown value leaves aggressive: config validation has already said so.
 func SetDispatchLevel(level string) {
 	switch level {
 	case DispatchOff, DispatchConservative, DispatchBalanced, DispatchAggressive:
 		dispatchLevel = level
 	default:
-		dispatchLevel = DispatchBalanced
+		dispatchLevel = DispatchAggressive
 	}
 }
 

@@ -1,6 +1,9 @@
 # Local dispatch: how hard to push work to the local worker
 
 Status: design, implemented in part (see [What ships first](#what-ships-first)).
+The built-in default is `aggressive` since 30 September 2026: `balanced` failed its
+decision rule against same-day controls (see
+[Balanced against same-day controls](#balanced-against-same-day-controls)).
 
 ## Problem
 
@@ -32,17 +35,15 @@ for every client and does nothing where there is no worker.
 ## The setting
 
 ```toml
-local_dispatch = "balanced"   # off | conservative | balanced | aggressive
+local_dispatch = "aggressive"   # off | conservative | balanced | aggressive
 ```
 
 Per run: `nav-pilot --local-dispatch aggressive`. The flag wins over the file.
 The key only matters once `local_enabled` is true, which is what `alpha local init`,
-`alpha local setup` and `alpha local on` set. A config that has never had
-`local_enabled` or `local_dispatch` is a new local setup, and those commands write
-`local_dispatch = "aggressive"` into it. Every other config keeps what it has. An
-existing setup with no `local_dispatch` key stays on the built-in default,
-`balanced`. So does a config that turns local inference back on after
-`alpha local off`. `off` means "worker not offered": it does
+`alpha local setup` and `alpha local on` set. Without a `local_dispatch` key the
+built-in default is `aggressive`, for new and existing setups alike (see
+[Balanced against same-day controls](#balanced-against-same-day-controls)). An
+explicit value wins. `off` means "worker not offered": it does
 not turn local inference off (that is `alpha local off`), because a local session
 model still works. It stops offering the worker to a cloud orchestrator.
 
@@ -51,7 +52,7 @@ credits only where the cloud would have needed about 5 steps or more, and #997
 measured a one-step dispatch at the same credits and 2–3× the time. What
 enforcement adds is that the sizes hold.
 
-| | off | conservative | balanced (built-in default) | aggressive (new setups) |
+| | off | conservative | balanced | aggressive (built-in default) |
 |---|---|---|---|---|
 | Worker offered to a cloud orchestrator | no | yes | yes | yes |
 | Classes sent | none | manifest-trusted | manifest-trusted | manifest-trusted |
@@ -80,7 +81,7 @@ that said in so many words to send new test files, Sonnet 5 dispatched 0 of 6
 create-file samples. Across probes 1–5 it dispatched 1 of 29. In 4 of those 6
 samples it never mentioned the worker, and in the other 2 it cited the
 persona's Compressed tier. A prose-only default does nothing on the model most
-developers run, so `balanced`, the built-in default for everyone who has turned local
+developers run, so `balanced`, until 30 September the built-in default for everyone who has turned local
 inference on, enforces the rule the evidence supports: the multi-file split,
 at the sizes #997 measured.
 
@@ -114,18 +115,36 @@ samples passed). On valid samples that line now holds, so a developer who turns 
 gets the level that sends work. The price is wall time and, on most cells, cloud
 credits; quality held.
 
-Nobody who already has local inference is moved. An upgrade must not change how
-an existing session behaves, so the built-in default in code stays `balanced`.
-Only the setup commands write `aggressive`, and only into a config that has never
-had local inference configured (`enableLocal`, `alpha_local.go`). Same rule as the
-recorded `client` key: a new default reaches new installs only.
+At the time, nobody who already had local inference was moved. An upgrade must
+not change how an existing session behaves, so the built-in default in code
+stayed `balanced`, and only the setup commands wrote `aggressive`, into a config
+that had never had local inference configured. The section below superseded this.
 
 `balanced` itself does not pass the measurement plan's decision rule on these
 numbers. Its cost was 1.58× control on r4 and 1.61× on r6, which by that rule
 drops `balanced` back to prose. But those controls come from probes 4–6, run on
-other days, and `balanced`'s extra cost is refusals, not delegation. The finding
-is to re-run the controls before acting, and what to do with `balanced` is a
-maintainer decision. This change leaves `balanced` as it is.
+other days, so the finding was to re-run the controls before acting.
+
+### Balanced against same-day controls
+
+This supersedes the two paragraphs above. The controls were re-run on 29 September
+([report](https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-28-balanced-controls/results.md)): 5 controls, then 5 `balanced` samples per cell (r5 stopped at the cost cap
+after 3 controls), same binary and worker. The pass rate was the same (15 of 15, and 5 of 5 on the false-positive
+cell), but cloud cost was 1.57× control on r4 and 1.49× on r6. Every `balanced`
+sample on those two cells cost more than every control sample (exact
+Mann–Whitney, 5 against 5, p = 0.008 each). Two of three large rungs over
+control fails the decision rule, whatever r5 would show. The small cell also
+cost 1.39× with no refusal and no dispatch, so the extra cost is not only
+refusals.
+
+Decision (maintainer, 30 September): the built-in default becomes
+`aggressive`. This moves existing local setups without a `local_dispatch` key,
+which the rule above ("an upgrade must not change how an existing session
+behaves") would normally forbid. It is accepted because local inference is an
+alpha with few users. An explicit value is kept. The way back is
+`nav-pilot config set local_dispatch balanced`. The setup commands no longer
+write the key, since the default now does the same. `balanced` itself stays as
+it is: going back to prose is a separate decision.
 
 Three more samples were invalid: the orchestrator made a `/tmp` backup for the
 break-and-undo check in the verify text, the backup was auto-rejected, and the
@@ -472,5 +491,7 @@ both come out near zero. It stays, because the user asked for a graded setting a
 23 of 24).
 
 Re-probe 7 (see "Why new setups get aggressive") found the quality line holding at
-`aggressive`: 17 of 17 dispatched and verified. New local setups now get
-`aggressive`; existing ones keep `balanced`.
+`aggressive`: 17 of 17 dispatched and verified. New local setups got
+`aggressive`; existing ones kept `balanced`. Since the same-day controls (see
+"Balanced against same-day controls"), `aggressive` is the built-in default for
+everyone without an explicit value.

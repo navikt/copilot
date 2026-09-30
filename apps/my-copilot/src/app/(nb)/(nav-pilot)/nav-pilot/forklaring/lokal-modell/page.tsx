@@ -198,6 +198,24 @@ export default function LokalModellForklaring() {
             kjøringer til ble avbrutt før de var ferdige, og i én av dem ble koden liggende i stykker.
           </BodyLong>
           <BodyLong>
+            <code className={code}>balanced</code> klarte ikke kravet vi satte på forhånd: like mange beståtte oppgaver
+            og ikke dyrere enn skymodellen alene. I en ny måling 29. september med kontrollkjøringer samme kveld besto
+            alle oppgavene, men <code className={code}>balanced</code> kostet 1,57 ganger så mye på én stor oppgave og
+            1,49 ganger så mye på en annen. På de to oppgavene kostet hver kjøring med{" "}
+            <code className={code}>balanced</code> mer enn hver kontrollkjøring (p = 0,008). Derfor er{" "}
+            <code className={code}>aggressive</code> standard fra 30. september 2026, også for deg som brukte lokal
+            modell fra før. Har du satt <code className={code}>local_dispatch</code> selv, beholder du verdien din.
+            Tilbake til <code className={code}>balanced</code>:{" "}
+            <code className={code}>nav-pilot config set local_dispatch balanced</code>. Tallene står i{" "}
+            <a
+              href="https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-28-balanced-controls/results.md"
+              className={linkClass}
+            >
+              rapporten fra målingen
+            </a>
+            .
+          </BodyLong>
+          <BodyLong>
             Et nytt forsøk lønner seg for nye filer. Når hovedagenten sender bygge- eller testfeilen tilbake til{" "}
             <code className={code}>local-worker</code> én gang, ble 15 av 20 nye filer godkjent, mot 5 av 20 uten, og
             tiden per godkjent fil gikk ned fra 618 til 322 sekunder, selv om hvert forsøk tok lengre tid.

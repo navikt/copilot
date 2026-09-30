@@ -74,7 +74,7 @@ type Config struct {
 	LocalEndpointModel *string `toml:"local_endpoint_model"`
 	// LocalDispatch is how hard a cloud orchestrator is pushed to send work
 	// to the local worker: off, conservative, balanced or aggressive. Unset
-	// means balanced. See docs/local-dispatch.md.
+	// means aggressive. See docs/local-dispatch.md.
 	LocalDispatch   *string `toml:"local_dispatch"`
 	CopilotAuthMode *string `toml:"copilot_auth_mode"`
 	// HookLoopGuard turns the loop-guard hook on and off: the postToolUse hook

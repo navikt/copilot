@@ -101,16 +101,16 @@ nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> fo
               kallsteder), og hovedagenten vurderer selv om det er verdt det.
             </li>
             <li>
-              <code className={code}>balanced</code> (standard for deg som brukte lokal modell fra før): mekaniske
-              endringer på minst 5 filer eller 10 kallsteder. Redigerer hovedagenten selv en femte fil eller et tiende
-              kallsted i samme tur, stopper nav-pilot redigeringen én gang og ber om at resten sendes til{" "}
-              <code className={code}>local-worker</code>. Et søk-og-erstatt teller hvert sted det endrer. Trenger
-              endringen en vurdering per fil, går samme redigering gjennom andre gang.
+              <code className={code}>balanced</code>: mekaniske endringer på minst 5 filer eller 10 kallsteder.
+              Redigerer hovedagenten selv en femte fil eller et tiende kallsted i samme tur, stopper nav-pilot
+              redigeringen én gang og ber om at resten sendes til <code className={code}>local-worker</code>. Et
+              søk-og-erstatt teller hvert sted det endrer. Trenger endringen en vurdering per fil, går samme redigering
+              gjennom andre gang.
             </li>
             <li>
-              <code className={code}>aggressive</code> (standard når du slår på lokal modell for første gang): en
-              stoppet fil slipper gjennom først når den er sendt til <code className={code}>local-worker</code>. Nye
-              filer, også tester, går dit først når modellen er godkjent for nye filer.
+              <code className={code}>aggressive</code> (standard): en stoppet fil slipper gjennom først når den er sendt
+              til <code className={code}>local-worker</code>. Nye filer, også tester, går dit først når modellen er
+              godkjent for nye filer.
             </li>
           </Bullets>
           <BodyLong>
@@ -126,10 +126,12 @@ nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> fo
           </BodyLong>
           <BodyLong>
             <code className={code}>aggressive</code> sender mest, men koster mer AI-kreditter og tid enn å la
-            skymodellen gjøre alt selv. Uansett nivå sender hovedagenten bare oppgavetyper modellen er godkjent for.
-            Stoppet ligger i en plugin for opencode, så det virker ikke hvis du starter opencode med{" "}
-            <code className={code}>--pure</code>. Hvorfor nivåene finnes, hva de gjør med hver modell og hva målingene
-            viser, står i{" "}
+            skymodellen gjøre alt selv. <code className={code}>balanced</code> kostet også mer enn skymodellen alene,
+            men sendte mindre, så <code className={code}>aggressive</code> er standard. Har du satt{" "}
+            <code className={code}>local_dispatch</code> selv, beholder du verdien din. Uansett nivå sender hovedagenten
+            bare oppgavetyper modellen er godkjent for. Stoppet ligger i en plugin for opencode, så det virker ikke hvis
+            du starter opencode med <code className={code}>--pure</code>. Hvorfor nivåene finnes, hva de gjør med hver
+            modell og hva målingene viser, står i{" "}
             <NextLink href="/nav-pilot/forklaring/lokal-modell#utsending" className={linkClass}>
               Hvorfor utsendingen er begrenset
             </NextLink>

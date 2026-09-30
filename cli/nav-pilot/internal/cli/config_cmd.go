@@ -220,9 +220,9 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "local_dispatch",
 		kind:        keyKindString,
-		description: "How hard nav-pilot pushes a cloud orchestrator to send work to the local worker (opencode): off, conservative, balanced or aggressive. balanced refuses the orchestrator's own edit once when a mechanical change reaches a 5th file (the same edit again passes); aggressive refuses it until the file has been sent to the worker, and does the same for new files. The alpha local setup commands write aggressive into a config that has never had local inference; an existing setup keeps balanced.",
+		description: "How hard nav-pilot pushes a cloud orchestrator to send work to the local worker (opencode): off, conservative, balanced or aggressive. balanced refuses the orchestrator's own edit once when a mechanical change reaches a 5th file (the same edit again passes); aggressive refuses it until the file has been sent to the worker, and does the same for new files. aggressive is the default; balanced cost more in AI credits than no worker at the same pass rate (mlx-workspace, 29 Sep 2026).",
 		allowed:     validLocalDispatch,
-		defaultVal:  "balanced",
+		defaultVal:  "aggressive",
 		flag:        "--local-dispatch",
 		group:       "Local models (alpha)",
 	},
@@ -469,10 +469,9 @@ autonomy = "sandbox"
 # large changes, the orchestrator decides. balanced: nav-pilot refuses the
 # orchestrator's own edit once when a mechanical change reaches a 5th file;
 # the same edit again passes. aggressive: refused until the file is sent to
-# the worker, and new files too. alpha local init, setup and on write
-# aggressive into a config that has never had local inference.
-# Allowed: off, conservative, balanced, aggressive — Default: balanced
-# local_dispatch = "balanced"
+# the worker, and new files too.
+# Allowed: off, conservative, balanced, aggressive — Default: aggressive
+# local_dispatch = "aggressive"
 
 # Warn the model when it repeats one tool call, in every Copilot CLI session
 # and not only local ones. At launch nav-pilot writes a postToolUse hook to

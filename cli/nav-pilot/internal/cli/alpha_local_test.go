@@ -960,18 +960,19 @@ func TestActivateCachedManifestHasNoFallbackForABenchFile(t *testing.T) {
 	}
 }
 
-// TestEnableLocalDispatchDefault: a new local setup gets local_dispatch =
-// aggressive; a config that already had local inference keeps what it has,
-// so an upgrade moves nobody off balanced (re-probe 7).
+// TestEnableLocalDispatchDefault: without a local_dispatch key the built-in
+// fallback is aggressive, for new and existing setups alike, and enableLocal
+// writes no key. An explicit value wins.
 func TestEnableLocalDispatchDefault(t *testing.T) {
 	for _, tc := range []struct {
 		name, orig, want string
 	}{
 		{"no file", "", "aggressive"},
 		{"file without local keys", "model = \"x\"\n", "aggressive"},
-		{"existing setup on the built-in default", "local_enabled = true\n", "balanced"},
-		{"on after off", "local_enabled = false\n", "balanced"},
+		{"existing setup on the built-in default", "local_enabled = true\n", "aggressive"},
+		{"on after off", "local_enabled = false\n", "aggressive"},
 		{"explicit choice", "local_dispatch = \"conservative\"\n", "conservative"},
+		{"explicit balanced", "local_enabled = true\nlocal_dispatch = \"balanced\"\n", "balanced"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			home := localTestHome(t)
@@ -995,8 +996,8 @@ func TestEnableLocalDispatchDefault(t *testing.T) {
 			if !r.LocalEnabled || r.LocalDispatch != tc.want {
 				t.Fatalf("local_enabled = %v, local_dispatch = %q, want true, %q", r.LocalEnabled, r.LocalDispatch, tc.want)
 			}
-			if tc.want == "balanced" && cfg.LocalDispatch != nil {
-				t.Fatalf("local_dispatch written into an existing setup: %q", *cfg.LocalDispatch)
+			if tc.want == "aggressive" && cfg.LocalDispatch != nil {
+				t.Fatalf("local_dispatch written by enableLocal: %q", *cfg.LocalDispatch)
 			}
 		})
 	}
