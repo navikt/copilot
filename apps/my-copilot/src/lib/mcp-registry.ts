@@ -1,5 +1,5 @@
 import { unstable_cache } from "next/cache";
-import type { Domain, McpServerCustomization, SetupInstruction } from "./customization-types";
+import type { Domain, McpServerCustomization, McpToolRisk, SetupInstruction } from "./customization-types";
 import type { UsageExample } from "./manifest-types";
 
 const MCP_REGISTRY_URL = process.env.MCP_REGISTRY_URL || "https://mcp-registry.nav.no";
@@ -31,6 +31,7 @@ interface ServerResponse {
     };
     "io.github.navikt/registry"?: {
       tools?: string[];
+      toolRisk?: Record<string, McpToolRisk>;
       tags?: string[];
       examples?: UsageExample[];
       setupInstructions?: SetupInstruction[];
@@ -118,6 +119,7 @@ async function fetchMcpServers(): Promise<McpServerCustomization[]> {
           websiteUrl: s.server.websiteUrl,
           repository: s.server.repository,
           tools: navMeta?.tools,
+          toolRisk: navMeta?.toolRisk,
           tags,
           setupInstructions: navMeta?.setupInstructions,
           packages: s.server.packages,

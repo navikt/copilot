@@ -70,6 +70,10 @@ export interface SetupInstruction {
   commands: string[];
 }
 
+// The registry's class for a tool that does more than read (toolRisk in
+// _meta). A tool with no class is a read.
+export type McpToolRisk = "read" | "write" | "external" | "host-exec";
+
 export interface McpServerCustomization extends BaseCustomization {
   type: "mcp";
   serverId: string;
@@ -78,6 +82,7 @@ export interface McpServerCustomization extends BaseCustomization {
   websiteUrl?: string;
   repository?: { url: string; source: string; subfolder?: string };
   tools?: string[];
+  toolRisk?: Record<string, McpToolRisk>;
   tags?: string[];
   setupInstructions?: SetupInstruction[];
   packages?: {
