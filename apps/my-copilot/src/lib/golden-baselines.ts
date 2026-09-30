@@ -24,6 +24,10 @@ export interface GoldenRun {
   credits: { median: number; mean: number } | null;
   /** false when some usage events are missing, so credits undercount. */
   usage_complete?: boolean;
+  /** false when the run had no usage rows, so the model that answered is unknown. */
+  model_verified?: boolean;
+  /** Other model ids that subagents used during the run. */
+  subagent_models?: string[];
   wall_seconds: { median: number };
   source: string;
 }
@@ -46,9 +50,9 @@ export function modelName(id: string): string {
   return DISPLAY_NAMES.get(slug(id)) ?? id;
 }
 
-/** Median credits, or null when usage is missing or incomplete: an undercount is not shown as a number. */
+/** Median credits, or null when usage is missing, incomplete or the model unverified: an undercount is not a number. */
 export function knownCredits(run: GoldenRun): number | null {
-  return run.credits && run.usage_complete !== false ? run.credits.median : null;
+  return run.credits && run.usage_complete !== false && run.model_verified !== false ? run.credits.median : null;
 }
 
 /** Share of all check outcomes that passed: sum(passed) / (n × checks). */

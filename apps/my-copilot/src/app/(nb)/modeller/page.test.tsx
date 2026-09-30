@@ -65,6 +65,25 @@ describe("modellsiden", () => {
     expect(within(rowFor("fixture-c.txt")).getByText("high")).toBeInTheDocument();
   });
 
+  it("merker ubekreftet modell, holder den utenfor diagrammet og viser underagentenes modeller", () => {
+    summaryFile.path = FIXTURE;
+    render(<ModellerPage />);
+    const rowFor = (file: string) => screen.getByRole("link", { name: file }).closest("tr")!;
+
+    // fixture-h has credits; only model_verified: false keeps them off the table and the chart.
+    const unverified = rowFor("fixture-h.txt");
+    expect(within(unverified).getByText("GPT-5.6 Sol (ikke bekreftet)")).toBeInTheDocument();
+    expect(within(unverified).getByText("–")).toBeInTheDocument();
+    expect(
+      screen.getByRole("figure", { name: "Planlegging: andel bestått mot median credits" }).getAttribute("data-points")
+    ).not.toContain("GPT-5.6 Sol");
+    expect(screen.getAllByText(/vi vet ikke sikkert hvilken modell som svarte/)).toHaveLength(1);
+
+    expect(
+      within(rowFor("fixture-a.txt")).getByText("Underagenter brukte også: GPT-6 Luna, fixture-other-model")
+    ).toBeInTheDocument();
+  });
+
   it("holder røyktester utenfor diagrammene og lister dem etter de ekte kjøringene", () => {
     summaryFile.path = FIXTURE;
     render(<ModellerPage />);

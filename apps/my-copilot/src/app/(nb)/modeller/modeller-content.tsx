@@ -83,7 +83,8 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
       {runsBySuite(summary.runs).map(([suite, runs]) => {
         // Smoke runs check the harness, not the model: table only, after the real runs.
         const plotted = runs.filter((run) => !run.smoke && knownCredits(run) !== null);
-        const unplotted = runs.filter((run) => !run.smoke && knownCredits(run) === null).length;
+        const unverified = runs.some((run) => !run.smoke && run.model_verified === false);
+        const incomplete = runs.some((run) => !run.smoke && run.model_verified !== false && knownCredits(run) === null);
         return (
           <VStack gap="space-12" key={suite}>
             <Heading size="small" level="3">
@@ -132,9 +133,17 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
                       const credits = knownCredits(run);
                       return (
                         <Table.Row key={`${run.model}-${run.effort}-${run.date}-${run.source}`}>
-                          <Table.DataCell className="whitespace-nowrap">
-                            {modelName(run.model)}
-                            {run.smoke && " (røyktest)"}
+                          <Table.DataCell>
+                            <span className="whitespace-nowrap">
+                              {modelName(run.model)}
+                              {run.smoke && " (røyktest)"}
+                              {run.model_verified === false && " (ikke bekreftet)"}
+                            </span>
+                            {!!run.subagent_models?.length && (
+                              <BodyShort size="small" style={{ color: "var(--ax-text-neutral-subtle)" }}>
+                                Underagenter brukte også: {run.subagent_models.map(modelName).join(", ")}
+                              </BodyShort>
+                            )}
                           </Table.DataCell>
                           <Table.DataCell>
                             {effortName(run.effort)}
@@ -159,9 +168,15 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
                 </Table.Body>
               </Table>
             </div>
-            {unplotted > 0 && (
+            {incomplete && (
               <BodyShort size="small">
                 – betyr at forbruket ikke ble registrert helt. Kjøringen er derfor ikke med i diagrammet.
+              </BodyShort>
+            )}
+            {unverified && (
+              <BodyShort size="small">
+                «Ikke bekreftet» betyr at kjøringen manglet forbruksdata, så vi vet ikke sikkert hvilken modell som
+                svarte. Kjøringen er derfor ikke med i diagrammet.
               </BodyShort>
             )}
           </VStack>

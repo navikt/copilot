@@ -9,7 +9,7 @@ describe("golden-baselines", () => {
   it("leser fixturen og grupperer per suite", () => {
     const summary = loadGoldenSummary(FIXTURE)!;
     expect(runsBySuite(summary.runs).map(([suite, runs]) => [suite, runs.length])).toEqual([
-      ["planning", 3],
+      ["planning", 4],
       ["review", 3],
       ["norsk", 1],
     ]);
@@ -20,19 +20,21 @@ describe("golden-baselines", () => {
     expect(loadGoldenSummary(__filename)).toBeNull();
   });
 
+  const run = (letter: string) =>
+    loadGoldenSummary(FIXTURE)!.runs.find((r) => r.source.endsWith(`fixture-${letter}.txt`))!;
+
   it("regner bestått som andel av n × krav", () => {
-    const [a, , , d, e] = loadGoldenSummary(FIXTURE)!.runs;
-    expect(passRate(a)).toBe(9 / 10);
-    expect(passRate(d)).toBe(1);
-    expect(passRate(e)).toBe(0);
+    expect(passRate(run("a"))).toBe(9 / 10);
+    expect(passRate(run("d"))).toBe(1);
+    expect(passRate(run("e"))).toBe(0);
   });
 
-  it("viser ikke credits når forbruket mangler eller er ufullstendig", () => {
-    const [a, b, c, , , f] = loadGoldenSummary(FIXTURE)!.runs;
-    expect(knownCredits(a)).toBe(120.5);
-    expect(knownCredits(b)).toBe(70);
-    expect(knownCredits(c)).toBeNull();
-    expect(knownCredits(f)).toBeNull();
+  it("viser ikke credits når forbruket mangler, er ufullstendig eller modellen er ubekreftet", () => {
+    expect(knownCredits(run("a"))).toBe(120.5);
+    expect(knownCredits(run("b"))).toBe(70);
+    expect(knownCredits(run("c"))).toBeNull(); // usage_complete: false
+    expect(knownCredits(run("f"))).toBeNull(); // credits: null
+    expect(knownCredits(run("h"))).toBeNull(); // model_verified: false, credits present
   });
 
   it("slår opp visningsnavn i priskatalogen og faller tilbake til id-en", () => {

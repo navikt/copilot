@@ -15,8 +15,26 @@
       ],
       "credits": { "median": 120.5, "mean": 130.1 },
       "usage_complete": true,
+      "model_verified": true,
+      "subagent_models": ["gpt-6-luna", "fixture-other-model"],
       "wall_seconds": { "median": 240 },
       "source": "docs/golden-baselines/fixture-a.txt"
+    },
+    {
+      "date": "2000-01-01",
+      "suite": "planning",
+      "model": "gpt-5.6-sol",
+      "effort": "high",
+      "cli_version": "0.0.0-fixture",
+      "n": 5,
+      "checks": [
+        { "id": "c1", "description": "Testkrav 1", "passed": 5 },
+        { "id": "c2", "description": "Testkrav 2", "passed": 5 }
+      ],
+      "credits": { "median": 50, "mean": 50 },
+      "model_verified": false,
+      "wall_seconds": { "median": 200 },
+      "source": "docs/golden-baselines/fixture-h.txt"
     },
     {
       "date": "2000-01-01",
