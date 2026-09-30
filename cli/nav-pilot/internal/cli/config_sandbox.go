@@ -698,6 +698,11 @@ var navOwnDomains = []string{
 	"raw.githubusercontent.com",
 	"objects.githubusercontent.com",
 	"release-assets.githubusercontent.com",
+
+	// The Gradle wrapper (gradle-wrapper.properties) downloads the distribution
+	// from services.gradle.org, which redirects to github.com and then to
+	// release-assets.githubusercontent.com above; github.com is in cplt's list.
+	"services.gradle.org",
 }
 
 // navAllowedDomainsPath is where nav-pilot keeps the file cplt reads.
