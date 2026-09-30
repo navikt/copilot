@@ -258,7 +258,12 @@ var errMCPRegistryNotRead = errors.New("the MCP registry has not been read yet")
 type mcpRegistryCache struct {
 	At       time.Time   `json:"at"`
 	Registry mcpRegistry `json:"registry"`
+	// Schema is 1 from when the cache carries each server's tools and their
+	// risk; nav-pilot mcp reads an older cache again before it trusts it.
+	Schema int `json:"schema,omitempty"`
 }
+
+const mcpRegistryCacheSchema = 1
 
 func mcpRegistryCachePath() string {
 	p := artifacts.CacheFilePath()
@@ -293,7 +298,7 @@ func refreshMCPRegistry() error {
 	if path == "" {
 		return errors.New("nav-pilot has no state directory to cache the MCP registry in")
 	}
-	data, err := json.Marshal(mcpRegistryCache{At: time.Now(), Registry: reg})
+	data, err := json.Marshal(mcpRegistryCache{At: time.Now(), Registry: reg, Schema: mcpRegistryCacheSchema})
 	if err != nil {
 		return err
 	}

@@ -32,6 +32,10 @@ type MCPServerEntry struct {
 	// SandboxHosts is the registry's sandboxHosts (_meta): hosts the server
 	// needs besides its remotes, such as Figma's OAuth at api.figma.com.
 	SandboxHosts []string `json:"sandboxHosts,omitempty"`
+	// Tools is the registry's list of the server's tools (_meta), and
+	// ToolRisk the class of each that is more than a read (mcp_tools.go).
+	Tools    []string          `json:"tools,omitempty"`
+	ToolRisk map[string]string `json:"toolRisk,omitempty"`
 }
 
 // MCPRemote is a server reached over HTTP.
@@ -102,7 +106,7 @@ func (p MCPPackage) Launch() (runtime string, args []string) {
 // read fails, a cache there is still answers, and stale says why it is old.
 func MCPRegistryServers() (registry string, servers []MCPServerEntry, stale, err error) {
 	c, ok := readMCPRegistryCache()
-	if !ok || c.Registry.Entries == nil || time.Since(c.At) > mcpRegistryTTL {
+	if !ok || c.Registry.Entries == nil || c.Schema < mcpRegistryCacheSchema || time.Since(c.At) > mcpRegistryTTL {
 		if rerr := refreshMCPRegistry(); rerr != nil {
 			if !ok || c.Registry.Entries == nil {
 				return "", nil, nil, rerr
@@ -181,14 +185,19 @@ func mcpServersKey(client string) string {
 	return "mcpServers"
 }
 
-// MCPClientEntry is the config entry for the server in the client's format.
-// A remote is preferred over a package: it needs no runtime, no package
-// cache and nothing run from it inside cplt.
-func MCPClientEntry(client string, e MCPServerEntry) (json.RawMessage, error) {
+// MCPClientEntry is the config entry for the server in the client's format,
+// with Copilot's tools list from the choice (OpenCode keeps it as permission
+// rules, which SetMCPServer writes). A remote is preferred over a package: it
+// needs no runtime, no package cache and nothing run from it inside cplt.
+func MCPClientEntry(client string, e MCPServerEntry, c MCPToolChoice) (json.RawMessage, error) {
 	var v any
+	tools := copilotTools(c)
 	switch {
 	case len(e.Remotes) > 0:
 		r := e.Remotes[0]
+		if c.URL != "" {
+			r.URL = c.URL
+		}
 		if client == MCPClientOpenCode {
 			v = map[string]any{"type": "remote", "url": r.URL, "enabled": true}
 		} else {
@@ -196,7 +205,7 @@ func MCPClientEntry(client string, e MCPServerEntry) (json.RawMessage, error) {
 			if r.Type == "sse" {
 				t = "sse"
 			}
-			v = map[string]any{"type": t, "url": r.URL, "tools": []string{"*"}}
+			v = map[string]any{"type": t, "url": r.URL, "tools": tools}
 		}
 	case len(e.Packages) > 0:
 		runtime, args := e.Packages[0].Launch()
@@ -206,7 +215,7 @@ func MCPClientEntry(client string, e MCPServerEntry) (json.RawMessage, error) {
 		if client == MCPClientOpenCode {
 			v = map[string]any{"type": "local", "command": append([]string{runtime}, args...), "enabled": true}
 		} else {
-			v = map[string]any{"type": "local", "command": runtime, "args": args, "tools": []string{"*"}}
+			v = map[string]any{"type": "local", "command": runtime, "args": args, "tools": tools}
 		}
 	default:
 		return nil, fmt.Errorf("the registry lists no remote or package for %s", e.Name)
@@ -228,26 +237,34 @@ type MCPConfigChange struct {
 	Existing json.RawMessage
 }
 
-// SetMCPServer adds the entry under name in the client's config. Every other
-// key and server is kept as it was, in its order. An equal entry changes
-// nothing; a different one under the same name is kept and returned.
-func SetMCPServer(client, name string, entry json.RawMessage) (MCPConfigChange, error) {
-	return editMCPServers(client, func(servers *jsonObject) (json.RawMessage, bool) {
+// SetMCPServer adds the entry under name in the client's config, and for
+// OpenCode the permission rules for the choice of tools. Every other key and
+// server is kept as it was, in its order. An equal entry changes nothing; a
+// different one under the same name is kept and returned.
+func SetMCPServer(client, name string, entry json.RawMessage, e MCPServerEntry, c MCPToolChoice) (MCPConfigChange, error) {
+	return editMCPConfig(client, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
 		if old, ok := servers.vals[name]; ok {
 			if jsonEqual(old, entry) {
-				return nil, false
+				return nil, false, nil
 			}
-			return old, false
+			return old, false, nil
+		}
+		if client == MCPClientOpenCode {
+			if err := setOpenCodeRules(top, name, e, c); err != nil {
+				return nil, false, err
+			}
 		}
 		servers.set(name, entry)
-		return nil, true
+		return nil, true, nil
 	})
 }
 
 // RemoveMCPServer drops name from the client's config. Absent is no change.
+// ponytail: OpenCode permission rules for the name stay; they match nothing
+// once the server is gone, and a later enable replaces them.
 func RemoveMCPServer(client, name string) (MCPConfigChange, error) {
-	return editMCPServers(client, func(servers *jsonObject) (json.RawMessage, bool) {
-		return nil, servers.del(name)
+	return editMCPConfig(client, func(_, servers *jsonObject) (json.RawMessage, bool, error) {
+		return nil, servers.del(name), nil
 	})
 }
 
@@ -303,7 +320,7 @@ func MCPConfigKeyFor(client string, e MCPServerEntry) string {
 	return ""
 }
 
-func editMCPServers(client string, edit func(*jsonObject) (json.RawMessage, bool)) (MCPConfigChange, error) {
+func editMCPConfig(client string, edit func(top, servers *jsonObject) (json.RawMessage, bool, error)) (MCPConfigChange, error) {
 	path, err := MCPConfigPath(client)
 	if err != nil {
 		return MCPConfigChange{}, err
@@ -341,13 +358,21 @@ func editMCPServers(client string, edit func(*jsonObject) (json.RawMessage, bool
 			return ch, fmt.Errorf("%q in %s is not an object, so nav-pilot left it alone: %w", key, ch.Path, err)
 		}
 	}
-	existing, changed := edit(&servers)
+	// A new file gets the schema first and the servers before any
+	// permission rules the edit adds.
+	if client == MCPClientOpenCode && len(top.keys) == 0 {
+		top.set("$schema", json.RawMessage(`"https://opencode.ai/config.json"`))
+	}
+	if _, ok := top.vals[key]; !ok {
+		top.set(key, json.RawMessage(`{}`))
+	}
+	existing, changed, err := edit(&top, &servers)
+	if err != nil {
+		return ch, fmt.Errorf("%s: %w", ch.Path, err)
+	}
 	ch.Existing = existing
 	if !changed {
 		return ch, nil
-	}
-	if client == MCPClientOpenCode && len(top.keys) == 0 {
-		top.set("$schema", json.RawMessage(`"https://opencode.ai/config.json"`))
 	}
 	top.set(key, servers.marshal())
 	var out bytes.Buffer

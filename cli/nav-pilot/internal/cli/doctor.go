@@ -334,6 +334,7 @@ func cmdDoctor() error {
 		// a host that resolves privately may be reached once DNS has answered.
 		reportSandboxWaiver(os.Stdout, agentpakke.Default())
 		reportMCPHosts(os.Stdout, cpltPath)
+		reportMCPTools(os.Stdout)
 
 		// The persona is pinned by nav-pilot itself, not by user configuration:
 		// BuildCopilotArgs unconditionally emits `cplt --agent copilot --

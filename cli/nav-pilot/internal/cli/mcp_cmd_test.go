@@ -24,7 +24,12 @@ func mcpTestEntries() []providerpkg.MCPServerEntry {
 	return []providerpkg.MCPServerEntry{
 		{Name: "com.figma/figma-mcp", Description: "Figma", Remotes: []providerpkg.MCPRemote{{Type: "streamable-http", URL: "https://mcp.figma.com/mcp"}}, SandboxHosts: []string{"api.figma.com"}},
 		{Name: "io.github.navikt/mcp-onboarding", Remotes: []providerpkg.MCPRemote{{URL: "https://mcp-onboarding.intern.nav.no/mcp"}}},
-		{Name: "com.jetbrains/intellij", Remotes: []providerpkg.MCPRemote{{Type: "sse", URL: "http://127.0.0.1:64342/sse"}}},
+		{Name: "com.jetbrains/intellij", Remotes: []providerpkg.MCPRemote{{Type: "sse", URL: "http://127.0.0.1:64342/sse"}},
+			Tools:    []string{"get_file_text_by_path", "reformat_file", "execute_terminal_command"},
+			ToolRisk: map[string]string{"reformat_file": "write", "execute_terminal_command": "host-exec"}},
+		{Name: "io.github.navikt/github-mcp", Remotes: []providerpkg.MCPRemote{{Type: "streamable-http", URL: "https://api.githubcopilot.com/mcp/"}},
+			Tools:    []string{"get_file_contents", "create_issue"},
+			ToolRisk: map[string]string{"create_issue": "external"}},
 		{Name: "io.example/old", Status: "deprecated", Remotes: []providerpkg.MCPRemote{{URL: "https://old.example/mcp"}}},
 		{Name: "io.example/unused", Remotes: []providerpkg.MCPRemote{{URL: "https://unused.example/mcp"}}},
 		pw,
@@ -118,7 +123,7 @@ func TestMCPListDiagnosesEachFailureMode(t *testing.T) {
 	f.verdicts["127.0.0.1:64342"] = "BLOCKED-PORT"
 	f.config["sandbox.allow_cache_exec"] = `["ms-playwright"]`
 	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {
-		"com.figma/figma-mcp": {}, "io.github.navikt/mcp-onboarding": {}, "com.jetbrains/intellij": {},
+		"com.figma/figma-mcp": {}, "io.github.navikt/mcp-onboarding": {}, "com.jetbrains/intellij": {"tools": ["get_file_text_by_path"]},
 		"io.example/old": {}, "com.microsoft/playwright-mcp": {}, "playwright-mcp": {}, "homemade": {}}}`)
 
 	out := captureStdout(func() {
@@ -314,7 +319,7 @@ func TestMCPCommandIsOffTheHotPath(t *testing.T) {
 			}
 		}
 	}
-	writers := map[string]bool{"MCPRegistryServers": true, "SetMCPServer": true, "RemoveMCPServer": true, "MCPConfigKeys": true, "ConfiguredMCPServers": true, "MCPClientEntry": true, "MCPConfigKeyFor": true, "NarrowMCPApproval": true}
+	writers := map[string]bool{"MCPRegistryServers": true, "SetMCPServer": true, "RemoveMCPServer": true, "MCPConfigKeys": true, "ConfiguredMCPServers": true, "MCPClientEntry": true, "MCPConfigKeyFor": true, "NarrowMCPApproval": true, "SetMCPServerTools": true}
 	var files []string
 	for _, dir := range []string{".", "../provider"} {
 		m, _ := filepath.Glob(filepath.Join(dir, "*.go"))
@@ -322,7 +327,7 @@ func TestMCPCommandIsOffTheHotPath(t *testing.T) {
 	}
 	for _, path := range files {
 		base := filepath.Base(path)
-		if strings.HasSuffix(base, "_test.go") || base == "mcp_cmd.go" || base == "mcp_servers.go" {
+		if strings.HasSuffix(base, "_test.go") || base == "mcp_cmd.go" || base == "mcp_servers.go" || base == "mcp_tools.go" {
 			continue
 		}
 		f, err := parser.ParseFile(fset, path, nil, 0)
