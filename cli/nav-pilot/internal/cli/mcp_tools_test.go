@@ -314,3 +314,34 @@ func TestDoctorToolNudges(t *testing.T) {
 		t.Errorf("narrowed, doctor still nudges:\n%s", out.String())
 	}
 }
+
+// Host-exec tools on in both clients: the localhost fix narrows both before
+// it opens the port.
+func TestMCPListLoopbackNarrowsEveryClient(t *testing.T) {
+	f := mcpCmdEnv(t, providerpkg.MCPHostState{})
+	f.verdicts["127.0.0.1:64342"] = "BLOCKED-PORT"
+	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {"com.jetbrains/intellij": {"type": "sse", "url": "http://127.0.0.1:64342/sse", "tools": ["*"]}}}`)
+	writeTestFile(t, openCodeMCPPath(), `{"mcp": {"com.jetbrains/intellij": {"type": "remote", "url": "http://127.0.0.1:64342/sse"}}}`)
+	rep := diagnoseMCP("r", mcpTestEntries(), mcpConfigured(mcpTestEntries()), "com.jetbrains/intellij")
+	tools := " --tools get_file_text_by_path,reformat_file"
+	want := "nav-pilot mcp enable com.jetbrains/intellij --client copilot" + tools +
+		" && nav-pilot mcp enable com.jetbrains/intellij --client opencode" + tools +
+		" && cplt config set allow.localhost 64342"
+	if len(rep.Problems) != 1 || rep.Problems[0].Fix != want {
+		t.Errorf("problems = %+v", rep.Problems)
+	}
+}
+
+// enable without a tool flag keeps an existing entry, so it must not say the
+// risky tools are off.
+func TestMCPEnableExistingEntryNoToolsHint(t *testing.T) {
+	mcpCmdEnv(t, providerpkg.MCPHostState{})
+	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {"com.jetbrains/intellij": {"type": "sse", "url": "http://127.0.0.1:64342/sse", "tools": ["*"]}}}`)
+	out, err := mcpEnable(t, "intellij", "--client", "copilot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "are off") {
+		t.Errorf("hint for a kept entry:\n%s", out)
+	}
+}

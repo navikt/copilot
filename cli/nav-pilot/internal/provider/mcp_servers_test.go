@@ -255,6 +255,20 @@ func TestMCPConfigKeyFor(t *testing.T) {
 	}
 }
 
+// enable writes GitHub's read-only endpoint, so a custom OpenCode key with
+// that URL is still GitHub's.
+func TestMCPConfigKeyForGitHubReadonly(t *testing.T) {
+	home := mcpConfigEnv(t)
+	writeFile(t, filepath.Join(home, ".config", "opencode", "opencode.json"), `{"mcp": {"gh": {"type": "remote", "url": "https://api.githubcopilot.com/mcp/readonly"}}}`)
+	gh := MCPServerEntry{Name: "io.github.navikt/github-mcp", Remotes: []MCPRemote{{Type: "streamable-http", URL: "https://api.githubcopilot.com/mcp/"}}}
+	if got := MCPConfigKeyFor(MCPClientOpenCode, gh); got != "gh" {
+		t.Errorf("opencode = %q, want gh", got)
+	}
+	if got := MCPConfigKeyFor(MCPClientOpenCode, figma); got != "" {
+		t.Errorf("figma = %q, want none", got)
+	}
+}
+
 // nav-pilot mcp reads the launch's cache: a fresh one asks nothing, a stale
 // one is read again, and when that fails the old answer is used and said to
 // be old. No cache and no registry is an error.

@@ -560,6 +560,10 @@ func openCodeRegistryName(entries []MCPServerEntry, key string, s mcpServer) str
 				return e.Name
 			}
 		}
+		// enable writes GitHub's read-only endpoint; it is the same server.
+		if ro := e.GitHubReadonlyURL(); s.Type == "remote" && ro != "" && IsGitHubReadonlyURL(s.URL) {
+			return e.Name
+		}
 		for _, p := range e.Packages {
 			if s.Type == "local" && pkg != "" && strings.EqualFold(p.Identifier, pkg) {
 				return e.Name

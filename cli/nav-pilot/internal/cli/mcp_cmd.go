@@ -288,7 +288,7 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 		// Which tools are on, per client; the row shows the widest.
 		var toolProblems []mcpProblem
 		widest := -1
-		narrowClient := ""
+		var narrowClients []string
 		fullGH := false
 		for _, client := range []string{providerpkg.MCPClientCopilot, providerpkg.MCPClientOpenCode} {
 			if (client == providerpkg.MCPClientCopilot && !row.Copilot) || (client == providerpkg.MCPClientOpenCode && !row.OpenCode) {
@@ -305,8 +305,8 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 				}
 			}
 			fullGH = fullGH || i.fullGH
-			if len(i.hostExec) > 0 && narrowClient == "" {
-				narrowClient = client
+			if len(i.hostExec) > 0 {
+				narrowClients = append(narrowClients, client)
 			}
 			for _, t := range i.hostExec {
 				if !slices.Contains(row.HostExec, t) {
@@ -338,7 +338,12 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 				// The port is a way out of the sandbox while those tools
 				// are on: narrow first, then open it.
 				p.Problem += "; ⚠ " + mcpLoopbackWarning(e, port, row.HostExec)
-				p.Fix = mcpNarrowFix(e, narrowClient) + " && " + p.Fix
+				// Every client that has them, before the port opens.
+				var fixes []string
+				for _, c := range narrowClients {
+					fixes = append(fixes, mcpNarrowFix(e, c))
+				}
+				p.Fix = strings.Join(fixes, " && ") + " && " + p.Fix
 			}
 			if p != nil {
 				add(*p)
@@ -724,18 +729,21 @@ func cmdMCPEnable(names []string, clients []string, topts mcpToolOpts) error {
 			failed++
 			continue
 		}
-		ok := true
+		ok, wrote := true, false
 		for _, client := range clients {
-			if err := mcpEnableIn(client, e, choice, topts.explicit()); err != nil {
+			w, err := mcpEnableIn(client, e, choice, topts.explicit())
+			if err != nil {
 				mcpFail(e.Name+" ("+client+")", err)
 				ok = false
 			}
+			wrote = wrote || w
 		}
 		if !ok {
 			failed++
 			continue
 		}
-		if !topts.explicit() && !choice.All && len(choice.Tools) < len(e.Tools) {
+		// Only about entries written now: an existing one kept its tools.
+		if wrote && !topts.explicit() && !choice.All && len(choice.Tools) < len(e.Tools) {
 			hint := "nav-pilot mcp enable " + e.Name + " --tools <a,b>"
 			if len(e.HostExecTools()) > 0 {
 				hint += " --allow-host-exec"
@@ -769,31 +777,32 @@ func cmdMCPEnable(names []string, clients []string, topts mcpToolOpts) error {
 
 // mcpEnableIn writes the server into the client's config with the chosen
 // tools. An entry already there is kept, unless the user chose tools
-// (explicit): then only its tools change.
-func mcpEnableIn(client string, e providerpkg.MCPServerEntry, c providerpkg.MCPToolChoice, explicit bool) error {
+// (explicit): then only its tools change. The bool is whether it wrote a
+// new entry.
+func mcpEnableIn(client string, e providerpkg.MCPServerEntry, c providerpkg.MCPToolChoice, explicit bool) (bool, error) {
 	key := providerpkg.MCPConfigKeyFor(client, e)
 	if key != "" && explicit {
 		ch, err := providerpkg.SetMCPServerTools(client, key, e, c)
 		if errors.Is(err, providerpkg.ErrMCPConfigHasComments) {
-			return fmt.Errorf("%s has comments or trailing commas, which a rewrite would lose, so nav-pilot did not change it", ch.Path)
+			return false, fmt.Errorf("%s has comments or trailing commas, which a rewrite would lose, so nav-pilot did not change it", ch.Path)
 		}
 		if err != nil {
-			return err
+			return false, err
 		}
 		backup := ""
 		if ch.Backup != "" {
 			backup = " " + dim("(previous file: "+ch.Backup+")")
 		}
 		fmt.Printf("%s Set the tools of %s for %s in %s: %s%s\n", green("✓"), bold(e.Name), client, ch.Path, mcpDescribeChoice(e, c), backup)
-		return nil
+		return false, nil
 	}
 	if key != "" && key != e.Name {
 		fmt.Printf("%s %s is already enabled for %s, as %s\n", dim("•"), e.Name, client, safe(key, 64))
-		return nil
+		return false, nil
 	}
 	entry, err := providerpkg.MCPClientEntry(client, e, c)
 	if err != nil {
-		return err
+		return false, err
 	}
 	ch, err := providerpkg.SetMCPServer(client, e.Name, entry, e, c)
 	if errors.Is(err, providerpkg.ErrMCPConfigHasComments) {
@@ -809,10 +818,10 @@ func mcpEnableIn(client string, e providerpkg.MCPServerEntry, c providerpkg.MCPT
 				msg += fmt.Sprintf("\n  %q: %q", r[0], r[1])
 			}
 		}
-		return errors.New(msg)
+		return false, errors.New(msg)
 	}
 	if err != nil {
-		return err
+		return false, err
 	}
 	switch {
 	case ch.Changed && ch.Backup != "":
@@ -832,7 +841,7 @@ func mcpEnableIn(client string, e providerpkg.MCPServerEntry, c providerpkg.MCPT
 	if client == providerpkg.MCPClientCopilot && short != e.Name && slices.Contains(providerpkg.MCPConfigKeys(client), short) {
 		fmt.Printf("%s Your config also has %s, which Copilot's org policy blocks. Remove it: %s\n", yellow("⚠"), short, bold("nav-pilot mcp disable "+short+" --client copilot"))
 	}
-	return nil
+	return ch.Changed, nil
 }
 
 // mcpEnableFollowUp prints what the server still needs after the write.
