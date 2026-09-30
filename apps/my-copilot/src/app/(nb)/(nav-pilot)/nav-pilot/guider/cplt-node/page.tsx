@@ -205,6 +205,12 @@ cplt config set sandbox.allow_env_files true    # alltid`}
             til.
           </BodyLong>
           <BodyLong>
+            Med <code className={code}>proxy.forced</code> slått på, som i <code className={code}>--preset strict</code>
+            , ser cplt bort fra <code className={code}>allow_localhost_any</code>. Enkeltporter fra{" "}
+            <code className={code}>allow.localhost</code> virker fortsatt, men de tilfeldige portene til Turbopack, Vite
+            og esbuild kan ikke åpnes. Da må du kjøre uten tvungen proxy.
+          </BodyLong>
+          <BodyLong>
             Begge kan stå i repoet, slik at hele teamet får dem. Bruk{" "}
             <code className={code}>cplt config set --repo …</code>, sjekk inn <code className={code}>.cplt.toml</code>{" "}
             og godkjenn med <code className={code}>cplt trust accept</code>, som beskrevet i{" "}
@@ -275,8 +281,8 @@ cplt config set sandbox.allow_cache_exec Cypress`}
           <CodeBlock compact>{`cplt config set allow.read ~/Library/Preferences/pnpm/auth.ini`}</CodeBlock>
           <BodyLong>
             På Linux, og på macOS med <code className={code}>XDG_CONFIG_HOME</code> satt, ligger mappa i{" "}
-            <code className={code}>~/.config/pnpm</code>. Den kan agenten både lese og skrive, også tokenfilene. Vil du
-            stenge dem, slå på:
+            <code className={code}>$XDG_CONFIG_HOME/pnpm</code>, som regel <code className={code}>~/.config/pnpm</code>.
+            Den kan agenten både lese og skrive, også tokenfilene. Vil du stenge dem, slå på:
           </BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.protect_pnpm_config true`}</CodeBlock>
           <BodyLong>
