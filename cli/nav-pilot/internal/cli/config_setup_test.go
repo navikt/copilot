@@ -252,21 +252,45 @@ func TestConfigSetupRerun_EnterOnlyKeepsFile(t *testing.T) {
 	}
 }
 
-// Changing only autonomy changes only that line.
-func TestConfigSetupRerun_AutonomyOnly(t *testing.T) {
+// The rerun config's autonomy = "conservative" has no autonomy_chosen, so it
+// resolves to sandbox and Enter keeps it (above). Choosing "Ask before each
+// command" marks it chosen and changes nothing else.
+func TestConfigSetupRerun_ChooseConservative(t *testing.T) {
 	path := writeRerunConfig(t)
 	existing, err := readConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
 	a := setupPreselect(existing)
-	a.Autonomy = "sandbox"
+	if a.Autonomy != "sandbox" {
+		t.Fatalf("preselected %q for an unchosen conservative, want sandbox", a.Autonomy)
+	}
+	a.Autonomy = "conservative"
 	if err := writeSetupConfig(a); err != nil {
 		t.Fatalf("writeSetupConfig: %v", err)
 	}
-	want := strings.Replace(rerunConfig, `autonomy = "conservative"`, `autonomy = "sandbox"`, 1)
+	want := strings.Replace(rerunConfig, "source = \"navikt/copilot\"\n", "source = \"navikt/copilot\"\nautonomy_chosen = true\n", 1)
 	if data, _ := os.ReadFile(path); string(data) != want {
 		t.Errorf("got:\n%s\nwant:\n%s", data, want)
+	}
+
+	// Enter on the chosen config keeps it too; choosing sandbox changes only
+	// the value.
+	existing, _ = readConfig()
+	if err := writeSetupConfig(setupPreselect(existing)); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(path); string(data) != want {
+		t.Errorf("Enter-only on a chosen config changed it:\n%s", data)
+	}
+	a = setupPreselect(existing)
+	a.Autonomy = "sandbox"
+	if err := writeSetupConfig(a); err != nil {
+		t.Fatal(err)
+	}
+	want = strings.Replace(want, `autonomy = "conservative"`, `autonomy = "sandbox"`, 1)
+	if data, _ := os.ReadFile(path); string(data) != want {
+		t.Errorf("chosen conservative to sandbox:\n%s\nwant:\n%s", data, want)
 	}
 }
 
@@ -419,8 +443,8 @@ func TestWriteSetupConfig_OpenCode_BootstrapsOTelAndContext(t *testing.T) {
 }
 
 // A config from before client and autonomy existed means copilot and
-// conservative: Enter keeps it byte for byte, and choosing Autonomous adds
-// only the autonomy line.
+// sandbox: Enter keeps it byte for byte, and choosing "Ask before each
+// command" adds only the autonomy lines.
 func TestConfigSetupRerun_LegacyConfigWithoutClientAutonomy(t *testing.T) {
 	const legacy = "version = 1\nmode = \"plan\"\n"
 	path := filepath.Join(t.TempDir(), "config.toml")
@@ -443,15 +467,12 @@ func TestConfigSetupRerun_LegacyConfigWithoutClientAutonomy(t *testing.T) {
 		t.Error("an unchanged file must not leave a backup")
 	}
 
-	a.Autonomy = "sandbox"
+	a.Autonomy = "conservative"
 	if err := writeSetupConfig(a); err != nil {
 		t.Fatalf("writeSetupConfig: %v", err)
 	}
 	data, _ := os.ReadFile(path)
-	if !strings.Contains(string(data), `autonomy = "sandbox"`) || strings.Contains(string(data), "client") {
-		t.Errorf("want only autonomy added:\n%s", data)
-	}
-	if got := strings.Replace(string(data), "autonomy = \"sandbox\"\n", "", 1); got != legacy {
-		t.Errorf("more than the autonomy line changed:\n%s", data)
+	if got := string(data); got != legacy+"autonomy = \"conservative\"\nautonomy_chosen = true\n" {
+		t.Errorf("want only the two autonomy lines added:\n%s", data)
 	}
 }

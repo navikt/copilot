@@ -189,7 +189,6 @@ func cmdDoctor() error {
 		if os.IsNotExist(err) {
 			fmt.Printf("    • File not found (using default values)\n")
 			fmt.Printf("      %s To create configuration, run: %s\n", yellow("Solution:"), bold("nav-pilot config init"))
-			printAutonomyNudge(os.Stdout, nil, "    ")
 			fmt.Println()
 		} else {
 			hasErrors = true

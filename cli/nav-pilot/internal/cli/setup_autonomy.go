@@ -20,29 +20,17 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
-// The autonomy presets of the setup wizard (#1348). Each maps to keys that
-// already exist: nav-pilot's autonomy, cplt's sandbox.preset and cplt's
-// git_guard.protect_default_branch_only. Merge, push to main and force push
-// stay blocked by cplt in every one of them.
-const (
-	presetSandbox = "sandbox" // autonomous in the sandbox
-	presetAsk     = "ask"     // ask before each command
-	presetLocked  = "locked"  // ask, no pushes, allowlist
-	presetCustom  = "custom"
-)
+// The setup wizard asks two separate things (#1348): how Copilot runs
+// commands (nav-pilot's autonomy) and what cplt lets the agent do with git
+// (cplt's git_guard.protect_default_branch_only). The network (cplt's
+// sandbox.preset) is only asked with --advanced. Merge, push to main and force
+// push stay blocked by cplt under every answer.
 
-// autonomyChoice is what a preset, or the custom questions, settle on.
+// autonomyChoice is what the answers settle on.
 type autonomyChoice struct {
 	Autonomy string // nav-pilot autonomy; "" for a client that does not read it
 	Preset   string // cplt sandbox.preset
 	Push     bool   // the agent may push branches (protect_default_branch_only)
-}
-
-// presetChoices is the fixed part of the mapping. Custom is built from answers.
-var presetChoices = map[string]autonomyChoice{
-	presetSandbox: {Autonomy: "sandbox", Preset: "standard", Push: true},
-	presetAsk:     {Autonomy: "conservative", Preset: "standard", Push: true},
-	presetLocked:  {Autonomy: "conservative", Preset: cpltStrictPreset, Push: false},
 }
 
 // cpltGitState is the part of the cplt config the presets touch. Preset is ""
@@ -100,28 +88,6 @@ func (s cpltGitState) effectivePush() bool {
 	return s.Preset == "" || s.Preset == "standard"
 }
 
-// currentPreset is the preset matching today's settings, or custom. It is the
-// wizard's default, so rerunning setup and pressing Enter changes nothing.
-func currentPreset(autonomy string, copilot bool, s cpltGitState) string {
-	preset := s.Preset
-	if preset == "" {
-		preset = "standard"
-	}
-	if !copilot {
-		autonomy = "" // not read, so it cannot tell presets apart
-	}
-	for _, name := range []string{presetSandbox, presetAsk, presetLocked} {
-		c := presetChoices[name]
-		if !copilot && name == presetAsk {
-			continue
-		}
-		if c.Preset == preset && c.Push == s.effectivePush() && (autonomy == "" || autonomy == c.Autonomy) {
-			return name
-		}
-	}
-	return presetCustom
-}
-
 // guardedPreset is true for the cplt presets whose git and gh guards are on.
 func guardedPreset(p string) bool { return p == "standard" || p == cpltStrictPreset }
 
@@ -150,99 +116,73 @@ func cpltChanges(s cpltGitState, c autonomyChoice) []cpltChange {
 	return out
 }
 
-// askAutonomy is the wizard's autonomy question, and the custom questions
-// behind its last option. def is the preselected preset.
-func askAutonomy(client string, def string, cur autonomyChoice) (autonomyChoice, error) {
-	copilot := client == "copilot"
-	choice := def
-	opts := []huh.Option[string]{
-		huh.NewOption("Autonomous in the sandbox (recommended): commits, pushes branches, opens PRs", presetSandbox),
-	}
-	locked := "Locked down: no pushes at all, network limited to an allowlist"
-	desc := "cplt blocks merging and pushing to main under each preset here. The agent asks you when unsure."
-	if !guardedPreset(cur.Preset) {
-		desc = "cplt blocks merging and pushing to main under each preset here. Custom can keep your cplt preset " +
-			cur.Preset + ", which blocks neither. The agent asks you when unsure."
-	}
-	if copilot {
-		opts = append(opts, huh.NewOption("Ask before each command: same git rules, but Copilot asks first", presetAsk))
-		locked = "Locked down: asks first, no pushes at all, network limited to an allowlist"
-	} else {
-		desc += " " + clientLabel[client] + " keeps its own permission settings"
-		if client == "opencode" {
-			desc += " (the permission key in opencode.json)"
-		}
-		desc += "."
-	}
-	opts = append(opts,
-		huh.NewOption(locked, presetLocked),
-		huh.NewOption("Custom: choose each setting", presetCustom),
-	)
-	if err := huh.NewSelect[string]().
-		Title("How much should the agent do on its own?").
-		Description(desc).
-		Options(opts...).
-		Value(&choice).
-		WithTheme(navTheme()).
-		Run(); err != nil {
-		return autonomyChoice{}, err
-	}
-	if choice != presetCustom {
-		c := presetChoices[choice]
-		if !copilot {
-			c.Autonomy = ""
-		}
-		return c, nil
-	}
-
+// askAutonomy asks the wizard's questions. Each starts on cur, today's
+// setting, so Enter on every one changes nothing. The client question is
+// Copilot's only: the other clients do not read autonomy. advanced adds the
+// network question, the one way to cplt's strict preset.
+func askAutonomy(client string, cur autonomyChoice, advanced bool) (autonomyChoice, error) {
 	c := cur
-	if !copilot {
+	if client != "copilot" {
 		c.Autonomy = ""
 	} else if err := huh.NewSelect[string]().
-		Title("Should Copilot ask before each command?").
+		Title("How should the agent run commands?").
 		Options(
-			huh.NewOption("No: it works on its own inside the sandbox and asks when unsure", "sandbox"),
-			huh.NewOption("Yes: ask before each command", "conservative"),
+			huh.NewOption("On its own inside the sandbox, and ask you when it needs to (recommended)", "sandbox"),
+			huh.NewOption("Ask before each command", "conservative"),
 		).
 		Value(&c.Autonomy).
 		WithTheme(navTheme()).
 		Run(); err != nil {
 		return autonomyChoice{}, err
 	}
-	netOpts := []huh.Option[string]{
-		huh.NewOption("Standard: GitHub, Nav and package hosts reachable", "standard"),
-		huh.NewOption("Allowlist only (cplt strict)", cpltStrictPreset),
-	}
-	if !guardedPreset(c.Preset) {
-		netOpts = append(netOpts, huh.NewOption("Keep cplt preset "+c.Preset, c.Preset))
-	}
-	if err := huh.NewSelect[string]().
-		Title("Network").
-		Options(netOpts...).
-		Value(&c.Preset).
-		WithTheme(navTheme()).
-		Run(); err != nil {
-		return autonomyChoice{}, err
+	if advanced {
+		netOpts := []huh.Option[string]{
+			huh.NewOption("Standard: GitHub, Nav and package hosts reachable", "standard"),
+			huh.NewOption("Allowlist only (cplt strict): no pushes unless you allow them below", cpltStrictPreset),
+		}
+		if !guardedPreset(c.Preset) {
+			netOpts = append(netOpts, huh.NewOption("Keep cplt preset "+c.Preset, c.Preset))
+		}
+		if err := huh.NewSelect[string]().
+			Title("Network").
+			Options(netOpts...).
+			Value(&c.Preset).
+			WithTheme(navTheme()).
+			Run(); err != nil {
+			return autonomyChoice{}, err
+		}
 	}
 	// Under permissive and full-trust cplt's git guard is off: there is
 	// nothing for the git answer to set.
 	if !guardedPreset(c.Preset) {
 		return c, nil
 	}
-	if !guardedPreset(cur.Preset) {
-		c.Push = true // coming from no guard at all: start from standard's baseline
+	if c.Preset != cur.Preset {
+		c.Push = c.Preset == "standard" // a new preset starts on its baseline
 	}
-	if err := huh.NewSelect[bool]().
+	desc := "cplt never lets it push to main or merge, and enforces this whatever the agent is told."
+	if client != "copilot" {
+		desc += " " + clientLabel[client] + " keeps its own permission settings"
+		if client == "opencode" {
+			desc += " (the permission key in opencode.json)"
+		}
+		desc += "."
+	}
+	// A string select: huh's Select[bool] leaves out the option for true.
+	git := strconv.FormatBool(c.Push)
+	if err := huh.NewSelect[string]().
 		Title("What may the agent do with git?").
+		Description(desc).
 		Options(
-			huh.NewOption("Commit, push branches and open PRs", true),
-			huh.NewOption("Commit only; you push", false),
+			huh.NewOption("Commit, push branches and open pull requests (recommended)", "true"),
+			huh.NewOption("Commit only (no pushes)", "false"),
 		).
-		Value(&c.Push).
+		Value(&git).
 		WithTheme(navTheme()).
 		Run(); err != nil {
 		return autonomyChoice{}, err
 	}
+	c.Push = git == "true"
 	return c, nil
 }
 

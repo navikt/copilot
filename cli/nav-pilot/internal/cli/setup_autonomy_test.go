@@ -17,93 +17,48 @@ import (
 
 func boolp(b bool) *bool { return &b }
 
-// Each preset writes exactly the keys it needs, from each starting point, and
-// nothing that is already right.
-func TestPresetWritesExactlyTheRightKeys(t *testing.T) {
+// Each git answer, and each network answer of --advanced, writes exactly the
+// keys it needs from each starting point, and nothing that is already right.
+// The default flow keeps the preset, so only the guard key can change there.
+func TestGitAnswerWritesExactlyTheRightKeys(t *testing.T) {
 	std := cpltGitState{Preset: "standard"}
 	strict := cpltGitState{Preset: "strict"}
 	stdPinned := cpltGitState{Preset: "standard", Protect: boolp(true)} // a file that sets the key, like many do
+	stdOff := cpltGitState{Preset: "standard", Protect: boolp(false)}
+	push, commitOnly := true, false
 	for _, tc := range []struct {
 		name   string
-		preset string
 		from   cpltGitState
+		preset string // "" keeps from's preset: the default flow
+		push   bool
 		want   []cpltChange
 	}{
-		{"sandbox from default", presetSandbox, std, nil},
-		{"ask from default", presetAsk, std, nil},
-		{"locked from default", presetLocked, std, []cpltChange{{"sandbox.preset", "standard", "strict"}}},
-		{"locked with the guard pinned open", presetLocked, stdPinned, []cpltChange{
+		{"push from default", std, "", push, nil},
+		{"commit only from default", std, "", commitOnly, []cpltChange{{"git_guard.protect_default_branch_only", "", "false"}}},
+		{"push from pinned true", stdPinned, "", push, nil},
+		{"commit only from pinned true", stdPinned, "", commitOnly, []cpltChange{{"git_guard.protect_default_branch_only", "true", "false"}}},
+		{"push from pushes off", stdOff, "", push, []cpltChange{{"git_guard.protect_default_branch_only", "false", "true"}}},
+		{"commit only from pushes off", stdOff, "", commitOnly, nil},
+		{"commit only on strict", strict, "", commitOnly, nil},
+		{"push on strict", strict, "", push, []cpltChange{{"git_guard.protect_default_branch_only", "", "true"}}},
+		{"permissive: guard off, nothing to write", cpltGitState{Preset: "permissive"}, "", push, nil},
+		{"advanced: to strict, commit only", std, "strict", commitOnly, []cpltChange{{"sandbox.preset", "standard", "strict"}}},
+		{"advanced: to strict with the guard pinned open", stdPinned, "strict", commitOnly, []cpltChange{
 			{"sandbox.preset", "standard", "strict"},
 			{"git_guard.protect_default_branch_only", "true", "false"},
 		}},
-		{"sandbox from strict", presetSandbox, strict, []cpltChange{{"sandbox.preset", "strict", "standard"}}},
-		{"sandbox from a pushes-off standard", presetSandbox, cpltGitState{Preset: "standard", Protect: boolp(false)},
-			[]cpltChange{{"git_guard.protect_default_branch_only", "false", "true"}}},
-		{"locked from locked", presetLocked, strict, nil},
-		{"sandbox from permissive", presetSandbox, cpltGitState{Preset: "permissive"}, []cpltChange{{"sandbox.preset", "permissive", "standard"}}},
-		{"cplt said nothing", presetSandbox, cpltGitState{}, []cpltChange{{"sandbox.preset", "", "standard"}}},
+		{"advanced: strict to standard, push", strict, "standard", push, []cpltChange{{"sandbox.preset", "strict", "standard"}}},
+		{"advanced: permissive to standard, push", cpltGitState{Preset: "permissive"}, "standard", push, []cpltChange{{"sandbox.preset", "permissive", "standard"}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := cpltChanges(tc.from, presetChoices[tc.preset]); !reflect.DeepEqual(got, tc.want) {
+			preset := tc.preset
+			if preset == "" {
+				preset = tc.from.Preset
+			}
+			if got := cpltChanges(tc.from, autonomyChoice{Preset: preset, Push: tc.push}); !reflect.DeepEqual(got, tc.want) {
 				t.Errorf("got %v, want %v", got, tc.want)
 			}
 		})
-	}
-}
-
-// The mapping itself, pinned so a swapped value fails here.
-func TestPresetMapping(t *testing.T) {
-	want := map[string]autonomyChoice{
-		presetSandbox: {"sandbox", "standard", true},
-		presetAsk:     {"conservative", "standard", true},
-		presetLocked:  {"conservative", "strict", false},
-	}
-	if !reflect.DeepEqual(presetChoices, want) {
-		t.Errorf("presetChoices = %v, want %v", presetChoices, want)
-	}
-}
-
-// Custom combinations the presets do not cover.
-func TestCustomChoiceKeys(t *testing.T) {
-	std := cpltGitState{Preset: "standard"}
-	if got := cpltChanges(std, autonomyChoice{Preset: "standard", Push: false}); !reflect.DeepEqual(got,
-		[]cpltChange{{"git_guard.protect_default_branch_only", "", "false"}}) {
-		t.Errorf("commit only: %v", got)
-	}
-	if got := cpltChanges(std, autonomyChoice{Preset: "strict", Push: true}); !reflect.DeepEqual(got, []cpltChange{
-		{"sandbox.preset", "standard", "strict"},
-		{"git_guard.protect_default_branch_only", "", "true"},
-	}) {
-		t.Errorf("allowlist with pushes: %v", got)
-	}
-	// Keeping permissive writes nothing: its git guard is off anyway.
-	if got := cpltChanges(cpltGitState{Preset: "permissive"}, autonomyChoice{Preset: "permissive", Push: true}); got != nil {
-		t.Errorf("keep permissive: %v", got)
-	}
-}
-
-// Rerunning setup preselects what the machine has today.
-func TestCurrentPresetIsTheDefault(t *testing.T) {
-	for _, tc := range []struct {
-		autonomy string
-		copilot  bool
-		s        cpltGitState
-		want     string
-	}{
-		{"sandbox", true, cpltGitState{Preset: "standard"}, presetSandbox},
-		{"conservative", true, cpltGitState{Preset: "standard"}, presetAsk},
-		{"conservative", true, cpltGitState{Preset: "strict"}, presetLocked},
-		{"sandbox", true, cpltGitState{Preset: "strict"}, presetCustom},
-		{"conservative", true, cpltGitState{Preset: "standard", Protect: boolp(false)}, presetCustom},
-		{"conservative", true, cpltGitState{Preset: "strict", Protect: boolp(true)}, presetCustom},
-		{"conservative", true, cpltGitState{Preset: "permissive"}, presetCustom},
-		{"sandbox", true, cpltGitState{}, presetSandbox}, // cplt could not say: its default
-		{"conservative", false, cpltGitState{Preset: "standard"}, presetSandbox},
-		{"sandbox", false, cpltGitState{Preset: "strict"}, presetLocked},
-	} {
-		if got := currentPreset(tc.autonomy, tc.copilot, tc.s); got != tc.want {
-			t.Errorf("currentPreset(%q, copilot=%v, %+v) = %q, want %q", tc.autonomy, tc.copilot, tc.s, got, tc.want)
-		}
 	}
 }
 
@@ -123,7 +78,7 @@ func TestCpltStateAndWritesThroughCplt(t *testing.T) {
 	if s.Preset != "standard" || s.Protect != nil {
 		t.Fatalf("state = %+v, want standard with the key unset", s)
 	}
-	if err := applyCpltChanges(cliPath, cpltChanges(s, presetChoices[presetLocked]), "", ""); err != nil {
+	if err := applyCpltChanges(cliPath, cpltChanges(s, autonomyChoice{Preset: "strict", Push: false}), "", ""); err != nil {
 		t.Fatal(err)
 	}
 	sets := configSets(t, log)
@@ -229,11 +184,11 @@ func TestSummaryPermissiveAndKeptAllowlist(t *testing.T) {
 	if !strings.Contains(s, "guards are off") || strings.Contains(s, "cannot push") {
 		t.Errorf("permissive summary: %q", s)
 	}
-	s = autonomySummary(presetChoices[presetSandbox], nil, true, navAllowedDomainsPath())
+	s = autonomySummary(autonomyChoice{Autonomy: "sandbox", Preset: "standard", Push: true}, nil, true, navAllowedDomainsPath())
 	if !strings.Contains(s, "allowed_domains stays set") || !strings.Contains(s, "nav-pilot's list") {
 		t.Errorf("kept nav-pilot allowlist: %q", s)
 	}
-	s = autonomySummary(presetChoices[presetSandbox], nil, true, "/home/me/hosts.txt")
+	s = autonomySummary(autonomyChoice{Autonomy: "sandbox", Preset: "standard", Push: true}, nil, true, "/home/me/hosts.txt")
 	if !strings.Contains(s, "stays set") || strings.Contains(s, "nav-pilot's list") {
 		t.Errorf("kept user allowlist: %q", s)
 	}
@@ -303,7 +258,7 @@ func TestLeavingStrictUnsetsNavAllowlist(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	choice := presetChoices[presetSandbox]
+	choice := autonomyChoice{Autonomy: "sandbox", Preset: "standard", Push: true}
 	drop := leavingStrictAllowlist(cpltConfigGet(cliPath, "sandbox.preset"), choice.Preset, cpltConfigGet(cliPath, "proxy.allowed_domains"))
 	if drop == nil {
 		t.Fatal("no offer to drop nav-pilot's allowlist")

@@ -1,6 +1,6 @@
 # #1351: leaving strict with nav-pilot's own allowlist asks whether to drop
 # it. Yes unsets the key, and only after the new preset is written; No (the
-# default) leaves it alone.
+# default) leaves it alone. The network question is only in --advanced.
 
 [!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
 
@@ -9,7 +9,7 @@ cp cplt.sh $WORK/fake/cplt.sh
 
 # Yes: the preset goes to standard first, then the allowlist is unset.
 cp strict.txt $WORK/fake/preset
-exits 0 pty-run -wait 'Which coding agent' -send '\x1b[B\r' -wait 'Conversation mode' -send '\r' -wait 'Autonomous in the sandbox' -send '\x1b[A\x1b[A\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Remove the network allowlist' -send 'y' -wait 'Save these settings' -send '\r' -- nav-pilot config setup
+exits 0 pty-run -wait 'Which coding agent' -send '\x1b[B\r' -wait 'Conversation mode' -send '\r' -wait 'run commands' -send '\r' -wait 'Network' -send '\x1b[A\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Remove the network allowlist' -send 'y' -wait 'Save these settings' -send '\r' -- nav-pilot config setup --advanced
 stdout 'cplt proxy.allowed_domains removed'
 grep 'config\nset\nsandbox.preset\nstandard\n---\n(.*\n)*config\nset\nproxy.allowed_domains\n--unset\n--global\n---' $WORK/fake/cplt.log
 ! grep 'proxy.allowed_domains\n--unset(.*\n)*sandbox.preset\nstandard' $WORK/fake/cplt.log
@@ -17,7 +17,7 @@ grep 'config\nset\nsandbox.preset\nstandard\n---\n(.*\n)*config\nset\nproxy.allo
 # No (Enter): the preset changes, the allowlist stays and the summary says so.
 cp strict.txt $WORK/fake/preset
 rm $WORK/fake/cplt.log
-exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'Autonomous in the sandbox' -send '\x1b[A\x1b[A\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Remove the network allowlist' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup --force
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'run commands' -send '\r' -wait 'Network' -send '\x1b[A\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Remove the network allowlist' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup --force --advanced
 stdout 'proxy.allowed_domains stays set'
 grep 'config\nset\nsandbox.preset\nstandard\n---' $WORK/fake/cplt.log
 ! grep 'unset' $WORK/fake/cplt.log

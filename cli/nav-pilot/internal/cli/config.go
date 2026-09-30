@@ -546,8 +546,9 @@ func configFixHint() string {
 // navPilotUsedBefore reports whether nav-pilot has run on this machine
 // before, config.toml or not: the marker the first cplt launch on a terminal
 // leaves in the config directory (provider.PrintCpltSandboxHint), or a
-// user-scope install's state file. Such a user keeps conservative autonomy
-// until they choose; only a new user starts on sandbox.
+// user-scope install's state file. Before #1348's split such a user without
+// a config.toml was on conservative autonomy; now they get the one-time
+// notice that it changed.
 func navPilotUsedBefore() bool {
 	if dir, err := telemetrypkg.GetConfigDir(); err == nil {
 		if _, err := os.Stat(filepath.Join(dir, "seen-cplt-hint")); err == nil {
@@ -560,6 +561,30 @@ func navPilotUsedBefore() bool {
 		}
 	}
 	return false
+}
+
+// autonomyChosenConservative is whether file holds a conservative autonomy
+// the user chose. Releases before #1348's split wrote conservative on their
+// own (`config init` and the wizard's preselected answer for someone who had
+// run nav-pilot before), and those files cannot be told from a real choice;
+// from now on every choice writes autonomy_chosen = true beside it.
+func autonomyChosenConservative(file *Config) bool {
+	return file != nil && file.Autonomy != nil && *file.Autonomy == "conservative" &&
+		file.AutonomyChosen != nil && *file.AutonomyChosen
+}
+
+// resolveAutonomy is the effective autonomy, sandbox unless the user chose
+// conservative, and whether this user was on conservative before the split
+// and so gets the one-time notice: a file without the key or with an
+// unchosen conservative, or no file on a machine nav-pilot has run on.
+func resolveAutonomy(file *Config) (autonomy string, notice bool) {
+	if autonomyChosenConservative(file) {
+		return "conservative", false
+	}
+	if file == nil {
+		return "sandbox", navPilotUsedBefore()
+	}
+	return "sandbox", file.Autonomy == nil || *file.Autonomy == "conservative"
 }
 
 // resolve builds a ResolvedConfig from file config and CLI overrides.
@@ -583,20 +608,10 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		MCPHosts:          "ask",
 	}
 
-	// No config.toml and no sign of an earlier run is a new user, who gets
-	// the new default. A file without the key, or a machine nav-pilot has run
-	// on without one, is someone from before this existed, who keeps the
-	// prompts they had.
-	r.Autonomy = "conservative"
-	if file == nil && !navPilotUsedBefore() {
-		r.Autonomy = "sandbox"
-	}
+	r.Autonomy, r.AutonomyNotice = resolveAutonomy(file)
 
 	// Apply file values.
 	if file != nil {
-		if file.Autonomy != nil {
-			r.Autonomy = *file.Autonomy
-		}
 		if file.Client != nil {
 			r.Client = *file.Client
 		}

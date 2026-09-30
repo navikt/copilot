@@ -31,9 +31,13 @@ type Config struct {
 	AskUser         *bool   `toml:"ask_user"`
 	// Autonomy is how much the Copilot CLI may do without asking when it runs
 	// under cplt: sandbox passes Copilot's allow-all flags, conservative keeps
-	// its per-action prompts. Unset in an existing file means conservative, so
-	// nobody's session changes on upgrade; a new config gets sandbox.
+	// its per-action prompts. Unset means sandbox. conservative counts only
+	// with AutonomyChosen (#1348): earlier releases wrote it on their own.
 	Autonomy *string `toml:"autonomy"`
+	// AutonomyChosen marks autonomy as the user's own choice. nav-pilot
+	// writes it with every autonomy the user picks (config set, the settings
+	// page, the setup wizard), never on its own.
+	AutonomyChosen *bool `toml:"autonomy_chosen"`
 	// AutoLaunch controls whether nav-pilot starts the coding agent by itself
 	// after an install/sync. Defaults to true; false means never launch.
 	AutoLaunch   *bool   `toml:"auto_launch"`
@@ -111,14 +115,18 @@ type ResolvedConfig struct {
 	PayloadContext string
 	// Persona is the agent a Tier 1 launch starts, when the user selects one
 	// other than the agentpakke's first declared primary (--persona).
-	Persona            string
-	Model              string // empty = use agent default
-	Mode               string
-	ReasoningEffort    string // empty = unset
-	ContextTier        string // empty = unset
-	AllowAllTools      bool
-	AskUser            bool
-	Autonomy           string   // sandbox | conservative; always set
+	Persona         string
+	Model           string // empty = use agent default
+	Mode            string
+	ReasoningEffort string // empty = unset
+	ContextTier     string // empty = unset
+	AllowAllTools   bool
+	AskUser         bool
+	Autonomy        string // sandbox | conservative; always set
+	// AutonomyNotice is true for a user whose Copilot asked before each
+	// command until this release and now runs on its own under cplt: the
+	// launch tells them once (#1348).
+	AutonomyNotice     bool
 	AutoLaunch         bool     // launch the coding agent automatically after install/sync
 	LogLevel           string   // empty = unset
 	OtelLogLevel       string   // always set; defaults to "none"

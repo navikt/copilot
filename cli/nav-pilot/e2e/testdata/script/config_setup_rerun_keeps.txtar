@@ -1,7 +1,9 @@
 # #1348: a rerun of config setup starts every question on the current value
 # and edits the file in place. Enter all the way leaves it byte for byte;
-# changing only the autonomy preset changes only that line, and keys the
-# wizard does not ask about stay.
+# choosing "Ask before each command" adds only the mark that it was chosen,
+# and keys the wizard does not ask about stay. before.toml's conservative has
+# no autonomy_chosen: an earlier nav-pilot wrote it, so it counts as sandbox
+# and is the preselected answer.
 
 [!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
 
@@ -9,12 +11,14 @@ fake-bin cplt copilot
 cp cplt.sh $WORK/fake/cplt.sh
 cp before.toml home/config.toml
 
-exits 0 pty-run -wait 'Keep it' -send '\x1b[D\r' -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'on its own' -send '\r' -wait 'Model' -send '\r' -wait 'Custom model id' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup
+exits 0 pty-run -wait 'Keep it' -send '\x1b[D\r' -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'run commands' -send '\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\r' -wait 'Custom model id' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup
 cmp home/config.toml before.toml
 ! exists home/config.toml.bak
 
-# Autonomous in the sandbox instead of Ask before each command.
-exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'on its own' -send '\x1b[A\r' -wait 'Model' -send '\r' -wait 'Custom model id' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup --force
+stdout 'nav-pilot autonomy = sandbox'
+
+# Ask before each command, chosen this time.
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'run commands' -send '\x1b[B\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\r' -wait 'Custom model id' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup --force
 cmp home/config.toml after.toml
 
 -- before.toml --
@@ -36,7 +40,8 @@ reasoning_effort = "xhigh"
 mode = "plan"
 model = "my-own-model"
 auto_update = true
-autonomy = "sandbox"
+autonomy = "conservative"
+autonomy_chosen = true
 -- cplt.sh --
 if [ "$1 $2" = "config get" ]; then
   case "$3" in

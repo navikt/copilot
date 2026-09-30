@@ -710,6 +710,13 @@ func run(args []string) error {
 				return fmt.Errorf("unknown flag --yes")
 			}
 			positional = append(positional, rest[i])
+		case "--advanced":
+			// `config setup --advanced` adds the network question; cmdConfig
+			// reads it from its arguments. Everywhere else it is not a flag.
+			if command != "config" || len(positional) == 0 || positional[0] != "setup" {
+				return fmt.Errorf("unknown flag --advanced")
+			}
+			positional = append(positional, rest[i])
 		case "-h", "--help":
 			if command == "alpha" {
 				alphaHelp(os.Stdout, positional)
