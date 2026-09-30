@@ -26,7 +26,7 @@ export function LinkableHeading({ children, ...props }: HeadingProps) {
   };
 
   return (
-    <Heading id={id} {...props}>
+    <Heading id={id} {...props} className={["break-words", props.className].filter(Boolean).join(" ")}>
       {id ? (
         <a href={`#${id}`} onClick={handleClick} className="group no-underline hover:no-underline text-inherit">
           {children}
