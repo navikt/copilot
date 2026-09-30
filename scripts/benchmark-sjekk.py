@@ -42,6 +42,11 @@ NYNORSK_RE = re.compile(
     r"(?<!%s)(%s)(?!%s)" % (W, "|".join(re.escape(w) for w in NYNORSK), W),
     re.IGNORECASE,
 )
+# The skill's suffix rules: -ingar (endringar) and -ane (filane). A stem of
+# three letters keeps «vane» and «plane» out; bokmål compounds on these heads
+# («jernbane», «arbeidsvane») are ordinary words, not definite plurals.
+SUFFIX_RE = re.compile(r"(?<!%s)(%s{3,}(?:ingar|ane))(?!%s)" % (W, W, W), re.IGNORECASE)
+BOKMAL_ANE = ("bane", "vane", "fane", "hane", "mane", "svane", "trane", "plane", "orkane")
 
 
 def _gate_markers():
@@ -147,7 +152,9 @@ def check(cmd, args):
         return review(cmd, Path(args[0]).read_text(), args[1:])
     text = Path(args[0]).read_text()
     if cmd == "nynorsk":
-        found = sorted({m.group(1).lower() for m in NYNORSK_RE.finditer(text)})
+        found = {m.group(1).lower() for m in NYNORSK_RE.finditer(text)}
+        found |= {w for m in SUFFIX_RE.finditer(text) if not (w := m.group(1).lower()).endswith(BOKMAL_ANE)}
+        found = sorted(found)
         return f"nynorsk forms: {', '.join(found)}" if found else None
     if cmd == "floskler":
         found = sorted({m.group(0).lower() for m in _gate_markers().finditer(text)})
@@ -201,6 +208,10 @@ def selftest():
         ("linje", "| a.kt | 1-20 | 🟡 | catch svelger feil |\n", ["catch=catch@12,13"], False),
         ("nynorsk", "Vi retter feilen og sender den ut.", [], True),
         ("nynorsk", "Vi rettar ikkje feilen.", [], False),
+        ("nynorsk", "Filane er endra.", [], False),
+        ("nynorsk", "Endringar i koden.", [], False),
+        ("nynorsk", "Filene er endret. Endringer i koden.", [], True),
+        ("nynorsk", "En vane, en jernbane og en arbeidsvane. Plane flater.", [], True),
         ("floskler", "Endringen gjør bygget raskere.", [], True),
         ("floskler", "En banebrytende og sømløs endring.", [], False),
         ("ki", "KI-assistenten svarer på norsk.", [], True),

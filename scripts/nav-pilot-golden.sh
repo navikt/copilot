@@ -997,6 +997,15 @@ if [[ "$GROUP" == "forfatter" ]]; then
   done
   ! python3 "$BENCH_CHECK" lengde "$TEMPLATE/utkast.md" "$NORSK_MIN_WORDS" "$NORSK_MAX_WORDS" >/dev/null || fail_preflight \
     "control: the pristine utkast.md is already within the length bound" "Make the draft longer."
+  # The positive control: a clean text passes all four. Without it a checker
+  # that crashes fails the pristine draft too, and every run scores red.
+  printf '%s\n' "Nav-pilot har fått en agent som går gjennom kode. Den leser endringene i en pull request og kommenterer linje for linje. Den finner feil i tilgangsstyring, logging av personopplysninger og manglende tester. Agenten endrer ikke koden, men foreslår rettelser. Alle team kan bruke den fra mandag." >"$WORKDIR/ren.md"
+  for c in nynorsk floskler ki "lengde $NORSK_MIN_WORDS $NORSK_MAX_WORDS"; do
+    read -r -a argv <<<"$c"
+    python3 "$BENCH_CHECK" "${argv[0]}" "$WORKDIR/ren.md" "${argv[@]:1}" >/dev/null || fail_preflight \
+      "control: a clean text fails the ${argv[0]} check" \
+      "The checker, not the model, would fail this run. Run scripts/benchmark-sjekk.py --selftest."
+  done
 fi
 if [[ "$GROUP" == "coding" ]]; then
   command -v go >/dev/null 2>&1 || fail_preflight "--suite coding needs go on PATH" "brew install go"
@@ -2872,6 +2881,10 @@ if [[ -n "$SAVE_BASELINE" ]]; then
   # treats an arm as done when its .txt exists, and a run killed half-way
   # through writing must leave nothing behind that looks finished.
   mkdir -p "$(dirname "$SAVE_TO")"
+  # Clear the previous generation first, the .txt first of all: a stale
+  # -usage.psv must not survive a run that recorded none, and an interrupted
+  # move must not leave an old .txt beside new attempts.
+  rm -f "$SAVE_TO" "${SAVE_TO%.txt}"-{results,attempts,usage}.psv
   for f in "$WORKDIR"/baseline-*.psv "$WORKDIR/baseline.txt"; do
     [[ -f "$f" ]] || continue
     suffix="${f#"$WORKDIR/baseline"}"

@@ -210,7 +210,8 @@ def selftest():
 def main():
     out = BASELINES / "summary.json"
     if "--selftest" in sys.argv:
-        return selftest()
+        selftest()
+        return
     text = build()
     if "--check" in sys.argv:
         if not out.exists() or out.read_text() != text:

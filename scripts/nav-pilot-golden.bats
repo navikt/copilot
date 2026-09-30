@@ -354,6 +354,22 @@ run_suite() {
   grep -q '^no1|1|fail|.*utkast.run1.md: nynorsk forms: berre' "$SHIM/b-results.psv"
 }
 
+@test "norsk: a checker that fails everything stops preflight" {
+  make_bench_shim
+  printf '#!/bin/bash\nexit 1\n' >"$SHIM/python3"; chmod +x "$SHIM/python3"
+  PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite norsk --dry-run
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"a clean text fails the nynorsk check"* ]]
+}
+
+@test "a rerun into a saved arm leaves no file from the old run" {
+  echo stale >"$SHIM/b-usage.psv"
+  run_suite good --suite research
+  [ "$status" -eq 0 ]
+  [ -f "$SHIM/b.txt" ]
+  [ ! -e "$SHIM/b-usage.psv" ]
+}
+
 @test "coding: a fix passes, editing the test fails scope, doing nothing fails tests" {
   command -v go >/dev/null && command -v node >/dev/null || skip "needs go and node"
   run_suite good --suite coding
@@ -416,12 +432,17 @@ run_suite() {
   [ "$status" -eq 0 ]
 }
 
-@test "matrix: a duplicate arm is refused, a half-written arm is pending" {
+@test "matrix: a duplicate or uncommittable arm is refused, a half-written arm is pending" {
   M="$SHIM/dup.matrix"
   printf 'review gpt-6-sol low 1\nreview gpt-6-sol low 2\n' >"$M"
   run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
   [ "$status" -ne 0 ]
   [[ "$output" == *"listed twice"* ]]
+  for arm in 'review gpt-6-sol max 1' 'bogus gpt-6-sol low 1' 'review gpt-6-sol low 0'; do
+    echo "$arm" >"$M"
+    run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
+    [ "$status" -ne 0 ]
+  done
 
   run_suite good --suite review
   [ "$status" -eq 0 ]

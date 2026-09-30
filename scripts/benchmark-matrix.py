@@ -22,6 +22,7 @@ the suite median across all models. It is an extrapolation, and says which.
 """
 
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -36,6 +37,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 # Overridable so tests never write into the checkout.
 BASELINES = Path(os.environ.get("BENCHMARK_BASELINES", REPO / "docs" / "golden-baselines"))
+_spec = importlib.util.spec_from_file_location("benchmark_summary", REPO / "scripts" / "benchmark-summary.py")
+SUMMARY = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(SUMMARY)
 
 
 def arms(matrix):
@@ -44,8 +48,11 @@ def arms(matrix):
         fields = line.split("#", 1)[0].split()
         if not fields:
             continue
-        if len(fields) != 4 or not fields[3].isdigit():
+        if len(fields) != 4 or not fields[3].isdigit() or int(fields[3]) < 1:
             sys.exit(f"{matrix}: want `suite model effort n`, got: {line!r}")
+        # What benchmark-summary.py accepts: an arm it would refuse is paid for and cannot be committed.
+        if fields[0] not in SUMMARY.SUITES or fields[2] not in SUMMARY.EFFORTS:
+            sys.exit(f"{matrix}: suite must be one of {sorted(SUMMARY.SUITES)} and effort one of {sorted(SUMMARY.EFFORTS)}, got: {line!r}")
         arm = dict(zip(("suite", "model", "effort", "n"), fields[:3] + [int(fields[3])]))
         if any(a["suite"] == arm["suite"] and a["model"] == arm["model"] and a["effort"] == arm["effort"] for a in out):
             sys.exit(f"{matrix}: {arm['suite']} {arm['model']} {arm['effort']} is listed twice; both would save to one file")
