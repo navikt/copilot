@@ -1,0 +1,15 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        forfatter
+# suite:        norsk
+# date:         2026-09-30
+# revision:     da0327f9
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+no-omskriv|1|0|pass|373|21239|true|
+no-notis|1|0|pass|369|18056|true|

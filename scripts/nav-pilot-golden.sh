@@ -226,6 +226,8 @@ TIMEOUT_SECS="${NAV_PILOT_GOLDEN_TIMEOUT:-300}"
 # `name: accessibility-agent`), and passing the wrong one silently runs the
 # default agent instead of the one under test.
 AGENT="nav-pilot"
+AGENT_SET=false
+SUITE=""
 PERSONA=""
 AGENT_NAME=""
 VALID_IDS=""
@@ -258,7 +260,8 @@ need_val() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --agent)   need_val "$@"; AGENT="$2"; shift 2 ;;
+    --agent)   need_val "$@"; AGENT="$2"; AGENT_SET=true; shift 2 ;;
+    --suite)   need_val "$@"; SUITE="$2"; shift 2 ;;
     --only)    need_val "$@"; ONLY="$2"; shift 2 ;;
     --keep)    KEEP=true; shift ;;
     --model)   need_val "$@"; MODEL="$2"; shift 2 ;;
@@ -291,6 +294,34 @@ fail_preflight() {
 
 # ─── Preflight ───────────────────────────────────────────────────────────────
 
+# A suite is a fixed agent, assertion group and default selection, so a model
+# benchmark is one flag and cannot drift between arms. GROUP picks the
+# assertions and the fixture; it is the agent's own key except for coding,
+# which puts nav-pilot in front of a different repo. docs/golden-baselines/
+# README.md says how the suites are run and summarised.
+#
+#   planning  nav-pilot    2,3,4,5    the 23 Sept protocol (docs/modellvalg.md)
+#   review    code-review  rv1-rv4    planted defects named, on the right line
+#   norsk     forfatter    no1-no4    bokmål, no KI markers, no «AI», length
+#   coding    nav-pilot    ko1-ko6    failing tests fixed, in scope: Go, TS, and
+#                                     a Go fix that spans two files
+#   research  research     re1-re4    bounded read-and-summarise: right lines,
+#                                     no invented callers, at most three points
+GROUP=""
+if [[ -n "$SUITE" ]]; then
+  $AGENT_SET && fail_preflight "--suite and --agent cannot be combined" \
+    "A suite fixes its agent. Drop --agent."
+  case "$SUITE" in
+    planning) AGENT="nav-pilot";   GROUP="nav-pilot";   ONLY="${ONLY:-2,3,4,5}" ;;
+    review)   AGENT="code-review"; GROUP="code-review"; ONLY="${ONLY:-rv1,rv2,rv3,rv4}" ;;
+    norsk)    AGENT="forfatter";   GROUP="forfatter" ;;
+    coding)   AGENT="nav-pilot";   GROUP="coding" ;;
+    research) AGENT="research";    GROUP="research" ;;
+    *) fail_preflight "unknown --suite '$SUITE'" "Use planning, review, norsk, coding or research." ;;
+  esac
+fi
+GROUP="${GROUP:-$AGENT}"
+
 PERSONA="$REPO_ROOT/agents/$AGENT.agent.md"
 
 [[ -f "$PERSONA" ]] || fail_preflight \
@@ -304,13 +335,16 @@ PERSONA="$REPO_ROOT/agents/$AGENT.agent.md"
 # VALID_IDS is that list made explicit, so --only can be checked against it.
 # Keep each row in sync with the record_* IDs in the matching run_pass_<agent>:
 # an ID added there and not here is rejected by --only.
-case "$AGENT" in
+case "$GROUP" in
   nav-pilot)     VALID_IDS="1 2 2b 3 4 5 6" ;;
-  code-review)   VALID_IDS="cr1 cr2 cr3 cr4" ;;
+  code-review)   VALID_IDS="cr1 cr2 cr3 cr4 rv1 rv2 rv3 rv4" ;;
   accessibility) VALID_IDS="uu1 uu2 uu3 uu4 uu5" ;;
+  forfatter)     VALID_IDS="no1 no2 no3 no4" ;;
+  coding)        VALID_IDS="ko1 ko2 ko3 ko4 ko5 ko6" ;;
+  research)      VALID_IDS="re1 re2 re3 re4" ;;
   *) fail_preflight \
       "no assertion group for agent '$AGENT'" \
-      "This harness has prompts and assertions for: nav-pilot, code-review, accessibility. Add a run_pass_<agent> derived from that agent's own file before benchmarking it." ;;
+      "This harness has prompts and assertions for: nav-pilot, code-review, accessibility, forfatter (and --suite coding). Add a run_pass_<agent> derived from that agent's own file before benchmarking it." ;;
 esac
 
 # --only is the same trap one level down. IDs are prefixed per agent, so
@@ -397,6 +431,9 @@ preflight_client() {
       "'$CLI_NAME --version' failed — the CLI is on PATH but not runnable" \
       "Try running '$CLI_NAME' once interactively to complete setup."
   fi
+  # First line only. The CLI appends "Run 'copilot update' ...", and a second
+  # line broke every `# clientVersion:` header it was written into.
+  CLI_VERSION="${CLI_VERSION%%$'\n'*}"
 
   # Credential check: a trivial non-interactive prompt. An unauthenticated CLI
   # fails here with an auth error rather than mid-suite with a confusing timeout.
@@ -463,7 +500,34 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$TEMPLATE/.github/agents" "$TEMPLATE/src/main/kotlin/no/nav/demo"
-cp "$PERSONA" "$TEMPLATE/.github/agents/$AGENT_NAME.agent.md"
+# The installed copy differs from the working-tree file in two frontmatter
+# lines, and both are there because the CLI measured something else without
+# them (measured 2026-09-30, Copilot CLI 1.0.90-5, --log-level debug):
+#
+#   name   An agent in ~/.copilot/agents/ shadows a workspace agent with the
+#          same name. `--agent code-review` ran the user's installed copy
+#          (pinned GPT-5.3-Codex) instead of this checkout's file, and every
+#          baseline on a machine with nav-pilot installed measured that copy.
+#          A name no install uses cannot be shadowed.
+#   model  A frontmatter pin beats --model. `--model gpt-6-sol` on a persona
+#          pinned to Claude Opus 5.5 ran Opus. The 23 Sept screen's "Opus 5.5"
+#          code-review arms ran GPT-5.3-Codex, the pin at the time, for this
+#          reason. With --model the pin is dropped; without it the pin stays,
+#          so a run without --model measures the production pin.
+LAUNCH_NAME="golden-$AGENT_NAME"
+awk -v name="$LAUNCH_NAME" -v strip="$([[ -n "$MODEL" ]] && echo 1)" '
+  /^---$/ { fm++ }
+  fm == 1 && /^name:/ { print "name: " name; next }
+  fm == 1 && strip && /^model:/ { next }
+  { print }' "$PERSONA" >"$TEMPLATE/.github/agents/$LAUNCH_NAME.agent.md"
+if [[ -n "$MODEL" ]] && awk '/^---$/ {fm++} fm == 1 && /^model:/ {found = 1} END {exit !found}' \
+    "$TEMPLATE/.github/agents/$LAUNCH_NAME.agent.md"; then
+  fail_preflight "the installed persona still pins a model, so --model $MODEL would be ignored" \
+    "The frontmatter pin beats --model. Check the strip above."
+fi
+[[ -e "$HOME/.copilot/agents/$LAUNCH_NAME.agent.md" ]] && fail_preflight \
+  "$HOME/.copilot/agents/$LAUNCH_NAME.agent.md exists and would shadow the persona under test" \
+  "Remove it; the harness installs the persona under that name."
 
 # Instructions, laid out the way `nav-pilot install --repo` lays them out:
 # .github/instructions/<name>.instructions.md, byte-for-byte from the checkout.
@@ -719,7 +783,7 @@ if [[ "$AGENT" == "accessibility" && -d "$REPO_ROOT/.github/hooks" ]]; then
   HOOK_ENV=(GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true "NAV_PILOT_HOOK_DEBUG=$HOOK_LOG")
 fi
 
-if [[ "$AGENT" != "nav-pilot" ]]; then
+if [[ "$GROUP" == "code-review" || "$GROUP" == "accessibility" ]]; then
   mkdir -p "$TEMPLATE/src/app/komponenter"
 
   cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/UserRepo.kt" <<'EOF'
@@ -761,6 +825,208 @@ export function StatusPanel({ status, onSlett }) {
   );
 }
 EOF
+fi
+
+# ─── Fixtures for the norsk and coding suites ────────────────────────────────
+# Each fixture starts out failing every check that reads it, and the preflight
+# below proves that on the pristine template before any model is called. An
+# unedited draft or an untouched bug is then a failed run, never a green one.
+BENCH_CHECK="$REPO_ROOT/scripts/benchmark-sjekk.py"
+NORSK_MIN_WORDS=30
+NORSK_MAX_WORDS=90
+
+if [[ "$GROUP" == "forfatter" ]]; then
+  # Nynorsk slips, KI markers from hooks/klarsprak-gate.py, «AI» and 130 words.
+  cat >"$TEMPLATE/utkast.md" <<'EOF'
+# Ny kodegjennomgang i nav-pilot
+
+I en tid der AI endrer alt, lanserer vi en banebrytende AI-agent for kodegjennomgang. Agenten gir en sømløs opplevelse og spiller en avgjørende rolle i hverdagen til teamene.
+
+Agenten leser endringene i pull requesten og kommenterer linje for linje. Den finner feil i tilgangsstyring, logging av personopplysninger og manglende tester. Den endrer ikkje koden sjølv, men foreslår berre rettelser som utvikleren kan godta eller avvise.
+
+Det er viktig å påpeke at agenten ikke erstatter en menneskelig gjennomgang. Den er et hjelpemiddel som gjør det mykje enklere å finne feil tidlig.
+
+Agenten er tilgjengeleg for alle team fra mandag. Den slås av med `review.enabled = false` i `.nav-pilot/config.toml`.
+
+Avslutningsvis vil vi si at fremtiden ser lys ut. Tilbakemeldinger tas imot i Slack-kanalen #ki-utvikling.
+EOF
+  # English notes, so «AI» has to be translated rather than copied away.
+  cat >"$TEMPLATE/fakta.md" <<'EOF'
+Release notes (draft):
+- The AI review agent now checks Norwegian text for nynorsk forms and AI buzzwords.
+- It runs automatically on pull requests that change files under docs/.
+- Teams can switch it off with `review.norsk = false` in .nav-pilot/config.toml.
+- Available from Monday 5 October.
+- Feedback goes to the #ki-utvikling Slack channel.
+EOF
+fi
+
+if [[ "$GROUP" == "coding" ]]; then
+  mkdir -p "$TEMPLATE/frister" "$TEMPLATE/slug"
+  # Go: Saturday moves the deadline one day, to Sunday.
+  printf 'module example.com/frister\n\ngo 1.22\n' >"$TEMPLATE/frister/go.mod"
+  cat >"$TEMPLATE/frister/frist.go" <<'EOF'
+package frister
+
+import "time"
+
+// Frist returnerer siste dag for klage: seks uker etter vedtaksdato.
+// Faller fristen på en lørdag eller søndag, flyttes den til mandag.
+func Frist(vedtak time.Time) time.Time {
+	frist := vedtak.AddDate(0, 0, 6*7)
+	switch frist.Weekday() {
+	case time.Saturday:
+		return frist.AddDate(0, 0, 1)
+	case time.Sunday:
+		return frist.AddDate(0, 0, 1)
+	}
+	return frist
+}
+EOF
+  cat >"$TEMPLATE/frister/frist_test.go" <<'EOF'
+package frister
+
+import (
+	"testing"
+	"time"
+)
+
+func dato(s string) time.Time {
+	t, err := time.Parse("2006-01-02", s)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
+func TestFrist(t *testing.T) {
+	for _, c := range []struct{ vedtak, want string }{
+		{"2026-09-01", "2026-10-13"}, // tirsdag
+		{"2026-09-05", "2026-10-19"}, // lørdag → mandag
+		{"2026-09-06", "2026-10-19"}, // søndag → mandag
+	} {
+		if got := Frist(dato(c.vedtak)).Format("2006-01-02"); got != c.want {
+			t.Errorf("Frist(%s) = %s, want %s", c.vedtak, got, c.want)
+		}
+	}
+}
+EOF
+  # TypeScript, run by Node's own test runner: no package.json, no install.
+  cat >"$TEMPLATE/slug/slug.ts" <<'EOF'
+// Lager en URL-vennlig slug av en tittel: små bokstaver, æ/ø/å blir ae/o/a,
+// alt annet enn a-z og 0-9 blir bindestrek, og ingen bindestrek i endene.
+export function slug(tittel: string): string {
+  return tittel
+    .toLowerCase()
+    .replace(/æ/g, "ae")
+    .replace(/ø/g, "o")
+    .replace(/å/g, "a")
+    .replace(/[^a-z0-9]+/g, "-");
+}
+EOF
+  # Go, two files: the tests want a grade parameter, so the signature and
+  # its one caller both have to change.
+  mkdir -p "$TEMPLATE/ytelse"
+  printf 'module example.com/ytelse\n\ngo 1.22\n' >"$TEMPLATE/ytelse/go.mod"
+  cat >"$TEMPLATE/ytelse/utbetaling.go" <<'EOF'
+package ytelse
+
+// Utbetaling gir dagsatsen: grunnlaget delt på 260 virkedager, rundet ned.
+func Utbetaling(grunnlag int) int {
+	return grunnlag / 260
+}
+EOF
+  cat >"$TEMPLATE/ytelse/rapport.go" <<'EOF'
+package ytelse
+
+import "fmt"
+
+// Rapport beskriver dagsatsen til en bruker.
+func Rapport(navn string, grunnlag int) string {
+	return fmt.Sprintf("%s får %d kr per dag", navn, Utbetaling(grunnlag))
+}
+EOF
+  cat >"$TEMPLATE/ytelse/ytelse_test.go" <<'EOF'
+package ytelse
+
+import "testing"
+
+// Graden er prosent av full ytelse: 50 gir halv dagsats.
+func TestUtbetaling(t *testing.T) {
+	for _, c := range []struct{ grunnlag, grad, want int }{
+		{520000, 100, 2000},
+		{520000, 50, 1000},
+	} {
+		if got := Utbetaling(c.grunnlag, c.grad); got != c.want {
+			t.Errorf("Utbetaling(%d, %d) = %d, want %d", c.grunnlag, c.grad, got, c.want)
+		}
+	}
+}
+
+func TestRapport(t *testing.T) {
+	if got := Rapport("Kari", 520000, 50); got != "Kari får 1000 kr per dag" {
+		t.Errorf("Rapport = %q", got)
+	}
+}
+EOF
+  cat >"$TEMPLATE/slug/slug.test.ts" <<'EOF'
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { slug } from "./slug.ts";
+
+test("slug", () => {
+  assert.equal(slug("Økonomi og årsak"), "okonomi-og-arsak");
+  assert.equal(slug("  Hei på deg!  "), "hei-pa-deg");
+  assert.equal(slug("Nav/Kontor 2026"), "nav-kontor-2026");
+});
+EOF
+fi
+
+# go_tests / ts_tests <dir>: the fixture's own tests, quiet, exit code only.
+go_tests() { (cd "$1/frister" && go test ./... >/dev/null 2>&1); }
+go2_tests() { (cd "$1/ytelse" && go test ./... >/dev/null 2>&1); }
+ts_tests() { (cd "$1/slug" && node --test slug.test.ts >/dev/null 2>&1); }
+
+# The controls. A check that the pristine fixture already passes can never
+# fail, so refuse to spend money on it.
+if [[ "$GROUP" == "forfatter" ]]; then
+  for c in nynorsk floskler ki; do
+    ! python3 "$BENCH_CHECK" "$c" "$TEMPLATE/utkast.md" >/dev/null || fail_preflight \
+      "control: the pristine utkast.md passes the $c check" \
+      "The draft must fail every check it is scored on, or an unedited draft scores green."
+  done
+  ! python3 "$BENCH_CHECK" lengde "$TEMPLATE/utkast.md" "$NORSK_MIN_WORDS" "$NORSK_MAX_WORDS" >/dev/null || fail_preflight \
+    "control: the pristine utkast.md is already within the length bound" "Make the draft longer."
+  # The positive control: a clean text passes all four. Without it a checker
+  # that crashes fails the pristine draft too, and every run scores red.
+  printf '%s\n' "Nav-pilot har fått en agent som går gjennom kode. Den leser endringene i en pull request og kommenterer linje for linje. Den finner feil i tilgangsstyring, logging av personopplysninger og manglende tester. Agenten endrer ikke koden, men foreslår rettelser. Alle team kan bruke den fra mandag." >"$WORKDIR/ren.md"
+  for c in nynorsk floskler ki "lengde $NORSK_MIN_WORDS $NORSK_MAX_WORDS"; do
+    read -r -a argv <<<"$c"
+    python3 "$BENCH_CHECK" "${argv[0]}" "$WORKDIR/ren.md" "${argv[@]:1}" >/dev/null || fail_preflight \
+      "control: a clean text fails the ${argv[0]} check" \
+      "The checker, not the model, would fail this run. Run scripts/benchmark-sjekk.py --selftest."
+  done
+fi
+if [[ "$GROUP" == "coding" ]]; then
+  command -v go >/dev/null 2>&1 || fail_preflight "--suite coding needs go on PATH" "brew install go"
+  command -v node >/dev/null 2>&1 || fail_preflight "--suite coding needs node (22.18+) on PATH" "brew install node"
+  ! go_tests "$TEMPLATE" || fail_preflight "control: the pristine Go fixture already passes its tests" "Plant the bug again."
+  ! ts_tests "$TEMPLATE" || fail_preflight "control: the pristine TS fixture already passes its tests" "Plant the bug again."
+  ! go2_tests "$TEMPLATE" || fail_preflight "control: the pristine two-file Go fixture already passes its tests" "Plant the bug again."
+  # The positive control: the known fixes make the tests pass. Without it a
+  # Node too old to strip types, or a broken Go toolchain, fails every run
+  # and reads as the model failing.
+  FIXED="$WORKDIR/fixed"
+  cp -R "$TEMPLATE" "$FIXED"
+  perl -0pi -e 's/(Saturday:\n\t\treturn frist\.AddDate\(0, 0, )1/${1}2/' "$FIXED/frister/frist.go"
+  perl -pi -e 's/\.replace\(\/\[\^a-z0-9\]\+\/g, "-"\);/.replace(\/[^a-z0-9]+\/g, "-").replace(\/^-+|-+\$\/g, "");/' "$FIXED/slug/slug.ts"
+  perl -pi -e 's/Utbetaling\(grunnlag int\) int/Utbetaling(grunnlag, grad int) int/; s/return grunnlag \/ 260$/return grunnlag \/ 260 * grad \/ 100/' "$FIXED/ytelse/utbetaling.go"
+  perl -pi -e 's/grunnlag int\) string/grunnlag, grad int) string/; s/Utbetaling\(grunnlag\)\)/Utbetaling(grunnlag, grad))/' "$FIXED/ytelse/rapport.go"
+  for t in go_tests ts_tests go2_tests; do
+    "$t" "$FIXED" || fail_preflight "control: $t fails even with the known fix applied" \
+      "The toolchain, not the model, would fail this run. Check go and node (22.18+) on PATH."
+  done
+  rm -rf "$FIXED"
 fi
 
 # Fixture identity, for the --compare compatibility check below. The sizes this
@@ -933,7 +1199,7 @@ run_prompt() {
   LAST_PROMPT_DETAIL=""
   LAST_PROMPT_FAILURE=""
   out="$(tx "$slug")"
-  local -a args=(-p "$prompt" --agent "$AGENT_NAME" --allow-all-tools --no-color --log-level none)
+  local -a args=(-p "$prompt" --agent "$LAUNCH_NAME" --allow-all-tools --no-color --log-level none)
   [[ -n "$MODEL" ]] && args+=(--model "$MODEL")
   [[ -n "$EFFORT" ]] && args+=(--reasoning-effort "$EFFORT")
   [[ -n "$CONTEXT_TIER" ]] && args+=(--context "$CONTEXT_TIER")
@@ -1138,7 +1404,7 @@ selected() {
 
 echo "${BOLD}golden-prompt harness, agent under test: $AGENT${RESET}"
 echo "${DIM}client: $CLI_NAME${CLI_VERSION:+ $CLI_VERSION}${CLI_PATH:+ ($CLI_PATH)}${RESET}"
-echo "${DIM}agent file: $PERSONA (launched as --agent $AGENT_NAME)${RESET}"
+echo "${DIM}agent file: $PERSONA (launched as --agent $LAUNCH_NAME)${RESET}"
 if $USAGE_TRACKING; then
   echo "${DIM}usage: exact rows from $USAGE_DB${RESET}"
 else
@@ -1791,9 +2057,54 @@ RE_CR_WHY='fordi|because|risik|kan[[:space:]]+føre[[:space:]]+til|fører[[:spac
 # the wrong owner. Read by cr4, which is soft; see the block above it.
 RE_CR_DELEGATE='accessibility[-[:space:]]?agent|aksel[-[:space:]]?agent'
 
+# ─── review suite: planted defects on the right line (rv1-rv4) ───────────────
+# The 23 Sept screen (#928) checked this by hand: Opus 5.5 Medium put the TSX
+# findings one line up in two of five runs. rv2/rv4 make that a check. Each
+# spec is `name=regex@line[,line]` against the fixture files above, read by
+# scripts/benchmark-sjekk.py: a transcript line matching regex names the
+# defect, and it is located when that line also cites a right line number.
+#
+# Derived from the 30 kept transcripts of that screen, which all ran
+# GPT-5.3-Codex (the code-review pin beat --model, see LAUNCH_NAME), and
+# checked against one GPT-6 Sol and one Claude Sonnet 5.5 review (2026-09-30):
+# Kotlin names and locates all three in 17/17. TSX lines are right in 15/17;
+# the two misses are real one-line-up shifts (Tailwind cited at 6, tabIndex at
+# 10) in the "Opus 5.5 Medium" arm, which was Codex Medium. `feil.{0,40}null`
+# was added for GPT-6 Sol's «Alle databasefeil gjøres om til `null`» at 12–13,
+# a real find the catch expression missed in both of its first two runs.
+RV_KOTLIN=(
+  'sql=injeksjon|injection|parametr|parameteri|interpol|konkaten|prepared|bindevariab@9'
+  'fnr-logg=(logg|logger|log |info).{0,80}(fnr|fødselsnummer|pii|personopplys|persondata|personinfo)|(fnr|fødselsnummer|pii|personopplys|persondata).{0,80}logg@8'
+  'catch=catch|svelg|swallow|fanger|feil.{0,40}null@12,13'
+)
+RV_TSX=(
+  'tailwind=tailwind|p-4|mx-8|spacing|utility|padding|margin|\bBox\b|HStack@7'
+  'div-klikk=div.{0,60}(onclick|klikk|tastatur|keyboard)|(onclick|klikkbar|tastatur|keyboard).{0,60}div@8'
+  'tabindex=tabindex@11'
+  'ikonknapp=aria-label|tilgjengelig navn|accessible name|ikon|icon@14,15'
+)
+DESC_RV1="Kotlin: all three planted defects named within three lines"
+DESC_RV2="Kotlin: every planted defect cited on its line"
+DESC_RV3="TSX: all four planted defects named within three lines"
+DESC_RV4="TSX: every planted defect cited on its line"
+
+# record_review <transcript> <found-id> <desc> <line-id> <desc> <spec>...
+record_review() {
+  local t="$1" idf="$2" df="$3" idl="$4" dl="$5" why rc
+  shift 5
+  if selected "$idf"; then
+    why="$(python3 "$BENCH_CHECK" funnet "$t" "$@")"; rc=$?
+    record "$idf" "$df" "$([[ $rc -eq 0 ]] && echo 0 || echo 1)" "$why"
+  fi
+  if selected "$idl"; then
+    why="$(python3 "$BENCH_CHECK" linje "$t" "$@")"; rc=$?
+    record "$idl" "$dl" "$([[ $rc -eq 0 ]] && echo 0 || echo 1)" "$why"
+  fi
+}
+
 run_pass_code_review() {
   # ── cr1 + cr2 + cr3: one review of a Kotlin file with three planted defects ──
-  if selected cr1 || selected cr2 || selected cr3; then
+  if selected cr1 || selected cr2 || selected cr3 || selected rv1 || selected rv2; then
     DESC_CR1="findings arrive as table rows carrying a priority and a line"
     DESC_CR2="reports only: the reviewed file is not auto-fixed"
     DESC_CR3="explains why each finding matters, not a bare table"
@@ -1802,67 +2113,76 @@ run_pass_code_review() {
       selected cr1 && record_error cr1 "$DESC_CR1" "$LAST_PROMPT_DETAIL"
       selected cr2 && record_error cr2 "$DESC_CR2" "$LAST_PROMPT_DETAIL"
       selected cr3 && record_soft cr3 "$DESC_CR3" 1 "not evaluated: $LAST_PROMPT_DETAIL"
-    elif ! present "$TCR" "$RE_CR_INJECTION"; then
-      # The gate. UserRepo.kt builds its query by interpolating fnr into a
-      # string; a review that does not name that has not reviewed the file, and
-      # the three assertions below would each be measuring an empty response.
-      cr_gate="the review never named the SQL injection in UserRepo.kt (no match for: $RE_CR_INJECTION), so this transcript says nothing about output format, the no-auto-fix boundary or teaching. Re-run with --keep and read it before touching an assertion."
-      selected cr1 && record_error cr1 "$DESC_CR1" "$cr_gate"
-      selected cr2 && record_error cr2 "$DESC_CR2" "$cr_gate"
-      selected cr3 && record_soft cr3 "$DESC_CR3" 1 "not evaluated: $cr_gate"
+      selected rv1 && record_error rv1 "$DESC_RV1" "$LAST_PROMPT_DETAIL"
+      selected rv2 && record_error rv2 "$DESC_RV2" "$LAST_PROMPT_DETAIL"
     else
-      # cr1: `## Output Format` (code-review.agent.md:70-86) is a summary, then
-      # findings in a table whose columns are File, Line, Priority, Issue.
-      # Asserted as "a pipe row carrying a priority marker" and "such a row also
-      # carries a number", not as column order: the schema is the promise, the
-      # exact layout is allowed to drift.
-      if selected cr1; then
-        cr_rows="$(grep -E '^[[:space:]]*\|' "$TCR" | grep -cE "$RE_CR_PRIORITY")"
-        cr_located="$(grep -E '^[[:space:]]*\|' "$TCR" | grep -E "$RE_CR_PRIORITY" | grep -cE '[0-9]')"
-        ok=0; detail=""
-        if [[ "$cr_rows" -lt 1 ]]; then
-          ok=1; detail="found the injection but reported no table row carrying a priority marker ($RE_CR_PRIORITY). The Output Format and Priority System regressed"
-        elif [[ "$cr_located" -lt 1 ]]; then
-          ok=1; detail="$cr_rows prioritised row(s), none carrying a line number. Findings are not locatable, per the File/Line columns at code-review.agent.md:78"
+      # rv1/rv2 read the same transcript and need no gate: naming the defects is
+      # what rv1 measures.
+      record_review "$TCR" rv1 "$DESC_RV1" rv2 "$DESC_RV2" "${RV_KOTLIN[@]}"
+      if ! selected cr1 && ! selected cr2 && ! selected cr3; then
+        :
+      elif ! present "$TCR" "$RE_CR_INJECTION"; then
+        # The gate. UserRepo.kt builds its query by interpolating fnr into a
+        # string; a review that does not name that has not reviewed the file, and
+        # the three assertions below would each be measuring an empty response.
+        cr_gate="the review never named the SQL injection in UserRepo.kt (no match for: $RE_CR_INJECTION), so this transcript says nothing about output format, the no-auto-fix boundary or teaching. Re-run with --keep and read it before touching an assertion."
+        selected cr1 && record_error cr1 "$DESC_CR1" "$cr_gate"
+        selected cr2 && record_error cr2 "$DESC_CR2" "$cr_gate"
+        selected cr3 && record_soft cr3 "$DESC_CR3" 1 "not evaluated: $cr_gate"
+      else
+        # cr1: `## Output Format` (code-review.agent.md:70-86) is a summary, then
+        # findings in a table whose columns are File, Line, Priority, Issue.
+        # Asserted as "a pipe row carrying a priority marker" and "such a row also
+        # carries a number", not as column order: the schema is the promise, the
+        # exact layout is allowed to drift.
+        if selected cr1; then
+          cr_rows="$(grep -E '^[[:space:]]*\|' "$TCR" | grep -cE "$RE_CR_PRIORITY")"
+          cr_located="$(grep -E '^[[:space:]]*\|' "$TCR" | grep -E "$RE_CR_PRIORITY" | grep -cE '[0-9]')"
+          ok=0; detail=""
+          if [[ "$cr_rows" -lt 1 ]]; then
+            ok=1; detail="found the injection but reported no table row carrying a priority marker ($RE_CR_PRIORITY). The Output Format and Priority System regressed"
+          elif [[ "$cr_located" -lt 1 ]]; then
+            ok=1; detail="$cr_rows prioritised row(s), none carrying a line number. Findings are not locatable, per the File/Line columns at code-review.agent.md:78"
+          fi
+          record cr1 "$DESC_CR1" "$ok" "$detail"
         fi
-        record cr1 "$DESC_CR1" "$ok" "$detail"
-      fi
 
-      # cr2: `## Boundaries → 🚫 Never` (code-review.agent.md:259) says "Auto-fix
-      # code, report findings only", stated again in the opening line at :21.
-      # Read off the workspace, not the transcript: an agent that edits and then
-      # says "here is what I would change" reads identically in text.
-      if selected cr2; then
-        if ws_wrote; then
-          record cr2 "$DESC_CR2" 1 \
-            "the agent wrote to the workspace: $(ws_written_files). 🚫 Never auto-fix (code-review.agent.md:259) regressed. It has execute (:6), so no edit tool is not a guardrail."
-        else
-          record cr2 "$DESC_CR2" 0
+        # cr2: `## Boundaries → 🚫 Never` (code-review.agent.md:259) says "Auto-fix
+        # code, report findings only", stated again in the opening line at :21.
+        # Read off the workspace, not the transcript: an agent that edits and then
+        # says "here is what I would change" reads identically in text.
+        if selected cr2; then
+          if ws_wrote; then
+            record cr2 "$DESC_CR2" 1 \
+              "the agent wrote to the workspace: $(ws_written_files). 🚫 Never auto-fix (code-review.agent.md:259) regressed. It has execute (:6), so no edit tool is not a guardrail."
+          else
+            record cr2 "$DESC_CR2" 0
+          fi
         fi
-      fi
 
-      # cr3: code-review.agent.md:66 says "explain **why** it matters, teach, don't
-      # just flag", and ✅ Always :246. Two conditions, because either alone is
-      # cheap to satisfy: causal language must appear, AND there must be prose
-      # outside the table for it to appear in. A table with "fordi" wedged into
-      # an Issue cell is a flag, not teaching.
-      #
-      # SOFT, per the DECIDED note above RE_CR_WHY: the causal half of this
-      # check was measured to track Norwegian vocabulary rather than teaching,
-      # so it reports and never gates. Every path records a soft row, the two
-      # unevaluable ones above included, for the same reason cr4 does: a
-      # `record_error` here would flip an otherwise green run to exit 3 off a
-      # check that cannot fail it. cr1 and cr2 still carry CLI health on this
-      # shared prompt, which is where a dead transcript shows up first.
-      if selected cr3; then
-        cr_prose="$(grep -vE '^[[:space:]]*\|' "$TCR" | grep -cE '^.{40,}$')"
-        ok=0; detail=""
-        if [[ "$cr_prose" -lt 2 ]]; then
-          ok=1; detail="only $cr_prose prose line(s) of 40+ chars outside the table. The ### Details section (code-review.agent.md:84-85) is where why lives, and it is missing"
-        elif ! present "$TCR" "$RE_CR_WHY"; then
-          ok=1; detail="no causal language anywhere in the response (no match for: $RE_CR_WHY). Findings were flagged, not explained"
+        # cr3: code-review.agent.md:66 says "explain **why** it matters, teach, don't
+        # just flag", and ✅ Always :246. Two conditions, because either alone is
+        # cheap to satisfy: causal language must appear, AND there must be prose
+        # outside the table for it to appear in. A table with "fordi" wedged into
+        # an Issue cell is a flag, not teaching.
+        #
+        # SOFT, per the DECIDED note above RE_CR_WHY: the causal half of this
+        # check was measured to track Norwegian vocabulary rather than teaching,
+        # so it reports and never gates. Every path records a soft row, the two
+        # unevaluable ones above included, for the same reason cr4 does: a
+        # `record_error` here would flip an otherwise green run to exit 3 off a
+        # check that cannot fail it. cr1 and cr2 still carry CLI health on this
+        # shared prompt, which is where a dead transcript shows up first.
+        if selected cr3; then
+          cr_prose="$(grep -vE '^[[:space:]]*\|' "$TCR" | grep -cE '^.{40,}$')"
+          ok=0; detail=""
+          if [[ "$cr_prose" -lt 2 ]]; then
+            ok=1; detail="only $cr_prose prose line(s) of 40+ chars outside the table. The ### Details section (code-review.agent.md:84-85) is where why lives, and it is missing"
+          elif ! present "$TCR" "$RE_CR_WHY"; then
+            ok=1; detail="no causal language anywhere in the response (no match for: $RE_CR_WHY). Findings were flagged, not explained"
+          fi
+          record_soft cr3 "$DESC_CR3" "$ok" "$detail"
         fi
-        record_soft cr3 "$DESC_CR3" "$ok" "$detail"
       fi
     fi
   fi
@@ -1900,19 +2220,26 @@ run_pass_code_review() {
   # health on their own prompt, which is where a flaky CLI shows up first. Not
   # cr3 any more: it is soft as of this commit, for the reason recorded above
   # RE_CR_WHY.
-  if selected cr4; then
+  if selected cr4 || selected rv3 || selected rv4; then
     DESC_CR4="Next.js review routes on to the accessibility/Aksel specialist"
     TCR4="$(tx cr-tsx)"
     if ! run_prompt cr-tsx "gjennomgå src/app/komponenter/StatusPanel.tsx"; then
-      record_soft cr4 "$DESC_CR4" 1 "not evaluated: $LAST_PROMPT_DETAIL"
-    elif ! present "$TCR4" 'space-[0-9]|<Box|Aksel|Tailwind|p-4|mx-8|paddingInline|paddingBlock|tastatur|keyboard|aria'; then
-      record_soft cr4 "$DESC_CR4" 1 \
-        "not evaluated: the response reached neither the spacing nor the a11y domain of StatusPanel.tsx, so there was no domain review to route and nothing here says whether an owner would have been named. Not counted as met: a bare absent() on the handles would pass vacuously."
-    elif present "$TCR4" "$RE_CR_DELEGATE"; then
-      record_soft cr4 "$DESC_CR4" 0
+      selected cr4 && record_soft cr4 "$DESC_CR4" 1 "not evaluated: $LAST_PROMPT_DETAIL"
+      selected rv3 && record_error rv3 "$DESC_RV3" "$LAST_PROMPT_DETAIL"
+      selected rv4 && record_error rv4 "$DESC_RV4" "$LAST_PROMPT_DETAIL"
     else
-      record_soft cr4 "$DESC_CR4" 1 \
-        "reviewed an Aksel/a11y file without naming @accessibility-agent or @aksel-agent, the owners at code-review.agent.md:40 and :42. Soft: the agent has no runSubagent and the target is not installed, so this is a want, not a regression"
+      record_review "$TCR4" rv3 "$DESC_RV3" rv4 "$DESC_RV4" "${RV_TSX[@]}"
+      if ! selected cr4; then
+        :
+      elif ! present "$TCR4" 'space-[0-9]|<Box|Aksel|Tailwind|p-4|mx-8|paddingInline|paddingBlock|tastatur|keyboard|aria'; then
+        record_soft cr4 "$DESC_CR4" 1 \
+          "not evaluated: the response reached neither the spacing nor the a11y domain of StatusPanel.tsx, so there was no domain review to route and nothing here says whether an owner would have been named. Not counted as met: a bare absent() on the handles would pass vacuously."
+      elif present "$TCR4" "$RE_CR_DELEGATE"; then
+        record_soft cr4 "$DESC_CR4" 0
+      else
+        record_soft cr4 "$DESC_CR4" 1 \
+          "reviewed an Aksel/a11y file without naming @accessibility-agent or @aksel-agent, the owners at code-review.agent.md:40 and :42. Soft: the agent has no runSubagent and the target is not installed, so this is a want, not a regression"
+      fi
     fi
   fi
 }
@@ -2121,11 +2448,161 @@ run_pass_accessibility() {
 # Which group runs. One agent per invocation: the workspace holds one agent
 # file, so there is nothing to interleave. An agent with no group cannot reach
 # here (the preflight rejects it), so this case needs no default.
+# ─── norsk suite: forfatter (no1-no4) ────────────────────────────────────────
+# Two texts, one rewritten and one written from English notes. Each check holds
+# only if it holds for both, and reads the files the agent saved, not the
+# transcript: the transcript carries tool lines and the CLI's own English.
+# The pristine draft fails all four (see the control in the fixture section),
+# so a draft left untouched is a red run.
+run_pass_forfatter() {
+  local dead="" texts=()
+  if run_prompt no-omskriv "Språkvask utkast.md til klart bokmål. Kort teksten ned til høyst $NORSK_MAX_WORDS ord og behold alle fakta. Skriv resultatet tilbake til utkast.md."; then
+    [[ -f "$WS/utkast.md" ]] && cp "$WS/utkast.md" "$WORKDIR/utkast.run$RUN.md"
+    texts+=("$WORKDIR/utkast.run$RUN.md")
+  else
+    dead="$LAST_PROMPT_DETAIL"
+  fi
+  if run_prompt no-notis "Skriv en kort nyhetsnotis på bokmål til ki-utvikling.nav.no, ${NORSK_MIN_WORDS}–${NORSK_MAX_WORDS} ord, basert på fakta.md. Lagre den i notis.md."; then
+    [[ -f "$WS/notis.md" ]] && cp "$WS/notis.md" "$WORKDIR/notis.run$RUN.md"
+    texts+=("$WORKDIR/notis.run$RUN.md")
+  else
+    dead="${dead:-$LAST_PROMPT_DETAIL}"
+  fi
+
+  local id desc why out t
+  local -a args
+  for id in no1 no2 no3 no4; do
+    selected "$id" || continue
+    case "$id" in
+      no1) args=(nynorsk);  desc="both texts are free of nynorsk forms" ;;
+      no2) args=(floskler); desc="both texts are free of KI markers" ;;
+      no3) args=(ki);       desc="neither text says «AI»" ;;
+      no4) args=(lengde);   desc="both texts are $NORSK_MIN_WORDS-$NORSK_MAX_WORDS words" ;;
+    esac
+    if [[ -n "$dead" ]]; then
+      record_error "$id" "$desc" "$dead"
+      continue
+    fi
+    why=""
+    for t in "${texts[@]}"; do
+      if [[ ! -f "$t" ]]; then
+        why+="$(basename "$t"): not saved. "
+        continue
+      fi
+      [[ "${args[0]}" == lengde ]] && args=(lengde "$t" "$NORSK_MIN_WORDS" "$NORSK_MAX_WORDS")
+      [[ "${args[0]}" == lengde ]] || args=("${args[0]}" "$t")
+      out="$(python3 "$BENCH_CHECK" "${args[@]}")" || why+="$(basename "$t"): $out. "
+    done
+    record "$id" "$desc" "$([[ -z "$why" ]] && echo 0 || echo 1)" "${why% }"
+  done
+}
+
+# ─── coding suite: nav-pilot fixes failing tests (ko1-ko4) ───────────────────
+# The fixture's tests fail on the pristine template (control in the fixture
+# section). The harness runs them after the call and never trusts the
+# transcript. Scope is read off the workspace fingerprint: exactly the one
+# source file changed, so editing the test or touching nothing both fail.
+#
+# coding_task <slug> <prompt> <test fn> <allowed files> <id> <desc> <id> <desc>
+# <allowed files> is space-separated and sorted; all of them must change.
+coding_task() {
+  local slug="$1" prompt="$2" tests="$3" allowed="$4"
+  local id_ok="$5" d_ok="$6" id_scope="$7" d_scope="$8" written
+  selected "$id_ok" || selected "$id_scope" || return 0
+  if ! run_prompt "$slug" "$prompt"; then
+    selected "$id_ok" && record_error "$id_ok" "$d_ok" "$LAST_PROMPT_DETAIL"
+    selected "$id_scope" && record_error "$id_scope" "$d_scope" "$LAST_PROMPT_DETAIL"
+    return 0
+  fi
+  if selected "$id_scope"; then
+    written="$(ws_written_files)"
+    written="${written% }"
+    local want="./${allowed// / ./}"
+    if [[ "$written" == "$want" ]]; then
+      record "$id_scope" "$d_scope" 0
+    else
+      record "$id_scope" "$d_scope" 1 "changed: ${written:-nothing}; allowed: $want"
+    fi
+  fi
+  if selected "$id_ok"; then
+    if "$tests" "$WS"; then
+      record "$id_ok" "$d_ok" 0
+    else
+      record "$id_ok" "$d_ok" 1 "the fixture's tests still fail after the run"
+    fi
+  fi
+}
+
+run_pass_coding() {
+  coding_task ko-go "Testene i frister/ feiler. Finn og rett feilen i koden, ikke i testene, slik at go test ./... i frister/ går grønt." \
+    go_tests frister/frist.go \
+    ko1 "Go: the tests pass after the run" ko2 "Go: only frister/frist.go changed"
+  coding_task ko-ts "Testen i slug/ feiler (kjør den med node --test slug.test.ts). Finn og rett feilen i koden, ikke i testen." \
+    ts_tests slug/slug.ts \
+    ko3 "TS: the test passes after the run" ko4 "TS: only slug/slug.ts changed"
+  coding_task ko-go2 "Testene i ytelse/ feiler fordi ytelsen nå skal graderes. Endre koden, ikke testene, slik at go test ./... i ytelse/ går grønt." \
+    go2_tests "ytelse/rapport.go ytelse/utbetaling.go" \
+    ko5 "Go, two files: the tests pass after the run" ko6 "Go, two files: exactly utbetaling.go and rapport.go changed"
+}
+
+# ─── research suite: bounded read-and-summarise (re1-re4) ────────────────────
+# @research reads the Ktor fixture every suite gets and answers three bounded
+# questions. The bounds are the point, as in the August «avgrensede krav»
+# arms: exact lines, an honest «none», and a summary that stays inside its
+# limit. Each check is shown failing in scripts/nav-pilot-golden.bats.
+#
+#   maksAntall   Config.kt:4 defines it; Routes.kt:16 and App.kt:10 use it
+#   slettOppgave exists nowhere in the fixture
+RE_USES=('routes=Routes\.kt@16' 'app=App\.kt@10')
+RE_NONE='ingen|finnes ikke|ikke (brukt|kalt|definert|funnet)|fant ikke|no (calls|callers|usages)|not (called|used|defined|found)|does not exist'
+
+research_check() {
+  # research_check <id> <desc> <slug> <prompt> <check args...>
+  local id="$1" desc="$2" slug="$3" prompt="$4" why ok=0
+  shift 4
+  selected "$id" || return 0
+  if ! run_prompt "$slug" "$prompt"; then
+    record_error "$id" "$desc" "$LAST_PROMPT_DETAIL"
+    return 0
+  fi
+  why="$(python3 "$BENCH_CHECK" "$1" "$(tx "$slug")" "${@:2}")" || ok=1
+  record "$id" "$desc" "$ok" "$why"
+}
+
+run_pass_research() {
+  research_check re1 "every use of maksAntall cited on its line" re-bruk \
+    "Hvor brukes konstanten maksAntall i denne kodebasen? Oppgi fil og linje for hver bruk." \
+    linje "${RE_USES[@]}"
+  research_check re2 "says slettOppgave has no callers and invents no file" re-ingen \
+    "Hvilke steder i koden kaller funksjonen slettOppgave? Oppgi fil og linje." \
+    ingen slettOppgave "$RE_NONE" "$TEMPLATE"
+  # re3 and re4 read one answer; the prompt is only paid for once.
+  if selected re3 || selected re4; then
+    if ! run_prompt re-sammendrag "Oppsummer hva denne tjenesten gjør, i høyst tre kulepunkter."; then
+      selected re3 && record_error re3 "summary keeps to at most three points" "$LAST_PROMPT_DETAIL"
+      selected re4 && record_error re4 "summary names the endpoint" "$LAST_PROMPT_DETAIL"
+    else
+      local why ok
+      if selected re3; then
+        ok=0; why="$(python3 "$BENCH_CHECK" punkter "$(tx re-sammendrag)" 1 3)" || ok=1
+        record re3 "summary keeps to at most three points" "$ok" "$why"
+      fi
+      if selected re4; then
+        ok=0; why="$(python3 "$BENCH_CHECK" funnet "$(tx re-sammendrag)" 'endepunkt=/api/oppgaver@0')" || ok=1
+        record re4 "summary names the endpoint" "$ok" "$why"
+      fi
+    fi
+  fi
+}
+
 run_pass() {
-  case "$AGENT" in
+  case "$GROUP" in
     nav-pilot)     run_pass_nav_pilot ;;
     code-review)   run_pass_code_review ;;
     accessibility) run_pass_accessibility ;;
+    forfatter)     run_pass_forfatter ;;
+    coding)        run_pass_coding ;;
+    research)      run_pass_research ;;
   esac
 }
 
@@ -2276,6 +2753,8 @@ if [[ -s "$USAGE_FILE" ]]; then
   echo
 fi
 
+SAVE_TO="$SAVE_BASELINE"
+[[ -n "$SAVE_TO" ]] && SAVE_BASELINE="$WORKDIR/baseline.txt"
 if [[ -n "$SAVE_BASELINE" ]]; then
   # The header is the point of the file: a size baseline is only meaningful
   # next to the run conditions that produced it. Anyone reading it must see
@@ -2289,6 +2768,7 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     # say which agent it measured is a file of numbers with no referent. A
     # comparison against the wrong agent is the mistake this line prevents.
     echo "# agent:        $AGENT"
+    echo "# suite:        ${SUITE:-none}"
     echo "# date:         $(date -u +%Y-%m-%d)"
     echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
     echo "# client:       $CLI_NAME"
@@ -2329,6 +2809,7 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     # work the way #585 used them by hand.
     echo "# golden-prompt PER-RUN ASSERTION OUTCOMES"
     echo "# agent:        $AGENT"
+    echo "# suite:        ${SUITE:-none}"
     echo "# date:         $(date -u +%Y-%m-%d)"
     echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
     echo "# model:        ${MODEL:-CLI default}"
@@ -2354,6 +2835,7 @@ if [[ -n "$SAVE_BASELINE" ]]; then
   {
     echo "# golden-prompt PER-RUN ATTEMPTS"
     echo "# agent:        $AGENT"
+    echo "# suite:        ${SUITE:-none}"
     echo "# date:         $(date -u +%Y-%m-%d)"
     echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
     echo "# model:        ${MODEL:-CLI default}"
@@ -2374,6 +2856,7 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     {
       echo "# golden-prompt EXACT MODEL USAGE"
       echo "# agent:        $AGENT"
+      echo "# suite:        ${SUITE:-none}"
       echo "# date:         $(date -u +%Y-%m-%d)"
       echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
       echo "# model:        ${MODEL:-CLI default}"
@@ -2394,6 +2877,20 @@ if [[ -n "$SAVE_BASELINE" ]]; then
   else
     echo "${YELLOW}exact model usage was not recorded: ${USAGE_UNAVAILABLE:-no usage rows matched the benchmark sessions}${RESET}"
   fi
+  # Into place only now, the PSVs first and the .txt last: benchmark-matrix.py
+  # treats an arm as done when its .txt exists, and a run killed half-way
+  # through writing must leave nothing behind that looks finished.
+  mkdir -p "$(dirname "$SAVE_TO")"
+  # Clear the previous generation first, the .txt first of all: a stale
+  # -usage.psv must not survive a run that recorded none, and an interrupted
+  # move must not leave an old .txt beside new attempts.
+  rm -f "$SAVE_TO" "${SAVE_TO%.txt}"-{results,attempts,usage}.psv
+  for f in "$WORKDIR"/baseline-*.psv "$WORKDIR/baseline.txt"; do
+    [[ -f "$f" ]] || continue
+    suffix="${f#"$WORKDIR/baseline"}"
+    if [[ "$suffix" == ".txt" ]]; then mv "$f" "$SAVE_TO"; else mv "$f" "${SAVE_TO%.txt}$suffix"; fi
+  done
+  echo "${DIM}moved into place beside $SAVE_TO${RESET}"
   echo
 fi
 

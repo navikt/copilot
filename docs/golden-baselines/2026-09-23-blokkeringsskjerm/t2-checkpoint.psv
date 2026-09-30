@@ -1,0 +1,25 @@
+# Does each kept 23 Sept test 2 transcript end Fase 1 with the checkpoint
+# block «✅ Fase 1 ferdig — klar for Fase 2»? #905 removed that block from
+# agents/nav-pilot.agent.md before 520c36dd, the revision the screen ran;
+# the copy installed in ~/.copilot/agents/ on 15 Sept (1ba0c234) still had it.
+# arm|transcript|checkpoint
+gpt-5.6-sol-core|t2.run1.txt|1
+gpt-5.6-sol-core|t2.run2.txt|1
+gpt-5.6-sol-core|t2.run3.txt|1
+gpt-5.6-sol-core|t2.run4.txt|1
+gpt-5.6-sol-core|t2.run5.txt|1
+gpt-5.6-sol-core-v2|t2.run1.txt|1
+gpt-5.6-sol-core-v2|t2.run2.txt|1
+gpt-5.6-sol-core-v2|t2.run3.txt|1
+gpt-5.6-sol-core-v2|t2.run4.txt|1
+gpt-5.6-sol-core-v2|t2.run5.txt|1
+gpt-6-sol-core|t2.run1.txt|1
+gpt-6-sol-core|t2.run2.txt|1
+gpt-6-sol-core|t2.run3.txt|1
+gpt-6-sol-core|t2.run4.txt|1
+gpt-6-sol-core|t2.run5.txt|1
+gpt-6-sol-core-v2|t2.run1.txt|0
+gpt-6-sol-core-v2|t2.run2.txt|1
+gpt-6-sol-core-v2|t2.run3.txt|1
+gpt-6-sol-core-v2|t2.run4.txt|1
+gpt-6-sol-core-v2|t2.run5.txt|1

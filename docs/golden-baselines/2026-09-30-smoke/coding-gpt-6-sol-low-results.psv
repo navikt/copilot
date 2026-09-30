@@ -1,0 +1,22 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        coding
+# date:         2026-09-30
+# revision:     5c341059
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       1
+# fixture:      293166583
+# prompts:      all
+#
+# id|run|status|assertion|detail
+ko2|1|pass|Go: only frister/frist.go changed|
+ko1|1|pass|Go: the tests pass after the run|
+ko4|1|pass|TS: only slug/slug.ts changed|
+ko3|1|pass|TS: the test passes after the run|
+ko6|1|pass|Go, two files: exactly utbetaling.go and rapport.go changed|
+ko5|1|pass|Go, two files: the tests pass after the run|

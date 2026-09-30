@@ -1,0 +1,29 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        research
+# suite:        research
+# date:         2026-09-30
+# revision:     da0327f9
+# model:        gpt-6-luna
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       medium
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       1
+# fixture:      4263008951
+# prompts:      all
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+re-bruk|1|c06470ef-2261-4849-a239-943969bb4b6c|13568|0|gpt-6-luna|medium|12478|50|0|12475|29|158467500|1722|1635.070458|tool_calls||
+re-bruk|1|c06470ef-2261-4849-a239-943969bb4b6c|13569|0|gpt-6-luna|medium|17912|63|12475|5434|22|83580000|2190|2047.4561250000002|tool_calls||
+re-bruk|1|c06470ef-2261-4849-a239-943969bb4b6c|13572|0|gpt-6-luna|medium|18069|112|17909|157|48|25501500|2564|1682.02925|stop||
+re-ingen|1|58b0cb42-22de-4a9b-ac67-9e9ca27074ae|13578|0|gpt-6-luna|medium|12482|31|0|12479|0|157567500|1472|1265.945041|tool_calls||
+re-ingen|1|58b0cb42-22de-4a9b-ac67-9e9ca27074ae|13580|0|gpt-6-luna|medium|12528|95|12479|46|52|17834000|2408|1526.628292|tool_calls||
+re-ingen|1|58b0cb42-22de-4a9b-ac67-9e9ca27074ae|13582|0|gpt-6-luna|medium|12638|114|12525|110|24|19630000|2018|1195.400416|tool_calls||
+re-ingen|1|58b0cb42-22de-4a9b-ac67-9e9ca27074ae|13584|0|gpt-6-luna|medium|14544|197|12635|1906|0|46340000|2017|1952.0982500000002|tool_calls||
+re-ingen|1|58b0cb42-22de-4a9b-ac67-9e9ca27074ae|13586|0|gpt-6-luna|medium|14917|104|14541|373|69|24433500|2808|1633.6198749999999|stop||
+re-sammendrag|1|dd06619a-554d-4e18-a06e-585a56223d64|13592|0|gpt-6-luna|medium|12472|47|0|12469|26|158242500|2527|1684.770958|tool_calls||
+re-sammendrag|1|dd06619a-554d-4e18-a06e-585a56223d64|13593|0|gpt-6-luna|medium|17903|227|12469|5431|45|91736500|3183|2152.872375|tool_calls||
+re-sammendrag|1|dd06619a-554d-4e18-a06e-585a56223d64|13595|0|gpt-6-luna|medium|18233|567|17900|330|30|50405000|3676|1259.8942499999998|tool_calls||
+re-sammendrag|1|dd06619a-554d-4e18-a06e-585a56223d64|13596|0|gpt-6-luna|medium|19295|134|18230|1062|66|38235000|2294|1232.789792|stop||

@@ -1,0 +1,26 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        forfatter
+# suite:        norsk
+# date:         2026-09-30
+# revision:     da0327f9
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       1
+# fixture:      3498918618
+# prompts:      all
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+no-omskriv|1|285f9e0a-c60e-40c8-b459-baf1e2c02ae3|13566|0|gpt-6-sol|low|15753|19|0|15750|0|3957100000|1330|1182.840291|tool_calls||
+no-omskriv|1|285f9e0a-c60e-40c8-b459-baf1e2c02ae3|13571|0|gpt-6-sol|low|21156|188|15750|5403|0|1854350000|3711|3629.018083|tool_calls||
+no-omskriv|1|285f9e0a-c60e-40c8-b459-baf1e2c02ae3|13573|0|gpt-6-sol|low|22478|360|21153|1322|37|1114160000|3959|1394.0004999999999|tool_calls||
+no-omskriv|1|285f9e0a-c60e-40c8-b459-baf1e2c02ae3|13576|0|gpt-6-sol|low|23000|112|22475|522|25|692600000|2220|1689.4900000000002|tool_calls||
+no-omskriv|1|285f9e0a-c60e-40c8-b459-baf1e2c02ae3|13577|0|gpt-6-sol|low|23270|33|22997|270|0|561040000|1691|1201.05325|stop||
+no-notis|1|571450bb-134b-4957-9a45-3b46f97a209b|13583|0|gpt-6-sol|low|15754|19|0|15751|0|3957350000|1405|1261.646542|tool_calls||
+no-notis|1|571450bb-134b-4957-9a45-3b46f97a209b|13585|0|gpt-6-sol|low|21157|267|15751|5403|0|1933370000|3382|3312.529709|tool_calls||
+no-notis|1|571450bb-134b-4957-9a45-3b46f97a209b|13588|0|gpt-6-sol|low|22492|233|21154|1335|33|990430000|3984||tool_calls||
+no-notis|1|571450bb-134b-4957-9a45-3b46f97a209b|13591|0|gpt-6-sol|low|22810|40|22489|318|0|569880000|1604|1085.620667|stop||

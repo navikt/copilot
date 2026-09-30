@@ -1,0 +1,9 @@
+# Røyktest: én kjøring per testpakke, for å vise at oppsettet og summary.json
+# virker. Ikke et resultat. testpakke  modell  innsatsnivå  n
+planning  gpt-6-sol          low      1
+review    gpt-6-sol          low      1
+norsk     gpt-6-sol          low      1
+coding    gpt-6-sol          low      1
+research  gpt-6-luna         medium   1
+# En Claude-modell på review, for å sjekke linjesjekkene mot en annen leverandør.
+review    claude-sonnet-5.5  default  1

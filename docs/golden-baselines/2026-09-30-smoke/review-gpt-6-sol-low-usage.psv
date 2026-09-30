@@ -1,0 +1,23 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        code-review
+# suite:        review
+# date:         2026-09-30
+# revision:     da0327f9
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       1
+# fixture:      2929655385
+# prompts:      rv1,rv2,rv3,rv4
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+cr-kotlin|1|edb1d0c0-ad72-416d-9d90-1861bd210723|13570|0|gpt-6-sol|low|14259|411|0|14256|45|3975600000|4917|2432.3437500000005|tool_calls||
+cr-kotlin|1|edb1d0c0-ad72-416d-9d90-1861bd210723|13574|0|gpt-6-sol|low|15602|319|14256|1343|14|940470000|4889|4832.052|tool_calls||
+cr-kotlin|1|edb1d0c0-ad72-416d-9d90-1861bd210723|13579|0|gpt-6-sol|low|16501|277|15599|899|32|814330000|4822|1544.35025|stop||
+cr-tsx|1|2ab20ecf-eeac-4ae2-9298-b3e40b66e77e|13587|0|gpt-6-sol|low|14261|543|0|14258|32|4108100000|6280|6208.823625|tool_calls||
+cr-tsx|1|2ab20ecf-eeac-4ae2-9298-b3e40b66e77e|13590|0|gpt-6-sol|low|23231|141|14258|8970|19|2669260000|2911|1650.456375|tool_calls||
+cr-tsx|1|2ab20ecf-eeac-4ae2-9298-b3e40b66e77e|13594|0|gpt-6-sol|low|23861|415|23228|630|44|1037660000|7365|2454.762292|stop||

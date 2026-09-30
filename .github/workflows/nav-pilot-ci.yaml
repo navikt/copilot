@@ -19,6 +19,9 @@ on:
       - '.github/workflows/nav-pilot-ci.yaml'
       - 'dashboards/nav-pilot-*.json'
       - 'scripts/build-local-dashboard.py'
+      - 'scripts/nav-pilot-golden.sh'
+      - 'scripts/benchmark-*.py'
+      - 'docs/golden-baselines/**'
   pull_request:
     branches: [main]
     paths:
@@ -37,6 +40,9 @@ on:
       - '.github/workflows/nav-pilot-ci.yaml'
       - 'dashboards/nav-pilot-*.json'
       - 'scripts/build-local-dashboard.py'
+      - 'scripts/nav-pilot-golden.sh'
+      - 'scripts/benchmark-*.py'
+      - 'docs/golden-baselines/**'
   workflow_dispatch:
 
 concurrency:
@@ -111,6 +117,14 @@ jobs:
 
       - name: Local dashboard is generated
         run: python3 scripts/build-local-dashboard.py --check
+
+      # summary.json feeds ki-utvikling.nav.no/modeller; the checks are the
+      # benchmark's own, each with a failing control (mise run benchmark:check).
+      - name: Benchmark summary is current
+        run: |
+          python3 scripts/benchmark-sjekk.py --selftest
+          python3 scripts/benchmark-summary.py --selftest
+          python3 scripts/benchmark-summary.py --check
 
   shellcheck:
     name: Lint shell scripts

@@ -1,0 +1,21 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        code-review
+# suite:        review
+# date:         2026-09-30
+# revision:     da0327f9
+# model:        claude-sonnet-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       CLI default
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       1
+# fixture:      2929655385
+# prompts:      rv1,rv2,rv3,rv4
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+cr-kotlin|1|519d5d32-310c-42f3-8ad8-0bc0ac4807f6|13567|0|claude-sonnet-5.5|medium|22322|216|0|22318|0|5796300000|2177|1234.305208|tool_calls||
+cr-kotlin|1|519d5d32-310c-42f3-8ad8-0bc0ac4807f6|13575|0|claude-sonnet-5.5|medium|22780|967|22318|460|0|1528760000|8427|8370.106792|stop||
+cr-tsx|1|b7fa0bba-ca56-4107-840f-db8d6847f0f5|13581|0|claude-sonnet-5.5|medium|22315|96|5259|17052|0|4464980000|1623|1364.8471249999998|tool_calls||
+cr-tsx|1|b7fa0bba-ca56-4107-840f-db8d6847f0f5|13589|0|claude-sonnet-5.5|medium|22733|1511|22311|420|57|2062620000|11635|3115.85425|stop||

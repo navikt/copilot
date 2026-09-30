@@ -11,7 +11,9 @@
 SCRIPT="${BATS_TEST_DIRNAME}/nav-pilot-golden.sh"
 
 setup() {
-  SHIM="$(mktemp -d "$BATS_TEST_DIRNAME/.nav-pilot-golden.bats.XXXXXX")"
+  # Under bats' own temp dir, not the checkout: a killed run leaves nothing in
+  # the repo, and bats removes it after each test.
+  SHIM="$(mktemp -d "$BATS_TEST_TMPDIR/shim.XXXXXX")"
 }
 
 teardown() {
@@ -245,4 +247,214 @@ EOF
 
   [ "$status" -eq 1 ]
   grep -q '^4|1|error|' "$SHIM/baseline-results.psv"
+}
+
+# ─── Benchmark suites: every check is shown failing on a control ────────────
+# The shim plays the agent. BENCH_MODE=good does the task right; anything else
+# plays the failure the check exists to catch. A suite whose checks pass on
+# both would be a gate that cannot fail.
+make_bench_shim() {
+  cat >"$SHIM/copilot" <<'EOF'
+#!/bin/bash
+if [[ "$1" == "--version" ]]; then echo "GitHub Copilot CLI 1.0.90-5."; exit 0; fi
+p="$2"
+row() { echo "| \`$1\` | $2 | 🔴 | $3 |"; }
+case "$p" in
+  *"svar kun med ordet OK"*) echo OK ;;
+  *UserRepo.kt*)
+    echo "| Fil | Linje | Prioritet | Funn |"
+    row UserRepo.kt 9 "SQL-injeksjon: fnr interpoleres i spørringen"
+    row UserRepo.kt 8 "Logger fnr i klartekst"
+    row UserRepo.kt 12-13 "catch svelger alle feil" ;;
+  *StatusPanel.tsx*)
+    o=0; [[ "$BENCH_MODE" == good ]] || o=1   # Opus 5.5 Medium, 23 Sept: one line up
+    echo "| Fil | Linje | Prioritet | Funn |"
+    row StatusPanel.tsx $((7 - o)) "Tailwind-spacing (\`p-4 mx-8\`)"
+    row StatusPanel.tsx $((8 - o)) "Klikkbar div uten tastaturstøtte"
+    row StatusPanel.tsx $((11 - o)) "Positiv \`tabIndex={5}\`"
+    row StatusPanel.tsx $((14 - o)) "Ikonknapp uten tilgjengelig navn" ;;
+  *utkast.md*)
+    [[ "$BENCH_MODE" == good ]] && printf '%s\n' "# Ny kodegjennomgang i nav-pilot" "" \
+      "Nav-pilot har fått en KI-agent som går gjennom kode. Den leser endringene i en pull request og kommenterer linje for linje. Den finner feil i tilgangsstyring, logging av personopplysninger og manglende tester. Agenten endrer ikke koden selv, men foreslår rettelser." \
+      "" "Agenten er tilgjengelig for alle team fra mandag. Slå den av med review.enabled = false." >utkast.md
+    echo "Utkastet er språkvasket og lagret tilbake i utkast.md." ;;
+  *fakta.md*)
+    [[ "$BENCH_MODE" == good ]] && printf '%s\n' \
+      "KI-agenten for kodegjennomgang sjekker nå norsk tekst for nynorske former og KI-floskler. Den kjører automatisk på pull requester som endrer filer under docs/. Team kan slå den av i .nav-pilot/config.toml. Den er tilgjengelig fra mandag 5. oktober." >notis.md
+    echo "Notisen er skrevet og lagret i notis.md." ;;
+  *frister/*)
+    case "$BENCH_MODE" in
+      good) perl -0pi -e 's/(Saturday:\n\t\treturn frist\.AddDate\(0, 0, )1/${1}2/' frister/frist.go ;;
+      cheat) perl -pi -e 's/2026-10-19"\}, \/\/ lørdag/2026-10-18"}, \/\/ lørdag/' frister/frist_test.go ;;
+    esac
+    echo "Rettet feilen i frister og kjørte go test." ;;
+  *ytelse/*)
+    [[ "$BENCH_MODE" == good || "$BENCH_MODE" == cheat ]] && perl -pi -e 's/Utbetaling\(grunnlag int\) int/Utbetaling(grunnlag, grad int) int/; s/return grunnlag \/ 260$/return grunnlag \/ 260 * grad \/ 100/' ytelse/utbetaling.go
+    [[ "$BENCH_MODE" == good || "$BENCH_MODE" == cheat ]] && perl -pi -e 's/grunnlag int\) string/grunnlag, grad int) string/; s/Utbetaling\(grunnlag\)\)/Utbetaling(grunnlag, grad))/' ytelse/rapport.go
+    [[ "$BENCH_MODE" == cheat ]] && perl -pi -e 's/halv dagsats/halv sats/' ytelse/ytelse_test.go
+    echo "Rettet feilen i ytelse og kjørte go test." ;;
+  *slug/*)
+    [[ "$BENCH_MODE" == good ]] && perl -pi -e 's/\.replace\(\/\[\^a-z0-9\]\+\/g, "-"\);/.replace(\/[^a-z0-9]+\/g, "-").replace(\/^-+|-+\$\/g, "");/' slug/slug.ts
+    echo "Rettet feilen i slug og kjørte node --test." ;;
+  *maksAntall*)
+    echo "maksAntall er definert i Config.kt linje 4 og brukes to steder:"
+    if [[ "$BENCH_MODE" == good ]]; then
+      echo "- src/main/kotlin/no/nav/demo/Routes.kt:16"; echo "- src/main/kotlin/no/nav/demo/App.kt:10"
+    else
+      echo "- src/main/kotlin/no/nav/demo/Routes.kt:15"; echo "- src/main/kotlin/no/nav/demo/App.kt:10"
+    fi ;;
+  *slettOppgave*)
+    if [[ "$BENCH_MODE" == good ]]; then echo "Det finnes ingen kall til slettOppgave i kodebasen."
+    else echo "slettOppgave kalles fra OppgaveService.kt:22. Ingen andre kall."; fi ;;
+  *Oppsummer*)
+    echo "Tjenesten er en liten Ktor-app:"
+    if [[ "$BENCH_MODE" == good ]]; then echo "- Den eksponerer GET /api/oppgaver med en liste oppgaver."
+    else echo "- Den svarer på HTTP-kall med en liste oppgaver."; fi
+    echo "- Den kjører på port 8080 på Nais."
+    [[ "$BENCH_MODE" == good ]] || { echo "- Den har helsesjekker."; echo "- Den bruker kotlinx.serialization."; } ;;
+  *) echo "unexpected prompt in the benchmark shim: $p"; exit 1 ;;
+esac
+EOF
+  chmod +x "$SHIM/copilot"
+}
+
+run_suite() {
+  local mode="$1"; shift
+  make_bench_shim
+  BENCH_MODE="$mode" NAV_PILOT_GOLDEN_USAGE_DB="$SHIM/none.db" PATH="$SHIM:$PATH" \
+    run /bin/bash "$SCRIPT" "$@" --save-baseline "$SHIM/b.txt"
+}
+
+@test "benchmark-sjekk selftest passes and fails its controls" {
+  run python3 "${BATS_TEST_DIRNAME}/benchmark-sjekk.py" --selftest
+  [ "$status" -eq 0 ]
+}
+
+@test "--suite and --agent are refused together" {
+  run bash "$SCRIPT" --suite review --agent nav-pilot --dry-run
+  [ "$status" -eq 2 ]
+}
+
+@test "review: right lines pass, the same review one line up fails rv4 only" {
+  run_suite good --suite review
+  [ "$status" -eq 0 ]
+  grep -q '^# suite:        review' "$SHIM/b-results.psv"
+  run_suite shifted --suite review
+  [ "$status" -eq 1 ]
+  grep -q '^rv3|1|pass|' "$SHIM/b-results.psv"
+  grep -q '^rv4|1|fail|.*tabindex (want \[11\], cited \[10\])' "$SHIM/b-results.psv"
+}
+
+@test "norsk: a clean rewrite passes, an untouched draft fails all four" {
+  run_suite good --suite norsk
+  [ "$status" -eq 0 ]
+  run_suite none --suite norsk
+  [ "$status" -eq 1 ]
+  for id in no1 no2 no3 no4; do grep -q "^$id|1|fail|" "$SHIM/b-results.psv"; done
+  grep -q '^no1|1|fail|.*utkast.run1.md: nynorsk forms: berre' "$SHIM/b-results.psv"
+}
+
+@test "norsk: a checker that fails everything stops preflight" {
+  make_bench_shim
+  printf '#!/bin/bash\nexit 1\n' >"$SHIM/python3"; chmod +x "$SHIM/python3"
+  PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite norsk --dry-run
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"a clean text fails the nynorsk check"* ]]
+}
+
+@test "a rerun into a saved arm leaves no file from the old run" {
+  echo stale >"$SHIM/b-usage.psv"
+  run_suite good --suite research
+  [ "$status" -eq 0 ]
+  [ -f "$SHIM/b.txt" ]
+  [ ! -e "$SHIM/b-usage.psv" ]
+}
+
+@test "coding: a fix passes, editing the test fails scope, doing nothing fails tests" {
+  command -v go >/dev/null && command -v node >/dev/null || skip "needs go and node"
+  run_suite good --suite coding
+  [ "$status" -eq 0 ]
+  run_suite cheat --suite coding --only ko1,ko2
+  [ "$status" -eq 1 ]
+  grep -q '^ko1|1|pass|' "$SHIM/b-results.psv"
+  grep -q '^ko2|1|fail|.*changed: ./frister/frist_test.go' "$SHIM/b-results.psv"
+  run_suite none --suite coding
+  [ "$status" -eq 1 ]
+  for id in ko1 ko2 ko3 ko4 ko5 ko6; do grep -q "^$id|1|fail|" "$SHIM/b-results.psv"; done
+}
+
+@test "coding, two files: both changed passes, touching the test as well fails ko6" {
+  command -v go >/dev/null || skip "needs go"
+  run_suite good --suite coding --only ko5,ko6
+  [ "$status" -eq 0 ]
+  run_suite cheat --suite coding --only ko5,ko6
+  [ "$status" -eq 1 ]
+  grep -q '^ko5|1|pass|' "$SHIM/b-results.psv"
+  grep -q '^ko6|1|fail|.*changed: ./ytelse/rapport.go ./ytelse/utbetaling.go ./ytelse/ytelse_test.go' "$SHIM/b-results.psv"
+}
+
+@test "coding: a toolchain that cannot pass even the known fix stops preflight" {
+  make_bench_shim
+  printf '#!/bin/bash\nexit 1\n' >"$SHIM/node"; chmod +x "$SHIM/node"
+  PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite coding --dry-run
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"ts_tests fails even with the known fix applied"* ]]
+}
+
+@test "research: right lines, honest none and three points pass; the slips fail" {
+  run_suite good --suite research
+  [ "$status" -eq 0 ]
+  run_suite bad --suite research
+  [ "$status" -eq 1 ]
+  grep -q '^re1|1|fail|.*routes (want \[16\], cited \[15\])' "$SHIM/b-results.psv"
+  grep -q '^re2|1|fail|' "$SHIM/b-results.psv"
+  grep -q '^re3|1|fail|.*4 list items' "$SHIM/b-results.psv"
+  grep -q '^re4|1|fail|.*endepunkt (anywhere)' "$SHIM/b-results.psv"
+}
+
+# The persona is installed under a name no ~/.copilot/agents/ file shadows, and
+# without its model pin when --model is given: a pin beats --model.
+@test "the installed persona cannot be shadowed and drops its pin under --model" {
+  run bash "$SCRIPT" --suite review --model gpt-6-sol --dry-run --keep
+  [ "$status" -eq 0 ]
+  dir="$(sed -n 's/.*transcripts kept in //p' <<<"$output")"
+  f="$dir/template/.github/agents/golden-code-review.agent.md"
+  grep -q '^name: golden-code-review$' "$f"
+  ! grep -q '^model:' "$f"
+  run bash "$SCRIPT" --suite review --dry-run --keep
+  dir2="$(sed -n 's/.*transcripts kept in //p' <<<"$output")"
+  grep -q '^model:' "$dir2/template/.github/agents/golden-code-review.agent.md"
+  rm -rf "$dir" "$dir2"
+}
+
+@test "benchmark-summary selftest: partial usage is null, a pinned model is refused" {
+  run python3 "${BATS_TEST_DIRNAME}/benchmark-summary.py" --selftest
+  [ "$status" -eq 0 ]
+}
+
+@test "matrix: a duplicate or uncommittable arm is refused, a half-written arm is pending" {
+  M="$SHIM/dup.matrix"
+  printf 'review gpt-6-sol low 1\nreview gpt-6-sol low 2\n' >"$M"
+  run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"listed twice"* ]]
+  for arm in 'review gpt-6-sol max 1' 'bogus gpt-6-sol low 1' 'review gpt-6-sol low 0'; do
+    echo "$arm" >"$M"
+    run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
+    [ "$status" -ne 0 ]
+  done
+
+  run_suite good --suite review
+  [ "$status" -eq 0 ]
+  M="$SHIM/half.matrix"
+  printf 'review gpt-6-sol low 1\n' >"$M"
+  export BENCHMARK_BASELINES="$SHIM/baselines"
+  out="$BENCHMARK_BASELINES/half"
+  mkdir -p "$out"
+  for f in "$SHIM"/b.txt "$SHIM"/b-*; do cp "$f" "$out/review-gpt-6-sol-low${f#"$SHIM/b"}"; done
+  run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
+  [[ "$output" == done* ]]
+  printf 'review gpt-6-sol low 2\n' >"$M"   # saved with n=1: not this arm
+  run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
+  [[ "$output" == pending* ]]
 }
