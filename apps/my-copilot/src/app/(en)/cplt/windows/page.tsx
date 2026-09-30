@@ -145,7 +145,8 @@ export default function CpltWindowsPage() {
                 <Command command="cplt doctor" {...COPY} />
                 <BodyLong size="small" style={muted}>
                   It prints the kernel version and the Landlock ABI it found, and fails if your agent comes from the
-                  Windows side.
+                  Windows side. It also warns when the project is under <code>/mnt/c</code> or when bubblewrap would not
+                  wrap the session.
                 </BodyLong>
               </Step>
 
@@ -169,10 +170,10 @@ export default function CpltWindowsPage() {
 
               <Step id="help" title="Getting help">
                 <BodyLong size="small" style={muted}>
-                  Send the output of <code>cplt doctor --verbose</code> and the exact command that failed. The WSL2
-                  route is not yet verified end to end on a real install, so tell us what happened in{" "}
-                  <ExternalLink href={WSL_ISSUE}>navikt/cplt#189</ExternalLink>, whether it worked or not. The full
-                  version of this guide is the{" "}
+                  Send the output of <code>cplt doctor --verbose</code> and the exact command that failed. It writes
+                  your home directory as <code>~</code>. The WSL2 route is not yet verified end to end on a real
+                  install, so tell us what happened in <ExternalLink href={WSL_ISSUE}>navikt/cplt#189</ExternalLink>,
+                  whether it worked or not. The full version of this guide is the{" "}
                   <ExternalLink href={README_WSL}>WSL2 section of the cplt README</ExternalLink>.
                 </BodyLong>
               </Step>

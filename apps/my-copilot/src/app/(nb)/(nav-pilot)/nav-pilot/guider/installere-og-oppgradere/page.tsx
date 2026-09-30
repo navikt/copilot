@@ -209,7 +209,8 @@ nav-pilot upgrade && cplt update                                    # installert
           </CodeBlock>
           <BodyLong>
             <code className={code}>nav-pilot upgrade</code> spør ikke, og installerer alltid nyeste versjon. Har du
-            installert med Homebrew eller apt, lar den binæren være og skriver kommandoen som virker.{" "}
+            installert med Homebrew eller apt, lar den binæren være og skriver kommandoen som virker. Den sjekker også
+            cplt, og er cplt utdatert, skriver den kommandoen som oppgraderer den.{" "}
             <code className={code}>--dry-run</code> sjekker bare. Vil du ha en bestemt versjon, bruk pakkebehandleren
             eller last den ned fra{" "}
             <a href="https://github.com/navikt/copilot/releases?q=nav-pilot" className={linkClass}>

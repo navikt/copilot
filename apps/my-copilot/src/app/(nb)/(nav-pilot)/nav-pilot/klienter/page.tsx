@@ -290,7 +290,7 @@ export default function Klienter() {
           </li>
         </Bullets>
         <BodyLong>
-          MCP-oppføringene i {c("opencode.json")} rører nav-pilot ikke, og opencode du starter uten nav-pilot, blir ikke
+          Sjekken endrer ikke MCP-oppføringene i {c("opencode.json")}, og opencode du starter uten nav-pilot, blir ikke
           berørt. Ved oppstart ser du hvilke servere som ble slått av:
         </BodyLong>
         {/* The URLs have no break points; let them wrap on a phone. */}
@@ -301,6 +301,13 @@ export default function Klienter() {
           {c("nav-pilot doctor")} viser det samme før du starter. Har du ingen MCP-servere, gjør nav-pilot ingen
           nettkall. Mangler {c("gh")}, eller svarer ikke GitHub eller registeret, slår nav-pilot ingenting av. Da får du
           en advarsel, og serverne kjører som du har satt dem opp.
+        </BodyLong>
+        <BodyLong>
+          For både Copilot CLI og opencode slår du på en server fra registeret med {c("nav-pilot mcp enable <navn>")},
+          og av med {c("nav-pilot mcp disable <navn>")}. {c("nav-pilot mcp list")} viser hva som hindrer en server i å
+          virke, med kommandoen som retter det. Når du starter i cplt, spør nav-pilot om sandkassen skal slippe gjennom
+          hostene serverne dine trenger, og spør igjen bare når det kommer nye. Hostene hentes fra registeret, aldri fra
+          MCP-konfigen din, og Enter betyr nei. Med {c("nav-pilot config set mcp_hosts off")} spør den aldri.
         </BodyLong>
         <LinkableHeading id="legg-til-server" size="small" level="3">
           Få en server inn i registeret
@@ -335,7 +342,8 @@ export default function Klienter() {
           <li>
             Copilot CLI og opencode: nav-pilot spør i terminalen om klienten skal starte uten sandkasse. Standardsvaret
             er nei. Med {c("--no-sandbox")} starter den uten å spørre, med én advarsel. Uten terminal, for eksempel i
-            CI, starter den bare med {c("--no-sandbox")}.
+            CI, starter den bare med {c("--no-sandbox")}. Uten cplt fjerner nav-pilot alle allow-all-flagg, også dem fra
+            config.toml og etter {c("--")}. Tillatelser i klientens egen konfigurasjon gjelder fortsatt.
           </li>
           <li>pi starter ikke.</li>
           <li>
@@ -425,7 +433,9 @@ export default function Klienter() {
         <BodyLong>
           {c("mode = autopilot")}, {c("context_tier")}, {c("ask_user")} og utvidelser (extensions) finnes bare i Copilot
           CLI. Har du satt en av de tre innstillingene og bruker opencode, skriver nav-pilot én advarsel per
-          innstilling. For utvidelser kommer ingen advarsel. I Copilot CLI tar en lokal modell hele økten, uten
+          innstilling. For utvidelser kommer ingen advarsel. {c("autonomy")} gjelder også bare Copilot CLI: i cplt
+          kjører den kommandoer på egen hånd og spør deg når den trenger det, med mindre du har valgt{" "}
+          {c("nav-pilot config set autonomy conservative")}. I Copilot CLI tar en lokal modell hele økten, uten
           utsending, se{" "}
           <NextLink href="/nav-pilot/lokal" className={linkClass}>
             Lokal modell på Mac

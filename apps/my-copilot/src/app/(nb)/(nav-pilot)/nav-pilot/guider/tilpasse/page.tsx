@@ -61,7 +61,7 @@ export default function Tilpasse() {
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot config                 # innstillingssiden i terminalen
-nav-pilot config setup           # veiviser: klient, modell og modus
+nav-pilot config setup           # veiviser: klient, modus, modell og hva agenten får gjøre selv
 nav-pilot config set <nøkkel> <verdi>
 nav-pilot config unset <nøkkel>  # tilbake til standardverdien
 nav-pilot config show            # hver nøkkel, verdien og hvor den kommer fra

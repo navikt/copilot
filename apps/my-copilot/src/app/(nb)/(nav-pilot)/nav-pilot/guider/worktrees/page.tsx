@@ -79,8 +79,13 @@ nav-pilot`}
             kan skrive i worktreet, ikke i hovedutsjekkingen.
           </BodyLong>
           <BodyLong>
-            Den felles git-mappa må ligge under hjemmekatalogen din. Ligger den et annet sted, for eksempel under{" "}
-            <code className={code}>/Users/Shared</code>, gir cplt ikke tilgang, og git feiler i sandkassen.
+            Den felles git-mappa bør ligge under hjemmekatalogen din. Ligger den et annet sted, for eksempel under{" "}
+            <code className={code}>/Users/Shared</code>, gir cplt ikke tilgang, og git feiler i sandkassen. cplt sier
+            fra om det ved oppstart og i <code className={code}>cplt doctor</code>, se{" "}
+            <a href="#git-feiler" className={linkClass}>
+              Feilsøking
+            </a>
+            .
           </BodyLong>
           <BodyLong>
             Godkjenningen av repoets <code className={code}>.cplt.toml</code> gjelder hele repoet. Har du godkjent den i
@@ -215,9 +220,12 @@ git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
           <BodyLong>
             Den felles git-mappa (<code className={code}>git rev-parse --git-common-dir</code>) ligger utenfor
             hjemmekatalogen, eller stien har et tegn cplt ikke kan bruke: anførselstegn, parentes, semikolon eller
-            omvendt skråstrek. cplt sier fra ved oppstart om tegnene, ikke om plasseringen. Flytt repoet inn under
-            hjemmekatalogen, eller gi mappa et navn uten de tegnene.
+            omvendt skråstrek. cplt sier fra om begge deler ved oppstart, med{" "}
+            <code className={code}>Not granting the shared git directory</code>. Flytt repoet inn under hjemmekatalogen,
+            eller gi mappa et navn uten de tegnene. Ligger mappa utenfor hjemmekatalogen, kan du også gi tilgang til
+            den:
           </BodyLong>
+          <CodeBlock compact>{`cplt config set --local allow.write /Users/Shared/min-app/.git`}</CodeBlock>
           <LinkableHeading id="worktree-remove" size="small" level="3">
             cplt vil ikke starte etter git worktree remove
           </LinkableHeading>
