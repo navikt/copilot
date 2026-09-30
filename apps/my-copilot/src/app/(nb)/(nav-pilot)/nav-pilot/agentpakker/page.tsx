@@ -32,6 +32,7 @@ const DOC_SECTIONS: TocItem[] = [
     children: [
       { id: "kollisjoner", label: "Kollisjoner" },
       { id: "hva-som-komponerer", label: "Hva som komponerer" },
+      { id: "hold-basen-oppdatert", label: "Hold basen oppdatert" },
     ],
   },
   {
@@ -424,6 +425,28 @@ export default function Agentpakker() {
                         ). En konsument kan navngi et arvet artefakt i <code className={code}>items</code>.{" "}
                         <code className={code}>validate</code> komponerer med vilje ikke: den sjekker hva repoet ditt
                         selv sender, så en base kan ikke gjøre en pakke gyldig som ikke er det.
+                      </BodyLong>
+                    </VStack>
+
+                    <VStack gap="space-8">
+                      <LinkableHeading id="hold-basen-oppdatert" size="small" level="3">
+                        Hold basen oppdatert
+                      </LinkableHeading>
+                      <BodyLong textColor="subtle">
+                        Pinnen flytter seg ikke av seg selv, og modellene i agentenes frontmatter blir stående sammen
+                        med den. <code className={code}>sync</code> og <code className={code}>doctor</code> sier fra med
+                        én linje når basen har kommet lenger, men flytter ikke pinnen. Du flytter den med{" "}
+                        <code className={code}>nav-pilot pakke bump-base</code> i pakkerepoet ditt. Kommandoen skriver
+                        ut hvilke agenter og modeller som er endret. Workflowen{" "}
+                        <code className={code}>agentpakke-base-bump.yaml</code> i navikt/copilot gjør det samme på en
+                        tidsplan og åpner en pull request du ser over og merger. Oppsettet står i{" "}
+                        <a
+                          href="https://github.com/navikt/copilot/blob/main/docs/README.agentpakke.md#en-pakke-som-gjenbruker-en-annen"
+                          className={linkClass}
+                        >
+                          agentpakke-guiden
+                        </a>
+                        .
                       </BodyLong>
                     </VStack>
                   </VStack>

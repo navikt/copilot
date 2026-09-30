@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -44,6 +46,8 @@ func (g nettvakt) RoundTrip(req *http.Request) (*http.Response, error) {
 		req.Method, req.URL))
 }
 
+var errOfflineForTests = errors.New("offline: the test binary starts without base freshness lookups")
+
 // vakt is the guard every client in the binary is pointed at, kept so medNett
 // can hand back the transport it replaced.
 var vakt = nettvakt{ekte: http.DefaultTransport}
@@ -61,6 +65,12 @@ func TestMain(m *testing.M) {
 	// can take longer than the 2 s a real cplt gets (#1335). No test here
 	// relies on that deadline firing.
 	cpltCommandTimeout = 30 * time.Second
+	// Every sync of a composed pakke and every doctor run on another source
+	// asks GitHub whether the reused base is behind (#1368). Offline by
+	// default, which the check answers with silence; realBaseFreshness puts
+	// the HTTP lookups back for the tests about it.
+	lookupBaseLag = func(context.Context, string, string, string) (*baseLag, error) { return nil, errOfflineForTests }
+	githubFileJSON = func(context.Context, string, string, string, any) error { return errOfflineForTests }
 	os.Exit(testhome.Run(m))
 }
 

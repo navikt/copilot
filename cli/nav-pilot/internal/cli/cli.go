@@ -66,7 +66,7 @@ var commandAliases = map[string]string{
 }
 
 // dispatchedCommands is every command name run dispatches.
-var dispatchedCommands = []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "env", "feedback", "survey", "news", "models", "mcp", "alpha", "auth", "usage", "version", "help"}
+var dispatchedCommands = []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "pakke", "env", "feedback", "survey", "news", "models", "mcp", "alpha", "auth", "usage", "version", "help"}
 
 func isKnownCommand(arg string) bool {
 	if _, ok := commandAliases[arg]; ok {
@@ -101,6 +101,7 @@ Commands:
   export <format>         Export Nav customizations to another tool's format
   config [subcommand]     Manage user-specific nav-pilot configuration; no subcommand opens the interactive settings page
   validate                Check that a source repo conforms to the agentpakke contract
+  pakke bump-base         Move the agentpakke this pakke reuses onto its latest revision
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
   feedback                Report a bug or request a feature
@@ -1045,6 +1046,13 @@ func run(args []string) error {
 		}
 		return runWithCommandTelemetry("validate", telemetryMode(), "none", func() error {
 			return cmdValidate(ref, sourceRepo, jsonOutput)
+		})
+	case "pakke":
+		if len(positional) != 1 || positional[0] != "bump-base" {
+			return fmt.Errorf("usage: nav-pilot pakke bump-base [--target <dir>]")
+		}
+		return runWithCommandTelemetry("pakke-bump-base", telemetryMode(), "none", func() error {
+			return cmdPakkeBumpBase(targetDir)
 		})
 	case "env":
 		return runWithCommandTelemetry("env", telemetryMode(), "none", cmdEnv)

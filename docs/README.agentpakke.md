@@ -567,7 +567,7 @@ Manifestet sier hva en agentpakke *er*. Erklæringen sier hva et repo *bruker*. 
 | --- | --- | --- |
 | `contractVersion` | ja | Samme kontraktversjon som manifestet. En major nav-pilot ikke kjenner avvises. |
 | `source` | ja | Agentpakka repoet bruker: `<eier>/<navn>` eller en absolutt sti. Samme verdirom som `--source`. |
-| `sha` | nei for en konsument, ja for en pakke som gjenbruker en annen på repoform | Revisjonen som er pinnet, som full commit-SHA på førti tegn. Skrives av `install`, flyttes av `sync --apply`. En stiformet kilde kan ikke pinnes. |
+| `sha` | nei for en konsument, ja for en pakke som gjenbruker en annen på repoform | Revisjonen som er pinnet, som full commit-SHA på førti tegn. Skrives av `install`, flyttes av `sync --apply`, og i en pakke som gjenbruker en annen av `nav-pilot pakke bump-base`. En stiformet kilde kan ikke pinnes. |
 | `minNavPilotVersion` | nei | Kopiert fra pakkas manifest på den pinnede revisjonen. Opplysende her; det er manifestet som håndhever. |
 | `items` | nei | Navn → artefakttype. Uten feltet installeres alt pakka har. |
 
@@ -672,6 +672,51 @@ for en pakke som gjenbruker en annen: en upinnet base ville komponert det den an
 standardgren tilfeldigvis holdt, og to installasjoner en uke fra hverandre ville fått ulikt
 innhold. Install og sync nekter, og ber om at revisjonen føres opp. En stiformet kilde har
 ingen revisjon å pinne og er unntatt.
+
+**Pinnen flytter seg ikke av seg selv.** Brukerne får basen fra revisjonen i låsefila helt til
+pakkeeieren flytter den. Det betyr også at modellene som står i agentenes frontmatter, blir
+stående. En slik modell går foran `--model`, så en gammel pinne bestemmer hvilken modell som
+kjører.
+
+`nav-pilot sync` og `nav-pilot doctor` sier fra når basen har flyttet seg, med én linje til
+pakkeeieren:
+
+```
+⚠ navikt/eget-team pins navikt/copilot at 6dc457b in .nav-pilot/agentpakke.lock.json, 335 commit(s) and 16 day(s) behind its default branch. The owners of navikt/eget-team should bump it.
+```
+
+«Bak» betyr bak det sync selv ville hentet fra basen: den nyeste stabile releasen når basen
+publiserer releases, ellers standardgrenen. Linja er bare et varsel. Pinnen flyttes ikke,
+`doctor` feiler ikke, og uten nett eller når GitHub ikke svarer, sies det ingenting. Oppstarten
+av klienten spør ikke.
+
+Som pakkeeier flytter du pinnen med én kommando i pakkerepoet:
+
+```sh
+nav-pilot pakke bump-base
+```
+
+Den skriver den nye revisjonen i `.nav-pilot/agentpakke.lock.json` og skriver ut et sammendrag
+av agentene som er endret, lagt til eller fjernet, og hver modell i frontmatter som har endret
+seg. Er pinnen oppdatert, skrives ingenting.
+
+Vil du ha det gjort jevnlig, kaller du den gjenbrukbare workflowen fra navikt/copilot. Den
+kjører samme kommando og åpner en pull request med sammendraget, eller oppdaterer den som
+allerede er åpen. Du ser over og merger selv.
+
+```yaml
+name: Agentpakke base bump
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+jobs:
+  bump:
+    uses: navikt/copilot/.github/workflows/agentpakke-base-bump.yaml@main
+    permissions:
+      contents: write
+      pull-requests: write
+```
 
 **Bindingstidspunktet følger formen på manifestet**, ikke en egen mekanisme. En layout-pakke
 løser erklæringa si ved hver `install` og `sync`. En payload-pakke løste den ved byggetid, og

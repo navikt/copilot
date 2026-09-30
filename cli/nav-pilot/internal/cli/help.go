@@ -286,6 +286,20 @@ sent until you submit the issue.
 Flags:
   -F, --feature           A feature request instead of a bug report
 `,
+	"pakke": `Usage: nav-pilot pakke bump-base [--target <dir>]
+
+For the owner of an agentpakke that reuses another. Moves the revision pinned in
+.nav-pilot/agentpakke.lock.json onto the reused pakke's newest stable release,
+or its default branch when it publishes none, the same revision sync would take.
+Prints a Markdown summary of the agents and model pins that changed, for the
+pull request. Writes nothing when the pin is current.
+
+The reusable workflow navikt/copilot/.github/workflows/agentpakke-base-bump.yaml
+runs it on a schedule and opens the pull request.
+
+Flags:
+  -t, --target <dir>      The pakke repository (default: current directory)
+`,
 	"validate": `Usage: nav-pilot validate [--source <repo>|<path>] [--ref <ref>] [--json]
 
 Check an agentpakke repository against the contract: manifest, layout and

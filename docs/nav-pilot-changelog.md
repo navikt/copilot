@@ -4,6 +4,12 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-09-30
 
+### Varsel når en gjenbrukt agentpakke ligger bak
+
+- **Én linje i `sync` og `doctor`**: En agentpakke som gjenbruker en annen, pinner basen i `.nav-pilot/agentpakke.lock.json`. Ligger pinnen bak basens nyeste release, eller standardgrenen når basen ikke publiserer releases, sier `sync` og `doctor` fra med én linje: hvilken pakke, hvilken base, hvor mange commits og dager bak, og at pakkeeieren bør flytte pinnen. Pinnen flyttes ikke, `doctor` feiler ikke, og uten nett sies det ingenting. Oppstarten spør ikke (#1368).
+- **`nav-pilot pakke bump-base`**: Ny kommando for pakkeeiere. Den flytter pinnen og skriver ut hvilke agenter og hvilke modeller i frontmatter som har endret seg.
+- **Gjenbrukbar workflow**: `.github/workflows/agentpakke-base-bump.yaml` kjører kommandoen på en tidsplan i pakkerepoet og åpner en pull request med sammendraget. Eieren ser over og merger. Oppsettet står i [agentpakke-guiden](README.agentpakke.md#en-pakke-som-gjenbruker-en-annen).
+
 ### MCP: velg verktøy, risikable verktøy er av
 
 - **Trygge verktøy som standard**: `nav-pilot mcp enable` slår nå bare på verktøy som leser eller endrer prosjektet. Verktøy som gjør noe i et annet system (oppretter en issue, en PR eller en fil i Figma) og verktøy som kjører på maskinen din utenfor cplt-sandkassen (terminalen i IntelliJ) er av. MCP-registeret merker verktøyene med feltet `toolRisk`.
