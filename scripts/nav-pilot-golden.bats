@@ -246,3 +246,100 @@ EOF
   [ "$status" -eq 1 ]
   grep -q '^4|1|error|' "$SHIM/baseline-results.psv"
 }
+
+# ─── Benchmark suites: every check is shown failing on a control ────────────
+# The shim plays the agent. BENCH_MODE=good does the task right; anything else
+# plays the failure the check exists to catch. A suite whose checks pass on
+# both would be a gate that cannot fail.
+make_bench_shim() {
+  cat >"$SHIM/copilot" <<'EOF'
+#!/bin/bash
+if [[ "$1" == "--version" ]]; then echo "GitHub Copilot CLI 1.0.90-5."; exit 0; fi
+p="$2"
+row() { echo "| \`$1\` | $2 | 🔴 | $3 |"; }
+case "$p" in
+  *"svar kun med ordet OK"*) echo OK ;;
+  *UserRepo.kt*)
+    echo "| Fil | Linje | Prioritet | Funn |"
+    row UserRepo.kt 9 "SQL-injeksjon: fnr interpoleres i spørringen"
+    row UserRepo.kt 8 "Logger fnr i klartekst"
+    row UserRepo.kt 12-13 "catch svelger alle feil" ;;
+  *StatusPanel.tsx*)
+    o=0; [[ "$BENCH_MODE" == good ]] || o=1   # Opus 5.5 Medium, 23 Sept: one line up
+    echo "| Fil | Linje | Prioritet | Funn |"
+    row StatusPanel.tsx $((7 - o)) "Tailwind-spacing (\`p-4 mx-8\`)"
+    row StatusPanel.tsx $((8 - o)) "Klikkbar div uten tastaturstøtte"
+    row StatusPanel.tsx $((11 - o)) "Positiv \`tabIndex={5}\`"
+    row StatusPanel.tsx $((14 - o)) "Ikonknapp uten tilgjengelig navn" ;;
+  *utkast.md*)
+    [[ "$BENCH_MODE" == good ]] && printf '%s\n' "# Ny kodegjennomgang i nav-pilot" "" \
+      "Nav-pilot har fått en KI-agent som går gjennom kode. Den leser endringene i en pull request og kommenterer linje for linje. Den finner feil i tilgangsstyring, logging av personopplysninger og manglende tester. Agenten endrer ikke koden selv, men foreslår rettelser." \
+      "" "Agenten er tilgjengelig for alle team fra mandag. Slå den av med review.enabled = false." >utkast.md
+    echo "Utkastet er språkvasket og lagret tilbake i utkast.md." ;;
+  *fakta.md*)
+    [[ "$BENCH_MODE" == good ]] && printf '%s\n' \
+      "KI-agenten for kodegjennomgang sjekker nå norsk tekst for nynorske former og KI-floskler. Den kjører automatisk på pull requester som endrer filer under docs/. Team kan slå den av i .nav-pilot/config.toml. Den er tilgjengelig fra mandag 5. oktober." >notis.md
+    echo "Notisen er skrevet og lagret i notis.md." ;;
+  *frister/*)
+    case "$BENCH_MODE" in
+      good) perl -0pi -e 's/(Saturday:\n\t\treturn frist\.AddDate\(0, 0, )1/${1}2/' frister/frist.go ;;
+      cheat) perl -pi -e 's/2026-10-19"\}, \/\/ lørdag/2026-10-18"}, \/\/ lørdag/' frister/frist_test.go ;;
+    esac
+    echo "Rettet feilen i frister og kjørte go test." ;;
+  *slug/*)
+    [[ "$BENCH_MODE" == good ]] && perl -pi -e 's/\.replace\(\/\[\^a-z0-9\]\+\/g, "-"\);/.replace(\/[^a-z0-9]+\/g, "-").replace(\/^-+|-+\$\/g, "");/' slug/slug.ts
+    echo "Rettet feilen i slug og kjørte node --test." ;;
+  *) echo "unexpected prompt in the benchmark shim: $p"; exit 1 ;;
+esac
+EOF
+  chmod +x "$SHIM/copilot"
+}
+
+run_suite() {
+  local mode="$1"; shift
+  make_bench_shim
+  BENCH_MODE="$mode" NAV_PILOT_GOLDEN_USAGE_DB="$SHIM/none.db" PATH="$SHIM:$PATH" \
+    run /bin/bash "$SCRIPT" "$@" --save-baseline "$SHIM/b.txt"
+}
+
+@test "benchmark-sjekk selftest passes and fails its controls" {
+  run python3 "${BATS_TEST_DIRNAME}/benchmark-sjekk.py" --selftest
+  [ "$status" -eq 0 ]
+}
+
+@test "--suite and --agent are refused together" {
+  run bash "$SCRIPT" --suite review --agent nav-pilot --dry-run
+  [ "$status" -eq 2 ]
+}
+
+@test "review: right lines pass, the same review one line up fails rv4 only" {
+  run_suite good --suite review
+  [ "$status" -eq 0 ]
+  grep -q '^# suite:        review' "$SHIM/b-results.psv"
+  run_suite shifted --suite review
+  [ "$status" -eq 1 ]
+  grep -q '^rv3|1|pass|' "$SHIM/b-results.psv"
+  grep -q '^rv4|1|fail|.*tabindex (want \[11\], cited \[10\])' "$SHIM/b-results.psv"
+}
+
+@test "norsk: a clean rewrite passes, an untouched draft fails all four" {
+  run_suite good --suite norsk
+  [ "$status" -eq 0 ]
+  run_suite none --suite norsk
+  [ "$status" -eq 1 ]
+  for id in no1 no2 no3 no4; do grep -q "^$id|1|fail|" "$SHIM/b-results.psv"; done
+  grep -q '^no1|1|fail|.*utkast.run1.md: nynorsk forms: berre' "$SHIM/b-results.psv"
+}
+
+@test "coding: a fix passes, editing the test fails scope, doing nothing fails tests" {
+  command -v go >/dev/null && command -v node >/dev/null || skip "needs go and node"
+  run_suite good --suite coding
+  [ "$status" -eq 0 ]
+  run_suite cheat --suite coding --only ko1,ko2
+  [ "$status" -eq 1 ]
+  grep -q '^ko1|1|pass|' "$SHIM/b-results.psv"
+  grep -q '^ko2|1|fail|.*changed: ./frister/frist_test.go' "$SHIM/b-results.psv"
+  run_suite none --suite coding
+  [ "$status" -eq 1 ]
+  for id in ko1 ko2 ko3 ko4; do grep -q "^$id|1|fail|" "$SHIM/b-results.psv"; done
+}
