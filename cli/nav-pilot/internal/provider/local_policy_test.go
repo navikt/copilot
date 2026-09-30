@@ -675,8 +675,9 @@ func TestLocalDispatchPolicyPerLevel(t *testing.T) {
 // trusted with mechanical multi-file edits, which is what the gate enforces.
 func withDispatch(t *testing.T, level string) {
 	t.Helper()
+	prev := local.DispatchLevel()
 	local.SetDispatchLevel(level)
-	t.Cleanup(func() { local.SetDispatchLevel(local.DispatchBalanced) })
+	t.Cleanup(func() { local.SetDispatchLevel(prev) })
 	orig := local.Active()
 	m := *orig
 	m.Models = slices.Clone(orig.Models)

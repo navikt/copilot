@@ -127,7 +127,7 @@ nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> fo
           <BodyLong>
             <code className={code}>aggressive</code> sender mest, men koster mer AI-kreditter og tid enn å la
             skymodellen gjøre alt selv. <code className={code}>balanced</code> kostet også mer enn skymodellen alene,
-            men sendte mindre, så <code className={code}>aggressive</code> standard. Har du satt{" "}
+            men sendte mindre, så <code className={code}>aggressive</code> er standard. Har du satt{" "}
             <code className={code}>local_dispatch</code> selv, beholder du verdien din. Uansett nivå sender hovedagenten
             bare oppgavetyper modellen er godkjent for. Stoppet ligger i en plugin for opencode, så det virker ikke hvis
             du starter opencode med <code className={code}>--pure</code>. Hvorfor nivåene finnes, hva de gjør med hver
