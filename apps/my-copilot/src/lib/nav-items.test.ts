@@ -15,6 +15,7 @@ describe("activeTop", () => {
     ["/praksis/guide/wrap-metoden", "/praksis"],
     ["/kostnad", "/innsikt"],
     ["/priser", "/innsikt"],
+    ["/modeller", "/innsikt"],
     ["/nav-pilotx", undefined],
     ["/", undefined],
   ])("%s → %s", (path, top) => expect(activeTop(path)).toBe(top));
