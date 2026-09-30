@@ -469,7 +469,7 @@ Nei. Hvis `NAV_PILOT_TELEMETRY_ENABLED` settes til `0`/`off`, kjører en no-op t
 Telemetri logger en advarsel og feiler gracefully. Kommandoer kjører fortsatt normalt.
 
 **Kan jeg se hva som blir sendt?**  
-Ja — se `internal/telemetry/telemetry.go` i `cli/nav-pilot/` for full liste over metrikker og dimensjoner.
+Ja. Se `internal/telemetry/telemetry.go` i `cli/nav-pilot/` for full liste over metrikker og dimensjoner.
 
 **Hvordan rapporterer jeg telemetri-bug eller privacy-bekymring?**  
 Kontakt `@nav-pilot-team` eller lag issue i `navikt/copilot#issues` med tag `telemetry`.
@@ -499,6 +499,6 @@ Planlagt: Q4 2026. Da blir telemetri gjort obligatorisk (eller stilt av). Pilot-
 - **Avhengigheter**: `go.opentelemetry.io/otel/*` (se `go.mod`)
 
 For implementeringsdetaljer, se:
-- `cli/nav-pilot/internal/telemetry/telemetry.go` — initialisering og recording
-- `cli/nav-pilot/main.go` — integrasjon med kommandoer
-- `cli/nav-pilot/internal/telemetry/telemetry_test.go` — enhetstester
+- `cli/nav-pilot/internal/telemetry/telemetry.go`: initialisering og recording
+- `cli/nav-pilot/main.go`: integrasjon med kommandoer
+- `cli/nav-pilot/internal/telemetry/telemetry_test.go`: enhetstester

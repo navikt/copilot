@@ -122,7 +122,8 @@ launch (both the interactive flow and `--sync`):
 
 - **Refuses to start** on hard-invalid config — an unknown `version`, an invalid
   enum value (`client`, `mode`, `reasoning_effort`, `context_tier`, `log_level`,
-  `otel_log_level`, `local_dispatch`, `hook_action_check`, `mcp_hosts`, `autonomy`),
+  `otel_log_level`, `local_dispatch`, `hook_action_check`, `mcp_hosts`, `autonomy`,
+  `copilot_auth_mode`),
   or a malformed `model` identifier. It prints every problem via `validateConfig`
   and points the user at `nav-pilot config setup`.
 - **Warns (non-fatal)** on advisory issues via `configAdvisories`, printed to
