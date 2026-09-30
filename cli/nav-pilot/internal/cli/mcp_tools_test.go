@@ -3,7 +3,6 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -376,19 +375,13 @@ func TestDoctorToolNudges(t *testing.T) {
 		!strings.Contains(out.String(), "nav-pilot mcp enable com.jetbrains/intellij --client copilot --tools read_file,reformat_file") {
 		t.Errorf("doctor:\n%s", out.String())
 	}
-	if w := mcpLoopbackNote("com.jetbrains/intellij", "64342"); !strings.Contains(w, "opening localhost:64342 lets the agent reach execute_terminal_command") || !strings.HasSuffix(w, "then open the port") || len(w) > mcpLoopbackNoteWidth {
+	if w := mcpLoopbackNote("com.jetbrains/intellij", "64342"); !strings.Contains(w, "opening localhost:64342 lets the agent reach execute_terminal_command") || !strings.HasSuffix(w, "then open the port") || len(w) > 600 {
 		t.Errorf("loopback note = %q", w)
 	}
-	// Every host-exec tool the registry has, and a fix for both clients
-	// with 30 long tool names: still one whole line for doctor.
+	// Every host-exec tool the registry has: still one whole line, which
+	// doctor cuts at 600.
 	hx := []string{"apply_patch", "build_project", "create_new_file", "execute_run_configuration", "execute_sql_query", "execute_terminal_command", "execute_tool"}
-	big := mcpTestEntries()[2]
-	big.Tools = nil
-	for i := range 30 {
-		big.Tools = append(big.Tools, fmt.Sprintf("get_something_long_%02d", i))
-	}
-	fix := mcpNarrowFixes(big, []string{"copilot", "opencode"})
-	if w := mcpLoopbackWarning(big, "64342", hx, fix); len(w) > mcpLoopbackNoteWidth || !strings.Contains(w, fix) {
+	if w := mcpLoopbackWarning(mcpTestEntries()[2], "64342", hx, mcpLoopbackFix(mcpTestEntries()[2], []string{"copilot", "opencode"})); len(w) > 600 || strings.Contains(w, "read_file") {
 		t.Errorf("loopback warning is %d long: %q", len(w), w)
 	}
 	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {"com.jetbrains/intellij": {"type": "sse", "url": "http://127.0.0.1:64342/sse", "tools": ["reformat_file"]}}}`)

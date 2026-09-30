@@ -341,9 +341,8 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 				// The port is a way out of the sandbox while those tools
 				// are on: narrow first, then open it.
 				// Every client that has them, before the port opens.
-				narrow := mcpNarrowFixes(e, narrowClients)
-				p.Problem += "; ⚠ " + mcpLoopbackWarning(e, port, row.HostExec, narrow)
-				p.Fix = narrow + " && " + p.Fix
+				p.Problem += "; ⚠ " + mcpLoopbackWarning(e, port, row.HostExec, mcpLoopbackFix(e, narrowClients))
+				p.Fix = mcpNarrowFixes(e, narrowClients) + " && " + p.Fix
 			}
 			if p != nil {
 				add(*p)

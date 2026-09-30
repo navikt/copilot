@@ -275,9 +275,16 @@ func mcpLoopbackWarning(e providerpkg.MCPServerEntry, port string, hx []string, 
 		port, strings.Join(hx, ", "), mcpRuns(hx), mcpIt(hx), fix)
 }
 
-// mcpLoopbackNoteWidth is where doctor cuts the note: room for the narrowing
-// command of both clients with every default tool of the largest server.
-const mcpLoopbackNoteWidth = 2000
+// mcpLoopbackFix is the short form of the narrowing command for the
+// warning, which doctor cuts at 600: --tools with a placeholder, and for a
+// server without a tool list, which --tools cannot pick from, the real
+// commands (they are short).
+func mcpLoopbackFix(e providerpkg.MCPServerEntry, clients []string) string {
+	if len(e.Tools) == 0 {
+		return mcpNarrowFixes(e, clients)
+	}
+	return "nav-pilot mcp enable " + e.Name + " --tools <a,b>"
+}
 
 // mcpNarrowFixes is mcpNarrowFix for each client, in one command line.
 func mcpNarrowFixes(e providerpkg.MCPServerEntry, clients []string) string {
@@ -334,7 +341,7 @@ func mcpLoopbackNote(server, port string) string {
 			clients = append(clients, c)
 		}
 	}
-	return mcpLoopbackWarning(e, port, hx, mcpNarrowFixes(e, clients))
+	return mcpLoopbackWarning(e, port, hx, mcpLoopbackFix(e, clients))
 }
 
 // reportMCPTools is doctor's nudge for a configured server with a tool on
