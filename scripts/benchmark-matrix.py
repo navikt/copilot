@@ -14,6 +14,7 @@ nothing and runs again from the start.
 
   scripts/benchmark-matrix.py MATRIX --dry-run   # arms, status, estimated credits
   scripts/benchmark-matrix.py MATRIX --jobs 3    # run the pending arms, 3 at a time
+  scripts/benchmark-matrix.py MATRIX --keep      # and keep transcripts to read a failure
 
 The estimate multiplies n by the per-run credits of the closest committed run
 in summary.json: same suite, model and effort, else same suite and model, else
@@ -79,10 +80,10 @@ def per_run_credits(runs, arm):
     return None, "no data"
 
 
-def run_arm(arm, outdir, logdir):
+def run_arm(arm, outdir, logdir, keep):
     cmd = [str(REPO / "scripts" / "nav-pilot-golden.sh"), "--suite", arm["suite"],
            "--model", arm["model"], "--repeat", str(arm["n"]),
-           "--save-baseline", str(baseline(outdir, arm))]
+           "--save-baseline", str(baseline(outdir, arm))] + (["--keep"] if keep else [])
     if arm["effort"] != "default":
         cmd += ["--effort", arm["effort"]]
     log = logdir / f"{baseline(outdir, arm).stem}.log"
@@ -99,6 +100,7 @@ def main():
     ap.add_argument("matrix", type=Path)
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--keep", action="store_true", help="keep transcripts (path in each arm's log)")
     a = ap.parse_args()
 
     outdir = BASELINES / a.matrix.stem
@@ -122,7 +124,7 @@ def main():
     logdir = Path(tempfile.mkdtemp(prefix="benchmark-matrix."))
     pending = [arm for arm in todo if not done(baseline(outdir, arm), arm["n"])]
     with ThreadPoolExecutor(max_workers=a.jobs) as pool:
-        results = list(pool.map(lambda arm: run_arm(arm, outdir, logdir), pending))
+        results = list(pool.map(lambda arm: run_arm(arm, outdir, logdir, a.keep), pending))
     print(f"{sum(results)}/{len(pending)} arms saved to {outdir.relative_to(REPO)}; "
           "then run scripts/benchmark-summary.py and commit")
     sys.exit(0 if all(results) else 1)
