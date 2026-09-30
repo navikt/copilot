@@ -11,6 +11,7 @@ describe("golden-baselines", () => {
     expect(runsBySuite(summary.runs).map(([suite, runs]) => [suite, runs.length])).toEqual([
       ["planning", 3],
       ["review", 3],
+      ["norsk", 1],
     ]);
   });
 

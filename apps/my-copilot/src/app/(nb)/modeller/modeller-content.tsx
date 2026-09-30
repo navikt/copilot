@@ -81,8 +81,9 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
         ikke til å rangere modellene generelt. Sist oppdatert {summary.generated}.
       </BodyLong>
       {runsBySuite(summary.runs).map(([suite, runs]) => {
-        const plotted = runs.filter((run) => knownCredits(run) !== null);
-        const unplotted = runs.length - plotted.length;
+        // Smoke runs check the harness, not the model: table only, after the real runs.
+        const plotted = runs.filter((run) => !run.smoke && knownCredits(run) !== null);
+        const unplotted = runs.filter((run) => !run.smoke && knownCredits(run) === null).length;
         return (
           <VStack gap="space-12" key={suite}>
             <Heading size="small" level="3">
@@ -125,34 +126,36 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
-                  {runs.map((run) => {
-                    const credits = knownCredits(run);
-                    return (
-                      <Table.Row key={`${run.model}-${run.effort}-${run.date}-${run.source}`}>
-                        <Table.DataCell className="whitespace-nowrap">
-                          {modelName(run.model)}
-                          {run.smoke && " (røyktest)"}
-                        </Table.DataCell>
-                        <Table.DataCell>
-                          {effortName(run.effort)}
-                          {run.ran_at && run.ran_at !== run.effort && ` (kjørte på ${effortName(run.ran_at)})`}
-                        </Table.DataCell>
-                        <Table.DataCell align="right">{Math.round(passRate(run) * 100)} %</Table.DataCell>
-                        <Table.DataCell align="right">
-                          {credits === null ? "–" : credits.toLocaleString("nb-NO")}
-                        </Table.DataCell>
-                        <Table.DataCell align="right">{Math.round(run.wall_seconds.median)} s</Table.DataCell>
-                        <Table.DataCell align="right">{run.n}</Table.DataCell>
-                        <Table.DataCell className="whitespace-nowrap">{run.date}</Table.DataCell>
-                        <Table.DataCell>{run.cli_version}</Table.DataCell>
-                        <Table.DataCell>
-                          <Link href={sourceUrl(run.source)} target="_blank" rel="noopener noreferrer">
-                            {run.source.split("/").pop()}
-                          </Link>
-                        </Table.DataCell>
-                      </Table.Row>
-                    );
-                  })}
+                  {[...runs]
+                    .sort((a, b) => Number(!!a.smoke) - Number(!!b.smoke))
+                    .map((run) => {
+                      const credits = knownCredits(run);
+                      return (
+                        <Table.Row key={`${run.model}-${run.effort}-${run.date}-${run.source}`}>
+                          <Table.DataCell className="whitespace-nowrap">
+                            {modelName(run.model)}
+                            {run.smoke && " (røyktest)"}
+                          </Table.DataCell>
+                          <Table.DataCell>
+                            {effortName(run.effort)}
+                            {run.ran_at && run.ran_at !== run.effort && ` (kjørte på ${effortName(run.ran_at)})`}
+                          </Table.DataCell>
+                          <Table.DataCell align="right">{Math.round(passRate(run) * 100)} %</Table.DataCell>
+                          <Table.DataCell align="right">
+                            {credits === null ? "–" : credits.toLocaleString("nb-NO")}
+                          </Table.DataCell>
+                          <Table.DataCell align="right">{Math.round(run.wall_seconds.median)} s</Table.DataCell>
+                          <Table.DataCell align="right">{run.n}</Table.DataCell>
+                          <Table.DataCell className="whitespace-nowrap">{run.date}</Table.DataCell>
+                          <Table.DataCell>{run.cli_version}</Table.DataCell>
+                          <Table.DataCell>
+                            <Link href={sourceUrl(run.source)} target="_blank" rel="noopener noreferrer">
+                              {run.source.split("/").pop()}
+                            </Link>
+                          </Table.DataCell>
+                        </Table.Row>
+                      );
+                    })}
                 </Table.Body>
               </Table>
             </div>

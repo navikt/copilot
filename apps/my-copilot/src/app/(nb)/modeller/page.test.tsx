@@ -65,6 +65,28 @@ describe("modellsiden", () => {
     expect(within(rowFor("fixture-c.txt")).getByText("high")).toBeInTheDocument();
   });
 
+  it("holder røyktester utenfor diagrammene og lister dem etter de ekte kjøringene", () => {
+    summaryFile.path = FIXTURE;
+    render(<ModellerPage />);
+
+    // The smoke run on GPT-6 Luna has known credits, so only the smoke flag keeps it off the chart.
+    expect(screen.getByRole("figure", { name: "Kodegjennomgang: andel bestått mot median credits" })).toHaveAttribute(
+      "data-points",
+      "Claude Opus 5.5/low"
+    );
+    const reviewTable = screen.getByRole("link", { name: "fixture-d.txt" }).closest("table")!;
+    expect(
+      within(reviewTable)
+        .getAllByRole("link")
+        .map((link) => link.textContent)
+    ).toEqual(["fixture-d.txt", "fixture-f.txt", "fixture-e.txt"]);
+
+    // A suite with only smoke runs gets its table, no chart.
+    expect(screen.getByRole("heading", { name: "Norsk tekst" })).toBeInTheDocument();
+    expect(screen.getByText("Claude Sonnet 5.5 (røyktest)")).toBeInTheDocument();
+    expect(screen.queryByRole("figure", { name: /^Norsk tekst/ })).toBeNull();
+  });
+
   it("lister agentene fra frontmatter-pinnene og lenker til Slack-kanalen", () => {
     summaryFile.path = FIXTURE;
     render(<ModellerPage />);

@@ -87,6 +87,19 @@
       "credits": null,
       "wall_seconds": { "median": 80 },
       "source": "docs/golden-baselines/fixture-f.txt"
+    },
+    {
+      "date": "2000-01-01",
+      "suite": "norsk",
+      "model": "claude-sonnet-5.5",
+      "effort": "default",
+      "smoke": true,
+      "cli_version": "0.0.0-fixture",
+      "n": 1,
+      "checks": [{ "id": "c1", "description": "Testkrav 1", "passed": 1 }],
+      "credits": { "median": 5, "mean": 5 },
+      "wall_seconds": { "median": 30 },
+      "source": "docs/golden-baselines/fixture-g.txt"
     }
   ]
 }
