@@ -225,7 +225,8 @@ export default function Referanse() {
             Nivået er <code className={code}>sandbox.preset</code> i cplt. Sett det med{" "}
             <code className={code}>nav-pilot config setup --advanced</code> eller{" "}
             <code className={code}>nav-pilot config</code>, raden «cplt strict preset (blocks all pushes)», så kommer
-            Nav-hostene med. Hvorfor står i{" "}
+            Nav-hostene med. Har du en egen <code className={code}>proxy.allowed_domains</code>, må du legge dem inn i
+            den selv. Hvorfor står i{" "}
             <NextLink href="/nav-pilot/forklaring/sandkassen#sikkerhetsniva" className={linkClass}>
               Sandkassen
             </NextLink>

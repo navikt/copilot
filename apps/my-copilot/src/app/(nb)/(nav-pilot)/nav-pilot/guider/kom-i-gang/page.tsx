@@ -231,9 +231,10 @@ cplt trust accept`}</CodeBlock>
             Hvor mye skal agenten gjøre selv?
           </LinkableHeading>
           <BodyLong>
-            Veiviseren stiller to spørsmål. Uansett hva du svarer, stopper cplt merging, push til standardgrenen og
-            force push. Unntaket er hvis du har satt cplt-nivået <code className={code}>permissive</code> eller{" "}
-            <code className={code}>full-trust</code>. Der er sperrene av, og ingenting blir stoppet.
+            Veiviseren stiller to spørsmål. Når klienten kjører i cplt med nivået <code className={code}>standard</code>{" "}
+            eller <code className={code}>strict</code>, stopper cplt <code className={code}>gh pr merge</code>, push til
+            standardgrenen og force push, uansett hva du svarer. Med <code className={code}>permissive</code> eller{" "}
+            <code className={code}>full-trust</code> er sperrene av, og ingenting blir stoppet.
           </BodyLong>
           <BodyLong>
             <strong>How should the agent run commands?</strong> Bare for Copilot CLI.
@@ -292,13 +293,15 @@ cplt trust accept`}</CodeBlock>
                 <strong>strict koster noe.</strong> Agenten kan ikke pushe med mindre du tillater det i git-spørsmålet.
                 Verter som ikke står på lista, blir blokkert. Det gjelder også interne verter du tar i bruk senere.
                 nav-pilot legger Navs verter i <code className={code}>~/.nav-pilot/cplt-allowed-domains.txt</code> før
-                nivået blir satt. På Linux krever nivået kjerne 6.7 eller nyere med Landlock slått på.
+                nivået blir satt. Har du en egen <code className={code}>proxy.allowed_domains</code>, må du legge dem
+                inn i den selv. På Linux krever nivået kjerne 6.7 eller nyere med Landlock slått på.
               </BodyLong>
               <BodyLong>
                 Bytter du fra strict til <code className={code}>standard</code>, spør nav-pilot fra versjon{" "}
                 {LIST_REMOVAL_VERSION}: <strong>Remove the network allowlist nav-pilot set up for strict?</strong>{" "}
-                Svarer du nei, eller har du en eldre versjon, blir lista stående, og agenten når fortsatt bare vertene
-                på den. Fjern den slik:
+                Spørsmålet kommer bare for lista nav-pilot la inn selv. Svarer du nei, har du en eldre versjon eller en
+                egen liste, blir lista stående, og agenten når fortsatt bare vertene på den. Kommandoen under fjerner
+                lista som gjelder, uansett hvem som la den inn:
               </BodyLong>
               <CodeBlock compact>{`cplt config set proxy.allowed_domains --unset --global`}</CodeBlock>
             </VStack>
@@ -339,8 +342,9 @@ cplt trust accept`}</CodeBlock>
               .
             </li>
             <li>
-              Trenger agenten verktøy utenfor klienten, som Playwright? Legg dem til med{" "}
-              <code className={code}>nav-pilot mcp enable</code>, og se{" "}
+              Trenger agenten verktøy utenfor klienten, som Playwright? Finn navnet med{" "}
+              <code className={code}>nav-pilot mcp list</code>, legg serveren til med{" "}
+              <code className={code}>nav-pilot mcp enable &lt;navn&gt;</code>, og se{" "}
               <NextLink href="/nav-pilot/klienter#mcp-register" className={linkClass}>
                 Navs MCP-register
               </NextLink>
