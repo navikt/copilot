@@ -44,15 +44,20 @@ var mcpPickTools = func(e providerpkg.MCPServerEntry) ([]string, error) {
 			Selected(slices.Contains(e.DefaultTools(), t)))
 	}
 	pick := []string{}
-	err := huh.NewMultiSelect[string]().
+	// Esc cancels, like ctrl+c; the description names it, so no footer.
+	err := huh.NewForm(huh.NewGroup(escHelpField{huh.NewMultiSelect[string]().
 		Title("Which tools of " + e.Name + " should the agent get?").
-		Description("Space picks, Enter confirms. Reads and writes are picked; the rest are off by default.").
-		Options(opts...).Value(&pick).WithTheme(navTheme()).Run()
+		Description("Space picks, Enter confirms, Esc cancels. Reads and writes are picked; the rest are off by default.").
+		Options(opts...).Value(&pick)})).WithShowHelp(false).WithTheme(navTheme()).Run()
 	return pick, err
 }
 
 // mcpAsk is a yes/no in the terminal, default no. A var so tests answer it.
-var mcpAsk = func(title string) bool { return confirm(title, false, false) }
+// Esc, like ctrl+c, is no.
+var mcpAsk = func(title string) bool {
+	ok := false
+	return isInteractive() && runField(huh.NewConfirm().Title(title).Value(&ok)) == nil && ok
+}
 
 // mcpChooseTools is the tools enable turns on for e.
 func mcpChooseTools(e providerpkg.MCPServerEntry, o mcpToolOpts) (providerpkg.MCPToolChoice, error) {
@@ -100,6 +105,9 @@ func mcpChooseTools(e providerpkg.MCPServerEntry, o mcpToolOpts) (providerpkg.MC
 		c.Tools = o.tools
 	case isInteractive() && !o.noPick:
 		pick, err := mcpPickTools(e)
+		if errors.Is(err, huh.ErrUserAborted) {
+			return c, cancelledError{nothingWritten: true}
+		}
 		if err != nil {
 			return c, err
 		}

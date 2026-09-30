@@ -3,12 +3,14 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/huh"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
@@ -488,5 +490,34 @@ func TestMCPListLoopbackWithoutToolList(t *testing.T) {
 	i.state.All, i.hostExec = true, []string{mcpAllItsTools}
 	if got := mcpToolProblems(entries[2], "copilot", i)[0].Problem; strings.Contains(got, "including all of its tools") || strings.Contains(got, "runs") {
 		t.Errorf("nudge = %q", got)
+	}
+}
+
+// Esc or ctrl+c in a tool picker (huh.ErrUserAborted) ends the whole command
+// before anything is written: with two names, a cancel in the second picker
+// leaves the first server unwritten too, and exits as a cancel (130).
+func TestMCPEnablePickerCancelWritesNothing(t *testing.T) {
+	mcpCmdEnv(t, providerpkg.MCPHostState{})
+	isInteractive = func() bool { return true }
+	prevPick := mcpPickTools
+	t.Cleanup(func() { mcpPickTools = prevPick })
+	shown := 0
+	mcpPickTools = func(e providerpkg.MCPServerEntry) ([]string, error) {
+		shown++
+		if shown == 2 {
+			return nil, huh.ErrUserAborted
+		}
+		return e.DefaultTools(), nil
+	}
+	_ = os.Remove(copilotMCPPath())
+	_, err := mcpEnable(t, "github-mcp", "intellij", "--client", "copilot")
+	if !errors.As(err, new(cancelledError)) || exitCodeFor(err) != 130 {
+		t.Fatalf("err = %v, want a cancel", err)
+	}
+	if shown != 2 {
+		t.Errorf("pickers shown = %d, want 2", shown)
+	}
+	if _, statErr := os.Stat(copilotMCPPath()); statErr == nil {
+		t.Error("a cancelled picker wrote the config")
 	}
 }
