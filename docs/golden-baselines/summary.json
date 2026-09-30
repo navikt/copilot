@@ -18,7 +18,7 @@
         },
         {
           "id": "ko1",
-          "description": "Go: testene går grønt etterpå",
+          "description": "Go: testene er grønne etterpå",
           "passed": 1
         },
         {
@@ -28,17 +28,17 @@
         },
         {
           "id": "ko3",
-          "description": "TS: testen går grønt etterpå",
+          "description": "TS: testen er grønn etterpå",
           "passed": 1
         },
         {
           "id": "ko6",
-          "description": "Go, to filer: endrer nøyaktig de to filene",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
           "passed": 1
         },
         {
           "id": "ko5",
-          "description": "Go, to filer: testene går grønt etterpå",
+          "description": "Go, to filer: testene er grønne etterpå",
           "passed": 1
         }
       ],
@@ -79,7 +79,7 @@
         },
         {
           "id": "no4",
-          "description": "Holder lengdegrensen",
+          "description": "Holder seg innenfor 30–90 ord",
           "passed": 1
         }
       ],
@@ -105,7 +105,7 @@
       "checks": [
         {
           "id": "t2",
-          "description": "Stopper etter fase 1 med spørsmål til brukeren",
+          "description": "Stopper etter fase 1 og venter på svar",
           "passed": 1
         },
         {
@@ -115,12 +115,12 @@
         },
         {
           "id": "t4",
-          "description": "Fase 2-planen erklærer rød sone",
+          "description": "Planen i fase 2 markerer rød sone",
           "passed": 1
         },
         {
           "id": "t5",
-          "description": "Anbefaler TokenX for brukerkontekst, ikke client_credentials",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
           "passed": 1
         }
       ],
@@ -146,12 +146,12 @@
       "checks": [
         {
           "id": "re1",
-          "description": "Oppgir riktig fil og linje for hver bruk",
+          "description": "Riktig fil og linje for hver bruk av konstanten",
           "passed": 1
         },
         {
           "id": "re2",
-          "description": "Sier at det ikke finnes kall, og dikter ikke opp filer",
+          "description": "Sier at funksjonen ikke kalles, uten å dikte opp filer",
           "passed": 1
         },
         {
@@ -192,7 +192,7 @@
         },
         {
           "id": "rv2",
-          "description": "Kotlin: oppgir riktig linje for hver feil",
+          "description": "Kotlin: riktig linje for hver feil",
           "passed": 1
         },
         {
@@ -202,7 +202,7 @@
         },
         {
           "id": "rv4",
-          "description": "TSX: oppgir riktig linje for hver feil",
+          "description": "TSX: riktig linje for hver feil",
           "passed": 1
         }
       ],
@@ -233,7 +233,7 @@
         },
         {
           "id": "rv2",
-          "description": "Kotlin: oppgir riktig linje for hver feil",
+          "description": "Kotlin: riktig linje for hver feil",
           "passed": 1
         },
         {
@@ -243,7 +243,7 @@
         },
         {
           "id": "rv4",
-          "description": "TSX: oppgir riktig linje for hver feil",
+          "description": "TSX: riktig linje for hver feil",
           "passed": 1
         }
       ],
