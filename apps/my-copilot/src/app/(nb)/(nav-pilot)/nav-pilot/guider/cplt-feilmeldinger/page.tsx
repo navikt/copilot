@@ -518,7 +518,8 @@ cplt trust accept --all                                    # godkjenn forslaget`
             Gjelder macOS. <code className={code}>.git/config</code> er skrivebeskyttet, fordi den kan få git til å
             kjøre kode utenfor sandkassen. Derfor fjerner cplt <code className={code}>-u</code> fra{" "}
             <code className={code}>git push -u</code> og skriver <code className={code}>cplt: pushing without -u</code>.
-            Grenen blir pushet, men uten upstream. Push med grenen skrevet ut, og oppgi den når du lager pull requesten:
+            Grenen blir pushet, men uten upstream. Skriv grennavnet når du pusher, og oppgi det når du lager pull
+            requesten:
           </BodyLong>
           <CodeBlock compact>
             {`git push origin HEAD:min-gren

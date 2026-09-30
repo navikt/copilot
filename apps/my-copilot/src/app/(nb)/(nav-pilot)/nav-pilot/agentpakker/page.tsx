@@ -651,7 +651,7 @@ export default function Agentpakker() {
                     <BodyLong textColor="subtle">
                       <code className={code}>install</code> navngir serverne pakka trenger, peker på registeret og viser
                       kommandoen som slår dem på: <code className={code}>nav-pilot mcp enable &lt;navn&gt; …</code>.
-                      Selve installasjonen skriver ingen MCP-konfigurasjon; det gjør brukeren med den kommandoen. Feltet
+                      Selve installasjonen skriver ingen MCP-konfigurasjon. Det gjør du med den kommandoen. Feltet
                       ligger på pakkenivå, siden det er klientens eget oppsett som avgjør om en server er tilgjengelig.
                     </BodyLong>
 
