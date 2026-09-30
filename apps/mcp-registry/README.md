@@ -135,9 +135,11 @@ Names follow reverse-DNS with exactly one `/`:
 
 **Required fields**: `name`, `description`, `version`
 
-**Optional fields**: `status` (default: `active`), `publishedAt`, `remotes`, `packages`, `setupInstructions`
+**Optional fields**: `status` (default: `active`), `publishedAt`, `remotes`, `packages`, `setupInstructions`, `sandboxHosts`
 
 `setupInstructions` is an array of `{ "title", "description", "commands" }` steps, shown with copyable commands in Min Copilot.
+
+`sandboxHosts` lists bare host names the server needs besides its remotes, such as an OAuth endpoint (`["api.figma.com"]` for Figma). It is served under `_meta."io.github.navikt/registry".sandboxHosts`, and nav-pilot asks the user before allowing these hosts in cplt's sandbox.
 
 ### Remote Servers (HTTP)
 

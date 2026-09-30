@@ -892,3 +892,24 @@ func TestPlaywrightRecipeReturnedByListAndVersion(t *testing.T) {
 	}
 	assertRecipe(t, versionResponse)
 }
+
+// Figma's OAuth runs against api.figma.com, which is not a remote: the
+// registry serves it as an extra sandbox host for nav-pilot to ask about.
+func TestFigmaSandboxHostsServed(t *testing.T) {
+	rec := httptest.NewRecorder()
+	serversListHandler(rec, httptest.NewRequest(http.MethodGet, "/v0.1/servers", nil), testConfig())
+	var list ServerListResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
+		t.Fatalf("failed to parse list response: %v", err)
+	}
+	for _, s := range list.Servers {
+		if s.Server.Name != "com.figma/figma-mcp" {
+			continue
+		}
+		if s.Meta.NavRegistry == nil || !reflect.DeepEqual(s.Meta.NavRegistry.SandboxHosts, []string{"api.figma.com"}) {
+			t.Fatalf("expected _meta sandboxHosts [api.figma.com], got %#v", s.Meta.NavRegistry)
+		}
+		return
+	}
+	t.Fatal("Figma server missing from list response")
+}
