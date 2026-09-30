@@ -64,6 +64,7 @@ export const SECTION: NavGroup[] = [
     items: [
       { label: "Kommandoer og konfig", href: "/nav-pilot/referanse" },
       { label: "Klienter", href: "/nav-pilot/klienter" },
+      { label: "Kjente begrensninger i cplt", href: "/nav-pilot/referanse/cplt-begrensninger" },
     ],
   },
   { label: "Forklaring", overview: "/nav-pilot/forklaring", items: fromDocs(EXPLANATION_PAGES) },

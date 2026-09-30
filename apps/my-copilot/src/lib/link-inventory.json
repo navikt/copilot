@@ -655,6 +655,8 @@
       ],
       "sikkerhetsniva": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-nettverk/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-oppsett/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx",
@@ -740,6 +742,23 @@
       "yarnrc": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"]
     }
   },
+  "/nav-pilot/guider/cplt-git": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
+    ],
+    "anchors": {
+      "andre-repoer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
+      "opencode": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
+      "oppsett": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
+      "push": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
+      "signering": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
+      "utenfor": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
+      "vaktene": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"]
+    }
+  },
   "/nav-pilot/guider/cplt-gradle": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx",
@@ -764,9 +783,26 @@
       ],
       "testcontainers": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx",
-        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-oppsett/page.tsx"
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-oppsett/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx"
       ],
       "tillatelsesliste": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"]
+    }
+  },
+  "/nav-pilot/guider/cplt-nettverk": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-nettverk/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
+    ],
+    "anchors": {
+      "finn-hoster": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-nettverk/page.tsx"],
+      "interne": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-nettverk/page.tsx"],
+      "porter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-nettverk/page.tsx"],
+      "se-blokkert": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-nettverk/page.tsx"],
+      "standard": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-nettverk/page.tsx"],
+      "tillatelsesliste": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-nettverk/page.tsx"]
     }
   },
   "/nav-pilot/guider/cplt-node": {
@@ -779,7 +815,10 @@
       "env-filer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
       "feil": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
       "github-packages": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
-      "globale": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "globale": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx"
+      ],
       "localhost": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
       "nettleser": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
       "npm-token": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
@@ -1367,6 +1406,19 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx"
       ]
+    }
+  },
+  "/nav-pilot/referanse/cplt-begrensninger": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/lib/nav-items.ts"
+    ],
+    "anchors": {
+      "filer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx"],
+      "git": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx"],
+      "nettverk": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx"],
+      "verktoy": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx"]
     }
   },
   "/nav-pilot/undersokelse": {
