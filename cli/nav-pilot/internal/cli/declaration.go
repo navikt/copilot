@@ -226,10 +226,7 @@ func recordDeclaration(scope *InstallScope, src *Source, quiet bool) {
 	if filepath.IsAbs(d.Source) {
 		d.SHA = ""
 	}
-	d.MinNavPilotVersion = ""
-	if src.Pakke != nil {
-		d.MinNavPilotVersion = src.Pakke.MinNavPilotVersion
-	}
+	d.MinNavPilotVersion = minNavPilotVersionOf(src)
 	if err := agentpakke.WriteDeclaration(scope.RootDir, d); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not write %s: %v\n", yellow("⚠"), agentpakke.DeclarationPath, err)
 		return
@@ -244,6 +241,15 @@ func recordDeclaration(scope *InstallScope, src *Source, quiet bool) {
 	}
 	fmt.Printf("%s Pinned %s@%s in %s — commit it so the whole team installs this revision.\n",
 		green("✓"), bold(d.Source), shortSHA(d.SHA), bold(agentpakke.DeclarationPath))
+}
+
+// minNavPilotVersionOf is the manifest's minNavPilotVersion, which a
+// declaration copies for the revision it pins.
+func minNavPilotVersionOf(src *Source) string {
+	if src == nil || src.Pakke == nil {
+		return ""
+	}
+	return src.Pakke.MinNavPilotVersion
 }
 
 // bumpDeclarationSHA moves the pinned revision forward after a sync that
@@ -283,6 +289,9 @@ func bumpDeclarationSHA(scope *InstallScope, src *Source, quiet bool) {
 	}
 	previous := d.SHA
 	d.SHA = src.SHA
+	// The compatibility statement belongs to the pinned revision, so it moves
+	// with the pin.
+	d.MinNavPilotVersion = minNavPilotVersionOf(src)
 	if err := agentpakke.WriteDeclaration(scope.RootDir, d); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not bump the pinned revision in %s: %v\n",
 			yellow("⚠"), agentpakke.DeclarationPath, err)

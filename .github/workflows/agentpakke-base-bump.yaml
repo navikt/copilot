@@ -28,9 +28,18 @@ name: Agentpakke base bump
 #       permissions:
 #         contents: write
 #         pull-requests: write
+#       # Optional. A pull request opened with the default github.token starts
+#       # no workflows, so the bump PR gets no checks. A GitHub App token or a
+#       # fine-grained PAT with contents and pull-requests write does.
+#       secrets:
+#         token: ${{ secrets.AGENTPAKKE_BUMP_TOKEN }}
 
 on:
   workflow_call:
+    secrets:
+      token:
+        description: 'Token that opens the pull request. Defaults to github.token, whose pull requests start no checks.'
+        required: false
 
 permissions:
   contents: write
@@ -75,9 +84,9 @@ jobs:
       # Opens the pull request, or updates the open one on the same branch.
       - name: Open or update the pull request
         if: steps.bump.outputs.moved == 'true'
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # ratchet:peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # ratchet:peter-evans/create-pull-request@v8.1.1
         with:
-          token: ${{ github.token }}
+          token: ${{ secrets.token || github.token }}
           sign-commits: true
           add-paths: .nav-pilot/agentpakke.lock.json
           commit-message: "chore: bump reused agentpakke ${{ steps.bump.outputs.base }}"

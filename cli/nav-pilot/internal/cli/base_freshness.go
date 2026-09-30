@@ -90,12 +90,11 @@ func lookupBaseLagHTTP(ctx context.Context, repo, name, pin string) (*baseLag, e
 
 // warnBaseLag checks the base that pakkeRepo's lock pins and prints one line
 // to w when it trails. It also records the answer as freshness telemetry.
-func warnBaseLag(w io.Writer, indent, scopeName, pakkeRepo, baseRepo, baseName, pin string) {
+// ctx bounds the whole check; the caller sets the deadline.
+func warnBaseLag(ctx context.Context, w io.Writer, indent, scopeName, pakkeRepo, baseRepo, baseName, pin string) {
 	if !pinnable(baseRepo) || pin == "" {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), pakkeReleaseTimeout)
-	defer cancel()
 	lag, err := lookupBaseLag(ctx, baseRepo, baseName, pin)
 	a := artifacts.StalenessAssessment{Result: "up_to_date", LatestVersion: "latest", UpToDate: true}
 	switch {
@@ -121,6 +120,7 @@ func reportScopeBaseLag(scope *InstallScope, state *StateFile) {
 	if state == nil || tracksDefaultSource(state) || !pinnable(state.SourceRepo) || state.SourceSHA == "" || pinnedState(state) {
 		return
 	}
+	// One deadline for all four requests, so doctor waits at most this long.
 	ctx, cancel := context.WithTimeout(context.Background(), pakkeReleaseTimeout)
 	defer cancel()
 	var lock agentpakke.Declaration
@@ -134,7 +134,7 @@ func reportScopeBaseLag(scope *InstallScope, state *StateFile) {
 	if githubFileJSON(ctx, lock.Source, agentpakke.ManifestPath, lock.SHA, &base) != nil {
 		return
 	}
-	warnBaseLag(os.Stdout, "      ", scope.Name, state.SourceRepo, lock.Source, base.Name, lock.SHA)
+	warnBaseLag(ctx, os.Stdout, "      ", scope.Name, state.SourceRepo, lock.Source, base.Name, lock.SHA)
 }
 
 // githubFileJSON decodes one file of repo at ref, read through the contents

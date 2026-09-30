@@ -688,7 +688,8 @@ pakkeeieren:
 «Bak» betyr bak det sync selv ville hentet fra basen: den nyeste stabile releasen når basen
 publiserer releases, ellers standardgrenen. Linja er bare et varsel. Pinnen flyttes ikke,
 `doctor` feiler ikke, og uten nett eller når GitHub ikke svarer, sies det ingenting. Oppstarten
-av klienten spør ikke.
+av klienten spør ikke. Sjekken gjelder bare basen pakka gjenbruker direkte. Gjenbruker basen selv en
+annen pakke, er det basens eier som flytter den pinnen.
 
 Som pakkeeier flytter du pinnen med én kommando i pakkerepoet:
 
@@ -716,7 +717,15 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    secrets:
+      token: ${{ secrets.AGENTPAKKE_BUMP_TOKEN }}
 ```
+
+`secrets.token` er valgfri. Uten den åpnes pull requesten med repoets `github.token`, og GitHub
+starter ingen workflows for en pull request som er åpnet med det tokenet. Da kjører ingen
+sjekker på bumpen. Vil du ha CI på den, lager du et token fra en GitHub App eller et
+fine-grained personal access token med skrivetilgang til contents og pull requests i
+pakkerepoet, legger det inn som secret, og sender det inn som vist over.
 
 **Bindingstidspunktet følger formen på manifestet**, ikke en egen mekanisme. En layout-pakke
 løser erklæringa si ved hver `install` og `sync`. En payload-pakke løste den ved byggetid, og

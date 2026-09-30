@@ -80,6 +80,7 @@ func cmdPakkeBumpBase(root string) error {
 
 	from := d.SHA
 	d.SHA = next.SHA
+	d.MinNavPilotVersion = minNavPilotVersionOf(next)
 	if err := agentpakke.WriteDeclaration(root, d); err != nil {
 		return err
 	}

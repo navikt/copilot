@@ -8,7 +8,8 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **Én linje i `sync` og `doctor`**: En agentpakke som gjenbruker en annen, pinner basen i `.nav-pilot/agentpakke.lock.json`. Ligger pinnen bak basens nyeste release, eller standardgrenen når basen ikke publiserer releases, sier `sync` og `doctor` fra med én linje: hvilken pakke, hvilken base, hvor mange commits og dager bak, og at pakkeeieren bør flytte pinnen. Pinnen flyttes ikke, `doctor` feiler ikke, og uten nett sies det ingenting. Oppstarten spør ikke (#1368).
 - **`nav-pilot pakke bump-base`**: Ny kommando for pakkeeiere. Den flytter pinnen og skriver ut hvilke agenter og hvilke modeller i frontmatter som har endret seg.
-- **Gjenbrukbar workflow**: `.github/workflows/agentpakke-base-bump.yaml` kjører kommandoen på en tidsplan i pakkerepoet og åpner en pull request med sammendraget. Eieren ser over og merger. Oppsettet står i [agentpakke-guiden](README.agentpakke.md#en-pakke-som-gjenbruker-en-annen).
+- **Gjenbrukbar workflow**: `.github/workflows/agentpakke-base-bump.yaml` kjører kommandoen på en tidsplan i pakkerepoet og åpner en pull request med sammendraget. Eieren ser over og merger. Med standardtokenet kjører ingen sjekker på pull requesten; send inn et eget token for å få CI. Oppsettet står i [agentpakke-guiden](README.agentpakke.md#en-pakke-som-gjenbruker-en-annen).
+- **`minNavPilotVersion` følger pinnen**: `sync --apply` og `pakke bump-base` oppdaterer nå også `minNavPilotVersion` i låsefila fra manifestet på den nye revisjonen. Før ble verdien fra første installasjon stående.
 
 ### MCP: velg verktøy, risikable verktøy er av
 

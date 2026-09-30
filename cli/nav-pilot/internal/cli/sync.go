@@ -327,7 +327,9 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		if reusedInSync.Pakke != nil {
 			baseName = reusedInSync.Pakke.Name
 		}
-		warnBaseLag(w, "", scope.Name, sourceLabelFor(src), reusedInSync.Repo, baseName, reusedInSync.SHA)
+		ctx, cancel := context.WithTimeout(context.Background(), pakkeReleaseTimeout)
+		warnBaseLag(ctx, w, "", scope.Name, sourceLabelFor(src), reusedInSync.Repo, baseName, reusedInSync.SHA)
+		cancel()
 	}
 
 	// A collection-era scope meets its source's manifest here first: rewrite

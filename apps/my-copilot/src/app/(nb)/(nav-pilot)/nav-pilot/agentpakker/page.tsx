@@ -435,7 +435,7 @@ export default function Agentpakker() {
                       <BodyLong textColor="subtle">
                         Pinnen flytter seg ikke av seg selv, og modellene i agentenes frontmatter blir stående sammen
                         med den. <code className={code}>sync</code> og <code className={code}>doctor</code> sier fra med
-                        én linje når basen har kommet lenger, men flytter ikke pinnen. Du flytter den med{" "}
+                        én linje når basen har flyttet seg, men flytter ikke pinnen. Du flytter den med{" "}
                         <code className={code}>nav-pilot pakke bump-base</code> i pakkerepoet ditt. Kommandoen skriver
                         ut hvilke agenter og modeller som er endret. Workflowen{" "}
                         <code className={code}>agentpakke-base-bump.yaml</code> i navikt/copilot gjør det samme på en

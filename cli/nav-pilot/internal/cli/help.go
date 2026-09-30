@@ -294,6 +294,10 @@ or its default branch when it publishes none, the same revision sync would take.
 Prints a Markdown summary of the agents and model pins that changed, for the
 pull request. Writes nothing when the pin is current.
 
+Only the base this repo reuses directly is moved, and only that one is checked
+by sync and doctor. A base further down the chain is pinned by the pakke that
+reuses it, and bumped there.
+
 The reusable workflow navikt/copilot/.github/workflows/agentpakke-base-bump.yaml
 runs it on a schedule and opens the pull request.
 

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -74,7 +75,7 @@ func TestBaseLagStaleCurrentAndOffline(t *testing.T) {
 	t.Run("stale", func(t *testing.T) {
 		fakeBaseAPI(t, nil, staleCompare())
 		out := captureStdoutFor(t, func() {
-			warnBaseLag(os.Stdout, "", "repo", "nais/pilot", "navikt/copilot", "nav-pilot", basePin)
+			warnBaseLag(context.Background(), os.Stdout, "", "repo", "nais/pilot", "navikt/copilot", "nav-pilot", basePin)
 		})
 		for _, want := range []string{"nais/pilot pins navikt/copilot at 6dc457b", agentpakke.DeclarationPath,
 			"11 commit(s) and 16 day(s) behind its default branch", "owners of nais/pilot should bump it"} {
@@ -89,7 +90,7 @@ func TestBaseLagStaleCurrentAndOffline(t *testing.T) {
 	t.Run("current", func(t *testing.T) {
 		fakeBaseAPI(t, nil, `{"status":"identical","ahead_by":0}`)
 		if out := captureStdoutFor(t, func() {
-			warnBaseLag(os.Stdout, "", "repo", "nais/pilot", "navikt/copilot", "nav-pilot", basePin)
+			warnBaseLag(context.Background(), os.Stdout, "", "repo", "nais/pilot", "navikt/copilot", "nav-pilot", basePin)
 		}); out != "" {
 			t.Errorf("a current pin printed:\n%s", out)
 		}
@@ -106,7 +107,7 @@ func TestBaseLagStaleCurrentAndOffline(t *testing.T) {
 			t.Fatalf("lookup against a dead host = %v, %v; want an error", lag, err)
 		}
 		out := captureStdoutFor(t, func() {
-			warnBaseLag(os.Stdout, "", "repo", "nais/pilot", "navikt/copilot", "nav-pilot", basePin)
+			warnBaseLag(context.Background(), os.Stdout, "", "repo", "nais/pilot", "navikt/copilot", "nav-pilot", basePin)
 		})
 		if out != "" {
 			t.Errorf("offline must be silent, printed:\n%s", out)
@@ -117,7 +118,7 @@ func TestBaseLagStaleCurrentAndOffline(t *testing.T) {
 // A path-shaped base is a working tree with no revision: no request at all.
 func TestBaseLagSkipsPathBase(t *testing.T) {
 	compares := fakeBaseAPI(t, nil, staleCompare())
-	warnBaseLag(os.Stdout, "", "repo", "nais/pilot", t.TempDir(), "x", basePin)
+	warnBaseLag(context.Background(), os.Stdout, "", "repo", "nais/pilot", t.TempDir(), "x", basePin)
 	if *compares != 0 {
 		t.Error("a path base was looked up")
 	}
@@ -245,6 +246,7 @@ func TestPakkeBumpBase(t *testing.T) {
 			"agents/writer.agent.md":   "---\nname: writer\n---\nv2\n",
 			"agents/retired.agent.md":  "",
 			"agents/fresh.agent.md":    "---\nname: fresh\nmodel: claude-opus-5.5\n---\nhi\n",
+			agentpakke.ManifestPath:    strings.Replace(baseManifest, `"name"`, `"minNavPilotVersion":"2026.01.01-000000","name"`, 1),
 		})
 	remotes(t, map[string]string{"navikt/basepakke": baseDir})
 	pakke := t.TempDir()
@@ -274,6 +276,9 @@ func TestPakkeBumpBase(t *testing.T) {
 	if d.Items["reviewer"] != "agent" {
 		t.Errorf("the bump dropped items: %v", d.Items)
 	}
+	if d.MinNavPilotVersion != "2026.01.01-000000" {
+		t.Errorf("minNavPilotVersion = %q, want the new base's", d.MinNavPilotVersion)
+	}
 	for _, want := range []string{
 		"from `" + shortSHA(base[0]) + "` to `" + shortSHA(base[1]) + "`, its default branch",
 		"- `reviewer`: model `gpt-5.3-codex` → `gpt-6-sol`",
@@ -293,6 +298,52 @@ func TestPakkeBumpBase(t *testing.T) {
 		}
 	}); out != "" {
 		t.Errorf("a current pin printed a summary:\n%s", out)
+	}
+}
+
+// doctor spends one deadline on the whole check: the file reads and the lag
+// lookup share it, rather than each starting a fresh one.
+func TestDoctorBaseLagSharesOneDeadline(t *testing.T) {
+	var deadlines []time.Time
+	origLag, origFile := lookupBaseLag, githubFileJSON
+	t.Cleanup(func() { lookupBaseLag, githubFileJSON = origLag, origFile })
+	githubFileJSON = func(ctx context.Context, repo, path, ref string, v any) error {
+		d, _ := ctx.Deadline()
+		deadlines = append(deadlines, d)
+		body := `{"name":"nav-pilot"}`
+		if path == agentpakke.DeclarationPath {
+			body = `{"contractVersion":"1","source":"navikt/copilot","sha":"` + basePin + `"}`
+		}
+		return json.Unmarshal([]byte(body), v)
+	}
+	lookupBaseLag = func(ctx context.Context, _, _, _ string) (*baseLag, error) {
+		d, _ := ctx.Deadline()
+		deadlines = append(deadlines, d)
+		return nil, nil
+	}
+	reportScopeBaseLag(ScopeRepo(repoTarget(t)), &StateFile{SourceRepo: "nais/pilot", SourceSHA: strings.Repeat("a", 40),
+		Files: []InstalledFile{{Path: ".github/agents/x.agent.md", Hash: "h"}}})
+	if len(deadlines) != 3 {
+		t.Fatalf("calls = %d, want 3", len(deadlines))
+	}
+	for _, d := range deadlines {
+		if d.IsZero() || !d.Equal(deadlines[0]) {
+			t.Errorf("deadlines differ: %v", deadlines)
+			break
+		}
+	}
+}
+
+// sync --apply moves the compatibility statement with the pin, as install
+// writes it.
+func TestBumpDeclarationSHACopiesMinNavPilotVersion(t *testing.T) {
+	scope := ScopeRepo(repoTarget(t))
+	writeDeclaration(t, scope, `{"contractVersion":"1","source":"navikt/grillmester","sha":"`+strings.Repeat("a", 40)+`","minNavPilotVersion":"2025.01.01-000000"}`)
+	src := &Source{Repo: "navikt/grillmester", SHA: strings.Repeat("b", 40),
+		Pakke: &agentpakke.Manifest{Name: "grillmester", MinNavPilotVersion: "2026.01.01-000000"}}
+	captureStdoutFor(t, func() { bumpDeclarationSHA(scope, src, false) })
+	if d := readDeclaration(t, scope); d.SHA != src.SHA || d.MinNavPilotVersion != "2026.01.01-000000" {
+		t.Errorf("declaration = %s / %q", d.SHA, d.MinNavPilotVersion)
 	}
 }
 
