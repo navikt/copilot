@@ -223,7 +223,10 @@ export const CLI_COMMANDS = [
     command: "nav-pilot mcp enable <navn>",
     description: "Slå på en server fra registeret i Copilot CLI og opencode (--client for bare én)",
   },
-  { command: "nav-pilot mcp disable <navn>", description: "Slå av serveren og fjern hostene bare den trengte" },
+  {
+    command: "nav-pilot mcp disable <navn>",
+    description: "Slå av serveren, og slutt å slippe gjennom hostene som bare den trengte",
+  },
   { command: "nav-pilot install <name>", description: "Installer én komponent (agent, skill osv.)" },
   {
     command: "nav-pilot install <name> --type <type>",
@@ -290,7 +293,7 @@ export const CLI_COMMANDS = [
   },
   {
     command: "nav-pilot config setup --advanced",
-    description: "Samme veiviser, med et spørsmål om nettverket (cplt-nivået strict)",
+    description: "Samme veiviser, pluss spørsmålet om nettverket: cplt-nivået standard eller strict",
   },
   { command: "nav-pilot config show", description: "Vis gjeldende konfig: fila pluss standardverdiene" },
   { command: "nav-pilot config get <key>", description: "Hent én verdi" },
