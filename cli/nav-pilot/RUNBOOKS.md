@@ -6,7 +6,7 @@ Operative retningslinjer for håndtering av nav-pilot-telemetrialarmer. Hver run
 
 ## ⚠️ Metrikk-tilgjengelighet (les først)
 
-nav-pilot CLI emitterer disse metrikkene i dag (se `cli/nav-pilot/telemetry.go`):
+nav-pilot CLI emitterer disse metrikkene i dag (se `cli/nav-pilot/internal/telemetry/telemetry.go`):
 
 | Metrikk | Type | Datapunkt-dimensjoner |
 |---------|------|-----------------------|
@@ -15,7 +15,7 @@ nav-pilot CLI emitterer disse metrikkene i dag (se `cli/nav-pilot/telemetry.go`)
 | `nav_pilot_install_items_total` | Counter | `command`, `mode`, `scope`, `version`, `execution_context` |
 | `nav_pilot_sync_updates_total` | Counter | `command`, `mode`, `scope`, `version`, `execution_context` |
 | `nav_pilot_sync_conflicts_total` | Counter | `command`, `mode`, `scope`, `version`, `execution_context` |
-| `nav_pilot_info` | Gauge | `version`, `device_id`, `execution_context`, `os`, `arch` |
+| `nav_pilot_info` | Gauge | `version`, `device_id`, `execution_context`, `os`, `arch`, `rtk_installed`, `project_type` |
 | `nav_pilot_install_present` | Gauge | `scope`, `collection`, `version`, `execution_context` |
 | `nav_pilot_installed_items` | Gauge | `scope`, `type`, `status`, `version`, `execution_context` |
 | `nav_pilot_staleness_check_total` | Counter | `component`, `scope`, `result`, `version`, `execution_context` |

@@ -14,7 +14,7 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_install_items_total` | Counter | Antall elementer installert | `command=install`, `scope=repo`, `mode=interactive` |
 | `nav_pilot_sync_updates_total` | Counter | Antall oppdateringer funnet ved sync | `command=sync`, `scope=user` |
 | `nav_pilot_sync_conflicts_total` | Counter | Antall konflikter ved sync | `command=sync`, `scope=repo` |
-| `nav_pilot_info` | Gauge | Prosess-start informasjon (alltid verdi 1) | `version=0.12.3`, `device_id=nav-pilot-abc123`, `execution_context=ci_github_actions`, `os=linux`, `arch=amd64` |
+| `nav_pilot_info` | Gauge | Prosess-start informasjon (alltid verdi 1) | `version=0.12.3`, `device_id=nav-pilot-abc123`, `execution_context=ci_github_actions`, `os=linux`, `arch=amd64`, `rtk_installed=false`, `project_type=go\|node\|jvm\|python\|na` |
 | `nav_pilot_install_present` | Gauge | Om scope har installert state (1/0) | `scope=user`, `collection=all` |
 | `nav_pilot_installed_items` | Gauge | Antall installerte items per type/status | `scope=repo`, `type=skill`, `status=active` |
 | `nav_pilot_config_info` | Gauge | Konfigurasjonssnapshot per oppstart (alltid verdi 1) | `client=opencode`, `config_mode=autopilot`, `model=auto`, `reasoning_effort=high`, `context_tier=unset`, `otel_log_level=none`, `allow_all_tools=false`, `ask_user=true`, `device_id=nav-pilot-abc123` |
@@ -469,7 +469,7 @@ Nei. Hvis `NAV_PILOT_TELEMETRY_ENABLED` settes til `0`/`off`, kjører en no-op t
 Telemetri logger en advarsel og feiler gracefully. Kommandoer kjører fortsatt normalt.
 
 **Kan jeg se hva som blir sendt?**  
-Ja — se `telemetry.go` i `cli/nav-pilot/` for full liste over metrikker og dimensjoner.
+Ja. Se `internal/telemetry/telemetry.go` i `cli/nav-pilot/` for full liste over metrikker og dimensjoner.
 
 **Hvordan rapporterer jeg telemetri-bug eller privacy-bekymring?**  
 Kontakt `@nav-pilot-team` eller lag issue i `navikt/copilot#issues` med tag `telemetry`.
@@ -499,6 +499,6 @@ Planlagt: Q4 2026. Da blir telemetri gjort obligatorisk (eller stilt av). Pilot-
 - **Avhengigheter**: `go.opentelemetry.io/otel/*` (se `go.mod`)
 
 For implementeringsdetaljer, se:
-- `cli/nav-pilot/telemetry.go` — initialisering og recording
-- `cli/nav-pilot/main.go` — integrasjon med kommandoer
-- `cli/nav-pilot/telemetry_test.go` — enhetstester
+- `cli/nav-pilot/internal/telemetry/telemetry.go`: initialisering og recording
+- `cli/nav-pilot/main.go`: integrasjon med kommandoer
+- `cli/nav-pilot/internal/telemetry/telemetry_test.go`: enhetstester
