@@ -1051,6 +1051,11 @@ func run(args []string) error {
 		if len(positional) != 1 || positional[0] != "bump-base" {
 			return fmt.Errorf("usage: nav-pilot pakke bump-base [--target <dir>]")
 		}
+		// It writes the lock, and a flag it accepted and ignored would write it
+		// anyway. git diff undoes a bump.
+		if dryRun {
+			return fmt.Errorf("pakke bump-base has no --dry-run: it writes %s, and git diff shows and undoes the change", agentpakke.DeclarationPath)
+		}
 		return runWithCommandTelemetry("pakke-bump-base", telemetryMode(), "none", func() error {
 			return cmdPakkeBumpBase(targetDir)
 		})

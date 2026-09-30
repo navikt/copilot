@@ -78,23 +78,40 @@ func cmdPakkeBumpBase(root string) error {
 		return fmt.Errorf("%s at %s ships pre-built payloads only, and a pakke can only reuse a layout. The pin is unchanged", d.Source, shortSHA(next.SHA))
 	}
 
+	// Before the write: a new revision whose own reuse does not resolve would
+	// break every install of this pakke, so it is refused with the pin intact.
+	changes, err := agentChanges(old, next)
+	if err != nil {
+		return fmt.Errorf("composing %s: %w\nThe pin is unchanged", d.Source, err)
+	}
 	from := d.SHA
 	d.SHA = next.SHA
 	d.MinNavPilotVersion = minNavPilotVersionOf(next)
 	if err := agentpakke.WriteDeclaration(root, d); err != nil {
 		return err
 	}
-	fmt.Print(baseBumpSummary(d.Source, from, next.SHA, target, agentChanges(old, next)))
+	fmt.Print(baseBumpSummary(d.Source, from, next.SHA, target, changes))
 	fmt.Fprintf(os.Stderr, "%s Bumped %s: %s %s → %s (%s).\n", green("✓"), agentpakke.DeclarationPath, d.Source, shortSHA(from), shortSHA(next.SHA), target)
 	return nil
 }
 
 // agentChanges lists, as Markdown bullets, every agent added, removed or
 // changed between two checkouts of a pakke, naming the model pin when it moved.
-func agentChanges(old, next *Source) []string {
+//
+// Each side is read composed, as an install reads it: a base that itself
+// reuses a pakke passes on that pakke's agents, and a move of its own pin
+// changes them.
+func agentChanges(old, next *Source) ([]string, error) {
+	var agentsErr error
 	agents := func(s *Source) map[string][]byte {
 		m := map[string][]byte{}
-		for _, r := range resolverFor(s.Dir, s.Pakke).List(KindAgent) {
+		resolver, bases, err := composeResolver(resolverFor(s.Dir, s.Pakke), s)
+		if err != nil {
+			agentsErr = err
+			return m
+		}
+		defer bases.cleanup()
+		for _, r := range resolver.List(KindAgent) {
 			if r.IsDir {
 				continue
 			}
@@ -145,7 +162,7 @@ func agentChanges(old, next *Source) []string {
 		}
 	}
 	sort.Strings(lines)
-	return lines
+	return lines, agentsErr
 }
 
 // baseBumpSummary is the pull request body for a bump.

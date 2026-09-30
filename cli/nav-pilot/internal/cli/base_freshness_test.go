@@ -138,6 +138,13 @@ func TestDoctorWarnsAboutAStaleBase(t *testing.T) {
 	if !strings.Contains(out, "nais/pilot pins navikt/copilot at 6dc457b") {
 		t.Errorf("doctor did not warn:\n%s", out)
 	}
+	// A Tier 1 install with no files left has the shape of a pin, but no
+	// revision on disk, and is still checked.
+	state.Files = nil
+	out = captureStdoutFor(t, func() { reportScopeBaseLag(ScopeRepo(repoTarget(t)), state) })
+	if !strings.Contains(out, "nais/pilot pins navikt/copilot at 6dc457b") {
+		t.Errorf("doctor skipped a Tier 1 scope with no files:\n%s", out)
+	}
 
 	// The default source reuses nothing and is never asked about.
 	compares := fakeBaseAPI(t, nil, staleCompare())
@@ -298,6 +305,44 @@ func TestPakkeBumpBase(t *testing.T) {
 		}
 	}); out != "" {
 		t.Errorf("a current pin printed a summary:\n%s", out)
+	}
+}
+
+// A base that itself reuses a pakke passes that pakke's agents on, so moving
+// only its own pin is an agent change the summary must show.
+func TestPakkeBumpBaseSeesAgentsInheritedByTheBase(t *testing.T) {
+	isolatedConfig(t)
+	stubRelease(t, releaseNoMetadata, pakkeRelease{}, nil)
+	deepDir, deep := gitRepoWith(t,
+		map[string]string{agentpakke.ManifestPath: strings.Replace(baseManifest, "basepakke", "deep", 1),
+			"agents/deep.agent.md": "---\nname: deep\nmodel: gpt-5\n---\nx\n"},
+		map[string]string{"agents/deep.agent.md": "---\nname: deep\nmodel: gpt-6\n---\nx\n"})
+	lock := func(sha string) string {
+		return `{"contractVersion":"1","source":"navikt/deep","sha":"` + sha + `"}`
+	}
+	baseDir, base := gitRepoWith(t,
+		map[string]string{agentpakke.ManifestPath: baseManifest, "agents/own.agent.md": "---\nname: own\n---\nx\n",
+			agentpakke.DeclarationPath: lock(deep[0])},
+		map[string]string{agentpakke.DeclarationPath: lock(deep[1])})
+	remotes(t, map[string]string{"navikt/basepakke": baseDir, "navikt/deep": deepDir})
+	pakke := t.TempDir()
+	mustWrite(t, agentpakke.DeclarationFilePath(pakke), `{"contractVersion":"1","source":"navikt/basepakke","sha":"`+base[0]+`"}`)
+
+	out := captureStdoutFor(t, func() {
+		if err := cmdPakkeBumpBase(pakke); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if !strings.Contains(out, "- `deep`: model `gpt-5` → `gpt-6`") || strings.Contains(out, "`own`") {
+		t.Errorf("summary:\n%s", out)
+	}
+}
+
+func TestPakkeBumpBaseRefusesDryRun(t *testing.T) {
+	isolatedConfig(t)
+	err := run([]string{"pakke", "bump-base", "--dry-run", "--target", t.TempDir()})
+	if err == nil || !strings.Contains(err.Error(), "no --dry-run") {
+		t.Errorf("err = %v", err)
 	}
 }
 

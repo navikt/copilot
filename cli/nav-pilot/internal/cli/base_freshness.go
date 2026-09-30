@@ -117,7 +117,7 @@ func warnBaseLag(ctx context.Context, w io.Writer, indent, scopeName, pakkeRepo,
 // and the base's name from GitHub at those revisions. A scope on the default
 // source is skipped without a request: navikt/copilot reuses nothing.
 func reportScopeBaseLag(scope *InstallScope, state *StateFile) {
-	if state == nil || tracksDefaultSource(state) || !pinnable(state.SourceRepo) || state.SourceSHA == "" || pinnedState(state) {
+	if state == nil || tracksDefaultSource(state) || !pinnable(state.SourceRepo) || state.SourceSHA == "" || pinnedRevisionOnDisk(state) {
 		return
 	}
 	// One deadline for all four requests, so doctor waits at most this long.
