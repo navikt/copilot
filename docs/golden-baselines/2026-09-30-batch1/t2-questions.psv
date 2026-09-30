@@ -1,0 +1,23 @@
+# Question marks per planning transcript, batch 1. t2 and t4a pass only with >= 3.
+# fixture_unchanged: fp.before == fp.after for the arm (no files changed).
+arm|prompt|run|question_marks|fixture_unchanged
+planning-gpt-6.1-sol-high|t2|1|0|true
+planning-gpt-6.1-sol-high|t2|2|0|true
+planning-gpt-6.1-sol-high|t2|3|0|true
+planning-gpt-6.1-sol-high|t2|4|0|true
+planning-gpt-6.1-sol-high|t2|5|0|true
+planning-gpt-6.1-sol-high|t4a|1|2|true
+planning-gpt-6.1-sol-high|t4a|2|0|true
+planning-gpt-6.1-sol-high|t4a|3|0|true
+planning-gpt-6.1-sol-high|t4a|4|0|true
+planning-gpt-6.1-sol-high|t4a|5|0|true
+planning-gpt-6.1-sol-low|t2|1|9|true
+planning-gpt-6.1-sol-low|t2|2|0|true
+planning-gpt-6.1-sol-low|t2|3|0|true
+planning-gpt-6.1-sol-low|t2|4|0|true
+planning-gpt-6.1-sol-low|t2|5|10|true
+planning-gpt-6.1-sol-low|t4a|1|9|true
+planning-gpt-6.1-sol-low|t4a|2|0|true
+planning-gpt-6.1-sol-low|t4a|3|0|true
+planning-gpt-6.1-sol-low|t4a|4|7|true
+planning-gpt-6.1-sol-low|t4a|5|10|true

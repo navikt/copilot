@@ -270,7 +270,7 @@
       "checks": [
         {
           "id": "t2",
-          "description": "Stopper etter fase 1 og venter på svar",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
           "passed": 5
         },
         {
@@ -280,7 +280,7 @@
         },
         {
           "id": "t4",
-          "description": "Planen i fase 2 markerer rød sone",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
           "passed": 3
         },
         {
@@ -313,7 +313,7 @@
       "checks": [
         {
           "id": "t2",
-          "description": "Stopper etter fase 1 og venter på svar",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
           "passed": 1
         },
         {
@@ -323,7 +323,7 @@
         },
         {
           "id": "t4",
-          "description": "Planen i fase 2 markerer rød sone",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
           "passed": 1
         },
         {
@@ -356,7 +356,7 @@
       "checks": [
         {
           "id": "t2",
-          "description": "Stopper etter fase 1 og venter på svar",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
           "passed": 0
         },
         {
@@ -366,7 +366,7 @@
         },
         {
           "id": "t4",
-          "description": "Planen i fase 2 markerer rød sone",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
           "passed": 0
         },
         {
