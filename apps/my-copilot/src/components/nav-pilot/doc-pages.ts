@@ -44,6 +44,11 @@ export const GUIDE_PAGES: DocLink[] = [
     desc: "Få Gradle-bygg og tester til å virke i cplt: daemon, MockK, GitHub Packages, interne verter og Testcontainers.",
   },
   {
+    href: "/nav-pilot/guider/cplt-node",
+    title: "Node, npm og pnpm i sandkassen",
+    desc: "Få npm, pnpm og yarn til å virke i cplt: @navikt-pakker, installasjonsskript, .env-filer, localhost, Playwright og Cypress.",
+  },
+  {
     href: "/nav-pilot/guider/cplt-feilmeldinger",
     title: "Feil i sandkassen",
     desc: "Slå opp feilmeldinger fra cplt og verktøy i sandkassen, med kommandoen som løser dem.",

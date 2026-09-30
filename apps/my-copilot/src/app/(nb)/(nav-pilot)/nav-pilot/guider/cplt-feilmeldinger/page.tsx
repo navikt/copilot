@@ -300,8 +300,9 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
           <CodeBlock compact>{`cplt config set allow.read ~/.yarnrc`}</CodeBlock>
           <BodyLong>
             Samme feil for <code className={code}>~/.npmrc</code> (på Linux <code className={code}>EACCES</code>)
-            håndterer cplt selv.
+            trenger det samme, også når prosjektet bare henter offentlige pakker:
           </BodyLong>
+          <CodeBlock compact>{`cplt config set allow.read ~/.npmrc`}</CodeBlock>
 
           <LinkableHeading id="cannot-hash" size="small" level="3">
             fatal: cannot hash .env.local
