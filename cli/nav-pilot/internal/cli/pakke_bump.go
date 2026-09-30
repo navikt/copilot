@@ -80,9 +80,18 @@ func cmdPakkeBumpBase(root string) error {
 
 	// Before the write: a new revision whose own reuse does not resolve would
 	// break every install of this pakke, so it is refused with the pin intact.
-	changes, err := agentChanges(old, next)
-	if err != nil {
-		return fmt.Errorf("composing %s: %w\nThe pin is unchanged", d.Source, err)
+	// The old revision failing to compose is the opposite case: that is the
+	// broken pin a bump repairs, so it goes ahead and says what it could not
+	// compare.
+	changes, oldErr, nextErr := agentChanges(old, next)
+	if nextErr != nil {
+		return fmt.Errorf("composing %s at %s: %s\nThe pin is unchanged", d.Source, shortSHA(next.SHA), composeErrText(nextErr))
+	}
+	if oldErr != nil {
+		note := fmt.Sprintf("The previous revision could not be composed, so every agent is listed as added: composing %s at %s: %s",
+			d.Source, shortSHA(d.SHA), composeErrText(oldErr))
+		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), note)
+		changes = append(changes, "", note)
 	}
 	from := d.SHA
 	d.SHA = next.SHA
@@ -101,13 +110,12 @@ func cmdPakkeBumpBase(root string) error {
 // Each side is read composed, as an install reads it: a base that itself
 // reuses a pakke passes on that pakke's agents, and a move of its own pin
 // changes them.
-func agentChanges(old, next *Source) ([]string, error) {
-	var agentsErr error
-	agents := func(s *Source) map[string][]byte {
+func agentChanges(old, next *Source) (lines []string, oldErr, nextErr error) {
+	agents := func(s *Source, errp *error) map[string][]byte {
 		m := map[string][]byte{}
 		resolver, bases, err := composeResolver(resolverFor(s.Dir, s.Pakke), s)
 		if err != nil {
-			agentsErr = err
+			*errp = err
 			return m
 		}
 		defer bases.cleanup()
@@ -138,7 +146,7 @@ func agentChanges(old, next *Source) ([]string, error) {
 		return "`" + s + "`"
 	}
 
-	before, after := agents(old), agents(next)
+	before, after := agents(old, &oldErr), agents(next, &nextErr)
 	names := map[string]bool{}
 	for n := range before {
 		names[n] = true
@@ -146,7 +154,6 @@ func agentChanges(old, next *Source) ([]string, error) {
 	for n := range after {
 		names[n] = true
 	}
-	var lines []string
 	for n := range names {
 		a, inA := before[n]
 		b, inB := after[n]
@@ -162,7 +169,13 @@ func agentChanges(old, next *Source) ([]string, error) {
 		}
 	}
 	sort.Strings(lines)
-	return lines, agentsErr
+	return lines, oldErr, nextErr
+}
+
+// composeErrText is a compose error without the install-time "Nothing was
+// installed", which is untrue for a bump: nothing was going to be installed.
+func composeErrText(err error) string {
+	return strings.NewReplacer("\n\nNothing was installed", "", "\nNothing was installed. ", "\n", "Nothing was installed. ", "").Replace(err.Error())
 }
 
 // baseBumpSummary is the pull request body for a bump.

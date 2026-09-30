@@ -338,12 +338,80 @@ func TestPakkeBumpBaseSeesAgentsInheritedByTheBase(t *testing.T) {
 	}
 }
 
+// The base's own reuse pin decides whether a bump goes ahead: a new revision
+// whose reuse does not resolve is refused, and an old one that does not is the
+// broken pin a bump repairs.
+func TestPakkeBumpBaseWhenTheBaseReuseDoesNotResolve(t *testing.T) {
+	isolatedConfig(t)
+	stubRelease(t, releaseNoMetadata, pakkeRelease{}, nil)
+	deepDir, deep := gitRepoWith(t, map[string]string{
+		agentpakke.ManifestPath: strings.Replace(baseManifest, "basepakke", "deep", 1),
+		"agents/deep.agent.md":  "---\nname: deep\n---\nx\n"})
+	lock := func(sha string) string {
+		return `{"contractVersion":"1","source":"navikt/deep","sha":"` + sha + `"}`
+	}
+	missing := strings.Repeat("d", 40) // a commit navikt/deep does not have
+	bump := func(t *testing.T, oldLock, newLock string) (string, string, error) {
+		baseDir, base := gitRepoWith(t,
+			map[string]string{agentpakke.ManifestPath: baseManifest, "agents/own.agent.md": "---\nname: own\n---\nx\n",
+				agentpakke.DeclarationPath: oldLock},
+			map[string]string{agentpakke.DeclarationPath: newLock})
+		remotes(t, map[string]string{"navikt/basepakke": baseDir, "navikt/deep": deepDir})
+		pakke := t.TempDir()
+		mustWrite(t, agentpakke.DeclarationFilePath(pakke), `{"contractVersion":"1","source":"navikt/basepakke","sha":"`+base[0]+`"}`)
+		var err error
+		out := captureStdoutFor(t, func() { err = cmdPakkeBumpBase(pakke) })
+		if got := readDeclarationAt(t, pakke).SHA; err == nil && got != base[1] || err != nil && got != base[0] {
+			t.Errorf("pin = %s after err = %v (old %s, new %s)", got, err, base[0], base[1])
+		}
+		return out, base[1], err
+	}
+
+	t.Run("new revision does not compose", func(t *testing.T) {
+		_, next, err := bump(t, lock(deep[0]), lock(missing))
+		if err == nil || !strings.Contains(err.Error(), "composing navikt/basepakke at "+shortSHA(next)) ||
+			!strings.Contains(err.Error(), "The pin is unchanged") || strings.Contains(err.Error(), "Nothing was installed") {
+			t.Errorf("err = %v", err)
+		}
+	})
+	t.Run("old revision does not compose", func(t *testing.T) {
+		out, _, err := bump(t, lock(missing), lock(deep[0]))
+		if err != nil {
+			t.Fatalf("a bump away from a broken pin was refused: %v", err)
+		}
+		if !strings.Contains(out, "The previous revision could not be composed") || !strings.Contains(out, "- `deep`: added") {
+			t.Errorf("summary:\n%s", out)
+		}
+	})
+}
+
 func TestPakkeBumpBaseRefusesDryRun(t *testing.T) {
 	isolatedConfig(t)
 	err := run([]string{"pakke", "bump-base", "--dry-run", "--target", t.TempDir()})
 	if err == nil || !strings.Contains(err.Error(), "no --dry-run") {
 		t.Errorf("err = %v", err)
 	}
+}
+
+// A Tier 2 pin with its revision on disk ships payloads, and a lock in it is
+// inert: doctor asks nothing about it.
+func TestDoctorSkipsATier2PinWithoutARequest(t *testing.T) {
+	isolatedConfig(t)
+	origLag, origFile := lookupBaseLag, githubFileJSON
+	t.Cleanup(func() { lookupBaseLag, githubFileJSON = origLag, origFile })
+	githubFileJSON = func(context.Context, string, string, string, any) error {
+		t.Error("doctor read a file for a Tier 2 pin")
+		return errOfflineForTests
+	}
+	lookupBaseLag = func(context.Context, string, string, string) (*baseLag, error) {
+		t.Error("doctor looked up a base for a Tier 2 pin")
+		return nil, nil
+	}
+	state := &StateFile{SourceRepo: "nais/pilot", SourceSHA: strings.Repeat("a", 40)}
+	if err := os.MkdirAll(pakkeRevisionDir(state.SourceRepo, state.SourceSHA), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	reportScopeBaseLag(ScopeRepo(repoTarget(t)), state)
 }
 
 // doctor spends one deadline on the whole check: the file reads and the lag
