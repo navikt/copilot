@@ -4,6 +4,8 @@ export interface NavPilotModelChoice {
   fallbacks: string[];
   /** One line on why, condensed from docs/modellvalg.md. Shown on /modeller. */
   reason: string;
+  /** Limits «Brukes av» to these agents when two choices share a primary model. */
+  users?: string[];
 }
 
 /**
@@ -21,6 +23,14 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     reason: "Besto blokkeringsskjermen 23. september mot GPT-5.6 Sol på samme oppgaver. Ett fasebrudd følges.",
   },
   {
+    purpose: "Kodeagenter for Kafka og Rust",
+    primary: "GPT-6 Luna",
+    fallbacks: ["GPT-6 Sol", "GPT-5.3-Codex"],
+    reason:
+      "Besto alle 30 sjekker i kodesuiten på Medium for omtrent 1,7 credits, mot omtrent 28 med GPT-6 Sol. Oppgavene var små, så Sol er reserve.",
+    users: ["@kafka", "@rust"],
+  },
+  {
     purpose: "Research og faste maler",
     primary: "GPT-6 Luna",
     fallbacks: ["GPT-5.6 Luna", "GPT-5.3-Codex"],
@@ -30,7 +40,7 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     purpose: "Høyrisikoplanlegging og kodegjennomgang",
     primary: "Claude Opus 5.5",
     fallbacks: ["GPT-6.1 Sol", "GPT-5.3-Codex"],
-    reason: "Valgt ut fra leverandørens råd og pris. Vi har ikke målt den på kodegjennomgang ennå.",
+    reason: "Fant alle plantede feil på riktig linje i ti av ti kodegjennomganger 30. september. Low holder.",
   },
   {
     purpose: "Aksel, tilgjengelighet og norsk tekst",

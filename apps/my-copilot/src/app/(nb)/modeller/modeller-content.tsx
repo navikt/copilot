@@ -62,7 +62,7 @@ function Choices({ users }: { users: Record<string, string[]> }) {
           {NAV_PILOT_MODEL_CHOICES.map((choice) => (
             <Table.Row key={choice.purpose}>
               <Table.DataCell style={cell}>{choice.purpose}</Table.DataCell>
-              <Table.DataCell style={cell}>{users[choice.primary]?.join(", ")}</Table.DataCell>
+              <Table.DataCell style={cell}>{users[choice.purpose]?.join(", ")}</Table.DataCell>
               <Table.DataCell style={cell} className="font-medium whitespace-nowrap">
                 {choice.primary}
               </Table.DataCell>

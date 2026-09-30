@@ -20,6 +20,12 @@ function usersOf(model: string): string[] {
 
 // Read per request: the build only compiles, and the image copies the summary in (see Dockerfile).
 export default function ModellerPage() {
-  const users = Object.fromEntries(NAV_PILOT_MODEL_CHOICES.map((c) => [c.primary, usersOf(c.primary)]));
+  const claimed = new Set(NAV_PILOT_MODEL_CHOICES.flatMap((c) => c.users ?? []));
+  const users = Object.fromEntries(
+    NAV_PILOT_MODEL_CHOICES.map((c) => [
+      c.purpose,
+      usersOf(c.primary).filter((u) => (c.users ? c.users.includes(u) : !claimed.has(u))),
+    ])
+  );
   return <ModellerContent summary={loadGoldenSummary()} users={users} />;
 }

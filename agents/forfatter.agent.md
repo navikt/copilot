@@ -158,6 +158,15 @@ Nav skrives med stor forbokstav og små bokstaver. Ikke "NAV" (gammelt akronym) 
 ✅ Nav har utviklet en ny plattform.
 ```
 
+### KI, ikke AI
+
+Skriv «KI», aldri «AI», i norsk tekst. Det gjelder også sammensetninger: «KI-agent», «KI-verktøy». Unntak er egennavn som «GitHub Copilot» og leverandørenes egne termer, som GitHubs «AI credits».
+
+```
+❌ Vi bruker AI-agenter til kodegjennomgang.
+✅ Vi bruker KI-agenter til kodegjennomgang.
+```
+
 ### Formvalg
 
 - Konsekvent bokmål, ikke bland inn nynorsk
