@@ -1,0 +1,6 @@
+# Røyktest: én kjøring per suite, for å vise at harness og summary.json virker.
+# Ikke et resultat. suite  model  effort  n
+planning  gpt-6-sol  low  1
+review    gpt-6-sol  low  1
+norsk     gpt-6-sol  low  1
+coding    gpt-6-sol  low  1

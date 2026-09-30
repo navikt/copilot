@@ -303,8 +303,8 @@ fail_preflight() {
 #   planning  nav-pilot    2,3,4,5    the 23 Sept protocol (docs/modellvalg.md)
 #   review    code-review  rv1-rv4    planted defects named, on the right line
 #   norsk     forfatter    no1-no4    bokmål, no KI markers, «KI», length
-#   coding    nav-pilot    ko1-ko4    failing Go and TS tests fixed, in scope
-#                          (ko5-ko6, opt-in: a fix that spans two files)
+#   coding    nav-pilot    ko1-ko6    failing tests fixed, in scope: Go, TS, and
+#                                     a Go fix that spans two files
 GROUP=""
 if [[ -n "$SUITE" ]]; then
   $AGENT_SET && fail_preflight "--suite and --agent cannot be combined" \
@@ -313,7 +313,7 @@ if [[ -n "$SUITE" ]]; then
     planning) AGENT="nav-pilot";   GROUP="nav-pilot";   ONLY="${ONLY:-2,3,4,5}" ;;
     review)   AGENT="code-review"; GROUP="code-review"; ONLY="${ONLY:-rv1,rv2,rv3,rv4}" ;;
     norsk)    AGENT="forfatter";   GROUP="forfatter" ;;
-    coding)   AGENT="nav-pilot";   GROUP="coding";      ONLY="${ONLY:-ko1,ko2,ko3,ko4}" ;;
+    coding)   AGENT="nav-pilot";   GROUP="coding" ;;
     *) fail_preflight "unknown --suite '$SUITE'" "Use planning, review, norsk or coding." ;;
   esac
 fi
@@ -894,7 +894,7 @@ export function slug(tittel: string): string {
 }
 EOF
   # Go, two files: the tests want a grade parameter, so the signature and
-  # its one caller both have to change. Opt-in (--only ko5,ko6).
+  # its one caller both have to change.
   mkdir -p "$TEMPLATE/ytelse"
   printf 'module example.com/ytelse\n\ngo 1.22\n' >"$TEMPLATE/ytelse/go.mod"
   cat >"$TEMPLATE/ytelse/utbetaling.go" <<'EOF'

@@ -116,7 +116,7 @@ def summarise_run(txt, names):
 
     model = h["model"]
     label = names.get(model, model)
-    if "smoke" in txt.name:
+    if "smoke" in str(txt.relative_to(REPO)):
         label += " (røyktest)"
     run = {
         "date": h["date"],

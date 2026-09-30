@@ -287,8 +287,8 @@ case "$p" in
     esac
     echo "Rettet feilen i frister og kjørte go test." ;;
   *ytelse/*)
-    perl -pi -e 's/Utbetaling\(grunnlag int\) int/Utbetaling(grunnlag, grad int) int/; s/return grunnlag \/ 260$/return grunnlag \/ 260 * grad \/ 100/' ytelse/utbetaling.go
-    perl -pi -e 's/grunnlag int\) string/grunnlag, grad int) string/; s/Utbetaling\(grunnlag\)\)/Utbetaling(grunnlag, grad))/' ytelse/rapport.go
+    [[ "$BENCH_MODE" == good || "$BENCH_MODE" == cheat ]] && perl -pi -e 's/Utbetaling\(grunnlag int\) int/Utbetaling(grunnlag, grad int) int/; s/return grunnlag \/ 260$/return grunnlag \/ 260 * grad \/ 100/' ytelse/utbetaling.go
+    [[ "$BENCH_MODE" == good || "$BENCH_MODE" == cheat ]] && perl -pi -e 's/grunnlag int\) string/grunnlag, grad int) string/; s/Utbetaling\(grunnlag\)\)/Utbetaling(grunnlag, grad))/' ytelse/rapport.go
     [[ "$BENCH_MODE" == cheat ]] && perl -pi -e 's/halv dagsats/halv sats/' ytelse/ytelse_test.go
     echo "Rettet feilen i ytelse og kjørte go test." ;;
   *slug/*)
@@ -346,7 +346,7 @@ run_suite() {
   grep -q '^ko2|1|fail|.*changed: ./frister/frist_test.go' "$SHIM/b-results.psv"
   run_suite none --suite coding
   [ "$status" -eq 1 ]
-  for id in ko1 ko2 ko3 ko4; do grep -q "^$id|1|fail|" "$SHIM/b-results.psv"; done
+  for id in ko1 ko2 ko3 ko4 ko5 ko6; do grep -q "^$id|1|fail|" "$SHIM/b-results.psv"; done
 }
 
 @test "coding, two files: both changed passes, touching the test as well fails ko6" {
