@@ -304,6 +304,7 @@ fail_preflight() {
 #   review    code-review  rv1-rv4    planted defects named, on the right line
 #   norsk     forfatter    no1-no4    bokmål, no KI markers, «KI», length
 #   coding    nav-pilot    ko1-ko4    failing Go and TS tests fixed, in scope
+#                          (ko5-ko6, opt-in: a fix that spans two files)
 GROUP=""
 if [[ -n "$SUITE" ]]; then
   $AGENT_SET && fail_preflight "--suite and --agent cannot be combined" \
@@ -312,7 +313,7 @@ if [[ -n "$SUITE" ]]; then
     planning) AGENT="nav-pilot";   GROUP="nav-pilot";   ONLY="${ONLY:-2,3,4,5}" ;;
     review)   AGENT="code-review"; GROUP="code-review"; ONLY="${ONLY:-rv1,rv2,rv3,rv4}" ;;
     norsk)    AGENT="forfatter";   GROUP="forfatter" ;;
-    coding)   AGENT="nav-pilot";   GROUP="coding" ;;
+    coding)   AGENT="nav-pilot";   GROUP="coding";      ONLY="${ONLY:-ko1,ko2,ko3,ko4}" ;;
     *) fail_preflight "unknown --suite '$SUITE'" "Use planning, review, norsk or coding." ;;
   esac
 fi
@@ -336,7 +337,7 @@ case "$GROUP" in
   code-review)   VALID_IDS="cr1 cr2 cr3 cr4 rv1 rv2 rv3 rv4" ;;
   accessibility) VALID_IDS="uu1 uu2 uu3 uu4 uu5" ;;
   forfatter)     VALID_IDS="no1 no2 no3 no4" ;;
-  coding)        VALID_IDS="ko1 ko2 ko3 ko4" ;;
+  coding)        VALID_IDS="ko1 ko2 ko3 ko4 ko5 ko6" ;;
   *) fail_preflight \
       "no assertion group for agent '$AGENT'" \
       "This harness has prompts and assertions for: nav-pilot, code-review, accessibility, forfatter (and --suite coding). Add a run_pass_<agent> derived from that agent's own file before benchmarking it." ;;
@@ -892,6 +893,51 @@ export function slug(tittel: string): string {
     .replace(/[^a-z0-9]+/g, "-");
 }
 EOF
+  # Go, two files: the tests want a grade parameter, so the signature and
+  # its one caller both have to change. Opt-in (--only ko5,ko6).
+  mkdir -p "$TEMPLATE/ytelse"
+  printf 'module example.com/ytelse\n\ngo 1.22\n' >"$TEMPLATE/ytelse/go.mod"
+  cat >"$TEMPLATE/ytelse/utbetaling.go" <<'EOF'
+package ytelse
+
+// Utbetaling gir dagsatsen: grunnlaget delt på 260 virkedager, rundet ned.
+func Utbetaling(grunnlag int) int {
+	return grunnlag / 260
+}
+EOF
+  cat >"$TEMPLATE/ytelse/rapport.go" <<'EOF'
+package ytelse
+
+import "fmt"
+
+// Rapport beskriver dagsatsen til en bruker.
+func Rapport(navn string, grunnlag int) string {
+	return fmt.Sprintf("%s får %d kr per dag", navn, Utbetaling(grunnlag))
+}
+EOF
+  cat >"$TEMPLATE/ytelse/ytelse_test.go" <<'EOF'
+package ytelse
+
+import "testing"
+
+// Graden er prosent av full ytelse: 50 gir halv dagsats.
+func TestUtbetaling(t *testing.T) {
+	for _, c := range []struct{ grunnlag, grad, want int }{
+		{520000, 100, 2000},
+		{520000, 50, 1000},
+	} {
+		if got := Utbetaling(c.grunnlag, c.grad); got != c.want {
+			t.Errorf("Utbetaling(%d, %d) = %d, want %d", c.grunnlag, c.grad, got, c.want)
+		}
+	}
+}
+
+func TestRapport(t *testing.T) {
+	if got := Rapport("Kari", 520000, 50); got != "Kari får 1000 kr per dag" {
+		t.Errorf("Rapport = %q", got)
+	}
+}
+EOF
   cat >"$TEMPLATE/slug/slug.test.ts" <<'EOF'
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -907,6 +953,7 @@ fi
 
 # go_tests / ts_tests <dir>: the fixture's own tests, quiet, exit code only.
 go_tests() { (cd "$1/frister" && go test ./... >/dev/null 2>&1); }
+go2_tests() { (cd "$1/ytelse" && go test ./... >/dev/null 2>&1); }
 ts_tests() { (cd "$1/slug" && node --test slug.test.ts >/dev/null 2>&1); }
 
 # The controls. A check that the pristine fixture already passes can never
@@ -925,6 +972,7 @@ if [[ "$GROUP" == "coding" ]]; then
   command -v node >/dev/null 2>&1 || fail_preflight "--suite coding needs node (22.18+) on PATH" "brew install node"
   ! go_tests "$TEMPLATE" || fail_preflight "control: the pristine Go fixture already passes its tests" "Plant the bug again."
   ! ts_tests "$TEMPLATE" || fail_preflight "control: the pristine TS fixture already passes its tests" "Plant the bug again."
+  ! go2_tests "$TEMPLATE" || fail_preflight "control: the pristine two-file Go fixture already passes its tests" "Plant the bug again."
 fi
 
 # Fixture identity, for the --compare compatibility check below. The sizes this
@@ -2397,7 +2445,8 @@ run_pass_forfatter() {
 # transcript. Scope is read off the workspace fingerprint: exactly the one
 # source file changed, so editing the test or touching nothing both fail.
 #
-# coding_task <slug> <prompt> <test fn> <allowed file> <id> <desc> <id> <desc>
+# coding_task <slug> <prompt> <test fn> <allowed files> <id> <desc> <id> <desc>
+# <allowed files> is space-separated and sorted; all of them must change.
 coding_task() {
   local slug="$1" prompt="$2" tests="$3" allowed="$4"
   local id_ok="$5" d_ok="$6" id_scope="$7" d_scope="$8" written
@@ -2410,10 +2459,11 @@ coding_task() {
   if selected "$id_scope"; then
     written="$(ws_written_files)"
     written="${written% }"
-    if [[ "$written" == "./$allowed" ]]; then
+    local want="./${allowed// / ./}"
+    if [[ "$written" == "$want" ]]; then
       record "$id_scope" "$d_scope" 0
     else
-      record "$id_scope" "$d_scope" 1 "changed: ${written:-nothing}; allowed: ./$allowed"
+      record "$id_scope" "$d_scope" 1 "changed: ${written:-nothing}; allowed: $want"
     fi
   fi
   if selected "$id_ok"; then
@@ -2432,6 +2482,9 @@ run_pass_coding() {
   coding_task ko-ts "Testen i slug/ feiler (kjør den med node --test slug.test.ts). Finn og rett feilen i koden, ikke i testen." \
     ts_tests slug/slug.ts \
     ko3 "TS: the test passes after the run" ko4 "TS: only slug/slug.ts changed"
+  coding_task ko-go2 "Testene i ytelse/ feiler fordi ytelsen nå skal graderes. Endre koden, ikke testene, slik at go test ./... i ytelse/ går grønt." \
+    go2_tests "ytelse/rapport.go ytelse/utbetaling.go" \
+    ko5 "Go, two files: the tests pass after the run" ko6 "Go, two files: exactly utbetaling.go and rapport.go changed"
 }
 
 run_pass() {

@@ -286,6 +286,11 @@ case "$p" in
       cheat) perl -pi -e 's/2026-10-19"\}, \/\/ lørdag/2026-10-18"}, \/\/ lørdag/' frister/frist_test.go ;;
     esac
     echo "Rettet feilen i frister og kjørte go test." ;;
+  *ytelse/*)
+    perl -pi -e 's/Utbetaling\(grunnlag int\) int/Utbetaling(grunnlag, grad int) int/; s/return grunnlag \/ 260$/return grunnlag \/ 260 * grad \/ 100/' ytelse/utbetaling.go
+    perl -pi -e 's/grunnlag int\) string/grunnlag, grad int) string/; s/Utbetaling\(grunnlag\)\)/Utbetaling(grunnlag, grad))/' ytelse/rapport.go
+    [[ "$BENCH_MODE" == cheat ]] && perl -pi -e 's/halv dagsats/halv sats/' ytelse/ytelse_test.go
+    echo "Rettet feilen i ytelse og kjørte go test." ;;
   *slug/*)
     [[ "$BENCH_MODE" == good ]] && perl -pi -e 's/\.replace\(\/\[\^a-z0-9\]\+\/g, "-"\);/.replace(\/[^a-z0-9]+\/g, "-").replace(\/^-+|-+\$\/g, "");/' slug/slug.ts
     echo "Rettet feilen i slug og kjørte node --test." ;;
@@ -342,4 +347,14 @@ run_suite() {
   run_suite none --suite coding
   [ "$status" -eq 1 ]
   for id in ko1 ko2 ko3 ko4; do grep -q "^$id|1|fail|" "$SHIM/b-results.psv"; done
+}
+
+@test "coding, two files: both changed passes, touching the test as well fails ko6" {
+  command -v go >/dev/null || skip "needs go"
+  run_suite good --suite coding --only ko5,ko6
+  [ "$status" -eq 0 ]
+  run_suite cheat --suite coding --only ko5,ko6
+  [ "$status" -eq 1 ]
+  grep -q '^ko5|1|pass|' "$SHIM/b-results.psv"
+  grep -q '^ko6|1|fail|.*changed: ./ytelse/rapport.go ./ytelse/utbetaling.go ./ytelse/ytelse_test.go' "$SHIM/b-results.psv"
 }

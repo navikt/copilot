@@ -93,7 +93,9 @@ def review(mode, text, specs):
 
 
 def words(text):
-    return len(re.findall(r"%s+" % W, text))
+    # Counted the way a writer counts, like `wc -w`: «nav-pilot» and
+    # `.nav-pilot/config.toml` are one word each, a lone «#» or «-» none.
+    return sum(1 for t in text.split() if re.search(W, t))
 
 
 def check(cmd, args):
