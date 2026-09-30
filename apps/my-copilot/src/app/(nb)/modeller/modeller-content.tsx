@@ -174,10 +174,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
 const EFFORT_ROWS = [
   ["Low", "Godt avgrensede oppgaver som er lette å kontrollere, som faste maler, søk og subagenter."],
   ["Medium", "Vanlig agentisk koding med tydelig omfang. Standardvalget."],
-  [
-    "High",
-    "Kodegjennomgang der linjene må stemme, endringer på tvers av moduler, sikkerhet og lange oppgaver uten tilsyn.",
-  ],
+  ["High", "Endringer på tvers av moduler, sikkerhet og lange oppgaver uten tilsyn."],
 ];
 
 const EFFORT_SOURCES = [
@@ -197,8 +194,8 @@ function Effort() {
       <BodyLong>
         Effort styrer hvor mye modellen resonnerer før den svarer. Mer er ikke alltid bedre. På enkle oppgaver bruker
         modellene ofte mange flere tokens uten å bli mer treffsikre, og for lang resonnering kan gi dårligere svar. På
-        lange og krevende kodeoppgaver gir høyere effort derimot bedre resultater. Vår egen måling peker samme vei:
-        Claude Opus 5.5 på medium oppga feil linjenummer i to av fem kodegjennomganger, mens high traff i alle fem.
+        lange og krevende kodeoppgaver gir høyere effort derimot bedre resultater. Vi har ikke målt effort selv ennå, så
+        rådene under bygger på kildene.
       </BodyLong>
       <div className="w-full overflow-x-auto">
         <Table size="small">

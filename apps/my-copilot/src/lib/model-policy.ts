@@ -31,8 +31,7 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     purpose: "Høyrisikoplanlegging og kodegjennomgang",
     primary: "Claude Opus 5.5",
     fallbacks: ["Claude Opus 5", "GPT-5.3-Codex"],
-    reason:
-      "Med high effort pekte den på riktige linjer i fem av fem gjennomganger. Med medium var linjenumrene feil i to av fem.",
+    reason: "Valgt ut fra leverandørens råd og pris. Vi har ikke målt den på kodegjennomgang ennå.",
   },
   {
     purpose: "Aksel, tilgjengelighet og norsk tekst",
