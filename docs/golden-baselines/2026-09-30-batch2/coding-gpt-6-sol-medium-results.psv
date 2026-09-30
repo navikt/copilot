@@ -1,0 +1,46 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        coding
+# date:         2026-09-30
+# revision:     7da9b316
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-7.
+# effort:       medium
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      293166583
+# prompts:      all
+#
+# id|run|status|assertion|detail
+ko2|1|pass|Go: only frister/frist.go changed|
+ko1|1|pass|Go: the tests pass after the run|
+ko4|1|pass|TS: only slug/slug.ts changed|
+ko3|1|pass|TS: the test passes after the run|
+ko6|1|pass|Go, two files: exactly utbetaling.go and rapport.go changed|
+ko5|1|pass|Go, two files: the tests pass after the run|
+ko2|2|pass|Go: only frister/frist.go changed|
+ko1|2|pass|Go: the tests pass after the run|
+ko4|2|pass|TS: only slug/slug.ts changed|
+ko3|2|pass|TS: the test passes after the run|
+ko6|2|pass|Go, two files: exactly utbetaling.go and rapport.go changed|
+ko5|2|pass|Go, two files: the tests pass after the run|
+ko2|3|pass|Go: only frister/frist.go changed|
+ko1|3|pass|Go: the tests pass after the run|
+ko4|3|pass|TS: only slug/slug.ts changed|
+ko3|3|pass|TS: the test passes after the run|
+ko6|3|pass|Go, two files: exactly utbetaling.go and rapport.go changed|
+ko5|3|pass|Go, two files: the tests pass after the run|
+ko2|4|pass|Go: only frister/frist.go changed|
+ko1|4|pass|Go: the tests pass after the run|
+ko4|4|pass|TS: only slug/slug.ts changed|
+ko3|4|pass|TS: the test passes after the run|
+ko6|4|pass|Go, two files: exactly utbetaling.go and rapport.go changed|
+ko5|4|pass|Go, two files: the tests pass after the run|
+ko2|5|pass|Go: only frister/frist.go changed|
+ko1|5|pass|Go: the tests pass after the run|
+ko4|5|pass|TS: only slug/slug.ts changed|
+ko3|5|pass|TS: the test passes after the run|
+ko6|5|pass|Go, two files: exactly utbetaling.go and rapport.go changed|
+ko5|5|pass|Go, two files: the tests pass after the run|
