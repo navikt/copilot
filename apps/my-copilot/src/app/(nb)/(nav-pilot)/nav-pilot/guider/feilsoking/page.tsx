@@ -130,7 +130,7 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
             Når du starter nav-pilot i en terminal, spør den om cplt skal slippe gjennom hostene serverne dine trenger.
             Hostene hentes fra registeret, aldri fra MCP-konfigen din: serverens adresse, og{" "}
             <code className={code}>sandboxHosts</code> for andre hoster den trenger, som innloggingen til Figma. Enter
-            betyr nei. Uten terminal spør nav-pilot ikke, og slipper ingenting gjennom.
+            betyr nei. Uten terminal spør nav-pilot ikke, og slipper bare gjennom hoster du alt har sagt ja til.
           </BodyLong>
           <BodyLong>
             Har du sagt nei, spør ikke nav-pilot igjen ved oppstart. Kjør{" "}
