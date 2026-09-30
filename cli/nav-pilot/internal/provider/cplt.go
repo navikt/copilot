@@ -259,6 +259,12 @@ func launchViaCplt(spec cpltLaunch) error {
 		telemetryRecorder.RecordLaunchError(spec.agent, "client_not_found")
 		return fmt.Errorf("cplt not found in PATH — nav-pilot launches clients inside the cplt sandbox; install cplt to launch %s", spec.displayName)
 	}
+	// Every cplt launch on a terminal marks the autonomy notice as seen, so
+	// someone who starts on OpenCode or pi and later switches to Copilot is
+	// not told Copilot "now" runs on its own. Copilot prints it before this.
+	if IsTerminal(os.Stdin) {
+		FirstTime("autonomy-notice")
+	}
 
 	spec.env = withSkillsDirEnv(spec.env, spec.skillsDir)
 	args, err := withCpltProjectDir(withCpltConfirmation(cpltArgv(spec), IsTerminal(os.Stdin)), spec.projectDir)

@@ -68,6 +68,8 @@ grep 'config\nset\nproxy.allowed_domains\n.*\n---\nconfig\nset\nsandbox.preset\n
 # --advanced is a config setup flag only.
 ! exec nav-pilot doctor --advanced
 stderr 'unknown flag --advanced'
+! exec nav-pilot config get setup --advanced
+stderr 'unknown flag --advanced'
 
 # A repo with tooling and no .cplt.toml: the wizard offers cplt init --write
 # and points to cplt trust accept, which it never runs.
