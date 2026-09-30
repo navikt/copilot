@@ -711,7 +711,13 @@ func cmdMCPEnable(names []string, clients []string, topts mcpToolOpts) error {
 	}
 	mcpNoteStale(stale)
 	failed := 0
-	var enabled []providerpkg.MCPServerEntry
+	// Every pick comes before any write, so Esc in a later picker leaves
+	// the whole command undone, not half of it.
+	type pick struct {
+		e      providerpkg.MCPServerEntry
+		choice providerpkg.MCPToolChoice
+	}
+	var picks []pick
 	for _, name := range names {
 		e, err := mcpResolve(entries, name)
 		if err == nil && !e.Usable() {
@@ -727,11 +733,19 @@ func cmdMCPEnable(names []string, clients []string, topts mcpToolOpts) error {
 		o := topts
 		o.noPick = !topts.explicit() && !slices.ContainsFunc(clients, func(c string) bool { return providerpkg.MCPConfigKeyFor(c, e) == "" })
 		choice, err := mcpChooseTools(e, o)
+		if errors.As(err, new(cancelledError)) {
+			return err
+		}
 		if err != nil {
 			mcpFail(e.Name, err)
 			failed++
 			continue
 		}
+		picks = append(picks, pick{e, choice})
+	}
+	var enabled []providerpkg.MCPServerEntry
+	for _, p := range picks {
+		e, choice := p.e, p.choice
 		ok := true
 		var wrote []string
 		for _, client := range clients {
