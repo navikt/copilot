@@ -102,12 +102,18 @@ export default function Sandkassen() {
             egne grener og åpne pull requests.
           </BodyLong>
           <BodyLong>
-            <code className={code}>strict</code> blokkerer all push. Agenten kan ikke pushe en gren eller åpne en pull
-            request fra den, så du må pushe selv. Strict legger også til tvungen proxy og{" "}
+            <code className={code}>strict</code> legger til tvungen proxy og{" "}
             <code className={code}>proxy.default_allowlist</code>: da når agenten bare hostene på lista til cplt og det{" "}
-            <code className={code}>proxy.allowed_domains</code> peker på. Verken{" "}
-            <code className={code}>nav-pilot doctor</code> eller innstillingssiden anbefaler strict. Velg det bare hvis
-            du vil låse nettverket og kan leve med å pushe selv. I nav-pilot heter valget Locked down, se{" "}
+            <code className={code}>proxy.allowed_domains</code> peker på. Strict blokkerer også all push, så agenten kan
+            ikke pushe en gren eller åpne en pull request fra den. Unntaket er hvis du allerede har satt{" "}
+            <code className={code}>git_guard.protect_default_branch_only = true</code>. Den gjelder foran presetet, også
+            når du slår på strict fra <code className={code}>nav-pilot config</code>. Velg «Commit only» i
+            git-spørsmålet i <code className={code}>--advanced</code> hvis du vil stoppe all push. Velger du strict med{" "}
+            <code className={code}>nav-pilot config setup --advanced</code>, kan du i neste spørsmål la agenten pushe
+            grener likevel. Da setter nav-pilot{" "}
+            <code className={code}>git_guard.protect_default_branch_only = true</code>, og cplt stopper bare push til
+            standardgrenen og force push. Verken <code className={code}>nav-pilot doctor</code> eller innstillingssiden
+            anbefaler strict. Velg det bare hvis du vil låse nettverket. Se{" "}
             <NextLink href="/nav-pilot/guider/kom-i-gang#autonomi" className={linkClass}>
               Hvor mye skal agenten gjøre selv?
             </NextLink>{" "}
@@ -128,8 +134,8 @@ export default function Sandkassen() {
           </Box>
           <BodyLong>Sett det derfor med nav-pilot:</BodyLong>
           <CodeBlock compact>
-            {`nav-pilot config setup   # velg «Locked down»
-nav-pilot config         # eller raden «cplt strict preset (blocks all pushes)»`}
+            {`nav-pilot config setup --advanced   # velg «Allowlist only (cplt strict)»
+nav-pilot config                    # eller raden «cplt strict preset (blocks all pushes)»`}
           </CodeBlock>
           <BodyLong>
             nav-pilot skriver host-lista til <code className={code}>~/.nav-pilot/cplt-allowed-domains.txt</code>, peker{" "}

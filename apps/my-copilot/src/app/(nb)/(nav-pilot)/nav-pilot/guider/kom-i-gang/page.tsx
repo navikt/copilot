@@ -23,8 +23,8 @@ const TOC: TocItem[] = [
   { id: "videre", label: "Videre" },
 ];
 
-// The first nav-pilot release with the autonomy presets (navikt/copilot#1350).
-const MIN_VERSION = "2026.09.29-221653";
+// The first nav-pilot release with the two autonomy questions (navikt/copilot#1359).
+const MIN_VERSION = "2026.09.30-072123";
 // The first release that offers to remove the strict allowlist (navikt/copilot#1351).
 const LIST_REMOVAL_VERSION = "2026.09.29-223958";
 
@@ -120,7 +120,7 @@ nav-pilot`}</CodeBlock>
               <strong>Conversation mode</strong>: vanlig samtale, plan eller autopilot.
             </li>
             <li>
-              <strong>How much should the agent do on its own?</strong> Se{" "}
+              <strong>How should the agent run commands?</strong> og <strong>What may the agent do with git?</strong> Se{" "}
               <a href="#autonomi" className={linkClass}>
                 Hvor mye skal agenten gjøre selv?
               </a>
@@ -153,7 +153,14 @@ nav-pilot`}</CodeBlock>
             <NextLink href="/nav-pilot/agentpakker#sandkasse" className={linkClass}>
               Agentpakker
             </NextLink>{" "}
-            forklarer unntakene. Deretter starter klienten i sandkassen.
+            forklarer unntakene.
+          </BodyLong>
+          <BodyLong>
+            Har du lagt inn MCP-tjenere fra Navs MCP-register i Copilot CLI eller OpenCode, spør nav-pilot om de får nå
+            vertene sine fra sandkassen (
+            <strong>MCP server … connects to these hosts. Allow them in the sandbox?</strong>
+            ). Enter svarer nei. nav-pilot henter registeret i bakgrunnen, så spørsmålet kan komme først ved neste
+            oppstart. Deretter starter klienten i sandkassen.
           </BodyLong>
         </VStack>
       </section>
@@ -224,74 +231,86 @@ cplt trust accept`}</CodeBlock>
             Hvor mye skal agenten gjøre selv?
           </LinkableHeading>
           <BodyLong>
-            nav-pilot tilbyr fire nivåer. På alle fire stopper cplt merging, push til standardgrenen og force push.
-            Unntaket er hvis du under Custom beholder cplt-nivået <code className={code}>permissive</code> eller{" "}
-            <code className={code}>full-trust</code>. Der er sperrene av, og ingenting blir stoppet.
+            Veiviseren stiller to spørsmål. Når klienten kjører i cplt med nivået <code className={code}>standard</code>{" "}
+            eller <code className={code}>strict</code>, stopper cplt <code className={code}>gh pr merge</code>, push til
+            standardgrenen og force push, uansett hva du svarer. Med <code className={code}>permissive</code> eller{" "}
+            <code className={code}>full-trust</code> er sperrene av, og ingenting blir stoppet.
+          </BodyLong>
+          <BodyLong>
+            <strong>How should the agent run commands?</strong> Bare for Copilot CLI.
           </BodyLong>
           <Bullets>
             <li>
-              <strong>Autonomous in the sandbox (recommended).</strong> Agenten jobber uten å spørre for hver kommando,
-              innenfor sandkassen. Den committer, pusher egne grener og åpner pull requests, og kan fortsatt spørre deg
-              når den er usikker. For Copilot CLI sender nav-pilot{" "}
+              <strong>On its own inside the sandbox, and ask you when it needs to (recommended).</strong> Agenten kjører
+              kommandoer uten å spørre hver gang, og spør deg når den trenger det. nav-pilot sender{" "}
               <code className={code}>--allow-all-tools --allow-all-paths --allow-all-urls</code>, men bare når klienten
               kjører i cplt.
             </li>
             <li>
-              <strong>Ask before each command.</strong> Samme git-regler, men Copilot CLI spør før hver kommando. Bare
-              for Copilot CLI.
-            </li>
-            <li>
-              <strong>Locked down.</strong> Agenten kan ikke pushe i det hele tatt, så du pusher selv. Nettverket er
-              begrenset til en liste over tillatte verter, og Copilot CLI spør før hver kommando. nav-pilot setter cplt
-              til <code className={code}>strict</code> og legger Navs verter i lista først.
-            </li>
-            <li>
-              <strong>Custom.</strong> Du velger selv om Copilot CLI skal spørre før hver kommando, og om nettverket
-              skal være vanlig eller bare lista. Med cplt-nivået <code className={code}>standard</code> eller{" "}
-              <code className={code}>strict</code> velger du også om agenten kan pushe og åpne pull requests eller bare
-              committe. Har du satt cplt til <code className={code}>permissive</code> eller{" "}
-              <code className={code}>full-trust</code> og beholder det, får du ikke det spørsmålet. Da er git- og
-              gh-vaktene av, og cplt stopper verken merge, push til standardgrenen eller force push.
+              <strong>Ask before each command.</strong> Copilot CLI spør før hver kommando.
             </li>
           </Bullets>
           <BodyLong>
-            Bruker du OpenCode eller pi, får du ikke valget Ask before each command. Der styrer klienten selv hva den
-            spør om. For OpenCode er det nøkkelen <code className={code}>permission</code> i{" "}
+            Bruker du OpenCode eller pi, får du ikke dette spørsmålet. Der styrer klienten selv hva den spør om. For
+            OpenCode er det nøkkelen <code className={code}>permission</code> i{" "}
             <code className={code}>opencode.json</code>.
           </BodyLong>
+          <BodyLong>
+            <strong>What may the agent do with git?</strong> cplt håndhever svaret.
+          </BodyLong>
+          <Bullets>
+            <li>
+              <strong>Commit, push branches and open pull requests (recommended).</strong> Agenten committer, pusher
+              egne grener og åpner pull requests.
+            </li>
+            <li>
+              <strong>Commit only (no pushes).</strong> Agenten kan ikke pushe, så du pusher selv.
+            </li>
+          </Bullets>
+          <BodyLong>
+            Har du satt cplt til <code className={code}>permissive</code> eller <code className={code}>full-trust</code>
+            , får du ikke git-spørsmålet, fordi git- og gh-vaktene er av der.
+          </BodyLong>
+          <BodyLong>
+            Brukte du nav-pilot med Copilot CLI før, og valgte aldri selv at den skulle spørre før hver kommando, kjører
+            den nå kommandoer på egen hånd i cplt. nav-pilot sier fra om det én gang. En{" "}
+            <code className={code}>autonomy = &quot;conservative&quot;</code> som nav-pilot skrev selv, teller ikke som
+            et valg. Vil du at Copilot CLI skal spørre før hver kommando:
+          </BodyLong>
+          <CodeBlock compact>{`nav-pilot config set autonomy conservative`}</CodeBlock>
+          <BodyLong>Tilbake til at agenten kjører kommandoer selv:</BodyLong>
+          <CodeBlock compact>{`nav-pilot config set autonomy sandbox`}</CodeBlock>
+          <BodyLong>
+            Veiviseren endrer ikke cplt-nivået du har. Har du ikke satt noe, er det{" "}
+            <code className={code}>standard</code>. Vil du bytte nivå, for eksempel til{" "}
+            <code className={code}>strict</code>, der agenten bare når verter på en liste, får du spørsmålet om
+            nettverket med:
+          </BodyLong>
+          <CodeBlock compact>{`nav-pilot config setup --advanced`}</CodeBlock>
           <Box background="warning-soft" borderRadius="8" padding="space-16">
             <VStack gap="space-8">
               <BodyLong>
-                <strong>Locked down koster noe.</strong> Agenten kan ikke pushe en gren eller åpne en pull request fra
-                den, så du må pushe selv. Verter som ikke står på lista, blir blokkert. Det gjelder også interne verter
-                du tar i bruk senere. Lista ligger i <code className={code}>~/.nav-pilot/cplt-allowed-domains.txt</code>
-                . På Linux krever nivået kjerne 6.7 eller nyere med Landlock slått på.
+                <strong>strict koster noe.</strong> Agenten kan ikke pushe med mindre du tillater det i git-spørsmålet.
+                Verter som ikke står på lista, blir blokkert. Det gjelder også interne verter du tar i bruk senere.
+                nav-pilot legger Navs verter i <code className={code}>~/.nav-pilot/cplt-allowed-domains.txt</code> før
+                nivået blir satt. Har du en egen <code className={code}>proxy.allowed_domains</code>, må du legge dem
+                inn i den selv. På Linux krever nivået kjerne 6.7 eller nyere med Landlock slått på.
               </BodyLong>
               <BodyLong>
-                Bytter du fra Locked down til et annet nivå, spør nav-pilot fra versjon {LIST_REMOVAL_VERSION}:{" "}
-                <strong>Remove the network allowlist nav-pilot set up for strict?</strong> Svarer du nei, eller har du
-                en eldre versjon, blir lista stående, og agenten når fortsatt bare vertene på den. Fjern den slik:
+                Bytter du fra strict til <code className={code}>standard</code>, spør nav-pilot fra versjon{" "}
+                {LIST_REMOVAL_VERSION}: <strong>Remove the network allowlist nav-pilot set up for strict?</strong>{" "}
+                Spørsmålet kommer bare for lista nav-pilot la inn selv. Svarer du nei, har du en eldre versjon eller en
+                egen liste, blir lista stående, og agenten når fortsatt bare vertene på den. Kommandoen under fjerner
+                lista som gjelder, uansett hvem som la den inn:
               </BodyLong>
               <CodeBlock compact>{`cplt config set proxy.allowed_domains --unset --global`}</CodeBlock>
             </VStack>
           </Box>
           <BodyLong>
-            Du kan bytte nivå når som helst. Med Copilot CLI bytter du mellom Autonomous in the sandbox og Ask before
-            each command med én innstilling. Resten av innstillingene blir som de er. Til Ask before each command:
-          </BodyLong>
-          <CodeBlock compact>{`nav-pilot config set autonomy conservative`}</CodeBlock>
-          <BodyLong>Tilbake til Autonomous in the sandbox:</BodyLong>
-          <CodeBlock compact>{`nav-pilot config set autonomy sandbox`}</CodeBlock>
-          <BodyLong>Til Locked down, Custom eller tilbake fra Locked down går du gjennom veiviseren:</BodyLong>
-          <CodeBlock compact>{`nav-pilot config setup`}</CodeBlock>
-          <BodyLong>
-            nav-pilot spør om du vil erstatte innstillingsfila. Velg Replace. Veiviseren skriver en ny fil. Klienten og
-            nivået du har nå, er valgt på forhånd, og kilden blir med over. Samtalemodus, modell, resonneringsnivå og
-            automatisk oppdatering starter på standardverdiene, og andre innstillinger i fila blir ikke med over. Gå
-            gjennom hvert svar, og se over oppsummeringen før du lagrer.
+            Kjører du <code className={code}>nav-pilot config setup</code> på nytt, starter hvert spørsmål på det du har
+            nå. Trykker du bare Enter, blir fila som den er. Se over oppsummeringen før du lagrer.
           </BodyLong>
           <BodyLong>
-            Brukte du nav-pilot med Copilot CLI før nivåene kom, har du Ask before each command til du velger noe annet.
             Hele sammenligningen av <code className={code}>standard</code> og <code className={code}>strict</code> står
             i{" "}
             <NextLink href="/nav-pilot/forklaring/sandkassen#sikkerhetsniva" className={linkClass}>
@@ -323,7 +342,9 @@ cplt trust accept`}</CodeBlock>
               .
             </li>
             <li>
-              Trenger agenten verktøy utenfor klienten, som Playwright? Se{" "}
+              Trenger agenten verktøy utenfor klienten, som Playwright? Finn navnet med{" "}
+              <code className={code}>nav-pilot mcp list</code>, legg serveren til med{" "}
+              <code className={code}>nav-pilot mcp enable &lt;navn&gt;</code>, og se{" "}
               <NextLink href="/nav-pilot/klienter#mcp-register" className={linkClass}>
                 Navs MCP-register
               </NextLink>
