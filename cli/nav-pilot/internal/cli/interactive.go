@@ -1028,8 +1028,9 @@ func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error
 	defer func() { stopSourceRefresh() }()
 	// Before the launch vector is built: the flags derive from the record
 	// this may write (provider/mcp_hosts.go).
-	offerLeaveStrict()
+	// One question per launch: the trust review first, strict next time.
 	maybeTrustNudge(resolved.ProjectDir)
+	offerLeaveStrict()
 	noteMCPHostConsent(resolved.Client, false)
 	handled, err := tryPakkeLaunch(resolved)
 	if err != nil {

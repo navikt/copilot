@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -163,9 +165,11 @@ var runTrustAccept = func(cpltPath, root string) error {
 // changes, once per (repository, file hash), in a terminal and under cplt.
 // Launch path: an unchanged file spawns nothing; cplt is asked only when the
 // bytes differ from the ones recorded. Without a terminal it says nothing:
-// cplt's own launch output names what it did not grant.
+// cplt's own launch output names what it did not grant. It runs before any
+// other launch question and takes the session's one prompt.
 func maybeTrustNudge(projectDir string) {
-	if !isInteractive() {
+	// __CPLT_TRUST_LOCKED: a launch nested inside cplt, whose trust is settled.
+	if !isInteractive() || os.Getenv("__CPLT_TRUST_LOCKED") != "" {
 		return
 	}
 	if projectDir == "" {
@@ -189,14 +193,18 @@ func maybeTrustNudge(projectDir string) {
 		return
 	}
 	cpltPath, _ := providerpkg.FindCopilotCLI()
-	t, ok := readCpltTrust(cpltPath, root)
-	// An uncommitted file is asked about again once committed, with the
-	// same bytes. ponytail: an older cplt or a timeout records the hash too,
-	// so a slow cplt is not re-spawned every launch; doctor still reports.
-	if ok && t.State == "uncommitted" {
+	out, err := runBoundedIn(root, cpltCommandTimeout, false, cpltPath, "trust", "show", "--json")
+	// Killed at the deadline: ask again next launch. An older cplt that
+	// exits fast without the flag records the hash, so it is not re-spawned.
+	var ee *exec.ExitError
+	if errors.As(err, &ee) && ee.ExitCode() == -1 || errors.Is(err, context.DeadlineExceeded) {
 		return
 	}
+	t, ok := parseCpltTrust(out, err)
 	if ok && (t.State == "pending" || t.State == "changed") && t.Command != nil {
+		if sessionPrompted {
+			return // unrecorded: asked next launch
+		}
 		sessionPrompted = true
 		prompt := fmt.Sprintf("This repo's .cplt.toml proposes sandbox changes (%s). Review now? [y/N] ", strings.Join(t.unapprovedKeys(), ", "))
 		if askTrustReview(prompt) {
@@ -204,6 +212,16 @@ func maybeTrustNudge(projectDir string) {
 				fmt.Fprintf(os.Stderr, "%s cplt trust accept: %v\n", yellow("⚠"), err)
 			}
 		}
+	}
+	// cplt's verdict is on HEAD. Record the working-tree bytes only when they
+	// are HEAD's, or committing an edit to an approved file is never asked
+	// about. An uncommitted (untracked) file also diffs clean: it is asked
+	// about once committed, with the same bytes.
+	if ok && t.State == "uncommitted" {
+		return
+	}
+	if _, err := runBoundedIn(root, cpltCommandTimeout, false, "git", "diff", "--quiet", "HEAD", "--", ".cplt.toml"); err != nil {
+		return
 	}
 	recordTrustSeen(seen, root, sum)
 }

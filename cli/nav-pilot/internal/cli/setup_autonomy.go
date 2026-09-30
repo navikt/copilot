@@ -354,11 +354,11 @@ var askLeaveStrict = func(yes *bool) error {
 // preset and, when the allowlist was nav-pilot's own, removes it after cplt
 // reads back the new preset (applyCpltChanges). cplt runs only after a yes.
 func offerLeaveStrict() {
-	if !isInteractive() || !cpltInstalled() {
+	if !isInteractive() || sessionPrompted || !cpltInstalled() {
 		return
 	}
 	allowlist, ok := strictByOurAdvice()
-	if !ok || !providerpkg.FirstTime("leave-strict-offer") {
+	if !ok || !providerpkg.FirstTime("leave-strict-offer") || !claimSessionPrompt() {
 		return
 	}
 	yes := false
