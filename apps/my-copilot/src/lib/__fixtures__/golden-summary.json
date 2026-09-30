@@ -5,8 +5,7 @@
     {
       "date": "2000-01-01",
       "suite": "planning",
-      "model": "GPT-6 Sol",
-      "label": "Testdata A",
+      "model": "gpt-6-sol",
       "effort": "high",
       "cli_version": "0.0.0-fixture",
       "n": 5,
@@ -15,15 +14,16 @@
         { "id": "c2", "description": "Testkrav 2", "passed": 4 }
       ],
       "credits": { "median": 120.5, "mean": 130.1 },
+      "usage_complete": true,
       "wall_seconds": { "median": 240 },
       "source": "docs/golden-baselines/fixture-a.txt"
     },
     {
       "date": "2000-01-01",
       "suite": "planning",
-      "model": "GPT-6 Sol",
-      "label": "Testdata B",
+      "model": "gpt-6-sol",
       "effort": "medium",
+      "ran_at": "high",
       "cli_version": "0.0.0-fixture",
       "n": 5,
       "checks": [
@@ -37,9 +37,9 @@
     {
       "date": "2000-01-01",
       "suite": "planning",
-      "model": "Claude Opus 5.5",
-      "label": "Testdata C",
+      "model": "claude-opus-5.5",
       "effort": "high",
+      "ran_at": "high",
       "cli_version": "0.0.0-fixture",
       "n": 5,
       "checks": [
@@ -47,18 +47,18 @@
         { "id": "c2", "description": "Testkrav 2", "passed": 5 }
       ],
       "credits": { "median": 210, "mean": 215 },
+      "usage_complete": false,
       "wall_seconds": { "median": 320 },
       "source": "docs/golden-baselines/fixture-c.txt"
     },
     {
       "date": "2000-01-01",
       "suite": "review",
-      "model": "Claude Opus 5.5",
-      "label": "Testdata D",
+      "model": "claude-opus-5.5",
       "effort": "low",
       "cli_version": "0.0.0-fixture",
       "n": 5,
-      "checks": [{ "id": "c1", "description": "Testkrav 1", "passed": true }],
+      "checks": [{ "id": "c1", "description": "Testkrav 1", "passed": 5 }],
       "credits": { "median": 90, "mean": 92 },
       "wall_seconds": { "median": 100 },
       "source": "https://github.com/navikt/copilot/blob/main/docs/golden-baselines/fixture-d.txt"
@@ -66,15 +66,27 @@
     {
       "date": "2000-01-01",
       "suite": "review",
-      "model": "GPT-6 Luna",
-      "label": "Testdata E",
+      "model": "gpt-6-luna",
       "effort": "default",
+      "smoke": true,
       "cli_version": "0.0.0-fixture",
-      "n": 5,
-      "checks": [{ "id": "c1", "description": "Testkrav 1", "passed": 2 }],
+      "n": 1,
+      "checks": [{ "id": "c1", "description": "Testkrav 1", "passed": 0 }],
       "credits": { "median": 15, "mean": 16 },
       "wall_seconds": { "median": 60 },
       "source": "docs/golden-baselines/fixture-e.txt"
+    },
+    {
+      "date": "2000-01-01",
+      "suite": "review",
+      "model": "fixture-unknown-model",
+      "effort": "medium",
+      "cli_version": "0.0.0-fixture",
+      "n": 5,
+      "checks": [{ "id": "c1", "description": "Testkrav 1", "passed": 3 }],
+      "credits": null,
+      "wall_seconds": { "median": 80 },
+      "source": "docs/golden-baselines/fixture-f.txt"
     }
   ]
 }

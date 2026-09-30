@@ -1,6 +1,6 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { passRate, runsBySuite, sourceUrl } from "./golden-baselines";
+import { knownCredits, modelName, passRate, runsBySuite, sourceUrl } from "./golden-baselines";
 import { loadGoldenSummary } from "./golden-summary-file";
 
 const FIXTURE = path.join(__dirname, "__fixtures__", "golden-summary.json");
@@ -10,7 +10,7 @@ describe("golden-baselines", () => {
     const summary = loadGoldenSummary(FIXTURE)!;
     expect(runsBySuite(summary.runs).map(([suite, runs]) => [suite, runs.length])).toEqual([
       ["planning", 3],
-      ["review", 2],
+      ["review", 3],
     ]);
   });
 
@@ -19,11 +19,26 @@ describe("golden-baselines", () => {
     expect(loadGoldenSummary(__filename)).toBeNull();
   });
 
-  it("regner bestått som andel av n × krav, og godtar boolsk passed", () => {
+  it("regner bestått som andel av n × krav", () => {
     const [a, , , d, e] = loadGoldenSummary(FIXTURE)!.runs;
     expect(passRate(a)).toBe(9 / 10);
     expect(passRate(d)).toBe(1);
-    expect(passRate(e)).toBe(2 / 5);
+    expect(passRate(e)).toBe(0);
+  });
+
+  it("viser ikke credits når forbruket mangler eller er ufullstendig", () => {
+    const [a, b, c, , , f] = loadGoldenSummary(FIXTURE)!.runs;
+    expect(knownCredits(a)).toBe(120.5);
+    expect(knownCredits(b)).toBe(70);
+    expect(knownCredits(c)).toBeNull();
+    expect(knownCredits(f)).toBeNull();
+  });
+
+  it("slår opp visningsnavn i priskatalogen og faller tilbake til id-en", () => {
+    expect(modelName("gpt-6-sol")).toBe("GPT-6 Sol");
+    expect(modelName("claude-opus-5.5")).toBe("Claude Opus 5.5");
+    expect(modelName("gpt-5.3-codex")).toBe("GPT-5.3-Codex");
+    expect(modelName("fixture-unknown-model")).toBe("fixture-unknown-model");
   });
 
   it("lenker repo-stier til GitHub og lar fulle URL-er stå", () => {

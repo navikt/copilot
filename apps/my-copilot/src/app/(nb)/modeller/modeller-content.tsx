@@ -5,7 +5,15 @@
 import NextLink from "next/link";
 import { Alert, BodyLong, BodyShort, Box, Heading, Link, Table, VStack } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
-import { passRate, runsBySuite, sourceUrl, type GoldenSummary, type Suite } from "@/lib/golden-baselines";
+import {
+  knownCredits,
+  modelName,
+  passRate,
+  runsBySuite,
+  sourceUrl,
+  type GoldenSummary,
+  type Suite,
+} from "@/lib/golden-baselines";
 import { NAV_PILOT_MODEL_CHOICES } from "@/lib/model-policy";
 import { ModelPricingTables } from "../priser/model-pricing-tables";
 import { PassRateChart } from "./pass-rate-chart";
@@ -19,6 +27,8 @@ const SUITE_NAMES: Record<Suite, string> = {
   norsk: "Norsk tekst",
   coding: "Koding",
 };
+
+const effortName = (effort: string) => (effort === "default" ? "standard" : effort);
 
 const cell = { paddingBlock: "var(--ax-space-8)" };
 
@@ -62,7 +72,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
     );
   }
   // Colour follows the model across every chart on the page.
-  const models = [...new Set(summary.runs.map((run) => run.model))];
+  const models = [...new Set(summary.runs.map((run) => modelName(run.model)))];
 
   return (
     <VStack gap="space-24">
@@ -70,68 +80,90 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
         Tallet n viser hvor mange ganger vi kjørte samme oppgave. Fem kjøringer holder til å finne tydelige feil, men
         ikke til å rangere modellene generelt. Sist oppdatert {summary.generated}.
       </BodyLong>
-      {runsBySuite(summary.runs).map(([suite, runs]) => (
-        <VStack gap="space-12" key={suite}>
-          <Heading size="small" level="3">
-            {SUITE_NAMES[suite] ?? suite}
-          </Heading>
-          <PassRateChart
-            title={`${SUITE_NAMES[suite] ?? suite}: andel bestått mot median credits`}
-            models={models}
-            points={runs.map((run) => ({
-              model: run.model,
-              effort: run.effort,
-              credits: run.credits.median,
-              passPercent: passRate(run) * 100,
-              n: run.n,
-            }))}
-          />
-          <div className="w-full overflow-x-auto">
-            <Table size="small">
-              <Table.Header>
-                <Table.Row>
-                  <Table.HeaderCell scope="col">Modell</Table.HeaderCell>
-                  <Table.HeaderCell scope="col">Effort</Table.HeaderCell>
-                  <Table.HeaderCell scope="col" align="right">
-                    Bestått
-                  </Table.HeaderCell>
-                  <Table.HeaderCell scope="col" align="right">
-                    Median credits
-                  </Table.HeaderCell>
-                  <Table.HeaderCell scope="col" align="right">
-                    Median tid
-                  </Table.HeaderCell>
-                  <Table.HeaderCell scope="col" align="right">
-                    n
-                  </Table.HeaderCell>
-                  <Table.HeaderCell scope="col">Dato</Table.HeaderCell>
-                  <Table.HeaderCell scope="col">CLI</Table.HeaderCell>
-                  <Table.HeaderCell scope="col">Kilde</Table.HeaderCell>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {runs.map((run) => (
-                  <Table.Row key={`${run.model}-${run.effort}-${run.date}-${run.source}`}>
-                    <Table.DataCell className="whitespace-nowrap">{run.model}</Table.DataCell>
-                    <Table.DataCell>{run.effort === "default" ? "standard" : run.effort}</Table.DataCell>
-                    <Table.DataCell align="right">{Math.round(passRate(run) * 100)} %</Table.DataCell>
-                    <Table.DataCell align="right">{run.credits.median.toLocaleString("nb-NO")}</Table.DataCell>
-                    <Table.DataCell align="right">{Math.round(run.wall_seconds.median)} s</Table.DataCell>
-                    <Table.DataCell align="right">{run.n}</Table.DataCell>
-                    <Table.DataCell className="whitespace-nowrap">{run.date}</Table.DataCell>
-                    <Table.DataCell>{run.cli_version}</Table.DataCell>
-                    <Table.DataCell>
-                      <Link href={sourceUrl(run.source)} target="_blank" rel="noopener noreferrer">
-                        {run.label}
-                      </Link>
-                    </Table.DataCell>
+      {runsBySuite(summary.runs).map(([suite, runs]) => {
+        const plotted = runs.filter((run) => knownCredits(run) !== null);
+        const unplotted = runs.length - plotted.length;
+        return (
+          <VStack gap="space-12" key={suite}>
+            <Heading size="small" level="3">
+              {SUITE_NAMES[suite] ?? suite}
+            </Heading>
+            {plotted.length > 0 && (
+              <PassRateChart
+                title={`${SUITE_NAMES[suite] ?? suite}: andel bestått mot median credits`}
+                models={models}
+                points={plotted.map((run) => ({
+                  model: modelName(run.model),
+                  effort: run.effort,
+                  credits: knownCredits(run)!,
+                  passPercent: passRate(run) * 100,
+                  n: run.n,
+                }))}
+              />
+            )}
+            <div className="w-full overflow-x-auto">
+              <Table size="small">
+                <Table.Header>
+                  <Table.Row>
+                    <Table.HeaderCell scope="col">Modell</Table.HeaderCell>
+                    <Table.HeaderCell scope="col">Effort</Table.HeaderCell>
+                    <Table.HeaderCell scope="col" align="right">
+                      Bestått
+                    </Table.HeaderCell>
+                    <Table.HeaderCell scope="col" align="right">
+                      Median credits
+                    </Table.HeaderCell>
+                    <Table.HeaderCell scope="col" align="right">
+                      Median tid
+                    </Table.HeaderCell>
+                    <Table.HeaderCell scope="col" align="right">
+                      n
+                    </Table.HeaderCell>
+                    <Table.HeaderCell scope="col">Dato</Table.HeaderCell>
+                    <Table.HeaderCell scope="col">CLI</Table.HeaderCell>
+                    <Table.HeaderCell scope="col">Kilde</Table.HeaderCell>
                   </Table.Row>
-                ))}
-              </Table.Body>
-            </Table>
-          </div>
-        </VStack>
-      ))}
+                </Table.Header>
+                <Table.Body>
+                  {runs.map((run) => {
+                    const credits = knownCredits(run);
+                    return (
+                      <Table.Row key={`${run.model}-${run.effort}-${run.date}-${run.source}`}>
+                        <Table.DataCell className="whitespace-nowrap">
+                          {modelName(run.model)}
+                          {run.smoke && " (røyktest)"}
+                        </Table.DataCell>
+                        <Table.DataCell>
+                          {effortName(run.effort)}
+                          {run.ran_at && run.ran_at !== run.effort && ` (kjørte på ${effortName(run.ran_at)})`}
+                        </Table.DataCell>
+                        <Table.DataCell align="right">{Math.round(passRate(run) * 100)} %</Table.DataCell>
+                        <Table.DataCell align="right">
+                          {credits === null ? "–" : credits.toLocaleString("nb-NO")}
+                        </Table.DataCell>
+                        <Table.DataCell align="right">{Math.round(run.wall_seconds.median)} s</Table.DataCell>
+                        <Table.DataCell align="right">{run.n}</Table.DataCell>
+                        <Table.DataCell className="whitespace-nowrap">{run.date}</Table.DataCell>
+                        <Table.DataCell>{run.cli_version}</Table.DataCell>
+                        <Table.DataCell>
+                          <Link href={sourceUrl(run.source)} target="_blank" rel="noopener noreferrer">
+                            {run.source.split("/").pop()}
+                          </Link>
+                        </Table.DataCell>
+                      </Table.Row>
+                    );
+                  })}
+                </Table.Body>
+              </Table>
+            </div>
+            {unplotted > 0 && (
+              <BodyShort size="small">
+                – betyr at forbruket ikke ble registrert helt. Kjøringen er derfor ikke med i diagrammet.
+              </BodyShort>
+            )}
+          </VStack>
+        );
+      })}
     </VStack>
   );
 }
