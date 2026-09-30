@@ -320,9 +320,15 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
         {(offByDefault.length > 0 || isGitHub) && (
           <Alert variant="warning" size="small">
             Manuelt oppsett slår på alle verktøyene til serveren
-            {offByDefault.length > 0 && <>, også {offByDefault.join(", ")}</>}. Kommandoen for VS Code kan ikke velge
-            verktøy. Slå av de du ikke vil ha i verktøyvalget i klienten.
-            {hostExec.length > 0 && <> {hostExec.join(", ")} kjører på maskinen din, utenfor sandkassen.</>}
+            {offByDefault.length > 0 && <>, også {offByDefault.join(", ")}</>}.
+            {hostExec.length > 0 && (
+              <>
+                {" "}
+                {hostExec.length === offByDefault.length ? "De" : hostExec.join(", ")} kjører på maskinen din, utenfor
+                sandkassen.
+              </>
+            )}{" "}
+            Kommandoen for VS Code kan ikke velge verktøy. Slå av de du ikke vil ha i verktøyvalget i klienten.
           </Alert>
         )}
         <ExclusiveAccordion>
