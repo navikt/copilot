@@ -161,8 +161,8 @@ session goes on. See "Checking the worker's result" below.
 
 - *opencode*: a plugin's `tool.execute.before` hook runs before every tool call. Throwing
   from it aborts the call, and the error text reaches the model as the tool result. This
-  was measured in #709 (`opencode_sync.go`), and `~/.config/opencode/plugins/rtk.ts` uses
-  the same hook. opencode loads every `*.js`/`*.ts` in `~/.config/opencode/plugins/`
+  was measured in #709 (`opencode_sync.go`), and the rtk plugin (`~/.config/opencode/plugins/rtk.ts`,
+  no longer installed by nav-pilot since #1332) used the same hook. opencode loads every `*.js`/`*.ts` in `~/.config/opencode/plugins/`
   (`config/plugin.ts`, glob `{plugin,plugins}/*.{ts,js}`). **`--pure` disables all external
   plugins** (`plugin/index.ts`: `flags.pure ? [] : …`), so a `--pure` run has no gate.
   nav-pilot warns at launch when it sees `--pure` on a launch it would gate.

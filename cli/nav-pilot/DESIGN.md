@@ -35,19 +35,20 @@ version.go       versjonsstrengslogikk
 ## Config-system
 
 User-specific config lives in `~/.nav-pilot/config.toml` (override via `NAV_PILOT_CONFIG`).
-See `config.go`, `config_cmd.go`, `config_setup.go`.
+See `internal/cli/config.go`, `config_cmd.go`, `config_setup.go`, `setup_autonomy.go`.
 
 Files:
 - `config.go` — `Config` struct, `readConfig()`, `validateConfig()`, `loadConfigForLaunch()` (validate + warn/refuse at launch), `resolve()`, `CLIOverrides`, `ResolvedConfig`
-- `config_cmd.go` — `nav-pilot config` subcommands: `init`, `setup`, `show`, `path`, `get`, `set`, `validate`, `explain`
+- `config_cmd.go` — `nav-pilot config` subcommands: `init`, `setup`, `show`, `path`, `get`, `set`, `unset`, `validate`, `explain`, `sandbox`
 - `config_setup.go` — Interactive first-run wizard (`maybeRunFirstRunSetup`, `runConfigSetup`, `writeSetupConfig`)
+- `setup_autonomy.go` — The wizard's two questions: how Copilot runs commands (`autonomy`, Copilot only) and what the agent may do with git (cplt's `git_guard.protect_default_branch_only`). The network question (cplt preset) is only in `nav-pilot config setup --advanced`
 
 ### Config fields
 
 | TOML key | Type | Default | CLI flag |
 |---|---|---|---|
 | `version` | int | (required) | — |
-| `client` | string | `copilot` | `--client` |
+| `client` | string | `opencode` on a new install in a terminal with opencode on PATH, else `copilot` (a config.toml without the key means `copilot`) | `--client` |
 | `source` | string | `navikt/copilot` | `--source` |
 | `model` | string | unset | `--model` |
 | `mode` | string | `default` | `--mode` |
@@ -55,8 +56,15 @@ Files:
 | `context_tier` | string | unset | `--context` |
 | `allow_all_tools` | bool | `false` | `--allow-all-tools` |
 | `ask_user` | bool | `true` | `--no-ask-user` |
+| `autonomy` | string | `sandbox` | — |
+| `local_dispatch` | string | `aggressive` | `--local-dispatch` |
+| `mcp_hosts` | string | `ask` | — |
 | `log_level` | string | unset | `--log-level` |
 | `otel_log_level` | string | `none` | `--otel-log-level` (sets `OTEL_LOG_LEVEL`) |
+
+The table lists the main keys. `nav-pilot config explain` describes every key.
+
+`autonomy = "conservative"` counts only together with `autonomy_chosen = true`, which every explicit write (`config set autonomy`, the settings page, a wizard answer that changes the value) adds. Earlier releases wrote `conservative` on their own, so without the marker it resolves to `sandbox`.
 
 ### Per-run CLI override flags
 
@@ -113,7 +121,8 @@ En "Custom…"-mulighet i velgeren lar brukeren skrive inn valgfri id med valide
 launch (both the interactive flow and `--sync`):
 
 - **Refuses to start** on hard-invalid config — an unknown `version`, an invalid
-  enum value (`client`, `mode`, `reasoning_effort`, `context_tier`, `log_level`),
+  enum value (`client`, `mode`, `reasoning_effort`, `context_tier`, `log_level`,
+  `otel_log_level`, `local_dispatch`, `hook_action_check`, `mcp_hosts`, `autonomy`),
   or a malformed `model` identifier. It prints every problem via `validateConfig`
   and points the user at `nav-pilot config setup`.
 - **Warns (non-fatal)** on advisory issues via `configAdvisories`, printed to
@@ -162,9 +171,18 @@ nav-pilot eksponerer bare klienter med bekreftet launch-sti og Nav-kontekst.
 > fortsatt og kartlegges til `client`-feltet. En advarsel skrives ut ved oppstart;
 > bytt til `client` for å fjerne den.
 
-**cplt agent-pinning:** `buildCopilotArgs` setter alltid `cplt --agent copilot`
+**cplt agent-pinning:** `BuildCopilotArgs` (`internal/provider/copilot_launch.go`) setter alltid `cplt --agent copilot`
 slik at en annen agent på PATH ikke plukkes opp, og videreformidler `nav-pilot`-
 persona + flagg etter `--`-separatoren: `cplt --agent copilot -- --agent nav-pilot …`.
+
+**Autonomi og allow-all:** Med `autonomy = "sandbox"` (standard) får Copilot i cplt
+`--allow-all-tools --allow-all-paths --allow-all-urls` og beholder `ask_user`. Med `conservative` gjelder `allow_all_tools` som før. cplt er
+grensen. Uten cplt (`--no-sandbox` eller en oppstart uten sandkasse etter spørsmålet) fjerner
+nav-pilot alle allow-all-flagg (`--allow-all-tools`, `--allow-all-paths`, `--allow-all-urls`,
+`--allow-all`, `--yolo`) fra konfig, launch-flagg og argumenter etter `--`, tar bort
+`COPILOT_ALLOW_ALL` fra miljøet og sier fra på én linje. For opencode fjernes
+`--dangerously-skip-permissions`, `--auto` og `--yolo` på samme måte. `--mode autopilot`
+gir i tillegg `--no-ask-user` og en advarsel.
 
 ### OpenCode alternativ-mapping
 
@@ -176,7 +194,7 @@ flagg-grensesnitt er annerledes enn Copilots, så flere felt oversettes eller dr
 | `model` | `--model` | `provider/model` (f.eks. `github-copilot/claude-opus-4.8`), og en Copilot-id uten prefiks får `github-copilot/` foran; uteblir helt når unset, og opencode velger da selv. Flagget slår opencodes egen config og recents, og i `opencode run` slår det også agentens eget `model:`-felt (der er flagget forespørselens modell). I TUI-en, som er det nav-pilot starter, vinner agentens eget `model:` over flagget. Rekkefølgen blir altså: agentens spesialisering, så nav-pilots sesjonsmodell, så det klienten selv ville valgt |
 | `mode = plan` | `--agent plan` | opencode har ingen `--mode`; `autopilot` har ingen opencode-ekvivalent — advarsel ved oppstart |
 | `reasoning_effort` | `--variant` | Leverandørspesifikk resonering (f.eks. `high`, `max`) |
-| `allow_all_tools` | `--dangerously-skip-permissions` | |
+| `allow_all_tools` | `--dangerously-skip-permissions` | Bare i cplt; en oppstart uten sandkasse fjerner flagget |
 | `log_level` | `--log-level` | Oversettes til opencodes sett: `DEBUG`/`INFO`/`WARN`/`ERROR` (se under) |
 | `context_tier` | — | Ingen opencode-ekvivalent — advarsel hvis eksplisitt satt |
 | `ask_user` | — | Ingen opencode-ekvivalent — advarsel hvis eksplisitt satt til `false` |
