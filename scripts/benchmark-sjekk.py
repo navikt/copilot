@@ -198,7 +198,7 @@ def selftest():
     tsx = "| `StatusPanel.tsx` | %d | 🔴 | `tabIndex={5}` bryter tabrekkefølgen (WCAG 2.4.3) |\n"
     spec = ["tabindex=tabindex@11"]
     NEG = ["slettOppgave", "ingen", "FX"]
-    NEGV = ["slettOppgave", r"ingen|\bverken\b", "FX"]
+    NEGV = ["slettOppgave", r"ingen|(fant|finner|finnes|fins|ser) verken", "FX"]
     cases = [
         # (cmd, file text, extra args, expect pass)
         ("funnet", tsx % 11, spec, True),
@@ -236,6 +236,7 @@ def selftest():
         # Batch 2 Astra, re2: «verken ... eller» is a negation (RE_NONE in nav-pilot-golden.sh).
         ("ingen", "Jeg fant verken definisjoner eller kall til `slettOppgave` i kodebasen.", NEGV, True),
         ("ingen", "Jeg finner verken definisjonen av eller kall til `slettOppgave` her.", NEGV, True),
+        ("ingen", "Jeg undersøkte verken tester eller dokumentasjon, men slettOppgave kalles fra Config.kt:22.", NEGV, False),
         ("ingen", "Jeg fant verken A eller B. slettOppgave kalles fra Config.kt:22.", NEGV, False),
         # Tool output alone is not an answer.
         ("funnet", "/ Search (grep)\n  │ rtk grep -n tabIndex src/StatusPanel.tsx:11\n", spec, False),

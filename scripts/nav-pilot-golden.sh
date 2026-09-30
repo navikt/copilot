@@ -2554,7 +2554,7 @@ run_pass_coding() {
 #   maksAntall   Config.kt:4 defines it; Routes.kt:16 and App.kt:10 use it
 #   slettOppgave exists nowhere in the fixture
 RE_USES=('routes=Routes\.kt@16' 'app=App\.kt@10')
-RE_NONE='ingen|finnes ikke|ikke (brukt|kalt|definert|funnet)|fant ikke|\bverken\b|no (calls|callers|usages)|not (called|used|defined|found)|does not exist'
+RE_NONE='ingen|finnes ikke|ikke (brukt|kalt|definert|funnet)|fant ikke|(fant|finner|finnes|fins|ser) verken|no (calls|callers|usages)|not (called|used|defined|found)|does not exist'
 
 research_check() {
   # research_check <id> <desc> <slug> <prompt> <check args...>
