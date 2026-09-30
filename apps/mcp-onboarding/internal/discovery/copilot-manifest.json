@@ -75,7 +75,7 @@
       "displayName": "@forfatter",
       "description": "Norsk teknisk redaktør, tekstforfatter eller innholdsdesigner: klarspråk, KI-markører, anglisismer, fagtermer, mikrotekst.",
       "filePath": "agents/forfatter.agent.md",
-      "contentHash": "aee2b3b98fa5ec39ad8bf0d79bf227019ed712fac8551a75e169336b6f7e5c2b",
+      "contentHash": "784ceea46d21fd6c7455bce97d8a4b633e6d97f3fe84961db832713d22196f82",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Creating Kafka event consumers",
@@ -97,7 +97,7 @@
         "streaming"
       ],
       "filePath": "agents/kafka.agent.md",
-      "contentHash": "c2616223f6228f8e583c122d0b70dd42f4b5cebbb99494e4be919c319707c232",
+      "contentHash": "743153095326cb245a1f3221c661a7cfcd2911f9b7ed12590e777c051086f227",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Creating Kafka event consumers",
@@ -194,7 +194,7 @@
         "quality"
       ],
       "filePath": "agents/rust.agent.md",
-      "contentHash": "877fab8c93fa0ae62db368791b9afb3316499d03d2d375119e71339ca1bdd718",
+      "contentHash": "f915a28c049a0f64cfe1afec7af4c7567d4cd19ffafb5affe74a6ba071059326",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Health endpoints",
