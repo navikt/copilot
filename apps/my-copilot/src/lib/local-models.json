@@ -100,11 +100,11 @@
         },
         "edit-multi-mechanical": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "not-yet"
         },
         "create-file": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "not-yet"
         },
         "debug": {
           "delegate": "cloud",
@@ -129,11 +129,11 @@
       "classes": {
         "read-qa": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "not-yet"
         },
         "edit-single": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "not-yet"
         },
         "edit-multi-mechanical": {
           "delegate": "cloud",
@@ -141,7 +141,7 @@
         },
         "create-file": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "not-yet"
         },
         "debug": {
           "delegate": "cloud",
