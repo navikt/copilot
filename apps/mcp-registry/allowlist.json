@@ -123,6 +123,7 @@
           "prompt": "Hent designkontekst for søknadsskjemaet fra Figma og lag React-komponenter med Aksel"
         }
       ],
+      "sandboxHosts": ["api.figma.com"],
       "remotes": [
         {
           "type": "streamable-http",

@@ -103,6 +103,30 @@ func TestOpenCodeMCPMatchesByRegistryURL(t *testing.T) {
 	}
 }
 
+// A registry server's sandboxHosts (Figma's OAuth host) join its remotes in
+// the consent set, under the same server, for both clients; a server the user
+// did not configure brings none.
+func TestMCPSandboxHostsJoinTheConsentSet(t *testing.T) {
+	reg := testRegistry()
+	reg.Entries = []MCPServerEntry{
+		{Name: "com.figma/figma-mcp", SandboxHosts: []string{"api.figma.com"}},
+		{Name: "io.github.navikt/mcp-onboarding", SandboxHosts: []string{"unused.example"}},
+	}
+	want := []MCPHost{
+		{Host: "api.figma.com", Servers: []string{"com.figma/figma-mcp"}},
+		{Host: "mcp.figma.com", Servers: []string{"com.figma/figma-mcp"}},
+	}
+	if got := matchMCPHosts(reg, []string{"com.figma/figma-mcp"}, nil); !slices.EqualFunc(got.Hosts, want, func(a, b MCPHost) bool {
+		return a.Host == b.Host && slices.Equal(a.Servers, b.Servers)
+	}) {
+		t.Errorf("copilot hosts = %v, want %v", got.Hosts, want)
+	}
+	got := matchMCPHosts(reg, nil, map[string]mcpServer{"figma": {Type: "remote", URL: "https://mcp.figma.com/mcp"}})
+	if names := got.Names(); !slices.Equal(names, []string{"api.figma.com", "mcp.figma.com"}) {
+		t.Errorf("opencode hosts = %v, want api.figma.com and mcp.figma.com", names)
+	}
+}
+
 func approvedMCP(t *testing.T, hosts []MCPHost) *artifacts.ProposalConsent {
 	t.Helper()
 	if err := RecordMCPHosts(hosts, true); err != nil {

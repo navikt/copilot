@@ -849,6 +849,26 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 		},
 	}
 
+	t.Run("sandbox hosts", func(t *testing.T) {
+		for host, ok := range map[string]bool{
+			"api.figma.com":         true,
+			"https://api.figma.com": false,
+			"api.figma.com:443":     false,
+			"*.figma.com":           false,
+			"API.figma.com":         false,
+			"figma":                 false,
+			"":                      false,
+		} {
+			err := validateRegistry(&StaticRegistryData{Servers: []StaticServerData{{
+				Name: "io.github.test/server", Description: "Test Description", Version: "1.0.0",
+				SandboxHosts: []string{host},
+			}}})
+			if (err == nil) != ok {
+				t.Errorf("sandboxHosts %q: valid=%v, got %v", host, ok, err)
+			}
+		}
+	})
+
 	t.Run("setup instructions", func(t *testing.T) {
 		registryWithInstruction := func(instruction SetupInstruction) *StaticRegistryData {
 			return &StaticRegistryData{Servers: []StaticServerData{{

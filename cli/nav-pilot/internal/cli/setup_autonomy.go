@@ -14,9 +14,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/huh"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -295,6 +297,86 @@ func applyCpltChanges(cliPath string, changes []cpltChange, allowlistPath, host 
 		fmt.Printf("%s cplt %s removed\n", domain.Green("✓"), ch.Key)
 	}
 	return nil
+}
+
+// cpltConfigFile is cplt's global config file, found the way cplt finds it
+// (navikt/cplt src/config/path.rs): CPLT_CONFIG, else
+// ~/.config/cplt/config.toml.
+func cpltConfigFile() string {
+	if p := os.Getenv("CPLT_CONFIG"); p != "" {
+		return expandHome(p)
+	}
+	return expandHome("~/.config/cplt/config.toml")
+}
+
+func expandHome(p string) string {
+	if rest, ok := strings.CutPrefix(p, "~/"); ok {
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, rest)
+	}
+	return p
+}
+
+// strictByOurAdvice reads cplt's config file (no cplt spawn: it runs on the
+// launch path) and reports a user on the strict preset the way nav-pilot
+// once recommended it: without an allowlist (the doctor tip, #452) or with
+// nav-pilot's own (#663). A user with an allowlist of their own chose strict
+// themselves. allowlist is proxy.allowed_domains, "" when unset.
+func strictByOurAdvice() (allowlist string, ok bool) {
+	var cfg struct {
+		Sandbox struct {
+			Preset string `toml:"preset"`
+		} `toml:"sandbox"`
+		Proxy struct {
+			AllowedDomains string `toml:"allowed_domains"`
+		} `toml:"proxy"`
+	}
+	if _, err := toml.DecodeFile(cpltConfigFile(), &cfg); err != nil || cfg.Sandbox.Preset != cpltStrictPreset {
+		return "", false
+	}
+	allowlist = expandHome(cfg.Proxy.AllowedDomains)
+	return allowlist, allowlist == "" || allowlist == navAllowedDomainsPath()
+}
+
+// askLeaveStrict is the one-time question. Enter is No. A var so tests answer.
+var askLeaveStrict = func(yes *bool) error {
+	return huh.NewConfirm().
+		Title("You're on cplt's strict preset, which blocks all pushes and some MCP servers. We no longer recommend it. Move to standard?").
+		Affirmative("Yes").
+		Negative("No").
+		Value(yes).
+		WithTheme(navTheme()).
+		Run()
+}
+
+// offerLeaveStrict asks, once per machine and only in a terminal, a user on
+// strict by nav-pilot's old advice whether to move to standard. Yes sets the
+// preset and, when the allowlist was nav-pilot's own, removes it after cplt
+// reads back the new preset (applyCpltChanges). cplt runs only after a yes.
+func offerLeaveStrict() {
+	if !isInteractive() || !cpltInstalled() {
+		return
+	}
+	allowlist, ok := strictByOurAdvice()
+	if !ok || !providerpkg.FirstTime("leave-strict-offer") {
+		return
+	}
+	yes := false
+	if err := askLeaveStrict(&yes); err != nil || !yes {
+		return
+	}
+	cliPath, err := findCplt()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s %v\n", domain.Yellow("⚠"), err)
+		return
+	}
+	changes := []cpltChange{{"sandbox.preset", cpltStrictPreset, "standard"}}
+	if ch := leavingStrictAllowlist(cpltStrictPreset, "standard", allowlist); ch != nil {
+		changes = append(changes, *ch)
+	}
+	if err := applyCpltChanges(cliPath, changes, "", ""); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Could not leave strict: %v\n", domain.Yellow("⚠"), err)
+	}
 }
 
 // ─── GitHub sign-in ──────────────────────────────────────────────────────────

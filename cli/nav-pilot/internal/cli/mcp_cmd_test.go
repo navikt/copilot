@@ -22,7 +22,7 @@ func mcpTestEntries() []providerpkg.MCPServerEntry {
 			{Title: "cache exec", Commands: []string{"cplt config set sandbox.allow_cache_exec ms-playwright", "cplt config set sandbox.allow_cache_exec pnpm/dlx"}},
 		}}
 	return []providerpkg.MCPServerEntry{
-		{Name: "com.figma/figma-mcp", Description: "Figma", Remotes: []providerpkg.MCPRemote{{Type: "streamable-http", URL: "https://mcp.figma.com/mcp"}}},
+		{Name: "com.figma/figma-mcp", Description: "Figma", Remotes: []providerpkg.MCPRemote{{Type: "streamable-http", URL: "https://mcp.figma.com/mcp"}}, SandboxHosts: []string{"api.figma.com"}},
 		{Name: "io.github.navikt/mcp-onboarding", Remotes: []providerpkg.MCPRemote{{URL: "https://mcp-onboarding.intern.nav.no/mcp"}}},
 		{Name: "com.jetbrains/intellij", Remotes: []providerpkg.MCPRemote{{Type: "sse", URL: "http://127.0.0.1:64342/sse"}}},
 		{Name: "io.example/old", Status: "deprecated", Remotes: []providerpkg.MCPRemote{{URL: "https://old.example/mcp"}}},
@@ -113,6 +113,7 @@ func TestMCPListDiagnosesEachFailureMode(t *testing.T) {
 		Pending: []providerpkg.MCPHost{{Host: "mcp-onboarding.intern.nav.no", Private: true}},
 	})
 	f.verdicts["mcp.figma.com:443"] = "BLOCKED-ALLOWLIST"
+	f.verdicts["api.figma.com:443"] = "BLOCKED-ALLOWLIST"
 	f.verdicts["mcp-onboarding.intern.nav.no:443"] = "BLOCKED-PRIVATE-RESOLVED"
 	f.verdicts["127.0.0.1:64342"] = "BLOCKED-PORT"
 	f.config["sandbox.allow_cache_exec"] = `["ms-playwright"]`
@@ -145,6 +146,10 @@ func TestMCPListDiagnosesEachFailureMode(t *testing.T) {
 		if !slices.ContainsFunc(fixes[server], func(f string) bool { return strings.HasPrefix(f, want) }) {
 			t.Errorf("%s: fixes %q, want one starting %q", server, fixes[server], want)
 		}
+	}
+	// The registry's sandboxHosts get a fix line of their own, like a remote.
+	if !slices.Contains(fixes["com.figma/figma-mcp"], "cplt config set allow.domains api.figma.com") {
+		t.Errorf("figma: fixes %q, want one for api.figma.com too", fixes["com.figma/figma-mcp"])
 	}
 	if !slices.Contains(fixes["com.microsoft/playwright-mcp"], "npm install -g pnpm") {
 		t.Errorf("missing pnpm not reported: %q", fixes["com.microsoft/playwright-mcp"])
@@ -395,5 +400,22 @@ func TestMCPEnableDisableNeedAName(t *testing.T) {
 	}
 	if err := cmdMCP([]string{"enable", "figma-mcp", "--client", "pi"}); err == nil {
 		t.Error("--client pi: want an error")
+	}
+}
+
+// A package server's sandboxHosts are probed too, not only a remote's: a
+// blocked one gets a row and a fix line.
+func TestMCPListPackageSandboxHosts(t *testing.T) {
+	f := mcpCmdEnv(t, providerpkg.MCPHostState{})
+	e := providerpkg.MCPServerEntry{Name: "io.example/pkg", Packages: []providerpkg.MCPPackage{{RegistryType: "npm", Identifier: "@example/pkg", Version: "1.0.0"}}, SandboxHosts: []string{"api.example.org"}}
+	f.verdicts["api.example.org:443"] = "BLOCKED-ALLOWLIST"
+	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {"io.example/pkg": {}}}`)
+	entries := []providerpkg.MCPServerEntry{e}
+	rep := diagnoseMCP("r", entries, mcpConfigured(entries), "")
+	if len(rep.Servers) != 1 || len(rep.Servers[0].Hosts) != 1 || rep.Servers[0].Hosts[0].Host != "api.example.org" {
+		t.Fatalf("servers = %+v", rep.Servers)
+	}
+	if !slices.ContainsFunc(rep.Problems, func(p mcpProblem) bool { return p.Fix == "cplt config set allow.domains api.example.org" }) {
+		t.Errorf("problems = %+v", rep.Problems)
 	}
 }

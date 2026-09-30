@@ -29,8 +29,9 @@ import (
 // OpenCode, never a project's. Which hosts they get is
 // the registry's answer only. A server is matched by identity (its registry
 // name, or for OpenCode a URL the registry lists), and the hosts are taken
-// from the registry's remotes, never from a URL in the config. The agent can
-// write those config files, so a config URL would be a host the agent picks.
+// from the registry's remotes and sandboxHosts, never from a URL in the
+// config. The agent can write those config files, so a config URL would be a
+// host the agent picks.
 //
 // Nothing is granted without an answer. The answer lives in the pakke consent
 // store (artifacts/consent.go) under [MCPConsentSource], one record in the
@@ -167,10 +168,22 @@ func matchMCPHosts(reg mcpRegistry, copilot []string, openCode map[string]mcpSer
 			hosts[host] = append(hosts[host], server)
 		}
 	}
+	// The registry's extra hosts for a server (an OAuth host, say), asked
+	// about and granted with its remotes.
+	extra := func(name string) {
+		for _, e := range reg.Entries {
+			if e.Name == name {
+				for _, h := range e.SandboxHosts {
+					add(name, "https://"+h)
+				}
+			}
+		}
+	}
 	for _, name := range copilot {
 		for _, u := range reg.Servers[name] {
 			add(name, u)
 		}
+		extra(name)
 	}
 	names := make([]string, 0, len(openCode))
 	for name := range openCode {
@@ -186,6 +199,7 @@ func matchMCPHosts(reg mcpRegistry, copilot []string, openCode map[string]mcpSer
 			for _, u := range urls {
 				add(name, u)
 			}
+			extra(name)
 			continue
 		}
 		if s.Type == "remote" {
@@ -194,6 +208,7 @@ func matchMCPHosts(reg mcpRegistry, copilot []string, openCode map[string]mcpSer
 			// consent screen says "(Nav's MCP registry)" after the name.
 			if r, ok := byURL[normalizeMCPURL(s.URL)]; ok {
 				add(r.name, r.url)
+				extra(r.name)
 			}
 		}
 	}
