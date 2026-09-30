@@ -1,0 +1,19 @@
+# Batch 1, 30. september. testpakke  modell  innsatsnivå  n
+# GPT-6.1 Sol mot GPT-6 Sol, lav og høy innsats, på planlegging og koding.
+planning  gpt-6.1-sol        low      5
+planning  gpt-6.1-sol        high     5
+planning  gpt-6-sol          low      5
+planning  gpt-6-sol          high     5
+coding    gpt-6.1-sol        low      5
+coding    gpt-6.1-sol        high     5
+coding    gpt-6-sol          low      5
+coding    gpt-6-sol          high     5
+# Claude Sonnet 5.5 uten innsatsnivå på fire testpakker.
+planning  claude-sonnet-5.5  default  5
+review    claude-sonnet-5.5  default  5
+norsk     claude-sonnet-5.5  default  5
+coding    claude-sonnet-5.5  default  5
+# Claude Opus 5.5 på review, tre innsatsnivåer.
+review    claude-opus-5.5    low     10
+review    claude-opus-5.5    medium  10
+review    claude-opus-5.5    high    10

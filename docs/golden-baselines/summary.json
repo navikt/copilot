@@ -4,6 +4,112 @@
     {
       "date": "2026-09-30",
       "suite": "coding",
+      "model": "claude-sonnet-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "default",
+      "ran_at": "medium",
+      "cli_version": "1.0.90-5",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 25.265,
+        "mean": 25.427
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 48.3
+      },
+      "source": "docs/golden-baselines/2026-09-30-batch1/coding-claude-sonnet-5.5-default.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "coding",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "high",
+      "ran_at": "high",
+      "cli_version": "1.0.90-5",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 29.354,
+        "mean": 29.77
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 102.7
+      },
+      "source": "docs/golden-baselines/2026-09-30-batch1/coding-gpt-6-sol-high.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "coding",
       "model": "gpt-6-sol",
       "model_verified": true,
       "subagent_models": [],
@@ -216,6 +322,49 @@
     {
       "date": "2026-09-30",
       "suite": "norsk",
+      "model": "claude-sonnet-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "default",
+      "ran_at": "medium",
+      "cli_version": "1.0.90-5",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "no1",
+          "description": "Ingen nynorske former",
+          "passed": 5
+        },
+        {
+          "id": "no2",
+          "description": "Ingen KI-floskler",
+          "passed": 5
+        },
+        {
+          "id": "no3",
+          "description": "Skriver ikke «AI»",
+          "passed": 2
+        },
+        {
+          "id": "no4",
+          "description": "Holder seg innenfor 30–90 ord",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 21.127,
+        "mean": 20.64
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 44.4
+      },
+      "source": "docs/golden-baselines/2026-09-30-batch1/norsk-claude-sonnet-5.5-default.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "norsk",
       "model": "gpt-6-sol",
       "model_verified": true,
       "subagent_models": [],
@@ -255,6 +404,92 @@
         "median": 39.3
       },
       "source": "docs/golden-baselines/2026-09-30-smoke/norsk-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "planning",
+      "model": "claude-sonnet-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "default",
+      "ran_at": "medium",
+      "cli_version": "1.0.90-5",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 5
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 5
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 5
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 27.185,
+        "mean": 27.217
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 84.8
+      },
+      "source": "docs/golden-baselines/2026-09-30-batch1/planning-claude-sonnet-5.5-default.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "planning",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "high",
+      "ran_at": "high",
+      "cli_version": "1.0.90-5",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 3
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 3
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 3
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 70.698,
+        "mean": 73.344
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 395.9
+      },
+      "source": "docs/golden-baselines/2026-09-30-batch1/planning-gpt-6-sol-high.txt"
     },
     {
       "date": "2026-09-30",
@@ -387,6 +622,49 @@
     },
     {
       "date": "2026-09-30",
+      "suite": "planning",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.90-5",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 2
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 5
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 3
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 25.576,
+        "mean": 25.401
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 104.5
+      },
+      "source": "docs/golden-baselines/2026-09-30-batch1/planning-gpt-6.1-sol-low.txt"
+    },
+    {
+      "date": "2026-09-30",
       "suite": "research",
       "model": "gpt-6-luna",
       "model_verified": true,
@@ -427,6 +705,178 @@
         "median": 52.3
       },
       "source": "docs/golden-baselines/2026-09-30-smoke/research-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "review",
+      "model": "claude-opus-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "high",
+      "ran_at": "high",
+      "cli_version": "1.0.90-5",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 10
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 10
+        }
+      ],
+      "credits": {
+        "median": 38.107,
+        "mean": 39.071
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 85.7
+      },
+      "source": "docs/golden-baselines/2026-09-30-batch1/review-claude-opus-5.5-high.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "review",
+      "model": "claude-opus-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.90-5",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 10
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 10
+        }
+      ],
+      "credits": {
+        "median": 23.856,
+        "mean": 24.368
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 45.3
+      },
+      "source": "docs/golden-baselines/2026-09-30-batch1/review-claude-opus-5.5-low.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "review",
+      "model": "claude-opus-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.90-5",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 10
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 10
+        }
+      ],
+      "credits": {
+        "median": 29.993,
+        "mean": 30.743
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 62.4
+      },
+      "source": "docs/golden-baselines/2026-09-30-batch1/review-claude-opus-5.5-medium.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "review",
+      "model": "claude-sonnet-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "default",
+      "ran_at": "medium",
+      "cli_version": "1.0.90-5",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 5
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 3
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 5
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 12.571,
+        "mean": 12.926
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 38.9
+      },
+      "source": "docs/golden-baselines/2026-09-30-batch1/review-claude-sonnet-5.5-default.txt"
     },
     {
       "date": "2026-09-30",

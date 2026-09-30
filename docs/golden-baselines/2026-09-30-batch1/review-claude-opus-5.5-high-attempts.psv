@@ -1,0 +1,33 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        code-review
+# suite:        review
+# date:         2026-09-30
+# revision:     b86bec38
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       high
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+cr-kotlin|1|0|pass|2558|31403|true|
+cr-tsx|1|0|pass|4653|56256|true|
+cr-kotlin|2|0|pass|2935|26509|true|
+cr-tsx|2|0|pass|3579|44369|true|
+cr-kotlin|3|0|pass|2637|27581|true|
+cr-tsx|3|0|pass|3630|39312|true|
+cr-kotlin|4|0|pass|2947|33623|true|
+cr-tsx|4|0|pass|4701|50185|true|
+cr-kotlin|5|0|pass|3258|39807|true|
+cr-tsx|5|0|pass|4750|54762|true|
+cr-kotlin|6|0|pass|4093|27455|true|
+cr-tsx|6|0|pass|6200|73411|true|
+cr-kotlin|7|0|pass|4230|35493|true|
+cr-tsx|7|0|pass|5810|55136|true|
+cr-kotlin|8|0|pass|5789|51869|true|
+cr-tsx|8|0|pass|5790|56132|true|
+cr-kotlin|9|0|pass|3485|38332|true|
+cr-tsx|9|0|pass|4637|38436|true|
+cr-kotlin|10|0|pass|2731|25237|true|
+cr-tsx|10|0|pass|3333|37923|true|

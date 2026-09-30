@@ -1,0 +1,36 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        forfatter
+# suite:        norsk
+# date:         2026-09-30
+# revision:     b86bec38
+# model:        claude-sonnet-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       CLI default
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      3498918618
+# prompts:      all
+#
+# id|run|status|assertion|detail
+no1|1|pass|both texts are free of nynorsk forms|
+no2|1|pass|both texts are free of KI markers|
+no3|1|pass|neither text says «AI»|
+no4|1|pass|both texts are 30-90 words|
+no1|2|pass|both texts are free of nynorsk forms|
+no2|2|pass|both texts are free of KI markers|
+no3|2|pass|neither text says «AI»|
+no4|2|pass|both texts are 30-90 words|
+no1|3|pass|both texts are free of nynorsk forms|
+no2|3|pass|both texts are free of KI markers|
+no3|3|fail|neither text says «AI»|utkast.run3.md: uses «AI»; Norwegian text says «KI». notis.run3.md: uses «AI»; Norwegian text says «KI».
+no4|3|pass|both texts are 30-90 words|
+no1|4|pass|both texts are free of nynorsk forms|
+no2|4|pass|both texts are free of KI markers|
+no3|4|fail|neither text says «AI»|utkast.run4.md: uses «AI»; Norwegian text says «KI». notis.run4.md: uses «AI»; Norwegian text says «KI».
+no4|4|pass|both texts are 30-90 words|
+no1|5|pass|both texts are free of nynorsk forms|
+no2|5|pass|both texts are free of KI markers|
+no3|5|fail|neither text says «AI»|utkast.run5.md: uses «AI»; Norwegian text says «KI».
+no4|5|pass|both texts are 30-90 words|

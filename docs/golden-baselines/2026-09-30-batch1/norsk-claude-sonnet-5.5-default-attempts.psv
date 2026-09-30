@@ -1,0 +1,23 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        forfatter
+# suite:        norsk
+# date:         2026-09-30
+# revision:     b86bec38
+# model:        claude-sonnet-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       CLI default
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+no-omskriv|1|0|pass|682|24504|true|
+no-notis|1|0|pass|580|21341|true|
+no-omskriv|2|0|pass|680|22441|true|
+no-notis|2|0|pass|529|20802|true|
+no-omskriv|3|0|pass|883|28810|true|
+no-notis|3|0|pass|352|17150|true|
+no-omskriv|4|0|pass|800|24064|true|
+no-notis|4|0|pass|217|15625|true|
+no-omskriv|5|0|pass|787|31023|true|
+no-notis|5|0|pass|330|13371|true|
