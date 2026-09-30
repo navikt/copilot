@@ -1,0 +1,22 @@
+# golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET
+# Nothing asserts against these numbers, and no run fails because it
+# missed them. They describe one agent, one revision, one model, one day.
+# Only comparable with another run made the same way (--compare).
+# agent:        research
+# suite:        research
+# date:         2026-09-30
+# revision:     7da9b316
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-7.
+# model:        gpt-6-luna
+# effort:       low
+# context:      CLI default
+# repeats:      5
+# instructions: 16 installed, 3 always-on
+# fixture:      4263008951
+# prompts:      all
+#
+# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max|elapsed_ms_median|elapsed_ms_min|elapsed_ms_max
+re-bruk|5|394|316|539|16|10|20|46|33|55|14404|9406|16013
+re-ingen|5|309|116|545|18|6|29|44|17|70|15220|11306|19454
+re-sammendrag|5|666|317|948|32|18|45|96|55|132|19321|17579|23376

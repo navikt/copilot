@@ -1,0 +1,28 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        research
+# suite:        research
+# date:         2026-09-30
+# revision:     7da9b316
+# model:        gpt-6-luna
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-7.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+re-bruk|1|0|pass|394|13283|true|
+re-ingen|1|0|pass|309|17181|true|
+re-sammendrag|1|0|pass|870|23376|true|
+re-bruk|2|0|pass|316|9406|true|
+re-ingen|2|0|pass|545|19454|true|
+re-sammendrag|2|0|pass|595|18225|true|
+re-bruk|3|0|pass|539|16013|true|
+re-ingen|3|0|pass|400|15220|true|
+re-sammendrag|3|0|pass|666|19321|true|
+re-bruk|4|0|pass|386|14404|true|
+re-ingen|4|0|pass|116|13699|true|
+re-sammendrag|4|0|pass|948|22021|true|
+re-bruk|5|0|pass|420|14975|true|
+re-ingen|5|0|pass|167|11306|true|
+re-sammendrag|5|0|pass|317|17579|true|

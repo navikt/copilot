@@ -1,0 +1,28 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        research
+# suite:        research
+# date:         2026-09-30
+# revision:     7da9b316
+# model:        gpt-6-astra
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-7.
+# effort:       CLI default
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+re-bruk|1|0|pass|698|20522|true|
+re-ingen|1|0|pass|600|27229|true|
+re-sammendrag|1|0|pass|951|36228|true|
+re-bruk|2|0|pass|871|19754|true|
+re-ingen|2|0|pass|646|27941|true|
+re-sammendrag|2|0|pass|1036|28682|true|
+re-bruk|3|0|pass|866|19935|true|
+re-ingen|3|0|pass|730|22895|true|
+re-sammendrag|3|0|pass|972|29151|true|
+re-bruk|4|0|pass|785|21262|true|
+re-ingen|4|0|pass|460|20127|true|
+re-sammendrag|4|0|pass|1164|30771|true|
+re-bruk|5|0|pass|781|22604|true|
+re-ingen|5|0|pass|574|25465|true|
+re-sammendrag|5|0|pass|1035|30889|true|

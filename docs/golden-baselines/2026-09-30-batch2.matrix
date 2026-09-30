@@ -1,0 +1,18 @@
+# Batch 2 (#1390). testpakke  modell  innsatsnivå  n
+# GPT-6.1 Sol på testpakkene batch 1 ikke dekket.
+review    gpt-6.1-sol   default  5
+norsk     gpt-6.1-sol   default  5
+research  gpt-6.1-sol   default  5
+# @research på Low mot Medium.
+research  gpt-6-luna    low      5
+research  gpt-6-luna    medium   5
+# Luna mot Sol på coding. gpt-6-sol high ligger i batch 1.
+coding    gpt-6-luna    medium   5
+coding    gpt-6-luna    high     5
+coding    gpt-6-sol     medium   5
+# GPT-6 Astra på alle testpakkene, billigst først.
+research  gpt-6-astra   default  5
+review    gpt-6-astra   default  5
+norsk     gpt-6-astra   default  5
+planning  gpt-6-astra   default  5
+# coding gpt-6-astra default 5 ble ikke kjørt: budsjettet på 2 500 kreditter var brukt opp.
