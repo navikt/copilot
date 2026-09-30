@@ -1,0 +1,20 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        forfatter
+# suite:        norsk
+# date:         2026-09-30
+# revision:     5c341059
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       1
+# fixture:      3498918618
+# prompts:      all
+#
+# id|run|status|assertion|detail
+no1|1|pass|both texts are free of nynorsk forms|
+no2|1|pass|both texts are free of KI markers|
+no3|1|pass|both texts say «KI», never «AI»|
+no4|1|pass|both texts are 30-90 words|
