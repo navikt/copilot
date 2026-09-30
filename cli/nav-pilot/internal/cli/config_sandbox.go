@@ -798,13 +798,18 @@ var mcpAllowlistHosts = providerpkg.MCPAllowlistHosts
 // and its header: without an allowlist the proxy lets public hosts through
 // anyway, a launch must not start writing files the user never asked for, and
 // a file the user wrote is theirs.
-func syncMCPAllowlist() {
+func syncMCPAllowlist() { syncAllowlist(true) }
+
+// syncAllowlist is syncMCPAllowlist; with mcp false it only appends missing
+// Nav hosts and leaves the MCP section byte for byte, for when the consent
+// record cannot be read.
+func syncAllowlist(mcp bool) {
 	path := navAllowedDomainsPath()
 	data, err := os.ReadFile(path)
 	if err != nil || !strings.HasPrefix(string(data), navAllowlistHeader) {
 		return
 	}
-	prefix, section, _ := strings.Cut(string(data), mcpAllowlistMarker+"\n")
+	prefix, section, hasSection := strings.Cut(string(data), mcpAllowlistMarker+"\n")
 	var own []string
 	for _, line := range strings.Split(prefix, "\n") {
 		if line = strings.TrimSpace(line); line != "" && !strings.HasPrefix(line, "#") {
@@ -818,10 +823,19 @@ func syncMCPAllowlist() {
 		}
 	}
 	own = append(own, missing...)
-	have := strings.Fields(section)
-	want := slices.DeleteFunc(slices.Clone(mcpAllowlistHosts()), func(h string) bool { return slices.Contains(own, h) })
-	if len(missing) == 0 && slices.Equal(have, want) {
-		return
+	// Without mcp the section is kept as read, and the record not consulted.
+	tail := ""
+	if hasSection {
+		tail = mcpAllowlistMarker + "\n" + section
+	}
+	if mcp {
+		want := slices.DeleteFunc(slices.Clone(mcpAllowlistHosts()), func(h string) bool { return slices.Contains(own, h) })
+		if !slices.Equal(strings.Fields(section), want) {
+			tail = ""
+			if len(want) > 0 {
+				tail = mcpAllowlistMarker + "\n" + strings.Join(want, "\n") + "\n"
+			}
+		}
 	}
 	out := prefix
 	if len(missing) > 0 {
@@ -830,8 +844,9 @@ func syncMCPAllowlist() {
 		}
 		out += strings.Join(missing, "\n") + "\n"
 	}
-	if len(want) > 0 {
-		out += mcpAllowlistMarker + "\n" + strings.Join(want, "\n") + "\n"
+	out += tail
+	if out == string(data) {
+		return
 	}
 	if err := writeFileAtomic(path, []byte(out), 0o600); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not update %s with the Nav and MCP hosts: %v\n", domain.Yellow("⚠"), path, err)

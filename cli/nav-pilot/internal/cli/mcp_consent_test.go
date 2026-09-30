@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -304,5 +305,35 @@ func TestSyncMCPAllowlistTopsUpNavHosts(t *testing.T) {
 	syncMCPAllowlist()
 	if got, _ := os.ReadFile(path); string(got) != mine {
 		t.Errorf("changed a file nav-pilot did not write:\n%s", got)
+	}
+}
+
+// An unreadable consent record still tops up the Nav hosts, which need no
+// consent, and leaves the MCP section exactly as it was: nothing added or
+// removed on a record nav-pilot could not read.
+func TestMCPConsentUnreadableRecordTopsUpNavHosts(t *testing.T) {
+	mcpConsentEnv(t, providerpkg.MCPHostState{}, false)
+	readMCPHostState = func() (providerpkg.MCPHostState, error) { return providerpkg.MCPHostState{}, errors.New("corrupt") }
+	prev := mcpAllowlistHosts
+	mcpAllowlistHosts = func() []string { t.Error("the MCP hosts were read"); return []string{"new.example"} }
+	t.Cleanup(func() { mcpAllowlistHosts = prev })
+	path := navAllowedDomainsPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	old := navAllowlistHeader + "\ngithub.com\n"
+	section := mcpAllowlistMarker + "\nstale.example\nmcp.figma.com\n"
+	writeTestFile(t, path, old+section)
+
+	_ = captureStderr(func() { noteMCPHostConsent("copilot", false) })
+	got, _ := os.ReadFile(path)
+	above, rest, _ := strings.Cut(string(got), mcpAllowlistMarker+"\n")
+	if mcpAllowlistMarker+"\n"+rest != section || !strings.HasPrefix(above, old) {
+		t.Fatalf("want the old bytes, the Nav hosts, then the MCP section unchanged:\n%s", got)
+	}
+	for _, d := range navOwnDomains {
+		if !strings.Contains(above, "\n"+d+"\n") {
+			t.Errorf("%s not topped up", d)
+		}
 	}
 }

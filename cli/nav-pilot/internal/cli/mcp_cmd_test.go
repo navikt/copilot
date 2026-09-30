@@ -402,3 +402,20 @@ func TestMCPEnableDisableNeedAName(t *testing.T) {
 		t.Error("--client pi: want an error")
 	}
 }
+
+// A package server's sandboxHosts are probed too, not only a remote's: a
+// blocked one gets a row and a fix line.
+func TestMCPListPackageSandboxHosts(t *testing.T) {
+	f := mcpCmdEnv(t, providerpkg.MCPHostState{})
+	e := providerpkg.MCPServerEntry{Name: "io.example/pkg", Packages: []providerpkg.MCPPackage{{RegistryType: "npm", Identifier: "@example/pkg", Version: "1.0.0"}}, SandboxHosts: []string{"api.example.org"}}
+	f.verdicts["api.example.org:443"] = "BLOCKED-ALLOWLIST"
+	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {"io.example/pkg": {}}}`)
+	entries := []providerpkg.MCPServerEntry{e}
+	rep := diagnoseMCP("r", entries, mcpConfigured(entries), "")
+	if len(rep.Servers) != 1 || len(rep.Servers[0].Hosts) != 1 || rep.Servers[0].Hosts[0].Host != "api.example.org" {
+		t.Fatalf("servers = %+v", rep.Servers)
+	}
+	if !slices.ContainsFunc(rep.Problems, func(p mcpProblem) bool { return p.Fix == "cplt config set allow.domains api.example.org" }) {
+		t.Errorf("problems = %+v", rep.Problems)
+	}
+}

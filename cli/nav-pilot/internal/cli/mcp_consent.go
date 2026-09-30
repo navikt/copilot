@@ -87,6 +87,8 @@ func noteMCPHostConsent(client string, reask bool) {
 		st, err := readMCPHostState()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s MCP servers: could not read the consent record, so nothing was asked: %v\n", yellow("⚠"), err)
+			// The Nav hosts need no consent; the MCP section stays as it is.
+			syncAllowlist(false)
 			return
 		}
 		if st.Pending == nil && reask && st.Record != nil && !st.Record.Approved && len(st.Current.Hosts) > 0 {

@@ -256,15 +256,15 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 		if !e.Usable() {
 			add(mcpProblem{Server: e.Name, Problem: "retired in the registry (status " + e.Status + "); the org policy will stop running it", Fix: "nav-pilot mcp disable " + e.Name})
 		}
-		if len(e.Remotes) > 0 {
-			for _, u := range mcpEntryURLs(e) {
-				h, p := mcpRemoteHost(e.Name, u, cpltPath, mode, st, probe)
-				row.Hosts = append(row.Hosts, h)
-				if p != nil {
-					add(*p)
-				}
+		// Remotes and sandboxHosts both: a package server can name hosts too.
+		for _, u := range mcpEntryURLs(e) {
+			h, p := mcpRemoteHost(e.Name, u, cpltPath, mode, st, probe)
+			row.Hosts = append(row.Hosts, h)
+			if p != nil {
+				add(*p)
 			}
-		} else if len(e.Packages) > 0 {
+		}
+		if len(e.Remotes) == 0 && len(e.Packages) > 0 {
 			// ponytail: judged by the recipe enable writes (the first
 			// package); a hand-written launch line of the user's is not.
 			for _, p := range mcpPackageProblems(e, cpltPath) {
