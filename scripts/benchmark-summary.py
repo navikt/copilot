@@ -60,7 +60,7 @@ CHECKS = {
     "re1": ("re1", "Oppgir riktig fil og linje for hver bruk"),
     "re2": ("re2", "Sier at det ikke finnes kall, og dikter ikke opp filer"),
     "re3": ("re3", "Oppsummerer i høyst tre punkter"),
-    "re4": ("re4", "Oppsummeringen nevner endepunkt og port"),
+    "re4": ("re4", "Oppsummeringen nevner endepunktet"),
 }
 
 

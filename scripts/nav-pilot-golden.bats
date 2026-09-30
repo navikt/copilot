@@ -306,7 +306,8 @@ case "$p" in
     else echo "slettOppgave kalles fra OppgaveService.kt:22. Ingen andre kall."; fi ;;
   *Oppsummer*)
     echo "Tjenesten er en liten Ktor-app:"
-    echo "- Den eksponerer GET /api/oppgaver med en liste oppgaver."
+    if [[ "$BENCH_MODE" == good ]]; then echo "- Den eksponerer GET /api/oppgaver med en liste oppgaver."
+    else echo "- Den svarer på HTTP-kall med en liste oppgaver."; fi
     echo "- Den kjører på port 8080 på Nais."
     [[ "$BENCH_MODE" == good ]] || { echo "- Den har helsesjekker."; echo "- Den bruker kotlinx.serialization."; } ;;
   *) echo "unexpected prompt in the benchmark shim: $p"; exit 1 ;;
@@ -390,7 +391,7 @@ run_suite() {
   grep -q '^re1|1|fail|.*routes (want \[16\], cited \[15\])' "$SHIM/b-results.psv"
   grep -q '^re2|1|fail|' "$SHIM/b-results.psv"
   grep -q '^re3|1|fail|.*4 list items' "$SHIM/b-results.psv"
-  grep -q '^re4|1|pass|' "$SHIM/b-results.psv"
+  grep -q '^re4|1|fail|.*not named: endepunkt' "$SHIM/b-results.psv"
 }
 
 # The persona is installed under a name no ~/.copilot/agents/ file shadows, and

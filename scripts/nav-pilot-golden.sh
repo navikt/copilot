@@ -2055,14 +2055,18 @@ RE_CR_DELEGATE='accessibility[-[:space:]]?agent|aksel[-[:space:]]?agent'
 # scripts/benchmark-sjekk.py: a transcript line matching regex names the
 # defect, and it is located when that line also cites a right line number.
 #
-# Derived from the 30 kept GPT-5.3-Codex transcripts of that screen: every
-# Kotlin review names and locates all three (15/15); the TSX lines are right in
-# 13/15, and the two misses are real one-line-up shifts (Tailwind cited at 6,
-# tabIndex at 10), the same failure the screen found for Opus 5.5 Medium.
+# Derived from the 30 kept transcripts of that screen, which all ran
+# GPT-5.3-Codex (the code-review pin beat --model, see LAUNCH_NAME), and
+# checked against one GPT-6 Sol and one Claude Sonnet 5.5 review (2026-09-30):
+# Kotlin names and locates all three in 17/17. TSX lines are right in 15/17;
+# the two misses are real one-line-up shifts (Tailwind cited at 6, tabIndex at
+# 10) in the "Opus 5.5 Medium" arm, which was Codex Medium. `feil.{0,40}null`
+# was added for GPT-6 Sol's «Alle databasefeil gjøres om til `null`» at 12–13,
+# a real find the catch expression missed in both of its first two runs.
 RV_KOTLIN=(
   'sql=injeksjon|injection|parametr|parameteri|interpol|konkaten|prepared|bindevariab@9'
   'fnr-logg=(logg|logger|log |info).{0,80}(fnr|fødselsnummer|pii|personopplys|persondata|personinfo)|(fnr|fødselsnummer|pii|personopplys|persondata).{0,80}logg@8'
-  'catch=catch|svelg|swallow|fanger@12,13'
+  'catch=catch|svelg|swallow|fanger|feil.{0,40}null@12,13'
 )
 RV_TSX=(
   'tailwind=tailwind|p-4|mx-8|spacing|utility|padding|margin|\bBox\b|HStack@7'
@@ -2567,7 +2571,7 @@ run_pass_research() {
   if selected re3 || selected re4; then
     if ! run_prompt re-sammendrag "Oppsummer hva denne tjenesten gjør, i høyst tre kulepunkter."; then
       selected re3 && record_error re3 "summary keeps to at most three points" "$LAST_PROMPT_DETAIL"
-      selected re4 && record_error re4 "summary names the endpoint and the port" "$LAST_PROMPT_DETAIL"
+      selected re4 && record_error re4 "summary names the endpoint" "$LAST_PROMPT_DETAIL"
     else
       local why ok
       if selected re3; then
@@ -2575,8 +2579,8 @@ run_pass_research() {
         record re3 "summary keeps to at most three points" "$ok" "$why"
       fi
       if selected re4; then
-        ok=0; why="$(python3 "$BENCH_CHECK" funnet "$(tx re-sammendrag)" 'endepunkt=/api/oppgaver@0' 'port=8080@0')" || ok=1
-        record re4 "summary names the endpoint and the port" "$ok" "$why"
+        ok=0; why="$(python3 "$BENCH_CHECK" funnet "$(tx re-sammendrag)" 'endepunkt=/api/oppgaver@0')" || ok=1
+        record re4 "summary names the endpoint" "$ok" "$why"
       fi
     fi
   fi
