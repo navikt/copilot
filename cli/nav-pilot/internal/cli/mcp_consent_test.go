@@ -127,6 +127,35 @@ func TestDoctorShowsTheLoopbackHint(t *testing.T) {
 	}
 }
 
+// doctor cuts a loopback warning at 600 characters. The registry's longest
+// today is 418; a long name with eight long host-exec tools passes the cap.
+func TestDoctorCapsTheLoopbackWarning(t *testing.T) {
+	name := "io.github.navikt/" + strings.Repeat("x", 38)
+	e := providerpkg.MCPServerEntry{Name: name, Remotes: []providerpkg.MCPRemote{{Type: "sse", URL: "http://127.0.0.1:64342/sse"}}, ToolRisk: map[string]string{}}
+	for _, tl := range []string{"a", "b", "c", "d", "e", "f", "g", "h"} {
+		tl = "execute_a_command_on_the_host_machine_outside_" + tl
+		e.Tools = append(e.Tools, tl)
+		e.ToolRisk[tl] = "host-exec"
+	}
+	mcpConsentEnv(t, providerpkg.MCPHostState{Current: providerpkg.MCPHosts{
+		Loopback: []providerpkg.MCPLoopback{{Server: name, Port: "64342"}},
+	}}, false)
+	prev := mcpCachedEntries
+	mcpCachedEntries = func() []providerpkg.MCPServerEntry { return []providerpkg.MCPServerEntry{e} }
+	t.Cleanup(func() { mcpCachedEntries = prev })
+	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {"`+name+`": {"type": "sse", "url": "http://127.0.0.1:64342/sse"}}}`)
+
+	warn := mcpLoopbackNote(name, "64342")
+	if len(warn) <= 600 {
+		t.Fatalf("warning is %d long, want one over the cap: %q", len(warn), warn)
+	}
+	var out bytes.Buffer
+	reportMCPHosts(&out, "")
+	if !strings.Contains(out.String(), "Before you open it: "+warn[:600]+"…\n") {
+		t.Errorf("doctor did not cut the warning at 600:\n%s", out.String())
+	}
+}
+
 // The allowlist file gets an MCP section when nav-pilot already wrote one, and
 // no file is created for a user who never adopted it.
 func TestSyncMCPAllowlist(t *testing.T) {

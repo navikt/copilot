@@ -316,11 +316,13 @@ func mcpKnownTools(client, key string, entries []providerpkg.MCPServerEntry) []s
 	if entries == nil {
 		entries = mcpCachedEntries()
 	}
+	name := key
+	if client == providerpkg.MCPClientOpenCode {
+		name = providerpkg.OpenCodeRegistryNameFor(key, entries)
+	}
 	for _, e := range entries {
-		if e.Name == key || (client == providerpkg.MCPClientOpenCode && providerpkg.MCPConfigKeyFor(client, e) == key) {
-			if len(e.Tools) > 0 {
-				return e.Tools
-			}
+		if e.Name == name && len(e.Tools) > 0 {
+			return e.Tools
 		}
 	}
 	return nil

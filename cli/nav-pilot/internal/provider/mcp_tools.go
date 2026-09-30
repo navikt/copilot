@@ -157,18 +157,37 @@ func setOpenCodeRules(top *jsonObject, key string, e MCPServerEntry, c MCPToolCh
 	}
 	rules := OpenCodeRules(key, c)
 	if c.All {
-		// No deny to write, but the asks stay: every tool still asked for
-		// once nav-pilot's own rules are gone gets one.
+		// No deny of nav-pilot's to write, but a deny of the user's over the
+		// whole server is written over: enable is the user asking for it.
+		// The asks stay: every tool still asked for once nav-pilot's own
+		// rules are gone gets one, and an allow an ask now covers is written
+		// again.
 		after := openCodeStringRules(perm)
+		// Denied means every tool resolves to deny. The wildcard text
+		// itself is only the probe without a tool list.
+		ids := []string{all}
+		if len(e.Tools) > 0 {
+			ids = nil
+			for _, t := range e.Tools {
+				ids = append(ids, openCodeToolID(key, t))
+			}
+		}
+		if !slices.ContainsFunc(ids, func(id string) bool { return openCodeVerdict(after, id) != "deny" }) {
+			rules = append(rules, [2]string{all, "allow"})
+			after = append(after, [2]string{all, "allow"})
+		}
 		for _, t := range e.Tools {
 			id := openCodeToolID(key, t)
-			if openCodeVerdict(before, id) == "ask" && openCodeVerdict(after, id) != "ask" {
-				rules = append(rules, [2]string{id, "ask"})
+			b, a := openCodeVerdict(before, id), openCodeVerdict(after, id)
+			if (b == "ask" && a != "ask") || (b == "allow" && a == "ask") {
+				rules = append(rules, [2]string{id, b})
 			}
 		}
 	}
 	for _, r := range rules {
-		if r[1] == "allow" && openCodeVerdict(before, r[0]) == "ask" {
+		// The server's allow is not a tool: the asks under it are written
+		// after it.
+		if r[1] == "allow" && r[0] != all && openCodeVerdict(before, r[0]) == "ask" {
 			r[1] = "ask"
 		}
 		v, _ := json.Marshal(r[1])
@@ -182,15 +201,20 @@ func setOpenCodeRules(top *jsonObject, key string, e MCPServerEntry, c MCPToolCh
 	return nil
 }
 
-// openCodeStringRules is the permission map's rules with a string value, in
-// order. A nested object (bash's per-command rules) is not a tool rule.
+// openCodeStringRules is the permission map's rules, in order. A rule can
+// be an object of patterns (OpenCode's Rule is Action | Object); its "*"
+// is its verdict, and one without "*" is left out.
 func openCodeStringRules(perm jsonObject) [][2]string {
 	var out [][2]string
 	for _, k := range perm.keys {
 		var v string
-		if json.Unmarshal(perm.vals[k], &v) == nil {
-			out = append(out, [2]string{k, v})
+		if json.Unmarshal(perm.vals[k], &v) != nil {
+			var obj map[string]json.RawMessage
+			if json.Unmarshal(perm.vals[k], &obj) != nil || json.Unmarshal(obj["*"], &v) != nil {
+				continue
+			}
 		}
+		out = append(out, [2]string{k, v})
 	}
 	return out
 }
