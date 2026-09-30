@@ -23,6 +23,7 @@ the suite median across all models. It is an extrapolation, and says which.
 
 import argparse
 import json
+import os
 import re
 import statistics
 import subprocess
@@ -33,7 +34,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-BASELINES = REPO / "docs" / "golden-baselines"
+# Overridable so tests never write into the checkout.
+BASELINES = Path(os.environ.get("BENCHMARK_BASELINES", REPO / "docs" / "golden-baselines"))
 
 
 def arms(matrix):

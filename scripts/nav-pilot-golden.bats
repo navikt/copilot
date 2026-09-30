@@ -11,7 +11,9 @@
 SCRIPT="${BATS_TEST_DIRNAME}/nav-pilot-golden.sh"
 
 setup() {
-  SHIM="$(mktemp -d "$BATS_TEST_DIRNAME/.nav-pilot-golden.bats.XXXXXX")"
+  # Under bats' own temp dir, not the checkout: a killed run leaves nothing in
+  # the repo, and bats removes it after each test.
+  SHIM="$(mktemp -d "$BATS_TEST_TMPDIR/shim.XXXXXX")"
 }
 
 teardown() {
@@ -425,13 +427,13 @@ run_suite() {
   [ "$status" -eq 0 ]
   M="$SHIM/half.matrix"
   printf 'review gpt-6-sol low 1\n' >"$M"
-  out="${BATS_TEST_DIRNAME}/../docs/golden-baselines/half"
+  export BENCHMARK_BASELINES="$SHIM/baselines"
+  out="$BENCHMARK_BASELINES/half"
   mkdir -p "$out"
-  for f in "$SHIM"/b*; do cp "$f" "$out/review-gpt-6-sol-low${f#"$SHIM/b"}"; done
+  for f in "$SHIM"/b.txt "$SHIM"/b-*; do cp "$f" "$out/review-gpt-6-sol-low${f#"$SHIM/b"}"; done
   run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
   [[ "$output" == done* ]]
   printf 'review gpt-6-sol low 2\n' >"$M"   # saved with n=1: not this arm
   run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
-  rm -rf "$out"
   [[ "$output" == pending* ]]
 }
