@@ -860,7 +860,15 @@
         "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
         "docs/README.nav-pilot.md"
       ],
-      "lokal-start": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx"]
+      "lokal-start": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx"],
+      "mcp": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx"
+      ],
+      "mcp-github": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx"],
+      "mcp-hoster": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx"],
+      "mcp-intellij": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx"],
+      "mcp-verktoy": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx"]
     }
   },
   "/nav-pilot/guider/installere-og-oppgradere": {
@@ -1111,10 +1119,12 @@
         "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"
       ],
       "legg-til-server": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"
       ],
       "mcp-register": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"

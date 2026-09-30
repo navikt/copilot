@@ -8,11 +8,13 @@ import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
   title: "Feilsøking",
-  description: "Sjekk maskinen med nav-pilot doctor, se hva cplt blokkerer, og få liv i en lokal modell som henger.",
+  description:
+    "Sjekk maskinen med nav-pilot doctor, få en MCP-server til å virke, se hva cplt blokkerer, og få liv i en lokal modell som henger.",
 };
 
 const TOC: TocItem[] = [
   { id: "doctor", label: "Sjekk maskinen" },
+  { id: "mcp", label: "Når en MCP-server ikke virker" },
   { id: "cplt-feil", label: "Feil fra cplt" },
   { id: "blokkeringer", label: "Se hva cplt blokkerer" },
   { id: "kjernen", label: "Filer, programmer og localhost" },
@@ -51,6 +53,102 @@ nav-pilot alpha local doctor  # bare egen server (local_endpoint)`}
           <BodyLong>
             Finner du en feil, meld den med <code className={code}>nav-pilot feedback</code>. Den åpner et issue i
             navikt/copilot med versjon og systeminformasjon fylt inn. Ingenting går ut før du sender inn issuet.
+          </BodyLong>
+        </VStack>
+      </section>
+
+      <section>
+        <VStack gap="space-16">
+          <LinkableHeading id="mcp" size="medium" level="2">
+            Når en MCP-server ikke virker
+          </LinkableHeading>
+          <BodyLong>
+            Start med <code className={code}>nav-pilot mcp list</code>. Den endrer ingenting. Øverst står det som
+            hindrer serverne du har slått på, med kommandoen som retter det: et navn organisasjonens policy blokkerer,
+            en host eller localhost-port cplt stopper, en pakkekjører som mangler, eller en server registeret har tatt
+            ut.
+          </BodyLong>
+          <CodeBlock compact>
+            {`nav-pilot mcp list                            # problemer først, så serverne i registeret
+nav-pilot mcp enable <navn>                   # slå på i Copilot CLI og opencode
+nav-pilot mcp enable <navn> --client copilot  # bare i én klient
+nav-pilot mcp disable <navn>                  # slå av, og steng hostene bare den trengte`}
+          </CodeBlock>
+          <BodyLong>
+            Navnet er hele navnet i registeret eller delen etter siste skråstrek, som{" "}
+            <code className={code}>figma-mcp</code>. Start en ny økt etterpå, så laster klienten serveren. Hvilke
+            servere som finnes, står under{" "}
+            <NextLink href="/nav-pilot/klienter#mcp-register" className={linkClass}>
+              MCP-registeret
+            </NextLink>
+            .
+          </BodyLong>
+          <LinkableHeading id="mcp-verktoy" size="small" level="3">
+            Verktøy som er slått av
+          </LinkableHeading>
+          <BodyLong>
+            Registeret gir hvert verktøy en risikoklasse. <code className={code}>enable</code> slår på{" "}
+            <code className={code}>read</code> og <code className={code}>write</code>. Av står{" "}
+            <code className={code}>external</code>, som handler i et annet system (en issue, en PR, en fil i Figma), og{" "}
+            <code className={code}>host-exec</code>, som kjører på maskinen din utenfor cplt-sandkassen. I en terminal
+            viser <code className={code}>enable</code> alle verktøyene med klasse, og du velger selv. Et{" "}
+            <code className={code}>host-exec</code>-verktøy må du i tillegg si ja til.
+          </BodyLong>
+          <CodeBlock compact>
+            {`nav-pilot mcp enable <navn> --tools <a,b>   # nøyaktig disse verktøyene
+nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger til senere`}
+          </CodeBlock>
+          <BodyLong>
+            Har du serveren fra før, lar <code className={code}>enable</code> oppføringen være som den er, med mindre du
+            gir <code className={code}>--tools</code> eller <code className={code}>--all-tools</code>. Da endres bare
+            verktøyene.
+          </BodyLong>
+          <LinkableHeading id="mcp-intellij" size="small" level="3">
+            IntelliJ og verktøy utenfor sandkassen
+          </LinkableHeading>
+          <BodyLong>
+            IntelliJ-serveren har verktøy som <code className={code}>execute_terminal_command</code>, som kjører i
+            IntelliJ og ikke i sandkassen. Et slikt verktøy slår du bare på med{" "}
+            <code className={code}>--allow-host-exec</code>. Er det på, advarer <code className={code}>mcp list</code>{" "}
+            før du åpner localhost-porten til IntelliJ, fordi agenten da når verktøyet. Rettingen den foreslår, slår av
+            verktøyene som kjører utenfor sandkassen først, og åpner porten etterpå.
+          </BodyLong>
+          <LinkableHeading id="mcp-github" size="small" level="3">
+            GitHub-serveren leser bare
+          </LinkableHeading>
+          <BodyLong>
+            GitHubs MCP-server får det skrivebeskyttede endepunktet. Velger du et verktøy som skriver til GitHub, som{" "}
+            <code className={code}>issue_write</code>, bytter nav-pilot til det fulle endepunktet. Da kan agenten skrive
+            til GitHub gjennom MCP, forbi vakta cplt har på <code className={code}>gh</code>.{" "}
+            <code className={code}>mcp list</code> merker det med <code className={code}>full endpoint</code> og gir
+            kommandoen som tar deg tilbake.
+          </BodyLong>
+          <LinkableHeading id="mcp-hoster" size="small" level="3">
+            Hoster i sandkassen
+          </LinkableHeading>
+          <BodyLong>
+            Når du starter nav-pilot i en terminal, spør den om cplt skal slippe gjennom hostene serverne dine trenger.
+            Hostene hentes fra registeret, aldri fra MCP-konfigen din: serverens adresse, og{" "}
+            <code className={code}>sandboxHosts</code> for andre hoster den trenger, som innloggingen til Figma. Enter
+            betyr nei. Uten terminal spør nav-pilot ikke, og slipper bare gjennom hoster du alt har sagt ja til.
+          </BodyLong>
+          <BodyLong>
+            Har du sagt nei, spør ikke nav-pilot igjen ved oppstart. Kjør{" "}
+            <code className={code}>nav-pilot mcp enable &lt;navn&gt;</code> i en terminal, så får du spørsmålet på nytt.
+            Med <code className={code}>mcp_hosts = off</code> spør den aldri.
+          </BodyLong>
+          <BodyLong>
+            Satt du <code className={code}>strict</code> med nav-pilot, legger nav-pilot hostene du sa ja til i sin egen
+            host-liste. Har du laget lista selv med <code className={code}>proxy.allowed_domains</code>, gjør den ikke
+            det. Da viser <code className={code}>mcp list</code> at cplt stopper hosten, og du legger den til selv:
+          </BodyLong>
+          <CodeBlock compact>{`cplt config set allow.domains <host>`}</CodeBlock>
+          <BodyLong>
+            Mangler registeret en host serveren trenger, må oppføringen i registeret rettes. Se{" "}
+            <NextLink href="/nav-pilot/klienter#legg-til-server" className={linkClass}>
+              Få en server inn i registeret
+            </NextLink>
+            .
           </BodyLong>
         </VStack>
       </section>
