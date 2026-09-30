@@ -195,8 +195,8 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
             )}
             {smoke && (
               <BodyShort size="small">
-                En benchmark med én kjøring sjekker at testoppsettet virker. Den sier ikke noe om modellen og er ikke med
-                i diagrammet.
+                En benchmark med én kjøring sjekker at testoppsettet virker. Den sier ikke noe om modellen og er ikke
+                med i diagrammet.
               </BodyShort>
             )}
             {unverified && (
@@ -307,9 +307,9 @@ export function ModellerContent({
                 ))}
               </ul>
               <BodyLong>
-                Velger du modell selv: Bruk en sterk modell til planlegging og kodegjennomgang. Til vanlig koding
-                holder det ofte med en mellomsterk modell, avhengig av hvor krevende oppgaven er. Enkle oppgaver, som å
-                kjøre kommandoer eller hente inn informasjon, kan en lett og billig modell gjøre.
+                Velger du modell selv: Bruk en sterk modell til planlegging og kodegjennomgang. Til vanlig koding holder
+                det ofte med en mellomsterk modell, avhengig av hvor krevende oppgaven er. Enkle oppgaver, som å kjøre
+                kommandoer eller hente inn informasjon, kan en lett og billig modell gjøre.
               </BodyLong>
             </VStack>
 
