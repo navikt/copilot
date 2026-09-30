@@ -2,7 +2,7 @@
 # agent:        code-review
 # suite:        review
 # date:         2026-09-30
-# revision:     5c341059
+# revision:     da0327f9
 # model:        claude-sonnet-5.5
 # client:       copilot
 # clientVersion: GitHub Copilot CLI 1.0.90-5.
@@ -15,7 +15,7 @@
 # source:       assistant_usage_events
 #
 # slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
-cr-kotlin|1|ea131f0f-ad11-4aaf-99a8-39633779a748|13443|0|claude-sonnet-5.5|medium|22319|165|0|22315|0|5744550000|2056|1266.595208|tool_calls||
-cr-kotlin|1|ea131f0f-ad11-4aaf-99a8-39633779a748|13444|0|claude-sonnet-5.5|medium|22669|900|22315|352|40|1434700000|7996|2545.8177079999996|stop||
-cr-tsx|1|9ee222fd-0a27-455d-a7c2-5d2cb7b850c6|13445|0|claude-sonnet-5.5|medium|22317|96|5259|17054|0|4465480000|1609|1335.643333|tool_calls||
-cr-tsx|1|9ee222fd-0a27-455d-a7c2-5d2cb7b850c6|13446|0|claude-sonnet-5.5|medium|22735|1083|22313|420|29|1634660000|8568|2592.114917|stop||
+cr-kotlin|1|519d5d32-310c-42f3-8ad8-0bc0ac4807f6|13567|0|claude-sonnet-5.5|medium|22322|216|0|22318|0|5796300000|2177|1234.305208|tool_calls||
+cr-kotlin|1|519d5d32-310c-42f3-8ad8-0bc0ac4807f6|13575|0|claude-sonnet-5.5|medium|22780|967|22318|460|0|1528760000|8427|8370.106792|stop||
+cr-tsx|1|b7fa0bba-ca56-4107-840f-db8d6847f0f5|13581|0|claude-sonnet-5.5|medium|22315|96|5259|17052|0|4464980000|1623|1364.8471249999998|tool_calls||
+cr-tsx|1|b7fa0bba-ca56-4107-840f-db8d6847f0f5|13589|0|claude-sonnet-5.5|medium|22733|1511|22311|420|57|2062620000|11635|3115.85425|stop||

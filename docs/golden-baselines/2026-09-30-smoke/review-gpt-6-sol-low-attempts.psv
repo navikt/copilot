@@ -2,7 +2,7 @@
 # agent:        code-review
 # suite:        review
 # date:         2026-09-30
-# revision:     434eaf70
+# revision:     da0327f9
 # model:        gpt-6-sol
 # client:       copilot
 # clientVersion: GitHub Copilot CLI 1.0.90-5.
@@ -11,5 +11,5 @@
 # usage_complete: true
 #
 # slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
-cr-kotlin|1|0|pass|2882|26801|true|
-cr-tsx|1|0|pass|3226|41653|true|
+cr-kotlin|1|0|pass|2298|23441|true|
+cr-tsx|1|0|pass|3085|24401|true|

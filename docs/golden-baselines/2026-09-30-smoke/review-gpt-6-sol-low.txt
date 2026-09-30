@@ -5,7 +5,7 @@
 # agent:        code-review
 # suite:        review
 # date:         2026-09-30
-# revision:     434eaf70
+# revision:     da0327f9
 # client:       copilot
 # clientVersion: GitHub Copilot CLI 1.0.90-5.
 # model:        gpt-6-sol
@@ -17,5 +17,5 @@
 # prompts:      rv1,rv2,rv3,rv4
 #
 # slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max|elapsed_ms_median|elapsed_ms_min|elapsed_ms_max
-cr-kotlin|1|2882|2882|2882|61|61|61|380|380|380|26801|26801|26801
-cr-tsx|1|3226|3226|3226|70|70|70|414|414|414|41653|41653|41653
+cr-kotlin|1|2298|2298|2298|57|57|57|296|296|296|23441|23441|23441
+cr-tsx|1|3085|3085|3085|59|59|59|390|390|390|24401|24401|24401

@@ -5,7 +5,7 @@
 # agent:        research
 # suite:        research
 # date:         2026-09-30
-# revision:     434eaf70
+# revision:     da0327f9
 # client:       copilot
 # clientVersion: GitHub Copilot CLI 1.0.90-5.
 # model:        gpt-6-luna
@@ -17,6 +17,6 @@
 # prompts:      all
 #
 # slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max|elapsed_ms_median|elapsed_ms_min|elapsed_ms_max
-re-bruk|1|387|387|387|17|17|17|43|43|43|16849|16849|16849
-re-ingen|1|451|451|451|22|22|22|64|64|64|13895|13895|13895
-re-sammendrag|1|830|830|830|39|39|39|113|113|113|23968|23968|23968
+re-bruk|1|261|261|261|13|13|13|23|23|23|13852|13852|13852
+re-ingen|1|448|448|448|22|22|22|62|62|62|18623|18623|18623
+re-sammendrag|1|943|943|943|43|43|43|118|118|118|19801|19801|19801

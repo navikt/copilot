@@ -2,7 +2,7 @@
 # agent:        research
 # suite:        research
 # date:         2026-09-30
-# revision:     434eaf70
+# revision:     da0327f9
 # model:        gpt-6-luna
 # client:       copilot
 # clientVersion: GitHub Copilot CLI 1.0.90-5.
@@ -15,14 +15,15 @@
 # source:       assistant_usage_events
 #
 # slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
-re-bruk|1|2ebb14f9-36e4-4ef9-b40d-de1a94137143|13542|0|gpt-6-luna|medium|12482|19|0|12479|0|156967500|1630|1537.412666|tool_calls||
-re-bruk|1|2ebb14f9-36e4-4ef9-b40d-de1a94137143|13544|0|gpt-6-luna|medium|17885|242|12479|5403|38|92146500|2586|2517.247666|tool_calls||
-re-bruk|1|2ebb14f9-36e4-4ef9-b40d-de1a94137143|13546|0|gpt-6-luna|medium|20231|166|17882|2346|83|55537000|3066|1866.219833|stop||
-re-ingen|1|3d4b339a-75a9-4496-bb3c-239b14269c33|13549|0|gpt-6-luna|medium|12484|75|0|12481|0|159792500|1823|1745.055292|tool_calls||
-re-ingen|1|3d4b339a-75a9-4496-bb3c-239b14269c33|13550|0|gpt-6-luna|medium|12826|276|12481|342|37|30586000|2565|1375.8280419999999|tool_calls||
-re-ingen|1|3d4b339a-75a9-4496-bb3c-239b14269c33|13551|0|gpt-6-luna|medium|13423|32|12823|597|0|21915500|810|527.4081659999999|stop||
-re-sammendrag|1|e19c34b9-8a84-45dc-a49f-194a674ec88a|13552|0|gpt-6-luna|medium|12475|47|0|12472|26|158280000|2582|2488.899292|tool_calls||
-re-sammendrag|1|e19c34b9-8a84-45dc-a49f-194a674ec88a|13553|0|gpt-6-luna|medium|17906|361|12472|5431|66|98439500|2861|1567.1227920000001|tool_calls||
-re-sammendrag|1|e19c34b9-8a84-45dc-a49f-194a674ec88a|13555|0|gpt-6-luna|medium|20111|494|17903|2205|41|70195500|3504|1369.507333|tool_calls||
-re-sammendrag|1|e19c34b9-8a84-45dc-a49f-194a674ec88a|13557|0|gpt-6-luna|medium|21032|114|20108|921|19|37350500|2748|2513.267542|tool_calls||
-re-sammendrag|1|e19c34b9-8a84-45dc-a49f-194a674ec88a|13558|0|gpt-6-luna|medium|21183|178|21029|151|110|31846500|2454|1736.429875|stop||
+re-bruk|1|c06470ef-2261-4849-a239-943969bb4b6c|13568|0|gpt-6-luna|medium|12478|50|0|12475|29|158467500|1722|1635.070458|tool_calls||
+re-bruk|1|c06470ef-2261-4849-a239-943969bb4b6c|13569|0|gpt-6-luna|medium|17912|63|12475|5434|22|83580000|2190|2047.4561250000002|tool_calls||
+re-bruk|1|c06470ef-2261-4849-a239-943969bb4b6c|13572|0|gpt-6-luna|medium|18069|112|17909|157|48|25501500|2564|1682.02925|stop||
+re-ingen|1|58b0cb42-22de-4a9b-ac67-9e9ca27074ae|13578|0|gpt-6-luna|medium|12482|31|0|12479|0|157567500|1472|1265.945041|tool_calls||
+re-ingen|1|58b0cb42-22de-4a9b-ac67-9e9ca27074ae|13580|0|gpt-6-luna|medium|12528|95|12479|46|52|17834000|2408|1526.628292|tool_calls||
+re-ingen|1|58b0cb42-22de-4a9b-ac67-9e9ca27074ae|13582|0|gpt-6-luna|medium|12638|114|12525|110|24|19630000|2018|1195.400416|tool_calls||
+re-ingen|1|58b0cb42-22de-4a9b-ac67-9e9ca27074ae|13584|0|gpt-6-luna|medium|14544|197|12635|1906|0|46340000|2017|1952.0982500000002|tool_calls||
+re-ingen|1|58b0cb42-22de-4a9b-ac67-9e9ca27074ae|13586|0|gpt-6-luna|medium|14917|104|14541|373|69|24433500|2808|1633.6198749999999|stop||
+re-sammendrag|1|dd06619a-554d-4e18-a06e-585a56223d64|13592|0|gpt-6-luna|medium|12472|47|0|12469|26|158242500|2527|1684.770958|tool_calls||
+re-sammendrag|1|dd06619a-554d-4e18-a06e-585a56223d64|13593|0|gpt-6-luna|medium|17903|227|12469|5431|45|91736500|3183|2152.872375|tool_calls||
+re-sammendrag|1|dd06619a-554d-4e18-a06e-585a56223d64|13595|0|gpt-6-luna|medium|18233|567|17900|330|30|50405000|3676|1259.8942499999998|tool_calls||
+re-sammendrag|1|dd06619a-554d-4e18-a06e-585a56223d64|13596|0|gpt-6-luna|medium|19295|134|18230|1062|66|38235000|2294|1232.789792|stop||

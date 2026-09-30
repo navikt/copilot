@@ -2,7 +2,7 @@
 # agent:        forfatter
 # suite:        norsk
 # date:         2026-09-30
-# revision:     5c341059
+# revision:     da0327f9
 # model:        gpt-6-sol
 # client:       copilot
 # clientVersion: GitHub Copilot CLI 1.0.90-5.
@@ -16,5 +16,5 @@
 # id|run|status|assertion|detail
 no1|1|pass|both texts are free of nynorsk forms|
 no2|1|pass|both texts are free of KI markers|
-no3|1|pass|both texts say «KI», never «AI»|
+no3|1|pass|neither text says «AI»|
 no4|1|pass|both texts are 30-90 words|

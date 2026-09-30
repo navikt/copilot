@@ -5,7 +5,7 @@
 # agent:        forfatter
 # suite:        norsk
 # date:         2026-09-30
-# revision:     5c341059
+# revision:     da0327f9
 # client:       copilot
 # clientVersion: GitHub Copilot CLI 1.0.90-5.
 # model:        gpt-6-sol
@@ -17,5 +17,5 @@
 # prompts:      all
 #
 # slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max|elapsed_ms_median|elapsed_ms_min|elapsed_ms_max
-no-omskriv|1|385|385|385|18|18|18|51|51|51|25643|25643|25643
-no-notis|1|376|376|376|20|20|20|52|52|52|21597|21597|21597
+no-omskriv|1|373|373|373|18|18|18|49|49|49|21239|21239|21239
+no-notis|1|369|369|369|17|17|17|49|49|49|18056|18056|18056

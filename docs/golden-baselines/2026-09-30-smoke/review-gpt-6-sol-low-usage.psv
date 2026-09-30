@@ -2,7 +2,7 @@
 # agent:        code-review
 # suite:        review
 # date:         2026-09-30
-# revision:     434eaf70
+# revision:     da0327f9
 # model:        gpt-6-sol
 # client:       copilot
 # clientVersion: GitHub Copilot CLI 1.0.90-5.
@@ -15,12 +15,9 @@
 # source:       assistant_usage_events
 #
 # slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
-cr-kotlin|1|2cbb6ae8-f5f3-4118-8d62-cc1eedf7219b|13543|0|gpt-6-sol|low|14261|254|0|14258|20|3819100000|3789|2042.5558330000001|tool_calls||
-cr-kotlin|1|2cbb6ae8-f5f3-4118-8d62-cc1eedf7219b|13545|0|gpt-6-sol|low|15065|294|14258|804|35|780760000|3711|1817.632125|tool_calls||
-cr-kotlin|1|2cbb6ae8-f5f3-4118-8d62-cc1eedf7219b|13547|0|gpt-6-sol|low|15729|207|15062|664|17|674840000|3055|1676.780625|tool_calls||
-cr-kotlin|1|2cbb6ae8-f5f3-4118-8d62-cc1eedf7219b|13548|0|gpt-6-sol|low|16522|340|15726|793|35|853370000|5430|1880.312|stop||
-cr-tsx|1|e30bae0e-2ab9-44d2-b655-54962d971eea|13554|0|gpt-6-sol|low|14258|595|0|14255|76|4159350000|12017|7850.844167|tool_calls||
-cr-tsx|1|e30bae0e-2ab9-44d2-b655-54962d971eea|13556|0|gpt-6-sol|low|23193|133|14255|8935|17|2652450000|3263|3194.599916|tool_calls||
-cr-tsx|1|e30bae0e-2ab9-44d2-b655-54962d971eea|13559|0|gpt-6-sol|low|24044|60|23190|851|39|737150000|6019|2626.700917|tool_calls||
-cr-tsx|1|e30bae0e-2ab9-44d2-b655-54962d971eea|13560|0|gpt-6-sol|low|29488|40|24041|5444|19|1882420000|1717|1608.8672499999998|tool_calls||
-cr-tsx|1|e30bae0e-2ab9-44d2-b655-54962d971eea|13561|0|gpt-6-sol|low|32746|444|29485|3258|57|1848800000|8429|3140.451875|stop||
+cr-kotlin|1|edb1d0c0-ad72-416d-9d90-1861bd210723|13570|0|gpt-6-sol|low|14259|411|0|14256|45|3975600000|4917|2432.3437500000005|tool_calls||
+cr-kotlin|1|edb1d0c0-ad72-416d-9d90-1861bd210723|13574|0|gpt-6-sol|low|15602|319|14256|1343|14|940470000|4889|4832.052|tool_calls||
+cr-kotlin|1|edb1d0c0-ad72-416d-9d90-1861bd210723|13579|0|gpt-6-sol|low|16501|277|15599|899|32|814330000|4822|1544.35025|stop||
+cr-tsx|1|2ab20ecf-eeac-4ae2-9298-b3e40b66e77e|13587|0|gpt-6-sol|low|14261|543|0|14258|32|4108100000|6280|6208.823625|tool_calls||
+cr-tsx|1|2ab20ecf-eeac-4ae2-9298-b3e40b66e77e|13590|0|gpt-6-sol|low|23231|141|14258|8970|19|2669260000|2911|1650.456375|tool_calls||
+cr-tsx|1|2ab20ecf-eeac-4ae2-9298-b3e40b66e77e|13594|0|gpt-6-sol|low|23861|415|23228|630|44|1037660000|7365|2454.762292|stop||

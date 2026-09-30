@@ -78,7 +78,7 @@
         },
         {
           "id": "no3",
-          "description": "Skriver «KI», ikke «AI»",
+          "description": "Skriver ikke «AI»",
           "passed": 1
         },
         {
@@ -88,12 +88,12 @@
         }
       ],
       "credits": {
-        "median": 16.148,
-        "mean": 16.148
+        "median": 15.63,
+        "mean": 15.63
       },
       "usage_complete": true,
       "wall_seconds": {
-        "median": 47.2
+        "median": 39.3
       },
       "source": "docs/golden-baselines/2026-09-30-smoke/norsk-gpt-6-sol-low.txt"
     },
@@ -174,12 +174,12 @@
         }
       ],
       "credits": {
-        "median": 0.913,
-        "mean": 0.913
+        "median": 0.872,
+        "mean": 0.872
       },
       "usage_complete": true,
       "wall_seconds": {
-        "median": 54.7
+        "median": 52.3
       },
       "source": "docs/golden-baselines/2026-09-30-smoke/research-gpt-6-luna-medium.txt"
     },
@@ -217,12 +217,12 @@
         }
       ],
       "credits": {
-        "median": 13.279,
-        "mean": 13.279
+        "median": 13.853,
+        "mean": 13.853
       },
       "usage_complete": true,
       "wall_seconds": {
-        "median": 37.8
+        "median": 38.5
       },
       "source": "docs/golden-baselines/2026-09-30-smoke/review-claude-sonnet-5.5-default.txt"
     },
@@ -246,7 +246,7 @@
         {
           "id": "rv2",
           "description": "Kotlin: riktig linje for hver feil",
-          "passed": 1
+          "passed": 0
         },
         {
           "id": "rv3",
@@ -260,12 +260,12 @@
         }
       ],
       "credits": {
-        "median": 17.408,
-        "mean": 17.408
+        "median": 13.545,
+        "mean": 13.545
       },
       "usage_complete": true,
       "wall_seconds": {
-        "median": 68.5
+        "median": 47.8
       },
       "source": "docs/golden-baselines/2026-09-30-smoke/review-gpt-6-sol-low.txt"
     }

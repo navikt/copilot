@@ -2,7 +2,7 @@
 # agent:        code-review
 # suite:        review
 # date:         2026-09-30
-# revision:     5c341059
+# revision:     da0327f9
 # model:        claude-sonnet-5.5
 # client:       copilot
 # clientVersion: GitHub Copilot CLI 1.0.90-5.
@@ -14,7 +14,7 @@
 # prompts:      rv1,rv2,rv3,rv4
 #
 # id|run|status|assertion|detail
-rv1|1|pass|Kotlin: all three planted defects named|
+rv1|1|pass|Kotlin: all three planted defects named within three lines|
 rv2|1|pass|Kotlin: every planted defect cited on its line|
-rv3|1|pass|TSX: all four planted defects named|
+rv3|1|pass|TSX: all four planted defects named within three lines|
 rv4|1|pass|TSX: every planted defect cited on its line|
