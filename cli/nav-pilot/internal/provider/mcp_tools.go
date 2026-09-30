@@ -146,7 +146,12 @@ func setOpenCodeRules(top *jsonObject, key string, e MCPServerEntry, c MCPToolCh
 	// not kept: enable with a tool is the user asking for it.
 	before := openCodeStringRules(perm)
 	all := openCodeToolPrefix(key) + "*"
-	perm.del(all)
+	// With every tool on, the user's ask for the whole server stays where
+	// it is: it also covers tools the server adds later, and rules after
+	// it keep their precedence.
+	if !c.All || !slices.Contains(before, [2]string{all, "ask"}) {
+		perm.del(all)
+	}
 	for _, t := range e.Tools {
 		perm.del(openCodeToolID(key, t))
 	}
@@ -155,12 +160,6 @@ func setOpenCodeRules(top *jsonObject, key string, e MCPServerEntry, c MCPToolCh
 		// No deny to write, but the asks stay: every tool still asked for
 		// once nav-pilot's own rules are gone gets one.
 		after := openCodeStringRules(perm)
-		// The user's ask for the whole server stays as it was, so it
-		// also covers tools the server adds later.
-		if slices.Contains(before, [2]string{all, "ask"}) {
-			rules = append(rules, [2]string{all, "ask"})
-			after = append(after, [2]string{all, "ask"})
-		}
 		for _, t := range e.Tools {
 			id := openCodeToolID(key, t)
 			if openCodeVerdict(before, id) == "ask" && openCodeVerdict(after, id) != "ask" {

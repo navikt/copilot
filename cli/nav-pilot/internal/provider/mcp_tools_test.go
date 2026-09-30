@@ -142,6 +142,8 @@ func TestSetMCPServerToolsKeepsAsk(t *testing.T) {
 			`{"` + p + `*":"deny","` + p + `read_file":"allow","` + p + `reformat_file":"ask"}`},
 		"all tools, server asks": {`{"` + p + `*": "ask"}`, MCPToolChoice{All: true},
 			`{"` + p + `*":"ask"}`},
+		"all tools, server ask keeps its place": {`{"` + p + `*": "ask", "` + p + `ref*": "allow"}`, MCPToolChoice{All: true},
+			`{"` + p + `*":"ask","` + p + `ref*":"allow"}`},
 		"a glob of the user's asks": {`{"` + p + `ref*": "ask"}`, MCPToolChoice{Tools: []string{"read_file", "reformat_file"}},
 			`{"` + p + `ref*":"ask","` + p + `*":"deny","` + p + `read_file":"allow","` + p + `reformat_file":"ask"}`},
 		"a later allow wins over *": {`{"*": "ask", "` + p + `*": "allow"}`, MCPToolChoice{Tools: []string{"read_file"}},
