@@ -10,12 +10,14 @@ metadata:
 
 # Nav Dekoratøren – integrasjon
 
-Dekoratøren er felles header og footer for alle eksternt rettede nav.no-applikasjoner. Den tilbyr
-SSR/CSR-integrasjon, innlogging via ID-porten, analytics (Umami), samtykke/cookie-håndtering iht.
-ekomloven, og mer.
+Dekoratøren er felles header og footer for eksternt rettede nav.no-applikasjoner. Den tilbyr
+SSR/CSR-integrasjon, innloggingsknapper via ID-porten, analytics (Umami) og håndtering av samtykke
+og cookies etter ekomloven. Dekoratøren gir ikke appen tilgang til brukerens innlogging. Sett opp
+autentisering og tilgangskontroll i appen selv.
 
 **Slack:** `#dekoratøren_på_navno`
 **Repo:** https://github.com/navikt/nav-dekoratoren
+**Dokumentasjon:** https://github.com/navikt/nav-dekoratoren/blob/main/README.md
 **Moduler-pakke:** https://github.com/navikt/nav-dekoratoren-moduler
 **Storybook:** https://navikt.github.io/nav-dekoratoren
 
@@ -30,7 +32,7 @@ Start med å inspisere repoet hvis du har tilgang til koden. Se etter:
    framework mode, Vite SPA / React Router library mode, eller ren Node/Express.
 3. **Miljø** – `prod`, `dev`, `localhost`, eksisterende `nais.yaml`, og om service discovery kan
    brukes.
-4. **Behov** – breadcrumbs, språkvelger, analytics, chatbot, samtykke/cookies, CSP.
+4. **Behov** – breadcrumbs, språkvelger, analytics, chatbot, samtykke/cookies, CSP og skip-lenke.
 
 Spør bare om det du ikke kan finne i repoet eller som krever et produktvalg. Bruk deretter steg 2–7
 og relevante referanser.
@@ -97,6 +99,12 @@ accessPolicy:
 
 Server-side rendering gir best ytelse og unngår layout shift.
 Se [SSR-FUNCTIONS.md](references/ssr-functions.md) for fullstendige API-detaljer.
+Moduler-pakken prøver å hente dekoratøren tre ganger før den viser statiske plassholdere som
+rendres på klienten. Ved SSR på Nais setter pakken `teamName` automatisk til
+`NAIS_APP_NAME.NAIS_NAMESPACE` for konsumentlogging. Uten disse miljøvariablene varsler den én
+gang og bruker en eventuell manuelt satt `teamName`. Se
+[konsumentlogging](https://github.com/navikt/nav-dekoratoren/blob/main/README.md#10-innebygde-funksjoner-i-dekorat%C3%B8ren)
+ved direkte SSR-kall eller CSR.
 
 ### 3.1 Next.js App Router
 
@@ -219,6 +227,12 @@ const {
 });
 ```
 
+Ved direkte kall uten moduler-pakken: send `teamName` som query-parameter på `/ssr`, for eksempel
+`https://www.nav.no/dekoratoren/ssr?teamName=team-navno.navno`. Med service discovery er adressen
+`http://nav-dekoratoren.personbruker/ssr?teamName=team-navno.navno`, uten `/dekoratoren` foran
+`/ssr`. `teamName` må være på formen `teamnavn.namespace`: små bokstaver, minst ett punktum og
+bare `a-z`, `0-9`, `-` og `.`. `origin` brukes til analytics og erstatter ikke `teamName`.
+
 ### 3.4 Cache-invalidering
 
 ```ts
@@ -251,6 +265,17 @@ De viktigste:
 | `feedback`           | `boolean`                                             | `false`        |
 | `origin`             | `string`                                              | `undefined`    |
 
+`language` kan settes til alle språkene i tabellen, men tekst i Dekoratørens eget grensesnitt
+finnes bare på bokmål, engelsk og delvis samisk. URL-er med `/no/`, `/nb/`, `/nn/`, `/en/` eller
+`/se/` kan overstyre `language`. URL-ene i `breadcrumbs` og `availableLanguages` må ligge på
+`nav.no` eller et underdomene; ellers svarer Dekoratøren med 500.
+
+Bruk `redirectToUrl` eller `redirectToUrlLogout` for returadresse etter henholdsvis innlogging
+og utlogging. Begge avviser URL-er utenfor `nav.no` og underdomener. Ikke forveksle dem med
+`logoutUrl`: den overlater *hele* utloggingen, inkludert sletting av cookies og økter, til appen.
+Hvis du slår av `logoutWarning`, må appen selv gi brukeren mulighet til å utsette utlogging.
+Se [alle parametrene](references/params.md).
+
 ---
 
 ## Steg 5: Klient-side funksjonalitet
@@ -261,6 +286,8 @@ Se [CLIENT-FUNCTIONS.md](references/client-functions.md) for fullstendige eksemp
 
 Bruk `handleInApp: true` når appen selv skal håndtere navigasjonen. Bytt `navigateTo` med
 rammeverkets router, for eksempel `router.push` i Next.js eller `navigate` fra React Router.
+`title` logges som `[redacted]` til Umami. Sett `analyticsTitle` bare til tekst uten
+personopplysninger hvis du vil logge en tittel.
 
 ```ts
 import {
@@ -307,6 +334,10 @@ onLanguageSelect((language) => {
 Send appens tekniske navn som `origin` i dekoratørparameterne. Verdien legges til automatiske
 `besøk`-hendelser, slik at sidevisninger kan filtreres per app. Når parameteren utelates, bruker
 `besøk`-hendelser verdien `nav-dekoratoren`.
+Dekoratøren sender ikke Umami-hendelser uten samtykke. Loggeren tar likevel imot kallene og
+forkaster dem lokalt. Query-parametre fjernes fra sidevisninger som standard; bruk
+`analyticsQueryParams` bare for navn der verdiene ikke kan inneholde personopplysninger.
+Endring av `analyticsRedactFilter` krever en egen risikovurdering.
 
 ```ts
 import { getAnalyticsInstance, Events } from "@navikt/nav-dekoratoren-moduler";
@@ -335,6 +366,7 @@ openChatbot(); // åpner Frida og setter chatbotVisible=true
 ## Steg 6: Samtykke og cookies (ekomloven)
 
 Se [CONSENT.md](references/consent.md) for detaljer.
+Nøkler må stå på tillatt-listen. Samtykke alene gjør ikke en ukjent nøkkel tillatt.
 
 ```ts
 import {
@@ -348,18 +380,22 @@ import {
 // Vent til dekoratøren har lastet samtykke
 await awaitDecoratorData();
 
-// Sjekk om en nøkkel er tillatt
-if (isStorageKeyAllowed("min-nøkkel")) {
-    setNavCookie("min-nøkkel", "verdi");
+// Erstatt med en nøkkel som er registrert som cookie på tillatt-listen
+if (isStorageKeyAllowed("registrert-cookie")) {
+    setNavCookie("registrert-cookie", "verdi");
 }
 
-// Bruk navLocalStorage (respekterer samtykke automatisk)
-navLocalStorage.setItem("min-nøkkel", "verdi");
+// Bruk en nøkkel registrert for localStorage
+navLocalStorage.setItem("registrert-localstorage-nøkkel", "verdi");
 ```
 
 ---
 
 ## Steg 7: CSP-header
+
+Bruk `buildCspHeader` for å kombinere appens CSP med direktivene Dekoratøren trenger.
+Ved direkte integrasjon må appen selv holde CSP oppdatert mot
+[`/dekoratoren/api/csp`](https://www.nav.no/dekoratoren/api/csp).
 
 ```ts
 import { buildCspHeader } from "@navikt/nav-dekoratoren-moduler/ssr";
@@ -370,6 +406,15 @@ const csp = await buildCspHeader(
 );
 
 res.setHeader("Content-Security-Policy", csp);
+```
+
+## Skip-lenke
+
+Dekoratøren viser en lenke til hovedinnholdet når dokumentet har et element med
+`id="maincontent"`. Gjør elementet fokuserbart slik at tastaturfokus flyttes dit:
+
+```html
+<main id="maincontent" tabindex="-1">Appens innhold</main>
 ```
 
 ---
@@ -384,6 +429,7 @@ res.setHeader("Content-Security-Policy", csp);
 | Cookie ikke satt                         | Samtykke ikke innhentet   | Bruk `awaitDecoratorData()` + `setNavCookie`               |
 | `getAmplitudeInstance is not a function` | Moduler v4+ (API endret)   | Oppgrader til v4+ og bytt til `getAnalyticsInstance`       |
 | `availableLanguages`-URL feil            | URL utenfor nav.no        | Kun `nav.no` og underdomener er tillatt                    |
+| Konsument vises som `unknown`              | Mangler `teamName`        | Sett `teamName` ved direkte SSR-kall og CSR med moduler    |
 
 ---
 
