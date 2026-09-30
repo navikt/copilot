@@ -263,30 +263,41 @@ func SetMCPServer(client, name string, entry json.RawMessage, e MCPServerEntry, 
 }
 
 // RemoveMCPServer drops name from the client's config. Absent is no change.
-// For OpenCode its permission rules go too (dropOpenCodeRules).
-func RemoveMCPServer(client, name string) (MCPConfigChange, error) {
+// For OpenCode its permission rules go too (dropOpenCodeRules); tools is the
+// registry's tool list for it, nil when unknown.
+func RemoveMCPServer(client, name string, tools []string) (MCPConfigChange, error) {
 	return editMCPConfig(client, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
 		if !servers.del(name) {
 			return nil, false, nil
 		}
 		if client == MCPClientOpenCode {
-			dropOpenCodeRules(top, name, servers.keys)
+			dropOpenCodeRules(top, name, tools, servers.keys)
 		}
 		return nil, true, nil
 	})
 }
 
-// dropOpenCodeRules removes the permission rules of a removed server: every
-// key under its tool prefix, except those under the longer prefix of a
-// server still there ("a_b_x" is a_b's when both a and a_b exist).
-func dropOpenCodeRules(top *jsonObject, name string, others []string) {
+// openCodeBuiltinPermissions is OpenCode's own permission keys with an
+// underscore, the ones a server's tool prefix can look like ("external_"
+// and external_directory).
+var openCodeBuiltinPermissions = []string{"external_directory", "doom_loop"}
+
+// dropOpenCodeRules removes the permission rules of a removed server. With
+// its tool list known, that is its deny-all and one key per tool. Without,
+// every key under its tool prefix, except OpenCode's own keys and those
+// under the longer prefix of a server still there ("a_b_x" is a_b's when
+// both a and a_b exist).
+func dropOpenCodeRules(top *jsonObject, name string, tools, others []string) {
 	perm, err := parseJSONObject(top.vals["permission"])
 	if err != nil {
 		return
 	}
 	prefix := openCodeToolPrefix(name)
 	for _, k := range slices.Clone(perm.keys) {
-		if !strings.HasPrefix(k, prefix) {
+		if !strings.HasPrefix(k, prefix) || slices.Contains(openCodeBuiltinPermissions, k) {
+			continue
+		}
+		if tools != nil && k != prefix+"*" && !slices.ContainsFunc(tools, func(t string) bool { return openCodeToolID(name, t) == k }) {
 			continue
 		}
 		if slices.ContainsFunc(others, func(o string) bool {

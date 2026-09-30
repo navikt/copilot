@@ -521,3 +521,26 @@ func TestMCPEnablePickerCancelWritesNothing(t *testing.T) {
 		t.Error("a cancelled picker wrote the config")
 	}
 }
+
+// The commands enable and the localhost warning suggest name the client, so
+// they do not add the server to the other one. A --tools that changes
+// nothing says so.
+func TestMCPToolHintsNameTheClient(t *testing.T) {
+	mcpCmdEnv(t, providerpkg.MCPHostState{})
+	out, err := mcpEnable(t, "intellij", "--client", "opencode")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "nav-pilot mcp enable com.jetbrains/intellij --client opencode --tools <a,b> --allow-host-exec") {
+		t.Errorf("enable hint:\n%s", out)
+	}
+	if w := mcpLoopbackFix(mcpTestEntries()[2], []string{"copilot", "opencode"}); w != "nav-pilot mcp enable com.jetbrains/intellij --client copilot --tools <a,b> && nav-pilot mcp enable com.jetbrains/intellij --client opencode --tools <a,b>" {
+		t.Errorf("loopback fix = %q", w)
+	}
+	for i, want := range []string{"Set the tools of", "already has these tools"} {
+		out, err := mcpEnable(t, "intellij", "--client", "opencode", "--tools", "reformat_file")
+		if err != nil || !strings.Contains(out, want) {
+			t.Errorf("run %d: %v\n%s", i, err, out)
+		}
+	}
+}

@@ -140,36 +140,35 @@ func setOpenCodeRules(top *jsonObject, key string, e MCPServerEntry, c MCPToolCh
 			return errors.New(`"permission" is not an object, so nav-pilot cannot add per-tool rules to it`)
 		}
 	}
-	// An "ask" the user set, for every tool, the server or one tool, stays
-	// an ask: a chosen tool is asked for, not allowed without a question.
-	isAsk := func(k string) bool {
-		var v string
-		return json.Unmarshal(perm.vals[k], &v) == nil && v == "ask"
-	}
+	// What OpenCode decided for a tool before this change: the last rule
+	// that matches it. A tool that was asked for stays an ask; nav-pilot
+	// does not turn a question into an allow. A "deny" of the user's is
+	// not kept: enable with a tool is the user asking for it.
+	before := openCodeStringRules(perm)
 	all := openCodeToolPrefix(key) + "*"
-	serverAsk := isAsk("*") || isAsk(all)
-	asked := map[string]bool{all: isAsk(all)}
-	for _, t := range e.Tools {
-		asked[openCodeToolID(key, t)] = isAsk(openCodeToolID(key, t))
+	// With every tool on, the user's ask for the whole server stays where
+	// it is: it also covers tools the server adds later, and rules after
+	// it keep their precedence.
+	if !c.All || !slices.Contains(before, [2]string{all, "ask"}) {
+		perm.del(all)
 	}
-	perm.del(all)
 	for _, t := range e.Tools {
 		perm.del(openCodeToolID(key, t))
 	}
 	rules := OpenCodeRules(key, c)
 	if c.All {
-		// No deny to write, but the asks stay.
-		if asked[all] {
-			rules = append(rules, [2]string{all, "ask"})
-		}
+		// No deny to write, but the asks stay: every tool still asked for
+		// once nav-pilot's own rules are gone gets one.
+		after := openCodeStringRules(perm)
 		for _, t := range e.Tools {
-			if id := openCodeToolID(key, t); asked[id] {
+			id := openCodeToolID(key, t)
+			if openCodeVerdict(before, id) == "ask" && openCodeVerdict(after, id) != "ask" {
 				rules = append(rules, [2]string{id, "ask"})
 			}
 		}
 	}
 	for _, r := range rules {
-		if r[1] == "allow" && (serverAsk || asked[r[0]]) {
+		if r[1] == "allow" && openCodeVerdict(before, r[0]) == "ask" {
 			r[1] = "ask"
 		}
 		v, _ := json.Marshal(r[1])
@@ -181,6 +180,31 @@ func setOpenCodeRules(top *jsonObject, key string, e MCPServerEntry, c MCPToolCh
 	}
 	top.set("permission", perm.marshal())
 	return nil
+}
+
+// openCodeStringRules is the permission map's rules with a string value, in
+// order. A nested object (bash's per-command rules) is not a tool rule.
+func openCodeStringRules(perm jsonObject) [][2]string {
+	var out [][2]string
+	for _, k := range perm.keys {
+		var v string
+		if json.Unmarshal(perm.vals[k], &v) == nil {
+			out = append(out, [2]string{k, v})
+		}
+	}
+	return out
+}
+
+// openCodeVerdict is the value of the last rule whose pattern matches id,
+// "" when none does: OpenCode's own order of evaluation.
+func openCodeVerdict(rules [][2]string, id string) string {
+	v := ""
+	for _, r := range rules {
+		if openCodeMatch(r[0], id) {
+			v = r[1]
+		}
+	}
+	return v
 }
 
 // SetMCPServerTools changes only which tools an existing entry turns on:
