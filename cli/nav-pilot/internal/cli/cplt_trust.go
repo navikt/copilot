@@ -129,7 +129,9 @@ func recordTrustSeen(seen map[string]string, root, sum string) {
 	}
 	data, _ := json.Marshal(seen)
 	_ = os.MkdirAll(filepath.Dir(p), 0o700)
-	_ = os.WriteFile(p, data, 0o600)
+	// Atomic, so a concurrent launch never reads a torn file. Two launches
+	// racing may drop one's entry; that repo is asked about once more.
+	_ = writeFileAtomic(p, data, 0o600)
 }
 
 // askTrustReview puts the question on stderr and reads one line. Only y or
