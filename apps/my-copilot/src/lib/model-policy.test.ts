@@ -24,7 +24,7 @@ describe("nav-pilots modellvalg", () => {
       "Research og faste maler",
       "Høyrisikoplanlegging og kodegjennomgang",
       "Aksel, tilgjengelighet og norsk tekst",
-      "Rask Aksel-scaffolding",
+      "Rask oppretting av Aksel-komponenter",
     ]);
     expect(
       NAV_PILOT_MODEL_CHOICES.find((choice) => choice.purpose === "Aksel, tilgjengelighet og norsk tekst")
@@ -32,9 +32,9 @@ describe("nav-pilots modellvalg", () => {
       primary: "Claude Sonnet 5.5",
       fallbacks: ["Claude Sonnet 5"],
     });
-    expect(NAV_PILOT_MODEL_CHOICES.find((choice) => choice.purpose === "Rask Aksel-scaffolding")?.primary).toBe(
-      "Gemini 3.8 Flash"
-    );
+    expect(
+      NAV_PILOT_MODEL_CHOICES.find((choice) => choice.purpose === "Rask oppretting av Aksel-komponenter")?.primary
+    ).toBe("Gemini 3.8 Flash");
   });
 
   it("viser både primær- og fallback-bruk på prisraden", () => {

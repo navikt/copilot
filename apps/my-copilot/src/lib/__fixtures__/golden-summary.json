@@ -118,6 +118,18 @@
       "credits": { "median": 5, "mean": 5 },
       "wall_seconds": { "median": 30 },
       "source": "docs/golden-baselines/fixture-g.txt"
+    },
+    {
+      "date": "2000-01-02",
+      "suite": "research",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "cli_version": "0.0.0-fixture",
+      "n": 5,
+      "checks": [{ "id": "c1", "description": "Testkrav 1", "passed": 5 }],
+      "credits": { "median": 8, "mean": 9 },
+      "wall_seconds": { "median": 45 },
+      "source": "docs/golden-baselines/fixture-i.txt"
     }
   ]
 }

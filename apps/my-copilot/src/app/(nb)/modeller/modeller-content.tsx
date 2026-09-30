@@ -26,6 +26,19 @@ const SUITE_NAMES: Record<Suite, string> = {
   review: "Kodegjennomgang",
   norsk: "Norsk tekst",
   coding: "Koding",
+  research: "Research",
+};
+
+const dateFormat = new Intl.DateTimeFormat("nb-NO", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+/** «30. september 2026»; a date the formatter cannot read is shown as it came. */
+const formatDate = (iso: string) => {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? iso : dateFormat.format(date);
 };
 
 const effortName = (effort: string) => (effort === "default" ? "standard" : effort);
@@ -77,13 +90,14 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
   return (
     <VStack gap="space-24">
       <BodyLong>
-        Tallet n viser hvor mange ganger vi kjørte samme oppgave. Fem kjøringer holder til å finne tydelige feil, men
-        ikke til å rangere modellene generelt. Sist oppdatert {summary.generated}.
+        Tallet n viser hvor mange ganger vi kjørte samme oppgave. Få kjøringer holder til å finne tydelige feil, men
+        ikke til å rangere modellene. Sist oppdatert {formatDate(summary.generated)}.
       </BodyLong>
       {runsBySuite(summary.runs).map(([suite, runs]) => {
         // Smoke runs check the harness, not the model: table only, after the real runs.
         const plotted = runs.filter((run) => !run.smoke && knownCredits(run) !== null);
         const unverified = runs.some((run) => !run.smoke && run.model_verified === false);
+        const smoke = runs.some((run) => run.smoke);
         const incomplete = runs.some((run) => !run.smoke && run.model_verified !== false && knownCredits(run) === null);
         return (
           <VStack gap="space-12" key={suite}>
@@ -141,7 +155,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
                             </span>
                             {!!run.subagent_models?.length && (
                               <BodyShort size="small" style={{ color: "var(--ax-text-neutral-subtle)" }}>
-                                Underagenter brukte også: {run.subagent_models.map(modelName).join(", ")}
+                                Subagenter brukte også: {run.subagent_models.map(modelName).join(", ")}
                               </BodyShort>
                             )}
                           </Table.DataCell>
@@ -155,7 +169,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
                           </Table.DataCell>
                           <Table.DataCell align="right">{Math.round(run.wall_seconds.median)} s</Table.DataCell>
                           <Table.DataCell align="right">{run.n}</Table.DataCell>
-                          <Table.DataCell className="whitespace-nowrap">{run.date}</Table.DataCell>
+                          <Table.DataCell className="whitespace-nowrap">{formatDate(run.date)}</Table.DataCell>
                           <Table.DataCell>{run.cli_version}</Table.DataCell>
                           <Table.DataCell>
                             <Link href={sourceUrl(run.source)} target="_blank" rel="noopener noreferrer">
@@ -170,7 +184,14 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
             </div>
             {incomplete && (
               <BodyShort size="small">
-                – betyr at forbruket ikke ble registrert helt. Kjøringen er derfor ikke med i diagrammet.
+                Strek (–) betyr at forbruket ikke ble registrert for alle kall. Kjøringen er derfor ikke med i
+                diagrammet.
+              </BodyShort>
+            )}
+            {smoke && (
+              <BodyShort size="small">
+                Røyktest er én kjøring som sjekker at testoppsettet virker. Den sier ikke noe om modellen og er ikke med
+                i diagrammet.
               </BodyShort>
             )}
             {unverified && (
@@ -188,18 +209,18 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
 
 const EFFORT_ROWS = [
   ["Low", "Godt avgrensede oppgaver som er lette å kontrollere, som faste maler, søk og subagenter."],
-  ["Medium", "Vanlig agentisk koding med tydelig omfang. Standardvalget."],
-  ["High", "Endringer på tvers av moduler, sikkerhet og lange oppgaver uten tilsyn."],
+  ["Medium", "Vanlig agentisk koding med tydelig omfang."],
+  ["High", "Endringer på tvers av moduler og lange oppgaver."],
 ];
 
 const EFFORT_SOURCES = [
   { href: "https://arxiv.org/abs/2412.21187", label: "Chen mfl. 2024: overtenkning på enkle oppgaver" },
   { href: "https://arxiv.org/abs/2502.07266", label: "Wu mfl. 2025: når lengre resonnering gir dårligere svar" },
   { href: "https://arxiv.org/abs/2502.08235", label: "Cuadron mfl. 2025: overtenkning i agentoppgaver" },
-  { href: "https://arxiv.org/abs/2609.26777", label: "SWE-Serve 2026: effort på lange kodeoppgaver" },
+  { href: "https://arxiv.org/abs/2609.26777", label: "SWE-Serve 2026: effort mot kostnad på lange kodeoppgaver" },
   {
     href: "https://platform.claude.com/docs/en/build-with-claude/effort",
-    label: "Anthropic: råd om effort (leverandørens egne råd)",
+    label: "Anthropic: leverandørens egne råd om effort",
   },
 ];
 
@@ -207,16 +228,17 @@ function Effort() {
   return (
     <VStack gap="space-12">
       <BodyLong>
-        Effort styrer hvor mye modellen resonnerer før den svarer. Mer er ikke alltid bedre. På enkle oppgaver bruker
-        modellene ofte mange flere tokens uten å bli mer treffsikre, og for lang resonnering kan gi dårligere svar. På
-        lange og krevende kodeoppgaver gir høyere effort derimot bedre resultater. Vi har ikke målt effort selv ennå, så
-        rådene under bygger på kildene.
+        Effort styrer hvor mye arbeid modellen legger i svaret: hvor mye den resonnerer, hvor mange verktøykall den gjør
+        og hvor langt den svarer. Mer er ikke alltid bedre. På enkle oppgaver bruker modellene ofte mange flere tokens
+        uten å bli mer treffsikre, og for lang resonnering kan gi dårligere svar. På lange kodeoppgaver løfter høyere
+        effort andelen bestått noe, men gevinsten er liten øverst: fra high til max ga ett prosentpoeng til 76 prosent
+        høyere kostnad. Vi har ikke målt effort selv ennå. Rådene under bygger på kildene.
       </BodyLong>
       <div className="w-full overflow-x-auto">
         <Table size="small">
           <Table.Header>
             <Table.Row>
-              <Table.HeaderCell scope="col">Effort</Table.HeaderCell>
+              <Table.HeaderCell scope="col">Innsatsnivå (effort)</Table.HeaderCell>
               <Table.HeaderCell scope="col">Når du bør bruke det</Table.HeaderCell>
             </Table.Row>
           </Table.Header>
@@ -268,7 +290,7 @@ export function ModellerContent({
               </Heading>
               <BodyLong>
                 Vi velger modell etter hva oppgaven krever, hva den koster og hvordan modellen gjør det i våre egne
-                målinger. Hvilken leverandør som lager modellen, avgjør ikke.
+                målinger. Hvem som lager modellen, spiller ingen rolle.
               </BodyLong>
               <ul className="list-disc" style={{ paddingInlineStart: "var(--ax-space-20)" }}>
                 {NAV_PILOT_MODEL_CHOICES.map((choice) => (
@@ -290,9 +312,9 @@ export function ModellerContent({
                 Våre valg
               </Heading>
               <BodyLong>
-                Modellen står i agentens eller promptens egen fil. Reservemodellen er den vi bytter til hvis
-                hovedmodellen svikter. Starter <code>@nav-pilot</code> en annen agent som subagent, arver den modellen
-                fra <code>@nav-pilot</code>.
+                Modellen står i fila til agenten eller prompten. Reservemodellen er den vi bytter til hvis hovedmodellen
+                svikter. Starter <code>@nav-pilot</code> en annen agent som subagent, arver den modellen fra{" "}
+                <code>@nav-pilot</code>.
               </BodyLong>
               <Choices users={users} />
             </VStack>
@@ -309,7 +331,7 @@ export function ModellerContent({
                 Priser
               </Heading>
               <BodyLong>
-                Listepris per million tokens for modellene over. Hele prislisten står på{" "}
+                Listepris per million tokens for modellene over som Nav har aktivert. Hele prislisten står på{" "}
                 <Link as={NextLink} href="/priser">
                   Modellpriser
                 </Link>
@@ -320,7 +342,7 @@ export function ModellerContent({
 
             <VStack gap="space-12">
               <Heading size="medium" level="2">
-                Effort
+                Innsatsnivå (effort)
               </Heading>
               <Effort />
             </VStack>

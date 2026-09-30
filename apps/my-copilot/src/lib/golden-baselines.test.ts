@@ -12,6 +12,7 @@ describe("golden-baselines", () => {
       ["planning", 4],
       ["review", 3],
       ["norsk", 1],
+      ["research", 1],
     ]);
   });
 

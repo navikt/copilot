@@ -36,12 +36,12 @@ describe("modellsiden", () => {
     expect(within(row).getByText("90 %")).toBeInTheDocument();
     expect(within(row).getByText("120,5")).toBeInTheDocument();
     expect(within(row).getByText("0.0.0-fixture")).toBeInTheDocument();
-    expect(within(row).getByText("2000-01-01")).toBeInTheDocument();
+    expect(within(row).getByText("1. januar 2000")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "fixture-a.txt" })).toHaveAttribute(
       "href",
       "https://github.com/navikt/copilot/blob/main/docs/golden-baselines/fixture-a.txt"
     );
-    expect(screen.getByText(/ikke til å rangere modellene generelt/)).toBeInTheDocument();
+    expect(screen.getByText(/Få kjøringer holder til å finne tydelige feil/)).toBeInTheDocument();
   });
 
   it("viser ufullstendig forbruk som –, holder det utenfor diagrammet og merker røyktester", () => {
@@ -56,7 +56,7 @@ describe("modellsiden", () => {
       "data-points",
       "GPT-6 Sol/high,GPT-6 Sol/medium"
     );
-    expect(screen.getAllByText(/forbruket ikke ble registrert helt/)).toHaveLength(2);
+    expect(screen.getAllByText(/Strek \(–\) betyr at forbruket ikke ble registrert for alle kall/)).toHaveLength(2);
 
     expect(within(rowFor("fixture-e.txt")).getByText("GPT-6 Luna (røyktest)")).toBeInTheDocument();
     expect(within(rowFor("fixture-f.txt")).getByText("fixture-unknown-model")).toBeInTheDocument();
@@ -80,7 +80,7 @@ describe("modellsiden", () => {
     expect(screen.getAllByText(/vi vet ikke sikkert hvilken modell som svarte/)).toHaveLength(1);
 
     expect(
-      within(rowFor("fixture-a.txt")).getByText("Underagenter brukte også: GPT-6 Luna, fixture-other-model")
+      within(rowFor("fixture-a.txt")).getByText("Subagenter brukte også: GPT-6 Luna, fixture-other-model")
     ).toBeInTheDocument();
   });
 
@@ -104,6 +104,22 @@ describe("modellsiden", () => {
     expect(screen.getByRole("heading", { name: "Norsk tekst" })).toBeInTheDocument();
     expect(screen.getByText("Claude Sonnet 5.5 (røyktest)")).toBeInTheDocument();
     expect(screen.queryByRole("figure", { name: /^Norsk tekst/ })).toBeNull();
+
+    // Every suite that shows a smoke run explains what a smoke run is.
+    expect(screen.getAllByText(/Røyktest er én kjøring som sjekker at testoppsettet virker/)).toHaveLength(2);
+  });
+
+  it("viser research som egen suite med norske datoer", () => {
+    summaryFile.path = FIXTURE;
+    render(<ModellerPage />);
+    expect(screen.getByRole("heading", { name: "Research" })).toBeInTheDocument();
+    expect(screen.getByRole("figure", { name: "Research: andel bestått mot median credits" })).toHaveAttribute(
+      "data-points",
+      "GPT-6 Luna/medium"
+    );
+    const row = screen.getByRole("link", { name: "fixture-i.txt" }).closest("tr")!;
+    expect(within(row).getByText("2. januar 2000")).toBeInTheDocument();
+    expect(screen.getByText(/Sist oppdatert 1\. januar 2000/)).toBeInTheDocument();
   });
 
   it("lister agentene fra frontmatter-pinnene og lenker til Slack-kanalen", () => {

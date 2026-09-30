@@ -18,14 +18,13 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     purpose: "Daglig agentisk koding",
     primary: "GPT-6 Sol",
     fallbacks: ["GPT-5.6 Sol", "GPT-5.3-Codex"],
-    reason:
-      "Standard for verktøytunge kodeagenter. Fant alle sikkerhets- og auth-kravene i fem av fem kjøringer, men hoppet over intervjuet i én.",
+    reason: "Besto blokkeringsskjermen 23. september mot GPT-5.6 Sol på samme oppgaver. Ett fasebrudd følges.",
   },
   {
     purpose: "Research og faste maler",
     primary: "GPT-6 Luna",
     fallbacks: ["GPT-5.6 Luna", "GPT-5.3-Codex"],
-    reason: "Besto ti av ti avgrensede krav og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna.",
+    reason: "Besto samme krav som GPT-5.6 Luna i blokkeringsskjermen 23. september, til lavere pris.",
   },
   {
     purpose: "Høyrisikoplanlegging og kodegjennomgang",
@@ -40,7 +39,7 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     reason: "God på komponentstruktur, WCAG og norsk klarspråk. Ikke målt i den siste modelltesten.",
   },
   {
-    purpose: "Rask Aksel-scaffolding",
+    purpose: "Rask oppretting av Aksel-komponenter",
     primary: "Gemini 3.8 Flash",
     fallbacks: [],
     reason: "Rask og billig til å lage Aksel-komponenter fra en fast mal.",

@@ -48,6 +48,8 @@ export function PassRateChart({ points, models, title }: { points: ChartPoint[];
     <figure className={chartWrapperClass} aria-label={title}>
       <div style={{ position: "relative", height: "20rem" }}>
         <Scatter
+          aria-label={title}
+          role="img"
           data={{ datasets }}
           options={{
             responsive: true,
@@ -86,7 +88,8 @@ export function PassRateChart({ points, models, title }: { points: ChartPoint[];
         />
       </div>
       <figcaption className="text-sm" style={{ color: "#475569", marginTop: "var(--ax-space-8)" }}>
-        Form viser effort: sirkel = low, kvadrat = medium, trekant = high, rombe = standard.
+        Form viser effort: sirkel = low, kvadrat = medium, trekant = high, rombe = standard. Tallene står i tabellen
+        under.
       </figcaption>
     </figure>
   );
