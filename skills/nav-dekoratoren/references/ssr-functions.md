@@ -122,8 +122,9 @@ export default MyDocument;
 
 ## injectDecoratorServerSide
 
-Parser en HTML-fil med JSDOM og returnerer HTML-string med dekoratøren injisert.
-Krever `jsdom >=16.x`.
+Leser en HTML-fil og returnerer HTML-string med dekoratøren injisert. Filen må være et
+fullstendig HTML-dokument med `</head>`, `<body>` og `</body>`. Fra versjon 3.7.0 trengs ikke
+`jsdom`.
 
 ```ts
 import { injectDecoratorServerSide } from "@navikt/nav-dekoratoren-moduler/ssr";
