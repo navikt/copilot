@@ -2,6 +2,8 @@
 
 Levende referansedokument for hvilke modeller vi bruker, hvorfor, og hvordan vi vurderer oppdateringer.
 
+Kortversjonen for utviklere, med målinger og priser, står på [ki-utvikling.nav.no/modeller](https://ki-utvikling.nav.no/modeller).
+
 ## Gjeldende modellpinning
 
 De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter. `nav-pilot` har det ikke, men agentpakken bruker GPT-6 Sol når brukeren ikke har valgt en modell. En brukerpinne vinner fortsatt over pakkas standard. Valget følger oppgavetype, kostnad og ytelse, ikke leverandørpreferanse. Priser og kategori står i modelltabellen under.

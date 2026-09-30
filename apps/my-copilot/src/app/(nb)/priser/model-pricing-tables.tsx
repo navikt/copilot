@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { BodyShort, Checkbox, CheckboxGroup, HStack, Search, VStack } from "@navikt/ds-react";
 import { MODEL_PRICING } from "@/lib/model-pricing";
 import type { ModelPrice } from "@/lib/model-pricing";
-import { isNavAllowedModel } from "@/lib/model-policy";
+import { isNavAllowedModel, normalizeModelName } from "@/lib/model-policy";
 
 const PROVIDER_ORDER = ["OpenAI", "Anthropic", "Google", "GitHub", "Moonshot AI", "Microsoft"] as const;
 
@@ -38,7 +38,7 @@ const RANGE_FILTER_COLUMNS = [
 ] as const;
 
 const SORT_LABELS = Object.fromEntries(COLUMNS.map(({ key, label }) => [key, label])) as Record<ColumnKey, string>;
-const NAV_MODELS = MODEL_PRICING.filter((model) => isNavAllowedModel(model.model));
+const ALL_NAV_MODELS = MODEL_PRICING.filter((model) => isNavAllowedModel(model.model));
 
 const promotionEndFormat = new Intl.DateTimeFormat("nb-NO", {
   day: "numeric",
@@ -118,7 +118,12 @@ function SortableHeader({
   );
 }
 
-export function ModelPricingTables() {
+/** With `only`, the table shows just those models (names without price-tier suffix) and no filters. */
+export function ModelPricingTables({ only }: { only?: string[] } = {}) {
+  const navModels = useMemo(
+    () => (only ? ALL_NAV_MODELS.filter((model) => only.includes(normalizeModelName(model.model))) : ALL_NAV_MODELS),
+    [only]
+  );
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("provider");
   const [sortDirection, setSortDirection] = useState<SortDirection>("ascending");
@@ -128,7 +133,7 @@ export function ModelPricingTables() {
     () =>
       Object.fromEntries(
         DISCRETE_FILTER_COLUMNS.map(({ key }) => {
-          const values = [...new Set(NAV_MODELS.map((model) => columnValue(model, key)))];
+          const values = [...new Set(navModels.map((model) => columnValue(model, key)))];
           if (key === "provider") {
             values.sort(
               (a, b) =>
@@ -141,12 +146,12 @@ export function ModelPricingTables() {
           return [key, values];
         })
       ) as Record<DiscreteFilterKey, string[]>,
-    []
+    [navModels]
   );
 
   const models = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("nb-NO");
-    const matchingModels = NAV_MODELS.filter((model) => {
+    const matchingModels = navModels.filter((model) => {
       if (query && !`${model.model} ${model.provider} ${model.category}`.toLocaleLowerCase("nb-NO").includes(query)) {
         return false;
       }
@@ -179,7 +184,7 @@ export function ModelPricingTables() {
             : String(aValue).localeCompare(String(bValue), "nb-NO");
       return sortDirection === "ascending" ? comparison : -comparison;
     });
-  }, [search, sortKey, sortDirection, columnFilters]);
+  }, [navModels, search, sortKey, sortDirection, columnFilters]);
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -194,119 +199,125 @@ export function ModelPricingTables() {
 
   return (
     <VStack gap="space-16">
-      <HStack gap="space-16" align="end" wrap>
-        <Search
-          label="Filtrer modeller"
-          description="Søk på modell, leverandør eller kategori."
-          size="small"
-          variant="simple"
-          value={search}
-          onChange={setSearch}
-          className="max-w-md"
-        />
-      </HStack>
-      <HStack gap="space-8" wrap aria-label="Filtrer på kolonneverdier">
-        {DISCRETE_FILTER_COLUMNS.map(({ key, label }) => {
-          const values = filterOptions[key];
-          const selectedValues = columnFilters[key] ?? values;
-          const allSelected = selectedValues.length === values.length;
-          return (
-            <details key={key} className="relative">
-              <summary
-                className="cursor-pointer rounded-md border border-gray-300 text-sm"
-                style={{ paddingBlock: "var(--ax-space-8)", paddingInline: "var(--ax-space-12)" }}
-              >
-                {label}: {allSelected ? "Alle" : `${selectedValues.length}/${values.length}`}
-              </summary>
-              <div
-                className="absolute left-0 z-10 max-h-80 min-w-56 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg"
-                style={{ marginTop: "var(--ax-space-4)", padding: "var(--ax-space-12)" }}
-              >
-                <CheckboxGroup
-                  legend={`Vis ${label.toLocaleLowerCase("nb-NO")}`}
-                  size="small"
-                  value={selectedValues}
-                  onChange={(value) =>
-                    setColumnFilters((current) => ({
-                      ...current,
-                      [key]: value.length === values.length ? undefined : value,
-                    }))
-                  }
-                >
-                  <VStack gap="space-4">
-                    {values.map((value) => (
-                      <Checkbox key={value} value={value}>
-                        {value}
-                      </Checkbox>
-                    ))}
-                  </VStack>
-                </CheckboxGroup>
-              </div>
-            </details>
-          );
-        })}
-        {RANGE_FILTER_COLUMNS.map(({ key, label }) => {
-          const range = columnFilters[key] ?? {};
-          const prices = NAV_MODELS.map((model) => model[key]).filter((price): price is number => price !== undefined);
-          const minimum = Math.min(...prices);
-          const maximum = Math.max(...prices);
-          const summary = range.min || range.max ? `${range.min || "Min"}–${range.max || "Maks"}` : "Alle";
+      {!only && (
+        <>
+          <HStack gap="space-16" align="end" wrap>
+            <Search
+              label="Filtrer modeller"
+              description="Søk på modell, leverandør eller kategori."
+              size="small"
+              variant="simple"
+              value={search}
+              onChange={setSearch}
+              className="max-w-md"
+            />
+          </HStack>
+          <HStack gap="space-8" wrap aria-label="Filtrer på kolonneverdier">
+            {DISCRETE_FILTER_COLUMNS.map(({ key, label }) => {
+              const values = filterOptions[key];
+              const selectedValues = columnFilters[key] ?? values;
+              const allSelected = selectedValues.length === values.length;
+              return (
+                <details key={key} className="relative">
+                  <summary
+                    className="cursor-pointer rounded-md border border-gray-300 text-sm"
+                    style={{ paddingBlock: "var(--ax-space-8)", paddingInline: "var(--ax-space-12)" }}
+                  >
+                    {label}: {allSelected ? "Alle" : `${selectedValues.length}/${values.length}`}
+                  </summary>
+                  <div
+                    className="absolute left-0 z-10 max-h-80 min-w-56 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg"
+                    style={{ marginTop: "var(--ax-space-4)", padding: "var(--ax-space-12)" }}
+                  >
+                    <CheckboxGroup
+                      legend={`Vis ${label.toLocaleLowerCase("nb-NO")}`}
+                      size="small"
+                      value={selectedValues}
+                      onChange={(value) =>
+                        setColumnFilters((current) => ({
+                          ...current,
+                          [key]: value.length === values.length ? undefined : value,
+                        }))
+                      }
+                    >
+                      <VStack gap="space-4">
+                        {values.map((value) => (
+                          <Checkbox key={value} value={value}>
+                            {value}
+                          </Checkbox>
+                        ))}
+                      </VStack>
+                    </CheckboxGroup>
+                  </div>
+                </details>
+              );
+            })}
+            {RANGE_FILTER_COLUMNS.map(({ key, label }) => {
+              const range = columnFilters[key] ?? {};
+              const prices = navModels
+                .map((model) => model[key])
+                .filter((price): price is number => price !== undefined);
+              const minimum = Math.min(...prices);
+              const maximum = Math.max(...prices);
+              const summary = range.min || range.max ? `${range.min || "Min"}–${range.max || "Maks"}` : "Alle";
 
-          return (
-            <details key={key} className="relative">
-              <summary
-                className="cursor-pointer rounded-md border border-gray-300 text-sm"
-                style={{ paddingBlock: "var(--ax-space-8)", paddingInline: "var(--ax-space-12)" }}
-              >
-                {label}: {summary}
-              </summary>
-              <div
-                className="absolute left-0 z-10 flex min-w-64 rounded-md border border-gray-200 bg-white shadow-lg"
-                style={{ marginTop: "var(--ax-space-4)", gap: "var(--ax-space-12)", padding: "var(--ax-space-12)" }}
-              >
-                <label className="flex flex-col text-sm" style={{ gap: "var(--ax-space-4)" }}>
-                  Min
-                  <input
-                    aria-label={`${label} min`}
-                    type="number"
-                    min={minimum}
-                    max={maximum}
-                    step="any"
-                    value={range.min ?? ""}
-                    onChange={(event) =>
-                      setColumnFilters((current) => ({
-                        ...current,
-                        [key]: { ...current[key], min: event.target.value || undefined },
-                      }))
-                    }
-                    className="w-28 rounded-md border border-gray-300"
-                    style={{ paddingBlock: "var(--ax-space-4)", paddingInline: "var(--ax-space-8)" }}
-                  />
-                </label>
-                <label className="flex flex-col text-sm" style={{ gap: "var(--ax-space-4)" }}>
-                  Maks
-                  <input
-                    aria-label={`${label} maks`}
-                    type="number"
-                    min={minimum}
-                    max={maximum}
-                    step="any"
-                    value={range.max ?? ""}
-                    onChange={(event) =>
-                      setColumnFilters((current) => ({
-                        ...current,
-                        [key]: { ...current[key], max: event.target.value || undefined },
-                      }))
-                    }
-                    className="w-28 rounded-md border border-gray-300"
-                    style={{ paddingBlock: "var(--ax-space-4)", paddingInline: "var(--ax-space-8)" }}
-                  />
-                </label>
-              </div>
-            </details>
-          );
-        })}
-      </HStack>
+              return (
+                <details key={key} className="relative">
+                  <summary
+                    className="cursor-pointer rounded-md border border-gray-300 text-sm"
+                    style={{ paddingBlock: "var(--ax-space-8)", paddingInline: "var(--ax-space-12)" }}
+                  >
+                    {label}: {summary}
+                  </summary>
+                  <div
+                    className="absolute left-0 z-10 flex min-w-64 rounded-md border border-gray-200 bg-white shadow-lg"
+                    style={{ marginTop: "var(--ax-space-4)", gap: "var(--ax-space-12)", padding: "var(--ax-space-12)" }}
+                  >
+                    <label className="flex flex-col text-sm" style={{ gap: "var(--ax-space-4)" }}>
+                      Min
+                      <input
+                        aria-label={`${label} min`}
+                        type="number"
+                        min={minimum}
+                        max={maximum}
+                        step="any"
+                        value={range.min ?? ""}
+                        onChange={(event) =>
+                          setColumnFilters((current) => ({
+                            ...current,
+                            [key]: { ...current[key], min: event.target.value || undefined },
+                          }))
+                        }
+                        className="w-28 rounded-md border border-gray-300"
+                        style={{ paddingBlock: "var(--ax-space-4)", paddingInline: "var(--ax-space-8)" }}
+                      />
+                    </label>
+                    <label className="flex flex-col text-sm" style={{ gap: "var(--ax-space-4)" }}>
+                      Maks
+                      <input
+                        aria-label={`${label} maks`}
+                        type="number"
+                        min={minimum}
+                        max={maximum}
+                        step="any"
+                        value={range.max ?? ""}
+                        onChange={(event) =>
+                          setColumnFilters((current) => ({
+                            ...current,
+                            [key]: { ...current[key], max: event.target.value || undefined },
+                          }))
+                        }
+                        className="w-28 rounded-md border border-gray-300"
+                        style={{ paddingBlock: "var(--ax-space-4)", paddingInline: "var(--ax-space-8)" }}
+                      />
+                    </label>
+                  </div>
+                </details>
+              );
+            })}
+          </HStack>
+        </>
+      )}
       {models.length > 0 ? (
         <>
           <BodyShort size="small" style={{ color: "#64748b" }}>

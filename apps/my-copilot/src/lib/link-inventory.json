@@ -203,6 +203,15 @@
     ],
     "anchors": {}
   },
+  "/modeller": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/modeller/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "docs/modellvalg.md"
+    ],
+    "anchors": {}
+  },
   "/nav-pilot": {
     "sources": [
       "README.md",
@@ -2159,6 +2168,7 @@
   "/priser": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/modeller/page.tsx",
       "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx",
       "apps/my-copilot/src/app/(nb)/priser/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",

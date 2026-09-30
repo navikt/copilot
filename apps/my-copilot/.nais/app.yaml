@@ -83,6 +83,8 @@ spec:
       - /kalkulator/**
       - /priser
       - /priser/**
+      - /modeller
+      - /modeller/**
       - /innsikt
       # Old paths with a permanent redirect in next.config.ts. Listed so the
       # redirect answers before Wonderwall does; the private targets
