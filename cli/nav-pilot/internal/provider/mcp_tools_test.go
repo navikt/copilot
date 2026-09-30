@@ -4,16 +4,17 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
 var intellij = MCPServerEntry{Name: "com.jetbrains/intellij", Remotes: []MCPRemote{{Type: "sse", URL: "http://127.0.0.1:64342/sse"}},
-	Tools:    []string{"get_file_text_by_path", "reformat_file", "execute_terminal_command", "open_in_browser"},
+	Tools:    []string{"read_file", "reformat_file", "execute_terminal_command", "open_in_browser"},
 	ToolRisk: map[string]string{"reformat_file": "write", "execute_terminal_command": "host-exec", "open_in_browser": "external"}}
 
 // Reads and writes are the default; host-exec is never in it.
 func TestMCPDefaultTools(t *testing.T) {
-	if got := intellij.DefaultTools(); !slices.Equal(got, []string{"get_file_text_by_path", "reformat_file"}) {
+	if got := intellij.DefaultTools(); !slices.Equal(got, []string{"read_file", "reformat_file"}) {
 		t.Errorf("default = %v", got)
 	}
 	if got := intellij.HostExecTools(); !slices.Equal(got, []string{"execute_terminal_command"}) {
@@ -92,5 +93,19 @@ func TestMCPRegistryCacheSchema(t *testing.T) {
 	fetchMCPRegistry = func(string) (mcpRegistry, error) { asked = true; return reg, nil }
 	if _, entries, _, err := MCPRegistryServers(); err != nil || !asked || len(entries[0].ToolRisk) != 3 {
 		t.Errorf("old cache: asked=%v entries=%+v err=%v", asked, entries, err)
+	}
+}
+
+// A choice that names no URL never writes GitHub's full endpoint.
+func TestMCPClientEntryGitHubDefaultsToReadonly(t *testing.T) {
+	gh := MCPServerEntry{Name: "io.github.navikt/github-mcp", Remotes: []MCPRemote{{Type: "streamable-http", URL: githubMCPURL}}}
+	for _, client := range []string{MCPClientCopilot, MCPClientOpenCode} {
+		b, err := MCPClientEntry(client, gh, MCPToolChoice{All: true})
+		if err != nil || !strings.Contains(string(b), githubMCPReadonlyURL) {
+			t.Errorf("%s: %s, %v", client, b, err)
+		}
+		if b, _ := MCPClientEntry(client, gh, MCPToolChoice{All: true, URL: githubMCPURL}); strings.Contains(string(b), "readonly") {
+			t.Errorf("%s: an explicit full URL was not kept: %s", client, b)
+		}
 	}
 }

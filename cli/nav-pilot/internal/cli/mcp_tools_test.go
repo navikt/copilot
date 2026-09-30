@@ -77,7 +77,7 @@ func TestMCPEnableWritesTheDefaultTools(t *testing.T) {
 		}
 	}
 	ij := copilotEntry(t, "com.jetbrains/intellij")
-	if got := tools(ij["tools"]); got != `["get_file_text_by_path","reformat_file"]` {
+	if got := tools(ij["tools"]); got != `["read_file","reformat_file"]` {
 		t.Errorf("copilot intellij tools = %s", got)
 	}
 	gh := copilotEntry(t, "io.github.navikt/github-mcp")
@@ -86,7 +86,7 @@ func TestMCPEnableWritesTheDefaultTools(t *testing.T) {
 	}
 	want := [][2]string{
 		{"com_jetbrains_intellij_*", "deny"},
-		{"com_jetbrains_intellij_get_file_text_by_path", "allow"},
+		{"com_jetbrains_intellij_read_file", "allow"},
 		{"com_jetbrains_intellij_reformat_file", "allow"},
 	}
 	if got := openCodeRulesInFile(t); !slices.Equal(got, want) {
@@ -105,10 +105,10 @@ func TestMCPEnableWritesTheDefaultTools(t *testing.T) {
 // --all-tools is every tool, and for GitHub the full endpoint.
 func TestMCPEnableToolsFlags(t *testing.T) {
 	mcpCmdEnv(t, providerpkg.MCPHostState{})
-	if _, err := mcpEnable(t, "intellij", "--client", "copilot", "--tools", "get_file_text_by_path"); err != nil {
+	if _, err := mcpEnable(t, "intellij", "--client", "copilot", "--tools", "read_file"); err != nil {
 		t.Fatal(err)
 	}
-	if got := tools(copilotEntry(t, "com.jetbrains/intellij")["tools"]); got != `["get_file_text_by_path"]` {
+	if got := tools(copilotEntry(t, "com.jetbrains/intellij")["tools"]); got != `["read_file"]` {
 		t.Errorf("tools = %s", got)
 	}
 	if _, err := mcpEnable(t, "intellij", "--client", "copilot", "--tools", "nope"); err == nil {
@@ -169,11 +169,10 @@ func TestMCPEnableHostExecNeedsAYes(t *testing.T) {
 		yes  bool
 		want string
 	}{
-		{nil, false, `["get_file_text_by_path","reformat_file"]`},
-		{nil, true, `["get_file_text_by_path","reformat_file","execute_terminal_command"]`},
-		{[]string{"--all-tools"}, false, `["get_file_text_by_path","reformat_file"]`},
+		{nil, false, `["read_file","reformat_file"]`},
+		{nil, true, `["read_file","reformat_file","execute_terminal_command"]`},
+		{[]string{"--all-tools"}, false, `["read_file","reformat_file"]`},
 		{[]string{"--all-tools"}, true, `["*"]`},
-		{[]string{"--tools", "execute_terminal_command"}, false, `[]`},
 	} {
 		_ = os.Remove(copilotMCPPath())
 		asked := ""
@@ -190,6 +189,78 @@ func TestMCPEnableHostExecNeedsAYes(t *testing.T) {
 	}
 }
 
+// A no that leaves nothing to turn on changes nothing: the entry already
+// there is kept, not narrowed to no tools.
+func TestMCPEnableHostExecNoLeavesTheEntry(t *testing.T) {
+	mcpCmdEnv(t, providerpkg.MCPHostState{})
+	isInteractive = func() bool { return true }
+	prevAsk := mcpAsk
+	t.Cleanup(func() { mcpAsk = prevAsk })
+	mcpAsk = func(string) bool { return false }
+	orig := `{"mcpServers": {"com.jetbrains/intellij": {"type": "sse", "url": "http://127.0.0.1:64342/sse", "tools": ["read_file"]}}}`
+	writeTestFile(t, copilotMCPPath(), orig)
+	out, err := mcpEnable(t, "intellij", "--client", "copilot", "--tools", "execute_terminal_command")
+	if err == nil {
+		t.Errorf("a no that left no tools was accepted:\n%s", out)
+	}
+	if b, _ := os.ReadFile(copilotMCPPath()); string(b) != orig {
+		t.Errorf("config changed:\n%s", b)
+	}
+	if err := cmdMCP([]string{"enable", "intellij", "--client", "copilot", "--tools", " , "}); err == nil || !strings.Contains(err.Error(), "at least one tool") {
+		t.Errorf("--tools with no names: err = %v", err)
+	}
+}
+
+// A registry without tool lists (an old cache, the registry out of reach)
+// still gives GitHub its read-only endpoint; only --all-tools is the full
+// one.
+func TestMCPEnableGitHubNoToolListIsReadOnly(t *testing.T) {
+	mcpCmdEnv(t, providerpkg.MCPHostState{})
+	mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error, error) {
+		return "https://registry.test", []providerpkg.MCPServerEntry{{Name: "io.github.navikt/github-mcp",
+			Remotes: []providerpkg.MCPRemote{{Type: "streamable-http", URL: "https://api.githubcopilot.com/mcp/"}}}}, nil, nil
+	}
+	for _, client := range []string{"copilot", "opencode"} {
+		if _, err := mcpEnable(t, "github-mcp", "--client", client); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if gh := copilotEntry(t, "io.github.navikt/github-mcp"); gh["url"] != "https://api.githubcopilot.com/mcp/readonly" {
+		t.Errorf("copilot github = %v", gh)
+	}
+	if b, _ := os.ReadFile(openCodeMCPPath()); !strings.Contains(string(b), `"url": "https://api.githubcopilot.com/mcp/readonly"`) {
+		t.Errorf("opencode github is not read-only:\n%s", b)
+	}
+	if _, err := mcpEnable(t, "github-mcp", "--client", "copilot", "--all-tools"); err != nil {
+		t.Fatal(err)
+	}
+	if gh := copilotEntry(t, "io.github.navikt/github-mcp"); gh["url"] != "https://api.githubcopilot.com/mcp/" {
+		t.Errorf("--all-tools: github = %v", gh)
+	}
+	e := providerpkg.MCPServerEntry{Name: "io.github.navikt/github-mcp", Remotes: []providerpkg.MCPRemote{{URL: "https://api.githubcopilot.com/mcp/"}}}
+	if fix := mcpNarrowFix(e, "copilot"); !strings.HasSuffix(fix, "&& nav-pilot mcp enable io.github.navikt/github-mcp --client copilot") {
+		t.Errorf("narrow fix = %q", fix)
+	}
+}
+
+// The line after enable says what is on, and where.
+func TestMCPDescribeChoice(t *testing.T) {
+	gh := mcpTestEntries()[3]
+	for _, tc := range []struct {
+		c    providerpkg.MCPToolChoice
+		want string
+	}{
+		{providerpkg.MCPToolChoice{All: true, URL: "https://api.githubcopilot.com/mcp/readonly"}, "every tool on GitHub's read-only endpoint"},
+		{providerpkg.MCPToolChoice{Tools: []string{"get_file_contents"}, URL: "https://api.githubcopilot.com/mcp/readonly"}, "1 of 1 tools on GitHub's read-only endpoint"},
+		{providerpkg.MCPToolChoice{Tools: []string{"issue_write"}, URL: "https://api.githubcopilot.com/mcp/"}, "1 of 2 tools on GitHub's full endpoint; off: get_file_contents"},
+		{providerpkg.MCPToolChoice{All: true, URL: "https://api.githubcopilot.com/mcp/"}, "every tool on GitHub's full endpoint"},
+	} {
+		if got := mcpDescribeChoice(gh, tc.c); got != tc.want {
+			t.Errorf("%+v = %q, want %q", tc.c, got, tc.want)
+		}
+	}
+}
+
 // An entry already there is kept as it is unless tools are chosen; then
 // only its tools change, the rest of it stays, and a backup is left.
 func TestMCPEnableKeepsAnExistingEntry(t *testing.T) {
@@ -202,11 +273,11 @@ func TestMCPEnableKeepsAnExistingEntry(t *testing.T) {
 	if b, _ := os.ReadFile(copilotMCPPath()); string(b) != orig {
 		t.Errorf("enable without tool flags changed the entry:\n%s", b)
 	}
-	if _, err := mcpEnable(t, "intellij", "--client", "copilot", "--tools", "get_file_text_by_path"); err != nil {
+	if _, err := mcpEnable(t, "intellij", "--client", "copilot", "--tools", "read_file"); err != nil {
 		t.Fatal(err)
 	}
 	e := copilotEntry(t, "com.jetbrains/intellij")
-	if tools(e["tools"]) != `["get_file_text_by_path"]` || tools(e["headers"]) != `{"X":"y"}` || e["url"] != "http://127.0.0.1:64342/sse" {
+	if tools(e["tools"]) != `["read_file"]` || tools(e["headers"]) != `{"X":"y"}` || e["url"] != "http://127.0.0.1:64342/sse" {
 		t.Errorf("entry = %v", e)
 	}
 	if b, _ := os.ReadFile(copilotMCPPath() + ".bak"); string(b) != orig {
@@ -246,7 +317,7 @@ func TestMCPListToolNudges(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &rep); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	narrow := "nav-pilot mcp enable com.jetbrains/intellij --client copilot --tools get_file_text_by_path,reformat_file"
+	narrow := "nav-pilot mcp enable com.jetbrains/intellij --client copilot --tools read_file,reformat_file"
 	var ij, gh []mcpProblem
 	for _, p := range rep.Problems {
 		switch p.Server {
@@ -281,7 +352,7 @@ func TestMCPListToolNudges(t *testing.T) {
 	if len(rep.Problems) != 1 || rep.Problems[0].Fix != narrow {
 		t.Errorf("problems = %+v", rep.Problems)
 	}
-	if _, err := mcpEnable(t, "intellij", "--client", "copilot", "--tools", "get_file_text_by_path,reformat_file"); err != nil {
+	if _, err := mcpEnable(t, "intellij", "--client", "copilot", "--tools", "read_file,reformat_file"); err != nil {
 		t.Fatal(err)
 	}
 	rep = diagnoseMCP("r", mcpTestEntries(), mcpConfigured(mcpTestEntries()), "com.jetbrains/intellij")
@@ -301,11 +372,17 @@ func TestDoctorToolNudges(t *testing.T) {
 	var out bytes.Buffer
 	reportMCPTools(&out)
 	if !strings.Contains(out.String(), "has every tool on, including execute_terminal_command") ||
-		!strings.Contains(out.String(), "nav-pilot mcp enable com.jetbrains/intellij --client copilot --tools get_file_text_by_path,reformat_file") {
+		!strings.Contains(out.String(), "nav-pilot mcp enable com.jetbrains/intellij --client copilot --tools read_file,reformat_file") {
 		t.Errorf("doctor:\n%s", out.String())
 	}
-	if w := mcpLoopbackNote("com.jetbrains/intellij", "64342"); !strings.Contains(w, "opening localhost:64342 lets the agent reach execute_terminal_command") {
+	if w := mcpLoopbackNote("com.jetbrains/intellij", "64342"); !strings.Contains(w, "opening localhost:64342 lets the agent reach execute_terminal_command") || !strings.HasSuffix(w, "then open the port") || len(w) > 600 {
 		t.Errorf("loopback note = %q", w)
+	}
+	// Every host-exec tool the registry has: still one whole line, which
+	// doctor cuts at 600.
+	hx := []string{"apply_patch", "build_project", "create_new_file", "execute_run_configuration", "execute_sql_query", "execute_terminal_command", "execute_tool"}
+	if w := mcpLoopbackWarning(mcpTestEntries()[2], "64342", hx); len(w) > 600 || strings.Contains(w, "read_file") {
+		t.Errorf("loopback warning is %d long: %q", len(w), w)
 	}
 	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {"com.jetbrains/intellij": {"type": "sse", "url": "http://127.0.0.1:64342/sse", "tools": ["reformat_file"]}}}`)
 	out.Reset()
@@ -323,7 +400,7 @@ func TestMCPListLoopbackNarrowsEveryClient(t *testing.T) {
 	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {"com.jetbrains/intellij": {"type": "sse", "url": "http://127.0.0.1:64342/sse", "tools": ["*"]}}}`)
 	writeTestFile(t, openCodeMCPPath(), `{"mcp": {"com.jetbrains/intellij": {"type": "remote", "url": "http://127.0.0.1:64342/sse"}}}`)
 	rep := diagnoseMCP("r", mcpTestEntries(), mcpConfigured(mcpTestEntries()), "com.jetbrains/intellij")
-	tools := " --tools get_file_text_by_path,reformat_file"
+	tools := " --tools read_file,reformat_file"
 	want := "nav-pilot mcp enable com.jetbrains/intellij --client copilot" + tools +
 		" && nav-pilot mcp enable com.jetbrains/intellij --client opencode" + tools +
 		" && cplt config set allow.localhost 64342"

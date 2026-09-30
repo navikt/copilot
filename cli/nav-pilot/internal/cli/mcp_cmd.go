@@ -70,6 +70,9 @@ func cmdMCP(args []string) error {
 					topts.tools = append(topts.tools, t)
 				}
 			}
+			if len(topts.tools) == 0 {
+				return fmt.Errorf("--tools needs at least one tool name; to remove a server: nav-pilot mcp disable <name>")
+			}
 			toolFlag = true
 		case "--all-tools":
 			topts.all, toolFlag = true, true
@@ -729,26 +732,29 @@ func cmdMCPEnable(names []string, clients []string, topts mcpToolOpts) error {
 			failed++
 			continue
 		}
-		ok, wrote := true, false
+		ok := true
+		var wrote []string
 		for _, client := range clients {
 			w, err := mcpEnableIn(client, e, choice, topts.explicit())
 			if err != nil {
 				mcpFail(e.Name+" ("+client+")", err)
 				ok = false
 			}
-			wrote = wrote || w
+			if w {
+				wrote = append(wrote, client)
+			}
 		}
 		if !ok {
 			failed++
 			continue
 		}
 		// Only about entries written now: an existing one kept its tools.
-		if wrote && !topts.explicit() && !choice.All && len(choice.Tools) < len(e.Tools) {
+		if len(wrote) > 0 && !topts.explicit() && !choice.All && len(choice.Tools) < len(e.Tools) {
 			hint := "nav-pilot mcp enable " + e.Name + " --tools <a,b>"
 			if len(e.HostExecTools()) > 0 {
 				hint += " --allow-host-exec"
 			}
-			fmt.Printf("%s Tools that act in other systems or run outside the sandbox are off. To pick them: %s\n", dim("ℹ"), bold(hint))
+			fmt.Printf("%s In the new %s entry, tools that act in other systems or run outside the sandbox are off. To pick them: %s\n", dim("ℹ"), strings.Join(wrote, " and "), bold(hint))
 		}
 		if !slices.ContainsFunc(enabled, func(x providerpkg.MCPServerEntry) bool { return x.Name == e.Name }) {
 			enabled = append(enabled, e)

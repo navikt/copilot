@@ -197,6 +197,9 @@ func MCPClientEntry(client string, e MCPServerEntry, c MCPToolChoice) (json.RawM
 		r := e.Remotes[0]
 		if c.URL != "" {
 			r.URL = c.URL
+		} else if ro := e.GitHubReadonlyURL(); ro != "" {
+			// GitHub's full endpoint only when the choice names it.
+			r.URL = ro
 		}
 		if client == MCPClientOpenCode {
 			v = map[string]any{"type": "remote", "url": r.URL, "enabled": true}

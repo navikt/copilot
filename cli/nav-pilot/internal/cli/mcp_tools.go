@@ -64,8 +64,18 @@ func mcpChooseTools(e providerpkg.MCPServerEntry, o mcpToolOpts) (providerpkg.MC
 		if o.tools != nil {
 			return providerpkg.MCPToolChoice{}, fmt.Errorf("the registry lists no tools for %s to pick from; use --all-tools", e.Name)
 		}
-		fmt.Printf("%s The registry lists no tools for %s, so every tool is on.\n", dim("ℹ"), e.Name)
-		return providerpkg.MCPToolChoice{All: true}, nil
+		c := providerpkg.MCPToolChoice{All: true}
+		// GitHub's full endpoint writes around cplt's guard on gh: only
+		// on --all-tools.
+		if ro := e.GitHubReadonlyURL(); ro != "" {
+			if o.all {
+				c.URL = e.Remotes[0].URL
+			} else {
+				c.URL = ro
+			}
+		}
+		fmt.Printf("%s The registry lists no tools for %s to pick from.\n", dim("ℹ"), e.Name)
+		return c, nil
 	}
 	c := providerpkg.MCPToolChoice{}
 	switch {
@@ -100,6 +110,9 @@ func mcpChooseTools(e providerpkg.MCPServerEntry, o mcpToolOpts) (providerpkg.MC
 			fmt.Printf("%s Left off: %s\n", dim("•"), strings.Join(hx, ", "))
 		}
 	}
+	if !c.All && len(c.Tools) == 0 {
+		return c, fmt.Errorf("no tools left to turn on for %s, so nothing was changed. To remove it: nav-pilot mcp disable %s", e.Name, e.Name)
+	}
 
 	if ro := e.GitHubReadonlyURL(); ro != "" {
 		if c.All || slices.ContainsFunc(c.Tools, func(t string) bool { return e.RiskOf(t) == providerpkg.MCPRiskExternal }) {
@@ -132,19 +145,24 @@ func mcpIntersect(a, b []string) []string {
 
 // mcpDescribeChoice is one line on what the choice turns on.
 func mcpDescribeChoice(e providerpkg.MCPServerEntry, c providerpkg.MCPToolChoice) string {
+	where, of := "", e.Tools
 	switch {
 	case c.URL != "" && providerpkg.IsGitHubReadonlyURL(c.URL):
-		return "GitHub's read-only endpoint"
-	case c.All:
-		return "every tool"
+		// The read-only endpoint has only the reads.
+		where, of = " on GitHub's read-only endpoint", e.DefaultTools()
+	case e.GitHubReadonlyURL() != "":
+		where = " on GitHub's full endpoint"
+	}
+	if c.All {
+		return "every tool" + where
 	}
 	var off []string
-	for _, t := range e.Tools {
+	for _, t := range of {
 		if !slices.Contains(c.Tools, t) {
 			off = append(off, t)
 		}
 	}
-	s := fmt.Sprintf("%d of %d tools", len(c.Tools), len(e.Tools))
+	s := fmt.Sprintf("%d of %d tools%s", len(c.Tools), len(of), where)
 	if len(off) > 0 {
 		s += "; off: " + strings.Join(off, ", ")
 	}
@@ -195,7 +213,12 @@ func (i mcpToolsInfo) cell(e providerpkg.MCPServerEntry) string {
 func mcpNarrowFix(e providerpkg.MCPServerEntry, client string) string {
 	cmd := fmt.Sprintf("nav-pilot mcp enable %s --client %s --tools %s", e.Name, client, strings.Join(e.DefaultTools(), ","))
 	if len(e.Tools) == 0 {
+		// Nothing to pick from: a fresh entry is GitHub's read-only
+		// endpoint, or for another server the way to turn it off.
 		cmd = fmt.Sprintf("nav-pilot mcp disable %s --client %s", e.Name, client)
+		if e.GitHubReadonlyURL() != "" {
+			cmd += fmt.Sprintf(" && nav-pilot mcp enable %s --client %s", e.Name, client)
+		}
 	}
 	return cmd
 }
@@ -244,8 +267,8 @@ func mcpHostExecOn(e providerpkg.MCPServerEntry, conf providerpkg.MCPConfigured)
 // mcpLoopbackWarning is what opening a localhost port means when the server
 // behind it has host-exec tools on: the port is a way out of the sandbox.
 func mcpLoopbackWarning(e providerpkg.MCPServerEntry, port string, hx []string) string {
-	return fmt.Sprintf("opening localhost:%s lets the agent reach %s, which %s on your machine outside the sandbox. Turn %s off first (nav-pilot mcp enable %s --tools %s), then open the port",
-		port, strings.Join(hx, ", "), mcpRuns(hx), mcpIt(hx), e.Name, strings.Join(e.DefaultTools(), ","))
+	return fmt.Sprintf("opening localhost:%s lets the agent reach %s, which %s on your machine outside the sandbox. Turn %s off first (nav-pilot mcp enable %s --tools <a,b>), then open the port",
+		port, strings.Join(hx, ", "), mcpRuns(hx), mcpIt(hx), e.Name)
 }
 
 func mcpRuns(tools []string) string {
