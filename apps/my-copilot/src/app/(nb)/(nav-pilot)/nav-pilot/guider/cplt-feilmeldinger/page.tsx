@@ -59,7 +59,7 @@ cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?`}
           <BodyLong>
             Svarene fra <code className={code}>cplt check</code> har en linje som begynner med{" "}
             <code className={code}>Reason:</code>, og ofte en med <code className={code}>Fix:</code>. Kommandoene på
-            denne siden er testet med cplt fra 29. september 2026 på macOS. Flere detaljer står i{" "}
+            denne siden er testet med cplt fra 30. september 2026 på macOS. Flere detaljer står i{" "}
             <a href={KNOWN_IMPACTS} className={linkClass}>
               known-impacts.md
             </a>{" "}
@@ -130,8 +130,9 @@ cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?`}
           </LinkableHeading>
           <BodyLong>
             Hosten står ikke på host-lista. Når <code className={code}>proxy.allowed_domains</code> er satt, slipper
-            proxyen bare gjennom agentens egne hoster, hostene i fila og pakkeregistrene hvis{" "}
-            <code className={code}>proxy.default_allowlist</code> er på. Finn fila og legg til hosten:
+            proxyen bare gjennom agentens egne hoster, hostene i fila og i <code className={code}>allow.domains</code>,
+            og pakkeregistrene hvis <code className={code}>proxy.default_allowlist</code> er på. Finn fila og legg til
+            hosten:
           </BodyLong>
           <CodeBlock compact>
             {`cplt config get proxy.allowed_domains   # viser hvilken fil
@@ -140,7 +141,12 @@ cplt check net min.host.no               # BLOCKED før, ALLOWED etter`}
           </CodeBlock>
           <BodyLong>
             Én host per linje. Mangler npm, Maven Central eller andre pakkeregistre, slå på{" "}
-            <code className={code}>proxy.default_allowlist</code> som i oppføringen over.
+            <code className={code}>proxy.default_allowlist</code>:
+          </BodyLong>
+          <CodeBlock compact>{`cplt config set proxy.default_allowlist true`}</CodeBlock>
+          <BodyLong>
+            <code className={code}>cplt doctor</code> sier fra når nettverksreglene stenger ute agentens hoster eller
+            pakkeregistrene.
           </BodyLong>
 
           <LinkableHeading id="private-target" size="small" level="3">
@@ -346,11 +352,8 @@ cplt --allow-env-files                          # bare denne økten`}
             <code className={code}>ps</code>, <code className={code}>top</code> og <code className={code}>sudo</code>,
             kan ikke startes i sandkassen. Fra Go ser feilen ut som{" "}
             <code className={code}>fork/exec /bin/ps: operation not permitted</code>. Ingen innstilling åpner det. Kjør
-            kommandoen utenfor cplt. <code className={code}>cplt check exec /bin/ps</code> svarer feilaktig{" "}
-            <code className={code}>ALLOWED</code> (
-            <a href="https://github.com/navikt/cplt/issues/620" className={linkClass}>
-              cplt#620
-            </a>
+            kommandoen utenfor cplt. <code className={code}>cplt check exec /bin/ps</code> svarer{" "}
+            <code className={code}>BLOCKED</code> fra 29. september 2026 (<Pr n={628} />
             ).
           </BodyLong>
 
@@ -513,9 +516,9 @@ cplt trust accept --all                                    # godkjenn forslaget`
           </LinkableHeading>
           <BodyLong>
             Gjelder macOS. <code className={code}>.git/config</code> er skrivebeskyttet, fordi den kan få git til å
-            kjøre kode utenfor sandkassen. Etter <code className={code}>git push -u</code> skriver git likevel{" "}
-            <code className={code}>set up to track</code> og avslutter med 0. Den linja stemmer ikke. Push med grenen
-            skrevet ut, og oppgi den når du lager pull requesten:
+            kjøre kode utenfor sandkassen. Derfor fjerner cplt <code className={code}>-u</code> fra{" "}
+            <code className={code}>git push -u</code> og skriver <code className={code}>cplt: pushing without -u</code>.
+            Grenen blir pushet, men uten upstream. Push med grenen skrevet ut, og oppgi den når du lager pull requesten:
           </BodyLong>
           <CodeBlock compact>
             {`git push origin HEAD:min-gren
@@ -537,9 +540,11 @@ gh pr create --head min-gren`}
           </BodyLong>
           <CodeBlock compact>{`git push origin HEAD:min-gren`}</CodeBlock>
           <BodyLong>
+            <code className={code}>cplt doctor</code> viser om vakta slipper gjennom push til en ny gren i repoet ditt.
             Stopper vakta også push til en ny gren, og sier at{" "}
             <code className={code}>the default branch of remote &apos;origin&apos; could not be determined</code>, vet
-            den ikke hvilken gren som er standardgrenen. Kjør dette utenfor cplt, og start en ny økt:
+            den ikke hvilken gren som er standardgrenen. cplt spør remoten når <code className={code}>origin/HEAD</code>{" "}
+            mangler lokalt, og feilen kommer når remoten ikke svarer. Kjør dette utenfor cplt, og start en ny økt:
           </BodyLong>
           <CodeBlock compact>{`git remote set-head origin -a`}</CodeBlock>
 

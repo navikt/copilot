@@ -72,8 +72,8 @@ cplt trust accept --all`}
             <NextLink href="/nav-pilot/guider/cplt-oppsett#forste-gang" className={linkClass}>
               Sett opp cplt i et repo
             </NextLink>
-            . <code className={code}>cplt init</code> foreslår <code className={code}>allow_jvm_attach</code> for et
-            Gradle-bygg, men ikke <code className={code}>allow_localhost_any</code>. På Linux trenger du ikke{" "}
+            . <code className={code}>cplt init</code> foreslår både <code className={code}>allow_jvm_attach</code> og{" "}
+            <code className={code}>allow_localhost_any</code> for et Gradle-bygg. På Linux trenger du ikke{" "}
             <code className={code}>allow_jvm_attach</code>, for der stenger ikke cplt socketen.
           </BodyLong>
         </VStack>

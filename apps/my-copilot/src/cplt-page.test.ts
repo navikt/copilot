@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { parseConfigKeys } from "./lib/cplt-config";
 
 // /cplt is the external landing page for the cplt open-source project. It lives
 // under the English (en) route group, with no nav-pilot section menu, and stays
@@ -28,5 +29,19 @@ describe("/cplt", () => {
       expect(b).toMatch(/title=(?:"Copy |\{`Copy )/);
       expect(b).toMatch(/activeText="Copied!"/);
     }
+  });
+
+  // registry.rs puts a `// comment` line inside some entries; the explorer used to drop those keys.
+  it("parses config keys whose registry entry carries a comment line", () => {
+    const src = `ConfigKeyInfo {
+        section: "git_guard",
+        key: "protect_default_branch_only",
+        value_type: ConfigValueType::Bool,
+        // Not dangerous since #386.
+        dangerous: false,
+        default_display: "true",
+        description: "Only block pushes to the default branch.",
+    },`;
+    expect(parseConfigKeys(src).map((k) => k.key)).toEqual(["git_guard.protect_default_branch_only"]);
   });
 });

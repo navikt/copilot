@@ -215,6 +215,15 @@ export const CLI_COMMANDS = [
   { command: "nav-pilot list", description: "Vis agentpakka og enkeltkomponenter" },
   { command: "nav-pilot list --installed", description: "Vis installerte filer og integritet" },
   { command: "nav-pilot doctor", description: "Sjekk konfig, installasjon, hooks, klienter, cplt og git" },
+  {
+    command: "nav-pilot mcp list",
+    description: "MCP-serverne i Navs register, hvilke du har slått på, og hva som hindrer dem i å virke",
+  },
+  {
+    command: "nav-pilot mcp enable <navn>",
+    description: "Slå på en server fra registeret i Copilot CLI og opencode (--client for bare én)",
+  },
+  { command: "nav-pilot mcp disable <navn>", description: "Slå av serveren og fjern hostene bare den trengte" },
   { command: "nav-pilot install <name>", description: "Installer én komponent (agent, skill osv.)" },
   {
     command: "nav-pilot install <name> --type <type>",
@@ -275,7 +284,14 @@ export const CLI_COMMANDS = [
   },
   { command: "nav-pilot config", description: "Interaktiv innstillingsside i terminalen" },
   { command: "nav-pilot config init", description: "Opprett ~/.nav-pilot/config.toml med alle valg kommentert ut" },
-  { command: "nav-pilot config setup", description: "Veiviser for klient, modell og modus" },
+  {
+    command: "nav-pilot config setup",
+    description: "Veiviser for klient, modus, modell og hva agenten får gjøre selv",
+  },
+  {
+    command: "nav-pilot config setup --advanced",
+    description: "Samme veiviser, med et spørsmål om nettverket (cplt-nivået strict)",
+  },
   { command: "nav-pilot config show", description: "Vis gjeldende konfig: fila pluss standardverdiene" },
   { command: "nav-pilot config get <key>", description: "Hent én verdi" },
   { command: "nav-pilot config set <key> <value>", description: "Sett én verdi" },

@@ -36,6 +36,7 @@ export default function Feilsoking() {
           <CodeBlock compact>
             {`nav-pilot doctor              # konfig, installasjon, hooks, klienter, cplt og git
 nav-pilot config validate     # bare konfigfila: syntaks, nøkler og verdier
+nav-pilot mcp list            # MCP-servere som ikke virker, og kommandoen som retter det
 nav-pilot alpha local doctor  # bare egen server (local_endpoint)`}
           </CodeBlock>
           <BodyLong>
@@ -119,8 +120,7 @@ cplt check exec docker                         # får agenten kjøre programmet?
           <BodyLong>
             <code className={code}>cplt check exec</code> sjekker om programmet får starte, ikke hvilke filer det leser
             etterpå. For localhost gjelder <code className={code}>allow.localhost</code>, ikke{" "}
-            <code className={code}>--allow-port</code>, selv om <code className={code}>cplt check net</code> foreslår
-            det, se{" "}
+            <code className={code}>--allow-port</code>, se{" "}
             <NextLink href="/nav-pilot/guider/cplt-oppsett#stakker" className={linkClass}>
               Det stakken din trenger
             </NextLink>

@@ -62,7 +62,7 @@ const ARTICLE_HREF = "/en/news/sandbox-confines-the-process-not-the-token";
 
 const SECURITY_TABLE = [
   { resource: "Project directory (read/write)", without: "allowed", with: "allowed" },
-  { resource: "Secrets (.env*, .pem, .key, SSH keys)", without: "exposed", with: "blocked" },
+  { resource: "Secrets (.env*, .pem, .key§, SSH keys)", without: "exposed", with: "blocked" },
   { resource: "Cloud credentials (~/.aws, ~/.azure)", without: "exposed", with: "blocked" },
   { resource: "Build tool homes (~/.m2, ~/.gradle, ~/.cargo)", without: "allowed", with: "allowed" },
   {
@@ -87,12 +87,13 @@ const FOOTNOTES: Record<string, string> = {
   "*": "Routed through CONNECT proxy. Telemetry and non-allowlisted domains are blocked.",
   "†": "On Linux, localhost is not blocked and UDP is unrestricted unless proxy.forced is on.",
   "‡": "Git hooks are write-protected on macOS. On Linux .git/hooks stays writable unless bubblewrap is installed.",
+  "§": "Blocked in the project on macOS. On Linux, Landlock cannot deny single files inside the project. Key files are matched by exact name (.pem), not by extension (server.pem), unless sandbox.deny_key_files_by_extension is on.",
 };
 
-/* Only † and ‡ are footnote markers inside a resource name. The asterisk in
+/* Only †, ‡ and § are footnote markers inside a resource name. The asterisk in
    ".env*" is a glob, not a marker. */
 function withFootnoteMarkers(text: string) {
-  return text.split(/([†‡])/).map((part, i) =>
+  return text.split(/([†‡§])/).map((part, i) =>
     FOOTNOTES[part] ? (
       <abbr key={i} title={FOOTNOTES[part]}>
         {part}
@@ -388,6 +389,11 @@ function SecurityTableSection() {
                 .git/hooks
               </code>{" "}
               stays writable unless bubblewrap is installed.
+              <br />
+              §Blocked in the project on macOS. On Linux, Landlock cannot deny single files inside the project. Key
+              files are matched by exact name (<code style={{ fontSize: CODE_SIZE }}>.pem</code>), not by extension (
+              <code style={{ fontSize: CODE_SIZE }}>server.pem</code>), unless{" "}
+              <code style={{ fontSize: CODE_SIZE }}>sandbox.deny_key_files_by_extension</code> is on.
             </BodyLong>
             <BodyLong size="small" style={{ color: "var(--ax-text-neutral-subtle)", textAlign: "center" }}>
               The filesystem and syscall layers are kernel-enforced: Apple Seatbelt on macOS, Landlock + seccomp-BPF on
@@ -621,14 +627,14 @@ function ProxySection() {
                 proxy.blocked_domains
               </text>
               <text x="470" y="289" fill="var(--ax-text-neutral-subtle)" fontSize="11">
-                47 domains · hot-reload every 5s
+                + 47 built-in · reloads every 5s
               </text>
 
               <text x="660" y="272" fill="var(--ax-text-neutral-subtle)" fontSize="11" fontFamily="monospace">
                 proxy.allowed_domains
               </text>
               <text x="660" y="289" fill="var(--ax-text-neutral-subtle)" fontSize="11">
-                Fail-closed strict mode
+                Fail-closed; agent hosts kept
               </text>
 
               {/* Arrow markers */}
@@ -657,9 +663,9 @@ function ProxySection() {
               blocklist and allowlist, a private IP filter and DNS rebinding protection, and writes an audit log.
               Allowed traffic reaches the internet: github.com, npm, PyPI, api.openai.com, anything allowlisted or not
               in the blocklist. Blocked traffic is dropped: webhook.site, ngrok.io, pastebin.com, 169.254.x.x, 10.x.x.x,
-              tunneling services. <code style={{ fontSize: CODE_SIZE }}>proxy.blocked_domains</code> holds 47 domains
-              and hot-reloads every 5s; <code style={{ fontSize: CODE_SIZE }}>proxy.allowed_domains</code> is
-              fail-closed strict mode.
+              tunneling services. <code style={{ fontSize: CODE_SIZE }}>proxy.blocked_domains</code> adds to the 47
+              built-in domains and reloads every 5s; <code style={{ fontSize: CODE_SIZE }}>proxy.allowed_domains</code>{" "}
+              turns on fail-closed allowlist mode, which still lets the agent reach its own hosts.
             </BodyLong>
           </div>
 
@@ -675,8 +681,9 @@ function ProxySection() {
                   so a raw socket or an unset <code style={{ fontSize: CODE_SIZE }}>HTTPS_PROXY</code> can skip the
                   proxy. <code style={{ fontSize: CODE_SIZE }}>proxy.forced</code> closes that bypass: the proxy becomes
                   mandatory and kernel-level egress is restricted to the proxy port only. Fails closed. If the proxy
-                  cannot start, the agent does not launch. macOS pins fully to{" "}
-                  <code style={{ fontSize: CODE_SIZE }}>localhost:&lt;proxy_port&gt;</code>; Linux drops the direct{" "}
+                  cannot start, the agent does not launch. macOS pins connections to{" "}
+                  <code style={{ fontSize: CODE_SIZE }}>localhost:&lt;proxy_port&gt;</code>, though name lookups through
+                  the system resolver still work; Linux drops the direct{" "}
                   <code style={{ fontSize: CODE_SIZE }}>:443</code> allow, but Landlock filtering is port-based, so a
                   narrow port-based residual remains. That is a deliberate limitation, tracked upstream.
                 </BodyLong>
@@ -784,7 +791,7 @@ function GuardsSection() {
                   gh guard with a three-tier policy
                 </Heading>
                 <BodyLong size="small" style={{ color: "var(--ax-text-neutral-subtle)", marginTop: "0.25rem" }}>
-                  Default-deny engine over 132 classified <code style={{ fontSize: CODE_SIZE }}>gh</code> commands: 51
+                  Default-deny engine over 133 classified <code style={{ fontSize: CODE_SIZE }}>gh</code> commands: 52
                   allowed, 64 blocked, 17 scope-checked.
                 </BodyLong>
               </div>
@@ -900,12 +907,12 @@ function GuardsSection() {
                   className="p-4 font-mono leading-relaxed overflow-x-auto"
                   style={{ margin: 0, fontSize: CODE_SIZE, color: TERMINAL_FG, background: TERMINAL_BG }}
                 >
-                  <span style={{ color: "#f87171" }}>⛔ sandbox restriction:</span>
-                  {" `gh pr merge` is not allowed.\n"}
-                  {"This command is classified as destructive\n"}
-                  {"and blocked by gh guard.\n\n"}
+                  <span style={{ color: "#f87171" }}>⚠️ BLOCKED by sandbox:</span>
+                  {" 'gh repo delete' is not allowed\nin this environment.\n"}
+                  {"Reason: deletes entire repository\n"}
                   <span style={{ color: TERMINAL_MUTED }}>
-                    Please note this for the human operator{"\n"}and continue with your remaining work.
+                    This operation is restricted by the cplt sandbox{"\n"}to prevent unintended changes.{"\n"}Please
+                    make a note of this for the human operator{"\n"}and continue with your remaining work.
                   </span>
                 </pre>
               </div>
@@ -1162,24 +1169,32 @@ function InitSection() {
                   <span style={{ color: "#569cd6" }}>[deny]</span>
                   {"\n"}
                   {"env = ["}
-                  <span style={{ color: "#ce9178" }}>&quot;DB_PASSWORD&quot;</span>
-                  {", "}
                   <span style={{ color: "#ce9178" }}>&quot;API_KEY&quot;</span>
+                  {", "}
+                  <span style={{ color: "#ce9178" }}>&quot;DB_PASSWORD&quot;</span>
                   {"]\n\n"}
                   <span style={{ color: "#569cd6" }}>[propose]</span>
                   {"\n"}
+                  <span style={{ color: "#fbbf24" }}>
+                    # ⚠️ grants access to the Docker socket, effectively root on the host
+                  </span>
+                  {"\n"}
+                  {"allow_docker = "}
+                  <span style={{ color: "#569cd6" }}>true</span>
+                  {"\n"}
                   {"allow_jvm_attach = "}
+                  <span style={{ color: "#569cd6" }}>true</span>
+                  {"\n"}
+                  {"allow_localhost_any = "}
                   <span style={{ color: "#569cd6" }}>true</span>
                   {"\n\n"}
                   <span style={{ color: "#569cd6" }}>[propose.allow]</span>
                   {"\n"}
                   {"localhost = ["}
-                  <span style={{ color: "#b5cea8" }}>8080</span>
-                  {", "}
                   <span style={{ color: "#b5cea8" }}>5432</span>
+                  {", "}
+                  <span style={{ color: "#b5cea8" }}>8080</span>
                   {"]\n\n"}
-                  <span style={{ color: "#fbbf24" }}>⚠ allow_docker</span>
-                  {"  Docker detected, grants broad access\n\n"}
                   <span style={{ color: TERMINAL_MUTED }}>Run </span>
                   <span style={{ color: "#6ee7b7" }}>cplt init --write</span>
                   <span style={{ color: TERMINAL_MUTED }}> to save</span>
@@ -1190,7 +1205,7 @@ function InitSection() {
               <VStack gap="space-16">
                 <div>
                   <Heading size="xsmall" level="3">
-                    15 ecosystem detectors
+                    17 ecosystem detectors
                   </Heading>
                   <BodyLong size="small" style={{ color: "var(--ax-text-neutral-subtle)", marginTop: "0.25rem" }}>
                     Each detector knows which sandbox permissions the ecosystem needs. Dangerous permissions get risk
@@ -1387,8 +1402,9 @@ function HowItWorksSection() {
             <code style={{ fontSize: CODE_SIZE }}>copilot</code>, <code style={{ fontSize: CODE_SIZE }}>opencode</code>,{" "}
             <code style={{ fontSize: CODE_SIZE }}>gemini</code>,{" "}
             <code style={{ fontSize: CODE_SIZE }}>antigravity</code>, <code style={{ fontSize: CODE_SIZE }}>pi</code>,{" "}
-            <code style={{ fontSize: CODE_SIZE }}>claude</code>, <code style={{ fontSize: CODE_SIZE }}>goose</code> and{" "}
-            <code style={{ fontSize: CODE_SIZE }}>shell</code>, the last being a sandboxed shell with no AI.
+            <code style={{ fontSize: CODE_SIZE }}>claude</code>, <code style={{ fontSize: CODE_SIZE }}>goose</code>,{" "}
+            <code style={{ fontSize: CODE_SIZE }}>dsh</code> and <code style={{ fontSize: CODE_SIZE }}>shell</code>, the
+            last being a sandboxed shell with no AI.
           </BodyLong>
 
           {/* Shell setup tip */}
@@ -1423,13 +1439,10 @@ function HowItWorksSection() {
                 className="p-4 font-mono leading-relaxed overflow-x-auto"
                 style={{ margin: 0, fontSize: CODE_SIZE, color: TERMINAL_FG, background: TERMINAL_BG }}
               >
-                <span style={{ color: "#6ee7b7" }}>✓</span>
-                {" Added to ~/.zshrc\n"}
-                <span style={{ color: "#6ee7b7" }}>✓</span> <span style={{ color: TERMINAL_MUTED }}>copilot</span>
-                {" → "}
-                <span style={{ color: "#6ee7b7" }}>cplt</span>
-                {" (sandboxed)\n\n"}
-                <span style={{ color: TERMINAL_MUTED }}>Restart your shell or: </span>
+                <span style={{ color: "#6ee7b7" }}>[cplt]</span>
+                {" Installed 'copilot' alias in ~/.zshrc\n"}
+                <span style={{ color: "#6ee7b7" }}>[cplt]</span>
+                <span style={{ color: TERMINAL_MUTED }}> Restart your shell or run: </span>
                 <span style={{ color: TERMINAL_FG }}>source ~/.zshrc</span>
               </pre>
             </div>

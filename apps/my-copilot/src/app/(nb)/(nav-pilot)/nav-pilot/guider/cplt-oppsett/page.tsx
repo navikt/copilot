@@ -94,8 +94,7 @@ export default function CpltOppsett() {
             Se over forslaget. Under <code className={code}>[propose]</code> står det som åpner sandkassen. Linjer som
             er kommentert ut, peker på filer i hjemmekatalogen din og hører hjemme i din egen konfig,{" "}
             <code className={code}>~/.config/cplt/config.toml</code>, ikke i repoet.{" "}
-            <code className={code}>cplt init</code> finner ikke alt: for Go foreslår den ingenting, og for Gradle
-            mangler localhost. Sammenlign med{" "}
+            <code className={code}>cplt init</code> finner ikke alt. Sammenlign med{" "}
             <a href="#stakker" className={linkClass}>
               tabellen under
             </a>
@@ -185,10 +184,7 @@ cplt init --write --merge                     # legger til nye funn, fjerner ing
             <BodyLong>
               Bruk <code className={code}>localhost</code>, ikke <code className={code}>ports</code>, for tjenester på
               din egen maskin. <code className={code}>ports</code> åpner porten mot alle maskiner på nettet, og på macOS
-              gir den ikke tilgang til localhost. Det gjelder også når <code className={code}>cplt init</code> foreslår{" "}
-              <code className={code}>ports</code> eller <code className={code}>cplt check net</code> foreslår{" "}
-              <code className={code}>--allow-port</code>: bruk <code className={code}>localhost</code> eller{" "}
-              <code className={code}>--allow-localhost</code>.
+              gir den ikke tilgang til localhost.
             </BodyLong>
           </Box>
         </VStack>
@@ -205,7 +201,8 @@ cplt init --write --merge                     # legger til nye funn, fjerner ing
             <code className={code}>~/.m2/settings.xml</code>. cplt stenger disse filene, så{" "}
             <code className={code}>npm install</code> svarer <code className={code}>401 Unauthorized</code> og Gradle
             finner ikke pakken. På Linux er bare <code className={code}>~/.npmrc</code> stengt. De to andre ligger i
-            mapper agenten har tilgang til.
+            mapper agenten har tilgang til. <code className={code}>cplt init</code> advarer om dette når{" "}
+            <code className={code}>.npmrc</code> i repoet henter pakker fra GitHub Packages.
           </BodyLong>
           <BodyLong>For npm og pnpm er det enklest å installere utenfor cplt før du starter agenten:</BodyLong>
           <CodeBlock compact>
@@ -271,6 +268,11 @@ cplt config set sandbox.pass_env pnpm_config_store_dir   # send den inn i sandka
             Installer utenfor cplt før du starter agenten:
           </BodyLong>
           <CodeBlock compact>{`mise install`}</CodeBlock>
+          <BodyLong>
+            <code className={code}>cplt init</code> minner deg om dette når repoet har en mise-konfig med{" "}
+            <code className={code}>[tools]</code>. <code className={code}>cplt doctor</code> gjør det samme når en
+            versjon mangler.
+          </BodyLong>
         </VStack>
       </section>
 
@@ -289,8 +291,10 @@ cplt config set sandbox.pass_env pnpm_config_store_dir   # send den inn i sandka
           </BodyLong>
           <BodyLong>
             <code className={code}>cplt init</code> foreslår <code className={code}>allow_docker</code> når repoet har
-            en <code className={code}>Dockerfile</code>. Ta den ut av forslaget. I Nav bygger CI-en imagene, så agenten
-            trenger ikke Docker. Start tjenestene selv i en egen terminal, og åpne portene agenten skal nå:
+            en compose-fil. Ta den ut av forslaget. For en <code className={code}>Dockerfile</code> alene foreslår den
+            ikke Docker, men advarer om at <code className={code}>docker build</code> ikke virker i sandkassen. I Nav
+            bygger CI-en imagene, så agenten trenger ikke Docker. Start tjenestene selv i en egen terminal, og åpne
+            portene agenten skal nå:
           </BodyLong>
           <CodeBlock compact>
             {`docker compose up -d                         # i en terminal utenfor cplt

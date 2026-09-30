@@ -1,5 +1,5 @@
 /**
- * Fetches cplt config keys from the source of truth (src/config.rs in navikt/cplt).
+ * Fetches cplt config keys from the source of truth (src/config/registry.rs in navikt/cplt).
  * Parses the Rust ConfigKeyInfo structs into a typed array.
  * Revalidates every hour to stay fresh without hammering GitHub.
  */
@@ -31,8 +31,10 @@ function unescapeRustString(value: string): string {
   return value.replace(/\\(["\\])/g, "$1");
 }
 
-function parseConfigKeys(source: string): CpltConfigKey[] {
+export function parseConfigKeys(rawSource: string): CpltConfigKey[] {
   const keys: CpltConfigKey[] = [];
+  // Some entries carry a `// comment` line between fields; drop those so the pattern below matches them.
+  const source = rawSource.replace(/^\s*\/\/.*$/gm, "");
   // default_display and description may contain escaped quotes (\") in the Rust source.
   const pattern =
     /section:\s*"([^"]+)",\s*key:\s*"([^"]+)",\s*value_type:\s*ConfigValueType::([a-zA-Z0-9]+),\s*dangerous:\s*(true|false),\s*default_display:\s*"((?:[^"\\]|\\.)*)",\s*description:\s*"((?:[^"\\]|\\.)+)",/g;
@@ -52,7 +54,7 @@ function parseConfigKeys(source: string): CpltConfigKey[] {
     if (kind === "U16Array") typeStr = "integer[]";
     if (kind === "Bool") typeStr = "bool";
     if (kind === "StrArray") typeStr = "string[]";
-    if (kind === "ArrayOfTables") typeStr = "string[]"; // Hack for now
+    if (kind === "ArrayOfTables") typeStr = "table[]";
 
     keys.push({
       key: `${section}.${key}`,

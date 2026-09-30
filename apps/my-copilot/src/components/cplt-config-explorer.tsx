@@ -16,16 +16,62 @@ const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
 
 const CODE_SIZE = "0.75rem";
 
+/* Keys the generic example below gets wrong: enum values, paths, repo- or
+   local-only keys, and values `config set` refuses without --force
+   (security_confirmation in navikt/cplt src/config/editing.rs). */
+const EXAMPLE_OVERRIDES: Record<string, string> = {
+  "proxy.enabled": "cplt config set proxy.enabled false --force",
+  "proxy.blocked_domains": 'cplt config set proxy.blocked_domains "~/.config/cplt/blocked-domains.txt"',
+  "proxy.allowed_domains": 'cplt config set proxy.allowed_domains "~/.config/cplt/allowed-domains.txt"',
+  "proxy.log_file": 'cplt config set proxy.log_file "~/.cache/cplt/proxy.log"',
+  "proxy.log_level": "cplt config set proxy.log_level blocked",
+  "proxy.timeout": "cplt config set proxy.timeout 120",
+  "proxy.upstream": 'cplt config set proxy.upstream "http://proxy.example.com:8080"',
+  "proxy.upstream_no_proxy": "cplt config set proxy.upstream_no_proxy intern.example.com",
+  "proxy.allow_private_domains": "cplt config set proxy.allow_private_domains intern.example.com",
+  "allow.exec": 'cplt config set allow.exec "/opt/toolchain"',
+  "allow.socket": 'cplt config set allow.socket "~/.colima/default/docker.sock"',
+  "allow.domains": "cplt config set allow.domains registry.example.com",
+  "deny.paths": 'cplt config set deny.paths "~/secrets"',
+  "deny.env": "cplt config set --repo deny.env VAULT_TOKEN",
+  "sandbox.agent": "cplt config set sandbox.agent opencode",
+  "sandbox.preset": "cplt config set sandbox.preset strict",
+  "sandbox.validate": "cplt config set sandbox.validate false --force",
+  "sandbox.audit": "cplt config set sandbox.audit false --force",
+  "sandbox.pass_env": "cplt config set sandbox.pass_env MY_VAR",
+  "sandbox.repo_dirs": "cplt config set --local sandbox.repo_dirs ../other-repo",
+  "sandbox.allow_cache_exec": "cplt config set sandbox.allow_cache_exec ms-playwright",
+  "sandbox.worktree_walk_max_dirs": "cplt config set sandbox.worktree_walk_max_dirs 200000",
+  "gh_guard.enabled": "cplt config set gh_guard.enabled false --force",
+  "gh_guard.mode": "cplt config set gh_guard.mode audit --force",
+  "gh_guard.scope_check": "cplt config set gh_guard.scope_check false --force",
+  "gh_guard.block_auth_token": "cplt config set gh_guard.block_auth_token false --force",
+  "gh_guard.unknown_command": "cplt config set gh_guard.unknown_command allow --force",
+  "git_guard.enabled": "cplt config set git_guard.enabled false --force",
+  "git_guard.mode": "cplt config set git_guard.mode audit --force",
+  "git_guard.prevent_push": "cplt config set git_guard.prevent_push false --force",
+  "git_guard.prevent_force_push": "cplt config set git_guard.prevent_force_push false --force",
+  // `config set` cannot write an array of tables: add a [[git_guard.allow_push]] block to the config file.
+  "git_guard.allow_push": "cplt config explain git_guard.allow_push",
+  "shell.skip": "cplt config set shell.skip goose",
+};
+
 function makeExample(item: CpltConfigKey): string {
+  const override = EXAMPLE_OVERRIDES[item.key];
+  if (override) return override;
   switch (item.type) {
-    case "bool":
-      return `cplt config set ${item.key} ${item.default === "true" ? "false" : "true"}`;
+    case "bool": {
+      const value = item.default === "true" ? "false" : "true";
+      // Turning on a dangerous key needs --force.
+      return `cplt config set ${item.key} ${value}${item.dangerous && value === "true" ? " --force" : ""}`;
+    }
     case "integer":
       return `cplt config set ${item.key} 8080`;
     case "string":
       return `cplt config set ${item.key} "value"`;
     case "string[]":
-      return `cplt config set ${item.key} "value1,value2"`;
+      // One value per call: `config set` refuses a comma.
+      return `cplt config set ${item.key} "~/shared-libs"`;
     case "integer[]":
       return `cplt config set ${item.key} 3000`;
     default:
