@@ -154,6 +154,8 @@ func TestSetMCPServerToolsKeepsAsk(t *testing.T) {
 			`{"*":"deny","` + p + `*":"allow"}`},
 		"all tools under a deny, a tool asks": {`{"*": "deny", "` + p + `read_file": "ask"}`, MCPToolChoice{All: true},
 			`{"*":"deny","` + p + `*":"allow","` + p + `read_file":"ask"}`},
+		"all tools under a deny, a narrow glob asks": {`{"*": "deny", "` + p + `?": "ask"}`, MCPToolChoice{All: true},
+			`{"*":"deny","` + p + `?":"ask","` + p + `*":"allow"}`},
 		"an object rule asks": {`{"` + p + `read_file": {"*": "ask"}}`, MCPToolChoice{Tools: []string{"read_file"}},
 			`{"` + p + `*":"deny","` + p + `read_file":"ask"}`},
 		"no ask": {`{"bash": "ask"}`, MCPToolChoice{Tools: []string{"read_file"}},

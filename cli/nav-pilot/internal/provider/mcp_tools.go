@@ -163,7 +163,16 @@ func setOpenCodeRules(top *jsonObject, key string, e MCPServerEntry, c MCPToolCh
 		// rules are gone gets one, and an allow an ask now covers is written
 		// again.
 		after := openCodeStringRules(perm)
-		if openCodeVerdict(after, all) == "deny" {
+		// Denied means every tool resolves to deny. The wildcard text
+		// itself is only the probe without a tool list.
+		ids := []string{all}
+		if len(e.Tools) > 0 {
+			ids = nil
+			for _, t := range e.Tools {
+				ids = append(ids, openCodeToolID(key, t))
+			}
+		}
+		if !slices.ContainsFunc(ids, func(id string) bool { return openCodeVerdict(after, id) != "deny" }) {
 			rules = append(rules, [2]string{all, "allow"})
 			after = append(after, [2]string{all, "allow"})
 		}
@@ -176,7 +185,9 @@ func setOpenCodeRules(top *jsonObject, key string, e MCPServerEntry, c MCPToolCh
 		}
 	}
 	for _, r := range rules {
-		if r[1] == "allow" && openCodeVerdict(before, r[0]) == "ask" {
+		// The server's allow is not a tool: the asks under it are written
+		// after it.
+		if r[1] == "allow" && r[0] != all && openCodeVerdict(before, r[0]) == "ask" {
 			r[1] = "ask"
 		}
 		v, _ := json.Marshal(r[1])
