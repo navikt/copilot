@@ -66,6 +66,12 @@ Kafka- og Rust-agentene flyttes til Sol, mens `kafka-topic` og `nais-manifest` f
 
 Nye målinger kjøres som suiter i golden-harnesset og vises på modellsiden på ki-utvikling.nav.no. [golden-baselines/README.md](golden-baselines/README.md) forklarer hvordan du kjører en benchmark og legger til en modell.
 
+### GPT-6.1 Sol spør ikke i fase 1 (30. september 2026)
+
+I batch 1 stoppet GPT-6.1 Sol High riktig etter fase 1 i fem av fem kjøringer, uten å endre noen filer. Men den skrev de åpne punktene, som personvern og tilgang, som en nummerert liste med påstander og ikke som spørsmål. Derfor feilet test 2, som teller spørsmål, og test 4 fikk aldri kjørt sin andre tur. Agentfila ber om spørsmål i fase 1 («Ask questions … All relevant blind spots raised as questions»). GPT-6.1 Sol Low gjorde det samme i test 2 i tre av fem kjøringer.
+
+Sjekken er ikke løsnet. Tallene per transkript står i [t2-questions.psv](golden-baselines/2026-09-30-batch1/t2-questions.psv), og resultatene for High i [planning-gpt-6.1-sol-high-results.psv](golden-baselines/2026-09-30-batch1/planning-gpt-6.1-sol-high-results.psv).
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.

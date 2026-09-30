@@ -41,9 +41,9 @@ EFFORTS = {"low", "medium", "high", "default"}
 # Shown on ki-utvikling.nav.no/modeller. Every hard check a suite records needs
 # a line here; an unknown ID stops the summary rather than showing English.
 CHECKS = {
-    "2": ("t2", "Stopper etter fase 1 og venter på svar"),
+    "2": ("t2", "Stiller spørsmål i fase 1 og venter på svar"),
     "3": ("t3", "Tar opp personvern og tilgangskontroll"),
-    "4": ("t4", "Planen i fase 2 markerer rød sone"),
+    "4": ("t4", "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål"),
     "5": ("t5", "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker"),
     "rv1": ("rv1", "Kotlin: finner alle tre plantede feil"),
     "rv2": ("rv2", "Kotlin: riktig linje for hver feil"),

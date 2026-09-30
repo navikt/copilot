@@ -10,6 +10,59 @@
       "effort": "low",
       "ran_at": "low",
       "cli_version": "1.0.90-5",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 26.923,
+        "mean": 27.424
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 83.1
+      },
+      "source": "docs/golden-baselines/2026-09-30-batch1/coding-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "coding",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.90-5",
       "n": 1,
       "smoke": true,
       "checks": [
@@ -53,6 +106,112 @@
         "median": 86.3
       },
       "source": "docs/golden-baselines/2026-09-30-smoke/coding-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "coding",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "high",
+      "ran_at": "high",
+      "cli_version": "1.0.90-5",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 31.239,
+        "mean": 31.025
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 119.4
+      },
+      "source": "docs/golden-baselines/2026-09-30-batch1/coding-gpt-6.1-sol-high.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "coding",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.90-5",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 28.869,
+        "mean": 28.876
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 93.3
+      },
+      "source": "docs/golden-baselines/2026-09-30-batch1/coding-gpt-6.1-sol-low.txt"
     },
     {
       "date": "2026-09-30",
@@ -106,12 +265,55 @@
       "effort": "low",
       "ran_at": "low",
       "cli_version": "1.0.90-5",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 5
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 5
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 3
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 28.925,
+        "mean": 29.36
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 101.9
+      },
+      "source": "docs/golden-baselines/2026-09-30-batch1/planning-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "planning",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.90-5",
       "n": 1,
       "smoke": true,
       "checks": [
         {
           "id": "t2",
-          "description": "Stopper etter fase 1 og venter på svar",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
           "passed": 1
         },
         {
@@ -121,7 +323,7 @@
         },
         {
           "id": "t4",
-          "description": "Planen i fase 2 markerer rød sone",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
           "passed": 1
         },
         {
@@ -139,6 +341,49 @@
         "median": 105.8
       },
       "source": "docs/golden-baselines/2026-09-30-smoke/planning-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-09-30",
+      "suite": "planning",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "high",
+      "ran_at": "high",
+      "cli_version": "1.0.90-5",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 0
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 5
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 0
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 30.686,
+        "mean": 30.253
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 134.7
+      },
+      "source": "docs/golden-baselines/2026-09-30-batch1/planning-gpt-6.1-sol-high.txt"
     },
     {
       "date": "2026-09-30",
