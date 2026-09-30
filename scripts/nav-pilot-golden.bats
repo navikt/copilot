@@ -458,3 +458,22 @@ run_suite() {
   run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
   [[ "$output" == pending* ]]
 }
+
+# planning's t4b only runs when t4a held an interview, so a whole arm can have
+# fewer rows for t4b than runs. Done means every run left rows, not every prompt.
+@test "matrix: an arm with a gated prompt missing from one run is done" {
+  export BENCHMARK_BASELINES="$SHIM/baselines"
+  out="$BENCHMARK_BASELINES/gated"
+  mkdir -p "$out"
+  M="$SHIM/gated.matrix"
+  printf 'planning gpt-6-sol low 2\n' >"$M"
+  b="$out/planning-gpt-6-sol-low"
+  echo '# repeats: 2' >"$b.txt"
+  : >"$b-results.psv"
+  printf 't4a|1|0|ok\nt4b|1|0|ok\nt4a|2|0|ok\n' >"$b-attempts.psv"
+  run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
+  [[ "$output" == done* ]]
+  printf 't4a|1|0|ok\nt4b|1|0|ok\n' >"$b-attempts.psv"   # run 2 never happened
+  run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
+  [[ "$output" == pending* ]]
+}
