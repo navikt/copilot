@@ -101,6 +101,10 @@ type NavRegistryMeta struct {
 	// an OAuth endpoint. Bare host names; nav-pilot asks the user before
 	// allowing them in cplt's sandbox.
 	SandboxHosts []string `json:"sandboxHosts,omitempty"`
+	// ToolRisk classes the tools that are more than a read: "write",
+	// "external" or "host-exec". A tool with no entry is a read. nav-pilot
+	// turns external and host-exec tools off unless the user picks them.
+	ToolRisk map[string]string `json:"toolRisk,omitempty"`
 }
 
 type ResponseMeta struct {
@@ -137,6 +141,7 @@ type StaticServerData struct {
 	Examples          []UsageExample     `json:"examples,omitempty"`
 	SetupInstructions []SetupInstruction `json:"setupInstructions,omitempty"`
 	SandboxHosts      []string           `json:"sandboxHosts,omitempty"`
+	ToolRisk          map[string]string  `json:"toolRisk,omitempty"`
 	Remotes           []Transport        `json:"remotes,omitempty"`
 	Packages          []Package          `json:"packages,omitempty"`
 }

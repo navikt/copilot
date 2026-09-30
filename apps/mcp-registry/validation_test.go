@@ -869,6 +869,33 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 		}
 	})
 
+	t.Run("tool risk", func(t *testing.T) {
+		server := func(tools []string, risk map[string]string, url string) *StaticRegistryData {
+			s := StaticServerData{Name: "io.github.test/server", Description: "Test Description", Version: "1.0.0", Tools: tools, ToolRisk: risk}
+			if url != "" {
+				s.Remotes = []Transport{{Type: "sse", URL: url}}
+			}
+			return &StaticRegistryData{Servers: []StaticServerData{s}}
+		}
+		for name, tc := range map[string]struct {
+			reg *StaticRegistryData
+			ok  bool
+		}{
+			"classed tool":            {server([]string{"run"}, map[string]string{"run": "host-exec"}, ""), true},
+			"every class":             {server([]string{"a", "b", "c", "d"}, map[string]string{"a": "read", "b": "write", "c": "external", "d": "host-exec"}, ""), true},
+			"tool not listed":         {server([]string{"run"}, map[string]string{"other": "write"}, ""), false},
+			"unknown class":           {server([]string{"run"}, map[string]string{"run": "dangerous"}, ""), false},
+			"localhost without tools": {server(nil, nil, "http://127.0.0.1:3846/mcp"), false},
+			"localhost name":          {server(nil, nil, "http://localhost:3846/mcp"), false},
+			"localhost with tools":    {server([]string{"read_source"}, nil, "http://127.0.0.1:3846/mcp"), true},
+			"remote without tools":    {server(nil, nil, "https://mcp.example.com/mcp"), true},
+		} {
+			if err := validateRegistry(tc.reg); (err == nil) != tc.ok {
+				t.Errorf("%s: valid=%v, got %v", name, tc.ok, err)
+			}
+		}
+	})
+
 	t.Run("setup instructions", func(t *testing.T) {
 		registryWithInstruction := func(instruction SetupInstruction) *StaticRegistryData {
 			return &StaticRegistryData{Servers: []StaticServerData{{
