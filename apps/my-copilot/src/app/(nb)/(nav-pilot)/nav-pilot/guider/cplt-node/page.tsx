@@ -121,9 +121,9 @@ cplt --pass-env NODE_AUTH_TOKEN                    # bare denne økten`}
           </LinkableHeading>
           <BodyLong>
             Skript som <code className={code}>postinstall</code> og <code className={code}>prepare</code> kan kjøre hva
-            som helst når en pakke installeres, og er en vanlig vei inn for skadelig kode. cplt slår dem av for npm.{" "}
-            <code className={code}>npm run build</code>, <code className={code}>npm test</code> og andre skript du
-            kjører selv, virker som vanlig.
+            som helst når en pakke installeres, og er en vanlig vei inn for skadelig kode. cplt slår dem av for npm,
+            pnpm og yarn 1. <code className={code}>npm run build</code>, <code className={code}>npm test</code> og andre
+            skript du kjører selv, virker som vanlig.
           </BodyLong>
           <BodyLong>
             Pakker som bygger noe ved installasjon, som <code className={code}>sharp</code>,{" "}
@@ -140,17 +140,14 @@ cplt config set --repo sandbox.allow_lifecycle_scripts true --force   # i .cplt.
             sandkassen.
           </BodyLong>
           <BodyLong>
-            pnpm 11 og nyere og yarn 1 følger ikke sperren i dag, så prosjektets egne skript i{" "}
-            <code className={code}>package.json</code> kjører også i cplt. pnpm stopper selv skriptene til
-            avhengighetene, og sier <code className={code}>ERR_PNPM_IGNORED_BUILDS</code> til du godkjenner dem med{" "}
-            <code className={code}>pnpm approve-builds</code>. yarn 1 kjører alle skriptene. Vil du stoppe dem, si det
-            til pakkebehandleren selv:
+            Sperren gjelder også pnpm 11 og nyere og yarn 1, men ikke yarn 2 og nyere: de kjører prosjektets eget
+            postinstall. Bruker du cplt eldre enn <code className={code}>2026.09.30-132931-5b511d2</code>, kjører de
+            prosjektets egne skript. Da må du si fra selv:
           </BodyLong>
           <CodeBlock compact>
             {`pnpm install --ignore-scripts
 yarn install --ignore-scripts`}
           </CodeBlock>
-          <BodyLong>En rettelse i cplt er på vei, så sperren gjelder pnpm og yarn 1 også.</BodyLong>
         </VStack>
       </section>
 
