@@ -381,9 +381,15 @@ func runBoundedCombined(name string, args ...string) ([]byte, error) {
 // call returns on time whatever the process tree does. Every doctor spawn
 // inherits the fix, since every one of them comes through here.
 func runBoundedTimeout(timeout time.Duration, combined bool, name string, args ...string) ([]byte, error) {
+	return runBoundedIn("", timeout, combined, name, args...)
+}
+
+// runBoundedIn is runBoundedTimeout in dir ("" for the working directory).
+func runBoundedIn(dir string, timeout time.Duration, combined bool, name string, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = dir
 	cmd.WaitDelay = time.Second
 	if combined {
 		return cmd.CombinedOutput()

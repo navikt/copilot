@@ -431,9 +431,17 @@ func cmdDoctor() error {
 	if cpltPath != "" {
 		// Its own deadline: an earlier slow check must not be able to starve
 		// this one into an empty read, which would print a false "trusted".
-		cfgOut, cfgErr := runBoundedCombined(cpltPath, "config", "show")
-		if reportCpltProjectConfig(string(cfgOut), cfgErr) {
-			hasErrors = true
+		// cplt's own trust verdict (navikt/cplt#644); an older cplt without
+		// `trust show --json` gets the config show read.
+		if t, ok := readCpltTrust(cpltPath, ""); ok {
+			if reportCpltTrust(t) {
+				hasErrors = true
+			}
+		} else {
+			cfgOut, cfgErr := runBoundedCombined(cpltPath, "config", "show")
+			if reportCpltProjectConfig(string(cfgOut), cfgErr) {
+				hasErrors = true
+			}
 		}
 
 		// Enforcement, probed rather than inferred. Everything above this line
@@ -562,9 +570,17 @@ func reportCpltProjectConfig(cfgOut string, cfgErr error) bool {
 	// cplt prints this header only for a .cplt.toml committed at the repo
 	// root, wherever in the repo it is run. A file check in the working
 	// directory would miss it from a subdirectory.
-	switch {
-	case strings.Contains(cfgOut, "Repo Config (.cplt.toml)"):
+	if strings.Contains(cfgOut, "Repo Config (.cplt.toml)") {
 		fmt.Printf("    %s .cplt.toml rules are trusted\n", green("✓"))
+		return false
+	}
+	return reportNoRepoConfig()
+}
+
+// reportNoRepoConfig is doctor's line for a repository, or a directory, with
+// no committed .cplt.toml.
+func reportNoRepoConfig() bool {
+	switch {
 	case source.FindGitRoot(".") == "":
 		fmt.Printf("    • Not in a git repository\n")
 	default:
