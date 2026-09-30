@@ -355,3 +355,33 @@ func TestOfferLeaveStrict(t *testing.T) {
 		})
 	}
 }
+
+// Choosing strict through the wizard writes the very state strictByOurAdvice
+// matches. That is a choice, so the next launch must not say "we no longer
+// recommend it".
+func TestChoosingStrictDoesNotTriggerLeaveOffer(t *testing.T) {
+	isolatedConfig(t)
+	statefulCplt(t, "")
+	cliPath, err := findCplt()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = captureStdout(func() {
+		if err := applyStrictPreset(cliPath, "", ""); err != nil {
+			t.Fatal(err)
+		}
+	})
+	cfgPath := filepath.Join(t.TempDir(), "config.toml")
+	writeTestFile(t, cfgPath, fmt.Sprintf("[sandbox]\npreset = \"strict\"\n[proxy]\nallowed_domains = %q\n", navAllowedDomainsPath()))
+	t.Setenv("CPLT_CONFIG", cfgPath)
+	prevI, prevC, prevAsk := isInteractive, cpltInstalled, askLeaveStrict
+	t.Cleanup(func() { isInteractive, cpltInstalled, askLeaveStrict = prevI, prevC, prevAsk })
+	isInteractive = func() bool { return true }
+	cpltInstalled = func() bool { return true }
+	asked := 0
+	askLeaveStrict = func(yes *bool) error { asked++; return nil }
+	_ = captureStdout(offerLeaveStrict)
+	if asked != 0 {
+		t.Errorf("asked %d times after a deliberate strict choice, want 0", asked)
+	}
+}

@@ -302,6 +302,8 @@ func applyStrictPreset(cliPath, path, host string) error {
 		return err
 	}
 	fmt.Printf("%s cplt sandbox.preset = %s\n", domain.Green("✓"), cpltStrictPreset)
+	// A deliberate choice, not nav-pilot's old advice: never offer to leave it.
+	providerpkg.FirstTime("leave-strict-offer")
 	return nil
 }
 
