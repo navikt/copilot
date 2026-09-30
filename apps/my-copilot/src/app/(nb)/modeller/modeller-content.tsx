@@ -85,7 +85,12 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
     );
   }
   // Colour follows the model across every chart on the page.
-  const models = [...new Set(summary.runs.map((run) => modelName(run.model)))];
+  // Only plotted runs take a palette slot, so the fixed order is not spent on models no chart shows.
+  const models = [
+    ...new Set(
+      summary.runs.filter((run) => !run.smoke && knownCredits(run) !== null).map((run) => modelName(run.model))
+    ),
+  ];
 
   return (
     <VStack gap="space-24">
