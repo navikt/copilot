@@ -3,9 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -113,6 +115,23 @@ func validateServerEntry(server *StaticServerData, index int, existingNames map[
 	for j, host := range server.SandboxHosts {
 		if !hostRegex.MatchString(host) {
 			return fmt.Errorf("server[%d].sandboxHosts[%d]: '%s' must be a bare lowercase host name (e.g., 'api.figma.com')", index, j, host)
+		}
+	}
+
+	for tool, risk := range server.ToolRisk {
+		if !slices.Contains(server.Tools, tool) {
+			return fmt.Errorf("server[%d].toolRisk: '%s' is not in the server's tools", index, tool)
+		}
+		if !slices.Contains([]string{"read", "write", "external", "host-exec"}, risk) {
+			return fmt.Errorf("server[%d].toolRisk.%s: '%s' must be read, write, external or host-exec", index, tool, risk)
+		}
+	}
+
+	// A server an app runs on the user's machine works outside the sandbox,
+	// so nav-pilot can only leave its risky tools off when it knows them.
+	for j, remote := range server.Remotes {
+		if u, err := url.Parse(remote.URL); err == nil && isLoopbackHost(u.Hostname()) && len(server.Tools) == 0 {
+			return fmt.Errorf("server[%d].remotes[%d]: a localhost server must list its tools", index, j)
 		}
 	}
 
@@ -322,4 +341,9 @@ func validateRepository(repo *Repository, index int) error {
 		return fmt.Errorf("server[%d]: repository.source is required", index)
 	}
 	return nil
+}
+
+func isLoopbackHost(host string) bool {
+	ip := net.ParseIP(host)
+	return strings.EqualFold(host, "localhost") || (ip != nil && ip.IsLoopback())
 }

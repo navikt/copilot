@@ -53,10 +53,31 @@ func cmdMCP(args []string) error {
 	var client string
 	var jsonOut bool
 	var pos []string
+	var topts mcpToolOpts
+	toolFlag := false
 	for i := 0; i < len(args); i++ {
 		switch a := args[i]; a {
 		case "--json":
 			jsonOut = true
+		case "--tools":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--tools requires a comma-separated list of tool names")
+			}
+			i++
+			topts.tools = []string{}
+			for _, t := range strings.Split(args[i], ",") {
+				if t = strings.TrimSpace(t); t != "" && !slices.Contains(topts.tools, t) {
+					topts.tools = append(topts.tools, t)
+				}
+			}
+			if len(topts.tools) == 0 {
+				return fmt.Errorf("--tools needs at least one tool name; to remove a server: nav-pilot mcp disable <name>")
+			}
+			toolFlag = true
+		case "--all-tools":
+			topts.all, toolFlag = true, true
+		case "--allow-host-exec":
+			topts.allowHostExec, toolFlag = true, true
 		case "--client":
 			if i+1 >= len(args) {
 				return fmt.Errorf("--client requires a value (copilot or opencode)")
@@ -79,6 +100,12 @@ func cmdMCP(args []string) error {
 	if len(pos) == 0 {
 		pos = []string{"list"}
 	}
+	if toolFlag && pos[0] != "enable" {
+		return errMCPToolsFlag
+	}
+	if topts.all && topts.tools != nil {
+		return fmt.Errorf("--tools and --all-tools: pick one")
+	}
 	switch pos[0] {
 	case "list", "ls":
 		if len(pos) > 1 {
@@ -98,7 +125,7 @@ func cmdMCP(args []string) error {
 			return err
 		}
 		if pos[0] == "enable" {
-			return cmdMCPEnable(pos[1:], clients)
+			return cmdMCPEnable(pos[1:], clients, topts)
 		}
 		return cmdMCPDisable(pos[1:], clients)
 	}
@@ -106,7 +133,7 @@ func cmdMCP(args []string) error {
 }
 
 const mcpUsage = `Usage: nav-pilot mcp [list] [--json]
-       nav-pilot mcp enable <name>... [--client copilot|opencode]
+       nav-pilot mcp enable <name>... [--client copilot|opencode] [--tools a,b | --all-tools] [--allow-host-exec]
        nav-pilot mcp disable <name>... [--client copilot|opencode]`
 
 // mcpProblem is one thing that keeps a configured server from working, and
@@ -128,12 +155,16 @@ type mcpHostRow struct {
 }
 
 type mcpServerRow struct {
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	Status      string       `json:"status"`
-	Copilot     bool         `json:"copilot"`
-	OpenCode    bool         `json:"opencode"`
-	Hosts       []mcpHostRow `json:"hosts,omitempty"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Status      string `json:"status"`
+	Copilot     bool   `json:"copilot"`
+	OpenCode    bool   `json:"opencode"`
+	// Tools is which tools are on: all, read-only (GitHub), "n of m".
+	Tools string `json:"tools,omitempty"`
+	// HostExec is the tools on that run outside the sandbox.
+	HostExec []string     `json:"hostExec,omitempty"`
+	Hosts    []mcpHostRow `json:"hosts,omitempty"`
 }
 
 type mcpReport struct {
@@ -185,7 +216,7 @@ func printMCPReport(rep mcpReport) {
 	}
 	fmt.Printf("\n%s %s\n", bold("Servers in Nav's MCP registry"), dim(rep.Registry))
 	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "  NAME\tCOPILOT\tOPENCODE\tSTATUS\tDESCRIPTION")
+	fmt.Fprintln(tw, "  NAME\tCOPILOT\tOPENCODE\tTOOLS\tSTATUS\tDESCRIPTION")
 	on := func(b bool) string {
 		if b {
 			return "on"
@@ -197,7 +228,11 @@ func printMCPReport(rep mcpReport) {
 		if status == "" {
 			status = "active"
 		}
-		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\n", safe(s.Name, 64), on(s.Copilot), on(s.OpenCode), safe(status, 16), safe(s.Description, 70))
+		tools := s.Tools
+		if tools == "" {
+			tools = "-"
+		}
+		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\n", safe(s.Name, 64), on(s.Copilot), on(s.OpenCode), tools, safe(status, 16), safe(s.Description, 70))
 	}
 	_ = tw.Flush()
 	fmt.Printf("\nEnable: %s\n", bold("nav-pilot mcp enable <name>... [--client copilot|opencode]"))
@@ -253,6 +288,48 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 			rep.Servers = append(rep.Servers, row)
 			continue
 		}
+		// Which tools are on, per client; the row shows the widest.
+		var toolProblems []mcpProblem
+		widest := -1
+		var narrowClients []string
+		fullGH := false
+		for _, client := range []string{providerpkg.MCPClientCopilot, providerpkg.MCPClientOpenCode} {
+			if (client == providerpkg.MCPClientCopilot && !row.Copilot) || (client == providerpkg.MCPClientOpenCode && !row.OpenCode) {
+				continue
+			}
+			i, ok := mcpToolsOf(e, client)
+			if !ok {
+				continue
+			}
+			if n := len(i.state.On); i.state.All || n > widest {
+				widest, row.Tools = n, i.cell(e)
+				if i.state.All {
+					widest = len(e.Tools) + 1
+				}
+			}
+			fullGH = fullGH || i.fullGH
+			if len(i.hostExec) > 0 {
+				narrowClients = append(narrowClients, client)
+			}
+			for _, t := range i.hostExec {
+				if !slices.Contains(row.HostExec, t) {
+					row.HostExec = append(row.HostExec, t)
+				}
+			}
+			toolProblems = append(toolProblems, mcpToolProblems(e, client, i)...)
+		}
+		// The flags are either client's, whichever is widest.
+		if row.Tools != "" {
+			if row.Tools == "read-only" && fullGH {
+				row.Tools = "all"
+			}
+			if len(row.HostExec) > 0 {
+				row.Tools += " ⚠ host-exec"
+			}
+			if fullGH {
+				row.Tools += " ⚠ full endpoint"
+			}
+		}
 		if !e.Usable() {
 			add(mcpProblem{Server: e.Name, Problem: "retired in the registry (status " + e.Status + "); the org policy will stop running it", Fix: "nav-pilot mcp disable " + e.Name})
 		}
@@ -260,6 +337,17 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 		for _, u := range mcpEntryURLs(e) {
 			h, p := mcpRemoteHost(e.Name, u, cpltPath, mode, st, probe)
 			row.Hosts = append(row.Hosts, h)
+			if port, ok := strings.CutPrefix(fixOf(p), "cplt config set allow.localhost "); ok && len(row.HostExec) > 0 {
+				// The port is a way out of the sandbox while those tools
+				// are on: narrow first, then open it.
+				p.Problem += "; ⚠ " + mcpLoopbackWarning(e, port, row.HostExec)
+				// Every client that has them, before the port opens.
+				var fixes []string
+				for _, c := range narrowClients {
+					fixes = append(fixes, mcpNarrowFix(e, c))
+				}
+				p.Fix = strings.Join(fixes, " && ") + " && " + p.Fix
+			}
 			if p != nil {
 				add(*p)
 			}
@@ -273,6 +361,12 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 		}
 		for _, p := range mcpSetupProblems(e, cpltPath) {
 			add(p)
+		}
+		for _, p := range toolProblems {
+			// A localhost fix above already narrows first.
+			if !slices.ContainsFunc(rep.Problems, func(q mcpProblem) bool { return q.Server == p.Server && strings.Contains(q.Fix, p.Fix) }) {
+				add(p)
+			}
 		}
 		rep.Servers = append(rep.Servers, row)
 	}
@@ -614,7 +708,7 @@ func mcpFail(name string, err error) {
 	fmt.Fprintf(os.Stderr, "%s %s: %v\n", red("✗"), safe(name, 64), err)
 }
 
-func cmdMCPEnable(names []string, clients []string) error {
+func cmdMCPEnable(names []string, clients []string, topts mcpToolOpts) error {
 	registry, entries, stale, err := mcpRegistryServers()
 	if err != nil {
 		return fmt.Errorf("could not reach Nav's MCP registry, so nothing was changed: %w", err)
@@ -632,16 +726,35 @@ func cmdMCPEnable(names []string, clients []string) error {
 			failed++
 			continue
 		}
+		choice, err := mcpChooseTools(e, topts)
+		if err != nil {
+			mcpFail(e.Name, err)
+			failed++
+			continue
+		}
 		ok := true
+		var wrote []string
 		for _, client := range clients {
-			if err := mcpEnableIn(client, e); err != nil {
+			w, err := mcpEnableIn(client, e, choice, topts.explicit())
+			if err != nil {
 				mcpFail(e.Name+" ("+client+")", err)
 				ok = false
+			}
+			if w {
+				wrote = append(wrote, client)
 			}
 		}
 		if !ok {
 			failed++
 			continue
+		}
+		// Only about entries written now: an existing one kept its tools.
+		if len(wrote) > 0 && !topts.explicit() && !choice.All && len(choice.Tools) < len(e.Tools) {
+			hint := "nav-pilot mcp enable " + e.Name + " --tools <a,b>"
+			if len(e.HostExecTools()) > 0 {
+				hint += " --allow-host-exec"
+			}
+			fmt.Printf("%s In the new %s entry, tools that act in other systems or run outside the sandbox are off. To pick them: %s\n", dim("ℹ"), strings.Join(wrote, " and "), bold(hint))
 		}
 		if !slices.ContainsFunc(enabled, func(x providerpkg.MCPServerEntry) bool { return x.Name == e.Name }) {
 			enabled = append(enabled, e)
@@ -668,35 +781,65 @@ func cmdMCPEnable(names []string, clients []string) error {
 	return nil
 }
 
-func mcpEnableIn(client string, e providerpkg.MCPServerEntry) error {
-	if key := providerpkg.MCPConfigKeyFor(client, e); key != "" && key != e.Name {
+// mcpEnableIn writes the server into the client's config with the chosen
+// tools. An entry already there is kept, unless the user chose tools
+// (explicit): then only its tools change. The bool is whether it wrote a
+// new entry.
+func mcpEnableIn(client string, e providerpkg.MCPServerEntry, c providerpkg.MCPToolChoice, explicit bool) (bool, error) {
+	key := providerpkg.MCPConfigKeyFor(client, e)
+	if key != "" && explicit {
+		ch, err := providerpkg.SetMCPServerTools(client, key, e, c)
+		if errors.Is(err, providerpkg.ErrMCPConfigHasComments) {
+			return false, fmt.Errorf("%s has comments or trailing commas, which a rewrite would lose, so nav-pilot did not change it", ch.Path)
+		}
+		if err != nil {
+			return false, err
+		}
+		backup := ""
+		if ch.Backup != "" {
+			backup = " " + dim("(previous file: "+ch.Backup+")")
+		}
+		fmt.Printf("%s Set the tools of %s for %s in %s: %s%s\n", green("✓"), bold(e.Name), client, ch.Path, mcpDescribeChoice(e, c), backup)
+		return false, nil
+	}
+	if key != "" && key != e.Name {
 		fmt.Printf("%s %s is already enabled for %s, as %s\n", dim("•"), e.Name, client, safe(key, 64))
-		return nil
+		return false, nil
 	}
-	entry, err := providerpkg.MCPClientEntry(client, e)
+	entry, err := providerpkg.MCPClientEntry(client, e, c)
 	if err != nil {
-		return err
+		return false, err
 	}
-	ch, err := providerpkg.SetMCPServer(client, e.Name, entry)
+	ch, err := providerpkg.SetMCPServer(client, e.Name, entry, e, c)
 	if errors.Is(err, providerpkg.ErrMCPConfigHasComments) {
 		key := "mcpServers"
 		if client == providerpkg.MCPClientOpenCode {
 			key = "mcp"
 		}
 		snippet, _ := json.MarshalIndent(map[string]json.RawMessage{e.Name: entry}, "", "  ")
-		return fmt.Errorf("%s has comments or trailing commas, which a rewrite would lose, so nav-pilot did not change it. Add this under %q yourself:\n%s", ch.Path, key, snippet)
+		msg := fmt.Sprintf("%s has comments or trailing commas, which a rewrite would lose, so nav-pilot did not change it. Add this under %q yourself:\n%s", ch.Path, key, snippet)
+		if rules := providerpkg.OpenCodeRules(e.Name, c); client == providerpkg.MCPClientOpenCode && len(rules) > 0 {
+			msg += "\nand these, in this order, at the end of \"permission\":"
+			for _, r := range rules {
+				msg += fmt.Sprintf("\n  %q: %q", r[0], r[1])
+			}
+		}
+		return false, errors.New(msg)
 	}
 	if err != nil {
-		return err
+		return false, err
 	}
 	switch {
 	case ch.Changed && ch.Backup != "":
 		fmt.Printf("%s Enabled %s for %s in %s %s\n", green("✓"), bold(e.Name), client, ch.Path, dim("(previous file: "+ch.Backup+")"))
+		fmt.Printf("  Tools on: %s\n", mcpDescribeChoice(e, c))
 	case ch.Changed:
 		fmt.Printf("%s Enabled %s for %s in %s\n", green("✓"), bold(e.Name), client, ch.Path)
+		fmt.Printf("  Tools on: %s\n", mcpDescribeChoice(e, c))
 	case ch.Existing != nil:
-		fmt.Printf("%s %s already has an entry for %s that differs from the registry's; kept yours.\n  To replace it: %s\n",
-			dim("•"), ch.Path, e.Name, bold(fmt.Sprintf("nav-pilot mcp disable %s --client %s && nav-pilot mcp enable %s --client %s", e.Name, client, e.Name, client)))
+		fmt.Printf("%s %s already has an entry for %s that differs from the registry's; kept yours.\n  To change only its tools: %s\n  To replace it: %s\n",
+			dim("•"), ch.Path, e.Name, bold(fmt.Sprintf("nav-pilot mcp enable %s --client %s --tools <a,b> (or --all-tools)", e.Name, client)),
+			bold(fmt.Sprintf("nav-pilot mcp disable %s --client %s && nav-pilot mcp enable %s --client %s", e.Name, client, e.Name, client)))
 	default:
 		fmt.Printf("%s %s is already enabled for %s in %s\n", dim("•"), e.Name, client, ch.Path)
 	}
@@ -704,7 +847,7 @@ func mcpEnableIn(client string, e providerpkg.MCPServerEntry) error {
 	if client == providerpkg.MCPClientCopilot && short != e.Name && slices.Contains(providerpkg.MCPConfigKeys(client), short) {
 		fmt.Printf("%s Your config also has %s, which Copilot's org policy blocks. Remove it: %s\n", yellow("⚠"), short, bold("nav-pilot mcp disable "+short+" --client copilot"))
 	}
-	return nil
+	return ch.Changed, nil
 }
 
 // mcpEnableFollowUp prints what the server still needs after the write.
@@ -809,4 +952,11 @@ func dropMCPHosts() {
 		}
 	}
 	syncMCPAllowlist()
+}
+
+func fixOf(p *mcpProblem) string {
+	if p == nil {
+		return ""
+	}
+	return p.Fix
 }

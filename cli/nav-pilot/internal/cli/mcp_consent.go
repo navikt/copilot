@@ -289,6 +289,11 @@ func reportMCPHosts(w io.Writer, cpltPath string) {
 		if slices.Contains(allowed, l.Port) {
 			continue
 		}
+		if warn := mcpLoopbackNote(l.Server, l.Port); warn != "" {
+			fmt.Fprintf(w, "      %s %s (MCP) listens on localhost:%s, which the sandbox blocks. Before you open it: %s\n",
+				yellow("⚠"), safe(l.Server, 64), l.Port, safe(warn, 600))
+			continue
+		}
 		fmt.Fprintf(w, "      %s %s (MCP) listens on localhost:%s, which the sandbox blocks. Open: %s\n",
 			dim("ℹ"), safe(l.Server, 64), l.Port, bold("cplt config set allow.localhost "+l.Port))
 	}

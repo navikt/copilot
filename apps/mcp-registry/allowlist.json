@@ -12,7 +12,8 @@
         "url": "https://github.com/github/github-mcp-server",
         "source": "github"
       },
-      "tools": ["get_file_contents", "search_repositories", "create_issue", "list_issues", "create_pull_request", "list_pull_requests", "search_code", "get_commit", "list_commits", "create_branch", "list_branches"],
+      "tools": ["get_file_contents", "search_repositories", "issue_read", "list_issues", "issue_write", "pull_request_read", "list_pull_requests", "create_pull_request", "search_code", "get_commit", "list_commits", "create_branch", "list_branches"],
+      "toolRisk": {"issue_write": "external", "create_pull_request": "external", "create_branch": "external"},
       "tags": ["developer-tools", "version-control", "github"],
       "examples": [
         {
@@ -116,6 +117,7 @@
         "source": "github"
       },
       "tools": ["get_design_context", "get_screenshot", "get_metadata", "get_figjam", "generate_diagram"],
+      "toolRisk": {"generate_diagram": "external"},
       "tags": ["design", "frontend", "figma"],
       "examples": [
         {
@@ -246,6 +248,7 @@
         "browser_wait_for",
         "browser_tabs"
       ],
+      "toolRisk": {"browser_click": "write", "browser_type": "write", "browser_fill_form": "write", "browser_select_option": "write", "browser_press_key": "write", "browser_drag": "write", "browser_drop": "write", "browser_handle_dialog": "write", "browser_evaluate": "external", "browser_run_code_unsafe": "external", "browser_file_upload": "external"},
       "tags": ["testing", "browser-automation", "frontend"],
       "examples": [
         {
@@ -327,7 +330,8 @@
           "url": "http://127.0.0.1:64342/sse"
         }
       ],
-      "tools": ["get_symbol_info", "get_file_problems", "get_project_dependencies", "get_project_modules", "search_in_files_by_text", "search_in_files_by_regex", "find_files_by_glob", "find_files_by_name_keyword", "get_file_text_by_path", "list_directory_tree", "get_all_open_file_paths", "get_run_configurations", "get_repositories", "create_new_file", "replace_text_in_file", "reformat_file", "rename_refactoring", "open_file_in_editor", "execute_terminal_command", "execute_run_configuration"],
+      "tools": ["get_symbol_info", "get_file_problems", "get_project_dependencies", "get_project_modules", "read_file", "search_text", "search_regex", "search_file", "search_symbol", "analyze_calls", "lint_files", "list_directory_tree", "get_all_open_file_paths", "get_run_configurations", "get_repositories", "git_status", "open_file_in_editor", "reformat_file", "rename_refactoring", "create_new_file", "apply_patch", "build_project", "execute_run_configuration", "execute_terminal_command", "execute_tool", "execute_sql_query"],
+      "toolRisk": {"reformat_file": "write", "rename_refactoring": "write", "create_new_file": "host-exec", "apply_patch": "host-exec", "build_project": "host-exec", "execute_run_configuration": "host-exec", "execute_terminal_command": "host-exec", "execute_tool": "host-exec", "execute_sql_query": "host-exec"},
       "tags": ["developer-tools", "ide", "jetbrains", "code-intelligence"],
       "examples": [
         {
@@ -358,7 +362,8 @@
           "url": "http://127.0.0.1:3846/mcp"
         }
       ],
-      "tools": [],
+      "tools": ["read_resource", "read_source", "list_annotations", "watch_annotations", "capture_preview_evidence", "apply_changes", "acknowledge_annotation", "resolve_annotation", "dismiss_annotation", "reply_to_annotation"],
+      "toolRisk": {"apply_changes": "host-exec", "acknowledge_annotation": "write", "resolve_annotation": "write", "dismiss_annotation": "write", "reply_to_annotation": "write"},
       "tags": ["frontend", "aksel", "local", "developer-tools"],
       "examples": [
         {

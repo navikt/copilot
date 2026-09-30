@@ -50,11 +50,11 @@ func TestSetMCPServerCopilotKeepsTheRestAndIsIdempotent(t *testing.T) {
 	orig := `{"zeta": 1, "mcpServers": {"mine": {"type": "local", "command": "my-mcp", "args": ["--x"], "env": {"TOKEN": "s3cret"}}}, "alpha": [1, 2]}`
 	writeFile(t, path, orig)
 
-	entry, err := MCPClientEntry(MCPClientCopilot, figma)
+	entry, err := MCPClientEntry(MCPClientCopilot, figma, MCPToolChoice{All: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	ch, err := SetMCPServer(MCPClientCopilot, figma.Name, entry)
+	ch, err := SetMCPServer(MCPClientCopilot, figma.Name, entry, figma, MCPToolChoice{All: true})
 	if err != nil || !ch.Changed {
 		t.Fatalf("SetMCPServer = %+v, %v; want a change", ch, err)
 	}
@@ -86,7 +86,7 @@ func TestSetMCPServerCopilotKeepsTheRestAndIsIdempotent(t *testing.T) {
 		t.Errorf("mode = %v, want the file's own 0600", info.Mode().Perm())
 	}
 
-	ch, err = SetMCPServer(MCPClientCopilot, figma.Name, entry)
+	ch, err = SetMCPServer(MCPClientCopilot, figma.Name, entry, figma, MCPToolChoice{All: true})
 	if err != nil || ch.Changed || ch.Existing != nil {
 		t.Fatalf("second enable = %+v, %v; want no change", ch, err)
 	}
@@ -101,8 +101,8 @@ func TestSetMCPServerKeepsADifferentEntry(t *testing.T) {
 	path := filepath.Join(home, ".copilot", "mcp-config.json")
 	orig := `{"mcpServers": {"com.figma/figma-mcp": {"type": "http", "url": "https://mcp.figma.com/mcp", "headers": {"X": "y"}}}}`
 	writeFile(t, path, orig)
-	entry, _ := MCPClientEntry(MCPClientCopilot, figma)
-	ch, err := SetMCPServer(MCPClientCopilot, figma.Name, entry)
+	entry, _ := MCPClientEntry(MCPClientCopilot, figma, MCPToolChoice{All: true})
+	ch, err := SetMCPServer(MCPClientCopilot, figma.Name, entry, figma, MCPToolChoice{All: true})
 	if err != nil || ch.Changed || ch.Existing == nil {
 		t.Fatalf("SetMCPServer = %+v, %v; want the existing entry back, no change", ch, err)
 	}
@@ -117,8 +117,8 @@ func TestSetMCPServerKeepsADifferentEntry(t *testing.T) {
 // OpenCode: a new file gets the schema; comments are refused, not lost.
 func TestSetMCPServerOpenCode(t *testing.T) {
 	home := mcpConfigEnv(t)
-	entry, _ := MCPClientEntry(MCPClientOpenCode, figma)
-	ch, err := SetMCPServer(MCPClientOpenCode, figma.Name, entry)
+	entry, _ := MCPClientEntry(MCPClientOpenCode, figma, MCPToolChoice{All: true})
+	ch, err := SetMCPServer(MCPClientOpenCode, figma.Name, entry, figma, MCPToolChoice{All: true})
 	if err != nil || !ch.Changed || ch.Backup != "" {
 		t.Fatalf("SetMCPServer on no file = %+v, %v", ch, err)
 	}
@@ -137,7 +137,7 @@ func TestSetMCPServerOpenCode(t *testing.T) {
 	os.Remove(ch.Path)
 	orig := "{\n  // mine\n  \"mcp\": {},\n}\n"
 	writeFile(t, jsonc, orig)
-	ch, err = SetMCPServer(MCPClientOpenCode, figma.Name, entry)
+	ch, err = SetMCPServer(MCPClientOpenCode, figma.Name, entry, figma, MCPToolChoice{All: true})
 	if !errors.Is(err, ErrMCPConfigHasComments) || ch.Path != jsonc {
 		t.Fatalf("SetMCPServer on JSONC = %+v, %v; want ErrMCPConfigHasComments for %s", ch, err, jsonc)
 	}
@@ -184,12 +184,12 @@ func TestMCPClientEntry(t *testing.T) {
 		// A remote wins over a package: nothing to run from a cache.
 		{MCPClientCopilot, MCPServerEntry{Remotes: figma.Remotes, Packages: pw.Packages}, `{"type":"http","url":"https://mcp.figma.com/mcp","tools":["*"]}`},
 	} {
-		got, err := MCPClientEntry(tt.client, tt.e)
+		got, err := MCPClientEntry(tt.client, tt.e, MCPToolChoice{All: true})
 		if err != nil || !jsonEqual(got, json.RawMessage(tt.want)) {
 			t.Errorf("MCPClientEntry(%s, %s) = %s, %v; want %s", tt.client, tt.e.Name, got, err, tt.want)
 		}
 	}
-	if _, err := MCPClientEntry(MCPClientCopilot, MCPServerEntry{Packages: []MCPPackage{{RegistryType: "oci"}}}); err == nil {
+	if _, err := MCPClientEntry(MCPClientCopilot, MCPServerEntry{Packages: []MCPPackage{{RegistryType: "oci"}}}, MCPToolChoice{All: true}); err == nil {
 		t.Error("an oci package has no recipe and must be refused")
 	}
 }
@@ -252,6 +252,20 @@ func TestMCPConfigKeyFor(t *testing.T) {
 	// Copilot's policy matches the name only: "figma" is not the registry's.
 	if got := MCPConfigKeyFor(MCPClientCopilot, figma); got != "" {
 		t.Errorf("copilot = %q, want none", got)
+	}
+}
+
+// enable writes GitHub's read-only endpoint, so a custom OpenCode key with
+// that URL is still GitHub's.
+func TestMCPConfigKeyForGitHubReadonly(t *testing.T) {
+	home := mcpConfigEnv(t)
+	writeFile(t, filepath.Join(home, ".config", "opencode", "opencode.json"), `{"mcp": {"gh": {"type": "remote", "url": "https://api.githubcopilot.com/mcp/readonly"}}}`)
+	gh := MCPServerEntry{Name: "io.github.navikt/github-mcp", Remotes: []MCPRemote{{Type: "streamable-http", URL: "https://api.githubcopilot.com/mcp/"}}}
+	if got := MCPConfigKeyFor(MCPClientOpenCode, gh); got != "gh" {
+		t.Errorf("opencode = %q, want gh", got)
+	}
+	if got := MCPConfigKeyFor(MCPClientOpenCode, figma); got != "" {
+		t.Errorf("figma = %q, want none", got)
 	}
 }
 

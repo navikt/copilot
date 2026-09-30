@@ -135,11 +135,13 @@ Names follow reverse-DNS with exactly one `/`:
 
 **Required fields**: `name`, `description`, `version`
 
-**Optional fields**: `status` (default: `active`), `publishedAt`, `remotes`, `packages`, `setupInstructions`, `sandboxHosts`
+**Optional fields**: `status` (default: `active`), `publishedAt`, `remotes`, `packages`, `setupInstructions`, `sandboxHosts`, `toolRisk`
 
 `setupInstructions` is an array of `{ "title", "description", "commands" }` steps, shown with copyable commands in Min Copilot.
 
 `sandboxHosts` lists bare host names the server needs besides its remotes, such as an OAuth endpoint (`["api.figma.com"]` for Figma). It is served under `_meta."io.github.navikt/registry".sandboxHosts`, and nav-pilot asks the user before allowing these hosts in cplt's sandbox.
+
+`toolRisk` classes the tools in `tools` that do more than read, as `{"tool": "write|external|host-exec"}`. A tool without an entry is a read. `write` changes the repo or project, `external` has a visible effect in another system (an issue, a PR, a file in Figma, outbound traffic), and `host-exec` runs on the user's machine outside cplt's sandbox (a terminal command in IntelliJ, say). It is served under `_meta."io.github.navikt/registry".toolRisk`. `nav-pilot mcp enable` turns on read and write tools and leaves external and host-exec tools off until the user picks them. Every key must be in `tools`, and a server on localhost must list its tools.
 
 ### Remote Servers (HTTP)
 

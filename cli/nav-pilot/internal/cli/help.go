@@ -144,7 +144,7 @@ Flags:
 Set the model: nav-pilot config set model <id>
 `,
 	"mcp": `Usage: nav-pilot mcp [list] [--json]
-       nav-pilot mcp enable <name>... [--client copilot|opencode]
+       nav-pilot mcp enable <name>... [--client copilot|opencode] [--tools a,b | --all-tools] [--allow-host-exec]
        nav-pilot mcp disable <name>... [--client copilot|opencode]
 
 list shows the servers in Nav's MCP registry, which of them Copilot CLI and
@@ -161,6 +161,20 @@ and settings in the file stay as they are, and the previous file is kept as
 question a launch asks) and prints what is still needed. The name is the
 registry's full name or the part after the last slash (figma-mcp).
 
+enable turns on the tools the registry classes as read or write. Tools that
+act in another system (external: an issue, a PR, a file in Figma) and tools
+that run on your machine outside the cplt sandbox (host-exec: IntelliJ's
+terminal) stay off. In a terminal it shows every tool with its class and lets
+you pick; a host-exec tool also needs a yes. Copilot keeps the choice as the
+server's tools list, OpenCode as rules under "permission".
+GitHub's MCP server gets its read-only endpoint. Picking a tool that writes to
+GitHub switches to the full endpoint: the agent can then write to GitHub
+through MCP, which goes around cplt's guard on gh.
+An entry you already have is kept as it is, unless you pass --tools or
+--all-tools: then only its tools change.
+list shows the tools that are on (TOOLS), flags host-exec tools and GitHub's
+full endpoint, and gives the command that narrows them.
+
 disable removes each named server from the client configs, and stops
 allowing hosts in the sandbox that no other configured MCP server needs.
 
@@ -169,6 +183,9 @@ fails on its own; the exit code is 1 if any failed.
 
 Flags:
   --client <name>         copilot or opencode (default: each of them that is installed)
+  --tools <a,b>           enable: turn on exactly these tools
+  --all-tools             enable: turn on every tool, also those the server adds later
+  --allow-host-exec       enable: allow tools that run outside the sandbox without asking
   --json                  list as JSON
 `,
 	"survey": `Usage: nav-pilot survey [--json]

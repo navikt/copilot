@@ -182,8 +182,10 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 						Status string `json:"status"`
 					} `json:"io.modelcontextprotocol.registry/official"`
 					Nav struct {
-						Setup        []MCPSetupStep `json:"setupInstructions"`
-						SandboxHosts []string       `json:"sandboxHosts"`
+						Setup        []MCPSetupStep    `json:"setupInstructions"`
+						SandboxHosts []string          `json:"sandboxHosts"`
+						Tools        []string          `json:"tools"`
+						ToolRisk     map[string]string `json:"toolRisk"`
 					} `json:"io.github.navikt/registry"`
 				} `json:"_meta"`
 			} `json:"servers"`
@@ -201,6 +203,8 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 			}
 			e.Setup = s.Meta.Nav.Setup
 			e.SandboxHosts = s.Meta.Nav.SandboxHosts
+			e.Tools = s.Meta.Nav.Tools
+			e.ToolRisk = s.Meta.Nav.ToolRisk
 			reg.Entries = append(reg.Entries, e)
 			for _, r := range s.Server.Remotes {
 				reg.Remotes[normalizeMCPURL(r.URL)] = true

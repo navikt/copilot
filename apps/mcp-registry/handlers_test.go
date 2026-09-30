@@ -913,3 +913,24 @@ func TestFigmaSandboxHostsServed(t *testing.T) {
 	}
 	t.Fatal("Figma server missing from list response")
 }
+
+// IntelliJ's terminal tool runs on the host, outside the sandbox: the
+// registry must serve its class so nav-pilot leaves it off.
+func TestToolRiskServed(t *testing.T) {
+	rec := httptest.NewRecorder()
+	serversListHandler(rec, httptest.NewRequest(http.MethodGet, "/v0.1/servers", nil), testConfig())
+	var list ServerListResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
+		t.Fatalf("failed to parse list response: %v", err)
+	}
+	for _, s := range list.Servers {
+		if s.Server.Name != "com.jetbrains/intellij" {
+			continue
+		}
+		if s.Meta.NavRegistry == nil || s.Meta.NavRegistry.ToolRisk["execute_terminal_command"] != "host-exec" {
+			t.Fatalf("expected _meta toolRisk execute_terminal_command=host-exec, got %#v", s.Meta.NavRegistry)
+		}
+		return
+	}
+	t.Fatal("IntelliJ server missing from list response")
+}
