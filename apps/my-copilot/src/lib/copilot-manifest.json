@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-30T19:34:12.743Z",
+  "generatedAt": "2026-09-30T19:45:39.835Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -167,7 +167,7 @@
       "filePath": ".github/agents/forfatter.agent.md",
       "repoPath": "agents/forfatter.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/forfatter.agent.md",
-      "contentHash": "784ceea46d21fd6c7455bce97d8a4b633e6d97f3fe84961db832713d22196f82",
+      "contentHash": "81d4560449214a21214d98a7a50847f0f2cb5e1372a24d1071a404ed8c3042e6",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fforfatter.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fforfatter.agent.md",
       "tools": ["read", "edit", "grep", "glob", "todo", "github/get_file_contents", "github/search_code"],

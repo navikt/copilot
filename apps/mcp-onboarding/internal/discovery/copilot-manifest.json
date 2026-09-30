@@ -75,7 +75,7 @@
       "displayName": "@forfatter",
       "description": "Norsk teknisk redaktør, tekstforfatter eller innholdsdesigner: klarspråk, KI-markører, anglisismer, fagtermer, mikrotekst.",
       "filePath": "agents/forfatter.agent.md",
-      "contentHash": "784ceea46d21fd6c7455bce97d8a4b633e6d97f3fe84961db832713d22196f82",
+      "contentHash": "81d4560449214a21214d98a7a50847f0f2cb5e1372a24d1071a404ed8c3042e6",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Creating Kafka event consumers",
