@@ -1,0 +1,61 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        forfatter
+# suite:        norsk
+# date:         2026-09-30
+# revision:     b86bec38
+# model:        claude-sonnet-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       CLI default
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      3498918618
+# prompts:      all
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+no-omskriv|1|5279acb0-a565-45d0-90df-1a7c97b56172|14361|0|claude-sonnet-5.5|medium|24890|54|0|24886|0|6276300000|1760|1713.2470409999999|tool_calls||
+no-omskriv|1|5279acb0-a565-45d0-90df-1a7c97b56172|14363|0|claude-sonnet-5.5|medium|24955|109|24886|67|0|623870000|1627|1156.2797079999998|tool_calls||
+no-omskriv|1|5279acb0-a565-45d0-90df-1a7c97b56172|14364|0|claude-sonnet-5.5|medium|25456|260|24953|501|124|884710000|4379|4373.811958|tool_calls||
+no-omskriv|1|5279acb0-a565-45d0-90df-1a7c97b56172|14366|0|claude-sonnet-5.5|medium|25797|865|25454|341|100|1459730000|5673|3506.6943330000004|tool_calls||
+no-omskriv|1|5279acb0-a565-45d0-90df-1a7c97b56172|14367|0|claude-sonnet-5.5|medium|26739|266|25795|942|0|1017800000|2756|2728.2919159999997|stop||
+no-notis|1|f8b1c0e9-74a2-4426-bf0c-da5d977a5aba|14369|0|claude-sonnet-5.5|medium|24894|52|3970|20920|0|5362200000|1592|1587.532126|tool_calls||
+no-notis|1|f8b1c0e9-74a2-4426-bf0c-da5d977a5aba|14372|0|claude-sonnet-5.5|medium|25297|334|24890|405|0|933450000|2812|1338.818417|tool_calls||
+no-notis|1|f8b1c0e9-74a2-4426-bf0c-da5d977a5aba|14375|0|claude-sonnet-5.5|medium|34698|675|25295|9401|367|3531550000|6948|3668.840833|tool_calls||
+no-notis|1|f8b1c0e9-74a2-4426-bf0c-da5d977a5aba|14377|0|claude-sonnet-5.5|medium|35451|155|34696|753|0|1037570000|2063|2050.610126|stop||
+no-omskriv|2|82ab785d-4a70-4539-a925-11d0c188467d|14380|0|claude-sonnet-5.5|medium|24889|54|3970|20915|0|5362950000|1401|1327.137917|tool_calls||
+no-omskriv|2|82ab785d-4a70-4539-a925-11d0c188467d|14381|0|claude-sonnet-5.5|medium|24954|50|24885|67|0|564850000|1101|1083.038417|tool_calls||
+no-omskriv|2|82ab785d-4a70-4539-a925-11d0c188467d|14385|0|claude-sonnet-5.5|medium|25396|264|24952|442|127|873940000|4719|4713.5158329999995|tool_calls||
+no-omskriv|2|82ab785d-4a70-4539-a925-11d0c188467d|14387|0|claude-sonnet-5.5|medium|25753|807|25394|357|57|1404530000|5045|3284.247125|tool_calls||
+no-omskriv|2|82ab785d-4a70-4539-a925-11d0c188467d|14390|0|claude-sonnet-5.5|medium|26637|258|25751|884|0|994420000|2608|2580.3596249999996|stop||
+no-notis|2|39df5f10-8c9b-4f38-9b31-54c1edac27da|14394|0|claude-sonnet-5.5|medium|24891|52|3970|20917|0|5361450000|1469|1465.34925|tool_calls||
+no-notis|2|39df5f10-8c9b-4f38-9b31-54c1edac27da|14396|0|claude-sonnet-5.5|medium|25294|276|24887|405|0|875390000|2454|1222.642875|tool_calls||
+no-notis|2|39df5f10-8c9b-4f38-9b31-54c1edac27da|14399|0|claude-sonnet-5.5|medium|42638|601|25292|17342|303|5443140000|5782|5758.756334|tool_calls||
+no-notis|2|39df5f10-8c9b-4f38-9b31-54c1edac27da|14400|0|claude-sonnet-5.5|medium|43317|139|42634|681|0|1162330000|1974|1967.5179580000001|stop||
+no-omskriv|3|64e8f660-6c3e-4d8b-abf8-8b013c7f6299|14402|0|claude-sonnet-5.5|medium|24894|54|3970|20920|0|5364200000|1431|1367.618916|tool_calls||
+no-omskriv|3|64e8f660-6c3e-4d8b-abf8-8b013c7f6299|14403|0|claude-sonnet-5.5|medium|24959|157|24890|67|0|671950000|1776|1173.2029169999998|tool_calls||
+no-omskriv|3|64e8f660-6c3e-4d8b-abf8-8b013c7f6299|14405|0|claude-sonnet-5.5|medium|33941|852|24957|8980|716|3596940000|7222|3195.8521659999997|tool_calls||
+no-omskriv|3|64e8f660-6c3e-4d8b-abf8-8b013c7f6299|14407|0|claude-sonnet-5.5|medium|34874|871|33937|935|106|1783890000|5411|3869.774666|tool_calls||
+no-omskriv|3|64e8f660-6c3e-4d8b-abf8-8b013c7f6299|14409|0|claude-sonnet-5.5|medium|35822|345|34872|948|0|1279840000|3428|3393.021458|stop||
+no-notis|3|e38722cc-1f8e-4e67-ba98-760c20f85edd|14412|0|claude-sonnet-5.5|medium|24891|102|3970|20917|0|5411450000|1797|1533.029749|tool_calls||
+no-notis|3|e38722cc-1f8e-4e67-ba98-760c20f85edd|14413|0|claude-sonnet-5.5|medium|33439|109|24887|8548|0|2744540000|1508|1085.682291|tool_calls||
+no-notis|3|e38722cc-1f8e-4e67-ba98-760c20f85edd|14415|0|claude-sonnet-5.5|medium|33688|305|33435|251|0|1036850000|2567|1020.161834|tool_calls||
+no-notis|3|e38722cc-1f8e-4e67-ba98-760c20f85edd|14417|0|claude-sonnet-5.5|medium|34071|100|33686|383|0|869870000|1731|1725.1081259999999|stop||
+no-omskriv|4|d420d75e-ec13-4abc-b11c-b97cff91c40c|14422|0|claude-sonnet-5.5|medium|24892|54|3970|20918|0|5363700000|1501|1413.4277499999998|tool_calls||
+no-omskriv|4|d420d75e-ec13-4abc-b11c-b97cff91c40c|14424|0|claude-sonnet-5.5|medium|24957|50|24888|67|0|564910000|1472|1181.4342499999998|tool_calls||
+no-omskriv|4|d420d75e-ec13-4abc-b11c-b97cff91c40c|14426|0|claude-sonnet-5.5|medium|25399|131|24955|442|0|741000000|1565|1056.364876|tool_calls||
+no-omskriv|4|d420d75e-ec13-4abc-b11c-b97cff91c40c|14429|0|claude-sonnet-5.5|medium|25623|1335|25397|224|574|1899340000|7900|3390.4953749999995|tool_calls||
+no-omskriv|4|d420d75e-ec13-4abc-b11c-b97cff91c40c|14430|0|claude-sonnet-5.5|medium|27035|297|25621|1412|0|1162820000|3003|2979.2874580000002|stop||
+no-notis|4|b86c466d-d4e8-4bb9-98a3-0137b312c51a|14433|0|claude-sonnet-5.5|medium|24892|157|3970|20918|0|5466700000|2057|1504.456625|tool_calls||
+no-notis|4|b86c466d-d4e8-4bb9-98a3-0137b312c51a|14435|0|claude-sonnet-5.5|medium|33623|304|24888|8731|0|2985310000|3133|1329.383583|tool_calls||
+no-notis|4|b86c466d-d4e8-4bb9-98a3-0137b312c51a|14436|0|claude-sonnet-5.5|medium|34005|70|33619|384|0|838780000|1483|1481.3735829999998|stop||
+no-omskriv|5|ac1582f2-4f80-4c11-9bb2-542b8807b935|14440|0|claude-sonnet-5.5|medium|24892|54|3970|20918|0|5363700000|1633|1506.4837089999999|tool_calls||
+no-omskriv|5|ac1582f2-4f80-4c11-9bb2-542b8807b935|14441|0|claude-sonnet-5.5|medium|24957|50|24888|67|0|564910000|1337|1288.72525|tool_calls||
+no-omskriv|5|ac1582f2-4f80-4c11-9bb2-542b8807b935|14443|0|claude-sonnet-5.5|medium|25399|1097|24955|442|700|1707000000|8531|3198.339458|tool_calls||
+no-omskriv|5|ac1582f2-4f80-4c11-9bb2-542b8807b935|14447|0|claude-sonnet-5.5|medium|26589|820|25397|1190|20|1625840000|4740|2404.711417|tool_calls||
+no-omskriv|5|ac1582f2-4f80-4c11-9bb2-542b8807b935|14448|0|claude-sonnet-5.5|medium|27607|109|26587|1018|0|895640000|1557|1167.567792|tool_calls||
+no-omskriv|5|ac1582f2-4f80-4c11-9bb2-542b8807b935|14451|0|claude-sonnet-5.5|medium|27986|258|27605|379|0|905250000|3240|3214.025875|stop||
+no-notis|5|cbdd8f3f-801a-4895-90f5-ae4a68a450d9|14454|0|claude-sonnet-5.5|medium|24893|154|3970|20919|0|5463950000|2070|1344.124333|tool_calls||
+no-notis|5|cbdd8f3f-801a-4895-90f5-ae4a68a450d9|14456|0|claude-sonnet-5.5|medium|25698|304|24889|807|0|1003930000|2670|1102.0842930000001|tool_calls||
+no-notis|5|cbdd8f3f-801a-4895-90f5-ae4a68a450d9|14457|0|claude-sonnet-5.5|medium|26080|109|25696|382|0|718820000|1765|1757.48775|stop||

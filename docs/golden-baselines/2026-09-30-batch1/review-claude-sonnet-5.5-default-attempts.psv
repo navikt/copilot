@@ -1,0 +1,23 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        code-review
+# suite:        review
+# date:         2026-09-30
+# revision:     b86bec38
+# model:        claude-sonnet-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       CLI default
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+cr-kotlin|1|0|pass|2044|18145|true|
+cr-tsx|1|0|pass|2939|22544|true|
+cr-kotlin|2|0|pass|2041|17344|true|
+cr-tsx|2|0|pass|2403|19489|true|
+cr-kotlin|3|0|pass|2559|17927|true|
+cr-tsx|3|0|pass|2802|20778|true|
+cr-kotlin|4|0|pass|2128|19618|true|
+cr-tsx|4|0|pass|3354|20306|true|
+cr-kotlin|5|0|pass|2231|19217|true|
+cr-tsx|5|0|pass|2160|19634|true|

@@ -1,0 +1,33 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-09-30
+# revision:     b86bec38
+# model:        claude-sonnet-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       CLI default
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+t2|1|0|pass|2125|22080|true|
+t4a|1|0|pass|2053|20975|true|
+t4b|1|0|pass|5079|30799|true|
+t5|1|0|pass|1045|10961|true|
+t2|2|0|pass|2267|20548|true|
+t4a|2|0|pass|1767|19207|true|
+t4b|2|0|pass|4756|29758|true|
+t5|2|0|pass|944|13007|true|
+t2|3|0|pass|2278|22825|true|
+t4a|3|0|pass|2349|22249|true|
+t4b|3|0|pass|5129|29189|true|
+t5|3|0|pass|864|11131|true|
+t2|4|0|pass|1560|17614|true|
+t4a|4|0|pass|2091|18840|true|
+t4b|4|0|pass|4747|31426|true|
+t5|4|0|pass|1092|14469|true|
+t2|5|0|pass|2532|30621|true|
+t4a|5|0|pass|2181|23038|true|
+t4b|5|0|pass|5188|31368|true|
+t5|5|0|pass|1088|12786|true|
