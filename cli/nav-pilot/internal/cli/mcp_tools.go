@@ -56,6 +56,15 @@ var mcpAsk = func(title string) bool { return confirm(title, false, false) }
 
 // mcpChooseTools is the tools enable turns on for e.
 func mcpChooseTools(e providerpkg.MCPServerEntry, o mcpToolOpts) (providerpkg.MCPToolChoice, error) {
+	if o.noPick {
+		// Every client keeps its entry: the choice is only compared with
+		// it, so nothing here may refuse.
+		c := providerpkg.MCPToolChoice{Tools: e.DefaultTools()}
+		if ro := e.GitHubReadonlyURL(); ro != "" || len(e.Tools) == 0 {
+			c = providerpkg.MCPToolChoice{All: true, URL: ro}
+		}
+		return c, nil
+	}
 	if len(e.Tools) == 0 {
 		// A registry without tool lists (an older answer, say) cannot tell
 		// a safe tool from a risky one.

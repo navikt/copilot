@@ -448,6 +448,25 @@ func TestMCPEnableExistingEntrySkipsThePicker(t *testing.T) {
 	}
 }
 
+// A kept entry of a server on the host whose registry lists no tools: enable
+// keeps it rather than refusing (the refusal is for a new entry).
+func TestMCPEnableExistingEntryWithoutToolList(t *testing.T) {
+	mcpCmdEnv(t, providerpkg.MCPHostState{})
+	entries := mcpTestEntries()
+	entries[2].Tools, entries[2].ToolRisk = nil, nil
+	mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error, error) {
+		return "https://registry.test", entries, nil, nil
+	}
+	orig := `{"mcpServers": {"com.jetbrains/intellij": {"type": "sse", "url": "http://127.0.0.1:64342/sse", "tools": ["*"]}}}`
+	writeTestFile(t, copilotMCPPath(), orig)
+	if out, err := mcpEnable(t, "intellij", "--client", "copilot"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if b, _ := os.ReadFile(copilotMCPPath()); string(b) != orig {
+		t.Errorf("config changed:\n%s", b)
+	}
+}
+
 // A server on the host whose registry entry lists no tools: the fix cannot
 // be --tools, and the wording does not claim one tool.
 func TestMCPListLoopbackWithoutToolList(t *testing.T) {

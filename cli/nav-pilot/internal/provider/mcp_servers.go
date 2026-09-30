@@ -263,8 +263,7 @@ func SetMCPServer(client, name string, entry json.RawMessage, e MCPServerEntry, 
 }
 
 // RemoveMCPServer drops name from the client's config. Absent is no change.
-// ponytail: OpenCode permission rules for the name stay; they match nothing
-// once the server is gone, and a later enable replaces them.
+// For OpenCode its permission rules go too (dropOpenCodeRules).
 func RemoveMCPServer(client, name string) (MCPConfigChange, error) {
 	return editMCPConfig(client, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
 		if !servers.del(name) {
