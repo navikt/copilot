@@ -44,7 +44,7 @@ describe("modellsiden", () => {
     expect(screen.getByText(/Få kjøringer holder til å finne tydelige feil/)).toBeInTheDocument();
   });
 
-  it("viser ufullstendig forbruk som –, holder det utenfor diagrammet og merker røyktester", () => {
+  it("viser ufullstendig forbruk som –, holder det utenfor diagrammet og merker benchmarker med én kjøring", () => {
     summaryFile.path = FIXTURE;
     render(<ModellerPage />);
     const rowFor = (file: string) => screen.getByRole("link", { name: file }).closest("tr")!;
@@ -58,7 +58,7 @@ describe("modellsiden", () => {
     );
     expect(screen.getAllByText(/Strek \(–\) betyr at forbruket ikke ble registrert for alle kall/)).toHaveLength(2);
 
-    expect(within(rowFor("fixture-e.txt")).getByText("GPT-6 Luna (røyktest)")).toBeInTheDocument();
+    expect(within(rowFor("fixture-e.txt")).getByText("GPT-6 Luna (benchmark)")).toBeInTheDocument();
     expect(within(rowFor("fixture-f.txt")).getByText("fixture-unknown-model")).toBeInTheDocument();
     // ran_at is shown only when it differs from the requested effort.
     expect(within(rowFor("fixture-b.txt")).getByText("medium (kjørte på high)")).toBeInTheDocument();
@@ -84,7 +84,7 @@ describe("modellsiden", () => {
     ).toBeInTheDocument();
   });
 
-  it("holder røyktester utenfor diagrammene og lister dem etter de ekte kjøringene", () => {
+  it("holder benchmarker med én kjøring utenfor diagrammene og lister dem etter de ekte kjøringene", () => {
     summaryFile.path = FIXTURE;
     render(<ModellerPage />);
 
@@ -102,11 +102,11 @@ describe("modellsiden", () => {
 
     // A suite with only smoke runs gets its table, no chart.
     expect(screen.getByRole("heading", { name: "Norsk tekst" })).toBeInTheDocument();
-    expect(screen.getByText("Claude Sonnet 5.5 (røyktest)")).toBeInTheDocument();
+    expect(screen.getByText("Claude Sonnet 5.5 (benchmark)")).toBeInTheDocument();
     expect(screen.queryByRole("figure", { name: /^Norsk tekst/ })).toBeNull();
 
     // Every suite that shows a smoke run explains what a smoke run is.
-    expect(screen.getAllByText(/Røyktest er én kjøring som sjekker at testoppsettet virker/)).toHaveLength(2);
+    expect(screen.getAllByText(/En benchmark med én kjøring sjekker at testoppsettet virker/)).toHaveLength(2);
   });
 
   it("viser research som egen suite med norske datoer", () => {
