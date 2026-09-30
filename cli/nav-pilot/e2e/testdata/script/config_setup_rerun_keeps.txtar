@@ -1,0 +1,47 @@
+# #1348: a rerun of config setup starts every question on the current value
+# and edits the file in place. Enter all the way leaves it byte for byte;
+# changing only the autonomy preset changes only that line, and keys the
+# wizard does not ask about stay.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+fake-bin cplt copilot
+cp cplt.sh $WORK/fake/cplt.sh
+cp before.toml home/config.toml
+
+exits 0 pty-run -wait 'Keep it' -send '\x1b[D\r' -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'on its own' -send '\r' -wait 'Model' -send '\r' -wait 'Custom model id' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup
+cmp home/config.toml before.toml
+! exists home/config.toml.bak
+
+# Autonomous in the sandbox instead of Ask before each command.
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'on its own' -send '\x1b[A\r' -wait 'Model' -send '\r' -wait 'Custom model id' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup --force
+cmp home/config.toml after.toml
+
+-- before.toml --
+# my notes
+version = 1
+news = false   # no articles
+client = "copilot"
+reasoning_effort = "xhigh"
+mode = "plan"
+model = "my-own-model"
+auto_update = true
+autonomy = "conservative"
+-- after.toml --
+# my notes
+version = 1
+news = false   # no articles
+client = "copilot"
+reasoning_effort = "xhigh"
+mode = "plan"
+model = "my-own-model"
+auto_update = true
+autonomy = "sandbox"
+-- cplt.sh --
+if [ "$1 $2" = "config get" ]; then
+  case "$3" in
+    sandbox.preset) echo standard; echo '[cplt] (default, not set in config file)' >&2 ;;
+    git_guard.protect_default_branch_only) echo true; echo '[cplt] (default, not set in config file)' >&2 ;;
+  esac
+  exit 0
+fi

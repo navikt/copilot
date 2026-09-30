@@ -26,9 +26,12 @@ type setupAnswers struct {
 	Autonomy        string // empty = don't write the key (conservative)
 }
 
-// writeSetupConfig writes a new config file from wizard answers.
-// It uses the existing formatTOMLValue helpers so the output is consistent
-// with what 'config set' would produce.
+// writeSetupConfig writes the wizard's answers. An existing config that
+// parses is edited in place, key by key, and only where an answer differs
+// from what the file holds: comments, order and every key the wizard does not
+// ask about stay as they are, and Enter on every question leaves the file
+// byte for byte (#1348). Otherwise it writes a new file, using the existing
+// formatTOMLValue helpers so the output is consistent with 'config set'.
 // The config is validated before writing; an error is returned if it is invalid.
 func writeSetupConfig(answers setupAnswers) error {
 	if answers.Client == "" {
@@ -36,6 +39,11 @@ func writeSetupConfig(answers setupAnswers) error {
 	}
 	if answers.Mode == "" {
 		answers.Mode = "default"
+	}
+	if data, err := os.ReadFile(configPath()); err == nil {
+		if file, ok := decodesTo(string(data)); ok {
+			return mergeSetupAnswers(file, answers)
+		}
 	}
 
 	var lines []string
@@ -102,6 +110,73 @@ func writeSetupConfig(answers setupAnswers) error {
 	return writeConfigFile(configPath(), []byte(content), nil)
 }
 
+// mergeSetupAnswers edits the keys whose answer differs from file, the parsed
+// config. The rules are the new file's: client and autonomy are written when
+// asked, the rest is removed when the answer is its default or unset.
+func mergeSetupAnswers(file map[string]any, answers setupAnswers) error {
+	var kv []string
+	edit := func(key, answer string, always bool) {
+		cur := "" // what the file means today
+		if now, set := file[key]; set {
+			cur = fmt.Sprint(now)
+		} else if !always {
+			cur = findKeyDef(key).defaultVal
+		}
+		if cur == answer {
+			return
+		}
+		tomlVal := ""
+		if answer != "" && (always || answer != findKeyDef(key).defaultVal) {
+			tomlVal, _ = formatTOMLValue(findKeyDef(key), answer)
+		}
+		kv = append(kv, key, tomlVal)
+	}
+	edit("client", answers.Client, true)
+	edit("mode", answers.Mode, false)
+	if answers.Autonomy != "" { // not asked: leave it
+		edit("autonomy", answers.Autonomy, true)
+	}
+	edit("model", answers.Model, false)
+	edit("reasoning_effort", answers.ReasoningEffort, false)
+	if answers.AutoUpdate != "" {
+		edit("auto_update", answers.AutoUpdate, false)
+	}
+	if len(kv) == 0 {
+		return nil
+	}
+	return updateConfigKeys(kv...)
+}
+
+// setupPreselect is the answer each wizard question starts on: the built-in
+// defaults on a first run, and what the config holds on a rerun, so Enter on
+// every question keeps each setting (#1022, #1348).
+func setupPreselect(existing *Config) setupAnswers {
+	a := setupAnswers{
+		Client:     findKeyDef("client").defaultVal,
+		Mode:       findKeyDef("mode").defaultVal,
+		AutoUpdate: findKeyDef("auto_update").defaultVal,
+		// resolve knows a new user from one who ran nav-pilot before.
+		Autonomy: resolve(existing, CLIOverrides{}).Autonomy,
+	}
+	if existing == nil {
+		return a
+	}
+	a.Client = cfgClient(existing)
+	if existing.Mode != nil {
+		a.Mode = *existing.Mode
+	}
+	if existing.Model != nil {
+		a.Model = *existing.Model
+	}
+	if existing.ReasoningEffort != nil {
+		a.ReasoningEffort = *existing.ReasoningEffort
+	}
+	if existing.AutoUpdate != nil {
+		a.AutoUpdate = fmt.Sprint(*existing.AutoUpdate)
+	}
+	return a
+}
+
 // runConfigSetupFn is overridable in tests, the way cmdSyncFn is: the wizard
 // itself needs a terminal, so the only way to assert what reaches it is to
 // stand in for it.
@@ -121,22 +196,12 @@ func runConfigSetup(flagSource string) error {
 	fmt.Println(dim("  Set your preferences — change anytime with 'nav-pilot config set'."))
 	fmt.Println()
 
-	// Preselected answers are the built-in defaults, except the client of
-	// a config this run replaces (config setup --force): an existing user
-	// keeps theirs unless they pick another (#1022).
-	answers := setupAnswers{
-		Client:     findKeyDef("client").defaultVal,
-		Mode:       findKeyDef("mode").defaultVal,
-		AutoUpdate: findKeyDef("auto_update").defaultVal,
-	}
-	opencodeLabel := clientLabel["opencode"] + " (default)"
 	existing, _ := readConfig()
+	answers := setupPreselect(existing)
+	opencodeLabel := clientLabel["opencode"] + " (default)"
 	if existing != nil {
-		answers.Client = cfgClient(existing)
 		opencodeLabel = clientLabel["opencode"]
 	}
-	// resolve knows a new user from one who ran nav-pilot before.
-	answers.Autonomy = resolve(existing, CLIOverrides{}).Autonomy
 
 	err := huh.NewSelect[string]().
 		Title("Which coding agent?").
@@ -197,7 +262,7 @@ func runConfigSetup(flagSource string) error {
 	if p != nil && p.DefaultModel() != "" {
 		modelDesc = "Pick a model (provider/model format), or leave unset to use the Nav default."
 	}
-	model, err := promptModel(p, "Model", modelDesc, "")
+	model, err := promptModel(p, "Model", modelDesc, answers.Model)
 	if err != nil {
 		return setupSkipped(err)
 	}
@@ -452,7 +517,7 @@ func maybeRunFirstRunSetup(flagSource string) error {
 
 // cmdConfigSetup implements the 'nav-pilot config setup' subcommand.
 // It touches nothing until the wizard has every answer: the existing file is
-// replaced, with a backup, only by the wizard's final atomic write.
+// edited, with a backup, only by the wizard's final atomic write.
 func cmdConfigSetup(force bool) error {
 	_, statErr := os.Stat(configPath())
 	exists := statErr == nil
@@ -467,8 +532,9 @@ func cmdConfigSetup(force bool) error {
 		// Ask instead of refusing: the launch error that sent the user here
 		// says to start over, and a refusal would send them round again.
 		if err := huh.NewConfirm().
-			Title(fmt.Sprintf("%s already exists. Replace it?", configPath())).
-			Affirmative("Replace").
+			Title(fmt.Sprintf("%s already exists. Change its settings?", configPath())).
+			Description("Each question starts from your current setting; other keys and comments stay.").
+			Affirmative("Change").
 			Negative("Keep it").
 			Value(&force).
 			WithTheme(navTheme()).

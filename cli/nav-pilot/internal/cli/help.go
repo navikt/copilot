@@ -116,7 +116,7 @@ one. $XDG_CONFIG_HOME is not read.
 
 Subcommands:
   init                    Create the file with every option commented out
-  setup [--force]         Run the setup wizard (--force replaces an existing file)
+  setup [--force]         Run the setup wizard (--force skips the confirm)
   show [--json]           Print every key with its value and where it comes from
   path [--json]           Print the config file path
   get <key> [--json]      Print one value

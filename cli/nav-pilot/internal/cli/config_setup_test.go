@@ -207,6 +207,90 @@ func TestWriteSetupConfig_AutoUpdate(t *testing.T) {
 	}
 }
 
+// rerunConfig holds a non-default value for every key the wizard asks about,
+// plus comments, an odd order and keys it does not ask about.
+const rerunConfig = `# my notes
+version = 1
+news = false   # no articles
+client = "pi"
+reasoning_effort = "xhigh"
+mode = "plan"
+model = "anthropic/claude-sonnet-4"
+auto_update = true
+autonomy = "conservative"
+source = "navikt/copilot"
+
+[local]
+# keep me
+`
+
+func writeRerunConfig(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "config.toml")
+	t.Setenv("NAV_PILOT_CONFIG", path)
+	if err := os.WriteFile(path, []byte(rerunConfig), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// #1348: Enter on every question of a rerun writes the file byte for byte.
+func TestConfigSetupRerun_EnterOnlyKeepsFile(t *testing.T) {
+	path := writeRerunConfig(t)
+	existing, err := readConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeSetupConfig(setupPreselect(existing)); err != nil {
+		t.Fatalf("writeSetupConfig: %v", err)
+	}
+	if data, _ := os.ReadFile(path); string(data) != rerunConfig {
+		t.Errorf("Enter-only rerun changed the file:\n%s", data)
+	}
+	if _, err := os.Stat(path + ".bak"); !os.IsNotExist(err) {
+		t.Error("an unchanged file must not leave a backup")
+	}
+}
+
+// Changing only autonomy changes only that line.
+func TestConfigSetupRerun_AutonomyOnly(t *testing.T) {
+	path := writeRerunConfig(t)
+	existing, err := readConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := setupPreselect(existing)
+	a.Autonomy = "sandbox"
+	if err := writeSetupConfig(a); err != nil {
+		t.Fatalf("writeSetupConfig: %v", err)
+	}
+	want := strings.Replace(rerunConfig, `autonomy = "conservative"`, `autonomy = "sandbox"`, 1)
+	if data, _ := os.ReadFile(path); string(data) != want {
+		t.Errorf("got:\n%s\nwant:\n%s", data, want)
+	}
+}
+
+// Back to the defaults removes those keys, as a new file would not have
+// them, and leaves the rest.
+func TestConfigSetupRerun_BackToDefaults(t *testing.T) {
+	path := writeRerunConfig(t)
+	a := setupAnswers{Client: "pi", Mode: "default", AutoUpdate: "false", Autonomy: "conservative"}
+	if err := writeSetupConfig(a); err != nil {
+		t.Fatalf("writeSetupConfig: %v", err)
+	}
+	data, _ := os.ReadFile(path)
+	for _, gone := range []string{"mode", "model", "reasoning_effort", "auto_update"} {
+		if strings.Contains(string(data), gone+" =") {
+			t.Errorf("%s should be removed:\n%s", gone, data)
+		}
+	}
+	for _, kept := range []string{"# my notes", "news = false   # no articles", `source = "navikt/copilot"`, "[local]", "# keep me", `client = "pi"`} {
+		if !strings.Contains(string(data), kept) {
+			t.Errorf("%q should survive:\n%s", kept, data)
+		}
+	}
+}
+
 // ─── maybeRunFirstRunSetup guard logic ───────────────────────────────────────
 
 func TestMaybeRunFirstRunSetup_NonInteractive(t *testing.T) {
