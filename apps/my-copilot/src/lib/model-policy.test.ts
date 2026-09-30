@@ -11,9 +11,25 @@ describe("Navs modellpolicy", () => {
   it("skiller modeller som er aktivert av Nav fra resten av GitHubs prisliste", () => {
     expect(isNavAllowedModel("GPT-5.4 (Default, ≤ 272K)")).toBe(false);
     expect(isNavAllowedModel("Claude Fable 5.1")).toBe(false);
-    expect(isNavAllowedModel("A future model")).toBe(false);
+    expect(isNavAllowedModel("Claude Opus 5")).toBe(false);
+    expect(isNavAllowedModel("Claude Opus 4.8 (fast mode) (preview)")).toBe(false);
     expect(isNavAllowedModel("GPT-6 Sol (Default, ≤ 272K)")).toBe(true);
+    expect(isNavAllowedModel("GPT-6.1 Sol (Long context, 272K)")).toBe(true);
+    expect(isNavAllowedModel("Claude Opus 4.8")).toBe(true);
     expect(isNavAllowedModel("Claude Sonnet 5")).toBe(true);
+  });
+
+  it("regner en ny modell som aktivert til Nav slår den av", () => {
+    expect(isNavAllowedModel("GPT-7 Test")).toBe(true);
+    expect(isNavAllowedModel("GPT-7 Test (Default, ≤ 272K)")).toBe(true);
+  });
+
+  it("bruker fallbacks som Nav har aktivert", () => {
+    for (const choice of NAV_PILOT_MODEL_CHOICES) {
+      for (const model of [choice.primary, ...choice.fallbacks]) {
+        expect(isNavAllowedModel(model), model).toBe(true);
+      }
+    }
   });
 });
 
