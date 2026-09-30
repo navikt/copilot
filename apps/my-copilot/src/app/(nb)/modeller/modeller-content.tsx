@@ -155,7 +155,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
                           <Table.DataCell>
                             <span className="whitespace-nowrap">
                               {modelName(run.model)}
-                              {run.smoke && " (røyktest)"}
+                              {run.smoke && " (benchmark)"}
                               {run.model_verified === false && " (ikke bekreftet)"}
                             </span>
                             {!!run.subagent_models?.length && (
@@ -195,7 +195,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
             )}
             {smoke && (
               <BodyShort size="small">
-                Røyktest er én kjøring som sjekker at testoppsettet virker. Den sier ikke noe om modellen og er ikke med
+                En benchmark med én kjøring sjekker at testoppsettet virker. Den sier ikke noe om modellen og er ikke med
                 i diagrammet.
               </BodyShort>
             )}
