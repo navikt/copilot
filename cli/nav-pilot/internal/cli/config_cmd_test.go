@@ -287,7 +287,7 @@ func TestCmdConfigSetup_NoTerminalLeavesFileAlone(t *testing.T) {
 		path := writeTempConfig(t, "version = 1\n")
 		t.Setenv("NAV_PILOT_CONFIG", path)
 
-		err := cmdConfigSetup(force)
+		err := cmdConfigSetup(force, false)
 		if err == nil || !strings.Contains(err.Error(), "your config was left as it is") {
 			t.Errorf("force=%v: err = %v, want the file-left-alone message", force, err)
 		}
@@ -303,7 +303,7 @@ func TestCmdConfigSetup_NonInteractiveNoFile(t *testing.T) {
 	forceNonInteractive = true
 	defer func() { forceNonInteractive = false }()
 
-	err := cmdConfigSetup(false)
+	err := cmdConfigSetup(false, false)
 	if err == nil {
 		t.Fatal("expected error when non-interactive and no config file")
 	}

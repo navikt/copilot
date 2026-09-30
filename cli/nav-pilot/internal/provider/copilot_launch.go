@@ -317,6 +317,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 			return errors.New(CopilotMissingBehindCplt())
 		}
 		PrintCpltSandboxHint()
+		PrintAutonomyNotice(resolved)
 	}
 	env := CopilotEnv(resolved.OtelLogLevel)
 	if cliName != "cplt" {
@@ -663,6 +664,19 @@ func PrintCpltSandboxHint() {
 	fmt.Printf("%s Launching via cplt (Copilot Sandbox). Sandbox settings are managed by cplt, not nav-pilot.\n", domain.Dim("ℹ"))
 	fmt.Printf("  View current settings: %s\n", domain.Bold("cplt config list"))
 	fmt.Printf("  Change a setting:      %s\n\n", domain.Bold("cplt config set <key> <value>"))
+}
+
+// PrintAutonomyNotice tells a user whose Copilot asked before each command
+// until #1348's split, once, that it now runs commands on its own inside cplt.
+// Every cplt launch on a terminal records the notice as seen, so someone who
+// starts on the new default never gets it later; without a terminal it is
+// neither shown nor recorded.
+func PrintAutonomyNotice(r domain.ResolvedConfig) {
+	if !IsTerminal(os.Stdin) || !FirstTime("autonomy-notice") || !r.AutonomyNotice {
+		return
+	}
+	fmt.Printf("%s Inside cplt, Copilot now runs commands on its own and asks you when it needs to. cplt still blocks merging, pushing to main and force pushes.\n", domain.Dim("ℹ"))
+	fmt.Printf("  To have it ask before each command again: %s\n\n", domain.Bold("nav-pilot config set autonomy conservative"))
 }
 
 // FirstTime reports whether the one-time notice name has not been shown on

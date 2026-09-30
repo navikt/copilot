@@ -23,7 +23,7 @@ type setupAnswers struct {
 	Mode            string
 	ReasoningEffort string // empty = don't write the key
 	AutoUpdate      string // "true" or "false"
-	Autonomy        string // empty = don't write the key (conservative)
+	Autonomy        string // empty = not asked (not Copilot): leave the key
 }
 
 // writeSetupConfig writes the wizard's answers. An existing config that
@@ -76,11 +76,11 @@ func writeSetupConfig(answers setupAnswers) error {
 		lines = append(lines, "mode = "+modeVal)
 	}
 
-	// Written whenever it was asked, like client: a file without it means
-	// conservative. Only the Copilot CLI reads it, so for the others it is
-	// not asked and not written.
+	// Written whenever it was asked, with the mark that the user chose it
+	// (autonomyChosenConservative). Only the Copilot CLI reads it, so for
+	// the others it is not asked and not written.
 	if answers.Autonomy != "" {
-		lines = append(lines, "autonomy = "+tomlString(answers.Autonomy))
+		lines = append(lines, "autonomy = "+tomlString(answers.Autonomy), "autonomy_chosen = true")
 	}
 
 	if answers.Model != "" {
@@ -111,17 +111,18 @@ func writeSetupConfig(answers setupAnswers) error {
 }
 
 // mergeSetupAnswers edits the keys whose answer differs from file, the parsed
-// config. The rules are the new file's: client and autonomy are written when
-// asked, the rest is removed when the answer is its default or unset. A
-// missing client or autonomy means what a launch resolves it to (copilot and
-// conservative for a config from before them), so Enter keeps such a file too.
+// config. The rules are the new file's: client is written when asked, the
+// rest is removed when the answer is its default or unset. A missing client
+// means what a launch resolves it to (copilot for a config from before it),
+// and autonomy is compared with its resolved value, not the file's (an
+// unchosen conservative resolves to sandbox), so Enter keeps such a file too.
 func mergeSetupAnswers(file map[string]any, answers setupAnswers) error {
 	cfg, _ := readConfig()
 	if cfg == nil {
 		cfg = &Config{} // the file parsed, so it is an existing config
 	}
 	eff := resolve(cfg, CLIOverrides{})
-	effective := map[string]string{"client": eff.Client, "autonomy": eff.Autonomy}
+	effective := map[string]string{"client": eff.Client}
 	var kv []string
 	edit := func(key, answer string, always bool) {
 		cur := findKeyDef(key).defaultVal // what the file means today
@@ -141,8 +142,8 @@ func mergeSetupAnswers(file map[string]any, answers setupAnswers) error {
 	}
 	edit("client", answers.Client, true)
 	edit("mode", answers.Mode, false)
-	if answers.Autonomy != "" { // not asked: leave it
-		edit("autonomy", answers.Autonomy, true)
+	if answers.Autonomy != "" && answers.Autonomy != eff.Autonomy { // "": not asked
+		kv = append(kv, autonomyKV(tomlString(answers.Autonomy))...)
 	}
 	edit("model", answers.Model, false)
 	edit("reasoning_effort", answers.ReasoningEffort, false)
@@ -163,8 +164,7 @@ func setupPreselect(existing *Config) setupAnswers {
 		Client:     findKeyDef("client").defaultVal,
 		Mode:       findKeyDef("mode").defaultVal,
 		AutoUpdate: findKeyDef("auto_update").defaultVal,
-		// resolve knows a new user from one who ran nav-pilot before.
-		Autonomy: resolve(existing, CLIOverrides{}).Autonomy,
+		Autonomy:   resolve(existing, CLIOverrides{}).Autonomy,
 	}
 	if existing == nil {
 		return a
@@ -198,7 +198,10 @@ var runConfigSetupFn = runConfigSetup
 // none. It is the flag half of the source precedence, and the wizard needs it
 // because first-run setup happens before the config file exists: a first run
 // with a custom source has nowhere else to learn it from (#813).
-func runConfigSetup(flagSource string) error {
+func runConfigSetup(flagSource string) error { return runConfigSetupWith(flagSource, false) }
+
+// runConfigSetupWith is runConfigSetup; advanced adds the network question.
+func runConfigSetupWith(flagSource string, advanced bool) error {
 	fmt.Println()
 	fmt.Printf("%s  First-run setup\n", bold("🧭 nav-pilot"))
 	fmt.Println(dim("  Set your preferences — change anytime with 'nav-pilot config set'."))
@@ -244,20 +247,21 @@ func runConfigSetup(flagSource string) error {
 		return setupSkipped(err)
 	}
 
-	// The autonomy preset. Only the Copilot CLI reads autonomy; for the
-	// others it is not written, so a later switch to copilot starts
-	// conservative rather than unasked sandbox. The preselected answer is
-	// what this machine has today, so Enter on a rerun changes nothing.
+	// How the agent runs commands, and what it may do with git. Each
+	// question starts on what this machine has today, so Enter on a rerun
+	// changes nothing.
 	cpltPath, _ := findCplt()
 	cur := cpltGitState{Preset: "standard"}
 	if cpltPath != "" {
 		cur = readCpltGitState(cpltPath)
 	}
-	curChoice := autonomyChoice{Autonomy: answers.Autonomy, Preset: cur.Preset, Push: cur.effectivePush()}
-	if curChoice.Preset == "" {
-		curChoice.Preset = "standard"
+	if cur.Preset == "" {
+		// cplt could not say, or has a preset this build does not know:
+		// read it as cplt's default, and never write the preset over it.
+		cur.Preset = "standard"
 	}
-	choice, err := askAutonomy(answers.Client, currentPreset(answers.Autonomy, answers.Client == "copilot", cur), curChoice)
+	curChoice := autonomyChoice{Autonomy: answers.Autonomy, Preset: cur.Preset, Push: cur.effectivePush()}
+	choice, err := askAutonomy(answers.Client, curChoice, advanced)
 	if err != nil {
 		return setupSkipped(err)
 	}
@@ -526,7 +530,7 @@ func maybeRunFirstRunSetup(flagSource string) error {
 // cmdConfigSetup implements the 'nav-pilot config setup' subcommand.
 // It touches nothing until the wizard has every answer: the existing file is
 // edited, with a backup, only by the wizard's final atomic write.
-func cmdConfigSetup(force bool) error {
+func cmdConfigSetup(force, advanced bool) error {
 	_, statErr := os.Stat(configPath())
 	exists := statErr == nil
 	if !isInteractive() {
@@ -558,15 +562,19 @@ func cmdConfigSetup(force bool) error {
 	}
 	// No flag source: `config setup` does not persist one, so seeding from a
 	// --source would materialize a pakke the config it just wrote never names.
+	if advanced {
+		return runConfigSetupWith("", true)
+	}
 	return runConfigSetupFn("")
 }
 
-// printAutonomyNudge is the one line a config from before the autonomy key
-// gets: nothing changes for them until they choose.
+// printAutonomyNudge is the one line for a config whose autonomy =
+// "conservative" an earlier nav-pilot wrote without the user choosing it: it
+// is ignored now, and the line says how to keep it.
 func printAutonomyNudge(w io.Writer, cfg *Config, indent string) {
-	if cfg == nil && !navPilotUsedBefore() || cfg != nil && cfg.Autonomy != nil {
+	if cfg == nil || cfg.Autonomy == nil || *cfg.Autonomy != "conservative" || autonomyChosenConservative(cfg) {
 		return
 	}
-	fmt.Fprintf(w, "%s%s The agent can work autonomously inside the sandbox; run %s to choose (or %s).\n",
-		indent, dim("ℹ"), bold("nav-pilot config setup"), bold("nav-pilot config set autonomy sandbox"))
+	fmt.Fprintf(w, "%s%s autonomy = \"conservative\" was written by an earlier nav-pilot, not chosen, so Copilot runs commands on its own inside cplt. To keep being asked before each command: %s\n",
+		indent, dim("ℹ"), bold("nav-pilot config set autonomy conservative"))
 }

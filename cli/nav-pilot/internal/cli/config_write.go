@@ -241,7 +241,21 @@ func editTopLevelKey(content, key, tomlVal, replaces string) (string, error) {
 // runs now: a file without client means copilot (defaultClient), so creating
 // one must not switch a new install away from opencode.
 func updateConfigKey(key, tomlVal string) error {
+	if key == "autonomy" {
+		return updateConfigKeys(autonomyKV(tomlVal)...)
+	}
 	return updateConfigKeys(key, tomlVal)
+}
+
+// autonomyKV is how a user's autonomy choice is written: with
+// autonomy_chosen = true beside it, since only a chosen conservative counts
+// (autonomyChosenConservative). Removing autonomy removes both.
+func autonomyKV(tomlVal string) []string {
+	chosen := "true"
+	if tomlVal == "" {
+		chosen = ""
+	}
+	return []string{"autonomy", tomlVal, "autonomy_chosen", chosen}
 }
 
 // updateConfigKeys is updateConfigKey for several key, tomlVal pairs at once:
@@ -267,10 +281,8 @@ func updateConfigKeys(kv ...string) error {
 		if !keys["client"] {
 			data = fmt.Appendf(data, "client = %s\n", tomlString(defaultClient(nil)))
 		}
-		// Same reason as client: a file without autonomy means conservative,
-		// so the first `config set` must not take a new user off the default.
-		// Someone who ran nav-pilot before without a file was on conservative
-		// and stays there.
+		// A new user's file says sandbox, so it is never read as one from
+		// before the split, who gets the one-time notice (resolveAutonomy).
 		if !keys["autonomy"] && !navPilotUsedBefore() {
 			data = fmt.Appendf(data, "autonomy = %s\n", tomlString("sandbox"))
 		}

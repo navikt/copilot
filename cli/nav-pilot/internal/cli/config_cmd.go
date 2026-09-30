@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -109,7 +110,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "autonomy",
 		kind:        keyKindString,
-		description: "How much the Copilot CLI may do without asking, under cplt. sandbox passes --allow-all-tools --allow-all-paths --allow-all-urls: cplt's guards stay the boundary, and the agent can still ask you. conservative keeps Copilot's prompt before each action. A new config gets sandbox; a config.toml without the key means conservative. Without cplt nav-pilot never passes allow-all flags.",
+		description: "How much the Copilot CLI may do without asking, under cplt. sandbox passes --allow-all-tools --allow-all-paths --allow-all-urls: cplt's guards stay the boundary, and the agent can still ask you. conservative keeps Copilot's prompt before each action. Setting it also writes autonomy_chosen = true; conservative without that was written by an earlier nav-pilot, not chosen, and counts as sandbox. Without cplt nav-pilot never passes allow-all flags.",
 		allowed:     validAutonomy,
 		defaultVal:  "sandbox",
 		flag:        "",
@@ -392,10 +393,11 @@ client = "copilot"
 #   sandbox      : --allow-all-tools --allow-all-paths --allow-all-urls; cplt's
 #                  guards stay the boundary, and the agent can still ask you
 #   conservative : Copilot asks before each action
-# Without cplt nav-pilot never passes allow-all flags. A config.toml without
-# the key means conservative.
+# Without cplt nav-pilot never passes allow-all flags. Set it with
+# nav-pilot config set autonomy <value>, which also writes
+# autonomy_chosen = true: conservative without it is ignored.
 # Allowed: sandbox, conservative — Default: sandbox
-autonomy = "sandbox"
+# autonomy = "sandbox"
 
 # Launch the coding agent automatically after sync/install. Set to false to
 # never launch it; nav-pilot prints the ready-to-run command instead.
@@ -565,7 +567,7 @@ func cmdConfig(args []string, force bool, jsonOutput bool) error {
 	case "init":
 		return cmdConfigInit()
 	case "setup":
-		return cmdConfigSetup(force)
+		return cmdConfigSetup(force, slices.Contains(rest, "--advanced"))
 	case "show":
 		return cmdConfigShow(jsonOutput)
 	case "path":
@@ -633,19 +635,17 @@ func cmdConfigInit() error {
 	// The client this machine runs now, written out (#1022): the file
 	// without it would mean copilot.
 	tmpl := strings.Replace(configInitTemplate, `client = "copilot"`, "client = "+tomlString(defaultClient(nil)), 1)
-	// Someone who ran nav-pilot before without a file was on conservative;
-	// writing the file must not move them, and says which it wrote.
-	autonomy := "sandbox"
-	if navPilotUsedBefore() {
-		autonomy = "conservative"
-		tmpl = strings.Replace(tmpl, `autonomy = "sandbox"`, `autonomy = "conservative"`, 1)
+	// A new user's file says sandbox, as `config set` does; someone who ran
+	// nav-pilot before keeps the line commented, so the launch still gives
+	// them the one-time notice.
+	if !navPilotUsedBefore() {
+		tmpl = strings.Replace(tmpl, `# autonomy = "sandbox"`, `autonomy = "sandbox"`, 1)
 	}
 	if err := writeConfigFile(path, []byte(tmpl), nil); err != nil {
 		return err
 	}
 
 	fmt.Printf("%s Created %s\n", green("✓"), path)
-	fmt.Printf("  autonomy = %s; change it with %s.\n", autonomy, bold("nav-pilot config set autonomy <sandbox|conservative>"))
 	fmt.Printf("  Edit the file or use %s to set individual options.\n", bold("nav-pilot config set"))
 	return nil
 }

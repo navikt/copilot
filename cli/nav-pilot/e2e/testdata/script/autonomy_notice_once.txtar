@@ -1,0 +1,84 @@
+# #1348: under cplt Copilot runs commands on its own for everyone, except a
+# user who chose conservative. Someone who was on conservative before the
+# split gets one notice at the first launch on a terminal, and never again. A
+# new user never gets it. Without cplt nothing grants allow-all.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+fake-bin cplt copilot
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+
+# A new user: the first config set writes sandbox. No notice, now or later.
+exec nav-pilot config set client copilot
+exec pty-run -- nav-pilot
+! stdout 'Copilot now runs commands on its own'
+grep '\-\-allow-all-tools\n--allow-all-paths\n--allow-all-urls' $WORK/fake/cplt.log
+exists $WORK/home/seen-autonomy-notice
+
+# An existing user whose config.toml has no autonomy (from before #1349):
+# the notice once, with allow-all.
+cp $WORK/nokey.toml $WORK/home/config.toml
+rm $WORK/home/seen-autonomy-notice
+rm $WORK/fake/cplt.log
+exec pty-run -- nav-pilot
+stdout 'Inside cplt, Copilot now runs commands on its own and asks you when it needs to. cplt still blocks merging, pushing to main and force pushes.'
+stdout 'To have it ask before each command again: nav-pilot config set autonomy conservative'
+grep '\-\-allow-all-tools\n--allow-all-paths\n--allow-all-urls' $WORK/fake/cplt.log
+exec pty-run -- nav-pilot
+! stdout 'Copilot now runs commands on its own'
+
+# conservative that #1349's config init wrote on its own: not a choice, so
+# the same, and doctor says how to keep it.
+cp $WORK/autowritten.toml $WORK/home/config.toml
+rm $WORK/home/seen-autonomy-notice
+rm $WORK/fake/cplt.log
+exec pty-run -- nav-pilot
+stdout 'Copilot now runs commands on its own'
+grep '\-\-allow-all-tools' $WORK/fake/cplt.log
+exec nav-pilot doctor
+stdout 'was written by an earlier nav-pilot, not chosen'
+
+# Chosen: config set marks it, and Copilot asks before each command.
+exec nav-pilot config set autonomy conservative
+grep 'autonomy_chosen = true' $WORK/home/config.toml
+rm $WORK/home/seen-autonomy-notice
+rm $WORK/fake/cplt.log
+exec pty-run -- nav-pilot
+! stdout 'Copilot now runs commands on its own'
+! grep '\-\-allow-all' $WORK/fake/cplt.log
+exec nav-pilot doctor
+! stdout 'not chosen'
+
+# No cplt and --no-sandbox: no allow-all, no notice, and the notice is
+# still due at the next cplt launch.
+fake-bin copilot
+cp $WORK/nokey.toml $WORK/home/config.toml
+rm $WORK/home/seen-autonomy-notice
+exec pty-run -- nav-pilot --no-sandbox
+! stdout 'Copilot now runs commands on its own'
+stdout 'nav-pilot passes no allow-all flags outside the sandbox'
+! exists $WORK/home/seen-autonomy-notice
+
+-- nokey.toml --
+version = 1
+client = "copilot"
+-- autowritten.toml --
+version = 1
+client = "copilot"
+autonomy = "conservative"
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

@@ -107,7 +107,8 @@ export default function Sandkassen() {
             <code className={code}>proxy.default_allowlist</code>: da når agenten bare hostene på lista til cplt og det{" "}
             <code className={code}>proxy.allowed_domains</code> peker på. Verken{" "}
             <code className={code}>nav-pilot doctor</code> eller innstillingssiden anbefaler strict. Velg det bare hvis
-            du vil låse nettverket og kan leve med å pushe selv. I nav-pilot heter valget Locked down, se{" "}
+            du vil låse nettverket og kan leve med å pushe selv. I nav-pilot velger du det med{" "}
+            <code className={code}>nav-pilot config setup --advanced</code>, se{" "}
             <NextLink href="/nav-pilot/guider/kom-i-gang#autonomi" className={linkClass}>
               Hvor mye skal agenten gjøre selv?
             </NextLink>{" "}
@@ -128,7 +129,7 @@ export default function Sandkassen() {
           </Box>
           <BodyLong>Sett det derfor med nav-pilot:</BodyLong>
           <CodeBlock compact>
-            {`nav-pilot config setup   # velg «Locked down»
+            {`nav-pilot config setup --advanced   # velg «Allowlist only (cplt strict)»
 nav-pilot config         # eller raden «cplt strict preset (blocks all pushes)»`}
           </CodeBlock>
           <BodyLong>

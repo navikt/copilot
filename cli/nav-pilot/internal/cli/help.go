@@ -116,7 +116,9 @@ one. $XDG_CONFIG_HOME is not read.
 
 Subcommands:
   init                    Create the file with every option commented out
-  setup [--force]         Run the setup wizard (--force skips the confirm)
+  setup [--force] [--advanced]
+                          Run the setup wizard (--force skips the confirm,
+                          --advanced adds the network question)
   show [--json]           Print every key with its value and where it comes from
   path [--json]           Print the config file path
   get <key> [--json]      Print one value
