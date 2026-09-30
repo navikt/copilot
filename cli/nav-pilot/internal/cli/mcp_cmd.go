@@ -764,10 +764,17 @@ func cmdMCPEnable(names []string, clients []string, topts mcpToolOpts) error {
 		}
 		// Only about entries written now: an existing one kept its tools.
 		if len(wrote) > 0 && !topts.explicit() && !choice.All && len(choice.Tools) < len(e.Tools) {
-			hint := "nav-pilot mcp enable " + e.Name + " --tools <a,b>"
-			if len(e.HostExecTools()) > 0 {
-				hint += " --allow-host-exec"
+			// One per client: without --client, enable adds the server to
+			// every client.
+			var hints []string
+			for _, c := range wrote {
+				h := "nav-pilot mcp enable " + e.Name + " --client " + c + " --tools <a,b>"
+				if len(e.HostExecTools()) > 0 {
+					h += " --allow-host-exec"
+				}
+				hints = append(hints, h)
 			}
+			hint := strings.Join(hints, " && ")
 			fmt.Printf("%s In the new %s entry, tools that act in other systems or run outside the sandbox are off. To pick them: %s\n", dim("ℹ"), strings.Join(wrote, " and "), bold(hint))
 		}
 		if !slices.ContainsFunc(enabled, func(x providerpkg.MCPServerEntry) bool { return x.Name == e.Name }) {
@@ -812,6 +819,10 @@ func mcpEnableIn(client string, e providerpkg.MCPServerEntry, c providerpkg.MCPT
 		backup := ""
 		if ch.Backup != "" {
 			backup = " " + dim("(previous file: "+ch.Backup+")")
+		}
+		if !ch.Changed {
+			fmt.Printf("%s %s already has these tools for %s in %s: %s\n", dim("•"), e.Name, client, ch.Path, mcpDescribeChoice(e, c))
+			return false, nil
 		}
 		fmt.Printf("%s Set the tools of %s for %s in %s: %s%s\n", green("✓"), bold(e.Name), client, ch.Path, mcpDescribeChoice(e, c), backup)
 		return false, nil
@@ -917,7 +928,7 @@ func cmdMCPDisable(names []string, clients []string) error {
 				}
 			}
 			found = true
-			ch, err := providerpkg.RemoveMCPServer(client, key)
+			ch, err := providerpkg.RemoveMCPServer(client, key, mcpKnownTools(client, key, entries))
 			if errors.Is(err, providerpkg.ErrMCPConfigHasComments) {
 				err = fmt.Errorf("%s has comments or trailing commas, so nav-pilot did not change it; remove %q from it yourself", ch.Path, key)
 			}

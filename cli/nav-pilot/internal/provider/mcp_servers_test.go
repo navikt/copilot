@@ -151,7 +151,7 @@ func TestRemoveMCPServer(t *testing.T) {
 	path := filepath.Join(home, ".copilot", "mcp-config.json")
 	orig := `{"mcpServers": {"a": {"url": "https://a"}, "com.figma/figma-mcp": {"url": "https://mcp.figma.com/mcp"}, "b": {"url": "https://b"}}}`
 	writeFile(t, path, orig)
-	ch, err := RemoveMCPServer(MCPClientCopilot, figma.Name)
+	ch, err := RemoveMCPServer(MCPClientCopilot, figma.Name, nil)
 	if err != nil || !ch.Changed {
 		t.Fatalf("RemoveMCPServer = %+v, %v", ch, err)
 	}
@@ -161,7 +161,7 @@ func TestRemoveMCPServer(t *testing.T) {
 	if readFile(t, path+".bak") != orig {
 		t.Error("no backup of the original")
 	}
-	ch, err = RemoveMCPServer(MCPClientCopilot, figma.Name)
+	ch, err = RemoveMCPServer(MCPClientCopilot, figma.Name, nil)
 	if err != nil || ch.Changed {
 		t.Errorf("second remove = %+v, %v; want no change", ch, err)
 	}

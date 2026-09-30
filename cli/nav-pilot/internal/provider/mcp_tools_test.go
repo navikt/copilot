@@ -142,6 +142,10 @@ func TestSetMCPServerToolsKeepsAsk(t *testing.T) {
 			`{"` + p + `*":"deny","` + p + `read_file":"allow","` + p + `reformat_file":"ask"}`},
 		"all tools, server asks": {`{"` + p + `*": "ask"}`, MCPToolChoice{All: true},
 			`{"` + p + `*":"ask"}`},
+		"a glob of the user's asks": {`{"` + p + `ref*": "ask"}`, MCPToolChoice{Tools: []string{"read_file", "reformat_file"}},
+			`{"` + p + `ref*":"ask","` + p + `*":"deny","` + p + `read_file":"allow","` + p + `reformat_file":"ask"}`},
+		"a later allow wins over *": {`{"*": "ask", "` + p + `*": "allow"}`, MCPToolChoice{Tools: []string{"read_file"}},
+			`{"*":"ask","` + p + `*":"deny","` + p + `read_file":"allow"}`},
 		"no ask": {`{"bash": "ask"}`, MCPToolChoice{Tools: []string{"read_file"}},
 			`{"bash":"ask","` + p + `*":"deny","` + p + `read_file":"allow"}`},
 	} {
@@ -185,16 +189,35 @@ func TestRemoveMCPServerDropsItsRules(t *testing.T) {
 	writeFile(t, filepath.Join(home, ".config", "opencode", "opencode.json"),
 		`{"mcp": {"a": {"type": "remote", "url": "https://a.test"}, "a_b": {"type": "remote", "url": "https://ab.test"}},
 		"permission": {"bash": "ask", "a_*": "deny", "a_x": "allow", "a_b_*": "deny", "a_b_y": "allow"}}`)
-	if _, err := RemoveMCPServer(MCPClientOpenCode, "a"); err != nil {
+	if _, err := RemoveMCPServer(MCPClientOpenCode, "a", nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := permRules(t, home); got != `{"bash":"ask","a_b_*":"deny","a_b_y":"allow"}` {
 		t.Errorf("permission = %s", got)
 	}
-	if _, err := RemoveMCPServer(MCPClientOpenCode, "a_b"); err != nil {
+	if _, err := RemoveMCPServer(MCPClientOpenCode, "a_b", nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := permRules(t, home); got != `{"bash":"ask"}` {
+		t.Errorf("permission = %s", got)
+	}
+}
+
+// OpenCode's own keys that look like a server's rules stay: "external_" is
+// the prefix of external_directory. With the tool list known, only the
+// server's deny-all and tool keys go.
+func TestRemoveMCPServerKeepsOpenCodeKeys(t *testing.T) {
+	home := mcpConfigEnv(t)
+	path := filepath.Join(home, ".config", "opencode", "opencode.json")
+	writeFile(t, path, `{"mcp": {"external": {"type": "remote", "url": "https://x.test"}, "doom": {"type": "remote", "url": "https://d.test"}},
+		"permission": {"external_directory": "ask", "external_*": "deny", "external_x": "allow", "doom_loop": "ask", "doom_*": "deny", "doom_a": "allow", "doom_custom": "allow"}}`)
+	if _, err := RemoveMCPServer(MCPClientOpenCode, "external", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RemoveMCPServer(MCPClientOpenCode, "doom", []string{"a"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := permRules(t, home); got != `{"external_directory":"ask","doom_loop":"ask","doom_custom":"allow"}` {
 		t.Errorf("permission = %s", got)
 	}
 }

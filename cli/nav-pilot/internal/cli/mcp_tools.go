@@ -300,7 +300,30 @@ func mcpLoopbackFix(e providerpkg.MCPServerEntry, clients []string) string {
 	if len(e.Tools) == 0 {
 		return mcpNarrowFixes(e, clients)
 	}
-	return "nav-pilot mcp enable " + e.Name + " --tools <a,b>"
+	// One per client: without --client, enable adds the server to every
+	// client.
+	var fixes []string
+	for _, c := range clients {
+		fixes = append(fixes, "nav-pilot mcp enable "+e.Name+" --client "+c+" --tools <a,b>")
+	}
+	return strings.Join(fixes, " && ")
+}
+
+// mcpKnownTools is the registry's tool list for the server under key in the
+// client, from the entries disable already has or the cache: nil when
+// unknown, so disable never waits for the registry for it.
+func mcpKnownTools(client, key string, entries []providerpkg.MCPServerEntry) []string {
+	if entries == nil {
+		entries = mcpCachedEntries()
+	}
+	for _, e := range entries {
+		if e.Name == key || (client == providerpkg.MCPClientOpenCode && providerpkg.MCPConfigKeyFor(client, e) == key) {
+			if len(e.Tools) > 0 {
+				return e.Tools
+			}
+		}
+	}
+	return nil
 }
 
 // mcpNarrowFixes is mcpNarrowFix for each client, in one command line.
