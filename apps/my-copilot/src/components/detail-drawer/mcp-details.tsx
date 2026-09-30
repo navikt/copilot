@@ -1,22 +1,91 @@
 "use client";
 
-import { Accordion, BodyShort, Box, CopyButton, HStack, Heading, Tag, VStack } from "@navikt/ds-react";
+import { Accordion, Alert, BodyShort, Box, CopyButton, HStack, Heading, Tag, VStack } from "@navikt/ds-react";
 import { DownloadIcon, ExternalLinkIcon } from "@navikt/aksel-icons";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
+import type { McpToolRisk } from "@/lib/customization-types";
 import { normalizeExample } from "@/lib/manifest-types";
 import {
   transportLabel,
   getMcpServerConfig,
   getVsCodeAddMcpCommand,
   getMcpAddFields,
-  NAV_PILOT_MCP_MIN_VERSION,
+  NAV_PILOT_MCP_TOOLS_MIN_VERSION,
 } from "@/lib/install-commands";
-import { ToolList, ExclusiveAccordion } from "./shared";
+import { ExclusiveAccordion } from "./shared";
+
+const RISK_GROUPS: {
+  risk: McpToolRisk;
+  heading: string;
+  text: string;
+  tag: "neutral" | "info" | "warning" | "error";
+}[] = [
+  { risk: "read", heading: "Leser", text: "Henter informasjon. På som standard.", tag: "neutral" },
+  {
+    risk: "write",
+    heading: "Endrer prosjektet",
+    text: "Endrer filer eller data i prosjektet. På som standard.",
+    tag: "info",
+  },
+  {
+    risk: "external",
+    heading: "Gjør noe i et annet system",
+    text: "Gir et synlig resultat utenfor maskinen din, for eksempel en ny issue eller en fil i Figma. Av som standard.",
+    tag: "warning",
+  },
+  {
+    risk: "host-exec",
+    heading: "Kjører utenfor sandkassen",
+    text: "Kjører på maskinen din med dine rettigheter, utenfor cplt-sandkassen. Agenten kan da gjøre alt du kan. Av som standard.",
+    tag: "error",
+  },
+];
+
+function riskOf(toolRisk: Record<string, McpToolRisk> | undefined, tool: string): McpToolRisk {
+  return toolRisk?.[tool] ?? "read";
+}
+
+function McpToolList({ tools, toolRisk }: { tools: string[]; toolRisk?: Record<string, McpToolRisk> }) {
+  return (
+    <VStack gap="space-8">
+      <Heading size="xsmall" level="4">
+        Verktøy ({tools.length})
+      </Heading>
+      {RISK_GROUPS.map((group) => {
+        const inGroup = tools.filter((tool) => riskOf(toolRisk, tool) === group.risk);
+        if (inGroup.length === 0) return null;
+        return (
+          <VStack key={group.risk} gap="space-4">
+            <BodyShort size="small" weight="semibold">
+              {group.heading} ({inGroup.length})
+            </BodyShort>
+            <BodyShort size="small" className="text-gray-600">
+              {group.text}
+            </BodyShort>
+            <HStack gap="space-4" wrap>
+              {inGroup.map((tool) => (
+                <Tag key={tool} size="xsmall" variant={group.tag}>
+                  {tool}
+                </Tag>
+              ))}
+            </HStack>
+          </VStack>
+        );
+      })}
+    </VStack>
+  );
+}
 
 export function McpDetails({ item }: { item: EnrichedCustomization }) {
   if (item.type !== "mcp") return null;
 
   const enableCommand = `nav-pilot mcp enable ${item.serverId}`;
+  const tools = item.tools ?? [];
+  const offByDefault = tools.filter((tool) => ["external", "host-exec"].includes(riskOf(item.toolRisk, tool)));
+  const hostExec = tools.filter((tool) => riskOf(item.toolRisk, tool) === "host-exec");
+  const isGitHub = item.remotes.some(
+    (remote) => remote.url.replace(/\/+$/, "") === "https://api.githubcopilot.com/mcp"
+  );
 
   return (
     <VStack gap="space-16">
@@ -26,7 +95,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
         </Heading>
         <Box background="info-soft" borderRadius="8" padding="space-12">
           <VStack gap="space-8">
-            <BodyShort size="small">Med nav-pilot ({NAV_PILOT_MCP_MIN_VERSION} eller nyere) kjører du:</BodyShort>
+            <BodyShort size="small">Med nav-pilot ({NAV_PILOT_MCP_TOOLS_MIN_VERSION} eller nyere) kjører du:</BodyShort>
             <div className="relative">
               <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
                 {enableCommand}
@@ -39,6 +108,29 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
               Kommandoen legger serveren inn i oppsettet for Copilot CLI og OpenCode (de du har installert), spør om
               adressene serveren trenger i sandkassen, og sier fra om noe mangler.
             </BodyShort>
+            {offByDefault.length > 0 && (
+              <BodyShort size="small">
+                Den slår bare på verktøy som leser eller endrer prosjektet. Vil du også ha{" "}
+                {offByDefault.length === 1 ? "verktøyet" : "verktøyene"} som er av, kjører du kommandoen i en terminal
+                og velger dem, eller legger til <code className="text-xs bg-gray-100 rounded px-1">--tools</code> med
+                alle verktøyene du vil ha på, skilt med komma:{" "}
+                <code className="text-xs bg-gray-100 rounded px-1">{enableCommand} --tools navn1,navn2</code>.
+                {hostExec.length > 0 && (
+                  <>
+                    {" "}
+                    Verktøy som kjører utenfor sandkassen, krever i tillegg at du svarer ja, eller{" "}
+                    <code className="text-xs bg-gray-100 rounded px-1">--allow-host-exec</code>.
+                  </>
+                )}
+              </BodyShort>
+            )}
+            {isGitHub && (
+              <BodyShort size="small">
+                GitHub-serveren får et endepunkt som bare leser. Velger du et verktøy som skriver til GitHub, kan
+                agenten skrive via MCP, forbi cplts kontroll av{" "}
+                <code className="text-xs bg-gray-100 rounded px-1">gh</code>.
+              </BodyShort>
+            )}
             <BodyShort size="small">
               Virker ikke serveren? Kjør <code className="text-xs bg-gray-100 rounded px-1">nav-pilot mcp list</code>{" "}
               for å se hva som er galt og hvordan du retter det.
@@ -79,7 +171,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
         </VStack>
       )}
 
-      {item.tools && item.tools.length > 0 && <ToolList tools={item.tools} />}
+      {tools.length > 0 && <McpToolList tools={tools} toolRisk={item.toolRisk} />}
 
       {item.tags && item.tags.length > 0 && (
         <VStack gap="space-8">
@@ -226,6 +318,20 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
         <BodyShort size="small" className="text-gray-500">
           For VS Code og IntelliJ, eller hvis du ikke bruker nav-pilot.
         </BodyShort>
+        {(offByDefault.length > 0 || isGitHub) && (
+          <Alert variant="warning" size="small">
+            Manuelt oppsett slår på alle verktøyene til serveren
+            {offByDefault.length > 0 && <>, også {offByDefault.join(", ")}</>}.
+            {hostExec.length > 0 && (
+              <>
+                {" "}
+                {hostExec.length === offByDefault.length ? "De" : hostExec.join(", ")} kjører på maskinen din, utenfor
+                sandkassen.
+              </>
+            )}{" "}
+            Kommandoen for VS Code kan ikke velge verktøy. Slå av de du ikke vil ha i verktøyvalget i klienten.
+          </Alert>
+        )}
         <ExclusiveAccordion>
           <Accordion.Item>
             <Accordion.Header>VS Code</Accordion.Header>

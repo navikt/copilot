@@ -6,9 +6,10 @@ export const NAV_PILOT_BREW_INSTALL = "brew install navikt/tap/nav-pilot navikt/
 export const NAV_PILOT_QUICKSTART = `${NAV_PILOT_BREW_INSTALL} && nav-pilot`;
 export const CPLT_BREW_INSTALL = "brew install navikt/tap/cplt";
 export const NAV_PILOT_BREW_UPGRADE = "brew upgrade navikt/tap/nav-pilot";
-// The first nav-pilot release with `nav-pilot mcp` (navikt/copilot#1322):
-// nav-pilot/2026.09.29-150447-7214b7d.
-export const NAV_PILOT_MCP_MIN_VERSION = "2026.09.29-150447";
+// The first nav-pilot release where `nav-pilot mcp enable` turns on only the
+// safe tools (navikt/copilot#1365): nav-pilot/2026.09.30-093757-fafc4c4.
+// `nav-pilot mcp` itself came in 2026.09.29-150447 (#1322).
+export const NAV_PILOT_MCP_TOOLS_MIN_VERSION = "2026.09.30-093757";
 export const NAV_PILOT_INSTALL_SCRIPT =
   "curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash";
 export const CPLT_INSTALL_SCRIPT = "curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash";

@@ -85,4 +85,35 @@ describe("McpDetails", () => {
     expect(screen.getByText("nav-pilot mcp list")).toBeInTheDocument();
     expect(screen.getAllByRole("heading")[0]).toHaveTextContent("Installering");
   });
+
+  it("groups tools by risk and says which are off and how to turn them on", () => {
+    const item: EnrichedCustomization = {
+      id: "mcp-com.jetbrains/intellij",
+      name: "intellij",
+      description: "IntelliJ.",
+      type: "mcp",
+      serverId: "com.jetbrains/intellij",
+      domain: "general",
+      filePath: "",
+      repoPath: "",
+      rawGitHubUrl: "",
+      installUrl: null,
+      insidersInstallUrl: null,
+      version: "1.0.0",
+      remotes: [{ type: "sse", url: "http://127.0.0.1:64342/sse" }],
+      tools: ["read_file", "reformat_file", "execute_terminal_command"],
+      toolRisk: { reformat_file: "write", execute_terminal_command: "host-exec" },
+      usageCount: 0,
+      usedBy: [],
+    };
+
+    render(<McpDetails item={item} />);
+
+    expect(screen.getByText("Leser (1)")).toBeInTheDocument();
+    expect(screen.getByText("Endrer prosjektet (1)")).toBeInTheDocument();
+    expect(screen.getByText("Kjører utenfor sandkassen (1)")).toBeInTheDocument();
+    expect(screen.queryByText(/Gjør noe i et annet system/)).not.toBeInTheDocument();
+    expect(screen.getByText("--allow-host-exec")).toBeInTheDocument();
+    expect(screen.getByText(/Manuelt oppsett slår på alle verktøyene/)).toHaveTextContent("execute_terminal_command");
+  });
 });
