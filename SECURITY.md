@@ -311,9 +311,15 @@ When `NAIS_CLUSTER_NAME` is unset (local development):
 ## Copilot auth mode (nav-pilot)
 
 When nav-pilot launches Copilot inside `cplt`, `cplt` is the component that can
-resolve the GitHub token, and only when its gh guard is on. `gh_guard.enabled`
-is off in cplt's default `standard` preset and on in `strict`, which is the
-preset `nav-pilot doctor` recommends and offers to set.
+resolve the GitHub token, and only when its gh guard is on. `gh_guard` and
+`git_guard` are on in both cplt's default `standard` preset and in `strict`,
+and off in `permissive` and `full-trust`. Under `standard` they block
+`gh pr merge`, pushes to the default branch and force pushes; the agent can
+push its own branches and open pull requests. `strict` blocks every push and
+also forces egress through the proxy with a fail-closed domain allowlist.
+`nav-pilot doctor` recommends neither preset; it only reports a preset cplt
+cannot honour on the machine. In the setup wizard `strict` is the Locked down
+level.
 
 With the gh guard on, `cplt` skips extraction when the child already carries a
 non-blank `GH_TOKEN`, `GITHUB_TOKEN` or `COPILOT_GITHUB_TOKEN`, and otherwise

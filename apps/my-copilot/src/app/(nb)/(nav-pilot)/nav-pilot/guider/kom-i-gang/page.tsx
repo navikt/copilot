@@ -28,13 +28,14 @@ const MIN_VERSION = "2026.09.29-221653";
 // The first release that offers to remove the strict allowlist (navikt/copilot#1351).
 const LIST_REMOVAL_VERSION = "2026.09.29-223958";
 
+// One block per copy target: the copy button copies the whole block, and the
+// two clients are alternatives. No trailing comments: zsh on macOS does not
+// allow them in an interactive shell by default.
 const INSTALL = `${NAV_PILOT_BREW_INSTALL}
-brew install gh
+brew install gh`;
 
-# Velg klienten du vil bruke:
-${OPENCODE_INSTALL.mac}                        # OpenCode
-curl -fsSL https://gh.io/copilot-install | bash   # Copilot CLI
-export PATH="$HOME/.local/bin:$PATH"              # der ligger copilot`;
+const COPILOT_INSTALL = `curl -fsSL https://gh.io/copilot-install | bash
+export PATH="$HOME/.local/bin:$PATH"`;
 
 const SSH_TO_HTTPS = `git config --global url."https://github.com/".insteadOf "git@github.com:"`;
 
@@ -59,6 +60,13 @@ export default function KomIGang() {
           </LinkableHeading>
           <BodyLong>På Mac med Homebrew:</BodyLong>
           <CodeBlock compact>{INSTALL}</CodeBlock>
+          <BodyLong>Installer så én av klientene. OpenCode:</BodyLong>
+          <CodeBlock compact>{OPENCODE_INSTALL.mac}</CodeBlock>
+          <BodyLong>
+            Eller Copilot CLI. Den havner i <code className={code}>~/.local/bin</code>, så den andre linja legger den
+            mappa til i PATH:
+          </BodyLong>
+          <CodeBlock compact>{COPILOT_INSTALL}</CodeBlock>
           <BodyLong>
             På Linux og i WSL bruker du installasjonsskriptet. Kommandoene står på{" "}
             <NextLink href="/kom-i-gang#installer" className={linkClass}>
@@ -238,8 +246,12 @@ cplt trust accept`}</CodeBlock>
               til <code className={code}>strict</code> og legger Navs verter i lista først.
             </li>
             <li>
-              <strong>Custom.</strong> Du velger hver del selv: om Copilot CLI skal spørre før hver kommando, vanlig
-              nettverk eller bare lista, og om agenten kan pushe og åpne pull requests eller bare committe.
+              <strong>Custom.</strong> Du velger selv om Copilot CLI skal spørre før hver kommando, og om nettverket
+              skal være vanlig eller bare lista. Med cplt-nivået <code className={code}>standard</code> eller{" "}
+              <code className={code}>strict</code> velger du også om agenten kan pushe og åpne pull requests eller bare
+              committe. Har du satt cplt til <code className={code}>permissive</code> eller{" "}
+              <code className={code}>full-trust</code> og beholder det, får du ikke det spørsmålet. Da er git- og
+              gh-vaktene av, og cplt stopper verken merge, push til standardgrenen eller force push.
             </li>
           </Bullets>
           <BodyLong>
@@ -263,11 +275,20 @@ cplt trust accept`}</CodeBlock>
               <CodeBlock compact>{`cplt config set proxy.allowed_domains --unset --global`}</CodeBlock>
             </VStack>
           </Box>
-          <BodyLong>Du kan bytte nivå når som helst:</BodyLong>
+          <BodyLong>
+            Du kan bytte nivå når som helst. Med Copilot CLI bytter du mellom Autonomous in the sandbox og Ask before
+            each command med én innstilling. Resten av innstillingene blir som de er. Til Ask before each command:
+          </BodyLong>
+          <CodeBlock compact>{`nav-pilot config set autonomy conservative`}</CodeBlock>
+          <BodyLong>Tilbake til Autonomous in the sandbox:</BodyLong>
+          <CodeBlock compact>{`nav-pilot config set autonomy sandbox`}</CodeBlock>
+          <BodyLong>Til Locked down, Custom eller tilbake fra Locked down går du gjennom veiviseren:</BodyLong>
           <CodeBlock compact>{`nav-pilot config setup`}</CodeBlock>
           <BodyLong>
-            nav-pilot spør om du vil erstatte innstillingsfila. Velg Replace. Valgene du har nå, er valgt på forhånd, så
-            du trenger bare endre det du vil endre. Før noe lagres, ser du hva som blir endret.
+            nav-pilot spør om du vil erstatte innstillingsfila. Velg Replace. Veiviseren skriver en ny fil. Klienten og
+            nivået du har nå, er valgt på forhånd, og kilden blir med over. Samtalemodus, modell, resonneringsnivå og
+            automatisk oppdatering starter på standardverdiene, og andre innstillinger i fila blir ikke med over. Gå
+            gjennom hvert svar, og se over oppsummeringen før du lagrer.
           </BodyLong>
           <BodyLong>
             Brukte du nav-pilot med Copilot CLI før nivåene kom, har du Ask before each command til du velger noe annet.
