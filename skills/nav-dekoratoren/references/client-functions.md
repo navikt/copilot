@@ -106,6 +106,9 @@ import type {
 
 > ⚠️ `getAmplitudeInstance()` er fjernet i v4+. Bruk `getAnalyticsInstance()`.
 
+Uten samtykke til analyse forkaster loggeren hendelsene lokalt. Appen trenger ikke en egen
+samtykkesjekk for å kalle loggeren, men må fortsatt unngå personopplysninger i event-data.
+
 ## setParams / getParams
 
 Oppdater eller les alle parametre dynamisk.
@@ -139,9 +142,16 @@ import { injectDecoratorClientSide } from "@navikt/nav-dekoratoren-moduler";
 
 injectDecoratorClientSide({
     env: "prod",
-    params: { simple: true, chatbot: true },
+    params: {
+        simple: true,
+        chatbot: true,
+        teamName: "teamnavn.namespace", // konsumentlogging, eksempel: "team-navno.navno"
+    },
 });
 ```
+
+Sett `params.teamName` for konsumentlogging. Hvis verdien mangler, bruker Dekoratøren nettleserens
+`Origin`-header som fallback og moduler-pakken varsler i konsollen.
 
 ## Window-events (lavnivå)
 

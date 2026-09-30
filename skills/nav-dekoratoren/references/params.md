@@ -27,6 +27,25 @@ Kan settes som query-parametre ved direkte SSR-kall, eller som `params`-objekt i
 | `analyticsQueryParams`  | `string[]`                                            | `[]`           | Hviteliste av query-params som inkluderes i Analytics (ingen sensitive!)  |
 | `analyticsRedactFilter` | `string[]`                                            | `['uuid']`     | Opt-out av automatisk redaction (UUID fjernes som standard)               |
 
+`redirectToApp` gjelder både automatisk innlogging og innloggingsknappen. `redirectToUrl`
+overstyrer den; `redirectToUrlLogout` er returadressen *etter* utlogging. De to URL-ene må ligge
+på `nav.no` eller et underdomene, ellers forkastes de. `logoutUrl` er noe annet: appen må da selv
+håndtere all utlogging. Ikke slå av `logoutWarning` uten å gi brukeren en egen mulighet til å
+utsette utlogging. Økten kan maksimalt vare i 6 timer.
+
+`language` kan overstyres av `/no/`, `/nb/`, `/nn/`, `/en/` og `/se/` i URL-en. Dekoratørens eget
+grensesnitt har tekst på bokmål, engelsk og delvis samisk. URL-ene i `breadcrumbs` og
+`availableLanguages` må ligge på `nav.no` eller et underdomene; andre URL-er gir 500 ved henting.
+`analyticsTitle` kan brukes for brødsmuler hvis teksten ikke inneholder personopplysninger.
+
+`origin` identifiserer appen i analytics, ikke i Dekoratørens konsumentlogger. Ved SSR via
+moduler-pakken settes `teamName` automatisk fra `NAIS_APP_NAME.NAIS_NAMESPACE`. Ved direkte SSR
+må `teamName` settes som query-parameter; ved CSR med moduler-pakken settes `params.teamName`.
+Bruk formen `teamnavn.namespace` med små bokstaver og bare `a-z`, `0-9`, `-` og `.`.
+
+Query-parametre fjernes fra analytics som standard. Inkluder bare ikke-sensitive parametre i
+`analyticsQueryParams`, og risikovurder før du endrer `analyticsRedactFilter`.
+
 ## URL-eksempler (direkte kall)
 
 ```
