@@ -1,0 +1,13 @@
+# Klassifisering av hver feilet sjekk i batch 3, lest fra transkriptene (--keep).
+# arm|sjekk|kjøring|klasse|avgjørende linje
+# t4: Erklæringen står der, men med komma etter «Rød sone». Regex-en godtar bare —, – eller :.
+# Agentmalen har tankestrek, mens output-style forbyr tankestrek i prosa og foreslår komma. Sjekken er ikke løsnet.
+planning-claude-opus-5.5-default|t4|2|sjekkfeil|🔴 Rød sone, skriv selv (TokenX og Wonderwall er nytt for teamet, og koden er sikkerhetskritisk):
+planning-claude-opus-5.5-default|t4|5|sjekkfeil|🔴 Rød sone, skriv selv (TokenX er nytt for teamet og koden er sikkerhetskritisk):
+planning-gpt-6-sol-medium|t4|1|sjekkfeil|🔴 **Rød sone, skriv selv og gå grundig gjennom:** tokenvalidering, uttrekk av fødselsnummer fra validerte claims, tilgangskontroll og PDL-kallet med brukerkontekst.
+planning-gpt-6-sol-medium|t4|5|sjekkfeil|🔴 **Rød sone, forstå og skriv selv:** token-validering, koblingen mellom innlogget identitet og PDL-oppslaget, samt tilgangsreglene.
+planning-gpt-6-luna-medium|t4|2|sjekkfeil|**🔴 Rød sone, utvikleren må skrive og forstå selv**
+planning-gpt-6-luna-medium|t4|3|sjekkfeil|🔴 **Rød sone, teamet skriver selv:** Tokenvalidering, uttrekk av fnr fra ID-porten-brukerkonteksten og TokenX-kallet til PDL.
+# t3: Luna spør bare hva fødselsnummeret brukes til, aldri hvilke personopplysninger som behandles (blindsone 1 i agentfila).
+planning-gpt-6-luna-medium|t3|3|modellfeil|1. Hva skal tjenesten gjøre med fødselsnummeret fra ID-porten? Skal den lagre eller sende det videre, eller bare bruke det til å hente andre opplysninger?
+planning-gpt-6-luna-medium|t3|5|modellfeil|1. Hva skal tjenesten bruke fødselsnummeret til? Skal det bare brukes mens forespørselen behandles, eller lagres eller sendes videre?

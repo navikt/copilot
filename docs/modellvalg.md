@@ -83,6 +83,16 @@ I batch 1 stoppet GPT-6.1 Sol High riktig etter fase 1 i fem av fem kjøringer, 
 
 Sjekken er ikke løsnet. Tallene per transkript står i [t2-questions.psv](golden-baselines/2026-09-30-batch1/t2-questions.psv), og resultatene for High i [planning-gpt-6.1-sol-high-results.psv](golden-baselines/2026-09-30-batch1/planning-gpt-6.1-sol-high-results.psv).
 
+## Målinger 1. oktober 2026
+
+Batch 3, fem kjøringer per testarm. Copilot CLI ble oppdatert mens planleggingsarmene startet, så de kjørte på en nyere versjon enn norsk-armene. Rådata ligger i [2026-10-01-batch3](golden-baselines/2026-10-01-batch3/), og hver feilet sjekk er klassifisert i [failures.psv](golden-baselines/2026-10-01-batch3/failures.psv). Credits er medianen per kjøring. Fem kjøringer finner tydelige feil, men rangerer ikke modellene bredt.
+
+- **Regelen om «KI» virker.** Ingen av modellene skrev «AI» i noen av de fem kjøringene. Før regelen besto Sonnet 5.5 sjekken i to av fem kjøringer og GPT-6.1 Sol i null av fem. GPT-6 Sol er ikke målt på norsk før, bortsett fra én testkjøring.
+- **Sjekken for rød sone i planleggingen har en feil.** Alle de tre modellene skrev erklæringen om rød sone, men to av fem kjøringer per modell brukte komma etter «Rød sone». Sjekken godtar bare tankestrek eller kolon. Agentmalen bruker tankestrek, mens skrivereglene forbyr tankestrek og foreslår komma. Sjekken er ikke løsnet. Feilen gjør at test 4 ikke skiller modellene i denne batchen.
+- **GPT-6 Sol Medium er ikke bedre enn Low på planlegging.** Medium stoppet etter fase 1 og stilte spørsmålene i fem av fem kjøringer, som Low, men brukte 41,3 credits mot 28,9. High stoppet ikke i to av fem kjøringer.
+- **Claude Opus 5.5 planla riktig, men koster dobbelt så mye.** Opus besto alle sjekkene utenom feilen over, for 57,9 credits per kjøring.
+- **GPT-6 Luna holder på kodegjennomgang, men ikke på planlegging.** På `review` fant Luna Medium alle plantede feil på riktig linje i fem av fem kjøringer for 1,3 credits. Opus 5.5 Low brukte 23,9. På planlegging spurte Luna ikke om personopplysninger i to av fem kjøringer, bare om hva fødselsnummeret skulle brukes til. Fra batch 2 besto Luna Medium også alle sjekkene i `research` for 0,9 credits.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
