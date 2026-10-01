@@ -2,6 +2,9 @@
 
 Her ligger målingene bak modellsiden på ki-utvikling.nav.no. Hver kjøring er rådata fra testoppsettet i `scripts/nav-pilot-golden.sh`, og `summary.json` er sammendraget siden leser. CI feiler hvis `summary.json` ikke stemmer med filene.
 
+[`docs/pin-protokoll.md`](../pin-protokoll.md) skiller disse persona-sjekkene fra den utforskende piloten for kodeoppgaver. Ingen av dem gir alene grunnlag for å endre modellpinne.
+De fire oppgavene og kontrollene for piloten ligger i [`benchmark/realistic/`](../../benchmark/realistic/README.md). Den lokale kontrollen kjører uten modellkall.
+
 ## Testpakkene
 
 | Testpakke | Agent | Hva vi sjekker |

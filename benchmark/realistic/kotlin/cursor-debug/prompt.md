@@ -1,0 +1,1 @@
+Users report that paging through notes sometimes shows the last note from the previous page again. For example, after reading a page ending at note 2 and requesting the next page with `after=2`, note 2 appears twice across the two pages. Find and fix the cause without changing the response format or breaking first-page requests and input validation.

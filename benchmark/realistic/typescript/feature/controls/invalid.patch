@@ -1,0 +1,11 @@
+*** Begin Patch
+*** Update File: workspace/app/api/saker/route.ts
+@@
+ export async function GET(): Promise<Response> {
+   return Response.json(listSaker());
+ }
++
++export async function POST(): Promise<Response> {
++  return Response.json({ id: 102, tittel: "Ny sak", prioritet: "hoy" }, { status: 201 });
++}
+*** End Patch

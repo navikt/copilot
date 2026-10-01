@@ -1,0 +1,5 @@
+.cache/
+.verify/
+.verify2/
+*/workspace/.gradle/
+*/workspace/build/

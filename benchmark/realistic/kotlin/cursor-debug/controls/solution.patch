@@ -1,0 +1,7 @@
+*** Begin Patch
+*** Update File: workspace/src/main/kotlin/no/nav/benchmark/Notes.kt
+@@
+     fun page(after: Int?, limit: Int): List<Note> =
+-        notes.filter { after == null || it.id >= after }.take(limit)
++        notes.filter { after == null || it.id > after }.take(limit)
+*** End Patch
