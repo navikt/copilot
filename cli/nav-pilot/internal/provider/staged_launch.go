@@ -132,13 +132,23 @@ var openCodeSubcommands = map[string]bool{
 //	line 704      anything else               -> <bind> ...
 //
 // bind is "--agent <agent>" plus the resolved --model, which is only meaningful
-// wherever --agent is; the reference forwards no model at all.
-func openCodeClientArgs(bind, forwarded []string) []string {
+// wherever --agent is; the reference forwards no model at all. Only `run`
+// accepts --variant (anomalyco/opencode#7354, PR #7358).
+func openCodeRunArgs(forwarded []string) bool {
+	return len(forwarded) > 0 && (forwarded[0] == "run" || len(forwarded) > 1 && forwarded[0] == "--pure" && forwarded[1] == "run")
+}
+
+func openCodeClientArgs(bind, forwarded []string, variant string) []string {
+	if openCodeRunArgs(forwarded) && variant != "" {
+		bind = append(slices.Clone(bind), "--variant", variant)
+	}
 	switch {
 	case len(forwarded) == 0:
 		return bind
 	case forwarded[0] == "run":
 		return append(append([]string{"run"}, bind...), forwarded[1:]...)
+	case len(forwarded) > 1 && forwarded[0] == "--pure" && forwarded[1] == "run":
+		return append(append([]string{"--pure", "run"}, bind...), forwarded[2:]...)
 	case openCodeSubcommands[forwarded[0]]:
 		return slices.Clone(forwarded)
 	default:
@@ -252,7 +262,7 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 	if resolved := ToOpenCodeModel(model); resolved != "" {
 		bind = append(bind, "--model", resolved)
 	}
-	agentArgs := openCodeClientArgs(bind, r.ExtraArgs)
+	agentArgs := openCodeClientArgs(bind, r.ExtraArgs, r.ReasoningEffort)
 
 	return cpltLaunch{
 		agent:         "opencode",

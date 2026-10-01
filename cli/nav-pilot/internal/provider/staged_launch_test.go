@@ -528,6 +528,28 @@ func TestGoldenCpltArgvWithoutCpltArgs(t *testing.T) {
 	}
 }
 
+func TestStagedOpenCodeVariant(t *testing.T) {
+	SetActivePakke(stagedFixturePakke())
+	t.Cleanup(func() { SetActivePakke(nil) })
+	staged := StagedLaunch{Dir: "/staged/x", PakkeName: "grillmester", Context: "full"}
+	for _, tt := range []struct {
+		name  string
+		extra []string
+		want  []string
+	}{
+		{"TUI", nil, []string{"--agent", "grillmester"}},
+		{"run", []string{"run", "hello"}, []string{"run", "--agent", "grillmester", "--variant", "low", "hello"}},
+		{"pure run", []string{"--pure", "run", "hello"}, []string{"--pure", "run", "--agent", "grillmester", "--variant", "low", "hello"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			spec := buildStagedSpec(t, "opencode", domain.ResolvedConfig{ReasoningEffort: "low", ExtraArgs: tt.extra}, staged)
+			if !slices.Equal(spec.agentArgs, tt.want) {
+				t.Errorf("agentArgs = %q, want %q", spec.agentArgs, tt.want)
+			}
+		})
+	}
+}
+
 // TestOpenCodeDefaultModelFollowsPakke covers the WP2 review finding that the
 // provider's advertised default and the launch fallback could disagree.
 func TestOpenCodeDefaultModelFollowsPakke(t *testing.T) {
