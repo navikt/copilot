@@ -30,7 +30,7 @@ stdout '^Ingen åpne undersøkelser akkurat nå\.$'
 fake-survey -hang
 exits -within 10s 1 nav-pilot survey
 ! stdout .
-stderr 'fikk ikke kontakt med copilot-cli \(er naisdevice på, eller blokkerer en brannmur nav-pilot\?\)$'
+stderr 'fikk ikke kontakt med copilot-cli \(er naisdevice på\?\)$'
 ! stderr 'deadline'
 
 env NAV_PILOT_COPILOT_CLI_URL=http://127.0.0.1:9
