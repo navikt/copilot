@@ -68,35 +68,36 @@ Nye målinger kjøres som suiter i golden-harnesset og vises på modellsiden på
 
 ## Målinger 30. september 2026
 
-To batcher med golden-harnesset, fem kjøringer per testarm (ti på kodegjennomgang), Copilot CLI 1.0.90-5. Rådata ligger i [2026-09-30-batch1](golden-baselines/2026-09-30-batch1/) og [2026-09-30-batch2](golden-baselines/2026-09-30-batch2/). Credits er medianen per kjøring. Fem kjøringer finner tydelige feil, men rangerer ikke modellene bredt.
+Vi kjørte to batcher med golden-harnesset på Copilot CLI 1.0.90-5, med fem kjøringer per testarm og ti på kodegjennomgang. Rådata ligger i [2026-09-30-batch1](golden-baselines/2026-09-30-batch1/) og [2026-09-30-batch2](golden-baselines/2026-09-30-batch2/). Credits er medianen per kjøring. Fem kjøringer finner tydelige feil, men er for få til å rangere modellene bredt.
 
-- **`@kafka` og `@rust` bytter til GPT-6 Luna.** Kodesuiten har tre små feilrettinger i Go og TypeScript, kjørt fem ganger med to sjekker hver: 30 sjekker per arm. Luna Medium besto alle 30 for 1,65 credits. GPT-6 Sol besto også alle 30, men brukte 26,9 til 29,4 credits. Oppgavene var små, så GPT-6 Sol er fallback.
-- **GPT-6 Luna blir ikke bedre av High på koding.** High besto de samme 30 sjekkene for 1,84 credits.
+- **`@kafka` og `@rust` bytter til GPT-6 Luna.** Kodesuiten har tre små feilrettinger i Go og TypeScript. Hver har to sjekker og kjøres fem ganger, så hver arm får 30 sjekker. Luna Medium besto alle 30 for 1,65 credits. GPT-6 Sol besto også alle 30, men brukte 26,9 til 29,4 credits. Oppgavene var små, så GPT-6 Sol er fallback.
+- **High gjør ikke GPT-6 Luna bedre på koding.** High besto de samme 30 sjekkene for 1,84 credits.
 - **Low holder for `@code-review`.** Opus 5.5 fant alle plantede feil på riktig linje i ti av ti gjennomganger på alle tre nivåer. Medianen var 23,9 credits på Low, 30,0 på Medium og 38,1 på High. Dette er den nye målingen som rettelsen over ventet på.
 - **Bruk ikke High for `@nav-pilot`.** GPT-6 Sol High stoppet ikke etter fase 1 i to av fem kjøringer og brukte 70,7 credits. På Low stoppet den i fem av fem for 28,9 credits.
-- **GPT-6 Sol forblir standard for `@nav-pilot`.** GPT-6.1 Sol High og GPT-6 Astra skrev de åpne punktene i fase 1 som påstander, ikke som spørsmål, og besto test 2 i null av fem kjøringer. GPT-6.1 Sol Low besto i to av fem. Astra kostet i tillegg fem til seks ganger så mye som Sol-modellene: 154 credits per planleggingskjøring mot 28,9 for GPT-6 Sol Low.
-- **Ingen modell lot være å skrive «AI» i norsk tekst.** Sonnet 5.5 skrev «AI» i tre av fem kjøringer, GPT-6.1 Sol i fem av fem og Astra i fire av fem. `@forfatter` har derfor fått en eksplisitt regel om å skrive «KI».
+- **GPT-6 Sol er fortsatt standard for `@nav-pilot`.** GPT-6.1 Sol High og GPT-6 Astra skrev de åpne punktene i fase 1 som påstander, ikke som spørsmål, og besto test 2 i null av fem kjøringer. GPT-6.1 Sol Low besto i to av fem. Astra kostet i tillegg fem til seks ganger så mye som Sol-modellene: 154 credits per planleggingskjøring mot 28,9 for GPT-6 Sol Low.
+- **Alle modellene skrev «AI» i norsk tekst.** Sonnet 5.5 gjorde det i tre av fem kjøringer, GPT-6.1 Sol i fem av fem og Astra i fire av fem. `@forfatter` har derfor fått en egen regel om å skrive «KI».
 
 ### GPT-6.1 Sol spør ikke i fase 1 (30. september 2026)
 
-I batch 1 stoppet GPT-6.1 Sol High riktig etter fase 1 i fem av fem kjøringer, uten å endre noen filer. Men den skrev de åpne punktene, som personvern og tilgang, som en nummerert liste med påstander og ikke som spørsmål. Derfor feilet test 2, som teller spørsmål, og test 4 fikk aldri kjørt sin andre tur. Agentfila ber om spørsmål i fase 1 («Ask questions … All relevant blind spots raised as questions»). GPT-6.1 Sol Low gjorde det samme i test 2 i tre av fem kjøringer.
+I batch 1 stoppet GPT-6.1 Sol High riktig etter fase 1 i fem av fem kjøringer og endret ingen filer. Men den skrev de åpne punktene, som personvern og tilgang, som en nummerert liste med påstander og ikke som spørsmål. Derfor feilet test 2, som teller spørsmål, og test 4 kom aldri til sin andre tur. Agentfila ber om spørsmål i fase 1 («Ask questions … All relevant blind spots raised as questions»). GPT-6.1 Sol Low gjorde det samme i test 2 i tre av fem kjøringer.
 
-Sjekken er ikke løsnet. Tallene per transkript står i [t2-questions.psv](golden-baselines/2026-09-30-batch1/t2-questions.psv), og resultatene for High i [planning-gpt-6.1-sol-high-results.psv](golden-baselines/2026-09-30-batch1/planning-gpt-6.1-sol-high-results.psv).
+Vi har ikke løsnet sjekken. Tallene per transkript står i [t2-questions.psv](golden-baselines/2026-09-30-batch1/t2-questions.psv), og resultatene for High i [planning-gpt-6.1-sol-high-results.psv](golden-baselines/2026-09-30-batch1/planning-gpt-6.1-sol-high-results.psv).
 
 ## Målinger 1. oktober 2026
 
-Batch 3, fem kjøringer per testarm. Copilot CLI ble oppdatert mens planleggingsarmene startet, så de kjørte på en nyere versjon enn norsk-armene. Rådata ligger i [2026-10-01-batch3](golden-baselines/2026-10-01-batch3/), og hver feilet sjekk er klassifisert i [failures.psv](golden-baselines/2026-10-01-batch3/failures.psv). Credits er medianen per kjøring. Fem kjøringer finner tydelige feil, men rangerer ikke modellene bredt.
+Batch 3 hadde fem kjøringer per testarm. Copilot CLI ble oppdatert mens planleggingsarmene startet, så de kjørte på en nyere versjon enn norsk-armene. Rådata ligger i [2026-10-01-batch3](golden-baselines/2026-10-01-batch3/), og hver sjekk som feilet, er klassifisert i [failures.psv](golden-baselines/2026-10-01-batch3/failures.psv). Credits er medianen per kjøring. Fem kjøringer finner tydelige feil, men er for få til å rangere modellene bredt.
 
-- **Regelen om «KI» virker.** Ingen av modellene skrev «AI» i noen av de fem kjøringene. Før regelen besto Sonnet 5.5 sjekken i to av fem kjøringer og GPT-6.1 Sol i null av fem. GPT-6 Sol er ikke målt på norsk før, bortsett fra én testkjøring.
-- **Sjekken for rød sone i planleggingen har en feil.** Alle de tre modellene skrev erklæringen om rød sone, men to av fem kjøringer per modell brukte komma etter «Rød sone». Sjekken godtar bare lang tankestrek (—), kort tankestrek (–) eller kolon. Agentmalen bruker lang tankestrek, mens skrivereglene forbyr lang tankestrek og foreslår komma. Sjekken er ikke løsnet. Feilen gjør at test 4 ikke skiller modellene i denne batchen.
+- **Regelen om «KI» virker.** Ingen av modellene skrev «AI» i noen av de fem kjøringene. Før regelen besto Sonnet 5.5 sjekken i to av fem kjøringer og GPT-6.1 Sol i null av fem. GPT-6 Sol var ikke målt på norsk før, bortsett fra én testkjøring.
+- **Sjekken for rød sone i planleggingen har en feil.** Alle de tre modellene skrev erklæringen om rød sone, men to av fem kjøringer per modell satte komma etter «Rød sone». Sjekken godtar bare lang tankestrek (—), kort tankestrek (–) eller kolon. Agentmalen bruker lang tankestrek, mens skrivereglene forbyr den og foreslår komma. Vi har ikke løsnet sjekken. På grunn av feilen skiller ikke test 4 modellene i denne batchen.
 - **GPT-6 Sol Medium er ikke bedre enn Low på planlegging.** Medium stoppet etter fase 1 og stilte spørsmålene i fem av fem kjøringer, som Low, men brukte 41,3 credits mot 28,9. High stoppet ikke i to av fem kjøringer.
 - **Claude Opus 5.5 planla riktig, men koster dobbelt så mye.** Opus besto alle sjekkene utenom feilen over, for 57,9 credits per kjøring.
-- **GPT-6 Luna holder på kodegjennomgang, men ikke på planlegging.** På `review` fant Luna Medium alle plantede feil på riktig linje i fem av fem kjøringer for 1,3 credits. Opus 5.5 Low brukte 23,9. På planlegging spurte Luna ikke om personopplysninger i to av fem kjøringer, bare om hva fødselsnummeret skulle brukes til. Fra batch 2 besto Luna Medium også alle sjekkene i `research` for 0,9 credits.
+- **GPT-6 Luna holder på kodegjennomgang, men ikke på planlegging.** På `review` fant Luna Medium alle plantede feil på riktig linje i fem av fem kjøringer for 1,3 credits. Opus 5.5 Low brukte 23,9. På planlegging spurte Luna i to av fem kjøringer bare hva fødselsnummeret skulle brukes til, ikke om personopplysninger. I batch 2 besto Luna Medium også alle sjekkene i `research` for 0,9 credits.
 
 **Tillegg 1. oktober (batch 3b).** Rådata ligger i [2026-10-01-batch3b](golden-baselines/2026-10-01-batch3b/), med klassifisering i [failures.psv](golden-baselines/2026-10-01-batch3b/failures.psv).
 
-- **Luna holder på kodegjennomgang også med ti kjøringer.** GPT-6 Luna Medium fant alle plantede feil i ti av ti kjøringer, og oppga riktig linje i ni av ti. I den siste fant Luna feilen i TSX-fila, men pekte på linja over. Medianen var 1,3 credits per kjøring.
-- **Sjekken for rød sone er rettet.** Test 4 godtar nå komma etter «Rød sone» når 🔴 står foran. En setning som «koden er i rød sone, så …» godtas fortsatt ikke. Målt på nytt besto GPT-6 Sol Medium alle sjekkene i fem av fem kjøringer, også test 4, for 37,5 credits per kjøring.
+- **Luna holder på kodegjennomgang også med ti kjøringer.** GPT-6 Luna Medium fant alle plantede feil i ti av ti kjøringer og oppga riktig linje i ni av ti. I den tiende fant Luna feilen i TSX-fila, men pekte på linja over. Medianen var 1,3 credits per kjøring.
+- **`@code-review` blir på Claude Opus 5.5.** GPT-6 Luna Medium holder godt til en rask gjennomgang. Med ti kjøringer besto den 39 av 40 sjekker for 1,3 credits per kjøring, mot 40 av 40 for 23,9 med Opus 5.5 Low. Den eneste bommen var et linjenummer én linje feil, så sjekk linjenumrene mot diffen.
+- **Sjekken for rød sone er rettet.** Test 4 godtar nå komma etter «Rød sone» når 🔴 står foran. En setning som «koden er i rød sone, så …» godtas fortsatt ikke. I en ny måling besto GPT-6 Sol Medium alle sjekkene i fem av fem kjøringer, også test 4, for 37,5 credits per kjøring.
 
 ## Pinner og delegering
 
