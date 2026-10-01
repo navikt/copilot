@@ -333,7 +333,7 @@ func TestGoldenOpenCodeAgentArgs(t *testing.T) {
 		{
 			name:  "flags before a subcommand keep their order",
 			extra: []string{"--pure", "run", "add a docstring"},
-			want:  append(slices.Clone(bind), "--pure", "run", "add a docstring"),
+			want:  append(append([]string{"--pure", "run"}, bind...), "add a docstring"),
 		},
 		{
 			// opencode wants its subcommand first, so run leads and the bind

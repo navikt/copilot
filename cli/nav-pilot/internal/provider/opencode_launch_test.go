@@ -123,6 +123,7 @@ func TestOpenCodeAgentArgsVariant(t *testing.T) {
 		{"TUI", nil, []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"}},
 		{"TUI prompt", []string{"--prompt", "hello"}, []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--prompt", "hello"}},
 		{"run", []string{"run", "hello"}, []string{"run", "--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--variant", "low", "hello"}},
+		{"pure run", []string{"--pure", "run", "hello"}, []string{"--pure", "run", "--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--variant", "low", "hello"}},
 		{"other command", []string{"models"}, []string{"models"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -169,6 +170,11 @@ func TestOpenCodeUnsupportedConfigWarnings(t *testing.T) {
 		{
 			name:     "run applies reasoning effort",
 			resolved: domain.ResolvedConfig{ReasoningEffort: "low", ExtraArgs: []string{"run", "hello"}, AskUser: true},
+			wantNone: true,
+		},
+		{
+			name:     "pure run applies reasoning effort",
+			resolved: domain.ResolvedConfig{ReasoningEffort: "low", ExtraArgs: []string{"--pure", "run", "hello"}, AskUser: true},
 			wantNone: true,
 		},
 		{
