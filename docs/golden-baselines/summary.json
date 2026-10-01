@@ -1770,6 +1770,49 @@
     },
     {
       "date": "2026-10-01",
+      "suite": "planning",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.91-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 5
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 5
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 5
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 37.523,
+        "mean": 38.129
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 125.3
+      },
+      "source": "docs/golden-baselines/2026-10-01-batch3b/planning-gpt-6-sol-medium.txt"
+    },
+    {
+      "date": "2026-10-01",
       "suite": "review",
       "model": "gpt-6-luna",
       "model_verified": true,
@@ -1810,6 +1853,49 @@
         "median": 107.9
       },
       "source": "docs/golden-baselines/2026-10-01-batch3/review-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-10-01",
+      "suite": "review",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.91-0",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 10
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 9
+        }
+      ],
+      "credits": {
+        "median": 1.303,
+        "mean": 1.31
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 118.9
+      },
+      "source": "docs/golden-baselines/2026-10-01-batch3b/review-gpt-6-luna-medium.txt"
     }
   ]
 }

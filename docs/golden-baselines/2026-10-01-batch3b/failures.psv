@@ -1,0 +1,4 @@
+# Klassifisering av hver feilet sjekk i batch 3b, lest fra transkriptene (--keep).
+# arm|sjekk|kjøring|klasse|avgjørende linje
+# rv4: Luna fant feilen, men pekte på den ytre <div> på linje 7, ikke den klikkbare <div onClick> på linje 8.
+review-gpt-6-luna-medium|rv4|4|modellfeil|`src/app/komponenter/StatusPanel.tsx` 7 🔴 `apen` endres ved klikk, men brukes ikke i visningen. … En klikkbar `<div>` fungerer heller ikke med tastatur.

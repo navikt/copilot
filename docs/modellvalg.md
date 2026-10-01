@@ -93,6 +93,11 @@ Batch 3, fem kjøringer per testarm. Copilot CLI ble oppdatert mens planleggings
 - **Claude Opus 5.5 planla riktig, men koster dobbelt så mye.** Opus besto alle sjekkene utenom feilen over, for 57,9 credits per kjøring.
 - **GPT-6 Luna holder på kodegjennomgang, men ikke på planlegging.** På `review` fant Luna Medium alle plantede feil på riktig linje i fem av fem kjøringer for 1,3 credits. Opus 5.5 Low brukte 23,9. På planlegging spurte Luna ikke om personopplysninger i to av fem kjøringer, bare om hva fødselsnummeret skulle brukes til. Fra batch 2 besto Luna Medium også alle sjekkene i `research` for 0,9 credits.
 
+**Tillegg 1. oktober (batch 3b).** Rådata ligger i [2026-10-01-batch3b](golden-baselines/2026-10-01-batch3b/), med klassifisering i [failures.psv](golden-baselines/2026-10-01-batch3b/failures.psv).
+
+- **Luna holder på kodegjennomgang også med ti kjøringer.** GPT-6 Luna Medium fant alle plantede feil i ti av ti kjøringer, og oppga riktig linje i ni av ti. I den siste fant Luna feilen i TSX-fila, men pekte på linja over. Medianen var 1,3 credits per kjøring.
+- **Sjekken for rød sone er rettet.** Test 4 godtar nå komma etter «Rød sone» når 🔴 står foran. En setning som «koden er i rød sone, så …» godtas fortsatt ikke. Målt på nytt besto GPT-6 Sol Medium alle sjekkene i fem av fem kjøringer, også test 4, for 37,5 credits per kjøring.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
