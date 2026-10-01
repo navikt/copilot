@@ -236,7 +236,7 @@ func refreshInBackground(refresh func(context.Context)) (stop func()) {
 	return cancel
 }
 
-// OpenCodeArgs builds the CLI arguments for launching opencode non-interactively.
+// OpenCodeArgs builds the CLI arguments for launching the opencode TUI.
 // Maps resolved config fields to opencode flags; omits unset/default fields.
 func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 	var args []string
@@ -265,9 +265,6 @@ func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 		}
 		args = append(args, "--agent", persona)
 	}
-	if resolved.ReasoningEffort != "" {
-		args = append(args, "--variant", resolved.ReasoningEffort)
-	}
 	if resolved.AllowAllTools {
 		args = append(args, "--dangerously-skip-permissions")
 	}
@@ -285,10 +282,14 @@ func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 // Until this existed the pass-through arguments were parsed, resolved, and then
 // dropped on the floor: `nav-pilot -- run "…"` started the TUI with the request
 // discarded, which is a whole non-interactive dispatch thrown away in silence.
-// With none of them openCodeClientArgs returns the bind untouched, so every
-// launch that has ever worked is byte-identical (golden_launch_test.go).
+// OpenCode only accepts --variant on `run`, not on the TUI (upstream
+// anomalyco/opencode#7354, PR #7358).
 func openCodeAgentArgs(resolved domain.ResolvedConfig) []string {
-	return openCodeClientArgs(OpenCodeArgs(resolved), resolved.ExtraArgs)
+	bind := OpenCodeArgs(resolved)
+	if len(resolved.ExtraArgs) > 0 && resolved.ExtraArgs[0] == "run" && resolved.ReasoningEffort != "" {
+		bind = append(bind, "--variant", resolved.ReasoningEffort)
+	}
+	return openCodeClientArgs(bind, resolved.ExtraArgs)
 }
 
 // OpenCodeUnsupportedConfigWarnings returns informational warning strings for
@@ -304,6 +305,9 @@ func OpenCodeUnsupportedConfigWarnings(r domain.ResolvedConfig) []string {
 	}
 	if !r.AskUser {
 		w = append(w, "ask_user = false has no opencode equivalent — ignored")
+	}
+	if r.ReasoningEffort != "" && (len(r.ExtraArgs) == 0 || !openCodeSubcommands[r.ExtraArgs[0]]) {
+		w = append(w, fmt.Sprintf("reasoning_effort = %q is not applied in the OpenCode TUI; select a variant there instead (anomalyco/opencode#7354).", r.ReasoningEffort))
 	}
 	return w
 }
