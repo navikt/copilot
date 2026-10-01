@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-30",
+  "generated": "2026-10-01",
   "runs": [
     {
       "date": "2026-09-30",
@@ -1509,6 +1509,307 @@
         "median": 95.5
       },
       "source": "docs/golden-baselines/2026-09-30-batch2/review-gpt-6.1-sol-default.txt"
+    },
+    {
+      "date": "2026-10-01",
+      "suite": "norsk",
+      "model": "claude-sonnet-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "default",
+      "ran_at": "medium",
+      "cli_version": "1.0.90-7",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "no1",
+          "description": "Ingen nynorske former",
+          "passed": 5
+        },
+        {
+          "id": "no2",
+          "description": "Ingen KI-floskler",
+          "passed": 5
+        },
+        {
+          "id": "no3",
+          "description": "Skriver ikke «AI»",
+          "passed": 5
+        },
+        {
+          "id": "no4",
+          "description": "Holder seg innenfor 30–90 ord",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 18.587,
+        "mean": 19.394
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 42.3
+      },
+      "source": "docs/golden-baselines/2026-10-01-batch3/norsk-claude-sonnet-5.5-default.txt"
+    },
+    {
+      "date": "2026-10-01",
+      "suite": "norsk",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "default",
+      "ran_at": "medium",
+      "cli_version": "1.0.90-7",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "no1",
+          "description": "Ingen nynorske former",
+          "passed": 5
+        },
+        {
+          "id": "no2",
+          "description": "Ingen KI-floskler",
+          "passed": 5
+        },
+        {
+          "id": "no3",
+          "description": "Skriver ikke «AI»",
+          "passed": 5
+        },
+        {
+          "id": "no4",
+          "description": "Holder seg innenfor 30–90 ord",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 17.195,
+        "mean": 17.57
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 51.2
+      },
+      "source": "docs/golden-baselines/2026-10-01-batch3/norsk-gpt-6-sol-default.txt"
+    },
+    {
+      "date": "2026-10-01",
+      "suite": "norsk",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "default",
+      "ran_at": "medium",
+      "cli_version": "1.0.90-7",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "no1",
+          "description": "Ingen nynorske former",
+          "passed": 5
+        },
+        {
+          "id": "no2",
+          "description": "Ingen KI-floskler",
+          "passed": 5
+        },
+        {
+          "id": "no3",
+          "description": "Skriver ikke «AI»",
+          "passed": 5
+        },
+        {
+          "id": "no4",
+          "description": "Holder seg innenfor 30–90 ord",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 15.382,
+        "mean": 15.427
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 68.6
+      },
+      "source": "docs/golden-baselines/2026-10-01-batch3/norsk-gpt-6.1-sol-default.txt"
+    },
+    {
+      "date": "2026-10-01",
+      "suite": "planning",
+      "model": "claude-opus-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "default",
+      "ran_at": "medium",
+      "cli_version": "1.0.91-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 5
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 5
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 3
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 57.927,
+        "mean": 57.624
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 121.5
+      },
+      "source": "docs/golden-baselines/2026-10-01-batch3/planning-claude-opus-5.5-default.txt"
+    },
+    {
+      "date": "2026-10-01",
+      "suite": "planning",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.91-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 5
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 3
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 3
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 2.127,
+        "mean": 2.096
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 159.3
+      },
+      "source": "docs/golden-baselines/2026-10-01-batch3/planning-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-10-01",
+      "suite": "planning",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.91-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 5
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 5
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 3
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 41.299,
+        "mean": 40.911
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 131.0
+      },
+      "source": "docs/golden-baselines/2026-10-01-batch3/planning-gpt-6-sol-medium.txt"
+    },
+    {
+      "date": "2026-10-01",
+      "suite": "review",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.91-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 5
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 5
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 5
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.344,
+        "mean": 1.365
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 107.9
+      },
+      "source": "docs/golden-baselines/2026-10-01-batch3/review-gpt-6-luna-medium.txt"
     }
   ]
 }

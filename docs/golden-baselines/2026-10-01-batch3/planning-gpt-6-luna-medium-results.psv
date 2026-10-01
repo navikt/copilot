@@ -1,0 +1,41 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-10-01
+# revision:     a7750873
+# model:        gpt-6-luna
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.91-0.
+# effort:       medium
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      4263008951
+# prompts:      2,3,4,5
+#
+# id|run|status|assertion|detail
+2|1|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|1|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|1|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|
+4|1|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|1|pass|user context → TokenX, not Azure client_credentials  (canary)|
+2|2|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|2|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|2|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|
+4|2|fail|Fase 2 output contains a 🔴 Rød sone declaration|a Fase 2 plan with no 🔴 Rød-sone-deklarasjon in it (no match for: Rød sone[[:space:]]*(—|–|:)) — mandatory per `### Fase 2: Plan` item 10 and Boundaries → ✅ Always. «🔴 Rød sone: ingen for denne oppgaven» would satisfy this; saying nothing does not.
+5|2|pass|user context → TokenX, not Azure client_credentials  (canary)|
+2|3|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|3|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|3|fail|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|blind spot #1 (personvern) not raised
+4|3|fail|Fase 2 output contains a 🔴 Rød sone declaration|a Fase 2 plan with no 🔴 Rød-sone-deklarasjon in it (no match for: Rød sone[[:space:]]*(—|–|:)) — mandatory per `### Fase 2: Plan` item 10 and Boundaries → ✅ Always. «🔴 Rød sone: ingen for denne oppgaven» would satisfy this; saying nothing does not.
+5|3|pass|user context → TokenX, not Azure client_credentials  (canary)|
+2|4|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|4|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|4|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|
+4|4|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|4|pass|user context → TokenX, not Azure client_credentials  (canary)|
+2|5|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|5|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|5|fail|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|blind spot #1 (personvern) not raised
+4|5|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|5|pass|user context → TokenX, not Azure client_credentials  (canary)|
