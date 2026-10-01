@@ -1,0 +1,5 @@
+# Batch 3b, 1. oktober. testpakke  modell  innsatsnivå  n
+# Holder GPT-6 Lunas 5/5 på @code-review med n=10?
+review    gpt-6-luna         medium  10
+# Test 4 målt på nytt etter at sjekken godtar komma (#1403).
+planning  gpt-6-sol          medium   5

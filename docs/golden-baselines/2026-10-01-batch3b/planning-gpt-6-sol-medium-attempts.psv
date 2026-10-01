@@ -1,0 +1,33 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-10-01
+# revision:     5059124e
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.91-0.
+# effort:       medium
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+t2|1|0|pass|2285|35007|true|
+t4a|1|0|pass|2291|42730|true|
+t4b|1|0|pass|4025|42239|true|
+t5|1|0|pass|359|15584|true|
+t2|2|0|pass|1480|27466|true|
+t4a|2|0|pass|2537|46531|true|
+t4b|2|0|pass|3195|36878|true|
+t5|2|0|pass|387|14436|true|
+t2|3|0|pass|2317|37805|true|
+t4a|3|0|pass|2128|34336|true|
+t4b|3|0|pass|4022|38840|true|
+t5|3|0|pass|369|14179|true|
+t2|4|0|pass|2136|40320|true|
+t4a|4|0|pass|2491|38790|true|
+t4b|4|0|pass|3573|46981|true|
+t5|4|0|pass|270|12360|true|
+t2|5|0|pass|2361|39079|true|
+t4a|5|0|pass|2181|32729|true|
+t4b|5|0|pass|3329|38750|true|
+t5|5|0|pass|485|13966|true|
