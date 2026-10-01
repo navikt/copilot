@@ -1680,7 +1680,13 @@ RE_FASE2_PLAN='^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*:|^[^[:alnum:]]*Fase[[
 # would be reported red, not green. A red is a human read of a kept transcript,
 # so this errs the right way. It is written down so the first such red is
 # recognised as this, and not investigated from scratch as a persona regression.
-RE_T4_RED_ZONE='Rød sone[[:space:]]*(—|–|:)'
+#
+# The comma form (#1403). instructions/output-style.instructions.md forbids em
+# dashes in prose and suggests a comma, and every t4 red in batch 3 was
+# `🔴 Rød sone, skriv selv (…):` or `🔴 **Rød sone, skriv selv:**`. A comma alone
+# would also take a passing mention («koden er i rød sone, så …»), so the comma
+# form needs the 🔴 marker in front of it, with only bold markup or space between.
+RE_T4_RED_ZONE='Rød sone[[:space:]]*(—|–|:)|🔴[*[:space:]]*Rød sone[[:space:]]*,'
 RE_OPUS='nav-pilot-opus'
 
 # One pass over the selected prompts. Called once per --repeat, so every
