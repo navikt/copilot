@@ -330,6 +330,20 @@ run_suite() {
   [ "$status" -eq 0 ]
 }
 
+@test "planning t4: the red-zone declaration passes with dash, colon or comma, a missing one fails" {
+  re=$(sed -n "s/^RE_T4_RED_ZONE='\\(.*\\)'$/\\1/p" "$SCRIPT")
+  [ -n "$re" ]
+  for ok in '🔴 Rød sone — skriv selv' '🔴 Rød sone: ingen for denne oppgaven' \
+            '🔴 Rød sone, skriv selv (TokenX er nytt for teamet):' \
+            '🔴 **Rød sone, skriv selv:** tokenvalidering' '**🔴 Rød sone, utvikleren skriver selv**'; do
+    printf '%s\n' "$ok" | grep -qiE -- "$re" || { echo "should pass: $ok"; false; }
+  done
+  for bad in 'Planen dekker TokenX og PDL.' 'se rød sone under' \
+             'koden er i rød sone, så den skrives for hånd' '# 🔴 rød sone'; do
+    if printf '%s\n' "$bad" | grep -qiE -- "$re"; then echo "should fail: $bad"; false; fi
+  done
+}
+
 @test "--suite and --agent are refused together" {
   run bash "$SCRIPT" --suite review --agent nav-pilot --dry-run
   [ "$status" -eq 2 ]
