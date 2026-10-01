@@ -1,7 +1,7 @@
 # Klassifisering av hver feilet sjekk i batch 3, lest fra transkriptene (--keep).
 # arm|sjekk|kjøring|klasse|avgjørende linje
 # t4: Erklæringen står der, men med komma etter «Rød sone». Regex-en godtar bare —, – eller :.
-# Agentmalen har tankestrek, mens output-style forbyr tankestrek i prosa og foreslår komma. Sjekken er ikke løsnet.
+# Agentmalen har lang tankestrek (—), mens output-style forbyr lang tankestrek i prosa og foreslår komma. Sjekken er ikke løsnet.
 planning-claude-opus-5.5-default|t4|2|sjekkfeil|🔴 Rød sone, skriv selv (TokenX og Wonderwall er nytt for teamet, og koden er sikkerhetskritisk):
 planning-claude-opus-5.5-default|t4|5|sjekkfeil|🔴 Rød sone, skriv selv (TokenX er nytt for teamet og koden er sikkerhetskritisk):
 planning-gpt-6-sol-medium|t4|1|sjekkfeil|🔴 **Rød sone, skriv selv og gå grundig gjennom:** tokenvalidering, uttrekk av fødselsnummer fra validerte claims, tilgangskontroll og PDL-kallet med brukerkontekst.
