@@ -1,0 +1,17 @@
+*** Begin Patch
+*** Update File: workspace/src/main/kotlin/no/nav/benchmark/TaskRoutes.kt
+@@
+ import io.ktor.server.routing.get
++import io.ktor.server.routing.post
+ import io.ktor.server.routing.routing
+@@
+                 call.respond("${task.id}:${task.title}:${task.status}")
+             }
+         }
++        post("/tasks/{id}/complete") {
++            val task = service.get(call.parameters["id"]?.toIntOrNull() ?: -1)
++            call.respond(task?.let { "${it.id}:${it.title}:done" } ?: "missing")
++        }
+     }
+ }
+*** End Patch

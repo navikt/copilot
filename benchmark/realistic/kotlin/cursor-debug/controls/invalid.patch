@@ -1,0 +1,7 @@
+*** Begin Patch
+*** Update File: workspace/src/main/kotlin/no/nav/benchmark/Notes.kt
+@@
+         get("/notes") {
+-            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 2
++            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 1
+*** End Patch

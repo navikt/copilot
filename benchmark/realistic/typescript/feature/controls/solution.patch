@@ -1,0 +1,34 @@
+*** Begin Patch
+*** Update File: workspace/lib/saker.ts
+@@
+ export function listSaker(): Sak[] {
+   return [...saker];
+ }
++
++export function createSak(tittel: string, prioritet: Sak["prioritet"]): Sak {
++  const sak = { id: Math.max(...saker.map((item) => item.id)) + 1, tittel, prioritet };
++  saker.push(sak);
++  return sak;
++}
+*** Update File: workspace/app/api/saker/route.ts
+@@
+-import { listSaker } from "../../../lib/saker.ts";
++import { createSak, listSaker } from "../../../lib/saker.ts";
+@@
+ export async function GET(): Promise<Response> {
+   return Response.json(listSaker());
+ }
++
++export async function POST(request: Request): Promise<Response> {
++  const body: unknown = await request.json();
++  if (typeof body !== "object" || body === null || Array.isArray(body)) {
++    return Response.json({ error: "Ugyldig sak" }, { status: 400 });
++  }
++  const values = body as Record<string, unknown>;
++  if (typeof values.tittel !== "string" || !values.tittel.trim()
++    || (values.prioritet !== undefined && values.prioritet !== "normal" && values.prioritet !== "hoy")) {
++    return Response.json({ error: "Ugyldig sak" }, { status: 400 });
++  }
++  return Response.json(createSak(values.tittel.trim(), values.prioritet === "hoy" ? "hoy" : "normal"), { status: 201 });
++}
+*** End Patch

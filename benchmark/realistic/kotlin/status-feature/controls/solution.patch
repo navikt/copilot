@@ -1,0 +1,43 @@
+*** Begin Patch
+*** Update File: workspace/src/main/kotlin/no/nav/benchmark/TaskRepository.kt
+@@
+     @Synchronized
+     fun all(): List<Task> = tasks.values.toList()
++
++    @Synchronized
++    fun complete(id: Int): Task? {
++        val task = tasks[id] ?: return null
++        return task.copy(status = "done").also { tasks[id] = it }
++    }
+ }
+*** Update File: workspace/src/main/kotlin/no/nav/benchmark/TaskService.kt
+@@
+     fun list(): List<Task> = repository.all()
++
++    fun complete(id: Int): Task? = repository.complete(id)
+ }
+*** Update File: workspace/src/main/kotlin/no/nav/benchmark/TaskRoutes.kt
+@@
+ import io.ktor.server.routing.get
++import io.ktor.server.routing.post
+ import io.ktor.server.routing.routing
+@@
+                 call.respond("${task.id}:${task.title}:${task.status}")
+             }
+         }
++        post("/tasks/{id}/complete") {
++            val id = call.parameters["id"]?.toIntOrNull()
++            if (id == null || id <= 0) {
++                call.respond(HttpStatusCode.BadRequest)
++                return@post
++            }
++            val task = service.complete(id)
++            if (task == null) {
++                call.respond(HttpStatusCode.NotFound)
++            } else {
++                call.respond("${task.id}:${task.title}:${task.status}")
++            }
++        }
+     }
+ }
+*** End Patch
