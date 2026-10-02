@@ -192,6 +192,12 @@ Adversarial check before implementation: a missing personal lookup must never hi
 
 Implemented in the draft PR: `/usage/my-teams` resolves only the authenticated caller and reads the latest enterprise `user_teams` day, with a recent `user_metrics.user_id` fallback for renamed logins. `/innsikt/team` keeps the organization bill apart from team rows and puts matching current memberships first. It compares amounts to the previous month only when that month has all calendar days, the same gross/net basis and a visible five-contributor row; otherwise the cell says "Ikke tilgjengelig". A missing caller identity does not block browsing. The component has focused tests for overlapping totals, own-team discovery, missing identity and comparison suppression. A current team match is a navigation hint, not proof of the person's team in the selected historical month.
 
+#### CI cleanup and live API-query verification
+
+Removed the unused previous team activity component, its fetchers and unused TypeScript team-summary type after CI's unused-code check caught them. `knip` now passes. Corrected the page to use net-mode suppression counts when displaying net amounts and disabled full-month comparisons for the current or incomplete selected month. Added tests for correct net suppression totals and same-basis comparisons.
+
+`VERIFY_TEAM_SPEND_BIGQUERY=true mise test:short` passes in `apps/copilot-api`. The opt-in read-only test executes the actual Go BigQuery client and row decoder against September dev data, then the cached HTTP handler using `httptest`. It verifies 122 gross-visible teams, 119 net-visible teams, the $64,388.33 known-user net and $170.51 residual, and that August with no billing completion marker returns no net result. This validates the query/handler, not deployed Azure OBO authentication or a real browser session. Focused frontend tests pass (81 tests). The broader suite has 690 passing tests and only the existing old-domain links in local `copilot-intern` files failing. Local full `mise check` still hits stale `.next/dev/types`; CI's clean workspace will recheck this after push.
+
 ## Evidence and checks
 
 - Code: `apps/copilot-metrics/billing.go`, `apps/copilot-metrics/views/v_team_daily_summary.sql`, `apps/copilot-api/bigquery_stats.go`, `apps/my-copilot/src/app/(nb)/statistikk/page.tsx`; read-only prototype: `docs/copilot-team-spend-allocation.sql`.

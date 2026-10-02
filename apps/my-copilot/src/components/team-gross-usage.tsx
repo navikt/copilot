@@ -11,7 +11,7 @@ type Team = TeamGrossOverview["teams"][number] | TeamNetOverview["teams"][number
 
 export function compareTeamMonth(team: Team, previous: TeamGrossOverview | TeamNetOverview | null): number | null {
   const old = previous?.teams.find((row) => row.team_id === team.team_id);
-  if (!old || old.users < 5) return null;
+  if (team.users < 5 || !old || old.users < 5) return null;
   return "net_usd" in team && "net_usd" in old
     ? team.net_usd - old.net_usd
     : "gross_usd" in team && "gross_usd" in old
@@ -42,6 +42,7 @@ export default function TeamGrossUsage({
   const amount = (team: Team) => ("net_usd" in team ? team.net_usd : team.gross_usd);
   const title = net ? "Netto medlemskostnad" : "Brutto medlemsbruk";
 
+  const hidden = net ?? data;
   const rows = (teams: Team[]) =>
     filtered(teams).map((team) => {
       const change = compareTeamMonth(team, previous);
@@ -104,8 +105,9 @@ export default function TeamGrossUsage({
           {net ? (
             <BodyShort>
               Fakturert for {net.sku}: {dollars(net.enterprise_net_usd)}. Kjente brukere: {dollars(net.known_net_usd)}.
-              Av dette er {dollars(net.unassigned_net_usd)} ikke knyttet til et team, og {dollars(net.residual_net_usd)}{" "}
-              har ingen kjent bruker. Lisensutgifter er ikke med. Hentet {net.loaded_at.slice(0, 10)}.
+              Av beløpet for kjente brukere er {dollars(net.unassigned_net_usd)} ikke knyttet til et team. I tillegg
+              kommer {dollars(net.residual_net_usd)} som ikke er koblet til en kjent bruker. Lisensutgifter er ikke med.
+              Hentet {net.loaded_at.slice(0, 10)}.
             </BodyShort>
           ) : (
             <BodyShort>
@@ -140,10 +142,15 @@ export default function TeamGrossUsage({
                 Mine team
               </Heading>
               {own.length ? (
-                table(own, "Mine team")
+                filtered(own).length ? (
+                  table(own, "Mine team")
+                ) : (
+                  <BodyShort>Ingen av dine team passer søket.</BodyShort>
+                )
               ) : (
                 <BodyShort>
-                  Ingen av teamene dine vises for denne måneden. Team med færre enn fem betalende brukere skjules.
+                  Ingen av teamene dine vises for denne måneden. Team med færre enn fem {net ? "betalende" : "aktive"}{" "}
+                  brukere skjules.
                 </BodyShort>
               )}
             </section>
@@ -155,9 +162,10 @@ export default function TeamGrossUsage({
             {filtered(others).length ? table(others, "Andre team") : <BodyShort>Ingen team funnet.</BodyShort>}
           </section>
           <BodyShort>
-            {data.small_teams} team med færre enn fem betalende brukere er skjult. Til sammen gjelder det{" "}
-            {data.small_teams_users} ulike brukere og {dollars(net?.small_teams_net_usd ?? data.small_teams_gross_usd)}.
-            Noen av dem kan også inngå i synlige team. Dette beløpet kan ikke legges til Navs regning.
+            {hidden.small_teams} team med færre enn fem {net ? "betalende" : "aktive"} brukere er skjult. Til sammen
+            gjelder det {hidden.small_teams_users} ulike brukere og{" "}
+            {dollars(net?.small_teams_net_usd ?? data.small_teams_gross_usd)}. Noen av dem kan også inngå i synlige
+            team. Dette beløpet kan ikke legges til Navs regning.
           </BodyShort>
         </VStack>
       </section>

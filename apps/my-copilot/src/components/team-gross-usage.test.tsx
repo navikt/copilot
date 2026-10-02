@@ -64,4 +64,29 @@ describe("Team insight", () => {
     expect(screen.getByText(/dette er ikke Navs fakturerte nettokostnad/i)).toBeInTheDocument();
     expect(screen.getByRole("table", { name: "Andre team" })).toBeInTheDocument();
   });
+
+  it("uses net suppression totals rather than the gross user set", () => {
+    render(
+      <TeamGrossUsage
+        data={gross}
+        net={{ ...net, small_teams: 3, small_teams_users: 7 }}
+        myTeams={null}
+        previous={null}
+      />
+    );
+    expect(screen.getByText(/3 team med færre enn fem betalende brukere/)).toHaveTextContent("7 ulike brukere");
+  });
+
+  it("compares visible adjacent net months on the same basis", () => {
+    render(
+      <TeamGrossUsage
+        data={gross}
+        net={net}
+        myTeams={null}
+        previous={{ ...net, month: "2026-08", teams: [{ team_id: "1", team_slug: "alpha", users: 5, net_usd: 60 }] }}
+      />
+    );
+    expect(screen.getByText(/\+20,00/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Forrige måned" })).toHaveAttribute("href", "/innsikt/team?month=2026-08");
+  });
 });

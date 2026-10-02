@@ -311,20 +311,6 @@ export interface StalenessSummary {
  */
 export type AdoptionScope = "all" | "active";
 
-export interface TeamUsageSummary {
-  team_slug: string;
-  avg_active_users: number;
-  total_users: number;
-  total_generations: number;
-  total_acceptances: number;
-  total_interactions: number;
-  total_lines_suggested: number;
-  total_lines_accepted: number;
-  agent_users: number;
-  days_with_data: number;
-  top_models?: Array<{ model: string; interactions: number }>;
-}
-
 export interface TeamGrossOverview {
   month: string;
   teams: { team_id: string; team_slug: string; users: number; gross_usd: number }[];

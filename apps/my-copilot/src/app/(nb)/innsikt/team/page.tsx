@@ -53,6 +53,8 @@ async function TeamSpend({ month, token }: { month: string; token: string }) {
       myTeams={myTeams}
       previous={
         previousGross?.last_usage_day &&
+        month < currentMonthUTC() &&
+        gross.days_with_usage === daysInCalendarMonth(month) &&
         previousGross.days_with_usage === daysInCalendarMonth(previous) &&
         (net ? previousNet : true)
           ? (previousNet ?? previousGross)
