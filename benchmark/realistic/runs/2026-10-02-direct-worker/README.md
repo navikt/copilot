@@ -15,10 +15,10 @@ stops to ask for requirements, record that as incomplete; do not resume it.
 User-level skills from the host's Copilot home remained available in both
 arms. The runs invoked skills, so this is not a skills-free coding baseline.
 
-Run TypeScript on both arms first. If both can proceed, run Kotlin on both
+The frozen protocol ran TypeScript on both arms first, then Kotlin on both
 arms from fresh copies. Compare each pair only within the same CLI and cplt
-versions. Report full-task completion separately from check counts; never
-compare the new cohort's rates with the earlier `@nav-pilot` cohort.
+versions. Report full-task completion separately from check counts; do not
+compare this cohort's rates with the earlier `@nav-pilot` cohort.
 
 Only evaluator-owned tests establish completion. All results are exploratory;
 GPT-6 Sol stays `@nav-pilot`'s default.

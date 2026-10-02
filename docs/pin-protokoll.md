@@ -22,19 +22,20 @@ pinne. Før målingen må vi enten starte workeren direkte eller verifisere en
 eksplisitt overstyring i bruksradene. En arm der modellen eller innsatsnivået
 ikke kan bekreftes, kan ikke sammenlignes.
 
-Første runde er utforskende og har et **mål om høyst 1 500 AI credits**,
-inkludert retries og subagenter. Dette er ikke et garantert tak: Copilot CLI
-har bare en myk grense per økt, og en leverandørgrense som stopper et
-påbegynt kall ved 1 500 credits er ikke bekreftet. Før hvert forsøk må
-kostnadsanslaget få plass i gjenværende budsjett. Registrer alt forbruk,
-inkludert et eventuelt overtrekk, og stopp ved ukjent bruk. Begynn med én
-Kotlin- og én TypeScript-oppgave for worker-sammenligningen. Når fiksturene
-er validert, kan vi sammenligne de to modellene på fem uavhengige forsøk
-per oppgave. Undersøk Sol Low mot Medium på egne orkestreringsoppgaver
-bare hvis det er budsjett igjen. Dette kan avdekke feil og anslå kostnad.
-Verken to oppgaver eller fem forsøk per arm gir grunnlag for modellrangering
-eller ny pinne. Ikke publiser piloten som et sammenlignbart resultat på
-`/modeller`.
+Den utforskende kodepiloten er avsluttet. Ti forsøk fordelt på tre ulike
+kohorter brukte **80,1609590 registrerte AI credits**. Resultatene og
+begrensningene ligger i [`benchmark/realistic/runs/`](../benchmark/realistic/runs/).
+Ikke kjør flere betalte gjentakelser uten en ny beslutning om spørsmål og
+budsjett. Det opprinnelige målet var høyst 1 500 AI credits, inkludert
+retries og subagenter, men dette var ikke et garantert tak: Copilot CLI har
+bare en myk grense per økt. Den lokale databasen kan ikke bevise at alle
+leverandørkall ble registrert. Verken pilotens enkeltforsøk eller fem forsøk
+per arm gir grunnlag for modellrangering eller ny pinne. Ikke publiser
+piloten som et sammenlignbart resultat på `/modeller`.
+
+Eventuelle nye orkestreringsoppgaver hører til [#1413](https://github.com/navikt/copilot/issues/1413).
+En senere pinningsmåling krever protokollen i
+[#1414](https://github.com/navikt/copilot/issues/1414) før nye kall.
 
 ## Måling og kontroll
 
@@ -52,13 +53,14 @@ avvises. Bruk samme oppgaver, instruksjoner, verktøytilgang, klientversjon,
 isolerte miljø og ressursgrenser i begge armer. Lagre revisjonene av fixture,
 agent og instruksjoner, faktisk modell og innsatsnivå, testutfall, tid og
 fullstendig bruk per forsøk. Les feilende patcher før årsaker tilskrives
-modellen. Bruk `cplt --preset strict`, med `--project-dir` satt til en fersk,
-syntetisk oppgavestarter og evaluatorfilene utenfor arbeidsområdet. Inspiser
-sandboxen før kjøring. Med vertens vanlige innlogging er også Copilot-oppsett
-og autentisering fra verten tilgjengelig i sandboxen; ikke send andre secrets
-eller produksjonsdata inn i arbeidsområdet. `strict` begrenser nettverket,
-men tillater leverandør- og pakkeregistertrafikk, også fra agentens verktøy.
-Det er ikke en nettverksløs container.
+modellen. Den manuelle piloten brukte `cplt --preset strict`, med `--project-dir`
+satt til en fersk, syntetisk oppgavestarter og evaluatorfilene utenfor
+arbeidsområdet. Vertens Copilot-oppsett, brukerinstallerte skills og
+autentisering var tilgjengelige, men ble ikke fryst. `strict` begrenser
+nettverket, men tillater leverandør- og pakkeregistertrafikk, også fra
+agentens verktøy. Det oppfyller ikke kravet om nettverksløs agentcontainer
+i [#1409](https://github.com/navikt/copilot/issues/1409). Avklar kravet der
+før en eventuell ny betalt kjøring.
 
 ## Før en eventuell pinningsbeslutning
 

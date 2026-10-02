@@ -6,31 +6,28 @@ pilot compares Luna Medium with Sol Medium on bounded coding; Sol Low versus
 Medium on orchestration is a separate question. Do not publish these runs on
 `/modeller` or use them to change the pin.
 
-The exploratory target is at most 1,500 AI credits across all calls, retries
-and subagents. Copilot's `--max-ai-credits` is a soft per-session limit: a call
-can overshoot it. Stop if usage is unknown or the next estimate does not fit.
+The exploratory target was at most 1,500 AI credits across calls, retries
+and subagents. The ten paid attempts recorded 80.1609590 AI credits.
+Copilot's `--max-ai-credits` is a soft per-session limit and an in-flight call
+can overshoot it. No further paid repetitions are planned.
 
-## Manual first attempt
+## Follow-ups
 
-1. Run the offline controls and unit tests in `README.md`. Prepare one fresh
-   attempt with `prepare.py`. Keep `manifest.json` and `evaluator/` outside
-   Copilot's project directory.
-2. Inspect the sandbox profile for the prepared `workspace/`. Run Copilot
-   through `cplt --preset strict --proxy-forced --project-dir <workspace>`
-   with the host's authenticated Copilot setup, a unique session ID, explicit
-   `--model` and `--reasoning-effort`, `--no-auto-update`, and a soft
-   `--max-ai-credits` limit. This permits provider and package registry
-   egress from both Copilot and its tools. It is not a network-disabled agent
-   container. The host's Copilot configuration and authentication are in
-   scope; keep other secrets and production data out of the workspace.
-3. Save CLI/cplt versions, command, time, session ID, raw usage and the
-   completed workspace outside Copilot's project directory. Compare usage
-   rows for that session with the requested model and effort; include
-   subagents. If attribution or cost is missing, stop the pilot. Evaluate
-   with `check.py --attempt` and inspect the patch.
-4. Only if the first run is reproducible, compare Luna Medium with Sol Medium
-   on the same Kotlin and TypeScript tasks. Examine orchestration separately
-   if credits remain. #1410's sequential tasks come later.
+Do not start more paid repetitions by following the earlier run procedure.
+Concrete follow-ups are tracked in issues:
+
+- [#1409](https://github.com/navikt/copilot/issues/1409): decide whether its
+  original live-runner and network-disabled agent-container requirements
+  remain. The manual cplt pilot did not meet them.
+- [#1413](https://github.com/navikt/copilot/issues/1413): define and validate
+  orchestration tasks offline before considering Sol Low versus Medium.
+- [#1414](https://github.com/navikt/copilot/issues/1414): preregister task
+  sample, uncertainty and cost for any later pin decision. If unaffordable,
+  report "undecided" and keep Sol.
+- [#1410](https://github.com/navikt/copilot/issues/1410): sequential changes
+  are a separate deferred experiment. Persona-regression follow-ups stay in
+  [#584](https://github.com/navikt/copilot/issues/584) and
+  [#1408](https://github.com/navikt/copilot/issues/1408).
 
 ## First paired run, 1 October 2026
 

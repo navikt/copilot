@@ -52,13 +52,21 @@ used or the cost of creating that workspace. A broken build or incomplete
 test report is `untestable`, never a failed requirement or a success.
 
 The offline evaluator cannot enforce the pilot's 1,500-credit target or verify
-model usage. The manual pilot runs Copilot inside `cplt --preset strict` using
-the host's authenticated Copilot setup. cplt allows provider and package
-registry egress for the agent and its tools; it is not a network-disabled
-agent container. Scope `--project-dir` to the prepared `workspace/`, deny
-evaluator paths, and inspect the effective sandbox policy before a paid run.
-Set a soft per-session credit limit and check usage after each attempt. See
+model usage. The completed manual pilot ran Copilot inside `cplt --preset strict`
+using the host's authenticated Copilot setup. cplt allowed provider and
+package-registry egress for the agent and its tools; it was not a
+network-disabled agent container. The runs scoped `--project-dir` to each
+prepared `workspace/`, denied evaluator paths and used a soft per-session
+credit limit. See
 [`docs/pin-protokoll.md`](../../docs/pin-protokoll.md).
+
+The exploratory pilot is complete; no further paid repetitions are planned.
+The three distinct cohorts and their limits are in [`runs/`](runs/).
+Concrete follow-ups belong to [#1409](https://github.com/navikt/copilot/issues/1409)
+for the original agent-isolation requirement,
+[#1413](https://github.com/navikt/copilot/issues/1413) for orchestration tasks,
+[#1414](https://github.com/navikt/copilot/issues/1414) for a later pin study,
+and [#1410](https://github.com/navikt/copilot/issues/1410) for sequential changes.
 
 Prepare an attempt without contacting a model:
 
