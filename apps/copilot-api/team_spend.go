@@ -199,22 +199,12 @@ func (c *CachedBigQueryClient) GetTeamNetOverview(ctx context.Context, month str
 const minTeamContributors = 5
 
 func (bq *BigQueryClient) GetUserTeams(ctx context.Context, userLogin string) ([]string, error) {
-	// The caller's current SAML login can differ from a historical report login.
-	// Match either login on the latest membership day or a recent metric's user ID.
 	query := bq.client.Query(fmt.Sprintf(`SELECT DISTINCT JSON_VALUE(raw_record,'$.slug') team_slug
 FROM %s WHERE day=(SELECT MAX(day) FROM %s WHERE scope='enterprise' AND scope_id='nav')
 AND scope='enterprise' AND scope_id='nav'
-AND (
-  LOWER(JSON_VALUE(raw_record,'$.user_login'))=LOWER(@login)
-  OR JSON_VALUE(raw_record,'$.user_id') IN (
-    SELECT DISTINCT JSON_VALUE(raw_record,'$.user_id') FROM %s
-    WHERE scope='enterprise' AND scope_id='nav'
-      AND LOWER(JSON_VALUE(raw_record,'$.user_login'))=LOWER(@login)
-      AND day>=DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
-  )
-)
+AND LOWER(JSON_VALUE(raw_record,'$.user_login'))=LOWER(@login)
 AND JSON_VALUE(raw_record,'$.slug')!='nav-it-github-users'
-ORDER BY team_slug`, bq.tableRef(bq.metricsDataset, "user_teams"), bq.tableRef(bq.metricsDataset, "user_teams"), bq.tableRef(bq.metricsDataset, "user_metrics")))
+ORDER BY team_slug`, bq.tableRef(bq.metricsDataset, "user_teams"), bq.tableRef(bq.metricsDataset, "user_teams")))
 	query.Parameters = []bigquery.QueryParameter{{Name: "login", Value: userLogin}}
 	it, err := query.Read(ctx)
 	if err != nil {

@@ -1,12 +1,13 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { Box, Heading, Skeleton } from "@navikt/ds-react";
+import { BodyShort, Box, Heading, Skeleton } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
 import TeamGrossUsage from "@/components/team-gross-usage";
 import ErrorState from "@/components/error-state";
 import { getMyTeams, getTeamGrossOverview, getTeamNetOverview } from "@/lib/cached-bigquery";
 import { getUser, getUserToken } from "@/lib/auth";
 import { currentMonthUTC, daysInCalendarMonth, previousMonth } from "@/lib/month-utils";
+import TeamMonthPicker from "@/components/team-month-picker";
 
 export const metadata: Metadata = {
   title: "Teaminnsikt",
@@ -21,7 +22,7 @@ async function TeamSpend({ month, token }: { month: string; token: string }) {
     console.error("[team] Gross usage failed:", error);
     return <ErrorState message="Kunne ikke hente teamenes brutto AI-bruk." />;
   }
-  if (!gross.last_usage_day) return <ErrorState message="Ingen teamdata for denne måneden." />;
+  if (!gross.last_usage_day) return <BodyShort>Ingen teamdata for denne måneden.</BodyShort>;
 
   let net = null;
   try {
@@ -87,6 +88,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
           <Heading id="teamkostnad" level="2" size="medium" spacing>
             Kostnad og bruk
           </Heading>
+          <TeamMonthPicker month={month} />
           <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
             <TeamSpend month={month} token={token} />
           </Suspense>

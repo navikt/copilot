@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -28,6 +29,7 @@ type BillingUsageResponse struct {
 		Day   int `json:"day,omitempty"`
 	} `json:"timePeriod"`
 	Enterprise string             `json:"enterprise"`
+	User       string             `json:"user,omitempty"`
 	UsageItems []BillingUsageItem `json:"usageItems"`
 }
 
@@ -100,7 +102,19 @@ func (c *BillingClient) FetchUserAICreditUsage(ctx context.Context, login string
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decode user AI credit billing: %w", err)
 	}
+	if err := validateUserBilling(&result, login, c.enterprise, month); err != nil {
+		return nil, err
+	}
 	return &result, nil
+}
+
+func validateUserBilling(response *BillingUsageResponse, login, enterprise string, month time.Time) error {
+	if response == nil || !strings.EqualFold(response.User, login) ||
+		!strings.EqualFold(response.Enterprise, enterprise) || response.TimePeriod.Year != month.Year() ||
+		response.TimePeriod.Month != int(month.Month()) || response.TimePeriod.Day != 0 || response.UsageItems == nil {
+		return fmt.Errorf("user billing response does not match requested account and month")
+	}
+	return nil
 }
 
 // FetchMonthlyUsage fetches the premium request billing data for a given month.

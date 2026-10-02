@@ -20,7 +20,7 @@ type userBillingStore interface {
 	UserBillingRunComplete(context.Context, time.Time, string) (bool, error)
 	GetBillingUsers(context.Context, time.Time, string) (map[string]string, error)
 	UserBillingDone(context.Context, time.Time, string) (map[string]bool, error)
-	UpsertUserBilling(context.Context, UserBillingRow) error
+	ReplaceUserBilling(context.Context, []UserBillingRow) error
 	CompleteUserBilling(context.Context, time.Time, string, int) error
 }
 
@@ -59,6 +59,9 @@ func ingestUserBillingMonth(ctx context.Context, client userBillingFetcher, stor
 		if err != nil {
 			return fmt.Errorf("billing user %d/%d: %w", index+1, len(ids), err)
 		}
+		if err := validateUserBilling(response, users[id], cfg.EnterpriseSlug, month); err != nil {
+			return fmt.Errorf("billing user %d/%d: %w", index+1, len(ids), err)
+		}
 		bySKU := map[string]UserBillingRow{}
 		for _, item := range response.UsageItems {
 			if item.Product != "Copilot" || (item.SKU != "Copilot AI Credits" && item.SKU != "Copilot Cloud Agent") {
@@ -75,16 +78,15 @@ func ingestUserBillingMonth(ctx context.Context, client userBillingFetcher, stor
 			row.NetAmount += item.NetAmount
 			bySKU[item.SKU] = row
 		}
-		for _, row := range bySKU {
-			if err := store.UpsertUserBilling(ctx, row); err != nil {
-				return fmt.Errorf("store billing user %d/%d: %w", index+1, len(ids), err)
-			}
-		}
-		if err := store.UpsertUserBilling(ctx, UserBillingRow{
+		rows := []UserBillingRow{{
 			Month: civil.DateOf(month), ScopeID: cfg.EnterpriseSlug, UserID: id,
 			GitHubLogin: users[id], SKU: "done", LoadedAt: time.Now().UTC(),
-		}); err != nil {
-			return fmt.Errorf("mark billing user %d/%d complete: %w", index+1, len(ids), err)
+		}}
+		for _, row := range bySKU {
+			rows = append(rows, row)
+		}
+		if err := store.ReplaceUserBilling(ctx, rows); err != nil {
+			return fmt.Errorf("replace billing user %d/%d: %w", index+1, len(ids), err)
 		}
 		if (index+1)%100 == 0 {
 			slog.Info("User billing progress", "processed", index+1, "total", len(ids))

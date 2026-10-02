@@ -136,24 +136,29 @@ WHERE month=@month AND scope_id=@scope AND status='complete'`)
 	return row.N > 0, nil
 }
 
-// MERGE makes retries safe: failed fetches never overwrite previous rows.
-func (c *BigQueryClient) UpsertUserBilling(ctx context.Context, row UserBillingRow) error {
-	q := c.client.Query(`MERGE ` + "`" + c.projectID + "." + c.dataset + "." + userBillingTable + "`" + ` t
-USING (SELECT @month month, @scope scope_id, @uid user_id, @login github_login,
-              @sku sku, @gross gross_amount, @net net_amount, @loaded loaded_at) s
-ON t.month=s.month AND t.scope_id=s.scope_id AND t.user_id=s.user_id AND t.sku=s.sku
-WHEN MATCHED THEN UPDATE SET github_login=s.github_login, gross_amount=s.gross_amount,
-  net_amount=s.net_amount, loaded_at=s.loaded_at
-WHEN NOT MATCHED THEN INSERT (month,scope_id,user_id,github_login,sku,gross_amount,net_amount,loaded_at)
-VALUES (s.month,s.scope_id,s.user_id,s.github_login,s.sku,s.gross_amount,s.net_amount,s.loaded_at)`)
+// Replace the user snapshot and its completion marker in one transaction so a
+// retry cannot preserve SKUs from a response that never finished storing.
+func (c *BigQueryClient) ReplaceUserBilling(ctx context.Context, rows []UserBillingRow) error {
+	if len(rows) == 0 {
+		return fmt.Errorf("billing snapshot must include a completion marker")
+	}
+	row := rows[0]
+	table := "`" + c.projectID + "." + c.dataset + "." + userBillingTable + "`"
+	q := c.client.Query(userBillingReplacementSQL(table))
 	q.Parameters = []bigquery.QueryParameter{
 		{Name: "month", Value: row.Month}, {Name: "scope", Value: row.ScopeID},
-		{Name: "uid", Value: row.UserID}, {Name: "login", Value: row.GitHubLogin},
-		{Name: "sku", Value: row.SKU}, {Name: "gross", Value: row.GrossAmount},
-		{Name: "net", Value: row.NetAmount}, {Name: "loaded", Value: row.LoadedAt},
+		{Name: "uid", Value: row.UserID}, {Name: "rows", Value: rows},
 	}
 	_, err := q.Read(ctx)
 	return err
+}
+
+func userBillingReplacementSQL(table string) string {
+	return `BEGIN TRANSACTION;
+DELETE FROM ` + table + ` WHERE month=@month AND scope_id=@scope AND user_id=@uid;
+INSERT INTO ` + table + ` (month,scope_id,user_id,github_login,sku,gross_amount,net_amount,loaded_at)
+SELECT month,scope_id,user_id,github_login,sku,gross_amount,net_amount,loaded_at FROM UNNEST(@rows);
+COMMIT TRANSACTION;`
 }
 
 func (c *BigQueryClient) GetBillingUsers(ctx context.Context, month time.Time, scope string) (map[string]string, error) {

@@ -43,7 +43,6 @@ describe("Team insight", () => {
     expect(screen.getByText(/92,00/)).toBeInTheDocument();
     expect(within(screen.getByRole("table", { name: "Mine team" })).getByText("beta")).toBeInTheDocument();
     expect(within(screen.getByRole("table", { name: "Andre team" })).getByText("alpha")).toBeInTheDocument();
-    expect(screen.getByRole("form")).toHaveAttribute("action", "/innsikt/team");
   });
 
   it("does not compare net to gross or reveal a suppressed previous month", () => {
@@ -87,6 +86,5 @@ describe("Team insight", () => {
       />
     );
     expect(screen.getByText(/\+20,00/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Forrige måned" })).toHaveAttribute("href", "/innsikt/team?month=2026-08");
   });
 });

@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { BodyShort, Button, Heading, HStack, Search, Table, VStack } from "@navikt/ds-react";
-import Link from "next/link";
+import { BodyShort, Heading, Search, Table, VStack } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
 import type { TeamGrossOverview, TeamNetOverview } from "@/lib/types";
-import { previousMonth } from "@/lib/month-utils";
 
 type Team = TeamGrossOverview["teams"][number] | TeamNetOverview["teams"][number];
 
@@ -80,23 +78,6 @@ export default function TeamGrossUsage({
 
   return (
     <VStack gap="space-32">
-      <HStack gap="space-8" align="center" wrap>
-        <form action="/innsikt/team" method="get" aria-label="Velg måned">
-          <label htmlFor="team-spend-month">Måned</label>{" "}
-          <input
-            id="team-spend-month"
-            name="month"
-            type="month"
-            defaultValue={data.month}
-            max={new Date().toISOString().slice(0, 7)}
-          />{" "}
-          <Button type="submit" size="small" variant="secondary-neutral">
-            Vis måned
-          </Button>
-        </form>
-        {data.month > "2026-05" && <Link href={`/innsikt/team?month=${previousMonth(data.month)}`}>Forrige måned</Link>}
-      </HStack>
-
       <section aria-labelledby="navs-regning">
         <VStack gap="space-8">
           <Heading id="navs-regning" level="3" size="small">
