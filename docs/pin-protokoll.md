@@ -22,10 +22,12 @@ pinne. Før målingen må vi enten starte workeren direkte eller verifisere en
 eksplisitt overstyring i bruksradene. En arm der modellen eller innsatsnivået
 ikke kan bekreftes, kan ikke sammenlignes.
 
-Første runde er utforskende og har et tak på **1 500 AI credits**, inkludert
-retries og subagenter. Ikke start et nytt forsøk uten et kostnadsanslag som
-får plass i gjenværende budsjett. Et enkelt modellkall kan likevel overskride
-anslaget; et absolutt tak krever en grense hos leverandøren. Begynn med én
+Første runde er utforskende og har et **mål om høyst 1 500 AI credits**,
+inkludert retries og subagenter. Dette er ikke et garantert tak: Copilot CLI
+har bare en myk grense per økt, og en leverandørgrense som stopper et
+påbegynt kall ved 1 500 credits er ikke bekreftet. Før hvert forsøk må
+kostnadsanslaget få plass i gjenværende budsjett. Registrer alt forbruk,
+inkludert et eventuelt overtrekk, og stopp ved ukjent bruk. Begynn med én
 Kotlin- og én TypeScript-oppgave for worker-sammenligningen. Når fiksturene
 er validert, kan vi sammenligne de to modellene på fem uavhengige forsøk
 per oppgave. Undersøk Sol Low mot Medium på egne orkestreringsoppgaver
@@ -50,7 +52,13 @@ avvises. Bruk samme oppgaver, instruksjoner, verktøytilgang, klientversjon,
 isolerte miljø og ressursgrenser i begge armer. Lagre revisjonene av fixture,
 agent og instruksjoner, faktisk modell og innsatsnivå, testutfall, tid og
 fullstendig bruk per forsøk. Les feilende patcher før årsaker tilskrives
-modellen. Agenten skal ikke ha tilgang til secrets eller produksjonsdata.
+modellen. Bruk `cplt --preset strict`, med `--project-dir` satt til en fersk,
+syntetisk oppgavestarter og evaluatorfilene utenfor arbeidsområdet. Inspiser
+sandboxen før kjøring. Med vertens vanlige innlogging er også Copilot-oppsett
+og autentisering fra verten tilgjengelig i sandboxen; ikke send andre secrets
+eller produksjonsdata inn i arbeidsområdet. `strict` begrenser nettverket,
+men tillater leverandør- og pakkeregistertrafikk, også fra agentens verktøy.
+Det er ikke en nettverksløs container.
 
 ## Før en eventuell pinningsbeslutning
 

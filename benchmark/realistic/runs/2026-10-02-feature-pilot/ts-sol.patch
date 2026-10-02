@@ -1,0 +1,126 @@
+--- a/app/api/saker/route.ts
++++ b/app/api/saker/route.ts
+@@ -1,5 +1,39 @@
+-import { listSaker } from "../../../lib/saker.ts";
++import { listSaker, opprettSak } from "../../../lib/saker.ts";
+ 
+ export async function GET(): Promise<Response> {
+   return Response.json(listSaker());
+ }
++
++function ugyldigForesporsel(detail: string): Response {
++  return Response.json(
++    { type: "about:blank", title: "Ugyldig forespørsel", status: 400, detail },
++    { status: 400, headers: { "Content-Type": "application/problem+json" } },
++  );
++}
++
++export async function POST(request: Request): Promise<Response> {
++  let body: unknown;
++  try {
++    body = await request.json();
++  } catch (error) {
++    if (error instanceof SyntaxError) {
++      return ugyldigForesporsel("Ugyldig JSON.");
++    }
++    throw error;
++  }
++
++  if (body === null || typeof body !== "object" || Array.isArray(body)) {
++    return ugyldigForesporsel("Forespørselen må være et objekt.");
++  }
++
++  const { tittel, prioritet } = body as Record<string, unknown>;
++  if (typeof tittel !== "string" || tittel.trim().length === 0) {
++    return ugyldigForesporsel("Tittel må fylles ut.");
++  }
++  if (prioritet !== undefined && prioritet !== "normal" && prioritet !== "hoy") {
++    return ugyldigForesporsel("Prioritet må være normal eller hoy.");
++  }
++
++  const sak = opprettSak(tittel.trim(), prioritet ?? "normal");
++  return Response.json(sak, { status: 201 });
++}
+--- a/lib/saker.ts
++++ b/lib/saker.ts
+@@ -1,7 +1,14 @@
+ export type Sak = { id: number; tittel: string; prioritet: "normal" | "hoy" };
+ 
+ const saker: Sak[] = [{ id: 101, tittel: "Eksisterende sak", prioritet: "normal" }];
++let nesteId = Math.max(...saker.map((sak) => sak.id)) + 1;
+ 
+ export function listSaker(): Sak[] {
+   return [...saker];
+ }
++
++export function opprettSak(tittel: string, prioritet: Sak["prioritet"]): Sak {
++  const sak = { id: nesteId++, tittel, prioritet };
++  saker.push(sak);
++  return sak;
++}
+--- a/tests/regression.test.ts
++++ b/tests/regression.test.ts
+@@ -1,9 +1,62 @@
+ import assert from "node:assert/strict";
+ import { test } from "node:test";
+-import { GET } from "../app/api/saker/route.ts";
++import { GET, POST } from "../app/api/saker/route.ts";
+ 
+ test("existing cases remain visible", async () => {
+   const response = await GET();
+   assert.equal(response.status, 200);
+   assert.ok((await response.json()).some((sak: { id: number }) => sak.id === 101));
+ });
++
++function postSak(body: unknown): Promise<Response> {
++  return POST(new Request("http://localhost/api/saker", {
++    method: "POST",
++    headers: { "Content-Type": "application/json" },
++    body: JSON.stringify(body),
++  }));
++}
++
++test("creates a case with default priority and shows it in the overview", async () => {
++  const response = await postSak({ tittel: "Ny sak" });
++  assert.equal(response.status, 201);
++  const sak = await response.json();
++  assert.equal(typeof sak.id, "number");
++  assert.deepEqual(sak, { id: sak.id, tittel: "Ny sak", prioritet: "normal" });
++  assert.ok((await (await GET()).json()).some((listed: { id: number }) => listed.id === sak.id));
++});
++
++test("creates a case with high priority and a new ID", async () => {
++  const response = await postSak({ tittel: "Haster", prioritet: "hoy" });
++  assert.equal(response.status, 201);
++  const sak = await response.json();
++  assert.deepEqual(sak, { id: sak.id, tittel: "Haster", prioritet: "hoy" });
++  const listed = await (await GET()).json();
++  assert.ok(listed.some((item: { id: number }) => item.id === sak.id));
++  assert.equal(new Set(listed.map((item: { id: number }) => item.id)).size, listed.length);
++});
++
++test("rejects invalid input without creating a case", async () => {
++  for (const body of [
++    {}, { tittel: "" }, { tittel: " \t " }, { tittel: null },
++    { tittel: 42 }, { tittel: "Sak", prioritet: "kritisk" },
++    { tittel: "Sak", prioritet: null }, null, [],
++  ]) {
++    const before = await (await GET()).json();
++    const response = await postSak(body);
++    assert.equal(response.status, 400, JSON.stringify(body));
++    assert.equal(response.headers.get("Content-Type"), "application/problem+json");
++    assert.equal((await response.json()).status, 400);
++    assert.deepEqual(await (await GET()).json(), before);
++  }
++});
++
++test("rejects malformed JSON without creating a case", async () => {
++  const before = await (await GET()).json();
++  const response = await POST(new Request("http://localhost/api/saker", {
++    method: "POST",
++    body: "{",
++    headers: { "Content-Type": "application/json" },
++  }));
++  assert.equal(response.status, 400);
++  assert.deepEqual(await (await GET()).json(), before);
++});

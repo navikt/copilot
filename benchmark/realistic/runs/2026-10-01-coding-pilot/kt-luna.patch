@@ -1,0 +1,34 @@
+--- a/src/main/kotlin/no/nav/benchmark/Notes.kt
++++ b/src/main/kotlin/no/nav/benchmark/Notes.kt
+@@ -14,7 +14,7 @@
+     }
+ 
+     fun page(after: Int?, limit: Int): List<Note> =
+-        notes.filter { after == null || it.id >= after }.take(limit)
++        notes.filter { after == null || it.id > after }.take(limit)
+ }
+ 
+ fun Application.notesModule(repository: NoteRepository = NoteRepository(
+--- a/src/test/kotlin/no/nav/benchmark/NotesTest.kt
++++ b/src/test/kotlin/no/nav/benchmark/NotesTest.kt
+@@ -15,8 +15,20 @@
+     }
+ 
+     @Test
++    fun nextPageStartsAfterCursor() = testApplication {
++        application { notesModule() }
++        assertEquals("3:Three\n4:Four", client.get("/notes?limit=2&after=2").bodyAsText())
++    }
++
++    @Test
+     fun invalidLimit() = testApplication {
+         application { notesModule() }
+         assertEquals(HttpStatusCode.BadRequest, client.get("/notes?limit=0").status)
+     }
++
++    @Test
++    fun invalidAfter() = testApplication {
++        application { notesModule() }
++        assertEquals(HttpStatusCode.BadRequest, client.get("/notes?after=invalid").status)
++    }
+ }

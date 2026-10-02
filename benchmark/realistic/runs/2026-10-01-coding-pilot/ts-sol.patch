@@ -1,0 +1,56 @@
+--- a/app/api/saker/route.ts
++++ b/app/api/saker/route.ts
+@@ -1,7 +1,10 @@
+-import { listSaker } from "../../../lib/saker.ts";
++import { isSakStatus, listSaker } from "../../../lib/saker.ts";
+ 
+ export async function GET(request: Request): Promise<Response> {
+   const status = new URL(request.url).searchParams.get("status") ?? "alle";
++  if (!isSakStatus(status)) {
++    return Response.json({ error: "Ukjent status" }, { status: 400 });
++  }
+   const saker = listSaker(status);
+   return Response.json(saker);
+ }
+--- a/lib/saker.ts
++++ b/lib/saker.ts
+@@ -1,12 +1,17 @@
+ type Sak = { id: number; status: "apen" | "lukket" };
++type SakStatus = Sak["status"] | "alle";
+ 
+ const saker: Sak[] = [
+   { id: 101, status: "apen" },
+   { id: 102, status: "lukket" },
+ ];
+ 
++export function isSakStatus(status: string): status is SakStatus {
++  return status === "alle" || status === "apen" || status === "lukket";
++}
++
+ export function listSaker(status: string): Sak[] {
+-  if (!["alle", "apen", "lukket"].includes(status)) {
++  if (!isSakStatus(status)) {
+     throw new Error(`Ukjent status: ${status}`);
+   }
+   return status === "alle" ? saker : saker.filter((sak) => sak.status === status);
+--- a/tests/regression.test.ts
++++ b/tests/regression.test.ts
+@@ -7,3 +7,18 @@
+   assert.equal(response.status, 200);
+   assert.deepEqual(await response.json(), [{ id: 101, status: "apen" }]);
+ });
++
++test("unknown status returns a client error", async () => {
++  const response = await GET(new Request("http://localhost/api/saker?status=ukjent"));
++  assert.equal(response.status, 400);
++  assert.deepEqual(await response.json(), { error: "Ukjent status" });
++});
++
++test("missing status still returns all cases", async () => {
++  const response = await GET(new Request("http://localhost/api/saker"));
++  assert.equal(response.status, 200);
++  assert.deepEqual(await response.json(), [
++    { id: 101, status: "apen" },
++    { id: 102, status: "lukket" },
++  ]);
++});

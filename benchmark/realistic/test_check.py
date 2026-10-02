@@ -26,6 +26,11 @@ class EvaluatorTests(unittest.TestCase):
             self.assertFalse((task / "workspace/.github").exists())
             with self.assertRaises(FileExistsError):
                 prepare("typescript/incident", first, "gpt-6-sol", "medium")
+            direct = Path(temporary) / "direct"
+            direct_manifest = prepare("typescript/feature", direct, "gpt-6-luna", "medium", direct_worker=True)
+            self.assertEqual(direct_manifest["agent"], "default")
+            self.assertFalse((direct / "workspace/.github/agents").exists())
+            self.assertEqual(len(list((direct / "workspace/.github/instructions").glob("*.instructions.md"))), 16)
             result = evaluate_attempt(first)
             self.assertEqual(result["status"], "failed")
             self.assertEqual(result["task"], "typescript/incident")
@@ -36,6 +41,20 @@ class EvaluatorTests(unittest.TestCase):
             (first / "evaluator/fixture/prompt.md").symlink_to(task / "prompt.md")
             with self.assertRaisesRegex(ValueError, "symlinks"):
                 evaluate_attempt(first)
+
+    def test_generated_dependency_symlinks_are_not_candidate_source(self):
+        task = ROOT / "typescript/incident"
+        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".nav-benchmark-test-") as temporary:
+            candidate = Path(temporary) / "workspace"
+            shutil.copytree(task / "workspace", candidate)
+            (candidate / "node_modules/.bin").mkdir(parents=True)
+            (candidate / "node_modules/.bin/tsc").symlink_to("../typescript/bin/tsc")
+            result = evaluate(task, candidate)
+            self.assertEqual(result["status"], "failed")
+            (candidate / "lib/saker.ts").unlink()
+            (candidate / "lib/saker.ts").symlink_to(task / "workspace/lib/saker.ts")
+            with self.assertRaisesRegex(ValueError, "symlinks"):
+                evaluate(task, candidate)
 
     def test_control_rejects_paths_outside_task(self):
         with tempfile.TemporaryDirectory(dir=ROOT, prefix=".nav-benchmark-test-") as temporary:

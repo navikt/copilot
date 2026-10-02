@@ -183,7 +183,9 @@ def fixture_revision(task: Path) -> str:
 
 
 def evaluate(task: Path, candidate: Path, task_name: str | None = None) -> dict:
-    if not candidate.is_dir() or any(path.is_symlink() for path in candidate.rglob("*")):
+    if not candidate.is_dir() or any(path.is_symlink() for path in candidate.rglob("*")
+                                     if not any(part in ("build", ".gradle", ".next", "node_modules")
+                                                for part in path.relative_to(candidate).parts)):
         raise ValueError("Candidate must be a directory without symlinks")
     started = time.monotonic()
     report = {

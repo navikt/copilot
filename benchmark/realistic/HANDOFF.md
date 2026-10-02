@@ -1,60 +1,118 @@
-# Restart point for the realistic coding pilot
+# Realistic coding pilot: current state
 
-Branch: `benchmark/realistic-pilot-preflight`. Decision: keep GPT-6 Sol as
-`@nav-pilot`'s default. No live model calls have been made for these fixtures.
-The exploratory budget is 1,500 AI credits in total, including retries and
-subagents. Five attempts per arm cannot support a pin change. Do not publish
-these results on `/modeller`.
+Keep GPT-6 Sol as `@nav-pilot`'s default. The four synthetic Kotlin/Ktor and
+Next.js tasks have offline baseline, known-good and invalid controls. This
+pilot compares Luna Medium with Sol Medium on bounded coding; Sol Low versus
+Medium on orchestration is a separate question. Do not publish these runs on
+`/modeller` or use them to change the pin.
 
-## Saved state
+The exploratory target is at most 1,500 AI credits across all calls, retries
+and subagents. Copilot's `--max-ai-credits` is a soft per-session limit: a call
+can overshoot it. Stop if usage is unknown or the next estimate does not fit.
 
-- `docs/pin-protokoll.md` records the two separate comparisons: Luna Medium
-  versus Sol Medium on bounded coding work, then Sol Low versus Sol Medium on
-  orchestration tasks if budget remains. The five-percentage-point tolerance
-  belongs to a later study with an adequate sample.
-- `benchmark/realistic/` has four synthetic Kotlin/Ktor and Next.js tasks.
-  Agent-visible starters are separate from acceptance and regression tests.
-  `check.py` validates baseline, known-good and invalid controls without
-  model calls, or grades an already-completed candidate in network-disabled
-  Docker containers.
-- `prepare.py` copies a fresh attempt and records file hashes, requested arm
-  and prompt. `check.py --attempt` rejects a changed evaluator fixture.
-  `probe.py` confirms that a test container can write to its mounted workspace
-  and temporary home, cannot see the evaluator files, and cannot connect to
-  an external TCP address. None of these scripts starts Copilot CLI.
-- The current preparation installs only `nav-pilot.agent.md` and all
-  `instructions/*.instructions.md`, with no skills or other agents. This
-  selection is recorded in each manifest and is not a full installation.
+## Manual first attempt
 
-## Resume here
+1. Run the offline controls and unit tests in `README.md`. Prepare one fresh
+   attempt with `prepare.py`. Keep `manifest.json` and `evaluator/` outside
+   Copilot's project directory.
+2. Inspect the sandbox profile for the prepared `workspace/`. Run Copilot
+   through `cplt --preset strict --proxy-forced --project-dir <workspace>`
+   with the host's authenticated Copilot setup, a unique session ID, explicit
+   `--model` and `--reasoning-effort`, `--no-auto-update`, and a soft
+   `--max-ai-credits` limit. This permits provider and package registry
+   egress from both Copilot and its tools. It is not a network-disabled agent
+   container. The host's Copilot configuration and authentication are in
+   scope; keep other secrets and production data out of the workspace.
+3. Save CLI/cplt versions, command, time, session ID, raw usage and the
+   completed workspace outside Copilot's project directory. Compare usage
+   rows for that session with the requested model and effort; include
+   subagents. If attribution or cost is missing, stop the pilot. Evaluate
+   with `check.py --attempt` and inspect the patch.
+4. Only if the first run is reproducible, compare Luna Medium with Sol Medium
+   on the same Kotlin and TypeScript tasks. Examine orchestration separately
+   if credits remain. #1410's sequential tasks come later.
 
-1. Confirm the branch and worktree are clean. Run
-   `python3 -B benchmark/realistic/check.py`,
-   `python3 -B benchmark/realistic/probe.py`,
-   `python3 -B -m unittest discover -s benchmark/realistic -p 'test_*.py'`
-   and `mise run benchmark:check`. Prebuild the TypeScript image and warm
-   Kotlin dependencies as described in `README.md` if needed.
-2. Resolve #1409's live-agent boundary. Copilot must reach its model, while
-   the agent's tools must have no external network, secrets or access to
-   evaluator files. The Docker probe proves a container policy only; it does
-   not put Copilot's tools in that container. `cplt --preset strict` permits
-   provider egress and has not been shown to meet #1409's requirement. Test
-   denied tool egress and fixture access through the *actual* runner before
-   any paid call.
-3. Obtain and verify an enforceable provider-side spending boundary for the
-   1,500-credit **total**. Copilot CLI's `--max-ai-credits` is a soft
-   per-session cap and can overshoot. Do not run a paid attempt if a hard
-   boundary cannot be demonstrated.
-4. Finish the runner and evidence record: pinned CLI and artifact versions,
-   identical fresh sessions, read-only evaluator inputs, candidate snapshot,
-   verified observed model and effort for every call, complete credits for
-   retries and subagents, and explicit timeout, CLI-error and untestable
-   outcomes. Preserve raw usage and evaluation output outside the workspace.
-5. Only after those gates pass, run the small worker comparison on shared
-   Kotlin and TypeScript tasks. Keep orchestration separate. Inspect failed
-   patches; report full-task success separately from check-level pass rates.
-   #1410's sequential-change pilot comes later.
+## First paired run, 1 October 2026
 
-Issues: [#584](https://github.com/navikt/copilot/issues/584) (decision),
-[#1409](https://github.com/navikt/copilot/issues/1409) (coding tasks),
-[#1410](https://github.com/navikt/copilot/issues/1410) (sequential changes).
+Copilot CLI `1.0.91-0` (`--no-auto-update`), installed cplt
+`2026.10.01-052722-908a5db`, `@nav-pilot`, Medium effort, same starter and
+prompt in each pair. Fresh session and prepared workspace per attempt;
+`--max-ai-credits 30` was a soft session limit. `--disable-builtin-mcps` was
+set. cplt enforced `strict --proxy-forced` and denied the evaluator and repo
+Git directory. The host's existing cplt configuration additionally granted
+Desktop read, pnpm-store write and localhost ports 3000/8080, and made its
+Copilot home and auth available. Those grants were visible in the startup
+summary. The agent's own test commands ran into setup restrictions: Gradle
+could not connect to its localhost daemon; TypeScript first lacked `tsc`
+until dependencies were installed. The separate Docker evaluator passed.
+
+| Task | Model | Session | Usage row IDs | Credits recorded | CLI time | Evaluator |
+| --- | --- | --- | --- | ---: | ---: | --- |
+| `typescript/incident` | Sol Medium | `e3db4667-4803-44f4-b8dd-4cff892d4af0` | 16480–16487 | 13.433600 | 47 s | 1/1 regression, 2/2 acceptance, 1/1 HTTP |
+| `typescript/incident` | Luna Medium | `a6786370-dc1a-4360-bb2b-1e54ad6c57ee` | 16488–16495 | 0.767018 | 51 s | 1/1 regression, 2/2 acceptance, 1/1 HTTP |
+| `kotlin/cursor-debug` | Sol Medium | `72c60a9b-33ce-46f5-ad8d-e3f35e2b75c3` | 16496–16501 | 10.726110 | 28 s | 2/2 regression, 2/2 acceptance |
+| `kotlin/cursor-debug` | Luna Medium | `0d96fe24-be41-419a-9928-31f86913f3ff` | 16502–16507 | 0.5687285 | 28 s | 2/2 regression, 2/2 acceptance |
+
+Total recorded usage: **25.4954565 AI credits**. Every database usage row for
+these sessions has the requested model and `medium` effort; none has a
+subagent ID. The local Copilot database cannot prove that every provider call
+was recorded, so treat those credits as observed usage, not a certified total.
+`check.py` reports `model`, `effort` and `credits` as `null` for the same
+reason. Raw usage, preparation manifests, evaluator reports, source hashes
+and reviewed patches are preserved in
+[`runs/2026-10-01-coding-pilot/`](runs/2026-10-01-coding-pilot/README.md).
+The local full candidate workspaces remain ignored; the committed patches
+allow the source changes to be reconstructed. Published default-context
+token prices reproduce every recorded credit total exactly, explaining the
+roughly 18-fold observed gap. These are **one attempt per arm per task**:
+their four successes say nothing reliable about comparative completion rates
+or the five-percentage-point margin.
+
+## Feature attempt, 2 October 2026
+
+The installed client changed to Copilot CLI `1.0.92-0` and cplt
+`2026.10.01-170947-a36e2bf`. One TypeScript feature attempt per arm used
+matching starter, prompt, tools and Medium effort; their records are in
+[`runs/2026-10-02-feature-pilot/`](runs/2026-10-02-feature-pilot/README.md).
+Sol completed all evaluator checks at 17.84386 recorded credits. Luna used
+0.563142 credits, made no code changes and stopped at the persona's full-phase
+question gate; its unchanged starter failed 0/2 acceptance and 0/1 HTTP
+checks. This is an observed phase-policy difference, not a controlled test
+of coding ability. The Kotlin feature pair was prepared but **not run**.
+Stop paid feature calls until the prompt/agent protocol is fixed for both
+arms before a fresh pair; do not resume the incomplete Luna session and call
+it an independent attempt. Total recorded usage for the six paid sessions is
+**43.9024585 AI credits**. A session database cannot prove all provider calls
+were recorded.
+
+## Direct-worker feature pair, 2 October 2026
+
+The protocol was fixed *before* the new calls: omit `@nav-pilot` and its
+phase gates in both arms, retaining the same sixteen repo instructions and
+the same starter/prompt for each task. See
+[`runs/2026-10-02-direct-worker/`](runs/2026-10-02-direct-worker/README.md).
+All four direct-worker attempts passed the external evaluator. Recorded usage
+was 36.2585005 AI credits in this cohort, 80.1609590 across all ten paid
+attempts. The workers' Kotlin Gradle commands could not connect to the
+daemon inside cplt; the external Docker evaluator ran successfully. None of
+these small exploratory results justifies changing `@nav-pilot`'s default or
+inferring a completion-rate difference. Stop here before buying repeats.
+
+The three cohorts are separate. The first debugging cohort passed four of
+four attempts; the `@nav-pilot` feature pair passed one of two after Luna
+stopped at a mandatory phase gate; the direct-worker feature cohort passed
+four of four. Those fractions are observations, not estimates of population
+success rates. Sol used more recorded credits, primarily because the
+published default-context rates are 20 times Luna's. The checks measure
+task end state, not the quality of the agent's reasoning or its ability to
+complete future tasks. Host-level Copilot skills and settings were available
+but not frozen, and a patch recreates source changes rather than the session.
+
+One earlier isolated-HOME diagnostic exited at authentication before a model
+call. [cplt PR #686](https://github.com/navikt/cplt/pull/686) fixes that
+approach's separate native-addon issue; the paid runs above used the installed
+cplt and the host's ordinary authentication.
+
+Issues: [#584](https://github.com/navikt/copilot/issues/584),
+[#1409](https://github.com/navikt/copilot/issues/1409),
+[#1410](https://github.com/navikt/copilot/issues/1410).

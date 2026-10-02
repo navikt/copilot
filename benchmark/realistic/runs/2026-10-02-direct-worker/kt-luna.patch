@@ -1,0 +1,97 @@
+--- a/src/main/kotlin/no/nav/benchmark/TaskRepository.kt
++++ b/src/main/kotlin/no/nav/benchmark/TaskRepository.kt
+@@ -9,5 +9,11 @@
+     fun find(id: Int): Task? = tasks[id]
+ 
+     @Synchronized
++    fun complete(id: Int): Task? {
++        val task = tasks[id] ?: return null
++        return task.copy(status = "done").also { tasks[id] = it }
++    }
++
++    @Synchronized
+     fun all(): List<Task> = tasks.values.toList()
+ }
+--- a/src/main/kotlin/no/nav/benchmark/TaskRoutes.kt
++++ b/src/main/kotlin/no/nav/benchmark/TaskRoutes.kt
+@@ -4,6 +4,7 @@
+ import io.ktor.server.application.Application
+ import io.ktor.server.response.respond
+ import io.ktor.server.routing.get
++import io.ktor.server.routing.post
+ import io.ktor.server.routing.routing
+ 
+ fun Application.taskModule(service: TaskService = TaskService(TaskRepository())) {
+@@ -24,5 +25,18 @@
+                 call.respond("${task.id}:${task.title}:${task.status}")
+             }
+         }
++        post("/tasks/{id}/complete") {
++            val id = call.parameters["id"]?.toIntOrNull()
++            if (id == null || id <= 0) {
++                call.respond(HttpStatusCode.BadRequest)
++                return@post
++            }
++            val task = service.complete(id)
++            if (task == null) {
++                call.respond(HttpStatusCode.NotFound)
++            } else {
++                call.respond("${task.id}:${task.title}:${task.status}")
++            }
++        }
+     }
+ }
+--- a/src/main/kotlin/no/nav/benchmark/TaskService.kt
++++ b/src/main/kotlin/no/nav/benchmark/TaskService.kt
+@@ -3,5 +3,7 @@
+ class TaskService(private val repository: TaskRepository) {
+     fun get(id: Int): Task? = repository.find(id)
+ 
++    fun complete(id: Int): Task? = repository.complete(id)
++
+     fun list(): List<Task> = repository.all()
+ }
+--- a/src/test/kotlin/no/nav/benchmark/TaskRoutesTest.kt
++++ b/src/test/kotlin/no/nav/benchmark/TaskRoutesTest.kt
+@@ -1,6 +1,7 @@
+ package no.nav.benchmark
+ 
+ import io.ktor.client.request.get
++import io.ktor.client.request.post
+ import io.ktor.client.statement.bodyAsText
+ import io.ktor.http.HttpStatusCode
+ import io.ktor.server.testing.testApplication
+@@ -19,4 +20,33 @@
+         application { taskModule() }
+         assertEquals(HttpStatusCode.NotFound, client.get("/tasks/99").status)
+     }
++
++    @Test
++    fun completesTaskIdempotentlyAndUpdatesGets() = testApplication {
++        application { taskModule() }
++
++        val firstCompletion = client.post("/tasks/1/complete")
++        assertEquals(HttpStatusCode.OK, firstCompletion.status)
++        assertEquals("1:Review request:done", firstCompletion.bodyAsText())
++
++        val secondCompletion = client.post("/tasks/1/complete")
++        assertEquals(HttpStatusCode.OK, secondCompletion.status)
++        assertEquals("1:Review request:done", secondCompletion.bodyAsText())
++
++        assertEquals("1:Review request:done", client.get("/tasks/1").bodyAsText())
++        assertEquals(
++            "1:Review request:done\n2:Send response:open",
++            client.get("/tasks").bodyAsText()
++        )
++    }
++
++    @Test
++    fun completionRejectsInvalidAndUnknownIds() = testApplication {
++        application { taskModule() }
++
++        for (id in listOf("0", "-1", "invalid")) {
++            assertEquals(HttpStatusCode.BadRequest, client.post("/tasks/$id/complete").status)
++        }
++        assertEquals(HttpStatusCode.NotFound, client.post("/tasks/99/complete").status)
++    }
+ }

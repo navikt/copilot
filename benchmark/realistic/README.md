@@ -51,12 +51,13 @@ It deliberately records `model`, `effort` and `credits` as `null` with
 used or the cost of creating that workspace. A broken build or incomplete
 test report is `untestable`, never a failed requirement or a success.
 
-The offline evaluator does not enforce the pilot's 1,500-credit limit and is
-not a live runner. Before a paid run, provide a provider-side spending limit,
-verify the actual model and effort from complete usage events, and specify
-how an isolated agent reaches the model without granting its tools external
-network access. Keep the evaluator's tests outside the agent workspace and
-record all usage, including subagents; see
+The offline evaluator cannot enforce the pilot's 1,500-credit target or verify
+model usage. The manual pilot runs Copilot inside `cplt --preset strict` using
+the host's authenticated Copilot setup. cplt allows provider and package
+registry egress for the agent and its tools; it is not a network-disabled
+agent container. Scope `--project-dir` to the prepared `workspace/`, deny
+evaluator paths, and inspect the effective sandbox policy before a paid run.
+Set a soft per-session credit limit and check usage after each attempt. See
 [`docs/pin-protokoll.md`](../../docs/pin-protokoll.md).
 
 Prepare an attempt without contacting a model:
@@ -68,12 +69,20 @@ python3 -B benchmark/realistic/prepare.py typescript/incident /path/to/new/attem
 
 The new directory holds `workspace/`, `evaluator/fixture/` and `manifest.json`.
 The workspace contains the starter, `nav-pilot.agent.md` and every
-`instructions/*.instructions.md`, but no other agents or skills. The manifest
+`instructions/*.instructions.md`, but no other workspace agents or skills. The manifest
 records the prompt, requested arm and SHA-256 of every supplied workspace and
 frozen fixture file. It does not attest that the agent ran on that arm. Give
 an agent access **only** to `workspace/`; keep the manifest, evaluator fixture
 and output outside its mount. Store them in an evaluator-owned, read-only
 location during a live run: the local copy alone is not immutable.
+Runs using the host's Copilot home can also load user-level skills and settings;
+the workspace manifest does not record those inputs.
+
+For bounded feature-coding comparisons, use `prepare.py --direct-worker` for
+both arms and launch Copilot without `--agent nav-pilot`. This keeps the same
+repo instructions but omits the persona's mandatory phase gates. Freeze the
+cohort protocol before any calls; see
+[`runs/2026-10-02-direct-worker/`](runs/2026-10-02-direct-worker/README.md).
 
 After a candidate is finished, evaluate it against the prepared fixture:
 
@@ -83,8 +92,7 @@ python3 -B benchmark/realistic/check.py --attempt /path/to/attempt \
 ```
 
 This rejects a changed fixture. It cannot verify the model, effort, usage or
-the isolation of the agent that produced the candidate. Do not run a paid
-attempt until those boundaries and the total spending limit are proven.
+the isolation of the agent that produced the candidate.
 
 Probe the intended tool-container policy without a model call:
 
@@ -96,6 +104,8 @@ The probe writes in the workspace and temporary home, checks that evaluator
 files are absent, and requires an external TCP connection to fail inside a
 network-disabled, resource-limited Docker container. It demonstrates the
 container policy, not that Copilot CLI can use this container for its tools.
-Copilot still needs provider egress outside that boundary. Until a runner
-demonstrates this split and verifies complete usage against an enforceable
-spending limit, keep live attempts disabled.
+This probe applies only to evaluator containers, not to Copilot's tools.
+For a manual run, save the CLI version, requested model and effort, session ID,
+raw usage rows, elapsed time, candidate workspace and evaluator result outside
+the agent workspace. If the observed model, effort or cost cannot be checked,
+stop rather than treating the run as a comparable result.

@@ -1,0 +1,114 @@
+--- a/app/api/saker/route.ts
++++ b/app/api/saker/route.ts
+@@ -1,5 +1,30 @@
+-import { listSaker } from "../../../lib/saker.ts";
++import { createSak, listSaker, type Sak } from "../../../lib/saker.ts";
+ 
+ export async function GET(): Promise<Response> {
+   return Response.json(listSaker());
+ }
++
++export async function POST(request: Request): Promise<Response> {
++  let body: unknown;
++  try {
++    body = await request.json();
++  } catch {
++    return Response.json({ error: "Ugyldig JSON" }, { status: 400 });
++  }
++
++  if (typeof body !== "object" || body === null || Array.isArray(body)) {
++    return Response.json({ error: "Ugyldig forespørsel" }, { status: 400 });
++  }
++
++  const { tittel, prioritet } = body as Record<string, unknown>;
++  if (typeof tittel !== "string" || tittel.trim().length === 0) {
++    return Response.json({ error: "Tittel må fylles ut" }, { status: 400 });
++  }
++  if (prioritet !== undefined && prioritet !== "normal" && prioritet !== "hoy") {
++    return Response.json({ error: "Ugyldig prioritet" }, { status: 400 });
++  }
++
++  const sakPrioritet: Sak["prioritet"] = prioritet === "hoy" ? "hoy" : "normal";
++  const sak = createSak(tittel.trim(), sakPrioritet);
++  return Response.json(sak, { status: 201 });
++}
+--- a/lib/saker.ts
++++ b/lib/saker.ts
+@@ -5,3 +5,13 @@
+ export function listSaker(): Sak[] {
+   return [...saker];
+ }
++
++export function createSak(tittel: string, prioritet: Sak["prioritet"]): Sak {
++  const sak: Sak = {
++    id: Math.max(...saker.map((existingSak) => existingSak.id)) + 1,
++    tittel,
++    prioritet,
++  };
++  saker.push(sak);
++  return sak;
++}
+--- a/tests/regression.test.ts
++++ b/tests/regression.test.ts
+@@ -1,9 +1,60 @@
+ import assert from "node:assert/strict";
+ import { test } from "node:test";
+-import { GET } from "../app/api/saker/route.ts";
++import { GET, POST } from "../app/api/saker/route.ts";
+ 
+ test("existing cases remain visible", async () => {
+   const response = await GET();
+   assert.equal(response.status, 200);
+   assert.ok((await response.json()).some((sak: { id: number }) => sak.id === 101));
+ });
++
++test("creates a case and includes it in the overview", async () => {
++  const response = await POST(
++    new Request("http://localhost/api/saker", {
++      method: "POST",
++      headers: { "content-type": "application/json" },
++      body: JSON.stringify({ tittel: "Ny sak", prioritet: "hoy" }),
++    }),
++  );
++  const sak = await response.json();
++
++  assert.equal(response.status, 201);
++  assert.deepEqual(sak, { id: 102, tittel: "Ny sak", prioritet: "hoy" });
++  assert.ok((await (await GET()).json()).some((item: { id: number }) => item.id === sak.id));
++});
++
++test("defaults priority to normal", async () => {
++  const response = await POST(
++    new Request("http://localhost/api/saker", {
++      method: "POST",
++      headers: { "content-type": "application/json" },
++      body: JSON.stringify({ tittel: "Uprioritert sak" }),
++    }),
++  );
++
++  assert.equal(response.status, 201);
++  assert.equal((await response.json()).prioritet, "normal");
++});
++
++test("rejects invalid case data without creating a case", async () => {
++  const invalidBodies = [
++    {},
++    { tittel: "" },
++    { tittel: "   " },
++    { tittel: "Ugyldig", prioritet: "lav" },
++  ];
++  const before = await (await GET()).json();
++
++  for (const body of invalidBodies) {
++    const response = await POST(
++      new Request("http://localhost/api/saker", {
++        method: "POST",
++        headers: { "content-type": "application/json" },
++        body: JSON.stringify(body),
++      }),
++    );
++    assert.equal(response.status, 400);
++  }
++
++  assert.deepEqual(await (await GET()).json(), before);
++});
