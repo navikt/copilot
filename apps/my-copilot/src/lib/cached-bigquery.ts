@@ -133,6 +133,10 @@ export async function getTeamNetOverview(month: string, token: string): Promise<
   );
 }
 
+export async function getMyTeams(token: string): Promise<string[]> {
+  return backendRequest<string[]>("/api/v1/copilot/usage/my-teams", token);
+}
+
 export async function getRepositoryUsage(token: string): Promise<{
   repositories: RepositoryUsage[];
   error: string | null;

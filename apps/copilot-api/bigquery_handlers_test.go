@@ -33,6 +33,7 @@ type mockBigQueryClient struct {
 	teamGrossErr       error
 	teamNet            *TeamNetOverview
 	teamNetErr         error
+	userTeams          []string
 	userMetrics        *UserMetricsSummary
 	userMetricsErr     error
 	monthlyTrends      []MonthlyTrend
@@ -95,6 +96,10 @@ func (m *mockBigQueryClient) GetTeamNetOverview(_ context.Context, _ string) (*T
 	return m.teamNet, m.teamNetErr
 }
 
+func (m *mockBigQueryClient) GetUserTeams(_ context.Context, _ string) ([]string, error) {
+	return m.userTeams, nil
+}
+
 func TestTeamGrossOverviewHandler(t *testing.T) {
 	mock := &mockBigQueryClient{teamGross: &TeamGrossOverview{
 		Month: "2026-09", Teams: []TeamGrossUsage{{TeamID: "123", TeamSlug: "team-a", Users: 5, GrossUSD: 42}},
@@ -151,6 +156,23 @@ func TestTeamNetOverviewHandler(t *testing.T) {
 				t.Errorf("unexpected team net overview: %+v", got)
 			}
 		}
+	}
+}
+
+func TestHandleMyTeamsRequiresResolvedIdentity(t *testing.T) {
+	h := newBigQueryHandlers(&mockBigQueryClient{userTeams: []string{"team-a"}})
+	recorder := httptest.NewRecorder()
+	h.handleMyTeams(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/my-teams", nil))
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status %d, want 401", recorder.Code)
+	}
+
+	recorder = httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/my-teams", nil)
+	request = request.WithContext(context.WithValue(request.Context(), resolvedIdentityContextKey, &ResolvedIdentity{GitHubUsername: "alice"}))
+	h.handleMyTeams(recorder, request)
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "[\"team-a\"]\n" {
+		t.Fatalf("status %d, body %s", recorder.Code, recorder.Body.String())
 	}
 }
 

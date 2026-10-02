@@ -4,9 +4,9 @@ import { Box, Heading, Skeleton } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
 import TeamGrossUsage from "@/components/team-gross-usage";
 import ErrorState from "@/components/error-state";
-import { getTeamGrossOverview, getTeamNetOverview } from "@/lib/cached-bigquery";
+import { getMyTeams, getTeamGrossOverview, getTeamNetOverview } from "@/lib/cached-bigquery";
 import { getUser, getUserToken } from "@/lib/auth";
-import { currentMonthUTC, previousMonth } from "@/lib/month-utils";
+import { currentMonthUTC, daysInCalendarMonth, previousMonth } from "@/lib/month-utils";
 
 export const metadata: Metadata = {
   title: "Teaminnsikt",
@@ -29,7 +29,37 @@ async function TeamSpend({ month, token }: { month: string; token: string }) {
   } catch (error) {
     console.error("[team] Net usage failed:", error);
   }
-  return <TeamGrossUsage data={gross} net={net} />;
+  let myTeams: string[] | null = null;
+  try {
+    myTeams = await getMyTeams(token);
+  } catch (error) {
+    console.error("[team] Caller teams unavailable:", error);
+  }
+  const previous = previousMonth(month);
+  let previousGross = null;
+  let previousNet = null;
+  if (previous >= "2026-05") {
+    try {
+      previousGross = await getTeamGrossOverview(previous, token);
+      if (net) previousNet = await getTeamNetOverview(previous, token);
+    } catch (error) {
+      console.error("[team] Previous month unavailable:", error);
+    }
+  }
+  return (
+    <TeamGrossUsage
+      data={gross}
+      net={net}
+      myTeams={myTeams}
+      previous={
+        previousGross?.last_usage_day &&
+        previousGross.days_with_usage === daysInCalendarMonth(previous) &&
+        (net ? previousNet : true)
+          ? (previousNet ?? previousGross)
+          : null
+      }
+    />
+  );
 }
 
 export default async function TeamPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {

@@ -91,6 +91,22 @@ func (h *BigQueryHandlers) handleTeamNetOverview(w http.ResponseWriter, r *http.
 	respondJSON(w, usage, http.StatusOK)
 }
 
+func (h *BigQueryHandlers) handleMyTeams(w http.ResponseWriter, r *http.Request) {
+	identity, ok := GetResolvedIdentity(r.Context())
+	if !ok || identity == nil {
+		respondError(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
+		return
+	}
+	teams, err := h.bqClient.GetUserTeams(r.Context(), identity.GitHubUsername)
+	if err != nil {
+		slog.Error("Failed to fetch caller teams", "error", err)
+		respondError(w, "internal_error", "Failed to fetch your teams", http.StatusInternalServerError)
+		return
+	}
+	cacheControl(w, 300, false)
+	respondJSON(w, teams, http.StatusOK)
+}
+
 func (h *BigQueryHandlers) handleUserMetrics(w http.ResponseWriter, r *http.Request) {
 	username := r.PathValue("username")
 	if !isValidUsageUsername(username) {

@@ -8,6 +8,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/iterator"
 )
 
 // TeamGrossUsage is overlapping member usage, not additive team billing.
@@ -196,6 +197,51 @@ func (c *CachedBigQueryClient) GetTeamNetOverview(ctx context.Context, month str
 }
 
 const minTeamContributors = 5
+
+func (bq *BigQueryClient) GetUserTeams(ctx context.Context, userLogin string) ([]string, error) {
+	// The caller's current SAML login can differ from a historical report login.
+	// Match either login on the latest membership day or a recent metric's user ID.
+	query := bq.client.Query(fmt.Sprintf(`SELECT DISTINCT JSON_VALUE(raw_record,'$.slug') team_slug
+FROM %s WHERE day=(SELECT MAX(day) FROM %s WHERE scope='enterprise' AND scope_id='nav')
+AND scope='enterprise' AND scope_id='nav'
+AND (
+  LOWER(JSON_VALUE(raw_record,'$.user_login'))=LOWER(@login)
+  OR JSON_VALUE(raw_record,'$.user_id') IN (
+    SELECT DISTINCT JSON_VALUE(raw_record,'$.user_id') FROM %s
+    WHERE scope='enterprise' AND scope_id='nav'
+      AND LOWER(JSON_VALUE(raw_record,'$.user_login'))=LOWER(@login)
+      AND day>=DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
+  )
+)
+AND JSON_VALUE(raw_record,'$.slug')!='nav-it-github-users'
+ORDER BY team_slug`, bq.tableRef(bq.metricsDataset, "user_teams"), bq.tableRef(bq.metricsDataset, "user_teams"), bq.tableRef(bq.metricsDataset, "user_metrics")))
+	query.Parameters = []bigquery.QueryParameter{{Name: "login", Value: userLogin}}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read caller teams: %w", err)
+	}
+	teams := []string{}
+	for {
+		var row struct {
+			TeamSlug string `bigquery:"team_slug"`
+		}
+		if err := it.Next(&row); err != nil {
+			if err == iterator.Done {
+				return teams, nil
+			}
+			return nil, err
+		}
+		teams = append(teams, row.TeamSlug)
+	}
+}
+
+func (c *CachedBigQueryClient) GetUserTeams(ctx context.Context, login string) ([]string, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
+	return getCachedValue(c, "user_teams_"+login, func() ([]string, error) {
+		return c.client.GetUserTeams(ctx, login)
+	})
+}
 
 var errTeamNetNotReady = errors.New("team net billing not ready")
 

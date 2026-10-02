@@ -182,6 +182,16 @@ The requester authorized a background production backfill. The checked-in Naisjo
 - Existing gross prototype `docs/copilot-team-spend-allocation.sql` implements the rejected equal-split calculation and is retained only as research. The API uses full-member overlap.
 - Refresh of a closed, completed billing month is not implemented; the manual backfill intentionally exits instead of overwriting a completed month. A revised-bill refresh needs an explicit safe procedure before scheduling recurring ingestion.
 
+#### Next page iteration: plan and review
+
+1. Resolve the signed-in person's current GitHub teams from the existing SAML identity lookup and a new ownership-checked, latest-day membership read. Do not infer team membership from a seven-day usage report: a member may have no usage that week. If identity lookup fails, keep browsing available and say why personal highlighting is missing.
+2. Put the **distinct Nav bill** in its own summary, with separate known-user, unassigned and enterprise-only amounts. Keep the overlapping team table below it, alphabetically ordered, searchable and with the viewer's eligible teams first. Any displayed percentage must be labelled as a team's members' spend relative to the distinct Nav total; percentages across teams do not sum to 100 %.
+3. Compare to the previous closed month only where both months have the same gross/net basis and the team meets five-contributor suppression in both months. Otherwise say that a comparison is unavailable. Use the month picker to navigate; do not expose individual users or add an unsuppressed daily series.
+
+Adversarial check before implementation: a missing personal lookup must never hide aggregate data; an old login after a rename may fail to match a team slug and should not be presented as an absence of membership; percentages of overlapping rows must not be labelled budget shares; the suppressed bucket overlaps visible teams and cannot be added to the bill; a previous-month amount must never bypass that month's five-contributor threshold. Keep the page's money source explicit when billing ingestion is absent.
+
+Implemented in the draft PR: `/usage/my-teams` resolves only the authenticated caller and reads the latest enterprise `user_teams` day, with a recent `user_metrics.user_id` fallback for renamed logins. `/innsikt/team` keeps the organization bill apart from team rows and puts matching current memberships first. It compares amounts to the previous month only when that month has all calendar days, the same gross/net basis and a visible five-contributor row; otherwise the cell says "Ikke tilgjengelig". A missing caller identity does not block browsing. The component has focused tests for overlapping totals, own-team discovery, missing identity and comparison suppression. A current team match is a navigation hint, not proof of the person's team in the selected historical month.
+
 ## Evidence and checks
 
 - Code: `apps/copilot-metrics/billing.go`, `apps/copilot-metrics/views/v_team_daily_summary.sql`, `apps/copilot-api/bigquery_stats.go`, `apps/my-copilot/src/app/(nb)/statistikk/page.tsx`; read-only prototype: `docs/copilot-team-spend-allocation.sql`.
