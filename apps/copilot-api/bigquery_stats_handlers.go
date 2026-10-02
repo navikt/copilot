@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -50,6 +51,42 @@ func (h *BigQueryHandlers) handleTeamUsageSummary(w http.ResponseWriter, r *http
 		return
 	}
 
+	cacheControl(w, 3600, false)
+	respondJSON(w, usage, http.StatusOK)
+}
+
+func (h *BigQueryHandlers) handleTeamGrossOverview(w http.ResponseWriter, r *http.Request) {
+	month, ok := optionalMonthParam(r, "month")
+	if !ok {
+		respondError(w, "invalid_parameter", "month must be in YYYY-MM format", http.StatusBadRequest)
+		return
+	}
+	usage, err := h.bqClient.GetTeamGrossOverview(r.Context(), month)
+	if err != nil {
+		slog.Error("Failed to fetch team gross usage", "error", err)
+		respondError(w, "internal_error", "Failed to fetch team gross usage", http.StatusInternalServerError)
+		return
+	}
+	cacheControl(w, 3600, false)
+	respondJSON(w, usage, http.StatusOK)
+}
+
+func (h *BigQueryHandlers) handleTeamNetOverview(w http.ResponseWriter, r *http.Request) {
+	month, ok := optionalMonthParam(r, "month")
+	if !ok {
+		respondError(w, "invalid_parameter", "month must be in YYYY-MM format", http.StatusBadRequest)
+		return
+	}
+	usage, err := h.bqClient.GetTeamNetOverview(r.Context(), month)
+	if err != nil {
+		if errors.Is(err, errTeamNetNotReady) {
+			respondJSON(w, nil, http.StatusOK)
+			return
+		}
+		slog.Error("Failed to fetch team net usage", "error", err)
+		respondError(w, "internal_error", "Failed to fetch team net usage", http.StatusInternalServerError)
+		return
+	}
 	cacheControl(w, 3600, false)
 	respondJSON(w, usage, http.StatusOK)
 }

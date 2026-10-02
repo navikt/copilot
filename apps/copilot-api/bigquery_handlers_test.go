@@ -29,6 +29,10 @@ type mockBigQueryClient struct {
 	stalenessErr       error
 	teamUsage          []TeamUsageSummary
 	teamUsageErr       error
+	teamGross          *TeamGrossOverview
+	teamGrossErr       error
+	teamNet            *TeamNetOverview
+	teamNetErr         error
 	userMetrics        *UserMetricsSummary
 	userMetricsErr     error
 	monthlyTrends      []MonthlyTrend
@@ -81,6 +85,73 @@ func (m *mockBigQueryClient) GetStalenessData(_ context.Context) ([]StalenessFil
 
 func (m *mockBigQueryClient) GetTeamUsageSummary(_ context.Context, _ int) ([]TeamUsageSummary, error) {
 	return m.teamUsage, m.teamUsageErr
+}
+
+func (m *mockBigQueryClient) GetTeamGrossOverview(_ context.Context, _ string) (*TeamGrossOverview, error) {
+	return m.teamGross, m.teamGrossErr
+}
+
+func (m *mockBigQueryClient) GetTeamNetOverview(_ context.Context, _ string) (*TeamNetOverview, error) {
+	return m.teamNet, m.teamNetErr
+}
+
+func TestTeamGrossOverviewHandler(t *testing.T) {
+	mock := &mockBigQueryClient{teamGross: &TeamGrossOverview{
+		Month: "2026-09", Teams: []TeamGrossUsage{{TeamID: "123", TeamSlug: "team-a", Users: 5, GrossUSD: 42}},
+		DistinctGrossUSD: 20,
+	}}
+	h := newBigQueryHandlers(mock)
+	for _, tc := range []struct {
+		month string
+		code  int
+	}{
+		{"2026-09", http.StatusOK},
+		{"2026-13", http.StatusBadRequest},
+	} {
+		recorder := httptest.NewRecorder()
+		h.handleTeamGrossOverview(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month="+tc.month, nil))
+		if recorder.Code != tc.code {
+			t.Errorf("month %q: status %d, want %d", tc.month, recorder.Code, tc.code)
+		}
+		if tc.code == http.StatusOK {
+			var got TeamGrossOverview
+			if err := json.Unmarshal(recorder.Body.Bytes(), &got); err != nil {
+				t.Fatal(err)
+			}
+			if len(got.Teams) != 1 || got.Teams[0].GrossUSD != 42 || got.DistinctGrossUSD != 20 {
+				t.Errorf("unexpected team overview: %+v", got)
+			}
+		}
+	}
+}
+
+func TestTeamNetOverviewHandler(t *testing.T) {
+	h := newBigQueryHandlers(&mockBigQueryClient{teamNet: &TeamNetOverview{
+		Month: "2026-09", Teams: []TeamNetUsage{{TeamID: "123", TeamSlug: "team-a", Users: 5, NetUSD: 35}},
+		KnownNetUSD: 20, EnterpriseNetUSD: 25, ResidualNetUSD: 5,
+	}})
+	for _, tc := range []struct {
+		month string
+		code  int
+	}{
+		{"2026-09", http.StatusOK},
+		{"2026-13", http.StatusBadRequest},
+	} {
+		recorder := httptest.NewRecorder()
+		h.handleTeamNetOverview(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-net?month="+tc.month, nil))
+		if recorder.Code != tc.code {
+			t.Errorf("month %q: status %d, want %d", tc.month, recorder.Code, tc.code)
+		}
+		if tc.code == http.StatusOK {
+			var got TeamNetOverview
+			if err := json.Unmarshal(recorder.Body.Bytes(), &got); err != nil {
+				t.Fatal(err)
+			}
+			if len(got.Teams) != 1 || got.Teams[0].NetUSD != 35 || got.ResidualNetUSD != 5 {
+				t.Errorf("unexpected team net overview: %+v", got)
+			}
+		}
+	}
 }
 
 func (m *mockBigQueryClient) GetUserMetrics(_ context.Context, _ string, _ int) (*UserMetricsSummary, error) {

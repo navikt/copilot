@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go v0.123.0
 	cloud.google.com/go/bigquery v1.85.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
+	google.golang.org/api v0.297.0
 )
 
 require (
@@ -49,7 +50,6 @@ require (
 	golang.org/x/time v0.16.0 // indirect
 	golang.org/x/tools v0.50.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
-	google.golang.org/api v0.297.0 // indirect
 	google.golang.org/genproto v0.0.0-20260911204522-f61a6ca850bd // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260911204522-f61a6ca850bd // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260911204522-f61a6ca850bd // indirect

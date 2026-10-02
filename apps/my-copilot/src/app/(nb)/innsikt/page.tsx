@@ -40,6 +40,13 @@ export default function Innsikt() {
                 description="Bruksdata og trender for GitHub Copilot i Nav. Krever innlogging."
               />
               <NavCard
+                href="/innsikt/team"
+                prefetch={false}
+                icon={lock}
+                title="Teaminnsikt"
+                description="Copilot-bruk og kostnad per team. Krever innlogging."
+              />
+              <NavCard
                 href="/adopsjon"
                 prefetch={false}
                 icon={lock}

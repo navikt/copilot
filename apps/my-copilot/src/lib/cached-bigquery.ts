@@ -21,6 +21,8 @@ import type {
   StalenessSummary,
   TeamAdoption,
   TeamUsageSummary,
+  TeamGrossOverview,
+  TeamNetOverview,
   UserMetricsSummary,
   AdoptionCohortDay,
   BillingMonthlyTrend,
@@ -115,6 +117,20 @@ export async function getTeamUsage(token: string): Promise<{
     backendRequest<TeamUsageSummary[]>("/api/v1/copilot/usage/team-summary", token)
   );
   return { teams: result.data, error: result.error };
+}
+
+export async function getTeamGrossOverview(month: string, token: string): Promise<TeamGrossOverview> {
+  return backendRequest<TeamGrossOverview>(
+    `/api/v1/copilot/usage/team-gross?month=${encodeURIComponent(month)}`,
+    token
+  );
+}
+
+export async function getTeamNetOverview(month: string, token: string): Promise<TeamNetOverview | null> {
+  return backendRequest<TeamNetOverview | null>(
+    `/api/v1/copilot/usage/team-net?month=${encodeURIComponent(month)}`,
+    token
+  );
 }
 
 export async function getRepositoryUsage(token: string): Promise<{

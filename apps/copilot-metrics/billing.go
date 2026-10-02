@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -74,6 +75,32 @@ func NewBillingClient(token, enterprise string) *BillingClient {
 		enterprise: enterprise,
 		token:      token,
 	}
+}
+
+// FetchUserAICreditUsage returns the billed gross and net by SKU for one user and month.
+func (c *BillingClient) FetchUserAICreditUsage(ctx context.Context, login string, month time.Time) (*BillingUsageResponse, error) {
+	endpoint := fmt.Sprintf("https://api.github.com/enterprises/%s/settings/billing/ai_credit/usage?year=%d&month=%d&user=%s",
+		c.enterprise, month.Year(), month.Month(), url.QueryEscape(login))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create user AI credit billing request: %w", err)
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("X-GitHub-Api-Version", "2026-03-10")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("user AI credit billing request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("user AI credit billing status %d", resp.StatusCode)
+	}
+	var result BillingUsageResponse
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode user AI credit billing: %w", err)
+	}
+	return &result, nil
 }
 
 // FetchMonthlyUsage fetches the premium request billing data for a given month.

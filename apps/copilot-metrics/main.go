@@ -24,6 +24,7 @@ func main() {
 	billingDailyReportFrom := flag.String("billing-daily-report-from", "2025-10-10", "Start day for daily billing usage report backfill (YYYY-MM-DD)")
 	billingModelDailyBackfill := flag.Bool("billing-model-daily-backfill", false, "Backfill daily model billing data")
 	billingModelDailyFrom := flag.String("billing-model-daily-from", "2025-10-10", "Start day for daily model billing backfill (YYYY-MM-DD)")
+	userBillingMonth := flag.String("user-billing-month", "", "Fetch per-user AI credit billing for one month (YYYY-MM)")
 	repoMetricsBackfill := flag.Bool("repo-metrics-backfill", false, "Backfill per-repository usage metrics (repos-1-day) only")
 	repoMetricsFrom := flag.String("repo-metrics-from", repoMetricsGADate, "Start day for repository metrics backfill (YYYY-MM-DD)")
 	legacyBillingBackfill := flag.Bool("billing-backfill", false, "Deprecated: use --billing-monthly-backfill")
@@ -34,6 +35,42 @@ func main() {
 	flag.Parse()
 
 	config := loadConfig()
+	if *userBillingMonth != "" {
+		if config.BigQueryProjectID == "" || config.GitHubBillingToken == "" {
+			slog.Error("User billing backfill requires GCP_TEAM_PROJECT_ID and GITHUB_BILLING_TOKEN")
+			os.Exit(1)
+		}
+		month, err := time.Parse("2006-01", *userBillingMonth)
+		if err != nil {
+			slog.Error("Invalid user billing month", "error", err)
+			os.Exit(1)
+		}
+		now := time.Now().UTC()
+		if !month.Before(time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)) {
+			slog.Error("User billing month must be closed", "month", *userBillingMonth)
+			os.Exit(1)
+		}
+		ctx := context.Background()
+		bq, err := NewBigQueryClient(ctx, config)
+		if err != nil {
+			slog.Error("Failed to connect to BigQuery", "error", err)
+			os.Exit(1)
+		}
+		defer func() { _ = bq.Close() }()
+		if err := bq.EnsureUserBillingTableExists(ctx); err != nil {
+			slog.Error("Failed to ensure user billing table", "error", err)
+			os.Exit(1)
+		}
+		if err := bq.EnsureUserBillingRunsTableExists(ctx); err != nil {
+			slog.Error("Failed to ensure user billing runs table", "error", err)
+			os.Exit(1)
+		}
+		if err := ingestUserBillingMonth(ctx, NewBillingClient(config.GitHubBillingToken, config.EnterpriseSlug), bq, config, month); err != nil {
+			slog.Error("User billing ingestion failed", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: config.LogLevel,
