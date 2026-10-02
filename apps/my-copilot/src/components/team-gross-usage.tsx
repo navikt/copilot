@@ -22,99 +22,146 @@ export default function TeamGrossUsage({
   net,
   myTeams,
   previous,
+  comparisonReason = null,
 }: {
   data: TeamGrossOverview;
   net: TeamNetOverview | null;
   myTeams: string[] | null;
   previous: TeamGrossOverview | TeamNetOverview | null;
+  comparisonReason?: string | null;
 }) {
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState("team");
+  const [direction, setDirection] = useState<"ascending" | "descending">("ascending");
   const source = net?.teams ?? data.teams;
   const mine = new Set((myTeams ?? []).map((team) => team.toLowerCase()));
   const own = source.filter((team) => mine.has(team.team_slug.toLowerCase()));
   const others = source.filter((team) => !mine.has(team.team_slug.toLowerCase()));
   const filtered = (teams: Team[]) =>
-    teams.filter((team) => team.team_slug.toLowerCase().includes(search.trim().toLowerCase()));
+    teams
+      .filter((team) => team.team_slug.toLowerCase().includes(search.trim().toLowerCase()))
+      .sort((a, b) => {
+        const value = (team: Team) =>
+          sortKey === "members"
+            ? team.users
+            : sortKey === "change"
+              ? compareTeamMonth(team, previous)
+              : sortKey === "average"
+                ? amount(team) / team.users
+                : amount(team);
+        if (sortKey === "team")
+          return (direction === "ascending" ? 1 : -1) * a.team_slug.localeCompare(b.team_slug, "nb");
+        const av = value(a),
+          bv = value(b);
+        if (av === null) return bv === null ? a.team_slug.localeCompare(b.team_slug, "nb") : 1;
+        if (bv === null) return -1;
+        return (direction === "ascending" ? av - bv : bv - av) || a.team_slug.localeCompare(b.team_slug, "nb");
+      });
   const dollars = (amount: number) =>
     new Intl.NumberFormat("nb-NO", { style: "currency", currency: "USD" }).format(amount);
   const amount = (team: Team) => ("net_usd" in team ? team.net_usd : team.gross_usd);
-  const title = net ? "Netto medlemskostnad" : "Brutto medlemsbruk";
+  const title = net ? "Forbruk" : "Forbruk før fradrag";
 
   const hidden = net ?? data;
   const rows = (teams: Team[]) =>
     filtered(teams).map((team) => {
       const change = compareTeamMonth(team, previous);
+      const before = change === null ? null : amount(team) - change;
+      const highlighted =
+        change !== null &&
+        before !== null &&
+        Math.abs(change) >= 10 &&
+        (before === 0 || Math.abs(change) / Math.abs(before) >= 0.1);
       return (
         <TableRow key={team.team_id}>
           <TableDataCell>{team.team_slug}</TableDataCell>
           <TableDataCell align="right">{team.users}</TableDataCell>
           <TableDataCell align="right">{dollars(amount(team))}</TableDataCell>
+          <TableDataCell align="right">{dollars(amount(team) / team.users)}</TableDataCell>
           <TableDataCell align="right">
-            {change === null ? "Ikke tilgjengelig" : `${change >= 0 ? "+" : ""}${dollars(change)}`}
+            <span
+              title={highlighted ? "Endring på minst 10 % og 10 USD fra forrige måned" : undefined}
+              className={
+                highlighted
+                  ? (change ?? 0) > 0
+                    ? "text-[var(--ax-text-danger)]"
+                    : "text-[var(--ax-text-success)]"
+                  : undefined
+              }
+            >
+              {change === null ? "—" : `${change >= 0 ? "+" : ""}${dollars(change)}`}
+            </span>
           </TableDataCell>
         </TableRow>
       );
     });
 
   const table = (teams: Team[], label: string) => (
-    <Table size="small" aria-label={label}>
-      <TableHeader>
-        <TableRow>
-          <Table.ColumnHeader scope="col">Team</Table.ColumnHeader>
-          <Table.ColumnHeader scope="col" align="right">
-            Brukere
-          </Table.ColumnHeader>
-          <Table.ColumnHeader scope="col" align="right">
-            {title}
-          </Table.ColumnHeader>
-          <Table.ColumnHeader scope="col" align="right">
-            Endring fra forrige måned
-          </Table.ColumnHeader>
-        </TableRow>
-      </TableHeader>
-      <TableBody>{rows(teams)}</TableBody>
-    </Table>
+    <div className="overflow-x-auto">
+      <Table
+        size="small"
+        aria-label={label}
+        sort={{ orderBy: sortKey, direction }}
+        onSortChange={(key) => {
+          if (!key) return;
+          setDirection(key === sortKey && direction === "ascending" ? "descending" : "ascending");
+          setSortKey(key);
+        }}
+      >
+        <TableHeader>
+          <TableRow>
+            <Table.ColumnHeader scope="col" sortable sortKey="team">
+              Team
+            </Table.ColumnHeader>
+            <Table.ColumnHeader
+              scope="col"
+              align="right"
+              sortable
+              sortKey="members"
+              title="Medlemmer med forbruk denne måneden"
+            >
+              Medlemmer
+            </Table.ColumnHeader>
+            <Table.ColumnHeader scope="col" align="right" sortable sortKey="amount">
+              {title}
+            </Table.ColumnHeader>
+            <Table.ColumnHeader scope="col" align="right" sortable sortKey="average">
+              Per medlem
+            </Table.ColumnHeader>
+            <Table.ColumnHeader scope="col" align="right" sortable sortKey="change">
+              Endring
+            </Table.ColumnHeader>
+          </TableRow>
+        </TableHeader>
+        <TableBody>{rows(teams)}</TableBody>
+      </Table>
+    </div>
   );
 
   return (
     <VStack gap="space-32">
-      <section aria-labelledby="navs-regning">
+      <section aria-labelledby="om-kostnadene">
         <VStack gap="space-8">
-          <Heading id="navs-regning" level="3" size="small">
-            Navs regning
+          <Heading id="om-kostnadene" level="3" size="small">
+            Om kostnadene
           </Heading>
-          {net ? (
-            <BodyShort>
-              Fakturert for {net.sku}: {dollars(net.enterprise_net_usd)}. Kjente brukere: {dollars(net.known_net_usd)}.
-              Av beløpet for kjente brukere er {dollars(net.unassigned_net_usd)} ikke knyttet til et team. I tillegg
-              kommer {dollars(net.residual_net_usd)} som ikke er koblet til en kjent bruker. Lisensutgifter er ikke med.
-              Hentet {net.loaded_at.slice(0, 10)}.
-            </BodyShort>
-          ) : (
-            <BodyShort>
-              Fakturerte brukerbeløp er ikke tilgjengelige for {data.month}. Brutto forbruk for ulike brukere:{" "}
-              {dollars(data.distinct_gross_usd)}. Uten team: {dollars(data.unassigned_gross_usd)}. Dette er ikke Navs
-              fakturerte nettokostnad.
-            </BodyShort>
-          )}
           <BodyShort>
-            Bruksdata til og med {data.last_usage_day} ({data.days_with_usage} dager).
+            Forbruk er summen for teamets medlemmer. Per medlem er gjennomsnittet blant medlemmer med forbruk. Medlemmer
+            i flere team telles i hvert team. Teambeløpene kan derfor ikke summeres til Navs totale kostnad.
+            Lisensutgifter er ikke med.
           </BodyShort>
+          {!net && (
+            <BodyShort>Beløpene er før fradrag. Fakturert forbruk er ikke tilgjengelig for denne måneden.</BodyShort>
+          )}
+          {comparisonReason && <BodyShort>{comparisonReason}</BodyShort>}
         </VStack>
       </section>
 
       <section aria-labelledby="medlemsbruk">
         <VStack gap="space-16">
           <Heading id="medlemsbruk" level="3" size="small">
-            Medlemsbruk i team
+            Forbruk per team
           </Heading>
-          <BodyShort>
-            Hvert team viser hele bruken til medlemmene sine. En person som tilhører flere team telles flere steder.
-            Teambeløp og prosenter kan derfor ikke summeres til Navs regning.
-            {net
-              ? " Netto per bruker er fakturert; plasseringen i team ved teambytte er beregnet ut fra bruksdager."
-              : " Beløpene er brutto, ikke fakturert netto."}
-          </BodyShort>
           <Search label="Søk etter team" value={search} onChange={setSearch} size="small" className="max-w-xs" />
           {myTeams === null && <BodyShort>Kunne ikke finne dine team. Du kan fortsatt søke i teamlisten.</BodyShort>}
           {myTeams !== null && (
@@ -129,10 +176,7 @@ export default function TeamGrossUsage({
                   <BodyShort>Ingen av dine team passer søket.</BodyShort>
                 )
               ) : (
-                <BodyShort>
-                  Ingen av teamene dine vises for denne måneden. Team med færre enn fem {net ? "betalende" : "aktive"}{" "}
-                  brukere skjules.
-                </BodyShort>
+                <BodyShort>Ingen av dine team vises denne måneden.</BodyShort>
               )}
             </section>
           )}
@@ -142,12 +186,7 @@ export default function TeamGrossUsage({
             </Heading>
             {filtered(others).length ? table(others, "Andre team") : <BodyShort>Ingen team funnet.</BodyShort>}
           </section>
-          <BodyShort>
-            {hidden.small_teams} team med færre enn fem {net ? "betalende" : "aktive"} brukere er skjult. Til sammen
-            gjelder det {hidden.small_teams_users} ulike brukere og{" "}
-            {dollars(net?.small_teams_net_usd ?? data.small_teams_gross_usd)}. Noen av dem kan også inngå i synlige
-            team. Dette beløpet kan ikke legges til Navs regning.
-          </BodyShort>
+          <BodyShort>{hidden.small_teams} team med færre enn fem medlemmer med forbruk er skjult.</BodyShort>
         </VStack>
       </section>
     </VStack>

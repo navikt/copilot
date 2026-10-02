@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import TeamGrossUsage from "./team-gross-usage";
 import type { TeamGrossOverview, TeamNetOverview } from "@/lib/types";
 
@@ -39,8 +39,8 @@ const net: TeamNetOverview = {
 describe("Team insight", () => {
   it("keeps the distinct bill separate from overlapping team rows and puts mine first", () => {
     render(<TeamGrossUsage data={gross} net={net} myTeams={["beta"]} previous={null} />);
-    expect(screen.getByText(/teambeløp og prosenter kan derfor ikke summeres/i)).toBeInTheDocument();
-    expect(screen.getByText(/92,00/)).toBeInTheDocument();
+    expect(screen.getByText(/teambeløpene kan derfor ikke summeres/i)).toBeInTheDocument();
+    expect(screen.getByText(/per medlem er gjennomsnittet/i)).toBeInTheDocument();
     expect(within(screen.getByRole("table", { name: "Mine team" })).getByText("beta")).toBeInTheDocument();
     expect(within(screen.getByRole("table", { name: "Andre team" })).getByText("alpha")).toBeInTheDocument();
   });
@@ -54,13 +54,13 @@ describe("Team insight", () => {
         previous={{ ...gross, teams: [{ team_id: "1", team_slug: "alpha", users: 4, gross_usd: 75 }] }}
       />
     );
-    expect(screen.getAllByText("Ikke tilgjengelig")).toHaveLength(2);
+    expect(screen.getAllByText("—")).toHaveLength(2);
   });
 
   it("keeps browsing available when identity resolution fails", () => {
     render(<TeamGrossUsage data={gross} net={null} myTeams={null} previous={null} />);
     expect(screen.getByText(/kunne ikke finne dine team/i)).toBeInTheDocument();
-    expect(screen.getByText(/dette er ikke Navs fakturerte nettokostnad/i)).toBeInTheDocument();
+    expect(screen.getByText(/beløpene er før fradrag/i)).toBeInTheDocument();
     expect(screen.getByRole("table", { name: "Andre team" })).toBeInTheDocument();
   });
 
@@ -73,7 +73,41 @@ describe("Team insight", () => {
         previous={null}
       />
     );
-    expect(screen.getByText(/3 team med færre enn fem betalende brukere/)).toHaveTextContent("7 ulike brukere");
+    expect(screen.getByText(/3 team med færre enn fem medlemmer med forbruk/)).toBeInTheDocument();
+  });
+
+  it("sorts members, consumption and change without changing the alphabetical default", () => {
+    render(
+      <TeamGrossUsage
+        data={gross}
+        net={net}
+        myTeams={null}
+        previous={{
+          ...net,
+          month: "2026-08",
+          teams: [
+            { team_id: "1", team_slug: "alpha", users: 5, net_usd: 60 },
+            { team_id: "2", team_slug: "beta", users: 6, net_usd: 20 },
+          ],
+        }}
+      />
+    );
+    const table = screen.getByRole("table", { name: "Andre team" });
+    const names = () =>
+      within(table)
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => row.querySelector("td")?.textContent);
+    expect(names()).toEqual(["alpha", "beta"]);
+    fireEvent.click(within(table).getByRole("button", { name: /medlemmer/i }));
+    fireEvent.click(within(table).getByRole("button", { name: /medlemmer/i }));
+    expect(names()).toEqual(["beta", "alpha"]);
+    fireEvent.click(within(table).getByRole("button", { name: /^forbruk/i }));
+    expect(names()).toEqual(["beta", "alpha"]);
+    fireEvent.click(within(table).getByRole("button", { name: /per medlem/i }));
+    expect(names()).toEqual(["beta", "alpha"]);
+    fireEvent.click(within(table).getByRole("button", { name: /endring/i }));
+    expect(names()).toEqual(["alpha", "beta"]);
   });
 
   it("compares visible adjacent net months on the same basis", () => {
@@ -86,5 +120,27 @@ describe("Team insight", () => {
       />
     );
     expect(screen.getByText(/\+20,00/)).toBeInTheDocument();
+    expect(screen.getByText(/\+20,00/)).toHaveClass("text-[var(--ax-text-danger)]");
+  });
+
+  it("shows a per-contributor average and highlights material decreases", () => {
+    render(
+      <TeamGrossUsage
+        data={gross}
+        net={net}
+        myTeams={null}
+        previous={{
+          ...net,
+          month: "2026-08",
+          teams: [
+            { team_id: "1", team_slug: "alpha", users: 5, net_usd: 100 },
+            { team_id: "2", team_slug: "beta", users: 6, net_usd: 75 },
+          ],
+        }}
+      />
+    );
+    expect(screen.getByText(/16,00/)).toBeInTheDocument();
+    expect(screen.getByText(/[−-]20,00/)).toHaveClass("text-[var(--ax-text-success)]");
+    expect(screen.getByText(/[−-]5,00/)).not.toHaveAttribute("class");
   });
 });

@@ -210,5 +210,18 @@ Production September backfill has completed all 759 seeded users. A post-run rec
 
 ## Evidence and checks
 
+### Page wording, navigation and next insights
+
+The month picker now lists Norwegian month names and offers both previous and next navigation, bounded by May 2026 and the current month. It remains outside the data component, including on empty/error months. Table columns are Team, Medlemmer, Forbruk (or Forbruk før fradrag), Per medlem and Endring, all sortable; alphabetical order is the default. Medlemmer counts contributors with positive amounts, not all licensed team members. Per medlem is the row amount divided by those contributors, not a mean over the full roster. Missing comparisons display a dash and one explanation rather than repeated technical text. September has completed net billing but August has only gross usage; no net-to-gross delta is calculated.
+
+Provisional highlight rule: an increase is red and a decrease green only if the absolute change is at least $10 and at least 10% of the preceding amount. A preceding zero with an absolute change of at least $10 also highlights. Signed amounts remain readable without color; this is an investigation cue, not a quality or value score. Threshold is an assumption for requester review.
+
+Next insight work, in order:
+
+1. Comparable monthly history: backfill August net with the corrected validated, atomic ingestion path and add a supervised monthly refresh procedure. Then a team detail can show a 6–12 month series, amount per contributing member and changes in contributor count, using the same gross/net basis and five-contributor suppression at each point. Missing or suppressed points are gaps, never zeros.
+2. Cost-driver breakdown: aggregate SKU/model gross, discounts and net at a team/month grain, suppressing subgroups with fewer than five contributors. Membership overlap still applies; do not present team sums as budget shares. Current per-user ingestion stores SKU totals, not model detail, so model breakdown requires retaining that source detail first.
+3. Team buckets: start with descriptive, overlapping categories such as increased/stable/decreased consumption and team-size bands; use absolute plus relative thresholds and compare matched, complete periods. An overview may count teams but should not sum their spend as organizational spend. Product-area buckets need a verified team-to-area map; Teamkatalogen links are not one-to-one. No leaderboard or performance label.
+4. Value context: link a team's spend discussion to its work and outcomes, with a short team-provided explanation rather than claiming activity counts are ROI. Do not infer time saved or productivity from credits, generated lines or request counts. Distinguish recurring work, experimentation and shared service usage where teams can supply that context.
+
 - Code: `apps/copilot-metrics/billing.go`, `apps/copilot-metrics/views/v_team_daily_summary.sql`, `apps/copilot-api/bigquery_stats.go`, `apps/my-copilot/src/app/(nb)/statistikk/page.tsx`; read-only prototype: `docs/copilot-team-spend-allocation.sql`.
 - Data: read-only BigQuery queries of `copilot_metrics` in dev and prod, and a completed dev manual billing backfill. A local production backfill is in progress as described above. No user identities or individual figures are recorded here.
