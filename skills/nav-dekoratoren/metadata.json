@@ -7,12 +7,14 @@
     "Sett opp breadcrumbs og språkvelger med handleInApp i en React/Remix-app",
     "Konfigurer samtykkevennlig lagring med awaitDecoratorData og navLocalStorage",
     "Bygg CSP-header med buildCspHeader for prod-miljø på Nais",
-    "Feilsøk hvorfor dekoratøren ikke vises i dev med service discovery og accessPolicy"
+    "Feilsøk hvorfor dekoratøren ikke vises i dev med service discovery og accessPolicy",
+    "Revider en eksisterende Dekoratøren-integrasjon og finn statisk genererte sider"
   ],
   "references": [
     "references/params.md",
     "references/ssr-functions.md",
     "references/client-functions.md",
-    "references/consent.md"
+    "references/consent.md",
+    "references/audit.md"
   ]
 }

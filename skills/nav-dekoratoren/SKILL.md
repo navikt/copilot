@@ -1,6 +1,6 @@
 ---
 name: nav-dekoratoren
-description: Integrer og konfigurer Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics, håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren.
+description: Integrer, konfigurer og revider Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, sjekke en eksisterende integrasjon, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics, håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren.
 license: MIT
 compatibility: Web applications on nav.no (Next.js, Remix, Vite, Express/Node)
 metadata:
@@ -35,7 +35,8 @@ Start med å inspisere repoet hvis du har tilgang til koden. Se etter:
 4. **Behov** – breadcrumbs, språkvelger, analytics, chatbot, samtykke/cookies, CSP og skip-lenke.
 
 Spør bare om det du ikke kan finne i repoet eller som krever et produktvalg. Bruk deretter steg 2–7
-og relevante referanser.
+og relevante referanser. Bruker appen allerede Dekoratøren, og teamet vil sjekke oppsettet eller
+feilsøke, gå til [Revisjon av eksisterende integrasjon](references/audit.md).
 
 ---
 
@@ -101,8 +102,9 @@ Server-side rendering gir best ytelse og unngår layout shift.
 Se [SSR-FUNCTIONS.md](references/ssr-functions.md) for fullstendige API-detaljer.
 Moduler-pakken prøver å hente dekoratøren tre ganger før den viser statiske plassholdere som
 rendres på klienten. Ved SSR på Nais setter pakken `teamName` automatisk til
-`NAIS_APP_NAME.NAIS_NAMESPACE` for konsumentlogging. Uten disse miljøvariablene varsler den én
-gang og bruker en eventuell manuelt satt `teamName`. Se
+`NAIS_APP_NAME.NAIS_NAMESPACE` for konsumentlogging. Variablene leses når dekoratøren hentes, så
+de finnes bare i runtime på Nais, ikke i byggesteget. Uten dem varsler pakken én gang og bruker en
+eventuell manuelt satt `params.teamName`. Se
 [konsumentlogging](https://github.com/navikt/nav-dekoratoren/blob/main/README.md#10-innebygde-funksjoner-i-dekorat%C3%B8ren)
 ved direkte SSR-kall eller CSR.
 
@@ -233,7 +235,41 @@ Ved direkte kall uten moduler-pakken: send `teamName` som query-parameter på `/
 `/ssr`. `teamName` må være på formen `teamnavn.namespace`: små bokstaver, minst ett punktum og
 bare `a-z`, `0-9`, `-` og `.`. `origin` brukes til analytics og erstatter ikke `teamName`.
 
-### 3.4 Cache-invalidering
+### 3.4 Unngå statisk generering av sider med dekoratøren
+
+Dekoratøren må hentes i runtime, per request eller fra moduler-pakkens cache. Hvis Next.js bygger
+siden som statisk HTML, fryses dekoratørens HTML, CSS og versjons-ID fra byggetidspunktet. Etter
+neste deploy av Dekoratøren blander siden gammel CSS med ny HTML fra blant annet `/auth`, og for
+eksempel innlogget-menyen kan se feil ut. En ny bygg av appen retter det midlertidig.
+`teamName` mangler også: moduler-pakken leser `NAIS_APP_NAME` og `NAIS_NAMESPACE` når
+dekoratøren hentes, og de finnes bare i poden på Nais, ikke i byggesteget (for eksempel GitHub
+Actions eller Docker build). Når siden rendres per request, for eksempel med `getServerSideProps`,
+kjøres `_document` i poden, og `teamName` settes automatisk.
+
+Når du inspiserer et repo, se etter dette:
+
+- **Page Router:** `_document` kjøres også for statisk genererte sider. Det gjelder sider med
+  `getStaticProps` og sider uten datahenting (Automatic Static Optimization). Bytt
+  `getStaticProps` med `getServerSideProps`. Sider uten datahenting kan gjøres dynamiske med
+  `getServerSideProps` hver for seg, eller for hele appen med `getInitialProps` i
+  `pages/_app.tsx`. Det siste gjelder ikke sider med `getStaticProps`. `next build` markerer statiske sider med `○` eller `●` og
+  dynamiske med `ƒ`.
+- **App Router:** ruter uten dynamiske API-er forhåndsrendres i byggesteget. Gjør root layout
+  dynamisk med `export const dynamic = "force-dynamic";`, eller kall `await connection()` fra
+  `next/server` før `fetchDecoratorReact`.
+
+```ts
+// pages/minside.tsx (Page Router)
+export async function getServerSideProps({ locale }: GetServerSidePropsContext) {
+    return { props: { ...(await serverSideTranslations(locale ?? "nb", ["common"])) } };
+}
+```
+
+Kan appen ikke gjøres dynamisk ennå, sett `teamName` manuelt i `params` (for eksempel
+`teamName: "min-app.mitt-namespace"`) slik at forespørslene i det minste kan spores. Det retter
+ikke versjonsproblemet.
+
+### 3.5 Cache-invalidering
 
 ```ts
 import { addDecoratorUpdateListener } from "@navikt/nav-dekoratoren-moduler/ssr";
@@ -419,6 +455,14 @@ Dekoratøren viser en lenke til hovedinnholdet når dokumentet har et element me
 
 ---
 
+## Revisjon av eksisterende integrasjon
+
+Når teamet vil sjekke en eksisterende integrasjon, eller en feil bare dukker opp av og til (for
+eksempel etter en deploy av Dekoratøren), følg sjekklisten i [AUDIT.md](references/audit.md).
+Start med statisk generering (3.4), som er den vanligste årsaken.
+
+---
+
 ## Vanlige feil og løsninger
 
 | Problem                                  | Årsak                     | Løsning                                                    |
@@ -430,6 +474,8 @@ Dekoratøren viser en lenke til hovedinnholdet når dokumentet har et element me
 | `getAmplitudeInstance is not a function` | Moduler v4+ (API endret)   | Oppgrader til v4+ og bytt til `getAnalyticsInstance`       |
 | `availableLanguages`-URL feil            | URL utenfor nav.no        | Kun `nav.no` og underdomener er tillatt                    |
 | Konsument vises som `unknown`              | Mangler `teamName`        | Sett `teamName` ved direkte SSR-kall og CSR med moduler    |
+| `unknown` selv med SSR og moduler 4.5+     | Siden er bygget statisk   | Gjør siden dynamisk, se 3.4                                |
+| Header/innlogget-meny feil etter dekoratør-deploy, retter seg ved redeploy | Siden er bygget statisk | Gjør siden dynamisk, se 3.4 |
 
 ---
 
