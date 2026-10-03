@@ -53,6 +53,19 @@ func TestTeamSpendBigQuery(t *testing.T) {
 	if err != nil || missing != nil {
 		t.Fatalf("unfilled month = %+v, error %v", missing, err)
 	}
+	if os.Getenv("VERIFY_AUGUST_TEAM_SPEND") == "true" {
+		august, err := client.GetTeamNetOverview(ctx, "2026-08")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if august == nil || len(august.Teams) == 0 || math.Abs(august.KnownNetUSD-32163.250469783994) > 0.02 {
+			t.Fatalf("August net reconciliation failed: %#v", august)
+		}
+		if math.Abs(august.EnterpriseNetUSD-august.KnownNetUSD-august.ResidualNetUSD) > 0.02 {
+			t.Fatal("August residual does not reconcile")
+		}
+		t.Logf("August/September net comparison available: %d/%d visible teams", len(august.Teams), len(net.Teams))
+	}
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-net?month=2026-09", nil).WithContext(ctx)
 	recorder := httptest.NewRecorder()
 	newBigQueryHandlers(newCachedBigQueryClient(client, time.Minute)).handleTeamNetOverview(recorder, request)

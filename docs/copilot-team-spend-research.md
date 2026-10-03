@@ -9,7 +9,7 @@ statements that tables or features did not yet exist describe those earlier chec
 | --- | --- |
 | Monthly team page, full-member overlap and API suppression | Implemented in draft PR #1419. Current-month and mixed gross/net comparisons remain unavailable. |
 | September user net billing | Complete in dev and prod: 759 historical IDs, $64,388.33 known-user net, $170.51 enterprise-only residual. Production used the earlier binary; it was not silently rewritten. |
-| August user net billing | Dev process stopped at 719 of 728 users with `billing user 720/728: user AI credit billing status 404`. Checkpoints remain; no completion marker. Production August has not been dispatched. Recovery is tracked in #1425. |
+| August user net billing | Dev complete: 728 users, $32,163.25 known net, $32,295.17 enterprise net, $131.92 residual. Remaining nine accounts resolved by immutable GitHub IDs and validated atomic writes. Live API query exposes 113 August and 119 September teams for net-to-net comparison. Production August has not been dispatched; remaining history is tracked in #1425. |
 | Automatic future monthly ingestion, #1421 | Committed and pushed as `842e6c4f` on `feat/team-spend-insight`. Separate enabled nightly worker discovers unfinished closed UTC months from October 2026. First eligible collection is November 1. |
 | Monthly worker deployment | Workflow deploys both manifests. Same `copilot-metrics` secret as existing ingestion, 08:00 UTC prod and 09:00 UTC dev, `concurrencyPolicy: Forbid`, 50-minute runtime inside a one-hour pod deadline. No Kubernetes secret extraction is needed. |
 | Restart and request limits | Existing atomic user checkpoints resume nightly. At most 2,000 identity/billing requests per execution, including retries; stop with 500 requests left in reported quota. Pending months share runtime/request budgets. |
@@ -29,7 +29,7 @@ statements that tables or features did not yet exist describe those earlier chec
 ### Wrap-up work for this PR
 
 1. Focused Astra follow-up is complete. The live contract probe and source review do not prove the entire deployed scheduler, source-repair, notification and publication lifecycle.
-2. August dev recovery and reconciliation are tracked in #1425. Investigate the HTTP 404 before resuming; never skip it as zero. Production August is a separate authorized data operation, not an automatic effect of merge.
+2. August dev recovery and reconciliation are complete. #1425 retains production August and older-history work, each a separately authorized data operation rather than an automatic effect of merge.
 3. Deployed dev route returns a 307 redirect to sign-in without a session. Local page/navigation tests pass. Signed-in browser, keyboard and narrow-screen verification remains unperformed; this environment has no browser connector or signed-in session. Local `httptest` does not prove deployed authentication or browser behavior.
 4. Implementation is pushed at `842e6c4f`; fresh CI and dev deployments passed. PR #1419 includes `Closes #1421`. It remains draft and unmerged. Obtain required human review before merging.
 
