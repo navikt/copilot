@@ -1,23 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { BodyShort, Heading, Table, VStack } from "@navikt/ds-react";
+import { BodyShort, Heading, HStack, Table, VStack } from "@navikt/ds-react";
+import { CodeIcon, CpuIcon, WrenchIcon } from "@navikt/aksel-icons";
 import { TableBody, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
 import type { TeamGrossOverview, TeamNetOverview } from "@/lib/types";
 import { useTeamControls } from "./team-controls";
+import TeamUsageValue from "./team-usage-value";
 
 type Team = TeamGrossOverview["teams"][number] | TeamNetOverview["teams"][number];
-
-const featureLabels: Record<string, string> = {
-  copilot_cli: "Copilot CLI",
-  copilot_app: "Copilot-app",
-  chat_panel_agent_mode: "Agentmodus",
-  chat_panel_ask_mode: "Spørremodus",
-  chat_panel_plan_mode: "Planmodus",
-  chat_panel_custom_mode: "Egendefinert modus",
-  chat_inline: "Innebygd chat",
-  agent_edit: "Agentredigering",
-};
 
 export function compareTeamMonth(team: Team, previous: TeamGrossOverview | TeamNetOverview | null): number | null {
   const old = previous?.teams.find((row) => row.team_id === team.team_id);
@@ -105,14 +96,34 @@ export default function TeamGrossUsage({
             </span>
           </TableDataCell>
           {columns.includes("models") && (
-            <TableDataCell>{data.usage?.[team.team_id]?.models.join(", ") || "—"}</TableDataCell>
+            <TableDataCell>
+              <VStack gap="space-4">
+                {data.usage?.[team.team_id]?.models.length
+                  ? data.usage[team.team_id].models.map((model) => (
+                      <TeamUsageValue key={model} kind="model" value={model} />
+                    ))
+                  : "—"}
+              </VStack>
+            </TableDataCell>
           )}
           {columns.includes("feature") && (
             <TableDataCell>
-              {featureLabels[data.usage?.[team.team_id]?.feature ?? ""] ?? (data.usage?.[team.team_id]?.feature || "—")}
+              {data.usage?.[team.team_id]?.feature ? (
+                <TeamUsageValue kind="feature" value={data.usage[team.team_id].feature} />
+              ) : (
+                "—"
+              )}
             </TableDataCell>
           )}
-          {columns.includes("language") && <TableDataCell>{data.usage?.[team.team_id]?.language || "—"}</TableDataCell>}
+          {columns.includes("language") && (
+            <TableDataCell>
+              {data.usage?.[team.team_id]?.language ? (
+                <TeamUsageValue kind="language" value={data.usage[team.team_id].language} />
+              ) : (
+                "—"
+              )}
+            </TableDataCell>
+          )}
         </TableRow>
       );
     });
@@ -152,9 +163,30 @@ export default function TeamGrossUsage({
             <Table.ColumnHeader scope="col" align="right" sortable sortKey="change">
               Endring
             </Table.ColumnHeader>
-            {columns.includes("models") && <Table.ColumnHeader scope="col">Modeller</Table.ColumnHeader>}
-            {columns.includes("feature") && <Table.ColumnHeader scope="col">Funksjon</Table.ColumnHeader>}
-            {columns.includes("language") && <Table.ColumnHeader scope="col">Språk</Table.ColumnHeader>}
+            {columns.includes("models") && (
+              <Table.ColumnHeader scope="col">
+                <HStack gap="space-8" align="center">
+                  <CpuIcon aria-hidden fontSize="1.25rem" />
+                  Modeller
+                </HStack>
+              </Table.ColumnHeader>
+            )}
+            {columns.includes("feature") && (
+              <Table.ColumnHeader scope="col">
+                <HStack gap="space-8" align="center">
+                  <WrenchIcon aria-hidden fontSize="1.25rem" />
+                  Funksjon
+                </HStack>
+              </Table.ColumnHeader>
+            )}
+            {columns.includes("language") && (
+              <Table.ColumnHeader scope="col">
+                <HStack gap="space-8" align="center">
+                  <CodeIcon aria-hidden fontSize="1.25rem" />
+                  Språk
+                </HStack>
+              </Table.ColumnHeader>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>{rows(teams)}</TableBody>

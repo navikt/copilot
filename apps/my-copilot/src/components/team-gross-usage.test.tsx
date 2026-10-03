@@ -59,14 +59,15 @@ describe("Team insight", () => {
     for (const label of ["Modeller", "Funksjon", "Språk"])
       fireEvent.click(screen.getByRole("checkbox", { name: label }));
     expect(within(table).getAllByRole("columnheader")).toHaveLength(8);
-    expect(within(table).getByText("model-a, model-b")).toBeInTheDocument();
+    expect(within(table).getByText("model-a")).toBeInTheDocument();
+    expect(within(table).getByText("model-b")).toBeInTheDocument();
     expect(within(table).getByText("Copilot CLI")).toBeInTheDocument();
     expect(within(table).getByText("kotlin")).toBeInTheDocument();
     fireEvent.change(screen.getByRole("searchbox", { name: "Søk etter team" }), { target: { value: "alpha" } });
     expect(within(table).queryByText("beta")).not.toBeInTheDocument();
     expect(within(table).getByText("alpha")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("checkbox", { name: "Modeller" }));
-    expect(within(table).queryByText("model-a, model-b")).not.toBeInTheDocument();
+    expect(within(table).queryByText("model-a")).not.toBeInTheDocument();
   });
   it("keeps the distinct bill separate from overlapping team rows and puts mine first", () => {
     render(<TeamGrossUsage data={gross} net={net} myTeams={["beta"]} previous={null} />);
