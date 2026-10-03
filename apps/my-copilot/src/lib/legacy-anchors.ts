@@ -8,6 +8,7 @@
 // target exists and that no key is a real id on its page. A value must be a
 // real id on its page, never another key. The link guard rejects chains.
 export const LEGACY_ANCHORS: Record<string, string> = {
+  "/statistikk#team": "/innsikt/team#teamkostnad",
   // /nav-pilot/docs was split into guides, reference and explanation pages
   // (docs/nav-pilot-dokumentasjon-forslag.md §1.4). next.config.ts sends the
   // page to /nav-pilot/referanse, so the old anchors are keyed there.

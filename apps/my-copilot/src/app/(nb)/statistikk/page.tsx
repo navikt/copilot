@@ -3,8 +3,6 @@
 import React, { Suspense } from "react";
 import {
   getCopilotUsageMetrics,
-  getTeamUsage,
-  getUserMetrics,
   getMonthlyTrends,
   getMonthlyBillingUsage,
   getBillingModelDaily,
@@ -17,7 +15,6 @@ import {
 } from "@/lib/cached-bigquery";
 import type { EnterpriseMetrics } from "@/lib/types";
 import Tabs from "@/components/tabs";
-import TeamUsageTable from "@/components/team-usage-table";
 import RepositoryUsageTable from "@/components/repository-usage-table";
 import TrendChart from "@/components/charts/TrendChart";
 import ModelUsageChart from "@/components/charts/ModelUsageChart";
@@ -49,7 +46,6 @@ import { currentMonthUTC, previousMonth, selectCompleteMonths } from "@/lib/mont
 import type { LanguageData, EditorData, ModelData } from "@/lib/types";
 import { formatNumber, formatMinutes } from "@/lib/format";
 import { getUser, getUserToken } from "@/lib/auth";
-import { backendRequest } from "@/lib/backend-api";
 
 // Static header component (automatically prerendered)
 function UsageHeader() {
@@ -66,55 +62,6 @@ async function CachedUsageData({ token }: { token: string }) {
   const filteredUsage = usage.slice(-28);
 
   return <UsageTabs usage={filteredUsage} token={token} />;
-}
-
-// Whether to allow viewing all teams (disabled in prod until approved)
-const ALLOW_ALL_TEAMS = process.env.NODE_ENV === "development";
-
-// Cached team usage data component — resolves user's teams for highlighting
-async function TeamUsageContent({ token }: { token: string }) {
-  const [{ teams, error }, user] = await Promise.all([getTeamUsage(token), getUser()]);
-
-  if (error) return <ErrorState message={`Feil ved henting av teamdata: ${error}`} />;
-  if (!teams || teams.length === 0) return <ErrorState message="Ingen teamdata tilgjengelig ennå." />;
-
-  // Filter out the catch-all org team — it contains all users and skews comparisons
-  const IGNORED_TEAMS = new Set(["nav-it-github-users"]);
-
-  // Resolve user's teams so we can highlight them in the table
-  let userTeams: string[] = [];
-  if (user?.email) {
-    let ghLogin: string | null = null;
-    if (process.env.NODE_ENV === "development" && process.env.DEV_GITHUB_LOGIN) {
-      ghLogin = process.env.DEV_GITHUB_LOGIN;
-    } else {
-      try {
-        const saml = await backendRequest<{ identity: string; username: string | null }>(
-          `/api/v1/copilot/saml/${encodeURIComponent(user.email)}`,
-          token
-        );
-        ghLogin = saml.username;
-      } catch (err) {
-        console.error("[statistikk] SAML lookup failed:", err);
-      }
-    }
-    if (ghLogin) {
-      const { metrics } = await getUserMetrics(ghLogin, token);
-      if (metrics) {
-        userTeams = (metrics.teams ?? []).filter((t) => !IGNORED_TEAMS.has(t));
-      }
-    }
-  }
-
-  // Server-side access control: only send teams the user belongs to.
-  // In prod, we restrict to user's own teams to prevent cross-team data exposure.
-  // In dev, all teams are available for debugging.
-  const userTeamSet = new Set(userTeams.map((t) => t.toLowerCase()));
-  const visibleTeams = teams
-    .filter((t) => !IGNORED_TEAMS.has(t.team_slug))
-    .filter((t) => ALLOW_ALL_TEAMS || userTeamSet.has(t.team_slug.toLowerCase()));
-
-  return <TeamUsageTable teams={visibleTeams} userTeams={userTeams} allowAllTeams={ALLOW_ALL_TEAMS} />;
 }
 
 // Cached repository usage data component — per-repo Copilot PR activity.
@@ -170,7 +117,7 @@ async function RepositoryUsageContent({ token }: { token: string }) {
 //
 // The "Utforsking" (details) tab only needs data derived from `usage` (already
 // resolved by the time this renders) — it does not depend on any of the
-// dashboard tab's additional BigQuery calls. Splitting dashboard/team/details
+// dashboard tab's additional BigQuery calls. Splitting dashboard/details
 // into independent Suspense-wrapped siblings here (rather than one monolithic
 // async component) lets each tab stream in as soon as its own data is ready,
 // instead of the whole page waiting on the slowest of ~10 backend calls.
@@ -209,18 +156,6 @@ function UsageTabs({ usage, token }: { usage: EnterpriseMetrics[]; token: string
         "ai-adopsjonsfaser",
         "pull-requests-og-code-review",
       ],
-    },
-    {
-      id: "team",
-      label: "Team i Nav",
-      content: (
-        <div id="team">
-          <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
-            <TeamUsageContent token={token} />
-          </Suspense>
-        </div>
-      ),
-      hashIds: ["team"],
     },
     {
       id: "repositories",

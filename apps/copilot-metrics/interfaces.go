@@ -19,6 +19,8 @@ type MetricsFetcher interface {
 // MetricsStore defines the interface for storing Copilot usage metrics.
 // This abstraction enables testing with mock implementations.
 type MetricsStore interface {
+	ReplaceUserTeams(context.Context, time.Time, *FetchResult) error
+	ReplaceUserMetrics(context.Context, time.Time, *FetchResult) error
 	EnsureTableExists(ctx context.Context) error
 	EnsureUserTeamsTableExists(ctx context.Context) error
 	EnsureUserMetricsTableExists(ctx context.Context) error

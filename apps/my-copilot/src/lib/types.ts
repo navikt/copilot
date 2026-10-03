@@ -311,18 +311,33 @@ export interface StalenessSummary {
  */
 export type AdoptionScope = "all" | "active";
 
-export interface TeamUsageSummary {
-  team_slug: string;
-  avg_active_users: number;
-  total_users: number;
-  total_generations: number;
-  total_acceptances: number;
-  total_interactions: number;
-  total_lines_suggested: number;
-  total_lines_accepted: number;
-  agent_users: number;
-  days_with_data: number;
-  top_models?: Array<{ model: string; interactions: number }>;
+export interface TeamGrossOverview {
+  usage?: Record<string, { models: string[]; feature: string; language: string }>;
+  month: string;
+  teams: { team_id: string; team_slug: string; users: number; gross_usd: number }[];
+  small_teams: number;
+  small_teams_users: number;
+  small_teams_gross_usd: number;
+  distinct_gross_usd: number;
+  unassigned_gross_usd: number;
+  last_usage_day: string;
+  days_with_usage: number;
+}
+
+export interface TeamNetOverview {
+  month: string;
+  teams: { team_id: string; team_slug: string; users: number; net_usd: number }[];
+  small_teams: number;
+  small_teams_users: number;
+  small_teams_net_usd: number;
+  known_net_usd: number;
+  unassigned_net_usd: number;
+  no_usage_net_usd: number;
+  enterprise_net_usd: number;
+  residual_net_usd: number;
+  loaded_at: string;
+  estimated_timing: boolean;
+  sku: string;
 }
 
 // Per-repository Copilot PR activity, from the v_repository_usage BigQuery view

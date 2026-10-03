@@ -75,6 +75,14 @@ func (m *mockStore) EnsureTableExists(_ context.Context) error {
 	return m.tableExistsErr
 }
 
+func (m *mockStore) ReplaceUserTeams(ctx context.Context, day time.Time, result *FetchResult) error {
+	return upsertReport(ctx, m.UserTeamsDayExists, m.DeleteUserTeamsDay, m.InsertUserTeams, day, result)
+}
+
+func (m *mockStore) ReplaceUserMetrics(ctx context.Context, day time.Time, result *FetchResult) error {
+	return upsertReport(ctx, m.UserMetricsDayExists, m.DeleteUserMetricsDay, m.InsertUserMetrics, day, result)
+}
+
 func (m *mockStore) EnsureUserTeamsTableExists(_ context.Context) error {
 	return m.tableExistsErr
 }

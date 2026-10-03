@@ -46,7 +46,7 @@ func ingestBillingUsageReportDay(
 
 	// Idempotent re-run behavior.
 	if err := store.DeleteBillingUsageReportDay(ctx, day, scopeID); err != nil {
-		slog.Warn("Failed to delete existing billing usage report rows (continuing)", "day", dayStr, "enterprise", scopeID, "error", err)
+		return fmt.Errorf("delete existing billing usage report rows: %w", err)
 	}
 
 	if err := store.InsertBillingUsageReportDay(ctx, day, scopeID, resp.UsageItems); err != nil {

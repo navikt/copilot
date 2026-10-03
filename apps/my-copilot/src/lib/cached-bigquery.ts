@@ -6,7 +6,7 @@
  * cache layer. The "cached-bigquery" file name is kept for now to avoid a
  * large import-path churn while this file is the subject of a rename refactor.
  */
-import { backendRequest, BackendApiError } from "./backend-api";
+import { backendRequest } from "./backend-api";
 import type {
   AdoptionData,
   AdoptionSummary,
@@ -20,8 +20,8 @@ import type {
   MonthlyTrend,
   StalenessSummary,
   TeamAdoption,
-  TeamUsageSummary,
-  UserMetricsSummary,
+  TeamGrossOverview,
+  TeamNetOverview,
   AdoptionCohortDay,
   BillingMonthlyTrend,
   BillingModelBreakdown,
@@ -107,14 +107,23 @@ export async function getStalenessData(token: string): Promise<{
   );
 }
 
-export async function getTeamUsage(token: string): Promise<{
-  teams: TeamUsageSummary[];
-  error: string | null;
-}> {
-  const result = await fetchWithFallback("getTeamUsage", [] as TeamUsageSummary[], () =>
-    backendRequest<TeamUsageSummary[]>("/api/v1/copilot/usage/team-summary", token)
+export async function getTeamGrossOverview(month: string, token: string): Promise<TeamGrossOverview> {
+  return backendRequest<TeamGrossOverview>(
+    `/api/v1/copilot/usage/team-gross?month=${encodeURIComponent(month)}`,
+    token,
+    { cache: "no-store" }
   );
-  return { teams: result.data, error: result.error };
+}
+
+export async function getTeamNetOverview(month: string, token: string): Promise<TeamNetOverview | null> {
+  return backendRequest<TeamNetOverview | null>(
+    `/api/v1/copilot/usage/team-net?month=${encodeURIComponent(month)}`,
+    token
+  );
+}
+
+export async function getMyTeams(token: string): Promise<string[]> {
+  return backendRequest<string[]>("/api/v1/copilot/usage/my-teams", token);
 }
 
 export async function getRepositoryUsage(token: string): Promise<{
@@ -125,28 +134,6 @@ export async function getRepositoryUsage(token: string): Promise<{
     backendRequest<RepositoryUsage[]>("/api/v1/copilot/usage/repositories", token)
   );
   return { repositories: result.data, error: result.error };
-}
-
-export async function getUserMetrics(
-  username: string,
-  token: string
-): Promise<{ metrics: UserMetricsSummary | null; error: string | null }> {
-  const result = await fetchNullable("getUserMetrics", async () => {
-    try {
-      return await backendRequest<UserMetricsSummary>(
-        `/api/v1/copilot/usage/user/${encodeURIComponent(username)}`,
-        token
-      );
-    } catch (err) {
-      // A 404 is a valid state: the user is linked to a GitHub account but has
-      // no Copilot usage in the period. Treat as "no metrics", not an error.
-      if (err instanceof BackendApiError && err.status === 404) {
-        return null;
-      }
-      throw err;
-    }
-  });
-  return { metrics: result.data, error: result.error };
 }
 
 export async function getUserDailyCredits(

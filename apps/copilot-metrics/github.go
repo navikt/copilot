@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	neturl "net/url"
 	"strings"
 	"time"
 
@@ -34,9 +35,10 @@ type MetricsReportResponse struct {
 
 // FetchResult contains the metrics records along with metadata about the fetch.
 type FetchResult struct {
-	Records []json.RawMessage
-	Scope   string // "enterprise" or "organization"
-	ScopeID string // enterprise slug or org name
+	Records  []json.RawMessage
+	Scope    string // "enterprise" or "organization"
+	ScopeID  string // enterprise slug or org name
+	Complete bool   // All required source endpoints returned validated reports.
 }
 
 func NewGitHubClient(cfg *Config) (*GitHubClient, error) {
@@ -112,7 +114,7 @@ func (c *GitHubClient) FetchDailyMetrics(ctx context.Context, day time.Time) (*F
 		c.org, dayStr)
 	slog.Debug("Fetching metrics report (org fallback)", "url", orgURL, "day", dayStr)
 
-	records, err = c.fetchMetricsFromURLWithRetry(ctx, orgURL)
+	records, err = c.fetchMetricsFromURLWithRetryOrg(ctx, orgURL)
 	if err != nil {
 		if isReportNotAvailable(enterpriseErr) {
 			return nil, fmt.Errorf("%w for %s: enterprise report not generated yet and org endpoint also failed: %v",
@@ -184,8 +186,6 @@ func isReportNotAvailable(err error) bool {
 	return errors.Is(err, ErrReportNotAvailable) ||
 		strings.Contains(err.Error(), "No report available") ||
 		strings.Contains(err.Error(), "status 204") ||
-		strings.Contains(err.Error(), "status 502") ||
-		strings.Contains(err.Error(), "status 503") ||
 		strings.Contains(err.Error(), "CANCEL")
 }
 
@@ -258,7 +258,20 @@ func (c *GitHubClient) fetchMetricsFromURLWith(ctx context.Context, url string, 
 
 	var reportResp MetricsReportResponse
 	if err := json.Unmarshal(body, &reportResp); err != nil {
-		return nil, fmt.Errorf("failed to decode report response (body: %s): %w", truncate(trimmed, 200), err)
+		return nil, fmt.Errorf("failed to decode report response: %w", err)
+	}
+	requested, err := neturl.Parse(url)
+	if err != nil {
+		return nil, fmt.Errorf("parse report URL: %w", err)
+	}
+	if day := requested.Query().Get("day"); day != "" && reportResp.ReportDay != day {
+		return nil, fmt.Errorf("failed to decode report response: report day does not match request")
+	}
+	if reportResp.DownloadLinks == nil {
+		return nil, fmt.Errorf("failed to decode report response: missing download links")
+	}
+	if len(reportResp.DownloadLinks) == 0 {
+		return nil, fmt.Errorf("report has no download links; source completeness is unknown")
 	}
 
 	slog.Info("Got download links", "count", len(reportResp.DownloadLinks), "report_day", reportResp.ReportDay, "url", url)
@@ -280,7 +293,7 @@ func (c *GitHubClient) fetchMetricsFromURLWith(ctx context.Context, url string, 
 func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) ([]json.RawMessage, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create download request: %w", err)
+		return nil, fmt.Errorf("failed to create download request: %w", safeTransportError(err))
 	}
 
 	slog.Debug("Downloading NDJSON", "content_length_hint", req.Header.Get("Content-Length"))
@@ -288,7 +301,7 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 	// Use downloadClient (no auth) for pre-signed URLs
 	resp, err := c.downloadClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("download request failed: %w", err)
+		return nil, fmt.Errorf("download request failed: %w", safeTransportError(err))
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -305,7 +318,6 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024)
 
 	lineNum := 0
-	invalidLines := 0
 	for scanner.Scan() {
 		lineNum++
 		line := scanner.Bytes()
@@ -314,9 +326,7 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 		}
 
 		if !json.Valid(line) {
-			invalidLines++
-			slog.Warn("Invalid JSON line in NDJSON", "line_number", lineNum)
-			continue
+			return nil, fmt.Errorf("invalid JSON in NDJSON at line %d", lineNum)
 		}
 
 		record := make(json.RawMessage, len(line))
@@ -328,7 +338,7 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 		return nil, fmt.Errorf("error reading NDJSON: %w", err)
 	}
 
-	slog.Debug("Parsed NDJSON", "total_lines", lineNum, "valid_records", len(records), "invalid_lines", invalidLines)
+	slog.Debug("Parsed NDJSON", "total_lines", lineNum, "valid_records", len(records))
 	return records, nil
 }
 
@@ -376,11 +386,11 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 	addRecords := func(records []json.RawMessage) {
 		for _, r := range records {
 			var entry struct {
-				UserID string `json:"user_id"`
-				TeamID string `json:"team_id"`
+				UserID json.Number `json:"user_id"`
+				TeamID json.Number `json:"team_id"`
 			}
 			if err := json.Unmarshal(r, &entry); err == nil {
-				key := entry.UserID + ":" + entry.TeamID
+				key := entry.UserID.String() + ":" + entry.TeamID.String()
 				if !seen[key] {
 					seen[key] = true
 					allRecords = append(allRecords, r)
@@ -410,9 +420,10 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 			scopeID = c.org
 		}
 		return &FetchResult{
-			Records: allRecords,
-			Scope:   scope,
-			ScopeID: scopeID,
+			Records:  allRecords,
+			Scope:    scope,
+			ScopeID:  scopeID,
+			Complete: enterpriseErr == nil && orgErr == nil,
 		}, nil
 	}
 
@@ -431,7 +442,7 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 		scope = "organization"
 		scopeID = c.org
 	}
-	return &FetchResult{Records: allRecords, Scope: scope, ScopeID: scopeID}, nil
+	return &FetchResult{Records: allRecords, Scope: scope, ScopeID: scopeID, Complete: enterpriseErr == nil && orgErr == nil}, nil
 }
 
 // FetchDailyUserMetrics fetches the users-1-day report for the given day.
@@ -461,9 +472,10 @@ func (c *GitHubClient) fetchDailyReport(ctx context.Context, day time.Time, repo
 	records, err := c.fetchMetricsFromURLWithRetry(ctx, enterpriseURL)
 	if err == nil {
 		return &FetchResult{
-			Records: records,
-			Scope:   "enterprise",
-			ScopeID: c.enterprise,
+			Records:  records,
+			Scope:    "enterprise",
+			ScopeID:  c.enterprise,
+			Complete: true,
 		}, nil
 	}
 
@@ -474,7 +486,7 @@ func (c *GitHubClient) fetchDailyReport(ctx context.Context, day time.Time, repo
 		c.org, reportType, dayStr)
 	slog.Debug("Fetching report (org fallback)", "type", reportType, "url", orgURL, "day", dayStr)
 
-	records, err = c.fetchMetricsFromURLWithRetry(ctx, orgURL)
+	records, err = c.fetchMetricsFromURLWithRetryOrg(ctx, orgURL)
 	if err != nil {
 		if isReportNotAvailable(enterpriseErr) {
 			return nil, fmt.Errorf("%w for %s (%s): enterprise report not generated yet and org endpoint also failed: %v",
@@ -510,7 +522,7 @@ func (c *GitHubClient) FetchLatest28DayReport(ctx context.Context) (*FetchResult
 
 	url = fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/organization-28-day/latest",
 		c.org)
-	records, err = c.fetchMetricsFromURLWithRetry(ctx, url)
+	records, err = c.fetchMetricsFromURLWithRetryOrg(ctx, url)
 	if err != nil {
 		return nil, fmt.Errorf("both enterprise and org 28-day endpoints failed: %w", err)
 	}

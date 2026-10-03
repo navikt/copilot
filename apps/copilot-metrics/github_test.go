@@ -37,10 +37,10 @@ func TestDownloadAndParseNDJSON(t *testing.T) {
 			wantRecords: 2,
 		},
 		{
-			name:        "invalid JSON lines skipped",
-			body:        "{\"a\":1}\nnot json\n{\"b\":2}\n",
-			status:      http.StatusOK,
-			wantRecords: 2,
+			name:    "invalid JSON rejects partial download",
+			body:    "{\"a\":1}\nnot json\n{\"b\":2}\n",
+			status:  http.StatusOK,
+			wantErr: true,
 		},
 		{
 			name:        "empty body",
