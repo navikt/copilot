@@ -56,6 +56,7 @@ describe("Team insight", () => {
     expect(screen.getByRole("combobox", { name: "Måned" })).toHaveValue("2026-09");
     expect(within(table).getAllByRole("columnheader")).toHaveLength(5);
     fireEvent.click(screen.getByText("Velg kolonner"));
+    expect(screen.getByRole("button", { name: "Velg kolonner" })).toHaveAttribute("aria-expanded", "true");
     for (const label of ["Modeller", "Funksjon", "Språk"])
       fireEvent.click(screen.getByRole("checkbox", { name: label }));
     expect(within(table).getAllByRole("columnheader")).toHaveLength(8);
@@ -68,6 +69,17 @@ describe("Team insight", () => {
     expect(within(table).getByText("alpha")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("checkbox", { name: "Modeller" }));
     expect(within(table).queryByText("model-a")).not.toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "Escape" });
+  });
+  it("distinguishes missing backend summaries from suppressed categories", () => {
+    render(
+      <TeamControls month="2026-09">
+        <TeamGrossUsage data={gross} net={net} myTeams={[]} previous={null} />
+      </TeamControls>
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Velg kolonner" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Modeller" }));
+    expect(screen.getByText(/bruksmønster er ikke tilgjengelig fra datatjenesten/i)).toBeInTheDocument();
   });
   it("keeps the distinct bill separate from overlapping team rows and puts mine first", () => {
     render(<TeamGrossUsage data={gross} net={net} myTeams={["beta"]} previous={null} />);

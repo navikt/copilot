@@ -66,6 +66,12 @@ func TestTeamSpendBigQuery(t *testing.T) {
 	if models != 66 || features != 71 || languages != 88 {
 		t.Fatalf("unexpected suppressed composition coverage: %d/%d/%d", models, features, languages)
 	}
+	grossRecorder := httptest.NewRecorder()
+	newBigQueryHandlers(newCachedBigQueryClient(client, time.Minute)).handleTeamGrossOverview(grossRecorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month=2026-09", nil).WithContext(ctx))
+	var httpGross TeamGrossOverview
+	if err := json.Unmarshal(grossRecorder.Body.Bytes(), &httpGross); err != nil || grossRecorder.Code != http.StatusOK || len(httpGross.Usage) != len(gross.Usage) {
+		t.Fatalf("HTTP usage lost: %d %v", grossRecorder.Code, err)
+	}
 	net, err := client.GetTeamNetOverview(ctx, "2026-09")
 	if err != nil {
 		t.Fatal(err)

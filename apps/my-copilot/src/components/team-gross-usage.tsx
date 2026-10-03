@@ -225,6 +225,11 @@ export default function TeamGrossUsage({
               mangler eller er skjult. Dette er bruksmønster, ikke kostnadsfordeling.
             </BodyShort>
           )}
+          {columns.length > 0 && !data.usage && (
+            <BodyShort>
+              Bruksmønster er ikke tilgjengelig fra datatjenesten. Prøv igjen når tjenesten er oppdatert.
+            </BodyShort>
+          )}
           {myTeams === null && <BodyShort>Kunne ikke finne dine team. Du kan fortsatt søke i teamlisten.</BodyShort>}
           {myTeams !== null && (
             <section aria-labelledby="mine-team">

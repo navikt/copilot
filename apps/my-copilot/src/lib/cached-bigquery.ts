@@ -110,7 +110,8 @@ export async function getStalenessData(token: string): Promise<{
 export async function getTeamGrossOverview(month: string, token: string): Promise<TeamGrossOverview> {
   return backendRequest<TeamGrossOverview>(
     `/api/v1/copilot/usage/team-gross?month=${encodeURIComponent(month)}`,
-    token
+    token,
+    { cache: "no-store" }
   );
 }
 
