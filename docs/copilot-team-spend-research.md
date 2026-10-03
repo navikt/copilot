@@ -9,8 +9,8 @@ statements that tables or features did not yet exist describe those earlier chec
 | --- | --- |
 | Monthly team page, full-member overlap and API suppression | Implemented in draft PR #1419. Current-month and mixed gross/net comparisons remain unavailable. |
 | September user net billing | Complete in dev and prod: 759 historical IDs, $64,388.33 known-user net, $170.51 enterprise-only residual. Production used the earlier binary; it was not silently rewritten. |
-| August user net billing | Corrected dev backfill running as PID 39769. Latest check: 470 of 728 users checkpointed, no completion marker. Production August has not been dispatched. |
-| Automatic future monthly ingestion, #1421 | Implemented locally on `feat/team-spend-insight`, not yet committed or pushed. Separate enabled nightly worker discovers unfinished closed UTC months from October 2026. First eligible collection is November 1. |
+| August user net billing | Dev process stopped at 719 of 728 users with `billing user 720/728: user AI credit billing status 404`. Checkpoints remain; no completion marker. Production August has not been dispatched. Recovery is tracked in #1425. |
+| Automatic future monthly ingestion, #1421 | Committed and pushed as `842e6c4f` on `feat/team-spend-insight`. Separate enabled nightly worker discovers unfinished closed UTC months from October 2026. First eligible collection is November 1. |
 | Monthly worker deployment | Workflow deploys both manifests. Same `copilot-metrics` secret as existing ingestion, 08:00 UTC prod and 09:00 UTC dev, `concurrencyPolicy: Forbid`, 50-minute runtime inside a one-hour pod deadline. No Kubernetes secret extraction is needed. |
 | Restart and request limits | Existing atomic user checkpoints resume nightly. At most 2,000 identity/billing requests per execution, including retries; stop with 500 requests left in reported quota. Pending months share runtime/request budgets. |
 | Source and identity integrity | Transactional daily user/team replacement and successful-report receipts, including valid empty reports. Pending-month source repair extends beyond seven days. Invalid weights, partial downloads and identity mismatches cannot complete a month. Manual loads cannot publish October 2026 or later through the weaker historical path. |
@@ -29,9 +29,19 @@ statements that tables or features did not yet exist describe those earlier chec
 ### Wrap-up work for this PR
 
 1. Focused Astra follow-up is complete. The live contract probe and source review do not prove the entire deployed scheduler, source-repair, notification and publication lifecycle.
-2. Let August dev finish; reconcile its stored SKUs and enterprise totals, then verify September's net-to-net comparison. Production August is a separate authorized data operation, not an automatic effect of merge.
+2. August dev recovery and reconciliation are tracked in #1425. Investigate the HTTP 404 before resuming; never skip it as zero. Production August is a separate authorized data operation, not an automatic effect of merge.
 3. Deployed dev route returns a 307 redirect to sign-in without a session. Local page/navigation tests pass. Signed-in browser, keyboard and narrow-screen verification remains unperformed; this environment has no browser connector or signed-in session. Local `httptest` does not prove deployed authentication or browser behavior.
-4. Commit and push the intended changes when requested, update PR #1419's stale manual-only/backfill text and include `Closes #1421`, then require fresh CI on that head. Existing green checks cover `50f80178`, not the local automatic-ingestion changes.
+4. Implementation is pushed at `842e6c4f`; fresh CI and dev deployments passed. PR #1419 includes `Closes #1421`. It remains draft and unmerged. Obtain required human review before merging.
+
+### Follow-up ownership
+
+| Issue | Remaining work |
+| --- | --- |
+| #1425 | Resolve August HTTP 404, complete/reconcile dev, authorize production and assess older history. |
+| #1423 | Evidence-backed correction policy and safe staged monthly replacements. |
+| #1424 | Signed-in product/accessibility validation, comparable trends, cost drivers, descriptive buckets and value context. |
+| #1422 | Legacy interior gaps, non-atomic writers, failure reporting and credential-boundary documentation. |
+| #946 | Authoritative organizational segments and exclusive cost-center allocation, distinct from overlapping team consumption. |
 
 Recommendation: start wrapping up. No more team insight features are needed in
 this PR. Automatic restatements, older monthly history, trends, cost-driver
@@ -259,10 +269,10 @@ Provisional highlight rule: an increase is red and a decrease green only if the 
 
 Next insight work, in order:
 
-1. Comparable monthly history: complete the running August dev net load and reconcile it. Production August and older months need separately authorized backfills. Automatic future collection is implemented under #1421; correction refresh remains separate. A later team detail can show a 6–12 month series, amount per contributing member and changes in contributor count, using the same gross/net basis and five-contributor suppression at each point. Missing or suppressed points are gaps, never zeros.
+1. Comparable monthly history: resolve the interrupted August dev load and reconcile it under #1425. Production August and older months need separately authorized backfills. Automatic future collection is implemented under #1421; correction refresh remains separate under #1423. A later team detail can show a 6–12 month series, amount per contributing member and changes in contributor count, using the same gross/net basis and five-contributor suppression at each point. Missing or suppressed points are gaps, never zeros.
 2. Cost-driver breakdown: aggregate SKU/model gross, discounts and net at a team/month grain, suppressing subgroups with fewer than five contributors. Membership overlap still applies; do not present team sums as budget shares. Current per-user ingestion stores SKU totals, not model detail, so model breakdown requires retaining that source detail first.
 3. Team buckets: start with descriptive, overlapping categories such as increased/stable/decreased consumption and team-size bands; use absolute plus relative thresholds and compare matched, complete periods. An overview may count teams but should not sum their spend as organizational spend. Product-area buckets need a verified team-to-area map; Teamkatalogen links are not one-to-one. No leaderboard or performance label.
 4. Value context: link a team's spend discussion to its work and outcomes, with a short team-provided explanation rather than claiming activity counts are ROI. Do not infer time saved or productivity from credits, generated lines or request counts. Distinguish recurring work, experimentation and shared service usage where teams can supply that context.
 
 - Code: `apps/copilot-metrics/billing.go`, `apps/copilot-metrics/views/v_team_daily_summary.sql`, `apps/copilot-api/bigquery_stats.go`, `apps/my-copilot/src/app/(nb)/statistikk/page.tsx`; read-only prototype: `docs/copilot-team-spend-allocation.sql`.
-- Data: read-only BigQuery queries of `copilot_metrics` in dev and prod, completed September billing loads in both, and the running August dev load. No user identities or individual figures are recorded here.
+- Data: read-only BigQuery queries of `copilot_metrics` in dev and prod, completed September billing loads in both, and the interrupted August dev load. No user identities or individual figures are recorded here.
