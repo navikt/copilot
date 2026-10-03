@@ -11,7 +11,7 @@ supersedes its implementation status and next steps.
 - Exact GPT-6 Astra's final focused correction review is CLEAN. Broader legacy resilience findings remain in #1422.
 - August dev completed after resolving the remaining nine accounts through immutable GitHub IDs and validated atomic writes. All 728 source users have checkpoints, no duplicates or missing source users. Known net $32,163.25; enterprise net $32,295.17; residual $131.92. Live API test confirms August/September net availability with 113/119 visible teams. Production August and older history remain in #1425; no production writes were made.
 - #1423 tracks safe billing-correction refresh; #1424 tracks remaining team analysis and signed-in/accessibility validation. #946 owns authoritative segment/cost-center allocation.
-- Signed-in browser verification remains unavailable here. Unauthenticated dev access redirects to sign-in; local navigation/table tests pass.
+- The requester reports successful browser end-to-end testing. Keyboard and narrow-screen checks were not separately reported; local navigation/table tests pass.
 - See `docs/copilot-team-spend-research.md` for current evidence and issue ownership. Do not dispatch new production writes or merge without a clear request.
 
 ## Start here

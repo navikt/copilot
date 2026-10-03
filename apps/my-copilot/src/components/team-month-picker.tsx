@@ -8,7 +8,7 @@ export default function TeamMonthPicker({ month }: { month: string }) {
   const months: string[] = [];
   for (let value = current; value >= "2026-05"; value = previousMonth(value)) months.push(value);
   return (
-    <HStack gap="space-8" align="center" wrap paddingBlock="space-16">
+    <HStack gap="space-8" align="center" wrap>
       <form action="/innsikt/team" method="get" aria-label="Velg måned">
         <HStack gap="space-8" align="end">
           <Select key={month} label="Måned" name="month" defaultValue={month} size="small">

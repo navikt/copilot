@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import TeamGrossUsage from "./team-gross-usage";
+import TeamControls from "./team-controls";
 import type { TeamGrossOverview, TeamNetOverview } from "@/lib/types";
 
 const gross: TeamGrossOverview = {
@@ -37,6 +38,36 @@ const net: TeamNetOverview = {
 };
 
 describe("Team insight", () => {
+  it("unifies month, search and optional columns without changing cost defaults", () => {
+    render(
+      <TeamControls month="2026-09">
+        <TeamGrossUsage
+          data={{
+            ...gross,
+            usage: { "1": { models: ["model-a", "model-b"], feature: "copilot_cli", language: "kotlin" } },
+          }}
+          net={net}
+          myTeams={[]}
+          previous={null}
+        />
+      </TeamControls>
+    );
+    const table = screen.getByRole("table", { name: "Andre team" });
+    expect(screen.getByRole("combobox", { name: "Måned" })).toHaveValue("2026-09");
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(5);
+    fireEvent.click(screen.getByText("Velg kolonner"));
+    for (const label of ["Modeller", "Funksjon", "Språk"])
+      fireEvent.click(screen.getByRole("checkbox", { name: label }));
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(8);
+    expect(within(table).getByText("model-a, model-b")).toBeInTheDocument();
+    expect(within(table).getByText("Copilot CLI")).toBeInTheDocument();
+    expect(within(table).getByText("kotlin")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Søk etter team" }), { target: { value: "alpha" } });
+    expect(within(table).queryByText("beta")).not.toBeInTheDocument();
+    expect(within(table).getByText("alpha")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Modeller" }));
+    expect(within(table).queryByText("model-a, model-b")).not.toBeInTheDocument();
+  });
   it("keeps the distinct bill separate from overlapping team rows and puts mine first", () => {
     render(<TeamGrossUsage data={gross} net={net} myTeams={["beta"]} previous={null} />);
     expect(screen.getByText(/teambeløpene kan derfor ikke summeres/i)).toBeInTheDocument();

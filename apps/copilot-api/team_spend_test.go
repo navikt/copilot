@@ -34,6 +34,38 @@ func TestTeamSpendBigQuery(t *testing.T) {
 	if math.Abs(gross.DistinctGrossUSD-79489.149132719) > 0.01 {
 		t.Fatalf("gross total = %f", gross.DistinctGrossUSD)
 	}
+	if len(gross.Usage) == 0 {
+		t.Fatal("no team usage composition")
+	}
+	models, features, languages := 0, 0, 0
+	for id, usage := range gross.Usage {
+		if len(usage.Models) > 0 {
+			models++
+		}
+		if usage.Feature != "" {
+			features++
+		}
+		if usage.Language != "" {
+			languages++
+		}
+		visible := false
+		for _, team := range gross.Teams {
+			if team.TeamID == id {
+				visible = true
+			}
+		}
+		if !visible || len(usage.Models) > 3 {
+			t.Fatal("composition escaped team suppression or model limit")
+		}
+		for _, model := range usage.Models {
+			if model == "others" || model == "unknown" {
+				t.Fatal("unknown model exposed as ranked name")
+			}
+		}
+	}
+	if models != 66 || features != 71 || languages != 88 {
+		t.Fatalf("unexpected suppressed composition coverage: %d/%d/%d", models, features, languages)
+	}
 	net, err := client.GetTeamNetOverview(ctx, "2026-09")
 	if err != nil {
 		t.Fatal(err)

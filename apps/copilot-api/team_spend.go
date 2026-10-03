@@ -27,15 +27,16 @@ type TeamNetUsage struct {
 }
 
 type TeamGrossOverview struct {
-	Month              string           `json:"month"`
-	Teams              []TeamGrossUsage `json:"teams"`
-	SmallTeams         int64            `json:"small_teams"`
-	SmallTeamsUsers    int64            `json:"small_teams_users"`
-	SmallTeamsGrossUSD float64          `json:"small_teams_gross_usd"`
-	DistinctGrossUSD   float64          `json:"distinct_gross_usd"`
-	UnassignedGrossUSD float64          `json:"unassigned_gross_usd"`
-	LastUsageDay       string           `json:"last_usage_day"`
-	DaysWithUsage      int64            `json:"days_with_usage"`
+	Usage              map[string]TeamUsageComposition `json:"usage"`
+	Month              string                          `json:"month"`
+	Teams              []TeamGrossUsage                `json:"teams"`
+	SmallTeams         int64                           `json:"small_teams"`
+	SmallTeamsUsers    int64                           `json:"small_teams_users"`
+	SmallTeamsGrossUSD float64                         `json:"small_teams_gross_usd"`
+	DistinctGrossUSD   float64                         `json:"distinct_gross_usd"`
+	UnassignedGrossUSD float64                         `json:"unassigned_gross_usd"`
+	LastUsageDay       string                          `json:"last_usage_day"`
+	DaysWithUsage      int64                           `json:"days_with_usage"`
 }
 
 type TeamNetOverview struct {
@@ -317,6 +318,19 @@ LEFT JOIN team_counts c ON c.users >= @minUsers ORDER BY c.team_slug`, bq.tableR
 		result.SmallTeams, result.SmallTeamsUsers, result.SmallTeamsGrossUSD = row.SmallTeams, row.SmallUsers, row.SmallGross
 		result.DistinctGrossUSD, result.UnassignedGrossUSD, result.LastUsageDay = row.DistinctGross, row.UnassignedGross, row.LastDay
 		result.DaysWithUsage = row.DaysWithUsage
+	}
+	result.Usage, err = bq.getTeamUsageComposition(ctx, month)
+	if err != nil {
+		return nil, err
+	}
+	visible := map[string]bool{}
+	for _, team := range result.Teams {
+		visible[team.TeamID] = true
+	}
+	for id := range result.Usage {
+		if !visible[id] {
+			delete(result.Usage, id)
+		}
 	}
 	return result, nil
 }

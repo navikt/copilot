@@ -1,13 +1,14 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { BodyShort, Box, Heading, Skeleton } from "@navikt/ds-react";
+import { BodyShort, Box, Heading } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
 import TeamGrossUsage from "@/components/team-gross-usage";
 import ErrorState from "@/components/error-state";
 import { getMyTeams, getTeamGrossOverview, getTeamNetOverview } from "@/lib/cached-bigquery";
 import { getUser, getUserToken } from "@/lib/auth";
 import { currentMonthUTC, daysInCalendarMonth, previousMonth, teamInsightMonth } from "@/lib/month-utils";
-import TeamMonthPicker from "@/components/team-month-picker";
+import TeamControls from "@/components/team-controls";
+import TeamSpendSkeleton from "./team-spend-skeleton";
 
 export const metadata: Metadata = {
   title: "Teaminnsikt",
@@ -90,10 +91,11 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
           <Heading id="teamkostnad" level="2" size="medium" spacing>
             Kostnad og bruk
           </Heading>
-          <TeamMonthPicker month={month} />
-          <Suspense fallback={<Skeleton variant="rectangle" height={200} />}>
-            <TeamSpend month={month} token={token} />
-          </Suspense>
+          <TeamControls month={month}>
+            <Suspense key={month} fallback={<TeamSpendSkeleton />}>
+              <TeamSpend month={month} token={token} />
+            </Suspense>
+          </TeamControls>
         </section>
       </Box>
     </main>

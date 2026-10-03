@@ -1,11 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { BodyShort, Heading, Search, Table, VStack } from "@navikt/ds-react";
+import { BodyShort, Heading, Table, VStack } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
 import type { TeamGrossOverview, TeamNetOverview } from "@/lib/types";
+import { useTeamControls } from "./team-controls";
 
 type Team = TeamGrossOverview["teams"][number] | TeamNetOverview["teams"][number];
+
+const featureLabels: Record<string, string> = {
+  copilot_cli: "Copilot CLI",
+  copilot_app: "Copilot-app",
+  chat_panel_agent_mode: "Agentmodus",
+  chat_panel_ask_mode: "Spørremodus",
+  chat_panel_plan_mode: "Planmodus",
+  chat_panel_custom_mode: "Egendefinert modus",
+  chat_inline: "Innebygd chat",
+  agent_edit: "Agentredigering",
+};
 
 export function compareTeamMonth(team: Team, previous: TeamGrossOverview | TeamNetOverview | null): number | null {
   const old = previous?.teams.find((row) => row.team_id === team.team_id);
@@ -30,7 +42,7 @@ export default function TeamGrossUsage({
   previous: TeamGrossOverview | TeamNetOverview | null;
   comparisonReason?: string | null;
 }) {
-  const [search, setSearch] = useState("");
+  const { search, columns } = useTeamControls();
   const [sortKey, setSortKey] = useState("team");
   const [direction, setDirection] = useState<"ascending" | "descending">("ascending");
   const source = net?.teams ?? data.teams;
@@ -92,6 +104,15 @@ export default function TeamGrossUsage({
               {change === null ? "—" : `${change >= 0 ? "+" : ""}${dollars(change)}`}
             </span>
           </TableDataCell>
+          {columns.includes("models") && (
+            <TableDataCell>{data.usage?.[team.team_id]?.models.join(", ") || "—"}</TableDataCell>
+          )}
+          {columns.includes("feature") && (
+            <TableDataCell>
+              {featureLabels[data.usage?.[team.team_id]?.feature ?? ""] ?? (data.usage?.[team.team_id]?.feature || "—")}
+            </TableDataCell>
+          )}
+          {columns.includes("language") && <TableDataCell>{data.usage?.[team.team_id]?.language || "—"}</TableDataCell>}
         </TableRow>
       );
     });
@@ -131,6 +152,9 @@ export default function TeamGrossUsage({
             <Table.ColumnHeader scope="col" align="right" sortable sortKey="change">
               Endring
             </Table.ColumnHeader>
+            {columns.includes("models") && <Table.ColumnHeader scope="col">Modeller</Table.ColumnHeader>}
+            {columns.includes("feature") && <Table.ColumnHeader scope="col">Funksjon</Table.ColumnHeader>}
+            {columns.includes("language") && <Table.ColumnHeader scope="col">Språk</Table.ColumnHeader>}
           </TableRow>
         </TableHeader>
         <TableBody>{rows(teams)}</TableBody>
@@ -162,7 +186,13 @@ export default function TeamGrossUsage({
           <Heading id="medlemsbruk" level="3" size="small">
             Forbruk per team
           </Heading>
-          <Search label="Søk etter team" value={search} onChange={setSearch} size="small" className="max-w-xs" />
+          {columns.length > 0 && (
+            <BodyShort>
+              Viser de mest brukte kategoriene som kan vises, med minst fem bidragsytere per kategori. Modeller og
+              funksjoner rangeres etter brukerinteraksjoner, språk etter kodegenereringer. En strek betyr at kategorien
+              mangler eller er skjult. Dette er bruksmønster, ikke kostnadsfordeling.
+            </BodyShort>
+          )}
           {myTeams === null && <BodyShort>Kunne ikke finne dine team. Du kan fortsatt søke i teamlisten.</BodyShort>}
           {myTeams !== null && (
             <section aria-labelledby="mine-team">

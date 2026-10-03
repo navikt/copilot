@@ -30,7 +30,7 @@ statements that tables or features did not yet exist describe those earlier chec
 
 1. Focused Astra follow-up is complete. The live contract probe and source review do not prove the entire deployed scheduler, source-repair, notification and publication lifecycle.
 2. August dev recovery and reconciliation are complete. #1425 retains production August and older-history work, each a separately authorized data operation rather than an automatic effect of merge.
-3. Deployed dev route returns a 307 redirect to sign-in without a session. Local page/navigation tests pass. Signed-in browser, keyboard and narrow-screen verification remains unperformed; this environment has no browser connector or signed-in session. Local `httptest` does not prove deployed authentication or browser behavior.
+3. The requester reports successful browser end-to-end testing. Local page/navigation tests pass. Keyboard and narrow-screen checks were not separately reported; this environment has no browser connector or signed-in session.
 4. Implementation is pushed at `842e6c4f`; fresh CI and dev deployments passed. PR #1419 includes `Closes #1421`. It remains draft and unmerged. Obtain required human review before merging.
 
 ### Follow-up ownership
@@ -48,6 +48,96 @@ this PR. Automatic restatements, older monthly history, trends, cost-driver
 breakdowns, team buckets, value context and the broader #1422 resilience work
 remain follow-ups. Merge deploys changed daily ingestion and the enabled billing
 schedule to dev and prod; the latter performs no monthly collection before November.
+
+## Selectable usage columns: measured feasibility (2026-10-03)
+
+Read-only dev BigQuery analysis of August and September used distinct
+same-day `(day,user_id,team_slug)` memberships, excluded only
+`nav-it-github-users`, and joined by immutable user ID. The measured cohort is
+the gross page's positive-credit, minimum-five-contributor teams: 121 in August
+and 122 in September. The net cohort differs and requires its own final filter.
+No team names or individual results are recorded here.
+
+| Optional column | Ranking measure | September teams with any publishable named category | Teams whose true winner is publishable |
+| --- | --- | ---: | ---: |
+| Up to three models | User-initiated interactions | 66 / 122 | 58 / 122 |
+| Feature | User-initiated interactions | 71 / 122 | 71 / 122 |
+| Language | Code-generation activities | 88 / 122 | 64 / 122 |
+| IDE | User-initiated interactions | 21 / 122 | 20 / 122 |
+| Skill | Reported interaction count | 48 / 122 | 48 / 122 |
+| MCP | Reported interaction count | 48 / 122 | 38 / 122 |
+| Custom agent | Reported interaction count | 11 / 122 | 11 / 122 |
+| Plugin | Reported interaction count | 1 / 122 | 1 / 122 |
+| Slash command | Reported interaction count | 15 / 122 | 15 / 122 |
+
+Publishable means at least five distinct team members have positive activity for
+that category. Exclude `others` and `unknown` from named rankings, but do not
+erase their activity from coverage. Parent-team suppression alone is insufficient.
+Thirty September teams have three publishable model categories, but only 18
+can publish their actual top three. Returning the top categories after suppression
+must be labeled "most used among categories that can be shown", not an
+unqualified claim about the true winner. No suppressed names, counts or ranks
+should reach the browser. Percentages/complements need a separate disclosure
+review; omit them in the first version.
+
+### What the source supports
+
+- Model interactions sum to 98,385 of 98,539 top-level September interactions,
+  a gap of 154, matching the feature-only `vscode_agent` interactions. August
+  reconciles exactly at 63,134. Keep unknown/unattributed coverage visible.
+- Feature interactions reconcile exactly to top-level totals in both months.
+  September CLI has 73,387 interactions, 74.5% of the total, versus 38,364,
+  60.8%, in August. IDE agent mode has 19,307, 19.6%, versus 18,809, 29.8%.
+  These are enterprise-level activity shares, not overlapping-team totals or cost shares.
+- All language-feature generation counts reconcile to top-level generations:
+  207,781 in September and 186,323 in August. Model generations cover only
+  132,079 of September's 207,781. Do not rank models by adding interactions,
+  generations and acceptances; those are different events and need not be disjoint.
+- Leading September language-generation counts are Kotlin 62,150, TSX 36,381,
+  TypeScript 24,392, Markdown 21,606 and Java 15,377. This describes Copilot
+  code-generation activity, not the team's full repository language mix.
+- IDE breakdown records only 24,929 of 98,539 September interactions, 25.3%,
+  and 96,632 generations. CLI/app activity is not fully represented. Some IDE
+  labels look like version strings; define known-label normalization before display.
+- September reports contain real skill activity for 310 users, MCP for 360,
+  custom agents for 215, plugins for 19 and slash commands for 255. August
+  contains no measured customization activity in these arrays. That is a
+  reporting/coverage boundary, not evidence that nobody used them in August.
+- Across gross-visible teams, the average actual top-three-model share fell
+  from 82.0% in August to 69.6% in September; teams with one model above 50%
+  fell from 42/121 to 26/122. This suggests a broader reported model mix, but
+  changing membership, reporting and model availability prevent a causal claim.
+
+### Smallest useful UI increment
+
+Keep the existing cost columns as defaults. Add opt-in model, feature and
+language columns through a small column selector; retain selection locally if
+needed, without a server preference system. Use up to three model names and
+one feature/language, with explicit ranking measures and a suppression/coverage
+explanation. No new ingestion or GitHub API calls are needed: query stored JSON
+and apply same-day joins and subgroup suppression in the API.
+
+IDE and named customizations belong later or in team detail because their sparse
+and uneven coverage would make the main table misleading. Repository reports
+remain PR-only with no user/team join; a separate ownership map cannot prove
+where members worked. Findings and selectable-column scope are tracked in #1424.
+
+The requester subsequently approved implementation in this branch. Month, search
+and column selection now share one responsive toolbar outside the loading boundary.
+The five cost columns remain defaults; model, feature and language names are
+opt-in. The gross API includes same-day usage summaries for visible team IDs,
+with five positive-activity contributors per named category, unknown-category
+exclusion and ranking after suppression. No counts or percentages are exposed.
+Controls remain available during loading and empty/error responses. The loading
+skeleton matches explanatory text and table rows; changing month resets its boundary.
+
+Verification: API `mise check` and live August/September query tests pass. Live
+September composition counts match independent analysis: 66 model, 71 feature
+and 88 language summaries. Eleven focused frontend tests pass, including unified
+month/search controls and column/header alignment. Frontend `mise check` passes
+lint then fails only on the previously recorded stale `.next/dev/types` imports.
+These UI/API additions have not yet received independent review or browser E2E;
+the requester's earlier browser confirmation covers the prior page.
 
 ## Goal
 
