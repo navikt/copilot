@@ -49,7 +49,7 @@ func TestTeamSpendBigQuery(t *testing.T) {
 			t.Fatalf("returned suppressed team %q", team.TeamID)
 		}
 	}
-	missing, err := client.GetTeamNetOverview(ctx, "2026-08")
+	missing, err := client.GetTeamNetOverview(ctx, "2026-05")
 	if err != nil || missing != nil {
 		t.Fatalf("unfilled month = %+v, error %v", missing, err)
 	}

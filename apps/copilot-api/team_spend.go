@@ -106,7 +106,7 @@ WITH completed AS (
  FROM %s WHERE month=DATE(@month) AND scope_id='nav' AND status='complete'
 ), billed AS (
  SELECT user_id, SUM(net_amount) net
- FROM %s WHERE month=DATE(@month) AND scope_id='nav' AND sku IN ('Copilot AI Credits','Copilot Cloud Agent')
+ FROM %s WHERE month=DATE(@month) AND scope_id='nav' AND user_id!='' AND sku IN ('Copilot AI Credits','Copilot Cloud Agent')
  GROUP BY user_id
 ), usage_days AS (
  SELECT day,JSON_VALUE(raw_record,'$.user_id') user_id,
@@ -150,6 +150,9 @@ WITH completed AS (
 ), no_usage AS (
  SELECT COALESCE(SUM(b.net),0) net FROM billed b
  WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND u.gross>0)
+), enterprise_snapshot AS (
+ SELECT COUNTIF(sku='done') markers,COALESCE(SUM(IF(sku IN ('Copilot AI Credits','Copilot Cloud Agent'),net_amount,0)),0) net
+ FROM %s WHERE month=DATE(@month) AND scope_id='nav' AND user_id=''
 ), enterprise AS (
  SELECT COALESCE(SUM(net_amount),0) net FROM %s
  WHERE day>=DATE(@month) AND day<DATE_ADD(DATE(@month),INTERVAL 1 MONTH)
@@ -159,14 +162,15 @@ SELECT IFNULL(t.team_id,'') team_id,IFNULL(t.team_slug,'') team_slug,
  IFNULL(t.users,0) users,IFNULL(t.net,0) net,
  (SELECT COUNTIF(users<@minUsers) FROM team_counts) small_teams,
   sc.users small_users,s.net small_net,o.net known_net,
-  o.net-a.net unassigned_net,z.net no_usage_net,e.net enterprise_net,c.loaded_at
-FROM completed c CROSS JOIN small s CROSS JOIN small_contributors sc CROSS JOIN assigned a CROSS JOIN totals o CROSS JOIN no_usage z CROSS JOIN enterprise e
+  o.net-a.net unassigned_net,z.net no_usage_net,IF(es.markers>0,es.net,e.net) enterprise_net,c.loaded_at
+FROM completed c CROSS JOIN small s CROSS JOIN small_contributors sc CROSS JOIN assigned a CROSS JOIN totals o CROSS JOIN no_usage z CROSS JOIN enterprise e CROSS JOIN enterprise_snapshot es
 LEFT JOIN team_counts t ON t.users>=@minUsers
 WHERE c.loaded_at IS NOT NULL ORDER BY t.team_slug`,
 		bq.tableRef(bq.metricsDataset, "billing_user_monthly_runs"),
 		bq.tableRef(bq.metricsDataset, "billing_user_monthly"),
 		bq.tableRef(bq.metricsDataset, "user_metrics"),
 		bq.tableRef(bq.metricsDataset, "user_teams"),
+		bq.tableRef(bq.metricsDataset, "billing_user_monthly"),
 		bq.tableRef(bq.metricsDataset, "billing_usage_daily_model")))
 	query.Parameters = []bigquery.QueryParameter{{Name: "month", Value: month + "-01"}, {Name: "minUsers", Value: minTeamContributors}}
 	// The billing table is only created when an operator starts a backfill.

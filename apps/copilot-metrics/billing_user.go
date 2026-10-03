@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"sort"
 	"time"
-
-	"cloud.google.com/go/civil"
 )
 
 const userBillingPause = 2 * time.Second
@@ -27,6 +25,9 @@ type userBillingStore interface {
 // ingestUserBillingMonth is separate from --run-once. A full month needs
 // hundreds of requests and should not spend the shared PAT budget nightly.
 func ingestUserBillingMonth(ctx context.Context, client userBillingFetcher, store userBillingStore, cfg *Config, month time.Time) error {
+	if !month.Before(billingSyncStart) {
+		return fmt.Errorf("months from October 2026 require validated automatic billing sync")
+	}
 	complete, err := store.UserBillingRunComplete(ctx, month, cfg.EnterpriseSlug)
 	if err != nil {
 		return fmt.Errorf("check billing month: %w", err)
@@ -62,29 +63,7 @@ func ingestUserBillingMonth(ctx context.Context, client userBillingFetcher, stor
 		if err := validateUserBilling(response, users[id], cfg.EnterpriseSlug, month); err != nil {
 			return fmt.Errorf("billing user %d/%d: %w", index+1, len(ids), err)
 		}
-		bySKU := map[string]UserBillingRow{}
-		for _, item := range response.UsageItems {
-			if item.Product != "Copilot" || (item.SKU != "Copilot AI Credits" && item.SKU != "Copilot Cloud Agent") {
-				continue
-			}
-			row := bySKU[item.SKU]
-			row.Month = civil.DateOf(month)
-			row.ScopeID = cfg.EnterpriseSlug
-			row.UserID = id
-			row.GitHubLogin = users[id]
-			row.SKU = item.SKU
-			row.LoadedAt = time.Now().UTC()
-			row.GrossAmount += item.GrossAmount
-			row.NetAmount += item.NetAmount
-			bySKU[item.SKU] = row
-		}
-		rows := []UserBillingRow{{
-			Month: civil.DateOf(month), ScopeID: cfg.EnterpriseSlug, UserID: id,
-			GitHubLogin: users[id], SKU: "done", LoadedAt: time.Now().UTC(),
-		}}
-		for _, row := range bySKU {
-			rows = append(rows, row)
-		}
+		rows := billingRows(response, month, cfg.EnterpriseSlug, id, users[id])
 		if err := store.ReplaceUserBilling(ctx, rows); err != nil {
 			return fmt.Errorf("replace billing user %d/%d: %w", index+1, len(ids), err)
 		}

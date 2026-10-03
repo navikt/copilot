@@ -1,5 +1,44 @@
 # Copilot spend by team: research log
 
+## Current delivery status (2026-10-03)
+
+This section is the current plan. Dated entries below preserve earlier evidence;
+statements that tables or features did not yet exist describe those earlier checks.
+
+| Work | Status |
+| --- | --- |
+| Monthly team page, full-member overlap and API suppression | Implemented in draft PR #1419. Current-month and mixed gross/net comparisons remain unavailable. |
+| September user net billing | Complete in dev and prod: 759 historical IDs, $64,388.33 known-user net, $170.51 enterprise-only residual. Production used the earlier binary; it was not silently rewritten. |
+| August user net billing | Corrected dev backfill running as PID 39769. Latest check: 470 of 728 users checkpointed, no completion marker. Production August has not been dispatched. |
+| Automatic future monthly ingestion, #1421 | Implemented locally on `feat/team-spend-insight`, not yet committed or pushed. Separate enabled nightly worker discovers unfinished closed UTC months from October 2026. First eligible collection is November 1. |
+| Monthly worker deployment | Workflow deploys both manifests. Same `copilot-metrics` secret as existing ingestion, 08:00 UTC prod and 09:00 UTC dev, `concurrencyPolicy: Forbid`, 50-minute runtime inside a one-hour pod deadline. No Kubernetes secret extraction is needed. |
+| Restart and request limits | Existing atomic user checkpoints resume nightly. At most 2,000 identity/billing requests per execution, including retries; stop with 500 requests left in reported quota. Pending months share runtime/request budgets. |
+| Source and identity integrity | Transactional daily user/team replacement and successful-report receipts, including valid empty reports. Pending-month source repair extends beyond seven days. Invalid weights, partial downloads and identity mismatches cannot complete a month. Manual loads cannot publish October 2026 or later through the weaker historical path. |
+| Published reconciliation | New completed months store enterprise Copilot totals alongside user amounts. API excludes the enterprise sentinel from user totals and retains historical daily-table fallback. Monthly timing remains estimated from daily usage and memberships. |
+| Billing corrections | Deferred. Completed months are as-collected observations, not guaranteed final invoices. A later correction needs a staged replacement that preserves published data on failure. |
+
+### Latest verification and review
+
+- Both Go app `mise check` gates pass. Metrics race tests and workflow syntax checks pass.
+- Opt-in live BigQuery checks execute actual API queries and transactional replacement SQL, including empty reports and injected rollback. They do not modify the August or September billing loads.
+- A bounded live probe passed immutable identity lookup, user-filtered September billing and enterprise September billing in three requests. It used the interactive CLI token, not the deployed job token. Same-secret wiring is established; deployed execution remains to be observed.
+- `mise all` generated and built every app. Its check stage failed on existing frontend `.next/dev/types` imports and stale model-pricing data. These are not passing release checks.
+- Exact GPT-6 Astra comprehensively reviewed metrics correctness/resilience and returned **BLOCK for activation before fixes**, with concerns for changed daily ingestion even when sync was disabled. Corrections prevent the future-month manual bypass, invalid credit-weight certification and checkpoint-masked failures. Additional targeted fixes cover org-token fallback, transient-error classification, secret-bearing transport logs, insert after failed deletion, partial budget census replacement, backdated live budget observations and month-end previous-month selection. A focused follow-up found write-timeout failure masking; corrected with tests for both write exits. The final narrow Astra review returned **CLEAN**, with no remaining confirmed blocker in those corrections. Empty download-link lists now fail closed; a downloadable empty NDJSON report can still receive a receipt.
+- Remaining pre-existing interior-gap recovery, non-atomic legacy writes, false-success reporting and credential-boundary documentation are tracked in #1422. That issue is not a reason to add an ingestion framework to this PR; assess any finding that affects changed paths during final review.
+
+### Wrap-up work for this PR
+
+1. Focused Astra follow-up is complete. The live contract probe and source review do not prove the entire deployed scheduler, source-repair, notification and publication lifecycle.
+2. Let August dev finish; reconcile its stored SKUs and enterprise totals, then verify September's net-to-net comparison. Production August is a separate authorized data operation, not an automatic effect of merge.
+3. Deployed dev route returns a 307 redirect to sign-in without a session. Local page/navigation tests pass. Signed-in browser, keyboard and narrow-screen verification remains unperformed; this environment has no browser connector or signed-in session. Local `httptest` does not prove deployed authentication or browser behavior.
+4. Commit and push the intended changes when requested, update PR #1419's stale manual-only/backfill text and include `Closes #1421`, then require fresh CI on that head. Existing green checks cover `50f80178`, not the local automatic-ingestion changes.
+
+Recommendation: start wrapping up. No more team insight features are needed in
+this PR. Automatic restatements, older monthly history, trends, cost-driver
+breakdowns, team buckets, value context and the broader #1422 resilience work
+remain follow-ups. Merge deploys changed daily ingestion and the enabled billing
+schedule to dev and prod; the latter performs no monthly collection before November.
+
 ## Goal
 
 Show teams their GitHub Copilot spend so they can relate AI usage to personal, team and organizational value. This is cost transparency, not a leaderboard or a way to shame users. Reconcile organization totals to GitHub billing. Keep gross usage, discounts, net usage charges and seats distinct.
@@ -37,11 +76,11 @@ Teamkatalogen's `naisTeams` maps 106 of the 179 specific GitHub team slugs seen 
 | --- | --- | --- |
 | Daily user usage and GitHub team memberships | `user_metrics` from 2025-10-10; `user_teams` from 2026-05-06 | No same-day team allocation before 2026-05-06; some users still have no specific team |
 | Enterprise Copilot usage charges by day and model | `billing_usage_daily_model` from 2025-10-10 | No GitHub user key; cannot recover actual user net charges by joining this table |
-| Actual per-user net usage charges | No table | GitHub's `ai_credit/usage?user=...` works but would need ingestion, historical backfill where available and a reconciliation to enterprise SKUs |
+| Actual per-user net usage charges | `billing_user_monthly` and `billing_user_monthly_runs`; September complete in dev/prod | August dev pending; older history and correction refresh remain follow-ups |
 | Copilot seat/license costs | Enterprise `copilot_for_business` total is accessible from GitHub billing summary | No historical per-user seat charge table; current seat API is not a monthly billing history |
 | Other billing tables | `billing_usage` stops at 2026-06-01; `billing_usage_reports` contains only $37.56 of September Copilot net usage and seats | Neither substitutes for enterprise daily model billing or per-user charges; `user_budget_snapshots` has zero rows |
 
-The September source tables have full day coverage, but that does not imply complete per-user billing coverage or a team for every user. A team amount needs a reconciled source, a chosen allocation rule and a separate unassigned bucket. An estimated gross usage view can be prototyped from BigQuery alone; an actual net-spend list cannot yet be served from it.
+The September source tables have full day coverage, but that does not imply a team for every user or that every billed account appears in historical reports. September net can now be served from completed per-user billing with an explicit enterprise residual and separate unassigned bucket.
 
 ## Decisions
 
@@ -180,7 +219,7 @@ The requester authorized a background production backfill. The checked-in Naisjo
 
 - Review `/innsikt/team` with users after the API deploy: month selection, search, the small-team bucket, and the distinction between overlapping team rows and distinct organization billing. Validate keyboard access and narrow screens. Add a monthly trend only with the same five-contributor suppression for every point.
 - Existing gross prototype `docs/copilot-team-spend-allocation.sql` implements the rejected equal-split calculation and is retained only as research. The API uses full-member overlap.
-- Refresh of a closed, completed billing month is not implemented; the manual backfill intentionally exits instead of overwriting a completed month. A revised-bill refresh needs an explicit safe procedure before scheduling recurring ingestion.
+- Refresh of a closed, completed billing month is not implemented. Automatic initial collection can proceed without restatement; a revised-bill refresh needs a staged replacement before that capability is enabled.
 
 #### Next page iteration: plan and review
 
@@ -220,10 +259,10 @@ Provisional highlight rule: an increase is red and a decrease green only if the 
 
 Next insight work, in order:
 
-1. Comparable monthly history: backfill August net with the corrected validated, atomic ingestion path and add a supervised monthly refresh procedure. Then a team detail can show a 6–12 month series, amount per contributing member and changes in contributor count, using the same gross/net basis and five-contributor suppression at each point. Missing or suppressed points are gaps, never zeros.
+1. Comparable monthly history: complete the running August dev net load and reconcile it. Production August and older months need separately authorized backfills. Automatic future collection is implemented under #1421; correction refresh remains separate. A later team detail can show a 6–12 month series, amount per contributing member and changes in contributor count, using the same gross/net basis and five-contributor suppression at each point. Missing or suppressed points are gaps, never zeros.
 2. Cost-driver breakdown: aggregate SKU/model gross, discounts and net at a team/month grain, suppressing subgroups with fewer than five contributors. Membership overlap still applies; do not present team sums as budget shares. Current per-user ingestion stores SKU totals, not model detail, so model breakdown requires retaining that source detail first.
 3. Team buckets: start with descriptive, overlapping categories such as increased/stable/decreased consumption and team-size bands; use absolute plus relative thresholds and compare matched, complete periods. An overview may count teams but should not sum their spend as organizational spend. Product-area buckets need a verified team-to-area map; Teamkatalogen links are not one-to-one. No leaderboard or performance label.
 4. Value context: link a team's spend discussion to its work and outcomes, with a short team-provided explanation rather than claiming activity counts are ROI. Do not infer time saved or productivity from credits, generated lines or request counts. Distinguish recurring work, experimentation and shared service usage where teams can supply that context.
 
 - Code: `apps/copilot-metrics/billing.go`, `apps/copilot-metrics/views/v_team_daily_summary.sql`, `apps/copilot-api/bigquery_stats.go`, `apps/my-copilot/src/app/(nb)/statistikk/page.tsx`; read-only prototype: `docs/copilot-team-spend-allocation.sql`.
-- Data: read-only BigQuery queries of `copilot_metrics` in dev and prod, and a completed dev manual billing backfill. A local production backfill is in progress as described above. No user identities or individual figures are recorded here.
+- Data: read-only BigQuery queries of `copilot_metrics` in dev and prod, completed September billing loads in both, and the running August dev load. No user identities or individual figures are recorded here.
