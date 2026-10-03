@@ -1,13 +1,9 @@
 "use client";
 
 import { Button, HStack, Select } from "@navikt/ds-react";
-import Link from "next/link";
 import { currentMonthUTC, previousMonth } from "@/lib/month-utils";
 
 export default function TeamMonthPicker({ month }: { month: string }) {
-  const next = new Date(`${month}-01T00:00:00Z`);
-  next.setUTCMonth(next.getUTCMonth() + 1);
-  const nextMonth = next.toISOString().slice(0, 7);
   const current = currentMonthUTC();
   const months: string[] = [];
   for (let value = current; value >= "2026-05"; value = previousMonth(value)) months.push(value);
@@ -31,8 +27,6 @@ export default function TeamMonthPicker({ month }: { month: string }) {
           </Button>
         </HStack>
       </form>
-      {month > "2026-05" && <Link href={`/innsikt/team?month=${previousMonth(month)}`}>Forrige måned</Link>}
-      {nextMonth <= current && <Link href={`/innsikt/team?month=${nextMonth}`}>Neste måned</Link>}
     </HStack>
   );
 }

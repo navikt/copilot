@@ -6,7 +6,7 @@ import TeamGrossUsage from "@/components/team-gross-usage";
 import ErrorState from "@/components/error-state";
 import { getMyTeams, getTeamGrossOverview, getTeamNetOverview } from "@/lib/cached-bigquery";
 import { getUser, getUserToken } from "@/lib/auth";
-import { currentMonthUTC, daysInCalendarMonth, previousMonth } from "@/lib/month-utils";
+import { currentMonthUTC, daysInCalendarMonth, previousMonth, teamInsightMonth } from "@/lib/month-utils";
 import TeamMonthPicker from "@/components/team-month-picker";
 
 export const metadata: Metadata = {
@@ -54,9 +54,11 @@ async function TeamSpend({ month, token }: { month: string; token: string }) {
   const comparison = fullMonths && (net ? previousNet : previousGross) ? (net ? previousNet : previousGross) : null;
   const comparisonReason = comparison
     ? "Endring viser forskjellen fra forrige måned. En strek betyr at teamet ikke kan sammenlignes."
-    : net && previousGross?.last_usage_day && !previousNet
-      ? "Endring mangler fordi fakturert forbruk for forrige måned ikke er tilgjengelig."
-      : "Endring vises når begge måneder har komplette og sammenlignbare data.";
+    : month === currentMonthUTC()
+      ? "Endring vises når måneden er ferdig."
+      : net && previousGross?.last_usage_day && !previousNet
+        ? "Endring mangler fordi fakturert forbruk for forrige måned ikke er tilgjengelig."
+        : "Endring mangler fordi en av månedene har ufullstendige data.";
   return (
     <TeamGrossUsage
       data={gross}
@@ -72,13 +74,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
   await getUser();
   const token = await getUserToken();
   const { month: requestedMonth } = await searchParams;
-  const month =
-    requestedMonth &&
-    /^20\d\d-(0[1-9]|1[0-2])$/.test(requestedMonth) &&
-    requestedMonth >= "2026-05" &&
-    requestedMonth <= currentMonthUTC()
-      ? requestedMonth
-      : previousMonth(currentMonthUTC());
+  const month = teamInsightMonth(requestedMonth);
 
   if (!token) return <ErrorState message="Mangler innloggingstoken" />;
 
