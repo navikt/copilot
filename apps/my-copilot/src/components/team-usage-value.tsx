@@ -1,8 +1,6 @@
 import { HStack } from "@navikt/ds-react";
 import { ChatIcon, CodeIcon, CpuIcon, RobotIcon, TerminalIcon, WrenchIcon } from "@navikt/aksel-icons";
 import {
-  SiClaude,
-  SiGooglegemini,
   SiGo,
   SiJavascript,
   SiKotlin,
@@ -14,6 +12,20 @@ import {
   SiTypescript,
   SiYaml,
 } from "@icons-pack/react-simple-icons";
+import { MODEL_PRICING } from "@/lib/model-pricing";
+import type { ModelPrice } from "@/lib/model-pricing";
+import { normalizeModelName } from "@/lib/model-policy";
+import { ModelProviderIcon } from "./model-icons";
+
+const modelKey = (name: string) => normalizeModelName(name).toLowerCase().replace(/[ .]/g, "-");
+const modelProviders = new Map(MODEL_PRICING.map((model) => [modelKey(model.model), model.provider]));
+const providerFamilies: [RegExp, ModelPrice["provider"]][] = [
+  [/^claude(?:-|$)/, "Anthropic"],
+  [/^gemini(?:-|$)/, "Google"],
+  [/^(?:gpt-|o[134](?:-|$))/, "OpenAI"],
+  [/^mai-/, "Microsoft"],
+  [/^kimi(?:-|$)/, "Moonshot AI"],
+];
 
 const languageIcons = {
   kotlin: SiKotlin,
@@ -41,15 +53,16 @@ const featureLabels: Record<string, string> = {
 };
 
 export default function TeamUsageValue({ value, kind }: { value: string; kind: "model" | "feature" | "language" }) {
+  const key = modelKey(value);
+  const provider =
+    kind === "model"
+      ? (modelProviders.get(key) ?? providerFamilies.find(([pattern]) => pattern.test(key))?.[1])
+      : undefined;
   const Icon =
     kind === "language"
       ? (languageIcons[value.toLowerCase() as keyof typeof languageIcons] ?? CodeIcon)
       : kind === "model"
-        ? value.toLowerCase().startsWith("claude")
-          ? SiClaude
-          : value.toLowerCase().startsWith("gemini")
-            ? SiGooglegemini
-            : CpuIcon
+        ? CpuIcon
         : value === "copilot_cli"
           ? TerminalIcon
           : value.includes("agent")
@@ -59,7 +72,11 @@ export default function TeamUsageValue({ value, kind }: { value: string; kind: "
               : WrenchIcon;
   return (
     <HStack gap="space-8" align="center" wrap={false}>
-      <Icon aria-hidden="true" width={16} height={16} className="shrink-0" />
+      {provider ? (
+        <ModelProviderIcon provider={provider} />
+      ) : (
+        <Icon aria-hidden="true" width={16} height={16} className="shrink-0" />
+      )}
       <span>{kind === "feature" ? (featureLabels[value] ?? value) : value}</span>
     </HStack>
   );
