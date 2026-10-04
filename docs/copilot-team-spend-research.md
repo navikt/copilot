@@ -141,6 +141,36 @@ the requester's earlier browser confirmation covers the prior page.
 
 ## Goal
 
+### Provider and model-category mix proposal
+
+Aggregate raw model activity into providers and pricing-catalog categories before
+applying subgroup suppression. Individual model summaries cannot be regrouped
+after their top-three limit: that would omit most activity and undercount contributors.
+Count each positive-activity user once per team/month/group across all its models.
+
+The generated `src/lib/model-pricing.ts` catalog provides provider and category
+metadata, but display names differ from report IDs and older models are absent.
+Use explicit, tested report-ID aliases and retain an unclassified category.
+Do not derive tiers from model-name substrings: Claude Haiku 4.5 is Versatile
+in the current catalog, while Gemini 3.5 Flash is Lightweight and Gemini 3.6
+Flash is Versatile. Categories describe this catalog, not measured task quality.
+
+Preferred optional columns are provider mix and category mix, measured by
+user-initiated interactions. Wider groups should increase coverage but cannot
+guarantee publishable distributions for every visible team. Apply minimum-five
+contributors independently to each group. Do not expose percentages renormalized
+over visible groups as a complete mix or reveal a suppressed share by subtraction.
+An initial names-only summary is less informative but follows existing disclosure
+rules; a full percentage/bar design requires an explicit denominator and
+complementary-suppression policy. Unknown attribution must not become "other
+providers" because unknown is not a verified provider.
+
+The follow-up live coverage measurement was blocked by expired GCP authentication.
+No provider/tier coverage numbers have been established yet. Reauthenticate, then
+compare provider/tier coverage with the September 66-model-summary baseline
+before choosing the final presentation. Broader model categories do not resolve
+the separate deployed-response problem that made every optional column empty.
+
 Show teams their GitHub Copilot spend so they can relate AI usage to personal, team and organizational value. This is cost transparency, not a leaderboard or a way to shame users. Reconcile organization totals to GitHub billing. Keep gross usage, discounts, net usage charges and seats distinct.
 
 ## Findings
