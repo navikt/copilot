@@ -20,6 +20,23 @@ import (
 // This is a transient condition — the report typically becomes available later in the day.
 var ErrReportNotAvailable = errors.New("report not available")
 
+type githubHTTPError struct {
+	Status  int
+	message string
+}
+
+func (e *githubHTTPError) Error() string { return e.message }
+
+var errTerminalGitHub = errors.New("GitHub authentication or rate limit failure")
+
+func (e *githubHTTPError) Is(target error) bool {
+	return target == errTerminalGitHub && (e.Status == http.StatusUnauthorized || e.Status == http.StatusForbidden || e.Status == http.StatusTooManyRequests)
+}
+
+func isTerminalGitHubError(err error) bool {
+	return errors.Is(err, errTerminalGitHub)
+}
+
 type GitHubClient struct {
 	httpClient     *http.Client // GitHub API client with enterprise installation auth
 	orgHttpClient  *http.Client // GitHub API client with org installation auth (nil if not configured)
@@ -106,6 +123,9 @@ func (c *GitHubClient) FetchDailyMetrics(ctx context.Context, day time.Time) (*F
 		}, nil
 	}
 
+	if isTerminalGitHubError(err) {
+		return nil, err
+	}
 	enterpriseErr := err
 	slog.Warn("Enterprise endpoint failed, trying organization endpoint", "error", enterpriseErr)
 
@@ -116,6 +136,9 @@ func (c *GitHubClient) FetchDailyMetrics(ctx context.Context, day time.Time) (*F
 
 	records, err = c.fetchMetricsFromURLWithRetryOrg(ctx, orgURL)
 	if err != nil {
+		if isTerminalGitHubError(err) {
+			return nil, err
+		}
 		if isReportNotAvailable(enterpriseErr) {
 			return nil, fmt.Errorf("%w for %s: enterprise report not generated yet and org endpoint also failed: %v",
 				ErrReportNotAvailable, dayStr, err)
@@ -177,12 +200,20 @@ func (c *GitHubClient) fetchWithRetry(ctx context.Context, url string, fetchFn f
 // isClientError checks if the error indicates a 4xx HTTP status or 204 (No Content).
 // 204 is treated as non-retryable because it means "no data available for this day".
 func isClientError(err error) bool {
+	var status *githubHTTPError
+	if errors.As(err, &status) {
+		return (status.Status >= 400 && status.Status < 500) || status.Status == http.StatusNoContent
+	}
 	errStr := err.Error()
 	return strings.Contains(errStr, "status 4") || strings.Contains(errStr, "status 204")
 }
 
 // isReportNotAvailable checks if the error indicates the report hasn't been generated yet.
 func isReportNotAvailable(err error) bool {
+	var status *githubHTTPError
+	if errors.As(err, &status) {
+		return status.Status == http.StatusNoContent
+	}
 	return errors.Is(err, ErrReportNotAvailable) ||
 		strings.Contains(err.Error(), "No report available") ||
 		strings.Contains(err.Error(), "status 204") ||
@@ -238,7 +269,7 @@ func (c *GitHubClient) fetchMetricsFromURLWith(ctx context.Context, url string, 
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, truncate(string(body), 500))
+		return nil, &githubHTTPError{Status: resp.StatusCode, message: fmt.Sprintf("API returned status %d: %s", resp.StatusCode, truncate(string(body), 500))}
 	}
 
 	// Read body so we can inspect it before decoding. The API sometimes returns
@@ -306,7 +337,7 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("download returned status %d", resp.StatusCode)
+		return nil, &githubHTTPError{Status: resp.StatusCode, message: fmt.Sprintf("download returned status %d", resp.StatusCode)}
 	}
 
 	slog.Debug("NDJSON download response", "status", resp.StatusCode,
@@ -354,6 +385,9 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 		c.enterprise, "user-teams-1-day", dayStr)
 	slog.Info("Fetching user-teams report", "scope", "enterprise", "day", dayStr)
 	enterpriseRecords, enterpriseErr := c.fetchMetricsFromURLWithRetry(ctx, enterpriseURL)
+	if isTerminalGitHubError(enterpriseErr) {
+		return nil, enterpriseErr
+	}
 	if enterpriseErr != nil {
 		if isReportNotAvailable(enterpriseErr) {
 			slog.Info("Enterprise user-teams endpoint not available", "day", dayStr)
@@ -369,6 +403,9 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 		c.org, "user-teams-1-day", dayStr)
 	slog.Info("Fetching user-teams report", "scope", "organization", "org", c.org, "day", dayStr)
 	orgRecords, orgErr := c.fetchMetricsFromURLWithRetryOrg(ctx, orgURL)
+	if isTerminalGitHubError(orgErr) {
+		return nil, orgErr
+	}
 	if orgErr != nil {
 		if isReportNotAvailable(orgErr) {
 			slog.Info("Org user-teams endpoint not available", "day", dayStr, "org", c.org)
@@ -479,6 +516,9 @@ func (c *GitHubClient) fetchDailyReport(ctx context.Context, day time.Time, repo
 		}, nil
 	}
 
+	if isTerminalGitHubError(err) {
+		return nil, err
+	}
 	enterpriseErr := err
 	slog.Warn("Enterprise endpoint failed, trying organization endpoint", "type", reportType, "error", enterpriseErr)
 
@@ -488,6 +528,9 @@ func (c *GitHubClient) fetchDailyReport(ctx context.Context, day time.Time, repo
 
 	records, err = c.fetchMetricsFromURLWithRetryOrg(ctx, orgURL)
 	if err != nil {
+		if isTerminalGitHubError(err) {
+			return nil, err
+		}
 		if isReportNotAvailable(enterpriseErr) {
 			return nil, fmt.Errorf("%w for %s (%s): enterprise report not generated yet and org endpoint also failed: %v",
 				ErrReportNotAvailable, dayStr, reportType, err)
@@ -518,6 +561,9 @@ func (c *GitHubClient) FetchLatest28DayReport(ctx context.Context) (*FetchResult
 		}, nil
 	}
 
+	if isTerminalGitHubError(err) {
+		return nil, err
+	}
 	slog.Warn("Enterprise 28-day endpoint failed, trying organization endpoint", "error", err)
 
 	url = fmt.Sprintf("https://api.github.com/orgs/%s/copilot/metrics/reports/organization-28-day/latest",

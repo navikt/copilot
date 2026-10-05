@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -310,6 +311,11 @@ LEFT JOIN team_counts c ON c.users >= @minUsers ORDER BY c.team_slug`, bq.tableR
 	if err != nil {
 		return nil, err
 	}
+	usage, usageErr := bq.getTeamUsageComposition(ctx, month)
+	return teamGrossOverview(month, rows, usage, usageErr), nil
+}
+
+func teamGrossOverview(month string, rows []teamGrossRow, usage map[string]TeamUsageComposition, usageErr error) *TeamGrossOverview {
 	result := &TeamGrossOverview{Month: month, Teams: []TeamGrossUsage{}}
 	for _, row := range rows {
 		if row.TeamID != "" {
@@ -319,10 +325,11 @@ LEFT JOIN team_counts c ON c.users >= @minUsers ORDER BY c.team_slug`, bq.tableR
 		result.DistinctGrossUSD, result.UnassignedGrossUSD, result.LastUsageDay = row.DistinctGross, row.UnassignedGross, row.LastDay
 		result.DaysWithUsage = row.DaysWithUsage
 	}
-	result.Usage, err = bq.getTeamUsageComposition(ctx, month)
-	if err != nil {
-		return nil, err
+	if usageErr != nil {
+		slog.Warn("Team usage composition unavailable")
+		return result
 	}
+	result.Usage = usage
 	visible := map[string]bool{}
 	for _, team := range result.Teams {
 		visible[team.TeamID] = true
@@ -332,7 +339,7 @@ LEFT JOIN team_counts c ON c.users >= @minUsers ORDER BY c.team_slug`, bq.tableR
 			delete(result.Usage, id)
 		}
 	}
-	return result, nil
+	return result
 }
 
 func (c *CachedBigQueryClient) GetTeamGrossOverview(ctx context.Context, month string) (*TeamGrossOverview, error) {

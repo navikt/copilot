@@ -45,7 +45,11 @@ export default function TeamControls({ month, children }: { month: string; child
             anchorEl={anchor}
             placement="bottom-end"
           >
-            <Popover.Content>
+            <Popover.Content
+              onKeyDownCapture={(event) => {
+                if (event.key === "Escape") anchor?.focus();
+              }}
+            >
               <CheckboxGroup legend="Bruksmønster" size="small" value={columns} onChange={setColumns}>
                 <Checkbox value="models">
                   <HStack gap="space-8" align="center">

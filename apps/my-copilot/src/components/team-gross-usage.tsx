@@ -209,6 +209,9 @@ export default function TeamGrossUsage({
           {!net && (
             <BodyShort>Beløpene er før fradrag. Fakturert forbruk er ikke tilgjengelig for denne måneden.</BodyShort>
           )}
+          {net && (
+            <BodyShort>Nettobeløpene er innsamlet {net.loaded_at}. Senere fakturakorreksjoner er ikke med.</BodyShort>
+          )}
           {comparisonReason && <BodyShort>{comparisonReason}</BodyShort>}
         </VStack>
       </section>
@@ -226,9 +229,7 @@ export default function TeamGrossUsage({
             </BodyShort>
           )}
           {columns.length > 0 && !data.usage && (
-            <BodyShort>
-              Bruksmønster er ikke tilgjengelig fra datatjenesten. Prøv igjen når tjenesten er oppdatert.
-            </BodyShort>
+            <BodyShort>Bruksmønster er ikke tilgjengelig fra datatjenesten. Prøv igjen senere.</BodyShort>
           )}
           {myTeams === null && <BodyShort>Kunne ikke finne dine team. Du kan fortsatt søke i teamlisten.</BodyShort>}
           {myTeams !== null && (

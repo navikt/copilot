@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -69,7 +73,7 @@ func TestTeamSpendBigQuery(t *testing.T) {
 	grossRecorder := httptest.NewRecorder()
 	newBigQueryHandlers(newCachedBigQueryClient(client, time.Minute)).handleTeamGrossOverview(grossRecorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month=2026-09", nil).WithContext(ctx))
 	var httpGross TeamGrossOverview
-	if err := json.Unmarshal(grossRecorder.Body.Bytes(), &httpGross); err != nil || grossRecorder.Code != http.StatusOK || len(httpGross.Usage) != len(gross.Usage) {
+	if err := json.Unmarshal(grossRecorder.Body.Bytes(), &httpGross); err != nil || grossRecorder.Code != http.StatusOK || !reflect.DeepEqual(httpGross.Usage, gross.Usage) {
 		t.Fatalf("HTTP usage lost: %d %v", grossRecorder.Code, err)
 	}
 	net, err := client.GetTeamNetOverview(ctx, "2026-09")
@@ -113,6 +117,76 @@ func TestTeamSpendBigQuery(t *testing.T) {
 	var decoded TeamNetOverview
 	if err := json.Unmarshal(recorder.Body.Bytes(), &decoded); err != nil || len(decoded.Teams) != 119 {
 		t.Fatalf("net HTTP response decoding: %v, %d teams", err, len(decoded.Teams))
+	}
+}
+
+func TestTeamGrossOverviewOptionalComposition(t *testing.T) {
+	var logs bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	rows := []teamGrossRow{{
+		TeamID: "visible", TeamSlug: "team-a", Users: 5, Gross: 42,
+		SmallTeams: 2, SmallUsers: 3, SmallGross: 10, DistinctGross: 50,
+		UnassignedGross: 8, LastDay: "2026-09-30", DaysWithUsage: 30,
+	}}
+	want := &TeamGrossOverview{
+		Month: "2026-09", Teams: []TeamGrossUsage{{TeamID: "visible", TeamSlug: "team-a", Users: 5, GrossUSD: 42}},
+		SmallTeams: 2, SmallTeamsUsers: 3, SmallTeamsGrossUSD: 10, DistinctGrossUSD: 50,
+		UnassignedGrossUSD: 8, LastUsageDay: "2026-09-30", DaysWithUsage: 30,
+	}
+	visibleUsage := TeamUsageComposition{Models: []string{"gpt-5"}, Feature: "chat", Language: "go"}
+	for _, tc := range []struct {
+		name  string
+		usage map[string]TeamUsageComposition
+		err   error
+	}{
+		{"failure", map[string]TeamUsageComposition{"visible": visibleUsage}, errors.New("sensitive upstream details")},
+		{"nil", nil, nil},
+		{"empty", map[string]TeamUsageComposition{}, nil},
+		{"pruned", map[string]TeamUsageComposition{"visible": visibleUsage, "hidden": visibleUsage, "nav-it-github-users": visibleUsage}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			logs.Reset()
+			got := teamGrossOverview("2026-09", rows, tc.usage, tc.err)
+			expected := *want
+			if tc.err == nil {
+				expected.Usage = tc.usage
+				if tc.name == "pruned" {
+					expected.Usage = map[string]TeamUsageComposition{"visible": visibleUsage}
+				}
+			}
+			if !reflect.DeepEqual(got, &expected) {
+				t.Fatalf("overview = %+v, want %+v", got, &expected)
+			}
+			if tc.err != nil {
+				var entry map[string]any
+				if err := json.Unmarshal(logs.Bytes(), &entry); err != nil {
+					t.Fatal(err)
+				}
+				if len(entry) != 3 || entry["msg"] != "Team usage composition unavailable" || entry["level"] != "WARN" {
+					t.Fatalf("unsafe or unexpected log: %s", logs.String())
+				}
+			} else if logs.Len() != 0 {
+				t.Fatalf("unexpected log: %s", logs.String())
+			}
+			recorder := httptest.NewRecorder()
+			newBigQueryHandlers(&mockBigQueryClient{teamGross: got}).handleTeamGrossOverview(recorder,
+				httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month=2026-09", nil))
+			var decoded TeamGrossOverview
+			if err := json.Unmarshal(recorder.Body.Bytes(), &decoded); err != nil || recorder.Code != http.StatusOK || !reflect.DeepEqual(&decoded, &expected) {
+				t.Fatalf("HTTP overview = %+v, status %d, error %v", decoded, recorder.Code, err)
+			}
+			if expected.Usage == nil {
+				var body map[string]json.RawMessage
+				if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+					t.Fatal(err)
+				}
+				if string(body["usage"]) != "null" {
+					t.Fatalf("unavailable usage = %s, want null", body["usage"])
+				}
+			}
+		})
 	}
 }
 

@@ -313,3 +313,35 @@ func TestFetchMetricsFromURLWithRetry_NoRetryOnStringResponse(t *testing.T) {
 		t.Errorf("expected 1 attempt (no retries), got %d", attempts)
 	}
 }
+
+func TestDailySourcesFallbackWhenReportUnavailable(t *testing.T) {
+	for _, unavailable := range []int{http.StatusNoContent, http.StatusOK} {
+		for _, teams := range []bool{false, true} {
+			calls := 0
+			client := &GitHubClient{enterprise: "nav", org: "navikt"}
+			client.httpClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				if strings.HasPrefix(r.URL.Path, "/enterprises/") {
+					w.WriteHeader(unavailable)
+					if unavailable == http.StatusOK {
+						_, _ = w.Write([]byte(`"No report available"`))
+					}
+					return
+				}
+				_, _ = w.Write([]byte(`{"report_day":"2026-10-01","download_links":["https://download.test/report"]}`))
+			}))
+			client.downloadClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				calls++
+				_, _ = w.Write([]byte(`{"user_id":1,"team_id":2}`))
+			}))
+			fetch := client.FetchDailyUserMetrics
+			if teams {
+				fetch = client.FetchDailyUserTeams
+			}
+			result, err := fetch(context.Background(), billingSyncStart)
+			if err != nil || result == nil || result.Scope != "organization" || result.Complete || len(result.Records) != 1 || calls != 3 {
+				t.Fatalf("status=%d teams=%v result=%+v err=%v calls=%d", unavailable, teams, result, err, calls)
+			}
+		}
+	}
+}

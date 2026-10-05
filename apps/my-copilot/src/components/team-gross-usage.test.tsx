@@ -32,7 +32,7 @@ const net: TeamNetOverview = {
   no_usage_net_usd: 0,
   enterprise_net_usd: 92,
   residual_net_usd: 2,
-  loaded_at: "2026-10-02 10:00:00",
+  loaded_at: "2026-10-02 10:00:00+00",
   estimated_timing: true,
   sku: "Copilot AI Credits + Copilot Cloud Agent",
 };
@@ -69,7 +69,11 @@ describe("Team insight", () => {
     expect(within(table).getByText("alpha")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("checkbox", { name: "Modeller" }));
     expect(within(table).queryByText("model-a")).not.toBeInTheDocument();
-    fireEvent.keyDown(document, { key: "Escape" });
+    const checkbox = screen.getByRole("checkbox", { name: "Språk" });
+    checkbox.focus();
+    fireEvent.keyDown(checkbox, { key: "Escape" });
+    expect(screen.getByRole("button", { name: "Velg kolonner" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: "Velg kolonner" })).toHaveFocus();
   });
   it("distinguishes missing backend summaries from suppressed categories", () => {
     render(
@@ -85,6 +89,8 @@ describe("Team insight", () => {
     render(<TeamGrossUsage data={gross} net={net} myTeams={["beta"]} previous={null} />);
     expect(screen.getByText(/teambeløpene kan derfor ikke summeres/i)).toBeInTheDocument();
     expect(screen.getByText(/per medlem er gjennomsnittet/i)).toBeInTheDocument();
+    expect(screen.getByText(/innsamlet 2026-10-02 10:00:00\+00/)).toBeInTheDocument();
+    expect(screen.getByText(/senere fakturakorreksjoner er ikke med/i)).toBeInTheDocument();
     expect(within(screen.getByRole("table", { name: "Mine team" })).getByText("beta")).toBeInTheDocument();
     expect(within(screen.getByRole("table", { name: "Andre team" })).getByText("alpha")).toBeInTheDocument();
   });

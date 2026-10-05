@@ -37,6 +37,7 @@ type billingSyncStore interface {
 func stopBillingSync(err error) bool {
 	var status *billingHTTPError
 	return errors.Is(err, errBillingBudget) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) ||
+		isTerminalGitHubError(err) ||
 		(errors.As(err, &status) && (status.Status == 401 || status.Status == 403 || status.Status == 429))
 }
 
@@ -94,7 +95,11 @@ func syncUserBilling(ctx context.Context, billing *BillingClient, gh *GitHubClie
 	return errors.Join(failures...)
 }
 
-func repairBillingSources(ctx context.Context, gh *GitHubClient, store *BigQueryClient, cfg *Config, month time.Time) error {
+func repairBillingSources(ctx context.Context, gh *GitHubClient, store interface {
+	BillingSourceDays(context.Context, time.Time, string) (map[string]bool, error)
+	ReplaceUserMetrics(context.Context, time.Time, *FetchResult) error
+	ReplaceUserTeams(context.Context, time.Time, *FetchResult) error
+}, cfg *Config, month time.Time) error {
 	days, err := store.BillingSourceDays(ctx, month, cfg.EnterpriseSlug)
 	if err != nil {
 		return err
@@ -106,8 +111,8 @@ func repairBillingSources(ctx context.Context, gh *GitHubClient, store *BigQuery
 			fetch   func(context.Context, time.Time) (*FetchResult, error)
 			replace func(context.Context, time.Time, *FetchResult) error
 		}{
-			{store.userMetricsTable, gh.FetchDailyUserMetrics, store.ReplaceUserMetrics},
-			{store.userTeamsTable, gh.FetchDailyUserTeams, store.ReplaceUserTeams},
+			{cfg.BigQueryUserMetricsTable, gh.FetchDailyUserMetrics, store.ReplaceUserMetrics},
+			{cfg.BigQueryUserTeamsTable, gh.FetchDailyUserTeams, store.ReplaceUserTeams},
 		} {
 			if days[day.Format("2006-01-02")+":"+report.table] {
 				continue
@@ -120,13 +125,13 @@ func repairBillingSources(ctx context.Context, gh *GitHubClient, store *BigQuery
 				err = report.replace(ctx, day, result)
 			}
 			if err != nil {
-				if ctx.Err() != nil {
-					if len(failures) > 0 {
-						return errors.Join(append(failures, ctx.Err())...)
-					}
-					return ctx.Err()
-				}
 				failures = append(failures, fmt.Errorf("%s %s: %w", report.table, day.Format("2006-01-02"), err))
+				if stopBillingSync(err) {
+					return errors.Join(failures...)
+				}
+				if ctx.Err() != nil {
+					return errors.Join(append(failures, ctx.Err())...)
+				}
 			}
 		}
 	}

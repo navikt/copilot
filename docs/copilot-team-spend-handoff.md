@@ -1,5 +1,14 @@
 # Team insight handoff
 
+## Verification update (2026-10-05)
+
+- Shared dev was running frontend `fdd504a` and API `26d4153`, not PR #1419. The API revision has no `team_spend.go`. PRs overwrite the same dev applications; successful checks do not establish the currently deployed pair.
+- Fresh read-only BigQuery and serialized HTTP checks passed for September and August. September composition coverage remains 66 teams with models, 71 with features and 88 with languages; August/September net visibility is 113/119 teams.
+- Independent targeted review found and verified fixes for optional-composition failures hiding costs, Escape focus restoration, missing collection-time qualification, and source repair continuing after 401/403/429. Follow-up verdict CLEAN for those fixes, not the entire PR.
+- API and metrics `mise check`, metrics race tests, frontend typechecking and 17 focused tests pass. Removed two ignored stale Next.js generated type files after `next typegen` failed to replace dev output. Full frontend check now reaches tests: 712 pass, one existing link-inventory test fails on old domains in `copilot-intern`. `mise all` builds all apps but fails checks for that test and outdated pricing data.
+- Signed-in browser verification remains required after the final deployment. No browser automation is installed in this session. Do not bypass OBO authentication or copy browser/pod credentials to obtain it.
+- August billing is complete in both dev and prod according to the prior session's verified record; the older production-pending statement below is superseded. No production writes were performed in this verification session.
+
 ## Updated status (2026-10-03)
 
 The original handoff below describes the start of this session. This section

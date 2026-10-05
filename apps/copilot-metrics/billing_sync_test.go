@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -15,6 +16,98 @@ import (
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/civil"
 )
+
+type sourceRepairStoreTest struct {
+	days   map[string]bool
+	writes int
+}
+
+func (s *sourceRepairStoreTest) BillingSourceDays(context.Context, time.Time, string) (map[string]bool, error) {
+	return s.days, nil
+}
+
+func (s *sourceRepairStoreTest) ReplaceUserMetrics(context.Context, time.Time, *FetchResult) error {
+	s.writes++
+	return nil
+}
+
+func (s *sourceRepairStoreTest) ReplaceUserTeams(context.Context, time.Time, *FetchResult) error {
+	s.writes++
+	return nil
+}
+
+func TestRepairBillingSourcesStopsOnTerminalStatus(t *testing.T) {
+	for _, status := range []int{401, 403, 429} {
+		for _, source := range []string{"users", "teams", "download", "org", "org teams", "partial teams"} {
+			t.Run(fmt.Sprintf("%d/%s", status, source), func(t *testing.T) {
+				calls := 0
+				store := &sourceRepairStoreTest{days: map[string]bool{}}
+				if source == "teams" || source == "org teams" || source == "partial teams" {
+					store.days["2026-10-01:user_metrics"] = true
+				}
+				client := &GitHubClient{enterprise: "nav", org: "navikt"}
+				client.httpClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					calls++
+					if (source == "org" || source == "org teams" || source == "partial teams") && strings.HasPrefix(r.URL.Path, "/enterprises/") {
+						if source != "partial teams" {
+							w.WriteHeader(http.StatusNoContent)
+						} else {
+							_, _ = w.Write([]byte(`{"report_day":"2026-10-01","download_links":["https://download.test/first"]}`))
+						}
+						return
+					}
+					if source == "download" {
+						_, _ = w.Write([]byte(`{"report_day":"2026-10-01","download_links":["https://download.test/first","https://download.test/second"]}`))
+						return
+					}
+					w.WriteHeader(status)
+					_, _ = w.Write([]byte("No report available; status 204; CANCEL"))
+				}))
+				client.orgHttpClient = client.httpClient
+				client.downloadClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					calls++
+					if source == "partial teams" {
+						_, _ = w.Write([]byte(`{"user_id":1,"team_id":2}`))
+						return
+					}
+					w.WriteHeader(status)
+				}))
+				cfg := &Config{EnterpriseSlug: "nav", BigQueryUserMetricsTable: "user_metrics", BigQueryUserTeamsTable: "user_teams"}
+				err := repairBillingSources(context.Background(), client, store, cfg, billingSyncStart)
+				var got *githubHTTPError
+				wantCalls := 1
+				switch source {
+				case "download", "org", "org teams":
+					wantCalls = 2
+				case "partial teams":
+					wantCalls = 3
+				}
+				if !errors.As(err, &got) || got.Status != status || !stopBillingSync(err) || calls != wantCalls || store.writes != 0 {
+					t.Fatalf("err=%v calls=%d writes=%d", err, calls, store.writes)
+				}
+			})
+		}
+	}
+}
+
+func TestRepairBillingSourcesPreservesEarlierFailure(t *testing.T) {
+	for _, earlier := range []int{http.StatusNoContent, http.StatusNotFound} {
+		calls := 0
+		client := &GitHubClient{enterprise: "nav", org: "navikt"}
+		client.httpClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			calls++
+			if strings.Contains(r.URL.Path, "/users-1-day") {
+				w.WriteHeader(earlier)
+				return
+			}
+			w.WriteHeader(http.StatusForbidden)
+		}))
+		err := repairBillingSources(context.Background(), client, &sourceRepairStoreTest{}, &Config{EnterpriseSlug: "nav", BigQueryUserMetricsTable: "user_metrics", BigQueryUserTeamsTable: "user_teams"}, billingSyncStart)
+		if !stopBillingSync(err) || (earlier == http.StatusNoContent && !errors.Is(err, ErrReportNotAvailable)) || !strings.Contains(err.Error(), "user_metrics 2026-10-01") || !strings.Contains(err.Error(), "status 403") || calls != 3 {
+			t.Fatalf("earlier failure lost or repair continued: err=%v calls=%d", err, calls)
+		}
+	}
+}
 
 type syncFetcherTest struct {
 	billingUserFetcherTest
