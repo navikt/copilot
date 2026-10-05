@@ -181,7 +181,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -207,7 +207,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -233,7 +233,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -266,7 +266,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -292,7 +292,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -318,7 +318,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -344,7 +344,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -368,7 +368,7 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -396,7 +396,7 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -454,7 +454,7 @@ jobs:
         run: python3 scripts/build-local-dashboard.py --check
       - name: ShellCheck
         run: shellcheck scripts/install.sh skills/*/*.sh
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - name: Run BATS
