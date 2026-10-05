@@ -807,7 +807,7 @@
       "displayName": "nav-dekoratoren",
       "description": "Integrer, konfigurer og bidra til Nav Dekoratøren – felles header og footer for nav.no-applikasjoner",
       "filePath": "skills/nav-dekoratoren/SKILL.md",
-      "contentHash": "0c67d935aabba906576a665bd7e033e25b072d8959736fce7b9ea6c757d19072",
+      "contentHash": "0e2ffbbbf47e3d04e017dda7ca5b39d3ea16f0953bd9477552d40e4db54482a9",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/SKILL.md",
       "references": [
@@ -826,6 +826,10 @@
         {
           "path": "references/consent.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/references/consent.md"
+        },
+        {
+          "path": "references/audit.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/references/audit.md"
         }
       ]
     },
