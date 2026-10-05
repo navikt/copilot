@@ -270,7 +270,9 @@ Ikke «fiks» disse ved et uhell. De er valgt, og de har begrunnelser.
 - **Kosmetisk rest i `openCodeDefaultModel`:** kjøres `config setup` med en `inherit`-pakke aktiv, merkes den innebygde modell-id-en «Nav default». Ingen M2-flyt setter en pakke før setup, så ingenting når dit i dag (`internal/provider/pakke.go`).
 - **Tier-cachens 6-timers TTL er fortsatt et avgrensningstall.** Ingenting er målt. Cachen ble innsnevret framfor slettet med revisjonspinnen, og bærer nå bare ikke-payload-svaret. Verdien, den ene gjenværende stien og slettetriggeren står i [§4](#4-launch-beslutningene).
 
-### 6.1 G4-røyktesten beviser tilstedeværelse, ikke at klienten kan starte
+<a id="61-g4-røyktesten-beviser-tilstedeværelse-ikke-at-klienten-kan-starte"></a>
+
+### 6.1 G4-sjekken beviser tilstedeværelse, ikke at klienten kan starte
 
 `nav-pilot --client opencode --payload-context full -- --version` er ikke en readiness-test, og skal ikke leses som en. `--version` svarer før OpenCode laster config, så en launch som dør under config-lasting under sandboxen svarer likevel `1.18.20` med exit 0. Det er slik [#565](https://github.com/navikt/copilot/issues/565) kunne shippe: begge payloadene passerte proben mens hver eneste TUI-launch på en fersk maskin døde.
 

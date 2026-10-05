@@ -158,7 +158,7 @@ observert; [#590](https://github.com/navikt/copilot/pull/590) rettet test 1, 2 o
 Test 3 er unntaket, og det er derfor ikke-underlegenhetstesten over kunne regnes i
 det hele tatt: n = 50 per arm er den eneste tilstrekkelig kraftige sammenligningen
 i repoet. Den skal ikke generaliseres til de øvrige påstandene, og et grønt
-suite-resultat er fortsatt en røyktest på at personaen framkaller den grove formen
+suite-resultat er fortsatt bare en grov sjekk av at personaen framkaller den grove formen
 av oppførselen, ikke et belegg for at modell X er like god som modell Y for Nav.
 
 ### Forbehold om sporbarhet

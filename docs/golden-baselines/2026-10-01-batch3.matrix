@@ -1,0 +1,11 @@
+# Batch 3, 1. oktober. testpakke  modell  innsatsnivå  n
+# Virker regelen «KI, ikke AI» i @forfatter (#1397)? Samme armer som i batch 1 og 2.
+norsk     claude-sonnet-5.5  default  5
+norsk     gpt-6.1-sol        default  5
+norsk     gpt-6-sol          default  5
+# Planlegging: GPT-6 Sol Medium mot Low/High (batch 1), Opus 5.5 og GPT-6 Luna.
+planning  gpt-6-sol          medium   5
+planning  claude-opus-5.5    default  5
+planning  gpt-6-luna         medium   5
+# GPT-6 Luna utenfor koding. research gpt-6-luna medium ligger i batch 2.
+review    gpt-6-luna         medium   5

@@ -49,6 +49,16 @@ export const GUIDE_PAGES: DocLink[] = [
     desc: "Få npm, pnpm og yarn til å virke i cplt: @navikt-pakker, installasjonsskript, .env-filer, localhost, Playwright og Cypress.",
   },
   {
+    href: "/nav-pilot/guider/cplt-git",
+    title: "Git og GitHub i sandkassen",
+    desc: "Push til egen gren, pull requests, andre repoer og signerte commits når agenten kjører i cplt.",
+  },
+  {
+    href: "/nav-pilot/guider/cplt-nettverk",
+    title: "Nettverk i sandkassen",
+    desc: "Se hva cplt stopper, og slipp gjennom interne tjenester, andre porter og hoster på en tillatelsesliste.",
+  },
+  {
     href: "/nav-pilot/guider/cplt-feilmeldinger",
     title: "Feil i sandkassen",
     desc: "Slå opp feilmeldinger fra cplt og verktøy i sandkassen, med kommandoen som løser dem.",

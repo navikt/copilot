@@ -1,0 +1,4 @@
+.nav-benchmark-*/
+typescript/*/workspace/.next/
+typescript/*/workspace/node_modules/
+kotlin/.cache/

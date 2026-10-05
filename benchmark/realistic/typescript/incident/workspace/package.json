@@ -1,0 +1,22 @@
+{
+  "name": "saker-debugging",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "24" },
+  "scripts": {
+    "build": "next build --webpack",
+    "start": "next start",
+    "test": "node --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "16.2.12",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.2",
+    "@types/react": "19.3.0",
+    "typescript": "6.0.3"
+  }
+}

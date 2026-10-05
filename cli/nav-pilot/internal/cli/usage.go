@@ -72,10 +72,10 @@ func (u *usageResponse) acceptanceRate() float64 {
 }
 
 // The one line for copilot-cli out of reach, in each command's language
-// (#1300, #1199): naisdevice off, or a firewall blocking this binary.
+// (#1300, #1199): naisdevice off.
 var (
-	errUnreachableNB = errors.New("fikk ikke kontakt med copilot-cli (er naisdevice på, eller blokkerer en brannmur nav-pilot?)")
-	errUnreachableEN = errors.New("could not reach copilot-cli (is naisdevice connected, or is a firewall blocking nav-pilot?)")
+	errUnreachableNB = errors.New("fikk ikke kontakt med copilot-cli (er naisdevice på?)")
+	errUnreachableEN = errors.New("could not reach copilot-cli (is naisdevice connected?)")
 )
 
 // unreachable reports whether err from an HTTP call means copilot-cli was not

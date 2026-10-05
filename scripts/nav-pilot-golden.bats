@@ -330,6 +330,20 @@ run_suite() {
   [ "$status" -eq 0 ]
 }
 
+@test "planning t4: the red-zone declaration passes with dash, colon or comma, a missing one fails" {
+  re=$(sed -n "s/^RE_T4_RED_ZONE='\\(.*\\)'$/\\1/p" "$SCRIPT")
+  [ -n "$re" ]
+  for ok in '🔴 Rød sone — skriv selv' '🔴 Rød sone: ingen for denne oppgaven' \
+            '🔴 Rød sone, skriv selv (TokenX er nytt for teamet):' \
+            '🔴 **Rød sone, skriv selv:** tokenvalidering' '**🔴 Rød sone, utvikleren skriver selv**'; do
+    printf '%s\n' "$ok" | grep -qiE -- "$re" || { echo "should pass: $ok"; false; }
+  done
+  for bad in 'Planen dekker TokenX og PDL.' 'se rød sone under' \
+             'koden er i rød sone, så den skrives for hånd' '# 🔴 rød sone'; do
+    if printf '%s\n' "$bad" | grep -qiE -- "$re"; then echo "should fail: $bad"; false; fi
+  done
+}
+
 @test "--suite and --agent are refused together" {
   run bash "$SCRIPT" --suite review --agent nav-pilot --dry-run
   [ "$status" -eq 2 ]
@@ -455,6 +469,25 @@ run_suite() {
   run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
   [[ "$output" == done* ]]
   printf 'review gpt-6-sol low 2\n' >"$M"   # saved with n=1: not this arm
+  run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
+  [[ "$output" == pending* ]]
+}
+
+# planning's t4b only runs when t4a held an interview, so a whole arm can have
+# fewer rows for t4b than runs. Done means every run left rows, not every prompt.
+@test "matrix: an arm with a gated prompt missing from one run is done" {
+  export BENCHMARK_BASELINES="$SHIM/baselines"
+  out="$BENCHMARK_BASELINES/gated"
+  mkdir -p "$out"
+  M="$SHIM/gated.matrix"
+  printf 'planning gpt-6-sol low 2\n' >"$M"
+  b="$out/planning-gpt-6-sol-low"
+  echo '# repeats: 2' >"$b.txt"
+  : >"$b-results.psv"
+  printf 't4a|1|0|ok\nt4b|1|0|ok\nt4a|2|0|ok\n' >"$b-attempts.psv"
+  run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
+  [[ "$output" == done* ]]
+  printf 't4a|1|0|ok\nt4b|1|0|ok\n' >"$b-attempts.psv"   # run 2 never happened
   run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
   [[ "$output" == pending* ]]
 }

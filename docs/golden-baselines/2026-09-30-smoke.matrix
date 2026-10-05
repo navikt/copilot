@@ -1,4 +1,4 @@
-# Røyktest: én kjøring per testpakke, for å vise at oppsettet og summary.json
+# Benchmark med én kjøring per testpakke, for å vise at oppsettet og summary.json
 # virker. Ikke et resultat. testpakke  modell  innsatsnivå  n
 planning  gpt-6-sol          low      1
 review    gpt-6-sol          low      1

@@ -1,0 +1,36 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        code-review
+# suite:        review
+# date:         2026-09-30
+# revision:     7da9b316
+# model:        gpt-6-astra
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-7.
+# effort:       CLI default
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      2929655385
+# prompts:      rv1,rv2,rv3,rv4
+#
+# id|run|status|assertion|detail
+rv1|1|pass|Kotlin: all three planted defects named within three lines|
+rv2|1|pass|Kotlin: every planted defect cited on its line|
+rv3|1|pass|TSX: all four planted defects named within three lines|
+rv4|1|pass|TSX: every planted defect cited on its line|
+rv1|2|pass|Kotlin: all three planted defects named within three lines|
+rv2|2|pass|Kotlin: every planted defect cited on its line|
+rv3|2|pass|TSX: all four planted defects named within three lines|
+rv4|2|pass|TSX: every planted defect cited on its line|
+rv1|3|pass|Kotlin: all three planted defects named within three lines|
+rv2|3|pass|Kotlin: every planted defect cited on its line|
+rv3|3|pass|TSX: all four planted defects named within three lines|
+rv4|3|pass|TSX: every planted defect cited on its line|
+rv1|4|pass|Kotlin: all three planted defects named within three lines|
+rv2|4|pass|Kotlin: every planted defect cited on its line|
+rv3|4|pass|TSX: all four planted defects named within three lines|
+rv4|4|pass|TSX: every planted defect cited on its line|
+rv1|5|pass|Kotlin: all three planted defects named within three lines|
+rv2|5|pass|Kotlin: every planted defect cited on its line|
+rv3|5|pass|TSX: all four planted defects named within three lines|
+rv4|5|pass|TSX: every planted defect cited on its line|

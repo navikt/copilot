@@ -36,6 +36,10 @@ COPY --from=builder --chown=nonroot:nonroot /app/.next/static ./.next/static
 COPY --from=builder --chown=nonroot:nonroot /app/public ./public
 # Copy news article markdown files for server-side rendering
 COPY --from=builder --chown=nonroot:nonroot /app/docs/news/articles ./docs/news/articles
+# /modeller reads docs/golden-baselines/summary.json per request (the build only
+# compiles). The directory, not the file, so the image builds before the harness
+# has published one; the page then shows an empty state.
+COPY --chown=nonroot:nonroot docs/golden-baselines ./docs/golden-baselines
 
 USER nonroot
 

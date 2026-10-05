@@ -30,7 +30,6 @@ import statistics
 import subprocess
 import sys
 import tempfile
-from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -65,14 +64,15 @@ def baseline(outdir, arm):
 
 
 def done(path, n=None):
-    """Saved and whole: every prompt has an attempt row in every run."""
+    """Saved and whole: every run 1..n left attempt rows. A prompt may be missing
+    from a run when it is gated on another (planning's t4b only runs after t4a
+    held an interview), so rows are not counted per prompt."""
     attempts = path.with_name(path.stem + "-attempts.psv")
     if not (path.exists() and path.with_name(path.stem + "-results.psv").exists() and attempts.exists()):
         return False
     rows = [l.split("|") for l in attempts.read_text().splitlines() if l and not l.startswith("#")]
     runs = n or int(re.search(r"^# repeats:\s*(\d+)", path.read_text(), re.M).group(1))
-    per_prompt = Counter(r[0] for r in rows)
-    return bool(per_prompt) and all(c == runs for c in per_prompt.values())
+    return {r[1] for r in rows} == {str(i) for i in range(1, runs + 1)}
 
 
 def per_run_credits(runs, arm):

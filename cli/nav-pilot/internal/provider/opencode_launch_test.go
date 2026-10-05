@@ -67,9 +67,9 @@ func TestOpenCodeArgs(t *testing.T) {
 			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"},
 		},
 		{
-			name:     "reasoning effort maps to --variant",
+			name:     "reasoning effort is not passed to the TUI",
 			resolved: domain.ResolvedConfig{Mode: "default", ReasoningEffort: "high", AskUser: true},
-			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--variant", "high"},
+			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"},
 		},
 		{
 			name:     "allow_all_tools maps to --dangerously-skip-permissions",
@@ -91,7 +91,7 @@ func TestOpenCodeArgs(t *testing.T) {
 				LogLevel:        "info",
 			},
 			want: []string{"--model", "openai/gpt-4o", "--agent", "plan",
-				"--variant", "max", "--dangerously-skip-permissions", "--log-level", "INFO"},
+				"--dangerously-skip-permissions", "--log-level", "INFO"},
 		},
 		{
 			name:     "ask_user false not emitted (opencode has no ask-user flag)",
@@ -109,6 +109,27 @@ func TestOpenCodeArgs(t *testing.T) {
 				if got[i] != tt.want[i] {
 					t.Errorf("OpenCodeArgs()[%d] = %q, want %q", i, got[i], tt.want[i])
 				}
+			}
+		})
+	}
+}
+
+func TestOpenCodeAgentArgsVariant(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		extra []string
+		want  []string
+	}{
+		{"TUI", nil, []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"}},
+		{"TUI prompt", []string{"--prompt", "hello"}, []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--prompt", "hello"}},
+		{"run", []string{"run", "hello"}, []string{"run", "--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--variant", "low", "hello"}},
+		{"pure run", []string{"--pure", "run", "hello"}, []string{"--pure", "run", "--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--variant", "low", "hello"}},
+		{"other command", []string{"models"}, []string{"models"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			r := domain.ResolvedConfig{ReasoningEffort: "low", ExtraArgs: tt.extra}
+			if got := openCodeAgentArgs(r); !slices.Equal(got, tt.want) {
+				t.Errorf("openCodeAgentArgs() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -140,6 +161,21 @@ func TestOpenCodeUnsupportedConfigWarnings(t *testing.T) {
 			name:     "ask_user false warns",
 			resolved: domain.ResolvedConfig{Mode: "default", AskUser: false},
 			wantMsgs: []string{"ask_user", "no opencode equivalent"},
+		},
+		{
+			name:     "TUI ignores reasoning effort",
+			resolved: domain.ResolvedConfig{ReasoningEffort: "low", AskUser: true},
+			wantMsgs: []string{"reasoning_effort", "low", "#7354"},
+		},
+		{
+			name:     "run applies reasoning effort",
+			resolved: domain.ResolvedConfig{ReasoningEffort: "low", ExtraArgs: []string{"run", "hello"}, AskUser: true},
+			wantNone: true,
+		},
+		{
+			name:     "pure run applies reasoning effort",
+			resolved: domain.ResolvedConfig{ReasoningEffort: "low", ExtraArgs: []string{"--pure", "run", "hello"}, AskUser: true},
+			wantNone: true,
 		},
 		{
 			name: "all three unmapped fields warn",

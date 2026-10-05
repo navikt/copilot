@@ -1,0 +1,9 @@
+*** Begin Patch
+*** Update File: workspace/app/api/saker/route.ts
+@@
+   const status = new URL(request.url).searchParams.get("status") ?? "alle";
++  if (!["alle", "apen", "lukket"].includes(status)) {
++    return Response.json([], { status: 200 });
++  }
+   const saker = listSaker(status);
+*** End Patch

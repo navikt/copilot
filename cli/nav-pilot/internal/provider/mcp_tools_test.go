@@ -148,6 +148,16 @@ func TestSetMCPServerToolsKeepsAsk(t *testing.T) {
 			`{"` + p + `ref*":"ask","` + p + `*":"deny","` + p + `read_file":"allow","` + p + `reformat_file":"ask"}`},
 		"a later allow wins over *": {`{"*": "ask", "` + p + `*": "allow"}`, MCPToolChoice{Tools: []string{"read_file"}},
 			`{"*":"ask","` + p + `*":"deny","` + p + `read_file":"allow"}`},
+		"all tools, a user's allow under a server ask stays": {`{"` + p + `*": "ask", "` + p + `read_file": "allow"}`, MCPToolChoice{All: true},
+			`{"` + p + `*":"ask","` + p + `read_file":"allow"}`},
+		"all tools under a deny of everything": {`{"*": "deny"}`, MCPToolChoice{All: true},
+			`{"*":"deny","` + p + `*":"allow"}`},
+		"all tools under a deny, a tool asks": {`{"*": "deny", "` + p + `read_file": "ask"}`, MCPToolChoice{All: true},
+			`{"*":"deny","` + p + `*":"allow","` + p + `read_file":"ask"}`},
+		"all tools under a deny, a narrow glob asks": {`{"*": "deny", "` + p + `?": "ask"}`, MCPToolChoice{All: true},
+			`{"*":"deny","` + p + `?":"ask","` + p + `*":"allow"}`},
+		"an object rule asks": {`{"` + p + `read_file": {"*": "ask"}}`, MCPToolChoice{Tools: []string{"read_file"}},
+			`{"` + p + `*":"deny","` + p + `read_file":"ask"}`},
 		"no ask": {`{"bash": "ask"}`, MCPToolChoice{Tools: []string{"read_file"}},
 			`{"bash":"ask","` + p + `*":"deny","` + p + `read_file":"allow"}`},
 	} {
@@ -211,15 +221,18 @@ func TestRemoveMCPServerDropsItsRules(t *testing.T) {
 func TestRemoveMCPServerKeepsOpenCodeKeys(t *testing.T) {
 	home := mcpConfigEnv(t)
 	path := filepath.Join(home, ".config", "opencode", "opencode.json")
-	writeFile(t, path, `{"mcp": {"external": {"type": "remote", "url": "https://x.test"}, "doom": {"type": "remote", "url": "https://d.test"}},
-		"permission": {"external_directory": "ask", "external_*": "deny", "external_x": "allow", "doom_loop": "ask", "doom_*": "deny", "doom_a": "allow", "doom_custom": "allow"}}`)
+	writeFile(t, path, `{"mcp": {"external": {"type": "remote", "url": "https://x.test"}, "doom": {"type": "remote", "url": "https://d.test"}, "plan": {"type": "remote", "url": "https://p.test"}},
+		"permission": {"external_directory": "ask", "external_*": "deny", "external_x": "allow", "doom_loop": "ask", "doom_*": "deny", "doom_a": "allow", "doom_custom": "allow", "plan_enter": "deny", "plan_exit": "ask", "plan_x": "allow"}}`)
 	if _, err := RemoveMCPServer(MCPClientOpenCode, "external", nil); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := RemoveMCPServer(MCPClientOpenCode, "doom", []string{"a"}); err != nil {
 		t.Fatal(err)
 	}
-	if got := permRules(t, home); got != `{"external_directory":"ask","doom_loop":"ask","doom_custom":"allow"}` {
+	if _, err := RemoveMCPServer(MCPClientOpenCode, "plan", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := permRules(t, home); got != `{"external_directory":"ask","doom_loop":"ask","doom_custom":"allow","plan_enter":"deny","plan_exit":"ask"}` {
 		t.Errorf("permission = %s", got)
 	}
 }

@@ -280,7 +280,7 @@ func RemoveMCPServer(client, name string, tools []string) (MCPConfigChange, erro
 // openCodeBuiltinPermissions is OpenCode's own permission keys with an
 // underscore, the ones a server's tool prefix can look like ("external_"
 // and external_directory).
-var openCodeBuiltinPermissions = []string{"external_directory", "doom_loop"}
+var openCodeBuiltinPermissions = []string{"external_directory", "doom_loop", "plan_enter", "plan_exit"}
 
 // dropOpenCodeRules removes the permission rules of a removed server. With
 // its tool list known, that is its deny-all and one key per tool. Without,
@@ -365,6 +365,19 @@ func MCPConfigKeyFor(client string, e MCPServerEntry) string {
 		}
 	}
 	return ""
+}
+
+// OpenCodeRegistryNameFor is the registry's name for the server under key
+// in OpenCode's user config, matched by name, URL or package, or "". One
+// read of the file, however many entries there are.
+func OpenCodeRegistryNameFor(key string, entries []MCPServerEntry) string {
+	path, _ := MCPConfigPath(MCPClientOpenCode)
+	data, _ := os.ReadFile(path)
+	var cfg struct {
+		MCP map[string]mcpServer `json:"mcp"`
+	}
+	_ = json.Unmarshal(stripJSONC(data), &cfg) // unreadable: by name only
+	return openCodeRegistryName(entries, key, cfg.MCP[key])
 }
 
 func editMCPConfig(client string, edit func(top, servers *jsonObject) (json.RawMessage, bool, error)) (MCPConfigChange, error) {

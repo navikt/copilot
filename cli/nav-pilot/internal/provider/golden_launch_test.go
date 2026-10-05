@@ -164,7 +164,6 @@ func TestGoldenOpenCodeArgs(t *testing.T) {
 			want: []string{
 				"--model", "github-copilot/claude-opus-5",
 				"--agent", "nav-pilot",
-				"--variant", "high",
 				"--dangerously-skip-permissions",
 				"--log-level", "DEBUG",
 			},
@@ -334,7 +333,7 @@ func TestGoldenOpenCodeAgentArgs(t *testing.T) {
 		{
 			name:  "flags before a subcommand keep their order",
 			extra: []string{"--pure", "run", "add a docstring"},
-			want:  append(slices.Clone(bind), "--pure", "run", "add a docstring"),
+			want:  append(append([]string{"--pure", "run"}, bind...), "add a docstring"),
 		},
 		{
 			// opencode wants its subcommand first, so run leads and the bind

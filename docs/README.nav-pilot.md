@@ -488,6 +488,8 @@ Til ditt **personlige** oppsett trenger du ikke `export` i det hele tatt.
 nav-pilot list --installed
 nav-pilot sync
 nav-pilot upgrade
+nav-pilot mcp list          # MCP-servere som ikke virker, og kommandoen som retter det
+nav-pilot mcp enable <navn> # slå på en server fra Navs MCP-register
 nav-pilot models            # modellene klienten kan bruke, og hvilken du har valgt
 nav-pilot models claude     # bare modellene med «claude» i navnet
 nav-pilot feedback

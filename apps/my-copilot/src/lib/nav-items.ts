@@ -31,7 +31,7 @@ export function activeTop(pathname: string): string | undefined {
   if (owns("/verktoy", "/nav-pilot/agentpakker")) return "/verktoy";
   if (owns("/nav-pilot", "/cplt")) return "/nav-pilot";
   if (owns("/praksis", "/retningslinjer")) return "/praksis";
-  if (owns("/innsikt", "/statistikk", "/adopsjon", "/kostnad", "/priser")) return "/innsikt";
+  if (owns("/innsikt", "/statistikk", "/adopsjon", "/kostnad", "/priser", "/modeller")) return "/innsikt";
 }
 
 /** Pages under the nav-pilot umbrella, which have the section menu. */
@@ -64,6 +64,7 @@ export const SECTION: NavGroup[] = [
     items: [
       { label: "Kommandoer og konfig", href: "/nav-pilot/referanse" },
       { label: "Klienter", href: "/nav-pilot/klienter" },
+      { label: "Kjente begrensninger i cplt", href: "/nav-pilot/referanse/cplt-begrensninger" },
     ],
   },
   { label: "Forklaring", overview: "/nav-pilot/forklaring", items: fromDocs(EXPLANATION_PAGES) },

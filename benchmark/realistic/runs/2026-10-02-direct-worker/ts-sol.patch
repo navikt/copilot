@@ -1,0 +1,119 @@
+--- a/app/api/saker/route.ts
++++ b/app/api/saker/route.ts
+@@ -1,5 +1,37 @@
+-import { listSaker } from "../../../lib/saker.ts";
++import { listSaker, opprettSak } from "../../../lib/saker.ts";
+ 
+ export async function GET(): Promise<Response> {
+   return Response.json(listSaker());
+ }
++
++function ugyldigForesporsel(detail: string): Response {
++  return Response.json(
++    { type: "about:blank", title: "Ugyldig forespørsel", status: 400, detail },
++    { status: 400, headers: { "Content-Type": "application/problem+json" } },
++  );
++}
++
++export async function POST(request: Request): Promise<Response> {
++  let body: unknown;
++  try {
++    body = await request.json();
++  } catch (error) {
++    if (error instanceof SyntaxError) {
++      return ugyldigForesporsel("Forespørselen må inneholde gyldig JSON.");
++    }
++    throw error;
++  }
++
++  if (typeof body !== "object" || body === null || Array.isArray(body)) {
++    return ugyldigForesporsel("Forespørselen må inneholde en sak.");
++  }
++  if (!("tittel" in body) || typeof body.tittel !== "string" || !body.tittel.trim()) {
++    return ugyldigForesporsel("Tittel må fylles ut.");
++  }
++  const prioritet = "prioritet" in body ? body.prioritet : "normal";
++  if (prioritet !== "normal" && prioritet !== "hoy") {
++    return ugyldigForesporsel("Prioritet må være normal eller hoy.");
++  }
++
++  return Response.json(opprettSak(body.tittel, prioritet), { status: 201 });
++}
+--- a/lib/saker.ts
++++ b/lib/saker.ts
+@@ -1,7 +1,14 @@
+ export type Sak = { id: number; tittel: string; prioritet: "normal" | "hoy" };
+ 
+ const saker: Sak[] = [{ id: 101, tittel: "Eksisterende sak", prioritet: "normal" }];
++let nesteId = Math.max(...saker.map((sak) => sak.id)) + 1;
+ 
+ export function listSaker(): Sak[] {
+   return [...saker];
+ }
++
++export function opprettSak(tittel: string, prioritet: Sak["prioritet"]): Sak {
++  const sak: Sak = { id: nesteId++, tittel, prioritet };
++  saker.push(sak);
++  return sak;
++}
+--- a/tests/regression.test.ts
++++ b/tests/regression.test.ts
+@@ -1,9 +1,57 @@
+ import assert from "node:assert/strict";
+ import { test } from "node:test";
+-import { GET } from "../app/api/saker/route.ts";
++import { GET, POST } from "../app/api/saker/route.ts";
+ 
+ test("existing cases remain visible", async () => {
+   const response = await GET();
+   assert.equal(response.status, 200);
+   assert.ok((await response.json()).some((sak: { id: number }) => sak.id === 101));
+ });
++
++function sakRequest(body: unknown): Request {
++  return new Request("http://localhost/api/saker", {
++    method: "POST",
++    headers: { "Content-Type": "application/json" },
++    body: JSON.stringify(body),
++  });
++}
++
++test("creates cases with new IDs and shows them in the overview", async () => {
++  const normal = await POST(sakRequest({ tittel: "Ny sak" }));
++  assert.equal(normal.status, 201);
++  const normalSak = await normal.json();
++  assert.deepEqual(normalSak, { id: 102, tittel: "Ny sak", prioritet: "normal" });
++
++  const hoy = await POST(sakRequest({ tittel: "Haster", prioritet: "hoy" }));
++  assert.equal(hoy.status, 201);
++  const hoySak = await hoy.json();
++  assert.deepEqual(hoySak, { id: 103, tittel: "Haster", prioritet: "hoy" });
++
++  const oversikt = await GET();
++  assert.deepEqual((await oversikt.json()).slice(-2), [normalSak, hoySak]);
++});
++
++test("rejects invalid cases without creating them", async () => {
++  const before = await (await GET()).json();
++  for (const body of [
++    {},
++    { tittel: "" },
++    { tittel: " \t " },
++    { tittel: null },
++    { tittel: "Sak", prioritet: "lav" },
++    { tittel: "Sak", prioritet: null },
++    null,
++    [],
++  ]) {
++    const response = await POST(sakRequest(body));
++    assert.equal(response.status, 400);
++    assert.equal(response.headers.get("Content-Type"), "application/problem+json");
++    assert.equal((await response.json()).status, 400);
++  }
++  const malformed = await POST(new Request("http://localhost/api/saker", {
++    method: "POST",
++    body: "{",
++  }));
++  assert.equal(malformed.status, 400);
++  assert.deepEqual(await (await GET()).json(), before);
++});

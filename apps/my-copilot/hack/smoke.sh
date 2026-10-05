@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Røyktest: start den bygde standalone-serveren og hent hver rute i src/app.
+# Rask sjekk: start den bygde standalone-serveren og hent hver rute i src/app.
 #
 # Hvorfor: `next build --experimental-build-mode compile` hopper over
 # prerendering, og `tsc` ser ikke render-feil. En side som kaster under render

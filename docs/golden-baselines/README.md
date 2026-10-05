@@ -2,6 +2,9 @@
 
 Her ligger målingene bak modellsiden på ki-utvikling.nav.no. Hver kjøring er rådata fra testoppsettet i `scripts/nav-pilot-golden.sh`, og `summary.json` er sammendraget siden leser. CI feiler hvis `summary.json` ikke stemmer med filene.
 
+[`docs/pin-protokoll.md`](../pin-protokoll.md) skiller disse persona-sjekkene fra den utforskende piloten for kodeoppgaver. Ingen av dem gir alene grunnlag for å endre modellpinne.
+De fire oppgavene og kontrollene for den avsluttede kodepiloten ligger i [`benchmark/realistic/`](../../benchmark/realistic/README.md). Den lokale kontrollen kjører uten modellkall. Resultatene ligger i [`benchmark/realistic/runs/`](../../benchmark/realistic/runs/) og inngår ikke i `summary.json` eller `/modeller`.
+
 ## Testpakkene
 
 | Testpakke | Agent | Hva vi sjekker |
@@ -54,7 +57,7 @@ Hver kjøring i `runs` har disse feltene:
 | `checks[].passed` | Hvor mange av de `n` kjøringene som besto sjekken |
 | `credits` | Median og snitt per kjøring, eksakt fra `assistant_usage_events`, inkludert nye forsøk og subagenter. `null` når bruken ikke ble registrert for alle kall, og da er `usage_complete` `false`. Siden viser `null` som «–» |
 | `wall_seconds` | Median veggklokketid per kjøring |
-| `smoke` | `true` for røyktester av oppsettet (filer med `smoke` i stien). Det er ikke resultater, og siden merker dem «(røyktest)» |
+| `smoke` | `true` for benchmarker med én kjøring som sjekker oppsettet (filer med `smoke` i stien). Det er ikke resultater, og siden merker dem «(benchmark)» |
 
 Modellnavnet slår siden opp selv. Bruksradene krever at `~/.copilot/session-store.db` er lesbar.
 

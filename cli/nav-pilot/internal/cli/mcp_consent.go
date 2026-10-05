@@ -240,15 +240,25 @@ func mcpHostsDescription(servers []string, by map[string][]providerpkg.MCPHost, 
 // reportMCPHosts is doctor's view of the MCP registry hosts: what is allowed,
 // what waits for an answer, and the loopback servers the user opens by hand.
 func reportMCPHosts(w io.Writer, cpltPath string) {
+	reportMCPHostsWith(w, cpltPath, nil)
+}
+
+// reportMCPHostsWith is reportMCPHosts with the registry refresh already
+// running (doctor starts it early); nil means run it here. The caller must
+// have set providerpkg.MCPClient before starting that refresh.
+func reportMCPHostsWith(w io.Writer, cpltPath string, refresh func() error) {
 	if mcpHostsMode() == "off" {
 		fmt.Fprintf(w, "      %s\n", dim("ℹ MCP hosts are off (mcp_hosts = off)"))
 		return
 	}
-	cfg, _ := readConfig()
-	providerpkg.MCPClient = resolve(cfg, CLIOverrides{}).Client
+	if refresh == nil {
+		cfg, _ := readConfig()
+		providerpkg.MCPClient = resolve(cfg, CLIOverrides{}).Client
+		refresh = refreshMCPRegistry
+	}
 	// Doctor reads the registry when the launch's cache of it is due, so the
 	// launch never has to.
-	refreshErr := refreshMCPRegistry()
+	refreshErr := refresh()
 	st, err := readMCPHostState()
 	if err != nil {
 		fmt.Fprintf(w, "      %s Could not read whether MCP hosts are allowed: %v\n", yellow("⚠"), err)

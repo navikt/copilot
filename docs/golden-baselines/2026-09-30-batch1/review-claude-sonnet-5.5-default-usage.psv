@@ -1,0 +1,38 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        code-review
+# suite:        review
+# date:         2026-09-30
+# revision:     b86bec38
+# model:        claude-sonnet-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.90-5.
+# effort:       CLI default
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      2929655385
+# prompts:      rv1,rv2,rv3,rv4
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+cr-kotlin|1|019f132d-645a-4b82-b799-2957e2192392|14356|0|claude-sonnet-5.5|medium|22280|254|0|22276|0|5823800000|2319|1005.528251|tool_calls||
+cr-kotlin|1|019f132d-645a-4b82-b799-2957e2192392|14358|0|claude-sonnet-5.5|medium|22947|824|22276|669|0|1437170000|7217|7175.586792|stop||
+cr-tsx|1|cc45add3-62fd-4744-8198-ba81a668e188|14360|0|claude-sonnet-5.5|medium|22276|254|5259|17013|0|4613230000|2746|1326.9146660000001|tool_calls||
+cr-tsx|1|cc45add3-62fd-4744-8198-ba81a668e188|14365|0|claude-sonnet-5.5|medium|23029|1535|22272|755|199|2169590000|11510|4693.375|stop||
+cr-kotlin|2|93ed7067-b4c8-4ccc-8e74-25129ad14238|14368|0|claude-sonnet-5.5|medium|22285|130|5259|17022|0|4491480000|1775|1299.9964579999998|tool_calls||
+cr-kotlin|2|93ed7067-b4c8-4ccc-8e74-25129ad14238|14371|0|claude-sonnet-5.5|medium|22600|1102|22281|317|145|1627270000|8683|3943.4813329999997|stop||
+cr-tsx|2|6ce82b4c-d869-4766-89da-66fae65a7621|14376|0|claude-sonnet-5.5|medium|22277|118|5259|17014|0|4477480000|2029|1508.029458|tool_calls||
+cr-tsx|2|6ce82b4c-d869-4766-89da-66fae65a7621|14382|0|claude-sonnet-5.5|medium|22897|1229|22273|622|61|1830360000|10001|3566.5730840000006|stop||
+cr-kotlin|3|e85e2508-e919-4332-b4f7-6c527bb074d9|14386|0|claude-sonnet-5.5|medium|22284|116|5259|17021|0|4477230000|1681|1277.8972909999998|tool_calls||
+cr-kotlin|3|e85e2508-e919-4332-b4f7-6c527bb074d9|14392|0|claude-sonnet-5.5|medium|22671|997|22280|389|70|1540250000|8881|3577.5214580000006|stop||
+cr-tsx|3|ed02f486-4bdf-4ffc-bc4f-8dacab7c91ff|14398|0|claude-sonnet-5.5|medium|22283|96|5259|17020|0|4456980000|1691|1390.652834|tool_calls||
+cr-tsx|3|ed02f486-4bdf-4ffc-bc4f-8dacab7c91ff|14401|0|claude-sonnet-5.5|medium|22701|1405|22279|420|50|1955980000|10483|3322.235541|stop||
+cr-kotlin|4|2db96799-20be-4787-88b7-e873fe1ba209|14404|0|claude-sonnet-5.5|medium|22282|201|5259|17019|0|4561730000|2380|1520.704251|tool_calls||
+cr-kotlin|4|2db96799-20be-4787-88b7-e873fe1ba209|14406|0|claude-sonnet-5.5|medium|22725|1022|22278|445|50|1579210000|8941|2798.58325|stop||
+cr-tsx|4|010a37a2-197b-49be-b1c5-657e30498047|14410|0|claude-sonnet-5.5|medium|22275|107|5259|17012|0|4465980000|1677|1345.8508339999998|tool_calls||
+cr-tsx|4|010a37a2-197b-49be-b1c5-657e30498047|14416|0|claude-sonnet-5.5|medium|22715|1408|22271|442|14|1964320000|9676|2526.291917|stop||
+cr-kotlin|5|7da76af9-3bd8-4667-b4e5-01f0c2f3033e|14421|0|claude-sonnet-5.5|medium|22287|284|5259|17024|0|4645980000|2826|1216.788501|tool_calls||
+cr-kotlin|5|7da76af9-3bd8-4667-b4e5-01f0c2f3033e|14425|0|claude-sonnet-5.5|medium|22864|157|22283|579|0|747810000|1951|1262.30725|tool_calls||
+cr-kotlin|5|7da76af9-3bd8-4667-b4e5-01f0c2f3033e|14428|0|claude-sonnet-5.5|medium|23325|874|22862|461|0|1446890000|7154|7097.705084|stop||
+cr-tsx|5|92446184-b313-4d38-a1ea-ae47cdea8894|14431|0|claude-sonnet-5.5|medium|22277|276|5259|17014|0|4635480000|2602|1215.106375|tool_calls||
+cr-tsx|5|92446184-b313-4d38-a1ea-ae47cdea8894|14434|0|claude-sonnet-5.5|medium|23201|1004|22273|926|0|1681360000|8753|8637.003832999999|stop||
