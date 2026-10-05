@@ -106,7 +106,7 @@ func TestTeamGrossOverviewHandler(t *testing.T) {
 		Month: "2026-09", Teams: []TeamGrossUsage{{TeamID: "123", TeamSlug: "team-a", Users: 5, GrossUSD: 42}},
 		DistinctGrossUSD: 20,
 		Usage: map[string]TeamUsageComposition{
-			"123": {Models: []string{"claude-sonnet-4", "gpt-5", "gpt-4.1"}, Feature: "chat", Language: "go"},
+			"123": {Providers: []string{"Anthropic", "OpenAI"}, Categories: []string{"Versatile", "Powerful", "Unclassified"}, Feature: "chat", Language: "go"},
 		},
 	}}
 	h := newBigQueryHandlers(mock)

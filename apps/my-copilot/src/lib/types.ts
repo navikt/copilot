@@ -312,7 +312,7 @@ export interface StalenessSummary {
 export type AdoptionScope = "all" | "active";
 
 export interface TeamGrossOverview {
-  usage?: Record<string, { models: string[]; feature: string; language: string }>;
+  usage?: Record<string, { providers: string[]; categories: string[]; feature: string; language: string }>;
   month: string;
   teams: { team_id: string; team_slug: string; users: number; gross_usd: number }[];
   small_teams: number;

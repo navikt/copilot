@@ -10,6 +10,10 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import {
   parsePricingTables,
@@ -55,6 +59,30 @@ const GOOGLE_TABLE = `<h3 id="google">Google</h3><table aria-labelledby="google"
 
 const PAGE = OPENAI_TABLE + GOOGLE_TABLE + FOOTNOTES;
 const byModel = (models, name) => models.find((m) => m.model === name);
+
+test("pricing sync regenerates API metadata from the newly written catalog", (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "pricing-sync-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const dir of ["scripts", "apps/my-copilot/src/lib", "apps/copilot-api", "docs"]) {
+    mkdirSync(join(root, dir), { recursive: true });
+  }
+  for (const script of ["sync-model-pricing.mjs", "generate-api-model-metadata.mjs"]) {
+    copyFileSync(new URL(script, import.meta.url), join(root, "scripts", script));
+  }
+  writeFileSync(join(root, "apps/my-copilot/src/lib/model-pricing.ts"), "");
+  writeFileSync(join(root, "docs/modellvalg.md"), "GitHubs listepriser slik de sto **1. januar 2026**");
+  const mock = `globalThis.fetch = async () => ({ ok: true, text: async () => ${JSON.stringify(PAGE)} });`;
+  execFileSync(process.execPath, [
+    "--import", `data:text/javascript;base64,${Buffer.from(mock).toString("base64")}`,
+    join(root, "scripts/sync-model-pricing.mjs"),
+  ], { stdio: "pipe" });
+  const metadata = JSON.parse(readFileSync(join(root, "apps/copilot-api/model_metadata.json"), "utf8"));
+  assert.deepEqual(
+    metadata.models,
+    parsePricingTables(PAGE).map(({ model, provider, category }) => ({ model, provider, category })),
+  );
+  execFileSync(process.execPath, [join(root, "scripts/generate-api-model-metadata.mjs"), "--check"], { stdio: "pipe" });
+});
 
 test("footnote list parses into id-keyed text without backref arrows", () => {
   const notes = parseFootnotes(PAGE);

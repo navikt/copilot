@@ -3,14 +3,23 @@ package main
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"cloud.google.com/go/bigquery"
 )
 
 type TeamUsageComposition struct {
-	Models   []string `json:"models"`
-	Feature  string   `json:"feature"`
-	Language string   `json:"language"`
+	Providers  []string `json:"providers"`
+	Categories []string `json:"categories"`
+	Feature    string   `json:"feature"`
+	Language   string   `json:"language"`
+}
+
+type teamCompositionRow struct {
+	TeamID    string `bigquery:"team_id"`
+	Dimension string `bigquery:"dimension"`
+	Label     string `bigquery:"label"`
+	Activity  int64  `bigquery:"activity"`
 }
 
 func (bq *BigQueryClient) getTeamUsageComposition(ctx context.Context, month string) (map[string]TeamUsageComposition, error) {
@@ -33,34 +42,42 @@ func (bq *BigQueryClient) getTeamUsageComposition(ctx context.Context, month str
 ), categories AS (
  SELECT m.team_id,d.dimension,d.label,SUM(d.activity) activity
  FROM dimensions d JOIN memberships m USING(day,user_id)
- WHERE d.activity>0 AND d.label IS NOT NULL AND d.label NOT IN ('others','unknown')
- GROUP BY team_id,dimension,label HAVING COUNT(DISTINCT user_id)>=@minUsers
+ WHERE d.activity>0 AND (d.dimension='model' OR (d.label IS NOT NULL AND d.label NOT IN ('others','unknown')))
+ GROUP BY team_id,dimension,label HAVING dimension='model' OR COUNT(DISTINCT user_id)>=@minUsers
 ), ranked AS (
  SELECT *,ROW_NUMBER() OVER(PARTITION BY team_id,dimension ORDER BY activity DESC,label) rank FROM categories
 )
-SELECT team_id,dimension,label FROM ranked WHERE rank<=IF(dimension='model',3,1) ORDER BY team_id,dimension,rank`, bq.tableRef(bq.metricsDataset, "user_metrics"), bq.tableRef(bq.metricsDataset, "user_teams")))
+SELECT team_id,dimension,IFNULL(label,'unknown') label,activity FROM ranked WHERE dimension='model' OR rank=1 ORDER BY team_id,dimension,rank`, bq.tableRef(bq.metricsDataset, "user_metrics"), bq.tableRef(bq.metricsDataset, "user_teams")))
 	query.Parameters = []bigquery.QueryParameter{{Name: "month", Value: month + "-01"}, {Name: "minUsers", Value: minTeamContributors}}
 	it, err := query.Read(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read team usage composition: %w", err)
 	}
-	rows, err := readAllRows[struct {
-		TeamID    string `bigquery:"team_id"`
-		Dimension string `bigquery:"dimension"`
-		Label     string `bigquery:"label"`
-	}](it)
+	rows, err := readAllRows[teamCompositionRow](it)
 	if err != nil {
 		return nil, err
 	}
+	return aggregateTeamComposition(rows), nil
+}
+
+func aggregateTeamComposition(rows []teamCompositionRow) map[string]TeamUsageComposition {
 	result := map[string]TeamUsageComposition{}
+	providers := map[string]map[string]int64{}
+	categories := map[string]map[string]int64{}
 	for _, row := range rows {
 		usage := result[row.TeamID]
-		if usage.Models == nil {
-			usage.Models = []string{}
-		}
 		switch row.Dimension {
 		case "model":
-			usage.Models = append(usage.Models, row.Label)
+			if row.Activity <= 0 {
+				continue
+			}
+			if providers[row.TeamID] == nil {
+				providers[row.TeamID] = map[string]int64{}
+				categories[row.TeamID] = map[string]int64{}
+			}
+			model := classifyModel(row.Label)
+			providers[row.TeamID][model.Provider] += row.Activity
+			categories[row.TeamID][model.Category] += row.Activity
 		case "feature":
 			usage.Feature = row.Label
 		case "language":
@@ -68,5 +85,24 @@ SELECT team_id,dimension,label FROM ranked WHERE rank<=IF(dimension='model',3,1)
 		}
 		result[row.TeamID] = usage
 	}
-	return result, nil
+	for id, usage := range result {
+		usage.Providers = rankedComposition(providers[id])
+		usage.Categories = rankedComposition(categories[id])
+		result[id] = usage
+	}
+	return result
+}
+
+func rankedComposition(totals map[string]int64) []string {
+	names := make([]string, 0, len(totals))
+	for name := range totals {
+		names = append(names, name)
+	}
+	sort.Slice(names, func(i, j int) bool {
+		if totals[names[i]] == totals[names[j]] {
+			return names[i] < names[j]
+		}
+		return totals[names[i]] > totals[names[j]]
+	})
+	return names
 }

@@ -2,6 +2,8 @@
 
 ## Verification update (2026-10-05)
 
+- Provider/model-type summaries now replace individual model names. All observed providers and model categories are ranked by raw interactions, with no subgroup suppression or top-N truncation. Existing team visibility and feature/language rules remain. September read-only verification covers all 122 gross-visible teams; 43 provider and 45 category summaries include unknown activity. Unclassified activity is distinct from no interactions or unavailable data.
+- Classification uses generated current pricing metadata, pinned historical entries and explicit aliases. Pricing updates regenerate and stage backend metadata; API CI watches its inputs. Independent follow-up review is CLEAN. API `mise check`, live BigQuery/HTTP verification and 23 focused frontend tests pass. Latest `mise all` fails unrelated old-link/pricing checks and a nav-pilot timing test, then times out during builds.
 - Shared dev was running frontend `fdd504a` and API `26d4153`, not PR #1419. The API revision has no `team_spend.go`. PRs overwrite the same dev applications; successful checks do not establish the currently deployed pair.
 - Fresh read-only BigQuery and serialized HTTP checks passed for September and August. September composition coverage remains 66 teams with models, 71 with features and 88 with languages; August/September net visibility is 113/119 teams.
 - Independent targeted review found and verified fixes for optional-composition failures hiding costs, Escape focus restoration, missing collection-time qualification, and source repair continuing after 401/403/429. Follow-up verdict CLEAN for those fixes, not the entire PR.

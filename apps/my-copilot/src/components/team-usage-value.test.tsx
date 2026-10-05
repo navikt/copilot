@@ -1,30 +1,41 @@
 import { render, screen } from "@testing-library/react";
 import { CpuIcon } from "@navikt/aksel-icons";
 import TeamUsageValue from "./team-usage-value";
-import { ModelProviderIcon } from "./model-icons";
+import { ModelCategoryIcon, ModelProviderIcon } from "./model-icons";
 
-describe("Team model logos", () => {
-  it.each([
-    ["claude-haiku-4.5", "Anthropic"],
-    ["gemini-2.5-pro", "Google"],
-    ["gpt-4o", "OpenAI"],
-    ["o3-mini", "OpenAI"],
-    ["GPT-6 Sol", "OpenAI"],
-    ["mai-code-1.1-flash", "Microsoft"],
-    ["kimi-k2.7-code", "Moonshot AI"],
-  ] as const)("shows %s with its provider mark and original name", (value, provider) => {
-    const { container } = render(<TeamUsageValue kind="model" value={value} />);
-    const actual = container.querySelector("svg");
-    const expected = render(<ModelProviderIcon provider={provider} />).container.querySelector("svg");
-    expect(actual?.innerHTML).toBe(expected?.innerHTML);
-    expect(actual).toHaveAttribute("aria-hidden", "true");
+describe("Team usage summaries", () => {
+  it.each(["OpenAI", "Anthropic", "Google", "GitHub", "Microsoft", "Moonshot AI"])(
+    "shows the provider mark for %s",
+    (value) => {
+      const { container } = render(<TeamUsageValue kind="provider" value={value} />);
+      const expected = render(<ModelProviderIcon provider={value} />).container.querySelector("svg");
+      expect(container.querySelector("svg")?.innerHTML).toBe(expected?.innerHTML);
+      expect(screen.getByText(value, { selector: "span" })).toBeInTheDocument();
+    }
+  );
+
+  it.each(["Lightweight", "Versatile", "Powerful"])("shows the category icon for %s", (value) => {
+    const { container } = render(<TeamUsageValue kind="category" value={value} />);
+    const expected = render(<ModelCategoryIcon category={value} />).container.querySelector("svg");
+    expect(container.querySelector("svg")?.innerHTML).toBe(expected?.innerHTML);
     expect(screen.getByText(value)).toBeInTheDocument();
   });
 
-  it("keeps unknown model names without assigning them a provider", () => {
-    const { container } = render(<TeamUsageValue kind="model" value="custom-model" />);
-    expect(screen.getByText("custom-model")).toBeInTheDocument();
+  it.each(["provider", "category"] as const)("uses a neutral icon for unclassified and unknown %s values", (kind) => {
+    const { container } = render(
+      <>
+        <TeamUsageValue kind={kind} value="Unclassified" />
+        <TeamUsageValue kind={kind} value="Future value" />
+        <TeamUsageValue kind={kind} value="constructor" />
+      </>
+    );
+    expect(screen.getByText("Uklassifisert")).toBeInTheDocument();
+    expect(screen.getByText("Future value")).toBeInTheDocument();
+    expect(screen.getByText("constructor")).toBeInTheDocument();
     const expected = render(<CpuIcon />).container.querySelector("svg");
-    expect(container.querySelector("svg")?.innerHTML).toBe(expected?.innerHTML);
+    for (const icon of container.querySelectorAll("svg")) {
+      expect(icon.innerHTML).toBe(expected?.innerHTML);
+      expect(icon).toHaveAttribute("aria-hidden", "true");
+    }
   });
 });

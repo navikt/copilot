@@ -318,7 +318,7 @@ LEFT JOIN team_counts c ON c.users >= @minUsers ORDER BY c.team_slug`, bq.tableR
 func teamGrossOverview(month string, rows []teamGrossRow, usage map[string]TeamUsageComposition, usageErr error) *TeamGrossOverview {
 	result := &TeamGrossOverview{Month: month, Teams: []TeamGrossUsage{}}
 	for _, row := range rows {
-		if row.TeamID != "" {
+		if row.TeamID != "" && row.Users >= minTeamContributors {
 			result.Teams = append(result.Teams, TeamGrossUsage{row.TeamID, row.TeamSlug, row.Users, row.Gross})
 		}
 		result.SmallTeams, result.SmallTeamsUsers, result.SmallTeamsGrossUSD = row.SmallTeams, row.SmallUsers, row.SmallGross
@@ -329,15 +329,16 @@ func teamGrossOverview(month string, rows []teamGrossRow, usage map[string]TeamU
 		slog.Warn("Team usage composition unavailable")
 		return result
 	}
-	result.Usage = usage
-	visible := map[string]bool{}
+	result.Usage = map[string]TeamUsageComposition{}
 	for _, team := range result.Teams {
-		visible[team.TeamID] = true
-	}
-	for id := range result.Usage {
-		if !visible[id] {
-			delete(result.Usage, id)
+		composition := usage[team.TeamID]
+		if len(composition.Providers) == 0 {
+			composition.Providers = []string{}
 		}
+		if len(composition.Categories) == 0 {
+			composition.Categories = []string{}
+		}
+		result.Usage[team.TeamID] = composition
 	}
 	return result
 }

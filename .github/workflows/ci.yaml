@@ -75,6 +75,8 @@ jobs:
               - '.github/workflows/ci.yaml'
             copilot-api:
               - 'apps/copilot-api/**'
+              - 'apps/my-copilot/src/lib/model-pricing.ts'
+              - 'scripts/generate-api-model-metadata.mjs'
               - '.github/workflows/copilot-api.yaml'
               - '.github/workflows/mise-build-deploy-nais.yaml'
               - '.github/workflows/ci.yaml'

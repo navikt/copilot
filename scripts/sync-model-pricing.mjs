@@ -48,6 +48,7 @@ function setDocPricingDate(text, iso) {
 }
 
 import { readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 // --- Fetch and parse ---
@@ -465,6 +466,9 @@ async function main() {
     }
   } else {
     writeFileSync(targetPath, newContent, "utf-8");
+    execFileSync(process.execPath, [
+      fileURLToPath(new URL("./generate-api-model-metadata.mjs", import.meta.url)),
+    ], { stdio: "inherit" });
     console.log(`\n✓ Updated ${targetPath}`);
     const today = new Date().toISOString().split("T")[0];
     writeFileSync(docPath, setDocPricingDate(doc, today), "utf-8");

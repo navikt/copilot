@@ -44,7 +44,15 @@ describe("Team insight", () => {
         <TeamGrossUsage
           data={{
             ...gross,
-            usage: { "1": { models: ["model-a", "model-b"], feature: "copilot_cli", language: "kotlin" } },
+            usage: {
+              "1": {
+                providers: ["OpenAI", "Anthropic"],
+                categories: ["Versatile", "Lightweight"],
+                feature: "copilot_cli",
+                language: "kotlin",
+              },
+              "2": { providers: ["Unclassified"], categories: ["Unclassified"], feature: "", language: "" },
+            },
           }}
           net={net}
           myTeams={[]}
@@ -55,35 +63,130 @@ describe("Team insight", () => {
     const table = screen.getByRole("table", { name: "Andre team" });
     expect(screen.getByRole("combobox", { name: "Måned" })).toHaveValue("2026-09");
     expect(within(table).getAllByRole("columnheader")).toHaveLength(5);
+    for (const label of ["Leverandører", "Modelltyper", "Funksjon", "Språk"])
+      expect(within(table).queryByRole("columnheader", { name: label })).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Velg kolonner"));
     expect(screen.getByRole("button", { name: "Velg kolonner" })).toHaveAttribute("aria-expanded", "true");
-    for (const label of ["Modeller", "Funksjon", "Språk"])
+    for (const label of ["Leverandører", "Modelltyper", "Funksjon", "Språk"])
       fireEvent.click(screen.getByRole("checkbox", { name: label }));
-    expect(within(table).getAllByRole("columnheader")).toHaveLength(8);
-    expect(within(table).getByText("model-a")).toBeInTheDocument();
-    expect(within(table).getByText("model-b")).toBeInTheDocument();
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(9);
+    const rows = within(table).getAllByRole("row").slice(1);
+    expect(
+      Array.from(within(rows[0]).getAllByRole("cell")[5].querySelectorAll("span"), (span) => span.textContent)
+    ).toEqual(["OpenAI", "Anthropic"]);
+    expect(within(rows[0]).getAllByRole("cell")[6]).toHaveTextContent(/^VersatileLightweight$/);
+    expect(within(rows[1]).getAllByRole("cell")[5]).toHaveTextContent("Uklassifisert");
+    expect(within(rows[1]).getAllByRole("cell")[6]).toHaveTextContent("Uklassifisert");
+    for (const row of rows)
+      for (const index of [5, 6])
+        expect(within(row).getAllByRole("cell")[index].querySelector("svg")).toHaveAttribute("aria-hidden", "true");
     expect(within(table).getByText("Copilot CLI")).toBeInTheDocument();
     expect(within(table).getByText("kotlin")).toBeInTheDocument();
     fireEvent.change(screen.getByRole("searchbox", { name: "Søk etter team" }), { target: { value: "alpha" } });
     expect(within(table).queryByText("beta")).not.toBeInTheDocument();
     expect(within(table).getByText("alpha")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("checkbox", { name: "Modeller" }));
-    expect(within(table).queryByText("model-a")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Leverandører" }));
+    expect(within(table).queryByText("OpenAI")).not.toBeInTheDocument();
+    expect(within(table).getByText("Versatile")).toBeInTheDocument();
+    const categoryCheckbox = screen.getByRole("checkbox", { name: "Modelltyper" });
+    categoryCheckbox.focus();
+    fireEvent.click(categoryCheckbox);
+    expect(categoryCheckbox).toHaveFocus();
+    expect(within(table).queryByText("Versatile")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Leverandører" }));
+    expect(within(table).getByText("OpenAI")).toBeInTheDocument();
+    expect(within(table).queryByText("Versatile")).not.toBeInTheDocument();
     const checkbox = screen.getByRole("checkbox", { name: "Språk" });
     checkbox.focus();
     fireEvent.keyDown(checkbox, { key: "Escape" });
     expect(screen.getByRole("button", { name: "Velg kolonner" })).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByRole("button", { name: "Velg kolonner" })).toHaveFocus();
   });
-  it("distinguishes missing backend summaries from suppressed categories", () => {
+  it("distinguishes no model interactions from unclassified activity", () => {
+    render(
+      <TeamControls month="2026-09">
+        <TeamGrossUsage
+          data={{ ...gross, usage: { "1": { providers: [], categories: [], feature: "", language: "" } } }}
+          net={null}
+          myTeams={[]}
+          previous={null}
+        />
+      </TeamControls>
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Velg kolonner" }));
+    for (const label of ["Leverandører", "Modelltyper"]) fireEvent.click(screen.getByRole("checkbox", { name: label }));
+    const row = screen.getByText("alpha").closest("tr")!;
+    for (const cell of within(row).getAllByRole("cell").slice(5)) {
+      expect(cell).toHaveTextContent("Ingen modellinteraksjoner");
+      expect(cell.querySelector("svg")).toBeNull();
+    }
+    expect(within(row).queryByText("Uklassifisert")).not.toBeInTheDocument();
+  });
+  it("reports missing backend summaries", () => {
     render(
       <TeamControls month="2026-09">
         <TeamGrossUsage data={gross} net={net} myTeams={[]} previous={null} />
       </TeamControls>
     );
     fireEvent.click(screen.getByRole("button", { name: "Velg kolonner" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: "Modeller" }));
+    for (const label of ["Leverandører", "Modelltyper"]) fireEvent.click(screen.getByRole("checkbox", { name: label }));
     expect(screen.getByText(/bruksmønster er ikke tilgjengelig fra datatjenesten/i)).toBeInTheDocument();
+  });
+  it("handles the older model schema without inferring summaries or losing features and languages", () => {
+    render(
+      <TeamControls month="2026-09">
+        <TeamGrossUsage
+          data={{
+            ...gross,
+            usage: JSON.parse('{"1":{"models":["gpt-4o"],"feature":"copilot_cli","language":"kotlin"}}'),
+          }}
+          net={net}
+          myTeams={[]}
+          previous={null}
+        />
+      </TeamControls>
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Velg kolonner" }));
+    for (const label of ["Leverandører", "Modelltyper", "Funksjon", "Språk"])
+      fireEvent.click(screen.getByRole("checkbox", { name: label }));
+    expect(screen.getByText(/leverandør- og modelltypeoversikt mangler/i)).toBeInTheDocument();
+    expect(screen.queryByText("gpt-4o")).not.toBeInTheDocument();
+    expect(screen.queryByText("OpenAI")).not.toBeInTheDocument();
+    expect(screen.getByText("Copilot CLI")).toBeInTheDocument();
+    expect(screen.getByText("kotlin")).toBeInTheDocument();
+    const rows = within(screen.getByRole("table", { name: "Andre team" }))
+      .getAllByRole("row")
+      .slice(1);
+    for (const row of rows)
+      for (const index of [5, 6])
+        expect(within(row).getAllByRole("cell")[index]).toHaveTextContent("Ikke tilgjengelig");
+  });
+  it("shows provider and category summaries in both own and other team rows", () => {
+    render(
+      <TeamControls month="2026-09">
+        <TeamGrossUsage
+          data={{
+            ...gross,
+            usage: {
+              "1": { providers: ["Google"], categories: ["Powerful"], feature: "", language: "" },
+              "2": { providers: ["Unclassified"], categories: ["Unclassified"], feature: "", language: "" },
+            },
+          }}
+          net={null}
+          myTeams={["beta"]}
+          previous={null}
+        />
+      </TeamControls>
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Velg kolonner" }));
+    for (const label of ["Leverandører", "Modelltyper"]) fireEvent.click(screen.getByRole("checkbox", { name: label }));
+    expect(within(screen.getByRole("table", { name: "Mine team" })).getAllByText("Uklassifisert")).toHaveLength(2);
+    const others = within(screen.getByRole("table", { name: "Andre team" }));
+    expect(others.getByText("Google", { selector: "span" })).toBeInTheDocument();
+    expect(others.getByText("Powerful")).toBeInTheDocument();
+    expect(screen.queryByText(/oversikt mangler/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/antall brukerinteraksjoner uten kostnadsvekting/)).toBeInTheDocument();
+    expect(screen.getByText(/funksjon og språk vises bare med minst fem bidragsytere/i)).toBeInTheDocument();
   });
   it("keeps the distinct bill separate from overlapping team rows and puts mine first", () => {
     render(<TeamGrossUsage data={gross} net={net} myTeams={["beta"]} previous={null} />);

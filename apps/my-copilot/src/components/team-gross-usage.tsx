@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { BodyShort, Heading, HStack, Table, VStack } from "@navikt/ds-react";
-import { CodeIcon, CpuIcon, WrenchIcon } from "@navikt/aksel-icons";
+import { Buildings3Icon, CodeIcon, CpuIcon, WrenchIcon } from "@navikt/aksel-icons";
 import { TableBody, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
 import type { TeamGrossOverview, TeamNetOverview } from "@/lib/types";
 import { useTeamControls } from "./team-controls";
@@ -95,16 +95,25 @@ export default function TeamGrossUsage({
               {change === null ? "—" : `${change >= 0 ? "+" : ""}${dollars(change)}`}
             </span>
           </TableDataCell>
-          {columns.includes("models") && (
-            <TableDataCell>
-              <VStack gap="space-4">
-                {data.usage?.[team.team_id]?.models.length
-                  ? data.usage[team.team_id].models.map((model) => (
-                      <TeamUsageValue key={model} kind="model" value={model} />
-                    ))
-                  : "—"}
-              </VStack>
-            </TableDataCell>
+          {(["providers", "categories"] as const).map(
+            (column) =>
+              columns.includes(column) && (
+                <TableDataCell key={column}>
+                  <VStack gap="space-4">
+                    {data.usage?.[team.team_id]?.[column]?.length
+                      ? data.usage[team.team_id][column].map((value) => (
+                          <TeamUsageValue
+                            key={value}
+                            kind={column === "providers" ? "provider" : "category"}
+                            value={value}
+                          />
+                        ))
+                      : Array.isArray(data.usage?.[team.team_id]?.[column])
+                        ? "Ingen modellinteraksjoner"
+                        : "Ikke tilgjengelig"}
+                  </VStack>
+                </TableDataCell>
+              )
           )}
           {columns.includes("feature") && (
             <TableDataCell>
@@ -163,11 +172,19 @@ export default function TeamGrossUsage({
             <Table.ColumnHeader scope="col" align="right" sortable sortKey="change">
               Endring
             </Table.ColumnHeader>
-            {columns.includes("models") && (
+            {columns.includes("providers") && (
+              <Table.ColumnHeader scope="col">
+                <HStack gap="space-8" align="center">
+                  <Buildings3Icon aria-hidden fontSize="1.25rem" />
+                  Leverandører
+                </HStack>
+              </Table.ColumnHeader>
+            )}
+            {columns.includes("categories") && (
               <Table.ColumnHeader scope="col">
                 <HStack gap="space-8" align="center">
                   <CpuIcon aria-hidden fontSize="1.25rem" />
-                  Modeller
+                  Modelltyper
                 </HStack>
               </Table.ColumnHeader>
             )}
@@ -223,14 +240,22 @@ export default function TeamGrossUsage({
           </Heading>
           {columns.length > 0 && (
             <BodyShort>
-              Viser de mest brukte kategoriene som kan vises, med minst fem bidragsytere per kategori. Modeller og
-              funksjoner rangeres etter brukerinteraksjoner, språk etter kodegenereringer. En strek betyr at kategorien
-              mangler eller er skjult. Dette er bruksmønster, ikke kostnadsfordeling.
+              Leverandører og modelltyper vises for alle synlige team, rangert etter antall brukerinteraksjoner uten
+              kostnadsvekting. Uklassifisert betyr at leverandøren eller modelltypen ikke er kjent. Funksjon og språk
+              vises bare med minst fem bidragsytere. Funksjon rangeres etter brukerinteraksjoner, språk etter
+              kodegenereringer. En strek betyr at data mangler, eller at funksjon eller språk er skjult. Dette er
+              bruksmønster, ikke kostnadsfordeling.
             </BodyShort>
           )}
           {columns.length > 0 && !data.usage && (
             <BodyShort>Bruksmønster er ikke tilgjengelig fra datatjenesten. Prøv igjen senere.</BodyShort>
           )}
+          {data.usage &&
+            (["providers", "categories"] as const).some(
+              (column) =>
+                columns.includes(column) &&
+                filtered(source).some((team) => !Array.isArray(data.usage?.[team.team_id]?.[column]))
+            ) && <BodyShort>Leverandør- og modelltypeoversikt mangler for noen team fra datatjenesten.</BodyShort>}
           {myTeams === null && <BodyShort>Kunne ikke finne dine team. Du kan fortsatt søke i teamlisten.</BodyShort>}
           {myTeams !== null && (
             <section aria-labelledby="mine-team">

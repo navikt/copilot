@@ -1,19 +1,21 @@
 import { SiAnthropic, SiGithub, SiGoogle } from "@icons-pack/react-simple-icons";
-import { LayersIcon, LightningIcon, RocketIcon } from "@navikt/aksel-icons";
-import type { ModelPrice } from "@/lib/model-pricing";
+import { CpuIcon, LayersIcon, LightningIcon, RocketIcon } from "@navikt/aksel-icons";
 
 const providerIcons = { Anthropic: SiAnthropic, Google: SiGoogle, GitHub: SiGithub };
 const categoryIcons = { Lightweight: LightningIcon, Versatile: LayersIcon, Powerful: RocketIcon };
 
-export function ModelCategoryIcon({ category }: { category: ModelPrice["category"] }) {
-  const Icon = categoryIcons[category];
+export function ModelCategoryIcon({ category }: { category: string }) {
+  const Icon = Object.hasOwn(categoryIcons, category) ? categoryIcons[category as keyof typeof categoryIcons] : CpuIcon;
   return <Icon aria-hidden="true" width={16} height={16} className="shrink-0" />;
 }
 
-export function ModelProviderIcon({ provider }: { provider: ModelPrice["provider"] }) {
-  if (provider in providerIcons) {
+export function ModelProviderIcon({ provider }: { provider: string }) {
+  if (Object.hasOwn(providerIcons, provider)) {
     const Icon = providerIcons[provider as keyof typeof providerIcons];
     return <Icon aria-hidden="true" width={16} height={16} className="shrink-0" />;
+  }
+  if (!["Microsoft", "OpenAI", "Moonshot AI"].includes(provider)) {
+    return <CpuIcon aria-hidden="true" width={16} height={16} className="shrink-0" />;
   }
   return (
     <svg aria-hidden="true" width={16} height={16} viewBox="0 0 24 24" fill="currentColor" className="shrink-0">

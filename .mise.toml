@@ -7,7 +7,7 @@
 #   check, test, build, update
 #
 # Selective tasks (only apps that need them):
-#   generate — mcp-onboarding, my-copilot
+#   generate — copilot-api, mcp-onboarding, my-copilot
 #
 # Root-only tasks:
 #   docs:*    — documentation generation and checking
@@ -24,7 +24,7 @@ bats = "latest"
 
 [env]
 APPS = "copilot-adoption copilot-api copilot-cli copilot-survey copilot-metrics mcp-onboarding mcp-registry my-copilot"
-APPS_WITH_GENERATE = "mcp-onboarding my-copilot"
+APPS_WITH_GENERATE = "copilot-api mcp-onboarding my-copilot"
 # Skip Go's VCS stamping (vcs.revision in the binary). Nothing here reads it:
 # nav-pilot takes version/commit from -ldflags, and the Dockerfiles and the
 # release workflow do not run through mise. Stamping breaks `go build` in a

@@ -41,10 +41,13 @@ func TestTeamSpendBigQuery(t *testing.T) {
 	if len(gross.Usage) == 0 {
 		t.Fatal("no team usage composition")
 	}
-	models, features, languages := 0, 0, 0
+	providers, categories, features, languages, unknownProviders, unknownCategories := 0, 0, 0, 0, 0, 0
 	for id, usage := range gross.Usage {
-		if len(usage.Models) > 0 {
-			models++
+		if len(usage.Providers) > 0 {
+			providers++
+		}
+		if len(usage.Categories) > 0 {
+			categories++
 		}
 		if usage.Feature != "" {
 			features++
@@ -58,18 +61,28 @@ func TestTeamSpendBigQuery(t *testing.T) {
 				visible = true
 			}
 		}
-		if !visible || len(usage.Models) > 3 {
-			t.Fatal("composition escaped team suppression or model limit")
+		if !visible || len(usage.Categories) > 4 {
+			t.Fatal("composition escaped team suppression or rank limits")
 		}
-		for _, model := range usage.Models {
-			if model == "others" || model == "unknown" {
-				t.Fatal("unknown model exposed as ranked name")
+		for _, provider := range usage.Providers {
+			if provider == unclassified {
+				unknownProviders++
+			}
+		}
+		for _, category := range usage.Categories {
+			switch category {
+			case unclassified:
+				unknownCategories++
+			case "Lightweight", "Versatile", "Powerful":
+			default:
+				t.Fatalf("unexpected category %q", category)
 			}
 		}
 	}
-	if models != 66 || features != 71 || languages != 88 {
-		t.Fatalf("unexpected suppressed composition coverage: %d/%d/%d", models, features, languages)
+	if len(gross.Usage) != 122 || providers != 122 || categories != 122 || features != 71 || languages != 88 {
+		t.Fatalf("unexpected composition coverage: %d/%d/%d/%d", providers, categories, features, languages)
 	}
+	t.Logf("September composition: %d providers, %d categories, %d features, %d languages; Unclassified in %d provider summaries and %d category summaries", providers, categories, features, languages, unknownProviders, unknownCategories)
 	grossRecorder := httptest.NewRecorder()
 	newBigQueryHandlers(newCachedBigQueryClient(client, time.Minute)).handleTeamGrossOverview(grossRecorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month=2026-09", nil).WithContext(ctx))
 	var httpGross TeamGrossOverview
@@ -135,7 +148,7 @@ func TestTeamGrossOverviewOptionalComposition(t *testing.T) {
 		SmallTeams: 2, SmallTeamsUsers: 3, SmallTeamsGrossUSD: 10, DistinctGrossUSD: 50,
 		UnassignedGrossUSD: 8, LastUsageDay: "2026-09-30", DaysWithUsage: 30,
 	}
-	visibleUsage := TeamUsageComposition{Models: []string{"gpt-5"}, Feature: "chat", Language: "go"}
+	visibleUsage := TeamUsageComposition{Providers: []string{"OpenAI"}, Categories: []string{"Powerful"}, Feature: "chat", Language: "go"}
 	for _, tc := range []struct {
 		name  string
 		usage map[string]TeamUsageComposition
@@ -151,7 +164,7 @@ func TestTeamGrossOverviewOptionalComposition(t *testing.T) {
 			got := teamGrossOverview("2026-09", rows, tc.usage, tc.err)
 			expected := *want
 			if tc.err == nil {
-				expected.Usage = tc.usage
+				expected.Usage = map[string]TeamUsageComposition{"visible": {Providers: []string{}, Categories: []string{}}}
 				if tc.name == "pruned" {
 					expected.Usage = map[string]TeamUsageComposition{"visible": visibleUsage}
 				}

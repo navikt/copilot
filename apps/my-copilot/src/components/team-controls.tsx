@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { Button, Checkbox, CheckboxGroup, HStack, Popover, Search, VStack } from "@navikt/ds-react";
-import { CodeIcon, CpuIcon, WrenchIcon } from "@navikt/aksel-icons";
+import { Buildings3Icon, CodeIcon, CpuIcon, WrenchIcon } from "@navikt/aksel-icons";
 import TeamMonthPicker from "./team-month-picker";
 
 const TeamControlsContext = createContext<{ search: string; columns: string[] }>({ search: "", columns: [] });
@@ -51,10 +51,16 @@ export default function TeamControls({ month, children }: { month: string; child
               }}
             >
               <CheckboxGroup legend="Bruksmønster" size="small" value={columns} onChange={setColumns}>
-                <Checkbox value="models">
+                <Checkbox value="providers">
+                  <HStack gap="space-8" align="center">
+                    <Buildings3Icon aria-hidden fontSize="1.25rem" />
+                    Leverandører
+                  </HStack>
+                </Checkbox>
+                <Checkbox value="categories">
                   <HStack gap="space-8" align="center">
                     <CpuIcon aria-hidden fontSize="1.25rem" />
-                    Modeller
+                    Modelltyper
                   </HStack>
                 </Checkbox>
                 <Checkbox value="feature">
