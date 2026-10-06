@@ -24,6 +24,8 @@ func main() {
 	billingDailyReportFrom := flag.String("billing-daily-report-from", "2025-10-10", "Start day for daily billing usage report backfill (YYYY-MM-DD)")
 	billingModelDailyBackfill := flag.Bool("billing-model-daily-backfill", false, "Backfill daily model billing data")
 	billingModelDailyFrom := flag.String("billing-model-daily-from", "2025-10-10", "Start day for daily model billing backfill (YYYY-MM-DD)")
+	userBillingMonth := flag.String("user-billing-month", "", "Fetch per-user AI credit billing for one month (YYYY-MM)")
+	userBillingSync := flag.Bool("user-billing-sync", false, "Resume unfinished closed-month user billing from October 2026")
 	repoMetricsBackfill := flag.Bool("repo-metrics-backfill", false, "Backfill per-repository usage metrics (repos-1-day) only")
 	repoMetricsFrom := flag.String("repo-metrics-from", repoMetricsGADate, "Start day for repository metrics backfill (YYYY-MM-DD)")
 	legacyBillingBackfill := flag.Bool("billing-backfill", false, "Deprecated: use --billing-monthly-backfill")
@@ -34,6 +36,87 @@ func main() {
 	flag.Parse()
 
 	config := loadConfig()
+	if *userBillingSync {
+		if getEnv("USER_BILLING_SYNC_ENABLED", "false") != "true" {
+			slog.Info("Automatic user billing sync is disabled")
+			return
+		}
+		if err := config.Validate(); err != nil || config.GitHubBillingToken == "" {
+			slog.Error("User billing sync requires GitHub App, billing token and BigQuery configuration")
+			os.Exit(1)
+		}
+		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+		defer stop()
+		ctx, cancel := context.WithTimeout(ctx, 50*time.Minute)
+		defer cancel()
+		bq, err := NewBigQueryClient(ctx, config)
+		if err != nil {
+			slog.Error("Failed to connect billing sync to BigQuery")
+			os.Exit(1)
+		}
+		defer func() { _ = bq.Close() }()
+		gh, err := NewGitHubClient(config)
+		if err != nil {
+			slog.Error("Failed to create billing source client")
+			os.Exit(1)
+		}
+		for _, ensure := range []func(context.Context) error{bq.EnsureUserBillingTableExists, bq.EnsureUserBillingRunsTableExists, bq.EnsureUserMetricsTableExists, bq.EnsureUserTeamsTableExists, bq.EnsureBillingUsageDailyModelTableExists} {
+			if err := ensure(ctx); err != nil {
+				slog.Error("Failed to prepare billing sync tables")
+				os.Exit(1)
+			}
+		}
+		if err := syncUserBilling(ctx, NewBillingClient(config.GitHubBillingToken, config.EnterpriseSlug), gh, bq, config, time.Now().UTC()); err != nil {
+			if err == context.DeadlineExceeded || err == errBillingBudget {
+				slog.Info("User billing sync checkpointed; continuing next night")
+				return
+			}
+			slog.Error("User billing sync incomplete", "error", err)
+			NewSlackNotifier(config.SlackWebhookURL).NotifyError(context.Background(), "Monthly user billing sync is incomplete. Check the job logs; completed checkpoints will resume next night.")
+			os.Exit(1)
+		}
+		return
+	}
+	if *userBillingMonth != "" {
+		if config.BigQueryProjectID == "" || config.GitHubBillingToken == "" {
+			slog.Error("User billing backfill requires GCP_TEAM_PROJECT_ID and GITHUB_BILLING_TOKEN")
+			os.Exit(1)
+		}
+		month, err := time.Parse("2006-01", *userBillingMonth)
+		if err != nil {
+			slog.Error("Invalid user billing month", "error", err)
+			os.Exit(1)
+		}
+		if !month.Before(billingSyncStart) {
+			slog.Error("Months from October 2026 require --user-billing-sync with identity and source validation")
+			os.Exit(1)
+		}
+		now := time.Now().UTC()
+		if !month.Before(time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)) {
+			slog.Error("User billing month must be closed", "month", *userBillingMonth)
+			os.Exit(1)
+		}
+		ctx := context.Background()
+		bq, err := NewBigQueryClient(ctx, config)
+		if err != nil {
+			slog.Error("Failed to connect to BigQuery", "error", err)
+			os.Exit(1)
+		}
+		defer func() { _ = bq.Close() }()
+		if err := bq.EnsureUserBillingTableExists(ctx); err != nil {
+			slog.Error("Failed to ensure user billing table", "error", err)
+			os.Exit(1)
+		}
+		if err := bq.EnsureUserBillingRunsTableExists(ctx); err != nil {
+			slog.Error("Failed to ensure user billing runs table", "error", err)
+			os.Exit(1)
+		}
+		if err := ingestUserBillingMonth(ctx, NewBillingClient(config.GitHubBillingToken, config.EnterpriseSlug), bq, config, month); err != nil {
+			slog.Error("User billing ingestion failed", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: config.LogLevel,
@@ -444,9 +527,8 @@ func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore
 		} else {
 			slog.Warn("Failed to fetch user-teams report", "day", dayStr, "error", err)
 		}
-	} else if len(teamsResult.Records) > 0 {
-		if err := upsertReport(ctx, bq.UserTeamsDayExists, bq.DeleteUserTeamsDay, bq.InsertUserTeams,
-			day, teamsResult); err != nil {
+	} else {
+		if err := bq.ReplaceUserTeams(ctx, day, teamsResult); err != nil {
 			if errors.Is(err, ErrStreamingBuffer) {
 				slog.Info("Skipping user-teams re-import (streaming buffer not yet flushed, re-run in ~90 min)", "day", dayStr)
 			} else {
@@ -464,9 +546,8 @@ func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore
 		} else {
 			slog.Warn("Failed to fetch per-user metrics report", "day", dayStr, "error", err)
 		}
-	} else if len(usersResult.Records) > 0 {
-		if err := upsertReport(ctx, bq.UserMetricsDayExists, bq.DeleteUserMetricsDay, bq.InsertUserMetrics,
-			day, usersResult); err != nil {
+	} else {
+		if err := bq.ReplaceUserMetrics(ctx, day, usersResult); err != nil {
 			if errors.Is(err, ErrStreamingBuffer) {
 				slog.Info("Skipping user-metrics re-import (streaming buffer not yet flushed, re-run in ~90 min)", "day", dayStr)
 			} else {
@@ -560,9 +641,8 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 				if !errors.Is(fetchErr, ErrReportNotAvailable) {
 					slog.Warn("Failed to fetch missing user-teams", "day", dayStr, "error", fetchErr)
 				}
-			} else if len(teamsResult.Records) > 0 {
-				if storeErr := upsertReport(ctx, bq.UserTeamsDayExists, bq.DeleteUserTeamsDay, bq.InsertUserTeams,
-					day, teamsResult); storeErr != nil {
+			} else {
+				if storeErr := bq.ReplaceUserTeams(ctx, day, teamsResult); storeErr != nil {
 					// A streaming-buffer rejection is expected and self-healing,
 					// so it is logged at Info here and at the two sites below,
 					// matching ingestSupplementary and runRepoMetricsBackfill.
@@ -594,9 +674,8 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 				if !errors.Is(fetchErr, ErrReportNotAvailable) {
 					slog.Warn("Failed to fetch missing user-metrics", "day", dayStr, "error", fetchErr)
 				}
-			} else if len(usersResult.Records) > 0 {
-				if storeErr := upsertReport(ctx, bq.UserMetricsDayExists, bq.DeleteUserMetricsDay, bq.InsertUserMetrics,
-					day, usersResult); storeErr != nil {
+			} else {
+				if storeErr := bq.ReplaceUserMetrics(ctx, day, usersResult); storeErr != nil {
 					if errors.Is(storeErr, ErrStreamingBuffer) {
 						slog.Info("Skipping user-metrics re-import (streaming buffer not yet flushed, re-run in ~90 min)", "day", dayStr)
 					} else {
@@ -762,7 +841,7 @@ func ingestCurrentMonthBilling(ctx context.Context, billing *BillingClient, bq *
 		slog.Warn("Failed to ingest current month billing", "year", year, "month", month, "error", err)
 	}
 
-	prevMonth := now.AddDate(0, -1, 0)
+	prevMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -1, 0)
 	if err := ingestBillingMonth(ctx, billing, bq, cfg, prevMonth.Year(), int(prevMonth.Month()), true); err != nil {
 		slog.Warn("Failed to ingest previous month billing", "year", prevMonth.Year(), "month", int(prevMonth.Month()), "error", err)
 	}
@@ -865,14 +944,14 @@ func ingestTodayBudgetSnapshot(ctx context.Context, budget *BudgetClient, bq *Bi
 		return
 	}
 
-	// Delete existing snapshot for today before re-inserting (idempotent).
-	// If the check or delete fails we still attempt insert — BigQuery data may not exist yet.
 	exists, checkErr := bq.BudgetSnapshotExists(ctx, today, cfg.EnterpriseSlug)
 	if checkErr != nil {
-		slog.Warn("Could not check if budget snapshot exists (proceeding with insert)", "date", dateStr, "error", checkErr)
+		slog.Warn("Could not check if budget snapshot exists", "date", dateStr, "error", checkErr)
+		return
 	} else if exists {
 		if delErr := bq.DeleteBudgetSnapshot(ctx, today, cfg.EnterpriseSlug); delErr != nil {
-			slog.Warn("Failed to delete existing budget snapshot (proceeding with insert)", "date", dateStr, "error", delErr)
+			slog.Warn("Failed to delete existing budget snapshot", "date", dateStr, "error", delErr)
+			return
 		}
 	}
 
@@ -917,10 +996,12 @@ func ingestTodayUserBudgetSnapshot(ctx context.Context, gh *GitHubClient, budget
 	// Delete existing snapshot for today before re-inserting (idempotent).
 	exists, checkErr := bq.UserBudgetSnapshotExists(ctx, today, cfg.EnterpriseSlug)
 	if checkErr != nil {
-		slog.Warn("Could not check if user budget snapshot exists (proceeding with insert)", "date", dateStr, "error", checkErr)
+		slog.Warn("Could not check if user budget snapshot exists", "date", dateStr, "error", checkErr)
+		return
 	} else if exists {
 		if delErr := bq.DeleteUserBudgetSnapshot(ctx, today, cfg.EnterpriseSlug); delErr != nil {
-			slog.Warn("Failed to delete existing user budget snapshot (proceeding with insert)", "date", dateStr, "error", delErr)
+			slog.Warn("Failed to delete existing user budget snapshot", "date", dateStr, "error", delErr)
+			return
 		}
 	}
 
@@ -933,9 +1014,7 @@ func ingestTodayUserBudgetSnapshot(ctx context.Context, gh *GitHubClient, budget
 }
 
 // ingestYesterdayBudgetSnapshot ensures yesterday's enterprise budget snapshot exists.
-// Budget snapshots are point-in-time — if yesterday's run failed or was skipped,
-// that day's data is lost forever. This lookback recovers it on the next successful run.
-// Only inserts if no data exists for yesterday (does not overwrite).
+// Live endpoints cannot recover yesterday's point-in-time observation.
 func ingestYesterdayBudgetSnapshot(ctx context.Context, budget *BudgetClient, bq *BigQueryClient, cfg *Config) {
 	yesterday := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
 	dateStr := yesterday.Format("2006-01-02")
@@ -949,27 +1028,11 @@ func ingestYesterdayBudgetSnapshot(ctx context.Context, budget *BudgetClient, bq
 		return // Already captured — nothing to do
 	}
 
-	slog.Info("Yesterday's budget snapshot missing, attempting recovery", "date", dateStr)
-
-	entries, err := budget.FetchAllBudgets(ctx)
-	if err != nil {
-		slog.Warn("Failed to fetch budget entries for yesterday recovery", "date", dateStr, "error", err)
-		return
-	}
-	if len(entries) == 0 {
-		return
-	}
-
-	if err := bq.InsertBudgetSnapshots(ctx, yesterday, cfg.EnterpriseSlug, entries); err != nil {
-		slog.Warn("Failed to insert yesterday's budget snapshot", "date", dateStr, "error", err)
-		return
-	}
-
-	slog.Info("Recovered yesterday's budget snapshot", "date", dateStr, "entries", len(entries))
+	slog.Warn("Yesterday's budget observation is missing; live values cannot recover it", "date", dateStr)
 }
 
 // ingestYesterdayUserBudgetSnapshot ensures yesterday's per-user budget snapshot exists.
-// Same recovery logic as ingestYesterdayBudgetSnapshot — captures missed days.
+// Live endpoints cannot recover yesterday's point-in-time observation.
 func ingestYesterdayUserBudgetSnapshot(ctx context.Context, gh *GitHubClient, budget *BudgetClient, bq *BigQueryClient, cfg *Config) {
 	yesterday := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
 	dateStr := yesterday.Format("2006-01-02")
@@ -983,30 +1046,5 @@ func ingestYesterdayUserBudgetSnapshot(ctx context.Context, gh *GitHubClient, bu
 		return
 	}
 
-	slog.Info("Yesterday's user budget snapshot missing, attempting recovery", "date", dateStr)
-
-	logins, err := gh.FetchAllCopilotLogins(ctx)
-	if err != nil {
-		slog.Warn("Failed to fetch Copilot seat holders for yesterday recovery", "date", dateStr, "error", err)
-		return
-	}
-	if len(logins) == 0 {
-		return
-	}
-
-	entries, err := budget.FetchAllUserBudgets(ctx, logins)
-	if err != nil {
-		slog.Warn("Failed to fetch user budgets for yesterday recovery", "date", dateStr, "error", err)
-		return
-	}
-	if len(entries) == 0 {
-		return
-	}
-
-	if err := bq.InsertUserBudgetSnapshots(ctx, yesterday, cfg.EnterpriseSlug, entries); err != nil {
-		slog.Warn("Failed to insert yesterday's user budget snapshot", "date", dateStr, "error", err)
-		return
-	}
-
-	slog.Info("Recovered yesterday's user budget snapshot", "date", dateStr, "users", len(entries))
+	slog.Warn("Yesterday's user budget observation is missing; live values cannot recover it", "date", dateStr)
 }

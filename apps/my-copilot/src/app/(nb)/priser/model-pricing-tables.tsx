@@ -5,6 +5,7 @@ import { BodyShort, Checkbox, CheckboxGroup, HStack, Search, VStack } from "@nav
 import { MODEL_PRICING } from "@/lib/model-pricing";
 import type { ModelPrice } from "@/lib/model-pricing";
 import { isNavAllowedModel, normalizeModelName } from "@/lib/model-policy";
+import { ModelCategoryIcon, ModelProviderIcon } from "@/components/model-icons";
 
 const PROVIDER_ORDER = ["OpenAI", "Anthropic", "Google", "GitHub", "Moonshot AI", "Microsoft"] as const;
 
@@ -364,7 +365,10 @@ export function ModelPricingTables({ only }: { only?: string[] } = {}) {
                             key={key}
                             style={{ paddingBlock: "var(--ax-space-12)", paddingInline: "var(--ax-space-16)" }}
                           >
-                            {model.provider}
+                            <HStack gap="space-8" align="center" wrap={false}>
+                              <ModelProviderIcon provider={model.provider} />
+                              <span>{model.provider}</span>
+                            </HStack>
                           </td>
                         );
                       }
@@ -403,14 +407,16 @@ export function ModelPricingTables({ only }: { only?: string[] } = {}) {
                             style={{ paddingBlock: "var(--ax-space-12)", paddingInline: "var(--ax-space-16)" }}
                           >
                             <span
-                              className="inline-block rounded-full font-medium"
+                              className="inline-flex items-center rounded-full font-medium"
                               style={{
+                                gap: "var(--ax-space-4)",
                                 fontSize: "0.6875rem",
                                 paddingBlock: "var(--ax-space-2)",
                                 paddingInline: "var(--ax-space-10)",
                                 ...style,
                               }}
                             >
+                              <ModelCategoryIcon category={model.category} />
                               {model.category}
                             </span>
                           </td>

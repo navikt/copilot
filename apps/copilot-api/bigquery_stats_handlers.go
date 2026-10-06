@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -52,6 +53,58 @@ func (h *BigQueryHandlers) handleTeamUsageSummary(w http.ResponseWriter, r *http
 
 	cacheControl(w, 3600, false)
 	respondJSON(w, usage, http.StatusOK)
+}
+
+func (h *BigQueryHandlers) handleTeamGrossOverview(w http.ResponseWriter, r *http.Request) {
+	month, ok := optionalMonthParam(r, "month")
+	if !ok {
+		respondError(w, "invalid_parameter", "month must be in YYYY-MM format", http.StatusBadRequest)
+		return
+	}
+	usage, err := h.bqClient.GetTeamGrossOverview(r.Context(), month)
+	if err != nil {
+		slog.Error("Failed to fetch team gross usage")
+		respondError(w, "internal_error", "Failed to fetch team gross usage", http.StatusInternalServerError)
+		return
+	}
+	cacheControl(w, 3600, false)
+	respondJSON(w, usage, http.StatusOK)
+}
+
+func (h *BigQueryHandlers) handleTeamNetOverview(w http.ResponseWriter, r *http.Request) {
+	month, ok := optionalMonthParam(r, "month")
+	if !ok {
+		respondError(w, "invalid_parameter", "month must be in YYYY-MM format", http.StatusBadRequest)
+		return
+	}
+	usage, err := h.bqClient.GetTeamNetOverview(r.Context(), month)
+	if err != nil {
+		if errors.Is(err, errTeamNetNotReady) {
+			respondJSON(w, nil, http.StatusOK)
+			return
+		}
+		slog.Error("Failed to fetch team net usage")
+		respondError(w, "internal_error", "Failed to fetch team net usage", http.StatusInternalServerError)
+		return
+	}
+	cacheControl(w, 3600, false)
+	respondJSON(w, usage, http.StatusOK)
+}
+
+func (h *BigQueryHandlers) handleMyTeams(w http.ResponseWriter, r *http.Request) {
+	identity, ok := GetResolvedIdentity(r.Context())
+	if !ok || identity == nil {
+		respondError(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
+		return
+	}
+	teams, err := h.bqClient.GetUserTeams(r.Context(), identity.GitHubUsername)
+	if err != nil {
+		slog.Error("Failed to fetch caller teams", "error", err)
+		respondError(w, "internal_error", "Failed to fetch your teams", http.StatusInternalServerError)
+		return
+	}
+	cacheControl(w, 300, false)
+	respondJSON(w, teams, http.StatusOK)
 }
 
 func (h *BigQueryHandlers) handleUserMetrics(w http.ResponseWriter, r *http.Request) {

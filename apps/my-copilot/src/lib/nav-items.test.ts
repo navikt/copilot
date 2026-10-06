@@ -14,6 +14,7 @@ describe("activeTop", () => {
     ["/retningslinjer", "/praksis"],
     ["/praksis/guide/wrap-metoden", "/praksis"],
     ["/kostnad", "/innsikt"],
+    ["/innsikt/team", "/innsikt"],
     ["/priser", "/innsikt"],
     ["/modeller", "/innsikt"],
     ["/nav-pilotx", undefined],

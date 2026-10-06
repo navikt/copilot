@@ -2,7 +2,14 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { introspectToken, parseBearerToken } from "@/lib/introspect";
 
-export const PRIVATE_PAGE_PATHS = ["/statistikk", "/adopsjon", "/kostnad", "/abonnement", "/nav-pilot/undersokelse"];
+export const PRIVATE_PAGE_PATHS = [
+  "/statistikk",
+  "/innsikt/team",
+  "/adopsjon",
+  "/kostnad",
+  "/abonnement",
+  "/nav-pilot/undersokelse",
+];
 
 export const PRIVATE_API_PATHS = ["/api/copilot", "/api/adoption", "/statistikk/json"];
 
@@ -52,6 +59,7 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/statistikk/:path*",
+    "/innsikt/team/:path*",
     "/adopsjon/:path*",
     "/kostnad/:path*",
     "/abonnement/:path*",

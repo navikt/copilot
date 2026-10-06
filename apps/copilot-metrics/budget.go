@@ -175,8 +175,7 @@ func (c *BudgetClient) FetchUserEffectiveBudget(ctx context.Context, login strin
 }
 
 // FetchAllUserBudgets fetches effective budget and consumption for every login in the list.
-// Uses 10 concurrent goroutines to stay within GitHub API rate limits.
-// Errors for individual users are logged as warnings and skipped — partial data is acceptable.
+// A partial census must not replace a previously complete snapshot.
 func (c *BudgetClient) FetchAllUserBudgets(ctx context.Context, logins []string) ([]UserBudgetData, error) {
 	const concurrency = 10
 
@@ -216,7 +215,7 @@ func (c *BudgetClient) FetchAllUserBudgets(ctx context.Context, logins []string)
 	}
 
 	if errCount > 0 {
-		slog.Warn("Some user budget fetches failed", "errors", errCount, "successful", len(all))
+		return nil, fmt.Errorf("user budget census failed for %d users", errCount)
 	}
 	slog.Info("Fetched all user budgets", "users_with_data", len(all), "total_users", len(logins))
 	return all, nil

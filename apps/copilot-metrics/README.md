@@ -71,6 +71,32 @@ Runs as a Kubernetes CronJob via NAIS. Automatically detects missing days in Big
 copilot-metrics --run-once
 ```
 
+### Automatic user billing
+
+`--user-billing-sync` resumes unfinished closed UTC months from October 2026.
+Manual `--user-billing-month` remains limited to the historical months before
+October 2026; future months must use the identity- and coverage-checked worker.
+It runs separately from daily ingestion, for at most 50 minutes. Each execution
+allows at most 2,000 identity/billing requests and stops with 500 requests left
+in the token's reported quota. These limits include retries; other token users
+can still consume quota concurrently.
+
+The deployed worker uses the existing `copilot-metrics` secret and runs nightly
+at 09:00 UTC in dev and 08:00 UTC in prod. October 2026 first becomes eligible
+on November 1. Set `USER_BILLING_SYNC_ENABLED=false` to disable collection.
+`concurrencyPolicy: Forbid` prevents overlapping scheduled runs.
+Before a manual billing load, disable the scheduled worker and wait for active
+pods and their BigQuery jobs to finish. This rule also applies to local binaries.
+
+Source failures and unresolved GitHub identities keep a month unpublished and
+trigger the existing Slack error notification. Completed user checkpoints resume
+next night. Enterprise totals are stored with publication; team timing remains
+an estimate derived from live daily usage and membership reports.
+
+Completed months are observations at collection time, not final invoices.
+Automatic correction refresh is not implemented. Never delete completion
+markers to refresh a published month; a correction needs a staged replacement.
+
 ### Historical backfill
 
 One-time operation to load historical data:

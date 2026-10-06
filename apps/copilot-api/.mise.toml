@@ -72,7 +72,15 @@ fi
 
 [tasks.check]
 description = "Run all checks (fmt, vet, staticcheck, deadcode, lint, test)"
-depends = ["fmt", "vet", "staticcheck", "deadcode", "lint", "test:short"]
+depends = ["fmt", "vet", "staticcheck", "deadcode", "lint", "test:short", "generate:check"]
+
+[tasks.generate]
+description = "Generate model metadata from the pricing catalog"
+run = "node ../../scripts/generate-api-model-metadata.mjs"
+
+[tasks."generate:check"]
+description = "Check generated model metadata matches the pricing catalog"
+run = "node ../../scripts/generate-api-model-metadata.mjs --check"
 
 [tasks.all]
 description = "Run all checks, build, test and docker build"
