@@ -3,17 +3,28 @@ import { MODEL_PRICING } from "./model-pricing";
 import { getCurrentOsloDate } from "./news";
 
 describe("promotionEndsOn", () => {
-  it("merker nøyaktig radene med kampanjefotnote hos GitHub", () => {
-    const promoted = MODEL_PRICING.filter((m) => m.promotionEndsOn).map((m) => m.model);
-    expect(promoted).toEqual(["Gemini 3.7 Flash (Default)", "Gemini 3.8 Flash (Default)"]);
+  // Utledet fra dataene, ikke fra modellnavn: GitHub fjerner modeller jevnlig,
+  // og en test som navngir rader brekker den daglige prissynken hver gang.
+  const throughDate = (note?: string) => {
+    const match = note?.match(/through (\w+ \d{1,2}, \d{4})/);
+    if (!match) return undefined;
+    const date = new Date(`${match[1]} UTC`);
+    return date.toISOString().slice(0, 10);
+  };
+
+  it("har rader å sjekke", () => {
+    expect(MODEL_PRICING.length).toBeGreaterThan(0);
   });
 
-  it("gir sluttdatoen, som er hele poenget med merket", () => {
-    expect(MODEL_PRICING.find((m) => m.model === "Gemini 3.7 Flash (Default)")?.promotionEndsOn).toBe("2026-12-31");
+  it("merker nøyaktig radene med kampanjefotnote hos GitHub, med sluttdatoen fra fotnoten", () => {
+    for (const m of MODEL_PRICING) {
+      expect(m.promotionEndsOn, m.model).toBe(throughDate(m.note));
+    }
   });
 
-  it("lar modeller uten fotnote være", () => {
-    expect(MODEL_PRICING.find((m) => m.model === "GPT-5.6 Luna (Default, ≤ 200K)")?.promotionEndsOn).toBeUndefined();
+  it("leser sluttdatoen fra fotnoteteksten", () => {
+    expect(throughDate("promotional pricing through December 31, 2026.")).toBe("2026-12-31");
+    expect(throughDate("no end date here")).toBeUndefined();
   });
 });
 

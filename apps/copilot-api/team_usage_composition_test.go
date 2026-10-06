@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 )
@@ -122,5 +123,36 @@ func TestCompositionRankingTiesAndUnknown(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got["four"].Categories, []string{"Powerful", "Versatile", "Lightweight", unclassified}) {
 		t.Fatalf("fourth Unclassified category lost: %+v", got["four"])
+	}
+}
+
+// Every model the generated metadata names, current or retired, must classify
+// as itself. Derived from the file, so a pricing sync that drops a model needs
+// no test edit, and a generator that forgets one fails here.
+func TestClassifyModelCoversGeneratedMetadata(t *testing.T) {
+	var document struct {
+		Models  []modelMetadata `json:"models"`
+		Retired []modelMetadata `json:"retired"`
+	}
+	if err := json.Unmarshal(modelMetadataJSON, &document); err != nil {
+		t.Fatal(err)
+	}
+	if len(document.Models) == 0 {
+		t.Fatal("model_metadata.json lists no models")
+	}
+	current := map[string]bool{}
+	for _, model := range document.Models {
+		current[modelKey(model.Model)] = true
+	}
+	expected := document.Models
+	for _, model := range document.Retired {
+		if !current[modelKey(model.Model)] { // otherwise the current row wins
+			expected = append(expected, model)
+		}
+	}
+	for _, want := range expected {
+		if got := classifyModel(want.Model); got.Provider != want.Provider || got.Category != want.Category {
+			t.Errorf("%q classified as %s/%s, want %s/%s", want.Model, got.Provider, got.Category, want.Provider, want.Category)
+		}
 	}
 }

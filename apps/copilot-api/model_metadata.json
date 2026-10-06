@@ -189,5 +189,77 @@
       "provider": "Moonshot AI",
       "category": "Powerful"
     }
+  ],
+  "retired": [
+    {
+      "model": "Claude Opus 4.5",
+      "provider": "Anthropic",
+      "category": "Powerful"
+    },
+    {
+      "model": "Claude Opus 4.6",
+      "provider": "Anthropic",
+      "category": "Powerful"
+    },
+    {
+      "model": "Claude Opus 4.7",
+      "provider": "Anthropic",
+      "category": "Powerful"
+    },
+    {
+      "model": "Claude Sonnet 4.5",
+      "provider": "Anthropic",
+      "category": "Versatile"
+    },
+    {
+      "model": "Gemini 2.5 Pro",
+      "provider": "Google",
+      "category": "Powerful"
+    },
+    {
+      "model": "Gemini 3 Flash",
+      "provider": "Google",
+      "category": "Lightweight"
+    },
+    {
+      "model": "Gemini 3.1 Pro",
+      "provider": "Google",
+      "category": "Powerful"
+    },
+    {
+      "model": "Gemini 3.5 Flash (Default)",
+      "provider": "Google",
+      "category": "Lightweight"
+    },
+    {
+      "model": "Gemini 3.6 Flash (Default)",
+      "provider": "Google",
+      "category": "Versatile"
+    },
+    {
+      "model": "GPT-4.1",
+      "provider": "OpenAI",
+      "category": "Versatile"
+    },
+    {
+      "model": "GPT-5.2",
+      "provider": "OpenAI",
+      "category": "Versatile"
+    },
+    {
+      "model": "GPT-5.2-Codex",
+      "provider": "OpenAI",
+      "category": "Powerful"
+    },
+    {
+      "model": "Kimi K2.7 Code",
+      "provider": "Moonshot AI",
+      "category": "Versatile"
+    },
+    {
+      "model": "Raptor mini",
+      "provider": "GitHub",
+      "category": "Versatile"
+    }
   ]
 }
