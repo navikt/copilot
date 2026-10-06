@@ -244,7 +244,7 @@ func printSandboxScope(dir, root string, reads []string) {
 // ErrCpltMissing is the error every launch without cplt fails with:
 // nav-pilot never runs a client outside the sandbox.
 func ErrCpltMissing(client string) error {
-	return fmt.Errorf("cplt not found in PATH — nav-pilot launches clients inside the cplt sandbox; install cplt to launch %s: %s",
+	return fmt.Errorf("cplt not found in PATH: nav-pilot launches clients inside the cplt sandbox; install cplt to launch %s: %s",
 		client, domain.Bold(domain.PkgForInstall().Pick("brew install navikt/tap/cplt", "sudo apt install cplt")))
 }
 

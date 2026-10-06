@@ -132,7 +132,7 @@ func TestLaunchWithoutCpltFails(t *testing.T) {
 	isolateHome(t)
 	dir := t.TempDir()
 	out := filepath.Join(dir, "argv.txt")
-	if err := testhome.WriteExec(filepath.Join(dir, "copilot"), "#!/bin/sh\ntouch "+out+"\n"); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "copilot"), "#!/bin/sh\n[ \"$1\" = --version ] && { echo 1.0.0; exit 0; }\n: > "+out+"\n"); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir)

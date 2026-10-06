@@ -385,7 +385,7 @@ En modell du velger med config eller `--model`, vinner over agentpakkas standard
 > cplt, starter nav-pilot ingen klient. `--no-sandbox` finnes ikke lenger: nav-pilot
 > avslutter med en feilmelding som forklarer hvordan du installerer cplt.
 > Ett unntak: For å sjekke hvilke modeller kontoen din har, kjører nav-pilot
-> `copilot -p probe` direkte, uten cplt. Copilot CLI avviser kallet før noen prompt
+> `copilot --model nav-pilot-model-probe -p probe` direkte, uten cplt. Copilot CLI avviser kallet før noen prompt
 > kjører, og ingen agent starter.
 >
 > **Sandboxen gjelder katalogen du står i.** nav-pilot sender alltid `--project-dir` med
