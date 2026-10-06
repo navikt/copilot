@@ -265,8 +265,10 @@ func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 		}
 		args = append(args, "--agent", persona)
 	}
-	if resolved.AllowAllTools {
-		args = append(args, "--dangerously-skip-permissions")
+	// Sandbox autonomy means cplt is the boundary, so opencode's own prompts
+	// go (as for copilot); --auto is opencode 1.18's public allow-all flag.
+	if resolved.Autonomy == "sandbox" || resolved.AllowAllTools {
+		args = append(args, "--auto")
 	}
 	if lvl := openCodeLogLevel(resolved.LogLevel); lvl != "" {
 		args = append(args, "--log-level", lvl)

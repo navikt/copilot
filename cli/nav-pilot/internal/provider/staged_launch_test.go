@@ -711,6 +711,23 @@ func TestOpenCodeAcceptsPluginDir(t *testing.T) {
 	}
 }
 
+// TestStagedOpenCodeSandboxAuto: sandbox autonomy passes opencode --auto (cplt
+// is the boundary); conservative keeps opencode's own prompts.
+func TestStagedOpenCodeSandboxAuto(t *testing.T) {
+	SetActivePakke(stagedFixturePakke())
+	t.Cleanup(func() { SetActivePakke(nil) })
+	staged := StagedLaunch{Dir: t.TempDir(), PakkeName: "grillmester", Context: "full"}
+	for autonomy, want := range map[string]bool{"sandbox": true, "conservative": false} {
+		spec, err := buildStagedOpenCodeSpec(domain.ResolvedConfig{Client: "opencode", Autonomy: autonomy}, staged)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := slices.Contains(spec.agentArgs, "--auto"); got != want {
+			t.Errorf("autonomy %s: --auto=%v, want %v (%v)", autonomy, got, want, spec.agentArgs)
+		}
+	}
+}
+
 // TestStagedPiSpec is the staged pi invocation vector, which the two-client
 // table above cannot express: pi has no --agent, so its persona is a file the
 // payload ships and the whole vector depends on what is on disk.

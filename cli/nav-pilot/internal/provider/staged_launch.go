@@ -255,6 +255,9 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 		agent = "plan"
 	}
 	bind := []string{"--agent", agent}
+	if r.Autonomy == "sandbox" || r.AllowAllTools {
+		bind = append(bind, "--auto") // cplt is the boundary, as in OpenCodeArgs
+	}
 	// Routed through ToOpenCodeModel rather than appended raw: it passes an
 	// already-qualified id through unchanged, prefixes a bare one, and maps
 	// "", "auto", and the legacy alias to "" so the flag is omitted and
