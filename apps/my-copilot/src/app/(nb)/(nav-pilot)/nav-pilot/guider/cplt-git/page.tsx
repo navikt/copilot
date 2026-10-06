@@ -187,14 +187,14 @@ export GH_TOKEN=$(gh auth token)   # i skallet du starter nav-pilot fra`}
             varer. Signering med SSH-nøkkel (<code className={code}>gpg.format=ssh</code>) virker ikke.
           </BodyLong>
           <BodyLong>
-            GPG-agenten må allerede kjøre på maskinen din når økten starter, for sandkassen kan ikke starte den. Kjør
-            dette utenfor cplt først:
+            Start GPG-agenten før økten. Sandkassen stenger skriving til <code className={code}>~/.gnupg</code>, så gpg
+            får trolig ikke startet agenten selv. Kjør dette utenfor cplt:
           </BodyLong>
           <CodeBlock compact>{`gpgconf --launch gpg-agent`}</CodeBlock>
           <BodyLong>
-            Signering og git over SSH er innstillinger i cplt, ikke i nav-pilot. nav-pilot sender ikke flagg som{" "}
-            <code className={code}>--allow-gpg-signing</code> videre til cplt, så sett dem i cplt-konfigurasjonen som
-            vist over.
+            Signering og git over SSH stilles inn i cplt, ikke i nav-pilot. nav-pilot sender ikke flagg som{" "}
+            <code className={code}>--allow-gpg-signing</code> videre til cplt. Sett dem i cplt-konfigurasjonen som vist
+            over.
           </BodyLong>
         </VStack>
       </section>
