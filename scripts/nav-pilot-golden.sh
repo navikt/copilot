@@ -1433,6 +1433,15 @@ absent()  { ! grep -qiE -- "$2" "$1"; }
 RE_BS1='personopplysning|persondata|personvern|GDPR|datakategori|behandlingsgrunnlag'
 RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]]+bruker|innbygger|saksbehandler|autorisasjon'
 
+# Test 7: a privacy or access question put TO THE USER, not a stated
+# assumption. Only sentences ending in `?` are searched, so «Personvern er
+# besvart av koden» and «Jeg legger til grunn at SokerDto inneholder
+# fødselsnummer» pass, while «Hvilke personopplysninger …?» and «Hvem leser
+# de to Kafka-temaene?» fail. Derived from the 2026-10-06 OpenCode/GPT-6 Sol
+# transcripts in docs/golden-baselines/ (before: 3/3 hit, after: 3/3 hit).
+RE_ASK_PRIV='personopplysning|personvern|persondata|GDPR|datakategori|behandlingsgrunnlag|klassifisering|tilgang|hvem[[:space:]]+(kan|skal|leverer|kaller|leser|konsumerer|bruker|produserer)'
+asks_privacy() { grep -oiE '[^.!?]*\?' "$1" | grep -qiE "$RE_ASK_PRIV"; }
+
 count_of() { grep -oiE -- "$2" "$1" 2>/dev/null | wc -l | tr -d ' '; }
 
 # Recommendation verbs, word-bounded on both sides. The boundaries matter:
@@ -2079,10 +2088,8 @@ run_pass_nav_pilot() {
       PROMPT_COMMAND=""
       if [[ $rc7 -ne 0 ]]; then
         record_error 7 "$DESC7" "$LAST_PROMPT_DETAIL"
-      elif ! absent "$T7" "$RE_BS1"; then
-        record 7 "$DESC7" 1 "raised personvern on a library migration (matched: $RE_BS1)"
-      elif ! absent "$T7" "$RE_BS2"; then
-        record 7 "$DESC7" 1 "raised tilgangskontroll on a library migration (matched: $RE_BS2)"
+      elif asks_privacy "$T7"; then
+        record 7 "$DESC7" 1 "asked the user about personvern or tilgang on a library migration: $(grep -oiE '[^.!?]*\?' "$T7" | grep -iE "$RE_ASK_PRIV" | head -1 | cut -c1-160)"
       else
         record 7 "$DESC7" 0
       fi
