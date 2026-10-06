@@ -156,3 +156,17 @@ func TestClassifyModelCoversGeneratedMetadata(t *testing.T) {
 		}
 	}
 }
+
+// Fixed names from usage history. The test above derives from the file, so a
+// generator that loses `retired` wholesale would pass it; this would not.
+func TestClassifyModelKeepsHistoricalModels(t *testing.T) {
+	for name, want := range map[string]modelMetadata{
+		"GPT-4.1":         {"GPT-4.1", "OpenAI", "Versatile"},
+		"Claude Opus 4.5": {"Claude Opus 4.5", "Anthropic", "Powerful"},
+		"Kimi K2.7 Code":  {"Kimi K2.7 Code", "Moonshot AI", "Versatile"},
+	} {
+		if got := classifyModel(name); got.Provider != want.Provider || got.Category != want.Category {
+			t.Errorf("%q classified as %s/%s, want %s/%s", name, got.Provider, got.Category, want.Provider, want.Category)
+		}
+	}
+}

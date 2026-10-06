@@ -212,6 +212,21 @@
       "category": "Versatile"
     },
     {
+      "model": "GPT-4.1",
+      "provider": "OpenAI",
+      "category": "Versatile"
+    },
+    {
+      "model": "GPT-5.2",
+      "provider": "OpenAI",
+      "category": "Versatile"
+    },
+    {
+      "model": "GPT-5.2-Codex",
+      "provider": "OpenAI",
+      "category": "Powerful"
+    },
+    {
       "model": "Gemini 2.5 Pro",
       "provider": "Google",
       "category": "Powerful"
@@ -235,21 +250,6 @@
       "model": "Gemini 3.6 Flash (Default)",
       "provider": "Google",
       "category": "Versatile"
-    },
-    {
-      "model": "GPT-4.1",
-      "provider": "OpenAI",
-      "category": "Versatile"
-    },
-    {
-      "model": "GPT-5.2",
-      "provider": "OpenAI",
-      "category": "Versatile"
-    },
-    {
-      "model": "GPT-5.2-Codex",
-      "provider": "OpenAI",
-      "category": "Powerful"
     },
     {
       "model": "Kimi K2.7 Code",

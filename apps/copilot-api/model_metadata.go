@@ -46,7 +46,11 @@ var metadataByModel = func() map[string]modelMetadata {
 	// Models the pricing page has dropped; the generator keeps them so past
 	// usage stays classified. Current pricing below overrides on a key clash.
 	for _, model := range document.Retired {
-		result[modelKey(model.Model)] = model
+		key := modelKey(model.Model)
+		if previous, ok := result[key]; ok && (previous.Provider != model.Provider || previous.Category != model.Category) {
+			panic("conflicting retired model metadata: " + key)
+		}
+		result[key] = model
 	}
 	current := map[string]modelMetadata{}
 	for _, model := range document.Models {
