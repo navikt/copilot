@@ -54,7 +54,7 @@ export const CONFIG_KEYS = [
     key: "allow_all_tools",
     flag: "--allow-all-tools / --no-allow-all-tools",
     values: "true · false (standard: false)",
-    desc: "La agenten kjøre alle verktøy uten å spørre først.",
+    desc: "La agenten kjøre uten å spørre også med autonomy = conservative (Copilot: --allow-all-tools, OpenCode: --auto). Gjelder bare i cplt.",
   },
   {
     key: "ask_user",

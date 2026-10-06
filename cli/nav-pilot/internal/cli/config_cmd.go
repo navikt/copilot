@@ -94,7 +94,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "allow_all_tools",
 		kind:        keyKindBool,
-		description: "Allow all tools without per-tool confirmation.",
+		description: "Skip the client's permission prompts under cplt even with autonomy = conservative (Copilot: --allow-all-tools, OpenCode: --auto). Dropped without cplt.",
 		allowed:     nil,
 		defaultVal:  "false",
 		flag:        "--allow-all-tools / --no-allow-all-tools",
@@ -379,9 +379,9 @@ client = "copilot"
 # Corresponds to Copilot CLI flag: --context
 # context_tier = "default"
 
-# Allow all tools without per-tool confirmation.
+# Skip the client's permission prompts under cplt even with autonomy = conservative.
 # Default: false
-# Corresponds to Copilot CLI flag: --allow-all-tools
+# Copilot: --allow-all-tools, OpenCode: --auto. Dropped without cplt.
 # allow_all_tools = false
 
 # Ask the user before taking actions. Set to false to disable.

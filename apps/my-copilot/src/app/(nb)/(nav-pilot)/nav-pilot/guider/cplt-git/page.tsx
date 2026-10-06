@@ -194,7 +194,7 @@ export GH_TOKEN=$(gh auth token)   # i skallet du starter nav-pilot fra`}
           <BodyLong>
             GPG-signering stilles inn i cplt, ikke i nav-pilot. nav-pilot sender ikke flagg som{" "}
             <code className={code}>--allow-gpg-signing</code> videre til cplt. Sett dem i cplt-konfigurasjonen som vist
-            over. Git over SSH kan ikke slås på: <code className={code}>~/.ssh</code> er alltid stengt, så bruk HTTPS.
+            over. Git over SSH er stengt som standard, så bruk HTTPS.
           </BodyLong>
         </VStack>
       </section>
