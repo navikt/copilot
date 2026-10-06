@@ -6,7 +6,7 @@ describe("promotionEndsOn", () => {
   // Utledet fra dataene, ikke fra modellnavn: GitHub fjerner modeller jevnlig,
   // og en test som navngir rader brekker den daglige prissynken hver gang.
   const throughDate = (note?: string) => {
-    const match = note?.match(/through (\w+ \d{1,2}, \d{4})/);
+    const match = note?.match(/through (\w+ \d{1,2}, \d{4})/i);
     if (!match) return undefined;
     const date = new Date(`${match[1]} UTC`);
     return date.toISOString().slice(0, 10);
@@ -24,6 +24,7 @@ describe("promotionEndsOn", () => {
 
   it("leser sluttdatoen fra fotnoteteksten", () => {
     expect(throughDate("promotional pricing through December 31, 2026.")).toBe("2026-12-31");
+    expect(throughDate("Through december 31, 2026.")).toBe("2026-12-31");
     expect(throughDate("no end date here")).toBeUndefined();
   });
 });
