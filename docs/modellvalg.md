@@ -121,7 +121,28 @@ Batch 4 sammenligner GPT-6.1 Sol og Claude Opus 5.5 med GPT-6 Sol som hverdagsmo
 - **Claude Opus 5.5 Low** må være like god som kontrollen på alt. Kostnaden dokumenteres uansett.
 - **Sjekken for test 2 løsnes ikke.** Viser transkriptene at testrepoet nå svarer på personvern, skrives det ned før vurderingen og legges fram for eieren.
 
-Resultatene legges til når målingen er ferdig.
+### Resultater
+
+Rådata ligger i [2026-10-06-batch4](golden-baselines/2026-10-06-batch4/), og feilene i planleggingen er klassifisert i [failures.psv](golden-baselines/2026-10-06-batch4/failures.psv). Planlegging, koding, norsk og research har fem kjøringer per arm, kodegjennomgang ti. Credits er medianen per kjøring. Alle tallene under er målt. Ingenting er regnet ut fra andre målinger.
+
+| Testpakke          | GPT-6 Sol (kontroll) | GPT-6.1 Sol            | Claude Opus 5.5        |
+| ------------------ | -------------------- | ---------------------- | ---------------------- |
+| Planlegging, t2    | 5/5                  | 2/5                    | 5/5                    |
+| Planlegging, t3    | 5/5                  | 4/5                    | 5/5                    |
+| Planlegging, t4    | 4/5                  | 3/5                    | 5/5                    |
+| Planlegging, t5    | 5/5                  | 5/5                    | 5/5                    |
+| Planlegging, credits | 27,2               | 22,7                   | 50,8                   |
+| Koding             | 30/30, 24,7 credits  | 30/30, 25,3 credits    | 30/30, 47,9 credits    |
+| Kodegjennomgang    | 33/40, 15,4 credits  | 24/40, 17,1 credits    | 40/40, 24,4 credits    |
+| Norsk              | 20/20, 15,1 credits  | 20/20, 14,5 credits    | 20/20, 30,8 credits    |
+| Research           | 20/20, 13,0 credits  | 20/20, 14,7 credits    | 20/20, 35,8 credits    |
+
+- **GPT-6.1 Sol erstatter ikke GPT-6 Sol på `@nav-pilot`.** Den besto test 2 i to av fem kjøringer. I de tre andre listet den de åpne punktene som påstander uten spørsmålstegn. Testrepoet svarer ikke på personvern, så sjekken er ikke løsnet. Test 3 og 4 var også svakere enn kontrollen.
+- **GPT-6.1 Sol anbefales ikke som personlig standard.** Den holdt på koding, norsk og research, men ikke på kodegjennomgang. I Kotlin-fila nevnte den ikke det svelgede unntaket ved riktig linje i åtte av ti kjøringer. Kontrollen bommet på det én gang.
+- **Claude Opus 5.5 Low var minst like god som kontrollen på alle målte sjekker**, men kostet 1,6 til 2,8 ganger så mye per kjøring. Det er dyrest på research, med 35,8 credits mot 13,0.
+- **Test 7 og 7b og sidearmen i OpenCode ble ikke kjørt.** Testpakkene brukte 2 197 credits, mot et anslag på 1 909. Med testkjøringene først ble det 2 263. De gjenstående kjøringene ville ført forbruket over grensen på 2 500 credits (anslaget pluss 25 prosent). Verdiene for test 7 og 7b kan ikke endre utfallet for GPT-6.1 Sol, som allerede feiler på test 2.
+
+Denne målingen endrer ingen pinner. Om `@nav-pilot` og agentpakkens standard skal endres, avgjøres for seg.
 
 ## Pinner og delegering
 

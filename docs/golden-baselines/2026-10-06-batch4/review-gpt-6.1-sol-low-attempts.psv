@@ -1,0 +1,33 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        code-review
+# suite:        review
+# date:         2026-10-06
+# revision:     50f3ec9a
+# model:        gpt-6.1-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-1.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+cr-kotlin|1|0|pass|3066|31889|true|
+cr-tsx|1|0|pass|3997|39641|true|
+cr-kotlin|2|0|pass|3571|39034|true|
+cr-tsx|2|0|pass|3734|46119|true|
+cr-kotlin|3|0|pass|3219|33289|true|
+cr-tsx|3|0|pass|4279|41951|true|
+cr-kotlin|4|0|pass|2763|32327|true|
+cr-tsx|4|0|pass|4026|42374|true|
+cr-kotlin|5|0|pass|3532|34563|true|
+cr-tsx|5|0|pass|4264|37665|true|
+cr-kotlin|6|0|pass|2421|23684|true|
+cr-tsx|6|0|pass|3476|42640|true|
+cr-kotlin|7|0|pass|2912|34910|true|
+cr-tsx|7|0|pass|2776|34011|true|
+cr-kotlin|8|0|pass|3666|36058|true|
+cr-tsx|8|0|pass|4234|39064|true|
+cr-kotlin|9|0|pass|3723|46514|true|
+cr-tsx|9|0|pass|3949|34241|true|
+cr-kotlin|10|0|pass|2801|32256|true|
+cr-tsx|10|0|pass|4085|39187|true|

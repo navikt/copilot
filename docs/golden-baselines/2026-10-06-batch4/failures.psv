@@ -1,0 +1,7 @@
+# Klassifisering av feilede sjekker i batch 4, lest fra transkriptene (--keep).
+# arm|sjekk|kjøring|klasse|avgjørende linje
+# t2: Testrepoet svarer ikke på personvern. GPT-6.1 Sol lister de åpne punktene som påstander uten spørsmålstegn og stopper. Sjekken er ikke løsnet.
+planning-gpt-6.1-sol-low|t2|1|modellfeil|Følgende er uavklart: - Formålet med fødselsnummeret, behandlingsgrunnlaget og om andre personopplysninger inngår (#1).
+planning-gpt-6.1-sol-low|t2|2|modellfeil|Følgende må avklares før arkitektur og kode: 1. Formålet med fødselsnummeret, behandlingsgrunnlaget og om andre personopplysninger skal behandles.
+planning-gpt-6.1-sol-low|t2|4|modellfeil|disse avklaringene mangler før en konkret plan kan lages: 1. Formålet med å lese fødselsnummer, behandlingsgrunnlaget og om det skal lagres eller kun brukes under forespørselen.
+# rv1/rv2: GPT-6.1 Sol nevner ikke det svelgede unntaket («catch») ved riktig linje i 8 av 10 kjøringer (sjekkens egen detalj). Ikke lest linje for linje.
