@@ -1439,8 +1439,22 @@ RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]
 # fødselsnummer» pass, while «Hvilke personopplysninger …?» and «Hvem leser
 # de to Kafka-temaene?» fail. Derived from the 2026-10-06 OpenCode/GPT-6 Sol
 # transcripts in docs/golden-baselines/ (before: 3/3 hit, after: 3/3 hit).
-RE_ASK_PRIV='personopplysning|personvern|persondata|GDPR|datakategori|behandlingsgrunnlag|klassifisering|tilgang|hvem[[:space:]]+(kan|skal|leverer|kaller|leser|konsumerer|bruker|produserer)'
-asks_privacy() { grep -oiE '[^.!?]*\?' "$1" | grep -qiE "$RE_ASK_PRIV"; }
+#
+# «Hvem leser/konsumerer/bruker/produserer …?» is a consumer question, and a
+# consumer question about format is compatibility (#6, #9), which the persona
+# is told to ask for a wire-format change. It counts as access only when the
+# same sentence says nothing about format. Privacy words, «tilgang» and
+# «klassifisering» always count. (Refined 2026-10-06 after the v2 run.)
+RE_ASK_PRIV='personopplysning|personvern|persondata|GDPR|datakategori|behandlingsgrunnlag|klassifisering|tilgang|hvem[[:space:]]+(kan|skal|leverer|kaller)'
+RE_ASK_WHO='hvem[[:space:]]+(leser|konsumerer|bruker|produserer)'
+RE_ASK_COMPAT='format|felt|dato|tåler|kompatib|skjema|versjon'
+# Prints the first privacy/access question to the user; status 0 if there is one.
+asks_privacy() {
+  grep -oiE '[^.!?]*\?' "$1" | awk -v p="$RE_ASK_PRIV" -v w="$RE_ASK_WHO" -v c="$RE_ASK_COMPAT" '
+    { l = tolower($0) }
+    l ~ tolower(p) || (l ~ tolower(w) && l !~ tolower(c)) { print; found = 1; exit }
+    END { exit !found }'
+}
 
 count_of() { grep -oiE -- "$2" "$1" 2>/dev/null | wc -l | tr -d ' '; }
 
@@ -2088,8 +2102,8 @@ run_pass_nav_pilot() {
       PROMPT_COMMAND=""
       if [[ $rc7 -ne 0 ]]; then
         record_error 7 "$DESC7" "$LAST_PROMPT_DETAIL"
-      elif asks_privacy "$T7"; then
-        record 7 "$DESC7" 1 "asked the user about personvern or tilgang on a library migration: $(grep -oiE '[^.!?]*\?' "$T7" | grep -iE "$RE_ASK_PRIV" | head -1 | cut -c1-160)"
+      elif q7="$(asks_privacy "$T7")"; then
+        record 7 "$DESC7" 1 "asked the user about personvern or tilgang on a library migration: $(cut -c1-160 <<<"$q7")"
       else
         record 7 "$DESC7" 0
       fi

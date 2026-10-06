@@ -8,7 +8,9 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **Ingen personvernintervju for tekniske endringer**: Før spurte nav-pilot om personopplysninger også når du migrerte et bibliotek, for eksempel fra Jackson 2 til Jackson 3. Nå spør den bare når endringen legger til eller endrer en dataflyt, et felt, en mottaker, et loggpunkt eller en tilgangsvei.
 - **Leser repoet først**: nav-pilot ser etter `accessPolicy` i `nais.yaml`, typer for fnr og PDL og Kafka-skjemaer, og sier hva den har antatt. Den spør bare når repoet ikke gir svaret.
-- **Endret format teller som endret dataflyt**: En migrering som endrer hvordan data skrives, for eksempel datoformat, feltrekkefølge eller felt som forsvinner, får en konkret advarsel om akkurat det.
+- **Spør om tilgang bare når tilgangen endres**: nav-pilot spør hvem som kan kalle eller lese tjenesten, bare når endringen gir nye endepunkter eller endrer `accessPolicy` eller auth.
+- **Bibliotekmigrering er ikke en full gjennomgang**: En migrering, en versjonsbump eller en omdøping, eller en vurdering av en slik endring, går gjennom fasene i ett svar. Det gjelder også når formatet på dataene endres.
+- **Endret format gir spørsmål om kompatibilitet**: Endrer en migrering hvordan data skrives, for eksempel datoformat, feltrekkefølge eller felt som forsvinner, sier nav-pilot konkret hva som endres, og spør om konsumentene tåler det. Den spør ikke om personvern.
 - **Stille sjekk ellers**: For tekniske endringer sjekker nav-pilot selv at ingen nye logglinjer eller `toString` lekker fnr, og sier bare fra hvis den finner noe.
 
 ### nav-pilot starter aldri en klient uten cplt

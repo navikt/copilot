@@ -274,9 +274,9 @@ case "$p" in
     row StatusPanel.tsx $((11 - o)) "Positiv \`tabIndex={5}\`"
     row StatusPanel.tsx $((14 - o)) "Ikonknapp uten tilgjengelig navn" ;;
   *jackson-3-migration*)
-    # good: an assumption that names personopplysninger, and a non-privacy question.
-    # bad: the reported interview, a «Hvem leser …?» access question.
-    if [[ "$BENCH_MODE" == good ]]; then echo "Jeg legger til grunn at branchen ikke legger til nye personopplysninger. Jackson 3 sorterer feltene alfabetisk. Må byteformatet være uendret?"
+    # good: an assumption that names personopplysninger, and a consumer question about format.
+    # bad: «Hvem leser …?» with no format in the sentence, which reads as access.
+    if [[ "$BENCH_MODE" == good ]]; then echo "Jeg legger til grunn at branchen ikke legger til nye personopplysninger. Jackson 3 sorterer feltene alfabetisk. Hvem leser soknad-mottatt, og tåler de endret feltrekkefølge?"
     else echo "Jeg legger til grunn at koden er uendret. Hvem leser de to Kafka-temaene?"; fi ;;
   *SoknadMottattMelding*)
     if [[ "$BENCH_MODE" == good ]]; then echo "Fnr på Kafka er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?"
