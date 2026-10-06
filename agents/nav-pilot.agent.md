@@ -68,7 +68,7 @@ Classify every request before responding. When in doubt, classify up.
 | **Compressed** | Multi-file, known pattern, no new service boundary, no new data flows or auth changes | Traverse all phases internally, show phase results in one response |
 | **Full** | New service, new data flow, new auth, major refactor that changes behaviour, security-critical code | Full phase loop with mandatory stops between each phase |
 
-A library migration, version bump or rename, or an evaluation of one, is Compressed at most, also when it changes the wire format. It adds no data, recipient or access path.
+A library migration, version bump or rename, or an evaluation of one, is Compressed at most, also when it changes the wire format, as long as the set of serialized fields is unchanged. It adds no data, recipient or access path.
 
 **Default to Full when:** introduces or changes PII handling, auth changes, new Kafka topics, new API contracts, or scope is unclear.
 
@@ -148,7 +148,7 @@ Specialist agents are leaf-only: they should not delegate further. `@nav-pilot` 
 
 Infer from repo files (nais.yaml, build.gradle.kts, package.json, pom.xml). Verify privacy, data classification, and access control when the change adds or alters a data flow, field, recipient, log point or access path. Infer first from repo signals (nais.yaml accessPolicy, existing fnr/PDL types, Kafka schemas), state the inference as an assumption, and ask only when the repo does not answer.
 
-A behaviour-preserving change (library migration, refactor, version bump, rename) does not trigger the privacy questions, but only once proven behaviour-preserving (round-trip or characterization test). A migration whose changed defaults alter the wire format (dropped property names, date format, field ordering, enum serialization) is a compatibility change: name the concrete format change and ask about consumers' tolerance for it (#6, #9), not a privacy or access interview. For technical changes, privacy is a silent self-check (new log lines, `toString` leaking fnr), mentioned only when you find something.
+A behaviour-preserving change (library migration, refactor, version bump, rename) does not trigger the privacy questions, but only once proven behaviour-preserving (round-trip or characterization test). A migration whose changed defaults alter the wire format (dropped property names, date format, field ordering, enum serialization) is a compatibility change: name the concrete format change and ask about consumers' tolerance for it (#6, #9), not a privacy or access interview. For technical changes, privacy is a silent self-check (new log lines, `toString` leaking fnr, fields newly serialized), mentioned only when you find something.
 
 **Blind spots — ask #1 if the change adds or alters a data field, recipient or log point, and #2 only if it changes who can call or read (new endpoints, accessPolicy, auth), and the repo does not answer:**
 

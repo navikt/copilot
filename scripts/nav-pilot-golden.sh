@@ -407,6 +407,8 @@ AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:
 # way `nav-pilot` syncs them globally), and OPENCODE_DISABLE_CLAUDE_CODE keeps
 # ~/.claude out. Auth stays in OpenCode's data dir, which is not redirected.
 # Single-turn only: OpenCode picks its own session ids, so test 4 cannot run.
+# Not like-for-like with the Copilot path: every skill in skills/ is installed
+# (as a global sync would), while the Copilot workspace carries none.
 case "$CLIENT" in
   copilot) ;;
   opencode)
@@ -435,10 +437,14 @@ preflight_client() {
     CLI_VERSION="opencode $("$CLI_PATH" --version 2>&1 | head -1)"
     local oc_probe_cfg oc_probe_out
     oc_probe_cfg="$(mktemp -d "${TMPDIR:-/tmp}/nav-pilot-golden-oc.XXXXXX")"
-    oc_probe_out="$(XDG_CONFIG_HOME="$oc_probe_cfg" OPENCODE_DISABLE_CLAUDE_CODE=1 \
-      "$CLI_PATH" run -m "$OC_MODEL" "svar kun med ordet OK" 2>&1)" \
-      || fail_preflight "opencode probe prompt failed for $OC_MODEL" "$(head -c 300 <<<"$oc_probe_out")"
+    local oc_probe_rc
+    oc_probe_out="$(env -u OPENCODE_CONFIG -u OPENCODE_CONFIG_CONTENT \
+      XDG_CONFIG_HOME="$oc_probe_cfg" OPENCODE_DISABLE_CLAUDE_CODE=1 \
+      "$CLI_PATH" run -m "$OC_MODEL" "svar kun med ordet OK" 2>&1)"
+    oc_probe_rc=$?
     rm -rf "$oc_probe_cfg"
+    [[ $oc_probe_rc -eq 0 ]] \
+      || fail_preflight "opencode probe prompt failed for $OC_MODEL" "$(head -c 300 <<<"$oc_probe_out")"
     return 0
   fi
   CLI_PATH="$(command -v copilot || true)"
@@ -623,7 +629,8 @@ if [[ "$CLIENT" == opencode ]]; then
       [[ -f "$instr" ]] && always_on "$instr" && awk '/^---$/ && n < 2 {n++; next} n != 1' "$instr"
     done >"$OC_CFG/AGENTS.md"
   fi
-  OC_ENV=("XDG_CONFIG_HOME=$WORKDIR/opencode-config" OPENCODE_DISABLE_CLAUDE_CODE=1 NO_COLOR=1)
+  # OPENCODE_CONFIG(_CONTENT) would layer the user's own config on top.
+  OC_ENV=(-u OPENCODE_CONFIG -u OPENCODE_CONFIG_CONTENT "XDG_CONFIG_HOME=$WORKDIR/opencode-config" OPENCODE_DISABLE_CLAUDE_CODE=1 NO_COLOR=1)
 fi
 
 # One string, used both in the --save-baseline header and in the --compare
@@ -1257,7 +1264,14 @@ run_prompt() {
     fi
     args=(run --auto --agent "$LAUNCH_NAME" -m "$OC_MODEL")  # --auto: same as --allow-all-tools
     [[ -n "$EFFORT" ]] && args+=(--variant "$EFFORT")
-    [[ -n "${PROMPT_COMMAND:-}" ]] && args+=(--command "$PROMPT_COMMAND")
+    if [[ -n "${PROMPT_COMMAND:-}" ]]; then
+      if [[ ! -f "$OC_CFG/skills/$PROMPT_COMMAND/SKILL.md" ]]; then
+        LAST_PROMPT_DETAIL="skill '$PROMPT_COMMAND' is not installed; opencode would fail with UnknownError"
+        LAST_PROMPT_FAILURE="cli_failure"
+        return 1
+      fi
+      args+=(--command "$PROMPT_COMMAND")
+    fi
     args+=("$prompt")
   else
     [[ -n "${PROMPT_COMMAND:-}" ]] && prompt="/$PROMPT_COMMAND $prompt"
@@ -1311,7 +1325,7 @@ run_prompt() {
   # written literally in the source, so an expanded "${HOOK_ENV[@]}" would be
   # run as a command name (exit 127, no call made). `env` with no assignments
   # is a no-op, which is exactly the empty-HOOK_ENV case.
-  ( cd "$WS" && ${runner[@]+"${runner[@]}"} env ${HOOK_ENV[@]+"${HOOK_ENV[@]}"} ${OC_ENV[@]+"${OC_ENV[@]}"} "$CLI_PATH" "${args[@]}" ) >"$out" 2>"${out%.txt}.err"
+  ( cd "$WS" && ${runner[@]+"${runner[@]}"} env ${OC_ENV[@]+"${OC_ENV[@]}"} ${HOOK_ENV[@]+"${HOOK_ENV[@]}"} "$CLI_PATH" "${args[@]}" ) >"$out" 2>"${out%.txt}.err"
   local rc=$?
   ended_ms="$(now_ms)"
   elapsed_ms=$((ended_ms - started_ms))
@@ -1438,19 +1452,28 @@ RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]
 # besvart av koden» and «Jeg legger til grunn at SokerDto inneholder
 # fødselsnummer» pass, while «Hvilke personopplysninger …?» and «Hvem leser
 # de to Kafka-temaene?» fail. Derived from the 2026-10-06 OpenCode/GPT-6 Sol
-# transcripts in docs/golden-baselines/ (before: 3/3 hit, after: 3/3 hit).
+# transcripts in docs/golden-baselines/.
 #
 # «Hvem leser/konsumerer/bruker/produserer …?» is a consumer question, and a
 # consumer question about format is compatibility (#6, #9), which the persona
 # is told to ask for a wire-format change. It counts as access only when the
 # same sentence says nothing about format. Privacy words, «tilgang» and
 # «klassifisering» always count. (Refined 2026-10-06 after the v2 run.)
-RE_ASK_PRIV='personopplysning|personvern|persondata|GDPR|datakategori|behandlingsgrunnlag|klassifisering|tilgang|hvem[[:space:]]+(kan|skal|leverer|kaller)'
-RE_ASK_WHO='hvem[[:space:]]+(leser|konsumerer|bruker|produserer)'
-RE_ASK_COMPAT='format|felt|dato|tåler|kompatib|skjema|versjon'
+# «hvem bruker» counts as access, the same as in RE_BS2. The compat list is
+# narrow on purpose: «Hvem konsumerer fnr-feltet …?» and «Hvem leser topicen i
+# denne versjonen?» are still access questions.
+RE_ASK_PRIV='personopplysning|personvern|persondata|fødselsnummer|helseopplysning|GDPR|datakategori|behandlingsgrunnlag|klassifisering|tilgang|hvem[[:space:]]+(kan|skal|leverer|kaller|bruker)'
+RE_ASK_WHO='hvem[[:space:]]+(leser|konsumerer|produserer)'
+RE_ASK_COMPAT='format|tåler|kompatib|feltrekkefølge|datoformat|felt(rekkefølge|navn)'
 # Prints the first privacy/access question to the user; status 0 if there is one.
+# Sentences: lines joined, `code spans` blanked (so no.nav.demo.X and a wrapped
+# question stay one sentence), split only on . ! ? followed by whitespace
+# (a markdown emphasis closer in between, as in «?** Tåler», still ends it).
+question_sentences() {
+  perl -0777 -ne 's/\s+/ /g; s/`[^`]*`/CODE/g; for (split /(?<=[.!?])[*_]*\s+/) { print "$_\n" if /\?\W*$/ }' "$1"
+}
 asks_privacy() {
-  grep -oiE '[^.!?]*\?' "$1" | awk -v p="$RE_ASK_PRIV" -v w="$RE_ASK_WHO" -v c="$RE_ASK_COMPAT" '
+  question_sentences "$1" | awk -v p="$RE_ASK_PRIV" -v w="$RE_ASK_WHO" -v c="$RE_ASK_COMPAT" '
     { l = tolower($0) }
     l ~ tolower(p) || (l ~ tolower(w) && l !~ tolower(c)) { print; found = 1; exit }
     END { exit !found }'

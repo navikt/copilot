@@ -432,6 +432,30 @@ run_suite() {
   grep -q '^7b|1|fail|' "$SHIM/b-results.psv"
 }
 
+@test "planning t7: asks_privacy flags questions to the user, not assumptions or format questions" {
+  eval "$(grep -E "^RE_ASK_(PRIV|WHO|COMPAT)=" "$SCRIPT")"
+  eval "$(sed -n '/^question_sentences() {/,/^}/p' "$SCRIPT")"
+  eval "$(sed -n '/^asks_privacy() {/,/^}/p' "$SCRIPT")"
+  f="$SHIM/t7.txt"
+  for q in 'Hvilke personopplysninger ligger i no.nav.demo.SokerDto?' \
+           $'Hvilke tjenester leser meldingene, og hvilke\npersonopplysninger inneholder de?' \
+           'Inneholder SokerDto faktiske fødselsnummer og navn i produksjon?' \
+           'Hvem konsumerer fnr-feltet i soker-oppdatert?' \
+           'Hvem leser topicen i denne versjonen?' \
+           'Hvem bruker tjenesten, og tåler de endret feltrekkefølge?' \
+           'Hvem leser de to Kafka-temaene?'; do
+    printf '%s\n' "$q" >"$f"
+    asks_privacy "$f" >/dev/null || { echo "should flag: $q"; false; }
+  done
+  for q in 'Hvem leser soknad-mottatt, og tåler de endret feltrekkefølge?' \
+           'Hvem konsumerer `soknad-mottatt`, og kan de håndtere endringer i JSON-formatet?' \
+           'Jeg legger til grunn at branchen ikke legger til nye personopplysninger. Må byteformatet være uendret?' \
+           'Personvern er besvart av koden (#1). Hvordan rulles branchen tilbake?'; do
+    printf '%s\n' "$q" >"$f"
+    if asks_privacy "$f" >/dev/null; then echo "should pass: $q"; false; fi
+  done
+}
+
 @test "research: right lines, honest none and three points pass; the slips fail" {
   run_suite good --suite research
   [ "$status" -eq 0 ]
