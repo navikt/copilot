@@ -77,3 +77,20 @@ func TestExitCodeForSignalledChild(t *testing.T) {
 		t.Errorf("exitCodeFor(SIGTERM child) = %d, want 143", code)
 	}
 }
+
+// A prompt after "--" in a terminal, with the client missing, never ran: exit
+// non-zero. Bare nav-pilot with the client missing only warns.
+func TestOfferLaunchMissingClientWithPromptFails(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	origInteractive, origProviderFor := isInteractive, providerFor
+	t.Cleanup(func() { isInteractive, providerFor = origInteractive, origProviderFor })
+	isInteractive = func() bool { return true }
+	providerFor = func(string) (Provider, error) { return failingProvider{unavailable: true}, nil }
+
+	if code := exitCodeFor(offerLaunch(ResolvedConfig{Client: "pi", AutoLaunch: true, ExtraArgs: []string{"-p", "x"}}, false)); code != ExitError {
+		t.Errorf("with prompt: exitCodeFor = %d, want %d", code, ExitError)
+	}
+	if err := offerLaunch(ResolvedConfig{Client: "pi", AutoLaunch: true}, false); err != nil {
+		t.Errorf("bare: offerLaunch = %v, want nil", err)
+	}
+}

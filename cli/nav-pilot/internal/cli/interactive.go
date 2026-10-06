@@ -1206,27 +1206,33 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 	}
 	switch decision {
 	case launchSkipUnavailable:
+		// A prompt after "--" asked for a run that cannot happen: fail, so a
+		// script does not read exit 0 as success. Bare nav-pilot stays exit 0.
+		var skipped error
+		if len(resolved.ExtraArgs) > 0 {
+			skipped = &exitCode{code: ExitError}
+		}
 		if resolved.Client == "copilot" {
 			switch _, name := providerpkg.FindCopilotCLI(); name {
 			case "cplt":
 				fmt.Fprintf(os.Stderr, "%s Nothing was launched: %s\n", yellow("⚠"), providerpkg.CopilotMissingBehindCplt())
-				return nil
+				return skipped
 			case "":
 				fmt.Fprintf(os.Stderr, "%s Neither copilot nor cplt is installed, so nothing was launched.\n%s\n", yellow("⚠"), copilotInstallHint())
 				if !opencodeInstalled() {
 					fmt.Fprintf(os.Stderr, "  Or use opencode: %s, then %s\n", bold(opencodeInstallCommand()), bold("nav-pilot config set client opencode"))
 				}
-				return nil
+				return skipped
 			}
 		}
 		if missingCommand(resolved.Client, resolved.Client) == "cplt" {
 			fmt.Fprintf(os.Stderr, "%s cplt (the sandbox) is not installed, and %s only launches inside it. Install it: %s\n",
 				yellow("⚠"), resolved.Client, bold(cpltInstallHint))
-			return nil
+			return skipped
 		}
 		fmt.Fprintf(os.Stderr, "%s %s is not installed, so nothing was launched. Install it: %s\n",
 			yellow("⚠"), resolved.Client, bold(clientInstallCommand[resolved.Client]))
-		return nil
+		return skipped
 	case launchSkipOptedOut:
 		fmt.Println(dim(fmt.Sprintf("Not launching (auto_launch = false). Start it yourself with: %s", startCommand(resolved))))
 		return nil

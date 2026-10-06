@@ -462,7 +462,6 @@ export default function Klienter() {
             {c("local_endpoint")}.
           </li>
           <li>Sjekk mot Navs MCP-register.</li>
-          <li>Start uten cplt. pi starter bare i sandkassen.</li>
           <li>
             Innstillinger som ikke sendes videre, med en advarsel: {c("mode")}, {c("reasoning_effort")},{" "}
             {c("context_tier")}, {c("allow_all_tools")}, {c("ask_user")} og {c("log_level")}.

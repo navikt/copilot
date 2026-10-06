@@ -191,7 +191,7 @@ flagg-grensesnitt er annerledes enn Copilots, så flere felt oversettes eller dr
 | `model` | `--model` | `provider/model` (f.eks. `github-copilot/claude-opus-4.8`), og en Copilot-id uten prefiks får `github-copilot/` foran; uteblir helt når unset, og opencode velger da selv. Flagget slår opencodes egen config og recents, og i `opencode run` slår det også agentens eget `model:`-felt (der er flagget forespørselens modell). I TUI-en, som er det nav-pilot starter, vinner agentens eget `model:` over flagget. Rekkefølgen blir altså: agentens spesialisering, så nav-pilots sesjonsmodell, så det klienten selv ville valgt |
 | `mode = plan` | `--agent plan` | opencode har ingen `--mode`; `autopilot` har ingen opencode-ekvivalent — advarsel ved oppstart |
 | `reasoning_effort` | `--variant` | Leverandørspesifikk resonering (f.eks. `high`, `max`) |
-| `allow_all_tools`, `autonomy = sandbox` | `--auto` | Bare i cplt, som alle oppstarter |
+| `allow_all_tools`, `autonomy = sandbox` | `--auto` | Gjelder i cplt, der alle klienter kjører |
 | `log_level` | `--log-level` | Oversettes til opencodes sett: `DEBUG`/`INFO`/`WARN`/`ERROR` (se under) |
 | `context_tier` | — | Ingen opencode-ekvivalent — advarsel hvis eksplisitt satt |
 | `ask_user` | — | Ingen opencode-ekvivalent — advarsel hvis eksplisitt satt til `false` |
