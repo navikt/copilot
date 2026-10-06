@@ -273,6 +273,14 @@ case "$p" in
     row StatusPanel.tsx $((8 - o)) "Klikkbar div uten tastaturstøtte"
     row StatusPanel.tsx $((11 - o)) "Positiv \`tabIndex={5}\`"
     row StatusPanel.tsx $((14 - o)) "Ikonknapp uten tilgjengelig navn" ;;
+  *jackson-3-migration*)
+    # good: an assumption that names personopplysninger, and a consumer question about format.
+    # bad: «Hvem leser …?» with no format in the sentence, which reads as access.
+    if [[ "$BENCH_MODE" == good ]]; then echo "Jeg legger til grunn at branchen ikke legger til nye personopplysninger. Jackson 3 sorterer feltene alfabetisk. Hvem leser soknad-mottatt, og tåler de endret feltrekkefølge?"
+    else echo "Jeg legger til grunn at koden er uendret. Hvem leser de to Kafka-temaene?"; fi ;;
+  *SoknadMottattMelding*)
+    if [[ "$BENCH_MODE" == good ]]; then echo "Fnr på Kafka er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?"
+    else echo "Feltet er lagt til i SoknadMottattMelding, og meldingen serialiseres som før."; fi ;;
   *utkast.md*)
     [[ "$BENCH_MODE" == good ]] && printf '%s\n' "# Ny kodegjennomgang i nav-pilot" "" \
       "Nav-pilot har fått en KI-agent som går gjennom kode. Den leser endringene i en pull request og kommenterer linje for linje. Den finner feil i tilgangsstyring, logging av personopplysninger og manglende tester. Agenten endrer ikke koden selv, men foreslår rettelser." \
@@ -413,6 +421,47 @@ run_suite() {
   PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite coding --dry-run
   [ "$status" -eq 2 ]
   [[ "$output" == *"ts_tests fails even with the known fix applied"* ]]
+}
+
+@test "planning t7/t7b: no privacy interview on a migration, privacy raised for fnr on Kafka" {
+  run_suite good --agent nav-pilot --only 7,7b
+  [ "$status" -eq 0 ]
+  run_suite bad --agent nav-pilot --only 7,7b
+  [ "$status" -eq 1 ]
+  grep -q '^7|1|fail|' "$SHIM/b-results.psv"
+  grep -q '^7b|1|fail|' "$SHIM/b-results.psv"
+}
+
+@test "planning t3: a privacy question about fødselsnummer counts as blind spot #1" {
+  re=$(sed -n "s/^RE_BS1='\\(.*\\)'$/\\1/p" "$SCRIPT")
+  [ -n "$re" ]
+  # The 2026-10-06 v4 t2 run 2 question that RE_BS1 used to miss.
+  printf '%s\n' 'Hva skal tjenesten gjøre med fødselsnummeret: bruke det i én forespørsel, sende det videre eller lagre det?' | grep -qiE -- "$re"
+  if printf '%s\n' 'Hvilke tjenester må den kalle, og hva skal skje hvis de er nede?' | grep -qiE -- "$re"; then false; fi
+}
+
+@test "planning t7: asks_privacy flags questions to the user, not assumptions or format questions" {
+  eval "$(grep -E "^RE_ASK_(PRIV|WHO|COMPAT)=" "$SCRIPT")"
+  eval "$(sed -n '/^question_sentences() {/,/^}/p' "$SCRIPT")"
+  eval "$(sed -n '/^asks_privacy() {/,/^}/p' "$SCRIPT")"
+  f="$SHIM/t7.txt"
+  for q in 'Hvilke personopplysninger ligger i no.nav.demo.SokerDto?' \
+           $'Hvilke tjenester leser meldingene, og hvilke\npersonopplysninger inneholder de?' \
+           'Inneholder SokerDto faktiske fødselsnummer og navn i produksjon?' \
+           'Hvem konsumerer fnr-feltet i soker-oppdatert?' \
+           'Hvem leser topicen i denne versjonen?' \
+           'Hvem bruker tjenesten, og tåler de endret feltrekkefølge?' \
+           'Hvem leser de to Kafka-temaene?'; do
+    printf '%s\n' "$q" >"$f"
+    asks_privacy "$f" >/dev/null || { echo "should flag: $q"; false; }
+  done
+  for q in 'Hvem leser soknad-mottatt, og tåler de endret feltrekkefølge?' \
+           'Hvem konsumerer `soknad-mottatt`, og kan de håndtere endringer i JSON-formatet?' \
+           'Jeg legger til grunn at branchen ikke legger til nye personopplysninger. Må byteformatet være uendret?' \
+           'Personvern er besvart av koden (#1). Hvordan rulles branchen tilbake?'; do
+    printf '%s\n' "$q" >"$f"
+    if asks_privacy "$f" >/dev/null; then echo "should pass: $q"; false; fi
+  done
 }
 
 @test "research: right lines, honest none and three points pass; the slips fail" {

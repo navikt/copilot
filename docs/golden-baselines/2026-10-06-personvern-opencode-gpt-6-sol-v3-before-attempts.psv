@@ -1,0 +1,23 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        nav-pilot
+# suite:        none
+# date:         2026-10-06
+# revision:     2d1555b6
+# model:        gpt-6-sol
+# client:       opencode
+# clientVersion: opencode 1.18.34
+# effort:       CLI default
+# context:      CLI default
+# usage_complete: false
+# usage_detail: --client opencode has no assistant_usage_events
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+t2|1|0|pass|1617|18395|false|
+t7|1|0|pass|2005|66057|false|
+t7b|1|0|pass|1362|20395|false|
+t2|2|0|pass|1550|21521|false|
+t7|2|0|pass|1990|61293|false|
+t7b|2|0|pass|1506|27436|false|
+t2|3|0|pass|1511|20695|false|
+t7|3|0|pass|1928|55798|false|
+t7b|3|0|pass|1612|40600|false|

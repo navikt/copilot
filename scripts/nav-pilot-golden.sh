@@ -21,7 +21,7 @@
 #   agents/<key>.agent.md, installs that one agent into the scratch workspace,
 #   and runs the assertion group written for it:
 #
-#     nav-pilot      tests 1-6      phase discipline, blind spots, auth, model gate
+#     nav-pilot      tests 1-7b     phase discipline, blind spots, auth, model gate
 #     code-review    tests cr1-cr4  findings schema, no auto-fix, teaching, routing
 #     accessibility  tests uu1-uu5  WCAG substance, Ask-First, no subagent fan-out
 #
@@ -248,6 +248,7 @@ WITH_INSTRUCTIONS=true
 SAVE_BASELINE=""
 COMPARE_TO=""
 DRY_RUN=false
+CLIENT="copilot"
 
 # A flag that takes a value must be given one. Without this guard `shift 2`
 # fails when the flag is the last argument ($# is 1), and with no `set -e` it
@@ -273,6 +274,7 @@ while [[ $# -gt 0 ]]; do
     --save-baseline)   need_val "$@"; SAVE_BASELINE="$2"; shift 2 ;;
     --compare)         need_val "$@"; COMPARE_TO="$2"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
+    --client)  need_val "$@"; CLIENT="$2"; shift 2 ;;
     -v|--verbose) VERBOSE=true; shift ;;
     -h|--help) sed -n '2,/^set -uo/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//;$d'; exit 0 ;;
     *) echo "unknown flag: $1 (try --help)" >&2; exit 2 ;;
@@ -336,7 +338,7 @@ PERSONA="$REPO_ROOT/agents/$AGENT.agent.md"
 # Keep each row in sync with the record_* IDs in the matching run_pass_<agent>:
 # an ID added there and not here is rejected by --only.
 case "$GROUP" in
-  nav-pilot)     VALID_IDS="1 2 2b 3 4 5 6" ;;
+  nav-pilot)     VALID_IDS="1 2 2b 3 4 5 6 7 7b" ;;
   code-review)   VALID_IDS="cr1 cr2 cr3 cr4 rv1 rv2 rv3 rv4" ;;
   accessibility) VALID_IDS="uu1 uu2 uu3 uu4 uu5" ;;
   forfatter)     VALID_IDS="no1 no2 no3 no4" ;;
@@ -400,6 +402,37 @@ AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:
   "--compare: no baseline file at $COMPARE_TO" \
   "Record one first: ./scripts/nav-pilot-golden.sh --repeat 5 --save-baseline $COMPARE_TO"
 
+# --client opencode: hermetic OpenCode runs. Config comes from a scratch
+# XDG_CONFIG_HOME (persona, skills and always-on instructions written there the
+# way `nav-pilot` syncs them globally), and OPENCODE_DISABLE_CLAUDE_CODE keeps
+# ~/.claude out. Auth stays in OpenCode's data dir, which is not redirected.
+# Single-turn only: OpenCode picks its own session ids, so test 4 cannot run.
+# Not like-for-like with the Copilot path: every skill in skills/ is installed
+# (as a global sync would), while the Copilot workspace carries none.
+case "$CLIENT" in
+  copilot) ;;
+  opencode)
+    [[ -n "$MODEL" ]] || fail_preflight "--client opencode needs --model" \
+      "e.g. --model gpt-6-sol; github-copilot/ is added when no provider is given"
+    [[ -z "$CONTEXT_TIER" ]] || fail_preflight "--context is not supported with --client opencode" ""
+    [[ "$MODEL" == */* ]] && OC_MODEL="$MODEL" || OC_MODEL="github-copilot/$MODEL"
+    command -v go >/dev/null 2>&1 || fail_preflight "--client opencode needs go" \
+      "The persona is converted with nav-pilot's own OpenCode transform (go run)."
+    # Everything OpenCode reads config from is redirected: OPENCODE_CONFIG,
+    # OPENCODE_CONFIG_CONTENT and OPENCODE_CONFIG_DIR are cleared, and HOME
+    # points at a scratch dir so ~/.opencode and ~/.claude are not read. The
+    # data, cache and state dirs stay the user's own, explicitly, because the
+    # login lives in the data dir.
+    OC_BASE_ENV=(-u OPENCODE_CONFIG -u OPENCODE_CONFIG_CONTENT -u OPENCODE_CONFIG_DIR
+      "XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}"
+      "XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}"
+      "XDG_STATE_HOME=${XDG_STATE_HOME:-$HOME/.local/state}"
+      OPENCODE_DISABLE_CLAUDE_CODE=1 NO_COLOR=1)
+    ;;
+  *) fail_preflight "--client takes copilot or opencode, got '$CLIENT'" "" ;;
+esac
+OC_ENV=()
+
 CLI_PATH=""
 CLI_NAME="(dry run, no client)"
 CLI_VERSION=""
@@ -409,6 +442,23 @@ CLI_VERSION=""
 # workspace materialization can be checked without a client, an account, or a
 # bill, so it must not require any of them.
 preflight_client() {
+  if [[ "$CLIENT" == opencode ]]; then
+    CLI_PATH="$(command -v opencode || true)"
+    CLI_NAME="opencode"
+    [[ -n "$CLI_PATH" ]] || fail_preflight "opencode not found on PATH" "brew install opencode"
+    CLI_VERSION="opencode $("$CLI_PATH" --version 2>&1 | head -1)"
+    local oc_probe_cfg oc_probe_out
+    oc_probe_cfg="$(mktemp -d "${TMPDIR:-/tmp}/nav-pilot-golden-oc.XXXXXX")"
+    local oc_probe_rc
+    mkdir -p "$oc_probe_cfg/home"
+    oc_probe_out="$(env "${OC_BASE_ENV[@]}" "XDG_CONFIG_HOME=$oc_probe_cfg" "HOME=$oc_probe_cfg/home" \
+      "$CLI_PATH" run -m "$OC_MODEL" "svar kun med ordet OK" 2>&1)"
+    oc_probe_rc=$?
+    rm -rf "$oc_probe_cfg"
+    [[ $oc_probe_rc -eq 0 ]] \
+      || fail_preflight "opencode probe prompt failed for $OC_MODEL" "$(head -c 300 <<<"$oc_probe_out")"
+    return 0
+  fi
   CLI_PATH="$(command -v copilot || true)"
   CLI_NAME="copilot"
   if [[ -z "$CLI_PATH" ]]; then
@@ -418,8 +468,8 @@ preflight_client() {
   if [[ -z "$CLI_PATH" ]]; then
     if command -v opencode >/dev/null 2>&1; then
       fail_preflight \
-        "only 'opencode' was found on PATH, and this harness does not support it" \
-        "opencode reads its persona from the *user* config dir, so a hermetic run is not possible. Install the Copilot CLI: https://github.com/github/copilot-cli"
+        "only 'opencode' was found on PATH" \
+        "Pass --client opencode --model <model>, or install the Copilot CLI: https://github.com/github/copilot-cli"
     fi
     fail_preflight \
       "neither 'copilot' nor 'cplt' found on PATH" \
@@ -465,7 +515,9 @@ USAGE_HELPER="$REPO_ROOT/scripts/copilot-usage.py"
 USAGE_DB="${NAV_PILOT_GOLDEN_USAGE_DB:-$HOME/.copilot/session-store.db}"
 USAGE_TRACKING=false
 USAGE_UNAVAILABLE=""
-if [[ ! -f "$USAGE_DB" ]]; then
+if [[ "$CLIENT" == opencode ]]; then
+  USAGE_UNAVAILABLE="--client opencode has no assistant_usage_events"
+elif [[ ! -f "$USAGE_DB" ]]; then
   USAGE_UNAVAILABLE="no session database at $USAGE_DB"
 elif ! command -v python3 >/dev/null 2>&1; then
   USAGE_UNAVAILABLE="python3 is unavailable"
@@ -576,6 +628,27 @@ if $WITH_INSTRUCTIONS && [[ -d "$REPO_ROOT/instructions" ]]; then
     INSTR_COUNT=$((INSTR_COUNT + 1))
     always_on "$instr" && ALWAYS_ON_COUNT=$((ALWAYS_ON_COUNT + 1))
   done
+fi
+
+if [[ "$CLIENT" == opencode ]]; then
+  OC_CFG="$WORKDIR/opencode-config/opencode"
+  mkdir -p "$OC_CFG/agents" "$OC_CFG/skills" "$WORKDIR/opencode-home"
+  # nav-pilot's own transform (export.go), so the tools allowlist becomes the
+  # same OpenCode permission denies a real install gets. The model line is
+  # dropped: --model is required here and must not lose to a frontmatter pin.
+  ( cd "$REPO_ROOT/cli/nav-pilot" && go run ./internal/cmd/golden-opencode-agent "$PERSONA" "$LAUNCH_NAME" ) \
+    >"$WORKDIR/opencode-agent.md" \
+    && awk '/^---$/ {fm++} fm == 1 && /^model:/ {next} {print}' "$WORKDIR/opencode-agent.md" >"$OC_CFG/agents/$LAUNCH_NAME.md" \
+    || fail_preflight "could not convert $PERSONA for OpenCode" "Run: (cd cli/nav-pilot && go run ./internal/cmd/golden-opencode-agent $PERSONA $LAUNCH_NAME)"
+  grep -q '^mode: primary$' "$OC_CFG/agents/$LAUNCH_NAME.md" \
+    || fail_preflight "the converted OpenCode persona is not a primary agent" ""
+  cp -R "$REPO_ROOT"/skills/* "$OC_CFG/skills/"
+  if $WITH_INSTRUCTIONS; then
+    for instr in "$REPO_ROOT"/instructions/*.instructions.md; do
+      [[ -f "$instr" ]] && always_on "$instr" && awk '/^---$/ && n < 2 {n++; next} n != 1' "$instr"
+    done >"$OC_CFG/AGENTS.md"
+  fi
+  OC_ENV=("${OC_BASE_ENV[@]}" "XDG_CONFIG_HOME=$WORKDIR/opencode-config" "HOME=$WORKDIR/opencode-home")
 fi
 
 # One string, used both in the --save-baseline header and in the --compare
@@ -1199,13 +1272,35 @@ run_prompt() {
   LAST_PROMPT_DETAIL=""
   LAST_PROMPT_FAILURE=""
   out="$(tx "$slug")"
-  local -a args=(-p "$prompt" --agent "$LAUNCH_NAME" --allow-all-tools --no-color --log-level none)
-  [[ -n "$MODEL" ]] && args+=(--model "$MODEL")
-  [[ -n "$EFFORT" ]] && args+=(--reasoning-effort "$EFFORT")
-  [[ -n "$CONTEXT_TIER" ]] && args+=(--context "$CONTEXT_TIER")
+  # PROMPT_COMMAND invokes a skill the way a user's slash command does.
+  local -a args
+  if [[ "$CLIENT" == opencode ]]; then
+    if [[ -n "$session" ]]; then
+      LAST_PROMPT_DETAIL="--client opencode runs single turns only"
+      LAST_PROMPT_FAILURE="cli_failure"
+      return 1
+    fi
+    args=(run --auto --agent "$LAUNCH_NAME" -m "$OC_MODEL")  # --auto: same as --allow-all-tools
+    [[ -n "$EFFORT" ]] && args+=(--variant "$EFFORT")
+    if [[ -n "${PROMPT_COMMAND:-}" ]]; then
+      if [[ ! -f "$OC_CFG/skills/$PROMPT_COMMAND/SKILL.md" ]]; then
+        LAST_PROMPT_DETAIL="skill '$PROMPT_COMMAND' is not installed; opencode would fail with UnknownError"
+        LAST_PROMPT_FAILURE="cli_failure"
+        return 1
+      fi
+      args+=(--command "$PROMPT_COMMAND")
+    fi
+    args+=("$prompt")
+  else
+    [[ -n "${PROMPT_COMMAND:-}" ]] && prompt="/$PROMPT_COMMAND $prompt"
+    args=(-p "$prompt" --agent "$LAUNCH_NAME" --allow-all-tools --no-color --log-level none)
+    [[ -n "$MODEL" ]] && args+=(--model "$MODEL")
+    [[ -n "$EFFORT" ]] && args+=(--reasoning-effort "$EFFORT")
+    [[ -n "$CONTEXT_TIER" ]] && args+=(--context "$CONTEXT_TIER")
+  fi
 
   local continuing=false
-  if [[ -z "$session" ]]; then
+  if [[ -z "$session" && "$CLIENT" != opencode ]]; then
     session="$(new_session_id)"
   fi
   if [[ -n "$session" ]]; then
@@ -1218,7 +1313,15 @@ run_prompt() {
 
   # Fresh repo per prompt. Several of the prompts below tell the agent to edit
   # this workspace, so without this the second sample of t1 finds no typo.
-  $continuing || seed_ws
+  # WS_EXTRA names a function that adds a per-test fixture on top of the
+  # template (test 7). Kept out of $TEMPLATE so FIXTURE_SUM and every recorded
+  # baseline stay comparable.
+  if ! $continuing && ! { seed_ws && { [[ -z "${WS_EXTRA:-}" ]] || "$WS_EXTRA"; }; }; then
+    # A half-built fixture would be measured as if it were the real one.
+    LAST_PROMPT_DETAIL="fixture setup failed (${WS_EXTRA:-seed_ws}), no model call made"
+    LAST_PROMPT_FAILURE="cli_failure"
+    return 1
+  fi
   ws_fingerprint >"$FP_BEFORE"
   # Same lifetime as FP_BEFORE/FP_AFTER: describes the most recent call only.
   [[ -n "$HOOK_LOG" ]] && : >"$HOOK_LOG"
@@ -1245,7 +1348,7 @@ run_prompt() {
   # written literally in the source, so an expanded "${HOOK_ENV[@]}" would be
   # run as a command name (exit 127, no call made). `env` with no assignments
   # is a no-op, which is exactly the empty-HOOK_ENV case.
-  ( cd "$WS" && ${runner[@]+"${runner[@]}"} env ${HOOK_ENV[@]+"${HOOK_ENV[@]}"} "$CLI_PATH" "${args[@]}" ) >"$out" 2>"${out%.txt}.err"
+  ( cd "$WS" && ${runner[@]+"${runner[@]}"} env ${OC_ENV[@]+"${OC_ENV[@]}"} ${HOOK_ENV[@]+"${HOOK_ENV[@]}"} "$CLI_PATH" "${args[@]}" ) >"$out" 2>"${out%.txt}.err"
   local rc=$?
   ended_ms="$(now_ms)"
   elapsed_ms=$((ended_ms - started_ms))
@@ -1361,6 +1464,43 @@ record_soft() {
 # behaviour is not.
 present() { grep -qiE -- "$2" "$1"; }
 absent()  { ! grep -qiE -- "$2" "$1"; }
+
+# Blind spot #1 = Privacy, #2 = Access control (tests 3, 7, 7b). The *topic*,
+# in any phrasing the agent chooses.
+RE_BS1='personopplysning|persondata|personvern|fødselsnummer|GDPR|datakategori|behandlingsgrunnlag'
+RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]]+bruker|innbygger|saksbehandler|autorisasjon'
+
+# Test 7: a privacy or access question put TO THE USER, not a stated
+# assumption. Only sentences ending in `?` are searched, so «Personvern er
+# besvart av koden» and «Jeg legger til grunn at SokerDto inneholder
+# fødselsnummer» pass, while «Hvilke personopplysninger …?» and «Hvem leser
+# de to Kafka-temaene?» fail. Derived from the 2026-10-06 OpenCode/GPT-6 Sol
+# transcripts in docs/golden-baselines/.
+#
+# «Hvem leser/konsumerer/bruker/produserer …?» is a consumer question, and a
+# consumer question about format is compatibility (#6, #9), which the persona
+# is told to ask for a wire-format change. It counts as access only when the
+# same sentence says nothing about format. Privacy words, «tilgang» and
+# «klassifisering» always count. (Refined 2026-10-06 after the v2 run.)
+# «hvem bruker» counts as access, the same as in RE_BS2. The compat list is
+# narrow on purpose: «Hvem konsumerer fnr-feltet …?» and «Hvem leser topicen i
+# denne versjonen?» are still access questions.
+RE_ASK_PRIV='personopplysning|personvern|persondata|fødselsnummer|helseopplysning|GDPR|datakategori|behandlingsgrunnlag|klassifisering|tilgang|hvem[[:space:]]+(kan|skal|leverer|kaller|bruker)'
+RE_ASK_WHO='hvem[[:space:]]+(leser|konsumerer|produserer)'
+RE_ASK_COMPAT='format|tåler|kompatib|feltrekkefølge|datoformat|felt(rekkefølge|navn)'
+# Prints the first privacy/access question to the user; status 0 if there is one.
+# Sentences: lines joined, `code spans` blanked (so no.nav.demo.X and a wrapped
+# question stay one sentence), split only on . ! ? followed by whitespace
+# (a markdown emphasis closer in between, as in «?** Tåler», still ends it).
+question_sentences() {
+  perl -0777 -ne 's/\s+/ /g; s/`[^`]*`/CODE/g; for (split /(?<=[.!?])[*_]*\s+/) { print "$_\n" if /\?\W*$/ }' "$1"
+}
+asks_privacy() {
+  question_sentences "$1" | awk -v p="$RE_ASK_PRIV" -v w="$RE_ASK_WHO" -v c="$RE_ASK_COMPAT" '
+    { l = tolower($0) }
+    l ~ tolower(p) || (l ~ tolower(w) && l !~ tolower(c)) { print; found = 1; exit }
+    END { exit !found }'
+}
 
 count_of() { grep -oiE -- "$2" "$1" 2>/dev/null | wc -l | tr -d ' '; }
 
@@ -1830,8 +1970,6 @@ run_pass_nav_pilot() {
       if selected 3; then
         # Blind spot #1 = Privacy, #2 = Access control. Assert the *topic* is
         # raised, in any phrasing the agent chooses.
-        RE_BS1='personopplysning|persondata|personvern|GDPR|datakategori|behandlingsgrunnlag'
-        RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]]+bruker|innbygger|saksbehandler|autorisasjon'
         ok=0; detail=""
         if ! present "$T2" "$RE_BS1"; then
           ok=1; detail="blind spot #1 (personvern) not raised"
@@ -1990,6 +2128,146 @@ run_pass_nav_pilot() {
       record 6 "$DESC6" 0
     fi
   fi
+
+  # ── Tests 7 + 7b — privacy questions follow data-flow changes, not size ─────
+  # Invariant: `### Fase 1` — privacy is verified when the change adds or alters
+  # a data flow, field, recipient, log point or access path; a technical change
+  # gets a silent self-check. Users told nav-pilot to "ignore personvern" on a
+  # Jackson 3 migration, which teaches them to wave the question away.
+  # 7 is the false positive (pure library migration, DTO already holds fnr),
+  # 7b the control on the same fixture (fnr added to a Kafka message), so a
+  # persona that stops asking altogether fails 7b instead of passing 7.
+  if selected 7 || selected 7b; then
+    if selected 7; then
+      DESC7="Jackson 2→3 migration: no privacy or access-control interview"
+      T7="$(tx t7)"
+      WS_EXTRA=seed_jackson_branch
+      # As reported: a fresh session, the skill invoked as a slash command.
+      PROMPT_COMMAND=jackson-3-migration
+      # question_sentences needs perl, and without it asks_privacy finds no
+      # question and test 7 would pass. Refuse before the model call.
+      if ! command -v perl >/dev/null 2>&1; then
+        rc7=1; LAST_PROMPT_DETAIL="perl not found; test 7 cannot split sentences"
+      else
+        run_prompt t7 "Evaluer jackson 3 migrering i denne branchen"; rc7=$?
+      fi
+      PROMPT_COMMAND=""
+      if [[ $rc7 -ne 0 ]]; then
+        record_error 7 "$DESC7" "$LAST_PROMPT_DETAIL"
+      elif q7="$(asks_privacy "$T7")"; then
+        record 7 "$DESC7" 1 "asked the user about personvern or tilgang on a library migration: $(cut -c1-160 <<<"$q7")"
+      else
+        record 7 "$DESC7" 0
+      fi
+    fi
+    if selected 7b; then
+      DESC7B="fnr added to a Kafka message: privacy raised (control for 7)"
+      T7B="$(tx t7b)"
+      WS_EXTRA=seed_jackson_fixture
+      if ! run_prompt t7b "legg til fnr i SoknadMottattMelding som sendes på Kafka-topicen soknad-mottatt"; then
+        record_error 7b "$DESC7B" "$LAST_PROMPT_DETAIL"
+      elif ! present "$T7B" "$RE_BS1"; then
+        record 7b "$DESC7B" 1 "blind spot #1 (personvern) not raised for a new fnr field on Kafka"
+      else
+        record 7b "$DESC7B" 0
+      fi
+    fi
+    WS_EXTRA=""
+  fi
+}
+
+# Test 7/7b fixture: Jackson 2 on the classpath, a REST DTO that already carries
+# fnr, and a Kafka message that does not.
+seed_jackson_fixture() {
+  [[ -f "$WS/build.gradle.kts" && -d "$WS/src/main/kotlin/no/nav/demo" ]] || return 1
+  cat >>"$WS/build.gradle.kts" <<'EOF'
+dependencies {
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.2")
+    implementation("org.apache.kafka:kafka-clients:3.9.0")
+}
+EOF
+  cat >"$WS/src/main/kotlin/no/nav/demo/Soknad.kt" <<'EOF'
+package no.nav.demo
+
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerRecord
+import java.time.LocalDate
+
+data class SokerDto(val fnr: String, val navn: String)
+
+data class SoknadMottattMelding(val soknadId: String, val mottatt: LocalDate)
+
+val mapper: ObjectMapper = jacksonObjectMapper()
+    .findAndRegisterModules()
+    .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+
+fun lesSoker(json: String): SokerDto = mapper.readValue(json)
+
+fun sendMottatt(producer: KafkaProducer<String, String>, melding: SoknadMottattMelding) {
+    producer.send(ProducerRecord("soknad-mottatt", melding.soknadId, mapper.writeValueAsString(melding)))
+}
+
+fun sendSoker(producer: KafkaProducer<String, String>, soker: SokerDto) {
+    producer.send(ProducerRecord("soker-oppdatert", soker.fnr, mapper.writeValueAsString(soker)))
+}
+EOF
+}
+
+# Test 7: the same fixture committed on main, with the migration to Jackson 3
+# already done on the branch jackson-3 — the case users reported: asked to
+# evaluate a finished migration, the agent opened a privacy interview.
+seed_jackson_branch() {
+  seed_jackson_fixture || return 1
+  (
+    set -e
+    cd "$WS"
+    g() { git -c user.name=golden -c user.email=golden@example.invalid "$@" >/dev/null 2>&1; }
+    # One step per line: set -e ignores a failure inside an && list.
+    g init -b main
+    g add -A
+    g commit -m "Jackson 2"
+    g switch -c jackson-3
+    sed -i.bak -e 's/com\.fasterxml\.jackson\.core:jackson-databind:2\.18\.2/tools.jackson.core:jackson-databind:3.1.0/' \
+      -e 's/com\.fasterxml\.jackson\.module:jackson-module-kotlin:2\.18\.2/tools.jackson.module:jackson-module-kotlin:3.1.0/' \
+      -e '/jackson-datatype-jsr310/d' build.gradle.kts
+    cat >src/main/kotlin/no/nav/demo/Soknad.kt <<'EOF'
+package no.nav.demo
+
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.module.kotlin.kotlinModule
+import tools.jackson.module.kotlin.readValue
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerRecord
+import java.time.LocalDate
+
+data class SokerDto(val fnr: String, val navn: String)
+
+data class SoknadMottattMelding(val soknadId: String, val mottatt: LocalDate)
+
+val mapper: JsonMapper = JsonMapper.builder()
+    .addModule(kotlinModule())
+    .build()
+
+fun lesSoker(json: String): SokerDto = mapper.readValue(json)
+
+fun sendMottatt(producer: KafkaProducer<String, String>, melding: SoknadMottattMelding) {
+    producer.send(ProducerRecord("soknad-mottatt", melding.soknadId, mapper.writeValueAsString(melding)))
+}
+
+fun sendSoker(producer: KafkaProducer<String, String>, soker: SokerDto) {
+    producer.send(ProducerRecord("soker-oppdatert", soker.fnr, mapper.writeValueAsString(soker)))
+}
+EOF
+    rm -f build.gradle.kts.bak
+    g add -A
+    g commit -m "Migrer til Jackson 3"
+  )
 }
 
 # ─── code-review ─────────────────────────────────────────────────────────────

@@ -99,6 +99,16 @@ Batch 3 hadde fem kjøringer per testarm. Copilot CLI ble oppdatert mens planleg
 - **`@code-review` blir på Claude Opus 5.5.** GPT-6 Luna Medium holder godt til en rask gjennomgang. Med ti kjøringer besto den 39 av 40 sjekker for 1,3 credits per kjøring, mot 40 av 40 for 23,9 med Opus 5.5 Low. Den eneste bommen var et linjenummer én linje feil, så sjekk linjenumrene mot diffen.
 - **Sjekken for rød sone er rettet.** Test 4 godtar nå komma etter «Rød sone» når 🔴 står foran. En setning som «koden er i rød sone, så …» godtas fortsatt ikke. I en ny måling besto GPT-6 Sol Medium alle sjekkene i fem av fem kjøringer, også test 4, for 37,5 credits per kjøring.
 
+## GPT-6 Sol følger ubetingede regler bokstavelig (6. oktober 2026)
+
+En bruker meldte at `@nav-pilot` startet et intervju om personvern og tilgang når den ble bedt om å vurdere en migrering til Jackson 3. Endringen var rent teknisk.
+
+- **Feilen kom bare med riktig klient og modell.** Med standardmodellen i Copilot CLI så vi den ikke i noen av tolv kjøringer, fordelt på fire varianter av prompten. Med OpenCode og GPT-6 Sol, samme agentfil og skill-en kalt med `/jackson-3-migration`, startet agenten intervjuet i alle tre kjøringene i hver av tre målinger.
+- **Regler uten vilkår blir fulgt bokstavelig.** Agentfila sa «Always verify privacy …» og «always ask #1 and #2 if the change touches user data». GPT-6 Sol leste en DTO med fnr som «touches user data» og spurte, selv om ingen data, mottaker eller tilgangsvei var ny. Da reglene fikk et konkret vilkår, forsvant spørsmålene. Vilkåret er at endringen legger til eller endrer et felt, en mottaker, et loggpunkt eller hvem som har tilgang. I alle tre kjøringene spurte agenten i stedet om konsumentene tåler det nye formatet.
+- **Gjenskap med samme klient og modell før du retter.** En feilrapport om personaen kan ikke avkreftes med en annen klient eller modell. Testoppsettet har fått `--client opencode` for dette.
+
+Rådata ligger i `golden-baselines/2026-10-06-personvern-opencode-gpt-6-sol-*`. [v3-before](golden-baselines/2026-10-06-personvern-opencode-gpt-6-sol-v3-before.txt) og [v3-after](golden-baselines/2026-10-06-personvern-opencode-gpt-6-sol-v3-after.txt) er målingen før og etter endringen. Tre kjøringer per arm er nok til å vise feilen, men for få til å si hvor ofte den skjer.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
