@@ -36,44 +36,30 @@ func modelKey(name string) string {
 
 var metadataByModel = func() map[string]modelMetadata {
 	var document struct {
-		Models []modelMetadata `json:"models"`
+		Models  []modelMetadata `json:"models"`
+		Retired []modelMetadata `json:"retired"`
 	}
 	if err := json.Unmarshal(modelMetadataJSON, &document); err != nil {
 		panic(err)
 	}
 	result := map[string]modelMetadata{}
-	for _, model := range document.Models {
+	// Models the pricing page has dropped; the generator keeps them so past
+	// usage stays classified. Current pricing below overrides on a key clash.
+	for _, model := range document.Retired {
 		key := modelKey(model.Model)
 		if previous, ok := result[key]; ok && (previous.Provider != model.Provider || previous.Category != model.Category) {
-			panic("conflicting model metadata: " + key)
+			panic("conflicting retired model metadata: " + key)
 		}
 		result[key] = model
 	}
-	// Historical pricing: https://github.com/navikt/copilot/blob/fe4a06af7b269b49d3a5fb6582ab679b113c36a5/apps/my-copilot/src/lib/model-pricing.ts
-	for _, model := range []modelMetadata{
-		{"Claude Opus 4.6", "Anthropic", "Powerful"},
-		{"Claude Sonnet 4.5", "Anthropic", "Versatile"},
-		{"Gemini 3.1 Pro", "Google", "Powerful"},
-		{"Raptor mini", "GitHub", "Versatile"},
-		{"GPT-5.2", "OpenAI", "Versatile"},
-		{"GPT-5.2-Codex", "OpenAI", "Powerful"},
-		{"Claude Opus 4.5", "Anthropic", "Powerful"},
-	} {
-		result[modelKey(model.Model)] = model
-	}
-	// Historical pricing: https://github.com/navikt/copilot/blob/9aa25ffa/apps/my-copilot/src/lib/model-pricing.ts
-	result["gpt-4.1"] = modelMetadata{"GPT-4.1", "OpenAI", "Versatile"}
-	// Historical pricing: https://github.com/navikt/copilot/blob/f72001e3/apps/my-copilot/src/lib/model-pricing.ts
-	result["gemini-2.5-pro"] = modelMetadata{"Gemini 2.5 Pro", "Google", "Powerful"}
-	result["gemini-3-flash"] = modelMetadata{"Gemini 3 Flash", "Google", "Lightweight"}
-	// Historical pricing: https://github.com/navikt/copilot/blob/458f4af6/apps/my-copilot/src/lib/model-pricing.ts
-	for _, model := range []modelMetadata{
-		{"Claude Opus 4.7", "Anthropic", "Powerful"},
-		{"Gemini 3.5 Flash (Default)", "Google", "Lightweight"},
-		{"Gemini 3.6 Flash (Default)", "Google", "Versatile"},
-		{"Kimi K2.7 Code", "Moonshot AI", "Versatile"},
-	} {
-		result[modelKey(model.Model)] = model
+	current := map[string]modelMetadata{}
+	for _, model := range document.Models {
+		key := modelKey(model.Model)
+		if previous, ok := current[key]; ok && (previous.Provider != model.Provider || previous.Category != model.Category) {
+			panic("conflicting model metadata: " + key)
+		}
+		current[key] = model
+		result[key] = model
 	}
 	// Raw Claude aliases use version-first names; pricing uses family-first names.
 	// Pricing names: https://github.com/navikt/copilot/blob/458f4af6185cce851de93a3b419eaa06b56e7237/apps/my-copilot/src/lib/model-pricing.ts

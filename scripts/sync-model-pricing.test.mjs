@@ -70,6 +70,7 @@ test("pricing sync regenerates API metadata from the newly written catalog", (t)
     copyFileSync(new URL(script, import.meta.url), join(root, "scripts", script));
   }
   writeFileSync(join(root, "apps/my-copilot/src/lib/model-pricing.ts"), "");
+  writeFileSync(join(root, "apps/copilot-api/model_metadata.json"), JSON.stringify({ models: [], retired: [] }));
   writeFileSync(join(root, "docs/modellvalg.md"), "GitHubs listepriser slik de sto **1. januar 2026**");
   const fixture = join(root, "pricing.html");
   writeFileSync(fixture, PAGE + "<!-- `; throw new Error('fixture executed'); // ${process.exit(1)} -->");
@@ -84,6 +85,41 @@ test("pricing sync regenerates API metadata from the newly written catalog", (t)
     parsePricingTables(PAGE).map(({ model, provider, category }) => ({ model, provider, category })),
   );
   execFileSync(process.execPath, [join(root, "scripts/generate-api-model-metadata.mjs"), "--check"], { stdio: "pipe" });
+  // The written catalog must carry the footnote's end date, or the
+  // my-copilot promotion invariant test has nothing to check.
+  const catalog = readFileSync(join(root, "apps/my-copilot/src/lib/model-pricing.ts"), "utf8");
+  assert.match(catalog, /Gemini 3\.6 Flash \(Default\)[^}]*promotionEndsOn: "2026-12-31"/);
+});
+
+test("metadata generator retires dropped models and restores returning ones", (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "metadata-retired-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const dir of ["scripts", "apps/my-copilot/src/lib", "apps/copilot-api"]) {
+    mkdirSync(join(root, dir), { recursive: true });
+  }
+  copyFileSync(new URL("generate-api-model-metadata.mjs", import.meta.url), join(root, "scripts/generate-api-model-metadata.mjs"));
+  const row = (model, category = "Versatile") => ({ model, provider: "Acme", category });
+  const metadataPath = join(root, "apps/copilot-api/model_metadata.json");
+  const generate = (models) => {
+    writeFileSync(
+      join(root, "apps/my-copilot/src/lib/model-pricing.ts"),
+      `export const PRICING_SOURCE_URL = "x"; export const PRICING_LAST_UPDATED = "2026-01-01";
+export const MODEL_PRICING = ${JSON.stringify(models)};`,
+    );
+    execFileSync(process.execPath, [join(root, "scripts/generate-api-model-metadata.mjs")], { stdio: "pipe" });
+    return JSON.parse(readFileSync(metadataPath, "utf8"));
+  };
+  writeFileSync(metadataPath, JSON.stringify({ models: [row("A"), row("B", "Powerful")], retired: [row("Old")] }));
+
+  let metadata = generate([row("A")]);
+  assert.deepEqual(metadata.models, [row("A")]);
+  assert.deepEqual(metadata.retired, [row("B", "Powerful"), row("Old")]);
+
+  metadata = generate([row("A")]);
+  assert.deepEqual(metadata.retired, [row("B", "Powerful"), row("Old")], "retired survives regeneration");
+
+  metadata = generate([row("A"), row("B", "Powerful")]);
+  assert.deepEqual(metadata.retired, [row("Old")], "a returning model leaves retired");
 });
 
 test("footnote list parses into id-keyed text without backref arrows", () => {
