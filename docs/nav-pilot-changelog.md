@@ -4,6 +4,13 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-06
 
+### nav-pilot spør om personvern bare når dataflyten endres
+
+- **Ingen personvernintervju for tekniske endringer**: Før spurte nav-pilot om personopplysninger også når du migrerte et bibliotek, for eksempel fra Jackson 2 til Jackson 3. Nå spør den bare når endringen legger til eller endrer en dataflyt, et felt, en mottaker, et loggpunkt eller en tilgangsvei.
+- **Leser repoet først**: nav-pilot ser etter `accessPolicy` i `nais.yaml`, typer for fnr og PDL og Kafka-skjemaer, og sier hva den har antatt. Den spør bare når repoet ikke gir svaret.
+- **Endret format teller som endret dataflyt**: En migrering som endrer hvordan data skrives, for eksempel datoformat, feltrekkefølge eller felt som forsvinner, får en konkret advarsel om akkurat det.
+- **Stille sjekk ellers**: For tekniske endringer sjekker nav-pilot selv at ingen nye logglinjer eller `toString` lekker fnr, og sier bare fra hvis den finner noe.
+
 ### nav-pilot starter aldri en klient uten cplt
 
 - **cplt er påkrevd**: Mangler cplt, starter nav-pilot verken Copilot CLI, OpenCode eller pi. Før kunne Copilot CLI og OpenCode starte uten sandkasse etter et spørsmål i terminalen eller med `--no-sandbox`. Nå sier nav-pilot at cplt mangler og hvordan du installerer det.

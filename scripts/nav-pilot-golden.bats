@@ -273,6 +273,12 @@ case "$p" in
     row StatusPanel.tsx $((8 - o)) "Klikkbar div uten tastaturstøtte"
     row StatusPanel.tsx $((11 - o)) "Positiv \`tabIndex={5}\`"
     row StatusPanel.tsx $((14 - o)) "Ikonknapp uten tilgjengelig navn" ;;
+  *"Jackson 3"*)
+    if [[ "$BENCH_MODE" == good ]]; then echo "Jackson 3 skriver datoer og feltrekkefølge annerledes. Jeg legger til en round-trip-test før jeg bytter."
+    else echo "Før migreringen: behandler tjenesten personopplysninger, og hvilke datakategorier?"; fi ;;
+  *SoknadMottattMelding*)
+    if [[ "$BENCH_MODE" == good ]]; then echo "Fnr på Kafka er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?"
+    else echo "Feltet er lagt til i SoknadMottattMelding, og meldingen serialiseres som før."; fi ;;
   *utkast.md*)
     [[ "$BENCH_MODE" == good ]] && printf '%s\n' "# Ny kodegjennomgang i nav-pilot" "" \
       "Nav-pilot har fått en KI-agent som går gjennom kode. Den leser endringene i en pull request og kommenterer linje for linje. Den finner feil i tilgangsstyring, logging av personopplysninger og manglende tester. Agenten endrer ikke koden selv, men foreslår rettelser." \
@@ -413,6 +419,15 @@ run_suite() {
   PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite coding --dry-run
   [ "$status" -eq 2 ]
   [[ "$output" == *"ts_tests fails even with the known fix applied"* ]]
+}
+
+@test "planning t7/t7b: no privacy interview on a migration, privacy raised for fnr on Kafka" {
+  run_suite good --agent nav-pilot --only 7,7b
+  [ "$status" -eq 0 ]
+  run_suite bad --agent nav-pilot --only 7,7b
+  [ "$status" -eq 1 ]
+  grep -q '^7|1|fail|' "$SHIM/b-results.psv"
+  grep -q '^7b|1|fail|' "$SHIM/b-results.psv"
 }
 
 @test "research: right lines, honest none and three points pass; the slips fail" {

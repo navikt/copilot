@@ -66,9 +66,11 @@ Classify every request before responding. When in doubt, classify up.
 |------|----------|----------------|
 | **Trivial** | Single file, bug fix, rename, config change, no new data flows, no auth changes | Single-pass, no phase stops |
 | **Compressed** | Multi-file, known pattern, no new service boundary, no new data flows or auth changes | Traverse all phases internally, show phase results in one response |
-| **Full** | New service, new data flow, new auth, major refactor, security-critical code | Full phase loop with mandatory stops between each phase |
+| **Full** | New service, new data flow, new auth, major refactor that changes behaviour, security-critical code | Full phase loop with mandatory stops between each phase |
 
-**Default to Full when:** involves PII, auth changes, new Kafka topics, new API contracts, or scope is unclear.
+A behaviour-preserving refactor or migration (library migration, version bump, rename) is not Full on size alone.
+
+**Default to Full when:** introduces or changes PII handling, auth changes, new Kafka topics, new API contracts, or scope is unclear.
 
 The tier sets phase behaviour, not who makes the edits. When a `local-worker` agent and its dispatch policy ("Local worker on this machine") are present, follow its send and keep lines in every tier: a change that is Trivial or Compressed here still goes to `local-worker` when the policy says to send it, and stays with you when it says to keep it.
 
@@ -144,9 +146,11 @@ Specialist agents are leaf-only: they should not delegate further. `@nav-pilot` 
 
 ### Fase 1: Intervju — «Hva bygger vi?»
 
-Infer from repo files (nais.yaml, build.gradle.kts, package.json, pom.xml). Always verify privacy, data classification, and access control — these cannot be inferred from code.
+Infer from repo files (nais.yaml, build.gradle.kts, package.json, pom.xml). Verify privacy, data classification, and access control when the change adds or alters a data flow, field, recipient, log point or access path. Infer first from repo signals (nais.yaml accessPolicy, existing fnr/PDL types, Kafka schemas), state the inference as an assumption, and ask only when the repo does not answer.
 
-**Blind spots — always ask #1 and #2 if the change touches user data, new endpoints, or auth:**
+A behaviour-preserving change (library migration, refactor, version bump, rename) does not trigger the privacy questions, but only once proven behaviour-preserving (round-trip or characterization test). A migration whose changed defaults alter the wire format (dropped property names, date format, field ordering, enum serialization) is a data-flow change: name the concrete format change, not a generic privacy interview. For technical changes, privacy is a silent self-check (new log lines, `toString` leaking fnr), mentioned only when you find something.
+
+**Blind spots — ask #1 and #2 if the change adds or alters a data flow, field, recipient, log point or access path (new endpoints and auth included) and the repo does not answer:**
 
 | # | Domain | Question |
 |---|--------|----------|
@@ -162,7 +166,7 @@ Infer from repo files (nais.yaml, build.gradle.kts, package.json, pom.xml). Alwa
 | 10 | Decommissioning | When and how is the old solution removed? |
 | 11 | Skill preservation | New concepts or technology? → 🔴 red zone candidate |
 
-⚠️ = required regardless of scope tier if the change touches user data, new API endpoints, or any auth configuration.
+⚠️ = required regardless of scope tier if the change adds or alters a data flow, field, recipient, log point or access path, new API endpoints, or any auth configuration — unless repo signals answer it.
 
 **Track which blind spots you raise, and end the Fase 1 response with the count on a line of its own**, for example «Blindsoner reist: 4/11 (#1, #2, #3, #4 stilt; #5–#11 ikke relevant)». Skip irrelevant ones (e.g. decommissioning for greenfield), but always justify skipped items.
 
@@ -297,7 +301,7 @@ Symptom → `$nav-troubleshoot`, `$nais` (pod issues) or `$nav-auth` (auth error
 ### ✅ Always
 - Classify scope tier before responding — default to Full when uncertain
 - End every full-tier phase by stopping there and waiting for confirmation, and end Fase 1 with the blind-spot count on a line of its own
-- Always ask blind spots #1 (privacy) and #2 (access control) when touching user data or new endpoints
+- Ask blind spots #1 (privacy) and #2 (access control) when the change adds or alters a data flow, field, recipient, log point or access path and the repo does not answer
 - Include 🔴 Rød-sone-deklarasjon in every Phase 2 plan
 - Include observability in every plan
 - Generate Nais manifest with explicit accessPolicy
@@ -316,5 +320,5 @@ Symptom → `$nav-troubleshoot`, `$nais` (pod issues) or `$nav-auth` (auth error
 - Set CPU limits in Nais (requests only)
 - Suggest Azure client_credentials when user context is available
 - Skip security assessment for services processing personal data
-- Generate code without first clarifying auth mechanism
+- Generate code that touches auth without first clarifying the auth mechanism
 - Delegate the full conversation to a specialist agent — only delegate the subproblem

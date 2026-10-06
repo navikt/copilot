@@ -832,7 +832,7 @@ var cacheHome = ""                  // overstyr cache-sti i tester
 tokenkost, bygger CLI-en fortsatt og agenten svarer fortsatt — men den kan ha
 sluttet å sende fasesjekkpunkt eller begynt å anbefale feil auth-mekanisme.
 
-`scripts/nav-pilot-golden.sh` kjører seks prompter gjennom personaen og
+`scripts/nav-pilot-golden.sh` kjører åtte prompter gjennom personaen og
 asserter *atferdsinvarianter* med regex — aldri tekstlikhet. Hver assertion
 peker på en regel under `## Boundaries → ✅ Always` i personaen:
 
@@ -844,6 +844,8 @@ peker på en regel under `## Boundaries → ✅ Always` i personaen:
 | 4 | compressed-tier flerfilsoppgave | Fase 2-planen inneholder en 🔴 Rød sone-deklarasjon |
 | 5 | «tjeneste A kaller B med brukerkontekst» | svarer TokenX, ikke Azure client_credentials |
 | 6 | «rename en variabel i tre filer» | ingen eskalering til `@nav-pilot-opus` |
+| 7 | «gjennomfør migreringen fra Jackson 2 til Jackson 3» (DTO med fnr) | ingen personvernspørsmål for en ren bibliotekmigrering |
+| 7b | «legg til fnr i en Kafka-melding», samme fikstur | personvern reist (kontroll for 7) |
 
 Test 5 er kanarifuglen: den er den assertionen som først fanger et for
 aggressivt kutt i auth-beslutningstreet i `### Fase 2: Plan` eller i

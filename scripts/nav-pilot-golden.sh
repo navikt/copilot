@@ -21,7 +21,7 @@
 #   agents/<key>.agent.md, installs that one agent into the scratch workspace,
 #   and runs the assertion group written for it:
 #
-#     nav-pilot      tests 1-6      phase discipline, blind spots, auth, model gate
+#     nav-pilot      tests 1-7b     phase discipline, blind spots, auth, model gate
 #     code-review    tests cr1-cr4  findings schema, no auto-fix, teaching, routing
 #     accessibility  tests uu1-uu5  WCAG substance, Ask-First, no subagent fan-out
 #
@@ -336,7 +336,7 @@ PERSONA="$REPO_ROOT/agents/$AGENT.agent.md"
 # Keep each row in sync with the record_* IDs in the matching run_pass_<agent>:
 # an ID added there and not here is rejected by --only.
 case "$GROUP" in
-  nav-pilot)     VALID_IDS="1 2 2b 3 4 5 6" ;;
+  nav-pilot)     VALID_IDS="1 2 2b 3 4 5 6 7 7b" ;;
   code-review)   VALID_IDS="cr1 cr2 cr3 cr4 rv1 rv2 rv3 rv4" ;;
   accessibility) VALID_IDS="uu1 uu2 uu3 uu4 uu5" ;;
   forfatter)     VALID_IDS="no1 no2 no3 no4" ;;
@@ -1218,7 +1218,10 @@ run_prompt() {
 
   # Fresh repo per prompt. Several of the prompts below tell the agent to edit
   # this workspace, so without this the second sample of t1 finds no typo.
-  $continuing || seed_ws
+  # WS_EXTRA names a function that adds a per-test fixture on top of the
+  # template (test 7). Kept out of $TEMPLATE so FIXTURE_SUM and every recorded
+  # baseline stay comparable.
+  $continuing || { seed_ws; [[ -n "${WS_EXTRA:-}" ]] && "$WS_EXTRA"; }
   ws_fingerprint >"$FP_BEFORE"
   # Same lifetime as FP_BEFORE/FP_AFTER: describes the most recent call only.
   [[ -n "$HOOK_LOG" ]] && : >"$HOOK_LOG"
@@ -1361,6 +1364,11 @@ record_soft() {
 # behaviour is not.
 present() { grep -qiE -- "$2" "$1"; }
 absent()  { ! grep -qiE -- "$2" "$1"; }
+
+# Blind spot #1 = Privacy, #2 = Access control (tests 3, 7, 7b). The *topic*,
+# in any phrasing the agent chooses.
+RE_BS1='personopplysning|persondata|personvern|GDPR|datakategori|behandlingsgrunnlag'
+RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]]+bruker|innbygger|saksbehandler|autorisasjon'
 
 count_of() { grep -oiE -- "$2" "$1" 2>/dev/null | wc -l | tr -d ' '; }
 
@@ -1830,8 +1838,6 @@ run_pass_nav_pilot() {
       if selected 3; then
         # Blind spot #1 = Privacy, #2 = Access control. Assert the *topic* is
         # raised, in any phrasing the agent chooses.
-        RE_BS1='personopplysning|persondata|personvern|GDPR|datakategori|behandlingsgrunnlag'
-        RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]]+bruker|innbygger|saksbehandler|autorisasjon'
         ok=0; detail=""
         if ! present "$T2" "$RE_BS1"; then
           ok=1; detail="blind spot #1 (personvern) not raised"
@@ -1990,6 +1996,130 @@ run_pass_nav_pilot() {
       record 6 "$DESC6" 0
     fi
   fi
+
+  # ── Tests 7 + 7b — privacy questions follow data-flow changes, not size ─────
+  # Invariant: `### Fase 1` — privacy is verified when the change adds or alters
+  # a data flow, field, recipient, log point or access path; a technical change
+  # gets a silent self-check. Users told nav-pilot to "ignore personvern" on a
+  # Jackson 3 migration, which teaches them to wave the question away.
+  # 7 is the false positive (pure library migration, DTO already holds fnr),
+  # 7b the control on the same fixture (fnr added to a Kafka message), so a
+  # persona that stops asking altogether fails 7b instead of passing 7.
+  if selected 7 || selected 7b; then
+    if selected 7; then
+      DESC7="Jackson 2→3 migration: no privacy interview"
+      T7="$(tx t7)"
+      WS_EXTRA=seed_jackson_branch
+      if ! run_prompt t7 "evaluer Jackson 3-migreringen på branchen jackson-3 før vi merger den til main"; then
+        record_error 7 "$DESC7" "$LAST_PROMPT_DETAIL"
+      elif ! absent "$T7" "$RE_BS1"; then
+        record 7 "$DESC7" 1 "raised personvern on a library migration (matched: $RE_BS1)"
+      else
+        record 7 "$DESC7" 0
+      fi
+    fi
+    if selected 7b; then
+      DESC7B="fnr added to a Kafka message: privacy raised (control for 7)"
+      T7B="$(tx t7b)"
+      WS_EXTRA=seed_jackson_fixture
+      if ! run_prompt t7b "legg til fnr i SoknadMottattMelding som sendes på Kafka-topicen soknad-mottatt"; then
+        record_error 7b "$DESC7B" "$LAST_PROMPT_DETAIL"
+      elif ! present "$T7B" "$RE_BS1"; then
+        record 7b "$DESC7B" 1 "blind spot #1 (personvern) not raised for a new fnr field on Kafka"
+      else
+        record 7b "$DESC7B" 0
+      fi
+    fi
+    WS_EXTRA=""
+  fi
+}
+
+# Test 7/7b fixture: Jackson 2 on the classpath, a REST DTO that already carries
+# fnr, and a Kafka message that does not.
+seed_jackson_fixture() {
+  cat >>"$WS/build.gradle.kts" <<'EOF'
+dependencies {
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.2")
+    implementation("org.apache.kafka:kafka-clients:3.9.0")
+}
+EOF
+  cat >"$WS/src/main/kotlin/no/nav/demo/Soknad.kt" <<'EOF'
+package no.nav.demo
+
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerRecord
+import java.time.LocalDate
+
+data class SokerDto(val fnr: String, val navn: String)
+
+data class SoknadMottattMelding(val soknadId: String, val mottatt: LocalDate)
+
+val mapper: ObjectMapper = jacksonObjectMapper()
+    .findAndRegisterModules()
+    .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+
+fun lesSoker(json: String): SokerDto = mapper.readValue(json)
+
+fun sendMottatt(producer: KafkaProducer<String, String>, melding: SoknadMottattMelding) {
+    producer.send(ProducerRecord("soknad-mottatt", melding.soknadId, mapper.writeValueAsString(melding)))
+}
+
+fun sendSoker(producer: KafkaProducer<String, String>, soker: SokerDto) {
+    producer.send(ProducerRecord("soker-oppdatert", soker.fnr, mapper.writeValueAsString(soker)))
+}
+EOF
+}
+
+# Test 7: the same fixture committed on main, with the migration to Jackson 3
+# already done on the branch jackson-3 — the case users reported: asked to
+# evaluate a finished migration, the agent opened a privacy interview.
+seed_jackson_branch() {
+  seed_jackson_fixture
+  (
+    cd "$WS" || exit 1
+    g() { git -c user.name=golden -c user.email=golden@example.invalid "$@" >/dev/null 2>&1; }
+    g init -b main && g add -A && g commit -m "Jackson 2"
+    g switch -c jackson-3
+    sed -i.bak -e 's/com\.fasterxml\.jackson\.core:jackson-databind:2\.18\.2/tools.jackson.core:jackson-databind:3.1.0/' \
+      -e 's/com\.fasterxml\.jackson\.module:jackson-module-kotlin:2\.18\.2/tools.jackson.module:jackson-module-kotlin:3.1.0/' \
+      -e '/jackson-datatype-jsr310/d' build.gradle.kts
+    cat >src/main/kotlin/no/nav/demo/Soknad.kt <<'EOF'
+package no.nav.demo
+
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.module.kotlin.kotlinModule
+import tools.jackson.module.kotlin.readValue
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerRecord
+import java.time.LocalDate
+
+data class SokerDto(val fnr: String, val navn: String)
+
+data class SoknadMottattMelding(val soknadId: String, val mottatt: LocalDate)
+
+val mapper: JsonMapper = JsonMapper.builder()
+    .addModule(kotlinModule())
+    .build()
+
+fun lesSoker(json: String): SokerDto = mapper.readValue(json)
+
+fun sendMottatt(producer: KafkaProducer<String, String>, melding: SoknadMottattMelding) {
+    producer.send(ProducerRecord("soknad-mottatt", melding.soknadId, mapper.writeValueAsString(melding)))
+}
+
+fun sendSoker(producer: KafkaProducer<String, String>, soker: SokerDto) {
+    producer.send(ProducerRecord("soker-oppdatert", soker.fnr, mapper.writeValueAsString(soker)))
+}
+EOF
+    rm -f build.gradle.kts.bak
+    g add -A && g commit -m "Migrer til Jackson 3"
+  )
 }
 
 # ─── code-review ─────────────────────────────────────────────────────────────
