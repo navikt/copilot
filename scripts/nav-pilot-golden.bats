@@ -273,7 +273,7 @@ case "$p" in
     row StatusPanel.tsx $((8 - o)) "Klikkbar div uten tastaturstøtte"
     row StatusPanel.tsx $((11 - o)) "Positiv \`tabIndex={5}\`"
     row StatusPanel.tsx $((14 - o)) "Ikonknapp uten tilgjengelig navn" ;;
-  *"Jackson 3"*)
+  *jackson-3-migration*)
     if [[ "$BENCH_MODE" == good ]]; then echo "Jackson 3 skriver datoer og feltrekkefølge annerledes. Jeg legger til en round-trip-test før jeg bytter."
     else echo "Før migreringen: behandler tjenesten personopplysninger, og hvilke datakategorier?"; fi ;;
   *SoknadMottattMelding*)

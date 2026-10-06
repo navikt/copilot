@@ -248,6 +248,7 @@ WITH_INSTRUCTIONS=true
 SAVE_BASELINE=""
 COMPARE_TO=""
 DRY_RUN=false
+CLIENT="copilot"
 
 # A flag that takes a value must be given one. Without this guard `shift 2`
 # fails when the flag is the last argument ($# is 1), and with no `set -e` it
@@ -273,6 +274,7 @@ while [[ $# -gt 0 ]]; do
     --save-baseline)   need_val "$@"; SAVE_BASELINE="$2"; shift 2 ;;
     --compare)         need_val "$@"; COMPARE_TO="$2"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
+    --client)  need_val "$@"; CLIENT="$2"; shift 2 ;;
     -v|--verbose) VERBOSE=true; shift ;;
     -h|--help) sed -n '2,/^set -uo/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//;$d'; exit 0 ;;
     *) echo "unknown flag: $1 (try --help)" >&2; exit 2 ;;
@@ -400,6 +402,23 @@ AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:
   "--compare: no baseline file at $COMPARE_TO" \
   "Record one first: ./scripts/nav-pilot-golden.sh --repeat 5 --save-baseline $COMPARE_TO"
 
+# --client opencode: hermetic OpenCode runs. Config comes from a scratch
+# XDG_CONFIG_HOME (persona, skills and always-on instructions written there the
+# way `nav-pilot` syncs them globally), and OPENCODE_DISABLE_CLAUDE_CODE keeps
+# ~/.claude out. Auth stays in OpenCode's data dir, which is not redirected.
+# Single-turn only: OpenCode picks its own session ids, so test 4 cannot run.
+case "$CLIENT" in
+  copilot) ;;
+  opencode)
+    [[ -n "$MODEL" ]] || fail_preflight "--client opencode needs --model" \
+      "e.g. --model gpt-6-sol; github-copilot/ is added when no provider is given"
+    [[ -z "$CONTEXT_TIER" ]] || fail_preflight "--context is not supported with --client opencode" ""
+    [[ "$MODEL" == */* ]] && OC_MODEL="$MODEL" || OC_MODEL="github-copilot/$MODEL"
+    ;;
+  *) fail_preflight "--client takes copilot or opencode, got '$CLIENT'" "" ;;
+esac
+OC_ENV=()
+
 CLI_PATH=""
 CLI_NAME="(dry run, no client)"
 CLI_VERSION=""
@@ -409,6 +428,19 @@ CLI_VERSION=""
 # workspace materialization can be checked without a client, an account, or a
 # bill, so it must not require any of them.
 preflight_client() {
+  if [[ "$CLIENT" == opencode ]]; then
+    CLI_PATH="$(command -v opencode || true)"
+    CLI_NAME="opencode"
+    [[ -n "$CLI_PATH" ]] || fail_preflight "opencode not found on PATH" "brew install opencode"
+    CLI_VERSION="opencode $("$CLI_PATH" --version 2>&1 | head -1)"
+    local oc_probe_cfg oc_probe_out
+    oc_probe_cfg="$(mktemp -d "${TMPDIR:-/tmp}/nav-pilot-golden-oc.XXXXXX")"
+    oc_probe_out="$(XDG_CONFIG_HOME="$oc_probe_cfg" OPENCODE_DISABLE_CLAUDE_CODE=1 \
+      "$CLI_PATH" run -m "$OC_MODEL" "svar kun med ordet OK" 2>&1)" \
+      || fail_preflight "opencode probe prompt failed for $OC_MODEL" "$(head -c 300 <<<"$oc_probe_out")"
+    rm -rf "$oc_probe_cfg"
+    return 0
+  fi
   CLI_PATH="$(command -v copilot || true)"
   CLI_NAME="copilot"
   if [[ -z "$CLI_PATH" ]]; then
@@ -418,8 +450,8 @@ preflight_client() {
   if [[ -z "$CLI_PATH" ]]; then
     if command -v opencode >/dev/null 2>&1; then
       fail_preflight \
-        "only 'opencode' was found on PATH, and this harness does not support it" \
-        "opencode reads its persona from the *user* config dir, so a hermetic run is not possible. Install the Copilot CLI: https://github.com/github/copilot-cli"
+        "only 'opencode' was found on PATH" \
+        "Pass --client opencode --model <model>, or install the Copilot CLI: https://github.com/github/copilot-cli"
     fi
     fail_preflight \
       "neither 'copilot' nor 'cplt' found on PATH" \
@@ -465,7 +497,9 @@ USAGE_HELPER="$REPO_ROOT/scripts/copilot-usage.py"
 USAGE_DB="${NAV_PILOT_GOLDEN_USAGE_DB:-$HOME/.copilot/session-store.db}"
 USAGE_TRACKING=false
 USAGE_UNAVAILABLE=""
-if [[ ! -f "$USAGE_DB" ]]; then
+if [[ "$CLIENT" == opencode ]]; then
+  USAGE_UNAVAILABLE="--client opencode has no assistant_usage_events"
+elif [[ ! -f "$USAGE_DB" ]]; then
   USAGE_UNAVAILABLE="no session database at $USAGE_DB"
 elif ! command -v python3 >/dev/null 2>&1; then
   USAGE_UNAVAILABLE="python3 is unavailable"
@@ -576,6 +610,20 @@ if $WITH_INSTRUCTIONS && [[ -d "$REPO_ROOT/instructions" ]]; then
     INSTR_COUNT=$((INSTR_COUNT + 1))
     always_on "$instr" && ALWAYS_ON_COUNT=$((ALWAYS_ON_COUNT + 1))
   done
+fi
+
+if [[ "$CLIENT" == opencode ]]; then
+  OC_CFG="$WORKDIR/opencode-config/opencode"
+  mkdir -p "$OC_CFG/agents" "$OC_CFG/skills"
+  { printf -- '---\ndescription: %s\nmode: primary\n---\n' "$AGENT_NAME"
+    awk '/^---$/ {n++; next} n >= 2' "$PERSONA"; } >"$OC_CFG/agents/$LAUNCH_NAME.md"
+  cp -R "$REPO_ROOT"/skills/* "$OC_CFG/skills/"
+  if $WITH_INSTRUCTIONS; then
+    for instr in "$REPO_ROOT"/instructions/*.instructions.md; do
+      [[ -f "$instr" ]] && always_on "$instr" && awk '/^---$/ && n < 2 {n++; next} n != 1' "$instr"
+    done >"$OC_CFG/AGENTS.md"
+  fi
+  OC_ENV=("XDG_CONFIG_HOME=$WORKDIR/opencode-config" OPENCODE_DISABLE_CLAUDE_CODE=1 NO_COLOR=1)
 fi
 
 # One string, used both in the --save-baseline header and in the --compare
@@ -1199,13 +1247,28 @@ run_prompt() {
   LAST_PROMPT_DETAIL=""
   LAST_PROMPT_FAILURE=""
   out="$(tx "$slug")"
-  local -a args=(-p "$prompt" --agent "$LAUNCH_NAME" --allow-all-tools --no-color --log-level none)
-  [[ -n "$MODEL" ]] && args+=(--model "$MODEL")
-  [[ -n "$EFFORT" ]] && args+=(--reasoning-effort "$EFFORT")
-  [[ -n "$CONTEXT_TIER" ]] && args+=(--context "$CONTEXT_TIER")
+  # PROMPT_COMMAND invokes a skill the way a user's slash command does.
+  local -a args
+  if [[ "$CLIENT" == opencode ]]; then
+    if [[ -n "$session" ]]; then
+      LAST_PROMPT_DETAIL="--client opencode runs single turns only"
+      LAST_PROMPT_FAILURE="cli_failure"
+      return 1
+    fi
+    args=(run --auto --agent "$LAUNCH_NAME" -m "$OC_MODEL")  # --auto: same as --allow-all-tools
+    [[ -n "$EFFORT" ]] && args+=(--variant "$EFFORT")
+    [[ -n "${PROMPT_COMMAND:-}" ]] && args+=(--command "$PROMPT_COMMAND")
+    args+=("$prompt")
+  else
+    [[ -n "${PROMPT_COMMAND:-}" ]] && prompt="/$PROMPT_COMMAND $prompt"
+    args=(-p "$prompt" --agent "$LAUNCH_NAME" --allow-all-tools --no-color --log-level none)
+    [[ -n "$MODEL" ]] && args+=(--model "$MODEL")
+    [[ -n "$EFFORT" ]] && args+=(--reasoning-effort "$EFFORT")
+    [[ -n "$CONTEXT_TIER" ]] && args+=(--context "$CONTEXT_TIER")
+  fi
 
   local continuing=false
-  if [[ -z "$session" ]]; then
+  if [[ -z "$session" && "$CLIENT" != opencode ]]; then
     session="$(new_session_id)"
   fi
   if [[ -n "$session" ]]; then
@@ -1248,7 +1311,7 @@ run_prompt() {
   # written literally in the source, so an expanded "${HOOK_ENV[@]}" would be
   # run as a command name (exit 127, no call made). `env` with no assignments
   # is a no-op, which is exactly the empty-HOOK_ENV case.
-  ( cd "$WS" && ${runner[@]+"${runner[@]}"} env ${HOOK_ENV[@]+"${HOOK_ENV[@]}"} "$CLI_PATH" "${args[@]}" ) >"$out" 2>"${out%.txt}.err"
+  ( cd "$WS" && ${runner[@]+"${runner[@]}"} env ${HOOK_ENV[@]+"${HOOK_ENV[@]}"} ${OC_ENV[@]+"${OC_ENV[@]}"} "$CLI_PATH" "${args[@]}" ) >"$out" 2>"${out%.txt}.err"
   local rc=$?
   ended_ms="$(now_ms)"
   elapsed_ms=$((ended_ms - started_ms))
@@ -2007,13 +2070,19 @@ run_pass_nav_pilot() {
   # persona that stops asking altogether fails 7b instead of passing 7.
   if selected 7 || selected 7b; then
     if selected 7; then
-      DESC7="Jackson 2→3 migration: no privacy interview"
+      DESC7="Jackson 2→3 migration: no privacy or access-control interview"
       T7="$(tx t7)"
       WS_EXTRA=seed_jackson_branch
-      if ! run_prompt t7 "evaluer Jackson 3-migreringen på branchen jackson-3 før vi merger den til main"; then
+      # As reported: a fresh session, the skill invoked as a slash command.
+      PROMPT_COMMAND=jackson-3-migration
+      run_prompt t7 "Evaluer jackson 3 migrering i denne branchen"; rc7=$?
+      PROMPT_COMMAND=""
+      if [[ $rc7 -ne 0 ]]; then
         record_error 7 "$DESC7" "$LAST_PROMPT_DETAIL"
       elif ! absent "$T7" "$RE_BS1"; then
         record 7 "$DESC7" 1 "raised personvern on a library migration (matched: $RE_BS1)"
+      elif ! absent "$T7" "$RE_BS2"; then
+        record 7 "$DESC7" 1 "raised tilgangskontroll on a library migration (matched: $RE_BS2)"
       else
         record 7 "$DESC7" 0
       fi
