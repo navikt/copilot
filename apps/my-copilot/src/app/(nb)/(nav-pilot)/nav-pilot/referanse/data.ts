@@ -54,7 +54,7 @@ export const CONFIG_KEYS = [
     key: "allow_all_tools",
     flag: "--allow-all-tools / --no-allow-all-tools",
     values: "true · false (standard: false)",
-    desc: "La agenten kjøre alle verktøy uten å spørre først.",
+    desc: "La agenten kjøre uten å spørre også med autonomy = conservative (Copilot: --allow-all-tools, OpenCode: --auto). Gjelder bare i cplt.",
   },
   {
     key: "ask_user",
@@ -66,7 +66,7 @@ export const CONFIG_KEYS = [
     key: "autonomy",
     flag: "—",
     values: "sandbox · conservative (standard: sandbox)",
-    desc: "Hvor mye Copilot CLI får gjøre uten å spørre når den kjører i cplt. sandbox gir --allow-all-tools --allow-all-paths --allow-all-urls: vaktene i cplt setter grensene, og agenten kan fremdeles spørre deg. Med conservative spør Copilot før hver handling. nav-pilot config set autonomy skriver også autonomy_chosen = true. En conservative uten det skrev en eldre nav-pilot selv, og den teller som sandbox. Uten cplt sender nav-pilot aldri allow-all-flagg.",
+    desc: "Hvor mye agenten får gjøre uten å spørre når den kjører i cplt. For Copilot CLI gir sandbox --allow-all-tools --allow-all-paths --allow-all-urls: vaktene i cplt setter grensene, og agenten kan fremdeles spørre deg. Med conservative spør Copilot før hver handling. For OpenCode gir sandbox --auto, og med conservative spør OpenCode som vanlig. nav-pilot config set autonomy skriver også autonomy_chosen = true. En conservative uten det skrev en eldre nav-pilot selv, og den teller som sandbox. Uten cplt sender nav-pilot aldri allow-all-flagg.",
   },
   {
     key: "auto_launch",

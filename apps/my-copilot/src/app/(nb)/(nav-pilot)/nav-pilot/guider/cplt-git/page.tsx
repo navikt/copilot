@@ -186,6 +186,16 @@ export GH_TOKEN=$(gh auth token)   # i skallet du starter nav-pilot fra`}
             Den private nøkkelen er fortsatt stengt, men agenten kan be GPG-agenten signere hva som helst mens økten
             varer. Signering med SSH-nøkkel (<code className={code}>gpg.format=ssh</code>) virker ikke.
           </BodyLong>
+          <BodyLong>
+            Start GPG-agenten før økten. Sandkassen stenger skriving til <code className={code}>~/.gnupg</code>, så gpg
+            får trolig ikke startet agenten selv. Kjør dette utenfor cplt:
+          </BodyLong>
+          <CodeBlock compact>{`gpgconf --launch gpg-agent`}</CodeBlock>
+          <BodyLong>
+            GPG-signering stilles inn i cplt, ikke i nav-pilot. nav-pilot sender ikke flagg som{" "}
+            <code className={code}>--allow-gpg-signing</code> videre til cplt. Sett dem i cplt-konfigurasjonen som vist
+            over. Git over SSH er stengt som standard, så bruk HTTPS.
+          </BodyLong>
         </VStack>
       </section>
     </DocPage>

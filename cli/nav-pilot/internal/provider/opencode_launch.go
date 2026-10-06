@@ -265,8 +265,10 @@ func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 		}
 		args = append(args, "--agent", persona)
 	}
-	if resolved.AllowAllTools {
-		args = append(args, "--dangerously-skip-permissions")
+	// Sandbox autonomy means cplt is the boundary, so opencode's own prompts
+	// go (as for copilot); --auto is opencode 1.18's public allow-all flag.
+	if resolved.Autonomy == "sandbox" || resolved.AllowAllTools {
+		args = append(args, "--auto")
 	}
 	if lvl := openCodeLogLevel(resolved.LogLevel); lvl != "" {
 		args = append(args, "--log-level", lvl)
@@ -292,7 +294,7 @@ func openCodeAgentArgs(resolved domain.ResolvedConfig) []string {
 func OpenCodeUnsupportedConfigWarnings(r domain.ResolvedConfig) []string {
 	var w []string
 	if r.Mode == "autopilot" {
-		w = append(w, `mode "autopilot" has no opencode equivalent — running with opencode defaults (use allow_all_tools = true to skip confirmations)`)
+		w = append(w, `mode "autopilot" has no opencode equivalent — running with opencode defaults`)
 	}
 	if r.ContextTier != "" {
 		w = append(w, fmt.Sprintf("context_tier %q has no opencode equivalent — ignored", r.ContextTier))

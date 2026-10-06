@@ -192,7 +192,7 @@ func TestUnsandboxedOpenCodeGetsNoSkipPermissions(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
 	err := LaunchOpenCode(domain.ResolvedConfig{
-		Client: "opencode", Mode: "default", AllowAllTools: true, NoSandbox: true,
+		Client: "opencode", Mode: "default", Autonomy: "sandbox", AllowAllTools: true, NoSandbox: true,
 		ExtraArgs: []string{"--auto", "--yolo=true", "--dangerously-skip-permissions"},
 	})
 	if err != nil {

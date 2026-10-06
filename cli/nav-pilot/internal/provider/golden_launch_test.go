@@ -164,7 +164,7 @@ func TestGoldenOpenCodeArgs(t *testing.T) {
 			want: []string{
 				"--model", "github-copilot/claude-opus-5",
 				"--agent", "nav-pilot",
-				"--dangerously-skip-permissions",
+				"--auto",
 				"--log-level", "DEBUG",
 			},
 		},
