@@ -32,7 +32,7 @@ func TestEveryLaunchFlagIsInHelp(t *testing.T) {
 	}
 	for _, m := range flags {
 		flag := m[1]
-		if flag == "--agent" {
+		if flag == "--agent" || flag == "--no-sandbox" {
 			continue // removed: parsed only to say what replaced it
 		}
 		if !regexp.MustCompile(`(^|[\s(])` + regexp.QuoteMeta(flag) + `\b`).MatchString(help.String()) {

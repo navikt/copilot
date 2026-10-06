@@ -99,13 +99,6 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     opencode: "Ja, i hver økt",
     pi: "Ikke aktuelt",
   },
-  {
-    what: <>Uten cplt ({c("--no-sandbox")}, CI)</>,
-    copilot: "Ja",
-    opencode: "Ja",
-    pi: "Nei",
-    note: "Tier 2 krever fortsatt cplt.",
-  },
   { what: "Installasjon i WSL2 på Windows", copilot: "Ja", opencode: "Ja", pi: "Nei" },
   {
     what: <>Skyorkestrator med {c("local-worker")}</>,
@@ -344,20 +337,10 @@ export default function Klienter() {
           . Mangler cplt:
         </BodyLong>
         <Bullets>
+          <li>Ingen klient starter, verken Copilot CLI, OpenCode eller pi.</li>
           <li>
-            Copilot CLI og opencode: nav-pilot spør i terminalen om klienten skal starte uten sandkasse. Standardsvaret
-            er nei. Med {c("--no-sandbox")} starter den uten å spørre, med én advarsel. Uten terminal, for eksempel i
-            CI, starter den bare med {c("--no-sandbox")}. Uten cplt fjerner nav-pilot alle allow-all-flagg, også dem fra
-            config.toml og etter {c("--")}. Tillatelser i klientens egen konfigurasjon gjelder fortsatt.
-          </li>
-          <li>pi starter ikke.</li>
-          <li>
-            En agentpakke i Tier 2 starter ikke, uansett klient. Tier 2 vil si at pakka har ferdigbygde filer som
-            nav-pilot sjekker mot en digest og låser den som én revisjon per bruker, se{" "}
-            <NextLink href="/nav-pilot/agentpakker#hvilken-tier" className={linkClass}>
-              Hvilken tier
-            </NextLink>
-            .
+            {c("--no-sandbox")} finnes ikke lenger. nav-pilot avslutter med en feilmelding som forklarer hvordan du
+            installerer cplt.
           </li>
         </Bullets>
       </Section>

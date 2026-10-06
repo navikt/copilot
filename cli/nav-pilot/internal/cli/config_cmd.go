@@ -94,7 +94,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "allow_all_tools",
 		kind:        keyKindBool,
-		description: "Skip the client's permission prompts under cplt even with autonomy = conservative (Copilot: --allow-all-tools, OpenCode: --auto). Dropped without cplt.",
+		description: "Skip the client's permission prompts under cplt even with autonomy = conservative (Copilot: --allow-all-tools, OpenCode: --auto).",
 		allowed:     nil,
 		defaultVal:  "false",
 		flag:        "--allow-all-tools / --no-allow-all-tools",
@@ -110,7 +110,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "autonomy",
 		kind:        keyKindString,
-		description: "How much the agent may do without asking, under cplt. sandbox passes --allow-all-tools --allow-all-paths --allow-all-urls: cplt's guards stay the boundary, and the agent can still ask you. conservative keeps Copilot's prompt before each action. For OpenCode, sandbox passes --auto and conservative keeps OpenCode's own prompts. Setting it also writes autonomy_chosen = true; conservative without that was written by an earlier nav-pilot, not chosen, and counts as sandbox. Without cplt nav-pilot never passes allow-all flags.",
+		description: "How much the agent may do without asking, under cplt. sandbox passes --allow-all-tools --allow-all-paths --allow-all-urls: cplt's guards stay the boundary, and the agent can still ask you. conservative keeps Copilot's prompt before each action. For OpenCode, sandbox passes --auto and conservative keeps OpenCode's own prompts. Setting it also writes autonomy_chosen = true; conservative without that was written by an earlier nav-pilot, not chosen, and counts as sandbox.",
 		allowed:     validAutonomy,
 		defaultVal:  "sandbox",
 		flag:        "",
@@ -381,7 +381,7 @@ client = "copilot"
 
 # Skip the client's permission prompts under cplt even with autonomy = conservative.
 # Default: false
-# Copilot: --allow-all-tools, OpenCode: --auto. Dropped without cplt.
+# Copilot: --allow-all-tools, OpenCode: --auto.
 # allow_all_tools = false
 
 # Ask the user before taking actions. Set to false to disable.
@@ -394,7 +394,7 @@ client = "copilot"
 #                  guards stay the boundary, and the agent can still ask you
 #   conservative : Copilot asks before each action
 # For OpenCode, sandbox passes --auto; conservative keeps its prompts.
-# Without cplt nav-pilot never passes allow-all flags. Set it with
+# Set it with
 # nav-pilot config set autonomy <value>, which also writes
 # autonomy_chosen = true: conservative without it is ignored.
 # Allowed: sandbox, conservative — Default: sandbox

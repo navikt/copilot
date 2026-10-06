@@ -1081,9 +1081,8 @@ func RemoveDispatchGatePlugin() error {
 }
 
 // LaunchOpenCode launches opencode with the resolved config: inside the cplt
-// sandbox when cplt is on PATH, and otherwise opencode itself, which the cli
-// allows only after asking or with --no-sandbox (#1028). A staged Tier 2
-// launch (LaunchOpenCodeStaged) always requires cplt. Before launching, it
+// sandbox. Without cplt the launch fails with install guidance; nav-pilot
+// never runs a client outside the sandbox. Before launching, it
 // materializes Nav context into opencode's user config directory.
 func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	if _, err := exec.LookPath("opencode"); err != nil {
@@ -1189,10 +1188,9 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	launchEnv, cpltFlags = applyOpenCodeHooks(resolved, launchEnv, cpltFlags)
 
 	return launchViaCplt(cpltLaunch{
-		agent:         "opencode",
-		unsandboxedOK: true,
-		agentArgs:     openCodeAgentArgs(resolved),
-		cpltArgs:      cpltFlags,
+		agent:     "opencode",
+		agentArgs: openCodeAgentArgs(resolved),
+		cpltArgs:  cpltFlags,
 		// EnsureOpenCodeNavContext above wrote into this directory, so ask it
 		// for skills after the materialization rather than before it.
 		skillsDir:     materializedSkillsDir(openCodeNavContextDir()),

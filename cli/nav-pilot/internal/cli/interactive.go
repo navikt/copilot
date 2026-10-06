@@ -1002,25 +1002,6 @@ func installedAgents(state *StateFile) []string {
 }
 
 func launchClient(resolved ResolvedConfig) error {
-	return launchClientConfirming(resolved, false)
-}
-
-// launchClientConfirming is launchClient with the missing-sandbox warning,
-// which only the post-install interactive flow prints.
-//
-// The warning is printed here rather than by the caller because "would run
-// unsandboxed" is only true on the legacy path: a Tier 2 launch requires cplt
-// and refuses without it (fail-closed), and which of the two applies is not
-// known until tryPakkeLaunch has resolved the source and read the tier.
-// Warning first told people their launch was unsandboxed when it was about to
-// be refused instead.
-//
-// It warns and launches rather than asking. People run nav-pilot to get their
-// client started, and a confirmation whose only sensible answer is "yes" is a
-// keystroke, not a decision. Nobody who wants the sandbox gets one by
-// answering "no" here; they get it by installing cplt, which the warning names.
-// auto_launch = false is the setting for never launching at all.
-func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error {
 	if err := removeUnusableRtkHook(resolved.Client); err != nil {
 		return fmt.Errorf("removing unusable rtk hook: %w", err)
 	}
@@ -1059,11 +1040,6 @@ func launchClientConfirming(resolved ResolvedConfig, warnUnsandboxed bool) error
 	// enforced it (#800).
 	if err := providerpkg.CheckPakkeClientCompatibility(resolved.Client); err != nil {
 		return err
-	}
-	if warnUnsandboxed {
-		if err := confirmUnsandboxed(resolved); err != nil {
-			return err
-		}
 	}
 	p, err := providerFor(resolved.Client)
 	if err != nil {
@@ -1107,51 +1083,6 @@ func beginSession(client string) {
 // cpltInstallHint is how to get the sandbox.
 const cpltInstallHint = "brew install navikt/tap/cplt (or sudo apt install cplt)"
 
-// errUnsandboxedDeclined: the user said no to launching without the sandbox.
-// Not a failure; offerLaunchCopilot ends the run with exit 0.
-var errUnsandboxedDeclined = errors.New("unsandboxed launch declined")
-
-// confirmUnsandboxedFn asks whether to launch without the sandbox; a variable
-// so a test can answer it.
-var confirmUnsandboxedFn = func(name string) (bool, error) {
-	yes := false
-	err := huh.NewConfirm().
-		Title(fmt.Sprintf("Launch %s without the sandbox?", name)).
-		Affirmative("Yes").
-		Negative("No").
-		Value(&yes).
-		WithTheme(navTheme()).
-		Run()
-	return yes, err
-}
-
-// confirmUnsandboxed runs when cplt is missing and copilot would start without
-// it. --no-sandbox launches with one line of warning. In a terminal it asks,
-// defaulting to no. Without one it refuses: nobody is there to say yes.
-func confirmUnsandboxed(resolved ResolvedConfig) error {
-	name := resolved.Client
-	if p, err := providerFor(resolved.Client); err == nil && p.DisplayName() != "" {
-		name = p.DisplayName()
-	}
-	if resolved.NoSandbox {
-		fmt.Fprintf(os.Stderr, "%s cplt (the sandbox) is not installed: %s runs unsandboxed (--no-sandbox).\n", yellow("⚠"), name)
-		return nil
-	}
-	fmt.Fprintf(os.Stderr, "%s cplt (the sandbox) is not installed. Install it: %s\n", yellow("⚠"), bold(cpltInstallHint))
-	if !isInteractive() {
-		fmt.Fprintf(os.Stderr, "Not launching %s unsandboxed without a terminal. Pass --no-sandbox to do it anyway.\n", name)
-		return &exitCode{code: ExitError}
-	}
-	yes, err := confirmUnsandboxedFn(name)
-	if errors.Is(err, huh.ErrUserAborted) {
-		return cancelledError{}
-	}
-	if err != nil || !yes {
-		return errUnsandboxedDeclined
-	}
-	return nil
-}
-
 // launchDirTooBroad reports whether the launch would sandbox the home
 // directory or /, which cplt refuses as too broad.
 func launchDirTooBroad(projectDir string) bool {
@@ -1184,33 +1115,30 @@ const (
 	launchSkipOptedOut                          // auto_launch = false: name the command, don't launch
 	launchSkipQuiet                             // no terminal: do nothing
 	launchGo                                    // launch
-	launchWarnUnsandboxed                       // warn about the missing sandbox, then launch
 )
 
 // decideLaunch maps the post-install state to a launch decision. autoLaunch is
 // the resolved auto_launch setting; false means the user opted out and nothing
-// is ever launched, only the command to run is printed. sandboxed
-// is false only when the copilot client resolved to the plain, unsandboxed CLI.
+// is ever launched, only the command to run is printed. sandboxed is false
+// when cplt is missing: nav-pilot never launches a client without it.
 // Without a terminal nothing is ever launched — and nothing is printed either,
 // so scripted runs stay as quiet as they were before the launch warnings.
 func decideLaunch(available, autoLaunch, sandboxed, interactive bool) launchDecision {
 	switch {
 	case !interactive:
 		return launchSkipQuiet
-	case !available:
+	case !available, !sandboxed:
 		return launchSkipUnavailable
 	case !autoLaunch:
 		return launchSkipOptedOut
-	case sandboxed:
-		return launchGo
 	default:
-		return launchWarnUnsandboxed
+		return launchGo
 	}
 }
 
 // offerLaunchCopilot launches the configured agent after install. Nothing here
-// asks: a healthy setup launches, a missing sandbox launches behind a warning,
-// a missing binary is warned about and not launched, and auto_launch = false
+// asks: a healthy setup launches, a missing binary or a missing cplt is
+// warned about and not launched, and auto_launch = false
 // prints the command to run instead of launching anything.
 //
 // A launch that fails is returned, not only printed: the launch is the last
@@ -1253,12 +1181,12 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 	if decision == launchSkipQuiet {
 		return nil
 	}
-	if headless && decision != launchGo && !(decision == launchWarnUnsandboxed && resolved.NoSandbox) {
+	if headless && decision != launchGo {
 		return headlessRefusal(decision, p, missingCommand(resolved.Client, cmdName), startCommand(resolved))
 	}
 	// Launching from $HOME (or /): cplt refuses it as too broad, and a first
 	// run from a fresh terminal lands exactly there. Say where to go instead.
-	if (decision == launchGo || decision == launchWarnUnsandboxed) && launchDirTooBroad(resolved.ProjectDir) {
+	if decision == launchGo && launchDirTooBroad(resolved.ProjectDir) {
 		msg := "cd into a project and run nav-pilot, or pass --project-dir <dir>."
 		if installed {
 			fmt.Printf("\n%s Installed. %s\n", green("✓"), msg)
@@ -1279,15 +1207,17 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 	switch decision {
 	case launchSkipUnavailable:
 		if resolved.Client == "copilot" {
-			if _, name := providerpkg.FindCopilotCLI(); name == "cplt" {
+			switch _, name := providerpkg.FindCopilotCLI(); name {
+			case "cplt":
 				fmt.Fprintf(os.Stderr, "%s Nothing was launched: %s\n", yellow("⚠"), providerpkg.CopilotMissingBehindCplt())
 				return nil
+			case "":
+				fmt.Fprintf(os.Stderr, "%s Neither copilot nor cplt is installed, so nothing was launched.\n%s\n", yellow("⚠"), copilotInstallHint())
+				if !opencodeInstalled() {
+					fmt.Fprintf(os.Stderr, "  Or use opencode: %s, then %s\n", bold(opencodeInstallCommand()), bold("nav-pilot config set client opencode"))
+				}
+				return nil
 			}
-			fmt.Fprintf(os.Stderr, "%s Neither copilot nor cplt is installed, so nothing was launched.\n%s\n", yellow("⚠"), copilotInstallHint())
-			if !opencodeInstalled() {
-				fmt.Fprintf(os.Stderr, "  Or use opencode: %s, then %s\n", bold(opencodeInstallCommand()), bold("nav-pilot config set client opencode"))
-			}
-			return nil
 		}
 		if missingCommand(resolved.Client, resolved.Client) == "cplt" {
 			fmt.Fprintf(os.Stderr, "%s cplt (the sandbox) is not installed, and %s only launches inside it. Install it: %s\n",
@@ -1302,20 +1232,12 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 		return nil
 	}
 
-	// The missing-sandbox warning is deferred into the launch itself: see
-	// launchClientConfirming.
-	warnUnsandboxed := decision == launchWarnUnsandboxed
-
 	if providerpkg.Verbose {
 		fmt.Printf("%s Launching %s...\n", dim("→"), p.DisplayName())
 	}
 	if err := runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
-		return launchClientConfirming(resolved, warnUnsandboxed)
+		return launchClient(resolved)
 	}); err != nil {
-		if errors.Is(err, errUnsandboxedDeclined) {
-			fmt.Println(dim("Not launched."))
-			return nil
-		}
 		var c cancelledError
 		var ec *exitCode
 		if errors.As(err, &c) || errors.As(err, &ec) {
@@ -1373,13 +1295,10 @@ func shellQuote(s string) string {
 }
 
 // missingCommand is what to name when client cannot launch: cplt when the
-// client is pi and its own binary is there, since pi needs cplt too;
-// otherwise name. opencode, like copilot, can launch without cplt.
+// client's own binary is there, since every client needs cplt; otherwise name.
 func missingCommand(client, name string) string {
-	if client == "pi" {
-		if _, err := exec.LookPath(client); err == nil {
-			return "cplt"
-		}
+	if _, err := exec.LookPath(client); err == nil {
+		return "cplt"
 	}
 	return name
 }
@@ -1398,12 +1317,15 @@ func headlessRefusal(decision launchDecision, p Provider, missing, start string)
 	switch decision {
 	case launchSkipUnavailable:
 		if p.ID() == "copilot" {
-			if _, name := providerpkg.FindCopilotCLI(); name == "cplt" {
+			_, name := providerpkg.FindCopilotCLI()
+			if name == "cplt" {
 				fmt.Fprintf(os.Stderr, "Not launching: %s\n", providerpkg.CopilotMissingBehindCplt())
 				break
 			}
-			fmt.Fprintf(os.Stderr, "Not launching: neither copilot nor cplt is installed.\n%s\n", copilotInstallHint())
-			break
+			if name == "" {
+				fmt.Fprintf(os.Stderr, "Not launching: neither copilot nor cplt is installed.\n%s\n", copilotInstallHint())
+				break
+			}
 		}
 		install := cpltInstallHint
 		if cmd, ok := clientInstallCommand[missing]; ok {
@@ -1412,9 +1334,6 @@ func headlessRefusal(decision launchDecision, p Provider, missing, start string)
 		fmt.Fprintf(os.Stderr, "Not launching: %s is not installed. Install it: %s\n", missing, bold(install))
 	case launchSkipOptedOut:
 		fmt.Fprintf(os.Stderr, "Not launching: auto_launch = false. Start it yourself with: %s\n", start)
-	default:
-		fmt.Fprintf(os.Stderr, "Not launching: no terminal, and without cplt %s would run unsandboxed with nobody watching.\n  Install cplt: %s\n  Or pass --no-sandbox to run it anyway.\n",
-			p.DisplayName(), bold(cpltInstallHint))
 	}
 	return &exitCode{code: ExitError}
 }

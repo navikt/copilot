@@ -50,7 +50,7 @@ stderr 'nav-pilot --client opencode -- -p "…"$'
 ! stderr '-- --'
 
 # The safety refusals still hold: not from $HOME without --project-dir, and
-# not unsandboxed without --no-sandbox.
+# never without cplt.
 cd $HOME
 exits 1 nav-pilot --client opencode -- run -p x
 stderr 'Not launching from your home directory'
@@ -59,7 +59,7 @@ rm fake/cplt
 fake-bin copilot
 cd repo
 exits 1 nav-pilot -- -p x
-stderr 'without cplt copilot would run unsandboxed'
+stderr 'Not launching: cplt is not installed'
 ! grep '^-p' $WORK/fake/copilot.log
 cd $WORK
 fake-bin cplt

@@ -223,15 +223,6 @@ func withoutAllowAll(args []string) []string {
 	return slices.DeleteFunc(args, isAllowAllFlag)
 }
 
-// unsandboxedAllowAllNote is the line an unsandboxed launch prints when the
-// config or the command line asked for allow-all, or "" when nothing did.
-func unsandboxedAllowAllNote(resolved domain.ResolvedConfig) string {
-	if !resolved.AllowAllTools && resolved.Autonomy != "sandbox" && !slices.ContainsFunc(resolved.ExtraArgs, isAllowAllFlag) {
-		return ""
-	}
-	return "Without cplt, Copilot asks before each action: nav-pilot passes no allow-all flags outside the sandbox."
-}
-
 // autopilotNote is the line a launch in autopilot prints, or "".
 func autopilotNote(resolved domain.ResolvedConfig) string {
 	// --autopilot after "--" is Copilot's alias for --mode autopilot.
@@ -311,22 +302,17 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
 		return fmt.Errorf("the Copilot CLI (copilot) is not on PATH. Install it: %s", domain.Bold(CopilotInstallCommand))
 	}
-	if cliName == "cplt" {
-		if !CopilotBesideCplt(cliPath) {
-			telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
-			return errors.New(CopilotMissingBehindCplt())
-		}
-		PrintCpltSandboxHint()
-		PrintAutonomyNotice(resolved)
-	}
-	env := CopilotEnv(resolved.OtelLogLevel)
 	if cliName != "cplt" {
-		// The environment spelling of --allow-all-tools goes too.
-		env = slices.DeleteFunc(env, func(e string) bool { return strings.HasPrefix(e, "COPILOT_ALLOW_ALL=") })
-		if note := unsandboxedAllowAllNote(resolved); note != "" {
-			fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
-		}
+		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
+		return ErrCpltMissing("Copilot")
 	}
+	if !CopilotBesideCplt(cliPath) {
+		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
+		return errors.New(CopilotMissingBehindCplt())
+	}
+	PrintCpltSandboxHint()
+	PrintAutonomyNotice(resolved)
+	env := CopilotEnv(resolved.OtelLogLevel)
 	if note := autopilotNote(resolved); note != "" {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
 	}

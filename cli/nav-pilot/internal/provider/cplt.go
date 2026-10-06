@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -51,11 +50,6 @@ type cpltLaunch struct {
 	skillsDir string
 	// env is the process environment. nil inherits the parent environment.
 	env []string
-	// unsandboxedOK lets the launch run the agent directly when cplt is
-	// missing. Only a legacy opencode launch sets it, and only after the cli
-	// asked (or was told --no-sandbox): a staged payload launch never runs
-	// unsandboxed.
-	unsandboxedOK bool
 	// displayName is the user-facing client name for launch/log messages.
 	displayName string
 	// messageSuffix is appended to the "Launching …" line (e.g. nav-context summary).
@@ -247,17 +241,21 @@ func printSandboxScope(dir, root string, reads []string) {
 		domain.Dim("ℹ"), dir, root, strings.Join(names, ", "))
 }
 
+// ErrCpltMissing is the error every launch without cplt fails with:
+// nav-pilot never runs a client outside the sandbox.
+func ErrCpltMissing(client string) error {
+	return fmt.Errorf("cplt not found in PATH — nav-pilot launches clients inside the cplt sandbox; install cplt to launch %s: %s",
+		client, domain.Bold(domain.PkgForInstall().Pick("brew install navikt/tap/cplt", "sudo apt install cplt")))
+}
+
 // launchViaCplt runs the given client agent inside the cplt sandbox, wiring
 // stdio to the current process. cplt is required: if it is not found on PATH the
 // launch fails with guidance instead of falling back to an unsandboxed binary.
 func launchViaCplt(spec cpltLaunch) error {
 	cliPath, cliName := FindCopilotCLI()
-	if (cliPath == "" || cliName != "cplt") && spec.unsandboxedOK {
-		return launchUnsandboxed(spec)
-	}
 	if cliPath == "" || cliName != "cplt" {
 		telemetryRecorder.RecordLaunchError(spec.agent, "client_not_found")
-		return fmt.Errorf("cplt not found in PATH — nav-pilot launches clients inside the cplt sandbox; install cplt to launch %s", spec.displayName)
+		return ErrCpltMissing(spec.displayName)
 	}
 	// Every cplt launch on a terminal marks the autonomy notice as seen, so
 	// someone who starts on OpenCode or pi and later switches to Copilot is
@@ -335,49 +333,4 @@ func classifyLaunchError(err error) string {
 		return "client_not_found"
 	}
 	return "unknown"
-}
-
-// openCodeAllowAllFlags are the OpenCode flags that auto-approve its
-// permission prompts (opencode 1.18: --auto, and the hidden --yolo and
-// --dangerously-skip-permissions aliases).
-var openCodeAllowAllFlags = []string{"--auto", "--yolo", "--dangerously-skip-permissions"}
-
-// isUnsandboxedDenied reports whether arg switches any client's permission
-// prompts off, also in the --flag=value spelling. pi has no permission prompts
-// and no such flag.
-func isUnsandboxedDenied(arg string) bool {
-	name, _, _ := strings.Cut(arg, "=")
-	return isAllowAllFlag(arg) || slices.Contains(openCodeAllowAllFlags, name)
-}
-
-// launchUnsandboxed runs the agent itself, without cplt, in the project
-// directory: what --no-sandbox means for opencode, as it does for copilot.
-// The environment is the launch's own (hooks, policy and OTel variables
-// included); cplt's flags have nothing to apply to.
-func launchUnsandboxed(spec cpltLaunch) error {
-	path, err := exec.LookPath(spec.agent)
-	if err != nil {
-		telemetryRecorder.RecordLaunchError(spec.agent, "client_not_found")
-		return fmt.Errorf("%s not found in PATH", spec.agent)
-	}
-	// Allow-all is only safe with cplt as the boundary, for every client:
-	// whatever the config or the command line asked for, the flags go.
-	args := slices.DeleteFunc(slices.Clone(spec.agentArgs), isUnsandboxedDenied)
-	if len(args) != len(spec.agentArgs) {
-		fmt.Fprintf(os.Stderr, "%s Without cplt, %s asks before each action: nav-pilot passes no allow-all flags outside the sandbox.\n", domain.Yellow("⚠"), spec.displayName)
-	}
-	fmt.Printf("Launching %s %s%s...\n\n", domain.Bold(spec.displayName), domain.Yellow("without the sandbox"), spec.messageSuffix)
-	cmd := exec.Command(path, args...)
-	cmd.Dir = spec.projectDir
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Env = withSkillsDirEnv(spec.env, spec.skillsDir)
-	if err := cmd.Run(); err != nil {
-		if kind := classifyLaunchError(err); kind != "" {
-			telemetryRecorder.RecordLaunchError(spec.agent, kind)
-		}
-		return err
-	}
-	return nil
 }

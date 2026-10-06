@@ -150,12 +150,11 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
   --no-auto-launch        Install or sync, but don't start the agent (--auto-launch to turn on)
   --project-dir <dir>     Directory the agent may read and write (default: current directory, not
                           the enclosing git root; the root's instructions stay readable)
-  --no-sandbox            When cplt is missing, start copilot or opencode without it, and without asking
   --verbose               Say what the launch does: sandbox directory, client, agent and model
   --sync                  Sync all scopes without asking, then launch (opt-in; nav-pilot -- … never syncs)
   -- <client-flags>       Launch now with these flags, passed to the client unchanged: no menu, no
                           nav-pilot prompt, no sync, with or without a terminal (nav-pilot -- -p "…").
-                          Needs an install and cplt (or --no-sandbox); exits 2 if nothing is installed.
+                          Needs an install and cplt; exits 2 if nothing is installed.
                           In a terminal cplt still shows its own sandbox confirmation
 
 Exit Codes:
@@ -457,7 +456,8 @@ func run(args []string) error {
 				f := false
 				cliOverrides.AskUser = &f
 			case "--no-sandbox":
-				cliOverrides.NoSandbox = true
+				// Removed: still parsed so old scripts get a reason, not "unknown flag".
+				return fmt.Errorf("--no-sandbox is gone: nav-pilot always runs clients inside cplt (the sandbox). Drop the flag and install cplt: %s", cpltInstallHint)
 			case "--verbose":
 				providerpkg.Verbose = true
 			case "--auto-launch":
