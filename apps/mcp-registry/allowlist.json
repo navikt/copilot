@@ -346,6 +346,45 @@
     },
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "io.github.navikt/nav-etterlevelse-mcp",
+      "description": "Document etterlevelse compliance and privacy impact assessments (PVK/DPIA) for Nav systems.",
+      "version": "0.1.0",
+      "status": "active",
+      "publishedAt": "2026-08-05T00:00:00Z",
+      "websiteUrl": "https://github.com/navikt/nav-etterlevelse-mcp",
+      "repository": {
+        "url": "https://github.com/navikt/nav-etterlevelse-mcp",
+        "source": "github"
+      },
+      "remotes": [
+        {
+          "type": "streamable-http",
+          "url": "https://nav-etterlevelse-mcp.{{domain_internal}}/mcp"
+        }
+      ],
+      "tools": ["list_etterlevelse_dokumentasjoner", "get_etterlevelse_dokumentasjon", "create_etterlevelse_dokumentasjon", "write_etterlevelse_dokumentasjon", "get_etterlevelse_status_oversikt", "get_etterlevelse", "delete_krav_besvarelse", "lock_document", "list_krav", "get_krav", "get_krav_for_gjennomgang", "begin_sk_review", "write_suksesskriterium", "write_krav_status", "get_pvk_dokument", "create_pvk_dokument", "delete_pvk_dokument", "write_pvk_egenskaper", "get_ytterligere_egenskaper_koder", "write_pvk_involvering", "write_pvk_melding_til_pvo", "write_pvk_risikoeier", "get_behandlingens_livsloep", "write_behandlingens_livsloep", "delete_behandlingens_livsloep", "write_behandlingens_art_og_omfang", "list_risikoscenarioer", "write_risikoscenario", "delete_risikoscenario", "link_krav_to_risikoscenario", "unlink_krav_from_risikoscenario", "list_tiltak", "write_tiltak", "delete_tiltak", "search_behandlinger", "get_behandling", "search_dp_behandlinger", "get_dp_behandling", "get_processor", "list_navet_pages", "get_navet_page", "get_my_teams", "search_slack_channel", "list_nom_avdelinger"],
+      "tags": ["compliance", "privacy", "etterlevelse", "pvk", "dpia", "nav-internal"],
+      "examples": [
+        {
+          "scenario": "Vurder etterlevelse for et system",
+          "prompt": "Gjennomfør etterlevelsessjekk for navikt/dp-soknad"
+        },
+        {
+          "scenario": "Lag PVK for et system",
+          "prompt": "Gjennomfør en personvernkonsekvensvurdering for navikt/fp-sak"
+        },
+        {
+          "scenario": "Finn krav for et dokument",
+          "prompt": "Hvilke etterlevelseskrav er relevante for etterlevelsesdokumentasjon E123?"
+        },
+        {
+          "scenario": "Skriv besvarelse for ett suksesskriterium (med obligatorisk gjennomgang)",
+          "prompt": "Start gjennomgangen for suksesskriterium 1 på K102.3 i etterlevelsesdokumentasjon E123"
+        }
+      ]
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "no.nav.aksel/aksel-arcade",
       "description": "Lokal MCP innebygd i appen Aksel Arcade for redigering av JSX/Hooks og Pages.",
       "version": "1.0.0",
