@@ -416,6 +416,18 @@ case "$CLIENT" in
       "e.g. --model gpt-6-sol; github-copilot/ is added when no provider is given"
     [[ -z "$CONTEXT_TIER" ]] || fail_preflight "--context is not supported with --client opencode" ""
     [[ "$MODEL" == */* ]] && OC_MODEL="$MODEL" || OC_MODEL="github-copilot/$MODEL"
+    command -v go >/dev/null 2>&1 || fail_preflight "--client opencode needs go" \
+      "The persona is converted with nav-pilot's own OpenCode transform (go run)."
+    # Everything OpenCode reads config from is redirected: OPENCODE_CONFIG,
+    # OPENCODE_CONFIG_CONTENT and OPENCODE_CONFIG_DIR are cleared, and HOME
+    # points at a scratch dir so ~/.opencode and ~/.claude are not read. The
+    # data, cache and state dirs stay the user's own, explicitly, because the
+    # login lives in the data dir.
+    OC_BASE_ENV=(-u OPENCODE_CONFIG -u OPENCODE_CONFIG_CONTENT -u OPENCODE_CONFIG_DIR
+      "XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}"
+      "XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}"
+      "XDG_STATE_HOME=${XDG_STATE_HOME:-$HOME/.local/state}"
+      OPENCODE_DISABLE_CLAUDE_CODE=1 NO_COLOR=1)
     ;;
   *) fail_preflight "--client takes copilot or opencode, got '$CLIENT'" "" ;;
 esac
@@ -438,8 +450,8 @@ preflight_client() {
     local oc_probe_cfg oc_probe_out
     oc_probe_cfg="$(mktemp -d "${TMPDIR:-/tmp}/nav-pilot-golden-oc.XXXXXX")"
     local oc_probe_rc
-    oc_probe_out="$(env -u OPENCODE_CONFIG -u OPENCODE_CONFIG_CONTENT \
-      XDG_CONFIG_HOME="$oc_probe_cfg" OPENCODE_DISABLE_CLAUDE_CODE=1 \
+    mkdir -p "$oc_probe_cfg/home"
+    oc_probe_out="$(env "${OC_BASE_ENV[@]}" "XDG_CONFIG_HOME=$oc_probe_cfg" "HOME=$oc_probe_cfg/home" \
       "$CLI_PATH" run -m "$OC_MODEL" "svar kun med ordet OK" 2>&1)"
     oc_probe_rc=$?
     rm -rf "$oc_probe_cfg"
@@ -620,17 +632,23 @@ fi
 
 if [[ "$CLIENT" == opencode ]]; then
   OC_CFG="$WORKDIR/opencode-config/opencode"
-  mkdir -p "$OC_CFG/agents" "$OC_CFG/skills"
-  { printf -- '---\ndescription: %s\nmode: primary\n---\n' "$AGENT_NAME"
-    awk '/^---$/ {n++; next} n >= 2' "$PERSONA"; } >"$OC_CFG/agents/$LAUNCH_NAME.md"
+  mkdir -p "$OC_CFG/agents" "$OC_CFG/skills" "$WORKDIR/opencode-home"
+  # nav-pilot's own transform (export.go), so the tools allowlist becomes the
+  # same OpenCode permission denies a real install gets. The model line is
+  # dropped: --model is required here and must not lose to a frontmatter pin.
+  ( cd "$REPO_ROOT/cli/nav-pilot" && go run ./internal/cmd/golden-opencode-agent "$PERSONA" "$LAUNCH_NAME" ) \
+    >"$WORKDIR/opencode-agent.md" \
+    && awk '/^---$/ {fm++} fm == 1 && /^model:/ {next} {print}' "$WORKDIR/opencode-agent.md" >"$OC_CFG/agents/$LAUNCH_NAME.md" \
+    || fail_preflight "could not convert $PERSONA for OpenCode" "Run: (cd cli/nav-pilot && go run ./internal/cmd/golden-opencode-agent $PERSONA $LAUNCH_NAME)"
+  grep -q '^mode: primary$' "$OC_CFG/agents/$LAUNCH_NAME.md" \
+    || fail_preflight "the converted OpenCode persona is not a primary agent" ""
   cp -R "$REPO_ROOT"/skills/* "$OC_CFG/skills/"
   if $WITH_INSTRUCTIONS; then
     for instr in "$REPO_ROOT"/instructions/*.instructions.md; do
       [[ -f "$instr" ]] && always_on "$instr" && awk '/^---$/ && n < 2 {n++; next} n != 1' "$instr"
     done >"$OC_CFG/AGENTS.md"
   fi
-  # OPENCODE_CONFIG(_CONTENT) would layer the user's own config on top.
-  OC_ENV=(-u OPENCODE_CONFIG -u OPENCODE_CONFIG_CONTENT "XDG_CONFIG_HOME=$WORKDIR/opencode-config" OPENCODE_DISABLE_CLAUDE_CODE=1 NO_COLOR=1)
+  OC_ENV=("${OC_BASE_ENV[@]}" "XDG_CONFIG_HOME=$WORKDIR/opencode-config" "HOME=$WORKDIR/opencode-home")
 fi
 
 # One string, used both in the --save-baseline header and in the --compare
@@ -1298,7 +1316,12 @@ run_prompt() {
   # WS_EXTRA names a function that adds a per-test fixture on top of the
   # template (test 7). Kept out of $TEMPLATE so FIXTURE_SUM and every recorded
   # baseline stay comparable.
-  $continuing || { seed_ws; [[ -n "${WS_EXTRA:-}" ]] && "$WS_EXTRA"; }
+  if ! $continuing && ! { seed_ws && { [[ -z "${WS_EXTRA:-}" ]] || "$WS_EXTRA"; }; }; then
+    # A half-built fixture would be measured as if it were the real one.
+    LAST_PROMPT_DETAIL="fixture setup failed (${WS_EXTRA:-seed_ws}), no model call made"
+    LAST_PROMPT_FAILURE="cli_failure"
+    return 1
+  fi
   ws_fingerprint >"$FP_BEFORE"
   # Same lifetime as FP_BEFORE/FP_AFTER: describes the most recent call only.
   [[ -n "$HOOK_LOG" ]] && : >"$HOOK_LOG"
@@ -2121,7 +2144,13 @@ run_pass_nav_pilot() {
       WS_EXTRA=seed_jackson_branch
       # As reported: a fresh session, the skill invoked as a slash command.
       PROMPT_COMMAND=jackson-3-migration
-      run_prompt t7 "Evaluer jackson 3 migrering i denne branchen"; rc7=$?
+      # question_sentences needs perl, and without it asks_privacy finds no
+      # question and test 7 would pass. Refuse before the model call.
+      if ! command -v perl >/dev/null 2>&1; then
+        rc7=1; LAST_PROMPT_DETAIL="perl not found; test 7 cannot split sentences"
+      else
+        run_prompt t7 "Evaluer jackson 3 migrering i denne branchen"; rc7=$?
+      fi
       PROMPT_COMMAND=""
       if [[ $rc7 -ne 0 ]]; then
         record_error 7 "$DESC7" "$LAST_PROMPT_DETAIL"
@@ -2150,6 +2179,7 @@ run_pass_nav_pilot() {
 # Test 7/7b fixture: Jackson 2 on the classpath, a REST DTO that already carries
 # fnr, and a Kafka message that does not.
 seed_jackson_fixture() {
+  [[ -f "$WS/build.gradle.kts" && -d "$WS/src/main/kotlin/no/nav/demo" ]] || return 1
   cat >>"$WS/build.gradle.kts" <<'EOF'
 dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
@@ -2193,11 +2223,15 @@ EOF
 # already done on the branch jackson-3 — the case users reported: asked to
 # evaluate a finished migration, the agent opened a privacy interview.
 seed_jackson_branch() {
-  seed_jackson_fixture
+  seed_jackson_fixture || return 1
   (
-    cd "$WS" || exit 1
+    set -e
+    cd "$WS"
     g() { git -c user.name=golden -c user.email=golden@example.invalid "$@" >/dev/null 2>&1; }
-    g init -b main && g add -A && g commit -m "Jackson 2"
+    # One step per line: set -e ignores a failure inside an && list.
+    g init -b main
+    g add -A
+    g commit -m "Jackson 2"
     g switch -c jackson-3
     sed -i.bak -e 's/com\.fasterxml\.jackson\.core:jackson-databind:2\.18\.2/tools.jackson.core:jackson-databind:3.1.0/' \
       -e 's/com\.fasterxml\.jackson\.module:jackson-module-kotlin:2\.18\.2/tools.jackson.module:jackson-module-kotlin:3.1.0/' \
@@ -2231,7 +2265,8 @@ fun sendSoker(producer: KafkaProducer<String, String>, soker: SokerDto) {
 }
 EOF
     rm -f build.gradle.kts.bak
-    g add -A && g commit -m "Migrer til Jackson 3"
+    g add -A
+    g commit -m "Migrer til Jackson 3"
   )
 }
 

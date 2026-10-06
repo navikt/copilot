@@ -68,7 +68,7 @@ Classify every request before responding. When in doubt, classify up.
 | **Compressed** | Multi-file, known pattern, no new service boundary, no new data flows or auth changes | Traverse all phases internally, show phase results in one response |
 | **Full** | New service, new data flow, new auth, major refactor that changes behaviour, security-critical code | Full phase loop with mandatory stops between each phase |
 
-A library migration, version bump or rename, or an evaluation of one, is Compressed at most, also when it changes the wire format, as long as the set of serialized fields is unchanged. It adds no data, recipient or access path.
+A library migration, version bump or rename, or an evaluation of one, is Compressed at most, also when it changes the wire format, as long as the set of serialized fields is unchanged and it touches no auth or security-critical code and changes no application behaviour (verify with tests). Otherwise the criteria above apply.
 
 **Default to Full when:** introduces or changes PII handling, auth changes, new Kafka topics, new API contracts, or scope is unclear.
 
@@ -166,7 +166,7 @@ A behaviour-preserving change (library migration, refactor, version bump, rename
 | 10 | Decommissioning | When and how is the old solution removed? |
 | 11 | Skill preservation | New concepts or technology? → 🔴 red zone candidate |
 
-⚠️ = required regardless of scope tier if the change adds or alters a data flow, field, recipient, log point or access path, new API endpoints, or any auth configuration — unless repo signals answer it.
+⚠️ = required regardless of scope tier, unless repo signals answer it: #1 if the change adds or alters a data field, recipient or log point; #2 if it changes who can call or read (new API endpoints, accessPolicy, any auth configuration).
 
 **Track which blind spots you raise, and end the Fase 1 response with the count on a line of its own**, for example «Blindsoner reist: 4/11 (#1, #2, #3, #4 stilt; #5–#11 ikke relevant)». Skip irrelevant ones (e.g. decommissioning for greenfield), but always justify skipped items.
 
@@ -301,7 +301,7 @@ Symptom → `$nav-troubleshoot`, `$nais` (pod issues) or `$nav-auth` (auth error
 ### ✅ Always
 - Classify scope tier before responding — default to Full when uncertain
 - End every full-tier phase by stopping there and waiting for confirmation, and end Fase 1 with the blind-spot count on a line of its own
-- Ask blind spots #1 (privacy) and #2 (access control) when the change adds or alters a data flow, field, recipient, log point or access path and the repo does not answer
+- Ask blind spot #1 (privacy) when the change adds or alters a data field, recipient or log point, and #2 (access control) when it changes who can call or read, in both cases only when the repo does not answer
 - Include 🔴 Rød-sone-deklarasjon in every Phase 2 plan
 - Include observability in every plan
 - Generate Nais manifest with explicit accessPolicy

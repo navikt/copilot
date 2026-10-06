@@ -402,6 +402,14 @@ func exportAgents(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layo
 	return count, nil
 }
 
+// OpenCodePrimaryAgent is transformAgent for one agent installed as a primary.
+// scripts/nav-pilot-golden.sh builds its OpenCode persona with it (through
+// internal/cmd/golden-opencode-agent), so the benchmark gets the same
+// frontmatter and tool permissions as a real install.
+func OpenCodePrimaryAgent(data []byte, name string) []byte {
+	return transformAgent(data, name, []string{name})
+}
+
 func transformAgent(data []byte, name string, primaries []string) []byte {
 	fm, body, hasFM := source.SplitFrontmatter(data)
 	if !hasFM {
