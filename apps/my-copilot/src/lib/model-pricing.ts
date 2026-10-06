@@ -1,7 +1,7 @@
 /**
  * GitHub Copilot model pricing data.
  * Source: https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing
- * Last updated: 2026-09-30
+ * Last updated: 2026-10-03
  *
  * All prices are per 1 million tokens in USD.
  * 1 AI credit = $0.01 USD.
@@ -269,16 +269,6 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 15,
   },
   {
-    model: "Claude Opus 4.7",
-    provider: "Anthropic",
-    category: "Powerful",
-    status: "GA",
-    input: 5,
-    cachedInput: 0.5,
-    cacheWrite: 6.25,
-    output: 25,
-  },
-  {
     model: "Claude Opus 4.8",
     provider: "Anthropic",
     category: "Powerful",
@@ -360,26 +350,6 @@ export const MODEL_PRICING: ModelPrice[] = [
   },
   // Google
   {
-    model: "Gemini 3.5 Flash (Default)",
-    provider: "Google",
-    category: "Lightweight",
-    status: "GA",
-    input: 1.5,
-    cachedInput: 0.15,
-    output: 9,
-  },
-  {
-    model: "Gemini 3.6 Flash (Default)",
-    provider: "Google",
-    category: "Versatile",
-    status: "GA",
-    input: 0.75,
-    cachedInput: 0.075,
-    output: 3.75,
-    promotionEndsOn: "2026-12-31",
-    note: "Gemini 3.6 Flash, Gemini 3.7 Flash, and Gemini 3.8 Flash are available at the promotional pricing of $0.75 per 1M input tokens, $0.075 per 1M cached input tokens, and $3.75 per 1M output tokens through December 31, 2026.",
-  },
-  {
     model: "Gemini 3.7 Flash (Default)",
     provider: "Google",
     category: "Versatile",
@@ -388,7 +358,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     cachedInput: 0.075,
     output: 3.75,
     promotionEndsOn: "2026-12-31",
-    note: "Gemini 3.6 Flash, Gemini 3.7 Flash, and Gemini 3.8 Flash are available at the promotional pricing of $0.75 per 1M input tokens, $0.075 per 1M cached input tokens, and $3.75 per 1M output tokens through December 31, 2026.",
+    note: "Gemini 3.7 Flash and Gemini 3.8 Flash are available at the promotional pricing of $0.75 per 1M input tokens, $0.075 per 1M cached input tokens, and $3.75 per 1M output tokens through December 31, 2026.",
   },
   {
     model: "Gemini 3.8 Flash (Default)",
@@ -399,7 +369,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     cachedInput: 0.075,
     output: 3.75,
     promotionEndsOn: "2026-12-31",
-    note: "Gemini 3.6 Flash, Gemini 3.7 Flash, and Gemini 3.8 Flash are available at the promotional pricing of $0.75 per 1M input tokens, $0.075 per 1M cached input tokens, and $3.75 per 1M output tokens through December 31, 2026.",
+    note: "Gemini 3.7 Flash and Gemini 3.8 Flash are available at the promotional pricing of $0.75 per 1M input tokens, $0.075 per 1M cached input tokens, and $3.75 per 1M output tokens through December 31, 2026.",
   },
   // Microsoft
   {
@@ -413,15 +383,6 @@ export const MODEL_PRICING: ModelPrice[] = [
   },
   // Moonshot AI
   {
-    model: "Kimi K2.7 Code",
-    provider: "Moonshot AI",
-    category: "Versatile",
-    status: "GA",
-    input: 0.95,
-    cachedInput: 0.19,
-    output: 4,
-  },
-  {
     model: "Kimi K3",
     provider: "Moonshot AI",
     category: "Powerful",
@@ -433,4 +394,4 @@ export const MODEL_PRICING: ModelPrice[] = [
 ];
 
 export const PRICING_SOURCE_URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing";
-export const PRICING_LAST_UPDATED = "2026-09-30";
+export const PRICING_LAST_UPDATED = "2026-10-03";
