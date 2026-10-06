@@ -54,6 +54,9 @@ func (c *BillingClient) request(ctx context.Context, endpoint string, result any
 		req.Header.Set("X-GitHub-Api-Version", "2026-03-10")
 		c.requests++
 		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			err = safeTransportError(err)
+		}
 		if err == nil {
 			if n, parseErr := strconv.Atoi(resp.Header.Get("X-RateLimit-Remaining")); parseErr == nil {
 				c.remaining = n

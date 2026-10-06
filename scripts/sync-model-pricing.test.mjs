@@ -71,11 +71,13 @@ test("pricing sync regenerates API metadata from the newly written catalog", (t)
   }
   writeFileSync(join(root, "apps/my-copilot/src/lib/model-pricing.ts"), "");
   writeFileSync(join(root, "docs/modellvalg.md"), "GitHubs listepriser slik de sto **1. januar 2026**");
-  const mock = `globalThis.fetch = async () => ({ ok: true, text: async () => ${JSON.stringify(PAGE)} });`;
+  const fixture = join(root, "pricing.html");
+  writeFileSync(fixture, PAGE + "<!-- `; throw new Error('fixture executed'); // ${process.exit(1)} -->");
+  const mock = "import { readFileSync } from 'node:fs'; globalThis.fetch = async () => ({ ok: true, text: async () => readFileSync(process.env.PRICING_FIXTURE, 'utf8') });";
   execFileSync(process.execPath, [
     "--import", `data:text/javascript;base64,${Buffer.from(mock).toString("base64")}`,
     join(root, "scripts/sync-model-pricing.mjs"),
-  ], { stdio: "pipe" });
+  ], { stdio: "pipe", env: { ...process.env, PRICING_FIXTURE: fixture } });
   const metadata = JSON.parse(readFileSync(join(root, "apps/copilot-api/model_metadata.json"), "utf8"));
   assert.deepEqual(
     metadata.models,
