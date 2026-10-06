@@ -66,6 +66,15 @@ var metadataByModel = func() map[string]modelMetadata {
 	// Historical pricing: https://github.com/navikt/copilot/blob/f72001e3/apps/my-copilot/src/lib/model-pricing.ts
 	result["gemini-2.5-pro"] = modelMetadata{"Gemini 2.5 Pro", "Google", "Powerful"}
 	result["gemini-3-flash"] = modelMetadata{"Gemini 3 Flash", "Google", "Lightweight"}
+	// Historical pricing: https://github.com/navikt/copilot/blob/458f4af6/apps/my-copilot/src/lib/model-pricing.ts
+	for _, model := range []modelMetadata{
+		{"Claude Opus 4.7", "Anthropic", "Powerful"},
+		{"Gemini 3.5 Flash (Default)", "Google", "Lightweight"},
+		{"Gemini 3.6 Flash (Default)", "Google", "Versatile"},
+		{"Kimi K2.7 Code", "Moonshot AI", "Versatile"},
+	} {
+		result[modelKey(model.Model)] = model
+	}
 	// Raw Claude aliases use version-first names; pricing uses family-first names.
 	// Pricing names: https://github.com/navikt/copilot/blob/458f4af6185cce851de93a3b419eaa06b56e7237/apps/my-copilot/src/lib/model-pricing.ts
 	result["claude-4.6-sonnet"] = result["claude-sonnet-4.6"]
