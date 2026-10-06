@@ -432,6 +432,14 @@ run_suite() {
   grep -q '^7b|1|fail|' "$SHIM/b-results.psv"
 }
 
+@test "planning t3: a privacy question about fødselsnummer counts as blind spot #1" {
+  re=$(sed -n "s/^RE_BS1='\\(.*\\)'$/\\1/p" "$SCRIPT")
+  [ -n "$re" ]
+  # The 2026-10-06 v4 t2 run 2 question that RE_BS1 used to miss.
+  printf '%s\n' 'Hva skal tjenesten gjøre med fødselsnummeret: bruke det i én forespørsel, sende det videre eller lagre det?' | grep -qiE -- "$re"
+  if printf '%s\n' 'Hvilke tjenester må den kalle, og hva skal skje hvis de er nede?' | grep -qiE -- "$re"; then false; fi
+}
+
 @test "planning t7: asks_privacy flags questions to the user, not assumptions or format questions" {
   eval "$(grep -E "^RE_ASK_(PRIV|WHO|COMPAT)=" "$SCRIPT")"
   eval "$(sed -n '/^question_sentences() {/,/^}/p' "$SCRIPT")"

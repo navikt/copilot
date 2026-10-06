@@ -1444,7 +1444,7 @@ absent()  { ! grep -qiE -- "$2" "$1"; }
 
 # Blind spot #1 = Privacy, #2 = Access control (tests 3, 7, 7b). The *topic*,
 # in any phrasing the agent chooses.
-RE_BS1='personopplysning|persondata|personvern|GDPR|datakategori|behandlingsgrunnlag'
+RE_BS1='personopplysning|persondata|personvern|fødselsnummer|GDPR|datakategori|behandlingsgrunnlag'
 RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]]+bruker|innbygger|saksbehandler|autorisasjon'
 
 # Test 7: a privacy or access question put TO THE USER, not a stated
