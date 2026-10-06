@@ -420,6 +420,15 @@ cplt --allow-env-files                          # bare denne økten`}
           <CodeBlock compact>{`cplt config set sandbox.allow_jvm_attach true`}</CodeBlock>
           <BodyLong>På Linux stenger ikke cplt denne socketen, så der skyldes feilen noe annet.</BodyLong>
 
+          <LinkableHeading id="jdk-library" size="small" level="3">
+            JDK i ~/Library/Java
+          </LinkableHeading>
+          <BodyLong>
+            cplt støtter ikke JDK-er i <code className={code}>~/Library/Java/JavaVirtualMachines</code> ennå. Pek{" "}
+            <code className={code}>JAVA_HOME</code> på en JDK et annet sted, for eksempel under{" "}
+            <code className={code}>/Library/Java/JavaVirtualMachines</code>, SDKMAN eller jenv.
+          </BodyLong>
+
           <LinkableHeading id="foojay" size="small" level="3">
             Unable to download toolchain
           </LinkableHeading>
