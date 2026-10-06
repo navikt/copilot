@@ -217,11 +217,6 @@ cplt trust accept`}</CodeBlock>
             deployer, endrer CI eller tilganger, legger til avhengigheter, og når kravene er uklare. Det er en instruks,
             ikke en sperre. Det er cplt som sperrer.
           </BodyLong>
-          <BodyLong>
-            Kjører klienten uten cplt, for eksempel med <code className={code}>--no-sandbox</code> der cplt ikke er
-            installert, sender nav-pilot ingen flagg som lar agenten jobbe uten å spørre. Da spør Copilot CLI før hver
-            handling, og OpenCode følger sine egne tillatelser.
-          </BodyLong>
         </VStack>
       </section>
 

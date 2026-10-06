@@ -2,6 +2,14 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-10-06
+
+### nav-pilot starter aldri en klient uten cplt
+
+- **cplt er påkrevd**: Mangler cplt, starter nav-pilot verken Copilot CLI, OpenCode eller pi. Før kunne Copilot CLI og OpenCode starte uten sandkasse etter et spørsmål i terminalen eller med `--no-sandbox`. Nå sier nav-pilot at cplt mangler og hvordan du installerer det.
+- **`--no-sandbox` er fjernet**: Flagget gir en feilmelding med samme råd, og nav-pilot avslutter med en feilkode. Fjern flagget fra skript og CI-jobber, og installer cplt.
+- **Ett unntak**: For å sjekke hvilke modeller kontoen din har, kjører nav-pilot `copilot --model nav-pilot-model-probe -p probe` direkte, uten cplt. Copilot CLI avviser kallet før noen prompt kjører, og ingen agent starter.
+
 ## 2026-09-30
 
 ### Varsel når en gjenbrukt agentpakke ligger bak

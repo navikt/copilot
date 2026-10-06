@@ -335,19 +335,15 @@ func TestUnresolvableSourceRefusesWhenPayloadIsRemembered(t *testing.T) {
 	assertDefaultPakkeActive(t)
 }
 
-// TestTier2LaunchIsNotOfferedUnsandboxed pins the flow fix: a Tier 2 launch is
-// refused before the "Launch without the cplt sandbox?" question is asked, so
-// the user is never talked into a confirmation that is then overruled. If the
-// prompt still ran it would fail without a terminal and return nil.
-func TestTier2LaunchIsNotOfferedUnsandboxed(t *testing.T) {
+// TestTier2LaunchWithoutCpltFails: a Tier 2 launch without cplt is refused.
+func TestTier2LaunchWithoutCpltFails(t *testing.T) {
 	isolatedConfig(t)
 	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
 	stubResolveSource(t, tier2Source(t))
 
-	err := launchClientConfirming(
-		ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"}, true)
+	err := launchClient(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
 	if err == nil {
-		t.Fatal("a Tier 2 launch must fail rather than reach the unsandboxed confirmation")
+		t.Fatal("a Tier 2 launch without cplt must fail")
 	}
 }
 
@@ -977,12 +973,12 @@ func TestPersonaResolvedAgainstTheLaunchedPakke(t *testing.T) {
 		t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
 		stubResolveSource(t, pakkeSource(t, "navikt/grillmester"))
 
-		// launchClientConfirming, not tryPakkeLaunch: the check lives at the
+		// launchClient, not tryPakkeLaunch: the check lives at the
 		// common boundary so the legacy paths are covered too, and by then
 		// tryPakkeLaunch has set the active pakke.
-		err := launchClientConfirming(ResolvedConfig{
+		err := launchClient(ResolvedConfig{
 			Client: "copilot", Source: "navikt/grillmester", Persona: "nope",
-		}, false)
+		})
 		if err == nil {
 			t.Fatal("an undeclared persona must be refused")
 		}
@@ -1016,7 +1012,7 @@ func TestPersonaRefusedOnLegacyLaunch(t *testing.T) {
 	t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
 	failingResolveSource(t)
 
-	err := launchClientConfirming(ResolvedConfig{Client: "copilot", Persona: "nobody"}, false)
+	err := launchClient(ResolvedConfig{Client: "copilot", Persona: "nobody"})
 	if err == nil {
 		t.Fatal("an undeclared --persona must be refused on the legacy path too")
 	}
@@ -1193,7 +1189,7 @@ const tier1CompatManifestJSON = `{
 // which the gate's first shape refused with "cplt not found in PATH" (#800,
 // #815 review).
 //
-// This drives launchClientConfirming rather than the gate directly: a unit test
+// This drives launchClient rather than the gate directly: a unit test
 // on the gate stays green if the call is deleted from the launch path, which is
 // what the review found. The fake client records every non-probe invocation, so
 // the assertion is both halves — refused, and refused before the client starts.
@@ -1207,7 +1203,7 @@ func TestTier1CompatibilityRefusedAtTheLaunchBoundary(t *testing.T) {
 	}
 	stubResolveSource(t, src)
 
-	err := launchClientConfirming(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"}, false)
+	err := launchClient(ResolvedConfig{Client: "copilot", Source: "navikt/grillmester"})
 	if err == nil {
 		t.Fatal("a Tier 1 client outside the declared compatibility range must be refused")
 	}

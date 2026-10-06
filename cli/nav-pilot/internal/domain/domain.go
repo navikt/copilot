@@ -148,7 +148,6 @@ type ResolvedConfig struct {
 	HookActionCheck    string   // off | log; always set
 	MCPHosts           string   // ask | off; always set
 	ProjectDir         string   // --project-dir: the directory cplt may read and write; empty = the working directory
-	NoSandbox          bool     // --no-sandbox: launch copilot or opencode without cplt when cplt is missing, without asking
 	ExtraArgs          []string // pass-through arguments for the client
 }
 
@@ -176,7 +175,6 @@ type CLIOverrides struct {
 	OtelLogLevel    string
 	LocalDispatch   string
 	ProjectDir      string
-	NoSandbox       bool
 	ExtraArgs       []string
 }
 

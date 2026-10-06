@@ -379,12 +379,14 @@ en `config.toml` uten `client` betyr `copilot`. Copilot CLI er fortsatt fullt st
 
 En modell du velger med config eller `--model`, vinner over agentpakkas standard.
 
-> **Bruk sandkassen cplt.** nav-pilot foretrekker `cplt` og kjører klienten via
+> **nav-pilot krever sandkassen cplt.** nav-pilot kjører klienten via
 > `cplt --agent <klient>`. Agenten kan da lese og skrive prosjektfiler, men når ikke
-> SSH-nøkler, tilgangsinformasjon for skytjenester eller andre hemmeligheter. `cplt` må
-> være installert for å starte `pi`. Mangler cplt, spør nav-pilot om `copilot` eller
-> `opencode` skal starte uten sandkasse. Med `--no-sandbox` starter de uten å spørre.
-> En agentpakke med ferdigbygde filer (Tier 2) krever cplt for alle klientene.
+> SSH-nøkler, tilgangsinformasjon for skytjenester eller andre hemmeligheter. Mangler
+> cplt, starter nav-pilot ingen klient. `--no-sandbox` finnes ikke lenger: nav-pilot
+> avslutter med en feilmelding som forklarer hvordan du installerer cplt.
+> Ett unntak: For å sjekke hvilke modeller kontoen din har, kjører nav-pilot
+> `copilot --model nav-pilot-model-probe -p probe` direkte, uten cplt. Copilot CLI avviser kallet før noen prompt
+> kjører, og ingen agent starter.
 >
 > **Sandboxen gjelder katalogen du står i.** nav-pilot sender alltid `--project-dir` med
 > til cplt, satt til arbeidskatalogen. Uten det utvider cplt en undermappe til roten av
@@ -632,15 +634,15 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | Nøkkel | CLI-flagg | Verdier | Beskrivelse |
 | --- | --- | --- | --- |
 | `version` | — | 1 | Skjemaversjon. Mangler den, leses fila som versjon 1, og nav-pilot sier fra med én linje. |
-| `client` | --client | copilot · opencode · pi (standard: opencode) | Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen når cplt finnes. Mangler cplt, spør nav-pilot i terminalen om copilot eller opencode skal starte uten sandkasse (standard nei). Uten terminal, for eksempel i CI, starter de bare med --no-sandbox. Standard er opencode på en ny installasjon i en terminal, og copilot uten terminal (CI) eller når opencode ikke er installert. En config.toml uten client betyr copilot, så du beholder klienten din når du oppgraderer. Første gang nav-pilot kjører i en terminal, skriver den client inn i fila. |
+| `client` | --client | copilot · opencode · pi (standard: opencode) | Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen, og nav-pilot starter ingen klient uten cplt. Standard er opencode på en ny installasjon i en terminal, og copilot uten terminal (CI) eller når opencode ikke er installert. En config.toml uten client betyr copilot, så du beholder klienten din når du oppgraderer. Første gang nav-pilot kjører i en terminal, skriver den client inn i fila. |
 | `source` | --source | owner/name eller en absolutt sti (standard: navikt/copilot) | Hvor agentpakka hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source --save-source; nav-pilot config unset source går tilbake til standarden. |
 | `model` | --model | modell-id, f.eks. claude-opus-4.8 | Modell å bruke. En Copilot-id som claude-opus-4.8 virker for copilot og opencode (opencode kjører den som github-copilot/&lt;id&gt;); opencode tar også provider/model. nav-pilot config explain model lister id-ene. |
 | `mode` | --mode | default · plan · autopilot (standard: default) | Modus for Copilot-agenten. plan tilsvarer opencode --agent plan; autopilot er bare Copilot. |
 | `reasoning_effort` | --effort | none · low · medium · high · xhigh · max | Resonneringsinnsats. Copilot bruker --effort, opencode bruker --variant. |
 | `context_tier` | --context | default · long_context | Kontekstnivå. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode. |
-| `allow_all_tools` | --allow-all-tools / --no-allow-all-tools | true · false (standard: false) | La agenten kjøre uten å spørre også med autonomy = conservative (Copilot: --allow-all-tools, OpenCode: --auto). Gjelder bare i cplt. |
+| `allow_all_tools` | --allow-all-tools / --no-allow-all-tools | true · false (standard: false) | La agenten kjøre uten å spørre også med autonomy = conservative (Copilot: --allow-all-tools, OpenCode: --auto). |
 | `ask_user` | --ask-user / --no-ask-user | true · false (standard: true) | La agenten stoppe og spørre deg. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode. |
-| `autonomy` | — | sandbox · conservative (standard: sandbox) | Hvor mye agenten får gjøre uten å spørre når den kjører i cplt. For Copilot CLI gir sandbox --allow-all-tools --allow-all-paths --allow-all-urls: vaktene i cplt setter grensene, og agenten kan fremdeles spørre deg. Med conservative spør Copilot før hver handling. For OpenCode gir sandbox --auto, og med conservative spør OpenCode som vanlig. nav-pilot config set autonomy skriver også autonomy_chosen = true. En conservative uten det skrev en eldre nav-pilot selv, og den teller som sandbox. Uten cplt sender nav-pilot aldri allow-all-flagg. |
+| `autonomy` | — | sandbox · conservative (standard: sandbox) | Hvor mye agenten får gjøre uten å spørre når den kjører i cplt. For Copilot CLI gir sandbox --allow-all-tools --allow-all-paths --allow-all-urls: vaktene i cplt setter grensene, og agenten kan fremdeles spørre deg. Med conservative spør Copilot før hver handling. For OpenCode gir sandbox --auto, og med conservative spør OpenCode som vanlig. nav-pilot config set autonomy skriver også autonomy_chosen = true. En conservative uten det skrev en eldre nav-pilot selv, og den teller som sandbox. |
 | `auto_launch` | --auto-launch / --no-auto-launch | true · false (standard: true) | Start klienten etter sync eller installasjon. Med false skriver nav-pilot bare ut kommandoen. |
 | `auto_update` | — | true · false (standard: false) | Oppgrader nav-pilot automatisk når en ny versjon er ute, uten å spørre. Feiler oppgraderingen, kjører kommandoen på versjonen du har, og neste forsøk kommer etter 24 timer. |
 | `surveys` | — | true · false (standard: true) | Spør av og til, etter en økt, om du vil svare på en kort brukerundersøkelse (høyst tre ganger per undersøkelse). Med false spør nav-pilot aldri, og viser heller ikke engangstipset om opencode. DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false slår det også av. |
@@ -664,8 +666,7 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 <!-- config-keys:end -->
 <!-- prettier-ignore-end -->
 
-Mangler cplt, spør nav-pilot før den starter `copilot` eller `opencode` uten sandbox. Uten terminal nekter den,
-med mindre du sender `--no-sandbox`. Installer cplt med `brew install navikt/tap/cplt` eller
+Mangler cplt, starter nav-pilot ingen klient. Installer cplt med `brew install navikt/tap/cplt` eller
 `sudo apt install cplt`.
 
 `--project-dir <katalog>` bestemmer hvilken katalog agenten får lese og skrive i cplt-sandboxen.

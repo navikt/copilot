@@ -178,11 +178,7 @@ persona + flagg etter `--`-separatoren: `cplt --agent copilot -- --agent nav-pil
 
 **Autonomi og allow-all:** Med `autonomy = "sandbox"` (standard) får Copilot i cplt
 `--allow-all-tools --allow-all-paths --allow-all-urls` og beholder `ask_user`. Med `conservative` gjelder `allow_all_tools` som før. cplt er
-grensen. Uten cplt (`--no-sandbox` eller en oppstart uten sandkasse etter spørsmålet) fjerner
-nav-pilot alle allow-all-flagg (`--allow-all-tools`, `--allow-all-paths`, `--allow-all-urls`,
-`--allow-all`, `--yolo`) fra konfig, launch-flagg og argumenter etter `--`, tar bort
-`COPILOT_ALLOW_ALL` fra miljøet og sier fra på én linje. For opencode fjernes
-`--dangerously-skip-permissions`, `--auto` og `--yolo` på samme måte. `--mode autopilot`
+grensen, og nav-pilot starter ingen klient uten cplt. `--mode autopilot`
 gir i tillegg `--no-ask-user` og en advarsel.
 
 ### OpenCode alternativ-mapping
@@ -195,7 +191,7 @@ flagg-grensesnitt er annerledes enn Copilots, så flere felt oversettes eller dr
 | `model` | `--model` | `provider/model` (f.eks. `github-copilot/claude-opus-4.8`), og en Copilot-id uten prefiks får `github-copilot/` foran; uteblir helt når unset, og opencode velger da selv. Flagget slår opencodes egen config og recents, og i `opencode run` slår det også agentens eget `model:`-felt (der er flagget forespørselens modell). I TUI-en, som er det nav-pilot starter, vinner agentens eget `model:` over flagget. Rekkefølgen blir altså: agentens spesialisering, så nav-pilots sesjonsmodell, så det klienten selv ville valgt |
 | `mode = plan` | `--agent plan` | opencode har ingen `--mode`; `autopilot` har ingen opencode-ekvivalent — advarsel ved oppstart |
 | `reasoning_effort` | `--variant` | Leverandørspesifikk resonering (f.eks. `high`, `max`) |
-| `allow_all_tools`, `autonomy = sandbox` | `--auto` | Bare i cplt; en oppstart uten sandkasse fjerner flagget |
+| `allow_all_tools`, `autonomy = sandbox` | `--auto` | Gjelder i cplt, der alle klienter kjører |
 | `log_level` | `--log-level` | Oversettes til opencodes sett: `DEBUG`/`INFO`/`WARN`/`ERROR` (se under) |
 | `context_tier` | — | Ingen opencode-ekvivalent — advarsel hvis eksplisitt satt |
 | `ask_user` | — | Ingen opencode-ekvivalent — advarsel hvis eksplisitt satt til `false` |
