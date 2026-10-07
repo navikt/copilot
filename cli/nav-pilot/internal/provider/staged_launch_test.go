@@ -1,12 +1,14 @@
 package provider
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
@@ -856,5 +858,39 @@ func TestWithOpenCode2UserConfig(t *testing.T) {
 	env = withOpenCode2UserConfig([]string{"OPENCODE_CONFIG=/mine.json"}, payload)
 	if !slices.Contains(env, "OPENCODE_CONFIG=/mine.json") {
 		t.Errorf("env = %v", env)
+	}
+}
+
+// cplt passes OPENCODE_CONFIG only when told to; on opencode 2 the user's
+// config rides in it.
+func TestStagedOpenCode2PassesOpenCodeConfig(t *testing.T) {
+	SetActivePakke(stagedFixturePakke())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	mustWrite(t, filepath.Join(openCodeConfigDir(), "opencode.json"), `{}`)
+	t.Cleanup(func() { SetActivePakke(nil); versionCache.Delete("opencode") })
+	staged := StagedLaunch{Dir: t.TempDir(), PakkeName: "grillmester", Context: "full"}
+	for ver, want := range map[string]bool{"1.18.35\n": false, "opencode v2.0.24\n": true} {
+		versionCache.Store("opencode", versionAnswer{ver, nil, time.Hour})
+		spec, err := buildStagedOpenCodeSpec(domain.ResolvedConfig{Client: "opencode"}, staged)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := slices.Contains(spec.cpltArgs, "OPENCODE_CONFIG"); got != want {
+			t.Errorf("%q: cpltArgs = %v, want --pass-env OPENCODE_CONFIG: %v", ver, spec.cpltArgs, want)
+		}
+	}
+}
+
+// opencode 2's run has no --variant: one without --model is dropped, and says so.
+func TestOpenCodeV2ArgsWarnsOnDroppedVariant(t *testing.T) {
+	old := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	openCodeV2Args([]string{"run", "--variant", "high", "hi"}, nil)
+	w.Close()
+	os.Stderr = old
+	b, _ := io.ReadAll(r)
+	if !strings.Contains(string(b), "--variant high is not applied") {
+		t.Errorf("stderr = %q", b)
 	}
 }

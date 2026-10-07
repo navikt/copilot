@@ -268,15 +268,20 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 		bind = append(bind, "--model", resolved)
 	}
 	agentArgs := openCodeClientArgs(bind, r.ExtraArgs, r.ReasoningEffort)
+	cpltArgs := []string{"--allow-read", s.Dir, "--pass-env", "OPENCODE_CONFIG_DIR"}
 	if openCodeMajor() >= 2 {
 		agentArgs, env = openCodeV2Args(agentArgs, env)
 		env = withOpenCode2UserConfig(env, s.Dir)
+		// Not in cplt's allowlist: without it the user's config is gone.
+		if slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, "OPENCODE_CONFIG=") }) {
+			cpltArgs = append(cpltArgs, "--pass-env", "OPENCODE_CONFIG")
+		}
 	}
 
 	return cpltLaunch{
 		agent:         "opencode",
 		noAudit:       true,
-		cpltArgs:      []string{"--allow-read", s.Dir, "--pass-env", "OPENCODE_CONFIG_DIR"},
+		cpltArgs:      cpltArgs,
 		skillsDir:     materializedSkillsDir(s.Dir),
 		agentArgs:     agentArgs,
 		env:           env,
@@ -518,6 +523,9 @@ func openCodeV2Args(args, env []string) ([]string, []string) {
 		}
 		out = append(out, a)
 	}
+	if run && variant != "" && model == "" {
+		fmt.Fprintf(os.Stderr, "%s --variant %s is not applied: opencode 2 takes a variant only as part of --model (provider/model#variant).\n", domain.Yellow("⚠"), variant)
+	}
 	if model != "" {
 		if run {
 			if variant != "" {
@@ -599,4 +607,3 @@ func withOpenCode2UserConfig(env []string, payload string) []string {
 	}
 	return withOpenCodeConfigContent(env, add)
 }
-
