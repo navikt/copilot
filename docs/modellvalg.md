@@ -332,6 +332,40 @@ Deretter brukes de fire kravene for reservemodell uendret:
 
 GPT-6 Sol blir en gyldig reservemodell for `@code-review` og `@security-champion` bare hvis alle fire holder. Målingen bruker `@code-review`-personaen. `@security-champion` måles ikke direkte. Feilede sjekker klassifiseres i `failures.psv` etter de samme reglene som 7. oktober, likt for begge armene. Verdiktene bygger på sjekkens egne tall. Målingen endrer ingen pinner.
 
+### Resultater med ny persona
+
+Rådata ligger i [2026-10-07-review-persona](golden-baselines/2026-10-07-review-persona/), og hver sjekk som feilet, er klassifisert i [failures.psv](golden-baselines/2026-10-07-review-persona/failures.psv). Svarene på rv5–rv8 uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-07-review-persona/transkripter/). Copilot CLI 1.0.93-4, ti kjøringer per arm. Alle 99 bruksrader for Opus viser `claude-opus-5.5`, og alle 196 for Sol viser `gpt-6-sol` med `low`, så ingen kjøring er forkastet.
+
+Tabellen viser sjekkens tall. Gammel persona er tallene fra [omregningen](golden-baselines/2026-10-07-review-suite/omregning-1443.psv) for Opus og fra [2026-10-07-gpt-6-sol-review](golden-baselines/2026-10-07-gpt-6-sol-review/) for Sol. rv8 er antall rader med høy prioritet: median (høyest).
+
+| Sjekk                        | Opus 5.5 Low, gammel | Opus 5.5 Low, ny | GPT-6 Sol Low, gammel | GPT-6 Sol Low, ny |
+| ---------------------------- | -------------------- | ---------------- | --------------------- | ----------------- |
+| rv1–rv4 (to filer)           | 40/40                | 40/40            | 36/40                 | 36/40             |
+| rv5, sikkerhet og personvern | 7/10                 | 8/10             | 3/10                  | 6/10              |
+| rv6, designfeil              | 9/10                 | 3/10             | 10/10                 | 9/10              |
+| rv7, prioritet               | 6/10                 | 10/10            | 0/10                  | 9/10              |
+| rv8, rader med høy prioritet | 0 (0)                | 0 (0)            | 0,5 (1)               | 0 (1)             |
+| rv8 bestått                  | 4/5 (kontroll)       | 10/10            | 0/10                  | 0/10              |
+| Credits, hele armen          | –                    | 560,2            | 356,4                 | 328,9             |
+
+Opus-tallet for rv1–rv4 under «gammel» er fra hovedmålingen 7. oktober; rv1–rv4 ble ikke regnet om. rv8 for Opus under «gammel» er de fem kontrollkjøringene på den nye testfila.
+
+Hva svarene viser:
+
+- **Inbound:** Begge armene merket `accessPolicy.inbound` 🔴 i alle ti kjøringene. Med gammel persona nevnte Sol den ikke i sju av ti, og Opus merket den 🟡 i to. Opus oppga linjenummer i alle ti. Sol oppga feil linjer i tre (`nais.yaml:23–24`, `20–23`, `17–21`; riktig er 25–26).
+- **rv5:** De andre bommene er linjefeil på SQL eller loggingen av fødselsnummer, én til to linjer feil: to hos Opus og to hos Sol. Alle er modellfeil etter reglene.
+- **rv6 falt for Opus, fra 9 til 3 av 10.** Idempotens er nevnt i alle ti. I sju svar mangler at lagringen kan lykkes mens publiseringen feiler, eller det står med andre ord enn mønsteret. Etter klassifisering er tallet 6/10: tre er beskrevet med andre ord, fire er ikke nevnt. Vi vet ikke om personaendringen eller tilfeldig variasjon er årsaken.
+- **rv8 for Sol:** Ingen av svarene sa at fila er uten kritiske feil. Tre kjøringer hadde én 🔴-rad om at ruten ikke sjekker `azp`. Det er ikke en feil i fila.
+
+Vurdering mot kriteriene, med sjekkens egne tall:
+
+- **Persona-endringen tetter hullet på inbound når det gjelder å nevne funnet og prioritere det.** rv7 gikk fra 6 til 10 av 10 for Opus og fra 0 til 9 av 10 for Sol. rv5 gikk fra 7 til 8 for Opus og fra 3 til 6 for Sol. Resten av gapet i rv5 er linjenummer.
+- **GPT-6 Sol Low er ikke en gyldig reservemodell for `@code-review` eller `@security-champion`.** Krav 1 holder ikke (rv5 6/10). Krav 2 holder (rv7 9/10). Krav 3 holder (median 0, høyest 1). Krav 4 holder (rv6 9/10 mot Opus' 3/10).
+- **Claude Opus 5.5 Low:** Krav 1 holder ikke (rv5 8/10). Krav 2 holder (10/10). Krav 3 holder (median 0, høyest 0).
+- `@security-champion` er ikke målt direkte. Målingen endrer ingen pinner.
+
+Forbruket var 560,2 credits for Opus og 328,9 for Sol, til sammen 889,1. Budsjettet var om lag 950, med stopp ved 1 190.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
