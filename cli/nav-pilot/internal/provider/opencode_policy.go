@@ -176,3 +176,20 @@ func warnUntestedOpenCode() {
 	fmt.Fprintf(os.Stderr, "%s opencode %s is outside the tested range (%s). Hooks, the dispatch gate and the session policy may not apply as described. See %s.\n",
 		domain.Yellow("⚠"), v, OpenCodeTestedRange, domain.Bold("nav-pilot doctor"))
 }
+
+// checkOpenCodeMajor stops a launch on opencode 2, which the warning above is
+// not enough for: opencode 2 rejects --agent and --model on the TUI, does not
+// load nav-pilot's hooks plugins (its plugin API is new), runs sessions in a
+// shared background service that ignores the launch's environment, and reads
+// OPENCODE_CONFIG_DIR in place of the user's config rather than alongside it.
+// A session that started anyway would run without nav-pilot's hooks and MCP
+// policy.
+// An unreadable version launches, as warnUntestedOpenCode does.
+func checkOpenCodeMajor() error {
+	v, _, err := OpenCodeVersionStatus()
+	if err != nil || strings.HasPrefix(v, "0.") || strings.HasPrefix(v, "1.") {
+		return nil
+	}
+	return fmt.Errorf("opencode %s is opencode 2 or newer, which nav-pilot does not launch yet: its flags, plugins and config loading changed.\n\n  Install opencode 1: %s",
+		v, domain.Bold("npm i -g opencode-ai@"+OpenCodeInstallVersion))
+}
