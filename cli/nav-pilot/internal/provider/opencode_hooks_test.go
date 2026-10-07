@@ -1,9 +1,15 @@
 package provider
 
 import (
+	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 func TestWithOpenCodeConfigContent(t *testing.T) {
@@ -22,5 +28,26 @@ func TestWithOpenCodeConfigContent(t *testing.T) {
 	env = withOpenCodeConfigContent([]string{"OPENCODE_CONFIG_CONTENT=not json"}, map[string]any{"share": "disabled"})
 	if env[0] != `OPENCODE_CONFIG_CONTENT={"share":"disabled"}` {
 		t.Fatalf("env = %v", env)
+	}
+}
+
+func TestApplyOpenCodeHooksStagesV2PluginDir(t *testing.T) {
+	prev := OpenCodeHookBridge
+	t.Cleanup(func() { OpenCodeHookBridge = prev; versionCache.Delete("opencode") })
+	OpenCodeHookBridge = func(domain.ResolvedConfig) HookBridge {
+		return HookBridge{Post: []BridgeHook{{Name: "r", Argv: []string{"/bin/true"}}}}
+	}
+	for ver, want := range map[string]string{
+		"1.18.35\n":          `"plugin":["file://` + filepath.Join(openCodePluginDir(), "nav-pilot-hooks.js") + `"]`,
+		"opencode v2.0.24\n": `"plugins":["` + filepath.Join(openCodePluginDir(), "v2") + `"]`,
+	} {
+		versionCache.Store("opencode", versionAnswer{ver, nil, time.Hour})
+		env, _ := applyOpenCodeHooks(domain.ResolvedConfig{}, nil, nil)
+		if got := strings.Join(env, "\n"); !strings.Contains(got, want) {
+			t.Errorf("%q: env = %s, want %s", ver, got, want)
+		}
+	}
+	if b, err := os.ReadFile(filepath.Join(openCodePluginDir(), "v2", "index.js")); err != nil || !bytes.Equal(b, hooksBridgePluginV2) {
+		t.Errorf("v2/index.js not the v2 bridge: %v", err)
 	}
 }

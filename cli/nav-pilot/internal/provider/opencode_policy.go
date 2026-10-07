@@ -209,6 +209,19 @@ func CheckOpenCodeMajor() error {
 		strings.TrimPrefix(v, "opencode "), domain.Bold(OpenCode1InstallHint()))
 }
 
+// openCodeMajor is the installed opencode's major version, read from the raw
+// version line so a prerelease counts. Unreadable is 0, which every caller
+// treats as opencode 1: that path is the one nav-pilot has always taken.
+func openCodeMajor() int {
+	out, _ := cachedVersion("opencode", 5*time.Second)
+	m := openCodeMajorPattern.FindStringSubmatch(strings.TrimSpace(out))
+	if m == nil {
+		return 0
+	}
+	n, _ := strconv.Atoi(m[1])
+	return n
+}
+
 var openCodeMajorPattern = regexp.MustCompile(`(?i)^(?:opencode )?v?(\d+)\.`)
 
 // OpenCodeScriptInstall is opencode's own installer, pinned to the tested release.

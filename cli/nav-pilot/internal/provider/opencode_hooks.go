@@ -31,6 +31,12 @@ import (
 //go:embed hooks-bridge.js
 var hooksBridgePlugin []byte
 
+// hooksBridgePluginV2 is the same bridge for opencode 2's plugin API. opencode
+// 2 loads a configured plugin from a directory (its index.js), not a file.
+//
+//go:embed hooks-bridge-v2.js
+var hooksBridgePluginV2 []byte
+
 const (
 	// OpenCodeHooksEnv carries the hooks, as JSON, to the plugin.
 	OpenCodeHooksEnv = "NAV_PILOT_OPENCODE_HOOKS"
@@ -108,7 +114,8 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	if len(b.Post) == 0 && len(b.Pre) == 0 && !blocked {
 		return env, cpltArgs
 	}
-	plugin, err := writeHooksBridgePlugin()
+	v2 := openCodeMajor() >= 2
+	plugin, err := writeHooksBridgePlugin(v2)
 	if err == nil {
 		err = os.MkdirAll(OpenCodeHookStateDir(), 0o700)
 	}
@@ -119,7 +126,11 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	cfg, _ := json.Marshal(b)
 	env, _ = telemetry.SetEnvValue(env, OpenCodeHooksEnv, string(cfg))
 	env, _ = telemetry.SetEnvValue(env, HookStateDirEnv, OpenCodeHookStateDir())
-	env = withOpenCodeConfigContent(env, map[string]any{"plugin": []any{(&url.URL{Scheme: "file", Path: plugin}).String()}})
+	if v2 {
+		env = withOpenCodeConfigContent(env, map[string]any{"plugins": []any{filepath.Dir(plugin)}})
+	} else {
+		env = withOpenCodeConfigContent(env, map[string]any{"plugin": []any{(&url.URL{Scheme: "file", Path: plugin}).String()}})
+	}
 	if slices.Contains(r.ExtraArgs, "--pure") {
 		fmt.Fprintf(os.Stderr, "%s nav-pilot's hooks (redaction, loop guard, gates) do not run with --pure: opencode loads no plugins then.\n", domain.Yellow("⚠"))
 		if blocked {
@@ -146,15 +157,19 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 
 // writeHooksBridgePlugin writes the plugin, only when it differs, so two
 // launches at once never truncate the file under each other's plugin scan.
-func writeHooksBridgePlugin() (string, error) {
-	path := filepath.Join(openCodePluginDir(), "nav-pilot-hooks.js")
-	if cur, err := os.ReadFile(path); err == nil && bytes.Equal(cur, hooksBridgePlugin) {
+// For opencode 2 the plugin is the index.js of a directory of its own.
+func writeHooksBridgePlugin(v2 bool) (string, error) {
+	path, src := filepath.Join(openCodePluginDir(), "nav-pilot-hooks.js"), hooksBridgePlugin
+	if v2 {
+		path, src = filepath.Join(openCodePluginDir(), "v2", "index.js"), hooksBridgePluginV2
+	}
+	if cur, err := os.ReadFile(path); err == nil && bytes.Equal(cur, src) {
 		return path, nil
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return "", err
 	}
-	return path, writeConfigAtomically(path, hooksBridgePlugin)
+	return path, writeConfigAtomically(path, src)
 }
 
 // withOpenCodeConfigContent merges add into OPENCODE_CONFIG_CONTENT. A value
