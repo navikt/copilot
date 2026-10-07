@@ -128,12 +128,17 @@ func TestApplyOpenCodeMCPPolicyV2(t *testing.T) {
 	fetchMCPRegistry = func(string) (mcpRegistry, error) {
 		return mcpRegistry{Remotes: map[string]bool{"https://ok/mcp": true}, Packages: map[string]bool{}}, nil
 	}
+	// opencode 1 knows no mcp.servers: what it reads stays as before.
+	versionCache.Store("opencode", versionAnswer{"1.18.35\n", nil, time.Hour})
+	if got := openCodeMCPServers(proj, nil); got["evil"].Command != nil || got["off"].Enabled != nil {
+		t.Fatalf("opencode 1 read the v2 shape: %+v", got)
+	}
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
 	got := openCodeMCPServers(proj, nil)
 	if len(got) != 4 || got["off"].Enabled == nil || *got["off"].Enabled || got["evil"].Command[1] != "evil.js" {
 		t.Fatalf("servers = %+v", got)
 	}
 
-	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
 	env := applyOpenCodeMCPPolicy(nil, proj)
 	all := strings.Join(env, "\n")
 	for _, want := range []string{
@@ -147,5 +152,23 @@ func TestApplyOpenCodeMCPPolicyV2(t *testing.T) {
 	}
 	if strings.Contains(all, `"timeout":{"enabled"`) {
 		t.Errorf("mcp.timeout read as a server: %s", all)
+	}
+}
+
+// opencode 2 reads opencode.json in every directory up to "/", past the git
+// root; opencode 1 stops at the git root.
+func TestOpenCodeMCPServersV2WalksPastGitRoot(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	parent := t.TempDir()
+	proj := filepath.Join(parent, "proj")
+	os.MkdirAll(filepath.Join(proj, ".git"), 0o700)
+	os.WriteFile(filepath.Join(parent, "opencode.json"), []byte(`{"mcp":{"servers":{"anc":{"type":"remote","url":"https://anc/mcp"}}}}`), 0o600)
+	for ver, want := range map[string]bool{"1.18.35\n": false, "opencode v2.0.24\n": true} {
+		versionCache.Store("opencode", versionAnswer{ver, nil, time.Hour})
+		if _, got := openCodeMCPServers(proj, nil)["anc"]; got != want {
+			t.Errorf("%q: server above the git root read = %v, want %v", ver, got, want)
+		}
 	}
 }

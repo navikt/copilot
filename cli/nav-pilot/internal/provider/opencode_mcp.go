@@ -321,6 +321,7 @@ func openCodeUserMCPServers() map[string]mcpServer {
 }
 
 func openCodeMCPServersIn(docs [][]byte) map[string]mcpServer {
+	v2 := openCodeMajor() >= 2
 	servers := map[string]mcpServer{}
 	for _, doc := range docs {
 		var cfg struct {
@@ -335,10 +336,9 @@ func openCodeMCPServersIn(docs [][]byte) map[string]mcpServer {
 		for name, raw := range cfg.MCP {
 			// opencode 2's own shape: mcp.servers.<name>, mcp.timeout. A
 			// key of either name is a server only with a type, as opencode
-			// 2 reads it (core/src/config/normalize.ts at v2.0.24). The
-			// servers are read on any version: one that opencode 1 ignores
-			// costs a registry check, one that is missed runs unchecked.
-			if name == "servers" || name == "timeout" {
+			// 2 reads it (core/src/config/normalize.ts at v2.0.24). Only on
+			// opencode 2: opencode 1 reads "servers" as a server's name.
+			if v2 && (name == "servers" || name == "timeout") {
 				var probe struct {
 					Type string `json:"type"`
 				}
@@ -409,9 +409,10 @@ func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte
 		}
 		projectDir, _ = filepath.Abs(projectDir)
 		// Outside a git repo OpenCode's worktree is "/", and it walks all
-		// the way up.
+		// the way up. opencode 2 always walks to "/"
+		// (core/src/config/discovery.ts at v2.0.24).
 		root := source.FindGitRoot(projectDir)
-		if root == "" {
+		if root == "" || openCodeMajor() >= 2 {
 			root = "/"
 		}
 		var dirs []string
