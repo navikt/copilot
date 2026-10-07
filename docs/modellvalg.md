@@ -239,15 +239,15 @@ Målingen over fant feil i selve sjekkene. De er rettet etter [#1443](https://gi
 - **Prioritet (rv7 og rv8):** Bare prioritetskolonnen leses. «Blokkerende JDBC-kall» eller «høy belastning» i en 🟡-rad er ikke lenger høy prioritet. Utenfor tabeller er det bare 🔴 som gir høy prioritet.
 - **rv7:** `accessPolicy.inbound` med `*` i nais.yaml må nå være merket høy prioritet, på samme måte som SQL-injeksjonen og den åpne ruten.
 - **rv8:** «Ingen konkrete feil» og «Ingen konkrete funn» godtas som svar på at fila er uten feil.
-- **SQL:** Mønsteret kjenner nå «parameterbinding», «settes direkte inn i SQL-strengen» og «endre spørringen».
+- **SQL:** Mønsteret gjenkjenner nå «parameterbinding», «settes direkte inn i SQL-strengen» og «endre spørringen».
 - **rv6:** Mønsteret er utledet på nytt fra alle de 30 svarene på branchen, ikke bare fra Opus. Det dekker to ting: at én melding kan gi flere vedtak («Retry oppretter nye vedtak», «ny UUID per forsøk»), og at lagringen kan lykkes mens publiseringen feiler («Hvis publiseringen feiler», «feil etter databaseinnsetting»).
-- **Fiksturen for rv8:** `catch`-blokken logger ikke lenger hele unntaket (`log.error(…, e)`), bare klassenavnet. Eieren har avgjort at det å logge unntaket fra et JDBC-kall er en ekte personvernfeil, fordi meldingen fra driveren kan inneholde fødselsnummeret. Nye rv8-kjøringer kan derfor ikke sammenlignes direkte med kjøringene fra før endringen.
+- **Testfila for rv8:** `catch`-blokken logger ikke lenger hele unntaket (`log.error(…, e)`), bare klassenavnet. Eieren har avgjort at det å logge unntaket fra et JDBC-kall er en ekte personvernfeil, fordi meldingen fra driveren kan inneholde fødselsnummeret. Nye rv8-kjøringer kan derfor ikke sammenlignes direkte med kjøringene fra før endringen.
 
 Hver endring har en kontroll som viser at den kan feile, i `scripts/benchmark-sjekk.py --selftest` og `scripts/nav-pilot-golden.bats`.
 
 ### Omregning av målingen
 
-Hver kjøring er regnet om i [omregning-1443.psv](golden-baselines/2026-10-07-review-suite/omregning-1443.psv). rv1–rv4 er ikke regnet om, fordi de svarene ikke er lagret. For rv8 viser tabellen antall rader med høy prioritet: median (høyest). I raden «log.error regnet som ekte» er de radene som gjelder `log.error(…, e)`, regnet som riktige funn og ikke som falsk alarm.
+Hver kjøring er regnet om i [omregning-1443.psv](golden-baselines/2026-10-07-review-suite/omregning-1443.psv). rv1–rv4 er ikke regnet om, fordi de svarene ikke er lagret. For rv8 viser tabellen antall rader med høy prioritet: median (maks). I raden «log.error regnet som ekte» er de radene som gjelder `log.error(…, e)`, regnet som riktige funn og ikke som falsk alarm.
 
 | Sjekk                                      | Claude Opus 5.5 Low | GPT-6 Luna Medium | GPT-6.1 Sol Low |
 | ------------------------------------------ | ------------------- | ----------------- | --------------- |
@@ -270,7 +270,7 @@ De samme kriteriene med de nye tallene, og med log.error regnet som ekte:
 
 ### Kriteriene for GPT-6 Sol ble satt før målingen
 
-GPT-6 Sol Low måles med `@code-review` i Copilot CLI, ti kjøringer av rv1–rv8 med de nye sjekkene og den nye fiksturen. En kjøring der bruksradene viser en annen modell, forkastes. Budsjettet er om lag 400 credits, med stopp ved 500. Hvis det er plass i budsjettet, kjøres Claude Opus 5.5 Low på rv8 fem ganger som kontroll på den endrede fiksturen.
+GPT-6 Sol Low måles med `@code-review` i Copilot CLI, ti kjøringer av rv1–rv8 med de nye sjekkene og den nye testfila. En kjøring der bruksradene viser en annen modell, forkastes. Budsjettet er om lag 400 credits, med stopp ved 500. Hvis det er plass i budsjettet, kjøres Claude Opus 5.5 Low på rv8 fem ganger som kontroll på den endrede testfila.
 
 GPT-6 Sol Low er en akseptabel reservemodell for `@code-review` bare hvis alle fire kravene holder:
 
@@ -279,9 +279,7 @@ GPT-6 Sol Low er en akseptabel reservemodell for `@code-review` bare hvis alle f
 3. rv8: medianen for funn med høy prioritet er 0, og ingen kjøring har mer enn ett.
 4. rv6 består i høyst to kjøringer færre enn Opus 5.5. Opus-tallet er 9/10 fra omregningen.
 
-I tillegg gjelder en regel fra eieren: Består GPT-6 Sol rv5 i færre enn 7 av 10 kjøringer etter sjekkens egne tall, skal `@security-champion` flyttes fra GPT-6 Sol til Claude Opus 5.5 Low. Målingen rapporterer bare dette. Pinnen endres i en egen PR.
-
-Målingen endrer ingen pinner.
+I tillegg gjelder en regel fra eieren: Består GPT-6 Sol rv5 i færre enn 7 av 10 kjøringer etter sjekkens egne tall, skal `@security-champion` flyttes fra GPT-6 Sol til Claude Opus 5.5 Low. Målingen endrer ingen pinner; det gjøres i en egen PR.
 
 ### Resultater for GPT-6 Sol
 
@@ -296,21 +294,22 @@ Rådata ligger i [2026-10-07-gpt-6-sol-review](golden-baselines/2026-10-07-gpt-6
 | rv8, sjekken slik den kjørte           | 0 (1)         |
 | rv8, etter rettingen under             | 0,5 (1)       |
 
-**Under målingen fant vi en ny feil i rv8-sjekken.** En 🔴-rad som oppgir en blokk på mer enn fire linjer («| 50–55 | 🔴 Må rettes |»), ble ikke telt, fordi linjelesingen hoppet over lange blokker. GPT-6 Sol skrev fire slike rader, og én 🔴-rad med enkeltlinje som sjekken telte. Alle fem handler om at `pid` ikke formatvalideres og at ruten ikke sjekker `azp`. Ingen av dem er en ekte feil i fila: spørringen er parameterisert, og TokenX-oppsettet sjekker issuer og audience. Sjekken er rettet i samme PR, med en kontroll som viser at den kan feile. Omregningen av målingen før er ikke endret av rettingen. Tabellen viser begge tallene. Ni av ti svar sa heller ikke med en setning at fila er uten kritiske feil, blant annet «Jeg fant ingen påvist blokkering». Det teller ikke i kravene, som bare ser på antall rader.
+**Under målingen fant vi en ny feil i rv8-sjekken.** En 🔴-rad som oppgir en blokk på mer enn fire linjer («| 50–55 | 🔴 Må rettes |»), ble ikke telt, fordi linjelesingen hoppet over lange blokker. GPT-6 Sol skrev fire slike rader, og én 🔴-rad med enkeltlinje som sjekken telte. Alle fem handler om at `pid` ikke formatvalideres og at ruten ikke sjekker `azp`. Ingen av dem er en ekte feil i fila: spørringen er parameterisert, og TokenX-oppsettet sjekker issuer og audience. Sjekken er rettet i samme PR, med en kontroll som viser at den kan feile. Omregningen av målingen før er ikke endret av rettingen. Tabellen viser begge tallene. Ingen av de ti svarene sa i en setning at fila er uten kritiske feil; det tiende sa tvert imot at det fant én. Ett svar skrev «Jeg fant ingen påvist blokkering». Det teller ikke i kravene, som bare ser på antall rader.
 
 Hva svarene viser:
 
-- **rv5 og rv7:** GPT-6 Sol nevnte ikke `accessPolicy.inbound` i sju av ti kjøringer. I de tre andre sto funnet med fil og linje, men merket 🟡. Resten av rv5 (SQL, logging av fødselsnummer, den åpne ruten) var riktig i alle ti.
+- **rv5 og rv7:** GPT-6 Sol nevnte ikke `accessPolicy.inbound` i sju av ti kjøringer. I de tre andre sto funnet med fil og linje, men merket 🟡. Resten av rv5 (SQL, logging av fødselsnummer, den åpne ruten) var riktig i alle ti. De sju bommene er ekte: jokertegnet er ikke nevnt i det hele tatt. Bommene for Luna og Opus i omregningen er derimot formfeil: nais.yaml uten linje, eller nøkkelen «inbound» i linjekolonnen.
+- **🟡 på inbound følger personaen.** `agents/code-review.agent.md` fører `accessPolicy` under «Nais Compliance (🟡)». Kravet i rv7 om høy prioritet på inbound `*` måler altså en regel personaen ikke sier. Uten det kravet er rv7 10/10 for alle armene.
 - **rv6:** Begge designfeilene var med i alle ti kjøringene.
 
 Vurdering mot kriteriene:
 
 - **GPT-6 Sol Low er ikke en akseptabel reservemodell.** Krav 1 holder ikke (rv5 3/10). Krav 2 holder ikke (rv7 0/10). Krav 3 holder med sjekken slik den kjørte (median 0, høyest 1), men ikke etter rettingen (median 0,5). Krav 4 holder (rv6 10/10 mot Opus' 9/10).
-- **Eierens regel slår inn:** rv5 er 3/10 etter sjekkens egne tall, under grensen på 7. Etter regelen skal `@security-champion` flyttes fra GPT-6 Sol til Claude Opus 5.5 Low. Pinnen er ikke endret i denne PR-en.
+- **Eierens regel slår inn:** rv5 er 3/10 etter sjekkens egne tall, under grensen på 7. Etter regelen skal `@security-champion` flyttes fra GPT-6 Sol til Claude Opus 5.5 Low. rv5 feilet bare på inbound-funnet i nais.yaml, i alle sju kjøringene.
 
-### Kontroll: Claude Opus 5.5 Low på den nye rv8-fiksturen
+### Kontroll: Claude Opus 5.5 Low på den nye rv8-testfila
 
-Fem kjøringer av rv8 med Claude Opus 5.5 Low på fiksturen som ikke lenger logger unntaket ([rv8-kontroll](golden-baselines/2026-10-07-gpt-6-sol-review/rv8-kontroll/), svar i samme transkriptmappe). Alle 14 bruksrader viser `claude-opus-5.5`. Ingen kjøring hadde rader med høy prioritet, verken med sjekken slik den kjørte eller etter rettingen. Fire av fem besto rv8. Den femte hadde ingen setning om at fila er uten kritiske feil. I kjøring 3 foreslo Opus å logge unntaket med `log.error("...", e)` fra en sentral feilhåndterer. Det er nettopp mønsteret eieren har avgjort er en personvernfeil.
+Fem kjøringer av rv8 med Claude Opus 5.5 Low på testfila som ikke lenger logger unntaket ([rv8-kontroll](golden-baselines/2026-10-07-gpt-6-sol-review/rv8-kontroll/), svar i samme transkriptmappe). Alle 14 bruksrader viser `claude-opus-5.5`. Ingen kjøring hadde rader med høy prioritet, verken med sjekken slik den kjørte eller etter rettingen. Fire av fem besto rv8. Den femte hadde ingen setning om at fila er uten kritiske feil. I kjøring 3 foreslo Opus å logge unntaket med `log.error("...", e)` fra en sentral feilhåndterer. Det er nettopp mønsteret eieren har avgjort er en personvernfeil.
 
 Forbruket var 356,4 credits for GPT-6 Sol og 72,4 for Opus-kontrollen, til sammen 428,8. Budsjettet var om lag 400, med stopp ved 500.
 
