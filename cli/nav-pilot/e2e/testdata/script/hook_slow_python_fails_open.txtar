@@ -16,8 +16,8 @@ exec nav-pilot install plattform --source $WORK/plattform --repo --yes
 
 # The slow gate: killed before the 2 s deadline, nothing on stdout, exit 0.
 # run.py enforces that deadline with its timeout on the hook command, as
-# Copilot does. A -within here would also count run.py's own startup and the
-# process launches around it, which production does not have.
+# Copilot does. A -within here would also count run.py's own interpreter
+# start, which production does not have.
 exits 0 python3 ../run.py treg
 ! stdout .
 
