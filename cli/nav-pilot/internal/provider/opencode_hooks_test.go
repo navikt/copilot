@@ -87,3 +87,22 @@ func TestApplyOpenCodeHooksV2PluginIDPerLaunch(t *testing.T) {
 		t.Error("the v2 bridge does not redact every model request kind")
 	}
 }
+
+// On opencode 2 the bridge runs the dispatch gate, so a launch with the gate
+// and no other hook still stages it; on opencode 1 dispatch-gate.js does.
+func TestOpenCodeHooksStageBridgeForDispatchGateOnV2(t *testing.T) {
+	prev := OpenCodeHookBridge
+	t.Cleanup(func() { OpenCodeHookBridge = prev })
+	OpenCodeHookBridge = func(domain.ResolvedConfig) HookBridge { return HookBridge{} }
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	for _, c := range []struct {
+		version string
+		want    bool
+	}{{"opencode v2.0.24\n", true}, {"opencode 1.17.0\n", false}} {
+		versionCache.Store("opencode", versionAnswer{c.version, nil, time.Hour})
+		env, _ := applyOpenCodeHooks(domain.ResolvedConfig{}, []string{DispatchGateEnv + "=http://127.0.0.1:1/x"}, nil)
+		if got := strings.Contains(strings.Join(env, "\n"), "plugin"); got != c.want {
+			t.Errorf("%s: bridge staged = %v, want %v", strings.TrimSpace(c.version), got, c.want)
+		}
+	}
+}

@@ -48,12 +48,12 @@ func TestOpenCode2LiveBridge(t *testing.T) {
 	// Built at run time, so no token-shaped string sits in the repository.
 	token := strings.Join([]string{"ghp", "0123456789abcdefghijABCDEFGHIJ012345"}, "_")
 	llm := &fakeLLM{calls: []fakeCall{
-		{"shell", map[string]any{"command": "echo forbidden", "description": "x"}},
-		{"shell", map[string]any{"command": "echo token=" + token, "description": "x"}},
-		{"shell", map[string]any{"command": "echo failed=" + token + " >&2; exit 3", "description": "x"}},
-		{"read", map[string]any{"path": "/nonexistent/" + token}},
-		{"probe_ping", map[string]any{}},
-		{"reenabled_ping", map[string]any{}},
+		{"shell", map[string]any{"command": "echo forbidden", "description": "x"}, ""},
+		{"shell", map[string]any{"command": "echo token=" + token, "description": "x"}, ""},
+		{"shell", map[string]any{"command": "echo failed=" + token + " >&2; exit 3", "description": "x"}, ""},
+		{"read", map[string]any{"path": "/nonexistent/" + token}, ""},
+		{"probe_ping", map[string]any{}, ""},
+		{"reenabled_ping", map[string]any{}, ""},
 	}}
 	srv := httptest.NewServer(llm)
 	defer srv.Close()
@@ -184,9 +184,12 @@ rl.on("line", (l) => {
 })
 `
 
+// fakeCall is one scripted answer: a tool call, with text before it when
+// text is set, or text alone when name is empty.
 type fakeCall struct {
 	name string
 	args map[string]any
+	text string
 }
 
 // fakeLLM is an OpenAI chat-completions server: each request that offers
@@ -197,6 +200,14 @@ type fakeLLM struct {
 	calls   []fakeCall
 	n       int
 	results []string
+	// users: the user messages every request carried.
+	users []string
+}
+
+func (f *fakeLLM) userMessages() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.users
 }
 
 func (f *fakeLLM) toolResults() []string {
@@ -222,11 +233,11 @@ func (f *fakeLLM) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var call *fakeCall
 	if len(body.Tools) > 0 {
 		for _, m := range body.Messages {
-			if m.Role == "tool" {
-				b, _ := json.Marshal(m.Content)
-				if s := string(b); !contains(f.results, s) {
-					f.results = append(f.results, s)
-				}
+			b, _ := json.Marshal(m.Content)
+			if s := string(b); m.Role == "tool" && !contains(f.results, s) {
+				f.results = append(f.results, s)
+			} else if m.Role == "user" && !contains(f.users, s) {
+				f.users = append(f.users, s)
 			}
 		}
 		if f.n < len(f.calls) {
@@ -243,13 +254,18 @@ func (f *fakeLLM) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"choices": []any{map[string]any{"index": 0, "delta": delta, "finish_reason": finish}}})
 		fmt.Fprintf(w, "data: %s\n\n", b)
 	}
-	if call != nil {
+	if call != nil && call.text != "" {
+		send(map[string]any{"role": "assistant", "content": call.text}, nil)
+	}
+	if call != nil && call.name != "" {
 		args, _ := json.Marshal(call.args)
 		send(map[string]any{"role": "assistant", "tool_calls": []any{map[string]any{"index": 0, "id": fmt.Sprintf("call_%d", n),
 			"type": "function", "function": map[string]any{"name": call.name, "arguments": string(args)}}}}, nil)
 		send(map[string]any{}, "tool_calls")
 	} else {
-		send(map[string]any{"role": "assistant", "content": "DONE"}, nil)
+		if call == nil {
+			send(map[string]any{"role": "assistant", "content": "DONE"}, nil)
+		}
 		send(map[string]any{}, "stop")
 	}
 	fmt.Fprint(w, `data: {"id":"x","object":"chat.completion.chunk","created":1,"model":"fake","choices":[],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`+"\n\ndata: [DONE]\n\n")

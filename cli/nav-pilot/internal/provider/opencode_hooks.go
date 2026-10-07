@@ -117,10 +117,13 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	}
 	b := OpenCodeHookBridge(r)
 	blocked := slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, MCPBlockedEnv+"=") })
-	if len(b.Post) == 0 && len(b.Pre) == 0 && !blocked {
+	v2 := openCodeMajor() >= 2
+	// On opencode 2 the bridge also runs the dispatch gate (dispatch-gate.js
+	// is an opencode 1 plugin).
+	gate := v2 && slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, DispatchGateEnv+"=") })
+	if len(b.Post) == 0 && len(b.Pre) == 0 && !blocked && !gate {
 		return env, cpltArgs
 	}
-	v2 := openCodeMajor() >= 2
 	plugin, err := writeHooksBridgePlugin(v2)
 	if err == nil {
 		err = os.MkdirAll(OpenCodeHookStateDir(), 0o700)

@@ -18,9 +18,17 @@
 // opencode 2 runs both hooks for a tool a Code Mode program (`execute`) calls,
 // under that tool's own name, and for a subagent's session.
 //
+// With NAV_PILOT_DISPATCH_GATE set, it also runs the local dispatch gate
+// (internal/local/gate.go), as dispatch-gate.js does on opencode 1: it asks
+// the gate before the orchestrator's edit, write, shell or subagent call and
+// throws a refusal, appends what the gate answers to the worker's result and
+// to a check after it, and adds the gate's reminder, once the orchestrator has
+// written text, to that session's next model request.
+//
 // Failure: redaction fails closed (the output is withheld), everything else
 // fails open (the call and its result go through), as under Copilot.
 import { spawn } from "node:child_process"
+import { isAbsolute, join } from "node:path"
 
 const WITHHELD =
   "[nav-pilot: this tool output was withheld because the redaction hook failed (%s). " +
@@ -85,6 +93,130 @@ function texts(result) {
   return out
 }
 
+// The local dispatch gate. Its questions and answers are dispatch-gate.js's,
+// with opencode 2's tool names and arguments mapped to opencode 1's, which the
+// gate matches on. Every hook is a no-op without the gate's address.
+function dispatchGate(ctx, directory) {
+  const url = process.env.NAV_PILOT_DISPATCH_GATE
+  if (!url) return undefined
+  const turns = new Map()
+  const topLevel = new Map()
+  const nudges = new Map()
+  const str = (v) => (typeof v === "string" ? v : "")
+  const abs = (p) => (p ? (isAbsolute(p) ? p : join(directory, p)) : "")
+  // Only the session the developer talks to; see dispatch-gate.js. Unknown
+  // is not top-level, and only a definite answer is kept.
+  const isTopLevel = async (id) => {
+    if (!topLevel.has(id)) {
+      try {
+        const s = await ctx.session.get({ sessionID: id })
+        if (s && typeof s === "object") topLevel.set(id, !s.parentID)
+      } catch {}
+    }
+    return topLevel.get(id) ?? false
+  }
+  const orchestrator = async (sessionID, agent) =>
+    agent && agent !== "local-worker" && (await isTopLevel(sessionID)) ? agent : undefined
+  const ask = async (body) => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(2000),
+    })
+    return res.ok ? ((await res.json()) ?? {}) : {}
+  }
+  const agents = new Map()
+  // The orchestrator's finished text: the gate may answer with a reminder,
+  // which the session's next model request carries (the context hook). That
+  // request waits for the answer, so the event and the request do not race.
+  const record = async (id) => {
+    const agent = await orchestrator(id, agents.get(id))
+    if (!agent) return
+    const text = (await ask({ session: id, turn: turns.get(id) ?? 0, agent, phase: "text" })).nudge
+    if (typeof text === "string" && text) nudges.set(id, text)
+  }
+  const pending = new Map()
+  ;(async () => {
+    try {
+      for await (const e of ctx.event.subscribe()) {
+        if (e?.type !== "session.text.ended" || !e.data?.sessionID) continue
+        const id = e.data.sessionID
+        pending.set(id, record(id).catch(() => {}))
+      }
+    } catch {}
+  })()
+  return {
+    // One user prompt is one turn: the gate counts per turn.
+    prompt: (event) => {
+      turns.set(event.sessionID, (turns.get(event.sessionID) ?? 0) + 1)
+    },
+    context: async (event) => {
+      if (event.agent) agents.set(event.sessionID, event.agent)
+      await pending.get(event.sessionID)
+      const text = nudges.get(event.sessionID)
+      if (!text || !Array.isArray(event.messages)) return
+      nudges.delete(event.sessionID)
+      event.messages.push({ role: "user", content: [{ type: "text", text }] })
+    },
+    before: async (event) => {
+      const tool = event.tool
+      if (!["edit", "write", "shell", "subagent"].includes(tool)) return
+      const args = event.input ?? {}
+      if (event.agent) agents.set(event.sessionID, event.agent)
+      const create = tool === "write" || (tool === "edit" && args.oldString === "")
+      let deny = ""
+      try {
+        const agent = await orchestrator(event.sessionID, event.agent)
+        if (!agent) {
+          // The worker's new files: see dispatch-gate.js. Never a refusal.
+          if (event.agent === "local-worker" && create)
+            await ask({ session: event.sessionID, agent: "local-worker", tool, create: true, path: abs(str(args.path)), phase: "worker" })
+          return
+        }
+        const replaceAll = tool === "edit" && args.replaceAll === true
+        const toWorker = tool === "subagent" && args.agent === "local-worker"
+        deny = (
+          await ask({
+            session: event.sessionID,
+            turn: turns.get(event.sessionID) ?? 0,
+            agent,
+            tool: tool === "shell" ? "bash" : tool === "subagent" ? "task" : tool,
+            path: abs(str(args.path)),
+            create,
+            command: tool === "shell" ? str(args.command) : "",
+            subagent: tool === "subagent" ? str(args.agent) : "",
+            prompt: toWorker ? str(args.prompt) : "",
+            replaceAll,
+            old: replaceAll ? str(args.oldString) : "",
+          })
+        ).deny
+      } catch {
+        return
+      }
+      if (typeof deny === "string" && deny) throw new Error(deny)
+    },
+    // The text to append to the worker's result or to a check after it.
+    after: async (event) => {
+      const toWorker = event.tool === "subagent" && event.input?.agent === "local-worker" && event.input?.background !== true
+      if (!toWorker && event.tool !== "shell") return ""
+      try {
+        const agent = await orchestrator(event.sessionID, event.agent)
+        if (!agent) return ""
+        const turn = turns.get(event.sessionID) ?? 0
+        const exit = event.result?.metadata?.exit
+        const body = toWorker
+          ? { session: event.sessionID, turn, agent, tool: "task", subagent: "local-worker", worker: str(event.result?.metadata?.sessionID), phase: "after" }
+          : { session: event.sessionID, turn, agent, tool: "bash", command: str(event.input?.command), exit: typeof exit === "number" ? exit : null, phase: "after" }
+        const text = (await ask(body)).append
+        return typeof text === "string" ? text : ""
+      } catch {
+        return ""
+      }
+    },
+  }
+}
+
 export default {
   // Per launch (NAV_PILOT_OPENCODE_PLUGIN_ID): opencode 2 drops a plugin
   // whose id another plugin loaded first.
@@ -128,6 +260,11 @@ export default {
     const redact = post.filter((h) => h.failClosed)
     const seen = new Map()
     const done = new Set()
+    const gate = dispatchGate(ctx, loc.directory ?? cwd)
+    if (gate) {
+      await ctx.session.hook("prompt", gate.prompt)
+      await ctx.session.hook("context", gate.context)
+    }
 
     const postHooks = async (sessionID, tool, args, text, hooks = post) => {
       const [toolName, toolArgs] = toCopilot(tool, args)
@@ -174,6 +311,7 @@ export default {
         throw new Error(
           `nav-pilot: the MCP server ${server} is not in Nav's MCP registry, so its tools are turned off in this session. Tell the user.`,
         )
+      if (gate) await gate.before(event)
       if (!pre.length) return
       const [toolName, toolArgs] = toCopilot(event.tool, event.input)
       for (const h of pre) {
@@ -196,6 +334,13 @@ export default {
     })
 
     await ctx.tool.hook("execute.after", async (event) => {
+      // Before redaction, so nothing goes around it.
+      if (gate && event.status !== "error" && event.result) {
+        const add = await gate.after(event)
+        const items = add ? texts(event.result) : []
+        if (items.length) items.at(-1)[1](`${items.at(-1)[0]}\n\n${add}`)
+        else if (add) event.result.content = [...(Array.isArray(event.result.content) ? event.result.content : []), { type: "text", text: add }]
+      }
       if (!post.length) return
       if (event.status === "error") {
         // A tool that failed: its message reaches the model. Redaction only,

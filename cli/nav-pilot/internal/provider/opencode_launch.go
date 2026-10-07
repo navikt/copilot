@@ -1277,14 +1277,7 @@ func localWorker() (local.Model, error) {
 
 func startOpenCodeLocalDispatch(resolved domain.ResolvedConfig) (*local.Guard, error) {
 	gateRoot = resolved.ProjectDir
-	model := openCodeSessionModelForLocalDispatch(resolved.Model)
-	// The dispatch gate is an opencode 1 plugin, not ported to opencode 2:
-	// refuse rather than hand work to a local worker ungated.
-	if openCodeMajor() >= 2 && local.Enabled() && (local.DispatchLevel() != local.DispatchOff || local.IsLocal(model)) {
-		return nil, fmt.Errorf("local dispatch does not run on opencode 2 yet: its gate is an opencode 1 plugin.\n\n  Turn local inference off, or launch with opencode 1:\n\n    %s",
-			domain.Bold("nav-pilot alpha local off"))
-	}
-	return startLocalDispatch(model)
+	return startLocalDispatch(openCodeSessionModelForLocalDispatch(resolved.Model))
 }
 
 // gateRoot is the project directory the dispatch gate may stat under: the
