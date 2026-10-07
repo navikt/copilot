@@ -1,0 +1,72 @@
+
+
+Jeg går gjennom diffen mot `main`, med særlig vekt på Kafka-behandling, datalagring og tilgangsstyring.
+
+
+
+
+
+
+
+
+
+✗ Run repository checks (shell)
+  │ mise check
+  └ mise ERROR no task check found
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+✗ Compile Kotlin sources with locally available dependencies (shell)
+  │ gradle compileKotlin --offline --quiet
+  └ FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 277ms
+    Failed with exit code 1
+
+
+### Gjennomgang
+
+**Jeg ville ikke merget `vedtak-kafka` ennå.** Endringene har flere uavhengige sikkerhets- og driftsfeil:
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 Blokkerer | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Alle som når tjenesten, kan hente vedtak og fødselsnummer uten innlogging eller kontroll av eierskap. |
+| `VedtakRepository.kt:23` | 🔴 Blokkerer | `fnr` settes rett inn i SQL-strengen. En manipulert URL kan endre spørringen; bruk en parameterisert `queryOf`. |
+| `App.kt:40–42` | 🔴 Blokkerer | JWT-oppsettet mangler tokenverifikator, og `validate` kontrollerer ikke forventet audience eller avsender (`azp`). TokenX er derfor ikke satt opp for sikker tilgang til skriveendepunktet. |
+| `nais.yaml:23–26` | 🔴 Blokkerer | Inngående tilgang åpnes for alle applikasjoner i alle namespaces. Begrens regelen til konkrete kallere, særlig siden tjenesten håndterer vedtak og fødselsnummer. |
+| `VedtakService.kt:15` | 🔴 Blokkerer | Fødselsnummer skrives til logg ved både HTTP-kall og Kafka-behandling. Fjern personopplysningen fra loggmeldingen. |
+| `App.kt:26–35` | 🔴 Blokkerer | Kafka-klientene får bare brokeradresse, ikke TLS-/SASL-oppsettet som trengs for Nais Kafka. De vil ikke kunne koble seg til den konfigurerte poolen. |
+| `VedtakConsumer.kt:25`, `VedtakService.kt:17–23` | 🔴 Blokkerer | Ved retry opprettes et nytt vedtak med ny ID. Hvis publisering feiler etter lagring, lagres duplikater; hvis publisering lykkes før offset-commit feiler, kan samme hendelse publiseres på nytt. Behandlingen trenger en stabil hendelses-ID og idempotent lagring/publisering. |
+| `VedtakRepository.kt:14` | 🔴 Blokkerer | Koden skriver til tabellen `vedtak`, men branchen inneholder ingen migrasjon som oppretter den. En ny database vil feile ved første innsetting. |
+| `App.kt:36` | 🟡 Forslag | Consumeren kjører i egen tråd uten feilhåndtering eller livssyklus. En ubehandlet feil stopper Kafka-behandlingen mens HTTP-tjenesten fortsetter å kjøre. |
+
+**Verifisering:** `git diff --check` ga ingen utslag. Jeg kunne ikke kjøre prosjektkontrollene: repoet har ingen `mise check`-oppgave, og lokal `gradle compileKotlin --offline` stopper under konfigurering av Kotlin-pluginen med feilen `27`. Funnene over er derfor basert på gjennomgang av diffen, ikke en vellykket kompilering.
+
+🔴 Rød sone: autentisering, tilgangskontroll, SQL og vedtakshåndtering må gjennomgås grundig før merge. Still gjerne spørsmål om valgene over.
+

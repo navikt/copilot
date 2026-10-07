@@ -1,0 +1,25 @@
+
+### Oppsummering
+Filen er ryddig. Fødselsnummeret kommer fra `pid`-claimet i TokenX-tokenet, ikke fra en parameter brukeren styrer, så brukeren kan bare hente egne saker. SQL-spørringen er parameterisert, og fødselsnummeret maskeres i loggen. Jeg fant ingen blokkere. `mise check` ble ikke kjørt fordi prosjektet ikke har mise-oppsett, så funnene bygger bare på lesing av koden.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | 41 | 🟡 | Stack trace forsvinner fordi bare klassenavnet logges |
+| `SakService.kt` | 47–58 | 🟡 | Rute, service og repository ligger i én fil |
+| `SakService.kt` | 20 | 💭 | `maskert()` er en public extension på alle `String` |
+| `SakService.kt` | 37 | 💭 | Infologgen gir ingen nyttig informasjon |
+| — | — | 🟡 | Jeg fant ingen tester for `sakRoutes` eller `SakService` |
+
+### Detaljer
+- **Linje 41:** `e.javaClass.simpleName` gjør feilsøking i Loki vanskelig. Det er lurt å unngå `e.message`, siden JDBC-feil kan ta med parameterverdier som fødselsnummeret. Logg heller med `log.error("Kunne ikke hente saker", e)` og sjekk at driveren ikke legger parametre i meldingen. Ellers kan du pakke feilen inn i en egen exception med kontekst.
+- **Linje 20:** Masken viser alltid 11 stjerner, så den er trygg, men den gir ingen informasjon. Gjør den `private` eller `internal` så den ikke brukes feil andre steder. Ellers kan du fjerne den og logge uten fødselsnummer.
+- **Tester:** Med MockOAuth2Server bør du teste disse tilfellene:
+  - token uten `pid` gir 401
+  - gyldig token gir bare saker for den personen
+
+🔴 Rød sone: tilgangen bygger på at `pid` hentes fra et validert TokenX-token. Kontroller at `authenticate("tokenx")` validerer `aud` og `iss`.
+
+Still gjerne spørsmål om valgene over.
+

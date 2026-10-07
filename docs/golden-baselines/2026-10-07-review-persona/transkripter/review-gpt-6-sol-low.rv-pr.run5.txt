@@ -1,0 +1,62 @@
+
+
+
+
+
+
+
+
+✗ Run repository checks (shell)
+  │ mise check
+  └ mise ERROR no task check found
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+✗ Check Kotlin compilation (shell)
+  │ gradle compileKotlin --quiet
+  └ FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 282ms
+    Failed with exit code 1
+
+**Gjennomgangen av `vedtak-kafka` mot `main` finner flere blokkere.** Endringene bør ikke merges før tilgangskontroll, Kafka-oppsett og datalagring er rettet.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 | `GET /api/vedtak/{fnr}` er åpent og returnerer vedtak med fødselsnummer. Endepunktet må autentiseres og kontrollere at innringeren har tilgang til personen. |
+| `VedtakRepository.kt:23` | 🔴 | `fnr` settes rett inn i SQL. Parameteriser spørringen; dagens kode åpner for SQL-injeksjon. |
+| `nais.yaml:23–26` | 🔴 | Inbound-regelen gir alle applikasjoner i alle namespaces tilgang. Begrens den til kjente klienter. |
+| `App.kt:39–43` | 🔴 | JWT-oppsettet mangler verifier for signatur, utsteder og forventet audience. `validate` sjekker ikke at tokenet er ment for tjenesten, og returnerer `credential` i stedet for en JWT-principal. |
+| `App.kt:26–35` | 🔴 | Kafka-klientene får bare broker-adresse, ikke Nais-konfigurasjon for autentisering og TLS. De vil ikke kunne koble til den beskyttede Kafka-poolen. |
+| `VedtakConsumer.kt:31–33` | 🔴 | Vedtak lagres før publisering. Hvis publisering eller offset-commit feiler, oppretter retry et nytt vedtak med ny ID. Gjør behandlingen idempotent mot en stabil meldings-ID, og håndter forholdet mellom lagring og publisering. |
+| `VedtakService.kt:15` | 🔴 | Fødselsnummer logges i klartekst. Fjern personopplysningen fra loggen. |
+| `VedtakRepository.kt:14` | 🔴 | Koden skriver til `vedtak`, men branchen inneholder ingen migrasjon som oppretter tabellen. Skriving vil feile mot en ny database. |
+
+🔴 **Rød sone: tilgangskontroll, personopplysninger og vedtaksbehandling må gjennomgås grundig.** Den viktigste avveiningen er at idempotent behandling krever en varig meldingsidentitet og mer kontroll rundt lagring og publisering; en enkel retry løser ikke dobbeltskriving.
+
+**Kontroll:** `mise check` finnes ikke i repoet. `gradle compileKotlin` stopper under prosjektkonfigurasjon med feilen `27`, så jeg har ikke bekreftet at branchen kompilerer. Still gjerne spørsmål om valgene over.
+

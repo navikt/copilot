@@ -1,0 +1,76 @@
+
+/ Search (glob)
+  │ "**/mise.toml"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/instructions/*.md"
+  └ 16 files found
+
+
+
+
+
+
+
+
+
+
+✗ Run repository checks (shell)
+  │ mise check
+  └ mise ERROR no task check found
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+
+✗ Try project Gradle checks with existing dependencies (shell)
+  │ gradle check --offline --quiet
+  └ FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 276ms
+    Failed with exit code 1
+
+**Gjennomgang av `vedtak-kafka` mot `main`: Ikke klar for merge.** Endringen åpner tilgang til vedtak med fødselsnummer og har feil som kan stoppe både oppstart og Kafka-behandling.
+
+| Prioritet | Sted | Funn |
+|---|---|---|
+| 🔴 | `Routes.kt:30–33` | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Alle som når tjenesten, kan hente vedtak for et vilkårlig fødselsnummer. Endepunktet må kreve autentisering og kontrollere tilgang til personen. |
+| 🔴 | `nais.yaml:23–26` | Inbound-regelen åpner tjenesten for alle applikasjoner i alle namespaces. Det utvider eksponeringen av endepunktet over; begrens regelen til konkrete kallere. |
+| 🔴 | `VedtakRepository.kt:23–24` | `fnr` settes rett inn i SQL. Dette gir SQL-injeksjon. Bruk parameterisert `queryOf`, slik de andre spørringene gjør. |
+| 🔴 | `App.kt:40–42` | TokenX-oppsettet mangler tokenverifikator, og `validate` kontrollerer ikke forventet audience eller `azp`. Et ikke-tomt audience er ikke en tilgangskontroll. Konfigurer signatur-, issuer-, audience- og klientvalidering før endepunktet tas i bruk. |
+| 🔴 | `VedtakService.kt:17` | Fødselsnummer skrives til logg. Fjern personopplysningen fra loggmeldingen. |
+| 🔴 | `VedtakConsumer.kt:24–38` | Et vedtak lagres *før* publisering. Feiler publisering, vil retry lagre et nytt vedtak med ny ID; etter en senere feil i batchen kan tidligere meldinger også behandles på nytt. Bruk en stabil meldings-ID og idempotent lagring, og håndter lagring/publisering slik at retry ikke lager flere vedtak. |
+| 🔴 | `App.kt:26–35` | Kafka-klientene får bare broker-adresse, ikke TLS/SASL-oppsettet som Nais Kafka krever. Konsument og produsent vil dermed ikke koble til den konfigurerte Kafka-poolen. |
+| 🟡 | `VedtakConsumer.kt:21–30`, `App.kt:36` | En ubehandlet deserialiserings- eller prosesseringsfeil avslutter konsumenttråden, mens HTTP-serveren fortsetter. Meldinger blir stående uten behandling og podden kan fortsatt fremstå som klar. |
+| 🟡 | `VedtakRepository.kt:11` | Koden skriver til tabellen `vedtak`, men branchen legger ikke til migrering som oppretter den. Første lagring vil feile dersom tabellen ikke finnes fra før. |
+
+🔴 **Rød sone: tilgangskontroll, håndtering av fødselsnummer og idempotent vedtaksbehandling.** Disse må gjennomgås grundig før merge. Jeg har ikke endret kode. `mise check` finnes ikke som oppgave i dette prosjektet, og `gradle check --offline` stoppet under prosjektkonfigurasjon med feilen `27`; funnene bygger derfor på gjennomgang av diffen, ikke en bestått bygg.
+
+Still gjerne spørsmål om valgene over.
+

@@ -1,0 +1,77 @@
+
+/ Search (glob)
+  │ "**/mise.toml"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/instructions/*.md"
+  └ 16 files found
+
+
+
+
+
+
+
+
+
+
+✗ Run repository checks (shell)
+  │ mise check
+  └ mise ERROR no task check found
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+/ Search (grep)
+  │ "JWT|azp|TokenX|Kafka|consumer|migrat" (.github/instructions/kotlin.instructions.md)
+  └ 10 lines found
+
+
+
+✗ Check Kotlin compilation and tests (shell)
+  │ gradle test --quiet
+  └ FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 282ms
+    Failed with exit code 1
+
+### Gjennomgang
+
+**Jeg ville ikke merget `vedtak-kafka` ennå.** Endringene åpner for uautorisert innsyn i vedtak, og Kafka-behandlingen kan både stoppe og opprette duplikater. Funnene under gjelder linjer som er endret i branchen.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 Blokkerer | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Alle som når tjenesten, kan hente vedtak for et oppgitt fødselsnummer. Krev autentisering og kontroller at innringeren har tilgang til personen. |
+| `VedtakRepository.kt:23` | 🔴 Blokkerer | `fnr` settes rett inn i SQL. Endepunktet over gir dermed også en SQL-injeksjonsvei. Bruk parameterisert `queryOf`. |
+| `App.kt:40–42` | 🔴 Blokkerer | JWT-oppsettet har ingen verifier, og `validate` godtar enhver ikke-null `audience` uten å kontrollere forventet mottaker eller `azp`. Konfigurer verifikasjon av signatur, utsteder og audience, og begrens autoriserte klienter. |
+| `nais.yaml:23–26` | 🔴 Blokkerer | Inbound-policyen slipper inn alle applikasjoner fra alle namespaces. Avgrens den til konkrete kallere; dette utvider tilgangen til tjenesten unødvendig. |
+| `VedtakService.kt:15` | 🔴 Blokkerer | Fødselsnummer logges i klartekst ved hvert vedtak. Fjern personopplysningen fra loggen. |
+| `VedtakConsumer.kt:31–33` | 🔴 Blokkerer | Vedtak lagres før publisering bekreftes. Hvis `send(...).get()` feiler, lagrer neste forsøk et nytt vedtak med ny ID. Gjør behandlingen idempotent mot meldings-ID, og håndter lagring og publisering slik at omkjøring ikke skaper duplikater. |
+| `VedtakConsumer.kt:19–27` og `App.kt:36` | 🔴 Blokkerer | En ugyldig melding eller et feilslag etter siste forsøk avslutter konsumenttråden. HTTP-serveren fortsetter å kjøre, mens ingen flere Kafka-meldinger behandles. Knytt konsumentens feiltilstand til readiness eller stopp applikasjonen. |
+| `App.kt:26–35` | 🟡 Forslag | Kafka-klientene får bare broker-adresse og serialiseringsoppsett. Nais-Kafka krever også autentisering og TLS-oppsett fra miljøet; slik konfigurert vil klientene ikke kunne koble til. |
+| `VedtakRepository.kt:14` | 🔴 Blokkerer | Koden skriver til tabellen `vedtak`, men branchen inneholder ingen migrering som oppretter den. Første lagring vil feile mot en ny database. |
+
+🔴 **Rød sone:** Tilgangskontroll, personopplysninger og idempotent vedtaksbehandling må gjennomgås nøye. `mise check` kunne ikke kjøres fordi prosjektet ikke har en slik oppgave. `gradle test` stoppet under prosjektkonfigurasjon med feilen `27`, så kompilering og tester er ikke verifisert.
+

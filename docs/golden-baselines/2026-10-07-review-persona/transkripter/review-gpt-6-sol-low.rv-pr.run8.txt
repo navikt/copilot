@@ -1,0 +1,65 @@
+
+
+
+
+
+
+/ Search (grep)
+  │ "^#{1,3} |Kafka|Ktor|auth|SQL|logging" (.github/instructions/kotlin.instructions.md)
+  └ 51 lines found
+
+✗ Run repository check command (shell)
+  │ mise check
+  └ mise ERROR no task check found
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+✗ Check Kotlin compilation using existing local dependencies (shell)
+  │ gradle --offline compileKotlin --quiet
+  └ FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 281ms
+    Failed with exit code 1
+
+**Gjennomgangen av `vedtak-kafka` mot `main` fant flere blokkere.** Endringen bør ikke merges før tilgangskontroll, datalagring og Kafka-behandling er rettet.
+
+| Prioritet | Sted | Funn |
+|---|---|---|
+| 🔴 | `Routes.kt:30–32` | `GET /api/vedtak/{fnr}` krever ingen autentisering og returnerer vedtak med fødselsnummer. Endepunktet må autentisere innringeren og kontrollere at den har tilgang til personens vedtak. |
+| 🔴 | `VedtakRepository.kt:23` | `fnr` settes rett inn i SQL-strengen. Det åpner for SQL-injeksjon via URL-parameteren. Bruk parameterisert spørring, slik de andre metodene gjør. |
+| 🔴 | `App.kt:40–43` | TokenX-oppsettet mangler verifikator for signatur, utsteder og forventet audience. `validate` sjekker bare at et audience-felt finnes. Verifiser også autorisert klient (`azp`) før et token kan fatte vedtak. |
+| 🔴 | `nais.yaml:20–23` | Inngående tilgang er åpnet for alle applikasjoner i alle navnerom. Begrens regelen til de konkrete tjenestene som skal kalle API-et. |
+| 🔴 | `VedtakService.kt:15` | Fødselsnummer skrives til applikasjonsloggen. Fjern personopplysningen fra loggmeldingen. |
+| 🔴 | `VedtakRepository.kt:14` | Koden skriver til tabellen `vedtak`, men branchen inneholder ingen migrasjon som oppretter den. Innlesing fra Kafka og API-kall vil feile når databasen er tom. |
+| 🔴 | `App.kt:26–35` | Kafka-klientene får bare brokeradresse, uten oppsett for autentisering og TLS fra Nais. De vil ikke kunne koble til Kafka-poolen slik den er konfigurert. |
+| 🔴 | `VedtakConsumer.kt:32–33` | Vedtak lagres før publisering. Hvis publisering feiler, prøver `retry` på nytt og oppretter et nytt vedtak. Det samme kan skje ved omlevering før `commitSync()`. Bruk en stabil hendelses-ID og idempotent lagring/publisering. |
+| 🟡 | `App.kt:36`, `VedtakConsumer.kt:21–27` | En ubehandlet feil i innlesing eller etter siste forsøk avslutter konsumenttråden, mens HTTP-serveren fortsetter å kjøre. Tjenesten kan dermed se frisk ut uten å behandle meldinger. Knytt konsumentfeil til livssyklus og helsestatus. |
+
+**Verifisering:** `mise check` kunne ikke kjøres fordi repoet ikke definerer oppgaven. `gradle --offline compileKotlin` stoppet under prosjektkonfigurasjon med feilen `27`, så kompilering er ikke bekreftet. Ingen filer er endret.
+
+🔴 Rød sone: autentisering, tilgangskontroll og vedtakslogikk må gjennomgås grundig. Still gjerne spørsmål om valgene over.
+

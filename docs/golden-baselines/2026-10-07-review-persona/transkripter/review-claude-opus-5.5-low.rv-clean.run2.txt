@@ -1,0 +1,33 @@
+
+Jeg har lest filen. `mise check` finnes ikke i dette repoet, så ingen automatiske kontroller er kjørt.
+
+### Oppsummering
+Filen ser trygg ut. Den inneholder ingen blokkerende feil.
+- SQL-spørringen bruker parametere.
+- Fødselsnummeret (fnr) kommer fra `pid`-claimet i TokenX-tokenet, ikke fra brukerens input. Brukeren ser bare sine egne saker.
+- Fødselsnummeret blir maskert før det logges.
+
+Funnene under gjelder feilsøking og struktur.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | 41 | 🟡 | Loggen tar bare med klassenavnet til feilen. Stacktrace og årsak blir borte. |
+| `SakService.kt` | 37 | 🟡 | Loggen sier ikke hvem forespørselen gjelder. Den maskerte verdien er bare 11 stjerner. |
+| `SakService.kt` | 38–43 | 💭 | `catch` som logger og kaster feilen videre, gir dobbel logging hvis Ktor også logger den. |
+| `SakService.kt` | 20 | 💭 | `maskert()` ligger på alle `String`. Den er lett å bruke feil, og den ligger i domenefilen. |
+| `SakService.kt` | 47–58 | 💭 | Ruter, service og repository ligger i samme fil. Del dem opp etter lag. |
+| — | — | 🟡 | Jeg fant ingen tester for `sakerFor` eller ruten. |
+
+### Detaljer
+**Linje 41:** Hvis du logger bare `simpleName`, blir feil i produksjon nesten umulige å spore. Hvis du logger `e` direkte, kan meldingen fra `PSQLException` inneholde parameterverdier, også fødselsnummeret. Logg stacktrace uten meldingen, eller pakk inn feilen med egen kontekst: `throw SakOppslagException("Henting av saker feilet", e)`. Pass på at årsaken heller ikke logges med fødselsnummeret i meldingen.
+
+**Linje 37:** Bruk en ikke-sensitiv ID, for eksempel call-id eller trace-id via MDC, i stedet for et maskert fødselsnummer.
+
+**Tester:** Legg til en test for ruten med MockOAuth2Server: 401 når `pid` mangler, og 200 med egne saker. Legg også til en repository-test med Testcontainers.
+
+🔴 Rød sone: auth og tilgangskontroll (linje 48–55). Den er riktig nå, men endringer der krever nøye gjennomgang.
+
+Still gjerne spørsmål om valgene over.
+

@@ -1,0 +1,115 @@
+
+
+
+
+
+
+/ Search (grep)
+  │ "SakService|sakRoutes|tokenx|hentForPerson|maskert|jwt|validate" (src)
+  └ 17 lines found
+
+/ Search (grep)
+  │ "Ktor|logging|feilhåndtering|auth|test" (.github/instructions/kotlin.instructions.md)
+  └ 38 lines found
+
+✗ Run repository check and number reviewed lines (shell)
+  │ find src -type f; nl -ba src/main/kotlin/no/nav/demo/sak/SakService.kt; command -v mise || true;
+  │ mise check
+  └ src/app/komponenter/StatusPanel.tsx
+    src/main/kotlin/no/nav/demo/App.kt
+    src/main/kotlin/no/nav/demo/sak/SakService.kt
+    src/main/kotlin/no/nav/demo/Oppgave.kt
+    src/main/kotlin/no/nav/demo/Routes.kt
+    src/main/kotlin/no/nav/demo/UserRepo.kt
+    src/main/kotlin/no/nav/demo/Config.kt
+    1  package no.nav.demo.sak
+    2
+    3  import io.ktor.http.HttpStatusCode
+    4  import io.ktor.server.auth.authenticate
+    5  import io.ktor.server.auth.jwt.JWTPrincipal
+    6  import io.ktor.server.auth.principal
+    7  import io.ktor.server.response.respond
+    8  import io.ktor.server.routing.Route
+    9  import io.ktor.server.routing.get
+    10  import kotliquery.queryOf
+    11  import kotliquery.sessionOf
+    12  import kotlinx.serialization.Serializable
+    13  import org.slf4j.LoggerFactory
+    14  import javax.sql.DataSource
+    15
+    16  @Serializable
+    17  data class Sak(val sakId: String, val tema: String, val status: String)
+    18
+    19  /** Skjuler hele fødselsnummeret i logger. */
+    20  fun String.maskert(): String = "*".repeat(length)
+    21
+    22  class SakRepository(private val dataSource: DataSource) {
+    23      fun hentForPerson(fnr: String): List<Sak> =
+    24          sessionOf(dataSource).use { session ->
+    25              session.run(
+    26                  queryOf("SELECT sak_id, tema, status FROM sak WHERE fnr = ? ORDER BY
+    opprettet DESC", fnr)
+    27                      .map { Sak(it.string("sak_id"), it.string("tema"), it.string("status"))
+    }
+    28                      .asList,
+    29              )
+    30          }
+    31  }
+    32
+    33  class SakService(private val repository: SakRepository) {
+    34      private val log = LoggerFactory.getLogger(SakService::class.java)
+    35
+    36      fun sakerFor(fnr: String): List<Sak> {
+    37          log.info("Henter saker for {}", fnr.maskert())
+    38          return try {
+    39              repository.hentForPerson(fnr)
+    40          } catch (e: Exception) {
+    41              log.error("Kunne ikke hente saker: {}", e.javaClass.simpleName)
+    42              throw e
+    43          }
+    44      }
+    45  }
+    46
+    47  fun Route.sakRoutes(service: SakService) {
+    48      authenticate("tokenx") {
+    49          get("/api/saker") {
+    50              val fnr = call.principal<JWTPrincipal>()?.payload?.getClaim("pid")?.asString()
+    51              if (fnr == null) {
+    52                  call.respond(HttpStatusCode.Unauthorized)
+    53                  return@get
+    54              }
+    55              call.respond(service.sakerFor(fnr))
+    56          }
+    57      }
+    58  }
+    /opt/homebrew/bin/mise
+    mise ERROR no task check found
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+**Gjennomgang:** Én sikkerhetsrisiko og to forbedringspunkter i `SakService.kt`. SQL-spørringen er parameterisert, og fødselsnummeret logges ikke i klartekst.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `SakService.kt:48–55` | 🔴 Blokkerende | Ruten sjekker at tokenet har `pid`, men ikke om kallende applikasjon er godkjent. `App.kt:31` godtar alle verifiserte token med riktig audience. Dersom endepunktet brukes tjeneste-til-tjeneste, må `azp` kontrolleres mot `AZURE_APP_PRE_AUTHORIZED_APPS` før saker returneres. |
+| `SakService.kt:39–41` | 🟡 Forslag | Feilloggen inneholder bare unntakets klassenavn. Det gjør databasefeil vanskelige å diagnostisere. Logg unntaket med stacktrace, men kontroller først at unntaksmeldinger ikke kan inneholde fødselsnummer eller andre personopplysninger. |
+| `SakService.kt:23–29` | 🟡 Forslag | Databasekallet er synkront og kjøres direkte fra Ktor-ruten. Ved trege spørringer kan det binde opp tråder som betjener andre kall. Vurder å kjøre JDBC-arbeidet på `Dispatchers.IO`. |
+
+🔴 **Rød sone:** Gå gjennom autoriseringen før endepunktet tas i bruk for tjeneste-til-tjeneste-kall. `mise check` kunne ikke kjøres: prosjektet har ingen `check`-oppgave.
+

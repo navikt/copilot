@@ -1,0 +1,209 @@
+
+
+
+
+
+
+✗ Run repository checks (shell)
+  │ mise check
+  └ mise ERROR no task check found
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+✗ Inspect configuration and numbered review lines (shell)
+  │ cat build.gradle.kts nais.yaml README.md && nl -ba src/main/kotlin/no/nav/demo/App.kt && nl -ba
+  │ src/main/kotlin/no/nav/demo/Routes.kt && nl -ba
+  │ src/main/kotlin/no/nav/demo/vedtak/{VedtakConsumer,VedtakRepository,VedtakService}.kt && git
+  │ --no-pager diff --check main...vedtak-kafka
+  └ plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+    }
+    repositories {
+    mavenCentral()
+    }
+    dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    }
+    dependencies {
+    implementation("io.ktor:ktor-server-auth:3.0.0")
+    implementation("io.ktor:ktor-server-auth-jwt:3.0.0")
+    implementation("org.apache.kafka:kafka-clients:3.9.0")
+    implementation("com.github.seratch:kotliquery:1.9.0")
+    implementation("org.postgresql:postgresql:42.7.4")
+    implementation("com.zaxxer:HikariCP:6.2.1")
+    implementation("ch.qos.logback:logback-classic:1.5.12")
+    }
+    apiVersion: nais.io/v1alpha1
+    kind: Application
+    metadata:
+    name: demo-tjeneste
+    namespace: demo
+    spec:
+    image: {{image}}
+    port: 8080
+    liveness:
+    path: /internal/isalive
+    readiness:
+    path: /internal/isready
+    tokenx:
+    enabled: true
+    kafka:
+    pool: nav-dev
+    gcp:
+    sqlInstances:
+    - type: POSTGRES_17
+    databases:
+    - name: vedtak
+    accessPolicy:
+    inbound:
+    rules:
+    - application: "*"
+    namespace: "*"
+    outbound:
+    rules:
+    - application: logging
+    namespace: nais-system
+    # demo-tjeneste
+
+    En liten Ktor-tjeneste for demonstrasjon. Tjenesten eksponerer et REST-API
+    og kjører på Nais. Dokumentasjonen er dessverre ikke helt komplet enda.
+    1  package no.nav.demo
+    2
+    3  import com.zaxxer.hikari.HikariConfig
+    4  import com.zaxxer.hikari.HikariDataSource
+    5  import io.ktor.serialization.kotlinx.json.json
+    6  import io.ktor.server.application.install
+    7  import io.ktor.server.auth.Authentication
+    8  import io.ktor.server.auth.jwt.jwt
+    9  import io.ktor.server.engine.embeddedServer
+    10  import io.ktor.server.netty.Netty
+    11  import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+    12  import no.nav.demo.vedtak.VedtakConsumer
+    13  import no.nav.demo.vedtak.VedtakRepository
+    14  import no.nav.demo.vedtak.VedtakService
+    15  import org.apache.kafka.clients.consumer.KafkaConsumer
+    16  import org.apache.kafka.clients.producer.KafkaProducer
+    17  import java.util.Properties
+    18  import java.util.UUID
+    19  import kotlin.concurrent.thread
+    20
+    21  fun main() {
+    22      println("starter demo-tjeneste, maksAntall=$maksAntall")
+    23      val dataSource = HikariDataSource(HikariConfig().apply { jdbcUrl =
+    System.getenv("DB_JDBC_URL") })
+    24      val repository = VedtakRepository(dataSource)
+    25      val service = VedtakService(repository) { UUID.randomUUID().toString() }
+    26      val kafka = Properties().apply {
+    27          put("bootstrap.servers", System.getenv("KAFKA_BROKERS"))
+    28          put("group.id", "demo-tjeneste")
+    29          put("enable.auto.commit", "false")
+    30          put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer")
+    31          put("value.deserializer",
+    "org.apache.kafka.common.serialization.StringDeserializer")
+    32          put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    33          put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    34      }
+    35      val consumer = VedtakConsumer(KafkaConsumer(kafka), KafkaProducer(kafka), service)
+    36      thread(name = "vedtak-consumer") { consumer.start() }
+    37      embeddedServer(Netty, port = 8080) {
+    38          install(ContentNegotiation) { json() }
+    39          install(Authentication) {
+    40              jwt("tokenx") {
+    41                  realm = "demo-tjeneste"
+    42                  validate { credential -> credential.payload.audience?.let { credential } }
+    43              }
+    44          }
+    45          oppgaveRoutes(service, repository)
+    46      }.start(wait = true)
+    47  }
+    1  package no.nav.demo
+    2
+    3  import io.ktor.server.application.Application
+    4  import io.ktor.server.auth.authenticate
+    5  import io.ktor.server.request.receive
+    6  import io.ktor.server.response.respond
+    7  import io.ktor.server.routing.get
+    8  import io.ktor.server.routing.post
+    9  import io.ktor.server.routing.routing
+    10  import no.nav.demo.vedtak.FattVedtakRequest
+    11  import no.nav.demo.vedtak.VedtakRepository
+    12  import no.nav.demo.vedtak.VedtakService
+    13
+    14  private val oppgaver = listOf(
+    15      Oppgave("1", "Registrer søknad"),
+    16      Oppgave("2", "Send vedtaksbrev"),
+    17  )
+    18
+    19  fun Application.oppgaveRoutes(service: VedtakService, repository: VedtakRepository) {
+    20      routing {
+    21          get("/api/oppgaver") {
+    22              call.respond(OppgaveRespons(oppgaver.take(maksAntall)))
+    23          }
+    24          authenticate("tokenx") {
+    25              post("/api/vedtak") {
+    26                  val request = call.receive<FattVedtakRequest>()
+    27                  call.respond(service.fattVedtak(request.fnr, request.sakId, request.utfall))
+    28              }
+    29          }
+    30          get("/api/vedtak/{fnr}") {
+    31              val fnr = call.parameters["fnr"]!!
+    32              call.respond(repository.hentForPerson(fnr))
+    33          }
+    34      }
+    35  }
+    usage: nl [-p] [-b type] [-d delim] [-f type] [-h type] [-i incr] [-l num]
+    [-n format] [-s sep] [-v startnum] [-w width] [file]
+    Failed with exit code 1
+
+
+
+✗ Check Kotlin compilation using available Gradle cache (shell)
+  │ gradle compileKotlin --offline --quiet
+  └ FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 286ms
+    Failed with exit code 1
+
+**Gjennomgangen av `vedtak-kafka` mot `main` avdekker flere blokkere.** Særlig alvorlig er at vedtak kan leses uten autentisering, at oppslaget er sårbart for SQL-injeksjon, og at Kafka-behandling kan opprette samme vedtak flere ganger.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Alle som når tjenesten, kan hente vedtak for et oppgitt fødselsnummer. Endepunktet trenger både autentisering og tilgangskontroll for personen. |
+| `VedtakRepository.kt:23–24` | 🔴 | `fnr` settes rett inn i SQL. Bruk en parameterisert spørring; dagens kode åpner for SQL-injeksjon. |
+| `nais.yaml:22–26` | 🔴 | Inngående tilgang åpnes for alle applikasjoner i alle navnerom. Det utvider angrepsflaten, særlig for det ubeskyttede leseendepunktet. Begrens regelen til faktiske konsumenter. |
+| `App.kt:40–43` | 🔴 | JWT-oppsettet har ingen tokenverifikator, og `validate` godtar enhver payload med `aud`. Verifiser signatur, utsteder, målgruppe og autorisert klient (`azp`) før `POST /api/vedtak` får fatte vedtak. |
+| `VedtakService.kt:15` | 🔴 | Fødselsnummer skrives til logg. Fjern personidentifikatoren fra loggmeldingen. |
+| `VedtakConsumer.kt:24–33` | 🔴 | Hvert forsøk oppretter en ny ID og lagrer et nytt vedtak før publisering. Feil ved publisering, omstart før offset-commit eller vanlig Kafka-relevering kan dermed gi flere vedtak for samme melding. Bruk meldings-ID til idempotent behandling og håndter lagring/publisering konsistent. |
+| `App.kt:26–35` | 🔴 | Kafka-klientene får bare brokeradresse, ikke Nais-oppsett for TLS og klientsertifikater. De vil ikke kunne autentisere seg mot Kafka-poolen slik konfigurasjonen står. |
+| `VedtakRepository.kt:14` | 🔴 | Koden skriver til tabellen `vedtak`, men branchen inneholder ingen opprettelse eller migrering av tabellen. Innsending og konsumering vil feile mot en ny database. |
+| `VedtakConsumer.kt:21–27` | 🟡 | En ugyldig melding feiler før `retry` og avslutter konsumenttråden. HTTP-serveren kan fortsatt kjøre selv om vedtak ikke behandles. Håndter ugyldige meldinger eksplisitt og la feilen påvirke tjenestens beredskap. |
+
+**Kontroll:** `mise check` finnes ikke som oppgave i dette repoet. `gradle compileKotlin --offline` stoppet under prosjektkonfigurasjon med feilen `27`, så kompilering er ikke bekreftet.
+
+🔴 **Rød sone:** tilgangskontroll, tokenvalidering og idempotent vedtaksbehandling må gjennomgås grundig. Å begrense lesetilgang og gjøre Kafka-behandlingen idempotent hindrer henholdsvis innsyn i andres vedtak og dupliserte vedtak; det krever en eksplisitt autorisasjonsregel og en varig meldingsidentifikator fremfor dagens direkte oppslag og innsetting.
+

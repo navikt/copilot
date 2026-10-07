@@ -1,0 +1,26 @@
+
+
+
+
+
+
+
+
+
+
+
+**Branchen bør ikke merges ennå.** Jeg fant flere blokkere i endringene mot `main`:
+
+| Prioritet | Sted | Funn |
+|---|---|---|
+| 🔴 | `Routes.kt:30–33` | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` og returnerer vedtak med fødselsnummer. Enhver som når tjenesten, kan slå opp en persons vedtak. Endepunktet må kreve autorisasjon og kontrollere tilgang til den aktuelle personen. |
+| 🔴 | `VedtakRepository.kt:23` | Fødselsnummer settes rett inn i SQL-strengen. Det åpner for SQL-injeksjon. Bruk parameterisert spørring, slik `hentForSak` gjør. |
+| 🔴 | `nais.yaml:23–26` | Inngående tilgang åpnes for alle applikasjoner i alle namespace. Begrens regelen til tjenestene som faktisk skal kalle API-et. |
+| 🔴 | `App.kt:40–42` | TokenX-oppsettet mangler JWT-verifikator, og `validate` godtar enhver ikke-null audience uten å kontrollere forventet audience eller avsender (`azp`). Konfigurer signatur- og issuer-verifikasjon samt konkrete krav til tokenet før POST-endepunktet tas i bruk. |
+| 🔴 | `VedtakService.kt:15` | Logger fødselsnummer i klartekst. Fjern personopplysningen fra loggen. |
+| 🔴 | `VedtakConsumer.kt:24–27,32–33` | Vedtak lagres før Kafka-publisering og offset-commit. Feil ved publisering, eller omstart før commit, kjører samme melding på nytt og oppretter et nytt vedtak. Bruk meldings-ID til idempotent behandling og en løsning for sikker publisering etter lagring. |
+| 🔴 | `App.kt:26–35` | Kafka-klientene får bare brokeradresse, ikke TLS-/credential-oppsettet fra Nais. De vil ikke kunne autentisere mot den konfigurerte Kafka-poolen. |
+| 🟡 | `VedtakRepository.kt:14` | Endringen skriver til tabellen `vedtak`, men branchen inneholder ingen migrasjon som oppretter den. Nye databaser vil feile ved første lagring. |
+
+🔴 Rød sone: tilgangskontroll, token-validering og behandling av vedtak må gjennomgås grundig. **Kontrollstatus:** `mise check` kunne ikke kjøres fordi repoet ikke har en `check`-oppgave; jeg fant heller ingen Gradle-wrapper. `git diff --check` ga ingen utslag.
+
