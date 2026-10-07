@@ -1092,6 +1092,10 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		telemetryRecorder.RecordLaunchError("opencode", "client_unsupported")
 		return err
 	}
+	if err := checkOpenCode2Launch(resolved.ExtraArgs); err != nil {
+		telemetryRecorder.RecordLaunchError("opencode", "client_unsupported")
+		return err
+	}
 	// A fresh machine has no .gitignore in the opencode config dir, and under
 	// cplt the launch dies before the TUI if OpenCode has to create it itself
 	// (#565).
@@ -1162,7 +1166,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 			domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
 		if url := guard.GateURL(); url != "" {
 			launchEnv, _ = telemetry.SetEnvValue(launchEnv, DispatchGateEnv, url)
-			if slices.Contains(resolved.ExtraArgs, "--pure") {
+			if openCodeMajor() < 2 && slices.Contains(resolved.ExtraArgs, "--pure") {
 				fmt.Fprintf(os.Stderr, "%s local_dispatch = %s is not enforced with --pure: opencode loads no plugins then, and the gate is a plugin.\n", domain.Yellow("⚠"), local.DispatchLevel())
 			}
 		}

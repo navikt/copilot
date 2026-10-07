@@ -247,6 +247,37 @@ func openCodeMajor() int {
 
 var openCodeMajorPattern = regexp.MustCompile(`(?i)^(?:opencode )?v?(\d+)\.`)
 
+// minOpenCode2CpltStamp is the first cplt release with navikt/cplt#716, where
+// the opencode 2 client spawns its session's service inside the sandbox. An
+// older cplt lets the client attach to the host's background service, which
+// runs with none of the launch's environment: no hooks, no gate, no policy.
+const minOpenCode2CpltStamp = "2026.10.07-103638"
+
+// checkOpenCode2Launch refuses an opencode 2 launch that would run outside the
+// sandboxed per-session service: a cplt without #716 (or one whose version
+// cannot be read, fail-closed as checkCpltFloor), or arguments that connect
+// the client to another server. Nil on opencode 1.
+func checkOpenCode2Launch(args []string) error {
+	if openCodeMajor() < 2 {
+		return nil
+	}
+	for _, a := range args {
+		if a == "attach" || a == "--server" || a == "--attach" || strings.HasPrefix(a, "--server=") || strings.HasPrefix(a, "--attach=") {
+			return fmt.Errorf("%s is not allowed on opencode 2: it connects to a server outside the sandboxed session nav-pilot starts", a)
+		}
+	}
+	out, err := probeCpltVersion()
+	found := strings.TrimSpace(out)
+	if err != nil {
+		found = err.Error()
+	}
+	if stamp := cpltStamp(out); err != nil || stamp == "" || stamp < minOpenCode2CpltStamp {
+		return fmt.Errorf("opencode 2 needs cplt %s or newer (navikt/cplt#716), found %q: an older cplt runs the session in the host's background service, without nav-pilot's hooks.\n\n  Upgrade it: %s",
+			minOpenCode2CpltStamp, found, domain.Bold(cpltUpgradeHint()))
+	}
+	return nil
+}
+
 // OpenCodeScriptInstall is opencode's own installer, pinned to the tested release.
 const OpenCodeScriptInstall = "curl -fsSL https://opencode.ai/install | bash -s -- --version " + OpenCodeInstallVersion
 

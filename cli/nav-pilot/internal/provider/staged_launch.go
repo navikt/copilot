@@ -417,6 +417,10 @@ func LaunchOpenCodeStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 		telemetryRecorder.RecordLaunchError("opencode", "client_unsupported")
 		return err
 	}
+	if err := checkOpenCode2Launch(r.ExtraArgs); err != nil {
+		telemetryRecorder.RecordLaunchError("opencode", "client_unsupported")
+		return err
+	}
 	// A fresh machine has no .gitignore in the opencode config dir, and under
 	// cplt the launch dies before the TUI if OpenCode has to create it itself
 	// (#565).

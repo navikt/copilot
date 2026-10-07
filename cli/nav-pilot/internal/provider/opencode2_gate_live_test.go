@@ -176,3 +176,66 @@ func runOpenCode2(t *testing.T, oc, dir string, args, env, cpltArgs []string, lo
 	}
 	return string(out)
 }
+
+// TestOpenCode2LiveDispatchGateReminderInTurn: the orchestrator sends work to
+// local-worker and ends its turn on text, with no tool call after it. The
+// gate's reminder must reach the model in that same run, before the user's
+// next prompt, as on opencode 1. Control: the staged bridge with its
+// injection (ctx.session.synthetic) turned off, where the reminder never
+// reaches the model. Opt-in, as TestOpenCode2LiveDispatchGate.
+func TestOpenCode2LiveDispatchGateReminderInTurn(t *testing.T) {
+	oc, _ := liveOpenCode2(t)
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	prev := OpenCodeHookBridge
+	t.Cleanup(func() { OpenCodeHookBridge = prev })
+	OpenCodeHookBridge = func(domain.ResolvedConfig) HookBridge { return HookBridge{} }
+	mustWrite(t, filepath.Join(openCodeConfigDir(), "opencode.json"), "{}")
+
+	for _, inject := range []bool{true, false} {
+		name := map[bool]string{true: "injected", false: "control-injection-off"}[inject]
+		t.Run(name, func(t *testing.T) {
+			proj := liveDir(t)
+			_ = exec.Command("git", "-C", proj, "init", "-q").Run()
+			mustWrite(t, filepath.Join(proj, "exists.txt"), "old\n")
+			llm := &fakeLLM{calls: []fakeCall{
+				{"subagent", map[string]any{"agent": "local-worker", "description": "x", "prompt": "Rename foo in exists.txt"}, ""},
+				{"", nil, "worker done"},
+				{"", nil, "Looks good."}, // the turn ends on text
+			}}
+			srv := newFakeLLMServer(t, llm)
+			env := withOpenCodeConfigContent(nil, map[string]any{
+				"agent": map[string]any{local.WorkerAgent: map[string]any{"mode": "subagent", "description": "local worker", "model": "fake/m"}},
+				"provider": map[string]any{"fake": map[string]any{"npm": "@ai-sdk/openai-compatible", "name": "Fake",
+					"options": map[string]any{"baseURL": srv + "/v1", "apiKey": "x"},
+					"models":  map[string]any{"m": map[string]any{"name": "m", "tool_call": true}}}},
+			})
+			guard, err := local.StartGuard(srv, local.Model{Model: "m"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer guard.Close()
+			guard.EnableDispatchGate(local.GateRules{Create: true, Multi: true, Root: proj})
+			env = append(env, DispatchGateEnv+"="+guard.GateURL())
+			env, cpltArgs := applyOpenCodeHooks(domain.ResolvedConfig{}, env, nil)
+			cpltArgs = append(cpltArgs, "--pass-env", DispatchGateEnv)
+			if !inject {
+				p := filepath.Join(openCodePluginDir(), "v2", "index.js")
+				b, _ := os.ReadFile(p)
+				off := strings.Replace(string(b), "await ctx.session.synthetic(", "void (", 1)
+				if off == string(b) {
+					t.Fatal("the bridge has no ctx.session.synthetic call to turn off")
+				}
+				mustWrite(t, p, off)
+			}
+			args, env := openCodeV2Args(openCodeClientArgs([]string{"--agent", "build", "--auto", "--model", "fake/m", "--log-level", "WARN"}, []string{"run", "go"}, ""), env)
+			out := runOpenCode2(t, oc, proj, args, env, cpltArgs, srv, guard.GateURL())
+			t.Logf("opencode run:\n%s", tail(out, 1500))
+			users := strings.Join(llm.userMessages(), "\n")
+			t.Logf("user messages:\n%s\ngate counts: %v", users, guard.GateCounts())
+			if got := strings.Contains(users, "no build or test command has run"); got != inject {
+				t.Errorf("the reminder reached the model before the next prompt: %v, want %v", got, inject)
+			}
+		})
+	}
+}

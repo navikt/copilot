@@ -23,7 +23,8 @@
 // the gate before the orchestrator's edit, write, shell or subagent call and
 // throws a refusal, appends what the gate answers to the worker's result and
 // to a check after it, and adds the gate's reminder, once the orchestrator has
-// written text, to that session's next model request.
+// written text, to the session as a synthetic message it reads before the turn
+// ends.
 //
 // Failure: redaction fails closed (the output is withheld), everything else
 // fails open (the call and its result go through), as under Copilot.
@@ -101,7 +102,6 @@ function dispatchGate(ctx, directory) {
   if (!url) return undefined
   const turns = new Map()
   const topLevel = new Map()
-  const nudges = new Map()
   const str = (v) => (typeof v === "string" ? v : "")
   const abs = (p) => (p ? (isAbsolute(p) ? p : join(directory, p)) : "")
   // Only the session the developer talks to; see dispatch-gate.js. Unknown
@@ -127,22 +127,22 @@ function dispatchGate(ctx, directory) {
     return res.ok ? ((await res.json()) ?? {}) : {}
   }
   const agents = new Map()
-  // The orchestrator's finished text: the gate may answer with a reminder,
-  // which the session's next model request carries (the context hook). That
-  // request waits for the answer, so the event and the request do not race.
-  const record = async (id) => {
-    const agent = await orchestrator(id, agents.get(id))
-    if (!agent) return
-    const text = (await ask({ session: id, turn: turns.get(id) ?? 0, agent, phase: "text" })).nudge
-    if (typeof text === "string" && text) nudges.set(id, text)
-  }
-  const pending = new Map()
+  // The orchestrator has written text. If the worker's work is still
+  // unchecked, the gate answers with a reminder once per turn, added as a
+  // synthetic steer: the running session takes it at its next step, and a
+  // session that has gone idle wakes for it, so the model reads it before the
+  // turn ends, as dispatch-gate.js does on opencode 1.
   ;(async () => {
     try {
       for await (const e of ctx.event.subscribe()) {
         if (e?.type !== "session.text.ended" || !e.data?.sessionID) continue
         const id = e.data.sessionID
-        pending.set(id, record(id).catch(() => {}))
+        ;(async () => {
+          const agent = await orchestrator(id, agents.get(id))
+          if (!agent) return
+          const text = (await ask({ session: id, turn: turns.get(id) ?? 0, agent, phase: "text" })).nudge
+          if (typeof text === "string" && text) await ctx.session.synthetic({ sessionID: id, text, delivery: "steer" })
+        })().catch(() => {})
       }
     } catch {}
   })()
@@ -151,13 +151,8 @@ function dispatchGate(ctx, directory) {
     prompt: (event) => {
       turns.set(event.sessionID, (turns.get(event.sessionID) ?? 0) + 1)
     },
-    context: async (event) => {
+    context: (event) => {
       if (event.agent) agents.set(event.sessionID, event.agent)
-      await pending.get(event.sessionID)
-      const text = nudges.get(event.sessionID)
-      if (!text || !Array.isArray(event.messages)) return
-      nudges.delete(event.sessionID)
-      event.messages.push({ role: "user", content: [{ type: "text", text }] })
     },
     before: async (event) => {
       const tool = event.tool

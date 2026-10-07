@@ -2,6 +2,7 @@ package provider
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -154,5 +155,32 @@ func TestUserPermissionReadsV2List(t *testing.T) {
 				t.Errorf("deny = %v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestCheckOpenCode2Launch(t *testing.T) {
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	for _, c := range []struct {
+		version, cplt string
+		cpltErr       error
+		args          []string
+		ok            bool
+	}{
+		{"opencode v2.0.24\n", "cplt 2026.10.07-103638-7c04fce\n", nil, nil, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"run", "hi"}, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.06-120000-0d1d66d\n", nil, nil, false},
+		{"opencode v2.0.24\n", "cplt dev\n", nil, nil, false},
+		{"opencode v2.0.24\n", "", errors.New("timeout"), nil, false},
+		{"opencode v2.0.24\n", okCplt, nil, nil, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"--server", "http://x"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"run", "--server=http://x", "hi"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"attach", "http://x"}, false},
+		{"opencode 1.17.0\n", "", errors.New("timeout"), []string{"attach", "--server", "x"}, true},
+	} {
+		versionCache.Store("opencode", versionAnswer{c.version, nil, time.Hour})
+		stubProbes(t, c.cplt, c.cpltErr, "", nil)
+		if err := checkOpenCode2Launch(c.args); (err == nil) != c.ok {
+			t.Errorf("%q cplt %q %v: err = %v, want ok %v", c.version, c.cplt, c.args, err, c.ok)
+		}
 	}
 }
