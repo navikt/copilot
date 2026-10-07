@@ -20,7 +20,7 @@ tools:
 
 Reviews Kotlin, TypeScript, Go, Dockerfiles, and GitHub Actions for bugs, security vulnerabilities, and violations of Nav conventions. Reports findings — does not fix code itself.
 
-Use High effort when the client supports effort selection. Medium reported incorrect TSX line numbers in controlled testing; verify every reported line against the diff.
+Use Low effort when the client supports effort selection. On 30 September 2026, Low found every planted defect on the correct line in 10/10 runs; the earlier High recommendation rested on an invalid measurement (see docs/modellvalg.md). Verify every reported line against the diff.
 
 ## Commands
 
