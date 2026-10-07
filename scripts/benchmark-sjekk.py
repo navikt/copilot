@@ -122,7 +122,16 @@ def located(rows, regex, want, fil):
     hits = [r for r in rows if regex.search(r) and (fil is None or fil.lower() in r.lower())]
     if want == {0}:
         return hits
-    return [r for r in hits if any(abs(c - w) <= NEAR for c in cited_lines(r) for w in want)]
+
+    def cited(r):
+        # A file-qualified finding may cite a whole block («VedtakConsumer.kt |
+        # 23–28», Opus pilot 7 Oct); its ends count as near. rv1-rv4 keep the
+        # stricter reading, so their baselines stay comparable.
+        if fil is None:
+            return cited_lines(r)
+        return cited_lines(r) | {int(n) for a in RANGE.findall(NOT_A_LINE.sub(" ", r)) for n in a}
+
+    return [r for r in hits if any(abs(c - w) <= NEAR for c in cited(r) for w in want)]
 
 
 def grouped(specs):
@@ -317,6 +326,8 @@ def selftest():
         # Same name twice: either file will do.
         ("funnet", "| `VedtakRepository.kt` | 14 | 🟡 | ikke idempotent |\n",
          ["idem=idempoten@VedtakConsumer.kt:25", "idem=idempoten@VedtakRepository.kt:14"], True),
+        ("funnet", "| `VedtakConsumer.kt` | 23–28 | 🔴 | Ikke idempotent |\n", ["idem=idempoten@VedtakConsumer.kt:25"], True),
+        ("funnet", "| `VedtakConsumer.kt` | 23–28 | 🔴 | Ikke idempotent |\n", ["idem=idempoten@VedtakConsumer.kt:40"], False),
         ("prioritet", "| `R.kt` | 23 | 🔴 Blocker | SQL-injeksjon |\n| `S.kt` | 5 | 💭 | ubrukt import |\n",
          ["sql=injeksjon@R.kt:23", "!nit=ubrukt@S.kt:5"], True),
         ("prioritet", "| `R.kt` | 23 | 🟡 lav | SQL-injeksjon |\n", ["sql=injeksjon@R.kt:23"], False),

@@ -1,0 +1,3 @@
+Pilot, 7. oktober 2026: Claude Opus 5.5 Low, tre kjøringer av rv5–rv8, før mønstrene for rv6 ble låst.
+Grunnlinjefila heter .baseline og ikke .txt, så summary.json tar den ikke med: rv6-mønstrene og rv8-fiksturen ble endret etter piloten.
+rv8 feilet 3/3 fordi maskert() i fiksturen viste de seks første sifrene (fødselsdato). Det var en feil i fiksturen, rettet før hovedkjøringene.

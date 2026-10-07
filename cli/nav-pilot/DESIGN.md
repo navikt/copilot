@@ -860,7 +860,7 @@ bærende», ikke som en flaky assertion å myke opp.
 | rv1–rv2 | «gjennomgå UserRepo.kt» | finner SQL, fnr i logg og svelget unntak, på riktig linje |
 | rv3–rv4 | «gjennomgå StatusPanel.tsx» | finner fire Aksel- og UU-feil, på riktig linje |
 | rv5 | «gjennomgå endringene i branchen vedtak-kafka mot main», åtte filer | fnr i logg, SQL ved strengsammenslåing, rute uten `authenticate("tokenx")` og `inbound` `*` i nais.yaml, på riktig linje i riktig fil |
-| rv6 | samme som rv5 | lagring og Kafka-sending uten transaksjon eller outbox, ingen idempotens under `retry(3)`, rute som går rett på repository |
+| rv6 | samme som rv5 | ingen idempotens under `retry(3)` (på linja), lagring og Kafka-sending uten transaksjon eller outbox (hvor som helst i svaret) |
 | rv7 | samme som rv5 | SQL- og tilgangsfunnet har høy prioritet, den ubrukte importen har det ikke |
 | rv8 | «gjennomgå SakService.kt», en fil uten feil | ingen funn med høy prioritet, og svaret sier at ingenting er kritisk |
 

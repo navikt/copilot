@@ -2281,6 +2281,7 @@ EOF
 #   VedtakConsumer.kt:25,32-33 insert, then producer.send: no transaction, no outbox
 #   Routes.kt:30               GET /api/vedtak/{fnr} outside authenticate("tokenx")
 #   Routes.kt:32               the route calls the repository, not the service
+#                              (planted, not asserted: see RV_DESIGN)
 #   nais.yaml:25-26            accessPolicy.inbound allows every application
 # All data is synthetic: no fnr value appears anywhere.
 seed_vedtak_branch() {
@@ -2629,8 +2630,8 @@ import javax.sql.DataSource
 @Serializable
 data class Sak(val sakId: String, val tema: String, val status: String)
 
-/** Viser bare fødselsdatodelen, aldri personnummeret. */
-fun String.maskert(): String = take(6) + "*****"
+/** Skjuler hele fødselsnummeret i logger. */
+fun String.maskert(): String = "*".repeat(length)
 
 class SakRepository(private val dataSource: DataSource) {
     fun hentForPerson(fnr: String): List<Sak> =
@@ -2782,13 +2783,18 @@ RV_PR=(
   'tilgang=authenticate|autentiser|autentis|tokenx|tilgangskontroll|auth|ubeskyttet|åpent|uten tilgang@Routes.kt:30'
   'inbound=inbound|accesspolicy|wildcard|"\*"|alle applikasjoner|all applications|alle apper|any application@nais.yaml:25,26'
 )
-# DRAFT until the Opus 5.5 Low pilot: rederived from its three transcripts and
-# frozen in its own commit before any main run.
+# Derived from the Opus 5.5 Low pilot (3 runs, 7 Oct,
+# docs/golden-baselines/2026-10-07-review-suite-pilot/) and frozen before the
+# main runs. Opus named the duplicate vedtak under retry on VedtakConsumer.kt in
+# 3/3, citing 23–28 or 25, 32–33. It named the insert-then-send gap in 2/3, once
+# as a row at 34 and once only in prose («Alternativet er en outbox-tabell»), so
+# that one is matched anywhere in the answer. The route calling the repository
+# directly was named in 0/3 (two runs praised the layering), so it is not asserted:
+# a check the reference model never meets measures the fixture, not the model.
 RV_DESIGN=(
-  'dobbeltskriving=transaksjon|transaction|outbox|atomisk|atomic|dual.?write|dobbel.?skriv|inkonsist@VedtakConsumer.kt:32,33'
-  'idempotens=idempoten|duplikat|duplicate|on conflict|upsert|dobbelt@VedtakConsumer.kt:25'
-  'idempotens=idempoten|duplikat|duplicate|on conflict|upsert|dobbelt@VedtakRepository.kt:14'
-  'lagdeling=service|tjenestelag|lag|layer|bypass|omgår|direkte@Routes.kt:32'
+  'idempotens=idempoten|duplikat|duplicate|on conflict|upsert@VedtakConsumer.kt:25,32,33'
+  'idempotens=idempoten|duplikat|duplicate|on conflict|upsert@VedtakRepository.kt:14'
+  'dobbeltskriving=outbox|atomisk|atomic|transaksjon|transaction|dual.?write|send.{0,20}feiler@0'
 )
 # rv7: the SQL and access findings are marked high; the unused import is not.
 RV_PRIO=(
@@ -2797,7 +2803,7 @@ RV_PRIO=(
   '!nit=ubrukt|unused|import|Locale@VedtakService.kt:5'
 )
 DESC_RV5="PR: security and privacy defects on the right line in the right file"
-DESC_RV6="PR: design defects named (dual write, idempotency, layering)"
+DESC_RV6="PR: design defects named (idempotency under retry, insert-then-send)"
 DESC_RV7="PR: SQL and access findings marked high, the nit is not"
 DESC_RV8="clean service: no high-priority finding, says nothing is critical"
 

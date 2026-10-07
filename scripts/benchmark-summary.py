@@ -50,7 +50,7 @@ CHECKS = {
     "rv3": ("rv3", "TSX: finner alle fire plantede feil"),
     "rv4": ("rv4", "TSX: riktig linje for hver feil"),
     "rv5": ("rv5", "PR med åtte filer: riktig fil og linje for sikkerhets- og personvernfeilene"),
-    "rv6": ("rv6", "PR med åtte filer: finner designfeilene (dobbel skriving, idempotens, lagdeling)"),
+    "rv6": ("rv6", "PR med åtte filer: finner designfeilene (idempotens og dobbel skriving)"),
     "rv7": ("rv7", "PR med åtte filer: SQL og tilgang får høy prioritet, en kosmetisk merknad gjør det ikke"),
     "rv8": ("rv8", "Ren fil: ingen funn med høy prioritet, og svaret sier at ingenting er kritisk"),
     "no1": ("no1", "Ingen nynorske former"),
