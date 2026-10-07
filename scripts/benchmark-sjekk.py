@@ -233,7 +233,10 @@ CLEAN = re.compile(
 # tilgang …», «Ingen åpenbar tilgangslekkasje», «ingen bekreftet blokkering».
 # Read only as taus' verdict, never to excuse a row: a 🔴 row still fails rv8.
 HEDGED = re.compile(
-    r"ingen\s+(tydelig|påvist|åpenbar|bekreftet|bekreftede)e?\s+[\wæøå-]*(tilgang|feil|funn|blokker|lekkasje|sårbarhet)",
+    r"ingen\s+(tydelig|påvist|åpenbar|bekreftet|bekreftede)e?\s+"
+    # A defect noun, not a missing safeguard: «tilgang til …», «…feil», not
+    # «tilgangskontroll» or «feilhåndtering».
+    r"([\wæøå-]*(feil|funn|blokkering|blokkere|lekkasje|sårbarhet)(?![\wæøå])|tilgang\s+til)",
     re.IGNORECASE,
 )
 PRIO_EMOJI = re.compile(r"🔴|🟠|🟡|🟢|💭|⚪")
@@ -443,7 +446,9 @@ def selftest():
         ("taus", "Ingen åpenbar tilgangslekkasje i `S.kt`.\n", [], True),
         ("taus", "Jeg fant ingen bekreftet blokkering i `S.kt`.\n", [], True),
         ("taus", "Jeg fant ingen påvist tilgang til andre personers saker.\n| `S.kt` | 48 | 🔴 | azp sjekkes ikke |\n", [], False),
-        ("taus", "| `S.kt` | 48 | 🔴 | Ingen påvist azp-sjekk |\n", [], False),
+        ("taus", "| `S.kt` | 48 | 🔴 | Ingen påvist tilgang til andre saker, men azp sjekkes ikke |\n", [], False),
+        ("taus", "Ingen påvist tilgangskontroll i `S.kt`.\n", [], False),
+        ("taus", "Ingen tydelig feilhåndtering i `S.kt`.\n", [], False),
         # #1453: «save succeeds, publish fails» in either word order.
         ("funnet", "Ny UUID per forsøk betyr at retry etter feilet `send` gir dobbelt vedtak.\n", DW, True),
         ("funnet", "Feiler `send` eller `commitSync`, lagres vedtaket på nytt.\n", DW, True),
@@ -451,6 +456,7 @@ def selftest():
         ("funnet", "Hvis prosessen dør før `commitSync`, fattes og publiseres vedtakene på nytt.\n", DW, False),
         ("funnet", "Kjør `retry` bare rundt `producer.send`. Fang deserialiseringsfeil og send til DLQ.\n", DW, False),
         ("funnet", "Feil: send til DLQ.\n", DW, False),
+        ("funnet", "Meldinger som feilet sendes til DLQ.\n", DW, False),
         ("funnet", "Fang feil ved deserialisering, og send meldingen til en DLQ.\n", DW, False),
     ]
     failed = 0
