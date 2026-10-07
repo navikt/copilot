@@ -391,3 +391,16 @@ func TestStagedOpenCodeRefusesALocalModel(t *testing.T) {
 		}
 	}
 }
+
+// The dispatch gate is not ported to opencode 2, so a launch there refuses
+// local dispatch rather than run the worker ungated.
+func TestOpenCode2RefusesLocalDispatch(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	withLocalEnabled(t)
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	_, err := startOpenCodeLocalDispatch(domain.ResolvedConfig{Model: "github-copilot/claude-opus-5"})
+	if err == nil || !strings.Contains(err.Error(), "opencode 2") {
+		t.Fatalf("err = %v, want a refusal naming opencode 2", err)
+	}
+}
