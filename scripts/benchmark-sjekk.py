@@ -15,10 +15,17 @@ nothing.
   ingen   TX SUBJ NEG DIR   a line naming SUBJ says there is none (NEG),
                             and the answer names no file DIR lacks
   punkter TX MIN MAX        MIN to MAX list items in the answer
+  prioritet TX SPEC...      each defect's row carries a high-priority marker;
+                            a SPEC named `!navn` must not carry one
+  taus    TX                no finding row carries a high-priority marker,
+                            and the answer says there is nothing critical
 
 SPEC is `navn=regex@linje[,linje]`: a transcript line matching regex names the
 defect, and it is located when that same line cites one of the given line
 numbers (a range of at most four lines that covers one counts too).
+`navn=regex@Fil.kt:linje[,linje]` also requires the file name on that line,
+so a right line in the wrong file does not count. Several SPECs with the same
+navn are alternatives: a finding that can be cited in either of two files.
 """
 
 import importlib.util
@@ -104,7 +111,26 @@ def cited_lines(text):
 def parse_spec(spec):
     name, rest = spec.split("=", 1)
     regex, lines = rest.rsplit("@", 1)
-    return name, re.compile(regex, re.IGNORECASE), {int(n) for n in lines.split(",")}
+    fil = None
+    if ":" in lines:
+        fil, lines = lines.rsplit(":", 1)
+    return name, re.compile(regex, re.IGNORECASE), {int(n) for n in lines.split(",")}, fil
+
+
+def located(rows, regex, want, fil):
+    """Rows naming the defect within NEAR lines of it, in the right file."""
+    hits = [r for r in rows if regex.search(r) and (fil is None or fil.lower() in r.lower())]
+    if want == {0}:
+        return hits
+    return [r for r in hits if any(abs(c - w) <= NEAR for c in cited_lines(r) for w in want)]
+
+
+def grouped(specs):
+    groups = {}
+    for spec in specs:
+        name, *rest = parse_spec(spec)
+        groups.setdefault(name, []).append(rest)
+    return groups
 
 
 # funnet: the defect is named on a row that cites a line within NEAR of it,
@@ -117,19 +143,18 @@ NEAR = 3
 def review(mode, text, specs):
     rows = answer_lines(text)
     missing, wrong = [], []
-    for spec in specs:
-        name, regex, want = parse_spec(spec)
-        hits = [r for r in rows if regex.search(r)]
-        if want == {0}:
-            if not hits:
+    for name, alts in grouped(specs).items():
+        near = [(r, want) for regex, want, fil in alts for r in located(rows, regex, want, fil)]
+        if all(want == {0} for _, want, _ in alts):
+            if not near:
                 missing.append(f"{name} (anywhere)")
             continue
-        near = [r for r in hits if any(abs(c - w) <= NEAR for c in cited_lines(r) for w in want)]
         if not near:
             missing.append(name)
-        elif not any(cited_lines(r) & want for r in near):
-            got = sorted(set().union(*(cited_lines(r) for r in near)))
-            wrong.append(f"{name} (want {sorted(want)}, cited {got})")
+        elif not any(cited_lines(r) & want for r, want in near):
+            got = sorted(set().union(*(cited_lines(r) for r, _ in near)))
+            want = sorted(set().union(*(w for _, w, _ in alts)))
+            wrong.append(f"{name} (want {want}, cited {got})")
     if missing:
         return f"not named near its line: {', '.join(missing)}"
     if mode == "linje" and wrong:
@@ -143,6 +168,42 @@ def words(text):
     return sum(1 for t in text.split() if re.search(W, t))
 
 
+# A high-priority marker: the persona's 🔴 Blocker and the words a reviewer
+# uses for it. «høy» and not «høyt»: «høyt nivå» is not a priority.
+HIGH = re.compile(r"(?<![\wæøå])(kritisk|blokker|blocker|critical|høy(?![\wæøå])|P0(?!\w))|🔴", re.IGNORECASE)
+# «Ingen kritiske funn», «no blocking issues»: the clean verdict rv8 wants.
+CLEAN = re.compile(r"ingen\s+(kritiske|alvorlige|blokkerende)|no\s+(blocking|critical)|ingen\s+🔴", re.IGNORECASE)
+
+
+def prioritet(text, specs):
+    rows = answer_lines(text)
+    bad = []
+    for name, alts in grouped(specs).items():
+        near = [r for regex, want, fil in alts for r in located(rows, regex, want, fil)]
+        if name.startswith("!"):
+            if any(HIGH.search(r) for r in near):
+                bad.append(f"{name[1:]} marked high")
+        elif not near:
+            bad.append(f"{name} not named near its line")
+        elif not any(HIGH.search(r) for r in near):
+            bad.append(f"{name} not marked high")
+    return f"priority: {', '.join(bad)}" if bad else None
+
+
+def spurious(text):
+    """Rows that put a high-priority marker on a line number."""
+    return [r for r in answer_lines(text) if HIGH.search(r) and cited_lines(r) and not CLEAN.search(r)]
+
+
+def taus(text):
+    rows = spurious(text)
+    if rows:
+        return f"{len(rows)} spurious high-priority row(s): {rows[0].strip()[:80]}"
+    if not CLEAN.search("\n".join(answer_lines(text))):
+        return "0 spurious high-priority rows, but no sentence says nothing is critical"
+    return None
+
+
 LOCATION = re.compile(r"\.kts?:\d+|linje \d+|line \d+", re.IGNORECASE)
 
 
@@ -150,6 +211,10 @@ def check(cmd, args):
     """Return None when the check holds, else the reason."""
     if cmd in ("funnet", "linje"):
         return review(cmd, Path(args[0]).read_text(), args[1:])
+    if cmd == "prioritet":
+        return prioritet(Path(args[0]).read_text(), args[1:])
+    if cmd == "taus":
+        return taus(Path(args[0]).read_text())
     text = Path(args[0]).read_text()
     if cmd == "nynorsk":
         found = {m.group(1).lower() for m in NYNORSK_RE.finditer(text)}
@@ -246,6 +311,22 @@ def selftest():
         ("funnet", "| `StatusPanel.tsx` | 2 | 🟡 | fjern ubrukt tabIndex-import |\n", spec, False),
         # An index column beside the Line column.
         ("linje", "| 1 | `StatusPanel.tsx` | 11 | 🔴 | `tabIndex={5}` |\n", spec, True),
+        # File-qualified spec: the right line in the wrong file is no finding.
+        ("linje", "| `VedtakService.kt` | 15 | 🔴 | logger fnr |\n", ["logg=fnr@VedtakService.kt:15"], True),
+        ("linje", "| `Routes.kt` | 15 | 🔴 | logger fnr |\n", ["logg=fnr@VedtakService.kt:15"], False),
+        # Same name twice: either file will do.
+        ("funnet", "| `VedtakRepository.kt` | 14 | 🟡 | ikke idempotent |\n",
+         ["idem=idempoten@VedtakConsumer.kt:25", "idem=idempoten@VedtakRepository.kt:14"], True),
+        ("prioritet", "| `R.kt` | 23 | 🔴 Blocker | SQL-injeksjon |\n| `S.kt` | 5 | 💭 | ubrukt import |\n",
+         ["sql=injeksjon@R.kt:23", "!nit=ubrukt@S.kt:5"], True),
+        ("prioritet", "| `R.kt` | 23 | 🟡 lav | SQL-injeksjon |\n", ["sql=injeksjon@R.kt:23"], False),
+        ("prioritet", "| `R.kt` | 23 | 🔴 | SQL-injeksjon |\n| `S.kt` | 5 | 🔴 | ubrukt import |\n",
+         ["sql=injeksjon@R.kt:23", "!nit=ubrukt@S.kt:5"], False),
+        ("prioritet", "Ser bra ut.\n", ["sql=injeksjon@R.kt:23"], False),
+        ("taus", "| `S.kt` | 37 | 💭 | vurder strukturert logging |\n\nIngen kritiske funn.\n", [], True),
+        ("taus", "| `S.kt` | 26 | 🔴 | SQL-injeksjon |\n\nIngen kritiske funn ellers.\n", [], False),
+        ("taus", "Koden ser fin ut.\n", [], False),
+        ("taus", "Høyt nivå: ingen kritiske funn. Linje 20 maskerer fnr.\n", [], True),
     ]
     failed = 0
     with tempfile.TemporaryDirectory() as tmp:
@@ -272,3 +353,6 @@ if __name__ == "__main__":
     if reason:
         print(reason)
         sys.exit(1)
+    if sys.argv[1] == "taus":
+        # rv8's verdict needs the count on a pass too (docs/modellvalg.md).
+        print("0 spurious high-priority rows")

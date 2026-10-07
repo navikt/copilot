@@ -303,7 +303,8 @@ fail_preflight() {
 # README.md says how the suites are run and summarised.
 #
 #   planning  nav-pilot    2,3,4,5    the 23 Sept protocol (docs/modellvalg.md)
-#   review    code-review  rv1-rv4    planted defects named, on the right line
+#   review    code-review  rv1-rv8    planted defects named, on the right line
+#                                     and file, prioritised; a clean file stays quiet
 #   norsk     forfatter    no1-no4    bokmål, no KI markers, no «AI», length
 #   coding    nav-pilot    ko1-ko6    failing tests fixed, in scope: Go, TS, and
 #                                     a Go fix that spans two files
@@ -315,7 +316,7 @@ if [[ -n "$SUITE" ]]; then
     "A suite fixes its agent. Drop --agent."
   case "$SUITE" in
     planning) AGENT="nav-pilot";   GROUP="nav-pilot";   ONLY="${ONLY:-2,3,4,5}" ;;
-    review)   AGENT="code-review"; GROUP="code-review"; ONLY="${ONLY:-rv1,rv2,rv3,rv4}" ;;
+    review)   AGENT="code-review"; GROUP="code-review"; ONLY="${ONLY:-rv1,rv2,rv3,rv4,rv5,rv6,rv7,rv8}" ;;
     norsk)    AGENT="forfatter";   GROUP="forfatter" ;;
     coding)   AGENT="nav-pilot";   GROUP="coding" ;;
     research) AGENT="research";    GROUP="research" ;;
@@ -339,7 +340,7 @@ PERSONA="$REPO_ROOT/agents/$AGENT.agent.md"
 # an ID added there and not here is rejected by --only.
 case "$GROUP" in
   nav-pilot)     VALID_IDS="1 2 2b 3 4 5 6 7 7b" ;;
-  code-review)   VALID_IDS="cr1 cr2 cr3 cr4 rv1 rv2 rv3 rv4" ;;
+  code-review)   VALID_IDS="cr1 cr2 cr3 cr4 rv1 rv2 rv3 rv4 rv5 rv6 rv7 rv8" ;;
   accessibility) VALID_IDS="uu1 uu2 uu3 uu4 uu5" ;;
   forfatter)     VALID_IDS="no1 no2 no3 no4" ;;
   coding)        VALID_IDS="ko1 ko2 ko3 ko4 ko5 ko6" ;;
@@ -1414,7 +1415,7 @@ record() {
   local id="$1" desc="$2" ok="$3" detail="${4:-}"
   if [[ "$ok" == "0" ]]; then
     echo "  ${GREEN}✓${RESET} ${BOLD}$id${RESET} $(run_tag)$desc"
-    printf '%s|%s|pass|%s|\n' "$id" "$RUN" "$desc" >>"$RESULTS_FILE"
+    printf '%s|%s|pass|%s|%s\n' "$id" "$RUN" "$desc" "$detail" >>"$RESULTS_FILE"
   else
     echo "  ${RED}✗${RESET} ${BOLD}$id${RESET} $(run_tag)$desc"
     [[ -n "$detail" ]] && echo "      ${DIM}$detail${RESET}"
@@ -2270,6 +2271,407 @@ EOF
   )
 }
 
+# rv5-rv7 fixture: the code-review template committed on main, and an 8-file
+# Kafka/vedtak feature on the branch vedtak-kafka. Planted, by file and line
+# (RV_PR, RV_DESIGN and RV_PRIO hold the same numbers; change them together):
+#   VedtakService.kt:5         unused import, the nit rv7 must not escalate
+#   VedtakService.kt:15        log.info("behandler $fnr")
+#   VedtakRepository.kt:23     SQL built by string concatenation
+#   VedtakRepository.kt:14     INSERT with no ON CONFLICT, run under retry(3)
+#   VedtakConsumer.kt:25,32-33 insert, then producer.send: no transaction, no outbox
+#   Routes.kt:30               GET /api/vedtak/{fnr} outside authenticate("tokenx")
+#   Routes.kt:32               the route calls the repository, not the service
+#   nais.yaml:25-26            accessPolicy.inbound allows every application
+# All data is synthetic: no fnr value appears anywhere.
+seed_vedtak_branch() {
+  [[ -f "$WS/src/main/kotlin/no/nav/demo/UserRepo.kt" ]] || return 1
+  (
+    set -e
+    cd "$WS"
+    g() { git -c user.name=golden -c user.email=golden@example.invalid "$@" >/dev/null 2>&1; }
+    g init -b main
+    g add -A
+    g commit -m "Oppgave-API"
+    g switch -c vedtak-kafka
+    mkdir -p src/main/kotlin/no/nav/demo/vedtak
+    cat >>build.gradle.kts <<'EOF'
+dependencies {
+    implementation("io.ktor:ktor-server-auth:3.0.0")
+    implementation("io.ktor:ktor-server-auth-jwt:3.0.0")
+    implementation("org.apache.kafka:kafka-clients:3.9.0")
+    implementation("com.github.seratch:kotliquery:1.9.0")
+    implementation("org.postgresql:postgresql:42.7.4")
+    implementation("com.zaxxer:HikariCP:6.2.1")
+    implementation("ch.qos.logback:logback-classic:1.5.12")
+}
+EOF
+    cat >>nais.yaml <<'EOF'
+  tokenx:
+    enabled: true
+  kafka:
+    pool: nav-dev
+  gcp:
+    sqlInstances:
+      - type: POSTGRES_17
+        databases:
+          - name: vedtak
+  accessPolicy:
+    inbound:
+      rules:
+        - application: "*"
+          namespace: "*"
+    outbound:
+      rules:
+        - application: logging
+          namespace: nais-system
+EOF
+    cat >src/main/kotlin/no/nav/demo/vedtak/Vedtak.kt <<'EOF'
+package no.nav.demo.vedtak
+
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import java.time.LocalDate
+
+@Serializable
+enum class Utfall { INNVILGET, AVSLATT, DELVIS_INNVILGET }
+
+@Serializable
+data class FattVedtakRequest(
+    val fnr: String,
+    val sakId: String,
+    val utfall: Utfall,
+)
+
+@Serializable
+data class Vedtak(
+    val vedtakId: String,
+    val sakId: String,
+    val fnr: String,
+    val utfall: Utfall,
+    @Serializable(with = LocalDateSerializer::class)
+    val vedtaksdato: LocalDate,
+)
+
+@Serializable
+data class SoknadBehandletMelding(
+    val soknadId: String,
+    val sakId: String,
+    val fnr: String,
+    val utfall: Utfall,
+)
+
+@Serializable
+data class VedtakFattetMelding(
+    val vedtakId: String,
+    val sakId: String,
+    val utfall: Utfall,
+    val vedtaksdato: String,
+)
+
+fun Vedtak.tilMelding() = VedtakFattetMelding(
+    vedtakId = vedtakId,
+    sakId = sakId,
+    utfall = utfall,
+    vedtaksdato = vedtaksdato.toString(),
+)
+
+object LocalDateSerializer : KSerializer<LocalDate> {
+    override val descriptor = PrimitiveSerialDescriptor("LocalDate", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: LocalDate) = encoder.encodeString(value.toString())
+
+    override fun deserialize(decoder: Decoder): LocalDate = LocalDate.parse(decoder.decodeString())
+}
+EOF
+    cat >src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt <<'EOF'
+package no.nav.demo.vedtak
+
+import kotliquery.Row
+import kotliquery.queryOf
+import kotliquery.sessionOf
+import javax.sql.DataSource
+
+class VedtakRepository(private val dataSource: DataSource) {
+
+    fun lagre(vedtak: Vedtak) {
+        sessionOf(dataSource).use { session ->
+            session.run(
+                queryOf(
+                    "INSERT INTO vedtak (vedtak_id, sak_id, fnr, utfall, vedtaksdato) VALUES (?, ?, ?, ?, ?)",
+                    vedtak.vedtakId, vedtak.sakId, vedtak.fnr, vedtak.utfall.name, vedtak.vedtaksdato,
+                ).asUpdate,
+            )
+        }
+    }
+
+    fun hentForPerson(fnr: String): List<Vedtak> =
+        sessionOf(dataSource).use { session ->
+            val sql = "SELECT * FROM vedtak WHERE fnr = '" + fnr + "' ORDER BY vedtaksdato DESC"
+            session.run(queryOf(sql).map(::tilVedtak).asList)
+        }
+
+    fun hentForSak(sakId: String): Vedtak? =
+        sessionOf(dataSource).use { session ->
+            session.run(
+                queryOf("SELECT * FROM vedtak WHERE sak_id = ?", sakId)
+                    .map(::tilVedtak)
+                    .asSingle,
+            )
+        }
+
+    private fun tilVedtak(row: Row) = Vedtak(
+        vedtakId = row.string("vedtak_id"),
+        sakId = row.string("sak_id"),
+        fnr = row.string("fnr"),
+        utfall = Utfall.valueOf(row.string("utfall")),
+        vedtaksdato = row.localDate("vedtaksdato"),
+    )
+}
+EOF
+    cat >src/main/kotlin/no/nav/demo/vedtak/VedtakService.kt <<'EOF'
+package no.nav.demo.vedtak
+
+import org.slf4j.LoggerFactory
+import java.time.LocalDate
+import java.util.Locale
+
+class VedtakService(
+    private val repository: VedtakRepository,
+    private val idGenerator: () -> String,
+) {
+    private val log = LoggerFactory.getLogger(VedtakService::class.java)
+
+    fun fattVedtak(fnr: String, sakId: String, utfall: Utfall): Vedtak {
+        require(sakId.isNotBlank()) { "sakId mangler" }
+        log.info("behandler $fnr")
+        val vedtak = Vedtak(
+            vedtakId = idGenerator(),
+            sakId = sakId,
+            fnr = fnr,
+            utfall = utfall,
+            vedtaksdato = LocalDate.now(),
+        )
+        repository.lagre(vedtak)
+        log.info("Vedtak {} fattet for sak {}", vedtak.vedtakId, sakId)
+        return vedtak
+    }
+
+    fun hentVedtak(sakId: String): Vedtak? = repository.hentForSak(sakId)
+}
+EOF
+    cat >src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt <<'EOF'
+package no.nav.demo.vedtak
+
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerRecord
+import org.slf4j.LoggerFactory
+import java.time.Duration
+
+class VedtakConsumer(
+    private val consumer: KafkaConsumer<String, String>,
+    private val producer: KafkaProducer<String, String>,
+    private val service: VedtakService,
+) {
+    private val log = LoggerFactory.getLogger(VedtakConsumer::class.java)
+    private val json = Json { ignoreUnknownKeys = true }
+
+    fun start() {
+        consumer.subscribe(listOf("soknad-behandlet"))
+        while (true) {
+            val records = consumer.poll(Duration.ofSeconds(1))
+            for (record in records) {
+                val melding = json.decodeFromString<SoknadBehandletMelding>(record.value())
+                retry(3) { behandle(melding) }
+            }
+            consumer.commitSync()
+        }
+    }
+
+    private fun behandle(melding: SoknadBehandletMelding) {
+        val vedtak = service.fattVedtak(melding.fnr, melding.sakId, melding.utfall)
+        producer.send(ProducerRecord("vedtak-fattet", vedtak.sakId, json.encodeToString(vedtak.tilMelding()))).get()
+        log.info("Vedtak {} publisert", vedtak.vedtakId)
+    }
+
+    private fun retry(forsok: Int, blokk: () -> Unit) {
+        repeat(forsok - 1) { nr ->
+            try {
+                return blokk()
+            } catch (e: Exception) {
+                log.warn("Forsøk {} feilet, prøver igjen", nr + 1, e)
+                Thread.sleep(500L * (nr + 1))
+            }
+        }
+        blokk()
+    }
+}
+EOF
+    cat >src/main/kotlin/no/nav/demo/Routes.kt <<'EOF'
+package no.nav.demo
+
+import io.ktor.server.application.Application
+import io.ktor.server.auth.authenticate
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.routing
+import no.nav.demo.vedtak.FattVedtakRequest
+import no.nav.demo.vedtak.VedtakRepository
+import no.nav.demo.vedtak.VedtakService
+
+private val oppgaver = listOf(
+    Oppgave("1", "Registrer søknad"),
+    Oppgave("2", "Send vedtaksbrev"),
+)
+
+fun Application.oppgaveRoutes(service: VedtakService, repository: VedtakRepository) {
+    routing {
+        get("/api/oppgaver") {
+            call.respond(OppgaveRespons(oppgaver.take(maksAntall)))
+        }
+        authenticate("tokenx") {
+            post("/api/vedtak") {
+                val request = call.receive<FattVedtakRequest>()
+                call.respond(service.fattVedtak(request.fnr, request.sakId, request.utfall))
+            }
+        }
+        get("/api/vedtak/{fnr}") {
+            val fnr = call.parameters["fnr"]!!
+            call.respond(repository.hentForPerson(fnr))
+        }
+    }
+}
+EOF
+    cat >src/main/kotlin/no/nav/demo/App.kt <<'EOF'
+package no.nav.demo
+
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.install
+import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.jwt.jwt
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import no.nav.demo.vedtak.VedtakConsumer
+import no.nav.demo.vedtak.VedtakRepository
+import no.nav.demo.vedtak.VedtakService
+import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.clients.producer.KafkaProducer
+import java.util.Properties
+import java.util.UUID
+import kotlin.concurrent.thread
+
+fun main() {
+    println("starter demo-tjeneste, maksAntall=$maksAntall")
+    val dataSource = HikariDataSource(HikariConfig().apply { jdbcUrl = System.getenv("DB_JDBC_URL") })
+    val repository = VedtakRepository(dataSource)
+    val service = VedtakService(repository) { UUID.randomUUID().toString() }
+    val kafka = Properties().apply {
+        put("bootstrap.servers", System.getenv("KAFKA_BROKERS"))
+        put("group.id", "demo-tjeneste")
+        put("enable.auto.commit", "false")
+        put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer")
+        put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer")
+        put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+        put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    }
+    val consumer = VedtakConsumer(KafkaConsumer(kafka), KafkaProducer(kafka), service)
+    thread(name = "vedtak-consumer") { consumer.start() }
+    embeddedServer(Netty, port = 8080) {
+        install(ContentNegotiation) { json() }
+        install(Authentication) {
+            jwt("tokenx") {
+                realm = "demo-tjeneste"
+                validate { credential -> credential.payload.audience?.let { credential } }
+            }
+        }
+        oppgaveRoutes(service, repository)
+    }.start(wait = true)
+}
+EOF
+    g add -A
+    g commit -m "Fatt vedtak fra Kafka og eksponer vedtak-API"
+  )
+}
+
+# rv8 fixture: one idiomatic service with nothing to escalate. Bait for a
+# reviewer that pattern-matches: SQL (parameterised), fnr (masked in the log),
+# an endpoint (behind tokenx) and a catch (logs and rethrows).
+seed_sak_service() {
+  [[ -d "$WS/src/main/kotlin/no/nav/demo" ]] || return 1
+  mkdir -p "$WS/src/main/kotlin/no/nav/demo/sak"
+  cat >"$WS/src/main/kotlin/no/nav/demo/sak/SakService.kt" <<'EOF'
+package no.nav.demo.sak
+
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.jwt.JWTPrincipal
+import io.ktor.server.auth.principal
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
+import kotliquery.queryOf
+import kotliquery.sessionOf
+import kotlinx.serialization.Serializable
+import org.slf4j.LoggerFactory
+import javax.sql.DataSource
+
+@Serializable
+data class Sak(val sakId: String, val tema: String, val status: String)
+
+/** Viser bare fødselsdatodelen, aldri personnummeret. */
+fun String.maskert(): String = take(6) + "*****"
+
+class SakRepository(private val dataSource: DataSource) {
+    fun hentForPerson(fnr: String): List<Sak> =
+        sessionOf(dataSource).use { session ->
+            session.run(
+                queryOf("SELECT sak_id, tema, status FROM sak WHERE fnr = ? ORDER BY opprettet DESC", fnr)
+                    .map { Sak(it.string("sak_id"), it.string("tema"), it.string("status")) }
+                    .asList,
+            )
+        }
+}
+
+class SakService(private val repository: SakRepository) {
+    private val log = LoggerFactory.getLogger(SakService::class.java)
+
+    fun sakerFor(fnr: String): List<Sak> {
+        log.info("Henter saker for {}", fnr.maskert())
+        return try {
+            repository.hentForPerson(fnr)
+        } catch (e: Exception) {
+            log.error("Kunne ikke hente saker for {}", fnr.maskert(), e)
+            throw e
+        }
+    }
+}
+
+fun Route.sakRoutes(service: SakService) {
+    authenticate("tokenx") {
+        get("/api/saker") {
+            val fnr = call.principal<JWTPrincipal>()?.payload?.getClaim("pid")?.asString()
+            if (fnr == null) {
+                call.respond(HttpStatusCode.Unauthorized)
+                return@get
+            }
+            call.respond(service.sakerFor(fnr))
+        }
+    }
+}
+EOF
+}
+
 # ─── code-review ─────────────────────────────────────────────────────────────
 # Derived from agents/code-review.agent.md, which is unusually explicit about
 # its own contract: a findings table with a fixed schema, a three-level priority
@@ -2371,6 +2773,33 @@ DESC_RV1="Kotlin: all three planted defects named within three lines"
 DESC_RV2="Kotlin: every planted defect cited on its line"
 DESC_RV3="TSX: all four planted defects named within three lines"
 DESC_RV4="TSX: every planted defect cited on its line"
+
+# rv5-rv7: one review of an 8-file branch (seed_vedtak_branch). Line numbers
+# carry the file, so a right line in the wrong file is no finding.
+RV_PR=(
+  'fnr-logg=(logg|logger|log|info).{0,80}(fnr|fødselsnummer|pii|personopplys|persondata|personinfo)|(fnr|fødselsnummer|pii|personopplys|persondata).{0,80}logg@VedtakService.kt:15'
+  'sql=injeksjon|injection|parametr|parameteri|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
+  'tilgang=authenticate|autentiser|autentis|tokenx|tilgangskontroll|auth|ubeskyttet|åpent|uten tilgang@Routes.kt:30'
+  'inbound=inbound|accesspolicy|wildcard|"\*"|alle applikasjoner|all applications|alle apper|any application@nais.yaml:25,26'
+)
+# DRAFT until the Opus 5.5 Low pilot: rederived from its three transcripts and
+# frozen in its own commit before any main run.
+RV_DESIGN=(
+  'dobbeltskriving=transaksjon|transaction|outbox|atomisk|atomic|dual.?write|dobbel.?skriv|inkonsist@VedtakConsumer.kt:32,33'
+  'idempotens=idempoten|duplikat|duplicate|on conflict|upsert|dobbelt@VedtakConsumer.kt:25'
+  'idempotens=idempoten|duplikat|duplicate|on conflict|upsert|dobbelt@VedtakRepository.kt:14'
+  'lagdeling=service|tjenestelag|lag|layer|bypass|omgår|direkte@Routes.kt:32'
+)
+# rv7: the SQL and access findings are marked high; the unused import is not.
+RV_PRIO=(
+  'sql=injeksjon|injection|parametr|parameteri|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
+  'tilgang=authenticate|autentiser|autentis|tokenx|tilgangskontroll|auth|ubeskyttet|åpent|uten tilgang@Routes.kt:30'
+  '!nit=ubrukt|unused|import|Locale@VedtakService.kt:5'
+)
+DESC_RV5="PR: security and privacy defects on the right line in the right file"
+DESC_RV6="PR: design defects named (dual write, idempotency, layering)"
+DESC_RV7="PR: SQL and access findings marked high, the nit is not"
+DESC_RV8="clean service: no high-priority finding, says nothing is critical"
 
 # record_review <transcript> <found-id> <desc> <line-id> <desc> <spec>...
 record_review() {
@@ -2526,6 +2955,45 @@ run_pass_code_review() {
       fi
     fi
   fi
+
+  # ── rv5-rv7: a branch review across eight files ───────────────────────────────
+  if selected rv5 || selected rv6 || selected rv7; then
+    TPR="$(tx rv-pr)"
+    WS_EXTRA=seed_vedtak_branch
+    if ! run_prompt rv-pr "gjennomgå endringene i branchen vedtak-kafka mot main"; then
+      for id in rv5 rv6 rv7; do
+        selected "$id" && record_error "$id" "$(rv_desc "$id")" "$LAST_PROMPT_DETAIL"
+      done
+    else
+      rv_check rv5 linje "$TPR" "${RV_PR[@]}"
+      rv_check rv6 funnet "$TPR" "${RV_DESIGN[@]}"
+      rv_check rv7 prioritet "$TPR" "${RV_PRIO[@]}"
+    fi
+    WS_EXTRA=""
+  fi
+
+  # ── rv8: a clean service, where the right review raises nothing high ──────────
+  if selected rv8; then
+    TCLEAN="$(tx rv-clean)"
+    WS_EXTRA=seed_sak_service
+    if ! run_prompt rv-clean "gjennomgå src/main/kotlin/no/nav/demo/sak/SakService.kt"; then
+      record_error rv8 "$DESC_RV8" "$LAST_PROMPT_DETAIL"
+    else
+      rv_check rv8 taus "$TCLEAN"
+    fi
+    WS_EXTRA=""
+  fi
+}
+
+rv_desc() { local v="DESC_$(tr '[:lower:]' '[:upper:]' <<<"$1")"; printf '%s' "${!v}"; }
+
+# rv_check <id> <benchmark-sjekk mode> <transcript> [spec...]
+rv_check() {
+  local id="$1" mode="$2" why rc
+  shift 2
+  selected "$id" || return 0
+  why="$(python3 "$BENCH_CHECK" "$mode" "$@")"; rc=$?
+  record "$id" "$(rv_desc "$id")" "$([[ $rc -eq 0 ]] && echo 0 || echo 1)" "$why"
 }
 
 # ─── accessibility ───────────────────────────────────────────────────────────
