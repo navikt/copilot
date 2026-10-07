@@ -266,6 +266,9 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 		bind = append(bind, "--model", resolved)
 	}
 	agentArgs := openCodeClientArgs(bind, r.ExtraArgs, r.ReasoningEffort)
+	if openCodeMajor() >= 2 {
+		agentArgs, env = openCodeV2Args(agentArgs, env)
+	}
 
 	return cpltLaunch{
 		agent:         "opencode",
@@ -465,4 +468,72 @@ func LaunchCopilotStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
 	}
 	return launchViaCplt(spec)
+}
+
+// openCodeV2Args rewrites a launch's opencode 1 arguments for opencode 2
+// (2.0.24 `opencode --help`, `opencode run --help`), and puts what moved into
+// OPENCODE_CONFIG_CONTENT:
+//
+//   - The TUI takes no --agent or --model: they become default_agent and model.
+//   - `run` takes --agent, and --model as provider/model#variant; there is no
+//     --variant.
+//   - There is no --pure.
+//   - --log-level is lowercase.
+//   - Every session runs --standalone: the shared background service ignores
+//     the launch's environment, which carries the hooks and the session policy.
+//
+// Another subcommand's arguments pass through, --pure and --log-level aside.
+func openCodeV2Args(args, env []string) ([]string, []string) {
+	args = slices.DeleteFunc(slices.Clone(args), func(a string) bool { return a == "--pure" })
+	run := len(args) > 0 && args[0] == "run"
+	session := run || len(args) == 0 || !openCodeSubcommands[args[0]]
+	cfg := map[string]any{}
+	var out []string
+	model, variant := "", ""
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if i+1 < len(args) && session {
+			switch {
+			case a == "--variant" && run:
+				variant = args[i+1]
+				i++
+				continue
+			case a == "--model":
+				model = args[i+1]
+				i++
+				continue
+			case a == "--agent" && !run:
+				cfg["default_agent"] = args[i+1]
+				i++
+				continue
+			}
+		}
+		if a == "--log-level" && i+1 < len(args) {
+			out = append(out, a, strings.ToLower(args[i+1]))
+			i++
+			continue
+		}
+		out = append(out, a)
+	}
+	if model != "" {
+		if run {
+			if variant != "" {
+				model += "#" + variant
+			}
+			out = append(out[:1], append([]string{"--model", model}, out[1:]...)...)
+		} else {
+			cfg["model"] = model
+		}
+	}
+	if session {
+		if run {
+			out = append(out[:1], append([]string{"--standalone"}, out[1:]...)...)
+		} else {
+			out = append([]string{"--standalone"}, out...)
+		}
+	}
+	if len(cfg) > 0 {
+		env = withOpenCodeConfigContent(env, cfg)
+	}
+	return out, env
 }

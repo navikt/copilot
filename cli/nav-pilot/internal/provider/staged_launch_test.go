@@ -801,3 +801,31 @@ func TestStagedPiSpec(t *testing.T) {
 		})
 	}
 }
+
+func TestOpenCodeV2Args(t *testing.T) {
+	for _, c := range []struct {
+		in       []string
+		want     string
+		wantConf string
+	}{
+		{[]string{"--model", "github-copilot/m", "--agent", "nav", "--auto", "--log-level", "DEBUG"},
+			"--standalone --auto --log-level debug", `{"default_agent":"nav","model":"github-copilot/m"}`},
+		{[]string{"run", "--agent", "nav", "--model", "github-copilot/m", "--variant", "high", "hi"},
+			"run --standalone --model github-copilot/m#high --agent nav hi", ""},
+		{[]string{"--pure", "run", "--agent", "nav", "--variant", "high", "hi"},
+			"run --standalone --agent nav hi", ""},
+		{[]string{"mcp", "list", "--log-level", "WARN"}, "mcp list --log-level warn", ""},
+	} {
+		args, env := openCodeV2Args(c.in, nil)
+		if got := strings.Join(args, " "); got != c.want {
+			t.Errorf("%v: args = %q, want %q", c.in, got, c.want)
+		}
+		conf := ""
+		if len(env) > 0 {
+			conf = strings.TrimPrefix(env[0], openCodeConfigContentEnv+"=")
+		}
+		if conf != c.wantConf {
+			t.Errorf("%v: config = %q, want %q", c.in, conf, c.wantConf)
+		}
+	}
+}

@@ -66,7 +66,6 @@ func TestOpenCode2LiveBridge(t *testing.T) {
 	}
 	env := []string{MCPBlockedEnv + `={"blocked":["probe"],"listed":[]}`}
 	env = withOpenCodeConfigContent(env, map[string]any{
-		"model": "fake/m",
 		"provider": map[string]any{"fake": map[string]any{"npm": "@ai-sdk/openai-compatible", "name": "Fake",
 			"options": map[string]any{"baseURL": srv.URL + "/v1", "apiKey": "x"},
 			"models":  map[string]any{"m": map[string]any{"name": "m", "tool_call": true}}}},
@@ -80,7 +79,10 @@ func TestOpenCode2LiveBridge(t *testing.T) {
 	proj := filepath.Join(work, "proj")
 	_ = os.MkdirAll(proj, 0o755)
 	_ = exec.Command("git", "-C", proj, "init", "-q").Run()
-	cmd := exec.Command(oc, "run", "--standalone", "--auto", "go")
+	// The arguments a `nav-pilot -- run go` launch builds, rewritten for v2.
+	args, env := openCodeV2Args(openCodeClientArgs([]string{"--agent", "build", "--auto", "--model", "fake/m", "--log-level", "WARN"}, []string{"run", "go"}, ""), env)
+	t.Logf("opencode %s", strings.Join(args, " "))
+	cmd := exec.Command(oc, args...)
 	cmd.Dir = proj
 	cmd.Env = append(os.Environ(), env...)
 	done := make(chan struct{})
