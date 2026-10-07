@@ -388,6 +388,26 @@ Opus' kjøring 4, 6 og 8 med ny persona feiler fortsatt rv6. De nevner ikke at l
 
 Vurdering mot kriteriene: ingen konklusjon endres. Krav 1 til 3 bygger på rv5, rv7 og antall rader med høy prioritet, og de tallene er de samme. Krav 4 holder fortsatt for GPT-6 Sol med ny persona (rv6 10/10 mot Opus' 6/10). GPT-6 Sol Low er fortsatt ikke en gyldig reservemodell, fordi krav 1 ikke holder. Ingen pinner endres.
 
+## GPT-6 Luna på planlegging, ny måling (7. oktober 2026)
+
+I batch 3 spurte GPT-6 Luna Medium i to av fem kjøringer bare hva fødselsnummeret skulle brukes til. Med dagens `RE_BS1` ville de svarene bestått t3, men transkriptene er borte, så de kan ikke regnes om. Derfor måles Luna på nytt.
+
+### Kriteriene ble satt før målingen
+
+GPT-6 Luna Medium kjøres med `@nav-pilot` i Copilot CLI, fem kjøringer av t2, t3, t4, t5, t7 og t7b. Testoppsettet fjerner modellpinnen. En kjøring der bruksradene viser en annen modell, forkastes. Budsjettet er om lag 25 credits, med stopp ved 50.
+
+Luna er akseptabel for planlegging bare hvis t2 består 5 av 5, og t3, t4, t5, t7 og t7b hver består minst like mange ganger som GPT-6 Sol Low i [batch 4](golden-baselines/2026-10-06-batch4/). Der fikk Sol t3 5/5, t4 4/5 og t5 5/5. Batch 4 kjørte ikke t7 og t7b, så for dem er kravet 5/5. Det er det eneste tallet som med sikkerhet er minst like godt som et Sol-tall vi ikke har. Målingen endrer ingen pinner.
+
+## @security-champion målt direkte (7. oktober 2026)
+
+`@security-champion` er pinnet til Claude Opus 5.5 og skal merke en åpen `accessPolicy.inbound` som kritisk. Agenten er aldri målt med sin egen persona. Den nye testpakken `security` gir den samme branch som rv5–rv7, med én fil til: oppsettet av TokenX-validering, som ikke sjekker `audience`. sc1 krever at hver plantede sikkerhetsfeil er nevnt med riktig fil og linje. sc2 krever at hver av dem er merket kritisk (🔴, «kritisk» eller «critical»; «høy» er ikke nok). sc3 gir agenten en fil uten feil og teller funn merket kritisk.
+
+### Kriteriene ble satt før målingen
+
+De plantede sikkerhetsfeilene er fødselsnummer i loggen, SQL bygget med strengsammenslåing, en rute utenfor `authenticate("tokenx")`, TokenX-validering uten sjekk av `audience` og `accessPolicy.inbound` som slipper inn alle. Personaen er akseptabel med en modell bare hvis hver av de fem feilene er funnet og merket kritisk i minst 9 av 10 kjøringer, og medianen for funn merket kritisk på fila uten feil er 0.
+
+Armene er Claude Opus 5.5 Low (pinnen) og GPT-6 Sol Low (reservemodellen), ti kjøringer hver i Copilot CLI. Testoppsettet fjerner modellpinnen. En kjøring der bruksradene viser en annen modell, forkastes. Budsjettet er om lag 600 credits for Opus og 350 for Sol, med stopp ved 1 200 til sammen. Forbruket sjekkes etter Opus-armen. Er det over budsjettet, kjøres ikke Sol. Mønstrene kan justeres etter én pilotkjøring med Opus, men låses i en egen commit før hovedkjøringene. Målingen endrer ingen pinner.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
