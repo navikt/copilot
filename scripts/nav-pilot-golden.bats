@@ -297,6 +297,12 @@ case "$p" in
     # bad: «Hvem leser …?» with no format in the sentence, which reads as access.
     if [[ "$BENCH_MODE" == good ]]; then echo "Jeg legger til grunn at branchen ikke legger til nye personopplysninger. Jackson 3 sorterer feltene alfabetisk. Hvem leser soknad-mottatt, og tåler de endret feltrekkefølge?"
     else echo "Jeg legger til grunn at koden er uendret. Hvem leser de to Kafka-temaene?"; fi ;;
+  *signeringsheaders*)
+    if [[ "$BENCH_MODE" == good ]]; then echo "Payload og mottakere er uendret, bare signaturheaderne endres. Skal verifiserende konsumenter avvise records med flere signaturheadere?"
+    else echo "Jeg behandler dette som en sikkerhetskritisk endring. Kan recordene som signeres inneholde personopplysninger?"; fi ;;
+  *"header på recordene"*)
+    if [[ "$BENCH_MODE" == good ]]; then echo "Fnr i en header er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?"
+    else echo "Headeren er lagt til ved siden av signaturheaderne."; fi ;;
   *SoknadMottattMelding*)
     if [[ "$BENCH_MODE" == good ]]; then echo "Fnr på Kafka er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?"
     else echo "Feltet er lagt til i SoknadMottattMelding, og meldingen serialiseres som før."; fi ;;
@@ -501,6 +507,15 @@ run_suite() {
   [ "$status" -eq 1 ]
   grep -q '^7|1|fail|' "$SHIM/b-results.psv"
   grep -q '^7b|1|fail|' "$SHIM/b-results.psv"
+}
+
+@test "planning t8/t8b: no privacy interview on signing headers, privacy raised for fnr in a header" {
+  run_suite good --agent nav-pilot --only 8,8b
+  [ "$status" -eq 0 ]
+  run_suite bad --agent nav-pilot --only 8,8b
+  [ "$status" -eq 1 ]
+  grep -q '^8|1|fail|' "$SHIM/b-results.psv"
+  grep -q '^8b|1|fail|' "$SHIM/b-results.psv"
 }
 
 @test "planning t3: a privacy question about fødselsnummer counts as blind spot #1" {
