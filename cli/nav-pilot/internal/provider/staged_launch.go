@@ -1,9 +1,11 @@
 package provider
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -268,6 +270,7 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 	agentArgs := openCodeClientArgs(bind, r.ExtraArgs, r.ReasoningEffort)
 	if openCodeMajor() >= 2 {
 		agentArgs, env = openCodeV2Args(agentArgs, env)
+		env = withOpenCode2UserConfig(env, s.Dir)
 	}
 
 	return cpltLaunch{
@@ -537,3 +540,63 @@ func openCodeV2Args(args, env []string) ([]string, []string) {
 	}
 	return out, env
 }
+
+// withOpenCode2UserConfig keeps the user's own opencode config in a Tier 2
+// launch on opencode 2. opencode 1 reads OPENCODE_CONFIG_DIR beside the user's
+// config dir; opencode 2 reads it in place of that dir
+// (packages/cli/src/server-process.ts at v2.0.24), so the payload would be
+// the only global config. Put back:
+//
+//   - the user's opencode.jsonc, else opencode.json, as OPENCODE_CONFIG,
+//     unless the user set that themselves;
+//   - the user's skills directories, as "skills" in OPENCODE_CONFIG_CONTENT.
+//
+// opencode 2 ranks OPENCODE_CONFIG above the config dir, which would let the
+// user's file override the payload's opencode.json; opencode 1 ranks the
+// payload higher. So the payload's permissions go into OPENCODE_CONFIG_CONTENT
+// as well, which ranks above both. Only those: anything else may name a path
+// relative to the payload, which the content would resolve elsewhere.
+//
+// Not put back: the user's agents, commands, modes, tools and plugins
+// directories under the config dir. opencode 2 reads those only from a config
+// directory, and it takes one global directory, the payload.
+func withOpenCode2UserConfig(env []string, payload string) []string {
+	dir := openCodeConfigDir()
+	if !slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, "OPENCODE_CONFIG=") }) {
+		for _, n := range []string{"opencode.jsonc", "opencode.json"} {
+			if f := filepath.Join(dir, n); fileExists(f) {
+				env, _ = telemetry.SetEnvValue(env, "OPENCODE_CONFIG", f)
+				break
+			}
+		}
+	}
+	add := map[string]any{}
+	var skills []any
+	for _, n := range []string{"skill", "skills"} {
+		if d := filepath.Join(dir, n); dirHasEntries(d) {
+			skills = append(skills, d)
+		}
+	}
+	if len(skills) > 0 {
+		add["skills"] = skills
+	}
+	for _, n := range []string{"opencode.json", "opencode.jsonc"} {
+		b, err := os.ReadFile(filepath.Join(payload, n))
+		if err != nil {
+			continue
+		}
+		var cfg map[string]any
+		if json.Unmarshal(stripJSONC(b), &cfg) == nil {
+			for _, k := range []string{"permission", "permissions"} {
+				if v, ok := cfg[k]; ok {
+					add[k] = mergeJSON(add[k], v)
+				}
+			}
+		}
+	}
+	if len(add) == 0 {
+		return env
+	}
+	return withOpenCodeConfigContent(env, add)
+}
+

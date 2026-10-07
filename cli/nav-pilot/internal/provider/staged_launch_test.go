@@ -829,3 +829,32 @@ func TestOpenCodeV2Args(t *testing.T) {
 		}
 	}
 }
+
+func TestWithOpenCode2UserConfig(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	dir := openCodeConfigDir()
+	mustWrite(t, filepath.Join(dir, "opencode.json"), `{"model":"mine/m"}`)
+	mustWrite(t, filepath.Join(dir, "skills", "x", "SKILL.md"), "x")
+	payload := t.TempDir()
+	mustWrite(t, filepath.Join(payload, "opencode.json"), `{"permission":{"bash":"ask"},"plugin":["./p.js"]}`)
+
+	env := withOpenCode2UserConfig(nil, payload)
+	all := strings.Join(env, "\n")
+	for _, want := range []string{
+		"OPENCODE_CONFIG=" + filepath.Join(dir, "opencode.json"),
+		`"skills":["` + filepath.Join(dir, "skills") + `"]`,
+		`"permission":{"bash":"ask"}`,
+	} {
+		if !strings.Contains(all, want) {
+			t.Errorf("env lacks %s:\n%s", want, all)
+		}
+	}
+	if strings.Contains(all, "p.js") {
+		t.Errorf("a payload path went into the content: %s", all)
+	}
+	// The user's own OPENCODE_CONFIG stays.
+	env = withOpenCode2UserConfig([]string{"OPENCODE_CONFIG=/mine.json"}, payload)
+	if !slices.Contains(env, "OPENCODE_CONFIG=/mine.json") {
+		t.Errorf("env = %v", env)
+	}
+}
