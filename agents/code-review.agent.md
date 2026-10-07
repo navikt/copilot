@@ -148,7 +148,7 @@ Only 34% of Nav developers agree that AI code passes review without extra work �
 
 ### Nais Compliance (🟡)
 
-- `accessPolicy` defined for services that communicate — check outbound changes; an open or widened inbound policy is 🔴 (see Security)
+- `accessPolicy` defined for services that communicate. Check outbound changes. An open or widened inbound policy is 🔴 (see Security)
 - Health endpoints (`/isalive`, `/isready`) present
 - Resource limits set in `.nais/` manifests, and not silently lowered
 - New `envFrom` secret references or replica count changes
