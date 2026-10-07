@@ -20,9 +20,9 @@ for suite, name in N.items():
     row = [name]
     for arm, (pi, pc, pw, po) in P.items():
         runs = collections.defaultdict(lambda: [0] * 4)  # input, output, cache read, cache write
-        for line in open(f"{D}/{suite}-{arm}-low-usage.psv"):
-            if line.startswith("#") or not line.strip():
-                continue
+        with open(f"{D}/{suite}-{arm}-low-usage.psv") as f:
+            lines = [l for l in f if l.strip() and not l.startswith("#")]
+        for line in lines:
             c = line.split("|")
             assert int(c[7]) <= 272_000, "long-context tier not priced"
             for k, j in enumerate((7, 8, 9, 10)):
