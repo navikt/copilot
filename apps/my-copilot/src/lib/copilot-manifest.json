@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-07T08:40:21.121Z",
+  "generatedAt": "2026-10-07T09:43:13.802Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -124,7 +124,7 @@
       "filePath": ".github/agents/code-review.agent.md",
       "repoPath": "agents/code-review.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/code-review.agent.md",
-      "contentHash": "d0a51a2a3b2520b8f31ddc1b8044a775d454ac1ff5a92686816a6c520a8d2cb8",
+      "contentHash": "0ac1d56b79f545d80bcd1b70b49c65f685920e8c63b493a71d0de9c388ce12e2",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fcode-review.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fcode-review.agent.md",
       "tools": [
@@ -441,7 +441,7 @@
       "filePath": ".github/agents/security-champion.agent.md",
       "repoPath": "agents/security-champion.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/security-champion.agent.md",
-      "contentHash": "09850437ed89c7bbf32a1994ba3975bd747ef115f7337286f28d3c74cd6f09f2",
+      "contentHash": "88648b8aac165bd09a58068103f70b013be946e7b3f75be2ce1b1b7cf2480cc3",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fsecurity-champion.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fsecurity-champion.agent.md",
       "tools": [
@@ -468,7 +468,7 @@
         "github/list_tags",
         "github/list_branches"
       ],
-      "model": ["GPT-6 Sol"],
+      "model": ["Claude Opus 5.5"],
       "tags": ["security", "compliance", "gdpr", "threat-modeling"],
       "examples": [
         {

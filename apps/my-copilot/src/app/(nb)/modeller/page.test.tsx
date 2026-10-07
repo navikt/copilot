@@ -126,7 +126,7 @@ describe("modellsiden", () => {
     summaryFile.path = FIXTURE;
     render(<ModellerPage />);
     const opus = screen.getByRole("cell", { name: "Høyrisikoplanlegging og kodegjennomgang" }).closest("tr")!;
-    expect(within(opus).getByText("@code-review, @nav-pilot-opus")).toBeInTheDocument();
+    expect(within(opus).getByText("@code-review, @nav-pilot-opus, @security-champion")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "#github-copilot på Slack" })).toHaveAttribute(
       "href",
       "https://nav-it.slack.com/archives/C055TNXBM17"
