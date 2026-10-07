@@ -2192,7 +2192,7 @@ run_pass_nav_pilot() {
   # an answer that echoes the prompt would otherwise pass without raising #1.
   # 8b is the control on the same fixture: fnr in a header is a new field.
   if selected 8; then
-    DESC8="strip old signing headers: no privacy or access-control interview"
+    DESC8="strip old signing headers: Fase 1 stop with a security question, no privacy or access interview"
     T8="$(tx t8)"
     WS_EXTRA=seed_signing_fixture
     if ! command -v perl >/dev/null 2>&1; then
@@ -2205,6 +2205,12 @@ run_pass_nav_pilot() {
       record_error 8 "$DESC8" "$LAST_PROMPT_DETAIL"
     elif q8="$(asks_privacy "$T8")"; then
       record 8 "$DESC8" 1 "asked the user about personvern or tilgang on a header-only change: $(cut -c1-160 <<<"$q8")"
+    elif ws_wrote; then
+      # Security-critical code is Full tier: Fase 1 stops before editing.
+      # Read off the fingerprint, so a shell write counts like an edit call.
+      record 8 "$DESC8" 1 "edited signing code without a Fase 1 stop: $(ws_written_files)"
+    elif ! question_sentences "$T8" | grep -qiE -- "$RE_ASK_SEC"; then
+      record 8 "$DESC8" 1 "stopped but asked no security question (nøkkel, signatur, verifisering)"
     else
       record 8 "$DESC8" 0
     fi

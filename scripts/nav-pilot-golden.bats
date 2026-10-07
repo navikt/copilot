@@ -298,8 +298,15 @@ case "$p" in
     if [[ "$BENCH_MODE" == good ]]; then echo "Jeg legger til grunn at branchen ikke legger til nye personopplysninger. Jackson 3 sorterer feltene alfabetisk. Hvem leser soknad-mottatt, og tåler de endret feltrekkefølge?"
     else echo "Jeg legger til grunn at koden er uendret. Hvem leser de to Kafka-temaene?"; fi ;;
   *signeringsheaders*)
-    if [[ "$BENCH_MODE" == good ]]; then echo "Payload og mottakere er uendret, bare signaturheaderne endres. Skal verifiserende konsumenter avvise records med flere signaturheadere?"
-    else echo "Jeg behandler dette som en sikkerhetskritisk endring. Kan recordene som signeres inneholde personopplysninger?"; fi ;;
+    # edit: the 2026-10-07 Sonnet answer, edits onSend with no stop.
+    # noq: stops, but asks nothing about signing.
+    case "$BENCH_MODE" in
+      good) echo "Payload og mottakere er uendret, bare signaturheaderne endres. Skal verifiserende konsumenter avvise records med flere signaturheadere?" ;;
+      edit) perl -0pi -e 's/(val signature)/stripSigningHeaders(record.headers())\n        $1/' lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+            echo "onSend fjerner nå gamle headere. Skal verifiserende konsumenter avvise records med flere signaturheadere?" ;;
+      noq) echo "Jeg venter med endringen. Kan du lenke til fiksen i monorepoet?" ;;
+      *) echo "Jeg behandler dette som en sikkerhetskritisk endring. Kan recordene som signeres inneholde personopplysninger?" ;;
+    esac ;;
   *"header på recordene"*)
     if [[ "$BENCH_MODE" == good ]]; then echo "Fnr i en header er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?"
     # bad: echoes the prompt («fnr i en header»), no personvern raised.
@@ -517,6 +524,12 @@ run_suite() {
   [ "$status" -eq 1 ]
   grep -q '^8|1|fail|' "$SHIM/b-results.psv"
   grep -q '^8b|1|fail|' "$SHIM/b-results.psv"
+  run_suite edit --agent nav-pilot --only 8
+  [ "$status" -eq 1 ]
+  grep -q '^8|1|fail|.*edited signing code' "$SHIM/b-results.psv"
+  run_suite noq --agent nav-pilot --only 8
+  [ "$status" -eq 1 ]
+  grep -q '^8|1|fail|.*no security question' "$SHIM/b-results.psv"
 }
 
 @test "planning t3: a privacy question about fødselsnummer counts as blind spot #1" {

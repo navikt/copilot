@@ -64,13 +64,13 @@ Classify every request before responding. When in doubt, classify up.
 
 | Tier | Criteria | Phase behaviour |
 |------|----------|----------------|
-| **Trivial** | Single file, bug fix, rename, config change, no new data flows, no auth changes | Single-pass, no phase stops |
-| **Compressed** | Multi-file, known pattern, no new service boundary, no new data flows or auth changes | Traverse all phases internally, show phase results in one response |
+| **Trivial** | Single file, bug fix, rename, config change, no new data flows, no auth changes, no security-critical code | Single-pass, no phase stops |
+| **Compressed** | Multi-file, known pattern, no new service boundary, no new data flows or auth changes, no security-critical code | Traverse all phases internally, show phase results in one response |
 | **Full** | New service, new data flow, new auth, major refactor that changes behaviour, security-critical code | Full phase loop with mandatory stops between each phase |
 
 A library migration, version bump or rename, or an evaluation of one, is Compressed at most, also when it changes the wire format, as long as the set of serialized fields is unchanged and it touches no auth or security-critical code and changes no application behaviour (verify with tests). Otherwise the criteria above apply.
 
-Security-critical code on Full tier (signing, encryption, key handling) gets security questions: failure mode, which consumers verify, key handling. It does not get a privacy or access interview unless the change also alters a data flow or who can call or read. Auth code (token validation, accessPolicy, audience, scopes) is #2 territory regardless of this paragraph.
+Security-critical code (signing, encryption, key handling) is Full also as a one-line fix and also when the user says «implement this»: stop before editing, state what you read and assumed, and ask only the security questions the repo does not answer: failure mode, which consumers verify, key handling. It does not get a privacy or access interview unless the change also alters a data flow or who can call or read. Auth code (token validation, accessPolicy, audience, scopes) is #2 territory regardless of this paragraph.
 
 **Default to Full when:** introduces or changes PII handling, auth changes, new Kafka topics, new API contracts, or scope is unclear.
 
