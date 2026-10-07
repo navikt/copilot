@@ -400,13 +400,15 @@ Luna er akseptabel for planlegging bare hvis t2 består 5 av 5, og t3, t4, t5, t
 
 ## @security-champion målt direkte (7. oktober 2026)
 
-`@security-champion` er pinnet til Claude Opus 5.5 og skal merke en åpen `accessPolicy.inbound` som kritisk. Agenten er aldri målt med sin egen persona. Den nye testpakken `security` gir den samme branch som rv5–rv7, med én fil til: oppsettet av TokenX-validering, som ikke sjekker `audience`. sc1 krever at hver plantede sikkerhetsfeil er nevnt med riktig fil og linje. sc2 krever at hver av dem er merket kritisk (🔴, «kritisk» eller «critical»; «høy» er ikke nok). sc3 gir agenten en fil uten feil og teller funn merket kritisk.
+`@security-champion` er pinnet til Claude Opus 5.5 og skal merke en åpen `accessPolicy.inbound` som kritisk. Agenten er aldri målt med sin egen persona. Testene sc1–sc3 kjøres med `--agent security-champion`. De gir agenten den samme branchen som rv5–rv7. Der registrerer `App.kt` TokenX-validering uten `verifier`, og `validate` sjekker bare at det finnes en `audience`, ikke hvilken. sc1 krever at hver plantede sikkerhetsfeil er nevnt med riktig fil og linje. sc2 krever at hver av dem er nevnt og merket kritisk (🔴, «kritisk» eller «critical»; «høy» er ikke nok). En rad uten egen prioritet arver prioriteten fra overskriften den står under. sc3 gir agenten en fil uten feil og teller funn merket kritisk. Testene er ikke en egen testpakke og står derfor ikke i `summary.json` eller på `/modeller`.
 
 ### Kriteriene ble satt før målingen
 
 De plantede sikkerhetsfeilene er fødselsnummer i loggen, SQL bygget med strengsammenslåing, en rute utenfor `authenticate("tokenx")`, TokenX-validering uten sjekk av `audience` og `accessPolicy.inbound` som slipper inn alle. Personaen er akseptabel med en modell bare hvis hver av de fem feilene er funnet og merket kritisk i minst 9 av 10 kjøringer, og medianen for funn merket kritisk på fila uten feil er 0.
 
 Armene er Claude Opus 5.5 Low (pinnen) og GPT-6 Sol Low (reservemodellen), ti kjøringer hver i Copilot CLI. Testoppsettet fjerner modellpinnen. En kjøring der bruksradene viser en annen modell, forkastes. Budsjettet er om lag 600 credits for Opus og 350 for Sol, med stopp ved 1 200 til sammen. Forbruket sjekkes etter Opus-armen. Er det over budsjettet, kjøres ikke Sol. Mønstrene kan justeres etter én pilotkjøring med Opus, men låses i en egen commit før hovedkjøringene. Målingen endrer ingen pinner.
+
+Pilotkjøringen ([2026-10-07-security-champion-pilot](golden-baselines/2026-10-07-security-champion-pilot/)) oppga ingen linjenumre. Agenten skrev for eksempel «i `VedtakRepository.hentForPerson`». Personaen ber ikke om linjenumre, så et krav om linje ville målt formatet. Derfor leser sc2 funnet uten linje, med ett mønster per feil som ikke treffer de andre funnene. sc1 beholder fil og linje og rapporteres, men inngår ikke i kriteriet. Kriteriet over er sc2 per feil og sc3. Pilotens `results.psv` er skåret med de første mønstrene. Regnet med de låste mønstrene var SQL, tilgang og inbound merket kritisk, mens logging av fødselsnummer og TokenX-valideringen sto under 🟠 Høy.
 
 ## Pinner og delegering
 

@@ -19,6 +19,9 @@ nothing.
                             a SPEC named `!navn` must not carry one
   taus    TX                no finding row carries a high-priority marker,
                             and the answer says there is nothing critical
+  kritisk TX SPEC...        each defect's row is marked critical (🔴,
+                            «kritisk», «critical»; «høy» is not enough)
+  kritiske TX               count finding rows marked critical; passes on 0
 
 SPEC is `navn=regex@linje[,linje]`: a transcript line matching regex names the
 defect, and it is located when that same line cites one of the given line
@@ -295,6 +298,56 @@ def taus(text):
     return None
 
 
+# @security-champion (sc2, sc3): critical, not merely high. A row is critical
+# when its own priority says so (the Priority cell in a table, else the row
+# text), or when it carries no priority and sits under a heading that does
+# («### 🔴 Kritiske funn»). A clean verdict heading («Ingen kritiske funn»)
+# marks nothing.
+CRIT = re.compile(r"(?<![\wæøå])(kritisk\w*|critical)|🔴", re.IGNORECASE)
+HEADING = re.compile(r"^\s*(#+\s|\*\*[^*]+\*\*:?\s*$)")
+
+
+def critical_rows(text):
+    # A heading with no priority of its own («### 1. SQL-injeksjon») under a
+    # priority heading keeps it; one at the same level or above ends it.
+    out, ctx, level = [], False, 0
+    for r in answer_lines(text):
+        own = None
+        if r.lstrip().startswith("|"):
+            cells = [c for c in r.split("|") if PRIO_EMOJI.search(c) or PRIO_WORD.fullmatch(c)]
+            if cells:
+                own = bool(CRIT.search(cells[0]))
+        elif PRIO_EMOJI.search(r) or CRIT.search(r):
+            own = bool(CRIT.search(r)) and not CLEAN.search(r)
+        if HEADING.match(r):
+            lv = len(r.lstrip()) - len(r.lstrip().lstrip("#")) or 7
+            if own is not None:
+                ctx, level = own, lv
+            elif lv <= level:
+                ctx, level = False, 0
+        out.append((r, ctx if own is None else own))
+    return out
+
+
+def kritisk(text, specs):
+    flags = critical_rows(text)
+    rows = [r for r, _ in flags]
+    crit = {r for r, c in flags if c}
+    bad = []
+    for name, alts in grouped(specs).items():
+        near = [r for regex, want, fil in alts for r in located(rows, regex, want, fil)]
+        if not near:
+            bad.append(f"{name} not named near its line")
+        elif not any(r in crit for r in near):
+            bad.append(f"{name} not marked critical")
+    return f"critical: {', '.join(bad)}" if bad else None
+
+
+def kritiske(text):
+    rows = [r for r, c in critical_rows(text) if c and _block(r) and not RED_ZONE.search(r)]
+    return f"{len(rows)} critical finding row(s): {rows[0].strip()[:80]}" if rows else None
+
+
 LOCATION = re.compile(r"\.kts?:\d+|linje \d+|line \d+", re.IGNORECASE)
 
 
@@ -306,6 +359,10 @@ def check(cmd, args):
         return prioritet(Path(args[0]).read_text(), args[1:])
     if cmd == "taus":
         return taus(Path(args[0]).read_text())
+    if cmd == "kritisk":
+        return kritisk(Path(args[0]).read_text(), args[1:])
+    if cmd == "kritiske":
+        return kritiske(Path(args[0]).read_text())
     text = Path(args[0]).read_text()
     if cmd == "nynorsk":
         found = {m.group(1).lower() for m in NYNORSK_RE.finditer(text)}
@@ -458,6 +515,17 @@ def selftest():
         ("funnet", "Feil: send til DLQ.\n", DW, False),
         ("funnet", "Meldinger som feilet sendes til DLQ.\n", DW, False),
         ("funnet", "Fang feil ved deserialisering, og send meldingen til en DLQ.\n", DW, False),
+        # sc2/sc3: critical, not high; a heading carries it to rows without a priority.
+        ("kritisk", "| `R.kt` | 23 | 🔴 Kritisk | SQL-injeksjon |\n", ["sql=injeksjon@R.kt:23"], True),
+        ("kritisk", "| `R.kt` | 23 | 🟠 Høy | SQL-injeksjon |\n", ["sql=injeksjon@R.kt:23"], False),
+        ("kritisk", "### 🔴 Kritiske funn\n\n1. SQL-injeksjon i `R.kt:23`\n", ["sql=injeksjon@R.kt:23"], True),
+        ("kritisk", "### 🔴 Kritiske funn\n\n### 🟡 Medium\n\n1. SQL-injeksjon i `R.kt:23`\n", ["sql=injeksjon@R.kt:23"], False),
+        ("kritisk", "Ser bra ut.\n", ["sql=injeksjon@R.kt:23"], False),
+        ("kritisk", "## 🔴 Kritisk\n\n### 1. SQL-injeksjon i `R.kt:23`\n", ["sql=injeksjon@R.kt:23"], True),
+        ("kritisk", "## 🔴 Kritisk\n\n## Øvrig\n\n### 1. SQL-injeksjon i `R.kt:23`\n", ["sql=injeksjon@R.kt:23"], False),
+        ("kritiske", "### Ingen kritiske funn\n\n- `S.kt:37`: vurder strukturert logging (lav)\n", [], True),
+        ("kritiske", "### 🔴 Kritisk\n\n- SQL-injeksjon i `S.kt:26`\n", [], False),
+        ("kritiske", "| `S.kt` | 26 | 🟠 Høy | azp sjekkes ikke |\n", [], True),
     ]
     failed = 0
     with tempfile.TemporaryDirectory() as tmp:
@@ -484,6 +552,8 @@ if __name__ == "__main__":
     if reason:
         print(reason)
         sys.exit(1)
+    if sys.argv[1] == "kritiske":
+        print("0 critical finding rows")
     if sys.argv[1] == "taus":
         # rv8's verdict needs the count on a pass too (docs/modellvalg.md).
         print("0 spurious high-priority rows")

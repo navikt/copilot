@@ -345,6 +345,7 @@ case "$GROUP" in
   forfatter)     VALID_IDS="no1 no2 no3 no4" ;;
   coding)        VALID_IDS="ko1 ko2 ko3 ko4 ko5 ko6" ;;
   research)      VALID_IDS="re1 re2 re3 re4" ;;
+  security-champion) VALID_IDS="sc1 sc2 sc3" ;;
   *) fail_preflight \
       "no assertion group for agent '$AGENT'" \
       "This harness has prompts and assertions for: nav-pilot, code-review, accessibility, forfatter (and --suite coding). Add a run_pass_<agent> derived from that agent's own file before benchmarking it." ;;
@@ -857,7 +858,7 @@ if [[ "$AGENT" == "accessibility" && -d "$REPO_ROOT/.github/hooks" ]]; then
   HOOK_ENV=(GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true "NAV_PILOT_HOOK_DEBUG=$HOOK_LOG")
 fi
 
-if [[ "$GROUP" == "code-review" || "$GROUP" == "accessibility" ]]; then
+if [[ "$GROUP" == "code-review" || "$GROUP" == "accessibility" || "$GROUP" == "security-champion" ]]; then
   mkdir -p "$TEMPLATE/src/app/komponenter"
 
   cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/UserRepo.kt" <<'EOF'
@@ -3189,6 +3190,63 @@ rv_check() {
   record "$id" "$(rv_desc "$id")" "$([[ $rc -eq 0 ]] && echo 0 || echo 1)" "$why"
 }
 
+# ─── security-champion: planted security defects marked critical (sc1-sc3) ────
+# Derived from agents/security-champion.agent.md: «Security Considerations for
+# Auth» (validate issuer and audience; an open accessPolicy.inbound is a
+# critical finding) and `## Boundaries → 🚫 Never` (string-built SQL, logging
+# FNR). The fixture is seed_vedtak_branch, the same branch as rv5-rv7; its
+# App.kt:40-42 registers jwt("tokenx") with no verifier, and validate only
+# checks that an audience claim exists, not which one. Run with
+# `--agent security-champion`; it is not a --suite, so it stays out of
+# summary.json and /modeller (docs/modellvalg.md has the results).
+SC_PR=(
+  "${RV_PR[@]}"
+  'tokenx=audience|\baud\b|verifier|verify|signatur|signature|issuer|utsteder|jwks|tokenvalider|token-valider|validering av token|valideres ikke|ikke validert@App.kt:40,41,42'
+)
+# sc2 reads the finding, not its line. The Opus 5.5 Low pilot (7 Oct,
+# docs/golden-baselines/2026-10-07-security-champion-pilot/) cited no line
+# numbers at all («i `VedtakRepository.hentForPerson`»): the persona never asks
+# for them, so a line requirement would measure format. sc1 keeps file and line
+# and is reported; sc2 is the pre-committed criterion. Each regex names its
+# defect on its own, because there is no line to place it: the pilot's
+# ownership row («Enhver gyldig TokenX-bruker») must not count as tilgang.
+SC_CRIT=(
+  'fnr-logg=(logg|logger|log|info).{0,80}(fnr|fødselsnummer)|(fnr|fødselsnummer).{0,80}logg@0'
+  'sql=injeksjon|injection|konkaten|concat|sammensl|rett inn i (sql|spørring)|direkte inn i (sql|spørring)@0'
+  'tilgang=/api/vedtak/\{fnr\}.{0,80}(autentiser|authenticate|tilgang|beskytt)|utenfor .{0,30}authenticate|ingen autentisering|uten autentisering|uautentisert|ubeskyttet@0'
+  'inbound=inbound|accesspolicy@0'
+  'tokenx=audience|\baud\b|verifier|issuer|utsteder|jwks|signatur|signature@0'
+)
+DESC_SC1="branch: every planted security defect on the right line in the right file"
+DESC_SC2="branch: every planted security defect named and marked critical"
+DESC_SC3="clean service: no finding marked critical"
+
+run_pass_security_champion() {
+  if selected sc1 || selected sc2; then
+    TSC="$(tx sc-pr)"
+    WS_EXTRA=seed_vedtak_branch
+    if ! run_prompt sc-pr "gjør en sikkerhetsgjennomgang av endringene i branchen vedtak-kafka mot main"; then
+      for id in sc1 sc2; do
+        selected "$id" && record_error "$id" "$(rv_desc "$id")" "$LAST_PROMPT_DETAIL"
+      done
+    else
+      rv_check sc1 linje "$TSC" "${SC_PR[@]}"
+      rv_check sc2 kritisk "$TSC" "${SC_CRIT[@]}"
+    fi
+    WS_EXTRA=""
+  fi
+  if selected sc3; then
+    TSCC="$(tx sc-clean)"
+    WS_EXTRA=seed_sak_service
+    if ! run_prompt sc-clean "gjør en sikkerhetsgjennomgang av src/main/kotlin/no/nav/demo/sak/SakService.kt"; then
+      record_error sc3 "$DESC_SC3" "$LAST_PROMPT_DETAIL"
+    else
+      rv_check sc3 kritiske "$TSCC"
+    fi
+    WS_EXTRA=""
+  fi
+}
+
 # ─── accessibility ───────────────────────────────────────────────────────────
 # Derived from agents/accessibility.agent.md. Its substance is WCAG: the tables
 # at :32-74 map every requirement to a numbered success criterion, and an answer
@@ -3548,6 +3606,7 @@ run_pass() {
     forfatter)     run_pass_forfatter ;;
     coding)        run_pass_coding ;;
     research)      run_pass_research ;;
+    security-champion) run_pass_security_champion ;;
   esac
 }
 
