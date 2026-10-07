@@ -50,6 +50,7 @@ func TestOpenCode2LiveBridge(t *testing.T) {
 		{"shell", map[string]any{"command": "echo forbidden", "description": "x"}},
 		{"shell", map[string]any{"command": "echo token=" + token, "description": "x"}},
 		{"probe_ping", map[string]any{}},
+		{"reenabled_ping", map[string]any{}},
 	}}
 	srv := httptest.NewServer(llm)
 	defer srv.Close()
@@ -64,21 +65,35 @@ func TestOpenCode2LiveBridge(t *testing.T) {
 				"hook_redact_secrets=true", "hook_redact_fnr=true", "hook_injection_note=false"}, Timeout: 10, FailClosed: true}},
 			Pre: []BridgeHook{{Name: "vakt", Command: "/bin/sh " + gate, Matcher: "bash", Timeout: 5}}}
 	}
-	env := []string{MCPBlockedEnv + `={"blocked":["probe"],"listed":[]}`}
+	// The MCP server sits in the user's config in opencode 2's own shape, and
+	// the registry does not list it. Not the project's: opencode 2.0.24 did
+	// not start a project's MCP server in `run --standalone` in any shape.
+	proj := filepath.Join(work, "proj")
+	started, restarted := filepath.Join(work, "probe-started"), filepath.Join(work, "reenabled-started")
+	_ = os.MkdirAll(proj, 0o755)
+	_ = exec.Command("git", "-C", proj, "init", "-q").Run()
+	pcfg, _ := json.Marshal(map[string]any{"mcp": map[string]any{"servers": map[string]any{
+		"probe": map[string]any{"type": "local", "command": []string{node, mcp, started}, "codemode": false}}}})
+	mustWrite(t, filepath.Join(openCodeConfigDir(), "opencode.json"), string(pcfg))
+	origPolicy, origReg := fetchMCPPolicy, fetchMCPRegistry
+	t.Cleanup(func() { fetchMCPPolicy, fetchMCPRegistry = origPolicy, origReg })
+	fetchMCPPolicy = func() (string, error) { return "https://registry/", nil }
+	fetchMCPRegistry = func(string) (mcpRegistry, error) { return mcpRegistry{}, nil }
+	env := applyOpenCodeMCPPolicy(nil, proj)
+	// A blocked server that is running anyway, as after /mcp turns it back
+	// on: the bridge refuses its tools.
+	env = append(env, MCPBlockedEnv+`={"blocked":["probe","reenabled"],"listed":[]}`)
 	env = withOpenCodeConfigContent(env, map[string]any{
+		"mcp": map[string]any{"reenabled": map[string]any{"type": "local", "command": []string{node, mcp, restarted}, "codemode": false}},
 		"provider": map[string]any{"fake": map[string]any{"npm": "@ai-sdk/openai-compatible", "name": "Fake",
 			"options": map[string]any{"baseURL": srv.URL + "/v1", "apiKey": "x"},
 			"models":  map[string]any{"m": map[string]any{"name": "m", "tool_call": true}}}},
-		"mcp": map[string]any{"probe": map[string]any{"type": "local", "command": []string{node, mcp}}},
 	})
 	env, _ = applyOpenCodeHooks(domain.ResolvedConfig{}, env, nil)
 	if !strings.Contains(strings.Join(env, "\n"), `"plugins":["`) {
 		t.Fatalf("no plugins dir staged: %v", env)
 	}
 
-	proj := filepath.Join(work, "proj")
-	_ = os.MkdirAll(proj, 0o755)
-	_ = exec.Command("git", "-C", proj, "init", "-q").Run()
 	// The arguments a `nav-pilot -- run go` launch builds, rewritten for v2.
 	args, env := openCodeV2Args(openCodeClientArgs([]string{"--agent", "build", "--auto", "--model", "fake/m", "--log-level", "WARN"}, []string{"run", "go"}, ""), env)
 	t.Logf("opencode %s", strings.Join(args, " "))
@@ -108,6 +123,14 @@ func TestOpenCode2LiveBridge(t *testing.T) {
 	if strings.Contains(all, token) {
 		t.Error("the model read the raw token")
 	}
+	if _, err := os.Stat(started); err == nil {
+		t.Error("the MCP server the registry does not list was started")
+	}
+	// The control: a server not turned off does start, so the check above can fail.
+	if _, err := os.Stat(restarted); err != nil {
+		t.Error("the re-enabled MCP server never started, so its block proves nothing")
+	}
+
 	if strings.Contains(all, "PONG-FROM-MCP") {
 		t.Error("the blocked MCP server's tool ran")
 	}
@@ -121,6 +144,8 @@ func tail(s string, n int) string {
 }
 
 const mcpServerJS = `import readline from "node:readline"
+import fs from "node:fs"
+fs.writeFileSync(process.argv[2], "started")
 const rl = readline.createInterface({ input: process.stdin })
 const send = (o) => process.stdout.write(JSON.stringify(o) + "\n")
 rl.on("line", (l) => {

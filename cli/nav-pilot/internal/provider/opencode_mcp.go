@@ -333,6 +333,36 @@ func openCodeMCPServersIn(docs [][]byte) map[string]mcpServer {
 			continue
 		}
 		for name, raw := range cfg.MCP {
+			// opencode 2's own shape: mcp.servers.<name>, mcp.timeout. A
+			// key of either name is a server only with a type, as opencode
+			// 2 reads it (core/src/config/normalize.ts at v2.0.24). The
+			// servers are read on any version: one that opencode 1 ignores
+			// costs a registry check, one that is missed runs unchecked.
+			if name == "servers" || name == "timeout" {
+				var probe struct {
+					Type string `json:"type"`
+				}
+				if json.Unmarshal(raw, &probe) == nil && probe.Type != "local" && probe.Type != "remote" {
+					if name == "servers" {
+						var native map[string]json.RawMessage
+						_ = json.Unmarshal(raw, &native)
+						for n, r := range native {
+							s := servers[n]
+							var d struct {
+								Disabled *bool `json:"disabled"`
+							}
+							if json.Unmarshal(r, &s) == nil && json.Unmarshal(r, &d) == nil {
+								if d.Disabled != nil {
+									on := !*d.Disabled
+									s.Enabled = &on
+								}
+								servers[n] = s
+							}
+						}
+					}
+					continue
+				}
+			}
 			s := servers[name]
 			if json.Unmarshal(raw, &s) == nil {
 				servers[name] = s
@@ -446,8 +476,20 @@ func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
 		return env
 	}
 	mcp := map[string]any{}
+	v2 := openCodeMajor() >= 2
 	for _, name := range off {
-		mcp[name] = map[string]any{"enabled": false}
+		if !v2 {
+			mcp[name] = map[string]any{"enabled": false}
+			continue
+		}
+		// opencode 2 drops an entry that only says enabled, so the server
+		// would run: it needs the type and the command or URL as well.
+		s := servers[name]
+		e := map[string]any{"type": "local", "command": s.Command, "enabled": false}
+		if s.Type == "remote" || s.Type == "" && len(s.Command) == 0 {
+			e = map[string]any{"type": "remote", "url": s.URL, "enabled": false}
+		}
+		mcp[name] = e
 	}
 	fmt.Fprintf(os.Stderr, "%s MCP servers turned off for this session (not in Nav's MCP registry): %s. See %s\n",
 		domain.Yellow("⚠"), strings.Join(off, ", "), MCPRegistryHelpURL)
