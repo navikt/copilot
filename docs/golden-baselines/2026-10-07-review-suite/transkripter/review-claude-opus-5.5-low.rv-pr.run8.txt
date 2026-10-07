@@ -1,0 +1,44 @@
+
+
+
+### Oppsummering
+Gjennomgangen gjelder én commit (`0dc2818`). Strukturen er grei: consumer → service → repository, og `lagre`/`hentForSak` bruker parametriserte spørringer. Branchen er likevel ikke klar for merge. Den har SQL-injeksjon, et vedtaksendepunkt uten autentisering, fødselsnummer i URL og logg, og en JWT-validering som slipper gjennom tokens den ikke har sjekket.
+
+Jeg har ikke kjørt `mise check`. Repoet har ingen mise-oppgaver og ingen Gradle-wrapper eller settings-fil. Alle funnene kommer fra å lese koden, og linjenumrene er sjekket mot `vedtak-kafka`.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i spørringen |
+| `Routes.kt` | 30–32 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` og sjekker ikke tilgang |
+| `Routes.kt` | 30 | 🔴 | Fødselsnummer i URL-stien havner i access-logger og proxy-logger |
+| `App.kt` | 39–43 | 🔴 | JWT-oppsettet mangler verifier, issuer og sjekk av at audience er riktig |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` logger fødselsnummer |
+| `nais.yaml` | 25–26 | 🔴 | `inbound` tillater alle apper i alle namespaces |
+| `VedtakConsumer.kt` | 24–27 | 🔴 | En melding som ikke kan leses, eller som feiler tre ganger, krasjer tråden uten commit. Appen svarer fortsatt «ready» |
+| `VedtakConsumer.kt` | 32–33 | 🔴 | Ikke idempotent: en ny levering av samme melding gir et nytt vedtak med ny UUID. Lagring og publisering er ikke atomisk |
+| (mangler) | – | 🔴 | Ingen Flyway-migrasjon for tabellen `vedtak` |
+| `App.kt` | 25–33 | 🟡 | Kafka-config mangler SSL og keystore fra Nais (`KAFKA_*`). Den kobler ikke til Aiven |
+| `nais.yaml` | 16 | 🟡 | `kafka.pool: nav-dev` er hardkodet i et manifest uten miljøskille |
+| `App.kt` | 36 | 🟡 | Consumer-tråden har ingen shutdown-hook og ingen kobling til `isready` |
+| `VedtakService.kt` | 21 | 🟡 | `LocalDate.now()` gjør testene tidsavhengige. Bruk en injisert `Clock` |
+| (mangler) | – | 🟡 | Ingen tester for service, consumer eller routes |
+| `build.gradle.kts` | 13 | 💭 | To `dependencies`-blokker. Slå dem sammen |
+| `VedtakService.kt` | 4 | 💭 | `java.util.Locale` er importert, men ikke brukt |
+
+### Detaljer
+
+**SQL-injeksjon** 🔴 Rød sone. Med `fnr = "' OR '1'='1"` får kallet alle vedtak.
+```kotlin
+queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)
+```
+
+**Oppslag på fødselsnummer** 🔴 Rød sone. Endepunktet er åpent, og hvem som helst kan slå opp vedtak for hvem som helst. Flytt det inn i `authenticate("tokenx")` og send fødselsnummeret i body eller header, for eksempel `POST /api/vedtak/sok`. Sjekk også at kalleren har lov til å se personen. Når det er en innbygger, skal `pid` i tokenet være lik `fnr`.
+
+**JWT** 🔴 Rød sone. Uten `verifier(jwkProvider, issuer)` validerer ikke oppsettet signatur eller issuer mot `TOKEN_X_JWKS_URI` og `TOKEN_X_ISSUER`. `audience?.let` godtar alle audience-verdier. Sammenlign med `TOKEN_X_CLIENT_ID`, se `$nav-auth`.
+
+**Consumer** 🔴 Rød sone. Dette er kjernelogikk. Gjør `vedtak` idempotent med for eksempel `UNIQUE(soknad_id)` og `ON CONFLICT DO NOTHING`. Send ugyldige meldinger til en DLQ eller logg dem uten personopplysninger, og la ikke tråden dø. Lagre og publiser gjennom et outbox-mønster, eller tål duplikater hos dem som konsumerer.
+
+Still gjerne spørsmål om valgene over.
+

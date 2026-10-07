@@ -1,0 +1,29 @@
+
+
+### Oppsummering
+Jeg fant ingen blokkerende feil. Fødselsnummeret hentes fra `pid`-claimet i tokenet, ikke fra brukerens input. Dermed får brukeren bare se sine egne saker. Spørringen er parametrisert, og fødselsnummeret maskeres i loggene. I `App.kt` sjekker TokenX-oppsettet audience og `acr=idporten-loa-high`. Jeg kjørte ikke `mise check`, og prosjektet har ingen tester (`src/test` finnes ikke).
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `SakService.kt` | 24–30, 55 | 🟡 | Blokkerende JDBC-kall kjøres rett i Ktor-handleren |
+| `SakService.kt` | 38–43 | 🟡 | Feilen logges og kastes videre, så den blir logget to ganger |
+| `SakService.kt` | – | 🟡 | Mangler tester |
+| `SakService.kt` | 47–58 | 💭 | Ruten ligger i samme fil som servicen og repositoryet |
+| `SakService.kt` | 37 | 💭 | `info`-logg på hvert kall med maskert fødselsnummer gir lite verdi |
+
+### Detaljer
+- **JDBC-kallet:** Kallet blokkerer en av Ktors coroutine-tråder. Under last kan det sulte ut serveren. Pakk kallet inn i `withContext(Dispatchers.IO)`, og gjør `sakerFor` til `suspend`.
+- **Dobbel logging:** Loggen med maskert fødselsnummer gir ikke mer informasjon enn feilsporet. Fjern `try/catch`, og la `StatusPages` logge feilen og svare med 500. Da forsvinner også risikoen for at teksten i en SQL-feil havner i loggen to ganger.
+- **Tester:** Skriv tester for disse tilfellene:
+  - token uten `pid`, som skal gi 401
+  - person uten saker, som skal gi en tom liste
+  - sortering på `opprettet`
+
+  Bruk `MockOAuth2Server` og Testcontainers.
+
+🔴 Rød sone: tilgangskontrollen avhenger helt av `pid`-claimet. Gå nøye gjennom alle senere endringer som tar inn fødselsnummer fra path eller query.
+
+Still gjerne spørsmål om valgene over.
+
