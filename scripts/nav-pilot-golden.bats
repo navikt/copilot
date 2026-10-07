@@ -561,7 +561,8 @@ run_suite() {
            'Jeg legger til grunn at branchen ikke legger til nye personopplysninger. Må byteformatet være uendret?' \
            'Personvern er besvart av koden (#1). Hvordan rulles branchen tilbake?' \
            'Hvem konsumerer topicen og verifiserer signaturen?' \
-           'Hvem skal ha tilgang til signeringsnøkkelen?'; do
+           'Hvem skal ha tilgang til signeringsnøkkelen?' \
+           'Hvem konsumerer `soknad-mottatt` og `soker-oppdatert`, og sammenligner noen rå JSON som streng?'; do
     printf '%s\n' "$q" >"$f"
     if asks_privacy "$f" >/dev/null; then echo "should pass: $q"; false; fi
   done

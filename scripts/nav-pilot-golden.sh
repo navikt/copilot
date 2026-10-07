@@ -1489,7 +1489,7 @@ RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]
 RE_ASK_PRIV='personopplysning|personvern|persondata|fødselsnummer|helseopplysning|GDPR|datakategori|behandlingsgrunnlag|klassifisering'
 RE_ASK_ACCESS='tilgang|hvem[[:space:]]+(kan|skal|leverer|kaller|bruker)'
 RE_ASK_WHO='hvem[[:space:]]+(leser|konsumerer|produserer)'
-RE_ASK_COMPAT='format|tåler|kompatib|feltrekkefølge|datoformat|felt(rekkefølge|navn)'
+RE_ASK_COMPAT='format|tåler|kompatib|feltrekkefølge|datoformat|felt(rekkefølge|navn)|json|streng'
 # Security questions about keys and verification (test 8) are not access questions.
 RE_ASK_SEC='nøkkel|signatur|verifiser'
 # Prints the first privacy/access question to the user; status 0 if there is one.
