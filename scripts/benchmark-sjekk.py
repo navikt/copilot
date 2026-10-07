@@ -181,7 +181,11 @@ def words(text):
 # uses for it. «høy» and not «høyt»: «høyt nivå» is not a priority.
 HIGH = re.compile(r"(?<![\wæøå])(kritisk|blokker|blocker|critical|høy(?![\wæøå])|P0(?!\w))|🔴", re.IGNORECASE)
 # «Ingen kritiske funn», «no blocking issues»: the clean verdict rv8 wants.
-CLEAN = re.compile(r"ingen\s+(kritiske|alvorlige|blokkerende)|no\s+(blocking|critical)|ingen\s+🔴", re.IGNORECASE)
+# «No blockers in `SakService.kt`» is Opus' wording (second check run, 7 Oct).
+CLEAN = re.compile(r"ingen\s+(kritiske|alvorlige|blokkerende|blokkere|blockere)|no\s+(blocking|critical|blockers?)|ingen\s+🔴", re.IGNORECASE)
+
+
+RED_ZONE = re.compile(r"rød\s+sone|red\s+zone", re.IGNORECASE)
 
 
 def prioritet(text, specs):
@@ -201,7 +205,10 @@ def prioritet(text, specs):
 
 def spurious(text):
     """Rows that put a high-priority marker on a line number."""
-    return [r for r in answer_lines(text) if HIGH.search(r) and cited_lines(r) and not CLEAN.search(r)]
+    # «🔴 Rød sone: … linje 50» is the persona's red-zone declaration, not a
+    # finding (Opus check run on the clean file, 7 Oct).
+    return [r for r in answer_lines(text)
+            if HIGH.search(r) and cited_lines(r) and not CLEAN.search(r) and not RED_ZONE.search(r)]
 
 
 def taus(text):
@@ -337,6 +344,7 @@ def selftest():
         ("taus", "| `S.kt` | 37 | 💭 | vurder strukturert logging |\n\nIngen kritiske funn.\n", [], True),
         ("taus", "| `S.kt` | 26 | 🔴 | SQL-injeksjon |\n\nIngen kritiske funn ellers.\n", [], False),
         ("taus", "Koden ser fin ut.\n", [], False),
+        ("taus", "Ingen kritiske funn.\n🔴 Rød sone: tilgangskontrollen på linje 50.\n", [], True),
         ("taus", "Høyt nivå: ingen kritiske funn. Linje 20 maskerer fnr.\n", [], True),
     ]
     failed = 0

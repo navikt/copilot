@@ -1,0 +1,32 @@
+● Read file (shell)
+  │ cat -n src/main/kotlin/no/nav/demo/sak/SakService.kt; ls; ls src/main/kotlin/no/nav/demo/sak/
+  └ 63 lines…
+
+● Check tests and tooling (shell)
+  │ find src -type f; ls -a; which mise; cat nais.yaml | head -50
+  └ 27 lines…
+
+● Check auth config (shell)
+  │ grep -n -i "tokenx\|acr\|audience\|StatusPages\|jwt" src/main/kotlin/no/nav/demo/*.kt
+  └ 6 lines…
+
+### Oppsummering
+Filen er i god stand. Spørringen er parameterisert. Fødselsnummeret hentes fra `pid`-claimet i tokenet og ikke fra en parameter i forespørselen, så brukeren kan bare se sine egne saker. Fødselsnummeret blir heller ikke logget i klartekst. I `App.kt` validerer `tokenx`-konfigurasjonen både audience og `acr=idporten-loa-high`. Jeg fant ingen blokkerende feil.
+
+Jeg fikk ikke kjørt `mise check`. Repoet mangler `mise.toml` og har ingen tester under `src/test`.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | – | 🟡 | Ingen tester. Det mangler en route-test med MockOAuth2Server som sjekker at et token uten `pid` gir 401, og at et gyldig token bare gir egne saker. |
+| `SakService.kt` | 41 | 🟡 | Hele unntaket `e` blir logget. Feilmeldinger fra JDBC eller Postgres kan inneholde parameterverdier, og dermed fødselsnummeret. Logg heller unntakstypen og en korrelasjons-ID, eller sjekk at `sak`-spørringen aldri kan gi feilmeldinger med verdier. |
+| `SakService.kt` | 38–43 | 🟡 | `catch` logger og kaster unntaket videre. Hvis StatusPages eller Ktor også logger det, blir samme feil logget to ganger. Velg ett sted å logge. |
+| `SakService.kt` | 20 | 💭 | `maskert()` erstatter hvert tegn med `*`, så loggen sier ingenting. Uansett gir `"***********"` ingen sporbarhet. Bruk heller en intern sak- eller person-ID, eller fjern parameteren. KDoc-en stemmer med oppførselen. |
+| `SakService.kt` | 37 | 💭 | Info-loggen kjører på hvert kall og gir lite verdi. Vurder `debug` eller fjern den. |
+| `SakService.kt` | 26 | 💭 | Spørringen har ingen paginering eller `LIMIT`. Det kan bli et problem for personer med mange saker. |
+| `SakService.kt` | 16–58 | 💭 | Filen inneholder modell, repository, service og routes. Del den gjerne opp etter lag, for eksempel `SakRepository.kt` og `SakRoutes.kt`. |
+
+### Detaljer
+Vurderingen av eierskap og tilgang: Siden `fnr` kommer fra et validert TokenX-token med nivå høyt, er det gjort riktig. Dette er rød sone, så legg inn en test som sikrer det.
+

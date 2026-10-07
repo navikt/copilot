@@ -2611,6 +2611,59 @@ EOF
 seed_sak_service() {
   [[ -d "$WS/src/main/kotlin/no/nav/demo" ]] || return 1
   mkdir -p "$WS/src/main/kotlin/no/nav/demo/sak"
+  # Without these the file does not compile, which is a real 🔴 (Opus check
+  # run, 7 Oct): the clean file must be clean in the build too.
+  cat >>"$WS/build.gradle.kts" <<'EOF'
+dependencies {
+    implementation("io.ktor:ktor-server-auth:3.0.0")
+    implementation("io.ktor:ktor-server-auth-jwt:3.0.0")
+    implementation("com.github.seratch:kotliquery:1.9.0")
+    implementation("org.postgresql:postgresql:42.7.4")
+    implementation("ch.qos.logback:logback-classic:1.5.12")
+    implementation("com.zaxxer:HikariCP:6.2.1")
+}
+EOF
+  # Wired up with a tokenx provider: an unregistered provider is a real 🔴
+  # (second Opus check run, 7 Oct).
+  cat >"$WS/src/main/kotlin/no/nav/demo/App.kt" <<'EOF'
+package no.nav.demo
+
+import com.auth0.jwk.JwkProviderBuilder
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.install
+import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.jwt.JWTPrincipal
+import io.ktor.server.auth.jwt.jwt
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.routing.routing
+import no.nav.demo.sak.SakRepository
+import no.nav.demo.sak.SakService
+import no.nav.demo.sak.sakRoutes
+import java.net.URI
+
+fun main() {
+    val dataSource = HikariDataSource(HikariConfig().apply { jdbcUrl = System.getenv("DB_JDBC_URL") })
+    val service = SakService(SakRepository(dataSource))
+    embeddedServer(Netty, port = 8080) {
+        install(ContentNegotiation) { json() }
+        install(Authentication) {
+            jwt("tokenx") {
+                verifier(JwkProviderBuilder(URI(System.getenv("TOKEN_X_JWKS_URI")).toURL()).build(), System.getenv("TOKEN_X_ISSUER")) {
+                    withAudience(System.getenv("TOKEN_X_CLIENT_ID"))
+                    withClaim("acr", "idporten-loa-high")
+                }
+                validate { credential -> JWTPrincipal(credential.payload) }
+            }
+        }
+        oppgaveRoutes()
+        routing { sakRoutes(service) }
+    }.start(wait = true)
+}
+EOF
   cat >"$WS/src/main/kotlin/no/nav/demo/sak/SakService.kt" <<'EOF'
 package no.nav.demo.sak
 
