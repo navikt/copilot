@@ -45,6 +45,7 @@ Målt 23. september 2026 med Copilot CLI 1.0.88-2, standard kontekstvindu og fem
 | ---------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
 | GPT-6 Luna Medium      | GPT-5.6 Luna Medium | Begge besto ti av ti avgrensede krav. GPT-6 Luna brukte 8,667 credits mot 15,894, med omtrent lik veggklokketid                            | Rull ut på `@research` og malpromptene. Behold GPT-5.6 Luna som fallback                                                            |
 | GPT-6 Sol High         | GPT-5.6 Sol High    | GPT-6 Sol hoppet over intervjuet i én av fem kjøringer, men fant alle sikkerhets- og auth-krav. GPT-5.6 Sol fulgte fasekravet i fem av fem | Bruk som standard for `@nav-pilot` og verktøytunge kodeagenter. Følg fasebrudd og behold GPT-5.6 Sol og GPT-5.3-Codex som fallbacks |
+| GPT-6.1 Sol            | Powerful            | $2.00                                                                                                                                      | $10.00                                                                                                                              | Målt i batch 4 (6. oktober 2026). Samme input- og outputpris som GPT-6 Sol; cachet input koster $0.10 mot $0.20. Lang kontekst over 272K: $4.00 / $15.00 |
 | Claude Opus 5.5 Medium | Claude Opus 5 High  | **Ugyldig, se rettelsen under.** Medium var raskere og billigere, men oppga feil linjenumre i to av fem TSX-gjennomganger                  | Bruk ikke Medium til kodegjennomgang der presise linjer er viktig                                                                   |
 | Claude Opus 5.5 High   | Claude Opus 5 High  | **Ugyldig, se rettelsen under.** Begge traff de plantede linjene i fem av fem. Opus 5.5 kostet 209,514 credits mot 186,763 og var tregere  | Rull ut på `@nav-pilot-opus` og `@code-review`. Behold Opus 5 og GPT-5.3-Codex som fallbacks                                        |
 
@@ -125,22 +126,38 @@ Batch 4 sammenligner GPT-6.1 Sol og Claude Opus 5.5 med GPT-6 Sol som standardmo
 
 Rådata ligger i [2026-10-06-batch4](golden-baselines/2026-10-06-batch4/), og feilene i planleggingen er klassifisert i [failures.psv](golden-baselines/2026-10-06-batch4/failures.psv). Planlegging, koding, norsk og research har fem kjøringer per arm, kodegjennomgang ti. Credits er medianen per kjøring. Alle tallene er målt, ikke anslått.
 
-| Testpakke          | GPT-6 Sol (kontroll) | GPT-6.1 Sol            | Claude Opus 5.5        |
-| ------------------ | -------------------- | ---------------------- | ---------------------- |
-| Planlegging, t2    | 5/5                  | 2/5                    | 5/5                    |
-| Planlegging, t3    | 5/5                  | 4/5                    | 5/5                    |
-| Planlegging, t4    | 4/5                  | 3/5                    | 5/5                    |
-| Planlegging, t5    | 5/5                  | 5/5                    | 5/5                    |
-| Planlegging, credits | 27,2               | 22,7                   | 50,8                   |
-| Koding             | 30/30, 24,7 credits  | 30/30, 25,3 credits    | 30/30, 47,9 credits    |
-| Kodegjennomgang    | 33/40, 15,4 credits  | 24/40, 17,1 credits    | 40/40, 24,4 credits    |
-| Norsk              | 20/20, 15,1 credits  | 20/20, 14,5 credits    | 20/20, 30,8 credits    |
-| Research           | 20/20, 13,0 credits  | 20/20, 14,7 credits    | 20/20, 35,8 credits    |
+| Testpakke            | GPT-6 Sol (kontroll) | GPT-6.1 Sol         | Claude Opus 5.5     |
+| -------------------- | -------------------- | ------------------- | ------------------- |
+| Planlegging, t2      | 5/5                  | 2/5                 | 5/5                 |
+| Planlegging, t3      | 5/5                  | 4/5                 | 5/5                 |
+| Planlegging, t4      | 4/5                  | 3/5                 | 5/5                 |
+| Planlegging, t5      | 5/5                  | 5/5                 | 5/5                 |
+| Planlegging, credits | 27,2                 | 22,7                | 50,8                |
+| Koding               | 30/30, 24,7 credits  | 30/30, 25,3 credits | 30/30, 47,9 credits |
+| Kodegjennomgang      | 33/40, 15,4 credits  | 24/40, 17,1 credits | 40/40, 24,4 credits |
+| Norsk                | 20/20, 15,1 credits  | 20/20, 14,5 credits | 20/20, 30,8 credits |
+| Research             | 20/20, 13,0 credits  | 20/20, 14,7 credits | 20/20, 35,8 credits |
 
 - **GPT-6.1 Sol erstatter ikke GPT-6 Sol på `@nav-pilot`.** Den besto test 2 i to av fem kjøringer. I de tre andre listet den de åpne punktene som påstander uten spørsmålstegn. Testrepoet svarer ikke på personvern, så sjekken er ikke løsnet. Test 3 var også svakere (4/5). Test 4 ble ikke vurdert i to kjøringer fordi test 2 feilet. Kontrollens 4/5 på test 4 er én kjøring der testoppsettet ikke fant noen plan for fase 2, ikke en modellfeil.
 - **GPT-6.1 Sol anbefales ikke som personlig standard.** Den holdt på koding, norsk og research, men ikke på kodegjennomgang. I Kotlin-fila nevnte den ikke det svelgede unntaket ved riktig linje i åtte av ti kjøringer. Kontrollen bommet på det én gang.
 - **Claude Opus 5.5 Low var minst like god som kontrollen på alle målte sjekker**, men kostet 1,6 til 2,8 ganger så mye per kjøring. Dyrest er den på research: 35,8 credits mot 13,0.
 - **Test 7 og 7b og OpenCode-armen ble ikke kjørt.** Testpakkene brukte 2 197 credits, mot et anslag på 1 909. Medregnet 66 credits på testkjøringer på forhånd ble det 2 263. De gjenstående kjøringene ville tatt forbruket over grensen på 2 500 credits (anslaget pluss 25 prosent). Eieren satte denne stoppregelen da målingen startet. Den er ikke en del av kriteriene over. Resultatene for test 7 og 7b kan ikke endre utfallet for GPT-6.1 Sol, som allerede feiler på test 2.
+
+### Omregnet til listepris
+
+Tabellen regner batch 4 om til dollar med GitHubs listepriser per 7. oktober 2026. Hver celle er medianen per kjøring av de målte tokenene i usage-filene, ganget med listeprisen. Ingen forespørsel var over 272K tokens, så prisen for lang kontekst er ikke brukt. Utregningen ligger i [list-price.py](golden-baselines/2026-10-06-batch4/list-price.py).
+
+Første tall prises all input som vanlig input. Andre tall prises tokenene usage-filene oppgir som lest fra cache, til cachet pris, og tokenene skrevet til cache til GitHubs pris for cache-skriving. Mellom 68 og 87 prosent av input var lest fra cache.
+
+| Testpakke       | GPT-6 Sol (kontroll) | GPT-6.1 Sol   | Claude Opus 5.5 |
+| --------------- | -------------------- | ------------- | --------------- |
+| Planlegging     | $0,82 / $0,27        | $0,79 / $0,23 | $1,24 / $0,51   |
+| Koding          | $0,95 / $0,25        | $1,15 / $0,25 | $1,67 / $0,48   |
+| Kodegjennomgang | $0,40 / $0,15        | $0,56 / $0,17 | $0,47 / $0,24   |
+| Norsk           | $0,41 / $0,15        | $0,51 / $0,14 | $0,81 / $0,31   |
+| Research        | $0,36 / $0,13        | $0,55 / $0,15 | $1,31 / $0,36   |
+
+GPT-6 Sol og GPT-6.1 Sol har samme listepris for input og output. Det eneste som skiller dem, er cachet input: $0.10 for GPT-6.1 Sol mot $0.20 for GPT-6 Sol. Credits følger tokenforbruket, ikke modellklassen, se [AI-kreditter skiller ikke modeller](#ai-kreditter-skiller-ikke-modeller). Credits-kolonnen over og dollartallene her er derfor to ulike mål.
 
 Denne målingen endrer ingen pinner. Om `@nav-pilot` og agentpakkens standard skal endres, avgjøres for seg.
 
@@ -278,7 +295,7 @@ anslag, ikke noe vi har målt**, og forholdet varierer med oppgaven.
 
 Et kuratert utvalg av modellflåten: modellene vi faktisk vurderer, ikke alle
 GitHub priser. Prisene under er GitHubs listepriser slik de sto
-**3. oktober 2026**, hentet fra `apps/my-copilot/src/lib/model-pricing.ts`,
+**7. oktober 2026**, hentet fra `apps/my-copilot/src/lib/model-pricing.ts`,
 som dekker hele flåten. De endrer seg uten varsel, så
 tallene her har et tidsstempel og ikke evig gyldighet.
 
