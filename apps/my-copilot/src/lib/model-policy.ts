@@ -39,7 +39,7 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
   {
     purpose: "Høyrisikoplanlegging og kodegjennomgang",
     primary: "Claude Opus 5.5",
-    fallbacks: ["GPT-6.1 Sol", "GPT-5.3-Codex"],
+    fallbacks: ["GPT-6 Sol", "GPT-5.3-Codex"],
     reason: "Fant alle plantede feil på riktig linje i ti av ti kodegjennomganger 30. september. Low holder.",
   },
   {

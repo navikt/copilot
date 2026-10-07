@@ -12,18 +12,18 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 
 ### Agenter
 
-| Agent                | Modell            | Begrunnelse                                                                                                                                                                                                               |
-| -------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@nav-pilot`         | GPT-6 Sol         | Agentpakkas standard for Copilot, opencode og pi. GPT-5.6 Sol beholdes som fallback. En brukerpinne overstyrer standarden                                                                                                 |
-| `@nav-pilot-opus`    | Claude Opus 5.5   | Høyrisikoplanlegging og kritisk kodegjennomgang. High effort traff de plantede linjene i fem av fem gjennomganger. GPT-6.1 Sol er fallback mens vi måler agenten direkte                                                  |
-| `@security-champion` | GPT-6 Sol         | Sikkerhetskritiske vurderinger. Modellen fant personvern, tilgangskontroll og riktig TokenX-mønster i fem av fem kjøringer. Ett fasebrudd i `nav-pilot` følges under utrullingen                                          |
-| `@code-review`       | Claude Opus 5.5   | Fant alle plantede feil på riktig linje i ti av ti gjennomganger på Low, Medium og High 30. september. Low holder og er billigst. GPT-6.1 Sol er fallback, deretter GPT-5.3-Codex                                         |
-| `@kafka`             | GPT-6 Luna        | Verktøytung kodeagent. Luna Medium besto alle 30 sjekker i kodesuiten 30. september for omtrent 1,7 credits, mot omtrent 28 med GPT-6 Sol. Oppgavene var små, så GPT-6 Sol er fallback, deretter GPT-5.3-Codex            |
-| `@research`          | GPT-6 Luna        | Leser og søker uten å skrive kode. Modellen besto ti av ti avgrensede krav og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna. Gjelder bare når agenten startes direkte, ikke når `@nav-pilot` delegerer til den |
-| `@rust`              | GPT-6 Luna        | Verktøytung kodeagent. Luna Medium besto alle 30 sjekker i kodesuiten 30. september for omtrent 1,7 credits, mot omtrent 28 med GPT-6 Sol. Oppgavene var små, så GPT-6 Sol er fallback, deretter GPT-5.3-Codex            |
-| `@aksel`             | Claude Sonnet 5.5 | Sterk på komponentstruktur og designsystem-konvensjoner. Sonnet 5 beholdes som fallback                                                                                                                                   |
-| `@accessibility`     | Claude Sonnet 5.5 | God på WCAG-tolkning og semantisk HTML. Sonnet 5 beholdes som fallback                                                                                                                                                    |
-| `@forfatter`         | Claude Sonnet 5.5 | Anthropic-modellene er best på norsk klarspråk. Sonnet 5 beholdes som fallback                                                                                                                                            |
+| Agent                | Modell            | Begrunnelse                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@nav-pilot`         | GPT-6 Sol         | Agentpakkas standard for Copilot, opencode og pi. GPT-5.6 Sol beholdes som fallback. En brukerpinne overstyrer standarden                                                                                                                                                                                                                                                       |
+| `@nav-pilot-opus`    | Claude Opus 5.5   | Høyrisikoplanlegging og kritisk kodegjennomgang. High effort traff de plantede linjene i fem av fem gjennomganger. GPT-6 Sol er fallback mens vi måler agenten direkte                                                                                                                                                                                                          |
+| `@security-champion` | GPT-6 Sol         | Sikkerhetskritiske vurderinger. Modellen fant personvern, tilgangskontroll og riktig TokenX-mønster i fem av fem kjøringer. Ett fasebrudd i `nav-pilot` følges under utrullingen                                                                                                                                                                                                |
+| `@code-review`       | Claude Opus 5.5   | Fant alle plantede feil på riktig linje i ti av ti gjennomganger på Low, Medium og High 30. september. Low holder og er billigst. Fallback er GPT-6 Sol Low, deretter GPT-5.3-Codex. GPT-6 Sol er foreløpig fallback og ikke målt på rv5–rv8, se [2026-10-07-review-suite](golden-baselines/2026-10-07-review-suite/) og [#1443](https://github.com/navikt/copilot/issues/1443) |
+| `@kafka`             | GPT-6 Luna        | Verktøytung kodeagent. Luna Medium besto alle 30 sjekker i kodesuiten 30. september for omtrent 1,7 credits, mot omtrent 28 med GPT-6 Sol. Oppgavene var små, så GPT-6 Sol er fallback, deretter GPT-5.3-Codex                                                                                                                                                                  |
+| `@research`          | GPT-6 Luna        | Leser og søker uten å skrive kode. Modellen besto ti av ti avgrensede krav og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna. Gjelder bare når agenten startes direkte, ikke når `@nav-pilot` delegerer til den                                                                                                                                                       |
+| `@rust`              | GPT-6 Luna        | Verktøytung kodeagent. Luna Medium besto alle 30 sjekker i kodesuiten 30. september for omtrent 1,7 credits, mot omtrent 28 med GPT-6 Sol. Oppgavene var små, så GPT-6 Sol er fallback, deretter GPT-5.3-Codex                                                                                                                                                                  |
+| `@aksel`             | Claude Sonnet 5.5 | Sterk på komponentstruktur og designsystem-konvensjoner. Sonnet 5 beholdes som fallback                                                                                                                                                                                                                                                                                         |
+| `@accessibility`     | Claude Sonnet 5.5 | God på WCAG-tolkning og semantisk HTML. Sonnet 5 beholdes som fallback                                                                                                                                                                                                                                                                                                          |
+| `@forfatter`         | Claude Sonnet 5.5 | Anthropic-modellene er best på norsk klarspråk. Sonnet 5 beholdes som fallback                                                                                                                                                                                                                                                                                                  |
 
 ### Prompts
 
@@ -60,7 +60,7 @@ Råmålingen bruker eksakte `assistant_usage_events`, inkludert retries og subag
 
 Vi tilpasset ikke agentpersonaene eller instruksjonene til de nye modellene før målingen. Bare testoppsettet ble rettet: Det måler nå Fase 2 på riktig tur og bruker faktiske intervjuspørsmål i stedet for en bestemt faseoverskrift. Kandidat og kontroll brukte samme agentfil, men det var den installerte kopien og ikke repoets (se rettelsen over).
 
-`@code-review` ble flyttet til Opus 5.5 med en anbefaling om High effort. Målingen bak flyttingen var ugyldig (se rettelsen over). Den nye målingen 30. september støtter pinnen og viser at Low holder. Agent-frontmatter kan ikke håndheve innsatsnivå (effort), så en direkte start kan arve nivået fra sesjonen. Bruk GPT-6.1 Sol eller GPT-5.3-Codex som fallback ved regresjoner.
+`@code-review` ble flyttet til Opus 5.5 med en anbefaling om High effort. Målingen bak flyttingen var ugyldig (se rettelsen over). Den nye målingen 30. september støtter pinnen og viser at Low holder. Agent-frontmatter kan ikke håndheve innsatsnivå (effort), så en direkte start kan arve nivået fra sesjonen. Bruk GPT-6 Sol Low eller GPT-5.3-Codex som fallback ved regresjoner.
 
 Kafka- og Rust-agentene flyttes til Sol, mens `kafka-topic` og `nais-manifest` flyttes til Luna. Blokkeringsskjermen målte samme oppgaveklasse, men ikke disse fire artefaktene direkte. Dette er derfor en kontrollert utrulling med fallbacks, ikke dokumentasjon på at de nye modellene er bedre på Kafka, Rust eller Nais-manifester.
 
@@ -183,15 +183,15 @@ Rådata ligger i [2026-10-07-review-suite](golden-baselines/2026-10-07-review-su
 
 Tabellen viser sjekkens tall først. Tallet i parentes er etter klassifiseringen, der en feil som skyldes sjekken og ikke modellen, regnes som bestått. Mønstrene er ikke endret etter kjøringene.
 
-| Sjekk                                          | Claude Opus 5.5 Low | GPT-6 Luna Medium | GPT-6.1 Sol Low |
-| ---------------------------------------------- | ------------------- | ----------------- | --------------- |
-| rv1–rv4 (to filer)                             | 40/40               | 36/40             | 25/40           |
-| rv5, sikkerhet og personvern                   | 7/10 (9/10)         | 1/10 (2/10)       | 3/10 (3/10)     |
-| rv6, designfeil                                | 8/10 (9/10)         | 1/10 (9/10)       | 2/10 (10/10)    |
-| rv7, prioritet                                 | 10/10               | 7/10 (10/10)      | 9/10 (10/10)    |
-| rv8, sjekkens tall: median (høyest)            | 0 (2)               | 0,5 (1)           | 2 (3)           |
-| rv8, etter klassifisering: median (høyest)     | 0 (0)               | 0 (1)             | 1 (1)           |
-| Credits per kjøring                            | 58,5                | 3,6               | 37,7            |
+| Sjekk                                      | Claude Opus 5.5 Low | GPT-6 Luna Medium | GPT-6.1 Sol Low |
+| ------------------------------------------ | ------------------- | ----------------- | --------------- |
+| rv1–rv4 (to filer)                         | 40/40               | 36/40             | 25/40           |
+| rv5, sikkerhet og personvern               | 7/10 (9/10)         | 1/10 (2/10)       | 3/10 (3/10)     |
+| rv6, designfeil                            | 8/10 (9/10)         | 1/10 (9/10)       | 2/10 (10/10)    |
+| rv7, prioritet                             | 10/10               | 7/10 (10/10)      | 9/10 (10/10)    |
+| rv8, sjekkens tall: median (høyest)        | 0 (2)               | 0,5 (1)           | 2 (3)           |
+| rv8, etter klassifisering: median (høyest) | 0 (0)               | 0 (1)             | 1 (1)           |
+| Credits per kjøring                        | 58,5                | 3,6               | 37,7            |
 
 rv5 kan telles på tre måter. Med sjekkens tall er det 7, 1 og 3 av 10 for Opus, Luna og Sol. Med klassifiseringen over er det 9, 2 og 3. Telles et funn som står med nøkkel eller med linjenummer i en annen rad som funnet, slik de to Opus-radene er telt, blir det 9, 4 og 3. Luna kommer opp i 6 hvis det også er nok at nais.yaml er nevnt uten linje.
 
@@ -214,6 +214,20 @@ Vurdering mot kriteriene:
 Forbruket var 1 002 credits på hovedkjøringene og 227 på piloten og kontrollkjøringene, til sammen 1 229. Stoppgrensen var 1 430.
 
 Feilene i sjekkene følges opp i [#1443](https://github.com/navikt/copilot/issues/1443). Før neste måling bør rv6 få et mønster som også dekker GPT-modellenes ordvalg, utledet fra disse transkriptene. rv8 bør ikke lese «blokkerende» i en 🟡-rad som prioritet.
+
+## Anbefaling for daglig bruk (7. oktober 2026)
+
+Tabellen gjelder når du velger modell selv. Innsatsnivå (effort) kan ikke settes i agent-frontmatter, så nivåene her er råd, ikke noe agentene håndhever.
+
+| Oppgave                         | Modell                                                         | Målt                                                                                                                       |
+| ------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Daglig koding                   | GPT-6 Sol Low. GPT-6 Luna Medium til små, avgrensede rettinger | GPT-6 Sol: koding 30/30, 24,7 credits (batch 4). Luna Medium: 30/30 i kodesuiten 30. september for omtrent 1,7 credits     |
+| Planlegging                     | GPT-6 Sol Low. Claude Opus 5.5 Low ved rød sone                | GPT-6 Sol: t2, t3 og t5 5/5, t4 4/5 (testoppsettet), 27,2 credits. Opus: 5/5 på alle, 50,8 credits (batch 4)               |
+| Kodegjennomgang                 | Claude Opus 5.5 Low                                            | 40/40 i batch 4, mot 33/40 for GPT-6 Sol og 24/40 for GPT-6.1 Sol. rv7 10/10 (7. oktober)                                  |
+| Sikkerhet og personopplysninger | Claude Opus 5.5 Low                                            | rv5 7/10, 9/10 etter klassifisering, mot 3/10 for GPT-6.1 Sol og 1/10 for Luna (7. oktober). GPT-6 Sol er ikke målt på rv5 |
+| Norsk tekst                     | Valgfri modell, deretter `@forfatter`                          | Alle tre armene 20/20 på norsk i batch 4                                                                                   |
+
+GPT-6.1 Sol er like god som GPT-6 Sol på koding, norsk og research, men svakere på planlegging (t2 2/5) og kodegjennomgang (24/40 i batch 4, 25/40 på rv1–rv4 7. oktober). Den har samme listepris som GPT-6 Sol, bortsett fra cachet input. Derfor er GPT-6 Sol, ikke GPT-6.1 Sol, nå fallback for `@code-review` og `@nav-pilot-opus`. GPT-6 Sol fikk 33/40 på de to filene, og seks av de sju bommene lå én til tre linjer feil.
 
 ## Pinner og delegering
 
@@ -329,7 +343,7 @@ anslag, ikke noe vi har målt**, og forholdet varierer med oppgaven.
   De ble opprinnelig vurdert som lesende mønsteranvendere, men begge er
   verktøytunge agenter. `@code-review` har `execute`, mens `@accessibility` har
   `execute` og `edit`. Opus 5.5 ble målt på kodegjennomgang 30. september og fant alle plantede feil på riktig linje på Low, Medium og
-  High. Low holder. GPT-6.1 Sol er fallback, deretter GPT-5.3-Codex. `@accessibility` bruker Claude Sonnet 5.5 med Sonnet 5 som fallback.
+  High. Low holder. GPT-6 Sol Low er foreløpig fallback, deretter GPT-5.3-Codex. `@accessibility` bruker Claude Sonnet 5.5 med Sonnet 5 som fallback.
 - `@forfatter` beholder Anthropic-modellen sin. Jobben er å skille bokmål fra
   nynorsk og luke ut norske AI-markører. Målingen sier ingenting om det, og
   gevinsten er nær null mot en kjent nedside.
