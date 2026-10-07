@@ -2607,6 +2607,69 @@
         {
           "id": "rv5",
           "description": "PR med åtte filer: riktig fil og linje for sikkerhets- og personvernfeilene",
+          "passed": 8
+        },
+        {
+          "id": "rv6",
+          "description": "PR med åtte filer: finner designfeilene (idempotens og dobbel skriving)",
+          "passed": 3
+        },
+        {
+          "id": "rv7",
+          "description": "PR med åtte filer: SQL og tilgang får høy prioritet, en kosmetisk merknad gjør det ikke",
+          "passed": 10
+        },
+        {
+          "id": "rv8",
+          "description": "Ren fil: ingen funn med høy prioritet, og svaret sier at ingenting er kritisk",
+          "passed": 10
+        }
+      ],
+      "credits": {
+        "median": 55.945,
+        "mean": 56.017
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 86.6
+      },
+      "source": "docs/golden-baselines/2026-10-07-review-persona/review-claude-opus-5.5-low.txt"
+    },
+    {
+      "date": "2026-10-07",
+      "suite": "review",
+      "model": "claude-opus-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-4",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 10
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 10
+        },
+        {
+          "id": "rv5",
+          "description": "PR med åtte filer: riktig fil og linje for sikkerhets- og personvernfeilene",
           "passed": 7
         },
         {
@@ -2760,6 +2823,69 @@
         "median": 121.0
       },
       "source": "docs/golden-baselines/2026-10-07-gpt-6-sol-review/review-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-10-07",
+      "suite": "review",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-4",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 9
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 7
+        },
+        {
+          "id": "rv5",
+          "description": "PR med åtte filer: riktig fil og linje for sikkerhets- og personvernfeilene",
+          "passed": 6
+        },
+        {
+          "id": "rv6",
+          "description": "PR med åtte filer: finner designfeilene (idempotens og dobbel skriving)",
+          "passed": 9
+        },
+        {
+          "id": "rv7",
+          "description": "PR med åtte filer: SQL og tilgang får høy prioritet, en kosmetisk merknad gjør det ikke",
+          "passed": 9
+        },
+        {
+          "id": "rv8",
+          "description": "Ren fil: ingen funn med høy prioritet, og svaret sier at ingenting er kritisk",
+          "passed": 0
+        }
+      ],
+      "credits": {
+        "median": 32.616,
+        "mean": 32.885
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 109.7
+      },
+      "source": "docs/golden-baselines/2026-10-07-review-persona/review-gpt-6-sol-low.txt"
     },
     {
       "date": "2026-10-07",

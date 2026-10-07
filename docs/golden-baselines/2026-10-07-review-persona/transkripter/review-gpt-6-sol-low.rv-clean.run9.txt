@@ -1,0 +1,12 @@
+
+
+
+**Gjennomgang:** Jeg fant ingen bekreftet blokkering i `SakService.kt`. Endepunktet henter fødselsnummeret fra det verifiserte TokenX-tokenet, ikke fra et klientparameter, og databasespørringen er parameterisert.
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `SakService.kt` | 40–42 | 🟡 Forslag | Feilen logges bare med klassenavn før den kastes videre. Det gir lite informasjon ved feilsøking og kan gi to logginnslag for samme feil. Vurder å la feilen gå videre til sentral feilhåndtering, eller logg den med relevant kontekst uten personopplysninger. |
+| `SakService.kt` | 19–20, 37 | 💭 Merknad | Maskeringen skjuler verdien, men bevarer lengden. Siden logglinjen ikke trenger en personidentifikator, kan den logges uten argumentet. |
+
+**Kontroll:** `mise check` finnes ikke i dette prosjektet. `gradle test` stoppet under prosjektkonfigurasjon med feilen `> 27`, så jeg kunne ikke bekrefte teststatus.
+

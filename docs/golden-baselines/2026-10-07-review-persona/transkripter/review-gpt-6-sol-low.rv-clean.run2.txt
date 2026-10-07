@@ -1,0 +1,16 @@
+
+
+
+
+
+
+**Gjennomgang:** Én sikkerhetsrisiko og to forbedringspunkter i `SakService.kt`. SQL-spørringen er parameterisert, og fødselsnummeret logges ikke i klartekst.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `SakService.kt:48–55` | 🔴 Blokkerende | Ruten sjekker at tokenet har `pid`, men ikke om kallende applikasjon er godkjent. `App.kt:31` godtar alle verifiserte token med riktig audience. Dersom endepunktet brukes tjeneste-til-tjeneste, må `azp` kontrolleres mot `AZURE_APP_PRE_AUTHORIZED_APPS` før saker returneres. |
+| `SakService.kt:39–41` | 🟡 Forslag | Feilloggen inneholder bare unntakets klassenavn. Det gjør databasefeil vanskelige å diagnostisere. Logg unntaket med stacktrace, men kontroller først at unntaksmeldinger ikke kan inneholde fødselsnummer eller andre personopplysninger. |
+| `SakService.kt:23–29` | 🟡 Forslag | Databasekallet er synkront og kjøres direkte fra Ktor-ruten. Ved trege spørringer kan det binde opp tråder som betjener andre kall. Vurder å kjøre JDBC-arbeidet på `Dispatchers.IO`. |
+
+🔴 **Rød sone:** Gå gjennom autoriseringen før endepunktet tas i bruk for tjeneste-til-tjeneste-kall. `mise check` kunne ikke kjøres: prosjektet har ingen `check`-oppgave.
+

@@ -1,0 +1,20 @@
+
+### Oppsummering
+Jeg fant ingen blokkerende feil i `SakService.kt`. `mise check` ble ikke kjørt, fordi prosjektet ikke har noen mise-konfigurasjon.
+
+- **SQL-injeksjon:** spørringen er parameterisert, så det er ingen risiko her.
+- **Tilgang:** fødselsnummeret hentes fra TokenX-claimet `pid` og ikke fra en request-parameter. Brukeren ser derfor bare sine egne saker. 🔴 Rød sone: tilgangskontroll, gå gjennom denne nøye.
+- **Logger:** fødselsnummeret skrives ikke i klartekst.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | 20, 37 | 🟡 | `maskert()` gir alltid `***********`. Loggen sier ingenting og kan fjernes, eller du kan logge en ikke-personlig ID i stedet. |
+| `SakService.kt` | 41 | 🟡 | Feilen logges uten stacktrace og årsak, så den er vanskelig å feilsøke. Logg `e` direkte og pass på at meldingen ikke inneholder fødselsnummeret. Et alternativ er å logge `e.cause`-typen og SQLState. |
+| `SakService.kt` | 38–43 | 💭 | Try/catch-blokken logger og kaster feilen videre. Ktor `StatusPages` kan i stedet håndtere feilen sentralt og gi et 500-svar uten interne detaljer. |
+| `src/test` | – | 🟡 | Det finnes ingen tester. Du trenger minst én test for 401 uten `pid` og én for at riktige saker hentes. Bruk MockOAuth2Server og Testcontainers. |
+| `nais.yaml` | – | 🟡 | `accessPolicy` og `resources` mangler. Når `accessPolicy.inbound` mangler, kan ingen klienter kalle tjenesten via TokenX. |
+
+Still gjerne spørsmål om valgene over.
+

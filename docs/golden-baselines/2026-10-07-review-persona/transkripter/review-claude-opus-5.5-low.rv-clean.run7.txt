@@ -1,0 +1,31 @@
+
+### Sammendrag
+Ingen blokkere funnet. Fila gjør det viktigste riktig:
+- SQL-spørringen bruker parameter (`?`), så den er ikke sårbar for SQL-injeksjon.
+- Fødselsnummeret logges ikke. `maskert()` erstatter alle tegnene med `*`.
+- Personen hentes fra `pid`-claimet i TokenX-tokenet, ikke fra en request-parameter. Brukeren kan derfor bare se egne saker.
+
+Jeg kjørte ikke `mise check`, fordi prosjektet ikke har mise-oppsett (bare `build.gradle.kts`).
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `SakService.kt` | 41 | 🟡 | Stack trace forsvinner i loggen |
+| `SakService.kt` | 40–43 | 🟡 | Samme feil logges trolig to ganger |
+| `SakService.kt` | 37, 20 | 💭 | Den maskerte verdien sier ingenting |
+| `SakService.kt` | – | 🟡 | Ingen tester |
+
+### Detaljer
+**Stack trace forsvinner (linje 41).** Loggen får bare `e.javaClass.simpleName`. Uten stack trace er det vanskelig å feilsøke i produksjon. Unntaket bør heller ikke sendes med som det er: meldingen fra JDBC/Postgres kan inneholde SQL-parametre, altså fødselsnummeret. Logg heller en egen feiltype med kontekst, eller sjekk at meldingene fra driveren ikke inneholder parametre.
+
+**Dobbel logging (linje 40–43).** Koden logger feilen og kaster den videre. Ktor sin `StatusPages` logger den da sannsynligvis en gang til. Velg ett sted å logge.
+
+**Maskeringen (linje 37 og 20).** `maskert()` gir alltid `***********`, så loggen kan ikke skille ett kall fra et annet. Det er ikke et sikkerhetsproblem. Hvis dere vil kunne følge et kall, bruk en korrelasjons-ID.
+
+**Tester.** Fila har ingen tester. To bør finnes: én for at et token uten `pid` gir 401, og én for at bare innlogget brukers saker returneres. Bruk MockOAuth2Server og Testcontainers.
+
+🔴 Rød sone: at saker hentes ut fra `pid`-claimet er tilgangskontrollen her. Ikke endre den til å ta fødselsnummeret fra input.
+
+Still gjerne spørsmål om valgene over.
+

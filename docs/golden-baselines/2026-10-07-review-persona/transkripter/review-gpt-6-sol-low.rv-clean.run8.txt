@@ -1,0 +1,16 @@
+
+
+
+### Oppsummering
+
+`SakService.kt` bruker parameterisert SQL og logger ikke fødselsnummeret. Jeg fant én sikkerhetsmangel i autentiseringsoppsettet som ruten er avhengig av, og én svakhet i håndteringen av feil.
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `SakService.kt` | 48 | 🔴 Blokkerende | Ruten stoler på `tokenx`, men JWT-oppsettet i `App.kt` kontrollerer ikke `azp` mot tillatte klienter. Dermed kan et token med gyldig utsteder, mottaker og `acr` gi tilgang uten at klienten er forhåndsgodkjent. Legg klientkontrollen i JWT-valideringen, slik at den gjelder før ruten kjøres. |
+| `SakService.kt` | 40–42 | 🟡 Forslag | Databasefeil logges bare med unntakets klassenavn før de kastes videre. Det gjør feilen vanskelig å diagnostisere. Bevar årsak og stacktrace i intern logging, men kontroller at unntaksmeldingen ikke kan inneholde fødselsnummer eller andre personopplysninger. |
+
+🔴 **Rød sone: tilgangskontrollen må gjennomgås nøye.** Validering av `azp` i autentiseringslaget gir én kontroll for alle ruter; en sjekk bare i denne ruten ville vært lettere å overse andre steder. `mise check` kunne ikke kjøres fordi prosjektet ikke har en `check`-oppgave.
+
+Still gjerne spørsmål om valgene over.
+
