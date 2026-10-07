@@ -1,0 +1,96 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        code-review
+# suite:        review
+# date:         2026-10-07
+# revision:     690405dc
+# model:        gpt-6-luna
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-4.
+# effort:       medium
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       10
+# fixture:      2929655385
+# prompts:      rv1,rv2,rv3,rv4,rv5,rv6,rv7,rv8
+#
+# id|run|status|assertion|detail
+rv1|1|pass|Kotlin: all three planted defects named within three lines|
+rv2|1|pass|Kotlin: every planted defect cited on its line|
+rv3|1|pass|TSX: all four planted defects named within three lines|
+rv4|1|pass|TSX: every planted defect cited on its line|
+rv5|1|fail|PR: security and privacy defects on the right line in the right file|not named near its line: inbound
+rv6|1|fail|PR: design defects named (idempotency under retry, insert-then-send)|not named near its line: dobbeltskriving (anywhere)
+rv7|1|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|1|fail|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows, but no sentence says nothing is critical
+rv1|2|fail|Kotlin: all three planted defects named within three lines|not named near its line: catch
+rv2|2|fail|Kotlin: every planted defect cited on its line|not named near its line: catch
+rv3|2|pass|TSX: all four planted defects named within three lines|
+rv4|2|pass|TSX: every planted defect cited on its line|
+rv5|2|fail|PR: security and privacy defects on the right line in the right file|not named near its line: inbound
+rv6|2|fail|PR: design defects named (idempotency under retry, insert-then-send)|not named near its line: dobbeltskriving (anywhere)
+rv7|2|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|2|fail|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows, but no sentence says nothing is critical
+rv1|3|pass|Kotlin: all three planted defects named within three lines|
+rv2|3|pass|Kotlin: every planted defect cited on its line|
+rv3|3|pass|TSX: all four planted defects named within three lines|
+rv4|3|pass|TSX: every planted defect cited on its line|
+rv5|3|fail|PR: security and privacy defects on the right line in the right file|not named near its line: inbound
+rv6|3|fail|PR: design defects named (idempotency under retry, insert-then-send)|not named near its line: dobbeltskriving (anywhere)
+rv7|3|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|3|fail|clean service: no high-priority finding, says nothing is critical|1 spurious high-priority row(s): | `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 41 | 🔴 | `log.error(..., e)`
+rv1|4|pass|Kotlin: all three planted defects named within three lines|
+rv2|4|pass|Kotlin: every planted defect cited on its line|
+rv3|4|fail|TSX: all four planted defects named within three lines|not named near its line: tabindex
+rv4|4|fail|TSX: every planted defect cited on its line|not named near its line: tabindex
+rv5|4|fail|PR: security and privacy defects on the right line in the right file|wrong line: inbound (want [25, 26], cited [30, 31, 32])
+rv6|4|pass|PR: design defects named (idempotency under retry, insert-then-send)|
+rv7|4|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|4|fail|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows, but no sentence says nothing is critical
+rv1|5|pass|Kotlin: all three planted defects named within three lines|
+rv2|5|pass|Kotlin: every planted defect cited on its line|
+rv3|5|pass|TSX: all four planted defects named within three lines|
+rv4|5|pass|TSX: every planted defect cited on its line|
+rv5|5|pass|PR: security and privacy defects on the right line in the right file|
+rv6|5|fail|PR: design defects named (idempotency under retry, insert-then-send)|not named near its line: dobbeltskriving (anywhere)
+rv7|5|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|5|fail|clean service: no high-priority finding, says nothing is critical|1 spurious high-priority row(s): | `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 41 | 🔴 | Logger exception-sp
+rv1|6|pass|Kotlin: all three planted defects named within three lines|
+rv2|6|pass|Kotlin: every planted defect cited on its line|
+rv3|6|pass|TSX: all four planted defects named within three lines|
+rv4|6|pass|TSX: every planted defect cited on its line|
+rv5|6|fail|PR: security and privacy defects on the right line in the right file|not named near its line: sql
+rv6|6|fail|PR: design defects named (idempotency under retry, insert-then-send)|not named near its line: dobbeltskriving (anywhere)
+rv7|6|fail|PR: SQL and access findings marked high, the nit is not|priority: sql not named near its line
+rv8|6|fail|clean service: no high-priority finding, says nothing is critical|1 spurious high-priority row(s): | `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 41 | 🔴 | Feilloggen skriver 
+rv1|7|pass|Kotlin: all three planted defects named within three lines|
+rv2|7|pass|Kotlin: every planted defect cited on its line|
+rv3|7|pass|TSX: all four planted defects named within three lines|
+rv4|7|pass|TSX: every planted defect cited on its line|
+rv5|7|fail|PR: security and privacy defects on the right line in the right file|wrong line: inbound (want [25, 26], cited [30, 31, 32])
+rv6|7|fail|PR: design defects named (idempotency under retry, insert-then-send)|not named near its line: idempotens, dobbeltskriving (anywhere)
+rv7|7|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|7|fail|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows, but no sentence says nothing is critical
+rv1|8|pass|Kotlin: all three planted defects named within three lines|
+rv2|8|pass|Kotlin: every planted defect cited on its line|
+rv3|8|pass|TSX: all four planted defects named within three lines|
+rv4|8|pass|TSX: every planted defect cited on its line|
+rv5|8|fail|PR: security and privacy defects on the right line in the right file|not named near its line: inbound
+rv6|8|fail|PR: design defects named (idempotency under retry, insert-then-send)|not named near its line: dobbeltskriving (anywhere)
+rv7|8|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|8|fail|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows, but no sentence says nothing is critical
+rv1|9|pass|Kotlin: all three planted defects named within three lines|
+rv2|9|pass|Kotlin: every planted defect cited on its line|
+rv3|9|pass|TSX: all four planted defects named within three lines|
+rv4|9|pass|TSX: every planted defect cited on its line|
+rv5|9|fail|PR: security and privacy defects on the right line in the right file|not named near its line: sql, inbound
+rv6|9|fail|PR: design defects named (idempotency under retry, insert-then-send)|not named near its line: dobbeltskriving (anywhere)
+rv7|9|fail|PR: SQL and access findings marked high, the nit is not|priority: sql not named near its line
+rv8|9|fail|clean service: no high-priority finding, says nothing is critical|1 spurious high-priority row(s): | `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 41 | 🔴 | Logger hele excepti
+rv1|10|pass|Kotlin: all three planted defects named within three lines|
+rv2|10|pass|Kotlin: every planted defect cited on its line|
+rv3|10|pass|TSX: all four planted defects named within three lines|
+rv4|10|pass|TSX: every planted defect cited on its line|
+rv5|10|fail|PR: security and privacy defects on the right line in the right file|not named near its line: sql, inbound
+rv6|10|fail|PR: design defects named (idempotency under retry, insert-then-send)|not named near its line: dobbeltskriving (anywhere)
+rv7|10|fail|PR: SQL and access findings marked high, the nit is not|priority: sql not named near its line
+rv8|10|fail|clean service: no high-priority finding, says nothing is critical|1 spurious high-priority row(s): | `SakService.kt` | 26–28 | 🟡 Forslag | Spørringen henter alle saker for persone

@@ -1,0 +1,70 @@
+
+Jeg sammenligner `vedtak-kafka` med `main` og sjekker endringene for bugs, sikkerhetsproblemer og manglende testdekning. Jeg endrer ikke koden.
+
+
+
+
+
+
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 397ms
+    Failed with exit code 1
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+
+**Branchen bør ikke merges ennå.** Gjennomgangen av `main...vedtak-kafka` viser sikkerhetshull, manglende databaseoppsett og risiko for duplikate vedtak. Ingen kode er endret.
+
+Linjenumrene nedenfor gjelder `vedtak-kafka`. Kotlin-filene ligger under `src/main/kotlin/no/nav/demo/`.
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `vedtak/VedtakRepository.kt` | 23–24 | 🔴 Blokker | **SQL-injeksjon.** `fnr` fra URL-en settes direkte inn i SQL. En manipulert verdi kan hente andre personers vedtak. Bruk `WHERE fnr = ?` og send verdien som parameter. |
+| `Routes.kt` | 30–32 | 🔴 Blokker | **Vedtak kan leses uten autentisering.** GET-ruten ligger utenfor `authenticate` og returnerer vedtak for et valgfritt fødselsnummer. Krev autentisering og kontroller tilgang til personen/saken. |
+| `Routes.kt` | 25–27 | 🔴 Blokker | **Ingen tilgangskontroll ved opprettelse.** POST-ruten bruker klientens `fnr`, `sakId` og `utfall` uten å kontrollere at innringeren har rett til å fatte vedtak for saken. Et gyldig token er ikke tilstrekkelig. |
+| `App.kt` | 40–42 | 🔴 Blokker | **TokenX-oppsettet er ufullstendig.** Ingen JWT-verifier er konfigurert, og audience sjekkes bare for tilstedeværelse, ikke mot tjenestens forventede verdi. `validate` returnerer dessuten `JWTCredential`, mens Ktor forventer `JWTPrincipal?`. Konfigurer signatur-, issuer- og audience-validering og returner riktig principal-type. |
+| `vedtak/VedtakService.kt` | 15 | 🔴 Blokker | **Fødselsnummer logges i klartekst.** Hvert vedtak skriver `fnr` til ordinær applikasjonslogg. Fjern personopplysningen fra loggmeldingen. |
+| `App.kt` | 26–34 | 🔴 Blokker | **Kafka mangler TLS-oppsett.** Klientene får bare broker-adresser og bruker standardprotokollen `PLAINTEXT`. Nais-Kafka krever SSL med de injiserte keystore-/truststore-innstillingene. Med dette oppsettet får klientene ikke autentisert seg mot brokerne. |
+| `App.kt` | 23 | 🔴 Blokker | **Databasekonfigurasjonen er ikke koblet til manifestet.** Koden krever `DB_JDBC_URL`, men manifestet definerer ikke denne variabelen. Bruk databasevariablene Nais genererer for `vedtak`, inkludert brukernavn og passord. Ellers stopper Hikari ved oppstart. |
+| `vedtak/VedtakRepository.kt` | 14 | 🔴 Blokker | **Tabellen opprettes aldri.** Branchen oppretter databasen, men inneholder ingen migrasjon eller annen opprettelse av `vedtak`-tabellen. På en ny database feiler både lagring og lesing. Legg til schema og kjør migrasjonen før trafikk behandles. |
+| `vedtak/VedtakConsumer.kt` | 25, 31–33 | 🔴 Blokker | **Retry og replay oppretter nye vedtak.** Databasen oppdateres før Kafka-publiseringen. Hvis publiseringen feiler, kjører retry hele operasjonen med ny UUID. Restart før offset-commit gjentar også allerede behandlede meldinger. Bruk `soknadId` som dedupliseringsnøkkel med databasegaranti, og sikre at ny publisering bruker det eksisterende vedtaket. |
+| `vedtak/VedtakConsumer.kt` | 24–27 | 🔴 Blokker | **Én ugyldig melding stopper consumeren.** Deserialiseringsfeil eller siste mislykkede retry slipper ut av `start()` og avslutter bakgrunnstråden, mens HTTP-serveren fortsetter. Koble consumerfeil til tjenestens livssyklus og håndter permanente meldingsfeil eksplisitt uten å hoppe over dem stille. |
+| `nais.yaml` | 25–26 | 🟡 Forslag | **Inbound-policyen åpner for alle applikasjoner og namespaces.** Begrens den til konkrete klienter. Nettverkstilgang erstatter ikke tilgangskontrollen i rutene. |
+| `vedtak/VedtakConsumer.kt` | 19–46 | 🟡 Forslag | **Ingen tester for den nye flyten.** Test spesielt uautorisert tilgang, SQL-parametrisering, replay, publiseringsfeil etter lagring og ugyldige Kafka-meldinger. Dette er feilscenarioene som bryter implementasjonen. |
+
+**Validering er begrenset:** `mise check` kunne ikke kjøres fordi repoet mangler oppgaven. `gradle --offline --console=plain test` stoppet under prosjektkonfigurering med feilmeldingen `27`, før kompilering og tester. JWT-typefeilen er derfor et funn fra kodegjennomgangen, ikke bekreftet av et compiler-resultat.
+

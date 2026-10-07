@@ -1,0 +1,49 @@
+
+
+Ingen merge før blokkerne er fikset. Det finnes ingen `mise.toml` eller Gradle-wrapper i repoet, så `mise check` kunne ikke kjøres. Funnene kommer fra å lese diffen.
+
+### Oppsummering
+Diffen deler koden i consumer, service og repository. Men det er en SQL-injeksjon, fødselsnumre lekker i både logg og et åpent API, og tokenvalideringen er ufullstendig. Det mangler også både Flyway-migrering og tester.
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen. |
+| `Routes.kt` | 30–33 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Alle kan hente andres vedtak, og fnr havner i URL-er og tilgangslogger. |
+| `Routes.kt` | 25–27 | 🔴 | POST tar `fnr` fra request-body uten å sjekke at innlogget bruker eier saken. Med TokenX kan en borger fatte vedtak for hvem som helst. |
+| `App.kt` | 40–42 | 🔴 | `jwt("tokenx")` mangler JWKS-verifier og issuer, og `validate` godtar alle audiences. Bruk `TOKEN_X_JWKS_URI`, `TOKEN_X_ISSUER` og `TOKEN_X_CLIENT_ID`. |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` skriver fødselsnummer til loggen. |
+| `nais.yaml` | inbound | 🔴 | `application: "*"` og `namespace: "*"` slipper alle inn. Oppgi konkrete konsumenter. |
+| `VedtakConsumer.kt` | 25, 31–35 | 🔴 | Retry og redelivery er ikke idempotente, så samme søknad kan gi flere vedtak. |
+| `VedtakConsumer.kt` | 24 | 🔴 | Poison pill stopper consumer-tråden. |
+| (mangler) | – | 🔴 | Ingen Flyway-migrering for tabellen `vedtak`. |
+| `VedtakConsumer.kt` | 21 | 🟡 | `while (true)` uten graceful shutdown. Readiness merker ikke at tråden er død. |
+| `VedtakService.kt` | 21 | 🟡 | `LocalDate.now()` gjør testene avhengige av dato. Injiser en `Clock`. |
+| (mangler) | – | 🟡 | Ingen tester for service, consumer eller ruter. |
+| `App.kt` | 26–34 | 🟡 | Kafka-oppsettet mangler SSL- og keystore-props (`KAFKA_KEYSTORE_PATH` osv.), så det virker ikke på Aiven. Consumer og producer deler også samme `Properties`. |
+| `build.gradle.kts` | 13 | 💭 | Ekstra `dependencies`-blokk. Slå den sammen med den som finnes. |
+| `VedtakService.kt` | 5 | 💭 | `Locale` importeres, men brukes ikke. |
+
+### Detaljer
+**SQL-injeksjon.** Bruk parameter i stedet for å bygge strengen:
+```kotlin
+queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)
+```
+Et fnr som `' OR '1'='1` gir i dag alle vedtak. Kombinert med det åpne endepunktet kan hvem som helst lese hele tabellen.
+
+**Tilgangskontroll.** 🔴 Rød sone: autentisering og autorisasjon, gå gjennom denne nøye.
+- Flytt GET inn i `authenticate("tokenx")`.
+- Hent fnr fra tokenets `pid`-claim, ikke fra URL eller body.
+- Unngå å sende fnr som path-parameter.
+- Tenk over om borgere i det hele tatt skal kunne fatte vedtak, eller om POST hører hjemme bak Azure AD for saksbehandlere.
+
+**Uten JWKS-verifier og issuer** avviser Ktor enten alle tokens, eller så sjekkes ikke signaturen. Begge deler er feil.
+
+**Duplikate vedtak.**
+- Hvis `producer.send().get()` feiler etter `lagre`, kjører `retry` hele `behandle` på nytt. Det gir et nytt vedtak med ny UUID.
+- Det samme skjer ved redelivery: offset committes først etter hele batchen.
+- Fiks: dedupliser på `soknadId` med en unik constraint og `ON CONFLICT DO NOTHING`, eller bruk en outbox.
+
+**Poison pill.** Hvis `decodeFromString` feiler, stopper tråden mens poden fortsatt melder seg klar. Fang feilen per melding og send den til DLQ eller logg og hopp over. Readiness bør sjekke at consumeren lever.
+
+Still gjerne spørsmål om valgene over.
+

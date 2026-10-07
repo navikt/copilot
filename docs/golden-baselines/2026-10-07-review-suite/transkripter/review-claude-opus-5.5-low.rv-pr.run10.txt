@@ -1,0 +1,38 @@
+
+
+**Sammendrag:** Branchen `vedtak-kafka` (1 commit, 8 filer) bør ikke merges i dagens form. Laginndelingen er grei og de fleste spørringene er parameteriserte. Men jeg fant sju blokkere innen sikkerhet, personvern og dataintegritet. `mise check` er ikke kjørt: repoet har ingen mise-oppgaver og ingen Gradle wrapper. Funnene bygger derfor bare på lesing av diffen.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `Routes.kt` | 30–33 | 🔴 | `GET /api/vedtak/{fnr}` krever ingen autentisering og sjekker ikke eierskap. FNR ligger i URL-en og havner i access-logger |
+| `App.kt` | 40–43 | 🔴 | JWT-oppsettet mangler `verifier` (JWKS), issuer-sjekk og sjekk av audience mot `TOKEN_X_CLIENT_ID`. `validate` godtar ethvert token som har en audience |
+| `Routes.kt` | 24–28 | 🔴 | `POST /api/vedtak` sjekker ikke tilgang. TokenX bærer innbyggertokens, så enhver innlogget bruker kan fatte vedtak for et hvilket som helst FNR. Saksbehandlere bør gå via Azure AD med rolle- eller gruppesjekk |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` logger FNR |
+| `VedtakConsumer.kt` | 24–34 | 🔴 | Mangler idempotens. Ved retry eller ny levering lages et nytt UUID og en ny rad. Feiler `producer.send` etter `lagre`, ender det med duplikate vedtak |
+| `VedtakConsumer.kt` | 20–28 | 🔴 | En melding som ikke lar seg lese, eller en feil etter tre forsøk, dreper consumer-tråden uten at noen merker det. `isalive` og `isready` svarer fortsatt OK |
+| `App.kt` | 26–34 | 🔴 | Kafka-oppsettet mangler SSL (`security.protocol`, truststore og keystore fra `KAFKA_*`). Appen får ikke koblet til Kafka på Nais |
+| `nais.yaml` | 23–26 | 🟡 | `inbound` åpner for `"*"/"*"`, altså alle apper i alle namespaces. List opp de konkrete konsumentene |
+| `nais.yaml` | 15 | 🟡 | `pool: nav-dev` er hardkodet, så prod mangler sitt eget manifest eller egne variabler |
+| (mangler) | – | 🟡 | Ingen Flyway-migrering for tabellen `vedtak` |
+| (mangler) | – | 🟡 | Ingen tester for service, consumer, repository eller rutene |
+| `VedtakService.kt` | 20 | 🟡 | `LocalDate.now()` gjør tester avhengige av tid. Injiser en `Clock` |
+| `VedtakService.kt` | 14 | 🟡 | `require` kaster en feil som blir HTTP 500, fordi `StatusPages` ikke er satt opp. `fnr` valideres ikke |
+| `VedtakRepository.kt` | 28–35 | 🟡 | `hentForSak` bruker `asSingle`, men en sak kan ha flere vedtak. `hentVedtak` brukes ingen steder |
+| `build.gradle.kts` | 13 | 💭 | To `dependencies`-blokker. Slå dem sammen |
+| `VedtakService.kt` | 5 | 💭 | `java.util.Locale` er importert, men brukes ikke |
+
+### Detaljer
+
+🔴 Rød sone: autentisering, tilgangsstyring og SQL. Gå gjennom disse nøye.
+
+- **SQL-injeksjon:** Bytt til `queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)`. Uten parameter kan en angriper lese ut eller endre hele tabellen.
+- **Oppslag på FNR:** Flytt endepunktet inn i `authenticate`, og send FNR i body eller header i stedet for i URL-en. For innbyggere bør FNR hentes fra tokenets `pid`-claim. Da kan ingen be om andres vedtak.
+- **JWT:** Legg inn `verifier(JwkProviderBuilder(URL(System.getenv("TOKEN_X_JWKS_URI"))).build(), System.getenv("TOKEN_X_ISSUER"))` og sjekk at audience inneholder `TOKEN_X_CLIENT_ID`. Uten verifier signerer en angriper sitt eget token.
+- **Idempotens:** Bruk `soknadId` som unik nøkkel, eller lag vedtak-ID-en deterministisk ut fra den, og skriv med `ON CONFLICT DO NOTHING`. Publisér etterpå, helst via et outbox-mønster. Kafka leverer minst én gang, og hvert duplikat blir et ekte ekstra vedtak.
+- **Consumer-feil:** Fang feil per melding og send dem til en DLQ, eller stopp prosessering og la `isalive` feile. I dag stopper vedtaksflyten uten at noe varsler.
+
+Still gjerne spørsmål om valgene over.
+

@@ -852,6 +852,18 @@ aggressivt kutt i auth-beslutningstreet i `### Fase 2: Plan` eller i
 `## Critical patterns`. Behandle en feil der som «auth-kunnskapen var
 bærende», ikke som en flaky assertion å myke opp.
 
+`--suite review` kjører `@code-review` mot plantede feil. Sjekkene leses av
+`scripts/benchmark-sjekk.py`:
+
+| # | Prompt | Invariant |
+|---|--------|-----------|
+| rv1–rv2 | «gjennomgå UserRepo.kt» | finner SQL, fnr i logg og svelget unntak, på riktig linje |
+| rv3–rv4 | «gjennomgå StatusPanel.tsx» | finner fire Aksel- og UU-feil, på riktig linje |
+| rv5 | «gjennomgå endringene i branchen vedtak-kafka mot main», åtte filer | fnr i logg, SQL ved strengsammenslåing, rute uten `authenticate("tokenx")` og `inbound` `*` i nais.yaml, på riktig linje i riktig fil |
+| rv6 | samme som rv5 | ingen idempotens under `retry(3)` (på linja), lagring og Kafka-sending uten transaksjon eller outbox (hvor som helst i svaret) |
+| rv7 | samme som rv5 | SQL- og tilgangsfunnet har høy prioritet, den ubrukte importen har det ikke |
+| rv8 | «gjennomgå SakService.kt», en fil uten feil | ingen funn med høy prioritet, og svaret sier at ingenting er kritisk |
+
 **Kjøres manuelt — aldri i CI.** Harnessen gjør ekte modellkall: det koster
 penger, er ikke-deterministisk og krever en innlogget Copilot CLI. Den er
 bevisst *ikke* koblet til `mise run nav-pilot:check`, og skal ikke bli det.

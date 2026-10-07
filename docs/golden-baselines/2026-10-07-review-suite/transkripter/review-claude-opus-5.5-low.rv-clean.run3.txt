@@ -1,0 +1,24 @@
+
+
+
+### Oppsummering
+Filen holder god standard. Spørringen er parameterisert, og `fnr` hentes fra `pid`-claimet i et TokenX-token som er validert. Den kommer aldri fra request-parametere, så brukeren får bare sine egne saker. `App.kt` sjekker audience og `acr=idporten-loa-high`. Fødselsnummeret maskeres i loggene. Jeg fant ingen blokkerende feil. `mise check` ble ikke kjørt, fordi repoet mangler mise-konfigurasjon og tester.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | 38–43 | 🟡 | Feilen logges og kastes videre. Da blir den trolig logget to ganger, og klienten får en generisk 500 uten kontrollert respons. |
+| `SakService.kt` | 41 | 🟡 | Hele `e` logges. Dekker loggoppsettet SQL-parametere eller JDBC-feil som tar med verdier, kan fnr havne i stacktracen. |
+| `SakService.kt` | 20 | 💭 | `maskert()` gir alltid `***********`, fordi fnr har fast lengde. Hele logglinjen sier dermed ingenting. Logg heller en intern id eller en korrelasjons-id. |
+| `SakService.kt` | hele | 🟡 | Det finnes ingen tester. Ruten bør testes med MockOAuth2Server: uten token, uten `pid`, feil `acr` og gyldig token. Repository bør testes mot Testcontainers. |
+| `SakService.kt` | hele | 💭 | Ruter, service og repository ligger i samme fil som heter `SakService.kt`. Del dem opp i `SakRoutes.kt` og `SakRepository.kt`. |
+| `SakService.kt` | 52 | 💭 | Manglende `pid` gir 401, men da er tokenet allerede godkjent. 403, eller en logglinje om et uventet token, beskriver situasjonen bedre. |
+
+### Detaljer
+Fjern try/catch i service. La en `StatusPages`-handler logge feilen én gang med en korrelasjons-id, uten fnr, og svare med RFC 7807.
+
+🔴 Rød sone: ruten bruker `pid` direkte som eierskapsgrense. Mønsteret er riktig, men må beholdes slik ved senere endringer. `fnr` må aldri tas fra en query-parameter.
+
+Still gjerne spørsmål om valgene over.
+

@@ -10,7 +10,7 @@ De fire oppgavene og kontrollene for den avsluttede kodepiloten ligger i [`bench
 | Testpakke | Agent | Hva vi sjekker |
 | --- | --- | --- |
 | `planning` | `@nav-pilot` | Stopper etter fase 1, tar opp personvern og tilgang, erklærer rød sone, velger TokenX (test 2–5, samme protokoll som 23. september) |
-| `review` | `@code-review` | Finner de plantede feilene i en Kotlin- og en TSX-fil, og oppgir riktig linje |
+| `review` | `@code-review` | Finner de plantede feilene i en Kotlin-fil, en TSX-fil og en branch med åtte filer, oppgir riktig fil og linje, prioriterer riktig og holder seg rolig på en fil uten feil |
 | `norsk` | `@forfatter` | Skriver om et utkast og skriver en notis: ingen nynorsk, ingen KI-floskler, ikke «AI», 30–90 ord |
 | `coding` | `@nav-pilot` | Får feilende Go- og TS-tester grønne, og endrer bare filene med feilen, også når rettingen går over to filer |
 | `research` | `@research` | Oppgir riktig fil og linje, sier ærlig at noe ikke finnes, og oppsummerer i høyst tre punkter |

@@ -1,0 +1,27 @@
+● Read file (shell)
+  │ cat -n src/main/kotlin/no/nav/demo/sak/SakService.kt; ls; ls src/main/kotlin/no/nav/demo/sak/
+  └ 63 lines…
+
+### Oppsummering
+Koden er ryddig og trygg på de viktigste punktene. Spørringen bruker parametere. Fødselsnummeret hentes fra `pid` i tokenet, så brukeren ser bare egne saker. Fødselsnummeret maskeres i loggene. Jeg fant ingen blokkerende feil. `mise check` ble ikke kjørt, fordi mappen ikke er et `apps/<app>`-oppsett.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `SakService.kt` | 48–50 | 🟡 | Sikkerhetsnivået (`acr`) sjekkes ikke. |
+| `SakService.kt` | 38–43 | 🟡 | Feilen logges her og kastes videre, så den logges trolig to ganger. |
+| `SakService.kt` | 41 | 🟡 | Hele unntaket logges. Feilmeldinger fra JDBC/Postgres kan inneholde verdier fra spørringen. |
+| `SakService.kt` | 51–52 | 💭 | Gyldig token uten `pid` gir `401`. `403` er mer presist. |
+| `SakService.kt` | 20, 37 | 💭 | `maskert()` gir alltid `***********`, så loggen sier ingenting om hvem det gjelder. |
+| `SakService.kt` | hele | 💭 | Route, service og repository ligger i én fil som heter `SakService.kt`. |
+| — | — | 🟡 | Jeg fant ingen tester. |
+
+### Detaljer
+- **Sikkerhetsnivå:** 🔴 Rød sone (autentisering). Saksdata er sensitive. Krev `acr` lik `idporten-loa-high` (eller `Level4`), ellers kan et token med lavere nivå hente sakene.
+- **Dobbel logging:** Fjern try/catch og la `StatusPages` logge feilen én gang. Alternativt kan du logge her uten å kaste videre, men da må kallet håndtere feilen.
+- **Logglinjen:** Logg en korrelasjons-ID i stedet for det maskerte fødselsnummeret. Logg også bare unntakstypen, ikke hele unntaket.
+- **Tester:** Legg til tester med `MockOAuth2Server`. Dekk tre tilfeller: token uten `pid`, token med for lavt `acr`, og at en bruker bare får egne saker.
+
+Still gjerne spørsmål om valgene over.
+

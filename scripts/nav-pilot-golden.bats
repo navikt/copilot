@@ -266,6 +266,25 @@ case "$p" in
     row UserRepo.kt 9 "SQL-injeksjon: fnr interpoleres i spørringen"
     row UserRepo.kt 8 "Logger fnr i klartekst"
     row UserRepo.kt 12-13 "catch svelger alle feil" ;;
+  *vedtak-kafka*)
+    # good passes rv5-rv7; each other mode is one mutation of it.
+    [[ "$BENCH_MODE" == lgtm ]] && { echo "Jeg har gått gjennom alle åtte filene i branchen. Endringene ser bra ut."; exit 0; }
+    echo "| Fil | Linje | Prioritet | Funn |"
+    if [[ "$BENCH_MODE" == wrongfile ]]; then row Routes.kt 15 "Logger fnr i klartekst"
+    else row VedtakService.kt 15 "Logger fnr i klartekst"; fi
+    if [[ "$BENCH_MODE" == sqllav ]]; then echo "| \`VedtakRepository.kt\` | 23 | 🟡 lav | SQL-injeksjon: fnr konkateneres inn i spørringen |"
+    else row VedtakRepository.kt 23 "SQL-injeksjon: fnr konkateneres inn i spørringen"; fi
+    row Routes.kt 30 "Ruten ligger utenfor authenticate(\"tokenx\")"
+    row nais.yaml 25 "accessPolicy.inbound tillater alle applikasjoner"
+    row VedtakConsumer.kt 32-33 "Lagrer og sender uten transaksjon eller outbox"
+    [[ "$BENCH_MODE" == noidem ]] || row VedtakConsumer.kt 25 "retry(3) uten idempotens gir duplikate vedtak"
+    echo "| \`Routes.kt\` | 32 | 🟡 | Ruten kaller repository og omgår service-laget |"
+    echo "| \`VedtakService.kt\` | 5 | 💭 | Ubrukt import |" ;;
+  *SakService.kt*)
+    echo "| Fil | Linje | Prioritet | Funn |"
+    echo "| \`SakService.kt\` | 37 | 💭 | Vurder strukturert logging |"
+    [[ "$BENCH_MODE" == invented ]] && row SakService.kt 26 "SQL-injeksjon i spørringen"
+    echo "Ingen kritiske funn." ;;
   *StatusPanel.tsx*)
     o=0; [[ "$BENCH_MODE" == good ]] || o=1   # Opus 5.5 Medium, 23 Sept: one line up
     echo "| Fil | Linje | Prioritet | Funn |"
@@ -365,6 +384,27 @@ run_suite() {
   [ "$status" -eq 1 ]
   grep -q '^rv3|1|pass|' "$SHIM/b-results.psv"
   grep -q '^rv4|1|fail|.*tabindex (want \[11\], cited \[10\])' "$SHIM/b-results.psv"
+}
+
+@test "review rv5-rv8: each check fails on its own mutation, «ser bra ut» fails rv5-rv7" {
+  only=(--suite review --only rv5,rv6,rv7,rv8)
+  run_suite good "${only[@]}"
+  [ "$status" -eq 0 ]
+  grep -q '^rv8|1|pass|.*|0 spurious high-priority rows' "$SHIM/b-results.psv"
+  run_suite wrongfile "${only[@]}"
+  [ "$status" -eq 1 ]
+  grep -q '^rv5|1|fail|.*fnr-logg' "$SHIM/b-results.psv"
+  grep -q '^rv6|1|pass|' "$SHIM/b-results.psv"
+  run_suite noidem "${only[@]}"
+  grep -q '^rv6|1|fail|.*idempotens' "$SHIM/b-results.psv"
+  grep -q '^rv5|1|pass|' "$SHIM/b-results.psv"
+  run_suite sqllav "${only[@]}"
+  grep -q '^rv7|1|fail|.*sql not marked high' "$SHIM/b-results.psv"
+  grep -q '^rv5|1|pass|' "$SHIM/b-results.psv"
+  run_suite invented "${only[@]}"
+  grep -q '^rv8|1|fail|.*1 spurious high-priority row' "$SHIM/b-results.psv"
+  run_suite lgtm "${only[@]}"
+  for id in rv5 rv6 rv7; do grep -q "^$id|1|fail|" "$SHIM/b-results.psv"; done
 }
 
 @test "norsk: a clean rewrite passes, an untouched draft fails all four" {

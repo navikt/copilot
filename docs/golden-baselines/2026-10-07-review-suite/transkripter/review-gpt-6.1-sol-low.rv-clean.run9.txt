@@ -1,0 +1,58 @@
+
+
+
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+**Én blokkering og ett forbedringsforslag.** SQL-spørringen er parameterisert, og endpointet henter fødselsnummer fra autentisert `pid`, ikke fra klientstyrte parametere.
+
+| Fil | Linje | Prioritet | Funn |
+|---|---|---|---|
+| `SakService.kt` | 41 | 🔴 Blokkering | Fødselsnummeret maskeres i loggmeldingen, men hele exceptionen logges. PostgreSQL-feil kan inneholde parameterverdier i feildetaljer, slik at fødselsnummer likevel havner i logger. Bruk en sikker feilklassifisering, for eksempel SQLState, og unngå usanitert exception-tekst og årsakskjede i ordinære logger. |
+| `SakService.kt` | 55 | 🟡 Forslag | Synkront JDBC-kall kjøres direkte i Ktor-handleren. Venting på connection-pool eller database blokkerer tråden som håndterer forespørselen og kan redusere kapasiteten under belastning. Flytt databasearbeidet til `Dispatchers.IO`, med grenser tilpasset connection-poolen. |
+
+🔴 Rød sone: personvern i feillogging, gå gjennom denne nøye. Maskering av én loggparameter beskytter ikke innholdet i exceptionen.
+
+**Kontroller kunne ikke fullføres:** `mise check` mangler i prosjektet. Alternativet `gradle --offline --no-daemon --console=plain test` feilet under prosjektkonfigurasjon med meldingen `> 27`, før kompilering og tester. Ingen kildekode er endret.
+

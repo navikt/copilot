@@ -1,0 +1,90 @@
+
+🔍 Skanner branchen mot `main`, leser endrede filer og kjører repoets sjekker før jeg vurderer funnene.
+
+
+
+
+
+
+
+
+
+
+
+Endringene legger til Kafka-behandling, database og API. Jeg følger opp sikkerhets- og feilhåndteringsrisikoene i disse flytene og sjekker hvilke bygg- og testkommandoer repoet faktisk støtter.
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+
+
+    00gn/T/1791354658893-copilot-tool-output-85355-29fdf270-6ffc-4579-afc0-94a1d8522011.txt
+    Consider using tools like rg (for searching), head/tail (for viewing start/end), view with
+    view_range (for specific sections), or jq (for JSON) to examine portions of the output.
+
+    Preview (first 500 chars):
+    To honour the JVM settings for this build a single-use Daemon process will be forked. For more
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full i
+    Failed with exit code 1
+
+
+
+
+Sjekkene stopper på miljøoppsett, ikke på kildekoden: `mise check` mangler, og Gradle feiler når Kotlin-pluginen leser Java 27. Jeg sjekker om en støttet JDK finnes lokalt, og fjerner kun Gradles midlertidige katalog fra denne kjøringen.
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+
+
+### Oppsummering
+Fant seks blokkere. De viktigste er at vedtaksdata kan leses uten autentisering, JWT-oppsettet validerer ikke tokenet, og Kafka-retry kan opprette flere vedtak for samme søknad.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/Routes.kt` | 30–32 | 🔴 Blokkerer | `GET /api/vedtak/{fnr}` krever ikke autentisering. Alle som når tjenesten, kan hente vedtak med fødselsnummer. Beskytt endepunktet og kontroller tilgang til personens data. |
+| `src/main/kotlin/no/nav/demo/App.kt` | 40–43 | 🔴 Blokkerer | JWT-oppsettet mangler `verifier(...)`. `validate` sjekker bare at `aud` finnes, ikke signatur, issuer eller forventet audience. Konfigurer TokenX-verifisering og valider riktige claims før POST-endepunktet godtar tokenet. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt` | 21–24 | 🔴 Blokkerer | `fnr` settes direkte inn i SQL-strengen. Det gir SQL-injeksjon. Bruk parameterbinding slik `hentForSak` allerede gjør. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakService.kt` | 13–15 | 🔴 Blokkerer | Logglinja skriver fødselsnummer. Fjern personopplysningen fra loggen. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt` | 31–33 | 🔴 Blokkerer | Koden lagrer et nytt vedtak før den publiserer Kafka-meldingen. Hvis publiseringen feiler, kjører retry hele behandlingen på nytt og lager flere vedtak. Bruk `soknadId` til idempotens, og sørg for konsistent lagring og publisering. |
+| `nais.yaml` | 17–21 | 🔴 Blokkerer | Endringen oppretter en database, men branchen har ingen migrering som oppretter `vedtak`-tabellen. Første lesing eller skriving vil feile hvis tabellen ikke finnes fra før. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt` | 25–27 | 🟡 Bør fikses | Etter tre mislykkede forsøk bobler feilen ut av `start()`, og consumer-tråden avsluttes. Ingen overvåking eller gjenstart varsler at meldingsbehandlingen har stoppet. |
+
+`git diff --check` passerer. Jeg fikk ikke kjørt tester: `mise check` finnes ikke i repoet, og `gradle test` stopper fordi Kotlin-pluginen ikke kan lese Java 27 (`IllegalArgumentException: 27`).
+
