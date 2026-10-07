@@ -1,0 +1,3 @@
+# 7. oktober 2026, etter #1443: GPT-6 Sol som reservemodell for @code-review på rv1–rv8. testpakke  modell  innsatsnivå  n
+# Kriteriene står i docs/modellvalg.md («Rettede sjekker og GPT-6 Sol») og ble satt før kjøringene.
+review  gpt-6-sol  low  10

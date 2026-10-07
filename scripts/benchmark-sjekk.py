@@ -117,21 +117,62 @@ def parse_spec(spec):
     return name, re.compile(regex, re.IGNORECASE), {int(n) for n in lines.split(",")}, fil
 
 
+# A file reference: «VedtakRepository.kt», «vedtak/VedtakConsumer.kt:31–33»,
+# «nais.yaml:25,26».
+FILE_REF = re.compile(
+    r"([\w./-]+\.(?:kts?|ya?ml|tsx?|go|json))(?::(\d+(?:\s*[-–]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*))?"
+)
+
+
+FILE_CELL = re.compile(r"[`*\s,/+]*")
+NUMBERS = re.compile(r"\s*`?\d[\d\s,–-]*`?\s*")
+
+
+def _block(text):
+    """Lines a citation covers: a range of at most four lines whole, a longer
+    block by its ends (a reviewer may cite «VedtakConsumer.kt | 23–28»)."""
+    text = NOT_A_LINE.sub(" ", text)
+    lines = cited_lines(text)
+    return lines | {int(n) for a in RANGE.findall(text) for n in a}
+
+
+def locations(row):
+    """(file, line) pairs a row cites. One rule for every arm (#1443):
+    a location is a file name and a line number, read from the File and Line
+    cells, from a «Fil.kt:23» cell, or from a «Fil.kt:23» reference anywhere
+    in the row. A file name without a line, or a YAML key in the Line cell
+    («nais.yaml | inbound»), cites no line. A file named in the text of
+    another file's row is not located there."""
+    locs = set()
+    for m in FILE_REF.finditer(row):
+        if m.group(2):
+            locs |= {(Path(m.group(1)).name.lower(), n) for n in _block(m.group(2))}
+    if row.lstrip().startswith("|"):
+        cells = row.split("|")
+        # The File cell holds file names and separators only («`App.kt`,
+        # `nais.yaml`»); the Line cell numbers only («25, 32–33»).
+        named = {Path(m.group(1)).name.lower() for c in cells if FILE_CELL.fullmatch(FILE_REF.sub("", c))
+                 for m in FILE_REF.finditer(c) if not m.group(2)}
+        lines = set().union(*(_block(c) for c in cells if LINE_CELL.match(c) or NUMBERS.fullmatch(c)))
+    else:
+        named = {Path(m.group(1)).name.lower() for m in FILE_REF.finditer(row) if not m.group(2)}
+        lines = _block(row) if len(named) == 1 else set()
+    return locs | {(f, n) for f in named for n in lines}
+
+
+def lines_in(row, fil):
+    """Lines a row cites. With a file, only lines cited for that file."""
+    if fil is None:
+        return cited_lines(row)
+    return {n for f, n in locations(row) if f == fil.lower()}
+
+
 def located(rows, regex, want, fil):
     """Rows naming the defect within NEAR lines of it, in the right file."""
-    hits = [r for r in rows if regex.search(r) and (fil is None or fil.lower() in r.lower())]
+    hits = [r for r in rows if regex.search(r)]
     if want == {0}:
         return hits
-
-    def cited(r):
-        # A file-qualified finding may cite a whole block («VedtakConsumer.kt |
-        # 23–28», Opus pilot 7 Oct); its ends count as near. rv1-rv4 keep the
-        # stricter reading, so their baselines stay comparable.
-        if fil is None:
-            return cited_lines(r)
-        return cited_lines(r) | {int(n) for a in RANGE.findall(NOT_A_LINE.sub(" ", r)) for n in a}
-
-    return [r for r in hits if any(abs(c - w) <= NEAR for c in cited(r) for w in want)]
+    return [r for r in hits if any(abs(c - w) <= NEAR for c in lines_in(r, fil) for w in want)]
 
 
 def grouped(specs):
@@ -153,15 +194,15 @@ def review(mode, text, specs):
     rows = answer_lines(text)
     missing, wrong = [], []
     for name, alts in grouped(specs).items():
-        near = [(r, want) for regex, want, fil in alts for r in located(rows, regex, want, fil)]
+        near = [(r, want, fil) for regex, want, fil in alts for r in located(rows, regex, want, fil)]
         if all(want == {0} for _, want, _ in alts):
             if not near:
                 missing.append(f"{name} (anywhere)")
             continue
         if not near:
             missing.append(name)
-        elif not any(cited_lines(r) & want for r, want in near):
-            got = sorted(set().union(*(cited_lines(r) for r, _ in near)))
+        elif not any(lines_in(r, fil) & want for r, want, fil in near):
+            got = sorted(set().union(*(lines_in(r, fil) for r, _, fil in near)))
             want = sorted(set().union(*(w for _, w, _ in alts)))
             wrong.append(f"{name} (want {want}, cited {got})")
     if missing:
@@ -182,7 +223,28 @@ def words(text):
 HIGH = re.compile(r"(?<![\wæøå])(kritisk|blokker|blocker|critical|høy(?![\wæøå])|P0(?!\w))|🔴", re.IGNORECASE)
 # «Ingen kritiske funn», «no blocking issues»: the clean verdict rv8 wants.
 # «No blockers in `SakService.kt`» is Opus' wording (second check run, 7 Oct).
-CLEAN = re.compile(r"ingen\s+(kritiske|alvorlige|blokkerende|blokkere|blockere)|no\s+(blocking|critical|blockers?)|ingen\s+🔴", re.IGNORECASE)
+# «Jeg fant ingen konkrete feil», «Ingen konkrete funn» (GPT-6 Luna, 7 Oct, #1443).
+CLEAN = re.compile(
+    r"ingen\s+(kritiske|alvorlige|blokkerende|blokkere|blockere)|ingen\s+(konkrete\s+)?(feil|funn)"
+    r"|no\s+(blocking|critical|blockers?)|ingen\s+🔴",
+    re.IGNORECASE,
+)
+PRIO_EMOJI = re.compile(r"🔴|🟠|🟡|🟢|💭|⚪")
+PRIO_WORD = re.compile(
+    r"\W*(kritisk|blokker\w*|blocker|critical|høy|high|middels|medium|lav|low|p[0-3]|forslag|nit|bør\s+\w+)\W*",
+    re.IGNORECASE,
+)
+
+
+def high(row):
+    """The row's priority is high. In a table only the Priority cell counts, so
+    «blokkerende JDBC-kall» or «høy belastning» in a 🟡 row is not high
+    (#1443). Outside a table only 🔴 marks a finding high: a prose «Blokkerende
+    kall (linje 23)» names a topic, not a priority."""
+    if row.lstrip().startswith("|"):
+        cells = [c for c in row.split("|") if PRIO_EMOJI.search(c) or PRIO_WORD.fullmatch(c)]
+        return any(HIGH.search(c) for c in cells[:1])
+    return "🔴" in row
 
 
 RED_ZONE = re.compile(r"rød\s+sone|red\s+zone", re.IGNORECASE)
@@ -194,11 +256,11 @@ def prioritet(text, specs):
     for name, alts in grouped(specs).items():
         near = [r for regex, want, fil in alts for r in located(rows, regex, want, fil)]
         if name.startswith("!"):
-            if any(HIGH.search(r) for r in near):
+            if any(high(r) for r in near):
                 bad.append(f"{name[1:]} marked high")
         elif not near:
             bad.append(f"{name} not named near its line")
-        elif not any(HIGH.search(r) for r in near):
+        elif not any(high(r) for r in near):
             bad.append(f"{name} not marked high")
     return f"priority: {', '.join(bad)}" if bad else None
 
@@ -208,7 +270,9 @@ def spurious(text):
     # «🔴 Rød sone: … linje 50» is the persona's red-zone declaration, not a
     # finding (Opus check run on the clean file, 7 Oct).
     return [r for r in answer_lines(text)
-            if HIGH.search(r) and cited_lines(r) and not CLEAN.search(r) and not RED_ZONE.search(r)]
+            # A block counts as a citation too: «| 50–55 | 🔴 |» (GPT-6 Sol,
+            # 7 Oct second run) is a high finding though cited_lines drops it.
+            if high(r) and _block(r) and not CLEAN.search(r) and not RED_ZONE.search(r)]
 
 
 def taus(text):
@@ -346,6 +410,22 @@ def selftest():
         ("taus", "Koden ser fin ut.\n", [], False),
         ("taus", "Ingen kritiske funn.\n🔴 Rød sone: tilgangskontrollen på linje 50.\n", [], True),
         ("taus", "Høyt nivå: ingen kritiske funn. Linje 20 maskerer fnr.\n", [], True),
+        # #1443: a location is a file and a line. «Fil.kt:23» in a cell or in
+        # the text counts; a file named in another file's row, or a YAML key in
+        # the Line cell, does not.
+        ("linje", "| `Routes.kt` | 30 | 🔴 | Åpent. `nais.yaml:25–26` slipper inn alle |\n", ["inb=inbound|alle@nais.yaml:25"], True),
+        ("linje", "| `Routes.kt` | 25 | 🔴 | Åpent, og nais.yaml slipper inn alle |\n", ["inb=inbound|alle@nais.yaml:25"], False),
+        ("linje", "| `nais.yaml` | inbound | 🔴 | slipper inn alle |\n", ["inb=inbound|alle@nais.yaml:25"], False),
+        ("linje", "| `vedtak/VedtakConsumer.kt:31–33` | 🔴 | nye vedtak ved retry |\n", ["id=vedtak@VedtakConsumer.kt:32"], True),
+        # #1443: only the Priority cell carries the priority.
+        ("taus", "| `S.kt` | 24 | 🟡 | Blokkerende JDBC-kall, høy belastning |\n\nIngen kritiske funn.\n", [], True),
+        ("taus", "- **Blokkerende kall (linje 23):** bruk Dispatchers.IO.\n\nIngen kritiske funn.\n", [], True),
+        ("prioritet", "| `R.kt` | 23 | 🟡 | SQL-injeksjon, ikke kritisk |\n", ["sql=injeksjon@R.kt:23"], False),
+        ("prioritet", "| `R.kt:23` | 🔴 Blokkerer | SQL-injeksjon |\n", ["sql=injeksjon@R.kt:23"], True),
+        # #1443: «ingen konkrete feil/funn» is a clean verdict.
+        ("taus", "Jeg fant ingen konkrete feil i `S.kt`.\n", [], True),
+        ("taus", "Ingen konkrete funn.\n", [], True),
+        ("taus", "| `S.kt` | 50–55 | 🔴 Blokkerende | pid valideres ikke |\n\nIngen kritiske funn ellers.\n", [], False),
     ]
     failed = 0
     with tempfile.TemporaryDirectory() as tmp:

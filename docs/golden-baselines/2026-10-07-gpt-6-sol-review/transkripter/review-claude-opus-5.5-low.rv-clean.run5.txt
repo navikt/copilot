@@ -1,0 +1,35 @@
+
+
+    src/main/kotlin/no/nav/demo/App.kt:26:            jwt("tokenx") {
+    src/main/kotlin/no/nav/demo/App.kt:28:
+    withAudience(System.getenv("TOKEN_X_CLIENT_ID"))
+    src/main/kotlin/no/nav/demo/App.kt:29:                    withClaim("acr", "idporten-loa-high")
+    src/main/kotlin/no/nav/demo/App.kt:35:        routing { sakRoutes(service) }
+    src/main/kotlin/no/nav/demo/sak/SakService.kt:47:fun Route.sakRoutes(service: SakService) {
+    src/main/kotlin/no/nav/demo/sak/SakService.kt:48:    authenticate("tokenx") {
+    ls: .mise.toml: No such file or directory
+    ls: mise.toml: No such file or directory
+    Failed with exit code 1
+
+### Oppsummering
+Filen er i god stand. Jeg fant ingen blockere. Fødselsnummeret hentes fra `pid`-claimet i tokenet, og ikke fra en path- eller query-parameter. Dermed kan brukeren bare se sine egne saker, så eierskapet er sikret. Spørringen er parameterisert, og fødselsnummeret maskeres i loggen. I `App.kt` validerer `tokenx`-oppsettet både audience og `acr=idporten-loa-high`. Jeg fikk ikke kjørt `mise check`, fordi repoet mangler `mise.toml`. Det finnes heller ingen tester.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `SakService.kt` | 36–44 | 🟡 | Ny logikk uten tester |
+| `SakService.kt` | 41 | 🟡 | Stacktrace og årsak går tapt |
+| `SakService.kt` | 23 | 🟡 | Ingen paginering eller `LIMIT` |
+| `SakService.kt` | 20 | 💭 | `maskert()` viser bare stjerner og hjelper ikke ved feilsøking |
+| `SakService.kt` | 22, 47 | 💭 | Repository og ruter ligger i `SakService.kt` |
+
+### Detaljer
+- **Tester mangler (linje 36–44):** Ruten bør testes med `testApplication` og MockOAuth2Server. Testene bør dekke tre tilfeller: token uten `pid` gir 401, gyldig token gir bare egne saker, og feil acr-nivå avvises. Dette er tilgangskontroll, og en regresjon her ville lekke andres data.
+- **Feillogging (linje 41):** Når bare klassenavnet logges, går årsaken tapt. Det er riktig å ikke logge `e.message`, fordi meldinger fra PostgreSQL kan inneholde parameterverdier som fødselsnummeret. Logg heller en egen melding og send exceptionen videre til en StatusPages-handler. Alternativt kan du droppe try/catch, siden blokken ikke tilfører noe utover loggingen.
+- **Paginering (linje 23):** En person med mange saker gir stor respons og stor last på databasen. Vurder å legge til `LIMIT` eller paginering.
+
+🔴 Rød sone: tilgangskontrollen på linje 50 bygger på at tokenet er validert i `App.kt`. Endringer der må gjennomgås nøye.
+
+Still gjerne spørsmål om valgene over.
+

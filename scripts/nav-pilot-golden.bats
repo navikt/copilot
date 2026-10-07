@@ -407,6 +407,37 @@ run_suite() {
   for id in rv5 rv6 rv7; do grep -q "^$id|1|fail|" "$SHIM/b-results.psv"; done
 }
 
+# #1443: the specs themselves, read from the script, against wording taken
+# from the committed 7 Oct transcripts (GPT-6 Luna, GPT-6.1 Sol). Each
+# passing row has a mutation that must fail.
+@test "review specs (#1443): GPT wording passes, the mutations fail" {
+  eval "$(sed -n '/^RV_PR=(/,/^)/p; /^RV_DESIGN=(/,/^)/p; /^RV_PRIO=(/,/^)/p' "$SCRIPT")"
+  chk() { python3 "${BATS_TEST_DIRNAME}/benchmark-sjekk.py" "$@" >/dev/null; }
+  t="$BATS_TEST_TMPDIR/t.txt"
+  base='| `VedtakService.kt` | 15 | 🔴 | log.info logger fnr |
+| `Routes.kt` | 30 | 🔴 | GET ligger utenfor authenticate |
+| `nais.yaml` | 25–26 | 🔴 | inbound slipper inn alle applikasjoner |'
+  # SQL: «settes direkte inn i SQL-strengen» (Luna run 9), rv5 and rv7.
+  printf '%s\n| `VedtakRepository.kt` | 23 | 🔴 | FNR settes direkte inn i SQL-strengen. |\n' "$base" >"$t"
+  chk linje "$t" "${RV_PR[@]}"
+  chk prioritet "$t" "${RV_PRIO[@]}"
+  printf '%s\n| `VedtakRepository.kt` | 23 | 🔴 | FNR brukes i spørringen. |\n' "$base" >"$t"
+  ! chk linje "$t" "${RV_PR[@]}" || false
+  # rv7: inbound «*» must be high; 🟡 (Opus runs 6 and 10) fails.
+  printf '%s\n| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon |\n' "${base/🔴 | inbound/🟡 | inbound}" >"$t"
+  chk linje "$t" "${RV_PR[@]}"
+  ! chk prioritet "$t" "${RV_PRIO[@]}" || false
+  # rv6: GPT-6.1 Sol run 1 says both defects without the Opus words.
+  echo '| `vedtak/VedtakConsumer.kt:31–33` | 🔴 Blokker | **Retry oppretter nye vedtak.** Hvis lagringen lykkes og Kafka-publiseringen feiler, kjører retry hele operasjonen med ny UUID. |' >"$t"
+  chk funnet "$t" "${RV_DESIGN[@]}"
+  echo '| `vedtak/VedtakConsumer.kt:31–33` | 🔴 Blokker | **Retry kjører hele operasjonen.** Bruk soknadId. |' >"$t"
+  ! chk funnet "$t" "${RV_DESIGN[@]}" || false
+  # rv8 fixture: the owner ruled log.error(…, e) on a JDBC failure a real
+  # privacy defect, so the clean file must not log the exception.
+  grep -q 'log\.error("Kunne ikke hente saker' "$SCRIPT"
+  ! grep -q 'log\.error("Kunne ikke hente saker.*, e)' "$SCRIPT" || false
+}
+
 @test "norsk: a clean rewrite passes, an untouched draft fails all four" {
   run_suite good --suite norsk
   [ "$status" -eq 0 ]
