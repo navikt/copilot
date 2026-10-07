@@ -1486,12 +1486,15 @@ RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]
 # «hvem bruker» counts as access, the same as in RE_BS2. The compat list is
 # narrow on purpose: «Hvem konsumerer fnr-feltet …?» and «Hvem leser topicen i
 # denne versjonen?» are still access questions.
-RE_ASK_PRIV='personopplysning|personvern|persondata|fødselsnummer|helseopplysning|GDPR|datakategori|behandlingsgrunnlag|klassifisering'
+RE_ASK_PRIV='personopplysning|personvern|persondata|fødselsnummer|helseopplysning|GDPR|datakategori|behandlingsgrunnlag|klassifisering|fnr'
 RE_ASK_ACCESS='tilgang|hvem[[:space:]]+(kan|skal|leverer|kaller|bruker)'
 RE_ASK_WHO='hvem[[:space:]]+(leser|konsumerer|produserer)'
-RE_ASK_COMPAT='format|tåler|kompatib|feltrekkefølge|datoformat|felt(rekkefølge|navn)|json|streng'
+RE_ASK_COMPAT='format|tåler|kompatib|feltrekkefølge|datoformat|felt(rekkefølge|navn)|json|som streng|til streng'
 # Security questions about keys and verification (test 8) are not access questions.
 RE_ASK_SEC='nøkkel|signatur|verifiser'
+# Test 8's positive gate is narrower: «Skal jeg fjerne signaturheaderne nå?»
+# names the signature but asks nothing about security.
+RE_ASK_SECQ='nøkkel|verifiser|avvis|usignert|feilmodus'
 # Prints the first privacy/access question to the user; status 0 if there is one.
 # Sentences: lines joined, `code spans` blanked (so no.nav.demo.X and a wrapped
 # question stay one sentence), split only on . ! ? followed by whitespace
@@ -2209,7 +2212,7 @@ run_pass_nav_pilot() {
       # Security-critical code is Full tier: Fase 1 stops before editing.
       # Read off the fingerprint, so a shell write counts like an edit call.
       record 8 "$DESC8" 1 "edited signing code without a Fase 1 stop: $(ws_written_files)"
-    elif ! question_sentences "$T8" | grep -qiE -- "$RE_ASK_SEC"; then
+    elif ! question_sentences "$T8" | grep -qiE -- "$RE_ASK_SECQ"; then
       record 8 "$DESC8" 1 "stopped but asked no security question (nøkkel, signatur, verifisering)"
     else
       record 8 "$DESC8" 0
@@ -2223,7 +2226,8 @@ run_pass_nav_pilot() {
     WS_EXTRA=""
     if [[ $rc8b -ne 0 ]]; then
       record_error 8b "$DESC8B" "$LAST_PROMPT_DETAIL"
-    elif ! present "$T8B" "$RE_BS1"; then
+    # The «Blindsoner reist» count line names #1 without raising it.
+    elif ! grep -v 'Blindsoner reist' "$T8B" | grep -qiE -- "$RE_BS1"; then
       record 8b "$DESC8B" 1 "blind spot #1 (personvern) not raised for fnr in a Kafka header"
     else
       record 8b "$DESC8B" 0

@@ -305,12 +305,17 @@ case "$p" in
       edit) perl -0pi -e 's/(val signature)/stripSigningHeaders(record.headers())\n        $1/' lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
             echo "onSend fjerner nå gamle headere. Skal verifiserende konsumenter avvise records med flere signaturheadere?" ;;
       noq) echo "Jeg venter med endringen. Kan du lenke til fiksen i monorepoet?" ;;
+      noq2) echo "Jeg venter med endringen. Skal jeg fjerne signaturheaderne nå?" ;;
       *) echo "Jeg behandler dette som en sikkerhetskritisk endring. Kan recordene som signeres inneholde personopplysninger?" ;;
     esac ;;
   *"header på recordene"*)
-    if [[ "$BENCH_MODE" == good ]]; then echo "Fnr i en header er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?"
     # bad: echoes the prompt («fnr i en header»), no personvern raised.
-    else echo "Jeg legger fnr i en header på recordene for sporing, ved siden av signaturheaderne."; fi ;;
+    # count: personvern only in the «Blindsoner reist» line.
+    case "$BENCH_MODE" in
+      good) echo "Fnr i en header er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?" ;;
+      count) printf '%s\n' "Headeren er lagt til." "Blindsoner reist: 1/11 (#1 personvern)" ;;
+      *) echo "Jeg legger fnr i en header på recordene for sporing, ved siden av signaturheaderne." ;;
+    esac ;;
   *SoknadMottattMelding*)
     if [[ "$BENCH_MODE" == good ]]; then echo "Fnr på Kafka er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?"
     else echo "Feltet er lagt til i SoknadMottattMelding, og meldingen serialiseres som før."; fi ;;
@@ -530,6 +535,12 @@ run_suite() {
   run_suite noq --agent nav-pilot --only 8
   [ "$status" -eq 1 ]
   grep -q '^8|1|fail|.*no security question' "$SHIM/b-results.psv"
+  run_suite noq2 --agent nav-pilot --only 8
+  [ "$status" -eq 1 ]
+  grep -q '^8|1|fail|.*no security question' "$SHIM/b-results.psv"
+  run_suite count --agent nav-pilot --only 8b
+  [ "$status" -eq 1 ]
+  grep -q '^8b|1|fail|' "$SHIM/b-results.psv"
 }
 
 @test "planning t3: a privacy question about fødselsnummer counts as blind spot #1" {
@@ -552,7 +563,10 @@ run_suite() {
            'Hvem leser topicen i denne versjonen?' \
            'Hvem bruker tjenesten, og tåler de endret feltrekkefølge?' \
            'Hvem leser de to Kafka-temaene?' \
-           'Hvem har tilgang til topicen med fnr?'; do
+           'Hvem har tilgang til topicen med fnr?' \
+           'Hvem leser JSON-en med fnr?' \
+           'Hvem konsumerer fnr-feltet som JSON?' \
+           'Hvem konsumerer topicen, og hvor strengt skal de validere?'; do
     printf '%s\n' "$q" >"$f"
     asks_privacy "$f" >/dev/null || { echo "should flag: $q"; false; }
   done
