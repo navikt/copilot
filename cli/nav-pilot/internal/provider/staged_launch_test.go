@@ -873,7 +873,7 @@ func TestWithOpenCode2UserConfigRestatesAgents(t *testing.T) {
 	payload := t.TempDir()
 	mustWrite(t, filepath.Join(payload, "opencode.json"), `{"permission":{"bash":{"git *":"allow","*":"deny"}},"agent":{"rev":{"prompt":"{file:./rev.txt}"}}}`)
 	mustWrite(t, filepath.Join(payload, "agents", "grillmester.md"),
-		"---\ndescription: \"probe: x\" # comment\nmode: primary\ntools:\n  - read\n1: one\nhidden: True\npermission:\n  edit: deny\n  bash:\n    \"git *\": allow\n    \"*\": deny\n---\n\nPROMPT\n")
+		"---\ndescription: \"probe: x\" # comment\nmode: primary\ntools:\n  read: true\n1: one\nhidden: True\npermission:\n  edit: deny\n  bash:\n    \"git *\": allow\n    \"*\": deny\n---\n\nPROMPT\n")
 	mustWrite(t, filepath.Join(payload, "agents", "native.md"), "---\nmodel: p/m\nvariant: high\nsteps: 3\n---\nSYS\n")
 	mustWrite(t, filepath.Join(payload, "agents", "secret.md"), "---\ndescription: x\n---\n{env:TOKEN}\n")
 	mustWrite(t, filepath.Join(payload, "modes", "plan.md"), "---\nmode: subagent\n---\nPLAN\n")
@@ -882,7 +882,7 @@ func TestWithOpenCode2UserConfigRestatesAgents(t *testing.T) {
 	env = withOpenCodeConfigContent(env, map[string]any{"share": "disabled"}) // a later policy merge keeps the order
 	abs := filepath.ToSlash(filepath.Join(payload, "rev.txt"))
 	want := `OPENCODE_CONFIG_CONTENT={"agent":{"rev":{"prompt":"{file:` + abs + `}"},` +
-		`"grillmester":{"description":"probe: x","mode":"primary","tools":["read"],"1":"one","hidden":true,"permission":{"edit":"deny","bash":{"git *":"allow","*":"deny"}},"prompt":"PROMPT"}},` +
+		`"grillmester":{"description":"probe: x","mode":"primary","tools":{"read":true},"1":"one","hidden":true,"permission":{"edit":"deny","bash":{"git *":"allow","*":"deny"}},"prompt":"PROMPT"}},` +
 		`"agents":{"native":{"model":"p/m#high","steps":3,"system":"SYS"},"plan":{"mode":"primary","system":"PLAN"}},` +
 		`"permission":{"bash":{"git *":"allow","*":"deny"}},"share":"disabled"}`
 	if len(env) != 1 || env[0] != want {
@@ -924,6 +924,23 @@ func TestWithOpenCode2UserConfigMarkdownOutranksJSON(t *testing.T) {
 	mustWrite(t, filepath.Join(payload, "agents", "b.md"), "---\ndescription: md\n---\nB\n")
 	env := withOpenCode2UserConfig(nil, payload)
 	want := `OPENCODE_CONFIG_CONTENT={"agent":{"a":{"tools":{"read":true},"prompt":"A"}},"agents":{"b":{"description":"md","steps":2,"system":"B"}}}`
+	if len(env) != 1 || env[0] != want {
+		t.Errorf("env = %q\nwant  %q", env, want)
+	}
+}
+
+// As opencode 2 parses agent files: an unquoted colon value retried as a
+// block scalar, no frontmatter a native agent, and a v1 file opencode would
+// reject left out without dropping the JSON agent of its name.
+func TestWithOpenCode2UserConfigAgentFileEdges(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	payload := t.TempDir()
+	mustWrite(t, filepath.Join(payload, "opencode.json"), `{"agents":{"bad":{"description":"json"}}}`)
+	mustWrite(t, filepath.Join(payload, "agents", "colon.md"), "---\ndescription: Use when: things happen\n---\nC\n")
+	mustWrite(t, filepath.Join(payload, "agents", "bare.md"), "just a prompt\n")
+	mustWrite(t, filepath.Join(payload, "agents", "bad.md"), "---\ntools:\n  - read\n---\nX\n")
+	env := withOpenCode2UserConfig(nil, payload)
+	want := `OPENCODE_CONFIG_CONTENT={"agents":{"bad":{"description":"json"},"bare":{"system":"just a prompt"},"colon":{"description":"Use when: things happen","system":"C"}}}`
 	if len(env) != 1 || env[0] != want {
 		t.Errorf("env = %q\nwant  %q", env, want)
 	}

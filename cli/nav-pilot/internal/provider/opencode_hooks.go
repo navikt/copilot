@@ -195,7 +195,9 @@ func writeHooksBridgePlugin(v2 bool) (string, error) {
 //
 // Key order is kept: opencode resolves permission rules in order, the last
 // match winning. add's own maps are written in sorted key order; a
-// *yaml.Node value is written in its own order.
+// *yaml.Node value is written in its own order. Output is not byte-identical
+// to the earlier map-based merge: top-level keys follow the user's order then
+// add's, nested maps are sorted; what opencode reads is the same.
 func withOpenCodeConfigContent(env []string, add map[string]any) []string {
 	cfg := &yaml.Node{Kind: yaml.MappingNode}
 	for _, e := range env {
@@ -273,7 +275,14 @@ func jsonNodeFrom(dec *json.Decoder) (*yaml.Node, error) {
 				if err != nil {
 					return nil, err
 				}
-				n.Content = append(n.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: k.(string)})
+				v, err := jsonNodeFrom(dec)
+				if err != nil {
+					return nil, err
+				}
+				// A duplicate key keeps its first place and its last value, as
+				// JSON.parse does; two copies would let the user's outrank policy.
+				nodeSet(n, k.(string), v)
+				continue
 			}
 			v, err := jsonNodeFrom(dec)
 			if err != nil {
@@ -303,11 +312,6 @@ func nodeJSON(n *yaml.Node) []byte {
 
 func writeNodeJSON(b *bytes.Buffer, n *yaml.Node) {
 	switch n.Kind {
-	case yaml.DocumentNode:
-		if len(n.Content) > 0 {
-			writeNodeJSON(b, n.Content[0])
-			return
-		}
 	case yaml.AliasNode:
 		writeNodeJSON(b, n.Alias)
 		return
@@ -386,8 +390,9 @@ func nodeDelete(m *yaml.Node, key string) {
 	}
 }
 
-// mergeNode merges add over have: mappings key by key, a new key appended,
-// anything else replaced.
+// mergeNode merges add over have: mappings key by key, anything else
+// replaced. A key have already holds keeps its place; a new one goes last.
+// have is changed in place.
 func mergeNode(have, add *yaml.Node) *yaml.Node {
 	if have == nil || have.Kind != yaml.MappingNode || add.Kind != yaml.MappingNode {
 		return add

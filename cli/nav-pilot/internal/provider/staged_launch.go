@@ -634,6 +634,10 @@ func withOpenCode2UserConfig(env []string, payload string) []string {
 	// goes under "agent", native (v2) under "agents"; within one source
 	// opencode takes a native agent whole over a legacy one, so a legacy file
 	// drops a native JSON agent of its name.
+	//
+	// ponytail: a native file over a legacy JSON agent of its name replaces it
+	// whole, where opencode overlays field by field. Matching that means
+	// porting opencode's v1 migration; do it if a payload ever ships both.
 	legacy, native := openCodeMarkdownAgents(payload)
 	for i := 0; i+1 < len(legacy.Content); i += 2 {
 		have, _ := add["agents"].(*yaml.Node)
@@ -679,12 +683,13 @@ func openCodeMarkdownAgents(dir string) (legacy, native *yaml.Node) {
 				fmt.Fprintf(os.Stderr, "%s The payload's agent %s uses {file:} or {env:}; a user agent of that name outranks it.\n", domain.Yellow("⚠"), name)
 				return nil
 			}
+			// No frontmatter is a native agent, the whole file its system.
 			fm, body, ok := source.SplitFrontmatter(b)
 			if !ok {
-				return nil
+				fm, body = nil, b
 			}
 			var doc yaml.Node
-			if yaml.Unmarshal(fm, &doc) != nil {
+			if yaml.Unmarshal(fm, &doc) != nil && yaml.Unmarshal(sanitizeFrontmatter(fm), &doc) != nil {
 				return nil
 			}
 			agent := &yaml.Node{Kind: yaml.MappingNode}
@@ -700,6 +705,9 @@ func openCodeMarkdownAgents(dir string) (legacy, native *yaml.Node) {
 				if !openCodeNativeAgentKeys[agent.Content[i].Value] {
 					out, prompt = legacy, "prompt"
 				}
+			}
+			if out == legacy && !openCodeV1AgentValid(agent) {
+				return nil
 			}
 			if out == native {
 				m, v := nodeGet(agent, "model"), nodeGet(agent, "variant")
@@ -721,6 +729,75 @@ func openCodeMarkdownAgents(dir string) (legacy, native *yaml.Node) {
 
 // openCodeNativeAgentKeys are the frontmatter keys of an opencode 2 agent
 // (ConfigAgent.Info, and variant); any other key makes the file a v1 agent.
+// sanitizeFrontmatter is opencode's retry for frontmatter YAML rejects
+// (core/src/config/markdown.ts sanitize): a top-level value with an unquoted
+// colon becomes a block scalar.
+func sanitizeFrontmatter(fm []byte) []byte {
+	lines := strings.Split(string(fm), "\n")
+	var out []string
+	for _, l := range lines {
+		t := strings.TrimSpace(l)
+		m := openCodeFrontmatterEntry.FindStringSubmatch(l)
+		if t == "" || strings.HasPrefix(t, "#") || m == nil {
+			out = append(out, l)
+			continue
+		}
+		v := strings.TrimSpace(m[2])
+		if v == "" || v == ">" || v == "|" || strings.HasPrefix(v, `"`) || strings.HasPrefix(v, "'") || !strings.Contains(v, ":") {
+			out = append(out, l)
+			continue
+		}
+		out = append(out, m[1]+": |-", "  "+v)
+	}
+	return []byte(strings.Join(out, "\n"))
+}
+
+var openCodeFrontmatterEntry = regexp.MustCompile(`^([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*(.*)$`)
+
+// openCodeV1AgentValid checks the fields of opencode's v1 agent schema
+// (core/src/v1/config/agent.ts) a file most likely gets wrong; opencode drops
+// a file that fails it.
+//
+// ponytail: types only, not color patterns or positive steps; extend if a
+// payload trips over those.
+func openCodeV1AgentValid(a *yaml.Node) bool {
+	for i := 0; i+1 < len(a.Content); i += 2 {
+		v := a.Content[i+1]
+		switch a.Content[i].Value {
+		case "model", "variant", "prompt", "description", "color":
+			if v.Tag != "!!str" {
+				return false
+			}
+		case "disable", "hidden":
+			if v.Tag != "!!bool" {
+				return false
+			}
+		case "temperature", "top_p", "steps", "maxSteps":
+			if v.Tag != "!!int" && v.Tag != "!!float" {
+				return false
+			}
+		case "mode":
+			if !slices.Contains([]string{"subagent", "primary", "all"}, v.Value) {
+				return false
+			}
+		case "options", "permission":
+			if v.Kind != yaml.MappingNode && !(a.Content[i].Value == "permission" && v.Tag == "!!str") {
+				return false
+			}
+		case "tools":
+			if v.Kind != yaml.MappingNode {
+				return false
+			}
+			for j := 1; j < len(v.Content); j += 2 {
+				if v.Content[j].Tag != "!!bool" {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
 var openCodeNativeAgentKeys = map[string]bool{
 	"variant": true, "model": true, "request": true, "system": true, "description": true, "mode": true,
 	"hidden": true, "color": true, "steps": true, "disabled": true, "permissions": true,
