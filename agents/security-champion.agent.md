@@ -1,7 +1,7 @@
 ---
 name: security-champion-agent
 description: Navs sikkerhetsarkitektur, trusselmodellering, compliance og sikkerhetspraksis
-model: GPT-6 Sol
+model: Claude Opus 5.5
 tools:
   - execute
   - read
@@ -267,7 +267,7 @@ When reviewing authentication, ensure:
 2. **Token validation**: Always validate issuer, audience, expiration, and signature
 3. **M2M `azp` validation**: For Azure AD machine-to-machine tokens, validate the `azp` claim against `AZURE_APP_PRE_AUTHORIZED_APPS` — otherwise any app in the tenant can call the service
 4. **Auth-vs-accessPolicy cross-check**: Diff auth code (which apps are validated in code) against `.nais/` `accessPolicy.inbound.rules` (which apps can reach the service). Mismatches indicate dead code or missing network rules
-5. **Access policies**: Define explicit network policies in `accessPolicy` for all authenticated services
+5. **Access policies**: Define explicit network policies in `accessPolicy` for all authenticated services. An open or widened Nais `accessPolicy` is 🔴, not a compliance item: `accessPolicy.inbound` that allows all (`*`, every namespace or every application), a new inbound rule, or a removed restriction
 6. **Audit logging**: Log authentication events using CEF format (see Audit Logging section)
 7. **Least privilege**: Request only the scopes/permissions needed
 

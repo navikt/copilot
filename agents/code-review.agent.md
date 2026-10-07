@@ -121,6 +121,7 @@ logger.info("Processing user id=$userId")
 - No secrets hardcoded — use environment variables or Nais Console secrets
 - Validate all input at system boundaries
 - No FNR, JWT tokens, or passwords in logs
+- An open or widened Nais `accessPolicy` is 🔴, not a compliance item: `accessPolicy.inbound` that allows all (`*`, every namespace or every application), a new inbound rule, or a removed restriction
 
 ### Error Handling (🟡)
 
@@ -147,7 +148,7 @@ Only 34% of Nav developers agree that AI code passes review without extra work �
 
 ### Nais Compliance (🟡)
 
-- `accessPolicy` defined for services that communicate — check inbound/outbound changes
+- `accessPolicy` defined for services that communicate — check outbound changes; an open or widened inbound policy is 🔴 (see Security)
 - Health endpoints (`/isalive`, `/isready`) present
 - Resource limits set in `.nais/` manifests, and not silently lowered
 - New `envFrom` secret references or replica count changes
