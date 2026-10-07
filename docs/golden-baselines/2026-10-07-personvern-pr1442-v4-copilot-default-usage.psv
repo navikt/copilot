@@ -1,0 +1,35 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        nav-pilot
+# suite:        none
+# date:         2026-10-07
+# revision:     19a9e367
+# model:        CLI default
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-4.
+# effort:       CLI default
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       3
+# fixture:      4263008951
+# prompts:      8,8b
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+t8|1|75b1c0a0-4b49-4499-adc0-5d7298c15e9f|19179|0|claude-sonnet-5.5|medium|40842|345|0|40838|108|10555300000|4333|4322.371125|tool_calls||
+t8|1|75b1c0a0-4b49-4499-adc0-5d7298c15e9f|19180|0|claude-sonnet-5.5|medium|41499|346|40838|659|0|1327910000|3103|1403.757083|tool_calls||
+t8|1|75b1c0a0-4b49-4499-adc0-5d7298c15e9f|19181|0|claude-sonnet-5.5|medium|42572|980|41497|1073|147|2078590000|9781|5972.333|stop||
+t8b|1|1c1bfe9f-535b-430e-a497-3006b551e015|19182|0|claude-sonnet-5.5|medium|40793|314|16749|24040|107|6659780000|4782|4775.201333999999|tool_calls||
+t8b|1|1c1bfe9f-535b-430e-a497-3006b551e015|19183|0|claude-sonnet-5.5|medium|41277|257|40789|486|0|1194680000|2789|1511.599083|tool_calls||
+t8b|1|1c1bfe9f-535b-430e-a497-3006b551e015|19184|0|claude-sonnet-5.5|medium|42067|890|41275|790|41|1913400000|8878|3602.685792|stop||
+t8|2|8898de2b-2df3-4e9f-93a5-4c6df5ae5e8c|19185|0|claude-sonnet-5.5|medium|40844|307|16749|24091|122|6665530000|4463|4453.871666|tool_calls||
+t8|2|8898de2b-2df3-4e9f-93a5-4c6df5ae5e8c|19186|0|claude-sonnet-5.5|medium|41929|291|40840|1087|0|1379950000|2909|1548.125583|tool_calls||
+t8|2|8898de2b-2df3-4e9f-93a5-4c6df5ae5e8c|19187|0|claude-sonnet-5.5|medium|42798|1055|41927|869|264|2111190000|11032|4221.7711659999995|stop||
+t8b|2|bc803429-af2b-4151-8456-ee890420c48f|19188|0|claude-sonnet-5.5|medium|40791|304|16749|24038|107|6649280000|4903|4888.500459|tool_calls||
+t8b|2|bc803429-af2b-4151-8456-ee890420c48f|19189|0|claude-sonnet-5.5|medium|41761|176|40787|972|0|1235140000|2400|1672.8277919999998|tool_calls||
+t8b|2|bc803429-af2b-4151-8456-ee890420c48f|19190|0|claude-sonnet-5.5|medium|42665|809|41759|904|0|1870580000|7729|7693.8463329999995|stop||
+t8|3|c104dd44-d684-4223-a64c-7f0112f5d46b|19191|0|claude-sonnet-5.5|medium|40839|207|16749|24086|90|6564280000|4592|4584.0950410000005|tool_calls||
+t8|3|c104dd44-d684-4223-a64c-7f0112f5d46b|19192|0|claude-sonnet-5.5|medium|41292|291|40835|455|0|1221850000|3058|1669.127459|tool_calls||
+t8|3|c104dd44-d684-4223-a64c-7f0112f5d46b|19193|0|claude-sonnet-5.5|medium|42161|866|41290|869|154|1909450000|9025|4700.326375000001|stop||
+t8b|3|6c6a037d-38d0-4ce4-9d9d-a53e12e1f76e|19194|0|claude-sonnet-5.5|medium|40799|319|16749|24046|155|6666280000|5505|5482.761125999999|tool_calls||
+t8b|3|6c6a037d-38d0-4ce4-9d9d-a53e12e1f76e|19195|0|claude-sonnet-5.5|medium|42944|209|40795|2147|0|1562050000|2803|1593.5723749999997|tool_calls||
+t8b|3|6c6a037d-38d0-4ce4-9d9d-a53e12e1f76e|19196|0|claude-sonnet-5.5|medium|43843|1051|42942|899|0|2134990000|11270|10486.475625000001|stop||
