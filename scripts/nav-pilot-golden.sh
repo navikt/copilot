@@ -2607,7 +2607,10 @@ EOF
 
 # rv8 fixture: one idiomatic service with nothing to escalate. Bait for a
 # reviewer that pattern-matches: SQL (parameterised), fnr (masked in the log),
-# an endpoint (behind tokenx) and a catch (logs and rethrows).
+# an endpoint (behind tokenx) and a catch (logs and rethrows). The catch logs
+# only the exception class: in the 7 Oct runs it logged `e`, and the owner ruled
+# that a real privacy defect (a JDBC message can carry the fnr, #1443). rv8
+# runs before and after that change are not directly comparable.
 seed_sak_service() {
   [[ -d "$WS/src/main/kotlin/no/nav/demo" ]] || return 1
   mkdir -p "$WS/src/main/kotlin/no/nav/demo/sak"
@@ -2705,7 +2708,7 @@ class SakService(private val repository: SakRepository) {
         return try {
             repository.hentForPerson(fnr)
         } catch (e: Exception) {
-            log.error("Kunne ikke hente saker for {}", fnr.maskert(), e)
+            log.error("Kunne ikke hente saker: {}", e.javaClass.simpleName)
             throw e
         }
     }
@@ -2813,7 +2816,7 @@ RE_CR_DELEGATE='accessibility[-[:space:]]?agent|aksel[-[:space:]]?agent'
 # was added for GPT-6 Sol's «Alle databasefeil gjøres om til `null`» at 12–13,
 # a real find the catch expression missed in both of its first two runs.
 RV_KOTLIN=(
-  'sql=injeksjon|injection|parametr|parameteri|interpol|konkaten|prepared|bindevariab@9'
+  'sql=injeksjon|injection|parametr|parameteri|parameterbind|(direkte|rett) inn i (sql|spørring)|endre spørringen|interpol|konkaten|prepared|bindevariab@9'
   'fnr-logg=(logg|logger|log |info).{0,80}(fnr|fødselsnummer|pii|personopplys|persondata|personinfo)|(fnr|fødselsnummer|pii|personopplys|persondata).{0,80}logg@8'
   'catch=catch|svelg|swallow|fanger|feil.{0,40}null@12,13'
 )
@@ -2829,10 +2832,14 @@ DESC_RV3="TSX: all four planted defects named within three lines"
 DESC_RV4="TSX: every planted defect cited on its line"
 
 # rv5-rv7: one review of an 8-file branch (seed_vedtak_branch). Line numbers
-# carry the file, so a right line in the wrong file is no finding.
+# carry the file, so a right line in the wrong file is no finding. A location
+# is a file and a line number (#1443, `locations` in benchmark-sjekk.py): the
+# File and Line cells, or «Fil.kt:23» anywhere in the row. A YAML key in the
+# Line cell («nais.yaml | inbound») and a file named without a line in another
+# file's row cite no line. The same rule holds for every arm.
 RV_PR=(
   'fnr-logg=(logg|logger|log|info).{0,80}(fnr|fødselsnummer|pii|personopplys|persondata|personinfo)|(fnr|fødselsnummer|pii|personopplys|persondata).{0,80}logg@VedtakService.kt:15'
-  'sql=injeksjon|injection|parametr|parameteri|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
+  'sql=injeksjon|injection|parametr|parameteri|parameterbind|(direkte|rett) inn i (sql|spørring)|endre spørringen|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
   'tilgang=authenticate|autentiser|autentis|tokenx|tilgangskontroll|auth|ubeskyttet|åpent|uten tilgang@Routes.kt:30'
   'inbound=inbound|accesspolicy|wildcard|"\*"|alle applikasjoner|all applications|alle apper|any application@nais.yaml:25,26'
 )
@@ -2844,15 +2851,25 @@ RV_PR=(
 # that one is matched anywhere in the answer. The route calling the repository
 # directly was named in 0/3 (two runs praised the layering), so it is not asserted:
 # a check the reference model never meets measures the fixture, not the model.
+# Rederived after the runs (#1443) from all 30 committed rv-pr transcripts of 7 Oct
+# (Opus 5.5, GPT-6 Luna, GPT-6.1 Sol): the Opus-only words missed the same
+# defects in GPT wording. idempotens is the concept «one message, more than
+# one vedtak» («Retry oppretter nye vedtak», «ny UUID per forsøk»);
+# dobbeltskriving is «the save succeeds and the publish fails» («Hvis
+# publiseringen feiler», «lagres før publisering», «feil etter
+# databaseinnsetting»). Rescored, the patterns pass every run the 7 Oct
+# classification (failures.psv) judged a find and fail every model miss.
 RV_DESIGN=(
-  'idempotens=idempoten|duplikat|duplicate|on conflict|upsert@VedtakConsumer.kt:25,32,33'
-  'idempotens=idempoten|duplikat|duplicate|on conflict|upsert@VedtakRepository.kt:14'
-  'dobbeltskriving=outbox|atomisk|atomic|transaksjon|transaction|dual.?write|send.{0,20}feiler@0'
+  'idempotens=idempoten|duplikat|duplis|duplicate|dedup|on conflict|upsert|(flere|nye|nytt) vedtak|ny (uuid|id\b)@VedtakConsumer.kt:25,32,33'
+  'idempotens=idempoten|duplikat|duplis|duplicate|dedup|on conflict|upsert|(flere|nye|nytt) vedtak|ny (uuid|id\b)@VedtakRepository.kt:14'
+  'dobbeltskriving=outbox|atomisk|atomic|transaksjon|transaction|dual.?write|send.{0,20}feiler|publiser\w* (feiler|mislykkes)|(før|etter) (den )?(kafka-)?publiser|uten å (være|bli) publisert|sendes etter|feil(er)? etter (database|db|lagring|innsetting|databaseinnsetting)@0'
 )
-# rv7: the SQL and access findings are marked high; the unused import is not.
+# rv7: the SQL, access and nais.yaml inbound «*» findings are marked high;
+# the unused import is not. Only the Priority cell is read (#1443).
 RV_PRIO=(
-  'sql=injeksjon|injection|parametr|parameteri|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
+  'sql=injeksjon|injection|parametr|parameteri|parameterbind|(direkte|rett) inn i (sql|spørring)|endre spørringen|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
   'tilgang=authenticate|autentiser|autentis|tokenx|tilgangskontroll|auth|ubeskyttet|åpent|uten tilgang@Routes.kt:30'
+  'inbound=inbound|accesspolicy|wildcard|"\*"|alle applikasjoner|all applications|alle apper|any application@nais.yaml:25,26'
   '!nit=ubrukt|unused|import|Locale@VedtakService.kt:5'
 )
 DESC_RV5="PR: security and privacy defects on the right line in the right file"
