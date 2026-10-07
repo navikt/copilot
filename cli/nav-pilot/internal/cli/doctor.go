@@ -391,6 +391,7 @@ func cmdDoctor() error {
 		switch refused := providerpkg.CheckOpenCodeMajor(); {
 		case refused != nil:
 			fmt.Printf("      %s %s\n", red("✗"), strings.ReplaceAll(refused.Error(), "\n", "\n      "))
+			hasErrors = true
 		case err != nil:
 			fmt.Printf("      %s Could not read the opencode version: %v\n", yellow("⚠"), err)
 		case tested:

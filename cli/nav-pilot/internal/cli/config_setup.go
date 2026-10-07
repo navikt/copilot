@@ -477,7 +477,7 @@ func opencodeForSetup() (string, error) {
 // opencodeScriptInstall is opencode's own installer, for a machine without
 // Homebrew, pinned to a tested release so it downloads from GitHub releases
 // without asking the GitHub API for the latest version.
-const opencodeScriptInstall = "curl -fsSL https://opencode.ai/install | bash -s -- --version " + providerpkg.OpenCodeInstallVersion
+const opencodeScriptInstall = providerpkg.OpenCodeScriptInstall
 
 // bashPath is bash from PATH, else /bin/bash: the opencode installer needs
 // bash, not sh.

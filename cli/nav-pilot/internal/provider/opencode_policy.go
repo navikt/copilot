@@ -211,18 +211,30 @@ func CheckOpenCodeMajor() error {
 
 var openCodeMajorPattern = regexp.MustCompile(`(?i)^(?:opencode )?v?(\d+)\.`)
 
+// OpenCodeScriptInstall is opencode's own installer, pinned to the tested release.
+const OpenCodeScriptInstall = "curl -fsSL https://opencode.ai/install | bash -s -- --version " + OpenCodeInstallVersion
+
+// brewKegPattern pulls the formula name out of a Homebrew Cellar path.
+var brewKegPattern = regexp.MustCompile(`/Cellar/([^/]+)/`)
+
 // OpenCode1InstallHint is the command that puts opencode 1 back on this
 // machine, chosen by how the opencode on PATH was installed. npm's opencode 2
 // package (@opencode/cli) owns the same bin, so installing opencode-ai over it
-// fails with EEXIST; Homebrew has no opencode 1 formula to pin.
+// fails with EEXIST. On Homebrew, opencode 2 comes from homebrew-core's
+// opencode or anomalyco/tap/opencode-v2, while anomalyco/tap/opencode is still
+// opencode 1, so the hint removes the keg actually on PATH and installs that.
 func OpenCode1InstallHint() string {
-	script := "curl -fsSL https://opencode.ai/install | bash -s -- --version " + OpenCodeInstallVersion
 	path, _ := exec.LookPath("opencode")
-	if resolved, err := filepath.EvalSymlinks(path); err == nil && strings.Contains(resolved, "node_modules") {
+	resolved, _ := filepath.EvalSymlinks(path)
+	if strings.Contains(resolved, "node_modules") {
 		return "npm uninstall -g @opencode/cli && npm i -g opencode-ai@" + OpenCodeInstallVersion
 	}
 	if domain.PkgOwner(path) == domain.PkgBrew {
-		return "brew uninstall opencode && " + script
+		keg := "opencode"
+		if m := brewKegPattern.FindStringSubmatch(resolved); m != nil {
+			keg = m[1]
+		}
+		return "brew uninstall " + keg + " && brew install anomalyco/tap/opencode"
 	}
-	return script
+	return OpenCodeScriptInstall
 }

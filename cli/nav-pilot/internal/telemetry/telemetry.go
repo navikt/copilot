@@ -689,7 +689,7 @@ func (t *otelTelemetry) ForceFlush(ctx context.Context) error {
 
 // RecordLaunchError records a client launch failure with a normalized error type.
 // client: "copilot", "opencode", "pi"
-// errorType: "client_not_found", "launch_failed", "unknown"
+// errorType: "client_not_found", "client_unsupported", "launch_failed", "unknown"
 func (t *otelTelemetry) RecordLaunchError(client, errorType string) {
 	t.launchErrorTotal.Add(context.Background(), 1, metric.WithAttributes(
 		attribute.String("client", normalizeTelemetryDimension(client, "unknown")),
@@ -894,7 +894,7 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		"darwin", "linux", "windows",
 		"amd64", "arm64", "arm", "386",
 		"copilot", "opencode", "pi",
-		"client_not_found", "client_exit", "launch_failed", "network_error", "auth_error", "sync_failed", "panic",
+		"client_not_found", "client_unsupported", "client_exit", "launch_failed", "network_error", "auth_error", "sync_failed", "panic",
 		"yes", "no", "aborted", "brew_failed", "brew_missing", "init_failed", "already_installed":
 		return v
 	default:
