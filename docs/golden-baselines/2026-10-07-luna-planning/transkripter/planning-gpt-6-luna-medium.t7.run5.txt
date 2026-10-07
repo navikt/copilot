@@ -1,0 +1,10 @@
+**Konklusjon: Migreringen ser riktig ut, men er ikke klarert som atferdsbevarende.**
+
+Jackson 3.1.0 bruker riktige pakker og `JsonMapper`-builderen. Fjerningen av `jackson-datatype-jsr310` er riktig, og Ktor bruker fortsatt kotlinx serialization, så den trenger ikke Jackson 3-integrasjonen. Jeg fant ingen gjenværende Jackson 2-referanser i kildekoden.
+
+Det er to ting å avklare:
+
+- Jackson 3 sorterer JSON-egenskaper alfabetisk som standard. Kafka-meldingen `SoknadMottattMelding` kan derfor få feltene i rekkefølgen `mottatt`, `soknadId`, i stedet for `soknadId`, `mottatt`. JSON-innholdet er semantisk det samme, men strengsammenligning eller sårbare konsumenter kan merke forskjellen. Jackson 3 avviser også ekstra innhold etter JSON-dokumentet som standard. Repoet har ingen tester som karakteriserer disse endringene.
+- Prosjektet angir ikke JDK-baseline. Jackson 3 krever Java 17 eller nyere, så deploy-runtime må bekreftes.
+
+Jeg fikk ikke kjørt `gradle test` eller kontrollert avhengighetstreet: Gradle-konfigurasjonen feiler på maskinens Java 27 fordi Kotlin 2.1.0s innebygde parser kaster `IllegalArgumentException: 27`. Det sier ikke om migreringen kompilerer; kjør kontrollene med en støttet JDK, for eksempel Java 17 eller 21. Ingen kodeendringer er gjort.

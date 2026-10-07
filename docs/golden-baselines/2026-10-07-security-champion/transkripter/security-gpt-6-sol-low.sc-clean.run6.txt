@@ -1,0 +1,11 @@
+🔍 Kartlegger kallflyten fra TokenX-autentisering til databasespørringen, og sjekker hvilke sikkerhetsgrenser som faktisk håndheves.
+
+**Sikkerhetsgjennomgang: CONCERNS.** Jeg fant ingen direkte lekkasje av fødselsnummer eller SQL-injeksjon i `SakService.kt`. Én sak bør avklares før tjenesten tas i bruk:
+
+- **Manglende nettverkspolicy:** `nais.yaml` har ingen `accessPolicy`. Angi hvilke applikasjoner som skal kunne nå `/api/saker`, og kontroller at reglene samsvarer med TokenX-oppsettet i `App.kt`. Uten en eksplisitt regel er det ikke dokumentert hvilke kallere som skal ha nettverkstilgang.
+
+**Kontrollert:** `SakService.kt`, kallstedet og JWT-verifiseringen i `App.kt`, samt `nais.yaml` og avhengighetene i `build.gradle.kts`. Ruten krever TokenX, henter fødselsnummer fra verifisert `pid`-claim og bruker en parameterisert databasespørring. Loggen skriver maskerte tegn, ikke fødselsnummeret. Jeg fant ingen filopplasting, CORS-oppsett eller hemmeligheter i disse filene; M2M-`azp` er ikke relevant for denne TokenX-ruten.
+
+**Ikke kontrollert:** faktisk Nais-konfigurasjon og avhengighetssårbarheter. `trivy` og `zizmor` er ikke installert, og prosjektet har ingen `mise check`-oppgave. **Funn: 0 blokkerende, 1 bekymring.**
+
+🔴 Rød sone: tilgangskontrollen må vurderes grundig. En eksplisitt `accessPolicy` begrenser hvilke tjenester som kan nå endepunktet, men erstatter ikke JWT-valideringen eller kontrollen av hvem sakene tilhører. Still gjerne spørsmål om valgene over.

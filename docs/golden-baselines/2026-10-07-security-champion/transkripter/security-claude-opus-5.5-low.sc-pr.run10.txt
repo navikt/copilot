@@ -1,0 +1,30 @@
+**🛡️ Sikkerhet: gjennomgang av `vedtak-kafka` mot `main` (commit 75d737a)**
+
+📋 Funn: 4 kritiske, 4 høye, 2 middels. Jeg har ikke endret noe. Branchen bør ikke merges slik den er nå.
+
+### 🔴 Kritisk
+
+1. **SQL-injeksjon** i `VedtakRepository.hentForPerson`. SQL-en bygges med strengkonkatenering: `"... WHERE fnr = '" + fnr + "'"`. `fnr` kommer rett fra URL-en. Med `'+OR+'1'='1` returnerer spørringen alle vedtak i tabellen. Fix: `queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)`.
+2. **Uautentisert endepunkt med persondata.** `GET /api/vedtak/{fnr}` ligger utenfor `authenticate("tokenx")`. Hvem som helst som når tjenesten kan slå opp vedtak på et vilkårlig fnr.
+3. **Ingen eierskapskontroll.** Både GET og `POST /api/vedtak` bruker `fnr` fra URL eller body. Ingen av dem sammenligner med `pid`-claimet i tokenet. En innlogget bruker kan lese eller fatte vedtak for andre personer. Fix: hent fnr fra `principal.payload.getClaim("pid")`, og ta det ut av request-body og sti.
+4. **Åpen `accessPolicy.inbound`.** Regelen `application: "*"`, `namespace: "*"` slipper inn alle apper i klyngen. Begrens den til de konsumentene som faktisk skal kalle tjenesten.
+
+### 🟠 Høy
+
+5. **JWT-validering mangler.** Det er ikke satt opp `verifier(jwkProvider, issuer)` mot `TOKEN_X_JWKS_URI` og `TOKEN_X_ISSUER`. `validate` sjekker bare at `aud` finnes, ikke at den er lik `TOKEN_X_CLIENT_ID`. Sjekk også `acr` (idporten-loa-high).
+6. **Fnr i logger.** `log.info("behandler $fnr")` i `VedtakService` logger fnr, og bruker i tillegg strenginterpolasjon. Unntak som logges i `retry` kan også inneholde persondata.
+7. **Fnr i URL-sti.** Stien `/api/vedtak/{fnr}` havner i access-logger og proxy-logger. Fnr bør komme fra tokenet (se punkt 3), eller sendes i body eller header.
+8. **Kafka uten TLS.** Konfigurasjonen setter ikke `security.protocol=SSL` og bruker ikke `KAFKA_KEYSTORE_PATH`, `KAFKA_TRUSTSTORE_PATH` og `KAFKA_CREDSTORE_PASSWORD`. Mot Aiven kobler den enten ikke til, eller så går trafikken i klartekst. `nais.yaml` mangler i tillegg Topic-ressurser med ACL for `soknad-behandlet` og `vedtak-fattet`.
+
+### 🟡 Middels (integritet og tilgjengelighet)
+
+9. **Giftmeldinger stopper konsumenten.** `decodeFromString` ligger utenfor try. Én ugyldig melding dreper consumer-tråden uten at noen merker det, og poden forblir «ready». Hvis `retry` til slutt kaster, skjer det samme.
+10. **Duplikate vedtak.** Lagringen er ikke idempotent. Retry, at-least-once-levering og commit først etter hele batchen gir duplikate vedtak og meldinger. Fix: unik nøkkel på `soknadId`, og `ON CONFLICT DO NOTHING`.
+
+### Anbefalt rekkefølge
+
+Fiks 1 til 5 før merge, deretter 6 til 10. Legg til tester for SQL-injeksjon, for kall uten token og for kall med en annen brukers fnr (MockOAuth2Server).
+
+🔴 Rød sone: auth, eierskapskontroll og SQL-tilgang. Gå gjennom fiksene grundig selv.
+
+Still gjerne spørsmål om valgene over.

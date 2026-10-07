@@ -1,0 +1,18 @@
+🔍 Kartlegger endringene mot `main`, inkludert lokale endringer, før jeg vurderer sikkerhetsrisiko.
+
+🛡️ Analyserer nå tilgangskontroll, Kafka-flyt og databasekall. Diffen viser flere mulige brudd; jeg sjekker kallene og konfigurasjonen før jeg graderer dem.
+
+**Vurdering: BLOCK.** Branchen innfører flere veier til uautorisert innsyn og endring av vedtak. Ikke merge før funnene under er rettet.
+
+🔴 Rød sone: tilgangskontroll, persondata og behandling av vedtak. Gå gjennom disse endringene grundig.
+
+- **Kritisk: Åpent innsyn i vedtak.** `Routes.kt:30–33` eksponerer `GET /api/vedtak/{fnr}` uten autentisering eller kontroll av hvem som har rett til å se vedtakene. `nais.yaml:22–26` åpner samtidig for alle applikasjoner i alle namespaces. Beskytt endepunktet, kontroller tilgang til personen det spørres om, og begrens inbound-reglene.
+- **Kritisk: SQL-injeksjon.** `VedtakRepository.kt:21–24` setter `fnr` fra URL-en direkte inn i SQL. Det kan brukes til å lese andre personers vedtak. Bruk en parameterisert spørring.
+- **Høy: Token-kontrollen er ikke ferdig konfigurert.** `App.kt:39–43` angir ingen JWT-verifikator og sjekker bare at `audience` finnes, ikke forventet audience eller avsender. `Routes.kt:24–28` har heller ingen kontroll av om innringer kan fatte vedtak for oppgitt `fnr` og `sakId`. Få på plass signatur-, issuer- og audience-validering og eksplisitt autorisasjon før POST tas i bruk.
+- **Høy: Fødselsnummer skrives i ordinær logg.** `VedtakService.kt:15` logger `fnr` ved hvert vedtak. Fjern verdien fra loggmeldingen.
+- **Høy: Retry kan fatte flere vedtak for samme hendelse.** `VedtakConsumer.kt:31–46` lagrer vedtaket før publisering. Feiler publiseringen, kjører retry hele operasjonen på nytt med ny ID. Også omstart før `commitSync()` kan behandle hendelsen på nytt. Innfør idempotens på hendelses-ID og en varig strategi for publisering.
+- **Bekymring: Consumeren kan stoppe uten at tjenesten stopper.** `VedtakConsumer.kt:19–28` lar en ugyldig melding eller uttømte retries avslutte tråden. `App.kt:36–46` starter den separat fra webserveren. Tjenesten kan dermed fremstå oppe mens den ikke behandler vedtak.
+
+**Øvrige akser:** `VedtakRepository.kt:13–16, 27–32` bruker parameteriserte spørringer; funnet over gjelder `hentForPerson`. Jeg fant ingen hardkodede hemmeligheter, filopplasting, HTML-rendering eller endret CORS i de åtte endrede filene. `App.kt:26–35` viser ikke Kafka-oppsett for autentisering eller TLS; det bør avklares mot Nais-oppsettet. Ingen endrede workflows ble funnet. `trivy` og `zizmor` er ikke installert, så sårbarheter i avhengigheter og automatiserte skannefunn er **ikke verifisert**. `mise check` kunne ikke kjøres fordi repoet ikke har en slik oppgave.
+
+**Inspected:** Branch-diff mot `main`, alle åtte endrede filer, tilstøtende `Config.kt` og `UserRepo.kt`, arbeidsstatus og tilgjengelige skanneverktøy. **Not inspected:** Kjørende Nais-miljø, faktisk tokenutstedelse, Kafka-/databaseinfrastruktur og avhengighetenes CVE-status. **Findings:** 5 blokkerende, 1 bekymring. **Verdict: BLOCK.**

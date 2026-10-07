@@ -1,0 +1,9 @@
+Jeg sjekker branch-diffen, byggeoppsettet og Jackson-bruken mot kravene for Jackson 3, med særlig vekt på Kotlin-fallgruvene og avhengighetstreet.
+
+Diffen endrer bare avhengigheter og mapperoppsett. Jeg verifiserer nå at den kompilerer, at runtime-avhengighetene ikke blander Jackson 2 og 3, og om endret JSON-serialisering påvirker eksisterende kontrakter.
+
+**Vurdering: migreringen ser teknisk riktig ut, uten blokkere.** Endringen i `build.gradle.kts` bruker Jackson 3.1.0 for både databind og Kotlin-modulen, og fjerner `jackson-datatype-jsr310`, som ikke trengs i Jackson 3. `JsonMapper.builder()` registrerer Kotlin-modulen på riktig måte. Avhengighetstreet viser Jackson 3, med `jackson-annotations` 2.21 som forventet unntak. Ktor bruker fortsatt kotlinx.serialization, så Ktor 3.0.0 trenger ikke oppgraderes for denne migreringen.
+
+**Kompatibilitetsrisiko:** Jackson 3 sorterer egenskaper alfabetisk som standard. Det kan endre rekkefølgen på feltene i Kafka-meldingen `SoknadMottattMelding` (`mottatt` før `soknadId`), selv om JSON-innholdet ellers er det samme. Hvis noen konsumenter sammenligner rå JSON-tekst, bør rekkefølgen bevares eksplisitt; ellers bør en test bekrefte at meldingen beholder samme verdier og datoformat. Det finnes ingen tester i branchen som dekker dette.
+
+`gradle test` passerte med JDK 21, men kjørte uten testkilder. Med miljøets standard-JDK 27 feilet Gradle fordi Kotlin 2.1.0 ikke gjenkjenner Java-versjonen `27`; det er ikke en feil i Jackson-endringen. Ingen filer er endret i evalueringen.

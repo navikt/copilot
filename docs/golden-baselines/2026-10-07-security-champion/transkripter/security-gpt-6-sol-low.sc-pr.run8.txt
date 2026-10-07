@@ -1,0 +1,18 @@
+🔍 Kartlegger endringene mot `main`, inkludert lokale endringer, før jeg vurderer angrepsflate og databehandling.
+
+🛡️ Analyserer nå autentisering, SQL, logging og Kafka-leveranse opp mot koden som faktisk kalles.
+
+**Sikkerhetsgjennomgang: BLOCK.** Jeg fant seks blokkerende forhold i `vedtak-kafka` mot `main`. Endringene bør ikke merges slik de står.
+
+1. **Åpent innsyn i personopplysninger:** `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` og returnerer vedtak med fødselsnummer (`Routes.kt:30–32`). Legg på autentisering og kontroller at innringeren har tilgang til personen.
+2. **SQL-injeksjon i samme endepunkt:** `fnr` settes rett inn i SQL (`VedtakRepository.kt:21–24`). Bruk parameterisert spørring. Sammen med åpent innsyn gjør dette feilen særlig alvorlig.
+3. **For vid nettverkstilgang:** `nais.yaml:22–26` tillater innkommende trafikk fra alle applikasjoner i alle navnerom. Begrens reglene til dokumenterte innringere.
+4. **Mangelfull tokenkontroll og tilgangsstyring:** JWT-oppsettet har ingen synlig signaturverifikator og `validate` sjekker ikke forventet audience eller autorisert avsender (`App.kt:39–43`). `POST /api/vedtak` tar dessuten `fnr`, `sakId` og `utfall` direkte fra innringeren uten kontroll av rett til å fatte vedtak (`Routes.kt:24–28`).
+5. **Fødselsnummer i ordinær logg:** `VedtakService.kt:15` logger `fnr`. Fjern verdien fra standardloggen.
+6. **Risiko for duplikate vedtak:** Konsumenten lagrer vedtak før publisering og offset-commit (`VedtakConsumer.kt:23–27, 31–33`). Feil etter lagring før commit fører til ny behandling med ny ID (`VedtakService.kt:16–23`). Innfør idempotens knyttet til meldings-/søknads-ID og en avklart strategi for lagring og publisering.
+
+**Øvrige kontrollakser:** Innvalidering kontrollerer bare at `sakId` ikke er blank; `fnr` og Kafka-meldinger mangler tilsvarende grensekontroll. Jeg fant ingen hardkodede hemmeligheter, filopplasting, CORS-utvidelse, rå HTML eller endrede GitHub Actions i diffen. Kafka-oppsettet angir ingen synlig TLS-/autentiseringskonfigurasjon (`App.kt:26–35`); verifiser tilkoblingen mot Nais-oppsettet. Det finnes heller ingen skjemamigrasjon for tabellen `vedtak`, så databaseoppstart er ikke dokumentert som fungerende.
+
+**Omfang:** Inspisert alle åtte endrede filer, kalt kode i `Config.kt` og `UserRepo.kt`, `README.md`, samt status for committede, staged, unstaged og usporede filer. Ingen lokale tillegg ble funnet. `trivy` og `zizmor` er ikke installert, og `mise check` kunne ikke kjøres fordi repoet ikke har en `check`-oppgave; sårbarhetsskanning er derfor ikke verifisert. Den eksisterende `UserRepo.kt` logger også fødselsnummer og bygger SQL med strengkonkatenering, men den er uendret fra `main`.
+
+🔴 **Rød sone:** Autentisering, tilgangsstyring, SQL og vedtakslogikk må gjennomgås grundig. Still gjerne spørsmål om valgene over.

@@ -1,0 +1,23 @@
+**🛡️ Sikkerhet: ingen kritiske eller høye funn.** Jeg har lest `SakService.kt` og auth-oppsettet i `App.kt`. Jeg har ikke kjørt `mise check`, trivy eller tester.
+
+**Det som holder**
+- **Tilgangskontroll:** fødselsnummeret hentes fra `pid`-claimet i tokenet, ikke fra en parameter brukeren sender inn. Innbyggeren ser derfor bare sine egne saker, og andre kan ikke hente dem ved å bytte ID (IDOR).
+- **Token-validering:** `App.kt` sjekker issuer, audience, signatur gjennom JWKS og `acr=idporten-loa-high`. Verdiene leses fra miljøvariabler.
+- **SQL-injeksjon:** spørringen er parameterisert med `?`.
+- **Logging:** fødselsnummeret maskeres helt, og feillogger viser bare navnet på unntaksklassen. Ingen personopplysninger lekker til loggene.
+- **Feilsvar:** unntak kastes videre og blir en vanlig 500. Klienten får ikke detaljer om feilen.
+
+**Lav risiko og forbedringer**
+1. `maskert()` gir `***********`, som har null verdi for feilsøking. Bruk heller en `Nav-Call-Id` eller en saks-ID for å kunne spore kall.
+2. `log.error` tar ikke med stack trace. Det er et observerbarhetsproblem, ikke et sikkerhetsproblem. Vurder å logge unntaket til secure logs.
+3. Det finnes ingen rate limiting på `/api/saker`.
+4. Utenfor denne filen:
+   - Jeg fant ingen `.nais`-manifest, så jeg fikk ikke sammenlignet `accessPolicy.inbound` med TokenX-oppsettet.
+   - `oppgaveRoutes()` i `App.kt` er ikke gjennomgått.
+   - `System.getenv` uten nullsjekk kan gi uklare feil ved oppstart.
+
+Revisjonslogging i CEF-format trengs ikke her. Innbyggeren ser sine egne data, og ingen Nav-ansatte ser dem.
+
+🔴 Rød sone: sjekken av `pid` er det eneste som hindrer at noen ser andres saker. Ikke legg til en fnr-parameter i ruten.
+
+Still gjerne spørsmål om valgene over.

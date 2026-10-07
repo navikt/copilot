@@ -1,0 +1,26 @@
+## Fase 2: Plan
+
+Tjenesten blir et privat Ktor-API som den eksisterende Next.js-appen kaller på vegne av innbyggeren. Nettleseren logger inn via ID-porten og Wonderwall. Next.js-serveren utveksler brukerens token til et TokenX-token for Ktor-tjenesten, som validerer tokenet og henter fødselsnummeret fra identitetskravet. Ktor bruker brukerens kontekst når den spør PDL om navn.
+
+Denne flyten lar oss holde API-et uten offentlig tilgang og unngå å sende fødselsnummer som parameter fra nettleseren. Det krever TokenX-oppsett både for Next.js-appen og API-et. Et offentlig Ktor-API som tar imot ID-porten-token direkte ville gitt nettleseren en mer direkte kobling til backend, uten en fordel for denne ene konsumenten.
+
+**Antakelser:** API-et returnerer bare navnet som brukergrensesnittet trenger. Fødselsnummer og navn lagres ikke. Fødselsnummer skal ikke tas imot i URL, request-body eller logger. Riktig token-claim, PDL-audience/scope og PDL-tjenestens Nais-identitet må bekreftes mot miljøets konfigurasjon før implementering.
+
+**Prosjektstruktur:** Bygg videre på Ktor-skjelettet i repoet. Skill mellom API-ruter, autentisering, PDL-klient og konfigurasjon. Legg til tester under `src/test`. Team- og appnavn i dagens `nais.yaml` ser ut som demo-verdier og må erstattes med faktiske navn.
+
+**Nais og tilgang:** Bruk `idporten.enabled: true` og Wonderwall på Next.js-appen. Sett opp TokenX der for token exchange. På Ktor-tjenesten aktiveres TokenX-validering. `accessPolicy.inbound` tillater bare Next.js-appen, og `outbound` tillater bare PDL. Bruk PDLs faktiske appnavn, namespace og cluster i reglene. Ingen database eller Kafka trengs. Behold health-endepunktene og legg til Prometheus-metrikker. Start med `15m` CPU og `256Mi` minne i requests, uten CPU-limit.
+
+**API og feil:** Frontend-serveren kaller et autentisert oppslagsendepunkt uten å sende fødselsnummeret separat. Ktor henter identiteten fra det validerte tokenet og sender oppslaget til PDL. Ved timeout eller utilgjengelig PDL svarer API-et med `503`; det logger feil med trace-ID og teknisk status, aldri token, fødselsnummer eller navn. Ingen kø eller dead-letter. Bruk avgrenset timeout og ikke legg til egne retries uten å bekrefte PDLs anbefalte klientmønster.
+
+**CI/CD og testing:** Workflowet kjører tester og bygg, deployer til dev og deretter prod. Bruk repoets eksisterende Gradle-oppsett og Navs godkjente, SHA-pinnede GitHub Actions. Test API-ruting og respons, gyldig og ugyldig/utløpt TokenX-token, manglende identitetsclaim, PDL-svar og PDL-feil/timeout. Verifiser at feil gir `503`, og at logger ikke inneholder personopplysninger. Legg til integrasjonstest mot MockOAuth2Server og en testbar PDL-klient.
+
+**Sikkerhet og drift:** Behandle token-claims, PDL-payload og navn som personopplysninger. Begrens responsen til feltene UI-et trenger, ikke cache persondata, og ikke ta imot ID-er fra klienten som kan endre hvilken person som slås opp. Eksponer metrikker for antall oppslag per minutt og andel feilende kall, med lav-kardinalitetslabels som utfall og statusklasse. Ikke bruk fødselsnummer, navn eller bruker-ID som metrikklabel. Oppdater runbook med PDL-avhengighet, `503`-feilsøking og eskalering.
+
+**Utrulling og rollback:** Deploy først til dev og verifiser innlogging, token exchange, PDL-oppslag og feilrespons. Rull deretter ut til prod med Nais sin vanlige rolling update. Ved økt feilrate rulles deploy tilbake; det finnes ingen data å migrere eller gjenopprette. Etter prod-deploy verifiseres oppslag, `503` ved kontrollert PDL-feil, feilandel og personvern i logger.
+
+🔴 **Rød sone:** Token exchange, tokenvalidering, uttrekk av identitetsclaim og koblingen mellom innbygger og PDL-oppslag. Teamet bør skrive og forstå denne auth- og tilgangskoden selv, med tester for avvisningstilfellene.  
+🟢 **Grønn sone:** Ktor-ruteskjelett, Nais-konfigurasjon, CI-workflow, metrikkscaffold, runbook og testfixtures.
+
+**Endringsdokumentasjon:** Ta med endringsbeskrivelse, rollback-plan, post-deploy-sjekkliste og runbook. Ingen API-migreringsplan trengs siden eneste konsument er teamets egen frontend.
+
+Jeg stopper her før Fase 3. Godkjenner du planen, så går jeg videre med review fra sikkerhet, plattform, arkitektur og endringssikkerhet? Still gjerne spørsmål om valgene over.

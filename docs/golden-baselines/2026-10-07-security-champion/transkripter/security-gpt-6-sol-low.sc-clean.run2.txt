@@ -1,0 +1,12 @@
+🔍 Kartlegger dataflyten rundt `SakService.kt` og sjekker hvilke sikkerhetskontroller som faktisk finnes i kallene den gjør.
+
+**Sikkerhetsgjennomgang: CONCERNS.** Jeg fant ingen bekreftet vei til å hente en annen persons saker i den undersøkte koden: `/api/saker` krever TokenX, personidenten hentes fra det verifiserte tokenets `pid`-claim, og SQL-spørringen er parameterisert.
+
+- **Middels: Manglende sporbarhet ved innsyn.** `SakService.kt:47–56` returnerer saker, men registrerer ikke et eget innsynsspor. Vurder auditlogging dersom sakene inneholder personopplysninger som vises til Nav-ansatte. Den ordinære logglinjen i `sakerFor` er ikke et slikt innsynsspor.
+- **Middels: Uavklart nettverkstilgang.** `nais.yaml` har ingen `accessPolicy.inbound`. Det er ikke mulig å bekrefte fra disse filene hvilke klienter som kan nå tjenesten. Avklar forventede kallere og angi eksplisitte regler dersom tjenesten skal motta trafikk fra andre apper.
+
+**Øvrige akser:** `SakService.kt:23–29` bruker parameterisert SQL; `:36` maskerer fødselsnummeret, og `:40–43` logger bare unntakstypen før feilen kastes videre. Jeg fant ingen hardkodede hemmeligheter, filopplasting, utgående HTTP-kall eller deserialisering av brukerdata i den undersøkte flyten. `App.kt:25–33` konfigurerer JWT-verifikasjon med utsteder, målgruppe og `acr`. Jeg fant ingen M2M-flyt som gjør `azp`-kontroll aktuell her.
+
+**Undersøkt:** `SakService.kt`, kall og autentiseringsoppsett i `App.kt`, `nais.yaml`, `Routes.kt` og `build.gradle.kts`. **Ikke undersøkt:** deployet nettverkspolicy, auditinfrastruktur og avhengighetssårbarheter; `trivy` var ikke tilgjengelig. Dette er derfor ikke en bekreftelse på at tjenesten som helhet er sikker.
+
+🔴 Rød sone: Tilgang til personsaker og innsynsspor må vurderes opp mot hvem tjenesten faktisk brukes av. Still gjerne spørsmål om valgene over.

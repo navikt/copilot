@@ -2574,6 +2574,59 @@
     },
     {
       "date": "2026-10-07",
+      "suite": "planning",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.93-4",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 5
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 4
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 4
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 5
+        },
+        {
+          "id": "t7",
+          "description": "Jackson-migrering: spør ikke om personvern eller tilgang",
+          "passed": 5
+        },
+        {
+          "id": "t7b",
+          "description": "Nytt fødselsnummer i en Kafka-melding: tar opp personvern",
+          "passed": 4
+        }
+      ],
+      "credits": {
+        "median": 4.145,
+        "mean": 4.098
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 301.3
+      },
+      "source": "docs/golden-baselines/2026-10-07-luna-planning/planning-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-10-07",
       "suite": "review",
       "model": "claude-opus-5.5",
       "model_verified": true,

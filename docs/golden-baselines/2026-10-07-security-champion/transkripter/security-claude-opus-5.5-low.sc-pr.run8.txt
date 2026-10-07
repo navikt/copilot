@@ -1,0 +1,27 @@
+🛡️ **Sikkerhet:** gjennomgang av `vedtak-kafka` mot `main` (1 commit, 8 filer)
+
+**Konklusjon: BLOCK.** Branchen bør ikke merges i denne formen. Jeg fant 4 kritiske, 3 høye og 3 medium funn. Jeg har ikke endret kode.
+
+### 🔴 Kritisk
+1. **SQL-injeksjon** i `VedtakRepository.hentForPerson`. Koden setter `fnr` rett inn i SQL-strengen. Et kall som `GET /api/vedtak/' OR '1'='1` returnerer alle vedtak. Fiks: `queryOf("... WHERE fnr = ? ...", fnr)`.
+2. **`GET /api/vedtak/{fnr}` krever ikke innlogging.** Ruten ligger utenfor `authenticate("tokenx")`, så hvem som helst kan slå opp vedtak på et fnr. Den sjekker heller ikke eierskap. Med TokenX må fnr hentes fra `pid`-claimet, ikke fra URL-en. Legg også til CEF-auditlogg.
+3. **JWT-valideringen sjekker nesten ingenting.** `jwt("tokenx")` mangler `verifier`, altså JWKS fra `TOKEN_X_JWKS_URI` og issuer fra `TOKEN_X_ISSUER`. `validate` godtar dessuten alle tokens som har en audience, uten å sjekke at den er lik `TOKEN_X_CLIENT_ID`.
+4. **`accessPolicy.inbound` slipper inn alle apper fra alle namespaces** (`application: "*"`, `namespace: "*"`). Sammen med punkt 2 er vedtaksdata åpne for hele clusteret. List eksplisitte apper.
+
+### 🟠 Høy
+5. **Tilgangskontroll på `POST /api/vedtak`:** enhver innlogget borger kan fatte vedtak for et hvilket som helst fnr, med valgfritt `utfall`. Dette er kjernelogikk og bør trolig ikke være eksponert for borgere i det hele tatt. Saksbehandlere bør gå via Azure AD med rolle- og gruppesjekk.
+6. **FNR i logger:** `log.info("behandler $fnr")` i `VedtakService`. I tillegg havner fnr i access-loggen fordi det står i URL-stien. Fjern fnr fra loggene, og flytt oppslaget til et token-claim eller en POST-body.
+7. **Kafka mangler TLS-oppsett.** `security.protocol=SSL`, keystore og truststore fra `KAFKA_*`-variablene er ikke konfigurert. Mot Aiven fungerer det ikke, og uten disse er det ingen TLS.
+
+### 🟡 Medium
+8. **Ingen validering av input** i API-et og meldingene. `fnr` (11 siffer) og `sakId` (format og lengde) sjekkes ikke ved tillitsgrensen.
+9. **En ugyldig melding stopper consumeren.** Hvis `decodeFromString` eller den tredje retryen feiler, dør tråden uten at noen merker det. Offset blir ikke committet, så konsumeringen stopper. Dette er en DoS-risiko. Legg inn håndtering for ugyldige meldinger og la helsesjekken (`isalive`) speile tilstanden til consumeren.
+10. **Integritet: retry kan lage duplikate vedtak.** Hvis `send().get()` feiler etter `lagre`, kjører retryen hele behandlingen på nytt. Det gir et nytt vedtak med ny id hver gang. Gjør behandlingen idempotent på `soknadId` eller `sakId` med en unik constraint, og vurder outbox-mønsteret.
+
+**Bra:** `lagre` og `hentForSak` bruker parametriserte spørringer, hemmeligheter leses fra miljøet, auto-commit er av, og `VedtakFattetMelding` inneholder ikke fnr.
+
+Jeg kjørte ikke `trivy` eller `zizmor`. Avhengighetsversjonene bør skannes før merge.
+
+🔴 Rød sone: auth, tilgangskontroll og vedtakslogikk. Gå gjennom fiksene for funn 1–5 grundig.
+
+Still gjerne spørsmål om valgene over.

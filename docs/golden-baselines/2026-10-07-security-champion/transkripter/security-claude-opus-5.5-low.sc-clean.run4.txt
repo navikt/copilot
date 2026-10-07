@@ -1,0 +1,17 @@
+🛡️ **Sikkerhet:** Ingen kritiske funn og ingen medium-funn i `SakService.kt`. Jeg har ikke endret noe.
+
+**God praksis**
+- 🔴 Rød sone: tilgangskontroll. Fødselsnummeret hentes fra `pid`-claimet i TokenX-tokenet, ikke fra en parameter. Brukeren kan derfor bare se sine egne saker, og eierskapet er sjekket.
+- Spørringen bruker parametre (`?`), så den er beskyttet mot SQL-injeksjon.
+- Loggen inneholder ikke fødselsnummeret. `maskert()` erstatter alle tegnene, og feil logges bare med klassenavnet, ikke med meldingen.
+- TokenX-oppsettet i `App.kt` sjekker utsteder, audience og `acr=idporten-loa-high`. Hemmelighetene leses fra miljøvariabler.
+- Unntak kastes videre. Ktor svarer da med 500 uten stacktrace.
+
+**Lav**
+1. Logglinjen `"Henter saker for {}"` gir ingen nyttig informasjon, fordi den alltid skriver `***********`. Fjern den, eller logg Nav-Call-Id i stedet.
+2. Det finnes ingen rate limiting på `/api/saker`. Det er greit bak innlogging, men vurder det.
+3. CEF-revisjonslogg trengs ikke her, siden det er innbyggeren selv som ser sine data og ikke en ansatt.
+
+Jeg har ikke gått gjennom `accessPolicy` i `nais.yaml`, `Routes.kt` eller `Oppgave.kt`.
+
+Still gjerne spørsmål om valgene over.

@@ -1,0 +1,19 @@
+🛡️ Sikkerhet: Jeg fant ingen kritiske funn i `SakService.kt`.
+
+**God praksis**
+- SQL-spørringen er parameterisert (`fnr = ?`), så den er ikke åpen for SQL-injeksjon.
+- Tilgangskontrollen er riktig: fødselsnummeret kommer fra `pid`-claimet i tokenet, ikke fra en parameter brukeren styrer. Brukeren ser dermed bare egne saker.
+- Fødselsnummeret blir maskert helt i loggen, og feilloggen skriver bare klassenavnet på unntaket. Personopplysninger lekker derfor ikke via loggen.
+- `App.kt` validerer issuer, audience og `acr=idporten-loa-high`.
+
+**Lav**
+1. `maskert()` gir ut lengden på verdien. Dette er ufarlig for fødselsnummer, men en fast verdi som `"***"` er enklere.
+2. Unntaket sendes videre uten egen håndtering. Sjekk at `StatusPages` gir et generisk svar på 500, så stacktrace ikke når klienten.
+
+**Medium (utenfor filen, men gjelder ruten)**
+3. `nais.yaml` mangler `tokenx.enabled: true`. Da får appen ikke `TOKEN_X_*`-miljøvariablene, og autentiseringen virker ikke.
+4. `nais.yaml` mangler `accessPolicy.inbound`. Bare frontend-appen som gjør token exchange bør slippe inn.
+
+Jeg har ikke endret noen filer.
+
+Still gjerne spørsmål om valgene over.

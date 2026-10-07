@@ -1,0 +1,10 @@
+Jeg sjekker først branchens Jackson-avhengigheter, rammeverksversjoner og faktiske bruksmønstre. Deretter kan jeg si om migrering til Jackson 3 er støttet og hva som må endres.
+
+**Vurdering: Migreringen ser riktig ut i koden, men branchens build bekrefter den ikke.** Jackson 3.1.0 er riktig målversjon. `JsonMapper`-builderen og Kotlin-modulen brukes på riktig måte i `Soknad.kt`, og fjerningen av `jackson-datatype-jsr310` passer med Jackson 3. Ktor 3.0.0 er ikke en hindring her: tjenesten bruker fortsatt `kotlinx.serialization` for HTTP, ikke Jackson-integrasjonen i Ktor.
+
+Før merge bør dere avklare to ting:
+
+- Jackson 3 sorterer JSON-egenskaper alfabetisk som standard. `SoknadMottattMelding` får derfor feltene i motsatt rekkefølge fra før. JSON-konsumenter skal ikke være avhengige av rekkefølgen, men dette er en endring i serialisert tekst.
+- Det finnes ingen tester som bekrefter at `LocalDate` fortsatt serialiseres som før, eller at meldingene beholder forventet format. Legg til tester for JSON-output og round-trip, særlig for `SoknadMottattMelding`.
+
+Jeg fikk ikke verifisert builden: `gradle build --no-daemon` feilet under prosjektkonfigurasjon med `> 27`. Miljøet kjører JDK 27, mens prosjektet bruker Kotlin-plugin 2.1.0, og `build.gradle.kts` angir ingen Java toolchain. Branchens kildekode viser ingen andre Jackson 2-importer, men jeg kunne ikke kontrollere den løste dependency-treet uten en fungerende Gradle-build.

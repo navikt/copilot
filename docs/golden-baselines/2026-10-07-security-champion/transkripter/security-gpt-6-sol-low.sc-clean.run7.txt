@@ -1,0 +1,14 @@
+🔍 Kartlegger angrepsflate og dataflyt i `SakService.kt`, og sjekker kode den kaller før jeg vurderer funn.
+
+🛡️ Analyserer: JWT-verifikasjon og parameterisert SQL er på plass. Jeg sjekker nå særlig hvem som kan nå endepunktet, og om fødselsnummer kan lekke via logging eller feilhåndtering.
+
+**Vurdering: CONCERNS.** Jeg fant ingen bekreftet vei til å hente en annen persons saker: `/api/saker` bruker `pid` fra et verifisert TokenX-token, og SQL-spørringen er parameterisert. To forhold bør avklares før tjenesten tas i bruk:
+
+- **Manglende avgrensning av nettverkstilgang:** [`nais.yaml:6`](nais.yaml#L6) har ingen `accessPolicy`. Avklar hvilke apper som skal kunne nå tjenesten, og angi eksplisitte inbound-regler. Dette er ikke i seg selv bevis for åpen tilgang.
+- **Ubegrenset svar:** [`SakService.kt:23–28`](src/main/kotlin/no/nav/demo/sak/SakService.kt#L23-L28) henter alle saker for personen uten grense. En person med mange saker kan gi et stort databasesvar og høy belastning. Vurder en dokumentert grense eller paginering.
+
+**Øvrige akser:** Auth og eierskap er kontrollert mot `App.kt:25–31` og `SakService.kt:47–55`; dette beviser ikke at alle mulige tokenflyter er tilsiktet. Logging i `SakService.kt:37–42` skriver ikke ut fødselsnummer eller exception-tekst, men lengden på `pid` vises som antall stjerner; valider gjerne at `pid` har forventet format. Jeg fant ingen hardkodede hemmeligheter, filopplasting, HTML-rendering eller CORS-oppsett i filene jeg undersøkte. Revisjonslogging ved visning av persondata er ikke vurdert som et krav her, siden endepunktet ser ut til å være rettet mot innbyggeren selv.
+
+**Inspected:** `SakService.kt`, `App.kt`, `nais.yaml`, `build.gradle.kts`, kallreferanser i kildekoden. **Not inspected:** Kjørende deployment, databaseinnhold, avhengighetssårbarheter og Git-historikk; `trivy` og `zizmor` er ikke installert, og mappen er ikke et Git-repo. **Findings:** 0 blokkerende, 2 forhold å avklare. **Verdict:** CONCERNS.
+
+🔴 Rød sone: tilgang til personopplysninger. Behold koblingen mellom verifisert `pid` og SQL-filteret; et klientstyrt fødselsnummer ville åpnet for innsyn i andres saker. Still gjerne spørsmål om valgene over.
