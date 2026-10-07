@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -175,4 +178,63 @@ func warnUntestedOpenCode() {
 	}
 	fmt.Fprintf(os.Stderr, "%s opencode %s is outside the tested range (%s). Hooks, the dispatch gate and the session policy may not apply as described. See %s.\n",
 		domain.Yellow("⚠"), v, OpenCodeTestedRange, domain.Bold("nav-pilot doctor"))
+}
+
+// CheckOpenCodeMajor stops a launch on opencode 2, which the warning above is
+// not enough for: opencode 2 rejects --agent and --model on the TUI, does not
+// load nav-pilot's hooks plugins (its plugin API is new), runs sessions in a
+// shared background service that ignores the launch's environment, and reads
+// OPENCODE_CONFIG_DIR in place of the user's config rather than alongside it.
+// A session that started anyway would run without nav-pilot's hooks and MCP
+// policy.
+// A prerelease such as "opencode v2.1.0-beta.1" does not parse as a version,
+// so the major is read from the raw line; any other unreadable version
+// launches, as warnUntestedOpenCode does.
+func CheckOpenCodeMajor() error {
+	v, _, err := OpenCodeVersionStatus()
+	if err != nil {
+		out, _ := cachedVersion("opencode", 5*time.Second)
+		m := openCodeMajorPattern.FindStringSubmatch(strings.TrimSpace(out))
+		if m == nil {
+			return nil
+		}
+		v = strings.TrimSpace(out)
+		if n, _ := strconv.Atoi(m[1]); n < 2 {
+			return nil
+		}
+	} else if strings.HasPrefix(v, "0.") || strings.HasPrefix(v, "1.") {
+		return nil
+	}
+	return fmt.Errorf("opencode %s is opencode 2 or newer, which nav-pilot does not launch yet: its flags, plugins and config loading changed.\n\n  Install opencode 1: %s",
+		strings.TrimPrefix(v, "opencode "), domain.Bold(OpenCode1InstallHint()))
+}
+
+var openCodeMajorPattern = regexp.MustCompile(`(?i)^(?:opencode )?v?(\d+)\.`)
+
+// OpenCodeScriptInstall is opencode's own installer, pinned to the tested release.
+const OpenCodeScriptInstall = "curl -fsSL https://opencode.ai/install | bash -s -- --version " + OpenCodeInstallVersion
+
+// brewKegPattern pulls the formula name out of a Homebrew Cellar path.
+var brewKegPattern = regexp.MustCompile(`/Cellar/([^/]+)/`)
+
+// OpenCode1InstallHint is the command that puts opencode 1 back on this
+// machine, chosen by how the opencode on PATH was installed. npm's opencode 2
+// package (@opencode/cli) owns the same bin, so installing opencode-ai over it
+// fails with EEXIST. On Homebrew, opencode 2 comes from homebrew-core's
+// opencode or anomalyco/tap/opencode-v2, while anomalyco/tap/opencode is still
+// opencode 1, so the hint removes the keg actually on PATH and installs that.
+func OpenCode1InstallHint() string {
+	path, _ := exec.LookPath("opencode")
+	resolved, _ := filepath.EvalSymlinks(path)
+	if strings.Contains(resolved, "node_modules") {
+		return "npm uninstall -g @opencode/cli && npm i -g opencode-ai@" + OpenCodeInstallVersion
+	}
+	if domain.PkgOwner(path) == domain.PkgBrew {
+		keg := "opencode"
+		if m := brewKegPattern.FindStringSubmatch(resolved); m != nil {
+			keg = m[1]
+		}
+		return "brew uninstall " + keg + " && brew install anomalyco/tap/opencode"
+	}
+	return OpenCodeScriptInstall
 }

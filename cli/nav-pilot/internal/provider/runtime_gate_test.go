@@ -835,3 +835,20 @@ func TestOpenCodeVersionProbedOnce(t *testing.T) {
 		t.Fatalf("opencode --version ran %d times, want 1", calls)
 	}
 }
+
+func TestCheckOpenCodeMajorStopsOpenCode2(t *testing.T) {
+	// opencode 2's own line (2.0.24).
+	if v, err := parseClientVersion("opencode", "opencode v2.0.24\n"); err != nil || v != (semver3{2, 0, 24}) {
+		t.Errorf("parseClientVersion(opencode, \"opencode v2.0.24\") = %v, %v", v, err)
+	}
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	for out, stop := range map[string]bool{
+		"opencode v2.0.24\n": true, "opencode v2.1.0-beta.1\n": true, "10.0.0\n": true,
+		"1.18.35\n": false, "1.19.0-next.3\n": false, "garbage\n": false,
+	} {
+		versionCache.Store("opencode", versionAnswer{out, nil, time.Minute})
+		if err := CheckOpenCodeMajor(); (err != nil) != stop {
+			t.Errorf("CheckOpenCodeMajor() with %q = %v, want stop=%v", out, err, stop)
+		}
+	}
+}
