@@ -45,7 +45,6 @@ Målt 23. september 2026 med Copilot CLI 1.0.88-2, standard kontekstvindu og fem
 | ---------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
 | GPT-6 Luna Medium      | GPT-5.6 Luna Medium | Begge besto ti av ti avgrensede krav. GPT-6 Luna brukte 8,667 credits mot 15,894, med omtrent lik veggklokketid                            | Rull ut på `@research` og malpromptene. Behold GPT-5.6 Luna som fallback                                                            |
 | GPT-6 Sol High         | GPT-5.6 Sol High    | GPT-6 Sol hoppet over intervjuet i én av fem kjøringer, men fant alle sikkerhets- og auth-krav. GPT-5.6 Sol fulgte fasekravet i fem av fem | Bruk som standard for `@nav-pilot` og verktøytunge kodeagenter. Følg fasebrudd og behold GPT-5.6 Sol og GPT-5.3-Codex som fallbacks |
-| GPT-6.1 Sol            | Powerful            | $2.00                                                                                                                                      | $10.00                                                                                                                              | Målt i batch 4 (6. oktober 2026). Samme input- og outputpris som GPT-6 Sol; cachet input koster $0.10 mot $0.20. Lang kontekst over 272K: $4.00 / $15.00 |
 | Claude Opus 5.5 Medium | Claude Opus 5 High  | **Ugyldig, se rettelsen under.** Medium var raskere og billigere, men oppga feil linjenumre i to av fem TSX-gjennomganger                  | Bruk ikke Medium til kodegjennomgang der presise linjer er viktig                                                                   |
 | Claude Opus 5.5 High   | Claude Opus 5 High  | **Ugyldig, se rettelsen under.** Begge traff de plantede linjene i fem av fem. Opus 5.5 kostet 209,514 credits mot 186,763 og var tregere  | Rull ut på `@nav-pilot-opus` og `@code-review`. Behold Opus 5 og GPT-5.3-Codex som fallbacks                                        |
 
@@ -145,19 +144,19 @@ Rådata ligger i [2026-10-06-batch4](golden-baselines/2026-10-06-batch4/), og fe
 
 ### Omregnet til listepris
 
-Tabellen regner batch 4 om til dollar med GitHubs listepriser per 7. oktober 2026. Hver celle er medianen per kjøring av de målte tokenene i usage-filene, ganget med listeprisen. Ingen forespørsel var over 272K tokens, så prisen for lang kontekst er ikke brukt. Utregningen ligger i [list-price.py](golden-baselines/2026-10-06-batch4/list-price.py).
+Tabellen regner batch 4 om til dollar med GitHubs listepriser per 7. oktober 2026. Hver celle er medianen per kjøring av de målte tokenene i bruksfilene, ganget med listeprisen. Dette er GitHubs listepris, ikke det Nav faktureres. Ingen forespørsel var over 272K tokens, så prisen for lang kontekst er ikke brukt. Utregningen ligger i [list-price.py](golden-baselines/2026-10-06-batch4/list-price.py).
 
-Første tall prises all input som vanlig input. Andre tall prises tokenene usage-filene oppgir som lest fra cache, til cachet pris, og tokenene skrevet til cache til GitHubs pris for cache-skriving. Mellom 68 og 87 prosent av input var lest fra cache.
+I det første tallet er all input priset som vanlig input. I det andre er tokenene bruksfilene oppgir som lest fra cache, priset til cachepris, og tokenene skrevet til cache til GitHubs pris for cacheskriving. Mellom 68 og 87 prosent av input var lest fra cache.
 
 | Testpakke       | GPT-6 Sol (kontroll) | GPT-6.1 Sol   | Claude Opus 5.5 |
 | --------------- | -------------------- | ------------- | --------------- |
-| Planlegging     | $0,82 / $0,27        | $0,79 / $0,23 | $1,24 / $0,51   |
-| Koding          | $0,95 / $0,25        | $1,15 / $0,25 | $1,67 / $0,48   |
-| Kodegjennomgang | $0,40 / $0,15        | $0,56 / $0,17 | $0,47 / $0,24   |
-| Norsk           | $0,41 / $0,15        | $0,51 / $0,14 | $0,81 / $0,31   |
-| Research        | $0,36 / $0,13        | $0,55 / $0,15 | $1,31 / $0,36   |
+| Planlegging     | $0.82 / $0.27        | $0.79 / $0.23 | $1.24 / $0.51   |
+| Koding          | $0.95 / $0.25        | $1.15 / $0.25 | $1.67 / $0.48   |
+| Kodegjennomgang | $0.40 / $0.15        | $0.56 / $0.17 | $0.47 / $0.24   |
+| Norsk           | $0.41 / $0.15        | $0.51 / $0.14 | $0.81 / $0.31   |
+| Research        | $0.36 / $0.13        | $0.55 / $0.15 | $1.31 / $0.36   |
 
-GPT-6 Sol og GPT-6.1 Sol har samme listepris for input og output. Det eneste som skiller dem, er cachet input: $0.10 for GPT-6.1 Sol mot $0.20 for GPT-6 Sol. Credits følger tokenforbruket, ikke modellklassen, se [AI-kreditter skiller ikke modeller](#ai-kreditter-skiller-ikke-modeller). Credits-kolonnen over og dollartallene her er derfor to ulike mål.
+GPT-6 Sol og GPT-6.1 Sol har samme listepris for input og output. Det eneste som skiller dem, er cachet input: $0.10 for GPT-6.1 Sol mot $0.20 for GPT-6 Sol. Credits følger tokenforbruket, ikke modellklassen, se [AI-kreditter skiller ikke modeller](#ai-kreditter-skiller-ikke-modeller). Credits-kolonnen over og dollartallene her er derfor to ulike mål, og kan ikke sammenlignes direkte.
 
 Denne målingen endrer ingen pinner. Om `@nav-pilot` og agentpakkens standard skal endres, avgjøres for seg.
 
@@ -314,6 +313,7 @@ tallene her har et tidsstempel og ikke evig gyldighet.
 | GPT-5.6 Sol           | Powerful    | $4.00    | $20.00   | Tung reasoning over store kodebaser. Listepris; kampanjen gikk ut 3. sep 2026. Lang kontekst over 272K: $8.00 / $30.00                                                                                          |
 | GPT-6 Luna            | Lightweight | $0.10    | $0.50    | Raske rutineoppgaver og faste maler. Lang kontekst over 272K: $0.20 / $0.75                                                                                                                                     |
 | GPT-6 Sol             | Powerful    | $2.00    | $10.00   | Daglig agentisk koding med validering i flere steg. Lang kontekst over 272K: $4.00 / $15.00                                                                                                                     |
+| GPT-6.1 Sol           | Powerful    | $2.00    | $10.00   | Målt i batch 4 (6. oktober 2026). Samme input- og outputpris som GPT-6 Sol; cachet input koster $0.10 mot $0.20. Lang kontekst over 272K: $4.00 / $15.00                                                        |
 | Gemini 2.5 Pro        | Powerful    | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026. Gemini 3.1 Pro, som overtok rollen, falt ut av prislista 5. sep 2026. Google har ingen Powerful-modell igjen hos GitHub. Bruk GPT-6 Sol eller Kimi K3 til research over lang kontekst |
 | Gemini 3.5 Flash      | Lightweight | $1.50    | $9.00    | Rask og billig for enkle oppgaver                                                                                                                                                                               |
 | Gemini 3.8 Flash      | Versatile   | $0.75    | $3.75    | Rask Aksel-scaffolding. Kampanjepris t.o.m. 31. des 2026                                                                                                                                                        |

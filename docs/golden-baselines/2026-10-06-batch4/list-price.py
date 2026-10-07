@@ -31,5 +31,5 @@ for suite, name in N.items():
         assert all(x[0] >= x[2] + x[3] for x in v), "input_tokens must include cache tokens"
         flat = st.median((x[0] * pi + x[1] * po) / 1e6 for x in v)
         cached = st.median(((x[0] - x[2] - x[3]) * pi + x[2] * pc + x[3] * pw + x[1] * po) / 1e6 for x in v)
-        row.append(f"${flat:.2f} / ${cached:.2f}".replace(".", ","))
+        row.append(f"${flat:.2f} / ${cached:.2f}")
     print("| " + " | ".join(row) + " |")
