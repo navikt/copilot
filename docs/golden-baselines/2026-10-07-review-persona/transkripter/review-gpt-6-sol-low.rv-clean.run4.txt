@@ -1,42 +1,6 @@
 
 
 
-/ Search (glob)
-  │ "**/*Sak*"
-  └ 1 file found
-
-
-/ Search (glob)
-  │ "**/{build.gradle.kts,mise.toml,.mise.toml,settings.gradle.kts,pom.xml,*Test.kt,application.conf
-  │ }"
-  └ 1 file found
-
-
-
-
-
-/ Search (glob)
-  │ "src/test/**/*"
-  └ No matches found
-
-✗ Run project checks (shell)
-  │ mise check
-  └ mise ERROR no task check found
-
-    Available tasks:
-    Name            Description
-    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
-    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
-    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
-    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
-    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
-    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
-    transfer        Securely migrate workspaces and secrets from an old Mac
-    update          Update system packages, runtimes, and plugins
-    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
-    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
-    Failed with exit code 1
-
 ### Gjennomgang
 
 **Én blokkering:** `/api/saker` godtar TokenX-token uten å kontrollere hvilken klient tokenet er utstedt til som avsender. I `App.kt:26–31` valideres signatur, utsteder, mottaker (`aud`) og `acr`, men ikke `azp` mot `AZURE_APP_PRE_AUTHORIZED_APPS`. Siden `SakService.kt:38–46` returnerer personens saker på grunnlag av tokenets `pid`, kan en annen klient med et gyldig token for samme mottaker få tilgang. Legg avsenderkontrollen i JWT-valideringen før ruten behandler tokenet.

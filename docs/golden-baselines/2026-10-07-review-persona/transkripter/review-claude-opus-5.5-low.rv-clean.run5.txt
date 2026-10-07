@@ -1,22 +1,4 @@
 
-✗ Check tooling, nais, tests (shell)
-  │ which mise; cat nais.yaml | head -40; ls src/test 2>&1
-  └ /opt/homebrew/bin/mise
-    apiVersion: nais.io/v1alpha1
-    kind: Application
-    metadata:
-    name: demo-tjeneste
-    namespace: demo
-    spec:
-    image: {{image}}
-    port: 8080
-    liveness:
-    path: /internal/isalive
-    readiness:
-    path: /internal/isready
-    ls: src/test: No such file or directory
-    Failed with exit code 1
-
 ### Oppsummering
 Jeg fant ingen blokkerende feil i `SakService.kt`. `mise check` ble ikke kjørt, fordi prosjektet ikke har noen mise-konfigurasjon.
 

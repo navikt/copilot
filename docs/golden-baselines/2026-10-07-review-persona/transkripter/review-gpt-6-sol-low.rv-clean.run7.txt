@@ -1,29 +1,6 @@
 
 
 
-/ Search (glob)
-  │ "**/*Sak*"
-  └ 1 file found
-
-
-/ Search (glob)
-  │ "**/*.{kt,kts,toml}"
-  └ 7 files found
-
-/ Search (glob)
-  │ "{mise.toml,.mise.toml,build.gradle.kts,settings.gradle.kts,gradlew}"
-  └ 1 file found
-
-
-
-
-
-
-
-/ Search (glob)
-  │ "src/test/**/*"
-  └ No matches found
-
 ### Gjennomgang
 
 | Fil | Linje | Prioritet | Funn |

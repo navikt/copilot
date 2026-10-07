@@ -1,42 +1,6 @@
 
 
 
-/ Search (glob)
-  │ "**/{mise.toml,.mise.toml,build.gradle.kts,settings.gradle.kts,SakService*}"
-  └ 2 files found
-
-
-
-/ Search (glob)
-  │ "src/**/*"
-  └ 7 files found
-
-/ Search (glob)
-  │ "**/*mise*"
-  └ No matches found
-
-
-
-
-
-✗ Run repository checks (shell)
-  │ mise check
-  └ mise ERROR no task check found
-
-    Available tasks:
-    Name            Description
-    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
-    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
-    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
-    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
-    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
-    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
-    transfer        Securely migrate workspaces and secrets from an old Mac
-    update          Update system packages, runtimes, and plugins
-    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
-    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
-    Failed with exit code 1
-
 ### Gjennomgang
 
 | Fil og linje | Prioritet | Funn |
