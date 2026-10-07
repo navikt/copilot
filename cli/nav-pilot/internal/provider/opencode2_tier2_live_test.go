@@ -62,6 +62,7 @@ func TestOpenCode2LiveTier2UnderCplt(t *testing.T) {
 			var cfg map[string]any
 			_ = json.Unmarshal([]byte(v), &cfg)
 			delete(cfg, "agent")
+			delete(cfg, "agents")
 			b, _ := json.Marshal(cfg)
 			noAgents[i] = "OPENCODE_CONFIG_CONTENT=" + string(b)
 		}

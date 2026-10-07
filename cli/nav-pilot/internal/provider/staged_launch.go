@@ -1,7 +1,7 @@
 package provider
 
 import (
-	"encoding/json"
+	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
@@ -18,6 +17,7 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
+	"go.yaml.in/yaml/v3"
 )
 
 // Tier 2 (payload) launch.
@@ -580,8 +580,10 @@ func openCodeV2Args(args, env []string) ([]string, []string) {
 // payload agent's name would otherwise replace its prompt and model. Agents
 // come from the payload's opencode.json, with relative {file:} paths made
 // absolute (the content resolves them from the project), and from its
-// agent/mode markdown files. Nothing else: other keys may name paths relative
-// to the payload.
+// agent/mode markdown files, read as opencode reads them: the payload is a
+// third-party tree nav-pilot never authors (agentpakke/payload.go). Nothing
+// else: other keys may name paths relative to the payload. Key order is kept,
+// since opencode resolves permission rules in order.
 //
 // Not put back: the user's agents, commands, modes, tools and plugins
 // directories under the config dir. opencode 2 reads those only from a config
@@ -618,18 +620,30 @@ func withOpenCode2UserConfig(env []string, payload string) []string {
 			}
 			return []byte("{file:" + filepath.ToSlash(filepath.Join(payload, p)) + "}")
 		})
-		var cfg map[string]any
-		if json.Unmarshal(stripJSONC(b), &cfg) == nil {
+		if cfg, err := jsonNode(stripJSONC(b)); err == nil {
 			for _, k := range []string{"permission", "permissions", "agent", "agents"} {
-				if v, ok := cfg[k]; ok {
-					add[k] = mergeJSON(add[k], v)
+				if v := nodeGet(cfg, k); v != nil {
+					have, _ := add[k].(*yaml.Node)
+					add[k] = mergeNode(have, v)
 				}
 			}
 		}
 	}
-	// As opencode loads them: markdown agents after the config dir's files.
-	if md := openCodeMarkdownAgents(payload); len(md) > 0 {
-		add["agent"] = mergeJSON(add["agent"], md)
+	// As opencode loads them: markdown agents after the config dir's files,
+	// so a file outranks the JSON agent of its name. Legacy (v1) frontmatter
+	// goes under "agent", native (v2) under "agents"; within one source
+	// opencode takes a native agent whole over a legacy one, so a legacy file
+	// drops a native JSON agent of its name.
+	legacy, native := openCodeMarkdownAgents(payload)
+	for i := 0; i+1 < len(legacy.Content); i += 2 {
+		have, _ := add["agents"].(*yaml.Node)
+		nodeDelete(have, legacy.Content[i].Value)
+	}
+	for k, md := range map[string]*yaml.Node{"agent": legacy, "agents": native} {
+		if len(md.Content) > 0 {
+			have, _ := add[k].(*yaml.Node)
+			add[k] = mergeNode(have, md)
+		}
 	}
 	if len(add) == 0 {
 		return env
@@ -640,12 +654,15 @@ func withOpenCode2UserConfig(env []string, payload string) []string {
 var openCodeFileRefs = regexp.MustCompile(`\{file:[^}]+\}`)
 
 // openCodeMarkdownAgents reads a config dir's agent and mode files as opencode
-// 2 names them (packages/core/src/config/plugin/agent.ts at v2.0.24): the
-// path under the folder without .md, the body as the prompt. A file whose
-// frontmatter is not the flat shape nav-pilot writes is left out, and keeps
-// its rank below the user's config.
-func openCodeMarkdownAgents(dir string) map[string]any {
-	out := map[string]any{}
+// 2 does (packages/core/src/config/plugin/agent.ts at v2.0.24): the path under
+// the folder without .md names the agent, a mode file is a primary agent, and
+// frontmatter with only native keys is a v2 agent with the body as system,
+// else a v1 agent with the body as prompt. Left out, keeping their rank below
+// the user's config: files opencode would not parse, and files with {file:}
+// or {env:}, which opencode resolves in OPENCODE_CONFIG_CONTENT but not in an
+// agent file.
+func openCodeMarkdownAgents(dir string) (legacy, native *yaml.Node) {
+	legacy, native = &yaml.Node{Kind: yaml.MappingNode}, &yaml.Node{Kind: yaml.MappingNode}
 	for _, sub := range []string{"agent", "agents", "mode", "modes"} {
 		root := filepath.Join(dir, sub)
 		_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
@@ -656,83 +673,55 @@ func openCodeMarkdownAgents(dir string) map[string]any {
 			if err != nil {
 				return nil
 			}
+			rel, _ := filepath.Rel(root, p)
+			name := strings.TrimSuffix(filepath.ToSlash(rel), ".md")
+			if bytes.Contains(b, []byte("{file:")) || bytes.Contains(b, []byte("{env:")) {
+				fmt.Fprintf(os.Stderr, "%s The payload's agent %s uses {file:} or {env:}; a user agent of that name outranks it.\n", domain.Yellow("⚠"), name)
+				return nil
+			}
 			fm, body, ok := source.SplitFrontmatter(b)
 			if !ok {
 				return nil
 			}
-			agent, ok := parseFlatYAML(strings.Split(string(fm), "\n"), 0)
-			if !ok {
+			var doc yaml.Node
+			if yaml.Unmarshal(fm, &doc) != nil {
 				return nil
 			}
-			if _, set := agent["mode"]; !set && strings.HasPrefix(sub, "mode") {
-				agent["mode"] = "primary"
+			agent := &yaml.Node{Kind: yaml.MappingNode}
+			if len(doc.Content) > 0 {
+				agent = doc.Content[0]
 			}
-			agent["prompt"] = strings.TrimSpace(string(body))
-			rel, _ := filepath.Rel(root, p)
-			out[strings.TrimSuffix(filepath.ToSlash(rel), ".md")] = agent
+			if agent.Kind != yaml.MappingNode {
+				return nil
+			}
+			str := func(v string) *yaml.Node { return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: v} }
+			out, prompt := native, "system"
+			for i := 0; i < len(agent.Content); i += 2 {
+				if !openCodeNativeAgentKeys[agent.Content[i].Value] {
+					out, prompt = legacy, "prompt"
+				}
+			}
+			if out == native {
+				m, v := nodeGet(agent, "model"), nodeGet(agent, "variant")
+				if m != nil && v != nil && m.Tag == "!!str" && v.Tag == "!!str" && !strings.Contains(m.Value, "#") && v.Value != "" && !strings.Contains(v.Value, "#") {
+					nodeSet(agent, "model", str(m.Value+"#"+v.Value))
+				}
+				nodeDelete(agent, "variant")
+			}
+			if strings.HasPrefix(sub, "mode") {
+				nodeSet(agent, "mode", str("primary"))
+			}
+			nodeSet(agent, prompt, str(strings.TrimSpace(string(body))))
+			nodeSet(out, name, agent)
 			return nil
 		})
 	}
-	return out
+	return legacy, native
 }
 
-// parseFlatYAML reads nested maps of scalars, the frontmatter shape
-// BuildAgentFrontmatter and OpenCodeToolPermission write. ok is false on
-// anything else, a list for one.
-// ponytail: no YAML library in go.mod; a richer payload frontmatter needs one.
-func parseFlatYAML(lines []string, indent int) (map[string]any, bool) {
-	out := map[string]any{}
-	for i := 0; i < len(lines); i++ {
-		l := lines[i]
-		t := strings.TrimSpace(l)
-		if t == "" || strings.HasPrefix(t, "#") {
-			continue
-		}
-		if len(l)-len(strings.TrimLeft(l, " ")) != indent {
-			return nil, false
-		}
-		k, v, found := strings.Cut(t, ":")
-		if !found || strings.HasPrefix(t, "- ") {
-			return nil, false
-		}
-		k = yamlScalar(strings.TrimSpace(k)).(string)
-		if v = strings.TrimSpace(v); v != "" {
-			out[k] = yamlScalar(v)
-			continue
-		}
-		j := i + 1
-		for j < len(lines) && (strings.TrimSpace(lines[j]) == "" || len(lines[j])-len(strings.TrimLeft(lines[j], " ")) > indent) {
-			j++
-		}
-		if j == i+1 {
-			return nil, false
-		}
-		first := strings.TrimLeft(lines[i+1], " ")
-		child, ok := parseFlatYAML(lines[i+1:j], len(lines[i+1])-len(first))
-		if !ok {
-			return nil, false
-		}
-		out[k] = child
-		i = j - 1
-	}
-	return out, true
-}
-
-func yamlScalar(v string) any {
-	if s, err := strconv.Unquote(v); err == nil && strings.HasPrefix(v, `"`) {
-		return s
-	}
-	if len(v) >= 2 && v[0] == '\'' && v[len(v)-1] == '\'' {
-		return strings.ReplaceAll(v[1:len(v)-1], "''", "'")
-	}
-	switch v {
-	case "true":
-		return true
-	case "false":
-		return false
-	}
-	if n, err := strconv.Atoi(v); err == nil {
-		return n
-	}
-	return v
+// openCodeNativeAgentKeys are the frontmatter keys of an opencode 2 agent
+// (ConfigAgent.Info, and variant); any other key makes the file a v1 agent.
+var openCodeNativeAgentKeys = map[string]bool{
+	"variant": true, "model": true, "request": true, "system": true, "description": true, "mode": true,
+	"hidden": true, "color": true, "steps": true, "disabled": true, "permissions": true,
 }

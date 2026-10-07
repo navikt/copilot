@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -865,29 +864,68 @@ func TestWithOpenCode2UserConfig(t *testing.T) {
 }
 
 // The payload's agents rank above a user agent of the same name only from
-// OPENCODE_CONFIG_CONTENT, with payload-relative {file:} paths made absolute.
+// OPENCODE_CONFIG_CONTENT, restated as opencode 2 reads them: key order kept,
+// payload-relative {file:} paths made absolute, a mode file primary, native
+// frontmatter under "agents" with the body as system, and files with {env:}
+// or {file:} left out.
 func TestWithOpenCode2UserConfigRestatesAgents(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	payload := t.TempDir()
-	mustWrite(t, filepath.Join(payload, "opencode.json"), `{"agent":{"rev":{"prompt":"{file:./rev.txt}"}}}`)
+	mustWrite(t, filepath.Join(payload, "opencode.json"), `{"permission":{"bash":{"git *":"allow","*":"deny"}},"agent":{"rev":{"prompt":"{file:./rev.txt}"}}}`)
 	mustWrite(t, filepath.Join(payload, "agents", "grillmester.md"),
-		"---\ndescription: \"probe: x\"\nmode: primary\npermission:\n  edit: deny\n  bash:\n    \"*\": deny\n    \"git *\": allow\n---\n\nPROMPT\n")
-	mustWrite(t, filepath.Join(payload, "agents", "list.md"), "---\ntools:\n  - read\n---\nskipped\n")
+		"---\ndescription: \"probe: x\" # comment\nmode: primary\ntools:\n  - read\n1: one\nhidden: True\npermission:\n  edit: deny\n  bash:\n    \"git *\": allow\n    \"*\": deny\n---\n\nPROMPT\n")
+	mustWrite(t, filepath.Join(payload, "agents", "native.md"), "---\nmodel: p/m\nvariant: high\nsteps: 3\n---\nSYS\n")
+	mustWrite(t, filepath.Join(payload, "agents", "secret.md"), "---\ndescription: x\n---\n{env:TOKEN}\n")
+	mustWrite(t, filepath.Join(payload, "modes", "plan.md"), "---\nmode: subagent\n---\nPLAN\n")
 
-	var cfg map[string]any
-	for _, e := range withOpenCode2UserConfig(nil, payload) {
-		if v, ok := strings.CutPrefix(e, "OPENCODE_CONFIG_CONTENT="); ok {
-			_ = json.Unmarshal([]byte(v), &cfg)
+	env := withOpenCode2UserConfig(nil, payload)
+	env = withOpenCodeConfigContent(env, map[string]any{"share": "disabled"}) // a later policy merge keeps the order
+	abs := filepath.ToSlash(filepath.Join(payload, "rev.txt"))
+	want := `OPENCODE_CONFIG_CONTENT={"agent":{"rev":{"prompt":"{file:` + abs + `}"},` +
+		`"grillmester":{"description":"probe: x","mode":"primary","tools":["read"],"1":"one","hidden":true,"permission":{"edit":"deny","bash":{"git *":"allow","*":"deny"}},"prompt":"PROMPT"}},` +
+		`"agents":{"native":{"model":"p/m#high","steps":3,"system":"SYS"},"plan":{"mode":"primary","system":"PLAN"}},` +
+		`"permission":{"bash":{"git *":"allow","*":"deny"}},"share":"disabled"}`
+	if len(env) != 1 || env[0] != want {
+		t.Fatalf("env = %q\nwant  %q", env, want)
+	}
+	// opencode takes the last matching rule (core/src/permission.ts findLast).
+	if got := lastBashRule(t, strings.TrimPrefix(env[0], "OPENCODE_CONFIG_CONTENT="), "git status"); got != "deny" {
+		t.Errorf("git status resolves to %q, want deny", got)
+	}
+}
+
+// lastBashRule resolves a command against permission.bash as opencode does:
+// rules in order, the last match winning. Only "*" and a trailing " *".
+func lastBashRule(t *testing.T, content, cmd string) string {
+	t.Helper()
+	n, err := jsonNode([]byte(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules := nodeGet(nodeGet(n, "permission"), "bash")
+	got := ""
+	for i := 0; rules != nil && i+1 < len(rules.Content); i += 2 {
+		pat := rules.Content[i].Value
+		if pat == "*" || (strings.HasSuffix(pat, " *") && strings.HasPrefix(cmd, strings.TrimSuffix(pat, "*"))) {
+			got = rules.Content[i+1].Value
 		}
 	}
-	got, _ := json.Marshal(cfg["agent"])
-	want, _ := json.Marshal(map[string]any{
-		"rev": map[string]any{"prompt": "{file:" + filepath.ToSlash(filepath.Join(payload, "rev.txt")) + "}"},
-		"grillmester": map[string]any{"description": "probe: x", "mode": "primary", "prompt": "PROMPT",
-			"permission": map[string]any{"edit": "deny", "bash": map[string]any{"*": "deny", "git *": "allow"}}},
-	})
-	if string(got) != string(want) {
-		t.Errorf("agent = %s\nwant    %s", got, want)
+	return got
+}
+
+// A markdown agent outranks the payload JSON's agent of its name, as opencode
+// loads the directory's files after its config: merged into a native JSON
+// agent, or replacing it when the file is a v1 agent.
+func TestWithOpenCode2UserConfigMarkdownOutranksJSON(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	payload := t.TempDir()
+	mustWrite(t, filepath.Join(payload, "opencode.json"), `{"agents":{"a":{"description":"json"},"b":{"description":"json","steps":2}}}`)
+	mustWrite(t, filepath.Join(payload, "agents", "a.md"), "---\ntools:\n  read: true\n---\nA\n")
+	mustWrite(t, filepath.Join(payload, "agents", "b.md"), "---\ndescription: md\n---\nB\n")
+	env := withOpenCode2UserConfig(nil, payload)
+	want := `OPENCODE_CONFIG_CONTENT={"agent":{"a":{"tools":{"read":true},"prompt":"A"}},"agents":{"b":{"description":"md","steps":2,"system":"B"}}}`
+	if len(env) != 1 || env[0] != want {
+		t.Errorf("env = %q\nwant  %q", env, want)
 	}
 }
 
