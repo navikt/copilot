@@ -175,6 +175,8 @@ func TestCheckOpenCode2Launch(t *testing.T) {
 		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"--server", "http://x"}, false},
 		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"run", "--server=http://x", "hi"}, false},
 		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"attach", "http://x"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"run", "attach"}, true},
+		{"opencode v2.0.24\n", "", errCpltNotFound, nil, true},
 		{"opencode 1.17.0\n", "", errors.New("timeout"), []string{"attach", "--server", "x"}, true},
 	} {
 		versionCache.Store("opencode", versionAnswer{c.version, nil, time.Hour})
@@ -182,5 +184,10 @@ func TestCheckOpenCode2Launch(t *testing.T) {
 		if err := checkOpenCode2Launch(c.args); (err == nil) != c.ok {
 			t.Errorf("%q cplt %q %v: err = %v, want ok %v", c.version, c.cplt, c.args, err, c.ok)
 		}
+	}
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	stubProbes(t, "cplt 2026.10.06-120000-0d1d66d\n", nil, "", nil)
+	if err := checkOpenCode2Launch(nil); !errors.Is(err, errCpltTooOld) {
+		t.Errorf("old cplt: err = %v, want errCpltTooOld", err)
 	}
 }

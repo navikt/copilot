@@ -2,6 +2,7 @@ package provider
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -418,7 +419,11 @@ func LaunchOpenCodeStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 		return err
 	}
 	if err := checkOpenCode2Launch(r.ExtraArgs); err != nil {
-		telemetryRecorder.RecordLaunchError("opencode", "client_unsupported")
+		reason := "client_unsupported"
+		if errors.Is(err, errCpltTooOld) {
+			reason = "cplt_too_old"
+		}
+		telemetryRecorder.RecordLaunchError("opencode", reason)
 		return err
 	}
 	// A fresh machine has no .gitignore in the opencode config dir, and under

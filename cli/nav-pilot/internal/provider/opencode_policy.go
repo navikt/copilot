@@ -2,6 +2,7 @@ package provider
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -251,6 +252,10 @@ var openCodeMajorPattern = regexp.MustCompile(`(?i)^(?:opencode )?v?(\d+)\.`)
 // the opencode 2 client spawns its session's service inside the sandbox. An
 // older cplt lets the client attach to the host's background service, which
 // runs with none of the launch's environment: no hooks, no gate, no policy.
+// errCpltTooOld marks checkOpenCode2Launch's refusal of a cplt older than
+// minOpenCode2CpltStamp, so telemetry can tell it from argument refusals.
+var errCpltTooOld = errors.New("cplt too old")
+
 const minOpenCode2CpltStamp = "2026.10.07-103638"
 
 // checkOpenCode2Launch refuses an opencode 2 launch that would run outside the
@@ -261,19 +266,25 @@ func checkOpenCode2Launch(args []string) error {
 	if openCodeMajor() < 2 {
 		return nil
 	}
+	if len(args) > 0 && args[0] == "attach" {
+		return fmt.Errorf("attach is not allowed on opencode 2: it connects to a server outside the sandboxed session nav-pilot starts")
+	}
 	for _, a := range args {
-		if a == "attach" || a == "--server" || a == "--attach" || strings.HasPrefix(a, "--server=") || strings.HasPrefix(a, "--attach=") {
+		if a == "--server" || a == "--attach" || strings.HasPrefix(a, "--server=") || strings.HasPrefix(a, "--attach=") {
 			return fmt.Errorf("%s is not allowed on opencode 2: it connects to a server outside the sandboxed session nav-pilot starts", a)
 		}
 	}
 	out, err := probeCpltVersion()
+	if errors.Is(err, errCpltNotFound) {
+		return nil // the launch's own cplt-missing path (ErrCpltMissing) says how to install it
+	}
 	found := strings.TrimSpace(out)
 	if err != nil {
 		found = err.Error()
 	}
 	if stamp := cpltStamp(out); err != nil || stamp == "" || stamp < minOpenCode2CpltStamp {
-		return fmt.Errorf("opencode 2 needs cplt %s or newer (navikt/cplt#716), found %q: an older cplt runs the session in the host's background service, without nav-pilot's hooks.\n\n  Upgrade it: %s",
-			minOpenCode2CpltStamp, found, domain.Bold(cpltUpgradeHint()))
+		return fmt.Errorf("%w: opencode 2 needs cplt %s or newer (navikt/cplt#716), found %q: an older cplt runs the session in the host's background service, without nav-pilot's hooks.\n\n  Upgrade it: %s",
+			errCpltTooOld, minOpenCode2CpltStamp, found, domain.Bold(cpltUpgradeHint()))
 	}
 	return nil
 }
