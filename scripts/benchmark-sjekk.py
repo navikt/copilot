@@ -450,6 +450,8 @@ def selftest():
         ("funnet", "Vedtaket lagres før det publiseres.\n", DW, True),
         ("funnet", "Hvis prosessen dør før `commitSync`, fattes og publiseres vedtakene på nytt.\n", DW, False),
         ("funnet", "Kjør `retry` bare rundt `producer.send`. Fang deserialiseringsfeil og send til DLQ.\n", DW, False),
+        ("funnet", "Feil: send til DLQ.\n", DW, False),
+        ("funnet", "Fang feil ved deserialisering, og send meldingen til en DLQ.\n", DW, False),
     ]
     failed = 0
     with tempfile.TemporaryDirectory() as tmp:

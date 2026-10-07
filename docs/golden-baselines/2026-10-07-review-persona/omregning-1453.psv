@@ -1,5 +1,5 @@
 # Omregning uten modellkall av alle lagrede rv5–rv8-transkripter fra 7. oktober med sjekkene rettet etter #1453.
-# gammel = scripts/benchmark-sjekk.py og RV_DESIGN i nav-pilot-golden.sh på 8ceea96d; ny = denne branchen.
+# gammel = scripts/benchmark-sjekk.py og RV_DESIGN i nav-pilot-golden.sh på 9e69c661 (PR-basen); ny = denne branchen.
 # rv6: dobbeltskriving kjenner også omvendt ordstilling («retry etter feilet `send`», «Feiler `send`», «lagres før det publiseres»).
 # rv8: en forsiktig konklusjon om at fila er ren («ingen påvist tilgang …», «Ingen åpenbar tilgangslekkasje», «ingen bekreftet blokkering») teller. En 🔴-rad feiler fortsatt.
 # Tallene er antall beståtte kjøringer. rv5 og rv7 er tatt med som kontroll: de er ikke endret.

@@ -371,9 +371,9 @@ Forbruket var 560,2 credits for Opus og 328,9 for Sol, til sammen 889,0. Budsjet
 [#1453](https://github.com/navikt/copilot/issues/1453) retter to feil i sjekkene som målingen over avdekket:
 
 - **rv6:** Mønsteret for dobbeltskriving kjenner nå også omvendt ordstilling: «retry etter feilet `send`», «Feiler `send` eller `commitSync`», «lagres før det publiseres».
-- **rv8:** En forsiktig konklusjon om at fila er ren, teller nå: «ingen påvist tilgang …», «Ingen åpenbar tilgangslekkasje», «ingen bekreftet blokkering». En 🔴-rad feiler fortsatt rv8, også når svaret har en slik setning.
+- **rv8:** En forsiktig konklusjon om at fila er ren teller nå: «ingen påvist tilgang …», «Ingen åpenbar tilgangslekkasje», «ingen bekreftet blokkering». En 🔴-rad feiler fortsatt rv8, også når svaret har en slik setning.
 
-Begge rettingene har kontroller i `scripts/benchmark-sjekk.py --selftest` som feiler med de gamle sjekkene. Alle lagrede rv5–rv8-svar fra 7. oktober er regnet om uten nye modellkall, i [omregning-1453.psv](golden-baselines/2026-10-07-review-persona/omregning-1453.psv). 13 kjøringer gikk fra feilet til bestått, ingen motsatt vei. rv5 og rv7 er uendret.
+Begge rettingene har kontroller i `scripts/benchmark-sjekk.py --selftest` som feiler med de gamle sjekkene. Alle lagrede rv5–rv8-svar fra 7. oktober er regnet om uten nye modellkall, i [omregning-1453.psv](golden-baselines/2026-10-07-review-persona/omregning-1453.psv). Tretten kjøringer gikk fra feilet til bestått, ingen motsatt vei. rv5 og rv7 er uendret.
 
 | Måling og arm                     | rv6, gammel | rv6, ny | rv8, gammel | rv8, ny |
 | --------------------------------- | ----------- | ------- | ----------- | ------- |
