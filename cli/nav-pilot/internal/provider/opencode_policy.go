@@ -270,6 +270,12 @@ func checkOpenCode2Launch(args []string) error {
 		return fmt.Errorf("attach is not allowed on opencode 2: it connects to a server outside the sandboxed session nav-pilot starts")
 	}
 	for _, a := range args {
+		if a == "--" {
+			break // what follows is the message, not options
+		}
+		if a == "--standalone" {
+			return fmt.Errorf("--standalone is not supported on opencode 2 under cplt: the client cannot reach a standalone service in the sandbox")
+		}
 		if a == "--server" || a == "--attach" || strings.HasPrefix(a, "--server=") || strings.HasPrefix(a, "--attach=") {
 			return fmt.Errorf("%s is not allowed on opencode 2: it connects to a server outside the sandboxed session nav-pilot starts", a)
 		}

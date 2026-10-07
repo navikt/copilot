@@ -400,6 +400,12 @@ func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte
 		}
 		return expandOpenCodeEnv(docs, getenv)
 	}
+	// opencode 2 reads OPENCODE_CONFIG_DIR as its global config, below
+	// everything else; opencode 1 ranks it above the project.
+	v2 := openCodeMajor() >= 2
+	if d := getenv("OPENCODE_CONFIG_DIR"); d != "" && v2 {
+		read(d, "opencode.json", "opencode.jsonc")
+	}
 	if f := getenv("OPENCODE_CONFIG"); f != "" {
 		read(filepath.Dir(f), filepath.Base(f))
 	}
@@ -432,7 +438,7 @@ func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte
 	if home, err := os.UserHomeDir(); err == nil {
 		read(filepath.Join(home, ".opencode"), "opencode.json", "opencode.jsonc")
 	}
-	if d := getenv("OPENCODE_CONFIG_DIR"); d != "" {
+	if d := getenv("OPENCODE_CONFIG_DIR"); d != "" && !v2 {
 		read(d, "opencode.json", "opencode.jsonc")
 	}
 	if c := getenv(openCodeConfigContentEnv); c != "" {

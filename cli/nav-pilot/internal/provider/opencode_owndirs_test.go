@@ -176,6 +176,8 @@ func TestCheckOpenCode2Launch(t *testing.T) {
 		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"run", "--server=http://x", "hi"}, false},
 		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"attach", "http://x"}, false},
 		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"run", "attach"}, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"run", "--", "--server", "x"}, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"--standalone"}, false},
 		{"opencode v2.0.24\n", "", errCpltNotFound, nil, true},
 		{"opencode 1.17.0\n", "", errors.New("timeout"), []string{"attach", "--server", "x"}, true},
 	} {

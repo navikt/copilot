@@ -817,6 +817,8 @@ func TestOpenCodeV2Args(t *testing.T) {
 		{[]string{"--pure", "run", "--agent", "nav", "--variant", "high", "hi"},
 			"run --agent nav hi", ""},
 		{[]string{"mcp", "list", "--log-level", "WARN"}, "mcp list --log-level warn", ""},
+		{[]string{"run", "--model", "github-copilot/m", "--", "--model", "x", "--pure"},
+			"run --model github-copilot/m -- --model x --pure", ""},
 	} {
 		args, env := openCodeV2Args(c.in, nil)
 		if got := strings.Join(args, " "); got != c.want {

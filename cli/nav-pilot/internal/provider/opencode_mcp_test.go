@@ -172,3 +172,21 @@ func TestOpenCodeMCPServersV2WalksPastGitRoot(t *testing.T) {
 		}
 	}
 }
+
+// opencode 2 ranks OPENCODE_CONFIG_DIR (the payload) below the project, so a
+// project server of the same name is the one checked.
+func TestOpenCodeMCPServersV2ConfigDirRanksBelowProject(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	proj, payload := t.TempDir(), t.TempDir()
+	os.WriteFile(filepath.Join(payload, "opencode.json"), []byte(`{"mcp":{"s":{"type":"remote","url":"https://payload/mcp"}}}`), 0o600)
+	os.WriteFile(filepath.Join(proj, "opencode.json"), []byte(`{"mcp":{"s":{"type":"remote","url":"https://project/mcp"}}}`), 0o600)
+	env := []string{"OPENCODE_CONFIG_DIR=" + payload}
+	for ver, want := range map[string]string{"1.18.35\n": "https://payload/mcp", "opencode v2.0.24\n": "https://project/mcp"} {
+		versionCache.Store("opencode", versionAnswer{ver, nil, time.Hour})
+		if got := openCodeMCPServers(proj, env)["s"].URL; got != want {
+			t.Errorf("%q: url = %v, want %s", ver, got, want)
+		}
+	}
+}

@@ -503,6 +503,11 @@ func LaunchCopilotStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 //
 // Another subcommand's arguments pass through, --pure and --log-level aside.
 func openCodeV2Args(args, env []string) ([]string, []string) {
+	// Options end at "--": what follows is message text and passes through as is.
+	var rest []string
+	if i := slices.Index(args, "--"); i >= 0 {
+		args, rest = args[:i], args[i:]
+	}
 	args = slices.DeleteFunc(slices.Clone(args), func(a string) bool { return a == "--pure" })
 	run := len(args) > 0 && args[0] == "run"
 	session := run || len(args) == 0 || !openCodeSubcommands[args[0]]
@@ -547,6 +552,7 @@ func openCodeV2Args(args, env []string) ([]string, []string) {
 			cfg["model"] = model
 		}
 	}
+	out = append(out, rest...)
 	if len(cfg) > 0 {
 		env = withOpenCodeConfigContent(env, cfg)
 	}
