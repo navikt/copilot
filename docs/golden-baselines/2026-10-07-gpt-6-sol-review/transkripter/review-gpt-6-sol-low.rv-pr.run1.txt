@@ -1,0 +1,64 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 426ms
+    Failed with exit code 1
+
+**Gjennomgangen av `vedtak-kafka` mot `main` fant flere blokkere.** Jeg ville ikke merget branchen før disse er rettet:
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Alle som kan nå tjenesten, kan hente vedtak for et vilkårlig fødselsnummer. Endepunktet trenger autentisering og kontroll av tilgang til personen. |
+| `VedtakRepository.kt:23` | 🔴 | `fnr` settes direkte inn i SQL-strengen. Det åpner for SQL-injeksjon. Bruk parameterisert spørring, slik `hentForSak` gjør. |
+| `App.kt:39–42` | 🔴 | JWT-oppsettet mangler verifier, og `validate` kontrollerer ikke forventet audience eller `azp`. `tokenx` i Nais-manifestet validerer ikke automatisk tokens i Ktor; POST-endepunktet har derfor ikke en fungerende tilgangskontroll. |
+| `VedtakService.kt:15` | 🔴 | Fødselsnummer logges direkte. Fjern det fra loggen. |
+| `App.kt:26–35` | 🔴 | Kafka-klientene får bare brokeradresse, ikke TLS-/autentiseringsoppsettet som Nais-Kafka krever. Consumeren og produceren vil ikke kunne koble til brokerne. |
+| `VedtakConsumer.kt:31–33` | 🔴 | Vedtak lagres før meldingen publiseres og offset committes. Feil etter lagring, eller restart før commit, behandler samme melding på nytt med ny ID. Det kan gi dupliserte vedtak og meldinger; behandlingen trenger en stabil meldings-ID og idempotent lagring/publisering. |
+| `VedtakRepository.kt:14` | 🔴 | Koden skriver til `vedtak`, men branchen oppretter ikke tabellen. En ny database fra `nais.yaml` vil derfor feile ved første vedtak. |
+| `App.kt:35–36` | 🟡 | Consumeren kjører i en egen tråd uten håndtering av feil eller livssyklus. Hvis tråden stopper, fortsetter HTTP-serveren å kjøre, og tjenesten kan fremstå som frisk uten å behandle Kafka-meldinger. |
+
+**Kontroll:** `mise check` finnes ikke som oppgave i repoet. `gradle compileKotlin --offline` stoppet under prosjektkonfigurasjon med feilen `27`, så kompilering og tester er ikke verifisert.
+
+🔴 **Rød sone:** tilgangskontroll, SQL-spørringen og idempotens i vedtaksflyten må gjennomgås grundig. Her er hovedvalget å validere tokens i appen og knytte Kafka-behandlingen til en stabil hendelses-ID; det krever mer håndtering av tilstand, men hindrer uautorisert innsyn og doble vedtak. Still gjerne spørsmål om valgene over.
+

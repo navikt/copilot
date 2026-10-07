@@ -1,0 +1,18 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        code-review
+# suite:        review
+# date:         2026-10-07
+# revision:     709dfd38
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-4.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+rv-clean|1|0|pass|2279|23291|true|
+rv-clean|2|0|pass|1681|21694|true|
+rv-clean|3|0|pass|1967|23694|true|
+rv-clean|4|0|pass|1951|20126|true|
+rv-clean|5|0|pass|3085|29050|true|

@@ -1,0 +1,131 @@
+Jeg leser `SakService.kt` og tilhørende kode, kjører prosjektets sjekker og rapporterer konkrete funn uten å endre filer.
+
+
+
+
+
+    total 24
+    drwxr-xr-x   7 hans  staff  224 Oct  7 10:40 .
+    drwx------  26 hans  staff  832 Oct  7 10:40 ..
+    drwxr-xr-x   4 hans  staff  128 Oct  7 10:40 .github
+    -rw-r--r--   1 hans  staff  688 Oct  7 10:40 build.gradle.kts
+    -rw-r--r--   1 hans  staff  216 Oct  7 10:40 nais.yaml
+    -rw-r--r--   1 hans  staff  166 Oct  7 10:40 README.md
+    drwxr-xr-x   4 hans  staff  128 Oct  7 10:40 src
+    ./build.gradle.kts
+    mise ERROR no task check found
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+    2
+    3  import io.ktor.http.HttpStatusCode
+    4  import io.ktor.server.auth.authenticate
+    5  import io.ktor.server.auth.jwt.JWTPrincipal
+    6  import io.ktor.server.auth.principal
+    7  import io.ktor.server.response.respond
+    8  import io.ktor.server.routing.Route
+    9  import io.ktor.server.routing.get
+    10  import kotliquery.queryOf
+    11  import kotliquery.sessionOf
+    12  import kotlinx.serialization.Serializable
+    13  import org.slf4j.LoggerFactory
+    14  import javax.sql.DataSource
+    15
+    16  @Serializable
+    17  data class Sak(val sakId: String, val tema: String, val status: String)
+    18
+    19  /** Skjuler hele fødselsnummeret i logger. */
+    20  fun String.maskert(): String = "*".repeat(length)
+    21
+    22  class SakRepository(private val dataSource: DataSource) {
+    23      fun hentForPerson(fnr: String): List<Sak> =
+    24          sessionOf(dataSource).use { session ->
+    25              session.run(
+    26                  queryOf("SELECT sak_id, tema, status FROM sak WHERE fnr = ? ORDER BY
+    opprettet DESC", fnr)
+    27                      .map { Sak(it.string("sak_id"), it.string("tema"), it.string("status"))
+    }
+    28                      .asList,
+    29              )
+    30          }
+    31  }
+    32
+    33  class SakService(private val repository: SakRepository) {
+    34      private val log = LoggerFactory.getLogger(SakService::class.java)
+    35
+    36      fun sakerFor(fnr: String): List<Sak> {
+    37          log.info("Henter saker for {}", fnr.maskert())
+    38          return try {
+    39              repository.hentForPerson(fnr)
+    40          } catch (e: Exception) {
+    41              log.error("Kunne ikke hente saker: {}", e.javaClass.simpleName)
+    42              throw e
+    43          }
+    44      }
+    45  }
+    46
+    47  fun Route.sakRoutes(service: SakService) {
+    48      authenticate("tokenx") {
+    49          get("/api/saker") {
+    50              val fnr = call.principal<JWTPrincipal>()?.payload?.getClaim("pid")?.asString()
+    51              if (fnr == null) {
+    52                  call.respond(HttpStatusCode.Unauthorized)
+    53                  return@get
+    54              }
+    55              call.respond(service.sakerFor(fnr))
+    56          }
+    57      }
+    58  }
+    total 0
+    drwxr-xr-x   4 hans  staff  128 Oct  7 10:40 .
+    drwxr-xr-x   7 hans  staff  224 Oct  7 10:40 ..
+    drwxr-xr-x   3 hans  staff   96 Oct  7 10:40 agents
+    drwxr-xr-x  18 hans  staff  576 Oct  7 10:40 instructions
+    /Users/hans/.local/share/mise/installs/gradle/8/gradle-8.14.5/bin/gradle
+    ls: gradlew: No such file or directory
+    Failed with exit code 1
+
+
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 1s
+    Failed with exit code 1
+
+**Gjennomgang:** `SakService.kt` bruker parameterisert SQL og henter personidentifikatoren fra et verifisert TokenX-token. Jeg fant ett sikkerhetsfunn og ett driftsfunn.
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `SakService.kt` | 50–55 | 🔴 Blokkerende | `pid` sjekkes bare for `null`. Et tomt eller ugyldig claim sendes videre som fødselsnummer til databasespørringen. Valider formatet før oppslaget, og avvis ugyldige verdier. |
+| `SakService.kt` | 49–55 | 🟡 Forslag | `sessionOf` og JDBC-kallet er blokkerende og kjøres direkte fra Ktor-ruten. Under last kan det binde opp tråder som håndterer forespørsler. Flytt oppslaget til en dispatcher for blokkerende arbeid. |
+
+🔴 **Rød sone:** Valideringen av `pid` er en tillitsgrense. Formatvalidering hindrer ugyldige oppslag, men erstatter ikke verifisering av tokenet; den skjer i `App.kt`. En egen dispatcher koster et kontekstbytte, men isolerer databaseventing fra forespørselshåndteringen. Still gjerne spørsmål om valgene over.
+
+**Sjekker:** `mise check` finnes ikke i prosjektet. `gradle check --offline` stoppet under konfigurering med feilen `> 27`, så jeg kunne ikke bekrefte bygg eller tester.
+

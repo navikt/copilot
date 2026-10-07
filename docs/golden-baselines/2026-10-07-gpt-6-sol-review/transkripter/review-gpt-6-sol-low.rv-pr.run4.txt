@@ -1,0 +1,43 @@
+
+
+
+
+
+
+
+
+
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 357ms
+    Failed with exit code 1
+
+
+**Gjennomgangen av `vedtak-kafka` mot `main` avdekker flere blokkere.** Endringen bør ikke merges før tilgangskontroll, SQL-spørringen og Kafka-flyten er rettet.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` og returnerer vedtak med fødselsnummer. Endepunktet må kreve autentisering og kontrollere at innringeren har tilgang til personen. |
+| `VedtakRepository.kt:23` | 🔴 | `fnr` settes rett inn i SQL-strengen. Det åpner for SQL-injeksjon; bruk en parameterisert spørring som i `hentForSak`. |
+| `App.kt:40–42` | 🔴 | JWT-oppsettet mangler verifier og godtar enhver ikke-null `audience` i `validate`. Verifiser signatur, utsteder og forventet audience, og kontroller `azp` for maskin-til-maskin-kall før `POST /api/vedtak` får fatte vedtak. |
+| `VedtakService.kt:15` | 🔴 | Logger fødselsnummer i klartekst. Fjern personopplysningen fra loggen. |
+| `VedtakConsumer.kt:24–27, 31–33` | 🔴 | Vedtaket lagres før publisering og offset-commit. Ved feil i Kafka-publisering oppretter retry eller omstart et nytt vedtak med ny ID for samme melding. Innfør idempotens på en stabil meldings-ID og en strategi for pålitelig publisering. |
+| `App.kt:26–35` | 🔴 | Kafka-klientene får bare broker-adresse og serialisering, uten TLS/SASL-konfigurasjonen fra Nais. De vil ikke kunne autentisere seg mot Kafka-poolen. |
+| `VedtakRepository.kt:14` | 🔴 | Koden skriver til `vedtak`, men branchen oppretter ikke tabellen. Første lagring vil feile dersom den ikke finnes fra før. |
+| `VedtakConsumer.kt:19–27` | 🟡 | En feil etter siste retry avslutter consumer-tråden, mens HTTP-serveren fortsetter å kjøre. Tjenesten kan dermed framstå som frisk uten å behandle nye meldinger. |
+
+**Verifisering er begrenset:** `mise check` finnes ikke i repoet, og `gradle test` stoppet under prosjektkonfigurasjon med feilen `27`. Jeg kunne derfor ikke bekrefte kompilering eller testresultater.
+
+🔴 Rød sone: tilgangskontroll, behandling av vedtak og idempotens må gjennomgås grundig. Still gjerne spørsmål om valgene over.
+

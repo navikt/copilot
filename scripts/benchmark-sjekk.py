@@ -270,7 +270,9 @@ def spurious(text):
     # «🔴 Rød sone: … linje 50» is the persona's red-zone declaration, not a
     # finding (Opus check run on the clean file, 7 Oct).
     return [r for r in answer_lines(text)
-            if high(r) and cited_lines(r) and not CLEAN.search(r) and not RED_ZONE.search(r)]
+            # A block counts as a citation too: «| 50–55 | 🔴 |» (GPT-6 Sol,
+            # 7 Oct second run) is a high finding though cited_lines drops it.
+            if high(r) and _block(r) and not CLEAN.search(r) and not RED_ZONE.search(r)]
 
 
 def taus(text):
@@ -423,6 +425,7 @@ def selftest():
         # #1443: «ingen konkrete feil/funn» is a clean verdict.
         ("taus", "Jeg fant ingen konkrete feil i `S.kt`.\n", [], True),
         ("taus", "Ingen konkrete funn.\n", [], True),
+        ("taus", "| `S.kt` | 50–55 | 🔴 Blokkerende | pid valideres ikke |\n\nIngen kritiske funn ellers.\n", [], False),
     ]
     failed = 0
     with tempfile.TemporaryDirectory() as tmp:

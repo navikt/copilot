@@ -1,0 +1,64 @@
+
+
+
+
+Jeg sammenligner `vedtak-kafka` med `main` og ser særlig på Kafka-håndtering, lagring og API-endringene.
+
+
+
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+Jeg har funnet flere mulige blokkerende feil i tilgangskontroll og meldingsflyt. Jeg sjekker nå byggbarhet og om databasen har et skjema før jeg konkluderer.
+
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 410ms
+    Failed with exit code 1
+
+**Gjennomgangen av `vedtak-kafka` mot `main`: Jeg ville blokkert merge.** Endringene åpner for innsyn i vedtak uten autentisering og inneholder SQL-injeksjon. Kafka-oppsettet og databasen mangler også nødvendige deler for at flyten skal fungere i Nais.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 Blokkerende | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Alle som når tjenesten, kan hente vedtak ved å oppgi et fødselsnummer. Krev autentisering **og** kontroller at innringeren har rett til akkurat disse vedtakene. |
+| `VedtakRepository.kt:21–24` | 🔴 Blokkerende | `fnr` settes rett inn i SQL-strengen. En manipulert URL-parameter kan endre spørringen. Bruk `queryOf("SELECT ... WHERE fnr = ?", fnr)`. |
+| `App.kt:39–43` | 🔴 Blokkerende | JWT-oppsettet har ingen verifikator for signatur og utsteder. `validate` sjekker heller ikke forventet audience eller `azp`; den returnerer legitimasjonen når audience finnes. Konfigurer TokenX-verifikasjon og kontroller at klienten er autorisert til å fatte vedtak. |
+| `VedtakService.kt:15` | 🔴 Blokkerende | Fødselsnummer logges direkte. Fjern personopplysningen fra loggen. |
+| `App.kt:26–35` | 🔴 Blokkerende | Kafka-klientene får bare brokeradresse, ikke TLS/SASL-oppsettet og legitimasjonen fra Nais. De vil ikke kunne koble til Kafka-poolen slik de er konfigurert. |
+| `VedtakRepository.kt:13–17`, `nais.yaml:15–19` | 🔴 Blokkerende | Grenen oppretter en Postgres-database, men inneholder ingen migrering som lager tabellen `vedtak`. Første lagring vil derfor feile. |
+| `VedtakConsumer.kt:23–27`, `VedtakService.kt:16–23` | 🔴 Blokkerende | Ved feil etter lagring, for eksempel ved publisering, lager retry et nytt vedtak med ny ID for samme melding. Også omstart før offset-commit kan gi duplikater. Bruk en stabil meldings-ID og idempotent lagring, og avklar hvordan lagring og publisering skal samordnes. |
+| `App.kt:36`, `VedtakConsumer.kt:19–29` | 🟡 Forslag | En ubehandlet feil avslutter konsumenttråden mens HTTP-serveren fortsetter å kjøre. Tjenesten kan dermed fremstå som klar uten å behandle meldinger. La feilen påvirke readiness eller prosessens livssyklus. |
+
+**Kontroll:** `mise check` finnes ikke som oppgave i dette repoet. `gradle test --offline` stoppet under prosjektkonfigurasjon med feilen `27`, så jeg kunne ikke bekrefte bygg eller tester. Grenen inneholder heller ingen tester for den nye flyten.
+
+🔴 Rød sone: tilgangskontroll, persondata og vedtaksflyt må gjennomgås grundig. Still gjerne spørsmål om valgene over.
+
