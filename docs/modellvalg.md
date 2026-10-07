@@ -229,6 +229,61 @@ Tabellen gjelder når du velger modell selv. Innsatsnivå (effort) kan ikke sett
 
 GPT-6.1 Sol er like god som GPT-6 Sol på koding, norsk og research, men svakere på planlegging (t2 2/5) og kodegjennomgang (24/40 i batch 4, 25/40 på rv1–rv4 7. oktober). Den har samme listepris som GPT-6 Sol, bortsett fra cachet input. Derfor er GPT-6 Sol, ikke GPT-6.1 Sol, nå reservemodell for `@code-review` og `@nav-pilot-opus`, foreløpig og ikke målt på rv5–rv8. GPT-6 Sol fikk 33/40 på de to filene, og fem av de sju bommene lå én til tre linjer feil; de to siste var det svelgede unntaket i Kotlin-fila, som ikke ble nevnt.
 
+## Rettede sjekker og GPT-6 Sol (7. oktober 2026)
+
+Målingen over fant feil i selve sjekkene. De er rettet etter [#1443](https://github.com/navikt/copilot/issues/1443), og de 60 svarene fra målingen er regnet om uten nye modellkall. Deretter ble GPT-6 Sol Low målt med de rettede sjekkene.
+
+### Hva som er endret i sjekkene
+
+- **Plassering (rv5–rv7):** Et funn er plassert når raden oppgir fil og linjenummer, i kolonnene for fil og linje eller som `Fil.kt:23` i raden. Det gjelder likt for alle armene. Før holdt det at filnavnet sto et sted i raden. En YAML-nøkkel i linjekolonnen («nais.yaml | inbound») er ikke et linjenummer. Et filnavn uten linje i raden for en annen fil teller heller ikke. Står det `nais.yaml:25–26` i raden for Routes.kt, teller det.
+- **Prioritet (rv7 og rv8):** Bare prioritetskolonnen leses. «Blokkerende JDBC-kall» eller «høy belastning» i en 🟡-rad er ikke lenger høy prioritet. Utenfor tabeller er det bare 🔴 som gir høy prioritet.
+- **rv7:** `accessPolicy.inbound` med `*` i nais.yaml må nå være merket høy prioritet, på samme måte som SQL-injeksjonen og den åpne ruten.
+- **rv8:** «Ingen konkrete feil» og «Ingen konkrete funn» godtas som svar på at fila er uten feil.
+- **SQL:** Mønsteret kjenner nå «parameterbinding», «settes direkte inn i SQL-strengen» og «endre spørringen».
+- **rv6:** Mønsteret er utledet på nytt fra alle de 30 svarene på branchen, ikke bare fra Opus. Det dekker to ting: at én melding kan gi flere vedtak («Retry oppretter nye vedtak», «ny UUID per forsøk»), og at lagringen kan lykkes mens publiseringen feiler («Hvis publiseringen feiler», «feil etter databaseinnsetting»).
+- **Fiksturen for rv8:** `catch`-blokken logger ikke lenger hele unntaket (`log.error(…, e)`), bare klassenavnet. Eieren har avgjort at det å logge unntaket fra et JDBC-kall er en ekte personvernfeil, fordi meldingen fra driveren kan inneholde fødselsnummeret. Nye rv8-kjøringer kan derfor ikke sammenlignes direkte med kjøringene fra før endringen.
+
+Hver endring har en kontroll som viser at den kan feile, i `scripts/benchmark-sjekk.py --selftest` og `scripts/nav-pilot-golden.bats`.
+
+### Omregning av målingen
+
+Hver kjøring er regnet om i [omregning-1443.psv](golden-baselines/2026-10-07-review-suite/omregning-1443.psv). rv1–rv4 er ikke regnet om, fordi de svarene ikke er lagret. For rv8 viser tabellen antall rader med høy prioritet: median (høyest). I raden «log.error regnet som ekte» er de radene som gjelder `log.error(…, e)`, regnet som riktige funn og ikke som falsk alarm.
+
+| Sjekk                                      | Claude Opus 5.5 Low | GPT-6 Luna Medium | GPT-6.1 Sol Low |
+| ------------------------------------------ | ------------------- | ----------------- | --------------- |
+| rv5, gamle sjekker → nye                   | 7/10 → 7/10         | 1/10 → 4/10       | 3/10 → 3/10     |
+| rv6, gamle sjekker → nye                   | 8/10 → 9/10         | 1/10 → 9/10       | 2/10 → 10/10    |
+| rv7, gamle sjekker → nye                   | 10/10 → 6/10        | 7/10 → 4/10       | 9/10 → 0/10     |
+| rv7, nye sjekker uten kravet til nais.yaml | 10/10               | 10/10             | 10/10           |
+| rv8, gamle sjekker                         | 0 (2)               | 0,5 (1)           | 2 (3)           |
+| rv8, nye sjekker                           | 0 (0)               | 0 (1)             | 1 (1)           |
+| rv8, log.error regnet som ekte             | 0 (0)               | 0 (0)             | 0 (0)           |
+
+rv6 med de nye sjekkene gir samme tall som klassifiseringen for hånd i forrige avsnitt: 9, 9 og 10. Det er gjort med vilje: mønsteret ble utledet fra de samme svarene. rv7 faller fordi nais.yaml nå må ha høy prioritet. Opus merket den 🟡 i kjøring 6 og 10 og oppga nøkkel i stedet for linje i kjøring 5 og 7. GPT-6.1 Sol nevnte den ikke i sju kjøringer og merket den 🟡 i tre. Luna nevnte den ikke med fil og linje i seks kjøringer. Opus' to rader med nøkkelen «inbound» teller ikke, så rv5 for Opus blir 7/10 både før og etter.
+
+De samme kriteriene med de nye tallene, og med log.error regnet som ekte:
+
+- **Claude Opus 5.5 Low:** Krav 1 holder ikke (rv5 7/10). Krav 2 holder ikke (rv7 6/10). Krav 3 holder.
+- **GPT-6 Luna Medium:** Krav 1 holder ikke (rv5 4/10). Krav 2 holder ikke (rv7 4/10). Krav 3 holder. Krav 4 holder (rv6 9/10 mot Opus' 9/10).
+- **GPT-6.1 Sol Low:** Krav 1 holder ikke (rv5 3/10). Krav 2 holder ikke (rv7 0/10). Krav 3 holder. Krav 4 holder (10/10).
+- Ingen av armene er en akseptabel reservemodell, heller ikke med de nye sjekkene.
+
+### Kriteriene for GPT-6 Sol ble satt før målingen
+
+GPT-6 Sol Low måles med `@code-review` i Copilot CLI, ti kjøringer av rv1–rv8 med de nye sjekkene og den nye fiksturen. En kjøring der bruksradene viser en annen modell, forkastes. Budsjettet er om lag 400 credits, med stopp ved 500. Hvis det er plass i budsjettet, kjøres Claude Opus 5.5 Low på rv8 fem ganger som kontroll på den endrede fiksturen.
+
+GPT-6 Sol Low er en akseptabel reservemodell for `@code-review` bare hvis alle fire kravene holder:
+
+1. rv5 består i minst 9 av 10 kjøringer.
+2. rv7 består i minst 9 av 10 kjøringer.
+3. rv8: medianen for funn med høy prioritet er 0, og ingen kjøring har mer enn ett.
+4. rv6 består i høyst to kjøringer færre enn Opus 5.5. Opus-tallet er 9/10 fra omregningen.
+
+I tillegg gjelder en regel fra eieren: Består GPT-6 Sol rv5 i færre enn 7 av 10 kjøringer etter sjekkens egne tall, skal `@security-champion` flyttes fra GPT-6 Sol til Claude Opus 5.5 Low. Målingen rapporterer bare dette. Pinnen endres i en egen PR.
+
+Målingen endrer ingen pinner.
+
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
