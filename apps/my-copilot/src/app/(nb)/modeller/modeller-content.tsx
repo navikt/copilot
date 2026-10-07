@@ -308,13 +308,14 @@ export function ModellerContent({
               </ul>
               <BodyLong>
                 Bruk GPT-6 Sol med lav innsats til daglig koding og planlegging. Den besto alle sjekkene i koding, norsk
-                og research 6. oktober og stoppet riktig etter fase 1 i fem av fem planleggingskjøringer. Bruk Claude
-                Opus 5.5 med lav innsats til kodegjennomgang og alt som gjelder sikkerhet og personopplysninger. Av
-                modellene vi har målt, fant den oftest feilene i nais.yaml, SQL og tilgangskontroll, men den koster
-                omtrent dobbelt så mye. GPT-6.1 Sol er like god som GPT-6 Sol på koding, norsk og research, men svakere
-                på kodegjennomgang og skriver de åpne punktene i fase 1 som påstander, ikke spørsmål. Vi anbefaler den
-                derfor ikke som standard. GPT-6 Luna er billig og god til små, avgrensede rettinger og en rask
-                førstegjennomgang, men ikke til sikkerhet.
+                og informasjonsinnhenting 6. oktober og stoppet riktig etter fase 1 i fem av fem planleggingskjøringer.
+                Bruk Claude Opus 5.5 med lav innsats til kodegjennomgang og alt som gjelder sikkerhet og
+                personopplysninger. Av modellene vi har målt, fant den oftest feilene i nais.yaml, SQL og
+                tilgangskontroll, men den koster 1,6 til 2,8 ganger så mye. GPT-6.1 Sol er like god som GPT-6 Sol på
+                koding, norsk og informasjonsinnhenting, men svakere på kodegjennomgang og skriver de åpne punktene i
+                fase 1 som påstander, ikke spørsmål. Vi anbefaler den derfor ikke som standard. GPT-6 Luna er billig og
+                god til små, avgrensede rettinger og en rask førstegjennomgang av kode der sikkerhet ikke er tema, men
+                ikke til sikkerhetsgjennomgang.
               </BodyLong>
             </VStack>
 
