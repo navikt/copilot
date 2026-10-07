@@ -82,4 +82,8 @@ func TestApplyOpenCodeHooksV2PluginIDPerLaunch(t *testing.T) {
 	if !bytes.Contains(hooksBridgePluginV2, []byte("process.env."+OpenCodePluginIDEnv)) {
 		t.Error("the v2 bridge does not read its id from " + OpenCodePluginIDEnv)
 	}
+	// Every model request kind carries tool results (model-request.ts).
+	if !bytes.Contains(hooksBridgePluginV2, []byte(`["context", "compaction", "generate", "title"]`)) {
+		t.Error("the v2 bridge does not redact every model request kind")
+	}
 }
