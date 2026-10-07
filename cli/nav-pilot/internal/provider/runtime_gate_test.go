@@ -280,10 +280,6 @@ func TestCopilotBuildSuffixIsNotAPrereleaseAmnesty(t *testing.T) {
 	if v, err := parseClientVersion("opencode", "1.18.20-14\n"); err == nil {
 		t.Errorf("parseClientVersion(opencode, \"1.18.20-14\") = %v, want a fatal error", v)
 	}
-	// opencode 2's own line (2.0.24).
-	if v, err := parseClientVersion("opencode", "opencode v2.0.24\n"); err != nil || v != (semver3{2, 0, 24}) {
-		t.Errorf("parseClientVersion(opencode, \"opencode v2.0.24\") = %v, %v", v, err)
-	}
 }
 
 // TestParseCpltVersionAnchorsOnTheFirstLine pins finding 6: the parse must not
@@ -841,11 +837,18 @@ func TestOpenCodeVersionProbedOnce(t *testing.T) {
 }
 
 func TestCheckOpenCodeMajorStopsOpenCode2(t *testing.T) {
+	// opencode 2's own line (2.0.24).
+	if v, err := parseClientVersion("opencode", "opencode v2.0.24\n"); err != nil || v != (semver3{2, 0, 24}) {
+		t.Errorf("parseClientVersion(opencode, \"opencode v2.0.24\") = %v, %v", v, err)
+	}
 	t.Cleanup(func() { versionCache.Delete("opencode") })
-	for out, stop := range map[string]bool{"opencode v2.0.24\n": true, "1.18.35\n": false, "garbage\n": false} {
+	for out, stop := range map[string]bool{
+		"opencode v2.0.24\n": true, "opencode v2.1.0-beta.1\n": true, "10.0.0\n": true,
+		"1.18.35\n": false, "1.19.0-next.3\n": false, "garbage\n": false,
+	} {
 		versionCache.Store("opencode", versionAnswer{out, nil, time.Minute})
-		if err := checkOpenCodeMajor(); (err != nil) != stop {
-			t.Errorf("checkOpenCodeMajor() with %q = %v, want stop=%v", out, err, stop)
+		if err := CheckOpenCodeMajor(); (err != nil) != stop {
+			t.Errorf("CheckOpenCodeMajor() with %q = %v, want stop=%v", out, err, stop)
 		}
 	}
 }

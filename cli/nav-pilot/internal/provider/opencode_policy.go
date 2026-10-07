@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -177,19 +180,49 @@ func warnUntestedOpenCode() {
 		domain.Yellow("⚠"), v, OpenCodeTestedRange, domain.Bold("nav-pilot doctor"))
 }
 
-// checkOpenCodeMajor stops a launch on opencode 2, which the warning above is
+// CheckOpenCodeMajor stops a launch on opencode 2, which the warning above is
 // not enough for: opencode 2 rejects --agent and --model on the TUI, does not
 // load nav-pilot's hooks plugins (its plugin API is new), runs sessions in a
 // shared background service that ignores the launch's environment, and reads
 // OPENCODE_CONFIG_DIR in place of the user's config rather than alongside it.
 // A session that started anyway would run without nav-pilot's hooks and MCP
 // policy.
-// An unreadable version launches, as warnUntestedOpenCode does.
-func checkOpenCodeMajor() error {
+// A prerelease such as "opencode v2.1.0-beta.1" does not parse as a version,
+// so the major is read from the raw line; any other unreadable version
+// launches, as warnUntestedOpenCode does.
+func CheckOpenCodeMajor() error {
 	v, _, err := OpenCodeVersionStatus()
-	if err != nil || strings.HasPrefix(v, "0.") || strings.HasPrefix(v, "1.") {
+	if err != nil {
+		out, _ := cachedVersion("opencode", 5*time.Second)
+		m := openCodeMajorPattern.FindStringSubmatch(strings.TrimSpace(out))
+		if m == nil {
+			return nil
+		}
+		v = strings.TrimSpace(out)
+		if n, _ := strconv.Atoi(m[1]); n < 2 {
+			return nil
+		}
+	} else if strings.HasPrefix(v, "0.") || strings.HasPrefix(v, "1.") {
 		return nil
 	}
 	return fmt.Errorf("opencode %s is opencode 2 or newer, which nav-pilot does not launch yet: its flags, plugins and config loading changed.\n\n  Install opencode 1: %s",
-		v, domain.Bold("npm i -g opencode-ai@"+OpenCodeInstallVersion))
+		strings.TrimPrefix(v, "opencode "), domain.Bold(OpenCode1InstallHint()))
+}
+
+var openCodeMajorPattern = regexp.MustCompile(`(?i)^(?:opencode )?v?(\d+)\.`)
+
+// OpenCode1InstallHint is the command that puts opencode 1 back on this
+// machine, chosen by how the opencode on PATH was installed. npm's opencode 2
+// package (@opencode/cli) owns the same bin, so installing opencode-ai over it
+// fails with EEXIST; Homebrew has no opencode 1 formula to pin.
+func OpenCode1InstallHint() string {
+	script := "curl -fsSL https://opencode.ai/install | bash -s -- --version " + OpenCodeInstallVersion
+	path, _ := exec.LookPath("opencode")
+	if resolved, err := filepath.EvalSymlinks(path); err == nil && strings.Contains(resolved, "node_modules") {
+		return "npm uninstall -g @opencode/cli && npm i -g opencode-ai@" + OpenCodeInstallVersion
+	}
+	if domain.PkgOwner(path) == domain.PkgBrew {
+		return "brew uninstall opencode && " + script
+	}
+	return script
 }

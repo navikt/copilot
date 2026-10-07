@@ -1088,6 +1088,10 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	if _, err := exec.LookPath("opencode"); err != nil {
 		return fmt.Errorf("opencode not found in PATH — install it first: https://opencode.ai")
 	}
+	if err := CheckOpenCodeMajor(); err != nil {
+		telemetryRecorder.RecordLaunchError("opencode", "client_unsupported")
+		return err
+	}
 	// A fresh machine has no .gitignore in the opencode config dir, and under
 	// cplt the launch dies before the TUI if OpenCode has to create it itself
 	// (#565).

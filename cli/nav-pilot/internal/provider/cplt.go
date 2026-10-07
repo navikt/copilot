@@ -257,11 +257,6 @@ func launchViaCplt(spec cpltLaunch) error {
 		telemetryRecorder.RecordLaunchError(spec.agent, "client_not_found")
 		return ErrCpltMissing(spec.displayName)
 	}
-	if spec.agent == "opencode" {
-		if err := checkOpenCodeMajor(); err != nil {
-			return err
-		}
-	}
 	// Every cplt launch on a terminal marks the autonomy notice as seen, so
 	// someone who starts on OpenCode or pi and later switches to Copilot is
 	// not told Copilot "now" runs on its own. Copilot prints it before this.

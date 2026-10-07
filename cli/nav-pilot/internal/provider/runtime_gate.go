@@ -479,9 +479,9 @@ type semver3 = agentpakke.Semver3
 
 // Client version-line patterns, transcribed from the reference's
 // OPENCODE_VERSION_PATTERN and COPILOT_VERSION_PATTERN (grillmester.py lines
-// 78-92). The reference matches prereleases and then refuses them; these just
-// do not match, which lands in the same fatal branch with less code. opencode 2
-// prints "opencode v2.0.24", hence the optional v.
+// 78-92), extended: the reference matches prereleases and then refuses them;
+// these just do not match, which lands in the same fatal branch with less
+// code. opencode 2 prints "opencode v2.0.24", hence the optional prefix and v.
 const semverCorePattern = `(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)`
 
 // copilotBuildSuffixPattern is a deliberate divergence from the reference.
