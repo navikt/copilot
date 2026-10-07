@@ -2862,7 +2862,7 @@ RV_PR=(
 RV_DESIGN=(
   'idempotens=idempoten|duplikat|duplis|duplicate|dedup|on conflict|upsert|(flere|nye|nytt) vedtak|ny (uuid|id\b)@VedtakConsumer.kt:25,32,33'
   'idempotens=idempoten|duplikat|duplis|duplicate|dedup|on conflict|upsert|(flere|nye|nytt) vedtak|ny (uuid|id\b)@VedtakRepository.kt:14'
-  'dobbeltskriving=outbox|atomisk|atomic|transaksjon|transaction|dual.?write|send.{0,20}feiler|publiser\w* (feiler|mislykkes)|(før|etter) (den )?(kafka-)?publiser|uten å (være|bli) publisert|sendes etter|feil(er)? etter (database|db|lagring|innsetting|databaseinnsetting)@0'
+  'dobbeltskriving=outbox|atomisk|atomic|transaksjon|transaction|dual.?write|send.{0,20}feiler|publiser\w* (feiler|mislykkes)|(før|etter) (den )?(kafka-)?publiser|uten å (være|bli) publisert|feil(er)? etter (database|db|lagring|innsetting|databaseinnsetting)@0'
 )
 # rv7: the SQL, access and nais.yaml inbound «*» findings are marked high;
 # the unused import is not. Only the Priority cell is read (#1443).
