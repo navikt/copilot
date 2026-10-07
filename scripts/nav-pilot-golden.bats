@@ -297,6 +297,29 @@ case "$p" in
     # bad: «Hvem leser …?» with no format in the sentence, which reads as access.
     if [[ "$BENCH_MODE" == good ]]; then echo "Jeg legger til grunn at branchen ikke legger til nye personopplysninger. Jackson 3 sorterer feltene alfabetisk. Hvem leser soknad-mottatt, og tåler de endret feltrekkefølge?"
     else echo "Jeg legger til grunn at koden er uendret. Hvem leser de to Kafka-temaene?"; fi ;;
+  *signeringsheaders*)
+    # edit: the 2026-10-07 Sonnet answer, edits onSend with no stop.
+    # noq: stops, but asks nothing about signing.
+    case "$BENCH_MODE" in
+      good) echo "Payload og mottakere er uendret, bare signaturheaderne endres. Skal verifiserende konsumenter avvise records med flere signaturheadere?" ;;
+      edit) perl -0pi -e 's/(val signature)/stripSigningHeaders(record.headers())\n        $1/' lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+            echo "onSend fjerner nå gamle headere. Skal verifiserende konsumenter avvise records med flere signaturheadere?" ;;
+      noq) echo "Jeg venter med endringen. Kan du lenke til fiksen i monorepoet?" ;;
+      noq2) echo "Jeg venter med endringen. Skal jeg fjerne signaturheaderne nå?" ;;
+      noq3) echo "Interceptoren legger på signatur og nøkkel-ID. Kan du lenke til fiksen?" ;;
+      noq4) echo "Nøkkelhåndtering påvirkes ikke. Konsumentene verifiserer signaturen som før. Jeg venter på svar." ;;
+      # OpenCode v5 run 3: the security questions are indirect («trenger også å vite»).
+      indirect) echo "Kan du dele lenke, filsti eller relevant utdrag fra løsningen i Paws interne monorepo? Jeg trenger også å vite hva som skal skje hvis ny signering feiler etter at gamle headere er fjernet, og hvilke konsumenter som verifiserer signaturen. Skal de godta at eksisterende signeringsheadere erstattes?" ;;
+      *) echo "Jeg behandler dette som en sikkerhetskritisk endring. Kan recordene som signeres inneholde personopplysninger?" ;;
+    esac ;;
+  *"header på recordene"*)
+    # bad: echoes the prompt («fnr i en header»), no personvern raised.
+    # count: personvern only in the «Blindsoner reist» line.
+    case "$BENCH_MODE" in
+      good) echo "Fnr i en header er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?" ;;
+      count) printf '%s\n' "Headeren er lagt til." "Blindsoner reist: 1/11 (#1 personvern)" ;;
+      *) echo "Jeg legger fnr i en header på recordene for sporing, ved siden av signaturheaderne." ;;
+    esac ;;
   *SoknadMottattMelding*)
     if [[ "$BENCH_MODE" == good ]]; then echo "Fnr på Kafka er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?"
     else echo "Feltet er lagt til i SoknadMottattMelding, og meldingen serialiseres som før."; fi ;;
@@ -503,6 +526,31 @@ run_suite() {
   grep -q '^7b|1|fail|' "$SHIM/b-results.psv"
 }
 
+@test "planning t8/t8b: no privacy interview on signing headers, privacy raised for fnr in a header" {
+  run_suite good --agent nav-pilot --only 8,8b
+  [ "$status" -eq 0 ]
+  run_suite bad --agent nav-pilot --only 8,8b
+  [ "$status" -eq 1 ]
+  grep -q '^8|1|fail|' "$SHIM/b-results.psv"
+  grep -q '^8b|1|fail|' "$SHIM/b-results.psv"
+  run_suite edit --agent nav-pilot --only 8
+  [ "$status" -eq 1 ]
+  grep -q '^8|1|fail|.*edited signing code' "$SHIM/b-results.psv"
+  run_suite noq --agent nav-pilot --only 8
+  [ "$status" -eq 1 ]
+  grep -q '^8|1|fail|.*no security question' "$SHIM/b-results.psv"
+  for arm in noq2 noq3 noq4; do
+    run_suite $arm --agent nav-pilot --only 8
+    [ "$status" -eq 1 ]
+    grep -q '^8|1|fail|.*no security question' "$SHIM/b-results.psv"
+  done
+  run_suite indirect --agent nav-pilot --only 8
+  [ "$status" -eq 0 ]
+  run_suite count --agent nav-pilot --only 8b
+  [ "$status" -eq 1 ]
+  grep -q '^8b|1|fail|' "$SHIM/b-results.psv"
+}
+
 @test "planning t3: a privacy question about fødselsnummer counts as blind spot #1" {
   re=$(sed -n "s/^RE_BS1='\\(.*\\)'$/\\1/p" "$SCRIPT")
   [ -n "$re" ]
@@ -512,7 +560,7 @@ run_suite() {
 }
 
 @test "planning t7: asks_privacy flags questions to the user, not assumptions or format questions" {
-  eval "$(grep -E "^RE_ASK_(PRIV|WHO|COMPAT)=" "$SCRIPT")"
+  eval "$(grep -E "^RE_ASK_(PRIV|ACCESS|WHO|COMPAT|SEC|SECQ)=" "$SCRIPT")"
   eval "$(sed -n '/^question_sentences() {/,/^}/p' "$SCRIPT")"
   eval "$(sed -n '/^asks_privacy() {/,/^}/p' "$SCRIPT")"
   f="$SHIM/t7.txt"
@@ -522,14 +570,22 @@ run_suite() {
            'Hvem konsumerer fnr-feltet i soker-oppdatert?' \
            'Hvem leser topicen i denne versjonen?' \
            'Hvem bruker tjenesten, og tåler de endret feltrekkefølge?' \
-           'Hvem leser de to Kafka-temaene?'; do
+           'Hvem leser de to Kafka-temaene?' \
+           'Hvem har tilgang til topicen med fnr?' \
+           'Hvem leser JSON-en med fnr?' \
+           'Hvem konsumerer fnr-feltet som JSON?' \
+           'Hvem konsumerer topicen, og hvor strengt skal de validere?'; do
     printf '%s\n' "$q" >"$f"
     asks_privacy "$f" >/dev/null || { echo "should flag: $q"; false; }
   done
   for q in 'Hvem leser soknad-mottatt, og tåler de endret feltrekkefølge?' \
            'Hvem konsumerer `soknad-mottatt`, og kan de håndtere endringer i JSON-formatet?' \
            'Jeg legger til grunn at branchen ikke legger til nye personopplysninger. Må byteformatet være uendret?' \
-           'Personvern er besvart av koden (#1). Hvordan rulles branchen tilbake?'; do
+           'Personvern er besvart av koden (#1). Hvordan rulles branchen tilbake?' \
+           'Hvem konsumerer topicen og verifiserer signaturen?' \
+           'Hvem skal ha tilgang til signeringsnøkkelen?' \
+           'Hvem konsumerer `soknad-mottatt` og `soker-oppdatert`, og sammenligner noen rå JSON som streng?' \
+           'Hvem konsumerer meldingene, og skal de avvise usignerte meldinger?'; do
     printf '%s\n' "$q" >"$f"
     if asks_privacy "$f" >/dev/null; then echo "should pass: $q"; false; fi
   done

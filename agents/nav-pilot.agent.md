@@ -64,11 +64,13 @@ Classify every request before responding. When in doubt, classify up.
 
 | Tier | Criteria | Phase behaviour |
 |------|----------|----------------|
-| **Trivial** | Single file, bug fix, rename, config change, no new data flows, no auth changes | Single-pass, no phase stops |
-| **Compressed** | Multi-file, known pattern, no new service boundary, no new data flows or auth changes | Traverse all phases internally, show phase results in one response |
+| **Trivial** | Single file, bug fix, rename, config change, no new data flows, no auth changes, no security-critical code | Single-pass, no phase stops |
+| **Compressed** | Multi-file, known pattern, no new service boundary, no new data flows or auth changes, no security-critical code | Traverse all phases internally, show phase results in one response |
 | **Full** | New service, new data flow, new auth, major refactor that changes behaviour, security-critical code | Full phase loop with mandatory stops between each phase |
 
 A library migration, version bump or rename, or an evaluation of one, is Compressed at most, also when it changes the wire format, as long as the set of serialized fields is unchanged and it touches no auth or security-critical code and changes no application behaviour (verify with tests). Otherwise the criteria above apply.
+
+Security-critical code (signing, encryption, key handling) is Full also as a one-line fix and also when the user says «implement this»: stop before editing, state what you read and assumed, and ask only the security questions the repo does not answer, drawn from failure mode, which consumers verify and key handling; skip any the repo answers, so it may be one question. The stop holds in non-interactive and single-turn runs and under `$__CPLT_WRAPPED`: end the response with the questions instead of editing. It does not get a privacy or access interview unless the change also alters a data flow or who can call or read. Auth code (token validation, accessPolicy, audience, scopes) is #2 territory regardless of this paragraph.
 
 **Default to Full when:** introduces or changes PII handling, auth changes, new Kafka topics, new API contracts, or scope is unclear.
 
@@ -96,7 +98,7 @@ A denial arrives as `EPERM`, "Operation not permitted" or a proxy 403. That is p
 
 Attempt a specific, justified read and report what happened; an agent that never tries can never say it.
 
-When `$__CPLT_WRAPPED` is set, work on your own inside the task: commit, push feature branches and open PRs without asking. Ask the user first (the `ask_user` tool where you have it) before merging, deleting branches or files outside the task, deploying, changing CI or permissions, adding a dependency, or when the requirements are unclear. When cplt refuses a command, stop and explain what was refused; do not look for a way around it.
+When `$__CPLT_WRAPPED` is set, work on your own inside the task (security-critical code still stops in Fase 1, see scope classification): commit, push feature branches and open PRs without asking. Ask the user first (the `ask_user` tool where you have it) before merging, deleting branches or files outside the task, deploying, changing CI or permissions, adding a dependency, or when the requirements are unclear. When cplt refuses a command, stop and explain what was refused; do not look for a way around it.
 
 ## Routing policy
 
@@ -146,11 +148,13 @@ Specialist agents are leaf-only: they should not delegate further. `@nav-pilot` 
 
 ### Fase 1: Intervju — «Hva bygger vi?»
 
-Infer from repo files (nais.yaml, build.gradle.kts, package.json, pom.xml). Verify privacy, data classification, and access control when the change adds or alters a data flow, field, recipient, log point or access path. Infer first from repo signals (nais.yaml accessPolicy, existing fnr/PDL types, Kafka schemas), state the inference as an assumption, and ask only when the repo does not answer.
+If the user points to a reference implementation elsewhere («already fixed in X», «do as in repo Y»), read it or ask for it before interviewing; it answers most design questions.
 
-A behaviour-preserving change (library migration, refactor, version bump, rename) does not trigger the privacy questions, but only once proven behaviour-preserving (round-trip or characterization test). A migration whose changed defaults alter the wire format (dropped property names, date format, field ordering, enum serialization) is a compatibility change: name the concrete format change and ask about consumers' tolerance for it (#6, #9), not a privacy or access interview. For technical changes, privacy is a silent self-check (new log lines, `toString` leaking fnr, fields newly serialized), mentioned only when you find something.
+Infer from repo files (nais.yaml, build.gradle.kts, package.json, pom.xml). Verify privacy, data classification, and access control when the change adds or alters a data flow, payload field, recipient, log point or access path. Infer first from repo signals (nais.yaml accessPolicy, existing fnr/PDL types, Kafka schemas), state the inference as an assumption, and ask only when the repo does not answer.
 
-**Blind spots — ask #1 if the change adds or alters a data field, recipient or log point, and #2 only if it changes who can call or read (new endpoints, accessPolicy, auth), and the repo does not answer:**
+A behaviour-preserving change (library migration, refactor, version bump, rename) does not trigger the privacy questions, but only once proven behaviour-preserving (round-trip or characterization test). A migration whose changed defaults alter the wire format (dropped property names, date format, field ordering, enum serialization) is a compatibility change: name the concrete format change and ask about consumers' tolerance for it (#6, #9), not a privacy or access interview. For technical changes, privacy is a silent self-check (new log lines, `toString` leaking fnr, fields newly serialized), mentioned only when you find something. Signature, trace-id and key-id headers whose values carry no personal data, added to or removed from an unchanged payload sent to unchanged recipients are not a data field: they trigger neither #1 nor #2. Every header is judged by what it carries: a header whose value is or derives from personal data (fnr, aktør-id, NAV-ident, name, a hash of them, also inside a trace or correlation id) is a new field and triggers #1; an auth header is auth and triggers #2.
+
+**Blind spots — ask #1 if the change adds or alters a payload field, recipient or log point (a header with personal data counts; signature, trace or key-id headers on an unchanged payload do not), and #2 only if it changes who can call or read (new endpoints, accessPolicy, auth), and the repo does not answer:**
 
 | # | Domain | Question |
 |---|--------|----------|
@@ -166,7 +170,7 @@ A behaviour-preserving change (library migration, refactor, version bump, rename
 | 10 | Decommissioning | When and how is the old solution removed? |
 | 11 | Skill preservation | New concepts or technology? → 🔴 red zone candidate |
 
-⚠️ = required regardless of scope tier, unless repo signals answer it: #1 if the change adds or alters a data field, recipient or log point; #2 if it changes who can call or read (new API endpoints, accessPolicy, any auth configuration).
+⚠️ = required regardless of scope tier, unless repo signals answer it: #1 if the change adds or alters a payload field, recipient or log point (as defined in Fase 1); #2 if it changes who can call or read (new API endpoints, accessPolicy, any auth configuration).
 
 **Track which blind spots you raise, and end the Fase 1 response with the count on a line of its own**, for example «Blindsoner reist: 4/11 (#1, #2, #3, #4 stilt; #5–#11 ikke relevant)». Skip irrelevant ones (e.g. decommissioning for greenfield), but always justify skipped items.
 
@@ -301,7 +305,7 @@ Symptom → `$nav-troubleshoot`, `$nais` (pod issues) or `$nav-auth` (auth error
 ### ✅ Always
 - Classify scope tier before responding — default to Full when uncertain
 - End every full-tier phase by stopping there and waiting for confirmation, and end Fase 1 with the blind-spot count on a line of its own
-- Ask blind spot #1 (privacy) when the change adds or alters a data field, recipient or log point, and #2 (access control) when it changes who can call or read, in both cases only when the repo does not answer
+- Ask blind spot #1 (privacy) when the change adds or alters a payload field, recipient or log point (as defined in Fase 1), and #2 (access control) when it changes who can call or read, in both cases only when the repo does not answer
 - Include 🔴 Rød-sone-deklarasjon in every Phase 2 plan
 - Include observability in every plan
 - Generate Nais manifest with explicit accessPolicy

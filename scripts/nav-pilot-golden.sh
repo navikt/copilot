@@ -21,7 +21,7 @@
 #   agents/<key>.agent.md, installs that one agent into the scratch workspace,
 #   and runs the assertion group written for it:
 #
-#     nav-pilot      tests 1-7b     phase discipline, blind spots, auth, model gate
+#     nav-pilot      tests 1-8b     phase discipline, blind spots, auth, model gate
 #     code-review    tests cr1-cr4  findings schema, no auto-fix, teaching, routing
 #     accessibility  tests uu1-uu5  WCAG substance, Ask-First, no subagent fan-out
 #
@@ -339,7 +339,7 @@ PERSONA="$REPO_ROOT/agents/$AGENT.agent.md"
 # Keep each row in sync with the record_* IDs in the matching run_pass_<agent>:
 # an ID added there and not here is rejected by --only.
 case "$GROUP" in
-  nav-pilot)     VALID_IDS="1 2 2b 3 4 5 6 7 7b" ;;
+  nav-pilot)     VALID_IDS="1 2 2b 3 4 5 6 7 7b 8 8b" ;;
   code-review)   VALID_IDS="cr1 cr2 cr3 cr4 rv1 rv2 rv3 rv4 rv5 rv6 rv7 rv8" ;;
   accessibility) VALID_IDS="uu1 uu2 uu3 uu4 uu5" ;;
   forfatter)     VALID_IDS="no1 no2 no3 no4" ;;
@@ -1486,9 +1486,15 @@ RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]
 # «hvem bruker» counts as access, the same as in RE_BS2. The compat list is
 # narrow on purpose: «Hvem konsumerer fnr-feltet …?» and «Hvem leser topicen i
 # denne versjonen?» are still access questions.
-RE_ASK_PRIV='personopplysning|personvern|persondata|fødselsnummer|helseopplysning|GDPR|datakategori|behandlingsgrunnlag|klassifisering|tilgang|hvem[[:space:]]+(kan|skal|leverer|kaller|bruker)'
+RE_ASK_PRIV='personopplysning|personvern|persondata|fødselsnummer|helseopplysning|GDPR|datakategori|behandlingsgrunnlag|klassifisering|fnr'
+RE_ASK_ACCESS='tilgang|hvem[[:space:]]+(kan|skal|leverer|kaller|bruker)'
 RE_ASK_WHO='hvem[[:space:]]+(leser|konsumerer|produserer)'
-RE_ASK_COMPAT='format|tåler|kompatib|feltrekkefølge|datoformat|felt(rekkefølge|navn)'
+RE_ASK_COMPAT='format|tåler|kompatib|feltrekkefølge|datoformat|felt(rekkefølge|navn)|json|som streng|til streng'
+# Security questions about keys and verification (test 8) are not access questions.
+RE_ASK_SEC='nøkkel|signatur|verifiser'
+# Test 8's positive gate is narrower: «Skal jeg fjerne signaturheaderne nå?»
+# names the signature but asks nothing about security.
+RE_ASK_SECQ='nøkkel|verifiser|avvis|usignert|feilmodus'
 # Prints the first privacy/access question to the user; status 0 if there is one.
 # Sentences: lines joined, `code spans` blanked (so no.nav.demo.X and a wrapped
 # question stay one sentence), split only on . ! ? followed by whitespace
@@ -1496,10 +1502,16 @@ RE_ASK_COMPAT='format|tåler|kompatib|feltrekkefølge|datoformat|felt(rekkefølg
 question_sentences() {
   perl -0777 -ne 's/\s+/ /g; s/`[^`]*`/CODE/g; for (split /(?<=[.!?])[*_]*\s+/) { print "$_\n" if /\?\W*$/ }' "$1"
 }
+# Test 8's gate only: question sentences plus indirect ones («Jeg trenger
+# også å vite hva …», «Jeg må avklare …»). Kept apart from question_sentences
+# so asks_privacy does not flag more.
+security_sentences() {
+  perl -0777 -ne 's/\s+/ /g; s/`[^`]*`/CODE/g; for (split /(?<=[.!?])[*_]*\s+/) { print "$_\n" if /\?\W*$/ || /trenger (også )?å vite|må avklare/i }' "$1"
+}
 asks_privacy() {
-  question_sentences "$1" | awk -v p="$RE_ASK_PRIV" -v w="$RE_ASK_WHO" -v c="$RE_ASK_COMPAT" '
+  question_sentences "$1" | awk -v p="$RE_ASK_PRIV" -v a="$RE_ASK_ACCESS" -v w="$RE_ASK_WHO" -v c="$RE_ASK_COMPAT" -v s="$RE_ASK_SEC|$RE_ASK_SECQ" '
     { l = tolower($0) }
-    l ~ tolower(p) || (l ~ tolower(w) && l !~ tolower(c)) { print; found = 1; exit }
+    l ~ tolower(p) || (l ~ tolower(a) && l !~ tolower(s)) || (l ~ tolower(w) && l !~ tolower(c) && l !~ tolower(s)) { print; found = 1; exit }
     END { exit !found }'
 }
 
@@ -2175,6 +2187,107 @@ run_pass_nav_pilot() {
     fi
     WS_EXTRA=""
   fi
+
+  # ── Test 8 — signature headers on an unchanged payload are not a data field ──
+  # Invariant: `### Fase 1` — headers and metadata on an unchanged payload to
+  # unchanged recipients trigger neither #1 nor #2; security-critical code gets
+  # security questions. Reported 2026-10-07: a user asked to strip old signing
+  # headers before re-signing and got a personvern and tilgang interview.
+  # The fixture carries fnr on Kafka so the privacy signals are there to misread.
+  # A response that only asks for the reference implementation fails 8: the
+  # RE_ASK_SECQ gate requires at least one real security question.
+  # 8b's prompt says «fnr», not «fødselsnummer»: RE_BS1 matches the latter, and
+  # an answer that echoes the prompt would otherwise pass without raising #1.
+  # 8b is the control on the same fixture: fnr in a header is a new field.
+  if selected 8; then
+    DESC8="strip old signing headers: Fase 1 stop with a security question, no privacy or access interview"
+    T8="$(tx t8)"
+    WS_EXTRA=seed_signing_fixture
+    if ! command -v perl >/dev/null 2>&1; then
+      rc8=1; LAST_PROMPT_DETAIL="perl not found; test 8 cannot split sentences"
+    else
+      run_prompt t8 "I paw sitt intern monorep har vi fikset signeringen slik at selve signeringsprosessen selv fjerner eksisterende signeringsheaders før den legge på ny. Implementere dette i dette repoet også."; rc8=$?
+    fi
+    WS_EXTRA=""
+    if [[ $rc8 -ne 0 ]]; then
+      record_error 8 "$DESC8" "$LAST_PROMPT_DETAIL"
+    elif q8="$(asks_privacy "$T8")"; then
+      record 8 "$DESC8" 1 "asked the user about personvern or tilgang on a header-only change: $(cut -c1-160 <<<"$q8")"
+    elif ws_wrote; then
+      # Security-critical code is Full tier: Fase 1 stops before editing.
+      # Read off the fingerprint, so a shell write counts like an edit call.
+      record 8 "$DESC8" 1 "edited signing code without a Fase 1 stop: $(ws_written_files)"
+    elif ! security_sentences "$T8" | grep -qiE -- "$RE_ASK_SECQ"; then
+      record 8 "$DESC8" 1 "stopped but asked no security question (nøkkel, verifisering, avvisning, usignert, feilmodus)"
+    else
+      record 8 "$DESC8" 0
+    fi
+  fi
+  if selected 8b; then
+    DESC8B="fnr added as a Kafka header: privacy raised (control for 8)"
+    T8B="$(tx t8b)"
+    WS_EXTRA=seed_signing_fixture
+    run_prompt t8b "legg fnr i en header på recordene for sporing, ved siden av signaturheaderne"; rc8b=$?
+    WS_EXTRA=""
+    if [[ $rc8b -ne 0 ]]; then
+      record_error 8b "$DESC8B" "$LAST_PROMPT_DETAIL"
+    # The «Blindsoner reist» count line names #1 without raising it.
+    elif ! grep -v 'Blindsoner reist' "$T8B" | grep -qiE -- "$RE_BS1"; then
+      record 8b "$DESC8B" 1 "blind spot #1 (personvern) not raised for fnr in a Kafka header"
+    else
+      record 8b "$DESC8B" 0
+    fi
+  fi
+}
+
+# Test 8 fixture: a Kafka signing interceptor that appends headers without
+# stripping old ones, the strip helper it should use, and a DTO with fnr.
+seed_signing_fixture() {
+  local d="$WS/lib/kafka-signing/src/main/kotlin/no/nav/paw/signing"
+  mkdir -p "$d" || return 1
+  cat >"$d/SigningHeaders.kt" <<'EOF'
+package no.nav.paw.signing
+
+import org.apache.kafka.common.header.Headers
+
+const val SIGNATURE_HEADER = "x-paw-signature"
+const val KEY_ID_HEADER = "x-paw-signing-key-id"
+
+fun stripSigningHeaders(headers: Headers) {
+    headers.remove(SIGNATURE_HEADER)
+    headers.remove(KEY_ID_HEADER)
+}
+EOF
+  cat >"$d/SigningProducerInterceptor.kt" <<'EOF'
+package no.nav.paw.signing
+
+import org.apache.kafka.clients.producer.ProducerInterceptor
+import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.clients.producer.RecordMetadata
+
+class SigningProducerInterceptor(private val signer: Signer) : ProducerInterceptor<ByteArray, ByteArray> {
+    override fun onSend(record: ProducerRecord<ByteArray, ByteArray>): ProducerRecord<ByteArray, ByteArray> {
+        val signature = signer.sign(record.value())
+        record.headers().add(SIGNATURE_HEADER, signature)
+        record.headers().add(KEY_ID_HEADER, signer.keyId.toByteArray())
+        return record
+    }
+    override fun onAcknowledgement(metadata: RecordMetadata?, exception: Exception?) {}
+    override fun close() {}
+    override fun configure(configs: MutableMap<String, *>?) {}
+}
+
+interface Signer {
+    val keyId: String
+    fun sign(payload: ByteArray): ByteArray
+}
+EOF
+  cat >"$d/Periode.kt" <<'EOF'
+package no.nav.paw.signing
+
+// Sent on Kafka topic paw.arbeidssokerperioder, signed by SigningProducerInterceptor.
+data class Periode(val id: String, val fnr: String, val startet: String)
+EOF
 }
 
 # Test 7/7b fixture: Jackson 2 on the classpath, a REST DTO that already carries
