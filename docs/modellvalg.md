@@ -161,6 +161,39 @@ En arm er en akseptabel reservemodell for `@code-review` bare hvis alle fire kra
 
 Mønstrene for rv6 utledes fra tre pilotkjøringer med Opus 5.5 Low og låses i en egen commit før hovedkjøringene. Målingen endrer ingen pinner. Et forslag om reservemodell kommer i en egen PR.
 
+### Resultater
+
+Rådata ligger i [2026-10-07-review-suite](golden-baselines/2026-10-07-review-suite/), og hver sjekk som feilet, er klassifisert i [failures.psv](golden-baselines/2026-10-07-review-suite/failures.psv). Piloten og tre kontrollkjøringer av rv8 ligger i [2026-10-07-review-suite-pilot](golden-baselines/2026-10-07-review-suite-pilot/LESMEG.txt). Copilot CLI 1.0.93-4, ti kjøringer per arm. Bruksradene viser at alle tre armene kjørte modellen de oppgir. Credits er medianen per kjøring for hele testpakken (rv1–rv8).
+
+Tabellen viser sjekkens tall først. Tallet i parentes er etter klassifiseringen, der en feil som skyldes sjekken og ikke modellen, regnes som bestått. Mønstrene er ikke endret etter kjøringene.
+
+| Sjekk                       | Claude Opus 5.5 Low | GPT-6 Luna Medium | GPT-6.1 Sol Low |
+| --------------------------- | ------------------- | ----------------- | --------------- |
+| rv1–rv4 (to filer)          | 40/40               | 36/40             | 25/40           |
+| rv5, sikkerhet og personvern | 7/10 (9/10)        | 1/10 (2/10)       | 3/10 (3/10)     |
+| rv6, designfeil             | 8/10 (9/10)         | 1/10 (9/10)       | 2/10 (10/10)    |
+| rv7, prioritet              | 10/10               | 7/10 (10/10)      | 9/10 (10/10)    |
+| rv8, rader med høy prioritet, median (høyest) | 0 (2), etter klassifisering 0 (0) | 0,5 (1), etter klassifisering 0 (1) | 2 (3), etter klassifisering 1 (1) |
+| Credits per kjøring         | 58,5                | 3,6               | 37,7            |
+
+Hva klassifiseringen fant:
+
+- **rv5:** GPT-6 Luna og GPT-6.1 Sol nevnte ikke at `accessPolicy.inbound` i nais.yaml slipper inn alle applikasjoner, i åtte og sju av ti kjøringer. Det er modellfeil. Opus nevnte den i alle ti, men oppga to ganger nøkkelen «inbound» i stedet for linjenummer. Én gang pekte Opus på linje 24, der spørringen kjøres, og ikke linje 23, der den settes sammen. Det regnes som modellfeil.
+- **rv6:** Mønsteret ble utledet fra tre Opus-svar og kjenner bare ordene Opus brukte. GPT-modellene skrev for eksempel «Retry oppretter nye vedtak. Hvis lagringen lykkes og Kafka-publiseringen feiler …» på riktig linje. Det er samme feil, men med andre ord. Sjekken måler derfor ordvalg mer enn forståelse, og tallene for rv6 bør ikke brukes til å skille modellene.
+- **rv7 og rv5:** Luna skrev «parameterbinding» og «settes direkte inn i SQL-strengen». Sjekken for SQL kjenner ikke disse ordene.
+- **rv8:** Sjekken teller «blokkerende JDBC-kall» og «høy belastning» i 🟡-rader som høy prioritet. Alle Opus-radene var slike. Ekte 🔴-rader på fila uten feil gjaldt alle samme sak: `log.error(..., e)` kan få med fødselsnummer fra en databasefeil. Luna merket det 🔴 i fire av ti kjøringer, GPT-6.1 Sol i åtte av ti.
+
+Vurdering mot kriteriene:
+
+- **GPT-6 Luna Medium er ikke en akseptabel reservemodell.** Den feiler krav 1 (rv5 1/10, 2/10 etter klassifisering). Med sjekkens tall feiler den også krav 2, 3 og 4. Etter klassifiseringen holder krav 2, 3 og 4.
+- **GPT-6.1 Sol Low er ikke en akseptabel reservemodell.** Den feiler krav 1 (rv5 3/10) og krav 3 (median 2, etter klassifisering 1). Krav 2 holder (9/10). Krav 4 holder bare etter klassifiseringen.
+- **Claude Opus 5.5 feiler krav 1 med sjekkens tall (7/10).** Etter klassifiseringen er det 9/10, som regnes som likt med 10/10. To av de tre feilene var funn med nøkkel i stedet for linjenummer i nais.yaml. Krav 2 holder (10/10). Pinnen står derfor.
+- **Ingen av de to GPT-modellene oppfyller kriteriene.** Rekkefølgen for reservemodeller endres ikke.
+
+Forbruket var 1 002 credits på hovedkjøringene og 227 på piloten og kontrollkjøringene, til sammen 1 229. Stoppgrensen var 1 430.
+
+Før neste måling bør rv6 få et mønster som også dekker GPT-modellenes ordvalg, utledet fra disse transkriptene. Rv8 bør ikke lese «blokkerende» i en 🟡-rad som prioritet.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
