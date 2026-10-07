@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 // openCodeWildcard is OpenCode's util/wildcard.ts match: "*" is ".*", "?"
@@ -121,6 +122,36 @@ func TestApplyOpenCodeOwnDirs(t *testing.T) {
 			}
 			if strings.Contains(tc.name, "staged") && (p.Ext["/stage/pakke/instructions/*"] != "allow" || !strings.Contains(raw, `"share":"disabled"`)) {
 				t.Errorf("staged dir or launch policy missing: %s", raw)
+			}
+		})
+	}
+}
+
+// opencode 2's flat permissions list, last match winning across files: a
+// user's v2 deny of external_directory keeps nav-pilot's allows out.
+func TestUserPermissionReadsV2List(t *testing.T) {
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	deny := `{"permissions": [{"action": "external_directory", "resource": "*", "effect": "deny"}]}`
+	for _, tc := range []struct {
+		name, version string
+		docs          []string
+		want          bool
+	}{
+		{"v2 deny", "opencode v2.0.24\n", []string{deny}, true},
+		{"v2 wildcard action", "opencode v2.0.24\n", []string{`{"permissions": [{"action": "*", "resource": "*", "effect": "deny"}]}`}, true},
+		{"v2 later allow wins", "opencode v2.0.24\n", []string{deny, `{"permissions": [{"action": "external_directory", "resource": "*", "effect": "allow"}]}`}, false},
+		{"v2 path rule is not wholesale", "opencode v2.0.24\n", []string{`{"permissions": [{"action": "external_directory", "resource": "/x/*", "effect": "deny"}]}`}, false},
+		{"v2 other action", "opencode v2.0.24\n", []string{`{"permissions": [{"action": "edit", "resource": "*", "effect": "deny"}]}`}, false},
+		{"v1 ignores the list", "opencode 1.17.0\n", []string{deny}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			versionCache.Store("opencode", versionAnswer{tc.version, nil, time.Hour})
+			var docs [][]byte
+			for _, d := range tc.docs {
+				docs = append(docs, []byte(d))
+			}
+			if _, got := userPermission(docs, "external_directory"); got != tc.want {
+				t.Errorf("deny = %v, want %v", got, tc.want)
 			}
 		})
 	}

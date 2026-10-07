@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -109,16 +110,38 @@ func applyOpenCodeOwnDirs(env []string, projectDir string) []string {
 // would otherwise replace; a later object form clears it. deny is whether any
 // file denies it wholesale: "deny" as its string, "*": "deny" in its object,
 // or the whole permission block denying.
+//
+// On opencode 2 it also reads the flat `permissions` list, which opencode 2
+// joins across files in the same order, the last match winning
+// (core/src/permission.ts at v2.0.24): deny is then whether the last rule for
+// key on every resource ("*") denies. A list rule is added to, never
+// replaced, so it sets no str.
 func userPermission(docs [][]byte, key string) (str string, deny bool) {
 	isDeny := func(raw json.RawMessage) bool {
 		var s string
 		return json.Unmarshal(raw, &s) == nil && s == "deny"
 	}
+	v2, listDeny := openCodeMajor() >= 2, false
 	for _, doc := range docs {
 		var cfg struct {
-			Permission json.RawMessage `json:"permission"`
+			Permission  json.RawMessage `json:"permission"`
+			Permissions []struct {
+				Action, Resource, Effect string
+			} `json:"permissions"`
 		}
-		if json.Unmarshal(stripJSONC(doc), &cfg) != nil || cfg.Permission == nil {
+		if json.Unmarshal(stripJSONC(doc), &cfg) != nil {
+			continue
+		}
+		if v2 {
+			for _, r := range cfg.Permissions {
+				// ponytail: path.Match for opencode's Wildcard; the same for
+				// action names, which have no slash.
+				if ok, _ := path.Match(r.Action, key); ok && r.Resource == "*" {
+					listDeny = r.Effect == "deny"
+				}
+			}
+		}
+		if cfg.Permission == nil {
 			continue
 		}
 		// A string block is {"*": value} to OpenCode, per file.
@@ -145,7 +168,7 @@ func userPermission(docs [][]byte, key string) (str string, deny bool) {
 			str, deny = "", deny || isDeny(obj["*"])
 		}
 	}
-	return str, deny
+	return str, deny || listDeny
 }
 
 // OpenCodeVersionStatus reports the installed opencode's version and whether
