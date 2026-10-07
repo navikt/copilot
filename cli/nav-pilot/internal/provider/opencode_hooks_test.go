@@ -51,3 +51,35 @@ func TestApplyOpenCodeHooksStagesV2PluginDir(t *testing.T) {
 		t.Errorf("v2/index.js not the v2 bridge: %v", err)
 	}
 }
+
+// opencode 2 keeps the first plugin of an id, so the bridge's id is fresh per
+// launch and passed through cplt; opencode 1 gets none.
+func TestApplyOpenCodeHooksV2PluginIDPerLaunch(t *testing.T) {
+	prev := OpenCodeHookBridge
+	t.Cleanup(func() { OpenCodeHookBridge = prev; versionCache.Delete("opencode") })
+	OpenCodeHookBridge = func(domain.ResolvedConfig) HookBridge {
+		return HookBridge{Post: []BridgeHook{{Name: "r", Argv: []string{"/bin/true"}}}}
+	}
+	id := func() (string, []string) {
+		env, cplt := applyOpenCodeHooks(domain.ResolvedConfig{}, nil, nil)
+		for _, e := range env {
+			if v, ok := strings.CutPrefix(e, OpenCodePluginIDEnv+"="); ok {
+				return v, cplt
+			}
+		}
+		return "", cplt
+	}
+	versionCache.Store("opencode", versionAnswer{"1.18.35\n", nil, time.Hour})
+	if v, _ := id(); v != "" {
+		t.Errorf("opencode 1 got a plugin id: %q", v)
+	}
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	a, cplt := id()
+	b, _ := id()
+	if !strings.HasPrefix(a, "nav-pilot-hooks-") || a == b || !strings.Contains(strings.Join(cplt, " "), "--pass-env "+OpenCodePluginIDEnv) {
+		t.Errorf("ids %q, %q; cplt %v", a, b, cplt)
+	}
+	if !bytes.Contains(hooksBridgePluginV2, []byte("process.env."+OpenCodePluginIDEnv)) {
+		t.Error("the v2 bridge does not read its id from " + OpenCodePluginIDEnv)
+	}
+}

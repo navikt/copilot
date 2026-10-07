@@ -2,6 +2,7 @@ package provider
 
 import (
 	"bytes"
+	"crypto/rand"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -38,6 +39,11 @@ var hooksBridgePlugin []byte
 var hooksBridgePluginV2 []byte
 
 const (
+	// OpenCodePluginIDEnv carries the opencode 2 bridge's plugin id, fresh
+	// for each launch. opencode 2 keeps the first plugin of an id and drops
+	// the rest, so a fixed id lets a project plugin that claims it first
+	// turn the bridge off.
+	OpenCodePluginIDEnv = "NAV_PILOT_OPENCODE_PLUGIN_ID"
 	// OpenCodeHooksEnv carries the hooks, as JSON, to the plugin.
 	OpenCodeHooksEnv = "NAV_PILOT_OPENCODE_HOOKS"
 	// HookStateDirEnv tells `nav-pilot hook` where to keep the loop guard's
@@ -127,6 +133,8 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	env, _ = telemetry.SetEnvValue(env, OpenCodeHooksEnv, string(cfg))
 	env, _ = telemetry.SetEnvValue(env, HookStateDirEnv, OpenCodeHookStateDir())
 	if v2 {
+		env, _ = telemetry.SetEnvValue(env, OpenCodePluginIDEnv, "nav-pilot-hooks-"+rand.Text())
+		cpltArgs = append(cpltArgs, "--pass-env", OpenCodePluginIDEnv)
 		env = withOpenCodeConfigContent(env, map[string]any{"plugins": []any{filepath.Dir(plugin)}})
 	} else {
 		env = withOpenCodeConfigContent(env, map[string]any{"plugin": []any{(&url.URL{Scheme: "file", Path: plugin}).String()}})

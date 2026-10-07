@@ -86,7 +86,9 @@ function texts(result) {
 }
 
 export default {
-  id: "nav-pilot-hooks",
+  // Per launch (NAV_PILOT_OPENCODE_PLUGIN_ID): opencode 2 drops a plugin
+  // whose id another plugin loaded first.
+  id: process.env.NAV_PILOT_OPENCODE_PLUGIN_ID || "nav-pilot-hooks",
   setup: async (ctx) => {
     let cfg = {}
     try {
@@ -233,7 +235,7 @@ export default {
     // The last hop before every model call. A tool result execute.after did
     // not see reaches the model here: an error a hook or the runtime raised,
     // a call the user interrupted. Redaction runs over it, once per text.
-    await ctx.session.hook("context", async (event) => {
+    const scrub = async (event) => {
       if (!redact.length) return
       for (const msg of event?.messages ?? []) {
         if (msg?.role !== "tool" || !Array.isArray(msg.content)) continue
@@ -245,6 +247,9 @@ export default {
             r.value.error.message = await redactOnce(event.sessionID, part.id, part.name, r.value.error.message)
         }
       }
-    })
+    }
+    // Every model call: the agent's turn, compaction, a generate call, and
+    // the title (core/src/session/model-request.ts at v2.0.24).
+    for (const name of ["context", "compaction", "generate", "title"]) await ctx.session.hook(name, scrub)
   },
 }
