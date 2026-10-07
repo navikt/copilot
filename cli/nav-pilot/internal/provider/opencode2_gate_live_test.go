@@ -2,6 +2,7 @@ package provider
 
 import (
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,12 +23,9 @@ import (
 // without the gate is the control: every assertion flips, so none passes on
 // its own. Opt-in, as TestOpenCode2LiveBridge:
 //
-//	NAV_PILOT_OPENCODE2=$(which opencode) go test ./internal/provider -run OpenCode2LiveDispatchGate -v
+//	NAV_PILOT_OPENCODE2=<opencode 2> NAV_PILOT_CPLT=<cplt> go test ./internal/provider -run OpenCode2LiveDispatchGate -v
 func TestOpenCode2LiveDispatchGate(t *testing.T) {
-	oc := os.Getenv("NAV_PILOT_OPENCODE2")
-	if oc == "" {
-		t.Skip("set NAV_PILOT_OPENCODE2 to an opencode 2 binary")
-	}
+	oc, _ := liveOpenCode2(t)
 	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
 	t.Cleanup(func() { versionCache.Delete("opencode") })
 	prev := OpenCodeHookBridge
@@ -40,7 +38,7 @@ func TestOpenCode2LiveDispatchGate(t *testing.T) {
 		name := map[bool]string{true: "gated", false: "control-ungated"}[gated]
 		t.Run(name, func(t *testing.T) {
 			// Resolved: opencode reports /private/var where t.TempDir says /var.
-			proj, _ := filepath.EvalSymlinks(t.TempDir())
+			proj := liveDir(t)
 			_ = exec.Command("git", "-C", proj, "init", "-q").Run()
 			mustWrite(t, filepath.Join(proj, "exists.txt"), "old\n")
 			llm := &fakeLLM{calls: []fakeCall{
@@ -70,12 +68,17 @@ func TestOpenCode2LiveDispatchGate(t *testing.T) {
 				guard.EnableDispatchGate(local.GateRules{Create: true, Multi: true, Root: proj})
 				env = append(env, DispatchGateEnv+"="+guard.GateURL())
 			}
-			env, _ = applyOpenCodeHooks(domain.ResolvedConfig{}, env, nil)
+			env, cpltArgs := applyOpenCodeHooks(domain.ResolvedConfig{}, env, nil)
+			local := []string{srv}
+			if guard != nil {
+				cpltArgs = append(cpltArgs, "--pass-env", DispatchGateEnv)
+				local = append(local, guard.GateURL())
+			}
 			if staged := strings.Contains(strings.Join(env, "\n"), `"plugins":["`); staged != gated {
 				t.Fatalf("bridge staged = %v, want %v: %v", staged, gated, env)
 			}
 			args, env := openCodeV2Args(openCodeClientArgs([]string{"--agent", "build", "--auto", "--model", "fake/m", "--log-level", "WARN"}, []string{"run", "go"}, ""), env)
-			out := runOpenCode2(t, oc, proj, args, env)
+			out := runOpenCode2(t, oc, proj, args, env, cpltArgs, local...)
 			t.Logf("opencode run:\n%s", tail(out, 1500))
 
 			results := strings.Join(llm.toolResults(), "\n")
@@ -113,9 +116,48 @@ func newFakeLLMServer(t *testing.T, llm *fakeLLM) string {
 	return srv.URL
 }
 
-func runOpenCode2(t *testing.T, oc, dir string, args, env []string) string {
+// liveOpenCode2 returns the opencode 2 and cplt binaries the live tests run,
+// or skips. They run only under cplt, as a launch does: outside it, opencode 2
+// sends the session to the shared background service, which ignores the
+// launch's environment. Keep both binaries out of /tmp, where cplt refuses
+// to run them.
+func liveOpenCode2(t *testing.T) (oc, cplt string) {
 	t.Helper()
-	cmd := exec.Command(oc, args...)
+	oc, cplt = os.Getenv("NAV_PILOT_OPENCODE2"), os.Getenv("NAV_PILOT_CPLT")
+	if oc == "" || cplt == "" {
+		t.Skip("set NAV_PILOT_OPENCODE2 to an opencode 2 binary and NAV_PILOT_CPLT to a cplt binary")
+	}
+	return oc, cplt
+}
+
+// liveDir is a fresh directory for a live session, in the module rather than
+// the temp dir: cplt does not let a session execute from /tmp or
+// /var/folders, and the session runs nav-pilot from here.
+func liveDir(t *testing.T) string {
+	t.Helper()
+	d, err := os.MkdirTemp("../..", ".live-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(d) })
+	d, _ = filepath.Abs(d)
+	return d
+}
+
+// runOpenCode2 runs opencode 2 in dir under cplt, with the cplt arguments the
+// launch built, and localhost let through for each of local's URLs (the fake
+// model, the gate).
+func runOpenCode2(t *testing.T, oc, dir string, args, env, cpltArgs []string, local ...string) string {
+	t.Helper()
+	_, cplt := liveOpenCode2(t)
+	argv := append([]string{"--yes", "--quiet", "--no-audit", "--agent", "opencode"}, cpltArgs...)
+	for _, u := range local {
+		p, _ := url.Parse(u)
+		argv = append(argv, "--allow-localhost", p.Port())
+	}
+	cmd := exec.Command(cplt, append(append(argv, "--"), args...)...)
+	// cplt finds opencode on PATH.
+	env = append(env, "PATH="+filepath.Dir(oc)+string(os.PathListSeparator)+os.Getenv("PATH"))
 	cmd.Dir = dir
 	// opencode takes its directory from PWD, not from the process's cwd.
 	cmd.Env = append(append(os.Environ(), "PWD="+dir), env...)
