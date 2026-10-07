@@ -202,21 +202,6 @@
   ],
   "retired": [
     {
-      "model": "Claude Fable 5",
-      "provider": "Anthropic",
-      "category": "Powerful"
-    },
-    {
-      "model": "Claude Fable 5.1",
-      "provider": "Anthropic",
-      "category": "Powerful"
-    },
-    {
-      "model": "Claude Haiku 4.5",
-      "provider": "Anthropic",
-      "category": "Versatile"
-    },
-    {
       "model": "Claude Opus 4.5",
       "provider": "Anthropic",
       "category": "Powerful"
@@ -232,47 +217,7 @@
       "category": "Powerful"
     },
     {
-      "model": "Claude Opus 4.8",
-      "provider": "Anthropic",
-      "category": "Powerful"
-    },
-    {
-      "model": "Claude Opus 4.8 (fast mode) (preview)",
-      "provider": "Anthropic",
-      "category": "Powerful"
-    },
-    {
-      "model": "Claude Opus 5",
-      "provider": "Anthropic",
-      "category": "Powerful"
-    },
-    {
-      "model": "Claude Opus 5.5",
-      "provider": "Anthropic",
-      "category": "Powerful"
-    },
-    {
-      "model": "Claude Sonnet 4",
-      "provider": "Anthropic",
-      "category": "Versatile"
-    },
-    {
       "model": "Claude Sonnet 4.5",
-      "provider": "Anthropic",
-      "category": "Versatile"
-    },
-    {
-      "model": "Claude Sonnet 4.6",
-      "provider": "Anthropic",
-      "category": "Versatile"
-    },
-    {
-      "model": "Claude Sonnet 5",
-      "provider": "Anthropic",
-      "category": "Versatile"
-    },
-    {
-      "model": "Claude Sonnet 5.5",
       "provider": "Anthropic",
       "category": "Versatile"
     },
