@@ -487,8 +487,10 @@ func LaunchCopilotStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 //     --variant.
 //   - There is no --pure.
 //   - --log-level is lowercase.
-//   - Every session runs --standalone: the shared background service ignores
-//     the launch's environment, which carries the hooks and the session policy.
+//   - No --standalone: cplt (navikt/cplt#716) gives each session its own
+//     service, started by the client inside the sandbox, so it inherits the
+//     launch's environment. A standalone client needs a loopback port cplt
+//     does not open ("Transport: Was there a typo in the url or port?").
 //
 // Another subcommand's arguments pass through, --pure and --log-level aside.
 func openCodeV2Args(args, env []string) ([]string, []string) {
@@ -534,13 +536,6 @@ func openCodeV2Args(args, env []string) ([]string, []string) {
 			out = append(out[:1], append([]string{"--model", model}, out[1:]...)...)
 		} else {
 			cfg["model"] = model
-		}
-	}
-	if session {
-		if run {
-			out = append(out[:1], append([]string{"--standalone"}, out[1:]...)...)
-		} else {
-			out = append([]string{"--standalone"}, out...)
 		}
 	}
 	if len(cfg) > 0 {

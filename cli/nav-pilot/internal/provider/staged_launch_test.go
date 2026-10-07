@@ -811,11 +811,11 @@ func TestOpenCodeV2Args(t *testing.T) {
 		wantConf string
 	}{
 		{[]string{"--model", "github-copilot/m", "--agent", "nav", "--auto", "--log-level", "DEBUG"},
-			"--standalone --auto --log-level debug", `{"default_agent":"nav","model":"github-copilot/m"}`},
+			"--auto --log-level debug", `{"default_agent":"nav","model":"github-copilot/m"}`},
 		{[]string{"run", "--agent", "nav", "--model", "github-copilot/m", "--variant", "high", "hi"},
-			"run --standalone --model github-copilot/m#high --agent nav hi", ""},
+			"run --model github-copilot/m#high --agent nav hi", ""},
 		{[]string{"--pure", "run", "--agent", "nav", "--variant", "high", "hi"},
-			"run --standalone --agent nav hi", ""},
+			"run --agent nav hi", ""},
 		{[]string{"mcp", "list", "--log-level", "WARN"}, "mcp list --log-level warn", ""},
 	} {
 		args, env := openCodeV2Args(c.in, nil)
