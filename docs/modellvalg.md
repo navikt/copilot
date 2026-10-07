@@ -144,6 +144,23 @@ Rådata ligger i [2026-10-06-batch4](golden-baselines/2026-10-06-batch4/), og fe
 
 Denne målingen endrer ingen pinner. Om `@nav-pilot` og agentpakkens standard skal endres, avgjøres for seg.
 
+## Målinger 7. oktober 2026
+
+Kodegjennomgangen målte til nå to filer med plantede feil. `review` har fått fire nye sjekker (rv5–rv8). De måler gjennomgang av en branch med åtte filer, prioritering, og om agenten lar være å slå alarm på en fil uten feil. Armene er GPT-6 Luna Medium, GPT-6.1 Sol Low og Claude Opus 5.5 Low, med ti kjøringer hver i Copilot CLI. GPT-6 Sol er ikke med, etter beslutning fra eieren.
+
+### Kriteriene ble satt før målingen
+
+En arm er en akseptabel reservemodell for `@code-review` bare hvis alle fire kravene holder:
+
+1. rv5 (sikkerhet og personvern på riktig linje i riktig fil) består i minst 9 av 10 kjøringer.
+2. rv7 (riktig prioritet) består i minst 9 av 10 kjøringer.
+3. rv8 (fil uten feil): medianen for funn med høy prioritet er 0, og ingen kjøring har mer enn ett.
+4. rv6 (designfeil) består i høyst to kjøringer færre enn Opus 5.5.
+
+9 av 10 og 10 av 10 regnes som likt. Består GPT-6 Luna alle fire, blir den første reservemodell foran GPT-6.1 Sol. Claude Opus 5.5 beholder pinnen med mindre den selv feiler krav 1 eller 2. Da klassifiseres feilene i `failures.psv` før vi konkluderer, fordi feilen da like gjerne kan ligge i fiksturen.
+
+Mønstrene for rv6 utledes fra tre pilotkjøringer med Opus 5.5 Low og låses i en egen commit før hovedkjøringene. Målingen endrer ingen pinner. Et forslag om reservemodell kommer i en egen PR.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
