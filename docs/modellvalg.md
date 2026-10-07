@@ -366,6 +366,28 @@ Vurdering mot kriteriene, med sjekkens egne tall:
 
 Forbruket var 560,2 credits for Opus og 328,9 for Sol, til sammen 889,0. Budsjettet var om lag 950, med stopp ved 1 190.
 
+## Omregning etter rettet rv6 og rv8 (7. oktober 2026)
+
+[#1453](https://github.com/navikt/copilot/issues/1453) retter to feil i sjekkene som målingen over avdekket:
+
+- **rv6:** Mønsteret for dobbeltskriving kjenner nå også omvendt ordstilling: «retry etter feilet `send`», «Feiler `send` eller `commitSync`», «lagres før det publiseres».
+- **rv8:** En forsiktig konklusjon om at fila er ren, teller nå: «ingen påvist tilgang …», «Ingen åpenbar tilgangslekkasje», «ingen bekreftet blokkering». En 🔴-rad feiler fortsatt rv8, også når svaret har en slik setning.
+
+Begge rettingene har kontroller i `scripts/benchmark-sjekk.py --selftest` som feiler med de gamle sjekkene. Alle lagrede rv5–rv8-svar fra 7. oktober er regnet om uten nye modellkall, i [omregning-1453.psv](golden-baselines/2026-10-07-review-persona/omregning-1453.psv). 13 kjøringer gikk fra feilet til bestått, ingen motsatt vei. rv5 og rv7 er uendret.
+
+| Måling og arm                     | rv6, gammel | rv6, ny | rv8, gammel | rv8, ny |
+| --------------------------------- | ----------- | ------- | ----------- | ------- |
+| Ny persona, Opus 5.5 Low          | 3/10        | 6/10    | 10/10       | 10/10   |
+| Ny persona, GPT-6 Sol Low         | 9/10        | 10/10   | 0/10        | 5/10    |
+| GPT-6 Sol Low, gammel persona     | 10/10       | 10/10   | 0/10        | 3/10    |
+| Hovedmålingen, GPT-6.1 Sol Low    | 10/10       | 10/10   | 0/10        | 1/10    |
+
+Hovedmålingens andre armer (Opus 5.5 Low og GPT-6 Luna Medium) og rv8-kontrollen for Opus er uendret.
+
+Opus' kjøring 4, 6 og 8 med ny persona feiler fortsatt rv6. De nevner ikke at lagringen kan lykkes mens publiseringen feiler, og er ekte bom. Kjøring 2 feiler fortsatt på linjecellen «32–33 / 23». For Sol feiler rv8 fortsatt i kjøring 2, 8 og 10 (🔴-rad om `azp`), 4 («Én blokkering») og 7 (ingen konklusjon). Kjøringene som nå består, er merket i `failures.psv`.
+
+Vurdering mot kriteriene: ingen konklusjon endres. Krav 1 til 3 bygger på rv5, rv7 og antall rader med høy prioritet, og de tallene er de samme. Krav 4 holder fortsatt for GPT-6 Sol med ny persona (rv6 10/10 mot Opus' 6/10). GPT-6 Sol Low er fortsatt ikke en gyldig reservemodell, fordi krav 1 ikke holder. Ingen pinner endres.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.

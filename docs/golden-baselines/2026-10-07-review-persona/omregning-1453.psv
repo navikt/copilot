@@ -1,0 +1,39 @@
+# Omregning uten modellkall av alle lagrede rv5–rv8-transkripter fra 7. oktober med sjekkene rettet etter #1453.
+# gammel = scripts/benchmark-sjekk.py og RV_DESIGN i nav-pilot-golden.sh på 8ceea96d; ny = denne branchen.
+# rv6: dobbeltskriving kjenner også omvendt ordstilling («retry etter feilet `send`», «Feiler `send`», «lagres før det publiseres»).
+# rv8: en forsiktig konklusjon om at fila er ren («ingen påvist tilgang …», «Ingen åpenbar tilgangslekkasje», «ingen bekreftet blokkering») teller. En 🔴-rad feiler fortsatt.
+# Tallene er antall beståtte kjøringer. rv5 og rv7 er tatt med som kontroll: de er ikke endret.
+# sett|arm|sjekk|gammel|ny
+2026-10-07-review-suite|review-claude-opus-5.5-low|rv5|7/10|7/10
+2026-10-07-review-suite|review-claude-opus-5.5-low|rv6|9/10|9/10
+2026-10-07-review-suite|review-claude-opus-5.5-low|rv7|6/10|6/10
+2026-10-07-review-suite|review-claude-opus-5.5-low|rv8|10/10|10/10
+2026-10-07-review-suite|review-gpt-6-luna-medium|rv5|4/10|4/10
+2026-10-07-review-suite|review-gpt-6-luna-medium|rv6|9/10|9/10
+2026-10-07-review-suite|review-gpt-6-luna-medium|rv7|4/10|4/10
+2026-10-07-review-suite|review-gpt-6-luna-medium|rv8|3/10|3/10
+2026-10-07-review-suite|review-gpt-6.1-sol-low|rv5|3/10|3/10
+2026-10-07-review-suite|review-gpt-6.1-sol-low|rv6|10/10|10/10
+2026-10-07-review-suite|review-gpt-6.1-sol-low|rv7|0/10|0/10
+2026-10-07-review-suite|review-gpt-6.1-sol-low|rv8|0/10|1/10
+2026-10-07-gpt-6-sol-review|review-gpt-6-sol-low|rv5|3/10|3/10
+2026-10-07-gpt-6-sol-review|review-gpt-6-sol-low|rv6|10/10|10/10
+2026-10-07-gpt-6-sol-review|review-gpt-6-sol-low|rv7|0/10|0/10
+2026-10-07-gpt-6-sol-review|review-gpt-6-sol-low|rv8|0/10|3/10
+2026-10-07-gpt-6-sol-review|review-claude-opus-5.5-low (rv8-kontroll)|rv8|4/5|4/5
+2026-10-07-review-persona|review-claude-opus-5.5-low|rv5|8/10|8/10
+2026-10-07-review-persona|review-claude-opus-5.5-low|rv6|3/10|6/10
+2026-10-07-review-persona|review-claude-opus-5.5-low|rv7|10/10|10/10
+2026-10-07-review-persona|review-claude-opus-5.5-low|rv8|10/10|10/10
+2026-10-07-review-persona|review-gpt-6-sol-low|rv5|6/10|6/10
+2026-10-07-review-persona|review-gpt-6-sol-low|rv6|9/10|10/10
+2026-10-07-review-persona|review-gpt-6-sol-low|rv7|9/10|9/10
+2026-10-07-review-persona|review-gpt-6-sol-low|rv8|0/10|5/10
+# Kjøringer som endret utfall (alle fra feilet til bestått; ingen gikk andre veien):
+# 2026-10-07-review-suite|review-gpt-6.1-sol-low|rv8|1 («ingen bekreftede blokkere»)
+# 2026-10-07-gpt-6-sol-review|review-gpt-6-sol-low|rv8|1, 3, 9 («ingen påvist blokkering», «ingen tydelig feil», «ingen påvist tilgang»)
+# 2026-10-07-review-persona|review-claude-opus-5.5-low|rv6|3, 9, 10
+# 2026-10-07-review-persona|review-gpt-6-sol-low|rv6|10
+# 2026-10-07-review-persona|review-gpt-6-sol-low|rv8|1, 3, 5, 6, 9
+# Ekte bom som fortsatt feiler: Opus rv6 kjøring 4, 6 og 8 (review-persona); Opus rv6 kjøring 2 (linjecellen «32–33 / 23»);
+# Sol rv8 kjøring 2, 8 og 10 (🔴-rad), 4 («Én blokkering») og 7 (ingen konklusjon) i review-persona.

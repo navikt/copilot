@@ -229,6 +229,13 @@ CLEAN = re.compile(
     r"|no\s+(blocking|critical|blockers?)|ingen\s+🔴",
     re.IGNORECASE,
 )
+# A hedged clean verdict (GPT-6 Sol, 7 Oct, #1453): «Jeg fant ingen påvist
+# tilgang …», «Ingen åpenbar tilgangslekkasje», «ingen bekreftet blokkering».
+# Read only as taus' verdict, never to excuse a row: a 🔴 row still fails rv8.
+HEDGED = re.compile(
+    r"ingen\s+(tydelig|påvist|åpenbar|bekreftet|bekreftede)e?\s+[\wæøå-]*(tilgang|feil|funn|blokker|lekkasje|sårbarhet)",
+    re.IGNORECASE,
+)
 PRIO_EMOJI = re.compile(r"🔴|🟠|🟡|🟢|💭|⚪")
 PRIO_WORD = re.compile(
     r"\W*(kritisk|blokker\w*|blocker|critical|høy|high|middels|medium|lav|low|p[0-3]|forslag|nit|bør\s+\w+)\W*",
@@ -279,7 +286,8 @@ def taus(text):
     rows = spurious(text)
     if rows:
         return f"{len(rows)} spurious high-priority row(s): {rows[0].strip()[:80]}"
-    if not CLEAN.search("\n".join(answer_lines(text))):
+    answer = "\n".join(answer_lines(text))
+    if not (CLEAN.search(answer) or HEDGED.search(answer)):
         return "0 spurious high-priority rows, but no sentence says nothing is critical"
     return None
 
@@ -343,6 +351,10 @@ def selftest():
     tsx = "| `StatusPanel.tsx` | %d | 🔴 | `tabIndex={5}` bryter tabrekkefølgen (WCAG 2.4.3) |\n"
     spec = ["tabindex=tabindex@11"]
     NEG = ["slettOppgave", "ingen", "FX"]
+    # rv6's dobbeltskriving spec, read from nav-pilot-golden.sh so the cases
+    # test the pattern the suite runs.
+    DW = [l.strip().strip("'") for l in (REPO / "scripts" / "nav-pilot-golden.sh").read_text().splitlines()
+          if l.strip().startswith("'dobbeltskriving=")]
     NEGV = ["slettOppgave", r"ingen|(fant|finner|finnes|fins|ser) verken", "FX"]
     cases = [
         # (cmd, file text, extra args, expect pass)
@@ -426,6 +438,18 @@ def selftest():
         ("taus", "Jeg fant ingen konkrete feil i `S.kt`.\n", [], True),
         ("taus", "Ingen konkrete funn.\n", [], True),
         ("taus", "| `S.kt` | 50–55 | 🔴 Blokkerende | pid valideres ikke |\n\nIngen kritiske funn ellers.\n", [], False),
+        # #1453: a hedged clean verdict counts; a 🔴 row beside it still fails.
+        ("taus", "Jeg fant ingen påvist tilgang til andre personers saker.\n", [], True),
+        ("taus", "Ingen åpenbar tilgangslekkasje i `S.kt`.\n", [], True),
+        ("taus", "Jeg fant ingen bekreftet blokkering i `S.kt`.\n", [], True),
+        ("taus", "Jeg fant ingen påvist tilgang til andre personers saker.\n| `S.kt` | 48 | 🔴 | azp sjekkes ikke |\n", [], False),
+        ("taus", "| `S.kt` | 48 | 🔴 | Ingen påvist azp-sjekk |\n", [], False),
+        # #1453: «save succeeds, publish fails» in either word order.
+        ("funnet", "Ny UUID per forsøk betyr at retry etter feilet `send` gir dobbelt vedtak.\n", DW, True),
+        ("funnet", "Feiler `send` eller `commitSync`, lagres vedtaket på nytt.\n", DW, True),
+        ("funnet", "Vedtaket lagres før det publiseres.\n", DW, True),
+        ("funnet", "Hvis prosessen dør før `commitSync`, fattes og publiseres vedtakene på nytt.\n", DW, False),
+        ("funnet", "Kjør `retry` bare rundt `producer.send`. Fang deserialiseringsfeil og send til DLQ.\n", DW, False),
     ]
     failed = 0
     with tempfile.TemporaryDirectory() as tmp:
