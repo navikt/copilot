@@ -92,6 +92,7 @@ Batch 3 hadde fem kjøringer per testarm. Copilot CLI ble oppdatert mens planleg
 - **GPT-6 Sol Medium er ikke bedre enn Low på planlegging.** Medium stoppet etter fase 1 og stilte spørsmålene i fem av fem kjøringer, som Low, men brukte 41,3 credits mot 28,9. High stoppet ikke i to av fem kjøringer.
 - **Claude Opus 5.5 planla riktig, men koster dobbelt så mye.** Opus besto alle sjekkene utenom feilen over, for 57,9 credits per kjøring.
 - **GPT-6 Luna holder på kodegjennomgang, men ikke på planlegging.** På `review` fant Luna Medium alle plantede feil på riktig linje i fem av fem kjøringer for 1,3 credits. Opus 5.5 Low brukte 23,9. På planlegging spurte Luna i to av fem kjøringer bare hva fødselsnummeret skulle brukes til, ikke om personopplysninger. I batch 2 besto Luna Medium også alle sjekkene i `research` for 0,9 credits.
+  - _Rettelse 6. oktober:_ Luna-resultatet på planlegging ble vurdert før «fødselsnummer» kom inn i mønsteret for blindsone 1 (`RE_BS1`, #1436). Kjøring 3 og 5 i [failures.psv](golden-baselines/2026-10-01-batch3/failures.psv) nevner fødselsnummer og ville bestått blindsone 1 med dagens sjekk. Transkriptene ble ikke tatt vare på, så vi kan ikke vurdere kjøringene på nytt.
 
 **Tillegg 1. oktober (batch 3b).** Rådata ligger i [2026-10-01-batch3b](golden-baselines/2026-10-01-batch3b/), med klassifisering i [failures.psv](golden-baselines/2026-10-01-batch3b/failures.psv).
 
@@ -108,6 +109,40 @@ En bruker meldte at `@nav-pilot` startet et intervju om personvern og tilgang n�
 - **Gjenskap med samme klient og modell før du retter.** En feilrapport om personaen kan ikke avkreftes med en annen klient eller modell. Testoppsettet har fått `--client opencode` for dette.
 
 Rådata ligger i `golden-baselines/2026-10-06-personvern-opencode-gpt-6-sol-*`. [v3-before](golden-baselines/2026-10-06-personvern-opencode-gpt-6-sol-v3-before.txt) og [v3-after](golden-baselines/2026-10-06-personvern-opencode-gpt-6-sol-v3-after.txt) er målingen før og etter endringen. Tre kjøringer per arm er nok til å vise feilen, men for få til å si hvor ofte den skjer.
+
+## Målinger 6. oktober 2026
+
+Batch 4 sammenligner GPT-6.1 Sol og Claude Opus 5.5 med GPT-6 Sol som standardmodell for daglig bruk. Alle armene kjører på Low i Copilot CLI. GPT-6 Sol er kontrollen og er målt på nytt, fordi #1436 endret `agents/nav-pilot.agent.md`.
+
+### Kriteriene ble satt før målingen
+
+- **GPT-6.1 Sol erstatter GPT-6 Sol på `@nav-pilot`** bare hvis den består test 2 i fem av fem kjøringer, minst like ofte som kontrollen består test 3, 4, 5, 7 og 7b, og ikke koster mer enn kontrollen.
+- **GPT-6.1 Sol anbefales som personlig standard** bare hvis den ikke er dårligere enn kontrollen på koding, kodegjennomgang, norsk og research.
+- **Claude Opus 5.5 Low** må være like god som kontrollen på alt. Kostnaden dokumenteres uansett.
+- **Sjekken for test 2 løsnes ikke.** Viser transkriptene at testrepoet nå svarer på personvern, skrives det ned før vurderingen og legges fram for eieren.
+
+### Resultater
+
+Rådata ligger i [2026-10-06-batch4](golden-baselines/2026-10-06-batch4/), og feilene i planleggingen er klassifisert i [failures.psv](golden-baselines/2026-10-06-batch4/failures.psv). Planlegging, koding, norsk og research har fem kjøringer per arm, kodegjennomgang ti. Credits er medianen per kjøring. Alle tallene er målt, ikke anslått.
+
+| Testpakke          | GPT-6 Sol (kontroll) | GPT-6.1 Sol            | Claude Opus 5.5        |
+| ------------------ | -------------------- | ---------------------- | ---------------------- |
+| Planlegging, t2    | 5/5                  | 2/5                    | 5/5                    |
+| Planlegging, t3    | 5/5                  | 4/5                    | 5/5                    |
+| Planlegging, t4    | 4/5                  | 3/5                    | 5/5                    |
+| Planlegging, t5    | 5/5                  | 5/5                    | 5/5                    |
+| Planlegging, credits | 27,2               | 22,7                   | 50,8                   |
+| Koding             | 30/30, 24,7 credits  | 30/30, 25,3 credits    | 30/30, 47,9 credits    |
+| Kodegjennomgang    | 33/40, 15,4 credits  | 24/40, 17,1 credits    | 40/40, 24,4 credits    |
+| Norsk              | 20/20, 15,1 credits  | 20/20, 14,5 credits    | 20/20, 30,8 credits    |
+| Research           | 20/20, 13,0 credits  | 20/20, 14,7 credits    | 20/20, 35,8 credits    |
+
+- **GPT-6.1 Sol erstatter ikke GPT-6 Sol på `@nav-pilot`.** Den besto test 2 i to av fem kjøringer. I de tre andre listet den de åpne punktene som påstander uten spørsmålstegn. Testrepoet svarer ikke på personvern, så sjekken er ikke løsnet. Test 3 var også svakere (4/5). Test 4 ble ikke vurdert i to kjøringer fordi test 2 feilet. Kontrollens 4/5 på test 4 er én kjøring der testoppsettet ikke fant noen plan for fase 2, ikke en modellfeil.
+- **GPT-6.1 Sol anbefales ikke som personlig standard.** Den holdt på koding, norsk og research, men ikke på kodegjennomgang. I Kotlin-fila nevnte den ikke det svelgede unntaket ved riktig linje i åtte av ti kjøringer. Kontrollen bommet på det én gang.
+- **Claude Opus 5.5 Low var minst like god som kontrollen på alle målte sjekker**, men kostet 1,6 til 2,8 ganger så mye per kjøring. Dyrest er den på research: 35,8 credits mot 13,0.
+- **Test 7 og 7b og OpenCode-armen ble ikke kjørt.** Testpakkene brukte 2 197 credits, mot et anslag på 1 909. Medregnet 66 credits på testkjøringer på forhånd ble det 2 263. De gjenstående kjøringene ville tatt forbruket over grensen på 2 500 credits (anslaget pluss 25 prosent). Eieren satte denne stoppregelen da målingen startet. Den er ikke en del av kriteriene over. Resultatene for test 7 og 7b kan ikke endre utfallet for GPT-6.1 Sol, som allerede feiler på test 2.
+
+Denne målingen endrer ingen pinner. Om `@nav-pilot` og agentpakkens standard skal endres, avgjøres for seg.
 
 ## Pinner og delegering
 
