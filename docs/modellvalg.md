@@ -313,6 +313,25 @@ Fem kjøringer av rv8 med Claude Opus 5.5 Low på testfila som ikke lenger logge
 
 Forbruket var 356,4 credits for GPT-6 Sol og 72,4 for Opus-kontrollen, til sammen 428,8. Budsjettet var om lag 400, med stopp ved 500.
 
+## Ny persona for kodegjennomgang (7. oktober 2026)
+
+[#1449](https://github.com/navikt/copilot/pull/1449) gjorde en åpen eller utvidet `accessPolicy.inbound` (`*`, alle namespaces eller alle applikasjoner, en ny inbound-regel eller en fjernet begrensning) til et 🔴 sikkerhetsfunn i `@code-review`. Før sto det som 🟡 under «Nais Compliance». Spørsmålet er om endringen tetter hullet på inbound i rv5 og rv7.
+
+### Kriteriene ble satt før målingen
+
+Claude Opus 5.5 Low og GPT-6 Sol Low måles med `@code-review` i Copilot CLI, ti kjøringer av rv1–rv8 hver, med de samme sjekkene og den samme testfila for rv8 som i [Rettede sjekker og GPT-6 Sol](#rettede-sjekker-og-gpt-6-sol-7-oktober-2026). Harnessen fjerner modellpinnen i agentfila. En kjøring der bruksradene viser en annen modell, forkastes. Budsjettet er om lag 950 credits, med stopp ved 1 190. Forbruket sjekkes etter første arm.
+
+For hver arm rapporteres rv5 og rv7 med ny persona mot tallene med gammel persona: Opus 5.5 Low rv5 7/10 og rv7 6/10, GPT-6 Sol Low rv5 3/10 og rv7 0/10.
+
+Deretter brukes de fire kravene for reservemodell uendret:
+
+1. rv5 består i minst 9 av 10 kjøringer.
+2. rv7 består i minst 9 av 10 kjøringer.
+3. rv8: medianen for funn med høy prioritet er 0, og ingen kjøring har mer enn ett.
+4. rv6 består i høyst to kjøringer færre enn Opus 5.5 i samme måling.
+
+GPT-6 Sol blir en gyldig reservemodell for `@code-review` og `@security-champion` bare hvis alle fire holder. Målingen bruker `@code-review`-personaen. `@security-champion` måles ikke direkte. Feilede sjekker klassifiseres i `failures.psv` etter de samme reglene som 7. oktober, likt for begge armene. Verdiktene bygger på sjekkens egne tall. Målingen endrer ingen pinner.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
