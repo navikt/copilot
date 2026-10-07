@@ -552,7 +552,7 @@ run_suite() {
 }
 
 @test "planning t7: asks_privacy flags questions to the user, not assumptions or format questions" {
-  eval "$(grep -E "^RE_ASK_(PRIV|ACCESS|WHO|COMPAT|SEC)=" "$SCRIPT")"
+  eval "$(grep -E "^RE_ASK_(PRIV|ACCESS|WHO|COMPAT|SEC|SECQ)=" "$SCRIPT")"
   eval "$(sed -n '/^question_sentences() {/,/^}/p' "$SCRIPT")"
   eval "$(sed -n '/^asks_privacy() {/,/^}/p' "$SCRIPT")"
   f="$SHIM/t7.txt"
@@ -576,7 +576,8 @@ run_suite() {
            'Personvern er besvart av koden (#1). Hvordan rulles branchen tilbake?' \
            'Hvem konsumerer topicen og verifiserer signaturen?' \
            'Hvem skal ha tilgang til signeringsnøkkelen?' \
-           'Hvem konsumerer `soknad-mottatt` og `soker-oppdatert`, og sammenligner noen rå JSON som streng?'; do
+           'Hvem konsumerer `soknad-mottatt` og `soker-oppdatert`, og sammenligner noen rå JSON som streng?' \
+           'Hvem konsumerer meldingene, og skal de avvise usignerte meldinger?'; do
     printf '%s\n' "$q" >"$f"
     if asks_privacy "$f" >/dev/null; then echo "should pass: $q"; false; fi
   done
