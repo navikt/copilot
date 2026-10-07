@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -860,6 +861,33 @@ func TestWithOpenCode2UserConfig(t *testing.T) {
 	env = withOpenCode2UserConfig([]string{"OPENCODE_CONFIG=/mine.json"}, payload)
 	if !slices.Contains(env, "OPENCODE_CONFIG=/mine.json") {
 		t.Errorf("env = %v", env)
+	}
+}
+
+// The payload's agents rank above a user agent of the same name only from
+// OPENCODE_CONFIG_CONTENT, with payload-relative {file:} paths made absolute.
+func TestWithOpenCode2UserConfigRestatesAgents(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	payload := t.TempDir()
+	mustWrite(t, filepath.Join(payload, "opencode.json"), `{"agent":{"rev":{"prompt":"{file:./rev.txt}"}}}`)
+	mustWrite(t, filepath.Join(payload, "agents", "grillmester.md"),
+		"---\ndescription: \"probe: x\"\nmode: primary\npermission:\n  edit: deny\n  bash:\n    \"*\": deny\n    \"git *\": allow\n---\n\nPROMPT\n")
+	mustWrite(t, filepath.Join(payload, "agents", "list.md"), "---\ntools:\n  - read\n---\nskipped\n")
+
+	var cfg map[string]any
+	for _, e := range withOpenCode2UserConfig(nil, payload) {
+		if v, ok := strings.CutPrefix(e, "OPENCODE_CONFIG_CONTENT="); ok {
+			_ = json.Unmarshal([]byte(v), &cfg)
+		}
+	}
+	got, _ := json.Marshal(cfg["agent"])
+	want, _ := json.Marshal(map[string]any{
+		"rev": map[string]any{"prompt": "{file:" + filepath.ToSlash(filepath.Join(payload, "rev.txt")) + "}"},
+		"grillmester": map[string]any{"description": "probe: x", "mode": "primary", "prompt": "PROMPT",
+			"permission": map[string]any{"edit": "deny", "bash": map[string]any{"*": "deny", "git *": "allow"}}},
+	})
+	if string(got) != string(want) {
+		t.Errorf("agent = %s\nwant    %s", got, want)
 	}
 }
 

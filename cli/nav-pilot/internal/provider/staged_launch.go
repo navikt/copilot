@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
@@ -571,9 +574,14 @@ func openCodeV2Args(args, env []string) ([]string, []string) {
 //
 // opencode 2 ranks OPENCODE_CONFIG above the config dir, which would let the
 // user's file override the payload's opencode.json; opencode 1 ranks the
-// payload higher. So the payload's permissions go into OPENCODE_CONFIG_CONTENT
-// as well, which ranks above both. Only those: anything else may name a path
-// relative to the payload, which the content would resolve elsewhere.
+// payload higher. So the payload's permissions and agents go into
+// OPENCODE_CONFIG_CONTENT as well, which ranks above both: opencode 2 lays a
+// later source's agent fields over an earlier one's, so a user agent with a
+// payload agent's name would otherwise replace its prompt and model. Agents
+// come from the payload's opencode.json, with relative {file:} paths made
+// absolute (the content resolves them from the project), and from its
+// agent/mode markdown files. Nothing else: other keys may name paths relative
+// to the payload.
 //
 // Not put back: the user's agents, commands, modes, tools and plugins
 // directories under the config dir. opencode 2 reads those only from a config
@@ -603,17 +611,128 @@ func withOpenCode2UserConfig(env []string, payload string) []string {
 		if err != nil {
 			continue
 		}
+		b = openCodeFileRefs.ReplaceAllFunc(b, func(m []byte) []byte {
+			p := string(m[len("{file:") : len(m)-1])
+			if filepath.IsAbs(p) || strings.HasPrefix(p, "~/") {
+				return m
+			}
+			return []byte("{file:" + filepath.ToSlash(filepath.Join(payload, p)) + "}")
+		})
 		var cfg map[string]any
 		if json.Unmarshal(stripJSONC(b), &cfg) == nil {
-			for _, k := range []string{"permission", "permissions"} {
+			for _, k := range []string{"permission", "permissions", "agent", "agents"} {
 				if v, ok := cfg[k]; ok {
 					add[k] = mergeJSON(add[k], v)
 				}
 			}
 		}
 	}
+	// As opencode loads them: markdown agents after the config dir's files.
+	if md := openCodeMarkdownAgents(payload); len(md) > 0 {
+		add["agent"] = mergeJSON(add["agent"], md)
+	}
 	if len(add) == 0 {
 		return env
 	}
 	return withOpenCodeConfigContent(env, add)
+}
+
+var openCodeFileRefs = regexp.MustCompile(`\{file:[^}]+\}`)
+
+// openCodeMarkdownAgents reads a config dir's agent and mode files as opencode
+// 2 names them (packages/core/src/config/plugin/agent.ts at v2.0.24): the
+// path under the folder without .md, the body as the prompt. A file whose
+// frontmatter is not the flat shape nav-pilot writes is left out, and keeps
+// its rank below the user's config.
+func openCodeMarkdownAgents(dir string) map[string]any {
+	out := map[string]any{}
+	for _, sub := range []string{"agent", "agents", "mode", "modes"} {
+		root := filepath.Join(dir, sub)
+		_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(p, ".md") || (strings.HasPrefix(sub, "mode") && filepath.Dir(p) != root) {
+				return nil
+			}
+			b, err := os.ReadFile(p)
+			if err != nil {
+				return nil
+			}
+			fm, body, ok := source.SplitFrontmatter(b)
+			if !ok {
+				return nil
+			}
+			agent, ok := parseFlatYAML(strings.Split(string(fm), "\n"), 0)
+			if !ok {
+				return nil
+			}
+			if _, set := agent["mode"]; !set && strings.HasPrefix(sub, "mode") {
+				agent["mode"] = "primary"
+			}
+			agent["prompt"] = strings.TrimSpace(string(body))
+			rel, _ := filepath.Rel(root, p)
+			out[strings.TrimSuffix(filepath.ToSlash(rel), ".md")] = agent
+			return nil
+		})
+	}
+	return out
+}
+
+// parseFlatYAML reads nested maps of scalars, the frontmatter shape
+// BuildAgentFrontmatter and OpenCodeToolPermission write. ok is false on
+// anything else, a list for one.
+// ponytail: no YAML library in go.mod; a richer payload frontmatter needs one.
+func parseFlatYAML(lines []string, indent int) (map[string]any, bool) {
+	out := map[string]any{}
+	for i := 0; i < len(lines); i++ {
+		l := lines[i]
+		t := strings.TrimSpace(l)
+		if t == "" || strings.HasPrefix(t, "#") {
+			continue
+		}
+		if len(l)-len(strings.TrimLeft(l, " ")) != indent {
+			return nil, false
+		}
+		k, v, found := strings.Cut(t, ":")
+		if !found || strings.HasPrefix(t, "- ") {
+			return nil, false
+		}
+		k = yamlScalar(strings.TrimSpace(k)).(string)
+		if v = strings.TrimSpace(v); v != "" {
+			out[k] = yamlScalar(v)
+			continue
+		}
+		j := i + 1
+		for j < len(lines) && (strings.TrimSpace(lines[j]) == "" || len(lines[j])-len(strings.TrimLeft(lines[j], " ")) > indent) {
+			j++
+		}
+		if j == i+1 {
+			return nil, false
+		}
+		first := strings.TrimLeft(lines[i+1], " ")
+		child, ok := parseFlatYAML(lines[i+1:j], len(lines[i+1])-len(first))
+		if !ok {
+			return nil, false
+		}
+		out[k] = child
+		i = j - 1
+	}
+	return out, true
+}
+
+func yamlScalar(v string) any {
+	if s, err := strconv.Unquote(v); err == nil && strings.HasPrefix(v, `"`) {
+		return s
+	}
+	if len(v) >= 2 && v[0] == '\'' && v[len(v)-1] == '\'' {
+		return strings.ReplaceAll(v[1:len(v)-1], "''", "'")
+	}
+	switch v {
+	case "true":
+		return true
+	case "false":
+		return false
+	}
+	if n, err := strconv.Atoi(v); err == nil {
+		return n
+	}
+	return v
 }
