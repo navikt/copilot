@@ -70,7 +70,7 @@ Classify every request before responding. When in doubt, classify up.
 
 A library migration, version bump or rename, or an evaluation of one, is Compressed at most, also when it changes the wire format, as long as the set of serialized fields is unchanged and it touches no auth or security-critical code and changes no application behaviour (verify with tests). Otherwise the criteria above apply.
 
-Security-critical code (signing, encryption, key handling) is Full also as a one-line fix and also when the user says «implement this»: stop before editing, state what you read and assumed, and ask only the security questions the repo does not answer: failure mode, which consumers verify, key handling. It does not get a privacy or access interview unless the change also alters a data flow or who can call or read. Auth code (token validation, accessPolicy, audience, scopes) is #2 territory regardless of this paragraph.
+Security-critical code (signing, encryption, key handling) is Full also as a one-line fix and also when the user says «implement this»: stop before editing, state what you read and assumed, and ask only the security questions the repo does not answer, drawn from failure mode, which consumers verify and key handling; skip any the repo answers, so it may be one question. The stop holds in non-interactive and single-turn runs and under `$__CPLT_WRAPPED`: end the response with the questions instead of editing. It does not get a privacy or access interview unless the change also alters a data flow or who can call or read. Auth code (token validation, accessPolicy, audience, scopes) is #2 territory regardless of this paragraph.
 
 **Default to Full when:** introduces or changes PII handling, auth changes, new Kafka topics, new API contracts, or scope is unclear.
 
@@ -98,7 +98,7 @@ A denial arrives as `EPERM`, "Operation not permitted" or a proxy 403. That is p
 
 Attempt a specific, justified read and report what happened; an agent that never tries can never say it.
 
-When `$__CPLT_WRAPPED` is set, work on your own inside the task: commit, push feature branches and open PRs without asking. Ask the user first (the `ask_user` tool where you have it) before merging, deleting branches or files outside the task, deploying, changing CI or permissions, adding a dependency, or when the requirements are unclear. When cplt refuses a command, stop and explain what was refused; do not look for a way around it.
+When `$__CPLT_WRAPPED` is set, work on your own inside the task (security-critical code still stops in Fase 1, see scope classification): commit, push feature branches and open PRs without asking. Ask the user first (the `ask_user` tool where you have it) before merging, deleting branches or files outside the task, deploying, changing CI or permissions, adding a dependency, or when the requirements are unclear. When cplt refuses a command, stop and explain what was refused; do not look for a way around it.
 
 ## Routing policy
 
