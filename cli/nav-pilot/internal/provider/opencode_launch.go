@@ -1092,6 +1092,14 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		telemetryRecorder.RecordLaunchError("opencode", "client_unsupported")
 		return err
 	}
+	if err := checkOpenCode2Launch(resolved.ExtraArgs); err != nil {
+		reason := "client_unsupported"
+		if errors.Is(err, errCpltTooOld) {
+			reason = "cplt_too_old"
+		}
+		telemetryRecorder.RecordLaunchError("opencode", reason)
+		return err
+	}
 	// A fresh machine has no .gitignore in the opencode config dir, and under
 	// cplt the launch dies before the TUI if OpenCode has to create it itself
 	// (#565).
@@ -1162,7 +1170,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 			domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
 		if url := guard.GateURL(); url != "" {
 			launchEnv, _ = telemetry.SetEnvValue(launchEnv, DispatchGateEnv, url)
-			if slices.Contains(resolved.ExtraArgs, "--pure") {
+			if openCodeMajor() < 2 && slices.Contains(resolved.ExtraArgs, "--pure") {
 				fmt.Fprintf(os.Stderr, "%s local_dispatch = %s is not enforced with --pure: opencode loads no plugins then, and the gate is a plugin.\n", domain.Yellow("⚠"), local.DispatchLevel())
 			}
 		}
@@ -1190,10 +1198,14 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	}
 
 	launchEnv, cpltFlags = applyOpenCodeHooks(resolved, launchEnv, cpltFlags)
+	agentArgs := openCodeAgentArgs(resolved)
+	if openCodeMajor() >= 2 {
+		agentArgs, launchEnv = openCodeV2Args(agentArgs, launchEnv)
+	}
 
 	return launchViaCplt(cpltLaunch{
 		agent:     "opencode",
-		agentArgs: openCodeAgentArgs(resolved),
+		agentArgs: agentArgs,
 		cpltArgs:  cpltFlags,
 		// EnsureOpenCodeNavContext above wrote into this directory, so ask it
 		// for skills after the materialization rather than before it.

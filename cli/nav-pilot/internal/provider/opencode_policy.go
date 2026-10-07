@@ -2,9 +2,11 @@ package provider
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -109,16 +111,38 @@ func applyOpenCodeOwnDirs(env []string, projectDir string) []string {
 // would otherwise replace; a later object form clears it. deny is whether any
 // file denies it wholesale: "deny" as its string, "*": "deny" in its object,
 // or the whole permission block denying.
+//
+// On opencode 2 it also reads the flat `permissions` list, which opencode 2
+// joins across files in the same order, the last match winning
+// (core/src/permission.ts at v2.0.24): deny is then whether the last rule for
+// key on every resource ("*") denies. A list rule is added to, never
+// replaced, so it sets no str.
 func userPermission(docs [][]byte, key string) (str string, deny bool) {
 	isDeny := func(raw json.RawMessage) bool {
 		var s string
 		return json.Unmarshal(raw, &s) == nil && s == "deny"
 	}
+	v2, listDeny := openCodeMajor() >= 2, false
 	for _, doc := range docs {
 		var cfg struct {
-			Permission json.RawMessage `json:"permission"`
+			Permission  json.RawMessage `json:"permission"`
+			Permissions []struct {
+				Action, Resource, Effect string
+			} `json:"permissions"`
 		}
-		if json.Unmarshal(stripJSONC(doc), &cfg) != nil || cfg.Permission == nil {
+		if json.Unmarshal(stripJSONC(doc), &cfg) != nil {
+			continue
+		}
+		if v2 {
+			for _, r := range cfg.Permissions {
+				// ponytail: path.Match for opencode's Wildcard; the same for
+				// action names, which have no slash.
+				if ok, _ := path.Match(r.Action, key); ok && r.Resource == "*" {
+					listDeny = r.Effect == "deny"
+				}
+			}
+		}
+		if cfg.Permission == nil {
 			continue
 		}
 		// A string block is {"*": value} to OpenCode, per file.
@@ -145,7 +169,7 @@ func userPermission(docs [][]byte, key string) (str string, deny bool) {
 			str, deny = "", deny || isDeny(obj["*"])
 		}
 	}
-	return str, deny
+	return str, deny || listDeny
 }
 
 // OpenCodeVersionStatus reports the installed opencode's version and whether
@@ -209,7 +233,67 @@ func CheckOpenCodeMajor() error {
 		strings.TrimPrefix(v, "opencode "), domain.Bold(OpenCode1InstallHint()))
 }
 
+// openCodeMajor is the installed opencode's major version, read from the raw
+// version line so a prerelease counts. Unreadable is 0, which every caller
+// treats as opencode 1: that path is the one nav-pilot has always taken.
+func openCodeMajor() int {
+	out, _ := cachedVersion("opencode", 5*time.Second)
+	m := openCodeMajorPattern.FindStringSubmatch(strings.TrimSpace(out))
+	if m == nil {
+		return 0
+	}
+	n, _ := strconv.Atoi(m[1])
+	return n
+}
+
 var openCodeMajorPattern = regexp.MustCompile(`(?i)^(?:opencode )?v?(\d+)\.`)
+
+// minOpenCode2CpltStamp is the first cplt release with navikt/cplt#716, where
+// the opencode 2 client spawns its session's service inside the sandbox. An
+// older cplt lets the client attach to the host's background service, which
+// runs with none of the launch's environment: no hooks, no gate, no policy.
+// errCpltTooOld marks checkOpenCode2Launch's refusal of a cplt older than
+// minOpenCode2CpltStamp, so telemetry can tell it from argument refusals.
+var errCpltTooOld = errors.New("cplt too old")
+
+const minOpenCode2CpltStamp = "2026.10.07-103638"
+
+// checkOpenCode2Launch refuses an opencode 2 launch that would run outside the
+// sandboxed per-session service: a cplt without #716 (or one whose version
+// cannot be read, fail-closed as checkCpltFloor), or arguments that connect
+// the client to another server. Nil on opencode 1.
+func checkOpenCode2Launch(args []string) error {
+	if openCodeMajor() < 2 {
+		return nil
+	}
+	if len(args) > 0 && args[0] == "attach" {
+		return fmt.Errorf("attach is not allowed on opencode 2: it connects to a server outside the sandboxed session nav-pilot starts")
+	}
+	for _, a := range args {
+		if a == "--" {
+			break // what follows is the message, not options
+		}
+		if a == "--standalone" {
+			return fmt.Errorf("--standalone is not supported on opencode 2 under cplt: the client cannot reach a standalone service in the sandbox")
+		}
+		if a == "--server" || a == "--attach" || strings.HasPrefix(a, "--server=") || strings.HasPrefix(a, "--attach=") {
+			return fmt.Errorf("%s is not allowed on opencode 2: it connects to a server outside the sandboxed session nav-pilot starts", a)
+		}
+	}
+	out, err := probeCpltVersion()
+	if errors.Is(err, errCpltNotFound) {
+		return nil // the launch's own cplt-missing path (ErrCpltMissing) says how to install it
+	}
+	found := strings.TrimSpace(out)
+	if err != nil {
+		found = err.Error()
+	}
+	if stamp := cpltStamp(out); err != nil || stamp == "" || stamp < minOpenCode2CpltStamp {
+		return fmt.Errorf("%w: opencode 2 needs cplt %s or newer (navikt/cplt#716), found %q: an older cplt runs the session in the host's background service, without nav-pilot's hooks.\n\n  Upgrade it: %s",
+			errCpltTooOld, minOpenCode2CpltStamp, found, domain.Bold(cpltUpgradeHint()))
+	}
+	return nil
+}
 
 // OpenCodeScriptInstall is opencode's own installer, pinned to the tested release.
 const OpenCodeScriptInstall = "curl -fsSL https://opencode.ai/install | bash -s -- --version " + OpenCodeInstallVersion

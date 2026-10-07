@@ -183,10 +183,13 @@ var probeLaunchClientVersion = func(client string) (string, error) {
 	return cachedVersion(path, clientProbeTimeout)
 }
 
+// errCpltNotFound is stagedCpltPath's error when cplt is not on PATH.
+var errCpltNotFound = errors.New("cplt not found in PATH")
+
 func stagedCpltPath() (string, error) {
 	path, name := FindCopilotCLI()
 	if path == "" || name != "cplt" {
-		return "", errors.New("cplt not found in PATH")
+		return "", errCpltNotFound
 	}
 	return path, nil
 }

@@ -2,6 +2,7 @@ package provider
 
 import (
 	"bytes"
+	"crypto/rand"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -31,7 +32,18 @@ import (
 //go:embed hooks-bridge.js
 var hooksBridgePlugin []byte
 
+// hooksBridgePluginV2 is the same bridge for opencode 2's plugin API. opencode
+// 2 loads a configured plugin from a directory (its index.js), not a file.
+//
+//go:embed hooks-bridge-v2.js
+var hooksBridgePluginV2 []byte
+
 const (
+	// OpenCodePluginIDEnv carries the opencode 2 bridge's plugin id, fresh
+	// for each launch. opencode 2 keeps the first plugin of an id and drops
+	// the rest, so a fixed id lets a project plugin that claims it first
+	// turn the bridge off.
+	OpenCodePluginIDEnv = "NAV_PILOT_OPENCODE_PLUGIN_ID"
 	// OpenCodeHooksEnv carries the hooks, as JSON, to the plugin.
 	OpenCodeHooksEnv = "NAV_PILOT_OPENCODE_HOOKS"
 	// HookStateDirEnv tells `nav-pilot hook` where to keep the loop guard's
@@ -105,10 +117,14 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	}
 	b := OpenCodeHookBridge(r)
 	blocked := slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, MCPBlockedEnv+"=") })
-	if len(b.Post) == 0 && len(b.Pre) == 0 && !blocked {
+	v2 := openCodeMajor() >= 2
+	// On opencode 2 the bridge also runs the dispatch gate (dispatch-gate.js
+	// is an opencode 1 plugin).
+	gate := v2 && slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, DispatchGateEnv+"=") })
+	if len(b.Post) == 0 && len(b.Pre) == 0 && !blocked && !gate {
 		return env, cpltArgs
 	}
-	plugin, err := writeHooksBridgePlugin()
+	plugin, err := writeHooksBridgePlugin(v2)
 	if err == nil {
 		err = os.MkdirAll(OpenCodeHookStateDir(), 0o700)
 	}
@@ -119,8 +135,15 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	cfg, _ := json.Marshal(b)
 	env, _ = telemetry.SetEnvValue(env, OpenCodeHooksEnv, string(cfg))
 	env, _ = telemetry.SetEnvValue(env, HookStateDirEnv, OpenCodeHookStateDir())
-	env = withOpenCodeConfigContent(env, map[string]any{"plugin": []any{(&url.URL{Scheme: "file", Path: plugin}).String()}})
-	if slices.Contains(r.ExtraArgs, "--pure") {
+	if v2 {
+		env, _ = telemetry.SetEnvValue(env, OpenCodePluginIDEnv, "nav-pilot-hooks-"+rand.Text())
+		cpltArgs = append(cpltArgs, "--pass-env", OpenCodePluginIDEnv)
+		env = withOpenCodeConfigContent(env, map[string]any{"plugins": []any{filepath.Dir(plugin)}})
+	} else {
+		env = withOpenCodeConfigContent(env, map[string]any{"plugin": []any{(&url.URL{Scheme: "file", Path: plugin}).String()}})
+	}
+	// opencode 2 has no --pure; the launch drops it (openCodeV2Args).
+	if !v2 && slices.Contains(r.ExtraArgs, "--pure") {
 		fmt.Fprintf(os.Stderr, "%s nav-pilot's hooks (redaction, loop guard, gates) do not run with --pure: opencode loads no plugins then.\n", domain.Yellow("⚠"))
 		if blocked {
 			fmt.Fprintf(os.Stderr, "%s With --pure, an MCP server turned off for this session can be connected again from /mcp and used.\n", domain.Yellow("⚠"))
@@ -146,15 +169,19 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 
 // writeHooksBridgePlugin writes the plugin, only when it differs, so two
 // launches at once never truncate the file under each other's plugin scan.
-func writeHooksBridgePlugin() (string, error) {
-	path := filepath.Join(openCodePluginDir(), "nav-pilot-hooks.js")
-	if cur, err := os.ReadFile(path); err == nil && bytes.Equal(cur, hooksBridgePlugin) {
+// For opencode 2 the plugin is the index.js of a directory of its own.
+func writeHooksBridgePlugin(v2 bool) (string, error) {
+	path, src := filepath.Join(openCodePluginDir(), "nav-pilot-hooks.js"), hooksBridgePlugin
+	if v2 {
+		path, src = filepath.Join(openCodePluginDir(), "v2", "index.js"), hooksBridgePluginV2
+	}
+	if cur, err := os.ReadFile(path); err == nil && bytes.Equal(cur, src) {
 		return path, nil
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return "", err
 	}
-	return path, writeConfigAtomically(path, hooksBridgePlugin)
+	return path, writeConfigAtomically(path, src)
 }
 
 // withOpenCodeConfigContent merges add into OPENCODE_CONFIG_CONTENT. A value

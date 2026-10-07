@@ -1,9 +1,12 @@
 package provider
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -266,11 +269,20 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 		bind = append(bind, "--model", resolved)
 	}
 	agentArgs := openCodeClientArgs(bind, r.ExtraArgs, r.ReasoningEffort)
+	cpltArgs := []string{"--allow-read", s.Dir, "--pass-env", "OPENCODE_CONFIG_DIR"}
+	if openCodeMajor() >= 2 {
+		agentArgs, env = openCodeV2Args(agentArgs, env)
+		env = withOpenCode2UserConfig(env, s.Dir)
+		// Not in cplt's allowlist: without it the user's config is gone.
+		if slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, "OPENCODE_CONFIG=") }) {
+			cpltArgs = append(cpltArgs, "--pass-env", "OPENCODE_CONFIG")
+		}
+	}
 
 	return cpltLaunch{
 		agent:         "opencode",
 		noAudit:       true,
-		cpltArgs:      []string{"--allow-read", s.Dir, "--pass-env", "OPENCODE_CONFIG_DIR"},
+		cpltArgs:      cpltArgs,
 		skillsDir:     materializedSkillsDir(s.Dir),
 		agentArgs:     agentArgs,
 		env:           env,
@@ -406,6 +418,14 @@ func LaunchOpenCodeStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 		telemetryRecorder.RecordLaunchError("opencode", "client_unsupported")
 		return err
 	}
+	if err := checkOpenCode2Launch(r.ExtraArgs); err != nil {
+		reason := "client_unsupported"
+		if errors.Is(err, errCpltTooOld) {
+			reason = "cplt_too_old"
+		}
+		telemetryRecorder.RecordLaunchError("opencode", reason)
+		return err
+	}
 	// A fresh machine has no .gitignore in the opencode config dir, and under
 	// cplt the launch dies before the TUI if OpenCode has to create it itself
 	// (#565).
@@ -465,4 +485,135 @@ func LaunchCopilotStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
 	}
 	return launchViaCplt(spec)
+}
+
+// openCodeV2Args rewrites a launch's opencode 1 arguments for opencode 2
+// (2.0.24 `opencode --help`, `opencode run --help`), and puts what moved into
+// OPENCODE_CONFIG_CONTENT:
+//
+//   - The TUI takes no --agent or --model: they become default_agent and model.
+//   - `run` takes --agent, and --model as provider/model#variant; there is no
+//     --variant.
+//   - There is no --pure.
+//   - --log-level is lowercase.
+//   - No --standalone: cplt (navikt/cplt#716) gives each session its own
+//     service, started by the client inside the sandbox, so it inherits the
+//     launch's environment. A standalone client needs a loopback port cplt
+//     does not open ("Transport: Was there a typo in the url or port?").
+//
+// Another subcommand's arguments pass through, --pure and --log-level aside.
+func openCodeV2Args(args, env []string) ([]string, []string) {
+	// Options end at "--": what follows is message text and passes through as is.
+	var rest []string
+	if i := slices.Index(args, "--"); i >= 0 {
+		args, rest = args[:i], args[i:]
+	}
+	args = slices.DeleteFunc(slices.Clone(args), func(a string) bool { return a == "--pure" })
+	run := len(args) > 0 && args[0] == "run"
+	session := run || len(args) == 0 || !openCodeSubcommands[args[0]]
+	cfg := map[string]any{}
+	var out []string
+	model, variant := "", ""
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if i+1 < len(args) && session {
+			switch {
+			case a == "--variant" && run:
+				variant = args[i+1]
+				i++
+				continue
+			case a == "--model":
+				model = args[i+1]
+				i++
+				continue
+			case a == "--agent" && !run:
+				cfg["default_agent"] = args[i+1]
+				i++
+				continue
+			}
+		}
+		if a == "--log-level" && i+1 < len(args) {
+			out = append(out, a, strings.ToLower(args[i+1]))
+			i++
+			continue
+		}
+		out = append(out, a)
+	}
+	if run && variant != "" && model == "" {
+		fmt.Fprintf(os.Stderr, "%s --variant %s is not applied: opencode 2 takes a variant only as part of --model (provider/model#variant).\n", domain.Yellow("⚠"), variant)
+	}
+	if model != "" {
+		if run {
+			if variant != "" {
+				model += "#" + variant
+			}
+			out = append(out[:1], append([]string{"--model", model}, out[1:]...)...)
+		} else {
+			cfg["model"] = model
+		}
+	}
+	out = append(out, rest...)
+	if len(cfg) > 0 {
+		env = withOpenCodeConfigContent(env, cfg)
+	}
+	return out, env
+}
+
+// withOpenCode2UserConfig keeps the user's own opencode config in a Tier 2
+// launch on opencode 2. opencode 1 reads OPENCODE_CONFIG_DIR beside the user's
+// config dir; opencode 2 reads it in place of that dir
+// (packages/cli/src/server-process.ts at v2.0.24), so the payload would be
+// the only global config. Put back:
+//
+//   - the user's opencode.jsonc, else opencode.json, as OPENCODE_CONFIG,
+//     unless the user set that themselves;
+//   - the user's skills directories, as "skills" in OPENCODE_CONFIG_CONTENT.
+//
+// opencode 2 ranks OPENCODE_CONFIG above the config dir, which would let the
+// user's file override the payload's opencode.json; opencode 1 ranks the
+// payload higher. So the payload's permissions go into OPENCODE_CONFIG_CONTENT
+// as well, which ranks above both. Only those: anything else may name a path
+// relative to the payload, which the content would resolve elsewhere.
+//
+// Not put back: the user's agents, commands, modes, tools and plugins
+// directories under the config dir. opencode 2 reads those only from a config
+// directory, and it takes one global directory, the payload.
+func withOpenCode2UserConfig(env []string, payload string) []string {
+	dir := openCodeConfigDir()
+	if !slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, "OPENCODE_CONFIG=") }) {
+		for _, n := range []string{"opencode.jsonc", "opencode.json"} {
+			if f := filepath.Join(dir, n); fileExists(f) {
+				env, _ = telemetry.SetEnvValue(env, "OPENCODE_CONFIG", f)
+				break
+			}
+		}
+	}
+	add := map[string]any{}
+	var skills []any
+	for _, n := range []string{"skill", "skills"} {
+		if d := filepath.Join(dir, n); dirHasEntries(d) {
+			skills = append(skills, d)
+		}
+	}
+	if len(skills) > 0 {
+		add["skills"] = skills
+	}
+	for _, n := range []string{"opencode.json", "opencode.jsonc"} {
+		b, err := os.ReadFile(filepath.Join(payload, n))
+		if err != nil {
+			continue
+		}
+		var cfg map[string]any
+		if json.Unmarshal(stripJSONC(b), &cfg) == nil {
+			for _, k := range []string{"permission", "permissions"} {
+				if v, ok := cfg[k]; ok {
+					add[k] = mergeJSON(add[k], v)
+				}
+			}
+		}
+	}
+	if len(add) == 0 {
+		return env
+	}
+	return withOpenCodeConfigContent(env, add)
 }

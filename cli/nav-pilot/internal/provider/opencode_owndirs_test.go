@@ -2,11 +2,13 @@ package provider
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 // openCodeWildcard is OpenCode's util/wildcard.ts match: "*" is ".*", "?"
@@ -123,5 +125,71 @@ func TestApplyOpenCodeOwnDirs(t *testing.T) {
 				t.Errorf("staged dir or launch policy missing: %s", raw)
 			}
 		})
+	}
+}
+
+// opencode 2's flat permissions list, last match winning across files: a
+// user's v2 deny of external_directory keeps nav-pilot's allows out.
+func TestUserPermissionReadsV2List(t *testing.T) {
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	deny := `{"permissions": [{"action": "external_directory", "resource": "*", "effect": "deny"}]}`
+	for _, tc := range []struct {
+		name, version string
+		docs          []string
+		want          bool
+	}{
+		{"v2 deny", "opencode v2.0.24\n", []string{deny}, true},
+		{"v2 wildcard action", "opencode v2.0.24\n", []string{`{"permissions": [{"action": "*", "resource": "*", "effect": "deny"}]}`}, true},
+		{"v2 later allow wins", "opencode v2.0.24\n", []string{deny, `{"permissions": [{"action": "external_directory", "resource": "*", "effect": "allow"}]}`}, false},
+		{"v2 path rule is not wholesale", "opencode v2.0.24\n", []string{`{"permissions": [{"action": "external_directory", "resource": "/x/*", "effect": "deny"}]}`}, false},
+		{"v2 other action", "opencode v2.0.24\n", []string{`{"permissions": [{"action": "edit", "resource": "*", "effect": "deny"}]}`}, false},
+		{"v1 ignores the list", "opencode 1.17.0\n", []string{deny}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			versionCache.Store("opencode", versionAnswer{tc.version, nil, time.Hour})
+			var docs [][]byte
+			for _, d := range tc.docs {
+				docs = append(docs, []byte(d))
+			}
+			if _, got := userPermission(docs, "external_directory"); got != tc.want {
+				t.Errorf("deny = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCheckOpenCode2Launch(t *testing.T) {
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	for _, c := range []struct {
+		version, cplt string
+		cpltErr       error
+		args          []string
+		ok            bool
+	}{
+		{"opencode v2.0.24\n", "cplt 2026.10.07-103638-7c04fce\n", nil, nil, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"run", "hi"}, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.06-120000-0d1d66d\n", nil, nil, false},
+		{"opencode v2.0.24\n", "cplt dev\n", nil, nil, false},
+		{"opencode v2.0.24\n", "", errors.New("timeout"), nil, false},
+		{"opencode v2.0.24\n", okCplt, nil, nil, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"--server", "http://x"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"run", "--server=http://x", "hi"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"attach", "http://x"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"run", "attach"}, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"run", "--", "--server", "x"}, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.07-110830-d7c327c\n", nil, []string{"--standalone"}, false},
+		{"opencode v2.0.24\n", "", errCpltNotFound, nil, true},
+		{"opencode 1.17.0\n", "", errors.New("timeout"), []string{"attach", "--server", "x"}, true},
+	} {
+		versionCache.Store("opencode", versionAnswer{c.version, nil, time.Hour})
+		stubProbes(t, c.cplt, c.cpltErr, "", nil)
+		if err := checkOpenCode2Launch(c.args); (err == nil) != c.ok {
+			t.Errorf("%q cplt %q %v: err = %v, want ok %v", c.version, c.cplt, c.args, err, c.ok)
+		}
+	}
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	stubProbes(t, "cplt 2026.10.06-120000-0d1d66d\n", nil, "", nil)
+	if err := checkOpenCode2Launch(nil); !errors.Is(err, errCpltTooOld) {
+		t.Errorf("old cplt: err = %v, want errCpltTooOld", err)
 	}
 }
