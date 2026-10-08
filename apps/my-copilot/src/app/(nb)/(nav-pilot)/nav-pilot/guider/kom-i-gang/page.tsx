@@ -1,4 +1,4 @@
-import { BodyLong, Box, VStack } from "@navikt/ds-react";
+import { BodyLong, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { CodeBlock } from "@/components/code-block";
@@ -9,8 +9,7 @@ import { NAV_PILOT_BREW_INSTALL, OPENCODE_INSTALL } from "@/lib/install-commands
 
 export const metadata: Metadata = {
   title: "Kom i gang på 5 minutter",
-  description:
-    "Installer nav-pilot og cplt, logg inn med gh, start agenten i et repo og velg hvor mye den skal gjøre selv.",
+  description: "Installer nav-pilot og cplt, logg inn med gh, start agenten i et repo og se hva den kan gjøre.",
 };
 
 const TOC: TocItem[] = [
@@ -22,11 +21,6 @@ const TOC: TocItem[] = [
   { id: "autonomi", label: "Hvor mye skal agenten gjøre selv?" },
   { id: "videre", label: "Videre" },
 ];
-
-// The first nav-pilot release with the two autonomy questions (navikt/copilot#1359).
-const MIN_VERSION = "2026.09.30-072123";
-// The first release that offers to remove the strict allowlist (navikt/copilot#1351).
-const LIST_REMOVAL_VERSION = "2026.09.29-223958";
 
 // One block per copy target: the copy button copies the whole block, and the
 // two clients are alternatives. No trailing comments: zsh on macOS does not
@@ -48,8 +42,9 @@ export default function KomIGang() {
       toc={TOC}
     >
       <BodyLong>
-        Guiden gjelder nav-pilot {MIN_VERSION} eller nyere. Sjekk med <code className={code}>nav-pilot --version</code>.
-        Har du en eldre versjon, kjør <code className={code}>brew update</code> og{" "}
+        Guiden gjelder nav-pilot fra 30. september 2026 eller nyere. Sjekk med{" "}
+        <code className={code}>nav-pilot --version</code>. Har du en eldre versjon, kjør{" "}
+        <code className={code}>brew update</code> og{" "}
         <code className={code}>brew upgrade navikt/tap/nav-pilot navikt/tap/cplt</code>.
       </BodyLong>
 
@@ -225,93 +220,23 @@ cplt trust accept`}</CodeBlock>
           <LinkableHeading id="autonomi" size="medium" level="2">
             Hvor mye skal agenten gjøre selv?
           </LinkableHeading>
-          <BodyLong>
-            Veiviseren stiller to spørsmål. Når klienten kjører i cplt med nivået <code className={code}>standard</code>{" "}
-            eller <code className={code}>strict</code>, stopper cplt <code className={code}>gh pr merge</code>, push til
-            standardgrenen og force push, uansett hva du svarer. Med <code className={code}>permissive</code> eller{" "}
-            <code className={code}>full-trust</code> er sperrene av, og ingenting blir stoppet.
-          </BodyLong>
-          <BodyLong>
-            <strong>How should the agent run commands?</strong> Bare for Copilot CLI.
-          </BodyLong>
+          <BodyLong>Veiviseren stiller to spørsmål. Enter gir det anbefalte valget:</BodyLong>
           <Bullets>
             <li>
-              <strong>On its own inside the sandbox, and ask you when it needs to (recommended).</strong> Agenten kjører
-              kommandoer uten å spørre hver gang, og spør deg når den trenger det. nav-pilot sender{" "}
-              <code className={code}>--allow-all-tools --allow-all-paths --allow-all-urls</code>, men bare når klienten
-              kjører i cplt.
+              <strong>How should the agent run commands?</strong> (bare Copilot CLI): agenten kjører kommandoer selv i
+              sandkassen, og spør deg når den trenger det.
             </li>
             <li>
-              <strong>Ask before each command.</strong> Copilot CLI spør før hver kommando.
+              <strong>What may the agent do with git?</strong>: agenten committer, pusher egne grener og åpner pull
+              requests.
             </li>
           </Bullets>
           <BodyLong>
-            Bruker du OpenCode eller pi, får du ikke dette spørsmålet. Der styrer klienten selv hva den spør om. For
-            OpenCode er det nøkkelen <code className={code}>permission</code> i{" "}
-            <code className={code}>opencode.json</code>.
-          </BodyLong>
-          <BodyLong>
-            <strong>What may the agent do with git?</strong> cplt håndhever svaret.
-          </BodyLong>
-          <Bullets>
-            <li>
-              <strong>Commit, push branches and open pull requests (recommended).</strong> Agenten committer, pusher
-              egne grener og åpner pull requests.
-            </li>
-            <li>
-              <strong>Commit only (no pushes).</strong> Agenten kan ikke pushe, så du pusher selv.
-            </li>
-          </Bullets>
-          <BodyLong>
-            Har du satt cplt til <code className={code}>permissive</code> eller <code className={code}>full-trust</code>
-            , får du ikke git-spørsmålet, fordi git- og gh-vaktene er av der.
-          </BodyLong>
-          <BodyLong>
-            Brukte du nav-pilot med Copilot CLI før, og valgte aldri selv at den skulle spørre før hver kommando, kjører
-            den nå kommandoer på egen hånd i cplt. nav-pilot sier fra om det én gang. En{" "}
-            <code className={code}>autonomy = &quot;conservative&quot;</code> som nav-pilot skrev selv, teller ikke som
-            et valg. Vil du at Copilot CLI skal spørre før hver kommando:
-          </BodyLong>
-          <CodeBlock compact>{`nav-pilot config set autonomy conservative`}</CodeBlock>
-          <BodyLong>Tilbake til at agenten kjører kommandoer selv:</BodyLong>
-          <CodeBlock compact>{`nav-pilot config set autonomy sandbox`}</CodeBlock>
-          <BodyLong>
-            Veiviseren endrer ikke cplt-nivået du har. Har du ikke satt noe, er det{" "}
-            <code className={code}>standard</code>. Vil du bytte nivå, for eksempel til{" "}
-            <code className={code}>strict</code>, der agenten bare når verter på en liste, får du spørsmålet om
-            nettverket med:
-          </BodyLong>
-          <CodeBlock compact>{`nav-pilot config setup --advanced`}</CodeBlock>
-          <Box background="warning-soft" borderRadius="8" padding="space-16">
-            <VStack gap="space-8">
-              <BodyLong>
-                <strong>strict koster noe.</strong> Agenten kan ikke pushe med mindre du tillater det i git-spørsmålet.
-                Verter som ikke står på lista, blir blokkert. Det gjelder også interne verter du tar i bruk senere.
-                nav-pilot legger Navs verter i <code className={code}>~/.nav-pilot/cplt-allowed-domains.txt</code> før
-                nivået blir satt. Har du en egen <code className={code}>proxy.allowed_domains</code>, må du legge dem
-                inn i den selv. På Linux krever nivået kjerne 6.7 eller nyere med Landlock slått på.
-              </BodyLong>
-              <BodyLong>
-                Bytter du fra strict til <code className={code}>standard</code>, spør nav-pilot fra versjon{" "}
-                {LIST_REMOVAL_VERSION}: <strong>Remove the network allowlist nav-pilot set up for strict?</strong>{" "}
-                Spørsmålet kommer bare for lista nav-pilot la inn selv. Svarer du nei, har du en eldre versjon eller en
-                egen liste, blir lista stående, og agenten når fortsatt bare vertene på den. Kommandoen under fjerner
-                lista som gjelder, uansett hvem som la den inn:
-              </BodyLong>
-              <CodeBlock compact>{`cplt config set proxy.allowed_domains --unset --global`}</CodeBlock>
-            </VStack>
-          </Box>
-          <BodyLong>
-            Kjører du <code className={code}>nav-pilot config setup</code> på nytt, starter hvert spørsmål på det du har
-            nå. Trykker du bare Enter, blir fila som den er. Se over oppsummeringen før du lagrer.
-          </BodyLong>
-          <BodyLong>
-            Hele sammenligningen av <code className={code}>standard</code> og <code className={code}>strict</code> står
-            i{" "}
+            cplt bruker sikkerhetsnivået <code className={code}>standard</code>, som passer for de fleste.{" "}
             <NextLink href="/nav-pilot/forklaring/sandkassen#sikkerhetsniva" className={linkClass}>
               Sandkassen
-            </NextLink>
-            .
+            </NextLink>{" "}
+            forklarer nivåene, <code className={code}>strict</code> og hvordan du endrer svarene senere.
           </BodyLong>
         </VStack>
       </section>

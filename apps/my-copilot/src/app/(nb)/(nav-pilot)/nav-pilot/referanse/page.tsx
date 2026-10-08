@@ -12,6 +12,15 @@ import type { TocItem } from "@/components/table-of-contents";
 import { FALLBACK_TABLE, MANIFEST_URL, getLocalModels, type LocalModel } from "@/lib/local-models";
 import { CLI_COMMANDS, CONFIG_KEYS } from "./data";
 
+// Keys whose full behaviour is explained elsewhere. data.ts is generated, so the links live here.
+const KEY_LINKS: Record<string, { href: string; label: string }> = {
+  autonomy: { href: "/nav-pilot/forklaring/sandkassen#autonomi", label: "Mer om autonomy" },
+  client: { href: "/nav-pilot/klienter", label: "Klienter" },
+  local_dispatch: { href: "/nav-pilot/forklaring/lokal-modell#utsending", label: "Utsending" },
+  surveys: { href: "/nav-pilot/forklaring/personvern#brukerundersokelser", label: "Brukerundersøkelser" },
+  news: { href: "/nav-pilot/forklaring/personvern#nyheter", label: "Nyheter" },
+};
+
 export const metadata: Metadata = {
   title: "Referanse",
   description:
@@ -194,25 +203,38 @@ export default function Referanse() {
             </NextLink>
             .
           </BodyLong>
-          <div className="overflow-x-auto">
-            <Table size="small" style={{ minWidth: "40rem" }}>
-              <HeaderRow cells={["Nøkkel", "Flagg", "Verdier", "Hva den gjør"]} />
-              <TableBody>
-                {CONFIG_KEYS.map((k) => (
-                  <TableRow key={k.key}>
-                    <TableDataCell>
-                      <code className={`${code} whitespace-nowrap`}>{k.key}</code>
-                    </TableDataCell>
-                    <TableDataCell>
-                      <code className={code}>{k.flag}</code>
-                    </TableDataCell>
-                    <TableDataCell>{k.values}</TableDataCell>
-                    <TableDataCell>{k.desc}</TableDataCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <dl>
+            {CONFIG_KEYS.map((k) => (
+              <div
+                key={k.key}
+                id={`nokkel-${k.key}`}
+                className="py-3"
+                style={{ borderBottom: "1px solid var(--ax-border-neutral-subtle)" }}
+              >
+                <dt className="flex flex-wrap gap-x-3 gap-y-1">
+                  <code className={code}>{k.key}</code>
+                  {k.flag !== "—" && <code className={code}>{k.flag}</code>}
+                </dt>
+                <dd className="mt-1">
+                  <BodyShort size="small" textColor="subtle">
+                    {k.values}
+                  </BodyShort>
+                  <BodyShort>
+                    {k.desc}
+                    {KEY_LINKS[k.key] && (
+                      <>
+                        {" "}
+                        <NextLink href={KEY_LINKS[k.key].href} className={linkClass}>
+                          {KEY_LINKS[k.key].label}
+                        </NextLink>
+                        .
+                      </>
+                    )}
+                  </BodyShort>
+                </dd>
+              </div>
+            ))}
+          </dl>
         </VStack>
       </section>
 
@@ -222,11 +244,8 @@ export default function Referanse() {
             Sikkerhetsnivå i cplt
           </LinkableHeading>
           <BodyLong>
-            Nivået er <code className={code}>sandbox.preset</code> i cplt. Sett det med{" "}
-            <code className={code}>nav-pilot config setup --advanced</code> eller{" "}
-            <code className={code}>nav-pilot config</code>, raden «cplt strict preset (blocks all pushes)», så kommer
-            Nav-hostene med. Har du en egen <code className={code}>proxy.allowed_domains</code>, må du legge dem inn i
-            den selv. Hvorfor står i{" "}
+            Nivået er <code className={code}>sandbox.preset</code> i cplt. Hva nivåene betyr, og hvordan du bytter, står
+            i{" "}
             <NextLink href="/nav-pilot/forklaring/sandkassen#sikkerhetsniva" className={linkClass}>
               Sandkassen
             </NextLink>
@@ -329,67 +348,13 @@ export default function Referanse() {
             Ytelse
           </LinkableHeading>
           <BodyLong>
-            nav-pilot skal starte klienten uten å vente på nettet. Målene gjelder også når nettet ikke svarer:
-          </BodyLong>
-          <Bullets>
-            <li>Under 150 ms fra du kjører nav-pilot til klienten starter.</li>
-            <li>Under 200 ms fra økten slutter til du har terminalen tilbake.</li>
-            <li>
-              Under 50 ms for <code className={code}>--version</code> og <code className={code}>--help</code>. De sender
-              ikke telemetri.
-            </li>
-            <li>
-              Kommandoer som ikke trenger nettet, som <code className={code}>config get</code>, venter høyst 300 ms på
-              versjonssjekken, aldri på telemetrien.
-            </li>
-          </Bullets>
-          <BodyLong>
-            Det som trenger nett, skjer i bakgrunnen eller leses fra en kopi på maskinen. Alle filene ligger i{" "}
-            <code className={code}>~/.nav-pilot/</code>:
-          </BodyLong>
-          <Bullets>
-            <li>
-              <code className={code}>cache.json</code>: versjonssjekken spør GitHub høyst én gang i døgnet, i
-              bakgrunnen. Neste kommando sier fra hvis det finnes en ny versjon.
-            </li>
-            <li>
-              <code className={code}>sources/</code>: en kopi av agentpakka per kilde: navikt/copilot (for opencode og
-              pi) og en agentpakke fra et annet team (<code className={code}>source</code> i konfigurasjonen). En ny
-              kopi hentes mens økten kjører, høyst én gang i timen.
-            </li>
-            <li>
-              <code className={code}>client-versions.json</code>: svaret fra{" "}
-              <code className={code}>copilot --version</code> og <code className={code}>opencode --version</code>.
-              nav-pilot spør på nytt når klienten er oppdatert eller installert på nytt.
-            </li>
-            <li>
-              <code className={code}>surveys.json</code> og <code className={code}>news.json</code>: undersøkelser og
-              nyheter hentes mens økten kjører. Nyhetslinja etter en økt kommer høyst én gang i døgnet.
-            </li>
-            <li>
-              <code className={code}>telemetry-spool/</code>: telemetrien skrives hit når en kommando avslutter. En egen
-              prosess sender den rett etterpå, og det den ikke rekker, sender neste nav-pilot. Den slettes når den er
-              sendt, etter sju dager, eller når du slår av telemetrien.
-            </li>
-          </Bullets>
-          <BodyLong>
-            Unntaket er den første nedlastingen av en agentpakke. Finnes ingen kopi i{" "}
-            <code className={code}>sources/</code>, venter oppstarten på nedlastingen, høyst 30 sekunder. Mislykkes den,
-            venter ikke oppstartene den neste timen på nettet, men prøver igjen i bakgrunnen. En kopi av en agentpakke
-            fra et annet team brukes i høyst ett døgn, fordi manifestet bestemmer hvordan økten starter. Er kopien
-            eldre, venter oppstarten på en ny: høyst 15 sekunder når nav-pilot har manifestet fra før, ellers 30.
-          </BodyLong>
-          <BodyLong>
-            En oppstart som ikke trenger noe fra deg, skriver ingenting. Det som er nytt, sier nav-pilot én gang, og en
-            advarsel kommer på nytt først når noe endrer seg. <code className={code}>nav-pilot --verbose</code> viser
-            hva oppstarten gjør: sandkassemappe, klient, agent og modell.
-          </BodyLong>
-          <BodyLong>
-            Testen <code className={code}>TestLaunchBudget</code> passer på målene i CI. Den starter nav-pilot med
-            falske klienter, med telemetrien på og et nett som tar imot forbindelser uten å svare. Den feiler når
-            medianen av seks kjøringer er mer enn tre ganger målet. Så mye tregere blir det bare når noe venter på
-            nettet. Hver kjøring gjøres også med telemetrien av, og med telemetrien på skal den ikke ta mer enn 40 ms
-            lenger.
+            nav-pilot starter klienten uten å vente på nettet. Versjonssjekk, nyheter og telemetri skjer i bakgrunnen.{" "}
+            <code className={code}>nav-pilot --verbose</code> viser hva oppstarten gjør. Målene og filene i{" "}
+            <code className={code}>~/.nav-pilot/</code> står i{" "}
+            <a href="https://github.com/navikt/copilot/blob/main/cli/nav-pilot/DESIGN.md#ytelse" className={linkClass}>
+              DESIGN.md
+            </a>
+            .
           </BodyLong>
         </VStack>
       </section>

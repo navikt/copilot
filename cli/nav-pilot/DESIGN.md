@@ -1113,3 +1113,26 @@ Noen avvik fra industripraksis er bevisste valg:
 4. **Farger via ANSI i stedet for lipgloss** — 30 linjer i output.go er nok. lipgloss er overkill for fem fargehjelper-funksjoner.
 
 5. **Ingen konfigurasjonsfil** — CLI-flagg og miljøvariabler er nok for et verktøy som kjøres sjelden. Konfigfiler legger til kompleksitet.
+
+## Ytelse
+
+nav-pilot skal starte klienten uten å vente på nettet. Målene gjelder også når nettet ikke svarer:
+
+- Under 150 ms fra du kjører nav-pilot til klienten starter.
+- Under 200 ms fra økten slutter til du har terminalen tilbake.
+- Under 50 ms for `--version` og `--help`. De sender ikke telemetri.
+- Kommandoer som ikke trenger nettet, som `config get`, venter høyst 300 ms på versjonssjekken, aldri på telemetrien.
+
+Det som trenger nett, skjer i bakgrunnen eller leses fra en kopi på maskinen. Alle filene ligger i `~/.nav-pilot/`:
+
+- `cache.json`: versjonssjekken spør GitHub høyst én gang i døgnet, i bakgrunnen. Neste kommando sier fra hvis det finnes en ny versjon.
+- `sources/`: en kopi av agentpakka per kilde: navikt/copilot (for opencode og pi) og en agentpakke fra et annet team (`source` i konfigurasjonen). En ny kopi hentes mens økten kjører, høyst én gang i timen.
+- `client-versions.json`: svaret fra `copilot --version` og `opencode --version`. nav-pilot spør på nytt når klienten er oppdatert eller installert på nytt.
+- `surveys.json` og `news.json`: undersøkelser og nyheter hentes mens økten kjører. Nyhetslinja etter en økt kommer høyst én gang i døgnet.
+- `telemetry-spool/`: telemetrien skrives hit når en kommando avslutter. En egen prosess sender den rett etterpå, og det den ikke rekker, sender neste nav-pilot. Den slettes når den er sendt, etter sju dager, eller når du slår av telemetrien.
+
+Unntaket er den første nedlastingen av en agentpakke. Finnes ingen kopi i `sources/`, venter oppstarten på nedlastingen, høyst 30 sekunder. Mislykkes den, venter ikke oppstartene den neste timen på nettet, men prøver igjen i bakgrunnen. En kopi av en agentpakke fra et annet team brukes i høyst ett døgn, fordi manifestet bestemmer hvordan økten starter. Er kopien eldre, venter oppstarten på en ny: høyst 15 sekunder når nav-pilot har manifestet fra før, ellers 30.
+
+En oppstart som ikke trenger noe fra deg, skriver ingenting. Det som er nytt, sier nav-pilot én gang, og en advarsel kommer på nytt først når noe endrer seg. `nav-pilot --verbose` viser hva oppstarten gjør: sandkassemappe, klient, agent og modell.
+
+Testen `TestLaunchBudget` passer på målene i CI. Den starter nav-pilot med falske klienter, med telemetrien på og et nett som tar imot forbindelser uten å svare. Den feiler når medianen av seks kjøringer er mer enn tre ganger målet. Så mye tregere blir det bare når noe venter på nettet. Hver kjøring gjøres også med telemetrien av, og med telemetrien på skal den ikke ta mer enn 40 ms lenger.
