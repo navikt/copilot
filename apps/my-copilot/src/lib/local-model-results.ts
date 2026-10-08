@@ -89,7 +89,7 @@ export const DECIDE_RESULTS: ResultSet = {
     {
       task: "Forklarer commit-meldingen hvorfor?",
       result:
-        "89 av 96 (93 %). Ved terskel 0,7 fanget den 40 av 48 meldinger uten hvorfor og flagget ingen av de 24 som forklarte hvorfor. Med så få kan andelen feilflagg likevel være opptil 14 %.",
+        "89 av 96 (93 %). Ved terskel 0,7 fanget den 40 av 48 kall om meldinger uten hvorfor og flagget ingen av 48 kall om meldinger som forklarte hvorfor. Hver gruppe er 24 meldinger, spurt på engelsk og norsk. Med så få meldinger kan andelen feilflagg likevel være opptil 14 %.",
       verdict: "Varsler, stopper aldri",
     },
     {
@@ -105,9 +105,9 @@ export const DECIDE_RESULTS: ResultSet = {
   ],
 };
 
-/** "2026-09-26" → "26. september 2026". */
+/** "2026-09-26" → "26. september 2026". A full timestamp keeps its time, so the Oslo date is right. */
 export function formatDate(iso: string): string {
-  return new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString("nb-NO", {
+  return new Date(iso.length > 10 ? iso : `${iso}T12:00:00Z`).toLocaleDateString("nb-NO", {
     day: "numeric",
     month: "long",
     year: "numeric",
