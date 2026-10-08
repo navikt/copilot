@@ -422,6 +422,26 @@ Forbruket var 20,5 credits for hele armen.
 
 Med «fnr» i `RE_BS1` og «tilgang» eller «hvem skal kunne kalle» i `RE_BS2` ville t3 og t7b blitt 5/5, og Luna ville nådd kravet. Vurderingen over står likevel, fordi den bygger på kriteriene slik de ble satt før målingen. Sjekkene følges opp i [#1462](https://github.com/navikt/copilot/issues/1462).
 
+### Omregning med rettede sjekker (8. oktober 2026)
+
+Sjekkene for blindsone 1 og 2 er rettet, og planleggingssjekkene leser nå bare svaret, ikke verktøyutskriften:
+
+- **Blindsone 1:** «fnr» teller når det står i et spørsmål til brukeren, men ikke når spørsmålet gjelder format eller felt («Skal fnr være påkrevd?»). Alle promptene som tester blindsone 1, inneholder «fnr». Et svar som bare gjentar prompten, skal ikke bestå.
+- **Blindsone 2:** «hvem skal kunne kalle» teller. «Tilgang» teller når det står i et spørsmål, men ikke når spørsmålet gjelder nøkler («nøkkeltilgang»). En setning som «API-et må ha utgående tilgang til PDL» teller ikke.
+- **Verktøyutskrift:** Sjekkene på svaret leser transkriptet uten verktøylinjer, med det samme filteret som review-sjekkene bruker. Sjekker som gjelder verktøykall, leser fortsatt hele transkriptet.
+
+Ingen modell er kjørt på nytt. De eneste lagrede planleggingssvarene er Luna-svarene fra 7. oktober. Batch 4 (GPT-6 Sol, GPT-6.1 Sol og Opus 5.5) lagret ikke svarene, så de tallene kan ikke regnes om. Mønstrene er utledet fra de samme Luna-svarene som regnes om her. Hver kjøring står i [omregning-1462.psv](golden-baselines/2026-10-07-luna-planning/omregning-1462.psv).
+
+| Sjekk | Testoppsettet 7. okt. | Gammel sjekk på svaret | Ny sjekk | Krav |
+| ----- | --------------------- | ---------------------- | -------- | ---- |
+| t3    | 4/5                   | 4/5                    | 5/5      | 5/5  |
+| t7    | 5/5                   | 5/5                    | 5/5      | 5/5  |
+| t7b   | 4/5                   | 3/5                    | 5/5      | 5/5  |
+
+t2 (5/5), t4 (4/5) og t5 (5/5) er uendret.
+
+**Vurdering: Med de rettede sjekkene når GPT-6 Luna Medium kravene for planlegging.** Kravene er de samme som ble satt før målingen. Bare sjekkene er endret. Pinnene er ikke endret. Om Luna skal bli standardmodell for `@nav-pilot`, er en egen beslutning.
+
 ## @security-champion målt direkte (7. oktober 2026)
 
 `@security-champion` er pinnet til Claude Opus 5.5 og skal merke en åpen `accessPolicy.inbound` som kritisk. Agenten er aldri målt med sin egen persona. Testene sc1–sc3 kjøres med `--agent security-champion`. De gir agenten den samme branchen som rv5–rv7. Der registrerer `App.kt` TokenX-validering uten `verifier`, og `validate` sjekker bare at det finnes en `audience`, ikke hvilken. sc1 krever at hver plantede sikkerhetsfeil er nevnt med riktig fil og linje. sc2 krever at hver av dem er nevnt og merket kritisk (🔴, «kritisk» eller «critical»; «høy» er ikke nok). En rad uten egen prioritet arver prioriteten fra overskriften den står under. sc3 gir agenten en fil uten feil og teller funn merket kritisk. Testene er ikke en egen testpakke og står derfor ikke i `summary.json` eller på `/modeller`.
