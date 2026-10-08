@@ -25,11 +25,11 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_decide_result_total` | Counter | Utfall av `alpha decide` | `result=decided\|below_threshold\|no_server\|timeout\|error`, `model`, `backend=mlx\|endpoint`, `evidence=yes\|no`, `options=2\|3-4\|5-11\|12+`, `threshold_used=yes\|no`, `caller=tty\|hook\|script` |
 | `nav_pilot_decide_latency_ms` | Histogram | Tid for et besvart `alpha decide`-kall, inkludert venting på serveren | `model`, `evidence_size=none\|<1k\|1-8k\|8-32k\|32k+` |
 | `nav_pilot_decide_p_choice` | Histogram | Sannsynligheten modellen ga alternativet den valgte | `model` |
-| `nav_pilot_hook_loop_guard_total` | Counter | Løkkevakten slo til | `rule=same_result\|cycle\|backstop`, `session=local\|cloud` |
+| `nav_pilot_hook_loop_guard_total` | Counter | Loop guard slo til | `rule=same_result\|cycle\|backstop`, `session=local\|cloud` |
 | `nav_pilot_hook_redact_total` | Counter | Antall maskeringer i verktøyresultater | `kind=secret\|fnr\|injection_note` |
 | `nav_pilot_hook_action_check_total` | Counter | Handlingssjekken spurte den lokale modellen om en risikabel skallkommando | `outcome=flagged\|passed\|skipped_timeout\|skipped_no_server\|skipped_error`, `category=kubectl\|nais\|gcloud\|helm\|terraform\|rm\|git\|disk\|sql` |
 | `nav_pilot_local_dispatches` | Histogram | Oppgaver en økt sendte til den lokale modellen, målt når økten slutter | `client`, `model`, `dispatch_level=off\|conservative\|balanced\|aggressive`, `saw_traffic` |
-| `nav_pilot_local_gate_total` | Counter | Hva utsendingsvakten gjorde i en økt med `local_dispatch` `balanced` eller `aggressive` | `outcome=deny_files\|deny_sites\|deny_scripted\|deny_create\|deny_tmp\|dispatched_after_deny\|verify_nudge\|create_retry\|create_retry_passed\|create_retry_failed` |
+| `nav_pilot_local_gate_total` | Counter | Hva delegeringssperren gjorde i en økt med `local_dispatch` `balanced` eller `aggressive` | `outcome=deny_files\|deny_sites\|deny_scripted\|deny_create\|deny_tmp\|dispatched_after_deny\|verify_nudge\|create_retry\|create_retry_passed\|create_retry_failed` |
 
 **Merk om `alpha decide` og hookene:**
 - Spørsmålet, alternativene, evidensen og valget sendes aldri, bare antall og
@@ -46,7 +46,7 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
   TLS-forbindelse, målt til ca. 80 ms varm og 1,7 s kald, på et kall Copilot
   venter på. De legger en linje i `~/.copilot/session-state/<økt>/nav-pilot-hook-events`,
   og nav-pilot sender dem når en Copilot-økt startet med nav-pilot avslutter.
-  `session=local` kommer fra løkkevakten foran den lokale modellen, og telles også
+  `session=local` kommer fra loop guard foran den lokale modellen, og telles også
   ved avslutning.
 - Handlingssjekken sender aldri kommandoen, bare utfallet og kategorien fra
   klassifiseringen. `flagged` betyr at modellen ga et risikabelt svar med
@@ -325,9 +325,9 @@ samme funksjon, samme `attrs`-slice, ett `Add` og ett `Record`. Histogrammets `_
 *er* antallet kommandoer. Bruk den. De så forskjellige ut en periode fordi tellere ble
 sendt som delta og forkastet, mens histogrammer kom fram hele tiden.
 
-`local_server_total` skrev samme hendelse fra samme kallsted som
+`local_server_total` skrev samme hendelse fra samme kall som
 `nav_pilot_local_ready_seconds`, som nå har `outcome`. Den ene verdien den hadde for seg
-selv, `hung`, kunne aldri komme fram: kallstedet sender `Status()`, og bare `Health(ctx)`
+selv, `hung`, kunne aldri komme fram: kallet sender `Status()`, og bare `Health(ctx)`
 produserer `hung`. Den har rapportert `ready` og ingenting annet.
 
 **En måling per spørsmål.** To metrikker som svarer på det samme er ikke redundans,
