@@ -44,9 +44,11 @@ export default function CpltFeilmeldinger() {
             <span id="sign-in-failed" />
             <span id="pnpm-config" />
             <span id="pnpm-claude" />
-            <strong>Eldre cplt? Oppgrader først.</strong> Flere feil er rettet i cplt fra 29. september 2026, blant
-            annet at pnpm ikke fikk lese sin egen konfig, at pakker med en <code className={code}>.claude</code>-mappe
-            ikke kunne installeres, og at en egen host-liste stengte Copilot ute fra innloggingen.
+            <strong>Eldre cplt? Oppgrader først.</strong> Flere feil er rettet i cplt fra 29. september 2026: pnpm fikk
+            ikke lese sin egen konfig (<code className={code}>EPERM … pnpm/config.yaml</code>), pakker med en{" "}
+            <code className={code}>.claude</code>-mappe kunne ikke installeres (
+            <code className={code}>ERR_PNPM_EPERM</code>), og en egen host-liste stengte Copilot ute fra innloggingen (
+            <code className={code}>Sign-in failed</code>).
           </BodyLong>
           <BodyLong>Finner du ikke feilen under, spør cplt selv:</BodyLong>
           <CodeBlock compact>

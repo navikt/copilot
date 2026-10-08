@@ -195,7 +195,7 @@ cplt init --write --merge                     # legger til nye funn, fjerner ing
           <BodyLong>
             Go-tester med <code className={code}>httptest</code>, Gradle-daemonen og arbeidsprosessene til Turbopack,
             Vite og esbuild lytter på tilfeldige porter, så én port er ikke nok. Med bare port 3000 åpen starter
-            Next.js, men første side feiler. Da må alle portene åpnes:
+            Next.js, men første side feiler. Da må du åpne alle portene:
           </BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_localhost_any true`}</CodeBlock>
           <Bullets>
@@ -311,8 +311,8 @@ nav-pilot`}
             </li>
           </Bullets>
           <BodyLong>
-            Mangler en vert, sjekk den og legg den til. <code className={code}>allow.domains</code> legger verter til en
-            liste som allerede er slått på. Den slår ikke på lista:
+            Mangler en vert, sjekk den og legg den til med <code className={code}>allow.domains</code>. Den legger til
+            på en liste som allerede er slått på, og slår ikke på lista selv:
           </BodyLong>
           <CodeBlock compact>
             {`cplt check net min.vert.no

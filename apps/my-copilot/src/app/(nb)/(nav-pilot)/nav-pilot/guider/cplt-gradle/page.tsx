@@ -91,7 +91,8 @@ cplt trust accept --all`}
             <code className={code}>./gradlew</code> ned Gradle og avhengigheter som vanlig.
           </BodyLong>
           <BodyLong>
-            Har du slått på en liste over tillatte verter, er Maven Central og Gradle-plugins med, se{" "}
+            Har du slått på en liste over tillatte verter med <code className={code}>proxy.default_allowlist</code>, er
+            Maven Central og Gradle-plugins med, se{" "}
             <NextLink href="/nav-pilot/guider/cplt-oppsett#tillatelsesliste" className={linkClass}>
               Pakkeregistre og en liste over tillatte verter
             </NextLink>

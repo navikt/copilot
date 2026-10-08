@@ -379,12 +379,12 @@ cplt config set sandbox.allow_cache_exec npm/_npx`}
             Pakkeregistre og en liste over tillatte verter
           </LinkableHeading>
           <BodyLong>
-            Uten en liste over tillatte verter virker installasjoner som vanlig. Hvilke registre lista har med, står i{" "}
+            Uten en liste over tillatte verter virker installasjoner som vanlig. Med{" "}
+            <code className={code}>proxy.default_allowlist</code> er npm og yarn med (se{" "}
             <NextLink href={`${OPPSETT}#tillatelsesliste`} className={linkClass}>
               Pakkeregistre og en liste over tillatte verter
             </NextLink>
-            . npm og yarn er med. Vertene Playwright og Cypress laster ned nettlesere fra, er ikke med. Sjekk en vert og
-            legg den til:
+            ), men ikke vertene Playwright og Cypress laster ned nettlesere fra. Sjekk en vert og legg den til:
           </BodyLong>
           <CodeBlock compact>
             {`cplt check net cdn.playwright.dev
