@@ -543,6 +543,30 @@ Fem kjøringer er lite. `coding` består av tre små oppgaver, så et pinnebytte
 
 Målingen brukte 98,4 credits ifølge bruksradene: 60,9 på Haiku og 37,6 på Luna. Prøvekjøringene og sjekken av innsatsnivåene brukte om lag 1,6 til. Budsjettet var om lag 80 credits, med stopp ved 150.
 
+## Claude Haiku 5.5 Low på @kafka og @rust (8. oktober 2026)
+
+Kodesuiten har tre små rettinger i Go og TypeScript, og der besto både Claude Haiku 5.5 Low og GPT-6 Luna Medium alle 30 sjekkene. Haiku Low var billigst. Den suiten kjører `@nav-pilot` og sier lite om Kafka og Rust. Derfor måler vi her de to modellene gjennom agentene som faktisk er pinnet til Luna: `@kafka` og `@rust`.
+
+Testoppsettet hadde ingen Kafka- eller Rust-oppgaver. Fire nye ligger i [`scripts/golden-fixtures/`](../scripts/golden-fixtures/), som testpakkene `kafka` og `rust`:
+
+- **kf-idem** (`@kafka`): En Kotlin-konsument commiter offset før behandlingen og utbetaler samme hendelse to ganger. kf1 krever at samme `eventId` utbetales én gang, at offset commites etter behandlingen, og at en feilet utbetaling ikke commites.
+- **kf-felt** (`@kafka`): Feltet `sakstype` skal inn i en JSON-hendelse. kf3 krever at gamle meldinger uten feltet leses som `ORDINAER`, at nye meldinger skrives med feltet, og at ukjente felt fra nyere produsenter ikke stopper lesingen.
+- **rs-borrow** (`@rust`): `cargo test` kompilerer ikke på grunn av en lånefeil. rs1 krever at køen tømmes i riktig rekkefølge og at en tom kø gir `None`.
+- **rs-feil** (`@rust`): En parser får panikk på ugyldig input. rs3 krever `Result` med en feiltype laget med `thiserror`, de tre navngitte variantene, den ugyldige teksten i feilmeldingen og minst én ny test per feil.
+
+kf2, kf4, rs2 og rs4 krever at agenten bare endrer filer i prosjektet oppgaven gjelder. Testene i kf1, kf3, rs1 og rs3 ser agenten ikke. De kjøres etter kallet, sammen med agentens egne tester, i en kopi av prosjektet. Før hver kjøring sjekker testoppsettet tre kontroller per oppgave: den urørte koden feiler, den kjente rettingen består, og en fristende gal retting feiler. `scripts/nav-pilot-golden.bats` kjører de samme kontrollene gjennom hele testoppsettet.
+
+### Kriteriene ble satt før målingen
+
+En oppgave er bestått i en kjøring når begge sjekkene er grønne. Claude Haiku 5.5 Low erstatter GPT-6 Luna Medium på `@kafka` eller `@rust` bare hvis begge disse holder for den agenten:
+
+- Haiku Low består hver av agentens to oppgaver i minst like mange kjøringer som Luna Medium.
+- Medianen av credits per kjøring for Haiku Low er lik eller lavere enn for Luna Medium.
+
+Ellers beholder agenten Luna. Hver agent vurderes for seg.
+
+Armene er Claude Haiku 5.5 Low og GPT-6 Luna Medium, fem kjøringer per oppgave og arm i Copilot CLI, med `--keep`. Testoppsettet fjerner modellpinnen. En kjøring der bruksradene viser en annen modell enn armen, forkastes. Budsjettet er om lag 40 credits, med stopp ved 80. Målingen endrer ingen pinner.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
