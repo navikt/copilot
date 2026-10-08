@@ -240,9 +240,9 @@ func CheckOpenCodeMajor() error {
 	} else if n, _ := strconv.Atoi(strings.SplitN(v, ".", 2)[0]); n < 3 {
 		return nil
 	}
-	// opencode 2 runs under cplt on macOS only (checkOpenCode2Launch).
+	// opencode 2 runs under cplt on macOS and Linux (checkOpenCode2Launch).
 	major, hint := "1", OpenCode1InstallHint()
-	if hostOS == "darwin" {
+	if minOpenCode2CpltStamp() != "" {
 		major, hint = "2", OpenCode2InstallHint()
 	}
 	return fmt.Errorf("opencode %s is newer than nav-pilot supports (opencode 1 and 2): its flags, plugins and config loading may have changed.\n\n  Install opencode %s: %s",
@@ -280,12 +280,24 @@ var errCpltTooOld = errors.New("cplt too old")
 // hostOS is runtime.GOOS; tests set it.
 var hostOS = runtime.GOOS
 
-const minOpenCode2CpltStamp = "2026.10.08-081501"
+// minOpenCode2CpltStamp is the cplt floor for opencode 2 on hostOS, "" where
+// cplt does not run it. Linux needs navikt/cplt#740 (2026.10.08-092800),
+// which runs opencode 2 under bubblewrap; cplt itself refuses a host without
+// it, with install instructions.
+func minOpenCode2CpltStamp() string {
+	switch hostOS {
+	case "darwin":
+		return "2026.10.08-081501"
+	case "linux":
+		return "2026.10.08-092800"
+	}
+	return ""
+}
 
 // checkOpenCode2Launch refuses an opencode 2 launch that would run outside the
 // sandboxed per-session service: a cplt without #716 (or one whose version
 // cannot be read, fail-closed as checkCpltFloor), arguments that connect
-// the client to another server, or a platform other than macOS, where cplt
+// the client to another server, or a platform other than macOS and Linux, where cplt
 // does not run opencode 2. Nil on opencode 1. An opencode whose version
 // cannot be read is launched as opencode 1 but still needs the cplt floor, so
 // cplt's own fail-closed refusal (#735) is there if it really is opencode 2.
@@ -303,8 +315,8 @@ func checkOpenCode2Launch(args []string) error {
 		}
 	} else if openCodeMajor() < 2 {
 		return nil
-	} else if hostOS != "darwin" {
-		return fmt.Errorf("opencode 2 runs under cplt on macOS only, and nav-pilot never launches a client outside cplt.\n\n  Install opencode 1: %s",
+	} else if minOpenCode2CpltStamp() == "" {
+		return fmt.Errorf("opencode 2 runs under cplt on macOS and Linux only, and nav-pilot never launches a client outside cplt.\n\n  Install opencode 1: %s",
 			domain.Bold(OpenCode1InstallHint()))
 	}
 	if len(args) > 0 && args[0] == "attach" {
@@ -324,8 +336,14 @@ func checkOpenCode2Launch(args []string) error {
 	return checkOpenCode2Cplt()
 }
 
-// checkOpenCode2Cplt refuses a cplt older than minOpenCode2CpltStamp.
+// checkOpenCode2Cplt refuses a cplt older than minOpenCode2CpltStamp. On a
+// platform without a floor (an unreadable opencode version there), the macOS
+// floor stands in so cplt's fail-closed refusal (#735) is still present.
 func checkOpenCode2Cplt() error {
+	floor := minOpenCode2CpltStamp()
+	if floor == "" {
+		floor = "2026.10.08-081501"
+	}
 	out, err := probeCpltVersion()
 	if errors.Is(err, errCpltNotFound) {
 		return nil // the launch's own cplt-missing path (ErrCpltMissing) says how to install it
@@ -334,9 +352,9 @@ func checkOpenCode2Cplt() error {
 	if err != nil {
 		found = err.Error()
 	}
-	if stamp := cpltStamp(out); err != nil || stamp == "" || stamp < minOpenCode2CpltStamp {
-		return fmt.Errorf("%w: opencode 2 needs cplt %s or newer (navikt/cplt#716, #722, #735, #736), found %q: an older cplt runs the session in the host's background service, without nav-pilot's hooks.\n\n  Upgrade it: %s",
-			errCpltTooOld, minOpenCode2CpltStamp, found, domain.Bold(cpltUpgradeHint()))
+	if stamp := cpltStamp(out); err != nil || stamp == "" || stamp < floor {
+		return fmt.Errorf("%w: opencode 2 needs cplt %s or newer (navikt/cplt#716, #722, #735, #736, #740 on Linux), found %q: %s.\n\n  Upgrade it: %s",
+			errCpltTooOld, floor, found, oldCpltConsequence(), domain.Bold(cpltUpgradeHint()))
 	}
 	return nil
 }
@@ -389,4 +407,13 @@ func OpenCode2InstallHint() string {
 		return "brew uninstall " + keg + " && brew install anomalyco/tap/opencode-v2"
 	}
 	return "npm i -g @opencode/cli@" + openCode2InstallVersion
+}
+
+// oldCpltConsequence is what a cplt below the floor does with opencode 2:
+// before #740 it refused it on Linux; on macOS it ran the host's service.
+func oldCpltConsequence() string {
+	if hostOS == "linux" {
+		return "an older cplt refuses to run opencode 2 on Linux"
+	}
+	return "an older cplt runs the session in the host's background service, without nav-pilot's hooks"
 }

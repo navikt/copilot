@@ -13,6 +13,13 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 - **`doctor` viser agenter med gammel modell**: `nav-pilot doctor` nevner hver agent der navikt/copilot har byttet modell siden pakka sist ble oppdatert, for eksempel at `@security-champion` kjører GPT-6 Sol mens navikt/copilot nå bruker Claude Opus 5.5. Agenter som pakka har gitt en egen modell, og agenter du har laget selv, nevnes ikke.
 - **Ingenting endres av seg selv**: Alle tre er bare beskjeder. Ingen filer blir skrevet før du sier ja eller kjører `sync --apply`.
 
+### OpenCode 2 under cplt på Linux
+
+- **nav-pilot starter OpenCode 2 på Linux**: `nav-pilot opencode` starter nå OpenCode 2 også på Linux. Linux krever nyere cplt enn macOS, og bubblewrap.
+- **Krever ny cplt og bubblewrap**: Kjør `cplt --version`: tallet etter `cplt` må være `2026.10.08-092800` eller høyere. Du trenger også bubblewrap (`bwrap`). Mangler det, nekter cplt å starte OpenCode 2 og sier hvordan du installerer det.
+- **Eldre kjerne gir svakere isolasjon**: Er Linux-kjernen eldre enn 6.7, kan ikke cplt begrense hvilke porter økten når. Da er det bare passordet til OpenCode-tjenesten som beskytter den, og cplt skriver en advarsel.
+- **OpenCode 3 eller nyere**: Har du OpenCode 3 eller nyere, sier nav-pilot nå også på Linux at du skal installere OpenCode 2.
+
 ### `@rust` bytter til Claude Haiku 5.5
 
 - **Ny modell**: `@rust` kjører på Claude Haiku 5.5 i stedet for GPT-6 Luna. GPT-6 Luna er reserve. `@kafka` blir på GPT-6 Luna.
@@ -26,7 +33,7 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 - **Krever ny cplt**: OpenCode 2 trenger cplt fra 8. oktober 2026 eller nyere. Kjør `cplt --version`: tallet etter `cplt` må være `2026.10.08-081501` eller høyere. Med en eldre cplt ville økten kjørt i OpenCodes bakgrunnstjeneste på maskinen, utenfor nav-pilots hooks. nav-pilot nekter derfor å starte og sier hvordan du oppgraderer. `nav-pilot doctor` viser det samme.
 - **Hent innloggingen på nytt**: Går du fra OpenCode 1 til 2, må du kjøre `opencode auth import` én gang. OpenCode 2 henter ikke innloggingen fra OpenCode 1 (`auth.json`) automatisk.
 - **Plugins i repoet kjører**: OpenCode 2 laster plugins fra `.opencode/` i repoet du står i, og de kjører med dine rettigheter inne i sandkassen. Åpner du et repo du ikke stoler på, sett `OPENCODE_DISABLE_PROJECT_CONFIG=1` før du starter. nav-pilot sender variabelen videre gjennom cplt.
-- **Ikke på Linux ennå**: cplt kjører ikke OpenCode 2 på Linux. Der nekter nav-pilot å starte OpenCode 2 og viser hvordan du installerer OpenCode 1. Har du OpenCode 3 eller nyere, sier nav-pilot at du skal installere OpenCode 2 på macOS og OpenCode 1 på Linux.
+- **Linux**: Se egen sak over.
 
 ### Hook-porter får to sekunders margin før Copilot gir opp
 

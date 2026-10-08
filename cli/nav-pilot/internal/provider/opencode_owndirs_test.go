@@ -212,14 +212,34 @@ func TestCheckOpenCode2Launch(t *testing.T) {
 	if err := checkOpenCode2Launch(nil); !errors.Is(err, errCpltTooOld) {
 		t.Errorf("old cplt: err = %v, want errCpltTooOld", err)
 	}
-	// cplt runs opencode 2 on macOS only; elsewhere nav-pilot says so first.
-	stubProbes(t, "cplt 2026.10.08-081501-54ea742\n", nil, "", nil)
+	// Linux has its own floor, navikt/cplt#740 (bubblewrap).
 	hostOS = "linux"
-	if err := checkOpenCode2Launch(nil); err == nil || !strings.Contains(err.Error(), "macOS only") {
-		t.Errorf("linux: err = %v, want the macOS-only refusal", err)
+	lookPath = func(string) (string, error) { return "/bin/opencode", nil }
+	for _, c := range []struct {
+		version, cplt string
+		args          []string
+		ok            bool
+	}{
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-092800-5050c9a\n", []string{"run", "hi"}, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-092800-5050c9a\n", []string{"attach", "x"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-092800-5050c9a\n", []string{"--server=http://x"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-092800-5050c9a\n", []string{"--standalone"}, false},
+		{"garbage\n", "cplt 2026.10.08-081501-54ea742\n", nil, false},
+		{"garbage\n", "cplt 2026.10.08-092800-5050c9a\n", nil, true},
+		{"1.18.35\n", "cplt 2026.10.06-120000-0d1d66d\n", nil, true},
+	} {
+		versionCache.Store("opencode", versionAnswer{c.version, nil, time.Hour})
+		stubProbes(t, c.cplt, nil, "", nil)
+		if err := checkOpenCode2Launch(c.args); (err == nil) != c.ok {
+			t.Errorf("linux %q cplt %q %v: err = %v, want ok %v", c.version, c.cplt, c.args, err, c.ok)
+		}
 	}
-	versionCache.Store("opencode", versionAnswer{"1.18.35\n", nil, time.Hour})
-	if err := checkOpenCode2Launch(nil); err != nil {
-		t.Errorf("linux, opencode 1: err = %v, want nil", err)
+	// cplt runs opencode 2 on macOS and Linux only; elsewhere nav-pilot says so first.
+	hostOS = "windows"
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	stubProbes(t, "cplt 2026.10.08-092800-5050c9a\n", nil, "", nil)
+	if err := checkOpenCode2Launch(nil); err == nil || !strings.Contains(err.Error(), "macOS and Linux only") {
+		t.Errorf("windows: err = %v, want the platform refusal", err)
 	}
 }
