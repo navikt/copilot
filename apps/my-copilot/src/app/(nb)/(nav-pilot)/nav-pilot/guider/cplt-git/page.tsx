@@ -71,9 +71,37 @@ git remote -v          # skal vise https://github.com/...`}
 gh pr create --head min-gren`}
           </CodeBlock>
           <BodyLong>
-            Uten terminal pusher ikke <code className={code}>gh pr create</code> for deg. På macOS fjerner cplt{" "}
-            <code className={code}>-u</code> fra <code className={code}>git push -u</code>, så grenen får ingen
-            upstream.
+            Uten terminal pusher ikke <code className={code}>gh pr create</code> for deg.
+          </BodyLong>
+          <BodyLong>
+            På macOS fjerner cplt <code className={code}>-u</code> fra <code className={code}>git push -u</code>, fordi{" "}
+            <code className={code}>.git/config</code> er skrivebeskyttet. Pushen går som vanlig. Når økta er ferdig,
+            setter cplt upstream for grenen hvis alt dette stemmer:
+          </BodyLong>
+          <Bullets>
+            <li>
+              Kommandoen var <code className={code}>git push -u &lt;remote&gt; &lt;gren&gt;</code> eller{" "}
+              <code className={code}>git push -u &lt;remote&gt; HEAD</code>, uten andre flagg.
+            </li>
+            <li>
+              Repoet er prosjektmappa eller et repo du har lagt til med <code className={code}>cplt link</code>.
+            </li>
+            <li>Grenen finnes fortsatt med samme navn, og remoten fantes fra før.</li>
+            <li>Git-vakta står på og ville sluppet gjennom pushen.</li>
+            <li>
+              Økta kjørte ikke med <code className={code}>--quiet</code>. <code className={code}>cplt exec</code> er
+              stille som standard.
+            </li>
+          </Bullets>
+          <BodyLong>
+            Ellers skriver cplt kommandoen du kan kjøre selv utenfor cplt, for eksempel{" "}
+            <code className={code}>git branch -u origin/min-gren min-gren</code>.{" "}
+            <code className={code}>git branch -u</code> og <code className={code}>--set-upstream-to</code> inne i økta
+            blir fortsatt ikke lagret. På Linux virker <code className={code}>-u</code> som vanlig.
+          </BodyLong>
+          <BodyLong>
+            Kloner agenten et repo inne i prosjektmappa, må du legge det til med <code className={code}>cplt link</code>{" "}
+            før cplt setter upstream der.
           </BodyLong>
         </VStack>
       </section>
@@ -133,7 +161,16 @@ gh pr create --head min-gren`}
               <code className={code}>git config</code> og <code className={code}>git config --global</code>
             </li>
             <li>
-              <code className={code}>git remote add</code> og <code className={code}>git remote set-url</code>
+              <code className={code}>git remote add</code> og <code className={code}>git remote set-url</code>.{" "}
+              <code className={code}>.git/remotes</code> og <code className={code}>.git/branches</code> er også
+              skrivebeskyttet
+            </li>
+            <li>
+              <code className={code}>git branch -u</code>, når cplt ikke satte upstream selv (se{" "}
+              <NextLink href="#push" className={linkClass}>
+                Push og pull request
+              </NextLink>
+              )
             </li>
             <li>
               <code className={code}>git clone</code>, <code className={code}>git init</code> og{" "}
