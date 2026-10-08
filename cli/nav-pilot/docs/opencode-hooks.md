@@ -2,7 +2,7 @@
 
 Issue: #1025, part of the parity plan in #1022.
 
-Copilot CLI runs nav-pilot's hooks from `~/.copilot/hooks/` and `.github/hooks/copilot-hooks.json`. An OpenCode session launched by nav-pilot runs the same hooks through one plugin, `internal/provider/hooks-bridge.js`. The plugin runs the same commands with the same JSON payloads and applies the same answers. There is no second implementation of any hook.
+Copilot CLI runs nav-pilot's hooks from `~/.copilot/hooks/` and `.github/hooks/copilot-hooks.json`. An OpenCode session launched by nav-pilot runs the same hooks through one plugin, `internal/provider/hooks-bridge.js` (`hooks-bridge-v2.js` on opencode 2). The plugin runs the same commands with the same JSON payloads and applies the same answers. There is no second implementation of any hook.
 
 | Hook | Copilot CLI | OpenCode (plugin hook) | On failure |
 |---|---|---|---|
@@ -67,7 +67,7 @@ Read in the OpenCode 1.18.32 source (`packages/opencode/src/session/tools.ts`, `
 
 OpenCode loads a repo's `.opencode/plugin(s)` and the `plugin` entries in its `opencode.json` as code, before the model sees anything. Under cplt such a plugin can do what the agent can: write in the project, run commands as the user, and reach the network through cplt's proxy. It cannot write outside the project. The hooks protect what the model reads (redaction, gates, the MCP block). They were never the boundary against a repo running its own code. cplt is.
 
-opencode 2 adds one step. It keeps the first plugin with a given id and drops later ones, and the bridge rides in `OPENCODE_CONFIG_CONTENT`, which loads last. A repo plugin with the bridge's id would win and turn nav-pilot's hooks off. The bridge therefore takes a per-launch random id (`OPENCODE_PLUGIN_ID`, passed with `--pass-env`). A repo plugin that already runs can read that id from its environment and claim it before the bridge loads ([anomalyco/opencode#53721](https://github.com/anomalyco/opencode/issues/53721)). That is a small extra risk on top of the code execution the repo already has, and it is accepted.
+opencode 2 adds one risk. It keeps the first plugin with a given id and drops later ones, and the bridge rides in `OPENCODE_CONFIG_CONTENT`, which loads last. A repo plugin with the bridge's id would win and turn nav-pilot's hooks off. The bridge therefore takes a per-launch random id (`NAV_PILOT_OPENCODE_PLUGIN_ID`, passed with `--pass-env`). A repo plugin that already runs can read that id from its environment and claim it before the bridge loads ([anomalyco/opencode#53721](https://github.com/anomalyco/opencode/issues/53721)). That is a small extra risk on top of the code execution the repo already has, and it is accepted.
 
 For a repo you do not trust, set `OPENCODE_DISABLE_PROJECT_CONFIG=1`. OpenCode then loads no project plugins, MCP servers or config, and nav-pilot runs no repo gates. It also turns off the repo's legitimate `.opencode` config.
 

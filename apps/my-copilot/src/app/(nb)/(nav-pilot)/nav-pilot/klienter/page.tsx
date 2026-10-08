@@ -27,8 +27,9 @@ const TOC: TocItem[] = [
 ];
 
 const GH = "https://github.com/navikt/copilot";
-const OPENCODE_RANGE = ">=1.18.20,<1.19"; // OpenCode1TestedRange in
-const OPENCODE2_RANGE = ">=2.0.24,<2.1"; // OpenCode2TestedRange in cli/nav-pilot/internal/provider/opencode_policy.go
+// OpenCode1TestedRange and OpenCode2TestedRange in cli/nav-pilot/internal/provider/opencode_policy.go
+const OPENCODE_RANGE = ">=1.18.20,<1.19";
+const OPENCODE2_RANGE = ">=2.0.24,<2.1";
 const c = (s: string) => <code className={code}>{s}</code>;
 
 const CLIENTS = [
@@ -379,11 +380,11 @@ export default function Klienter() {
           nav-pilot er testet mot opencode {c(OPENCODE_RANGE)} og opencode {c(OPENCODE2_RANGE)}. Er versjonen din
           utenfor, skriver nav-pilot en advarsel og starter likevel. Hooks, utsendingsstoppet og innstillingene
           nav-pilot setter per økt, virker da kanskje ikke som beskrevet her. {c("nav-pilot doctor")} viser versjonen og
-          om den er testet. opencode 3 starter ikke før vi har testet den.
+          om den er testet. nav-pilot starter ikke opencode 3 før vi har testet den.
         </BodyLong>
         <BodyLong>
           opencode 2 krever macOS og cplt fra 7. oktober 2026 eller nyere. På Linux kjører ikke cplt opencode 2 ennå, så
-          der må du bruke opencode 1. nav-pilot sier fra og viser hvordan du installerer den.
+          der må du bruke opencode 1. nav-pilot sier fra og viser hvordan du installerer opencode 1.
         </BodyLong>
         <LinkableHeading id="deling-og-oppdatering" size="small" level="3">
           Deling og oppdatering
@@ -492,8 +493,8 @@ export default function Klienter() {
           </li>
           <li>
             Plugins i repoet ({c(".opencode/plugin")} og {c("plugin")} i repoets {c("opencode.json")}) er kode som
-            kjører med samme rettigheter som agenten, innenfor cplt. Det gjelder både opencode 1 og 2. I opencode 2 kan
-            en slik plugin i tillegg slå av hookene til nav-pilot. Stoler du ikke på repoet, start med{" "}
+            kjører med samme rettigheter som agenten, i sandkassen. Det gjelder både opencode 1 og 2. I opencode 2 kan
+            en slik plugin i tillegg slå av hookene til nav-pilot. Stoler du ikke på repoet, start nav-pilot med{" "}
             {c("OPENCODE_DISABLE_PROJECT_CONFIG=1")}. Da laster opencode verken plugins, MCP-servere eller konfig fra
             repoet.
           </li>
