@@ -52,7 +52,7 @@
       "displayName": "@code-review",
       "description": "Kodegjennomgang for Nav-applikasjoner — finner feil, sikkerhetsproblemer og brudd på Nav-konvensjoner",
       "filePath": "agents/code-review.agent.md",
-      "contentHash": "75d9a30458469e25e86bb5b2286ead869c50a91254765879cabd0f7f9d03e280",
+      "contentHash": "1473bff7998a053ee8f2d2eaa45d1d74c5718af0743e1ea6d2cce29c376cbdbb",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -220,7 +220,7 @@
         "vulnerability"
       ],
       "filePath": "agents/security-champion.agent.md",
-      "contentHash": "dd636ac897a8fc169b1ed8af4f25de9011fb19a6cea8e9f72527a1d474556aaf",
+      "contentHash": "f6684694f6de03ee9d5bc259803389fbad4417905de72cabc10a109ea3cc00bc",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Azure AD integration",
