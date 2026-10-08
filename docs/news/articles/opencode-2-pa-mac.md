@@ -1,10 +1,10 @@
 ---
-title: "OpenCode 2 fungerer nå med nav-pilot på Mac"
+title: "OpenCode 2 fungerer nå med nav-pilot på Mac og Linux"
 date: 2026-10-08
 author: starefossen
 category: nav-pilot
 cli: true
-excerpt: "Vil du bruke OpenCode 2 på macOS, må du oppdatere cplt først. Bruker du OpenCode 1, trenger du ikke gjøre noe."
+excerpt: "Vil du bruke OpenCode 2 på macOS eller Linux, må du oppdatere cplt først. Bruker du OpenCode 1, trenger du ikke gjøre noe."
 tags:
   - nav-pilot
   - opencode

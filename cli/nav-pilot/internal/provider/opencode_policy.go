@@ -353,8 +353,8 @@ func checkOpenCode2Cplt() error {
 		found = err.Error()
 	}
 	if stamp := cpltStamp(out); err != nil || stamp == "" || stamp < floor {
-		return fmt.Errorf("%w: opencode 2 needs cplt %s or newer (navikt/cplt#716, #722, #735, #736, #740 on Linux), found %q: an older cplt runs the session in the host's background service, without nav-pilot's hooks.\n\n  Upgrade it: %s",
-			errCpltTooOld, floor, found, domain.Bold(cpltUpgradeHint()))
+		return fmt.Errorf("%w: opencode 2 needs cplt %s or newer (navikt/cplt#716, #722, #735, #736, #740 on Linux), found %q: %s.\n\n  Upgrade it: %s",
+			errCpltTooOld, floor, found, oldCpltConsequence(), domain.Bold(cpltUpgradeHint()))
 	}
 	return nil
 }
@@ -407,4 +407,13 @@ func OpenCode2InstallHint() string {
 		return "brew uninstall " + keg + " && brew install anomalyco/tap/opencode-v2"
 	}
 	return "npm i -g @opencode/cli@" + openCode2InstallVersion
+}
+
+// oldCpltConsequence is what a cplt below the floor does with opencode 2:
+// before #740 it refused it on Linux; on macOS it ran the host's service.
+func oldCpltConsequence() string {
+	if hostOS == "linux" {
+		return "an older cplt refuses to run opencode 2 on Linux"
+	}
+	return "an older cplt runs the session in the host's background service, without nav-pilot's hooks"
 }

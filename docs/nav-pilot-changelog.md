@@ -15,7 +15,7 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 ### OpenCode 2 under cplt på Linux
 
-- **nav-pilot starter OpenCode 2 på Linux**: `nav-pilot opencode` starter nå OpenCode 2 også på Linux, på samme vilkår som på macOS.
+- **nav-pilot starter OpenCode 2 på Linux**: `nav-pilot opencode` starter nå OpenCode 2 også på Linux. Linux krever nyere cplt enn macOS, og bubblewrap.
 - **Krever ny cplt og bubblewrap**: Kjør `cplt --version`: tallet etter `cplt` må være `2026.10.08-092800` eller høyere. Du trenger også bubblewrap (`bwrap`). Mangler det, nekter cplt å starte OpenCode 2 og sier hvordan du installerer det.
 - **Eldre kjerne gir svakere isolasjon**: Er Linux-kjernen eldre enn 6.7, kan ikke cplt begrense hvilke porter økten når. Da er det bare passordet til OpenCode-tjenesten som beskytter den, og cplt skriver en advarsel.
 - **OpenCode 3 eller nyere**: Har du OpenCode 3 eller nyere, sier nav-pilot nå også på Linux at du skal installere OpenCode 2.
