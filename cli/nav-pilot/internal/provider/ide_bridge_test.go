@@ -9,8 +9,7 @@ import (
 	"testing"
 )
 
-// shortTempDir is a temp dir short enough for a Unix socket path: macOS caps
-// one at 104 bytes, and t.TempDir() under /var/folders is already most of that.
+// shortTempDir keeps socket paths under macOS's 104-byte limit.
 func shortTempDir(t *testing.T) string {
 	t.Helper()
 	dir, err := os.MkdirTemp("/tmp", "ide")
@@ -62,7 +61,7 @@ func TestIDESockets(t *testing.T) {
 	listenUnix(t, dead)
 	writeLock(t, lockDir, "dead", ideLock{Scheme: "unix", SocketPath: dead, PID: deadPID})
 
-	// A lock file the agent wrote, naming some other socket.
+	// A forged lock file naming another socket.
 	other := filepath.Join(tmp, "docker.sock")
 	listenUnix(t, other)
 	writeLock(t, lockDir, "other", ideLock{Scheme: "unix", SocketPath: other, PID: livePID})
@@ -97,7 +96,7 @@ func TestPidAlive(t *testing.T) {
 	if !pidAlive(os.Getpid()) {
 		t.Error("own pid reported dead")
 	}
-	// pid 1 runs as root: signalling it is EPERM, and it is alive.
+	// pid 1 is root's: EPERM.
 	if os.Getuid() != 0 && !pidAlive(1) {
 		t.Error("EPERM pid reported dead")
 	}

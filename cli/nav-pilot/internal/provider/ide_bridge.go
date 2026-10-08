@@ -9,31 +9,22 @@ import (
 	"syscall"
 )
 
-// ideTerminalEnv is how Copilot CLI tells it runs in a JetBrains terminal.
-// cplt's env allowlist carries TERM_PROGRAM (VS Code) but not this one.
+// ideTerminalEnv marks a JetBrains terminal. cplt strips it by default.
 const ideTerminalEnv = "TERMINAL_EMULATOR"
 
-// ideSocketShape is the socket an IDE's Copilot plugin listens on, relative to
-// the temp dir: github-copilot-<rand>/.copilot-ide-<id>/m.sock. The lock file
-// that names it lives in ~/.copilot/ide, which the sandboxed agent can write,
-// so a lock file is never trusted to name an arbitrary socket: only this shape
-// in the user's own temp dir is granted.
+// ideSocketShape is the IDE plugin's socket, relative to the temp dir. The
+// agent can write ~/.copilot/ide, so only this shape is granted.
 var ideSocketShape = regexp.MustCompile(`^github-copilot-[^/]+/\.copilot-ide-[^/]+/m\.sock$`)
 
-// ideLock is the part of a ~/.copilot/ide/*.lock file the bridge reads.
+// ideLock is the part of a ~/.copilot/ide/*.lock file we read.
 type ideLock struct {
 	Scheme     string `json:"scheme"`
 	SocketPath string `json:"socketPath"`
 	PID        int    `json:"pid"`
 }
 
-// ideBridgeFlags are the cplt flags that let Copilot CLI reach the IDE it was
-// started from (file and selection context, diffs in the IDE). Without them
-// cplt blocks the IDE's Unix socket and strips TERMINAL_EMULATOR.
-//
-// Not enough on its own today: Copilot CLI drops every lock file whose pid it
-// cannot signal, and cplt only allows signals inside the sandbox
-// (github/copilot-cli#4909). The flags are in place for when that is fixed.
+// ideBridgeFlags are the cplt flags that let Copilot CLI reach the IDE.
+// Not enough until github/copilot-cli#4909 is fixed.
 func ideBridgeFlags() []string {
 	var flags []string
 	if os.Getenv(ideTerminalEnv) != "" {
@@ -49,9 +40,7 @@ func ideBridgeFlags() []string {
 	return flags
 }
 
-// ideSockets returns the canonical socket paths of the live IDE lock files in
-// lockDir: unix scheme, a running pid, and a socket owned by uid in the
-// ideSocketShape under tmpDir.
+// ideSockets returns the sockets of live IDE lock files in lockDir.
 func ideSockets(lockDir, tmpDir string, uid int, alive func(int) bool) []string {
 	tmp, err := filepath.EvalSymlinks(tmpDir)
 	if err != nil {
@@ -88,8 +77,7 @@ func ideSockets(lockDir, tmpDir string, uid int, alive func(int) bool) []string 
 	return socks
 }
 
-// pidAlive reports whether pid is running. EPERM means it exists but is not
-// ours to signal, which is still alive.
+// pidAlive reports whether pid is running. EPERM counts as running.
 func pidAlive(pid int) bool {
 	err := syscall.Kill(pid, 0)
 	return err == nil || errors.Is(err, syscall.EPERM)
