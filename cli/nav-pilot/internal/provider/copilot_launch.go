@@ -70,9 +70,10 @@ func CopilotMissingBehindCplt() string {
 	return "the Copilot CLI (copilot) is not on PATH; cplt is the sandbox, not the Copilot CLI. Install the Copilot CLI: " + domain.Bold(CopilotInstallCommand)
 }
 
-// IsCpltTimeout bounds IsCplt's first ask. A var so the e2e build can give
-// its fakes, shell scripts, more time on a loaded machine.
-var IsCpltTimeout = 2 * time.Second
+// IsCpltTimeout bounds IsCplt's first ask: the runtime gate's budget, since
+// at 2 s a busy Mac read a healthy cplt as a plain copilot. A var so the e2e
+// build can give its fakes, shell scripts, more time on a loaded machine.
+var IsCpltTimeout = cpltProbeTimeout
 
 // IsCplt checks if a binary is actually cplt (Copilot Sandbox) by inspecting
 // its version output. Returns true if the binary identifies as cplt/sandbox.

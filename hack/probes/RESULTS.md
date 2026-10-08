@@ -177,3 +177,70 @@ branch script:      PASS (9.3s)
 
 With the flush removed from `quietStdin` (`ioctlSetTermios` in place of
 `ioctlSetTermiosFlushIn`), the branch script still fails: `pty-run` times out.
+
+# Probe results, 2026-10-08
+
+Why five journeys (launch_without_cplt, launch_explicit_args,
+sync_launch_no_terminal, autonomy_leave_strict, hook_slow_python_fails_open),
+the opencode_* journeys and `TestIsCplt` failed in a full
+`go test -race -skip TestLaunchBudget ./...` and passed alone. Same machine as
+above; load average 12-28, from this work and other sessions.
+
+## The failures
+
+Every one is a deadline of 2-3 s on a local process that was healthy:
+
+| Failure | Deadline that expired | What the journey saw |
+|---|---|---|
+| launch_without_cplt, launch_explicit_args, sync_launch_no_terminal, `TestIsCplt` | `IsCplt`: `copilot --version`, 2 s | the probe was killed before the fake logged its argv (no `copilot.log`), or it was asked again because a killed probe is not cached |
+| autonomy_leave_strict (exit 124) | `cplt config get sandbox.preset`, 2 s | the preset read as unknown, the cursor started on the wrong answer, strict was chosen and the prompt pty-run waited for never came |
+| opencode_policy, opencode_mcp_registry | `opencode --version`, 5 s | an unreadable version counts as opencode 2, so the launch stopped with "cplt too old" |
+| hook_slow_python_fails_open | Copilot's (here run.py's) 3 s | the hook shell ran 2 more processes (`cat`, `rm`) after the kill at 1 s; it exited after the deadline |
+
+The runtime gate already gives the same binaries 8 s (`cplt --version`) and
+30 s (the client), for the reason written next to those constants.
+
+## Process start-to-exit inside a full test run
+
+A temporary test in `internal/testhome`, run beside two suite loops, timed
+`exec.Command(...).Run()` every 200 ms for 150 s:
+
+```
+sh -c exit               n=172 p50=26ms  p90=155ms p99=3.28s max=5.11s >2s=2
+exec warmed script       n=172 p50=23ms  p90=120ms p99=2.06s max=4.01s >2s=2
+WriteExec(write+warm)    n=172 p50=133ms p90=495ms p99=8.50s max=8.58s >2s=7
+cat fresh file           n=172 p50=8ms   p90=22ms  p99=64ms  max=70ms  >2s=0
+```
+
+Split into `Start()` and `Wait()`: `Start()` stayed under 4 ms; the time is
+spent after the fork, before the child gets to exit. Reading a new file
+(`cat`) is never slow, so it is starting a process, not file I/O.
+
+`spawn-under-cpu.go` tries to reproduce that outside the suite, and does not:
+
+```
+# load { 19.97 24.39 22.09 }
+as-is        n=256 p50=17ms p90=22ms max=42ms   over-2s=0
+cpu-busy     n=215 p50=13ms p90=34ms max=1.374s over-2s=0
+new-scripts  n=204 p50=33ms p90=86ms max=395ms  over-2s=0
+```
+
+So busy cores alone, or new scripts alone, are not enough; what in a full
+test run stalls a process start for seconds is not pinned down. What is
+measured is that it happens, and that a 2 s deadline on a healthy local
+process does not survive it.
+
+## Before and after
+
+Before: two loops of the suite at once on origin/main, 6 runs each. 10 of 12
+runs failed: hook_slow_python_fails_open 4, autonomy_leave_strict 6,
+sync_launch_no_terminal 2, `TestIsCplt` 3, plus sync_removed_items_go 2 and
+local_dispatch_sites 1 (not investigated here).
+
+Paired: each round runs origin/main and this change at the same time, with
+12 extra `yes` processes (`ab.sh 8 12`, load 13-28), 8 rounds:
+
+```
+main  2 of 8 rounds failed (launch_explicit_args, hook_slow_python_fails_open)
+fix   0 of 8 rounds failed
+```

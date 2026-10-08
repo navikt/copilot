@@ -12,7 +12,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
@@ -189,7 +188,7 @@ func userPermission(docs [][]byte, key string) (str string, deny bool) {
 // it is inside [OpenCodeTestedRangeFor]. err is set when the version could not
 // be read.
 func OpenCodeVersionStatus() (version string, tested bool, err error) {
-	out, err := cachedVersion("opencode", 5*time.Second)
+	out, err := cachedVersion("opencode", clientProbeTimeout)
 	if err != nil {
 		return "", false, err
 	}
@@ -228,7 +227,7 @@ func warnUntestedOpenCode() {
 func CheckOpenCodeMajor() error {
 	v, _, err := OpenCodeVersionStatus()
 	if err != nil {
-		out, _ := cachedVersion("opencode", 5*time.Second)
+		out, _ := cachedVersion("opencode", clientProbeTimeout)
 		m := openCodeMajorPattern.FindStringSubmatch(strings.TrimSpace(out))
 		if m == nil {
 			return nil
@@ -253,7 +252,7 @@ func CheckOpenCodeMajor() error {
 // version line so a prerelease counts. Unreadable is 0, which every caller
 // treats as opencode 1: that path is the one nav-pilot has always taken.
 func openCodeMajor() int {
-	out, _ := cachedVersion("opencode", 5*time.Second)
+	out, _ := cachedVersion("opencode", clientProbeTimeout)
 	m := openCodeMajorPattern.FindStringSubmatch(strings.TrimSpace(out))
 	if m == nil {
 		return 0
@@ -304,7 +303,7 @@ func minOpenCode2CpltStamp() string {
 var lookPath = exec.LookPath
 
 func checkOpenCode2Launch(args []string) error {
-	out, _ := cachedVersion("opencode", 5*time.Second)
+	out, _ := cachedVersion("opencode", clientProbeTimeout)
 	if !openCodeMajorPattern.MatchString(strings.TrimSpace(out)) {
 		if _, err := lookPath("opencode"); err != nil {
 			return nil // not installed: nothing to launch, doctor reports it elsewhere
