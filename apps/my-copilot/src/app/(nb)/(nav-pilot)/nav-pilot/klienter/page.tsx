@@ -27,6 +27,7 @@ const TOC: TocItem[] = [
 ];
 
 const GH = "https://github.com/navikt/copilot";
+const HOOKS_DOC = `${GH}/blob/main/cli/nav-pilot/docs/opencode-hooks.md`;
 // OpenCode1TestedRange and OpenCode2TestedRange in cli/nav-pilot/internal/provider/opencode_policy.go
 const OPENCODE_RANGE = ">=1.18.20,<1.19";
 const OPENCODE2_RANGE = ">=2.0.24,<2.1";
@@ -35,13 +36,13 @@ const c = (s: string) => <code className={code}>{s}</code>;
 const CLIENTS = [
   {
     name: "opencode",
-    tag: { text: "Standard for nye installasjoner", variant: "info" as const },
+    tag: { text: "Standard", variant: "info" as const },
     desc: "opencode med Copilot-abonnementet ditt. Den eneste klienten der hovedagenten kan kjøre i skyen og sende jobber til en lokal modell.",
   },
   {
     name: "copilot",
     tag: { text: "Støttet", variant: "success" as const },
-    desc: "GitHub Copilot CLI, i sandkassen cplt når den er installert. Agentpakka virker også i VS Code, JetBrains og på github.com.",
+    desc: "GitHub Copilot CLI, i sandkassen cplt. Agentpakka virker også i VS Code, JetBrains og på github.com.",
   },
   {
     name: "pi",
@@ -50,75 +51,79 @@ const CLIENTS = [
   },
 ];
 
-// The final parity status of navikt/copilot#1022 (posted on #1037), as of
-// 2026-09-28 after #1038, #1039, #1057, #1061, #1062, #1113, #1114 and #1136,
-// with pi added from pi_launch.go.
+// Parity with navikt/copilot#1022 as of 2026-09-28, with pi from pi_launch.go.
+// "Ja" renders ✓, "Nei" –, "Ikke aktuelt" i.a.; anything else is shown as text.
 const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; note?: ReactNode }[] = [
   {
-    what: "Maskering av hemmeligheter og fødselsnumre",
+    what: "Maskering av hemmeligheter og fnr.",
     copilot: "Ja",
     opencode: "Ja",
     pi: "Nei",
-    note: (
-      <>
-        Feiler maskeringen i opencode, holder nav-pilot verktøyresultatet tilbake. Med {c("--pure")} kjører ingen hooks.
-      </>
-    ),
+    note: "Feiler maskeringen i opencode, holder nav-pilot verktøyresultatet tilbake.",
   },
-  { what: "Merknad om instruksjoner i verktøyresultater (prompt-injeksjon)", copilot: "Ja", opencode: "Ja", pi: "Nei" },
+  { what: "Merknad om prompt-injeksjon", copilot: "Ja", opencode: "Ja", pi: "Nei" },
   { what: "Løkkevakt i skyøkter", copilot: "Ja", opencode: "Ja", pi: "Nei" },
   {
-    what: "Gates du har installert, også agentpakke-hooks",
+    what: "Gates og agentpakke-hooks",
     copilot: "Ja",
     opencode: "Ja",
     pi: "Nei",
-    note: "Gates fra repoet kjører i opencode uten at du først har godtatt mappa, slik Copilot CLI krever.",
+    note: "Gates fra repoet kjører i opencode uten at du har godtatt mappa først, slik Copilot CLI krever.",
   },
   {
     what: <>{c("tools:")} i agentene</>,
     copilot: "Ja",
-    opencode: "Ja, som permission per agent",
+    opencode: "Ja",
     pi: "Nei",
-    note: <>nav-pilot oversetter ikke MCP-verktøy og {c("task")}.</>,
+    note: <>opencode får dem som permission per agent. MCP-verktøy og {c("task")} oversettes ikke.</>,
   },
   {
     what: "Navs MCP-register",
-    copilot: "Ja, GitHub håndhever",
-    opencode: "Ja, nav-pilot håndhever",
+    copilot: "Ja",
+    opencode: "Ja",
     pi: "Nei",
-    note: "nav-pilot slår av servere utenfor registeret og avviser verktøyene deres.",
+    note: "GitHub håndhever det i Copilot CLI, nav-pilot i opencode.",
   },
   {
     what: "Testet klientversjon",
     copilot: "Ikke aktuelt",
-    opencode: `Ja, ${OPENCODE_RANGE} og ${OPENCODE2_RANGE}`,
+    opencode: "Ja",
     pi: "Nei",
-    note: <>Utenfor dette området får du en advarsel ved oppstart og i {c("nav-pilot doctor")}.</>,
+    note: (
+      <>
+        opencode {c(OPENCODE_RANGE)} og {c(OPENCODE2_RANGE)}. Utenfor dette advarer nav-pilot ved oppstart og i{" "}
+        {c("nav-pilot doctor")}.
+      </>
+    ),
   },
+  { what: "Deling slått av, oppdatering som varsel", copilot: "Ikke aktuelt", opencode: "Ja", pi: "Ikke aktuelt" },
+  { what: "WSL2 på Windows", copilot: "Ja", opencode: "Ja", pi: "Nei" },
   {
-    what: "Deling slått av, oppdateringer som varsel",
-    copilot: "Ikke aktuelt",
-    opencode: "Ja, i hver økt",
-    pi: "Ikke aktuelt",
-  },
-  { what: "Installasjon i WSL2 på Windows", copilot: "Ja", opencode: "Ja", pi: "Nei" },
-  {
-    what: <>Skyorkestrator med {c("local-worker")}</>,
+    what: <>Sky + {c("local-worker")}</>,
     copilot: "Nei",
     opencode: "Ja",
     pi: "Nei",
     note: "Copilot CLI kjører en økt helt lokalt eller helt i skyen, aldri blandet.",
   },
   {
-    what: <>Stopper hovedagenten som redigerer selv ({c("local_dispatch")} balanced og aggressive)</>,
+    what: "Utsendingsstopp",
     copilot: "Nei",
     opencode: "Ja",
     pi: "Nei",
     note: (
-      <>Teller kallsteder, ikke bare filer, og ber hovedagenten bygge og teste etter en jobb fra {c("local-worker")}.</>
+      <>
+        Med {c("local_dispatch")} balanced eller aggressive stopper nav-pilot hovedagenten når den redigerer for mye
+        selv.
+      </>
     ),
   },
-  { what: <>Egen server ({c("local_endpoint")})</>, copilot: "Ja, hele økten", opencode: "Ja", pi: "Nei" },
+  {
+    what: <>Egen server ({c("local_endpoint")})</>,
+    copilot: "Ja",
+    opencode: "Ja",
+    pi: "Nei",
+    note: "I Copilot CLI tar serveren hele økten.",
+  },
   {
     what: (
       <>
@@ -128,10 +133,21 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     copilot: "Ja",
     opencode: "Nei",
     pi: "Nei",
-    note: "nav-pilot advarer ved oppstart, én advarsel per innstilling.",
+    note: "nav-pilot advarer ved oppstart i opencode.",
   },
-  { what: "Utvidelser (extensions) for Copilot CLI", copilot: "Ja", opencode: "Nei", pi: "Nei" },
+  { what: "Utvidelser (extensions)", copilot: "Ja", opencode: "Nei", pi: "Nei" },
 ];
+
+function Mark({ v }: { v: string }) {
+  const sym = v === "Ja" ? "✓" : v === "Nei" ? "–" : v === "Ikke aktuelt" ? "i.a." : null;
+  if (!sym) return <>{v}</>;
+  return (
+    <>
+      <span aria-hidden="true">{sym}</span>
+      <span className="sr-only">{v}</span>
+    </>
+  );
+}
 
 const MCP_WARNING = `⚠ MCP servers turned off for this session (not in Nav's MCP registry): <navn>. See https://ki-utvikling.nav.no/verktoy (approved servers); to add one: https://github.com/navikt/copilot/blob/main/apps/mcp-registry/README.md#adding-servers`;
 
@@ -143,14 +159,15 @@ function Section({ children }: { children: ReactNode }) {
   );
 }
 
-const cols = ["Funksjon", "Copilot CLI", "opencode", "pi", "Merknad"];
+const notes = PARITY.filter((r) => r.note);
+const cols = ["Funksjon", "Copilot CLI", "opencode", "pi"];
 
 export default function Klienter() {
   return (
     <DocPage
       label="Referanse"
       title="Klienter"
-      description="Hva Copilot CLI, opencode og pi kan når nav-pilot starter dem, og hva som mangler. Søk på siden med Ctrl+F (Cmd+F på Mac)."
+      description="Hva Copilot CLI, opencode og pi kan når nav-pilot starter dem, og hva som mangler."
       toc={TOC}
       wide
     >
@@ -158,39 +175,17 @@ export default function Klienter() {
         <LinkableHeading id="stotte-klienter" size="medium" level="2">
           Klientene
         </LinkableHeading>
-        <BodyLong>
-          En klient er programmet nav-pilot starter. På en ny installasjon er standarden opencode. Velg klient for én
-          økt med {c("--client copilot")}, eller for godt med {c("nav-pilot config set client copilot")}. Copilot CLI er
-          fortsatt fullt støttet.
-        </BodyLong>
-        <BodyLong>
-          Klienten du bruker, står i {c("~/.nav-pilot/config.toml")}. Har du brukt nav-pilot før, beholder du klienten
-          du har: en {c("config.toml")} uten {c("client")} betyr copilot, og nav-pilot skriver linja inn første gang du
-          starter en økt i en terminal.
-        </BodyLong>
-        <BodyLong>
-          Første gang du kjører nav-pilot, spør den hvilken klient du vil ha, med opencode valgt. Mangler opencode,
-          tilbyr nav-pilot å installere den: med {c("brew install anomalyco/tap/opencode")} hvis du har Homebrew, ellers
-          med opencodes eget installasjonsskript, {c(OPENCODE_INSTALL.linux)}. Det er en versjon vi har testet, og
-          skriptet laster den ned direkte i stedet for å spørre GitHub om siste versjon. Sier du nei, bruker nav-pilot
-          Copilot CLI og forteller hvordan du bytter senere. Mangler Copilot CLI også, viser den installasjonskommandoen
-          for begge. I CI og uten terminal starter nav-pilot Copilot CLI når {c("config.toml")} mangler, siden den ikke
-          kan se om du har brukt nav-pilot før. Vil du ha opencode i CI, bruk {c("--client opencode")}.
-        </BodyLong>
-        <BodyLong>
-          Bruker du Copilot CLI med lokale modeller på og har opencode installert, viser nav-pilot én gang et tips om
-          opencode: bare opencode lar en skymodell sende oppgaver til en lokal modell. Tipset kommer aldri i samme økt
-          som en brukerundersøkelse, og {c("nav-pilot config set surveys false")} slår det av.
-        </BodyLong>
         <div className="overflow-x-auto">
           <Table size="small" className="table-stack" role="table">
             <HeaderRow stack cells={["Klient", "Status", "Hva du får"]} />
             <TableBody role="rowgroup">
               {CLIENTS.map((k) => (
                 <TableRow role="row" key={k.name}>
-                  <TableDataCell role="cell">{c(k.name)}</TableDataCell>
+                  <TableDataCell role="cell" className="whitespace-nowrap">
+                    {c(k.name)}
+                  </TableDataCell>
                   <TableDataCell role="cell" data-label="Status">
-                    <Tag size="small" variant={k.tag.variant}>
+                    <Tag size="small" variant={k.tag.variant} className="whitespace-nowrap">
                       {k.tag.text}
                     </Tag>
                   </TableDataCell>
@@ -202,49 +197,89 @@ export default function Klienter() {
             </TableBody>
           </Table>
         </div>
+        <Bullets>
+          <li>
+            Nye installasjoner får opencode: første gang spør nav-pilot hvilken klient du vil ha, med opencode
+            forhåndsvalgt. Har du brukt nav-pilot før, beholder du klienten din.
+          </li>
+          <li>
+            Bytt for én økt med {c("--client copilot")}, for godt med {c("nav-pilot config set client copilot")}.
+          </li>
+          <li>
+            I CI og uten terminal starter nav-pilot Copilot CLI når {c("config.toml")} mangler. Bruk{" "}
+            {c("--client opencode")} for opencode.
+          </li>
+          <li>
+            Bruker du lokal modell i Copilot CLI og har opencode installert, får du ett tips om opencode. Slå av med{" "}
+            {c("nav-pilot config set surveys false")}.
+          </li>
+        </Bullets>
+        <BodyLong>
+          Mangler opencode, tilbyr nav-pilot å installere en testet versjon med en av kommandoene under. Sier du nei,
+          får du Copilot CLI.
+        </BodyLong>
+        <VStack gap="space-8" className="[&_pre]:[overflow-wrap:anywhere]">
+          <CodeBlock compact>{`# macOS\n${OPENCODE_INSTALL.mac}`}</CodeBlock>
+          <CodeBlock compact>{`# Linux og WSL\n${OPENCODE_INSTALL.linux}`}</CodeBlock>
+        </VStack>
       </Section>
 
       <Section>
         <LinkableHeading id="paritet" size="medium" level="2">
           Hva hver klient kan
         </LinkableHeading>
-        <BodyLong>
-          Tabellen viser sluttstatus per 28. september 2026 for paritetsarbeidet i{" "}
-          <a href={`${GH}/issues/1022`} className={linkClass}>
-            #1022
-          </a>
-          , som skulle gjøre opencode like trygg som Copilot CLI. Det som gjenstår i opencode, står under{" "}
-          <a href="#kjente-hull" className={linkClass}>
-            Kjente hull i opencode
-          </a>
-          .
-        </BodyLong>
+        <BodyLong>✓ betyr ja, – nei og i.a. ikke aktuelt.</BodyLong>
         <div className="overflow-x-auto">
-          <Table size="small" className="table-stack" role="table">
-            <HeaderRow stack cells={cols} />
-            <TableBody role="rowgroup">
+          <Table size="small">
+            <HeaderRow cells={cols} />
+            <TableBody>
               {PARITY.map((r, i) => (
-                <TableRow role="row" key={i}>
-                  <TableDataCell role="cell">
+                <TableRow key={i}>
+                  <TableDataCell>
                     <strong>{r.what}</strong>
+                    {r.note && (
+                      <sup>
+                        {" "}
+                        <a
+                          href={`#merknad-${notes.indexOf(r) + 1}`}
+                          aria-label={`merknad ${notes.indexOf(r) + 1}`}
+                          className={linkClass}
+                        >
+                          {notes.indexOf(r) + 1}
+                        </a>
+                      </sup>
+                    )}
                   </TableDataCell>
                   {[r.copilot, r.opencode, r.pi].map((v, j) => (
-                    <TableDataCell role="cell" key={j} data-label={cols[j + 1]}>
-                      {v}
+                    <TableDataCell key={j} className="text-center">
+                      <Mark v={v} />
                     </TableDataCell>
                   ))}
-                  <TableDataCell role="cell" data-label={r.note ? "Merknad" : undefined}>
-                    {r.note}
-                  </TableDataCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
+        <VStack
+          as="ol"
+          gap="space-4"
+          className="list-decimal text-sm"
+          style={{ paddingInlineStart: "var(--ax-space-24)" }}
+        >
+          {notes.map((r, i) => (
+            <li key={i} id={`merknad-${i + 1}`}>
+              <strong>{r.what}:</strong> {r.note}
+            </li>
+          ))}
+        </VStack>
         <Box background="warning-soft" borderRadius="8" padding="space-16">
           <BodyShort>
-            En økt uten nav-pilots hooks har verken løkkevakt eller maskering av hemmeligheter og fødselsnumre. Det
-            gjelder alltid pi, og opencode når du starter den med {c("--pure")} eller uten nav-pilot.
+            Uten nav-pilots hooks er det verken løkkevakt eller maskering. Det gjelder alltid pi, og opencode 1 med{" "}
+            {c("--pure")} og opencode uten nav-pilot. Se{" "}
+            <a href="#kjente-hull" className={linkClass}>
+              Kjente hull i opencode
+            </a>
+            .
           </BodyShort>
         </Box>
       </Section>
@@ -254,71 +289,52 @@ export default function Klienter() {
           Navs MCP-register
         </LinkableHeading>
         <BodyLong>
-          MCP-servere gir agenten verktøy utenfor klienten, for eksempel Playwright eller GitHub. Nav tillater bare
-          servere som står i Navs MCP-register, lista over godkjente servere (se{" "}
+          Nav tillater bare MCP-servere som står i Navs MCP-register (se{" "}
           <NextLink href="/verktoy?type=mcp" className={linkClass}>
             verktøykatalogen
           </NextLink>
-          ). Copilot CLI spør GitHub om policyen og kjører bare serverne registeret lister. opencode har ingen slik
-          sjekk, så nav-pilot gjør den når den starter opencode:
+          ). Copilot CLI spør GitHub og kjører bare de godkjente. opencode har ingen slik sjekk, så nav-pilot gjør den
+          ved oppstart:
         </BodyLong>
         <Bullets>
           <li>
-            nav-pilot leser MCP-serverne i opencode-konfigen din, i samme rekkefølge som opencode: den globale fila i{" "}
-            {c("~/.config/opencode/")}, fila {c("OPENCODE_CONFIG")} peker på, {c("opencode.json")} og{" "}
-            {c(".opencode/opencode.json")} fra roten av repoet ned til katalogen du står i, {c("~/.opencode/")},{" "}
-            {c("OPENCODE_CONFIG_DIR")} og {c("OPENCODE_CONFIG_CONTENT")}.
+            Servere i opencode-konfigen din som ikke står i registeret, slås av for økten. En ekstern server må ha samme
+            URL som i registeret, en lokal må starte en pakke registeret lister.
           </li>
           <li>
-            Den spør GitHub med din gh-innlogging ({c("gh api /copilot/mcp_registry")}) hvilket register policyen peker
-            på, og henter lista derfra.
+            Kobler du til en avslått server med {c("/mcp")} i økten, avviser hooks-pluginen verktøyene dens. Med{" "}
+            {c("--pure")} i opencode 1 kjører ingen hooks, så da virker ikke dette.
           </li>
-          <li>
-            Hver server som er på og ikke står i registeret, slås av for økten med {c('"enabled": false')}. En ekstern
-            server må ha samme URL som i registeret. En lokal server må starte en pakke registeret lister, for eksempel{" "}
-            {c("npx @playwright/mcp")}.
-          </li>
-          <li>
-            Kobler du til en avslått server med {c("/mcp")} i økten, blir verktøyene dens avvist likevel. Det gjør
-            hooks-pluginen, så med {c("--pure")} kan serveren kobles til og brukes. nav-pilot advarer om det ved
-            oppstart.
-          </li>
+          <li>Konfigen din endres ikke, og opencode du starter uten nav-pilot, berøres ikke.</li>
+          <li>Mangler {c("gh")}, eller svarer ikke GitHub, slår nav-pilot ingenting av. Du får en advarsel.</li>
         </Bullets>
         <BodyLong>
-          Sjekken endrer ikke MCP-oppføringene i {c("opencode.json")}, og opencode du starter uten nav-pilot, blir ikke
-          berørt. Ved oppstart ser du hvilke servere som ble slått av:
+          Ved oppstart ser du hva som ble slått av. {c("nav-pilot doctor")} viser det samme på forhånd.
         </BodyLong>
         {/* The URLs have no break points; let them wrap on a phone. */}
         <div className="[&_pre]:[overflow-wrap:anywhere]">
           <CodeBlock compact>{MCP_WARNING}</CodeBlock>
         </div>
         <BodyLong>
-          {c("nav-pilot doctor")} viser det samme før du starter. Har du ingen MCP-servere, gjør nav-pilot ingen
-          nettkall. Mangler {c("gh")}, eller svarer ikke GitHub eller registeret, slår nav-pilot ingenting av. Da får du
-          en advarsel, og serverne kjører som du har satt dem opp.
-        </BodyLong>
-        <BodyLong>
-          For både Copilot CLI og opencode slår du på en server fra registeret med {c("nav-pilot mcp enable <navn>")},
-          og av med {c("nav-pilot mcp disable <navn>")}. {c("nav-pilot mcp list")} viser hva som hindrer en server i å
-          virke, med kommandoen som retter det. Når du starter i cplt, spør nav-pilot om sandkassen skal slippe gjennom
-          hostene serverne dine trenger, og spør igjen bare når det kommer nye. Hostene hentes fra registeret, aldri fra
-          MCP-konfigen din, og Enter betyr nei. Med {c("nav-pilot config set mcp_hosts off")} spør den aldri. Mer om
-          feilsøking står i{" "}
+          Slå på en server fra registeret med {c("nav-pilot mcp enable <navn>")}, av med{" "}
+          {c("nav-pilot mcp disable <navn>")}. {c("nav-pilot mcp list")} viser hva som hindrer en server, og kommandoen
+          som retter det. I cplt spør nav-pilot om sandkassen skal slippe gjennom hostene serverne trenger. Enter betyr
+          nei, og {c("nav-pilot config set mcp_hosts off")} slår spørsmålet av. Se{" "}
           <NextLink href="/nav-pilot/guider/feilsoking#mcp" className={linkClass}>
             Når en MCP-server ikke virker
           </NextLink>
+          . Hvilke konfigfiler nav-pilot leser, står i{" "}
+          <a href={`${HOOKS_DOC}#mcp-servers-outside-navs-registry-1027`} className={linkClass}>
+            opencode-hooks.md
+          </a>
           .
         </BodyLong>
         <LinkableHeading id="legg-til-server" size="small" level="3">
           Få en server inn i registeret
         </LinkableHeading>
         <BodyLong>
-          Godkjente servere står i{" "}
-          <NextLink href="/verktoy" className={linkClass}>
-            verktøykatalogen
-          </NextLink>
-          . Mangler serveren du trenger, legger du den til i {c("apps/mcp-registry/allowlist.json")} i navikt/copilot og
-          lager en pull request. Den må gjennom en sikkerhetsgjennomgang. Hvordan du skriver oppføringen, står i{" "}
+          Legg den til i {c("apps/mcp-registry/allowlist.json")} i navikt/copilot og lag en pull request. Den må gjennom
+          en sikkerhetsgjennomgang. Hvordan du skriver oppføringen, står i{" "}
           <a href={`${GH}/blob/main/apps/mcp-registry/README.md#adding-servers`} className={linkClass}>
             README for MCP-registeret
           </a>
@@ -331,20 +347,13 @@ export default function Klienter() {
           Uten cplt
         </LinkableHeading>
         <BodyLong>
-          cplt er sandkassen som holder agenten unna SSH-nøkler, skytilganger og andre hemmeligheter. Hvorfor den er
-          påkrevd på Nav-utstyr, står i{" "}
+          cplt er sandkassen som holder agenten unna SSH-nøkler, skytilganger og andre hemmeligheter (se{" "}
           <NextLink href="/nav-pilot/forklaring/sandkassen" className={linkClass}>
             Sandkassen
           </NextLink>
-          . Mangler cplt:
+          ). Uten cplt starter ingen klient. {c("--no-sandbox")} finnes ikke lenger. nav-pilot avslutter med en
+          feilmelding som viser hvordan du installerer cplt.
         </BodyLong>
-        <Bullets>
-          <li>Ingen klient starter, verken Copilot CLI, OpenCode eller pi.</li>
-          <li>
-            {c("--no-sandbox")} finnes ikke lenger. nav-pilot avslutter med en feilmelding som forklarer hvordan du
-            installerer cplt.
-          </li>
-        </Bullets>
       </Section>
 
       <Section>
@@ -354,71 +363,64 @@ export default function Klienter() {
         <Bullets>
           <li>
             nav-pilot legger AGENTS.md, skills, kommandoer og agenter i {c("~/.config/opencode/")} og oppdaterer dem ved
-            hver oppstart. Endrer du en av filene selv, lar nav-pilot den være.{" "}
-            {c("~/.config/opencode/.nav-pilot-state.json")} holder rede på hva som er installert.
+            hver oppstart. Filer du har endret selv, lar den være.
           </li>
           <li>
             Oppstarten venter ikke på GitHub. nav-pilot bruker kopien av agentpakka i {c("~/.nav-pilot/sources/")} og
-            henter en ny mens økten kjører, høyst én gang i timen. Endringer i agentpakka kommer derfor med ved neste
-            oppstart. Bare den første oppstarten venter på nedlastingen, i opptil 30 sekunder. Mislykkes den, venter
-            ikke de neste oppstartene: den neste timen starter de uten agentpakka og henter den i bakgrunnen.
+            henter ny i bakgrunnen, høyst én gang i timen. Bare første oppstart venter på nedlastingen.
           </li>
           <li>
             Velger du ikke modell selv, bruker nav-pilot standarden agentpakka oppgir. For agentpakka nav-pilot er det
-            GPT-6 Sol. Oppgir pakka ingen, velger opencode. En Copilot-id uten prefiks får {c("github-copilot/")} foran.
+            GPT-6 Sol.
           </li>
-          <li>nav-pilot setter opp OpenTelemetry for opencode, med mindre du har slått av telemetri.</li>
           <li>
             {c("nav-pilot export opencode")} skriver agentpakka til {c(".opencode/")} i repoet. Du trenger det ikke for
             å bruke opencode.
           </li>
+          <li>nav-pilot setter opp OpenTelemetry for opencode, med mindre du har slått av telemetri.</li>
         </Bullets>
         <LinkableHeading id="testet-versjon" size="small" level="3">
           Testet versjon
         </LinkableHeading>
         <BodyLong>
-          nav-pilot er testet mot opencode {c(OPENCODE_RANGE)} og opencode {c(OPENCODE2_RANGE)}. Er versjonen din
-          utenfor, skriver nav-pilot en advarsel og starter likevel. Hooks, utsendingsstoppet og innstillingene
-          nav-pilot setter per økt, virker da kanskje ikke som beskrevet her. {c("nav-pilot doctor")} viser versjonen og
-          om den er testet. nav-pilot starter ikke opencode 3 før vi har testet den.
+          nav-pilot er testet mot opencode {c(OPENCODE_RANGE)} og {c(OPENCODE2_RANGE)}. Utenfor dette advarer nav-pilot
+          og starter likevel, men hooks og utsendingsstopp virker kanskje ikke. {c("nav-pilot doctor")} viser versjonen
+          din. opencode 3 starter ikke før vi har testet den.
         </BodyLong>
-        <BodyLong>
-          opencode 2 krever macOS og cplt fra 8. oktober 2026 eller nyere. Kjør {c("cplt --version")}: tallet etter{" "}
-          {c("cplt")} må være {c("2026.10.08-081501")} eller høyere. På Linux kjører ikke cplt opencode 2 ennå, så der
-          må du bruke opencode 1. nav-pilot sier fra og viser hvordan du installerer opencode 1.
-        </BodyLong>
-        <BodyLong>
-          Går du fra opencode 1 til 2, må du kjøre {c("opencode auth import")} én gang. opencode 2 henter ikke
-          innloggingen fra opencode 1 ({c("auth.json")}) automatisk.
-        </BodyLong>
+        <BodyLong>opencode 2 krever:</BodyLong>
+        <Bullets>
+          <li>macOS med cplt fra 8. oktober 2026 eller nyere. {c("cplt --version")} viser datoen først i versjonen.</li>
+          <li>På Linux og WSL kjører cplt ikke opencode 2 ennå. Der må du bruke opencode 1, og nav-pilot sier fra.</li>
+          <li>
+            Går du fra opencode 1 til 2, må du kjøre {c("opencode auth import")} én gang. Innloggingen følger ikke med
+            automatisk.
+          </li>
+        </Bullets>
         <LinkableHeading id="deling-og-oppdatering" size="small" level="3">
           Deling og oppdatering
         </LinkableHeading>
         <BodyLong>
           Hver økt nav-pilot starter, får {c('"share": "disabled"')} og {c('"autoupdate": "notify"')}, uansett hva{" "}
-          {c("opencode.json")} sier. Deling ville lastet opp økten til opencode.ai. Oppdateringer kommer som varsel, så
-          du ikke får en versjon utenfor det testede området midt i en økt. I tillegg setter nav-pilot{" "}
-          {c('"share": "disabled"')} i {c("~/.config/opencode/opencode.json")} når fila ikke sier noe om deling, så det
-          gjelder også når du starter opencode selv. Det skjer når nav-pilot starter en agentpakke i Tier 1 og i
-          oppsettet, ikke med Tier 2, som ikke rører {c("opencode.json")}. Står det {c('"auto"')} der, får du en
-          advarsel. Har {c("opencode.json")} kommentarer, lar nav-pilot fila være, siden kommentarene ville forsvunnet
-          ved omskriving. Innstillingene nav-pilot trenger, gjelder da bare øktene nav-pilot starter. Må noe ut av fila,
-          for eksempel ved {c("nav-pilot alpha local off")}, sier nav-pilot hva du må fjerne selv.
+          {c("opencode.json")} sier. Deling ville lastet opp økten til opencode.ai, og en oppdatering midt i en økt
+          kunne gitt deg en versjon utenfor det testede området. nav-pilot setter også {c('"share": "disabled"')} i{" "}
+          {c("~/.config/opencode/opencode.json")} når fila ikke sier noe om deling. Står det {c('"auto"')} der, får du
+          en advarsel.
         </BodyLong>
         <BodyLong>
-          Instruksjonene, agentene og skillene nav-pilot installerer, ligger i {c("~/.config/opencode/")}, utenfor
-          prosjektet. Økter nav-pilot starter, får lese dem uten å spørre om {c("external_directory")}, men ikke endre
-          dem: det er jobben til {c("nav-pilot sync")}. Uten dette må opencode spørre når modellen åpner en av dem, og{" "}
-          {c("opencode run")} svarer nei og avslutter økten. For andre kataloger utenfor prosjektet gjelder det du har
-          satt selv. Har du avslått {c("external_directory")} helt, med {c('"deny"')}, legger nav-pilot ikke til noe.
+          Økter nav-pilot starter, får lese filene i {c("~/.config/opencode/")} uten å spørre om{" "}
+          {c("external_directory")}, men ikke endre dem. Har du satt {c("external_directory")} til {c('"deny"')}, legger
+          nav-pilot ikke til noe. Detaljene står i{" "}
+          <a href={`${HOOKS_DOC}#what-else-a-launch-sets`} className={linkClass}>
+            opencode-hooks.md
+          </a>
+          .
         </BodyLong>
         <LinkableHeading id="utsending" size="small" level="3">
           Lokal utsending
         </LinkableHeading>
         <BodyLong>
           Bare i opencode kan hovedagenten kjøre i skyen og sende avgrensede jobber til {c("local-worker")}, en
-          underagent på den lokale modellen. Hvor mye som sendes, styrer du med {c("local_dispatch")}. På{" "}
-          {c("balanced")} og {c("aggressive")} stopper nav-pilot hovedagenten når den redigerer for mange filer selv. Se{" "}
+          underagent på den lokale modellen. {c("local_dispatch")} styrer hvor mye som sendes. Se{" "}
           <NextLink href="/nav-pilot/guider/lokal#utsending" className={linkClass}>
             Styr utsendingen
           </NextLink>
@@ -432,11 +434,8 @@ export default function Klienter() {
         </LinkableHeading>
         <BodyLong>
           {c("mode = autopilot")}, {c("context_tier")}, {c("ask_user")} og utvidelser (extensions) finnes bare i Copilot
-          CLI. Har du satt en av de tre innstillingene og bruker opencode, skriver nav-pilot én advarsel per
-          innstilling. For utvidelser kommer ingen advarsel. {c("autonomy")} gjelder også bare Copilot CLI: i cplt
-          kjører den kommandoer på egen hånd og spør deg når den trenger det, med mindre du har valgt{" "}
-          {c("nav-pilot config set autonomy conservative")}. I Copilot CLI tar en lokal modell hele økten, uten
-          utsending, se{" "}
+          CLI. I cplt kjører Copilot CLI kommandoer på egen hånd og spør når den trenger det, med mindre du har satt{" "}
+          {c("nav-pilot config set autonomy conservative")}. En lokal modell tar hele økten, uten utsending, se{" "}
           <NextLink href="/nav-pilot/lokal" className={linkClass}>
             Lokal modell på Mac
           </NextLink>
@@ -444,10 +443,9 @@ export default function Klienter() {
         </BodyLong>
         <Box background="info-soft" borderRadius="8" padding="space-16">
           <BodyShort size="small">
-            For Copilot CLI henter nav-pilot ikke GitHub-tokenet selv. Er gh-vakta i cplt på, henter cplt det fra{" "}
-            {c("GH_TOKEN")}, {c("GITHUB_TOKEN")}, {c("COPILOT_GITHUB_TOKEN")} eller {c("gh auth token")}.{" "}
-            {c("copilot_auth_mode")} bestemmer hvilke kilder som slipper gjennom: {c("env_only")} stopper oppstarten
-            uten token i miljøet, og {c("gh_only")} fjerner token-variablene.
+            nav-pilot henter ikke GitHub-tokenet selv. Er gh-vakta i cplt på, henter cplt det fra {c("GH_TOKEN")},{" "}
+            {c("GITHUB_TOKEN")}, {c("COPILOT_GITHUB_TOKEN")} eller {c("gh auth token")}. {c("copilot_auth_mode")}{" "}
+            begrenser kildene: {c("env_only")} krever token i miljøet, {c("gh_only")} fjerner token-variablene.
           </BodyShort>
         </Box>
       </Section>
@@ -461,7 +459,7 @@ export default function Klienter() {
         </LinkableHeading>
         <BodyLong>
           Installer pi med {c("npm i -g @earendil-works/pi-coding-agent")}. nav-pilot legger agentpakka i{" "}
-          {c("~/.nav-pilot/pi/")} og gir skills og AGENTS.md til pi som flagg. Dette mangler:
+          {c("~/.nav-pilot/pi/")} og gir pi skills og AGENTS.md som flagg. Dette mangler:
         </BodyLong>
         <Bullets>
           <li>Hooks: ingen maskering, ingen løkkevakt og ingen gates.</li>
@@ -470,13 +468,12 @@ export default function Klienter() {
             ikke.
           </li>
           <li>
-            Lokal modell: ingen utsending til {c("local-worker")}, ingen {c("local_dispatch")} og ingen{" "}
-            {c("local_endpoint")}.
+            Lokal modell: ingen {c("local-worker")}, {c("local_dispatch")} eller {c("local_endpoint")}.
           </li>
           <li>Sjekk mot Navs MCP-register.</li>
           <li>
-            Innstillinger som ikke sendes videre, med en advarsel: {c("mode")}, {c("reasoning_effort")},{" "}
-            {c("context_tier")}, {c("allow_all_tools")}, {c("ask_user")} og {c("log_level")}.
+            Innstillingene {c("mode")}, {c("reasoning_effort")}, {c("context_tier")}, {c("allow_all_tools")},{" "}
+            {c("ask_user")} og {c("log_level")}. nav-pilot advarer om dem.
           </li>
         </Bullets>
       </Section>
@@ -485,28 +482,25 @@ export default function Klienter() {
         <LinkableHeading id="kjente-hull" size="medium" level="2">
           Kjente hull i opencode
         </LinkableHeading>
-        <BodyLong>
-          Hookene kjører i opencode som en plugin nav-pilot legger inn ved oppstart. Dette dekker de ikke:
-        </BodyLong>
+        <BodyLong>Hookene kjører som en plugin nav-pilot legger inn ved oppstart. Dette dekker de ikke:</BodyLong>
         <Bullets>
           <li>{c("--pure")}: opencode laster ingen plugins, så ingen hooks kjører. nav-pilot sier fra ved oppstart.</li>
           <li>Vedlegg som bilder og PDF-er går til modellen uten maskering. Maskeringen virker på tekst.</li>
           <li>
-            nav-pilot sjekker ikke disse mot registeret: en server du legger til midt i økten og som ikke sto i konfigen
-            ved oppstart, konfig fra en {c(".well-known/opencode")}-adresse eller en organisasjon du har logget inn i,
-            og administrerte innstillinger på macOS.
+            Sjekken mot MCP-registeret dekker ikke servere du legger til midt i økten, konfig fra{" "}
+            {c(".well-known/opencode")} eller en organisasjon du er logget inn i, eller administrerte innstillinger på
+            macOS.
           </li>
           <li>
             Plugins i repoet ({c(".opencode/plugin")} og {c("plugin")} i repoets {c("opencode.json")}) er kode som
-            kjører med samme rettigheter som agenten, i sandkassen. Det gjelder både opencode 1 og 2. I opencode 2 kan
-            en slik plugin i tillegg slå av hookene til nav-pilot. Stoler du ikke på repoet, start nav-pilot med{" "}
-            {c("OPENCODE_DISABLE_PROJECT_CONFIG=1")}. Da laster opencode verken plugins, MCP-servere eller konfig fra
-            repoet.
+            kjører med agentens rettigheter, i sandkassen. I opencode 2 kan en slik plugin også slå av nav-pilots hooks.
+            Stoler du ikke på repoet, start med {c("OPENCODE_DISABLE_PROJECT_CONFIG=1")}. Da laster opencode verken
+            plugins, MCP-servere eller konfig fra repoet.
           </li>
         </Bullets>
         <BodyShort size="small" textColor="subtle">
           Resten, blant annet kodemodus og hva terminalen viser, står i{" "}
-          <a href={`${GH}/blob/main/cli/nav-pilot/docs/opencode-hooks.md`} className={linkClass}>
+          <a href={HOOKS_DOC} className={linkClass}>
             opencode-hooks.md
           </a>
           .
