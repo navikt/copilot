@@ -61,8 +61,8 @@ Skal jeg autentisere mot Maven-registeret?	0	0	review-2026-10-08
 Hvem har tilgang til CI-hemmelighetene?	0	0	review-2026-10-08
 Er det tjeneste-til-tjeneste-kallet som feiler i testen?	0	0	review-2026-10-08
 Hvilke personopplysninger behandles?	1	0	review-2026-10-08
-Hvem er konsumentene av fnr?	1	0	review-2026-10-08
-Skal fnr eksponeres til alle som leser topicet?	1	0	review-2026-10-08
+Hvem er konsumentene av fnr?	1	1	review-2026-10-08
+Skal fnr eksponeres til alle som leser topicet?	1	1	review-2026-10-08
 Hvor lenge skal fnr oppbevares?	1	0	review-2026-10-08
 Hvem skal ha tilgang til endepunktet?	0	1	review-2026-10-08
 Hvilke konsumenter skal få lese topicet?	0	1	review-2026-10-08
