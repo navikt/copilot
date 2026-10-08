@@ -39,7 +39,6 @@ describe("nav-pilots modellvalg", () => {
       "Daglig agentisk koding",
       "Kafka-agent",
       "Rust-agent",
-      "Avgrensede oppgaver fra en koordinator",
       "Research og faste maler",
       "Høyrisikoplanlegging og kodegjennomgang",
       "Aksel, tilgjengelighet og norsk tekst",
@@ -48,13 +47,6 @@ describe("nav-pilots modellvalg", () => {
     expect(NAV_PILOT_MODEL_CHOICES.find((choice) => choice.purpose === "Rust-agent")).toMatchObject({
       primary: "Claude Haiku 5.5",
       fallbacks: ["GPT-6 Luna", "GPT-5.3-Codex"],
-    });
-    expect(
-      NAV_PILOT_MODEL_CHOICES.find((choice) => choice.purpose === "Avgrensede oppgaver fra en koordinator")
-    ).toMatchObject({
-      primary: "GPT-6 Luna",
-      fallbacks: ["Claude Haiku 5.5"],
-      users: ["@worker"],
     });
     expect(
       NAV_PILOT_MODEL_CHOICES.find((choice) => choice.purpose === "Aksel, tilgjengelighet og norsk tekst")
