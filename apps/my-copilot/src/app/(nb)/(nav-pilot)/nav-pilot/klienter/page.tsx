@@ -35,7 +35,7 @@ const c = (s: string) => <code className={code}>{s}</code>;
 const CLIENTS = [
   {
     name: "opencode",
-    tag: { text: "Standard for nye installasjoner", variant: "info" as const },
+    tag: { text: "Standard", variant: "info" as const },
     desc: "opencode med Copilot-abonnementet ditt. Den eneste klienten der hovedagenten kan kjøre i skyen og sende jobber til en lokal modell.",
   },
   {
@@ -50,12 +50,11 @@ const CLIENTS = [
   },
 ];
 
-// The final parity status of navikt/copilot#1022 (posted on #1037), as of
-// 2026-09-28 after #1038, #1039, #1057, #1061, #1062, #1113, #1114 and #1136,
-// with pi added from pi_launch.go.
+// Parity with navikt/copilot#1022 as of 2026-09-28, with pi from pi_launch.go.
+// "Ja" renders ✓, "Nei" –, "Ikke aktuelt" i.a.; anything else is shown as text.
 const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; note?: ReactNode }[] = [
   {
-    what: "Maskering av hemmeligheter og fødselsnumre",
+    what: "Maskering av hemmeligheter og fnr.",
     copilot: "Ja",
     opencode: "Ja",
     pi: "Nei",
@@ -65,10 +64,10 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
       </>
     ),
   },
-  { what: "Merknad om instruksjoner i verktøyresultater (prompt-injeksjon)", copilot: "Ja", opencode: "Ja", pi: "Nei" },
+  { what: "Merknad om prompt-injeksjon", copilot: "Ja", opencode: "Ja", pi: "Nei" },
   { what: "Løkkevakt i skyøkter", copilot: "Ja", opencode: "Ja", pi: "Nei" },
   {
-    what: "Gates du har installert, også agentpakke-hooks",
+    what: "Gates og agentpakke-hooks",
     copilot: "Ja",
     opencode: "Ja",
     pi: "Nei",
@@ -77,48 +76,58 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
   {
     what: <>{c("tools:")} i agentene</>,
     copilot: "Ja",
-    opencode: "Ja, som permission per agent",
+    opencode: "Ja",
     pi: "Nei",
-    note: <>nav-pilot oversetter ikke MCP-verktøy og {c("task")}.</>,
+    note: <>opencode får dem som permission per agent. nav-pilot oversetter ikke MCP-verktøy og {c("task")}.</>,
   },
   {
     what: "Navs MCP-register",
-    copilot: "Ja, GitHub håndhever",
-    opencode: "Ja, nav-pilot håndhever",
+    copilot: "Ja",
+    opencode: "Ja",
     pi: "Nei",
-    note: "nav-pilot slår av servere utenfor registeret og avviser verktøyene deres.",
+    note: "GitHub håndhever det i Copilot CLI, nav-pilot i opencode. Se under.",
   },
   {
     what: "Testet klientversjon",
     copilot: "Ikke aktuelt",
-    opencode: `Ja, ${OPENCODE_RANGE} og ${OPENCODE2_RANGE}`,
+    opencode: "Ja",
     pi: "Nei",
-    note: <>Utenfor dette området får du en advarsel ved oppstart og i {c("nav-pilot doctor")}.</>,
+    note: (
+      <>
+        opencode {c(OPENCODE_RANGE)} og {c(OPENCODE2_RANGE)}. Utenfor dette får du en advarsel ved oppstart og i{" "}
+        {c("nav-pilot doctor")}.
+      </>
+    ),
   },
+  { what: "Deling av, oppdatering som varsel", copilot: "Ikke aktuelt", opencode: "Ja", pi: "Ikke aktuelt" },
+  { what: "WSL2 på Windows", copilot: "Ja", opencode: "Ja", pi: "Nei" },
   {
-    what: "Deling slått av, oppdateringer som varsel",
-    copilot: "Ikke aktuelt",
-    opencode: "Ja, i hver økt",
-    pi: "Ikke aktuelt",
-  },
-  { what: "Installasjon i WSL2 på Windows", copilot: "Ja", opencode: "Ja", pi: "Nei" },
-  {
-    what: <>Skyorkestrator med {c("local-worker")}</>,
+    what: <>Sky + {c("local-worker")}</>,
     copilot: "Nei",
     opencode: "Ja",
     pi: "Nei",
     note: "Copilot CLI kjører en økt helt lokalt eller helt i skyen, aldri blandet.",
   },
   {
-    what: <>Stopper hovedagenten som redigerer selv ({c("local_dispatch")} balanced og aggressive)</>,
+    what: "Utsendingsstopp",
     copilot: "Nei",
     opencode: "Ja",
     pi: "Nei",
     note: (
-      <>Teller kallsteder, ikke bare filer, og ber hovedagenten bygge og teste etter en jobb fra {c("local-worker")}.</>
+      <>
+        Med {c("local_dispatch")} balanced eller aggressive stopper nav-pilot hovedagenten når den redigerer for mye
+        selv. Teller kallsteder, ikke bare filer, og ber hovedagenten bygge og teste etter en jobb fra{" "}
+        {c("local-worker")}.
+      </>
     ),
   },
-  { what: <>Egen server ({c("local_endpoint")})</>, copilot: "Ja, hele økten", opencode: "Ja", pi: "Nei" },
+  {
+    what: <>Egen server ({c("local_endpoint")})</>,
+    copilot: "Ja",
+    opencode: "Ja",
+    pi: "Nei",
+    note: "I Copilot CLI tar serveren hele økten.",
+  },
   {
     what: (
       <>
@@ -128,10 +137,21 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     copilot: "Ja",
     opencode: "Nei",
     pi: "Nei",
-    note: "nav-pilot advarer ved oppstart, én advarsel per innstilling.",
+    note: "nav-pilot advarer ved oppstart i opencode, én advarsel per innstilling.",
   },
-  { what: "Utvidelser (extensions) for Copilot CLI", copilot: "Ja", opencode: "Nei", pi: "Nei" },
+  { what: "Utvidelser (extensions)", copilot: "Ja", opencode: "Nei", pi: "Nei" },
 ];
+
+function Mark({ v }: { v: string }) {
+  const sym = v === "Ja" ? "✓" : v === "Nei" ? "–" : v === "Ikke aktuelt" ? "i.a." : null;
+  if (!sym) return <>{v}</>;
+  return (
+    <>
+      <span aria-hidden="true">{sym}</span>
+      <span className="sr-only">{v}</span>
+    </>
+  );
+}
 
 const MCP_WARNING = `⚠ MCP servers turned off for this session (not in Nav's MCP registry): <navn>. See https://ki-utvikling.nav.no/verktoy (approved servers); to add one: https://github.com/navikt/copilot/blob/main/apps/mcp-registry/README.md#adding-servers`;
 
@@ -143,7 +163,8 @@ function Section({ children }: { children: ReactNode }) {
   );
 }
 
-const cols = ["Funksjon", "Copilot CLI", "opencode", "pi", "Merknad"];
+const notes = PARITY.filter((r) => r.note);
+const cols = ["Funksjon", "Copilot CLI", "opencode", "pi"];
 
 export default function Klienter() {
   return (
@@ -158,39 +179,41 @@ export default function Klienter() {
         <LinkableHeading id="stotte-klienter" size="medium" level="2">
           Klientene
         </LinkableHeading>
-        <BodyLong>
-          En klient er programmet nav-pilot starter. På en ny installasjon er standarden opencode. Velg klient for én
-          økt med {c("--client copilot")}, eller for godt med {c("nav-pilot config set client copilot")}. Copilot CLI er
-          fortsatt fullt støttet.
-        </BodyLong>
-        <BodyLong>
-          Klienten du bruker, står i {c("~/.nav-pilot/config.toml")}. Har du brukt nav-pilot før, beholder du klienten
-          du har: en {c("config.toml")} uten {c("client")} betyr copilot, og nav-pilot skriver linja inn første gang du
-          starter en økt i en terminal.
-        </BodyLong>
-        <BodyLong>
-          Første gang du kjører nav-pilot, spør den hvilken klient du vil ha, med opencode valgt. Mangler opencode,
-          tilbyr nav-pilot å installere den: med {c("brew install anomalyco/tap/opencode")} hvis du har Homebrew, ellers
-          med opencodes eget installasjonsskript, {c(OPENCODE_INSTALL.linux)}. Det er en versjon vi har testet, og
-          skriptet laster den ned direkte i stedet for å spørre GitHub om siste versjon. Sier du nei, bruker nav-pilot
-          Copilot CLI og forteller hvordan du bytter senere. Mangler Copilot CLI også, viser den installasjonskommandoen
-          for begge. I CI og uten terminal starter nav-pilot Copilot CLI når {c("config.toml")} mangler, siden den ikke
-          kan se om du har brukt nav-pilot før. Vil du ha opencode i CI, bruk {c("--client opencode")}.
-        </BodyLong>
-        <BodyLong>
-          Bruker du Copilot CLI med lokale modeller på og har opencode installert, viser nav-pilot én gang et tips om
-          opencode: bare opencode lar en skymodell sende oppgaver til en lokal modell. Tipset kommer aldri i samme økt
-          som en brukerundersøkelse, og {c("nav-pilot config set surveys false")} slår det av.
-        </BodyLong>
+        <Bullets>
+          <li>
+            Nye installasjoner bruker opencode. Første gang spør nav-pilot hvilken klient du vil ha. Har du brukt
+            nav-pilot før, beholder du klienten din (en {c("~/.nav-pilot/config.toml")} uten {c("client")} betyr
+            copilot).
+          </li>
+          <li>
+            Bytt for én økt med {c("--client copilot")}, eller for godt med {c("nav-pilot config set client copilot")}.
+          </li>
+          <li>
+            Mangler opencode, tilbyr nav-pilot å installere en testet versjon:{" "}
+            {c("brew install anomalyco/tap/opencode")} med Homebrew, ellers {c(OPENCODE_INSTALL.linux)}. Sier du nei,
+            bruker nav-pilot Copilot CLI.
+          </li>
+          <li>
+            I CI og uten terminal starter nav-pilot Copilot CLI når {c("config.toml")} mangler. Vil du ha opencode der,
+            bruk {c("--client opencode")}.
+          </li>
+          <li>
+            Bruker du lokale modeller i Copilot CLI og har opencode, får du ett tips om opencode, som er den eneste
+            klienten som lar en skymodell sende oppgaver til en lokal modell. Slå av med{" "}
+            {c("nav-pilot config set surveys false")}.
+          </li>
+        </Bullets>
         <div className="overflow-x-auto">
           <Table size="small" className="table-stack" role="table">
             <HeaderRow stack cells={["Klient", "Status", "Hva du får"]} />
             <TableBody role="rowgroup">
               {CLIENTS.map((k) => (
                 <TableRow role="row" key={k.name}>
-                  <TableDataCell role="cell">{c(k.name)}</TableDataCell>
+                  <TableDataCell role="cell" className="whitespace-nowrap">
+                    {c(k.name)}
+                  </TableDataCell>
                   <TableDataCell role="cell" data-label="Status">
-                    <Tag size="small" variant={k.tag.variant}>
+                    <Tag size="small" variant={k.tag.variant} className="whitespace-nowrap">
                       {k.tag.text}
                     </Tag>
                   </TableDataCell>
@@ -209,38 +232,39 @@ export default function Klienter() {
           Hva hver klient kan
         </LinkableHeading>
         <BodyLong>
-          Tabellen viser sluttstatus per 28. september 2026 for paritetsarbeidet i{" "}
-          <a href={`${GH}/issues/1022`} className={linkClass}>
-            #1022
-          </a>
-          , som skulle gjøre opencode like trygg som Copilot CLI. Det som gjenstår i opencode, står under{" "}
+          ✓ betyr ja, – nei og i.a. ikke aktuelt. Det som gjenstår i opencode, står under{" "}
           <a href="#kjente-hull" className={linkClass}>
             Kjente hull i opencode
           </a>
           .
         </BodyLong>
         <div className="overflow-x-auto">
-          <Table size="small" className="table-stack" role="table">
-            <HeaderRow stack cells={cols} />
-            <TableBody role="rowgroup">
+          <Table size="small">
+            <HeaderRow cells={cols} />
+            <TableBody>
               {PARITY.map((r, i) => (
-                <TableRow role="row" key={i}>
-                  <TableDataCell role="cell">
+                <TableRow key={i}>
+                  <TableDataCell>
                     <strong>{r.what}</strong>
+                    {r.note && <sup aria-hidden="true"> {notes.indexOf(r) + 1}</sup>}
                   </TableDataCell>
                   {[r.copilot, r.opencode, r.pi].map((v, j) => (
-                    <TableDataCell role="cell" key={j} data-label={cols[j + 1]}>
-                      {v}
+                    <TableDataCell key={j} className="text-center">
+                      <Mark v={v} />
                     </TableDataCell>
                   ))}
-                  <TableDataCell role="cell" data-label={r.note ? "Merknad" : undefined}>
-                    {r.note}
-                  </TableDataCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
+        <ol className="list-decimal space-y-1 pl-6 text-sm">
+          {notes.map((r, i) => (
+            <li key={i}>
+              <strong>{r.what}:</strong> {r.note}
+            </li>
+          ))}
+        </ol>
         <Box background="warning-soft" borderRadius="8" padding="space-16">
           <BodyShort>
             En økt uten nav-pilots hooks har verken løkkevakt eller maskering av hemmeligheter og fødselsnumre. Det
