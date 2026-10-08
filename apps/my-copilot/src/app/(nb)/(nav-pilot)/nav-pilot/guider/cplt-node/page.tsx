@@ -9,7 +9,7 @@ import type { TocItem } from "@/components/table-of-contents";
 export const metadata: Metadata = {
   title: "Node, npm og pnpm i sandkassen",
   description:
-    "Slik installerer, bygger og tester du Node-prosjekter med npm, pnpm og yarn når nav-pilot og Copilot kjører i cplt: @navikt-pakker, installasjonsskript, .env-filer, localhost, Playwright og Cypress.",
+    "Slik installerer, bygger og tester du Node-prosjekter med npm, pnpm og yarn når nav-pilot og Copilot kjører i cplt: @navikt-pakker, installasjonsskript, .env-filer, localhost, Playwright, Cypress, Puppeteer og npx.",
 };
 
 const TOC: TocItem[] = [
@@ -18,6 +18,7 @@ const TOC: TocItem[] = [
   { id: "env-filer", label: ".env-filer" },
   { id: "localhost", label: "Utviklingsserveren på localhost" },
   { id: "nettleser", label: "Playwright og Cypress" },
+  { id: "mermaid", label: "Puppeteer og Mermaid-diagrammer" },
   { id: "pnpm-konfig", label: "pnpm-konfig og tokens" },
   { id: "globale", label: "Globale installasjoner" },
   { id: "tillatelsesliste", label: "Pakkeregistre og en liste over tillatte verter" },
@@ -250,6 +251,64 @@ cplt config set sandbox.allow_cache_exec Cypress`}
 
       <section>
         <VStack gap="space-16">
+          <LinkableHeading id="mermaid" size="medium" level="2">
+            Puppeteer og Mermaid-diagrammer
+          </LinkableHeading>
+          <BodyLong>
+            Med mermaid-cli (<code className={code}>mmdc</code>) kan agenten gjøre Mermaid-diagrammene sine om til PNG
+            og se på bildet selv. <code className={code}>mmdc</code> starter Chrome gjennom Puppeteer, og det stopper i
+            cplt på tre steder:
+          </BodyLong>
+          <Bullets>
+            <li>
+              Puppeteer laster ned Chrome til <code className={code}>~/.cache/puppeteer</code>. På macOS får ingenting
+              kjøre derfra, og <code className={code}>--allow-cache-exec</code> når ikke den mappa. Feilen er{" "}
+              <code className={code}>Error: spawn EPERM</code>.
+            </li>
+            <li>
+              Chromium må startes med <code className={code}>--no-sandbox</code>.
+            </li>
+            <li>
+              Puppeteer snakker med nettleseren over en WebSocket på localhost, og den stenger cplt.{" "}
+              <code className={code}>mmdc</code> skriver da bare <code className={code}>[object Object]</code>.
+            </li>
+          </Bullets>
+          <BodyLong>
+            Bruk nettleseren fra Playwright i stedet. Installer <code className={code}>mmdc</code> i prosjektet,
+            installer nettleseren utenfor cplt og åpne mappa:
+          </BodyLong>
+          <CodeBlock compact>
+            {`npm install -D @mermaid-js/mermaid-cli
+npx playwright install chromium-headless-shell
+cplt config set sandbox.allow_cache_exec ms-playwright
+ls ~/Library/Caches/ms-playwright     # finn versjonen, f.eks. chromium_headless_shell-1243`}
+          </CodeBlock>
+          <BodyLong>
+            Pek Puppeteer på nettleseren med full sti. <code className={code}>{'"pipe": true'}</code> gjør at Puppeteer
+            snakker med nettleseren over en pipe i stedet for localhost:
+          </BodyLong>
+          <CodeBlock filename="puppeteer.json">
+            {`{
+  "executablePath": "/Users/<deg>/Library/Caches/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+  "args": ["--no-sandbox"],
+  "pipe": true
+}`}
+          </CodeBlock>
+          <CodeBlock compact>{`npx mmdc -p puppeteer.json -i diagram.mmd -o diagram.png`}</CodeBlock>
+          <BodyLong>
+            Vil du heller bruke Puppeteers egen Chrome, legg cachen under Playwright-mappa, som allerede er åpnet. Da
+            trenger du ikke <code className={code}>executablePath</code>, men <code className={code}>args</code> og{" "}
+            <code className={code}>pipe</code> må fortsatt stå i <code className={code}>puppeteer.json</code>:
+          </BodyLong>
+          <CodeBlock compact>
+            {`export PUPPETEER_CACHE_DIR=~/Library/Caches/ms-playwright/puppeteer
+cplt --pass-env PUPPETEER_CACHE_DIR`}
+          </CodeBlock>
+        </VStack>
+      </section>
+
+      <section>
+        <VStack gap="space-16">
           <LinkableHeading id="pnpm-konfig" size="medium" level="2">
             pnpm-konfig og tokens
           </LinkableHeading>
@@ -324,6 +383,25 @@ cplt config set sandbox.allow_cache_exec Cypress`}
             {`npm install -D semver
 npx semver 1.2.3`}
           </CodeBlock>
+          <BodyLong>
+            Det samme gjelder <code className={code}>npx -y @mermaid-js/mermaid-cli</code>, se{" "}
+            <NextLink href="#mermaid" className={linkClass}>
+              Puppeteer og Mermaid-diagrammer
+            </NextLink>
+            . Trenger agenten npx for pakker utenfor prosjektet, flytt npm-cachen inn i cache-mappa og åpne bare
+            npx-mappa der. Legg variabelen i <code className={code}>~/.zshrc</code> eller{" "}
+            <code className={code}>~/.bashrc</code>. <code className={code}>cplt config set</code>-linjene kjører du én
+            gang:
+          </BodyLong>
+          <CodeBlock compact>
+            {`export npm_config_cache="$HOME/Library/Caches/npm"   # macOS
+cplt config set sandbox.pass_env npm_config_cache
+cplt config set sandbox.allow_cache_exec npm/_npx`}
+          </CodeBlock>
+          <BodyLong>
+            npm starter da med en ny cache, og alle pakkene npx henter, kan kjøre i sandkassen. På Linux er cache-mappa{" "}
+            <code className={code}>~/.cache</code>, så der blir stien <code className={code}>$HOME/.cache/npm</code>.
+          </BodyLong>
         </VStack>
       </section>
 
