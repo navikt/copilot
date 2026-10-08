@@ -563,6 +563,17 @@ func TestValidateSourceTier2(t *testing.T) {
 	}
 }
 
+func TestValidateSourceFailClosedInPayload(t *testing.T) {
+	root := t.TempDir()
+	writeManifest(t, root, grillmesterManifest)
+	mkdirAll(t, filepath.Join(root, "plugin", "hooks"))
+	writeFile(t, filepath.Join(root, "plugin", "hooks", "gate.hook.json"), `{"failClosed": true}`)
+
+	if joined := joinErrs(ValidateSource(root)); !strings.Contains(joined, "plugin/hooks/gate.hook.json sets \"failClosed\"") {
+		t.Fatalf("violations %q should flag the payload's failClosed sidecar", joined)
+	}
+}
+
 func TestValidateSourceReportsEveryViolation(t *testing.T) {
 	root := t.TempDir()
 	writeManifest(t, root, grillmesterManifest)

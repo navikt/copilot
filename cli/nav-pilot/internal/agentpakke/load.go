@@ -541,6 +541,10 @@ func (m *Manifest) checkFailClosedMinVersion(sourceRoot string) []error {
 	}
 	var errs []error
 	for _, dir := range dirs {
+		// validateContent already reported an escaping path; never walk it.
+		if requireContained(sourceRoot, "hooks", dir) != nil {
+			continue
+		}
 		_ = filepath.WalkDir(filepath.Join(sourceRoot, filepath.FromSlash(dir)), func(p string, d os.DirEntry, err error) error {
 			if err != nil || d.IsDir() || !strings.HasSuffix(p, ".hook.json") {
 				return nil
