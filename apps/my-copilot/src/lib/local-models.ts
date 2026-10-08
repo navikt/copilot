@@ -18,16 +18,17 @@ const TIMEOUT_MS = 3000;
 
 export const FALLBACK_TABLE: LocalModelTable = fallback;
 
-export async function getLocalModels(): Promise<LocalModelTable> {
+/** fetchedAt is when the live manifest was read, or null for the checked-in copy. */
+export async function getLocalModels(): Promise<LocalModelTable & { fetchedAt: string | null }> {
   try {
     const res = await fetch(MANIFEST_URL, {
       next: { revalidate: 3600 },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return buildTable(await res.json());
+    return { ...buildTable(await res.json()), fetchedAt: new Date().toISOString() };
   } catch (err) {
     console.error(`[local-models] using the checked-in fallback, manifest unavailable: ${String(err)}`);
-    return FALLBACK_TABLE;
+    return { ...FALLBACK_TABLE, fetchedAt: null };
   }
 }

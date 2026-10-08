@@ -143,6 +143,23 @@
     ],
     "anchors": {}
   },
+  "/innsikt/lokale-modeller": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts"
+    ],
+    "anchors": {
+      "delegeringsnivaer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx"],
+      "malt-decide": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/decide/page.tsx"
+      ],
+      "modell-64-gb": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx"]
+    }
+  },
   "/innsikt/team": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
@@ -606,6 +623,7 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/lokal-modell/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
@@ -639,6 +657,7 @@
   },
   "/nav-pilot/forklaring/lokal-modell/malinger": {
     "sources": [
+      "apps/my-copilot/next.config.ts",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx",

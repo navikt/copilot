@@ -103,7 +103,7 @@ export default function LokalModellForklaring() {
             målingene mer og tok lengre tid enn å la skymodellen gjøre alt selv. <code className={code}>balanced</code>{" "}
             sendte nesten ingenting og kostet likevel mer, så <code className={code}>aggressive</code> er standard fra
             30. september 2026. Tallene står i{" "}
-            <NextLink href="/nav-pilot/forklaring/lokal-modell/malinger#utsendingsnivaer" className={linkClass}>
+            <NextLink href="/innsikt/lokale-modeller#delegeringsnivaer" className={linkClass}>
               Målinger
             </NextLink>
             .
@@ -149,7 +149,7 @@ export default function LokalModellForklaring() {
           </div>
           <BodyShort size="small" textColor="subtle">
             Resultatene bak hver vurdering står i{" "}
-            <NextLink href="/nav-pilot/forklaring/lokal-modell/malinger" className={linkClass}>
+            <NextLink href="/innsikt/lokale-modeller" className={linkClass}>
               Målinger
             </NextLink>
             .

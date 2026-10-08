@@ -1,7 +1,8 @@
 import { VStack } from "@navikt/ds-react";
-import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell } from "@/components/aksel-table";
+import { Table, TableBody, TableRow, TableDataCell } from "@/components/aksel-table";
 import type { LocalModel } from "@/lib/local-models";
-import { code } from "@/components/nav-pilot/doc-page";
+import { HeaderRow, code } from "@/components/nav-pilot/doc-page";
+import type { ResultRow } from "@/lib/local-model-results";
 
 // The local-model tables on /nav-pilot/referanse and
 // /nav-pilot/forklaring/lokal-modell. The rows come from the manifest in
@@ -55,23 +56,21 @@ function LocalModelText({ m }: { m: LocalModel }) {
   );
 }
 
-export function LocalModelsTable({ models }: { models: LocalModel[] }) {
+// `stack` turns rows into cards below 640px (.table-stack in globals.css). The
+// explicit roles keep the table semantics that display: block drops.
+const stackProps = (stack?: boolean) =>
+  stack ? { className: "table-stack w-full", role: "table" } : { style: { minWidth: "40rem" } };
+
+export function LocalModelsTable({ models, stack }: { models: LocalModel[]; stack?: boolean }) {
+  const r = (role: string) => (stack ? role : undefined);
   return (
     <div className="overflow-x-auto">
-      <Table size="small" style={{ minWidth: "40rem" }}>
-        <TableHeader>
-          <TableRow>
-            <TableHeaderCell scope="col">Modell</TableHeaderCell>
-            <TableHeaderCell scope="col">Kontekst / svar</TableHeaderCell>
-            <TableHeaderCell scope="col">Minne</TableHeaderCell>
-            <TableHeaderCell scope="col">Krever nav-pilot</TableHeaderCell>
-            <TableHeaderCell scope="col">Kort sagt</TableHeaderCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+      <Table size="small" {...stackProps(stack)}>
+        <HeaderRow stack={stack} cells={["Modell", "Kontekst / svar", "Minne", "Krever nav-pilot", "Kort sagt"]} />
+        <TableBody role={r("rowgroup")}>
           {models.map((m) => (
-            <TableRow key={m.id}>
-              <TableDataCell>
+            <TableRow key={m.id} role={r("row")}>
+              <TableDataCell role={r("cell")}>
                 <VStack gap="space-2">
                   <code className={code}>{modelName(m)}</code>
                   <div className="text-xs" style={{ color: "var(--ax-text-neutral-subtle)" }}>
@@ -79,16 +78,16 @@ export function LocalModelsTable({ models }: { models: LocalModel[] }) {
                   </div>
                 </VStack>
               </TableDataCell>
-              <TableDataCell className="whitespace-nowrap">
+              <TableDataCell role={r("cell")} data-label="Kontekst / svar" className="whitespace-nowrap">
                 {kTokens(m.context)} / {kTokens(m.output)}
               </TableDataCell>
-              <TableDataCell>
+              <TableDataCell role={r("cell")} data-label="Minne">
                 {m.min_ram_gb} GB, vektene tar {m.weights_gb} GB
               </TableDataCell>
-              <TableDataCell>
+              <TableDataCell role={r("cell")} data-label="Krever nav-pilot">
                 {m.min_nav_pilot ? <code className={code}>≥ {m.min_nav_pilot}</code> : "alle versjoner"}
               </TableDataCell>
-              <TableDataCell>
+              <TableDataCell role={r("cell")}>
                 <LocalModelText m={m} />
               </TableDataCell>
             </TableRow>
@@ -99,30 +98,55 @@ export function LocalModelsTable({ models }: { models: LocalModel[] }) {
   );
 }
 
-export function TrustedClassesTable({ models }: { models: LocalModel[] }) {
+export function TrustedClassesTable({ models, stack }: { models: LocalModel[]; stack?: boolean }) {
+  const r = (role: string) => (stack ? role : undefined);
   return (
     <div className="overflow-x-auto">
-      <Table size="small" style={{ minWidth: "40rem" }}>
-        <TableHeader>
-          <TableRow>
-            <TableHeaderCell scope="col">Modell</TableHeaderCell>
-            <TableHeaderCell scope="col">Godkjent</TableHeaderCell>
-            <TableHeaderCell scope="col">Blir i skyen</TableHeaderCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+      <Table size="small" {...stackProps(stack)}>
+        <HeaderRow stack={stack} cells={["Modell", "Godkjent", "Blir i skyen"]} />
+        <TableBody role={r("rowgroup")}>
           {models.map((m) => {
             const trusted = trustedClasses(m);
             return (
-              <TableRow key={m.id}>
-                <TableDataCell>
+              <TableRow key={m.id} role={r("row")}>
+                <TableDataCell role={r("cell")}>
                   <code className={code}>{modelName(m)}</code>
                 </TableDataCell>
-                <TableDataCell>{trusted.length ? trusted.join(", ") : "ingen oppgavetyper ennå"}</TableDataCell>
-                <TableDataCell>{cloudClasses(m).join(", ")}</TableDataCell>
+                <TableDataCell role={r("cell")} data-label="Godkjent">
+                  {trusted.length ? trusted.join(", ") : "ingen oppgavetyper ennå"}
+                </TableDataCell>
+                <TableDataCell role={r("cell")} data-label="Blir i skyen">
+                  {cloudClasses(m).join(", ")}
+                </TableDataCell>
               </TableRow>
             );
           })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+// Measured results per task type: task, result and verdict, stacked on narrow screens.
+export function ResultTable({ rows }: { rows: ResultRow[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <Table size="small" className="table-stack w-full" role="table">
+        <HeaderRow stack cells={["Oppgave", "Resultat", "Vurdering"]} />
+        <TableBody role="rowgroup">
+          {rows.map((r) => (
+            <TableRow role="row" key={r.task}>
+              <TableDataCell role="cell">
+                <strong>{r.task}</strong>
+              </TableDataCell>
+              <TableDataCell role="cell" data-label="Resultat">
+                {r.result}
+              </TableDataCell>
+              <TableDataCell role="cell" data-label="Vurdering">
+                {r.verdict}
+              </TableDataCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </div>
