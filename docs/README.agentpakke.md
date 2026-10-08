@@ -40,6 +40,20 @@ To ting følger av det:
 - **En installert hook kjører også i OpenCode** når nav-pilot starter økten, via samme hook-bro som maskeringen bruker, men ikke med `--pure`. Pi kjører ikke hooks. Se [opencode-hooks.md](../cli/nav-pilot/docs/opencode-hooks.md).
 - **En hook i repo-scope fyrer ikke i `copilot -p` før mappa er betrodd.** Sender pakka di en hook som er en sikkerhetsport, er `--repo` alene ikke nok til at porten står på for teamet. Se [README.nav-pilot.md](README.nav-pilot.md#repo-hooks-fyrer-bare-i-en-betrodd-mappe).
 
+### Porter som skal stoppe kallet når de ikke svarer: `failClosed`
+
+Som standard slipper kallet gjennom når en hook ikke svarer: `python3` mangler, skriptet feiler, eller nav-pilot stopper det fordi det bruker for lang tid. Er hooken en sikkerhetsport der det er verre å slippe et kall gjennom enn å stoppe det, kan du snu dette i `<navn>.hook.json`:
+
+```json
+{"matcher": "bash", "timeoutSec": 5, "failClosed": true}
+```
+
+Da nekter porten kallet i de samme tilfellene, med begrunnelsen «`<navn>` svarte ikke innen fristen, så kallet er stoppet». Modellen får begrunnelsen og kan si den videre. Det gjelder i Copilot CLI og i OpenCode.
+
+Bruk det bare for porter som virkelig må holde. Prisen er at en treg maskin stopper agenten: når `python3` bruker for lang tid på å starte, blir hvert kall porten ser på, nektet til maskinen har roet seg. En kostnadskontroll eller et dytt, som `gh-poll-gate`, skal ikke ha `failClosed`.
+
+Én grense gjenstår i Copilot CLI. Rekker ikke hook-prosessen engang å starte før Copilots egen frist (`timeoutSec`), slipper Copilot kallet gjennom uansett hva hooken ville ha svart. nav-pilot kan ikke tette det hullet. I OpenCode har broen selv fristen, og der nektes kallet også da.
+
 Extensions fikk en type fordi et team som hadde skrevet en, ikke kunne distribuere den: nav-pilot kjente ikke formen, så den ble hverken installert, synket eller eksportert ([#572](https://github.com/navikt/copilot/issues/572)).
 
 ### Skript i en skill: `NAV_PILOT_SKILLS_DIR`

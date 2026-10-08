@@ -462,7 +462,7 @@ func openCodeHookBridge(r ResolvedConfig) providerpkg.HookBridge {
 func bridgeHooks(entries []source.HookEntry) []providerpkg.BridgeHook {
 	out := make([]providerpkg.BridgeHook, 0, len(entries))
 	for _, e := range entries {
-		out = append(out, providerpkg.BridgeHook{Name: e.Name, Command: e.Command, Matcher: e.Matcher, Timeout: e.Timeout})
+		out = append(out, providerpkg.BridgeHook{Name: e.Name, Command: e.Command, Matcher: e.Matcher, Timeout: e.Timeout, FailClosed: e.FailClosed})
 	}
 	return out
 }

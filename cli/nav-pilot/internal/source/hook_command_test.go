@@ -29,7 +29,7 @@ func TestHookCommandQuotesThePath(t *testing.T) {
 	if err := os.WriteFile(script, []byte("import sys\nprint('deny:' + sys.stdin.read())\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command("/bin/sh", "-c", HookCommand(script, 5))
+	cmd := exec.Command("/bin/sh", "-c", HookCommand(script, 5, false))
 	cmd.Stdin = strings.NewReader("payload")
 	out, err := cmd.Output()
 	if err != nil {
@@ -44,7 +44,7 @@ func TestHookCommandQuotesThePath(t *testing.T) {
 // under load, and the hook missed the deadline.
 func TestHookCommandKeepsTwoSecondMargin(t *testing.T) {
 	for timeout, want := range map[int]string{5: "(sleep 3;", 3: "(sleep 1;"} {
-		if got := HookCommand("s.py", timeout); !strings.Contains(got, want) {
+		if got := HookCommand("s.py", timeout, false); !strings.Contains(got, want) {
 			t.Errorf("HookCommand(_, %d) lacks %q: %s", timeout, want, got)
 		}
 	}
@@ -53,7 +53,7 @@ func TestHookCommandKeepsTwoSecondMargin(t *testing.T) {
 // runHook runs HookCommand for a gate with body, the way Copilot does, with
 // mktemp writing under a directory of its own. It returns stdout, stderr and
 // that directory.
-func runHook(t *testing.T, body string, timeout int) (stdout, stderr, tmp string) {
+func runHook(t *testing.T, body string, timeout int, failClosed ...bool) (stdout, stderr, tmp string) {
 	t.Helper()
 	bin := t.TempDir()
 	wrapper := "#!/bin/sh\nexec '" + testhome.Python3(t) + "' \"$@\"\n"
@@ -75,7 +75,7 @@ func runHook(t *testing.T, body string, timeout int) (stdout, stderr, tmp string
 	if err := os.WriteFile(script, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command("/bin/sh", "-c", HookCommand(script, timeout))
+	cmd := exec.Command("/bin/sh", "-c", HookCommand(script, timeout, len(failClosed) > 0 && failClosed[0]))
 	cmd.Stdin = strings.NewReader("{}")
 	var o, e strings.Builder
 	cmd.Stdout, cmd.Stderr = &o, &e
@@ -129,6 +129,31 @@ func TestHookCommandCleansUpAfterKill(t *testing.T) {
 		t.Errorf("killed gate wrote stdout %q, stderr %q; want nothing", out, errOut)
 	}
 	emptyEventually(t, tmp)
+}
+
+// A gate marked failClosed denies when it is killed or fails, and still passes
+// on a clean answer, an empty one included. Without the flag the same cases
+// allow (TestHookCommandCleansUpAfterKill, TestHookCommandForwardsStderr).
+func TestHookCommandFailClosed(t *testing.T) {
+	deny := `{"permissionDecision":"deny","permissionDecisionReason":"gate svarte ikke innen fristen, så kallet er stoppet"}`
+	for name, c := range map[string]struct{ body, want string }{
+		"killed": {"import time\ntime.sleep(30)\n", deny},
+		"failed": {"import sys\nprint('allow')\nsys.exit(1)\n", deny},
+		"answer": {"print('ok')\n", "ok"},
+		"silent": {"pass\n", ""},
+	} {
+		out, _, tmp := runHook(t, c.body, 3, true)
+		if got := strings.TrimSpace(out); got != c.want {
+			t.Errorf("%s: stdout %q, want %q", name, got, c.want)
+		}
+		emptyEventually(t, tmp)
+	}
+	// No python3 at all: the command -v guard denies too.
+	cmd := exec.Command("/bin/sh", "-c", HookCommand("gate.py", 3, true))
+	cmd.Env = []string{"PATH=/nonexistent"}
+	if out, err := cmd.Output(); err != nil || strings.TrimSpace(string(out)) != deny {
+		t.Errorf("no python3: %v, stdout %q", err, out)
+	}
 }
 
 func TestLoadHookMetaTimeoutFloor(t *testing.T) {

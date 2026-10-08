@@ -221,6 +221,10 @@ du kjører `nav-pilot install` eller `nav-pilot sync --apply`. Til da har de den
 på ett sekund. En port som nekter alt når Python er treg, er verre enn ingen port. Kommandoen
 bruker bare `sh`, fordi macOS ikke har `timeout`.
 
+En port i en agentpakke kan be om det motsatte med `"failClosed": true` i sidecar-fila. Da nekter
+den kallet når den ikke svarer. Se
+[README.agentpakke.md](README.agentpakke.md#porter-som-skal-stoppe-kallet-når-de-ikke-svarer-failclosed).
+
 Det et skript skriver ut, teller bare når det avslutter med exitkode 0. Skriver en hook fra en
 annen pakke et `deny`-svar og avslutter med 2, slipper kallet altså gjennom. Skal en port nekte,
 må den skrive svaret og avslutte med 0, slik nav-pilots egne porter gjør.

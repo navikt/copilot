@@ -1,0 +1,45 @@
+# A gate marked failClosed in its sidecar denies the call when the watchdog
+# kills it, with a reason the model can relay, before Copilot's own deadline
+# (which would allow it). The entry also carries failClosed, for the OpenCode
+# bridge. See hook_slow_python_fails_open for the default.
+
+[!exec:python3] skip 'needs python3'
+
+mkdir forbruker
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../forbruker
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+
+# The slow gate: killed by the watchdog, and it denies.
+exits 0 python3 ../run.py treg
+stdout '"permissionDecision":"deny"'
+stdout 'treg svarte ikke innen fristen, så kallet er stoppet'
+grep '"failClosed": true' .github/hooks/copilot-hooks.json
+
+-- run.py --
+# Runs a hook entry the way Copilot does: sh -c, payload on stdin. The
+# timeout only stops a hung hook; see above.
+import json, subprocess, sys
+entries = json.load(open(".github/hooks/copilot-hooks.json"))["hooks"]["preToolUse"]
+e = next(e for e in entries if e["navPilot"] == sys.argv[1])
+p = subprocess.run(["/bin/sh", "-c", e["command"]], input=b'{"toolName":"bash","toolArgs":{"command":"x"}}', capture_output=True, timeout=e["timeoutSec"] + 10)
+sys.stdout.write(p.stdout.decode())
+sys.exit(p.returncode)
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/hooks/treg.hook.json --
+{"matcher": "bash", "timeoutSec": 3, "failClosed": true}
+-- plattform/hooks/treg.py --
+import time
+time.sleep(30)
+print('{"permissionDecision": "deny"}')
