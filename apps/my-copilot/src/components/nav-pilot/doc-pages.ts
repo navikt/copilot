@@ -6,7 +6,7 @@ export const GUIDE_PAGES: DocLink[] = [
   {
     href: "/nav-pilot/guider/kom-i-gang",
     title: "Kom i gang på 5 minutter",
-    desc: "Installer, logg inn med gh, start agenten i et repo og velg hvor mye den skal gjøre selv.",
+    desc: "Installer, logg inn med gh, start agenten i et repo og se hva den kan gjøre.",
   },
   {
     href: "/nav-pilot/guider/installere-og-oppgradere",

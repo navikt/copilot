@@ -84,7 +84,7 @@ export const CONFIG_KEYS = [
     key: "surveys",
     flag: "—",
     values: "true · false (standard: true)",
-    desc: "Spør av og til etter en økt om du vil svare på en kort brukerundersøkelse. DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false slår det også av.",
+    desc: "Spør av og til etter en økt om du vil svare på en kort brukerundersøkelse. false slår av spørsmålet og engangstipset om opencode; DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false gjør det samme.",
   },
   {
     key: "news",
@@ -144,7 +144,7 @@ export const CONFIG_KEYS = [
     key: "local_dispatch",
     flag: "--local-dispatch",
     values: "off · conservative · balanced · aggressive (standard: aggressive)",
-    desc: "Hvor mye hovedagenten i opencode sender til den lokale modellen. aggressive sender mest, men kostet flere KI-kreditter og tok lengre tid i målingene.",
+    desc: "Hvor mye hovedagenten i opencode sender til den lokale modellen. aggressive sender mest, men kostet flere AI-kreditter og tok lengre tid i målingene.",
   },
   {
     key: "hook_loop_guard",

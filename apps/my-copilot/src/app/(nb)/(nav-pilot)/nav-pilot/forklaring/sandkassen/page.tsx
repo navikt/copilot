@@ -227,7 +227,7 @@ nav-pilot config                    # eller raden «cplt strict preset (blocks a
           </BodyLong>
           <BodyLong>
             <strong>Tilbake til standard.</strong> Bytter du fra strict til <code className={code}>standard</code>, spør
-            nav-pilot (fra versjonen 29. september 2026):{" "}
+            nav-pilot (fra 29. september 2026):{" "}
             <strong>Remove the network allowlist nav-pilot set up for strict?</strong> Spørsmålet kommer bare for lista
             nav-pilot la inn selv. Svarer du nei, eller har du en egen liste, blir lista stående, og agenten når
             fortsatt bare vertene på den. Kommandoen under fjerner lista som gjelder, uansett hvem som la den inn:
