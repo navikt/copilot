@@ -101,7 +101,7 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
       </>
     ),
   },
-  { what: "Deling av, oppdatering som varsel", copilot: "Ikke aktuelt", opencode: "Ja", pi: "Ikke aktuelt" },
+  { what: "Deling slått av, oppdatering som varsel", copilot: "Ikke aktuelt", opencode: "Ja", pi: "Ikke aktuelt" },
   { what: "WSL2 på Windows", copilot: "Ja", opencode: "Ja", pi: "Nei" },
   {
     what: <>Sky + {c("local-worker")}</>,
@@ -204,8 +204,8 @@ export default function Klienter() {
         </div>
         <Bullets>
           <li>
-            Nye installasjoner får opencode. Første gang spør nav-pilot hvilken klient du vil ha. Har du brukt nav-pilot
-            før, beholder du klienten din.
+            Nye installasjoner får opencode: første gang spør nav-pilot hvilken klient du vil ha, med opencode
+            forhåndsvalgt. Har du brukt nav-pilot før, beholder du klienten din.
           </li>
           <li>
             Bytt for én økt med {c("--client copilot")}, for godt med {c("nav-pilot config set client copilot")}.
@@ -215,12 +215,13 @@ export default function Klienter() {
             {c("--client opencode")} for opencode.
           </li>
           <li>
-            Bruker du lokal modell i Copilot CLI, får du ett tips om opencode. Slå av med{" "}
+            Bruker du lokal modell i Copilot CLI og har opencode installert, får du ett tips om opencode. Slå av med{" "}
             {c("nav-pilot config set surveys false")}.
           </li>
         </Bullets>
         <BodyLong>
-          Mangler opencode, tilbyr nav-pilot å installere en testet versjon. Sier du nei, får du Copilot CLI.
+          Mangler opencode, tilbyr nav-pilot å installere en testet versjon med en av kommandoene under. Sier du nei,
+          får du Copilot CLI.
         </BodyLong>
         <div className="[&_pre]:[overflow-wrap:anywhere]">
           <CodeBlock compact>{OPENCODE_INSTALL_BLOCK}</CodeBlock>
@@ -309,8 +310,8 @@ export default function Klienter() {
           nei, og {c("nav-pilot config set mcp_hosts off")} slår spørsmålet av. Se{" "}
           <NextLink href="/nav-pilot/guider/feilsoking#mcp" className={linkClass}>
             Når en MCP-server ikke virker
-          </NextLink>{" "}
-          og, for hvilke konfigfiler nav-pilot leser,{" "}
+          </NextLink>
+          . Hvilke konfigfiler nav-pilot leser, står i{" "}
           <a href={`${HOOKS_DOC}#mcp-servers-outside-navs-registry-1027`} className={linkClass}>
             opencode-hooks.md
           </a>
@@ -364,6 +365,7 @@ export default function Klienter() {
             {c("nav-pilot export opencode")} skriver agentpakka til {c(".opencode/")} i repoet. Du trenger det ikke for
             å bruke opencode.
           </li>
+          <li>nav-pilot setter opp OpenTelemetry for opencode, med mindre du har slått av telemetri.</li>
         </Bullets>
         <LinkableHeading id="testet-versjon" size="small" level="3">
           Testet versjon
@@ -375,9 +377,7 @@ export default function Klienter() {
         </BodyLong>
         <BodyLong>opencode 2 krever:</BodyLong>
         <Bullets>
-          <li>
-            macOS med cplt {c("2026.10.08-081501")} eller nyere. Sjekk med {c("cplt --version")}.
-          </li>
+          <li>macOS med cplt fra 8. oktober 2026 eller nyere. {c("cplt --version")} viser datoen først i versjonen.</li>
           <li>På Linux og WSL kjører cplt ikke opencode 2 ennå. Der må du bruke opencode 1, og nav-pilot sier fra.</li>
           <li>
             Går du fra opencode 1 til 2, må du kjøre {c("opencode auth import")} én gang. Innloggingen følger ikke med
