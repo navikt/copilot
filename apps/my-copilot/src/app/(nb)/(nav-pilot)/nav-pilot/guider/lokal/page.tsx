@@ -22,8 +22,6 @@ const TOC: TocItem[] = [
   { id: "decide-oppskrifter", label: "Oppskrifter for alpha decide" },
 ];
 
-const REPORTS = "https://github.com/navikt/mlx-workspace/blob/main";
-
 // Recipes for alpha decide. String.raw keeps the shell's \n and \ intact.
 
 const DECIDE_PR_DESCRIPTION = String.raw`gh pr view N --json title,body \
@@ -91,51 +89,21 @@ export default function LokalGuide() {
 nav-pilot config set client opencode
 nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> for én økt`}
           </CodeBlock>
-          <Bullets>
-            <li>
-              <code className={code}>off</code>: hovedagenten får ingen lokal underagent. Vil du slå av alt lokalt, bruk{" "}
-              <code className={code}>nav-pilot alpha local off</code>.
-            </li>
-            <li>
-              <code className={code}>conservative</code>: bare store mekaniske endringer (minst 10 filer eller 20
-              kallsteder), og hovedagenten vurderer selv om det er verdt det.
-            </li>
-            <li>
-              <code className={code}>balanced</code>: mekaniske endringer på minst 5 filer eller 10 kallsteder.
-              Redigerer hovedagenten selv en femte fil eller et tiende kallsted i samme tur, stopper nav-pilot
-              redigeringen én gang og ber om at resten sendes til <code className={code}>local-worker</code>. Et
-              søk-og-erstatt teller hvert sted det endrer. Trenger endringen en vurdering per fil, går samme redigering
-              gjennom andre gang.
-            </li>
-            <li>
-              <code className={code}>aggressive</code> (standard): en stoppet fil slipper gjennom først når den er sendt
-              til <code className={code}>local-worker</code>. Nye filer, også tester, går dit først når modellen er
-              godkjent for nye filer.
-            </li>
-          </Bullets>
           <BodyLong>
-            Når <code className={code}>local-worker</code> er ferdig, legger nav-pilot til i svaret at hovedagenten skal
-            bygge prosjektet og kjøre testene før den godtar endringen. Har den lokale modellen skrevet en test, skal
-            hovedagenten vise at testen kan feile. Svarer hovedagenten før den har bygd eller kjørt tester, minner
-            nav-pilot den på det én gang.
-          </BodyLong>
-          <BodyLong>
-            Har <code className={code}>local-worker</code> laget en ny fil og bygget eller testene feiler, ber nav-pilot
-            hovedagenten sende feilen tilbake til <code className={code}>local-worker</code> én gang. Feiler det igjen,
-            retter hovedagenten feilen selv.
-          </BodyLong>
-          <BodyLong>
-            <code className={code}>aggressive</code> sender mest, men koster mer AI-kreditter og tid enn å la
-            skymodellen gjøre alt selv. <code className={code}>balanced</code> kostet også mer enn skymodellen alene,
-            men sendte mindre, så <code className={code}>aggressive</code> er standard. Har du satt{" "}
-            <code className={code}>local_dispatch</code> selv, beholder du verdien din. Uansett nivå sender hovedagenten
-            bare oppgavetyper modellen er godkjent for. Stoppet ligger i en plugin for opencode, så det virker ikke hvis
-            du starter opencode med <code className={code}>--pure</code>. Hvorfor nivåene finnes, hva de gjør med hver
-            modell og hva målingene viser, står i{" "}
+            Nivåene er <code className={code}>off</code>, <code className={code}>conservative</code>,{" "}
+            <code className={code}>balanced</code> og <code className={code}>aggressive</code> (standard). Hva hvert
+            nivå gjør, og hvorfor <code className={code}>aggressive</code> er standard, står i{" "}
             <NextLink href="/nav-pilot/forklaring/lokal-modell#utsending" className={linkClass}>
               Hvorfor utsendingen er begrenset
             </NextLink>
-            .
+            . Har du satt <code className={code}>local_dispatch</code> selv, beholder du verdien din. Vil du slå av alt
+            lokalt, bruk <code className={code}>nav-pilot alpha local off</code>.
+          </BodyLong>
+          <BodyLong>
+            Når <code className={code}>local-worker</code> er ferdig, ber nav-pilot hovedagenten bygge prosjektet og
+            kjøre testene før den godtar endringen. Har den lokale modellen skrevet en test, skal hovedagenten vise at
+            testen kan feile. Feiler bygget eller testene for en ny fil, sendes feilen tilbake til{" "}
+            <code className={code}>local-worker</code> én gang. Feiler det igjen, retter hovedagenten den selv.
           </BodyLong>
         </VStack>
       </section>
@@ -182,8 +150,8 @@ nav-pilot alpha local restart   # hvis serveren allerede kjører en annen modell
               tabellen over lokale modeller
             </NextLink>
             . Lista oppdateres når du kjører <code className={code}>init</code> eller{" "}
-            <code className={code}>start</code>. Første oppstart laster modellen inn i minnet, i målingene våre under 50
-            sekunder på alle seks maskinene.
+            <code className={code}>start</code>. Første oppstart laster modellen inn i minnet, vanligvis på under ett
+            minutt.
           </BodyLong>
           <BodyLong>
             <code className={code}>status</code> viser hvilken modell som er valgt, og om den er valgt med{" "}
@@ -215,38 +183,13 @@ nav-pilot alpha local init      # laster ned vektene og starter`}
             <code className={code}>start</code> spør før de hever den. Den har 64k kontekst og 16k svar.
           </BodyLong>
           <BodyLong>
-            Dette målte vi 27. september 2026 (
-            <a href={`${REPORTS}/reports/2026-09-26-64gb-tier/night-64-4.md#review-2026-09-28`} className={linkClass}>
-              måling 64-4
-            </a>
-            ):
-          </BodyLong>
-          <Bullets>
-            <li>Den løste oppgaven i 12 av 12 Copilot-økter.</li>
-            <li>
-              Med decide svarte den like godt som standardmodellen på oppskriftene: 184 av 218 riktige mot 182. På
-              spørsmålet om en commit-melding forklarer hvorfor, fikk den 91 av 96 mot 89. På testene av svakheter fikk
-              den 806 av 974 mot 827. Forskjellen kom mest når grunnlaget prøvde å styre svaret, eller var langt.
-            </li>
-            <li>
-              Minnebruken var på det meste 46,18 GB, med en prompt på 49 000 tokens. Grensen er 48 GB. Minnet tok ikke
-              slutt.
-            </li>
-          </Bullets>
-          <BodyLong>
-            Prompter over 49 000 tokens har vi ikke målt, selv om modellen tillater 64k. Rapporten anslår rundt 50 GB
-            ved 64 000 tokens, altså over grensen.{" "}
-            <a href={`${REPORTS}/reports/2026-09-26-64gb-tier/plan-64-6.md`} className={linkClass}>
-              Måling 64-6
-            </a>{" "}
-            skal måle det.
-          </BodyLong>
-          <BodyLong>
-            Hovedagenten sender ingenting til denne modellen ennå. Alle oppgavetyper står som{" "}
-            <code className={code}>cloud</code> i manifestet, så <code className={code}>local-worker</code> får ingen
-            oppgaver, uansett hvilket utsendingsnivå du har valgt. Måling 64-6 skal gi tallene som kan endre det.
-            Foreløpig kan du bruke modellen til <code className={code}>alpha decide</code>, eller prøve den i en økt
-            selv.
+            Hovedagenten sender ingenting til denne modellen ennå, uansett utsendingsnivå. Du kan bruke den til{" "}
+            <code className={code}>alpha decide</code>, eller prøve den i en økt selv. I målingene svarte den like godt
+            som standardmodellen med decide. Prompter over 49 000 tokens kan sprenge minnegrensen. Se{" "}
+            <NextLink href="/nav-pilot/forklaring/lokal-modell/malinger#modell-64-gb" className={linkClass}>
+              Målinger
+            </NextLink>
+            .
           </BodyLong>
           <LinkableHeading id="autostart" size="small" level="3">
             Start serveren automatisk
@@ -294,15 +237,10 @@ nav-pilot alpha local init      # laster ned vektene og starter`}
             </li>
           </Bullets>
           <BodyLong>
-            «Ja»-svarene er stabile, men «nei»-svarene vipper mot «teksten er grei» når alternativene bytter plass eller
-            spørsmålet snus. Standardmodellen svarte riktig på 85 % av spørsmålene i opprinnelig form og 58 % når de var
-            snudd.{" "}
-            <a
-              href="https://github.com/navikt/mlx-workspace/blob/main/bench/decide-layout-results.md"
-              className={linkClass}
-            >
-              Se målingen
-            </a>
+            Modellen er mer treffsikker på «ja» enn på «nei», og ordlyden betyr mye. Tallene står i{" "}
+            <NextLink href="/nav-pilot/forklaring/lokal-modell/malinger#malt-decide" className={linkClass}>
+              Målinger
+            </NextLink>
             .
           </BodyLong>
 
@@ -342,14 +280,7 @@ nav-pilot alpha local init      # laster ned vektene og starter`}
           <Label size="small">Tekst andre har skrevet</Label>
           <BodyLong>
             PR-beskrivelser, issues og logger er skrevet av andre, og kan inneholde instrukser til modellen (prompt
-            injection). La sjekker på slik tekst bare advare eller foreslå. Tallene under er fra{" "}
-            <a
-              href="https://github.com/navikt/mlx-workspace/blob/main/bench/decide-sets-20260925-225356.md"
-              className={linkClass}
-            >
-              målingene 25. september
-            </a>{" "}
-            med standardmodellen.
+            injection). La sjekker på slik tekst bare advare eller foreslå.
           </BodyLong>
 
           <Recipe
@@ -361,9 +292,8 @@ nav-pilot alpha local init      # laster ned vektene og starter`}
             }
           />
           <BodyLong>
-            Modellen valgte riktig mellom bug, feature og question på 95 av 105 issues (90 %). Når den bare fikk svare
-            ved p ≥ 0,9, svarte den på omtrent to tredjedeler og hadde rett alle 71 gangene. Behold filteret: under 0,9
-            gir kommandoen ingen etikett, og da setter du den selv.
+            Modellen valgte riktig etikett på 90 % av issuene, og hadde alltid rett når den var minst 90 % sikker.
+            Behold filteret: under 0,9 gir kommandoen ingen etikett, og da setter du den selv.
           </BodyLong>
           <CodeBlock compact>{DECIDE_ISSUE_LABEL}</CodeBlock>
 
@@ -376,8 +306,7 @@ nav-pilot alpha local init      # laster ned vektene og starter`}
             }
           />
           <BodyLong>
-            Den slapp gjennom alle de 24 beskrivelsene som forklarer hvorfor, men fant bare 3 av 12 der grunnen var
-            fjernet. Et «no» er verdt å se på. Et «yes» betyr lite.
+            Den finner sjelden beskrivelser der grunnen mangler. Et «no» er verdt å se på. Et «yes» betyr lite.
           </BodyLong>
           <CodeBlock compact>{DECIDE_PR_DESCRIPTION}</CodeBlock>
 

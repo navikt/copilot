@@ -112,9 +112,13 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/lokal#egen-server": "/nav-pilot/lokal/egen-server#start-serveren",
   "/nav-pilot/lokal#hva-kommer": "/nav-pilot/forklaring/lokal-modell#hva-kommer",
   "/nav-pilot/lokal#malt": "/nav-pilot/forklaring/lokal-modell#malte-grenser",
-  "/nav-pilot/lokal#malt-decide": "/nav-pilot/forklaring/lokal-modell#malt-decide",
-  "/nav-pilot/lokal#malt-utsending": "/nav-pilot/forklaring/lokal-modell#malt-utsending",
+  "/nav-pilot/lokal#malt-decide": "/nav-pilot/forklaring/lokal-modell/malinger#malt-decide",
+  "/nav-pilot/lokal#malt-utsending": "/nav-pilot/forklaring/lokal-modell/malinger#malt-utsending",
   "/nav-pilot/lokal#utsending": "/nav-pilot/forklaring/lokal-modell#utsending",
+
+  // The measured numbers moved to their own page.
+  "/nav-pilot/forklaring/lokal-modell#malt-decide": "/nav-pilot/forklaring/lokal-modell/malinger#malt-decide",
+  "/nav-pilot/forklaring/lokal-modell#malt-utsending": "/nav-pilot/forklaring/lokal-modell/malinger#malt-utsending",
 
   // Own server got its own introduction.
   "/nav-pilot/guider/lokal#egen-server": "/nav-pilot/lokal/egen-server#start-serveren",

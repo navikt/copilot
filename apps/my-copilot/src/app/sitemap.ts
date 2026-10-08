@@ -40,6 +40,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/nav-pilot/forklaring/planlegging`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/forklaring/sandkassen`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/forklaring/lokal-modell`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE_URL}/nav-pilot/forklaring/lokal-modell/malinger`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE_URL}/nav-pilot/forklaring/personvern`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/forklaring/arkitektur`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/cplt`, changeFrequency: "monthly", priority: 0.6 },

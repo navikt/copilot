@@ -65,13 +65,12 @@ export default function EgenServer() {
     >
       <BodyLong>
         Utsendingen, løkkevakten og <code className={code}>alpha decide</code> går til serveren din. Koden din sendes
-        dit, så nav-pilot godtar bare localhost og private IP-adresser, som 127.0.0.1 og 192.168.x.x. nav-pilot regner
-        modellen på serveren din som ikke målt. Vi har prøvd veien på én Mac med Ollama, llama-server og mlx_lm.server,
-        men tallene i{" "}
-        <NextLink href="/nav-pilot/forklaring/lokal-modell#malte-grenser" className={linkClass}>
-          målte grenser
+        dit, så nav-pilot godtar bare localhost og private IP-adresser, som 127.0.0.1 og 192.168.x.x. Modellen på
+        serveren din er ikke målt, så tallene i{" "}
+        <NextLink href="/nav-pilot/forklaring/lokal-modell/malinger" className={linkClass}>
+          Målinger
         </NextLink>{" "}
-        gjelder ikke. Selve <code className={code}>ollama pull</code> fikk vi ikke kjørt, fordi registeret var blokkert.
+        gjelder ikke.
       </BodyLong>
 
       <section>
@@ -117,18 +116,17 @@ export default function EgenServer() {
           </BodyLong>
           <BodyLong>
             Vi anbefaler Qwen3.6-35B-A3B i dynamisk 4-bit (unsloth UD-Q4_K_XL). Det er den GGUF-varianten som ligger
-            nærmest modellen vi har målt på Mac. <code className={code}>setup</code> ser også etter LM Studio og vLLM,
-            men dem har vi ikke prøvd.
+            nærmest modellen vi har målt på Mac. <code className={code}>setup</code> finner også LM Studio og vLLM, men
+            dem har vi ikke prøvd.
           </BodyLong>
           <Box background="warning-soft" padding="space-16" borderRadius="8">
             <VStack gap="space-8">
               <Label size="small">Ollama kan gi modellen for lite kontekst</Label>
               <BodyShort size="small">
-                På maskiner med under 24 GB grafikkminne gir Ollama modellen 4 096 tokens kontekst, og det kan ikke
-                endres over <code className={code}>/v1</code>. Med mer minne velger Ollama større kontekst selv (262 144
-                tokens på en Mac med 128 GB). Første melding i en Copilot-økt er på rundt 22 000 tokens. Eldre Ollama
-                kutter resten uten å si fra; Ollama 0.34 avviser prompten med en feil. Start Ollama med{" "}
-                <code className={code}>OLLAMA_CONTEXT_LENGTH=65536</code>, som over, eller lag en egen modell med en
+                Ollama gir modellen bare 4 096 tokens kontekst på maskiner med under 24 GB grafikkminne, og det kan ikke
+                endres over <code className={code}>/v1</code>. Første melding i en Copilot-økt er på rundt 22 000
+                tokens, så resten blir kuttet eller avvist. Start derfor Ollama med{" "}
+                <code className={code}>OLLAMA_CONTEXT_LENGTH=65536</code>, som over, eller lag en modell med en
                 Modelfile som har <code className={code}>PARAMETER num_ctx 65536</code>.
               </BodyShort>
             </VStack>
@@ -142,21 +140,16 @@ export default function EgenServer() {
           </BodyLong>
           <CodeBlock compact>{SMALL_MEMORY}</CodeBlock>
           <BodyLong>
-            Ollama fordeler selv lagene mellom grafikkortet og vanlig minne.{" "}
-            <code className={code}>--n-cpu-moe 999</code> holder ekspertene i en MoE-modell som Qwen3.6-35B-A3B i vanlig
-            minne. Med en tett modell velger du antall lag på grafikkortet med <code className={code}>-ngl</code> i
-            stedet. Start serveren på nytt med den mindre konteksten før du kjører <code className={code}>setup</code>{" "}
-            igjen. Med under 30 000 tokens feiler kontekstsjekken, fordi prompten kuttes, men da tilbyr{" "}
-            <code className={code}>setup</code> å lagre likevel. Korte prompter virker, men en Copilot- eller
-            opencode-økt får ikke plass. Går serveren tom for minne under sjekken, lagrer{" "}
-            <code className={code}>setup</code> ingenting.
+            Ollama fordeler lagene selv. <code className={code}>--n-cpu-moe 999</code> holder ekspertene i en MoE-modell
+            som Qwen3.6-35B-A3B i vanlig minne. Med en tett modell velger du antall lag på grafikkortet med{" "}
+            <code className={code}>-ngl</code>.
           </BodyLong>
           <BodyLong>
-            Hvorfor så mye kontekst? Systemprompten og verktøyene i en Copilot-økt er rundt 22 000 tokens før du har
-            skrevet noe, og Copilot starter ikke hvis det fyller mer enn 80 prosent av konteksten. Får ikke 30 000
-            tokens plass ved siden av modellen, trenger du et grafikkort med mer minne eller en maskin med felles minne
-            for prosessor og grafikkort (som en Mac med 32 GB eller mer). Ellers kan du bruke modellene i skyen, som
-            ikke krever noe oppsett.
+            En Copilot- eller opencode-økt trenger minst 30 000 tokens kontekst. Med mindre feiler kontekstsjekken i{" "}
+            <code className={code}>setup</code>, men den tilbyr å lagre likevel. Korte prompter og{" "}
+            <code className={code}>alpha decide</code> virker da, men ikke en hel økt. Går serveren tom for minne under
+            sjekken, lagrer <code className={code}>setup</code> ingenting. Trenger du økter, må du ha et grafikkort med
+            mer minne, en Mac med 32 GB eller mer, eller bruke modellene i skyen.
           </BodyLong>
         </VStack>
       </section>
@@ -180,11 +173,12 @@ export default function EgenServer() {
             <code className={code}>--fix-context</code>.
           </BodyLong>
           <BodyLong>
-            På en maskin med lite minne får du ikke plass til 30 000 tokens kontekst, og da feiler kontekstsjekken
-            uansett. Er det den eneste sjekken som feiler, spør <code className={code}>setup</code> om du vil lagre
-            likevel. Korte prompter virker, men i en Copilot- eller opencode-økt kutter eller avviser serveren det som
-            ikke får plass. Uten terminal lagrer den ikke, heller ikke med <code className={code}>--yes</code>, men
-            viser kommandoene som gjør det.
+            Feiler bare kontekstsjekken, spør <code className={code}>setup</code> om du vil lagre likevel (se{" "}
+            <a href="#lite-minne" className={linkClass}>
+              Lite minne
+            </a>
+            ). Uten terminal lagrer den ikke, heller ikke med <code className={code}>--yes</code>, men viser kommandoene
+            som gjør det.
           </BodyLong>
           <BodyLong>
             <code className={code}>mlx_lm.server</code> lister alle MLX-modellene i Hugging Face-cachen, ikke bare den
