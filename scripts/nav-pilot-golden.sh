@@ -1146,14 +1146,14 @@ rs_parser() {
 }
 if [[ "$GROUP" == "kafka" || "$GROUP" == "rust" ]]; then
   if [[ "$GROUP" == "kafka" ]]; then
-    command -v gradle >/dev/null 2>&1 || fail_preflight "--suite kafka needs gradle (and JDK 21) on PATH" "mise install"
+    command -v gradle >/dev/null 2>&1 || fail_preflight "--suite kafka needs gradle (and JDK 21) on PATH" "The kafka suite is local-only: install JDK 21 and gradle (not in .mise.toml)."
     # Kotlin 2.1 cannot run on the newest JDKs. Exported, so the agent's own
     # gradle calls get the same JDK as the evaluator's.
     JAVA_HOME="${NAV_PILOT_JAVA_HOME:-$(mise where java@21 2>/dev/null || echo "${JAVA_HOME:-}")}"
     export JAVA_HOME
     checks="kf_konsument kf_hendelse"
   else
-    command -v cargo >/dev/null 2>&1 || fail_preflight "--suite rust needs cargo on PATH" "mise install"
+    command -v cargo >/dev/null 2>&1 || fail_preflight "--suite rust needs cargo on PATH" "The rust suite is local-only: install cargo (not in .mise.toml)."
     checks="rs_saksko rs_parser"
   fi
   cp -R "$GF/$GROUP/workspace/." "$TEMPLATE/"

@@ -545,7 +545,7 @@ Målingen brukte 98,4 credits ifølge bruksradene: 60,9 på Haiku og 37,6 på Lu
 
 ## Claude Haiku 5.5 Low på @kafka og @rust (8. oktober 2026)
 
-Kodesuiten har tre små rettinger i Go og TypeScript, og der besto både Claude Haiku 5.5 Low og GPT-6 Luna Medium alle 30 sjekkene. Haiku Low var billigst. Den suiten kjører `@nav-pilot` og sier lite om Kafka og Rust. Derfor måler vi her de to modellene gjennom agentene som faktisk er pinnet til Luna: `@kafka` og `@rust`.
+Testpakken `coding` har tre små rettinger i Go og TypeScript, og der besto både Claude Haiku 5.5 Low og GPT-6 Luna Medium alle 30 sjekkene. Haiku Low var billigst. Testpakken `coding` kjører `@nav-pilot` og sier lite om Kafka og Rust. Derfor måler vi her de to modellene gjennom agentene som faktisk er pinnet til Luna: `@kafka` og `@rust`.
 
 Testoppsettet hadde ingen Kafka- eller Rust-oppgaver. Fire nye ligger i [`scripts/golden-fixtures/`](../scripts/golden-fixtures/), som testpakkene `kafka` og `rust`:
 
@@ -589,10 +589,10 @@ Credits per kjøring, det vil si begge oppgavene til agenten, som laveste–medi
 
 Vurdering mot kriteriene:
 
-- **`@kafka`: Luna beholdes.** Begge besto alle oppgavene, men medianen for Haiku Low (2,06 credits per kjøring) er høyere enn for Luna Medium (1,80). Haiku brukte mest på kf-idem.
-- **`@rust`: Haiku Low oppfyller kriteriene.** Begge besto alle oppgavene, og medianen for Haiku Low (0,92 credits per kjøring) er lavere enn for Luna Medium (1,34).
+- **`@kafka`: Luna beholdes.** Begge besto alle oppgavene. Medianen for Haiku Low var 2,06 credits per kjøring, mot 1,80 for Luna Medium, og forskjellen ligger i kf-idem. Ingen målbar forskjell i credits (p = 1,0 over fem kjøringer, Mann–Whitney), så kriteriet gir ikke grunnlag for bytte.
+- **`@rust`: Haiku Low oppfyller kriteriene.** Begge besto alle oppgavene, og medianen for Haiku Low (0,92 credits per kjøring) er lavere enn for Luna Medium (1,34). Haiku Low var billigere i alle fem kjøringer, uten overlapp (p = 0,008, Mann–Whitney).
 
-Fire oppgaver og fem kjøringer per arm er et lite utvalg, og ingen oppgave skilte modellene på kvalitet. Denne PR-en endrer ingen pinner. Et eventuelt bytte for `@rust` tas i en egen PR.
+Fire oppgaver og fem kjøringer per arm er et lite utvalg. Oppgavene er små rettinger i én fil, og begge armene fikk 5/5 på alle. Testpakkene gir derfor et signal om kostnad og en sperre mot regresjon, men skiller ikke modellene på kvalitet. kf-idem kan for eksempel løses med et sett i minnet. Denne PR-en endrer ingen pinner. Et eventuelt bytte for `@rust` tas i en egen PR.
 
 Forbruket var 31,2 credits: 10,0 for Haiku på `kafka`, 4,7 for Haiku på `rust`, 9,8 for Luna på `kafka` og 6,8 for Luna på `rust`. Budsjettet var om lag 40, med stopp ved 80.
 
