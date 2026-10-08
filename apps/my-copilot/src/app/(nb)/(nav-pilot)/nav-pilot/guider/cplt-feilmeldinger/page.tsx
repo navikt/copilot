@@ -18,7 +18,7 @@ const TOC: TocItem[] = [
   { id: "nettverk", label: "Nettverk" },
   { id: "filer", label: "Filer og programmer" },
   { id: "jvm", label: "Java, Kotlin og Gradle" },
-  { id: "nettleser", label: "Playwright og Cypress" },
+  { id: "nettleser", label: "Playwright, Cypress og Puppeteer" },
   { id: "git", label: "Git og GitHub" },
   { id: "agent", label: "Agenten og innlogging" },
 ];
@@ -483,7 +483,7 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="nettleser" size="medium" level="2">
-            Playwright og Cypress
+            Playwright, Cypress og Puppeteer
           </LinkableHeading>
 
           <LinkableHeading id="playwright" size="small" level="3">
@@ -516,6 +516,29 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
 cplt config set --repo sandbox.allow_localhost_any true   # skriver til .cplt.toml
 cplt trust accept --all                                    # godkjenn forslaget`}
           </CodeBlock>
+
+          <LinkableHeading id="puppeteer" size="small" level="3">
+            spawn EPERM og [object Object] fra Puppeteer og mmdc
+          </LinkableHeading>
+          <BodyLong>
+            <code className={code}>Error: spawn EPERM</code> betyr at Puppeteer prøver å starte Chrome fra{" "}
+            <code className={code}>~/.cache/puppeteer</code>. På macOS får ingenting kjøre derfra, og{" "}
+            <code className={code}>--allow-cache-exec</code> når ikke den mappa. Skriver{" "}
+            <code className={code}>mmdc</code> bare <code className={code}>[object Object]</code>, har Puppeteer prøvd å
+            koble til nettleseren over localhost. Løsningen er en <code className={code}>puppeteer.json</code> som peker
+            på nettleseren fra Playwright og har <code className={code}>{'"pipe": true'}</code> og{" "}
+            <code className={code}>--no-sandbox</code>. Oppskriften står under{" "}
+            <NextLink href="/nav-pilot/guider/cplt-node#mermaid" className={linkClass}>
+              Puppeteer og Mermaid-diagrammer
+            </NextLink>{" "}
+            i Node-guiden.
+          </BodyLong>
+          <BodyLong>
+            <code className={code}>npx -y @mermaid-js/mermaid-cli</code> stopper før det, med{" "}
+            <code className={code}>bad interpreter: Operation not permitted</code>, fordi ingenting får kjøre fra{" "}
+            <code className={code}>~/.npm</code>. Installer pakken i prosjektet med{" "}
+            <code className={code}>npm install -D @mermaid-js/mermaid-cli</code>.
+          </BodyLong>
         </VStack>
       </section>
 
