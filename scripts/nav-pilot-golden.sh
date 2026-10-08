@@ -3865,9 +3865,9 @@ run_pass_research() {
 # The transcript cannot answer this. The CLI's own «(model: …)» label named a
 # model that never ran when an override fell back (#1477, D1-D2), so the model
 # is read from the client's debug log: one `turn tool surface resolved
-# {"model":"…"}` line per model turn, subagent turns included. Each check then
-# looks for the same model in the exact usage rows, which carry an agent_id for
-# subagent turns. The two sources come from different parts of the client.
+# {"model":"…"}` line per prompt and model, subagents included. Delegation is
+# counted from the exact usage rows: a subagent's rows carry an agent_id, and
+# the session's events.jsonl names the agent. The checks need both sources.
 
 # models_in_run <slug>...: "<model> <turns>" per model, first model first.
 models_in_run() {
@@ -3882,25 +3882,38 @@ usage_models() {
   local s
   for s in "$@"; do awk -F'|' -v s="$s" -v r="$RUN" '$1 == s && $2 == r { print $6 }' "$USAGE_FILE"; done | sort -u
 }
-subagents_started() {
+usage_rows() {
   local s
-  for s in "$@"; do
-    grep -rh 'kind: subagent_started' "$(tx "$s" | sed 's/\.txt$/.logs/')" 2>/dev/null
-  done | wc -l | tr -d ' '
+  for s in "$@"; do awk -F'|' -v s="$s" -v r="$RUN" '$1 == s && $2 == r' "$USAGE_FILE"; done | wc -l | tr -d ' '
+}
+# sub_turns <slug>...: "<agent name> <model>" per distinct subagent in this
+# run's usage rows. A subagent row has an agent_id (column 17), a UUID; the
+# name comes from the session's events.jsonl, where the client writes
+# `"agent_name":"…","agent_id":"<uuid>"` (verified on a real delegated run,
+# 1.0.94-3, 8 Oct 2026). A row whose id is not found there is "unknown".
+sub_turns() {
+  local s sid id m name
+  for s in "$@"; do awk -F'|' -v s="$s" -v r="$RUN" '$1 == s && $2 == r && $17 != "" { print $3, $17, $6 }' "$USAGE_FILE"; done |
+    sort -u | while read -r sid id m; do
+      name="$(grep -ohE "\"agent_name\":\"[^\"]*\",\"agent_id\":\"$id\"" "${COPILOT_HOME:-$HOME/.copilot}/session-state/$sid/events.jsonl" 2>/dev/null | head -1 | cut -d'"' -f4)"
+      echo "${name:-unknown} $m"
+    done | sort -u
 }
 # deleg_detail <slug>...: what every d-row records, pass or fail.
 deleg_detail() {
-  local s labels
+  local s labels subs
   labels="$(for s in "$@"; do grep -ohE '● [A-Za-z0-9_-]+ \(model: [^)]*\)' "$(tx "$s")" 2>/dev/null; done | sed 's/^● //' | sort -u | tr '\n' ';')"
-  printf 'log: %s; usage: %s; subagents started: %s; labels: %s' \
+  subs="$(sub_turns "$@" | tr ' \n' ':,' | sed 's/,$//')"
+  printf 'log: %s; usage: %s; subagents: %s; labels: %s' \
     "$(models_in_run "$@" | tr '\n' ',' | sed 's/,$//')" \
     "$(usage_models "$@" | tr '\n' ',' | sed 's/,$//')" \
-    "$(subagents_started "$@")" "${labels:-none}"
+    "${subs:-none}" "${labels:-none}"
 }
-# ran_model <model> <slug>...: a turn on <model> in the debug log AND the usage rows.
-ran_model() {
-  local m="$1"; shift
-  models_in_run "$@" | grep -q "^$m " && usage_models "$@" | grep -qx "$m"
+# delegated_to <agent> <model> <slug>...: a subagent row for <agent> on
+# <model> in the usage rows, AND a <model> turn in the debug log.
+delegated_to() {
+  local a="$1" m="$2"; shift 2
+  sub_turns "$@" | grep -qx "$a $m" && models_in_run "$@" | grep -q "^$m "
 }
 
 D1_GO='Takk. Planen er godkjent, gå videre til neste fase.'
@@ -3914,7 +3927,7 @@ run_pass_delegation() {
   # should go to @security-champion-agent, pinned to Claude Opus 5.5. The first
   # two turns are test 4's; the third approves the plan.
   if selected d1; then
-    d="Fase 3 runs a claude-opus-5.5 turn (security-champion)"
+    d="Fase 3 delegates to security-champion-agent on claude-opus-5.5"
     s="$(new_session_id)"
     if [[ -z "$s" ]]; then
       LAST_PROMPT_FAILURE=""; record_error d1 "$d" "could not generate a session id"
@@ -3927,26 +3940,31 @@ run_pass_delegation() {
     elif ! cat "$(svar "$(tx d1b)")" "$(svar "$(tx d1c)")" | grep -qiE 'Fase[[:space:]]*3'; then
       record_error d1 "$d" "Fase 3 was never reached in turns 2-3; $(deleg_detail d1a d1b d1c)"
     else
-      ok=1; ran_model claude-opus-5.5 d1a d1b d1c && ok=0
+      # After turn 1 only: Fase 3 is reached in turn 2 or 3, and an Opus
+      # turn during the interview is not a Fase 3 review.
+      ok=1; delegated_to security-champion-agent claude-opus-5.5 d1b d1c && ok=0
       record d1 "$d" "$ok" "$(deleg_detail d1a d1b d1c)"
     fi
   fi
 
-  # d2: a Compressed 3-file feature. Pass needs a model other than the
-  # parent's (the first model in the log) to have taken a turn, the workspace
+  # d2: a Compressed 3-file feature. Pass needs a subagent row on a model other
+  # than the parent's (the first model in the log), the same model in the
+  # debug log, the workspace
   # written, and the evaluator's test plus the agent's own green.
   if selected d2; then
-    d="3-file feature: a worker model takes a turn, tests green"
+    d="3-file feature: a subagent on another model takes a turn, tests green"
     if ! run_prompt d2 "$D2_PROMPT"; then
       record_error d2 "$d" "$LAST_PROMPT_DETAIL"
     else
       ok=0; why=""
       local parent
       parent="$(models_in_run d2 | head -1 | cut -d' ' -f1)"
-      if ! models_in_run d2 | cut -d' ' -f1 | grep -vqx "${parent:-none}"; then
-        ok=1; why="no model other than ${parent:-none} in the debug log"
-      elif ! usage_models d2 | grep -vqx "$parent"; then
-        ok=1; why="the debug log shows a worker model, the usage rows do not"
+      if [[ -z "$(sub_turns d2)" ]]; then
+        ok=1; why="no subagent row in the usage rows"
+      elif ! sub_turns d2 | cut -d' ' -f2 | grep -vqx "${parent:-none}"; then
+        ok=1; why="the subagent ran on the parent's model ${parent:-none}"
+      elif ! models_in_run d2 | cut -d' ' -f1 | grep -vqx "${parent:-none}"; then
+        ok=1; why="the usage rows show a worker model, the debug log does not"
       fi
       ws_wrote || { ok=1; why="${why:+$why; }nothing written"; }
       d2_tests "$WS" || { ok=1; why="${why:+$why; }tests not green"; }
@@ -3961,7 +3979,8 @@ run_pass_delegation() {
     if ! run_prompt d3 "rename variabelen maksAntall i tre filer"; then
       record_error d3 "$d" "$LAST_PROMPT_DETAIL"
     else
-      ok=1; [[ "$(models_in_run d3 | wc -l | tr -d ' ')" -eq 1 && "$(usage_models d3 | wc -l | tr -d ' ')" -le 1 ]] && ok=0
+      # Zero usage rows would make "no subagent" vacuous, so at least one.
+      ok=1; [[ -z "$(sub_turns d3)" && "$(usage_rows d3)" -ge 1 && "$(models_in_run d3 | wc -l | tr -d ' ')" -eq 1 ]] && ok=0
       record d3 "$d" "$ok" "$(deleg_detail d3)"
     fi
   fi
@@ -3969,11 +3988,11 @@ run_pass_delegation() {
   # d4: a repo question, which the persona says goes to @research-agent first
   # (pinned to GPT-6 Luna).
   if selected d4; then
-    d="repo research runs a gpt-6-luna turn (research-agent)"
+    d="repo research delegates to research-agent on gpt-6-luna"
     if ! run_prompt d4 "$D4_PROMPT"; then
       record_error d4 "$d" "$LAST_PROMPT_DETAIL"
     else
-      ok=1; ran_model gpt-6-luna d4 && ok=0
+      ok=1; delegated_to research-agent gpt-6-luna d4 && ok=0
       record d4 "$d" "$ok" "$(deleg_detail d4)"
     fi
   fi

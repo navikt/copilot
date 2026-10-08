@@ -765,39 +765,49 @@ Testoppsettet er `./scripts/nav-pilot-golden.sh --suite delegation`. Det install
 
 | Test | Oppgave | Består når |
 | ---- | ------- | ---------- |
-| d1 | Full-oppgave tatt til fase 3: test 4s to turer, og en tredje som godkjenner planen | En tur på `claude-opus-5.5` (`@security-champion-agent`) står i både debugloggen og bruksradene. Nås ikke fase 3, er testen ikke evaluert |
+| d1 | Full oppgave tatt til fase 3: de to turene fra test 4, og en tredje som godkjenner planen | En tur på `claude-opus-5.5` (`@security-champion-agent`) står i både debugloggen og bruksradene. Nås ikke fase 3, telles ikke kjøringen |
 | d2 | Komprimert oppgave i en liten Kotlin-modul: DTO, mapper og test | En annen modell enn forelderens har en tur (agent og modell skrives ned), arbeidsområdet er endret, og testene er grønne |
 | d3 | Samme omdøping som t6 | Bare én modell i debugloggen, altså ingen delegering |
 | d4 | Et spørsmål om hvordan repoet henger sammen | En tur på `gpt-6-luna` (`@research-agent`) står i både debugloggen og bruksradene |
 
-Hver sjekk har en kontroll i `scripts/nav-pilot-golden.bats` med ferdige debuglogger og bruksrader: delegert, ikke delegert, feil modell, og modell i loggen uten bruksrad. Kontrollene feiler der de skal.
+Hver sjekk har en kontroll i `scripts/nav-pilot-golden.bats` med ferdige debuglogger og bruksrader: delegert, ikke delegert, feil modell, og modell i loggen uten bruksrad. Kontrollene stryker der de skal.
 
-**Forventet utfall.** Grunnmålingen kjøres med GPT-6 Sol Low, dagens standard, fem kjøringer per test. Vi venter at dagens persona feiler d1, d2 og d4 og består d3. Grunnmålingen endrer ingen pinne og ingen persona.
+**Forventet utfall.** Grunnmålingen kjøres med GPT-6 Sol Low, dagens standard, fem kjøringer per test. Vi forventer at dagens persona stryker på d1, d2 og d4 og består d3. Grunnmålingen endrer ingen pinne og ingen persona.
 
 **Mål for steg 3** (endringen av personaen), satt nå:
 
 - d1–d4 består 5 av 5.
 - t2–t5 er minst like gode som GPT-6 Sol i batch 4: t2 5/5, t3 5/5, t4 4/5, t5 5/5.
 - Planleggingen koster høyst 27,2 credits i median, som i batch 4.
-- d2 koster høyst halvparten av d2 i grunnmålingen.
+- ~~d2 koster høyst halvparten av det d2 kostet i grunnmålingen.~~
+- **Endret 8. oktober 2026 etter grunnmålingen, før steg 3 er målt:** d2 må koste høyst det d2 kostet i grunnmålingen (9,74 credits i median), med grønne tester. Halvparten (4,87) er et mål vi strekker oss mot, ikke et krav. Grunnen er at koordinatoren fortsatt betaler for egne turer på GPT-6 Sol til å finne fram, sende oppgaven videre og kontrollere resultatet, i tillegg til det arbeideren koster. Eieren tok beslutningen.
 
-Budsjettet for grunnmålingen er om lag 150 credits, med stopp ved 200.
+Budsjettet for grunnmålingen er om lag 150 credits, og stopp ved 200 credits.
+
+**Skjerpet etter gjennomgang, før steg 3.** Etter grunnmålingen ble sjekkene gjort strengere. Delegering telles nå fra bruksradene: en tur i en subagent har en `agent_id`, og agentnavnet hentes fra sesjonens `events.jsonl`. Dette er bekreftet på en ekte delegert kjøring på Copilot CLI 1.0.94-3 (0,47 credits): bruksraden for subagenten hadde `agent_id`, og debugloggen hadde både `subagent_started` og en egen `turn tool surface resolved`-linje for subagentens modell.
+
+- d1 krever en tur for `security-champion-agent` på `claude-opus-5.5` etter første tur, altså ikke under intervjuet.
+- d2 krever en subagentrad på en annen modell enn forelderens, i tillegg til at samme modell står i debugloggen.
+- d3 krever null subagentrader og minst én bruksrad, slik at en kjøring uten data ikke kan bestå.
+- d4 krever en tur for `research-agent` på `gpt-6-luna`.
+
+Grunnmålingen er skåret på nytt med de nye reglene ([rescore.sh](golden-baselines/2026-10-08-delegering-baseline/rescore.sh), [rescore.psv](golden-baselines/2026-10-08-delegering-baseline/rescore.psv)). Ingen av de 20 kjøringene har en subagentrad, så utfallet er det samme: d3 5/5, d1, d2 og d4 0/5.
 
 ### Resultater
 
 Kjørt 8. oktober 2026 med Copilot CLI 1.0.94-3, `--model gpt-6-sol --effort low`, fem kjøringer per test. Rådata, transkripter og skript ligger i [`golden-baselines/2026-10-08-delegering-baseline/`](golden-baselines/2026-10-08-delegering-baseline/), med én rad per kjøring i [raw.psv](golden-baselines/2026-10-08-delegering-baseline/raw.psv). Credits er summen av bruksradene per kjøring.
 
-| Test | Bestått | Modeller i debugloggen og bruksradene | Subagenter startet | Credits, median (spenn) |
+| Test | Bestått | Modeller i debugloggen og bruksradene | Subagentrader i bruksdataene | Credits, median (spenn) |
 | ---- | ------- | ------------------------------------- | ------------------ | ----------------------- |
 | d1   | 0/5     | bare gpt-6-sol                        | 0                  | 9,94 (9,06–10,19)       |
 | d2   | 0/5     | bare gpt-6-sol                        | 0                  | 9,74 (8,31–10,63)       |
 | d3   | 5/5     | bare gpt-6-sol                        | 0                  | 8,67 (7,34–9,65)        |
 | d4   | 0/5     | bare gpt-6-sol                        | 0                  | 5,90 (5,65–6,47)        |
 
-Utfallet er som ventet: dagens persona delegerer ikke. I alle 20 kjøringene kjørte bare GPT-6 Sol, og ingen subagent ble startet. Ingen av svarene nevner `@security-champion-agent`, `@research-agent` eller en annen agent.
+Utfallet er som ventet: dagens persona delegerer ikke. I alle 20 kjøringene kjørte bare GPT-6 Sol, og ingen bruksrad tilhører en subagent. Ingen av svarene nevner `@security-champion-agent`, `@research-agent` eller en annen agent.
 
 - **d1** nådde fase 3 i alle fem kjøringene. Personaen gjorde gjennomgangen selv.
-- **d2** feilet bare på modellkravet. Arbeidsområdet ble endret og testene var grønne i alle fem. Målet for steg 3 er derfor høyst 4,87 credits i median for d2.
+- **d2** feilet bare på modellkravet. Arbeidsområdet ble endret og testene var grønne i alle fem. Kravet for steg 3 er derfor høyst 9,74 credits i median for d2, og målet er 4,87 (se endringen over).
 - **d3** brukte mer enn d4, 8,67 mot 5,90 credits, selv om oppgaven er en omdøping i tre filer.
 
 Avvik fra planen og forbehold:

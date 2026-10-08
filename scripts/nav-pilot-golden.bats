@@ -881,10 +881,20 @@ EOF
   [[ "$output" == pending* ]]
 }
 
-# Delegation d1/d3/d4: the shim writes the debug-log lines and usage rows the
-# real client writes (format from #1477's logs, 1.0.94-3). DELEG picks the
-# canned world: the specialist ran, nothing was delegated, the wrong model ran,
-# or the log shows the specialist but the usage rows do not.
+
+# Delegation d1-d4: the shim writes what the real client writes, as seen on a
+# real delegated run (1.0.94-3, 8 Oct 2026): a `turn tool surface resolved`
+# line per model and a `kind: subagent_started` event in the debug log, a usage
+# row with agent_id for the subagent, and `"agent_name":"…","agent_id":"…"` in
+# $COPILOT_HOME/session-state/<session>/events.jsonl. DELEG picks the world:
+#   delegated   the right agent on its pin
+#   none        nothing delegated
+#   wrong       aksel-agent on claude-sonnet-5.5 instead
+#   logonly     the model in the debug log, no subagent usage row
+#   parentmodel the subagent runs on the parent's model (d2)
+#   early       d1's Opus turn happens in the interview turn, not later
+#   zero        no usage rows at all (d3)
+#   nowrite     d2 delegates but writes nothing
 make_deleg_shim() {
   cat >"$SHIM/copilot" <<'EOF'
 #!/bin/bash
@@ -895,29 +905,43 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 [[ "$p" == *"svar kun med ordet OK"* ]] && { echo OK; exit 0; }
-models=(gpt-6-sol); sub=""
+sub=""; agent=""
 case "$p" in
-  *"ny tjeneste"*) echo "Hvem kaller tjenesten? Hvilke data lagres? Hva skjer når PDL er nede?" ;;
+  *"ny tjeneste"*) echo "Hvem kaller tjenesten? Hvilke data lagres? Hva skjer når PDL er nede?"
+    [[ "$DELEG" == early ]] && { sub=claude-opus-5.5; agent=security-champion-agent; } ;;
   *"svarene på spørsmålene"*) echo "Fase 2: plan for tjenesten. 🔴 Rød sone: tokenvalidering." ;;
-  *"Planen er godkjent"*) echo "## Fase 3: Review av planen, fire perspektiver"; sub=claude-opus-5.5 ;;
-  *rename*) echo "Renamet maksAntall til maksAntallOppgaver i tre filer."; [[ "$DELEG" == delegated ]] && sub=gpt-6-luna ;;
+  *"Planen er godkjent"*) echo "## Fase 3: Review av planen, fire perspektiver"
+    [[ "$DELEG" == early ]] || { sub=claude-opus-5.5; agent=security-champion-agent; } ;;
+  *rename*) echo "Renamet maksAntall til maksAntallOppgaver i tre filer."
+    [[ "$DELEG" == delegated ]] && { sub=gpt-6-luna; agent=research-agent; } ;;
   *VedtakDto*) [[ "$DELEG" == nowrite ]] || cp -R "$GF_D/controls/good/." .
-    echo "La til VedtakDto, tilDto og en test. Testene er grønne."; sub=gpt-6-luna ;;
-  *konfigurerbar*) echo "maksAntall brukes i Config.kt, Oppgave.kt og Routes.kt."; sub=gpt-6-luna ;;
+    echo "La til VedtakDto, tilDto og en test. Testene er grønne."; sub=gpt-6-luna; agent=kafka-agent ;;
+  *konfigurerbar*) echo "maksAntall brukes i Config.kt, Oppgave.kt og Routes.kt."; sub=gpt-6-luna; agent=research-agent ;;
 esac
-if [[ -n "$sub" ]]; then
-  case "$DELEG" in
-    delegated|logonly|nowrite) models+=("$sub") ;;
-    wrong) models+=(claude-sonnet-5.5) ;;
-  esac
-fi
+case "$DELEG" in
+  none) sub="" ;;
+  wrong) [[ -n "$sub" ]] && { sub=claude-sonnet-5.5; agent=aksel-agent; } ;;
+  parentmodel) [[ -n "$sub" ]] && sub=gpt-6-sol ;;
+esac
+row() {
+  [[ "$DELEG" == zero ]] && return
+  python3 -c 'import sqlite3,sys; d=sqlite3.connect(sys.argv[1]); d.execute("INSERT INTO assistant_usage_events (session_id, model, total_nano_aiu, agent_id, parent_tool_call_id) VALUES (?, ?, 1000000000, ?, ?)", [a or None for a in sys.argv[2:]]); d.commit()' \
+    "$NAV_PILOT_GOLDEN_USAGE_DB" "$sid" "$1" "${2:-}" "${2:+call_1}"
+}
 mkdir -p "$logdir"
-for m in "${models[@]}"; do
-  [[ "$m" != gpt-6-sol ]] && echo "2026-10-08T10:38:21Z [DEBUG] Sending telemetry event: cli.telemetry (kind: subagent_started)" >>"$logdir/process-1.log"
-  echo "2026-10-08T10:38:21Z [DEBUG] [rust:copilot_runtime::session::native_message_turn] turn tool surface resolved {\"model\":\"$m\",\"generic_path\":false}" >>"$logdir/process-1.log"
-  [[ "$DELEG" == logonly && "$m" != gpt-6-sol ]] && continue
-  python3 -c 'import sqlite3,sys; d=sqlite3.connect(sys.argv[1]); d.execute("INSERT INTO assistant_usage_events (session_id, model, total_nano_aiu) VALUES (?, ?, 1000000000)", sys.argv[2:]); d.commit()' "$NAV_PILOT_GOLDEN_USAGE_DB" "$sid" "$m"
-done
+log() { echo "2026-10-08T10:38:21Z [DEBUG] $1" >>"$logdir/process-1.log"; }
+log "[rust:copilot_runtime::session::native_message_turn] turn tool surface resolved {\"model\":\"gpt-6-sol\",\"generic_path\":false}"
+row gpt-6-sol
+if [[ -n "$sub" ]]; then
+  log "[rust:github_telemetry::service] Sending telemetry event: cli.telemetry (kind: subagent_started)"
+  log "[rust:copilot_runtime::session::native_message_turn] turn tool surface resolved {\"model\":\"$sub\",\"generic_path\":false}"
+  if [[ "$DELEG" != logonly ]]; then
+    id="$(uuidgen | tr '[:upper:]' '[:lower:]')"
+    mkdir -p "$COPILOT_HOME/session-state/$sid"
+    echo "{\"type\":\"subagent.completed\",\"restrictedProperties\":{\"agent_name\":\"$agent\",\"agent_id\":\"$id\"}}" >>"$COPILOT_HOME/session-state/$sid/events.jsonl"
+    row "$sub" "$id"
+  fi
+fi
 EOF
   chmod +x "$SHIM/copilot"
   python3 -c 'import sqlite3,sys; sqlite3.connect(sys.argv[1]).execute("CREATE TABLE assistant_usage_events (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, turn_index INTEGER, model TEXT NOT NULL, reasoning_effort TEXT, input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER, total_nano_aiu INTEGER, duration_ms INTEGER, time_to_first_token_ms INTEGER, finish_reason TEXT, agent_id TEXT, parent_tool_call_id TEXT)")' "$SHIM/usage.db"
@@ -930,34 +954,41 @@ run_deleg() {
     run /bin/bash "$SCRIPT" --suite delegation --only "${ONLY_D:-d1,d3,d4}" --save-baseline "$SHIM/b.txt"
 }
 
-@test "delegation d1/d3/d4: the right model passes; none, the wrong one, or log without usage rows fails" {
+@test "delegation d1/d3/d4: the right agent on its pin passes; none, wrong, too early, log-only or no rows fails" {
   run_deleg delegated
   [ "$status" -eq 1 ]   # d3 fails: the rename was delegated
-  grep -q '^d1|1|pass|.*log: gpt-6-sol 3,claude-opus-5.5 1; usage: claude-opus-5.5,gpt-6-sol; subagents started: 1' "$SHIM/b-results.psv"
-  grep -q '^d3|1|fail|.*log: gpt-6-sol 1,gpt-6-luna 1' "$SHIM/b-results.psv"
-  grep -q '^d4|1|pass|' "$SHIM/b-results.psv"
+  grep -q '^d1|1|pass|.*log: gpt-6-sol 3,claude-opus-5.5 1; usage: claude-opus-5.5,gpt-6-sol; subagents: security-champion-agent:claude-opus-5.5;' "$SHIM/b-results.psv"
+  grep -q '^d3|1|fail|.*subagents: research-agent:gpt-6-luna;' "$SHIM/b-results.psv"
+  grep -q '^d4|1|pass|.*subagents: research-agent:gpt-6-luna;' "$SHIM/b-results.psv"
   run_deleg none
   [ "$status" -eq 1 ]
-  grep -q '^d1|1|fail|.*log: gpt-6-sol 3;' "$SHIM/b-results.psv"
+  grep -q '^d1|1|fail|.*log: gpt-6-sol 3;.*subagents: none;' "$SHIM/b-results.psv"
   grep -q '^d3|1|pass|' "$SHIM/b-results.psv"
-  grep -q '^d4|1|fail|.*subagents started: 0' "$SHIM/b-results.psv"
+  grep -q '^d4|1|fail|.*subagents: none;' "$SHIM/b-results.psv"
   run_deleg wrong
-  grep -q '^d1|1|fail|.*claude-sonnet-5.5' "$SHIM/b-results.psv"
-  grep -q '^d4|1|fail|.*claude-sonnet-5.5' "$SHIM/b-results.psv"
+  grep -q '^d1|1|fail|.*subagents: aksel-agent:claude-sonnet-5.5;' "$SHIM/b-results.psv"
+  grep -q '^d4|1|fail|.*subagents: aksel-agent:claude-sonnet-5.5;' "$SHIM/b-results.psv"
   run_deleg logonly
-  grep -q '^d1|1|fail|.*claude-opus-5.5 1; usage: gpt-6-sol;' "$SHIM/b-results.psv"
-  grep -q '^d4|1|fail|.*gpt-6-luna 1; usage: gpt-6-sol;' "$SHIM/b-results.psv"
+  grep -q '^d1|1|fail|.*claude-opus-5.5 1; usage: gpt-6-sol; subagents: none;' "$SHIM/b-results.psv"
+  grep -q '^d4|1|fail|.*gpt-6-luna 1; usage: gpt-6-sol; subagents: none;' "$SHIM/b-results.psv"
+  run_deleg early
+  grep -q '^d1|1|fail|.*subagents: security-champion-agent:claude-opus-5.5;' "$SHIM/b-results.psv"
+  run_deleg zero
+  grep -q '^d3|1|fail|.*usage: ; subagents: none;' "$SHIM/b-results.psv"
 }
 
-@test "delegation d2: a worker turn with green tests passes; no worker or no write fails" {
+@test "delegation d2: a subagent on another model with green tests passes; none, parent model or no write fails" {
   command -v gradle >/dev/null || skip "needs gradle"
   export ONLY_D=d2
   run_deleg delegated
   [ "$status" -eq 0 ]
-  grep -q '^d2|1|pass|.*|log: gpt-6-sol 1,gpt-6-luna 1' "$SHIM/b-results.psv"
+  grep -q '^d2|1|pass|.*|log: gpt-6-sol 1,gpt-6-luna 1; usage: gpt-6-luna,gpt-6-sol; subagents: kafka-agent:gpt-6-luna;' "$SHIM/b-results.psv"
   run_deleg none
   [ "$status" -eq 1 ]
-  grep -q '^d2|1|fail|.*|no model other than gpt-6-sol' "$SHIM/b-results.psv"
+  grep -q '^d2|1|fail|.*|no subagent row in the usage rows' "$SHIM/b-results.psv"
+  run_deleg parentmodel
+  [ "$status" -eq 1 ]
+  grep -q "^d2|1|fail|.*|the subagent ran on the parent's model gpt-6-sol" "$SHIM/b-results.psv"
   run_deleg nowrite
   [ "$status" -eq 1 ]
   grep -q '^d2|1|fail|.*|nothing written; tests not green; no test calls tilDto' "$SHIM/b-results.psv"
