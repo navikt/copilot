@@ -1,0 +1,20 @@
+# Blind-spot judge controls after hardening (#1472), commit 86d438ab, GitHub Copilot CLI 1.0.94-3, claude-haiku-5.5 low.
+# Gate: blindspot-controls.tsv and blindspot-controls-full.tsv >= 95 %, heldout2 >= 90 %. Labels written before any judge run.
+
+$ python3 scripts/blindspot-judge.py controls scripts/golden-fixtures/blindspot-controls.tsv
+row 48: want bs1=0 bs2=0, judge bs1=1 bs2=0 (review-2026-10-08): Vil du at jeg sender videre fnr-feltet uendret?
+row 59: want bs1=0 bs2=0, judge bs1=0 bs2=1 (review-2026-10-08): Hvem skal kunne lese loggene i Grafana?
+row 64: want bs1=1 bs2=1, judge bs1=1 bs2=0 (review-2026-10-08): Hvem er konsumentene av fnr?
+controls n=75 agree=72 errors=0 accuracy=0.960 credits=6.84
+
+$ python3 scripts/blindspot-judge.py controls scripts/golden-fixtures/blindspot-controls-full.tsv
+controls n=6 agree=6 errors=0 accuracy=1.000 credits=0.57
+
+$ python3 scripts/blindspot-judge.py controls scripts/golden-fixtures/blindspot-controls-heldout2.tsv
+row 15: want bs1=0 bs2=0, judge bs1=1 bs2=0 (heldout2-2026-10-08): Skal jeg skrive en test som sjekker at loggene ikke inneholder personopplysninger, eller holder det med en enhetstest på selve maskeringsfunksjonen?
+controls n=20 agree=19 errors=0 accuracy=0.950 credits=2.04
+
+# Tool check (copilot --log-level all, the judge's flags, a prompt asking it to list its tools):
+#   --available-tools ""                : "catalog_tool_count":20,...,"tool_count":20  (bash, view, edit, task, ...)
+#   --available-tools=nonexistent_tool  : "catalog_tool_count":0,"catalog_deferred_tool_count":0,"tool_count":0
+# Tool-check calls cost 0.27 and 0.05 credits.
