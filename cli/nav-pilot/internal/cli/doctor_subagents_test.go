@@ -34,6 +34,8 @@ func TestReportSubagentOverrides(t *testing.T) {
 			[]string{`"gpt-5.4-nano", which Copilot does not know`, "silently runs it on the parent model"}},
 		{"unknown model, no catalogue", `{"subagents":{"agents":{"anything":{"model":"fantasimodell-9"}}}}`, nil,
 			[]string{"@anything", "was not checked"}},
+		{"unterminated block comment", `{} /* unfinished`, catalogue, []string{"Could not read"}},
+		{"auto label", `{"subagents":{"agents":{"x":{"model":"Auto (let Copilot pick)"}}}}`, catalogue, nil},
 		{"bom", "\xef\xbb\xbf" + `{"subagents":{"agents":{"security-champion-agent":{"model":"inherit"}}}}`, catalogue,
 			[]string{"overrides it to inherit"}},
 		{"filename key has no effect", `{"subagents":{"agents":{"security-champion":{"model":"inherit"}}}}`, catalogue, nil},

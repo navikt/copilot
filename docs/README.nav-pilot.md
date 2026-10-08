@@ -392,7 +392,7 @@ Innstillingen vinner over `model:` i agentfila. Står den til `inherit`, kjører
 Står det en modell Copilot ikke kjenner, bruker Copilot CLI modellen til agenten som
 delegerte, men viser fortsatt navnet du skrev.
 
-`nav-pilot doctor` sier fra i begge tilfellene. Den leser fila og endrer den aldri, og kommentarer
+`nav-pilot doctor` sier fra i begge tilfellene for agentene i `~/.copilot`, men ikke for agenter installert i repoet. Den leser fila og endrer den aldri, og kommentarer
 i fila går fint. Kan den ikke lese fila, sier den det og fortsetter:
 
 ```text

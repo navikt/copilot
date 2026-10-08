@@ -87,7 +87,7 @@ func stripJSONC(in []byte) []byte {
 		case c == '/' && i+1 < len(in) && in[i+1] == '*':
 			end := strings.Index(string(in[i+2:]), "*/")
 			if end < 0 {
-				return out
+				return append(out, in[i:]...) // leave it for the decoder to reject
 			}
 			i += end + 3
 		case c == '}' || c == ']':
@@ -118,7 +118,7 @@ func stripJSONC(in []byte) []byte {
 // compared alike.
 func subagentOverrideWarnings(pins []pinnedModel, overrides map[string]string, catalogue []string) []subagentWarning {
 	known := func(model string) bool {
-		if strings.EqualFold(model, "auto") {
+		if strings.EqualFold(model, "auto") || strings.EqualFold(domain.CopilotModelIDForLabel(model), "auto") {
 			return true // resolved client-side, never in the catalogue
 		}
 		id := domain.CopilotModelIDForLabel(model)

@@ -55,8 +55,10 @@ echo "turns per model:"
 echo "${models:-  (none)}"
 grep -rh 'did not commit a new selection' "$S/logs" 2>/dev/null | sed 's/^.*\[WARNING\]/[WARNING]/'
 
-if [ "$rc" = 124 ]; then
-  echo "canary: copilot timed out after 400 s; probe incomplete" >&2
+if [ "$rc" != 0 ]; then
+  [ "$rc" = 124 ] && echo "canary: copilot timed out after 400 s; probe incomplete" >&2
+  echo "canary: copilot exited $rc; probe incomplete" >&2
+  tail -20 "$S/out" >&2
   exit 2
 fi
 if [ -z "$models" ]; then
