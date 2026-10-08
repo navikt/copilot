@@ -480,7 +480,7 @@ Forbruket for denne delen var 716,0 credits: 399,6 for Opus, 247,9 for Sol og 68
 
 ## Claude Haiku 5.5 mot GPT-6 Luna Medium (8. oktober 2026)
 
-Claude Haiku 5.5 er aktivert i Nav og svarer på `--model claude-haiku-5.5` i Copilot CLI 1.0.94, selv om `copilot help config` ikke lister modellen. Listeprisen er den samme som for GPT-6 Luna opp til 100K input-tokens per forespørsel, men over 100K koster Haiku fem ganger så mye. Luna dobler prisen for input først over 272K. Spørsmålet er om Haiku kan ta over noen av Luna-pinnene.
+Claude Haiku 5.5 er aktivert i Nav og svarer på `--model claude-haiku-5.5` i Copilot CLI 1.0.94-3, selv om `copilot help config` ikke lister modellen. Listeprisen er den samme som for GPT-6 Luna opp til 100K input-tokens per forespørsel, men over 100K koster Haiku fem ganger så mye. Luna dobler prisen for input først over 272K. Spørsmålet er om Haiku kan ta over noen av Luna-pinnene.
 
 ### Kriteriene ble satt før målingen
 
@@ -689,7 +689,7 @@ tallene her har et tidsstempel og ikke evig gyldighet.
 | Claude Sonnet 4.6     | Versatile   | $3.00    | $15.00   | Daglig koding, norsk tekst, planlegging                                                                                                                                                                         |
 | Claude Sonnet 5.5     | Versatile   | $2.00    | $10.00   | Aksel, tilgjengelighet og norsk tekst                                                                                                                                                                           |
 | Claude Sonnet 5       | Versatile   | $2.00    | $10.00   | Fallback for Sonnet 5.5. ⚠️ Kampanjen vi noterte gikk ut 31. aug 2026, og standardprisen er ukjent. Se noten under tabellen                                                                                     |
-| Claude Haiku 5.5      | Lightweight | $0.10    | $0.50    | Aktivert i Nav 7. oktober 2026 og tilgjengelig i Copilot CLI 1.0.94 med `--model claude-haiku-5.5`. Målt 8. oktober, se [Claude Haiku 5.5 mot GPT-6 Luna Medium](#claude-haiku-55-mot-gpt-6-luna-medium-8-oktober-2026). Lang kontekst over 100K: $0.50 / $2.50                                                                      |
+| Claude Haiku 5.5      | Lightweight | $0.10    | $0.50    | Aktivert i Nav 7. oktober 2026 og tilgjengelig i Copilot CLI 1.0.94-3 med `--model claude-haiku-5.5`. Målt 8. oktober, se [Claude Haiku 5.5 mot GPT-6 Luna Medium](#claude-haiku-55-mot-gpt-6-luna-medium-8-oktober-2026). Lang kontekst over 100K: $0.50 / $2.50                                                                      |
 | Claude Haiku 4.5      | Versatile   | $1.00    | $5.00    | Sjekklister, maler, scaffold-prompts                                                                                                                                                                            |
 | GPT-5.3-Codex         | Powerful    | $1.75    | $14.00   | Kodeforståelse, terminal, infrastruktur                                                                                                                                                                         |
 | GPT-5.6 Luna          | Lightweight | $0.20    | $1.20    | Raske rutineoppgaver, enkel autofullfør. OpenAI plasserer den i nano-sjiktet fra tidligere GPT-5-familier, men med høy reasoning-rating og justerbar effort                                                     |
