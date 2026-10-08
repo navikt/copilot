@@ -12,7 +12,6 @@ import type { TocItem } from "@/components/table-of-contents";
 import { FALLBACK_TABLE, MANIFEST_URL, getLocalModels, type LocalModel } from "@/lib/local-models";
 import { CLI_COMMANDS, CONFIG_KEYS } from "./data";
 
-// Keys whose full behaviour is explained elsewhere. data.ts is generated, so the links live here.
 const KEY_LINKS: Record<string, { href: string; label: string }> = {
   autonomy: { href: "/nav-pilot/forklaring/sandkassen#autonomi", label: "Mer om autonomy" },
   client: { href: "/nav-pilot/klienter", label: "Klienter" },
@@ -209,14 +208,16 @@ export default function Referanse() {
               <div
                 key={k.key}
                 id={`nokkel-${k.key}`}
-                className="py-3"
-                style={{ borderBottom: "1px solid var(--ax-border-neutral-subtle)" }}
+                style={{
+                  paddingBlock: "var(--ax-space-12)",
+                  borderBottom: "1px solid var(--ax-border-neutral-subtle)",
+                }}
               >
                 <dt className="flex flex-wrap gap-x-3 gap-y-1">
                   <code className={code}>{k.key}</code>
                   {k.flag !== "—" && <code className={code}>{k.flag}</code>}
                 </dt>
-                <dd className="mt-1">
+                <dd style={{ marginTop: "var(--ax-space-4)" }}>
                   <BodyShort size="small" textColor="subtle">
                     {k.values}
                   </BodyShort>

@@ -193,7 +193,7 @@ nav-pilot ignore instruction nextjs-aksel --user`}
               for eksempel <code className={code}>kubectl delete</code> eller <code className={code}>rm -rf</code>, gir
               mening før den kjører, og lagrer svaret. Den stopper ingenting, og KI-agenten ser ikke svaret. Virker bare
               med lokal modell. Slå den av med <code className={code}>off</code>.
-              <span id="hook-action-check" className="block mt-2">
+              <span id="hook-action-check" className="block" style={{ marginTop: "var(--ax-space-8)" }}>
                 Kommandoene den sjekker: endringer med <code className={code}>kubectl</code>,{" "}
                 <code className={code}>nais</code>, <code className={code}>gcloud</code> og{" "}
                 <code className={code}>helm</code>, <code className={code}>terraform apply</code>,{" "}
