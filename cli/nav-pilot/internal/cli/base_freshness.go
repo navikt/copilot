@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -90,12 +91,13 @@ func lookupBaseLagHTTP(ctx context.Context, repo, name, pin string) (*baseLag, e
 	return lag, nil
 }
 
-// warnBaseLag checks the base that pakkeRepo's lock pins and prints one line
-// to w when it trails. It also records the answer as freshness telemetry.
+// warnBaseLag checks the base that pakkeRepo's lock pins and prints two lines
+// to w when it trails. It also records the answer as freshness telemetry, and
+// returns the lookup's error so doctor can say it could not tell.
 // ctx bounds the whole check; the caller sets the deadline.
-func warnBaseLag(ctx context.Context, w io.Writer, indent, scopeName, pakkeRepo, baseRepo, baseName, pin string) {
+func warnBaseLag(ctx context.Context, w io.Writer, indent, scopeName, pakkeRepo, baseRepo, baseName, pin string) error {
 	if !pinnable(baseRepo) || pin == "" {
-		return
+		return nil
 	}
 	lag, err := lookupBaseLag(ctx, baseRepo, baseName, pin)
 	a := artifacts.StalenessAssessment{Result: "up_to_date", LatestVersion: "latest", UpToDate: true}
@@ -107,55 +109,80 @@ func warnBaseLag(ctx context.Context, w io.Writer, indent, scopeName, pakkeRepo,
 	}
 	recordFreshness("agentpakke-base", scopeName, a)
 	if lag == nil {
-		return
+		return err
 	}
 	// Addressed to the person running the command, who cannot move the pin:
 	// what it means for them, and who can.
-	fmt.Fprintf(w, "%s%s Your agents come from %s, which is %d commit(s) (%d day(s)) behind %s (%s, pinned at %s). You miss what changed there since, such as new model choices.\n"+
+	fmt.Fprintf(w, "%s%s %s pins %s at %s, %d commits (%d days) behind %s. You miss what changed since, such as new model choices.\n"+
 		"%s  Ask the owners of %s to update (%s), then run %s.\n",
-		indent, yellow("⚠"), pakkeRepo, lag.Commits, lag.Days, baseRepo, lag.Target, shortSHA(pin),
+		indent, yellow("⚠"), pakkeRepo, baseRepo, shortSHA(pin), lag.Commits, lag.Days, lag.Target,
 		indent, pakkeRepo, bold("nav-pilot pakke bump-base"), bold("nav-pilot sync --apply"))
+	return nil
+}
+
+// couldNotCheck is doctor's line for a check that did not finish, so a user
+// can tell "current" from "unchecked".
+func couldNotCheck(what string) {
+	fmt.Printf("      %s\n", dim("Could not check "+what+" (network or rate limit)."))
 }
 
 // reportScopeBaseLag is doctor's half. doctor has no checkout of the scope's
 // source, only the repo and revision its state records, so it reads the lock
 // and the base's name from GitHub at those revisions. A scope on the default
-// source is skipped without a request: navikt/copilot reuses nothing.
+// source is skipped without a request: navikt/copilot reuses nothing, and
+// neither does a pakke without a lock (a 404, not a failure).
 func reportScopeBaseLag(scope *InstallScope, state *StateFile) {
 	if state == nil || tracksDefaultSource(state) || !pinnable(state.SourceRepo) || state.SourceSHA == "" || pinnedRevisionOnDisk(state) {
 		return
 	}
-	// One deadline for all four requests, so doctor waits at most this long.
+	// One deadline for these requests, so doctor waits at most this long.
 	ctx, cancel := context.WithTimeout(context.Background(), pakkeReleaseTimeout)
 	defer cancel()
 	var lock agentpakke.Declaration
-	if githubFileJSON(ctx, state.SourceRepo, agentpakke.DeclarationPath, state.SourceSHA, &lock) != nil ||
-		!pinnable(lock.Source) || lock.SHA == "" {
+	if err := githubFileJSON(ctx, state.SourceRepo, agentpakke.DeclarationPath, state.SourceSHA, &lock); err != nil {
+		if !errors.Is(err, errGitHubNotFound) {
+			couldNotCheck("whether " + state.SourceRepo + " is up to date")
+		}
+		return
+	}
+	if !pinnable(lock.Source) || lock.SHA == "" {
 		return
 	}
 	var base struct {
 		Name string `json:"name"`
 	}
-	if githubFileJSON(ctx, lock.Source, agentpakke.ManifestPath, lock.SHA, &base) != nil {
+	if githubFileJSON(ctx, lock.Source, agentpakke.ManifestPath, lock.SHA, &base) != nil ||
+		warnBaseLag(ctx, os.Stdout, "      ", scope.Name, state.SourceRepo, lock.Source, base.Name, lock.SHA) != nil {
+		couldNotCheck("whether " + state.SourceRepo + " is up to date")
 		return
 	}
-	warnBaseLag(ctx, os.Stdout, "      ", scope.Name, state.SourceRepo, lock.Source, base.Name, lock.SHA)
 	reportPinDrift(scope, state, lock.Source, lock.SHA)
 }
+
+// pinDriftRequestTimeout bounds each request of the drift check on its own,
+// so one slow answer costs that agent and not every agent after it.
+const pinDriftRequestTimeout = 5 * time.Second
 
 // reportPinDrift warns, per installed agent, when the base has since changed
 // the agent's frontmatter model and the pakke still ships the old one. An
 // agent whose installed model differs from the base's at the pin is the
 // pakke's own choice (or the user's edit) and is left alone, as is an agent
-// the base does not ship. Only files nav-pilot installed are read: the state
-// tracks those and nothing the user wrote. A lookup that fails is silence.
+// the base does not ship (a 404). Only files nav-pilot installed are read: the
+// state tracks those and nothing the user wrote. It assumes the base keeps its
+// agents at agents/<file>, as navikt/copilot does. Agents it could not check
+// are counted in one line.
 //
 // ponytail: one contents request per installed agent, plus one for each whose
-// model moved, under its own deadline. Fine for a command run on purpose;
-// batch through the trees API if doctor ever meets the anonymous rate limit.
+// model moved, each with its own deadline. About three doctor runs an hour
+// anonymously; GITHUB_TOKEN lifts that. Batch through the trees API if it
+// ever matters.
 func reportPinDrift(scope *InstallScope, state *StateFile, baseRepo, pin string) {
-	ctx, cancel := context.WithTimeout(context.Background(), pakkeReleaseTimeout)
-	defer cancel()
+	get := func(path, ref string) ([]byte, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), pinDriftRequestTimeout)
+		defer cancel()
+		return githubFile(ctx, baseRepo, path, ref)
+	}
+	drifted, unchecked := 0, 0
 	for _, f := range state.Files {
 		name := filepath.Base(f.Path)
 		if !strings.HasSuffix(name, ".agent.md") {
@@ -167,22 +194,41 @@ func reportPinDrift(scope *InstallScope, state *StateFile, baseRepo, pin string)
 			continue
 		}
 		path := "agents/" + name
-		head, err := githubFile(ctx, baseRepo, path, "HEAD")
+		head, err := get(path, "HEAD")
+		if err != nil {
+			if !errors.Is(err, errGitHubNotFound) {
+				unchecked++
+			}
+			continue
+		}
 		current := frontmatterModel(head)
-		if err != nil || current == "" || current == installed {
+		if current == "" || current == installed {
 			continue
 		}
-		if atPin, err := githubFile(ctx, baseRepo, path, pin); err != nil || frontmatterModel(atPin) != installed {
+		atPin, err := get(path, pin)
+		if err != nil {
+			if !errors.Is(err, errGitHubNotFound) {
+				unchecked++
+			}
 			continue
 		}
-		fmt.Printf("      %s @%s runs %s; %s now pins %s. The owners of %s must update, or run %s once they have.\n",
-			yellow("⚠"), strings.TrimSuffix(name, ".agent.md"), installed, baseRepo, current,
-			state.SourceRepo, bold("nav-pilot sync --apply"))
+		if frontmatterModel(atPin) != installed {
+			continue
+		}
+		drifted++
+		fmt.Printf("      %s @%s runs %s; %s now pins %s.\n",
+			yellow("⚠"), strings.TrimSuffix(name, ".agent.md"), installed, baseRepo, current)
+	}
+	if drifted > 0 {
+		fmt.Printf("      When the owners of %s have updated, run %s.\n", state.SourceRepo, bold("nav-pilot sync --apply"))
+	}
+	if unchecked > 0 {
+		couldNotCheck(fmt.Sprintf("%d agent(s) against %s", unchecked, baseRepo))
 	}
 }
 
 // githubFile is one file of repo at ref, raw, read through the contents API.
-// A var so the test binary starts offline.
+// A 404 wraps errGitHubNotFound. A var so the test binary starts offline.
 var githubFile = githubFileHTTP
 
 func githubFileHTTP(ctx context.Context, repo, path, ref string) ([]byte, error) {
@@ -191,6 +237,9 @@ func githubFileHTTP(ctx context.Context, repo, path, ref string) ([]byte, error)
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("%s: %w", path, errGitHubNotFound)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GitHub API returned %d for %s", resp.StatusCode, path)
 	}
@@ -202,13 +251,9 @@ func githubFileHTTP(ctx context.Context, repo, path, ref string) ([]byte, error)
 var githubFileJSON = githubFileJSONHTTP
 
 func githubFileJSONHTTP(ctx context.Context, repo, path, ref string, v any) error {
-	resp, err := githubGet(ctx, fmt.Sprintf("%s/repos/%s/contents/%s?ref=%s", githubAPIBase, repo, path, url.QueryEscape(ref)), "application/vnd.github.raw+json")
+	data, err := githubFileHTTP(ctx, repo, path, ref)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("GitHub API returned %d for %s", resp.StatusCode, path)
-	}
-	return json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(v)
+	return json.Unmarshal(data, v)
 }

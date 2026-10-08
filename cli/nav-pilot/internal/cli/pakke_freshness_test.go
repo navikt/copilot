@@ -2,10 +2,12 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func agentFile(model string) string {
@@ -32,9 +34,14 @@ func TestDoctorReportsPinDrift(t *testing.T) {
 	}
 	orig := githubFile
 	t.Cleanup(func() { githubFile = orig })
-	githubFile = func(_ context.Context, repo, path, ref string) ([]byte, error) {
+	githubFile = func(ctx context.Context, repo, path, ref string) ([]byte, error) {
 		if repo != "navikt/copilot" {
 			t.Errorf("read %s from %s", path, repo)
+		}
+		// Each request gets its own deadline: a shared one let slow early
+		// answers drop every agent after them, unreported.
+		if d, ok := ctx.Deadline(); !ok || time.Until(d) < pinDriftRequestTimeout-time.Second {
+			t.Errorf("%s@%s: deadline %v is not this request's own", path, ref, d)
 		}
 		head := map[string]string{"security-champion": "claude-opus-5.5", "override": "claude-opus-5.5", "same": "claude-x"}
 		pin := map[string]string{"security-champion": "gpt-6-sol", "override": "gpt-6-sol"}
@@ -46,14 +53,41 @@ func TestDoctorReportsPinDrift(t *testing.T) {
 		if model, ok := m[name]; ok {
 			return []byte(agentFile(model)), nil
 		}
-		return nil, errOfflineForTests
+		if name == "broken" {
+			return nil, context.DeadlineExceeded
+		}
+		return nil, fmt.Errorf("%s: %w", path, errGitHubNotFound)
 	}
 	out := captureStdoutFor(t, func() {
 		reportPinDrift(scope, &StateFile{SourceRepo: "nais/pilot", Files: files}, "navikt/copilot", basePin)
 	})
-	want := "@security-champion runs gpt-6-sol; navikt/copilot now pins claude-opus-5.5. The owners of nais/pilot must update, or run nav-pilot sync --apply once they have."
-	if !strings.Contains(out, want) || strings.Count(out, "\n") != 1 {
-		t.Errorf("want only %q, got:\n%s", want, out)
+	want := "      ⚠ @security-champion runs gpt-6-sol; navikt/copilot now pins claude-opus-5.5.\n" +
+		"      When the owners of nais/pilot have updated, run nav-pilot sync --apply.\n" +
+		"      Could not check 1 agent(s) against navikt/copilot (network or rate limit).\n"
+	if out != want {
+		t.Errorf("want:\n%s\ngot:\n%s", want, out)
+	}
+}
+
+// doctor says it could not tell, rather than nothing, when the lookup fails;
+// a pakke without a lock (a 404) reuses nothing and gets no line.
+func TestDoctorSaysWhenItCouldNotCheck(t *testing.T) {
+	orig := githubFileJSON
+	t.Cleanup(func() { githubFileJSON = orig })
+	state := &StateFile{SourceRepo: "nais/pilot", SourceSHA: strings.Repeat("a", 40),
+		Files: []InstalledFile{{Path: ".github/agents/x.agent.md", Hash: "h"}}}
+	for _, tt := range []struct {
+		err  error
+		want string
+	}{
+		{errOfflineForTests, "Could not check whether nais/pilot is up to date (network or rate limit)."},
+		{fmt.Errorf("x: %w", errGitHubNotFound), ""},
+	} {
+		githubFileJSON = func(context.Context, string, string, string, any) error { return tt.err }
+		out := captureStdoutFor(t, func() { reportScopeBaseLag(ScopeRepo(repoTarget(t)), state) })
+		if strings.TrimSpace(out) != tt.want {
+			t.Errorf("%v: got %q, want %q", tt.err, out, tt.want)
+		}
 	}
 }
 
@@ -67,12 +101,15 @@ func TestPakkeScopeUpdate(t *testing.T) {
 		calls := new(int)
 		orig := lookupPakkeUpdate
 		t.Cleanup(func() { lookupPakkeUpdate = orig })
-		lookupPakkeUpdate = func(ctx context.Context, repo, name, installed string) (string, error) {
+		lookupPakkeUpdate = func(ctx context.Context, repo, name, installed string) (*pakkeRelease, error) {
 			*calls++
 			if _, ok := ctx.Deadline(); !ok {
 				t.Error("the launch lookup has no deadline")
 			}
-			return newer, err
+			if newer == "" {
+				return nil, err
+			}
+			return &pakkeRelease{Version: newer, SHA: strings.Repeat("b", 40)}, err
 		}
 		return calls
 	}
@@ -105,6 +142,15 @@ func TestPakkeScopeUpdate(t *testing.T) {
 			t.Errorf("declined: %q after %d lookups", got, *calls)
 		}
 		_ = os.Remove(p)
+	})
+	t.Run("a release sync would refuse is not offered", func(t *testing.T) {
+		isolatedConfig(t)
+		stub(t, "0.5.0", nil)
+		held := *state
+		held.RolledBackFrom = strings.Repeat("b", 40)
+		if got := pakkeScopeUpdate(&held); got != "" {
+			t.Errorf("offered %q, a release this scope was rolled back off", got)
+		}
 	})
 	t.Run("pin is left to the pin's own prompt", func(t *testing.T) {
 		isolatedConfig(t)

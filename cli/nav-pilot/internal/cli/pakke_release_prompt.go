@@ -46,11 +46,7 @@ type pakkeReleaseCacheEntry struct {
 	Migration bool `json:"migration,omitempty"`
 	Failed    bool `json:"failed,omitempty"`
 	// Dismissed is the version the user answered "No" to. Survives lookups.
-	Dismissed string `json:"dismissed,omitempty"`
-	// Newer is what a content-installed pakke can sync to, for the launch's
-	// "Update available" line ([pakkeScopeUpdate]); "" when it is current.
-	Newer string `json:"newer,omitempty"`
-}
+	Dismissed string `json:"dismissed,omitempty"`}
 
 func pakkeReleaseCacheKey(repo, name string) string { return strings.ToLower(repo) + " " + name }
 
@@ -392,29 +388,34 @@ func pakkeScopeUpdate(state *StateFile) string {
 		ctx, cancel := context.WithTimeout(context.Background(), pakkeLaunchLookupTimeout)
 		newer, err := lookupPakkeUpdate(ctx, state.SourceRepo, state.Collection, state.SourceSHA)
 		cancel()
-		entry = pakkeReleaseCacheEntry{CheckedAt: time.Now(), PinnedSHA: state.SourceSHA, Newer: newer, Failed: err != nil}
+		entry = pakkeReleaseCacheEntry{CheckedAt: time.Now(), PinnedSHA: state.SourceSHA, Candidate: newer, Failed: err != nil}
 		cache[key] = entry
 		writePakkeReleaseCache(cache)
 	}
-	return entry.Newer
+	// A revision sync would refuse (rolled back off, or "keep") is not offered.
+	if entry.Candidate == nil || pakkeUpdateHold(state, entry.Candidate.SHA) != holdNone {
+		return ""
+	}
+	return entry.Candidate.Version
 }
 
-// lookupPakkeUpdate names what sync would take over installed: the newest
-// stable release, or the default branch when the pakke publishes no release
-// metadata and has moved past installed. A var so tests stay offline.
-var lookupPakkeUpdate = func(ctx context.Context, repo, name, installed string) (string, error) {
+// lookupPakkeUpdate finds what sync would take over installed: the newest
+// stable release, or the default branch (no SHA) when the pakke publishes no
+// release metadata and has moved past installed. nil when current. A var so
+// tests stay offline.
+var lookupPakkeUpdate = func(ctx context.Context, repo, name, installed string) (*pakkeRelease, error) {
 	outcome, rel, err := discoverPakkeRelease(ctx, repo, name, installed)
 	switch {
 	case err != nil:
-		return "", err
+		return nil, err
 	case outcome == releaseCandidate:
-		return rel.Version, nil
+		return &rel, nil
 	case outcome != releaseNoMetadata:
-		return "", nil
+		return nil, nil
 	}
 	status, err := compareStatus(ctx, repo, installed, "HEAD")
 	if err != nil || status != "ahead" {
-		return "", err
+		return nil, err
 	}
-	return "newest on its default branch", nil
+	return &pakkeRelease{Version: "newest on its default branch"}, nil
 }

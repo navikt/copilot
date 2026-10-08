@@ -560,13 +560,18 @@ mindre du la til `--save-source`. Da blir kilden standard for alt på maskinen.
 
 Når du starter `nav-pilot`, sjekker den om pakka har en nyere versjon enn den du har
 installert, og spør om du vil synkronisere. Svaret huskes i ett døgn, akkurat som for
-navikt/copilot. Uten nett sier nav-pilot ingenting og venter ikke.
+navikt/copilot. Uten nett sier nav-pilot ingenting og venter høyst tre sekunder.
 
 Mange pakker gjenbruker navikt/copilot og låser den til én bestemt commit. Ligger låsen
 bak, sier `nav-pilot sync` og `nav-pilot doctor` fra. `doctor` nevner også hver agent
 som navikt/copilot har gitt ny modell, mens pakka fortsatt har den gamle. Bare eierne av
 pakka kan flytte låsen, med `nav-pilot pakke bump-base`. Kjør `nav-pilot sync --apply`
-etterpå.
+etterpå. Filer du har endret selv, blir lagret som `<fil>.orig`.
+
+Sjekken i `doctor` forutsetter at pakka som gjenbrukes, har agentene sine i `agents/`,
+slik navikt/copilot har. Den bruker ett kall mot GitHub per agent. Uten `GITHUB_TOKEN`
+rekker du omtrent tre `doctor`-kjøringer i timen før GitHub stopper kallene. Da skriver
+`doctor` at den ikke fikk sjekket.
 
 Skal du lage en selv, står oppskrifta på [ki-utvikling.nav.no/nav-pilot/agentpakker](https://ki-utvikling.nav.no/nav-pilot/agentpakker).
 

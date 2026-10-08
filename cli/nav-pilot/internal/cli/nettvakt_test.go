@@ -72,7 +72,7 @@ func TestMain(m *testing.M) {
 	lookupBaseLag = func(context.Context, string, string, string) (*baseLag, error) { return nil, errOfflineForTests }
 	githubFileJSON = func(context.Context, string, string, string, any) error { return errOfflineForTests }
 	githubFile = func(context.Context, string, string, string) ([]byte, error) { return nil, errOfflineForTests }
-	lookupPakkeUpdate = func(context.Context, string, string, string) (string, error) { return "", errOfflineForTests }
+	lookupPakkeUpdate = func(context.Context, string, string, string) (*pakkeRelease, error) { return nil, errOfflineForTests }
 	os.Exit(testhome.Run(m))
 }
 

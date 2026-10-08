@@ -405,8 +405,9 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 		}
 		for _, s := range stale {
 			if !tracksDefaultSource(s.state) {
-				fmt.Printf("%s Update available for %s (%s): %s → %s\n",
-					yellow("⚠"), bold(s.state.SourceRepo), s.scope.Name, shortSHA(s.state.SourceSHA), s.latest)
+				fmt.Printf("%s Update available for %s (%s): %s → %s\n  %s\n",
+					yellow("⚠"), bold(s.state.SourceRepo), s.scope.Name, shortSHA(s.state.SourceSHA), s.latest,
+					dim("Files you changed are kept as <file>.orig."))
 				continue
 			}
 			if versionNewer(s.latest, s.state.Version) {

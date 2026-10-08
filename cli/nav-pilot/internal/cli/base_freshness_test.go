@@ -77,8 +77,8 @@ func TestBaseLagStaleCurrentAndOffline(t *testing.T) {
 		out := captureStdoutFor(t, func() {
 			warnBaseLag(context.Background(), os.Stdout, "", "repo", "nais/pilot", "navikt/copilot", "nav-pilot", basePin)
 		})
-		for _, want := range []string{"Your agents come from nais/pilot", "11 commit(s) (16 day(s)) behind navikt/copilot",
-			"its default branch, pinned at 6dc457b", "new model choices",
+		for _, want := range []string{"nais/pilot pins navikt/copilot at 6dc457b, 11 commits (16 days) behind its default branch.",
+			"You miss what changed since, such as new model choices.",
 			"Ask the owners of nais/pilot to update", "nav-pilot pakke bump-base", "then run", "nav-pilot sync --apply"} {
 			if !strings.Contains(out, want) {
 				t.Errorf("missing %q in:\n%s", want, out)
@@ -136,14 +136,14 @@ func TestDoctorWarnsAboutAStaleBase(t *testing.T) {
 	state := &StateFile{SourceRepo: "nais/pilot", SourceSHA: pakkeSHA, Collection: "pilot",
 		Files: []InstalledFile{{Path: ".github/agents/x.agent.md", Hash: "h"}}}
 	out := captureStdoutFor(t, func() { reportScopeBaseLag(ScopeRepo(repoTarget(t)), state) })
-	if !strings.Contains(out, "Your agents come from nais/pilot") {
+	if !strings.Contains(out, "nais/pilot pins navikt/copilot at 6dc457b") {
 		t.Errorf("doctor did not warn:\n%s", out)
 	}
 	// A Tier 1 install with no files left has the shape of a pin, but no
 	// revision on disk, and is still checked.
 	state.Files = nil
 	out = captureStdoutFor(t, func() { reportScopeBaseLag(ScopeRepo(repoTarget(t)), state) })
-	if !strings.Contains(out, "Your agents come from nais/pilot") {
+	if !strings.Contains(out, "nais/pilot pins navikt/copilot at 6dc457b") {
 		t.Errorf("doctor skipped a Tier 1 scope with no files:\n%s", out)
 	}
 
@@ -221,7 +221,7 @@ func TestSyncWarnsAboutAStaleBaseThroughRealGit(t *testing.T) {
 			t.Fatalf("sync: %v", err)
 		}
 	})
-	want := "Your agents come from navikt/grillmester, which is 11 commit(s) (16 day(s)) behind navikt/basepakke (its default branch, pinned at " + shortSHA(base[0])
+	want := "navikt/grillmester pins navikt/basepakke at " + shortSHA(base[0]) + ", 11 commits (16 days) behind its default branch."
 	if !strings.Contains(out, want) {
 		t.Errorf("sync did not warn %q:\n%s", want, out)
 	}
