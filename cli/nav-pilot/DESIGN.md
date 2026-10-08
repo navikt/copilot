@@ -597,6 +597,41 @@ tmp, err := os.CreateTemp(filepath.Dir(dst), ".nav-pilot-*")
 os.Rename(tmpPath, dst)
 ```
 
+### Hook-watchdog og klientens frist
+
+`source.HookCommand` dreper python3-skriptet `timeoutSec - 2` sekunder etter at
+watchdogen starter. Marginen dekker det som skjer utenfor watchdogens klokke:
+klienten starter `sh`, to `mktemp` og `sleep`, og etter drapet `cat` og `rm`.
+
+Hva skjer når marginen ikke holder? Målt 2026-10-08 med GitHub Copilot CLI
+1.0.94-4 og en brukerhook med `timeoutSec: 3` som sover i 30 s: Copilot dreper
+hooken etter 3 s, logger `preToolUse hook ... timed out; allowing the tool call
+to proceed` og kjører verktøykallet. Kallet blir altså tillatt, akkurat som når
+watchdogen rekker det først. Brukeren venter hele `timeoutSec` og får ingen
+melding i terminalen. I OpenCode gir en installert hook som går over fristen
+`null` fra `run` i `hooks-bridge.js`, som tolkes som `{}`, altså tillatt.
+Redaksjonshooken (`nav-pilot hook redact`) går ikke gjennom watchdogen og holder
+tilbake utdataene ved timeout, som før.
+
+Målt på en Mac med 18 kjerner, hook-kommandoen med et skript som sover i 30 s og
+`timeoutSec: 3` (frist 1 s), kjørt som Copilot gjør det (`sh -c`, payload på
+stdin, tid fra spawn til exit, minus fristen):
+
+| Last | n | median | p90 | p99 | maks | over 2 s |
+|---|---|---|---|---|---|---|
+| Tre `go test ./...`-løkker, loadavg 14–22 | 200 | 0,16 s | 0,54 s | 1,07 s | 1,57 s | 0 |
+| Det samme pluss andre agenter, loadavg 26–39 | 200 | 0,46 s | 2,26 s | 6,02 s | 8,84 s | 24 (12 %) |
+
+Med `sleep 30` i stedet for python3 ble halen like lang, så det er ikke
+tolkeren. Tidsstempler inne i kommandoen viser at nesten all ventetid kommer før
+det første kommandoen gjør, altså når `sh` og den første exec-en starter. Det
+skjer før watchdogen har en klokke, så en frist målt fra hookens egen start
+hjelper ikke. Ved tung last finnes det ingen margin som alltid holder.
+
+Vi beholder 2 s. En større margin tar tid fra trege, men legitime hooks, og
+siden begge klientene tillater kallet når fristen ryker, koster en bom bare
+ventetid.
+
 ### Utgivere av lokale modeller (bare for benchmark)
 
 Manifestet for lokale modeller godtar bare modeller fra `mlx-community` og

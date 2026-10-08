@@ -1,6 +1,6 @@
-# Copilot denies a preToolUse call whose hook outlives its timeout, so a slow
-# python3 turned every gated call into a deny. The installed command now kills
-# the script two seconds before the deadline and allows the call. A script that
+# The installed command kills a slow python3 two seconds before the hook's
+# timeout and allows the call, without leaning on the client's own timeout
+# handling. A script that
 # answers in time still reaches the model, payload and all.
 
 [!exec:python3] skip 'needs python3'
