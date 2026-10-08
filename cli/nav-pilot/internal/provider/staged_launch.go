@@ -699,6 +699,12 @@ func openCodeMarkdownAgents(dir string) (legacy, native *yaml.Node) {
 			if agent.Kind != yaml.MappingNode {
 				return nil
 			}
+			// A repeated key is emitted once, the last value winning.
+			dedup := &yaml.Node{Kind: yaml.MappingNode}
+			for i := 0; i+1 < len(agent.Content); i += 2 {
+				nodeSet(dedup, agent.Content[i].Value, agent.Content[i+1])
+			}
+			agent = dedup
 			str := func(v string) *yaml.Node { return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: v} }
 			out, prompt := native, "system"
 			for i := 0; i < len(agent.Content); i += 2 {
@@ -727,8 +733,6 @@ func openCodeMarkdownAgents(dir string) (legacy, native *yaml.Node) {
 	return legacy, native
 }
 
-// openCodeNativeAgentKeys are the frontmatter keys of an opencode 2 agent
-// (ConfigAgent.Info, and variant); any other key makes the file a v1 agent.
 // sanitizeFrontmatter is opencode's retry for frontmatter YAML rejects
 // (core/src/config/markdown.ts sanitize): a top-level value with an unquoted
 // colon becomes a block scalar.
@@ -798,6 +802,8 @@ func openCodeV1AgentValid(a *yaml.Node) bool {
 	return true
 }
 
+// openCodeNativeAgentKeys are the frontmatter keys of an opencode 2 agent
+// (ConfigAgent.Info, and variant); any other key makes the file a v1 agent.
 var openCodeNativeAgentKeys = map[string]bool{
 	"variant": true, "model": true, "request": true, "system": true, "description": true, "mode": true,
 	"hidden": true, "color": true, "steps": true, "disabled": true, "permissions": true,

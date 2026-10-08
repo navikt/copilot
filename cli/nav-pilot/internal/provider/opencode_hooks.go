@@ -197,7 +197,7 @@ func writeHooksBridgePlugin(v2 bool) (string, error) {
 // match winning. add's own maps are written in sorted key order; a
 // *yaml.Node value is written in its own order. Output is not byte-identical
 // to the earlier map-based merge: top-level keys follow the user's order then
-// add's, nested maps are sorted; what opencode reads is the same.
+// add's, and add's nested maps are sorted (the user's keep their order); what opencode reads is the same.
 func withOpenCodeConfigContent(env []string, add map[string]any) []string {
 	cfg := &yaml.Node{Kind: yaml.MappingNode}
 	for _, e := range env {

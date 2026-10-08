@@ -939,8 +939,9 @@ func TestWithOpenCode2UserConfigAgentFileEdges(t *testing.T) {
 	mustWrite(t, filepath.Join(payload, "agents", "colon.md"), "---\ndescription: Use when: things happen\n---\nC\n")
 	mustWrite(t, filepath.Join(payload, "agents", "bare.md"), "just a prompt\n")
 	mustWrite(t, filepath.Join(payload, "agents", "bad.md"), "---\ntools:\n  - read\n---\nX\n")
+	mustWrite(t, filepath.Join(payload, "agents", "dup.md"), "---\ndescription: first\ndescription: last\n---\nD\n")
 	env := withOpenCode2UserConfig(nil, payload)
-	want := `OPENCODE_CONFIG_CONTENT={"agents":{"bad":{"description":"json"},"bare":{"system":"just a prompt"},"colon":{"description":"Use when: things happen","system":"C"}}}`
+	want := `OPENCODE_CONFIG_CONTENT={"agents":{"bad":{"description":"json"},"bare":{"system":"just a prompt"},"colon":{"description":"Use when: things happen","system":"C"},"dup":{"description":"last","system":"D"}}}`
 	if len(env) != 1 || env[0] != want {
 		t.Errorf("env = %q\nwant  %q", env, want)
 	}
