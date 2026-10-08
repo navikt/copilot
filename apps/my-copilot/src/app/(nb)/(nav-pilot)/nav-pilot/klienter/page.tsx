@@ -388,8 +388,8 @@ export default function Klienter() {
           må du bruke opencode 1. nav-pilot sier fra og viser hvordan du installerer opencode 1.
         </BodyLong>
         <BodyLong>
-          Går du fra opencode 1 til 2, kjør {c("opencode auth import")} én gang. opencode 2 leser ikke innloggingen fra
-          opencode 1 ({c("auth.json")}) av seg selv.
+          Går du fra opencode 1 til 2, må du kjøre {c("opencode auth import")} én gang. opencode 2 henter ikke
+          innloggingen fra opencode 1 ({c("auth.json")}) automatisk.
         </BodyLong>
         <LinkableHeading id="deling-og-oppdatering" size="small" level="3">
           Deling og oppdatering
